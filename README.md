@@ -33,9 +33,24 @@ over a single origin** rather than opening files directly:
 
 ```bash
 cd Test
-python3 -m http.server 8099
+python3 -m http.server 8099     # or: npm run serve
 # then open http://localhost:8099/index.html
 ```
+
+### Styling / offline demo
+
+The Layer 2 pages (`index.html`, `router.html`, `dtaa_bridge.html`) ship a
+**self-contained Tailwind build** at `assets/tailwind.css` — **no CDN**, so the
+investor demo works with no network. Rebuild after changing classes:
+
+```bash
+npm install        # one-time (tailwindcss + @tailwindcss/forms)
+npm run build:css  # regenerate assets/tailwind.css
+npm run watch:css  # rebuild on save while developing
+```
+
+The two Layer 1 intake forms are left exactly as you provided them (they load
+Tailwind from their own CDN); only the Layer 2 pages were made offline-safe.
 
 Flow: `index.html` → `router.html` (set profile) → `layer1_india.html` /
 `layer1_us.html` (collect data) → `dtaa_bridge.html` (see conflicts).
@@ -108,5 +123,6 @@ index.html            router.html            dtaa_bridge.html
 layer1_india.html     layer1_us.html         (your two forms, copied verbatim)
 engine/constants.js   engine/normalize.js    engine/computation.js
 engine/conflicts.js   engine/sample-data.js
-README.md
+assets/tailwind.css   assets/tailwind.input.css   tailwind.config.js
+package.json          README.md
 ```

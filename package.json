@@ -1,0 +1,21 @@
+{
+  "name": "wising-india-us-tax-conflict",
+  "version": "0.1.0",
+  "description": "India-US cross-border tax conflict detection prototype: Layer 1 intake forms feed a Layer 2 computation + conflict engine and dashboard.",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i assets/tailwind.input.css -o assets/tailwind.css --minify",
+    "watch:css": "tailwindcss -c tailwind.config.js -i assets/tailwind.input.css -o assets/tailwind.css --watch",
+    "serve": "python3 -m http.server 8099",
+    "engine:demo": "node -e 'global.window=global;[\"constants\",\"normalize\",\"computation\",\"conflicts\",\"sample-data\"].forEach(m=>require(\"./engine/\"+m+\".js\"));const S=window.WISING.SAMPLE;console.log(JSON.stringify(window.WISING.analyze({router:S.router,india:S.india,us:S.us}).summary,null,2))'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:41729/git/Whiskyz-ops/Test"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.10",
+    "tailwindcss": "^3.4.17"
+  }
+}

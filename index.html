@@ -5,14 +5,8 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>WISING — India-US Tax Conflict Detection</title>
 <meta name="description" content="A cross-border tax intelligence prototype for professionals: Layer 1 intake forms feed a Layer 2 conflict-detection engine and dashboard."/>
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = { theme: { extend: {
-    fontFamily: { sans:['Inter','sans-serif'], display:['Outfit','sans-serif'], mono:['JetBrains Mono','monospace'] },
-    colors: { brandGold:'#D4AF37', brandCyan:'#06B6D4', brandGreen:'#10B981' },
-    letterSpacing: { widest:'0.25em' }
-  }}};
-</script>
+<!-- Self-contained Tailwind build (no CDN) so the demo works offline. Rebuild: npm run build:css -->
+<link rel="stylesheet" href="assets/tailwind.css"/>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
   body { background:#070707; color:#fff; font-family:'Inter',sans-serif; }
