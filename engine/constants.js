@@ -99,6 +99,64 @@
       DOCUMENT: "document",
       ENTITY: "entity",
       RETIREMENT: "retirement"
+    },
+
+    /* ----------------------------------------------------------------------
+     * TAX TABLES — FY2025-26 (India, AY2026-27) / TY2025 (US).
+     * Planning-grade. Kept in one place so the computation engine is auditable
+     * and a production build can swap in a versioned rule service.
+     * --------------------------------------------------------------------*/
+    TAX: {
+      INDIA: {
+        // [upper_bound_inr, rate]; Infinity = top slab.
+        SLABS_NEW: [
+          [400000, 0.00], [800000, 0.05], [1200000, 0.10],
+          [1600000, 0.15], [2000000, 0.20], [2400000, 0.25], [Infinity, 0.30]
+        ],
+        SLABS_OLD: [
+          [250000, 0.00], [500000, 0.05], [1000000, 0.20], [Infinity, 0.30]
+        ],
+        STD_DEDUCTION_SALARY_NEW_INR: 75000,
+        STD_DEDUCTION_SALARY_OLD_INR: 50000,
+        // §87A rebate
+        REBATE_87A_NEW: { incomeCap: 1200000, maxRebate: 60000 },
+        REBATE_87A_OLD: { incomeCap: 500000, maxRebate: 12500 },
+        // Chapter VI-A caps (OLD regime). NEW regime disallows most of these.
+        DEDUCTION_CAPS_OLD: { s80C: 150000, s80CCD1B: 50000, s80D_self: 25000, s80D_parents_senior: 50000 },
+        // Special rates (post 23-Jul-2024)
+        STCG_111A_RATE: 0.20,
+        LTCG_112A_RATE: 0.125,
+        LTCG_112A_EXEMPT_INR: 125000,
+        LTCG_112_RATE: 0.125,
+        // Surcharge brackets for individuals [income_over_inr, rate]
+        SURCHARGE_IND: [
+          [50000000, 0.25], [20000000, 0.25], [10000000, 0.15], [5000000, 0.10], [0, 0.00]
+        ],
+        SURCHARGE_CG_DIV_CAP: 0.15, // surcharge on 111A/112A/dividend capped at 15%
+        SURCHARGE_NEW_MAX: 0.25,    // new regime caps top surcharge at 25%
+        CESS_RATE: 0.04
+      },
+      US: {
+        // 2025 ordinary brackets by filing status; [upper_bound_usd, rate].
+        BRACKETS: {
+          single: [[11925,0.10],[48475,0.12],[103350,0.22],[197300,0.24],[250525,0.32],[626350,0.35],[Infinity,0.37]],
+          mfj:    [[23850,0.10],[96950,0.12],[206700,0.22],[394600,0.24],[501050,0.32],[751600,0.35],[Infinity,0.37]],
+          mfs:    [[11925,0.10],[48475,0.12],[103350,0.22],[197300,0.24],[250525,0.32],[375800,0.35],[Infinity,0.37]],
+          hoh:    [[17000,0.10],[64850,0.12],[103350,0.22],[197300,0.24],[250500,0.32],[626350,0.35],[Infinity,0.37]]
+        },
+        STD_DEDUCTION: { single: 15000, mfj: 30000, mfs: 15000, hoh: 22500 },
+        // Long-term cap-gains / qualified-dividend preferential brackets 2025.
+        // 0% up to br0, 15% up to br15, 20% above (by taxable income).
+        LTCG_BRACKETS: {
+          single: { br0: 48350, br15: 533400 },
+          mfj:    { br0: 96700, br15: 600050 },
+          mfs:    { br0: 48350, br15: 300000 },
+          hoh:    { br0: 64750, br15: 566700 }
+        },
+        SALT_CAP_USD: 10000,
+        NIIT_RATE: 0.038,
+        ADDL_MEDICARE_RATE: 0.009
+      }
     }
   };
 

@@ -214,7 +214,7 @@
       form_3520: (model.assets.ppfInr > 0 || model.assets.epfInr > 0) && res.us.isResident,
       form_1040nr: model.treaty.files1040nr || (res.us.status === CONST.US_STATUS.NON_RESIDENT_ALIEN),
       form_8960: computed.headline.totalIncomeUsd > (CONST.LIMITS.NIIT_THRESHOLD[model.identity.usFilingStatus] || 200000) &&
-                 (model.income.us.interestUs.usd + model.income.us.dividendsUs.usd + model.income.us.capitalGainsUs.usd) > 0,
+                 (model.income.us.interestUs.usd + model.income.us.ordinaryDividendsUs.usd + model.income.us.capitalGainsUs.usd) > 0,
       form_67: model.income.us.foreignSourceTotal.usd > 0 || model.taxesPaid.us.total.usd > 0 || res.india.isResident,
       trc: res.dualResident || model.treaty.treatyResidence !== "none" || model.treaty.usTreatyResidence !== "none",
       form_10f: res.dualResident || model.treaty.treatyResidence !== "none",
@@ -248,10 +248,11 @@
       direction_us_claims_india: {
         title: "US Form 1116 — credit for Indian taxes",
         rows: [
-          { label: "Indian income tax paid (advance + TDS)", usd: ftc.us.indiaTaxPaidUsd },
+          { label: "Indian income tax (computed liability)", usd: ftc.us.indiaTaxPaidUsd },
           { label: "Foreign-source income (US view)", usd: ftc.us.foreignSourceIncomeUsd },
-          { label: "Total income (US view)", usd: ftc.us.totalIncomeUsd },
-          { label: "FTC limitation = US tax × foreign/total", usd: ftc.us.ftcLimitUsd },
+          { label: "US taxable income", usd: ftc.us.taxableIncomeUsd },
+          { label: "US income tax (pre-credit)", usd: ftc.us.usIncomeTaxUsd },
+          { label: "FTC limitation = US tax × foreign/taxable", usd: ftc.us.ftcLimitUsd },
           { label: "FTC allowed this year", usd: ftc.us.ftcAllowedUsd, emphasis: true },
           { label: "Excess credit carried over (§904(c))", usd: ftc.us.carryoverUsd },
           { label: "Residual double tax (unrelieved)", usd: ftc.us.residualDoubleTaxUsd, warn: true }
@@ -260,12 +261,57 @@
       direction_india_relief: {
         title: "India §90 relief — for US taxes on doubly-taxed income",
         rows: [
-          { label: "US tax paid (withholding + estimated)", usd: ftc.india.usTaxPaidUsd },
+          { label: "US-source income (foreign, India view)", usd: ftc.india.foreignSourceIncomeUsd },
+          { label: "US tax on that US-source income", usd: ftc.india.usTaxOnUsSourceUsd },
           { label: "Indian tax on the doubly-taxed income (cap)", usd: ftc.india.reliefCapUsd },
           { label: "§90 relief allowed", usd: ftc.india.reliefAllowedUsd, emphasis: true }
         ]
       },
       headlineNetDoubleTaxUsd: ftc.netUnrelievedDoubleTaxUsd
+    };
+  }
+
+  /* ------------------------------------------------------------------------
+   * buildTaxComputation — flatten the India & US computed liabilities into
+   * dashboard-ready breakdown tables (transparency behind the FTC numbers).
+   * ----------------------------------------------------------------------*/
+  function buildTaxComputation(computed) {
+    var i = computed.indiaTax, u = computed.usTax;
+    return {
+      india: {
+        title: "India income tax (" + i.regime + " regime)",
+        currency: "INR",
+        rows: [
+          { label: "Gross total income", inr: i.grossTotalIncomeInr },
+          { label: "Chapter VI-A deductions", inr: -i.deductionsInr },
+          { label: "Total income", inr: i.totalIncomeInr },
+          { label: "Tax at slab rates", inr: i.slabTaxInr },
+          { label: "Tax on special-rate gains (111A/112A)", inr: i.specialTaxInr },
+          { label: "Less §87A rebate", inr: -i.rebateInr },
+          { label: "Surcharge", inr: i.surchargeInr },
+          { label: "Health & education cess (4%)", inr: i.cessInr },
+          { label: "Total India tax", inr: i.totalTaxInr, emphasis: true }
+        ],
+        totalUsd: i.totalTaxUsd,
+        effectiveRate: i.effectiveRate
+      },
+      us: {
+        title: "US federal income tax (" + u.filingStatus.toUpperCase() + ")",
+        currency: "USD",
+        rows: [
+          { label: "Total income" + (u.worldwide ? " (worldwide)" : " (US-source)"), usd: u.totalIncomeUsd },
+          { label: "Adjusted gross income", usd: u.agiUsd },
+          { label: "Less " + u.deductionMode + " deduction", usd: -u.deductionUsd },
+          { label: "Taxable income", usd: u.taxableIncomeUsd },
+          { label: "Ordinary-rate tax", usd: u.ordinaryTaxUsd },
+          { label: "Preferential LTCG/QDI tax", usd: u.preferentialTaxUsd },
+          { label: "Net investment income tax (NIIT)", usd: u.niitUsd },
+          { label: "Additional Medicare tax", usd: u.additionalMedicareUsd },
+          { label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true }
+        ],
+        totalUsd: u.totalTaxBeforeFtcUsd,
+        effectiveRate: u.effectiveRate
+      }
     };
   }
 
@@ -278,6 +324,7 @@
     var findings = detectConflicts(model, computed);
     var documents = buildDocuments(model, computed);
     var ftcReport = buildFtcReport(model, computed);
+    var taxComputation = buildTaxComputation(computed);
 
     var counts = { critical: 0, warning: 0, info: 0 };
     findings.forEach(function (x) { counts[x.severity]++; });
@@ -288,16 +335,20 @@
       findings: findings,
       documents: documents,
       ftcReport: ftcReport,
+      taxComputation: taxComputation,
       summary: {
         name: model.identity.name,
         baseYear: model.meta.baseYear,
         jurisdiction: model.meta.jurisdiction,
         hasIndia: model.meta.hasIndia,
         hasUs: model.meta.hasUs,
+        indiaQuarterly: model.meta.indiaQuarterly,
         indiaStatus: computed.residency.india.status,
         usStatus: computed.residency.us.status,
         dualResident: computed.residency.dualResident,
         totalIncomeUsd: computed.headline.totalIncomeUsd,
+        indiaTaxUsd: computed.headline.indiaTaxUsd,
+        usTaxUsd: computed.headline.usTaxUsd,
         netDoubleTaxUsd: computed.headline.netUnrelievedDoubleTaxUsd,
         counts: counts,
         requiredDocs: documents.filter(function (d) { return d.required; }).length

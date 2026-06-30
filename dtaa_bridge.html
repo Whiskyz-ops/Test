@@ -53,11 +53,12 @@
   <div id="source-bar" class="glass rounded-xl p-3 mb-6 flex flex-wrap items-center justify-between gap-3">
     <div class="flex items-center gap-3 text-xs">
       <span id="source-dot" class="w-2.5 h-2.5 rounded-full bg-white/30"></span>
+      <span id="source-mode" class="pill bg-white/10 text-white/50">—</span>
       <span id="source-text" class="text-white/70">Checking Layer 1 data sources…</span>
     </div>
     <div class="flex items-center gap-2">
+      <button onclick="reanalyze()" class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brandGreen/15 text-brandGreen border border-brandGreen/30 hover:bg-brandGreen/25">↻ Refresh from forms</button>
       <button onclick="loadSample()" class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brandCyan/15 text-brandCyan border border-brandCyan/30 hover:bg-brandCyan/25">Load demo taxpayer</button>
-      <button onclick="reanalyze()" class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-white/5 text-white/70 border border-white/10 hover:bg-white/10">↻ Re-run engine</button>
       <label class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-white/5 text-white/70 border border-white/10 hover:bg-white/10 cursor-pointer">
         Import JSON
         <input type="file" accept="application/json" class="hidden" onchange="importJson(event)"/>
@@ -89,6 +90,19 @@
       <div id="limits-list" class="space-y-4"></div>
     </section>
   </div>
+
+  <!-- ===================== TAX COMPUTATION ===================== -->
+  <section class="glass rounded-2xl p-5 mt-6">
+    <div class="flex items-center justify-between mb-1">
+      <h2 class="font-display font-extrabold text-lg">Tax Computation</h2>
+      <span class="text-[10px] uppercase tracking-widest text-white/30">basis for FTC reconciliation</span>
+    </div>
+    <p class="text-[11px] text-white/40 mb-4">Computed India &amp; US liabilities from the Layer 1 inputs — planning-grade.</p>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div id="tax-india"></div>
+      <div id="tax-us"></div>
+    </div>
+  </section>
 
   <!-- ===================== FTC + DOCS ===================== -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
@@ -123,6 +137,7 @@
   var fmtInr = function (n) { return "₹" + Math.round(n||0).toLocaleString("en-IN"); };
   var activeFilter = "all";
   var lastResult = null;
+  var currentMode = null;
 
   function hasLiveData() {
     try {
@@ -139,18 +154,16 @@
     txt.textContent = text;
   }
 
+  // Demo is rendered IN-MEMORY only — it never writes to localStorage, so it
+  // can't mask real Layer 1 data the user later enters in the forms.
   function loadSample() {
-    W.loadSampleIntoStorage();
     render(W.analyze({ router: W.SAMPLE.router, india: W.SAMPLE.india, us: W.SAMPLE.us }), "sample");
   }
 
+  // Re-read whatever is current: prefer live Layer 1 data, else demo.
   function reanalyze() {
-    if (hasLiveData()) {
-      render(W.analyze({}), "live");
-    } else {
-      setSource("none", "No Layer 1 data found in this browser. Fill the India/US forms, or load the demo taxpayer.");
-      renderEmpty();
-    }
+    if (hasLiveData()) { render(W.analyze({}), "live"); }
+    else { loadSample(); }
   }
 
   function importJson(ev) {
@@ -180,15 +193,21 @@
 
   function render(result, sourceKind) {
     lastResult = result;
+    currentMode = sourceKind;
     var s = result.summary;
 
     var srcText = {
-      live: "Live Layer 1 data detected (India + US localStorage).",
-      sample: "Demo taxpayer loaded — Aarav Sharma (dual resident).",
+      live: "Reading your Layer 1 forms (localStorage).",
+      sample: "Demo taxpayer — Aarav Sharma (in-memory; your form data is untouched).",
       imported: "Imported JSON analyzed."
     }[sourceKind] || "Data analyzed.";
+    var modeBadge = document.getElementById("source-mode");
+    if (sourceKind === "live") { modeBadge.textContent = "LIVE"; modeBadge.className = "pill bg-brandGreen/20 text-brandGreen"; }
+    else if (sourceKind === "imported") { modeBadge.textContent = "IMPORT"; modeBadge.className = "pill bg-brandGold/20 text-brandGold"; }
+    else { modeBadge.textContent = "DEMO"; modeBadge.className = "pill bg-brandCyan/20 text-brandCyan"; }
     setSource(sourceKind === "live" ? "live" : "sample", srcText +
-      "  ·  India: " + (s.hasIndia ? "✓" : "—") + "  US: " + (s.hasUs ? "✓" : "—"));
+      "  ·  India: " + (s.hasIndia ? "✓" : "—") + "  US: " + (s.hasUs ? "✓" : "—") +
+      (s.indiaQuarterly ? "  ·  India quarters summed → annual" : ""));
 
     document.getElementById("year-banner").innerHTML =
       "Base Tax Year " + s.baseYear + " &nbsp;|&nbsp; Jurisdiction: " + s.jurisdiction.toUpperCase() +
@@ -208,8 +227,33 @@
     renderConflictFilters(result);
     renderConflicts(result);
     renderLimits(result);
+    renderTaxComputation(result);
     renderFtc(result);
     renderDocs(result);
+  }
+
+  function renderTaxComputation(result) {
+    var tc = result.taxComputation;
+    function table(block, isInr) {
+      var rows = block.rows.map(function (r) {
+        var val = isInr ? r.inr : r.usd;
+        var disp = (isInr ? fmtInr(Math.abs(val)) : fmtUsd(Math.abs(val)));
+        if (val < 0) disp = "(" + disp + ")";
+        var cls = r.emphasis ? "text-white font-bold" : "text-white/60";
+        return '<div class="flex justify-between text-[12px] ' + (r.emphasis ? "border-t border-white/10 pt-1.5 mt-1" : "") + '">' +
+          '<span class="' + (r.emphasis ? "text-white" : "text-white/55") + '">' + r.label + '</span>' +
+          '<span class="font-mono ' + cls + '">' + disp + '</span></div>';
+      }).join("");
+      return '<div><div class="flex items-center justify-between mb-2">' +
+        '<div class="text-[12px] font-bold text-white/80">' + block.title + '</div>' +
+        '<span class="pill bg-white/8 text-white/45">eff ' + Math.round(block.effectiveRate * 100) + '%</span></div>' +
+        '<div class="space-y-1">' + rows + '</div>' +
+        '<div class="text-[10px] text-white/35 mt-2">≈ ' + fmtUsd(block.totalUsd) + ' at ' + result.model.meta.fxRate + ' INR/USD</div></div>';
+    }
+    document.getElementById("tax-india").innerHTML =
+      '<div class="rounded-xl p-4 bg-brandGold/5 border border-brandGold/15">' + table(tc.india, true) + '</div>';
+    document.getElementById("tax-us").innerHTML =
+      '<div class="rounded-xl p-4 bg-brandCyan/5 border border-brandCyan/15">' + table(tc.us, false) + '</div>';
   }
 
   function renderResidency(result) {
@@ -333,12 +377,30 @@
     document.getElementById("limits-list").innerHTML = "";
     document.getElementById("ftc-report").innerHTML = "";
     document.getElementById("docs-list").innerHTML = "";
+    renderEmptyTax();
   }
+
+  function renderEmptyTax() {
+    document.getElementById("tax-india").innerHTML = "";
+    document.getElementById("tax-us").innerHTML = "";
+  }
+
+  // Auto-refresh: live Layer 1 data always wins. When the user fills the forms
+  // in another tab (storage event) or returns to this tab (focus), re-read it.
+  window.addEventListener("storage", function (e) {
+    var K = W.CONST.STORAGE_KEYS;
+    if (e.key === K.INDIA || e.key === K.US || e.key === K.ROUTER) {
+      if (hasLiveData()) render(W.analyze({}), "live");
+    }
+  });
+  window.addEventListener("focus", function () {
+    if (hasLiveData() && currentMode !== "live") render(W.analyze({}), "live");
+  });
 
   // ----------------------------- boot -----------------------------
   (function boot() {
     if (hasLiveData()) { render(W.analyze({}), "live"); }
-    else { loadSample(); } // default to demo so the dashboard is never empty
+    else { loadSample(); } // demo (in-memory) so the dashboard is never empty
   })();
 </script>
 </body>

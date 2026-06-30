@@ -115,7 +115,7 @@
       tax_entity_type: "individual",
       full_name: "Aarav Sharma",
       date_of_birth: "1988-07-15",
-      filing_status: "married_filing_jointly",
+      filing_status: "mfj",
       ssn_or_itin_type: "ssn"
     },
     us_residency_detail: {
@@ -129,7 +129,11 @@
     income_us_source: {
       has_employment_income: true,
       wages_w2: [
-        { employer_name: "Cloudscale Inc", wages_tips_compensation_usd: 165000, federal_income_tax_withheld_usd: 31000 }
+        {
+          employer_name: "Cloudscale Inc",
+          wages_box1_usd: 165000,
+          tax_details_collapsed_by_default: { federal_tax_withheld_usd: 31000, medicare_wages_box5_usd: 165000 }
+        }
       ],
       interest_us_source_usd: 3200,
       ordinary_dividends_us_source_usd: 4100,

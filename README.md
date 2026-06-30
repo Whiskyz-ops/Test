@@ -67,17 +67,32 @@ Pure, side-effect-free JavaScript on a global `WISING` namespace, loaded as plai
 `<script>` tags (no build step, no bundler). Pipeline:
 
 ```
-constants.js     FX anchor, statutory thresholds, the document rule-book
+constants.js     FX anchor, statutory thresholds, TAX TABLES, document rule-book
       │
 normalize.js     read both L1 states  →  one currency-normalized model
-      │           (every money node carries BOTH {inr, usd})
-computation.js   residency resolution · tax estimates · double-taxed income
-      │           map · FTC pool & §904 limitation · limit gauges
+      │           · sums India's per-quarter income into an annual figure
+      │           · maps real form fields (US wages_w2[].wages_box1_usd, etc.)
+      │           · every money node carries BOTH {inr, usd}
+computation.js   residency · FULL India tax (slab/regime · §87A · surcharge w/
+      │           marginal relief · cess · special CG rates) · FULL US tax
+      │           (AGI · std/itemized · ordinary + preferential LTCG/QDI · NIIT
+      │           · addl Medicare) · FTC §904 limitation BOTH directions
 conflicts.js     rule-book → ranked findings · document checklist · FTC report
+      │           · tax-computation breakdown tables
       │
   WISING.analyze({india, us, router})   →   { summary, findings, documents,
-                                              ftcReport, computed, model }
+                                ftcReport, taxComputation, computed, model }
 ```
+
+### Live linkage to the Layer 1 forms
+
+The dashboard reads the forms' own `localStorage` keys and **reflects live input**:
+on load it prefers live Layer 1 data (`LIVE` badge); a `storage` event (you save a
+form in another tab) or returning focus re-runs the engine automatically. The
+**demo taxpayer is rendered in-memory only** — it never writes to `localStorage`,
+so it can't mask the data you enter in the forms. India income entered across the
+four quarters is summed to an annual figure (mirrors the form's
+`aggregateAnnualState()`).
 
 ### What it detects (the four value-prop modules)
 
@@ -90,8 +105,10 @@ conflicts.js     rule-book → ranked findings · document checklist · FTC repo
    ($250k RBI cap), FEIE — as gauges with `ok / approaching / breached` status.
 3. **Documents to File** — the catalogue in `constants.js`, each triggered by the
    taxpayer's facts, tagged by jurisdiction (IN / US) with the reason it fired.
-4. **FTC Reconciliation** — US Form 1116 credit pool + §904 limitation + carryover,
-   India §90 relief, and the headline **net unrelieved double tax**.
+4. **FTC Reconciliation** — driven by the two **computed** liabilities: US Form 1116
+   credit pool + §904 limitation + carryover, India §90 relief, and the headline
+   **net unrelieved double tax**. A **Tax Computation** panel shows the full India
+   (INR) and US (USD) breakdowns behind those FTC numbers.
 
 ### Run the engine headless (Node)
 
