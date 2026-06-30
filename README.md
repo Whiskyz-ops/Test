@@ -27,15 +27,30 @@ were made to the intake forms themselves.
 
 ### How the layers connect
 
-All three layers share data through the browser's `localStorage` (same keys the
-forms already use). Because `localStorage` is origin-scoped, **serve the folder
-over a single origin** rather than opening files directly:
+### Easiest way to run (no terminal)
+
+- **Just the dashboard:** double-click **`dashboard-standalone.html`** — a single
+  self-contained file (engine + CSS inlined). Opens offline with the demo taxpayer,
+  no server, no wifi. Best for a quick investor demo.
+- **The full flow** (router → forms → dashboard): double-click **`start.command`**
+  (macOS/Linux) or **`start.bat`** (Windows). It starts a local server in the folder
+  and opens your browser automatically. Leave the window open during the demo.
+
+### Run with a server (full flow, manual)
+
+The router → forms → dashboard flow shares data through the browser's `localStorage`,
+which is origin-scoped — so for that flow, **serve the folder over one origin**
+instead of opening the files directly:
 
 ```bash
 cd Test
 python3 -m http.server 8099     # or: npm run serve
 # then open http://localhost:8099/index.html
 ```
+
+> Note: `http://localhost:8099` only works while that server command is running on
+> *your* machine. If the link "won't open," the server isn't running — use the
+> double-click options above instead.
 
 ### Styling / offline demo
 
@@ -136,10 +151,12 @@ console.log(JSON.stringify(r.summary, null, 2));
 ## Files added by this prototype
 
 ```
-index.html            router.html            dtaa_bridge.html
-layer1_india.html     layer1_us.html         (your two forms, copied verbatim)
-engine/constants.js   engine/normalize.js    engine/computation.js
-engine/conflicts.js   engine/sample-data.js
-assets/tailwind.css   assets/tailwind.input.css   tailwind.config.js
-package.json          README.md
+index.html              router.html            dtaa_bridge.html
+dashboard-standalone.html   (single-file, double-click, offline)
+start.command  start.bat    (double-click launchers: server + browser)
+layer1_india.html       layer1_us.html         (your two forms, copied verbatim)
+engine/constants.js     engine/normalize.js    engine/computation.js
+engine/conflicts.js     engine/sample-data.js
+assets/tailwind.css     assets/tailwind.input.css   tailwind.config.js
+scripts/build-standalone.js   package.json     README.md
 ```

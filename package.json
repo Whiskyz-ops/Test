@@ -5,6 +5,8 @@
   "private": true,
   "scripts": {
     "build:css": "tailwindcss -c tailwind.config.js -i assets/tailwind.input.css -o assets/tailwind.css --minify",
+    "build:standalone": "node scripts/build-standalone.js",
+    "build": "npm run build:css && npm run build:standalone",
     "watch:css": "tailwindcss -c tailwind.config.js -i assets/tailwind.input.css -o assets/tailwind.css --watch",
     "serve": "python3 -m http.server 8099",
     "engine:demo": "node -e 'global.window=global;[\"constants\",\"normalize\",\"computation\",\"conflicts\",\"sample-data\"].forEach(m=>require(\"./engine/\"+m+\".js\"));const S=window.WISING.SAMPLE;console.log(JSON.stringify(window.WISING.analyze({router:S.router,india:S.india,us:S.us}).summary,null,2))'"
