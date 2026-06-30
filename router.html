@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>WISING — Jurisdiction Router (Layer 0)</title>
+<meta name="description" content="Layer 0 onboarding: establishes the taxpayer's jurisdiction profile that drives the India and US Layer 1 specialists."/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { sans:['Inter','sans-serif'], display:['Outfit','sans-serif'], mono:['JetBrains Mono','monospace'] },
+    colors: { brandDark:'#0c0c0c', brandGold:'#D4AF37', brandCyan:'#06B6D4', brandGreen:'#10B981' },
+    letterSpacing: { widest:'0.25em' }
+  }}};
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+  body { background:#070707; color:#fff; font-family:'Inter',sans-serif; }
+  .font-display { font-family:'Outfit',sans-serif; }
+  .glass { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); }
+  .field { background:#141414; border:1px solid rgba(255,255,255,0.1); border-radius:.6rem; padding:.6rem .8rem; font-size:.85rem; width:100%; }
+  .field:focus { outline:none; border-color:#06B6D4; }
+  .jur-card { cursor:pointer; transition:all .2s; }
+  .jur-card.active { border-color:#06B6D4; background:rgba(6,182,212,0.08); box-shadow:0 0 30px rgba(6,182,212,0.12); }
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<header class="glass border-b border-white/10">
+  <div class="max-w-5xl mx-auto px-5 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-brandGold to-brandCyan flex items-center justify-center text-black font-black text-xs">L0</div>
+      <div><div class="font-display font-extrabold text-sm">Jurisdiction Router</div>
+      <div class="text-[10px] text-white/40 tracking-widest uppercase">Layer 0 · Onboarding</div></div>
+    </div>
+    <a href="dtaa_bridge.html" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Skip to Bridge (L2) →</a>
+  </div>
+</header>
+
+<main class="flex-1 max-w-3xl w-full mx-auto px-5 py-8">
+  <h1 class="font-display font-extrabold text-2xl mb-1">Who are we filing for?</h1>
+  <p class="text-white/50 text-sm mb-7">Layer 0 establishes the taxpayer's cross-border profile. It drives which Layer 1 specialists open and seeds the conflict engine.</p>
+
+  <!-- Jurisdiction -->
+  <div class="mb-6">
+    <div class="text-[11px] uppercase tracking-widest text-white/40 mb-2">Tax exposure</div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div id="jur-dual" class="jur-card glass rounded-xl p-4 active" onclick="setJur('dual')">
+        <div class="text-lg mb-1">🇮🇳 ⇄ 🇺🇸</div>
+        <div class="font-bold text-sm">Dual (India + US)</div>
+        <div class="text-[11px] text-white/40">Both jurisdictions — full conflict engine.</div>
+      </div>
+      <div id="jur-single_india" class="jur-card glass rounded-xl p-4" onclick="setJur('single_india')">
+        <div class="text-lg mb-1">🇮🇳</div>
+        <div class="font-bold text-sm">India only</div>
+        <div class="text-[11px] text-white/40">Indian residency &amp; income.</div>
+      </div>
+      <div id="jur-single_us" class="jur-card glass rounded-xl p-4" onclick="setJur('single_us')">
+        <div class="text-lg mb-1">🇺🇸</div>
+        <div class="font-bold text-sm">US only</div>
+        <div class="text-[11px] text-white/40">US residency &amp; income.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Identity -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <div><label class="text-[11px] uppercase tracking-widest text-white/40 block mb-1">Full name</label>
+      <input id="full_name" class="field" placeholder="e.g. Aarav Sharma"/></div>
+    <div><label class="text-[11px] uppercase tracking-widest text-white/40 block mb-1">Date of birth</label>
+      <input id="dob" type="date" class="field"/></div>
+    <div><label class="text-[11px] uppercase tracking-widest text-white/40 block mb-1">Base tax year</label>
+      <input id="base_year" type="number" class="field" value="2025"/></div>
+    <div><label class="text-[11px] uppercase tracking-widest text-white/40 block mb-1">Days present in US (current year)</label>
+      <input id="us_days" type="number" class="field" value="0"/></div>
+  </div>
+
+  <!-- US status flags -->
+  <div class="glass rounded-xl p-4 mb-7">
+    <div class="text-[11px] uppercase tracking-widest text-white/40 mb-3">US status flags</div>
+    <label class="flex items-center gap-3 mb-2 text-sm"><input id="is_us_citizen" type="checkbox" class="rounded bg-black border-white/20"/> US citizen</label>
+    <label class="flex items-center gap-3 mb-2 text-sm"><input id="has_green_card" type="checkbox" class="rounded bg-black border-white/20"/> Holds a green card</label>
+    <label class="flex items-center gap-3 text-sm"><input id="has_us_income" type="checkbox" class="rounded bg-black border-white/20"/> Has US-source income or assets</label>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-3">
+    <button onclick="saveRouter()" class="px-5 py-2.5 rounded-xl bg-brandCyan text-black font-black text-xs uppercase tracking-widest hover:brightness-110">Save &amp; continue</button>
+    <button onclick="loadDemo()" class="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 font-bold text-xs hover:bg-white/10">Load demo taxpayer</button>
+    <span id="status" class="text-[12px] text-brandGreen"></span>
+  </div>
+
+  <div id="next-links" class="hidden mt-7 grid grid-cols-1 md:grid-cols-3 gap-3">
+    <a href="layer1_india.html" class="glass rounded-xl p-4 hover:border-brandGold/40 transition-all">
+      <div class="text-brandGold font-bold text-sm">India Specialist L1 →</div>
+      <div class="text-[11px] text-white/40">Residency, income, DTAA inputs.</div></a>
+    <a href="layer1_us.html" class="glass rounded-xl p-4 hover:border-brandCyan/40 transition-all">
+      <div class="text-brandCyan font-bold text-sm">US Specialist L1 →</div>
+      <div class="text-[11px] text-white/40">SPT, FBAR/8938, FTC inputs.</div></a>
+    <a href="dtaa_bridge.html" class="glass rounded-xl p-4 hover:border-white/30 transition-all">
+      <div class="font-bold text-sm">DTAA Bridge L2 →</div>
+      <div class="text-[11px] text-white/40">Conflict dashboard.</div></a>
+  </div>
+</main>
+
+<script src="engine/constants.js"></script>
+<script src="engine/sample-data.js"></script>
+<script>
+  var W = window.WISING;
+  var jurisdiction = "dual";
+  function setJur(j) {
+    jurisdiction = j;
+    ["dual","single_india","single_us"].forEach(function (x) {
+      document.getElementById("jur-" + x).classList.toggle("active", x === j);
+    });
+  }
+  function saveRouter() {
+    var r = {
+      jurisdiction: jurisdiction,
+      base_tax_year: parseInt(document.getElementById("base_year").value) || 2025,
+      full_name: document.getElementById("full_name").value || null,
+      date_of_birth: document.getElementById("dob").value || null,
+      us_days: parseInt(document.getElementById("us_days").value) || 0,
+      is_us_citizen: document.getElementById("is_us_citizen").checked,
+      has_green_card: document.getElementById("has_green_card").checked,
+      has_us_source_income_or_assets: document.getElementById("has_us_income").checked
+    };
+    localStorage.setItem(W.CONST.STORAGE_KEYS.ROUTER, JSON.stringify(r));
+    document.getElementById("status").textContent = "✓ Saved. Open a Layer 1 specialist below.";
+    document.getElementById("next-links").classList.remove("hidden");
+  }
+  function loadDemo() {
+    W.loadSampleIntoStorage();
+    var r = W.SAMPLE.router;
+    setJur(r.jurisdiction);
+    document.getElementById("full_name").value = r.full_name;
+    document.getElementById("dob").value = r.date_of_birth;
+    document.getElementById("base_year").value = r.base_tax_year;
+    document.getElementById("us_days").value = r.us_days;
+    document.getElementById("is_us_citizen").checked = r.is_us_citizen;
+    document.getElementById("has_green_card").checked = r.has_green_card;
+    document.getElementById("has_us_income").checked = r.has_us_source_income_or_assets;
+    document.getElementById("status").textContent = "✓ Demo taxpayer loaded into all three layers.";
+    document.getElementById("next-links").classList.remove("hidden");
+  }
+  // prefill from existing router state if present
+  (function () {
+    try {
+      var raw = localStorage.getItem(W.CONST.STORAGE_KEYS.ROUTER);
+      if (raw) {
+        var r = JSON.parse(raw);
+        setJur(r.jurisdiction || "dual");
+        if (r.full_name) document.getElementById("full_name").value = r.full_name;
+        if (r.date_of_birth) document.getElementById("dob").value = r.date_of_birth;
+        if (r.base_tax_year) document.getElementById("base_year").value = r.base_tax_year;
+        if (r.us_days) document.getElementById("us_days").value = r.us_days;
+        document.getElementById("is_us_citizen").checked = !!r.is_us_citizen;
+        document.getElementById("has_green_card").checked = !!r.has_green_card;
+        document.getElementById("has_us_income").checked = !!r.has_us_source_income_or_assets;
+      }
+    } catch (e) {}
+  })();
+</script>
+</body>
+</html>

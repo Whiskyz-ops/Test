@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>WISING — India-US Tax Conflict Detection</title>
+<meta name="description" content="A cross-border tax intelligence prototype for professionals: Layer 1 intake forms feed a Layer 2 conflict-detection engine and dashboard."/>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { sans:['Inter','sans-serif'], display:['Outfit','sans-serif'], mono:['JetBrains Mono','monospace'] },
+    colors: { brandGold:'#D4AF37', brandCyan:'#06B6D4', brandGreen:'#10B981' },
+    letterSpacing: { widest:'0.25em' }
+  }}};
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+  body { background:#070707; color:#fff; font-family:'Inter',sans-serif; }
+  .font-display { font-family:'Outfit',sans-serif; }
+  .font-mono { font-family:'JetBrains Mono',monospace; }
+  .glass { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); }
+  .glow { box-shadow:0 0 40px rgba(6,182,212,0.10); }
+</style>
+</head>
+<body class="min-h-screen">
+
+<header class="max-w-6xl mx-auto px-5 py-5 flex items-center justify-between">
+  <div class="flex items-center gap-3">
+    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brandGold to-brandCyan flex items-center justify-center text-black font-black">W</div>
+    <div><div class="font-display font-extrabold tracking-wide">WISING</div>
+    <div class="text-[10px] text-white/40 tracking-widest uppercase">Cross-Border Tax Intelligence</div></div>
+  </div>
+  <a href="dtaa_bridge.html" class="px-4 py-2 rounded-xl bg-brandCyan text-black font-black text-[11px] uppercase tracking-widest hover:brightness-110">Open Dashboard →</a>
+</header>
+
+<section class="max-w-6xl mx-auto px-5 pt-10 pb-6">
+  <div class="text-[11px] uppercase tracking-widest text-brandCyan font-bold mb-3">India ⇄ US · DTAA Conflict Engine</div>
+  <h1 class="font-display font-extrabold text-4xl md:text-5xl leading-tight mb-4">Find every cross-border tax conflict<br/>before the taxpayer does.</h1>
+  <p class="text-white/55 max-w-2xl text-base leading-relaxed">
+    Two specialist intake forms collect the full India and US picture. A computation engine normalizes both,
+    a conflict engine surfaces dual-residency clashes, double-taxed income, FTC shortfalls, limit breaches and
+    every required filing — rendered on one professional dashboard.
+  </p>
+  <div class="flex flex-wrap gap-3 mt-7">
+    <a href="router.html" class="px-5 py-3 rounded-xl bg-white text-black font-black text-xs uppercase tracking-widest hover:bg-white/90">Start onboarding (L0)</a>
+    <a href="dtaa_bridge.html" class="px-5 py-3 rounded-xl glass font-bold text-xs uppercase tracking-widest hover:bg-white/10">See the demo dashboard</a>
+  </div>
+</section>
+
+<!-- Architecture -->
+<section class="max-w-6xl mx-auto px-5 py-10">
+  <div class="text-[11px] uppercase tracking-widest text-white/40 font-bold mb-4">The three-layer architecture</div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+    <div class="glass rounded-2xl p-5">
+      <div class="flex items-center gap-2 mb-2"><span class="font-mono text-[10px] px-2 py-0.5 rounded bg-white/10">LAYER 0</span></div>
+      <h3 class="font-display font-bold text-lg mb-1">Jurisdiction Router</h3>
+      <p class="text-[12px] text-white/50 leading-relaxed mb-3">Establishes the taxpayer profile (dual / single) and base year. Seeds both specialists.</p>
+      <a href="router.html" class="text-[12px] font-bold text-brandCyan hover:underline">Open Router →</a>
+    </div>
+
+    <div class="glass rounded-2xl p-5">
+      <div class="flex items-center gap-2 mb-2"><span class="font-mono text-[10px] px-2 py-0.5 rounded bg-white/10">LAYER 1</span><span class="text-[10px] text-white/30">data collection</span></div>
+      <h3 class="font-display font-bold text-lg mb-1">Specialist Intake</h3>
+      <p class="text-[12px] text-white/50 leading-relaxed mb-3">The two forms you provided — residency, income, assets, credits — for each jurisdiction. The base of the whole tool.</p>
+      <div class="flex gap-3">
+        <a href="layer1_india.html" class="text-[12px] font-bold text-brandGold hover:underline">India L1 →</a>
+        <a href="layer1_us.html" class="text-[12px] font-bold text-brandCyan hover:underline">US L1 →</a>
+      </div>
+    </div>
+
+    <div class="glass rounded-2xl p-5 glow border-brandCyan/20">
+      <div class="flex items-center gap-2 mb-2"><span class="font-mono text-[10px] px-2 py-0.5 rounded bg-brandCyan/20 text-brandCyan">LAYER 2</span><span class="text-[10px] text-brandCyan/70">value proposition</span></div>
+      <h3 class="font-display font-bold text-lg mb-1">DTAA Bridge Compiler</h3>
+      <p class="text-[12px] text-white/50 leading-relaxed mb-3">Computation + conflict engines render the dashboard: conflicts, limits, documents, FTC reconciliation.</p>
+      <a href="dtaa_bridge.html" class="text-[12px] font-bold text-brandCyan hover:underline">Open Bridge →</a>
+    </div>
+  </div>
+</section>
+
+<!-- Value props -->
+<section class="max-w-6xl mx-auto px-5 py-6">
+  <div class="text-[11px] uppercase tracking-widest text-white/40 font-bold mb-4">What the engine surfaces</div>
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="glass rounded-2xl p-5">
+      <div class="text-2xl mb-2">⚠️</div>
+      <h4 class="font-bold text-sm mb-1">Conflicts &amp; Mismatches</h4>
+      <p class="text-[12px] text-white/50">Dual residency, treaty tie-breaks, doubly-taxed income, PFIC/CFC exposure.</p>
+    </div>
+    <div class="glass rounded-2xl p-5">
+      <div class="text-2xl mb-2">📊</div>
+      <h4 class="font-bold text-sm mb-1">Limit Monitoring</h4>
+      <p class="text-[12px] text-white/50">FBAR, Form 8938, LRS $250k cap, FEIE — live gauges with breach alerts.</p>
+    </div>
+    <div class="glass rounded-2xl p-5">
+      <div class="text-2xl mb-2">📄</div>
+      <h4 class="font-bold text-sm mb-1">Documents to File</h4>
+      <p class="text-[12px] text-white/50">A triggered checklist across both jurisdictions — Form 67, 8833, 8621, TRC, Schedule FA…</p>
+    </div>
+    <div class="glass rounded-2xl p-5">
+      <div class="text-2xl mb-2">🔁</div>
+      <h4 class="font-bold text-sm mb-1">FTC Reconciliation</h4>
+      <p class="text-[12px] text-white/50">Credit pool, §904 limitation, carryover and the net unrelieved double tax.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Live snapshot -->
+<section class="max-w-6xl mx-auto px-5 py-10">
+  <div class="glass rounded-2xl p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-display font-bold text-lg">Demo taxpayer snapshot</h3>
+      <a href="dtaa_bridge.html" class="text-[11px] font-bold text-brandCyan hover:underline">Full dashboard →</a>
+    </div>
+    <div id="snapshot" class="grid grid-cols-2 lg:grid-cols-4 gap-4 text-center">
+      <div class="text-white/40 text-sm col-span-4">Computing…</div>
+    </div>
+  </div>
+</section>
+
+<footer class="max-w-6xl mx-auto px-5 py-10 text-[11px] text-white/30 leading-relaxed border-t border-white/5">
+  WISING prototype · Planning estimates only — not professional tax advice. The Layer 1 forms are the data base; Layer 2 is the
+  computation + conflict engine. All processing is client-side in the browser (localStorage).
+</footer>
+
+<script src="engine/constants.js"></script>
+<script src="engine/normalize.js"></script>
+<script src="engine/computation.js"></script>
+<script src="engine/conflicts.js"></script>
+<script src="engine/sample-data.js"></script>
+<script>
+  var W = window.WISING;
+  function fmtUsd(n){ return "$" + Math.round(n||0).toLocaleString("en-US"); }
+  (function () {
+    var hasLive = false;
+    try { hasLive = !!(localStorage.getItem(W.CONST.STORAGE_KEYS.INDIA) || localStorage.getItem(W.CONST.STORAGE_KEYS.US)); } catch(e){}
+    var r = hasLive ? W.analyze({}) : W.analyze({ router:W.SAMPLE.router, india:W.SAMPLE.india, us:W.SAMPLE.us });
+    var s = r.summary;
+    function card(label, value, color) {
+      return '<div class="rounded-xl bg-white/4 p-4"><div class="text-[10px] uppercase tracking-widest text-white/40 mb-1">' + label +
+        '</div><div class="font-display font-extrabold text-xl" style="color:' + (color||'#fff') + '">' + value + '</div></div>';
+    }
+    document.getElementById("snapshot").innerHTML =
+      card("Residency", (s.indiaStatus||"—") + " / " + (s.usStatus ? s.usStatus.replace("_"," ").replace("_"," ") : "—"), s.dualResident ? "#ef4444" : "#10B981") +
+      card("Critical conflicts", s.counts.critical, s.counts.critical ? "#ef4444" : "#10B981") +
+      card("Residual double tax", fmtUsd(s.netDoubleTaxUsd), s.netDoubleTaxUsd > 0 ? "#ef4444" : "#10B981") +
+      card("Filings required", s.requiredDocs, "#06B6D4");
+  })();
+</script>
+</body>
+</html>

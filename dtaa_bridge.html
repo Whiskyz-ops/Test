@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>WISING — DTAA Bridge Compiler (Layer 2 Conflict Dashboard)</title>
+<meta name="description" content="Layer 2 cross-border engine: India-US tax conflict detection, limit monitoring, document checklist and FTC reconciliation."/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: { sans: ['Inter','sans-serif'], display: ['Outfit','sans-serif'], mono: ['JetBrains Mono','monospace'] },
+      colors: { brandDark:'#0c0c0c', brandGray:'#1c1c1c', brandGold:'#D4AF37', brandRed:'#991B1B', brandGreen:'#10B981', brandCyan:'#06B6D4' },
+      letterSpacing: { widest:'0.25em', header:'0.5em' }
+    }}
+  };
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700;800&display=swap');
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:#050505; }
+  ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:10px; }
+  ::-webkit-scrollbar-thumb:hover { background:rgba(6,182,212,0.45); }
+  body { background:#070707; color:#fff; font-family:'Inter',sans-serif; }
+  .font-display { font-family:'Outfit',sans-serif; }
+  .font-mono { font-family:'JetBrains Mono',monospace; }
+  .glass { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); backdrop-filter:blur(12px); }
+  .sev-critical { border-left:3px solid #ef4444; }
+  .sev-warning  { border-left:3px solid #D4AF37; }
+  .sev-info     { border-left:3px solid #06B6D4; }
+  .pill { font-size:9px; letter-spacing:.18em; text-transform:uppercase; font-weight:800; padding:3px 8px; border-radius:6px; }
+  .fade-in { animation:fade .4s ease both; }
+  @keyframes fade { from { opacity:0; transform:translateY(6px);} to {opacity:1; transform:none;} }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ============================ TOP NAV ============================ -->
+<header class="sticky top-0 z-40 glass border-b border-white/10">
+  <div class="max-w-7xl mx-auto px-5 py-3 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-brandGold to-brandCyan flex items-center justify-center text-black font-black text-xs">L2</div>
+      <div>
+        <div class="font-display font-extrabold text-sm tracking-wide">DTAA Bridge Compiler</div>
+        <div class="text-[10px] text-white/40 tracking-widest uppercase">India ⇄ US Conflict Engine</div>
+      </div>
+    </div>
+    <nav class="flex items-center gap-1 text-[11px] font-bold">
+      <a href="router.html" class="px-3 py-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/5">Router (L0)</a>
+      <a href="layer1_india.html" class="px-3 py-1.5 rounded-lg text-brandGold/80 hover:text-brandGold hover:bg-brandGold/10">India L1</a>
+      <a href="layer1_us.html" class="px-3 py-1.5 rounded-lg text-brandCyan/80 hover:text-brandCyan hover:bg-brandCyan/10">US L1</a>
+      <span class="px-3 py-1.5 rounded-lg bg-white/10 text-white">Bridge (L2)</span>
+    </nav>
+  </div>
+  <div id="year-banner" class="bg-black/40 border-t border-white/5 text-center text-[10px] tracking-widest uppercase text-white/40 py-1"></div>
+</header>
+
+<main class="max-w-7xl mx-auto px-5 py-6">
+
+  <!-- ===================== DATA SOURCE BAR ===================== -->
+  <div id="source-bar" class="glass rounded-xl p-3 mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3 text-xs">
+      <span id="source-dot" class="w-2.5 h-2.5 rounded-full bg-white/30"></span>
+      <span id="source-text" class="text-white/70">Checking Layer 1 data sources…</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="loadSample()" class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brandCyan/15 text-brandCyan border border-brandCyan/30 hover:bg-brandCyan/25">Load demo taxpayer</button>
+      <button onclick="reanalyze()" class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-white/5 text-white/70 border border-white/10 hover:bg-white/10">↻ Re-run engine</button>
+      <label class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-white/5 text-white/70 border border-white/10 hover:bg-white/10 cursor-pointer">
+        Import JSON
+        <input type="file" accept="application/json" class="hidden" onchange="importJson(event)"/>
+      </label>
+    </div>
+  </div>
+
+  <!-- ===================== KPI CARDS ===================== -->
+  <section id="kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7"></section>
+
+  <!-- ===================== RESIDENCY STRIP ===================== -->
+  <section id="residency-strip" class="mb-7"></section>
+
+  <!-- ===================== MAIN GRID ===================== -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- Conflicts (2 cols) -->
+    <section class="lg:col-span-2 glass rounded-2xl p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-display font-extrabold text-lg">Conflicts &amp; Mismatches</h2>
+        <div id="conflict-filters" class="flex gap-1 text-[10px] font-bold"></div>
+      </div>
+      <div id="conflicts-list" class="space-y-3"></div>
+    </section>
+
+    <!-- Right rail: Limits -->
+    <section class="glass rounded-2xl p-5">
+      <h2 class="font-display font-extrabold text-lg mb-4">Limit Monitoring</h2>
+      <div id="limits-list" class="space-y-4"></div>
+    </section>
+  </div>
+
+  <!-- ===================== FTC + DOCS ===================== -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <section class="glass rounded-2xl p-5">
+      <h2 class="font-display font-extrabold text-lg mb-1">FTC Reconciliation</h2>
+      <p class="text-[11px] text-white/40 mb-4">Foreign Tax Credit pool &amp; limitation across both jurisdictions.</p>
+      <div id="ftc-report"></div>
+    </section>
+
+    <section class="glass rounded-2xl p-5">
+      <h2 class="font-display font-extrabold text-lg mb-1">Documents to File</h2>
+      <p class="text-[11px] text-white/40 mb-4">Triggered by the taxpayer's cross-border facts.</p>
+      <div id="docs-list" class="space-y-2"></div>
+    </section>
+  </div>
+
+  <footer class="text-center text-[10px] text-white/30 mt-10 leading-relaxed">
+    WISING Layer 2 prototype · Planning estimates only — not a substitute for professional tax advice.<br/>
+    Engine: <span class="font-mono">normalize → compute → conflicts</span> · FX anchor 83.0 INR/USD · Schemas: layer1_india_v5_1 / layer1_us_v1
+  </footer>
+</main>
+
+<!-- ===================== ENGINE ===================== -->
+<script src="engine/constants.js"></script>
+<script src="engine/normalize.js"></script>
+<script src="engine/computation.js"></script>
+<script src="engine/conflicts.js"></script>
+<script src="engine/sample-data.js"></script>
+<script>
+  var W = window.WISING;
+  var fmtUsd = function (n) { return "$" + Math.round(n||0).toLocaleString("en-US"); };
+  var fmtInr = function (n) { return "₹" + Math.round(n||0).toLocaleString("en-IN"); };
+  var activeFilter = "all";
+  var lastResult = null;
+
+  function hasLiveData() {
+    try {
+      return !!(localStorage.getItem(W.CONST.STORAGE_KEYS.INDIA) || localStorage.getItem(W.CONST.STORAGE_KEYS.US));
+    } catch (e) { return false; }
+  }
+
+  function setSource(state, text) {
+    var dot = document.getElementById("source-dot");
+    var txt = document.getElementById("source-text");
+    var colors = { live:"#10B981", sample:"#06B6D4", none:"#ef4444" };
+    dot.style.background = colors[state] || "#888";
+    dot.style.boxShadow = "0 0 12px " + (colors[state]||"#888");
+    txt.textContent = text;
+  }
+
+  function loadSample() {
+    W.loadSampleIntoStorage();
+    render(W.analyze({ router: W.SAMPLE.router, india: W.SAMPLE.india, us: W.SAMPLE.us }), "sample");
+  }
+
+  function reanalyze() {
+    if (hasLiveData()) {
+      render(W.analyze({}), "live");
+    } else {
+      setSource("none", "No Layer 1 data found in this browser. Fill the India/US forms, or load the demo taxpayer.");
+      renderEmpty();
+    }
+  }
+
+  function importJson(ev) {
+    var file = ev.target.files[0]; if (!file) return;
+    var rdr = new FileReader();
+    rdr.onload = function () {
+      try {
+        var obj = JSON.parse(rdr.result);
+        // accept { india, us, router } bundle OR a single state (auto-detect)
+        var opts = {};
+        if (obj.india || obj.us || obj.router) { opts = obj; }
+        else if (obj.us_residency_detail) { opts.us = obj; }
+        else if (obj.residency_detail) { opts.india = obj; }
+        render(W.analyze(opts), "imported");
+      } catch (e) { alert("Could not parse JSON: " + e.message); }
+    };
+    rdr.readAsText(file);
+  }
+
+  // ----------------------------- renderers -----------------------------
+  function kpiCard(label, value, sub, accent) {
+    return '<div class="glass rounded-2xl p-4 fade-in">' +
+      '<div class="text-[10px] uppercase tracking-widest text-white/40 mb-1">' + label + '</div>' +
+      '<div class="font-display font-extrabold text-2xl" style="color:' + (accent||'#fff') + '">' + value + '</div>' +
+      '<div class="text-[11px] text-white/45 mt-1">' + (sub||'') + '</div></div>';
+  }
+
+  function render(result, sourceKind) {
+    lastResult = result;
+    var s = result.summary;
+
+    var srcText = {
+      live: "Live Layer 1 data detected (India + US localStorage).",
+      sample: "Demo taxpayer loaded — Aarav Sharma (dual resident).",
+      imported: "Imported JSON analyzed."
+    }[sourceKind] || "Data analyzed.";
+    setSource(sourceKind === "live" ? "live" : "sample", srcText +
+      "  ·  India: " + (s.hasIndia ? "✓" : "—") + "  US: " + (s.hasUs ? "✓" : "—"));
+
+    document.getElementById("year-banner").innerHTML =
+      "Base Tax Year " + s.baseYear + " &nbsp;|&nbsp; Jurisdiction: " + s.jurisdiction.toUpperCase() +
+      " &nbsp;|&nbsp; India FY Apr–Mar &nbsp;·&nbsp; US CY Jan–Dec";
+
+    // KPIs
+    var dt = s.netDoubleTaxUsd;
+    document.getElementById("kpis").innerHTML =
+      kpiCard("Taxpayer", s.name, s.jurisdiction.toUpperCase() + " · " + s.baseYear, "#fff") +
+      kpiCard("Critical conflicts", s.counts.critical, s.counts.warning + " warnings · " + s.counts.info + " info",
+        s.counts.critical > 0 ? "#ef4444" : "#10B981") +
+      kpiCard("Residual double tax", fmtUsd(dt), dt > 0 ? "Unrelieved after FTC limit" : "Fully relieved",
+        dt > 0 ? "#ef4444" : "#10B981") +
+      kpiCard("Filings required", s.requiredDocs, "across IN + US", "#06B6D4");
+
+    renderResidency(result);
+    renderConflictFilters(result);
+    renderConflicts(result);
+    renderLimits(result);
+    renderFtc(result);
+    renderDocs(result);
+  }
+
+  function renderResidency(result) {
+    var r = result.computed.residency;
+    var inResident = r.india.isResident, usResident = r.us.isResident;
+    var conflict = r.dualResident;
+    var chip = function (flag) { return flag
+      ? '<span class="pill bg-brandGreen/20 text-brandGreen">Resident</span>'
+      : '<span class="pill bg-white/10 text-white/50">Non-Resident</span>'; };
+    document.getElementById("residency-strip").innerHTML =
+      '<div class="glass rounded-2xl p-4 flex flex-col md:flex-row items-stretch gap-4">' +
+        '<div class="flex-1 flex items-center gap-3">' +
+          '<div class="w-10 h-10 rounded-lg bg-brandGold/15 flex items-center justify-center text-lg">🇮🇳</div>' +
+          '<div><div class="text-[10px] uppercase tracking-widest text-white/40">India residency</div>' +
+          '<div class="font-display font-bold text-base">' + (r.india.status || "—") + ' ' + chip(inResident) + '</div>' +
+          '<div class="text-[11px] text-white/40">' + (r.india.worldwide ? "Worldwide income taxed" : "India-source only") + '</div></div></div>' +
+        '<div class="flex items-center justify-center px-4">' +
+          (conflict
+            ? '<span class="pill bg-red-500/20 text-red-400 text-[10px]">⚠ DUAL RESIDENT — TIE-BREAK NEEDED</span>'
+            : '<span class="pill bg-white/10 text-white/50">No residency overlap</span>') +
+        '</div>' +
+        '<div class="flex-1 flex items-center gap-3 md:justify-end">' +
+          '<div class="md:text-right"><div class="text-[10px] uppercase tracking-widest text-white/40">US residency</div>' +
+          '<div class="font-display font-bold text-base">' + (r.us.status || "—") + ' ' + chip(usResident) + '</div>' +
+          '<div class="text-[11px] text-white/40">' + (r.us.isCitizen ? "US citizen — worldwide" : r.us.worldwide ? "Worldwide income taxed" : "US-source only") + '</div></div>' +
+          '<div class="w-10 h-10 rounded-lg bg-brandCyan/15 flex items-center justify-center text-lg">🇺🇸</div></div>' +
+      '</div>';
+  }
+
+  function renderConflictFilters(result) {
+    var cats = ["all","critical","warning","info"];
+    var box = document.getElementById("conflict-filters");
+    box.innerHTML = cats.map(function (c) {
+      var active = activeFilter === c;
+      return '<button onclick="setFilter(\'' + c + '\')" class="px-2.5 py-1 rounded-md ' +
+        (active ? 'bg-white/15 text-white' : 'bg-white/5 text-white/40 hover:text-white/70') + '">' +
+        c.charAt(0).toUpperCase() + c.slice(1) + '</button>';
+    }).join("");
+  }
+  function setFilter(c) { activeFilter = c; renderConflictFilters(lastResult); renderConflicts(lastResult); }
+
+  function renderConflicts(result) {
+    var list = document.getElementById("conflicts-list");
+    var sevColor = { critical:"#ef4444", warning:"#D4AF37", info:"#06B6D4" };
+    var items = result.findings.filter(function (f) { return activeFilter === "all" || f.severity === activeFilter; });
+    if (!items.length) { list.innerHTML = '<div class="text-center text-white/40 text-sm py-8">No findings in this view.</div>'; return; }
+    list.innerHTML = items.map(function (f) {
+      return '<div class="glass rounded-xl p-4 sev-' + f.severity + ' fade-in">' +
+        '<div class="flex items-start justify-between gap-3">' +
+          '<div class="font-bold text-sm">' + f.title + '</div>' +
+          (f.amountUsd > 0 ? '<div class="font-mono text-sm whitespace-nowrap" style="color:' + sevColor[f.severity] + '">' + fmtUsd(f.amountUsd) + '</div>' : '') +
+        '</div>' +
+        '<div class="text-[12px] text-white/55 mt-1.5 leading-relaxed">' + f.detail + '</div>' +
+        '<div class="text-[12px] text-white/80 mt-2 leading-relaxed"><span class="text-brandGreen font-bold">▸ Action:</span> ' + f.recommendation + '</div>' +
+        (f.refs && f.refs.length ? '<div class="flex flex-wrap gap-1.5 mt-2.5">' + f.refs.map(function (r) {
+          return '<span class="pill bg-white/5 text-white/45">' + r + '</span>'; }).join("") + '</div>' : '') +
+      '</div>';
+    }).join("");
+  }
+
+  function renderLimits(result) {
+    var box = document.getElementById("limits-list");
+    var color = { ok:"#10B981", approaching:"#D4AF37", breached:"#ef4444" };
+    box.innerHTML = result.computed.limits.map(function (g) {
+      var pct = Math.min(100, Math.round(g.pct * 100));
+      return '<div class="fade-in">' +
+        '<div class="flex justify-between text-[11px] mb-1">' +
+          '<span class="text-white/70 font-semibold">' + g.label + '</span>' +
+          '<span class="font-mono" style="color:' + color[g.status] + '">' + Math.round(g.pct*100) + '%</span></div>' +
+        '<div class="h-2 rounded-full bg-white/8 overflow-hidden">' +
+          '<div class="h-full rounded-full" style="width:' + pct + '%; background:' + color[g.status] + '"></div></div>' +
+        '<div class="flex justify-between text-[10px] text-white/40 mt-1">' +
+          '<span>' + fmtUsd(g.value) + '</span><span>limit ' + fmtUsd(g.limit) + '</span></div>' +
+        '<div class="text-[10px] text-white/35 mt-0.5">' + g.note + '</div>' +
+      '</div>';
+    }).join("");
+  }
+
+  function renderFtc(result) {
+    var box = document.getElementById("ftc-report");
+    var rep = result.ftcReport;
+    function table(block) {
+      return '<div class="mb-4"><div class="text-[11px] font-bold text-white/70 mb-2">' + block.title + '</div>' +
+        '<div class="space-y-1">' + block.rows.map(function (r) {
+          var cls = r.warn ? "text-red-400" : (r.emphasis ? "text-brandGreen" : "text-white/60");
+          return '<div class="flex justify-between text-[12px] ' + (r.emphasis||r.warn ? "font-bold" : "") + '">' +
+            '<span class="' + (r.emphasis||r.warn ? cls : "text-white/55") + '">' + r.label + '</span>' +
+            '<span class="font-mono ' + cls + '">' + fmtUsd(r.usd) + '</span></div>';
+        }).join("") + '</div></div>';
+    }
+    var net = rep.headlineNetDoubleTaxUsd;
+    box.innerHTML =
+      '<div class="rounded-xl p-3 mb-4 ' + (net > 0 ? 'bg-red-500/10 border border-red-500/20' : 'bg-brandGreen/10 border border-brandGreen/20') + '">' +
+        '<div class="text-[10px] uppercase tracking-widest text-white/50">Net unrelieved double tax</div>' +
+        '<div class="font-display font-extrabold text-2xl" style="color:' + (net>0?'#ef4444':'#10B981') + '">' + fmtUsd(net) + '</div></div>' +
+      table(rep.direction_us_claims_india) +
+      '<div class="border-t border-white/8 my-3"></div>' +
+      table(rep.direction_india_relief);
+  }
+
+  function renderDocs(result) {
+    var box = document.getElementById("docs-list");
+    var jColor = { US:"#06B6D4", IN:"#D4AF37" };
+    var docs = result.documents.slice().sort(function (a, b) { return (b.required?1:0) - (a.required?1:0); });
+    box.innerHTML = docs.map(function (d) {
+      return '<div class="flex items-start gap-3 p-2.5 rounded-lg ' + (d.required ? 'bg-white/4' : 'opacity-40') + '">' +
+        '<span class="pill mt-0.5" style="background:' + jColor[d.jurisdiction] + '22; color:' + jColor[d.jurisdiction] + '">' + d.jurisdiction + '</span>' +
+        '<div class="flex-1"><div class="text-[12px] font-bold flex items-center gap-2">' + d.name +
+          (d.required ? '<span class="pill bg-red-500/20 text-red-400">Required</span>' : '<span class="pill bg-white/8 text-white/40">N/A</span>') + '</div>' +
+          '<div class="text-[11px] text-white/45">' + d.desc + '</div>' +
+          (d.required ? '<div class="text-[11px] text-white/55 mt-0.5">↳ ' + d.why + '</div>' : '') +
+        '</div></div>';
+    }).join("");
+  }
+
+  function renderEmpty() {
+    document.getElementById("kpis").innerHTML = "";
+    document.getElementById("residency-strip").innerHTML = "";
+    document.getElementById("conflicts-list").innerHTML =
+      '<div class="text-center text-white/40 text-sm py-10">No Layer 1 data yet.<br/>Click <b class="text-brandCyan">Load demo taxpayer</b> to see the engine in action, or complete the <a href="layer1_india.html" class="text-brandGold underline">India</a> / <a href="layer1_us.html" class="text-brandCyan underline">US</a> intake forms.</div>';
+    document.getElementById("limits-list").innerHTML = "";
+    document.getElementById("ftc-report").innerHTML = "";
+    document.getElementById("docs-list").innerHTML = "";
+  }
+
+  // ----------------------------- boot -----------------------------
+  (function boot() {
+    if (hasLiveData()) { render(W.analyze({}), "live"); }
+    else { loadSample(); } // default to demo so the dashboard is never empty
+  })();
+</script>
+</body>
+</html>
