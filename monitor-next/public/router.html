@@ -77,6 +77,11 @@
     <label class="flex items-center gap-3 text-sm"><input id="has_us_income" type="checkbox" class="rounded bg-black border-white/20"/> Has US-source income or assets</label>
   </div>
 
+  <div class="mb-6">
+    <div class="text-[11px] uppercase tracking-widest text-white/40 mb-2">Or load a ready-made test profile — seeds both Layer 1 forms + dashboard + monitor</div>
+    <div id="profile-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+  </div>
+
   <div class="flex flex-wrap items-center gap-3">
     <button onclick="saveRouter()" class="px-5 py-2.5 rounded-xl bg-brandCyan text-black font-black text-xs uppercase tracking-widest hover:brightness-110">Save &amp; continue</button>
     <button onclick="loadDemo()" class="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 font-bold text-xs hover:bg-white/10">Load demo taxpayer</button>
@@ -98,6 +103,7 @@
 
 <script src="engine/constants.js"></script>
 <script src="engine/sample-data.js"></script>
+<script src="engine/profiles.js"></script>
 <script>
   var W = window.WISING;
   var jurisdiction = "dual";
@@ -122,6 +128,29 @@
     document.getElementById("status").textContent = "✓ Saved. Open a Layer 1 specialist below.";
     document.getElementById("next-links").classList.remove("hidden");
   }
+  function populateProfileGrid() {
+    var g = document.getElementById("profile-grid");
+    if (!g || !W.listProfiles) return;
+    g.innerHTML = W.listProfiles().map(function (p) {
+      return '<button onclick="loadProfileRouter(\'' + p.id + '\')" class="text-left glass rounded-xl p-3 border border-white/10 hover:border-brandGold/40 transition-all">' +
+        '<div class="font-bold text-sm text-brandGold">' + p.label + '</div>' +
+        '<div class="text-[11px] text-white/45 mt-0.5 leading-snug">' + p.story + '</div></button>';
+    }).join("");
+  }
+  function loadProfileRouter(id) {
+    if (!W.loadProfile || !W.loadProfile(id)) return;
+    var p = W.getProfile(id), r = p.router;
+    setJur(r.jurisdiction || "dual");
+    document.getElementById("full_name").value = r.full_name || "";
+    document.getElementById("dob").value = r.date_of_birth || "";
+    document.getElementById("base_year").value = r.base_tax_year || 2025;
+    document.getElementById("us_days").value = r.us_days || 0;
+    document.getElementById("is_us_citizen").checked = !!r.is_us_citizen;
+    document.getElementById("has_green_card").checked = !!r.has_green_card;
+    document.getElementById("has_us_income").checked = !!r.has_us_source_income_or_assets;
+    document.getElementById("status").textContent = "✓ Loaded “" + p.label + "” into all layers. Open a Layer 1 form or the dashboard below.";
+    document.getElementById("next-links").classList.remove("hidden");
+  }
   function loadDemo() {
     W.loadSampleIntoStorage();
     var r = W.SAMPLE.router;
@@ -138,6 +167,7 @@
   }
   // prefill from existing router state if present
   (function () {
+    populateProfileGrid();
     try {
       var raw = localStorage.getItem(W.CONST.STORAGE_KEYS.ROUTER);
       if (raw) {

@@ -12,9 +12,23 @@ import "./engine/computation.js";
 import "./engine/monitoring.js";
 import "./engine/conflicts.js";
 import "./engine/sample-data.js";
+import "./engine/profiles.js";
 
 export function getWISING() {
   return typeof window !== "undefined" ? window.WISING : null;
+}
+
+export function listProfiles() {
+  const W = getWISING();
+  return W && W.listProfiles ? W.listProfiles() : [];
+}
+export function loadProfile(id) {
+  const W = getWISING();
+  return W && W.loadProfile ? W.loadProfile(id) : false;
+}
+export function activeProfileId() {
+  const W = getWISING();
+  return W && W.activeProfileId ? W.activeProfileId() : null;
 }
 
 export function hasLiveLayer1() {

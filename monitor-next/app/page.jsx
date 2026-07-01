@@ -7,7 +7,7 @@ import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
 import { US_STATES, COUNTRIES, SOURCES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan } from "@/lib/logic";
-import { monitorSnapshot, hasLiveLayer1 } from "@/lib/wising";
+import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId } from "@/lib/wising";
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), {
   ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading world map…</div>
@@ -29,6 +29,8 @@ export default function MonitorPage() {
   const [mode, setMode] = useState("demo");            // "demo" | "live"
   const [countries, setCountries] = useState(COUNTRIES); // engine-computed India/US (fallback = mock)
   const [engineReady, setEngineReady] = useState(false);
+  const [profiles, setProfiles] = useState([]);
+  const [clientName, setClientName] = useState(null);
 
   // Run the shared engine on the client and map its output to region rows.
   const recompute = useCallback((preferred) => {
@@ -39,10 +41,13 @@ export default function MonitorPage() {
       setCountries(snap.countries);
       setMode(source);
       setEngineReady(true);
+      if (snap.clientName) setClientName(snap.clientName);
     }
   }, []);
 
-  useEffect(() => { recompute(null); }, [recompute]);
+  useEffect(() => { setProfiles(listProfiles()); recompute(null); }, [recompute]);
+
+  const onPickProfile = useCallback((id) => { if (id && loadProfile(id)) recompute("live"); }, [recompute]);
 
   // Live data wins: re-read when forms are saved (same-origin) or on focus.
   useEffect(() => {
@@ -70,7 +75,7 @@ export default function MonitorPage() {
     <div className="flex min-h-screen">
       <Sidebar />
       <main className="flex-1 min-w-0 px-8 py-6">
-        <Header region={region} onRegionChange={setRegion} />
+        <Header region={region} onRegionChange={setRegion} clientName={clientName} />
 
         {/* engine + data-source strip */}
         <div className="flex flex-wrap items-center gap-3 mb-3 text-[11px] text-white/45">
@@ -86,6 +91,10 @@ export default function MonitorPage() {
         <div className="flex flex-wrap items-center gap-2 mb-5">
           <button onClick={() => recompute("live")} className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brandGreen/15 text-brandGreen border border-brandGreen/30 hover:bg-brandGreen/25">↻ Refresh from Layer 1</button>
           <button onClick={() => { setCountries(monitorSnapshot("demo").countries); setMode("demo"); setEngineReady(true); }} className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brandCyan/15 text-brandCyan border border-brandCyan/30 hover:bg-brandCyan/25">Load demo taxpayer</button>
+          <select onChange={(e) => onPickProfile(e.target.value)} defaultValue="" title="Load a coherent India+US test taxpayer" className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-brandGold/15 text-brandGold border border-brandGold/30 cursor-pointer">
+            <option value="">Load test profile…</option>
+            {profiles.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
           <span className="text-white/25 text-[11px] mx-1">Layer 1 intake:</span>
           <a href="/router.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-white/5 border border-line text-white/70 hover:bg-white/10">Router (L0)</a>
           <a href="/layer1_india.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-white/5 border border-line text-brandGold/80 hover:bg-white/10">India L1</a>

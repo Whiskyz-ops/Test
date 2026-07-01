@@ -1,0 +1,282 @@
+/* ============================================================================
+ * WISING — Demo Test Profiles
+ * ----------------------------------------------------------------------------
+ * Named, coherent India⇄US taxpayers. Each profile is a complete
+ * { router, india, us } bundle in the exact shapes the Layer 1 forms persist,
+ * so `loadProfile(id)` seeds all three localStorage keys and every surface
+ * (both Layer 1 forms, the dashboard, the Monitor) populates from it at once —
+ * no manual typing during a demo.
+ *
+ * Self-contained: defines the storage keys itself (falls back to WISING.CONST
+ * when present) so it can be loaded by pages that don't include constants.js.
+ * ==========================================================================*/
+(function (root) {
+  "use strict";
+  var WISING = root.WISING = root.WISING || {};
+
+  var KEYS = (WISING.CONST && WISING.CONST.STORAGE_KEYS) || {
+    ROUTER: "wising_router_state",
+    INDIA: "wising_layer1_india_state",
+    US: "wising_us_state"
+  };
+  var ACTIVE_KEY = "wising_active_profile";
+
+  // ---- helpers to keep the bundles terse ----
+  function router(name, extra) {
+    return Object.assign({
+      jurisdiction: "dual", base_tax_year: 2025, full_name: name,
+      date_of_birth: "1988-01-01", is_us_citizen: false, has_green_card: false,
+      us_days: 0, has_us_source_income_or_assets: true
+    }, extra || {});
+  }
+  function meta(schema, fy) { return { schema_version: schema, financial_year: fy }; }
+
+  /* ======================================================================
+   * PROFILE 1 — Dual resident (India ROR + US SPT). The flagship FTC/tie-break case.
+   * ====================================================================*/
+  var P1 = {
+    id: "dual_resident_h1b",
+    label: "Dual Resident — H-1B",
+    story: "India ROR + US SPT. Both tax worldwide income → DTAA tie-breaker + FTC shortfall.",
+    tags: ["dual residency", "FTC", "PFIC"],
+    router: router("Aarav Sharma", { us_days: 330 }),
+    india: {
+      profile: { full_name: "Aarav Sharma", entity_type: "individual", date_of_birth: "1988-07-15", pan: "ABCPS1234K", tax_regime: "NEW" },
+      residency_detail: { days_in_india_current_year: 210, final_india_residency_status: "ROR" },
+      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "none", trc_status: false, has_permanent_establishment_in_india: false, treaty_elections: [], dtaa_forced_nr: false },
+      compliance_docs: { trc: { document_uploaded: false }, form_10f: { is_filed: false }, chapter_xiia_elected: false },
+      bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", peak_balance_inr: 3200000 }, { bank_name: "ICICI Bank", account_type: "nro", peak_balance_inr: 1500000 }],
+      property: { has_indian_property_transaction: true, properties: [{ address: "Flat 12B, Pune", property_type: "Residential", annual_value_inr: 420000, gross_rent_received_inr: 600000, municipal_taxes_paid_inr: 30000 }] },
+      financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "equity_mutual_fund", asset_name: "Axis Bluechip Fund", value_inr: 2500000 }, { asset_type: "debt_mutual_fund", asset_name: "HDFC Corporate Bond Fund", value_inr: 1200000 }] },
+      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 4200000 }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 420000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [{ trade_name: "Sharma Consulting Pvt Ltd", net_profit_inr: 1800000 }] }, capital_gains: { short_term_15_pct: 250000 } },
+      other_sources: { has_other_sources_income: true, interest_savings_inr: 80000, interest_fd_rd_inr: 220000, dividend_inr: 150000 },
+      deductions: { s80C: { epf_employee_inr: 150000, ppf_inr: 150000 }, s80CCC_80CCD1: { nps_employee_contribution_inr: 50000 } },
+      lrs_outbound: { total_lrs_remitted_this_fy_inr: 17000000 },
+      tax_credits: { advance_tax_q1_15jun_inr: 400000, advance_tax_q2_15sep_inr: 400000, advance_tax_q3_15dec_inr: 400000, advance_tax_q4_15mar_inr: 300000, tds_already_deducted_inr: 350000 },
+      metadata: meta("layer1_india_v5_1", "FY2025-26")
+    },
+    us: {
+      profile: { tax_entity_type: "individual", full_name: "Aarav Sharma", date_of_birth: "1988-07-15", filing_status: "mfj", ssn_or_itin_type: "ssn" },
+      us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 330, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "none" },
+      income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Cloudscale Inc", wages_box1_usd: 165000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 31000, medicare_wages_box5_usd: 165000 } }], interest_us_source_usd: 3200, ordinary_dividends_us_source_usd: 4100, ltcg_us_source_usd: 9000 },
+      income_foreign_source: { foreign_wages: [{ employer_name: "India Salary", wages_usd: 50602 }], foreign_interest_usd: 3614, foreign_dividends_usd: 1807, foreign_rental_income_usd: 5060, foreign_stcg_usd: 3012 },
+      foreign_earned_income: { claims_feie: false, foreign_earned_income_usd: 50602, feie_amount_claimed_usd: 0 },
+      bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", country: "India", peak_balance_usd: 38554 }, { bank_name: "ICICI Bank", account_type: "nro", country: "India", peak_balance_usd: 18072 }],
+      fbar_aggregate_peak_usd: 56626,
+      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corp_name: "Sharma Consulting Pvt Ltd", country: "IN", gilti_income_usd: 21687 }], pfic_holdings: [{ asset_name: "Axis Bluechip Fund", holding_value_usd: 30120 }, { asset_name: "HDFC Corporate Bond Fund", holding_value_usd: 14458 }], has_pfics: true },
+      retirement_accounts: { indian_epf_balance_usd: 1807, indian_ppf_balance_usd: 1807 },
+      ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "General", foreign_taxes_usd: 22289 }] },
+      withholding_and_estimated: { federal_withholding_total_usd: 31000 },
+      nra_specific: { files_form_1040nr: false },
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+    }
+  };
+
+  /* ======================================================================
+   * PROFILE 2 — US RESIDENT with INDIAN income.
+   * Green-card holder living in the US; India-source rent/dividends/interest +
+   * Indian mutual funds. India taxes only India-source (NR); US taxes worldwide
+   * → Form 1116 FTC for Indian TDS, PFIC on Indian MFs, FBAR/8938.
+   * ====================================================================*/
+  var P2 = {
+    id: "us_resident_indian_income",
+    label: "US Resident · Indian income",
+    story: "US green-card holder with Indian rent, dividends & mutual funds. US taxes worldwide → FTC (Form 1116) for Indian TDS; PFIC on Indian MFs; FBAR.",
+    tags: ["FTC 1116", "PFIC", "FBAR", "NR in India"],
+    router: router("Rohan Mehta", { is_us_citizen: false, has_green_card: true, us_days: 365 }),
+    india: {
+      profile: { full_name: "Rohan Mehta", entity_type: "individual", date_of_birth: "1985-03-22", pan: "AAAPM5678Q", tax_regime: "NEW" },
+      residency_detail: { days_in_india_current_year: 20, final_india_residency_status: "NR" },
+      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "US", trc_status: false, form_10f: false },
+      compliance_docs: { trc: { document_uploaded: false }, form_10f: { is_filed: false } },
+      bank_accounts: [{ bank_name: "SBI (NRO)", account_type: "nro", peak_balance_inr: 2600000 }, { bank_name: "Axis (NRE)", account_type: "nre", peak_balance_inr: 1900000 }],
+      property: { has_indian_property_transaction: true, properties: [{ address: "Villa 4, Bengaluru", property_type: "Residential", annual_value_inr: 840000, gross_rent_received_inr: 1200000, municipal_taxes_paid_inr: 60000 }] },
+      financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "equity_mutual_fund", asset_name: "SBI Bluechip Fund", value_inr: 4200000 }, { asset_type: "equity_mutual_fund", asset_name: "Mirae Asset Large Cap", value_inr: 2600000 }] },
+      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: { short_term_15_pct: 180000 } },
+      other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 260000, dividend_inr: 220000 },
+      deductions: {},
+      lrs_outbound: {},
+      tax_credits: { tds_already_deducted_inr: 430000 },
+      metadata: meta("layer1_india_v5_1", "FY2025-26")
+    },
+    us: {
+      profile: { tax_entity_type: "individual", full_name: "Rohan Mehta", date_of_birth: "1985-03-22", filing_status: "mfj", ssn_or_itin_type: "ssn" },
+      us_residency_detail: { is_us_citizen: false, has_green_card: true, us_days_current_year: 365, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "none" },
+      income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Northwind Labs", wages_box1_usd: 158000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 30000, medicare_wages_box5_usd: 158000 } }], interest_us_source_usd: 5200, ordinary_dividends_us_source_usd: 6400, qualified_dividends_us_source_usd: 4000, ltcg_us_source_usd: 12000 },
+      income_foreign_source: { foreign_rental_income_usd: 14458, foreign_dividends_usd: 2651, foreign_interest_usd: 3133, foreign_stcg_usd: 2169 },
+      foreign_earned_income: { claims_feie: false },
+      bank_accounts: [{ bank_name: "SBI (NRO)", account_type: "nro", country: "India", peak_balance_usd: 31325 }, { bank_name: "Axis (NRE)", account_type: "nre", country: "India", peak_balance_usd: 22892 }],
+      fbar_aggregate_peak_usd: 54217,
+      foreign_entities: { owns_10_percent_foreign_corp: false, foreign_corporations: [], pfic_holdings: [{ asset_name: "SBI Bluechip Fund", holding_value_usd: 50602 }, { asset_name: "Mirae Asset Large Cap", holding_value_usd: 31325 }], has_pfics: true },
+      retirement_accounts: {},
+      ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "Passive", foreign_taxes_usd: 5180 }] },
+      withholding_and_estimated: { federal_withholding_total_usd: 30000 },
+      nra_specific: { files_form_1040nr: false },
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+    }
+  };
+
+  /* ======================================================================
+   * PROFILE 3 — Indian ROR with US income.
+   * Lives in India (ROR, worldwide), earns US rent/dividends/brokerage; files a
+   * US 1040-NR on US-source income. India taxes worldwide → Form 67/§90 relief
+   * for US tax; Schedule FA for US assets.
+   * ====================================================================*/
+  var P3 = {
+    id: "india_ror_us_income",
+    label: "India ROR · US income",
+    story: "Resident of India (ROR) with US rental, dividends & brokerage. India taxes worldwide → Form 67/§90 credit for US tax; Schedule FA for US assets; US 1040-NR on US-source income.",
+    tags: ["Form 67", "Schedule FA", "1040-NR"],
+    router: router("Anita Desai", { is_us_citizen: false, has_green_card: false, us_days: 35 }),
+    india: {
+      profile: { full_name: "Anita Desai", entity_type: "individual", date_of_birth: "1982-11-09", pan: "AADPD9012R", tax_regime: "OLD" },
+      residency_detail: { days_in_india_current_year: 320, final_india_residency_status: "ROR" },
+      dtaa: { tax_residency_country: "IN", is_us_resident_for_dtaa: false, dtaa_treaty_residence: "none", trc_status: true, form_10f: true },
+      compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true } },
+      bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", peak_balance_inr: 1800000 }],
+      property: { has_indian_property_transaction: false, properties: [] },
+      financial_holdings: { has_financial_transactions: false, transactions: [] },
+      foreign_assets: { has_foreign_assets: true, assets: [{ country: "US", type: "brokerage", value_inr: 6800000 }, { country: "US", type: "real_estate", value_inr: 12000000 }] },
+      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 3600000 }, house_property: { has_house_property_income: false, properties: [] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
+      other_sources: { has_other_sources_income: true, interest_savings_inr: 60000, interest_fd_rd_inr: 140000 },
+      deductions: { s80C: { epf_employee_inr: 150000 }, s80D: { self_family_premium_inr: 25000 } },
+      lrs_outbound: {},
+      tax_credits: { advance_tax_q1_15jun_inr: 200000, advance_tax_q2_15sep_inr: 200000, tds_already_deducted_inr: 150000 },
+      metadata: meta("layer1_india_v5_1", "FY2025-26")
+    },
+    us: {
+      profile: { tax_entity_type: "individual", full_name: "Anita Desai", date_of_birth: "1982-11-09", filing_status: "single", ssn_or_itin_type: "itin" },
+      us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 35, spt_test_met: false, final_us_residency_status: "NON_RESIDENT_ALIEN", dtaa_treaty_residence: "IN" },
+      income_us_source: { has_real_estate: true, interest_us_source_usd: 1800, ordinary_dividends_us_source_usd: 9600, qualified_dividends_us_source_usd: 7000, ltcg_us_source_usd: 22000, rental_income_us_source_usd: 30000 },
+      income_foreign_source: {},
+      foreign_earned_income: { claims_feie: false },
+      bank_accounts: [{ bank_name: "Chase", account_type: "checking", country: "US", peak_balance_usd: 42000 }],
+      fbar_aggregate_peak_usd: 0,
+      foreign_entities: { foreign_corporations: [], pfic_holdings: [] },
+      retirement_accounts: {},
+      ftc_inputs: { claims_ftc: false },
+      withholding_and_estimated: { federal_withholding_total_usd: 9800 },
+      nra_specific: { files_form_1040nr: true, us_eci_income_usd: 30000, us_fdap_income_usd: 11400, w8ben_aggregate_status: "on_file" },
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+    }
+  };
+
+  /* ======================================================================
+   * PROFILE 4 — Founder with an INDIAN COMPANY (CFC / GILTI / 5471).
+   * US resident owning ≥10% of an Indian Pvt Ltd. Exercises the entity/CFC path
+   * (fully separated once multi-entity Phase 1 lands).
+   * ====================================================================*/
+  var P4 = {
+    id: "founder_indian_company",
+    label: "Founder · Indian company",
+    story: "US resident owning an Indian Pvt Ltd (≥10%). Triggers Form 5471 + GILTI/Subpart-F on the US side while the company is taxed in India. (Full entity separation arrives with multi-entity Phase 1.)",
+    tags: ["Form 5471", "GILTI", "CFC", "entity"],
+    router: router("Vikram Rao", { is_us_citizen: false, has_green_card: true, us_days: 340 }),
+    india: {
+      profile: { full_name: "Vikram Rao", entity_type: "individual", date_of_birth: "1986-05-30", pan: "AAVPR3456S", tax_regime: "NEW" },
+      residency_detail: { days_in_india_current_year: 25, final_india_residency_status: "NR" },
+      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "US", trc_status: true, form_10f: true },
+      compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true } },
+      bank_accounts: [{ bank_name: "Kotak (Company)", account_type: "current", peak_balance_inr: 5400000 }],
+      property: { properties: [] },
+      financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "unlisted_equity", asset_name: "Nova Systems Pvt Ltd (100%)", value_inr: 45000000 }] },
+      unlisted_equity: { has_unlisted_equity_transaction: true, transactions: [{ company: "Nova Systems Pvt Ltd", holding_pct: 100 }] },
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ trade_name: "Nova Systems Pvt Ltd", nature: "software", net_profit_inr: 9000000 }] }, capital_gains: {} },
+      other_sources: { has_other_sources_income: true, dividend_inr: 500000 },
+      deductions: {},
+      lrs_outbound: {},
+      tax_credits: { advance_tax_q1_15jun_inr: 600000, advance_tax_q2_15sep_inr: 700000, advance_tax_q3_15dec_inr: 700000, advance_tax_q4_15mar_inr: 500000 },
+      metadata: meta("layer1_india_v5_1", "FY2025-26")
+    },
+    us: {
+      profile: { tax_entity_type: "individual", full_name: "Vikram Rao", date_of_birth: "1986-05-30", filing_status: "mfj", ssn_or_itin_type: "ssn", incorporated_in_us: false },
+      us_residency_detail: { is_us_citizen: false, has_green_card: true, us_days_current_year: 340, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "none" },
+      income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Nova Systems USA Inc", wages_box1_usd: 120000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 22000, medicare_wages_box5_usd: 120000 } }], interest_us_source_usd: 2100, ordinary_dividends_us_source_usd: 3000 },
+      income_foreign_source: { foreign_dividends_usd: 6024 },
+      foreign_earned_income: { claims_feie: false },
+      bank_accounts: [{ bank_name: "Kotak (Company)", account_type: "current", country: "India", peak_balance_usd: 65060 }],
+      fbar_aggregate_peak_usd: 65060,
+      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corp_name: "Nova Systems Pvt Ltd", country: "IN", ownership_pct: 100, gilti_income_usd: 108433, subpart_f_income_usd: 0, section_962_election_active: false }], pfic_holdings: [], has_pfics: false },
+      retirement_accounts: {},
+      ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "General", foreign_taxes_usd: 30120 }] },
+      withholding_and_estimated: { federal_withholding_total_usd: 22000 },
+      nra_specific: { files_form_1040nr: false },
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+    }
+  };
+
+  /* ======================================================================
+   * PROFILE 5 — US citizen expat in India (FEIE + PFIC).
+   * ====================================================================*/
+  var P5 = {
+    id: "us_citizen_expat_india",
+    label: "US Citizen expat in India",
+    story: "US citizen living/working in India. FEIE on foreign earned income, PFIC on Indian MFs, FBAR — US citizenship-based taxation always applies.",
+    tags: ["FEIE", "PFIC", "citizen"],
+    router: router("Grace Thomas", { is_us_citizen: true, has_green_card: false, us_days: 20 }),
+    india: {
+      profile: { full_name: "Grace Thomas", entity_type: "individual", date_of_birth: "1990-09-12", pan: "AGTPT7890T", tax_regime: "NEW" },
+      residency_detail: { days_in_india_current_year: 330, final_india_residency_status: "ROR" },
+      dtaa: { tax_residency_country: "IN", dtaa_treaty_residence: "none", trc_status: false, form_10f: false },
+      compliance_docs: { trc: { document_uploaded: false }, form_10f: { is_filed: false } },
+      bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", peak_balance_inr: 2100000 }],
+      property: { properties: [] },
+      financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "equity_mutual_fund", asset_name: "Parag Parikh Flexi Cap", value_inr: 1800000 }] },
+      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 5000000 }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
+      other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 120000 },
+      deductions: { s80C: { ppf_inr: 150000 } },
+      lrs_outbound: {},
+      tax_credits: { tds_already_deducted_inr: 900000 },
+      metadata: meta("layer1_india_v5_1", "FY2025-26")
+    },
+    us: {
+      profile: { tax_entity_type: "individual", full_name: "Grace Thomas", date_of_birth: "1990-09-12", filing_status: "single", ssn_or_itin_type: "ssn" },
+      us_residency_detail: { is_us_citizen: true, has_green_card: false, us_days_current_year: 20, spt_test_met: false, final_us_residency_status: "US_CITIZEN", dtaa_treaty_residence: "none" },
+      income_us_source: { interest_us_source_usd: 800 },
+      income_foreign_source: { foreign_wages: [{ employer_name: "India Employer", wages_usd: 60241 }], foreign_interest_usd: 1446 },
+      foreign_earned_income: { claims_feie: true, foreign_earned_income_usd: 60241, feie_amount_claimed_usd: 60241, qualification_test: "bona_fide_residence" },
+      bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", country: "India", peak_balance_usd: 25301 }],
+      fbar_aggregate_peak_usd: 25301,
+      foreign_entities: { foreign_corporations: [], pfic_holdings: [{ asset_name: "Parag Parikh Flexi Cap", holding_value_usd: 21687 }], has_pfics: true },
+      retirement_accounts: {},
+      ftc_inputs: { claims_ftc: false },
+      withholding_and_estimated: { federal_withholding_total_usd: 0 },
+      nra_specific: { files_form_1040nr: false },
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+    }
+  };
+
+  var PROFILES = [P1, P2, P3, P4, P5];
+
+  function listProfiles() {
+    return PROFILES.map(function (p) { return { id: p.id, label: p.label, story: p.story, tags: p.tags }; });
+  }
+  function getProfile(id) {
+    for (var i = 0; i < PROFILES.length; i++) if (PROFILES[i].id === id) return PROFILES[i];
+    return null;
+  }
+  // Seed all three localStorage keys and notify open pages.
+  function loadProfile(id) {
+    var p = getProfile(id);
+    if (!p) return false;
+    try {
+      root.localStorage.setItem(KEYS.ROUTER, JSON.stringify(p.router));
+      root.localStorage.setItem(KEYS.INDIA, JSON.stringify(p.india));
+      root.localStorage.setItem(KEYS.US, JSON.stringify(p.us));
+      root.localStorage.setItem(ACTIVE_KEY, id);
+      // notify same-tab listeners (storage event only fires cross-tab)
+      try { root.dispatchEvent(new StorageEvent("storage", { key: KEYS.INDIA })); } catch (e) {}
+      try { root.dispatchEvent(new CustomEvent("wising:profile", { detail: { id: id } })); } catch (e) {}
+      return true;
+    } catch (e) { return false; }
+  }
+  function activeProfileId() {
+    try { return root.localStorage.getItem(ACTIVE_KEY); } catch (e) { return null; }
+  }
+
+  WISING.PROFILES = PROFILES;
+  WISING.listProfiles = listProfiles;
+  WISING.getProfile = getProfile;
+  WISING.loadProfile = loadProfile;
+  WISING.activeProfileId = activeProfileId;
+})(typeof window !== "undefined" ? window : globalThis);

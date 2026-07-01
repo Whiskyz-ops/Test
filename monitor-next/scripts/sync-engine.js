@@ -7,7 +7,7 @@ const path = require("path");
 
 const src = path.join(__dirname, "..", "..", "engine");
 const dst = path.join(__dirname, "..", "lib", "engine");
-const FILES = ["constants.js", "normalize.js", "computation.js", "monitoring.js", "conflicts.js", "sample-data.js"];
+const FILES = ["constants.js", "normalize.js", "computation.js", "monitoring.js", "conflicts.js", "sample-data.js", "profiles.js"];
 
 if (!fs.existsSync(src)) {
   console.log("[sync-engine] root engine not found — using existing lib/engine copy.");

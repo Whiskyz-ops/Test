@@ -69,7 +69,9 @@
     </div>
     <div class="flex items-center gap-2">
       <button onclick="reanalyze()" class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brandGreen/15 text-brandGreen border border-brandGreen/30 hover:bg-brandGreen/25">↻ Refresh from forms</button>
-      <button onclick="loadSample()" class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brandCyan/15 text-brandCyan border border-brandCyan/30 hover:bg-brandCyan/25">Load demo taxpayer</button>
+      <select id="profile-picker" onchange="onProfilePick(this.value)" title="Load a coherent India+US test taxpayer" class="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-brandGold/15 text-brandGold border border-brandGold/30 hover:bg-brandGold/25 cursor-pointer">
+        <option value="">Load test profile…</option>
+      </select>
       <label class="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-white/5 text-white/70 border border-white/10 hover:bg-white/10 cursor-pointer">
         Import JSON
         <input type="file" accept="application/json" class="hidden" onchange="importJson(event)"/>
@@ -223,6 +225,7 @@
 <script src="engine/monitoring.js"></script>
 <script src="engine/conflicts.js"></script>
 <script src="engine/sample-data.js"></script>
+<script src="engine/profiles.js"></script>
 <script>
   var W = window.WISING;
   var fmtUsd = function (n) { return "$" + Math.round(n||0).toLocaleString("en-US"); };
@@ -276,6 +279,22 @@
     currentOpts = { router: W.SAMPLE.router, india: W.SAMPLE.india, us: W.SAMPLE.us };
     currentMode = "sample";
     runEngine();
+  }
+  // Load a named India+US test profile → seeds localStorage → analyze as live.
+  function onProfilePick(id) {
+    if (!id || !W.loadProfile) return;
+    if (W.loadProfile(id)) { currentOpts = {}; currentMode = "live"; runEngine(); }
+  }
+  function populateProfiles() {
+    var sel = document.getElementById("profile-picker");
+    if (!sel || !W.listProfiles) return;
+    W.listProfiles().forEach(function (p) {
+      var o = document.createElement("option");
+      o.value = p.id; o.textContent = p.label; o.title = p.story;
+      sel.appendChild(o);
+    });
+    var active = W.activeProfileId && W.activeProfileId();
+    if (active) sel.value = active;
   }
   function reanalyze() {
     if (hasLiveData()) { currentOpts = {}; currentMode = "live"; }
@@ -736,6 +755,7 @@
 
   // ---- boot ----
   (function boot() {
+    populateProfiles();
     if (hasLiveData()) { currentOpts = {}; currentMode = "live"; }
     else { currentOpts = { router: W.SAMPLE.router, india: W.SAMPLE.india, us: W.SAMPLE.us }; currentMode = "sample"; }
     runEngine();
