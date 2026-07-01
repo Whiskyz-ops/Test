@@ -8,7 +8,7 @@ import DetailTable from "@/components/DetailTable";
 import { ConflictsPanel, ResidencyView, FilingsView, DocumentsView, AccountsView, ClientsView, IntegrationsView } from "@/components/Views";
 import { US_STATES, COUNTRIES, SOURCES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan } from "@/lib/logic";
-import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId } from "@/lib/wising";
+import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries } from "@/lib/wising";
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading world map…</div> });
 const UsStatesMap = dynamic(() => import("@/components/UsStatesMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading US map…</div> });
@@ -31,6 +31,7 @@ export default function MonitorPage() {
   const [clientName, setClientName] = useState(null);
   const [result, setResult] = useState(null);
   const [activeProfile, setActiveProfile] = useState(null);
+  const [clientSummaries, setClientSummaries] = useState([]);
 
   const recompute = useCallback((preferred) => {
     const wantLive = preferred === "live" || (preferred == null && hasLiveLayer1());
@@ -43,7 +44,7 @@ export default function MonitorPage() {
     }
   }, []);
 
-  useEffect(() => { setProfiles(listProfiles()); recompute(null); }, [recompute]);
+  useEffect(() => { setProfiles(listProfiles()); setClientSummaries(allClientSummaries()); recompute(null); }, [recompute]);
   const onPickProfile = useCallback((id) => { if (id && loadProfile(id)) { recompute("live"); } }, [recompute]);
 
   useEffect(() => {
@@ -124,7 +125,7 @@ export default function MonitorPage() {
           </>
         )}
 
-        {view === "clients" && <ClientsView profiles={profiles} activeId={activeProfile} onPick={pickFromClients} />}
+        {view === "clients" && <ClientsView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
         {view === "residency" && <ResidencyView result={result} />}
         {view === "filings" && <FilingsView result={result} />}
         {view === "documents" && <DocumentsView result={result} />}

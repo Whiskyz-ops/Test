@@ -8,11 +8,11 @@ const HAS_DATA = { India: "IN", "United States of America": "US" };
 
 export default function WorldMap({ statusByName, onSelectCountry }) {
   return (
-    <div className="w-full">
+    <div className="w-full max-w-2xl mx-auto">
       <ComposableMap
         projection="geoEqualEarth"
-        projectionConfig={{ scale: 165 }}
-        style={{ width: "100%", height: "auto" }}
+        projectionConfig={{ scale: 135 }}
+        style={{ width: "100%", height: "auto", maxHeight: "380px" }}
       >
         <ZoomableGroup center={[10, 25]} zoom={1} minZoom={1} maxZoom={4}>
           <Geographies geography={worldTopo}>

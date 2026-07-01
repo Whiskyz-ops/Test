@@ -19,31 +19,55 @@ const Empty = ({ children }) => <div className="text-center text-white/40 text-s
 
 /* ============================ CONFLICTS (Monitor home) ============================ */
 export function ConflictsPanel({ findings }) {
-  const [open, setOpen] = useState({});
+  const [open, setOpen] = useState(null);        // one expanded at a time; collapsed by default
+  const [filter, setFilter] = useState("all");
   if (!findings || !findings.length) return <Empty>No conflicts detected for this taxpayer.</Empty>;
+
+  const counts = { all: findings.length, critical: 0, warning: 0, info: 0 };
+  findings.forEach((f) => counts[f.severity]++);
+  const shown = findings.filter((f) => filter === "all" || f.severity === filter);
+  const chips = [["all", "All"], ["critical", "Critical"], ["warning", "Warning"], ["info", "Info"]];
+
   return (
-    <div className="space-y-3">
-      {findings.map((f, i) => {
-        const isOpen = open[f.id] ?? (f.severity === "critical" && i < 2);
-        return (
-          <div key={f.id} onClick={() => setOpen((s) => ({ ...s, [f.id]: !isOpen }))}
-            className="rounded-xl bg-panel border border-line p-4 cursor-pointer hover:border-white/20" style={{ borderLeft: `3px solid ${SEV[f.severity]}` }}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="font-bold text-sm flex items-center gap-2">
-                <span className="text-white/30 text-xs" style={{ transform: isOpen ? "rotate(90deg)" : "none", display: "inline-block" }}>▸</span>{f.title}
-              </div>
-              {f.amountUsd > 0 && <div className="font-mono text-sm whitespace-nowrap" style={{ color: SEV[f.severity] }}>{fmtUsd(f.amountUsd)}</div>}
+    <div>
+      {/* filter chips — scannable summary */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        {chips.map(([id, label]) => {
+          const active = filter === id;
+          const c = id === "all" ? "#fff" : SEV[id];
+          return (
+            <button key={id} onClick={() => setFilter(id)}
+              className={"px-2.5 py-1 rounded-md text-[11px] font-bold border transition-colors " + (active ? "bg-white/10 border-white/20 text-white" : "border-line text-white/50 hover:text-white/80")}>
+              {id !== "all" && <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ background: c }} />}
+              {label} <span className="opacity-60">{counts[id]}</span>
+            </button>
+          );
+        })}
+        <span className="ml-auto text-[11px] text-white/35">{shown.length} shown · tap a row for detail &amp; action</span>
+      </div>
+
+      <div className="space-y-1.5">
+        {shown.map((f) => {
+          const isOpen = open === f.id;
+          return (
+            <div key={f.id} className="rounded-lg bg-panel border border-line overflow-hidden" style={{ borderLeft: `3px solid ${SEV[f.severity]}` }}>
+              <button onClick={() => setOpen(isOpen ? null : f.id)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/[0.03]">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: SEV[f.severity] }} />
+                <span className="font-semibold text-[13px] flex-1 truncate">{f.title}</span>
+                {f.amountUsd > 0 && <span className="font-mono text-[12px] whitespace-nowrap" style={{ color: SEV[f.severity] }}>{fmtUsd(f.amountUsd)}</span>}
+                <span className="text-white/25 text-xs" style={{ transform: isOpen ? "rotate(90deg)" : "none" }}>▸</span>
+              </button>
+              {isOpen && (
+                <div className="px-3 pb-3 pt-0">
+                  <div className="text-[12px] text-white/55 leading-relaxed">{f.detail}</div>
+                  <div className="text-[12px] text-white/80 mt-2 leading-relaxed"><span className="text-emerald-400 font-bold">▸ Action:</span> {f.recommendation}</div>
+                  {f.refs && f.refs.length > 0 && <div className="flex flex-wrap gap-1.5 mt-2.5">{f.refs.map((r, j) => <span key={j} className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded bg-white/5 text-white/45">{r}</span>)}</div>}
+                </div>
+              )}
             </div>
-            {isOpen && (
-              <div className="mt-2">
-                <div className="text-[12px] text-white/55 leading-relaxed">{f.detail}</div>
-                <div className="text-[12px] text-white/80 mt-2 leading-relaxed"><span className="text-emerald-400 font-bold">▸ Action:</span> {f.recommendation}</div>
-                {f.refs && f.refs.length > 0 && <div className="flex flex-wrap gap-1.5 mt-2.5">{f.refs.map((r, j) => <span key={j} className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded bg-white/5 text-white/45">{r}</span>)}</div>}
-              </div>
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -248,29 +272,77 @@ export function AccountsView({ result }) {
   );
 }
 
-/* ============================ CLIENTS ============================ */
-export function ClientsView({ profiles, activeId, onPick }) {
+/* ============================ CLIENTS (portfolio landing) ============================ */
+export function ClientsView({ clients, activeId, onPick }) {
+  if (!clients || !clients.length) return <Empty>Loading clients…</Empty>;
+  // Portfolio rollups across the whole book of business.
+  const totalTax = clients.reduce((a, c) => a + (c.combinedTaxUsd || 0), 0);
+  const totalResidual = clients.reduce((a, c) => a + (c.netDoubleTaxUsd || 0), 0);
+  const openCritical = clients.reduce((a, c) => a + (c.critical || 0), 0);
+  const atRisk = clients.filter((c) => c.healthScore < 50).length;
+  const sorted = clients.slice().sort((a, b) => (a.healthScore ?? 100) - (b.healthScore ?? 100)); // most-at-risk first
+
+  const Kpi = ({ label, value, accent, sub }) => (
+    <div className="rounded-2xl bg-panel border border-line p-4">
+      <div className="text-[10px] uppercase tracking-widest text-white/40 mb-1">{label}</div>
+      <div className="font-display font-extrabold text-2xl" style={{ color: accent || "#fff" }}>{value}</div>
+      {sub && <div className="text-[11px] text-white/45 mt-1">{sub}</div>}
+    </div>
+  );
+  const healthColor = (h) => (h >= 80 ? "#10B981" : h >= 50 ? "#f59e0b" : "#ef4444");
+
   return (
-    <Card title="Clients" sub="Select a client to load their full cross-border picture">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {profiles.map((p) => {
-          const isBiz = /company|C-Corp|🏢/.test(p.label);
-          const isActive = activeId === p.id;
-          return (
-            <button key={p.id} onClick={() => onPick(p.id)}
-              className={"text-left rounded-xl p-4 border transition-all " + (isActive ? "border-brandCyan/50 bg-brandCyan/5" : "border-line bg-white/[0.02] hover:border-white/20")}>
-              <div className="flex items-center justify-between">
-                <div className="font-bold text-sm">{p.label}</div>
-                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded" style={{ background: isBiz ? "rgba(168,85,247,.16)" : "rgba(6,182,212,.14)", color: isBiz ? "#d8b4fe" : "#67e8f9" }}>{isBiz ? "Business" : "Individual"}</span>
-              </div>
-              <div className="text-[11px] text-white/50 mt-1 leading-snug">{p.story}</div>
-              <div className="flex flex-wrap gap-1.5 mt-2">{(p.tags || []).map((t, i) => <span key={i} className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded bg-white/5 text-white/45">{t}</span>)}</div>
-              {isActive && <div className="text-[10px] text-brandCyan font-bold mt-2">● Active client</div>}
-            </button>
-          );
-        })}
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-display font-extrabold text-2xl">Client Portfolio</h2>
+        <p className="text-white/45 text-sm mt-1">Your book of business — cross-border exposure at a glance. Click a client to open their Monitor.</p>
       </div>
-    </Card>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <Kpi label="Clients" value={clients.length} />
+        <Kpi label="At risk" value={atRisk} accent={atRisk ? "#ef4444" : "#10B981"} sub="health < 50" />
+        <Kpi label="Open critical" value={openCritical} accent={openCritical ? "#ef4444" : "#10B981"} sub="conflicts" />
+        <Kpi label="Combined tax" value={fmtUsd(totalTax)} sub="IN + US, all clients" />
+        <Kpi label="Residual double tax" value={fmtUsd(totalResidual)} accent={totalResidual ? "#ef4444" : "#10B981"} sub="unrelieved" />
+      </div>
+
+      <div className="overflow-x-auto rounded-2xl border border-line bg-panel">
+        <table className="w-full">
+          <thead className="bg-white/[0.02]">
+            <tr>
+              {["Client", "Type", "Residency", "Combined tax", "Residual", "Conflicts", "Health", "Next filing", ""].map((h, i) => (
+                <th key={i} className={"px-4 py-2.5 text-[10px] uppercase tracking-widest text-white/40 font-bold " + (["Combined tax", "Residual"].includes(h) ? "text-right" : "text-left")}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((c) => {
+              const isActive = activeId === c.id;
+              return (
+                <tr key={c.id} onClick={() => onPick(c.id)} className={"border-t border-line cursor-pointer hover:bg-white/[0.03] " + (isActive ? "bg-brandCyan/5" : "")}>
+                  <td className="px-4 py-3">
+                    <div className="text-[13px] font-semibold">{c.label.replace(/^🏢\s*/, "")}</div>
+                    <div className="text-[10px] text-white/40 truncate max-w-[240px]">{c.story}</div>
+                  </td>
+                  <td className="px-4 py-3"><span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded" style={{ background: c.isBusiness ? "rgba(168,85,247,.16)" : "rgba(6,182,212,.14)", color: c.isBusiness ? "#d8b4fe" : "#67e8f9" }}>{c.isBusiness ? "Business" : "Individual"}</span></td>
+                  <td className="px-4 py-3 text-[12px] text-white/70">{(c.indiaStatus || "—")}<span className="text-white/30"> / </span>{(c.usStatus ? c.usStatus.replace(/_/g, " ") : "—")}{c.dualResident && <span className="ml-1 text-[9px] font-bold px-1 py-0.5 rounded bg-red-500/20 text-red-400">DUAL</span>}</td>
+                  <td className="px-4 py-3 text-right font-mono text-[12px]">{fmtUsd(c.combinedTaxUsd)}</td>
+                  <td className="px-4 py-3 text-right font-mono text-[12px]" style={{ color: c.netDoubleTaxUsd > 0 ? "#ef4444" : "#9ca3af" }}>{fmtUsd(c.netDoubleTaxUsd)}</td>
+                  <td className="px-4 py-3 text-[12px]"><span className="text-red-400 font-bold">{c.critical}</span><span className="text-white/30"> · </span><span className="text-amber-400">{c.warning}</span></td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full" style={{ width: Math.max(4, c.healthScore) + "%", background: healthColor(c.healthScore) }} /></div>
+                      <span className="text-[11px] font-mono" style={{ color: healthColor(c.healthScore) }}>{c.healthScore}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-[11px] text-white/60">{c.nextDeadline ? c.nextDeadline.dateLabel + " · in " + c.nextDeadline.daysUntil + "d" : "—"}</td>
+                  <td className="px-4 py-3 text-right"><span className="text-[11px] font-bold text-brandCyan">Open →</span></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 

@@ -31,6 +31,26 @@ export function activeProfileId() {
   return W && W.activeProfileId ? W.activeProfileId() : null;
 }
 
+// Run the engine over every profile → compact summaries for the Clients portfolio.
+export function allClientSummaries() {
+  const W = getWISING();
+  if (!W || !W.PROFILES) return [];
+  return W.PROFILES.map((p) => {
+    const r = W.analyze({ router: p.router, india: p.india, us: p.us });
+    const s = r.summary;
+    return {
+      id: p.id, label: p.label, story: p.story, tags: p.tags,
+      isBusiness: r.model.entity ? r.model.entity.isBusiness : false,
+      indiaStatus: s.indiaStatus, usStatus: s.usStatus, dualResident: s.dualResident,
+      totalIncomeUsd: s.totalIncomeUsd, netDoubleTaxUsd: s.netDoubleTaxUsd,
+      combinedTaxUsd: (s.indiaTaxUsd || 0) + (s.usTaxUsd || 0),
+      critical: s.counts.critical, warning: s.counts.warning,
+      requiredDocs: s.requiredDocs, healthScore: s.healthScore,
+      nextDeadline: r.monitoring && r.monitoring.calendar.next ? r.monitoring.calendar.next : null
+    };
+  });
+}
+
 export function hasLiveLayer1() {
   const W = getWISING();
   if (!W) return false;
