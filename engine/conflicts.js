@@ -319,8 +319,24 @@
    * analyze — single entry point used by the dashboard.
    * ----------------------------------------------------------------------*/
   function analyze(opts) {
+    opts = opts || {};
+    var scenario = opts.scenario || {};
+
+    // Scenario overrides let the dashboard re-run the engine live (what-if
+    // levers). FX is a module constant, so override it around this synchronous
+    // call and restore afterwards.
+    var savedFx = CONST.FX.INR_PER_USD;
+    if (scenario.fxRate) CONST.FX.INR_PER_USD = scenario.fxRate;
+
     var model = WISING.normalize(opts);
+
+    if (scenario.indiaRegime) model.residency.india.taxRegime = scenario.indiaRegime;
+    if (scenario.feie !== undefined && scenario.feie !== null) model.limitsRaw.feieClaimed = scenario.feie;
+
     var computed = WISING.compute(model);
+
+    CONST.FX.INR_PER_USD = savedFx; // restore
+
     var findings = detectConflicts(model, computed);
     var documents = buildDocuments(model, computed);
     var ftcReport = buildFtcReport(model, computed);

@@ -5,10 +5,8 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>WISING — DTAA Bridge Compiler (Layer 2 Conflict Dashboard)</title>
 <meta name="description" content="Layer 2 cross-border engine: India-US tax conflict detection, limit monitoring, document checklist and FTC reconciliation."/>
-<!-- Self-contained Tailwind build (no CDN) so the demo works offline. Rebuild: npm run build:css -->
 <link rel="stylesheet" href="assets/tailwind.css"/>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700;800&display=swap');
   ::-webkit-scrollbar { width:6px; height:6px; }
   ::-webkit-scrollbar-track { background:#050505; }
   ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:10px; }
@@ -21,8 +19,21 @@
   .sev-warning  { border-left:3px solid #D4AF37; }
   .sev-info     { border-left:3px solid #06B6D4; }
   .pill { font-size:9px; letter-spacing:.18em; text-transform:uppercase; font-weight:800; padding:3px 8px; border-radius:6px; }
-  .fade-in { animation:fade .4s ease both; }
-  @keyframes fade { from { opacity:0; transform:translateY(6px);} to {opacity:1; transform:none;} }
+  /* entrance + motion */
+  @keyframes fadeUp { from { opacity:0; transform:translateY(10px);} to {opacity:1; transform:none;} }
+  .fade-in { animation:fadeUp .45s cubic-bezier(.2,.7,.3,1) both; }
+  @keyframes pulseRed { 0%,100%{ box-shadow:0 0 0 0 rgba(239,68,68,.0);} 50%{ box-shadow:0 0 0 4px rgba(239,68,68,.18);} }
+  .pulse-critical { animation:pulseRed 2.2s ease-in-out infinite; }
+  .bar-fill { transition:width 1.1s cubic-bezier(.2,.8,.2,1); }
+  .card-hover { transition:transform .18s ease, border-color .18s ease, background .18s ease; }
+  .card-hover:hover { transform:translateY(-2px); border-color:rgba(255,255,255,.18); }
+  .conflict-card { cursor:pointer; }
+  .conflict-body { overflow:hidden; transition:max-height .35s ease, opacity .3s ease; }
+  .donut-seg { transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1), stroke-width .2s ease; }
+  .chip { transition:all .15s ease; cursor:pointer; }
+  input[type=range]{ -webkit-appearance:none; height:4px; border-radius:9px; background:rgba(255,255,255,.15); outline:none; }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:#06B6D4; cursor:pointer; box-shadow:0 0 10px rgba(6,182,212,.6); }
+  .seg-toggle button { transition:all .15s ease; }
 </style>
 </head>
 <body class="min-h-screen">
@@ -50,7 +61,7 @@
 <main class="max-w-7xl mx-auto px-5 py-6">
 
   <!-- ===================== DATA SOURCE BAR ===================== -->
-  <div id="source-bar" class="glass rounded-xl p-3 mb-6 flex flex-wrap items-center justify-between gap-3">
+  <div id="source-bar" class="glass rounded-xl p-3 mb-4 flex flex-wrap items-center justify-between gap-3">
     <div class="flex items-center gap-3 text-xs">
       <span id="source-dot" class="w-2.5 h-2.5 rounded-full bg-white/30"></span>
       <span id="source-mode" class="pill bg-white/10 text-white/50">—</span>
@@ -66,16 +77,54 @@
     </div>
   </div>
 
+  <!-- ===================== SCENARIO / WHAT-IF BAR ===================== -->
+  <div class="glass rounded-xl p-3 mb-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+    <span class="text-[10px] uppercase tracking-widest text-white/40 font-bold">What-if scenario</span>
+
+    <div class="flex items-center gap-2">
+      <span class="text-[11px] text-white/50">India regime</span>
+      <div id="regime-toggle" class="seg-toggle flex bg-white/5 rounded-lg p-0.5 border border-white/10">
+        <button data-regime="NEW" class="px-3 py-1 text-[11px] font-bold rounded-md">NEW</button>
+        <button data-regime="OLD" class="px-3 py-1 text-[11px] font-bold rounded-md">OLD</button>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <span class="text-[11px] text-white/50">FX rate</span>
+      <input id="fx-slider" type="range" min="75" max="92" step="0.5" value="83" class="w-32" oninput="onFxInput(this.value)"/>
+      <span id="fx-label" class="font-mono text-[11px] text-brandCyan w-20">83.0 ₹/$</span>
+    </div>
+
+    <label class="flex items-center gap-2 text-[11px] text-white/50 cursor-pointer">
+      <input id="feie-toggle" type="checkbox" class="rounded bg-black border-white/20" onchange="onFeieToggle(this.checked)"/>
+      Claim FEIE (Form 2555)
+    </label>
+
+    <button onclick="resetScenario()" class="ml-auto px-3 py-1 text-[10px] font-bold rounded-lg bg-white/5 text-white/50 border border-white/10 hover:bg-white/10">Reset</button>
+  </div>
+
   <!-- ===================== KPI CARDS ===================== -->
-  <section id="kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7"></section>
+  <section id="kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></section>
 
   <!-- ===================== RESIDENCY STRIP ===================== -->
-  <section id="residency-strip" class="mb-7"></section>
+  <section id="residency-strip" class="mb-6"></section>
+
+  <!-- ===================== VISUAL ROW: income mix + tax/relief ===================== -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <section class="glass rounded-2xl p-5 card-hover">
+      <h2 class="font-display font-extrabold text-lg mb-1">Income Composition</h2>
+      <p class="text-[11px] text-white/40 mb-3">Worldwide income by head — hover a segment.</p>
+      <div id="income-chart" class="flex items-center gap-5"></div>
+    </section>
+    <section class="glass rounded-2xl p-5 card-hover">
+      <h2 class="font-display font-extrabold text-lg mb-1">Tax Exposure &amp; Relief</h2>
+      <p class="text-[11px] text-white/40 mb-3">Combined liability and how FTC relieves the overlap.</p>
+      <div id="tax-relief-chart"></div>
+    </section>
+  </div>
 
   <!-- ===================== MAIN GRID ===================== -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-    <!-- Conflicts (2 cols) -->
     <section class="lg:col-span-2 glass rounded-2xl p-5">
       <div class="flex items-center justify-between mb-4">
         <h2 class="font-display font-extrabold text-lg">Conflicts &amp; Mismatches</h2>
@@ -83,8 +132,6 @@
       </div>
       <div id="conflicts-list" class="space-y-3"></div>
     </section>
-
-    <!-- Right rail: Limits -->
     <section class="glass rounded-2xl p-5">
       <h2 class="font-display font-extrabold text-lg mb-4">Limit Monitoring</h2>
       <div id="limits-list" class="space-y-4"></div>
@@ -111,7 +158,6 @@
       <p class="text-[11px] text-white/40 mb-4">Foreign Tax Credit pool &amp; limitation across both jurisdictions.</p>
       <div id="ftc-report"></div>
     </section>
-
     <section class="glass rounded-2xl p-5">
       <h2 class="font-display font-extrabold text-lg mb-1">Documents to File</h2>
       <p class="text-[11px] text-white/40 mb-4">Triggered by the taxpayer's cross-border facts.</p>
@@ -121,7 +167,7 @@
 
   <footer class="text-center text-[10px] text-white/30 mt-10 leading-relaxed">
     WISING Layer 2 prototype · Planning estimates only — not a substitute for professional tax advice.<br/>
-    Engine: <span class="font-mono">normalize → compute → conflicts</span> · FX anchor 83.0 INR/USD · Schemas: layer1_india_v5_1 / layer1_us_v1
+    Engine: <span class="font-mono">normalize → compute → conflicts</span> · Schemas: layer1_india_v5_1 / layer1_us_v1
   </footer>
 </main>
 
@@ -134,17 +180,20 @@
 <script>
   var W = window.WISING;
   var fmtUsd = function (n) { return "$" + Math.round(n||0).toLocaleString("en-US"); };
+  var fmtUsdShort = function (n) { n = n||0; if (Math.abs(n)>=1e6) return "$"+(n/1e6).toFixed(1)+"M"; if (Math.abs(n)>=1e3) return "$"+Math.round(n/1e3)+"k"; return "$"+Math.round(n); };
   var fmtInr = function (n) { return "₹" + Math.round(n||0).toLocaleString("en-IN"); };
+
   var activeFilter = "all";
   var lastResult = null;
   var currentMode = null;
+  var currentOpts = {};                    // base opts (live = {}, sample = bundle)
+  var scenario = { indiaRegime: null, fxRate: null, feie: null };
+  var expanded = {};                        // conflict card expansion state
 
   function hasLiveData() {
-    try {
-      return !!(localStorage.getItem(W.CONST.STORAGE_KEYS.INDIA) || localStorage.getItem(W.CONST.STORAGE_KEYS.US));
-    } catch (e) { return false; }
+    try { return !!(localStorage.getItem(W.CONST.STORAGE_KEYS.INDIA) || localStorage.getItem(W.CONST.STORAGE_KEYS.US)); }
+    catch (e) { return false; }
   }
-
   function setSource(state, text) {
     var dot = document.getElementById("source-dot");
     var txt = document.getElementById("source-text");
@@ -154,46 +203,74 @@
     txt.textContent = text;
   }
 
-  // Demo is rendered IN-MEMORY only — it never writes to localStorage, so it
-  // can't mask real Layer 1 data the user later enters in the forms.
+  // ---- engine run (applies current scenario) ----
+  function runEngine() {
+    var opts = {};
+    for (var k in currentOpts) opts[k] = currentOpts[k];
+    opts.scenario = scenario;
+    render(W.analyze(opts), currentMode || "sample");
+  }
+
   function loadSample() {
-    render(W.analyze({ router: W.SAMPLE.router, india: W.SAMPLE.india, us: W.SAMPLE.us }), "sample");
+    currentOpts = { router: W.SAMPLE.router, india: W.SAMPLE.india, us: W.SAMPLE.us };
+    currentMode = "sample";
+    runEngine();
   }
-
-  // Re-read whatever is current: prefer live Layer 1 data, else demo.
   function reanalyze() {
-    if (hasLiveData()) { render(W.analyze({}), "live"); }
-    else { loadSample(); }
+    if (hasLiveData()) { currentOpts = {}; currentMode = "live"; }
+    else { currentOpts = { router: W.SAMPLE.router, india: W.SAMPLE.india, us: W.SAMPLE.us }; currentMode = "sample"; }
+    runEngine();
   }
-
   function importJson(ev) {
     var file = ev.target.files[0]; if (!file) return;
     var rdr = new FileReader();
     rdr.onload = function () {
       try {
-        var obj = JSON.parse(rdr.result);
-        // accept { india, us, router } bundle OR a single state (auto-detect)
-        var opts = {};
-        if (obj.india || obj.us || obj.router) { opts = obj; }
-        else if (obj.us_residency_detail) { opts.us = obj; }
-        else if (obj.residency_detail) { opts.india = obj; }
-        render(W.analyze(opts), "imported");
+        var obj = JSON.parse(rdr.result), opts = {};
+        if (obj.india || obj.us || obj.router) opts = obj;
+        else if (obj.us_residency_detail) opts.us = obj;
+        else if (obj.residency_detail) opts.india = obj;
+        currentOpts = opts; currentMode = "imported"; runEngine();
       } catch (e) { alert("Could not parse JSON: " + e.message); }
     };
     rdr.readAsText(file);
   }
 
-  // ----------------------------- renderers -----------------------------
-  function kpiCard(label, value, sub, accent) {
-    return '<div class="glass rounded-2xl p-4 fade-in">' +
-      '<div class="text-[10px] uppercase tracking-widest text-white/40 mb-1">' + label + '</div>' +
-      '<div class="font-display font-extrabold text-2xl" style="color:' + (accent||'#fff') + '">' + value + '</div>' +
-      '<div class="text-[11px] text-white/45 mt-1">' + (sub||'') + '</div></div>';
+  // ---- scenario controls ----
+  function onFxInput(v) {
+    scenario.fxRate = parseFloat(v);
+    document.getElementById("fx-label").textContent = parseFloat(v).toFixed(1) + " ₹/$";
+    runEngine();
+  }
+  function onFeieToggle(c) { scenario.feie = c; runEngine(); }
+  function setRegime(r) { scenario.indiaRegime = r; runEngine(); }
+  function resetScenario() {
+    scenario = { indiaRegime: null, fxRate: null, feie: null };
+    document.getElementById("fx-slider").value = 83;
+    document.getElementById("fx-label").textContent = "83.0 ₹/$";
+    document.getElementById("feie-toggle").checked = false;
+    runEngine();
+  }
+  document.getElementById("regime-toggle").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (b) setRegime(b.getAttribute("data-regime"));
+  });
+
+  // ---- number count-up ----
+  function animateCount(el, to, fmt) {
+    var from = 0, start = null, dur = 750;
+    function step(ts) {
+      if (!start) start = ts;
+      var p = Math.min(1, (ts - start) / dur);
+      var eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = fmt(from + (to - from) * eased);
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
   }
 
+  // ============================ RENDER ============================
   function render(result, sourceKind) {
-    lastResult = result;
-    currentMode = sourceKind;
+    lastResult = result; currentMode = sourceKind;
     var s = result.summary;
 
     var srcText = {
@@ -201,10 +278,10 @@
       sample: "Demo taxpayer — Aarav Sharma (in-memory; your form data is untouched).",
       imported: "Imported JSON analyzed."
     }[sourceKind] || "Data analyzed.";
-    var modeBadge = document.getElementById("source-mode");
-    if (sourceKind === "live") { modeBadge.textContent = "LIVE"; modeBadge.className = "pill bg-brandGreen/20 text-brandGreen"; }
-    else if (sourceKind === "imported") { modeBadge.textContent = "IMPORT"; modeBadge.className = "pill bg-brandGold/20 text-brandGold"; }
-    else { modeBadge.textContent = "DEMO"; modeBadge.className = "pill bg-brandCyan/20 text-brandCyan"; }
+    var mb = document.getElementById("source-mode");
+    if (sourceKind === "live") { mb.textContent = "LIVE"; mb.className = "pill bg-brandGreen/20 text-brandGreen"; }
+    else if (sourceKind === "imported") { mb.textContent = "IMPORT"; mb.className = "pill bg-brandGold/20 text-brandGold"; }
+    else { mb.textContent = "DEMO"; mb.className = "pill bg-brandCyan/20 text-brandCyan"; }
     setSource(sourceKind === "live" ? "live" : "sample", srcText +
       "  ·  India: " + (s.hasIndia ? "✓" : "—") + "  US: " + (s.hasUs ? "✓" : "—") +
       (s.indiaQuarterly ? "  ·  India quarters summed → annual" : ""));
@@ -213,23 +290,222 @@
       "Base Tax Year " + s.baseYear + " &nbsp;|&nbsp; Jurisdiction: " + s.jurisdiction.toUpperCase() +
       " &nbsp;|&nbsp; India FY Apr–Mar &nbsp;·&nbsp; US CY Jan–Dec";
 
-    // KPIs
-    var dt = s.netDoubleTaxUsd;
-    document.getElementById("kpis").innerHTML =
-      kpiCard("Taxpayer", s.name, s.jurisdiction.toUpperCase() + " · " + s.baseYear, "#fff") +
-      kpiCard("Critical conflicts", s.counts.critical, s.counts.warning + " warnings · " + s.counts.info + " info",
-        s.counts.critical > 0 ? "#ef4444" : "#10B981") +
-      kpiCard("Residual double tax", fmtUsd(dt), dt > 0 ? "Unrelieved after FTC limit" : "Fully relieved",
-        dt > 0 ? "#ef4444" : "#10B981") +
-      kpiCard("Filings required", s.requiredDocs, "across IN + US", "#06B6D4");
+    // sync regime toggle highlight to the regime actually used
+    var usedRegime = result.computed.indiaTax.regime;
+    Array.prototype.forEach.call(document.querySelectorAll("#regime-toggle button"), function (b) {
+      var on = b.getAttribute("data-regime") === usedRegime;
+      b.className = "px-3 py-1 text-[11px] font-bold rounded-md " + (on ? "bg-brandGold text-black" : "text-white/50 hover:text-white");
+    });
 
+    renderKpis(result);
     renderResidency(result);
+    renderIncomeChart(result);
+    renderTaxReliefChart(result);
     renderConflictFilters(result);
     renderConflicts(result);
     renderLimits(result);
     renderTaxComputation(result);
     renderFtc(result);
     renderDocs(result);
+  }
+
+  function renderKpis(result) {
+    var s = result.summary, c = result.computed;
+    var box = document.getElementById("kpis");
+    box.innerHTML =
+      kpiShell("Taxpayer", '<span class="text-white">' + s.name + '</span>', s.jurisdiction.toUpperCase() + " · " + s.baseYear) +
+      kpiNum("Critical conflicts", "k-crit", s.counts.critical, s.counts.warning + " warnings · " + s.counts.info + " info", s.counts.critical>0?"#ef4444":"#10B981") +
+      kpiNum("Residual double tax", "k-dt", s.netDoubleTaxUsd, "Unrelieved after FTC limit", s.netDoubleTaxUsd>0?"#ef4444":"#10B981", true) +
+      kpiNum("Filings required", "k-docs", s.requiredDocs, "across IN + US", "#06B6D4");
+    // animate the numeric KPIs
+    animateCount(document.getElementById("k-crit"), s.counts.critical, function (v) { return Math.round(v); });
+    animateCount(document.getElementById("k-dt"), s.netDoubleTaxUsd, function (v) { return fmtUsd(v); });
+    animateCount(document.getElementById("k-docs"), s.requiredDocs, function (v) { return Math.round(v); });
+  }
+  function kpiShell(label, valueHtml, sub) {
+    return '<div class="glass rounded-2xl p-4 card-hover fade-in">' +
+      '<div class="text-[10px] uppercase tracking-widest text-white/40 mb-1">' + label + '</div>' +
+      '<div class="font-display font-extrabold text-2xl truncate">' + valueHtml + '</div>' +
+      '<div class="text-[11px] text-white/45 mt-1">' + (sub||'') + '</div></div>';
+  }
+  function kpiNum(label, id, val, sub, accent, isMoney) {
+    var pulse = (accent === "#ef4444" && (label.indexOf("Critical")>=0 || label.indexOf("double")>=0)) ? " pulse-critical" : "";
+    return '<div class="glass rounded-2xl p-4 card-hover fade-in' + pulse + '">' +
+      '<div class="text-[10px] uppercase tracking-widest text-white/40 mb-1">' + label + '</div>' +
+      '<div id="' + id + '" class="font-display font-extrabold text-2xl" style="color:' + accent + '">' + (isMoney?"$0":"0") + '</div>' +
+      '<div class="text-[11px] text-white/45 mt-1">' + (sub||'') + '</div></div>';
+  }
+
+  function renderResidency(result) {
+    var r = result.computed.residency;
+    var chip = function (f) { return f
+      ? '<span class="pill bg-brandGreen/20 text-brandGreen">Resident</span>'
+      : '<span class="pill bg-white/10 text-white/50">Non-Resident</span>'; };
+    document.getElementById("residency-strip").innerHTML =
+      '<div class="glass rounded-2xl p-4 flex flex-col md:flex-row items-stretch gap-4 fade-in">' +
+        '<div class="flex-1 flex items-center gap-3">' +
+          '<div class="w-10 h-10 rounded-lg bg-brandGold/15 flex items-center justify-center text-lg">🇮🇳</div>' +
+          '<div><div class="text-[10px] uppercase tracking-widest text-white/40">India residency</div>' +
+          '<div class="font-display font-bold text-base">' + (r.india.status || "—") + ' ' + chip(r.india.isResident) + '</div>' +
+          '<div class="text-[11px] text-white/40">' + (r.india.worldwide ? "Worldwide income taxed" : "India-source only") + '</div></div></div>' +
+        '<div class="flex items-center justify-center px-4">' +
+          (r.dualResident
+            ? '<span class="pill bg-red-500/20 text-red-400 text-[10px] pulse-critical">⚠ DUAL RESIDENT — TIE-BREAK NEEDED</span>'
+            : '<span class="pill bg-white/10 text-white/50">No residency overlap</span>') +
+        '</div>' +
+        '<div class="flex-1 flex items-center gap-3 md:justify-end">' +
+          '<div class="md:text-right"><div class="text-[10px] uppercase tracking-widest text-white/40">US residency</div>' +
+          '<div class="font-display font-bold text-base">' + (r.us.status || "—") + ' ' + chip(r.us.isResident) + '</div>' +
+          '<div class="text-[11px] text-white/40">' + (r.us.isCitizen ? "US citizen — worldwide" : r.us.worldwide ? "Worldwide income taxed" : "US-source only") + '</div></div>' +
+          '<div class="w-10 h-10 rounded-lg bg-brandCyan/15 flex items-center justify-center text-lg">🇺🇸</div></div>' +
+      '</div>';
+  }
+
+  // ---- SVG doughnut of income by head ----
+  function renderIncomeChart(result) {
+    var inc = result.model.income;
+    var segs = [
+      { label: "India salary", v: inc.india.salary.usd, c: "#D4AF37" },
+      { label: "India business", v: inc.india.business.usd, c: "#b8860b" },
+      { label: "India rental", v: inc.india.houseProperty.usd, c: "#8B6914" },
+      { label: "India interest+div", v: inc.india.interest.usd + inc.india.dividend.usd, c: "#e6c200" },
+      { label: "India cap gains", v: inc.india.capitalGains.usd, c: "#5c4a10" },
+      { label: "US wages", v: inc.us.wages.usd, c: "#06B6D4" },
+      { label: "US interest+div", v: inc.us.interestUs.usd + inc.us.ordinaryDividendsUs.usd, c: "#0891b2" },
+      { label: "US cap gains", v: inc.us.capitalGainsUs.usd, c: "#22d3ee" }
+    ].filter(function (x) { return x.v > 0; });
+    var total = segs.reduce(function (a, x) { return a + x.v; }, 0) || 1;
+
+    var r = 52, cx = 64, cy = 64, C = 2 * Math.PI * r, off = 0;
+    var circles = segs.map(function (sg) {
+      var len = (sg.v / total) * C;
+      var dash = len + " " + (C - len);
+      var el = '<circle class="donut-seg" cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + sg.c +
+        '" stroke-width="18" stroke-dasharray="' + dash + '" stroke-dashoffset="' + (-off) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')">' +
+        '<title>' + sg.label + ": " + fmtUsd(sg.v) + " (" + Math.round(sg.v/total*100) + "%)</title></circle>";
+      off += len;
+      return el;
+    }).join("");
+
+    var legend = segs.map(function (sg) {
+      return '<div class="flex items-center gap-2 text-[11px]"><span class="w-2.5 h-2.5 rounded-sm" style="background:' + sg.c + '"></span>' +
+        '<span class="text-white/60 flex-1">' + sg.label + '</span>' +
+        '<span class="font-mono text-white/80">' + fmtUsdShort(sg.v) + '</span></div>';
+    }).join("");
+
+    document.getElementById("income-chart").innerHTML =
+      '<div class="relative shrink-0">' +
+        '<svg width="128" height="128" viewBox="0 0 128 128">' + circles + '</svg>' +
+        '<div class="absolute inset-0 flex flex-col items-center justify-center">' +
+          '<div class="text-[9px] uppercase tracking-widest text-white/40">Total</div>' +
+          '<div class="font-display font-extrabold text-sm">' + fmtUsdShort(total) + '</div></div>' +
+      '</div>' +
+      '<div class="flex-1 space-y-1.5 min-w-0">' + legend + '</div>';
+
+    // animate: start collapsed then draw
+    var c2 = document.querySelectorAll("#income-chart .donut-seg");
+    Array.prototype.forEach.call(c2, function (el) {
+      var final = el.getAttribute("stroke-dashoffset");
+      el.setAttribute("stroke-dashoffset", -C);
+      requestAnimationFrame(function () { requestAnimationFrame(function () { el.setAttribute("stroke-dashoffset", final); }); });
+    });
+  }
+
+  // ---- tax exposure + FTC waterfall ----
+  function renderTaxReliefChart(result) {
+    var h = result.computed.headline, ftc = result.computed.ftc.us;
+    var indiaTax = h.indiaTaxUsd, usTax = h.usTaxUsd;
+    var combined = indiaTax + usTax;
+    var afterRelief = combined - ftc.ftcAllowedUsd;
+    var max = Math.max(combined, 1);
+    function bar(label, val, color, sub) {
+      var pct = Math.max(2, Math.round(val / max * 100));
+      return '<div class="mb-2.5">' +
+        '<div class="flex justify-between text-[11px] mb-1"><span class="text-white/60">' + label + '</span>' +
+        '<span class="font-mono" style="color:' + color + '">' + fmtUsd(val) + '</span></div>' +
+        '<div class="h-3 rounded-full bg-white/8 overflow-hidden"><div class="bar-fill h-full rounded-full" style="width:0%;background:' + color + '" data-w="' + pct + '"></div></div>' +
+        (sub ? '<div class="text-[10px] text-white/35 mt-0.5">' + sub + '</div>' : '') + '</div>';
+    }
+    // FTC split bar: allowed (green) + residual (red) within Indian tax
+    var allowed = ftc.ftcAllowedUsd, residual = ftc.residualDoubleTaxUsd;
+    var indiaTaxForBar = allowed + residual || 1;
+    var allowedPct = Math.round(allowed / indiaTaxForBar * 100);
+
+    document.getElementById("tax-relief-chart").innerHTML =
+      bar("India tax", indiaTax, "#D4AF37") +
+      bar("US tax (pre-FTC)", usTax, "#06B6D4") +
+      bar("Combined (no relief)", combined, "#9ca3af") +
+      bar("After FTC relief", afterRelief, afterRelief<combined?"#10B981":"#9ca3af", "FTC removes " + fmtUsd(ftc.ftcAllowedUsd) + " of overlap") +
+      '<div class="mt-4 pt-3 border-t border-white/10">' +
+        '<div class="text-[10px] uppercase tracking-widest text-white/40 mb-1">Foreign Tax Credit on Indian tax</div>' +
+        '<div class="h-5 rounded-lg overflow-hidden flex bg-white/8">' +
+          '<div class="bar-fill h-full flex items-center justify-center text-[9px] font-black text-black" style="width:0%;background:#10B981" data-w="' + allowedPct + '" title="Credited">' + (allowedPct>12?"CREDITED":"") + '</div>' +
+          '<div class="bar-fill h-full flex items-center justify-center text-[9px] font-black text-white" style="width:0%;background:#ef4444" data-w="' + (100-allowedPct) + '" title="Residual double tax">' + ((100-allowedPct)>12?"DOUBLE-TAXED":"") + '</div>' +
+        '</div>' +
+        '<div class="flex justify-between text-[10px] mt-1"><span class="text-brandGreen">' + fmtUsd(allowed) + ' credited</span>' +
+        '<span class="text-red-400">' + fmtUsd(residual) + ' residual</span></div>' +
+      '</div>';
+    animateBars();
+  }
+  function animateBars() {
+    var els = document.querySelectorAll(".bar-fill[data-w]");
+    requestAnimationFrame(function () { requestAnimationFrame(function () {
+      Array.prototype.forEach.call(els, function (el) { el.style.width = el.getAttribute("data-w") + "%"; });
+    }); });
+  }
+
+  function renderConflictFilters(result) {
+    var counts = { all: result.findings.length, critical: 0, warning: 0, info: 0 };
+    result.findings.forEach(function (f) { counts[f.severity]++; });
+    var box = document.getElementById("conflict-filters");
+    box.innerHTML = ["all","critical","warning","info"].map(function (c) {
+      var active = activeFilter === c;
+      return '<button onclick="setFilter(\'' + c + '\')" class="chip px-2.5 py-1 rounded-md ' +
+        (active ? 'bg-white/15 text-white' : 'bg-white/5 text-white/40 hover:text-white/70') + '">' +
+        c.charAt(0).toUpperCase() + c.slice(1) + ' <span class="opacity-60">' + counts[c] + '</span></button>';
+    }).join("");
+  }
+  function setFilter(c) { activeFilter = c; renderConflictFilters(lastResult); renderConflicts(lastResult); }
+
+  function renderConflicts(result) {
+    var list = document.getElementById("conflicts-list");
+    var sevColor = { critical:"#ef4444", warning:"#D4AF37", info:"#06B6D4" };
+    var items = result.findings.filter(function (f) { return activeFilter === "all" || f.severity === activeFilter; });
+    if (!items.length) { list.innerHTML = '<div class="text-center text-white/40 text-sm py-8">No findings in this view.</div>'; return; }
+    list.innerHTML = items.map(function (f, i) {
+      if (expanded[f.id] === undefined) expanded[f.id] = (f.severity === "critical" && i < 2); // first criticals open
+      var open = expanded[f.id];
+      return '<div class="glass rounded-xl p-4 sev-' + f.severity + ' conflict-card card-hover fade-in" style="animation-delay:' + (i*35) + 'ms" onclick="toggleCard(\'' + f.id + '\')">' +
+        '<div class="flex items-start justify-between gap-3">' +
+          '<div class="font-bold text-sm flex items-center gap-2">' +
+            '<span class="text-white/30 text-xs transition-transform" style="display:inline-block;transform:rotate(' + (open?90:0) + 'deg)">▸</span>' + f.title + '</div>' +
+          (f.amountUsd > 0 ? '<div class="font-mono text-sm whitespace-nowrap" style="color:' + sevColor[f.severity] + '">' + fmtUsd(f.amountUsd) + '</div>' : '') +
+        '</div>' +
+        '<div class="conflict-body" style="max-height:' + (open?"460px":"0") + ';opacity:' + (open?1:0) + '">' +
+          '<div class="text-[12px] text-white/55 mt-2 leading-relaxed">' + f.detail + '</div>' +
+          '<div class="text-[12px] text-white/80 mt-2 leading-relaxed"><span class="text-brandGreen font-bold">▸ Action:</span> ' + f.recommendation + '</div>' +
+          (f.refs && f.refs.length ? '<div class="flex flex-wrap gap-1.5 mt-2.5">' + f.refs.map(function (x) { return '<span class="pill bg-white/5 text-white/45">' + x + '</span>'; }).join("") + '</div>' : '') +
+        '</div>' +
+      '</div>';
+    }).join("");
+  }
+  function toggleCard(id) { expanded[id] = !expanded[id]; renderConflicts(lastResult); }
+
+  function renderLimits(result) {
+    var box = document.getElementById("limits-list");
+    var color = { ok:"#10B981", approaching:"#D4AF37", breached:"#ef4444" };
+    box.innerHTML = result.computed.limits.map(function (g) {
+      var pct = Math.min(100, Math.round(g.pct * 100));
+      return '<div class="fade-in">' +
+        '<div class="flex justify-between text-[11px] mb-1">' +
+          '<span class="text-white/70 font-semibold">' + g.label + (g.status==="breached"?' <span class="pill bg-red-500/20 text-red-400 ml-1">BREACHED</span>':'') + '</span>' +
+          '<span class="font-mono" style="color:' + color[g.status] + '">' + Math.round(g.pct*100) + '%</span></div>' +
+        '<div class="h-2 rounded-full bg-white/8 overflow-hidden">' +
+          '<div class="bar-fill h-full rounded-full" style="width:0%;background:' + color[g.status] + '" data-w="' + pct + '"></div></div>' +
+        '<div class="flex justify-between text-[10px] text-white/40 mt-1"><span>' + fmtUsd(g.value) + '</span><span>limit ' + fmtUsd(g.limit) + '</span></div>' +
+        '<div class="text-[10px] text-white/35 mt-0.5">' + g.note + '</div></div>';
+    }).join("");
+    animateBars();
   }
 
   function renderTaxComputation(result) {
@@ -251,90 +527,13 @@
         '<div class="text-[10px] text-white/35 mt-2">≈ ' + fmtUsd(block.totalUsd) + ' at ' + result.model.meta.fxRate + ' INR/USD</div></div>';
     }
     document.getElementById("tax-india").innerHTML =
-      '<div class="rounded-xl p-4 bg-brandGold/5 border border-brandGold/15">' + table(tc.india, true) + '</div>';
+      '<div class="rounded-xl p-4 bg-brandGold/5 border border-brandGold/15 fade-in">' + table(tc.india, true) + '</div>';
     document.getElementById("tax-us").innerHTML =
-      '<div class="rounded-xl p-4 bg-brandCyan/5 border border-brandCyan/15">' + table(tc.us, false) + '</div>';
-  }
-
-  function renderResidency(result) {
-    var r = result.computed.residency;
-    var inResident = r.india.isResident, usResident = r.us.isResident;
-    var conflict = r.dualResident;
-    var chip = function (flag) { return flag
-      ? '<span class="pill bg-brandGreen/20 text-brandGreen">Resident</span>'
-      : '<span class="pill bg-white/10 text-white/50">Non-Resident</span>'; };
-    document.getElementById("residency-strip").innerHTML =
-      '<div class="glass rounded-2xl p-4 flex flex-col md:flex-row items-stretch gap-4">' +
-        '<div class="flex-1 flex items-center gap-3">' +
-          '<div class="w-10 h-10 rounded-lg bg-brandGold/15 flex items-center justify-center text-lg">🇮🇳</div>' +
-          '<div><div class="text-[10px] uppercase tracking-widest text-white/40">India residency</div>' +
-          '<div class="font-display font-bold text-base">' + (r.india.status || "—") + ' ' + chip(inResident) + '</div>' +
-          '<div class="text-[11px] text-white/40">' + (r.india.worldwide ? "Worldwide income taxed" : "India-source only") + '</div></div></div>' +
-        '<div class="flex items-center justify-center px-4">' +
-          (conflict
-            ? '<span class="pill bg-red-500/20 text-red-400 text-[10px]">⚠ DUAL RESIDENT — TIE-BREAK NEEDED</span>'
-            : '<span class="pill bg-white/10 text-white/50">No residency overlap</span>') +
-        '</div>' +
-        '<div class="flex-1 flex items-center gap-3 md:justify-end">' +
-          '<div class="md:text-right"><div class="text-[10px] uppercase tracking-widest text-white/40">US residency</div>' +
-          '<div class="font-display font-bold text-base">' + (r.us.status || "—") + ' ' + chip(usResident) + '</div>' +
-          '<div class="text-[11px] text-white/40">' + (r.us.isCitizen ? "US citizen — worldwide" : r.us.worldwide ? "Worldwide income taxed" : "US-source only") + '</div></div>' +
-          '<div class="w-10 h-10 rounded-lg bg-brandCyan/15 flex items-center justify-center text-lg">🇺🇸</div></div>' +
-      '</div>';
-  }
-
-  function renderConflictFilters(result) {
-    var cats = ["all","critical","warning","info"];
-    var box = document.getElementById("conflict-filters");
-    box.innerHTML = cats.map(function (c) {
-      var active = activeFilter === c;
-      return '<button onclick="setFilter(\'' + c + '\')" class="px-2.5 py-1 rounded-md ' +
-        (active ? 'bg-white/15 text-white' : 'bg-white/5 text-white/40 hover:text-white/70') + '">' +
-        c.charAt(0).toUpperCase() + c.slice(1) + '</button>';
-    }).join("");
-  }
-  function setFilter(c) { activeFilter = c; renderConflictFilters(lastResult); renderConflicts(lastResult); }
-
-  function renderConflicts(result) {
-    var list = document.getElementById("conflicts-list");
-    var sevColor = { critical:"#ef4444", warning:"#D4AF37", info:"#06B6D4" };
-    var items = result.findings.filter(function (f) { return activeFilter === "all" || f.severity === activeFilter; });
-    if (!items.length) { list.innerHTML = '<div class="text-center text-white/40 text-sm py-8">No findings in this view.</div>'; return; }
-    list.innerHTML = items.map(function (f) {
-      return '<div class="glass rounded-xl p-4 sev-' + f.severity + ' fade-in">' +
-        '<div class="flex items-start justify-between gap-3">' +
-          '<div class="font-bold text-sm">' + f.title + '</div>' +
-          (f.amountUsd > 0 ? '<div class="font-mono text-sm whitespace-nowrap" style="color:' + sevColor[f.severity] + '">' + fmtUsd(f.amountUsd) + '</div>' : '') +
-        '</div>' +
-        '<div class="text-[12px] text-white/55 mt-1.5 leading-relaxed">' + f.detail + '</div>' +
-        '<div class="text-[12px] text-white/80 mt-2 leading-relaxed"><span class="text-brandGreen font-bold">▸ Action:</span> ' + f.recommendation + '</div>' +
-        (f.refs && f.refs.length ? '<div class="flex flex-wrap gap-1.5 mt-2.5">' + f.refs.map(function (r) {
-          return '<span class="pill bg-white/5 text-white/45">' + r + '</span>'; }).join("") + '</div>' : '') +
-      '</div>';
-    }).join("");
-  }
-
-  function renderLimits(result) {
-    var box = document.getElementById("limits-list");
-    var color = { ok:"#10B981", approaching:"#D4AF37", breached:"#ef4444" };
-    box.innerHTML = result.computed.limits.map(function (g) {
-      var pct = Math.min(100, Math.round(g.pct * 100));
-      return '<div class="fade-in">' +
-        '<div class="flex justify-between text-[11px] mb-1">' +
-          '<span class="text-white/70 font-semibold">' + g.label + '</span>' +
-          '<span class="font-mono" style="color:' + color[g.status] + '">' + Math.round(g.pct*100) + '%</span></div>' +
-        '<div class="h-2 rounded-full bg-white/8 overflow-hidden">' +
-          '<div class="h-full rounded-full" style="width:' + pct + '%; background:' + color[g.status] + '"></div></div>' +
-        '<div class="flex justify-between text-[10px] text-white/40 mt-1">' +
-          '<span>' + fmtUsd(g.value) + '</span><span>limit ' + fmtUsd(g.limit) + '</span></div>' +
-        '<div class="text-[10px] text-white/35 mt-0.5">' + g.note + '</div>' +
-      '</div>';
-    }).join("");
+      '<div class="rounded-xl p-4 bg-brandCyan/5 border border-brandCyan/15 fade-in">' + table(tc.us, false) + '</div>';
   }
 
   function renderFtc(result) {
-    var box = document.getElementById("ftc-report");
-    var rep = result.ftcReport;
+    var box = document.getElementById("ftc-report"), rep = result.ftcReport;
     function table(block) {
       return '<div class="mb-4"><div class="text-[11px] font-bold text-white/70 mb-2">' + block.title + '</div>' +
         '<div class="space-y-1">' + block.rows.map(function (r) {
@@ -346,7 +545,7 @@
     }
     var net = rep.headlineNetDoubleTaxUsd;
     box.innerHTML =
-      '<div class="rounded-xl p-3 mb-4 ' + (net > 0 ? 'bg-red-500/10 border border-red-500/20' : 'bg-brandGreen/10 border border-brandGreen/20') + '">' +
+      '<div class="rounded-xl p-3 mb-4 fade-in ' + (net > 0 ? 'bg-red-500/10 border border-red-500/20' : 'bg-brandGreen/10 border border-brandGreen/20') + '">' +
         '<div class="text-[10px] uppercase tracking-widest text-white/50">Net unrelieved double tax</div>' +
         '<div class="font-display font-extrabold text-2xl" style="color:' + (net>0?'#ef4444':'#10B981') + '">' + fmtUsd(net) + '</div></div>' +
       table(rep.direction_us_claims_india) +
@@ -359,7 +558,7 @@
     var jColor = { US:"#06B6D4", IN:"#D4AF37" };
     var docs = result.documents.slice().sort(function (a, b) { return (b.required?1:0) - (a.required?1:0); });
     box.innerHTML = docs.map(function (d) {
-      return '<div class="flex items-start gap-3 p-2.5 rounded-lg ' + (d.required ? 'bg-white/4' : 'opacity-40') + '">' +
+      return '<div class="flex items-start gap-3 p-2.5 rounded-lg card-hover ' + (d.required ? 'bg-white/4' : 'opacity-40') + '">' +
         '<span class="pill mt-0.5" style="background:' + jColor[d.jurisdiction] + '22; color:' + jColor[d.jurisdiction] + '">' + d.jurisdiction + '</span>' +
         '<div class="flex-1"><div class="text-[12px] font-bold flex items-center gap-2">' + d.name +
           (d.required ? '<span class="pill bg-red-500/20 text-red-400">Required</span>' : '<span class="pill bg-white/8 text-white/40">N/A</span>') + '</div>' +
@@ -369,38 +568,18 @@
     }).join("");
   }
 
-  function renderEmpty() {
-    document.getElementById("kpis").innerHTML = "";
-    document.getElementById("residency-strip").innerHTML = "";
-    document.getElementById("conflicts-list").innerHTML =
-      '<div class="text-center text-white/40 text-sm py-10">No Layer 1 data yet.<br/>Click <b class="text-brandCyan">Load demo taxpayer</b> to see the engine in action, or complete the <a href="layer1_india.html" class="text-brandGold underline">India</a> / <a href="layer1_us.html" class="text-brandCyan underline">US</a> intake forms.</div>';
-    document.getElementById("limits-list").innerHTML = "";
-    document.getElementById("ftc-report").innerHTML = "";
-    document.getElementById("docs-list").innerHTML = "";
-    renderEmptyTax();
-  }
-
-  function renderEmptyTax() {
-    document.getElementById("tax-india").innerHTML = "";
-    document.getElementById("tax-us").innerHTML = "";
-  }
-
-  // Auto-refresh: live Layer 1 data always wins. When the user fills the forms
-  // in another tab (storage event) or returns to this tab (focus), re-read it.
+  // ---- auto-refresh: live data wins ----
   window.addEventListener("storage", function (e) {
     var K = W.CONST.STORAGE_KEYS;
-    if (e.key === K.INDIA || e.key === K.US || e.key === K.ROUTER) {
-      if (hasLiveData()) render(W.analyze({}), "live");
-    }
+    if (e.key === K.INDIA || e.key === K.US || e.key === K.ROUTER) { if (hasLiveData()) reanalyze(); }
   });
-  window.addEventListener("focus", function () {
-    if (hasLiveData() && currentMode !== "live") render(W.analyze({}), "live");
-  });
+  window.addEventListener("focus", function () { if (hasLiveData() && currentMode !== "live") reanalyze(); });
 
-  // ----------------------------- boot -----------------------------
+  // ---- boot ----
   (function boot() {
-    if (hasLiveData()) { render(W.analyze({}), "live"); }
-    else { loadSample(); } // demo (in-memory) so the dashboard is never empty
+    if (hasLiveData()) { currentOpts = {}; currentMode = "live"; }
+    else { currentOpts = { router: W.SAMPLE.router, india: W.SAMPLE.india, us: W.SAMPLE.us }; currentMode = "sample"; }
+    runEngine();
   })();
 </script>
 </body>

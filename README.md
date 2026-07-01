@@ -125,6 +125,12 @@ four quarters is summed to an annual figure (mirrors the form's
    **net unrelieved double tax**. A **Tax Computation** panel shows the full India
    (INR) and US (USD) breakdowns behind those FTC numbers.
 
+The dashboard is **interactive**: animated KPIs, an income-composition doughnut, a
+tax-exposure/relief chart with a credited-vs-double-taxed split, expandable conflict
+cards, and a **what-if bar** (India NEW/OLD regime · FX slider · FEIE toggle) that
+re-runs the full engine live. See **`DEMO_SCRIPT.md`** for a 3-minute investor
+walkthrough (pairs with the recorded `wising-dashboard-demo.webm`).
+
 ### Run the engine headless (Node)
 
 ```bash
