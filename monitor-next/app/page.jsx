@@ -93,9 +93,9 @@ export default function MonitorPage() {
             {profiles.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
           <span className="text-white/25 text-[11px] mx-1">Layer 1 intake:</span>
-          <a href="/router.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-white/5 border border-line text-white/70 hover:bg-white/10">Router</a>
-          <a href="/layer1_india.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-white/5 border border-line text-brandGold/80 hover:bg-white/10">India L1</a>
-          <a href="/layer1_us.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-white/5 border border-line text-brandCyan/80 hover:bg-white/10">US L1</a>
+          <a href="router.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-white/5 border border-line text-white/70 hover:bg-white/10">Router</a>
+          <a href="layer1_india.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-white/5 border border-line text-brandGold/80 hover:bg-white/10">India L1</a>
+          <a href="layer1_us.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-white/5 border border-line text-brandCyan/80 hover:bg-white/10">US L1</a>
         </div>
 
         {/* ============ MONITOR (overview) ============ */}
