@@ -215,9 +215,41 @@ Edge {                            // ownership / flow between entities
 | **4** | Frontend: entity switcher, per-entity views, Monitor entity dimension | Reuse components, add scope |
 | **5** | Comprehensive Layer 1 field coverage fill-in (Parts B–D gaps) | Iterative by priority (Part D) |
 | **6** | US state-residency engine (folds into entity/jurisdiction model) | Unblocks live state drill-down |
+| **T** | **Demo test profiles** (`engine/profiles.js` + one-click loader + picker) — Part I | 2–3 individual profiles ship now; entity profiles after Phase 1 |
 
 **Compatibility:** Phase 1 keeps the current single-individual behaviour as the
 default (one entity), so nothing breaks while the graph is introduced.
+
+---
+
+## Part I — Demo test profiles (seamless one-click scenarios)
+
+**Goal:** never type into a Layer 1 form during a demo. Pick a named profile →
+both forms, the dashboard, and the Monitor all populate from it instantly.
+
+**What already exists:** both forms have a `prefillPersona()` panel, but the
+personas are **per-form, uncoordinated, and don't set the router** — so they can't
+drive a whole cross-border scenario across every surface.
+
+**Design:**
+- A shared `engine/profiles.js` — an array of named profiles, each a complete
+  `{ router, india, us }` bundle (same shapes the forms persist).
+- A **profile loader**: writes the three `localStorage` keys
+  (`wising_router_state`, `wising_layer1_india_state`, `wising_us_state`) and
+  broadcasts a `storage` event, so open forms + dashboard + Monitor all refresh.
+- A small **profile picker** UI (on the router/landing and as a dev affordance in
+  the forms) — one click loads the whole scenario.
+- Each profile is crafted to showcase a **specific conflict story**; profiles are
+  **multi-entity-ready** (can include a business entity once Phase 1 lands).
+
+**Proposed starter scenarios:**
+1. **Dual-resident H-1B** (Aarav Sharma) — ROR + US SPT; the FTC/tie-breaker case (today's sample).
+2. **Deemed RNOR / high-earner NRI** — s.6(1A), TRC/10F missing, LRS near cap.
+3. **US citizen expat in India** — FEIE + foreign earned income + PFIC on Indian MFs.
+4. **Founder with an Indian company** — individual + `in_company` entity → 5471/GILTI (exercises multi-entity once Phase 1 lands).
+
+**Plan slot:** build after Phase 1 (so profiles can include entities), but the
+2–3 individual-only profiles can ship immediately against the current engine.
 
 ---
 
