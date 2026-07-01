@@ -6,7 +6,7 @@ export default function Header({ region, onRegionChange }) {
     <div className="flex items-start justify-between gap-4 mb-6">
       <div>
         <h1 className="font-display font-extrabold text-3xl">Monitor</h1>
-        <p className="text-white/45 text-sm mt-1">Keep track of your exposure around the world.</p>
+        <p className="text-white/45 text-sm mt-1">Keep track of your cross-border tax exposure around the world.</p>
       </div>
 
       <div className="relative">

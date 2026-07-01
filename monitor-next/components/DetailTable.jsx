@@ -29,7 +29,7 @@ function Tracker({ r }) {
   return (
     <div className="w-44">
       <div className="flex justify-between text-[10px] mb-1">
-        <span className="text-white/50">{pct}% of threshold</span>
+        <span className="text-white/50">{pct}% to residency / limit</span>
         {over60 && <span className="text-approaching font-bold">⚠ alert</span>}
       </div>
       <div className="h-2 rounded-full bg-white/10 overflow-hidden">
@@ -55,51 +55,58 @@ export default function DetailTable({ category, regions }) {
     return <div className="text-center text-white/40 text-sm py-10">No regions in this category.</div>;
   }
 
-  // Column set by category (per spec).
+  // Column set by category (per spec, income-tax semantics).
   let head, row;
   if (category === STATUS.EXPOSED) {
     head = (<tr>
-      <TH>Region</TH><TH>Status</TH><TH right>Estimated Liability</TH><TH>Trigger Date</TH><TH right>Total Volume</TH>
+      <TH>Jurisdiction</TH><TH>Status</TH><TH right>Estimated Liability</TH><TH>Trigger Date</TH><TH right>Income in Scope</TH>
     </tr>);
     row = (r) => (<tr key={r.id} className="border-t border-line hover:bg-white/[0.03]">
       <TD><RegionCell r={r} /></TD>
       <TD><StatusBadge status={r.status} /></TD>
       <TD right mono><span className="text-exposed">{fmtUsd(r.estimatedLiabilityUsd)}</span></TD>
       <TD>{r.triggerDate || "—"}</TD>
-      <TD right mono>{fmtUsd(r.economic.volumeUsd)}</TD>
+      <TD right mono>{fmtUsd(r.incomeInScopeUsd)}</TD>
     </tr>);
   } else if (category === STATUS.APPROACHING) {
     head = (<tr>
-      <TH>Region</TH><TH>Tracker</TH><TH>Volume ($)</TH><TH>Volume (#)</TH><TH>Physical Presence</TH>
+      <TH>Jurisdiction</TH><TH>Tracker</TH><TH>Reporting ($)</TH><TH>Presence (days)</TH><TH>Tax Resident</TH>
     </tr>);
     row = (r) => (<tr key={r.id} className="border-t border-line hover:bg-white/[0.03]">
       <TD><RegionCell r={r} /></TD>
       <TD><Tracker r={r} /></TD>
-      <TD mono><span className="text-white/85">{fmtUsd(r.economic.volumeUsd)}</span> <span className="text-white/35">/ {fmtUsd(r.economic.volumeLimitUsd)}</span></TD>
-      <TD mono><span className="text-white/85">{r.economic.txnCount}</span> <span className="text-white/35">/ {r.economic.txnLimit}</span></TD>
-      <TD><YesNo v={r.physicalPresence} /></TD>
+      <TD>
+        <div className="font-mono"><span className="text-white/85">{fmtUsd(r.report.reportedUsd)}</span> <span className="text-white/35">/ {fmtUsd(r.report.limitUsd)}</span></div>
+        <div className="text-[10px] text-white/40">{r.report.metric}</div>
+      </TD>
+      <TD>
+        <div className="font-mono"><span className="text-white/85">{r.report.days}</span> <span className="text-white/35">/ {r.report.dayThreshold}</span></div>
+        <div className="text-[10px] text-white/40">{r.report.test}</div>
+      </TD>
+      <TD><YesNo v={r.resident} /></TD>
     </tr>);
   } else if (category === STATUS.NEXUS) {
     head = (<tr>
-      <TH>Region</TH><TH>Trigger Date</TH><TH right>Total Volume</TH><TH>Physical Presence</TH>
+      <TH>Jurisdiction</TH><TH>Trigger Date</TH><TH right>Income in Scope</TH><TH>Reporting owed</TH><TH>Tax Resident</TH>
     </tr>);
     row = (r) => (<tr key={r.id} className="border-t border-line hover:bg-white/[0.03]">
       <TD><RegionCell r={r} /></TD>
       <TD>{r.triggerDate || "—"}</TD>
-      <TD right mono>{fmtUsd(r.economic.volumeUsd)}</TD>
-      <TD><YesNo v={r.physicalPresence} /></TD>
+      <TD right mono>{fmtUsd(r.incomeInScopeUsd)}</TD>
+      <TD><span className="text-nexus font-semibold">{r.report.metric}</span></TD>
+      <TD><YesNo v={r.resident} /></TD>
     </tr>);
   } else {
-    // All regions — general overview
+    // All jurisdictions — general overview
     head = (<tr>
-      <TH>Region</TH><TH>Status</TH><TH right>Est. Liability</TH><TH right>Total Volume</TH><TH>Physical Presence</TH>
+      <TH>Jurisdiction</TH><TH>Status</TH><TH right>Est. Liability</TH><TH right>Income in Scope</TH><TH>Tax Resident</TH>
     </tr>);
     row = (r) => (<tr key={r.id} className="border-t border-line hover:bg-white/[0.03]">
       <TD><RegionCell r={r} /></TD>
       <TD><StatusBadge status={r.status} /></TD>
       <TD right mono>{r.estimatedLiabilityUsd ? fmtUsd(r.estimatedLiabilityUsd) : "—"}</TD>
-      <TD right mono>{fmtUsd(r.economic.volumeUsd)}</TD>
-      <TD><YesNo v={r.physicalPresence} /></TD>
+      <TD right mono>{fmtUsd(r.incomeInScopeUsd)}</TD>
+      <TD><YesNo v={r.resident} /></TD>
     </tr>);
   }
 

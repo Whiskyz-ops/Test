@@ -21,10 +21,9 @@ import {
 } from "@/lib/logic";
 
 function scopeToCountries(scope) {
+  if (scope === "All") return COUNTRIES;
   if (scope === "India") return COUNTRIES.filter((c) => c.id === "IN");
-  if (scope === "Asia") return COUNTRIES.filter((c) => c.continent === "Asia");
-  if (["Canada", "Europe", "Latin America"].includes(scope)) return [];
-  return COUNTRIES; // All
+  return COUNTRIES.filter((c) => c.continent === scope); // Asia · Europe · Middle East
 }
 
 export default function MonitorPage() {
@@ -53,8 +52,8 @@ export default function MonitorPage() {
 
         {/* data source strip */}
         <div className="flex flex-wrap items-center gap-3 mb-4 text-[11px] text-white/45">
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500" /> {SOURCES.billing.name} · {SOURCES.billing.kind}</span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500" /> {SOURCES.hr.name} · {SOURCES.hr.kind}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500" /> {SOURCES.financial.name} · {SOURCES.financial.kind}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500" /> {SOURCES.presence.name} · {SOURCES.presence.kind}</span>
           <span className="text-white/30">synced daily · last sync 30 Jun 2026</span>
         </div>
 
@@ -81,7 +80,7 @@ export default function MonitorPage() {
           )}
           {!isUsDrill && (
             <p className="text-[11px] text-white/35 mt-2">
-              Tip: click the United States on the map (or pick it in the dropdown) to drill into state-level exposure.
+              Tip: click the United States on the map (or pick it in the dropdown) to drill into state income-tax exposure.
             </p>
           )}
         </section>

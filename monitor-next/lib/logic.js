@@ -1,7 +1,11 @@
 /* ============================================================================
- * Core business logic: status classification, KPI rollups, and automated
- * alert utilities. Pure functions — no React, no side effects (except the
- * mock notifier which just logs).
+ * Core business logic — INCOME-TAX exposure classification, KPI rollups, and
+ * automated alert utilities. Pure functions — no React, no side effects (except
+ * the mock notifier which just logs).
+ *
+ * A jurisdiction is "breached" when EITHER a statutory reporting money threshold
+ * (FBAR / 8938 / LRS / state-source income) is crossed, OR tax residency is
+ * established (day-count ≥ the residency test). Residency alone creates exposure.
  * ==========================================================================*/
 
 export const STATUS = { EXPOSED: "exposed", APPROACHING: "approaching", NEXUS: "nexus", NONE: "none" };
@@ -13,31 +17,40 @@ export const STATUS_META = {
   none:        { label: "Monitored",       color: "#52525b", soft: "rgba(82,82,91,.16)",   text: "#a1a1aa" }
 };
 
-// A region's threshold is breached if the ECONOMIC limit (volume $ or txn count)
-// is hit, OR there is PHYSICAL presence (which can independently create nexus).
-export function isEconomicBreached(r) {
-  const e = r.economic || {};
-  return (e.volumeUsd >= e.volumeLimitUsd) || (e.txnCount >= e.txnLimit);
+// The REPORTING money threshold (FBAR / LRS / 8938 / state-source income) is hit.
+export function isReportBreached(r) {
+  const g = r.report || {};
+  return g.limitUsd ? g.reportedUsd >= g.limitUsd : false;
 }
+// Tax residency established (day-count ≥ residency test, or already resident).
+export function isResidencyBreached(r) {
+  const g = r.report || {};
+  return !!r.resident || (g.dayThreshold ? g.days >= g.dayThreshold : false);
+}
+// A jurisdiction is in scope if EITHER dimension is crossed.
 export function isBreached(r) {
-  return isEconomicBreached(r) || !!r.physicalPresence;
+  return isReportBreached(r) || isResidencyBreached(r);
 }
 
-// Classification per the spec.
+// Classification — same shape as the spec, income-tax meaning:
+//   Exposed      = taxable jurisdiction AND threshold/residency crossed → tax accruing.
+//   Approaching  = taxable, but neither residency nor reporting threshold hit yet.
+//   Nexus        = threshold/residency crossed but NOT taxable → filing owed, $0 tax
+//                  (FBAR/8938 informational filings; no-income-tax states / UAE).
 export function classify(r) {
   const breached = isBreached(r);
-  if (r.taxable && breached) return STATUS.EXPOSED;      // liability accruing
-  if (r.taxable && !breached) return STATUS.APPROACHING; // taxable, not yet over
-  if (!r.taxable && breached) return STATUS.NEXUS;       // over threshold, $0 liability
+  if (r.taxable && breached) return STATUS.EXPOSED;
+  if (r.taxable && !breached) return STATUS.APPROACHING;
+  if (!r.taxable && breached) return STATUS.NEXUS;
   return STATUS.NONE;
 }
 
-// How close an "approaching" region is to its limit (max of volume% and txn%).
+// How close a jurisdiction is to exposure (max of reporting% and residency-day%).
 export function approachPct(r) {
-  const e = r.economic || {};
-  const v = e.volumeLimitUsd ? e.volumeUsd / e.volumeLimitUsd : 0;
-  const t = e.txnLimit ? e.txnCount / e.txnLimit : 0;
-  return Math.max(v, t);
+  const g = r.report || {};
+  const v = g.limitUsd ? g.reportedUsd / g.limitUsd : 0;
+  const d = g.dayThreshold ? g.days / g.dayThreshold : 0;
+  return Math.max(v, d);
 }
 
 export function withStatus(regions) {
@@ -66,6 +79,7 @@ export function statusByMapName(regions) {
  * AUTOMATED ALERTS
  * -------------------------------------------------------------------------*/
 export function buildAlert(region, kind, extra) {
+  const g = region.report || {};
   const base = {
     kind,
     regionId: region.id,
@@ -74,13 +88,14 @@ export function buildAlert(region, kind, extra) {
     channel: "email"
   };
   if (kind === "approaching_60") {
+    const pct = Math.round(approachPct(region) * 100);
     return {
       ...base,
       severity: "warning",
-      subject: `⚠️ ${region.name} is at ${Math.round(approachPct(region) * 100)}% of its threshold`,
-      body: `${region.name} has reached ${Math.round(approachPct(region) * 100)}% of its economic nexus threshold ` +
-            `(volume ${fmtUsd(region.economic.volumeUsd)} / ${fmtUsd(region.economic.volumeLimitUsd)}). ` +
-            `Register before you cross to avoid back-dated liability.`,
+      subject: `⚠️ ${region.name} is at ${pct}% of its residency / reporting threshold`,
+      body: `${region.name}: ${g.days}/${g.dayThreshold} days present (${g.test}) and ` +
+            `${g.metric} at ${fmtUsd(g.reportedUsd)} / ${fmtUsd(g.limitUsd)}. ` +
+            `Plan the day-count / remittances before crossing to avoid worldwide-income exposure.`,
       ...extra
     };
   }
@@ -88,24 +103,24 @@ export function buildAlert(region, kind, extra) {
     return {
       ...base,
       severity: "critical",
-      subject: `🚨 ${region.name} is now EXPOSED — liability is accruing`,
-      body: `${region.name} crossed its threshold and the product is taxable there. ` +
+      subject: `🚨 ${region.name} is now EXPOSED — income-tax liability is accruing`,
+      body: `${region.name} crossed its residency / reporting threshold and levies income tax. ` +
             `Estimated liability: ${fmtUsd(region.estimatedLiabilityUsd)} as of ${region.triggerDate || "today"}. ` +
-            `Begin registration immediately.`,
+            `File / pay estimated tax and reconcile foreign tax credits.`,
       ...extra
     };
   }
   return base;
 }
 
-// Trigger when a taxable region passes 60% of its threshold but hasn't breached.
+// Trigger when a taxable jurisdiction passes 60% of residency/reporting threshold.
 export function approachingAlerts(regions, threshold = 0.6) {
   return withStatus(regions)
     .filter((r) => r.status === STATUS.APPROACHING && r.pct >= threshold)
     .map((r) => buildAlert(r, "approaching_60"));
 }
 
-// Trigger when a region newly enters the "exposed" category (state transition).
+// Trigger when a jurisdiction newly enters the "exposed" category (state transition).
 export function transitionAlerts(prevRegions, currRegions) {
   const prev = {}; withStatus(prevRegions).forEach((r) => (prev[r.id] = r.status));
   return withStatus(currRegions)

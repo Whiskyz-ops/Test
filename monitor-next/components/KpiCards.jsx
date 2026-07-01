@@ -2,10 +2,10 @@
 import { STATUS, STATUS_META, fmtUsd } from "@/lib/logic";
 
 const CARDS = [
-  { key: STATUS.EXPOSED, title: "Exposed Regions", desc: "Taxable · threshold breached · liability accruing" },
-  { key: STATUS.APPROACHING, title: "Approaching Exposure", desc: "Taxable · threshold not yet hit" },
-  { key: STATUS.NEXUS, title: "Nexus Triggered", desc: "Breached · not taxable · $0 liability" },
-  { key: "all", title: "All Regions", desc: "Total tracked regions" }
+  { key: STATUS.EXPOSED, title: "Exposed", desc: "Tax resident · threshold crossed · liability accruing" },
+  { key: STATUS.APPROACHING, title: "Approaching Exposure", desc: "Taxable if resident · residency / limit not yet hit" },
+  { key: STATUS.NEXUS, title: "Nexus Triggered", desc: "Filing owed (FBAR / 8938 / no-tax state) · $0 tax" },
+  { key: "all", title: "All Jurisdictions", desc: "Total tracked jurisdictions" }
 ];
 
 export default function KpiCards({ kpis, active, onSelect }) {

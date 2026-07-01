@@ -1,10 +1,10 @@
 const MAIN = [
   { label: "Monitor", icon: "📡", active: true },
-  { label: "Registrations", icon: "📝" },
+  { label: "Residency", icon: "🧭" },
   { label: "Filings", icon: "📄" },
-  { label: "Customers", icon: "👥" },
-  { label: "Products", icon: "📦" },
-  { label: "Transactions", icon: "💳" },
+  { label: "Taxpayers", icon: "👥" },
+  { label: "Income sources", icon: "📦" },
+  { label: "Remittances", icon: "💸" },
   { label: "Integrations", icon: "🔌" }
 ];
 

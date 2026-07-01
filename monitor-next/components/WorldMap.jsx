@@ -3,8 +3,13 @@ import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simp
 import worldTopo from "world-atlas/countries-110m.json";
 import { STATUS_META } from "@/lib/logic";
 
-// world-atlas country names we care about
-const HAS_DATA = { India: "IN", "United States of America": "US" };
+// world-atlas country names we track (only the US drills to states)
+const HAS_DATA = {
+  India: "IN",
+  "United States of America": "US",
+  "United Kingdom": "GB",
+  "United Arab Emirates": "AE"
+};
 
 export default function WorldMap({ statusByName, onSelectCountry }) {
   return (
