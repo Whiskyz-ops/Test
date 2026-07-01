@@ -5,134 +5,131 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
-import DetailPanels from "@/components/DetailPanels";
+import { ConflictsPanel, ResidencyView, FilingsView, DocumentsView, AccountsView, ClientsView, IntegrationsView } from "@/components/Views";
 import { US_STATES, COUNTRIES, SOURCES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId } from "@/lib/wising";
 
-const WorldMap = dynamic(() => import("@/components/WorldMap"), {
-  ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading world map…</div>
-});
-const UsStatesMap = dynamic(() => import("@/components/UsStatesMap"), {
-  ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading US map…</div>
-});
+const WorldMap = dynamic(() => import("@/components/WorldMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading world map…</div> });
+const UsStatesMap = dynamic(() => import("@/components/UsStatesMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading US map…</div> });
 
 function scopeToCountries(countries, scope) {
   if (scope === "India") return countries.filter((c) => c.id === "IN");
   if (scope === "Asia") return countries.filter((c) => c.continent === "Asia");
   if (["Canada", "Europe", "Latin America"].includes(scope)) return [];
-  return countries; // All
+  return countries;
 }
 
 export default function MonitorPage() {
+  const [view, setView] = useState("monitor");
   const [region, setRegion] = useState("All");
   const [category, setCategory] = useState(STATUS.EXPOSED);
-  const [mode, setMode] = useState("demo");            // "demo" | "live"
-  const [countries, setCountries] = useState(COUNTRIES); // engine-computed India/US (fallback = mock)
+  const [mode, setMode] = useState("demo");
+  const [countries, setCountries] = useState(COUNTRIES);
   const [engineReady, setEngineReady] = useState(false);
   const [profiles, setProfiles] = useState([]);
   const [clientName, setClientName] = useState(null);
-  const [result, setResult] = useState(null);   // full engine output (conflicts/FTC/docs/tax)
+  const [result, setResult] = useState(null);
+  const [activeProfile, setActiveProfile] = useState(null);
 
-  // Run the shared engine on the client and map its output to region rows.
   const recompute = useCallback((preferred) => {
     const wantLive = preferred === "live" || (preferred == null && hasLiveLayer1());
     const source = wantLive && hasLiveLayer1() ? "live" : "demo";
     const snap = monitorSnapshot(source);
     if (snap && snap.countries && snap.countries.length) {
-      setCountries(snap.countries);
-      setMode(source);
-      setEngineReady(true);
-      setResult(snap.result);
+      setCountries(snap.countries); setMode(source); setEngineReady(true); setResult(snap.result);
       if (snap.clientName) setClientName(snap.clientName);
+      setActiveProfile(activeProfileId());
     }
   }, []);
 
   useEffect(() => { setProfiles(listProfiles()); recompute(null); }, [recompute]);
+  const onPickProfile = useCallback((id) => { if (id && loadProfile(id)) { recompute("live"); } }, [recompute]);
 
-  const onPickProfile = useCallback((id) => { if (id && loadProfile(id)) recompute("live"); }, [recompute]);
-
-  // Live data wins: re-read when forms are saved (same-origin) or on focus.
   useEffect(() => {
-    const onStorage = (e) => {
-      if (!e.key || e.key.indexOf("wising_") === 0) recompute(null);
-    };
+    const onStorage = (e) => { if (!e.key || e.key.indexOf("wising_") === 0) recompute(null); };
     const onFocus = () => { if (hasLiveLayer1()) recompute("live"); };
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", onFocus);
+    window.addEventListener("storage", onStorage); window.addEventListener("focus", onFocus);
     return () => { window.removeEventListener("storage", onStorage); window.removeEventListener("focus", onFocus); };
   }, [recompute]);
 
   const isUsDrill = region === "United States";
   const dataset = isUsDrill ? US_STATES : scopeToCountries(countries, region);
-
   const kpis = useMemo(() => computeKpis(dataset), [dataset]);
   const statusMap = useMemo(() => statusByMapName(dataset), [dataset]);
-  const rows = useMemo(() => {
-    const s = withStatus(dataset);
-    return category === "all" ? s : s.filter((r) => r.status === category);
-  }, [dataset, category]);
+  const rows = useMemo(() => { const s = withStatus(dataset); return category === "all" ? s : s.filter((r) => r.status === category); }, [dataset, category]);
   const alerts = useMemo(() => runAlertScan(dataset), [dataset]);
+
+  const badges = {
+    monitor: result ? { text: result.summary.counts.critical + result.summary.counts.warning, tone: result.summary.counts.critical > 0 ? "alert" : "" } : null,
+    clients: { text: profiles.length },
+    documents: result ? { text: result.summary.requiredDocs } : null,
+    filings: result && result.summary.nextDeadline ? { text: (result.monitoring && result.monitoring.calendar.next ? "in " + result.monitoring.calendar.next.daysUntil + "d" : "") } : null
+  };
+
+  const pickFromClients = (id) => { onPickProfile(id); setView("monitor"); };
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
+      <Sidebar active={view} onNavigate={setView} badges={badges} />
       <main className="flex-1 min-w-0 px-8 py-6">
         <Header region={region} onRegionChange={setRegion} clientName={clientName} />
 
-        {/* engine + data-source strip */}
+        {/* shared: engine + source strip */}
         <div className="flex flex-wrap items-center gap-3 mb-3 text-[11px] text-white/45">
           <span className="px-2 py-0.5 rounded-md font-bold" style={{ background: engineReady ? "rgba(16,185,129,.15)" : "rgba(255,255,255,.08)", color: engineReady ? "#34d399" : "#a1a1aa" }}>
             {engineReady ? (mode === "live" ? "LIVE · engine" : "DEMO · engine") : "loading engine…"}
           </span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500" /> {SOURCES.trips.name} · {SOURCES.trips.kind}</span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500" /> {SOURCES.accounts.name} · {SOURCES.accounts.kind}</span>
-          <span className="text-white/30">India + US country rows are computed by the shared engine from Layer 1 · US states are illustrative</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500" /> {SOURCES.trips.name}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500" /> {SOURCES.accounts.name}</span>
+          <span className="text-white/30">India + US computed by the shared engine from Layer 1 · US states illustrative</span>
         </div>
 
-        {/* source controls + Layer 1 intake links */}
-        <div className="flex flex-wrap items-center gap-2 mb-5">
+        {/* shared: source + profile controls */}
+        <div className="flex flex-wrap items-center gap-2 mb-6">
           <button onClick={() => recompute("live")} className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brandGreen/15 text-brandGreen border border-brandGreen/30 hover:bg-brandGreen/25">↻ Refresh from Layer 1</button>
-          <button onClick={() => { setCountries(monitorSnapshot("demo").countries); setMode("demo"); setEngineReady(true); }} className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brandCyan/15 text-brandCyan border border-brandCyan/30 hover:bg-brandCyan/25">Load demo taxpayer</button>
-          <select onChange={(e) => onPickProfile(e.target.value)} defaultValue="" title="Load a coherent India+US test taxpayer" className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-brandGold/15 text-brandGold border border-brandGold/30 cursor-pointer">
+          <select onChange={(e) => onPickProfile(e.target.value)} value={activeProfile || ""} title="Load a coherent India+US test taxpayer" className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-brandGold/15 text-brandGold border border-brandGold/30 cursor-pointer">
             <option value="">Load test profile…</option>
             {profiles.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
           <span className="text-white/25 text-[11px] mx-1">Layer 1 intake:</span>
-          <a href="/router.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-white/5 border border-line text-white/70 hover:bg-white/10">Router (L0)</a>
+          <a href="/router.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-white/5 border border-line text-white/70 hover:bg-white/10">Router</a>
           <a href="/layer1_india.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-white/5 border border-line text-brandGold/80 hover:bg-white/10">India L1</a>
           <a href="/layer1_us.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-white/5 border border-line text-brandCyan/80 hover:bg-white/10">US L1</a>
         </div>
 
-        {/* automated alerts */}
-        {alerts.length > 0 && (
-          <div className="mb-5 rounded-xl border border-approaching/30 bg-approaching/10 p-3">
-            <div className="text-[11px] uppercase tracking-widest text-approaching font-bold mb-1">
-              {alerts.length} automated alert{alerts.length > 1 ? "s" : ""}
-            </div>
-            <ul className="space-y-0.5">
-              {alerts.slice(0, 4).map((a, i) => <li key={i} className="text-[12px] text-white/70">{a.subject}</li>)}
-            </ul>
-          </div>
+        {/* ============ MONITOR (overview) ============ */}
+        {view === "monitor" && (
+          <>
+            {alerts.length > 0 && (
+              <div className="mb-5 rounded-xl border border-approaching/30 bg-approaching/10 p-3">
+                <div className="text-[11px] uppercase tracking-widest text-approaching font-bold mb-1">{alerts.length} automated alert{alerts.length > 1 ? "s" : ""}</div>
+                <ul className="space-y-0.5">{alerts.slice(0, 4).map((a, i) => <li key={i} className="text-[12px] text-white/70">{a.subject}</li>)}</ul>
+              </div>
+            )}
+            <section className="rounded-2xl border border-line bg-panel p-4 mb-6">
+              {isUsDrill
+                ? <UsStatesMap statusByName={statusMap} onBack={() => setRegion("All")} onSelectState={() => {}} />
+                : <WorldMap statusByName={statusMap} onSelectCountry={(id) => id === "US" && setRegion("United States")} />}
+              {!isUsDrill && <p className="text-[11px] text-white/35 mt-2">Tip: click the United States (or use the dropdown) to drill into state-level residency.</p>}
+            </section>
+            <div className="mb-6"><KpiCards kpis={kpis} active={category} onSelect={setCategory} /></div>
+            <DetailTable category={category} regions={rows} />
+            {!isUsDrill && result && (
+              <section className="mt-8">
+                <h3 className="font-display font-bold text-lg mb-4">Conflicts &amp; Mismatches</h3>
+                <ConflictsPanel findings={result.findings} />
+              </section>
+            )}
+          </>
         )}
 
-        {/* map */}
-        <section className="rounded-2xl border border-line bg-panel p-4 mb-6">
-          {isUsDrill ? (
-            <UsStatesMap statusByName={statusMap} onBack={() => setRegion("All")} onSelectState={() => {}} />
-          ) : (
-            <WorldMap statusByName={statusMap} onSelectCountry={(id) => id === "US" && setRegion("United States")} />
-          )}
-          {!isUsDrill && (
-            <p className="text-[11px] text-white/35 mt-2">Tip: click the United States on the map (or pick it in the dropdown) to drill into state-level residency exposure.</p>
-          )}
-        </section>
-
-        <div className="mb-6"><KpiCards kpis={kpis} active={category} onSelect={setCategory} /></div>
-        <DetailTable category={category} regions={rows} />
-
-        {/* Everything the former DTAA Bridge covered — now inside the Monitor */}
-        {!isUsDrill && <DetailPanels result={result} />}
+        {view === "clients" && <ClientsView profiles={profiles} activeId={activeProfile} onPick={pickFromClients} />}
+        {view === "residency" && <ResidencyView result={result} />}
+        {view === "filings" && <FilingsView result={result} />}
+        {view === "documents" && <DocumentsView result={result} />}
+        {view === "accounts" && <AccountsView result={result} />}
+        {view === "integrations" && <IntegrationsView />}
       </main>
     </div>
   );
