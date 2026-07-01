@@ -1,94 +1,92 @@
 /* ============================================================================
- * Mock data layer — simulates pulling from a billing system (Stripe) and an
- * HR system (physical presence / headcount). In production these become live
- * connectors; the shape here is what the UI + logic consume.
+ * Mock data — INCOME-TAX semantics (India ⇄ US individual cross-border).
  *
- * A "region" is either a country (India, United States) or a US state. Each
- * carries: product taxability, an economic threshold (volume $ + txn count)
- * sourced from billing, and a physical-presence flag sourced from HR.
+ * Data sources are a day/trip tracker (physical presence) and account feeds
+ * (FBAR/8938 balances, LRS remittances) — not a billing system. A "region" is
+ * a taxing jurisdiction the client is exposed to: India, the United States, and
+ * US states (for state residency).
+ *
+ * Per region we track:
+ *   - residency: physical-presence day-count vs the residency-test threshold
+ *   - taxesWorldwide: does this jurisdiction tax a resident's worldwide income?
+ *   - reporting: the dominant $ reporting limit (FBAR aggregate / LRS remitted)
+ *   - estimatedTaxUsd / incomeExposedUsd
+ * Numbers mirror the demo taxpayer used across the engine (Aarav Sharma).
  * ==========================================================================*/
 
-// Provenance metadata (shown in the UI to make the "data sync" story concrete)
+export const CLIENT = { name: "Aarav Sharma", period: "FY2025-26 / TY2025" };
+
 export const SOURCES = {
-  billing: { name: "Stripe", kind: "Billing", lastSync: "2026-06-30T22:00:00Z" },
-  hr: { name: "Deel", kind: "HR / Payroll", lastSync: "2026-06-30T22:00:00Z" }
+  trips: { name: "Trip Log", kind: "Physical presence / day-count", lastSync: "2026-06-30" },
+  accounts: { name: "Account feeds", kind: "FBAR / 8938 balances · LRS", lastSync: "2026-06-30" },
+  income: { name: "Payroll · 1099 · AIS", kind: "Income", lastSync: "2026-06-30" }
 };
 
-// ------- Country-level regions (light up on the world map) -------
+// ---------- Country-level jurisdictions ----------
 export const COUNTRIES = [
   {
-    id: "IN",
-    name: "India",
-    mapName: "India",                 // matches world-atlas properties.name
-    iso3: "IND",
-    flag: "🇮🇳",
-    continent: "Asia",
-    type: "country",
-    taxable: true,
-    economic: { volumeUsd: 512000, volumeLimitUsd: 300000, txnCount: 420, txnLimit: 200 },
+    id: "IN", name: "India", mapName: "India", iso3: "IND", flag: "🇮🇳", continent: "Asia", type: "country",
+    taxesWorldwide: true, // ROR is taxed on worldwide income
+    residency: { days: 210, threshold: 182, test: "182-day residency (ITA s.6)" },
+    reporting: { label: "LRS remitted", value: 204819, limit: 250000, unit: "$" },
     physicalPresence: true,
-    triggerDate: "2025-06-18",
-    estimatedLiabilityUsd: 68400,
-    billingSource: "Stripe",
-    hrSource: "Deel"
+    triggerDate: "2025-10-14",
+    estimatedTaxUsd: 23307,
+    incomeExposedUsd: 85783,
+    reason: null
   },
   {
-    id: "US",
-    name: "United States",
-    mapName: "United States of America",
-    iso3: "USA",
-    flag: "🇺🇸",
-    continent: "US",
-    type: "country",
-    taxable: true,
-    hasStates: true,                  // drill-down enabled
-    economic: { volumeUsd: 1840000, volumeLimitUsd: 1000000, txnCount: 1290, txnLimit: 800 },
+    id: "US", name: "United States", mapName: "United States of America", iso3: "USA", flag: "🇺🇸", continent: "US", type: "country",
+    taxesWorldwide: true, hasStates: true,
+    residency: { days: 330, threshold: 183, test: "Substantial Presence (≥183 weighted)" },
+    reporting: { label: "FBAR aggregate", value: 56626, limit: 10000, unit: "$" },
     physicalPresence: true,
-    triggerDate: "2025-04-02",
-    estimatedLiabilityUsd: 152300,
-    billingSource: "Stripe",
-    hrSource: "Deel"
+    triggerDate: "2025-05-06",
+    estimatedTaxUsd: 36585,
+    incomeExposedUsd: 245395,
+    reason: null
   }
 ];
 
-// ------- US state-level regions (shown when the user drills into the US) -------
-// `taxable:false` = states with NO individual income tax (TX, FL, WA, NV, TN, ...)
-// → physical presence there triggers nexus/filing consideration but $0 income-tax
-//   liability = "Nexus Triggered (purple)".
+// ---------- US state residency ----------
+// taxesWorldwide:false = states with NO individual income tax → presence there is a
+// domicile/filing consideration but $0 state income tax = "Nexus Triggered" (purple).
 export const US_STATES = [
-  { id: "CA", name: "California", mapName: "California", abbr: "CA", flag: "🇺🇸", taxable: true,
-    economic: { volumeUsd: 820000, volumeLimitUsd: 500000, txnCount: 610, txnLimit: 200 },
-    physicalPresence: true, triggerDate: "2025-03-11", estimatedLiabilityUsd: 74500 },
-  { id: "NY", name: "New York", mapName: "New York", abbr: "NY", flag: "🇺🇸", taxable: true,
-    economic: { volumeUsd: 392000, volumeLimitUsd: 500000, txnCount: 148, txnLimit: 200 },
-    physicalPresence: false, triggerDate: null, estimatedLiabilityUsd: 0 },
-  { id: "IL", name: "Illinois", mapName: "Illinois", abbr: "IL", flag: "🇺🇸", taxable: true,
-    economic: { volumeUsd: 610000, volumeLimitUsd: 500000, txnCount: 240, txnLimit: 200 },
-    physicalPresence: false, triggerDate: "2025-05-20", estimatedLiabilityUsd: 41200 },
-  { id: "NJ", name: "New Jersey", mapName: "New Jersey", abbr: "NJ", flag: "🇺🇸", taxable: true,
-    economic: { volumeUsd: 355000, volumeLimitUsd: 500000, txnCount: 165, txnLimit: 200 },
-    physicalPresence: false, triggerDate: null, estimatedLiabilityUsd: 0 },
-  { id: "MA", name: "Massachusetts", mapName: "Massachusetts", abbr: "MA", flag: "🇺🇸", taxable: true,
-    economic: { volumeUsd: 250000, volumeLimitUsd: 500000, txnCount: 90, txnLimit: 200 },
-    physicalPresence: false, triggerDate: null, estimatedLiabilityUsd: 0 },
-  { id: "GA", name: "Georgia", mapName: "Georgia", abbr: "GA", flag: "🇺🇸", taxable: true,
-    economic: { volumeUsd: 120000, volumeLimitUsd: 500000, txnCount: 60, txnLimit: 200 },
-    physicalPresence: false, triggerDate: null, estimatedLiabilityUsd: 0 },
-  { id: "TX", name: "Texas", mapName: "Texas", abbr: "TX", flag: "🇺🇸", taxable: false,
-    economic: { volumeUsd: 910000, volumeLimitUsd: 500000, txnCount: 540, txnLimit: 200 },
-    physicalPresence: true, triggerDate: "2025-02-27", estimatedLiabilityUsd: 0 },
-  { id: "FL", name: "Florida", mapName: "Florida", abbr: "FL", flag: "🇺🇸", taxable: false,
-    economic: { volumeUsd: 430000, volumeLimitUsd: 500000, txnCount: 210, txnLimit: 200 },
-    physicalPresence: true, triggerDate: "2025-07-01", estimatedLiabilityUsd: 0 },
-  { id: "WA", name: "Washington", mapName: "Washington", abbr: "WA", flag: "🇺🇸", taxable: false,
-    economic: { volumeUsd: 560000, volumeLimitUsd: 500000, txnCount: 300, txnLimit: 200 },
-    physicalPresence: false, triggerDate: "2025-06-05", estimatedLiabilityUsd: 0 },
-  { id: "CO", name: "Colorado", mapName: "Colorado", abbr: "CO", flag: "🇺🇸", taxable: true,
-    economic: { volumeUsd: 300000, volumeLimitUsd: 500000, txnCount: 130, txnLimit: 200 },
-    physicalPresence: false, triggerDate: null, estimatedLiabilityUsd: 0 }
+  { id:"CA", name:"California", mapName:"California", abbr:"CA", flag:"🇺🇸", type:"state", taxesWorldwide:true,
+    residency:{ days:205, threshold:183, test:"CA statutory residency (183-day)" }, reporting:null,
+    physicalPresence:true, triggerDate:"2025-07-05", estimatedTaxUsd:18500, incomeExposedUsd:165000, reason:null },
+  { id:"IL", name:"Illinois", mapName:"Illinois", abbr:"IL", flag:"🇺🇸", type:"state", taxesWorldwide:true,
+    residency:{ days:190, threshold:183, test:"IL residency (183-day)" }, reporting:null,
+    physicalPresence:false, triggerDate:"2025-06-28", estimatedTaxUsd:9200, incomeExposedUsd:120000, reason:null },
+  { id:"NY", name:"New York", mapName:"New York", abbr:"NY", flag:"🇺🇸", type:"state", taxesWorldwide:true,
+    residency:{ days:160, threshold:183, test:"NY statutory residency (183-day + abode)" }, reporting:null,
+    physicalPresence:true, triggerDate:null, estimatedTaxUsd:0, incomeExposedUsd:0, reason:null },
+  { id:"NJ", name:"New Jersey", mapName:"New Jersey", abbr:"NJ", flag:"🇺🇸", type:"state", taxesWorldwide:true,
+    residency:{ days:150, threshold:183, test:"NJ residency (183-day)" }, reporting:null,
+    physicalPresence:false, triggerDate:null, estimatedTaxUsd:0, incomeExposedUsd:0, reason:null },
+  { id:"CO", name:"Colorado", mapName:"Colorado", abbr:"CO", flag:"🇺🇸", type:"state", taxesWorldwide:true,
+    residency:{ days:130, threshold:183, test:"CO residency (183-day)" }, reporting:null,
+    physicalPresence:false, triggerDate:null, estimatedTaxUsd:0, incomeExposedUsd:0, reason:null },
+  { id:"MA", name:"Massachusetts", mapName:"Massachusetts", abbr:"MA", flag:"🇺🇸", type:"state", taxesWorldwide:true,
+    residency:{ days:121, threshold:183, test:"MA residency (183-day)" }, reporting:null,
+    physicalPresence:false, triggerDate:null, estimatedTaxUsd:0, incomeExposedUsd:0, reason:null },
+  { id:"GA", name:"Georgia", mapName:"Georgia", abbr:"GA", flag:"🇺🇸", type:"state", taxesWorldwide:true,
+    residency:{ days:70, threshold:183, test:"GA residency (183-day)" }, reporting:null,
+    physicalPresence:false, triggerDate:null, estimatedTaxUsd:0, incomeExposedUsd:0, reason:null },
+  { id:"TX", name:"Texas", mapName:"Texas", abbr:"TX", flag:"🇺🇸", type:"state", taxesWorldwide:false,
+    residency:{ days:200, threshold:183, test:"TX presence (no income tax)" }, reporting:null,
+    physicalPresence:true, triggerDate:"2025-06-10", estimatedTaxUsd:0, incomeExposedUsd:0,
+    reason:"No state income tax — domicile & filing check only" },
+  { id:"FL", name:"Florida", mapName:"Florida", abbr:"FL", flag:"🇺🇸", type:"state", taxesWorldwide:false,
+    residency:{ days:190, threshold:183, test:"FL presence (no income tax)" }, reporting:null,
+    physicalPresence:true, triggerDate:"2025-07-01", estimatedTaxUsd:0, incomeExposedUsd:0,
+    reason:"No state income tax — domicile check only" },
+  { id:"WA", name:"Washington", mapName:"Washington", abbr:"WA", flag:"🇺🇸", type:"state", taxesWorldwide:false,
+    residency:{ days:184, threshold:183, test:"WA presence (no income tax)" }, reporting:null,
+    physicalPresence:false, triggerDate:"2025-06-30", estimatedTaxUsd:0, incomeExposedUsd:0,
+    reason:"No income tax; WA capital-gains excise check" }
 ];
 
-// Continents offered in the header dropdown (spec parity). Only Asia & US carry data.
 export const REGION_FILTERS = ["All", "Asia", "Canada", "Europe", "Latin America", "United States", "India"];
 
 export function getCountries() { return COUNTRIES; }

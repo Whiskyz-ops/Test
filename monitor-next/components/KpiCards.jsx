@@ -2,10 +2,10 @@
 import { STATUS, STATUS_META, fmtUsd } from "@/lib/logic";
 
 const CARDS = [
-  { key: STATUS.EXPOSED, title: "Exposed Regions", desc: "Taxable · threshold breached · liability accruing" },
-  { key: STATUS.APPROACHING, title: "Approaching Exposure", desc: "Taxable · threshold not yet hit" },
-  { key: STATUS.NEXUS, title: "Nexus Triggered", desc: "Breached · not taxable · $0 liability" },
-  { key: "all", title: "All Regions", desc: "Total tracked regions" }
+  { key: STATUS.EXPOSED, title: "Exposed", desc: "Tax resident · worldwide income taxed · liability accruing" },
+  { key: STATUS.APPROACHING, title: "Approaching", desc: "Nearing a residency / reporting threshold" },
+  { key: STATUS.NEXUS, title: "Filing-only", desc: "Threshold crossed · filing required · $0 tax" },
+  { key: "all", title: "All Jurisdictions", desc: "Total jurisdictions monitored" }
 ];
 
 export default function KpiCards({ kpis, active, onSelect }) {
@@ -32,9 +32,9 @@ export default function KpiCards({ kpis, active, onSelect }) {
               {count}
             </div>
             <div className="text-[11px] text-white/40 mt-1 leading-snug">{c.desc}</div>
-            {c.key === STATUS.EXPOSED && kpis.totalLiability > 0 && (
+            {c.key === STATUS.EXPOSED && kpis.totalTax > 0 && (
               <div className="text-[11px] text-white/55 mt-2">
-                Est. liability <span className="font-mono text-exposed">{fmtUsd(kpis.totalLiability)}</span>
+                Est. tax <span className="font-mono text-exposed">{fmtUsd(kpis.totalTax)}</span>
               </div>
             )}
           </button>

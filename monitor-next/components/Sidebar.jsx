@@ -1,10 +1,10 @@
 const MAIN = [
   { label: "Monitor", icon: "📡", active: true },
-  { label: "Registrations", icon: "📝" },
+  { label: "Clients", icon: "👥" },
+  { label: "Residency", icon: "🧭" },
   { label: "Filings", icon: "📄" },
-  { label: "Customers", icon: "👥" },
-  { label: "Products", icon: "📦" },
-  { label: "Transactions", icon: "💳" },
+  { label: "Documents", icon: "📁" },
+  { label: "Accounts", icon: "🏦" },
   { label: "Integrations", icon: "🔌" }
 ];
 
@@ -57,10 +57,10 @@ export default function Sidebar() {
 
         {/* User profile card */}
         <div className="mt-2 flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/5 border border-line">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brandCyan to-brandGold flex items-center justify-center text-black font-black text-xs">AS</div>
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brandCyan to-brandGold flex items-center justify-center text-black font-black text-xs">PM</div>
           <div className="min-w-0">
-            <div className="text-[12px] font-bold truncate">Aarav Sharma</div>
-            <div className="text-[10px] text-white/40 truncate">Wising Inc.</div>
+            <div className="text-[12px] font-bold truncate">Priya Menon</div>
+            <div className="text-[10px] text-white/40 truncate">Verité Tax Advisors</div>
           </div>
         </div>
       </div>

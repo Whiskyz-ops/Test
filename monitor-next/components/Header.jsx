@@ -1,12 +1,16 @@
 "use client";
-import { REGION_FILTERS } from "@/lib/mockData";
+import { REGION_FILTERS, CLIENT } from "@/lib/mockData";
 
 export default function Header({ region, onRegionChange }) {
   return (
     <div className="flex items-start justify-between gap-4 mb-6">
       <div>
         <h1 className="font-display font-extrabold text-3xl">Monitor</h1>
-        <p className="text-white/45 text-sm mt-1">Keep track of your exposure around the world.</p>
+        <p className="text-white/45 text-sm mt-1">Keep track of your cross-border tax exposure — residency, reporting limits &amp; filings.</p>
+        <p className="text-[12px] text-white/55 mt-1">
+          Client <span className="font-semibold text-white/80">{CLIENT.name}</span>
+          <span className="text-white/30"> · {CLIENT.period}</span>
+        </p>
       </div>
 
       <div className="relative">
