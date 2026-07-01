@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
+import DetailPanels from "@/components/DetailPanels";
 import { US_STATES, COUNTRIES, SOURCES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId } from "@/lib/wising";
@@ -31,6 +32,7 @@ export default function MonitorPage() {
   const [engineReady, setEngineReady] = useState(false);
   const [profiles, setProfiles] = useState([]);
   const [clientName, setClientName] = useState(null);
+  const [result, setResult] = useState(null);   // full engine output (conflicts/FTC/docs/tax)
 
   // Run the shared engine on the client and map its output to region rows.
   const recompute = useCallback((preferred) => {
@@ -41,6 +43,7 @@ export default function MonitorPage() {
       setCountries(snap.countries);
       setMode(source);
       setEngineReady(true);
+      setResult(snap.result);
       if (snap.clientName) setClientName(snap.clientName);
     }
   }, []);
@@ -127,6 +130,9 @@ export default function MonitorPage() {
 
         <div className="mb-6"><KpiCards kpis={kpis} active={category} onSelect={setCategory} /></div>
         <DetailTable category={category} regions={rows} />
+
+        {/* Everything the former DTAA Bridge covered — now inside the Monitor */}
+        {!isUsDrill && <DetailPanels result={result} />}
       </main>
     </div>
   );

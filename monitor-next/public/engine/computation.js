@@ -41,6 +41,10 @@
   function computeIndiaTax(model) {
     var T = CONST.TAX.INDIA;
     var inc = model.income.india;
+    // Business entities (company / firm / LLP) use corporate rates, not slabs.
+    if (model.entity && (model.entity.indiaIsCompany || model.entity.indiaIsFirm)) {
+      return computeIndiaEntityTax(model, inc);
+    }
     var ded = model.deductions.india;
     var regime = (model.residency.india.taxRegime || "NEW").toUpperCase();
     var isNew = regime !== "OLD";
@@ -110,6 +114,45 @@
     };
   }
 
+  // ---- India corporate / firm computation (ITR-6 / ITR-5) ----
+  function computeIndiaEntityTax(model, inc) {
+    var E = model.entity;
+    var taxable = inc.total.inr;              // business profit + other income
+    var regime, rate, surRate, matApplied = false, preCess;
+
+    if (E.indiaIsCompany) {
+      var C = CONST.TAX.INDIA_COMPANY;
+      rate = E.indiaOpt115baa ? C.RATE_115BAA : (E.indiaTurnoverLte400cr ? C.RATE_TURNOVER_LTE_400CR : C.RATE_DEFAULT);
+      var baseTax = taxable * rate;
+      surRate = E.indiaOpt115baa ? C.SURCHARGE_115BAA : (taxable > 100000000 ? C.SURCHARGE_OVER_10CR : (taxable > 10000000 ? C.SURCHARGE_OVER_1CR : 0));
+      var normal = baseTax + baseTax * surRate;
+      var mat = taxable * C.MAT_RATE;         // MAT floor (book-profit proxy)
+      matApplied = !E.indiaOpt115baa && normal < mat;
+      preCess = matApplied ? mat : normal;
+      var cessC = preCess * C.CESS_RATE;
+      regime = "Corporate ITR-6 (" + Math.round(rate * 100) + "%" + (E.indiaOpt115baa ? " §115BAA" : "") + (matApplied ? ", MAT" : "") + ")";
+      return entityResult(taxable, baseTax, preCess - baseTax, cessC, preCess + cessC, regime, matApplied);
+    }
+    // firm / LLP
+    var F = CONST.TAX.INDIA_FIRM;
+    var ftax = taxable * F.RATE;
+    surRate = taxable > 10000000 ? F.SURCHARGE_OVER_1CR : 0;
+    var fsur = ftax * surRate;
+    var fcess = (ftax + fsur) * F.CESS_RATE;
+    regime = "Firm/LLP ITR-5 (30%)";
+    return entityResult(taxable, ftax, fsur, fcess, ftax + fsur + fcess, regime, false);
+
+    function entityResult(taxableInr, base, sur, cess, total, label, mat) {
+      return {
+        regime: label, isEntity: true, matApplied: mat,
+        grossTotalIncomeInr: taxableInr, deductionsInr: 0, totalIncomeInr: taxableInr,
+        slabTaxInr: base, specialTaxInr: 0, rebateInr: 0, surchargeInr: sur, cessInr: cess,
+        totalTaxInr: total, totalTaxUsd: U.inrToUsd(total), totalIncomeUsd: U.inrToUsd(taxableInr),
+        effectiveRate: taxableInr > 0 ? total / taxableInr : 0
+      };
+    }
+  }
+
   function computeIndiaSurcharge(taxBase, totalIncome, isNew, slabs, specialTax, T) {
     // Determine rate & threshold.
     var rate = 0, threshold = 0;
@@ -138,6 +181,11 @@
   function computeUsTax(model, residency) {
     var T = CONST.TAX.US;
     var inc = model.income.us;
+    // Business entities: C-corp pays 21% flat; S-corp/partnership pass through.
+    var ek = model.entity ? model.entity.usKind : "individual";
+    if (ek === "ccorp" || ek === "scorp" || ek === "partnership" || ek === "trust") {
+      return computeUsEntityTax(model, inc, ek);
+    }
     var ded = model.deductions.us;
     var status = model.identity.usFilingStatus;
     var brackets = T.BRACKETS[status] || T.BRACKETS.single;
@@ -227,6 +275,31 @@
       usSourceIncomeUsd: inc.usSourceTotal.usd,
       effectiveRate: totalIncome > 0 ? totalTaxBeforeFtc / totalIncome : 0
     };
+  }
+
+  // ---- US corporate / pass-through computation ----
+  function computeUsEntityTax(model, inc, kind) {
+    var taxable = inc.total.usd; // business income + other
+    var form = kind === "ccorp" ? "1120" : kind === "scorp" ? "1120-S" : kind === "partnership" ? "1065" : "1041";
+    if (kind === "ccorp") {
+      var tax = taxable * CONST.TAX.US.C_CORP_RATE;
+      return usEntityResult(taxable, tax, "C-Corp (1120, 21%)", false);
+    }
+    // S-corp / partnership: entity itself pays ~$0 federal income tax; income
+    // passes through to owners on a K-1.
+    return usEntityResult(taxable, 0, (kind === "scorp" ? "S-Corp (1120-S)" : kind === "partnership" ? "Partnership (1065)" : "Trust/Estate (1041)") + " · pass-through", true);
+
+    function usEntityResult(taxableUsd, tax, label, passthrough) {
+      return {
+        filingStatus: label, isEntity: true, passthrough: passthrough, worldwide: true,
+        totalIncomeUsd: taxableUsd, agiUsd: taxableUsd, deductionUsd: 0, deductionMode: "n/a",
+        taxableIncomeUsd: taxableUsd, ordinaryTaxUsd: tax, preferentialTaxUsd: 0,
+        incomeTaxUsd: tax, niitUsd: 0, additionalMedicareUsd: 0, totalTaxBeforeFtcUsd: tax,
+        foreignSourceIncomeUsd: model.income.us.foreignSourceTotal.usd,
+        usSourceIncomeUsd: model.income.us.usSourceTotal.usd,
+        effectiveRate: taxableUsd > 0 ? tax / taxableUsd : 0
+      };
+    }
   }
 
   /* =========================================================================

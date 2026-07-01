@@ -221,6 +221,15 @@
       ));
     });
 
+    // Corporate / pass-through business income (for business-POV entities).
+    var businessUs = moneyFromUsd(num(safe(ui, "business_income_usd", 0)));
+    (safe(ui, "c_corporations_1120", []) || []).forEach(function (c) {
+      businessUs = addMoney(businessUs, moneyFromUsd(c.taxable_income_usd || c.net_income_usd || 0));
+    });
+    (safe(ui, "partnerships_k1", []) || []).forEach(function (k) {
+      businessUs = addMoney(businessUs, moneyFromUsd(k.ordinary_business_income_usd || k.ordinary_income_usd || 0));
+    });
+
     var interestUs = moneyFromUsd(safe(ui, "interest_us_source_usd", 0));
     var ordDivUs = moneyFromUsd(safe(ui, "ordinary_dividends_us_source_usd", 0));
     var qualDivUs = moneyFromUsd(safe(ui, "qualified_dividends_us_source_usd", 0));
@@ -235,11 +244,11 @@
     var foreignStcg = moneyFromUsd(safe(fi, "foreign_stcg_usd", 0));
     var foreignLtcg = moneyFromUsd(safe(fi, "foreign_ltcg_usd", 0));
 
-    var usSourceTotal = [wages, interestUs, ordDivUs, ltcgUs, stcgUs, rentalUs].reduce(addMoney, zeroMoney());
+    var usSourceTotal = [wages, businessUs, interestUs, ordDivUs, ltcgUs, stcgUs, rentalUs].reduce(addMoney, zeroMoney());
     var foreignSourceTotal = [foreignWages, foreignInterest, foreignDividends, foreignRental, foreignPension, foreignStcg, foreignLtcg].reduce(addMoney, zeroMoney());
 
     return {
-      wages: wages, w2Withholding: w2with, medicareWages: medicareWages,
+      wages: wages, businessUs: businessUs, w2Withholding: w2with, medicareWages: medicareWages,
       interestUs: interestUs, ordinaryDividendsUs: ordDivUs, qualifiedDividendsUs: qualDivUs,
       ltcgUs: ltcgUs, stcgUs: stcgUs, capitalGainsUs: addMoney(ltcgUs, stcgUs), rentalUs: rentalUs,
       foreignWages: foreignWages, foreignInterest: foreignInterest, foreignDividends: foreignDividends,
@@ -335,6 +344,25 @@
         usFilingStatus: normalizeFilingStatus(safe(us, "profile.filing_status", "single")),
         indiaEntityType: safe(india, "profile.entity_type", "individual")
       },
+      entity: (function () {
+        var inK = safe(india, "profile.entity_type", "individual");
+        var usT = safe(us, "profile.tax_entity_type", "individual");
+        if (usT === "llc") usT = safe(us, "profile.llc_tax_election", "individual");
+        var indiaIsCompany = inK === "company";
+        var indiaIsFirm = ["firm", "llp", "local"].indexOf(inK) >= 0;
+        var usIsBusiness = ["ccorp", "scorp", "partnership", "trust"].indexOf(usT) >= 0;
+        // A profile is "business POV" when either side is a non-individual entity.
+        return {
+          indiaKind: inK, usKind: usT,
+          indiaIsCompany: indiaIsCompany, indiaIsFirm: indiaIsFirm,
+          indiaOpt115baa: safe(india, "profile.opt_115baa", false) === true,
+          indiaTurnoverLte400cr: safe(india, "profile.turnover_lte_400cr", false) === true,
+          usIsBusiness: usIsBusiness,
+          isBusiness: indiaIsCompany || indiaIsFirm || usIsBusiness,
+          indiaReturnForm: indiaIsCompany ? "ITR-6" : (indiaIsFirm ? "ITR-5" : "ITR-2/3"),
+          usReturnForm: usT === "ccorp" ? "1120" : usT === "scorp" ? "1120-S" : usT === "partnership" ? "1065" : usT === "trust" ? "1041" : "1040"
+        };
+      })(),
       residency: {
         india: {
           status: safe(india, "residency_detail.final_india_residency_status", null),

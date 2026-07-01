@@ -155,8 +155,18 @@
         },
         SALT_CAP_USD: 10000,
         NIIT_RATE: 0.038,
-        ADDL_MEDICARE_RATE: 0.009
-      }
+        ADDL_MEDICARE_RATE: 0.009,
+        C_CORP_RATE: 0.21
+      },
+      // ---- entity (business) corporate rates ----
+      INDIA_COMPANY: {
+        RATE_115BAA: 0.22, SURCHARGE_115BAA: 0.10,   // domestic co, no incentives
+        RATE_TURNOVER_LTE_400CR: 0.25,
+        RATE_DEFAULT: 0.30,
+        SURCHARGE_OVER_1CR: 0.07, SURCHARGE_OVER_10CR: 0.12,
+        MAT_RATE: 0.15, CESS_RATE: 0.04
+      },
+      INDIA_FIRM: { RATE: 0.30, SURCHARGE_OVER_1CR: 0.12, CESS_RATE: 0.04 }
     }
   };
 

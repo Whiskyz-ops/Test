@@ -246,7 +246,85 @@
     }
   };
 
-  var PROFILES = [P1, P2, P3, P4, P5];
+  /* ======================================================================
+   * PROFILE 6 — BUSINESS POV: Indian Pvt Ltd (domestic company).
+   * The entity itself is the taxpayer (ITR-6): business profits, corporate
+   * tax (§115BAA 22%), advance tax — no salary/retirement.
+   * ====================================================================*/
+  var B1 = {
+    id: "india_pvt_ltd",
+    label: "🏢 Indian Pvt Ltd (company)",
+    story: "Business POV: an Indian domestic company (SaaS exporter). Corporate tax under §115BAA (22%), MAT check, ITR-6 — business profits, not salary.",
+    tags: ["company", "ITR-6", "115BAA", "corporate"],
+    router: router("Nimbus Analytics Pvt Ltd", { us_days: 0, has_us_source_income_or_assets: false }),
+    india: {
+      profile: { full_name: "Nimbus Analytics Pvt Ltd", entity_type: "company", tax_regime: "NEW", turnover_lte_400cr: true, opt_115baa: true, mat_book_profit: 62000000 },
+      residency_detail: { days_in_india_current_year: 365, final_india_residency_status: "ROR", is_poem_in_india: true, is_indian_company: true },
+      dtaa: { dtaa_treaty_residence: "none", trc_status: false, has_permanent_establishment_in_india: false },
+      compliance_docs: { trc: { document_uploaded: false }, form_10f: { is_filed: false } },
+      bank_accounts: [{ bank_name: "Kotak (Current)", account_type: "current", peak_balance_inr: 42000000 }],
+      property: { properties: [] },
+      financial_holdings: { has_financial_transactions: false, transactions: [] },
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ trade_name: "Nimbus Analytics Pvt Ltd", nature: "software", net_profit_inr: 60000000 }] }, capital_gains: {} },
+      other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 900000 },
+      deductions: {},
+      lrs_outbound: {},
+      tax_credits: { advance_tax_q1_15jun_inr: 3000000, advance_tax_q2_15sep_inr: 3500000, advance_tax_q3_15dec_inr: 3500000, advance_tax_q4_15mar_inr: 3000000, tds_already_deducted_inr: 400000 },
+      metadata: meta("layer1_india_v5_1", "FY2025-26")
+    },
+    us: {
+      profile: { tax_entity_type: "individual", full_name: "Nimbus Analytics Pvt Ltd", filing_status: "single" },
+      us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 0, spt_test_met: false, final_us_residency_status: "NON_RESIDENT_ALIEN" },
+      income_us_source: {}, income_foreign_source: {}, foreign_earned_income: { claims_feie: false },
+      bank_accounts: [], fbar_aggregate_peak_usd: 0,
+      foreign_entities: { foreign_corporations: [], pfic_holdings: [] }, retirement_accounts: {},
+      ftc_inputs: { claims_ftc: false }, withholding_and_estimated: {}, nra_specific: { files_form_1040nr: false },
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+    }
+  };
+
+  /* ======================================================================
+   * PROFILE 7 — BUSINESS POV: US C-Corp with an Indian subsidiary.
+   * US C-corp (Form 1120, 21%) + an Indian Pvt Ltd subsidiary (ITR-6);
+   * cross-border corporate structure → transfer pricing / CFC territory.
+   * ====================================================================*/
+  var B2 = {
+    id: "us_ccorp_indian_sub",
+    label: "🏢 US C-Corp + Indian sub",
+    story: "Business POV: a Delaware C-Corp (Form 1120, 21%) with an Indian Pvt Ltd subsidiary (ITR-6, 25%). Two corporate taxpayers + cross-border structure.",
+    tags: ["C-Corp", "1120", "subsidiary", "corporate"],
+    router: router("Cloudspire Inc", { us_days: 365, has_us_source_income_or_assets: true }),
+    india: {
+      profile: { full_name: "Cloudspire India Pvt Ltd", entity_type: "company", tax_regime: "NEW", turnover_lte_400cr: true, opt_115baa: false },
+      residency_detail: { days_in_india_current_year: 365, final_india_residency_status: "ROR", is_poem_in_india: true, is_indian_company: true },
+      dtaa: { dtaa_treaty_residence: "none", trc_status: true, has_permanent_establishment_in_india: true },
+      compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true } },
+      bank_accounts: [{ bank_name: "HSBC (Current)", account_type: "current", peak_balance_inr: 30000000 }],
+      property: { properties: [] },
+      financial_holdings: { has_financial_transactions: false, transactions: [] },
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ trade_name: "Cloudspire India Pvt Ltd", nature: "software", net_profit_inr: 80000000 }] }, capital_gains: {} },
+      other_sources: {},
+      deductions: {}, lrs_outbound: {},
+      tax_credits: { advance_tax_q1_15jun_inr: 4000000, advance_tax_q2_15sep_inr: 5000000, advance_tax_q3_15dec_inr: 5000000, advance_tax_q4_15mar_inr: 4000000 },
+      metadata: meta("layer1_india_v5_1", "FY2025-26")
+    },
+    us: {
+      profile: { tax_entity_type: "ccorp", full_name: "Cloudspire Inc", incorporation_state: "DE", incorporated_in_us: true, filing_status: "single" },
+      us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 365, spt_test_met: false, final_us_residency_status: "DOMESTIC_ENTITY" },
+      income_us_source: { business_income_usd: 4200000, interest_us_source_usd: 60000, c_corporations_1120: [] },
+      income_foreign_source: {}, foreign_earned_income: { claims_feie: false },
+      bank_accounts: [{ bank_name: "SVB", account_type: "current", country: "US", peak_balance_usd: 1800000 }],
+      fbar_aggregate_peak_usd: 0,
+      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corp_name: "Cloudspire India Pvt Ltd", country: "IN", ownership_pct: 100, gilti_income_usd: 963855, subpart_f_income_usd: 0 }], pfic_holdings: [] },
+      retirement_accounts: {},
+      ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "General", foreign_taxes_usd: 240964 }] },
+      withholding_and_estimated: { estimated_tax_q1_apr15_usd: 200000, estimated_tax_q2_jun15_usd: 220000 },
+      nra_specific: { files_form_1040nr: false },
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+    }
+  };
+
+  var PROFILES = [P1, P2, P3, P4, P5, B1, B2];
 
   function listProfiles() {
     return PROFILES.map(function (p) { return { id: p.id, label: p.label, story: p.story, tags: p.tags }; });

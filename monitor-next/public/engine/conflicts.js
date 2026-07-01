@@ -279,7 +279,7 @@
     var i = computed.indiaTax, u = computed.usTax;
     return {
       india: {
-        title: "India income tax (" + i.regime + " regime)",
+        title: i.isEntity ? ("India income tax — " + i.regime) : ("India income tax (" + i.regime + " regime)"),
         currency: "INR",
         rows: [
           { label: "Gross total income", inr: i.grossTotalIncomeInr },
@@ -296,7 +296,7 @@
         effectiveRate: i.effectiveRate
       },
       us: {
-        title: "US federal income tax (" + u.filingStatus.toUpperCase() + ")",
+        title: u.isEntity ? ("US federal tax — " + u.filingStatus) : ("US federal income tax (" + u.filingStatus.toUpperCase() + ")"),
         currency: "USD",
         rows: [
           { label: "Total income" + (u.worldwide ? " (worldwide)" : " (US-source)"), usd: u.totalIncomeUsd },
