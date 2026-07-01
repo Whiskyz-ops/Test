@@ -54,9 +54,24 @@ lib/mockData.js        billing (Stripe) + HR (Deel) mock: countries + US states
 lib/logic.js           classify / KPIs / choropleth lookup / ALERT utilities
 ```
 
-## Adapting to individual India-US tax
-The spec's semantics are sales-tax nexus (product taxability, transaction volume).
-For your income-tax product these map to: **residency day-thresholds** (SPT 183 /
-India 182), **reporting thresholds** (FBAR / 8938 / LRS), and **physical presence
-= days in country**. Swap the `economic` block in `mockData.js` for those metrics
-and the same UI/logic carries over.
+## Wired to the shared engine (Layer 1 → Monitor)
+The India + US country rows are **computed by the shared engine** (`engine/*.js` at
+the repo root), not mocked:
+
+- `scripts/sync-engine.js` (runs on `predev`/`prebuild`) copies the root engine
+  into `lib/engine/` so there's a single source of truth.
+- `lib/wising.js` imports the engine and maps `WISING.analyze()` →
+  `WISING.monitor()` output onto the Monitor's region rows (residency days,
+  FBAR/LRS reporting, estimated tax, income exposed).
+- The **Layer 1 intake forms** (`public/router.html`, `layer1_india.html`,
+  `layer1_us.html`) are served **same-origin**, so filling them writes the
+  `wising_*` localStorage keys that the Monitor reads. Use **Refresh from Layer 1**
+  (or it auto-refreshes on focus / storage events). **Load demo taxpayer** runs the
+  engine on the built-in sample.
+
+The badge shows `LIVE · engine` (reading your Layer 1 data) or `DEMO · engine`.
+
+### Still mock
+**US state-level** residency (CA/NY/TX…) remains illustrative — the engine computes
+country-level India/US + a US residency day-counter, but not per-state residency yet.
+That's the next engine extension.
