@@ -103,6 +103,16 @@
     <button onclick="resetScenario()" class="ml-auto px-3 py-1 text-[10px] font-bold rounded-lg bg-white/5 text-white/50 border border-white/10 hover:bg-white/10">Reset</button>
   </div>
 
+  <!-- ===================== VIEW TABS ===================== -->
+  <div class="flex items-center gap-2 mb-6">
+    <button id="tab-bridge" onclick="switchView('bridge')" class="px-4 py-2 rounded-xl text-[12px] font-bold border transition-all">🔍 Conflict Bridge</button>
+    <button id="tab-monitor" onclick="switchView('monitor')" class="px-4 py-2 rounded-xl text-[12px] font-bold border transition-all">📡 Monitoring</button>
+    <span id="tab-hint" class="text-[11px] text-white/35 ml-2"></span>
+  </div>
+
+  <!-- ===================== VIEW: CONFLICT BRIDGE ===================== -->
+  <div id="view-bridge">
+
   <!-- ===================== KPI CARDS ===================== -->
   <section id="kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></section>
 
@@ -165,6 +175,41 @@
     </section>
   </div>
 
+  </div><!-- /view-bridge -->
+
+  <!-- ===================== VIEW: MONITORING ===================== -->
+  <div id="view-monitoring" class="hidden">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <section id="mon-health" class="glass rounded-2xl p-5 card-hover"></section>
+      <section class="lg:col-span-2 glass rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-display font-extrabold text-lg">Alerts</h2>
+          <span class="text-[10px] uppercase tracking-widest text-white/30">what needs attention now</span>
+        </div>
+        <div id="mon-alerts" class="space-y-2"></div>
+      </section>
+    </div>
+
+    <section class="mb-6">
+      <h2 class="font-display font-extrabold text-lg mb-1">Residency Day-Counters</h2>
+      <p id="mon-asof" class="text-[11px] text-white/40 mb-3"></p>
+      <div id="mon-residency" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+    </section>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <section class="glass rounded-2xl p-5">
+        <h2 class="font-display font-extrabold text-lg mb-1">Threshold Breach Projections</h2>
+        <p class="text-[11px] text-white/40 mb-4">Current usage &amp; where each limit lands at the current pace.</p>
+        <div id="mon-projections" class="space-y-4"></div>
+      </section>
+      <section class="glass rounded-2xl p-5">
+        <h2 class="font-display font-extrabold text-lg mb-1">Compliance Calendar</h2>
+        <p class="text-[11px] text-white/40 mb-4">Filing &amp; payment deadlines with countdowns.</p>
+        <div id="mon-calendar" class="space-y-1.5"></div>
+      </section>
+    </div>
+  </div><!-- /view-monitoring -->
+
   <footer class="text-center text-[10px] text-white/30 mt-10 leading-relaxed">
     WISING Layer 2 prototype · Planning estimates only — not a substitute for professional tax advice.<br/>
     Engine: <span class="font-mono">normalize → compute → conflicts</span> · Schemas: layer1_india_v5_1 / layer1_us_v1
@@ -175,6 +220,7 @@
 <script src="engine/constants.js"></script>
 <script src="engine/normalize.js"></script>
 <script src="engine/computation.js"></script>
+<script src="engine/monitoring.js"></script>
 <script src="engine/conflicts.js"></script>
 <script src="engine/sample-data.js"></script>
 <script>
@@ -186,9 +232,24 @@
   var activeFilter = "all";
   var lastResult = null;
   var currentMode = null;
+  var currentView = "bridge";              // 'bridge' | 'monitor'
   var currentOpts = {};                    // base opts (live = {}, sample = bundle)
   var scenario = { indiaRegime: null, fxRate: null, feie: null };
   var expanded = {};                        // conflict card expansion state
+
+  function switchView(v) {
+    currentView = v;
+    document.getElementById("view-bridge").classList.toggle("hidden", v !== "bridge");
+    document.getElementById("view-monitoring").classList.toggle("hidden", v !== "monitor");
+    var on = "px-4 py-2 rounded-xl text-[12px] font-bold border transition-all bg-white/10 text-white border-white/20";
+    var off = "px-4 py-2 rounded-xl text-[12px] font-bold border transition-all bg-white/5 text-white/50 border-white/10 hover:text-white";
+    document.getElementById("tab-bridge").className = v === "bridge" ? on : off;
+    document.getElementById("tab-monitor").className = v === "monitor" ? on : off;
+    var hint = document.getElementById("tab-hint");
+    if (lastResult) hint.textContent = v === "monitor"
+      ? "Health " + lastResult.summary.healthScore + "/100 · next deadline " + (lastResult.summary.nextDeadline || "—")
+      : lastResult.summary.counts.critical + " critical · " + lastResult.summary.requiredDocs + " filings";
+  }
 
   function hasLiveData() {
     try { return !!(localStorage.getItem(W.CONST.STORAGE_KEYS.INDIA) || localStorage.getItem(W.CONST.STORAGE_KEYS.US)); }
@@ -307,6 +368,104 @@
     renderTaxComputation(result);
     renderFtc(result);
     renderDocs(result);
+    renderMonitoring(result);
+    switchView(currentView); // refresh tab styles + hint
+  }
+
+  // ============================ MONITORING VIEW ============================
+  function renderMonitoring(result) {
+    var m = result.monitoring; if (!m) return;
+    var sevColor = { critical:"#ef4444", warning:"#D4AF37", info:"#06B6D4" };
+
+    document.getElementById("mon-asof").textContent =
+      "Tax year " + m.baseYear + " · as of " + new Date(m.asOf).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) +
+      (m.simulated ? " (simulated mid-year point for illustration)" : "") + " · projections “at current pace”";
+
+    // ---- health score ring ----
+    var h = m.health, R = 46, C = 2 * Math.PI * R, dash = (h.score/100) * C;
+    document.getElementById("mon-health").innerHTML =
+      '<div class="text-[10px] uppercase tracking-widest text-white/40 mb-2">Compliance health</div>' +
+      '<div class="flex items-center gap-4">' +
+        '<div class="relative shrink-0"><svg width="120" height="120" viewBox="0 0 120 120">' +
+          '<circle cx="60" cy="60" r="'+R+'" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="10"/>' +
+          '<circle class="donut-seg" cx="60" cy="60" r="'+R+'" fill="none" stroke="'+h.band.color+'" stroke-width="10" stroke-linecap="round" stroke-dasharray="'+C+'" stroke-dashoffset="'+C+'" transform="rotate(-90 60 60)" data-final="'+(C-dash)+'"/>' +
+        '</svg><div class="absolute inset-0 flex flex-col items-center justify-center">' +
+          '<div id="mon-score" class="font-display font-extrabold text-3xl" style="color:'+h.band.color+'">0</div>' +
+          '<div class="text-[9px] uppercase tracking-widest text-white/40">/ 100</div></div></div>' +
+        '<div><div class="font-display font-bold text-lg" style="color:'+h.band.color+'">'+h.band.label+'</div>' +
+          '<div class="text-[11px] text-white/50 mt-1 space-y-0.5">' +
+            '<div>'+result.summary.counts.critical+' critical conflicts</div>' +
+            '<div>'+h.breachedLimits+' limit(s) breached · '+h.willBreach+' projected</div>' +
+            '<div>Next: '+(m.calendar.next?m.calendar.next.dateLabel:'—')+'</div>' +
+          '</div></div>' +
+      '</div>';
+    var ring = document.querySelector("#mon-health .donut-seg");
+    if (ring) { requestAnimationFrame(function(){ requestAnimationFrame(function(){ ring.setAttribute("stroke-dashoffset", ring.getAttribute("data-final")); }); }); }
+    animateCount(document.getElementById("mon-score"), h.score, function(v){ return Math.round(v); });
+
+    // ---- alerts feed ----
+    document.getElementById("mon-alerts").innerHTML = m.alerts.map(function (a) {
+      return '<div class="flex items-start gap-3 p-2.5 rounded-lg bg-white/4 fade-in" style="border-left:3px solid '+sevColor[a.sev]+'">' +
+        '<span class="text-base leading-none mt-0.5">'+a.icon+'</span>' +
+        '<div class="flex-1"><div class="text-[12px] font-semibold text-white/85">'+a.text+'</div>' +
+        '<div class="text-[11px] text-white/45">'+a.meta+'</div></div>' +
+        '<span class="pill" style="background:'+sevColor[a.sev]+'22;color:'+sevColor[a.sev]+'">'+a.sev+'</span></div>';
+    }).join("") || '<div class="text-white/40 text-sm py-4 text-center">No alerts.</div>';
+
+    // ---- residency day-counters ----
+    var stColor = { resident:"#ef4444", will_flip:"#D4AF37", safe:"#10B981" };
+    document.getElementById("mon-residency").innerHTML = m.residency.map(function (r) {
+      var pct = Math.min(100, Math.round(r.pct*100));
+      return '<div class="glass rounded-2xl p-5 card-hover fade-in">' +
+        '<div class="flex items-center justify-between mb-3">' +
+          '<div class="flex items-center gap-2"><span class="text-xl">'+r.flag+'</span>' +
+          '<div><div class="font-display font-bold text-base">'+r.country+'</div>' +
+          '<div class="text-[10px] text-white/40">'+r.test+'</div></div></div>' +
+          '<span class="pill" style="background:'+stColor[r.status]+'22;color:'+stColor[r.status]+'">'+r.status.replace("_"," ")+'</span></div>' +
+        '<div class="flex items-end justify-between mb-1">' +
+          '<div class="font-display font-extrabold text-2xl">'+r.days+'<span class="text-white/40 text-base"> / '+r.threshold+' days</span></div>' +
+          '<div class="text-[11px] text-white/45">proj. '+r.projectedFullYear+'d full-year</div></div>' +
+        '<div class="h-2.5 rounded-full bg-white/8 overflow-hidden mb-2">' +
+          '<div class="bar-fill h-full rounded-full" style="width:0%;background:'+stColor[r.status]+'" data-w="'+pct+'"></div></div>' +
+        '<div class="text-[12px] font-semibold text-white/80">'+r.headline+'</div>' +
+        '<div class="text-[11px] text-white/45">'+r.dateLabel+'</div></div>';
+    }).join("");
+
+    // ---- threshold projections ----
+    var pColor = { breached:"#ef4444", will_breach:"#D4AF37", ok:"#10B981" };
+    document.getElementById("mon-projections").innerHTML = m.projections.map(function (p) {
+      var curPct = Math.min(100, Math.round(p.pct*100));
+      var projPct = Math.min(100, Math.round(p.projPct*100));
+      return '<div class="fade-in">' +
+        '<div class="flex justify-between text-[11px] mb-1"><span class="text-white/70 font-semibold">'+p.label+
+          (p.status==="breached"?' <span class="pill bg-red-500/20 text-red-400 ml-1">BREACHED</span>':(p.status==="will_breach"?' <span class="pill bg-brandGold/20 text-brandGold ml-1">ON TRACK</span>':''))+'</span>' +
+          '<span class="font-mono" style="color:'+pColor[p.status]+'">'+projPct+'% proj</span></div>' +
+        '<div class="relative h-2.5 rounded-full bg-white/8 overflow-hidden">' +
+          '<div class="bar-fill h-full rounded-full" style="width:0%;background:'+pColor[p.status]+'55" data-w="'+projPct+'"></div>' +
+          '<div class="bar-fill h-full rounded-full absolute top-0 left-0" style="width:0%;background:'+pColor[p.status]+'" data-w="'+curPct+'"></div></div>' +
+        '<div class="flex justify-between text-[10px] text-white/40 mt-1">' +
+          '<span>now '+fmtUsd(p.current)+' · proj '+fmtUsd(p.projected)+'</span><span>limit '+fmtUsd(p.limit)+'</span></div>' +
+        '<div class="text-[11px] mt-0.5" style="color:'+pColor[p.status]+'">'+p.dateLabel+'</div></div>';
+    }).join("");
+    animateBars();
+
+    // ---- compliance calendar ----
+    var catColor = { "Filing":"#ef4444", "Extension":"#D4AF37", "Advance tax":"#06B6D4", "Estimated tax":"#06B6D4" };
+    var jColor = { US:"#06B6D4", IN:"#D4AF37" };
+    var cal = m.calendar.all.slice().sort(function(a,b){ return a.date-b.date; });
+    // upcoming first (not passed), then a couple passed dimmed
+    var upcoming = cal.filter(function(x){return x.status!=="passed";});
+    var passed = cal.filter(function(x){return x.status==="passed";}).slice(-2);
+    document.getElementById("mon-calendar").innerHTML = upcoming.concat(passed).map(function (x) {
+      var isPast = x.status==="passed";
+      var due = isPast ? Math.abs(x.daysUntil)+"d ago" : "in "+x.daysUntil+"d";
+      var dueColor = x.status==="due_soon" ? "#D4AF37" : (isPast ? "#6b7280" : "#10B981");
+      return '<div class="flex items-center gap-3 p-2 rounded-lg '+(isPast?"opacity-40":"bg-white/4")+' fade-in">' +
+        '<span class="pill" style="background:'+jColor[x.jur]+'22;color:'+jColor[x.jur]+'">'+x.jur+'</span>' +
+        '<div class="flex-1 min-w-0"><div class="text-[12px] font-semibold text-white/85 truncate">'+x.name+'</div>' +
+        '<div class="text-[10px] text-white/40">'+x.dateLabel+' · '+x.cat+'</div></div>' +
+        '<div class="text-[11px] font-mono whitespace-nowrap" style="color:'+dueColor+'">'+due+'</div></div>';
+    }).join("");
   }
 
   function renderKpis(result) {

@@ -341,6 +341,9 @@
     var documents = buildDocuments(model, computed);
     var ftcReport = buildFtcReport(model, computed);
     var taxComputation = buildTaxComputation(computed);
+    var monitoring = WISING.monitor
+      ? WISING.monitor(model, computed, { findings: findings, asOf: (opts.scenario && opts.scenario.asOf) || opts.asOf })
+      : null;
 
     var counts = { critical: 0, warning: 0, info: 0 };
     findings.forEach(function (x) { counts[x.severity]++; });
@@ -352,6 +355,7 @@
       documents: documents,
       ftcReport: ftcReport,
       taxComputation: taxComputation,
+      monitoring: monitoring,
       summary: {
         name: model.identity.name,
         baseYear: model.meta.baseYear,
@@ -367,7 +371,9 @@
         usTaxUsd: computed.headline.usTaxUsd,
         netDoubleTaxUsd: computed.headline.netUnrelievedDoubleTaxUsd,
         counts: counts,
-        requiredDocs: documents.filter(function (d) { return d.required; }).length
+        requiredDocs: documents.filter(function (d) { return d.required; }).length,
+        healthScore: monitoring ? monitoring.health.score : null,
+        nextDeadline: monitoring && monitoring.calendar.next ? monitoring.calendar.next.dateLabel : null
       }
     };
   }

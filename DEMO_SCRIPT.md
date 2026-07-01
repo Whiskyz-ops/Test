@@ -61,6 +61,18 @@ Scroll to **Tax Computation** + **FTC Reconciliation**.
 > US computation (brackets, preferential rates, NIIT), and the FTC §904 limitation
 > in both directions. Transparent and auditable."
 
+## 6.5 · The Monitoring tab — the "always-on" story — ~30s
+Click the **📡 Monitoring** tab. This is the Sphere-style continuous-compliance angle.
+- **Compliance health: 8/100 — At risk.** "One number for the whole cross-border position."
+- **Alerts feed:** prioritized — critical conflicts, a breached FBAR, LRS *on track to breach*.
+- **Residency day-counters:** "We count days in both countries and date exactly when
+  he became resident — US crossed ~May 6, India ~Oct 14. For someone mid-move, we
+  predict the *flip date* before it happens."
+- **Threshold projections:** "Not just 'you're at 82%' — 'at this pace you cross the
+  ₹250k LRS cap around Jan 1.' We warn *before* the breach."
+- **Compliance calendar:** "Every deadline with a countdown — India ITR + Form 67 due in 30 days."
+> "This is the difference between a filing-season tool and a year-round platform."
+
 ## 7 · Close — ~15s
 > "Two intake forms in, one intelligence layer out. It catches what people miss,
 > sizes the exposure, and lists exactly what to file. That's WISING."

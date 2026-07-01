@@ -25,7 +25,7 @@ html = html.replace(
 );
 
 // 2) Inline each engine script in order.
-["constants", "normalize", "computation", "conflicts", "sample-data"].forEach((name) => {
+["constants", "normalize", "computation", "monitoring", "conflicts", "sample-data"].forEach((name) => {
   const js = read("engine/" + name + ".js");
   const tag = '<script src="engine/' + name + '.js"></script>';
   if (html.indexOf(tag) < 0) throw new Error("Could not find script tag for " + name);
