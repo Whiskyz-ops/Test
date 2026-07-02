@@ -124,19 +124,19 @@
 
     // -- 5. FORM 67 TIMING (India FTC procedural) --------------------------
     if (model.income.us.foreignSourceTotal.usd > 0 || model.taxesPaid.us.total.usd > 0) {
-      add("form67_required", S.WARNING, C.DOCUMENT,
-        "Form 67 required to claim Indian FTC",
-        "Foreign income / foreign tax is present. India allows FTC u/s 90/91 ONLY if Form 67 is filed on or before the ITR due date, with Schedule FSI and Schedule TR.",
-        "File Form 67 electronically before submitting the ITR. A late Form 67 is condonable but risks credit denial.",
+      add("form67_required", S.INFO, C.DOCUMENT,
+        "Form 67 — prepared for the Indian FTC claim",
+        "Foreign income / foreign tax is present, so India requires Form 67 (with Schedule FSI and TR) on or before the ITR due date to allow FTC u/s 90/91.",
+        "WISING prepares and e-files Form 67 with Schedules FSI/TR ahead of the ITR due date — it's on the filing checklist, no manual action needed.",
         0, ["Form 67", "Rule 128", "Schedule FSI", "Schedule TR"]);
     }
 
     // -- 6. TAX-YEAR / APPORTIONMENT MISMATCH ------------------------------
     if (res.dualResident || (model.meta.hasIndia && model.meta.hasUs)) {
-      add("tax_year_mismatch", S.WARNING, C.CREDIT,
-        "Tax-year mismatch: Indian FY vs US CY",
-        "India taxes Apr–Mar; the US taxes Jan–Dec. The same income & withholding fall in different reporting periods, so FTC claimed in one country must be apportioned to match the other's period.",
-        "WISING apportions US calendar-year wages/withholding into Indian fiscal months (and vice-versa) and generates the FY↔CY reconciliation worksheet behind Form 67 (India) and Form 1116 (US) — your CA/CPA receives it ready to file, not as a manual task.",
+      add("tax_year_mismatch", S.INFO, C.CREDIT,
+        "Tax-year alignment: Indian FY ↔ US CY (handled)",
+        "India taxes Apr–Mar; the US taxes Jan–Dec, so the same income & withholding fall in different reporting periods.",
+        "WISING apportions US calendar-year wages/withholding into Indian fiscal months (and vice-versa) and generates the FY↔CY reconciliation worksheet behind Form 67 (India) and Form 1116 (US) — handled automatically, no manual action.",
         0, [CONST.CALENDAR.INDIA_FY.label, CONST.CALENDAR.US_CY.label]);
     }
 
@@ -164,11 +164,11 @@
     var bizCount = (model.assets.indianBusinesses || []).length;
     var usOwnsForeignCorp = model.assets.usOwns10PctForeignCorp || (model.assets.usForeignCorps || []).length > 0;
     if (usOwnsForeignCorp && res.us.isResident) {
-      add("cfc", S.WARNING, C.ENTITY,
-        "Controlled Foreign Corporation — Form 5471 required",
+      add("cfc", S.INFO, C.ENTITY,
+        "Controlled Foreign Corporation — Form 5471 (computed)",
         "Layer 1 records the US person owning ≥10% of a foreign corporation" + (bizCount > 0 ? " (Indian company on file)" : "") +
-        ". Form 5471 is required, and GILTI / Subpart F can accelerate US tax on undistributed Indian profits before any dividend is paid.",
-        "WISING classifies the entity, computes the GILTI / Subpart F inclusion and models the §962 election (corporate rate + FTC) against India's MAT/credit — you file Form 5471 with the numbers already worked out.",
+        ", so Form 5471 applies and GILTI / Subpart F can accelerate US tax on undistributed Indian profits before any dividend is paid.",
+        "WISING classifies the entity, computes the GILTI / Subpart F inclusion and models the §962 election (corporate rate + FTC) against India's MAT/credit — Form 5471 is on the filing checklist with the numbers already worked out.",
         0, ["Form 5471", "GILTI §951A", "Subpart F", "§962 election"]);
     } else if (bizCount > 0 && res.us.isResident) {
       add("cfc_below_threshold", S.INFO, C.ENTITY,
