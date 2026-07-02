@@ -180,7 +180,7 @@ function ReconciliationCard({ recon }) {
             {recon.rows.map((r, i) => (
               <tr key={i} className="border-b border-line/60 align-top">
                 <td className="px-2 py-2.5">
-                  <div className="flex items-center gap-2"><span className="text-[12px] font-semibold text-head">{r.label}</span><Dir d={r.dir} />{r.estimate && <span className="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-approaching/15" style={{ color: PAL.amberText }}>est.</span>}</div>
+                  <div className="flex items-center gap-2 flex-wrap"><span className="text-[12px] font-semibold text-head">{r.label}</span><Dir d={r.dir} />{r.sameBase && <span className="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-white/[0.06] text-muted" title="Same amount enters both bases — the difference is the rate">same base · rate differs</span>}{r.estimate && <span className="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-approaching/15" style={{ color: PAL.amberText }}>est.</span>}</div>
                   {r.note && <div className="text-[10px] text-muted mt-0.5 max-w-[260px]">{r.note}</div>}
                 </td>
                 <td className="px-2 py-2.5 text-right"><div className="font-mono text-[12px] text-head">{fmtUsd(r.indiaLawUsd)}</div><div className="text-[9px] text-muted">{r.indiaRule}</div></td>

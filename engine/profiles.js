@@ -43,8 +43,8 @@
     india: {
       profile: { full_name: "Aarav Sharma", entity_type: "individual", date_of_birth: "1988-07-15", pan: "ABCPS1234K", tax_regime: "NEW" },
       residency_detail: { days_in_india_current_year: 210, final_india_residency_status: "ROR" },
-      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "none", trc_status: false, has_permanent_establishment_in_india: false, treaty_elections: [], dtaa_forced_nr: false },
-      compliance_docs: { trc: { document_uploaded: false }, form_10f: { is_filed: false }, chapter_xiia_elected: false },
+      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "us", trc_status: true, has_permanent_establishment_in_india: false, treaty_elections: [], dtaa_forced_nr: false },
+      compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true }, chapter_xiia_elected: false },
       bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", peak_balance_inr: 3200000 }, { bank_name: "ICICI Bank", account_type: "nro", peak_balance_inr: 1500000 }],
       property: { has_indian_property_transaction: true, properties: [{ address: "Flat 12B, Pune", property_type: "Residential", annual_value_inr: 420000, gross_rent_received_inr: 600000, municipal_taxes_paid_inr: 30000 }] },
       financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "equity_mutual_fund", asset_name: "Axis Bluechip Fund", value_inr: 2500000 }, { asset_type: "debt_mutual_fund", asset_name: "HDFC Corporate Bond Fund", value_inr: 1200000 }] },
@@ -57,7 +57,7 @@
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Aarav Sharma", date_of_birth: "1988-07-15", filing_status: "mfj", ssn_or_itin_type: "ssn" },
-      us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 330, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "none" },
+      us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 330, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "us" },
       income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Cloudscale Inc", wages_box1_usd: 165000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 31000, medicare_wages_box5_usd: 165000 } }], interest_us_source_usd: 3200, ordinary_dividends_us_source_usd: 4100, ltcg_us_source_usd: 9000 },
       income_foreign_source: { foreign_wages: [{ employer_name: "India Salary", wages_usd: 50602 }], foreign_interest_usd: 3614, foreign_dividends_usd: 1807, foreign_rental_income_usd: 5060, foreign_stcg_usd: 3012 },
       foreign_earned_income: { claims_feie: false, foreign_earned_income_usd: 50602, feie_amount_claimed_usd: 0 },

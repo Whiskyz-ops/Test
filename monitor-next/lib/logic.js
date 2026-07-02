@@ -52,9 +52,13 @@ export function isBreached(r) {
 //  Monitored    = neither
 export function classify(r) {
   const breached = isBreached(r);
-  if (r.taxesWorldwide && breached) return STATUS.EXPOSED;
+  const hasTax = (r.estimatedTaxUsd || 0) > 0;
+  // Exposed = real liability accruing (worldwide resident, OR source-taxed with
+  // actual tax after a treaty tie-breaker). Filing-only = threshold crossed but
+  // genuinely $0 tax (source-only, no liability).
+  if (breached && (r.taxesWorldwide || hasTax)) return STATUS.EXPOSED;
   if (r.taxesWorldwide && !breached) return STATUS.APPROACHING;
-  if (!r.taxesWorldwide && breached) return STATUS.NEXUS;
+  if (breached) return STATUS.NEXUS;
   return STATUS.NONE;
 }
 

@@ -370,10 +370,22 @@
                      usStatus === US.RESIDENT_ALIEN || model.residency.us.sptMet;
     var usWorldwide = usResident;
 
+    // Apply the recorded DTAA Article 4 tie-breaker: the LOSER jurisdiction
+    // stops taxing worldwide income (source-basis only) for the treaty period.
+    // US citizens keep worldwide taxation regardless (§ saving clause).
+    var tre = model.treaty || {};
+    var indiaCedes = tre.treatyResidence === "us" || tre.dtaaForcedNr === true;
+    var usCedes = (tre.usTreatyResidence === "india" || tre.files1040nr === true) && !model.residency.us.isCitizen;
+    var tieBreakWinner = tre.treatyResidence !== "none" ? tre.treatyResidence
+                        : (tre.usTreatyResidence !== "none" ? tre.usTreatyResidence : null);
+    if (indiaCedes) indiaWorldwide = false;
+    if (usCedes) usWorldwide = false;
+
     return {
-      india: { status: inStatus, isResident: indiaResident, worldwide: indiaWorldwide },
-      us: { status: usStatus, isResident: usResident, worldwide: usWorldwide, isCitizen: model.residency.us.isCitizen },
+      india: { status: inStatus, isResident: indiaResident, worldwide: indiaWorldwide, cedesViaTreaty: indiaCedes },
+      us: { status: usStatus, isResident: usResident, worldwide: usWorldwide, isCitizen: model.residency.us.isCitizen, cedesViaTreaty: usCedes },
       dualResident: indiaResident && usResident,
+      tieBreakWinner: tieBreakWinner,
       worldwideOverlap: indiaWorldwide && usWorldwide
     };
   }
@@ -531,77 +543,86 @@
     var feieApplied = (usTax.feie && usTax.feie.appliedUsd) || 0;
     var usWW = residency.us.worldwide, inWW = residency.india.worldwide;
     var viaForeignCorp = model.assets.usOwns10PctForeignCorp || (model.assets.usForeignCorps || []).length > 0;
-    function row(o) { o.doublyTaxed = o.indiaLawUsd > 0 && o.usLawUsd > 0; o.overlapUsd = o.doublyTaxed ? Math.min(o.indiaLawUsd, o.usLawUsd) : 0; rows.push(o); }
+    var stdDedInr = model.residency.india.taxRegime === "old" ? 50000 : 75000;
+    var stdDedUsd = stdDedInr / CONST.FX.INR_PER_USD;
+    var stdDedLabel = "₹" + stdDedInr.toLocaleString("en-IN");
+    function row(o) {
+      o.indiaLawUsd = Math.round(o.indiaLawUsd || 0); o.usLawUsd = Math.round(o.usLawUsd || 0);
+      o.doublyTaxed = o.indiaLawUsd > 0 && o.usLawUsd > 0;
+      o.overlapUsd = o.doublyTaxed ? Math.min(o.indiaLawUsd, o.usLawUsd) : 0;
+      rows.push(o);
+    }
 
     // ---- Direction A: India-source income → US IRC (US taxes worldwide) ----
+    // Each side is computed under its OWN code, so the two columns diverge where
+    // deductions differ (salary std deduction, house-property 30% vs US
+    // depreciation) and share a base but differ in RATE for pure-inclusion heads.
     if (usWW) {
       if (inc.india.salary.usd > 0) {
-        var usWage = inc.us.foreignWages.usd || inc.india.salary.usd;
+        // India figure is already net of the std deduction; the US taxes the
+        // gross wage (adds it back) and then applies FEIE when eligible.
+        var grossWage = inc.india.salary.usd + stdDedUsd;
         row({ head: "salary", label: "Salary / Wages", dir: "IN→US", source: "India",
-          indiaLawUsd: inc.india.salary.usd, usLawUsd: Math.max(0, usWage - feieApplied),
-          indiaRule: "Slab; less ₹50k/75k std deduction", estimate: !inc.us.foreignWages.usd,
-          usRule: feieApplied > 0 ? ("Gross wages less FEIE " + usd(feieApplied)) : "Gross wages; no Indian std deduction" });
+          indiaLawUsd: inc.india.salary.usd, usLawUsd: Math.max(0, grossWage - feieApplied),
+          indiaRule: "Net of " + stdDedLabel + " std deduction · slab ≤ 30%",
+          usRule: (feieApplied > 0 ? "Gross less FEIE " + usd(feieApplied) : "Gross wage; no std deduction") + " · brackets ≤ 37%" });
       }
       if (inc.india.business.usd > 0) {
         if (viaForeignCorp) {
           row({ head: "business", label: "Business / Professional", dir: "IN→US", source: "India",
-            indiaLawUsd: inc.india.business.usd, usLawUsd: 0, estimate: false,
-            indiaRule: "PGBP net (Indian depreciation)",
+            indiaLawUsd: inc.india.business.usd, usLawUsd: 0,
+            indiaRule: "PGBP net · Indian depreciation",
             usRule: "Held via Indian company → not personal income; taxed via CFC/GILTI (Form 5471)",
             note: "See the Form 5471 finding." });
         } else {
           row({ head: "business", label: "Business / Professional", dir: "IN→US", source: "India",
             indiaLawUsd: inc.india.business.usd, usLawUsd: inc.india.business.usd, estimate: true,
-            indiaRule: "PGBP net (Indian depreciation)", usRule: "Schedule C net (US basis)",
-            note: "US net approximated at Indian net — refine with US expense/depreciation detail." });
+            indiaRule: "PGBP net · Indian depreciation", usRule: "Schedule C net · US depreciation (MACRS)",
+            note: "US net approximated at Indian net — diverges with US depreciation schedule." });
         }
       }
       if (inc.india.houseProperty.usd > 0) {
-        var usRent = inc.us.foreignRental.usd, estRent = !usRent;
+        // India: Net Annual Value less the flat 30% deduction (s.24a). US: gross
+        // rent less actual expenses AND straight-line depreciation (27.5y) — a
+        // much larger write-off, so the US base is typically lower.
+        var nav = inc.india.houseProperty.usd;
         row({ head: "rental", label: "House property / Rental", dir: "IN→US", source: "India",
-          indiaLawUsd: inc.india.houseProperty.usd,
-          usLawUsd: usRent || Math.round((inc.india.houseProperty.usd / 0.7) * 0.75), estimate: estRent,
-          indiaRule: "NAV less 30% std deduction less loan interest",
-          usRule: "Gross rent less actual expenses less straight-line depreciation (27.5y)",
-          note: estRent ? "US net estimated — provide US rental expenses/depreciation to refine." : "" });
+          indiaLawUsd: nav * 0.70, usLawUsd: nav * 0.55, estimate: true,
+          indiaRule: "NAV less 30% std deduction (s.24a)",
+          usRule: "Gross less actual expenses + straight-line depreciation (27.5y)",
+          note: "US net is planning-grade — refine with the property's depreciable basis." });
       }
-      if (inc.india.interest.usd > 0) {
-        row({ head: "interest", label: "Interest", dir: "IN→US", source: "India",
-          indiaLawUsd: inc.india.interest.usd, usLawUsd: inc.us.foreignInterest.usd || inc.india.interest.usd,
-          indiaRule: "Slab rate", usRule: "Ordinary income (passive FTC basket)", estimate: !inc.us.foreignInterest.usd });
-      }
-      if (inc.india.dividend.usd > 0) {
-        row({ head: "dividend", label: "Dividend", dir: "IN→US", source: "India",
-          indiaLawUsd: inc.india.dividend.usd, usLawUsd: inc.us.foreignDividends.usd || inc.india.dividend.usd,
-          indiaRule: "Slab rate (shareholder's hands)",
-          usRule: "Qualified rate if treaty + holding met, else ordinary", estimate: !inc.us.foreignDividends.usd });
-      }
-      if (inc.india.capitalGains.usd > 0) {
-        row({ head: "capgains", label: "Capital gains", dir: "IN→US", source: "India",
-          indiaLawUsd: inc.india.capitalGains.usd, usLawUsd: inc.us.foreignCapitalGains.usd || inc.india.capitalGains.usd,
-          indiaRule: "STCG/LTCG per Indian holding periods",
-          usRule: "US holding period (>1y = LTCG); gain on USD cost basis", estimate: !inc.us.foreignCapitalGains.usd,
-          note: "Refine with cost basis + acquisition-date FX (Rule 115)." });
-      }
+      if (inc.india.interest.usd > 0) row({ head: "interest", label: "Interest", dir: "IN→US", source: "India",
+        indiaLawUsd: inc.india.interest.usd, usLawUsd: inc.india.interest.usd, sameBase: true,
+        indiaRule: "Slab ≤ 30%", usRule: "Ordinary ≤ 37% (passive FTC basket)" });
+      if (inc.india.dividend.usd > 0) row({ head: "dividend", label: "Dividend", dir: "IN→US", source: "India",
+        indiaLawUsd: inc.india.dividend.usd, usLawUsd: inc.india.dividend.usd, sameBase: true,
+        indiaRule: "Slab ≤ 30%", usRule: "Qualified 15–20% if treaty + holding, else ordinary" });
+      if (inc.india.capitalGains.usd > 0) row({ head: "capgains", label: "Capital gains", dir: "IN→US", source: "India",
+        indiaLawUsd: inc.india.capitalGains.usd, usLawUsd: inc.india.capitalGains.usd, sameBase: true, estimate: true,
+        indiaRule: "LTCG 12.5% / STCG slab · Indian holding periods",
+        usRule: "LTCG 0/15/20% (>1y) / STCG ordinary · USD cost basis",
+        note: "Same gain; the US recomputes on USD cost basis + acquisition-date FX (Rule 115)." });
     }
 
     // ---- Direction B: US-source income → Indian ITA (India ROR = worldwide) ----
     if (inWW) {
       if (inc.us.wages.usd > 0) row({ head: "us_salary", label: "US Salary / Wages", dir: "US→IN", source: "US",
-        indiaLawUsd: inc.us.wages.usd, usLawUsd: inc.us.wages.usd,
-        indiaRule: "Slab; one ₹50k/75k std deduction across salary", usRule: "Ordinary wages" });
+        indiaLawUsd: Math.max(0, inc.us.wages.usd - stdDedUsd), usLawUsd: inc.us.wages.usd,
+        indiaRule: "Less " + stdDedLabel + " std deduction · slab ≤ 30%", usRule: "Gross wage · brackets ≤ 37%" });
       if (inc.us.rentalUs.usd > 0) row({ head: "us_rental", label: "US House property / Rental", dir: "US→IN", source: "US",
-        indiaLawUsd: Math.round(inc.us.rentalUs.usd * 0.7), usLawUsd: inc.us.rentalUs.usd, estimate: true,
-        indiaRule: "NAV less 30% std deduction", usRule: "Net rent after expenses / depreciation" });
+        indiaLawUsd: inc.us.rentalUs.usd * 1.15, usLawUsd: inc.us.rentalUs.usd, estimate: true,
+        indiaRule: "NAV less 30% only — US depreciation added back", usRule: "Net after expenses + depreciation",
+        note: "India disallows US depreciation and grants only the 30% deduction, so its base is higher." });
       if (inc.us.interestUs.usd > 0) row({ head: "us_interest", label: "US Interest", dir: "US→IN", source: "US",
-        indiaLawUsd: inc.us.interestUs.usd, usLawUsd: inc.us.interestUs.usd, indiaRule: "Slab rate", usRule: "Ordinary income" });
+        indiaLawUsd: inc.us.interestUs.usd, usLawUsd: inc.us.interestUs.usd, sameBase: true,
+        indiaRule: "Slab ≤ 30%", usRule: "Ordinary ≤ 37%" });
       if (inc.us.ordinaryDividendsUs.usd > 0) row({ head: "us_dividend", label: "US Dividend", dir: "US→IN", source: "US",
-        indiaLawUsd: inc.us.ordinaryDividendsUs.usd, usLawUsd: inc.us.ordinaryDividendsUs.usd,
-        indiaRule: "Slab rate", usRule: "Qualified / ordinary split" });
+        indiaLawUsd: inc.us.ordinaryDividendsUs.usd, usLawUsd: inc.us.ordinaryDividendsUs.usd, sameBase: true,
+        indiaRule: "Slab ≤ 30%", usRule: "Qualified 15–20% / ordinary" });
       if (inc.us.capitalGainsUs.usd > 0) row({ head: "us_capgains", label: "US Capital gains", dir: "US→IN", source: "US",
-        indiaLawUsd: inc.us.capitalGainsUs.usd, usLawUsd: inc.us.capitalGainsUs.usd, estimate: true,
-        indiaRule: "STCG/LTCG per Indian holding buckets", usRule: "US LTCG/STCG",
-        note: "Recharacterized under Indian holding periods — planning-grade." });
+        indiaLawUsd: inc.us.capitalGainsUs.usd, usLawUsd: inc.us.capitalGainsUs.usd, sameBase: true, estimate: true,
+        indiaRule: "STCG slab / LTCG per Indian buckets", usRule: "LTCG 0/15/20% / STCG ordinary" });
     }
 
     var overlapUsd = rows.reduce(function (s, r) { return s + r.overlapUsd; }, 0);

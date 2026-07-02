@@ -89,7 +89,7 @@
         "Indian tax paid (" + usd(ftc.us.indiaTaxPaidUsd) + ") exceeds the US FTC limitation (" +
         usd(ftc.us.ftcLimitUsd) + ") for this year. " + usd(ftc.us.residualDoubleTaxUsd) +
         " of Indian tax cannot be credited currently and would otherwise be double-taxed.",
-        "Carry the excess credit (" + usd(ftc.us.carryoverUsd) + ") back 1 year / forward 10 years on Form 1116. Re-check the source-by-source income split and whether any income should re-source under the treaty to lift the limitation.",
+        "WISING books the excess credit (" + usd(ftc.us.carryoverUsd) + ") to the §904(c) carryover schedule (back 1 / forward 10) and tests treaty re-sourcing to lift the limitation — your CA/CPA receives the completed Form 1116 workpaper with the carryover tracked year over year.",
         ftc.us.residualDoubleTaxUsd, ["Form 1116", "§904(c)"]);
     } else if (ftc.us.indiaTaxPaidUsd > 0 && ftc.us.ftcAllowedUsd > 0) {
       add("ftc_available", S.INFO, C.CREDIT,
