@@ -402,6 +402,7 @@
         indianMutualFunds: (safe(india, "financial_holdings.transactions", []) || []).filter(function (t) {
           return t.asset_type && String(t.asset_type).toLowerCase().indexOf("mutual_fund") >= 0;
         }),
+        indianSecurities: safe(india, "financial_holdings.transactions", []) || [],
         usPficHoldings: safe(us, "foreign_entities.pfic_holdings", []),
         indianBusinesses: safe(annual.domestic_income, "business_income.business_entries", []),
         usForeignCorps: safe(us, "foreign_entities.foreign_corporations", []),

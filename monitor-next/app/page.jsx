@@ -5,7 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
-import { ConflictsPanel, ResidencyView, FilingsView, DocumentsView, AccountsView, ClientsView, IntegrationsView } from "@/components/Views";
+import { ConflictsPanel, ResidencyView, FilingsView, DocumentsView, AccountsView, ClientsView, IntegrationsView, HoldingsView } from "@/components/Views";
 import { US_STATES, COUNTRIES, SOURCES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries } from "@/lib/wising";
@@ -129,6 +129,7 @@ export default function MonitorPage() {
         )}
 
         {view === "clients" && <ClientsView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
+        {view === "holdings" && <HoldingsView result={result} />}
         {view === "residency" && <ResidencyView result={result} />}
         {view === "filings" && <FilingsView result={result} />}
         {view === "documents" && <DocumentsView result={result} />}

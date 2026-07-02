@@ -6,6 +6,7 @@ const MAIN = [
   { id: "residency", label: "Residency", icon: "🧭" },
   { id: "filings", label: "Filings", icon: "📄" },
   { id: "documents", label: "Documents", icon: "📁" },
+  { id: "holdings", label: "Holdings", icon: "📊" },
   { id: "accounts", label: "Accounts", icon: "🏦" },
   { id: "integrations", label: "Integrations", icon: "🔌" }
 ];
