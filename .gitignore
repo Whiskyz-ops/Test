@@ -1,3 +1,9 @@
 node_modules/
 .DS_Store
 *.log
+
+# Build artifacts / packaged deliverables (regenerated from source)
+monitor-next/out/
+monitor-next/WISING-Monitor/
+monitor-next/WISING-Monitor.zip
+*.zip
