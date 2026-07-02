@@ -516,6 +516,100 @@
   }
 
   /* =========================================================================
+   * CROSS-BASIS RECONCILIATION
+   * ---------------------------------------------------------------------
+   * The core value prop: the SAME income taxed under BOTH countries' own
+   * code. India-source heads are re-computed under the US IRC when the US
+   * taxes worldwide; US-source heads are re-computed under the Indian ITA
+   * when India is ROR. Planning-grade — items marked `estimate:true` still
+   * need line-item inputs (US rental depreciation, per-transaction FX under
+   * Rule 115, cost basis / acquisition date for gains) to be filing-exact.
+   * =======================================================================*/
+  function crossBasis(model, residency, usTax) {
+    function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
+    var inc = model.income, rows = [];
+    var feieApplied = (usTax.feie && usTax.feie.appliedUsd) || 0;
+    var usWW = residency.us.worldwide, inWW = residency.india.worldwide;
+    var viaForeignCorp = model.assets.usOwns10PctForeignCorp || (model.assets.usForeignCorps || []).length > 0;
+    function row(o) { o.doublyTaxed = o.indiaLawUsd > 0 && o.usLawUsd > 0; o.overlapUsd = o.doublyTaxed ? Math.min(o.indiaLawUsd, o.usLawUsd) : 0; rows.push(o); }
+
+    // ---- Direction A: India-source income → US IRC (US taxes worldwide) ----
+    if (usWW) {
+      if (inc.india.salary.usd > 0) {
+        var usWage = inc.us.foreignWages.usd || inc.india.salary.usd;
+        row({ head: "salary", label: "Salary / Wages", dir: "IN→US", source: "India",
+          indiaLawUsd: inc.india.salary.usd, usLawUsd: Math.max(0, usWage - feieApplied),
+          indiaRule: "Slab; less ₹50k/75k std deduction", estimate: !inc.us.foreignWages.usd,
+          usRule: feieApplied > 0 ? ("Gross wages less FEIE " + usd(feieApplied)) : "Gross wages; no Indian std deduction" });
+      }
+      if (inc.india.business.usd > 0) {
+        if (viaForeignCorp) {
+          row({ head: "business", label: "Business / Professional", dir: "IN→US", source: "India",
+            indiaLawUsd: inc.india.business.usd, usLawUsd: 0, estimate: false,
+            indiaRule: "PGBP net (Indian depreciation)",
+            usRule: "Held via Indian company → not personal income; taxed via CFC/GILTI (Form 5471)",
+            note: "See the Form 5471 finding." });
+        } else {
+          row({ head: "business", label: "Business / Professional", dir: "IN→US", source: "India",
+            indiaLawUsd: inc.india.business.usd, usLawUsd: inc.india.business.usd, estimate: true,
+            indiaRule: "PGBP net (Indian depreciation)", usRule: "Schedule C net (US basis)",
+            note: "US net approximated at Indian net — refine with US expense/depreciation detail." });
+        }
+      }
+      if (inc.india.houseProperty.usd > 0) {
+        var usRent = inc.us.foreignRental.usd, estRent = !usRent;
+        row({ head: "rental", label: "House property / Rental", dir: "IN→US", source: "India",
+          indiaLawUsd: inc.india.houseProperty.usd,
+          usLawUsd: usRent || Math.round((inc.india.houseProperty.usd / 0.7) * 0.75), estimate: estRent,
+          indiaRule: "NAV less 30% std deduction less loan interest",
+          usRule: "Gross rent less actual expenses less straight-line depreciation (27.5y)",
+          note: estRent ? "US net estimated — provide US rental expenses/depreciation to refine." : "" });
+      }
+      if (inc.india.interest.usd > 0) {
+        row({ head: "interest", label: "Interest", dir: "IN→US", source: "India",
+          indiaLawUsd: inc.india.interest.usd, usLawUsd: inc.us.foreignInterest.usd || inc.india.interest.usd,
+          indiaRule: "Slab rate", usRule: "Ordinary income (passive FTC basket)", estimate: !inc.us.foreignInterest.usd });
+      }
+      if (inc.india.dividend.usd > 0) {
+        row({ head: "dividend", label: "Dividend", dir: "IN→US", source: "India",
+          indiaLawUsd: inc.india.dividend.usd, usLawUsd: inc.us.foreignDividends.usd || inc.india.dividend.usd,
+          indiaRule: "Slab rate (shareholder's hands)",
+          usRule: "Qualified rate if treaty + holding met, else ordinary", estimate: !inc.us.foreignDividends.usd });
+      }
+      if (inc.india.capitalGains.usd > 0) {
+        row({ head: "capgains", label: "Capital gains", dir: "IN→US", source: "India",
+          indiaLawUsd: inc.india.capitalGains.usd, usLawUsd: inc.us.foreignCapitalGains.usd || inc.india.capitalGains.usd,
+          indiaRule: "STCG/LTCG per Indian holding periods",
+          usRule: "US holding period (>1y = LTCG); gain on USD cost basis", estimate: !inc.us.foreignCapitalGains.usd,
+          note: "Refine with cost basis + acquisition-date FX (Rule 115)." });
+      }
+    }
+
+    // ---- Direction B: US-source income → Indian ITA (India ROR = worldwide) ----
+    if (inWW) {
+      if (inc.us.wages.usd > 0) row({ head: "us_salary", label: "US Salary / Wages", dir: "US→IN", source: "US",
+        indiaLawUsd: inc.us.wages.usd, usLawUsd: inc.us.wages.usd,
+        indiaRule: "Slab; one ₹50k/75k std deduction across salary", usRule: "Ordinary wages" });
+      if (inc.us.rentalUs.usd > 0) row({ head: "us_rental", label: "US House property / Rental", dir: "US→IN", source: "US",
+        indiaLawUsd: Math.round(inc.us.rentalUs.usd * 0.7), usLawUsd: inc.us.rentalUs.usd, estimate: true,
+        indiaRule: "NAV less 30% std deduction", usRule: "Net rent after expenses / depreciation" });
+      if (inc.us.interestUs.usd > 0) row({ head: "us_interest", label: "US Interest", dir: "US→IN", source: "US",
+        indiaLawUsd: inc.us.interestUs.usd, usLawUsd: inc.us.interestUs.usd, indiaRule: "Slab rate", usRule: "Ordinary income" });
+      if (inc.us.ordinaryDividendsUs.usd > 0) row({ head: "us_dividend", label: "US Dividend", dir: "US→IN", source: "US",
+        indiaLawUsd: inc.us.ordinaryDividendsUs.usd, usLawUsd: inc.us.ordinaryDividendsUs.usd,
+        indiaRule: "Slab rate", usRule: "Qualified / ordinary split" });
+      if (inc.us.capitalGainsUs.usd > 0) row({ head: "us_capgains", label: "US Capital gains", dir: "US→IN", source: "US",
+        indiaLawUsd: inc.us.capitalGainsUs.usd, usLawUsd: inc.us.capitalGainsUs.usd, estimate: true,
+        indiaRule: "STCG/LTCG per Indian holding buckets", usRule: "US LTCG/STCG",
+        note: "Recharacterized under Indian holding periods — planning-grade." });
+    }
+
+    var overlapUsd = rows.reduce(function (s, r) { return s + r.overlapUsd; }, 0);
+    var anyEstimate = rows.some(function (r) { return r.estimate; });
+    return { rows: rows, overlapUsd: overlapUsd, feieAppliedUsd: feieApplied, anyEstimate: anyEstimate };
+  }
+
+  /* =========================================================================
    * ORCHESTRATOR
    * =======================================================================*/
   function compute(model) {
@@ -524,12 +618,14 @@
     var usTax = computeUsTax(model, residency);
     var ftc = computeFtc(model, residency, indiaTax, usTax);
     var doubleTax = mapDoubleTaxedIncome(model, residency);
+    var reconciliation = crossBasis(model, residency, usTax);
     var limits = computeLimits(model);
 
     return {
       residency: residency,
       indiaTax: indiaTax,
       usTax: usTax,
+      reconciliation: reconciliation,
       // back-compat alias used by older dashboard code
       taxEstimate: { india: { estTaxUsd: indiaTax.totalTaxUsd, estTaxInr: indiaTax.totalTaxInr }, us: { estTaxUsd: usTax.totalTaxBeforeFtcUsd } },
       ftc: ftc,

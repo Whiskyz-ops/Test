@@ -156,7 +156,49 @@ export function FilingsView({ result }) {
         <FtcCard ftcReport={result.ftcReport} />
         <TaxCard taxComputation={result.taxComputation} fxRate={result.model.meta.fxRate} />
       </div>
+      <ReconciliationCard recon={result.computed.reconciliation} />
     </div>
+  );
+}
+
+/* Cross-basis: the same income under BOTH countries' own code. */
+function ReconciliationCard({ recon }) {
+  if (!recon || !recon.rows || !recon.rows.length) return null;
+  const Dir = ({ d }) => <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded" style={{ background: (d === "IN→US" ? PAL.jurIN : PAL.jurUS) + "24", color: d === "IN→US" ? PAL.accent : PAL.blueText }}>{d}</span>;
+  return (
+    <Card title="Cross-Basis Reconciliation" sub="The same income computed under each country's own code — India (Income-tax Act) vs US (IRC). Overlap is what FTC / §90 relieves.">
+      <div className="overflow-x-auto -mx-1">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-line">
+              {["Income head", "India basis", "US basis", "Double-taxed"].map((h, i) => (
+                <th key={i} className={"px-2 py-2 text-[10px] uppercase tracking-widest text-muted font-bold " + (i === 0 ? "text-left" : "text-right")}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {recon.rows.map((r, i) => (
+              <tr key={i} className="border-b border-line/60 align-top">
+                <td className="px-2 py-2.5">
+                  <div className="flex items-center gap-2"><span className="text-[12px] font-semibold text-head">{r.label}</span><Dir d={r.dir} />{r.estimate && <span className="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-approaching/15" style={{ color: PAL.amberText }}>est.</span>}</div>
+                  {r.note && <div className="text-[10px] text-muted mt-0.5 max-w-[260px]">{r.note}</div>}
+                </td>
+                <td className="px-2 py-2.5 text-right"><div className="font-mono text-[12px] text-head">{fmtUsd(r.indiaLawUsd)}</div><div className="text-[9px] text-muted">{r.indiaRule}</div></td>
+                <td className="px-2 py-2.5 text-right"><div className="font-mono text-[12px] text-head">{r.usLawUsd > 0 ? fmtUsd(r.usLawUsd) : "—"}</div><div className="text-[9px] text-muted max-w-[200px] ml-auto">{r.usRule}</div></td>
+                <td className="px-2 py-2.5 text-right font-mono text-[12px]" style={{ color: r.doublyTaxed ? PAL.redText : PAL.muted }}>{r.doublyTaxed ? fmtUsd(r.overlapUsd) : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td className="px-2 py-2.5 text-[11px] font-bold text-body" colSpan={3}>Total overlapping (doubly-taxed) exposure</td>
+              <td className="px-2 py-2.5 text-right font-mono text-[13px] font-bold" style={{ color: PAL.redText }}>{fmtUsd(recon.overlapUsd)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      {recon.anyEstimate && <p className="text-[10px] text-muted mt-2">Rows marked <span className="font-bold" style={{ color: PAL.amberText }}>est.</span> are planning-grade — refine with line-item inputs (US rental depreciation, cost basis / acquisition-date FX under Rule 115).</p>}
+    </Card>
   );
 }
 function FtcCard({ ftcReport }) {

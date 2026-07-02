@@ -211,17 +211,21 @@
         0, ["FinCEN 114", "FBAR"]);
     }
 
-    // -- 13. INCOME-CHARACTER MISMATCHES (per doubly-taxed head) -----------
-    (computed.doubleTax.items || []).forEach(function (it) {
-      if (it.doublyTaxed && Math.max(it.indiaUsd, it.usUsd) > 0) {
-        add("income_" + it.label.replace(/[^a-z]+/gi, "_").toLowerCase(), S.WARNING, C.INCOME,
-          "Doubly-taxed income: " + it.label,
-          it.label + " is taxed in India (" + usd(it.indiaUsd) + ") and exposed in the US (" +
-          usd(it.usUsd || it.indiaUsd) + "). " + (it.note || ""),
-          "Confirm source rules and treaty article, then relieve via FTC on the residence side. Watch character/holding-period differences that change the rate.",
-          Math.max(it.indiaUsd, it.usUsd), ["DTAA", "Form 1116", "Form 67"]);
-      }
-    });
+    // -- 13. CROSS-BASIS SUMMARY (one finding; detail lives in the table) ---
+    // The per-head "same income, both codes" breakdown is shown in the
+    // Cross-Basis Reconciliation table (Filings tab), not as N warnings.
+    var recon = computed.reconciliation;
+    var dtRows = (recon && recon.rows || []).filter(function (r) { return r.doublyTaxed; });
+    if (dtRows.length > 0) {
+      add("cross_basis_summary", S.INFO, C.INCOME,
+        dtRows.length + " income head(s) taxed under both codes — see reconciliation",
+        "The same income is taxed in India (its own Act) and the US (the IRC): " +
+        dtRows.map(function (r) { return r.label; }).join(", ") + ". Overlapping exposure of " +
+        usd(recon.overlapUsd) + " is what the FTC / §90 relief resolves." +
+        (recon.anyEstimate ? " Some heads are planning-grade estimates pending line-item inputs." : ""),
+        "Open the Cross-Basis Reconciliation on the Filings tab to see each head on both bases, then relieve the overlap via Form 1116 (US) / Form 67 (India).",
+        recon.overlapUsd, ["DTAA", "Form 1116", "Form 67"]);
+    }
 
     // -- sort by severity then amount --------------------------------------
     var weight = {}; weight[S.CRITICAL] = 0; weight[S.WARNING] = 1; weight[S.INFO] = 2;
