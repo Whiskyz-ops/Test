@@ -40,24 +40,30 @@
       });
     }
 
-    // -- 1. DUAL RESIDENCY ---------------------------------------------------
+    // -- 1. DUAL RESIDENCY + ARTICLE 4 TIE-BREAKER -------------------------
+    // Single finding with two states, driven by the Layer 1 tie-breaker wizard
+    // (both forms capture & sync dtaa_treaty_residence). If a winner is recorded
+    // we surface the RESOLVED position (proof the engine honours Layer 1); only
+    // if it is genuinely blank do we flag it as an open action.
     if (res.dualResident) {
-      add("dual_residency", S.CRITICAL, C.RESIDENCY,
-        "Dual tax residency (India + US)",
-        "The taxpayer is resident in BOTH India (" + (res.india.status || "resident") +
-        ") and the US (" + (res.us.isCitizen ? "citizen" : res.us.hasGreenCard ? "green card" : "SPT met") +
-        "). Both jurisdictions assert taxing rights over worldwide income for an overlapping period.",
-        "Resolve residency under Article 4 of the India-US DTAA tie-breaker (permanent home → centre of vital interests → habitual abode → nationality). File IRS Form 8833 (US) and obtain a TRC + Form 10F (India) for the loser jurisdiction.",
-        0, ["DTAA Art. 4", "Form 8833", "TRC", "Form 10F"]);
-    }
-
-    // -- 2. TREATY TIE-BREAKER NOT RESOLVED ---------------------------------
-    if (res.dualResident && model.treaty.treatyResidence === "none" && model.treaty.usTreatyResidence === "none") {
-      add("tiebreak_unresolved", S.CRITICAL, C.TREATY,
-        "DTAA tie-breaker not yet applied",
-        "Dual residency exists but no Article 4 tie-breaker election is recorded on either side. Without it, the same income is exposed to full tax in both countries and only partial FTC relief is available.",
-        "Run the Article 4 cascade and record the resulting treaty residence on the loser side. The Indian FY (Apr–Mar) straddles two US calendar years — apportion US earnings/withholdings to Indian fiscal months before applying the tie-breaker.",
-        computed.doubleTax.totalDoublyTaxedUsd, ["DTAA Art. 4"]);
+      var tbWinner = model.treaty.treatyResidence !== "none" ? model.treaty.treatyResidence
+                   : (model.treaty.usTreatyResidence !== "none" ? model.treaty.usTreatyResidence : null);
+      var usTag = res.us.isCitizen ? "citizen" : model.residency.us.hasGreenCard ? "green card" : "SPT met";
+      if (!tbWinner) {
+        add("dual_residency", S.CRITICAL, C.TREATY,
+          "Dual tax residency — Article 4 tie-breaker not yet run",
+          "The taxpayer is resident in BOTH India (" + (res.india.status || "resident") + ") and the US (" + usTag +
+          ") for an overlapping period, and the Layer 1 Article 4 tie-breaker has not been completed. Until it is, both countries assert worldwide taxing rights and only partial FTC relief is available.",
+          "Complete the Layer 1 tie-breaker wizard (permanent home → centre of vital interests → habitual abode → nationality). WISING records the winner and produces Form 8833 (US) + the TRC / Form 10F support (India) for the loser side.",
+          computed.doubleTax.totalDoublyTaxedUsd, ["DTAA Art. 4", "Form 8833", "TRC", "Form 10F"]);
+      } else {
+        add("dual_residency_resolved", S.INFO, C.TREATY,
+          "Dual residency resolved under DTAA Article 4 → " + String(tbWinner).toUpperCase(),
+          "Both India and the US met residency, and the Layer 1 Article 4 tie-breaker resolves treaty residence to " +
+          String(tbWinner).toUpperCase() + " for the overlapping period. WISING has applied this to the tax and FTC computation below; the loser jurisdiction is taxed on a source basis.",
+          "Keep " + (tbWinner === "india" ? "TRC + Form 10F (India) and Form 8833 (US)" : "Form 8833 (US) and TRC + Form 10F (India)") + " on file to support the position.",
+          0, ["DTAA Art. 4", tbWinner === "india" ? "Form 10F" : "Form 8833"]);
+      }
     }
 
     // -- 3. TREATY BENEFIT CLAIMED WITHOUT TRC / FORM 10F -------------------
@@ -108,7 +114,7 @@
       add("tax_year_mismatch", S.WARNING, C.CREDIT,
         "Tax-year mismatch: Indian FY vs US CY",
         "India taxes Apr–Mar; the US taxes Jan–Dec. The same income & withholding fall in different reporting periods, so FTC claimed in one country must be apportioned to match the other's period.",
-        "Apportion US calendar-year wages/withholding into Indian fiscal months (and vice-versa) when populating Form 67 / Form 1116. Keep a reconciliation worksheet for both filings.",
+        "WISING apportions US calendar-year wages/withholding into Indian fiscal months (and vice-versa) and generates the FY↔CY reconciliation worksheet behind Form 67 (India) and Form 1116 (US) — your CA/CPA receives it ready to file, not as a manual task.",
         0, [CONST.CALENDAR.INDIA_FY.label, CONST.CALENDAR.US_CY.label]);
     }
 
@@ -130,22 +136,32 @@
         0, ["Form 8621", "§1291", "QEF / MTM"]);
     }
 
-    // -- 9. CFC / FORM 5471 (Indian companies) -----------------------------
+    // -- 9. CFC / FORM 5471 (Indian companies) — use the ownership answer ---
+    // Layer 1 (US) captures owns_10_percent_foreign_corp + foreign_corporations[],
+    // so we don't hedge on "if you own ≥10%": we know.
     var bizCount = (model.assets.indianBusinesses || []).length;
-    if (bizCount > 0 && res.us.isResident) {
+    var usOwnsForeignCorp = model.assets.usOwns10PctForeignCorp || (model.assets.usForeignCorps || []).length > 0;
+    if (usOwnsForeignCorp && res.us.isResident) {
       add("cfc", S.WARNING, C.ENTITY,
-        "Controlled Foreign Corporation exposure (Indian company)",
-        bizCount + " Indian business entity(ies) detected. If the US person owns ≥10%, Form 5471 is required and GILTI / Subpart F inclusions may accelerate US tax on undistributed Indian profits.",
-        "Confirm ownership %, classify the entity, and evaluate a §962 election (corporate rate + FTC) or check-the-box planning. India's MAT/credit interaction must be modelled jointly.",
+        "Controlled Foreign Corporation — Form 5471 required",
+        "Layer 1 records the US person owning ≥10% of a foreign corporation" + (bizCount > 0 ? " (Indian company on file)" : "") +
+        ". Form 5471 is required, and GILTI / Subpart F can accelerate US tax on undistributed Indian profits before any dividend is paid.",
+        "WISING classifies the entity, computes the GILTI / Subpart F inclusion and models the §962 election (corporate rate + FTC) against India's MAT/credit — you file Form 5471 with the numbers already worked out.",
         0, ["Form 5471", "GILTI §951A", "Subpart F", "§962 election"]);
+    } else if (bizCount > 0 && res.us.isResident) {
+      add("cfc_below_threshold", S.INFO, C.ENTITY,
+        "Indian company held below the 10% CFC threshold",
+        bizCount + " Indian business interest(s) on file, but Layer 1 shows US ownership below 10% — so Form 5471 Category 5 / GILTI do not apply this year.",
+        "No 5471 action needed at current ownership. WISING re-checks automatically and flags the moment a purchase or reorganization pushes ownership to ≥10%.",
+        0, ["Form 5471", "10% threshold"]);
     }
 
     // -- 10. RETIREMENT ACCOUNT TREATMENT MISMATCH -------------------------
     if ((model.assets.epfInr > 0 || model.assets.ppfInr > 0 || model.assets.npsInr > 0) && res.us.isResident) {
       add("retirement_mismatch", S.WARNING, C.RETIREMENT,
-        "Indian retirement accounts — divergent treatment",
-        "EPF/PPF/NPS balances are tax-exempt (or concessionally taxed) in India, but the US-India treaty does NOT exempt them. The IRS may treat PPF as a foreign grantor trust (Form 3520/3520-A) and tax accretions annually.",
-        "Determine whether each account is a pension covered by Article 20 vs a trust. Report on FBAR/8938; assess annual income inclusion of interest accretions and any 3520 obligation.",
+        "Indian retirement accounts (EPF / PPF / NPS) are taxed differently by the US",
+        "India treats EPF, PPF and NPS as tax-free (or lightly taxed). The US does not automatically agree: the IRS can tax the interest these accounts earn every year, and may treat PPF like a trust that needs extra forms.",
+        "WISING checks whether each account is a treaty-protected pension (Article 20) or a trust, adds the yearly interest to US income where the US requires it, and prepares the FBAR / Form 8938 and any Form 3520 filing — so nothing gets missed.",
         0, ["DTAA Art. 20", "Form 3520/3520-A", "FBAR"]);
     }
 

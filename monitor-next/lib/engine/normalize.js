@@ -405,6 +405,7 @@
         usPficHoldings: safe(us, "foreign_entities.pfic_holdings", []),
         indianBusinesses: safe(annual.domestic_income, "business_income.business_entries", []),
         usForeignCorps: safe(us, "foreign_entities.foreign_corporations", []),
+        usOwns10PctForeignCorp: safe(us, "foreign_entities.owns_10_percent_foreign_corp", false) === true,
         indianProperties: safe(india, "property.properties", []),
         epfInr: num(safe(india, "deductions.s80C.epf_employee_inr", 0)),
         ppfInr: num(safe(india, "deductions.s80C.ppf_inr", 0)),
