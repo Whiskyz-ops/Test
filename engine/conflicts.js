@@ -100,6 +100,28 @@
         ftc.us.ftcAllowedUsd, ["Form 1116", "Form 67"]);
     }
 
+    // -- 4b. FEIE CLAIMED BUT NOT ELIGIBLE (§911) ---------------------------
+    // FEIE is only for taxpayers LIVING ABROAD: foreign tax home + bona-fide
+    // residence or physical presence (>=330 days abroad). Someone living in
+    // the US with foreign income cannot claim it — the engine zeroes the
+    // exclusion and flags the claim.
+    var feieRes = computed.usTax && computed.usTax.feie;
+    if (feieRes && feieRes.claimed && !feieRes.eligible) {
+      add("feie_ineligible", S.CRITICAL, C.CREDIT,
+        "FEIE claimed but the taxpayer does not qualify",
+        "Form 2555 exclusion was claimed in Layer 1, but the §911 tests fail: " + feieRes.reasons.join("; ") +
+        ". FEIE is only available to someone living abroad — a US-based taxpayer with foreign income must use the Foreign Tax Credit instead. The engine has computed US tax WITHOUT the exclusion.",
+        "Remove the FEIE claim and rely on Form 1116 FTC for the Indian taxes (usually better anyway when Indian rates exceed US rates). If the taxpayer genuinely lives abroad, complete the tax-home and presence-test fields in the US Layer 1 so the exclusion can be applied.",
+        model.limitsRaw.feieAmountUsd || 0, ["§911", "Form 2555", "Form 1116"]);
+    } else if (feieRes && feieRes.claimed && feieRes.eligible && feieRes.appliedUsd > 0) {
+      add("feie_applied", S.INFO, C.CREDIT,
+        "FEIE applied — " + usd(feieRes.appliedUsd) + " of foreign wages excluded",
+        "The §911 tests are met (foreign tax home + " + (feieRes.testMet ? "presence test" : "") +
+        "), so " + usd(feieRes.appliedUsd) + " of foreign earned income is excluded from US tax. The excluded income and its share of Indian tax were removed from the FTC computation (no-double-dip).",
+        "Compare FEIE vs full FTC annually — for high-tax countries like India, revoking FEIE in favour of FTC can save tax, but a revocation locks you out of FEIE for 5 years.",
+        0, ["Form 2555", "§911(d)(6)"]);
+    }
+
     // -- 5. FORM 67 TIMING (India FTC procedural) --------------------------
     if (model.income.us.foreignSourceTotal.usd > 0 || model.taxesPaid.us.total.usd > 0) {
       add("form67_required", S.WARNING, C.DOCUMENT,
@@ -260,11 +282,15 @@
    * ----------------------------------------------------------------------*/
   function buildFtcReport(model, computed) {
     var ftc = computed.ftc;
+    var feieRows = ftc.us.feieExcludedUsd > 0
+      ? [{ label: "Less FEIE-excluded wages (§911)", usd: -ftc.us.feieExcludedUsd },
+         { label: "Indian tax disallowed on excluded income", usd: -ftc.us.indiaTaxDisallowedUsd }]
+      : [];
     return {
       direction_us_claims_india: {
         title: "US Form 1116 — credit for Indian taxes",
-        rows: [
-          { label: "Indian income tax (computed liability)", usd: ftc.us.indiaTaxPaidUsd },
+        rows: feieRows.concat([
+          { label: "Indian income tax (creditable)", usd: ftc.us.indiaTaxPaidUsd },
           { label: "Foreign-source income (US view)", usd: ftc.us.foreignSourceIncomeUsd },
           { label: "US taxable income", usd: ftc.us.taxableIncomeUsd },
           { label: "US income tax (pre-credit)", usd: ftc.us.usIncomeTaxUsd },
@@ -272,7 +298,7 @@
           { label: "FTC allowed this year", usd: ftc.us.ftcAllowedUsd, emphasis: true },
           { label: "Excess credit carried over (§904(c))", usd: ftc.us.carryoverUsd },
           { label: "Residual double tax (unrelieved)", usd: ftc.us.residualDoubleTaxUsd, warn: true }
-        ]
+        ])
       },
       direction_india_relief: {
         title: "India §90 relief — for US taxes on doubly-taxed income",

@@ -421,6 +421,19 @@
         form8938Flag: safe(us, "form_8938_required", false) === true,
         additionalMedicareOwed: num(safe(us, "withholding_and_estimated.additional_medicare_tax_owed_usd", 0))
       },
+      // FEIE (Form 2555) eligibility inputs — the exclusion is only available to a
+      // taxpayer whose TAX HOME is abroad AND who meets the bona-fide-residence or
+      // physical-presence (>=330 days abroad, i.e. <=35 US days) test. Someone
+      // living in the US cannot claim it, so we capture the qualification facts.
+      feie: {
+        claimed: safe(us, "foreign_earned_income.claims_feie", false) === true,
+        amountClaimedUsd: num(safe(us, "foreign_earned_income.feie_amount_claimed_usd", 0)),
+        foreignEarnedIncomeUsd: num(safe(us, "foreign_earned_income.foreign_earned_income_usd", 0)),
+        taxHomeCountry: safe(us, "foreign_earned_income.tax_home_country", ""),
+        bonaFide: safe(us, "foreign_earned_income.bona_fide_residence", false) === true,
+        physicalPresence: safe(us, "foreign_earned_income.physical_presence", false) === true,
+        daysInUsTestPeriod: num(safe(us, "foreign_earned_income.days_in_us_during_test_period", 0))
+      },
       _raw: raw
     };
   }

@@ -176,6 +176,44 @@
   }
 
   /* =========================================================================
+   * FEIE ELIGIBILITY (Form 2555, §911)
+   * ---------------------------------------------------------------------
+   * The exclusion is ONLY available to a taxpayer whose tax home is in a
+   * foreign country AND who meets the bona-fide-residence test or the
+   * physical-presence test (>=330 full days abroad in 12 months, i.e. at
+   * most ~35 days in the US during the test period). A person living in the
+   * US with foreign income does NOT qualify. Layer 1 (US) captures all of
+   * these facts under foreign_earned_income.*.
+   * =======================================================================*/
+  function feieEligibility(model) {
+    var f = model.feie || {};
+    var claimed = !!f.claimed || (f.amountClaimedUsd || 0) > 0;
+    var home = String(f.taxHomeCountry || "").trim().toLowerCase();
+    var taxHomeAbroad = home !== "" && home !== "us" && home !== "usa" &&
+                        home !== "united states" && home !== "united states of america";
+    var ppDaysOk = (f.daysInUsTestPeriod || 0) <= 35;
+    var ppMet = !!f.physicalPresence && ppDaysOk;
+    var bfMet = !!f.bonaFide;
+    var reasons = [];
+    if (claimed && !taxHomeAbroad) reasons.push(home === "" ? "no foreign tax home entered" : "tax home is in the US");
+    if (claimed && !bfMet && !ppMet) {
+      reasons.push(!f.physicalPresence && !f.bonaFide
+        ? "neither the bona-fide-residence nor the physical-presence test is met"
+        : (f.physicalPresence && !ppDaysOk
+          ? (f.daysInUsTestPeriod + " US days in the test period — over the ~35-day allowance (330 full days abroad required)")
+          : "bona-fide-residence test not met"));
+    }
+    return {
+      claimed: claimed,
+      amountClaimedUsd: f.amountClaimedUsd || 0,
+      taxHomeAbroad: taxHomeAbroad,
+      testMet: bfMet || ppMet,
+      eligible: taxHomeAbroad && (bfMet || ppMet),
+      reasons: reasons
+    };
+  }
+
+  /* =========================================================================
    * US FEDERAL INCOME-TAX COMPUTATION
    * =======================================================================*/
   function computeUsTax(model, residency) {
@@ -193,6 +231,17 @@
 
     // Foreign income is included only for worldwide residents/citizens.
     var fW = worldwide ? inc.foreignWages.usd : 0;
+
+    // FEIE (Form 2555) — gated on eligibility, not on the checkbox. Only a
+    // taxpayer living abroad (foreign tax home + bona-fide-residence or
+    // physical-presence test) may exclude, and only foreign EARNED income.
+    var feie = feieEligibility(model);
+    var feieAppliedUsd = 0;
+    if (worldwide && feie.claimed && feie.eligible && fW > 0) {
+      var feieBase = feie.amountClaimedUsd > 0 ? feie.amountClaimedUsd : fW;
+      feieAppliedUsd = Math.min(fW, feieBase, CONST.LIMITS.FEIE_MAX_USD);
+      fW = fW - feieAppliedUsd;
+    }
     var fI = worldwide ? inc.foreignInterest.usd : 0;
     var fD = worldwide ? inc.foreignDividends.usd : 0;
     var fR = worldwide ? inc.foreignRental.usd : 0;
@@ -273,6 +322,10 @@
       totalTaxBeforeFtcUsd: totalTaxBeforeFtc,
       foreignSourceIncomeUsd: fW + fI + fD + fR + fP + fStcg + fLtcg,
       usSourceIncomeUsd: inc.usSourceTotal.usd,
+      feie: {
+        claimed: feie.claimed, eligible: feie.eligible, taxHomeAbroad: feie.taxHomeAbroad,
+        testMet: feie.testMet, reasons: feie.reasons, appliedUsd: feieAppliedUsd
+      },
       effectiveRate: totalIncome > 0 ? totalTaxBeforeFtc / totalIncome : 0
     };
   }
@@ -331,11 +384,19 @@
   function computeFtc(model, residency, indiaTax, usTax) {
     // ---- Direction 1: US Form 1116 — credit for Indian taxes ----
     // From the US view, Indian income is foreign-source.
-    var foreignSrcUsd = model.income.india.total.usd;
+    // §911(d)(6) no-double-dip: income excluded under FEIE leaves the FTC
+    // computation entirely — it is removed from foreign-source income and the
+    // Indian tax allocable to it is proportionally disallowed as a credit.
+    var feieExcludedUsd = (usTax.feie && usTax.feie.appliedUsd) || 0;
+    var foreignSrcGrossUsd = model.income.india.total.usd;
+    var foreignSrcUsd = Math.max(0, foreignSrcGrossUsd - feieExcludedUsd);
+    var creditableFraction = foreignSrcGrossUsd > 0 ? foreignSrcUsd / foreignSrcGrossUsd : 1;
     var usTaxableUsd = usTax.taxableIncomeUsd;
     // Only income tax (not NIIT/Medicare) is creditable.
     var usIncomeTaxUsd = usTax.incomeTaxUsd;
-    var indiaTaxPaidUsd = indiaTax.totalTaxUsd;
+    var indiaTaxPaidGrossUsd = indiaTax.totalTaxUsd;
+    var indiaTaxPaidUsd = indiaTaxPaidGrossUsd * creditableFraction;
+    var indiaTaxDisallowedUsd = indiaTaxPaidGrossUsd - indiaTaxPaidUsd;
 
     var usLimitFraction = usTaxableUsd > 0 ? Math.min(1, foreignSrcUsd / usTaxableUsd) : 0;
     var usFtcLimit = usIncomeTaxUsd * usLimitFraction;
@@ -363,6 +424,8 @@
     return {
       us: {
         foreignSourceIncomeUsd: foreignSrcUsd,
+        feieExcludedUsd: feieExcludedUsd,
+        indiaTaxDisallowedUsd: indiaTaxDisallowedUsd,
         taxableIncomeUsd: usTaxableUsd,
         usIncomeTaxUsd: usIncomeTaxUsd,
         indiaTaxPaidUsd: indiaTaxPaidUsd,
@@ -430,15 +493,24 @@
       "Threshold is a cliff: any breach = full reporting of every foreign account.");
     var status = model.identity.usFilingStatus;
     var isMfj = status === "mfj";
-    var abroad = model.limitsRaw.feieClaimed;
+    // "Living abroad" for the 8938 threshold table follows the §911 facts
+    // (foreign tax home + presence test), not the FEIE checkbox.
+    var feieEl = feieEligibility(model);
+    var abroad = feieEl.taxHomeAbroad && feieEl.testMet;
     var tbl = L.FORM_8938[abroad ? (isMfj ? "ABROAD_MFJ" : "ABROAD_SINGLE") : (isMfj ? "US_RESIDENT_MFJ" : "US_RESIDENT_SINGLE")];
     gauge("form8938", "Form 8938 (FATCA) any-time", model.accounts.aggregatePeak.usd, tbl.anyTime, "USD",
       "Threshold shown is the 'any time during year' figure for your status/residence.");
     gauge("lrs", "LRS outbound remittance", U.inrToUsd(model.limitsRaw.lrsRemittedInr), L.LRS_ANNUAL_USD, "USD",
       "RBI cap is per individual per financial year; TCS applies above ₹10L.");
-    if (model.limitsRaw.feieClaimed || model.limitsRaw.foreignEarnedIncomeUsd > 0) {
-      gauge("feie", "FEIE exclusion used", Math.min(model.limitsRaw.feieAmountUsd, L.FEIE_MAX_USD), L.FEIE_MAX_USD, "USD",
-        "Excluded foreign earned income cannot also generate FTC — watch the no-double-dip rule.");
+    if (feieEl.claimed || model.limitsRaw.foreignEarnedIncomeUsd > 0) {
+      var feieUsed = feieEl.eligible
+        ? Math.min(model.limitsRaw.feieAmountUsd || model.limitsRaw.foreignEarnedIncomeUsd, L.FEIE_MAX_USD)
+        : 0;
+      gauge("feie", "FEIE exclusion used", feieUsed, L.FEIE_MAX_USD, "USD",
+        feieEl.eligible
+          ? "Excluded foreign earned income cannot also generate FTC — §911 no-double-dip applied."
+          : (feieEl.claimed ? "FEIE claimed but NOT eligible (" + feieEl.reasons.join("; ") + ") — exclusion set to $0."
+                            : "Not claimed."));
     }
     return gauges;
   }
@@ -480,6 +552,7 @@
   WISING.compute = compute;
   WISING.computeInternals = {
     bracketTax: bracketTax,
+    feieEligibility: feieEligibility,
     computeIndiaTax: computeIndiaTax,
     computeUsTax: computeUsTax,
     resolveResidency: resolveResidency,
