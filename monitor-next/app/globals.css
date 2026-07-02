@@ -1,22 +1,75 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-html, body { background: #f5f5fa; color: #191527; }
+/* WISING brand — deep-space dark. No webfonts (offline/file:// safe): premium
+   system stacks are set in tailwind.config.js. */
+html, body {
+  background: #05070e;
+  color: #f3f4f8;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+body {
+  background:
+    radial-gradient(1200px 720px at 74% -12%, rgba(45,212,191,0.10), transparent 60%),
+    radial-gradient(1000px 640px at 6% -4%, rgba(59,130,246,0.09), transparent 55%),
+    radial-gradient(900px 900px at 50% 120%, rgba(52,211,153,0.06), transparent 60%),
+    #05070e;
+  background-attachment: fixed;
+}
+
+/* faint starfield — the WISING "space" motif, kept lightweight */
+.starfield {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5;
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1px 1px at 70% 20%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 40% 70%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 85% 60%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 55% 45%, rgba(255,255,255,0.35), transparent),
+    radial-gradient(1px 1px at 12% 80%, rgba(255,255,255,0.45), transparent),
+    radial-gradient(1px 1px at 92% 85%, rgba(255,255,255,0.4), transparent);
+  background-repeat: repeat; background-size: 700px 700px;
+}
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d7d7e2; border-radius: 10px; border: 3px solid #f5f5fa; }
-::-webkit-scrollbar-thumb:hover { background: #c3c3d4; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); background-clip: padding-box; }
 
 .rsm-geography { outline: none; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .fade-in { animation: fadeUp .4s cubic-bezier(.2,.7,.3,1) both; }
+@keyframes pulseDot { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+.pulse-dot { animation: pulseDot 2.2s ease-in-out infinite; }
 
-/* glass-black sidebar */
+/* glass-black sidebar / panels */
 .glass-black {
-  background: linear-gradient(180deg, rgba(20,18,30,0.96) 0%, rgba(9,8,14,0.97) 100%);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: linear-gradient(180deg, rgba(16,18,28,0.86) 0%, rgba(7,9,16,0.94) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
+.glass {
+  background: rgba(255,255,255,0.025);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* colored corner-glow behind key cards — the WISING card treatment.
+   set --glow to any rgba; defaults to teal. */
+.card-glow { position: relative; overflow: hidden; }
+.card-glow::before {
+  content: ""; position: absolute; left: -10%; bottom: -55%;
+  width: 70%; height: 90%;
+  background: radial-gradient(closest-side, var(--glow, rgba(45,212,191,0.35)), transparent 72%);
+  filter: blur(26px); opacity: 0.8; pointer-events: none; z-index: 0;
+}
+.card-glow > * { position: relative; z-index: 1; }
+
+/* silver-chrome CTA, echoing the site's "Join Waitlist" button */
+.btn-chrome {
+  background: linear-gradient(180deg, #f6f7fb 0%, #cdd1db 100%);
+  color: #0b0d14; border: 1px solid rgba(255,255,255,0.6);
+}
+.btn-chrome:hover { background: linear-gradient(180deg, #ffffff 0%, #d7dbe4 100%); }

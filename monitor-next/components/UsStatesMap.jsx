@@ -1,7 +1,7 @@
 "use client";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import usTopo from "us-atlas/states-10m.json";
-import { STATUS_META } from "@/lib/logic";
+import { STATUS_META, PAL } from "@/lib/logic";
 import { Legend } from "./WorldMap";
 
 export default function UsStatesMap({ statusByName, onBack, onSelectState }) {
@@ -10,7 +10,7 @@ export default function UsStatesMap({ statusByName, onBack, onSelectState }) {
       <div className="flex items-center justify-between mb-2">
         <button
           onClick={onBack}
-          className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-surface border border-line text-body hover:border-accent/40 shadow-card"
+          className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-surface border border-line text-body hover:border-accent/50 shadow-card"
         >
           ← Back to world
         </button>
@@ -22,15 +22,15 @@ export default function UsStatesMap({ statusByName, onBack, onSelectState }) {
             geographies.map((geo) => {
               const name = geo.properties.name;
               const status = statusByName[name];
-              const fill = status ? STATUS_META[status].color : "#2b2950";
+              const fill = status ? STATUS_META[status].color : PAL.navy;
               return (
                 <Geography
                   key={geo.rsmKey}
                   geography={geo}
                   onClick={() => status && onSelectState && onSelectState(name)}
                   style={{
-                    default: { fill, stroke: "#ffffff", strokeWidth: 0.6, outline: "none", cursor: status ? "pointer" : "default" },
-                    hover: { fill, stroke: "#ffffff", strokeWidth: 0.7, outline: "none", filter: status ? "brightness(1.08)" : "none" },
+                    default: { fill, stroke: "rgba(255,255,255,0.12)", strokeWidth: 0.5, outline: "none", cursor: status ? "pointer" : "default", filter: status ? `drop-shadow(0 0 6px ${fill})` : "none" },
+                    hover: { fill, stroke: "rgba(255,255,255,0.28)", strokeWidth: 0.6, outline: "none", filter: status ? `drop-shadow(0 0 10px ${fill})` : "none" },
                     pressed: { fill, outline: "none" }
                   }}
                 >

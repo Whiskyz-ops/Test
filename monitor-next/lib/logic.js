@@ -5,11 +5,28 @@
 
 export const STATUS = { EXPOSED: "exposed", APPROACHING: "approaching", NEXUS: "nexus", NONE: "none" };
 
+// Dark-theme chips: vivid fill for maps/dots, darker tint for chip bg, lighter
+// variant for chip text (legible on dark). Validated (CVD red↔amber ΔE 30.9).
 export const STATUS_META = {
-  exposed:     { label: "Exposed",     color: "#ef4d6a", soft: "rgba(239,77,106,.12)",  text: "#c81e46" },
-  approaching: { label: "Approaching", color: "#d97706", soft: "rgba(217,119,6,.12)",   text: "#b45309" },
-  nexus:       { label: "Filing-only", color: "#8b5cf6", soft: "rgba(139,92,246,.12)",  text: "#6d28d9" },
-  none:        { label: "Monitored",   color: "#94a3b8", soft: "rgba(148,163,184,.14)", text: "#64748b" }
+  exposed:     { label: "Exposed",     color: "#ef4444", soft: "rgba(239,68,68,.15)",   text: "#fca5b5" },
+  approaching: { label: "Approaching", color: "#f5a623", soft: "rgba(245,166,35,.15)",  text: "#fcd34d" },
+  nexus:       { label: "Filing-only", color: "#3b82f6", soft: "rgba(59,130,246,.15)",  text: "#93c5fd" },
+  none:        { label: "On track",    color: "#22c55e", soft: "rgba(34,197,94,.14)",   text: "#86efac" }
+};
+
+// Shared WISING palette — one source of truth for inline colors across views.
+export const PAL = {
+  // signature
+  accent: "#2dd4bf", accent2: "#34d399", teal: "#2dd4bf",
+  // functional / status
+  exposed: "#ef4444", approaching: "#f5a623", filing: "#3b82f6", positive: "#22c55e",
+  // on-dark text variants of the above (for small labels / values)
+  redText: "#fca5b5", amberText: "#fcd34d", blueText: "#93c5fd", greenText: "#86efac",
+  // ink
+  head: "#f3f4f8", body: "#c3c7d4", muted: "#8a8fa3", faint: "#6b7080",
+  navy: "#1b2036",
+  // jurisdiction accents (US = blue "bridge", IN = teal)
+  jurUS: "#3b82f6", jurIN: "#2dd4bf"
 };
 
 // Residency day-count fraction (physical-presence test).

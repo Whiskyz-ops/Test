@@ -7,7 +7,7 @@ import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
 import { ConflictsPanel, ResidencyView, FilingsView, DocumentsView, AccountsView, ClientsView, IntegrationsView } from "@/components/Views";
 import { US_STATES, COUNTRIES, SOURCES } from "@/lib/mockData";
-import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan } from "@/lib/logic";
+import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries } from "@/lib/wising";
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading world map…</div> });
@@ -71,32 +71,35 @@ export default function MonitorPage() {
   const pickFromClients = (id) => { onPickProfile(id); setView("monitor"); };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="relative flex min-h-screen">
+      <div className="starfield" />
       <Sidebar active={view} onNavigate={setView} badges={badges} />
-      <main className="flex-1 min-w-0 px-8 py-6">
+      <main className="relative z-10 flex-1 min-w-0 px-8 py-6">
         <Header region={region} onRegionChange={setRegion} clientName={clientName} />
 
         {/* shared: engine + source strip */}
         <div className="flex flex-wrap items-center gap-3 mb-3 text-[11px] text-muted">
-          <span className="px-2 py-0.5 rounded-md font-bold" style={{ background: engineReady ? "#16a34a1a" : "#e9e9f0", color: engineReady ? "#15803d" : "#8b8798" }}>
+          <span className="px-2 py-0.5 rounded-md font-bold border" style={{ background: engineReady ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.05)", borderColor: engineReady ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.08)", color: engineReady ? PAL.greenText : PAL.muted }}>
             {engineReady ? (mode === "live" ? "LIVE · engine" : "DEMO · engine") : "loading engine…"}
           </span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#16a34a" }} /> {SOURCES.trips.name}</span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#16a34a" }} /> {SOURCES.accounts.name}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: PAL.positive }} /> {SOURCES.trips.name}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: PAL.positive }} /> {SOURCES.accounts.name}</span>
           <span className="text-muted/70">India + US computed by the shared engine from Layer 1 · US states illustrative</span>
         </div>
 
         {/* shared: source + profile controls */}
         <div className="flex flex-wrap items-center gap-2 mb-6">
-          <button onClick={() => recompute("live")} className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/40">↻ Refresh from Layer 1</button>
-          <select onChange={(e) => onPickProfile(e.target.value)} value={activeProfile || ""} title="Load a coherent India+US test taxpayer" className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-accent text-white border border-accent cursor-pointer shadow-card">
-            <option value="">Load test profile…</option>
-            {profiles.map((p) => <option key={p.id} value={p.id} className="bg-white text-head">{p.label}</option>)}
+          <button onClick={() => recompute("live")} className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/50">↻ Refresh from Layer 1</button>
+          <select onChange={(e) => onPickProfile(e.target.value)} value={activeProfile || ""} title="Load a coherent India+US test taxpayer"
+            className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg text-[#04120f] border border-accent cursor-pointer shadow-card"
+            style={{ background: "linear-gradient(135deg,#2dd4bf,#34d399)" }}>
+            <option value="" className="bg-[#0c0f18] text-head">Load test profile…</option>
+            {profiles.map((p) => <option key={p.id} value={p.id} className="bg-[#0c0f18] text-head">{p.label}</option>)}
           </select>
           <span className="text-muted text-[11px] mx-1">Layer 1 intake:</span>
-          <a href="router.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/40">Router</a>
-          <a href="layer1_india.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/40">India L1</a>
-          <a href="layer1_us.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/40">US L1</a>
+          <a href="router.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/50">Router</a>
+          <a href="layer1_india.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/50">India L1</a>
+          <a href="layer1_us.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/50">US L1</a>
         </div>
 
         {/* ============ MONITOR (overview) ============ */}
@@ -104,11 +107,11 @@ export default function MonitorPage() {
           <>
             {alerts.length > 0 && (
               <div className="mb-5 rounded-xl border border-approaching/30 bg-approaching/10 p-3">
-                <div className="text-[11px] uppercase tracking-widest font-bold mb-1" style={{ color: "#b45309" }}>{alerts.length} automated alert{alerts.length > 1 ? "s" : ""}</div>
+                <div className="text-[11px] uppercase tracking-widest font-bold mb-1" style={{ color: PAL.amberText }}>{alerts.length} automated alert{alerts.length > 1 ? "s" : ""}</div>
                 <ul className="space-y-0.5">{alerts.slice(0, 4).map((a, i) => <li key={i} className="text-[12px] text-body">{a.subject}</li>)}</ul>
               </div>
             )}
-            <section className="rounded-2xl border border-line bg-surface shadow-card p-4 mb-6">
+            <section className="card-glow rounded-2xl border border-line bg-surface shadow-card p-4 mb-6" style={{ "--glow": "rgba(45,212,191,0.22)" }}>
               {isUsDrill
                 ? <UsStatesMap statusByName={statusMap} onBack={() => setRegion("All")} onSelectState={() => {}} />
                 : <WorldMap statusByName={statusMap} onSelectCountry={(id) => id === "US" && setRegion("United States")} />}
