@@ -111,12 +111,12 @@ export default function MonitorPage() {
                 <ul className="space-y-0.5">{alerts.slice(0, 4).map((a, i) => <li key={i} className="text-[12px] text-body">{a.subject}</li>)}</ul>
               </div>
             )}
-            <section className="card-glow rounded-2xl border border-line bg-surface shadow-card p-4 mb-6" style={{ "--glow": "rgba(45,212,191,0.22)" }}>
+            <div className="mb-8">
               {isUsDrill
                 ? <UsStatesMap statusByName={statusMap} onBack={() => setRegion("All")} onSelectState={() => {}} />
                 : <WorldMap statusByName={statusMap} onSelectCountry={(id) => id === "US" && setRegion("United States")} />}
               {!isUsDrill && <p className="text-[11px] text-muted mt-2 text-center">Tip: click the United States (or use the dropdown) to drill into state-level residency.</p>}
-            </section>
+            </div>
             <div className="mb-6"><KpiCards kpis={kpis} active={category} onSelect={setCategory} /></div>
             <DetailTable category={category} regions={rows} />
             {!isUsDrill && result && (

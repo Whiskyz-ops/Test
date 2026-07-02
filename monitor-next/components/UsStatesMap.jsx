@@ -16,7 +16,7 @@ export default function UsStatesMap({ statusByName, onBack, onSelectState }) {
         </button>
         <span className="text-[11px] text-muted">United States · state-level exposure</span>
       </div>
-      <ComposableMap projection="geoAlbersUsa" projectionConfig={{ scale: 780 }} style={{ width: "100%", height: "auto", maxHeight: "380px" }} className="max-w-2xl mx-auto block">
+      <ComposableMap projection="geoAlbersUsa" width={900} height={500} projectionConfig={{ scale: 1050 }} style={{ width: "100%", height: "auto" }} className="block">
         <Geographies geography={usTopo}>
           {({ geographies }) =>
             geographies.map((geo) => {

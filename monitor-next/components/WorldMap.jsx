@@ -27,13 +27,14 @@ function RiskTag({ name, status }) {
 
 export default function WorldMap({ statusByName, onSelectCountry }) {
   return (
-    <div className="w-full max-w-2xl mx-auto">
+    <div className="w-full">
       <ComposableMap
         projection="geoEqualEarth"
-        projectionConfig={{ scale: 135 }}
-        style={{ width: "100%", height: "auto", maxHeight: "380px" }}
+        width={900} height={420}
+        projectionConfig={{ scale: 168 }}
+        style={{ width: "100%", height: "auto" }}
       >
-        <ZoomableGroup center={[10, 25]} zoom={1} minZoom={1} maxZoom={4}>
+        <ZoomableGroup center={[12, 8]} zoom={1} minZoom={1} maxZoom={4}>
           <Geographies geography={worldTopo}>
             {({ geographies }) =>
               geographies.map((geo) => {
