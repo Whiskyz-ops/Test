@@ -1,14 +1,22 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-html, body { background: #08080a; color: #fff; }
+html, body { background: #f5f5fa; color: #191527; }
 
-::-webkit-scrollbar { width: 7px; height: 7px; }
-::-webkit-scrollbar-track { background: #0a0a0c; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 10px; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d7d7e2; border-radius: 10px; border: 3px solid #f5f5fa; }
+::-webkit-scrollbar-thumb:hover { background: #c3c3d4; }
 
 .rsm-geography { outline: none; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .fade-in { animation: fadeUp .4s cubic-bezier(.2,.7,.3,1) both; }
+
+/* glass-black sidebar */
+.glass-black {
+  background: linear-gradient(180deg, rgba(20,18,30,0.96) 0%, rgba(9,8,14,0.97) 100%);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}

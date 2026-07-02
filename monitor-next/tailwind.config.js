@@ -9,15 +9,29 @@ module.exports = {
         mono: ["JetBrains Mono", "monospace"]
       },
       colors: {
-        ink: "#08080a",
-        panel: "#111114",
-        panel2: "#17171b",
-        line: "rgba(255,255,255,0.08)",
-        brandGold: "#D4AF37",
-        brandCyan: "#06B6D4",
-        exposed: "#ef4444",
-        approaching: "#f59e0b",
-        nexus: "#a855f7"
+        // glass-black sidebar
+        ink: "#0b0a11",
+        inkline: "rgba(255,255,255,0.08)",
+        // light main surfaces
+        canvas: "#f5f5fa",
+        surface: "#ffffff",
+        surface2: "#fafafd",
+        line: "#e9e9f0",
+        // text (light theme)
+        head: "#191527",
+        body: "#413d54",
+        muted: "#8b8798",
+        // brand + status
+        accent: "#6d5ef7",
+        accentSoft: "#efedfe",
+        exposed: "#ef4d6a",
+        approaching: "#d97706",
+        filing: "#8b5cf6",
+        navy: "#2b2950"
+      },
+      boxShadow: {
+        card: "0 1px 2px rgba(16,15,40,0.05), 0 6px 20px rgba(16,15,40,0.05)",
+        cardhover: "0 2px 4px rgba(16,15,40,0.06), 0 12px 32px rgba(16,15,40,0.08)"
       }
     }
   },

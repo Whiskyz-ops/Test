@@ -21,15 +21,15 @@ export default function WorldMap({ statusByName, onSelectCountry }) {
                 const name = geo.properties.name;
                 const status = statusByName[name];
                 const hasData = !!HAS_DATA[name];
-                const fill = status ? STATUS_META[status].color : "#1d1d21";
+                const fill = status ? STATUS_META[status].color : "#2b2950";
                 return (
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
                     onClick={() => hasData && onSelectCountry && onSelectCountry(HAS_DATA[name])}
                     style={{
-                      default: { fill, stroke: "#0a0a0c", strokeWidth: 0.4, outline: "none", cursor: hasData ? "pointer" : "default" },
-                      hover: { fill: hasData ? fill : "#26262b", stroke: "#0a0a0c", strokeWidth: 0.5, outline: "none", filter: hasData ? "brightness(1.15)" : "none" },
+                      default: { fill, stroke: "#ffffff", strokeWidth: 0.5, outline: "none", cursor: hasData ? "pointer" : "default" },
+                      hover: { fill: hasData ? fill : "#3a3766", stroke: "#ffffff", strokeWidth: 0.6, outline: "none", filter: hasData ? "brightness(1.08)" : "none" },
                       pressed: { fill, outline: "none" }
                     }}
                   >
@@ -50,13 +50,13 @@ export function Legend() {
   return (
     <div className="flex flex-wrap items-center gap-4 mt-3 px-1">
       {["exposed", "approaching", "nexus"].map((s) => (
-        <div key={s} className="flex items-center gap-2 text-[11px] text-white/55">
+        <div key={s} className="flex items-center gap-2 text-[11px] text-body font-medium">
           <span className="w-3 h-3 rounded-sm" style={{ background: STATUS_META[s].color }} />
           {STATUS_META[s].label}
         </div>
       ))}
-      <div className="flex items-center gap-2 text-[11px] text-white/40">
-        <span className="w-3 h-3 rounded-sm" style={{ background: "#1d1d21" }} /> Not tracked
+      <div className="flex items-center gap-2 text-[11px] text-muted">
+        <span className="w-3 h-3 rounded-sm" style={{ background: "#2b2950" }} /> Not tracked
       </div>
     </div>
   );

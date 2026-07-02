@@ -6,10 +6,10 @@
 export const STATUS = { EXPOSED: "exposed", APPROACHING: "approaching", NEXUS: "nexus", NONE: "none" };
 
 export const STATUS_META = {
-  exposed:     { label: "Exposed",         color: "#ef4444", soft: "rgba(239,68,68,.14)",  text: "#fca5a5" },
-  approaching: { label: "Approaching",     color: "#f59e0b", soft: "rgba(245,158,11,.14)", text: "#fcd34d" },
-  nexus:       { label: "Filing-only",     color: "#a855f7", soft: "rgba(168,85,247,.16)", text: "#d8b4fe" },
-  none:        { label: "Monitored",       color: "#52525b", soft: "rgba(82,82,91,.16)",   text: "#a1a1aa" }
+  exposed:     { label: "Exposed",     color: "#ef4d6a", soft: "rgba(239,77,106,.12)",  text: "#c81e46" },
+  approaching: { label: "Approaching", color: "#d97706", soft: "rgba(217,119,6,.12)",   text: "#b45309" },
+  nexus:       { label: "Filing-only", color: "#8b5cf6", soft: "rgba(139,92,246,.12)",  text: "#6d28d9" },
+  none:        { label: "Monitored",   color: "#94a3b8", soft: "rgba(148,163,184,.14)", text: "#64748b" }
 };
 
 // Residency day-count fraction (physical-presence test).

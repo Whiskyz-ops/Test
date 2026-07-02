@@ -77,26 +77,26 @@ export default function MonitorPage() {
         <Header region={region} onRegionChange={setRegion} clientName={clientName} />
 
         {/* shared: engine + source strip */}
-        <div className="flex flex-wrap items-center gap-3 mb-3 text-[11px] text-white/45">
-          <span className="px-2 py-0.5 rounded-md font-bold" style={{ background: engineReady ? "rgba(16,185,129,.15)" : "rgba(255,255,255,.08)", color: engineReady ? "#34d399" : "#a1a1aa" }}>
+        <div className="flex flex-wrap items-center gap-3 mb-3 text-[11px] text-muted">
+          <span className="px-2 py-0.5 rounded-md font-bold" style={{ background: engineReady ? "#16a34a1a" : "#e9e9f0", color: engineReady ? "#15803d" : "#8b8798" }}>
             {engineReady ? (mode === "live" ? "LIVE · engine" : "DEMO · engine") : "loading engine…"}
           </span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500" /> {SOURCES.trips.name}</span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500" /> {SOURCES.accounts.name}</span>
-          <span className="text-white/30">India + US computed by the shared engine from Layer 1 · US states illustrative</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#16a34a" }} /> {SOURCES.trips.name}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#16a34a" }} /> {SOURCES.accounts.name}</span>
+          <span className="text-muted/70">India + US computed by the shared engine from Layer 1 · US states illustrative</span>
         </div>
 
         {/* shared: source + profile controls */}
         <div className="flex flex-wrap items-center gap-2 mb-6">
-          <button onClick={() => recompute("live")} className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brandGreen/15 text-brandGreen border border-brandGreen/30 hover:bg-brandGreen/25">↻ Refresh from Layer 1</button>
-          <select onChange={(e) => onPickProfile(e.target.value)} value={activeProfile || ""} title="Load a coherent India+US test taxpayer" className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-brandGold/15 text-brandGold border border-brandGold/30 cursor-pointer">
+          <button onClick={() => recompute("live")} className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/40">↻ Refresh from Layer 1</button>
+          <select onChange={(e) => onPickProfile(e.target.value)} value={activeProfile || ""} title="Load a coherent India+US test taxpayer" className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-accent text-white border border-accent cursor-pointer shadow-card">
             <option value="">Load test profile…</option>
-            {profiles.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+            {profiles.map((p) => <option key={p.id} value={p.id} className="bg-white text-head">{p.label}</option>)}
           </select>
-          <span className="text-white/25 text-[11px] mx-1">Layer 1 intake:</span>
-          <a href="router.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-white/5 border border-line text-white/70 hover:bg-white/10">Router</a>
-          <a href="layer1_india.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-white/5 border border-line text-brandGold/80 hover:bg-white/10">India L1</a>
-          <a href="layer1_us.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-white/5 border border-line text-brandCyan/80 hover:bg-white/10">US L1</a>
+          <span className="text-muted text-[11px] mx-1">Layer 1 intake:</span>
+          <a href="router.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/40">Router</a>
+          <a href="layer1_india.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/40">India L1</a>
+          <a href="layer1_us.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/40">US L1</a>
         </div>
 
         {/* ============ MONITOR (overview) ============ */}
@@ -104,21 +104,21 @@ export default function MonitorPage() {
           <>
             {alerts.length > 0 && (
               <div className="mb-5 rounded-xl border border-approaching/30 bg-approaching/10 p-3">
-                <div className="text-[11px] uppercase tracking-widest text-approaching font-bold mb-1">{alerts.length} automated alert{alerts.length > 1 ? "s" : ""}</div>
-                <ul className="space-y-0.5">{alerts.slice(0, 4).map((a, i) => <li key={i} className="text-[12px] text-white/70">{a.subject}</li>)}</ul>
+                <div className="text-[11px] uppercase tracking-widest font-bold mb-1" style={{ color: "#b45309" }}>{alerts.length} automated alert{alerts.length > 1 ? "s" : ""}</div>
+                <ul className="space-y-0.5">{alerts.slice(0, 4).map((a, i) => <li key={i} className="text-[12px] text-body">{a.subject}</li>)}</ul>
               </div>
             )}
-            <section className="rounded-2xl border border-line bg-panel p-4 mb-6">
+            <section className="rounded-2xl border border-line bg-surface shadow-card p-4 mb-6">
               {isUsDrill
                 ? <UsStatesMap statusByName={statusMap} onBack={() => setRegion("All")} onSelectState={() => {}} />
                 : <WorldMap statusByName={statusMap} onSelectCountry={(id) => id === "US" && setRegion("United States")} />}
-              {!isUsDrill && <p className="text-[11px] text-white/35 mt-2">Tip: click the United States (or use the dropdown) to drill into state-level residency.</p>}
+              {!isUsDrill && <p className="text-[11px] text-muted mt-2 text-center">Tip: click the United States (or use the dropdown) to drill into state-level residency.</p>}
             </section>
             <div className="mb-6"><KpiCards kpis={kpis} active={category} onSelect={setCategory} /></div>
             <DetailTable category={category} regions={rows} />
             {!isUsDrill && result && (
               <section className="mt-8">
-                <h3 className="font-display font-bold text-lg mb-4">Conflicts &amp; Mismatches</h3>
+                <h3 className="font-display font-bold text-lg text-head mb-4">Conflicts &amp; Mismatches</h3>
                 <ConflictsPanel findings={result.findings} />
               </section>
             )}
