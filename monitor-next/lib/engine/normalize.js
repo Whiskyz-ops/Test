@@ -229,6 +229,21 @@
     (safe(ui, "partnerships_k1", []) || []).forEach(function (k) {
       businessUs = addMoney(businessUs, moneyFromUsd(k.ordinary_business_income_usd || k.ordinary_income_usd || 0));
     });
+    (safe(ui, "self_employment", []) || []).forEach(function (s) {
+      businessUs = addMoney(businessUs, moneyFromUsd(s.self_employment_earnings_usd || s.net_profit_usd || 0));
+    });
+    (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) {
+      businessUs = addMoney(businessUs, moneyFromUsd(s.scorp_income_usd || s.ordinary_business_income_usd || 0));
+    });
+
+    // US retirement / pension income (US-source, ordinary): IRA & 401(k)
+    // distributions, Social Security, and pension.
+    var usRetirementIncome = moneyFromUsd(
+      num(safe(ui, "ira_distributions_usd", 0)) +
+      num(safe(ui, "401k_distributions_usd", 0)) +
+      num(safe(ui, "social_security_benefits_usd", 0)) +
+      num(safe(ui, "pension_income_usd", 0))
+    );
 
     var interestUs = moneyFromUsd(safe(ui, "interest_us_source_usd", 0));
     var ordDivUs = moneyFromUsd(safe(ui, "ordinary_dividends_us_source_usd", 0));
@@ -244,11 +259,12 @@
     var foreignStcg = moneyFromUsd(safe(fi, "foreign_stcg_usd", 0));
     var foreignLtcg = moneyFromUsd(safe(fi, "foreign_ltcg_usd", 0));
 
-    var usSourceTotal = [wages, businessUs, interestUs, ordDivUs, ltcgUs, stcgUs, rentalUs].reduce(addMoney, zeroMoney());
+    var usSourceTotal = [wages, businessUs, interestUs, ordDivUs, ltcgUs, stcgUs, rentalUs, usRetirementIncome].reduce(addMoney, zeroMoney());
     var foreignSourceTotal = [foreignWages, foreignInterest, foreignDividends, foreignRental, foreignPension, foreignStcg, foreignLtcg].reduce(addMoney, zeroMoney());
 
     return {
       wages: wages, businessUs: businessUs, w2Withholding: w2with, medicareWages: medicareWages,
+      usRetirementIncome: usRetirementIncome,
       interestUs: interestUs, ordinaryDividendsUs: ordDivUs, qualifiedDividendsUs: qualDivUs,
       ltcgUs: ltcgUs, stcgUs: stcgUs, capitalGainsUs: addMoney(ltcgUs, stcgUs), rentalUs: rentalUs,
       foreignWages: foreignWages, foreignInterest: foreignInterest, foreignDividends: foreignDividends,
@@ -410,7 +426,11 @@
         indianProperties: safe(india, "property.properties", []),
         epfInr: num(safe(india, "deductions.s80C.epf_employee_inr", 0)),
         ppfInr: num(safe(india, "deductions.s80C.ppf_inr", 0)),
-        npsInr: num(safe(india, "deductions.s80CCC_80CCD1.nps_employee_contribution_inr", 0))
+        npsInr: num(safe(india, "deductions.s80CCC_80CCD1.nps_employee_contribution_inr", 0)),
+        // US-side holdings the Layer 1 US form captures
+        usSecurities: safe(us, "financial_holdings", []) || [],
+        usProperties: safe(us, "real_estate.properties", []) || [],
+        usRetirement: safe(us, "retirement_accounts", {}) || {}
       },
       limitsRaw: {
         lrsRemittedInr: num(safe(annual.lrs_outbound, "total_lrs_remitted_this_fy_inr", 0)) ||

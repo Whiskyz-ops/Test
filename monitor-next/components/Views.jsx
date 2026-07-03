@@ -311,16 +311,38 @@ export function HoldingsView({ result }) {
   const usPerson = result.computed.residency.us.isResident;
   const inrToUsd = (n) => (n || 0) / fx;
 
-  const securities = (a.indianSecurities && a.indianSecurities.length ? a.indianSecurities : a.indianMutualFunds) || [];
+  // Securities — US brokerage/investment holdings + Indian funds/equities
+  const inSec = ((a.indianSecurities && a.indianSecurities.length ? a.indianSecurities : a.indianMutualFunds) || []).map((s) => ({
+    name: s.asset_name || "Holding", type: (s.asset_type || "security").replace(/_/g, " "),
+    valueUsd: inrToUsd(s.value_inr || (s.value_usd || 0) * fx), country: "IN",
+    pfic: usPerson && /fund|etf|mutual/i.test(s.asset_type || "")
+  }));
+  const usSec = (a.usSecurities || []).map((s) => ({
+    name: s.asset_name || s.institution_name || s.account_type || "US holding",
+    type: (s.account_type || s.asset_type || "brokerage").replace(/_/g, " "),
+    valueUsd: s.peak_balance_usd || s.market_value_usd || s.value_usd || 0, country: "US", pfic: false
+  }));
+  const securities = [...usSec, ...inSec];
   const corps = a.usForeignCorps || [];
-  const props = a.indianProperties || [];
-  const retire = [["EPF (Employees' Provident Fund)", a.epfInr], ["PPF (Public Provident Fund)", a.ppfInr], ["NPS (National Pension System)", a.npsInr]].filter(([, v]) => v > 0);
+
+  // Property — US real estate + Indian property
+  const inProp = (a.indianProperties || []).map((p) => ({ name: p.address || "Property", type: p.property_type || "Residential", grossRentUsd: inrToUsd(p.gross_rent_received_inr || p.annual_value_inr || 0), country: "IN", note: p.municipal_taxes_paid_inr ? "municipal tax " + fmtInr(p.municipal_taxes_paid_inr) : "" }));
+  const usProp = (a.usProperties || []).filter((p) => !p._hydratedFromIndia).map((p) => ({ name: p.name || p.address || "US property", type: p.property_type || "Residential", grossRentUsd: p.gross_rent_usd || p.rental_income_usd || 0, country: "US", note: p.expenses_usd ? "expenses " + fmtUsd(p.expenses_usd) : "" }));
+  const properties = [...usProp, ...inProp];
+
+  // Retirement — US 401k/IRA/Roth contributions (this year) + Indian EPF/PPF/NPS balances
+  const usr = a.usRetirement || {};
+  const usRet = [["401(k) — employee", usr["401k_employee_contribution_usd"]], ["401(k) — employer match", usr["401k_employer_match_usd"]], ["Roth 401(k)", usr.roth_401k_contribution_usd], ["Traditional IRA", usr.traditional_ira_contribution_usd], ["Roth IRA", usr.roth_ira_contribution_usd], ["SEP / Solo 401(k)", (usr.sep_ira_contribution_usd || 0) + (usr.solo_401k_contribution_usd || 0)], ["HSA", usr.hsa_contribution_usd]]
+    .filter(([, v]) => v > 0).map(([l, v]) => ({ label: l, valueUsd: v, country: "US", kind: "contribution" }));
+  const inRet = [["EPF (Employees' Provident Fund)", a.epfInr], ["PPF (Public Provident Fund)", a.ppfInr], ["NPS (National Pension System)", a.npsInr]]
+    .filter(([, v]) => v > 0).map(([l, v]) => ({ label: l, valueUsd: inrToUsd(v), inr: v, country: "IN", kind: "balance" }));
+  const retire = [...usRet, ...inRet];
   const accts = (m.accounts && m.accounts.accounts) || [];
 
-  const secValueUsd = securities.reduce((s, x) => s + inrToUsd(x.value_inr || x.value_usd * fx || 0), 0);
-  const retireUsd = inrToUsd((a.epfInr || 0) + (a.ppfInr || 0) + (a.npsInr || 0));
+  const secValueUsd = securities.reduce((s, x) => s + x.valueUsd, 0);
+  const retireUsd = retire.reduce((s, x) => s + x.valueUsd, 0);
   const acctUsd = accts.reduce((s, x) => s + (x.peak && x.peak.usd || 0), 0);
-  const propGrossUsd = props.reduce((s, p) => s + inrToUsd(p.gross_rent_received_inr || p.annual_value_inr || 0), 0);
+  const propGrossUsd = properties.reduce((s, p) => s + p.grossRentUsd, 0);
 
   const Tile = ({ label, value, sub, accent }) => (
     <div className="rounded-2xl bg-surface border border-line shadow-card p-4">
@@ -337,18 +359,19 @@ export function HoldingsView({ result }) {
     </div>
   );
   const indiaRows = [["Salary", inc.india.salary], ["Business / Profession", inc.india.business], ["House property", inc.india.houseProperty], ["Interest", inc.india.interest], ["Dividend", inc.india.dividend], ["Short-term capital gains", inc.india.stcg], ["Long-term capital gains", inc.india.ltcg]].filter(([, mv]) => isTaxed(mv));
-  const usRows = [["Wages (W-2)", inc.us.wages], ["Business", inc.us.businessUs], ["Interest", inc.us.interestUs], ["Dividends — ordinary", inc.us.ordinaryDividendsUs], ["Dividends — qualified", inc.us.qualifiedDividendsUs], ["Rental", inc.us.rentalUs], ["Short-term gains", inc.us.stcgUs], ["Long-term gains", inc.us.ltcgUs]].filter(([, mv]) => isTaxed(mv));
+  const usRows = [["Wages (W-2)", inc.us.wages], ["Business / Self-employment", inc.us.businessUs], ["Interest", inc.us.interestUs], ["Dividends — ordinary", inc.us.ordinaryDividendsUs], ["Dividends — qualified", inc.us.qualifiedDividendsUs], ["Rental", inc.us.rentalUs], ["Retirement (401k/IRA/SS)", inc.us.usRetirementIncome], ["Short-term gains", inc.us.stcgUs], ["Long-term gains", inc.us.ltcgUs]].filter(([, mv]) => isTaxed(mv));
   const HoldTag = ({ color, children }) => <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: color + "24", color }}>{children}</span>;
+  const Flag = ({ c }) => <span className="text-[13px]" title={c === "US" ? "United States" : "India"}>{c === "US" ? "🇺🇸" : "🇮🇳"}</span>;
 
   return (
     <div className="space-y-6">
       <div><h2 className="font-display font-extrabold text-2xl text-head">Income &amp; Holdings</h2><p className="text-muted text-sm mt-1">Everything captured in Layer 1 for {m.identity.name} — income by head, property, securities, entities and retirement.</p></div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Tile label="Securities &amp; funds" value={fmtUsd(secValueUsd)} sub={securities.length + " holding(s)"} accent={PAL.accent} />
-        <Tile label="Property (annual)" value={fmtUsd(propGrossUsd)} sub={props.length + " property(ies)"} />
+        <Tile label="Securities &amp; funds" value={fmtUsd(secValueUsd)} sub={securities.length + " holding(s) · US + India"} accent={PAL.accent} />
+        <Tile label="Property (annual rent)" value={fmtUsd(propGrossUsd)} sub={properties.length + " property(ies)"} />
         <Tile label="Bank balances (peak)" value={fmtUsd(acctUsd)} sub={accts.length + " account(s)"} />
-        <Tile label="Retirement" value={fmtUsd(retireUsd)} sub="EPF · PPF · NPS" />
+        <Tile label="Retirement" value={fmtUsd(retireUsd)} sub="401k/IRA · EPF/PPF/NPS" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -362,22 +385,19 @@ export function HoldingsView({ result }) {
         </Card>
       </div>
 
-      <Card title="Securities &amp; Funds" sub={usPerson ? "Held by a US person — Indian funds are PFICs (Form 8621)" : "Holdings on file"}>
+      <Card title="Securities &amp; Funds" sub={usPerson ? "US brokerage + Indian funds — Indian funds held by a US person are PFICs (Form 8621)" : "Holdings on file (US + India)"}>
         {securities.length === 0 ? <Empty>No securities on file.</Empty> : (
           <div className="space-y-1.5">
-            {securities.map((s, i) => {
-              const isFund = /fund|etf|mutual/i.test(s.asset_type || "");
-              return (
-                <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.03] border border-line">
-                  <span className="text-base">{isFund ? "📈" : "📊"}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[12px] font-semibold text-head truncate flex items-center gap-2">{s.asset_name || "Holding"}{usPerson && isFund && <HoldTag color={PAL.exposed}>PFIC · 8621</HoldTag>}</div>
-                    <div className="text-[10px] text-muted">{(s.asset_type || "security").replace(/_/g, " ")}</div>
-                  </div>
-                  <div className="text-[12px] font-mono text-head">{fmtUsd(inrToUsd(s.value_inr || (s.value_usd || 0) * fx))}</div>
+            {securities.map((s, i) => (
+              <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.03] border border-line">
+                <Flag c={s.country} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-semibold text-head truncate flex items-center gap-2">{s.name}{s.pfic && <HoldTag color={PAL.exposed}>PFIC · 8621</HoldTag>}</div>
+                  <div className="text-[10px] text-muted">{s.type}</div>
                 </div>
-              );
-            })}
+                <div className="text-[12px] font-mono text-head">{fmtUsd(s.valueUsd)}</div>
+              </div>
+            ))}
           </div>
         )}
       </Card>
@@ -400,28 +420,28 @@ export function HoldingsView({ result }) {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="Property" sub={props.length + " property(ies) on file"}>
-          {props.length === 0 ? <Empty>No property on file.</Empty> : (
+        <Card title="Property" sub={properties.length + " property(ies) · US + India"}>
+          {properties.length === 0 ? <Empty>No property on file.</Empty> : (
             <div className="space-y-1.5">
-              {props.map((p, i) => (
+              {properties.map((p, i) => (
                 <div key={i} className="p-3 rounded-lg bg-white/[0.03] border border-line">
                   <div className="flex items-center justify-between">
-                    <div className="text-[12px] font-semibold text-head">{p.address || "Property"}</div>
-                    <div className="text-[12px] font-mono text-head">{fmtUsd(inrToUsd(p.gross_rent_received_inr || p.annual_value_inr || 0))}<span className="text-[9px] text-muted ml-1">gross rent</span></div>
+                    <div className="text-[12px] font-semibold text-head flex items-center gap-2"><Flag c={p.country} />{p.name}</div>
+                    <div className="text-[12px] font-mono text-head">{fmtUsd(p.grossRentUsd)}<span className="text-[9px] text-muted ml-1">gross rent</span></div>
                   </div>
-                  <div className="text-[10px] text-muted mt-0.5">{p.property_type || "—"}{p.municipal_taxes_paid_inr ? " · municipal tax " + fmtInr(p.municipal_taxes_paid_inr) : ""}</div>
+                  <div className="text-[10px] text-muted mt-0.5">{p.type}{p.note ? " · " + p.note : ""}</div>
                 </div>
               ))}
             </div>
           )}
         </Card>
-        <Card title="Retirement Accounts" sub="Indian retirement corpus — see the US-treatment note on the Monitor">
+        <Card title="Retirement Accounts" sub="US 401k/IRA/Roth (this year's contributions) + Indian EPF/PPF/NPS — see the US-treatment note on the Monitor">
           {retire.length === 0 ? <Empty>No retirement balances on file.</Empty> : (
             <div className="space-y-1.5">
-              {retire.map(([l, v], i) => (
+              {retire.map((r, i) => (
                 <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.03] border border-line">
-                  <span className="text-[12px] text-body">{l}</span>
-                  <span className="text-[12px] font-mono text-head">{fmtInr(v)} <span className="text-muted">≈ {fmtUsd(inrToUsd(v))}</span></span>
+                  <span className="text-[12px] text-body flex items-center gap-2"><Flag c={r.country} />{r.label}{r.kind === "contribution" && <HoldTag color={PAL.muted}>TY contrib</HoldTag>}</span>
+                  <span className="text-[12px] font-mono text-head">{r.inr ? fmtInr(r.inr) + " ≈ " : ""}{fmtUsd(r.valueUsd)}</span>
                 </div>
               ))}
             </div>

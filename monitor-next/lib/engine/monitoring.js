@@ -63,7 +63,9 @@
         var elapsedToCross = pace > 0 ? (threshold / pace) : 0;
         var crossDate = addDays(cfg.yearStart, Math.min(365, elapsedToCross));
         res.status = "resident";
-        res.headline = "Tax resident — worldwide income in scope";
+        res.headline = cfg.worldwide === false
+          ? "Resident (source basis) — foreign income not taxed here"
+          : "Tax resident — worldwide income in scope";
         res.dateLabel = "Crossed ~" + fmtDate(crossDate);
       } else if (res.projectedFullYear >= threshold && pace > 0) {
         var elapsedNeeded = (threshold - days) / pace;
@@ -84,12 +86,12 @@
         country: "United States", flag: "🇺🇸", test: "Substantial Presence (≥183 weighted)",
         days: model.residency.us.daysCurrentYear, threshold: 183, prog: progUS,
         isResident: model.residency.us.sptMet || model.residency.us.isCitizen || model.residency.us.hasGreenCard,
-        yearStart: cyStart
+        worldwide: computed.residency.us.worldwide, yearStart: cyStart
       }),
       counter({
         country: "India", flag: "🇮🇳", test: "≥182 days in the FY",
         days: model.residency.india.daysCurrentYear, threshold: 182, prog: progIN,
-        isResident: computed.residency.india.isResident, yearStart: fyStart
+        isResident: computed.residency.india.isResident, worldwide: computed.residency.india.worldwide, yearStart: fyStart
       })
     ];
 

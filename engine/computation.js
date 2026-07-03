@@ -251,11 +251,12 @@
 
     var nonQualDivUs = Math.max(0, inc.ordinaryDividendsUs.usd - inc.qualifiedDividendsUs.usd);
 
-    // Ordinary income (taxed at bracket rates).
+    // Ordinary income (taxed at bracket rates). US retirement/pension
+    // distributions and Social Security are US-source ordinary income.
     var ordinaryIncome =
       inc.wages.usd + fW + inc.interestUs.usd + fI +
       nonQualDivUs + fD + inc.stcgUs.usd + fStcg +
-      inc.rentalUs.usd + fR + fP;
+      inc.rentalUs.usd + fR + fP + (inc.usRetirementIncome ? inc.usRetirementIncome.usd : 0);
 
     // Preferential income (LTCG + qualified dividends).
     var preferentialIncome = inc.ltcgUs.usd + fLtcg + inc.qualifiedDividendsUs.usd;

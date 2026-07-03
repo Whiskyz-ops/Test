@@ -102,8 +102,11 @@
     us: {
       profile: { tax_entity_type: "individual", full_name: "Rohan Mehta", date_of_birth: "1985-03-22", filing_status: "mfj", ssn_or_itin_type: "ssn" },
       us_residency_detail: { is_us_citizen: false, has_green_card: true, us_days_current_year: 365, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "none" },
-      income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Northwind Labs", wages_box1_usd: 158000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 30000, medicare_wages_box5_usd: 158000 } }], interest_us_source_usd: 5200, ordinary_dividends_us_source_usd: 6400, qualified_dividends_us_source_usd: 4000, ltcg_us_source_usd: 12000 },
+      income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Northwind Labs", wages_box1_usd: 158000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 30000, medicare_wages_box5_usd: 158000 } }], self_employment: [{ business_name: "Mehta Analytics (consulting)", self_employment_earnings_usd: 62000 }], interest_us_source_usd: 5200, ordinary_dividends_us_source_usd: 6400, qualified_dividends_us_source_usd: 4000, ltcg_us_source_usd: 12000, rental_income_us_source_usd: 27000 },
       income_foreign_source: { foreign_rental_income_usd: 14458, foreign_dividends_usd: 2651, foreign_interest_usd: 3133, foreign_stcg_usd: 2169 },
+      retirement_accounts: { "401k_employee_contribution_usd": 23000, "401k_employer_match_usd": 9500, roth_ira_contribution_usd: 7000, hsa_contribution_usd: 4150 },
+      financial_holdings: [{ asset_name: "Fidelity — Taxable Brokerage", account_type: "taxable_brokerage", peak_balance_usd: 224000, country: "US" }, { asset_name: "Vanguard — VTSAX / VTI", account_type: "taxable_brokerage", peak_balance_usd: 141000, country: "US" }],
+      real_estate: { has_real_estate_transaction: true, properties: [{ name: "Rental condo — Jersey City, NJ", property_type: "Residential rental", gross_rent_usd: 36000, expenses_usd: 9000 }] },
       // Deliberate demo error: a US-based green-card holder (365 US days) cannot
       // claim FEIE — no foreign tax home, no presence test. The engine must zero
       // the exclusion and raise the "FEIE claimed but not eligible" conflict.
@@ -111,7 +114,6 @@
       bank_accounts: [{ bank_name: "SBI (NRO)", account_type: "nro", country: "India", peak_balance_usd: 31325 }, { bank_name: "Axis (NRE)", account_type: "nre", country: "India", peak_balance_usd: 22892 }],
       fbar_aggregate_peak_usd: 54217,
       foreign_entities: { owns_10_percent_foreign_corp: false, foreign_corporations: [], pfic_holdings: [{ asset_name: "SBI Bluechip Fund", holding_value_usd: 50602 }, { asset_name: "Mirae Asset Large Cap", holding_value_usd: 31325 }], has_pfics: true },
-      retirement_accounts: {},
       ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "Passive", foreign_taxes_usd: 5180 }] },
       withholding_and_estimated: { federal_withholding_total_usd: 30000 },
       nra_specific: { files_form_1040nr: false },
@@ -341,6 +343,14 @@
     var p = getProfile(id);
     if (!p) return false;
     try {
+      // Clean slate: wipe ALL wising_* keys first so no field from a previously
+      // loaded profile (or a manually-edited Layer 1 form) can bleed through.
+      try {
+        for (var i = root.localStorage.length - 1; i >= 0; i--) {
+          var k = root.localStorage.key(i);
+          if (k && k.indexOf("wising_") === 0) root.localStorage.removeItem(k);
+        }
+      } catch (e) {}
       root.localStorage.setItem(KEYS.ROUTER, JSON.stringify(p.router));
       root.localStorage.setItem(KEYS.INDIA, JSON.stringify(p.india));
       root.localStorage.setItem(KEYS.US, JSON.stringify(p.us));
