@@ -7,6 +7,7 @@ const MAIN = [
   { id: "filings", label: "Filings", icon: "📄" },
   { id: "documents", label: "Documents", icon: "📁" },
   { id: "holdings", label: "Holdings", icon: "📊" },
+  { id: "business", label: "Business", icon: "🏢" },
   { id: "accounts", label: "Accounts", icon: "🏦" },
   { id: "integrations", label: "Integrations", icon: "🔌" }
 ];

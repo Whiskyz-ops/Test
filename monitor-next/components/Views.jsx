@@ -485,6 +485,71 @@ export function HoldingsView({ result }) {
   );
 }
 
+/* ============================ BUSINESS & ENTITIES ============================ */
+export function BusinessView({ result }) {
+  if (!result) return <Empty>Load a client to see business entities.</Empty>;
+  const m = result.model, u = result.computed.usTax || {};
+  const ents = m.assets.businessEntities || [];
+  const Tile = ({ label, value, sub, accent }) => (
+    <div className="rounded-2xl bg-surface border border-line shadow-card p-4">
+      <div className="text-[10px] uppercase tracking-widest text-muted mb-1">{label}</div>
+      <div className="font-display font-extrabold text-xl" style={{ color: accent || PAL.head }}>{value}</div>
+      {sub && <div className="text-[11px] text-muted mt-1">{sub}</div>}
+    </div>
+  );
+  const Flag = ({ c }) => <span className="text-[13px]">{c === "US" ? "🇺🇸" : "🇮🇳"}</span>;
+  const Tag = ({ color, children }) => <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: color + "24", color }}>{children}</span>;
+  if (!ents.length) {
+    return (
+      <div className="space-y-6">
+        <div><h2 className="font-display font-extrabold text-2xl text-head">Business &amp; Entities</h2><p className="text-muted text-sm mt-1">Schedule C, K-1, S-corp, C-corp and foreign corporations — with US tax treatment.</p></div>
+        <Card title="No business entities on file"><Empty>{m.identity.name} has no Schedule C / K-1 / corporate income in Layer 1.</Empty></Card>
+      </div>
+    );
+  }
+  const totalUsd = ents.reduce((s, e) => s + (e.incomeUsd || 0), 0);
+  const usEnts = ents.filter((e) => e.country === "US");
+  const inEnts = ents.filter((e) => e.country === "IN");
+  const cfcCount = ents.filter((e) => e.cfc).length;
+  const seTax = u.seTaxUsd || 0, qbi = u.qbiDeductionUsd || 0;
+  const Row = (e, i) => (
+    <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.03] border border-line">
+      <Flag c={e.country} />
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-semibold text-head truncate flex items-center gap-2 flex-wrap">{e.name}
+          {e.se && <Tag color={PAL.approaching}>SE tax</Tag>}
+          {e.qbi && <Tag color={PAL.accent}>QBI</Tag>}
+          {e.corp && <Tag color={PAL.filing}>C-Corp 21%</Tag>}
+          {e.cfc && <Tag color={PAL.exposed}>CFC · 5471</Tag>}
+        </div>
+        <div className="text-[10px] text-muted">{e.type}{e.gilti > 0 ? " · GILTI " + fmtUsd(e.gilti) : ""}</div>
+      </div>
+      <div className="text-[13px] font-mono text-head whitespace-nowrap">{e.inr ? fmtInr(e.inr) + " ≈ " : ""}{fmtUsd(e.incomeUsd)}</div>
+    </div>
+  );
+  return (
+    <div className="space-y-6">
+      <div><h2 className="font-display font-extrabold text-2xl text-head">Business &amp; Entities</h2><p className="text-muted text-sm mt-1">Every business/entity from Layer 1 — Schedule C, K-1, S-corp, C-corp and foreign corporations — with its US tax treatment.</p></div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Tile label="Business income" value={fmtUsd(totalUsd)} sub={ents.length + " entity(ies)"} accent={PAL.accent} />
+        <Tile label="Self-employment tax" value={fmtUsd(seTax)} sub="Schedule SE" accent={seTax ? PAL.amberText : PAL.muted} />
+        <Tile label="§199A QBI deduction" value={fmtUsd(qbi)} sub="20% pass-through" accent={qbi ? PAL.greenText : PAL.muted} />
+        <Tile label="Foreign corps (CFC)" value={cfcCount} sub="Form 5471 / GILTI" accent={cfcCount ? PAL.filing : PAL.muted} />
+      </div>
+      {usEnts.length > 0 && <Card title="🇺🇸 US business & pass-through entities" sub="Schedule C / K-1 / S-corp / C-corp — flows to the 1040 (or 1120 for C-corps)"><div className="space-y-1.5">{usEnts.map(Row)}</div></Card>}
+      {inEnts.length > 0 && <Card title="🇮🇳 Indian business entities" sub="PGBP income / foreign corporations"><div className="space-y-1.5">{inEnts.map(Row)}</div></Card>}
+      <Card title="How this business income is taxed" sub="Planning-grade — see Filings → Tax Computation for the full numbers">
+        <ul className="space-y-1.5 text-[12px] text-body">
+          <li><span className="font-bold" style={{ color: PAL.amberText }}>SE tax</span> — Schedule C, farm and general-partnership income pay 15.3% self-employment tax (SS capped at the wage base + Medicare); half is deductible. {seTax > 0 ? "This taxpayer: " + fmtUsd(seTax) + "." : ""}</li>
+          <li><span className="font-bold" style={{ color: PAL.accent }}>§199A QBI</span> — pass-through business income gets a 20% deduction (SSTB / income-limit phase-outs apply). {qbi > 0 ? "This taxpayer: " + fmtUsd(qbi) + " deduction." : ""}</li>
+          <li><span className="font-bold" style={{ color: PAL.blueText }}>C-Corp</span> — taxed at 21% at the entity (Form 1120); not on the personal return until distributed.</li>
+          <li><span className="font-bold" style={{ color: PAL.redText }}>Foreign corp (CFC)</span> — ≥10% US ownership triggers Form 5471; GILTI / Subpart F can accelerate US tax on undistributed profits (see the Monitor conflict).</li>
+        </ul>
+      </Card>
+    </div>
+  );
+}
+
 /* ============================ CLIENTS (portfolio) ============================ */
 export function ClientsView({ clients, activeId, onPick }) {
   if (!clients || !clients.length) return <Empty>Loading clients…</Empty>;
