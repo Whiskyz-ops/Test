@@ -17,8 +17,9 @@ result on a single **Layer 2 dashboard** — the main value proposition.
 | **L0 — Router** | `router.html` | Establishes the taxpayer profile (dual / single, base year, US status flags). Writes `wising_router_state`. Both Layer 1 forms redirect here if it's missing. |
 | **L1 — India intake** | `layer1_india.html` | Your India specialist form (verbatim). Writes `wising_layer1_india_state`. |
 | **L1 — US intake** | `layer1_us.html` | Your US specialist form (verbatim). Writes `wising_us_state`. |
-| **L2 — DTAA Bridge** | `dtaa_bridge.html` | The conflict dashboard. Reads both L1 states and runs the engine. |
-| Landing | `index.html` | Overview + demo snapshot, links into every layer. |
+| **L2 — Monitor** | `monitor-next/` | The Next.js (React) conflict dashboard. Reads both L1 states and runs the engine. `npm run build` emits a static bundle to `monitor-next/out/`. |
+
+> **Developers:** start with **[`docs/DEVELOPER_HANDOFF.md`](docs/DEVELOPER_HANDOFF.md)** — stack, run steps, the engine API, the `localStorage` data contract, and the production-integration checklist.
 
 The Layer 1 forms already cross-link to `router.html`, `layer1_india.html`,
 `layer1_us.html` and **`dtaa_bridge.html` ("DTAA Bridge Compiler")** in their own
