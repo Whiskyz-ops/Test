@@ -331,7 +331,36 @@
     // Additional Medicare (prefer the form's computed figure).
     var addlMedicare = model.limitsRaw.additionalMedicareOwed || 0;
 
-    var totalTaxBeforeFtc = incomeTax + niit + addlMedicare + seTax;
+    // ---- AMT (§55) — parallel minimum tax ----
+    // AMTI = regular taxable income + disallowed deductions (the standard
+    // deduction, or the SALT slice if itemized) + preference items (§57). QBI is
+    // allowed for AMT. TMT = 26/28% of the AMT base above the exemption; AMT owed
+    // is the excess of TMT over the regular income tax.
+    var usedMode = (ded.mode === "itemized" || ded.mode === "standard") ? ded.mode : (itemized > standard ? "itemized" : "standard");
+    var amtAddback = usedMode === "standard" ? deduction : Math.min(ded.salt, T.SALT_CAP_USD);
+    var amtiUsd = Math.max(0, taxableIncome + amtAddback + (ded.amtPrefs || 0));
+    var amtExFull = T.AMT_EXEMPTION[status] || T.AMT_EXEMPTION.single;
+    var amtPhase = T.AMT_PHASEOUT[status] || T.AMT_PHASEOUT.single;
+    var amtExemption = Math.max(0, amtExFull - 0.25 * Math.max(0, amtiUsd - amtPhase));
+    var amtBase = Math.max(0, amtiUsd - amtExemption);
+    var amtOrdBase = Math.max(0, amtBase - prefTaxable); // LTCG/QDI keep preferential rates
+    var amtBrk = status === "mfs" ? T.AMT_RATE_BREAK / 2 : T.AMT_RATE_BREAK;
+    var tmtOrd = amtOrdBase <= amtBrk ? amtOrdBase * T.AMT_RATE_LOW : amtBrk * T.AMT_RATE_LOW + (amtOrdBase - amtBrk) * T.AMT_RATE_HIGH;
+    var amtOwed = Math.max(0, Math.round(tmtOrd + preferentialTax - incomeTax));
+
+    // ---- Non-refundable personal credits ----
+    // Child & Dependent Care (20% of up to $3k/$6k), AOTC (≤$2,500/student) and
+    // Lifetime Learning (≤$2,000), both education credits phased out by MAGI.
+    var magi = agi;
+    var eduLo = status === "mfj" ? 160000 : 80000, eduHi = status === "mfj" ? 180000 : 90000;
+    var eduPhase = magi <= eduLo ? 1 : (magi >= eduHi ? 0 : 1 - (magi - eduLo) / (eduHi - eduLo));
+    var careCap = (ded.dependents >= 2 ? 6000 : 3000);
+    var childCareCredit = 0.20 * Math.min(ded.careExpenses || 0, careCap);
+    var aotcCredit = Math.min(ded.aotc || 0, 2500 * Math.max(1, ded.dependents || 1)) * eduPhase;
+    var llcCredit = Math.min(ded.lifetimeLearning || 0, 2000) * eduPhase;
+    var creditsUsd = Math.min(Math.round(childCareCredit + aotcCredit + llcCredit), Math.round(incomeTax));
+
+    var totalTaxBeforeFtc = incomeTax + niit + addlMedicare + seTax + amtOwed - creditsUsd;
 
     return {
       filingStatus: status,
@@ -348,6 +377,8 @@
       additionalMedicareUsd: addlMedicare,
       seTaxUsd: seTax,
       qbiDeductionUsd: qbiDeduction,
+      amtUsd: amtOwed,
+      creditsUsd: creditsUsd,
       totalTaxBeforeFtcUsd: totalTaxBeforeFtc,
       foreignSourceIncomeUsd: fW + fI + fD + fR + fP + fStcg + fLtcg,
       usSourceIncomeUsd: inc.usSourceTotal.usd,

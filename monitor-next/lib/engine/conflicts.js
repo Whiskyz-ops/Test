@@ -122,6 +122,16 @@
         0, ["Form 2555", "§911(d)(6)"]);
     }
 
+    // -- 4c. AMT BITES ------------------------------------------------------
+    if (computed.usTax && computed.usTax.amtUsd > 0) {
+      add("amt_applies", S.WARNING, C.CREDIT,
+        "Alternative Minimum Tax applies (+" + usd(computed.usTax.amtUsd) + ")",
+        "The tentative minimum tax exceeds the regular tax, so AMT of " + usd(computed.usTax.amtUsd) +
+        " is added. Common drivers: a large standard-deduction / SALT add-back, private-activity-bond interest, or an ISO exercise.",
+        "WISING computes the parallel AMT (Form 6251). Review ISO exercise timing and the state-tax add-back; AMT paid on deferral items can generate a Minimum Tax Credit (Form 8801) usable in later years.",
+        computed.usTax.amtUsd, ["§55", "Form 6251", "Form 8801"]);
+    }
+
     // -- 5. FORM 67 TIMING (India FTC procedural) --------------------------
     if (model.income.us.foreignSourceTotal.usd > 0 || model.taxesPaid.us.total.usd > 0) {
       add("form67_required", S.INFO, C.DOCUMENT,
@@ -357,6 +367,8 @@
             { label: "Additional Medicare tax", usd: u.additionalMedicareUsd }
           ])
           .concat(u.seTaxUsd > 0 ? [{ label: "Self-employment tax (Schedule SE)", usd: u.seTaxUsd }] : [])
+          .concat(u.amtUsd > 0 ? [{ label: "Alternative Minimum Tax (§55)", usd: u.amtUsd }] : [])
+          .concat(u.creditsUsd > 0 ? [{ label: "Less non-refundable credits (care/AOTC/LLC)", usd: -u.creditsUsd }] : [])
           .concat([{ label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true }]),
         totalUsd: u.totalTaxBeforeFtcUsd,
         effectiveRate: u.effectiveRate

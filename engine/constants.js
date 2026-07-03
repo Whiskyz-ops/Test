@@ -165,7 +165,13 @@
         // ---- Qualified Business Income deduction (§199A), 2025 ----
         QBI_RATE: 0.20,
         QBI_THRESHOLD: { single: 197300, mfj: 394600, mfs: 197300, hoh: 197300 },
-        QBI_PHASEIN: { single: 50000, mfj: 100000, mfs: 50000, hoh: 50000 }
+        QBI_PHASEIN: { single: 50000, mfj: 100000, mfs: 50000, hoh: 50000 },
+        // ---- Alternative Minimum Tax (§55), 2025 ----
+        AMT_EXEMPTION: { single: 88100, mfj: 137000, mfs: 68500, hoh: 88100 },
+        AMT_PHASEOUT: { single: 626350, mfj: 1252700, mfs: 626350, hoh: 626350 },
+        AMT_RATE_BREAK: 232600,         // 26% up to this AMT base, 28% above (MFS: half)
+        AMT_RATE_LOW: 0.26,
+        AMT_RATE_HIGH: 0.28
       },
       // ---- entity (business) corporate rates ----
       INDIA_COMPANY: {

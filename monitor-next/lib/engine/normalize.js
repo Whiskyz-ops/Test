@@ -300,7 +300,19 @@
       mortgageInterest: num(safe(it, "mortgage_interest_paid_usd", 0)),
       charitable: num(safe(it, "charitable_contributions_cash_usd", 0)) + num(safe(it, "charitable_contributions_appreciated_usd", 0)),
       medical: num(safe(it, "medical_expenses_usd", 0)),
-      studentLoanInterest: num(safe(it, "student_loan_interest_usd", 0))
+      studentLoanInterest: num(safe(it, "student_loan_interest_usd", 0)),
+      // AMT preference / adjustment items (§57): private-activity-bond interest,
+      // ISO bargain element / other preference spread.
+      amtPrefs: num(safe(it, "private_activity_bond_interest_usd", 0)) +
+                num(safe(it, "amt_preference_spread_usd", 0)) +
+                num(safe(us, "amt.private_activity_bond_interest_usd", 0)) +
+                num(safe(us, "amt.amt_preference_spread_usd", 0)) +
+                num(safe(us, "amt_items_usd", 0)),
+      // Non-refundable personal credits
+      careExpenses: num(safe(it, "dependent_care_expenses_usd", 0)),
+      aotc: num(safe(it, "education_credits_aotc_usd", 0)),
+      lifetimeLearning: num(safe(it, "education_credits_llc_usd", 0)),
+      dependents: num(safe(us, "profile.dependents_count", 0)) || num(safe(it, "dependents_count", 0))
     };
   }
 
