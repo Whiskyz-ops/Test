@@ -407,7 +407,9 @@
         filingStatus: label, isEntity: true, passthrough: passthrough, worldwide: true,
         totalIncomeUsd: taxableUsd, agiUsd: taxableUsd, deductionUsd: 0, deductionMode: "n/a",
         taxableIncomeUsd: taxableUsd, ordinaryTaxUsd: tax, preferentialTaxUsd: 0,
-        incomeTaxUsd: tax, niitUsd: 0, additionalMedicareUsd: 0, totalTaxBeforeFtcUsd: tax,
+        incomeTaxUsd: tax, niitUsd: 0, additionalMedicareUsd: 0,
+        seTaxUsd: 0, qbiDeductionUsd: 0, amtUsd: 0, creditsUsd: 0,
+        totalTaxBeforeFtcUsd: tax,
         foreignSourceIncomeUsd: model.income.us.foreignSourceTotal.usd,
         usSourceIncomeUsd: model.income.us.usSourceTotal.usd,
         effectiveRate: taxableUsd > 0 ? tax / taxableUsd : 0
