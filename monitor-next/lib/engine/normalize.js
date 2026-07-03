@@ -381,6 +381,22 @@
         usSchemaVersion: safe(us, "metadata.schema_version", null),
         indiaQuarterly: !!safe(india, "quarters", null)
       },
+      periods: {
+        // India FY quarters in USD (Q1=Apr-Jun … Q4=Jan-Mar); null when the form
+        // has no quarterly data (apportionment then assumes even earning).
+        indiaQuarterlyUsd: (function () {
+          var q = safe(india, "quarters", null);
+          if (!q) return null;
+          return ["Q1", "Q2", "Q3", "Q4"].map(function (k) {
+            var qd = q[k] || {}, di = qd.domestic_income || {}, os = qd.other_sources || {}, cg = qd.capital_gains || {};
+            return inrToUsd(
+              num(safe(di, "salary.taxable_salary_inr", 0)) + num(safe(di, "salary.gross_salary_inr", 0)) +
+              num(safe(os, "interest_inr", 0)) + num(safe(os, "dividend_inr", 0)) +
+              num(safe(cg, "stcg_111a_inr", 0)) + num(safe(cg, "ltcg_112a_inr", 0))
+            );
+          });
+        })()
+      },
       identity: {
         name: safe(router, "full_name", safe(india, "profile.full_name", safe(us, "profile.full_name", "Unnamed Taxpayer"))),
         dob: safe(router, "date_of_birth", safe(india, "profile.date_of_birth", safe(us, "profile.date_of_birth", null))),

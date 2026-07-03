@@ -691,6 +691,45 @@
   }
 
   /* =========================================================================
+   * TAX-YEAR APPORTIONMENT (Indian FY Apr–Mar ↔ US CY Jan–Dec)
+   * ---------------------------------------------------------------------
+   * The Indian FY straddles two US calendar years: Q1–Q3 (Apr–Dec) fall in
+   * CY-primary, Q4 (Jan–Mar) in CY-next. We split Indian income across the US
+   * calendar years (using quarterly data when present, else an even-earning
+   * assumption) and the US CY across the Indian FY (9/12 + 3/12), so FTC in
+   * each country can be matched to the other's period. Planning-grade.
+   * =======================================================================*/
+  function computeApportionment(model) {
+    var baseYear = model.meta.baseYear || 2025;
+    var q = model.periods && model.periods.indiaQuarterlyUsd;
+    var hasQ = !!(q && q.some(function (x) { return x > 0; }));
+    var indiaFyTotal = model.income.india.total.usd;
+    var primaryShare, nextShare;
+    if (hasQ) {
+      var qTot = (q[0] + q[1] + q[2] + q[3]) || indiaFyTotal || 1;
+      primaryShare = (q[0] + q[1] + q[2]) / qTot;
+      nextShare = q[3] / qTot;
+    } else {
+      primaryShare = 0.75; nextShare = 0.25;   // 9 months (Apr–Dec) vs 3 (Jan–Mar)
+    }
+    var usCyTotal = model.income.us.usSourceTotal.usd;
+    return {
+      basis: hasQ ? "Indian quarterly data" : "even-earning assumption (Apr–Dec vs Jan–Mar)",
+      fyLabel: "FY " + baseYear + "–" + String(baseYear + 1).slice(2),
+      cyPrimary: baseYear, cyNext: baseYear + 1,
+      indiaFyTotalUsd: indiaFyTotal,
+      indiaToCyPrimaryUsd: Math.round(indiaFyTotal * primaryShare),
+      indiaToCyNextUsd: Math.round(indiaFyTotal * nextShare),
+      primaryShare: primaryShare, nextShare: nextShare,
+      usCyTotalUsd: usCyTotal,
+      // US CY → Indian FY: the FY captures Apr–Dec of CY-primary (9/12) plus
+      // Jan–Mar of CY-next (3/12).
+      usCyToFyPrimaryUsd: Math.round(usCyTotal * 9 / 12),
+      usCyToFyNextUsd: Math.round(usCyTotal * 3 / 12)
+    };
+  }
+
+  /* =========================================================================
    * ORCHESTRATOR
    * =======================================================================*/
   function compute(model) {
@@ -700,6 +739,7 @@
     var ftc = computeFtc(model, residency, indiaTax, usTax);
     var doubleTax = mapDoubleTaxedIncome(model, residency);
     var reconciliation = crossBasis(model, residency, usTax);
+    var apportionment = computeApportionment(model);
     var limits = computeLimits(model);
 
     return {
@@ -707,6 +747,7 @@
       indiaTax: indiaTax,
       usTax: usTax,
       reconciliation: reconciliation,
+      apportionment: apportionment,
       // back-compat alias used by older dashboard code
       taxEstimate: { india: { estTaxUsd: indiaTax.totalTaxUsd, estTaxInr: indiaTax.totalTaxInr }, us: { estTaxUsd: usTax.totalTaxBeforeFtcUsd } },
       ftc: ftc,

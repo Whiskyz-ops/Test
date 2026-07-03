@@ -143,10 +143,13 @@
 
     // -- 6. TAX-YEAR / APPORTIONMENT MISMATCH ------------------------------
     if (res.dualResident || (model.meta.hasIndia && model.meta.hasUs)) {
+      var ap = computed.apportionment;
       add("tax_year_mismatch", S.INFO, C.CREDIT,
-        "Tax-year alignment: Indian FY ↔ US CY (handled)",
-        "India taxes Apr–Mar; the US taxes Jan–Dec, so the same income & withholding fall in different reporting periods.",
-        "WISING apportions US calendar-year wages/withholding into Indian fiscal months (and vice-versa) and generates the FY↔CY reconciliation worksheet behind Form 67 (India) and Form 1116 (US) — handled automatically, no manual action.",
+        "Tax-year apportionment: Indian FY ↔ US CY (computed)",
+        "India taxes Apr–Mar; the US taxes Jan–Dec. WISING splits the Indian FY across US calendar years — " +
+        usd(ap.indiaToCyPrimaryUsd) + " into CY" + ap.cyPrimary + " and " + usd(ap.indiaToCyNextUsd) + " into CY" + ap.cyNext +
+        " (" + ap.basis + ") — and apportions the US calendar year into the Indian FY (9/12 + 3/12).",
+        "See the FY ↔ CY Apportionment panel on the Filings tab for the period-matched figures behind Form 67 (India) and Form 1116 (US). Planning-grade — refine with per-transaction dates at filing.",
         0, [CONST.CALENDAR.INDIA_FY.label, CONST.CALENDAR.US_CY.label]);
     }
 

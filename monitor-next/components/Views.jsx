@@ -157,7 +157,40 @@ export function FilingsView({ result }) {
         <TaxCard taxComputation={result.taxComputation} fxRate={result.model.meta.fxRate} />
       </div>
       <ReconciliationCard recon={result.computed.reconciliation} />
+      <ApportionmentCard ap={result.computed.apportionment} />
     </div>
+  );
+}
+
+/* FY ↔ CY tax-year apportionment. */
+function ApportionmentCard({ ap }) {
+  if (!ap) return null;
+  const Split = ({ title, sub, a, b, aLabel, bLabel }) => (
+    <div className="rounded-xl p-3 bg-white/[0.03] border border-line">
+      <div className="text-[12px] font-bold text-head">{title}</div>
+      <div className="text-[10px] text-muted mb-2">{sub}</div>
+      <div className="flex gap-2">
+        <div className="flex-1 rounded-lg p-2" style={{ background: PAL.accent + "14", border: `1px solid ${PAL.accent}33` }}>
+          <div className="text-[9px] uppercase tracking-widest text-muted">{aLabel}</div>
+          <div className="font-mono text-[13px] text-head">{fmtUsd(a)}</div>
+        </div>
+        <div className="flex-1 rounded-lg p-2" style={{ background: PAL.filing + "14", border: `1px solid ${PAL.filing}33` }}>
+          <div className="text-[9px] uppercase tracking-widest text-muted">{bLabel}</div>
+          <div className="font-mono text-[13px] text-head">{fmtUsd(b)}</div>
+        </div>
+      </div>
+    </div>
+  );
+  return (
+    <Card title="FY ↔ CY Apportionment" sub={"Indian FY straddles two US calendar years — period-matched so FTC lines up both ways · basis: " + ap.basis}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Split title={"🇮🇳 Indian " + ap.fyLabel + " income → US calendar years"} sub={"Q1–Q3 (Apr–Dec) → CY" + ap.cyPrimary + " · Q4 (Jan–Mar) → CY" + ap.cyNext}
+          a={ap.indiaToCyPrimaryUsd} b={ap.indiaToCyNextUsd} aLabel={"CY" + ap.cyPrimary} bLabel={"CY" + ap.cyNext} />
+        <Split title={"🇺🇸 US CY" + ap.cyPrimary + " income → Indian " + ap.fyLabel} sub={"Apr–Dec (9/12) into this FY · Jan–Mar (3/12) into the next FY"}
+          a={ap.usCyToFyPrimaryUsd} b={ap.usCyToFyNextUsd} aLabel={"Into " + ap.fyLabel} bLabel={"Into next FY"} />
+      </div>
+      <p className="text-[10px] text-muted mt-2">The period-matched figures feed Form 67 (India) and Form 1116 (US) so the credit lands in the right year. Planning-grade — refine with per-transaction dates (Rule 115) at filing.</p>
+    </Card>
   );
 }
 
