@@ -347,14 +347,17 @@
         rows: [
           { label: "Total income" + (u.worldwide ? " (worldwide)" : " (US-source)"), usd: u.totalIncomeUsd },
           { label: "Adjusted gross income", usd: u.agiUsd },
-          { label: "Less " + u.deductionMode + " deduction", usd: -u.deductionUsd },
-          { label: "Taxable income", usd: u.taxableIncomeUsd },
-          { label: "Ordinary-rate tax", usd: u.ordinaryTaxUsd },
-          { label: "Preferential LTCG/QDI tax", usd: u.preferentialTaxUsd },
-          { label: "Net investment income tax (NIIT)", usd: u.niitUsd },
-          { label: "Additional Medicare tax", usd: u.additionalMedicareUsd },
-          { label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true }
-        ],
+          { label: "Less " + u.deductionMode + " deduction", usd: -u.deductionUsd }
+        ].concat(u.qbiDeductionUsd > 0 ? [{ label: "Less §199A QBI deduction", usd: -u.qbiDeductionUsd }] : [])
+          .concat([
+            { label: "Taxable income", usd: u.taxableIncomeUsd },
+            { label: "Ordinary-rate tax", usd: u.ordinaryTaxUsd },
+            { label: "Preferential LTCG/QDI tax", usd: u.preferentialTaxUsd },
+            { label: "Net investment income tax (NIIT)", usd: u.niitUsd },
+            { label: "Additional Medicare tax", usd: u.additionalMedicareUsd }
+          ])
+          .concat(u.seTaxUsd > 0 ? [{ label: "Self-employment tax (Schedule SE)", usd: u.seTaxUsd }] : [])
+          .concat([{ label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true }]),
         totalUsd: u.totalTaxBeforeFtcUsd,
         effectiveRate: u.effectiveRate
       }

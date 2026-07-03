@@ -7,7 +7,10 @@
 <meta name="description" content="Layer 1 specialist onboarding for US federal residency, worldwide income, and tax treaty compliance.">
 
 <!-- Tailwind CSS v3 with plugins -->
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries">
+
+
+</script>
 <script>
     
     // --- Live Format Currency Helpers ---
@@ -335,14 +338,14 @@
                 </button>
                 <div id="sidebar-menu" class="fixed left-0 top-20 bottom-0 w-80 bg-black opacity-0 invisible transition-all duration-300 z-50 border-r border-white/5 pointer-events-none">
                     <div class="flex flex-col text-[11px] font-bold tracking-[0.15em] uppercase text-white/50 pt-6">
-                        <a href="/" class="flex items-center px-10 py-5 hover:bg-white/5 transition-colors">Tax Intelligence</a>
+                        <a href="index.html" class="flex items-center px-10 py-5 hover:bg-white/5 transition-colors">Tax Intelligence</a>
                         <a href="income.html" class="flex items-center px-10 py-5 hover:bg-white/5 transition-colors">Salaries & RSUs</a>
                         <a href="router.html" class="flex items-center px-10 py-5 hover:bg-white/5 transition-colors">Jurisdiction Router</a>
                         <a href="#" onclick="alert('The Vault is our year-round mobile companion. Users snap photos of receipts and forward 1099 emails throughout the year. The AI categorizes them in real-time, so when they log into this Layer 1 Intake Hub at year-end, 100% of the data is already prepopulated!')" class="flex items-center px-10 py-5 hover:bg-white/5 transition-colors text-white">The Vault (Year-Round)</a>
                         <div id="sidebar-switcher-separator" class="h-[1px] bg-white/5 my-2 mx-10"></div>
                         <a id="sidebar-link-india" href="layer1_india.html" class="flex items-center px-10 py-5 hover:bg-white/5 transition-colors text-brandGold/80 hover:text-brandGold">India Specialist L1</a>
                         <a id="sidebar-link-us" href="layer1_us.html" class="flex items-center px-10 py-5 hover:bg-[#121212] transition-colors text-brandCyan">US Specialist L1</a>
-                        <a href="/" class="flex items-center px-10 py-5 hover:bg-white/5 transition-colors text-brandCyan font-bold">DTAA Bridge Compiler</a>
+                        <a href="dtaa_bridge.html" class="flex items-center px-10 py-5 hover:bg-white/5 transition-colors text-brandCyan font-bold">DTAA Bridge Compiler</a>
                     </div>
                 </div>
             </div>
@@ -474,103 +477,88 @@
             <!-- PHASE 4: BUSINESS OPS -->
             <div id="nav-group-business" class="flex flex-col mb-2" style="display: none;">
                 <button onclick="toggleSidebarGroup('nav-group-business')" class="text-[9px] font-black uppercase tracking-widest text-brandCyan/70 mb-1 px-3 w-full text-left flex justify-between items-center outline-none group cursor-pointer">
-                    <span>PHASE 4: BUSINESS OPS</span>
+                    <span>PHASE 4: BUSINESS OPS &amp; K-1s</span>
                     <span class="chevron text-[8px] opacity-50 transition-transform duration-300 -rotate-90">▼</span>
                 </button>
                 <div class="phase-accordion-content flex flex-col space-y-1 overflow-hidden transition-all duration-500 max-h-0 opacity-0">
                 <button onclick="switchStep('step-business')" id="btn-step-business" class="step-btn text-left px-4 py-3 rounded-lg text-xs font-bold tracking-wider uppercase text-white/70 transition-all flex items-center justify-between">
-                    <span>11. Business & Self-Employment</span>
+                    <span>11. Business Ops &amp; K-1s</span>
                     <span id="badge-step-business" class="text-[8px] px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white/40 font-mono">🔒</span>
                 </button>
                 </div>
             </div>
 
-            <!-- PHASE 5: K-1 PASS-THROUGHS -->
-            <div id="nav-group-k1" class="flex flex-col mb-2" style="display: none;">
-                <button onclick="toggleSidebarGroup('nav-group-k1')" class="text-[9px] font-black uppercase tracking-widest text-brandCyan/70 mb-1 px-3 w-full text-left flex justify-between items-center outline-none group cursor-pointer">
-                    <span>PHASE 5: K-1 PASS-THROUGHS</span>
-                    <span class="chevron text-[8px] opacity-50 transition-transform duration-300 -rotate-90">▼</span>
-                </button>
-                <div class="phase-accordion-content flex flex-col space-y-1 overflow-hidden transition-all duration-500 max-h-0 opacity-0">
-                <!-- Using step-k1 which points to the business panel -->
-                <button onclick="switchStep('step-business')" id="btn-step-k1" class="step-btn text-left px-4 py-3 rounded-lg text-xs font-bold tracking-wider uppercase text-white/70 transition-all flex items-center justify-between">
-                    <span>12. K-1 Pass-Throughs</span>
-                    <span id="badge-step-k1" class="text-[8px] px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white/40 font-mono">🔒</span>
-                </button>
-                </div>
-            </div>
-
-            <!-- PHASE 6: REAL ESTATE -->
+            <!-- PHASE 5: REAL ESTATE -->
             <div id="nav-group-realestate" class="flex flex-col mb-2" style="display: none;">
                 <button onclick="toggleSidebarGroup('nav-group-realestate')" class="text-[9px] font-black uppercase tracking-widest text-brandCyan/70 mb-1 px-3 w-full text-left flex justify-between items-center outline-none group cursor-pointer">
-                    <span>PHASE 6: REAL ESTATE</span>
+                    <span>PHASE 5: REAL ESTATE</span>
                     <span class="chevron text-[8px] opacity-50 transition-transform duration-300 -rotate-90">▼</span>
                 </button>
                 <div class="phase-accordion-content flex flex-col space-y-1 overflow-hidden transition-all duration-500 max-h-0 opacity-0">
                 <button onclick="switchStep('step-real-estate')" id="btn-step-real-estate" class="step-btn text-left px-4 py-3 rounded-lg text-xs font-bold tracking-wider uppercase text-white/70 transition-all flex items-center justify-between">
-                    <span>13. Real Estate</span>
+                    <span>12. Real Estate</span>
                     <span id="badge-step-real-estate" class="text-[8px] px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white/40 font-mono">🔒</span>
                 </button>
                 </div>
             </div>
 
-            <!-- PHASE 7: INVESTMENTS -->
+            <!-- PHASE 6: INVESTMENTS -->
             <div id="nav-group-investments" class="flex flex-col mb-2" style="display: none;">
                 <button onclick="toggleSidebarGroup('nav-group-investments')" class="text-[9px] font-black uppercase tracking-widest text-brandCyan/70 mb-1 px-3 w-full text-left flex justify-between items-center outline-none group cursor-pointer">
-                    <span>PHASE 7: INVESTMENTS</span>
+                    <span>PHASE 6: INVESTMENTS</span>
                     <span class="chevron text-[8px] opacity-50 transition-transform duration-300 -rotate-90">▼</span>
                 </button>
                 <div class="phase-accordion-content flex flex-col space-y-1 overflow-hidden transition-all duration-500 max-h-0 opacity-0">
                 <button onclick="switchStep('step-capgains')" id="btn-step-capgains" class="step-btn text-left px-4 py-3 rounded-lg text-xs font-bold tracking-wider uppercase text-white/70 transition-all flex items-center justify-between">
-                    <span>14. Capital Gains & Crypto</span>
+                    <span>13. Capital Gains & Crypto</span>
                     <span id="badge-step-capgains" class="text-[8px] px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white/40 font-mono">🔒</span>
                 </button>
                 <button onclick="switchStep('step-passive')" id="btn-step-passive" class="step-btn text-left px-4 py-3 rounded-lg text-xs font-bold tracking-wider uppercase text-white/70 transition-all flex items-center justify-between">
-                    <span>15. Passive & Other</span>
+                    <span>14. Passive & Other</span>
                     <span id="badge-step-passive" class="text-[8px] px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white/40 font-mono">🔒</span>
                 </button>
                 </div>
             </div>
 
-            <!-- PHASE 8: EQUITY & CAP TABLE -->
+            <!-- PHASE 7: EQUITY & CAP TABLE -->
             <div id="nav-group-equity" class="flex flex-col mb-2" style="display: none;">
                 <button onclick="toggleSidebarGroup('nav-group-equity')" class="text-[9px] font-black uppercase tracking-widest text-brandCyan/70 mb-1 px-3 w-full text-left flex justify-between items-center outline-none group cursor-pointer">
-                    <span>PHASE 8: EQUITY & CAP TABLE</span>
+                    <span>PHASE 7: EQUITY & CAP TABLE</span>
                     <span class="chevron text-[8px] opacity-50 transition-transform duration-300 -rotate-90">▼</span>
                 </button>
                 <div class="phase-accordion-content flex flex-col space-y-1 overflow-hidden transition-all duration-500 max-h-0 opacity-0">
                 <button onclick="switchStep('step-equity')" id="btn-step-equity" class="step-btn text-left px-4 py-3 rounded-lg text-xs font-bold tracking-wider uppercase text-white/70 transition-all flex items-center justify-between">
-                    <span>16. Equity & Cap Table</span>
+                    <span>15. Equity & Cap Table</span>
                     <span id="badge-step-equity" class="text-[8px] px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white/40 font-mono">🔒</span>
                 </button>
                 </div>
             </div>
 
-            <!-- PHASE 9: WRAP-UP & TAXES -->
+            <!-- PHASE 8: WRAP-UP & TAXES -->
             <div id="nav-group-wrapup" class="flex flex-col mb-2">
                 <button onclick="toggleSidebarGroup('nav-group-wrapup')" class="text-[9px] font-black uppercase tracking-widest text-brandCyan/70 mb-1 px-3 w-full text-left flex justify-between items-center outline-none group cursor-pointer">
-                    <span>PHASE 9: WRAP-UP & TAXES</span>
+                    <span>PHASE 8: WRAP-UP & TAXES</span>
                     <span class="chevron text-[8px] opacity-50 transition-transform duration-300 -rotate-90">▼</span>
                 </button>
                 <div class="phase-accordion-content flex flex-col space-y-1 overflow-hidden transition-all duration-500 max-h-0 opacity-0">
                 <button onclick="switchStep('step-deductions')" id="btn-step-deductions" class="step-btn text-left px-4 py-3 rounded-lg text-xs font-bold tracking-wider uppercase text-white/70 transition-all flex items-center justify-between">
-                    <span>17. Deductions & Credits</span>
+                    <span>16. Deductions & Credits</span>
                     <span id="badge-step-deductions" class="text-[8px] px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white/40 font-mono">🔒</span>
                 </button>
                 <button onclick="switchStep('step-amt-niit')" id="btn-step-amt-niit" class="step-btn text-left px-4 py-3 rounded-lg text-xs font-bold tracking-wider uppercase text-white/70 transition-all flex items-center justify-between">
-                    <span>18. AMT & NIIT</span>
+                    <span>17. AMT & NIIT</span>
                     <span id="badge-step-amt-niit" class="text-[8px] px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white/40 font-mono">🔒</span>
                 </button>
                 <button onclick="switchStep('step-ftc')" id="btn-step-ftc" class="step-btn text-left px-4 py-3 rounded-lg text-xs font-bold tracking-wider uppercase text-white/70 transition-all flex items-center justify-between">
-                    <span>19. Foreign Tax Credit</span>
+                    <span>18. Foreign Tax Credit</span>
                     <span id="badge-step-ftc" class="text-[8px] px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white/40 font-mono">🔒</span>
                 </button>
                 <button onclick="switchStep('step-withholding')" id="btn-step-withholding" class="step-btn text-left px-4 py-3 rounded-lg text-xs font-bold tracking-wider uppercase text-white/70 transition-all flex items-center justify-between">
-                    <span>20. Withholding & Estimates</span>
+                    <span>19. Withholding & Estimates</span>
                     <span id="badge-step-withholding" class="text-[8px] px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white/40 font-mono">🔒</span>
                 </button>
                 <button onclick="switchStep('step-nra')" id="btn-step-nra" class="step-btn text-left px-4 py-3 rounded-lg text-xs font-bold tracking-wider uppercase text-white/70 transition-all flex items-center justify-between">
-                    <span>21. Form 1040-NR Adjustments</span>
+                    <span>20. Form 1040-NR Adjustments</span>
                     <span id="badge-step-nra" class="text-[8px] px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white/40 font-mono">🔒</span>
                 </button>
                 <button onclick="switchStep('step-output')" id="btn-step-output" class="step-btn text-left px-4 py-3 rounded-lg text-xs font-bold tracking-wider uppercase text-white/70 transition-all flex items-center justify-between mt-4 border border-brandCyan/30">
@@ -654,7 +642,7 @@
                                     <input type="checkbox" id="setup-foreign-assets" class="w-3 h-3 bg-black/50 border border-white/20 rounded accent-brandCyan focus:ring-0 cursor-pointer" onchange="updateSidebarVisibility(); calculateComplexity()">
                                     <span class="text-[9px] text-white/70">Foreign Bank Accounts or Financial Assets</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white/5 rounded-lg border border-transparent hover:border-white/10 transition-colors">
+                                <label id="wrapper-setup-foreign-feie" class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white/5 rounded-lg border border-transparent hover:border-white/10 transition-colors">
                                     <input type="checkbox" id="setup-foreign-feie" class="w-3 h-3 bg-black/50 border border-white/20 rounded accent-brandCyan focus:ring-0 cursor-pointer" onchange="updateSidebarVisibility(); calculateComplexity()">
                                     <span class="text-[9px] text-white/70">Lived or worked outside the US</span>
                                 </label>
@@ -692,17 +680,25 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div id="card-setup-biz" class="setup-card flex flex-col gap-3 p-5 bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl cursor-pointer hover:bg-white/10 transition-all duration-300 group" onclick="toggleSetupCard('setup-biz')">
                             <div class="flex items-center justify-between">
-                                <span class="text-xl">&#x1f3e2;</span>
+                                <span class="text-xl">🏢</span>
                                 <div class="w-4 h-4 rounded-full border border-white/20 flex items-center justify-center group-[.active]:bg-brandCyan group-[.active]:border-brandCyan transition-colors">
                                     <svg class="w-2.5 h-2.5 text-black opacity-0 group-[.active]:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                                 </div>
                             </div>
                             <div class="flex flex-col gap-1">
-                                <span class="text-xs font-bold text-white/90 uppercase tracking-widest">Business Ops &amp; K-1s</span>
-                                <span class="text-[9px] text-white/40 leading-relaxed">C-Corps, S-Corps, LLCs, Sole Proprietors, and K-1 Pass-Throughs.</span>
+                                <span class="text-xs font-bold text-white/90 uppercase tracking-widest">Business Ops</span>
+                                <span class="text-[9px] text-white/40 leading-relaxed">C-Corps, S-Corps, LLCs, Sole Proprietors.</span>
                             </div>
                             <input type="checkbox" id="setup-biz" class="hidden">
                         </div>
+
+                        <div id="card-setup-prop" class="setup-card flex flex-col gap-3 p-5 bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl cursor-pointer hover:bg-white/10 transition-all duration-300 group" onclick="toggleSetupCard('setup-prop')">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xl">🏠</span>
+                                <div class="w-4 h-4 rounded-full border border-white/20 flex items-center justify-center group-[.active]:bg-brandCyan group-[.active]:border-brandCyan transition-colors">
+                                    <svg class="w-2.5 h-2.5 text-black opacity-0 group-[.active]:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                </div>
+                            </div>
                             <div class="flex flex-col gap-1">
                                 <span class="text-xs font-bold text-white/90 uppercase tracking-widest">Real Estate</span>
                                 <span class="text-[9px] text-white/40 leading-relaxed">Rental properties, depreciation, sales.</span>
@@ -731,15 +727,11 @@
                                 <div class="h-px w-full bg-white/10 mb-2 mt-1"></div>
                                 <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white/5 rounded-lg border border-transparent hover:border-white/10 transition-colors">
                                     <input type="checkbox" id="setup-passive-intdiv" class="w-3 h-3 bg-black/50 border border-white/20 rounded accent-brandCyan focus:ring-0 cursor-pointer" onchange="updateSidebarVisibility(); calculateComplexity()">
-                                    <span class="text-[9px] text-white/70">Interest from banks or stock dividends</span>
+                                    <span class="text-[9px] text-white/70">Interest, dividends, royalties, or other investments</span>
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white/5 rounded-lg border border-transparent hover:border-white/10 transition-colors">
                                     <input type="checkbox" id="setup-passive-capgains" class="w-3 h-3 bg-black/50 border border-white/20 rounded accent-brandCyan focus:ring-0 cursor-pointer" onchange="updateSidebarVisibility(); calculateComplexity()">
                                     <span class="text-[9px] text-white/70">Sold stocks, mutual funds, or crypto</span>
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white/5 rounded-lg border border-transparent hover:border-white/10 transition-colors">
-                                    <input type="checkbox" id="setup-passive-other" class="w-3 h-3 bg-black/50 border border-white/20 rounded accent-brandCyan focus:ring-0 cursor-pointer" onchange="updateSidebarVisibility(); calculateComplexity()">
-                                    <span class="text-[9px] text-white/70">Royalties, partnerships, or other investments</span>
                                 </label>
                             </div>
                             <input type="checkbox" id="setup-passive" class="hidden">
@@ -907,13 +899,7 @@
                             <option value="ccorp">C-Corporation Election (Form 1120)</option>
                         </select>
                     </div>
-                    <div id="entity-type-warning" style="display:none;" class="mt-1 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2.5">
-                        <span class="text-amber-400 text-sm mt-0.5 shrink-0">&#x26a0;&#xfe0f;</span>
-                        <div class="flex flex-col gap-1">
-                            <span class="text-[9px] font-black text-amber-400 uppercase tracking-widest">Separate Corporate Filing Required</span>
-                            <span class="text-[9px] text-amber-200/70 leading-relaxed" id="entity-warning-text"></span>
-                        </div>
-                    </div>
+
                 </div>
 
                 <div id="wrapper-individual-profile-fields" style="display:flex; flex-direction:column; gap:1rem;">
@@ -1013,10 +999,62 @@
                 </div>
 
                 </div><!-- /wrapper-individual-profile-fields -->
+                
+                <div id="wrapper-corporate-profile-fields" style="display:none;" class="flex flex-col gap-4 mt-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Entity Name</label>
+                            <input type="text" id="corp-entity-name" placeholder="Acme Corp" oninput="updateProfileField('entity_name', this.value)" class="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">EIN (Employer ID)</label>
+                            <input type="text" id="corp-ein" placeholder="XX-XXXXXXX" oninput="updateProfileField('ein', this.value)" class="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all font-mono">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Date of Incorporation</label>
+                            <input type="date" id="corp-inc-date" onchange="updateProfileField('date_of_incorporation', this.value)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">State of Domicile</label>
+                            <select id="corp-domicile" onchange="updateProfileField('state_of_domicile', this.value)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all">
+                                <option value="">Select State</option>
+                                <option value="DE">Delaware</option>
+                                <option value="NY">New York</option>
+                                <option value="CA">California</option>
+                                <option value="TX">Texas</option>
+                                <option value="WY">Wyoming</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">NAICS Code</label>
+                        <input type="text" id="corp-naics" placeholder="e.g. 541511 (Custom Computer Programming)" oninput="updateProfileField('naics_code', this.value)" class="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all font-mono">
+                    </div>
+                    
+                    <div class="mt-2 flex flex-col gap-3 p-4 bg-brandCyan/5 border border-brandCyan/20 rounded-2xl">
+                        <label class="flex items-start gap-3 cursor-pointer">
+                            <input type="checkbox" id="corp-is-foreign" onchange="updateProfileField('is_foreign_corporation', this.checked)" class="mt-1 shrink-0 bg-[#121212] border-white/20 rounded text-brandCyan focus:ring-brandCyan">
+                            <div class="flex flex-col">
+                                <span class="text-xs font-bold text-white">Is this a Foreign Corporation?</span>
+                                <span class="text-[10px] text-white/50">Check this if the entity is incorporated outside the US and is filing Form 1120-F.</span>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-3 cursor-pointer">
+                            <input type="checkbox" id="corp-foreign-owned" onchange="updateProfileField('is_foreign_owned_25_pct', this.checked)" class="mt-1 shrink-0 bg-[#121212] border-white/20 rounded text-brandCyan focus:ring-brandCyan">
+                            <div class="flex flex-col">
+                                <span class="text-xs font-bold text-white">Is this entity 25% or more owned by a foreign person?</span>
+                                <span class="text-[10px] text-white/50">Required for Form 5472 compliance (Inbound Foreign Ownership).</span>
+                            </div>
+                        </label>
+                    </div>
+                </div><!-- /wrapper-corporate-profile-fields -->
+
             </div>
 
             <hr class="border-white/5 my-2">
-
             <!-- Residency Core Parameters -->
 
             <!-- Corporate Residency Block (shown for non-individual entities) -->
@@ -1311,6 +1349,7 @@
                 <p class="text-xs text-white/40 mt-1">Specify your US state tax footprint and exit / statutory residency tests.</p>
             </div>
 
+        <div id="wrapper-individual-state-nexus" class="flex flex-col gap-6">
             <!-- Block 1: Global Baseline -->
             <div class="flex flex-col gap-3 p-5 border border-white/5 rounded-2xl">
                 <span class="text-[9px] font-black uppercase tracking-widest text-brandCyan">Year-Start &amp; Year-End Permanent Home</span>
@@ -1546,10 +1585,82 @@
                 </div>
             </div>
 
+        </div> <!-- End wrapper-individual-state-nexus -->
+
+        <div id="wrapper-corporate-state-nexus" style="display:none;" class="flex flex-col gap-6">
+            <!-- Block 1: Domicile / Primary State -->
+            <div class="flex flex-col gap-3 p-5 border border-brandCyan/20 bg-brandCyan/5 rounded-2xl">
+                <span class="text-[9px] font-black uppercase tracking-widest text-brandCyan">Domicile / Incorporation State</span>
+                <p class="text-[9px] text-white/50 leading-relaxed">This is the state where your entity was formed. You likely have an ongoing franchise tax or annual report obligation here.</p>
+                <div>
+                    <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">State of Formation</label>
+                    <input type="text" id="corp-state-domicile-readonly" readonly class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white/50 px-4 py-3 focus:outline-none" value="Will be inherited from Profile">
+                </div>
+            </div>
+
+            <!-- Block 2: Physical Presence -->
+            <div class="flex flex-col gap-4 border border-white/5 p-5 rounded-2xl bg-white/5">
+                <span class="text-[9px] font-black uppercase tracking-widest text-white/50">Physical Presence Nexus</span>
+                <p class="text-[9px] text-white/40 leading-relaxed">Select states where your business has physical assets, inventory, offices, or W-2 employees (including remote workers working from their homes). Physical presence almost always triggers state income/franchise tax.</p>
+                <div class="flex gap-2">
+                    <select id="corp-state-physical-picker" onchange="addCorpFootprintState('physical')" class="flex-1 bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:outline-none"></select>
+                    <button onclick="addCorpFootprintState('physical')" class="px-4 py-2 bg-brandCyan/20 hover:bg-brandCyan/40 text-brandCyan text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shrink-0">+ Add</button>
+                </div>
+                <div id="div-corp-physical-chips" class="flex flex-wrap gap-2 mt-2 min-h-[24px]"></div>
+                
+
+
+            <!-- Block 3: Economic Nexus -->
+            <div class="flex flex-col gap-4 border border-white/5 p-5 rounded-2xl bg-white/5">
+                <span class="text-[9px] font-black uppercase tracking-widest text-white/50">Economic Nexus (Sales Thresholds)</span>
+                <p class="text-[9px] text-white/40 leading-relaxed">Even without physical presence, exceeding sales thresholds (usually $100k or 200 transactions) in a state creates Economic Nexus for Sales Tax and increasingly for Income Tax.</p>
+                <div class="flex gap-2">
+                    <select id="corp-state-economic-picker" onchange="addCorpFootprintState('economic')" class="flex-1 bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:outline-none"></select>
+                    <button onclick="addCorpFootprintState('economic')" class="px-4 py-2 bg-brandCyan/20 hover:bg-brandCyan/40 text-brandCyan text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shrink-0">+ Add</button>
+                </div>
+                <div id="div-corp-economic-chips" class="flex flex-wrap gap-2 mt-2 min-h-[24px]"></div>
+            </div>
+
+            <!-- Block 4: Apportionment -->
+            <div class="flex flex-col gap-4 border border-brandCyan/20 p-5 rounded-2xl bg-brandCyan/5">
+                <span class="text-[9px] font-black uppercase tracking-widest text-brandCyan">Multi-State Apportionment</span>
+                <div class="flex items-center justify-between p-3 bg-black/20 border border-white/5 rounded-xl">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-bold text-white/80">Does the entity operate in multiple states?</span>
+                        <span class="text-[8px] text-white/30">Requires calculating sales, property, and payroll factors to apportion income.</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0 ml-3">
+                        <input type="checkbox" id="corp-needs-apportionment" onchange="updateStateField('corp_state_nexus','needs_apportionment',this.checked)" class="sr-only peer">
+                        <div class="w-9 h-5 bg-white/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-brandCyan after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                    </label>
+                </div>
+                
+                <!-- NEW APPORTIONMENT MATRIX -->
+                <div id="div-corp-apportionment-matrix" class="hidden mt-4 pt-4 border-t border-white/5 flex flex-col gap-3">
+                    <div class="flex items-center justify-between pb-1 border-b border-white/5">
+                        <span class="text-[9px] font-black uppercase tracking-widest text-brandCyan">Gross Receipts by State</span>
+                        <span class="text-[8px] text-white/40">SINGLE SALES FACTOR APPORTIONMENT</span>
+                    </div>
+                    <div class="p-2 rounded-lg bg-brandCyan/5 border border-brandCyan/15 text-[10px] text-white/60 leading-relaxed">&#x1f4a1; Enter the total gross receipts sourced to each state where you have nexus.</div>
+                    
+                    <div id="corp-apportionment-list" class="flex flex-col gap-2">
+                        <!-- Populated by JS -->
+                    </div>
+                    
+                    <div class="mt-2 pt-2 border-t border-white/10 flex justify-between items-center px-2">
+                        <span class="text-[9px] font-black uppercase text-white/50">Total US Gross Receipts:</span>
+                        <span id="corp-apportionment-total" class="text-xs font-mono font-bold text-white">$0</span>
+                    </div>
+                </div>
+                
+            </div>
+        </div> <!-- End wrapper-corporate-state-nexus -->
+
             <div class="flex justify-between mt-4">
                 <button onclick="switchStep('step-profile')" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
                 <button onclick="switchStep('step-income-us')" class="px-6 py-2.5 bg-brandCyan text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:brightness-110 transition-all">Next Step</button>
             </div>
+        </div>
         </div>
 
         <!-- STEP 3: US-SOURCE INCOME -->
@@ -1982,8 +2093,8 @@
         <!-- STEP 3C-2: BUSINESS & SELF-EMPLOYMENT -->
         <div id="panel-step-business" class="glass-card p-6 lg:p-8 flex flex-col gap-6 hidden">
             <div>
-                <h2 class="text-xl font-bold text-white tracking-wide font-display uppercase font-sans">Screen 3C-2 — Business & Self-Employment</h2>
-                <p class="text-xs text-white/40 mt-1">Review self-employment Schedule C items, NAICS classification, and statutory employee expense linkages.</p>
+                <h2 class="text-xl font-bold text-white tracking-wide font-display uppercase font-sans">Screen 3C-2 — Business Ops & K-1s</h2>
+                <p class="text-xs text-white/40 mt-1">Review self-employment Schedule C items, K-1 pass-throughs, NAICS classification, and statutory employee expense linkages.</p>
             </div>
 
             <!-- Individual/W-2 note: shown only for Individual entity type -->
@@ -2021,9 +2132,167 @@
             <div id="div-business-container" class="hidden flex flex-col gap-4">
                 <div id="div-business-nature-grid" class="hidden"></div> <!-- Deprecated Checklist -->
 
+                <!-- Corporate Threshold Check -->
+                <div id="wrapper-corp-receipts-check" style="display:none;" class="p-4 bg-white/5 border border-white/8 rounded-2xl flex-col gap-3">
+                    <label class="text-xs font-bold text-white uppercase tracking-widest">Did the entity have Total Receipts and Total Assets LESS than $250,000 for the tax year?</label>
+                    <select id="corp-receipts-threshold" onchange="toggleCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded p-2 text-white text-sm">
+                        <option value="yes">Yes (Under $250k - Exempt from L & M-1)</option>
+                        <option value="no">No (Over $250k - Must file L & M-1)</option>
+                    </select>
+                </div>
+
+                <!-- Corporate Financials (Schedule L & M-1) -->
+                <div id="wrapper-corporate-financials" style="display:none;" class="flex-col gap-6 mt-6 pt-6 border-t border-white/10">
+                    <div>
+                        <h3 class="text-sm font-bold text-white tracking-wide uppercase flex items-center gap-2">Schedule L, M-1 & M-2 (Corporate Financials) <span class="text-[9px] bg-brandCyan/20 text-brandCyan px-2 py-0.5 rounded border border-brandCyan/30">Cross-Border Ready</span></h3>
+                        <p class="text-xs text-white/40 mt-1">Required because gross receipts or assets exceed $250,000.</p>
+                    </div>
+                    
+                    <!-- India-US Cross-Border Conflict Alerts Container -->
+                    <div id="corp-financials-alerts" class="hidden flex flex-col gap-2"></div>
+
+                    <!-- Modern Tab Switcher -->
+                    <div class="flex p-1 bg-white/5 border border-white/10 rounded-xl w-full max-w-2xl mx-auto mb-4 backdrop-blur-md">
+                        <button type="button" id="tab-btn-L" onclick="switchCorpTab('L')" class="flex-1 py-3 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-lg bg-brandCyan/20 text-brandCyan shadow-[0_0_15px_rgba(6,182,212,0.15)] transition-all duration-300">Schedule L</button>
+                        <button type="button" id="tab-btn-M1" onclick="switchCorpTab('M1')" class="flex-1 py-3 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition-all duration-300">Schedule M-1</button>
+                        <button type="button" id="tab-btn-M2" onclick="switchCorpTab('M2')" class="flex-1 py-3 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition-all duration-300">Schedule M-2</button>
+                    </div>
+
+                    <div class="relative bg-white/5 border border-white/10 rounded-2xl p-6 shadow-2xl backdrop-blur-sm overflow-hidden min-h-[350px]">
+                        <!-- Schedule L (Balance Sheet) -->
+                        <div id="corp-tab-L" class="corp-tab-content transition-all duration-500 opacity-100 transform translate-y-0 relative z-10">
+                            <div class="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+                                <div class="w-10 h-10 rounded-full bg-brandCyan/20 flex items-center justify-center border border-brandCyan/40 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+                                    <span class="text-xl">⚖️</span>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-black text-white uppercase tracking-widest">Schedule L</h4>
+                                    <p class="text-[10px] text-brandCyan uppercase tracking-widest mt-0.5">Balance Sheet</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="bg-[#121212]/50 p-4 rounded-xl border border-white/5 space-y-4">
+                                    <h5 class="text-[9px] font-black uppercase text-white/40 tracking-widest border-b border-white/5 pb-2">Beginning of Year</h5>
+                                    <div>
+                                        <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Assets</label>
+                                        <input type="number" id="corp-assets-beg" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-brandCyan focus:ring-1 focus:ring-brandCyan/50 focus:outline-none transition-all" placeholder="0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Liabilities</label>
+                                        <input type="number" id="corp-liab-beg" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-brandCyan focus:ring-1 focus:ring-brandCyan/50 focus:outline-none transition-all" placeholder="0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Equity</label>
+                                        <input type="number" id="corp-equity-beg" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-brandCyan focus:ring-1 focus:ring-brandCyan/50 focus:outline-none transition-all" placeholder="0">
+                                    </div>
+                                </div>
+                                <div class="bg-[#121212]/50 p-4 rounded-xl border border-white/5 space-y-4">
+                                    <h5 class="text-[9px] font-black uppercase text-brandCyan/70 tracking-widest border-b border-white/5 pb-2">End of Year</h5>
+                                    <div>
+                                        <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Assets</label>
+                                        <input type="number" id="corp-assets-end" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-brandCyan focus:ring-1 focus:ring-brandCyan/50 focus:outline-none transition-all" placeholder="0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Liabilities</label>
+                                        <input type="number" id="corp-liab-end" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-brandCyan focus:ring-1 focus:ring-brandCyan/50 focus:outline-none transition-all" placeholder="0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Equity</label>
+                                        <input type="number" id="corp-equity-end" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-brandCyan focus:ring-1 focus:ring-brandCyan/50 focus:outline-none transition-all" placeholder="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Schedule M-1 (Reconciliation) -->
+                        <div id="corp-tab-M1" class="corp-tab-content transition-all duration-500 opacity-0 absolute inset-0 p-6 pointer-events-none transform translate-y-4">
+                            <div class="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+                                <div class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center border border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                                    <span class="text-xl">📊</span>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-black text-white uppercase tracking-widest">Schedule M-1</h4>
+                                    <p class="text-[10px] text-amber-500 uppercase tracking-widest mt-0.5">Book vs Tax Reconciliation</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                                <div>
+                                    <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Net Income per Books</label>
+                                    <input type="number" id="corp-m1-book-income" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 focus:outline-none transition-all" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">US Federal Tax Expense</label>
+                                    <input type="number" id="corp-m1-fed-tax" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 focus:outline-none transition-all" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Tax-Exempt Interest</label>
+                                    <input type="number" id="corp-m1-tax-exempt-int" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 focus:outline-none transition-all" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Tax Depr > Book Depr</label>
+                                    <input type="number" id="corp-m1-depr-diff" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 focus:outline-none transition-all" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Meals & Ent. Disallowed</label>
+                                    <input type="number" id="corp-m1-meals" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 focus:outline-none transition-all" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Foreign Taxes Deducted</label>
+                                    <input type="number" id="corp-m1-foreign-tax" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 focus:outline-none transition-all" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Interest Exp Limitation</label>
+                                    <input type="number" id="corp-m1-int-lim" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 focus:outline-none transition-all" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Other Additions</label>
+                                    <input type="number" id="corp-m1-other-add" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 focus:outline-none transition-all" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Other Subtractions</label>
+                                    <input type="number" id="corp-m1-other-sub" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 focus:outline-none transition-all" placeholder="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Schedule M-2 (Retained Earnings) -->
+                        <div id="corp-tab-M2" class="corp-tab-content transition-all duration-500 opacity-0 absolute inset-0 p-6 pointer-events-none transform translate-y-4">
+                            <div class="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+                                <div class="w-10 h-10 rounded-full bg-brandPurple/20 flex items-center justify-center border border-brandPurple/40 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+                                    <span class="text-xl">📈</span>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-black text-white uppercase tracking-widest">Schedule M-2</h4>
+                                    <p class="text-[10px] text-brandPurple uppercase tracking-widest mt-0.5">Retained Earnings</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div>
+                                    <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Beg. Retained Earnings</label>
+                                    <input type="number" id="corp-m2-re-beg" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-brandPurple focus:ring-1 focus:ring-brandPurple/50 focus:outline-none transition-all" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">Distributions Paid</label>
+                                    <input type="number" id="corp-m2-distributions" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-brandPurple focus:ring-1 focus:ring-brandPurple/50 focus:outline-none transition-all" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase tracking-wider text-white/70 mb-1.5">End. Retained Earnings</label>
+                                    <input type="number" id="corp-m2-re-end" oninput="syncCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-white text-sm focus:border-brandPurple focus:ring-1 focus:ring-brandPurple/50 focus:outline-none transition-all" placeholder="0">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Self Employment -->
+                <div id="subsidiary-divider" class="hidden flex items-center justify-center gap-4 py-4 opacity-50">
+                    <div class="h-px bg-white/20 flex-1"></div>
+                    <span class="text-[10px] font-black uppercase tracking-widest text-white/50">Subsidiaries & Investments</span>
+                    <div class="h-px bg-white/20 flex-1"></div>
+                </div>
+
                 <div id="biz-card-sole-prop" style="display:none;"></div> <!-- Dummy for JS -->
-                <div class="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
+                <div id="container-sole-prop" class="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
                     <div class="cursor-pointer flex justify-between items-center p-5 hover:bg-white/5 transition-colors" onclick="document.getElementById('se-has-toggle').click()">
                         <div class="flex items-center gap-4">
                             <span class="text-3xl">👨‍💻</span>
@@ -2049,7 +2318,7 @@
 
                 <!-- Farming & Agriculture -->
                 <div id="biz-card-farming" style="display:none;"></div> <!-- Dummy for JS -->
-                <div class="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
+                <div id="container-farming" class="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
                     <div class="cursor-pointer flex justify-between items-center p-5 hover:bg-white/5 transition-colors" onclick="document.getElementById('farm-has-toggle').click()">
                         <div class="flex items-center gap-4">
                             <span class="text-3xl">🚜</span>
@@ -2075,7 +2344,7 @@
 
                 <!-- Partnerships -->
                 <div id="biz-card-partnership" style="display:none;"></div> <!-- Dummy for JS -->
-                <div class="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
+                <div id="container-partnership" class="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
                     <div class="cursor-pointer flex justify-between items-center p-5 hover:bg-white/5 transition-colors" onclick="document.getElementById('part-k1-has-toggle').click()">
                         <div class="flex items-center gap-4">
                             <span class="text-3xl">🤝</span>
@@ -2092,7 +2361,7 @@
                     <div id="div-part-k1-container" class="overflow-hidden transition-all duration-500 max-h-0 opacity-0">
                         <div class="p-5 border-t border-white/10 flex flex-col gap-4 bg-[#121212]/50">
                             <div class="flex justify-end gap-2 pb-1 border-b border-white/5">
-                                <button type="button" id="btn-add-part-k1" onclick="addPartK1Row()" class="px-3 py-1 bg-white/10 hover:bg-brandCyan/20 hover:text-brandCyan rounded text-[9px] font-black uppercase tracking-widest transition-all">+ Add Partnership K-1</button>
+                                <button type="button" id="btn-add-part-k1" onclick="addPartK1Row()" class="px-3 py-1 bg-white/10 hover:bg-brandCyan/20 hover:text-brandCyan rounded text-[9px] font-black uppercase tracking-widest transition-all">+ Add Partnership / Joint Venture (1065 K-1)</button>
                             </div>
                             <div id="div-part-k1-list" class="grid grid-cols-1 gap-4"></div>
                         </div>
@@ -2101,7 +2370,7 @@
 
                 <!-- S-Corporations -->
                 <div id="biz-card-scorp" style="display:none;"></div> <!-- Dummy for JS -->
-                <div class="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
+                <div id="container-scorp" class="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
                     <div class="cursor-pointer flex justify-between items-center p-5 hover:bg-white/5 transition-colors" onclick="document.getElementById('scorp-k1-has-toggle').click()">
                         <div class="flex items-center gap-4">
                             <span class="text-3xl">🏢</span>
@@ -2127,7 +2396,7 @@
 
                 <!-- C-Corporations -->
                 <div id="biz-card-ccorp" style="display:none;"></div> <!-- Dummy for JS -->
-                <div class="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
+                <div id="container-ccorp" class="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
                     <div class="cursor-pointer flex justify-between items-center p-5 hover:bg-white/5 transition-colors" onclick="document.getElementById('ccorp-has-toggle').click()">
                         <div class="flex items-center gap-4">
                             <span class="text-3xl">🏛️</span>
@@ -2153,7 +2422,7 @@
 
                 <!-- Trusts & Estates -->
                 <div id="biz-card-trust" style="display:none;"></div> <!-- Dummy for JS -->
-                <div class="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
+                <div id="container-trust" class="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
                     <div class="cursor-pointer flex justify-between items-center p-5 hover:bg-white/5 transition-colors" onclick="document.getElementById('trust-k1-has-toggle').click()">
                         <div class="flex items-center gap-4">
                             <span class="text-3xl">📜</span>
@@ -2333,7 +2602,7 @@
                         </span>
                     </div>
                 </div>
-                <a href="/" class="px-4 py-2 bg-brandCyan text-black font-black text-[10px] uppercase tracking-widest rounded-lg hover:brightness-110 transition-all whitespace-nowrap">
+                <a href="dtaa_bridge.html" class="px-4 py-2 bg-brandCyan text-black font-black text-[10px] uppercase tracking-widest rounded-lg hover:brightness-110 transition-all whitespace-nowrap">
                     Open DTAA Bridge &rarr;
                 </a>
             </div>
@@ -2788,7 +3057,7 @@
                     <div class="flex items-center gap-4">
                         <span class="text-3xl">🌎</span>
                         <div class="flex flex-col">
-                            <span class="text-sm font-bold text-white block">I own 10% or more of a foreign corporation</span>
+                            <span id="label-foreign-corp" class="text-sm font-bold text-white block">I own 10% or more of a foreign corporation</span>
                             <span class="text-[10px] text-white/40 uppercase tracking-widest font-black">Form 5471</span>
                         </div>
                     </div>
@@ -2813,7 +3082,7 @@
                     <div class="flex items-center gap-4">
                         <span class="text-3xl">🤝</span>
                         <div class="flex flex-col">
-                            <span class="text-sm font-bold text-white block">I own 10% or more of a foreign partnership</span>
+                            <span id="label-foreign-part" class="text-sm font-bold text-white block">I own 10% or more of a foreign partnership</span>
                             <span class="text-[10px] text-white/40 uppercase tracking-widest font-black">Form 8865</span>
                         </div>
                     </div>
@@ -2832,18 +3101,55 @@
                 </div>
             </div>
 
-            <!-- Disregarded entities (No sub-grid, just toggle) -->
+            <!-- Disregarded entities -->
             <div class="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
                 <div class="cursor-pointer flex justify-between items-center p-5 hover:bg-white/5 transition-colors" onclick="document.getElementById('ent-has-de').click();">
                     <div class="flex items-center gap-4">
                         <span class="text-3xl">👻</span>
                         <div class="flex flex-col">
-                            <span class="text-sm font-bold text-white block">I own a foreign disregarded entity</span>
+                            <span id="label-foreign-dis" class="text-sm font-bold text-white block">I own a foreign disregarded entity</span>
                             <span class="text-[10px] text-white/40 uppercase tracking-widest font-black">Form 8858</span>
                         </div>
                     </div>
-                    <div class="flex items-center gap-3 pr-2">
-                        <input type="checkbox" id="ent-has-de" onchange="updateStateField('foreign_entities', 'owns_foreign_disregarded_entity', this.checked)" class="rounded bg-[#121212] border-white/20 text-brandCyan focus:ring-brandCyan w-5 h-5 pointer-events-none">
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" id="ent-has-de" onchange="updateStateField('foreign_entities', 'owns_foreign_disregarded_entity', this.checked); toggleDeSection(this.checked);" class="rounded bg-[#121212] border-white/20 text-brandCyan focus:ring-brandCyan w-5 h-5 pointer-events-none">
+                        <svg id="chevron-de" class="w-5 h-5 text-white/30 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                </div>
+                <div id="acc-de" class="overflow-hidden transition-all duration-500 max-h-0 opacity-0">
+                    <div class="p-5 border-t border-white/10 flex flex-col gap-4 bg-[#121212]/50">
+                        <p id="msg-de" class="text-[10px] leading-relaxed text-brandCyan">Foreign Disregarded Entities (FDEs) must be reported as a branch/division of your primary entity. We have automatically opened the correct section and created a dedicated FDE profile for you to enter its income and expenses.</p>
+                        <div class="flex justify-end gap-2 pb-1 border-b border-white/5">
+                            <button type="button" onclick="switchStep('step-business'); setTimeout(()=> { const e = document.getElementById('acc-business'); if(e) { e.classList.replace('max-h-0', 'max-h-[15000px]'); e.classList.replace('opacity-0', 'opacity-100'); } }, 100);" class="px-3 py-1 bg-brandCyan text-black hover:brightness-110 rounded text-[9px] font-black uppercase tracking-widest transition-all">Go to Business Section &rarr;</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form 5472 (Inbound) -->
+            <div id="wrapper-form-5472" style="display:none;" class="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
+                <div class="cursor-pointer flex justify-between items-center p-5 hover:bg-white/5 transition-colors" onclick="document.getElementById('form5472-toggle').click()">
+                    <div class="flex items-center gap-4">
+                        <span class="text-3xl">🏢</span>
+                        <div>
+                            <span id="label-form-5472" class="text-sm font-bold text-white block">The Company is 25% or more foreign-owned</span>
+                            <span class="text-[10px] text-brandCyan uppercase tracking-widest font-black">Form 5472 (Inbound)</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" id="form5472-toggle" onchange="toggleForm5472Section(this.checked)" class="rounded bg-[#121212] border-white/20 text-brandCyan focus:ring-brandCyan w-5 h-5 pointer-events-none">
+                        <svg id="chevron-5472" class="w-5 h-5 text-white/30 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                </div>
+                <div id="div-5472-container" class="overflow-hidden transition-all duration-500 max-h-0 opacity-0">
+                    <div class="p-5 border-t border-white/10 flex flex-col gap-4 bg-[#121212]/50">
+                        <p class="text-xs text-white/50">Foreign-owned US corporations must report intercompany transactions with their foreign owners.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] uppercase tracking-wider text-white/50 mb-1">Total Intercompany Payments to Foreign Owner</label>
+                                <input type="number" id="f5472-payments" class="w-full bg-black/40 border border-white/10 rounded p-2 text-white text-sm" placeholder="e.g. 50000">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3387,6 +3693,7 @@
                 <button onclick="switchStep('step-output')" class="px-6 py-2.5 bg-brandCyan text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:brightness-110 transition-all">Next Step</button>
             </div>
         </div>
+        </div>
 
         <!-- STEP 18: SCHEMA JSON -->
         <div id="panel-step-output" class="glass-card p-6 lg:p-8 flex flex-col gap-6 hidden">
@@ -3535,6 +3842,40 @@
             dependents_count: 0,
             spouse_is_us_person: null
         },
+        corporate_profile: {
+            entity_name: null,
+            ein: null,
+            date_of_incorporation: null,
+            state_of_domicile: null,
+            naics_code: null,
+            fiscal_year_end: "12-31",
+            is_foreign_owned_25_pct: false,
+            is_foreign_corporation: false
+        },
+        corporate_international: {
+            fdii_eligible_income: null,
+            ncti_tested_income: null,
+            form_5472_related_parties: []
+        },
+        corporate_financials: {
+            schedule_l: {
+                assets_beginning: 0, assets_ending: 0,
+                liabilities_beginning: 0, liabilities_ending: 0,
+                equity_beginning: 0, equity_ending: 0
+            },
+            schedule_m1: {
+                net_income_per_books: 0,
+                federal_tax_expense: 0,
+                meals_disallowed_50: 0,
+                tax_depreciation_over_book: 0,
+                taxable_income: 0
+            },
+            schedule_m2: {
+                retained_earnings_beginning: 0,
+                distributions_dividends_paid: 0,
+                retained_earnings_ending: 0
+            }
+        },
         us_residency_detail: {
             is_us_citizen: false,
             has_green_card: false,
@@ -3558,6 +3899,13 @@
             dtaa_treaty_residence: "none",
             residency_start_date: null,
             residency_end_date: null
+        },
+        corp_state_nexus: {
+            physical_states: [],
+            economic_states: [],
+            needs_apportionment: false,
+            apportionment_factors: {},
+            has_remote_workers: false
         },
         state_residency: {
             // Global Baseline
@@ -4060,14 +4408,14 @@
         // Toggle the classes to expand/collapse
         if (el.classList.contains('max-h-0')) {
             el.classList.remove('max-h-0', 'opacity-0');
-            el.classList.add('max-h-[2000px]', 'opacity-100', 'pb-4');
+            el.classList.add('max-h-[15000px]', 'opacity-100', 'pb-4');
             if (chevronId) {
                 const chevron = document.getElementById(chevronId);
                 if (chevron) chevron.classList.add('rotate-180');
             }
         } else {
             el.classList.add('max-h-0', 'opacity-0');
-            el.classList.remove('max-h-[2000px]', 'opacity-100', 'pb-4');
+            el.classList.remove('max-h-[15000px]', 'opacity-100', 'pb-4');
             if (chevronId) {
                 const chevron = document.getElementById(chevronId);
                 if (chevron) chevron.classList.remove('rotate-180');
@@ -4081,14 +4429,14 @@
         if (expand) {
             el.classList.remove('hidden'); // Guarantee visibility
             el.classList.remove('max-h-0', 'opacity-0');
-            el.classList.add('max-h-[2000px]', 'opacity-100', 'pb-4');
+            el.classList.add('max-h-[15000px]', 'opacity-100', 'pb-4');
             if (chevronId) {
                 const chevron = document.getElementById(chevronId);
                 if (chevron) chevron.classList.add('rotate-180');
             }
         } else {
             el.classList.add('max-h-0', 'opacity-0');
-            el.classList.remove('max-h-[2000px]', 'opacity-100', 'pb-4');
+            el.classList.remove('max-h-[15000px]', 'opacity-100', 'pb-4');
             if (chevronId) {
                 const chevron = document.getElementById(chevronId);
                 if (chevron) chevron.classList.remove('rotate-180');
@@ -4102,14 +4450,14 @@
         const setupW2 = document.getElementById('setup-w2')?.checked || false;
         const setupBiz = document.getElementById('setup-biz')?.checked || false;
         const setupProp = document.getElementById('setup-prop')?.checked || false;
-        const setupEntities = document.getElementById('setup-entities')?.checked || false;
+        const setupEntities = false;
+        
         const setupRetirement = document.getElementById('setup-retirement')?.checked || false;
         const setupEquity = document.getElementById('setup-equity-btn')?.checked || false;
 
         const setupPassiveAny = document.getElementById('setup-passive')?.checked || false;
         const setupPassiveIntDiv = document.getElementById('setup-passive-intdiv')?.checked || false;
         const setupPassiveCapGains = document.getElementById('setup-passive-capgains')?.checked || false;
-        const setupPassiveOther = document.getElementById('setup-passive-other')?.checked || false;
         
         const setupForeignAny = document.getElementById('setup-foreign')?.checked || false;
         const setupForeignAssets = document.getElementById('setup-foreign-assets')?.checked || false;
@@ -4129,8 +4477,24 @@
             if (group) {
                 if (condition) {
                     group.style.display = 'flex';
+                    // Auto-expand accordion so cards are visible
+                    const content = group.querySelector('.phase-accordion-content');
+                    const chevron = group.querySelector('.chevron');
+                    if (content && content.classList.contains('max-h-0')) {
+                        content.classList.replace('max-h-0', 'max-h-[1000px]');
+                        content.classList.replace('opacity-0', 'opacity-100');
+                        if (chevron) chevron.classList.remove('-rotate-90');
+                    }
                 } else {
                     group.style.display = 'none';
+                    // Collapse accordion when hidden
+                    const content = group.querySelector('.phase-accordion-content');
+                    const chevron = group.querySelector('.chevron');
+                    if (content && content.classList.contains('max-h-[1000px]')) {
+                        content.classList.replace('max-h-[1000px]', 'max-h-0');
+                        content.classList.replace('opacity-100', 'opacity-0');
+                        if (chevron) chevron.classList.add('-rotate-90');
+                    }
                 }
             }
         };
@@ -4139,7 +4503,7 @@
         toggleGroup('nav-group-international', setupForeignAny);
         toggleGroup('nav-group-retirement', setupRetirement);
         toggleGroup('nav-group-business', setupBiz);
-        toggleGroup('nav-group-k1', setupEntities);
+        
         toggleGroup('nav-group-realestate', setupProp);
         toggleGroup('nav-group-investments', setupPassiveAny);
         toggleGroup('nav-group-equity', setupEquity);
@@ -4155,12 +4519,22 @@
             }
         };
         
-        toggleBtn('step-feie', setupForeignFEIE);
+        let allowFeie = setupForeignFEIE;
+        if (typeof usState !== 'undefined' && usState.us_residency_detail && usState.state_residency) {
+            const lock = usState.us_residency_detail.final_us_residency_status;
+            const isUSTaxpayer = (lock === 'US_CITIZEN' || lock === 'RESIDENT_ALIEN');
+            const primaryState = usState.state_residency.primary_state_of_residence;
+            if (primaryState) {
+                const isLivingAbroad = (primaryState === 'OTHER');
+                allowFeie = setupForeignFEIE && isUSTaxpayer && isLivingAbroad;
+            }
+        }
+        toggleBtn('step-feie', allowFeie);
         toggleBtn('step-banks', setupForeignAssets);
         toggleBtn('step-entities', setupForeignEntitiesNested);
         toggleBtn('step-gifts', setupForeignGifts);
         
-        toggleBtn('step-passive', setupPassiveOther || setupPassiveIntDiv);
+        toggleBtn('step-passive', setupPassiveIntDiv);
         toggleBtn('step-capgains', setupPassiveCapGains);
         updateSidebarBadges();
     }
@@ -4195,13 +4569,12 @@
             document.getElementById('setup-w2')?.checked,
             document.getElementById('setup-biz')?.checked,
             document.getElementById('setup-prop')?.checked,
-            document.getElementById('setup-entities')?.checked,
+            
             document.getElementById('setup-retirement')?.checked,
             document.getElementById('setup-equity-btn')?.checked,
             // Nested checks
             document.getElementById('setup-passive-intdiv')?.checked,
             document.getElementById('setup-passive-capgains')?.checked,
-            document.getElementById('setup-passive-other')?.checked,
             document.getElementById('setup-foreign-assets')?.checked,
             document.getElementById('setup-foreign-feie')?.checked,
             document.getElementById('setup-foreign-entities')?.checked,
@@ -4327,14 +4700,29 @@
             lock = usState.us_residency_detail.final_us_residency_status || 'UNKNOWN';
         }
 
+        const taxType = usState.profile.tax_entity_type || 'individual';
+        const effectiveType = taxType === 'llc' ? (usState.profile.llc_tax_election || 'individual') : taxType;
+        const isCorpOrPartnership = ['ccorp', 'scorp', 'partnership'].includes(effectiveType);
+
         const setupW2 = document.getElementById('setup-w2')?.checked || false;
         const setupBiz = document.getElementById('setup-biz')?.checked || false;
         const setupProp = document.getElementById('setup-prop')?.checked || false;
-        const setupEntities = document.getElementById('setup-entities')?.checked || false;
+        const setupEntities = false;
         const setupRetirement = document.getElementById('setup-retirement')?.checked || false;
         const setupEquity = document.getElementById('setup-equity-btn')?.checked || false;
         const setupPassiveAny = document.getElementById('setup-passive')?.checked || false;
         const setupForeignAny = document.getElementById('setup-foreign')?.checked || false;
+
+        if (isCorpOrPartnership) {
+            if (['step-income-us', 'step-retirement', 'step-prop', 'step-equity'].includes(stepName)) return true;
+            if (stepName === 'step-business') return !setupBiz;
+            if (stepName === 'step-k1') return !setupEntities;
+            if (stepName === 'step-passive') return !setupPassiveAny;
+            if (stepName === 'step-capgains') return !(setupPassiveAny || setupEquity);
+            if (stepName === 'step-holdings') return !(setupPassiveAny || setupForeignAny);
+            if (stepName === 'step-entities') return !(setupEntities || setupForeignAny);
+            return false;
+        }
 
         if (stepName === 'step-income-us' && !setupW2) return true;
         if (stepName === 'step-business' && !setupBiz) return true;
@@ -4773,6 +5161,50 @@
         }
     }
 
+    function toggleForm5472Section(show) {
+        const el = document.getElementById('div-5472-container');
+        const icon = document.getElementById('chevron-5472');
+        if (el) {
+            if (show) {
+                el.classList.remove('max-h-0', 'opacity-0');
+                el.classList.add('max-h-[15000px]', 'opacity-100', 'pb-4');
+                if (icon) icon.classList.add('rotate-180');
+            } else {
+                el.classList.add('max-h-0', 'opacity-0');
+                el.classList.remove('max-h-[15000px]', 'opacity-100', 'pb-4');
+                if (icon) icon.classList.remove('rotate-180');
+            }
+        }
+        updateSidebarBadges();
+    }
+
+    function updateEntitiesStepLogic() {
+        const selectedType = usState.profile.tax_entity_type || 'individual';
+        const type = selectedType === 'llc' ? (usState.profile.llc_tax_election || 'individual') : selectedType;
+        const isCorpOrPartnership = ['ccorp', 'scorp', 'partnership'].includes(type);
+
+        const lblCorp = document.getElementById('label-foreign-corp');
+        const lblPart = document.getElementById('label-foreign-part');
+        const lblDis  = document.getElementById('label-foreign-dis');
+        const wrapper5472 = document.getElementById('wrapper-form-5472');
+
+        if (isCorpOrPartnership) {
+            if (lblCorp) lblCorp.textContent = "The Entity owns 10% or more of a foreign corporation";
+            if (lblPart) lblPart.textContent = "The Entity owns 10% or more of a foreign partnership";
+            if (lblDis)  lblDis.textContent  = "The Entity owns a foreign disregarded entity";
+            if (type === 'ccorp' && wrapper5472) {
+                wrapper5472.style.display = 'block';
+            } else if (wrapper5472) {
+                wrapper5472.style.display = 'none';
+            }
+        } else {
+            if (lblCorp) lblCorp.textContent = "I own 10% or more of a foreign corporation";
+            if (lblPart) lblPart.textContent = "I own 10% or more of a foreign partnership";
+            if (lblDis)  lblDis.textContent  = "I own a foreign disregarded entity";
+            if (wrapper5472) wrapper5472.style.display = 'none';
+        }
+    }
+
     function updateTaxEntityLogic() {
         const selectedType = usState.profile.tax_entity_type || 'individual';
         const llcElectionContainer = document.getElementById('llc-election-container');
@@ -4785,27 +5217,65 @@
         
         const indRes = document.getElementById('wrapper-individual-residency');
         const corpRes = document.getElementById('wrapper-corporate-residency');
-        const warnBanner = document.getElementById('entity-type-warning');
-        const warnText = document.getElementById('entity-warning-text');
         const indProfileFields = document.getElementById('wrapper-individual-profile-fields');
+        const corpProfileFields = document.getElementById('wrapper-corporate-profile-fields');
         if (!indRes || !corpRes) return;
         const isIndividual = ['individual', 'sole_prop', 'farming'].includes(type);
+        
         indRes.style.display = isIndividual ? 'flex' : 'none';
         indRes.style.flexDirection = 'column';
         indRes.style.gap = '1rem';
         corpRes.style.display = isIndividual ? 'none' : 'flex';
         corpRes.style.flexDirection = 'column';
         corpRes.style.gap = '1rem';
+        
         if (indProfileFields) indProfileFields.style.display = isIndividual ? 'flex' : 'none';
-        if (warnBanner) warnBanner.style.display = isIndividual ? 'none' : 'flex';
-        if (warnText && !isIndividual) {
-            const msgs = {
-                ccorp: "C-Corporations file Form 1120 separately and do not pass through income to the owner's Form 1040.",
-                scorp: "S-Corporations file Form 1120-S separately and issue a Schedule K-1 to the owner.",
-                partnership: "Partnerships / Multi-Member LLCs file Form 1065 separately and issue a Schedule K-1 to the owner.",
-                trust: "Fiduciary Trusts / Estates file Form 1041 separately and issue a Schedule K-1 to the beneficiary."
-            };
-            warnText.textContent = msgs[type] || '';
+        if (corpProfileFields) corpProfileFields.style.display = isIndividual ? 'none' : 'flex';
+        
+        if (!isIndividual) {
+            const chkW2 = document.getElementById('setup-w2');
+            const chkRetirement = document.getElementById('setup-retirement');
+            const chkFeie = document.getElementById('setup-foreign-feie');
+            
+            if (chkW2 && chkW2.checked) {
+                chkW2.checked = false;
+                if (typeof toggleSetupCard === 'function') toggleSetupCard('setup-w2', false);
+            }
+            if (chkRetirement && chkRetirement.checked) {
+                chkRetirement.checked = false;
+                if (typeof toggleSetupCard === 'function') toggleSetupCard('setup-retirement', false);
+            }
+            if (chkFeie && chkFeie.checked) {
+                chkFeie.checked = false;
+            }
+        }
+        
+        const indStateNexus = document.getElementById('wrapper-individual-state-nexus');
+        const corpStateNexus = document.getElementById('wrapper-corporate-state-nexus');
+        if (indStateNexus) indStateNexus.style.display = isIndividual ? 'flex' : 'none';
+        if (corpStateNexus) {
+            corpStateNexus.style.display = isIndividual ? 'none' : 'flex';
+            // Also sync the domicile state to the read-only field
+            const roDomicile = document.getElementById('corp-state-domicile-readonly');
+            if (roDomicile && !isIndividual && usState.profile.state_of_domicile) {
+                roDomicile.value = usState.profile.state_of_domicile;
+            } else if (roDomicile) {
+                roDomicile.value = 'Not specified';
+            }
+        }
+
+        const wrapperW2 = document.getElementById('card-setup-w2');
+        const wrapperRetirement = document.getElementById('card-setup-retirement');
+        const wrapperFeie = document.getElementById('wrapper-setup-foreign-feie');
+        const btnNra = document.getElementById('btn-step-nra');
+        
+        if (wrapperW2) wrapperW2.style.display = isIndividual ? 'flex' : 'none';
+        if (wrapperRetirement) wrapperRetirement.style.display = isIndividual ? 'flex' : 'none';
+        if (wrapperFeie) wrapperFeie.style.display = isIndividual ? 'inline-flex' : 'none';
+        if (btnNra) btnNra.style.display = isIndividual ? 'flex' : 'none';
+
+        if (typeof updateSidebarVisibility === 'function') {
+            updateSidebarVisibility();
         }
 
         const idIcon = document.getElementById('id-upload-icon');
@@ -4834,86 +5304,297 @@
         saveStateAndSync();
     }
 
+    function switchCorpTab(tabId) {
+        ['L', 'M1', 'M2'].forEach(id => {
+            const btn = document.getElementById('tab-btn-' + id);
+            if (btn) {
+                btn.classList.remove('bg-brandCyan/20', 'text-brandCyan', 'shadow-[0_0_15px_rgba(6,182,212,0.15)]');
+                btn.classList.add('text-white/50', 'hover:text-white', 'hover:bg-white/5');
+            }
+            const content = document.getElementById('corp-tab-' + id);
+            if (content) {
+                content.classList.remove('opacity-100', 'translate-y-0', 'relative', 'z-10');
+                content.classList.add('opacity-0', 'translate-y-4', 'absolute', 'pointer-events-none');
+            }
+        });
+
+        const activeBtn = document.getElementById('tab-btn-' + tabId);
+        if (activeBtn) {
+            activeBtn.classList.add('bg-brandCyan/20', 'text-brandCyan', 'shadow-[0_0_15px_rgba(6,182,212,0.15)]');
+            activeBtn.classList.remove('text-white/50', 'hover:text-white', 'hover:bg-white/5');
+        }
+
+        const activeContent = document.getElementById('corp-tab-' + tabId);
+        if (activeContent) {
+            activeContent.classList.add('opacity-100', 'translate-y-0', 'relative', 'z-10');
+            activeContent.classList.remove('opacity-0', 'translate-y-4', 'absolute', 'pointer-events-none');
+        }
+    }
+
+    function toggleCorporateFinancials() {
+        const type = usState.profile.tax_entity_type || 'individual';
+        const effectiveType = type === 'llc' ? (usState.profile.llc_tax_election || 'individual') : type;
+        const isCorpOrPartnership = ['ccorp', 'scorp', 'partnership'].includes(effectiveType);
+
+        const receiptsCheck = document.getElementById('wrapper-corp-receipts-check');
+        const financialsWrapper = document.getElementById('wrapper-corporate-financials');
+
+        if (isCorpOrPartnership) {
+            receiptsCheck.style.display = 'flex';
+            const val = document.getElementById('corp-receipts-threshold').value;
+            if (val === 'no') {
+                financialsWrapper.style.display = 'flex';
+            } else {
+                financialsWrapper.style.display = 'none';
+            }
+        } else {
+            receiptsCheck.style.display = 'none';
+            financialsWrapper.style.display = 'none';
+        }
+    }
+
+    function syncCorporateFinancials() {
+        if (!usState.corporate_financials) {
+            usState.corporate_financials = {
+                schedule_l: {},
+                schedule_m1: {},
+                schedule_m2: {}
+            };
+        }
+        
+        // Schedule L
+        usState.corporate_financials.schedule_l.assets_beginning = parseFormattedNumber(document.getElementById('corp-assets-beg')?.value) || 0;
+        usState.corporate_financials.schedule_l.assets_ending = parseFormattedNumber(document.getElementById('corp-assets-end')?.value) || 0;
+        usState.corporate_financials.schedule_l.liabilities_beginning = parseFormattedNumber(document.getElementById('corp-liab-beg')?.value) || 0;
+        usState.corporate_financials.schedule_l.liabilities_ending = parseFormattedNumber(document.getElementById('corp-liab-end')?.value) || 0;
+        usState.corporate_financials.schedule_l.equity_beginning = parseFormattedNumber(document.getElementById('corp-equity-beg')?.value) || 0;
+        usState.corporate_financials.schedule_l.equity_ending = parseFormattedNumber(document.getElementById('corp-equity-end')?.value) || 0;
+
+        // Schedule M-1
+        usState.corporate_financials.schedule_m1.net_income_per_books = parseFormattedNumber(document.getElementById('corp-m1-book-income')?.value) || 0;
+        usState.corporate_financials.schedule_m1.federal_tax_expense = parseFormattedNumber(document.getElementById('corp-m1-fed-tax')?.value) || 0;
+        usState.corporate_financials.schedule_m1.tax_exempt_interest = parseFormattedNumber(document.getElementById('corp-m1-tax-exempt-int')?.value) || 0;
+        usState.corporate_financials.schedule_m1.tax_depreciation_over_book = parseFormattedNumber(document.getElementById('corp-m1-depr-diff')?.value) || 0;
+        usState.corporate_financials.schedule_m1.meals_disallowed_50 = parseFormattedNumber(document.getElementById('corp-m1-meals')?.value) || 0;
+        usState.corporate_financials.schedule_m1.foreign_taxes_credited = parseFormattedNumber(document.getElementById('corp-m1-foreign-tax')?.value) || 0;
+        usState.corporate_financials.schedule_m1.interest_expense_limitation = parseFormattedNumber(document.getElementById('corp-m1-int-lim')?.value) || 0;
+        usState.corporate_financials.schedule_m1.other_additions = parseFormattedNumber(document.getElementById('corp-m1-other-add')?.value) || 0;
+        usState.corporate_financials.schedule_m1.other_subtractions = parseFormattedNumber(document.getElementById('corp-m1-other-sub')?.value) || 0;
+
+        // Schedule M-2
+        usState.corporate_financials.schedule_m2.retained_earnings_beginning = parseFormattedNumber(document.getElementById('corp-m2-re-beg')?.value) || 0;
+        usState.corporate_financials.schedule_m2.distributions_dividends_paid = parseFormattedNumber(document.getElementById('corp-m2-distributions')?.value) || 0;
+        usState.corporate_financials.schedule_m2.retained_earnings_ending = parseFormattedNumber(document.getElementById('corp-m2-re-end')?.value) || 0;
+
+        checkCorporateFinancialsConflicts();
+    }
+
+    function checkCorporateFinancialsConflicts() {
+        const alertsContainer = document.getElementById('corp-financials-alerts');
+        if (!alertsContainer) return;
+        
+        let alerts = [];
+        const m1 = usState.corporate_financials.schedule_m1;
+
+        if (m1.tax_depreciation_over_book > 0) {
+            alerts.push(`
+                <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex gap-3 items-start">
+                    <span class="text-amber-500 mt-0.5 text-lg">⚠️</span>
+                    <div>
+                        <h4 class="text-xs font-bold text-amber-500 uppercase tracking-widest">US GAAP vs. Ind AS Mismatch</h4>
+                        <p class="text-[10px] text-white/70 mt-1 leading-relaxed">You reported a Book-to-Tax depreciation difference. If your Indian entity operates under Ind AS or Indian GAAP, these timing differences can attract Transfer Pricing scrutiny or Permanent Establishment profit attribution conflicts. Ensure your cost-plus margins account for uniform depreciation bases.</p>
+                    </div>
+                </div>
+            `);
+        }
+
+        if (m1.federal_tax_expense > 0) {
+            alerts.push(`
+                <div class="p-3 rounded-lg bg-brandCyan/10 border border-brandCyan/30 flex gap-3 items-start">
+                    <span class="text-brandCyan mt-0.5 text-lg">🌐</span>
+                    <div>
+                        <h4 class="text-xs font-bold text-brandCyan uppercase tracking-widest">DTAA Article 25 (FTC) Reminder</h4>
+                        <p class="text-[10px] text-white/70 mt-1 leading-relaxed">You booked $${formatCurrency(m1.federal_tax_expense)} in US Federal Tax Expense. Under Article 25 of the US-India Double Taxation Avoidance Agreement, you must ensure these taxes are claimed as a Foreign Tax Credit (FTC) on the Indian return to avoid double taxation.</p>
+                    </div>
+                </div>
+            `);
+        }
+
+        if (m1.tax_exempt_interest > 0) {
+            alerts.push(`
+                <div class="p-3 rounded-lg bg-brandRed/10 border border-brandRed/30 flex gap-3 items-start">
+                    <span class="text-brandRed mt-0.5 text-lg">🚨</span>
+                    <div>
+                        <h4 class="text-xs font-bold text-brandRed uppercase tracking-widest">Tax-Exempt Interest Trap</h4>
+                        <p class="text-[10px] text-white/70 mt-1 leading-relaxed">US municipal bond interest (${formatCurrency(m1.tax_exempt_interest)}) is tax-exempt in the US, but <strong>fully taxable in India</strong> for residents. You must add this back to your Indian taxable income computation.</p>
+                    </div>
+                </div>
+            `);
+        }
+
+        if (m1.interest_expense_limitation > 0) {
+            alerts.push(`
+                <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex gap-3 items-start">
+                    <span class="text-amber-500 mt-0.5 text-lg">⚠️</span>
+                    <div>
+                        <h4 class="text-xs font-bold text-amber-500 uppercase tracking-widest">Thin Capitalization Check (Sec 163j vs 94B)</h4>
+                        <p class="text-[10px] text-white/70 mt-1 leading-relaxed">You have a US Sec. 163(j) interest expense limitation. Verify if India's Thin Capitalization rules (Sec. 94B) also require disallowance for interest paid to non-resident associated enterprises (capped at 30% of EBITDA).</p>
+                    </div>
+                </div>
+            `);
+        }
+
+        if (alerts.length > 0) {
+            alertsContainer.innerHTML = alerts.join('');
+            alertsContainer.classList.remove('hidden');
+        } else {
+            alertsContainer.innerHTML = '';
+            alertsContainer.classList.add('hidden');
+        }
+    }
+
     function updateBusinessStepLogic() {
+        toggleCorporateFinancials();
         const selectedType = usState.profile.tax_entity_type || 'individual';
         const type = selectedType === 'llc' ? (usState.profile.llc_tax_election || 'individual') : selectedType;
-        
+        const isCorpOrPartnership = ['ccorp', 'scorp', 'partnership'].includes(type);
+
         // Visibility is now controlled purely by the Business Nature Checklist.
         // Update the step title/subtitle to reflect the active entity
-        const titles = {
-            individual:   { title: 'Screen 3C-2 \u2014 Business & Self-Employment', sub: 'Add any Schedule C, farming, or self-employment income you receive.' },
-            partnership:  { title: 'Screen 3C-2 \u2014 Partnership / LLC (Form 1065)', sub: 'Manage and allocate shares to all partners in the partnership.' },
-            scorp:        { title: 'Screen 3C-2 \u2014 S-Corporation (Form 1120-S)', sub: 'Manage and allocate shares to all shareholders in the corporation.' },
-            ccorp:        { title: 'Screen 3C-2 \u2014 C-Corporation (Form 1120)', sub: 'Enter income and tax information for your C-Corporation.' },
-            trust:        { title: 'Screen 3C-2 \u2014 Fiduciary Trust / Estate (Form 1041)', sub: 'Manage and allocate shares to all beneficiaries.' },
-        };
-        const info = titles[type] || titles.individual;
         const h2 = document.querySelector('#panel-step-business h2');
         const p  = document.querySelector('#panel-step-business p');
-        if (h2) h2.textContent = info.title;
-        if (p)  p.textContent  = info.sub;
+        if (h2 && p) {
+            if (isCorpOrPartnership) {
+                h2.textContent = "Screen 3C-2 \u2014 Primary Trade or Business & K-1s";
+                p.innerHTML = "Report the primary operating income, COGS, and deductions for the entity, as well as K-1 Pass-Throughs. <br><span class='text-amber-400 mt-2 block'>Note: To add domestic subsidiaries or joint ventures, use the Investments section below. For foreign subsidiaries, use the Foreign Entities section.</span>";
+            } else {
+                h2.textContent = "Screen 3C-2 \u2014 Business, Self-Employment & K-1s";
+                p.textContent = "Add any Schedule C, farming, K-1 Pass-Throughs, or self-employment income you receive.";
+            }
+        }
 
-        // Dynamic labels for Partnership
-        const partTitle = document.querySelector('#biz-card-partnership span.text-xs');
+        // --- FLEXBOX REORDERING LOGIC ---
+        const subsidiaryDivider = document.getElementById('subsidiary-divider');
+        
+        // Find containers (we gave them IDs earlier)
+        const containers = {
+            soleProp: document.getElementById('container-sole-prop'),
+            farming: document.getElementById('container-farming'),
+            partnership: document.getElementById('container-partnership'),
+            scorp: document.getElementById('container-scorp'),
+            ccorp: document.getElementById('container-ccorp'),
+            trust: document.getElementById('container-trust')
+        };
+        const corpFinancials = document.getElementById('wrapper-corporate-financials');
+        const corpReceiptsCheck = document.getElementById('wrapper-corp-receipts-check');
+        const selfEmploymentIncomeToggleContainer = document.querySelector('#panel-step-business .border.border-white\\/10.rounded-2xl.p-5');
+
+        // 1. Reset Orders & Visibility
+        Object.values(containers).forEach(c => { if (c) c.style.order = 10; });
+        if (corpFinancials) corpFinancials.style.order = 10;
+        if (corpReceiptsCheck) corpReceiptsCheck.style.order = 10;
+        if (subsidiaryDivider) {
+            subsidiaryDivider.style.order = 10;
+            subsidiaryDivider.classList.add('hidden');
+        }
+        if (selfEmploymentIncomeToggleContainer) {
+            selfEmploymentIncomeToggleContainer.style.display = 'flex';
+        }
+
+        // 2. Reset Titles & Buttons
+        const partTitle = document.querySelector('#container-partnership span.text-sm.font-bold');
+        if (partTitle) partTitle.textContent = "I am a partner in a Partnership";
         const partToggleLabel = document.querySelector('label[for="part-k1-has-toggle"]');
+        if (partToggleLabel) partToggleLabel.textContent = "Has Partnerships / Joint Ventures";
         const partBtn = document.getElementById('btn-add-part-k1');
-        if (partTitle) partTitle.textContent = "Partnerships (Schedule K-1, Form 1065)";
-        if (partToggleLabel) partToggleLabel.textContent = "Has Partnerships";
-        if (partBtn) partBtn.textContent = "+ Add Partnership K-1";
-        if (type === 'partnership') {
-            // Auto-expand Partnership card
-            const toggle = document.getElementById('part-k1-has-toggle');
-            if (toggle && !toggle.checked) {
-                toggle.checked = true;
-                togglePartK1Section(true);
-            }
-        }
+        if (partBtn) partBtn.textContent = "+ Add Partnership / Joint Venture (1065 K-1)";
 
-        // Dynamic labels for S-Corp
-        const scorpTitle = document.querySelector('#biz-card-scorp span.text-xs');
+        const scorpTitle = document.querySelector('#container-scorp span.text-sm.font-bold');
+        if (scorpTitle) scorpTitle.textContent = "I am a shareholder in an S-Corporation";
         const scorpToggleLabel = document.querySelector('label[for="scorp-k1-has-toggle"]');
-        const scorpBtn = document.getElementById('btn-add-scorp-k1');
-        if (scorpTitle) scorpTitle.textContent = "S-Corporations (Schedule K-1, Form 1120-S)";
         if (scorpToggleLabel) scorpToggleLabel.textContent = "Has S-Corporations";
+        const scorpBtn = document.getElementById('btn-add-scorp-k1');
         if (scorpBtn) scorpBtn.textContent = "+ Add S-Corp K-1";
-        if (type === 'scorp') {
-            // Auto-expand S-Corp card
-            const toggle = document.getElementById('scorp-k1-has-toggle');
-            if (toggle && !toggle.checked) {
-                toggle.checked = true;
-                toggleScorpK1Section(true);
-            }
-        }
+        const ccorpTitle = document.querySelector('#container-ccorp span.text-sm.font-bold');
+        if (ccorpTitle) ccorpTitle.textContent = "I own a C-Corporation";
 
-        // Dynamic labels for Trust
-        const trustTitle = document.querySelector('#biz-card-trust span.text-xs');
+        const trustTitle = document.querySelector('#container-trust span.text-sm.font-bold');
         const trustToggleLabel = document.querySelector('label[for="trust-k1-has-toggle"]');
         const trustBtn = document.querySelector('#div-trust-k1-container button');
         if (type === 'trust') {
             if (trustTitle) trustTitle.textContent = "Beneficiaries' Share of Income (Form 1041 Schedule K-1)";
             if (trustToggleLabel) trustToggleLabel.textContent = "Has Beneficiaries";
             if (trustBtn) trustBtn.textContent = "+ Add Beneficiary";
-
-            // Auto-expand Trust card
-            const toggle = document.getElementById('trust-k1-has-toggle');
-            if (toggle && !toggle.checked) {
-                toggle.checked = true;
-                toggleTrustK1Section(true);
-            }
         } else {
             if (trustTitle) trustTitle.textContent = "Fiduciary Trusts & Estates (Form 1041 K-1)";
             if (trustToggleLabel) trustToggleLabel.textContent = "Has Trusts/Estates K-1";
             if (trustBtn) trustBtn.textContent = "+ Add Trust/Estate K-1";
         }
 
-        // Dynamic labels for C-Corp
-        if (type === 'ccorp') {
-            // Auto-expand C-Corp card
-            const toggle = document.getElementById('ccorp-has-toggle');
-            if (toggle && !toggle.checked) {
-                toggle.checked = true;
-                toggleCcorpSection(true);
+        // Enable toggles just in case they were disabled previously
+        ['part-k1-has-toggle', 'scorp-k1-has-toggle', 'ccorp-has-toggle'].forEach(id => {
+            const toggle = document.getElementById(id);
+            if (toggle) toggle.disabled = false;
+        });
+
+        // 3. Apply Reordering based on Entity Type
+        if (isCorpOrPartnership) {
+            // Hide the redundant top toggle
+            if (selfEmploymentIncomeToggleContainer) {
+                selfEmploymentIncomeToggleContainer.style.display = 'none';
             }
+
+            // Show the divider
+            if (subsidiaryDivider) {
+                subsidiaryDivider.classList.remove('hidden');
+                subsidiaryDivider.style.order = 4;
+                subsidiaryDivider.style.display = 'flex'; // override hidden class
+            }
+
+            // Position financials
+            if (corpReceiptsCheck) corpReceiptsCheck.style.order = 2;
+            if (corpFinancials) corpFinancials.style.order = 3;
+
+            let primaryContainer = null;
+            let primaryToggle = null;
+            let primaryToggleSectionFn = null;
+
+            if (type === 'ccorp') {
+                primaryContainer = containers.ccorp;
+                primaryToggle = document.getElementById('ccorp-has-toggle');
+                primaryToggleSectionFn = toggleCcorpSection;
+                if (ccorpTitle) ccorpTitle.textContent = "PRIMARY ENTITY OPERATIONS (Gross Receipts, COGS, Deductions)";
+            } else if (type === 'scorp') {
+                primaryContainer = containers.scorp;
+                primaryToggle = document.getElementById('scorp-k1-has-toggle');
+                primaryToggleSectionFn = toggleScorpK1Section;
+                if (scorpTitle) scorpTitle.textContent = "PRIMARY ENTITY OPERATIONS (Gross Receipts, COGS, Deductions)";
+            } else if (type === 'partnership') {
+                primaryContainer = containers.partnership;
+                primaryToggle = document.getElementById('part-k1-has-toggle');
+                primaryToggleSectionFn = togglePartK1Section;
+                if (partTitle) partTitle.textContent = "PRIMARY ENTITY OPERATIONS (Gross Receipts, COGS, Deductions)";
+            }
+
+            if (primaryContainer) {
+                // Move to top
+                primaryContainer.style.order = 1;
+                // Force open & lock
+                if (primaryToggle) {
+                    if (!primaryToggle.checked) {
+                        primaryToggle.checked = true;
+                        if (primaryToggleSectionFn) primaryToggleSectionFn(true);
+                    }
+                    primaryToggle.disabled = true; // Lock it so they can't uncheck their primary entity
+                }
+            }
+        } else if (type === 'trust') {
+             // For trust, we can auto-expand it but we don't necessarily need the financials block
+             const toggle = document.getElementById('trust-k1-has-toggle');
+             if (toggle && !toggle.checked) {
+                 toggle.checked = true;
+                 toggleTrustK1Section(true);
+             }
         }
 
         updateCardLabels();
@@ -5350,6 +6031,10 @@
                         if (nameInput) {
                             nameInput.value = "Foreign Disregarded Entity (Form 8858)";
                         }
+                        const llcTypeSelect = wrapper.querySelector('.se-llc-type');
+                        if (llcTypeSelect) {
+                            llcTypeSelect.value = "foreign_disregarded";
+                        }
                         const header = wrapper.querySelector('.se-header-title');
                         if (header) {
                             header.innerHTML = '&#x1f3e2; Foreign Disregarded Entity (Schedule C)';
@@ -5360,7 +6045,7 @@
                     syncSeState();
                 }, 50);
                 
-                alert("Foreign Disregarded Entities (FDEs) are treated as personal self-employment for US Individual tax purposes.\n\nWe have automatically opened the Self-Employment (Schedule C) section and created a dedicated FDE profile for you to enter its income and expenses.");
+                /* Alert removed for better UX */
             } else {
                 // Context-aware logic for Partnerships, S-Corps, C-Corps, Trusts
                 let toggleId = '';
@@ -5371,7 +6056,7 @@
                 else if (type === 'ccorp') { toggleId = 'ccorp-has-toggle'; sectionName = 'C-Corporations'; }
                 else if (type === 'trust') { toggleId = 'trust-k1-has-toggle'; sectionName = 'Fiduciary Trusts & Estates'; }
 
-                if (toggleId) {
+                                if (toggleId) {
                     const bizToggle = document.getElementById(toggleId);
                     if (bizToggle && !bizToggle.checked) {
                         bizToggle.checked = true;
@@ -5379,10 +6064,32 @@
                         else if (type === 'scorp') toggleScorpK1Section(true);
                         else if (type === 'ccorp') toggleCcorpSection(true);
                         else if (type === 'trust') toggleTrustK1Section(true);
+                        
+                        // Auto-create FDE branch for corporate entities
+                        if (['ccorp', 'scorp', 'partnership'].includes(type)) {
+                            setTimeout(() => {
+                                let rowId = null;
+                                let listId = type === 'ccorp' ? 'div-ccorp-list' : (type === 'scorp' ? 'div-scorp-k1-list' : 'div-part-k1-list');
+                                const list = document.getElementById(listId);
+                                
+                                if (list && list.children.length > 0) {
+                                    rowId = list.children[0].id;
+                                } else {
+                                    // Create the parent row first
+                                    if (type === 'ccorp') rowId = addCcorpRow();
+                                    else if (type === 'scorp') rowId = addScorpK1Row();
+                                    else if (type === 'partnership') rowId = addPartK1Row();
+                                }
+                                
+                                if (rowId) {
+                                    addUsBranchRow(rowId, type, { branch_name: "Foreign Disregarded Entity (Form 8858)", is_foreign_branch: true });
+                                }
+                            }, 100);
+                        }
                     }
                 }
                 
-                alert(`Because your primary tax entity is a ${sectionName}, your Foreign Disregarded Entity (FDE) must be reported as a branch/division of your company.\n\nWe have automatically opened the ${sectionName} section. Please click '+ Add Branch' inside your primary company card to enter the FDE's income and expenses.`);
+                /* Alert removed for better UX */
             }
 
 
@@ -5437,13 +6144,14 @@
     function populateStateDropdowns() {
         const ids = ['state-jan1','state-dec31','state-primary','state-prev',
                      'state-school','state-bank-medical','state-vehicle','state-footprint-picker',
-                     'state-mil-home', 'state-mil-station', 'state-employer-based'];
+                     'state-mil-home', 'state-mil-station', 'state-employer-based', 'corp-state-physical-picker', 'corp-state-economic-picker', 'corp-domicile'];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
-            el.innerHTML = US_STATES.map(s =>
+            const options = US_STATES.map(s =>
                 `<option value="${s.code}">${s.name}${s.code && s.code !== 'OTHER' ? ' ('+s.code+')' : ''}</option>`
             ).join('');
+            el.innerHTML = `<option value="">-- Select State --</option>` + options;
         });
     }
 
@@ -5478,6 +6186,47 @@
             </span>`
         ).join('');
     }
+    function addCorpFootprintState(type) {
+        const picker = document.getElementById(`corp-state-${type}-picker`);
+        if (!picker || !picker.value) return;
+        const code = picker.value;
+        if (!usState.corp_state_nexus) usState.corp_state_nexus = { physical_states: [], economic_states: [] };
+        if (!usState.corp_state_nexus[`${type}_states`]) usState.corp_state_nexus[`${type}_states`] = [];
+        
+        if (!usState.corp_state_nexus[`${type}_states`].includes(code)) {
+            usState.corp_state_nexus[`${type}_states`].push(code);
+            renderCorpFootprintChips(type);
+            renderStateResidencyStatus();
+            saveStateAndSync();
+        }
+        picker.value = '';
+    }
+
+    function removeCorpFootprintState(type, code) {
+        if (!usState.corp_state_nexus || !usState.corp_state_nexus[`${type}_states`]) return;
+        usState.corp_state_nexus[`${type}_states`] = usState.corp_state_nexus[`${type}_states`].filter(c => c !== code);
+        renderCorpFootprintChips(type);
+        renderStateResidencyStatus();
+        saveStateAndSync();
+    }
+
+    function renderCorpFootprintChips(type) {
+        const container = document.getElementById(`div-corp-${type}-chips`);
+        if (!container) return;
+        if (!usState.corp_state_nexus || !usState.corp_state_nexus[`${type}_states`]) {
+            container.innerHTML = '';
+            return;
+        }
+        const chips = usState.corp_state_nexus[`${type}_states`];
+        if (!chips.length) { container.innerHTML = ''; return; }
+        container.innerHTML = chips.map(code =>
+            `<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-brandCyan/20 border border-brandCyan/40 rounded-lg text-[9px] font-bold text-brandCyan">
+                ${code}
+                <button onclick="removeCorpFootprintState('${type}', '${code}')" class="ml-1 text-brandCyan/60 hover:text-red-400 transition-all font-black">✕</button>
+            </span>`
+        ).join('');
+    }
+
 
     function onPrimaryStateChange(state) {
         toggleStateSpecificFields(state);
@@ -5736,6 +6485,15 @@
     }
 
     function renderStateResidencyStatus() {
+        const selectedType = usState.profile.tax_entity_type || 'individual';
+        const type = selectedType === 'llc' ? (usState.profile.llc_tax_election || 'individual') : selectedType;
+        const isIndividual = ['individual', 'sole_prop', 'farming'].includes(type);
+
+        if (!isIndividual) {
+            renderCorporateNexusStatus();
+            return;
+        }
+
         const sr = usState.state_residency;
         const uniqueStates = new Set();
         if (sr.primary_state_of_residence) uniqueStates.add(sr.primary_state_of_residence);
@@ -5804,6 +6562,10 @@
         // Also sync right sidebar card
         const sidebarStateContainer = document.getElementById('div-sidebar-state-residency');
         const sidebarStateList = document.getElementById('div-sidebar-state-list');
+        if (sidebarStateContainer) {
+            const sidebarStateLabel = sidebarStateContainer.querySelector('span');
+            if (sidebarStateLabel) sidebarStateLabel.innerText = "State Residency Status:";
+        }
         if (sidebarStateContainer && sidebarStateList) {
             const hasStates = uniqueStates.size > 0;
             sidebarStateContainer.classList.toggle('hidden', !hasStates);
@@ -5819,6 +6581,168 @@
                         <div class="flex items-center justify-between text-[10px]">
                             <span class="text-white/70 font-semibold">${state}</span>
                             <span class="px-1.5 py-0.5 rounded font-bold uppercase tracking-wider text-[8px] ${badgeColor}">${info.status}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+    }
+
+
+
+    function syncApportionmentState(stateCode, val) {
+        if (!usState.corp_state_nexus) usState.corp_state_nexus = {};
+        if (!usState.corp_state_nexus.apportionment_factors) usState.corp_state_nexus.apportionment_factors = {};
+        
+        let numVal = parseFloat(val.replace(/[^0-9.-]+/g,""));
+        if (isNaN(numVal)) numVal = 0;
+        
+        usState.corp_state_nexus.apportionment_factors[stateCode] = numVal;
+        saveStateAndSync();
+        
+        // Update the total only, to avoid losing focus by re-rendering the whole matrix
+        const factors = usState.corp_state_nexus.apportionment_factors;
+        let totalVal = 0;
+        for (const key in factors) {
+            totalVal += factors[key];
+        }
+        const totalSpan = document.getElementById('corp-apportionment-total');
+        if (totalSpan) {
+            totalSpan.textContent = '$' + totalVal.toLocaleString('en-US');
+        }
+    }
+
+    function renderCorporateApportionmentMatrix() {
+        const matrixDiv = document.getElementById('div-corp-apportionment-matrix');
+        if (!matrixDiv) return;
+        
+        const isApportionment = usState.corp_state_nexus && usState.corp_state_nexus.needs_apportionment;
+        if (!isApportionment) {
+            matrixDiv.classList.add('hidden');
+            return;
+        }
+        
+        matrixDiv.classList.remove('hidden');
+        
+        const cn = usState.corp_state_nexus || {};
+        const uniqueStates = new Set();
+        const dom = usState.profile.state_of_domicile;
+        if (dom) uniqueStates.add(dom);
+        if (cn.physical_states) cn.physical_states.forEach(s => uniqueStates.add(s));
+        if (cn.economic_states) cn.economic_states.forEach(s => uniqueStates.add(s));
+        
+        const factors = cn.apportionment_factors || {};
+        const listDiv = document.getElementById('corp-apportionment-list');
+        const totalSpan = document.getElementById('corp-apportionment-total');
+        
+        if (uniqueStates.size === 0) {
+            listDiv.innerHTML = `<div class="text-xs text-white/30 text-center py-4">No nexus states selected yet.</div>`;
+            if (totalSpan) totalSpan.textContent = '$0';
+            return;
+        }
+        
+        let totalVal = 0;
+        listDiv.innerHTML = Array.from(uniqueStates).map(state => {
+            const stateObj = US_STATES.find(s => s.code === state);
+            const name = stateObj ? stateObj.name : state;
+            const val = factors[state] || 0;
+            totalVal += val;
+            
+            return `
+                <div class="flex items-center justify-between p-2.5 bg-black/40 border border-white/5 rounded-lg">
+                    <span class="text-xs font-bold text-white/80">${name} (${state})</span>
+                    <div class="relative w-1/3">
+                        <span class="absolute left-2.5 top-1.5 text-xs text-white/30 font-mono">$</span>
+                        <input type="text" inputmode="numeric" 
+                            class="w-full bg-[#121212] border border-brandCyan/30 rounded text-xs text-white pl-6 pr-3 py-1.5 focus:border-brandCyan focus:outline-none font-mono text-right" 
+                            placeholder="0" 
+                            value="${val === 0 ? '' : val.toLocaleString('en-US')}"
+                            onblur="formatCurrencyLive(this)"
+                            oninput="syncApportionmentState('${state}', this.value)">
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        if (totalSpan) {
+            totalSpan.textContent = '$' + totalVal.toLocaleString('en-US');
+        }
+    }
+
+    function renderCorporateNexusStatus() {
+        const cn = usState.corp_state_nexus || {};
+        const uniqueStates = new Set();
+        const dom = usState.profile.state_of_domicile;
+        if (dom) uniqueStates.add(dom);
+        
+        const roDomicile = document.getElementById('corp-state-domicile-readonly');
+        if (roDomicile) {
+            roDomicile.value = dom ? dom : 'Not specified';
+        }
+        if (cn.physical_states) cn.physical_states.forEach(s => uniqueStates.add(s));
+        if (cn.economic_states) cn.economic_states.forEach(s => uniqueStates.add(s));
+
+        renderCorporateApportionmentMatrix();
+        
+        const listContainer = document.getElementById('div-state-status-list');
+        if (listContainer) {
+            if (uniqueStates.size === 0) {
+                listContainer.innerHTML = `
+                    <div class="col-span-full text-center py-6 text-white/30 text-xs">
+                        No states selected yet. Provide state of formation or footprint states above.
+                    </div>
+                `;
+            } else {
+                listContainer.innerHTML = Array.from(uniqueStates).map(state => {
+                    const stateObj = US_STATES.find(s => s.code === state);
+                    const name = stateObj ? stateObj.name : state;
+                    
+                    let statuses = [];
+                    if (state === dom) statuses.push({ text: 'DOMICILE', color: 'text-brandCyan bg-brandCyan/20 border-brandCyan/40' });
+                    if (cn.physical_states && cn.physical_states.includes(state)) statuses.push({ text: 'PHYSICAL NEXUS', color: 'text-orange-400 bg-orange-400/20 border-orange-400/40' });
+                    if (cn.economic_states && cn.economic_states.includes(state)) statuses.push({ text: 'ECONOMIC NEXUS', color: 'text-brandGreen bg-brandGreen/20 border-brandGreen/40' });
+                    
+                    if (statuses.length === 0) statuses.push({ text: 'UNKNOWN', color: 'text-white/60 bg-white/10' });
+
+                    const badgesHtml = statuses.map(st => `<span class="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${st.color}">${st.text}</span>`).join(' ');
+
+                    return `
+                        <div class="p-4 bg-black/40 border border-white/5 rounded-xl flex flex-col gap-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-white">${name} (${state})</span>
+                                <div class="flex gap-1.5 items-center flex-wrap justify-end">
+                                    ${badgesHtml}
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-white/50 leading-relaxed font-sans">Business tax footprint identified in this jurisdiction.</p>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Sidebar
+        const sidebarStateContainer = document.getElementById('div-sidebar-state-residency');
+        const sidebarStateList = document.getElementById('div-sidebar-state-list');
+        
+        if (sidebarStateContainer && sidebarStateList) {
+            const sidebarStateLabel = sidebarStateContainer.querySelector('span');
+            if (sidebarStateLabel) sidebarStateLabel.innerText = "State Nexus:";
+            
+            const hasStates = uniqueStates.size > 0;
+            sidebarStateContainer.classList.toggle('hidden', !hasStates);
+            
+            if (hasStates) {
+                sidebarStateList.innerHTML = Array.from(uniqueStates).map(state => {
+                    let st = "NEXUS";
+                    let color = "text-orange-400 bg-orange-400/10";
+                    if (state === dom) { st = "DOMICILE"; color = "text-brandCyan bg-brandCyan/10"; }
+                    else if (cn.economic_states && cn.economic_states.includes(state) && (!cn.physical_states || !cn.physical_states.includes(state))) { st = "ECONOMIC"; color = "text-brandGreen bg-brandGreen/10"; }
+                    
+                    return `
+                        <div class="flex items-center justify-between text-[10px]">
+                            <span class="text-white/70 font-semibold">${state}</span>
+                            <span class="px-1.5 py-0.5 rounded font-bold uppercase tracking-wider text-[8px] ${color}">${st}</span>
                         </div>
                     `;
                 }).join('');
@@ -5961,6 +6885,44 @@
         }
     }
 
+    function toggleCorpSection(show) {
+        const elList = document.getElementById('div-corp-list');
+        const btn = document.getElementById('btn-add-corp');
+        
+        setAccordionState('acc-corp', 'chevron-corp', show);
+        
+        if (elList) {
+            if (show) elList.classList.remove('hidden');
+            else elList.classList.add('hidden');
+        }
+        if (btn) {
+            if (show) btn.classList.remove('hidden');
+            else btn.classList.add('hidden');
+        }
+        updateSidebarBadges();
+    }
+
+    function togglePartSection(show) {
+        const elList = document.getElementById('div-part-list');
+        const btn = document.getElementById('btn-add-part');
+        
+        setAccordionState('acc-part', 'chevron-part', show);
+        
+        if (elList) {
+            if (show) elList.classList.remove('hidden');
+            else elList.classList.add('hidden');
+        }
+        if (btn) {
+            if (show) btn.classList.remove('hidden');
+            else btn.classList.add('hidden');
+        }
+        updateSidebarBadges();
+    }
+
+    function toggleDeSection(show) {
+        setAccordionState('acc-de', 'chevron-de', show);
+    }
+
     window.updateFeieTracker = function() {
         const input = document.getElementById('feie-phys-usdays');
         const bar = document.getElementById('feie-tracker-bar');
@@ -6006,33 +6968,7 @@
         updateSidebarBadges();
     }
 
-    function toggleCorpSection(show) {
-        const el = document.getElementById('div-corp-list');
-        const btn = document.getElementById('btn-add-corp');
-        if (el) {
-            if (show) el.classList.remove('hidden');
-            else el.classList.add('hidden');
-        }
-        if (btn) {
-            if (show) btn.classList.remove('hidden');
-            else btn.classList.add('hidden');
-        }
-        updateSidebarBadges();
-    }
 
-    function togglePartSection(show) {
-        const el = document.getElementById('div-part-list');
-        const btn = document.getElementById('btn-add-part');
-        if (el) {
-            if (show) el.classList.remove('hidden');
-            else el.classList.add('hidden');
-        }
-        if (btn) {
-            if (show) btn.classList.remove('hidden');
-            else btn.classList.add('hidden');
-        }
-        updateSidebarBadges();
-    }
 
     function toggleGiftSection(show) {
         const el = document.getElementById('div-gift-list');
@@ -6361,6 +7297,8 @@
         }
 
         applyNraFilingStatusGating();
+        applySpouseUsPersonGating();
+        applySpouseJointElectionGating();
         updateSidebarBadges();
         checkDualResidencyConflict();
         
@@ -6373,7 +7311,11 @@
     // If disabled, value is set to null.
     function applySpouseUsPersonGating() {
         const filingStatus = usState.profile.filing_status;
-        const isEnabled = ["mfj", "mfs", "hoh"].includes(filingStatus);
+        const lock = usState.us_residency_detail.final_us_residency_status;
+        const isNra = (lock === 'NON_RESIDENT_ALIEN');
+        
+        // Always show for NRAs so they can elect 6013g if married, otherwise show if married status selected
+        const isEnabled = ["mfj", "mfs", "hoh"].includes(filingStatus) || isNra;
         
         const container = document.getElementById('div-spouse-us-person');
         const input = document.getElementById('prof-spouse-us');
@@ -6401,11 +7343,12 @@
     }
 
     // ── Spouse Joint Filing Election (§6013g) Gating ───────────────────────
-    // Visible only when filing_status is in ["mfj", "mfs", "hoh"].
-    // Hidden (and reset to false) when filing as Single or QSS.
+    // Visible only when filing_status is in ["mfj", "mfs", "hoh"], OR if the user is an NRA (so they can unlock MFJ).
     function applySpouseJointElectionGating() {
         const filingStatus = usState.profile.filing_status;
-        const isSpouseStatus = ['mfj', 'mfs', 'hoh'].includes(filingStatus);
+        const lock = usState.us_residency_detail.final_us_residency_status;
+        const isNra = (lock === 'NON_RESIDENT_ALIEN');
+        const isSpouseStatus = ['mfj', 'mfs', 'hoh'].includes(filingStatus) || isNra;
 
         const container = document.getElementById('div-6013g-container');
         const input = document.getElementById('res-6013g');
@@ -8725,6 +9668,69 @@
     function toggle1099Fields() {}
 
     
+    
+    window.toggleBranchFde = function(checkbox, type) {
+        const card = checkbox.closest('.us-branch-card');
+        if (card) {
+            let titleSpan = card.querySelector('summary span');
+            let mainTitle = card.querySelector('.branch-type-title');
+            
+            if (checkbox.checked) {
+                card.classList.remove('border-brandCyan');
+                card.classList.add('border-[#FFB800]');
+                if (titleSpan && !titleSpan.innerHTML.includes('&#x1f30d;')) {
+                    titleSpan.innerHTML += ' <span class="fde-indicator text-[#FFB800] ml-2">&#x1f30d; (Foreign)</span>';
+                }
+                if (mainTitle) {
+                    mainTitle.innerHTML = 'Foreign Disregarded Entity (Form 8858)';
+                    mainTitle.classList.remove('text-brandCyan');
+                    mainTitle.classList.add('text-[#FFB800]');
+                }
+                
+                let stateContainer = card.querySelector('.us-state-container');
+                let countryContainer = card.querySelector('.foreign-country-container');
+                let nameLabel = card.querySelector('.branch-name-label');
+                let nameInput = card.querySelector('.branch-name');
+                
+                if (stateContainer) stateContainer.classList.add('hidden');
+                if (countryContainer) countryContainer.classList.remove('hidden');
+                if (nameLabel) {
+                    nameLabel.innerHTML = 'Entity Name / Identifier';
+                    nameLabel.classList.remove('text-white/40');
+                    nameLabel.classList.add('text-[#FFB800]');
+                }
+                if (nameInput) nameInput.placeholder = 'e.g. London Office';
+            } else {
+                card.classList.add('border-brandCyan');
+                card.classList.remove('border-[#FFB800]');
+                if (titleSpan) {
+                    const indicator = titleSpan.querySelector('.fde-indicator');
+                    if (indicator) indicator.remove();
+                }
+                if (mainTitle) {
+                    mainTitle.innerHTML = mainTitle.getAttribute('data-original-title');
+                    mainTitle.classList.remove('text-[#FFB800]');
+                    mainTitle.classList.add('text-brandCyan');
+                }
+                
+                let stateContainer = card.querySelector('.us-state-container');
+                let countryContainer = card.querySelector('.foreign-country-container');
+                let nameLabel = card.querySelector('.branch-name-label');
+                let nameInput = card.querySelector('.branch-name');
+                
+                if (stateContainer) stateContainer.classList.remove('hidden');
+                if (countryContainer) countryContainer.classList.add('hidden');
+                if (nameLabel) {
+                    nameLabel.innerHTML = 'Branch Name / Identifier';
+                    nameLabel.classList.remove('text-[#FFB800]');
+                    nameLabel.classList.add('text-white/40');
+                }
+                if (nameInput) nameInput.placeholder = 'e.g. Dallas Office';
+            }
+        }
+        syncBranchState(type);
+    };
+
     function addUsBranchRow(cardId, type, branchData = null) {
         const card = document.getElementById(cardId);
         if (!card) return;
@@ -8751,8 +9757,12 @@
 
         if (type === 'part') {
             div.innerHTML = `
+                <div class="flex items-center gap-2 mb-3 bg-[#181818] p-2 rounded-lg border border-white/5">
+                    <input type="checkbox" class="is-foreign-branch rounded bg-[#121212] border-white/20 text-[#FFB800] focus:ring-[#FFB800] w-4 h-4" onchange="toggleBranchFde(this, '${type}')">
+                    <label class="text-[9px] font-black uppercase tracking-widest text-white/60 cursor-pointer" onclick="this.previousElementSibling.click()">This is a Foreign Branch / FDE (Form 8858)</label>
+                </div>
                 <div class="flex justify-between items-center mb-3 pb-2 border-b border-white/5">
-                    <span class="text-[10px] font-black uppercase tracking-widest text-brandCyan">Branch K-1 Allocations (Form 1065)</span>
+                    <span class="branch-type-title text-[10px] font-black uppercase tracking-widest text-brandCyan transition-colors" data-original-title="Branch K-1 Allocations (Form 1065)">Branch K-1 Allocations (Form 1065)</span>
                     <button type="button" onclick="removeUsBranchRow(this, '${type}')" class="text-brandRed/60 hover:text-brandRed font-bold font-sans text-xs px-2 py-1 bg-brandRed/5 hover:bg-brandRed/10 rounded transition-colors">&#x2715; Remove Branch</button>
                 </div>
                 
@@ -8765,12 +9775,17 @@
                     <div class="px-3 pb-3 pt-2 border-t border-white/5 flex flex-col gap-3">
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                             <div class="md:col-span-2">
-                                <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Branch Name / Identifier</label>
+                                <label class="branch-name-label block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Branch Name / Identifier</label>
                                 <input type="text" class="branch-name w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none" placeholder="e.g. Dallas Office" oninput="syncBranchState('${type}')">
                             </div>
-                            <div>
+                            
+                            <div class="us-state-container">
                                 <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">State</label>
                                 ${selectHtml}
+                            </div>
+                            <div class="foreign-country-container hidden">
+                                <label class="block text-[8px] font-black uppercase tracking-widest text-[#FFB800] mb-1">Country</label>
+                                <input type="text" class="branch-country w-full bg-[#121212] border border-[#FFB800]/30 rounded-lg text-xs text-white px-3 py-1.5 focus:border-[#FFB800] focus:outline-none" placeholder="e.g. United Kingdom" oninput="syncBranchState('${type}')">
                             </div>
                         </div>
                     </div>
@@ -8898,6 +9913,10 @@
             `;
         } else if (type === 'scorp') {
             div.innerHTML = `
+                <div class="flex items-center gap-2 mb-3 bg-[#181818] p-2 rounded-lg border border-white/5">
+                    <input type="checkbox" class="is-foreign-branch rounded bg-[#121212] border-white/20 text-[#FFB800] focus:ring-[#FFB800] w-4 h-4" onchange="toggleBranchFde(this, '${type}')">
+                    <label class="text-[9px] font-black uppercase tracking-widest text-white/60 cursor-pointer" onclick="this.previousElementSibling.click()">This is a Foreign Branch / FDE (Form 8858)</label>
+                </div>
                 <div class="flex justify-between items-center mb-3 pb-2 border-b border-white/5">
                     <span class="text-[10px] font-black uppercase tracking-widest text-brandCyan">Branch Operations (Form 1120-S)</span>
                     <button type="button" onclick="removeUsBranchRow(this, '${type}')" class="text-brandRed/60 hover:text-brandRed font-bold font-sans text-xs px-2 py-1 bg-brandRed/5 hover:bg-brandRed/10 rounded transition-colors">&#x2715; Remove Branch</button>
@@ -8912,12 +9931,17 @@
                     <div class="px-3 pb-3 pt-2 border-t border-white/5 flex flex-col gap-3">
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                             <div class="md:col-span-2">
-                                <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Branch Name / Identifier</label>
+                                <label class="branch-name-label block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Branch Name / Identifier</label>
                                 <input type="text" class="branch-name w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none" placeholder="e.g. Dallas Office" oninput="syncBranchState('${type}')">
                             </div>
-                            <div>
+                            
+                            <div class="us-state-container">
                                 <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">State</label>
                                 ${selectHtml}
+                            </div>
+                            <div class="foreign-country-container hidden">
+                                <label class="block text-[8px] font-black uppercase tracking-widest text-[#FFB800] mb-1">Country</label>
+                                <input type="text" class="branch-country w-full bg-[#121212] border border-[#FFB800]/30 rounded-lg text-xs text-white px-3 py-1.5 focus:border-[#FFB800] focus:outline-none" placeholder="e.g. United Kingdom" oninput="syncBranchState('${type}')">
                             </div>
                         </div>
                     </div>
@@ -9042,8 +10066,12 @@
             `;
         } else if (type === 'ccorp') {
             div.innerHTML = `
+                <div class="flex items-center gap-2 mb-3 bg-[#181818] p-2 rounded-lg border border-white/5">
+                    <input type="checkbox" class="is-foreign-branch rounded bg-[#121212] border-white/20 text-[#FFB800] focus:ring-[#FFB800] w-4 h-4" onchange="toggleBranchFde(this, '${type}')">
+                    <label class="text-[9px] font-black uppercase tracking-widest text-white/60 cursor-pointer" onclick="this.previousElementSibling.click()">This is a Foreign Branch / FDE (Form 8858)</label>
+                </div>
                 <div class="flex justify-between items-center mb-3 pb-2 border-b border-white/5">
-                    <span class="text-[10px] font-black uppercase tracking-widest text-brandCyan">Branch Operations (Form 1120)</span>
+                    <span class="branch-type-title text-[10px] font-black uppercase tracking-widest text-brandCyan transition-colors" data-original-title="Branch Operations (Form 1120)">Branch Operations (Form 1120)</span>
                     <button type="button" onclick="removeUsBranchRow(this, '${type}')" class="text-brandRed/60 hover:text-brandRed font-bold font-sans text-xs px-2 py-1 bg-brandRed/5 hover:bg-brandRed/10 rounded transition-colors">&#x2715; Remove Branch</button>
                 </div>
                 
@@ -9056,12 +10084,17 @@
                     <div class="px-3 pb-3 pt-2 border-t border-white/5 flex flex-col gap-3">
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                             <div class="md:col-span-2">
-                                <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Branch Name / Identifier</label>
+                                <label class="branch-name-label block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Branch Name / Identifier</label>
                                 <input type="text" class="branch-name w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none" placeholder="e.g. Dallas Office" oninput="syncBranchState('${type}')">
                             </div>
-                            <div>
+                            
+                            <div class="us-state-container">
                                 <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">State</label>
                                 ${selectHtml}
+                            </div>
+                            <div class="foreign-country-container hidden">
+                                <label class="block text-[8px] font-black uppercase tracking-widest text-[#FFB800] mb-1">Country</label>
+                                <input type="text" class="branch-country w-full bg-[#121212] border border-[#FFB800]/30 rounded-lg text-xs text-white px-3 py-1.5 focus:border-[#FFB800] focus:outline-none" placeholder="e.g. United Kingdom" oninput="syncBranchState('${type}')">
                             </div>
                         </div>
                     </div>
@@ -9139,6 +10172,10 @@
         } else {
             // SE and Farm
             div.innerHTML = `
+                <div class="flex items-center gap-2 mb-3 bg-[#181818] p-2 rounded-lg border border-white/5">
+                    <input type="checkbox" class="is-foreign-branch rounded bg-[#121212] border-white/20 text-[#FFB800] focus:ring-[#FFB800] w-4 h-4" onchange="toggleBranchFde(this, '${type}')">
+                    <label class="text-[9px] font-black uppercase tracking-widest text-white/60 cursor-pointer" onclick="this.previousElementSibling.click()">This is a Foreign Branch / FDE (Form 8858)</label>
+                </div>
                 <div class="flex justify-between items-center mb-3 pb-2 border-b border-white/5">
                     <span class="text-[10px] font-black uppercase tracking-widest text-brandCyan">Branch Details (State Allocation)</span>
                     <button type="button" onclick="removeUsBranchRow(this, '${type}')" class="text-brandRed/60 hover:text-brandRed font-bold font-sans text-xs px-2 py-1 bg-brandRed/5 hover:bg-brandRed/10 rounded transition-colors">&#x2715; Remove Branch</button>
@@ -9153,12 +10190,17 @@
                     <div class="px-3 pb-3 pt-2 border-t border-white/5 flex flex-col gap-3">
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                             <div class="md:col-span-2">
-                                <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Branch Name / Identifier</label>
+                                <label class="branch-name-label block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Branch Name / Identifier</label>
                                 <input type="text" class="branch-name w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none" placeholder="e.g. Dallas Office" oninput="syncBranchState('${type}')">
                             </div>
-                            <div>
+                            
+                            <div class="us-state-container">
                                 <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">State</label>
                                 ${selectHtml}
+                            </div>
+                            <div class="foreign-country-container hidden">
+                                <label class="block text-[8px] font-black uppercase tracking-widest text-[#FFB800] mb-1">Country</label>
+                                <input type="text" class="branch-country w-full bg-[#121212] border border-[#FFB800]/30 rounded-lg text-xs text-white px-3 py-1.5 focus:border-[#FFB800] focus:outline-none" placeholder="e.g. United Kingdom" oninput="syncBranchState('${type}')">
                             </div>
                         </div>
                     </div>
@@ -9202,21 +10244,6 @@
                         </div>
 
                         <div class="text-[8px] font-bold text-white/50 uppercase border-b border-white/5 pb-1 mt-2">Branch Home Office &amp; Vehicle</div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 font-sans">
-                            <div class="bg-black/20 p-3 rounded-lg border border-white/5 flex flex-col gap-2">
-                                <span class="text-[9px] font-black uppercase text-brandCyan mb-1">Home Office (Area Method)</span>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div><label class="block text-[8px] font-bold text-white/40 uppercase">Office Sq Ft</label><input type="text" class="branch-ho-sqft w-full bg-[#121212] border border-white/10 rounded text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
-                                    <div><label class="block text-[8px] font-bold text-white/40 uppercase">Total Home Sq Ft</label><input type="text" class="branch-ho-total-sqft w-full bg-[#121212] border border-white/10 rounded text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
-                                </div>
-                            </div>
-                            <div class="bg-black/20 p-3 rounded-lg border border-white/5 flex flex-col gap-2">
-                                <span class="text-[9px] font-black uppercase text-brandCyan mb-1">Vehicle Mileage</span>
-                                <div class="grid grid-cols-3 gap-2">
-                                    <div><label class="block text-[8px] font-bold text-white/40 uppercase">Biz Miles</label><input type="text" class="branch-veh-biz w-full bg-[#121212] border border-white/10 rounded text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
-                                    <div><label class="block text-[8px] font-bold text-white/40 uppercase">Commute</label><input type="text" class="branch-veh-commute w-full bg-[#121212] border border-white/10 rounded text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
-                                    <div><label class="block text-[8px] font-bold text-white/40 uppercase">Personal</label><input type="text" class="branch-veh-other w-full bg-[#121212] border border-white/10 rounded text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
-                                </div>
                                 <div class="flex flex-col gap-1 mt-1">
                                     <label class="flex items-center gap-2 text-[8px] font-bold text-white/60 uppercase cursor-pointer"><input type="checkbox" class="branch-veh-avail rounded bg-[#121212] border-white/20 text-brandCyan" onchange="syncBranchState('${type}')"> Available for personal use off-duty?</label>
                                     <label class="flex items-center gap-2 text-[8px] font-bold text-white/60 uppercase cursor-pointer"><input type="checkbox" class="branch-veh-evidence rounded bg-[#121212] border-white/20 text-brandCyan" onchange="syncBranchState('${type}')"> Have written evidence?</label>
@@ -9809,6 +10836,7 @@
                             <select class="se-llc-type w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1.5 focus:border-brandCyan focus:outline-none" onchange="syncSeState()">
                                 <option value="sole_prop">Sole Proprietorship</option>
                                 <option value="single_member_llc">Single-Member LLC</option>
+                                <option value="foreign_disregarded">Foreign Disregarded Entity (Form 8858)</option>
                             </select>
                         </div>
                         <div>
@@ -9964,7 +10992,12 @@
         
         const btnDiv = document.createElement('div');
         btnDiv.className = 'mt-4 flex justify-start pl-4 md:pl-8';
-        btnDiv.innerHTML = `<button type="button" onclick="addUsBranchRow('${rowId}', 'se')" class="px-3 py-1.5 bg-brandCyan/10 hover:bg-brandCyan/20 text-brandCyan border border-brandCyan/30 rounded text-xs font-black uppercase tracking-widest transition-all">+ Add Branch Location</button>`;
+        btnDiv.innerHTML = `
+            <div class="flex flex-wrap gap-3">
+                <button type="button" onclick="addUsBranchRow('${rowId}', 'se')" class="px-3 py-1.5 bg-brandCyan/10 hover:bg-brandCyan/20 text-brandCyan border border-brandCyan/30 rounded text-xs font-black uppercase tracking-widest transition-all">+ Add Domestic Branch</button>
+                <button type="button" onclick="addUsBranchRow('${rowId}', 'se', { is_foreign_branch: true, name: 'Foreign Disregarded Entity' })" class="px-3 py-1.5 bg-[#FFB800]/10 hover:bg-[#FFB800]/20 text-[#FFB800] border border-[#FFB800]/30 rounded text-xs font-black uppercase tracking-widest transition-all">+ Add Foreign Branch (FDE)</button>
+            </div>
+        `;
         
         wrapper.appendChild(div);
         wrapper.appendChild(branchesContainer);
@@ -11245,7 +12278,12 @@
 
         const btnDiv = document.createElement('div');
         btnDiv.className = 'mt-4 flex justify-start pl-4 md:pl-8';
-        btnDiv.innerHTML = `<button type="button" onclick="addUsBranchRow('${rowId}', 'part')" class="px-3 py-1.5 bg-brandCyan/10 hover:bg-brandCyan/20 text-brandCyan border border-brandCyan/30 rounded text-xs font-black uppercase tracking-widest transition-all">+ Add Branch Location</button>`;
+        btnDiv.innerHTML = `
+            <div class="flex flex-wrap gap-3">
+                <button type="button" onclick="addUsBranchRow('${rowId}', 'part')" class="px-3 py-1.5 bg-brandCyan/10 hover:bg-brandCyan/20 text-brandCyan border border-brandCyan/30 rounded text-xs font-black uppercase tracking-widest transition-all">+ Add Domestic Branch</button>
+                <button type="button" onclick="addUsBranchRow('${rowId}', 'part', { is_foreign_branch: true, name: 'Foreign Disregarded Entity' })" class="px-3 py-1.5 bg-[#FFB800]/10 hover:bg-[#FFB800]/20 text-[#FFB800] border border-[#FFB800]/30 rounded text-xs font-black uppercase tracking-widest transition-all">+ Add Foreign Branch (FDE)</button>
+            </div>
+        `;
 
         const summaryPanel = document.createElement('div');
         summaryPanel.id = 'consolidated-summary-' + rowId;
@@ -11339,6 +12377,7 @@
         updateCardLabels();
         calculatePartCoreProfit(rowId);
         syncPartK1State();
+        return rowId;
     }
 
     function addPartPartnerRow(partCardId, data = null) {
@@ -12026,7 +13065,12 @@
 
         const btnDiv = document.createElement('div');
         btnDiv.className = 'mt-4 flex justify-start pl-4 md:pl-8';
-        btnDiv.innerHTML = `<button type="button" onclick="addUsBranchRow('${rowId}', 'scorp')" class="px-3 py-1.5 bg-brandCyan/10 hover:bg-brandCyan/20 text-brandCyan border border-brandCyan/30 rounded text-xs font-black uppercase tracking-widest transition-all">+ Add Branch Location</button>`;
+        btnDiv.innerHTML = `
+            <div class="flex flex-wrap gap-3">
+                <button type="button" onclick="addUsBranchRow('${rowId}', 'scorp')" class="px-3 py-1.5 bg-brandCyan/10 hover:bg-brandCyan/20 text-brandCyan border border-brandCyan/30 rounded text-xs font-black uppercase tracking-widest transition-all">+ Add Domestic Branch</button>
+                <button type="button" onclick="addUsBranchRow('${rowId}', 'scorp', { is_foreign_branch: true, name: 'Foreign Disregarded Entity' })" class="px-3 py-1.5 bg-[#FFB800]/10 hover:bg-[#FFB800]/20 text-[#FFB800] border border-[#FFB800]/30 rounded text-xs font-black uppercase tracking-widest transition-all">+ Add Foreign Branch (FDE)</button>
+            </div>
+        `;
 
         const summaryPanel = document.createElement('div');
         summaryPanel.id = 'consolidated-summary-' + rowId;
@@ -12110,6 +13154,7 @@
         updateCardLabels();
         calculateScorpCoreProfit(rowId);
         syncScorpK1State();
+        return rowId;
     }
 
     function addScorpShareholderRow(scorpCardId, data = null) {
@@ -12697,7 +13742,12 @@
 
         const btnDiv = document.createElement('div');
         btnDiv.className = 'mt-4 flex justify-start pl-4 md:pl-8';
-        btnDiv.innerHTML = `<button type="button" onclick="addUsBranchRow('${rowId}', 'ccorp')" class="px-3 py-1.5 bg-brandCyan/10 hover:bg-brandCyan/20 text-brandCyan border border-brandCyan/30 rounded text-xs font-black uppercase tracking-widest transition-all">+ Add Branch Location</button>`;
+        btnDiv.innerHTML = `
+            <div class="flex flex-wrap gap-3">
+                <button type="button" onclick="addUsBranchRow('${rowId}', 'ccorp')" class="px-3 py-1.5 bg-brandCyan/10 hover:bg-brandCyan/20 text-brandCyan border border-brandCyan/30 rounded text-xs font-black uppercase tracking-widest transition-all">+ Add Domestic Branch</button>
+                <button type="button" onclick="addUsBranchRow('${rowId}', 'ccorp', { is_foreign_branch: true, name: 'Foreign Disregarded Entity' })" class="px-3 py-1.5 bg-[#FFB800]/10 hover:bg-[#FFB800]/20 text-[#FFB800] border border-[#FFB800]/30 rounded text-xs font-black uppercase tracking-widest transition-all">+ Add Foreign Branch (FDE)</button>
+            </div>
+        `;
 
         const summaryPanel = document.createElement('div');
         summaryPanel.id = 'consolidated-summary-' + rowId;
@@ -12771,6 +13821,7 @@
         }
 
         syncCcorpState();
+        return rowId;
     }
     function addCcorpShareholderRow(ccorpId, data = null) {
         const card = document.getElementById(ccorpId);
@@ -15144,7 +16195,15 @@
                         <div class="field-fbar">
                             <label class="block text-[8px] font-black uppercase tracking-widest text-brandCyan mb-1">FBAR Status</label>
                             <span class="hld-fbar-badge flex items-center justify-center w-full bg-white/5 border border-white/5 rounded-lg text-[10px] text-white/50 px-3 py-1.5 font-bold uppercase tracking-widest">Auto</span>
-                        </div>
+                        
+                    </div></div>
+                    <div class="field-pfic-election hidden mt-3 p-3 bg-brandCyan/10 border border-brandCyan/20 rounded-lg flex items-center justify-between">
+                        <span class="text-[9px] font-black uppercase tracking-widest text-brandCyan">PFIC Tax Election (Form 8621)</span>
+                        <select class="hld-pfic-election bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" onchange="syncHoldingsState()">
+                            <option value="1291">Section 1291 (Default / Excess Distribution)</option>
+                            <option value="mtm">Mark-to-Market (MTM)</option>
+                            <option value="qef">Qualified Electing Fund (QEF)</option>
+                        </select>
                     </div>
                     </div>
                     
@@ -15280,6 +16339,7 @@
             if (div.querySelector('.hld-peak')) div.querySelector('.hld-peak').value = data.peak_balance_usd || '';
             if (div.querySelector('.hld-last')) div.querySelector('.hld-last').value = data.last_day_balance_usd || '';
             if (div.querySelector('.hld-pfic')) div.querySelector('.hld-pfic').value = data.pfic_classification || 'exempt';
+            if (div.querySelector('.hld-pfic-election')) div.querySelector('.hld-pfic-election').value = data.pfic_election || (data.mtm_election_active ? 'mtm' : '1291');
             
             if (div.querySelector('.hld-owner')) {
                 div.querySelector('.hld-owner').value = data.ownership_type || 'individual';
@@ -15347,6 +16407,12 @@
             
             if (div.querySelector('.hld-pfic')) div.querySelector('.hld-pfic').value = pficLabel;
             
+            const pficElectionBlock = div.querySelector('.field-pfic-election');
+            if (pficElectionBlock) {
+                if (isPfic) pficElectionBlock.classList.remove('hidden');
+                else pficElectionBlock.classList.add('hidden');
+            }
+            
             const nonReportableClasses = [
                 'physical_real_estate', 'direct_paper_certificates', 'physical_precious_metals',
                 'direct_foreign_currency', 'collectibles', 'foreign_social_security', 'private_equity'
@@ -15369,6 +16435,7 @@
                 peak_balance_usd: parseFormattedNumber(div.querySelector('.hld-peak').value) || null,
                 last_day_balance_usd: parseFormattedNumber(div.querySelector('.hld-last').value) || null,
                 pfic_classification: isPfic ? "passive_foreign_investment_company_section_1297" : "standard_foreign_equity",
+                pfic_election: isPfic && div.querySelector('.hld-pfic-election') ? div.querySelector('.hld-pfic-election').value : null,
                 pfic_income_test: div.querySelector('.hld-income-test') ? div.querySelector('.hld-income-test').value === 'yes' : false,
                 pfic_asset_test: div.querySelector('.hld-asset-test') ? div.querySelector('.hld-asset-test').value === 'yes' : false,
                 pfic_finance_except: div.querySelector('.hld-finance-except') ? div.querySelector('.hld-finance-except').value === 'yes' : false,
@@ -16013,6 +17080,13 @@
             final_us_residency_status: "NON_RESIDENT_ALIEN",
             dtaa_treaty_residence: "none"
         };
+        usState.corp_state_nexus = {
+            physical_states: [],
+            economic_states: [],
+            needs_apportionment: false,
+            apportionment_factors: {},
+            has_remote_workers: false
+        };
         usState.state_residency = {
             jan_1_domicile_state: "",
             dec_31_domicile_state: "",
@@ -16368,7 +17442,7 @@
                             usState.foreign_entities.has_pfics = true;
                             usState.foreign_entities.pfic_holdings = mfs.map(mf => ({
                                 asset_name: mf.asset_name || 'Indian Mutual Fund',
-                                mtm_election_active: false,
+                                pfic_election: '1291',
                                 qef_election_active: false,
                                 holding_value_usd: Math.round((mf.value_inr || 0) / 83.0),
                                 _hydratedFromIndia: true
@@ -16494,7 +17568,7 @@
                 if (s.setupBiz !== undefined) updateCardUI('setup-biz', s.setupBiz);
                 if (s.setupPassive !== undefined) updateCardUI('setup-passive', s.setupPassive);
                 if (s.setupProp !== undefined) updateCardUI('setup-prop', s.setupProp);
-                if (s.setupEntities !== undefined) updateCardUI('setup-entities', s.setupEntities);
+                
                 if (s.setupForeign !== undefined) updateCardUI('setup-foreign', s.setupForeign);
                 if (s.setupRetirement !== undefined) updateCardUI('setup-retirement', s.setupRetirement);
                 if (s.setupEquity !== undefined) updateCardUI('setup-equity-btn', s.setupEquity);
@@ -16758,9 +17832,13 @@
             document.getElementById('ret-in-nps').value = usState.retirement_accounts.indian_nps_balance_usd || '';
 
             // Restore Entities Dom
-            document.getElementById('ent-has-corp').checked = usState.foreign_entities.owns_10_percent_foreign_corp || false;
+                        document.getElementById('ent-has-corp').checked = usState.foreign_entities.owns_10_percent_foreign_corp || false;
             document.getElementById('ent-has-part').checked = usState.foreign_entities.owns_10_percent_foreign_partnership || false;
             document.getElementById('ent-has-de').checked = usState.foreign_entities.owns_foreign_disregarded_entity || false;
+            
+            if (usState.foreign_entities.owns_10_percent_foreign_corp && typeof toggleCorpSection === 'function') toggleCorpSection(true);
+            if (usState.foreign_entities.owns_10_percent_foreign_partnership && typeof togglePartSection === 'function') togglePartSection(true);
+            if (usState.foreign_entities.owns_foreign_disregarded_entity && typeof toggleDeSection === 'function') toggleDeSection(true);
 
             // Restore Gifts Dom
             document.getElementById('gift-has').checked = usState.foreign_gifts_and_trusts.received_foreign_gifts_above_100k || false;
@@ -16864,8 +17942,19 @@
             // Execute Toggles to restore section visibility
             populateStateDropdowns();
             renderFootprintChips();
+            renderCorpFootprintChips('physical');
+            renderCorpFootprintChips('economic');
             renderSecondaryStateRows();
             toggleSsnInput(usState.profile.ssn_or_itin_type);
+            
+            if (usState.corp_state_nexus) {
+                const rw = document.getElementById('corp-remote-workers');
+                if (rw) rw.checked = usState.corp_state_nexus.has_remote_workers || false;
+                
+                const na = document.getElementById('corp-needs-apportionment');
+                if (na) na.checked = usState.corp_state_nexus.needs_apportionment || false;
+            }
+
             toggleGreenCardDates(usState.us_residency_detail.has_green_card);
             toggleStateSpecificFields(usState.state_residency.primary_state_of_residence);
             toggleMovedStateFields(usState.state_residency.moved_states_this_year);
@@ -19195,6 +20284,5 @@ window.saveStateAndSync = function() {
 
 </body>
 </html>
-
 
 

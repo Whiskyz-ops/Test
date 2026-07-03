@@ -263,8 +263,18 @@
 
     var totalIncome = ordinaryIncome + preferentialIncome;
 
-    // Adjustments (above-the-line) — keep minimal.
-    var adjustments = Math.min(ded.studentLoanInterest, 2500);
+    // ---- Self-employment tax (Schedule SE) ----
+    // 92.35% of SE net earnings; 12.4% Social Security (capped by the wage base,
+    // reduced by W-2 SS wages already taxed) + 2.9% Medicare (uncapped). Half of
+    // the SE tax is an above-the-line deduction.
+    var seNet = (inc.seEarningsUsd || 0) * T.SE_NET_FACTOR;
+    var ssWagesAlready = inc.medicareWages || inc.wages.usd || 0;
+    var ssBaseRemaining = Math.max(0, T.SS_WAGE_BASE_USD - ssWagesAlready);
+    var seTax = seNet > 0 ? (T.SE_RATE_SS * Math.min(seNet, ssBaseRemaining) + T.SE_RATE_MEDICARE * seNet) : 0;
+    var halfSeDeduction = seTax / 2;
+
+    // Adjustments (above-the-line) — student-loan interest + 1/2 SE tax.
+    var adjustments = Math.min(ded.studentLoanInterest, 2500) + halfSeDeduction;
     var agi = Math.max(0, totalIncome - adjustments);
 
     // Deduction: standard vs itemized.
@@ -276,7 +286,23 @@
     else if (ded.mode === "standard") deduction = standard;
     else deduction = Math.max(standard, itemized);
 
-    var taxableIncome = Math.max(0, agi - deduction);
+    var taxableBeforeQbi = Math.max(0, agi - deduction);
+
+    // ---- QBI deduction (§199A) ----
+    // 20% of qualified business income, capped at 20% of (taxable income less
+    // net capital gains), with an SSTB phase-out over the income threshold.
+    var qbi = inc.qbiIncomeUsd || 0;
+    var qbiThr = T.QBI_THRESHOLD[status] || T.QBI_THRESHOLD.single;
+    var qbiPhase = T.QBI_PHASEIN[status] || T.QBI_PHASEIN.single;
+    var qbiFrac = 1;
+    if (inc.qbiIsSSTB) {
+      if (taxableBeforeQbi >= qbiThr + qbiPhase) qbiFrac = 0;
+      else if (taxableBeforeQbi > qbiThr) qbiFrac = 1 - (taxableBeforeQbi - qbiThr) / qbiPhase;
+    }
+    var qbiDeduction = T.QBI_RATE * qbi * qbiFrac;
+    qbiDeduction = Math.max(0, Math.round(Math.min(qbiDeduction, T.QBI_RATE * Math.max(0, taxableBeforeQbi - preferentialIncome))));
+
+    var taxableIncome = Math.max(0, taxableBeforeQbi - qbiDeduction);
 
     // Split taxable income into preferential and ordinary portions.
     var prefTaxable = Math.min(preferentialIncome, taxableIncome);
@@ -305,7 +331,7 @@
     // Additional Medicare (prefer the form's computed figure).
     var addlMedicare = model.limitsRaw.additionalMedicareOwed || 0;
 
-    var totalTaxBeforeFtc = incomeTax + niit + addlMedicare;
+    var totalTaxBeforeFtc = incomeTax + niit + addlMedicare + seTax;
 
     return {
       filingStatus: status,
@@ -320,6 +346,8 @@
       incomeTaxUsd: incomeTax,
       niitUsd: niit,
       additionalMedicareUsd: addlMedicare,
+      seTaxUsd: seTax,
+      qbiDeductionUsd: qbiDeduction,
       totalTaxBeforeFtcUsd: totalTaxBeforeFtc,
       foreignSourceIncomeUsd: fW + fI + fD + fR + fP + fStcg + fLtcg,
       usSourceIncomeUsd: inc.usSourceTotal.usd,

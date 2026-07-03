@@ -156,7 +156,16 @@
         SALT_CAP_USD: 10000,
         NIIT_RATE: 0.038,
         ADDL_MEDICARE_RATE: 0.009,
-        C_CORP_RATE: 0.21
+        C_CORP_RATE: 0.21,
+        // ---- Self-employment tax (Schedule SE), 2025 ----
+        SE_NET_FACTOR: 0.9235,          // 92.35% of net SE earnings is SE-taxable
+        SE_RATE_SS: 0.124,              // Social Security portion (capped)
+        SE_RATE_MEDICARE: 0.029,        // Medicare portion (uncapped)
+        SS_WAGE_BASE_USD: 176100,       // 2025 Social Security wage base
+        // ---- Qualified Business Income deduction (§199A), 2025 ----
+        QBI_RATE: 0.20,
+        QBI_THRESHOLD: { single: 197300, mfj: 394600, mfs: 197300, hoh: 197300 },
+        QBI_PHASEIN: { single: 50000, mfj: 100000, mfs: 50000, hoh: 50000 }
       },
       // ---- entity (business) corporate rates ----
       INDIA_COMPANY: {

@@ -236,6 +236,20 @@
       businessUs = addMoney(businessUs, moneyFromUsd(s.scorp_income_usd || s.ordinary_business_income_usd || 0));
     });
 
+    // Self-employment-TAX-subject earnings (Sch C + Sch F + general-partner SE):
+    // NOT S-corp/C-corp wages/distributions. Drives Schedule SE.
+    var seEarnings = 0;
+    (safe(ui, "self_employment", []) || []).forEach(function (s) { seEarnings += num(s.self_employment_earnings_usd || s.net_profit_usd || 0); });
+    (safe(ui, "schedule_c_businesses", []) || []).forEach(function (s) { seEarnings += num(s.net_profit_usd || s.net_earnings_usd || 0); });
+    (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { seEarnings += num(s.net_profit_usd || 0); });
+    // QBI-eligible pass-through business income (§199A): SE + S-corp + partnership
+    // ordinary (excludes C-corp and wages). SSTB flag if any business is flagged.
+    var qbiIncome = seEarnings, sstb = false;
+    (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { qbiIncome += num(s.scorp_income_usd || s.ordinary_business_income_usd || 0); });
+    (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { qbiIncome += num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0); });
+    [].concat(safe(ui, "self_employment", []) || [], safe(ui, "schedule_c_businesses", []) || [], safe(ui, "s_corporations_k1", []) || [], safe(ui, "partnerships_k1", []) || [])
+      .forEach(function (x) { if (x && (x.is_sstb === true || x.sstb === true)) sstb = true; });
+
     // US retirement / pension income (US-source, ordinary): IRA & 401(k)
     // distributions, Social Security, and pension.
     var usRetirementIncome = moneyFromUsd(
@@ -264,6 +278,7 @@
 
     return {
       wages: wages, businessUs: businessUs, w2Withholding: w2with, medicareWages: medicareWages,
+      seEarningsUsd: seEarnings, qbiIncomeUsd: Math.max(0, qbiIncome), qbiIsSSTB: sstb,
       usRetirementIncome: usRetirementIncome,
       interestUs: interestUs, ordinaryDividendsUs: ordDivUs, qualifiedDividendsUs: qualDivUs,
       ltcgUs: ltcgUs, stcgUs: stcgUs, capitalGainsUs: addMoney(ltcgUs, stcgUs), rentalUs: rentalUs,
