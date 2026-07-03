@@ -474,9 +474,18 @@
         usSecurities: safe(us, "financial_holdings", []) || [],
         usProperties: safe(us, "real_estate.properties", []) || [],
         usRetirement: safe(us, "retirement_accounts", {}) || {},
-        // Per-entity business breakdown (for the Business tab)
+        // Per-entity business breakdown (for the Business tab). One row per real
+        // entity: a company the taxpayer merely OWNS is a foreign corp (CFC),
+        // not their personal PGBP income, so same-named entries are merged
+        // (income counted once) and CFC/GILTI attach as flags — no double count.
         businessEntities: (function () {
           var list = [], ui = safe(us, "income_us_source", {});
+          var entityKind = safe(us, "profile.tax_entity_type", "individual");
+          // The US entity's OWN return income (e.g. a C-Corp's 1120 income).
+          if (entityKind === "ccorp" || safe(us, "profile.incorporated_in_us", false) === true) {
+            var selfInc = num(safe(ui, "business_income_usd", 0));
+            if (selfInc > 0) list.push({ country: "US", type: "C-Corp (Form 1120)", name: safe(us, "profile.full_name", "US C-Corp"), incomeUsd: selfInc, corp: true });
+          }
           (safe(ui, "self_employment", []) || []).forEach(function (s) { list.push({ country: "US", type: "Self-employment (Sch C)", name: s.business_name || s.name || "Self-employment", incomeUsd: num(s.self_employment_earnings_usd || s.net_profit_usd || 0), se: true, qbi: true }); });
           (safe(ui, "schedule_c_businesses", []) || []).forEach(function (s) { list.push({ country: "US", type: "Schedule C", name: s.business_name || s.name || "Sole proprietorship", incomeUsd: num(s.net_profit_usd || s.net_earnings_usd || 0), se: true, qbi: true }); });
           (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { list.push({ country: "US", type: "Farm (Sch F)", name: s.name || "Farm", incomeUsd: num(s.net_profit_usd || 0), se: true, qbi: true }); });
@@ -484,8 +493,19 @@
           (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { list.push({ country: "US", type: "S-Corp K-1 (1120-S)", name: s.corp_name || s.name || "S-Corporation", incomeUsd: num(s.scorp_income_usd || s.ordinary_business_income_usd || 0), se: false, qbi: true }); });
           (safe(ui, "c_corporations_1120", []) || []).forEach(function (c) { list.push({ country: "US", type: "C-Corp (Form 1120)", name: c.corp_name || c.name || "C-Corporation", incomeUsd: num(c.taxable_income_usd || c.net_income_usd || 0), corp: true }); });
           (safe(annual.domestic_income, "business_income.business_entries", []) || []).forEach(function (b) { list.push({ country: "IN", type: "Business / Profession (PGBP)", name: b.trade_name || b.name || "Indian business", incomeUsd: inrToUsd(num(b.net_profit_inr || b.net_profit || 0)), inr: num(b.net_profit_inr || b.net_profit || 0) }); });
-          (safe(us, "foreign_entities.foreign_corporations", []) || []).forEach(function (c) { list.push({ country: c.country === "IN" ? "IN" : "US", type: "Foreign corporation (CFC)", name: c.corp_name || "Foreign corporation", incomeUsd: num(c.gilti_income_usd || 0), cfc: true, gilti: num(c.gilti_income_usd || 0) }); });
-          return list;
+          (safe(us, "foreign_entities.foreign_corporations", []) || []).forEach(function (c) { list.push({ country: c.country === "IN" ? "IN" : "US", type: "Foreign corporation (CFC)", name: c.corp_name || "Foreign corporation", incomeUsd: num(c.gilti_income_usd || 0), cfc: true, gilti: num(c.gilti_income_usd || 0), ownershipPct: num(c.ownership_pct || 0) }); });
+          // Merge same-named entities so income is counted once; CFC/GILTI flags
+          // fold onto the entity's real income row.
+          var byName = {}, order = [];
+          list.forEach(function (e) {
+            var key = String(e.name || "").toLowerCase().replace(/\s+/g, " ").trim();
+            if (!byName[key]) { byName[key] = e; order.push(key); return; }
+            var ex = byName[key];
+            if (e.cfc) { ex.cfc = true; ex.gilti = Math.max(ex.gilti || 0, e.gilti || 0); ex.ownershipPct = ex.ownershipPct || e.ownershipPct; if (!ex.incomeUsd) ex.incomeUsd = e.incomeUsd; }
+            else if (ex.cfc) { e.cfc = ex.cfc; e.gilti = ex.gilti; e.ownershipPct = ex.ownershipPct; byName[key] = e; }
+            else { ex.incomeUsd = Math.max(ex.incomeUsd || 0, e.incomeUsd || 0); }
+          });
+          return order.map(function (k) { return byName[k]; });
         })()
       },
       limitsRaw: {
