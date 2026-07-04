@@ -237,7 +237,7 @@
         "Run the state's own residency test (domicile intent + day count) separately from the federal/treaty analysis. " +
         (stateNote.length ? stateNote.join(" ") : "Check whether the state allows any credit for foreign tax paid — several do not.") +
         " Do not assume the federal treaty position carries over.",
-        0, ["State residency", flagState || "State domicile"].concat(stateNote.length ? [] : []));
+        0, ["State residency", flagState || "State domicile"]);
     }
 
     // -- 8. PFIC EXPOSURE (Indian mutual funds) ----------------------------
@@ -352,6 +352,7 @@
       form_1040nr: model.treaty.files1040nr || (res.us.status === CONST.US_STATUS.NON_RESIDENT_ALIEN),
       form_8960: computed.headline.totalIncomeUsd > (CONST.LIMITS.NIIT_THRESHOLD[model.identity.usFilingStatus] || 200000) &&
                  (model.income.us.interestUs.usd + model.income.us.ordinaryDividendsUs.usd + model.income.us.capitalGainsUs.usd) > 0,
+      form_8959: (computed.usTax && computed.usTax.additionalMedicareUsd > 0) || (model.limitsRaw.additionalMedicareOwed || 0) > 0,
       form_67: model.income.us.foreignSourceTotal.usd > 0 || model.taxesPaid.us.total.usd > 0 || res.india.isResident,
       trc: res.dualResident || model.treaty.treatyResidence !== "none" || model.treaty.usTreatyResidence !== "none",
       form_10f: res.dualResident || model.treaty.treatyResidence !== "none",

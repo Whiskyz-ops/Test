@@ -282,6 +282,14 @@
       why: "MAGI exceeded the NIIT threshold and net investment income is present.",
       severity: CONST.SEVERITY.INFO
     },
+    {
+      id: "form_8959",
+      jurisdiction: "US",
+      name: "IRS Form 8959 (Additional Medicare Tax)",
+      desc: "Additional 0.9% Medicare tax on wages/SE income above the filing-status threshold, and reconciles employer over/under-withholding.",
+      why: "Additional Medicare Tax is owed and is not offset by the Foreign Tax Credit.",
+      severity: CONST.SEVERITY.INFO
+    },
     // ---------------------------- India side -----------------------------
     {
       id: "form_67",
