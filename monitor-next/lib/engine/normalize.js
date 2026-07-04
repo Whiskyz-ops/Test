@@ -515,6 +515,11 @@
         firptaWithholdingUsd: num(safe(us, "nra_specific.firpta_withholding_usd", 0)),
         s6013hElection: safe(us, "nra_specific.s6013h_joint_election", false) === true
       },
+      // India's own Schedule FA self-report — used to cross-check against what
+      // the US Layer 1 form actually shows (see the schedule_fa_inconsistent
+      // finding: the two intake forms can flatly disagree about whether
+      // foreign assets exist).
+      indiaForeignAssetsDeclared: safe(india, "foreign_assets.has_foreign_assets", null),
       foreignGifts: {
         receivedAbove100k: safe(us, "foreign_gifts_and_trusts.received_foreign_gifts_above_100k", false) === true,
         isTrustBeneficiary: safe(us, "foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust", false) === true,

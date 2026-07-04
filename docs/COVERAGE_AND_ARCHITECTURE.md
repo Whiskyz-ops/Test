@@ -58,7 +58,7 @@ comprehensive return engine. Approx **30–40%** of collected fields are consume
 | `tax_credits` | advance tax Q1–4, TDS, TCS, Form 26AS, **foreign_tax_credit[]** | 🟡 advance+TDS summed; **per-country FTC array, 26AS reconcile ⛔** | FTC |
 | `surcharge_buckets` | income by rate bucket (111A/112A/115A/115BB/dividend) | ⛔ (engine recomputes surcharge itself) | Consistency |
 | `nro_repatriation` | cumulative USD, pending, TDS on NRO | ⛔ | Reporting |
-| `foreign_assets` / `foreign_income` | has_foreign_assets, assets[] | ⛔ (Schedule FA driven only from US-side accounts) | Sch FA completeness |
+| `foreign_assets` / `foreign_income` | has_foreign_assets, assets[] | 🟡 `has_foreign_assets` now cross-checked against the US form (`schedule_fa_inconsistent`) — catches the two Layer 1 forms flatly disagreeing; the `assets[]` detail itself is still ⛔ | Sch FA completeness + a real cross-form data-integrity gap |
 | `gift_received`, `salary_exemptions`, `other_exemptions` | (populated by sub-flows) | ⛔ | Yes |
 | `quarters` Q1–Q4 | per-quarter income snapshots | ✅ summed to annual (`indiaAnnualSlice`) | Advance-tax pacing |
 
@@ -163,11 +163,19 @@ A dedicated pass over `engine/conflicts.js` against the Layer 1 fields above, sc
   all — caught this while building the fix, not before. `taxComputation.us` gets a dedicated
   ECI/FDAP-split breakdown instead of the resident-style row set when `isNra` is true.
 
+- **Cross-form data-integrity check** (`schedule_fa_inconsistent`) — a different category of gap from
+  everything else in this audit: not a missing tax-law finding, but a missing CONSISTENCY check
+  between the two independently-filled Layer 1 forms. When India's own form says "no foreign assets"
+  while the US form shows US-source income/accounts for the same India-ROR taxpayer, the two forms
+  are flatly contradicting each other — nothing today compared them against one another before this.
+
 **Still open in conflict detection** (tracked here, not yet built): entity-level dual residency for
 an Indian company under POEM vs. US management-and-control, a numeric GILTI/Subpart F computation
-once Part F lands, and the actual recomputation work behind the remaining flags — Chapter XII-A flat
-rates and the equity-comp sourcing day-count allocation are still flagged as honesty disclosures,
-not yet numerically computed.
+once Part F lands (blocked on Layer 1 not collecting tested income/E&P/QBAI), Chapter XII-A actual
+flat-rate recomputation (blocked on Layer 1 not tagging which income is a "specified foreign-exchange
+asset"), and the equity-comp sourcing day-count allocation (blocked on Layer 1 not collecting
+per-tranche workday-in-country data) — all three remaining items need new Layer 1 fields, not just
+engine wiring, so they stay flagged rather than computed.
 
 ---
 

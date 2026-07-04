@@ -369,6 +369,27 @@
         0, ["DTAA Art. 20", "Form 3520/3520-A", "FBAR"]);
     }
 
+    // -- 10a. CROSS-FORM INCONSISTENCY — INDIA'S OWN SCHEDULE FA SELF-REPORT
+    // The two Layer 1 forms are filled independently; nothing today checks
+    // whether they AGREE. An India ROR must disclose worldwide (Schedule FA)
+    // foreign assets — if the India form explicitly says "no foreign assets"
+    // while the US form shows US accounts/US-source income (which, from
+    // India's side, ARE foreign assets), the two intake forms are flatly
+    // contradicting each other and Schedule FA is very likely under-reported.
+    var usHasForeignToIndiaAssets = (model.accounts.accounts || []).some(function (a) { return a.country !== "India"; }) ||
+                                     model.income.us.usSourceTotal.usd > 0;
+    if (res.india.status === CONST.INDIA_STATUS.ROR && model.indiaForeignAssetsDeclared === false && usHasForeignToIndiaAssets) {
+      add("schedule_fa_inconsistent", S.CRITICAL, C.DOCUMENT,
+        "Layer 1 forms disagree: India form says 'no foreign assets', US form shows foreign holdings",
+        "The India intake form explicitly records NO foreign assets, but the US intake form shows US-source income and/or " +
+        "non-Indian accounts for the same taxpayer — who is an Indian ROR this year and therefore subject to worldwide " +
+        "Schedule FA disclosure. This is a direct contradiction between the two forms, not just a missing field.",
+        "Reconcile the two forms before filing: either the India form's 'no foreign assets' answer needs correcting, or the " +
+        "US-side accounts/income need to be re-checked. Schedule FA penalties for non-disclosure are severe and independent " +
+        "of whether any tax is actually due on the asset.",
+        0, ["Schedule FA", "Black Money Act"]);
+    }
+
     // -- 10b. FOREIGN GIFTS / TRUSTS — FORM 3520 PENALTY EXPOSURE -----------
     // No tax is due on a foreign gift itself, which is exactly why this gets
     // missed: Form 3520 Part IV reporting is required once gifts from a
