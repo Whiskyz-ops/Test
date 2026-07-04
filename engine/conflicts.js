@@ -220,6 +220,52 @@
         0, ["s.115H", "s.115C", "Chapter XII-A"]);
     }
 
+    // -- 4h. NRA (1040-NR): FDAP SHOULD BE FLAT-RATE, NOT GRADUATED ---------
+    // A non-resident alien's US-source FDAP income (interest, dividends,
+    // rents, etc. not effectively connected with a US trade/business) is
+    // taxed at a flat 30% (or lower treaty rate) with NO deductions —
+    // ECI is taxed at the same graduated brackets as a resident. The engine
+    // runs everyone through one graduated-bracket computation regardless of
+    // this split, which understates/misstates the true 1040-NR liability.
+    var nra = model.nra || {};
+    if (model.treaty.files1040nr && !nra.s6013hElection && nra.fdapIncomeUsd > 0) {
+      var claimedRate = (nra.treatyRateClaims[0] && nra.treatyRateClaims[0].rate) || null;
+      add("nra_fdap_flat_rate", S.WARNING, C.CREDIT,
+        "1040-NR: FDAP income should be taxed flat, not at graduated rates",
+        usd(nra.fdapIncomeUsd) + " of FDAP income (interest/dividends/rents not effectively connected with a US trade " +
+        "or business) is on file for a Form 1040-NR filer. FDAP is taxed at a flat 30%" +
+        (claimedRate ? " (a " + claimedRate + "% treaty rate is claimed)" : " absent a treaty claim") +
+        " with no deductions — the computation above instead runs it through the same graduated brackets as ECI/resident income.",
+        "Split US-source income into its ECI bucket (graduated rates, deductions allowed) and its FDAP bucket (flat 30%/" +
+        "treaty rate, reported on Schedule NEC, no deductions) before relying on the total tax figure above.",
+        0, ["Form 1040-NR", "Schedule NEC", "FDAP", "ECI"]);
+    }
+
+    // -- 4i. NRA TREATY RATE CLAIMED WITHOUT W-8BEN ON FILE -----------------
+    if ((nra.treatyRateClaims || []).length > 0 && !nra.submittedW8ben) {
+      add("nra_w8ben_missing", S.CRITICAL, C.TREATY,
+        "Treaty withholding rate claimed without Form W-8BEN on file",
+        (nra.treatyRateClaims.length) + " treaty-rate claim(s) are recorded for US-source FDAP income, but Form W-8BEN " +
+        "(certifying foreign status and the treaty claim to the withholding agent) is not on file. Without it, the payer " +
+        "must withhold at the default 30% rather than the claimed treaty rate.",
+        "File Form W-8BEN with each withholding agent to support the claimed treaty rate; without it, expect 30% " +
+        "withholding and a refund claim on the 1040-NR instead of correct withholding at source.",
+        0, ["Form W-8BEN", "Treaty rate claim"]);
+    }
+
+    // -- 4j. FIRPTA — US REAL PROPERTY DISPOSITION BY A FOREIGN PERSON ------
+    if (nra.usRealPropertyDisposed) {
+      add("firpta", S.WARNING, C.DOCUMENT,
+        "FIRPTA withholding on US real property disposition",
+        "A disposition of US real property by a foreign person is on file" +
+        (nra.firptaWithholdingUsd > 0 ? " with " + usd(nra.firptaWithholdingUsd) + " withheld at closing" : "") +
+        ". FIRPTA generally requires the buyer to withhold 15% of the gross sale price (not the gain) at closing, " +
+        "regardless of the seller's actual tax liability on the transaction.",
+        "File Form 8288-A/8288-B as applicable; if 15% of the gross price materially overstates the actual tax on the " +
+        "gain, apply for a withholding certificate (Form 8288-B) BEFORE closing to reduce it, and reconcile the balance on the 1040-NR.",
+        nra.firptaWithholdingUsd || 0, ["FIRPTA", "Form 8288-A", "Form 8288-B"]);
+    }
+
     // -- 5. FORM 67 TIMING (India FTC procedural) --------------------------
     if (model.income.us.foreignSourceTotal.usd > 0 || model.taxesPaid.us.total.usd > 0) {
       add("form67_required", S.INFO, C.DOCUMENT,

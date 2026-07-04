@@ -85,7 +85,7 @@ comprehensive return engine. Approx **30–40%** of collected fields are consume
 | `niit_inputs` | MAGI, NII, threshold | ✅ engine computes NIIT | — |
 | `ftc_inputs` | claims_ftc, simplified<300, accrued method, carryovers, **ftc_baskets[]** | 🟡 engine computes FTC itself; **baskets/carryovers/accrued election ⛔** | FTC precision |
 | `withholding_and_estimated` | fed/state withholding, estimated Q1–4, prior-year tax, addl-Medicare | ✅ | — |
-| `nra_specific` | files_1040nr, §6013(h), W-8BEN, W-7, **ECI/FDAP**, treaty_rate_claims[], FIRPTA, LRS investor | 🟡 1040NR/treaty-residence flags; **ECI/FDAP split, treaty rates, FIRPTA ⛔** | Yes (NRA tax) |
+| `nra_specific` | files_1040nr, §6013(h), W-8BEN, W-7, **ECI/FDAP**, treaty_rate_claims[], FIRPTA, LRS investor | ✅ now drives `nra_fdap_flat_rate` (FDAP flat-30%/treaty-rate vs. graduated-bracket mismatch), `nra_w8ben_missing`, and `firpta`; the actual FDAP-flat-rate / ECI-split RECOMPUTATION is still ⛔ (flagged, not yet computed) | Flagged; recomputation still open |
 
 ---
 
@@ -148,10 +148,16 @@ A dedicated pass over `engine/conflicts.js` against the Layer 1 fields above, sc
   flat-rate regime instead of slab rates, which the engine doesn't do. Flags the honesty gap rather
   than silently returning a wrong number.
 
+- **NRA / Form 1040-NR** (`nra_fdap_flat_rate`, `nra_w8ben_missing`, `firpta`) — `nra_specific` was
+  read only for a `files_1040nr` flag; the ECI/FDAP split, treaty-rate claims, W-8BEN, and FIRPTA
+  withholding were all collected and ignored. Confirmed as a real, previously-silent gap: one demo
+  profile has genuine 1040-NR FDAP income and produced zero NRA-related findings before this fix.
+
 **Still open in conflict detection** (tracked here, not yet built): entity-level dual residency for
 an Indian company under POEM vs. US management-and-control, a numeric GILTI/Subpart F computation
-once Part F lands, and the actual India-tax recomputation under Chapter XII-A / the day-count
-allocation under equity-comp sourcing (both currently flagged, not computed).
+once Part F lands, and the actual recomputation work behind several new flags — Chapter XII-A flat
+rates, the equity-comp sourcing day-count allocation, and the NRA FDAP-flat/ECI-graduated split are
+all currently flagged as honesty disclosures, not yet numerically computed.
 
 ---
 

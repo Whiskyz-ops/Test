@@ -501,6 +501,20 @@
         chapterXiiaElected: safe(india, "compliance_docs.chapter_xiia_elected", false) === true
       },
       equityComp: aggregateEquityComp(annual.domestic_income, us),
+      // NRA-specific (Form 1040-NR) facts. Layer 1 already splits FDAP vs ECI
+      // and tracks treaty-rate claims / W-8BEN / FIRPTA, but none of it was
+      // read before this pass — the engine ran every filer through the same
+      // resident-style graduated-bracket computation.
+      nra: {
+        hasUsPe: safe(us, "nra_specific.has_us_pe", false) === true,
+        submittedW8ben: safe(us, "nra_specific.submitted_w8ben", false) === true,
+        eciIncomeUsd: num(safe(us, "nra_specific.us_eci_income_usd", 0)),
+        fdapIncomeUsd: num(safe(us, "nra_specific.us_fdap_income_usd", 0)),
+        treatyRateClaims: safe(us, "nra_specific.treaty_rate_claims", []) || [],
+        usRealPropertyDisposed: safe(us, "nra_specific.us_real_property_disposed", false) === true,
+        firptaWithholdingUsd: num(safe(us, "nra_specific.firpta_withholding_usd", 0)),
+        s6013hElection: safe(us, "nra_specific.s6013h_joint_election", false) === true
+      },
       foreignGifts: {
         receivedAbove100k: safe(us, "foreign_gifts_and_trusts.received_foreign_gifts_above_100k", false) === true,
         isTrustBeneficiary: safe(us, "foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust", false) === true,
