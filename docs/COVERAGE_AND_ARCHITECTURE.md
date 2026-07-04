@@ -70,10 +70,10 @@ comprehensive return engine. Approx **30–40%** of collected fields are consume
 |---|---|---|---|
 | `profile` | **tax_entity_type**, **llc_tax_election**, incorporation_state, filing_status, ssn/itin, dependents, spouse_is_us_person | 🟡 filing_status read; **entity_type/LLC election NOT branched ⛔** | **Yes (see Part F)** |
 | `us_residency_detail` | SPT day-weighting, green card, exempt-individual, closer-connection, first-year choice, §6013(g), treaty residence, start/end dates | 🟡 final status + citizen/GC/SPT/days; **SPT weighting, exemptions, elections ⛔** | Status yes |
-| `state_residency` | jan1/dec31 domicile, footprint[], moved, CA safe-harbor, **NY 183-day + abode + 548-rule**, MSRRA military, secondary states[] | ⛔ **entirely unused** | **Yes (state tax)** — this is the Monitor state-drill gap |
+| `state_residency` | jan1/dec31 domicile, footprint[], moved, CA safe-harbor, **NY 183-day + abode + 548-rule**, MSRRA military, secondary states[] | 🟡 domicile/primary state, footprint, CA/NY flags now read and drive a **new "state treaty not binding" conflict finding**; full day-count/statutory-residency computation and the Monitor state-drill map are still ⛔ | **Yes (state tax)** — computation still the Monitor state-drill gap |
 | `income_us_source` | wages_w2[], interest, ord/qual dividends, STCG/LTCG, rental, royalty, **self_employment[]**, **partnerships_k1[]**, **s_corporations_k1[]**, **c_corporations_1120[]**, **farming_schedule_f[]**, **trusts_estates_k1[]**, IRA/401k/SS distributions, crypto[], loss carryovers, QOF/QSBS/1031/installment/collectibles flags | 🟡 wages/interest/div/CG/rental; **all K-1 pass-throughs, SE, crypto, loss carryovers, special assets ⛔** | **Yes — large** |
 | `income_foreign_source` | foreign wages[], interest, dividends, STCG/LTCG, rental, pension, §988[] | 🟡 amounts read; **§988, per-item sourcing ⛔** | Yes |
-| `equity_compensation` | ISO/NSO/RSU/ESPP/83(b) exercises[] | ⛔ **ISO → AMT preference not computed** | **Yes (AMT)** |
+| `equity_compensation` | ISO/NSO/RSU/ESPP/83(b) exercises[] | 🟡 **ISO bargain-element spread now feeds AMT** (`iso_exercises[].amt_preference_spread_usd` → `amtPrefs`); NSO/RSU/ESPP ordinary income and cross-border sourcing still ⛔ | AMT done; NSO/RSU sourcing still yes |
 | `foreign_earned_income` | FEIE claim, physical-presence/bona-fide, housing exclusion | 🟡 claim + amount; **housing exclusion, qualification test ⛔** | Yes |
 | `bank_accounts[]`, `financial_holdings[]`, `fbar_aggregate_peak_usd`, `form_8938_required` | balances | ✅ FBAR peak; 🟡 8938 threshold table | Reporting |
 | `real_estate` | properties[] (rent, expenses, §1031, depreciation, FIRPTA) | ⛔ (only hydrated from India side) | Yes |
@@ -81,7 +81,7 @@ comprehensive return engine. Approx **30–40%** of collected fields are consume
 | `foreign_entities` | owns_10pct corp/partnership/DE, **foreign_corporations[]**, partnerships[], disregarded[], pfic_holdings[] | 🟡 **flags only** (CFC/PFIC conflict); **GILTI/Subpart-F/962 not computed ⛔** | **Yes (see Part F)** |
 | `foreign_gifts_and_trusts` | gifts>100k, foreign trusts, covered-expat gift | ⛔ (3520 flagged via PPF only) | Reporting |
 | `itemized_deductions_and_credits` | SALT, mortgage, charitable, medical, HSA, student loan, CTC, dependent care, education, saver, 529, **QBI** | 🟡 SALT/mortgage/charitable/medical; **QBI, credits (CTC/education/care) ⛔** | Yes (credits) |
-| `amt_inputs` | ISO preference, SALT add-back, AMTI, TMT, AMT due, MTC carryforward | ⛔ **AMT not computed** | **Yes** |
+| `amt_inputs` | ISO preference, SALT add-back, AMTI, TMT, AMT due, MTC carryforward | ✅ AMT (§55) now computed (AMTI, exemption phase-out, TMT vs regular tax) incl. ISO preference; 🟡 MTC carryforward (Form 8801) not tracked | Done; MTC carryforward remains |
 | `niit_inputs` | MAGI, NII, threshold | ✅ engine computes NIIT | — |
 | `ftc_inputs` | claims_ftc, simplified<300, accrued method, carryovers, **ftc_baskets[]** | 🟡 engine computes FTC itself; **baskets/carryovers/accrued election ⛔** | FTC precision |
 | `withholding_and_estimated` | fed/state withholding, estimated Q1–4, prior-year tax, addl-Medicare | ✅ | — |
@@ -100,6 +100,38 @@ comprehensive return engine. Approx **30–40%** of collected fields are consume
 7. **US state residency** — CA/NY statutory rules, MSRRA (unblocks live Monitor state drill-down).
 8. **Salary exemptions** (HRA/LTA/perquisites) and **full Chapter VI-A** (India); **QBI + credits** (US).
 9. **Special-rate income** (India 115BB gaming/lottery; deemed dividend) and **NRA ECI/FDAP** (US).
+
+---
+
+## Part D.1 — Conflict-detection audit (this pass)
+
+A dedicated pass over `engine/conflicts.js` against the Layer 1 fields above, scoped to
+**conflict-detection completeness** (not the full computation-engine gaps in Part D). Closed:
+
+- **NIIT / Additional Medicare not offset by the FTC** (`niit_medicare_not_creditable`) — these
+  surtaxes sit outside §901/§904 entirely; the old FTC panel could read as "fully credited" while
+  this residue silently stood. Now called out on its own whenever both apply.
+- **No US-India Totalization Agreement** (`no_totalization_agreement`) — unlike ~30 countries with
+  a US Totalization Agreement, a self-employed dual-resident owes full US SE tax with no
+  double-coverage relief; this was entirely unflagged.
+- **State residency vs. the federal treaty position** (`state_treaty_not_binding`) — the DTAA and
+  the Article 4 tie-breaker are FEDERAL-only; a taxpayer can still be a full worldwide-income state
+  resident (CA/NY domicile or statutory-day tests) with no state-level foreign tax credit. Wires a
+  first slice of the previously-unused `state_residency` Layer 1 section (Part C) into a finding —
+  the full day-count/statutory engine and Monitor state-drill map (Part D #7) are still open.
+- **CFC / Form 5471 finding was overclaiming** — it read "computes the GILTI / Subpart F inclusion
+  ... numbers already worked out," but no §951A/tested-income/QBAI computation exists anywhere in
+  `computation.js`; the entity flow-through model (Part F) hasn't landed. Reworded to flag the
+  required filing honestly without implying a liability number that isn't actually computed —
+  important because this tool is read by tax professionals who will trust a stated "computed" figure.
+- **ISO → AMT preference wiring** (Part D #5, half of it) — `equity_compensation.iso_exercises[]`
+  carries its own `amt_preference_spread_usd` (FMV − strike × shares) but `normalize.js` never read
+  it, so a real AMT trigger was silently dropped. Now summed into `deductions.us.amtPrefs`.
+
+**Still open in conflict detection** (tracked here, not yet built): equity-comp cross-border
+*sourcing* (RSU/ESOP vesting split across a residency change — Art. 15/16 allocation), entity-level
+dual residency for an Indian company under POEM vs. US management-and-control, foreign-gift/3520
+conflicts beyond PPF/EPF, and a numeric GILTI/Subpart F computation once Part F lands.
 
 ---
 

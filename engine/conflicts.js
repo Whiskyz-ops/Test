@@ -132,6 +132,54 @@
         computed.usTax.amtUsd, ["§55", "Form 6251", "Form 8801"]);
     }
 
+    // -- 4d. NIIT / ADDITIONAL MEDICARE — NOT OFFSET BY THE FTC -------------
+    // §1411 NIIT and §3101(b)(2) Additional Medicare are surtaxes, not "income
+    // tax" for §901/§904 purposes (Reg. 1.901-1(a); the treaty's FTC article
+    // doesn't reach them either) — so Indian tax credited against regular US
+    // income tax leaves these two surtaxes fully standing on the same income.
+    // This is a real double-tax residue that the headline "FTC allowed" figure
+    // can make invisible unless called out on its own.
+    var niitUsd = (computed.usTax && computed.usTax.niitUsd) || 0;
+    var addlMedUsd = (computed.usTax && computed.usTax.additionalMedicareUsd) || 0;
+    if ((niitUsd > 1 || addlMedUsd > 1) && ftc.us.indiaTaxPaidUsd > 0) {
+      var surtaxParts = [];
+      if (niitUsd > 1) surtaxParts.push("NIIT " + usd(niitUsd) + " (§1411, 3.8%)");
+      if (addlMedUsd > 1) surtaxParts.push("Additional Medicare " + usd(addlMedUsd) + " (§3101(b)(2), 0.9%)");
+      add("niit_medicare_not_creditable", S.WARNING, C.CREDIT,
+        "NIIT / Additional Medicare surtaxes are not offset by the Foreign Tax Credit",
+        surtaxParts.join(" and ") + " applies on top of regular US income tax. Indian income tax can only credit the " +
+        "REGULAR US income tax (§901/§904) — these two surtaxes are outside the FTC mechanism entirely, so they stand " +
+        "as double taxation even when the rest of the Indian tax is fully credited.",
+        "There is no credit path for this residue — the only levers are reducing MAGI/net investment income (retirement " +
+        "contributions, timing) or, for Additional Medicare, W-4 withholding planning. Make sure the client understands " +
+        "the FTC reconciliation above does not clear this amount.",
+        niitUsd + addlMedUsd, ["§1411", "§3101(b)(2)", "Form 8960", "Form 8959"]);
+    }
+
+    // -- 4e. NO US-INDIA TOTALIZATION AGREEMENT — SE TAX DOUBLE COVERAGE ----
+    // The US has Totalization Agreements with ~30 countries (UK, Canada,
+    // Germany, Japan, ...) that let a Certificate of Coverage exempt a
+    // cross-border self-employed / seconded worker from paying INTO both
+    // countries' social-security systems. The US and India have NEVER signed
+    // one, so a self-employed dual-resident owes full US SE tax (15.3%) with
+    // no exemption, and if routed through an Indian entity can separately
+    // trigger EPF/social-security-style employer obligations in India — with
+    // zero coordination between the two.
+    var seTaxUsd = (computed.usTax && computed.usTax.seTaxUsd) || 0;
+    var hasIndiaNexus = res.india.isResident || model.income.india.business.usd > 0 || model.income.india.salary.usd > 0;
+    if (seTaxUsd > 1 && hasIndiaNexus) {
+      add("no_totalization_agreement", S.WARNING, C.CREDIT,
+        "No US–India Totalization Agreement — self-employment tax has no double-coverage relief",
+        usd(seTaxUsd) + " of US self-employment tax (Schedule SE) is owed in full. Unlike ~30 countries with a US " +
+        "Totalization Agreement, India has none — there is no Certificate of Coverage to exempt a self-employed or " +
+        "seconded worker from social-security-style contributions in both countries, and no credit mechanism folds " +
+        "Indian PF/social contributions into the US SE tax computation.",
+        "Confirm whether Indian-side EPF/social contributions are also being made on the same work; if so this is " +
+        "uncoordinated double coverage by design (not a filing error) — the only mitigants are entity structuring " +
+        "(e.g., routing through a foreign corporation to convert SE income to a dividend/salary mix) or accepting the cost.",
+        0, ["SE tax", "Schedule SE", "No US-India Totalization Agreement"]);
+    }
+
     // -- 5. FORM 67 TIMING (India FTC procedural) --------------------------
     if (model.income.us.foreignSourceTotal.usd > 0 || model.taxesPaid.us.total.usd > 0) {
       add("form67_required", S.INFO, C.DOCUMENT,
@@ -161,6 +209,37 @@
       "Re-price each foreign income and tax item at the correct per-transaction rate before filing; the flat rate is for planning visibility only.",
       0, ["Rule 115", "SBI TTBR"]);
 
+    // -- 7b. STATE RESIDENCY — THE INDIA-US TREATY DOES NOT BIND STATES -----
+    // Article 4 / the federal §911/§901 machinery is FEDERAL law only. States
+    // are not treaty parties, so a taxpayer who is non-resident (or a treaty
+    // non-resident) for FEDERAL purposes can still be a full worldwide-income
+    // state tax resident under that state's own domicile/statutory-day test —
+    // and most states (famously California) grant no credit for tax paid to a
+    // FOREIGN country, only to other US states. This is an easy-to-miss,
+    // fully separate double-tax channel.
+    var sr = model.stateResidency || {};
+    var hasStateTies = !!(sr.primaryState || sr.domicileDec31 || sr.domicileJan1 || (sr.footprint || []).length > 0);
+    var hasFederalTreatyPosture = res.dualResident || model.treaty.treatyResidence !== "none" ||
+                                   model.treaty.usTreatyResidence !== "none" || model.treaty.dtaaForcedNr;
+    if (hasStateTies && hasFederalTreatyPosture) {
+      var stateNote = [];
+      var flagState = sr.domicileDec31 || sr.primaryState || sr.domicileJan1;
+      if (sr.caSafeHarbor || sr.caRetainsTies) stateNote.push("California safe-harbor/retained-ties facts are on file — CA is aggressive about domicile and does not allow a credit for foreign tax paid.");
+      if (sr.ny548DayRule || sr.nyPermanentAbode || sr.nyDaysPresent > 0) stateNote.push("New York statutory-residency facts are on file (183-day + permanent-abode / 548-day rule) — NY residency is tested independently of the federal position.");
+      if (sr.movedStates) stateNote.push("A mid-year state move is on file — part-year returns may be due in two states.");
+      add("state_treaty_not_binding", S.WARNING, C.TREATY,
+        "State tax residency is not resolved by the DTAA / federal treaty position" + (flagState ? " (" + flagState + ")" : ""),
+        "The India-US treaty and the federal residency determination above bind FEDERAL tax only. " +
+        (flagState ? flagState + " " : "The state on file ") + "applies its own domicile or statutory-day residency test, " +
+        "independent of the Article 4 tie-breaker or any §911/1040NR position. A taxpayer can be a federal treaty " +
+        "non-resident while remaining a full worldwide-income STATE resident with Indian income fully taxable and " +
+        (stateNote.length ? "no matching relief in some states." : "little or no state-level foreign tax credit."),
+        "Run the state's own residency test (domicile intent + day count) separately from the federal/treaty analysis. " +
+        (stateNote.length ? stateNote.join(" ") : "Check whether the state allows any credit for foreign tax paid — several do not.") +
+        " Do not assume the federal treaty position carries over.",
+        0, ["State residency", flagState || "State domicile"].concat(stateNote.length ? [] : []));
+    }
+
     // -- 8. PFIC EXPOSURE (Indian mutual funds) ----------------------------
     var mfCount = (model.assets.indianMutualFunds || []).length;
     if (mfCount > 0 && res.us.isResident) {
@@ -177,11 +256,14 @@
     var bizCount = (model.assets.indianBusinesses || []).length;
     var usOwnsForeignCorp = model.assets.usOwns10PctForeignCorp || (model.assets.usForeignCorps || []).length > 0;
     if (usOwnsForeignCorp && res.us.isResident) {
-      add("cfc", S.INFO, C.ENTITY,
-        "Controlled Foreign Corporation — Form 5471 (computed)",
+      add("cfc", S.WARNING, C.ENTITY,
+        "Controlled Foreign Corporation — Form 5471 required (GILTI/Subpart F not yet quantified)",
         "Layer 1 records the US person owning ≥10% of a foreign corporation" + (bizCount > 0 ? " (Indian company on file)" : "") +
-        ", so Form 5471 applies and GILTI / Subpart F can accelerate US tax on undistributed Indian profits before any dividend is paid.",
-        "WISING classifies the entity, computes the GILTI / Subpart F inclusion and models the §962 election (corporate rate + FTC) against India's MAT/credit — Form 5471 is on the filing checklist with the numbers already worked out.",
+        ", so Form 5471 applies and GILTI / Subpart F can accelerate US tax on undistributed Indian profits before any dividend is paid. " +
+        "WISING flags the exposure from the ownership data but does NOT yet compute a GILTI/Subpart F inclusion amount — that requires the " +
+        "entity's tested income, E&P and qualified business asset investment (QBAI), which Layer 1 doesn't collect today.",
+        "File Form 5471 regardless. To quantify GILTI/Subpart F (and evaluate the §962 election against India's MAT/credit), collect the " +
+        "Indian company's tested income, E&P and QBAI — until then, treat this as a required-filing flag, not a computed liability.",
         0, ["Form 5471", "GILTI §951A", "Subpart F", "§962 election"]);
     } else if (bizCount > 0 && res.us.isResident) {
       add("cfc_below_threshold", S.INFO, C.ENTITY,

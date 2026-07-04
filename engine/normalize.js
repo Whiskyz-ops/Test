@@ -294,6 +294,16 @@
   /* US deduction inputs for the tax engine. */
   function aggregateUsDeductions(us) {
     var it = safe(us, "itemized_deductions_and_credits", {});
+    // ISO exercises generate an AMT preference item (the bargain element —
+    // FMV-at-exercise less strike — is excluded from regular income but added
+    // back for AMT, §56(b)(3)). Each row's amt_preference_spread_usd is the
+    // form's own (fmv - strike) * shares computation; sum across all exercises.
+    var isoAmtPrefUsd = 0;
+    (safe(us, "equity_compensation.iso_exercises", []) || []).forEach(function (ex) {
+      isoAmtPrefUsd += num(ex.amt_preference_spread_usd != null
+        ? ex.amt_preference_spread_usd
+        : Math.max(0, (num(ex.fmv_at_exercise_usd) - num(ex.strike_price_usd)) * num(ex.shares_exercised)));
+    });
     return {
       mode: safe(it, "use_standard_or_itemized", "auto"),
       salt: num(safe(it, "state_and_local_taxes_paid_usd", 0)),
@@ -303,11 +313,13 @@
       studentLoanInterest: num(safe(it, "student_loan_interest_usd", 0)),
       // AMT preference / adjustment items (§57): private-activity-bond interest,
       // ISO bargain element / other preference spread.
+      isoAmtPrefUsd: isoAmtPrefUsd,
       amtPrefs: num(safe(it, "private_activity_bond_interest_usd", 0)) +
                 num(safe(it, "amt_preference_spread_usd", 0)) +
                 num(safe(us, "amt.private_activity_bond_interest_usd", 0)) +
                 num(safe(us, "amt.amt_preference_spread_usd", 0)) +
-                num(safe(us, "amt_items_usd", 0)),
+                num(safe(us, "amt_items_usd", 0)) +
+                isoAmtPrefUsd,
       // Non-refundable personal credits
       careExpenses: num(safe(it, "dependent_care_expenses_usd", 0)),
       aotc: num(safe(it, "education_credits_aotc_usd", 0)),
@@ -435,6 +447,23 @@
           sptMet: safe(us, "us_residency_detail.spt_test_met", false) === true,
           daysCurrentYear: num(safe(us, "us_residency_detail.us_days_current_year", 0))
         }
+      },
+      // US state residency — the DTAA/IRC treaty machinery above governs FEDERAL
+      // tax only. States are not parties to the India-US treaty, so a federal
+      // treaty tie-breaker or NR position does not bind a state; a taxpayer can
+      // remain a full worldwide-income state tax resident (domicile or
+      // statutory-residency test) even after "winning" the federal tie-breaker.
+      stateResidency: {
+        domicileJan1: safe(us, "state_residency.jan_1_domicile_state", null),
+        domicileDec31: safe(us, "state_residency.dec_31_domicile_state", null),
+        primaryState: safe(us, "state_residency.primary_state_of_residence", null),
+        footprint: safe(us, "state_residency.total_states_footprint", []) || [],
+        movedStates: safe(us, "state_residency.moved_states_this_year", false) === true,
+        caSafeHarbor: safe(us, "state_residency.ca_safe_harbor_employment_contract", false) === true,
+        caRetainsTies: safe(us, "state_residency.ca_retains_property_or_voter_reg", false) === true,
+        nyDaysPresent: num(safe(us, "state_residency.ny_actual_days_present", 0)),
+        nyPermanentAbode: safe(us, "state_residency.ny_permanent_place_of_abode", false) === true,
+        ny548DayRule: safe(us, "state_residency.ny_548_day_rule", false) === true
       },
       treaty: {
         trcStatus: safe(india, "dtaa.trc_status", false) === true ||
