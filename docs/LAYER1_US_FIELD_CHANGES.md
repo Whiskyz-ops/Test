@@ -1,203 +1,258 @@
-# Layer 1 — US Intake Form: Field Changes
+# Layer 1 — US Intake Form: Field Changes (precise edit locations)
 
-**Target file:** `layer1_us.html`
-**Purpose of this document:** a self-contained work order for adding/adjusting fields on the US
-intake form, written to be handed to an implementation agent (e.g. Antigravity) with no other
-context. It assumes the agent can read the existing file to match conventions but has not seen the
-conversation that produced this list.
-
----
-
-## 0. Context — what this form is and the one hard rule
-
-`layer1_us.html` is a **pure data-collection form**. It is one of two intake forms (the other is
-the India form) that write JSON into `localStorage` under the key `wising_us_state`. A separate,
-independent computation engine (`engine/*.js`, not part of this file) reads that JSON, normalizes
-it, and performs every tax computation, conflict detection, and cross-border analysis. **This form
-does not talk to the engine and should not duplicate what it does.**
-
-### The hard rule for every change below
-
-> **This form collects raw facts only. It must not compute derived tax figures, apply tax-rule
-> logic (exemption caps, elections, exclusions), or pre-classify income into tax categories.**
-> Every field the user fills in should be something they could read off a document (a W-2, a
-> brokerage 1099, a K-1) or select from a fixed list — not a number the JAVASCRIPT works out for
-> them. All computation belongs in the engine.
-
-Conventions already used in this file that new fields should follow:
-- Money fields are suffixed `_usd` (this form is USD-native).
-- State is a plain JS object (`usState.<section>.<field>`), updated via
-  `updateStateField('<section>', '<field>', value)`.
-- Repeatable line items (ISO/NSO/RSU events, properties, foreign corporations, financial holdings)
-  are arrays of objects rendered as add/remove "cards," each with its own `sync...State()`
-  function that rebuilds the array from the DOM on every change.
+**Target file:** `layer1_us.html` (single-file HTML+JS app, no build step)
+**Purpose:** an exact, line-anchored work order for Antigravity. Every item below names the
+specific function, state key, and (as of this writing) line number to edit. **Line numbers will
+shift after your first edit** — re-locate subsequent items by the function/id name given (e.g.
+search for `function syncIsoState`), not by the stale line number, once you've started editing.
 
 ---
 
-## 1. Remove existing in-form calculations (confirmed present — this is not speculative)
+## 0. The one hard rule
 
-Unlike the India form, these were directly confirmed in the current source and need to be fixed,
-not just reviewed:
+This form only writes JSON to `localStorage['wising_us_state']`. A separate engine
+(`engine/*.js`, not in this file) reads that JSON and does 100% of the tax computation. **This form
+must collect raw facts only — no computed tax figures, no tax-rule application (exemptions,
+elections, exclusions), no income classification.** Section 1 below lists six places where this
+rule is currently violated; fix all six as part of this work, not just the new fields in sections
+2–5.
 
-### 1a. ISO exercises (`equity_compensation.iso_exercises[]`)
-Currently `syncIsoState()` computes `amt_preference_spread_usd = Math.max(0, (fmv - strike) *
-shares)` in JavaScript and stores the *result*.
-**Change:** keep `strike_price_usd`, `fmv_at_exercise_usd`, `shares_exercised` as the stored raw
-inputs. Either drop `amt_preference_spread_usd` from the stored object entirely (the engine can
-compute it from the three raw inputs), or, if a live on-screen number is useful for the user while
-they type, compute it only for **display** and do not persist it as if it were an entered fact.
-
-### 1b. NSO exercises (`equity_compensation.nso_exercises[]`)
-Same pattern: `syncNsoState()` computes and stores `ordinary_income_recognized_usd = Math.max(0,
-(fmv - strike) * shares)`.
-**Change:** same treatment as 1a — raw `strike_price_usd`/`fmv_at_exercise_usd`/`shares_exercised`
-only; drop or demote the computed field.
-
-### 1c. RSU vestings (`equity_compensation.rsu_vestings[]`)
-`syncRsuState()` computes and stores `gross_income_usd = fmv_at_vest_usd * shares_vested`.
-**Change:** same treatment — keep `fmv_at_vest_usd` and `shares_vested` as raw inputs, drop or
-demote `gross_income_usd`. (Also see §3 below — this array needs new fields added at the same
-time, so do this cleanup as part of that change, not separately.)
-
-### 1d. Real estate property transactions (`real_estate.properties[]`)
-`syncPropertiesState()` does more than compute a number — it **applies tax elections itself**:
-it computes `rawGain = price - basis`, then if `s121_exclusion_claimed` is checked it subtracts the
-§121 primary-residence exclusion limit ($250k/$500k by filing status, with the $500k figure
-hardcoded in the JS), and if `s1031_like_kind_exchange` is checked it zeroes the gain entirely —
-storing the final result as `realized_gain_loss_usd`.
-**Change:** keep the raw inputs only — `acquisition_date`, `sale_date`, `cost_basis_usd`,
-`sale_price_usd`, and the two boolean election flags (`s121_exclusion_claimed`,
-`s1031_like_kind_exchange`). Remove the gain calculation and the exclusion-amount/zeroing logic
-from this file entirely; the engine must apply §121/§1031 treatment, including the correct
-current-law exclusion limits (do not assume the $250k/$500k figures are still correct without
-checking — but that check belongs in `engine/constants.js`, not here).
-
-### 1e. FEIE housing exclusion (`foreign_earned_income.*`)
-The form stores `housing_exclusion_base_usd` (hardcoded `21264`) and `housing_exclusion_cap_usd`
-(hardcoded `39870`) as if they were user data, computes `foreign_housing_exclusion_usd` from them
-and `foreign_housing_expenses_usd`, and even subtracts the result from a locally-tracked `agi`
-figure inside the form.
-**Change:** keep only `foreign_housing_expenses_usd` as a raw user-entered input (what they
-actually spent on foreign housing). Remove `housing_exclusion_base_usd`, `housing_exclusion_cap_usd`,
-`foreign_housing_exclusion_usd`, and the AGI adjustment from this file — the base/cap amounts are
-statutory figures that change periodically and belong in `engine/constants.js`, and the exclusion
-computation (plus the no-double-dip interaction with the base FEIE amount) belongs in
-`engine/computation.js` alongside the existing FEIE logic.
-
-### 1f. NRA ECI/FDAP classification (`nra_specific.us_eci_income_usd` / `us_fdap_income_usd`)
-The form currently sums wages + self-employment into `us_eci_income_usd`, and interest + ordinary
-dividends + rental into `us_fdap_income_usd`, as a derived classification step.
-**Change:** this one is lower priority to rip out immediately since the underlying raw amounts
-(wages, self-employment, interest, dividends, rental) are already separately captured elsewhere on
-this form — the classification is arguably just a convenience rollup rather than new information.
-If time allows, remove these two derived fields and let the engine do the ECI/FDAP classification
-directly from the underlying line items; if not, at minimum do not add any *new* logic of this kind
-elsewhere in the form.
+Conventions already used in this file — follow them for every new field:
+- Money fields end in `_usd`.
+- `updateStateField('<section>', '<field>', value)` is the standard setter for simple fields.
+- Repeatable rows (ISO/NSO/RSU/property/corp entries) each have: an `add<X>Row(data=null)` function
+  that renders a card and pre-fills it if `data` is passed (used when restoring saved state), a
+  `sync<X>State()` function bound to every input's `oninput`/`onchange` that rebuilds the whole
+  array from the current DOM and writes it to `usState`, and three other places every such array
+  appears: (a) the initial `usState = {...}` declaration, (b) the "reset form" function that
+  re-initializes `usState`, (c) the "restore from saved JSON" function that copies matching arrays
+  out of `savedState`, and (d) the "populate DOM on load" function that calls
+  `savedArray.forEach(x => add<X>Row(x))`. **When adding a field to a repeatable row, you must touch
+  all four of these**, or the field will silently not survive a save/reload cycle.
 
 ---
 
-## 2. New section: GILTI / CFC inputs
+## 1. Remove six confirmed in-form calculations
 
-**Why:** `foreign_entities.foreign_corporations[]` currently carries little beyond name/country/
-ownership%, and is auto-populated from Indian business data with a placeholder
-`gilti_income_usd = net_profit_inr / 83` and a hardcoded `subpart_f_income_usd: 0` — neither of
-which is real user-entered data. The engine has no way to compute an actual GILTI/Subpart F
-inclusion without the real inputs.
+### 1a. ISO exercises — `equity_compensation.iso_exercises[]`
+- Row renderer: `function addIsoRow(data = null)` at **line 15507**.
+- Sync/calc function: `function syncIsoState()` (a few lines after `addIsoRow`, look for
+  `document.querySelectorAll('.iso-card')`). It currently does:
+  ```js
+  const spread = Math.max(0, (fmv - strike) * shares);
+  if (div.querySelector('.iso-pref')) div.querySelector('.iso-pref').value = spread.toFixed(2);
+  list.push({ ..., amt_preference_spread_usd: spread });
+  ```
+- **Change:** delete the `spread` calculation and stop pushing `amt_preference_spread_usd` into the
+  stored object. Keep `strike_price_usd`, `fmv_at_exercise_usd`, `shares_exercised` as the only
+  numeric outputs. If you want to leave the `.iso-pref` on-screen field as a live convenience
+  display for the user, that's fine — just don't persist it into `usState`/localStorage as if it
+  were entered data.
 
-**Where:** `foreign_entities.foreign_corporations[]`, add fields to each entry (remove the
-`gilti_income_usd`/`subpart_f_income_usd` placeholder auto-fill logic — leave those fields blank/
-null on auto-hydration from the India side rather than guessing a value):
+### 1b. NSO exercises — `equity_compensation.nso_exercises[]`
+- Row renderer: `function addNsoRow(data = null)` (immediately follows `addIsoRow`, ~line 15606).
+- Sync function: `function syncNsoState()`. Same pattern:
+  ```js
+  const income = Math.max(0, (fmv - strike) * shares);
+  list.push({ ..., ordinary_income_recognized_usd: income });
+  ```
+- **Change:** same treatment as 1a — drop the computed `ordinary_income_recognized_usd`, keep
+  `strike_price_usd`/`fmv_at_exercise_usd`/`shares_exercised` as raw inputs.
+
+### 1c. RSU vestings — `equity_compensation.rsu_vestings[]`
+- Row renderer: `function addRsuRow(data = null)` at **line 15699**.
+- Sync function: `function syncRsuState()`. Computes `income = fmv * shares` and stores it as
+  `gross_income_usd`.
+- **Change:** drop the computed `gross_income_usd`; keep `fmv_at_vest_usd`/`shares_vested` as raw.
+  **Do this in the same pass as §3 below**, since you're adding new fields to this exact function.
+
+### 1d. Real estate property transactions — `real_estate.properties[]`
+- Row renderer: `function addPropertyRow(data = null)` at **line 16460**.
+- Sync function: `function syncPropertiesState()` (look for `.property-card`), ~line 16553. It
+  currently:
+  ```js
+  const rawGain = price - basis;
+  if (isS1031) finalGain = 0;
+  else if (isS121) {
+      const limit = usState.profile.filing_status === 'mfj' ? 500000 : 250000;
+      finalGain = Math.max(0, rawGain - limit);
+  }
+  list.push({ ..., realized_gain_loss_usd: finalGain, s121_exclusion_claimed: isS121, s1031_like_kind_exchange: isS1031 });
+  ```
+  This is worse than 1a–1c: it doesn't just compute a number, it **applies the §121/§1031 tax
+  elections itself**, including a hardcoded `$250,000`/`$500,000` exclusion limit.
+- **Change:** delete the entire `rawGain`/`finalGain`/`limit` block. Keep only the raw inputs:
+  `acquisition_date`, `sale_date`, `cost_basis_usd`, `sale_price_usd`, and the two checkboxes
+  (`s121_exclusion_claimed`, `s1031_like_kind_exchange`) as plain booleans with no computed
+  consequence in this file. The engine must compute the gain and apply the elections — including
+  looking up the current exclusion limit itself rather than trusting a hardcoded figure baked into
+  a form.
+
+### 1e. FEIE housing exclusion — `foreign_earned_income.*`
+- State init: **lines 4005–4008** — `foreign_housing_expenses_usd: null`,
+  `housing_exclusion_base_usd: 21264`, `housing_exclusion_cap_usd: 39870`,
+  `foreign_housing_exclusion_usd: 0`. The base/cap are hardcoded statutory figures living in a data
+  file, which is exactly the anti-pattern this section is about.
+- Input: **line 2844**, `id="feie-housing"`, `oninput="updateStateField(...); calculateFeieExclusion();"`.
+- Calc function: `function calculateFeieExclusion()` at **line 6869**. Also referenced at
+  **line 8990** (`agi -= usState.foreign_earned_income.foreign_housing_exclusion_usd || 0;` — the
+  form is tracking its own AGI approximation, which is itself out of scope for this file) and
+  **lines 9109–9115** (recomputes `houseExcl` using the hardcoded base/cap and stores it into
+  `foreign_housing_exclusion_usd`).
+- Reset block: **lines 17162–17166** re-initializes the same four fields.
+- **Change:**
+  1. Keep only `foreign_housing_expenses_usd` as a raw, user-entered field.
+  2. Delete `housing_exclusion_base_usd`, `housing_exclusion_cap_usd`, `foreign_housing_exclusion_usd`
+     from all four locations (init, reset, the calc function, and the AGI line at 8990).
+  3. Remove the `calculateFeieExclusion()` call from the `id="feie-housing"` input's `oninput`
+     handler (line 2844) — or repurpose the function to update a clearly-labeled "estimate for your
+     reference only, not used for filing" display, but do not write its result into persisted state.
+  4. The statutory base/cap figures belong in `engine/constants.js`, and the actual exclusion +
+     no-double-dip-with-base-FEIE computation belongs in `engine/computation.js`'s existing FEIE
+     logic — not in this file.
+
+### 1f. NRA ECI/FDAP classification — `nra_specific.us_eci_income_usd` / `us_fdap_income_usd`
+- State init: **line 4106** (`nra_specific: {`), fields at nearby lines (`us_eci_income_usd: 0`,
+  `us_fdap_income_usd: 0` — check the object body right after line 4106).
+- Calc block: **lines 9229–9256**, under the comment `// 6. NRA ECI & FDAP Mappings`. Sums
+  `wages_w2[]` + `self_employment[]` net into `eci`, and `interest_us_source_usd` +
+  `ordinary_dividends_us_source_usd` + `rental_income_us_source_usd` into `fdap`, then stores both.
+- **Change (lower priority than 1a–1e, but do it if time allows):** the underlying raw amounts
+  (wages, self-employment, interest, dividends, rental) are already captured elsewhere on this form
+  independently of this block — this classification step is redundant derived data, not new
+  information. Remove the block at lines 9229–9256 and the two stored fields; let the engine
+  classify ECI vs. FDAP directly from the raw line items it already reads. If you're short on time,
+  it's acceptable to leave this one as-is and focus on 1a–1e, which are higher-impact.
+
+---
+
+## 2. New fields: GILTI / CFC inputs on `foreign_entities.foreign_corporations[]`
+
+**Found while locating this section — a schema mismatch you should fix at the same time:** there
+are **two different code paths that write into the same `foreign_corporations[]` array with two
+different field shapes**:
+
+- The manual-entry UI — `function addCorpRow(data = null)` at **line 16588**, sync function
+  `function syncCorpState()` at **line 16658** — produces objects shaped like:
+  `{ corporation_name, country_of_incorporation, ownership_percentage, tax_year_start,
+  transition_to_ncti_post_2026, cfc_status }`. Note `syncCorpState()` also **derives** `cfc_status`
+  in-form (`const isCfc = pct > 50;` at line 16662) — this is itself a violation of the hard rule,
+  and also uses the wrong test (US CFC status depends on >50% combined vote/value held by US
+  shareholders in aggregate, not a single owner's raw %, and this codebase's own engine uses a 10%
+  ownership threshold for Form 5471 purposes elsewhere). **Remove the `isCfc`/`cfc_status`
+  derivation** — store `ownership_percentage` as a raw fact and let the engine decide CFC status.
+
+- An auto-hydration bridge (around **lines 17502–17511**, inside the "hydrate India business data
+  into US foreign entities" block) pushes objects shaped like: `{ corp_name, country,
+  subpart_f_income_usd: 0, gilti_income_usd: (net_profit_inr / 83) }` — **different field names
+  entirely**, plus a fabricated `gilti_income_usd` guess using a hardcoded FX rate of 83, and a
+  hardcoded `subpart_f_income_usd: 0`.
+
+**Change:**
+1. Unify on the manual-entry field names (`corporation_name`, `country_of_incorporation`,
+   `ownership_percentage`) — update the auto-hydration block at lines 17502–17511 to use these same
+   keys instead of `corp_name`/`country`.
+2. Delete the fabricated `gilti_income_usd: (net_profit_inr / 83)` and `subpart_f_income_usd: 0`
+   from the auto-hydration block — leave those fields blank so the user is prompted to fill in real
+   data, rather than silently seeding a fake number.
+3. Add these new fields to the `addCorpRow` card template and to the `syncCorpState()` push object
+   (all raw entries):
+
+   | Field | Type |
+   |---|---|
+   | `tested_income_usd` | number |
+   | `qbai_usd` | number |
+   | `e_and_p_usd` | number |
+   | `subpart_f_income_usd` | number (now a real input, not a hardcoded 0) |
+   | `foreign_tax_paid_by_cfc_usd` | number |
+
+4. Update the other three touchpoints for this array: the initial state declaration
+   (`foreign_corporations: []` at **line 4036**), the reset function (`foreign_corporations: []` at
+   **line 17194**), and the restore-from-saved-JSON line (**line 17664**) — none of these need field
+   -level changes since the array is copied wholesale, but confirm they still work once the object
+   shape changes.
+
+---
+
+## 3. New fields: equity-comp cross-border sourcing (grant date + workday split)
+
+Add to all three of the row templates/sync functions touched in §1a–1c
+(`addIsoRow`/`syncIsoState` line 15507, `addNsoRow`/`syncNsoState` ~15606, `addRsuRow`/`syncRsuState`
+line 15699):
 
 | Field | Type | Notes |
 |---|---|---|
-| `tested_income_usd` | number | The CFC's net income computed under US tax principles for the year — a figure the preparer supplies, not derived here. |
-| `qbai_usd` | number | Qualified Business Asset Investment — average adjusted basis of depreciable tangible property. |
-| `e_and_p_usd` | number | Earnings & profits. |
-| `subpart_f_income_usd` | number | Passive/foreign-personal-holding-company-type income — raw entry, remove the hardcoded `0`. |
-| `foreign_tax_paid_by_cfc_usd` | number | Needed for the §960 indirect credit and the GILTI high-tax exclusion test. |
+| `grant_date` | date | ISO exercises already have this (check the existing `.iso-grant` input) — add the equivalent to the NSO and RSU cards, which don't have it today. |
+| `total_workdays_during_vesting_period` | number | |
+| `workdays_in_india_during_vesting_period` | number | Raw counts only — do not compute a percentage here. |
+
+Remember the four touchpoints rule from §0 for each of these three arrays (init ~line 3987 block,
+reset ~line 17145 block, restore ~lines 17658–17661, DOM-populate-on-load loops that call
+`addIsoRow`/`addNsoRow`/`addRsuRow`).
 
 ---
 
-## 3. Equity compensation: cross-border sourcing data
+## 4. New fields: rental-property depreciable basis on `real_estate.properties[]`
 
-**Why:** to support a conflict-detection finding that catches the same multi-year equity award
-being fully taxed by both India (as an ESOP perquisite) and the US (as RSU-vest/NSO-exercise
-ordinary income), the engine needs grant dates and a workday split — not just amounts.
+Same array as §1d (`addPropertyRow` line 16460, `syncPropertiesState` line 16553), state init at
+**line 4014** (`real_estate: {`). The existing card is oriented around a sale/disposition
+(`transaction_type` dropdown has `holding`/`sale` per the code at line 16489-16490) — add these
+fields, relevant when `transaction_type === "holding"`:
 
-**Where:** `equity_compensation.rsu_vestings[]`, `equity_compensation.iso_exercises[]`,
-`equity_compensation.nso_exercises[]` — add to each entry:
+| Field | Type |
+|---|---|
+| `depreciable_basis_usd` | number |
+| `land_value_usd` | number |
+| `placed_in_service_date` | date |
 
-| Field | Type | Notes |
-|---|---|---|
-| `grant_date` | date | RSU vestings don't currently have this at all; ISO exercises already do — add it to RSU and NSO for consistency. |
-| `total_workdays_during_vesting_period` | number | Total workdays between grant and vest/exercise. |
-| `workdays_in_india_during_vesting_period` | number | Subset of the above physically worked in India. Raw counts — do not compute a sourcing percentage in this file. |
-
----
-
-## 4. Real estate: depreciable basis for ongoing rental holdings
-
-**Why:** `real_estate.properties[]` today is oriented entirely toward a sale/disposition record
-(acquisition date, cost basis, sale price — see §1d above). For a property still being rented
-(`transaction_type === "holding"`), there's no way to capture what's needed to compute an ongoing
-annual depreciation deduction.
-
-**Where:** `real_estate.properties[]`, add fields (relevant when `transaction_type === "holding"`):
-
-| Field | Type | Notes |
-|---|---|---|
-| `depreciable_basis_usd` | number | Building basis only (land is not depreciable). |
-| `land_value_usd` | number | Separated out so the engine isn't left guessing the building/land split. |
-| `placed_in_service_date` | date | When the property was placed in rental service (starts the depreciation clock; may differ from `acquisition_date`). |
-
-Do not compute or store an annual depreciation amount here — that's MACRS/straight-line logic that
-belongs in `engine/computation.js`.
+Do not compute or display an annual depreciation figure in this file.
 
 ---
 
 ## 5. New section: OBBBA temporary provisions (2025–2028)
 
-**Why:** the One Big Beautiful Bill Act (signed July 2025) added several temporary individual
-deductions that this form currently has no fields for at all.
-
-**Where:** new fields, plausibly a new `obbba_temporary_deductions` section, or alongside the most
-relevant existing sections (wages for tips/overtime, itemized deductions for the auto loan
-interest, profile for senior status) — pick whichever fits the form's existing organization better:
+There's no existing section to extend here — build a new one. **Use the FEIE section as your
+structural template** (find it via `foreign_earned_income:` at line ~4001 for the state shape, and
+the surrounding HTML card starting a bit before line 2844 for the UI pattern): a bordered card with
+a header, plain labeled inputs, each wired with `updateStateField('obbba_temporary_deductions',
+'<field>', value)`. Add a new top-level state key `obbba_temporary_deductions` (put it near
+`itemized_deductions_and_credits`, which starts at **line 4049**, for organizational proximity) —
+remember to add it to all four touchpoints (init, reset, restore, DOM-populate — see §0).
 
 | Field | Type | Notes |
 |---|---|---|
-| `qualified_tips_usd` | number | Tips received in an occupation on the IRS's published list as of 12/31/2024. Raw amount only — do not apply the $25,000 cap or the MAGI phase-out here. |
-| `qualified_overtime_pay_usd` | number | The FLSA-required "half" premium portion of overtime pay only (not the full overtime wage). Raw amount — not available for MFS filers, but that's a filing-status gate the engine should enforce, not this form. |
-| `new_auto_loan_interest_usd` | number | Interest paid on a **new** loan for a vehicle with final assembly in the US. |
-| `vehicle_final_assembly_in_us` | boolean | Eligibility fact paired with the above — without this, the engine can't tell if the loan qualifies. |
+| `qualified_tips_usd` | number | Raw tips received. No cap/phase-out logic here. |
+| `qualified_overtime_pay_usd` | number | The FLSA "half" premium portion only — raw amount. |
+| `new_auto_loan_interest_usd` | number | Interest paid on a new loan for a US-assembled vehicle. |
+| `vehicle_final_assembly_in_us` | boolean | Paired eligibility fact for the field above. |
 
-**Senior deduction (age 65+):** before adding a new field, check whether `profile.date_of_birth`
-already exists for the primary filer and add a matching `spouse_date_of_birth` field if the spouse's
-DOB isn't already captured somewhere (needed because the deduction is tested per-qualifying-spouse
-under MFJ). If both DOBs are already available elsewhere on the form, no new field is needed here —
-the engine can derive age-eligibility itself. Do not add a "senior deduction amount" field; that's
-computed, not collected.
-
----
-
-## 6. Verify — figures that must NOT be hardcoded into this form
-
-While making the changes above, check the rest of the file for any other place that hardcodes a
-tax-law figure that changes periodically (deduction caps, exemption amounts, credit phase-outs,
-percentage rates) the way the FEIE housing base/cap and the §121 exclusion limit were. If found,
-strip the hardcoded figure and keep only the underlying raw fact — the actual number belongs in
-`engine/constants.js` so it can be updated in one place per tax year.
+**Senior deduction (age 65+):** check whether `profile.date_of_birth` already exists (search for
+`'profile', 'date_of_birth'`) and whether a spouse DOB field exists anywhere in `profile`. If a
+spouse DOB field is missing, add `spouse_date_of_birth` to `profile` — needed because the deduction
+is tested per-qualifying-spouse under MFJ. Do not add a "senior deduction amount" field; that's
+computed by the engine.
 
 ---
 
-## Summary of changes for a quick implementation checklist
+## 6. Final sweep
 
-- [ ] §1a–1c: remove computed `amt_preference_spread_usd` / `ordinary_income_recognized_usd` / `gross_income_usd` from ISO/NSO/RSU — keep raw strike/FMV/shares only
-- [ ] §1d: remove gain calculation + §121/§1031 application from `real_estate.properties[]` — keep raw dates/basis/price + election checkboxes only
-- [ ] §1e: remove hardcoded FEIE housing base/cap and the computed exclusion/AGI adjustment — keep only raw `foreign_housing_expenses_usd`
-- [ ] §1f: (lower priority) remove derived `us_eci_income_usd` / `us_fdap_income_usd` rollups
-- [ ] §2: add GILTI/CFC fields (`tested_income_usd`, `qbai_usd`, `e_and_p_usd`, `subpart_f_income_usd`, `foreign_tax_paid_by_cfc_usd`) to `foreign_corporations[]`; remove the placeholder auto-fill guess
-- [ ] §3: add `grant_date` (RSU/NSO) and workday-split fields to ISO/NSO/RSU entries
-- [ ] §4: add `depreciable_basis_usd`, `land_value_usd`, `placed_in_service_date` to rental `real_estate.properties[]` entries
-- [ ] §5: add OBBBA temporary-provision fields (tips, overtime, auto loan interest + eligibility); confirm spouse DOB is captured for the senior deduction
-- [ ] §6: sweep for any other hardcoded tax-law figures and strip them
+While you're in this file for the above, grep for any other hardcoded dollar/percentage figures
+being used to compute a stored result (the same anti-pattern as the FEIE housing base/cap and the
+§121 exclusion limit in §1d/§1e) and flag them even if you don't have time to fix them all — leave
+a `// TODO(engine-migration):` comment at each one you don't fix in this pass.
+
+---
+
+## Implementation checklist
+
+- [ ] §1a: `addIsoRow`/`syncIsoState` (~15507) — drop computed `amt_preference_spread_usd`
+- [ ] §1b: `addNsoRow`/`syncNsoState` (~15606) — drop computed `ordinary_income_recognized_usd`
+- [ ] §1c: `addRsuRow`/`syncRsuState` (15699) — drop computed `gross_income_usd`
+- [ ] §1d: `addPropertyRow`/`syncPropertiesState` (16460) — drop gain calc + §121/§1031 application
+- [ ] §1e: FEIE housing (2844, 4005–4008, 6869, 8990, 9109–9115, 17162–17166) — drop hardcoded base/cap + computed exclusion + AGI line
+- [ ] §1f: NRA ECI/FDAP (4106, 9229–9256) — lower priority, drop derived rollup if time allows
+- [ ] §2: unify `foreign_corporations[]` schema (16588/16658 vs. 17502–17511), drop derived `cfc_status` and fabricated GILTI guess, add 5 new GILTI raw-input fields
+- [ ] §3: add `grant_date` + workday-split fields to ISO/NSO/RSU rows (all 4 touchpoints each)
+- [ ] §4: add `depreciable_basis_usd`/`land_value_usd`/`placed_in_service_date` to `real_estate.properties[]`
+- [ ] §5: new `obbba_temporary_deductions` section (tips, overtime, auto loan interest + eligibility); confirm/add spouse DOB
+- [ ] §6: sweep + TODO-comment any remaining hardcoded tax-law figures
