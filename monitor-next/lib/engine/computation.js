@@ -224,6 +224,12 @@
     if (ek === "ccorp" || ek === "scorp" || ek === "partnership" || ek === "trust") {
       return computeUsEntityTax(model, inc, ek);
     }
+    // Non-resident alien filing Form 1040-NR (and not electing §6013(g)/(h) to
+    // be treated as a full-year resident): ECI is graduated, FDAP is flat —
+    // NOT the same resident-style computation used below.
+    if (model.treaty.files1040nr && model.nra && !model.nra.s6013hElection) {
+      return computeNraTax(model, inc);
+    }
     var ded = model.deductions.us;
     var status = model.identity.usFilingStatus;
     var brackets = T.BRACKETS[status] || T.BRACKETS.single;
@@ -390,6 +396,53 @@
     };
   }
 
+  // ---- Form 1040-NR computation (non-resident alien, no §6013(g)/(h) election) ----
+  // Layer 1 already classifies US-source income into ECI (wages + net
+  // self-employment) and FDAP (interest + ordinary dividends + rental) — see
+  // nra_specific.us_eci_income_usd / us_fdap_income_usd. ECI is taxed at the
+  // same graduated brackets as a resident (deductions allowed, but NRAs
+  // generally cannot claim the standard deduction — itemized only here,
+  // planning-grade; the narrow India-treaty student/business-apprentice
+  // standard-deduction exception is not modeled). FDAP is taxed FLAT at the
+  // claimed treaty rate (or 30% absent a claim), with NO deductions — this is
+  // Schedule NEC, not the graduated brackets. NRAs are not taxed on
+  // foreign-source income at all, so there is no US-side FTC need for it.
+  function computeNraTax(model, inc) {
+    var T = CONST.TAX.US;
+    var nra = model.nra || {};
+    var status = model.identity.usFilingStatus === "mfj" ? "mfj" : "single"; // NRAs generally can't file MFJ absent §6013
+    var brackets = T.BRACKETS[status] || T.BRACKETS.single;
+    var ded = model.deductions.us;
+
+    var eciUsd = nra.eciIncomeUsd || 0;
+    var fdapUsd = nra.fdapIncomeUsd || 0;
+    var claim = (nra.treatyRateClaims || [])[0];
+    var fdapRate = (claim && claim.rate != null) ? Math.max(0, Math.min(1, Number(claim.rate) / 100)) : 0.30;
+
+    var itemized = Math.min(ded.salt, T.SALT_CAP_USD) + ded.mortgageInterest + ded.charitable +
+                   Math.max(0, ded.medical - 0.075 * eciUsd);
+    var taxableEciUsd = Math.max(0, eciUsd - itemized);
+    var eciTaxUsd = bracketTax(taxableEciUsd, brackets);
+    var fdapTaxUsd = fdapUsd * fdapRate;
+    var addlMedicare = model.limitsRaw.additionalMedicareOwed || 0;
+    var totalTax = eciTaxUsd + fdapTaxUsd + addlMedicare;
+
+    return {
+      filingStatus: status, worldwide: false, isNra: true,
+      totalIncomeUsd: eciUsd + fdapUsd,
+      agiUsd: eciUsd, deductionUsd: itemized, deductionMode: "itemized (NRA — no standard deduction)",
+      taxableIncomeUsd: taxableEciUsd,
+      ordinaryTaxUsd: eciTaxUsd, preferentialTaxUsd: 0, incomeTaxUsd: eciTaxUsd + fdapTaxUsd,
+      niitUsd: 0, additionalMedicareUsd: addlMedicare, seTaxUsd: 0, qbiDeductionUsd: 0, amtUsd: 0, creditsUsd: 0,
+      totalTaxBeforeFtcUsd: totalTax,
+      foreignSourceIncomeUsd: 0, // NRAs aren't taxed on foreign-source income — no US FTC need for it
+      usSourceIncomeUsd: eciUsd + fdapUsd,
+      nra: { eciUsd: eciUsd, fdapUsd: fdapUsd, fdapRate: fdapRate, eciTaxUsd: eciTaxUsd, fdapTaxUsd: fdapTaxUsd },
+      feie: { claimed: false, eligible: false, taxHomeAbroad: false, testMet: false, reasons: [], appliedUsd: 0 },
+      effectiveRate: (eciUsd + fdapUsd) > 0 ? totalTax / (eciUsd + fdapUsd) : 0
+    };
+  }
+
   // ---- US corporate / pass-through computation ----
   function computeUsEntityTax(model, inc, kind) {
     var taxable = inc.total.usd; // business income + other
@@ -462,9 +515,18 @@
     // computation entirely — it is removed from foreign-source income and the
     // Indian tax allocable to it is proportionally disallowed as a credit.
     var feieExcludedUsd = (usTax.feie && usTax.feie.appliedUsd) || 0;
-    var foreignSrcGrossUsd = model.income.india.total.usd;
+    // An NRA (Form 1040-NR, no §6013 election) is not taxed by the US on
+    // foreign-source income at all, so there is nothing for a US-side FTC to
+    // relieve — zeroing this avoids a misleading "credit available/shortfall"
+    // finding computed against income that was never in the US tax base.
+    var foreignSrcGrossUsd = usTax.isNra ? 0 : model.income.india.total.usd;
     var foreignSrcUsd = Math.max(0, foreignSrcGrossUsd - feieExcludedUsd);
-    var creditableFraction = foreignSrcGrossUsd > 0 ? foreignSrcUsd / foreignSrcGrossUsd : 1;
+    // The `: 1` fallback below is only valid when there's genuinely no foreign
+    // income to begin with; for an NRA, foreignSrcGrossUsd is zeroed by FIAT
+    // (not because there's no Indian income) so the fallback would wrongly
+    // multiply a real India tax figure by 1 and present it as an unrelieved
+    // US-side credit shortfall. Force the whole US-direction credit to 0 for NRAs.
+    var creditableFraction = usTax.isNra ? 0 : (foreignSrcGrossUsd > 0 ? foreignSrcUsd / foreignSrcGrossUsd : 1);
     var usTaxableUsd = usTax.taxableIncomeUsd;
     // Only income tax (not NIIT/Medicare) is creditable.
     var usIncomeTaxUsd = usTax.incomeTaxUsd;

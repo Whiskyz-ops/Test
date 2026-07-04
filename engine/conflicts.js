@@ -229,15 +229,16 @@
     // this split, which understates/misstates the true 1040-NR liability.
     var nra = model.nra || {};
     if (model.treaty.files1040nr && !nra.s6013hElection && nra.fdapIncomeUsd > 0) {
+      var nraDetail = computed.usTax && computed.usTax.nra;
       var claimedRate = (nra.treatyRateClaims[0] && nra.treatyRateClaims[0].rate) || null;
-      add("nra_fdap_flat_rate", S.WARNING, C.CREDIT,
-        "1040-NR: FDAP income should be taxed flat, not at graduated rates",
-        usd(nra.fdapIncomeUsd) + " of FDAP income (interest/dividends/rents not effectively connected with a US trade " +
-        "or business) is on file for a Form 1040-NR filer. FDAP is taxed at a flat 30%" +
-        (claimedRate ? " (a " + claimedRate + "% treaty rate is claimed)" : " absent a treaty claim") +
-        " with no deductions — the computation above instead runs it through the same graduated brackets as ECI/resident income.",
-        "Split US-source income into its ECI bucket (graduated rates, deductions allowed) and its FDAP bucket (flat 30%/" +
-        "treaty rate, reported on Schedule NEC, no deductions) before relying on the total tax figure above.",
+      add("nra_fdap_flat_rate", S.INFO, C.CREDIT,
+        "1040-NR: FDAP taxed flat" + (nraDetail ? " (" + Math.round(nraDetail.fdapRate * 100) + "%)" : "") + ", ECI at graduated rates",
+        usd(nra.fdapIncomeUsd) + " of FDAP income (interest/dividends/rents not effectively connected with a US trade or " +
+        "business) is taxed flat" + (claimedRate ? " at the claimed " + claimedRate + "% treaty rate" : " at the 30% statutory rate (no treaty rate on file)") +
+        " with no deductions (Schedule NEC), separate from " + usd(nra.eciIncomeUsd) + " of ECI taxed at graduated brackets" +
+        " with itemized deductions only (NRAs generally can't claim the standard deduction).",
+        "Confirm the treaty rate claimed on Form W-8BEN/1040-NR matches the rate used here" +
+        (claimedRate ? "" : " — no treaty rate is on file, so the default 30% was applied; check whether Article 11/12 of the DTAA reduces it") + ".",
         0, ["Form 1040-NR", "Schedule NEC", "FDAP", "ECI"]);
     }
 
@@ -580,7 +581,22 @@
         totalUsd: i.totalTaxUsd,
         effectiveRate: i.effectiveRate
       },
-      us: {
+      us: u.isNra ? {
+        title: "US federal tax — Form 1040-NR (ECI graduated / FDAP flat)",
+        currency: "USD",
+        rows: [
+          { label: "ECI (wages + net self-employment)", usd: u.nra.eciUsd },
+          { label: "Less itemized deductions (no standard deduction for NRAs)", usd: -u.deductionUsd },
+          { label: "Taxable ECI", usd: u.taxableIncomeUsd },
+          { label: "Tax on ECI (graduated brackets)", usd: u.nra.eciTaxUsd },
+          { label: "FDAP (interest/dividends/rental, Schedule NEC)", usd: u.nra.fdapUsd },
+          { label: "Tax on FDAP (flat " + Math.round(u.nra.fdapRate * 100) + "%, no deductions)", usd: u.nra.fdapTaxUsd },
+          { label: "Additional Medicare tax", usd: u.additionalMedicareUsd },
+          { label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true }
+        ],
+        totalUsd: u.totalTaxBeforeFtcUsd,
+        effectiveRate: u.effectiveRate
+      } : {
         title: u.isEntity ? ("US federal tax — " + u.filingStatus) : ("US federal income tax (" + u.filingStatus.toUpperCase() + ")"),
         currency: "USD",
         rows: [

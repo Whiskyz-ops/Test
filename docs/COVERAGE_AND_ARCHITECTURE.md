@@ -85,7 +85,7 @@ comprehensive return engine. Approx **30–40%** of collected fields are consume
 | `niit_inputs` | MAGI, NII, threshold | ✅ engine computes NIIT | — |
 | `ftc_inputs` | claims_ftc, simplified<300, accrued method, carryovers, **ftc_baskets[]** | 🟡 engine computes FTC itself; **baskets/carryovers/accrued election ⛔** | FTC precision |
 | `withholding_and_estimated` | fed/state withholding, estimated Q1–4, prior-year tax, addl-Medicare | ✅ | — |
-| `nra_specific` | files_1040nr, §6013(h), W-8BEN, W-7, **ECI/FDAP**, treaty_rate_claims[], FIRPTA, LRS investor | ✅ now drives `nra_fdap_flat_rate` (FDAP flat-30%/treaty-rate vs. graduated-bracket mismatch), `nra_w8ben_missing`, and `firpta`; the actual FDAP-flat-rate / ECI-split RECOMPUTATION is still ⛔ (flagged, not yet computed) | Flagged; recomputation still open |
+| `nra_specific` | files_1040nr, §6013(h), W-8BEN, W-7, **ECI/FDAP**, treaty_rate_claims[], FIRPTA, LRS investor | ✅ a dedicated `computeNraTax()` path now taxes ECI at graduated brackets (itemized-only) and FDAP flat at the claimed treaty rate / 30% (Schedule NEC), dispatched whenever `files_form_1040nr` is set without a §6013(g)/(h) election; US-side FTC is correctly zeroed (NRAs aren't taxed on foreign income). `form_8288_a/b` (FIRPTA remittance forms) still ⛔ | Computed for ECI/FDAP split; FIRPTA forms still doc-only |
 
 ---
 
@@ -152,12 +152,22 @@ A dedicated pass over `engine/conflicts.js` against the Layer 1 fields above, sc
   read only for a `files_1040nr` flag; the ECI/FDAP split, treaty-rate claims, W-8BEN, and FIRPTA
   withholding were all collected and ignored. Confirmed as a real, previously-silent gap: one demo
   profile has genuine 1040-NR FDAP income and produced zero NRA-related findings before this fix.
+- **Actual NRA tax computation** — went further than a flag: added `computeNraTax()` in
+  `computation.js`, dispatched from `computeUsTax()` whenever `files_form_1040nr` is set without a
+  §6013(g)/(h) election. It taxes ECI at graduated brackets (itemized deductions only — NRAs
+  generally can't claim the standard deduction) and FDAP flat at the claimed treaty rate / 30%
+  statutory default (Schedule NEC), using Layer 1's own pre-classified `us_eci_income_usd` /
+  `us_fdap_income_usd`. Also had to guard `computeFtc()`: the `: 1` fallback in the creditable-fraction
+  math (correct for the ordinary case) was silently presenting an NRA's full India tax as an
+  unrelieved US-side FTC shortfall, when in fact the US never taxes an NRA's foreign-source income at
+  all — caught this while building the fix, not before. `taxComputation.us` gets a dedicated
+  ECI/FDAP-split breakdown instead of the resident-style row set when `isNra` is true.
 
 **Still open in conflict detection** (tracked here, not yet built): entity-level dual residency for
 an Indian company under POEM vs. US management-and-control, a numeric GILTI/Subpart F computation
-once Part F lands, and the actual recomputation work behind several new flags — Chapter XII-A flat
-rates, the equity-comp sourcing day-count allocation, and the NRA FDAP-flat/ECI-graduated split are
-all currently flagged as honesty disclosures, not yet numerically computed.
+once Part F lands, and the actual recomputation work behind the remaining flags — Chapter XII-A flat
+rates and the equity-comp sourcing day-count allocation are still flagged as honesty disclosures,
+not yet numerically computed.
 
 ---
 
