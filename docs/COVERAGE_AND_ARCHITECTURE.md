@@ -41,8 +41,8 @@ comprehensive return engine. Approx **30–40%** of collected fields are consume
 |---|---|---|---|
 | `profile` | entity_type, tax_regime, pan_aadhaar_linked, turnover_lte_400cr, is_section_8, mat_book_profit, opt_115ba/baa/bab, mfg dates | 🟡 entity_type/regime read; **115BA/BAA/BAB, MAT book profit, s.8, mfg incentives ⛔** | Yes (company rates/MAT) |
 | `residency_detail` | final status, days, POEM, deemed-resident paths, crew/visit flags | 🟡 final status + days read; **the determination inputs ⛔** (we trust the form's final status) | Status yes; inputs no |
-| `dtaa` | trc_status, treaty_residence, PE, treaty_elections, mfn, forced_nr | ✅ (elections/MFN 🟡) | Yes |
-| `compliance_docs` | trc, form_10f, **section_197_cert**, chapter_xiia_elected | 🟡 TRC/10F read; **197 cert, Ch. XII-A ⛔** | 197/XIIA yes (rates) |
+| `dtaa` | trc_status, treaty_residence, PE, treaty_elections, mfn, forced_nr | ✅ (elections/MFN 🟡); PE now drives the `pe_article7` finding (Art. 7 survives the tie-breaker) | Yes |
+| `compliance_docs` | trc, form_10f, **section_197_cert**, chapter_xiia_elected | 🟡 TRC/10F read; Ch. XII-A now read and flags `chapter_xiia_not_computed` (election honoured, tax NOT yet recomputed at flat rates); **197 cert still ⛔** | XIIA flagged, not computed; 197 still open |
 | `bank_accounts[]` | peak_balance_inr, type | ✅ peak → FBAR/Sch FA | Reporting |
 | `property` | properties[] (rent, municipal tax, co-owner %, interest) | 🟡 annual value only; **capital-gains on sale, co-ownership, §24(b) interest ⛔** | Yes (CG, HP loss) |
 | `financial_holdings[]` | asset_type, value, buy/sell | 🟡 **mutual funds → PFIC flag only**; equity CG ⛔ | Yes (CG) |
@@ -79,7 +79,7 @@ comprehensive return engine. Approx **30–40%** of collected fields are consume
 | `real_estate` | properties[] (rent, expenses, §1031, depreciation, FIRPTA) | ⛔ (only hydrated from India side) | Yes |
 | `retirement_accounts` | trad/Roth IRA, 401k, backdoor Roth, HSA, SEP, solo-401k, RMD, **indian EPF/PPF/NPS** | 🟡 Indian EPF/PPF/NPS → 3520/FBAR flag; **US contributions/deductions ⛔** | Yes |
 | `foreign_entities` | owns_10pct corp/partnership/DE, **foreign_corporations[]**, partnerships[], disregarded[], pfic_holdings[] | 🟡 **flags only** (CFC/PFIC conflict); **GILTI/Subpart-F/962 not computed ⛔** | **Yes (see Part F)** |
-| `foreign_gifts_and_trusts` | gifts>100k, foreign trusts, covered-expat gift | ⛔ (3520 flagged via PPF only) | Reporting |
+| `foreign_gifts_and_trusts` | gifts>100k, foreign trusts, covered-expat gift | ✅ drives `foreign_gift_3520` (penalty-exposure finding) and `covered_expat_gift_tax` (§2801, a real tax, not just reporting); widened the `form_3520` trigger beyond PPF | Reporting + real tax (§2801) |
 | `itemized_deductions_and_credits` | SALT, mortgage, charitable, medical, HSA, student loan, CTC, dependent care, education, saver, 529, **QBI** | 🟡 SALT/mortgage/charitable/medical; **QBI, credits (CTC/education/care) ⛔** | Yes (credits) |
 | `amt_inputs` | ISO preference, SALT add-back, AMTI, TMT, AMT due, MTC carryforward | ✅ AMT (§55) now computed (AMTI, exemption phase-out, TMT vs regular tax) incl. ISO preference; 🟡 MTC carryforward (Form 8801) not tracked | Done; MTC carryforward remains |
 | `niit_inputs` | MAGI, NII, threshold | ✅ engine computes NIIT | — |
@@ -127,11 +127,31 @@ A dedicated pass over `engine/conflicts.js` against the Layer 1 fields above, sc
 - **ISO → AMT preference wiring** (Part D #5, half of it) — `equity_compensation.iso_exercises[]`
   carries its own `amt_preference_spread_usd` (FMV − strike × shares) but `normalize.js` never read
   it, so a real AMT trigger was silently dropped. Now summed into `deductions.us.amtPrefs`.
+- **Equity-comp cross-border sourcing** (`equity_comp_sourcing`) — India's ESOP perquisite
+  (s.17(2)(vi)) and the US's RSU-vest/NSO-exercise ordinary income are usually the same multi-year
+  award split by country; when both fire in the same year, neither side applies a workday-based
+  Art. 15/16 allocation, so the same tranche can be fully taxed twice. Flags it; the day-count
+  allocation itself is still a manual step (needs vest-date-by-vest-date workday data Layer 1
+  doesn't collect).
+- **Foreign gifts / trusts** (`foreign_gift_3520`, `covered_expat_gift_tax`) — `foreign_gifts_and_trusts`
+  was collected by Layer 1 but completely unused; Form 3520's *no-tax-but-25%-penalty* trap (gifts
+  >$100k, foreign trust beneficiary) and the §2801 covered-expatriate transfer tax (an actual tax on
+  the US recipient, not just an information return) were both silent. Also widened the `form_3520`
+  document trigger, which previously only fired off PPF/EPF.
+- **Permanent establishment survives the tie-breaker** (`pe_article7`) — `dtaa.has_permanent_establishment_in_india`
+  was read into the model but never consumed anywhere. Article 7 gives India a taxing right on
+  PE-attributable business profits regardless of who wins the Article 4 tie-breaker; this is a real,
+  previously-silent gap — confirmed against the demo profile fixtures, where one profile (~$964k of
+  Indian business income behind a PE) produced zero PE-related findings before this fix.
+- **Chapter XII-A (s.115H/115C) election** (`chapter_xiia_not_computed`) — `compliance_docs.chapter_xiia_elected`
+  was collected but ignored; when elected, India tax should be computed under this concessional
+  flat-rate regime instead of slab rates, which the engine doesn't do. Flags the honesty gap rather
+  than silently returning a wrong number.
 
-**Still open in conflict detection** (tracked here, not yet built): equity-comp cross-border
-*sourcing* (RSU/ESOP vesting split across a residency change — Art. 15/16 allocation), entity-level
-dual residency for an Indian company under POEM vs. US management-and-control, foreign-gift/3520
-conflicts beyond PPF/EPF, and a numeric GILTI/Subpart F computation once Part F lands.
+**Still open in conflict detection** (tracked here, not yet built): entity-level dual residency for
+an Indian company under POEM vs. US management-and-control, a numeric GILTI/Subpart F computation
+once Part F lands, and the actual India-tax recomputation under Chapter XII-A / the day-count
+allocation under equity-comp sourcing (both currently flagged, not computed).
 
 ---
 

@@ -328,6 +328,29 @@
     };
   }
 
+  /* ------------------------------------------------------------------------
+   * Equity compensation — cross-border sourcing signal. India's ESOP
+   * perquisite (s.17(2)(vi), already folded into taxable_salary_inr — this is
+   * a breakdown figure, not additive) and the US RSU/NSO/ISO events are two
+   * views into what is often the SAME multi-year vesting equity award, split
+   * by whichever country the employee was in when each tranche vested /
+   * exercised. When both sides show equity-comp activity in the same year, a
+   * single award is very likely being sourced (and taxed) independently by
+   * each country with no coordinated day-count allocation.
+   * ----------------------------------------------------------------------*/
+  function aggregateEquityComp(annualDomesticIncome, us) {
+    var ec = safe(us, "equity_compensation", {});
+    var rsuIncomeUsd = 0, nsoIncomeUsd = 0;
+    (safe(ec, "rsu_vestings", []) || []).forEach(function (r) { rsuIncomeUsd += num(r.gross_income_usd != null ? r.gross_income_usd : num(r.fmv_at_vest_usd) * num(r.shares_vested)); });
+    (safe(ec, "nso_exercises", []) || []).forEach(function (n) { nsoIncomeUsd += num(n.ordinary_income_recognized_usd != null ? n.ordinary_income_recognized_usd : Math.max(0, (num(n.fmv_at_exercise_usd) - num(n.strike_price_usd)) * num(n.shares_exercised))); });
+    var isoCount = (safe(ec, "iso_exercises", []) || []).length;
+    return {
+      hasUsEquityComp: safe(ec, "has_equity_comp", false) === true || rsuIncomeUsd > 0 || nsoIncomeUsd > 0 || isoCount > 0,
+      rsuIncomeUsd: rsuIncomeUsd, nsoIncomeUsd: nsoIncomeUsd, isoExerciseCount: isoCount,
+      esopPerquisiteInr: num(safe(annualDomesticIncome, "salary.esop_perquisite_inr", 0))
+    };
+  }
+
   /* Foreign accounts (FBAR / 8938 / Schedule FA). */
   function aggregateAccounts(india, us) {
     var indianAccounts = (safe(india, "bank_accounts", []) || []).map(function (b) {
@@ -474,7 +497,14 @@
         hasPE: safe(india, "dtaa.has_permanent_establishment_in_india", false) === true,
         usTreatyResidence: safe(us, "us_residency_detail.dtaa_treaty_residence", "none"),
         files1040nr: safe(us, "nra_specific.files_form_1040nr", false) === true,
-        form8833Implied: safe(us, "us_residency_detail.dtaa_treaty_residence", "none") !== "none"
+        form8833Implied: safe(us, "us_residency_detail.dtaa_treaty_residence", "none") !== "none",
+        chapterXiiaElected: safe(india, "compliance_docs.chapter_xiia_elected", false) === true
+      },
+      equityComp: aggregateEquityComp(annual.domestic_income, us),
+      foreignGifts: {
+        receivedAbove100k: safe(us, "foreign_gifts_and_trusts.received_foreign_gifts_above_100k", false) === true,
+        isTrustBeneficiary: safe(us, "foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust", false) === true,
+        receivedFromCoveredExpatriate: safe(us, "foreign_gifts_and_trusts.received_gift_from_covered_expatriate", false) === true
       },
       income: {
         india: aggregateIndiaIncome(india, annual),

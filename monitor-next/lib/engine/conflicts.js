@@ -180,6 +180,46 @@
         0, ["SE tax", "Schedule SE", "No US-India Totalization Agreement"]);
     }
 
+    // -- 4f. PERMANENT ESTABLISHMENT — ARTICLE 7 SURVIVES THE TIE-BREAKER ---
+    // Layer 1 (India) captures has_permanent_establishment_in_india but the
+    // engine never used it. Article 7 (Business Profits) gives India a
+    // taxing right on PE-attributable profits REGARDLESS of who wins the
+    // Article 4 residence tie-breaker — a taxpayer who "cedes" India as their
+    // treaty residence still owes India tax on the business profits its PE
+    // there earns. This is easy to miss once the tie-breaker result reads as
+    // "India isn't taxing worldwide income any more."
+    if (model.treaty.hasPE && model.income.india.business.usd > 0) {
+      add("pe_article7", S.WARNING, C.TREATY,
+        "Permanent establishment in India — Article 7 business profits survive the tie-breaker",
+        "A permanent establishment in India is on file alongside " + usd(model.income.india.business.usd) +
+        " of Indian business/professional income. Even where the DTAA Article 4 tie-breaker resolves general treaty " +
+        "residence away from India, Article 7 still gives India the right to tax profits ATTRIBUTABLE to that PE — the " +
+        "tie-breaker result doesn't exempt PE profits the way it can exempt other income categories.",
+        "Confirm profit attribution to the PE (functions/assets/risks, arm's-length pricing) separately from the general " +
+        "residency analysis, and don't assume a 'ceded' India residence removes India's claim on PE-sourced business profits.",
+        0, ["DTAA Art. 7", "Permanent establishment"]);
+    }
+
+    // -- 4g. CHAPTER XII-A (s.115H/115C) ELECTED BUT NOT IN THE COMPUTATION -
+    // s.115H/115C give an NRI a concessional flat rate (20% investment income
+    // / 10% LTCG, no slab progression) on specified foreign-exchange assets,
+    // and — the easy-to-miss part — s.115H lets the taxpayer KEEP that regime
+    // even after becoming resident again, for as long as the assets are held,
+    // by filing the election each year. WISING doesn't yet recompute India
+    // tax under this regime, so the number below should not be trusted as-is
+    // when this box is checked.
+    if (model.treaty.chapterXiiaElected) {
+      add("chapter_xiia_not_computed", S.WARNING, C.CREDIT,
+        "Chapter XII-A (s.115H/115C) elected — not reflected in the India tax computed below",
+        "The Layer 1 Chapter XII-A election is on. Under s.115H/115C, specified investment income from foreign-exchange " +
+        "assets is taxed at a flat 20% (10% for LTCG) instead of slab rates, and — unlike most NRI concessions — the " +
+        "election can be KEPT even after the taxpayer becomes an ordinary resident, by re-filing it each year the assets " +
+        "are retained. The India tax figure above is computed under normal slab/special rates and does not apply this election.",
+        "Recompute the specified-asset income separately at the s.115H/115C flat rates before relying on the India tax " +
+        "total above, and confirm the annual re-election was filed if residency status has since changed.",
+        0, ["s.115H", "s.115C", "Chapter XII-A"]);
+    }
+
     // -- 5. FORM 67 TIMING (India FTC procedural) --------------------------
     if (model.income.us.foreignSourceTotal.usd > 0 || model.taxesPaid.us.total.usd > 0) {
       add("form67_required", S.INFO, C.DOCUMENT,
@@ -282,6 +322,38 @@
         0, ["DTAA Art. 20", "Form 3520/3520-A", "FBAR"]);
     }
 
+    // -- 10b. FOREIGN GIFTS / TRUSTS — FORM 3520 PENALTY EXPOSURE -----------
+    // No tax is due on a foreign gift itself, which is exactly why this gets
+    // missed: Form 3520 Part IV reporting is required once gifts from a
+    // single nonresident donor (or related group) exceed $100k in the year,
+    // and the penalty for late/no filing is up to 25% of the gift — with no
+    // underlying tax liability to signal that something is owed. Foreign
+    // trust beneficiary status carries its own 3520/3520-A regime.
+    var fg = model.foreignGifts || {};
+    if (fg.receivedAbove100k || fg.isTrustBeneficiary) {
+      var giftReasons = [];
+      if (fg.receivedAbove100k) giftReasons.push("gift(s) from a foreign person exceeding $100,000 this year");
+      if (fg.isTrustBeneficiary) giftReasons.push("US beneficiary of a foreign trust");
+      add("foreign_gift_3520", S.WARNING, C.DOCUMENT,
+        "Form 3520 required — foreign gift / trust reporting (no tax due, but real penalty exposure)",
+        "Layer 1 records " + giftReasons.join(" and ") + ". Form 3520 is an INFORMATION return — there is no tax on a bona " +
+        "fide gift — but the failure-to-file penalty is up to 25% of the unreported amount, and it is one of the most " +
+        "commonly missed filings precisely because no tax is owed to prompt it.",
+        "File Form 3520 (and 3520-A if a foreign trust with a US owner) by the return due date, even where no tax results. " +
+        "Confirm the gift is genuinely a gift and not disguised compensation or a loan, and aggregate gifts from related donors.",
+        0, ["Form 3520", "Form 3520-A"]);
+    }
+    if (fg.receivedFromCoveredExpatriate) {
+      add("covered_expat_gift_tax", S.CRITICAL, C.CREDIT,
+        "§2801 covered-expatriate gift/bequest tax may apply",
+        "A gift or bequest was received from someone Layer 1 flags as a covered expatriate. Unlike an ordinary foreign gift, " +
+        "§2801 imposes a special transfer tax on the US RECIPIENT, at the highest gift/estate tax rate, on the value received " +
+        "from a covered expatriate — this is a real tax liability, not just an information filing.",
+        "Confirm the donor's covered-expatriate status and compute the §2801 tax on Form 708 (once finalized) / per current IRS " +
+        "guidance; this is separate from and in addition to the Form 3520 reporting above.",
+        0, ["§2801", "Covered expatriate"]);
+    }
+
     // -- 11. LRS LIMIT MONITORING ------------------------------------------
     var lrs = computed.limits.filter(function (g) { return g.id === "lrs"; })[0];
     if (lrs && lrs.status !== "ok") {
@@ -304,6 +376,30 @@
         ", above the USD 10,000 reporting cliff. EVERY foreign account must be reported, not just those over the limit.",
         "File FinCEN Form 114 by the due date (auto-extended to Oct 15). Non-willful penalties start at ~$10,000 per violation; willful penalties are far higher.",
         0, ["FinCEN 114", "FBAR"]);
+    }
+
+    // -- 12b. EQUITY COMPENSATION — CROSS-BORDER SOURCING CONFLICT ----------
+    // India's ESOP perquisite (s.17(2)(vi), taxed at exercise/allotment) and
+    // the US's RSU-vest / NSO-exercise ordinary income are usually two views
+    // of the SAME multi-year equity award, split by whichever country the
+    // employee was in on each vesting/exercise date. When both sides show
+    // equity-comp activity in the same year, the award is very likely being
+    // sourced independently by each country under its own timing rule, with
+    // no day-count (workdays-in-country) allocation under DTAA Art. 15/16 to
+    // prevent the same tranche from being fully taxed twice.
+    var eq = model.equityComp || {};
+    if (eq.hasUsEquityComp && eq.esopPerquisiteInr > 0) {
+      add("equity_comp_sourcing", S.WARNING, C.INCOME,
+        "Equity compensation taxed on both sides — cross-border sourcing not applied",
+        "Both an India ESOP/perquisite event and a US equity-compensation event (RSU vest / NSO exercise) are on file " +
+        "for this year. India taxes the ESOP perquisite in full at exercise/allotment (s.17(2)(vi)); the US taxes RSU " +
+        "vesting / NSO exercise in full as ordinary income in the vesting/exercise year. Absent a workday-based " +
+        "allocation, the same equity award can be fully taxed by BOTH countries rather than apportioned to where the " +
+        "services were actually performed during the vesting period.",
+        "Reconstruct the vesting-period workday split between India and the US (DTAA Art. 15/16 dependent-personal-" +
+        "services sourcing) so each country only taxes its proportionate share, then claim FTC/§90 relief on the " +
+        "genuinely overlapping portion rather than the full award twice.",
+        0, ["DTAA Art. 15", "s.17(2)(vi)", "RSU vesting", "NSO exercise"]);
     }
 
     // -- 13. CROSS-BASIS SUMMARY (one finding; detail lives in the table) ---
@@ -348,7 +444,8 @@
       form_8621: (model.assets.indianMutualFunds || []).length > 0 && res.us.isResident,
       form_5471: (model.assets.indianBusinesses || []).length > 0 && res.us.isResident,
       form_8865: false,
-      form_3520: (model.assets.ppfInr > 0 || model.assets.epfInr > 0) && res.us.isResident,
+      form_3520: ((model.assets.ppfInr > 0 || model.assets.epfInr > 0) && res.us.isResident) ||
+                 model.foreignGifts.receivedAbove100k || model.foreignGifts.isTrustBeneficiary,
       form_1040nr: model.treaty.files1040nr || (res.us.status === CONST.US_STATUS.NON_RESIDENT_ALIEN),
       form_8960: computed.headline.totalIncomeUsd > (CONST.LIMITS.NIIT_THRESHOLD[model.identity.usFilingStatus] || 200000) &&
                  (model.income.us.interestUs.usd + model.income.us.ordinaryDividendsUs.usd + model.income.us.capitalGainsUs.usd) > 0,
