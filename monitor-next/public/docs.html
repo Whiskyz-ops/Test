@@ -1,0 +1,295 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>WISING — Docs & Coverage</title>
+<style>
+:root{--bg:#05070e;--surface:#0c0f18;--line:rgba(255,255,255,.08);--head:#f3f4f8;--body:#c3c7d4;--muted:#8a8fa3;--accent:#2dd4bf}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--body);font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:32px 22px 120px}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.glyph{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#04120f;font-weight:900;background:linear-gradient(135deg,#2dd4bf,#34d399);box-shadow:0 0 22px rgba(45,212,191,.5)}
+.brand{font-weight:700;letter-spacing:.3em;color:#fff}
+.back{color:var(--accent);text-decoration:none;font-weight:700;font-size:13px}
+nav{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 26px}
+nav a{font-size:12px;font-weight:700;color:var(--body);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 13px;text-decoration:none}
+nav a:hover{border-color:var(--accent)}
+h1{color:var(--head);font-size:30px;line-height:1.15;margin:1.4em 0 .5em}
+h2{color:var(--head);font-size:22px;margin:1.5em 0 .5em;padding-top:8px}
+h3{color:var(--head);font-size:17px;margin:1.4em 0 .4em}
+h4,h5,h6{color:var(--head);margin:1.2em 0 .3em}
+a{color:var(--accent)}
+code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font:13px ui-monospace,"SF Mono",Menlo,monospace;color:#a7f3e4}
+pre{background:#0a0d16;border:1px solid var(--line);border-radius:14px;padding:16px;overflow-x:auto}
+pre code{background:none;border:none;padding:0;color:var(--body)}
+blockquote{border-left:3px solid var(--accent);margin:1em 0;padding:.3em 0 .3em 16px;color:var(--muted)}
+hr{border:none;border-top:1px solid var(--line);margin:1.6em 0}
+hr.big{border-top:2px solid var(--line);margin:3em 0}
+.tbl{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{border:1px solid var(--line);padding:7px 11px;text-align:left;vertical-align:top}
+th{background:rgba(255,255,255,.04);color:var(--head)}
+ul,ol{padding-left:22px}li{margin:.2em 0}
+</style></head><body><div class="wrap">
+<div class="top"><div class="glyph">W</div><div class="brand">WISING</div><a class="back" href="index.html">← Back to Monitor</a></div>
+<p style="color:var(--muted);font-size:12px;margin:0 0 4px">Coverage audit, architecture & developer handoff — generated from <code>docs/*.md</code>.</p>
+<nav><a href="#coverage_and_architecture">COVERAGE_AND_ARCHITECTURE.md</a><a href="#developer_handoff">DEVELOPER_HANDOFF.md</a><a href="#us_layer1_coverage">US_LAYER1_COVERAGE.md</a></nav>
+<section id="coverage_and_architecture"><h1 id="wising-layer-1-coverage-audit-multi-entity-architecture">WISING — Layer 1 Coverage Audit &amp; Multi-Entity Architecture</h1>
+<p><strong>Status:</strong> design doc (no code changes). Written to agree scope before building comprehensive field coverage and multi-entity support.</p>
+<p><strong>Scope of this doc</strong></p>
+<ul><li><strong>Part A–E:</strong> a field-by-field audit of what the two Layer 1 forms <em>collect</em></li></ul>
+<p>  vs what the engine currently <em>consumes</em>, and which gaps actually change tax.</p>
+<ul><li><strong>Part F–H:</strong> the multi-entity architecture (data model, engine, frontend) so</li></ul>
+<p>  every tax entity the user selects in Layer 1 is kept separate with its own   computation and frontend, then consolidated to the owner.</p>
+<p>Source of truth for field names: <code>layer1_india.html</code> (<code>state</code>, schema <code>layer1_india_v5_1</code>) and <code>layer1_us.html</code> (<code>usState</code>, schema <code>layer1_us_v1</code>). Engine = <code>engine/{constants,normalize,computation,monitoring,conflicts}.js</code>.</p>
+<hr/>
+<h2 id="part-a-how-to-read-this">Part A — How to read this</h2>
+<p>Coverage legend for every field group:</p>
+<div class="tbl"><table><thead><tr><th>Mark</th><th>Meaning</th></tr></thead><tbody><tr><td>✅ <strong>Wired</strong></td><td>Read by <code>normalize.js</code> and used in <code>computation</code>/<code>monitoring</code>/<code>conflicts</code>.</td></tr><tr><td>🟡 <strong>Partial</strong></td><td>Read, but simplified/flattened (loses detail that changes tax).</td></tr><tr><td>⛔ <strong>Not consumed</strong></td><td>Collected by Layer 1, ignored by the engine today.</td></tr></tbody></table></div>
+<p>"Changes tax?" flags whether wiring the gap materially moves the numbers (so we can prioritise).</p>
+<p><strong>Headline:</strong> the engine is a correct <strong>cross-border MVP slice</strong>, not a comprehensive return engine. Approx <strong>30–40%</strong> of collected fields are consumed (the cross-border-critical ones). The rest is captured but inert.</p>
+<hr/>
+<h2 id="part-b-india-layer-1-coverage-state">Part B — India Layer 1 coverage (<code>state</code>)</h2>
+<div class="tbl"><table><thead><tr><th>Section</th><th>Key fields</th><th>Coverage</th><th>Changes tax?</th></tr></thead><tbody><tr><td><code>profile</code></td><td>entity_type, tax_regime, pan_aadhaar_linked, turnover_lte_400cr, is_section_8, mat_book_profit, opt_115ba/baa/bab, mfg dates</td><td>🟡 entity_type/regime read; <strong>115BA/BAA/BAB, MAT book profit, s.8, mfg incentives ⛔</strong></td><td>Yes (company rates/MAT)</td></tr><tr><td><code>residency_detail</code></td><td>final status, days, POEM, deemed-resident paths, crew/visit flags</td><td>🟡 final status + days read; <strong>the determination inputs ⛔</strong> (we trust the form's final status)</td><td>Status yes; inputs no</td></tr><tr><td><code>dtaa</code></td><td>trc_status, treaty_residence, PE, treaty_elections, mfn, forced_nr</td><td>✅ (elections/MFN 🟡)</td><td>Yes</td></tr><tr><td><code>compliance_docs</code></td><td>trc, form_10f, <strong>section_197_cert</strong>, chapter_xiia_elected</td><td>🟡 TRC/10F read; <strong>197 cert, Ch. XII-A ⛔</strong></td><td>197/XIIA yes (rates)</td></tr><tr><td><code>bank_accounts[]</code></td><td>peak_balance_inr, type</td><td>✅ peak → FBAR/Sch FA</td><td>Reporting</td></tr><tr><td><code>property</code></td><td>properties[] (rent, municipal tax, co-owner %, interest)</td><td>🟡 annual value only; <strong>capital-gains on sale, co-ownership, §24(b) interest ⛔</strong></td><td>Yes (CG, HP loss)</td></tr><tr><td><code>financial_holdings[]</code></td><td>asset_type, value, buy/sell</td><td>🟡 <strong>mutual funds → PFIC flag only</strong>; equity CG ⛔</td><td>Yes (CG)</td></tr><tr><td><code>commodities</code>, <code>unlisted_equity</code>, <code>share_buyback</code></td><td>transactions[]</td><td>⛔</td><td>Yes (CG, deemed dividend)</td></tr><tr><td><code>domestic_income.salary</code></td><td>taxable_salary, gross, HRA, LTA, perquisites, ESOP, NPS employer, pro-tax, prior employer</td><td>🟡 <strong>taxable_salary only</strong>; <strong>HRA/LTA/perquisites/ESOP exemptions ⛔</strong></td><td>Yes (exemptions, ESOP perq)</td></tr><tr><td><code>domestic_income.house_property</code></td><td>properties[] (GAV, 30% ded, §24(b), SOP, loss set-off)</td><td>🟡 net value; <strong>interest/loss set-off logic ⛔</strong></td><td>Yes</td></tr><tr><td><code>domestic_income.business_income</code></td><td><strong>business_entries[]</strong>, presumptive_scheme, expenses{~30 fields}, asset_blocks (depreciation), speculative/F&amp;O turnover+income, s41, partner_firms[], msme_payables, amt_credit, s40b remuneration, s44bbb, s35AD, tonnage 115V</td><td>🟡 <strong>net_profit per entry summed only</strong>; <strong>everything else ⛔</strong> (presumptive, depreciation, F&amp;O, disallowances, partner firms, AMT)</td><td><strong>Yes — large</strong></td></tr><tr><td><code>domestic_income.capital_gains</code></td><td>short_term_15_pct</td><td>🟡 simple STCG; full CG engine ⛔</td><td>Yes</td></tr><tr><td><code>other_sources</code></td><td>savings/FD/bond interest, dividend, gifts&gt;50k, family pension, lottery/gaming, deemed dividend (buyback), EPF/PPF interest taxable, NPS/PF withdrawal, angel tax, LIC, clubbing (minor/spouse)</td><td>🟡 interest+dividend; <strong>gaming/lottery (115BB), gifts, clubbing, taxable PF/NPS, deemed dividend ⛔</strong></td><td>Yes (special rates)</td></tr><tr><td><code>deductions</code></td><td>s80C, 80CCC/CCD1, <strong>80CCD1B</strong>, 80D (+parents/senior/preventive), 80DD, 80DDB, 80U, <strong>80G[]</strong>, 80GGB/GGC, 80GG, 80TTA/TTB, 80E, 80EEA/EE, 80M</td><td>🟡 80C/80CCD1B/80D/80TTA; <strong>80G, 80E, 80EEA, 80U/DD/DDB, 80GG, 80M, disability NRI-block ⛔</strong></td><td>Yes</td></tr><tr><td><code>carry_forward_losses</code></td><td>business/speculative/STCG/LTCG/HP loss CF, unabsorbed depreciation, s79 shareholding change</td><td>⛔</td><td><strong>Yes — large</strong></td></tr><tr><td><code>lrs_outbound</code></td><td>total remitted, purpose, foreign income received</td><td>✅ amount → LRS monitor; purpose 🟡</td><td>Limit monitoring</td></tr><tr><td><code>tax_credits</code></td><td>advance tax Q1–4, TDS, TCS, Form 26AS, <strong>foreign_tax_credit[]</strong></td><td>🟡 advance+TDS summed; <strong>per-country FTC array, 26AS reconcile ⛔</strong></td><td>FTC</td></tr><tr><td><code>surcharge_buckets</code></td><td>income by rate bucket (111A/112A/115A/115BB/dividend)</td><td>⛔ (engine recomputes surcharge itself)</td><td>Consistency</td></tr><tr><td><code>nro_repatriation</code></td><td>cumulative USD, pending, TDS on NRO</td><td>⛔</td><td>Reporting</td></tr><tr><td><code>foreign_assets</code> / <code>foreign_income</code></td><td>has_foreign_assets, assets[]</td><td>⛔ (Schedule FA driven only from US-side accounts)</td><td>Sch FA completeness</td></tr><tr><td><code>gift_received</code>, <code>salary_exemptions</code>, <code>other_exemptions</code></td><td>(populated by sub-flows)</td><td>⛔</td><td>Yes</td></tr><tr><td><code>quarters</code> Q1–Q4</td><td>per-quarter income snapshots</td><td>✅ summed to annual (<code>indiaAnnualSlice</code>)</td><td>Advance-tax pacing</td></tr></tbody></table></div>
+<hr/>
+<h2 id="part-c-us-layer-1-coverage-usstate">Part C — US Layer 1 coverage (<code>usState</code>)</h2>
+<div class="tbl"><table><thead><tr><th>Section</th><th>Key fields</th><th>Coverage</th><th>Changes tax?</th></tr></thead><tbody><tr><td><code>profile</code></td><td><strong>tax_entity_type</strong>, <strong>llc_tax_election</strong>, incorporation_state, filing_status, ssn/itin, dependents, spouse_is_us_person</td><td>🟡 filing_status read; <strong>entity_type/LLC election NOT branched ⛔</strong></td><td><strong>Yes (see Part F)</strong></td></tr><tr><td><code>us_residency_detail</code></td><td>SPT day-weighting, green card, exempt-individual, closer-connection, first-year choice, §6013(g), treaty residence, start/end dates</td><td>🟡 final status + citizen/GC/SPT/days; <strong>SPT weighting, exemptions, elections ⛔</strong></td><td>Status yes</td></tr><tr><td><code>state_residency</code></td><td>jan1/dec31 domicile, footprint[], moved, CA safe-harbor, <strong>NY 183-day + abode + 548-rule</strong>, MSRRA military, secondary states[]</td><td>⛔ <strong>entirely unused</strong></td><td><strong>Yes (state tax)</strong> — this is the Monitor state-drill gap</td></tr><tr><td><code>income_us_source</code></td><td>wages_w2[], interest, ord/qual dividends, STCG/LTCG, rental, royalty, <strong>self_employment[]</strong>, <strong>partnerships_k1[]</strong>, <strong>s_corporations_k1[]</strong>, <strong>c_corporations_1120[]</strong>, <strong>farming_schedule_f[]</strong>, <strong>trusts_estates_k1[]</strong>, IRA/401k/SS distributions, crypto[], loss carryovers, QOF/QSBS/1031/installment/collectibles flags</td><td>🟡 wages/interest/div/CG/rental; <strong>all K-1 pass-throughs, SE, crypto, loss carryovers, special assets ⛔</strong></td><td><strong>Yes — large</strong></td></tr><tr><td><code>income_foreign_source</code></td><td>foreign wages[], interest, dividends, STCG/LTCG, rental, pension, §988[]</td><td>🟡 amounts read; <strong>§988, per-item sourcing ⛔</strong></td><td>Yes</td></tr><tr><td><code>equity_compensation</code></td><td>ISO/NSO/RSU/ESPP/83(b) exercises[]</td><td>⛔ <strong>ISO → AMT preference not computed</strong></td><td><strong>Yes (AMT)</strong></td></tr><tr><td><code>foreign_earned_income</code></td><td>FEIE claim, physical-presence/bona-fide, housing exclusion</td><td>🟡 claim + amount; <strong>housing exclusion, qualification test ⛔</strong></td><td>Yes</td></tr><tr><td><code>bank_accounts[]</code>, <code>financial_holdings[]</code>, <code>fbar_aggregate_peak_usd</code>, <code>form_8938_required</code></td><td>balances</td><td>✅ FBAR peak; 🟡 8938 threshold table</td><td>Reporting</td></tr><tr><td><code>real_estate</code></td><td>properties[] (rent, expenses, §1031, depreciation, FIRPTA)</td><td>⛔ (only hydrated from India side)</td><td>Yes</td></tr><tr><td><code>retirement_accounts</code></td><td>trad/Roth IRA, 401k, backdoor Roth, HSA, SEP, solo-401k, RMD, <strong>indian EPF/PPF/NPS</strong></td><td>🟡 Indian EPF/PPF/NPS → 3520/FBAR flag; <strong>US contributions/deductions ⛔</strong></td><td>Yes</td></tr><tr><td><code>foreign_entities</code></td><td>owns_10pct corp/partnership/DE, <strong>foreign_corporations[]</strong>, partnerships[], disregarded[], pfic_holdings[]</td><td>🟡 <strong>flags only</strong> (CFC/PFIC conflict); <strong>GILTI/Subpart-F/962 not computed ⛔</strong></td><td><strong>Yes (see Part F)</strong></td></tr><tr><td><code>foreign_gifts_and_trusts</code></td><td>gifts&gt;100k, foreign trusts, covered-expat gift</td><td>⛔ (3520 flagged via PPF only)</td><td>Reporting</td></tr><tr><td><code>itemized_deductions_and_credits</code></td><td>SALT, mortgage, charitable, medical, HSA, student loan, CTC, dependent care, education, saver, 529, <strong>QBI</strong></td><td>🟡 SALT/mortgage/charitable/medical; <strong>QBI, credits (CTC/education/care) ⛔</strong></td><td>Yes (credits)</td></tr><tr><td><code>amt_inputs</code></td><td>ISO preference, SALT add-back, AMTI, TMT, AMT due, MTC carryforward</td><td>⛔ <strong>AMT not computed</strong></td><td><strong>Yes</strong></td></tr><tr><td><code>niit_inputs</code></td><td>MAGI, NII, threshold</td><td>✅ engine computes NIIT</td><td>—</td></tr><tr><td><code>ftc_inputs</code></td><td>claims_ftc, simplified&lt;300, accrued method, carryovers, <strong>ftc_baskets[]</strong></td><td>🟡 engine computes FTC itself; <strong>baskets/carryovers/accrued election ⛔</strong></td><td>FTC precision</td></tr><tr><td><code>withholding_and_estimated</code></td><td>fed/state withholding, estimated Q1–4, prior-year tax, addl-Medicare</td><td>✅</td><td>—</td></tr><tr><td><code>nra_specific</code></td><td>files_1040nr, §6013(h), W-8BEN, W-7, <strong>ECI/FDAP</strong>, treaty_rate_claims[], FIRPTA, LRS investor</td><td>🟡 1040NR/treaty-residence flags; <strong>ECI/FDAP split, treaty rates, FIRPTA ⛔</strong></td><td>Yes (NRA tax)</td></tr></tbody></table></div>
+<hr/>
+<h2 id="part-d-gaps-that-materially-change-tax-priority-order">Part D — Gaps that materially change tax (priority order)</h2>
+<ol><li><strong>Multi-entity separation</strong> (Part F) — S-corp/C-corp/partnership/Indian company are their own taxpayers; today flattened. <em>Biggest.</em></li><li><strong>India business engine</strong> — presumptive (44AD/ADA/AE), depreciation (asset_blocks), F&amp;O/speculative, disallowances, partner-firm share.</li><li><strong>Carry-forward losses</strong> (both sides) — change taxable income directly.</li><li><strong>US K-1 pass-throughs &amp; SE</strong> — partnerships/S-corp/C-corp/farm/trust income + SE tax.</li><li><strong>Equity comp / ISO → AMT</strong> (US) and <strong>ESOP perquisite</strong> (India).</li><li><strong>Full capital-gains engine</strong> (both) — property/equity/MF transaction-level, §112A/111A, §54 series.</li><li><strong>US state residency</strong> — CA/NY statutory rules, MSRRA (unblocks live Monitor state drill-down).</li><li><strong>Salary exemptions</strong> (HRA/LTA/perquisites) and <strong>full Chapter VI-A</strong> (India); <strong>QBI + credits</strong> (US).</li><li><strong>Special-rate income</strong> (India 115BB gaming/lottery; deemed dividend) and <strong>NRA ECI/FDAP</strong> (US).</li></ol>
+<hr/>
+<h2 id="part-e-what-comprehensive-wiring-involves">Part E — What "comprehensive" wiring involves</h2>
+<ul><li><strong><code>normalize.js</code>:</strong> extend to read every section above into the unified model</li></ul>
+<p>  (currency-normalized, quarter-aware). Mechanical but large.</p>
+<ul><li><strong><code>computation.js</code>:</strong> add the sub-engines the gaps require (India business/</li></ul>
+<p>  presumptive/depreciation/CG/losses; US AMT/K-1/SE/QBI/credits/state).</p>
+<ul><li><strong><code>conflicts.js</code> / <code>monitoring.js</code>:</strong> new findings &amp; thresholds unlocked by the</li></ul>
+<p>  new data (e.g., ISO-AMT alert, carry-forward expiry, presumptive turnover cap,   NY 183-day).</p>
+<ul><li>Keep everything <strong>planning-grade &amp; versioned</strong> in <code>constants.js</code>.</li></ul>
+<hr/>
+<h2 id="part-f-multi-entity-architecture">Part F — Multi-Entity Architecture</h2>
+<h3 id="f-1-problem">F.1 Problem</h3>
+<p>A single "client" is often a <strong>set of tax entities</strong>: the individual (resident of IN and/or US) plus companies, LLCs, partnerships, S/C-corps, trusts, HUF. Each is a <strong>separate taxpayer</strong> with its own return, residency, computation, filings and deadlines — and they <strong>interrelate</strong> (K-1 pass-through, dividends, GILTI/Subpart-F, loans, salary). Today the engine flattens all of this into the individual. We need first-class entities, kept separate, then consolidated.</p>
+<h3 id="f-2-data-model-an-entity-graph">F.2 Data model — an <em>entity graph</em></h3>
+<pre><code>Engagement {
+  client: { name, advisor, baseYear },
+  entities: [ Entity, ... ],
+  relationships: [ Edge, ... ]
+}
+
+Entity {
+  id: "ent_1",
+  kind: "individual" | "in_company" | "in_llp" | "in_firm" | "huf"
+      | "us_scorp" | "us_ccorp" | "us_partnership" | "us_llc" | "us_trust",
+  jurisdiction: "IN" | "US",
+  returnForm: "ITR-2" | "ITR-3" | "ITR-6" | "1040" | "1120-S" | "1120" | "1065" | "1041",
+  residency: {                    // entity-appropriate test
+    // individual: ROR/RNOR/NR or SPT; company: POEM (IN) / state of incorporation (US)
+    status, test, daysOrPoem
+  },
+  layer1Ref: { form: "india"|"us", path: "domestic_income.business_income.business_entries[0]" },
+  income, deductions, tax,        // per-entity computed block (same shape as today, scoped)
+  filings: [ { form, jurisdiction, dueDate, status } ],
+  monitoring: { thresholds, projections, alerts }
+}
+
+Edge {                            // ownership / flow between entities
+  from: "ent_owner",              // owner entity id
+  to: "ent_child",                // owned entity id
+  ownershipPct: 100,
+  flow: "k1_passthrough" | "dividend" | "gilti" | "subpart_f" | "salary" | "loan" | "capital"
+}</code></pre>
+<p><strong>Where entities come from in Layer 1</strong></p>
+<ul><li>India: <code>profile.entity_type</code>; each <code>domestic_income.business_income.business_entries[]</code></li></ul>
+<p>  and <code>partner_firms[]</code> → an entity; company if <code>entity_type==='company'</code>.</p>
+<ul><li>US: <code>profile.tax_entity_type</code> / <code>llc_tax_election</code>; each <code>partnerships_k1[]</code>,</li></ul>
+<p>  <code>s_corporations_k1[]</code>, <code>c_corporations_1120[]</code>, <code>trusts_estates_k1[]</code>,   <code>foreign_entities.foreign_corporations[]</code> → an entity.</p>
+<h3 id="f-3-engine-flow-per-entity-consolidate">F.3 Engine flow (per entity → consolidate)</h3>
+<ol><li><strong>Build the graph</strong> from both Layer 1 states (an "entity extractor" in <code>normalize</code>).</li><li><strong>Compute each entity</strong> with the right module:</li><li>IN company → 22%/25%/15% regimes, MAT, surcharge, cess (ITR-6).</li><li>US S-corp/partnership → entity return (mostly informational) + <strong>K-1 out</strong>.</li><li>US C-corp → 21% + potential PFIC/GILTI interplay.</li><li>Individual/HUF → current India/US individual engines.</li><li><strong>Flow along edges</strong> to owners: K-1 pass-through into the owner's income;</li></ol>
+<p>   dividends; <strong>GILTI/Subpart-F inclusion</strong> for a US person owning an IN/foreign    company; §962 election option.</p>
+<ol><li><strong>Consolidate</strong> to each individual owner, then run the existing **cross-border</li></ol>
+<p>   layer** (residency conflicts, FTC, treaty) at the owner level.</p>
+<ol><li><strong>Conflicts at two levels:</strong> entity-level (e.g., IN company POEM-in-India →</li></ol>
+<p>   dual company residency; PFIC on a fund held <em>inside</em> an entity) and owner-level    (dual residency, FTC shortfall).</p>
+<h3 id="f-4-frontend-design">F.4 Frontend design</h3>
+<ul><li><strong>Entity switcher</strong> (header): "Consolidated ▾ / Aarav Sharma (Individual) /</li></ul>
+<p>  Sharma Consulting Pvt Ltd (IN Co) / Cloudscale LLC (US)". Scopes every view.</p>
+<ul><li><strong>Per-entity dashboard</strong>: each entity gets its own conflict/computation/filings</li></ul>
+<p>  panels (reusing today's components, scoped to that entity).</p>
+<ul><li><strong>Consolidated (household) view</strong>: rolls up all entities + the inter-entity</li></ul>
+<p>  flows (a small ownership graph diagram).</p>
+<ul><li><strong>Monitor gains an entity dimension</strong>: filter/group the exposure map &amp; tables by</li></ul>
+<p>  entity as well as jurisdiction (e.g., "Sharma Consulting Pvt Ltd — India ITR-6   due, GILTI inclusion on the US side").</p>
+<ul><li><strong>Filings/Documents</strong> become per-entity (ITR-6 for the company, 5471 for the</li></ul>
+<p>  owner, 1120-S + K-1 for the S-corp, …).</p>
+<h3 id="f-5-keeping-entities-separate-the-core-requirement">F.5 Keeping entities separate (the core requirement)</h3>
+<ul><li>Every computed number is stored <strong>on its entity node</strong>, never merged globally.</li><li>Consolidation is an <strong>explicit, traceable roll-up</strong> (edges), not a flatten — so</li></ul>
+<p>  you can always drill from the household number back to the entity that produced it.</p>
+<ul><li>Cross-entity effects (GILTI, K-1, dividends) are <strong>edges with formulas</strong>, shown</li></ul>
+<p>  in the UI as flows, not hidden sums.</p>
+<hr/>
+<h2 id="part-g-refactor-build-plan-phased">Part G — Refactor / build plan (phased)</h2>
+<div class="tbl"><table><thead><tr><th>Phase</th><th>Deliverable</th><th>Notes</th></tr></thead><tbody><tr><td><strong>0</strong></td><td><em>This doc</em></td><td>✅ scope agreed</td></tr><tr><td><strong>1</strong></td><td>Entity extractor + registry in <code>normalize</code> (individual + IN company + US pass-throughs)</td><td>Non-breaking: default = single individual</td></tr><tr><td><strong>2</strong></td><td>Per-entity computation modules (IN company, US S/C-corp, partnership)</td><td>Reuse existing individual engines</td></tr><tr><td><strong>3</strong></td><td>Inter-entity flows (K-1, dividends, GILTI/Subpart-F, §962) + consolidation</td><td>The hard tax logic</td></tr><tr><td><strong>4</strong></td><td>Frontend: entity switcher, per-entity views, Monitor entity dimension</td><td>Reuse components, add scope</td></tr><tr><td><strong>5</strong></td><td>Comprehensive Layer 1 field coverage fill-in (Parts B–D gaps)</td><td>Iterative by priority (Part D)</td></tr><tr><td><strong>6</strong></td><td>US state-residency engine (folds into entity/jurisdiction model)</td><td>Unblocks live state drill-down</td></tr><tr><td><strong>T</strong></td><td><strong>Demo test profiles</strong> (<code>engine/profiles.js</code> + one-click loader + picker) — Part I</td><td>2–3 individual profiles ship now; entity profiles after Phase 1</td></tr></tbody></table></div>
+<p><strong>Compatibility:</strong> Phase 1 keeps the current single-individual behaviour as the default (one entity), so nothing breaks while the graph is introduced.</p>
+<hr/>
+<h2 id="part-i-demo-test-profiles-seamless-one-click-scenarios">Part I — Demo test profiles (seamless one-click scenarios)</h2>
+<p><strong>Goal:</strong> never type into a Layer 1 form during a demo. Pick a named profile → both forms, the dashboard, and the Monitor all populate from it instantly.</p>
+<p><strong>What already exists:</strong> both forms have a <code>prefillPersona()</code> panel, but the personas are <strong>per-form, uncoordinated, and don't set the router</strong> — so they can't drive a whole cross-border scenario across every surface.</p>
+<p><strong>Design:</strong></p>
+<ul><li>A shared <code>engine/profiles.js</code> — an array of named profiles, each a complete</li></ul>
+<p>  <code>{ router, india, us }</code> bundle (same shapes the forms persist).</p>
+<ul><li>A <strong>profile loader</strong>: writes the three <code>localStorage</code> keys</li></ul>
+<p>  (<code>wising_router_state</code>, <code>wising_layer1_india_state</code>, <code>wising_us_state</code>) and   broadcasts a <code>storage</code> event, so open forms + dashboard + Monitor all refresh.</p>
+<ul><li>A small <strong>profile picker</strong> UI (on the router/landing and as a dev affordance in</li></ul>
+<p>  the forms) — one click loads the whole scenario.</p>
+<ul><li>Each profile is crafted to showcase a <strong>specific conflict story</strong>; profiles are</li></ul>
+<p>  <strong>multi-entity-ready</strong> (can include a business entity once Phase 1 lands).</p>
+<p><strong>Proposed starter scenarios:</strong></p>
+<ol><li><strong>Dual-resident H-1B</strong> (Aarav Sharma) — ROR + US SPT; the FTC/tie-breaker case (today's sample).</li><li><strong>Deemed RNOR / high-earner NRI</strong> — s.6(1A), TRC/10F missing, LRS near cap.</li><li><strong>US citizen expat in India</strong> — FEIE + foreign earned income + PFIC on Indian MFs.</li><li><strong>Founder with an Indian company</strong> — individual + <code>in_company</code> entity → 5471/GILTI (exercises multi-entity once Phase 1 lands).</li></ol>
+<p><strong>Plan slot:</strong> build after Phase 1 (so profiles can include entities), but the 2–3 individual-only profiles can ship immediately against the current engine.</p>
+<hr/>
+<h2 id="part-h-honest-limitations-to-keep-stating">Part H — Honest limitations to keep stating</h2>
+<ul><li>Planning-grade tables (FY2025-26 / TY2025), not a filing engine.</li><li>The engine trusts the Layer 1 forms' <em>final residency status</em> rather than</li></ul>
+<p>  re-deriving it from the determination inputs.</p>
+<ul><li>FX is a flat anchor; statutory FTC needs per-transaction TT rates.</li><li>Until Phases 1–4 land, multi-entity numbers are <strong>flattened into the individual</strong></li></ul>
+<p>  and US-state rows in the Monitor are <strong>illustrative</strong>.</p></section><hr class="big"/><section id="developer_handoff"><h1 id="wising-developer-handoff-integration-guide">WISING — Developer Handoff &amp; Integration Guide</h1>
+<p>This is the single entry point for a developer taking the prototype to production. It explains **what the code is, how it runs, the data contract, and exactly where to plug in a real backend.**</p>
+<blockquote>TL;DR: The <strong>tax engine is plain, framework-free JavaScript</strong> and is the crown<br/>jewel. It already runs in Node with zero changes. The dashboard is a **Next.js<br/>(React) app**. "Integrating properly" mostly means: move the engine server-side<br/>behind an API, replace <code>localStorage</code> with a real datastore, and add<br/>auth/persistence. The engine itself does not need rewriting to do that.</blockquote>
+<hr/>
+<h2 id="1-stack">1. Stack</h2>
+<div class="tbl"><table><thead><tr><th>Part</th><th>Tech</th></tr></thead><tbody><tr><td>Dashboard (<code>monitor-next/</code>)</td><td><strong>Next.js 14</strong> (App Router) · <strong>React 18</strong> · <strong>JavaScript/JSX</strong> (no TS) · <strong>Tailwind CSS</strong> · <code>react-simple-maps</code></td></tr><tr><td>Tax engine (<code>engine/</code>)</td><td><strong>Vanilla JavaScript</strong> (ES5-style IIFEs attaching to a global <code>WISING</code>). No framework, no build step. Runs in a browser <code>&lt;script&gt;</code> <strong>and</strong> in Node via <code>require()</code>.</td></tr><tr><td>Layer 1 intake forms</td><td>Standalone <strong>HTML + vanilla JS + Tailwind</strong> (<code>layer1_india.html</code>, <code>layer1_us.html</code>, <code>router.html</code>)</td></tr><tr><td>Persistence (today)</td><td><strong><code>localStorage</code></strong> only. No backend, no database.</td></tr></tbody></table></div>
+<p><code>index.html</code> in a build is <strong>compiled output</strong>, not source — Next.js emits it plus <code>_next/static/chunks/*.js</code>. Edit the <code>.jsx</code> source, not the HTML.</p>
+<hr/>
+<h2 id="2-repo-map">2. Repo map</h2>
+<pre><code>engine/                     ← THE ENGINE (source of truth, pure JS, portable)
+  constants.js              ← FX, thresholds, tax tables, storage-key contract
+  normalize.js              ← Layer 1 JSON → normalized model (the input schema)
+  computation.js            ← India + US tax, FTC, FEIE gate, cross-basis
+  conflicts.js              ← WISING.analyze() entry point; findings/documents/FTC
+  monitoring.js             ← residency day-counters, calendar, health, alerts
+  profiles.js               ← demo test taxpayers (WISING.PROFILES)
+  sample-data.js            ← the default demo taxpayer (WISING.SAMPLE)
+
+layer1_india.html           ← India intake (writes localStorage 'wising_layer1_india_state')
+layer1_us.html              ← US intake    (writes 'wising_us_state')
+router.html                 ← profile router (writes 'wising_router_state')
+
+monitor-next/               ← the dashboard (Next.js)
+  app/page.jsx              ← shell, state, view switching
+  components/               ← Sidebar, Header, KpiCards, DetailTable, WorldMap,
+                              UsStatesMap, Views.jsx (all tab panels)
+  lib/wising.js             ← bridges the engine to React (analyze/snapshot/profiles)
+  lib/logic.js              ← status classification, KPI rollups, palette
+  lib/engine/               ← GENERATED copy of /engine (do not edit; see §7)
+  scripts/sync-engine.js    ← copies /engine → lib/engine on predev/prebuild
+  next.config.mjs           ← static-export config (see §6)
+
+docs/                       ← this file + COVERAGE_AND_ARCHITECTURE.md</code></pre>
+<hr/>
+<h2 id="3-run-it">3. Run it</h2>
+<pre><code>cd monitor-next
+npm install
+npm run dev        # http://localhost:3000  (live dev server)
+# or
+npm run build      # static export → monitor-next/out/  (open out/index.html offline)</code></pre>
+<p><code>predev</code>/<code>prebuild</code> run <code>scripts/sync-engine.js</code>, which copies <code>/engine/*.js</code> into <code>monitor-next/lib/engine/</code> so the app and the root engine never drift.</p>
+<p>The engine also runs standalone in Node (this is how the logic is unit-tested):</p>
+<pre><code>["constants","normalize","computation","monitoring","conflicts","profiles","sample-data"]
+  .forEach(f =&gt; require("./engine/" + f + ".js"));
+const W = globalThis.WISING;
+const result = W.analyze({ india: W.SAMPLE.india, us: W.SAMPLE.us, router: W.SAMPLE.router });</code></pre>
+<hr/>
+<h2 id="4-data-flow">4. Data flow</h2>
+<pre><code>Layer 1 forms ──write──▶ localStorage ──read──▶ WISING.normalize() ──▶ WISING.compute()
+  (India/US JSON)         (3 keys)               (model)               (tax/FTC/cross-basis)
+                                                                            │
+        dashboard ◀── React (lib/wising.js) ◀── WISING.analyze() ◀─────────┘
+                                                 (findings, documents, monitoring…)</code></pre>
+<ul><li><strong><code>WISING.analyze(opts)</code></strong> is the single engine entry point.</li></ul>
+<p>  <code>opts = { router, india, us }</code> — pass the three Layer 1 JSON blobs directly   (used for tests/profiles), or omit them and the engine reads <code>localStorage</code>.</p>
+<ul><li>It returns: `{ model, computed, findings, documents, ftcReport, taxComputation,</li></ul>
+<p>  reconciliation, monitoring, summary }`.</p>
+<ul><li>The <strong>input schema</strong> = whatever <code>normalize.js</code> reads (<code>safe(...)</code> paths). Treat</li></ul>
+<p>  <code>normalize.js</code> as the contract spec between Layer 1 and the engine.</p>
+<h3 id="localstorage-contract-engine-constants-js-storage-keys">localStorage contract (<code>engine/constants.js › STORAGE_KEYS</code>)</h3>
+<div class="tbl"><table><thead><tr><th>Key</th><th>Written by</th><th>Holds</th></tr></thead><tbody><tr><td><code>wising_router_state</code></td><td><code>router.html</code></td><td>taxpayer profile (dual/single, base year, US flags)</td></tr><tr><td><code>wising_layer1_india_state</code></td><td><code>layer1_india.html</code></td><td>India intake JSON</td></tr><tr><td><code>wising_us_state</code></td><td><code>layer1_us.html</code></td><td>US intake JSON</td></tr><tr><td><code>wising_active_profile</code></td><td>dashboard</td><td>which demo profile is loaded (demo only)</td></tr></tbody></table></div>
+<hr/>
+<h2 id="5-integration-checklist-taking-it-to-production">5. Integration checklist (taking it to production)</h2>
+<ol><li><strong>Move the engine server-side.</strong> <code>engine/*.js</code> already runs in Node unchanged.</li></ol>
+<p>   Wrap <code>WISING.analyze()</code> in an API endpoint (<code>POST /analyze</code> with the three    blobs → returns the result object). Keeps the tax logic off the client.</p>
+<ol><li><strong>Replace <code>localStorage</code> with a datastore + API.</strong> The Layer 1 forms currently</li></ol>
+<p>   persist to <code>localStorage</code>; point them at your API instead. The engine doesn't    care where the JSON comes from — it just needs the same shapes <code>normalize.js</code>    expects.</p>
+<ol><li><strong>Wire the real Layer 1 forms</strong> (they already emit the correct shapes) or, better,</li></ol>
+<p>   rebuild them as React components inside the app and POST to the API.</p>
+<ol><li><strong>Auth / multi-tenant / persistence</strong> — none exists yet. Add before real client data.</li><li><strong>Recommended: migrate <code>engine/</code> to TypeScript.</strong> This is a tax engine; typing the</li></ol>
+<p>   model (and INR vs USD money objects) will catch a real class of bugs. It can be    done incrementally (engine first, then the React app).</p>
+<ol><li><strong>Drop the static-export hacks</strong> once served by a real server (see §6).</li></ol>
+<hr/>
+<h2 id="6-static-export-notes-why-index-html-works-offline">6. Static-export notes (why <code>index.html</code> works offline)</h2>
+<p><code>next.config.mjs</code> uses <code>output: "export"</code>, <code>assetPrefix: "."</code>, <code>images.unoptimized</code>. The relative <code>assetPrefix</code> makes the bundle work from <code>file://</code> (double-click). When you serve the app from a real server/CDN, remove <code>assetPrefix: "."</code> and (usually) <code>output: "export"</code> and serve Next normally. The Layer 1 HTML files are copied into <code>monitor-next/public/</code> so the export can link to them.</p>
+<hr/>
+<h2 id="7-gotchas">7. Gotchas</h2>
+<ul><li><strong>Never edit <code>monitor-next/lib/engine/</code></strong> — it is generated from <code>/engine</code> by</li></ul>
+<p>  <code>sync-engine.js</code>. Edit <code>/engine/*.js</code>; the copy is refreshed on <code>npm run dev/build</code>.   (It is committed so the app builds without the root; treat it as build output.)</p>
+<ul><li>The engine files are <strong>side-effect IIFEs</strong> that attach to a global. **Import order</li></ul>
+<p>  matters**: <code>constants → normalize → computation → monitoring → conflicts → profiles</code>.</p>
+<ul><li>If the dev server serves stale chunks after an engine change, kill lingering</li></ul>
+<p>  <code>next-server</code>/<code>next start</code> processes and rebuild.</p>
+<ul><li>FX is a <strong>flat 83.0 INR/USD</strong> (<code>constants.js › FX</code>). Production needs per-date rates.</li></ul>
+<hr/>
+<h2 id="8-demo-vs-production-data">8. Demo vs production data</h2>
+<ul><li><code>engine/sample-data.js</code> (<code>WISING.SAMPLE</code>) is the <strong>default demo taxpayer</strong>;</li></ul>
+<p>  <code>engine/profiles.js</code> (<code>WISING.PROFILES</code>) are the <strong>one-click test taxpayers</strong>.   Both are fixtures for the demo — replace with real intake in production.</p>
+<ul><li>Some cross-basis / computation rows are <strong>planning-grade</strong> (flagged <code>estimate</code>),</li></ul>
+<p>  because Layer 1 doesn't yet capture every line-item. To make them filing-exact,   collect and wire:</p>
+<ul><li><strong>Per-transaction FX</strong> (Rule 115 / SBI TTBR) instead of the flat rate.</li><li><strong>US rental depreciation</strong> basis (currently modeled) — needs the property's</li></ul>
+<p>    depreciable cost basis.</p>
+<ul><li><strong>Capital-gains cost basis + acquisition dates</strong> for US holding-period /</li></ul>
+<p>    USD-basis recomputation.</p>
+<ul><li><strong>FEIE foreign-housing exclusion</strong> (only the base FEIE amount is modeled).</li><li>Tax tables in <code>constants.js</code> are TY2025/FY2025-26; they need annual maintenance.</li></ul>
+<hr/>
+<h2 id="9-where-the-value-is">9. Where the value is</h2>
+<p><code>engine/</code> is deliberately decoupled from the UI. A developer can lift the whole folder into any backend (Node/serverless) and get the full India⇄US computation, FTC/cross-basis reconciliation, FEIE gate, PFIC/CFC/FBAR/LRS detection, residency day-counting and the compliance calendar — without touching React. Start there.</p></section><hr class="big"/><section id="us_layer1_coverage"><h1 id="us-layer-1-monitor-compliance-coverage-audit">US Layer 1 → Monitor — Compliance Coverage Audit</h1>
+<p>Step-by-step audit of the <strong>US Layer 1</strong> intake against what the Monitor currently surfaces. For each compliance area: <strong>what Layer 1 collects</strong>, the **coverage status<strong>, </strong>where it shows in the Monitor today<strong>, and if not covered, </strong>where it will land** (which tab / engine module).</p>
+<p><strong>Legend</strong> — ✅ Covered · 🟡 Partial (read but simplified / display-only) · ❌ Not yet</p>
+<p><strong>Monitor surfaces referenced:</strong> <em>Monitor</em> (map + KPIs + Conflicts), <em>Residency</em>, <em>Holdings</em> (income &amp; assets), <em>Filings</em> (calendar + FTC + tax computation + cross-basis), <em>Documents</em> (form checklist), <em>Accounts</em> (reporting limits + foreign accounts). Engine modules: <code>normalize.js</code> (intake→model), <code>computation.js</code> (tax), <code>conflicts.js</code> (findings/documents/FTC), <code>monitoring.js</code> (residency/calendar).</p>
+<hr/>
+<h2 id="1-residency-status-determination">1. Residency &amp; Status determination</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1 step</th><th>Status</th><th>Where in Monitor / where it will come</th></tr></thead><tbody><tr><td>Tax entity type (individual / entity)</td><td>✅</td><td><code>model.entity</code>; drives which computation runs. Residency + Filings.</td></tr><tr><td>LLC IRS classification election</td><td>❌</td><td>Engine reads entity kind but not the check-the-box election. → <code>normalize</code> entity block + a Filings note.</td></tr><tr><td>Filing status (single/MFJ/MFS/HOH) + NRA restriction</td><td>🟡</td><td>Used for brackets/std deduction/NIIT thresholds. The NRA-can't-MFJ restriction + §6013(h)/(g) elections are <strong>not</strong> modelled. → <code>computation</code> + a Conflicts check.</td></tr><tr><td>Community property (MFS)</td><td>❌</td><td>→ <code>computation</code> (income splitting) + Conflicts.</td></tr><tr><td>Taxpayer ID type / visa / dependents</td><td>🟡</td><td>Dependents feed nothing yet; visa feeds SPT exempt-status only loosely. → Residency detail + credits.</td></tr><tr><td>Green card: grant date, I-407 surrender, <strong>exit tax</strong> (§877A), years-held</td><td>❌</td><td>Residency treats green-card = resident, but <strong>expatriation / exit tax</strong> is not detected. → Residency + a new critical Conflict.</td></tr><tr><td>Substantial Presence Test — 3-year day tracker, excluded days, exempt individual</td><td>🟡</td><td>SPT <strong>result</strong> (resident/not) drives residency; the Monitor shows the current-year day-counter. The <strong>weighted 3-year formula, excluded days, exempt-individual</strong> are read on the form but the engine uses the pre-computed status, not the raw calc. → <code>monitoring</code> day-counter + <code>computation</code> residency.</td></tr><tr><td>First-year election / dual-status year</td><td>❌</td><td>→ Residency + <code>computation</code>.</td></tr><tr><td>DTAA Article 4 tie-breaker wizard</td><td>✅</td><td>Residency tab (DTAA Treaty Position) + Monitor conflict ("resolved / not run"); applied end-to-end in <code>computation</code> (loser → source basis).</td></tr><tr><td>Treaty docs: TRC, Form 8833, 1040-NR</td><td>✅</td><td>Residency (TRC / 10F / 1040-NR rows) + Documents + "treaty relief without docs" conflict.</td></tr></tbody></table></div>
+<h2 id="2-state-residency-multi-state">2. State residency &amp; multi-state</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1 step</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>Domicile, year-start/end home, states-lived list</td><td>❌</td><td>The US-states map is <strong>illustrative only</strong> — it is not computed from these fields. → new <strong>state-residency engine</strong> feeding the US drill-down map.</td></tr><tr><td>Statutory residency (NY 183-day + abode, CA FTB domicile/exit)</td><td>❌</td><td>Same — needs the state engine. → Monitor US drill-down + Conflicts.</td></tr><tr><td>Multi-state apportionment, economic/sales nexus, gross receipts by state</td><td>❌</td><td>→ state-residency + business-nexus engine.</td></tr><tr><td>Military / duty-station, community-property state</td><td>❌</td><td>→ state engine.</td></tr></tbody></table></div>
+<blockquote><strong>State tax is the single biggest gap.</strong> Today the state map is a demo visual; making it live is "Phase: US-state residency."</blockquote>
+<h2 id="3-employment-income-w-2">3. Employment income (W-2)</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>W-2 wages / paystubs (+ withholding, Medicare wages)</td><td>✅</td><td>Holdings → <em>US income by head</em> (Wages); <code>computation</code> taxes it; withholding feeds the calendar/FTC.</td></tr></tbody></table></div>
+<h2 id="4-investments-capital-gains-1099-b">4. Investments &amp; capital gains (1099-B)</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>Short-term / long-term gains, proceeds, cost basis</td><td>✅</td><td>Holdings (US income by head — ST/LT gains); <code>computation</code> applies ordinary vs LTCG 0/15/20 + the cross-basis re-characterization.</td></tr><tr><td>RSU cost-basis warning</td><td>❌</td><td>→ Conflicts (RSU basis trap) + Equity-comp coverage (§9).</td></tr><tr><td>QSBS §1202 exclusion</td><td>❌</td><td>→ <code>computation</code> (gain exclusion) + Conflicts.</td></tr><tr><td>Real-estate sale §121 exclusion</td><td>❌</td><td>→ <code>computation</code> + Conflicts.</td></tr><tr><td>Collectibles 28% rate</td><td>❌</td><td>→ <code>computation</code> special-rate.</td></tr><tr><td>Capital-loss carryovers (ST/LT)</td><td>❌</td><td>→ <code>computation</code> (offset gains).</td></tr><tr><td>Crypto / VDA transactions</td><td>❌</td><td>→ Holdings (asset class) + <code>computation</code> (gains) + Conflicts (reporting).</td></tr></tbody></table></div>
+<h2 id="5-interest-dividends-schedule-b">5. Interest &amp; dividends (Schedule B)</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>US bank interest, ordinary &amp; qualified dividends</td><td>✅</td><td>Holdings (US income by head); <code>computation</code> (ordinary + qualified-rate split).</td></tr><tr><td>Treasury/OID, seller-financed, <strong>tax-exempt</strong> interest</td><td>🟡</td><td>Plain interest covered; OID / tax-exempt / muni <strong>not</strong> separated (tax-exempt should be excluded + feed AMT/NIIT). → <code>normalize</code> + <code>computation</code>.</td></tr></tbody></table></div>
+<h2 id="6-rental-income-schedule-e">6. Rental income (Schedule E)</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>Gross US rental + expenses</td><td>✅</td><td>Holdings (US income by head — Rental; Property card); <code>computation</code> + cross-basis (US depreciation vs India 30%). Depreciation is currently <strong>modeled</strong>, not from a basis schedule.</td></tr></tbody></table></div>
+<h2 id="7-other-income-schedule-1-1099-g-ssa">7. Other income (Schedule 1 / 1099-G / SSA)</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>Social Security (SSA-1099)</td><td>🟡</td><td>Read into US retirement income (<code>usRetirementIncome</code>) as ordinary; the <strong>85% taxable cap</strong> is not applied. → <code>computation</code>.</td></tr><tr><td>State/local refunds, unemployment, alimony, royalties, COD (1099-C), HSA distributions, gambling/misc</td><td>❌</td><td>→ <code>normalize</code> (Other-income head) + Holdings + <code>computation</code>.</td></tr></tbody></table></div>
+<h2 id="8-business-self-employment">8. Business &amp; self-employment</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>Schedule C, K-1 (1065 / 1120-S / 1041), 1120 C-Corp</td><td>🟡</td><td>Amounts flow into <code>businessUs</code>; C-Corp taxed 21%, pass-through $0-at-entity. <strong>Sch F (farm), trust K-1</strong> partially. Holdings shows business income.</td></tr><tr><td><strong>SE tax</strong> (Schedule SE, 15.3%)</td><td>❌</td><td>Self-employment income is taxed at income rates but <strong>SE tax is not added</strong>. → <code>computation</code> (material gap for the self-employed).</td></tr><tr><td><strong>QBI §199A</strong> 20% deduction</td><td>❌</td><td>→ <code>computation</code> + Conflicts (SSTB/limits).</td></tr><tr><td>SE above-the-line (SE health, Solo-401k/SEP)</td><td>🟡</td><td>Retirement contributions captured in Holdings; the <strong>deduction</strong> isn't applied to AGI. → <code>computation</code>.</td></tr><tr><td>Balance sheet / Sch L, M-1, M-2 (book-tax reconciliation)</td><td>❌</td><td>→ <code>computation</code> (C-Corp) + a Business detail panel.</td></tr><tr><td>Depreciation (MACRS / §179 / bonus), UBIA</td><td>❌</td><td>→ <code>computation</code> (business net) + cross-basis rental.</td></tr><tr><td>Foreign branch / FDE (Form 8858), branch K-1</td><td>❌</td><td>→ International (§11) + Documents.</td></tr></tbody></table></div>
+<h2 id="9-equity-cap-table-rsu-iso-nso-espp-qsbs">9. Equity &amp; cap table (RSU / ISO / NSO / ESPP / QSBS)</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>RSU vests, ISO/NSO exercises, ESPP, restricted stock</td><td>❌</td><td>Entirely uncovered — <strong>ISO exercise is a top AMT trigger</strong>. → Holdings (equity comp) + <code>computation</code> (ordinary + AMT) + Conflicts.</td></tr></tbody></table></div>
+<h2 id="10-international-income-assets">10. International income &amp; assets</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>Foreign wages / interest / dividends / ST-LT CG / rental / pension</td><td>✅</td><td>Holdings (foreign heads) + cross-basis + FTC (Filings). Core of the India⇄US value prop.</td></tr><tr><td>Section 988 currency gains/losses</td><td>❌</td><td>→ <code>computation</code> + Conflicts.</td></tr><tr><td><strong>FEIE (Form 2555)</strong> — tax home, bona-fide / physical-presence tests, housing</td><td>✅</td><td>Eligibility <strong>gated</strong> (Monitor conflict "FEIE claimed but not eligible" + applied in <code>computation</code> with §911 no-double-dip). Housing exclusion not yet modelled.</td></tr><tr><td><strong>FBAR</strong> peak balance</td><td>✅</td><td>Accounts (reporting limits) + Monitor conflict (breach) + Documents (FinCEN 114).</td></tr><tr><td><strong>Form 8938 (FATCA)</strong></td><td>✅</td><td>Accounts + Documents; threshold table now keys off the §911 abroad facts.</td></tr><tr><td>Foreign bank accounts list</td><td>✅</td><td>Accounts (Foreign Accounts) — drives FBAR / Schedule FA.</td></tr><tr><td>Other financial assets (FATCA / <strong>PFIC</strong>)</td><td>✅</td><td>Holdings (Securities, PFIC · 8621 tag) + Monitor conflict + Documents (8621).</td></tr><tr><td><strong>Form 5471 (CFC / GILTI / Subpart F)</strong></td><td>✅</td><td>Monitor conflict (definitive from ownership) + Holdings (CFC tag + GILTI) + Documents + cross-basis routing.</td></tr><tr><td>Form 8865 (foreign partnership), 8858 (FDE), 5472 (inbound)</td><td>❌</td><td>Read on the form; not surfaced. → Documents + Conflicts.</td></tr><tr><td>Foreign gifts / trusts (Form 3520)</td><td>🟡</td><td>3520 fires for Indian retirement (PPF/EPF); <strong>foreign gifts</strong> 3520 not. → Conflicts + Documents.</td></tr><tr><td>Treaty FDAP rates, ECI/FDAP classification, <strong>FIRPTA</strong> withholding</td><td>❌</td><td>→ <code>computation</code> (FDAP/ECI split) + Conflicts (FIRPTA on US real-estate sale by NRA).</td></tr></tbody></table></div>
+<h2 id="11-retirement">11. Retirement</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>US: Traditional/Roth IRA, 401(k) employee/match, Roth 401(k), HSA, Solo-401k, SEP</td><td>✅</td><td>Holdings → <em>Retirement Accounts</em> (this-year contributions). The <strong>deduction to AGI</strong> isn't applied yet → <code>computation</code>.</td></tr><tr><td>IRA / 401(k) distributions, pension</td><td>✅</td><td><code>usRetirementIncome</code> → ordinary income (Holdings + <code>computation</code>).</td></tr><tr><td>Indian retirement (US tax exposure): trust review, 3520 flag</td><td>✅</td><td>Monitor conflict ("EPF/PPF/NPS taxed differently by the US") + Holdings + Documents (3520).</td></tr><tr><td>SECURE Act 2.0 RMD</td><td>❌</td><td>→ <code>computation</code> (forced income) + Conflicts (missed-RMD penalty).</td></tr></tbody></table></div>
+<h2 id="12-deductions-credits">12. Deductions &amp; credits</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>Standard vs itemized; SALT (capped), mortgage interest, charity, medical</td><td>🟡</td><td><code>computation</code> applies standard/itemized incl. SALT cap. <strong>Mortgage acquisition-date limit, appreciated-asset charity, disaster loss</strong> not refined.</td></tr><tr><td>Credits: Child/Dependent Care, AOTC, Lifetime Learning, 529</td><td>❌</td><td>No credits are applied. → <code>computation</code> (credits reduce tax) + a Filings credits panel.</td></tr></tbody></table></div>
+<h2 id="13-amt-55">13. AMT (§55)</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>AMT preference adjustments, private-activity-bond interest</td><td>❌</td><td><strong>AMT is not computed at all</strong> — a real gap given ISO exercises + high earners. → <code>computation</code> (parallel AMT) + Conflicts.</td></tr></tbody></table></div>
+<h2 id="14-niit-1411">14. NIIT (§1411)</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>Net Investment Income Tax 3.8%</td><td>✅</td><td><code>computation</code> (NIIT on investment income over the threshold) → Filings tax computation.</td></tr></tbody></table></div>
+<h2 id="15-foreign-tax-credit-904">15. Foreign Tax Credit (§904)</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>FTC baskets, foreign taxes</td><td>✅</td><td>Filings → FTC Reconciliation (Form 1116 limitation, carryover, residual) + cross-basis. <strong>Per-basket</strong> (passive vs general) limitation is simplified to one basket. → <code>computation</code> refinement.</td></tr></tbody></table></div>
+<h2 id="16-estimated-tax-safe-harbor">16. Estimated tax / safe harbor</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>1040-ES quarterly, prior-year tax (110%/90% safe harbor)</td><td>🟡</td><td>The <strong>deadlines</strong> appear in the Filings compliance calendar; the <strong>underpayment / safe-harbor calc</strong> is not done. → <code>computation</code> + calendar.</td></tr></tbody></table></div>
+<h2 id="17-additional-medicare-3101-b-2">17. Additional Medicare (§3101(b)(2))</h2>
+<div class="tbl"><table><thead><tr><th>Layer 1</th><th>Status</th><th>Where</th></tr></thead><tbody><tr><td>Additional Medicare 0.9%</td><td>🟡</td><td><code>computation</code> uses the <strong>form-provided</strong> figure rather than computing it from wages/SE. → <code>computation</code>.</td></tr></tbody></table></div>
+<hr/>
+<h2 id="scorecard">Scorecard</h2>
+<div class="tbl"><table><thead><tr><th>Bucket</th><th>Count</th><th>Examples</th></tr></thead><tbody><tr><td>✅ Covered</td><td>~18</td><td>Residency + Art.4 tie-breaker, W-2, cap gains, interest/dividends, rental, foreign income, FEIE gate, FBAR, 8938, PFIC/8621, CFC/5471/GILTI, FTC/1116, NIIT, US + Indian retirement, cross-basis</td></tr><tr><td>🟡 Partial</td><td>~10</td><td>Filing-status/NRA rules, SPT raw calc, business (no SE tax/QBI), Social Security 85%, deductions, FTC baskets, estimated-tax calc, Add'l Medicare</td></tr><tr><td>❌ Not yet</td><td>~20</td><td><strong>State tax (biggest)</strong>, AMT, equity comp/ISO, SE tax, QBI §199A, credits (AOTC/care/529), crypto/§988, QSBS/§121/collectibles/loss-carryovers, expatriation/exit tax, FIRPTA, 8865/8858/5472, foreign-gift 3520, RMD</td></tr></tbody></table></div>
+<h2 id="recommended-fill-order-highest-impact-first">Recommended fill order (highest impact first)</h2>
+<ol><li><strong>SE tax + QBI §199A</strong> — anyone self-employed is currently mis-taxed. (<code>computation</code>)</li><li><strong>AMT</strong> — needed the moment ISO/equity-comp or high earners appear. (<code>computation</code>)</li><li><strong>Credits</strong> (child care, AOTC, LLC, 529) — directly change tax owed. (<code>computation</code>)</li><li><strong>Equity comp (RSU/ISO/ESPP)</strong> — income + AMT + a Holdings panel.</li><li><strong>US-state residency engine</strong> — makes the state map real (NY/CA statutory tests, nexus).</li><li><strong>Capital-gains specials</strong> (QSBS/§121/collectibles/loss carryovers, crypto/§988).</li><li><strong>Expatriation/exit tax, FIRPTA, 8865/8858/5472, foreign-gift 3520</strong> — completeness of the international suite.</li></ol></section>
+</div></body></html>

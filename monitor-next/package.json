@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "sync:engine": "node scripts/sync-engine.js",
-    "predev": "node scripts/sync-engine.js",
-    "prebuild": "node scripts/sync-engine.js",
+    "build:docs": "node scripts/build-docs.js",
+    "predev": "node scripts/sync-engine.js && node scripts/build-docs.js",
+    "prebuild": "node scripts/sync-engine.js && node scripts/build-docs.js",
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",

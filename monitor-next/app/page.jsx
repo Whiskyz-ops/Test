@@ -221,25 +221,25 @@ function StatusPills({ kpis, active, onSelect }) {
   );
 }
 
-// Resource cards (reference's Community / Academy / Help Center rail).
+// Resource cards — wired to the real Layer 1 intake pages + generated docs.
 const RESOURCES = [
-  { icon: "💬", title: "Community", sub: "Ask peers about cross-border edge cases" },
-  { icon: "🎓", title: "Academy", sub: "DTAA, FTC & residency playbooks" },
-  { icon: "❓", title: "Help Center", sub: "Docs for every conflict & form" },
-  { icon: "📚", title: "Form library", sub: "1116 · 67 · FBAR · 8938 · 5471 templates" }
+  { icon: "🧭", title: "Router — start intake", sub: "Triage a new client into the right Layer 1", href: "router.html" },
+  { icon: "🇮🇳", title: "India Layer 1", sub: "Residency, income by head, assets & LRS", href: "layer1_india.html" },
+  { icon: "🇺🇸", title: "US Layer 1", sub: "Filing status, W-2/Sch C, FBAR/8938 & FEIE", href: "layer1_us.html" },
+  { icon: "📚", title: "Docs & coverage", sub: "Field coverage, architecture & handoff", href: "docs.html" }
 ];
 function ResourceStrip() {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
       {RESOURCES.map((r) => (
-        <button key={r.title} className="text-left rounded-[22px] p-4 bg-surface border border-line shadow-card hover:border-accent/40 hover:-translate-y-0.5 transition-all group">
+        <a key={r.title} href={r.href} className="block text-left rounded-[22px] p-4 bg-surface border border-line shadow-card hover:border-accent/40 hover:-translate-y-0.5 transition-all group">
           <div className="flex items-start justify-between">
             <span className="w-9 h-9 rounded-2xl flex items-center justify-center text-[15px] border" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)" }}>{r.icon}</span>
             <span className="text-muted group-hover:text-accent transition-colors text-sm">↗</span>
           </div>
           <div className="text-[13px] font-bold text-head mt-3">{r.title}</div>
           <div className="text-[11px] text-muted mt-0.5 leading-snug">{r.sub}</div>
-        </button>
+        </a>
       ))}
     </div>
   );

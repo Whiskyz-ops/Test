@@ -1,16 +1,20 @@
 "use client";
 import { useState } from "react";
 import { fmtUsd, PAL } from "@/lib/logic";
+import CapsuleChart from "@/components/CapsuleChart";
 
 const SEV = { critical: PAL.exposed, warning: PAL.approaching, info: PAL.filing };
 const SEV_TEXT = { critical: PAL.redText, warning: PAL.amberText, info: PAL.blueText };
 const GREEN = PAL.positive;
 const fmtInr = (n) => "₹" + Math.round(n || 0).toLocaleString("en-IN");
-const Card = ({ title, sub, children, right }) => (
-  <section className="rounded-2xl bg-surface border border-line shadow-card p-5">
+
+// Soft rounded card with an optional icon-chip header (the reference language).
+const Card = ({ title, sub, children, right, icon }) => (
+  <section className="rounded-[26px] bg-surface border border-line shadow-card p-5">
     {title && (
-      <div className="flex items-start justify-between mb-3">
-        <div><h3 className="font-display font-bold text-lg text-head">{title}</h3>{sub && <p className="text-[11px] text-muted mt-0.5">{sub}</p>}</div>
+      <div className="flex items-start gap-3 mb-3">
+        {icon && <span className="w-9 h-9 rounded-2xl flex items-center justify-center text-[15px] border shrink-0" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)" }}>{icon}</span>}
+        <div className="flex-1 min-w-0"><h3 className="font-display font-bold text-lg text-head">{title}</h3>{sub && <p className="text-[11px] text-muted mt-0.5">{sub}</p>}</div>
         {right}
       </div>
     )}
@@ -19,6 +23,37 @@ const Card = ({ title, sub, children, right }) => (
 );
 const Empty = ({ children }) => <div className="text-center text-muted text-sm py-10">{children}</div>;
 const Ref = ({ children }) => <span className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded bg-white/[0.05] border border-line text-muted">{children}</span>;
+
+// Shared stat card — icon chip + big number (the reference's Operations/Data card).
+const StatTile = ({ icon, label, value, sub, accent, highlight }) => (
+  <div className="rounded-[26px] border shadow-card p-4 hover:shadow-cardhover transition-all"
+    style={{ background: highlight ? "linear-gradient(155deg,rgba(45,212,191,0.14),rgba(52,211,153,0.05))" : "#12151f", borderColor: highlight ? "rgba(45,212,191,0.3)" : "rgba(255,255,255,0.07)" }}>
+    <div className="flex items-center gap-2.5 mb-3">
+      <span className="w-8 h-8 rounded-xl flex items-center justify-center text-[14px] border shrink-0" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)" }}>{icon}</span>
+      <span className="text-[10px] uppercase tracking-widest text-muted font-bold flex-1 leading-tight">{label}</span>
+      <span className="text-muted/50 text-base leading-none select-none">⋯</span>
+    </div>
+    <div className="font-display font-extrabold text-[26px] leading-none tracking-tight" style={{ color: accent || PAL.head }}>{value}</div>
+    {sub && <div className="text-[11px] text-muted mt-1.5">{sub}</div>}
+  </div>
+);
+
+// Segmented capsule meter (the reference's pill-progress row) — replaces thin bars.
+const SegBar = ({ pct, color, segments = 12 }) => {
+  const filled = Math.max(0, Math.min(segments, Math.round((pct || 0) * segments)));
+  return (
+    <div className="flex items-center gap-1">
+      {Array.from({ length: segments }).map((_, i) => (i < filled
+        ? <span key={i} className="h-3 flex-1 rounded-full" style={{ background: color, boxShadow: `0 0 8px -2px ${color}` }} />
+        : <span key={i} className="h-3 flex-1 rounded-full border border-dashed" style={{ borderColor: "rgba(255,255,255,0.16)" }} />))}
+    </div>
+  );
+};
+
+// Inline chip for section headings (small teal glyph, matches the Monitor header).
+const HeadChip = ({ children }) => (
+  <span className="inline-flex items-center justify-center align-middle w-9 h-9 rounded-2xl text-[16px] mr-2.5 translate-y-[-2px] text-[#04120f] shadow-[0_6px_18px_-6px_rgba(45,212,191,0.6)]" style={{ background: "linear-gradient(135deg,#2dd4bf,#34d399)" }}>{children}</span>
+);
 
 /* ============================ CONFLICTS ============================ */
 export function ConflictsPanel({ findings }) {
@@ -36,10 +71,11 @@ export function ConflictsPanel({ findings }) {
           const on = filter === id;
           return (
             <button key={id} onClick={() => setFilter(id)}
-              className={"px-2.5 py-1 rounded-md text-[11px] font-bold border transition-colors " +
-                (on ? "bg-accent text-[#04120f] border-accent" : "bg-surface border-line text-body hover:border-accent/50")}>
-              {id !== "all" && <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ background: SEV[id] }} />}
-              {label} <span className="opacity-60">{counts[id]}</span>
+              className={"inline-flex items-center gap-1.5 pl-3 pr-2.5 py-1.5 rounded-full text-[11.5px] font-semibold border transition-all " +
+                (on ? "text-[#04120f] border-transparent shadow-[0_5px_16px_-6px_rgba(45,212,191,0.6)]" : "bg-surface border-line text-body hover:border-white/20")}
+              style={on ? { background: "linear-gradient(135deg,#2dd4bf,#34d399)" } : undefined}>
+              {id !== "all" && <span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: SEV[id] }} />}
+              {label} <span className={"text-[10px] font-bold px-1.5 py-0.5 rounded-full " + (on ? "bg-black/20" : "bg-white/10 text-muted")}>{counts[id]}</span>
             </button>
           );
         })}
@@ -96,22 +132,19 @@ export function ResidencyView({ result }) {
         <Flag label="🇮🇳 India residency" s={r.india} />
         <Flag label="🇺🇸 US residency" s={r.us} />
       </div>
-      <Card title="Residency Day-Counters" sub="Physical-presence tests · projections at current pace">
+      <Card icon="🧭" title="Residency Day-Counters" sub="Physical-presence tests · projections at current pace">
         <div className="space-y-4">
-          {(mon ? mon.residency : []).map((c, i) => {
-            const pct = Math.min(100, Math.round(c.pct * 100));
-            return (
-              <div key={i}>
-                <div className="flex justify-between text-[12px] mb-1"><span className="font-semibold text-head">{c.flag} {c.country} <span className="text-muted font-normal">· {c.test}</span></span><span className="font-mono" style={{ color: stCol[c.status] }}>{c.days}/{c.threshold}d</span></div>
-                <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full rounded-full" style={{ width: pct + "%", background: stCol[c.status], boxShadow: `0 0 8px ${stCol[c.status]}` }} /></div>
-                <div className="text-[11px] text-muted mt-0.5">{c.headline} · {c.dateLabel}</div>
-              </div>
-            );
-          })}
+          {(mon ? mon.residency : []).map((c, i) => (
+            <div key={i}>
+              <div className="flex justify-between text-[12px] mb-1.5"><span className="font-semibold text-head">{c.flag} {c.country} <span className="text-muted font-normal">· {c.test}</span></span><span className="font-mono" style={{ color: stCol[c.status] }}>{c.days}/{c.threshold}d</span></div>
+              <SegBar pct={c.pct} color={stCol[c.status]} />
+              <div className="text-[11px] text-muted mt-1.5">{c.headline} · {c.dateLabel}</div>
+            </div>
+          ))}
         </div>
       </Card>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="DTAA Treaty Position" sub="India-US Double Taxation Avoidance Agreement">
+        <Card icon="📜" title="DTAA Treaty Position" sub="India-US Double Taxation Avoidance Agreement">
           {treatyRow("Article 4 tie-breaker applied", t.treatyResidence !== "none" || t.usTreatyResidence !== "none", "Recorded", "Not applied")}
           {treatyRow("Tax Residency Certificate (TRC)", t.trcStatus, "On file", "Missing")}
           {treatyRow("Form 10F filed", t.form10fFiled, "Filed", "Not filed")}
@@ -119,7 +152,7 @@ export function ResidencyView({ result }) {
           {treatyRow("Files US 1040-NR", true, t.files1040nr ? "Yes" : "No", "")}
           <div className="text-[11px] text-muted mt-3">Treaty residence claimed: <span className="text-body font-mono">{t.treatyResidence !== "none" ? t.treatyResidence : (t.usTreatyResidence !== "none" ? t.usTreatyResidence : "none")}</span></div>
         </Card>
-        <Card title="Residency & Treaty Conflicts">
+        <Card icon="⚖️" title="Residency & Treaty Conflicts">
           <ConflictsPanel findings={result.findings.filter((f) => f.category === "residency" || f.category === "treaty")} />
         </Card>
       </div>
@@ -136,7 +169,7 @@ export function FilingsView({ result }) {
   const jColor = { US: PAL.jurUS, IN: PAL.jurIN };
   return (
     <div className="space-y-6">
-      <Card title="Compliance Calendar" sub="Filing & payment deadlines with countdowns">
+      <Card icon="🗓️" title="Compliance Calendar" sub="Filing & payment deadlines with countdowns">
         <div className="space-y-1.5">
           {upcoming.concat(passed).map((x, i) => {
             const isPast = x.status === "passed";
@@ -156,6 +189,9 @@ export function FilingsView({ result }) {
         <FtcCard ftcReport={result.ftcReport} />
         <TaxCard taxComputation={result.taxComputation} fxRate={result.model.meta.fxRate} />
       </div>
+      {result.computed.reconciliation && result.computed.reconciliation.rows && result.computed.reconciliation.rows.length > 0 && (
+        <CapsuleChart rows={result.computed.reconciliation.rows} />
+      )}
       <ReconciliationCard recon={result.computed.reconciliation} />
       <ApportionmentCard ap={result.computed.apportionment} />
     </div>
@@ -182,7 +218,7 @@ function ApportionmentCard({ ap }) {
     </div>
   );
   return (
-    <Card title="FY ↔ CY Apportionment" sub={"Indian FY straddles two US calendar years — period-matched so FTC lines up both ways · basis: " + ap.basis}>
+    <Card icon="📆" title="FY ↔ CY Apportionment" sub={"Indian FY straddles two US calendar years — period-matched so FTC lines up both ways · basis: " + ap.basis}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Split title={"🇮🇳 Indian " + ap.fyLabel + " income → US calendar years"} sub={"Q1–Q3 (Apr–Dec) → CY" + ap.cyPrimary + " · Q4 (Jan–Mar) → CY" + ap.cyNext}
           a={ap.indiaToCyPrimaryUsd} b={ap.indiaToCyNextUsd} aLabel={"CY" + ap.cyPrimary} bLabel={"CY" + ap.cyNext} />
@@ -199,7 +235,7 @@ function ReconciliationCard({ recon }) {
   if (!recon || !recon.rows || !recon.rows.length) return null;
   const Dir = ({ d }) => <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded" style={{ background: (d === "IN→US" ? PAL.jurIN : PAL.jurUS) + "24", color: d === "IN→US" ? PAL.accent : PAL.blueText }}>{d}</span>;
   return (
-    <Card title="Cross-Basis Reconciliation" sub="The same income computed under each country's own code — India (Income-tax Act) vs US (IRC). Overlap is what FTC / §90 relieves.">
+    <Card icon="⚖️" title="Cross-Basis Reconciliation" sub="The same income computed under each country's own code — India (Income-tax Act) vs US (IRC). Overlap is what FTC / §90 relieves.">
       <div className="overflow-x-auto -mx-1">
         <table className="w-full">
           <thead>
@@ -245,7 +281,7 @@ function FtcCard({ ftcReport }) {
       })}</div></div>
   );
   return (
-    <Card title="FTC Reconciliation">
+    <Card icon="🔁" title="FTC Reconciliation">
       <div className={"rounded-xl p-3 mb-4 border " + (net > 0 ? "border-exposed/30 bg-exposed/10" : "border-positive/30 bg-positive/10")}>
         <div className="text-[10px] uppercase tracking-widest text-muted">Net unrelieved double tax</div>
         <div className="font-display font-extrabold text-2xl" style={{ color: net > 0 ? PAL.redText : PAL.greenText }}>{fmtUsd(net)}</div>
@@ -268,7 +304,7 @@ function TaxCard({ taxComputation, fxRate }) {
     </div>
   );
   return (
-    <Card title="Tax Computation" sub="Planning-grade, from Layer 1">
+    <Card icon="🧮" title="Tax Computation" sub="Planning-grade, from Layer 1">
       <Block block={taxComputation.india} isInr accent={PAL.jurIN} />
       <div className="h-3" />
       <Block block={taxComputation.us} accent={PAL.jurUS} />
@@ -283,7 +319,7 @@ export function DocumentsView({ result }) {
   const docs = result.documents.slice().sort((a, b) => (b.required ? 1 : 0) - (a.required ? 1 : 0));
   const req = docs.filter((d) => d.required).length;
   return (
-    <Card title="Documents to File" sub={req + " required · triggered by this taxpayer's cross-border facts"}>
+    <Card icon="📁" title="Documents to File" sub={req + " required · triggered by this taxpayer's cross-border facts"}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {docs.map((d) => (
           <div key={d.id} className={"flex items-start gap-3 p-3 rounded-lg " + (d.required ? "bg-white/[0.03] border border-line" : "opacity-45")}>
@@ -307,21 +343,18 @@ export function AccountsView({ result }) {
   const accts = result.model.accounts.accounts || [];
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card title="Reporting Limits" sub="FBAR · FATCA 8938 · LRS · FEIE">
+      <Card icon="📐" title="Reporting Limits" sub="FBAR · FATCA 8938 · LRS · FEIE">
         <div className="space-y-4">
-          {result.computed.limits.map((g) => {
-            const pct = Math.min(100, Math.round(g.pct * 100));
-            return (
-              <div key={g.id}>
-                <div className="flex justify-between text-[11px] mb-1"><span className="text-body font-semibold">{g.label}{g.status === "breached" && <span className="ml-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-exposed/15" style={{ color: PAL.redText }}>BREACHED</span>}</span><span className="font-mono" style={{ color: color[g.status] }}>{Math.round(g.pct * 100)}%</span></div>
-                <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full rounded-full" style={{ width: pct + "%", background: color[g.status], boxShadow: `0 0 8px ${color[g.status]}` }} /></div>
-                <div className="flex justify-between text-[10px] text-muted mt-1"><span>{fmtUsd(g.value)}</span><span>limit {fmtUsd(g.limit)}</span></div>
-              </div>
-            );
-          })}
+          {result.computed.limits.map((g) => (
+            <div key={g.id}>
+              <div className="flex justify-between text-[11px] mb-1.5"><span className="text-body font-semibold">{g.label}{g.status === "breached" && <span className="ml-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-exposed/15" style={{ color: PAL.redText }}>BREACHED</span>}</span><span className="font-mono" style={{ color: color[g.status] }}>{Math.round(g.pct * 100)}%</span></div>
+              <SegBar pct={g.pct} color={color[g.status]} />
+              <div className="flex justify-between text-[10px] text-muted mt-1.5"><span>{fmtUsd(g.value)}</span><span>limit {fmtUsd(g.limit)}</span></div>
+            </div>
+          ))}
         </div>
       </Card>
-      <Card title="Foreign Accounts" sub={accts.length + " account(s) · drives FBAR / Schedule FA"}>
+      <Card icon="🏦" title="Foreign Accounts" sub={accts.length + " account(s) · drives FBAR / Schedule FA"}>
         {accts.length === 0 ? <Empty>No foreign accounts on file.</Empty> : (
           <div className="space-y-1.5">
             {accts.map((a, i) => (
@@ -378,13 +411,6 @@ export function HoldingsView({ result }) {
   const acctUsd = accts.reduce((s, x) => s + (x.peak && x.peak.usd || 0), 0);
   const propGrossUsd = properties.reduce((s, p) => s + p.grossRentUsd, 0);
 
-  const Tile = ({ label, value, sub, accent }) => (
-    <div className="rounded-2xl bg-surface border border-line shadow-card p-4">
-      <div className="text-[10px] uppercase tracking-widest text-muted mb-1">{label}</div>
-      <div className="font-display font-extrabold text-xl" style={{ color: accent || PAL.head }}>{value}</div>
-      {sub && <div className="text-[11px] text-muted mt-1">{sub}</div>}
-    </div>
-  );
   const isTaxed = (mv) => mv && (mv.usd > 0 || mv.inr > 0);
   const IncomeRow = ({ label, mv, inr }) => (
     <div className="flex justify-between py-1.5 border-b border-line/60 text-[12px]">
@@ -399,13 +425,13 @@ export function HoldingsView({ result }) {
 
   return (
     <div className="space-y-6">
-      <div><h2 className="font-display font-extrabold text-2xl text-head">Income &amp; Holdings</h2><p className="text-muted text-sm mt-1">Everything captured in Layer 1 for {m.identity.name} — income by head, property, securities, entities and retirement.</p></div>
+      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip>📊</HeadChip>Income &amp; Holdings</h2><p className="text-muted text-sm mt-2">Everything captured in Layer 1 for {m.identity.name} — income by head, property, securities, entities and retirement.</p></div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Tile label="Securities &amp; funds" value={fmtUsd(secValueUsd)} sub={securities.length + " holding(s) · US + India"} accent={PAL.accent} />
-        <Tile label="Property (annual rent)" value={fmtUsd(propGrossUsd)} sub={properties.length + " property(ies)"} />
-        <Tile label="Bank balances (peak)" value={fmtUsd(acctUsd)} sub={accts.length + " account(s)"} />
-        <Tile label="Retirement" value={fmtUsd(retireUsd)} sub="401k/IRA · EPF/PPF/NPS" />
+        <StatTile icon="📈" label="Securities &amp; funds" value={fmtUsd(secValueUsd)} sub={securities.length + " holding(s) · US + India"} accent={PAL.accent} highlight />
+        <StatTile icon="🏠" label="Property (annual rent)" value={fmtUsd(propGrossUsd)} sub={properties.length + " property(ies)"} />
+        <StatTile icon="🏦" label="Bank balances (peak)" value={fmtUsd(acctUsd)} sub={accts.length + " account(s)"} />
+        <StatTile icon="🌴" label="Retirement" value={fmtUsd(retireUsd)} sub="401k/IRA · EPF/PPF/NPS" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -419,7 +445,7 @@ export function HoldingsView({ result }) {
         </Card>
       </div>
 
-      <Card title="Securities &amp; Funds" sub={usPerson ? "US brokerage + Indian funds — Indian funds held by a US person are PFICs (Form 8621)" : "Holdings on file (US + India)"}>
+      <Card icon="📈" title="Securities &amp; Funds" sub={usPerson ? "US brokerage + Indian funds — Indian funds held by a US person are PFICs (Form 8621)" : "Holdings on file (US + India)"}>
         {securities.length === 0 ? <Empty>No securities on file.</Empty> : (
           <div className="space-y-1.5">
             {securities.map((s, i) => (
@@ -437,7 +463,7 @@ export function HoldingsView({ result }) {
       </Card>
 
       {corps.length > 0 && (
-        <Card title="Business Entities / Foreign Corporations" sub="Ownership ≥10% → Form 5471 · GILTI / Subpart F">
+        <Card icon="🏢" title="Business Entities / Foreign Corporations" sub="Ownership ≥10% → Form 5471 · GILTI / Subpart F">
           <div className="space-y-1.5">
             {corps.map((c, i) => (
               <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.03] border border-line">
@@ -454,7 +480,7 @@ export function HoldingsView({ result }) {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="Property" sub={properties.length + " property(ies) · US + India"}>
+        <Card icon="🏠" title="Property" sub={properties.length + " property(ies) · US + India"}>
           {properties.length === 0 ? <Empty>No property on file.</Empty> : (
             <div className="space-y-1.5">
               {properties.map((p, i) => (
@@ -469,7 +495,7 @@ export function HoldingsView({ result }) {
             </div>
           )}
         </Card>
-        <Card title="Retirement Accounts" sub="US 401k/IRA/Roth (this year's contributions) + Indian EPF/PPF/NPS — see the US-treatment note on the Monitor">
+        <Card icon="🌴" title="Retirement Accounts" sub="US 401k/IRA/Roth (this year's contributions) + Indian EPF/PPF/NPS — see the US-treatment note on the Monitor">
           {retire.length === 0 ? <Empty>No retirement balances on file.</Empty> : (
             <div className="space-y-1.5">
               {retire.map((r, i) => (
@@ -491,20 +517,13 @@ export function BusinessView({ result }) {
   if (!result) return <Empty>Load a client to see business entities.</Empty>;
   const m = result.model, u = result.computed.usTax || {};
   const ents = m.assets.businessEntities || [];
-  const Tile = ({ label, value, sub, accent }) => (
-    <div className="rounded-2xl bg-surface border border-line shadow-card p-4">
-      <div className="text-[10px] uppercase tracking-widest text-muted mb-1">{label}</div>
-      <div className="font-display font-extrabold text-xl" style={{ color: accent || PAL.head }}>{value}</div>
-      {sub && <div className="text-[11px] text-muted mt-1">{sub}</div>}
-    </div>
-  );
   const Flag = ({ c }) => <span className="text-[13px]">{c === "US" ? "🇺🇸" : "🇮🇳"}</span>;
   const Tag = ({ color, children }) => <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: color + "24", color }}>{children}</span>;
   if (!ents.length) {
     return (
       <div className="space-y-6">
-        <div><h2 className="font-display font-extrabold text-2xl text-head">Business &amp; Entities</h2><p className="text-muted text-sm mt-1">Schedule C, K-1, S-corp, C-corp and foreign corporations — with US tax treatment.</p></div>
-        <Card title="No business entities on file"><Empty>{m.identity.name} has no Schedule C / K-1 / corporate income in Layer 1.</Empty></Card>
+        <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip>🏢</HeadChip>Business &amp; Entities</h2><p className="text-muted text-sm mt-2">Schedule C, K-1, S-corp, C-corp and foreign corporations — with US tax treatment.</p></div>
+        <Card icon="🏢" title="No business entities on file"><Empty>{m.identity.name} has no Schedule C / K-1 / corporate income in Layer 1.</Empty></Card>
       </div>
     );
   }
@@ -530,16 +549,16 @@ export function BusinessView({ result }) {
   );
   return (
     <div className="space-y-6">
-      <div><h2 className="font-display font-extrabold text-2xl text-head">Business &amp; Entities</h2><p className="text-muted text-sm mt-1">Every business/entity from Layer 1 — Schedule C, K-1, S-corp, C-corp and foreign corporations — with its US tax treatment.</p></div>
+      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip>🏢</HeadChip>Business &amp; Entities</h2><p className="text-muted text-sm mt-2">Every business/entity from Layer 1 — Schedule C, K-1, S-corp, C-corp and foreign corporations — with its US tax treatment.</p></div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Tile label="Business income" value={fmtUsd(totalUsd)} sub={ents.length + " entity(ies)"} accent={PAL.accent} />
-        <Tile label="Self-employment tax" value={fmtUsd(seTax)} sub="Schedule SE" accent={seTax ? PAL.amberText : PAL.muted} />
-        <Tile label="§199A QBI deduction" value={fmtUsd(qbi)} sub="20% pass-through" accent={qbi ? PAL.greenText : PAL.muted} />
-        <Tile label="Foreign corps (CFC)" value={cfcCount} sub="Form 5471 / GILTI" accent={cfcCount ? PAL.filing : PAL.muted} />
+        <StatTile icon="🏢" label="Business income" value={fmtUsd(totalUsd)} sub={ents.length + " entity(ies)"} accent={PAL.accent} highlight />
+        <StatTile icon="🧾" label="Self-employment tax" value={fmtUsd(seTax)} sub="Schedule SE" accent={seTax ? PAL.amberText : PAL.muted} />
+        <StatTile icon="📉" label="§199A QBI deduction" value={fmtUsd(qbi)} sub="20% pass-through" accent={qbi ? PAL.greenText : PAL.muted} />
+        <StatTile icon="🌐" label="Foreign corps (CFC)" value={cfcCount} sub="Form 5471 / GILTI" accent={cfcCount ? PAL.filing : PAL.muted} />
       </div>
       {usEnts.length > 0 && <Card title="🇺🇸 US business & pass-through entities" sub="Schedule C / K-1 / S-corp / C-corp — flows to the 1040 (or 1120 for C-corps)"><div className="space-y-1.5">{usEnts.map(Row)}</div></Card>}
       {inEnts.length > 0 && <Card title="🇮🇳 Indian business entities" sub="PGBP income / foreign corporations"><div className="space-y-1.5">{inEnts.map(Row)}</div></Card>}
-      <Card title="How this business income is taxed" sub="Planning-grade — see Filings → Tax Computation for the full numbers">
+      <Card icon="📖" title="How this business income is taxed" sub="Planning-grade — see Filings → Tax Computation for the full numbers">
         <ul className="space-y-1.5 text-[12px] text-body">
           <li><span className="font-bold" style={{ color: PAL.amberText }}>SE tax</span> — Schedule C, farm and general-partnership income pay 15.3% self-employment tax (SS capped at the wage base + Medicare); half is deductible. {seTax > 0 ? "This taxpayer: " + fmtUsd(seTax) + "." : ""}</li>
           <li><span className="font-bold" style={{ color: PAL.accent }}>§199A QBI</span> — pass-through business income gets a 20% deduction (SSTB / income-limit phase-outs apply). {qbi > 0 ? "This taxpayer: " + fmtUsd(qbi) + " deduction." : ""}</li>
@@ -559,23 +578,16 @@ export function ClientsView({ clients, activeId, onPick }) {
   const openCritical = clients.reduce((a, c) => a + (c.critical || 0), 0);
   const atRisk = clients.filter((c) => c.healthScore < 50).length;
   const sorted = clients.slice().sort((a, b) => (a.healthScore ?? 100) - (b.healthScore ?? 100));
-  const Kpi = ({ label, value, accent, sub }) => (
-    <div className="rounded-2xl bg-surface border border-line shadow-card p-4">
-      <div className="text-[10px] uppercase tracking-widest text-muted mb-1">{label}</div>
-      <div className="font-display font-extrabold text-2xl" style={{ color: accent || PAL.head }}>{value}</div>
-      {sub && <div className="text-[11px] text-muted mt-1">{sub}</div>}
-    </div>
-  );
   const healthColor = (h) => (h >= 80 ? PAL.positive : h >= 50 ? PAL.approaching : PAL.exposed);
   return (
     <div className="space-y-6">
-      <div><h2 className="font-display font-extrabold text-2xl text-head">Client Portfolio</h2><p className="text-muted text-sm mt-1">Your book of business — cross-border exposure at a glance. Click a client to open their Monitor.</p></div>
+      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip>👥</HeadChip>Client Portfolio</h2><p className="text-muted text-sm mt-2">Your book of business — cross-border exposure at a glance. Click a client to open their Monitor.</p></div>
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <Kpi label="Clients" value={clients.length} />
-        <Kpi label="At risk" value={atRisk} accent={atRisk ? PAL.redText : PAL.greenText} sub="health < 50" />
-        <Kpi label="Open critical" value={openCritical} accent={openCritical ? PAL.redText : PAL.greenText} sub="conflicts" />
-        <Kpi label="Combined tax" value={fmtUsd(totalTax)} sub="IN + US, all clients" />
-        <Kpi label="Residual double tax" value={fmtUsd(totalResidual)} accent={totalResidual ? PAL.redText : PAL.greenText} sub="unrelieved" />
+        <StatTile icon="👥" label="Clients" value={clients.length} highlight />
+        <StatTile icon="⚠️" label="At risk" value={atRisk} accent={atRisk ? PAL.redText : PAL.greenText} sub="health < 50" />
+        <StatTile icon="🚨" label="Open critical" value={openCritical} accent={openCritical ? PAL.redText : PAL.greenText} sub="conflicts" />
+        <StatTile icon="💰" label="Combined tax" value={fmtUsd(totalTax)} sub="IN + US, all clients" />
+        <StatTile icon="🔻" label="Residual double tax" value={fmtUsd(totalResidual)} accent={totalResidual ? PAL.redText : PAL.greenText} sub="unrelieved" />
       </div>
       <div className="overflow-x-auto rounded-2xl border border-line bg-surface shadow-card">
         <table className="w-full">
@@ -616,7 +628,7 @@ export function IntegrationsView() {
     { name: "DocuSign", kind: "Engagement & TRC docs", connected: false, icon: "✍️" }
   ];
   return (
-    <Card title="Integrations" sub="Connected data sources feed the engine daily">
+    <Card icon="🔌" title="Integrations" sub="Connected data sources feed the engine daily">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {rows.map((r, i) => (
           <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-line">
