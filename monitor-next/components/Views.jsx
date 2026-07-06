@@ -240,7 +240,8 @@ function FtcCard({ ftcReport }) {
     <div className="mb-2"><div className="text-[11px] font-bold text-body mb-2">{block.title}</div>
       <div className="space-y-1">{block.rows.map((r, i) => {
         const c = r.warn ? PAL.redText : r.emphasis ? PAL.greenText : PAL.body;
-        return <div key={i} className={"flex justify-between text-[12px] " + (r.emphasis || r.warn ? "font-bold" : "")}><span style={{ color: c }}>{r.label}</span><span className="font-mono" style={{ color: c }}>{fmtUsd(r.usd)}</span></div>;
+        const disp = r.usd < 0 ? "(" + fmtUsd(Math.abs(r.usd)) + ")" : fmtUsd(r.usd);
+        return <div key={i} className={"flex justify-between text-[12px] " + (r.emphasis || r.warn ? "font-bold" : "")}><span style={{ color: c }}>{r.label}</span><span className="font-mono" style={{ color: c }}>{disp}</span></div>;
       })}</div></div>
   );
   return (
