@@ -26,7 +26,11 @@ export const PAL = {
   head: "#f3f4f8", body: "#c3c7d4", muted: "#8a8fa3", faint: "#6b7080",
   navy: "#1b2036",
   // jurisdiction accents (US = blue "bridge", IN = teal)
-  jurUS: "#3b82f6", jurIN: "#2dd4bf"
+  jurUS: "#3b82f6", jurIN: "#2dd4bf",
+  // validated two-series chart fills (dark-mode categorical: CVD ΔE 62.9, lightness
+  // band + contrast all pass — dataviz validator). Brand teal is too luminous as a
+  // fill, so the India series uses the deeper teal-600 step; #2dd4bf stays for glow.
+  seriesIN: "#0d9488", seriesUS: "#3b82f6"
 };
 
 // Residency day-count fraction (physical-presence test).

@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import KpiCards from "@/components/KpiCards";
+import StatMeter from "@/components/StatMeter";
+import CapsuleChart from "@/components/CapsuleChart";
 import DetailTable from "@/components/DetailTable";
 import { ConflictsPanel, ResidencyView, FilingsView, DocumentsView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView } from "@/components/Views";
 import { US_STATES, COUNTRIES, SOURCES } from "@/lib/mockData";
@@ -60,6 +61,8 @@ export default function MonitorPage() {
   const statusMap = useMemo(() => statusByMapName(dataset), [dataset]);
   const rows = useMemo(() => { const s = withStatus(dataset); return category === "all" ? s : s.filter((r) => r.status === category); }, [dataset, category]);
   const alerts = useMemo(() => runAlertScan(dataset), [dataset]);
+  const meters = useMemo(() => deriveMeters(result), [result]);
+  const reconRows = result && result.computed && result.computed.reconciliation ? result.computed.reconciliation.rows : [];
 
   const badges = {
     monitor: result ? { text: result.summary.counts.critical + result.summary.counts.warning, tone: result.summary.counts.critical > 0 ? "alert" : "" } : null,
@@ -106,25 +109,46 @@ export default function MonitorPage() {
         {view === "monitor" && (
           <>
             {alerts.length > 0 && (
-              <div className="mb-5 rounded-xl border border-approaching/30 bg-approaching/10 p-3">
+              <div className="mb-5 rounded-2xl border border-approaching/30 bg-approaching/10 p-3.5">
                 <div className="text-[11px] uppercase tracking-widest font-bold mb-1" style={{ color: PAL.amberText }}>{alerts.length} automated alert{alerts.length > 1 ? "s" : ""}</div>
                 <ul className="space-y-0.5">{alerts.slice(0, 4).map((a, i) => <li key={i} className="text-[12px] text-body">{a.subject}</li>)}</ul>
               </div>
             )}
+
+            {/* pill-tab status filter */}
+            <StatusPills kpis={kpis} active={category} onSelect={setCategory} />
+
+            {/* segmented pill-meter cards — residency budgets & reporting limits */}
+            {meters.length > 0 && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                {meters.map((m, i) => <StatMeter key={i} {...m} />)}
+              </div>
+            )}
+
+            {/* full-width exposure map */}
             <div className="mb-8">
               {isUsDrill
                 ? <UsStatesMap statusByName={statusMap} onBack={() => setRegion("All")} onSelectState={() => {}} />
                 : <WorldMap statusByName={statusMap} onSelectCountry={(id) => id === "US" && setRegion("United States")} />}
               {!isUsDrill && <p className="text-[11px] text-muted mt-2 text-center">Tip: click the United States (or use the dropdown) to drill into state-level residency.</p>}
             </div>
-            <div className="mb-6"><KpiCards kpis={kpis} active={category} onSelect={setCategory} /></div>
+
+            {/* capsule statistics chart — real cross-basis data */}
+            {!isUsDrill && reconRows.length > 0 && (
+              <div className="mb-8"><CapsuleChart rows={reconRows} /></div>
+            )}
+
             <DetailTable category={category} regions={rows} />
+
             {!isUsDrill && result && (
               <section className="mt-8">
                 <h3 className="font-display font-bold text-lg text-head mb-4">Conflicts &amp; Mismatches</h3>
                 <ConflictsPanel findings={result.findings} />
               </section>
             )}
+
+            {/* resource rail — reference's Community / Academy / Help cards */}
+            <ResourceStrip />
           </>
         )}
 
@@ -137,6 +161,86 @@ export default function MonitorPage() {
         {view === "accounts" && <AccountsView result={result} />}
         {view === "integrations" && <IntegrationsView />}
       </main>
+    </div>
+  );
+}
+
+// Residency day-count budgets + reporting-limit projections → StatMeter cards.
+// Every value is engine-derived (model.residency + monitoring.projections).
+function deriveMeters(result) {
+  if (!result || !result.model) return [];
+  const m = result.model, mon = result.monitoring || {};
+  // A corporation has no personal "days present" — only individuals get the
+  // residency-budget meters; entities lead with their reporting limits.
+  const isEntity = !!(result.computed && result.computed.usTax && result.computed.usTax.isEntity);
+  const usDays = Math.round(m.residency.us.daysCurrentYear || 0);
+  const inDays = Math.round(m.residency.india.daysCurrentYear || 0);
+  const res = isEntity ? [] : [
+    { icon: "🇺🇸", label: "US days present", value: usDays, limit: 183, unit: "days", pct: usDays / 183,
+      status: usDays >= 183 ? "breached" : usDays >= 128 ? "will_breach" : "ok",
+      note: "Substantial Presence — ≥183 weighted days makes a US tax resident", highlight: true },
+    { icon: "🇮🇳", label: "India days present", value: inDays, limit: 182, unit: "days", pct: inDays / 182,
+      status: inDays >= 182 ? "breached" : inDays >= 127 ? "will_breach" : "ok",
+      note: "182-day residency test (Income-tax Act s.6)" }
+  ];
+  const ICON = { fbar: "🏦", form8938: "📄", lrs: "💸", feie: "✈️" };
+  const proj = (mon.projections || []).map((p) => ({
+    icon: ICON[p.id] || "📊", label: p.label, value: p.current, limit: p.limit, unit: "$",
+    pct: p.pct, status: p.status === "breached" ? "breached" : p.status === "will_breach" ? "will_breach" : "ok",
+    note: p.note || p.dateLabel
+  }));
+  // residency budgets first, then the highest-utilisation reporting limits.
+  proj.sort((a, b) => (b.pct || 0) - (a.pct || 0));
+  return res.concat(proj.slice(0, isEntity ? 4 : 2));
+}
+
+// Pill-tab status filter (reference's Organization / Teams pill bar).
+function StatusPills({ kpis, active, onSelect }) {
+  const items = [
+    { key: "all", label: "All jurisdictions", count: kpis.all, color: PAL.accent },
+    { key: STATUS.EXPOSED, label: "Exposed", count: kpis.exposed, color: PAL.exposed },
+    { key: STATUS.APPROACHING, label: "Approaching", count: kpis.approaching, color: PAL.approaching },
+    { key: STATUS.NEXUS, label: "Filing-only", count: kpis.nexus, color: PAL.filing }
+  ];
+  return (
+    <div className="flex flex-wrap gap-2 mb-6">
+      {items.map((it) => {
+        const on = active === it.key;
+        return (
+          <button key={it.key} onClick={() => onSelect(it.key)}
+            className={"inline-flex items-center gap-2 pl-3.5 pr-2.5 py-2 rounded-full text-[12.5px] font-semibold transition-all border " +
+              (on ? "text-[#04120f] border-transparent shadow-[0_6px_18px_-6px_rgba(45,212,191,0.6)]" : "text-body bg-surface border-line hover:border-white/20")}
+            style={on ? { background: "linear-gradient(135deg,#2dd4bf,#34d399)" } : undefined}>
+            <span className="w-2 h-2 rounded-full" style={{ background: it.color, boxShadow: `0 0 8px ${it.color}` }} />
+            {it.label}
+            <span className={"text-[10px] font-bold px-1.5 py-0.5 rounded-full " + (on ? "bg-black/20 text-[#04120f]" : "bg-white/10 text-muted")}>{it.count}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Resource cards (reference's Community / Academy / Help Center rail).
+const RESOURCES = [
+  { icon: "💬", title: "Community", sub: "Ask peers about cross-border edge cases" },
+  { icon: "🎓", title: "Academy", sub: "DTAA, FTC & residency playbooks" },
+  { icon: "❓", title: "Help Center", sub: "Docs for every conflict & form" },
+  { icon: "📚", title: "Form library", sub: "1116 · 67 · FBAR · 8938 · 5471 templates" }
+];
+function ResourceStrip() {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+      {RESOURCES.map((r) => (
+        <button key={r.title} className="text-left rounded-[22px] p-4 bg-surface border border-line shadow-card hover:border-accent/40 hover:-translate-y-0.5 transition-all group">
+          <div className="flex items-start justify-between">
+            <span className="w-9 h-9 rounded-2xl flex items-center justify-center text-[15px] border" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)" }}>{r.icon}</span>
+            <span className="text-muted group-hover:text-accent transition-colors text-sm">↗</span>
+          </div>
+          <div className="text-[13px] font-bold text-head mt-3">{r.title}</div>
+          <div className="text-[11px] text-muted mt-0.5 leading-snug">{r.sub}</div>
+        </button>
+      ))}
     </div>
   );
 }
