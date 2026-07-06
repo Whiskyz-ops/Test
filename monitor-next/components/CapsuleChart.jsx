@@ -30,7 +30,7 @@ export default function CapsuleChart({ rows = [] }) {
   const gl = [1, 0.75, 0.5, 0.25, 0];
 
   return (
-    <div className="rounded-[26px] p-5 border border-line shadow-card" style={{ background: "#0f1220" }}>
+    <div className="rounded-[26px] p-5 border border-line shadow-card" style={{ background: "#1a1d13" }}>
       <div className="flex flex-wrap items-center gap-3 mb-1">
         <span className="w-9 h-9 rounded-2xl flex items-center justify-center text-[15px] border" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)" }}>📊</span>
         <div className="flex-1 min-w-0">
@@ -87,7 +87,7 @@ export default function CapsuleChart({ rows = [] }) {
                       <Capsule h={hUS} color={S_US} dim={hover !== -1 && !active} dot />
                     </div>
                     {showTag && (
-                      <div className="absolute -top-1 z-10 px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap shadow-cardhover" style={{ background: "#04060c", border: "1px solid rgba(255,255,255,0.12)" }}>
+                      <div className="absolute -top-1 z-10 px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap shadow-cardhover" style={{ background: "#0f110a", border: "1px solid rgba(255,255,255,0.12)" }}>
                         <div className="text-head mb-0.5">{r.label || r.head}</div>
                         <div style={{ color: S_IN }}>IN {fmtUsd(r.indiaLawUsd || 0)}</div>
                         <div style={{ color: S_US }}>US {fmtUsd(r.usLawUsd || 0)}</div>

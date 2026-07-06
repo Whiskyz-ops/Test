@@ -16,21 +16,22 @@ export const STATUS_META = {
 
 // Shared WISING palette — one source of truth for inline colors across views.
 export const PAL = {
-  // signature
-  accent: "#2dd4bf", accent2: "#34d399", teal: "#2dd4bf",
-  // functional / status
-  exposed: "#ef4444", approaching: "#f5a623", filing: "#3b82f6", positive: "#22c55e",
+  // Design-A signature: sage-lime accent + cream light panel
+  accent: "#c2dd8f", accent2: "#a9cd76", teal: "#c2dd8f",
+  panel: "#e8ecd7", panelInk: "#14160e",
+  // functional / status (reserved, used sparingly)
+  exposed: "#ef4444", approaching: "#f5a623", filing: "#3b82f6", positive: "#8fbf5a",
   // on-dark text variants of the above (for small labels / values)
-  redText: "#fca5b5", amberText: "#fcd34d", blueText: "#93c5fd", greenText: "#86efac",
-  // ink
-  head: "#f3f4f8", body: "#c3c7d4", muted: "#8a8fa3", faint: "#6b7080",
-  navy: "#1b2036",
-  // jurisdiction accents (US = blue "bridge", IN = teal)
-  jurUS: "#3b82f6", jurIN: "#2dd4bf",
+  redText: "#fca5b5", amberText: "#fcd34d", blueText: "#93c5fd", greenText: "#c2dd8f",
+  // warm ink
+  head: "#eef0e3", body: "#b4b7a6", muted: "#84877a", faint: "#63665c",
+  navy: "#23271a",
+  // jurisdiction accents (US = blue "bridge", IN = sage)
+  jurUS: "#3b82f6", jurIN: "#9fbf6a",
   // validated two-series chart fills (dark-mode categorical: CVD ΔE 62.9, lightness
-  // band + contrast all pass — dataviz validator). Brand teal is too luminous as a
-  // fill, so the India series uses the deeper teal-600 step; #2dd4bf stays for glow.
-  seriesIN: "#0d9488", seriesUS: "#3b82f6"
+  // band + contrast all pass — dataviz validator). India uses a deep sage that
+  // passes; US stays blue for a clear, colour-blind-safe split.
+  seriesIN: "#6f8f3f", seriesUS: "#3b82f6"
 };
 
 // Residency day-count fraction (physical-presence test).

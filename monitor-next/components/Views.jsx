@@ -24,35 +24,46 @@ const Card = ({ title, sub, children, right, icon }) => (
 const Empty = ({ children }) => <div className="text-center text-muted text-sm py-10">{children}</div>;
 const Ref = ({ children }) => <span className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded bg-white/[0.05] border border-line text-muted">{children}</span>;
 
-// Shared stat card — icon chip + big number (the reference's Operations/Data card).
-const StatTile = ({ icon, label, value, sub, accent, highlight }) => (
-  <div className="rounded-[26px] border shadow-card p-4 hover:shadow-cardhover transition-all"
-    style={{ background: highlight ? "linear-gradient(155deg,rgba(45,212,191,0.14),rgba(52,211,153,0.05))" : "#12151f", borderColor: highlight ? "rgba(45,212,191,0.3)" : "rgba(255,255,255,0.07)" }}>
-    <div className="flex items-center gap-2.5 mb-3">
-      <span className="w-8 h-8 rounded-xl flex items-center justify-center text-[14px] border shrink-0" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)" }}>{icon}</span>
-      <span className="text-[10px] uppercase tracking-widest text-muted font-bold flex-1 leading-tight">{label}</span>
-      <span className="text-muted/50 text-base leading-none select-none">⋯</span>
-    </div>
-    <div className="font-display font-extrabold text-[26px] leading-none tracking-tight" style={{ color: accent || PAL.head }}>{value}</div>
-    {sub && <div className="text-[11px] text-muted mt-1.5">{sub}</div>}
-  </div>
-);
-
-// Segmented capsule meter (the reference's pill-progress row) — replaces thin bars.
-const SegBar = ({ pct, color, segments = 12 }) => {
-  const filled = Math.max(0, Math.min(segments, Math.round((pct || 0) * segments)));
+// Shared stat card — icon chip + big MONO number. Design-A skin: olive card, or
+// a cream hero panel (dark ink) when highlighted.
+const StatTile = ({ icon, label, value, sub, accent, highlight }) => {
+  const inkHead = highlight ? PAL.panelInk : (accent || PAL.head);
+  const inkMute = highlight ? "rgba(20,22,14,0.55)" : PAL.muted;
   return (
-    <div className="flex items-center gap-1">
-      {Array.from({ length: segments }).map((_, i) => (i < filled
-        ? <span key={i} className="h-3 flex-1 rounded-full" style={{ background: color, boxShadow: `0 0 8px -2px ${color}` }} />
-        : <span key={i} className="h-3 flex-1 rounded-full border border-dashed" style={{ borderColor: "rgba(255,255,255,0.16)" }} />))}
+    <div className="rounded-[26px] border shadow-card p-4 hover:shadow-cardhover transition-all"
+      style={{ background: highlight ? PAL.panel : "#1a1d13", borderColor: highlight ? "transparent" : "rgba(232,236,214,0.08)" }}>
+      <div className="flex items-center gap-2.5 mb-3">
+        <span className="w-8 h-8 rounded-xl flex items-center justify-center text-[14px] border shrink-0" style={{ background: highlight ? "rgba(20,22,14,0.06)" : "rgba(232,236,214,0.05)", borderColor: highlight ? "rgba(20,22,14,0.12)" : "rgba(232,236,214,0.08)" }}>{icon}</span>
+        <span className="text-[10px] uppercase tracking-widest font-bold flex-1 leading-tight" style={{ color: inkMute }}>{label}</span>
+        <span className="text-base leading-none select-none" style={{ color: inkMute }}>⋯</span>
+      </div>
+      <div className="font-mono font-light text-[28px] leading-none tracking-tight" style={{ color: inkHead }}>{value}</div>
+      {sub && <div className="text-[11px] mt-1.5" style={{ color: inkMute }}>{sub}</div>}
+    </div>
+  );
+};
+
+// Segmented capsule meter (pill-progress row) — replaces thin bars. Optional
+// projPct draws a dashed "projected at current pace" tick (planning-grade).
+const SegBar = ({ pct, color, segments = 12, projPct }) => {
+  const filled = Math.max(0, Math.min(segments, Math.round((pct || 0) * segments)));
+  const showProj = typeof projPct === "number" && projPct > 0;
+  const projLeft = Math.min(100, Math.max(0, projPct * 100));
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-1">
+        {Array.from({ length: segments }).map((_, i) => (i < filled
+          ? <span key={i} className="h-3 flex-1 rounded-full" style={{ background: color, boxShadow: `0 0 8px -2px ${color}` }} />
+          : <span key={i} className="h-3 flex-1 rounded-full border border-dashed" style={{ borderColor: "rgba(232,236,214,0.16)" }} />))}
+      </div>
+      {showProj && <span className="absolute -top-1 -bottom-1 w-0 border-l-2 border-dashed pointer-events-none" style={{ left: `calc(${projLeft}% - 1px)`, borderColor: PAL.approaching }} title="projected at current pace" />}
     </div>
   );
 };
 
 // Inline chip for section headings (small teal glyph, matches the Monitor header).
 const HeadChip = ({ children }) => (
-  <span className="inline-flex items-center justify-center align-middle w-9 h-9 rounded-2xl text-[16px] mr-2.5 translate-y-[-2px] text-[#04120f] shadow-[0_6px_18px_-6px_rgba(45,212,191,0.6)]" style={{ background: "linear-gradient(135deg,#2dd4bf,#34d399)" }}>{children}</span>
+  <span className="inline-flex items-center justify-center align-middle w-9 h-9 rounded-2xl text-[16px] mr-2.5 translate-y-[-2px] text-[#04120f] shadow-[0_6px_18px_-6px_rgba(194,221,143,0.6)]" style={{ background: "linear-gradient(135deg,#c2dd8f,#a9cd76)" }}>{children}</span>
 );
 
 /* ============================ CONFLICTS ============================ */
@@ -72,8 +83,8 @@ export function ConflictsPanel({ findings }) {
           return (
             <button key={id} onClick={() => setFilter(id)}
               className={"inline-flex items-center gap-1.5 pl-3 pr-2.5 py-1.5 rounded-full text-[11.5px] font-semibold border transition-all " +
-                (on ? "text-[#04120f] border-transparent shadow-[0_5px_16px_-6px_rgba(45,212,191,0.6)]" : "bg-surface border-line text-body hover:border-white/20")}
-              style={on ? { background: "linear-gradient(135deg,#2dd4bf,#34d399)" } : undefined}>
+                (on ? "text-[#04120f] border-transparent shadow-[0_5px_16px_-6px_rgba(194,221,143,0.6)]" : "bg-surface border-line text-body hover:border-white/20")}
+              style={on ? { background: "linear-gradient(135deg,#c2dd8f,#a9cd76)" } : undefined}>
               {id !== "all" && <span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: SEV[id] }} />}
               {label} <span className={"text-[10px] font-bold px-1.5 py-0.5 rounded-full " + (on ? "bg-black/20" : "bg-white/10 text-muted")}>{counts[id]}</span>
             </button>
@@ -137,8 +148,8 @@ export function ResidencyView({ result }) {
           {(mon ? mon.residency : []).map((c, i) => (
             <div key={i}>
               <div className="flex justify-between text-[12px] mb-1.5"><span className="font-semibold text-head">{c.flag} {c.country} <span className="text-muted font-normal">· {c.test}</span></span><span className="font-mono" style={{ color: stCol[c.status] }}>{c.days}/{c.threshold}d</span></div>
-              <SegBar pct={c.pct} color={stCol[c.status]} />
-              <div className="text-[11px] text-muted mt-1.5">{c.headline} · {c.dateLabel}</div>
+              <SegBar pct={c.pct} color={stCol[c.status]} projPct={c.threshold ? (c.projectedFullYear || 0) / c.threshold : 0} />
+              <div className="text-[11px] text-muted mt-1.5">{c.headline} · <span style={{ color: c.status === "will_flip" ? PAL.amberText : PAL.muted }}>{c.dateLabel}</span></div>
             </div>
           ))}
         </div>
@@ -348,7 +359,7 @@ export function AccountsView({ result }) {
           {result.computed.limits.map((g) => (
             <div key={g.id}>
               <div className="flex justify-between text-[11px] mb-1.5"><span className="text-body font-semibold">{g.label}{g.status === "breached" && <span className="ml-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-exposed/15" style={{ color: PAL.redText }}>BREACHED</span>}</span><span className="font-mono" style={{ color: color[g.status] }}>{Math.round(g.pct * 100)}%</span></div>
-              <SegBar pct={g.pct} color={color[g.status]} />
+              <SegBar pct={g.pct} color={color[g.status]} projPct={g.projPct} />
               <div className="flex justify-between text-[10px] text-muted mt-1.5"><span>{fmtUsd(g.value)}</span><span>limit {fmtUsd(g.limit)}</span></div>
             </div>
           ))}

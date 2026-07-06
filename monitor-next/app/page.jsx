@@ -95,9 +95,9 @@ export default function MonitorPage() {
           <button onClick={() => recompute("live")} className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/50">↻ Refresh from Layer 1</button>
           <select onChange={(e) => onPickProfile(e.target.value)} value={activeProfile || ""} title="Load a coherent India+US test taxpayer"
             className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg text-[#04120f] border border-accent cursor-pointer shadow-card"
-            style={{ background: "linear-gradient(135deg,#2dd4bf,#34d399)" }}>
-            <option value="" className="bg-[#0c0f18] text-head">Load test profile…</option>
-            {profiles.map((p) => <option key={p.id} value={p.id} className="bg-[#0c0f18] text-head">{p.label}</option>)}
+            style={{ background: "linear-gradient(135deg,#c2dd8f,#a9cd76)" }}>
+            <option value="" className="bg-[#1a1d13] text-head">Load test profile…</option>
+            {profiles.map((p) => <option key={p.id} value={p.id} className="bg-[#1a1d13] text-head">{p.label}</option>)}
           </select>
           <span className="text-muted text-[11px] mx-1">Layer 1 intake:</span>
           <a href="router.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/50">Router</a>
@@ -166,27 +166,29 @@ export default function MonitorPage() {
 }
 
 // Residency day-count budgets + reporting-limit projections → StatMeter cards.
-// Every value is engine-derived (model.residency + monitoring.projections).
+// Every value is engine-derived (monitoring.residency + monitoring.projections).
+// The filled capsules are the real current value; projPct/projLabel carry the
+// engine's planning-grade "at current pace" projection (labelled as an estimate).
 function deriveMeters(result) {
   if (!result || !result.model) return [];
-  const m = result.model, mon = result.monitoring || {};
+  const mon = result.monitoring || {};
   // A corporation has no personal "days present" — only individuals get the
   // residency-budget meters; entities lead with their reporting limits.
   const isEntity = !!(result.computed && result.computed.usTax && result.computed.usTax.isEntity);
-  const usDays = Math.round(m.residency.us.daysCurrentYear || 0);
-  const inDays = Math.round(m.residency.india.daysCurrentYear || 0);
-  const res = isEntity ? [] : [
-    { icon: "🇺🇸", label: "US days present", value: usDays, limit: 183, unit: "days", pct: usDays / 183,
-      status: usDays >= 183 ? "breached" : usDays >= 128 ? "will_breach" : "ok",
-      note: "Substantial Presence — ≥183 weighted days makes a US tax resident", highlight: true },
-    { icon: "🇮🇳", label: "India days present", value: inDays, limit: 182, unit: "days", pct: inDays / 182,
-      status: inDays >= 182 ? "breached" : inDays >= 127 ? "will_breach" : "ok",
-      note: "182-day residency test (Income-tax Act s.6)" }
-  ];
+  const stMap = { resident: "breached", will_flip: "will_breach", safe: "ok" };
+  const res = isEntity ? [] : (mon.residency || []).map((c, i) => ({
+    icon: c.flag, label: c.country + " days present", value: c.days, limit: c.threshold, unit: "days",
+    pct: c.pct, status: stMap[c.status] || "ok",
+    projPct: c.threshold ? (c.projectedFullYear || 0) / c.threshold : 0,
+    projLabel: c.status === "will_flip" ? c.dateLabel
+      : c.status === "safe" ? ("proj. " + (c.projectedFullYear || 0) + " days by year-end at current pace") : null,
+    note: c.test, highlight: i === 0
+  }));
   const ICON = { fbar: "🏦", form8938: "📄", lrs: "💸", feie: "✈️" };
   const proj = (mon.projections || []).map((p) => ({
     icon: ICON[p.id] || "📊", label: p.label, value: p.current, limit: p.limit, unit: "$",
     pct: p.pct, status: p.status === "breached" ? "breached" : p.status === "will_breach" ? "will_breach" : "ok",
+    projPct: p.projPct, projLabel: p.status === "will_breach" ? p.dateLabel : null,
     note: p.note || p.dateLabel
   }));
   // residency budgets first, then the highest-utilisation reporting limits.
@@ -209,8 +211,8 @@ function StatusPills({ kpis, active, onSelect }) {
         return (
           <button key={it.key} onClick={() => onSelect(it.key)}
             className={"inline-flex items-center gap-2 pl-3.5 pr-2.5 py-2 rounded-full text-[12.5px] font-semibold transition-all border " +
-              (on ? "text-[#04120f] border-transparent shadow-[0_6px_18px_-6px_rgba(45,212,191,0.6)]" : "text-body bg-surface border-line hover:border-white/20")}
-            style={on ? { background: "linear-gradient(135deg,#2dd4bf,#34d399)" } : undefined}>
+              (on ? "text-[#04120f] border-transparent shadow-[0_6px_18px_-6px_rgba(194,221,143,0.6)]" : "text-body bg-surface border-line hover:border-white/20")}
+            style={on ? { background: "linear-gradient(135deg,#c2dd8f,#a9cd76)" } : undefined}>
             <span className="w-2 h-2 rounded-full" style={{ background: it.color, boxShadow: `0 0 8px ${it.color}` }} />
             {it.label}
             <span className={"text-[10px] font-bold px-1.5 py-0.5 rounded-full " + (on ? "bg-black/20 text-[#04120f]" : "bg-white/10 text-muted")}>{it.count}</span>
