@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useState } from "react";
-import { ComposableMap, Geographies, Geography, Graticule, ZoomableGroup, Marker } from "react-simple-maps";
+import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from "react-simple-maps";
 import { ZoomIn, ZoomOut } from "lucide-react";
 import worldTopo from "world-atlas/countries-110m.json";
 import { STATUS_META, PAL } from "@/lib/logic";
@@ -100,10 +100,7 @@ export default function WorldMap({ statusByName, onSelectCountry }) {
           <ZoomOut size={14} strokeWidth={2} />
         </button>
       </div>
-      <div
-        className="rounded-2xl overflow-hidden"
-        style={{ background: "radial-gradient(ellipse 70% 60% at 50% 30%, rgba(45,212,191,0.07), rgba(5,7,14,0) 60%), #05070e" }}
-      >
+      <div className="rounded-2xl overflow-hidden">
         <ComposableMap
           projection="geoEquirectangular"
           width={MAP_WIDTH} height={MAP_HEIGHT}
@@ -119,7 +116,6 @@ export default function WorldMap({ statusByName, onSelectCountry }) {
             filterZoomEvent={filterZoomEvent}
             onMoveEnd={({ coordinates, zoom: z }) => { setCenter(coordinates); setZoom(z); }}
           >
-            <Graticule stroke="rgba(255,255,255,0.05)" strokeWidth={0.5} step={[20, 20]} />
             <Geographies geography={worldTopo}>
               {({ geographies }) =>
                 geographies.filter((geo) => geo.properties.name !== "Antarctica").map((geo) => {
