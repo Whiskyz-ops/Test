@@ -12,6 +12,11 @@ const MAP_CENTER = [12, 8];
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 1.5;
+const MAP_WIDTH = 900;
+const MAP_HEIGHT = 420;
+// Clamp panning to the map's own canvas so a drag can't take the content
+// fully off-screen — d3-zoom keeps this rectangle from leaving the viewport.
+const TRANSLATE_EXTENT = [[0, 0], [MAP_WIDTH, MAP_HEIGHT]];
 
 // Country fills read as jewel-tone washes, not neon blocks — full-saturation
 // color is reserved for the small marker dot (an accent mark), per the "never
@@ -82,7 +87,7 @@ export default function WorldMap({ statusByName, onSelectCountry }) {
       </div>
       <ComposableMap
         projection="geoEquirectangular"
-        width={900} height={420}
+        width={MAP_WIDTH} height={MAP_HEIGHT}
         projectionConfig={{ scale: 145 }}
         style={{ width: "100%", height: "auto" }}
       >
@@ -91,6 +96,7 @@ export default function WorldMap({ statusByName, onSelectCountry }) {
           zoom={zoom}
           minZoom={MIN_ZOOM}
           maxZoom={MAX_ZOOM}
+          translateExtent={TRANSLATE_EXTENT}
           filterZoomEvent={filterZoomEvent}
           onMoveEnd={({ coordinates, zoom: z }) => { setCenter(coordinates); setZoom(z); }}
         >
