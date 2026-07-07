@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import StatMeter from "@/components/StatMeter";
+import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
 import { ConflictsPanel, ResidencyView, FilingsView, DocumentsView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView } from "@/components/Views";
 import { US_STATES, COUNTRIES, SOURCES } from "@/lib/mockData";
@@ -113,9 +114,6 @@ export default function MonitorPage() {
               </div>
             )}
 
-            {/* pill-tab status filter */}
-            <StatusPills kpis={kpis} active={category} onSelect={setCategory} />
-
             {/* full-width exposure map */}
             <div className="mb-8">
               {isUsDrill
@@ -123,6 +121,9 @@ export default function MonitorPage() {
                 : <WorldMap statusByName={statusMap} onSelectCountry={(id) => id === "US" && setRegion("United States")} />}
               {!isUsDrill && <p className="text-[11px] text-muted mt-2 text-center">Tip: click the United States (or use the dropdown) to drill into state-level residency.</p>}
             </div>
+
+            {/* KPI cards — status filter, right above the region table */}
+            <div className="mb-6"><KpiCards kpis={kpis} active={category} onSelect={setCategory} /></div>
 
             <DetailTable category={category} regions={rows} />
 
@@ -189,29 +190,3 @@ function deriveMeters(result) {
   return res.concat(proj.slice(0, isEntity ? 4 : 2));
 }
 
-// Pill-tab status filter (reference's Organization / Teams pill bar).
-function StatusPills({ kpis, active, onSelect }) {
-  const items = [
-    { key: "all", label: "All jurisdictions", count: kpis.all, color: PAL.accent },
-    { key: STATUS.EXPOSED, label: "Exposed", count: kpis.exposed, color: PAL.exposed },
-    { key: STATUS.APPROACHING, label: "Approaching", count: kpis.approaching, color: PAL.approaching },
-    { key: STATUS.NEXUS, label: "Filing-only", count: kpis.nexus, color: PAL.filing }
-  ];
-  return (
-    <div className="flex flex-wrap gap-2 mb-6">
-      {items.map((it) => {
-        const on = active === it.key;
-        return (
-          <button key={it.key} onClick={() => onSelect(it.key)}
-            className={"inline-flex items-center gap-2 pl-3.5 pr-2.5 py-2 rounded-full text-[12.5px] font-semibold transition-all border " +
-              (on ? "text-[#04120f] border-transparent shadow-[0_6px_18px_-6px_rgba(52,211,153,0.6)]" : "text-body bg-surface border-line hover:border-white/20")}
-            style={on ? { background: "linear-gradient(135deg,#34d399,#60a5fa)" } : undefined}>
-            <span className="w-2 h-2 rounded-full" style={{ background: it.color, boxShadow: `0 0 8px ${it.color}` }} />
-            {it.label}
-            <span className={"text-[10px] font-bold px-1.5 py-0.5 rounded-full " + (on ? "bg-black/20 text-[#04120f]" : "bg-white/10 text-muted")}>{it.count}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
