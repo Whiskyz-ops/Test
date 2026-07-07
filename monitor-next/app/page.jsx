@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import StatMeter from "@/components/StatMeter";
-import CapsuleChart from "@/components/CapsuleChart";
 import DetailTable from "@/components/DetailTable";
 import { ConflictsPanel, ResidencyView, FilingsView, DocumentsView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView } from "@/components/Views";
 import { US_STATES, COUNTRIES, SOURCES } from "@/lib/mockData";
@@ -62,7 +61,6 @@ export default function MonitorPage() {
   const rows = useMemo(() => { const s = withStatus(dataset); return category === "all" ? s : s.filter((r) => r.status === category); }, [dataset, category]);
   const alerts = useMemo(() => runAlertScan(dataset), [dataset]);
   const meters = useMemo(() => deriveMeters(result), [result]);
-  const reconRows = result && result.computed && result.computed.reconciliation ? result.computed.reconciliation.rows : [];
 
   const badges = {
     monitor: result ? { text: result.summary.counts.critical + result.summary.counts.warning, tone: result.summary.counts.critical > 0 ? "alert" : "" } : null,
@@ -118,13 +116,6 @@ export default function MonitorPage() {
             {/* pill-tab status filter */}
             <StatusPills kpis={kpis} active={category} onSelect={setCategory} />
 
-            {/* segmented pill-meter cards — residency budgets & reporting limits */}
-            {meters.length > 0 && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                {meters.map((m, i) => <StatMeter key={i} {...m} />)}
-              </div>
-            )}
-
             {/* full-width exposure map */}
             <div className="mb-8">
               {isUsDrill
@@ -132,11 +123,6 @@ export default function MonitorPage() {
                 : <WorldMap statusByName={statusMap} onSelectCountry={(id) => id === "US" && setRegion("United States")} />}
               {!isUsDrill && <p className="text-[11px] text-muted mt-2 text-center">Tip: click the United States (or use the dropdown) to drill into state-level residency.</p>}
             </div>
-
-            {/* capsule statistics chart — real cross-basis data */}
-            {!isUsDrill && reconRows.length > 0 && (
-              <div className="mb-8"><CapsuleChart rows={reconRows} /></div>
-            )}
 
             <DetailTable category={category} regions={rows} />
 
@@ -147,8 +133,15 @@ export default function MonitorPage() {
               </section>
             )}
 
-            {/* resource rail — reference's Community / Academy / Help cards */}
-            <ResourceStrip />
+            {/* segmented pill-meter cards — residency budgets & reporting limits */}
+            {meters.length > 0 && (
+              <section className="mt-8">
+                <h3 className="font-display font-bold text-lg text-head mb-4">Residency &amp; Reporting Limits</h3>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {meters.map((m, i) => <StatMeter key={i} {...m} />)}
+                </div>
+              </section>
+            )}
           </>
         )}
 
@@ -219,30 +212,6 @@ function StatusPills({ kpis, active, onSelect }) {
           </button>
         );
       })}
-    </div>
-  );
-}
-
-// Resource cards — wired to the real Layer 1 intake pages + generated docs.
-const RESOURCES = [
-  { icon: "🧭", title: "Router — start intake", sub: "Triage a new client into the right Layer 1", href: "router.html" },
-  { icon: "🇮🇳", title: "India Layer 1", sub: "Residency, income by head, assets & LRS", href: "layer1_india.html" },
-  { icon: "🇺🇸", title: "US Layer 1", sub: "Filing status, W-2/Sch C, FBAR/8938 & FEIE", href: "layer1_us.html" },
-  { icon: "📚", title: "Docs & coverage", sub: "Field coverage, architecture & handoff", href: "docs.html" }
-];
-function ResourceStrip() {
-  return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
-      {RESOURCES.map((r) => (
-        <a key={r.title} href={r.href} className="block text-left rounded-[22px] p-4 bg-surface border border-line shadow-card hover:border-accent/40 hover:-translate-y-0.5 transition-all group">
-          <div className="flex items-start justify-between">
-            <span className="w-9 h-9 rounded-2xl flex items-center justify-center text-[15px] border" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)" }}>{r.icon}</span>
-            <span className="text-muted group-hover:text-accent transition-colors text-sm">↗</span>
-          </div>
-          <div className="text-[13px] font-bold text-head mt-3">{r.title}</div>
-          <div className="text-[11px] text-muted mt-0.5 leading-snug">{r.sub}</div>
-        </a>
-      ))}
     </div>
   );
 }
