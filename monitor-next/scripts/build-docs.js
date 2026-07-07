@@ -82,11 +82,11 @@ const page = `<!doctype html><html lang="en"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>WISING — Docs & Coverage</title>
 <style>
-:root{--bg:#13150d;--surface:#1a1d13;--line:rgba(232,236,214,.09);--head:#eef0e3;--body:#b4b7a6;--muted:#84877a;--accent:#c2dd8f}
+:root{--bg:#0b0b0b;--surface:#161616;--line:rgba(255,255,255,.09);--head:#ffffff;--body:#c7cbd2;--muted:#8b8f99;--accent:#34d399}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--body);font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
 .wrap{max-width:1000px;margin:0 auto;padding:32px 22px 120px}
 .top{display:flex;align-items:center;gap:12px;margin-bottom:8px}
-.glyph{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#04120f;font-weight:900;background:linear-gradient(135deg,#c2dd8f,#a9cd76);box-shadow:0 0 22px rgba(194,221,143,.5)}
+.glyph{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#04120f;font-weight:900;background:linear-gradient(135deg,#34d399,#60a5fa);box-shadow:0 0 22px rgba(52,211,153,.5)}
 .brand{font-weight:700;letter-spacing:.3em;color:#fff}
 .back{color:var(--accent);text-decoration:none;font-weight:700;font-size:13px}
 nav{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 26px}
@@ -97,8 +97,8 @@ h2{color:var(--head);font-size:22px;margin:1.5em 0 .5em;padding-top:8px}
 h3{color:var(--head);font-size:17px;margin:1.4em 0 .4em}
 h4,h5,h6{color:var(--head);margin:1.2em 0 .3em}
 a{color:var(--accent)}
-code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font:13px ui-monospace,"SF Mono",Menlo,monospace;color:#cfe3a0}
-pre{background:#141610;border:1px solid var(--line);border-radius:14px;padding:16px;overflow-x:auto}
+code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font:13px ui-monospace,"SF Mono",Menlo,monospace;color:#6ee7b7}
+pre{background:#0f0f0f;border:1px solid var(--line);border-radius:14px;padding:16px;overflow-x:auto}
 pre code{background:none;border:none;padding:0;color:var(--body)}
 blockquote{border-left:3px solid var(--accent);margin:1em 0;padding:.3em 0 .3em 16px;color:var(--muted)}
 hr{border:none;border-top:1px solid var(--line);margin:1.6em 0}

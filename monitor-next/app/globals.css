@@ -2,31 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design-A skin — flat warm olive-charcoal, editorial. No webfonts (offline/
-   file:// safe): premium system stacks are set in tailwind.config.js. */
+/* WISING brand — true black, emerald + blue. Manrope loaded via @fontsource. */
 html, body {
-  background: #13150d;
-  color: #eef0e3;
+  background: #0b0b0b;
+  color: #ffffff;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 body {
   background:
-    radial-gradient(1100px 640px at 78% -14%, rgba(194,221,143,0.06), transparent 60%),
-    radial-gradient(900px 900px at 50% 122%, rgba(169,205,118,0.04), transparent 60%),
-    #13150d;
+    radial-gradient(1100px 640px at 80% -16%, rgba(52,211,153,0.10), transparent 58%),
+    radial-gradient(1000px 620px at 4% -6%, rgba(96,165,250,0.09), transparent 56%),
+    radial-gradient(900px 900px at 50% 124%, rgba(52,211,153,0.05), transparent 60%),
+    #0b0b0b;
   background-attachment: fixed;
 }
 
-/* very faint olive vignette texture (replaces the space starfield) */
+/* faint dot vignette (kept very subtle on the black canvas) */
 .starfield {
-  position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.4;
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.35;
   background-image:
-    radial-gradient(1px 1px at 22% 28%, rgba(194,221,143,0.10), transparent),
-    radial-gradient(1px 1px at 72% 22%, rgba(194,221,143,0.08), transparent),
-    radial-gradient(1px 1px at 42% 72%, rgba(194,221,143,0.06), transparent),
-    radial-gradient(1px 1px at 88% 62%, rgba(194,221,143,0.08), transparent);
-  background-repeat: repeat; background-size: 760px 760px;
+    radial-gradient(1px 1px at 22% 28%, rgba(52,211,153,0.12), transparent),
+    radial-gradient(1px 1px at 72% 22%, rgba(96,165,250,0.10), transparent),
+    radial-gradient(1px 1px at 42% 72%, rgba(52,211,153,0.08), transparent),
+    radial-gradient(1px 1px at 88% 62%, rgba(96,165,250,0.08), transparent);
+  background-repeat: repeat; background-size: 780px 780px;
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -40,9 +40,9 @@ body {
 @keyframes pulseDot { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
 .pulse-dot { animation: pulseDot 2.2s ease-in-out infinite; }
 
-/* glass sidebar / panels — warm olive */
+/* glass sidebar / panels — true black */
 .glass-black {
-  background: linear-gradient(180deg, rgba(26,29,19,0.88) 0%, rgba(15,17,10,0.95) 100%);
+  background: linear-gradient(180deg, rgba(20,20,20,0.9) 0%, rgba(6,6,6,0.96) 100%);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
@@ -58,7 +58,7 @@ body {
 .card-glow::before {
   content: ""; position: absolute; left: -10%; bottom: -55%;
   width: 70%; height: 90%;
-  background: radial-gradient(closest-side, var(--glow, rgba(194,221,143,0.30)), transparent 72%);
+  background: radial-gradient(closest-side, var(--glow, rgba(52,211,153,0.3)), transparent 72%);
   filter: blur(26px); opacity: 0.8; pointer-events: none; z-index: 0;
 }
 .card-glow > * { position: relative; z-index: 1; }

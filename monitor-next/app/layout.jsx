@@ -1,3 +1,6 @@
+// Manrope (WISING brand font) embedded as base64 @font-face — zero external
+// requests, so it works offline (file://) and on Vercel. Regenerated at prebuild.
+import "./manrope-embedded.css";
 import "./globals.css";
 
 export const metadata = {

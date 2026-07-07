@@ -95,9 +95,9 @@ export default function MonitorPage() {
           <button onClick={() => recompute("live")} className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/50">↻ Refresh from Layer 1</button>
           <select onChange={(e) => onPickProfile(e.target.value)} value={activeProfile || ""} title="Load a coherent India+US test taxpayer"
             className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg text-[#04120f] border border-accent cursor-pointer shadow-card"
-            style={{ background: "linear-gradient(135deg,#c2dd8f,#a9cd76)" }}>
-            <option value="" className="bg-[#1a1d13] text-head">Load test profile…</option>
-            {profiles.map((p) => <option key={p.id} value={p.id} className="bg-[#1a1d13] text-head">{p.label}</option>)}
+            style={{ background: "linear-gradient(135deg,#34d399,#60a5fa)" }}>
+            <option value="" className="bg-[#161616] text-head">Load test profile…</option>
+            {profiles.map((p) => <option key={p.id} value={p.id} className="bg-[#161616] text-head">{p.label}</option>)}
           </select>
           <span className="text-muted text-[11px] mx-1">Layer 1 intake:</span>
           <a href="router.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/50">Router</a>
@@ -211,8 +211,8 @@ function StatusPills({ kpis, active, onSelect }) {
         return (
           <button key={it.key} onClick={() => onSelect(it.key)}
             className={"inline-flex items-center gap-2 pl-3.5 pr-2.5 py-2 rounded-full text-[12.5px] font-semibold transition-all border " +
-              (on ? "text-[#04120f] border-transparent shadow-[0_6px_18px_-6px_rgba(194,221,143,0.6)]" : "text-body bg-surface border-line hover:border-white/20")}
-            style={on ? { background: "linear-gradient(135deg,#c2dd8f,#a9cd76)" } : undefined}>
+              (on ? "text-[#04120f] border-transparent shadow-[0_6px_18px_-6px_rgba(52,211,153,0.6)]" : "text-body bg-surface border-line hover:border-white/20")}
+            style={on ? { background: "linear-gradient(135deg,#34d399,#60a5fa)" } : undefined}>
             <span className="w-2 h-2 rounded-full" style={{ background: it.color, boxShadow: `0 0 8px ${it.color}` }} />
             {it.label}
             <span className={"text-[10px] font-bold px-1.5 py-0.5 rounded-full " + (on ? "bg-black/20 text-[#04120f]" : "bg-white/10 text-muted")}>{it.count}</span>

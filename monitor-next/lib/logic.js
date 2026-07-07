@@ -16,22 +16,21 @@ export const STATUS_META = {
 
 // Shared WISING palette — one source of truth for inline colors across views.
 export const PAL = {
-  // Design-A signature: sage-lime accent + cream light panel
-  accent: "#c2dd8f", accent2: "#a9cd76", teal: "#c2dd8f",
-  panel: "#e8ecd7", panelInk: "#14160e",
+  // WISING brand: emerald (#34d399) + blue (#60a5fa) on black
+  accent: "#34d399", accent2: "#60a5fa", teal: "#34d399",
+  panel: "#161616", panelInk: "#ffffff",
   // functional / status (reserved, used sparingly)
-  exposed: "#ef4444", approaching: "#f5a623", filing: "#3b82f6", positive: "#8fbf5a",
+  exposed: "#ef4444", approaching: "#f5a623", filing: "#60a5fa", positive: "#34d399",
   // on-dark text variants of the above (for small labels / values)
-  redText: "#fca5b5", amberText: "#fcd34d", blueText: "#93c5fd", greenText: "#c2dd8f",
-  // warm ink
-  head: "#eef0e3", body: "#b4b7a6", muted: "#84877a", faint: "#63665c",
-  navy: "#23271a",
-  // jurisdiction accents (US = blue "bridge", IN = sage)
-  jurUS: "#3b82f6", jurIN: "#9fbf6a",
-  // validated two-series chart fills (dark-mode categorical: CVD ΔE 62.9, lightness
-  // band + contrast all pass — dataviz validator). India uses a deep sage that
-  // passes; US stays blue for a clear, colour-blind-safe split.
-  seriesIN: "#6f8f3f", seriesUS: "#3b82f6"
+  redText: "#fca5b5", amberText: "#fcd34d", blueText: "#93c5fd", greenText: "#6ee7b7",
+  // white ink
+  head: "#ffffff", body: "#c7cbd2", muted: "#8b8f99", faint: "#6b6f78",
+  navy: "#1a1a1a",
+  // jurisdiction accents (US = brand blue, IN = brand emerald)
+  jurUS: "#60a5fa", jurIN: "#34d399",
+  // validated two-series chart fills (dark-mode categorical, dataviz validator):
+  // deep emerald + brand blue — clear, colour-blind-safe split.
+  seriesIN: "#12996a", seriesUS: "#3b82f6"
 };
 
 // Residency day-count fraction (physical-presence test).

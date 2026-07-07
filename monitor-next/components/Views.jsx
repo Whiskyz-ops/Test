@@ -24,21 +24,20 @@ const Card = ({ title, sub, children, right, icon }) => (
 const Empty = ({ children }) => <div className="text-center text-muted text-sm py-10">{children}</div>;
 const Ref = ({ children }) => <span className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded bg-white/[0.05] border border-line text-muted">{children}</span>;
 
-// Shared stat card — icon chip + big MONO number. Design-A skin: olive card, or
-// a cream hero panel (dark ink) when highlighted.
+// Shared stat card — icon chip + big Manrope number. WISING brand: black card,
+// or an emerald-lit featured card when highlighted.
 const StatTile = ({ icon, label, value, sub, accent, highlight }) => {
-  const inkHead = highlight ? PAL.panelInk : (accent || PAL.head);
-  const inkMute = highlight ? "rgba(20,22,14,0.55)" : PAL.muted;
+  const numColor = accent || (highlight ? PAL.accent : PAL.head);
   return (
     <div className="rounded-[26px] border shadow-card p-4 hover:shadow-cardhover transition-all"
-      style={{ background: highlight ? PAL.panel : "#1a1d13", borderColor: highlight ? "transparent" : "rgba(232,236,214,0.08)" }}>
+      style={{ background: highlight ? "linear-gradient(155deg,rgba(52,211,153,0.14),rgba(96,165,250,0.05))" : "#161616", borderColor: highlight ? "rgba(52,211,153,0.32)" : "rgba(255,255,255,0.08)" }}>
       <div className="flex items-center gap-2.5 mb-3">
-        <span className="w-8 h-8 rounded-xl flex items-center justify-center text-[14px] border shrink-0" style={{ background: highlight ? "rgba(20,22,14,0.06)" : "rgba(232,236,214,0.05)", borderColor: highlight ? "rgba(20,22,14,0.12)" : "rgba(232,236,214,0.08)" }}>{icon}</span>
-        <span className="text-[10px] uppercase tracking-widest font-bold flex-1 leading-tight" style={{ color: inkMute }}>{label}</span>
-        <span className="text-base leading-none select-none" style={{ color: inkMute }}>⋯</span>
+        <span className="w-8 h-8 rounded-xl flex items-center justify-center text-[14px] border shrink-0" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)" }}>{icon}</span>
+        <span className="text-[10px] uppercase tracking-widest font-bold flex-1 leading-tight text-muted">{label}</span>
+        <span className="text-base leading-none select-none text-muted">⋯</span>
       </div>
-      <div className="font-mono font-light text-[28px] leading-none tracking-tight" style={{ color: inkHead }}>{value}</div>
-      {sub && <div className="text-[11px] mt-1.5" style={{ color: inkMute }}>{sub}</div>}
+      <div className="font-display font-extrabold text-[27px] leading-none tracking-tight" style={{ color: numColor }}>{value}</div>
+      {sub && <div className="text-[11px] mt-1.5 text-muted">{sub}</div>}
     </div>
   );
 };
@@ -54,7 +53,7 @@ const SegBar = ({ pct, color, segments = 12, projPct }) => {
       <div className="flex items-center gap-1">
         {Array.from({ length: segments }).map((_, i) => (i < filled
           ? <span key={i} className="h-3 flex-1 rounded-full" style={{ background: color, boxShadow: `0 0 8px -2px ${color}` }} />
-          : <span key={i} className="h-3 flex-1 rounded-full border border-dashed" style={{ borderColor: "rgba(232,236,214,0.16)" }} />))}
+          : <span key={i} className="h-3 flex-1 rounded-full border border-dashed" style={{ borderColor: "rgba(255,255,255,0.16)" }} />))}
       </div>
       {showProj && <span className="absolute -top-1 -bottom-1 w-0 border-l-2 border-dashed pointer-events-none" style={{ left: `calc(${projLeft}% - 1px)`, borderColor: PAL.approaching }} title="projected at current pace" />}
     </div>
@@ -63,7 +62,7 @@ const SegBar = ({ pct, color, segments = 12, projPct }) => {
 
 // Inline chip for section headings (small teal glyph, matches the Monitor header).
 const HeadChip = ({ children }) => (
-  <span className="inline-flex items-center justify-center align-middle w-9 h-9 rounded-2xl text-[16px] mr-2.5 translate-y-[-2px] text-[#04120f] shadow-[0_6px_18px_-6px_rgba(194,221,143,0.6)]" style={{ background: "linear-gradient(135deg,#c2dd8f,#a9cd76)" }}>{children}</span>
+  <span className="inline-flex items-center justify-center align-middle w-9 h-9 rounded-2xl text-[16px] mr-2.5 translate-y-[-2px] text-[#04120f] shadow-[0_6px_18px_-6px_rgba(52,211,153,0.6)]" style={{ background: "linear-gradient(135deg,#34d399,#60a5fa)" }}>{children}</span>
 );
 
 /* ============================ CONFLICTS ============================ */
@@ -83,8 +82,8 @@ export function ConflictsPanel({ findings }) {
           return (
             <button key={id} onClick={() => setFilter(id)}
               className={"inline-flex items-center gap-1.5 pl-3 pr-2.5 py-1.5 rounded-full text-[11.5px] font-semibold border transition-all " +
-                (on ? "text-[#04120f] border-transparent shadow-[0_5px_16px_-6px_rgba(194,221,143,0.6)]" : "bg-surface border-line text-body hover:border-white/20")}
-              style={on ? { background: "linear-gradient(135deg,#c2dd8f,#a9cd76)" } : undefined}>
+                (on ? "text-[#04120f] border-transparent shadow-[0_5px_16px_-6px_rgba(52,211,153,0.6)]" : "bg-surface border-line text-body hover:border-white/20")}
+              style={on ? { background: "linear-gradient(135deg,#34d399,#60a5fa)" } : undefined}>
               {id !== "all" && <span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: SEV[id] }} />}
               {label} <span className={"text-[10px] font-bold px-1.5 py-0.5 rounded-full " + (on ? "bg-black/20" : "bg-white/10 text-muted")}>{counts[id]}</span>
             </button>

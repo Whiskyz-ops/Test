@@ -5,14 +5,15 @@
   "scripts": {
     "sync:engine": "node scripts/sync-engine.js",
     "build:docs": "node scripts/build-docs.js",
-    "predev": "node scripts/sync-engine.js && node scripts/build-docs.js",
-    "prebuild": "node scripts/sync-engine.js && node scripts/build-docs.js",
+    "predev": "node scripts/embed-font.js && node scripts/sync-engine.js && node scripts/build-docs.js",
+    "prebuild": "node scripts/embed-font.js && node scripts/sync-engine.js && node scripts/build-docs.js",
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint"
   },
   "dependencies": {
+    "@fontsource/manrope": "^5.2.8",
     "next": "14.2.33",
     "react": "18.3.1",
     "react-dom": "18.3.1",

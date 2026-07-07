@@ -16,14 +16,24 @@ const FOOTER = ["Personal details", "Account settings", "Knowledge base"];
 export default function Sidebar({ active = "monitor", onNavigate, badges = {} }) {
   return (
     <aside className="w-60 shrink-0 h-screen sticky top-0 glass-black border-r border-inkline flex flex-col text-white z-20">
-      {/* Logo — Design-A skin: neutral geometric mark + clean sans wordmark */}
+      {/* Logo — silver-chrome W↗ mark (WISING brand) + Manrope wordmark */}
       <div className="px-5 py-5 flex items-center gap-3">
-        <svg width="34" height="34" viewBox="0 0 32 32" fill="none" className="shrink-0">
-          <rect x="2" y="6" width="28" height="20" rx="10" fill="none" stroke="#c2dd8f" strokeWidth="2" />
-          <circle cx="21" cy="16" r="6.5" fill="#c2dd8f" />
+        <svg width="36" height="36" viewBox="0 0 40 40" fill="none" className="shrink-0">
+          <defs>
+            <linearGradient id="chrome" x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stopColor="#f6f7f9" />
+              <stop offset="0.34" stopColor="#b7bcc6" />
+              <stop offset="0.55" stopColor="#eef0f3" />
+              <stop offset="0.78" stopColor="#8f95a1" />
+              <stop offset="1" stopColor="#d9dce2" />
+            </linearGradient>
+          </defs>
+          <path d="M5 11 L11 30 L20 17 L27 30 L33 13" stroke="url(#chrome)" strokeWidth="4.4" strokeLinejoin="round" strokeLinecap="round" />
+          <path d="M33 13 L37.5 6" stroke="url(#chrome)" strokeWidth="4.4" strokeLinecap="round" />
+          <path d="M31.5 7.5 L37.5 6 L36.5 12.5" stroke="url(#chrome)" strokeWidth="3.2" strokeLinejoin="round" strokeLinecap="round" fill="none" />
         </svg>
         <div>
-          <div className="font-sans font-semibold tracking-[0.30em] text-[14px] leading-none text-white">WISING</div>
+          <div className="font-sans font-extrabold tracking-[0.22em] text-[15px] leading-none text-white">WISING</div>
           <div className="text-[9px] text-white/35 tracking-[0.22em] uppercase mt-1.5">Exposure Monitor</div>
         </div>
       </div>
@@ -36,9 +46,9 @@ export default function Sidebar({ active = "monitor", onNavigate, badges = {} })
             <button key={l.id} onClick={() => onNavigate && onNavigate(l.id)}
               className={"w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all " +
                 (isActive
-                  ? "text-[#04120f] shadow-[0_6px_20px_-4px_rgba(194,221,143,0.55)]"
+                  ? "text-[#04120f] shadow-[0_6px_20px_-4px_rgba(52,211,153,0.55)]"
                   : "text-white/55 hover:text-white hover:bg-white/[0.06]")}
-              style={isActive ? { background: "linear-gradient(135deg,#c2dd8f 0%,#a9cd76 100%)" } : undefined}>
+              style={isActive ? { background: "linear-gradient(135deg,#34d399 0%,#60a5fa 100%)" } : undefined}>
               <span className="text-[15px] w-5 text-center opacity-90">{l.icon}</span>
               <span className="flex-1 text-left">{l.label}</span>
               {badge != null && badge.text !== 0 && badge.text !== "" && (
@@ -61,7 +71,7 @@ export default function Sidebar({ active = "monitor", onNavigate, badges = {} })
         ))}
         <div className="mt-2 flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.05] border border-inkline">
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-[#04120f] font-black text-xs"
-            style={{ background: "linear-gradient(135deg,#c2dd8f,#3b82f6)" }}>PM</div>
+            style={{ background: "linear-gradient(135deg,#34d399,#3b82f6)" }}>PM</div>
           <div className="min-w-0">
             <div className="text-[12px] font-bold truncate text-white/90">Priya Menon</div>
             <div className="text-[10px] text-white/40 truncate">Verité Tax Advisors</div>
