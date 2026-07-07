@@ -4,10 +4,12 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        // WISING brand font: Manrope (self-hosted via @fontsource, offline-safe).
+        // WISING brand fonts: Manrope for UI text; Cormorant Garamond for the
+        // WISING wordmark specifically (confirmed via the site's own computed
+        // font-family). Both self-hosted via @fontsource, offline-safe.
         sans: ["Manrope", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "system-ui", "Helvetica Neue", "Arial", "sans-serif"],
         display: ["Manrope", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "system-ui", "Helvetica Neue", "Arial", "sans-serif"],
-        serif: ["Manrope", "system-ui", "sans-serif"],
+        serif: ["Cormorant Garamond", "Palatino Linotype", "Palatino", "Georgia", "serif"],
         mono: ["ui-monospace", "SF Mono", "JetBrains Mono", "Menlo", "monospace"]
       },
       colors: {
