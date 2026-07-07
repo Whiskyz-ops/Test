@@ -19,12 +19,9 @@ export default function Sidebar({ active = "monitor", onNavigate, badges = {} })
   return (
     <aside className="w-60 shrink-0 h-screen sticky top-0 glass-black border-r border-inkline flex flex-col text-white z-20">
       {/* Logo — real WISING brand mark (Main Logo.svg) + Manrope wordmark */}
-      <div className="px-5 py-5 flex items-center gap-3">
-        <WisingLogo size={34} className="shrink-0" />
-        <div>
-          <div className="font-sans font-extrabold tracking-[0.22em] text-[15px] leading-none text-white">WISING</div>
-          <div className="text-[9px] text-white/35 tracking-[0.22em] uppercase mt-1.5">Exposure Monitor</div>
-        </div>
+      <div className="px-5 py-5 flex items-center gap-2.5">
+        <WisingLogo height={22} className="shrink-0" />
+        <div className="font-sans font-extrabold tracking-[0.22em] text-[15px] leading-none text-white">WISING</div>
       </div>
 
       <nav className="flex-1 px-3 py-2 space-y-0.5">
