@@ -1,4 +1,5 @@
 "use client";
+import { AlertTriangle } from "lucide-react";
 import { STATUS, STATUS_META, PAL, approachPct, fmtUsd } from "@/lib/logic";
 
 function StatusBadge({ status }) {
@@ -19,7 +20,7 @@ function Tracker({ r }) {
   const color = over60 ? PAL.approaching : PAL.positive;
   return (
     <div className="w-44">
-      <div className="flex justify-between text-[10px] mb-1"><span className="text-muted">{pct}% to residency</span>{over60 && <span className="font-bold" style={{ color: PAL.amberText }}>⚠ alert</span>}</div>
+      <div className="flex justify-between text-[10px] mb-1"><span className="text-muted">{pct}% to residency</span>{over60 && <span className="inline-flex items-center gap-1 font-bold" style={{ color: PAL.amberText }}><AlertTriangle size={11} strokeWidth={2.25} /> alert</span>}</div>
       <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full rounded-full" style={{ width: pct + "%", background: color, boxShadow: `0 0 8px ${color}` }} /></div>
     </div>
   );

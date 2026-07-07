@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
+import { Landmark, FileText, Send, Plane, BarChart3 } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import StatMeter from "@/components/StatMeter";
@@ -177,13 +178,16 @@ function deriveMeters(result) {
       : c.status === "safe" ? ("proj. " + (c.projectedFullYear || 0) + " days by year-end at current pace") : null,
     note: c.test, highlight: i === 0
   }));
-  const ICON = { fbar: "🏦", form8938: "📄", lrs: "💸", feie: "✈️" };
-  const proj = (mon.projections || []).map((p) => ({
-    icon: ICON[p.id] || "📊", label: p.label, value: p.current, limit: p.limit, unit: "$",
-    pct: p.pct, status: p.status === "breached" ? "breached" : p.status === "will_breach" ? "will_breach" : "ok",
-    projPct: p.projPct, projLabel: p.status === "will_breach" ? p.dateLabel : null,
-    note: p.note || p.dateLabel
-  }));
+  const ICON = { fbar: Landmark, form8938: FileText, lrs: Send, feie: Plane };
+  const proj = (mon.projections || []).map((p) => {
+    const Ic = ICON[p.id] || BarChart3;
+    return {
+      icon: <Ic size={17} strokeWidth={2} />, label: p.label, value: p.current, limit: p.limit, unit: "$",
+      pct: p.pct, status: p.status === "breached" ? "breached" : p.status === "will_breach" ? "will_breach" : "ok",
+      projPct: p.projPct, projLabel: p.status === "will_breach" ? p.dateLabel : null,
+      note: p.note || p.dateLabel
+    };
+  });
   // residency budgets first, then the highest-utilisation reporting limits.
   proj.sort((a, b) => (b.pct || 0) - (a.pct || 0));
   return res.concat(proj.slice(0, isEntity ? 4 : 2));

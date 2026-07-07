@@ -1,5 +1,10 @@
 "use client";
 import { useState } from "react";
+import {
+  Compass, ScrollText, Scale, CalendarClock, CalendarRange, RefreshCcw, Calculator,
+  FolderOpen, Ruler, Landmark, TrendingUp, Building2, Home, Palmtree, BookOpen, Plug,
+  Wallet, Receipt, TrendingDown, Globe2, Users, AlertTriangle, Siren, DollarSign, Banknote, PenLine
+} from "lucide-react";
 import { fmtUsd, PAL } from "@/lib/logic";
 import CapsuleChart from "@/components/CapsuleChart";
 
@@ -137,12 +142,12 @@ export function ResidencyView({ result }) {
   );
   return (
     <div className="space-y-6">
-      {r.dualResident && <div className="rounded-xl border border-exposed/30 bg-exposed/10 p-3 text-[13px] font-semibold" style={{ color: PAL.redText }}>⚠ Dual tax residency — resolve the India-US DTAA Article 4 tie-breaker.</div>}
+      {r.dualResident && <div className="rounded-xl border border-exposed/30 bg-exposed/10 p-3 text-[13px] font-semibold flex items-center gap-2" style={{ color: PAL.redText }}><AlertTriangle size={15} strokeWidth={2.25} className="shrink-0" /> Dual tax residency — resolve the India-US DTAA Article 4 tie-breaker.</div>}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Flag label="🇮🇳 India residency" s={r.india} />
         <Flag label="🇺🇸 US residency" s={r.us} />
       </div>
-      <Card icon="🧭" title="Residency Day-Counters" sub="Physical-presence tests · projections at current pace">
+      <Card icon={<Compass size={16} strokeWidth={2} />} title="Residency Day-Counters" sub="Physical-presence tests · projections at current pace">
         <div className="space-y-4">
           {(mon ? mon.residency : []).map((c, i) => (
             <div key={i}>
@@ -154,7 +159,7 @@ export function ResidencyView({ result }) {
         </div>
       </Card>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card icon="📜" title="DTAA Treaty Position" sub="India-US Double Taxation Avoidance Agreement">
+        <Card icon={<ScrollText size={16} strokeWidth={2} />} title="DTAA Treaty Position" sub="India-US Double Taxation Avoidance Agreement">
           {treatyRow("Article 4 tie-breaker applied", t.treatyResidence !== "none" || t.usTreatyResidence !== "none", "Recorded", "Not applied")}
           {treatyRow("Tax Residency Certificate (TRC)", t.trcStatus, "On file", "Missing")}
           {treatyRow("Form 10F filed", t.form10fFiled, "Filed", "Not filed")}
@@ -162,7 +167,7 @@ export function ResidencyView({ result }) {
           {treatyRow("Files US 1040-NR", true, t.files1040nr ? "Yes" : "No", "")}
           <div className="text-[11px] text-muted mt-3">Treaty residence claimed: <span className="text-body font-mono">{t.treatyResidence !== "none" ? t.treatyResidence : (t.usTreatyResidence !== "none" ? t.usTreatyResidence : "none")}</span></div>
         </Card>
-        <Card icon="⚖️" title="Residency & Treaty Conflicts">
+        <Card icon={<Scale size={16} strokeWidth={2} />} title="Residency & Treaty Conflicts">
           <ConflictsPanel findings={result.findings.filter((f) => f.category === "residency" || f.category === "treaty")} />
         </Card>
       </div>
@@ -179,7 +184,7 @@ export function FilingsView({ result }) {
   const jColor = { US: PAL.jurUS, IN: PAL.jurIN };
   return (
     <div className="space-y-6">
-      <Card icon="🗓️" title="Compliance Calendar" sub="Filing & payment deadlines with countdowns">
+      <Card icon={<CalendarClock size={16} strokeWidth={2} />} title="Compliance Calendar" sub="Filing & payment deadlines with countdowns">
         <div className="space-y-1.5">
           {upcoming.concat(passed).map((x, i) => {
             const isPast = x.status === "passed";
@@ -228,7 +233,7 @@ function ApportionmentCard({ ap }) {
     </div>
   );
   return (
-    <Card icon="📆" title="FY ↔ CY Apportionment" sub={"Indian FY straddles two US calendar years — period-matched so FTC lines up both ways · basis: " + ap.basis}>
+    <Card icon={<CalendarRange size={16} strokeWidth={2} />} title="FY ↔ CY Apportionment" sub={"Indian FY straddles two US calendar years — period-matched so FTC lines up both ways · basis: " + ap.basis}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Split title={"🇮🇳 Indian " + ap.fyLabel + " income → US calendar years"} sub={"Q1–Q3 (Apr–Dec) → CY" + ap.cyPrimary + " · Q4 (Jan–Mar) → CY" + ap.cyNext}
           a={ap.indiaToCyPrimaryUsd} b={ap.indiaToCyNextUsd} aLabel={"CY" + ap.cyPrimary} bLabel={"CY" + ap.cyNext} />
@@ -245,7 +250,7 @@ function ReconciliationCard({ recon }) {
   if (!recon || !recon.rows || !recon.rows.length) return null;
   const Dir = ({ d }) => <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded" style={{ background: (d === "IN→US" ? PAL.jurIN : PAL.jurUS) + "24", color: d === "IN→US" ? PAL.accent : PAL.blueText }}>{d}</span>;
   return (
-    <Card icon="⚖️" title="Cross-Basis Reconciliation" sub="The same income computed under each country's own code — India (Income-tax Act) vs US (IRC). Overlap is what FTC / §90 relieves.">
+    <Card icon={<Scale size={16} strokeWidth={2} />} title="Cross-Basis Reconciliation" sub="The same income computed under each country's own code — India (Income-tax Act) vs US (IRC). Overlap is what FTC / §90 relieves.">
       <div className="overflow-x-auto -mx-1">
         <table className="w-full">
           <thead>
@@ -291,7 +296,7 @@ function FtcCard({ ftcReport }) {
       })}</div></div>
   );
   return (
-    <Card icon="🔁" title="FTC Reconciliation">
+    <Card icon={<RefreshCcw size={16} strokeWidth={2} />} title="FTC Reconciliation">
       <div className={"rounded-xl p-3 mb-4 border " + (net > 0 ? "border-exposed/30 bg-exposed/10" : "border-positive/30 bg-positive/10")}>
         <div className="text-[10px] uppercase tracking-widest text-muted">Net unrelieved double tax</div>
         <div className="font-display font-extrabold text-2xl" style={{ color: net > 0 ? PAL.redText : PAL.greenText }}>{fmtUsd(net)}</div>
@@ -314,7 +319,7 @@ function TaxCard({ taxComputation, fxRate }) {
     </div>
   );
   return (
-    <Card icon="🧮" title="Tax Computation" sub="Planning-grade, from Layer 1">
+    <Card icon={<Calculator size={16} strokeWidth={2} />} title="Tax Computation" sub="Planning-grade, from Layer 1">
       <Block block={taxComputation.india} isInr accent={PAL.jurIN} />
       <div className="h-3" />
       <Block block={taxComputation.us} accent={PAL.jurUS} />
@@ -329,7 +334,7 @@ export function DocumentsView({ result }) {
   const docs = result.documents.slice().sort((a, b) => (b.required ? 1 : 0) - (a.required ? 1 : 0));
   const req = docs.filter((d) => d.required).length;
   return (
-    <Card icon="📁" title="Documents to File" sub={req + " required · triggered by this taxpayer's cross-border facts"}>
+    <Card icon={<FolderOpen size={16} strokeWidth={2} />} title="Documents to File" sub={req + " required · triggered by this taxpayer's cross-border facts"}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {docs.map((d) => (
           <div key={d.id} className={"flex items-start gap-3 p-3 rounded-lg " + (d.required ? "bg-white/[0.03] border border-line" : "opacity-45")}>
@@ -353,7 +358,7 @@ export function AccountsView({ result }) {
   const accts = result.model.accounts.accounts || [];
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card icon="📐" title="Reporting Limits" sub="FBAR · FATCA 8938 · LRS · FEIE">
+      <Card icon={<Ruler size={16} strokeWidth={2} />} title="Reporting Limits" sub="FBAR · FATCA 8938 · LRS · FEIE">
         <div className="space-y-4">
           {result.computed.limits.map((g) => (
             <div key={g.id}>
@@ -364,12 +369,12 @@ export function AccountsView({ result }) {
           ))}
         </div>
       </Card>
-      <Card icon="🏦" title="Foreign Accounts" sub={accts.length + " account(s) · drives FBAR / Schedule FA"}>
+      <Card icon={<Landmark size={16} strokeWidth={2} />} title="Foreign Accounts" sub={accts.length + " account(s) · drives FBAR / Schedule FA"}>
         {accts.length === 0 ? <Empty>No foreign accounts on file.</Empty> : (
           <div className="space-y-1.5">
             {accts.map((a, i) => (
               <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-white/[0.03]">
-                <span className="text-base">{a.country === "India" ? "🇮🇳" : "🏦"}</span>
+                {a.country === "India" ? <span className="text-base">🇮🇳</span> : <Landmark size={15} strokeWidth={2} className="text-muted shrink-0" />}
                 <div className="flex-1 min-w-0"><div className="text-[12px] font-semibold text-head truncate">{a.bank}</div><div className="text-[10px] text-muted">{a.type} · {a.country}</div></div>
                 <div className="text-[12px] font-mono text-head">{fmtUsd(a.peak.usd)}</div>
               </div>
@@ -435,13 +440,13 @@ export function HoldingsView({ result }) {
 
   return (
     <div className="space-y-6">
-      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip>📊</HeadChip>Income &amp; Holdings</h2><p className="text-muted text-sm mt-2">Everything captured in Layer 1 for {m.identity.name} — income by head, property, securities, entities and retirement.</p></div>
+      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Wallet size={16} strokeWidth={2} /></HeadChip>Income &amp; Holdings</h2><p className="text-muted text-sm mt-2">Everything captured in Layer 1 for {m.identity.name} — income by head, property, securities, entities and retirement.</p></div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatTile icon="📈" label="Securities &amp; funds" value={fmtUsd(secValueUsd)} sub={securities.length + " holding(s) · US + India"} accent={PAL.accent} highlight />
-        <StatTile icon="🏠" label="Property (annual rent)" value={fmtUsd(propGrossUsd)} sub={properties.length + " property(ies)"} />
-        <StatTile icon="🏦" label="Bank balances (peak)" value={fmtUsd(acctUsd)} sub={accts.length + " account(s)"} />
-        <StatTile icon="🌴" label="Retirement" value={fmtUsd(retireUsd)} sub="401k/IRA · EPF/PPF/NPS" />
+        <StatTile icon={<TrendingUp size={15} strokeWidth={2} />} label="Securities &amp; funds" value={fmtUsd(secValueUsd)} sub={securities.length + " holding(s) · US + India"} accent={PAL.accent} highlight />
+        <StatTile icon={<Home size={15} strokeWidth={2} />} label="Property (annual rent)" value={fmtUsd(propGrossUsd)} sub={properties.length + " property(ies)"} />
+        <StatTile icon={<Landmark size={15} strokeWidth={2} />} label="Bank balances (peak)" value={fmtUsd(acctUsd)} sub={accts.length + " account(s)"} />
+        <StatTile icon={<Palmtree size={15} strokeWidth={2} />} label="Retirement" value={fmtUsd(retireUsd)} sub="401k/IRA · EPF/PPF/NPS" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -455,7 +460,7 @@ export function HoldingsView({ result }) {
         </Card>
       </div>
 
-      <Card icon="📈" title="Securities &amp; Funds" sub={usPerson ? "US brokerage + Indian funds — Indian funds held by a US person are PFICs (Form 8621)" : "Holdings on file (US + India)"}>
+      <Card icon={<TrendingUp size={16} strokeWidth={2} />} title="Securities &amp; Funds" sub={usPerson ? "US brokerage + Indian funds — Indian funds held by a US person are PFICs (Form 8621)" : "Holdings on file (US + India)"}>
         {securities.length === 0 ? <Empty>No securities on file.</Empty> : (
           <div className="space-y-1.5">
             {securities.map((s, i) => (
@@ -473,11 +478,11 @@ export function HoldingsView({ result }) {
       </Card>
 
       {corps.length > 0 && (
-        <Card icon="🏢" title="Business Entities / Foreign Corporations" sub="Ownership ≥10% → Form 5471 · GILTI / Subpart F">
+        <Card icon={<Building2 size={16} strokeWidth={2} />} title="Business Entities / Foreign Corporations" sub="Ownership ≥10% → Form 5471 · GILTI / Subpart F">
           <div className="space-y-1.5">
             {corps.map((c, i) => (
               <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.03] border border-line">
-                <span className="text-base">🏢</span>
+                <Building2 size={15} strokeWidth={2} className="text-muted shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="text-[12px] font-semibold text-head truncate flex items-center gap-2">{c.corp_name || "Foreign corporation"}<HoldTag color={PAL.filing}>CFC · 5471</HoldTag></div>
                   <div className="text-[10px] text-muted">{c.country || "—"}</div>
@@ -490,7 +495,7 @@ export function HoldingsView({ result }) {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card icon="🏠" title="Property" sub={properties.length + " property(ies) · US + India"}>
+        <Card icon={<Home size={16} strokeWidth={2} />} title="Property" sub={properties.length + " property(ies) · US + India"}>
           {properties.length === 0 ? <Empty>No property on file.</Empty> : (
             <div className="space-y-1.5">
               {properties.map((p, i) => (
@@ -505,7 +510,7 @@ export function HoldingsView({ result }) {
             </div>
           )}
         </Card>
-        <Card icon="🌴" title="Retirement Accounts" sub="US 401k/IRA/Roth (this year's contributions) + Indian EPF/PPF/NPS — see the US-treatment note on the Monitor">
+        <Card icon={<Palmtree size={16} strokeWidth={2} />} title="Retirement Accounts" sub="US 401k/IRA/Roth (this year's contributions) + Indian EPF/PPF/NPS — see the US-treatment note on the Monitor">
           {retire.length === 0 ? <Empty>No retirement balances on file.</Empty> : (
             <div className="space-y-1.5">
               {retire.map((r, i) => (
@@ -532,8 +537,8 @@ export function BusinessView({ result }) {
   if (!ents.length) {
     return (
       <div className="space-y-6">
-        <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip>🏢</HeadChip>Business &amp; Entities</h2><p className="text-muted text-sm mt-2">Schedule C, K-1, S-corp, C-corp and foreign corporations — with US tax treatment.</p></div>
-        <Card icon="🏢" title="No business entities on file"><Empty>{m.identity.name} has no Schedule C / K-1 / corporate income in Layer 1.</Empty></Card>
+        <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Building2 size={16} strokeWidth={2} /></HeadChip>Business &amp; Entities</h2><p className="text-muted text-sm mt-2">Schedule C, K-1, S-corp, C-corp and foreign corporations — with US tax treatment.</p></div>
+        <Card icon={<Building2 size={16} strokeWidth={2} />} title="No business entities on file"><Empty>{m.identity.name} has no Schedule C / K-1 / corporate income in Layer 1.</Empty></Card>
       </div>
     );
   }
@@ -559,16 +564,16 @@ export function BusinessView({ result }) {
   );
   return (
     <div className="space-y-6">
-      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip>🏢</HeadChip>Business &amp; Entities</h2><p className="text-muted text-sm mt-2">Every business/entity from Layer 1 — Schedule C, K-1, S-corp, C-corp and foreign corporations — with its US tax treatment.</p></div>
+      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Building2 size={16} strokeWidth={2} /></HeadChip>Business &amp; Entities</h2><p className="text-muted text-sm mt-2">Every business/entity from Layer 1 — Schedule C, K-1, S-corp, C-corp and foreign corporations — with its US tax treatment.</p></div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatTile icon="🏢" label="Business income" value={fmtUsd(totalUsd)} sub={ents.length + " entity(ies)"} accent={PAL.accent} highlight />
-        <StatTile icon="🧾" label="Self-employment tax" value={fmtUsd(seTax)} sub="Schedule SE" accent={seTax ? PAL.amberText : PAL.muted} />
-        <StatTile icon="📉" label="§199A QBI deduction" value={fmtUsd(qbi)} sub="20% pass-through" accent={qbi ? PAL.greenText : PAL.muted} />
-        <StatTile icon="🌐" label="Foreign corps (CFC)" value={cfcCount} sub="Form 5471 / GILTI" accent={cfcCount ? PAL.filing : PAL.muted} />
+        <StatTile icon={<Building2 size={15} strokeWidth={2} />} label="Business income" value={fmtUsd(totalUsd)} sub={ents.length + " entity(ies)"} accent={PAL.accent} highlight />
+        <StatTile icon={<Receipt size={15} strokeWidth={2} />} label="Self-employment tax" value={fmtUsd(seTax)} sub="Schedule SE" accent={seTax ? PAL.amberText : PAL.muted} />
+        <StatTile icon={<TrendingDown size={15} strokeWidth={2} />} label="§199A QBI deduction" value={fmtUsd(qbi)} sub="20% pass-through" accent={qbi ? PAL.greenText : PAL.muted} />
+        <StatTile icon={<Globe2 size={15} strokeWidth={2} />} label="Foreign corps (CFC)" value={cfcCount} sub="Form 5471 / GILTI" accent={cfcCount ? PAL.filing : PAL.muted} />
       </div>
       {usEnts.length > 0 && <Card title="🇺🇸 US business & pass-through entities" sub="Schedule C / K-1 / S-corp / C-corp — flows to the 1040 (or 1120 for C-corps)"><div className="space-y-1.5">{usEnts.map(Row)}</div></Card>}
       {inEnts.length > 0 && <Card title="🇮🇳 Indian business entities" sub="PGBP income / foreign corporations"><div className="space-y-1.5">{inEnts.map(Row)}</div></Card>}
-      <Card icon="📖" title="How this business income is taxed" sub="Planning-grade — see Filings → Tax Computation for the full numbers">
+      <Card icon={<BookOpen size={16} strokeWidth={2} />} title="How this business income is taxed" sub="Planning-grade — see Filings → Tax Computation for the full numbers">
         <ul className="space-y-1.5 text-[12px] text-body">
           <li><span className="font-bold" style={{ color: PAL.amberText }}>SE tax</span> — Schedule C, farm and general-partnership income pay 15.3% self-employment tax (SS capped at the wage base + Medicare); half is deductible. {seTax > 0 ? "This taxpayer: " + fmtUsd(seTax) + "." : ""}</li>
           <li><span className="font-bold" style={{ color: PAL.accent }}>§199A QBI</span> — pass-through business income gets a 20% deduction (SSTB / income-limit phase-outs apply). {qbi > 0 ? "This taxpayer: " + fmtUsd(qbi) + " deduction." : ""}</li>
@@ -591,13 +596,13 @@ export function ClientsView({ clients, activeId, onPick }) {
   const healthColor = (h) => (h >= 80 ? PAL.positive : h >= 50 ? PAL.approaching : PAL.exposed);
   return (
     <div className="space-y-6">
-      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip>👥</HeadChip>Client Portfolio</h2><p className="text-muted text-sm mt-2">Your book of business — cross-border exposure at a glance. Click a client to open their Monitor.</p></div>
+      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Users size={16} strokeWidth={2} /></HeadChip>Client Portfolio</h2><p className="text-muted text-sm mt-2">Your book of business — cross-border exposure at a glance. Click a client to open their Monitor.</p></div>
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatTile icon="👥" label="Clients" value={clients.length} highlight />
-        <StatTile icon="⚠️" label="At risk" value={atRisk} accent={atRisk ? PAL.redText : PAL.greenText} sub="health < 50" />
-        <StatTile icon="🚨" label="Open critical" value={openCritical} accent={openCritical ? PAL.redText : PAL.greenText} sub="conflicts" />
-        <StatTile icon="💰" label="Combined tax" value={fmtUsd(totalTax)} sub="IN + US, all clients" />
-        <StatTile icon="🔻" label="Residual double tax" value={fmtUsd(totalResidual)} accent={totalResidual ? PAL.redText : PAL.greenText} sub="unrelieved" />
+        <StatTile icon={<Users size={15} strokeWidth={2} />} label="Clients" value={clients.length} highlight />
+        <StatTile icon={<AlertTriangle size={15} strokeWidth={2} />} label="At risk" value={atRisk} accent={atRisk ? PAL.redText : PAL.greenText} sub="health < 50" />
+        <StatTile icon={<Siren size={15} strokeWidth={2} />} label="Open critical" value={openCritical} accent={openCritical ? PAL.redText : PAL.greenText} sub="conflicts" />
+        <StatTile icon={<DollarSign size={15} strokeWidth={2} />} label="Combined tax" value={fmtUsd(totalTax)} sub="IN + US, all clients" />
+        <StatTile icon={<TrendingDown size={15} strokeWidth={2} />} label="Residual double tax" value={fmtUsd(totalResidual)} accent={totalResidual ? PAL.redText : PAL.greenText} sub="unrelieved" />
       </div>
       <div className="overflow-x-auto rounded-2xl border border-line bg-surface shadow-card">
         <table className="w-full">
@@ -609,7 +614,7 @@ export function ClientsView({ clients, activeId, onPick }) {
           <tbody>
             {sorted.map((c) => (
               <tr key={c.id} onClick={() => onPick(c.id)} className={"border-t border-line cursor-pointer hover:bg-white/[0.03] " + (activeId === c.id ? "bg-accentSoft" : "")}>
-                <td className="px-4 py-3"><div className="text-[13px] font-semibold text-head">{c.label.replace(/^🏢\s*/, "")}</div><div className="text-[10px] text-muted truncate max-w-[240px]">{c.story}</div></td>
+                <td className="px-4 py-3"><div className="text-[13px] font-semibold text-head">{c.label}</div><div className="text-[10px] text-muted truncate max-w-[240px]">{c.story}</div></td>
                 <td className="px-4 py-3"><span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded" style={{ background: (c.isBusiness ? PAL.filing : PAL.accent) + "24", color: c.isBusiness ? PAL.blueText : PAL.accent }}>{c.isBusiness ? "Business" : "Individual"}</span></td>
                 <td className="px-4 py-3 text-[12px] text-body">{(c.indiaStatus || "—")}<span className="text-muted"> / </span>{(c.usStatus ? c.usStatus.replace(/_/g, " ") : "—")}{c.dualResident && <span className="ml-1 text-[9px] font-bold px-1 py-0.5 rounded bg-exposed/15" style={{ color: PAL.redText }}>DUAL</span>}</td>
                 <td className="px-4 py-3 text-right font-mono text-[12px] text-head">{fmtUsd(c.combinedTaxUsd)}</td>
@@ -630,19 +635,19 @@ export function ClientsView({ clients, activeId, onPick }) {
 /* ============================ INTEGRATIONS ============================ */
 export function IntegrationsView() {
   const rows = [
-    { name: "Trip Log", kind: "Physical presence / day-count", connected: true, icon: "🧭" },
-    { name: "Bank feeds (Plaid)", kind: "FBAR / 8938 balances", connected: true, icon: "🏦" },
-    { name: "Payroll · 1099 · AIS", kind: "Income", connected: true, icon: "💵" },
-    { name: "Brokerage (US)", kind: "Capital gains / dividends", connected: true, icon: "📈" },
-    { name: "MCA / ITR portal", kind: "Indian entity filings", connected: false, icon: "🏛️" },
-    { name: "DocuSign", kind: "Engagement & TRC docs", connected: false, icon: "✍️" }
+    { name: "Trip Log", kind: "Physical presence / day-count", connected: true, icon: Compass },
+    { name: "Bank feeds (Plaid)", kind: "FBAR / 8938 balances", connected: true, icon: Landmark },
+    { name: "Payroll · 1099 · AIS", kind: "Income", connected: true, icon: Banknote },
+    { name: "Brokerage (US)", kind: "Capital gains / dividends", connected: true, icon: TrendingUp },
+    { name: "MCA / ITR portal", kind: "Indian entity filings", connected: false, icon: Landmark },
+    { name: "DocuSign", kind: "Engagement & TRC docs", connected: false, icon: PenLine }
   ];
   return (
-    <Card icon="🔌" title="Integrations" sub="Connected data sources feed the engine daily">
+    <Card icon={<Plug size={16} strokeWidth={2} />} title="Integrations" sub="Connected data sources feed the engine daily">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {rows.map((r, i) => (
           <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-line">
-            <span className="text-xl">{r.icon}</span>
+            <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 bg-white/[0.05] border border-line text-muted"><r.icon size={16} strokeWidth={2} /></span>
             <div className="flex-1 min-w-0"><div className="text-[13px] font-bold text-head">{r.name}</div><div className="text-[11px] text-muted">{r.kind}</div></div>
             {r.connected
               ? <span className="text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1" style={{ background: "rgba(34,197,94,0.12)", color: PAL.greenText }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: PAL.positive }} /> Connected</span>

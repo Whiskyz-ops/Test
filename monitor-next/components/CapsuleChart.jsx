@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { BarChart3 } from "lucide-react";
 import { PAL, fmtUsd } from "@/lib/logic";
 
 // The reference "Statistics" chart — floating capsules — translated to WISING and
@@ -32,7 +33,7 @@ export default function CapsuleChart({ rows = [] }) {
   return (
     <div className="rounded-[26px] p-5 border border-line shadow-card" style={{ background: "#161616" }}>
       <div className="flex flex-wrap items-center gap-3 mb-1">
-        <span className="w-9 h-9 rounded-2xl flex items-center justify-center text-[15px] border" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)" }}>📊</span>
+        <span className="w-9 h-9 rounded-2xl flex items-center justify-center border" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)" }}><BarChart3 size={17} strokeWidth={2} /></span>
         <div className="flex-1 min-w-0">
           <div className="text-[15px] font-bold text-head">Cross-basis by income head</div>
           <div className="text-[11px] text-muted">Same income under each country's own code — overlap is what FTC / §90 relieves</div>

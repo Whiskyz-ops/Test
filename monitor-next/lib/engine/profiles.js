@@ -263,7 +263,7 @@
    * ====================================================================*/
   var B1 = {
     id: "india_pvt_ltd",
-    label: "🏢 Indian Pvt Ltd (company)",
+    label: "Indian Pvt Ltd (company)",
     story: "Business POV: an Indian domestic company (SaaS exporter). Corporate tax under §115BAA (22%), MAT check, ITR-6 — business profits, not salary.",
     tags: ["company", "ITR-6", "115BAA", "corporate"],
     router: router("Nimbus Analytics Pvt Ltd", { us_days: 0, has_us_source_income_or_assets: false }),
@@ -300,7 +300,7 @@
    * ====================================================================*/
   var B2 = {
     id: "us_ccorp_indian_sub",
-    label: "🏢 US C-Corp + Indian sub",
+    label: "US C-Corp + Indian sub",
     story: "Business POV: a Delaware C-Corp (Form 1120, 21%) with an Indian Pvt Ltd subsidiary (ITR-6, 25%). Two corporate taxpayers + cross-border structure.",
     tags: ["C-Corp", "1120", "subsidiary", "corporate"],
     router: router("Cloudspire Inc", { us_days: 365, has_us_source_income_or_assets: true }),

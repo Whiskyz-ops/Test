@@ -1,15 +1,16 @@
 "use client";
+import { Radar, Users, Compass, FileText, FolderOpen, Wallet, Building2, Landmark, Plug } from "lucide-react";
 
 const MAIN = [
-  { id: "monitor", label: "Monitor", icon: "📡" },
-  { id: "clients", label: "Clients", icon: "👥" },
-  { id: "residency", label: "Residency", icon: "🧭" },
-  { id: "filings", label: "Filings", icon: "📄" },
-  { id: "documents", label: "Documents", icon: "📁" },
-  { id: "holdings", label: "Holdings", icon: "📊" },
-  { id: "business", label: "Business", icon: "🏢" },
-  { id: "accounts", label: "Accounts", icon: "🏦" },
-  { id: "integrations", label: "Integrations", icon: "🔌" }
+  { id: "monitor", label: "Monitor", icon: Radar },
+  { id: "clients", label: "Clients", icon: Users },
+  { id: "residency", label: "Residency", icon: Compass },
+  { id: "filings", label: "Filings", icon: FileText },
+  { id: "documents", label: "Documents", icon: FolderOpen },
+  { id: "holdings", label: "Holdings", icon: Wallet },
+  { id: "business", label: "Business", icon: Building2 },
+  { id: "accounts", label: "Accounts", icon: Landmark },
+  { id: "integrations", label: "Integrations", icon: Plug }
 ];
 const FOOTER = ["Personal details", "Account settings", "Knowledge base"];
 
@@ -49,7 +50,7 @@ export default function Sidebar({ active = "monitor", onNavigate, badges = {} })
                   ? "text-[#04120f] shadow-[0_6px_20px_-4px_rgba(52,211,153,0.55)]"
                   : "text-white/55 hover:text-white hover:bg-white/[0.06]")}
               style={isActive ? { background: "linear-gradient(135deg,#34d399 0%,#60a5fa 100%)" } : undefined}>
-              <span className="text-[15px] w-5 text-center opacity-90">{l.icon}</span>
+              <span className="w-5 flex items-center justify-center opacity-90"><l.icon size={17} strokeWidth={2} /></span>
               <span className="flex-1 text-left">{l.label}</span>
               {badge != null && badge.text !== 0 && badge.text !== "" && (
                 <span className={"text-[10px] font-bold px-1.5 py-0.5 rounded-full " +
