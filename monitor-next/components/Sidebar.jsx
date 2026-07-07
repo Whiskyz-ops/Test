@@ -21,7 +21,7 @@ export default function Sidebar({ active = "monitor", onNavigate, badges = {} })
       {/* Logo — real WISING brand mark (Main Logo.svg) + Cormorant Garamond
           wordmark (confirmed via the site's own inspect-element font-family) */}
       <div className="px-5 py-5 flex items-center gap-2">
-        <WisingLogo height={16} className="shrink-0" />
+        <WisingLogo height={26} className="shrink-0" />
         <div className="font-serif font-bold tracking-[0.20em] text-[17px] leading-none bg-clip-text text-transparent"
           style={{ backgroundImage: "linear-gradient(180deg,#ffffff 0%,#c4c8ce 45%,#8b909b 60%,#e8eaed 78%,#a5aab3 100%)" }}>WISING</div>
       </div>
