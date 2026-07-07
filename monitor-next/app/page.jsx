@@ -7,7 +7,7 @@ import StatMeter from "@/components/StatMeter";
 import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
 import { ConflictsPanel, ResidencyView, FilingsView, DocumentsView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView } from "@/components/Views";
-import { US_STATES, COUNTRIES, SOURCES } from "@/lib/mockData";
+import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries } from "@/lib/wising";
 
@@ -79,29 +79,28 @@ export default function MonitorPage() {
       <main className="relative z-10 flex-1 min-w-0 px-8 py-6">
         <Header region={region} onRegionChange={setRegion} clientName={clientName} />
 
-        {/* shared: engine + source strip */}
-        <div className="flex flex-wrap items-center gap-3 mb-3 text-[11px] text-muted">
-          <span className="px-2 py-0.5 rounded-md font-bold border" style={{ background: engineReady ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.05)", borderColor: engineReady ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.08)", color: engineReady ? PAL.greenText : PAL.muted }}>
-            {engineReady ? (mode === "live" ? "LIVE · engine" : "DEMO · engine") : "loading engine…"}
+        {/* single, compact utility bar — status + actions */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-6 pb-4 border-b border-line text-[12px]">
+          <span className="inline-flex items-center gap-1.5 font-bold" style={{ color: engineReady ? PAL.greenText : PAL.muted }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: engineReady ? PAL.positive : PAL.muted, boxShadow: engineReady ? `0 0 6px ${PAL.positive}` : "none" }} />
+            {engineReady ? (mode === "live" ? "Live" : "Demo") : "Loading…"}
           </span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: PAL.positive }} /> {SOURCES.trips.name}</span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: PAL.positive }} /> {SOURCES.accounts.name}</span>
-          <span className="text-muted/70">India + US computed by the shared engine from Layer 1 · US states illustrative</span>
-        </div>
-
-        {/* shared: source + profile controls */}
-        <div className="flex flex-wrap items-center gap-2 mb-6">
-          <button onClick={() => recompute("live")} className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/50">↻ Refresh from Layer 1</button>
-          <select onChange={(e) => onPickProfile(e.target.value)} value={activeProfile || ""} title="Load a coherent India+US test taxpayer"
-            className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg text-[#04120f] border border-accent cursor-pointer shadow-card"
-            style={{ background: "linear-gradient(135deg,#34d399,#60a5fa)" }}>
-            <option value="" className="bg-[#161616] text-head">Load test profile…</option>
-            {profiles.map((p) => <option key={p.id} value={p.id} className="bg-[#161616] text-head">{p.label}</option>)}
-          </select>
-          <span className="text-muted text-[11px] mx-1">Layer 1 intake:</span>
-          <a href="router.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/50">Router</a>
-          <a href="layer1_india.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/50">India L1</a>
-          <a href="layer1_us.html" className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-surface border border-line text-body shadow-card hover:border-accent/50">US L1</a>
+          <button onClick={() => recompute("live")} className="font-semibold text-body hover:text-head transition-colors">↻ Refresh</button>
+          <div className="relative">
+            <select onChange={(e) => onPickProfile(e.target.value)} value={activeProfile || ""} title="Load a coherent India+US test taxpayer"
+              className="appearance-none pl-2.5 pr-7 py-1 text-[12px] font-semibold rounded-lg text-[#04120f] cursor-pointer"
+              style={{ background: "linear-gradient(135deg,#34d399,#60a5fa)" }}>
+              <option value="" className="bg-[#161616] text-head">Load test profile…</option>
+              {profiles.map((p) => <option key={p.id} value={p.id} className="bg-[#161616] text-head">{p.label}</option>)}
+            </select>
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#04120f]/60 text-[9px]">▾</span>
+          </div>
+          <span className="ml-auto flex items-center gap-3 text-body">
+            <span className="text-muted">Layer 1:</span>
+            <a href="router.html" className="font-semibold hover:text-accent transition-colors">Router</a>
+            <a href="layer1_india.html" className="font-semibold hover:text-accent transition-colors">India</a>
+            <a href="layer1_us.html" className="font-semibold hover:text-accent transition-colors">US</a>
+          </span>
         </div>
 
         {/* ============ MONITOR (overview) ============ */}
