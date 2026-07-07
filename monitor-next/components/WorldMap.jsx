@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useState } from "react";
-import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from "react-simple-maps";
+import { ComposableMap, Geographies, Geography, Graticule, ZoomableGroup, Marker } from "react-simple-maps";
 import { ZoomIn, ZoomOut } from "lucide-react";
 import worldTopo from "world-atlas/countries-110m.json";
 import { STATUS_META, PAL } from "@/lib/logic";
@@ -33,6 +33,12 @@ const HOVER_WASH = {
   nexus: "rgba(59,130,246,0.78)",
   none: "rgba(34,197,94,0.78)"
 };
+// A tight, small-radius edge glow on tracked countries' borders only (never
+// the fill) — a few px of blur, not the old 6-10px halo, so it reads as a
+// crisp highlighted outline rather than a neon sticker.
+const GLOW_STROKE = {
+  exposed: "#ef4444", approaching: "#f5a623", nexus: "#3b82f6", none: "#22c55e"
+};
 
 // A floating risk tag anchored to a tracked country — a frosted "liquid glass"
 // callout (blurred backdrop + translucent tint + soft top sheen) with a single
@@ -45,6 +51,7 @@ function RiskTag({ name, status }) {
   const w = m.label.length * 5.4 + 12;
   return (
     <Marker coordinates={c}>
+      <circle className="wising-pulse-ring" r={3.5} fill="none" stroke={m.color} strokeWidth={1.2} style={{ opacity: 0.55 }} />
       <circle r={3} fill={m.color} stroke="#05070e" strokeWidth={1} />
       <g transform="translate(7,-6)">
         <rect rx={4} ry={4} width={w} height={15}
@@ -75,6 +82,14 @@ export default function WorldMap({ statusByName, onSelectCountry }) {
 
   return (
     <div className="w-full relative">
+      <style>{`
+        @keyframes wisingPulseRing {
+          0%   { r: 3.5; opacity: 0.55; }
+          70%  { r: 13; opacity: 0; }
+          100% { r: 13; opacity: 0; }
+        }
+        .wising-pulse-ring { animation: wisingPulseRing 2.4s cubic-bezier(0.4,0,0.6,1) infinite; transform-box: fill-box; transform-origin: center; }
+      `}</style>
       <div className="absolute top-2 right-2 z-10 flex flex-col gap-1.5">
         <button type="button" onClick={zoomIn} disabled={zoom >= MAX_ZOOM} aria-label="Zoom in"
           className="w-8 h-8 rounded-xl bg-surface border border-line text-muted hover:text-head hover:border-accent/40 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center shadow-card transition-colors">
@@ -85,49 +100,57 @@ export default function WorldMap({ statusByName, onSelectCountry }) {
           <ZoomOut size={14} strokeWidth={2} />
         </button>
       </div>
-      <ComposableMap
-        projection="geoEquirectangular"
-        width={MAP_WIDTH} height={MAP_HEIGHT}
-        projectionConfig={{ scale: 145 }}
-        style={{ width: "100%", height: "auto" }}
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{ background: "radial-gradient(ellipse 70% 60% at 50% 30%, rgba(45,212,191,0.07), rgba(5,7,14,0) 60%), #05070e" }}
       >
-        <ZoomableGroup
-          center={center}
-          zoom={zoom}
-          minZoom={MIN_ZOOM}
-          maxZoom={MAX_ZOOM}
-          translateExtent={TRANSLATE_EXTENT}
-          filterZoomEvent={filterZoomEvent}
-          onMoveEnd={({ coordinates, zoom: z }) => { setCenter(coordinates); setZoom(z); }}
+        <ComposableMap
+          projection="geoEquirectangular"
+          width={MAP_WIDTH} height={MAP_HEIGHT}
+          projectionConfig={{ scale: 145 }}
+          style={{ width: "100%", height: "auto" }}
         >
-          <Geographies geography={worldTopo}>
-            {({ geographies }) =>
-              geographies.filter((geo) => geo.properties.name !== "Antarctica").map((geo) => {
-                const name = geo.properties.name;
-                const status = statusByName[name];
-                const hasData = !!HAS_DATA[name];
-                const fill = status ? FILL_WASH[status] : PAL.navy;
-                const hoverFill = status ? HOVER_WASH[status] : "#242a44";
-                return (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    onClick={() => hasData && onSelectCountry && onSelectCountry(HAS_DATA[name])}
-                    style={{
-                      default: { fill, stroke: "rgba(255,255,255,0.14)", strokeWidth: 0.5, outline: "none", cursor: hasData ? "pointer" : "default" },
-                      hover: { fill: hoverFill, stroke: "rgba(255,255,255,0.25)", strokeWidth: 0.6, outline: "none" },
-                      pressed: { fill: hoverFill, outline: "none" }
-                    }}
-                  >
-                    <title>{name}{status ? ` — ${STATUS_META[status].label}` : ""}</title>
-                  </Geography>
-                );
-              })
-            }
-          </Geographies>
-          {Object.entries(statusByName).map(([name, status]) => HAS_DATA[name] ? <RiskTag key={name} name={name} status={status} /> : null)}
-        </ZoomableGroup>
-      </ComposableMap>
+          <ZoomableGroup
+            center={center}
+            zoom={zoom}
+            minZoom={MIN_ZOOM}
+            maxZoom={MAX_ZOOM}
+            translateExtent={TRANSLATE_EXTENT}
+            filterZoomEvent={filterZoomEvent}
+            onMoveEnd={({ coordinates, zoom: z }) => { setCenter(coordinates); setZoom(z); }}
+          >
+            <Graticule stroke="rgba(255,255,255,0.05)" strokeWidth={0.5} step={[20, 20]} />
+            <Geographies geography={worldTopo}>
+              {({ geographies }) =>
+                geographies.filter((geo) => geo.properties.name !== "Antarctica").map((geo) => {
+                  const name = geo.properties.name;
+                  const status = statusByName[name];
+                  const hasData = !!HAS_DATA[name];
+                  const fill = status ? FILL_WASH[status] : PAL.navy;
+                  const hoverFill = status ? HOVER_WASH[status] : "#242a44";
+                  const stroke = status ? GLOW_STROKE[status] : "rgba(255,255,255,0.14)";
+                  const glow = status ? `drop-shadow(0 0 2px ${GLOW_STROKE[status]})` : "none";
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      onClick={() => hasData && onSelectCountry && onSelectCountry(HAS_DATA[name])}
+                      style={{
+                        default: { fill, stroke, strokeWidth: status ? 0.9 : 0.5, outline: "none", cursor: hasData ? "pointer" : "default", filter: glow },
+                        hover: { fill: hoverFill, stroke, strokeWidth: status ? 1.1 : 0.6, outline: "none", filter: glow },
+                        pressed: { fill: hoverFill, stroke, outline: "none", filter: glow }
+                      }}
+                    >
+                      <title>{name}{status ? ` — ${STATUS_META[status].label}` : ""}</title>
+                    </Geography>
+                  );
+                })
+              }
+            </Geographies>
+            {Object.entries(statusByName).map(([name, status]) => HAS_DATA[name] ? <RiskTag key={name} name={name} status={status} /> : null)}
+          </ZoomableGroup>
+        </ComposableMap>
+      </div>
       <Legend />
     </div>
   );
