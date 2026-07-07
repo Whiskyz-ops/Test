@@ -1,5 +1,6 @@
 "use client";
 import { Radar, Users, Compass, FileText, FolderOpen, Wallet, Building2, Landmark, Plug } from "lucide-react";
+import WisingLogo from "@/components/WisingLogo";
 
 const MAIN = [
   { id: "monitor", label: "Monitor", icon: Radar },
@@ -17,22 +18,9 @@ const FOOTER = ["Personal details", "Account settings", "Knowledge base"];
 export default function Sidebar({ active = "monitor", onNavigate, badges = {} }) {
   return (
     <aside className="w-60 shrink-0 h-screen sticky top-0 glass-black border-r border-inkline flex flex-col text-white z-20">
-      {/* Logo — silver-chrome W↗ mark (WISING brand) + Manrope wordmark */}
+      {/* Logo — real WISING brand mark (Main Logo.svg) + Manrope wordmark */}
       <div className="px-5 py-5 flex items-center gap-3">
-        <svg width="38" height="32" viewBox="0 0 52 44" fill="none" className="shrink-0">
-          <defs>
-            <linearGradient id="chrome" x1="4" y1="6" x2="48" y2="34" gradientUnits="userSpaceOnUse">
-              <stop offset="0" stopColor="#f6f7f9" />
-              <stop offset="0.3" stopColor="#aeb3bd" />
-              <stop offset="0.5" stopColor="#f0f1f4" />
-              <stop offset="0.72" stopColor="#8f95a1" />
-              <stop offset="1" stopColor="#d9dce2" />
-            </linearGradient>
-          </defs>
-          <path d="M6 12 L15 35 L24 20 L31 35 L47 13" stroke="url(#chrome)" strokeWidth="5.2" strokeLinejoin="round" strokeLinecap="round" />
-          <path d="M47 13 L47 22" stroke="url(#chrome)" strokeWidth="5.2" strokeLinecap="round" />
-          <path d="M47 13 L37.5 13" stroke="url(#chrome)" strokeWidth="5.2" strokeLinecap="round" />
-        </svg>
+        <WisingLogo size={34} className="shrink-0" />
         <div>
           <div className="font-sans font-extrabold tracking-[0.22em] text-[15px] leading-none text-white">WISING</div>
           <div className="text-[9px] text-white/35 tracking-[0.22em] uppercase mt-1.5">Exposure Monitor</div>
