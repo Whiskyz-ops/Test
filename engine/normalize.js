@@ -294,6 +294,16 @@
   /* US deduction inputs for the tax engine. */
   function aggregateUsDeductions(us) {
     var it = safe(us, "itemized_deductions_and_credits", {});
+    // ISO exercises generate an AMT preference item (the bargain element —
+    // FMV-at-exercise less strike — is excluded from regular income but added
+    // back for AMT, §56(b)(3)). Each row's amt_preference_spread_usd is the
+    // form's own (fmv - strike) * shares computation; sum across all exercises.
+    var isoAmtPrefUsd = 0;
+    (safe(us, "equity_compensation.iso_exercises", []) || []).forEach(function (ex) {
+      isoAmtPrefUsd += num(ex.amt_preference_spread_usd != null
+        ? ex.amt_preference_spread_usd
+        : Math.max(0, (num(ex.fmv_at_exercise_usd) - num(ex.strike_price_usd)) * num(ex.shares_exercised)));
+    });
     return {
       mode: safe(it, "use_standard_or_itemized", "auto"),
       salt: num(safe(it, "state_and_local_taxes_paid_usd", 0)),
@@ -303,16 +313,41 @@
       studentLoanInterest: num(safe(it, "student_loan_interest_usd", 0)),
       // AMT preference / adjustment items (§57): private-activity-bond interest,
       // ISO bargain element / other preference spread.
+      isoAmtPrefUsd: isoAmtPrefUsd,
       amtPrefs: num(safe(it, "private_activity_bond_interest_usd", 0)) +
                 num(safe(it, "amt_preference_spread_usd", 0)) +
                 num(safe(us, "amt.private_activity_bond_interest_usd", 0)) +
                 num(safe(us, "amt.amt_preference_spread_usd", 0)) +
-                num(safe(us, "amt_items_usd", 0)),
+                num(safe(us, "amt_items_usd", 0)) +
+                isoAmtPrefUsd,
       // Non-refundable personal credits
       careExpenses: num(safe(it, "dependent_care_expenses_usd", 0)),
       aotc: num(safe(it, "education_credits_aotc_usd", 0)),
       lifetimeLearning: num(safe(it, "education_credits_llc_usd", 0)),
       dependents: num(safe(us, "profile.dependents_count", 0)) || num(safe(it, "dependents_count", 0))
+    };
+  }
+
+  /* ------------------------------------------------------------------------
+   * Equity compensation — cross-border sourcing signal. India's ESOP
+   * perquisite (s.17(2)(vi), already folded into taxable_salary_inr — this is
+   * a breakdown figure, not additive) and the US RSU/NSO/ISO events are two
+   * views into what is often the SAME multi-year vesting equity award, split
+   * by whichever country the employee was in when each tranche vested /
+   * exercised. When both sides show equity-comp activity in the same year, a
+   * single award is very likely being sourced (and taxed) independently by
+   * each country with no coordinated day-count allocation.
+   * ----------------------------------------------------------------------*/
+  function aggregateEquityComp(annualDomesticIncome, us) {
+    var ec = safe(us, "equity_compensation", {});
+    var rsuIncomeUsd = 0, nsoIncomeUsd = 0;
+    (safe(ec, "rsu_vestings", []) || []).forEach(function (r) { rsuIncomeUsd += num(r.gross_income_usd != null ? r.gross_income_usd : num(r.fmv_at_vest_usd) * num(r.shares_vested)); });
+    (safe(ec, "nso_exercises", []) || []).forEach(function (n) { nsoIncomeUsd += num(n.ordinary_income_recognized_usd != null ? n.ordinary_income_recognized_usd : Math.max(0, (num(n.fmv_at_exercise_usd) - num(n.strike_price_usd)) * num(n.shares_exercised))); });
+    var isoCount = (safe(ec, "iso_exercises", []) || []).length;
+    return {
+      hasUsEquityComp: safe(ec, "has_equity_comp", false) === true || rsuIncomeUsd > 0 || nsoIncomeUsd > 0 || isoCount > 0,
+      rsuIncomeUsd: rsuIncomeUsd, nsoIncomeUsd: nsoIncomeUsd, isoExerciseCount: isoCount,
+      esopPerquisiteInr: num(safe(annualDomesticIncome, "salary.esop_perquisite_inr", 0))
     };
   }
 
@@ -436,6 +471,23 @@
           daysCurrentYear: num(safe(us, "us_residency_detail.us_days_current_year", 0))
         }
       },
+      // US state residency — the DTAA/IRC treaty machinery above governs FEDERAL
+      // tax only. States are not parties to the India-US treaty, so a federal
+      // treaty tie-breaker or NR position does not bind a state; a taxpayer can
+      // remain a full worldwide-income state tax resident (domicile or
+      // statutory-residency test) even after "winning" the federal tie-breaker.
+      stateResidency: {
+        domicileJan1: safe(us, "state_residency.jan_1_domicile_state", null),
+        domicileDec31: safe(us, "state_residency.dec_31_domicile_state", null),
+        primaryState: safe(us, "state_residency.primary_state_of_residence", null),
+        footprint: safe(us, "state_residency.total_states_footprint", []) || [],
+        movedStates: safe(us, "state_residency.moved_states_this_year", false) === true,
+        caSafeHarbor: safe(us, "state_residency.ca_safe_harbor_employment_contract", false) === true,
+        caRetainsTies: safe(us, "state_residency.ca_retains_property_or_voter_reg", false) === true,
+        nyDaysPresent: num(safe(us, "state_residency.ny_actual_days_present", 0)),
+        nyPermanentAbode: safe(us, "state_residency.ny_permanent_place_of_abode", false) === true,
+        ny548DayRule: safe(us, "state_residency.ny_548_day_rule", false) === true
+      },
       treaty: {
         trcStatus: safe(india, "dtaa.trc_status", false) === true ||
                    safe(india, "compliance_docs.trc.document_uploaded", false) === true,
@@ -445,7 +497,33 @@
         hasPE: safe(india, "dtaa.has_permanent_establishment_in_india", false) === true,
         usTreatyResidence: safe(us, "us_residency_detail.dtaa_treaty_residence", "none"),
         files1040nr: safe(us, "nra_specific.files_form_1040nr", false) === true,
-        form8833Implied: safe(us, "us_residency_detail.dtaa_treaty_residence", "none") !== "none"
+        form8833Implied: safe(us, "us_residency_detail.dtaa_treaty_residence", "none") !== "none",
+        chapterXiiaElected: safe(india, "compliance_docs.chapter_xiia_elected", false) === true
+      },
+      equityComp: aggregateEquityComp(annual.domestic_income, us),
+      // NRA-specific (Form 1040-NR) facts. Layer 1 already splits FDAP vs ECI
+      // and tracks treaty-rate claims / W-8BEN / FIRPTA, but none of it was
+      // read before this pass — the engine ran every filer through the same
+      // resident-style graduated-bracket computation.
+      nra: {
+        hasUsPe: safe(us, "nra_specific.has_us_pe", false) === true,
+        submittedW8ben: safe(us, "nra_specific.submitted_w8ben", false) === true,
+        eciIncomeUsd: num(safe(us, "nra_specific.us_eci_income_usd", 0)),
+        fdapIncomeUsd: num(safe(us, "nra_specific.us_fdap_income_usd", 0)),
+        treatyRateClaims: safe(us, "nra_specific.treaty_rate_claims", []) || [],
+        usRealPropertyDisposed: safe(us, "nra_specific.us_real_property_disposed", false) === true,
+        firptaWithholdingUsd: num(safe(us, "nra_specific.firpta_withholding_usd", 0)),
+        s6013hElection: safe(us, "nra_specific.s6013h_joint_election", false) === true
+      },
+      // India's own Schedule FA self-report — used to cross-check against what
+      // the US Layer 1 form actually shows (see the schedule_fa_inconsistent
+      // finding: the two intake forms can flatly disagree about whether
+      // foreign assets exist).
+      indiaForeignAssetsDeclared: safe(india, "foreign_assets.has_foreign_assets", null),
+      foreignGifts: {
+        receivedAbove100k: safe(us, "foreign_gifts_and_trusts.received_foreign_gifts_above_100k", false) === true,
+        isTrustBeneficiary: safe(us, "foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust", false) === true,
+        receivedFromCoveredExpatriate: safe(us, "foreign_gifts_and_trusts.received_gift_from_covered_expatriate", false) === true
       },
       income: {
         india: aggregateIndiaIncome(india, annual),

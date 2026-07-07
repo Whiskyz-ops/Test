@@ -29,9 +29,9 @@ export default function WorldMap({ statusByName, onSelectCountry }) {
   return (
     <div className="w-full">
       <ComposableMap
-        projection="geoEqualEarth"
+        projection="geoEquirectangular"
         width={900} height={420}
-        projectionConfig={{ scale: 168 }}
+        projectionConfig={{ scale: 145 }}
         style={{ width: "100%", height: "auto" }}
       >
         <ZoomableGroup center={[12, 8]} zoom={1} minZoom={1} maxZoom={4}>

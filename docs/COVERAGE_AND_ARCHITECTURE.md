@@ -41,8 +41,8 @@ comprehensive return engine. Approx **30–40%** of collected fields are consume
 |---|---|---|---|
 | `profile` | entity_type, tax_regime, pan_aadhaar_linked, turnover_lte_400cr, is_section_8, mat_book_profit, opt_115ba/baa/bab, mfg dates | 🟡 entity_type/regime read; **115BA/BAA/BAB, MAT book profit, s.8, mfg incentives ⛔** | Yes (company rates/MAT) |
 | `residency_detail` | final status, days, POEM, deemed-resident paths, crew/visit flags | 🟡 final status + days read; **the determination inputs ⛔** (we trust the form's final status) | Status yes; inputs no |
-| `dtaa` | trc_status, treaty_residence, PE, treaty_elections, mfn, forced_nr | ✅ (elections/MFN 🟡) | Yes |
-| `compliance_docs` | trc, form_10f, **section_197_cert**, chapter_xiia_elected | 🟡 TRC/10F read; **197 cert, Ch. XII-A ⛔** | 197/XIIA yes (rates) |
+| `dtaa` | trc_status, treaty_residence, PE, treaty_elections, mfn, forced_nr | ✅ (elections/MFN 🟡); PE now drives the `pe_article7` finding (Art. 7 survives the tie-breaker) | Yes |
+| `compliance_docs` | trc, form_10f, **section_197_cert**, chapter_xiia_elected | 🟡 TRC/10F read; Ch. XII-A now read and flags `chapter_xiia_not_computed` (election honoured, tax NOT yet recomputed at flat rates); **197 cert still ⛔** | XIIA flagged, not computed; 197 still open |
 | `bank_accounts[]` | peak_balance_inr, type | ✅ peak → FBAR/Sch FA | Reporting |
 | `property` | properties[] (rent, municipal tax, co-owner %, interest) | 🟡 annual value only; **capital-gains on sale, co-ownership, §24(b) interest ⛔** | Yes (CG, HP loss) |
 | `financial_holdings[]` | asset_type, value, buy/sell | 🟡 **mutual funds → PFIC flag only**; equity CG ⛔ | Yes (CG) |
@@ -58,7 +58,7 @@ comprehensive return engine. Approx **30–40%** of collected fields are consume
 | `tax_credits` | advance tax Q1–4, TDS, TCS, Form 26AS, **foreign_tax_credit[]** | 🟡 advance+TDS summed; **per-country FTC array, 26AS reconcile ⛔** | FTC |
 | `surcharge_buckets` | income by rate bucket (111A/112A/115A/115BB/dividend) | ⛔ (engine recomputes surcharge itself) | Consistency |
 | `nro_repatriation` | cumulative USD, pending, TDS on NRO | ⛔ | Reporting |
-| `foreign_assets` / `foreign_income` | has_foreign_assets, assets[] | ⛔ (Schedule FA driven only from US-side accounts) | Sch FA completeness |
+| `foreign_assets` / `foreign_income` | has_foreign_assets, assets[] | 🟡 `has_foreign_assets` now cross-checked against the US form (`schedule_fa_inconsistent`) — catches the two Layer 1 forms flatly disagreeing; the `assets[]` detail itself is still ⛔ | Sch FA completeness + a real cross-form data-integrity gap |
 | `gift_received`, `salary_exemptions`, `other_exemptions` | (populated by sub-flows) | ⛔ | Yes |
 | `quarters` Q1–Q4 | per-quarter income snapshots | ✅ summed to annual (`indiaAnnualSlice`) | Advance-tax pacing |
 
@@ -70,22 +70,22 @@ comprehensive return engine. Approx **30–40%** of collected fields are consume
 |---|---|---|---|
 | `profile` | **tax_entity_type**, **llc_tax_election**, incorporation_state, filing_status, ssn/itin, dependents, spouse_is_us_person | 🟡 filing_status read; **entity_type/LLC election NOT branched ⛔** | **Yes (see Part F)** |
 | `us_residency_detail` | SPT day-weighting, green card, exempt-individual, closer-connection, first-year choice, §6013(g), treaty residence, start/end dates | 🟡 final status + citizen/GC/SPT/days; **SPT weighting, exemptions, elections ⛔** | Status yes |
-| `state_residency` | jan1/dec31 domicile, footprint[], moved, CA safe-harbor, **NY 183-day + abode + 548-rule**, MSRRA military, secondary states[] | ⛔ **entirely unused** | **Yes (state tax)** — this is the Monitor state-drill gap |
+| `state_residency` | jan1/dec31 domicile, footprint[], moved, CA safe-harbor, **NY 183-day + abode + 548-rule**, MSRRA military, secondary states[] | 🟡 domicile/primary state, footprint, CA/NY flags now read and drive a **new "state treaty not binding" conflict finding**; full day-count/statutory-residency computation and the Monitor state-drill map are still ⛔ | **Yes (state tax)** — computation still the Monitor state-drill gap |
 | `income_us_source` | wages_w2[], interest, ord/qual dividends, STCG/LTCG, rental, royalty, **self_employment[]**, **partnerships_k1[]**, **s_corporations_k1[]**, **c_corporations_1120[]**, **farming_schedule_f[]**, **trusts_estates_k1[]**, IRA/401k/SS distributions, crypto[], loss carryovers, QOF/QSBS/1031/installment/collectibles flags | 🟡 wages/interest/div/CG/rental; **all K-1 pass-throughs, SE, crypto, loss carryovers, special assets ⛔** | **Yes — large** |
 | `income_foreign_source` | foreign wages[], interest, dividends, STCG/LTCG, rental, pension, §988[] | 🟡 amounts read; **§988, per-item sourcing ⛔** | Yes |
-| `equity_compensation` | ISO/NSO/RSU/ESPP/83(b) exercises[] | ⛔ **ISO → AMT preference not computed** | **Yes (AMT)** |
+| `equity_compensation` | ISO/NSO/RSU/ESPP/83(b) exercises[] | 🟡 **ISO bargain-element spread now feeds AMT** (`iso_exercises[].amt_preference_spread_usd` → `amtPrefs`); NSO/RSU/ESPP ordinary income and cross-border sourcing still ⛔ | AMT done; NSO/RSU sourcing still yes |
 | `foreign_earned_income` | FEIE claim, physical-presence/bona-fide, housing exclusion | 🟡 claim + amount; **housing exclusion, qualification test ⛔** | Yes |
 | `bank_accounts[]`, `financial_holdings[]`, `fbar_aggregate_peak_usd`, `form_8938_required` | balances | ✅ FBAR peak; 🟡 8938 threshold table | Reporting |
 | `real_estate` | properties[] (rent, expenses, §1031, depreciation, FIRPTA) | ⛔ (only hydrated from India side) | Yes |
 | `retirement_accounts` | trad/Roth IRA, 401k, backdoor Roth, HSA, SEP, solo-401k, RMD, **indian EPF/PPF/NPS** | 🟡 Indian EPF/PPF/NPS → 3520/FBAR flag; **US contributions/deductions ⛔** | Yes |
 | `foreign_entities` | owns_10pct corp/partnership/DE, **foreign_corporations[]**, partnerships[], disregarded[], pfic_holdings[] | 🟡 **flags only** (CFC/PFIC conflict); **GILTI/Subpart-F/962 not computed ⛔** | **Yes (see Part F)** |
-| `foreign_gifts_and_trusts` | gifts>100k, foreign trusts, covered-expat gift | ⛔ (3520 flagged via PPF only) | Reporting |
+| `foreign_gifts_and_trusts` | gifts>100k, foreign trusts, covered-expat gift | ✅ drives `foreign_gift_3520` (penalty-exposure finding) and `covered_expat_gift_tax` (§2801, a real tax, not just reporting); widened the `form_3520` trigger beyond PPF | Reporting + real tax (§2801) |
 | `itemized_deductions_and_credits` | SALT, mortgage, charitable, medical, HSA, student loan, CTC, dependent care, education, saver, 529, **QBI** | 🟡 SALT/mortgage/charitable/medical; **QBI, credits (CTC/education/care) ⛔** | Yes (credits) |
-| `amt_inputs` | ISO preference, SALT add-back, AMTI, TMT, AMT due, MTC carryforward | ⛔ **AMT not computed** | **Yes** |
+| `amt_inputs` | ISO preference, SALT add-back, AMTI, TMT, AMT due, MTC carryforward | ✅ AMT (§55) now computed (AMTI, exemption phase-out, TMT vs regular tax) incl. ISO preference; 🟡 MTC carryforward (Form 8801) not tracked | Done; MTC carryforward remains |
 | `niit_inputs` | MAGI, NII, threshold | ✅ engine computes NIIT | — |
 | `ftc_inputs` | claims_ftc, simplified<300, accrued method, carryovers, **ftc_baskets[]** | 🟡 engine computes FTC itself; **baskets/carryovers/accrued election ⛔** | FTC precision |
 | `withholding_and_estimated` | fed/state withholding, estimated Q1–4, prior-year tax, addl-Medicare | ✅ | — |
-| `nra_specific` | files_1040nr, §6013(h), W-8BEN, W-7, **ECI/FDAP**, treaty_rate_claims[], FIRPTA, LRS investor | 🟡 1040NR/treaty-residence flags; **ECI/FDAP split, treaty rates, FIRPTA ⛔** | Yes (NRA tax) |
+| `nra_specific` | files_1040nr, §6013(h), W-8BEN, W-7, **ECI/FDAP**, treaty_rate_claims[], FIRPTA, LRS investor | ✅ a dedicated `computeNraTax()` path now taxes ECI at graduated brackets (itemized-only) and FDAP flat at the claimed treaty rate / 30% (Schedule NEC), dispatched whenever `files_form_1040nr` is set without a §6013(g)/(h) election; US-side FTC is correctly zeroed (NRAs aren't taxed on foreign income). `form_8288_a/b` (FIRPTA remittance forms) still ⛔ | Computed for ECI/FDAP split; FIRPTA forms still doc-only |
 
 ---
 
@@ -100,6 +100,82 @@ comprehensive return engine. Approx **30–40%** of collected fields are consume
 7. **US state residency** — CA/NY statutory rules, MSRRA (unblocks live Monitor state drill-down).
 8. **Salary exemptions** (HRA/LTA/perquisites) and **full Chapter VI-A** (India); **QBI + credits** (US).
 9. **Special-rate income** (India 115BB gaming/lottery; deemed dividend) and **NRA ECI/FDAP** (US).
+
+---
+
+## Part D.1 — Conflict-detection audit (this pass)
+
+A dedicated pass over `engine/conflicts.js` against the Layer 1 fields above, scoped to
+**conflict-detection completeness** (not the full computation-engine gaps in Part D). Closed:
+
+- **NIIT / Additional Medicare not offset by the FTC** (`niit_medicare_not_creditable`) — these
+  surtaxes sit outside §901/§904 entirely; the old FTC panel could read as "fully credited" while
+  this residue silently stood. Now called out on its own whenever both apply.
+- **No US-India Totalization Agreement** (`no_totalization_agreement`) — unlike ~30 countries with
+  a US Totalization Agreement, a self-employed dual-resident owes full US SE tax with no
+  double-coverage relief; this was entirely unflagged.
+- **State residency vs. the federal treaty position** (`state_treaty_not_binding`) — the DTAA and
+  the Article 4 tie-breaker are FEDERAL-only; a taxpayer can still be a full worldwide-income state
+  resident (CA/NY domicile or statutory-day tests) with no state-level foreign tax credit. Wires a
+  first slice of the previously-unused `state_residency` Layer 1 section (Part C) into a finding —
+  the full day-count/statutory engine and Monitor state-drill map (Part D #7) are still open.
+- **CFC / Form 5471 finding was overclaiming** — it read "computes the GILTI / Subpart F inclusion
+  ... numbers already worked out," but no §951A/tested-income/QBAI computation exists anywhere in
+  `computation.js`; the entity flow-through model (Part F) hasn't landed. Reworded to flag the
+  required filing honestly without implying a liability number that isn't actually computed —
+  important because this tool is read by tax professionals who will trust a stated "computed" figure.
+- **ISO → AMT preference wiring** (Part D #5, half of it) — `equity_compensation.iso_exercises[]`
+  carries its own `amt_preference_spread_usd` (FMV − strike × shares) but `normalize.js` never read
+  it, so a real AMT trigger was silently dropped. Now summed into `deductions.us.amtPrefs`.
+- **Equity-comp cross-border sourcing** (`equity_comp_sourcing`) — India's ESOP perquisite
+  (s.17(2)(vi)) and the US's RSU-vest/NSO-exercise ordinary income are usually the same multi-year
+  award split by country; when both fire in the same year, neither side applies a workday-based
+  Art. 15/16 allocation, so the same tranche can be fully taxed twice. Flags it; the day-count
+  allocation itself is still a manual step (needs vest-date-by-vest-date workday data Layer 1
+  doesn't collect).
+- **Foreign gifts / trusts** (`foreign_gift_3520`, `covered_expat_gift_tax`) — `foreign_gifts_and_trusts`
+  was collected by Layer 1 but completely unused; Form 3520's *no-tax-but-25%-penalty* trap (gifts
+  >$100k, foreign trust beneficiary) and the §2801 covered-expatriate transfer tax (an actual tax on
+  the US recipient, not just an information return) were both silent. Also widened the `form_3520`
+  document trigger, which previously only fired off PPF/EPF.
+- **Permanent establishment survives the tie-breaker** (`pe_article7`) — `dtaa.has_permanent_establishment_in_india`
+  was read into the model but never consumed anywhere. Article 7 gives India a taxing right on
+  PE-attributable business profits regardless of who wins the Article 4 tie-breaker; this is a real,
+  previously-silent gap — confirmed against the demo profile fixtures, where one profile (~$964k of
+  Indian business income behind a PE) produced zero PE-related findings before this fix.
+- **Chapter XII-A (s.115H/115C) election** (`chapter_xiia_not_computed`) — `compliance_docs.chapter_xiia_elected`
+  was collected but ignored; when elected, India tax should be computed under this concessional
+  flat-rate regime instead of slab rates, which the engine doesn't do. Flags the honesty gap rather
+  than silently returning a wrong number.
+
+- **NRA / Form 1040-NR** (`nra_fdap_flat_rate`, `nra_w8ben_missing`, `firpta`) — `nra_specific` was
+  read only for a `files_1040nr` flag; the ECI/FDAP split, treaty-rate claims, W-8BEN, and FIRPTA
+  withholding were all collected and ignored. Confirmed as a real, previously-silent gap: one demo
+  profile has genuine 1040-NR FDAP income and produced zero NRA-related findings before this fix.
+- **Actual NRA tax computation** — went further than a flag: added `computeNraTax()` in
+  `computation.js`, dispatched from `computeUsTax()` whenever `files_form_1040nr` is set without a
+  §6013(g)/(h) election. It taxes ECI at graduated brackets (itemized deductions only — NRAs
+  generally can't claim the standard deduction) and FDAP flat at the claimed treaty rate / 30%
+  statutory default (Schedule NEC), using Layer 1's own pre-classified `us_eci_income_usd` /
+  `us_fdap_income_usd`. Also had to guard `computeFtc()`: the `: 1` fallback in the creditable-fraction
+  math (correct for the ordinary case) was silently presenting an NRA's full India tax as an
+  unrelieved US-side FTC shortfall, when in fact the US never taxes an NRA's foreign-source income at
+  all — caught this while building the fix, not before. `taxComputation.us` gets a dedicated
+  ECI/FDAP-split breakdown instead of the resident-style row set when `isNra` is true.
+
+- **Cross-form data-integrity check** (`schedule_fa_inconsistent`) — a different category of gap from
+  everything else in this audit: not a missing tax-law finding, but a missing CONSISTENCY check
+  between the two independently-filled Layer 1 forms. When India's own form says "no foreign assets"
+  while the US form shows US-source income/accounts for the same India-ROR taxpayer, the two forms
+  are flatly contradicting each other — nothing today compared them against one another before this.
+
+**Still open in conflict detection** (tracked here, not yet built): entity-level dual residency for
+an Indian company under POEM vs. US management-and-control, a numeric GILTI/Subpart F computation
+once Part F lands (blocked on Layer 1 not collecting tested income/E&P/QBAI), Chapter XII-A actual
+flat-rate recomputation (blocked on Layer 1 not tagging which income is a "specified foreign-exchange
+asset"), and the equity-comp sourcing day-count allocation (blocked on Layer 1 not collecting
+per-tranche workday-in-country data) — all three remaining items need new Layer 1 fields, not just
+engine wiring, so they stay flagged rather than computed.
 
 ---
 
