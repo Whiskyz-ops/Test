@@ -1,11 +1,17 @@
 "use client";
+import { useCallback, useState } from "react";
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from "react-simple-maps";
+import { ZoomIn, ZoomOut } from "lucide-react";
 import worldTopo from "world-atlas/countries-110m.json";
 import { STATUS_META, PAL } from "@/lib/logic";
 
 // world-atlas country names we care about + label anchor coords [lon,lat]
 const HAS_DATA = { India: "IN", "United States of America": "US" };
 const COORD = { India: [80, 22], "United States of America": [-98, 40] };
+const MAP_CENTER = [12, 8];
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 4;
+const ZOOM_STEP = 1.5;
 
 // Country fills read as jewel-tone washes, not neon blocks — full-saturation
 // color is reserved for the small marker dot (an accent mark), per the "never
@@ -23,9 +29,10 @@ const HOVER_WASH = {
   none: "rgba(34,197,94,0.78)"
 };
 
-// A floating risk tag anchored to a tracked country — a neutral callout with a
-// single colored dot carrying identity, not a colored badge (text never wears
-// the status color; the dot beside it does the identifying).
+// A floating risk tag anchored to a tracked country — a frosted "liquid glass"
+// callout (blurred backdrop + translucent tint + soft top sheen) with a single
+// colored dot carrying identity, not a colored badge (text never wears the
+// status color; the dot beside it does the identifying).
 function RiskTag({ name, status }) {
   const c = COORD[name];
   const m = STATUS_META[status];
@@ -35,24 +42,58 @@ function RiskTag({ name, status }) {
     <Marker coordinates={c}>
       <circle r={3} fill={m.color} stroke="#05070e" strokeWidth={1} />
       <g transform="translate(7,-6)">
-        <rect rx={3} ry={3} width={w} height={15} fill="rgba(5,7,14,0.88)" stroke="rgba(255,255,255,0.16)" strokeWidth={0.6} />
+        <rect rx={4} ry={4} width={w} height={15}
+          fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.32)" strokeWidth={0.7}
+          style={{
+            backdropFilter: "blur(6px) saturate(160%)",
+            WebkitBackdropFilter: "blur(6px) saturate(160%)",
+            filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.45))"
+          }} />
+        <rect x={0.6} y={0.8} rx={3.4} ry={3.4} width={w - 1.2} height={6.5}
+          fill="rgba(255,255,255,0.16)" style={{ pointerEvents: "none" }} />
         <text x={6} y={10.5} fontSize={8} fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-          letterSpacing={0.4} fill="#f3f4f8" style={{ textTransform: "uppercase" }}>{m.label}</text>
+          letterSpacing={0.4} fill="#ffffff" style={{ textTransform: "uppercase", textShadow: "0 1px 2px rgba(0,0,0,0.55)" }}>{m.label}</text>
       </g>
     </Marker>
   );
 }
 
 export default function WorldMap({ statusByName, onSelectCountry }) {
+  const [zoom, setZoom] = useState(MIN_ZOOM);
+  const [center, setCenter] = useState(MAP_CENTER);
+
+  const zoomIn = useCallback(() => setZoom((z) => Math.min(MAX_ZOOM, +(z * ZOOM_STEP).toFixed(3))), []);
+  const zoomOut = useCallback(() => setZoom((z) => Math.max(MIN_ZOOM, +(z / ZOOM_STEP).toFixed(3))), []);
+  // Drag-to-pan stays on; only the scroll-wheel zoom gesture is disabled, so
+  // hovering the map to scroll the page no longer gets hijacked into a zoom.
+  const filterZoomEvent = useCallback((event) => event.type !== "wheel", []);
+
   return (
-    <div className="w-full">
+    <div className="w-full relative">
+      <div className="absolute top-2 right-2 z-10 flex flex-col gap-1.5">
+        <button type="button" onClick={zoomIn} disabled={zoom >= MAX_ZOOM} aria-label="Zoom in"
+          className="w-8 h-8 rounded-xl bg-surface border border-line text-muted hover:text-head hover:border-accent/40 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center shadow-card transition-colors">
+          <ZoomIn size={14} strokeWidth={2} />
+        </button>
+        <button type="button" onClick={zoomOut} disabled={zoom <= MIN_ZOOM} aria-label="Zoom out"
+          className="w-8 h-8 rounded-xl bg-surface border border-line text-muted hover:text-head hover:border-accent/40 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center shadow-card transition-colors">
+          <ZoomOut size={14} strokeWidth={2} />
+        </button>
+      </div>
       <ComposableMap
         projection="geoEquirectangular"
         width={900} height={420}
         projectionConfig={{ scale: 145 }}
         style={{ width: "100%", height: "auto" }}
       >
-        <ZoomableGroup center={[12, 8]} zoom={1} minZoom={1} maxZoom={4}>
+        <ZoomableGroup
+          center={center}
+          zoom={zoom}
+          minZoom={MIN_ZOOM}
+          maxZoom={MAX_ZOOM}
+          filterZoomEvent={filterZoomEvent}
+          onMoveEnd={({ coordinates, zoom: z }) => { setCenter(coordinates); setZoom(z); }}
+        >
           <Geographies geography={worldTopo}>
             {({ geographies }) =>
               geographies.filter((geo) => geo.properties.name !== "Antarctica").map((geo) => {
