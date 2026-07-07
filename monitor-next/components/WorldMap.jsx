@@ -7,19 +7,37 @@ import { STATUS_META, PAL } from "@/lib/logic";
 const HAS_DATA = { India: "IN", "United States of America": "US" };
 const COORD = { India: [80, 22], "United States of America": [-98, 40] };
 
-// A floating risk tag anchored to a tracked country — echoes the WISING globe.
+// Country fills read as jewel-tone washes, not neon blocks — full-saturation
+// color is reserved for the small marker dot (an accent mark), per the "never
+// a saturated block on a large shape" rule.
+const FILL_WASH = {
+  exposed: "rgba(239,68,68,0.62)",
+  approaching: "rgba(245,166,35,0.62)",
+  nexus: "rgba(59,130,246,0.62)",
+  none: "rgba(34,197,94,0.62)"
+};
+const HOVER_WASH = {
+  exposed: "rgba(239,68,68,0.78)",
+  approaching: "rgba(245,166,35,0.78)",
+  nexus: "rgba(59,130,246,0.78)",
+  none: "rgba(34,197,94,0.78)"
+};
+
+// A floating risk tag anchored to a tracked country — a neutral callout with a
+// single colored dot carrying identity, not a colored badge (text never wears
+// the status color; the dot beside it does the identifying).
 function RiskTag({ name, status }) {
   const c = COORD[name];
   const m = STATUS_META[status];
   if (!c || !m) return null;
+  const w = m.label.length * 5.4 + 12;
   return (
     <Marker coordinates={c}>
-      <circle r={3.2} fill={m.color} stroke="#05070e" strokeWidth={1} style={{ filter: `drop-shadow(0 0 5px ${m.color})` }} />
+      <circle r={3} fill={m.color} stroke="#05070e" strokeWidth={1} />
       <g transform="translate(7,-6)">
-        <rect rx={3} ry={3} width={m.label.length * 5.4 + 12} height={15}
-          fill={m.color} fillOpacity={0.16} stroke={m.color} strokeOpacity={0.55} strokeWidth={0.6} />
+        <rect rx={3} ry={3} width={w} height={15} fill="rgba(5,7,14,0.88)" stroke="rgba(255,255,255,0.16)" strokeWidth={0.6} />
         <text x={6} y={10.5} fontSize={8} fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-          letterSpacing={0.4} fill={m.text} style={{ textTransform: "uppercase" }}>{m.label}</text>
+          letterSpacing={0.4} fill="#f3f4f8" style={{ textTransform: "uppercase" }}>{m.label}</text>
       </g>
     </Marker>
   );
@@ -37,20 +55,21 @@ export default function WorldMap({ statusByName, onSelectCountry }) {
         <ZoomableGroup center={[12, 8]} zoom={1} minZoom={1} maxZoom={4}>
           <Geographies geography={worldTopo}>
             {({ geographies }) =>
-              geographies.map((geo) => {
+              geographies.filter((geo) => geo.properties.name !== "Antarctica").map((geo) => {
                 const name = geo.properties.name;
                 const status = statusByName[name];
                 const hasData = !!HAS_DATA[name];
-                const fill = status ? STATUS_META[status].color : PAL.navy;
+                const fill = status ? FILL_WASH[status] : PAL.navy;
+                const hoverFill = status ? HOVER_WASH[status] : "#242a44";
                 return (
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
                     onClick={() => hasData && onSelectCountry && onSelectCountry(HAS_DATA[name])}
                     style={{
-                      default: { fill, stroke: "rgba(255,255,255,0.12)", strokeWidth: 0.4, outline: "none", cursor: hasData ? "pointer" : "default", filter: status ? `drop-shadow(0 0 6px ${fill})` : "none" },
-                      hover: { fill: hasData ? fill : "#242a44", stroke: "rgba(255,255,255,0.25)", strokeWidth: 0.5, outline: "none", filter: status ? `drop-shadow(0 0 10px ${fill})` : "none" },
-                      pressed: { fill, outline: "none" }
+                      default: { fill, stroke: "rgba(255,255,255,0.14)", strokeWidth: 0.5, outline: "none", cursor: hasData ? "pointer" : "default" },
+                      hover: { fill: hoverFill, stroke: "rgba(255,255,255,0.25)", strokeWidth: 0.6, outline: "none" },
+                      pressed: { fill: hoverFill, outline: "none" }
                     }}
                   >
                     <title>{name}{status ? ` — ${STATUS_META[status].label}` : ""}</title>
