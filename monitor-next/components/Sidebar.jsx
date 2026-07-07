@@ -19,19 +19,19 @@ export default function Sidebar({ active = "monitor", onNavigate, badges = {} })
     <aside className="w-60 shrink-0 h-screen sticky top-0 glass-black border-r border-inkline flex flex-col text-white z-20">
       {/* Logo — silver-chrome W↗ mark (WISING brand) + Manrope wordmark */}
       <div className="px-5 py-5 flex items-center gap-3">
-        <svg width="36" height="36" viewBox="0 0 40 40" fill="none" className="shrink-0">
+        <svg width="38" height="32" viewBox="0 0 52 44" fill="none" className="shrink-0">
           <defs>
-            <linearGradient id="chrome" x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+            <linearGradient id="chrome" x1="4" y1="6" x2="48" y2="34" gradientUnits="userSpaceOnUse">
               <stop offset="0" stopColor="#f6f7f9" />
-              <stop offset="0.34" stopColor="#b7bcc6" />
-              <stop offset="0.55" stopColor="#eef0f3" />
-              <stop offset="0.78" stopColor="#8f95a1" />
+              <stop offset="0.3" stopColor="#aeb3bd" />
+              <stop offset="0.5" stopColor="#f0f1f4" />
+              <stop offset="0.72" stopColor="#8f95a1" />
               <stop offset="1" stopColor="#d9dce2" />
             </linearGradient>
           </defs>
-          <path d="M5 11 L11 30 L20 17 L27 30 L33 13" stroke="url(#chrome)" strokeWidth="4.4" strokeLinejoin="round" strokeLinecap="round" />
-          <path d="M33 13 L37.5 6" stroke="url(#chrome)" strokeWidth="4.4" strokeLinecap="round" />
-          <path d="M31.5 7.5 L37.5 6 L36.5 12.5" stroke="url(#chrome)" strokeWidth="3.2" strokeLinejoin="round" strokeLinecap="round" fill="none" />
+          <path d="M6 12 L15 35 L24 20 L31 35 L47 13" stroke="url(#chrome)" strokeWidth="5.2" strokeLinejoin="round" strokeLinecap="round" />
+          <path d="M47 13 L47 22" stroke="url(#chrome)" strokeWidth="5.2" strokeLinecap="round" />
+          <path d="M47 13 L37.5 13" stroke="url(#chrome)" strokeWidth="5.2" strokeLinecap="round" />
         </svg>
         <div>
           <div className="font-sans font-extrabold tracking-[0.22em] text-[15px] leading-none text-white">WISING</div>
