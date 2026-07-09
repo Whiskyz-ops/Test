@@ -22,6 +22,30 @@
     return "$" + Math.round(n).toLocaleString("en-US");
   }
 
+  /* Reconstructs WHICH Article 4 test actually decided the tie-break (the
+   * winner alone doesn't say whether it was permanent home, centre of vital
+   * interests, habitual abode, or nationality) — mirrors the same step
+   * sequence as Layer 1's own evaluateTieBreaker() so the reasoning shown
+   * here always matches what the taxpayer walked through. Returns null when
+   * no tie-break data is on file (e.g. the winner came from the US Layer 1
+   * form instead, which doesn't record these steps). */
+  function describeTieBreak(t) {
+    var home = t.tieBreakHome, cvi = t.tieBreakCvi, abode = t.tieBreakAbode, nat = t.tieBreakNationality;
+    if (home === "india") return { article: "Art. 4(2)(a)", reason: "permanent home is only in India" };
+    if (home === "us") return { article: "Art. 4(2)(a)", reason: "permanent home is only in the US" };
+    if (home !== "both" && home !== "neither") return null;
+    if (cvi === "india") return { article: "Art. 4(2)(a)", reason: "centre of vital interests is closer to India" };
+    if (cvi === "us") return { article: "Art. 4(2)(a)", reason: "centre of vital interests is closer to the US" };
+    if (cvi !== "tie") return null;
+    if (abode === "india") return { article: "Art. 4(2)(b)", reason: "habitual abode is in India" };
+    if (abode === "us") return { article: "Art. 4(2)(b)", reason: "habitual abode is in the US" };
+    if (abode !== "tie") return null;
+    if (nat === "india") return { article: "Art. 4(2)(c)", reason: "Indian national" };
+    if (nat === "us") return { article: "Art. 4(2)(c)", reason: "US national" };
+    if (nat === "tie") return { article: "Art. 4(3)", reason: "neither permanent home, vital interests, abode nor nationality broke the tie", mapRequired: true };
+    return null;
+  }
+
   /* ------------------------------------------------------------------------
    * detectConflicts — the rule-book. Order roughly mirrors severity, but the
    * final list is sorted by severity weight at the end.
@@ -49,27 +73,49 @@
       var tbWinner = model.treaty.treatyResidence !== "none" ? model.treaty.treatyResidence
                    : (model.treaty.usTreatyResidence !== "none" ? model.treaty.usTreatyResidence : null);
       var usTag = res.us.isCitizen ? "citizen" : model.residency.us.hasGreenCard ? "green card" : "SPT met";
+      var tb = describeTieBreak(model.treaty);
       if (!tbWinner) {
-        add("dual_residency", S.CRITICAL, C.TREATY,
-          "Dual tax residency — Article 4 tie-breaker not yet run",
-          "The taxpayer is resident in BOTH India (" + (res.india.status || "resident") + ") and the US (" + usTag +
-          ") for an overlapping period, and the Layer 1 Article 4 tie-breaker has not been completed. Until it is, both countries assert worldwide taxing rights and only partial FTC relief is available.",
-          "Complete the Layer 1 tie-breaker wizard (permanent home → centre of vital interests → habitual abode → nationality). WISING records the winner and produces Form 8833 (US) + the TRC / Form 10F support (India) for the loser side.",
-          computed.doubleTax.totalDoublyTaxedUsd, ["DTAA Art. 4", "Form 8833", "TRC", "Form 10F"]);
+        if (tb && tb.mapRequired) {
+          // All four mechanical tests (home, CVI, abode, nationality) were
+          // exhausted on the Layer 1 wizard and none broke the tie — this
+          // isn't an incomplete form, it's a genuine Art. 4(3) case that
+          // needs the competent authorities (IRS/CBDT), not more form fields.
+          add("dual_residency", S.CRITICAL, C.TREATY,
+            "Dual tax residency — Article 4(3) Mutual Agreement Procedure required",
+            "The taxpayer is resident in BOTH India (" + (res.india.status || "resident") + ") and the US (" + usTag +
+            "). The Layer 1 tie-breaker wizard was completed through all four tests — permanent home, centre of vital " +
+            "interests, habitual abode, and nationality — and " + tb.reason + ". Article 4(3) hands this to the " +
+            "competent authorities (CBDT and the IRS) for a Mutual Agreement Procedure; it cannot be self-resolved.",
+            "File a MAP request (competent authority assistance) with the IRS and/or CBDT rather than re-running the " +
+            "wizard — the mechanical tie-breaker has already been exhausted. Both countries continue asserting worldwide " +
+            "taxing rights and only partial FTC relief is available until MAP concludes.",
+            computed.doubleTax.totalDoublyTaxedUsd, ["DTAA Art. 4(3)", "MAP", "Form 8833", "TRC", "Form 10F"]);
+        } else {
+          add("dual_residency", S.CRITICAL, C.TREATY,
+            "Dual tax residency — Article 4 tie-breaker not yet run",
+            "The taxpayer is resident in BOTH India (" + (res.india.status || "resident") + ") and the US (" + usTag +
+            ") for an overlapping period, and the Layer 1 Article 4 tie-breaker has not been completed. Until it is, both countries assert worldwide taxing rights and only partial FTC relief is available.",
+            "Complete the Layer 1 tie-breaker wizard (permanent home → centre of vital interests → habitual abode → nationality). WISING records the winner and produces Form 8833 (US) + the TRC / Form 10F support (India) for the loser side.",
+            computed.doubleTax.totalDoublyTaxedUsd, ["DTAA Art. 4", "Form 8833", "TRC", "Form 10F"]);
+        }
       } else {
         add("dual_residency_resolved", S.INFO, C.TREATY,
           "Dual residency resolved under DTAA Article 4 → " + String(tbWinner).toUpperCase(),
           "Both India and the US met residency, and the Layer 1 Article 4 tie-breaker resolves treaty residence to " +
-          String(tbWinner).toUpperCase() + " for the overlapping period. WISING has applied this to the tax and FTC computation below; the loser jurisdiction is taxed on a source basis.",
+          String(tbWinner).toUpperCase() + " for the overlapping period" +
+          (tb ? " (" + tb.article + ": " + tb.reason + ")" : "") +
+          ". WISING has applied this to the tax and FTC computation below; the loser jurisdiction is taxed on a source basis.",
           "Keep " + (tbWinner === "india" ? "TRC + Form 10F (India) and Form 8833 (US)" : "Form 8833 (US) and TRC + Form 10F (India)") + " on file to support the position.",
           0, ["DTAA Art. 4", tbWinner === "india" ? "Form 10F" : "Form 8833"]);
       }
     }
 
     // -- 3. TREATY BENEFIT CLAIMED WITHOUT TRC / FORM 10F -------------------
+    var treatyElections = model.treaty.treatyElections || [];
     var claimsTreaty = model.treaty.treatyResidence !== "none" ||
                        model.treaty.usTreatyResidence !== "none" ||
-                       model.treaty.dtaaForcedNr || model.treaty.files1040nr;
+                       model.treaty.dtaaForcedNr || model.treaty.files1040nr ||
+                       treatyElections.length > 0;
     if (claimsTreaty && (!model.treaty.trcStatus || !model.treaty.form10fFiled)) {
       var missing = [];
       if (!model.treaty.trcStatus) missing.push("TRC (IRS Form 6166)");
@@ -80,6 +126,29 @@
         " is not on file. Indian tax authorities will deny treaty relief u/s 90(4) without a valid TRC, and Form 10F is mandatory u/r 21AB.",
         "Obtain " + missing.join(" and ") + " before filing. For US residents, request Form 6166 from the IRS (Form 8802 application) well in advance — it can take 6–8 weeks.",
         0, ["s.90(4)", "Rule 21AB", "Form 6166"]);
+    }
+
+    // -- 3b. DTAA TREATY RATE ELECTIONS ON FILE (per income stream) ---------
+    // Layer 1 lets the taxpayer claim a specific DTAA article/rate on
+    // India-source interest, royalty or FTS (e.g. Art. 11(2)(b) 15% instead
+    // of the ~20%+cess domestic s.115A withholding) — previously captured but
+    // never read anywhere in the engine, so it was invisible on this page and
+    // never even factored into the treaty-documentation check above.
+    if (treatyElections.length > 0) {
+      var electionParts = treatyElections
+        .filter(function (e) { return e && e.income_type; })
+        .map(function (e) {
+          var pct = e.elected_rate != null ? Math.round(e.elected_rate * 100) + "%" : "unset rate";
+          return e.income_type + " @ " + pct + (e.treaty_article ? " (" + e.treaty_article + ")" : "");
+        });
+      add("dtaa_treaty_elections", S.INFO, C.TREATY,
+        electionParts.length + " DTAA treaty rate election(s) on file",
+        "Layer 1 records a claimed treaty rate on the following India-source income stream(s), instead of the domestic " +
+        "s.115A withholding rate: " + electionParts.join("; ") + ". WISING does not yet recompute India withholding tax " +
+        "under these elected rates (see Part H) — this finding only surfaces what's on file so the position isn't invisible.",
+        "Confirm each elected rate against the current India-US DTAA text for that article, and that TRC/Form 10F support " +
+        "(see the finding above, if triggered) actually covers these specific income streams, not just the general treaty position.",
+        0, ["DTAA treaty election", "s.115A", "s.90(2)"]);
     }
 
     // -- 4. FTC RECONCILIATION GAP (residual double tax) -------------------

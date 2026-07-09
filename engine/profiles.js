@@ -43,7 +43,14 @@
     india: {
       profile: { full_name: "Aarav Sharma", entity_type: "individual", date_of_birth: "1988-07-15", pan: "ABCPS1234K", tax_regime: "NEW" },
       residency_detail: { days_in_india_current_year: 183, final_india_residency_status: "ROR" },
-      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "us", trc_status: true, has_permanent_establishment_in_india: false, treaty_elections: [], dtaa_forced_nr: false },
+      // Treaty-resident of the US for the overlap period, so his NRO interest
+      // is claimed at the DTAA rate (Art. 11(2)(b)) instead of the domestic
+      // s.115A withholding rate — a real, easy-to-miss claim (dtaa_treaty_elections).
+      // Tie-break wizard walked through: permanent home was ambiguous (kept a
+      // place in both countries), so it fell to centre of vital interests,
+      // which landed on the US — the actual reasoning behind "us" winning,
+      // not just the bare verdict.
+      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "us", trc_status: true, has_permanent_establishment_in_india: false, treaty_elections: [{ income_type: "interest", elected_rate: 0.15, treaty_article: "Art 11(2)(b)" }], dtaa_forced_nr: false, tb_home: "both", tb_cvi: "us" },
       compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true }, chapter_xiia_elected: false },
       bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", peak_balance_inr: 3200000 }, { bank_name: "ICICI Bank", account_type: "nro", peak_balance_inr: 1500000 }],
       property: { has_indian_property_transaction: true, properties: [{ address: "Flat 12B, Pune", property_type: "Residential", annual_value_inr: 420000, gross_rent_received_inr: 600000, municipal_taxes_paid_inr: 30000 }] },

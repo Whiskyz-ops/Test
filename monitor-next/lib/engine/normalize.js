@@ -555,7 +555,21 @@
         usTreatyResidence: safe(us, "us_residency_detail.dtaa_treaty_residence", "none"),
         files1040nr: safe(us, "nra_specific.files_form_1040nr", false) === true,
         form8833Implied: safe(us, "us_residency_detail.dtaa_treaty_residence", "none") !== "none",
-        chapterXiiaElected: safe(india, "compliance_docs.chapter_xiia_elected", false) === true
+        chapterXiiaElected: safe(india, "compliance_docs.chapter_xiia_elected", false) === true,
+        // Article 4 tie-breaker raw answers (permanent home -> centre of vital
+        // interests -> habitual abode -> nationality). Layer 1's own wizard
+        // (evaluateTieBreaker() in layer1_india.html) records these as it asks
+        // each question in sequence; the engine previously only ever read the
+        // final winner (treatyResidence above) and dropped WHICH step decided
+        // it — surfaced via describeTieBreak() in conflicts.js.
+        tieBreakHome: safe(india, "dtaa.tb_home", null),
+        tieBreakCvi: safe(india, "dtaa.tb_cvi", null),
+        tieBreakAbode: safe(india, "dtaa.tb_abode", null),
+        tieBreakNationality: safe(india, "dtaa.tb_nationality", null),
+        // Per-income-stream treaty elections (e.g. Art 11(2)(b) 15% on
+        // interest, Art 12(2)(a)(ii) 15% on royalty/FTS) — captured by Layer 1
+        // but never read anywhere in the engine before this.
+        treatyElections: safe(india, "dtaa.treaty_elections", []) || []
       },
       equityComp: aggregateEquityComp(annual.domestic_income, us),
       // NRA-specific (Form 1040-NR) facts. Layer 1 already splits FDAP vs ECI

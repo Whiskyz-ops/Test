@@ -230,6 +230,39 @@ withdrawal, deemed dividend on buyback) which are collected but still unused.
 
 ---
 
+## Part D.3 — DTAA visibility pass (third round)
+
+The user audited the demo profiles and, separately, flagged that the DTAA aspect of the product
+"is not visible at all." Investigated before touching code and found two concrete, previously-unread
+Layer 1 fields:
+
+- **Article 4 tie-breaker reasoning** — Layer 1's `evaluateTieBreaker()` walks permanent home →
+  centre of vital interests → habitual abode → nationality and records each step's raw answer
+  (`dtaa.tb_home` / `tb_cvi` / `tb_abode` / `tb_nationality`), but the engine only ever read the final
+  winner (`dtaa_treaty_residence`). Added `describeTieBreak()` in `conflicts.js`, which mirrors Layer
+  1's own step sequence, so `dual_residency_resolved` now states WHICH test decided it (e.g. "Art.
+  4(2)(a): centre of vital interests is closer to the US"), not just the verdict. Also added a
+  distinct MAP-required variant of `dual_residency` (same finding id, different text) for the genuine
+  Art. 4(3) case where all four tests come back "tie" — that's a competent-authority procedure, not
+  an incomplete form, and conflating the two would send a tax professional back to re-run a wizard
+  that's already been exhausted.
+- **Per-income-stream treaty elections** — `dtaa.treaty_elections[]` (e.g. claiming Art. 11(2)(b) 15%
+  on India-source interest instead of the ~20%+cess s.115A domestic withholding) was captured by Layer
+  1 and had zero references anywhere in the engine. Now read into `model.treaty.treatyElections`,
+  folded into the `treaty_docs_missing` trigger condition (claiming a per-stream treaty rate is itself
+  a treaty claim, same as claiming treaty residence), and surfaced as its own `dtaa_treaty_elections`
+  finding listing each stream/article/rate on file.
+- **Not done in this pass, flagged separately**: an actual s.115A-vs-treaty-rate computation (i.e.
+  recomputing India withholding tax under the elected rate) — the new finding surfaces what's claimed,
+  it doesn't yet validate the rate against the treaty text or recompute tax under it.
+- **Also found during this audit, not yet fixed** (user chose DTAA visibility first): HUF currently
+  falls through to the individual slab computation path in `computeIndiaTax()` and incorrectly
+  receives the §87A rebate, which is restricted to a "resident individual" and not available to an
+  HUF. Real bug, same underlying "residency consequences aren't fully entity-aware" concern the user
+  raised, but out of scope for this pass.
+
+---
+
 ## Part E — What "comprehensive" wiring involves
 
 - **`normalize.js`:** extend to read every section above into the unified model
