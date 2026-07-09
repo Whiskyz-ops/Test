@@ -22,6 +22,10 @@
     return "$" + Math.round(n).toLocaleString("en-US");
   }
 
+  function inr(n) {
+    return "₹" + Math.round(n).toLocaleString("en-IN");
+  }
+
   /* Reconstructs WHICH Article 4 test actually decided the tie-break (the
    * winner alone doesn't say whether it was permanent home, centre of vital
    * interests, habitual abode, or nationality) — mirrors the same step
@@ -95,7 +99,7 @@
             "Dual tax residency — Article 4 tie-breaker not yet run",
             "The taxpayer is resident in BOTH India (" + (res.india.status || "resident") + ") and the US (" + usTag +
             ") for an overlapping period, and the Layer 1 Article 4 tie-breaker has not been completed. Until it is, both countries assert worldwide taxing rights and only partial FTC relief is available.",
-            "Complete the Layer 1 tie-breaker wizard (permanent home → centre of vital interests → habitual abode → nationality). WISING records the winner and produces Form 8833 (US) + the TRC / Form 10F support (India) for the loser side.",
+            "Complete the Layer 1 tie-breaker wizard (permanent home → centre of vital interests → habitual abode → nationality). WISING will then flag Form 8833 (US) and the TRC / Form 10F requirement (India) on the filing checklist for the loser side — actually preparing and filing those remains a manual step.",
             computed.doubleTax.totalDoublyTaxedUsd, ["DTAA Art. 4", "Form 8833", "TRC", "Form 10F"]);
         }
       } else {
@@ -200,7 +204,11 @@
         "Indian tax paid (" + usd(ftc.us.indiaTaxPaidUsd) + ") exceeds the US FTC limitation (" +
         usd(ftc.us.ftcLimitUsd) + ") for this year. " + usd(ftc.us.residualDoubleTaxUsd) +
         " of Indian tax cannot be credited currently and would otherwise be double-taxed.",
-        "WISING books the excess credit (" + usd(ftc.us.carryoverUsd) + ") to the §904(c) carryover schedule (back 1 / forward 10) and tests treaty re-sourcing to lift the limitation — your CA/CPA receives the completed Form 1116 workpaper with the carryover tracked year over year.",
+        usd(ftc.us.carryoverUsd) + " is eligible to carry over under §904(c) (back 1 year / forward 10), but WISING is a " +
+        "single-year snapshot — it does NOT persist this carryover across tax years or track it for you. Record " +
+        usd(ftc.us.carryoverUsd) + " on Form 1116 Schedule B this year, and re-enter it as prior-year carryover when you " +
+        "run next year's numbers. Also check whether treaty re-sourcing (Art. 25) could reclassify some income to lift " +
+        "the limitation — WISING does not test this automatically.",
         ftc.us.residualDoubleTaxUsd, ["Form 1116", "§904(c)"]);
     } else if (ftc.us.indiaTaxPaidUsd > 0 && ftc.us.ftcAllowedUsd > 0) {
       add("ftc_available", S.INFO, C.CREDIT,
@@ -236,10 +244,11 @@
     // -- 4c. AMT BITES ------------------------------------------------------
     if (computed.usTax && computed.usTax.amtUsd > 0) {
       add("amt_applies", S.WARNING, C.CREDIT,
-        "Alternative Minimum Tax applies (+" + usd(computed.usTax.amtUsd) + ")",
-        "The tentative minimum tax exceeds the regular tax, so AMT of " + usd(computed.usTax.amtUsd) +
-        " is added. Common drivers: a large standard-deduction / SALT add-back, private-activity-bond interest, or an ISO exercise.",
-        "WISING computes the parallel AMT (Form 6251). Review ISO exercise timing and the state-tax add-back; AMT paid on deferral items can generate a Minimum Tax Credit (Form 8801) usable in later years.",
+        "US Alternative Minimum Tax applies (+" + usd(computed.usTax.amtUsd) + ")",
+        "This is a US-only tax (IRC §55) — India has no AMT-equivalent regime. The US tentative minimum tax exceeds the " +
+        "regular US tax, so an additional " + usd(computed.usTax.amtUsd) +
+        " is added to the US liability. Common drivers: a large standard-deduction / SALT add-back, private-activity-bond interest, or an ISO exercise.",
+        "WISING computes the parallel AMT (Form 6251) and includes it in the US tax total above. Review ISO exercise timing and the state-tax add-back; AMT paid on deferral items can generate a Minimum Tax Credit (Form 8801) usable in later years.",
         computed.usTax.amtUsd, ["§55", "Form 6251", "Form 8801"]);
     }
 
@@ -409,24 +418,60 @@
         0, ["s.115BBE"]);
     }
 
-    // -- 4g4. CARRY-FORWARD LOSSES ON FILE, NOT APPLIED ----------------------
-    // Collected but not yet set off against current-year income anywhere in
-    // the computation — an unset-off loss directly overstates this year's
-    // taxable income and, downstream, the FTC/double-tax headline figures.
+    // -- 4g4. CARRY-FORWARD LOSSES — NOW ACTUALLY SET OFF --------------------
+    // WISING sequences the real set-off (see computeLossSetOff in
+    // computation.js) against this year's income under s.71B/72/74/32(2),
+    // using the per-entry eligibility Layer 1 already resolved. This finding
+    // now reports what actually happened — applied vs. still carrying
+    // forward — rather than a blanket "not applied" disclosure. Entity
+    // (company/firm) taxpayers aren't covered (s.72A is a different regime
+    // and lossSetOff isn't computed on that path), hence the guard below.
     var cfl = model.carryForwardLosses || {};
     var cflCount = (cfl.businessLossCfCount || 0) + (cfl.speculativeLossCfCount || 0) +
                    (cfl.stcgLossCfCount || 0) + (cfl.ltcgLossCfCount || 0) + (cfl.housePropertyLossCfCount || 0);
-    if (cfl.hasBroughtForwardLosses === true || cflCount > 0 || cfl.unabsorbedDepreciationCf > 0) {
-      add("carry_forward_losses_not_applied", S.WARNING, C.CREDIT,
-        "Brought-forward losses on file — not yet set off against current-year income",
-        "Prior-year losses are recorded (" + cflCount + " carry-forward entr" + (cflCount === 1 ? "y" : "ies") +
-        (cfl.unabsorbedDepreciationCf > 0 ? " plus unabsorbed depreciation" : "") + "), but the India tax computed above " +
-        "does not apply any set-off against this year's income. An unset-off loss overstates this year's taxable income " +
-        "and, downstream, overstates the FTC shortfall / double-tax figures shown elsewhere on this page.",
-        "Apply the appropriate set-off ordering (business loss → speculative → capital → house property, subject to the " +
-        "8-year carry-forward limit and the same-head/inter-head restrictions) before relying on the India tax and " +
-        "double-tax totals above.",
-        0, ["Loss carry-forward", "s.71", "s.72"]);
+    var lso = computed.indiaTax && computed.indiaTax.lossSetOff;
+    if (lso && (cfl.hasBroughtForwardLosses === true || cflCount > 0 || cfl.unabsorbedDepreciationCf > 0)) {
+      var appliedParts = [];
+      if (lso.used.businessInr > 1) appliedParts.push(inr(lso.used.businessInr) + " business loss vs. business income");
+      if (lso.used.stcgInr > 1) appliedParts.push(inr(lso.used.stcgInr) + " STCG loss vs. STCG");
+      if (lso.used.ltcgFromStcgLossInr > 1) appliedParts.push(inr(lso.used.ltcgFromStcgLossInr) + " STCG loss vs. LTCG");
+      if (lso.used.ltcgInr > 1) appliedParts.push(inr(lso.used.ltcgInr) + " LTCG loss vs. LTCG");
+      if (lso.used.housePropertyInr > 1) appliedParts.push(inr(lso.used.housePropertyInr) + " house-property loss vs. house-property income");
+      if (lso.used.unabsorbedDepreciationInr > 1) appliedParts.push(inr(lso.used.unabsorbedDepreciationInr) + " unabsorbed depreciation");
+
+      var unusedParts = [];
+      if (lso.unused.businessInr > 1) unusedParts.push(inr(lso.unused.businessInr) + " business loss (no business income left to absorb it)");
+      if (lso.unused.stcgInr > 1) unusedParts.push(inr(lso.unused.stcgInr) + " STCG loss");
+      if (lso.unused.ltcgInr > 1) unusedParts.push(inr(lso.unused.ltcgInr) + " LTCG loss");
+      if (lso.unused.housePropertyInr > 1) unusedParts.push(inr(lso.unused.housePropertyInr) + " house-property loss");
+      if (lso.unused.speculativeInr > 1) unusedParts.push(inr(lso.unused.speculativeInr) + " speculative loss (not modeled — see note)");
+      if (lso.unused.unabsorbedDepreciationInr > 1) unusedParts.push(inr(lso.unused.unabsorbedDepreciationInr) + " unabsorbed depreciation");
+
+      if (lso.totalUsedInr > 1 && lso.totalUnusedInr <= 1) {
+        add("carry_forward_losses_not_applied", S.INFO, C.CREDIT,
+          "Brought-forward losses fully set off this year",
+          "All eligible prior-year losses were absorbed against this year's income: " + appliedParts.join("; ") +
+          ". The India tax computed above already reflects this — no residual carry-forward remains.",
+          "Confirm the set-off is reported correctly on Schedule CFL/BFLA of the ITR, matching the ordering above.",
+          0, ["Loss carry-forward", "s.71B", "s.72", "s.74"]);
+      } else if (lso.totalUsedInr > 1) {
+        add("carry_forward_losses_not_applied", S.WARNING, C.CREDIT,
+          "Brought-forward losses partially set off — some still carrying forward",
+          "Applied this year: " + appliedParts.join("; ") + ". Still carrying forward (no matching current-year income " +
+          "to absorb it, or — for speculative loss — not modeled at all): " + unusedParts.join("; ") + ".",
+          "Track the unused amounts on Schedule CFL for future years (subject to the 8-year limit, indefinite for " +
+          "unabsorbed depreciation), and confirm speculative-income figures separately since WISING doesn't model that bucket.",
+          0, ["Loss carry-forward", "s.71B", "s.72", "s.74"]);
+      } else {
+        add("carry_forward_losses_not_applied", S.WARNING, C.CREDIT,
+          "Brought-forward losses on file — none could be set off against this year's income",
+          "Prior-year losses are recorded (" + unusedParts.join("; ") + "), but there is no matching current-year income " +
+          "in the same head(s) to absorb any of it — the India tax computed above is correct as-is; these losses simply " +
+          "carry forward untouched.",
+          "Track these on Schedule CFL for a future year with matching income (subject to the 8-year limit for capital/" +
+          "business losses, indefinite for unabsorbed depreciation).",
+          0, ["Loss carry-forward", "s.71B", "s.72", "s.74"]);
+      }
     }
 
     // -- 4h. NRA (1040-NR): FDAP SHOULD BE FLAT-RATE, NOT GRADUATED ---------
@@ -479,9 +524,9 @@
     // -- 5. FORM 67 TIMING (India FTC procedural) --------------------------
     if (model.income.us.foreignSourceTotal.usd > 0 || model.taxesPaid.us.total.usd > 0) {
       add("form67_required", S.INFO, C.DOCUMENT,
-        "Form 67 — prepared for the Indian FTC claim",
+        "Form 67 — required for the Indian FTC claim",
         "Foreign income / foreign tax is present, so India requires Form 67 (with Schedule FSI and TR) on or before the ITR due date to allow FTC u/s 90/91.",
-        "WISING prepares and e-files Form 67 with Schedules FSI/TR ahead of the ITR due date — it's on the filing checklist, no manual action needed.",
+        "WISING flags Form 67 (with Schedule FSI/TR) as required on the filing checklist, using the FSI/TR figures already computed above — actually preparing and e-filing it on the income-tax portal ahead of the ITR due date is still a manual step.",
         0, ["Form 67", "Rule 128", "Schedule FSI", "Schedule TR"]);
     }
 
@@ -565,7 +610,7 @@
       add("cfc_below_threshold", S.INFO, C.ENTITY,
         "Indian company held below the 10% CFC threshold",
         bizCount + " Indian business interest(s) on file, but Layer 1 shows US ownership below 10% — so Form 5471 Category 5 / GILTI do not apply this year.",
-        "No 5471 action needed at current ownership. WISING re-checks automatically and flags the moment a purchase or reorganization pushes ownership to ≥10%.",
+        "No 5471 action needed at current ownership. WISING recomputes this every time you re-run the numbers, so update the ownership percentage in Layer 1 as soon as a purchase or reorganization changes it — this isn't monitored in the background.",
         0, ["Form 5471", "10% threshold"]);
     }
 
@@ -581,10 +626,14 @@
         "Indian retirement accounts (EPF / PPF / NPS) are taxed differently by the US",
         "India treats EPF, PPF and NPS as tax-free (or lightly taxed). The US does not automatically agree: the IRS can tax " +
         "the interest these accounts earn every year, and may treat PPF like a trust that needs extra forms." +
-        (hasQuantified ? " Layer 1 already records " + quantifiedParts.join(" and ") + " as taxable this year — that " +
-          "amount is US-taxable income the India side treats as tax-free/lightly-taxed, on top of whatever this engine " +
-          "already computes." : ""),
-        "WISING checks whether each account is a treaty-protected pension (Article 20) or a trust, adds the yearly interest to US income where the US requires it, and prepares the FBAR / Form 8938 and any Form 3520 filing — so nothing gets missed.",
+        (hasQuantified ? " Layer 1 already records " + quantifiedParts.join(" and ") + " as taxable this year — WISING " +
+          "has added that amount to the US taxable income and tax figures shown elsewhere on this page (as ordinary " +
+          "foreign-source interest/pension), so it isn't just displayed here without effect." : ""),
+        "WISING does NOT determine whether a specific account is a treaty-protected pension under DTAA Art. 20, or " +
+        "whether PPF should be treated as a foreign trust requiring Form 3520/3520-A — those are legal/factual " +
+        "determinations you need to make yourself; Form 3520 only appears on the filing checklist when the separate " +
+        "PPF/EPF-plus-US-residency trigger fires, not because this specific check ran. Confirm the treaty-protection " +
+        "question and trust classification before relying on the totals above.",
         epfInterestUsd + npsWithdrawalUsd, ["DTAA Art. 20", "Form 3520/3520-A", "FBAR"]);
     }
 

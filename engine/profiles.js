@@ -65,7 +65,10 @@
       // ISO grant → equity_comp_sourcing (both countries taxing the same
       // multi-year award independently, no day-count allocation).
       domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 1800000, esop_perquisite_events: [{ employer_name: "Infosys Ltd", grant_date: "2021-06-01", vesting_or_exercise_date: "2025-06-01", shares: 400, fmv_per_share_inr: 1800, exercise_price_per_share_inr: 300, perquisite_value_inr: 600000 }] }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 420000 }] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: { short_term_15_pct: 250000 } },
-      other_sources: { has_other_sources_income: true, interest_savings_inr: 40000, interest_fd_rd_inr: 120000, dividend_inr: 90000 },
+      // taxable_epf_interest_inr now actually lands in the US income
+      // computation (folded into foreign-source interest), not just this
+      // finding's display text.
+      other_sources: { has_other_sources_income: true, interest_savings_inr: 40000, interest_fd_rd_inr: 120000, dividend_inr: 90000, taxable_epf_interest_inr: 45000 },
       deductions: { s80C: { epf_employee_inr: 150000, ppf_inr: 150000 }, s80CCC_80CCD1: { nps_employee_contribution_inr: 50000 } },
       // A prior-year capital-market loss carried forward, not yet set off
       // against this year's capital gains above.
@@ -451,6 +454,11 @@
       domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 300000 }] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
       other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 350000 },
       deductions: {},
+      // A prior-year business loss and STCG loss on file, but the HUF has no
+      // business income or capital gains THIS year to absorb either against
+      // — demonstrates the "correctly stays fully carried forward, nothing
+      // to set off" branch of the loss set-off computation.
+      carry_forward_losses: { has_brought_forward_losses: true, business_loss_cf: [{ assessment_year: "AY2023-24", amount_inr: 500000 }], stcg_loss_cf: [{ assessment_year: "AY2024-25", amount_inr: 200000 }] },
       lrs_outbound: {},
       tax_credits: { tds_already_deducted_inr: 15000 },
       metadata: meta("layer1_india_v5_1", "FY2025-26")

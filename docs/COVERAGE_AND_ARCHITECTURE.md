@@ -293,6 +293,70 @@ flagged a completely separate gap — Layer 1's PAN/Aadhaar-linked toggle had ze
 
 ---
 
+## Part D.5 — Overclaiming audit + real loss set-off (fifth round)
+
+User spot-checked 4 findings against the actual code and found: (1) the AMT finding didn't say which
+country's AMT it was, (2) asked whether NIIT/Medicare exclusion from the FTC base was actually
+verified (it was — see below), (3) said carry-forward losses should be a real computation, not a
+flag, and (4) asked what the retirement-account finding's recommendation text actually meant. Audited
+every `"WISING ..."` claim in `conflicts.js`'s recommendation text against the real implementation and
+found the same overclaiming pattern in several more places.
+
+**Confirmed overclaims, fixed:**
+- `amt_applies` — title/detail didn't say this is a US-only tax (IRC §55, no India equivalent); now
+  explicit.
+- `dual_residency` — said WISING "produces Form 8833" and "TRC/Form 10F support"; it only flags them
+  as required on the filing checklist. Corrected to say so.
+- `ftc_gap` — said WISING "books the excess credit to the §904(c) carryover schedule... tests treaty
+  re-sourcing... tracked year over year"; **none of this exists** — this is a single-year snapshot
+  calculator with no cross-year persistence and no re-sourcing test anywhere in the code. Corrected to
+  state the carryover is *eligible* under §904(c) but must be manually re-entered next year, and that
+  re-sourcing isn't tested automatically.
+- `form67_required` — said WISING "prepares and e-files Form 67... no manual action needed"; there is
+  no e-filing capability in this codebase. Corrected to "flags... as required on the filing checklist."
+- `retirement_mismatch` — said WISING "checks whether each account is a treaty-protected pension
+  (Article 20) or a trust" (no such check exists anywhere) and "adds the yearly interest to US income"
+  (previously **false** — see the real fix below, now true). Corrected the Article 20/trust claim to
+  say plainly that's a determination the user must make themselves.
+- `cfc_below_threshold` — milder overclaim ("re-checks automatically... flags the moment ownership
+  changes" implied background monitoring); corrected to "recomputes every time you re-run the numbers."
+
+**Verified NOT a bug** (user's question 2): `usIncomeTaxUsd`, the base used for the US-side FTC
+limitation, is `ordinaryTax + preferentialTax` only — NIIT, Additional Medicare, SE tax and AMT are all
+deliberately excluded. So the "these surtaxes aren't creditable" finding is consistent with the actual
+FTC computation; there's no double-counting or accidental crediting anywhere.
+
+**Real gap, now fixed**: `taxable_epf_interest_inr` / `taxable_nps_withdrawal_inr` were read only to
+*display* inside the `retirement_mismatch` finding text — never added to the actual US tax computation.
+Folded into `aggregateUsIncome()`'s foreign-source interest/pension (gated on `res.us.worldwide`, same
+condition the finding itself uses), so this now genuinely changes the US tax total. Verified with a
+controlled before/after diff: $542 of taxable EPF interest raises US tax by ~$173.
+
+**Real carry-forward loss set-off, now computed** (`computeLossSetOff` in `computation.js`): reads the
+`final_allowed_amount_inr` Layer 1 already resolves per entry (late-filing denial, new-regime HP/
+business-depreciation restrictions already baked in) and sequences the actual set-off against this
+year's income: business loss → business income only (s.72); house-property loss → house-property
+income only (s.71B, no inter-head for b/f); STCG loss → STCG then any remainder against LTCG (s.74);
+LTCG loss → LTCG only; unabsorbed depreciation (s.32(2)) → business → house property → capital gains →
+other non-salary income, no time limit. `carry_forward_losses_not_applied` now reports what was
+actually applied vs. what's still carrying forward, with three distinct states (fully set off /
+partially / none) verified via the `dual_resident_h1b` (full STCG-loss absorption) and `sharma_huf`
+(nothing to absorb against) demo profiles.
+
+**Known, disclosed simplification carried over**: speculative business loss (s.73) can only be set off
+against speculative business income, which Layer 1 doesn't collect as a separate bucket from ordinary
+business income — so a speculative loss always stays fully carried forward here rather than being
+(wrongly) absorbed against ordinary business income.
+
+**Separately discovered, NOT fixed in this pass** (flagging for awareness, out of the scope actually
+asked for): `totalIncomeInr` in `computeIndiaTax` used gross LTCG (`inc.ltcg.inr`, pre-loss-set-off AND
+pre-s.112A-exemption) while `specialTaxInr`/`capEligibleSpecialTaxInr` used the exemption-adjusted
+`ltcgTaxableInr` — an inconsistency that pre-dates this round. This round's fix updates the gross figure
+to be net of loss set-off (`lossSetOff.ltcgGrossInr`) but does not address the separate pre-existing
+gross-vs-exemption-adjusted inconsistency in `totalIncomeInr`/`grossTotalIncomeInr`.
+
+---
+
 ## Part E — What "comprehensive" wiring involves
 
 - **`normalize.js`:** extend to read every section above into the unified model

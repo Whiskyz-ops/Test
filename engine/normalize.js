@@ -227,7 +227,7 @@
    * drives the FTC limitation, and a qualified/ordinary dividend split that
    * drives the preferential-rate computation.
    * ----------------------------------------------------------------------*/
-  function aggregateUsIncome(us) {
+  function aggregateUsIncome(us, annual) {
     var ui = safe(us, "income_us_source", {});
     var fi = safe(us, "income_foreign_source", {});
 
@@ -301,6 +301,20 @@
     var foreignPension = moneyFromUsd(safe(fi, "foreign_pension_income_usd", 0));
     var foreignStcg = moneyFromUsd(safe(fi, "foreign_stcg_usd", 0));
     var foreignLtcg = moneyFromUsd(safe(fi, "foreign_ltcg_usd", 0));
+
+    // India-side "this is taxable in the US" amounts (Layer 1 India's own
+    // other_sources fields) — previously only ever displayed inside the
+    // retirement_mismatch finding text, never actually added to US income.
+    // The retirement_mismatch finding gates on res.us.isResident, matching
+    // the same worldwide-taxation condition applied to foreignInterest/
+    // foreignPension below, so folding them in here doesn't change when
+    // they count, only that they now actually count.
+    if (annual) {
+      var taxableEpfInterestUsd = inrToUsd(num(safe(annual.other_sources, "taxable_epf_interest_inr", 0)));
+      var taxableNpsWithdrawalUsd = inrToUsd(num(safe(annual.other_sources, "taxable_nps_withdrawal_inr", 0)));
+      foreignInterest = addMoney(foreignInterest, moneyFromUsd(taxableEpfInterestUsd));
+      foreignPension = addMoney(foreignPension, moneyFromUsd(taxableNpsWithdrawalUsd));
+    }
 
     var usSourceTotal = [wages, businessUs, interestUs, ordDivUs, ltcgUs, stcgUs, rentalUs, usRetirementIncome].reduce(addMoney, zeroMoney());
     var foreignSourceTotal = [foreignWages, foreignInterest, foreignDividends, foreignRental, foreignPension, foreignStcg, foreignLtcg].reduce(addMoney, zeroMoney());
@@ -596,19 +610,40 @@
       // finding: the two intake forms can flatly disagree about whether
       // foreign assets exist).
       indiaForeignAssetsDeclared: safe(india, "foreign_assets.has_foreign_assets", null),
-      // Carry-forward losses are collected but not yet applied anywhere in
-      // the computation — flagged rather than silently ignored, since an
-      // unset-off loss directly overstates current-year taxable income and,
-      // downstream, the FTC/double-tax headline figures.
-      carryForwardLosses: {
-        hasBroughtForwardLosses: safe(india, "carry_forward_losses.has_brought_forward_losses", null),
-        businessLossCfCount: (safe(india, "carry_forward_losses.business_loss_cf", []) || []).length,
-        speculativeLossCfCount: (safe(india, "carry_forward_losses.speculative_loss_cf", []) || []).length,
-        stcgLossCfCount: (safe(india, "carry_forward_losses.stcg_loss_cf", []) || []).length,
-        ltcgLossCfCount: (safe(india, "carry_forward_losses.ltcg_loss_cf", []) || []).length,
-        housePropertyLossCfCount: (safe(india, "carry_forward_losses.house_property_loss_cf", []) || []).length,
-        unabsorbedDepreciationCf: num(safe(india, "carry_forward_losses.unabsorbed_depreciation_cf", 0))
-      },
+      // Carry-forward losses — WISING now actually sequences the set-off
+      // against current-year income (see computeLossSetOff in computation.js)
+      // rather than only flagging that they exist. Layer 1 already resolves
+      // per-entry eligibility (late-filing denial, new-regime HP/business-
+      // depreciation restrictions) into final_allowed_amount_inr; sum that
+      // (falling back to amount_inr for entries without it, e.g. hand-built
+      // test data) to get what's actually available to set off this year.
+      carryForwardLosses: (function () {
+        function sumAllowed(arr) {
+          return (arr || []).reduce(function (s, e) {
+            var v = (e && e.final_allowed_amount_inr != null) ? e.final_allowed_amount_inr : num(e && e.amount_inr);
+            return s + num(v);
+          }, 0);
+        }
+        var businessArr = safe(india, "carry_forward_losses.business_loss_cf", []) || [];
+        var specArr = safe(india, "carry_forward_losses.speculative_loss_cf", []) || [];
+        var stcgArr = safe(india, "carry_forward_losses.stcg_loss_cf", []) || [];
+        var ltcgArr = safe(india, "carry_forward_losses.ltcg_loss_cf", []) || [];
+        var hpArr = safe(india, "carry_forward_losses.house_property_loss_cf", []) || [];
+        return {
+          hasBroughtForwardLosses: safe(india, "carry_forward_losses.has_brought_forward_losses", null),
+          businessLossCfCount: businessArr.length,
+          speculativeLossCfCount: specArr.length,
+          stcgLossCfCount: stcgArr.length,
+          ltcgLossCfCount: ltcgArr.length,
+          housePropertyLossCfCount: hpArr.length,
+          businessLossAvailableInr: sumAllowed(businessArr),
+          speculativeLossAvailableInr: sumAllowed(specArr),
+          stcgLossAvailableInr: sumAllowed(stcgArr),
+          ltcgLossAvailableInr: sumAllowed(ltcgArr),
+          housePropertyLossAvailableInr: sumAllowed(hpArr),
+          unabsorbedDepreciationCf: num(safe(india, "carry_forward_losses.unabsorbed_depreciation_cf", 0))
+        };
+      })(),
       foreignGifts: {
         receivedAbove100k: safe(us, "foreign_gifts_and_trusts.received_foreign_gifts_above_100k", false) === true,
         isTrustBeneficiary: safe(us, "foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust", false) === true,
@@ -616,7 +651,7 @@
       },
       income: {
         india: aggregateIndiaIncome(india, annual),
-        us: aggregateUsIncome(us)
+        us: aggregateUsIncome(us, annual)
       },
       deductions: {
         india: aggregateIndiaDeductions(india),

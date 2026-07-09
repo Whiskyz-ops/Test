@@ -35,6 +35,85 @@
     return tax;
   }
 
+  /* ---- Carry-forward loss set-off (s.71B house property, s.72 business,
+   * s.74 capital gains, s.32(2) unabsorbed depreciation) --------------------
+   * Layer 1 already resolves per-entry eligibility (late-filing denial,
+   * new-regime HP/business-depreciation restrictions) into the "available"
+   * amounts read in normalize.js; this sequences the actual SET-OFF against
+   * this year's income under the Act's ordering rules, instead of just
+   * flagging that brought-forward losses exist.
+   *
+   * Known simplification: speculative business loss (s.73) can only be set
+   * off against speculative business income, which Layer 1 doesn't collect
+   * as a separate bucket from ordinary business income — so a speculative
+   * loss always stays fully carried forward here rather than being (wrongly)
+   * absorbed against ordinary business income. */
+  function computeLossSetOff(cfl, buckets) {
+    var businessInr = buckets.businessInr, housePropertyInr = buckets.housePropertyInr;
+    var otherNormalInr = buckets.otherNormalInr, stcgInr = buckets.stcgInr, ltcgGrossInr = buckets.ltcgGrossInr;
+
+    // 1. Business loss -> business income only (s.72).
+    var businessLossUsed = Math.min(cfl.businessLossAvailableInr || 0, businessInr);
+    businessInr -= businessLossUsed;
+    var businessLossUnused = (cfl.businessLossAvailableInr || 0) - businessLossUsed;
+
+    // 2. House property loss -> house property income only (s.71B; unlike
+    // CURRENT-year HP loss, brought-forward HP loss cannot go inter-head).
+    var hpLossUsed = Math.min(cfl.housePropertyLossAvailableInr || 0, housePropertyInr);
+    housePropertyInr -= hpLossUsed;
+    var hpLossUnused = (cfl.housePropertyLossAvailableInr || 0) - hpLossUsed;
+
+    // 3. STCG loss -> STCG first, remainder against LTCG (both allowed, s.74).
+    var stcgLossAvail = cfl.stcgLossAvailableInr || 0;
+    var stcgLossUsedVsStcg = Math.min(stcgLossAvail, stcgInr);
+    stcgInr -= stcgLossUsedVsStcg;
+    var stcgLossRemaining = stcgLossAvail - stcgLossUsedVsStcg;
+    var stcgLossUsedVsLtcg = Math.min(stcgLossRemaining, ltcgGrossInr);
+    ltcgGrossInr -= stcgLossUsedVsLtcg;
+    var stcgLossUnused = stcgLossRemaining - stcgLossUsedVsLtcg;
+
+    // 4. LTCG loss -> LTCG only, never STCG (s.74).
+    var ltcgLossAvail = cfl.ltcgLossAvailableInr || 0;
+    var ltcgLossUsed = Math.min(ltcgLossAvail, ltcgGrossInr);
+    ltcgGrossInr -= ltcgLossUsed;
+    var ltcgLossUnused = ltcgLossAvail - ltcgLossUsed;
+
+    // 5. Speculative loss -> no speculative-income bucket modeled (see note
+    // above), so it always stays fully carried forward.
+    var speculativeLossUnused = cfl.speculativeLossAvailableInr || 0;
+
+    // 6. Unabsorbed depreciation (s.32(2)) -> any head except salary, no time
+    // limit. Convention: business first (deemed current-year business loss),
+    // then house property, then capital gains, then other normal income.
+    var depRemaining = cfl.unabsorbedDepreciationCf || 0;
+    var used;
+    used = Math.min(depRemaining, businessInr); businessInr -= used; depRemaining -= used;
+    used = Math.min(depRemaining, housePropertyInr); housePropertyInr -= used; depRemaining -= used;
+    used = Math.min(depRemaining, stcgInr); stcgInr -= used; depRemaining -= used;
+    used = Math.min(depRemaining, ltcgGrossInr); ltcgGrossInr -= used; depRemaining -= used;
+    used = Math.min(depRemaining, otherNormalInr); otherNormalInr -= used; depRemaining -= used;
+    var depUsed = (cfl.unabsorbedDepreciationCf || 0) - depRemaining;
+
+    var totalUsedInr = businessLossUsed + hpLossUsed + stcgLossUsedVsStcg + stcgLossUsedVsLtcg + ltcgLossUsed + depUsed;
+    var totalUnusedInr = businessLossUnused + hpLossUnused + stcgLossUnused + ltcgLossUnused + speculativeLossUnused + depRemaining;
+
+    return {
+      businessInr: businessInr, housePropertyInr: housePropertyInr, otherNormalInr: otherNormalInr,
+      stcgInr: stcgInr, ltcgGrossInr: ltcgGrossInr,
+      totalUsedInr: totalUsedInr, totalUnusedInr: totalUnusedInr,
+      unused: {
+        businessInr: businessLossUnused, housePropertyInr: hpLossUnused,
+        stcgInr: stcgLossUnused, ltcgInr: ltcgLossUnused,
+        speculativeInr: speculativeLossUnused, unabsorbedDepreciationInr: depRemaining
+      },
+      used: {
+        businessInr: businessLossUsed, housePropertyInr: hpLossUsed,
+        stcgInr: stcgLossUsedVsStcg, ltcgFromStcgLossInr: stcgLossUsedVsLtcg, ltcgInr: ltcgLossUsed,
+        unabsorbedDepreciationInr: depUsed
+      }
+    };
+  }
+
   /* =========================================================================
    * INDIA INCOME-TAX COMPUTATION
    * =======================================================================*/
@@ -55,9 +134,21 @@
     // dividend — at slab rates, in Other Sources — so it joins the same
     // normal-slab bucket dividend already sits in.
     var deemedDividendInr = (inc.deemedDividendBuyback && inc.deemedDividendBuyback.inr) || 0;
-    var normalSlabInr =
-      inc.salary.inr + inc.business.inr + inc.houseProperty.inr +
-      inc.interest.inr + inc.dividend.inr + deemedDividendInr;
+
+    // Sequence brought-forward loss set-off against this year's income
+    // BEFORE computing the slab/special-rate totals below, so the actual tax
+    // reflects it (not just a disclosure that losses exist). Salary and
+    // s.115BB/115BBJ special-rate income are untouched — losses cannot be
+    // set off against either (s.58(4) explicitly bars it for the latter).
+    var lossSetOff = computeLossSetOff(model.carryForwardLosses || {}, {
+      businessInr: inc.business.inr,
+      housePropertyInr: inc.houseProperty.inr,
+      otherNormalInr: inc.interest.inr + inc.dividend.inr + deemedDividendInr,
+      stcgInr: inc.stcg.inr,
+      ltcgGrossInr: inc.ltcg.inr
+    });
+
+    var normalSlabInr = inc.salary.inr + lossSetOff.businessInr + lossSetOff.housePropertyInr + lossSetOff.otherNormalInr;
 
     // Chapter VI-A deductions.
     var deductionsInr;
@@ -76,9 +167,9 @@
 
     var totalNormalInr = Math.max(0, normalSlabInr - deductionsInr);
 
-    // Special-rate incomes.
-    var stcgInr = inc.stcg.inr;
-    var ltcgTaxableInr = Math.max(0, inc.ltcg.inr - T.LTCG_112A_EXEMPT_INR);
+    // Special-rate incomes (already net of capital-loss set-off above).
+    var stcgInr = lossSetOff.stcgInr;
+    var ltcgTaxableInr = Math.max(0, lossSetOff.ltcgGrossInr - T.LTCG_112A_EXEMPT_INR);
     // s.115BB/115BBJ (lottery/betting/online gaming): flat rate, no basic
     // exemption threshold benefit — the full amount is taxed, never reduced
     // by any slab/exemption logic.
@@ -98,7 +189,7 @@
     // itself; HUF/AOP/BOI/trust share this same slab computation path but are
     // NOT entitled to it (previously applied unconditionally to anyone who
     // reached this branch, which silently over-relieved HUF filers).
-    var totalIncomeInr = totalNormalInr + stcgInr + inc.ltcg.inr + special115bbInr;
+    var totalIncomeInr = totalNormalInr + stcgInr + lossSetOff.ltcgGrossInr + special115bbInr;
     var isIndividual = !model.entity || model.entity.indiaKind === "individual";
     var rebate = isNew ? T.REBATE_87A_NEW : T.REBATE_87A_OLD;
     var rebateInr = 0;
@@ -120,7 +211,7 @@
 
     return {
       regime: regime,
-      grossTotalIncomeInr: normalSlabInr + stcgInr + inc.ltcg.inr + special115bbInr,
+      grossTotalIncomeInr: normalSlabInr + stcgInr + lossSetOff.ltcgGrossInr + special115bbInr,
       deductionsInr: deductionsInr,
       totalIncomeInr: totalIncomeInr,
       slabTaxInr: slabTaxInr,
@@ -131,7 +222,8 @@
       totalTaxInr: totalTaxInr,
       totalTaxUsd: U.inrToUsd(totalTaxInr),
       totalIncomeUsd: U.inrToUsd(totalIncomeInr),
-      effectiveRate: totalIncomeInr > 0 ? totalTaxInr / totalIncomeInr : 0
+      effectiveRate: totalIncomeInr > 0 ? totalTaxInr / totalIncomeInr : 0,
+      lossSetOff: lossSetOff
     };
   }
 
