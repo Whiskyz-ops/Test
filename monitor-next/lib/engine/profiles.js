@@ -37,8 +37,8 @@
   var P1 = {
     id: "dual_resident_h1b",
     label: "Dual Resident — H-1B",
-    story: "India ROR + US SPT. Both tax worldwide income → DTAA tie-breaker + FTC shortfall.",
-    tags: ["dual residency", "FTC", "PFIC"],
+    story: "India ROR + US SPT, senior tech hire in California. Both tax worldwide income → DTAA tie-breaker + FTC shortfall; ISO exercise triggers AMT and mirrors an ESOP grant from his prior Indian employer (equity-comp sourcing); NIIT, a carried-forward capital loss, and a Schedule FA slip round it out.",
+    tags: ["dual residency", "FTC", "PFIC", "AMT", "equity comp"],
     router: router("Aarav Sharma", { us_days: 330 }),
     india: {
       profile: { full_name: "Aarav Sharma", entity_type: "individual", date_of_birth: "1988-07-15", pan: "ABCPS1234K", tax_regime: "NEW" },
@@ -48,9 +48,21 @@
       bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", peak_balance_inr: 3200000 }, { bank_name: "ICICI Bank", account_type: "nro", peak_balance_inr: 1500000 }],
       property: { has_indian_property_transaction: true, properties: [{ address: "Flat 12B, Pune", property_type: "Residential", annual_value_inr: 420000, gross_rent_received_inr: 600000, municipal_taxes_paid_inr: 30000 }] },
       financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "equity_mutual_fund", asset_name: "Axis Bluechip Fund", value_inr: 2500000 }, { asset_type: "debt_mutual_fund", asset_name: "HDFC Corporate Bond Fund", value_inr: 1200000 }] },
-      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 1800000 }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 420000 }] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: { short_term_15_pct: 250000 } },
+      // Preparer left this unchecked despite the US brokerage/401(k)/bank
+      // accounts shown on his US form below — as ROR he must disclose them on
+      // Schedule FA; the two forms flatly disagree (schedule_fa_inconsistent).
+      foreign_assets: { has_foreign_assets: false, assets: [] },
+      // ESOP grant from his prior Indian employer (Infosys, see the US-side
+      // foreign_wages entry below for the same Apr–Aug stint) — carried an
+      // equity grant across the move, exercised the same year as the US-side
+      // ISO grant → equity_comp_sourcing (both countries taxing the same
+      // multi-year award independently, no day-count allocation).
+      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 1800000, esop_perquisite_events: [{ employer_name: "Infosys Ltd", grant_date: "2021-06-01", vesting_or_exercise_date: "2025-06-01", shares: 400, fmv_per_share_inr: 1800, exercise_price_per_share_inr: 300, perquisite_value_inr: 600000 }] }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 420000 }] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: { short_term_15_pct: 250000 } },
       other_sources: { has_other_sources_income: true, interest_savings_inr: 40000, interest_fd_rd_inr: 120000, dividend_inr: 90000 },
       deductions: { s80C: { epf_employee_inr: 150000, ppf_inr: 150000 }, s80CCC_80CCD1: { nps_employee_contribution_inr: 50000 } },
+      // A prior-year capital-market loss carried forward, not yet set off
+      // against this year's capital gains above.
+      carry_forward_losses: { has_brought_forward_losses: true, stcg_loss_cf: [{ assessment_year: "AY2024-25", amount_inr: 180000 }] },
       lrs_outbound: { total_lrs_remitted_this_fy_inr: 17000000 },
       tax_credits: { advance_tax_q1_15jun_inr: 400000, advance_tax_q2_15sep_inr: 400000, advance_tax_q3_15dec_inr: 400000, advance_tax_q4_15mar_inr: 300000, tds_already_deducted_inr: 350000 },
       metadata: meta("layer1_india_v5_1", "FY2025-26")
@@ -58,9 +70,16 @@
     us: {
       profile: { tax_entity_type: "individual", full_name: "Aarav Sharma", date_of_birth: "1988-07-15", filing_status: "mfj", ssn_or_itin_type: "ssn" },
       us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 185, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "us" },
-      income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Cloudscale Inc (US)", wages_box1_usd: 178000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 34000, medicare_wages_box5_usd: 178000 } }], interest_us_source_usd: 3200, ordinary_dividends_us_source_usd: 6200, qualified_dividends_us_source_usd: 4200, ltcg_us_source_usd: 14000 },
+      income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Cloudscale Inc (US)", wages_box1_usd: 200000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 38000, medicare_wages_box5_usd: 200000 } }], interest_us_source_usd: 3200, ordinary_dividends_us_source_usd: 6200, qualified_dividends_us_source_usd: 4200, ltcg_us_source_usd: 14000 },
       income_foreign_source: { foreign_wages: [{ employer_name: "Infosys (India, Apr–Aug)", wages_usd: 21687 }], foreign_interest_usd: 1928, foreign_dividends_usd: 1084, foreign_rental_income_usd: 5060, foreign_stcg_usd: 3012 },
       foreign_earned_income: { claims_feie: false, foreign_earned_income_usd: 21687, feie_amount_claimed_usd: 0 },
+      // ISO exercise the same year as the Infosys ESOP event above → the AMT
+      // preference item (bargain element) plus the equity-comp sourcing
+      // conflict. Common combination for a relocated tech employee.
+      equity_compensation: { iso_exercises: [{ shares_exercised: 3000, fmv_at_exercise_usd: 65, strike_price_usd: 12 }] },
+      // California is the single most common H-1B/relocated-tech-worker state;
+      // the federal DTAA tie-breaker above doesn't bind it (state_treaty_not_binding).
+      state_residency: { primary_state_of_residence: "California", ca_retains_property_or_voter_reg: true },
       bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", country: "India", peak_balance_usd: 38554 }, { bank_name: "ICICI Bank", account_type: "nro", country: "India", peak_balance_usd: 18072 }],
       fbar_aggregate_peak_usd: 56626,
       foreign_entities: { owns_10_percent_foreign_corp: false, foreign_corporations: [], pfic_holdings: [{ asset_name: "Axis Bluechip Fund", holding_value_usd: 30120 }, { asset_name: "HDFC Corporate Bond Fund", holding_value_usd: 14458 }], has_pfics: true },
@@ -83,8 +102,8 @@
   var P2 = {
     id: "us_resident_indian_income",
     label: "US Resident · Indian income",
-    story: "US green-card holder with Indian rent, dividends & mutual funds. US taxes worldwide → FTC (Form 1116) for Indian TDS; PFIC on Indian MFs; FBAR.",
-    tags: ["FTC 1116", "PFIC", "FBAR", "NR in India"],
+    story: "US green-card holder with Indian rent, dividends, mutual funds, a small India consulting stake and a US-side consulting side gig. US taxes worldwide → FTC (Form 1116) for Indian TDS; PFIC; a below-threshold Indian business stake; no US-India Totalization Agreement on his US self-employment tax; plus occasional online-gaming winnings and an unexplained cash deposit back home.",
+    tags: ["FTC 1116", "PFIC", "FBAR", "NR in India", "self-employment"],
     router: router("Rohan Mehta", { is_us_citizen: false, has_green_card: true, us_days: 365 }),
     india: {
       profile: { full_name: "Rohan Mehta", entity_type: "individual", date_of_birth: "1985-03-22", pan: "AAAPM5678Q", tax_regime: "NEW" },
@@ -98,7 +117,11 @@
       // (see the matching foreign_entities block on the US side below) →
       // triggers cfc_below_threshold instead of the full CFC/Form 5471 finding.
       domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [{ trade_name: "Mehta Advisory Services", nature: "consulting", net_profit_inr: 900000, holding_pct: 5 }] }, capital_gains: { short_term_15_pct: 180000 } },
-      other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 260000, dividend_inr: 220000 },
+      // Occasional fantasy-sports/online-gaming winnings (very common alongside
+      // NRI rental/dividend income today) plus an unexplained cash deposit the
+      // client can't source-document (a routine real-world 115BBE flag, not a
+      // fabricated edge case).
+      other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 260000, dividend_inr: 220000, online_gaming_winnings_inr: 180000, unexplained_income_115BBE_inr: 250000 },
       deductions: {},
       lrs_outbound: {},
       tax_credits: { tds_already_deducted_inr: 430000 },
@@ -135,14 +158,18 @@
   var P3 = {
     id: "india_ror_us_income",
     label: "India ROR · US income",
-    story: "Resident of India (ROR) with US rental, dividends & brokerage. India taxes worldwide → Form 67/§90 credit for US tax; Schedule FA for US assets; US 1040-NR on US-source income.",
-    tags: ["Form 67", "Schedule FA", "1040-NR"],
+    story: "Resident of India (ROR), formerly NRI, with US rental, dividends & brokerage. India taxes worldwide → Form 67/§90 credit for US tax; Schedule FA for US assets; files 1040-NR on US-source income with a treaty rate claimed but no W-8BEN on file, plus FIRPTA withholding on a US property sale; kept her Chapter XII-A election on specified assets after becoming ROR.",
+    tags: ["Form 67", "Schedule FA", "1040-NR", "FIRPTA"],
     router: router("Anita Desai", { is_us_citizen: false, has_green_card: false, us_days: 35 }),
     india: {
       profile: { full_name: "Anita Desai", entity_type: "individual", date_of_birth: "1982-11-09", pan: "AADPD9012R", tax_regime: "OLD" },
       residency_detail: { days_in_india_current_year: 320, final_india_residency_status: "ROR" },
       dtaa: { tax_residency_country: "IN", is_us_resident_for_dtaa: false, dtaa_treaty_residence: "none", trc_status: true, form_10f: true },
-      compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true } },
+      // Was NRI for years before moving back; kept the Chapter XII-A election
+      // on her specified foreign-exchange assets even after becoming ROR
+      // (s.115H permits this by re-filing annually) — a real, easy-to-miss
+      // retained-concession scenario, not just a first-time NRI election.
+      compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true }, chapter_xiia_elected: true },
       bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", peak_balance_inr: 1800000 }],
       property: { has_indian_property_transaction: false, properties: [] },
       financial_holdings: { has_financial_transactions: false, transactions: [] },
@@ -185,8 +212,8 @@
   var P4 = {
     id: "founder_indian_company",
     label: "Founder · Indian company",
-    story: "US resident owning an Indian Pvt Ltd (≥10%). Triggers Form 5471 + GILTI/Subpart-F on the US side while the company is taxed in India. (Full entity separation arrives with multi-entity Phase 1.)",
-    tags: ["Form 5471", "GILTI", "CFC", "entity"],
+    story: "US resident owning an Indian Pvt Ltd (≥10%). Triggers Form 5471 + GILTI/Subpart-F on the US side while the company is taxed in India, plus a partial share buyback from his own company — India taxes it as a deemed dividend, the US likely as a capital gain. (Full entity separation arrives with multi-entity Phase 1.)",
+    tags: ["Form 5471", "GILTI", "CFC", "entity", "buyback"],
     router: router("Vikram Rao", { is_us_citizen: false, has_green_card: true, us_days: 340 }),
     india: {
       profile: { full_name: "Vikram Rao", entity_type: "individual", date_of_birth: "1986-05-30", pan: "AAVPR3456S", tax_regime: "NEW" },
@@ -198,7 +225,10 @@
       financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "unlisted_equity", asset_name: "Nova Systems Pvt Ltd (100%)", value_inr: 45000000 }] },
       unlisted_equity: { has_unlisted_equity_transaction: true, transactions: [{ company: "Nova Systems Pvt Ltd", holding_pct: 100 }] },
       domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
-      other_sources: { has_other_sources_income: true, dividend_inr: 500000 },
+      // A partial share buyback by his own company — a routine founder
+      // liquidity event, and exactly the s.2(22)(f) vs. capital-gain
+      // characterization mismatch the US side will book differently.
+      other_sources: { has_other_sources_income: true, dividend_inr: 500000, deemed_dividend_from_buyback_inr: 3500000 },
       deductions: {},
       lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 600000, advance_tax_q2_15sep_inr: 700000, advance_tax_q3_15dec_inr: 700000, advance_tax_q4_15mar_inr: 500000 },
@@ -229,8 +259,8 @@
   var P5 = {
     id: "us_citizen_expat_india",
     label: "US Citizen expat in India",
-    story: "US citizen living/working in India. FEIE on foreign earned income, PFIC on Indian MFs, FBAR — US citizenship-based taxation always applies.",
-    tags: ["FEIE", "PFIC", "citizen"],
+    story: "US citizen living/working in India. FEIE on foreign earned income, PFIC on Indian MFs, FBAR — US citizenship-based taxation always applies. A gift from her father, a long-term green-card holder who formally relinquished it and was found to be a covered expatriate, brings Form 3520 reporting plus the §2801 recipient-side transfer tax.",
+    tags: ["FEIE", "PFIC", "citizen", "covered expatriate"],
     router: router("Grace Thomas", { is_us_citizen: true, has_green_card: false, us_days: 20 }),
     india: {
       profile: { full_name: "Grace Thomas", entity_type: "individual", date_of_birth: "1990-09-12", pan: "AGTPT7890T", tax_regime: "NEW" },
@@ -261,6 +291,12 @@
       ftc_inputs: { claims_ftc: false },
       withholding_and_estimated: { federal_withholding_total_usd: 0 },
       nra_specific: { files_form_1040nr: false },
+      // Her father, a decades-long US green-card holder, formally relinquished
+      // it after retiring back to India and was determined a "covered
+      // expatriate" on net worth — the gift he sent her this year carries the
+      // §2801 recipient-side transfer tax on top of the ordinary Form 3520 gift
+      // reporting (no income tax on the gift itself, but real penalty/tax exposure).
+      foreign_gifts_and_trusts: { received_foreign_gifts_above_100k: true, received_gift_from_covered_expatriate: true },
       metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
     }
   };
@@ -344,82 +380,7 @@
   };
 
   /* ======================================================================
-   * PROFILE 8 — QA KITCHEN SINK: every implemented finding in one filer.
-   * Deliberately synthetic (not a realistic single taxpayer) — combines every
-   * remaining conflict-detection scenario that no other demo profile
-   * triggers, so every finding in conflicts.js can be checked in the Monitor
-   * without hand-entering test data into the real Layer 1 forms.
-   * ====================================================================*/
-  var P8 = {
-    id: "kitchen_sink_qa",
-    label: "QA — Every Finding (Kitchen Sink)",
-    story: "Deliberately synthetic filer combining every remaining implemented finding (AMT, NIIT, no-totalization SE tax, Chapter XII-A, gaming winnings, s.115BBE, carry-forward losses, deemed dividend buyback, foreign gifts/covered-expat, state residency, equity-comp sourcing, Schedule FA contradiction) — for engine QA, not a realistic persona.",
-    tags: ["QA", "all findings", "kitchen sink"],
-    router: router("QA Kitchen-Sink Filer", { has_green_card: true, us_days: 175 }),
-    india: {
-      profile: { full_name: "QA Kitchen-Sink Filer", entity_type: "individual", date_of_birth: "1985-01-01", pan: "AKQPK1234Z", tax_regime: "NEW" },
-      residency_detail: { days_in_india_current_year: 190, final_india_residency_status: "ROR" },
-      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "us", trc_status: true, has_permanent_establishment_in_india: false, treaty_elections: [], dtaa_forced_nr: false },
-      compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true }, chapter_xiia_elected: true },
-      bank_accounts: [{ bank_name: "ICICI Bank", account_type: "savings", peak_balance_inr: 1800000 }],
-      property: { has_indian_property_transaction: false, properties: [] },
-      financial_holdings: { has_financial_transactions: false, transactions: [] },
-      // Deliberate demo contradiction: India form says NO foreign assets, while
-      // the US form (below) shows US wages/accounts for the same ROR taxpayer
-      // → triggers schedule_fa_inconsistent.
-      foreign_assets: { has_foreign_assets: false, assets: [] },
-      domestic_income: {
-        salary: {
-          has_salary_income: true, taxable_salary_inr: 2400000,
-          esop_perquisite_events: [{ employer_name: "Nimbus India Pvt Ltd", grant_date: "2022-04-01", vesting_or_exercise_date: "2025-04-01", shares: 1000, fmv_per_share_inr: 1500, exercise_price_per_share_inr: 200, perquisite_value_inr: 1300000 }]
-        },
-        house_property: { has_house_property_income: false, properties: [] },
-        business_income: { has_business_or_fo_income: false, business_entries: [] },
-        capital_gains: { short_term_15_pct: 100000 }
-      },
-      other_sources: {
-        has_other_sources_income: true, interest_fd_rd_inr: 150000, dividend_inr: 100000,
-        winnings_lottery_gaming_inr: 300000, online_gaming_winnings_inr: 200000,
-        deemed_dividend_from_buyback_inr: 2000000, unexplained_income_115BBE_inr: 800000,
-        taxable_epf_interest_inr: 40000, taxable_nps_withdrawal_inr: 20000
-      },
-      deductions: { s80C: { epf_employee_inr: 150000, ppf_inr: 100000 }, s80CCC_80CCD1: { nps_employee_contribution_inr: 50000 } },
-      carry_forward_losses: { has_brought_forward_losses: true, business_loss_cf: [{ assessment_year: "AY2023-24", amount_inr: 500000 }], stcg_loss_cf: [{ assessment_year: "AY2024-25", amount_inr: 200000 }] },
-      lrs_outbound: {},
-      tax_credits: { advance_tax_q1_15jun_inr: 200000, advance_tax_q2_15sep_inr: 200000, tds_already_deducted_inr: 300000 },
-      metadata: meta("layer1_india_v5_1", "FY2025-26")
-    },
-    us: {
-      profile: { tax_entity_type: "individual", full_name: "QA Kitchen-Sink Filer", date_of_birth: "1985-01-01", filing_status: "single", ssn_or_itin_type: "ssn" },
-      us_residency_detail: { is_us_citizen: false, has_green_card: true, us_days_current_year: 175, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "us" },
-      income_us_source: {
-        has_employment_income: true,
-        wages_w2: [{ employer_name: "Meridian Systems Inc", wages_box1_usd: 260000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 55000, medicare_wages_box5_usd: 260000 } }],
-        self_employment: [{ business_name: "QA Consulting LLC", self_employment_earnings_usd: 80000 }],
-        interest_us_source_usd: 8000, ordinary_dividends_us_source_usd: 15000, qualified_dividends_us_source_usd: 12000, ltcg_us_source_usd: 40000
-      },
-      income_foreign_source: { foreign_interest_usd: 2000, foreign_dividends_usd: 1500 },
-      foreign_earned_income: { claims_feie: false },
-      // ISO bargain-element spread → AMT preference item (§57) + equity-comp
-      // sourcing conflict against the India ESOP events above.
-      equity_compensation: { iso_exercises: [{ shares_exercised: 5000, fmv_at_exercise_usd: 80, strike_price_usd: 10 }] },
-      foreign_gifts_and_trusts: { received_foreign_gifts_above_100k: true, is_us_beneficiary_of_foreign_trust: true, received_gift_from_covered_expatriate: true },
-      state_residency: { primary_state_of_residence: "California", ca_retains_property_or_voter_reg: true },
-      bank_accounts: [{ bank_name: "ICICI Bank", account_type: "savings", country: "India", peak_balance_usd: 21687 }],
-      fbar_aggregate_peak_usd: 21687,
-      foreign_entities: { owns_10_percent_foreign_corp: false, foreign_corporations: [], pfic_holdings: [], has_pfics: false },
-      retirement_accounts: { "401k_employee_contribution_usd": 15000 },
-      financial_holdings: [{ asset_name: "Schwab — Taxable Brokerage", account_type: "taxable_brokerage", peak_balance_usd: 120000, country: "US" }],
-      real_estate: { has_real_estate_transaction: false, properties: [] },
-      ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "General", foreign_taxes_usd: 30000 }] },
-      withholding_and_estimated: { federal_withholding_total_usd: 55000 },
-      nra_specific: { files_form_1040nr: false },
-      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
-    }
-  };
-
-  /* ======================================================================
-   * PROFILE 9 — BUSINESS POV: foreign-incorporated holding company with its
+   * PROFILE 8 — BUSINESS POV: foreign-incorporated holding company with its
    * Place of Effective Management in India (entity-level dual residency).
    * Not incorporated in India, so India's own s.6(3) test hinges entirely on
    * POEM — and this one's POEM facts point straight at Mumbai.
@@ -460,7 +421,7 @@
     }
   };
 
-  var PROFILES = [P1, P2, P3, P4, P5, B1, B2, P8, B3];
+  var PROFILES = [P1, P2, P3, P4, P5, B1, B2, B3];
 
   function listProfiles() {
     return PROFILES.map(function (p) { return { id: p.id, label: p.label, story: p.story, tags: p.tags }; });

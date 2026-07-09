@@ -342,7 +342,7 @@ Edge {                            // ownership / flow between entities
 | **4** | Frontend: entity switcher, per-entity views, Monitor entity dimension | Reuse components, add scope |
 | **5** | Comprehensive Layer 1 field coverage fill-in (Parts B–D gaps) | Iterative by priority (Part D) |
 | **6** | US state-residency engine (folds into entity/jurisdiction model) | Unblocks live state drill-down |
-| **T** | **Demo test profiles** (`engine/profiles.js` + one-click loader + picker) — Part I | Done — 9 profiles (5 individual, 3 entity, 1 QA kitchen-sink), covering every finding id |
+| **T** | **Demo test profiles** (`engine/profiles.js` + one-click loader + picker) — Part I | Done — 8 realistic profiles (5 individual, 3 entity), covering every finding id |
 
 **Compatibility:** Phase 1 keeps the current single-individual behaviour as the
 default (one entity), so nothing breaks while the graph is introduced.
@@ -351,32 +351,35 @@ default (one entity), so nothing breaks while the graph is introduced.
 
 ## Part I — Demo test profiles (seamless one-click scenarios)
 
-**Status: built.** `engine/profiles.js` ships 9 named profiles. `loadProfile(id)`
-writes all three `localStorage` keys (`wising_router_state`,
+**Status: built.** `engine/profiles.js` ships 8 named profiles, each a
+realistic, internally-coherent persona (no synthetic "test everything" filer —
+an earlier `kitchen_sink_qa` profile was tried and deliberately removed; every
+finding it covered was instead folded into a genuine persona below).
+`loadProfile(id)` writes all three `localStorage` keys (`wising_router_state`,
 `wising_layer1_india_state`, `wising_us_state`), wipes any other `wising_*` key
 first (no bleed-through from a previously loaded profile or a manually-edited
 Layer 1 form), and broadcasts `storage`/`wising:profile` events so open forms,
 the dashboard, and the Monitor all refresh from one click — no manual typing
 during a demo.
 
-**The 9 profiles:**
-1. **`dual_resident_h1b`** — Dual Resident, H-1B. India ROR + US SPT; the flagship FTC/tie-breaker case.
-2. **`us_resident_indian_income`** — US green-card holder with Indian rent/dividends/mutual funds; FTC (Form 1116), PFIC, FBAR, `cfc_below_threshold`.
-3. **`india_ror_us_income`** — Indian ROR with US rental/dividends/brokerage; files 1040-NR-adjacent NRA findings (`nra_fdap_flat_rate`, `nra_w8ben_missing`, `firpta`).
-4. **`founder_indian_company`** — US resident owning 100% of an Indian Pvt Ltd; `cfc` / Form 5471.
-5. **`us_citizen_expat_india`** — US citizen living in India; FEIE + PFIC (citizenship-based taxation).
+**The 8 profiles:**
+1. **`dual_resident_h1b`** — Aarav Sharma, senior tech hire in California. India ROR + US SPT; the flagship FTC/tie-breaker case. An ISO exercise triggers `amt_applies` and mirrors an ESOP grant from his prior Indian employer (`equity_comp_sourcing`); also carries `niit_medicare_not_creditable`, `carry_forward_losses_not_applied`, `state_treaty_not_binding` (California), and a Schedule FA form-consistency slip (`schedule_fa_inconsistent`).
+2. **`us_resident_indian_income`** — Rohan Mehta, US green-card holder with Indian rent/dividends/mutual funds and a US-side consulting gig. FTC (Form 1116), PFIC, FBAR, a below-10%-threshold India business stake (`cfc_below_threshold`), `no_totalization_agreement` on his US self-employment tax, occasional online-gaming winnings (`special_rate_gaming_winnings`), and an unexplained cash deposit (`s115bbe_unexplained_income`).
+3. **`india_ror_us_income`** — Anita Desai, Indian ROR (formerly NRI) with US rental/dividends/brokerage. `nra_fdap_flat_rate`, `nra_w8ben_missing`, `firpta` on a US property sale, and a retained Chapter XII-A election (`chapter_xiia_not_computed`) kept after becoming ROR.
+4. **`founder_indian_company`** — Vikram Rao, US resident owning 100% of an Indian Pvt Ltd. `cfc` / Form 5471, plus a partial share buyback from his own company (`deemed_dividend_buyback_mismatch`).
+5. **`us_citizen_expat_india`** — Grace Thomas, US citizen living in India. FEIE + PFIC (citizenship-based taxation), plus a gift from her father — a long-term green-card holder who relinquished it and was found to be a covered expatriate (`foreign_gift_3520`, `covered_expat_gift_tax`).
 6. **`india_pvt_ltd`** — Business POV: Indian domestic company, §115BAA, ITR-6.
 7. **`us_ccorp_indian_sub`** — Business POV: Delaware C-Corp with an Indian subsidiary; GILTI.
-8. **`kitchen_sink_qa`** — **QA profile.** Deliberately synthetic (not a realistic single taxpayer) — combines every remaining implemented finding that no other profile triggers: AMT, NIIT/Additional Medicare, no-totalization-agreement SE tax, Chapter XII-A election, s.115BB/115BBJ gaming winnings, s.115BBE unexplained income, carry-forward losses, s.2(22)(f) deemed dividend buyback, foreign gifts/covered-expatriate gift tax, non-binding state residency, equity-comp cross-border sourcing, and a deliberate Schedule FA India/US form contradiction.
-9. **`foreign_holdco_poem_india`** — Business POV: foreign-incorporated (Singapore) holding company whose Place of Effective Management facts resolve it to an Indian tax resident anyway (`entity_dual_residency_poem`) — entity-level dual residency with no individual-style tie-breaker.
+8. **`foreign_holdco_poem_india`** — Business POV: foreign-incorporated (Singapore) holding company whose Place of Effective Management facts resolve it to an Indian tax resident anyway (`entity_dual_residency_poem`) — entity-level dual residency with no individual-style tie-breaker.
 
 **Coverage guarantee:** every finding `id` emitted by `detectConflicts()` in
-`conflicts.js` fires in at least one of the 9 profiles — verified by running
-`WISING.analyze()` against all 9 and diffing the union of triggered ids against
+`conflicts.js` fires in at least one of the 8 profiles — verified by running
+`WISING.analyze()` against all 8 and diffing the union of triggered ids against
 every `add(id, ...)` call site in the source. When a new finding is added to
-`conflicts.js`, extend an existing profile (or `kitchen_sink_qa` if it doesn't
-fit an existing story) so this stays true — otherwise there is no one-click way
-to verify the new finding actually renders.
+`conflicts.js`, extend the existing profile whose persona it fits most
+naturally (don't reach for a synthetic kitchen-sink profile) so this stays
+true — otherwise there is no one-click way to verify the new finding actually
+renders.
 
 ---
 
