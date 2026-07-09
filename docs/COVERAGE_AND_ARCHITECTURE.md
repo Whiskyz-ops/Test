@@ -265,6 +265,34 @@ Layer 1 fields:
 
 ---
 
+## Part D.4 — DTAA detail + PAN/Aadhaar (fourth round)
+
+User feedback on the Part D.3 findings: the treaty-election finding named the elected rate but not
+what it was displacing, and didn't say anything about document status for that specific claim; also
+flagged a completely separate gap — Layer 1's PAN/Aadhaar-linked toggle had zero effect anywhere.
+
+- **`dtaa_treaty_elections` now shows the domestic s.115A rate being displaced**, per stream, so the
+  election reads as "interest @ 15% (Art 11(2)(b)) (vs 20% domestic s.115A rate — treaty saves 5
+  points)" instead of just the bare elected rate. If the elected rate isn't actually lower than the
+  domestic default, the finding says so explicitly ("elected rate is NOT lower; confirm this is really
+  beneficial") rather than silently taking the number at face value.
+- **The same finding now self-checks TRC/Form 10F status** instead of relying on the separate
+  `treaty_docs_missing` finding to imply the connection: if either is missing, severity bumps from INFO
+  to WARNING and the detail states plainly that these specific elections are at risk of being denied
+  and defaulting back to the full domestic rate u/s 90(4).
+- **New finding `pan_not_linked_aadhaar`** — `profile.pan_aadhaar_linked` was captured by Layer 1 (the
+  profile step's Aadhaar-linked toggle) and had zero references anywhere in the engine. An unlinked PAN
+  is "inoperative" under Rule 114AAA: every payer must withhold at the higher default rate u/s
+  206AA/206CC (generally 20%, or double the TCS rate) regardless of any slab/special/treaty rate that
+  would otherwise apply, refunds are withheld, and interest keeps accruing. CRITICAL severity — this
+  silently invalidates every other withholding-rate figure on the page when it fires.
+- **New demo profile `sharma_huf`** (Part I) exercises both this round's PAN/Aadhaar finding and the
+  Part D.3 HUF-vs-individual §87A fix in one place, and `dual_resident_h1b` (Aarav) now carries a real
+  Art. 4 tie-break path and a treaty election so the Part D.3 reasoning/election capabilities actually
+  render in the one-click demo (they didn't have a trigger before this round).
+
+---
+
 ## Part E — What "comprehensive" wiring involves
 
 - **`normalize.js`:** extend to read every section above into the unified model
@@ -377,7 +405,7 @@ Edge {                            // ownership / flow between entities
 | **4** | Frontend: entity switcher, per-entity views, Monitor entity dimension | Reuse components, add scope |
 | **5** | Comprehensive Layer 1 field coverage fill-in (Parts B–D gaps) | Iterative by priority (Part D) |
 | **6** | US state-residency engine (folds into entity/jurisdiction model) | Unblocks live state drill-down |
-| **T** | **Demo test profiles** (`engine/profiles.js` + one-click loader + picker) — Part I | Done — 8 realistic profiles (5 individual, 3 entity), covering every finding id |
+| **T** | **Demo test profiles** (`engine/profiles.js` + one-click loader + picker) — Part I | Done — 9 realistic profiles (5 individual, 4 entity, incl. HUF), covering every finding id |
 
 **Compatibility:** Phase 1 keeps the current single-individual behaviour as the
 default (one entity), so nothing breaks while the graph is introduced.
@@ -386,7 +414,7 @@ default (one entity), so nothing breaks while the graph is introduced.
 
 ## Part I — Demo test profiles (seamless one-click scenarios)
 
-**Status: built.** `engine/profiles.js` ships 8 named profiles, each a
+**Status: built.** `engine/profiles.js` ships 9 named profiles, each a
 realistic, internally-coherent persona (no synthetic "test everything" filer —
 an earlier `kitchen_sink_qa` profile was tried and deliberately removed; every
 finding it covered was instead folded into a genuine persona below).
@@ -397,8 +425,8 @@ Layer 1 form), and broadcasts `storage`/`wising:profile` events so open forms,
 the dashboard, and the Monitor all refresh from one click — no manual typing
 during a demo.
 
-**The 8 profiles:**
-1. **`dual_resident_h1b`** — Aarav Sharma, senior tech hire in California. India ROR + US SPT; the flagship FTC/tie-breaker case. An ISO exercise triggers `amt_applies` and mirrors an ESOP grant from his prior Indian employer (`equity_comp_sourcing`); also carries `niit_medicare_not_creditable`, `carry_forward_losses_not_applied`, `state_treaty_not_binding` (California), and a Schedule FA form-consistency slip (`schedule_fa_inconsistent`).
+**The 9 profiles:**
+1. **`dual_resident_h1b`** — Aarav Sharma, senior tech hire in California. India ROR + US SPT; the flagship FTC/tie-breaker case. An ISO exercise triggers `amt_applies` and mirrors an ESOP grant from his prior Indian employer (`equity_comp_sourcing`); also carries `niit_medicare_not_creditable`, `carry_forward_losses_not_applied`, `state_treaty_not_binding` (California), a Schedule FA form-consistency slip (`schedule_fa_inconsistent`), a walked-through Art. 4 tie-break (permanent home ambiguous → CVI decides for the US) and a DTAA treaty rate election on his NRO interest (`dtaa_treaty_elections`).
 2. **`us_resident_indian_income`** — Rohan Mehta, US green-card holder with Indian rent/dividends/mutual funds and a US-side consulting gig. FTC (Form 1116), PFIC, FBAR, a below-10%-threshold India business stake (`cfc_below_threshold`), `no_totalization_agreement` on his US self-employment tax, occasional online-gaming winnings (`special_rate_gaming_winnings`), and an unexplained cash deposit (`s115bbe_unexplained_income`).
 3. **`india_ror_us_income`** — Anita Desai, Indian ROR (formerly NRI) with US rental/dividends/brokerage. `nra_fdap_flat_rate`, `nra_w8ben_missing`, `firpta` on a US property sale, and a retained Chapter XII-A election (`chapter_xiia_not_computed`) kept after becoming ROR.
 4. **`founder_indian_company`** — Vikram Rao, US resident owning 100% of an Indian Pvt Ltd. `cfc` / Form 5471, plus a partial share buyback from his own company (`deemed_dividend_buyback_mismatch`).
@@ -406,10 +434,11 @@ during a demo.
 6. **`india_pvt_ltd`** — Business POV: Indian domestic company, §115BAA, ITR-6.
 7. **`us_ccorp_indian_sub`** — Business POV: Delaware C-Corp with an Indian subsidiary; GILTI.
 8. **`foreign_holdco_poem_india`** — Business POV: foreign-incorporated (Singapore) holding company whose Place of Effective Management facts resolve it to an Indian tax resident anyway (`entity_dual_residency_poem`) — entity-level dual residency with no individual-style tie-breaker.
+9. **`sharma_huf`** — Business POV: an HUF managing ancestral property and FD investments in India. Control-and-management residency test (not day-count, not POEM). Sits right at the §87A rebate threshold — demonstrates the entity-aware fix that HUF is not entitled to the individual-only rebate. PAN also unlinked from Aadhaar (`pan_not_linked_aadhaar`).
 
 **Coverage guarantee:** every finding `id` emitted by `detectConflicts()` in
-`conflicts.js` fires in at least one of the 8 profiles — verified by running
-`WISING.analyze()` against all 8 and diffing the union of triggered ids against
+`conflicts.js` fires in at least one of the 9 profiles — verified by running
+`WISING.analyze()` against all 9 and diffing the union of triggered ids against
 every `add(id, ...)` call site in the source. When a new finding is added to
 `conflicts.js`, extend the existing profile whose persona it fits most
 naturally (don't reach for a synthetic kitchen-sink profile) so this stays

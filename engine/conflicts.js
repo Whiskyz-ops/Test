@@ -130,25 +130,67 @@
 
     // -- 3b. DTAA TREATY RATE ELECTIONS ON FILE (per income stream) ---------
     // Layer 1 lets the taxpayer claim a specific DTAA article/rate on
-    // India-source interest, royalty or FTS (e.g. Art. 11(2)(b) 15% instead
-    // of the ~20%+cess domestic s.115A withholding) — previously captured but
+    // India-source interest, royalty, FTS or dividend (e.g. Art. 11(2)(b) 15%
+    // instead of the domestic s.115A withholding) — previously captured but
     // never read anywhere in the engine, so it was invisible on this page and
     // never even factored into the treaty-documentation check above.
+    // Domestic s.115A default withholding rates (no PE, NR recipient), used
+    // purely as the "what you'd pay without the treaty" comparison baseline —
+    // not a substitute for checking the actual DTAA article text.
+    var DOMESTIC_RATE_115A = { interest: 0.20, dividend: 0.20, royalty: 0.10, fts: 0.10 };
     if (treatyElections.length > 0) {
+      var docsShortfall = [];
+      if (!model.treaty.trcStatus) docsShortfall.push("TRC (IRS Form 6166)");
+      if (!model.treaty.form10fFiled) docsShortfall.push("Form 10F");
       var electionParts = treatyElections
         .filter(function (e) { return e && e.income_type; })
         .map(function (e) {
           var pct = e.elected_rate != null ? Math.round(e.elected_rate * 100) + "%" : "unset rate";
-          return e.income_type + " @ " + pct + (e.treaty_article ? " (" + e.treaty_article + ")" : "");
+          var domestic = DOMESTIC_RATE_115A[e.income_type];
+          var compare = "";
+          if (domestic != null && e.elected_rate != null) {
+            compare = e.elected_rate < domestic
+              ? " (vs " + Math.round(domestic * 100) + "% domestic s.115A rate — treaty saves " + Math.round((domestic - e.elected_rate) * 100) + " points)"
+              : " (vs " + Math.round(domestic * 100) + "% domestic s.115A rate — elected rate is NOT lower; confirm this is really beneficial)";
+          }
+          return e.income_type + " @ " + pct + (e.treaty_article ? " (" + e.treaty_article + ")" : "") + compare;
         });
-      add("dtaa_treaty_elections", S.INFO, C.TREATY,
+      add("dtaa_treaty_elections", docsShortfall.length > 0 ? S.WARNING : S.INFO, C.TREATY,
         electionParts.length + " DTAA treaty rate election(s) on file",
         "Layer 1 records a claimed treaty rate on the following India-source income stream(s), instead of the domestic " +
         "s.115A withholding rate: " + electionParts.join("; ") + ". WISING does not yet recompute India withholding tax " +
-        "under these elected rates (see Part H) — this finding only surfaces what's on file so the position isn't invisible.",
-        "Confirm each elected rate against the current India-US DTAA text for that article, and that TRC/Form 10F support " +
-        "(see the finding above, if triggered) actually covers these specific income streams, not just the general treaty position.",
-        0, ["DTAA treaty election", "s.115A", "s.90(2)"]);
+        "under these elected rates (see Part H) — this finding only surfaces what's on file so the position isn't invisible." +
+        (docsShortfall.length > 0
+          ? " Layer 1 does NOT show " + docsShortfall.join(" or ") + " on file — every one of these elections is at risk of " +
+            "being denied and defaulting back to the full domestic s.115A rate u/s 90(4) without it."
+          : ""),
+        docsShortfall.length > 0
+          ? "Obtain " + docsShortfall.join(" and ") + " before relying on any of these elected rates — without it, the payer/" +
+            "assessing officer can withhold or assess at the full domestic rate shown above instead."
+          : "Confirm each elected rate against the current India-US DTAA text for that article — TRC and Form 10F are on file, " +
+            "but that alone doesn't verify the specific article/rate claimed is correct for this income stream.",
+        0, ["DTAA treaty election", "s.115A", "s.90(2)", "s.90(4)"]);
+    }
+
+    // -- 3c. PAN NOT LINKED TO AADHAAR — PAN TREATED AS INOPERATIVE ---------
+    // Captured by Layer 1's profile toggle but never read anywhere in the
+    // engine before this. Under Rule 114AAA, an unlinked PAN is "inoperative":
+    // every payer must withhold at the higher default rate u/s 206AA (TDS) /
+    // 206CC (TCS) as if no PAN had been furnished — this overrides ANY treaty
+    // rate elected above, refunds are withheld while inoperative, and interest
+    // keeps accruing for the period it stays that way. Only fires on an
+    // explicit false (not simply unanswered/null).
+    if (model.identity.panAadhaarLinked === false) {
+      add("pan_not_linked_aadhaar", S.CRITICAL, C.DOCUMENT,
+        "PAN not linked to Aadhaar — PAN is inoperative, higher TDS/TCS applies",
+        "Layer 1 records the PAN as NOT linked to Aadhaar. Under Rule 114AAA an unlinked PAN is treated as inoperative — " +
+        "every payer must withhold TDS/TCS at the higher default rate u/s 206AA/206CC (generally 20%, or double the " +
+        "normal TCS rate, whichever is higher) as if no PAN had been furnished at all, REGARDLESS of any lower slab, " +
+        "special, or DTAA treaty rate that would otherwise apply — including the treaty elections above, if any. " +
+        "Refunds are also withheld while the PAN remains inoperative, and interest keeps accruing for that period.",
+        "Link PAN to Aadhaar (paying the applicable late fee) before relying on any withholding-rate, refund, or treaty-" +
+        "election figure on this page — every number computed here assumes a valid, operative PAN.",
+        0, ["s.206AA", "s.206CC", "Rule 114AAA", "PAN inoperative"]);
     }
 
     // -- 4. FTC RECONCILIATION GAP (residual double tax) -------------------

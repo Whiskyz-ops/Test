@@ -474,7 +474,12 @@
         name: safe(router, "full_name", safe(india, "profile.full_name", safe(us, "profile.full_name", "Unnamed Taxpayer"))),
         dob: safe(router, "date_of_birth", safe(india, "profile.date_of_birth", safe(us, "profile.date_of_birth", null))),
         usFilingStatus: normalizeFilingStatus(safe(us, "profile.filing_status", "single")),
-        indiaEntityType: safe(india, "profile.entity_type", "individual")
+        indiaEntityType: safe(india, "profile.entity_type", "individual"),
+        // Raw fact (not derived) — captured by Layer 1's PAN/Aadhaar toggle but
+        // never read anywhere in the engine before this. null when the field
+        // has never been touched (don't want to flag an unanswered toggle the
+        // same as an explicit "not linked").
+        panAadhaarLinked: safe(india, "profile.pan_aadhaar_linked", null)
       },
       entity: (function () {
         var inK = safe(india, "profile.entity_type", "individual");

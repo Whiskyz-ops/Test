@@ -428,7 +428,45 @@
     }
   };
 
-  var PROFILES = [P1, P2, P3, P4, P5, B1, B2, B3];
+  /* ======================================================================
+   * PROFILE 9 — BUSINESS POV: an HUF (Hindu Undivided Family).
+   * Control-and-management residency test (not day-count, not POEM) —
+   * demonstrates the entity-aware fix that HUF is NOT entitled to the
+   * individual-only §87A rebate, plus an unlinked PAN/Aadhaar (s.206AA).
+   * ====================================================================*/
+  var B4 = {
+    id: "sharma_huf",
+    label: "Sharma HUF (family investment vehicle)",
+    story: "Business POV: an HUF managing ancestral property and FD investments in India. Control & management is NOT wholly outside India, so it stays resident — a different test than the individual day-count. At ~₹6.5L income it sits right at the §87A rebate threshold, demonstrating the entity-aware fix (HUF isn't entitled to the individual-only rebate). PAN also isn't linked to Aadhaar, so every TDS figure here understates the higher rate actually being withheld.",
+    tags: ["HUF", "entity", "87A", "control and management", "PAN-Aadhaar"],
+    router: router("Sharma HUF", { us_days: 0, has_us_source_income_or_assets: false }),
+    india: {
+      profile: { full_name: "Sharma HUF", entity_type: "huf", tax_regime: "NEW", pan_aadhaar_linked: false },
+      residency_detail: { is_wholly_outside_india: false, final_india_residency_status: "ROR" },
+      dtaa: {},
+      compliance_docs: {},
+      bank_accounts: [{ bank_name: "SBI", account_type: "current", peak_balance_inr: 900000 }],
+      property: { has_indian_property_transaction: true, properties: [{ address: "Ancestral home, Jaipur", property_type: "Residential", annual_value_inr: 300000, gross_rent_received_inr: 360000, municipal_taxes_paid_inr: 12000 }] },
+      financial_holdings: { has_financial_transactions: false, transactions: [] },
+      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 300000 }] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
+      other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 350000 },
+      deductions: {},
+      lrs_outbound: {},
+      tax_credits: { tds_already_deducted_inr: 15000 },
+      metadata: meta("layer1_india_v5_1", "FY2025-26")
+    },
+    us: {
+      profile: { tax_entity_type: "individual", full_name: "Sharma HUF", filing_status: "single" },
+      us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 0, spt_test_met: false, final_us_residency_status: "NON_RESIDENT_ALIEN" },
+      income_us_source: {}, income_foreign_source: {}, foreign_earned_income: { claims_feie: false },
+      bank_accounts: [], fbar_aggregate_peak_usd: 0,
+      foreign_entities: { foreign_corporations: [], pfic_holdings: [] }, retirement_accounts: {},
+      ftc_inputs: { claims_ftc: false }, withholding_and_estimated: {}, nra_specific: { files_form_1040nr: false },
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+    }
+  };
+
+  var PROFILES = [P1, P2, P3, P4, P5, B1, B2, B3, B4];
 
   function listProfiles() {
     return PROFILES.map(function (p) { return { id: p.id, label: p.label, story: p.story, tags: p.tags }; });
