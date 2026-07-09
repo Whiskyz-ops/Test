@@ -344,10 +344,19 @@
     (safe(ec, "rsu_vestings", []) || []).forEach(function (r) { rsuIncomeUsd += num(r.gross_income_usd != null ? r.gross_income_usd : num(r.fmv_at_vest_usd) * num(r.shares_vested)); });
     (safe(ec, "nso_exercises", []) || []).forEach(function (n) { nsoIncomeUsd += num(n.ordinary_income_recognized_usd != null ? n.ordinary_income_recognized_usd : Math.max(0, (num(n.fmv_at_exercise_usd) - num(n.strike_price_usd)) * num(n.shares_exercised))); });
     var isoCount = (safe(ec, "iso_exercises", []) || []).length;
+    // ESOP: prefer the per-grant events array (grant/vest dates + a raw,
+    // user-entered perquisite value per grant) over the older single annual
+    // total, when the taxpayer has actually itemized grants — the array is
+    // both more precise and is what a future cross-border sourcing check
+    // (matching against US RSU grant dates) will need.
+    var esopEvents = safe(annualDomesticIncome, "salary.esop_perquisite_events", []) || [];
+    var esopFromEvents = esopEvents.reduce(function (s, e) { return s + num(e.perquisite_value_inr); }, 0);
+    var esopPerquisiteInr = esopEvents.length > 0 ? esopFromEvents : num(safe(annualDomesticIncome, "salary.esop_perquisite_inr", 0));
     return {
       hasUsEquityComp: safe(ec, "has_equity_comp", false) === true || rsuIncomeUsd > 0 || nsoIncomeUsd > 0 || isoCount > 0,
       rsuIncomeUsd: rsuIncomeUsd, nsoIncomeUsd: nsoIncomeUsd, isoExerciseCount: isoCount,
-      esopPerquisiteInr: num(safe(annualDomesticIncome, "salary.esop_perquisite_inr", 0))
+      esopPerquisiteInr: esopPerquisiteInr,
+      esopGrantEvents: esopEvents
     };
   }
 
@@ -461,7 +470,13 @@
         india: {
           status: safe(india, "residency_detail.final_india_residency_status", null),
           daysCurrentYear: num(safe(india, "residency_detail.days_in_india_current_year", 0)),
-          taxRegime: safe(india, "profile.tax_regime", "NEW")
+          taxRegime: safe(india, "profile.tax_regime", "NEW"),
+          // Raw fact (not derived): is this a company incorporated in India?
+          // An Indian company is unconditionally resident regardless of POEM
+          // (place of incorporation controls); POEM only determines residency
+          // for a company that is NOT Indian-incorporated. Null when unset
+          // (e.g. not a company entity).
+          isIndianCompanyFact: safe(india, "residency_detail.is_indian_company", null)
         },
         us: {
           status: safe(us, "us_residency_detail.final_us_residency_status", null),
@@ -487,6 +502,19 @@
         nyDaysPresent: num(safe(us, "state_residency.ny_actual_days_present", 0)),
         nyPermanentAbode: safe(us, "state_residency.ny_permanent_place_of_abode", false) === true,
         ny548DayRule: safe(us, "state_residency.ny_548_day_rule", false) === true
+      },
+      // Company POEM raw facts (only meaningful when entity.indiaIsCompany).
+      // The form's own solver derives a suggested POEM conclusion from these
+      // for UI purposes (same pattern as the individual residency wizard),
+      // but the engine reads the raw facts directly for its own findings
+      // rather than re-deriving POEM a second time.
+      companyResidency: {
+        isActiveBusiness: safe(india, "company_residency.is_active_business", false) === true,
+        boardMeetingsOutsideIndia: safe(india, "company_residency.board_meetings_primarily_outside_india", false) === true,
+        keyManagementLocation: safe(india, "company_residency.key_management_location", null),
+        managementDelegatedOutsideIndia: safe(india, "company_residency.management_delegated_outside_india", false) === true,
+        directorsInIndia: num(safe(india, "company_residency.directors_in_india_count", 0)),
+        directorsOutsideIndia: num(safe(india, "company_residency.directors_outside_india_count", 0))
       },
       treaty: {
         trcStatus: safe(india, "dtaa.trc_status", false) === true ||

@@ -194,10 +194,29 @@ before changing any citation. Flagged here so it's on record, not as an instruct
 
 ## Implementation checklist
 
-- [ ] §1.1: `evaluateSurchargeBuckets()` (11332, writes at 11654–11660) — remove or TODO-flag the derived write-back; not urgent
-- [ ] §1.2, §1.3: no action — verified clean
-- [ ] §2: new `company_residency` section (6 fields), hooked into `updateBizEntityType()`'s existing `isCompany` toggle (line 7625/7636)
-- [ ] §3: new `domestic_income.salary.esop_perquisite_events[]` repeatable array (keep old lump field for now)
-- [ ] §4: add `is_specified_foreign_exchange_asset` boolean to financial-holdings transactions (line ~8685/8836)
-- [ ] §5: no action
-- [ ] §6: no action — verification note only
+- [ ] §1.1: `evaluateSurchargeBuckets()` (11332, writes at 11654–11660) — remove or TODO-flag the derived write-back; not urgent, still open
+- [x] §1.2, §1.3: no action — verified clean
+- [x] §2: new `company_residency` section (6 fields), hooked into `updateBizEntityType()`'s existing `isCompany` toggle — implemented; engine now reads the raw facts and fires `entity_dual_residency_poem` for a foreign-incorporated company that resolves to ROR
+- [x] §3: new `domestic_income.salary.esop_perquisite_events[]` repeatable array (old lump field kept alongside) — implemented; engine prefers the per-grant sum when the array is populated
+- [x] §4: `is_specified_foreign_exchange_asset` added to financial-holdings transactions, plus 3 new NRI-specific asset-class dropdown options — implemented (went beyond the minimum ask)
+- [x] §5: no action
+- [x] §6: no action — verification note only
+
+### Bugs found during implementation review (now fixed)
+
+- The SFEA checkbox's restore-from-saved logic checked a field named `tx.sfea`, but the save path
+  writes `is_specified_foreign_exchange_asset` — the checkbox never survived a reload. Fixed to
+  reference the correct field name.
+- `company_residency` was missing from the top-level saved-state restore block (every other section
+  has an explicit `if (savedState.X) Object.assign(...)` line; this one didn't), so all 6 POEM facts
+  silently reset to blank on every page reload despite saving to localStorage correctly. Added the
+  missing line.
+
+### Separately flagged, not fixed (outside this doc's scope)
+
+The step-wizard's Back/Next button chain has an inconsistency from a step-reordering pass:
+`panel-step-business`'s Back button points to `step-deductions` (should be `step-hp`),
+`panel-step-deductions`'s Back button points to a `step-income` that no longer has a matching panel,
+and `panel-step-os`'s Next button points back to `step-dtaa` instead of forward — together these
+leave Deductions/Credits/Output unreachable via the linear Next-button chain (sidebar tabs may still
+reach them directly). Not touched since the intended final step order wasn't known.

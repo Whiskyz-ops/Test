@@ -169,13 +169,29 @@ A dedicated pass over `engine/conflicts.js` against the Layer 1 fields above, sc
   while the US form shows US-source income/accounts for the same India-ROR taxpayer, the two forms
   are flatly contradicting each other — nothing today compared them against one another before this.
 
-**Still open in conflict detection** (tracked here, not yet built): entity-level dual residency for
-an Indian company under POEM vs. US management-and-control, a numeric GILTI/Subpart F computation
-once Part F lands (blocked on Layer 1 not collecting tested income/E&P/QBAI), Chapter XII-A actual
-flat-rate recomputation (blocked on Layer 1 not tagging which income is a "specified foreign-exchange
-asset"), and the equity-comp sourcing day-count allocation (blocked on Layer 1 not collecting
-per-tranche workday-in-country data) — all three remaining items need new Layer 1 fields, not just
-engine wiring, so they stay flagged rather than computed.
+- **Entity-level dual residency, India side** (`entity_dual_residency_poem`) — India Layer 1 added a
+  `company_residency` section (raw POEM facts: board-meeting location, key-management location,
+  director split) feeding its own client-side solver, same pattern as the individual residency
+  wizard. The engine reads the raw facts (not the form's derived POEM guess) plus the existing
+  `is_indian_company` flag: when a company is on file as NOT Indian-incorporated but still resolves
+  to ROR, that combination *is* the POEM-in-India signal — India's s.6(3) test only reaches ROR for
+  a foreign-incorporated company via POEM. Confirming the OTHER side's own residency test (e.g. US
+  place-of-incorporation) still needs the US Layer 1 changes, which are in progress separately.
+- **ESOP per-grant data** — `esop_perquisite_events[]` (grant date, vest/exercise date, per-grant
+  perquisite value) replaces relying on the single annual `esop_perquisite_inr` total when itemized;
+  `equity_comp_sourcing` and the equity-comp aggregate now prefer the per-grant sum. Sets up (but
+  doesn't yet finish) date-matching against US RSU grant dates once the equivalent US Layer 1 fields
+  land.
+- **Specified foreign-exchange asset tagging** — `financial_holdings` transactions now carry
+  `is_specified_foreign_exchange_asset`, plus three new asset-class options (NRI specified debenture
+  / company deposit / govt security). Chapter XII-A eligibility can now be identified per-transaction
+  rather than inferred; the flat-rate recomputation itself is still open (see below).
+
+**Still open in conflict detection** (tracked here, not yet built): the US side of entity dual
+residency (needs the US Layer 1 changes in progress), a numeric GILTI/Subpart F computation once
+Part F lands (blocked on Layer 1 not collecting tested income/E&P/QBAI), Chapter XII-A's actual
+flat-rate recomputation (now identifiable per-transaction, but not yet computed), and the equity-comp
+sourcing day-count allocation (still needs per-tranche workday-in-country data on both sides).
 
 ---
 

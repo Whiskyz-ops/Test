@@ -200,6 +200,43 @@
         0, ["DTAA Art. 7", "Permanent establishment"]);
     }
 
+    // -- 4f2. ENTITY-LEVEL DUAL RESIDENCY — FOREIGN COMPANY, POEM IN INDIA --
+    // An Indian-incorporated company is unconditionally India-resident
+    // (place of incorporation controls) — POEM only matters for a company
+    // that is NOT Indian-incorporated. The Layer 1 solver only reaches ROR
+    // for such a company when its own POEM facts (board location, key
+    // management location, director split) point to India — so if this
+    // taxpayer is a company, is on file as NOT Indian-incorporated, and
+    // still resolved to ROR, that resolution IS the POEM-in-India finding.
+    // A foreign-incorporated company doesn't stop being resident wherever
+    // it was incorporated just because India also claims it via POEM — this
+    // is a genuine ENTITY-level double residency, distinct from (and not
+    // resolved by) the individual Article 4 hierarchy, which doesn't apply
+    // to companies the same way (Article 4(3) sends companies to competent-
+    // authority mutual agreement instead of a mechanical tie-breaker).
+    if (model.entity && model.entity.indiaIsCompany &&
+        model.residency.india.isIndianCompanyFact === false &&
+        res.india.status === CONST.INDIA_STATUS.ROR) {
+      var cr = model.companyResidency || {};
+      var poemFactors = [];
+      if (cr.boardMeetingsOutsideIndia) poemFactors.push("board meets primarily outside India");
+      if (cr.keyManagementLocation) poemFactors.push("key management location: " + cr.keyManagementLocation);
+      if (cr.directorsInIndia || cr.directorsOutsideIndia) poemFactors.push(cr.directorsInIndia + " director(s) in India vs " + cr.directorsOutsideIndia + " outside");
+      add("entity_dual_residency_poem", S.WARNING, C.TREATY,
+        "Foreign-incorporated company with POEM in India — entity-level dual residency",
+        "This company is on file as NOT incorporated in India, yet its Place of Effective Management facts" +
+        (poemFactors.length ? " (" + poemFactors.join("; ") + ")" : "") +
+        " resolve it to an Indian tax resident (worldwide income in scope) under s.6(3). Being incorporated elsewhere " +
+        "means it doesn't stop being resident there either (most countries, including the US, use place-of-incorporation " +
+        "as their own company-residency test) — so this entity is very likely resident in BOTH countries at once, with no " +
+        "individual-style Article 4 hierarchy to mechanically resolve it.",
+        "Confirm the other country's own company-residency test independently (place of incorporation alone is often " +
+        "sufficient there) — if it also claims residency, this needs the treaty's company tie-breaker (competent-authority " +
+        "mutual agreement under Article 4(3)), not a self-service test. Revisit the POEM facts too: 'mostly outside India' " +
+        "board meetings alone isn't dispositive if commercial decisions are substantively made elsewhere.",
+        0, ["DTAA Art. 4(3)", "s.6(3)", "POEM", "Mutual Agreement Procedure"]);
+    }
+
     // -- 4g. CHAPTER XII-A (s.115H/115C) ELECTED BUT NOT IN THE COMPUTATION -
     // s.115H/115C give an NRI a concessional flat rate (20% investment income
     // / 10% LTCG, no slab progression) on specified foreign-exchange assets,
