@@ -354,8 +354,21 @@ used gross LTCG (pre-loss-set-off AND pre-s.112A-exemption) while `specialTaxInr
 `ltcgTaxableInr` — the exempt slice of LTCG was silently inflating total income even though it isn't
 part of total income at all. Both now use `ltcgTaxableInr` consistently. Verified with a synthetic
 ₹6L-salary + ₹5L-LTCG test: before the fix, `totalIncomeInr` was ₹11,00,000 (included the full exempt
-₹1,25,000); after the fix it's the correct ₹9,75,000. No existing demo profile carries LTCG income, so
-none of the 9 profiles' figures changed — confirmed via the regression harness.
+₹1,25,000); after the fix it's the correct ₹9,75,000.
+
+**Bifurcated across demo profiles** (user: every change we make needs a one-click way to see it, spread
+across different profiles rather than piled onto one or two): at the time of the LTCG fix, no demo
+profile carried LTCG income at all, and the NPS half of the EPF/NPS income-wiring fix (Part D.5) and
+the "partially set off" state of loss set-off (only "fully" and "none" existed) had no trigger either.
+Added, one case per profile so each demonstrates something distinct:
+- **`india_ror_us_income`** (Anita) — ₹300,000 LTCG (above the ₹1,25,000 s.112A exemption), exercising
+  the gross-vs-exemption-adjusted fix. Verified: `grossTotalIncomeInr` = ₹39,75,000 = salary (36L) +
+  interest (2L) + net LTCG (3L − 1.25L = 1.75L), confirmed by hand.
+- **`us_citizen_expat_india`** (Grace) — ₹30,000 taxable NPS withdrawal, distinct from Aarav's EPF-
+  interest case; verified it raises her US tax the same way.
+- **`founder_indian_company`** (Vikram) — a ₹1L current-year STCG gain against a ₹2.5L brought-forward
+  STCG loss: ₹1L absorbed, ₹1.5L still carrying forward — the "partially set off" branch, distinct from
+  Aarav's full absorption and the HUF's total non-absorption.
 
 ---
 
@@ -494,9 +507,9 @@ during a demo.
 **The 9 profiles:**
 1. **`dual_resident_h1b`** — Aarav Sharma, senior tech hire in California. India ROR + US SPT; the flagship FTC/tie-breaker case. An ISO exercise triggers `amt_applies` and mirrors an ESOP grant from his prior Indian employer (`equity_comp_sourcing`); also carries `niit_medicare_not_creditable`, `carry_forward_losses_not_applied`, `state_treaty_not_binding` (California), a Schedule FA form-consistency slip (`schedule_fa_inconsistent`), a walked-through Art. 4 tie-break (permanent home ambiguous → CVI decides for the US) and a DTAA treaty rate election on his NRO interest (`dtaa_treaty_elections`).
 2. **`us_resident_indian_income`** — Rohan Mehta, US green-card holder with Indian rent/dividends/mutual funds and a US-side consulting gig. FTC (Form 1116), PFIC, FBAR, a below-10%-threshold India business stake (`cfc_below_threshold`), `no_totalization_agreement` on his US self-employment tax, occasional online-gaming winnings (`special_rate_gaming_winnings`), and an unexplained cash deposit (`s115bbe_unexplained_income`).
-3. **`india_ror_us_income`** — Anita Desai, Indian ROR (formerly NRI) with US rental/dividends/brokerage. `nra_fdap_flat_rate`, `nra_w8ben_missing`, `firpta` on a US property sale, and a retained Chapter XII-A election (`chapter_xiia_not_computed`) kept after becoming ROR.
-4. **`founder_indian_company`** — Vikram Rao, US resident owning 100% of an Indian Pvt Ltd. `cfc` / Form 5471, plus a partial share buyback from his own company (`deemed_dividend_buyback_mismatch`).
-5. **`us_citizen_expat_india`** — Grace Thomas, US citizen living in India. FEIE + PFIC (citizenship-based taxation), plus a gift from her father — a long-term green-card holder who relinquished it and was found to be a covered expatriate (`foreign_gift_3520`, `covered_expat_gift_tax`).
+3. **`india_ror_us_income`** — Anita Desai, Indian ROR (formerly NRI) with US rental/dividends/brokerage. `nra_fdap_flat_rate`, `nra_w8ben_missing`, `firpta` on a US property sale, a retained Chapter XII-A election (`chapter_xiia_not_computed`) kept after becoming ROR, and ₹3L LTCG above the s.112A exemption (exercises the gross-vs-exemption-adjusted `totalIncomeInr` fix).
+4. **`founder_indian_company`** — Vikram Rao, US resident owning 100% of an Indian Pvt Ltd. `cfc` / Form 5471, a partial share buyback from his own company (`deemed_dividend_buyback_mismatch`), and a brought-forward STCG loss bigger than this year's STCG gain — the "partially set off" state of loss set-off.
+5. **`us_citizen_expat_india`** — Grace Thomas, US citizen living in India. FEIE + PFIC (citizenship-based taxation), a gift from her father — a long-term green-card holder who relinquished it and was found to be a covered expatriate (`foreign_gift_3520`, `covered_expat_gift_tax`), and a taxable NPS withdrawal (the NPS half of the EPF/NPS US-income wiring, distinct from Aarav's EPF-interest case).
 6. **`india_pvt_ltd`** — Business POV: Indian domestic company, §115BAA, ITR-6.
 7. **`us_ccorp_indian_sub`** — Business POV: Delaware C-Corp with an Indian subsidiary; GILTI.
 8. **`foreign_holdco_poem_india`** — Business POV: foreign-incorporated (Singapore) holding company whose Place of Effective Management facts resolve it to an Indian tax resident anyway (`entity_dual_residency_poem`) — entity-level dual residency with no individual-style tie-breaker.

@@ -185,6 +185,10 @@
       financial_holdings: { has_financial_transactions: false, transactions: [] },
       foreign_assets: { has_foreign_assets: true, assets: [{ country: "US", type: "brokerage", value_inr: 6800000 }, { country: "US", type: "real_estate", value_inr: 12000000 }] },
       domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 3600000 }, house_property: { has_house_property_income: false, properties: [] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
+      // LTCG well above the s.112A exemption threshold — exercises the fix
+      // where totalIncomeInr now correctly excludes the exempt slice instead
+      // of counting the full gross gain.
+      capital_gains: { ltcg_112a_inr: 300000 },
       other_sources: { has_other_sources_income: true, interest_savings_inr: 60000, interest_fd_rd_inr: 140000 },
       deductions: { s80C: { epf_employee_inr: 150000 }, s80D: { self_family_premium_inr: 25000 } },
       lrs_outbound: {},
@@ -234,11 +238,16 @@
       property: { properties: [] },
       financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "unlisted_equity", asset_name: "Nova Systems Pvt Ltd (100%)", value_inr: 45000000 }] },
       unlisted_equity: { has_unlisted_equity_transaction: true, transactions: [{ company: "Nova Systems Pvt Ltd", holding_pct: 100 }] },
-      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: { short_term_15_pct: 100000 } },
       // A partial share buyback by his own company — a routine founder
       // liquidity event, and exactly the s.2(22)(f) vs. capital-gain
       // characterization mismatch the US side will book differently.
       other_sources: { has_other_sources_income: true, dividend_inr: 500000, deemed_dividend_from_buyback_inr: 3500000 },
+      // A brought-forward STCG loss bigger than this year's STCG gain — only
+      // partly absorbed, the rest keeps carrying forward. The third state of
+      // the loss set-off computation, distinct from Aarav's full absorption
+      // and the HUF's total non-absorption.
+      carry_forward_losses: { has_brought_forward_losses: true, stcg_loss_cf: [{ assessment_year: "AY2024-25", amount_inr: 250000 }] },
       deductions: {},
       lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 600000, advance_tax_q2_15sep_inr: 700000, advance_tax_q3_15dec_inr: 700000, advance_tax_q4_15mar_inr: 500000 },
@@ -281,7 +290,10 @@
       property: { properties: [] },
       financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "equity_mutual_fund", asset_name: "Parag Parikh Flexi Cap", value_inr: 1800000 }] },
       domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 5000000 }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
-      other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 120000 },
+      // NPS withdrawal Layer 1 records as taxable this year — exercises the
+      // fix where this now actually raises US taxable income (folded into
+      // foreign-source pension), distinct from Aarav's EPF-interest case.
+      other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 120000, taxable_nps_withdrawal_inr: 30000 },
       deductions: { s80C: { ppf_inr: 150000 } },
       lrs_outbound: {},
       tax_credits: { tds_already_deducted_inr: 900000 },
