@@ -158,6 +158,14 @@
       num(safe(os, "interest_on_it_refund_inr", 0)) +
       num(safe(di, "other_sources.interest_inr", 0))
     );
+    // Deemed dividend on share buyback (s.2(22)(f), post-1-Oct-2024): the
+    // FULL buyback consideration is taxed as a dividend at slab rates in the
+    // shareholder's hands (the acquisition cost instead becomes a capital
+    // loss). This is a genuine characterization mismatch candidate — the US
+    // almost certainly treats the same cash as capital gain/return of
+    // capital, not dividend income, so keep it distinct from ordinary
+    // dividend even though both are taxed at slab rates here.
+    var deemedDividendBuyback = moneyFromInr(num(safe(os, "deemed_dividend_from_buyback_inr", 0)));
     var dividend = moneyFromInr(num(safe(os, "dividend_inr", 0)));
 
     // Capital gains — Layer 1 stores transaction data; surface the simple
@@ -184,7 +192,7 @@
     // this pass only flags it rather than computing it.
     var unexplained115bbeInr = num(safe(os, "unexplained_income_115BBE_inr", 0));
 
-    var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg, specialRate115bb].reduce(addMoney, zeroMoney());
+    var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg, specialRate115bb, deemedDividendBuyback].reduce(addMoney, zeroMoney());
 
     return {
       salary: salary, business: business, houseProperty: houseProperty,
@@ -192,6 +200,7 @@
       stcg: stcg, ltcg: ltcg,
       capitalGains: addMoney(stcg, ltcg),
       specialRate115bb: specialRate115bb,
+      deemedDividendBuyback: deemedDividendBuyback,
       unexplained115bbeInr: unexplained115bbeInr,
       total: total
     };
@@ -609,6 +618,12 @@
         epfInr: num(safe(india, "deductions.s80C.epf_employee_inr", 0)),
         ppfInr: num(safe(india, "deductions.s80C.ppf_inr", 0)),
         npsInr: num(safe(india, "deductions.s80CCC_80CCD1.nps_employee_contribution_inr", 0)),
+        // Actual taxable withdrawal/interest amounts (as opposed to just
+        // whether an account exists) — lets the retirement-mismatch finding
+        // quantify the US-taxable exposure precisely instead of a generic
+        // warning with no dollar figure.
+        taxableEpfInterestInr: num(safe(annual.other_sources, "taxable_epf_interest_inr", 0)),
+        taxableNpsWithdrawalInr: num(safe(annual.other_sources, "taxable_nps_withdrawal_inr", 0)),
         // US-side holdings the Layer 1 US form captures
         usSecurities: safe(us, "financial_holdings", []) || [],
         usProperties: safe(us, "real_estate.properties", []) || [],

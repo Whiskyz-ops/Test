@@ -51,9 +51,13 @@
     var slabs = isNew ? T.SLABS_NEW : T.SLABS_OLD;
 
     // Normal-slab income (salary is already taxable-net from Layer 1).
+    // Deemed dividend on buyback (s.2(22)(f)) is taxed exactly like ordinary
+    // dividend — at slab rates, in Other Sources — so it joins the same
+    // normal-slab bucket dividend already sits in.
+    var deemedDividendInr = (inc.deemedDividendBuyback && inc.deemedDividendBuyback.inr) || 0;
     var normalSlabInr =
       inc.salary.inr + inc.business.inr + inc.houseProperty.inr +
-      inc.interest.inr + inc.dividend.inr;
+      inc.interest.inr + inc.dividend.inr + deemedDividendInr;
 
     // Chapter VI-A deductions.
     var deductionsInr;

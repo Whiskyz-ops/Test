@@ -209,6 +209,16 @@ restructure. Then went beyond the 3 originally-scoped items:
   FTC/double-tax headline figures. Flagged as an honesty disclosure rather than computed (full set-off
   ordering — business → speculative → capital → house property, 8-year limits, inter-head
   restrictions — is a bigger lift than fits this pass).
+- **Deemed dividend on buyback** (`deemed_dividend_buyback_mismatch`) — `deemed_dividend_from_buyback_inr`
+  (s.2(22)(f), effective 1-Oct-2024: full buyback consideration taxed as dividend at slab rates, share
+  cost becomes a capital loss) was computed by the form but never read anywhere. Now included in total
+  income (taxed at slab rates, same bucket as ordinary dividend) and drives a new characterization-
+  mismatch finding: India taxes the cash as dividend, the US almost certainly taxes the same cash as
+  capital gain/return of capital — same money, different character, which can distort the FTC basket.
+- **Retirement mismatch quantified** — `retirement_mismatch` previously only checked whether an EPF/
+  PPF/NPS account *existed*; it now reads the actual `taxable_epf_interest_inr` /
+  `taxable_nps_withdrawal_inr` figures Layer 1 collects and states the US-taxable exposure as a real
+  dollar amount when available, instead of a generic warning with no figure attached.
 
 **Still open in conflict detection** (tracked here, not yet built): the US side of entity dual
 residency (needs the US Layer 1 changes in progress), a numeric GILTI/Subpart F computation once

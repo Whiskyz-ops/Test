@@ -460,11 +460,45 @@
 
     // -- 10. RETIREMENT ACCOUNT TREATMENT MISMATCH -------------------------
     if ((model.assets.epfInr > 0 || model.assets.ppfInr > 0 || model.assets.npsInr > 0) && res.us.isResident) {
+      var epfInterestUsd = U.inrToUsd(model.assets.taxableEpfInterestInr || 0);
+      var npsWithdrawalUsd = U.inrToUsd(model.assets.taxableNpsWithdrawalInr || 0);
+      var hasQuantified = epfInterestUsd > 1 || npsWithdrawalUsd > 1;
+      var quantifiedParts = [];
+      if (epfInterestUsd > 1) quantifiedParts.push(usd(epfInterestUsd) + " of EPF interest");
+      if (npsWithdrawalUsd > 1) quantifiedParts.push(usd(npsWithdrawalUsd) + " of NPS withdrawal");
       add("retirement_mismatch", S.WARNING, C.RETIREMENT,
         "Indian retirement accounts (EPF / PPF / NPS) are taxed differently by the US",
-        "India treats EPF, PPF and NPS as tax-free (or lightly taxed). The US does not automatically agree: the IRS can tax the interest these accounts earn every year, and may treat PPF like a trust that needs extra forms.",
+        "India treats EPF, PPF and NPS as tax-free (or lightly taxed). The US does not automatically agree: the IRS can tax " +
+        "the interest these accounts earn every year, and may treat PPF like a trust that needs extra forms." +
+        (hasQuantified ? " Layer 1 already records " + quantifiedParts.join(" and ") + " as taxable this year — that " +
+          "amount is US-taxable income the India side treats as tax-free/lightly-taxed, on top of whatever this engine " +
+          "already computes." : ""),
         "WISING checks whether each account is a treaty-protected pension (Article 20) or a trust, adds the yearly interest to US income where the US requires it, and prepares the FBAR / Form 8938 and any Form 3520 filing — so nothing gets missed.",
-        0, ["DTAA Art. 20", "Form 3520/3520-A", "FBAR"]);
+        epfInterestUsd + npsWithdrawalUsd, ["DTAA Art. 20", "Form 3520/3520-A", "FBAR"]);
+    }
+
+    // -- 10b. DEEMED DIVIDEND ON BUYBACK — CHARACTERIZATION MISMATCH --------
+    // s.2(22)(f) (effective 1-Oct-2024): the FULL buyback consideration is
+    // taxed as a dividend at slab rates in India, with the share's cost
+    // becoming a capital LOSS instead of reducing the dividend. The US almost
+    // certainly characterizes the same cash differently — a buyback is
+    // ordinarily a capital transaction there (capital gain/return of capital
+    // against basis, not dividend income). Same cash, two different
+    // characters — exactly the kind of thing the cross-basis reconciliation
+    // exists for, but this income wasn't in the model at all until now.
+    var deemedDivUsd = model.income.india.deemedDividendBuyback ? model.income.india.deemedDividendBuyback.usd : 0;
+    if (deemedDivUsd > 1 && res.us.worldwide) {
+      add("deemed_dividend_buyback_mismatch", S.WARNING, C.INCOME,
+        usd(deemedDivUsd) + " share buyback — India taxes it as dividend, the US likely taxes it as capital gain",
+        "Under s.2(22)(f) (effective 1-Oct-2024), India taxes the FULL buyback consideration as a deemed dividend at " +
+        "slab rates, with the shares' cost basis becoming a capital LOSS rather than reducing the dividend. The US, by " +
+        "contrast, ordinarily treats a share buyback as a capital transaction — gain or loss against the shares' cost " +
+        "basis, not dividend income. The same cash is very likely characterized differently by each country, which can " +
+        "distort both the FTC basket (passive/dividend vs. capital gain) and the true amount of relief available.",
+        "Don't assume the general FTC computation resolves this cleanly — confirm how the US side actually reports the " +
+        "buyback (capital transaction vs. dividend) and reconcile the mismatch explicitly, including the capital loss " +
+        "India allows on the extinguished shares, which the US computation won't mirror the same way.",
+        deemedDivUsd, ["s.2(22)(f)", "Share buyback", "FTC basket"]);
     }
 
     // -- 10a. CROSS-FORM INCONSISTENCY — INDIA'S OWN SCHEDULE FA SELF-REPORT
