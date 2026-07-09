@@ -135,14 +135,20 @@
     // -- 3b. DTAA TREATY RATE ELECTIONS ON FILE (per income stream) ---------
     // Layer 1 lets the taxpayer claim a specific DTAA article/rate on
     // India-source interest, royalty, FTS or dividend (e.g. Art. 11(2)(b) 15%
-    // instead of the domestic s.115A withholding) — previously captured but
-    // never read anywhere in the engine, so it was invisible on this page and
-    // never even factored into the treaty-documentation check above.
-    // Domestic s.115A default withholding rates (no PE, NR recipient), used
-    // purely as the "what you'd pay without the treaty" comparison baseline —
-    // not a substitute for checking the actual DTAA article text.
-    var DOMESTIC_RATE_115A = { interest: 0.20, dividend: 0.20, royalty: 0.10, fts: 0.10 };
+    // instead of the domestic s.115A withholding). s.115A — and therefore
+    // these elections — only applies to a genuine NON-RESIDENT under India's
+    // own domestic law (RNOR/ROR pay slab rates on this income regardless of
+    // any DTAA tie-break outcome). computeIndiaTax() now actually applies the
+    // interest/dividend elections for NR taxpayers (see resolveS115aRate);
+    // royalty/FTS/capital_gains stay disclosed-only below since Layer 1
+    // collects no income amount for those categories to apply a rate to.
+    // Domestic s.115A default withholding rates (no PE, NR recipient) — shared
+    // with computation.js's actual NR interest/dividend tax so the comparison
+    // text here can never drift from what's really being computed.
+    var DOMESTIC_RATE_115A = CONST.TAX.INDIA.S115A_RATES;
+    var COMPUTED_S115A_TYPES = { interest: true, dividend: true };
     if (treatyElections.length > 0) {
+      var isNrForS115a = res.india.status === CONST.INDIA_STATUS.NR;
       var docsShortfall = [];
       if (!model.treaty.trcStatus) docsShortfall.push("TRC (IRS Form 6166)");
       if (!model.treaty.form10fFiled) docsShortfall.push("Form 10F");
@@ -157,13 +163,34 @@
               ? " (vs " + Math.round(domestic * 100) + "% domestic s.115A rate — treaty saves " + Math.round((domestic - e.elected_rate) * 100) + " points)"
               : " (vs " + Math.round(domestic * 100) + "% domestic s.115A rate — elected rate is NOT lower; confirm this is really beneficial)";
           }
-          return e.income_type + " @ " + pct + (e.treaty_article ? " (" + e.treaty_article + ")" : "") + compare;
+          var computedTag;
+          if (!isNrForS115a) {
+            computedTag = " [not applied — taxpayer is not NR, see below]";
+          } else if (!COMPUTED_S115A_TYPES[e.income_type]) {
+            computedTag = " [not applied — no income figure collected for this type]";
+          } else {
+            var docsOk = model.treaty.trcStatus && model.treaty.form10fFiled;
+            if (docsOk && domestic != null && e.elected_rate != null && e.elected_rate < domestic) {
+              computedTag = " [elected rate applied to the India tax above]";
+            } else if (!docsOk) {
+              computedTag = " [election denied — domestic " + Math.round((domestic || 0) * 100) + "% rate applied instead, TRC/Form 10F missing]";
+            } else {
+              computedTag = " [domestic " + Math.round((domestic || 0) * 100) + "% rate applied instead — it's more beneficial than the elected rate]";
+            }
+          }
+          return e.income_type + " @ " + pct + (e.treaty_article ? " (" + e.treaty_article + ")" : "") + compare + computedTag;
         });
       add("dtaa_treaty_elections", docsShortfall.length > 0 ? S.WARNING : S.INFO, C.TREATY,
         electionParts.length + " DTAA treaty rate election(s) on file",
         "Layer 1 records a claimed treaty rate on the following India-source income stream(s), instead of the domestic " +
-        "s.115A withholding rate: " + electionParts.join("; ") + ". WISING does not yet recompute India withholding tax " +
-        "under these elected rates (see Part H) — this finding only surfaces what's on file so the position isn't invisible." +
+        "s.115A withholding rate: " + electionParts.join("; ") + "." +
+        (!isNrForS115a
+          ? " This taxpayer is resident (not NR) under India's own domestic law, so s.115A — and every election above — " +
+            "has NO effect regardless of income type; residents are taxed on this income at slab rates instead. If the " +
+            "taxpayer is genuinely meant to be NR, check the residency determination; if not, these elections are moot."
+          : " Interest and dividend elections are applied to the India tax computed above (via the actual income figures " +
+            "Layer 1 collects for those two types); royalty/FTS/capital-gains elections are NOT — Layer 1 doesn't collect " +
+            "an income amount for those categories, so there's nothing to apply the rate to yet (see Part H).") +
         (docsShortfall.length > 0
           ? " Layer 1 does NOT show " + docsShortfall.join(" or ") + " on file — every one of these elections is at risk of " +
             "being denied and defaulting back to the full domestic s.115A rate u/s 90(4) without it."
@@ -885,12 +912,16 @@
           { label: "Chapter VI-A deductions", inr: -i.deductionsInr },
           { label: "Total income", inr: i.totalIncomeInr },
           { label: "Tax at slab rates", inr: i.slabTaxInr },
-          { label: "Tax on special-rate income (111A/112A gains + 115BB/115BBJ winnings)", inr: i.specialTaxInr },
+          { label: "Tax on special-rate income (111A/112A gains + 115BB/115BBJ winnings" + (i.s115a ? " + s.115A interest/dividend" : "") + ")", inr: i.specialTaxInr }
+        ].concat(i.s115a ? [
+          { label: "  — of which s.115A interest @ " + Math.round(i.s115a.interestRate * 100) + "%", inr: i.s115a.interestTaxInr },
+          { label: "  — of which s.115A dividend @ " + Math.round(i.s115a.dividendRate * 100) + "%", inr: i.s115a.dividendTaxInr }
+        ] : []).concat([
           { label: "Less §87A rebate", inr: -i.rebateInr },
           { label: "Surcharge", inr: i.surchargeInr },
           { label: "Health & education cess (4%)", inr: i.cessInr },
           { label: "Total India tax", inr: i.totalTaxInr, emphasis: true }
-        ],
+        ]),
         totalUsd: i.totalTaxUsd,
         effectiveRate: i.effectiveRate
       },

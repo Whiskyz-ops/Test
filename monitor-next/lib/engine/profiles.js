@@ -43,14 +43,14 @@
     india: {
       profile: { full_name: "Aarav Sharma", entity_type: "individual", date_of_birth: "1988-07-15", pan: "ABCPS1234K", tax_regime: "NEW" },
       residency_detail: { days_in_india_current_year: 183, final_india_residency_status: "ROR" },
-      // Treaty-resident of the US for the overlap period, so his NRO interest
-      // is claimed at the DTAA rate (Art. 11(2)(b)) instead of the domestic
-      // s.115A withholding rate — a real, easy-to-miss claim (dtaa_treaty_elections).
       // Tie-break wizard walked through: permanent home was ambiguous (kept a
       // place in both countries), so it fell to centre of vital interests,
       // which landed on the US — the actual reasoning behind "us" winning,
-      // not just the bare verdict.
-      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "us", trc_status: true, has_permanent_establishment_in_india: false, treaty_elections: [{ income_type: "interest", elected_rate: 0.15, treaty_article: "Art 11(2)(b)" }], dtaa_forced_nr: false, tb_home: "both", tb_cvi: "us" },
+      // not just the bare verdict. No treaty_elections here on purpose: he's
+      // domestically ROR, and s.115A (what a treaty election overrides) only
+      // applies to a genuine domestic NR — see Rohan (us_resident_indian_income)
+      // for that case instead.
+      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "us", trc_status: true, has_permanent_establishment_in_india: false, dtaa_forced_nr: false, tb_home: "both", tb_cvi: "us" },
       compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true }, chapter_xiia_elected: false },
       bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", peak_balance_inr: 3200000 }, { bank_name: "ICICI Bank", account_type: "nro", peak_balance_inr: 1500000 }],
       property: { has_indian_property_transaction: true, properties: [{ address: "Flat 12B, Pune", property_type: "Residential", annual_value_inr: 420000, gross_rent_received_inr: 600000, municipal_taxes_paid_inr: 30000 }] },
@@ -118,7 +118,11 @@
     india: {
       profile: { full_name: "Rohan Mehta", entity_type: "individual", date_of_birth: "1985-03-22", pan: "AAAPM5678Q", tax_regime: "NEW" },
       residency_detail: { days_in_india_current_year: 20, final_india_residency_status: "NR" },
-      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "US", trc_status: false, form_10f: false },
+      // A genuinely beneficial treaty rate on his NRO interest (15% vs the
+      // 20% domestic s.115A default) — but TRC/Form 10F are missing (see
+      // compliance_docs below), so it's denied and the computation correctly
+      // falls back to the domestic rate instead.
+      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "US", trc_status: false, form_10f: false, treaty_elections: [{ income_type: "interest", elected_rate: 0.15, treaty_article: "Art 11(2)(b)" }] },
       compliance_docs: { trc: { document_uploaded: false }, form_10f: { is_filed: false } },
       bank_accounts: [{ bank_name: "SBI (NRO)", account_type: "nro", peak_balance_inr: 2600000 }, { bank_name: "Axis (NRE)", account_type: "nre", peak_balance_inr: 1900000 }],
       property: { has_indian_property_transaction: true, properties: [{ address: "Villa 4, Bengaluru", property_type: "Residential", annual_value_inr: 840000, gross_rent_received_inr: 1200000, municipal_taxes_paid_inr: 60000 }] },
@@ -232,7 +236,13 @@
     india: {
       profile: { full_name: "Vikram Rao", entity_type: "individual", date_of_birth: "1986-05-30", pan: "AAVPR3456S", tax_regime: "NEW" },
       residency_detail: { days_in_india_current_year: 25, final_india_residency_status: "NR" },
-      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "US", trc_status: true, form_10f: true },
+      // A dividend treaty election on file at 25% (Art 10(2)(b), the generic
+      // portfolio rate) — but the domestic s.115A dividend rate (20%) is
+      // actually LOWER. TRC/Form 10F are on file this time, but s.90(2) still
+      // guarantees him whichever is more beneficial, so this mistaken
+      // election has zero effect on the computation (he's still taxed at
+      // 20%) even though it's sitting on file claiming 25%.
+      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "US", trc_status: true, form_10f: true, treaty_elections: [{ income_type: "dividend", elected_rate: 0.25, treaty_article: "Art 10(2)(b)" }] },
       compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true } },
       bank_accounts: [{ bank_name: "Kotak (Company)", account_type: "current", peak_balance_inr: 5400000 }],
       property: { properties: [] },

@@ -135,15 +135,33 @@
     // normal-slab bucket dividend already sits in.
     var deemedDividendInr = (inc.deemedDividendBuyback && inc.deemedDividendBuyback.inr) || 0;
 
+    // s.115A — India-source interest/dividend paid to a NON-RESIDENT is taxed
+    // flat (not slab), with no Chapter VI-A deduction or loss set-off at all
+    // (s.115A(4)) — a DTAA-elected rate (s.90(2)) displaces the domestic
+    // default when TRC/Form 10F are on file; previously this fell through to
+    // ordinary slab treatment regardless of residency status. RNOR is still a
+    // "resident" for this purpose (only genuine NR gets s.115A) — deemed
+    // dividend (s.2(22)(f)) stays in the slab bucket for now, since its own
+    // characterization-mismatch finding is a separate, already-built feature
+    // and layering s.115A on top of it is a distinct question not scoped here.
+    var isNR = model.residency.india.status === CONST.INDIA_STATUS.NR;
+    var s115aInterestInr = isNR ? inc.interest.inr : 0;
+    var s115aDividendInr = isNR ? inc.dividend.inr : 0;
+    var s115aInterestRate = isNR ? resolveS115aRate(model, T, "interest") : 0;
+    var s115aDividendRate = isNR ? resolveS115aRate(model, T, "dividend") : 0;
+    var s115aInterestTaxInr = s115aInterestInr * s115aInterestRate;
+    var s115aDividendTaxInr = s115aDividendInr * s115aDividendRate;
+
     // Sequence brought-forward loss set-off against this year's income
     // BEFORE computing the slab/special-rate totals below, so the actual tax
     // reflects it (not just a disclosure that losses exist). Salary and
     // s.115BB/115BBJ special-rate income are untouched — losses cannot be
-    // set off against either (s.58(4) explicitly bars it for the latter).
+    // set off against either (s.58(4) explicitly bars it for the latter);
+    // s.115A interest/dividend is excluded too, for the same no-set-off reason.
     var lossSetOff = computeLossSetOff(model.carryForwardLosses || {}, {
       businessInr: inc.business.inr,
       housePropertyInr: inc.houseProperty.inr,
-      otherNormalInr: inc.interest.inr + inc.dividend.inr + deemedDividendInr,
+      otherNormalInr: deemedDividendInr + (isNR ? 0 : inc.interest.inr + inc.dividend.inr),
       stcgInr: inc.stcg.inr,
       ltcgGrossInr: inc.ltcg.inr
     });
@@ -179,8 +197,10 @@
     // treatment (computeIndiaSurcharge below) — s.115BB/115BBJ winnings do
     // NOT get that cap and take the full uncapped slab-based surcharge rate,
     // so keep it out of the "cap-eligible" bucket passed to that function.
-    var capEligibleSpecialTaxInr = stcgInr * T.STCG_111A_RATE + ltcgTaxableInr * T.LTCG_112A_RATE;
-    var specialTaxInr = capEligibleSpecialTaxInr + special115bbTaxInr;
+    // s.115A dividend is "dividend income" for the cap's purposes; s.115A
+    // interest is not, so it rides alongside 115BB instead.
+    var capEligibleSpecialTaxInr = stcgInr * T.STCG_111A_RATE + ltcgTaxableInr * T.LTCG_112A_RATE + s115aDividendTaxInr;
+    var specialTaxInr = capEligibleSpecialTaxInr + special115bbTaxInr + s115aInterestTaxInr;
 
     // Slab tax on normal income.
     var slabTaxInr = bracketTax(totalNormalInr, slabs);
@@ -196,11 +216,13 @@
     // exemption-adjusted figure, silently inflating totalIncomeInr (and, via
     // computeIndiaSurcharge below, the surcharge threshold test) by the
     // exempt amount.
-    var totalIncomeInr = totalNormalInr + stcgInr + ltcgTaxableInr + special115bbInr;
+    var totalIncomeInr = totalNormalInr + stcgInr + ltcgTaxableInr + special115bbInr + s115aInterestInr + s115aDividendInr;
+    // ...and NR is excluded too (s.87A says "resident individual" — RNOR
+    // still counts as resident for this, only genuine NR does not).
     var isIndividual = !model.entity || model.entity.indiaKind === "individual";
     var rebate = isNew ? T.REBATE_87A_NEW : T.REBATE_87A_OLD;
     var rebateInr = 0;
-    if (isIndividual && totalNormalInr <= rebate.incomeCap) {
+    if (isIndividual && !isNR && totalNormalInr <= rebate.incomeCap) {
       rebateInr = Math.min(slabTaxInr, rebate.maxRebate);
     }
 
@@ -218,7 +240,7 @@
 
     return {
       regime: regime,
-      grossTotalIncomeInr: normalSlabInr + stcgInr + ltcgTaxableInr + special115bbInr,
+      grossTotalIncomeInr: normalSlabInr + stcgInr + ltcgTaxableInr + special115bbInr + s115aInterestInr + s115aDividendInr,
       deductionsInr: deductionsInr,
       totalIncomeInr: totalIncomeInr,
       slabTaxInr: slabTaxInr,
@@ -230,8 +252,36 @@
       totalTaxUsd: U.inrToUsd(totalTaxInr),
       totalIncomeUsd: U.inrToUsd(totalIncomeInr),
       effectiveRate: totalIncomeInr > 0 ? totalTaxInr / totalIncomeInr : 0,
-      lossSetOff: lossSetOff
+      lossSetOff: lossSetOff,
+      s115a: isNR ? {
+        interestInr: s115aInterestInr, interestRate: s115aInterestRate, interestTaxInr: s115aInterestTaxInr,
+        dividendInr: s115aDividendInr, dividendRate: s115aDividendRate, dividendTaxInr: s115aDividendTaxInr
+      } : null
     };
+  }
+
+  /* Resolves the rate s.115A interest/dividend is actually taxed at: whichever
+   * of the domestic s.115A rate or a supported DTAA election is LOWER — s.90(2)
+   * guarantees the assessee the more beneficial of domestic law or the treaty,
+   * never a worse rate just because a (possibly mistaken) election is on file.
+   * The election only counts at all when TRC/Form 10F support the claim.
+   * Shared CONST.TAX.INDIA.S115A_RATES table with the dtaa_treaty_elections
+   * finding text in conflicts.js so the two can't disagree. */
+  function resolveS115aRate(model, T, incomeType) {
+    var treaty = model.treaty || {};
+    var elections = treaty.treatyElections || [];
+    var domestic = T.S115A_RATES[incomeType];
+    var match = null;
+    for (var i = 0; i < elections.length; i++) {
+      if (elections[i] && elections[i].income_type === incomeType && elections[i].elected_rate != null) {
+        match = elections[i];
+        break;
+      }
+    }
+    if (match && treaty.trcStatus && treaty.form10fFiled) {
+      return Math.min(domestic, match.elected_rate);
+    }
+    return domestic;
   }
 
   // ---- India corporate / firm computation (ITR-6 / ITR-5) ----

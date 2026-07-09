@@ -131,6 +131,12 @@
         // s.115BB (lottery/betting) / s.115BBJ (online gaming): flat 30%,
         // no basic exemption, no Chapter VI-A deduction, no §87A rebate.
         RATE_115BB: 0.30,
+        // s.115A domestic default withholding rates on India-source interest/
+        // dividend/royalty/FTS paid to a NON-RESIDENT (no PE) — the baseline
+        // a DTAA-elected rate (s.90(2)) displaces when TRC/Form 10F support
+        // it. Shared between computation.js (actual NR tax) and conflicts.js
+        // (the treaty-election comparison text) so they can't drift apart.
+        S115A_RATES: { interest: 0.20, dividend: 0.20, royalty: 0.10, fts: 0.10 },
         // Surcharge brackets for individuals [income_over_inr, rate]
         SURCHARGE_IND: [
           [50000000, 0.25], [20000000, 0.25], [10000000, 0.15], [5000000, 0.10], [0, 0.00]
