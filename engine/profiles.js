@@ -94,7 +94,10 @@
       bank_accounts: [{ bank_name: "SBI (NRO)", account_type: "nro", peak_balance_inr: 2600000 }, { bank_name: "Axis (NRE)", account_type: "nre", peak_balance_inr: 1900000 }],
       property: { has_indian_property_transaction: true, properties: [{ address: "Villa 4, Bengaluru", property_type: "Residential", annual_value_inr: 840000, gross_rent_received_inr: 1200000, municipal_taxes_paid_inr: 60000 }] },
       financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "equity_mutual_fund", asset_name: "SBI Bluechip Fund", value_inr: 4200000 }, { asset_type: "equity_mutual_fund", asset_name: "Mirae Asset Large Cap", value_inr: 2600000 }] },
-      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: { short_term_15_pct: 180000 } },
+      // Small India-side consulting stake, held below the 10% US CFC threshold
+      // (see the matching foreign_entities block on the US side below) →
+      // triggers cfc_below_threshold instead of the full CFC/Form 5471 finding.
+      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [{ trade_name: "Mehta Advisory Services", nature: "consulting", net_profit_inr: 900000, holding_pct: 5 }] }, capital_gains: { short_term_15_pct: 180000 } },
       other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 260000, dividend_inr: 220000 },
       deductions: {},
       lrs_outbound: {},
@@ -163,7 +166,13 @@
       retirement_accounts: {},
       ftc_inputs: { claims_ftc: false },
       withholding_and_estimated: { federal_withholding_total_usd: 9800 },
-      nra_specific: { files_form_1040nr: true, us_eci_income_usd: 30000, us_fdap_income_usd: 11400, w8ben_aggregate_status: "on_file" },
+      // Treaty rate claimed on FDAP but no W-8BEN on file (nra_w8ben_missing),
+      // plus a US real-property disposition subject to FIRPTA withholding.
+      nra_specific: {
+        files_form_1040nr: true, us_eci_income_usd: 30000, us_fdap_income_usd: 11400,
+        treaty_rate_claims: [{ income_type: "dividends", rate: 15 }], submitted_w8ben: false,
+        us_real_property_disposed: true, firpta_withholding_usd: 45000
+      },
       metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
     }
   };
@@ -334,7 +343,124 @@
     }
   };
 
-  var PROFILES = [P1, P2, P3, P4, P5, B1, B2];
+  /* ======================================================================
+   * PROFILE 8 — QA KITCHEN SINK: every implemented finding in one filer.
+   * Deliberately synthetic (not a realistic single taxpayer) — combines every
+   * remaining conflict-detection scenario that no other demo profile
+   * triggers, so every finding in conflicts.js can be checked in the Monitor
+   * without hand-entering test data into the real Layer 1 forms.
+   * ====================================================================*/
+  var P8 = {
+    id: "kitchen_sink_qa",
+    label: "QA — Every Finding (Kitchen Sink)",
+    story: "Deliberately synthetic filer combining every remaining implemented finding (AMT, NIIT, no-totalization SE tax, Chapter XII-A, gaming winnings, s.115BBE, carry-forward losses, deemed dividend buyback, foreign gifts/covered-expat, state residency, equity-comp sourcing, Schedule FA contradiction) — for engine QA, not a realistic persona.",
+    tags: ["QA", "all findings", "kitchen sink"],
+    router: router("QA Kitchen-Sink Filer", { has_green_card: true, us_days: 175 }),
+    india: {
+      profile: { full_name: "QA Kitchen-Sink Filer", entity_type: "individual", date_of_birth: "1985-01-01", pan: "AKQPK1234Z", tax_regime: "NEW" },
+      residency_detail: { days_in_india_current_year: 190, final_india_residency_status: "ROR" },
+      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "us", trc_status: true, has_permanent_establishment_in_india: false, treaty_elections: [], dtaa_forced_nr: false },
+      compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true }, chapter_xiia_elected: true },
+      bank_accounts: [{ bank_name: "ICICI Bank", account_type: "savings", peak_balance_inr: 1800000 }],
+      property: { has_indian_property_transaction: false, properties: [] },
+      financial_holdings: { has_financial_transactions: false, transactions: [] },
+      // Deliberate demo contradiction: India form says NO foreign assets, while
+      // the US form (below) shows US wages/accounts for the same ROR taxpayer
+      // → triggers schedule_fa_inconsistent.
+      foreign_assets: { has_foreign_assets: false, assets: [] },
+      domestic_income: {
+        salary: {
+          has_salary_income: true, taxable_salary_inr: 2400000,
+          esop_perquisite_events: [{ employer_name: "Nimbus India Pvt Ltd", grant_date: "2022-04-01", vesting_or_exercise_date: "2025-04-01", shares: 1000, fmv_per_share_inr: 1500, exercise_price_per_share_inr: 200, perquisite_value_inr: 1300000 }]
+        },
+        house_property: { has_house_property_income: false, properties: [] },
+        business_income: { has_business_or_fo_income: false, business_entries: [] },
+        capital_gains: { short_term_15_pct: 100000 }
+      },
+      other_sources: {
+        has_other_sources_income: true, interest_fd_rd_inr: 150000, dividend_inr: 100000,
+        winnings_lottery_gaming_inr: 300000, online_gaming_winnings_inr: 200000,
+        deemed_dividend_from_buyback_inr: 2000000, unexplained_income_115BBE_inr: 800000,
+        taxable_epf_interest_inr: 40000, taxable_nps_withdrawal_inr: 20000
+      },
+      deductions: { s80C: { epf_employee_inr: 150000, ppf_inr: 100000 }, s80CCC_80CCD1: { nps_employee_contribution_inr: 50000 } },
+      carry_forward_losses: { has_brought_forward_losses: true, business_loss_cf: [{ assessment_year: "AY2023-24", amount_inr: 500000 }], stcg_loss_cf: [{ assessment_year: "AY2024-25", amount_inr: 200000 }] },
+      lrs_outbound: {},
+      tax_credits: { advance_tax_q1_15jun_inr: 200000, advance_tax_q2_15sep_inr: 200000, tds_already_deducted_inr: 300000 },
+      metadata: meta("layer1_india_v5_1", "FY2025-26")
+    },
+    us: {
+      profile: { tax_entity_type: "individual", full_name: "QA Kitchen-Sink Filer", date_of_birth: "1985-01-01", filing_status: "single", ssn_or_itin_type: "ssn" },
+      us_residency_detail: { is_us_citizen: false, has_green_card: true, us_days_current_year: 175, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "us" },
+      income_us_source: {
+        has_employment_income: true,
+        wages_w2: [{ employer_name: "Meridian Systems Inc", wages_box1_usd: 260000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 55000, medicare_wages_box5_usd: 260000 } }],
+        self_employment: [{ business_name: "QA Consulting LLC", self_employment_earnings_usd: 80000 }],
+        interest_us_source_usd: 8000, ordinary_dividends_us_source_usd: 15000, qualified_dividends_us_source_usd: 12000, ltcg_us_source_usd: 40000
+      },
+      income_foreign_source: { foreign_interest_usd: 2000, foreign_dividends_usd: 1500 },
+      foreign_earned_income: { claims_feie: false },
+      // ISO bargain-element spread → AMT preference item (§57) + equity-comp
+      // sourcing conflict against the India ESOP events above.
+      equity_compensation: { iso_exercises: [{ shares_exercised: 5000, fmv_at_exercise_usd: 80, strike_price_usd: 10 }] },
+      foreign_gifts_and_trusts: { received_foreign_gifts_above_100k: true, is_us_beneficiary_of_foreign_trust: true, received_gift_from_covered_expatriate: true },
+      state_residency: { primary_state_of_residence: "California", ca_retains_property_or_voter_reg: true },
+      bank_accounts: [{ bank_name: "ICICI Bank", account_type: "savings", country: "India", peak_balance_usd: 21687 }],
+      fbar_aggregate_peak_usd: 21687,
+      foreign_entities: { owns_10_percent_foreign_corp: false, foreign_corporations: [], pfic_holdings: [], has_pfics: false },
+      retirement_accounts: { "401k_employee_contribution_usd": 15000 },
+      financial_holdings: [{ asset_name: "Schwab — Taxable Brokerage", account_type: "taxable_brokerage", peak_balance_usd: 120000, country: "US" }],
+      real_estate: { has_real_estate_transaction: false, properties: [] },
+      ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "General", foreign_taxes_usd: 30000 }] },
+      withholding_and_estimated: { federal_withholding_total_usd: 55000 },
+      nra_specific: { files_form_1040nr: false },
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+    }
+  };
+
+  /* ======================================================================
+   * PROFILE 9 — BUSINESS POV: foreign-incorporated holding company with its
+   * Place of Effective Management in India (entity-level dual residency).
+   * Not incorporated in India, so India's own s.6(3) test hinges entirely on
+   * POEM — and this one's POEM facts point straight at Mumbai.
+   * ====================================================================*/
+  var B3 = {
+    id: "foreign_holdco_poem_india",
+    label: "Foreign Holdco · POEM in India",
+    story: "Business POV: a Singapore-incorporated holding company whose real commercial decisions are made from Mumbai. Not incorporated in India, but its Place of Effective Management facts resolve it to an Indian tax resident anyway — entity-level dual residency with no individual-style tie-breaker to resolve it.",
+    tags: ["company", "POEM", "s.6(3)", "entity"],
+    router: router("Meridian Holdings Pte Ltd", { us_days: 0, has_us_source_income_or_assets: false }),
+    india: {
+      profile: { full_name: "Meridian Holdings Pte Ltd", entity_type: "company", tax_regime: "NEW", turnover_lte_400cr: true, opt_115baa: false },
+      residency_detail: { days_in_india_current_year: 365, final_india_residency_status: "ROR", is_indian_company: false },
+      company_residency: {
+        is_active_business: true, board_meetings_primarily_outside_india: true,
+        key_management_location: "Mumbai, India", management_delegated_outside_india: false,
+        directors_in_india_count: 3, directors_outside_india_count: 2
+      },
+      dtaa: { dtaa_treaty_residence: "none", trc_status: false, has_permanent_establishment_in_india: false },
+      compliance_docs: { trc: { document_uploaded: false }, form_10f: { is_filed: false } },
+      bank_accounts: [{ bank_name: "DBS (Current)", account_type: "current", peak_balance_inr: 18000000 }],
+      property: { properties: [] },
+      financial_holdings: { has_financial_transactions: false, transactions: [] },
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ trade_name: "Meridian Holdings Pte Ltd", nature: "investment holding", net_profit_inr: 22000000 }] }, capital_gains: {} },
+      other_sources: {},
+      deductions: {}, lrs_outbound: {},
+      tax_credits: { advance_tax_q1_15jun_inr: 1200000, advance_tax_q2_15sep_inr: 1400000, advance_tax_q3_15dec_inr: 1400000, advance_tax_q4_15mar_inr: 1200000 },
+      metadata: meta("layer1_india_v5_1", "FY2025-26")
+    },
+    us: {
+      profile: { tax_entity_type: "individual", full_name: "Meridian Holdings Pte Ltd", filing_status: "single" },
+      us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 0, spt_test_met: false, final_us_residency_status: "NON_RESIDENT_ALIEN" },
+      income_us_source: {}, income_foreign_source: {}, foreign_earned_income: { claims_feie: false },
+      bank_accounts: [], fbar_aggregate_peak_usd: 0,
+      foreign_entities: { foreign_corporations: [], pfic_holdings: [] }, retirement_accounts: {},
+      ftc_inputs: { claims_ftc: false }, withholding_and_estimated: {}, nra_specific: { files_form_1040nr: false },
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+    }
+  };
+
+  var PROFILES = [P1, P2, P3, P4, P5, B1, B2, P8, B3];
 
   function listProfiles() {
     return PROFILES.map(function (p) { return { id: p.id, label: p.label, story: p.story, tags: p.tags }; });

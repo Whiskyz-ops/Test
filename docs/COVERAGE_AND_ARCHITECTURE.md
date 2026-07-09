@@ -342,7 +342,7 @@ Edge {                            // ownership / flow between entities
 | **4** | Frontend: entity switcher, per-entity views, Monitor entity dimension | Reuse components, add scope |
 | **5** | Comprehensive Layer 1 field coverage fill-in (Parts B–D gaps) | Iterative by priority (Part D) |
 | **6** | US state-residency engine (folds into entity/jurisdiction model) | Unblocks live state drill-down |
-| **T** | **Demo test profiles** (`engine/profiles.js` + one-click loader + picker) — Part I | 2–3 individual profiles ship now; entity profiles after Phase 1 |
+| **T** | **Demo test profiles** (`engine/profiles.js` + one-click loader + picker) — Part I | Done — 9 profiles (5 individual, 3 entity, 1 QA kitchen-sink), covering every finding id |
 
 **Compatibility:** Phase 1 keeps the current single-individual behaviour as the
 default (one entity), so nothing breaks while the graph is introduced.
@@ -351,32 +351,32 @@ default (one entity), so nothing breaks while the graph is introduced.
 
 ## Part I — Demo test profiles (seamless one-click scenarios)
 
-**Goal:** never type into a Layer 1 form during a demo. Pick a named profile →
-both forms, the dashboard, and the Monitor all populate from it instantly.
+**Status: built.** `engine/profiles.js` ships 9 named profiles. `loadProfile(id)`
+writes all three `localStorage` keys (`wising_router_state`,
+`wising_layer1_india_state`, `wising_us_state`), wipes any other `wising_*` key
+first (no bleed-through from a previously loaded profile or a manually-edited
+Layer 1 form), and broadcasts `storage`/`wising:profile` events so open forms,
+the dashboard, and the Monitor all refresh from one click — no manual typing
+during a demo.
 
-**What already exists:** both forms have a `prefillPersona()` panel, but the
-personas are **per-form, uncoordinated, and don't set the router** — so they can't
-drive a whole cross-border scenario across every surface.
+**The 9 profiles:**
+1. **`dual_resident_h1b`** — Dual Resident, H-1B. India ROR + US SPT; the flagship FTC/tie-breaker case.
+2. **`us_resident_indian_income`** — US green-card holder with Indian rent/dividends/mutual funds; FTC (Form 1116), PFIC, FBAR, `cfc_below_threshold`.
+3. **`india_ror_us_income`** — Indian ROR with US rental/dividends/brokerage; files 1040-NR-adjacent NRA findings (`nra_fdap_flat_rate`, `nra_w8ben_missing`, `firpta`).
+4. **`founder_indian_company`** — US resident owning 100% of an Indian Pvt Ltd; `cfc` / Form 5471.
+5. **`us_citizen_expat_india`** — US citizen living in India; FEIE + PFIC (citizenship-based taxation).
+6. **`india_pvt_ltd`** — Business POV: Indian domestic company, §115BAA, ITR-6.
+7. **`us_ccorp_indian_sub`** — Business POV: Delaware C-Corp with an Indian subsidiary; GILTI.
+8. **`kitchen_sink_qa`** — **QA profile.** Deliberately synthetic (not a realistic single taxpayer) — combines every remaining implemented finding that no other profile triggers: AMT, NIIT/Additional Medicare, no-totalization-agreement SE tax, Chapter XII-A election, s.115BB/115BBJ gaming winnings, s.115BBE unexplained income, carry-forward losses, s.2(22)(f) deemed dividend buyback, foreign gifts/covered-expatriate gift tax, non-binding state residency, equity-comp cross-border sourcing, and a deliberate Schedule FA India/US form contradiction.
+9. **`foreign_holdco_poem_india`** — Business POV: foreign-incorporated (Singapore) holding company whose Place of Effective Management facts resolve it to an Indian tax resident anyway (`entity_dual_residency_poem`) — entity-level dual residency with no individual-style tie-breaker.
 
-**Design:**
-- A shared `engine/profiles.js` — an array of named profiles, each a complete
-  `{ router, india, us }` bundle (same shapes the forms persist).
-- A **profile loader**: writes the three `localStorage` keys
-  (`wising_router_state`, `wising_layer1_india_state`, `wising_us_state`) and
-  broadcasts a `storage` event, so open forms + dashboard + Monitor all refresh.
-- A small **profile picker** UI (on the router/landing and as a dev affordance in
-  the forms) — one click loads the whole scenario.
-- Each profile is crafted to showcase a **specific conflict story**; profiles are
-  **multi-entity-ready** (can include a business entity once Phase 1 lands).
-
-**Proposed starter scenarios:**
-1. **Dual-resident H-1B** (Aarav Sharma) — ROR + US SPT; the FTC/tie-breaker case (today's sample).
-2. **Deemed RNOR / high-earner NRI** — s.6(1A), TRC/10F missing, LRS near cap.
-3. **US citizen expat in India** — FEIE + foreign earned income + PFIC on Indian MFs.
-4. **Founder with an Indian company** — individual + `in_company` entity → 5471/GILTI (exercises multi-entity once Phase 1 lands).
-
-**Plan slot:** build after Phase 1 (so profiles can include entities), but the
-2–3 individual-only profiles can ship immediately against the current engine.
+**Coverage guarantee:** every finding `id` emitted by `detectConflicts()` in
+`conflicts.js` fires in at least one of the 9 profiles — verified by running
+`WISING.analyze()` against all 9 and diffing the union of triggered ids against
+every `add(id, ...)` call site in the source. When a new finding is added to
+`conflicts.js`, extend an existing profile (or `kitchen_sink_qa` if it doesn't
+fit an existing story) so this stays true — otherwise there is no one-click way
+to verify the new finding actually renders.
 
 ---
 
