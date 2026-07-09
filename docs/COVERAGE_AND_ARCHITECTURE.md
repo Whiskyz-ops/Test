@@ -51,9 +51,9 @@ comprehensive return engine. Approx **30–40%** of collected fields are consume
 | `domestic_income.house_property` | properties[] (GAV, 30% ded, §24(b), SOP, loss set-off) | 🟡 net value; **interest/loss set-off logic ⛔** | Yes |
 | `domestic_income.business_income` | **business_entries[]**, presumptive_scheme, expenses{~30 fields}, asset_blocks (depreciation), speculative/F&O turnover+income, s41, partner_firms[], msme_payables, amt_credit, s40b remuneration, s44bbb, s35AD, tonnage 115V | 🟡 **net_profit per entry summed only**; **everything else ⛔** (presumptive, depreciation, F&O, disallowances, partner firms, AMT) | **Yes — large** |
 | `domestic_income.capital_gains` | short_term_15_pct | 🟡 simple STCG; full CG engine ⛔ | Yes |
-| `other_sources` | savings/FD/bond interest, dividend, gifts>50k, family pension, lottery/gaming, deemed dividend (buyback), EPF/PPF interest taxable, NPS/PF withdrawal, angel tax, LIC, clubbing (minor/spouse) | 🟡 interest+dividend; **gaming/lottery (115BB), gifts, clubbing, taxable PF/NPS, deemed dividend ⛔** | Yes (special rates) |
+| `other_sources` | savings/FD/bond interest, dividend, gifts>50k, family pension, lottery/gaming, deemed dividend (buyback), EPF/PPF interest taxable, NPS/PF withdrawal, angel tax, LIC, clubbing (minor/spouse) | ✅ lottery/online-gaming (s.115BB/115BBJ) now computed at the correct flat 30% (uncapped surcharge, no rebate) and drives `special_rate_gaming_winnings`; unexplained income (s.115BBE) flagged via `s115bbe_unexplained_income` (not computed — the ~78% effective rate with zero relief is high-risk to get wrong); interest+dividend already read; **gifts, clubbing, taxable PF/NPS, deemed dividend still ⛔** | Gaming done; rest open |
 | `deductions` | s80C, 80CCC/CCD1, **80CCD1B**, 80D (+parents/senior/preventive), 80DD, 80DDB, 80U, **80G[]**, 80GGB/GGC, 80GG, 80TTA/TTB, 80E, 80EEA/EE, 80M | 🟡 80C/80CCD1B/80D/80TTA; **80G, 80E, 80EEA, 80U/DD/DDB, 80GG, 80M, disability NRI-block ⛔** | Yes |
-| `carry_forward_losses` | business/speculative/STCG/LTCG/HP loss CF, unabsorbed depreciation, s79 shareholding change | ⛔ | **Yes — large** |
+| `carry_forward_losses` | business/speculative/STCG/LTCG/HP loss CF, unabsorbed depreciation, s79 shareholding change | 🟡 raw counts read and drive `carry_forward_losses_not_applied` (honesty disclosure — an unset-off loss overstates current-year tax and the FTC/double-tax figures); **actual set-off computation still ⛔** | **Yes — large**, still open |
 | `lrs_outbound` | total remitted, purpose, foreign income received | ✅ amount → LRS monitor; purpose 🟡 | Limit monitoring |
 | `tax_credits` | advance tax Q1–4, TDS, TCS, Form 26AS, **foreign_tax_credit[]** | 🟡 advance+TDS summed; **per-country FTC array, 26AS reconcile ⛔** | FTC |
 | `surcharge_buckets` | income by rate bucket (111A/112A/115A/115BB/dividend) | ⛔ (engine recomputes surcharge itself) | Consistency |
@@ -187,11 +187,36 @@ A dedicated pass over `engine/conflicts.js` against the Layer 1 fields above, sc
   / company deposit / govt security). Chapter XII-A eligibility can now be identified per-transaction
   rather than inferred; the flat-rate recomputation itself is still open (see below).
 
+## Part D.2 — India Layer 1 deeper pass (second round, post-restructure)
+
+A follow-up pass after India Layer 1 was substantially restructured (step-wizard reorder, new
+sections) by the user/Antigravity. First confirmed no regressions — every field path the engine
+already depended on (profile, residency_detail, dtaa, deductions, etc.) still exists after the
+restructure. Then went beyond the 3 originally-scoped items:
+
+- **Special-rate winnings actually computed** (`special_rate_gaming_winnings`) — s.115BB (lottery/
+  betting) and s.115BBJ (online gaming) income was previously invisible to the *entire* model (not
+  even in total income), despite being real, flat-30%-taxed income and a genuine cross-border
+  double-tax candidate when the US also taxes worldwide income. Now aggregated, taxed at the correct
+  flat 30% with no basic exemption/deduction/rebate, and — importantly — kept OUT of the CG/dividend
+  15%-surcharge-cap bucket (s.115BB does not get that cap; verified the surcharge delta at a >₹2cr
+  income level matches the uncapped 25% rate, not a wrongly-capped 15%).
+- **s.115BBE unexplained income flagged** (`s115bbe_unexplained_income`) — ~78% effective rate,
+  denies every deduction/exemption/set-off with no exceptions. Flagged rather than computed (unlike
+  115BB above) — getting a provision this punitive wrong is worse than leaving it explicit.
+- **Carry-forward losses surfaced** (`carry_forward_losses_not_applied`) — collected but not applied
+  anywhere in the computation; an unset-off loss overstates current-year tax and, downstream, the
+  FTC/double-tax headline figures. Flagged as an honesty disclosure rather than computed (full set-off
+  ordering — business → speculative → capital → house property, 8-year limits, inter-head
+  restrictions — is a bigger lift than fits this pass).
+
 **Still open in conflict detection** (tracked here, not yet built): the US side of entity dual
 residency (needs the US Layer 1 changes in progress), a numeric GILTI/Subpart F computation once
 Part F lands (blocked on Layer 1 not collecting tested income/E&P/QBAI), Chapter XII-A's actual
-flat-rate recomputation (now identifiable per-transaction, but not yet computed), and the equity-comp
-sourcing day-count allocation (still needs per-tranche workday-in-country data on both sides).
+flat-rate recomputation (now identifiable per-transaction, but not yet computed), the equity-comp
+sourcing day-count allocation (still needs per-tranche workday-in-country data on both sides), actual
+loss set-off computation, and the remaining `other_sources` items (gifts, clubbing, taxable PF/NPS
+withdrawal, deemed dividend on buyback) which are collected but still unused.
 
 ---
 

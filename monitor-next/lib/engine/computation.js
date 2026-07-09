@@ -75,13 +75,23 @@
     // Special-rate incomes.
     var stcgInr = inc.stcg.inr;
     var ltcgTaxableInr = Math.max(0, inc.ltcg.inr - T.LTCG_112A_EXEMPT_INR);
-    var specialTaxInr = stcgInr * T.STCG_111A_RATE + ltcgTaxableInr * T.LTCG_112A_RATE;
+    // s.115BB/115BBJ (lottery/betting/online gaming): flat rate, no basic
+    // exemption threshold benefit — the full amount is taxed, never reduced
+    // by any slab/exemption logic.
+    var special115bbInr = (inc.specialRate115bb && inc.specialRate115bb.inr) || 0;
+    var special115bbTaxInr = special115bbInr * T.RATE_115BB;
+    // Only CG/dividend-type special-rate tax gets the 15%-surcharge-cap
+    // treatment (computeIndiaSurcharge below) — s.115BB/115BBJ winnings do
+    // NOT get that cap and take the full uncapped slab-based surcharge rate,
+    // so keep it out of the "cap-eligible" bucket passed to that function.
+    var capEligibleSpecialTaxInr = stcgInr * T.STCG_111A_RATE + ltcgTaxableInr * T.LTCG_112A_RATE;
+    var specialTaxInr = capEligibleSpecialTaxInr + special115bbTaxInr;
 
     // Slab tax on normal income.
     var slabTaxInr = bracketTax(totalNormalInr, slabs);
 
     // §87A rebate (applies to slab tax on normal income only).
-    var totalIncomeInr = totalNormalInr + stcgInr + inc.ltcg.inr;
+    var totalIncomeInr = totalNormalInr + stcgInr + inc.ltcg.inr + special115bbInr;
     var rebate = isNew ? T.REBATE_87A_NEW : T.REBATE_87A_OLD;
     var rebateInr = 0;
     if (totalNormalInr <= rebate.incomeCap) {
@@ -90,8 +100,11 @@
 
     var taxAfterRebateInr = Math.max(0, slabTaxInr - rebateInr) + specialTaxInr;
 
-    // Surcharge (individual brackets) with simplified marginal relief.
-    var surchargeInr = computeIndiaSurcharge(taxAfterRebateInr, totalIncomeInr, isNew, slabs, specialTaxInr, T);
+    // Surcharge (individual brackets) with simplified marginal relief. Pass
+    // only the cap-eligible (CG/dividend) special tax — the 115BB tax rides
+    // along inside taxAfterRebateInr but is counted as "non-special" here so
+    // it gets the full uncapped surcharge rate.
+    var surchargeInr = computeIndiaSurcharge(taxAfterRebateInr, totalIncomeInr, isNew, slabs, capEligibleSpecialTaxInr, T);
 
     // 4% Health & Education cess.
     var cessInr = (taxAfterRebateInr + surchargeInr) * T.CESS_RATE;
@@ -99,7 +112,7 @@
 
     return {
       regime: regime,
-      grossTotalIncomeInr: normalSlabInr + stcgInr + inc.ltcg.inr,
+      grossTotalIncomeInr: normalSlabInr + stcgInr + inc.ltcg.inr + special115bbInr,
       deductionsInr: deductionsInr,
       totalIncomeInr: totalIncomeInr,
       slabTaxInr: slabTaxInr,

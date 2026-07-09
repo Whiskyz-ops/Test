@@ -128,6 +128,9 @@
         LTCG_112A_RATE: 0.125,
         LTCG_112A_EXEMPT_INR: 125000,
         LTCG_112_RATE: 0.125,
+        // s.115BB (lottery/betting) / s.115BBJ (online gaming): flat 30%,
+        // no basic exemption, no Chapter VI-A deduction, no §87A rebate.
+        RATE_115BB: 0.30,
         // Surcharge brackets for individuals [income_over_inr, rate]
         SURCHARGE_IND: [
           [50000000, 0.25], [20000000, 0.25], [10000000, 0.15], [5000000, 0.10], [0, 0.00]

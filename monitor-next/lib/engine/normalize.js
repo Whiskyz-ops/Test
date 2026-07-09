@@ -166,13 +166,33 @@
                             num(safe(annual.capital_gains, "stcg_111a_inr", 0)));
     var ltcg = moneyFromInr(num(safe(annual.capital_gains, "ltcg_112a_inr", 0)));
 
-    var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg].reduce(addMoney, zeroMoney());
+    // Special-rate "other sources" income — flat 30% under s.115BB (lottery/
+    // betting) and s.115BBJ (online gaming), no basic exemption, no Chapter
+    // VI-A deduction, no §87A rebate. This was previously completely
+    // uncounted anywhere in the model (invisible to total income, FTC, and
+    // cross-basis reconciliation) despite being real, taxable, and a genuine
+    // cross-border double-tax candidate if the same winnings are also
+    // US-taxable.
+    var specialRate115bb = moneyFromInr(
+      num(safe(os, "winnings_lottery_gaming_inr", 0)) +
+      num(safe(os, "online_gaming_winnings_inr", 0))
+    );
+    // s.115BBE unexplained-income addition: flat 60% + 25% surcharge + cess
+    // (effective ~78%), and uniquely denies ANY deduction/exemption/loss
+    // set-off — tracked separately (not folded into specialRate115bb) since
+    // its rate and total denial of relief are qualitatively different and
+    // this pass only flags it rather than computing it.
+    var unexplained115bbeInr = num(safe(os, "unexplained_income_115BBE_inr", 0));
+
+    var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg, specialRate115bb].reduce(addMoney, zeroMoney());
 
     return {
       salary: salary, business: business, houseProperty: houseProperty,
       interest: interest, dividend: dividend,
       stcg: stcg, ltcg: ltcg,
       capitalGains: addMoney(stcg, ltcg),
+      specialRate115bb: specialRate115bb,
+      unexplained115bbeInr: unexplained115bbeInr,
       total: total
     };
   }
@@ -548,6 +568,19 @@
       // finding: the two intake forms can flatly disagree about whether
       // foreign assets exist).
       indiaForeignAssetsDeclared: safe(india, "foreign_assets.has_foreign_assets", null),
+      // Carry-forward losses are collected but not yet applied anywhere in
+      // the computation — flagged rather than silently ignored, since an
+      // unset-off loss directly overstates current-year taxable income and,
+      // downstream, the FTC/double-tax headline figures.
+      carryForwardLosses: {
+        hasBroughtForwardLosses: safe(india, "carry_forward_losses.has_brought_forward_losses", null),
+        businessLossCfCount: (safe(india, "carry_forward_losses.business_loss_cf", []) || []).length,
+        speculativeLossCfCount: (safe(india, "carry_forward_losses.speculative_loss_cf", []) || []).length,
+        stcgLossCfCount: (safe(india, "carry_forward_losses.stcg_loss_cf", []) || []).length,
+        ltcgLossCfCount: (safe(india, "carry_forward_losses.ltcg_loss_cf", []) || []).length,
+        housePropertyLossCfCount: (safe(india, "carry_forward_losses.house_property_loss_cf", []) || []).length,
+        unabsorbedDepreciationCf: num(safe(india, "carry_forward_losses.unabsorbed_depreciation_cf", 0))
+      },
       foreignGifts: {
         receivedAbove100k: safe(us, "foreign_gifts_and_trusts.received_foreign_gifts_above_100k", false) === true,
         isTrustBeneficiary: safe(us, "foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust", false) === true,

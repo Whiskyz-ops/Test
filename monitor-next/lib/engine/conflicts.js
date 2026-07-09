@@ -257,6 +257,67 @@
         0, ["s.115H", "s.115C", "Chapter XII-A"]);
     }
 
+    // -- 4g2. SPECIAL-RATE WINNINGS (s.115BB/115BBJ) — NOW COMPUTED ---------
+    // Lottery/betting/online-gaming winnings are flat 30% with no basic
+    // exemption, no Chapter VI-A deduction and no §87A rebate — this was
+    // previously invisible to the whole model (not even in total income).
+    // It's now correctly taxed and included in the FTC/double-tax base; the
+    // remaining caveat is that a flat special rate doesn't necessarily match
+    // whatever rate the US applies to the same winnings, which the FTC
+    // limitation (built on an average-rate basis) can only approximate.
+    var specialBBUsd = model.income.india.specialRate115bb ? model.income.india.specialRate115bb.usd : 0;
+    if (specialBBUsd > 1) {
+      add("special_rate_gaming_winnings", res.us.worldwide ? S.WARNING : S.INFO, C.INCOME,
+        usd(specialBBUsd) + " of lottery/gaming winnings — flat 30% (s.115BB/115BBJ), no exemptions",
+        "This income is taxed at a flat 30% with no basic exemption threshold, no Chapter VI-A deduction and no §87A " +
+        "rebate — it's now included in the India tax total and the FTC/double-tax figures above." +
+        (res.us.worldwide ? " Because the US taxes worldwide income, the same winnings are very likely also US-taxable " +
+          "as ordinary income — a real double-tax exposure that the general FTC computation only approximates, since it " +
+          "doesn't specifically match this flat 30% Indian rate against whatever ordinary rate the US applies to it." : ""),
+        "Confirm US-side treatment of the same winnings separately from the general FTC computation — a flat-rate/" +
+        "graduated-rate mismatch on the same income can leave a residual gap the average-rate FTC approximation misses.",
+        specialBBUsd, ["s.115BB", "s.115BBJ"]);
+    }
+
+    // -- 4g3. UNEXPLAINED INCOME (s.115BBE) — NOT REFLECTED IN THE COMPUTATION
+    // s.115BBE is uniquely punitive: ~78% effective rate (60% + 25% surcharge
+    // + cess) and it denies EVERY deduction, exemption, and loss set-off
+    // outright — nothing else in the Act gets this treatment. Flagged rather
+    // than computed (unlike s.115BB above) because getting a provision this
+    // punitive wrong in either direction is worse than leaving it explicit.
+    if (model.income.india.unexplained115bbeInr > 0) {
+      add("s115bbe_unexplained_income", S.CRITICAL, C.INCOME,
+        "Unexplained income on file (s.115BBE) — not reflected in the India tax computed above",
+        "₹" + Math.round(model.income.india.unexplained115bbeInr).toLocaleString("en-IN") + " is recorded as unexplained " +
+        "income under s.115BBE. This carries a flat ~78% effective rate (60% tax + 25% surcharge + 4% cess) and — unlike " +
+        "any other provision — denies every deduction, exemption, and loss set-off with no exceptions. The India tax " +
+        "figure above does not include this; it needs to be added separately.",
+        "Compute the s.115BBE addition separately at the full ~78% effective rate before relying on the India tax total " +
+        "above, and confirm the source of these funds is genuinely unexplained rather than misclassified income that " +
+        "belongs under a normal head.",
+        0, ["s.115BBE"]);
+    }
+
+    // -- 4g4. CARRY-FORWARD LOSSES ON FILE, NOT APPLIED ----------------------
+    // Collected but not yet set off against current-year income anywhere in
+    // the computation — an unset-off loss directly overstates this year's
+    // taxable income and, downstream, the FTC/double-tax headline figures.
+    var cfl = model.carryForwardLosses || {};
+    var cflCount = (cfl.businessLossCfCount || 0) + (cfl.speculativeLossCfCount || 0) +
+                   (cfl.stcgLossCfCount || 0) + (cfl.ltcgLossCfCount || 0) + (cfl.housePropertyLossCfCount || 0);
+    if (cfl.hasBroughtForwardLosses === true || cflCount > 0 || cfl.unabsorbedDepreciationCf > 0) {
+      add("carry_forward_losses_not_applied", S.WARNING, C.CREDIT,
+        "Brought-forward losses on file — not yet set off against current-year income",
+        "Prior-year losses are recorded (" + cflCount + " carry-forward entr" + (cflCount === 1 ? "y" : "ies") +
+        (cfl.unabsorbedDepreciationCf > 0 ? " plus unabsorbed depreciation" : "") + "), but the India tax computed above " +
+        "does not apply any set-off against this year's income. An unset-off loss overstates this year's taxable income " +
+        "and, downstream, overstates the FTC shortfall / double-tax figures shown elsewhere on this page.",
+        "Apply the appropriate set-off ordering (business loss → speculative → capital → house property, subject to the " +
+        "8-year carry-forward limit and the same-head/inter-head restrictions) before relying on the India tax and " +
+        "double-tax totals above.",
+        0, ["Loss carry-forward", "s.71", "s.72"]);
+    }
+
     // -- 4h. NRA (1040-NR): FDAP SHOULD BE FLAT-RATE, NOT GRADUATED ---------
     // A non-resident alien's US-source FDAP income (interest, dividends,
     // rents, etc. not effectively connected with a US trade/business) is
@@ -630,7 +691,7 @@
           { label: "Chapter VI-A deductions", inr: -i.deductionsInr },
           { label: "Total income", inr: i.totalIncomeInr },
           { label: "Tax at slab rates", inr: i.slabTaxInr },
-          { label: "Tax on special-rate gains (111A/112A)", inr: i.specialTaxInr },
+          { label: "Tax on special-rate income (111A/112A gains + 115BB/115BBJ winnings)", inr: i.specialTaxInr },
           { label: "Less §87A rebate", inr: -i.rebateInr },
           { label: "Surcharge", inr: i.surchargeInr },
           { label: "Health & education cess (4%)", inr: i.cessInr },
