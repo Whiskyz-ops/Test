@@ -189,7 +189,14 @@
     // itself; HUF/AOP/BOI/trust share this same slab computation path but are
     // NOT entitled to it (previously applied unconditionally to anyone who
     // reached this branch, which silently over-relieved HUF filers).
-    var totalIncomeInr = totalNormalInr + stcgInr + lossSetOff.ltcgGrossInr + special115bbInr;
+    // NOTE: uses ltcgTaxableInr (net of the s.112A exemption), not gross LTCG
+    // — the exempt slice isn't part of total income at all, same as it isn't
+    // part of the special-rate tax computed just above. Previously this used
+    // gross LTCG while specialTaxInr/capEligibleSpecialTaxInr used the
+    // exemption-adjusted figure, silently inflating totalIncomeInr (and, via
+    // computeIndiaSurcharge below, the surcharge threshold test) by the
+    // exempt amount.
+    var totalIncomeInr = totalNormalInr + stcgInr + ltcgTaxableInr + special115bbInr;
     var isIndividual = !model.entity || model.entity.indiaKind === "individual";
     var rebate = isNew ? T.REBATE_87A_NEW : T.REBATE_87A_OLD;
     var rebateInr = 0;
@@ -211,7 +218,7 @@
 
     return {
       regime: regime,
-      grossTotalIncomeInr: normalSlabInr + stcgInr + lossSetOff.ltcgGrossInr + special115bbInr,
+      grossTotalIncomeInr: normalSlabInr + stcgInr + ltcgTaxableInr + special115bbInr,
       deductionsInr: deductionsInr,
       totalIncomeInr: totalIncomeInr,
       slabTaxInr: slabTaxInr,

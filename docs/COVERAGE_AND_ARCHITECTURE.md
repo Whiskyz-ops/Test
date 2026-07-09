@@ -348,12 +348,14 @@ against speculative business income, which Layer 1 doesn't collect as a separate
 business income — so a speculative loss always stays fully carried forward here rather than being
 (wrongly) absorbed against ordinary business income.
 
-**Separately discovered, NOT fixed in this pass** (flagging for awareness, out of the scope actually
-asked for): `totalIncomeInr` in `computeIndiaTax` used gross LTCG (`inc.ltcg.inr`, pre-loss-set-off AND
-pre-s.112A-exemption) while `specialTaxInr`/`capEligibleSpecialTaxInr` used the exemption-adjusted
-`ltcgTaxableInr` — an inconsistency that pre-dates this round. This round's fix updates the gross figure
-to be net of loss set-off (`lossSetOff.ltcgGrossInr`) but does not address the separate pre-existing
-gross-vs-exemption-adjusted inconsistency in `totalIncomeInr`/`grossTotalIncomeInr`.
+**Fixed in an immediate follow-up**: `totalIncomeInr` and `grossTotalIncomeInr` in `computeIndiaTax`
+used gross LTCG (pre-loss-set-off AND pre-s.112A-exemption) while `specialTaxInr`/
+`capEligibleSpecialTaxInr` (and, downstream, the surcharge threshold test) used the exemption-adjusted
+`ltcgTaxableInr` — the exempt slice of LTCG was silently inflating total income even though it isn't
+part of total income at all. Both now use `ltcgTaxableInr` consistently. Verified with a synthetic
+₹6L-salary + ₹5L-LTCG test: before the fix, `totalIncomeInr` was ₹11,00,000 (included the full exempt
+₹1,25,000); after the fix it's the correct ₹9,75,000. No existing demo profile carries LTCG income, so
+none of the 9 profiles' figures changed — confirmed via the regression harness.
 
 ---
 
