@@ -255,11 +255,13 @@ Layer 1 fields:
 - **Not done in this pass, flagged separately**: an actual s.115A-vs-treaty-rate computation (i.e.
   recomputing India withholding tax under the elected rate) — the new finding surfaces what's claimed,
   it doesn't yet validate the rate against the treaty text or recompute tax under it.
-- **Also found during this audit, not yet fixed** (user chose DTAA visibility first): HUF currently
-  falls through to the individual slab computation path in `computeIndiaTax()` and incorrectly
-  receives the §87A rebate, which is restricted to a "resident individual" and not available to an
-  HUF. Real bug, same underlying "residency consequences aren't fully entity-aware" concern the user
-  raised, but out of scope for this pass.
+- **Fixed in a follow-up pass**: HUF fell through to the individual slab computation path in
+  `computeIndiaTax()` and incorrectly received the §87A rebate, which s.87A restricts to a "resident
+  individual." Gated the rebate on `model.entity.indiaKind === "individual"` — HUF/AOP/BOI/trust still
+  share the same slab structure (correct — s.87A is the only piece that's individual-only), they just
+  no longer get the rebate. Verified with a synthetic ₹6L-income test: an individual still gets the
+  full rebate (₹0 net tax), an otherwise-identical HUF now correctly owes ₹10,400 — confirmed no
+  existing demo profile is HUF-typed, so all 8 profiles' figures are unchanged.
 
 ---
 

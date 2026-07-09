@@ -94,11 +94,15 @@
     // Slab tax on normal income.
     var slabTaxInr = bracketTax(totalNormalInr, slabs);
 
-    // §87A rebate (applies to slab tax on normal income only).
+    // §87A rebate — restricted to a "resident individual" by the section
+    // itself; HUF/AOP/BOI/trust share this same slab computation path but are
+    // NOT entitled to it (previously applied unconditionally to anyone who
+    // reached this branch, which silently over-relieved HUF filers).
     var totalIncomeInr = totalNormalInr + stcgInr + inc.ltcg.inr + special115bbInr;
+    var isIndividual = !model.entity || model.entity.indiaKind === "individual";
     var rebate = isNew ? T.REBATE_87A_NEW : T.REBATE_87A_OLD;
     var rebateInr = 0;
-    if (totalNormalInr <= rebate.incomeCap) {
+    if (isIndividual && totalNormalInr <= rebate.incomeCap) {
       rebateInr = Math.min(slabTaxInr, rebate.maxRebate);
     }
 
