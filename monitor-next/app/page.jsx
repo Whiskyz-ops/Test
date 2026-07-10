@@ -31,6 +31,7 @@ export default function MonitorPage() {
   const [engineReady, setEngineReady] = useState(false);
   const [profiles, setProfiles] = useState([]);
   const [clientName, setClientName] = useState(null);
+  const [baseYear, setBaseYear] = useState(null);
   const [result, setResult] = useState(null);
   const [activeProfile, setActiveProfile] = useState(null);
   const [clientSummaries, setClientSummaries] = useState([]);
@@ -45,6 +46,7 @@ export default function MonitorPage() {
     if (snap && snap.countries && snap.countries.length) {
       setCountries(snap.countries); setMode(source); setEngineReady(true); setResult(snap.result);
       if (snap.clientName) setClientName(snap.clientName);
+      if (snap.baseYear) setBaseYear(snap.baseYear);
       setActiveProfile(activeProfileId());
     }
   }, []);
@@ -81,7 +83,7 @@ export default function MonitorPage() {
       <div className="starfield" />
       <Sidebar active={view} onNavigate={setView} badges={badges} />
       <main className="relative z-10 flex-1 min-w-0 px-8 py-6">
-        <Header region={region} onRegionChange={setRegion} clientName={clientName} />
+        <Header region={region} onRegionChange={setRegion} clientName={clientName} baseYear={baseYear} />
 
         {/* single, compact utility bar — status + actions */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-6 pb-4 border-b border-line text-[12px]">

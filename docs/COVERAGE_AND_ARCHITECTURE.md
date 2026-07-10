@@ -871,6 +871,101 @@ correctly through `syncW2sState()` into `usState.income_us_source.wages_w2[0].qu
 
 ---
 
+## Part D.16 — Full pivot to TY2026 (sixteenth round)
+
+D.13-D.15 built and audited everything against **TY2025**. The user then corrected the premise directly:
+this engine should model **TY2026** (FY2026-27 in India), not TY2025 — a real distinction, since OBBBA
+specifically restructured several US figures starting TY2026 rather than merely inflation-indexing them,
+and it flips the Trump Accounts conclusion from "zero impact" to "now relevant" (contributions opened
+July 4, 2026, squarely inside a TY2026 return).
+
+**Every US federal constant re-sourced from Rev. Proc. 2025-32 (the actual TY2026 inflation-adjustment
+notice) and OBBBA's TY2026-specific structural changes**, not just re-indexed by a rule of thumb:
+- **Ordinary brackets, all 4 filing statuses** — full 7-rate tables re-pulled (single/MFJ/HoH pulled
+  directly from IRS sources; MFS derived as exactly half of MFJ per the standard TCJA-era pattern, then
+  spot-verified against a source that stated MFS explicitly).
+- **Standard deduction**: $16,100/$32,200/$16,100/$24,150 (was $15,750/$31,500/$15,750/$23,625 for TY2025).
+- **LTCG/QDI preferential brackets**: new 0%/15%/20% breakpoints for all 4 statuses.
+- **AMT — a genuine structural change, not just inflation**: OBBBA drops the exemption phase-out threshold
+  back to ~2018 levels ($500,000 single/MFS/HoH, $1,000,000 MFJ — down from TY2025's TCJA-indexed
+  $626,350/$1,252,700) **and doubles the phase-out rate from 25% to 50%**, starting TY2026. The old 25%
+  was hardcoded directly in `computeUsTax`'s exemption formula; promoted to a real constant
+  (`AMT_PHASEOUT_RATE`) so this kind of rate change can't hide inside a magic number again. This one change
+  alone means AMT now bites meaningfully more higher earners in TY2026 than it did in TY2025 — not a subtle
+  shift.
+- **QBI (§199A) — also structural**: the phase-in range itself widens to $75,000 single/HoH/MFS / $150,000
+  MFJ (from $50,000/$100,000), on top of the usual threshold indexing to $201,750/$403,500.
+- **SALT cap**: OBBBA's 1%/year indexing schedule puts TY2026 at $40,400 base ($20,200 MFS), phase-out
+  threshold $505,000 ($252,500 MFS) — the floor stays $10,000.
+- **Social Security wage base**: $184,500 (was $176,100).
+- **FEIE (Form 2555)**: $132,900 (was $130,000).
+- **Confirmed unchanged (verified, not assumed)**: CTC stays $2,200/child — the indexing formula rounds
+  down to the nearest $100 and TY2026 inflation didn't clear the next $100 step; the $6,000 senior deduction
+  and the $25,000/$12,500-$25,000 tips/overtime caps and their $150k/$300k phase-out thresholds are fixed
+  dollar amounts with no inflation-indexing clause in the statute at all, confirmed flat through 2028; NIIT
+  thresholds are fixed by statute since 2013 (never indexed).
+- **India side unaffected**: Budget 2026 (Feb 2026) explicitly retained the FY2025-26 slab structure,
+  §87A rebate (₹60,000, still zeroing tax up to ₹12L), and ₹75,000 standard deduction as-is for FY2026-27 —
+  confirmed via web research, not assumed just because nothing showed up in a first pass.
+
+**Base-year propagation.** `router()`'s test-profile-builder default `base_tax_year` moved from 2025 to
+2026 (single source of truth — every demo profile inherits it unless a call overrides it), and
+`router.html`'s own default input value moved with it. All 9 profiles' `financial_year`/`us_calendar_year`
+metadata strings moved from FY2025-26/2025 to FY2026-27/2026.
+
+**A second instance of the D.14 router-DOB bug, caught this time before it shipped.** Re-deriving every
+profile's age at `baseYear=2026` surfaced that **four of the five individual profiles (Aarav, Rohan, Anita,
+Vikram) were silently using the router's default DOB (`1988-01-01`) instead of their real birthdates** —
+none of their `router(...)` calls had ever passed `date_of_birth` explicitly (only Grace's did, fixed back
+in D.14). This had zero visible effect at either TY2025 or TY2026 baseYear purely by chance (none of the
+four cross the 65 threshold either way), but it was a real, latent instance of the exact bug D.14 already
+documented and warned about — caught by systematically re-checking every profile's computed age after the
+baseYear shift, not by accident. Fixed by passing each profile's actual `date_of_birth` in its `router(...)`
+call, closing the gap for good.
+
+**Section 530A "Trump Accounts" — now genuinely relevant, implemented.** D.15 correctly concluded this had
+zero impact on a TY2025 return since contributions weren't permitted before July 4, 2026. At TY2026 that
+conclusion flips. Added: `TRUMP_ACCOUNT_ANNUAL_CAP_USD` ($5,000/child/year, combined across all
+contributors), `TRUMP_ACCOUNT_FEDERAL_SEED_USD` ($1,000, one-time, separate from and not counted against
+the annual cap, only for children born 2025-2028), and the launch date, all in `constants.js`. Layer 1 US
+gained a small profile-level section (toggle + three fields: children with accounts, of which born
+2025-2028, total contributions this year) using the existing `updateProfileField()` pattern — no new
+dynamic-row UI needed since this is a brand-new, first-year, aggregate-only account type. `computeLimits()`
+gained a `trump_account` gauge (mirrors the existing FBAR/LRS gauge pattern); `detectConflicts()` reads it
+and emits an info-level "in use" finding when under the cap, or a warning-level "cap exceeded" finding when
+the aggregate contribution across all of a taxpayer's children exceeds $5,000 × number of children. **Demo:**
+Vikram Rao's two kids (one born 2025-2028, seed-eligible) received $11,000 in combined contributions against
+a $10,000 cap (110%) — deliberately breached, to exercise the warning path rather than only the quiet
+compliant one.
+
+**A second, pre-existing bug found and fixed: the Monitor's header period label was hardcoded and never
+actually reflected the loaded profile's year at all.** `monitor-next/components/Header.jsx` rendered a
+static `CLIENT.period` string ("FY2025-26 / TY2025") from `lib/mockData.js` regardless of which profile was
+loaded — the client *name* was wired to the live model (`clientName` prop) but the period text next to it
+never was. This predates this session's changes entirely; it just became visible now because the fixed
+string suddenly disagreed with every profile's real (TY2026) base year. Fixed by threading `baseYear` from
+`monitorSnapshot()` (already computed engine-side, just never passed through) through `page.jsx` into
+`Header`, which now derives the label as `FY{baseYear}-{baseYear+1} / TY{baseYear}` — correct for whatever
+year is actually loaded, not just today's.
+
+**A third, separate repo-hygiene gap found and fixed: `monitor-next/public/` had its own stale copies** of
+`router.html`, `layer1_us.html`, and all 7 `engine/*.js` files (Next.js serves `public/` at the site root, so
+a deployed build serves these paths from these copies, not the repo-root originals) — and nothing kept them
+in sync. `sync-engine.js` only ever mirrored the engine into `lib/engine` for the Next app itself; the
+`public/` copies (used by the standalone HTML pages when deployed alongside the dashboard) had silently
+drifted and still carried pre-this-session content. Extended `sync-engine.js` to also mirror the engine
+files and the three HTML pages into `public/`/`public/engine/`, and ran it once to catch this repo up.
+Without this, every root-file fix in this session (NRO interest, tips/overtime fields, Trump Accounts, TY2026
+constants) would have reached the Next.js dashboard's *computation* but not the deployed standalone Layer 1
+pages a user might load directly.
+
+Verified via `sanity_check.js`/`verify_traces.js`/`audit_profiles.js` (all pass, numbers changed as expected
+across every US-side figure given the bracket/AMT/QBI/SALT changes) and live via Playwright: the Monitor
+header now reads "Vikram Rao · FY2026-27 / TY2026", and the new Trump Account gauge/finding render correctly
+showing the $11,000/$10,000 (110%) breach.
+
+---
+
 ## Part E — What "comprehensive" wiring involves
 
 - **`normalize.js`:** extend to read every section above into the unified model
@@ -1026,7 +1121,7 @@ renders.
 ---
 
 ## Part H — Honest limitations to keep stating
-- Planning-grade tables (FY2025-26 / TY2025), not a filing engine.
+- Planning-grade tables (FY2026-27 / TY2026), not a filing engine.
 - The engine trusts the Layer 1 forms' *final residency status* rather than
   re-deriving it from the determination inputs.
 - FX is a flat anchor; statutory FTC needs per-transaction TT rates.

@@ -987,6 +987,32 @@
                         </label>
                     </div>
                 </div>
+                <div class="p-4 bg-white/5 border border-white/10 rounded-2xl">
+                    <div class="flex items-center justify-between">
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-white/80">Trump Account (§530A) opened for a child this year?</span>
+                            <span class="text-[8px] text-white/30 mt-0.5">New OBBBA custodial account for US-citizen children under 18 with an SSN — contributions permitted starting July 4, 2026.</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer shrink-0 ml-3">
+                            <input type="checkbox" id="prof-trump-accounts" onchange="updateProfileField('trump_accounts_opened', this.checked); document.getElementById('div-trump-accounts-detail').classList.toggle('hidden', !this.checked);" class="sr-only peer">
+                            <div class="w-7 h-4 bg-white/10 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-brandCyan"></div>
+                        </label>
+                    </div>
+                    <div id="div-trump-accounts-detail" class="hidden mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Children With Accounts</label>
+                            <input type="text" inputmode="numeric" id="prof-trump-num-children" placeholder="0" oninput="updateProfileField('trump_accounts_num_children', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Of Which Born 2025-2028<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Eligible for the $1,000 federal seed</span></label>
+                            <input type="text" inputmode="numeric" id="prof-trump-seed-eligible" placeholder="0" oninput="updateProfileField('trump_accounts_children_born_2025_2028', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Total Contributions This Year (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Nondeductible; excludes the federal seed</span></label>
+                            <input type="text" inputmode="numeric" id="prof-trump-contributions" placeholder="0" oninput="updateProfileField('trump_accounts_total_contributions_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none font-mono">
+                        </div>
+                    </div>
+                </div>
                 <div class="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hidden" id="div-spouse-us-person">
                     <div class="flex flex-col">
                         <span class="text-xs font-bold text-white/80">Spouse is a US Person?</span>
@@ -17695,6 +17721,11 @@
             if (usState.profile.ssn_or_itin) document.getElementById('prof-id-num').value = usState.profile.ssn_or_itin;
             document.getElementById('prof-dependents').value = usState.profile.dependents_count || 0;
             document.getElementById('prof-spouse-us').checked = usState.profile.spouse_is_us_person || false;
+            document.getElementById('prof-trump-accounts').checked = usState.profile.trump_accounts_opened || false;
+            document.getElementById('div-trump-accounts-detail').classList.toggle('hidden', !usState.profile.trump_accounts_opened);
+            document.getElementById('prof-trump-num-children').value = usState.profile.trump_accounts_num_children || 0;
+            document.getElementById('prof-trump-seed-eligible').value = usState.profile.trump_accounts_children_born_2025_2028 || 0;
+            document.getElementById('prof-trump-contributions').value = usState.profile.trump_accounts_total_contributions_usd || 0;
             
             // Restore Entity Type & LLC Election
             const entityTypeEl = document.getElementById('prof-entity-type');

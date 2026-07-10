@@ -7,7 +7,7 @@
  * India/US tax lives here so the computation and conflict engines stay readable
  * and the assumptions are auditable by a tax professional in one place.
  *
- * NOTE: These are prototype defaults for FY2025-26 / TY2025. They are NOT a
+ * NOTE: These are prototype defaults for FY2026-27 / TY2026. They are NOT a
  * substitute for the live statutory tables — a production build would pull these
  * from a versioned rule service. Values are chosen to be consistent with the
  * Layer 1 intake forms (which hydrate cross-border data at 83.0 INR/USD).
@@ -62,8 +62,9 @@
       // RBI Liberalised Remittance Scheme — USD 250,000 per individual / FY.
       LRS_ANNUAL_USD: 250000,
 
-      // Foreign Earned Income Exclusion (Form 2555) — TY2025 figure.
-      FEIE_MAX_USD: 130000,
+      // Foreign Earned Income Exclusion (Form 2555) — TY2026 figure (was
+      // $130,000 for TY2025).
+      FEIE_MAX_USD: 132900,
 
       // Net Investment Income Tax (3.8%) MAGI thresholds — fixed by statute
       // since 2013, NOT indexed for inflation (confirmed unchanged by OBBBA).
@@ -76,7 +77,20 @@
       FOREIGN_GIFT_REPORTING_USD: 100000,
 
       // §54 / §54F India capital-gains reinvestment cap (informational).
-      INDIA_54EC_CAP_INR: 5000000
+      INDIA_54EC_CAP_INR: 5000000,
+
+      // Section 530A "Trump Accounts" (OBBBA) — custodial accounts for
+      // US-citizen children under 18 with an SSN. Contributions (other than
+      // the federal seed) cannot be accepted before this launch date; the
+      // annual cap is per child, combined across all contributors. The
+      // one-time federal seed contribution is separate from and doesn't
+      // count against the annual cap, and is only available for children
+      // born in the given window.
+      TRUMP_ACCOUNT_LAUNCH_DATE: "2026-07-04",
+      TRUMP_ACCOUNT_ANNUAL_CAP_USD: 5000,
+      TRUMP_ACCOUNT_FEDERAL_SEED_USD: 1000,
+      TRUMP_ACCOUNT_SEED_BIRTH_YEAR_MIN: 2025,
+      TRUMP_ACCOUNT_SEED_BIRTH_YEAR_MAX: 2028
     },
 
     // ---- Tax-year calendars ----------------------------------------------
@@ -103,13 +117,15 @@
     },
 
     /* ----------------------------------------------------------------------
-     * TAX TABLES — FY2025-26 (India, AY2026-27) / TY2025 (US).
+     * TAX TABLES — FY2026-27 (India, AY2027-28) / TY2026 (US).
      * Planning-grade. Kept in one place so the computation engine is auditable
      * and a production build can swap in a versioned rule service.
      * --------------------------------------------------------------------*/
     TAX: {
       INDIA: {
-        // [upper_bound_inr, rate]; Infinity = top slab.
+        // [upper_bound_inr, rate]; Infinity = top slab. Unchanged from
+        // FY2025-26 — Budget 2026 (Feb 2026) retained the FY2025-26 slab
+        // structure, §87A rebate, and standard deduction as-is for FY2026-27.
         SLABS_NEW: [
           [400000, 0.00], [800000, 0.05], [1200000, 0.10],
           [1600000, 0.15], [2000000, 0.20], [2400000, 0.25], [Infinity, 0.30]
@@ -157,56 +173,74 @@
         CESS_RATE: 0.04
       },
       US: {
-        // 2025 ordinary brackets by filing status; [upper_bound_usd, rate].
+        // TY2026 ordinary brackets by filing status (Rev. Proc. 2025-32);
+        // [upper_bound_usd, rate]. OBBBA gives the bottom two brackets (10%/
+        // 12%) an extra inflation bump (~4%) vs. ~2.3% for the rest.
         BRACKETS: {
-          single: [[11925,0.10],[48475,0.12],[103350,0.22],[197300,0.24],[250525,0.32],[626350,0.35],[Infinity,0.37]],
-          mfj:    [[23850,0.10],[96950,0.12],[206700,0.22],[394600,0.24],[501050,0.32],[751600,0.35],[Infinity,0.37]],
-          mfs:    [[11925,0.10],[48475,0.12],[103350,0.22],[197300,0.24],[250525,0.32],[375800,0.35],[Infinity,0.37]],
-          hoh:    [[17000,0.10],[64850,0.12],[103350,0.22],[197300,0.24],[250500,0.32],[626350,0.35],[Infinity,0.37]]
+          single: [[12400,0.10],[49840,0.12],[106250,0.22],[202850,0.24],[257540,0.32],[640600,0.35],[Infinity,0.37]],
+          mfj:    [[24800,0.10],[100800,0.12],[211400,0.22],[403550,0.24],[512450,0.32],[768700,0.35],[Infinity,0.37]],
+          mfs:    [[12400,0.10],[50400,0.12],[105700,0.22],[201775,0.24],[256225,0.32],[384350,0.35],[Infinity,0.37]],
+          hoh:    [[17700,0.10],[67450,0.12],[105700,0.22],[201750,0.24],[256200,0.32],[640600,0.35],[Infinity,0.37]]
         },
         // OBBBA ("One Big Beautiful Bill Act", signed July 2025) raised these
-        // above the pre-OBBBA/Rev. Proc. 2024-40 figures (was 15000/30000/
-        // 15000/22500), effective for TY2025.
-        STD_DEDUCTION: { single: 15750, mfj: 31500, mfs: 15750, hoh: 23625 },
-        // Long-term cap-gains / qualified-dividend preferential brackets 2025.
-        // 0% up to br0, 15% up to br15, 20% above (by taxable income).
+        // above the pre-OBBBA/Rev. Proc. 2024-40 figures; TY2026 amounts per
+        // Rev. Proc. 2025-32 (was 15750/31500/15750/23625 for TY2025).
+        STD_DEDUCTION: { single: 16100, mfj: 32200, mfs: 16100, hoh: 24150 },
+        // Long-term cap-gains / qualified-dividend preferential brackets,
+        // TY2026 (Rev. Proc. 2025-32). 0% up to br0, 15% up to br15, 20% above
+        // (by taxable income).
         LTCG_BRACKETS: {
-          single: { br0: 48350, br15: 533400 },
-          mfj:    { br0: 96700, br15: 600050 },
-          mfs:    { br0: 48350, br15: 300000 },
-          hoh:    { br0: 64750, br15: 566700 }
+          single: { br0: 49450, br15: 545500 },
+          mfj:    { br0: 98900, br15: 613700 },
+          mfs:    { br0: 49450, br15: 306850 },
+          hoh:    { br0: 66200, br15: 579600 }
         },
         // SALT cap under OBBBA: raised from a flat $10,000 (TCJA) to $40,000
-        // ($20,000 MFS) for TY2025, phased DOWN 30 cents per dollar of MAGI
-        // above the threshold, floored at $10,000 — so high earners still
-        // land back at the old cap. (1% larger each year 2026-2029, reverts
-        // to a flat $10,000 with no phase-down in 2030.)
-        SALT_CAP_BASE_USD: { single: 40000, mfj: 40000, mfs: 20000, hoh: 40000 },
-        SALT_CAP_PHASEOUT_THRESHOLD_USD: { single: 500000, mfj: 500000, mfs: 250000, hoh: 500000 },
+        // ($20,000 MFS) for TY2025, then indexed +1%/year 2026-2029 —
+        // TY2026 is $40,400 ($20,200 MFS), phased DOWN 30 cents per dollar of
+        // MAGI above the threshold, floored at $10,000 — so high earners
+        // still land back at the old cap. Reverts to a flat $10,000 with no
+        // phase-down in 2030.
+        SALT_CAP_BASE_USD: { single: 40400, mfj: 40400, mfs: 20200, hoh: 40400 },
+        SALT_CAP_PHASEOUT_THRESHOLD_USD: { single: 505000, mfj: 505000, mfs: 252500, hoh: 505000 },
         SALT_CAP_PHASEOUT_RATE: 0.30,
         SALT_CAP_FLOOR_USD: 10000,
         NIIT_RATE: 0.038,
         ADDL_MEDICARE_RATE: 0.009,
         C_CORP_RATE: 0.21,
-        // ---- Self-employment tax (Schedule SE), 2025 ----
+        // ---- Self-employment tax (Schedule SE) ----
         SE_NET_FACTOR: 0.9235,          // 92.35% of net SE earnings is SE-taxable
         SE_RATE_SS: 0.124,              // Social Security portion (capped)
         SE_RATE_MEDICARE: 0.029,        // Medicare portion (uncapped)
-        SS_WAGE_BASE_USD: 176100,       // 2025 Social Security wage base
-        // ---- Qualified Business Income deduction (§199A), 2025 ----
+        SS_WAGE_BASE_USD: 184500,       // TY2026 Social Security wage base
+        // ---- Qualified Business Income deduction (§199A), TY2026 ----
+        // OBBBA widened the phase-in range itself (structural change, not just
+        // inflation indexing) starting TY2026: $75,000 single/HoH/MFS and
+        // $150,000 MFJ, up from $50,000/$100,000 for TY2025.
         QBI_RATE: 0.20,
-        QBI_THRESHOLD: { single: 197300, mfj: 394600, mfs: 197300, hoh: 197300 },
-        QBI_PHASEIN: { single: 50000, mfj: 100000, mfs: 50000, hoh: 50000 },
-        // ---- Alternative Minimum Tax (§55), 2025 ----
-        AMT_EXEMPTION: { single: 88100, mfj: 137000, mfs: 68500, hoh: 88100 },
-        AMT_PHASEOUT: { single: 626350, mfj: 1252700, mfs: 626350, hoh: 626350 },
-        AMT_RATE_BREAK: 232600,         // 26% up to this AMT base, 28% above (MFS: half)
+        QBI_THRESHOLD: { single: 201750, mfj: 403500, mfs: 201750, hoh: 201750 },
+        QBI_PHASEIN: { single: 75000, mfj: 150000, mfs: 75000, hoh: 75000 },
+        // ---- Alternative Minimum Tax (§55), TY2026 ----
+        // OBBBA restructured the AMT exemption phase-out starting TY2026: the
+        // phase-out threshold drops back to ~2018 levels ($500k single/MFS/
+        // HoH, $1,000,000 MFJ — down from the TY2025 TCJA-indexed $626,350/
+        // $1,252,700) AND the phase-out rate doubles from 25% to 50% (see
+        // AMT_PHASEOUT_RATE, applied in computeUsTax). Both changes make AMT
+        // bite considerably more higher earners in TY2026 than TY2025.
+        AMT_EXEMPTION: { single: 90100, mfj: 140200, mfs: 70100, hoh: 90100 },
+        AMT_PHASEOUT: { single: 500000, mfj: 1000000, mfs: 500000, hoh: 500000 },
+        AMT_PHASEOUT_RATE: 0.50,
+        AMT_RATE_BREAK: 244500,         // 26% up to this AMT base, 28% above (MFS: half)
         AMT_RATE_LOW: 0.26,
         AMT_RATE_HIGH: 0.28,
-        // ---- Child Tax Credit (§24), TY2025 — OBBBA made $2,200/child (up
-        // from $2,000) permanent, indexed thereafter. Phases out $50 per
-        // $1,000 (or fraction) of MAGI over the threshold. Up to $1,700/child
-        // is refundable (Additional CTC) at 15% of earned income over $2,500.
+        // ---- Child Tax Credit (§24) — OBBBA made $2,200/child (up from
+        // $2,000) permanent, indexed thereafter; the indexing formula rounds
+        // down to the nearest $100 and TY2026 inflation wasn't enough to move
+        // it, so it's still $2,200 for TY2026 (confirmed via Rev. Proc.
+        // 2025-32). Phases out $50 per $1,000 (or fraction) of MAGI over the
+        // threshold (not itself indexed). Up to $1,700/child is refundable
+        // (Additional CTC, also unchanged for TY2026) at 15% of earned income
+        // over $2,500.
         CTC_PER_CHILD_USD: 2200,
         CTC_PHASEOUT_THRESHOLD_USD: { single: 200000, mfj: 400000, mfs: 200000, hoh: 200000 },
         CTC_PHASEOUT_PER_1000_USD: 50,

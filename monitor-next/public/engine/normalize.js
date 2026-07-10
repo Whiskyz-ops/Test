@@ -158,6 +158,14 @@
       num(safe(os, "interest_on_it_refund_inr", 0)) +
       num(safe(di, "other_sources.interest_inr", 0))
     );
+    // Deemed dividend on share buyback (s.2(22)(f), post-1-Oct-2024): the
+    // FULL buyback consideration is taxed as a dividend at slab rates in the
+    // shareholder's hands (the acquisition cost instead becomes a capital
+    // loss). This is a genuine characterization mismatch candidate — the US
+    // almost certainly treats the same cash as capital gain/return of
+    // capital, not dividend income, so keep it distinct from ordinary
+    // dividend even though both are taxed at slab rates here.
+    var deemedDividendBuyback = moneyFromInr(num(safe(os, "deemed_dividend_from_buyback_inr", 0)));
     var dividend = moneyFromInr(num(safe(os, "dividend_inr", 0)));
 
     // Capital gains — Layer 1 stores transaction data; surface the simple
@@ -166,13 +174,34 @@
                             num(safe(annual.capital_gains, "stcg_111a_inr", 0)));
     var ltcg = moneyFromInr(num(safe(annual.capital_gains, "ltcg_112a_inr", 0)));
 
-    var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg].reduce(addMoney, zeroMoney());
+    // Special-rate "other sources" income — flat 30% under s.115BB (lottery/
+    // betting) and s.115BBJ (online gaming), no basic exemption, no Chapter
+    // VI-A deduction, no §87A rebate. This was previously completely
+    // uncounted anywhere in the model (invisible to total income, FTC, and
+    // cross-basis reconciliation) despite being real, taxable, and a genuine
+    // cross-border double-tax candidate if the same winnings are also
+    // US-taxable.
+    var specialRate115bb = moneyFromInr(
+      num(safe(os, "winnings_lottery_gaming_inr", 0)) +
+      num(safe(os, "online_gaming_winnings_inr", 0))
+    );
+    // s.115BBE unexplained-income addition: flat 60% + 25% surcharge + cess
+    // (effective ~78%), and uniquely denies ANY deduction/exemption/loss
+    // set-off — tracked separately (not folded into specialRate115bb) since
+    // its rate and total denial of relief are qualitatively different and
+    // this pass only flags it rather than computing it.
+    var unexplained115bbeInr = num(safe(os, "unexplained_income_115BBE_inr", 0));
+
+    var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg, specialRate115bb, deemedDividendBuyback].reduce(addMoney, zeroMoney());
 
     return {
       salary: salary, business: business, houseProperty: houseProperty,
       interest: interest, dividend: dividend,
       stcg: stcg, ltcg: ltcg,
       capitalGains: addMoney(stcg, ltcg),
+      specialRate115bb: specialRate115bb,
+      deemedDividendBuyback: deemedDividendBuyback,
+      unexplained115bbeInr: unexplained115bbeInr,
       total: total
     };
   }
@@ -198,12 +227,16 @@
    * drives the FTC limitation, and a qualified/ordinary dividend split that
    * drives the preferential-rate computation.
    * ----------------------------------------------------------------------*/
-  function aggregateUsIncome(us) {
+  function aggregateUsIncome(us, annual) {
     var ui = safe(us, "income_us_source", {});
     var fi = safe(us, "income_foreign_source", {});
 
     // Wages: wages_w2[].wages_box1_usd  (+ fallbacks for older shapes)
     var wages = zeroMoney(), w2with = 0, medicareWages = 0;
+    // OBBBA "no tax on tips" / "no tax on overtime" — the qualified subset is
+    // already included in Box 1 wages above, these are informational fields
+    // used only to size the above-the-line deduction, not additional income.
+    var qualifiedTipsUsd = 0, qualifiedOvertimeUsd = 0;
     var w2 = safe(ui, "wages_w2", null);
     if (Array.isArray(w2)) {
       w2.forEach(function (w) {
@@ -211,6 +244,8 @@
         var adv = w.tax_details_collapsed_by_default || w;
         w2with += num(adv.federal_tax_withheld_usd || adv.federal_income_tax_withheld_usd || 0);
         medicareWages += num(adv.medicare_wages_box5_usd || w.wages_box1_usd || 0);
+        qualifiedTipsUsd += num(w.qualified_tip_income_usd || 0);
+        qualifiedOvertimeUsd += num(w.qualified_overtime_premium_usd || 0);
       });
     }
 
@@ -229,6 +264,35 @@
     (safe(ui, "partnerships_k1", []) || []).forEach(function (k) {
       businessUs = addMoney(businessUs, moneyFromUsd(k.ordinary_business_income_usd || k.ordinary_income_usd || 0));
     });
+    (safe(ui, "self_employment", []) || []).forEach(function (s) {
+      businessUs = addMoney(businessUs, moneyFromUsd(s.self_employment_earnings_usd || s.net_profit_usd || 0));
+    });
+    (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) {
+      businessUs = addMoney(businessUs, moneyFromUsd(s.scorp_income_usd || s.ordinary_business_income_usd || 0));
+    });
+
+    // Self-employment-TAX-subject earnings (Sch C + Sch F + general-partner SE):
+    // NOT S-corp/C-corp wages/distributions. Drives Schedule SE.
+    var seEarnings = 0;
+    (safe(ui, "self_employment", []) || []).forEach(function (s) { seEarnings += num(s.self_employment_earnings_usd || s.net_profit_usd || 0); });
+    (safe(ui, "schedule_c_businesses", []) || []).forEach(function (s) { seEarnings += num(s.net_profit_usd || s.net_earnings_usd || 0); });
+    (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { seEarnings += num(s.net_profit_usd || 0); });
+    // QBI-eligible pass-through business income (§199A): SE + S-corp + partnership
+    // ordinary (excludes C-corp and wages). SSTB flag if any business is flagged.
+    var qbiIncome = seEarnings, sstb = false;
+    (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { qbiIncome += num(s.scorp_income_usd || s.ordinary_business_income_usd || 0); });
+    (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { qbiIncome += num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0); });
+    [].concat(safe(ui, "self_employment", []) || [], safe(ui, "schedule_c_businesses", []) || [], safe(ui, "s_corporations_k1", []) || [], safe(ui, "partnerships_k1", []) || [])
+      .forEach(function (x) { if (x && (x.is_sstb === true || x.sstb === true)) sstb = true; });
+
+    // US retirement / pension income (US-source, ordinary): IRA & 401(k)
+    // distributions, Social Security, and pension.
+    var usRetirementIncome = moneyFromUsd(
+      num(safe(ui, "ira_distributions_usd", 0)) +
+      num(safe(ui, "401k_distributions_usd", 0)) +
+      num(safe(ui, "social_security_benefits_usd", 0)) +
+      num(safe(ui, "pension_income_usd", 0))
+    );
 
     var interestUs = moneyFromUsd(safe(ui, "interest_us_source_usd", 0));
     var ordDivUs = moneyFromUsd(safe(ui, "ordinary_dividends_us_source_usd", 0));
@@ -244,17 +308,37 @@
     var foreignStcg = moneyFromUsd(safe(fi, "foreign_stcg_usd", 0));
     var foreignLtcg = moneyFromUsd(safe(fi, "foreign_ltcg_usd", 0));
 
-    var usSourceTotal = [wages, businessUs, interestUs, ordDivUs, ltcgUs, stcgUs, rentalUs].reduce(addMoney, zeroMoney());
+    // India-side "this is taxable in the US" amounts (Layer 1 India's own
+    // other_sources fields) — previously only ever displayed inside the
+    // retirement_mismatch finding text, never actually added to US income.
+    // The retirement_mismatch finding gates on res.us.isResident, matching
+    // the same worldwide-taxation condition applied to foreignInterest/
+    // foreignPension below, so folding them in here doesn't change when
+    // they count, only that they now actually count.
+    var taxableEpfInterestUsd = 0, taxableNpsWithdrawalUsd = 0;
+    if (annual) {
+      taxableEpfInterestUsd = inrToUsd(num(safe(annual.other_sources, "taxable_epf_interest_inr", 0)));
+      taxableNpsWithdrawalUsd = inrToUsd(num(safe(annual.other_sources, "taxable_nps_withdrawal_inr", 0)));
+      foreignInterest = addMoney(foreignInterest, moneyFromUsd(taxableEpfInterestUsd));
+      foreignPension = addMoney(foreignPension, moneyFromUsd(taxableNpsWithdrawalUsd));
+    }
+
+    var usSourceTotal = [wages, businessUs, interestUs, ordDivUs, ltcgUs, stcgUs, rentalUs, usRetirementIncome].reduce(addMoney, zeroMoney());
     var foreignSourceTotal = [foreignWages, foreignInterest, foreignDividends, foreignRental, foreignPension, foreignStcg, foreignLtcg].reduce(addMoney, zeroMoney());
 
     return {
       wages: wages, businessUs: businessUs, w2Withholding: w2with, medicareWages: medicareWages,
+      qualifiedTipsUsd: qualifiedTipsUsd, qualifiedOvertimeUsd: qualifiedOvertimeUsd,
+      seEarningsUsd: seEarnings, qbiIncomeUsd: Math.max(0, qbiIncome), qbiIsSSTB: sstb,
+      usRetirementIncome: usRetirementIncome,
       interestUs: interestUs, ordinaryDividendsUs: ordDivUs, qualifiedDividendsUs: qualDivUs,
       ltcgUs: ltcgUs, stcgUs: stcgUs, capitalGainsUs: addMoney(ltcgUs, stcgUs), rentalUs: rentalUs,
       foreignWages: foreignWages, foreignInterest: foreignInterest, foreignDividends: foreignDividends,
       foreignRental: foreignRental, foreignPension: foreignPension,
       foreignStcg: foreignStcg, foreignLtcg: foreignLtcg,
       foreignCapitalGains: addMoney(foreignStcg, foreignLtcg),
+      retirementEpfInterestUsd: taxableEpfInterestUsd,
+      retirementNpsWithdrawalUsd: taxableNpsWithdrawalUsd,
       usSourceTotal: usSourceTotal, foreignSourceTotal: foreignSourceTotal,
       total: addMoney(usSourceTotal, foreignSourceTotal)
     };
@@ -263,13 +347,69 @@
   /* US deduction inputs for the tax engine. */
   function aggregateUsDeductions(us) {
     var it = safe(us, "itemized_deductions_and_credits", {});
+    // ISO exercises generate an AMT preference item (the bargain element —
+    // FMV-at-exercise less strike — is excluded from regular income but added
+    // back for AMT, §56(b)(3)). Each row's amt_preference_spread_usd is the
+    // form's own (fmv - strike) * shares computation; sum across all exercises.
+    var isoAmtPrefUsd = 0;
+    (safe(us, "equity_compensation.iso_exercises", []) || []).forEach(function (ex) {
+      isoAmtPrefUsd += num(ex.amt_preference_spread_usd != null
+        ? ex.amt_preference_spread_usd
+        : Math.max(0, (num(ex.fmv_at_exercise_usd) - num(ex.strike_price_usd)) * num(ex.shares_exercised)));
+    });
     return {
       mode: safe(it, "use_standard_or_itemized", "auto"),
       salt: num(safe(it, "state_and_local_taxes_paid_usd", 0)),
       mortgageInterest: num(safe(it, "mortgage_interest_paid_usd", 0)),
       charitable: num(safe(it, "charitable_contributions_cash_usd", 0)) + num(safe(it, "charitable_contributions_appreciated_usd", 0)),
       medical: num(safe(it, "medical_expenses_usd", 0)),
-      studentLoanInterest: num(safe(it, "student_loan_interest_usd", 0))
+      studentLoanInterest: num(safe(it, "student_loan_interest_usd", 0)),
+      // AMT preference / adjustment items (§57): private-activity-bond interest,
+      // ISO bargain element / other preference spread.
+      isoAmtPrefUsd: isoAmtPrefUsd,
+      amtPrefs: num(safe(it, "private_activity_bond_interest_usd", 0)) +
+                num(safe(it, "amt_preference_spread_usd", 0)) +
+                num(safe(us, "amt.private_activity_bond_interest_usd", 0)) +
+                num(safe(us, "amt.amt_preference_spread_usd", 0)) +
+                num(safe(us, "amt_items_usd", 0)) +
+                isoAmtPrefUsd,
+      // Non-refundable personal credits
+      careExpenses: num(safe(it, "dependent_care_expenses_usd", 0)),
+      aotc: num(safe(it, "education_credits_aotc_usd", 0)),
+      lifetimeLearning: num(safe(it, "education_credits_llc_usd", 0)),
+      dependents: num(safe(us, "profile.dependents_count", 0)) || num(safe(it, "dependents_count", 0))
+    };
+  }
+
+  /* ------------------------------------------------------------------------
+   * Equity compensation — cross-border sourcing signal. India's ESOP
+   * perquisite (s.17(2)(vi), already folded into taxable_salary_inr — this is
+   * a breakdown figure, not additive) and the US RSU/NSO/ISO events are two
+   * views into what is often the SAME multi-year vesting equity award, split
+   * by whichever country the employee was in when each tranche vested /
+   * exercised. When both sides show equity-comp activity in the same year, a
+   * single award is very likely being sourced (and taxed) independently by
+   * each country with no coordinated day-count allocation.
+   * ----------------------------------------------------------------------*/
+  function aggregateEquityComp(annualDomesticIncome, us) {
+    var ec = safe(us, "equity_compensation", {});
+    var rsuIncomeUsd = 0, nsoIncomeUsd = 0;
+    (safe(ec, "rsu_vestings", []) || []).forEach(function (r) { rsuIncomeUsd += num(r.gross_income_usd != null ? r.gross_income_usd : num(r.fmv_at_vest_usd) * num(r.shares_vested)); });
+    (safe(ec, "nso_exercises", []) || []).forEach(function (n) { nsoIncomeUsd += num(n.ordinary_income_recognized_usd != null ? n.ordinary_income_recognized_usd : Math.max(0, (num(n.fmv_at_exercise_usd) - num(n.strike_price_usd)) * num(n.shares_exercised))); });
+    var isoCount = (safe(ec, "iso_exercises", []) || []).length;
+    // ESOP: prefer the per-grant events array (grant/vest dates + a raw,
+    // user-entered perquisite value per grant) over the older single annual
+    // total, when the taxpayer has actually itemized grants — the array is
+    // both more precise and is what a future cross-border sourcing check
+    // (matching against US RSU grant dates) will need.
+    var esopEvents = safe(annualDomesticIncome, "salary.esop_perquisite_events", []) || [];
+    var esopFromEvents = esopEvents.reduce(function (s, e) { return s + num(e.perquisite_value_inr); }, 0);
+    var esopPerquisiteInr = esopEvents.length > 0 ? esopFromEvents : num(safe(annualDomesticIncome, "salary.esop_perquisite_inr", 0));
+    return {
+      hasUsEquityComp: safe(ec, "has_equity_comp", false) === true || rsuIncomeUsd > 0 || nsoIncomeUsd > 0 || isoCount > 0,
+      rsuIncomeUsd: rsuIncomeUsd, nsoIncomeUsd: nsoIncomeUsd, isoExerciseCount: isoCount,
+      esopPerquisiteInr: esopPerquisiteInr,
+      esopGrantEvents: esopEvents
     };
   }
 
@@ -338,11 +478,32 @@
         usSchemaVersion: safe(us, "metadata.schema_version", null),
         indiaQuarterly: !!safe(india, "quarters", null)
       },
+      periods: {
+        // India FY quarters in USD (Q1=Apr-Jun … Q4=Jan-Mar); null when the form
+        // has no quarterly data (apportionment then assumes even earning).
+        indiaQuarterlyUsd: (function () {
+          var q = safe(india, "quarters", null);
+          if (!q) return null;
+          return ["Q1", "Q2", "Q3", "Q4"].map(function (k) {
+            var qd = q[k] || {}, di = qd.domestic_income || {}, os = qd.other_sources || {}, cg = qd.capital_gains || {};
+            return inrToUsd(
+              num(safe(di, "salary.taxable_salary_inr", 0)) + num(safe(di, "salary.gross_salary_inr", 0)) +
+              num(safe(os, "interest_inr", 0)) + num(safe(os, "dividend_inr", 0)) +
+              num(safe(cg, "stcg_111a_inr", 0)) + num(safe(cg, "ltcg_112a_inr", 0))
+            );
+          });
+        })()
+      },
       identity: {
         name: safe(router, "full_name", safe(india, "profile.full_name", safe(us, "profile.full_name", "Unnamed Taxpayer"))),
         dob: safe(router, "date_of_birth", safe(india, "profile.date_of_birth", safe(us, "profile.date_of_birth", null))),
         usFilingStatus: normalizeFilingStatus(safe(us, "profile.filing_status", "single")),
-        indiaEntityType: safe(india, "profile.entity_type", "individual")
+        indiaEntityType: safe(india, "profile.entity_type", "individual"),
+        // Raw fact (not derived) — captured by Layer 1's PAN/Aadhaar toggle but
+        // never read anywhere in the engine before this. null when the field
+        // has never been touched (don't want to flag an unanswered toggle the
+        // same as an explicit "not linked").
+        panAadhaarLinked: safe(india, "profile.pan_aadhaar_linked", null)
       },
       entity: (function () {
         var inK = safe(india, "profile.entity_type", "individual");
@@ -367,7 +528,13 @@
         india: {
           status: safe(india, "residency_detail.final_india_residency_status", null),
           daysCurrentYear: num(safe(india, "residency_detail.days_in_india_current_year", 0)),
-          taxRegime: safe(india, "profile.tax_regime", "NEW")
+          taxRegime: safe(india, "profile.tax_regime", "NEW"),
+          // Raw fact (not derived): is this a company incorporated in India?
+          // An Indian company is unconditionally resident regardless of POEM
+          // (place of incorporation controls); POEM only determines residency
+          // for a company that is NOT Indian-incorporated. Null when unset
+          // (e.g. not a company entity).
+          isIndianCompanyFact: safe(india, "residency_detail.is_indian_company", null)
         },
         us: {
           status: safe(us, "us_residency_detail.final_us_residency_status", null),
@@ -376,6 +543,36 @@
           sptMet: safe(us, "us_residency_detail.spt_test_met", false) === true,
           daysCurrentYear: num(safe(us, "us_residency_detail.us_days_current_year", 0))
         }
+      },
+      // US state residency — the DTAA/IRC treaty machinery above governs FEDERAL
+      // tax only. States are not parties to the India-US treaty, so a federal
+      // treaty tie-breaker or NR position does not bind a state; a taxpayer can
+      // remain a full worldwide-income state tax resident (domicile or
+      // statutory-residency test) even after "winning" the federal tie-breaker.
+      stateResidency: {
+        domicileJan1: safe(us, "state_residency.jan_1_domicile_state", null),
+        domicileDec31: safe(us, "state_residency.dec_31_domicile_state", null),
+        primaryState: safe(us, "state_residency.primary_state_of_residence", null),
+        footprint: safe(us, "state_residency.total_states_footprint", []) || [],
+        movedStates: safe(us, "state_residency.moved_states_this_year", false) === true,
+        caSafeHarbor: safe(us, "state_residency.ca_safe_harbor_employment_contract", false) === true,
+        caRetainsTies: safe(us, "state_residency.ca_retains_property_or_voter_reg", false) === true,
+        nyDaysPresent: num(safe(us, "state_residency.ny_actual_days_present", 0)),
+        nyPermanentAbode: safe(us, "state_residency.ny_permanent_place_of_abode", false) === true,
+        ny548DayRule: safe(us, "state_residency.ny_548_day_rule", false) === true
+      },
+      // Company POEM raw facts (only meaningful when entity.indiaIsCompany).
+      // The form's own solver derives a suggested POEM conclusion from these
+      // for UI purposes (same pattern as the individual residency wizard),
+      // but the engine reads the raw facts directly for its own findings
+      // rather than re-deriving POEM a second time.
+      companyResidency: {
+        isActiveBusiness: safe(india, "company_residency.is_active_business", false) === true,
+        boardMeetingsOutsideIndia: safe(india, "company_residency.board_meetings_primarily_outside_india", false) === true,
+        keyManagementLocation: safe(india, "company_residency.key_management_location", null),
+        managementDelegatedOutsideIndia: safe(india, "company_residency.management_delegated_outside_india", false) === true,
+        directorsInIndia: num(safe(india, "company_residency.directors_in_india_count", 0)),
+        directorsOutsideIndia: num(safe(india, "company_residency.directors_outside_india_count", 0))
       },
       treaty: {
         trcStatus: safe(india, "dtaa.trc_status", false) === true ||
@@ -386,11 +583,85 @@
         hasPE: safe(india, "dtaa.has_permanent_establishment_in_india", false) === true,
         usTreatyResidence: safe(us, "us_residency_detail.dtaa_treaty_residence", "none"),
         files1040nr: safe(us, "nra_specific.files_form_1040nr", false) === true,
-        form8833Implied: safe(us, "us_residency_detail.dtaa_treaty_residence", "none") !== "none"
+        form8833Implied: safe(us, "us_residency_detail.dtaa_treaty_residence", "none") !== "none",
+        chapterXiiaElected: safe(india, "compliance_docs.chapter_xiia_elected", false) === true,
+        // Article 4 tie-breaker raw answers (permanent home -> centre of vital
+        // interests -> habitual abode -> nationality). Layer 1's own wizard
+        // (evaluateTieBreaker() in layer1_india.html) records these as it asks
+        // each question in sequence; the engine previously only ever read the
+        // final winner (treatyResidence above) and dropped WHICH step decided
+        // it — surfaced via describeTieBreak() in conflicts.js.
+        tieBreakHome: safe(india, "dtaa.tb_home", null),
+        tieBreakCvi: safe(india, "dtaa.tb_cvi", null),
+        tieBreakAbode: safe(india, "dtaa.tb_abode", null),
+        tieBreakNationality: safe(india, "dtaa.tb_nationality", null),
+        // Per-income-stream treaty elections (e.g. Art 11(2)(b) 15% on
+        // interest, Art 12(2)(a)(ii) 15% on royalty/FTS) — captured by Layer 1
+        // but never read anywhere in the engine before this.
+        treatyElections: safe(india, "dtaa.treaty_elections", []) || []
+      },
+      equityComp: aggregateEquityComp(annual.domestic_income, us),
+      // NRA-specific (Form 1040-NR) facts. Layer 1 already splits FDAP vs ECI
+      // and tracks treaty-rate claims / W-8BEN / FIRPTA, but none of it was
+      // read before this pass — the engine ran every filer through the same
+      // resident-style graduated-bracket computation.
+      nra: {
+        hasUsPe: safe(us, "nra_specific.has_us_pe", false) === true,
+        submittedW8ben: safe(us, "nra_specific.submitted_w8ben", false) === true,
+        eciIncomeUsd: num(safe(us, "nra_specific.us_eci_income_usd", 0)),
+        fdapIncomeUsd: num(safe(us, "nra_specific.us_fdap_income_usd", 0)),
+        treatyRateClaims: safe(us, "nra_specific.treaty_rate_claims", []) || [],
+        usRealPropertyDisposed: safe(us, "nra_specific.us_real_property_disposed", false) === true,
+        firptaWithholdingUsd: num(safe(us, "nra_specific.firpta_withholding_usd", 0)),
+        s6013hElection: safe(us, "nra_specific.s6013h_joint_election", false) === true
+      },
+      // India's own Schedule FA self-report — used to cross-check against what
+      // the US Layer 1 form actually shows (see the schedule_fa_inconsistent
+      // finding: the two intake forms can flatly disagree about whether
+      // foreign assets exist).
+      indiaForeignAssetsDeclared: safe(india, "foreign_assets.has_foreign_assets", null),
+      // Carry-forward losses — WISING now actually sequences the set-off
+      // against current-year income (see computeLossSetOff in computation.js)
+      // rather than only flagging that they exist. Layer 1 already resolves
+      // per-entry eligibility (late-filing denial, new-regime HP/business-
+      // depreciation restrictions) into final_allowed_amount_inr; sum that
+      // (falling back to amount_inr for entries without it, e.g. hand-built
+      // test data) to get what's actually available to set off this year.
+      carryForwardLosses: (function () {
+        function sumAllowed(arr) {
+          return (arr || []).reduce(function (s, e) {
+            var v = (e && e.final_allowed_amount_inr != null) ? e.final_allowed_amount_inr : num(e && e.amount_inr);
+            return s + num(v);
+          }, 0);
+        }
+        var businessArr = safe(india, "carry_forward_losses.business_loss_cf", []) || [];
+        var specArr = safe(india, "carry_forward_losses.speculative_loss_cf", []) || [];
+        var stcgArr = safe(india, "carry_forward_losses.stcg_loss_cf", []) || [];
+        var ltcgArr = safe(india, "carry_forward_losses.ltcg_loss_cf", []) || [];
+        var hpArr = safe(india, "carry_forward_losses.house_property_loss_cf", []) || [];
+        return {
+          hasBroughtForwardLosses: safe(india, "carry_forward_losses.has_brought_forward_losses", null),
+          businessLossCfCount: businessArr.length,
+          speculativeLossCfCount: specArr.length,
+          stcgLossCfCount: stcgArr.length,
+          ltcgLossCfCount: ltcgArr.length,
+          housePropertyLossCfCount: hpArr.length,
+          businessLossAvailableInr: sumAllowed(businessArr),
+          speculativeLossAvailableInr: sumAllowed(specArr),
+          stcgLossAvailableInr: sumAllowed(stcgArr),
+          ltcgLossAvailableInr: sumAllowed(ltcgArr),
+          housePropertyLossAvailableInr: sumAllowed(hpArr),
+          unabsorbedDepreciationCf: num(safe(india, "carry_forward_losses.unabsorbed_depreciation_cf", 0))
+        };
+      })(),
+      foreignGifts: {
+        receivedAbove100k: safe(us, "foreign_gifts_and_trusts.received_foreign_gifts_above_100k", false) === true,
+        isTrustBeneficiary: safe(us, "foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust", false) === true,
+        receivedFromCoveredExpatriate: safe(us, "foreign_gifts_and_trusts.received_gift_from_covered_expatriate", false) === true
       },
       income: {
         india: aggregateIndiaIncome(india, annual),
-        us: aggregateUsIncome(us)
+        us: aggregateUsIncome(us, annual)
       },
       deductions: {
         india: aggregateIndiaDeductions(india),
@@ -402,13 +673,58 @@
         indianMutualFunds: (safe(india, "financial_holdings.transactions", []) || []).filter(function (t) {
           return t.asset_type && String(t.asset_type).toLowerCase().indexOf("mutual_fund") >= 0;
         }),
+        indianSecurities: safe(india, "financial_holdings.transactions", []) || [],
         usPficHoldings: safe(us, "foreign_entities.pfic_holdings", []),
         indianBusinesses: safe(annual.domestic_income, "business_income.business_entries", []),
         usForeignCorps: safe(us, "foreign_entities.foreign_corporations", []),
+        usOwns10PctForeignCorp: safe(us, "foreign_entities.owns_10_percent_foreign_corp", false) === true,
         indianProperties: safe(india, "property.properties", []),
         epfInr: num(safe(india, "deductions.s80C.epf_employee_inr", 0)),
         ppfInr: num(safe(india, "deductions.s80C.ppf_inr", 0)),
-        npsInr: num(safe(india, "deductions.s80CCC_80CCD1.nps_employee_contribution_inr", 0))
+        npsInr: num(safe(india, "deductions.s80CCC_80CCD1.nps_employee_contribution_inr", 0)),
+        // Actual taxable withdrawal/interest amounts (as opposed to just
+        // whether an account exists) — lets the retirement-mismatch finding
+        // quantify the US-taxable exposure precisely instead of a generic
+        // warning with no dollar figure.
+        taxableEpfInterestInr: num(safe(annual.other_sources, "taxable_epf_interest_inr", 0)),
+        taxableNpsWithdrawalInr: num(safe(annual.other_sources, "taxable_nps_withdrawal_inr", 0)),
+        // US-side holdings the Layer 1 US form captures
+        usSecurities: safe(us, "financial_holdings", []) || [],
+        usProperties: safe(us, "real_estate.properties", []) || [],
+        usRetirement: safe(us, "retirement_accounts", {}) || {},
+        // Per-entity business breakdown (for the Business tab). One row per real
+        // entity: a company the taxpayer merely OWNS is a foreign corp (CFC),
+        // not their personal PGBP income, so same-named entries are merged
+        // (income counted once) and CFC/GILTI attach as flags — no double count.
+        businessEntities: (function () {
+          var list = [], ui = safe(us, "income_us_source", {});
+          var entityKind = safe(us, "profile.tax_entity_type", "individual");
+          // The US entity's OWN return income (e.g. a C-Corp's 1120 income).
+          if (entityKind === "ccorp" || safe(us, "profile.incorporated_in_us", false) === true) {
+            var selfInc = num(safe(ui, "business_income_usd", 0));
+            if (selfInc > 0) list.push({ country: "US", type: "C-Corp (Form 1120)", name: safe(us, "profile.full_name", "US C-Corp"), incomeUsd: selfInc, corp: true });
+          }
+          (safe(ui, "self_employment", []) || []).forEach(function (s) { list.push({ country: "US", type: "Self-employment (Sch C)", name: s.business_name || s.name || "Self-employment", incomeUsd: num(s.self_employment_earnings_usd || s.net_profit_usd || 0), se: true, qbi: true }); });
+          (safe(ui, "schedule_c_businesses", []) || []).forEach(function (s) { list.push({ country: "US", type: "Schedule C", name: s.business_name || s.name || "Sole proprietorship", incomeUsd: num(s.net_profit_usd || s.net_earnings_usd || 0), se: true, qbi: true }); });
+          (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { list.push({ country: "US", type: "Farm (Sch F)", name: s.name || "Farm", incomeUsd: num(s.net_profit_usd || 0), se: true, qbi: true }); });
+          (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { list.push({ country: "US", type: "Partnership K-1 (1065)", name: k.partnership_name || k.name || "Partnership", incomeUsd: num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0), se: true, qbi: true }); });
+          (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { list.push({ country: "US", type: "S-Corp K-1 (1120-S)", name: s.corp_name || s.name || "S-Corporation", incomeUsd: num(s.scorp_income_usd || s.ordinary_business_income_usd || 0), se: false, qbi: true }); });
+          (safe(ui, "c_corporations_1120", []) || []).forEach(function (c) { list.push({ country: "US", type: "C-Corp (Form 1120)", name: c.corp_name || c.name || "C-Corporation", incomeUsd: num(c.taxable_income_usd || c.net_income_usd || 0), corp: true }); });
+          (safe(annual.domestic_income, "business_income.business_entries", []) || []).forEach(function (b) { list.push({ country: "IN", type: "Business / Profession (PGBP)", name: b.trade_name || b.name || "Indian business", incomeUsd: inrToUsd(num(b.net_profit_inr || b.net_profit || 0)), inr: num(b.net_profit_inr || b.net_profit || 0) }); });
+          (safe(us, "foreign_entities.foreign_corporations", []) || []).forEach(function (c) { list.push({ country: c.country === "IN" ? "IN" : "US", type: "Foreign corporation (CFC)", name: c.corp_name || "Foreign corporation", incomeUsd: num(c.gilti_income_usd || 0), cfc: true, gilti: num(c.gilti_income_usd || 0), ownershipPct: num(c.ownership_pct || 0) }); });
+          // Merge same-named entities so income is counted once; CFC/GILTI flags
+          // fold onto the entity's real income row.
+          var byName = {}, order = [];
+          list.forEach(function (e) {
+            var key = String(e.name || "").toLowerCase().replace(/\s+/g, " ").trim();
+            if (!byName[key]) { byName[key] = e; order.push(key); return; }
+            var ex = byName[key];
+            if (e.cfc) { ex.cfc = true; ex.gilti = Math.max(ex.gilti || 0, e.gilti || 0); ex.ownershipPct = ex.ownershipPct || e.ownershipPct; if (!ex.incomeUsd) ex.incomeUsd = e.incomeUsd; }
+            else if (ex.cfc) { e.cfc = ex.cfc; e.gilti = ex.gilti; e.ownershipPct = ex.ownershipPct; byName[key] = e; }
+            else { ex.incomeUsd = Math.max(ex.incomeUsd || 0, e.incomeUsd || 0); }
+          });
+          return order.map(function (k) { return byName[k]; });
+        })()
       },
       limitsRaw: {
         lrsRemittedInr: num(safe(annual.lrs_outbound, "total_lrs_remitted_this_fy_inr", 0)) ||
@@ -418,7 +734,24 @@
         foreignEarnedIncomeUsd: num(safe(us, "foreign_earned_income.foreign_earned_income_usd", 0)),
         fbarFormFlag: num(safe(us, "fbar_aggregate_peak_usd", 0)),
         form8938Flag: safe(us, "form_8938_required", false) === true,
-        additionalMedicareOwed: num(safe(us, "withholding_and_estimated.additional_medicare_tax_owed_usd", 0))
+        additionalMedicareOwed: num(safe(us, "withholding_and_estimated.additional_medicare_tax_owed_usd", 0)),
+        trumpAccountsOpened: safe(us, "profile.trump_accounts_opened", false) === true,
+        trumpAccountsNumChildren: num(safe(us, "profile.trump_accounts_num_children", 0)),
+        trumpAccountsSeedEligibleChildren: num(safe(us, "profile.trump_accounts_children_born_2025_2028", 0)),
+        trumpAccountsContributionsUsd: num(safe(us, "profile.trump_accounts_total_contributions_usd", 0))
+      },
+      // FEIE (Form 2555) eligibility inputs — the exclusion is only available to a
+      // taxpayer whose TAX HOME is abroad AND who meets the bona-fide-residence or
+      // physical-presence (>=330 days abroad, i.e. <=35 US days) test. Someone
+      // living in the US cannot claim it, so we capture the qualification facts.
+      feie: {
+        claimed: safe(us, "foreign_earned_income.claims_feie", false) === true,
+        amountClaimedUsd: num(safe(us, "foreign_earned_income.feie_amount_claimed_usd", 0)),
+        foreignEarnedIncomeUsd: num(safe(us, "foreign_earned_income.foreign_earned_income_usd", 0)),
+        taxHomeCountry: safe(us, "foreign_earned_income.tax_home_country", ""),
+        bonaFide: safe(us, "foreign_earned_income.bona_fide_residence", false) === true,
+        physicalPresence: safe(us, "foreign_earned_income.physical_presence", false) === true,
+        daysInUsTestPeriod: num(safe(us, "foreign_earned_income.days_in_us_during_test_period", 0))
       },
       _raw: raw
     };

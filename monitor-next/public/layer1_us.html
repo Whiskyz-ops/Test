@@ -987,6 +987,32 @@
                         </label>
                     </div>
                 </div>
+                <div class="p-4 bg-white/5 border border-white/10 rounded-2xl">
+                    <div class="flex items-center justify-between">
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-white/80">Trump Account (§530A) opened for a child this year?</span>
+                            <span class="text-[8px] text-white/30 mt-0.5">New OBBBA custodial account for US-citizen children under 18 with an SSN — contributions permitted starting July 4, 2026.</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer shrink-0 ml-3">
+                            <input type="checkbox" id="prof-trump-accounts" onchange="updateProfileField('trump_accounts_opened', this.checked); document.getElementById('div-trump-accounts-detail').classList.toggle('hidden', !this.checked);" class="sr-only peer">
+                            <div class="w-7 h-4 bg-white/10 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-brandCyan"></div>
+                        </label>
+                    </div>
+                    <div id="div-trump-accounts-detail" class="hidden mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Children With Accounts</label>
+                            <input type="text" inputmode="numeric" id="prof-trump-num-children" placeholder="0" oninput="updateProfileField('trump_accounts_num_children', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Of Which Born 2025-2028<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Eligible for the $1,000 federal seed</span></label>
+                            <input type="text" inputmode="numeric" id="prof-trump-seed-eligible" placeholder="0" oninput="updateProfileField('trump_accounts_children_born_2025_2028', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Total Contributions This Year (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Nondeductible; excludes the federal seed</span></label>
+                            <input type="text" inputmode="numeric" id="prof-trump-contributions" placeholder="0" oninput="updateProfileField('trump_accounts_total_contributions_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none font-mono">
+                        </div>
+                    </div>
+                </div>
                 <div class="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hidden" id="div-spouse-us-person">
                     <div class="flex flex-col">
                         <span class="text-xs font-bold text-white/80">Spouse is a US Person?</span>
@@ -14969,7 +14995,24 @@
                             <p class="acc-tip mt-2">💡 Just type the total shown in Box 1. We'll find any available deductions later! <span class="nerd-text text-brandPurple bg-brandPurple/10 px-1 py-0.5 rounded ml-2">IRC Sec. 61 defines gross income broadly, but we'll apply above-the-line deductions in Part II of Schedule 1.</span></p>
                         </div>
                     </div>
-                    
+
+                    <div class="w-full bg-brandCyan/10 border border-brandCyan/30 rounded-lg p-3 flex flex-col gap-2 mr-6">
+                        <p class="text-[9px] text-brandCyan/90 leading-tight">
+                            <strong class="font-black uppercase tracking-widest block mb-0.5">OBBBA "No Tax on Tips" / "No Tax on Overtime" (2025-2028)</strong>
+                            Both amounts below must ALSO already be included in Box 1 Wages above — these fields only tell us how much of that Box 1 total qualifies for the new deduction, they are not extra income.
+                        </p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Qualified Tip Income<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Included in Box 1 — voluntary cash/charge tips, occupation customarily tipped as of 12/31/2024</span></label>
+                                <input type="text" inputmode="numeric" class="w2-qual-tips w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncW2sState()">
+                            </div>
+                            <div>
+                                <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Qualified Overtime Premium Pay<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Included in Box 1 — the FLSA §7 "half-time" premium only, not the full overtime wage</span></label>
+                                <input type="text" inputmode="numeric" class="w2-qual-ot w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncW2sState()">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="w-full bg-brandPurple/10 border border-brandPurple/30 rounded-lg p-2 flex items-start gap-2 mr-6">
                         <span class="text-brandPurple font-black text-xs mt-0.5">ⓘ</span>
                         <p class="text-[9px] text-brandPurple/90 leading-tight">
@@ -15148,7 +15191,9 @@
             if (div.querySelector('.w2-emp-state')) div.querySelector('.w2-emp-state').value = normalized.employer_state || '';
             if (div.querySelector('.w2-emp-zip')) div.querySelector('.w2-emp-zip').value = normalized.employer_zip || '';
             if (div.querySelector('.w2-wages')) div.querySelector('.w2-wages').value = normalized.wages_box1_usd || '';
-            
+            if (div.querySelector('.w2-qual-tips')) div.querySelector('.w2-qual-tips').value = normalized.qualified_tip_income_usd || '';
+            if (div.querySelector('.w2-qual-ot')) div.querySelector('.w2-qual-ot').value = normalized.qualified_overtime_premium_usd || '';
+
             const adv = normalized.tax_details_collapsed_by_default || {};
             if (div.querySelector('.w2-ein')) div.querySelector('.w2-ein').value = adv.employer_ein || '';
             if(div.querySelector('.w2-control')) div.querySelector('.w2-control').value = adv.control_number || '';
@@ -15232,6 +15277,8 @@
                 employer_state: div.querySelector('.w2-emp-state').value || null,
                 employer_zip: div.querySelector('.w2-emp-zip').value || null,
                 wages_box1_usd: parseFormattedNumber(div.querySelector('.w2-wages').value) || null,
+                qualified_tip_income_usd: parseFormattedNumber(div.querySelector('.w2-qual-tips').value) || null,
+                qualified_overtime_premium_usd: parseFormattedNumber(div.querySelector('.w2-qual-ot').value) || null,
                 tax_details_collapsed_by_default: {
                     employer_ein: div.querySelector('.w2-ein').value || null,
                     federal_tax_withheld_usd: parseFormattedNumber(div.querySelector('.w2-fedtax').value) || null,
@@ -17674,6 +17721,11 @@
             if (usState.profile.ssn_or_itin) document.getElementById('prof-id-num').value = usState.profile.ssn_or_itin;
             document.getElementById('prof-dependents').value = usState.profile.dependents_count || 0;
             document.getElementById('prof-spouse-us').checked = usState.profile.spouse_is_us_person || false;
+            document.getElementById('prof-trump-accounts').checked = usState.profile.trump_accounts_opened || false;
+            document.getElementById('div-trump-accounts-detail').classList.toggle('hidden', !usState.profile.trump_accounts_opened);
+            document.getElementById('prof-trump-num-children').value = usState.profile.trump_accounts_num_children || 0;
+            document.getElementById('prof-trump-seed-eligible').value = usState.profile.trump_accounts_children_born_2025_2028 || 0;
+            document.getElementById('prof-trump-contributions').value = usState.profile.trump_accounts_total_contributions_usd || 0;
             
             // Restore Entity Type & LLC Election
             const entityTypeEl = document.getElementById('prof-entity-type');

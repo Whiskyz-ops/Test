@@ -2,7 +2,8 @@
 import { Globe2, Settings } from "lucide-react";
 import { REGION_FILTERS, CLIENT } from "@/lib/mockData";
 
-export default function Header({ region, onRegionChange, clientName }) {
+export default function Header({ region, onRegionChange, clientName, baseYear }) {
+  const period = baseYear ? `FY${baseYear}-${String(baseYear + 1).slice(2)} / TY${baseYear}` : CLIENT.period;
   return (
     <div className="flex items-center justify-between gap-4 mb-5">
       <div className="flex items-center gap-3 min-w-0">
@@ -11,7 +12,7 @@ export default function Header({ region, onRegionChange, clientName }) {
         <div className="min-w-0">
           <h1 className="font-display font-extrabold text-2xl leading-tight tracking-tight text-head truncate">Cross-Border Monitor</h1>
           <p className="text-[12px] text-muted truncate">
-            <span className="font-semibold text-body">{clientName || CLIENT.name}</span> · {CLIENT.period}
+            <span className="font-semibold text-body">{clientName || CLIENT.name}</span> · {period}
           </p>
         </div>
       </div>

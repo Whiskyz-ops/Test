@@ -41,15 +41,15 @@
     dtaa: {
       tax_residency_country: "US",
       is_us_resident_for_dtaa: true,
-      dtaa_treaty_residence: "none",   // <-- tie-breaker NOT yet applied
-      trc_status: false,               // <-- TRC missing
+      dtaa_treaty_residence: "us",     // <-- Article 4 tie-breaker RUN in Layer 1 → US
+      trc_status: true,                // <-- TRC on file
       has_permanent_establishment_in_india: false,
       treaty_elections: [],
       dtaa_forced_nr: false
     },
     compliance_docs: {
-      trc: { document_uploaded: false },
-      form_10f: { is_filed: false },   // <-- Form 10F missing
+      trc: { document_uploaded: true },
+      form_10f: { is_filed: true },    // <-- Form 10F filed
       chapter_xiia_elected: false
     },
     bank_accounts: [
@@ -107,7 +107,7 @@
       tds_inr: 0,
       tcs_inr: 0
     },
-    metadata: { schema_version: "layer1_india_v5_1", financial_year: "FY2025-26" }
+    metadata: { schema_version: "layer1_india_v5_1", financial_year: "FY2026-27" }
   };
 
   var US = {
@@ -124,7 +124,7 @@
       us_days_current_year: 330,
       spt_test_met: true,                          // <-- US resident via SPT
       final_us_residency_status: "RESIDENT_ALIEN",
-      dtaa_treaty_residence: "none"
+      dtaa_treaty_residence: "us"                   // <-- synced tie-breaker outcome
     },
     income_us_source: {
       has_employment_income: true,
@@ -186,7 +186,7 @@
       estimated_tax_q4_jan15_usd: 0
     },
     nra_specific: { files_form_1040nr: false },
-    metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+    metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
   };
 
   WISING.SAMPLE = { router: ROUTER, india: INDIA, us: US };

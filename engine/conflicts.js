@@ -775,6 +775,42 @@
         0, ["FinCEN 114", "FBAR"]);
     }
 
+    // -- 12a. TRUMP ACCOUNT (§530A) MONITORING ------------------------------
+    // New OBBBA custodial account for US-citizen children under 18 with an
+    // SSN; contributions (other than the one-time federal seed) weren't
+    // permitted before July 4, 2026. Always surface an info/warning note when
+    // one is in use — this is a brand-new-in-2026 account type most preparers
+    // haven't seen yet — and escalate to a real finding if the $5,000/child/
+    // year cap (combined across all contributors) is breached.
+    var trumpAcct = computed.limits.filter(function (g) { return g.id === "trump_account"; })[0];
+    if (trumpAcct) {
+      var taSeedEligible = model.limitsRaw.trumpAccountsSeedEligibleChildren || 0;
+      var taSeedUsd = CONST.LIMITS.TRUMP_ACCOUNT_FEDERAL_SEED_USD;
+      var seedNote = taSeedEligible > 0
+        ? "A $" + taSeedUsd.toLocaleString("en-US") + " one-time federal seed contribution applies to the " + taSeedEligible +
+          " child(ren) born 2025-2028 — separate from, and not counted against, the $5,000/year cap."
+        : "No federal seed applies — that one-time $1,000 contribution is only for children born 2025-2028.";
+      if (trumpAcct.status === "breached") {
+        add("trump_account_contribution_limit", S.WARNING, C.LIMIT,
+          "Trump Account (§530A) contribution cap exceeded",
+          "Contributions of " + usd(trumpAcct.value) + " across " + Math.max(1, model.limitsRaw.trumpAccountsNumChildren || 1) +
+          " child(ren) exceed the $5,000/child/year cap (combined across all contributors — parents, family, employer all draw " +
+          "from the same limit). " + seedNote,
+          "Excess contributions are not automatically rejected by the custodian in every case — verify the aggregate against " +
+          "all contributors and consider a corrective withdrawal before the account's growth compounds on an over-contribution.",
+          0, ["§530A", "Trump Account"]);
+      } else {
+        add("trump_account_contribution_limit", S.INFO, C.LIMIT,
+          "Trump Account (§530A) in use",
+          "Contributions of " + usd(trumpAcct.value) + " this year are within the $5,000/child/year cap. " + seedNote +
+          " Contributions are nondeductible; account growth is tax-deferred until withdrawal, and the account converts to a " +
+          "Traditional IRA when the beneficiary turns 18.",
+          "No action needed while under the cap — just confirm contributions are tracked in aggregate across every contributor, " +
+          "not just this taxpayer's own deposits.",
+          0, ["§530A", "Trump Account"]);
+      }
+    }
+
     // -- 12b. EQUITY COMPENSATION — CROSS-BORDER SOURCING CONFLICT ----------
     // India's ESOP perquisite (s.17(2)(vi), taxed at exercise/allotment) and
     // the US's RSU-vest / NSO-exercise ordinary income are usually two views
@@ -1332,7 +1368,7 @@
               { label: "Credits", amount: u.otherCreditsUsd }
             ]) }] : [])
           .concat(u.ctcDetail && u.ctcDetail.availableUsd > 0 ? [{ label: "Less Child Tax Credit (§24)", usd: -(u.ctcDetail.nonRefundableUsd + u.ctcDetail.refundableUsd),
-            trace: calc("$2,200/child (TY2025, OBBBA), phased out $50 per $1,000 of AGI over the threshold. The portion that doesn't fit against tax owed is refundable (Additional CTC) up to $1,700/child, capped at 15% of earned income over $2,500. \"Children\" here reuses the same dependents count as the care/AOTC credits above — Layer 1 doesn't separately track qualifying-child ages.", [
+            trace: calc("$2,200/child (TY2025-2028, OBBBA), phased out $50 per $1,000 of AGI over the threshold. The portion that doesn't fit against tax owed is refundable (Additional CTC) up to $1,700/child, capped at 15% of earned income over $2,500. \"Children\" here reuses the same dependents count as the care/AOTC credits above — Layer 1 doesn't separately track qualifying-child ages.", [
               { label: "Number of children (Layer 1 dependents count)", display: String(u.ctcDetail.numChildren) },
               { label: "Max CTC before phase-out", amount: u.ctcDetail.maxTotalUsd },
               { label: "Phase-out reduction", amount: -u.ctcDetail.phaseoutReductionUsd },

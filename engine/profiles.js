@@ -24,7 +24,7 @@
   // ---- helpers to keep the bundles terse ----
   function router(name, extra) {
     return Object.assign({
-      jurisdiction: "dual", base_tax_year: 2025, full_name: name,
+      jurisdiction: "dual", base_tax_year: 2026, full_name: name,
       date_of_birth: "1988-01-01", is_us_citizen: false, has_green_card: false,
       us_days: 0, has_us_source_income_or_assets: true
     }, extra || {});
@@ -39,7 +39,7 @@
     label: "Dual Resident — H-1B",
     story: "India ROR + US SPT, senior tech hire in California. Both tax worldwide income → DTAA tie-breaker + FTC shortfall; ISO exercise triggers AMT and mirrors an ESOP grant from his prior Indian employer (equity-comp sourcing); NIIT, a carried-forward capital loss, and a Schedule FA slip round it out.",
     tags: ["dual residency", "FTC", "PFIC", "AMT", "equity comp"],
-    router: router("Aarav Sharma", { us_days: 330 }),
+    router: router("Aarav Sharma", { us_days: 330, date_of_birth: "1988-07-15" }),
     india: {
       profile: { full_name: "Aarav Sharma", entity_type: "individual", date_of_birth: "1988-07-15", pan: "ABCPS1234K", tax_regime: "NEW" },
       residency_detail: { days_in_india_current_year: 183, final_india_residency_status: "ROR" },
@@ -64,7 +64,7 @@
       // equity grant across the move, exercised the same year as the US-side
       // ISO grant → equity_comp_sourcing (both countries taxing the same
       // multi-year award independently, no day-count allocation).
-      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 1800000, esop_perquisite_events: [{ employer_name: "Infosys Ltd", grant_date: "2021-06-01", vesting_or_exercise_date: "2025-06-01", shares: 400, fmv_per_share_inr: 1800, exercise_price_per_share_inr: 300, perquisite_value_inr: 600000 }] }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 420000 }] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: { short_term_15_pct: 250000 } },
+      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 1800000, esop_perquisite_events: [{ employer_name: "Infosys Ltd", grant_date: "2021-06-01", vesting_or_exercise_date: "2026-06-01", shares: 400, fmv_per_share_inr: 1800, exercise_price_per_share_inr: 300, perquisite_value_inr: 600000 }] }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 420000 }] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: { short_term_15_pct: 250000 } },
       // taxable_epf_interest_inr now actually lands in the US income
       // computation (folded into foreign-source interest), not just this
       // finding's display text.
@@ -75,7 +75,7 @@
       carry_forward_losses: { has_brought_forward_losses: true, stcg_loss_cf: [{ assessment_year: "AY2024-25", amount_inr: 180000 }] },
       lrs_outbound: { total_lrs_remitted_this_fy_inr: 17000000 },
       tax_credits: { advance_tax_q1_15jun_inr: 400000, advance_tax_q2_15sep_inr: 400000, advance_tax_q3_15dec_inr: 400000, advance_tax_q4_15mar_inr: 300000, tds_already_deducted_inr: 350000 },
-      metadata: meta("layer1_india_v5_1", "FY2025-26")
+      metadata: meta("layer1_india_v5_1", "FY2026-27")
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Aarav Sharma", date_of_birth: "1988-07-15", filing_status: "mfj", ssn_or_itin_type: "ssn" },
@@ -99,7 +99,7 @@
       ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "General", foreign_taxes_usd: 22289 }] },
       withholding_and_estimated: { federal_withholding_total_usd: 31000 },
       nra_specific: { files_form_1040nr: false },
-      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
     }
   };
 
@@ -114,7 +114,7 @@
     label: "US Resident · Indian income",
     story: "US green-card holder with Indian rent, dividends, mutual funds, a small India consulting stake and a US-side consulting side gig. US taxes worldwide → FTC (Form 1116) for Indian TDS; PFIC; a below-threshold Indian business stake; no US-India Totalization Agreement on his US self-employment tax; plus occasional online-gaming winnings and an unexplained cash deposit back home. His W-2 job also reports qualified tip income and overtime premium pay — the first demo of the (OBBBA, TY2025-2028) \"no tax on tips\"/\"no tax on overtime\" deductions, both intact here since his AGI sits just under the $300,000 MFJ phase-out threshold.",
     tags: ["FTC 1116", "PFIC", "FBAR", "NR in India", "self-employment", "tips/overtime"],
-    router: router("Rohan Mehta", { is_us_citizen: false, has_green_card: true, us_days: 365 }),
+    router: router("Rohan Mehta", { is_us_citizen: false, has_green_card: true, us_days: 365, date_of_birth: "1985-03-22" }),
     india: {
       profile: { full_name: "Rohan Mehta", entity_type: "individual", date_of_birth: "1985-03-22", pan: "AAAPM5678Q", tax_regime: "NEW" },
       residency_detail: { days_in_india_current_year: 20, final_india_residency_status: "NR" },
@@ -147,7 +147,7 @@
       deductions: {},
       lrs_outbound: {},
       tax_credits: { tds_already_deducted_inr: 430000 },
-      metadata: meta("layer1_india_v5_1", "FY2025-26")
+      metadata: meta("layer1_india_v5_1", "FY2026-27")
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Rohan Mehta", date_of_birth: "1985-03-22", filing_status: "mfj", ssn_or_itin_type: "ssn" },
@@ -167,7 +167,7 @@
       ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "Passive", foreign_taxes_usd: 5180 }] },
       withholding_and_estimated: { federal_withholding_total_usd: 30000 },
       nra_specific: { files_form_1040nr: false },
-      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
     }
   };
 
@@ -182,7 +182,7 @@
     label: "India ROR · US income",
     story: "Resident of India (ROR), formerly NRI, with US rental, dividends & brokerage. India taxes worldwide → Form 67/§90 credit for US tax; Schedule FA for US assets; files 1040-NR on US-source income with a treaty rate claimed but no W-8BEN on file, plus FIRPTA withholding on a US property sale; kept her Chapter XII-A election on specified assets after becoming ROR.",
     tags: ["Form 67", "Schedule FA", "1040-NR", "FIRPTA"],
-    router: router("Anita Desai", { is_us_citizen: false, has_green_card: false, us_days: 35 }),
+    router: router("Anita Desai", { is_us_citizen: false, has_green_card: false, us_days: 35, date_of_birth: "1982-11-09" }),
     india: {
       profile: { full_name: "Anita Desai", entity_type: "individual", date_of_birth: "1982-11-09", pan: "AADPD9012R", tax_regime: "OLD" },
       residency_detail: { days_in_india_current_year: 320, final_india_residency_status: "ROR" },
@@ -205,7 +205,7 @@
       deductions: { s80C: { epf_employee_inr: 150000 }, s80D: { self_family_premium_inr: 25000 } },
       lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 200000, advance_tax_q2_15sep_inr: 200000, tds_already_deducted_inr: 150000 },
-      metadata: meta("layer1_india_v5_1", "FY2025-26")
+      metadata: meta("layer1_india_v5_1", "FY2026-27")
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Anita Desai", date_of_birth: "1982-11-09", filing_status: "single", ssn_or_itin_type: "itin" },
@@ -226,7 +226,7 @@
         treaty_rate_claims: [{ income_type: "dividends", rate: 15 }], submitted_w8ben: false,
         us_real_property_disposed: true, firpta_withholding_usd: 45000
       },
-      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
     }
   };
 
@@ -238,9 +238,9 @@
   var P4 = {
     id: "founder_indian_company",
     label: "Founder · Indian company",
-    story: "US resident owning an Indian Pvt Ltd (≥10%). Triggers Form 5471 + GILTI/Subpart-F on the US side while the company is taxed in India, plus a partial share buyback from his own company — India taxes it as a deemed dividend, the US likely as a capital gain. Two kids — the first demo of the (OBBBA, TY2025) $2,200/child Child Tax Credit. (Full entity separation arrives with multi-entity Phase 1.)",
-    tags: ["Form 5471", "GILTI", "CFC", "entity", "buyback", "CTC"],
-    router: router("Vikram Rao", { is_us_citizen: false, has_green_card: true, us_days: 340 }),
+    story: "US resident owning an Indian Pvt Ltd (≥10%). Triggers Form 5471 + GILTI/Subpart-F on the US side while the company is taxed in India, plus a partial share buyback from his own company — India taxes it as a deemed dividend, the US likely as a capital gain. Two kids — the first demo of the (OBBBA, TY2025-2028) $2,200/child Child Tax Credit, and (both grandparents having pitched in) the first demo of a Trump Account (§530A) contribution cap breach — $11,000 across 2 children against the $10,000 combined annual cap. (Full entity separation arrives with multi-entity Phase 1.)",
+    tags: ["Form 5471", "GILTI", "CFC", "entity", "buyback", "CTC", "Trump Account"],
+    router: router("Vikram Rao", { is_us_citizen: false, has_green_card: true, us_days: 340, date_of_birth: "1986-05-30" }),
     india: {
       profile: { full_name: "Vikram Rao", entity_type: "individual", date_of_birth: "1986-05-30", pan: "AAVPR3456S", tax_regime: "NEW" },
       residency_detail: { days_in_india_current_year: 25, final_india_residency_status: "NR" },
@@ -276,13 +276,13 @@
       deductions: {},
       lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 600000, advance_tax_q2_15sep_inr: 700000, advance_tax_q3_15dec_inr: 700000, advance_tax_q4_15mar_inr: 500000 },
-      metadata: meta("layer1_india_v5_1", "FY2025-26")
+      metadata: meta("layer1_india_v5_1", "FY2026-27")
     },
     us: {
       // Two kids — well under the $400k MFJ Child Tax Credit phase-out, so
-      // this demonstrates the full $2,200/child CTC (§24, TY2025 OBBBA
+      // this demonstrates the full $2,200/child CTC (§24, TY2025-2028 OBBBA
       // amount) with no phase-out reduction.
-      profile: { tax_entity_type: "individual", full_name: "Vikram Rao", date_of_birth: "1986-05-30", filing_status: "mfj", ssn_or_itin_type: "ssn", incorporated_in_us: false, dependents_count: 2 },
+      profile: { tax_entity_type: "individual", full_name: "Vikram Rao", date_of_birth: "1986-05-30", filing_status: "mfj", ssn_or_itin_type: "ssn", incorporated_in_us: false, dependents_count: 2, trump_accounts_opened: true, trump_accounts_num_children: 2, trump_accounts_children_born_2025_2028: 1, trump_accounts_total_contributions_usd: 11000 },
       us_residency_detail: { is_us_citizen: false, has_green_card: true, us_days_current_year: 340, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "none" },
       income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Nova Systems USA Inc", wages_box1_usd: 165000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 31000, medicare_wages_box5_usd: 165000 } }], interest_us_source_usd: 3400, ordinary_dividends_us_source_usd: 5200, qualified_dividends_us_source_usd: 3600, ltcg_us_source_usd: 18000 },
       income_foreign_source: { foreign_dividends_usd: 6024 },
@@ -296,7 +296,7 @@
       ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "General", foreign_taxes_usd: 30120 }] },
       withholding_and_estimated: { federal_withholding_total_usd: 22000 },
       nra_specific: { files_form_1040nr: false },
-      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
     }
   };
 
@@ -325,7 +325,7 @@
       deductions: { s80C: { ppf_inr: 150000 } },
       lrs_outbound: {},
       tax_credits: { tds_already_deducted_inr: 900000 },
-      metadata: meta("layer1_india_v5_1", "FY2025-26")
+      metadata: meta("layer1_india_v5_1", "FY2026-27")
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Grace Thomas", date_of_birth: "1958-09-12", filing_status: "single", ssn_or_itin_type: "ssn" },
@@ -347,7 +347,7 @@
       // §2801 recipient-side transfer tax on top of the ordinary Form 3520 gift
       // reporting (no income tax on the gift itself, but real penalty/tax exposure).
       foreign_gifts_and_trusts: { received_foreign_gifts_above_100k: true, received_gift_from_covered_expatriate: true },
-      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
     }
   };
 
@@ -375,7 +375,7 @@
       deductions: {},
       lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 3000000, advance_tax_q2_15sep_inr: 3500000, advance_tax_q3_15dec_inr: 3500000, advance_tax_q4_15mar_inr: 3000000, tds_already_deducted_inr: 400000 },
-      metadata: meta("layer1_india_v5_1", "FY2025-26")
+      metadata: meta("layer1_india_v5_1", "FY2026-27")
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Nimbus Analytics Pvt Ltd", filing_status: "single" },
@@ -384,7 +384,7 @@
       bank_accounts: [], fbar_aggregate_peak_usd: 0,
       foreign_entities: { foreign_corporations: [], pfic_holdings: [] }, retirement_accounts: {},
       ftc_inputs: { claims_ftc: false }, withholding_and_estimated: {}, nra_specific: { files_form_1040nr: false },
-      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
     }
   };
 
@@ -411,7 +411,7 @@
       other_sources: {},
       deductions: {}, lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 4000000, advance_tax_q2_15sep_inr: 5000000, advance_tax_q3_15dec_inr: 5000000, advance_tax_q4_15mar_inr: 4000000 },
-      metadata: meta("layer1_india_v5_1", "FY2025-26")
+      metadata: meta("layer1_india_v5_1", "FY2026-27")
     },
     us: {
       profile: { tax_entity_type: "ccorp", full_name: "Cloudspire Inc", incorporation_state: "DE", incorporated_in_us: true, filing_status: "single" },
@@ -425,7 +425,7 @@
       ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "General", foreign_taxes_usd: 240964 }] },
       withholding_and_estimated: { estimated_tax_q1_apr15_usd: 200000, estimated_tax_q2_jun15_usd: 220000 },
       nra_specific: { files_form_1040nr: false },
-      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
     }
   };
 
@@ -458,7 +458,7 @@
       other_sources: {},
       deductions: {}, lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 1200000, advance_tax_q2_15sep_inr: 1400000, advance_tax_q3_15dec_inr: 1400000, advance_tax_q4_15mar_inr: 1200000 },
-      metadata: meta("layer1_india_v5_1", "FY2025-26")
+      metadata: meta("layer1_india_v5_1", "FY2026-27")
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Meridian Holdings Pte Ltd", filing_status: "single" },
@@ -467,7 +467,7 @@
       bank_accounts: [], fbar_aggregate_peak_usd: 0,
       foreign_entities: { foreign_corporations: [], pfic_holdings: [] }, retirement_accounts: {},
       ftc_inputs: { claims_ftc: false }, withholding_and_estimated: {}, nra_specific: { files_form_1040nr: false },
-      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
     }
   };
 
@@ -501,7 +501,7 @@
       carry_forward_losses: { has_brought_forward_losses: true, business_loss_cf: [{ assessment_year: "AY2023-24", amount_inr: 500000 }], stcg_loss_cf: [{ assessment_year: "AY2024-25", amount_inr: 200000 }] },
       lrs_outbound: {},
       tax_credits: { tds_already_deducted_inr: 15000 },
-      metadata: meta("layer1_india_v5_1", "FY2025-26")
+      metadata: meta("layer1_india_v5_1", "FY2026-27")
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Sharma HUF", filing_status: "single" },
@@ -510,7 +510,7 @@
       bank_accounts: [], fbar_aggregate_peak_usd: 0,
       foreign_entities: { foreign_corporations: [], pfic_holdings: [] }, retirement_accounts: {},
       ftc_inputs: { claims_ftc: false }, withholding_and_estimated: {}, nra_specific: { files_form_1040nr: false },
-      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
     }
   };
 

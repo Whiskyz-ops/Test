@@ -14,7 +14,7 @@
  * Numbers mirror the demo taxpayer used across the engine (Aarav Sharma).
  * ==========================================================================*/
 
-export const CLIENT = { name: "Aarav Sharma", period: "FY2025-26 / TY2025" };
+export const CLIENT = { name: "Aarav Sharma", period: "FY2026-27 / TY2026" };
 
 export const SOURCES = {
   trips: { name: "Trip Log", kind: "Physical presence / day-count", lastSync: "2026-06-30" },

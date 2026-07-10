@@ -107,7 +107,7 @@
       tds_inr: 0,
       tcs_inr: 0
     },
-    metadata: { schema_version: "layer1_india_v5_1", financial_year: "FY2025-26" }
+    metadata: { schema_version: "layer1_india_v5_1", financial_year: "FY2026-27" }
   };
 
   var US = {
@@ -186,7 +186,7 @@
       estimated_tax_q4_jan15_usd: 0
     },
     nra_specific: { files_form_1040nr: false },
-    metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2025 }
+    metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
   };
 
   WISING.SAMPLE = { router: ROUTER, india: INDIA, us: US };

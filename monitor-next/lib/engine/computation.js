@@ -701,7 +701,7 @@
     var amtiUsd = Math.max(0, taxableIncome + amtAddback + (ded.amtPrefs || 0));
     var amtExFull = T.AMT_EXEMPTION[status] || T.AMT_EXEMPTION.single;
     var amtPhase = T.AMT_PHASEOUT[status] || T.AMT_PHASEOUT.single;
-    var amtExemption = Math.max(0, amtExFull - 0.25 * Math.max(0, amtiUsd - amtPhase));
+    var amtExemption = Math.max(0, amtExFull - T.AMT_PHASEOUT_RATE * Math.max(0, amtiUsd - amtPhase));
     var amtBase = Math.max(0, amtiUsd - amtExemption);
     var amtOrdBase = Math.max(0, amtBase - prefTaxable); // LTCG/QDI keep preferential rates
     var amtBrk = status === "mfs" ? T.AMT_RATE_BREAK / 2 : T.AMT_RATE_BREAK;
@@ -721,7 +721,7 @@
     var otherCreditsUsd = Math.min(Math.round(childCareCredit + aotcCredit + llcCredit), Math.round(incomeTax));
 
     // ---- Child Tax Credit (§24) + refundable Additional CTC ----
-    // $2,200/child (TY2025, OBBBA), phased out $50 per $1,000 of AGI over the
+    // $2,200/child (TY2025-2028, OBBBA), phased out $50 per $1,000 of AGI over the
     // threshold. Non-refundable portion offsets whatever tax is left after
     // the credits above; any CTC that doesn't fit against tax is refundable
     // (ACTC) up to $1,700/child, capped at 15% of earned income over $2,500.
@@ -1067,6 +1067,12 @@
           ? "Excluded foreign earned income cannot also generate FTC — §911 no-double-dip applied."
           : (feieEl.claimed ? "FEIE claimed but NOT eligible (" + feieEl.reasons.join("; ") + ") — exclusion set to $0."
                             : "Not claimed."));
+    }
+    if (model.limitsRaw.trumpAccountsOpened) {
+      var taChildren = Math.max(1, model.limitsRaw.trumpAccountsNumChildren || 1);
+      gauge("trump_account", "Trump Account (§530A) annual contributions", model.limitsRaw.trumpAccountsContributionsUsd,
+        L.TRUMP_ACCOUNT_ANNUAL_CAP_USD * taChildren, "USD",
+        "Cap is " + L.TRUMP_ACCOUNT_ANNUAL_CAP_USD.toLocaleString("en-US") + "/child/year, combined across all contributors (parents, family, employer) — shown here as the aggregate across " + taChildren + " child(ren).");
     }
     return gauges;
   }

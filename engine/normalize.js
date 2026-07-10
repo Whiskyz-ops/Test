@@ -734,7 +734,11 @@
         foreignEarnedIncomeUsd: num(safe(us, "foreign_earned_income.foreign_earned_income_usd", 0)),
         fbarFormFlag: num(safe(us, "fbar_aggregate_peak_usd", 0)),
         form8938Flag: safe(us, "form_8938_required", false) === true,
-        additionalMedicareOwed: num(safe(us, "withholding_and_estimated.additional_medicare_tax_owed_usd", 0))
+        additionalMedicareOwed: num(safe(us, "withholding_and_estimated.additional_medicare_tax_owed_usd", 0)),
+        trumpAccountsOpened: safe(us, "profile.trump_accounts_opened", false) === true,
+        trumpAccountsNumChildren: num(safe(us, "profile.trump_accounts_num_children", 0)),
+        trumpAccountsSeedEligibleChildren: num(safe(us, "profile.trump_accounts_children_born_2025_2028", 0)),
+        trumpAccountsContributionsUsd: num(safe(us, "profile.trump_accounts_total_contributions_usd", 0))
       },
       // FEIE (Form 2555) eligibility inputs — the exclusion is only available to a
       // taxpayer whose TAX HOME is abroad AND who meets the bona-fide-residence or
