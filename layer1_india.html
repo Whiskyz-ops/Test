@@ -4993,7 +4993,7 @@
             Q1: {}, Q2: {}, Q3: {}, Q4: {}
         },
         metadata: {
-            financial_year: "Tax Year 2026-27",
+            financial_year: "FY2026-27",
             schema_version: "layer1_india_v5_1",
             created_at: new Date().toISOString(),
             last_updated_at: new Date().toISOString()
@@ -14025,12 +14025,14 @@ ${isProf ? '' : `
                 }
             });
         state.config.base_year = baseYear;
+        state.metadata = state.metadata || {};
+        state.metadata.financial_year = `FY${baseYear}-${String(baseYear + 1).slice(-2)}`;
         
         const indiaStart = `Apr 1, ${baseYear}`;
         const indiaEnd = `Mar 31, ${baseYear + 1}`;
         const banner = document.getElementById('global-tax-year-banner');
         if (banner) {
-            banner.innerHTML = `Base Tax Year: ${baseYear} &nbsp;|&nbsp; Indian Tax Year: ${indiaStart} - ${indiaEnd} &nbsp;|&nbsp; Tax Year: ${baseYear+1}-${String(baseYear+2).slice(-2)}`;
+            banner.innerHTML = `Base Tax Year: ${baseYear} &nbsp;|&nbsp; Financial Year: ${indiaStart} - ${indiaEnd} &nbsp;|&nbsp; Assessment Year: ${baseYear+1}-${String(baseYear+2).slice(-2)}`;
             banner.classList.remove('hidden');
         }
 
