@@ -63,7 +63,7 @@
   }
 
   /* ---- Carry-forward loss set-off (s.110 house property, s.112 business,
-   * s.111 capital gains, s.33 unabsorbed depreciation) --------------------
+   * s.111 capital gains, s.33(11) unabsorbed depreciation) --------------------
    * Layer 1 already resolves per-entry eligibility (late-filing denial,
    * new-regime HP/business-depreciation restrictions) into the "available"
    * amounts read in normalize.js; this sequences the actual SET-OFF against
@@ -109,7 +109,7 @@
     // above), so it always stays fully carried forward.
     var speculativeLossUnused = cfl.speculativeLossAvailableInr || 0;
 
-    // 6. Unabsorbed depreciation (s.33) -> any head except salary, no time
+    // 6. Unabsorbed depreciation (s.33(11)) -> any head except salary, no time
     // limit. Convention: business first (deemed current-year business loss),
     // then house property, then capital gains, then other normal income.
     var depRemaining = cfl.unabsorbedDepreciationCf || 0;
@@ -157,10 +157,14 @@
     var slabs = isNew ? T.SLABS_NEW : T.SLABS_OLD;
 
     // Normal-slab income (salary is already taxable-net from Layer 1).
-    // Deemed dividend on buyback (s.2(40)(f)) is taxed exactly like ordinary
-    // dividend — at slab rates, in Other Sources — so it joins the same
-    // normal-slab bucket dividend already sits in.
-    var deemedDividendInr = (inc.deemedDividendBuyback && inc.deemedDividendBuyback.inr) || 0;
+    // Deemed dividend on buyback (s.2(40)(f), 1-Oct-2024 to 31-Mar-2026
+    // buy-backs only) is taxed exactly like ordinary dividend — at slab
+    // rates, in Other Sources — so it joins the same normal-slab bucket
+    // dividend already sits in. Buy-backs on/after 1-Apr-2026 are capital
+    // gains instead (s.69) — listed shares and unlisted shares held >24mo
+    // fold into stcg/ltcg in normalize.js; unlisted shares held <=24mo are
+    // slab-rate, so that piece (buybackStcgSlabInr) joins this bucket too.
+    var deemedDividendInr = ((inc.deemedDividendBuyback && inc.deemedDividendBuyback.inr) || 0) + (inc.buybackStcgSlabInr || 0);
 
     // s.207 — India-source interest/dividend/royalty/FTS paid to a NON-
     // RESIDENT is taxed flat (not slab), with no Chapter VI-A deduction or

@@ -158,21 +158,37 @@
       num(safe(os, "interest_on_it_refund_inr", 0)) +
       num(safe(di, "other_sources.interest_inr", 0))
     );
-    // Deemed dividend on share buyback (s.2(40)(f), post-1-Oct-2024): the
-    // FULL buyback consideration is taxed as a dividend at slab rates in the
-    // shareholder's hands (the acquisition cost instead becomes a capital
-    // loss). This is a genuine characterization mismatch candidate — the US
-    // almost certainly treats the same cash as capital gain/return of
-    // capital, not dividend income, so keep it distinct from ordinary
-    // dividend even though both are taxed at slab rates here.
+    // Deemed dividend on share buyback (s.2(40)(f) — window: 1-Oct-2024 to
+    // 31-Mar-2026 ONLY): the FULL buyback consideration is taxed as a
+    // dividend at slab rates in the shareholder's hands (the acquisition
+    // cost instead becomes a capital loss). This is a genuine
+    // characterization mismatch candidate — the US almost certainly treats
+    // the same cash as capital gain/return of capital, not dividend income.
+    // Budget 2026 REVERSED this for buy-backs on/after 1-Apr-2026 (s.69,
+    // Tax Year 2026-27 onward) — those are capital gains in India too now,
+    // folded into stcg/ltcg below instead (listed shares only — see there).
     var deemedDividendBuyback = moneyFromInr(num(safe(os, "deemed_dividend_from_buyback_inr", 0)));
+    // Unlisted-company buyback capital gains, held <=24 months (s.69): taxed
+    // at SLAB rate, not the flat 20% listed-STCG rate, so this joins the
+    // normal-slab bucket (like the deemed dividend above) rather than the
+    // capital-gains one. >24-month unlisted gains ARE flat-rate LTCG — those
+    // fold into ltcg below same as listed shares (both s.198, 12.5%).
+    var buybackStcgSlab = num(safe(os, "buyback_stcg_slab_inr", 0));
     var dividend = moneyFromInr(num(safe(os, "dividend_inr", 0)));
 
     // Capital gains — Layer 1 stores transaction data; surface the simple
     // short-term figure the form exposes, plus any annual capital_gains slice.
+    // Listed-share buyback capital gains (s.69, buy-backs on/after 1-Apr-2026
+    // — see the deemedDividendBuyback comment above) fold in here too, at the
+    // same s.196/198 STCG/LTCG rates as any other listed-equity gain.
+    // Unlisted-share buyback LTCG (>24mo) also lands here (s.198, 12.5%,
+    // same rate as listed LTCG); unlisted STCG (<=24mo) is slab-rate instead
+    // — see buybackStcgSlab above.
     var stcg = moneyFromInr(num(safe(di, "capital_gains.short_term_15_pct", 0)) +
-                            num(safe(annual.capital_gains, "stcg_111a_inr", 0)));
-    var ltcg = moneyFromInr(num(safe(annual.capital_gains, "ltcg_112a_inr", 0)));
+                            num(safe(annual.capital_gains, "stcg_111a_inr", 0)) +
+                            num(safe(annual.capital_gains, "buyback_stcg_inr", 0)));
+    var ltcg = moneyFromInr(num(safe(annual.capital_gains, "ltcg_112a_inr", 0)) +
+                            num(safe(annual.capital_gains, "buyback_ltcg_inr", 0)));
 
     // Special-rate "other sources" income — flat 30% under s.128 (lottery/
     // betting) and s.194 (online gaming), no basic exemption, no Chapter
@@ -193,7 +209,8 @@
     // only flags it rather than computing it.
     var unexplained115bbeInr = num(safe(os, "unexplained_income_115BBE_inr", 0));
 
-    var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg, specialRate115bb, deemedDividendBuyback].reduce(addMoney, zeroMoney());
+    var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg, specialRate115bb, deemedDividendBuyback,
+                 moneyFromInr(buybackStcgSlab)].reduce(addMoney, zeroMoney());
 
     return {
       salary: salary, business: business, houseProperty: houseProperty,
@@ -202,6 +219,7 @@
       capitalGains: addMoney(stcg, ltcg),
       specialRate115bb: specialRate115bb,
       deemedDividendBuyback: deemedDividendBuyback,
+      buybackStcgSlabInr: buybackStcgSlab,
       unexplained115bbeInr: unexplained115bbeInr,
       total: total
     };

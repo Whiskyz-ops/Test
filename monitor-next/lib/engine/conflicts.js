@@ -460,7 +460,7 @@
 
     // -- 4g4. CARRY-FORWARD LOSSES — NOW ACTUALLY SET OFF --------------------
     // WISING sequences the real set-off (see computeLossSetOff in
-    // computation.js) against this year's income under s.110/112/111/33,
+    // computation.js) against this year's income under s.110/112/111/33(11),
     // using the per-entry eligibility Layer 1 already resolved. This finding
     // now reports what actually happened — applied vs. still carrying
     // forward — rather than a blanket "not applied" disclosure. Entity
@@ -678,23 +678,28 @@
     }
 
     // -- 10b. DEEMED DIVIDEND ON BUYBACK — CHARACTERIZATION MISMATCH --------
-    // s.2(40)(f) (effective 1-Oct-2024): the FULL buyback consideration is
-    // taxed as a dividend at slab rates in India, with the share's cost
-    // becoming a capital LOSS instead of reducing the dividend. The US almost
-    // certainly characterizes the same cash differently — a buyback is
-    // ordinarily a capital transaction there (capital gain/return of capital
-    // against basis, not dividend income). Same cash, two different
-    // characters — exactly the kind of thing the cross-basis reconciliation
-    // exists for, but this income wasn't in the model at all until now.
+    // s.2(40)(f) applied ONLY to buy-backs between 1-Oct-2024 and 31-Mar-2026:
+    // the FULL buyback consideration was taxed as a dividend at slab rates in
+    // India, with the share's cost becoming a capital LOSS instead of
+    // reducing the dividend. The US almost certainly characterized the same
+    // cash differently — a buyback is ordinarily a capital transaction there
+    // (capital gain/return of capital against basis, not dividend income).
+    // Same cash, two different characters. Budget 2026 REVERSED this for
+    // buy-backs on/after 1-Apr-2026 (Tax Year 2026-27 onward) — those are
+    // capital gains in India too now (s.69), so this mismatch no longer
+    // applies going forward; the gating below only fires for the narrow
+    // historical window since only that window still lands in
+    // deemedDividendBuyback (see normalize.js).
     var deemedDivUsd = model.income.india.deemedDividendBuyback ? model.income.india.deemedDividendBuyback.usd : 0;
     if (deemedDivUsd > 1 && res.us.worldwide) {
       add("deemed_dividend_buyback_mismatch", S.WARNING, C.INCOME,
-        usd(deemedDivUsd) + " share buyback — India taxes it as dividend, the US likely taxes it as capital gain",
-        "Under s.2(40)(f) (effective 1-Oct-2024), India taxes the FULL buyback consideration as a deemed dividend at " +
-        "slab rates, with the shares' cost basis becoming a capital LOSS rather than reducing the dividend. The US, by " +
-        "contrast, ordinarily treats a share buyback as a capital transaction — gain or loss against the shares' cost " +
-        "basis, not dividend income. The same cash is very likely characterized differently by each country, which can " +
-        "distort both the FTC basket (passive/dividend vs. capital gain) and the true amount of relief available.",
+        usd(deemedDivUsd) + " share buyback (Oct 2024 - Mar 2026 window) — India taxed it as dividend, the US likely as capital gain",
+        "Under s.2(40)(f), buy-backs between 1-Oct-2024 and 31-Mar-2026 were taxed by India as the FULL consideration as " +
+        "a deemed dividend at slab rates, with the shares' cost basis becoming a capital LOSS rather than reducing the " +
+        "dividend. The US, by contrast, ordinarily treats a share buyback as a capital transaction — gain or loss " +
+        "against the shares' cost basis, not dividend income. The same cash is very likely characterized differently " +
+        "by each country, which can distort both the FTC basket (passive/dividend vs. capital gain) and the true " +
+        "amount of relief available. (Budget 2026 reversed this for buy-backs on/after 1-Apr-2026 — see s.69 instead.)",
         "Don't assume the general FTC computation resolves this cleanly — confirm how the US side actually reports the " +
         "buyback (capital transaction vs. dividend) and reconcile the mismatch explicitly, including the capital loss " +
         "India allows on the extinguished shares, which the US computation won't mirror the same way.",
@@ -764,7 +769,7 @@
         lrs.status === "breached"
           ? "A breach can attract RBI scrutiny and AD-bank refusal. Verify remittances across all banks (the cap is per-PAN, not per-account) and document the source of funds."
           : "Monitor remaining headroom for the rest of the financial year; TCS at 20% applies above ₹10 lakh.",
-        0, ["RBI LRS", "TCS u/s 394(1G)"]);
+        0, ["RBI LRS", "TCS u/s 394(1)"]);
     }
 
     // -- 12. FBAR / 8938 LIMIT BREACH --------------------------------------
@@ -1076,7 +1081,7 @@
       ? ("Holdings shows gross LTCG before the s.198 exemption — ₹" + Math.round(ltcgExemptGapInr).toLocaleString("en-IN") + " of LTCG is exempt here, so this figure is that much lower.")
       : null;
 
-    // Brought-forward loss set-off breakdown (s.112/110/111/33) — shown as
+    // Brought-forward loss set-off breakdown (s.112/110/111/33(11)) — shown as
     // explicit "before -> deductions -> after" rows so the set-off is never a
     // silent adjustment buried inside "Gross total income".
     var lso = i.lossSetOff;
@@ -1087,7 +1092,7 @@
       { key: "stcgInr", label: "  — brought-forward STCG loss set off vs current STCG (s.111)", availableKey: "stcgLossAvailableInr", rule: "STCG loss is set off against current STCG first (s.111)" },
       { key: "ltcgFromStcgLossInr", label: "  — brought-forward STCG loss set off vs current LTCG (s.111)", availableKey: "stcgLossAvailableInr", rule: "Any STCG loss left after offsetting current STCG can still offset LTCG (s.111)" },
       { key: "ltcgInr", label: "  — brought-forward LTCG loss set off vs current LTCG (s.111)", availableKey: "ltcgLossAvailableInr", rule: "LTCG loss can only offset LTCG, never STCG (s.111)" },
-      { key: "unabsorbedDepreciationInr", label: "  — unabsorbed depreciation set off (s.33)", availableKey: "unabsorbedDepreciationCf", rule: "No time limit; can offset any head except salary (s.33)" }
+      { key: "unabsorbedDepreciationInr", label: "  — unabsorbed depreciation set off (s.33(11))", availableKey: "unabsorbedDepreciationCf", rule: "No time limit; can offset any head except salary (s.33(11))" }
     ];
     var indiaGrossRows = (lso && lso.totalUsedInr > 1) ? [
       { label: "Current-year income (before brought-forward loss set-off)", inr: i.grossTotalIncomeInr + lso.totalUsedInr,
@@ -1110,21 +1115,21 @@
     ];
     var indiaLossCarryRow = (lso && lso.totalUnusedInr > 1) ? [
       { label: "Losses carried forward to future years (could not be set off this year)", inr: lso.totalUnusedInr,
-        trace: calc("Brought-forward losses left over after set-off — different loss categories can only offset specific income heads (s.112/110/111/33), so a category with no matching income this year carries forward untouched (8 years for most heads, no limit for unabsorbed depreciation)", [
+        trace: calc("Brought-forward losses left over after set-off — different loss categories can only offset specific income heads (s.112/110/111/33(11)), so a category with no matching income this year carries forward untouched (8 years for most heads, no limit for unabsorbed depreciation)", [
           { label: "Total unused this year", amount: lso.totalUnusedInr }
         ]) }
     ] : [];
 
     var dedTrace = i.regime === "NEW"
-      ? calc("New regime allows only the employer's NPS contribution under s.124(2) — s.123/126/124(1B)/80TTA etc. are not available", [
+      ? calc("New regime allows only the employer's NPS contribution under s.124(2) — s.123/126/124(1B)/153 etc. are not available", [
           { label: "Employer NPS contribution (s.124(2))", amount: dedIndia.s80CCD2_employer || 0 }
         ])
-      : calc("Old regime: s.123 (cap ₹1.5L) + s.124(1B) NPS (cap ₹50k) + s.126 health insurance (cap ₹75k) + employer NPS s.124(2) (uncapped) + s.80TTA/TTB savings interest (cap ₹10k)", [
+      : calc("Old regime: s.123 (cap ₹1.5L) + s.124(1B) NPS (cap ₹50k) + s.126 health insurance (cap ₹75k) + employer NPS s.124(2) (uncapped) + s.153 savings interest (cap ₹10k)", [
           { label: "s.123 (capped ₹1.5L)", amount: Math.min(dedIndia.s80C || 0, T.DEDUCTION_CAPS_OLD.s80C) },
           { label: "s.124(1B) NPS (capped ₹50k)", amount: Math.min(dedIndia.s80CCD1B || 0, T.DEDUCTION_CAPS_OLD.s80CCD1B) },
           { label: "s.126 health insurance (capped ₹75k)", amount: Math.min(dedIndia.s80D || 0, T.DEDUCTION_CAPS_OLD.s80D_self + T.DEDUCTION_CAPS_OLD.s80D_parents_senior) },
           { label: "Employer NPS s.124(2)", amount: dedIndia.s80CCD2_employer || 0 },
-          { label: "s.80TTA/TTB savings interest (capped ₹10k)", amount: Math.min(dedIndia.s80TTA_TTB || 0, 10000) }
+          { label: "s.153 savings interest (capped ₹10k)", amount: Math.min(dedIndia.s80TTA_TTB || 0, 10000) }
         ]);
 
     var rebateCap = i.regime === "NEW" ? T.REBATE_87A_NEW.maxRebate : T.REBATE_87A_OLD.maxRebate;

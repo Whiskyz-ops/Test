@@ -7851,6 +7851,13 @@ const crDiv = document.getElementById('div-company-residency');
                     </select>
                 </div>
                 <div>
+                    <label class="block text-[10px] text-white/60 mb-1">Company Listed?</label>
+                    <select class="bb-listed w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all" onchange="syncBuybackState()" title="Affects the holding-period threshold and rate for buy-backs on/after 1-Apr-2026 (s.69): listed shares use the 12-month/flat-rate STT-paid rules, unlisted shares use 24 months and slab-rate STCG.">
+                        <option value="listed">Listed (stock exchange)</option>
+                        <option value="unlisted">Unlisted</option>
+                    </select>
+                </div>
+                <div>
                     <label class="block text-[10px] text-white/60 mb-1">Shares Tendered</label>
                     <input type="text" inputmode="numeric" step="1" class="inr-input bb-shares w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all font-mono" placeholder="0" oninput="syncBuybackState()">
                 </div>
@@ -7894,11 +7901,35 @@ const crDiv = document.getElementById('div-company-residency');
             const recd = parseFloat(card.querySelector('.bb-recd').value) || null;
             const cost = parseFloat(card.querySelector('.bb-cost').value) || null;
             
+            const acqDate = card.querySelector('.bb-acq-date').value || null;
+            const listedEl = card.querySelector('.bb-listed');
+            const isListed = !listedEl || listedEl.value !== 'unlisted';
             let era = 'pre_oct2024';
             let divIncome = 0;
             let capLoss = 0;
+            let capGainOrLoss = 0;
+            let gainClassification = null;
 
-            if (bDate && new Date(bDate) >= new Date('2024-10-01')) {
+            if (bDate && new Date(bDate) >= new Date('2026-04-01')) {
+                // Budget 2026: buy-backs on/after 1 Apr 2026 (Tax Year 2026-27
+                // onward, s.69 ITA 2025) are taxed as CAPITAL GAINS — proceeds
+                // less cost of acquisition, not a full-consideration deemed
+                // dividend. Reverses the post-Oct-2024 dividend treatment below.
+                // Listed shares: >12 months => LTCG @12.5% (s.198, Rs1.25L
+                // exemption); <=12 months => STCG @20% (s.196). Unlisted
+                // shares: >24 months => LTCG @12.5% (no indexation); <=24
+                // months => STCG at slab rate (not the flat 20%).
+                era = 'capital_gains_era';
+                capGainOrLoss = (recd || 0) - (cost || 0);
+                let months = null;
+                if (acqDate && bDate) {
+                    const a = new Date(acqDate), b = new Date(bDate);
+                    months = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+                }
+                const ltThreshold = isListed ? 12 : 24;
+                const isLongTerm = months !== null && months > ltThreshold;
+                gainClassification = isLongTerm ? 'ltcg' : (isListed ? 'stcg' : 'stcg_slab');
+            } else if (bDate && new Date(bDate) >= new Date('2024-10-01')) {
                 era = 'post_oct2024';
                 divIncome = recd || 0;
                 capLoss = cost || 0;
@@ -7912,10 +7943,12 @@ const crDiv = document.getElementById('div-company-residency');
                 shares_tendered: parseInt(card.querySelector('.bb-shares').value) || null,
                 consideration_received_inr: recd,
                 original_cost_inr: cost,
-                original_acquisition_date: card.querySelector('.bb-acq-date').value || null,
+                original_acquisition_date: acqDate,
                 buyback_pre_or_post_oct2024: era,
                 deemed_dividend_inr: divIncome,
-                capital_loss_inr: capLoss
+                capital_loss_inr: capLoss,
+                capital_gain_or_loss_inr: capGainOrLoss,
+                gain_classification: gainClassification
             });
         });
         state.share_buyback.transactions = txs;
@@ -12719,12 +12752,26 @@ ${isProf ? '' : `
         const pensionGross = state.other_sources.family_pension_gross_inr || 0;
         const pensionNet   = Math.max(0, pensionGross - Math.min(15000, Math.round(pensionGross / 3)));
 
-        // Share buyback post-Oct 2024 → deemed dividend u/s 2(22)(f)
-        let deemedBuyback = 0;
+        // Share buyback Oct-2024-to-Mar-2026 → deemed dividend (s.2(40)(f)/old
+        // s.2(22)(f)); on/after Apr-2026 → capital gains instead (s.69, Budget
+        // 2026 — see syncBuybackState()). Unlisted-company short-term gains
+        // (<=24 months) are slab-rate, not the flat 20% listed STCG rate, so
+        // they route to normal-slab income instead of the capital_gains bucket.
+        let deemedBuyback = 0, buybackStcg = 0, buybackLtcg = 0, buybackStcgSlab = 0;
         (state.share_buyback.transactions || []).forEach(bb => {
-            if (bb.buyback_pre_or_post_oct2024 === 'post_oct2024') deemedBuyback += (bb.consideration_received_inr || 0);
+            if (bb.buyback_pre_or_post_oct2024 === 'post_oct2024') {
+                deemedBuyback += (bb.consideration_received_inr || 0);
+            } else if (bb.buyback_pre_or_post_oct2024 === 'capital_gains_era') {
+                const g = bb.capital_gain_or_loss_inr || 0;
+                if (bb.gain_classification === 'ltcg') buybackLtcg += g;
+                else if (bb.gain_classification === 'stcg_slab') buybackStcgSlab += g;
+                else buybackStcg += g;
+            }
         });
         state.other_sources.deemed_dividend_from_buyback_inr = deemedBuyback;
+        state.other_sources.buyback_stcg_slab_inr = buybackStcgSlab;
+        state.capital_gains.buyback_stcg_inr = buybackStcg;
+        state.capital_gains.buyback_ltcg_inr = buybackLtcg;
 
         // ── HOUSE PROPERTY (Head: Income from House Property) ────────
         let hpNetIncome = 0;
@@ -12761,7 +12808,7 @@ ${isProf ? '' : `
         // ── GROSS TOTAL INCOME ───────────────────────────────────────
         // lotteryWin is taxed at flat 30% Lottery & Crossword Puzzles Winnings (same as online gaming post Apr-2023).
         // itRefundInt is taxable Excess Refund Granted Interest / Income Tax Refund Interest — included in normal slab.
-        const normalSlab  = salary + hpNetIncome + business + savingsInt + fdInt + bondInt + itRefundInt + gifts + pensionNet + deemedBuyback + otherSourcesAdditions + miscIncome;
+        const normalSlab  = salary + hpNetIncome + business + savingsInt + fdInt + bondInt + itRefundInt + gifts + pensionNet + deemedBuyback + buybackStcgSlab + otherSourcesAdditions + miscIncome;
         
         // Non-Resident Deduction Wall (Tax on Dividends, Royalties and Technical Services (Non-Residents)): 
         // If NR/Foreign Company earns Dividend, Royalty, or FTS, they cannot claim Chapter VI-A deductions against it.

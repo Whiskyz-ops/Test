@@ -238,7 +238,7 @@
   var P4 = {
     id: "founder_indian_company",
     label: "Founder · Indian company",
-    story: "US resident owning an Indian Pvt Ltd (≥10%). Triggers Form 5471 + GILTI/Subpart-F on the US side while the company is taxed in India, plus a partial share buyback from his own company — India taxes it as a deemed dividend, the US likely as a capital gain. Two kids — the first demo of the (OBBBA, TY2025-2028) $2,200/child Child Tax Credit, and (both grandparents having pitched in) the first demo of a Trump Account (§530A) contribution cap breach — $11,000 across 2 children against the $10,000 combined annual cap. (Full entity separation arrives with multi-entity Phase 1.)",
+    story: "US resident owning an Indian Pvt Ltd (≥10%). Triggers Form 5471 + GILTI/Subpart-F on the US side while the company is taxed in India, plus a partial share buyback from his own company — since Budget 2026 (Tax Year 2026-27, s.69) this is unlisted-share LTCG at 12.5%, not the pre-2026 deemed-dividend-at-slab-rates treatment. Two kids — the first demo of the (OBBBA, TY2025-2028) $2,200/child Child Tax Credit, and (both grandparents having pitched in) the first demo of a Trump Account (§530A) contribution cap breach — $11,000 across 2 children against the $10,000 combined annual cap. (Full entity separation arrives with multi-entity Phase 1.)",
     tags: ["Form 5471", "GILTI", "CFC", "entity", "buyback", "CTC", "Trump Account"],
     router: router("Vikram Rao", { is_us_citizen: false, has_green_card: true, us_days: 340, date_of_birth: "1986-05-30" }),
     india: {
@@ -264,14 +264,22 @@
       financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "unlisted_equity", asset_name: "Nova Systems Pvt Ltd (100%)", value_inr: 45000000 }] },
       unlisted_equity: { has_unlisted_equity_transaction: true, transactions: [{ company: "Nova Systems Pvt Ltd", holding_pct: 100 }] },
       domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: { short_term_15_pct: 100000 } },
-      // A partial share buyback by his own company — a routine founder
-      // liquidity event, and exactly the s.2(40)(f) vs. capital-gain
-      // characterization mismatch the US side will book differently.
-      other_sources: { has_other_sources_income: true, dividend_inr: 500000, interest_fd_rd_inr: 200000, deemed_dividend_from_buyback_inr: 3500000 },
-      // A brought-forward STCG loss bigger than this year's STCG gain — only
-      // partly absorbed, the rest keeps carrying forward. The third state of
-      // the loss set-off computation, distinct from Aarav's full absorption
-      // and the HUF's total non-absorption.
+      // A partial share buyback by his own company, founder-era shares held
+      // since incorporation (>24 months, unlisted) — Budget 2026 (s.69, ITA
+      // 2025) taxes buy-backs on/after 1-Apr-2026 as LTCG @12.5%, not the
+      // pre-Apr-2026 full-consideration deemed dividend at slab rates. Cost
+      // basis is nominal founder-share value: Rs35L consideration less a
+      // Rs50k cost basis = Rs34.5L LTCG (unlisted, no indexation, s.198).
+      // As a 100%-owner he's also a "promoter" under s.69(2)(b)'s additional
+      // levy — not modeled here, disclosed gap (see COVERAGE_AND_ARCHITECTURE).
+      capital_gains: { buyback_ltcg_inr: 3450000 },
+      other_sources: { has_other_sources_income: true, dividend_inr: 500000, interest_fd_rd_inr: 200000 },
+      // A brought-forward STCG loss bigger than this year's STCG gain — set
+      // off first against current STCG, then the spillover offsets his new
+      // buyback LTCG too (s.111/s.198's ordering), fully absorbing it. (Was
+      // "only partly absorbed" before the LTCG existed to soak up the
+      // spillover — now demonstrates full absorption across two gain types
+      // in one year, distinct from the HUF's total non-absorption.)
       carry_forward_losses: { has_brought_forward_losses: true, stcg_loss_cf: [{ assessment_year: "AY2024-25", amount_inr: 250000 }] },
       deductions: {},
       lrs_outbound: {},
