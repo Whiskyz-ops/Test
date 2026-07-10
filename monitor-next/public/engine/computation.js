@@ -293,7 +293,29 @@
 
     // 4% Health & Education cess.
     var cessInr = (taxAfterRebateInr + surchargeInr) * T.CESS_RATE;
-    var totalTaxInr = taxAfterRebateInr + surchargeInr + cessInr;
+
+    // s.69(2)(b) promoter additional tax on buy-back capital gains (Budget
+    // 2026, buy-backs on/after 1-Apr-2026): layered ON TOP of the ordinary
+    // LTCG/STCG tax on the promoter's buy-back gain already included above
+    // (via ltcgTaxableInr/stcgInr, folded in at normalize.js) — this adds
+    // just the incremental piece, not a re-tax of the whole gain. Computed
+    // on the promoter's gross buy-back gain, not netted against the s.198
+    // exemption (which may be pooled with non-buy-back LTCG) — a modeling
+    // simplification. See constants.js for the target-rate/surcharge detail.
+    var isCorporatePromoter = !!(model.entity && model.entity.indiaKind === "company");
+    var promoterTargetRate = isCorporatePromoter
+      ? T.PROMOTER_BUYBACK_TARGET_RATE_CORPORATE
+      : T.PROMOTER_BUYBACK_TARGET_RATE_NON_CORPORATE;
+    var promoterLtcgAdditionalInr = Math.max(0, inc.promoterBuybackLtcgInr || 0) * Math.max(0, promoterTargetRate - T.LTCG_112A_RATE);
+    var promoterStcgAdditionalInr = Math.max(0, inc.promoterBuybackStcgInr || 0) * Math.max(0, promoterTargetRate - T.STCG_111A_RATE);
+    var promoterAdditionalTaxInr = promoterLtcgAdditionalInr + promoterStcgAdditionalInr;
+    // The 12% surcharge applies to the additional tax only, irrespective of
+    // total income (unlike the ordinary income-linked surcharge above).
+    var promoterSurchargeInr = promoterAdditionalTaxInr * T.PROMOTER_BUYBACK_SURCHARGE_ON_ADDITIONAL_RATE;
+    var promoterCessInr = (promoterAdditionalTaxInr + promoterSurchargeInr) * T.CESS_RATE;
+    var promoterBuybackExtraTaxInr = promoterAdditionalTaxInr + promoterSurchargeInr + promoterCessInr;
+
+    var totalTaxInr = taxAfterRebateInr + surchargeInr + cessInr + promoterBuybackExtraTaxInr;
 
     return {
       regime: regime,
@@ -308,6 +330,16 @@
       rebateInr: rebateInr,
       surchargeInr: surchargeInr,
       cessInr: cessInr,
+      promoterBuyback: promoterAdditionalTaxInr > 0 ? {
+        isCorporatePromoter: isCorporatePromoter,
+        targetRate: promoterTargetRate,
+        ltcgGainInr: inc.promoterBuybackLtcgInr || 0,
+        stcgGainInr: inc.promoterBuybackStcgInr || 0,
+        additionalTaxInr: promoterAdditionalTaxInr,
+        surchargeInr: promoterSurchargeInr,
+        cessInr: promoterCessInr,
+        totalExtraTaxInr: promoterBuybackExtraTaxInr
+      } : null,
       totalTaxInr: totalTaxInr,
       totalTaxUsd: U.inrToUsd(totalTaxInr),
       totalIncomeUsd: U.inrToUsd(totalIncomeInr),

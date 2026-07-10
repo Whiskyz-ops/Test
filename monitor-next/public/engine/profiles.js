@@ -238,7 +238,7 @@
   var P4 = {
     id: "founder_indian_company",
     label: "Founder · Indian company",
-    story: "US resident owning an Indian Pvt Ltd (≥10%). Triggers Form 5471 + GILTI/Subpart-F on the US side while the company is taxed in India, plus a partial share buyback from his own company — since Budget 2026 (Tax Year 2026-27, s.69) this is unlisted-share LTCG at 12.5%, not the pre-2026 deemed-dividend-at-slab-rates treatment. Two kids — the first demo of the (OBBBA, TY2025-2028) $2,200/child Child Tax Credit, and (both grandparents having pitched in) the first demo of a Trump Account (§530A) contribution cap breach — $11,000 across 2 children against the $10,000 combined annual cap. (Full entity separation arrives with multi-entity Phase 1.)",
+    story: "US resident owning an Indian Pvt Ltd (≥10%). Triggers Form 5471 + GILTI/Subpart-F on the US side while the company is taxed in India, plus a partial share buyback from his own company — since Budget 2026 (Tax Year 2026-27, s.69) this is unlisted-share LTCG at 12.5%, not the pre-2026 deemed-dividend-at-slab-rates treatment. As a 100%-owner he's also a \"promoter\" under s.69(2)(b), so an additional tax plus a 12% surcharge layers on top of that ordinary LTCG tax — the first demo of that provision. Two kids — the first demo of the (OBBBA, TY2025-2028) $2,200/child Child Tax Credit, and (both grandparents having pitched in) the first demo of a Trump Account (§530A) contribution cap breach — $11,000 across 2 children against the $10,000 combined annual cap. (Full entity separation arrives with multi-entity Phase 1.)",
     tags: ["Form 5471", "GILTI", "CFC", "entity", "buyback", "CTC", "Trump Account"],
     router: router("Vikram Rao", { is_us_citizen: false, has_green_card: true, us_days: 340, date_of_birth: "1986-05-30" }),
     india: {
@@ -270,9 +270,19 @@
       // pre-Apr-2026 full-consideration deemed dividend at slab rates. Cost
       // basis is nominal founder-share value: Rs35L consideration less a
       // Rs50k cost basis = Rs34.5L LTCG (unlisted, no indexation, s.198).
-      // As a 100%-owner he's also a "promoter" under s.69(2)(b)'s additional
-      // levy — not modeled here, disclosed gap (see COVERAGE_AND_ARCHITECTURE).
-      capital_gains: { buyback_ltcg_inr: 3450000 },
+      // As a 100%-owner he's also a "promoter" (s.69(2)(b)) — modeled via
+      // is_promoter, demonstrating the additional-tax-plus-surcharge layer
+      // (30% non-corporate target rate) on top of the ordinary 12.5% LTCG.
+      // Uses the full per-transaction shape (not the aggregated shortcut)
+      // specifically so this profile also exercises normalize.js's
+      // transaction-array aggregation path, not just the demo-shortcut one.
+      share_buyback: { transactions: [{
+        company_name: "Nova Systems Pvt Ltd", is_listed: false, is_promoter: true,
+        buyback_date: "2026-06-15", original_acquisition_date: "2018-04-01",
+        consideration_received_inr: 3500000, original_cost_inr: 50000,
+        capital_gain_or_loss: 3450000, gain_classification: "ltcg",
+        buyback_pre_or_post_oct2024: "capital_gains_era"
+      }] },
       other_sources: { has_other_sources_income: true, dividend_inr: 500000, interest_fd_rd_inr: 200000 },
       // A brought-forward STCG loss bigger than this year's STCG gain — set
       // off first against current STCG, then the spillover offsets his new

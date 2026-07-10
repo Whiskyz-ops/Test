@@ -706,6 +706,29 @@
         deemedDivUsd, ["s.2(40)(f)", "Share buyback", "FTC basket"]);
     }
 
+    // -- 10b2. PROMOTER ADDITIONAL TAX ON BUYBACK GAINS (s.69(2)(b)) --------
+    // A promoter (>10% shareholder, or a Companies Act/SEBI-defined promoter)
+    // pays ordinary LTCG/STCG tax on a buy-back gain PLUS an additional tax
+    // that brings the combined rate to a fixed target (30% non-corporate,
+    // 22% corporate), plus a 12% surcharge on just the additional tax. This
+    // is a real, material extra tax burden that's easy to miss since it's
+    // layered on top of — not instead of — the ordinary capital-gains tax
+    // already shown elsewhere on the page.
+    var pb = computed.indiaTax && computed.indiaTax.promoterBuyback;
+    if (pb && pb.totalExtraTaxInr > 1) {
+      add("promoter_buyback_additional_tax", S.WARNING, C.INCOME,
+        "Promoter additional tax on buy-back gains — " + inr(pb.additionalTaxInr + pb.surchargeInr + pb.cessInr) + " on top of ordinary capital-gains tax",
+        "As a promoter (s.69(2)(b)) on this buy-back, the ordinary " + (pb.ltcgGainInr > 0 ? "12.5% LTCG" : "20% STCG") +
+        " tax on the gain is not the end of it: an additional tax brings the combined rate to " +
+        Math.round(pb.targetRate * 100) + "% (" + (pb.isCorporatePromoter ? "corporate promoter" : "non-corporate promoter") +
+        "), and a further 12% surcharge applies on that additional tax specifically — irrespective of total income. " +
+        "Additional tax: " + inr(pb.additionalTaxInr) + "; surcharge: " + inr(pb.surchargeInr) + "; cess: " + inr(pb.cessInr) + ".",
+        "Confirm promoter status (direct/indirect >10% shareholding, or Companies Act/SEBI promoter designation) is " +
+        "correct before relying on this — the additional tax and surcharge do not apply to non-promoter shareholders " +
+        "in the same buy-back at all.",
+        U.inrToUsd(pb.totalExtraTaxInr), ["s.69(2)(b)", "Promoter additional tax", "Share buyback"]);
+    }
+
     // -- 10a. CROSS-FORM INCONSISTENCY — INDIA'S OWN SCHEDULE FA SELF-REPORT
     // The two Layer 1 forms are filled independently; nothing today checks
     // whether they AGREE. An India ROR must disclose worldwide (Schedule FA)

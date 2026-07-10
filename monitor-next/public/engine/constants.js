@@ -160,6 +160,23 @@
         LTCG_112A_RATE: 0.125,
         LTCG_112A_EXEMPT_INR: 125000,
         LTCG_112_RATE: 0.125,
+        // s.69(2)(b) promoter additional tax on buy-back capital gains (Budget
+        // 2026, buy-backs on/after 1-Apr-2026 only): a promoter (>10%
+        // shareholder, or a Companies Act/SEBI-defined promoter) pays ordinary
+        // LTCG/STCG tax on the gain PLUS an additional tax calibrated so the
+        // combined (base + additional) rate hits a fixed target — 30% for a
+        // non-corporate promoter (individual/HUF/firm), 22% for a corporate
+        // promoter (a company) — regardless of whether the gain was LTCG
+        // (12.5%) or STCG (20%). A further 12% surcharge applies on the
+        // ADDITIONAL tax only (not the base tax, not the total), irrespective
+        // of the promoter's total income. Only applies to buy-back capital
+        // gains taxed at the flat LTCG/STCG rates — NOT to the unlisted-
+        // short-term slice, which is already slab-rate income, not one of
+        // "the applicable rates" this provision layers onto (a scoped
+        // simplification, not independently confirmed either way).
+        PROMOTER_BUYBACK_TARGET_RATE_NON_CORPORATE: 0.30,
+        PROMOTER_BUYBACK_TARGET_RATE_CORPORATE: 0.22,
+        PROMOTER_BUYBACK_SURCHARGE_ON_ADDITIONAL_RATE: 0.12,
         // s.128 (lottery/betting) / s.194 (online gaming): flat 30%,
         // no basic exemption, no Chapter VI-A deduction, no §156 rebate.
         RATE_115BB: 0.30,

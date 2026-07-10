@@ -182,14 +182,29 @@
     var buybackLtcgInr = num(safe(annual.capital_gains, "buyback_ltcg_inr", 0));
     var buybackStcgInr = num(safe(annual.capital_gains, "buyback_stcg_inr", 0));
     var buybackStcgSlabInr = num(safe(os, "buyback_stcg_slab_inr", 0));
+    // s.69(2)(b) promoter additional tax applies only to the promoter's OWN
+    // slice of flat-rate (LTCG/STCG) buy-back gains — tracked separately so
+    // computeUsTax's... no, computeIndiaTax's caller can layer the extra
+    // promoter tax on top without double-taxing the base gain (which is
+    // already included in buybackLtcgInr/buybackStcgInr above).
+    var promoterBuybackLtcgInr = 0, promoterBuybackStcgInr = 0;
     buybackTxs.forEach(function (bb) {
       if (bb.buyback_pre_or_post_oct2024 === "post_oct2024") {
         deemedDividendInr += num(bb.consideration_received_inr);
       } else if (bb.buyback_pre_or_post_oct2024 === "capital_gains_era") {
         var g = num(bb.capital_gain_or_loss);
-        if (bb.gain_classification === "ltcg") buybackLtcgInr += g;
-        else if (bb.gain_classification === "stcg") buybackStcgInr += g;
-        else if (bb.gain_classification === "stcg_slab") buybackStcgSlabInr += g;
+        if (bb.gain_classification === "ltcg") {
+          buybackLtcgInr += g;
+          if (bb.is_promoter && g > 0) promoterBuybackLtcgInr += g;
+        } else if (bb.gain_classification === "stcg") {
+          buybackStcgInr += g;
+          if (bb.is_promoter && g > 0) promoterBuybackStcgInr += g;
+        } else if (bb.gain_classification === "stcg_slab") {
+          buybackStcgSlabInr += g;
+          // Promoter additional tax is scoped to the flat-rate LTCG/STCG
+          // gains only (see constants.js) — not applied to this slab-rate
+          // slice even if is_promoter is set.
+        }
         // no gain_classification (e.g. acquisition date left blank) — not
         // enough information to classify LTCG vs STCG, so it's dropped
         // rather than guessed at; matches Layer 1's own (conservative, if
@@ -249,6 +264,8 @@
       specialRate115bb: specialRate115bb,
       deemedDividendBuyback: deemedDividendBuyback,
       buybackStcgSlabInr: buybackStcgSlab,
+      promoterBuybackLtcgInr: promoterBuybackLtcgInr,
+      promoterBuybackStcgInr: promoterBuybackStcgInr,
       unexplained115bbeInr: unexplained115bbeInr,
       total: total
     };
