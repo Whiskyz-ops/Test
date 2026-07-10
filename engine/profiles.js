@@ -118,11 +118,19 @@
     india: {
       profile: { full_name: "Rohan Mehta", entity_type: "individual", date_of_birth: "1985-03-22", pan: "AAAPM5678Q", tax_regime: "NEW" },
       residency_detail: { days_in_india_current_year: 20, final_india_residency_status: "NR" },
-      // A genuinely beneficial treaty rate on his NRO interest (15% vs the
-      // 20% domestic s.115A default) — but TRC/Form 10F are missing (see
-      // compliance_docs below), so it's denied and the computation correctly
-      // falls back to the domestic rate instead.
-      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "US", trc_status: false, form_10f: false, treaty_elections: [{ income_type: "interest", elected_rate: 0.15, treaty_article: "Art 11(2)(b)" }] },
+      // A genuinely beneficial treaty rate on ₹1.5L of his ₹2.6L NRO interest
+      // (15% vs the 20% domestic s.115A default — the other ₹1.1L isn't
+      // claimed under treaty at all, so it's taxed at the plain domestic
+      // rate regardless) plus a royalty stream (India has no other_sources
+      // field for royalty at all — this election table is the only place
+      // it's ever recorded, exercising that for the first time). But TRC/
+      // Form 10F are missing (see compliance_docs below), so BOTH elections
+      // are denied and the computation correctly falls back to the domestic
+      // rate for each.
+      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "US", trc_status: false, form_10f: false, treaty_elections: [
+        { income_type: "interest", amount_inr: 150000, elected_rate: 0.15, treaty_article: "Art 11(2)(b)" },
+        { income_type: "royalty", amount_inr: 400000, elected_rate: 0.15, treaty_article: "Art 12(2)(a)(ii)" }
+      ] },
       compliance_docs: { trc: { document_uploaded: false }, form_10f: { is_filed: false } },
       bank_accounts: [{ bank_name: "SBI (NRO)", account_type: "nro", peak_balance_inr: 2600000 }, { bank_name: "Axis (NRE)", account_type: "nre", peak_balance_inr: 1900000 }],
       property: { has_indian_property_transaction: true, properties: [{ address: "Villa 4, Bengaluru", property_type: "Residential", annual_value_inr: 840000, gross_rent_received_inr: 1200000, municipal_taxes_paid_inr: 60000 }] },
@@ -236,13 +244,20 @@
     india: {
       profile: { full_name: "Vikram Rao", entity_type: "individual", date_of_birth: "1986-05-30", pan: "AAVPR3456S", tax_regime: "NEW" },
       residency_detail: { days_in_india_current_year: 25, final_india_residency_status: "NR" },
-      // A dividend treaty election on file at 25% (Art 10(2)(b), the generic
-      // portfolio rate) — but the domestic s.115A dividend rate (20%) is
-      // actually LOWER. TRC/Form 10F are on file this time, but s.90(2) still
-      // guarantees him whichever is more beneficial, so this mistaken
-      // election has zero effect on the computation (he's still taxed at
-      // 20%) even though it's sitting on file claiming 25%.
-      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "US", trc_status: true, form_10f: true, treaty_elections: [{ income_type: "dividend", elected_rate: 0.25, treaty_article: "Art 10(2)(b)" }] },
+      // A dividend treaty election on his full ₹5L dividend at 25% (Art
+      // 10(2)(b), the generic portfolio rate) — but the domestic s.115A
+      // dividend rate (20%) is actually LOWER. TRC/Form 10F are on file this
+      // time, but s.90(2) still guarantees him whichever is more beneficial,
+      // so this mistaken election has zero effect (still taxed at 20%) even
+      // though it's sitting on file claiming 25%. Contrast: an interest
+      // election on ₹2L of NRO interest at 15% (Art 11(2)(b)) genuinely
+      // beats the 20% domestic rate, and docs are present, so THIS one
+      // actually lowers his tax — the success case neither Rohan (docs
+      // missing) nor his own dividend election (worse rate) demonstrates.
+      dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "US", trc_status: true, form_10f: true, treaty_elections: [
+        { income_type: "dividend", amount_inr: 500000, elected_rate: 0.25, treaty_article: "Art 10(2)(b)" },
+        { income_type: "interest", amount_inr: 200000, elected_rate: 0.15, treaty_article: "Art 11(2)(b)" }
+      ] },
       compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true } },
       bank_accounts: [{ bank_name: "Kotak (Company)", account_type: "current", peak_balance_inr: 5400000 }],
       property: { properties: [] },
@@ -252,7 +267,7 @@
       // A partial share buyback by his own company — a routine founder
       // liquidity event, and exactly the s.2(22)(f) vs. capital-gain
       // characterization mismatch the US side will book differently.
-      other_sources: { has_other_sources_income: true, dividend_inr: 500000, deemed_dividend_from_buyback_inr: 3500000 },
+      other_sources: { has_other_sources_income: true, dividend_inr: 500000, interest_fd_rd_inr: 200000, deemed_dividend_from_buyback_inr: 3500000 },
       // A brought-forward STCG loss bigger than this year's STCG gain — only
       // partly absorbed, the rest keeps carrying forward. The third state of
       // the loss set-off computation, distinct from Aarav's full absorption

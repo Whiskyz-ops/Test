@@ -2420,6 +2420,7 @@
                         <thead>
                             <tr class="bg-white/5 border-b border-white/5 text-[9px] font-black uppercase tracking-widest text-white/40">
                                 <th class="p-3">Income Type</th>
+                                <th class="p-3">Amount (₹)</th>
                                 <th class="p-3">Elected Rate</th>
                                 <th class="p-3">Treaty Article</th>
                                 <th class="p-3 text-right">Action</th>
@@ -6186,6 +6187,13 @@
     }
 
     function syncResidencyUI() {
+    // FORCE HIDE COMPANY POEM UNLESS EXPLICITLY SHOWN LATER
+    const _forceHidePOEM1 = document.getElementById('div-company-residency');
+    if (_forceHidePOEM1) {
+        _forceHidePOEM1.classList.add('hidden');
+        _forceHidePOEM1.classList.remove('flex');
+    }
+
         const entity = state.profile.entity_type;
         const days = state.residency_detail.days_in_india_current_year;
         const p4y = state.residency_detail.days_in_india_preceding_4_years_gte_365;
@@ -6829,6 +6837,9 @@ const crDiv = document.getElementById('div-company-residency');
                     </select>
                 </td>
                 <td class="p-2">
+                    <input type="text" inputmode="numeric" placeholder="₹ 0" value="${election.amount_inr || ''}" oninput="updateDtaaElection(${index}, 'amount_inr', this.value)" class="inr-input w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-2 focus:border-brandGold focus:ring-0 font-mono transition-all">
+                </td>
+                <td class="p-2">
                     <input type="text" inputmode="numeric" step="0.01" min="0" max="1" placeholder="Auto-filled" value="${election.elected_rate || ''}" class="inr-input w-full bg-black/50 border border-white/5 rounded-lg text-xs text-brandGold/70 px-2 py-2 font-mono transition-all cursor-not-allowed" readonly disabled>
                 </td>
                 <td class="p-2">
@@ -6844,7 +6855,7 @@ const crDiv = document.getElementById('div-company-residency');
             // Inject warning row if needed
             if (election.income_type === 'dividend') {
                 const warnTr = document.createElement('tr');
-                warnTr.innerHTML = `<td colspan="4" class="p-2 pt-0 pb-4">
+                warnTr.innerHTML = `<td colspan="5" class="p-2 pt-0 pb-4">
                     <div class="flex items-center gap-2 p-2 bg-orange-500/10 border border-orange-500/20 rounded-lg text-orange-400 text-[10px]">
                         <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                         <span><strong>Warning:</strong> India's domestic tax rate on dividends (20%) is lower than the US treaty rate (25%). It is generally NOT recommended to invoke the treaty for dividends.</span>
@@ -6853,7 +6864,7 @@ const crDiv = document.getElementById('div-company-residency');
                 tbody.appendChild(warnTr);
             } else if (election.income_type === 'capital_gains') {
                 const warnTr = document.createElement('tr');
-                warnTr.innerHTML = `<td colspan="4" class="p-2 pt-0 pb-4">
+                warnTr.innerHTML = `<td colspan="5" class="p-2 pt-0 pb-4">
                     <div class="flex items-center gap-2 p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-400 text-[10px]">
                         <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         <span><strong>Info:</strong> Under Article 13 of the India-US DTAA, capital gains are taxed according to domestic laws. No special lower treaty rates apply.</span>
@@ -6864,7 +6875,7 @@ const crDiv = document.getElementById('div-company-residency');
         });
         
         if (state.dtaa.treaty_elections.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-white/30 text-[10px] uppercase tracking-widest font-black">No streams added. Domestic rates apply.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-white/30 text-[10px] uppercase tracking-widest font-black">No streams added. Domestic rates apply.</td></tr>';
         }
     }
 
@@ -6897,7 +6908,7 @@ const crDiv = document.getElementById('div-company-residency');
     }
 
     function updateDtaaElection(index, field, val) {
-        if (field === 'elected_rate') {
+        if (field === 'elected_rate' || field === 'amount_inr') {
             state.dtaa.treaty_elections[index][field] = val === '' ? null : parseINRCurrency(val);
         } else {
             state.dtaa.treaty_elections[index][field] = val;
@@ -14064,7 +14075,7 @@ ${isProf ? '' : `
                     }
                 }
                 if (savedState.company_residency) Object.assign(state.company_residency, savedState.company_residency);
-                if (savedState.other_sources) Object.assign(state.other_sources, savedState.other_sources);
+            if (savedState.other_sources) Object.assign(state.other_sources, savedState.other_sources);
                 if (savedState.lrs_outbound) Object.assign(state.lrs_outbound, savedState.lrs_outbound);
                 if (savedState.gift_received) Object.assign(state.gift_received, savedState.gift_received);
                 if (savedState.salary_exemptions) Object.assign(state.salary_exemptions, savedState.salary_exemptions);

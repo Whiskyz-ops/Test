@@ -134,19 +134,22 @@
 
     // -- 3b. DTAA TREATY RATE ELECTIONS ON FILE (per income stream) ---------
     // Layer 1 lets the taxpayer claim a specific DTAA article/rate on
-    // India-source interest, royalty, FTS or dividend (e.g. Art. 11(2)(b) 15%
-    // instead of the domestic s.115A withholding). s.115A — and therefore
-    // these elections — only applies to a genuine NON-RESIDENT under India's
-    // own domestic law (RNOR/ROR pay slab rates on this income regardless of
-    // any DTAA tie-break outcome). computeIndiaTax() now actually applies the
-    // interest/dividend elections for NR taxpayers (see resolveS115aRate);
-    // royalty/FTS/capital_gains stay disclosed-only below since Layer 1
-    // collects no income amount for those categories to apply a rate to.
+    // India-source interest, royalty, FTS or dividend, against a specific
+    // rupee amount_inr (e.g. Art. 11(2)(b) 15% on ₹1,50,000 of one NRO
+    // account's interest) instead of the domestic s.115A withholding rate.
+    // s.115A — and therefore these elections — only applies to a genuine
+    // NON-RESIDENT under India's own domestic law (RNOR/ROR pay slab rates on
+    // this income regardless of any DTAA tie-break outcome). computeIndiaTax()
+    // now actually applies interest/dividend/royalty/FTS elections for NR
+    // taxpayers using each election's own amount_inr (see computeS115aStream)
+    // — only capital_gains stays disclosed-only, since Art. 13 itself says
+    // domestic law applies with no special treaty rate (Layer 1's own
+    // auto-fill leaves elected_rate null for that type).
     // Domestic s.115A default withholding rates (no PE, NR recipient) — shared
-    // with computation.js's actual NR interest/dividend tax so the comparison
-    // text here can never drift from what's really being computed.
+    // with computation.js's actual NR tax so the comparison text here can
+    // never drift from what's really being computed.
     var DOMESTIC_RATE_115A = CONST.TAX.INDIA.S115A_RATES;
-    var COMPUTED_S115A_TYPES = { interest: true, dividend: true };
+    var COMPUTED_S115A_TYPES = { interest: true, dividend: true, royalty: true, fts: true };
     if (treatyElections.length > 0) {
       var isNrForS115a = res.india.status === CONST.INDIA_STATUS.NR;
       var docsShortfall = [];
@@ -157,6 +160,8 @@
         .map(function (e) {
           var pct = e.elected_rate != null ? Math.round(e.elected_rate * 100) + "%" : "unset rate";
           var domestic = DOMESTIC_RATE_115A[e.income_type];
+          var amtInr = U.num(e.amount_inr);
+          var amtStr = amtInr > 1 ? " on " + inr(amtInr) : " (no amount entered)";
           var compare = "";
           if (domestic != null && e.elected_rate != null) {
             compare = e.elected_rate < domestic
@@ -167,7 +172,9 @@
           if (!isNrForS115a) {
             computedTag = " [not applied — taxpayer is not NR, see below]";
           } else if (!COMPUTED_S115A_TYPES[e.income_type]) {
-            computedTag = " [not applied — no income figure collected for this type]";
+            computedTag = " [not applied — no special treaty rate under Art. 13 for capital gains]";
+          } else if (amtInr <= 1) {
+            computedTag = " [not applied — no amount entered against this election]";
           } else {
             var docsOk = model.treaty.trcStatus && model.treaty.form10fFiled;
             if (docsOk && domestic != null && e.elected_rate != null && e.elected_rate < domestic) {
@@ -178,7 +185,7 @@
               computedTag = " [domestic " + Math.round((domestic || 0) * 100) + "% rate applied instead — it's more beneficial than the elected rate]";
             }
           }
-          return e.income_type + " @ " + pct + (e.treaty_article ? " (" + e.treaty_article + ")" : "") + compare + computedTag;
+          return e.income_type + " @ " + pct + (e.treaty_article ? " (" + e.treaty_article + ")" : "") + amtStr + compare + computedTag;
         });
       add("dtaa_treaty_elections", docsShortfall.length > 0 ? S.WARNING : S.INFO, C.TREATY,
         electionParts.length + " DTAA treaty rate election(s) on file",
@@ -188,9 +195,10 @@
           ? " This taxpayer is resident (not NR) under India's own domestic law, so s.115A — and every election above — " +
             "has NO effect regardless of income type; residents are taxed on this income at slab rates instead. If the " +
             "taxpayer is genuinely meant to be NR, check the residency determination; if not, these elections are moot."
-          : " Interest and dividend elections are applied to the India tax computed above (via the actual income figures " +
-            "Layer 1 collects for those two types); royalty/FTS/capital-gains elections are NOT — Layer 1 doesn't collect " +
-            "an income amount for those categories, so there's nothing to apply the rate to yet (see Part H).") +
+          : " Interest, dividend, royalty and FTS elections are applied to the India tax computed above using each " +
+            "election's own amount — whatever part of interest/dividend isn't covered by an election is still taxed, " +
+            "just at the plain domestic rate. Capital-gains elections are NOT applied — Art. 13 itself provides no " +
+            "special treaty rate, domestic law governs regardless (see Part H).") +
         (docsShortfall.length > 0
           ? " Layer 1 does NOT show " + docsShortfall.join(" or ") + " on file — every one of these elections is at risk of " +
             "being denied and defaulting back to the full domestic s.115A rate u/s 90(4) without it."
@@ -912,11 +920,13 @@
           { label: "Chapter VI-A deductions", inr: -i.deductionsInr },
           { label: "Total income", inr: i.totalIncomeInr },
           { label: "Tax at slab rates", inr: i.slabTaxInr },
-          { label: "Tax on special-rate income (111A/112A gains + 115BB/115BBJ winnings" + (i.s115a ? " + s.115A interest/dividend" : "") + ")", inr: i.specialTaxInr }
-        ].concat(i.s115a ? [
-          { label: "  — of which s.115A interest @ " + Math.round(i.s115a.interestRate * 100) + "%", inr: i.s115a.interestTaxInr },
-          { label: "  — of which s.115A dividend @ " + Math.round(i.s115a.dividendRate * 100) + "%", inr: i.s115a.dividendTaxInr }
-        ] : []).concat([
+          { label: "Tax on special-rate income (111A/112A gains + 115BB/115BBJ winnings" + (i.s115a ? " + s.115A interest/dividend/royalty/FTS" : "") + ")", inr: i.specialTaxInr }
+        ].concat(i.s115a ? ["interest", "dividend", "royalty", "fts"].filter(function (k) {
+          return i.s115a[k] && i.s115a[k].totalInr > 1;
+        }).map(function (k) {
+          var s = i.s115a[k];
+          return { label: "  — of which s.115A " + k + " @ " + Math.round(s.effectiveRate * 100) + "% effective", inr: s.taxInr };
+        }) : []).concat([
           { label: "Less §87A rebate", inr: -i.rebateInr },
           { label: "Surcharge", inr: i.surchargeInr },
           { label: "Health & education cess (4%)", inr: i.cessInr },

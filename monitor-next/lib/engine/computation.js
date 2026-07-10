@@ -135,22 +135,38 @@
     // normal-slab bucket dividend already sits in.
     var deemedDividendInr = (inc.deemedDividendBuyback && inc.deemedDividendBuyback.inr) || 0;
 
-    // s.115A — India-source interest/dividend paid to a NON-RESIDENT is taxed
-    // flat (not slab), with no Chapter VI-A deduction or loss set-off at all
-    // (s.115A(4)) — a DTAA-elected rate (s.90(2)) displaces the domestic
-    // default when TRC/Form 10F are on file; previously this fell through to
-    // ordinary slab treatment regardless of residency status. RNOR is still a
-    // "resident" for this purpose (only genuine NR gets s.115A) — deemed
-    // dividend (s.2(22)(f)) stays in the slab bucket for now, since its own
-    // characterization-mismatch finding is a separate, already-built feature
-    // and layering s.115A on top of it is a distinct question not scoped here.
+    // s.115A — India-source interest/dividend/royalty/FTS paid to a NON-
+    // RESIDENT is taxed flat (not slab), with no Chapter VI-A deduction or
+    // loss set-off at all (s.115A(4)) — a DTAA-elected rate (s.90(2))
+    // displaces the domestic default, per-stream, when TRC/Form 10F are on
+    // file. RNOR is still a "resident" for this purpose (only genuine NR gets
+    // s.115A). Deemed dividend (s.2(22)(f)) stays in the slab bucket for now
+    // — its own characterization-mismatch finding is a separate, already-
+    // built feature and layering s.115A on top of it is a distinct question
+    // not scoped here.
+    //
+    // Layer 1 now collects a per-election amount_inr (the specific rupee
+    // amount the taxpayer is claiming the treaty rate against, e.g. one NRO
+    // account's interest out of several). For interest/dividend, that's a
+    // CLAIM against the broader other_sources aggregate — whatever isn't
+    // covered by an election still gets taxed, just at the plain domestic
+    // rate (no treaty applies to it). For royalty/FTS there IS no broader
+    // aggregate anywhere in Layer 1 — the election table is the only place
+    // this income is ever recorded, so the summed election amounts ARE the
+    // total for that stream.
     var isNR = model.residency.india.status === CONST.INDIA_STATUS.NR;
-    var s115aInterestInr = isNR ? inc.interest.inr : 0;
-    var s115aDividendInr = isNR ? inc.dividend.inr : 0;
-    var s115aInterestRate = isNR ? resolveS115aRate(model, T, "interest") : 0;
-    var s115aDividendRate = isNR ? resolveS115aRate(model, T, "dividend") : 0;
-    var s115aInterestTaxInr = s115aInterestInr * s115aInterestRate;
-    var s115aDividendTaxInr = s115aDividendInr * s115aDividendRate;
+    var s115aInterest = isNR ? computeS115aStream(model, T, "interest", inc.interest.inr) : null;
+    var s115aDividend = isNR ? computeS115aStream(model, T, "dividend", inc.dividend.inr) : null;
+    var s115aRoyalty = isNR ? computeS115aStream(model, T, "royalty", null) : null;
+    var s115aFts = isNR ? computeS115aStream(model, T, "fts", null) : null;
+    var s115aInterestInr = s115aInterest ? s115aInterest.totalInr : 0;
+    var s115aDividendInr = s115aDividend ? s115aDividend.totalInr : 0;
+    var s115aRoyaltyInr = s115aRoyalty ? s115aRoyalty.totalInr : 0;
+    var s115aFtsInr = s115aFts ? s115aFts.totalInr : 0;
+    var s115aInterestTaxInr = s115aInterest ? s115aInterest.taxInr : 0;
+    var s115aDividendTaxInr = s115aDividend ? s115aDividend.taxInr : 0;
+    var s115aRoyaltyTaxInr = s115aRoyalty ? s115aRoyalty.taxInr : 0;
+    var s115aFtsTaxInr = s115aFts ? s115aFts.taxInr : 0;
 
     // Sequence brought-forward loss set-off against this year's income
     // BEFORE computing the slab/special-rate totals below, so the actual tax
@@ -198,9 +214,9 @@
     // NOT get that cap and take the full uncapped slab-based surcharge rate,
     // so keep it out of the "cap-eligible" bucket passed to that function.
     // s.115A dividend is "dividend income" for the cap's purposes; s.115A
-    // interest is not, so it rides alongside 115BB instead.
+    // interest/royalty/FTS are not, so they ride alongside 115BB instead.
     var capEligibleSpecialTaxInr = stcgInr * T.STCG_111A_RATE + ltcgTaxableInr * T.LTCG_112A_RATE + s115aDividendTaxInr;
-    var specialTaxInr = capEligibleSpecialTaxInr + special115bbTaxInr + s115aInterestTaxInr;
+    var specialTaxInr = capEligibleSpecialTaxInr + special115bbTaxInr + s115aInterestTaxInr + s115aRoyaltyTaxInr + s115aFtsTaxInr;
 
     // Slab tax on normal income.
     var slabTaxInr = bracketTax(totalNormalInr, slabs);
@@ -216,7 +232,7 @@
     // exemption-adjusted figure, silently inflating totalIncomeInr (and, via
     // computeIndiaSurcharge below, the surcharge threshold test) by the
     // exempt amount.
-    var totalIncomeInr = totalNormalInr + stcgInr + ltcgTaxableInr + special115bbInr + s115aInterestInr + s115aDividendInr;
+    var totalIncomeInr = totalNormalInr + stcgInr + ltcgTaxableInr + special115bbInr + s115aInterestInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr;
     // ...and NR is excluded too (s.87A says "resident individual" — RNOR
     // still counts as resident for this, only genuine NR does not).
     var isIndividual = !model.entity || model.entity.indiaKind === "individual";
@@ -240,7 +256,7 @@
 
     return {
       regime: regime,
-      grossTotalIncomeInr: normalSlabInr + stcgInr + ltcgTaxableInr + special115bbInr + s115aInterestInr + s115aDividendInr,
+      grossTotalIncomeInr: normalSlabInr + stcgInr + ltcgTaxableInr + special115bbInr + s115aInterestInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr,
       deductionsInr: deductionsInr,
       totalIncomeInr: totalIncomeInr,
       slabTaxInr: slabTaxInr,
@@ -254,34 +270,54 @@
       effectiveRate: totalIncomeInr > 0 ? totalTaxInr / totalIncomeInr : 0,
       lossSetOff: lossSetOff,
       s115a: isNR ? {
-        interestInr: s115aInterestInr, interestRate: s115aInterestRate, interestTaxInr: s115aInterestTaxInr,
-        dividendInr: s115aDividendInr, dividendRate: s115aDividendRate, dividendTaxInr: s115aDividendTaxInr
+        interest: s115aInterest, dividend: s115aDividend, royalty: s115aRoyalty, fts: s115aFts
       } : null
     };
   }
 
-  /* Resolves the rate s.115A interest/dividend is actually taxed at: whichever
-   * of the domestic s.115A rate or a supported DTAA election is LOWER — s.90(2)
-   * guarantees the assessee the more beneficial of domestic law or the treaty,
-   * never a worse rate just because a (possibly mistaken) election is on file.
-   * The election only counts at all when TRC/Form 10F support the claim.
-   * Shared CONST.TAX.INDIA.S115A_RATES table with the dtaa_treaty_elections
-   * finding text in conflicts.js so the two can't disagree. */
-  function resolveS115aRate(model, T, incomeType) {
+  /* Computes the actual s.115A tax for one income stream (interest/dividend/
+   * royalty/FTS), reading each treaty election's own amount_inr — the specific
+   * rupee amount the taxpayer is claiming the treaty rate against (e.g. one
+   * NRO account's interest out of several) — rather than assuming an election
+   * covers 100% of the stream.
+   *
+   * aggregateTotalInr is the broader Layer-1-collected total for this stream
+   * (interest/dividend have one, from other_sources); pass null when no such
+   * aggregate exists (royalty/FTS — Layer 1 only ever records those through
+   * this election table, so the summed election amounts ARE the total).
+   *
+   * Each election's rate is whichever is LOWER of the domestic s.115A default
+   * or the elected rate — s.90(2) guarantees the assessee the more beneficial
+   * of domestic law or the treaty, never a worse rate just because a
+   * (possibly mistaken) election is on file — and only counts at all when
+   * TRC/Form 10F support the claim. Whatever part of an aggregate total isn't
+   * covered by any election still gets taxed, just at the plain domestic
+   * rate. Shared CONST.TAX.INDIA.S115A_RATES table with the
+   * dtaa_treaty_elections finding text in conflicts.js so the two can't
+   * disagree. */
+  function computeS115aStream(model, T, incomeType, aggregateTotalInr) {
     var treaty = model.treaty || {};
-    var elections = treaty.treatyElections || [];
     var domestic = T.S115A_RATES[incomeType];
-    var match = null;
-    for (var i = 0; i < elections.length; i++) {
-      if (elections[i] && elections[i].income_type === incomeType && elections[i].elected_rate != null) {
-        match = elections[i];
-        break;
-      }
-    }
-    if (match && treaty.trcStatus && treaty.form10fFiled) {
-      return Math.min(domestic, match.elected_rate);
-    }
-    return domestic;
+    var docsOk = treaty.trcStatus && treaty.form10fFiled;
+    var hasAggregate = aggregateTotalInr != null;
+    var remainingInr = hasAggregate ? aggregateTotalInr : 0;
+    var claimedInr = 0, taxInr = 0;
+    (treaty.treatyElections || []).forEach(function (e) {
+      if (!e || e.income_type !== incomeType) return;
+      var raw = U.num(e.amount_inr);
+      var amt = hasAggregate ? Math.min(raw, Math.max(0, remainingInr)) : raw;
+      var rate = (docsOk && e.elected_rate != null) ? Math.min(domestic, e.elected_rate) : domestic;
+      claimedInr += amt;
+      taxInr += amt * rate;
+      if (hasAggregate) remainingInr -= amt;
+    });
+    var uncapturedInr = hasAggregate ? Math.max(0, remainingInr) : 0;
+    taxInr += uncapturedInr * domestic;
+    var totalInr = hasAggregate ? aggregateTotalInr : claimedInr;
+    return {
+      totalInr: totalInr, taxInr: taxInr, claimedInr: claimedInr, uncapturedInr: uncapturedInr,
+      domesticRate: domestic, effectiveRate: totalInr > 0 ? taxInr / totalInr : domestic
+    };
   }
 
   // ---- India corporate / firm computation (ITR-6 / ITR-5) ----

@@ -412,6 +412,42 @@ Fixed by adding `!isNR` to the gate (RNOR still qualifies — only genuine NR do
 
 ---
 
+## Part D.7 — Per-election amounts + royalty/FTS now computed (seventh round)
+
+User sent an updated `layer1_india.html` adding a per-election `amount_inr` box to the DTAA table (so
+the taxpayer enters the specific rupee amount being claimed against each treaty rate, instead of the
+engine assuming an election covers 100% of a stream). Audited the file first (diff against the prior
+upload after stripping CRLF noise — only ~30 real lines changed): both earlier bug fixes carried
+through untouched, the new Amount column and colspan updates were correct, and a new defensive
+"force-hide POEM section" reset at the top of `syncResidencyUI()` was verified NOT a regression (the
+`entity === 'company'` branch further down still correctly re-shows it). Found one new bug —
+`updateDtaaElection`'s generic branch didn't parse `amount_inr` through `parseINRCurrency()` like every
+other money field in the file — sent as a one-line Antigravity fix, confirmed applied in the next
+upload (single-line diff, nothing else touched), then adopted the file into both repo copies.
+
+**Implemented**: `computeS115aStream()` in `computation.js` replaces the old flat-rate `resolveS115aRate`
+approach. For interest/dividend (which have a broader `other_sources` aggregate), each matching election's
+`amount_inr` is a CLAIM against that aggregate — capped so elections can't claim more than the total
+exists, and whatever part of the aggregate isn't covered by any election still gets taxed, just at the
+plain domestic rate. For royalty/FTS (no aggregate exists anywhere in Layer 1 — the election table is
+the only place this income is ever recorded), the summed election amounts ARE the total for that stream,
+computed for the first time. Each election's rate is still `Math.min(domestic, elected)` per s.90(2), and
+still gated on TRC/Form 10F being on file.
+
+**Bifurcated to show four distinct real outcomes across two profiles** (rather than one contrived
+example):
+- **Rohan** — ₹1.5L of his ₹2.6L NRO interest claimed at 15% (denied, docs missing, falls back to 20%
+  on the whole ₹2.6L) + a new ₹4L royalty stream at 15% (denied for the same reason, and would have been
+  worse than the 10% domestic rate anyway even with docs).
+- **Vikram** — his existing ₹5L dividend election at 25% (still correctly ignored, 20% domestic wins) +
+  a new ₹2L interest election at 15% with TRC/Form 10F **present** — this one genuinely succeeds
+  (effective rate 15% vs. 20% domestic), the first demo of an election actually lowering tax.
+
+Verified via node harness (exact rupee figures checked by hand: Rohan's royalty tax = ₹4,00,000 × 10% =
+₹40,000; Vikram's interest tax = ₹2,00,000 × 15% = ₹30,000) and live in the dashboard.
+
+---
+
 ## Part E — What "comprehensive" wiring involves
 
 - **`normalize.js`:** extend to read every section above into the unified model
