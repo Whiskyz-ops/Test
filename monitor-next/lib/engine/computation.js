@@ -6,7 +6,7 @@
  *
  *   1. Effective residency on each side.
  *   2. A proper India income-tax computation (heads -> Chapter VI-A ->
- *      slab tax by regime -> §87A rebate -> surcharge w/ marginal relief ->
+ *      slab tax by regime -> §157 rebate -> surcharge w/ marginal relief ->
  *      4% cess, plus special CG rates).
  *   3. A proper US federal income-tax computation (AGI -> standard/itemized
  *      -> ordinary brackets + preferential LTCG/QDI rates -> NIIT ->
@@ -62,15 +62,15 @@
     return rows;
   }
 
-  /* ---- Carry-forward loss set-off (s.71B house property, s.72 business,
-   * s.74 capital gains, s.32(2) unabsorbed depreciation) --------------------
+  /* ---- Carry-forward loss set-off (s.110 house property, s.112 business,
+   * s.111 capital gains, s.33 unabsorbed depreciation) --------------------
    * Layer 1 already resolves per-entry eligibility (late-filing denial,
    * new-regime HP/business-depreciation restrictions) into the "available"
    * amounts read in normalize.js; this sequences the actual SET-OFF against
    * this year's income under the Act's ordering rules, instead of just
    * flagging that brought-forward losses exist.
    *
-   * Known simplification: speculative business loss (s.73) can only be set
+   * Known simplification: speculative business loss (s.113) can only be set
    * off against speculative business income, which Layer 1 doesn't collect
    * as a separate bucket from ordinary business income — so a speculative
    * loss always stays fully carried forward here rather than being (wrongly)
@@ -79,18 +79,18 @@
     var businessInr = buckets.businessInr, housePropertyInr = buckets.housePropertyInr;
     var otherNormalInr = buckets.otherNormalInr, stcgInr = buckets.stcgInr, ltcgGrossInr = buckets.ltcgGrossInr;
 
-    // 1. Business loss -> business income only (s.72).
+    // 1. Business loss -> business income only (s.112).
     var businessLossUsed = Math.min(cfl.businessLossAvailableInr || 0, businessInr);
     businessInr -= businessLossUsed;
     var businessLossUnused = (cfl.businessLossAvailableInr || 0) - businessLossUsed;
 
-    // 2. House property loss -> house property income only (s.71B; unlike
+    // 2. House property loss -> house property income only (s.110; unlike
     // CURRENT-year HP loss, brought-forward HP loss cannot go inter-head).
     var hpLossUsed = Math.min(cfl.housePropertyLossAvailableInr || 0, housePropertyInr);
     housePropertyInr -= hpLossUsed;
     var hpLossUnused = (cfl.housePropertyLossAvailableInr || 0) - hpLossUsed;
 
-    // 3. STCG loss -> STCG first, remainder against LTCG (both allowed, s.74).
+    // 3. STCG loss -> STCG first, remainder against LTCG (both allowed, s.111).
     var stcgLossAvail = cfl.stcgLossAvailableInr || 0;
     var stcgLossUsedVsStcg = Math.min(stcgLossAvail, stcgInr);
     stcgInr -= stcgLossUsedVsStcg;
@@ -99,7 +99,7 @@
     ltcgGrossInr -= stcgLossUsedVsLtcg;
     var stcgLossUnused = stcgLossRemaining - stcgLossUsedVsLtcg;
 
-    // 4. LTCG loss -> LTCG only, never STCG (s.74).
+    // 4. LTCG loss -> LTCG only, never STCG (s.111).
     var ltcgLossAvail = cfl.ltcgLossAvailableInr || 0;
     var ltcgLossUsed = Math.min(ltcgLossAvail, ltcgGrossInr);
     ltcgGrossInr -= ltcgLossUsed;
@@ -109,7 +109,7 @@
     // above), so it always stays fully carried forward.
     var speculativeLossUnused = cfl.speculativeLossAvailableInr || 0;
 
-    // 6. Unabsorbed depreciation (s.32(2)) -> any head except salary, no time
+    // 6. Unabsorbed depreciation (s.33) -> any head except salary, no time
     // limit. Convention: business first (deemed current-year business loss),
     // then house property, then capital gains, then other normal income.
     var depRemaining = cfl.unabsorbedDepreciationCf || 0;
@@ -157,19 +157,19 @@
     var slabs = isNew ? T.SLABS_NEW : T.SLABS_OLD;
 
     // Normal-slab income (salary is already taxable-net from Layer 1).
-    // Deemed dividend on buyback (s.2(22)(f)) is taxed exactly like ordinary
+    // Deemed dividend on buyback (s.2(40)(f)) is taxed exactly like ordinary
     // dividend — at slab rates, in Other Sources — so it joins the same
     // normal-slab bucket dividend already sits in.
     var deemedDividendInr = (inc.deemedDividendBuyback && inc.deemedDividendBuyback.inr) || 0;
 
-    // s.115A — India-source interest/dividend/royalty/FTS paid to a NON-
+    // s.207 — India-source interest/dividend/royalty/FTS paid to a NON-
     // RESIDENT is taxed flat (not slab), with no Chapter VI-A deduction or
-    // loss set-off at all (s.115A(4)) — a DTAA-elected rate (s.90(2))
-    // displaces the domestic default, per-stream, when TRC/Form 10F are on
+    // loss set-off at all (s.207(4)) — a DTAA-elected rate (s.159)
+    // displaces the domestic default, per-stream, when TRC/Form 41 are on
     // file. RNOR is still a "resident" for this purpose (only genuine NR gets
-    // s.115A). Deemed dividend (s.2(22)(f)) stays in the slab bucket for now
+    // s.207). Deemed dividend (s.2(40)(f)) stays in the slab bucket for now
     // — its own characterization-mismatch finding is a separate, already-
-    // built feature and layering s.115A on top of it is a distinct question
+    // built feature and layering s.207 on top of it is a distinct question
     // not scoped here.
     //
     // Layer 1 now collects a per-election amount_inr (the specific rupee
@@ -182,9 +182,9 @@
     // this income is ever recorded, so the summed election amounts ARE the
     // total for that stream.
     var isNR = model.residency.india.status === CONST.INDIA_STATUS.NR;
-    // Ordinary NRO interest is NOT s.115A income (see computeNrInterestTreatment)
+    // Ordinary NRO interest is NOT s.207 income (see computeNrInterestTreatment)
     // — it defaults to slab rates, with only a DTAA-beneficial slice carved
-    // out. Dividend/royalty/FTS genuinely are s.115A income, unchanged.
+    // out. Dividend/royalty/FTS genuinely are s.207 income, unchanged.
     var nrInterest = isNR
       ? computeNrInterestTreatment(model, T, slabs, inc.salary.inr + inc.business.inr + inc.houseProperty.inr + deemedDividendInr, inc.interest.inr)
       : null;
@@ -204,9 +204,9 @@
     // Sequence brought-forward loss set-off against this year's income
     // BEFORE computing the slab/special-rate totals below, so the actual tax
     // reflects it (not just a disclosure that losses exist). Salary and
-    // s.115BB/115BBJ special-rate income are untouched — losses cannot be
+    // s.128/194 special-rate income are untouched — losses cannot be
     // set off against either (s.58(4) explicitly bars it for the latter);
-    // s.115A dividend/royalty/FTS is excluded too, for the same no-set-off
+    // s.207 dividend/royalty/FTS is excluded too, for the same no-set-off
     // reason — but slab-eligible NR interest is ordinary income now, so it
     // DOES participate in loss set-off like any other "other normal" income.
     var lossSetOff = computeLossSetOff(model.carryForwardLosses || {}, {
@@ -222,7 +222,7 @@
     // Chapter VI-A deductions.
     var deductionsInr;
     if (isNew) {
-      // New regime: essentially only employer NPS u/s 80CCD(2).
+      // New regime: essentially only employer NPS u/s 124(2) (was 80CCD(2)).
       deductionsInr = ded.s80CCD2_employer || 0;
     } else {
       var caps = T.DEDUCTION_CAPS_OLD;
@@ -239,18 +239,18 @@
     // Special-rate incomes (already net of capital-loss set-off above).
     var stcgInr = lossSetOff.stcgInr;
     var ltcgTaxableInr = Math.max(0, lossSetOff.ltcgGrossInr - T.LTCG_112A_EXEMPT_INR);
-    // s.115BB/115BBJ (lottery/betting/online gaming): flat rate, no basic
+    // s.128/194 (lottery/betting/online gaming): flat rate, no basic
     // exemption threshold benefit — the full amount is taxed, never reduced
     // by any slab/exemption logic.
     var special115bbInr = (inc.specialRate115bb && inc.specialRate115bb.inr) || 0;
     var special115bbTaxInr = special115bbInr * T.RATE_115BB;
     // Only CG/dividend-type special-rate tax gets the 15%-surcharge-cap
-    // treatment (computeIndiaSurcharge below) — s.115BB/115BBJ winnings do
+    // treatment (computeIndiaSurcharge below) — s.128/194 winnings do
     // NOT get that cap and take the full uncapped slab-based surcharge rate,
     // so keep it out of the "cap-eligible" bucket passed to that function.
-    // s.115A dividend is "dividend income" for the cap's purposes; s.115A
+    // s.207 dividend is "dividend income" for the cap's purposes; s.207
     // royalty/FTS and DTAA-carved-out interest are not, so they ride along
-    // with 115BB instead.
+    // with 128 instead.
     var capEligibleSpecialTaxInr = stcgInr * T.STCG_111A_RATE + ltcgTaxableInr * T.LTCG_112A_RATE + s115aDividendTaxInr;
     var specialTaxInr = capEligibleSpecialTaxInr + special115bbTaxInr + nrInterestCarvedOutTaxInr + s115aRoyaltyTaxInr + s115aFtsTaxInr;
 
@@ -258,11 +258,11 @@
     var slabTaxInr = bracketTax(totalNormalInr, slabs);
     var slabBreakdown = bracketBreakdown(totalNormalInr, slabs);
 
-    // §87A rebate — restricted to a "resident individual" by the section
+    // §157 rebate — restricted to a "resident individual" by the section
     // itself; HUF/AOP/BOI/trust share this same slab computation path but are
     // NOT entitled to it (previously applied unconditionally to anyone who
     // reached this branch, which silently over-relieved HUF filers).
-    // NOTE: uses ltcgTaxableInr (net of the s.112A exemption), not gross LTCG
+    // NOTE: uses ltcgTaxableInr (net of the s.198 exemption), not gross LTCG
     // — the exempt slice isn't part of total income at all, same as it isn't
     // part of the special-rate tax computed just above. Previously this used
     // gross LTCG while specialTaxInr/capEligibleSpecialTaxInr used the
@@ -270,7 +270,7 @@
     // computeIndiaSurcharge below, the surcharge threshold test) by the
     // exempt amount.
     var totalIncomeInr = totalNormalInr + stcgInr + ltcgTaxableInr + special115bbInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr;
-    // ...and NR is excluded too (s.87A says "resident individual" — RNOR
+    // ...and NR is excluded too (s.157 says "resident individual" — RNOR
     // still counts as resident for this, only genuine NR does not).
     var isIndividual = !model.entity || model.entity.indiaKind === "individual";
     var rebate = isNew ? T.REBATE_87A_NEW : T.REBATE_87A_OLD;
@@ -282,7 +282,7 @@
     var taxAfterRebateInr = Math.max(0, slabTaxInr - rebateInr) + specialTaxInr;
 
     // Surcharge (individual brackets) with simplified marginal relief. Pass
-    // only the cap-eligible (CG/dividend) special tax — the 115BB tax rides
+    // only the cap-eligible (CG/dividend) special tax — the 128 tax rides
     // along inside taxAfterRebateInr but is counted as "non-special" here so
     // it gets the full uncapped surcharge rate.
     var surchargeInr = computeIndiaSurcharge(taxAfterRebateInr, totalIncomeInr, isNew, slabs, capEligibleSpecialTaxInr, T);
@@ -316,7 +316,7 @@
     };
   }
 
-  /* Computes the actual s.115A tax for one income stream (interest/dividend/
+  /* Computes the actual s.207 tax for one income stream (interest/dividend/
    * royalty/FTS), reading each treaty election's own amount_inr — the specific
    * rupee amount the taxpayer is claiming the treaty rate against (e.g. one
    * NRO account's interest out of several) — rather than assuming an election
@@ -327,11 +327,11 @@
    * aggregate exists (royalty/FTS — Layer 1 only ever records those through
    * this election table, so the summed election amounts ARE the total).
    *
-   * Each election's rate is whichever is LOWER of the domestic s.115A default
-   * or the elected rate — s.90(2) guarantees the assessee the more beneficial
+   * Each election's rate is whichever is LOWER of the domestic s.207 default
+   * or the elected rate — s.159 guarantees the assessee the more beneficial
    * of domestic law or the treaty, never a worse rate just because a
    * (possibly mistaken) election is on file — and only counts at all when
-   * TRC/Form 10F support the claim. Whatever part of an aggregate total isn't
+   * TRC/Form 41 support the claim. Whatever part of an aggregate total isn't
    * covered by any election still gets taxed, just at the plain domestic
    * rate. Shared CONST.TAX.INDIA.S115A_RATES table with the
    * dtaa_treaty_elections finding text in conflicts.js so the two can't
@@ -377,8 +377,8 @@
   }
 
   /* Ordinary NRO savings/FD interest for a non-resident is NOT actually
-   * within s.115A's scope — that concessional flat rate is narrowly limited
-   * to interest on foreign-currency borrowings/specified bonds (s.115A(1)(a)),
+   * within s.207's scope — that concessional flat rate is narrowly limited
+   * to interest on foreign-currency borrowings/specified bonds (s.207 (narrowly, the foreign-currency-borrowing-interest limb)),
    * not ordinary rupee-denominated bank deposit interest. So by default it's
    * ordinary slab-rate "other sources" income, exactly like a resident's —
    * banks withhold TDS at a flat 30% (s.195) as a conservative default since
@@ -387,8 +387,8 @@
    *
    * A DTAA election (India-US Article 11, capped at 15%) can still carve a
    * specific claimed amount OUT of slab income and tax it flat instead — but
-   * only when TRC/Form 10F are on file AND it's actually cheaper than what
-   * that slice would cost at the marginal slab rate (s.90(2) "whichever is
+   * only when TRC/Form 41 are on file AND it's actually cheaper than what
+   * that slice would cost at the marginal slab rate (s.159 "whichever is
    * more beneficial" — same principle as computeS115aStream, just compared
    * against a marginal rate instead of a flat domestic one, since there IS
    * no flat domestic rate for this income anymore). The marginal slab rate
@@ -447,7 +447,7 @@
       matApplied = !E.indiaOpt115baa && normal < mat;
       preCess = matApplied ? mat : normal;
       var cessC = preCess * C.CESS_RATE;
-      regime = "Corporate ITR-6 (" + Math.round(rate * 100) + "%" + (E.indiaOpt115baa ? " §115BAA" : "") + (matApplied ? ", MAT" : "") + ")";
+      regime = "Corporate ITR-6 (" + Math.round(rate * 100) + "%" + (E.indiaOpt115baa ? " §200" : "") + (matApplied ? ", MAT" : "") + ")";
       return entityResult(taxable, baseTax, preCess - baseTax, cessC, preCess + cessC, regime, matApplied);
     }
     // firm / LLP
@@ -959,7 +959,7 @@
     var usFtcAllowed = Math.min(indiaTaxPaidUsd, usFtcLimit);
     var usCarryover = Math.max(0, indiaTaxPaidUsd - usFtcAllowed);
 
-    // ---- Direction 2: India §90 relief — credit for US taxes ----
+    // ---- Direction 2: India §159 relief — credit for US taxes ----
     // From the India view (ROR), US-source income is foreign-source.
     var foreignSrcIndiaUsd = residency.india.worldwide ? model.income.us.usSourceTotal.usd : 0;
     var indiaTotalIncomeUsd = indiaTax.totalIncomeUsd;

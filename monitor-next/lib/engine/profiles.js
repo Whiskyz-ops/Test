@@ -47,7 +47,7 @@
       // place in both countries), so it fell to centre of vital interests,
       // which landed on the US — the actual reasoning behind "us" winning,
       // not just the bare verdict. No treaty_elections here on purpose: he's
-      // domestically ROR, and s.115A (what a treaty election overrides) only
+      // domestically ROR, and s.207 (what a treaty election overrides) only
       // applies to a genuine domestic NR — see Rohan (us_resident_indian_income)
       // for that case instead.
       dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "us", trc_status: true, has_permanent_establishment_in_india: false, dtaa_forced_nr: false, tb_home: "both", tb_cvi: "us" },
@@ -75,7 +75,7 @@
       carry_forward_losses: { has_brought_forward_losses: true, stcg_loss_cf: [{ assessment_year: "AY2024-25", amount_inr: 180000 }] },
       lrs_outbound: { total_lrs_remitted_this_fy_inr: 17000000 },
       tax_credits: { advance_tax_q1_15jun_inr: 400000, advance_tax_q2_15sep_inr: 400000, advance_tax_q3_15dec_inr: 400000, advance_tax_q4_15mar_inr: 300000, tds_already_deducted_inr: 350000 },
-      metadata: meta("layer1_india_v5_1", "FY2026-27")
+      metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Aarav Sharma", date_of_birth: "1988-07-15", filing_status: "mfj", ssn_or_itin_type: "ssn" },
@@ -119,12 +119,12 @@
       profile: { full_name: "Rohan Mehta", entity_type: "individual", date_of_birth: "1985-03-22", pan: "AAAPM5678Q", tax_regime: "NEW" },
       residency_detail: { days_in_india_current_year: 20, final_india_residency_status: "NR" },
       // A genuinely beneficial treaty rate on ₹1.5L of his ₹2.6L NRO interest
-      // (15% vs the 20% domestic s.115A default — the other ₹1.1L isn't
+      // (15% vs the 20% domestic s.207 default — the other ₹1.1L isn't
       // claimed under treaty at all, so it's taxed at the plain domestic
       // rate regardless) plus a royalty stream (India has no other_sources
       // field for royalty at all — this election table is the only place
       // it's ever recorded, exercising that for the first time). But TRC/
-      // Form 10F are missing (see compliance_docs below), so BOTH elections
+      // Form 41 are missing (see compliance_docs below), so BOTH elections
       // are denied and the computation correctly falls back to the domestic
       // rate for each.
       dtaa: { tax_residency_country: "US", is_us_resident_for_dtaa: true, dtaa_treaty_residence: "US", trc_status: false, form_10f: false, treaty_elections: [
@@ -141,13 +141,13 @@
       domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [{ trade_name: "Mehta Advisory Services", nature: "consulting", net_profit_inr: 900000, holding_pct: 5 }] }, capital_gains: { short_term_15_pct: 180000 } },
       // Occasional fantasy-sports/online-gaming winnings (very common alongside
       // NRI rental/dividend income today) plus an unexplained cash deposit the
-      // client can't source-document (a routine real-world 115BBE flag, not a
+      // client can't source-document (a routine real-world s.195/115BBE flag, not a
       // fabricated edge case).
       other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 260000, dividend_inr: 220000, online_gaming_winnings_inr: 180000, unexplained_income_115BBE_inr: 250000 },
       deductions: {},
       lrs_outbound: {},
       tax_credits: { tds_already_deducted_inr: 430000 },
-      metadata: meta("layer1_india_v5_1", "FY2026-27")
+      metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Rohan Mehta", date_of_birth: "1985-03-22", filing_status: "mfj", ssn_or_itin_type: "ssn" },
@@ -174,14 +174,14 @@
   /* ======================================================================
    * PROFILE 3 — Indian ROR with US income.
    * Lives in India (ROR, worldwide), earns US rent/dividends/brokerage; files a
-   * US 1040-NR on US-source income. India taxes worldwide → Form 67/§90 relief
+   * US 1040-NR on US-source income. India taxes worldwide → Form 44/§159 relief
    * for US tax; Schedule FA for US assets.
    * ====================================================================*/
   var P3 = {
     id: "india_ror_us_income",
     label: "India ROR · US income",
-    story: "Resident of India (ROR), formerly NRI, with US rental, dividends & brokerage. India taxes worldwide → Form 67/§90 credit for US tax; Schedule FA for US assets; files 1040-NR on US-source income with a treaty rate claimed but no W-8BEN on file, plus FIRPTA withholding on a US property sale; kept her Chapter XII-A election on specified assets after becoming ROR.",
-    tags: ["Form 67", "Schedule FA", "1040-NR", "FIRPTA"],
+    story: "Resident of India (ROR), formerly NRI, with US rental, dividends & brokerage. India taxes worldwide → Form 44/§159 credit for US tax; Schedule FA for US assets; files 1040-NR on US-source income with a treaty rate claimed but no W-8BEN on file, plus FIRPTA withholding on a US property sale; kept her Chapter XII-A election on specified assets after becoming ROR.",
+    tags: ["Form 44", "Schedule FA", "1040-NR", "FIRPTA"],
     router: router("Anita Desai", { is_us_citizen: false, has_green_card: false, us_days: 35, date_of_birth: "1982-11-09" }),
     india: {
       profile: { full_name: "Anita Desai", entity_type: "individual", date_of_birth: "1982-11-09", pan: "AADPD9012R", tax_regime: "OLD" },
@@ -189,7 +189,7 @@
       dtaa: { tax_residency_country: "IN", is_us_resident_for_dtaa: false, dtaa_treaty_residence: "none", trc_status: true, form_10f: true },
       // Was NRI for years before moving back; kept the Chapter XII-A election
       // on her specified foreign-exchange assets even after becoming ROR
-      // (s.115H permits this by re-filing annually) — a real, easy-to-miss
+      // (s.217 permits this by re-filing annually) — a real, easy-to-miss
       // retained-concession scenario, not just a first-time NRI election.
       compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true }, chapter_xiia_elected: true },
       bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", peak_balance_inr: 1800000 }],
@@ -197,7 +197,7 @@
       financial_holdings: { has_financial_transactions: false, transactions: [] },
       foreign_assets: { has_foreign_assets: true, assets: [{ country: "US", type: "brokerage", value_inr: 6800000 }, { country: "US", type: "real_estate", value_inr: 12000000 }] },
       domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 3600000 }, house_property: { has_house_property_income: false, properties: [] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
-      // LTCG well above the s.112A exemption threshold — exercises the fix
+      // LTCG well above the s.198 exemption threshold — exercises the fix
       // where totalIncomeInr now correctly excludes the exempt slice instead
       // of counting the full gross gain.
       capital_gains: { ltcg_112a_inr: 300000 },
@@ -205,7 +205,7 @@
       deductions: { s80C: { epf_employee_inr: 150000 }, s80D: { self_family_premium_inr: 25000 } },
       lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 200000, advance_tax_q2_15sep_inr: 200000, tds_already_deducted_inr: 150000 },
-      metadata: meta("layer1_india_v5_1", "FY2026-27")
+      metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Anita Desai", date_of_birth: "1982-11-09", filing_status: "single", ssn_or_itin_type: "itin" },
@@ -245,9 +245,9 @@
       profile: { full_name: "Vikram Rao", entity_type: "individual", date_of_birth: "1986-05-30", pan: "AAVPR3456S", tax_regime: "NEW" },
       residency_detail: { days_in_india_current_year: 25, final_india_residency_status: "NR" },
       // A dividend treaty election on his full ₹5L dividend at 25% (Art
-      // 10(2)(b), the generic portfolio rate) — but the domestic s.115A
-      // dividend rate (20%) is actually LOWER. TRC/Form 10F are on file this
-      // time, but s.90(2) still guarantees him whichever is more beneficial,
+      // 10(2)(b), the generic portfolio rate) — but the domestic s.207
+      // dividend rate (20%) is actually LOWER. TRC/Form 41 are on file this
+      // time, but s.159 still guarantees him whichever is more beneficial,
       // so this mistaken election has zero effect (still taxed at 20%) even
       // though it's sitting on file claiming 25%. Contrast: an interest
       // election on ₹2L of NRO interest at 15% (Art 11(2)(b)) genuinely
@@ -265,7 +265,7 @@
       unlisted_equity: { has_unlisted_equity_transaction: true, transactions: [{ company: "Nova Systems Pvt Ltd", holding_pct: 100 }] },
       domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: { short_term_15_pct: 100000 } },
       // A partial share buyback by his own company — a routine founder
-      // liquidity event, and exactly the s.2(22)(f) vs. capital-gain
+      // liquidity event, and exactly the s.2(40)(f) vs. capital-gain
       // characterization mismatch the US side will book differently.
       other_sources: { has_other_sources_income: true, dividend_inr: 500000, interest_fd_rd_inr: 200000, deemed_dividend_from_buyback_inr: 3500000 },
       // A brought-forward STCG loss bigger than this year's STCG gain — only
@@ -276,7 +276,7 @@
       deductions: {},
       lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 600000, advance_tax_q2_15sep_inr: 700000, advance_tax_q3_15dec_inr: 700000, advance_tax_q4_15mar_inr: 500000 },
-      metadata: meta("layer1_india_v5_1", "FY2026-27")
+      metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
     us: {
       // Two kids — well under the $400k MFJ Child Tax Credit phase-out, so
@@ -325,7 +325,7 @@
       deductions: { s80C: { ppf_inr: 150000 } },
       lrs_outbound: {},
       tax_credits: { tds_already_deducted_inr: 900000 },
-      metadata: meta("layer1_india_v5_1", "FY2026-27")
+      metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Grace Thomas", date_of_birth: "1958-09-12", filing_status: "single", ssn_or_itin_type: "ssn" },
@@ -354,13 +354,13 @@
   /* ======================================================================
    * PROFILE 6 — BUSINESS POV: Indian Pvt Ltd (domestic company).
    * The entity itself is the taxpayer (ITR-6): business profits, corporate
-   * tax (§115BAA 22%), advance tax — no salary/retirement.
+   * tax (§200 22%), advance tax — no salary/retirement.
    * ====================================================================*/
   var B1 = {
     id: "india_pvt_ltd",
     label: "Indian Pvt Ltd (company)",
-    story: "Business POV: an Indian domestic company (SaaS exporter). Corporate tax under §115BAA (22%), MAT check, ITR-6 — business profits, not salary.",
-    tags: ["company", "ITR-6", "115BAA", "corporate"],
+    story: "Business POV: an Indian domestic company (SaaS exporter). Corporate tax under §200 (22%), MAT check, ITR-6 — business profits, not salary.",
+    tags: ["company", "ITR-6", "200", "corporate"],
     router: router("Nimbus Analytics Pvt Ltd", { us_days: 0, has_us_source_income_or_assets: false }),
     india: {
       profile: { full_name: "Nimbus Analytics Pvt Ltd", entity_type: "company", tax_regime: "NEW", turnover_lte_400cr: true, opt_115baa: true, mat_book_profit: 62000000 },
@@ -375,7 +375,7 @@
       deductions: {},
       lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 3000000, advance_tax_q2_15sep_inr: 3500000, advance_tax_q3_15dec_inr: 3500000, advance_tax_q4_15mar_inr: 3000000, tds_already_deducted_inr: 400000 },
-      metadata: meta("layer1_india_v5_1", "FY2026-27")
+      metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Nimbus Analytics Pvt Ltd", filing_status: "single" },
@@ -411,7 +411,7 @@
       other_sources: {},
       deductions: {}, lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 4000000, advance_tax_q2_15sep_inr: 5000000, advance_tax_q3_15dec_inr: 5000000, advance_tax_q4_15mar_inr: 4000000 },
-      metadata: meta("layer1_india_v5_1", "FY2026-27")
+      metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
     us: {
       profile: { tax_entity_type: "ccorp", full_name: "Cloudspire Inc", incorporation_state: "DE", incorporated_in_us: true, filing_status: "single" },
@@ -458,7 +458,7 @@
       other_sources: {},
       deductions: {}, lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 1200000, advance_tax_q2_15sep_inr: 1400000, advance_tax_q3_15dec_inr: 1400000, advance_tax_q4_15mar_inr: 1200000 },
-      metadata: meta("layer1_india_v5_1", "FY2026-27")
+      metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Meridian Holdings Pte Ltd", filing_status: "single" },
@@ -475,13 +475,13 @@
    * PROFILE 9 — BUSINESS POV: an HUF (Hindu Undivided Family).
    * Control-and-management residency test (not day-count, not POEM) —
    * demonstrates the entity-aware fix that HUF is NOT entitled to the
-   * individual-only §87A rebate, plus an unlinked PAN/Aadhaar (s.206AA).
+   * individual-only §157 rebate, plus an unlinked PAN/Aadhaar (s.397(2)).
    * ====================================================================*/
   var B4 = {
     id: "sharma_huf",
     label: "Sharma HUF (family investment vehicle)",
-    story: "Business POV: an HUF managing ancestral property and FD investments in India. Control & management is NOT wholly outside India, so it stays resident — a different test than the individual day-count. At ~₹6.5L income it sits right at the §87A rebate threshold, demonstrating the entity-aware fix (HUF isn't entitled to the individual-only rebate). PAN also isn't linked to Aadhaar, so every TDS figure here understates the higher rate actually being withheld.",
-    tags: ["HUF", "entity", "87A", "control and management", "PAN-Aadhaar"],
+    story: "Business POV: an HUF managing ancestral property and FD investments in India. Control & management is NOT wholly outside India, so it stays resident — a different test than the individual day-count. At ~₹6.5L income it sits right at the §157 rebate threshold, demonstrating the entity-aware fix (HUF isn't entitled to the individual-only rebate). PAN also isn't linked to Aadhaar, so every TDS figure here understates the higher rate actually being withheld.",
+    tags: ["HUF", "entity", "157", "control and management", "PAN-Aadhaar"],
     router: router("Sharma HUF", { us_days: 0, has_us_source_income_or_assets: false }),
     india: {
       profile: { full_name: "Sharma HUF", entity_type: "huf", tax_regime: "NEW", pan_aadhaar_linked: false },
@@ -501,7 +501,7 @@
       carry_forward_losses: { has_brought_forward_losses: true, business_loss_cf: [{ assessment_year: "AY2023-24", amount_inr: 500000 }], stcg_loss_cf: [{ assessment_year: "AY2024-25", amount_inr: 200000 }] },
       lrs_outbound: {},
       tax_credits: { tds_already_deducted_inr: 15000 },
-      metadata: meta("layer1_india_v5_1", "FY2026-27")
+      metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Sharma HUF", filing_status: "single" },

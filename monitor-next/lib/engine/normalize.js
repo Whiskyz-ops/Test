@@ -158,7 +158,7 @@
       num(safe(os, "interest_on_it_refund_inr", 0)) +
       num(safe(di, "other_sources.interest_inr", 0))
     );
-    // Deemed dividend on share buyback (s.2(22)(f), post-1-Oct-2024): the
+    // Deemed dividend on share buyback (s.2(40)(f), post-1-Oct-2024): the
     // FULL buyback consideration is taxed as a dividend at slab rates in the
     // shareholder's hands (the acquisition cost instead becomes a capital
     // loss). This is a genuine characterization mismatch candidate — the US
@@ -174,9 +174,9 @@
                             num(safe(annual.capital_gains, "stcg_111a_inr", 0)));
     var ltcg = moneyFromInr(num(safe(annual.capital_gains, "ltcg_112a_inr", 0)));
 
-    // Special-rate "other sources" income — flat 30% under s.115BB (lottery/
-    // betting) and s.115BBJ (online gaming), no basic exemption, no Chapter
-    // VI-A deduction, no §87A rebate. This was previously completely
+    // Special-rate "other sources" income — flat 30% under s.128 (lottery/
+    // betting) and s.194 (online gaming), no basic exemption, no Chapter
+    // VI-A deduction, no §157 rebate. This was previously completely
     // uncounted anywhere in the model (invisible to total income, FTC, and
     // cross-basis reconciliation) despite being real, taxable, and a genuine
     // cross-border double-tax candidate if the same winnings are also
@@ -185,11 +185,12 @@
       num(safe(os, "winnings_lottery_gaming_inr", 0)) +
       num(safe(os, "online_gaming_winnings_inr", 0))
     );
-    // s.115BBE unexplained-income addition: flat 60% + 25% surcharge + cess
-    // (effective ~78%), and uniquely denies ANY deduction/exemption/loss
-    // set-off — tracked separately (not folded into specialRate115bb) since
-    // its rate and total denial of relief are qualitatively different and
-    // this pass only flags it rather than computing it.
+    // s.195 unexplained-income addition: flat 30% + 25% surcharge + cess
+    // (effective ~39%, per Finance Act 2026 — was 60%/~78% pre-TY2026-27),
+    // and uniquely denies ANY deduction/exemption/loss set-off — tracked
+    // separately (not folded into specialRate115bb) since its rate and
+    // total denial of relief are qualitatively different and this pass
+    // only flags it rather than computing it.
     var unexplained115bbeInr = num(safe(os, "unexplained_income_115BBE_inr", 0));
 
     var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg, specialRate115bb, deemedDividendBuyback].reduce(addMoney, zeroMoney());
@@ -383,7 +384,7 @@
 
   /* ------------------------------------------------------------------------
    * Equity compensation — cross-border sourcing signal. India's ESOP
-   * perquisite (s.17(2)(vi), already folded into taxable_salary_inr — this is
+   * perquisite (s.17(1)(vi), already folded into taxable_salary_inr — this is
    * a breakdown figure, not additive) and the US RSU/NSO/ISO events are two
    * views into what is often the SAME multi-year vesting equity award, split
    * by whichever country the employee was in when each tranche vested /

@@ -128,7 +128,7 @@
       { name: "US estimated tax — Q3", jur: "US", date: d(baseYear, 9, 15), cat: "Estimated tax" },
       { name: "US estimated tax — Q4", jur: "US", date: d(baseYear + 1, 1, 15), cat: "Estimated tax" },
       { name: "US Form 1040 + Form 1116 + FBAR", jur: "US", date: d(baseYear + 1, 4, 15), cat: "Filing" },
-      { name: "India ITR + Form 67 (non-audit)", jur: "IN", date: d(baseYear + 1, 7, 31), cat: "Filing" },
+      { name: "India ITR + Form 44 (non-audit)", jur: "IN", date: d(baseYear + 1, 7, 31), cat: "Filing" },
       { name: "US extended 1040 / FBAR deadline", jur: "US", date: d(baseYear + 1, 10, 15), cat: "Extension" },
       { name: "India belated / revised ITR", jur: "IN", date: d(baseYear + 1, 12, 31), cat: "Extension" }
     ].map(function (x) {

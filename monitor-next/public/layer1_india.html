@@ -4993,7 +4993,7 @@
             Q1: {}, Q2: {}, Q3: {}, Q4: {}
         },
         metadata: {
-            financial_year: "FY2026-27",
+            financial_year: "TY2026-27",
             schema_version: "layer1_india_v5_1",
             created_at: new Date().toISOString(),
             last_updated_at: new Date().toISOString()
@@ -6421,7 +6421,7 @@ const crDiv = document.getElementById('div-company-residency');
         
         let currentYear = 2026;
         if (state.metadata && state.metadata.financial_year) {
-            const match = state.metadata.financial_year.match(/FY\d{4}-(\d{2})/);
+            const match = state.metadata.financial_year.match(/TY\d{4}-(\d{2})/);
             if (match) {
                 currentYear = 2000 + parseInt(match[1], 10);
             }
@@ -12872,15 +12872,17 @@ ${isProf ? '' : `
         // 3. BASE TAX COMPUTATION (approximate slab / flat rate)
         // ─────────────────────────────────────────────────────────────
         function slabTaxNewRegime(inc) {
-            // Tax Year 2025-26 New Tax Regime slabs (Section 202)
-            // Rebate Section 157: if total income ≤ ₹7L, tax = 0 (handled post-cess)
-            if (inc <= 300000) return 0;
+            // Tax Year 2026-27 New Tax Regime slabs (Section 202) — Budget 2026
+            // retained the FY2025-26 slab structure unchanged for FY2026-27.
+            // Rebate Section 157: if total income <= Rs12L, tax = 0 (handled post-cess)
+            if (inc <= 400000) return 0;
             let t = 0;
-            if (inc > 300000)  t += Math.min(inc - 300000, 400000) * 0.05;
-            if (inc > 700000)  t += Math.min(inc - 700000, 300000) * 0.10;
-            if (inc > 1000000) t += Math.min(inc - 1000000, 200000) * 0.15;
-            if (inc > 1200000) t += Math.min(inc - 1200000, 300000) * 0.20;
-            if (inc > 1500000) t += (inc - 1500000) * 0.30;
+            if (inc > 400000)  t += Math.min(inc - 400000, 400000) * 0.05;
+            if (inc > 800000)  t += Math.min(inc - 800000, 400000) * 0.10;
+            if (inc > 1200000) t += Math.min(inc - 1200000, 400000) * 0.15;
+            if (inc > 1600000) t += Math.min(inc - 1600000, 400000) * 0.20;
+            if (inc > 2000000) t += Math.min(inc - 2000000, 400000) * 0.25;
+            if (inc > 2400000) t += (inc - 2400000) * 0.30;
             return t;
         }
         function slabTaxOldRegime(inc, dob) {
@@ -12914,10 +12916,10 @@ ${isProf ? '' : `
             baseTax += Math.max(0, ltcg112A)  * 0.125; // LTCG Long-Term Capital Gains on Listed Securities
             baseTax += Math.max(0, ltcg112)   * 0.20;  // Other LTCG Other Long-Term Capital Gains
             baseTax += Math.max(0, gaming)    * 0.30;  // Online gaming Online Gaming Winnings
-            // Rebate Section 157 under New Regime (if total income <= ₹7L, rebate = full tax)
+            // Rebate Section 157 under New Regime (if total income <= ₹12L, rebate = full tax)
             const isResident = state.residency_detail?.final_india_residency_status === 'ROR' || state.residency_detail?.final_india_residency_status === 'RNOR' || state.residency_detail?.status === 'ROR' || state.residency_detail?.status === 'RNOR';
             if (entity === 'individual' && isResident) {
-                if (regime === 'NEW' && totalIncome <= 700000) baseTax = 0;
+                if (regime === 'NEW' && totalIncome <= 1200000) baseTax = 0;
                 // Old Regime rebate: total income <= ₹5L
                 if (regime === 'OLD' && totalIncome <= 500000) baseTax = 0;
             }
@@ -14026,13 +14028,17 @@ ${isProf ? '' : `
             });
         state.config.base_year = baseYear;
         state.metadata = state.metadata || {};
-        state.metadata.financial_year = `FY${baseYear}-${String(baseYear + 1).slice(-2)}`;
-        
+        // Income-tax Act, 2025 (in force from 1 Apr 2026) collapses "Financial
+        // Year" + "Assessment Year" into a single "Tax Year" concept — the
+        // 12-month period itself (Apr 1 - Mar 31), same framing the US already
+        // uses. No more separate AY.
+        state.metadata.financial_year = `TY${baseYear}-${String(baseYear + 1).slice(-2)}`;
+
         const indiaStart = `Apr 1, ${baseYear}`;
         const indiaEnd = `Mar 31, ${baseYear + 1}`;
         const banner = document.getElementById('global-tax-year-banner');
         if (banner) {
-            banner.innerHTML = `Base Tax Year: ${baseYear} &nbsp;|&nbsp; Financial Year: ${indiaStart} - ${indiaEnd} &nbsp;|&nbsp; Assessment Year: ${baseYear+1}-${String(baseYear+2).slice(-2)}`;
+            banner.innerHTML = `Base Tax Year: ${baseYear} &nbsp;|&nbsp; Tax Year ${baseYear}-${String(baseYear + 1).slice(-2)}: ${indiaStart} - ${indiaEnd} &nbsp;|&nbsp; Income-tax Act, 2025`;
             banner.classList.remove('hidden');
         }
 
