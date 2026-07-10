@@ -548,7 +548,24 @@
     else if (ded.mode === "standard") deduction = standard;
     else deduction = Math.max(standard, itemized);
 
-    var taxableBeforeQbi = Math.max(0, agi - deduction);
+    // ---- OBBBA "senior deduction" (temporary, TY2025-2028) ----
+    // $6,000 per taxpayer age 65+ by year end, on top of the standard/
+    // itemized deduction either way, phased out 6% of AGI over the
+    // threshold. Only the primary taxpayer's age is known (Layer 1 US
+    // collects no spouse DOB), so a second $6,000 for an also-65+ spouse on
+    // a joint return is not modeled here.
+    var taxpayerAge = null;
+    if (model.identity && model.identity.dob) {
+      var dobYear = new Date(model.identity.dob).getFullYear();
+      if (!isNaN(dobYear)) taxpayerAge = (model.meta.baseYear || 2025) - dobYear;
+    }
+    var isSenior = taxpayerAge !== null && taxpayerAge >= T.SENIOR_DEDUCTION_MIN_AGE;
+    var seniorPhaseoutThr = T.SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD[status] || T.SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD.single;
+    var seniorDeductionUsd = isSenior
+      ? Math.max(0, Math.round(T.SENIOR_DEDUCTION_PER_PERSON_USD - T.SENIOR_DEDUCTION_PHASEOUT_RATE * Math.max(0, agi - seniorPhaseoutThr)))
+      : 0;
+
+    var taxableBeforeQbi = Math.max(0, agi - deduction - seniorDeductionUsd);
 
     // ---- QBI deduction (§199A) ----
     // 20% of qualified business income, capped at 20% of (taxable income less
@@ -621,7 +638,31 @@
     var childCareCredit = 0.20 * Math.min(ded.careExpenses || 0, careCap);
     var aotcCredit = Math.min(ded.aotc || 0, 2500 * Math.max(1, ded.dependents || 1)) * eduPhase;
     var llcCredit = Math.min(ded.lifetimeLearning || 0, 2000) * eduPhase;
-    var creditsUsd = Math.min(Math.round(childCareCredit + aotcCredit + llcCredit), Math.round(incomeTax));
+    var otherCreditsUsd = Math.min(Math.round(childCareCredit + aotcCredit + llcCredit), Math.round(incomeTax));
+
+    // ---- Child Tax Credit (§24) + refundable Additional CTC ----
+    // $2,200/child (TY2025, OBBBA), phased out $50 per $1,000 of AGI over the
+    // threshold. Non-refundable portion offsets whatever tax is left after
+    // the credits above; any CTC that doesn't fit against tax is refundable
+    // (ACTC) up to $1,700/child, capped at 15% of earned income over $2,500.
+    // "Dependents" here reuses the same generic count already used for the
+    // dependent-care/AOTC credits above — Layer 1 doesn't separately track
+    // which dependents are qualifying children under 17.
+    var numChildrenForCtc = ded.dependents || 0;
+    var ctcPhaseoutThr = T.CTC_PHASEOUT_THRESHOLD_USD[status] || T.CTC_PHASEOUT_THRESHOLD_USD.single;
+    var ctcMaxTotalUsd = T.CTC_PER_CHILD_USD * numChildrenForCtc;
+    var ctcPhaseoutReductionUsd = Math.ceil(Math.max(0, agi - ctcPhaseoutThr) / 1000) * T.CTC_PHASEOUT_PER_1000_USD;
+    var ctcAvailableUsd = Math.max(0, ctcMaxTotalUsd - ctcPhaseoutReductionUsd);
+    var remainingTaxAfterOtherCredits = Math.max(0, Math.round(incomeTax) - otherCreditsUsd);
+    var ctcNonRefundableUsd = Math.min(ctcAvailableUsd, remainingTaxAfterOtherCredits);
+    var ctcUnusedUsd = ctcAvailableUsd - ctcNonRefundableUsd;
+    var earnedIncomeUsd = inc.wages.usd + fW + (inc.businessUs ? inc.businessUs.usd : 0);
+    var actcCapUsd = Math.min(
+      T.CTC_REFUNDABLE_MAX_PER_CHILD_USD * numChildrenForCtc,
+      T.CTC_REFUNDABLE_RATE * Math.max(0, earnedIncomeUsd - T.CTC_REFUNDABLE_EARNED_INCOME_FLOOR_USD)
+    );
+    var ctcRefundableUsd = Math.round(Math.max(0, Math.min(ctcUnusedUsd, actcCapUsd)));
+    var creditsUsd = otherCreditsUsd + ctcNonRefundableUsd + ctcRefundableUsd;
 
     var totalTaxBeforeFtc = incomeTax + niit + addlMedicare + seTax + amtOwed - creditsUsd;
 
@@ -635,6 +676,8 @@
       deductionUsd: deduction,
       deductionMode: (ded.mode === "itemized" || ded.mode === "standard") ? ded.mode : (itemized > standard ? "itemized" : "standard"),
       saltCapUsd: saltCapUsd,
+      seniorDeductionUsd: seniorDeductionUsd,
+      seniorDetail: { age: taxpayerAge, isSenior: isSenior, fullAmountUsd: T.SENIOR_DEDUCTION_PER_PERSON_USD, phaseoutThresholdUsd: seniorPhaseoutThr },
       taxableIncomeUsd: taxableIncome,
       ordinaryTaxUsd: ordinaryTax,
       ordinaryTaxableUsd: ordTaxable,
@@ -659,6 +702,12 @@
         regularTaxUsd: incomeTax
       },
       creditsUsd: creditsUsd,
+      otherCreditsUsd: otherCreditsUsd,
+      ctcDetail: {
+        numChildren: numChildrenForCtc, maxTotalUsd: ctcMaxTotalUsd, phaseoutReductionUsd: ctcPhaseoutReductionUsd,
+        availableUsd: ctcAvailableUsd, nonRefundableUsd: ctcNonRefundableUsd, refundableUsd: ctcRefundableUsd,
+        earnedIncomeUsd: earnedIncomeUsd
+      },
       totalTaxBeforeFtcUsd: totalTaxBeforeFtc,
       foreignSourceIncomeUsd: fW + fI + fD + fR + fP + fStcg + fLtcg,
       usSourceIncomeUsd: inc.usSourceTotal.usd,

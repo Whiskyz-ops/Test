@@ -196,7 +196,26 @@
         AMT_PHASEOUT: { single: 626350, mfj: 1252700, mfs: 626350, hoh: 626350 },
         AMT_RATE_BREAK: 232600,         // 26% up to this AMT base, 28% above (MFS: half)
         AMT_RATE_LOW: 0.26,
-        AMT_RATE_HIGH: 0.28
+        AMT_RATE_HIGH: 0.28,
+        // ---- Child Tax Credit (§24), TY2025 — OBBBA made $2,200/child (up
+        // from $2,000) permanent, indexed thereafter. Phases out $50 per
+        // $1,000 (or fraction) of MAGI over the threshold. Up to $1,700/child
+        // is refundable (Additional CTC) at 15% of earned income over $2,500.
+        CTC_PER_CHILD_USD: 2200,
+        CTC_PHASEOUT_THRESHOLD_USD: { single: 200000, mfj: 400000, mfs: 200000, hoh: 200000 },
+        CTC_PHASEOUT_PER_1000_USD: 50,
+        CTC_REFUNDABLE_MAX_PER_CHILD_USD: 1700,
+        CTC_REFUNDABLE_EARNED_INCOME_FLOOR_USD: 2500,
+        CTC_REFUNDABLE_RATE: 0.15,
+        // ---- OBBBA "senior deduction" (temporary, TY2025-2028) — $6,000 per
+        // taxpayer age 65+ by year end (stacks with std/itemized deduction),
+        // phased out 6% of MAGI over the threshold. This engine only has the
+        // primary taxpayer's DOB (no spouse DOB field in Layer 1 US), so a
+        // second $6,000 for an also-65+ spouse on a MFJ return is not modeled.
+        SENIOR_DEDUCTION_MIN_AGE: 65,
+        SENIOR_DEDUCTION_PER_PERSON_USD: 6000,
+        SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD: { single: 75000, mfj: 150000, mfs: 75000, hoh: 75000 },
+        SENIOR_DEDUCTION_PHASEOUT_RATE: 0.06
       },
       // ---- entity (business) corporate rates ----
       INDIA_COMPANY: {

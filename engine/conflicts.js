@@ -1200,16 +1200,23 @@
                 { label: "Deduction used", amount: u.deductionUsd }
               ]) }
           ])
+          .concat(u.seniorDeductionUsd > 0 ? [{ label: "Less senior deduction (OBBBA §70103, age 65+)", usd: -u.seniorDeductionUsd,
+            trace: calc("$6,000 for a taxpayer age 65+ by year end (TY2025-2028, temporary), on top of the standard/itemized deduction either way, phased out 6¢/$1 of AGI over " + usd(u.seniorDetail.phaseoutThresholdUsd) + ". Only the primary taxpayer's age is known — Layer 1 collects no spouse DOB, so a second $6,000 for an also-65+ spouse isn't modeled.", [
+              { label: "Taxpayer age", display: u.seniorDetail.age + " years" },
+              { label: "Full amount before phase-out", amount: u.seniorDetail.fullAmountUsd },
+              { label: "Senior deduction after phase-out", amount: u.seniorDeductionUsd }
+            ]) }] : [])
           .concat(u.qbiDeductionUsd > 0 ? [{ label: "Less §199A QBI deduction", usd: -u.qbiDeductionUsd,
             trace: calc("20% of qualified business income (Sch C/S-corp/partnership pass-through), capped at 20% of (taxable income less net capital gains); phased out for specified service trades above the SSTB income threshold", [
               { label: "QBI deduction", amount: u.qbiDeductionUsd }
             ]) }] : [])
           .concat([
             { label: "Taxable income", usd: u.taxableIncomeUsd,
-              trace: calc("AGI less deduction" + (u.qbiDeductionUsd > 0 ? " less §199A QBI deduction" : ""), [
+              trace: calc("AGI less deduction" + (u.seniorDeductionUsd > 0 ? " less senior deduction" : "") + (u.qbiDeductionUsd > 0 ? " less §199A QBI deduction" : ""), [
                 { label: "AGI", amount: u.agiUsd },
                 { label: "Less deduction", amount: -u.deductionUsd }
-              ].concat(u.qbiDeductionUsd > 0 ? [{ label: "Less QBI deduction", amount: -u.qbiDeductionUsd }] : [])) },
+              ].concat(u.seniorDeductionUsd > 0 ? [{ label: "Less senior deduction", amount: -u.seniorDeductionUsd }] : [])
+                .concat(u.qbiDeductionUsd > 0 ? [{ label: "Less QBI deduction", amount: -u.qbiDeductionUsd }] : [])) },
             { label: "Ordinary-rate tax", usd: u.ordinaryTaxUsd,
               trace: calc("Progressive federal brackets (10%-37%, filing status " + u.filingStatus.toUpperCase() + ") applied to $" + Math.round(u.ordinaryTaxableUsd).toLocaleString("en-US") + " of ordinary taxable income (taxable income less the LTCG/QDI portion, which is taxed separately below)",
                 bracketParts(u.ordinaryBracketBreakdown, usd)) },
@@ -1283,9 +1290,17 @@
                 { label: "Preferential LTCG/QDI tax", amount: u.preferentialTaxUsd }
               ]) }
           ] : [])
-          .concat(u.creditsUsd > 0 ? [{ label: "Less non-refundable credits (care/AOTC/LLC)", usd: -u.creditsUsd,
+          .concat(u.otherCreditsUsd > 0 ? [{ label: "Less other non-refundable credits (care/AOTC/LLC)", usd: -u.otherCreditsUsd,
             trace: calc("Child/dependent care credit (20% of qualifying expenses, capped) + American Opportunity + Lifetime Learning education credits (both phased out by MAGI) — capped at the tax otherwise due", [
-              { label: "Credits", amount: u.creditsUsd }
+              { label: "Credits", amount: u.otherCreditsUsd }
+            ]) }] : [])
+          .concat(u.ctcDetail && u.ctcDetail.availableUsd > 0 ? [{ label: "Less Child Tax Credit (§24)", usd: -(u.ctcDetail.nonRefundableUsd + u.ctcDetail.refundableUsd),
+            trace: calc("$2,200/child (TY2025, OBBBA), phased out $50 per $1,000 of AGI over the threshold. The portion that doesn't fit against tax owed is refundable (Additional CTC) up to $1,700/child, capped at 15% of earned income over $2,500. \"Children\" here reuses the same dependents count as the care/AOTC credits above — Layer 1 doesn't separately track qualifying-child ages.", [
+              { label: "Number of children (Layer 1 dependents count)", display: String(u.ctcDetail.numChildren) },
+              { label: "Max CTC before phase-out", amount: u.ctcDetail.maxTotalUsd },
+              { label: "Phase-out reduction", amount: -u.ctcDetail.phaseoutReductionUsd },
+              { label: "Non-refundable (offsets tax)", amount: u.ctcDetail.nonRefundableUsd },
+              { label: "Refundable (Additional CTC)", amount: u.ctcDetail.refundableUsd }
             ]) }] : [])
           .concat([{ label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true,
             trace: calc("Income tax (ordinary + preferential) + NIIT + Additional Medicare tax + SE tax + AMT − non-refundable credits", [

@@ -740,6 +740,57 @@ Playwright that the standard-deduction trace popup shows the corrected $31,500 f
 
 ---
 
+## Part D.14 — Implementing the flagged gaps: Child Tax Credit + senior deduction
+
+D.13 flagged four things as "missing, not wrong" and deliberately left unimplemented: the Child Tax
+Credit, OBBBA's temporary senior deduction, OBBBA's "no tax on tips/overtime" deductions, and the NRO-
+interest-categorization question. Asked to implement them.
+
+**Child Tax Credit (§24), implemented.** $2,200/child (TY2025, OBBBA-permanent figure), phased out $50
+per $1,000 of AGI over $200,000 (single/HoH/MFS) / $400,000 (MFJ). Non-refundable portion offsets
+whatever tax remains after the existing care/AOTC/LLC credits; whatever doesn't fit against tax is
+refundable (Additional CTC) up to $1,700/child, capped at 15% of earned income over $2,500 — implemented
+as a real two-tier calculation in `computeUsTax`, not just the non-refundable half. Reuses the same
+generic Layer-1 `dependents_count` the existing (and previously never-exercised — no profile had set it)
+care/AOTC/LLC credits already use, since Layer 1 doesn't separately track which dependents are qualifying
+children under 17. **Demo:** added `dependents_count: 2` to Vikram's US profile — his income is well
+under the MFJ phase-out, so this shows the full $4,400 with zero phase-out reduction.
+
+**OBBBA senior deduction (§70103, TY2025-2028), implemented.** $6,000 for a taxpayer age 65+ by year end,
+on top of the standard/itemized deduction either way, phased out 6¢/$1 of AGI over $75,000 (single) /
+$150,000 (MFJ). Computed from the taxpayer's existing DOB field (`model.identity.dob`) and
+`model.meta.baseYear`. Real, disclosed limitation: Layer 1 US collects no spouse date of birth, so a
+second $6,000 for an also-65+ spouse on a joint return isn't modeled — only ever computed for the primary
+taxpayer. Not added back for AMT (treated like QBI — a targeted policy deduction, not itemizing). **Demo:**
+changed Grace Thomas's DOB to 1958-09-12 (age 67) — while making this change, **caught a real bug**: the
+`router()` test-profile helper defaults `date_of_birth: "1988-01-01"` when a profile's `router(...)` call
+doesn't override it, and `model.identity.dob`'s fallback chain reads the router's value *before* the
+India/US profile blocks' own `date_of_birth` fields. Grace's `router("Grace Thomas", {...})` call didn't
+pass `date_of_birth`, so her age computed as 37 (from the router default) even after her India/US profile
+DOBs were both correctly changed to 1958 — silently wrong until the trace was inspected and the age didn't
+match. Fixed by passing `date_of_birth` explicitly in her `router(...)` call. Worth remembering for any
+future profile edit that touches DOB: the router default can silently win.
+
+**Deliberately still not implemented, by design choice, not oversight:**
+- **Tips/overtime deductions** (OBBBA, up to $25,000/$12,500-$25,000, phased out above $150k/$300k MAGI,
+  TY2025-2028) — Layer 1 US has no field for tip income or overtime premium pay separately from W-2 box 1
+  wages at all. Implementing the *rate* without a place for real data to land wouldn't actually satisfy
+  "implement it in the relevant demo profile" — it needs a Layer 1 form change first (new input fields),
+  which is a different kind of change (and risk) than fixing an existing constant.
+- **NRO interest categorization** — this engine still taxes all NR "interest" (Layer 1's generic
+  `interest_fd_rd_inr`, i.e. ordinary NRO savings/FD interest) as s.115A-eligible at a flat 20%, when
+  s.115A(1)(a)'s concessional rate technically only covers a narrower category (interest on foreign-
+  currency borrowings/specified bonds) — ordinary NRO deposit interest arguably belongs at slab rates
+  instead, with 30% being a TDS/withholding practice rather than the final rate. This is a redesign of how
+  an income stream is characterized, not a rate value to swap in, and changes Rohan's entire interest-
+  election story if done. Left as an open, disclosed product question rather than decided unilaterally.
+
+Verified via `sanity_check.js`/`audit_profiles.js`/`verify_traces.js` (zero regressions outside Vikram and
+Grace) and live via Playwright — confirmed both new trace popups render the exact figures ($4,400 CTC
+across 2 children with $0 phase-out; $6,000 senior deduction at age 67 with $0 phase-out).
+
+---
+
 ## Part E — What "comprehensive" wiring involves
 
 - **`normalize.js`:** extend to read every section above into the unified model

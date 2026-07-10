@@ -238,8 +238,8 @@
   var P4 = {
     id: "founder_indian_company",
     label: "Founder · Indian company",
-    story: "US resident owning an Indian Pvt Ltd (≥10%). Triggers Form 5471 + GILTI/Subpart-F on the US side while the company is taxed in India, plus a partial share buyback from his own company — India taxes it as a deemed dividend, the US likely as a capital gain. (Full entity separation arrives with multi-entity Phase 1.)",
-    tags: ["Form 5471", "GILTI", "CFC", "entity", "buyback"],
+    story: "US resident owning an Indian Pvt Ltd (≥10%). Triggers Form 5471 + GILTI/Subpart-F on the US side while the company is taxed in India, plus a partial share buyback from his own company — India taxes it as a deemed dividend, the US likely as a capital gain. Two kids — the first demo of the (OBBBA, TY2025) $2,200/child Child Tax Credit. (Full entity separation arrives with multi-entity Phase 1.)",
+    tags: ["Form 5471", "GILTI", "CFC", "entity", "buyback", "CTC"],
     router: router("Vikram Rao", { is_us_citizen: false, has_green_card: true, us_days: 340 }),
     india: {
       profile: { full_name: "Vikram Rao", entity_type: "individual", date_of_birth: "1986-05-30", pan: "AAVPR3456S", tax_regime: "NEW" },
@@ -279,7 +279,10 @@
       metadata: meta("layer1_india_v5_1", "FY2025-26")
     },
     us: {
-      profile: { tax_entity_type: "individual", full_name: "Vikram Rao", date_of_birth: "1986-05-30", filing_status: "mfj", ssn_or_itin_type: "ssn", incorporated_in_us: false },
+      // Two kids — well under the $400k MFJ Child Tax Credit phase-out, so
+      // this demonstrates the full $2,200/child CTC (§24, TY2025 OBBBA
+      // amount) with no phase-out reduction.
+      profile: { tax_entity_type: "individual", full_name: "Vikram Rao", date_of_birth: "1986-05-30", filing_status: "mfj", ssn_or_itin_type: "ssn", incorporated_in_us: false, dependents_count: 2 },
       us_residency_detail: { is_us_citizen: false, has_green_card: true, us_days_current_year: 340, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "none" },
       income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Nova Systems USA Inc", wages_box1_usd: 165000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 31000, medicare_wages_box5_usd: 165000 } }], interest_us_source_usd: 3400, ordinary_dividends_us_source_usd: 5200, qualified_dividends_us_source_usd: 3600, ltcg_us_source_usd: 18000 },
       income_foreign_source: { foreign_dividends_usd: 6024 },
@@ -303,11 +306,11 @@
   var P5 = {
     id: "us_citizen_expat_india",
     label: "US Citizen expat in India",
-    story: "US citizen living/working in India. FEIE on foreign earned income, PFIC on Indian MFs, FBAR — US citizenship-based taxation always applies. A gift from her father, a long-term green-card holder who formally relinquished it and was found to be a covered expatriate, brings Form 3520 reporting plus the §2801 recipient-side transfer tax.",
-    tags: ["FEIE", "PFIC", "citizen", "covered expatriate"],
-    router: router("Grace Thomas", { is_us_citizen: true, has_green_card: false, us_days: 20 }),
+    story: "US citizen living/working in India, past traditional retirement age but still consulting. FEIE on foreign earned income, PFIC on Indian MFs, FBAR — US citizenship-based taxation always applies. A gift from her father, a long-term green-card holder who formally relinquished it and was found to be a covered expatriate, brings Form 3520 reporting plus the §2801 recipient-side transfer tax. At 67, the first demo of the (OBBBA, TY2025-2028) $6,000 senior deduction.",
+    tags: ["FEIE", "PFIC", "citizen", "covered expatriate", "senior deduction"],
+    router: router("Grace Thomas", { is_us_citizen: true, has_green_card: false, us_days: 20, date_of_birth: "1958-09-12" }),
     india: {
-      profile: { full_name: "Grace Thomas", entity_type: "individual", date_of_birth: "1990-09-12", pan: "AGTPT7890T", tax_regime: "NEW" },
+      profile: { full_name: "Grace Thomas", entity_type: "individual", date_of_birth: "1958-09-12", pan: "AGTPT7890T", tax_regime: "NEW" },
       residency_detail: { days_in_india_current_year: 330, final_india_residency_status: "ROR" },
       dtaa: { tax_residency_country: "IN", dtaa_treaty_residence: "none", trc_status: false, form_10f: false },
       compliance_docs: { trc: { document_uploaded: false }, form_10f: { is_filed: false } },
@@ -325,7 +328,7 @@
       metadata: meta("layer1_india_v5_1", "FY2025-26")
     },
     us: {
-      profile: { tax_entity_type: "individual", full_name: "Grace Thomas", date_of_birth: "1990-09-12", filing_status: "single", ssn_or_itin_type: "ssn" },
+      profile: { tax_entity_type: "individual", full_name: "Grace Thomas", date_of_birth: "1958-09-12", filing_status: "single", ssn_or_itin_type: "ssn" },
       us_residency_detail: { is_us_citizen: true, has_green_card: false, us_days_current_year: 20, spt_test_met: false, final_us_residency_status: "US_CITIZEN", dtaa_treaty_residence: "none" },
       income_us_source: { interest_us_source_usd: 2400, ordinary_dividends_us_source_usd: 5200, qualified_dividends_us_source_usd: 4100, ltcg_us_source_usd: 9000 },
       income_foreign_source: { foreign_wages: [{ employer_name: "Freshworks (India)", wages_usd: 60241 }], foreign_interest_usd: 1446 },
