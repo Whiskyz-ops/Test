@@ -677,6 +677,69 @@ royalty election denial now costing ₹80,000 instead of ₹40,000.
 
 ---
 
+## Part D.13 — Full rate audit, both sides, sourced live off the web (thirteenth round)
+
+The royalty/FTS fix (D.12) was found by accident, while explaining one specific row. The user reasonably
+asked for a systematic pass: verify every rate/threshold constant on both the India and US side against
+current law, using live web research rather than training-data memory (which is exactly what produced the
+stale 10% royalty/FTS rate in the first place).
+
+**Method:** read every constant in `CONST.TAX.INDIA`/`CONST.TAX.US`/`CONST.LIMITS`, then ran targeted
+web searches for each one's current (TY2025, since demo profiles are all "FY2025-26 / TY2025") value,
+cross-checking against at least two independent sources per figure.
+
+**India side — everything checked out already current, no changes needed:** new-regime slabs (4L/8L/12L/
+16L/20L/24L bands, matching Budget 2025), §87A rebate (₹12L cap / ₹60,000 max under the new regime,
+₹5L/₹12,500 under old — both confirmed exactly against Budget 2025 coverage), STCG/LTCG rates and the
+₹1,25,000 s.112A exemption (Budget 2024, 23-Jul-2024, unchanged since), s.115BB/BBJ 30% flat rate,
+surcharge bands, 4% cess, corporate rates (115BAA 22%, MAT 15%, etc.) — all confirmed current. The
+s.115A royalty/FTS fix from D.12 was the only India-side correction needed.
+
+**US side — two real, dated errors found and fixed**, both stemming from the "One Big Beautiful Bill Act"
+(OBBBA, signed July 2025), which this engine's constants pre-date:
+
+- **Standard deduction was pre-OBBBA.** Had `{single: 15000, mfj: 30000, mfs: 15000, hoh: 22500}` (the
+  original Rev. Proc. 2024-40 inflation-adjusted figures); OBBBA raised these for TY2025 to `{single:
+  15750, mfj: 31500, mfs: 15750, hoh: 23625}`. Fixed in `CONST.TAX.US.STD_DEDUCTION`.
+- **SALT cap was a flat $10,000 (the old TCJA cap).** OBBBA raised it to **$40,000** ($20,000 MFS) for
+  TY2025 — but with a real phase-DOWN: 30 cents per dollar of AGI above $500,000 ($250,000 MFS), floored
+  back at the old $10,000. A flat `$40,000` constant would have been just as wrong as `$10,000` for any
+  high earner. Implemented as a real computation, `computeSaltCap(agi, status, T)` in `computation.js`
+  (new constants: `SALT_CAP_BASE_USD`, `SALT_CAP_PHASEOUT_THRESHOLD_USD`, `SALT_CAP_PHASEOUT_RATE: 0.30`,
+  `SALT_CAP_FLOOR_USD: 10000`), used everywhere the old flat constant was (the itemized-deduction calc,
+  the AMT SALT addback, and the NRA path's itemized calc) — three call sites, now all sharing one
+  function so they can't drift apart. The computed cap is exposed as `u.saltCapUsd` and referenced in the
+  itemized-deduction trace text instead of a hardcoded dollar figure.
+
+**Confirmed already correct, no changes needed** (verified against current sources so as not to assume):
+federal brackets (unchanged since TCJA, made permanent by OBBBA), LTCG/QDI 0%/15%/20% breakpoints for
+all four filing statuses, AMT exemption ($88,100/$137,000/$68,500) and phaseout thresholds ($626,350/
+$1,252,700 — note OBBBA drops these to $500,000/$1,000,000 with a doubled 50% phaseout rate, but only
+**starting TY2026**, so TY2025 correctly keeps the higher, gentler figures), QBI thresholds/phase-in
+ranges (also widen starting TY2026, not yet for TY2025), NIIT thresholds (fixed since 2013, confirmed
+still not indexed — added an explicit `hoh: 200000` entry since it was previously relying on a
+same-numbered fallback rather than being stated), FEIE max ($130,000), Social Security wage base
+($176,100), and the SE tax rates/factor.
+
+**Known gaps flagged but deliberately NOT implemented this round** (out of scope for "correct existing
+rates" — these are missing computations, not wrong constants, and no current demo profile exercises
+them): the Child Tax Credit isn't computed at all (only dependent-care/education credits are); OBBBA's
+new temporary senior deduction (+$6,000/+$12,000 for filers 65+, 2025-2028) isn't modeled (no demo
+profile is 65+); the new "no tax on tips/overtime" deductions aren't modeled (no demo profile has tip/OT
+income). Also flagged, not changed: this engine treats **all** NR interest as s.115A-eligible at a flat
+20%, but ordinary NRO savings/FD interest for an individual doesn't actually fall within s.115A(1)(a)'s
+narrow foreign-currency-borrowing categories — real-world practice is 30% bank TDS withholding against
+what should be slab-rate final liability. Left as a documented modeling simplification pending a product
+decision on whether that level of interest-category precision is worth the complexity.
+
+Verified via `sanity_check.js`/`audit_profiles.js`/`verify_traces.js` (zero regressions; Rohan's US tax
+dropped slightly, $49,397 → $49,037, and Vikram's similarly, both from the higher standard deduction —
+AMT-bound taxpayers like Aarav saw zero net change since AMT is specifically designed to neutralize
+exactly this kind of deduction benefit, which is a correctness signal, not a bug). Confirmed live via
+Playwright that the standard-deduction trace popup shows the corrected $31,500 figure.
+
+---
+
 ## Part E — What "comprehensive" wiring involves
 
 - **`normalize.js`:** extend to read every section above into the unified model

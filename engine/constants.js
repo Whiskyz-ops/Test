@@ -65,8 +65,9 @@
       // Foreign Earned Income Exclusion (Form 2555) — TY2025 figure.
       FEIE_MAX_USD: 130000,
 
-      // Net Investment Income Tax (3.8%) MAGI thresholds.
-      NIIT_THRESHOLD: { single: 200000, mfj: 250000, mfs: 125000 },
+      // Net Investment Income Tax (3.8%) MAGI thresholds — fixed by statute
+      // since 2013, NOT indexed for inflation (confirmed unchanged by OBBBA).
+      NIIT_THRESHOLD: { single: 200000, mfj: 250000, mfs: 125000, hoh: 200000 },
 
       // Additional Medicare Tax (0.9%) wage thresholds.
       ADDL_MEDICARE_THRESHOLD: { single: 200000, mfj: 250000, mfs: 125000 },
@@ -157,7 +158,10 @@
           mfs:    [[11925,0.10],[48475,0.12],[103350,0.22],[197300,0.24],[250525,0.32],[375800,0.35],[Infinity,0.37]],
           hoh:    [[17000,0.10],[64850,0.12],[103350,0.22],[197300,0.24],[250500,0.32],[626350,0.35],[Infinity,0.37]]
         },
-        STD_DEDUCTION: { single: 15000, mfj: 30000, mfs: 15000, hoh: 22500 },
+        // OBBBA ("One Big Beautiful Bill Act", signed July 2025) raised these
+        // above the pre-OBBBA/Rev. Proc. 2024-40 figures (was 15000/30000/
+        // 15000/22500), effective for TY2025.
+        STD_DEDUCTION: { single: 15750, mfj: 31500, mfs: 15750, hoh: 23625 },
         // Long-term cap-gains / qualified-dividend preferential brackets 2025.
         // 0% up to br0, 15% up to br15, 20% above (by taxable income).
         LTCG_BRACKETS: {
@@ -166,7 +170,15 @@
           mfs:    { br0: 48350, br15: 300000 },
           hoh:    { br0: 64750, br15: 566700 }
         },
-        SALT_CAP_USD: 10000,
+        // SALT cap under OBBBA: raised from a flat $10,000 (TCJA) to $40,000
+        // ($20,000 MFS) for TY2025, phased DOWN 30 cents per dollar of MAGI
+        // above the threshold, floored at $10,000 — so high earners still
+        // land back at the old cap. (1% larger each year 2026-2029, reverts
+        // to a flat $10,000 with no phase-down in 2030.)
+        SALT_CAP_BASE_USD: { single: 40000, mfj: 40000, mfs: 20000, hoh: 40000 },
+        SALT_CAP_PHASEOUT_THRESHOLD_USD: { single: 500000, mfj: 500000, mfs: 250000, hoh: 500000 },
+        SALT_CAP_PHASEOUT_RATE: 0.30,
+        SALT_CAP_FLOOR_USD: 10000,
         NIIT_RATE: 0.038,
         ADDL_MEDICARE_RATE: 0.009,
         C_CORP_RATE: 0.21,

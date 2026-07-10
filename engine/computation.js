@@ -35,6 +35,17 @@
     return tax;
   }
 
+  /* OBBBA SALT cap (TY2025+): $40,000 ($20,000 MFS), phased down 30 cents per
+   * dollar of AGI above the threshold ($500,000 / $250,000 MFS), floored at
+   * the old $10,000 TCJA cap — so the higher cap only actually helps
+   * taxpayers below the threshold. */
+  function computeSaltCap(agi, status, T) {
+    var base = T.SALT_CAP_BASE_USD[status] || T.SALT_CAP_BASE_USD.single;
+    var threshold = T.SALT_CAP_PHASEOUT_THRESHOLD_USD[status] || T.SALT_CAP_PHASEOUT_THRESHOLD_USD.single;
+    var reduced = base - T.SALT_CAP_PHASEOUT_RATE * Math.max(0, agi - threshold);
+    return Math.max(T.SALT_CAP_FLOOR_USD, Math.min(base, reduced));
+  }
+
   /* Same ladder as bracketTax, but returns the actual per-bracket breakdown
    * (only brackets the income actually reaches) so the UI can show the real
    * slab-by-slab math instead of a single opaque total. */
@@ -529,7 +540,8 @@
 
     // Deduction: standard vs itemized.
     var standard = T.STD_DEDUCTION[status] || T.STD_DEDUCTION.single;
-    var itemized = Math.min(ded.salt, T.SALT_CAP_USD) + ded.mortgageInterest + ded.charitable +
+    var saltCapUsd = computeSaltCap(agi, status, T);
+    var itemized = Math.min(ded.salt, saltCapUsd) + ded.mortgageInterest + ded.charitable +
                    Math.max(0, ded.medical - 0.075 * agi);
     var deduction;
     if (ded.mode === "itemized") deduction = itemized;
@@ -588,7 +600,7 @@
     // allowed for AMT. TMT = 26/28% of the AMT base above the exemption; AMT owed
     // is the excess of TMT over the regular income tax.
     var usedMode = (ded.mode === "itemized" || ded.mode === "standard") ? ded.mode : (itemized > standard ? "itemized" : "standard");
-    var amtAddback = usedMode === "standard" ? deduction : Math.min(ded.salt, T.SALT_CAP_USD);
+    var amtAddback = usedMode === "standard" ? deduction : Math.min(ded.salt, saltCapUsd);
     var amtiUsd = Math.max(0, taxableIncome + amtAddback + (ded.amtPrefs || 0));
     var amtExFull = T.AMT_EXEMPTION[status] || T.AMT_EXEMPTION.single;
     var amtPhase = T.AMT_PHASEOUT[status] || T.AMT_PHASEOUT.single;
@@ -622,6 +634,7 @@
       agiUsd: agi,
       deductionUsd: deduction,
       deductionMode: (ded.mode === "itemized" || ded.mode === "standard") ? ded.mode : (itemized > standard ? "itemized" : "standard"),
+      saltCapUsd: saltCapUsd,
       taxableIncomeUsd: taxableIncome,
       ordinaryTaxUsd: ordinaryTax,
       ordinaryTaxableUsd: ordTaxable,
@@ -689,7 +702,7 @@
     var claim = (nra.treatyRateClaims || [])[0];
     var fdapRate = (claim && claim.rate != null) ? Math.max(0, Math.min(1, Number(claim.rate) / 100)) : 0.30;
 
-    var itemized = Math.min(ded.salt, T.SALT_CAP_USD) + ded.mortgageInterest + ded.charitable +
+    var itemized = Math.min(ded.salt, computeSaltCap(eciUsd, status, T)) + ded.mortgageInterest + ded.charitable +
                    Math.max(0, ded.medical - 0.075 * eciUsd);
     var taxableEciUsd = Math.max(0, eciUsd - itemized);
     var eciTaxUsd = bracketTax(taxableEciUsd, brackets);

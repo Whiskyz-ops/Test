@@ -1196,7 +1196,7 @@
             { label: "Less " + u.deductionMode + " deduction", usd: -u.deductionUsd,
               trace: calc(u.deductionMode === "standard"
                 ? "Standard deduction for filing status " + u.filingStatus.toUpperCase() + " — used because it exceeds (or the taxpayer elected) itemizing"
-                : "Itemized: SALT (capped at $10,000) + mortgage interest + charitable + medical expenses over 7.5% of AGI — used because it exceeds (or the taxpayer elected) the standard deduction", [
+                : "Itemized: SALT (capped at " + usd(u.saltCapUsd) + " — OBBBA's $40,000 cap, phased down 30¢/$1 of AGI over $500,000, floored at the old $10,000) + mortgage interest + charitable + medical expenses over 7.5% of AGI — used because it exceeds (or the taxpayer elected) the standard deduction", [
                 { label: "Deduction used", amount: u.deductionUsd }
               ]) }
           ])
