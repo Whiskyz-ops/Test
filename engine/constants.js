@@ -132,16 +132,22 @@
         // s.115BB (lottery/betting) / s.115BBJ (online gaming): flat 30%,
         // no basic exemption, no Chapter VI-A deduction, no §87A rebate.
         RATE_115BB: 0.30,
-        // s.115A domestic default withholding rates on India-source interest/
-        // dividend/royalty/FTS paid to a NON-RESIDENT (no PE) — the baseline
-        // a DTAA-elected rate (s.90(2)) displaces when TRC/Form 10F support
-        // it. Shared between computation.js (actual NR tax) and conflicts.js
-        // (the treaty-election comparison text) so they can't drift apart.
+        // s.115A domestic default withholding rates on India-source dividend/
+        // royalty/FTS paid to a NON-RESIDENT (no PE) — the baseline a DTAA-
+        // elected rate (s.90(2)) displaces when TRC/Form 10F support it.
+        // Shared between computation.js (actual NR tax) and conflicts.js (the
+        // treaty-election comparison text) so they can't drift apart.
         // Royalty/FTS was 10% (Finance Act 2013) until the Finance Act 2023
         // amendment DOUBLED it to 20%, effective 1 April 2023 (AY 2024-25) —
         // specifically to push non-residents toward claiming DTAA rates
         // (properly documented) instead of defaulting to domestic law.
-        S115A_RATES: { interest: 0.20, dividend: 0.20, royalty: 0.20, fts: 0.20 },
+        // NOTE: no "interest" entry here on purpose — ordinary NRO interest
+        // isn't actually within s.115A's scope (that's narrowly limited to
+        // foreign-currency-borrowing interest under s.115A(1)(a)), so it has
+        // no flat domestic rate to fall back to; see
+        // computeNrInterestTreatment() in computation.js, which slab-taxes it
+        // by default instead.
+        S115A_RATES: { dividend: 0.20, royalty: 0.20, fts: 0.20 },
         // Surcharge brackets for individuals [income_over_inr, rate]
         SURCHARGE_IND: [
           [50000000, 0.25], [20000000, 0.25], [10000000, 0.15], [5000000, 0.10], [0, 0.00]
@@ -209,13 +215,26 @@
         CTC_REFUNDABLE_RATE: 0.15,
         // ---- OBBBA "senior deduction" (temporary, TY2025-2028) — $6,000 per
         // taxpayer age 65+ by year end (stacks with std/itemized deduction),
-        // phased out 6% of MAGI over the threshold. This engine only has the
-        // primary taxpayer's DOB (no spouse DOB field in Layer 1 US), so a
-        // second $6,000 for an also-65+ spouse on a MFJ return is not modeled.
+        // phased out 6% of MAGI over the threshold. MFS filers are entirely
+        // ineligible (not merely a smaller/halved amount) — see
+        // computeUsTax's isSenior check. This engine only has the primary
+        // taxpayer's DOB (no spouse DOB field in Layer 1 US), so a second
+        // $6,000 for an also-65+ spouse on a MFJ return is not modeled.
         SENIOR_DEDUCTION_MIN_AGE: 65,
         SENIOR_DEDUCTION_PER_PERSON_USD: 6000,
-        SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD: { single: 75000, mfj: 150000, mfs: 75000, hoh: 75000 },
-        SENIOR_DEDUCTION_PHASEOUT_RATE: 0.06
+        SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD: { single: 75000, mfj: 150000, hoh: 75000 },
+        SENIOR_DEDUCTION_PHASEOUT_RATE: 0.06,
+        // ---- OBBBA "no tax on tips" / "no tax on overtime" deductions
+        // (temporary, TY2025-2028) — above-the-line deductions (available
+        // whether or not the taxpayer itemizes), phased out $100 per $1,000
+        // of MAGI over the threshold. MFS filers are entirely ineligible for
+        // both. Tips cap is a flat $25,000 regardless of filing status;
+        // overtime cap is $12,500 single/HoH or $25,000 MFJ (the "half-time"
+        // FLSA §7 premium portion only, not the full overtime wage).
+        TIPS_DEDUCTION_MAX_USD: 25000,
+        OVERTIME_DEDUCTION_MAX_USD: { single: 12500, mfj: 25000, hoh: 12500 },
+        TIPS_OVERTIME_PHASEOUT_THRESHOLD_USD: { single: 150000, mfj: 300000, hoh: 150000 },
+        TIPS_OVERTIME_PHASEOUT_PER_1000_USD: 100
       },
       // ---- entity (business) corporate rates ----
       INDIA_COMPANY: {

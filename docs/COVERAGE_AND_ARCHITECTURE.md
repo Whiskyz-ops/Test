@@ -791,6 +791,86 @@ across 2 children with $0 phase-out; $6,000 senior deduction at age 67 with $0 p
 
 ---
 
+## Part D.15 — NRO interest recategorized to slab rates + OBBBA tips/overtime deductions (fifteenth round)
+
+D.14 left two things deliberately unimplemented. This round did both, plus researched and ruled out a
+third (Section 530A "Trump Accounts"), and fixed a real MFS-eligibility bug found while researching the
+first two.
+
+**NRO interest recategorization, implemented.** The user asked directly: is ordinary NRO interest really
+taxed at 30% unless a DTAA is invoked? Verified against s.115A(1)(a): its concessional flat rate is
+narrowly scoped to interest on foreign-currency borrowings/specified bonds — **not** ordinary
+rupee-denominated NRO savings/FD interest, which this engine had been taxing at a flat 20% s.115A rate for
+every non-resident, indiscriminately. Ordinary NRO interest for a non-resident individual is properly
+**slab-rate** income, same as a resident's; 30% is the bank's default TDS withholding practice under s.195
+(since a bank can't verify treaty eligibility at the moment it credits interest), not the final tax
+liability. A DTAA election (India-US Article 11, capped at 15%) can still carve a specific claimed amount
+out of slab income when TRC/Form 10F are on file **and** it's cheaper than the *marginal* slab-rate tax on
+that slice — not a flat-rate comparison the way s.115A allows for dividend/royalty/FTS, since slab rates
+are progressive. Implemented as a new `computeNrInterestTreatment()` in `computation.js`: for each
+treaty-elected interest amount, computes `bracketTax(income) - bracketTax(income - amount)` (the marginal
+tax the slice actually costs) and compares it against `amount × electedRate`; carves out the amount only if
+the treaty genuinely wins. `S115A_RATES` no longer has an `interest` key at all — dividend/royalty/FTS are
+unaffected (those really are s.115A-scoped). New `nrInterest` trace rows show each election's outcome
+(`treaty_beats_slab` / `slab_beats_treaty` / `denied_no_docs` / `no_rate`) with the marginal-vs-treaty
+comparison spelled out.
+
+**Verification found a genuine coincidence, not a bug**: Rohan's total India tax was *unchanged* after the
+redesign. Hand-calculation confirmed why — his `totalNormalInr` lands exactly on the ₹20,00,000 bracket
+boundary, and since his interest election is denied either way (missing docs, same as before), the old
+model's "slab tax excluding interest + flat 20% on interest" and the new model's "slab tax including
+interest" happen to sum to the identical ₹2,00,000 at that exact income level. Confirmed via
+`debug_rohan_interest.js` that the underlying mechanism is genuinely different and would diverge at any
+other income level. Separately verified via `debug_vikram_interest.js` that the carve-out mechanism itself
+is correct: his ₹2,00,000 election shows a ₹60,000 marginal slab cost (30% bracket) vs. a ₹30,000 treaty
+cost (15% flat) → correctly carved out, `outcome: "treaty_beats_slab"`.
+
+**OBBBA "no tax on tips" / "no tax on overtime" deductions, implemented — with new Layer 1 fields.**
+D.14 correctly identified that Layer 1 US had nowhere for tip income or overtime premium pay to live,
+separate from Box 1 wages, so there was nothing to wire the deduction to. Added two new per-W-2 fields in
+`layer1_us.html`'s W-2 "Basics" accordion, directly under Box 1 Wages: **Qualified Tip Income** and
+**Qualified Overtime Premium Pay** (`w2-qual-tips`/`w2-qual-ot`, wired through the existing
+`syncW2sState()`/`normalizeW2Data()` pattern the sibling wage/withholding fields already use). Both amounts
+are explicitly a *subset already included in* Box 1 wages, not additive — the fields only size the
+deduction, they don't change income. `normalize.js` sums `qualified_tip_income_usd`/
+`qualified_overtime_premium_usd` across `wages_w2[]` into `qualifiedTipsUsd`/`qualifiedOvertimeUsd`.
+`computeUsTax` then applies the deduction: lesser of the qualified amount or the cap ($25,000 flat for
+tips; $12,500 single/HoH or $25,000 MFJ for overtime — the FLSA §7 "half-time" premium portion only), less
+$100 per $1,000 of AGI over the phase-out threshold ($150,000 single/HoH, $300,000 MFJ). Both are entirely
+unavailable to MFS filers (not a halved amount — zero). Not added back for AMT (same treatment as the
+senior deduction — a targeted policy deduction, not itemizing). **Demo:** added `qualified_tip_income_usd:
+2400` and `qualified_overtime_premium_usd: 5800` to Rohan's existing Northwind Labs W-2 — his AGI (~$291k)
+sits just under the $300,000 MFJ phase-out threshold, so both deductions apply intact.
+
+**Real bug found and fixed while researching this: the OBBBA senior deduction is not available to MFS
+filers at all** — not a smaller/halved amount, zero. D.14's implementation had included an `mfs` entry in
+`SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD` (same as single), implying MFS filers got the full deduction
+subject to phase-out like anyone else. Confirmed via web research this is wrong: MFS is an absolute
+disqualification for the senior deduction (and, separately, for the tips/overtime deductions too — which
+this round's implementation got right from the start). Fixed by removing the `mfs` key from that constant
+and gating `isSenior` on `status !== "mfs"` in `computeUsTax`. No demo profile is currently MFS, so this
+was a correctness fix with no visible profile regression, not a demo-breaking one — caught purely by
+double-checking the eligibility rule before implementing the analogous tips/overtime rule, rather than
+copying the (wrong) senior-deduction MFS handling forward.
+
+**Section 530A "Trump Accounts" — researched, correctly zero computational impact for TY2025.** Added by
+OBBBA (signed July 4, 2025): custodial accounts for US-citizen children under 18 with an SSN, a one-time
+$1,000 federal seed contribution for children born 2025-2028, a $5,000/year contribution cap, converting to
+a Traditional IRA at 18. Contributions cannot be accepted before **July 4, 2026** — confirmed via IRS Notice
+2025-68 and subsequent guidance. Since every demo profile models TY2025 and no contribution can exist before
+mid-2026, there is nothing for this engine to compute yet; correctly out of scope until a TY2026 profile
+exists.
+
+Verified via `sanity_check.js`/`verify_traces.js`/`audit_profiles.js` (zero regressions) and live via
+Playwright: Rohan's new tips/overtime trace rows render the exact figures ($2,400 tips, $5,800 overtime,
+both with $0 phase-out reduction), and Vikram's redesigned NRO-interest carve-out row still renders
+correctly (₹60,000 marginal slab cost vs. ₹30,000 treaty cost → carved out). Also verified the new Layer 1
+US fields directly: loaded Rohan's demo profile through `router.html` → `layer1_us.html`, confirmed the two
+new inputs prefill with `2,400`/`5,800` from his profile data, and confirmed typing a new value round-trips
+correctly through `syncW2sState()` into `usState.income_us_source.wages_w2[0].qualified_tip_income_usd`.
+
+---
+
 ## Part E — What "comprehensive" wiring involves
 
 - **`normalize.js`:** extend to read every section above into the unified model
@@ -925,7 +1005,7 @@ during a demo.
 
 **The 9 profiles:**
 1. **`dual_resident_h1b`** — Aarav Sharma, senior tech hire in California. India ROR + US SPT; the flagship FTC/tie-breaker case. An ISO exercise triggers `amt_applies` and mirrors an ESOP grant from his prior Indian employer (`equity_comp_sourcing`); also carries `niit_medicare_not_creditable`, `carry_forward_losses_not_applied`, `state_treaty_not_binding` (California), a Schedule FA form-consistency slip (`schedule_fa_inconsistent`), and a walked-through Art. 4 tie-break (permanent home ambiguous → CVI decides for the US). No treaty election here — he's domestically ROR, and s.115A (what an election overrides) only applies to a genuine NR; see Rohan and Vikram below for that.
-2. **`us_resident_indian_income`** — Rohan Mehta, US green-card holder with Indian rent/dividends/mutual funds and a US-side consulting gig. FTC (Form 1116), PFIC, FBAR, a below-10%-threshold India business stake (`cfc_below_threshold`), `no_totalization_agreement` on his US self-employment tax, occasional online-gaming winnings (`special_rate_gaming_winnings`), an unexplained cash deposit (`s115bbe_unexplained_income`), and a genuinely-beneficial interest treaty election (15% vs 20% domestic) that's **denied** because TRC/Form 10F are missing — computation correctly falls back to the domestic rate.
+2. **`us_resident_indian_income`** — Rohan Mehta, US green-card holder with Indian rent/dividends/mutual funds and a US-side consulting gig. FTC (Form 1116), PFIC, FBAR, a below-10%-threshold India business stake (`cfc_below_threshold`), `no_totalization_agreement` on his US self-employment tax, occasional online-gaming winnings (`special_rate_gaming_winnings`), an unexplained cash deposit (`s115bbe_unexplained_income`), and a genuinely-beneficial interest treaty election (15% vs 20% domestic) that's **denied** because TRC/Form 10F are missing — computation correctly falls back to the domestic slab rate (post-D.15, NRO interest is slab-rate income, not flat s.115A). Also the first demo of the (OBBBA, TY2025-2028) "no tax on tips"/"no tax on overtime" deductions, both intact since his AGI sits just under the $300,000 MFJ phase-out threshold.
 3. **`india_ror_us_income`** — Anita Desai, Indian ROR (formerly NRI) with US rental/dividends/brokerage. `nra_fdap_flat_rate`, `nra_w8ben_missing`, `firpta` on a US property sale, a retained Chapter XII-A election (`chapter_xiia_not_computed`) kept after becoming ROR, and ₹3L LTCG above the s.112A exemption (exercises the gross-vs-exemption-adjusted `totalIncomeInr` fix).
 4. **`founder_indian_company`** — Vikram Rao, US resident owning 100% of an Indian Pvt Ltd. `cfc` / Form 5471, a partial share buyback from his own company (`deemed_dividend_buyback_mismatch`), a brought-forward STCG loss bigger than this year's STCG gain (the "partially set off" state of loss set-off), and a dividend treaty election on file at 25% (worse than the 20% domestic rate) with TRC/Form 10F **present** — computation correctly ignores the election since domestic is more beneficial (s.90(2) protection, not just "not applied").
 5. **`us_citizen_expat_india`** — Grace Thomas, US citizen living in India. FEIE + PFIC (citizenship-based taxation), a gift from her father — a long-term green-card holder who relinquished it and was found to be a covered expatriate (`foreign_gift_3520`, `covered_expat_gift_tax`), and a taxable NPS withdrawal (the NPS half of the EPF/NPS US-income wiring, distinct from Aarav's EPF-interest case).

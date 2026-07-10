@@ -233,6 +233,10 @@
 
     // Wages: wages_w2[].wages_box1_usd  (+ fallbacks for older shapes)
     var wages = zeroMoney(), w2with = 0, medicareWages = 0;
+    // OBBBA "no tax on tips" / "no tax on overtime" — the qualified subset is
+    // already included in Box 1 wages above, these are informational fields
+    // used only to size the above-the-line deduction, not additional income.
+    var qualifiedTipsUsd = 0, qualifiedOvertimeUsd = 0;
     var w2 = safe(ui, "wages_w2", null);
     if (Array.isArray(w2)) {
       w2.forEach(function (w) {
@@ -240,6 +244,8 @@
         var adv = w.tax_details_collapsed_by_default || w;
         w2with += num(adv.federal_tax_withheld_usd || adv.federal_income_tax_withheld_usd || 0);
         medicareWages += num(adv.medicare_wages_box5_usd || w.wages_box1_usd || 0);
+        qualifiedTipsUsd += num(w.qualified_tip_income_usd || 0);
+        qualifiedOvertimeUsd += num(w.qualified_overtime_premium_usd || 0);
       });
     }
 
@@ -322,6 +328,7 @@
 
     return {
       wages: wages, businessUs: businessUs, w2Withholding: w2with, medicareWages: medicareWages,
+      qualifiedTipsUsd: qualifiedTipsUsd, qualifiedOvertimeUsd: qualifiedOvertimeUsd,
       seEarningsUsd: seEarnings, qbiIncomeUsd: Math.max(0, qbiIncome), qbiIsSSTB: sstb,
       usRetirementIncome: usRetirementIncome,
       interestUs: interestUs, ordinaryDividendsUs: ordDivUs, qualifiedDividendsUs: qualDivUs,

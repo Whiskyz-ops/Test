@@ -182,15 +182,21 @@
     // this income is ever recorded, so the summed election amounts ARE the
     // total for that stream.
     var isNR = model.residency.india.status === CONST.INDIA_STATUS.NR;
-    var s115aInterest = isNR ? computeS115aStream(model, T, "interest", inc.interest.inr) : null;
+    // Ordinary NRO interest is NOT s.115A income (see computeNrInterestTreatment)
+    // — it defaults to slab rates, with only a DTAA-beneficial slice carved
+    // out. Dividend/royalty/FTS genuinely are s.115A income, unchanged.
+    var nrInterest = isNR
+      ? computeNrInterestTreatment(model, T, slabs, inc.salary.inr + inc.business.inr + inc.houseProperty.inr + deemedDividendInr, inc.interest.inr)
+      : null;
     var s115aDividend = isNR ? computeS115aStream(model, T, "dividend", inc.dividend.inr) : null;
     var s115aRoyalty = isNR ? computeS115aStream(model, T, "royalty", null) : null;
     var s115aFts = isNR ? computeS115aStream(model, T, "fts", null) : null;
-    var s115aInterestInr = s115aInterest ? s115aInterest.totalInr : 0;
+    var nrInterestSlabEligibleInr = nrInterest ? nrInterest.slabEligibleInr : 0;
+    var nrInterestCarvedOutInr = nrInterest ? nrInterest.carvedOutInr : 0;
+    var nrInterestCarvedOutTaxInr = nrInterest ? nrInterest.carvedOutTaxInr : 0;
     var s115aDividendInr = s115aDividend ? s115aDividend.totalInr : 0;
     var s115aRoyaltyInr = s115aRoyalty ? s115aRoyalty.totalInr : 0;
     var s115aFtsInr = s115aFts ? s115aFts.totalInr : 0;
-    var s115aInterestTaxInr = s115aInterest ? s115aInterest.taxInr : 0;
     var s115aDividendTaxInr = s115aDividend ? s115aDividend.taxInr : 0;
     var s115aRoyaltyTaxInr = s115aRoyalty ? s115aRoyalty.taxInr : 0;
     var s115aFtsTaxInr = s115aFts ? s115aFts.taxInr : 0;
@@ -200,11 +206,13 @@
     // reflects it (not just a disclosure that losses exist). Salary and
     // s.115BB/115BBJ special-rate income are untouched — losses cannot be
     // set off against either (s.58(4) explicitly bars it for the latter);
-    // s.115A interest/dividend is excluded too, for the same no-set-off reason.
+    // s.115A dividend/royalty/FTS is excluded too, for the same no-set-off
+    // reason — but slab-eligible NR interest is ordinary income now, so it
+    // DOES participate in loss set-off like any other "other normal" income.
     var lossSetOff = computeLossSetOff(model.carryForwardLosses || {}, {
       businessInr: inc.business.inr,
       housePropertyInr: inc.houseProperty.inr,
-      otherNormalInr: deemedDividendInr + (isNR ? 0 : inc.interest.inr + inc.dividend.inr),
+      otherNormalInr: deemedDividendInr + (isNR ? nrInterestSlabEligibleInr : inc.interest.inr + inc.dividend.inr),
       stcgInr: inc.stcg.inr,
       ltcgGrossInr: inc.ltcg.inr
     });
@@ -241,9 +249,10 @@
     // NOT get that cap and take the full uncapped slab-based surcharge rate,
     // so keep it out of the "cap-eligible" bucket passed to that function.
     // s.115A dividend is "dividend income" for the cap's purposes; s.115A
-    // interest/royalty/FTS are not, so they ride alongside 115BB instead.
+    // royalty/FTS and DTAA-carved-out interest are not, so they ride along
+    // with 115BB instead.
     var capEligibleSpecialTaxInr = stcgInr * T.STCG_111A_RATE + ltcgTaxableInr * T.LTCG_112A_RATE + s115aDividendTaxInr;
-    var specialTaxInr = capEligibleSpecialTaxInr + special115bbTaxInr + s115aInterestTaxInr + s115aRoyaltyTaxInr + s115aFtsTaxInr;
+    var specialTaxInr = capEligibleSpecialTaxInr + special115bbTaxInr + nrInterestCarvedOutTaxInr + s115aRoyaltyTaxInr + s115aFtsTaxInr;
 
     // Slab tax on normal income.
     var slabTaxInr = bracketTax(totalNormalInr, slabs);
@@ -260,7 +269,7 @@
     // exemption-adjusted figure, silently inflating totalIncomeInr (and, via
     // computeIndiaSurcharge below, the surcharge threshold test) by the
     // exempt amount.
-    var totalIncomeInr = totalNormalInr + stcgInr + ltcgTaxableInr + special115bbInr + s115aInterestInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr;
+    var totalIncomeInr = totalNormalInr + stcgInr + ltcgTaxableInr + special115bbInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr;
     // ...and NR is excluded too (s.87A says "resident individual" — RNOR
     // still counts as resident for this, only genuine NR does not).
     var isIndividual = !model.entity || model.entity.indiaKind === "individual";
@@ -284,7 +293,7 @@
 
     return {
       regime: regime,
-      grossTotalIncomeInr: normalSlabInr + stcgInr + ltcgTaxableInr + special115bbInr + s115aInterestInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr,
+      grossTotalIncomeInr: normalSlabInr + stcgInr + ltcgTaxableInr + special115bbInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr,
       deductionsInr: deductionsInr,
       totalIncomeInr: totalIncomeInr,
       slabTaxInr: slabTaxInr,
@@ -301,8 +310,9 @@
       effectiveRate: totalIncomeInr > 0 ? totalTaxInr / totalIncomeInr : 0,
       lossSetOff: lossSetOff,
       s115a: isNR ? {
-        interest: s115aInterest, dividend: s115aDividend, royalty: s115aRoyalty, fts: s115aFts
-      } : null
+        dividend: s115aDividend, royalty: s115aRoyalty, fts: s115aFts
+      } : null,
+      nrInterest: nrInterest
     };
   }
 
@@ -363,6 +373,61 @@
       totalInr: totalInr, taxInr: taxInr, claimedInr: claimedInr, uncapturedInr: uncapturedInr,
       uncapturedTaxInr: uncapturedTaxInr, elections: elections,
       domesticRate: domestic, effectiveRate: totalInr > 0 ? taxInr / totalInr : domestic
+    };
+  }
+
+  /* Ordinary NRO savings/FD interest for a non-resident is NOT actually
+   * within s.115A's scope — that concessional flat rate is narrowly limited
+   * to interest on foreign-currency borrowings/specified bonds (s.115A(1)(a)),
+   * not ordinary rupee-denominated bank deposit interest. So by default it's
+   * ordinary slab-rate "other sources" income, exactly like a resident's —
+   * banks withhold TDS at a flat 30% (s.195) as a conservative default since
+   * they can't verify treaty eligibility at the point of credit, but that's
+   * withholding, not the final liability computed here.
+   *
+   * A DTAA election (India-US Article 11, capped at 15%) can still carve a
+   * specific claimed amount OUT of slab income and tax it flat instead — but
+   * only when TRC/Form 10F are on file AND it's actually cheaper than what
+   * that slice would cost at the marginal slab rate (s.90(2) "whichever is
+   * more beneficial" — same principle as computeS115aStream, just compared
+   * against a marginal rate instead of a flat domestic one, since there IS
+   * no flat domestic rate for this income anymore). The marginal slab rate
+   * is approximated by comparing slab tax on (everything else + this slice)
+   * vs (everything else alone) — a planning-grade approximation that
+   * doesn't account for loss-set-off ordering, consistent with the rest of
+   * this engine's precision level. */
+  function computeNrInterestTreatment(model, T, slabs, otherSlabIncomeInr, interestAggregateInr) {
+    var treaty = model.treaty || {};
+    var docsOk = treaty.trcStatus && treaty.form10fFiled;
+    var remainingInr = interestAggregateInr;
+    var elections = [];
+    var carvedOutInr = 0, carvedOutTaxInr = 0;
+    (treaty.treatyElections || []).forEach(function (e) {
+      if (!e || e.income_type !== "interest") return;
+      var raw = U.num(e.amount_inr);
+      var amt = Math.min(raw, Math.max(0, remainingInr));
+      if (amt <= 0) return;
+      remainingInr -= amt;
+      var electedRate = e.elected_rate != null ? Number(e.elected_rate) : null;
+      var canElect = docsOk && electedRate != null;
+      var marginalSlabTaxInr = bracketTax(otherSlabIncomeInr + interestAggregateInr, slabs) -
+                                bracketTax(otherSlabIncomeInr + interestAggregateInr - amt, slabs);
+      var treatyTaxInr = canElect ? amt * electedRate : null;
+      var carvedOut = canElect && treatyTaxInr < marginalSlabTaxInr;
+      if (carvedOut) { carvedOutInr += amt; carvedOutTaxInr += treatyTaxInr; }
+      elections.push({
+        article: e.treaty_article || null, requestedAmountInr: raw, appliedAmountInr: amt,
+        electedRate: electedRate, marginalSlabTaxInr: marginalSlabTaxInr, treatyTaxInr: treatyTaxInr,
+        carvedOut: carvedOut,
+        outcome: !docsOk ? "denied_no_docs" : (electedRate == null ? "no_rate" : (carvedOut ? "treaty_beats_slab" : "slab_beats_treaty"))
+      });
+    });
+    var uncapturedInr = Math.max(0, remainingInr);
+    return {
+      totalInr: interestAggregateInr,
+      slabEligibleInr: interestAggregateInr - carvedOutInr,
+      carvedOutInr: carvedOutInr, carvedOutTaxInr: carvedOutTaxInr,
+      uncapturedInr: uncapturedInr, elections: elections
     };
   }
 
@@ -559,13 +624,28 @@
       var dobYear = new Date(model.identity.dob).getFullYear();
       if (!isNaN(dobYear)) taxpayerAge = (model.meta.baseYear || 2025) - dobYear;
     }
-    var isSenior = taxpayerAge !== null && taxpayerAge >= T.SENIOR_DEDUCTION_MIN_AGE;
+    var isSenior = taxpayerAge !== null && taxpayerAge >= T.SENIOR_DEDUCTION_MIN_AGE && status !== "mfs";
     var seniorPhaseoutThr = T.SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD[status] || T.SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD.single;
     var seniorDeductionUsd = isSenior
       ? Math.max(0, Math.round(T.SENIOR_DEDUCTION_PER_PERSON_USD - T.SENIOR_DEDUCTION_PHASEOUT_RATE * Math.max(0, agi - seniorPhaseoutThr)))
       : 0;
 
-    var taxableBeforeQbi = Math.max(0, agi - deduction - seniorDeductionUsd);
+    // ---- OBBBA "no tax on tips" / "no tax on overtime" (temporary,
+    // TY2025-2028) — above-the-line deductions off AGI, MFS entirely
+    // ineligible, phased out $100 per $1,000 of MAGI over the threshold.
+    // Amounts are the qualified subset already included in Box 1 wages
+    // (Layer 1 US collects them per-W2 alongside Box 1), so this deduction
+    // does not add income — it un-taxes a slice already counted above.
+    var isMfs = status === "mfs";
+    var tipsOtPhaseoutThr = T.TIPS_OVERTIME_PHASEOUT_THRESHOLD_USD[status] || T.TIPS_OVERTIME_PHASEOUT_THRESHOLD_USD.single;
+    var tipsOtPhaseoutReduction = Math.ceil(Math.max(0, agi - tipsOtPhaseoutThr) / 1000) * T.TIPS_OVERTIME_PHASEOUT_PER_1000_USD;
+    var qualifiedTipsUsd = isMfs ? 0 : (inc.qualifiedTipsUsd || 0);
+    var qualifiedOvertimeUsd = isMfs ? 0 : (inc.qualifiedOvertimeUsd || 0);
+    var tipsDeductionUsd = isMfs ? 0 : Math.max(0, Math.round(Math.min(qualifiedTipsUsd, T.TIPS_DEDUCTION_MAX_USD) - tipsOtPhaseoutReduction));
+    var overtimeMaxUsd = T.OVERTIME_DEDUCTION_MAX_USD[status] || T.OVERTIME_DEDUCTION_MAX_USD.single;
+    var overtimeDeductionUsd = isMfs ? 0 : Math.max(0, Math.round(Math.min(qualifiedOvertimeUsd, overtimeMaxUsd) - tipsOtPhaseoutReduction));
+
+    var taxableBeforeQbi = Math.max(0, agi - deduction - seniorDeductionUsd - tipsDeductionUsd - overtimeDeductionUsd);
 
     // ---- QBI deduction (§199A) ----
     // 20% of qualified business income, capped at 20% of (taxable income less
@@ -678,6 +758,13 @@
       saltCapUsd: saltCapUsd,
       seniorDeductionUsd: seniorDeductionUsd,
       seniorDetail: { age: taxpayerAge, isSenior: isSenior, fullAmountUsd: T.SENIOR_DEDUCTION_PER_PERSON_USD, phaseoutThresholdUsd: seniorPhaseoutThr },
+      tipsDeductionUsd: tipsDeductionUsd,
+      overtimeDeductionUsd: overtimeDeductionUsd,
+      tipsOvertimeDetail: {
+        isMfs: isMfs, qualifiedTipsUsd: qualifiedTipsUsd, qualifiedOvertimeUsd: qualifiedOvertimeUsd,
+        tipsMaxUsd: T.TIPS_DEDUCTION_MAX_USD, overtimeMaxUsd: overtimeMaxUsd,
+        phaseoutThresholdUsd: tipsOtPhaseoutThr, phaseoutReductionUsd: tipsOtPhaseoutReduction
+      },
       taxableIncomeUsd: taxableIncome,
       ordinaryTaxUsd: ordinaryTax,
       ordinaryTaxableUsd: ordTaxable,

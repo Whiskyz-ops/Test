@@ -136,72 +136,74 @@
     // Layer 1 lets the taxpayer claim a specific DTAA article/rate on
     // India-source interest, royalty, FTS or dividend, against a specific
     // rupee amount_inr (e.g. Art. 11(2)(b) 15% on ₹1,50,000 of one NRO
-    // account's interest) instead of the domestic s.115A withholding rate.
-    // s.115A — and therefore these elections — only applies to a genuine
-    // NON-RESIDENT under India's own domestic law (RNOR/ROR pay slab rates on
-    // this income regardless of any DTAA tie-break outcome). computeIndiaTax()
-    // now actually applies interest/dividend/royalty/FTS elections for NR
-    // taxpayers using each election's own amount_inr (see computeS115aStream)
-    // — only capital_gains stays disclosed-only, since Art. 13 itself says
-    // domestic law applies with no special treaty rate (Layer 1's own
-    // auto-fill leaves elected_rate null for that type).
-    // Domestic s.115A default withholding rates (no PE, NR recipient) — shared
-    // with computation.js's actual NR tax so the comparison text here can
-    // never drift from what's really being computed.
-    var DOMESTIC_RATE_115A = CONST.TAX.INDIA.S115A_RATES;
-    var COMPUTED_S115A_TYPES = { interest: true, dividend: true, royalty: true, fts: true };
+    // account's interest). Dividend/royalty/FTS genuinely fall under s.115A's
+    // concessional domestic rate (a flat comparison, see computeS115aStream).
+    // Interest does NOT — s.115A(1)(a)'s concessional rate is narrowly
+    // limited to foreign-currency-borrowing interest, so ordinary NRO
+    // interest defaults to slab rates, and a treaty election only carves it
+    // out when that beats the *marginal* slab rate on that slice (see
+    // computeNrInterestTreatment). Rather than re-deriving either comparison
+    // here (and risking drift from what's actually computed), this reads the
+    // real per-election outcome straight from computed.indiaTax.
+    var COMPUTED_S115A_TYPES = { dividend: true, royalty: true, fts: true };
     if (treatyElections.length > 0) {
       var isNrForS115a = res.india.status === CONST.INDIA_STATUS.NR;
       var docsShortfall = [];
       if (!model.treaty.trcStatus) docsShortfall.push("TRC (IRS Form 6166)");
       if (!model.treaty.form10fFiled) docsShortfall.push("Form 10F");
+      var s115aByType = (computed.indiaTax && computed.indiaTax.s115a) || {};
+      var nrInterestElections = (computed.indiaTax && computed.indiaTax.nrInterest && computed.indiaTax.nrInterest.elections) || [];
+      var interestSeen = 0;
+      var typeSeen = { dividend: 0, royalty: 0, fts: 0 };
       var electionParts = treatyElections
         .filter(function (e) { return e && e.income_type; })
         .map(function (e) {
           var pct = e.elected_rate != null ? Math.round(e.elected_rate * 100) + "%" : "unset rate";
-          var domestic = DOMESTIC_RATE_115A[e.income_type];
           var amtInr = U.num(e.amount_inr);
           var amtStr = amtInr > 1 ? " on " + inr(amtInr) : " (no amount entered)";
-          var compare = "";
-          if (domestic != null && e.elected_rate != null) {
-            compare = e.elected_rate < domestic
-              ? " (vs " + Math.round(domestic * 100) + "% domestic s.115A rate — treaty saves " + Math.round((domestic - e.elected_rate) * 100) + " points)"
-              : " (vs " + Math.round(domestic * 100) + "% domestic s.115A rate — elected rate is NOT lower; confirm this is really beneficial)";
-          }
           var computedTag;
           if (!isNrForS115a) {
             computedTag = " [not applied — taxpayer is not NR, see below]";
-          } else if (!COMPUTED_S115A_TYPES[e.income_type]) {
+          } else if (e.income_type === "capital_gains") {
             computedTag = " [not applied — no special treaty rate under Art. 13 for capital gains]";
           } else if (amtInr <= 1) {
             computedTag = " [not applied — no amount entered against this election]";
+          } else if (e.income_type === "interest") {
+            var ie = nrInterestElections[interestSeen++];
+            if (!ie) computedTag = " [not applied]";
+            else if (ie.outcome === "denied_no_docs") computedTag = " [election denied — TRC/Form 10F missing, ordinary slab rates apply to this slice instead]";
+            else if (ie.outcome === "treaty_beats_slab") computedTag = " [elected rate applied — beats the marginal slab rate this slice would otherwise cost]";
+            else computedTag = " [not applied — the marginal slab rate on this slice is already cheaper than the elected treaty rate]";
+          } else if (COMPUTED_S115A_TYPES[e.income_type]) {
+            var stream = s115aByType[e.income_type];
+            var se = stream && stream.elections && stream.elections[typeSeen[e.income_type]++];
+            var domestic = CONST.TAX.INDIA.S115A_RATES[e.income_type];
+            var compareDom = domestic != null ? " (vs " + Math.round(domestic * 100) + "% domestic s.115A rate)" : "";
+            if (!se) computedTag = " [not applied]" + compareDom;
+            else if (se.outcome === "denied_no_docs") computedTag = " [election denied — domestic " + Math.round(domestic * 100) + "% rate applied instead, TRC/Form 10F missing]";
+            else if (se.outcome === "elected_rate_applied") computedTag = " [elected rate applied to the India tax above" + compareDom + "]";
+            else computedTag = " [domestic " + Math.round(domestic * 100) + "% rate applied instead — it's more beneficial than the elected rate]";
           } else {
-            var docsOk = model.treaty.trcStatus && model.treaty.form10fFiled;
-            if (docsOk && domestic != null && e.elected_rate != null && e.elected_rate < domestic) {
-              computedTag = " [elected rate applied to the India tax above]";
-            } else if (!docsOk) {
-              computedTag = " [election denied — domestic " + Math.round((domestic || 0) * 100) + "% rate applied instead, TRC/Form 10F missing]";
-            } else {
-              computedTag = " [domestic " + Math.round((domestic || 0) * 100) + "% rate applied instead — it's more beneficial than the elected rate]";
-            }
+            computedTag = " [not applied]";
           }
-          return e.income_type + " @ " + pct + (e.treaty_article ? " (" + e.treaty_article + ")" : "") + amtStr + compare + computedTag;
+          return e.income_type + " @ " + pct + (e.treaty_article ? " (" + e.treaty_article + ")" : "") + amtStr + computedTag;
         });
       add("dtaa_treaty_elections", docsShortfall.length > 0 ? S.WARNING : S.INFO, C.TREATY,
         electionParts.length + " DTAA treaty rate election(s) on file",
-        "Layer 1 records a claimed treaty rate on the following India-source income stream(s), instead of the domestic " +
-        "s.115A withholding rate: " + electionParts.join("; ") + "." +
+        "Layer 1 records a claimed treaty rate on the following India-source income stream(s): " + electionParts.join("; ") + "." +
         (!isNrForS115a
-          ? " This taxpayer is resident (not NR) under India's own domestic law, so s.115A — and every election above — " +
+          ? " This taxpayer is resident (not NR) under India's own domestic law, so s.115A and every election above " +
             "has NO effect regardless of income type; residents are taxed on this income at slab rates instead. If the " +
             "taxpayer is genuinely meant to be NR, check the residency determination; if not, these elections are moot."
-          : " Interest, dividend, royalty and FTS elections are applied to the India tax computed above using each " +
-            "election's own amount — whatever part of interest/dividend isn't covered by an election is still taxed, " +
-            "just at the plain domestic rate. Capital-gains elections are NOT applied — Art. 13 itself provides no " +
-            "special treaty rate, domestic law governs regardless (see Part H).") +
+          : " Dividend, royalty and FTS elections are compared against the flat domestic s.115A rate (s.90(2), whichever " +
+            "is lower). Interest is different — ordinary NRO interest isn't actually s.115A income (that concessional " +
+            "rate is narrow, foreign-currency-borrowing interest only), so it's slab-rate income by default, and an " +
+            "election only helps when the flat treaty rate beats the marginal slab rate on that specific slice. Capital-" +
+            "gains elections are NOT applied — Art. 13 itself provides no special treaty rate, domestic law governs " +
+            "regardless (see Part H).") +
         (docsShortfall.length > 0
           ? " Layer 1 does NOT show " + docsShortfall.join(" or ") + " on file — every one of these elections is at risk of " +
-            "being denied and defaulting back to the full domestic s.115A rate u/s 90(4) without it."
+            "being denied and defaulting back to slab/domestic rates without it."
           : ""),
         docsShortfall.length > 0
           ? "Obtain " + docsShortfall.join(" and ") + " before relying on any of these elected rates — without it, the payer/" +
@@ -914,6 +916,20 @@
     return parts;
   }
 
+  /* Same idea as s115aParts, but for computeNrInterestTreatment()'s result —
+   * only the elections that actually got carved OUT of slab income (the
+   * comparison is against a marginal slab rate, not a flat domestic one, so
+   * there's no single "domestic rate" to quote). */
+  function nrInterestParts(nrInterest, fmt) {
+    return (nrInterest.elections || []).filter(function (e) { return e.carvedOut; }).map(function (e) {
+      var artTxt = e.article ? " (" + e.article + ")" : "";
+      return {
+        label: "Election" + artTxt + " on " + fmt(e.appliedAmountInr) + " @ " + Math.round(e.electedRate * 100) + "% treaty rate (beats the " + fmt(e.marginalSlabTaxInr) + " it would have cost at the marginal slab rate)",
+        amount: e.treatyTaxInr
+      };
+    });
+  }
+
   /* ------------------------------------------------------------------------
    * buildFtcReport — flatten the FTC computation into a dashboard table.
    * ----------------------------------------------------------------------*/
@@ -1073,7 +1089,7 @@
         ]);
 
     var rebateCap = i.regime === "NEW" ? T.REBATE_87A_NEW.maxRebate : T.REBATE_87A_OLD.maxRebate;
-    var s115aTraces = i.s115a ? ["interest", "dividend", "royalty", "fts"].filter(function (k) {
+    var s115aTraces = i.s115a ? ["dividend", "royalty", "fts"].filter(function (k) {
       return i.s115a[k] && i.s115a[k].totalInr > 1;
     }).map(function (k) {
       var s = i.s115a[k];
@@ -1081,6 +1097,11 @@
         trace: calc("Total " + k + " income of " + inr(s.totalInr) + " under s.115A — each DTAA election (s.90(2)) is taxed at whichever is LOWER of the domestic default or the elected treaty rate, and only when TRC/Form 10F are on file; anything not covered by a valid election falls back to the domestic default",
           s115aParts(s, inr)) };
     }) : [];
+    var nrInterestTrace = (i.nrInterest && i.nrInterest.carvedOutInr > 1) ? [
+      { label: "  — of which DTAA-carved-out interest (Art 11) taxed separately", inr: i.nrInterest.carvedOutTaxInr,
+        trace: calc("Ordinary NRO interest is slab-rate income for a non-resident by default (s.115A's concessional rate doesn't actually cover it — that's narrowly limited to foreign-currency-borrowing interest). A specific claimed amount can still be carved out and taxed at the flat treaty rate instead of slab rates, but only when TRC/Form 10F are on file AND it's actually cheaper than the marginal slab rate on that slice (s.90(2))",
+          nrInterestParts(i.nrInterest, inr)) }
+    ] : [];
 
     return {
       india: {
@@ -1094,11 +1115,11 @@
               { label: "Less Chapter VI-A deductions", amount: -i.deductionsInr }
             ]) },
           { label: "Tax at slab rates", inr: i.slabTaxInr,
-            trace: calc("Progressive slab-rate tax under the " + i.regime + " regime, applied to ₹" + Math.round(i.totalNormalInr).toLocaleString("en-IN") + " of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
+            trace: calc("Progressive slab-rate tax under the " + i.regime + " regime, applied to ₹" + Math.round(i.totalNormalInr).toLocaleString("en-IN") + " of normal-rate income (salary, house property, business, other sources" + (i.nrInterest ? " — including ordinary NRO interest, which is slab-rate income by default; only a DTAA-beneficial slice is carved out separately below" : "") + ", after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
               bracketParts(i.slabBreakdown, inr)) },
-          { label: "Tax on special-rate income (111A/112A gains + 115BB/115BBJ winnings" + (i.s115a ? " + s.115A interest/dividend/royalty/FTS" : "") + ")", inr: i.specialTaxInr,
-            trace: calc("s.111A STCG @ 20% + s.112A LTCG @ 12.5% (net of the ₹1,25,000 exemption) + s.115BB/115BBJ lottery/betting/gaming winnings @ 30% flat, no exemption" + (i.s115a ? " + s.115A interest/dividend/royalty/FTS at their own rates (broken out below)" : ""), []) }
-        ]).concat(s115aTraces).concat([
+          { label: "Tax on special-rate income (111A/112A gains + 115BB/115BBJ winnings" + (i.s115a ? " + s.115A dividend/royalty/FTS" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + DTAA-carved-out interest" : "") + ")", inr: i.specialTaxInr,
+            trace: calc("s.111A STCG @ 20% + s.112A LTCG @ 12.5% (net of the ₹1,25,000 exemption) + s.115BB/115BBJ lottery/betting/gaming winnings @ 30% flat, no exemption" + (i.s115a ? " + s.115A dividend/royalty/FTS at their own rates" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + any DTAA-carved-out interest at its treaty rate" : "") + " (each broken out below)", []) }
+        ]).concat(nrInterestTrace).concat(s115aTraces).concat([
           { label: "Less §87A rebate", inr: -i.rebateInr,
             trace: calc("Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold — lesser of tax at slab rates and the statutory cap", [
               { label: "Statutory rebate cap", amount: rebateCap },
@@ -1206,16 +1227,32 @@
               { label: "Full amount before phase-out", amount: u.seniorDetail.fullAmountUsd },
               { label: "Senior deduction after phase-out", amount: u.seniorDeductionUsd }
             ]) }] : [])
+          .concat(u.tipsDeductionUsd > 0 ? [{ label: "Less \"no tax on tips\" deduction (OBBBA, 2025-2028)", usd: -u.tipsDeductionUsd,
+            trace: calc("Lesser of qualified tip income (already included in Box 1 wages above) or the $" + Math.round(u.tipsOvertimeDetail.tipsMaxUsd).toLocaleString("en-US") + " flat cap, less $100 per $1,000 of AGI over " + usd(u.tipsOvertimeDetail.phaseoutThresholdUsd) + ". Not available at all to MFS filers.", [
+              { label: "Qualified tip income (Box 1 subset)", amount: u.tipsOvertimeDetail.qualifiedTipsUsd },
+              { label: "Flat cap", amount: u.tipsOvertimeDetail.tipsMaxUsd },
+              { label: "Less phase-out reduction", amount: -u.tipsOvertimeDetail.phaseoutReductionUsd },
+              { label: "Tips deduction after phase-out", amount: u.tipsDeductionUsd }
+            ]) }] : [])
+          .concat(u.overtimeDeductionUsd > 0 ? [{ label: "Less \"no tax on overtime\" deduction (OBBBA, 2025-2028)", usd: -u.overtimeDeductionUsd,
+            trace: calc("Lesser of qualified FLSA §7 overtime premium pay (already included in Box 1 wages above) or the $" + Math.round(u.tipsOvertimeDetail.overtimeMaxUsd).toLocaleString("en-US") + " cap (filing status " + u.filingStatus.toUpperCase() + "), less $100 per $1,000 of AGI over " + usd(u.tipsOvertimeDetail.phaseoutThresholdUsd) + ". Not available at all to MFS filers.", [
+              { label: "Qualified overtime premium (Box 1 subset)", amount: u.tipsOvertimeDetail.qualifiedOvertimeUsd },
+              { label: "Cap for this filing status", amount: u.tipsOvertimeDetail.overtimeMaxUsd },
+              { label: "Less phase-out reduction", amount: -u.tipsOvertimeDetail.phaseoutReductionUsd },
+              { label: "Overtime deduction after phase-out", amount: u.overtimeDeductionUsd }
+            ]) }] : [])
           .concat(u.qbiDeductionUsd > 0 ? [{ label: "Less §199A QBI deduction", usd: -u.qbiDeductionUsd,
             trace: calc("20% of qualified business income (Sch C/S-corp/partnership pass-through), capped at 20% of (taxable income less net capital gains); phased out for specified service trades above the SSTB income threshold", [
               { label: "QBI deduction", amount: u.qbiDeductionUsd }
             ]) }] : [])
           .concat([
             { label: "Taxable income", usd: u.taxableIncomeUsd,
-              trace: calc("AGI less deduction" + (u.seniorDeductionUsd > 0 ? " less senior deduction" : "") + (u.qbiDeductionUsd > 0 ? " less §199A QBI deduction" : ""), [
+              trace: calc("AGI less deduction" + (u.seniorDeductionUsd > 0 ? " less senior deduction" : "") + (u.tipsDeductionUsd > 0 ? " less tips deduction" : "") + (u.overtimeDeductionUsd > 0 ? " less overtime deduction" : "") + (u.qbiDeductionUsd > 0 ? " less §199A QBI deduction" : ""), [
                 { label: "AGI", amount: u.agiUsd },
                 { label: "Less deduction", amount: -u.deductionUsd }
               ].concat(u.seniorDeductionUsd > 0 ? [{ label: "Less senior deduction", amount: -u.seniorDeductionUsd }] : [])
+                .concat(u.tipsDeductionUsd > 0 ? [{ label: "Less tips deduction", amount: -u.tipsDeductionUsd }] : [])
+                .concat(u.overtimeDeductionUsd > 0 ? [{ label: "Less overtime deduction", amount: -u.overtimeDeductionUsd }] : [])
                 .concat(u.qbiDeductionUsd > 0 ? [{ label: "Less QBI deduction", amount: -u.qbiDeductionUsd }] : [])) },
             { label: "Ordinary-rate tax", usd: u.ordinaryTaxUsd,
               trace: calc("Progressive federal brackets (10%-37%, filing status " + u.filingStatus.toUpperCase() + ") applied to $" + Math.round(u.ordinaryTaxableUsd).toLocaleString("en-US") + " of ordinary taxable income (taxable income less the LTCG/QDI portion, which is taxed separately below)",
