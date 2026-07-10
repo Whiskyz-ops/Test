@@ -578,6 +578,8 @@
       filingStatus: status,
       worldwide: worldwide,
       totalIncomeUsd: totalIncome,
+      ordinaryIncomeUsd: ordinaryIncome,
+      preferentialIncomeUsd: preferentialIncome,
       agiUsd: agi,
       deductionUsd: deduction,
       deductionMode: (ded.mode === "itemized" || ded.mode === "standard") ? ded.mode : (itemized > standard ? "itemized" : "standard"),

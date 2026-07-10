@@ -869,36 +869,98 @@
     });
   }
 
+  /* Trace helpers — attach to every dashboard row so the UI can pop open a
+   * "where did this come from" panel. "source" = pulled from Layer 1 with no
+   * material computation; "calc" = a formula over other already-shown
+   * numbers (parts are {label, amount} in the row's own currency, or
+   * {label, display} for a non-currency operand like a rate). */
+  function calc(formula, parts) { return { kind: "calc", formula: formula, parts: parts || [] }; }
+  function source(detail) { return { kind: "source", detail: detail }; }
+
   /* ------------------------------------------------------------------------
    * buildFtcReport — flatten the FTC computation into a dashboard table.
    * ----------------------------------------------------------------------*/
   function buildFtcReport(model, computed) {
-    var ftc = computed.ftc;
+    var ftc = computed.ftc, indiaTax = computed.indiaTax, usTax = computed.usTax;
     var feieRows = ftc.us.feieExcludedUsd > 0
-      ? [{ label: "Less FEIE-excluded wages (§911)", usd: -ftc.us.feieExcludedUsd },
-         { label: "Indian tax disallowed on excluded income", usd: -ftc.us.indiaTaxDisallowedUsd }]
+      ? [
+          { label: "Less FEIE-excluded wages (§911)", usd: -ftc.us.feieExcludedUsd,
+            trace: source("The §911 Foreign Earned Income Exclusion amount claimed on Layer 1 US (Form 2555). Excluded income leaves the FTC computation entirely — §911(d)(6) no-double-dip.") },
+          { label: "Indian tax disallowed on excluded income", usd: -ftc.us.indiaTaxDisallowedUsd,
+            trace: calc("Total Indian tax × (FEIE-excluded wages ÷ gross Indian-source income) — the slice of Indian tax attributable to income the US isn't taxing at all can't be credited", [
+              { label: "Total India tax (USD)", amount: indiaTax.totalTaxUsd },
+              { label: "FEIE-excluded wages", amount: ftc.us.feieExcludedUsd },
+              { label: "Gross Indian-source income (US view)", amount: model.income.india.total.usd }
+            ]) }
+        ]
       : [];
     return {
       direction_us_claims_india: {
         title: "US Form 1116 — credit for Indian taxes",
         rows: feieRows.concat([
-          { label: "Indian income tax (creditable)", usd: ftc.us.indiaTaxPaidUsd },
-          { label: "Foreign-source income (US view)", usd: ftc.us.foreignSourceIncomeUsd },
-          { label: "US taxable income", usd: ftc.us.taxableIncomeUsd },
-          { label: "US income tax (pre-credit)", usd: ftc.us.usIncomeTaxUsd },
-          { label: "FTC limitation = US tax × foreign/taxable", usd: ftc.us.ftcLimitUsd },
-          { label: "FTC allowed this year", usd: ftc.us.ftcAllowedUsd, emphasis: true },
-          { label: "Excess credit carried over (§904(c))", usd: ftc.us.carryoverUsd },
-          { label: "Residual double tax (unrelieved)", usd: ftc.us.residualDoubleTaxUsd, warn: true }
+          { label: "Indian income tax (creditable)", usd: ftc.us.indiaTaxPaidUsd,
+            trace: calc("Total India tax × creditable fraction (gross Indian income less any FEIE-excluded slice, over gross Indian income)", [
+              { label: "Total India tax (from Tax Computation)", amount: indiaTax.totalTaxUsd },
+              { label: "Creditable fraction", display: Math.round((indiaTax.totalTaxUsd > 0 ? ftc.us.indiaTaxPaidUsd / indiaTax.totalTaxUsd : 1) * 100) + "%" }
+            ]) },
+          { label: "Foreign-source income (US view)", usd: ftc.us.foreignSourceIncomeUsd,
+            trace: calc("All Indian-source income (from Layer 1 India), less any FEIE-excluded wages", [
+              { label: "Gross Indian-source income", amount: model.income.india.total.usd },
+              { label: "Less FEIE-excluded wages", amount: -ftc.us.feieExcludedUsd }
+            ]) },
+          { label: "US taxable income", usd: ftc.us.taxableIncomeUsd,
+            trace: calc("Same figure as \"Taxable income\" in the Tax Computation card above", [
+              { label: "US taxable income", amount: ftc.us.taxableIncomeUsd }
+            ]) },
+          { label: "US income tax (pre-credit)", usd: ftc.us.usIncomeTaxUsd,
+            trace: calc("Ordinary-rate tax + preferential LTCG/QDI tax only — NIIT, Additional Medicare, SE tax and AMT are excluded, they're not creditable against foreign tax by statute", [
+              { label: "Ordinary-rate tax", amount: usTax.ordinaryTaxUsd },
+              { label: "Preferential LTCG/QDI tax", amount: usTax.preferentialTaxUsd }
+            ]) },
+          { label: "FTC limitation = US tax × foreign/taxable", usd: ftc.us.ftcLimitUsd,
+            trace: calc("§904(a): the credit can't exceed US tax on this income times the same proportion foreign-source income bears to total taxable income", [
+              { label: "US income tax (pre-credit)", amount: ftc.us.usIncomeTaxUsd },
+              { label: "Foreign-source income", amount: ftc.us.foreignSourceIncomeUsd },
+              { label: "US taxable income", amount: ftc.us.taxableIncomeUsd }
+            ]) },
+          { label: "FTC allowed this year", usd: ftc.us.ftcAllowedUsd, emphasis: true,
+            trace: calc("Lesser of Indian tax paid and the §904 limitation", [
+              { label: "Indian income tax (creditable)", amount: ftc.us.indiaTaxPaidUsd },
+              { label: "FTC limitation", amount: ftc.us.ftcLimitUsd }
+            ]) },
+          { label: "Excess credit carried over (§904(c))", usd: ftc.us.carryoverUsd,
+            trace: calc("Indian tax paid in excess of what the §904 limitation allows this year — carries back 1 year / forward 10 years", [
+              { label: "Indian income tax (creditable)", amount: ftc.us.indiaTaxPaidUsd },
+              { label: "Less FTC allowed this year", amount: -ftc.us.ftcAllowedUsd }
+            ]) },
+          { label: "Residual double tax (unrelieved)", usd: ftc.us.residualDoubleTaxUsd, warn: true,
+            trace: calc("Same as the excess credit carried over — until it's actually used in a future year this is double taxation the credit hasn't relieved yet", [
+              { label: "Excess credit carried over", amount: ftc.us.carryoverUsd }
+            ]) }
         ])
       },
       direction_india_relief: {
         title: "India §90 relief — for US taxes on doubly-taxed income",
         rows: [
-          { label: "US-source income (foreign, India view)", usd: ftc.india.foreignSourceIncomeUsd },
-          { label: "US tax on that US-source income", usd: ftc.india.usTaxOnUsSourceUsd },
-          { label: "Indian tax on the doubly-taxed income (cap)", usd: ftc.india.reliefCapUsd },
-          { label: "§90 relief allowed", usd: ftc.india.reliefAllowedUsd, emphasis: true }
+          { label: "US-source income (foreign, India view)", usd: ftc.india.foreignSourceIncomeUsd,
+            trace: source("All US-source income from Layer 1 US — only counted when the taxpayer is India ROR (worldwide taxation); zero otherwise.") },
+          { label: "US tax on that US-source income", usd: ftc.india.usTaxOnUsSourceUsd,
+            trace: calc("US income tax × (US-source income ÷ total US income) — the slice of US tax attributable to income India also taxes", [
+              { label: "US income tax (pre-credit)", amount: usTax.incomeTaxUsd },
+              { label: "US-source income", amount: usTax.usSourceIncomeUsd },
+              { label: "Total US income", amount: usTax.totalIncomeUsd }
+            ]) },
+          { label: "Indian tax on the doubly-taxed income (cap)", usd: ftc.india.reliefCapUsd,
+            trace: calc("Total India tax × (US-source income ÷ total India-view income) — s.90 relief can never exceed the Indian tax actually attributable to that income", [
+              { label: "Total India tax", amount: indiaTax.totalTaxUsd },
+              { label: "US-source income (India view)", amount: ftc.india.foreignSourceIncomeUsd },
+              { label: "Total India-view income", amount: indiaTax.totalIncomeUsd }
+            ]) },
+          { label: "§90 relief allowed", usd: ftc.india.reliefAllowedUsd, emphasis: true,
+            trace: calc("Lesser of the US tax on that income and the Indian-tax cap", [
+              { label: "US tax on the doubly-taxed income", amount: ftc.india.usTaxOnUsSourceUsd },
+              { label: "Indian tax cap", amount: ftc.india.reliefCapUsd }
+            ]) }
         ]
       },
       headlineNetDoubleTaxUsd: ftc.netUnrelievedDoubleTaxUsd
@@ -909,53 +971,119 @@
    * buildTaxComputation — flatten the India & US computed liabilities into
    * dashboard-ready breakdown tables (transparency behind the FTC numbers).
    * ----------------------------------------------------------------------*/
-  function buildTaxComputation(computed) {
+  function buildTaxComputation(model, computed) {
     var i = computed.indiaTax, u = computed.usTax;
+    var T = CONST.TAX.INDIA;
+    var dedIndia = (model.deductions && model.deductions.india) || {};
 
     // Brought-forward loss set-off breakdown (s.72/71B/74/32(2)) — shown as
     // explicit "before -> deductions -> after" rows so the set-off is never a
     // silent adjustment buried inside "Gross total income".
     var lso = i.lossSetOff;
+    var cfl = model.carryForwardLosses || {};
     var LOSS_ROW_DEFS = [
-      { key: "businessInr", label: "  — brought-forward business loss set off (s.72)" },
-      { key: "housePropertyInr", label: "  — brought-forward house-property loss set off (s.71B)" },
-      { key: "stcgInr", label: "  — brought-forward STCG loss set off vs current STCG (s.74)" },
-      { key: "ltcgFromStcgLossInr", label: "  — brought-forward STCG loss set off vs current LTCG (s.74)" },
-      { key: "ltcgInr", label: "  — brought-forward LTCG loss set off vs current LTCG (s.74)" },
-      { key: "unabsorbedDepreciationInr", label: "  — unabsorbed depreciation set off (s.32(2))" }
+      { key: "businessInr", label: "  — brought-forward business loss set off (s.72)", availableKey: "businessLossAvailableInr", rule: "Set off only against business income (s.72)" },
+      { key: "housePropertyInr", label: "  — brought-forward house-property loss set off (s.71B)", availableKey: "housePropertyLossAvailableInr", rule: "Set off only against house-property income (s.71B) — unlike current-year HP loss, brought-forward HP loss can't go inter-head" },
+      { key: "stcgInr", label: "  — brought-forward STCG loss set off vs current STCG (s.74)", availableKey: "stcgLossAvailableInr", rule: "STCG loss is set off against current STCG first (s.74)" },
+      { key: "ltcgFromStcgLossInr", label: "  — brought-forward STCG loss set off vs current LTCG (s.74)", availableKey: "stcgLossAvailableInr", rule: "Any STCG loss left after offsetting current STCG can still offset LTCG (s.74)" },
+      { key: "ltcgInr", label: "  — brought-forward LTCG loss set off vs current LTCG (s.74)", availableKey: "ltcgLossAvailableInr", rule: "LTCG loss can only offset LTCG, never STCG (s.74)" },
+      { key: "unabsorbedDepreciationInr", label: "  — unabsorbed depreciation set off (s.32(2))", availableKey: "unabsorbedDepreciationCf", rule: "No time limit; can offset any head except salary (s.32(2))" }
     ];
     var indiaGrossRows = (lso && lso.totalUsedInr > 1) ? [
-      { label: "Current-year income (before brought-forward loss set-off)", inr: i.grossTotalIncomeInr + lso.totalUsedInr }
+      { label: "Current-year income (before brought-forward loss set-off)", inr: i.grossTotalIncomeInr + lso.totalUsedInr,
+        trace: calc("Gross total income after set-off, plus every brought-forward loss set off below added back", [
+          { label: "Gross total income (after set-off)", amount: i.grossTotalIncomeInr },
+          { label: "Brought-forward losses set off (added back)", amount: lso.totalUsedInr }
+        ]) }
     ].concat(LOSS_ROW_DEFS.filter(function (d) { return lso.used[d.key] > 1; }).map(function (d) {
-      return { label: d.label, inr: -lso.used[d.key] };
+      return { label: d.label, inr: -lso.used[d.key],
+        trace: calc(d.rule + " — amount used is the lesser of the loss available and the current-year income in that bucket", [
+          { label: "Brought-forward loss available", amount: cfl[d.availableKey] || 0 },
+          { label: "Amount actually set off this year", amount: lso.used[d.key] }
+        ]) };
     })).concat([
-      { label: "Gross total income (after brought-forward loss set-off)", inr: i.grossTotalIncomeInr }
+      { label: "Gross total income (after brought-forward loss set-off)", inr: i.grossTotalIncomeInr,
+        trace: calc("Current-year income before set-off, less all brought-forward losses set off above", [
+          { label: "Before set-off", amount: i.grossTotalIncomeInr + lso.totalUsedInr },
+          { label: "Less: total losses set off", amount: -lso.totalUsedInr }
+        ]) }
     ]) : [
-      { label: "Gross total income", inr: i.grossTotalIncomeInr }
+      { label: "Gross total income", inr: i.grossTotalIncomeInr,
+        trace: calc("Sum of all income heads reported on Layer 1 India — salary, house property, business/professional, capital gains, and other sources — plus any special-rate income (capital gains, winnings, s.115A streams)", []) }
     ];
     var indiaLossCarryRow = (lso && lso.totalUnusedInr > 1) ? [
-      { label: "Losses carried forward to future years (could not be set off this year)", inr: lso.totalUnusedInr }
+      { label: "Losses carried forward to future years (could not be set off this year)", inr: lso.totalUnusedInr,
+        trace: calc("Brought-forward losses left over after set-off — different loss categories can only offset specific income heads (s.72/71B/74/32(2)), so a category with no matching income this year carries forward untouched (8 years for most heads, no limit for unabsorbed depreciation)", [
+          { label: "Total unused this year", amount: lso.totalUnusedInr }
+        ]) }
     ] : [];
+
+    var dedTrace = i.regime === "NEW"
+      ? calc("New regime allows only the employer's NPS contribution under s.80CCD(2) — s.80C/80D/80CCD(1B)/80TTA etc. are not available", [
+          { label: "Employer NPS contribution (s.80CCD(2))", amount: dedIndia.s80CCD2_employer || 0 }
+        ])
+      : calc("Old regime: s.80C (cap ₹1.5L) + s.80CCD(1B) NPS (cap ₹50k) + s.80D health insurance (cap ₹75k) + employer NPS s.80CCD(2) (uncapped) + s.80TTA/TTB savings interest (cap ₹10k)", [
+          { label: "s.80C (capped ₹1.5L)", amount: Math.min(dedIndia.s80C || 0, T.DEDUCTION_CAPS_OLD.s80C) },
+          { label: "s.80CCD(1B) NPS (capped ₹50k)", amount: Math.min(dedIndia.s80CCD1B || 0, T.DEDUCTION_CAPS_OLD.s80CCD1B) },
+          { label: "s.80D health insurance (capped ₹75k)", amount: Math.min(dedIndia.s80D || 0, T.DEDUCTION_CAPS_OLD.s80D_self + T.DEDUCTION_CAPS_OLD.s80D_parents_senior) },
+          { label: "Employer NPS s.80CCD(2)", amount: dedIndia.s80CCD2_employer || 0 },
+          { label: "s.80TTA/TTB savings interest (capped ₹10k)", amount: Math.min(dedIndia.s80TTA_TTB || 0, 10000) }
+        ]);
+
+    var rebateCap = i.regime === "NEW" ? T.REBATE_87A_NEW.maxRebate : T.REBATE_87A_OLD.maxRebate;
+    var s115aTraces = i.s115a ? ["interest", "dividend", "royalty", "fts"].filter(function (k) {
+      return i.s115a[k] && i.s115a[k].totalInr > 1;
+    }).map(function (k) {
+      var s = i.s115a[k];
+      return { label: "  — of which s.115A " + k + " @ " + Math.round(s.effectiveRate * 100) + "% effective", inr: s.taxInr,
+        trace: calc("s.90(2) DTAA-elected amounts taxed at min(domestic, elected) rate; whatever isn't covered by a valid election is taxed at the plain domestic default", [
+          { label: "Total " + k + " income (s.115A)", amount: s.totalInr },
+          { label: "Claimed under treaty election(s)", amount: s.claimedInr },
+          { label: "Uncaptured (no/invalid election → domestic rate)", amount: s.uncapturedInr },
+          { label: "Domestic s.115A default rate", display: Math.round(s.domesticRate * 100) + "%" },
+          { label: "Effective blended rate on this stream", display: Math.round(s.effectiveRate * 100) + "%" }
+        ]) };
+    }) : [];
 
     return {
       india: {
         title: i.isEntity ? ("India income tax — " + i.regime) : ("India income tax (" + i.regime + " regime)"),
         currency: "INR",
         rows: indiaGrossRows.concat([
-          { label: "Chapter VI-A deductions", inr: -i.deductionsInr },
-          { label: "Total income", inr: i.totalIncomeInr },
-          { label: "Tax at slab rates", inr: i.slabTaxInr },
-          { label: "Tax on special-rate income (111A/112A gains + 115BB/115BBJ winnings" + (i.s115a ? " + s.115A interest/dividend/royalty/FTS" : "") + ")", inr: i.specialTaxInr }
-        ]).concat(i.s115a ? ["interest", "dividend", "royalty", "fts"].filter(function (k) {
-          return i.s115a[k] && i.s115a[k].totalInr > 1;
-        }).map(function (k) {
-          var s = i.s115a[k];
-          return { label: "  — of which s.115A " + k + " @ " + Math.round(s.effectiveRate * 100) + "% effective", inr: s.taxInr };
-        }) : []).concat([
-          { label: "Less §87A rebate", inr: -i.rebateInr },
-          { label: "Surcharge", inr: i.surchargeInr },
-          { label: "Health & education cess (4%)", inr: i.cessInr },
-          { label: "Total India tax", inr: i.totalTaxInr, emphasis: true }
+          { label: "Chapter VI-A deductions", inr: -i.deductionsInr, trace: dedTrace },
+          { label: "Total income", inr: i.totalIncomeInr,
+            trace: calc("Gross total income less Chapter VI-A deductions", [
+              { label: "Gross total income", amount: i.grossTotalIncomeInr },
+              { label: "Less Chapter VI-A deductions", amount: -i.deductionsInr }
+            ]) },
+          { label: "Tax at slab rates", inr: i.slabTaxInr,
+            trace: calc("Progressive slab-rate tax under the " + i.regime + " regime, applied to normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately below, not at slab rates.", []) },
+          { label: "Tax on special-rate income (111A/112A gains + 115BB/115BBJ winnings" + (i.s115a ? " + s.115A interest/dividend/royalty/FTS" : "") + ")", inr: i.specialTaxInr,
+            trace: calc("s.111A STCG @ 20% + s.112A LTCG @ 12.5% (net of the ₹1,25,000 exemption) + s.115BB/115BBJ lottery/betting/gaming winnings @ 30% flat, no exemption" + (i.s115a ? " + s.115A interest/dividend/royalty/FTS at their own rates (broken out below)" : ""), []) }
+        ]).concat(s115aTraces).concat([
+          { label: "Less §87A rebate", inr: -i.rebateInr,
+            trace: calc("Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold — lesser of tax at slab rates and the statutory cap", [
+              { label: "Statutory rebate cap", amount: rebateCap },
+              { label: "Rebate actually allowed", amount: i.rebateInr }
+            ]) },
+          { label: "Surcharge", inr: i.surchargeInr,
+            trace: calc("Progressive surcharge (10%/15%/25%/37% bands by total income) on tax before cess, with marginal relief so the tax increase never exceeds the income increase over the threshold; capital-gains/dividend-type special-rate income is capped at a 15% surcharge rate", [
+              { label: "Surcharge", amount: i.surchargeInr }
+            ]) },
+          { label: "Health & education cess (4%)", inr: i.cessInr,
+            trace: calc("4% of (tax after rebate + surcharge)", [
+              { label: "Tax after §87A rebate", amount: i.slabTaxInr - i.rebateInr + i.specialTaxInr },
+              { label: "Surcharge", amount: i.surchargeInr },
+              { label: "Cess rate", display: "4%" }
+            ]) },
+          { label: "Total India tax", inr: i.totalTaxInr, emphasis: true,
+            trace: calc("Tax at slab rates + tax on special-rate income − §87A rebate + surcharge + cess", [
+              { label: "Tax at slab rates", amount: i.slabTaxInr },
+              { label: "Tax on special-rate income", amount: i.specialTaxInr },
+              { label: "Less §87A rebate", amount: -i.rebateInr },
+              { label: "Surcharge", amount: i.surchargeInr },
+              { label: "Cess", amount: i.cessInr }
+            ]) }
         ]).concat(indiaLossCarryRow),
         totalUsd: i.totalTaxUsd,
         effectiveRate: i.effectiveRate
@@ -964,14 +1092,35 @@
         title: "US federal tax — Form 1040-NR (ECI graduated / FDAP flat)",
         currency: "USD",
         rows: [
-          { label: "ECI (wages + net self-employment)", usd: u.nra.eciUsd },
-          { label: "Less itemized deductions (no standard deduction for NRAs)", usd: -u.deductionUsd },
-          { label: "Taxable ECI", usd: u.taxableIncomeUsd },
-          { label: "Tax on ECI (graduated brackets)", usd: u.nra.eciTaxUsd },
-          { label: "FDAP (interest/dividends/rental, Schedule NEC)", usd: u.nra.fdapUsd },
-          { label: "Tax on FDAP (flat " + Math.round(u.nra.fdapRate * 100) + "%, no deductions)", usd: u.nra.fdapTaxUsd },
-          { label: "Additional Medicare tax", usd: u.additionalMedicareUsd },
-          { label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true }
+          { label: "ECI (wages + net self-employment)", usd: u.nra.eciUsd,
+            trace: source("Effectively Connected Income — US wages + net self-employment earnings, entered on Layer 1 US.") },
+          { label: "Less itemized deductions (no standard deduction for NRAs)", usd: -u.deductionUsd,
+            trace: source("NRAs cannot claim the standard deduction (with narrow treaty exceptions) — itemized deductions from Layer 1 US only.") },
+          { label: "Taxable ECI", usd: u.taxableIncomeUsd,
+            trace: calc("ECI less itemized deductions", [
+              { label: "ECI", amount: u.nra.eciUsd },
+              { label: "Less itemized deductions", amount: -u.deductionUsd }
+            ]) },
+          { label: "Tax on ECI (graduated brackets)", usd: u.nra.eciTaxUsd,
+            trace: calc("Progressive federal brackets (10%-37%) applied to taxable ECI, same brackets as a resident filer", [
+              { label: "Taxable ECI", amount: u.taxableIncomeUsd },
+              { label: "Tax on ECI", amount: u.nra.eciTaxUsd }
+            ]) },
+          { label: "FDAP (interest/dividends/rental, Schedule NEC)", usd: u.nra.fdapUsd,
+            trace: source("Fixed, Determinable, Annual or Periodical income — US-source passive income entered on Layer 1 US, taxed on a gross basis (no deductions).") },
+          { label: "Tax on FDAP (flat " + Math.round(u.nra.fdapRate * 100) + "%, no deductions)", usd: u.nra.fdapTaxUsd,
+            trace: calc("FDAP × flat rate (30% statutory default, or a lower treaty rate if a valid W-8BEN treaty claim is on file)", [
+              { label: "FDAP income", amount: u.nra.fdapUsd },
+              { label: "Rate applied", display: Math.round(u.nra.fdapRate * 100) + "%" }
+            ]) },
+          { label: "Additional Medicare tax", usd: u.additionalMedicareUsd,
+            trace: source("Computed directly on Layer 1 US (Form 8959) and taken as-is — the engine does not recompute it.") },
+          { label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true,
+            trace: calc("Tax on ECI + tax on FDAP + Additional Medicare tax", [
+              { label: "Tax on ECI", amount: u.nra.eciTaxUsd },
+              { label: "Tax on FDAP", amount: u.nra.fdapTaxUsd },
+              { label: "Additional Medicare tax", amount: u.additionalMedicareUsd }
+            ]) }
         ],
         totalUsd: u.totalTaxBeforeFtcUsd,
         effectiveRate: u.effectiveRate
@@ -979,41 +1128,126 @@
         title: u.isEntity ? ("US federal tax — " + u.filingStatus) : ("US federal income tax (" + u.filingStatus.toUpperCase() + ")"),
         currency: "USD",
         rows: [
-          { label: "Total income" + (u.worldwide ? " (worldwide)" : " (US-source)"), usd: u.totalIncomeUsd }
+          { label: "Total income" + (u.worldwide ? " (worldwide)" : " (US-source)"), usd: u.totalIncomeUsd,
+            trace: calc("Ordinary income (wages + interest + non-qualified dividends + STCG + rental + pension" + (u.worldwide ? ", foreign amounts included since this is worldwide taxation" : "") + ") + preferential income (LTCG + qualified dividends)", [
+              { label: "Ordinary income", amount: u.ordinaryIncomeUsd },
+              { label: "Preferential income (LTCG/QDI)", amount: u.preferentialIncomeUsd }
+            ]) }
         ]
-          .concat((u.retirementEpfInterestUsd > 0) ? [{ label: "  — of which taxable EPF interest (India retirement a/c, worldwide taxation)", usd: u.retirementEpfInterestUsd }] : [])
-          .concat((u.retirementNpsWithdrawalUsd > 0) ? [{ label: "  — of which taxable NPS withdrawal (India retirement a/c, worldwide taxation)", usd: u.retirementNpsWithdrawalUsd }] : [])
+          .concat((u.retirementEpfInterestUsd > 0) ? [{ label: "  — of which taxable EPF interest (India retirement a/c, worldwide taxation)", usd: u.retirementEpfInterestUsd,
+            trace: source("Entered directly on Layer 1 India → Other Sources → \"Taxable EPF interest\". Included here because worldwide taxation applies to this taxpayer.") }] : [])
+          .concat((u.retirementNpsWithdrawalUsd > 0) ? [{ label: "  — of which taxable NPS withdrawal (India retirement a/c, worldwide taxation)", usd: u.retirementNpsWithdrawalUsd,
+            trace: source("Entered directly on Layer 1 India → Other Sources → \"Taxable NPS withdrawal\". Included here because worldwide taxation applies to this taxpayer.") }] : [])
           .concat([
-            { label: "Adjusted gross income", usd: u.agiUsd },
-            { label: "Less " + u.deductionMode + " deduction", usd: -u.deductionUsd }
+            { label: "Adjusted gross income", usd: u.agiUsd,
+              trace: calc("Total income less above-the-line adjustments (student-loan interest, capped at $2,500, + half of self-employment tax)", [
+                { label: "Total income", amount: u.totalIncomeUsd },
+                { label: "Less adjustments", amount: -(u.totalIncomeUsd - u.agiUsd) }
+              ]) },
+            { label: "Less " + u.deductionMode + " deduction", usd: -u.deductionUsd,
+              trace: calc(u.deductionMode === "standard"
+                ? "Standard deduction for filing status " + u.filingStatus.toUpperCase() + " — used because it exceeds (or the taxpayer elected) itemizing"
+                : "Itemized: SALT (capped at $10,000) + mortgage interest + charitable + medical expenses over 7.5% of AGI — used because it exceeds (or the taxpayer elected) the standard deduction", [
+                { label: "Deduction used", amount: u.deductionUsd }
+              ]) }
           ])
-          .concat(u.qbiDeductionUsd > 0 ? [{ label: "Less §199A QBI deduction", usd: -u.qbiDeductionUsd }] : [])
+          .concat(u.qbiDeductionUsd > 0 ? [{ label: "Less §199A QBI deduction", usd: -u.qbiDeductionUsd,
+            trace: calc("20% of qualified business income (Sch C/S-corp/partnership pass-through), capped at 20% of (taxable income less net capital gains); phased out for specified service trades above the SSTB income threshold", [
+              { label: "QBI deduction", amount: u.qbiDeductionUsd }
+            ]) }] : [])
           .concat([
-            { label: "Taxable income", usd: u.taxableIncomeUsd },
-            { label: "Ordinary-rate tax", usd: u.ordinaryTaxUsd },
-            { label: "Preferential LTCG/QDI tax", usd: u.preferentialTaxUsd },
-            { label: "Net investment income tax (NIIT, §1411)", usd: u.niitUsd }
+            { label: "Taxable income", usd: u.taxableIncomeUsd,
+              trace: calc("AGI less deduction" + (u.qbiDeductionUsd > 0 ? " less §199A QBI deduction" : ""), [
+                { label: "AGI", amount: u.agiUsd },
+                { label: "Less deduction", amount: -u.deductionUsd }
+              ].concat(u.qbiDeductionUsd > 0 ? [{ label: "Less QBI deduction", amount: -u.qbiDeductionUsd }] : [])) },
+            { label: "Ordinary-rate tax", usd: u.ordinaryTaxUsd,
+              trace: calc("Progressive federal brackets (10%-37%) applied to ordinary taxable income (taxable income less the LTCG/QDI portion, which is taxed separately below)", [
+                { label: "Ordinary-rate tax", amount: u.ordinaryTaxUsd }
+              ]) },
+            { label: "Preferential LTCG/QDI tax", usd: u.preferentialTaxUsd,
+              trace: calc("0%/15%/20% long-term capital gains brackets, stacked on top of ordinary taxable income", [
+                { label: "Preferential LTCG/QDI tax", amount: u.preferentialTaxUsd }
+              ]) },
+            { label: "Net investment income tax (NIIT, §1411)", usd: u.niitUsd,
+              trace: u.niitUsd > 0 && u.niitDetail
+                ? calc("3.8% × NIIT base (see breakdown below)", [
+                    { label: "NIIT base", amount: u.niitDetail.excessUsd },
+                    { label: "Rate", display: "3.8%" }
+                  ])
+                : calc("Zero — either no net investment income, or MAGI doesn't exceed the filing-status threshold", []) }
           ])
           .concat(u.niitUsd > 0 && u.niitDetail ? [
-            { label: "  — net investment income (interest/div/cap gains/rental)", usd: u.niitDetail.netInvestmentIncomeUsd },
-            { label: "  — MAGI", usd: u.niitDetail.magiUsd },
-            { label: "  — less filing-status threshold", usd: -u.niitDetail.thresholdUsd },
-            { label: "  — NIIT base (lesser of NII and MAGI-over-threshold) @ " + (u.niitDetail.rate * 100).toFixed(1) + "%", usd: u.niitDetail.excessUsd }
+            { label: "  — net investment income (interest/div/cap gains/rental)", usd: u.niitDetail.netInvestmentIncomeUsd,
+              trace: source("Interest + dividends + capital gains + rental income (foreign-source included when worldwide taxation applies) — from the income already itemized on Layer 1 India/US.") },
+            { label: "  — MAGI", usd: u.niitDetail.magiUsd,
+              trace: calc("Equal to AGI in this engine's model (no foreign-earned-income-exclusion add-back scenario is modeled)", [
+                { label: "AGI", amount: u.agiUsd }
+              ]) },
+            { label: "  — less filing-status threshold", usd: -u.niitDetail.thresholdUsd,
+              trace: source("Statutory NIIT threshold by filing status (§1411(b)) — $200,000 single/HoH, $250,000 MFJ, $125,000 MFS. Not indexed for inflation.") },
+            { label: "  — NIIT base (lesser of NII and MAGI-over-threshold) @ " + (u.niitDetail.rate * 100).toFixed(1) + "%", usd: u.niitDetail.excessUsd,
+              trace: calc("Lesser of net investment income and (MAGI − threshold)", [
+                { label: "Net investment income", amount: u.niitDetail.netInvestmentIncomeUsd },
+                { label: "MAGI over threshold", amount: Math.max(0, u.niitDetail.magiUsd - u.niitDetail.thresholdUsd) }
+              ]) }
           ] : [])
           .concat([
-            { label: "Additional Medicare tax", usd: u.additionalMedicareUsd }
+            { label: "Additional Medicare tax", usd: u.additionalMedicareUsd,
+              trace: source("Computed directly on Layer 1 US (Form 8959) and taken as-is — the engine does not recompute it.") }
           ])
-          .concat(u.seTaxUsd > 0 ? [{ label: "Self-employment tax (Schedule SE)", usd: u.seTaxUsd }] : [])
+          .concat(u.seTaxUsd > 0 ? [{ label: "Self-employment tax (Schedule SE)", usd: u.seTaxUsd,
+            trace: calc("92.35% of net SE earnings × (12.4% Social Security, capped by the wage base less W-2 SS wages already taxed, + 2.9% Medicare, uncapped); half of this is an above-the-line deduction", [
+              { label: "Self-employment tax", amount: u.seTaxUsd }
+            ]) }] : [])
           .concat(u.amtUsd > 0 && u.amtDetail ? [
-            { label: "Alternative Minimum Tax (§55)", usd: u.amtUsd },
-            { label: "  — AMTI (taxable income + standard/SALT addback + preference items)", usd: u.amtDetail.amtiUsd },
-            { label: "  — less AMT exemption (phased out above threshold)", usd: -u.amtDetail.exemptionUsd },
-            { label: "  — AMT base", usd: u.amtDetail.amtBaseUsd },
-            { label: "  — tentative minimum tax (26%/28% ordinary + LTCG/QDI at preferential rates)", usd: u.amtDetail.tmtUsd },
-            { label: "  — less regular tax (AMT owed = excess of TMT over this)", usd: -u.amtDetail.regularTaxUsd }
+            { label: "Alternative Minimum Tax (§55)", usd: u.amtUsd,
+              trace: calc("Tentative minimum tax minus regular tax, when positive (see breakdown below)", [
+                { label: "Tentative minimum tax", amount: u.amtDetail.tmtUsd },
+                { label: "Less regular tax", amount: -u.amtDetail.regularTaxUsd }
+              ]) },
+            { label: "  — AMTI (taxable income + standard/SALT addback + preference items)", usd: u.amtDetail.amtiUsd,
+              trace: calc("Taxable income + disallowed-deduction addback (the full standard deduction, or just the SALT slice if itemized) + AMT preference items (e.g. the ISO exercise bargain-element spread, §56(b)(3))", [
+                { label: "Taxable income", amount: u.taxableIncomeUsd },
+                { label: "Addback (standard deduction or SALT)", amount: u.amtDetail.addbackUsd },
+                { label: "AMT preference items", amount: u.amtDetail.amtiUsd - u.taxableIncomeUsd - u.amtDetail.addbackUsd }
+              ]) },
+            { label: "  — less AMT exemption (phased out above threshold)", usd: -u.amtDetail.exemptionUsd,
+              trace: calc("Full statutory exemption reduced 25¢ for every $1 of AMTI above the phase-out threshold", [
+                { label: "Full exemption", amount: u.amtDetail.exemptionFullUsd },
+                { label: "AMTI", amount: u.amtDetail.amtiUsd },
+                { label: "Exemption after phase-out", amount: u.amtDetail.exemptionUsd }
+              ]) },
+            { label: "  — AMT base", usd: u.amtDetail.amtBaseUsd,
+              trace: calc("AMTI less the (phased-out) exemption", [
+                { label: "AMTI", amount: u.amtDetail.amtiUsd },
+                { label: "Less exemption", amount: -u.amtDetail.exemptionUsd }
+              ]) },
+            { label: "  — tentative minimum tax (26%/28% ordinary + LTCG/QDI at preferential rates)", usd: u.amtDetail.tmtUsd,
+              trace: calc("26% (28% above the AMT rate breakpoint) on the ordinary AMT base (AMT base less any LTCG/QDI, which keep their preferential rates) + preferential-rate tax on the LTCG/QDI portion", [
+                { label: "Ordinary AMT base", amount: u.amtDetail.ordinaryAmtBaseUsd },
+                { label: "Tax on ordinary AMT base", amount: u.amtDetail.tmtOrdUsd },
+                { label: "Preferential-rate tax (LTCG/QDI, same as above)", amount: u.preferentialTaxUsd }
+              ]) },
+            { label: "  — less regular tax (AMT owed = excess of TMT over this)", usd: -u.amtDetail.regularTaxUsd,
+              trace: calc("Same as ordinary-rate tax + preferential LTCG/QDI tax shown above", [
+                { label: "Ordinary-rate tax", amount: u.ordinaryTaxUsd },
+                { label: "Preferential LTCG/QDI tax", amount: u.preferentialTaxUsd }
+              ]) }
           ] : [])
-          .concat(u.creditsUsd > 0 ? [{ label: "Less non-refundable credits (care/AOTC/LLC)", usd: -u.creditsUsd }] : [])
-          .concat([{ label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true }]),
+          .concat(u.creditsUsd > 0 ? [{ label: "Less non-refundable credits (care/AOTC/LLC)", usd: -u.creditsUsd,
+            trace: calc("Child/dependent care credit (20% of qualifying expenses, capped) + American Opportunity + Lifetime Learning education credits (both phased out by MAGI) — capped at the tax otherwise due", [
+              { label: "Credits", amount: u.creditsUsd }
+            ]) }] : [])
+          .concat([{ label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true,
+            trace: calc("Income tax (ordinary + preferential) + NIIT + Additional Medicare tax + SE tax + AMT − non-refundable credits", [
+              { label: "Income tax (ordinary + preferential)", amount: u.incomeTaxUsd },
+              { label: "NIIT", amount: u.niitUsd },
+              { label: "Additional Medicare tax", amount: u.additionalMedicareUsd },
+              { label: "SE tax", amount: u.seTaxUsd },
+              { label: "AMT", amount: u.amtUsd },
+              { label: "Less credits", amount: -u.creditsUsd }
+            ]) }]),
         totalUsd: u.totalTaxBeforeFtcUsd,
         effectiveRate: u.effectiveRate
       }
@@ -1045,7 +1279,7 @@
     var findings = detectConflicts(model, computed);
     var documents = buildDocuments(model, computed);
     var ftcReport = buildFtcReport(model, computed);
-    var taxComputation = buildTaxComputation(computed);
+    var taxComputation = buildTaxComputation(model, computed);
     var monitoring = WISING.monitor
       ? WISING.monitor(model, computed, { findings: findings, asOf: (opts.scenario && opts.scenario.asOf) || opts.asOf })
       : null;

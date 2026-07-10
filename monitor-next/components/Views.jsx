@@ -29,6 +29,58 @@ const Card = ({ title, sub, children, right, icon }) => (
 const Empty = ({ children }) => <div className="text-center text-muted text-sm py-10">{children}</div>;
 const Ref = ({ children }) => <span className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded bg-white/[0.05] border border-line text-muted">{children}</span>;
 
+// Every row in Tax Computation / FTC Reconciliation carries a `trace`: either
+// { kind: "source", detail } — pulled from Layer 1 with no material
+// computation — or { kind: "calc", formula, parts } — a formula over other
+// already-shown numbers. Clicking a row pops this open in place; nothing
+// navigates away from the Monitor.
+function TracePopup({ trace, fmt, onClose }) {
+  const isSource = trace.kind === "source";
+  return (
+    <div onClick={(e) => e.stopPropagation()}
+      className="absolute z-30 left-0 right-0 top-full mt-1 rounded-xl border border-line bg-[#161616] shadow-cardhover p-3 text-left">
+      <div className="flex items-start justify-between gap-2 mb-1.5">
+        <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded"
+          style={{ background: (isSource ? PAL.positive : PAL.blueText) + "24", color: isSource ? PAL.greenText : PAL.blueText }}>
+          {isSource ? "Source" : "Calculated"}
+        </span>
+        <button onClick={onClose} className="text-muted hover:text-head text-[13px] leading-none px-1">×</button>
+      </div>
+      {isSource ? (
+        <div className="text-[11px] text-body leading-relaxed">{trace.detail}</div>
+      ) : (
+        <>
+          <div className="text-[11px] text-body leading-relaxed">{trace.formula}</div>
+          {trace.parts && trace.parts.length > 0 && (
+            <div className="space-y-1 border-t border-line mt-2 pt-2">
+              {trace.parts.map((part, i) => (
+                <div key={i} className="flex justify-between gap-3 text-[11px]">
+                  <span className="text-muted">{part.label}</span>
+                  <span className="font-mono text-head whitespace-nowrap">{part.display !== undefined ? part.display : (part.amount < 0 ? "(" + fmt(Math.abs(part.amount)) + ")" : fmt(part.amount))}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+function TraceRow({ label, valueDisp, color, emphasis, trace, fmt }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen((o) => !o)}
+        className={"w-full flex justify-between gap-3 text-[12px] text-left rounded px-1 -mx-1 transition-colors hover:bg-white/[0.06] cursor-pointer " +
+          (emphasis ? "border-t border-line pt-1.5 mt-1 font-bold text-head" : "text-body")}>
+        <span style={color && !emphasis ? { color } : undefined}>{label}</span>
+        <span className="font-mono" style={color ? { color } : undefined}>{valueDisp}</span>
+      </button>
+      {open && trace && <TracePopup trace={trace} fmt={fmt} onClose={() => setOpen(false)} />}
+    </div>
+  );
+}
+
 // Shared stat card — icon chip + big Manrope number. WISING brand: black card,
 // or an emerald-lit featured card when highlighted.
 const StatTile = ({ icon, label, value, sub, accent, highlight }) => {
@@ -292,7 +344,7 @@ function FtcCard({ ftcReport }) {
       <div className="space-y-1">{block.rows.map((r, i) => {
         const c = r.warn ? PAL.redText : r.emphasis ? PAL.greenText : PAL.body;
         const disp = r.usd < 0 ? "(" + fmtUsd(Math.abs(r.usd)) + ")" : fmtUsd(r.usd);
-        return <div key={i} className={"flex justify-between text-[12px] " + (r.emphasis || r.warn ? "font-bold" : "")}><span style={{ color: c }}>{r.label}</span><span className="font-mono" style={{ color: c }}>{disp}</span></div>;
+        return <TraceRow key={i} label={r.label} valueDisp={disp} color={c} emphasis={r.emphasis || r.warn} trace={r.trace} fmt={fmtUsd} />;
       })}</div></div>
   );
   return (
@@ -308,16 +360,19 @@ function FtcCard({ ftcReport }) {
   );
 }
 function TaxCard({ taxComputation, fxRate }) {
-  const Block = ({ block, isInr, accent }) => (
-    <div className="rounded-xl p-3" style={{ background: accent + "12", border: `1px solid ${accent}33` }}>
-      <div className="flex items-center justify-between mb-2"><div className="text-[12px] font-bold text-head">{block.title}</div><span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-white/[0.05] border border-line text-muted">eff {Math.round(block.effectiveRate * 100)}%</span></div>
-      <div className="space-y-1">{block.rows.map((r, i) => {
-        const val = isInr ? r.inr : r.usd; let disp = isInr ? fmtInr(Math.abs(val)) : fmtUsd(Math.abs(val)); if (val < 0) disp = "(" + disp + ")";
-        return <div key={i} className={"flex justify-between text-[12px] " + (r.emphasis ? "border-t border-line pt-1.5 mt-1 font-bold text-head" : "text-body")}><span>{r.label}</span><span className="font-mono">{disp}</span></div>;
-      })}</div>
-      <div className="text-[10px] text-muted mt-2">≈ {fmtUsd(block.totalUsd)} at {fxRate} INR/USD</div>
-    </div>
-  );
+  const Block = ({ block, isInr, accent }) => {
+    const fmt = isInr ? fmtInr : fmtUsd;
+    return (
+      <div className="rounded-xl p-3" style={{ background: accent + "12", border: `1px solid ${accent}33` }}>
+        <div className="flex items-center justify-between mb-2"><div className="text-[12px] font-bold text-head">{block.title}</div><span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-white/[0.05] border border-line text-muted">eff {Math.round(block.effectiveRate * 100)}%</span></div>
+        <div className="space-y-1">{block.rows.map((r, i) => {
+          const val = isInr ? r.inr : r.usd; let disp = fmt(Math.abs(val)); if (val < 0) disp = "(" + disp + ")";
+          return <TraceRow key={i} label={r.label} valueDisp={disp} emphasis={r.emphasis} trace={r.trace} fmt={fmt} />;
+        })}</div>
+        <div className="text-[10px] text-muted mt-2">≈ {fmtUsd(block.totalUsd)} at {fxRate} INR/USD</div>
+      </div>
+    );
+  };
   return (
     <Card icon={<Calculator size={16} strokeWidth={2} />} title="Tax Computation" sub="Planning-grade, from Layer 1">
       <Block block={taxComputation.india} isInr accent={PAL.jurIN} />

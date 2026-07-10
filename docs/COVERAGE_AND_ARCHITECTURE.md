@@ -494,6 +494,50 @@ $137,000 = base $278,713 → TMT $71,022 − regular tax $38,467 = AMT owed $32,
 
 ---
 
+## Part D.9 — Click-to-explain trace popups (ninth round)
+
+Even with every number visible as a line item (Part D.8), the user pointed out the table was still
+opaque in a different sense: nothing said *why* a number was what it was — whether it came straight off
+a Layer 1 form or was derived, and if derived, from what. Asked for every row in the Tax Computation and
+FTC Reconciliation cards to be clickable, popping open a small explanation. Explicitly ruled out actual
+navigation to Layer 1 (a separate clarifying round settled this: popup-only, no links, scoped to just
+these two cards, and it must work generically across all 9 demo profiles rather than being hand-authored
+per profile).
+
+**Implemented:**
+- `engine/conflicts.js`: two helpers, `calc(formula, parts)` and `source(detail)`, produce a `trace`
+  object attached to every row in `buildTaxComputation` and `buildFtcReport`. `parts` is a list of
+  `{label, amount}` (same currency as the row) or `{label, display}` for a non-currency operand like a
+  rate. Three patterns cover every row:
+  - **calc** — the normal case, reusing values already in scope (`i.*`, `u.*`, `lso.*`, s.115a stream
+    objects, `ftc.*`, `model.deductions.india`, `model.carryForwardLosses`) — no new computation, just
+    re-describing existing numbers as an explicit formula + operands.
+  - **source** — a handful of rows that are taken as-is from Layer 1 with no material computation (e.g.
+    Additional Medicare tax, which Layer 1 US already computes via Form 8959; retirement EPF/NPS amounts
+    entered directly in Layer 1 India's Other Sources section).
+  - Rows with genuinely bracket/threshold-based math that can't be reduced to a single arithmetic line
+    (progressive slab tax, marginal-relief surcharge, AMT/NIIT-style multi-step rules) get a descriptive
+    `calc` with an empty `parts` array — the rule is explained in prose rather than faked as a formula.
+  - `buildTaxComputation`'s signature changed from `(computed)` to `(model, computed)` to reach
+    `model.deductions.india` and `model.carryForwardLosses` for the deduction and loss-set-off traces.
+  - `computeUsTax` (`computation.js`) now also returns `ordinaryIncomeUsd`/`preferentialIncomeUsd` — both
+    already computed locally, needed to trace "Total income" without inventing new arithmetic.
+- `monitor-next/components/Views.jsx`: a shared `TraceRow` + `TracePopup` pair (defined once, alongside
+  `Card`/`Ref`) replaces the two near-duplicate local `Block` row-renderers in `TaxCard` and `FtcCard`.
+  Each row is a `<button>`; clicking toggles a small absolutely-positioned panel directly under that row
+  (`position:absolute; top:100%`) showing a green "SOURCE" or blue "CALCULATED" badge and either the
+  `detail` text or the `formula` plus each `parts` line. No `<a href>`, no navigation — purely
+  informational, per the user's explicit instruction.
+
+Verified: a new `verify_traces.js` harness script confirms every row across all 9 profiles (India, US,
+both FTC directions) carries a valid `trace` with no NaN operands. `sanity_check.js`/`audit_profiles.js`
+show zero regressions (purely additive metadata). Confirmed live via Playwright across two profiles —
+`dual_resident_h1b` (a calc row, an AMT sub-row, and a source row) and `founder_indian_company` (the
+s.115A descriptive-calc row) — all three interaction types render correctly with figures matching the
+underlying computation exactly.
+
+---
+
 ## Part E — What "comprehensive" wiring involves
 
 - **`normalize.js`:** extend to read every section above into the unified model
