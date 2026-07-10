@@ -416,7 +416,7 @@
 
     // -- 4g2. SPECIAL-RATE WINNINGS (s.128/194) — NOW COMPUTED ---------
     // Lottery/betting/online-gaming winnings are flat 30% with no basic
-    // exemption, no Chapter VI-A deduction and no §157 rebate — this was
+    // exemption, no Chapter VI-A deduction and no §156 rebate — this was
     // previously invisible to the whole model (not even in total income).
     // It's now correctly taxed and included in the FTC/double-tax base; the
     // remaining caveat is that a flat special rate doesn't necessarily match
@@ -426,7 +426,7 @@
     if (specialBBUsd > 1) {
       add("special_rate_gaming_winnings", res.us.worldwide ? S.WARNING : S.INFO, C.INCOME,
         usd(specialBBUsd) + " of lottery/gaming winnings — flat 30% (s.128/194), no exemptions",
-        "This income is taxed at a flat 30% with no basic exemption threshold, no Chapter VI-A deduction and no §157 " +
+        "This income is taxed at a flat 30% with no basic exemption threshold, no Chapter VI-A deduction and no §156 " +
         "rebate — it's now included in the India tax total and the FTC/double-tax figures above." +
         (res.us.worldwide ? " Because the US taxes worldwide income, the same winnings are very likely also US-taxable " +
           "as ordinary income — a real double-tax exposure that the general FTC computation only approximates, since it " +
@@ -1159,7 +1159,7 @@
           { label: "Tax on special-rate income (196/198 gains + 128/194 winnings" + (i.s115a ? " + s.207 dividend/royalty/FTS" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + DTAA-carved-out interest" : "") + ")", inr: i.specialTaxInr,
             trace: calc("s.196 STCG @ 20% + s.198 LTCG @ 12.5% (net of the ₹1,25,000 exemption) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption" + (i.s115a ? " + s.207 dividend/royalty/FTS at their own rates" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + any DTAA-carved-out interest at its treaty rate" : "") + " (each broken out below)", []) }
         ]).concat(nrInterestTrace).concat(s115aTraces).concat([
-          { label: "Less §157 rebate", inr: -i.rebateInr,
+          { label: "Less §156 rebate", inr: -i.rebateInr,
             trace: calc("Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold — lesser of tax at slab rates and the statutory cap", [
               { label: "Statutory rebate cap", amount: rebateCap },
               { label: "Rebate actually allowed", amount: i.rebateInr }
@@ -1170,15 +1170,15 @@
             ]) },
           { label: "Health & education cess (4%)", inr: i.cessInr,
             trace: calc("4% of (tax after rebate + surcharge)", [
-              { label: "Tax after §157 rebate", amount: i.slabTaxInr - i.rebateInr + i.specialTaxInr },
+              { label: "Tax after §156 rebate", amount: i.slabTaxInr - i.rebateInr + i.specialTaxInr },
               { label: "Surcharge", amount: i.surchargeInr },
               { label: "Cess rate", display: "4%" }
             ]) },
           { label: "Total India tax", inr: i.totalTaxInr, emphasis: true,
-            trace: calc("Tax at slab rates + tax on special-rate income − §157 rebate + surcharge + cess", [
+            trace: calc("Tax at slab rates + tax on special-rate income − §156 rebate + surcharge + cess", [
               { label: "Tax at slab rates", amount: i.slabTaxInr },
               { label: "Tax on special-rate income", amount: i.specialTaxInr },
-              { label: "Less §157 rebate", amount: -i.rebateInr },
+              { label: "Less §156 rebate", amount: -i.rebateInr },
               { label: "Surcharge", amount: i.surchargeInr },
               { label: "Cess", amount: i.cessInr }
             ]) }

@@ -176,7 +176,7 @@
 
     // Special-rate "other sources" income — flat 30% under s.128 (lottery/
     // betting) and s.194 (online gaming), no basic exemption, no Chapter
-    // VI-A deduction, no §157 rebate. This was previously completely
+    // VI-A deduction, no §156 rebate. This was previously completely
     // uncounted anywhere in the model (invisible to total income, FTC, and
     // cross-basis reconciliation) despite being real, taxable, and a genuine
     // cross-border double-tax candidate if the same winnings are also

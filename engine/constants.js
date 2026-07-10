@@ -11,6 +11,14 @@
  * 2026 (US). India's Income-tax Act, 2025 (in force 1 Apr 2026) unifies
  * "Financial Year"/"Assessment Year" into a single "Tax Year" concept and
  * renumbers every section — citations below use the ITA 2025 numbering.
+ * SOURCING CAVEAT: the ITA 2025 section numbers were sourced from secondary
+ * commentary (tax-publisher concordance articles), not the CBDT's official
+ * mapping utility directly (it blocks automated access). One error was
+ * already caught this way (a rebate citation initially sourced as §157 was
+ * actually §156 — §157 is a different, unrelated provision) — treat every
+ * §-citation here as a starting point for a manual cross-check against
+ * incometaxindia.gov.in's own utility before relying on it in any real
+ * filing or professional opinion, not as independently verified.
  * They are NOT a
  * substitute for the live statutory tables — a production build would pull these
  * from a versioned rule service. Values are chosen to be consistent with the
@@ -129,7 +137,7 @@
       INDIA: {
         // [upper_bound_inr, rate]; Infinity = top slab. Unchanged from
         // FY2025-26 — Budget 2026 (Feb 2026) retained the FY2025-26 slab
-        // structure, rebate (now §157, was §157), and standard deduction
+        // structure, rebate (now §156, was §87A), and standard deduction
         // as-is for Tax Year 2026-27 (Income-tax Act, 2025).
         SLABS_NEW: [
           [400000, 0.00], [800000, 0.05], [1200000, 0.10],
@@ -140,7 +148,7 @@
         ],
         STD_DEDUCTION_SALARY_NEW_INR: 75000,
         STD_DEDUCTION_SALARY_OLD_INR: 50000,
-        // §157 rebate
+        // §156 rebate
         REBATE_87A_NEW: { incomeCap: 1200000, maxRebate: 60000 },
         REBATE_87A_OLD: { incomeCap: 500000, maxRebate: 12500 },
         // Chapter VI-A caps (OLD regime). NEW regime disallows most of these.
@@ -151,7 +159,7 @@
         LTCG_112A_EXEMPT_INR: 125000,
         LTCG_112_RATE: 0.125,
         // s.128 (lottery/betting) / s.194 (online gaming): flat 30%,
-        // no basic exemption, no Chapter VI-A deduction, no §157 rebate.
+        // no basic exemption, no Chapter VI-A deduction, no §156 rebate.
         RATE_115BB: 0.30,
         // s.207 domestic default withholding rates on India-source dividend/
         // royalty/FTS paid to a NON-RESIDENT (no PE) — the baseline a DTAA-

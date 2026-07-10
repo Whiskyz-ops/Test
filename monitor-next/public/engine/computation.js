@@ -6,7 +6,7 @@
  *
  *   1. Effective residency on each side.
  *   2. A proper India income-tax computation (heads -> Chapter VI-A ->
- *      slab tax by regime -> §157 rebate -> surcharge w/ marginal relief ->
+ *      slab tax by regime -> §156 rebate -> surcharge w/ marginal relief ->
  *      4% cess, plus special CG rates).
  *   3. A proper US federal income-tax computation (AGI -> standard/itemized
  *      -> ordinary brackets + preferential LTCG/QDI rates -> NIIT ->
@@ -258,7 +258,7 @@
     var slabTaxInr = bracketTax(totalNormalInr, slabs);
     var slabBreakdown = bracketBreakdown(totalNormalInr, slabs);
 
-    // §157 rebate — restricted to a "resident individual" by the section
+    // §156 rebate — restricted to a "resident individual" by the section
     // itself; HUF/AOP/BOI/trust share this same slab computation path but are
     // NOT entitled to it (previously applied unconditionally to anyone who
     // reached this branch, which silently over-relieved HUF filers).
@@ -270,7 +270,7 @@
     // computeIndiaSurcharge below, the surcharge threshold test) by the
     // exempt amount.
     var totalIncomeInr = totalNormalInr + stcgInr + ltcgTaxableInr + special115bbInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr;
-    // ...and NR is excluded too (s.157 says "resident individual" — RNOR
+    // ...and NR is excluded too (s.156 says "resident individual" — RNOR
     // still counts as resident for this, only genuine NR does not).
     var isIndividual = !model.entity || model.entity.indiaKind === "individual";
     var rebate = isNew ? T.REBATE_87A_NEW : T.REBATE_87A_OLD;

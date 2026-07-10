@@ -475,13 +475,13 @@
    * PROFILE 9 — BUSINESS POV: an HUF (Hindu Undivided Family).
    * Control-and-management residency test (not day-count, not POEM) —
    * demonstrates the entity-aware fix that HUF is NOT entitled to the
-   * individual-only §157 rebate, plus an unlinked PAN/Aadhaar (s.397(2)).
+   * individual-only §156 rebate, plus an unlinked PAN/Aadhaar (s.397(2)).
    * ====================================================================*/
   var B4 = {
     id: "sharma_huf",
     label: "Sharma HUF (family investment vehicle)",
-    story: "Business POV: an HUF managing ancestral property and FD investments in India. Control & management is NOT wholly outside India, so it stays resident — a different test than the individual day-count. At ~₹6.5L income it sits right at the §157 rebate threshold, demonstrating the entity-aware fix (HUF isn't entitled to the individual-only rebate). PAN also isn't linked to Aadhaar, so every TDS figure here understates the higher rate actually being withheld.",
-    tags: ["HUF", "entity", "157", "control and management", "PAN-Aadhaar"],
+    story: "Business POV: an HUF managing ancestral property and FD investments in India. Control & management is NOT wholly outside India, so it stays resident — a different test than the individual day-count. At ~₹6.5L income it sits right at the §156 rebate threshold, demonstrating the entity-aware fix (HUF isn't entitled to the individual-only rebate). PAN also isn't linked to Aadhaar, so every TDS figure here understates the higher rate actually being withheld.",
+    tags: ["HUF", "entity", "156", "control and management", "PAN-Aadhaar"],
     router: router("Sharma HUF", { us_days: 0, has_us_source_income_or_assets: false }),
     india: {
       profile: { full_name: "Sharma HUF", entity_type: "huf", tax_regime: "NEW", pan_aadhaar_linked: false },

@@ -12874,7 +12874,7 @@ ${isProf ? '' : `
         function slabTaxNewRegime(inc) {
             // Tax Year 2026-27 New Tax Regime slabs (Section 202) — Budget 2026
             // retained the FY2025-26 slab structure unchanged for FY2026-27.
-            // Rebate Section 157: if total income <= Rs12L, tax = 0 (handled post-cess)
+            // Rebate Section 156: if total income <= Rs12L, tax = 0 (handled post-cess)
             if (inc <= 400000) return 0;
             let t = 0;
             if (inc > 400000)  t += Math.min(inc - 400000, 400000) * 0.05;
@@ -12916,7 +12916,7 @@ ${isProf ? '' : `
             baseTax += Math.max(0, ltcg112A)  * 0.125; // LTCG Long-Term Capital Gains on Listed Securities
             baseTax += Math.max(0, ltcg112)   * 0.20;  // Other LTCG Other Long-Term Capital Gains
             baseTax += Math.max(0, gaming)    * 0.30;  // Online gaming Online Gaming Winnings
-            // Rebate Section 157 under New Regime (if total income <= ₹12L, rebate = full tax)
+            // Rebate Section 156 under New Regime (if total income <= ₹12L, rebate = full tax)
             const isResident = state.residency_detail?.final_india_residency_status === 'ROR' || state.residency_detail?.final_india_residency_status === 'RNOR' || state.residency_detail?.status === 'ROR' || state.residency_detail?.status === 'RNOR';
             if (entity === 'individual' && isResident) {
                 if (regime === 'NEW' && totalIncome <= 1200000) baseTax = 0;
