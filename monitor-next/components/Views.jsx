@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Compass, ScrollText, Scale, CalendarClock, CalendarRange, RefreshCcw, Calculator,
   FolderOpen, Ruler, Landmark, TrendingUp, Building2, Home, Palmtree, BookOpen, Plug,
@@ -66,17 +66,19 @@ function TracePopup({ trace, fmt, onClose }) {
     </div>
   );
 }
-function TraceRow({ label, valueDisp, color, emphasis, trace, fmt }) {
+function TraceRow({ label, valueDisp, color, emphasis, trace, fmt, onGoToHoldings }) {
   const [open, setOpen] = useState(false);
+  const isHoldingsLink = trace && trace.kind === "holdings" && onGoToHoldings;
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)}
+      <button onClick={() => (isHoldingsLink ? onGoToHoldings(trace.section) : setOpen((o) => !o))}
         className={"w-full flex justify-between gap-3 text-[12px] text-left rounded px-1 -mx-1 transition-colors hover:bg-white/[0.06] cursor-pointer " +
           (emphasis ? "border-t border-line pt-1.5 mt-1 font-bold text-head" : "text-body")}>
-        <span style={color && !emphasis ? { color } : undefined}>{label}</span>
+        <span style={color && !emphasis ? { color } : undefined}>{label}{isHoldingsLink && <span className="text-muted ml-1" title="Jumps to Holdings">↗</span>}</span>
         <span className="font-mono" style={color ? { color } : undefined}>{valueDisp}</span>
       </button>
-      {open && trace && <TracePopup trace={trace} fmt={fmt} onClose={() => setOpen(false)} />}
+      {open && !isHoldingsLink && trace && <TracePopup trace={trace} fmt={fmt} onClose={() => setOpen(false)} />}
+      {isHoldingsLink && trace.note && <div className="text-[10px] text-muted mt-0.5 ml-1">{trace.note}</div>}
     </div>
   );
 }
@@ -228,7 +230,7 @@ export function ResidencyView({ result }) {
 }
 
 /* ============================ FILINGS ============================ */
-export function FilingsView({ result }) {
+export function FilingsView({ result, onGoToHoldings }) {
   if (!result) return <Empty>Load a client to see filings.</Empty>;
   const cal = result.monitoring ? result.monitoring.calendar.all.slice().sort((a, b) => a.date - b.date) : [];
   const upcoming = cal.filter((x) => x.status !== "passed");
@@ -253,8 +255,8 @@ export function FilingsView({ result }) {
         </div>
       </Card>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <FtcCard ftcReport={result.ftcReport} />
-        <TaxCard taxComputation={result.taxComputation} fxRate={result.model.meta.fxRate} />
+        <FtcCard ftcReport={result.ftcReport} onGoToHoldings={onGoToHoldings} />
+        <TaxCard taxComputation={result.taxComputation} fxRate={result.model.meta.fxRate} onGoToHoldings={onGoToHoldings} />
       </div>
       {result.computed.reconciliation && result.computed.reconciliation.rows && result.computed.reconciliation.rows.length > 0 && (
         <CapsuleChart rows={result.computed.reconciliation.rows} />
@@ -337,14 +339,14 @@ function ReconciliationCard({ recon }) {
     </Card>
   );
 }
-function FtcCard({ ftcReport }) {
+function FtcCard({ ftcReport, onGoToHoldings }) {
   const net = ftcReport.headlineNetDoubleTaxUsd;
   const Block = ({ block }) => (
     <div className="mb-2"><div className="text-[11px] font-bold text-body mb-2">{block.title}</div>
       <div className="space-y-1">{block.rows.map((r, i) => {
         const c = r.warn ? PAL.redText : r.emphasis ? PAL.greenText : PAL.body;
         const disp = r.usd < 0 ? "(" + fmtUsd(Math.abs(r.usd)) + ")" : fmtUsd(r.usd);
-        return <TraceRow key={i} label={r.label} valueDisp={disp} color={c} emphasis={r.emphasis || r.warn} trace={r.trace} fmt={fmtUsd} />;
+        return <TraceRow key={i} label={r.label} valueDisp={disp} color={c} emphasis={r.emphasis || r.warn} trace={r.trace} fmt={fmtUsd} onGoToHoldings={onGoToHoldings} />;
       })}</div></div>
   );
   return (
@@ -359,7 +361,7 @@ function FtcCard({ ftcReport }) {
     </Card>
   );
 }
-function TaxCard({ taxComputation, fxRate }) {
+function TaxCard({ taxComputation, fxRate, onGoToHoldings }) {
   const Block = ({ block, isInr, accent }) => {
     const fmt = isInr ? fmtInr : fmtUsd;
     return (
@@ -367,7 +369,7 @@ function TaxCard({ taxComputation, fxRate }) {
         <div className="flex items-center justify-between mb-2"><div className="text-[12px] font-bold text-head">{block.title}</div><span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-white/[0.05] border border-line text-muted">eff {Math.round(block.effectiveRate * 100)}%</span></div>
         <div className="space-y-1">{block.rows.map((r, i) => {
           const val = isInr ? r.inr : r.usd; let disp = fmt(Math.abs(val)); if (val < 0) disp = "(" + disp + ")";
-          return <TraceRow key={i} label={r.label} valueDisp={disp} emphasis={r.emphasis} trace={r.trace} fmt={fmt} />;
+          return <TraceRow key={i} label={r.label} valueDisp={disp} emphasis={r.emphasis} trace={r.trace} fmt={fmt} onGoToHoldings={onGoToHoldings} />;
         })}</div>
         <div className="text-[10px] text-muted mt-2">≈ {fmtUsd(block.totalUsd)} at {fxRate} INR/USD</div>
       </div>
@@ -442,7 +444,15 @@ export function AccountsView({ result }) {
 }
 
 /* ============================ HOLDINGS (income & assets from Layer 1) ======= */
-export function HoldingsView({ result }) {
+export function HoldingsView({ result, highlight, onHighlightDone }) {
+  useEffect(() => {
+    if (!highlight) return;
+    const id = highlight === "us" ? "holdings-us-income" : "holdings-india-income";
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const t = setTimeout(() => { if (onHighlightDone) onHighlightDone(); }, 2500);
+    return () => clearTimeout(t);
+  }, [highlight, onHighlightDone]);
   if (!result) return <Empty>Load a client to see income &amp; holdings.</Empty>;
   const m = result.model, inc = m.income, a = m.assets, fx = m.meta.fxRate || 83;
   const usPerson = result.computed.residency.us.isResident;
@@ -482,14 +492,44 @@ export function HoldingsView({ result }) {
   const propGrossUsd = properties.reduce((s, p) => s + p.grossRentUsd, 0);
 
   const isTaxed = (mv) => mv && (mv.usd > 0 || mv.inr > 0);
-  const IncomeRow = ({ label, mv, inr }) => (
-    <div className="flex justify-between py-1.5 border-b border-line/60 text-[12px]">
+  const IncomeRow = ({ label, mv, inr, additive }) => (
+    <div className={"flex justify-between py-1.5 border-b border-line/60 text-[12px] " + (additive === false ? "opacity-60" : "")}>
       <span className="text-body">{label}</span>
       <span className="font-mono text-head">{inr ? fmtInr(mv.inr) : fmtUsd(mv.usd)}<span className="text-muted ml-2">{inr ? "≈ " + fmtUsd(mv.usd) : ""}</span></span>
     </div>
   );
-  const indiaRows = [["Salary", inc.india.salary], ["Business / Profession", inc.india.business], ["House property", inc.india.houseProperty], ["Interest", inc.india.interest], ["Dividend", inc.india.dividend], ["Short-term capital gains", inc.india.stcg], ["Long-term capital gains", inc.india.ltcg]].filter(([, mv]) => isTaxed(mv));
-  const usRows = [["Wages (W-2)", inc.us.wages], ["Business / Self-employment", inc.us.businessUs], ["Interest", inc.us.interestUs], ["Dividends — ordinary", inc.us.ordinaryDividendsUs], ["Dividends — qualified", inc.us.qualifiedDividendsUs], ["Rental", inc.us.rentalUs], ["Retirement (401k/IRA/SS)", inc.us.usRetirementIncome], ["Short-term gains", inc.us.stcgUs], ["Long-term gains", inc.us.ltcgUs]].filter(([, mv]) => isTaxed(mv));
+  const s115a = result.computed.indiaTax.s115a;
+  const worldwide = result.computed.residency.us.worldwide;
+  const moneyInr = (v) => ({ inr: v || 0, usd: inrToUsd(v || 0) });
+  const buildRows = (defs) => defs.filter(([, mv]) => isTaxed(mv)).map(([label, mv, additive]) => ({ label, mv, additive: additive !== false }));
+  const rowsTotal = (rows, key) => rows.reduce((s, r) => s + (r.additive ? (r.mv[key] || 0) : 0), 0);
+
+  const indiaRows = buildRows([
+    ["Salary", inc.india.salary], ["Business / Profession", inc.india.business], ["House property", inc.india.houseProperty],
+    ["Interest", inc.india.interest], ["Dividend", inc.india.dividend],
+    ["Short-term capital gains", inc.india.stcg], ["Long-term capital gains", inc.india.ltcg],
+    ["Winnings / online gaming (s.115BB/115BBJ)", inc.india.specialRate115bb],
+    ["Deemed dividend on buyback (s.2(22)(f))", inc.india.deemedDividendBuyback],
+    ["Royalty (s.115A, non-resident)", s115a && s115a.royalty ? moneyInr(s115a.royalty.totalInr) : null],
+    ["Fees for technical services (s.115A, non-resident)", s115a && s115a.fts ? moneyInr(s115a.fts.totalInr) : null]
+  ]);
+  const indiaTotalInr = rowsTotal(indiaRows, "inr"), indiaTotalUsd = rowsTotal(indiaRows, "usd");
+
+  const usRows = buildRows([
+    ["Wages (W-2)", inc.us.wages], ["Business / Self-employment", inc.us.businessUs], ["Interest", inc.us.interestUs],
+    ["Dividends — ordinary", inc.us.ordinaryDividendsUs], ["  — of which qualified", inc.us.qualifiedDividendsUs, false],
+    ["Rental", inc.us.rentalUs], ["Retirement (401k/IRA/SS)", inc.us.usRetirementIncome],
+    ["Short-term gains", inc.us.stcgUs], ["Long-term gains", inc.us.ltcgUs]
+  ].concat(worldwide ? [
+    ["Foreign wages (India salary)", inc.us.foreignWages],
+    ["Foreign interest (incl. India retirement a/c interest)", inc.us.foreignInterest],
+    ["Foreign dividends", inc.us.foreignDividends],
+    ["Foreign rental", inc.us.foreignRental],
+    ["Foreign pension (incl. India retirement a/c withdrawals)", inc.us.foreignPension],
+    ["Foreign short-term gains", inc.us.foreignStcg],
+    ["Foreign long-term gains", inc.us.foreignLtcg]
+  ] : []));
+  const usTotalUsd = rowsTotal(usRows, "usd");
   const HoldTag = ({ color, children }) => <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: color + "24", color }}>{children}</span>;
   const Flag = ({ c }) => <span className="text-[13px]" title={c === "US" ? "United States" : "India"}>{c === "US" ? "🇺🇸" : "🇮🇳"}</span>;
 
@@ -505,14 +545,18 @@ export function HoldingsView({ result }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="🇮🇳 India income — by head" sub="From Layer 1 India (₹, with USD equivalent)">
-          {indiaRows.length ? indiaRows.map(([l, mv], i) => <IncomeRow key={i} label={l} mv={mv} inr />) : <Empty>No India income on file.</Empty>}
-          {indiaRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtInr(inc.india.total.inr)} <span className="text-muted">≈ {fmtUsd(inc.india.total.usd)}</span></span></div>}
-        </Card>
-        <Card title="🇺🇸 US income — by head" sub="From Layer 1 US (USD)">
-          {usRows.length ? usRows.map(([l, mv], i) => <IncomeRow key={i} label={l} mv={mv} />) : <Empty>No US income on file.</Empty>}
-          {usRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtUsd(inc.us.total.usd)}</span></div>}
-        </Card>
+        <div id="holdings-india-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "india" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "india" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
+          <Card title="🇮🇳 India income — by head" sub="From Layer 1 India (₹, with USD equivalent)">
+            {indiaRows.length ? indiaRows.map((r, i) => <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} inr />) : <Empty>No India income on file.</Empty>}
+            {indiaRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtInr(indiaTotalInr)} <span className="text-muted">≈ {fmtUsd(indiaTotalUsd)}</span></span></div>}
+          </Card>
+        </div>
+        <div id="holdings-us-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "us" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "us" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
+          <Card title="🇺🇸 US income — by head" sub="From Layer 1 US (USD)">
+            {usRows.length ? usRows.map((r, i) => <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} />) : <Empty>No US income on file.</Empty>}
+            {usRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtUsd(usTotalUsd)}</span></div>}
+          </Card>
+        </div>
       </div>
 
       <Card icon={<TrendingUp size={16} strokeWidth={2} />} title="Securities &amp; Funds" sub={usPerson ? "US brokerage + Indian funds — Indian funds held by a US person are PFICs (Form 8621)" : "Holdings on file (US + India)"}>

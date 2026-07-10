@@ -35,6 +35,22 @@
     return tax;
   }
 
+  /* Same ladder as bracketTax, but returns the actual per-bracket breakdown
+   * (only brackets the income actually reaches) so the UI can show the real
+   * slab-by-slab math instead of a single opaque total. */
+  function bracketBreakdown(amount, slabs) {
+    var t = Math.max(0, amount), prev = 0, rows = [];
+    for (var i = 0; i < slabs.length; i++) {
+      var cap = slabs[i][0], rate = slabs[i][1];
+      if (t > prev) {
+        var taxable = Math.min(t, cap) - prev;
+        rows.push({ from: prev, to: cap, rate: rate, taxable: taxable, tax: taxable * rate });
+        prev = cap;
+      } else break;
+    }
+    return rows;
+  }
+
   /* ---- Carry-forward loss set-off (s.71B house property, s.72 business,
    * s.74 capital gains, s.32(2) unabsorbed depreciation) --------------------
    * Layer 1 already resolves per-entry eligibility (late-filing denial,
@@ -220,6 +236,7 @@
 
     // Slab tax on normal income.
     var slabTaxInr = bracketTax(totalNormalInr, slabs);
+    var slabBreakdown = bracketBreakdown(totalNormalInr, slabs);
 
     // §87A rebate — restricted to a "resident individual" by the section
     // itself; HUF/AOP/BOI/trust share this same slab computation path but are
@@ -260,6 +277,9 @@
       deductionsInr: deductionsInr,
       totalIncomeInr: totalIncomeInr,
       slabTaxInr: slabTaxInr,
+      slabBreakdown: slabBreakdown,
+      totalNormalInr: totalNormalInr,
+      ltcgTaxableInr: ltcgTaxableInr,
       specialTaxInr: specialTaxInr,
       rebateInr: rebateInr,
       surchargeInr: surchargeInr,
@@ -465,8 +485,11 @@
 
     // Ordinary income (taxed at bracket rates). US retirement/pension
     // distributions and Social Security are US-source ordinary income.
+    // Business/self-employment income (Sch C, S-corp/partnership K-1) is
+    // always US-source in this model (no foreign-business counterpart is
+    // collected), so it's included unconditionally, not gated on `worldwide`.
     var ordinaryIncome =
-      inc.wages.usd + fW + inc.interestUs.usd + fI +
+      inc.wages.usd + fW + (inc.businessUs ? inc.businessUs.usd : 0) + inc.interestUs.usd + fI +
       nonQualDivUs + fD + inc.stcgUs.usd + fStcg +
       inc.rentalUs.usd + fR + fP + (inc.usRetirementIncome ? inc.usRetirementIncome.usd : 0);
 
@@ -521,6 +544,7 @@
     var ordTaxable = taxableIncome - prefTaxable;
 
     var ordinaryTax = bracketTax(ordTaxable, brackets);
+    var ordinaryBracketBreakdown = bracketBreakdown(ordTaxable, brackets);
 
     // Preferential (LTCG/QDI) stacked on top of ordinary taxable income.
     var lb = T.LTCG_BRACKETS[status] || T.LTCG_BRACKETS.single;
@@ -585,6 +609,8 @@
       deductionMode: (ded.mode === "itemized" || ded.mode === "standard") ? ded.mode : (itemized > standard ? "itemized" : "standard"),
       taxableIncomeUsd: taxableIncome,
       ordinaryTaxUsd: ordinaryTax,
+      ordinaryTaxableUsd: ordTaxable,
+      ordinaryBracketBreakdown: ordinaryBracketBreakdown,
       preferentialTaxUsd: preferentialTax,
       incomeTaxUsd: incomeTax,
       niitUsd: niit,
@@ -652,6 +678,7 @@
                    Math.max(0, ded.medical - 0.075 * eciUsd);
     var taxableEciUsd = Math.max(0, eciUsd - itemized);
     var eciTaxUsd = bracketTax(taxableEciUsd, brackets);
+    var eciBracketBreakdown = bracketBreakdown(taxableEciUsd, brackets);
     var fdapTaxUsd = fdapUsd * fdapRate;
     var addlMedicare = model.limitsRaw.additionalMedicareOwed || 0;
     var totalTax = eciTaxUsd + fdapTaxUsd + addlMedicare;
@@ -666,7 +693,7 @@
       totalTaxBeforeFtcUsd: totalTax,
       foreignSourceIncomeUsd: 0, // NRAs aren't taxed on foreign-source income — no US FTC need for it
       usSourceIncomeUsd: eciUsd + fdapUsd,
-      nra: { eciUsd: eciUsd, fdapUsd: fdapUsd, fdapRate: fdapRate, eciTaxUsd: eciTaxUsd, fdapTaxUsd: fdapTaxUsd },
+      nra: { eciUsd: eciUsd, fdapUsd: fdapUsd, fdapRate: fdapRate, eciTaxUsd: eciTaxUsd, fdapTaxUsd: fdapTaxUsd, taxableEciUsd: taxableEciUsd, eciBracketBreakdown: eciBracketBreakdown },
       feie: { claimed: false, eligible: false, taxHomeAbroad: false, testMet: false, reasons: [], appliedUsd: 0 },
       effectiveRate: (eciUsd + fdapUsd) > 0 ? totalTax / (eciUsd + fdapUsd) : 0
     };

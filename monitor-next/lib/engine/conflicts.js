@@ -876,6 +876,19 @@
    * {label, display} for a non-currency operand like a rate). */
   function calc(formula, parts) { return { kind: "calc", formula: formula, parts: parts || [] }; }
   function source(detail) { return { kind: "source", detail: detail }; }
+  function holdings(section, note) { return { kind: "holdings", section: section, note: note || null }; }
+
+  /* Turns a computation.js bracketBreakdown() array into trace `parts` — one
+   * line per bracket actually reached, so a "slab tax" row shows the real
+   * ladder instead of a vague description. */
+  function bracketParts(breakdown, fmt) {
+    return (breakdown || []).map(function (b) {
+      var label = b.to === Infinity
+        ? Math.round(b.rate * 100) + "% above " + fmt(b.from)
+        : Math.round(b.rate * 100) + "% on " + fmt(b.from) + "–" + fmt(b.to);
+      return { label: label, amount: b.tax };
+    });
+  }
 
   /* ------------------------------------------------------------------------
    * buildFtcReport — flatten the FTC computation into a dashboard table.
@@ -904,10 +917,7 @@
               { label: "Creditable fraction", display: Math.round((indiaTax.totalTaxUsd > 0 ? ftc.us.indiaTaxPaidUsd / indiaTax.totalTaxUsd : 1) * 100) + "%" }
             ]) },
           { label: "Foreign-source income (US view)", usd: ftc.us.foreignSourceIncomeUsd,
-            trace: calc("All Indian-source income (from Layer 1 India), less any FEIE-excluded wages", [
-              { label: "Gross Indian-source income", amount: model.income.india.total.usd },
-              { label: "Less FEIE-excluded wages", amount: -ftc.us.feieExcludedUsd }
-            ]) },
+            trace: holdings("india", ftc.us.feieExcludedUsd > 0 ? ("Net of the " + usd(ftc.us.feieExcludedUsd) + " FEIE-excluded wages shown in the row above.") : null) },
           { label: "US taxable income", usd: ftc.us.taxableIncomeUsd,
             trace: calc("Same figure as \"Taxable income\" in the Tax Computation card above", [
               { label: "US taxable income", amount: ftc.us.taxableIncomeUsd }
@@ -943,7 +953,7 @@
         title: "India §90 relief — for US taxes on doubly-taxed income",
         rows: [
           { label: "US-source income (foreign, India view)", usd: ftc.india.foreignSourceIncomeUsd,
-            trace: source("All US-source income from Layer 1 US — only counted when the taxpayer is India ROR (worldwide taxation); zero otherwise.") },
+            trace: holdings("us", ftc.india.foreignSourceIncomeUsd === 0 ? "Only counted when the taxpayer is India ROR (worldwide taxation) — zero here because that isn't the case." : null) },
           { label: "US tax on that US-source income", usd: ftc.india.usTaxOnUsSourceUsd,
             trace: calc("US income tax × (US-source income ÷ total US income) — the slice of US tax attributable to income India also taxes", [
               { label: "US income tax (pre-credit)", amount: usTax.incomeTaxUsd },
@@ -976,6 +986,17 @@
     var T = CONST.TAX.INDIA;
     var dedIndia = (model.deductions && model.deductions.india) || {};
 
+    // The India "by-head" total shown in Holdings is GROSS LTCG (pre-s.112A
+    // exemption); Tax Computation uses the exemption-adjusted figure. That's
+    // the only legitimate gap between the two views (verified: every other
+    // income head sums identically) — surfaced as a note on the Holdings-link
+    // rows below rather than silently landing on a "different" total.
+    var ltcgGrossInrForNote = (model.income && model.income.india && model.income.india.ltcg && model.income.india.ltcg.inr) || 0;
+    var ltcgExemptGapInr = Math.max(0, ltcgGrossInrForNote - (i.ltcgTaxableInr || 0));
+    var indiaHoldingsNote = ltcgExemptGapInr > 1
+      ? ("Holdings shows gross LTCG before the s.112A exemption — ₹" + Math.round(ltcgExemptGapInr).toLocaleString("en-IN") + " of LTCG is exempt here, so this figure is that much lower.")
+      : null;
+
     // Brought-forward loss set-off breakdown (s.72/71B/74/32(2)) — shown as
     // explicit "before -> deductions -> after" rows so the set-off is never a
     // silent adjustment buried inside "Gross total income".
@@ -991,10 +1012,7 @@
     ];
     var indiaGrossRows = (lso && lso.totalUsedInr > 1) ? [
       { label: "Current-year income (before brought-forward loss set-off)", inr: i.grossTotalIncomeInr + lso.totalUsedInr,
-        trace: calc("Gross total income after set-off, plus every brought-forward loss set off below added back", [
-          { label: "Gross total income (after set-off)", amount: i.grossTotalIncomeInr },
-          { label: "Brought-forward losses set off (added back)", amount: lso.totalUsedInr }
-        ]) }
+        trace: holdings("india", indiaHoldingsNote) }
     ].concat(LOSS_ROW_DEFS.filter(function (d) { return lso.used[d.key] > 1; }).map(function (d) {
       return { label: d.label, inr: -lso.used[d.key],
         trace: calc(d.rule + " — amount used is the lesser of the loss available and the current-year income in that bucket", [
@@ -1009,7 +1027,7 @@
         ]) }
     ]) : [
       { label: "Gross total income", inr: i.grossTotalIncomeInr,
-        trace: calc("Sum of all income heads reported on Layer 1 India — salary, house property, business/professional, capital gains, and other sources — plus any special-rate income (capital gains, winnings, s.115A streams)", []) }
+        trace: holdings("india", indiaHoldingsNote) }
     ];
     var indiaLossCarryRow = (lso && lso.totalUnusedInr > 1) ? [
       { label: "Losses carried forward to future years (could not be set off this year)", inr: lso.totalUnusedInr,
@@ -1057,7 +1075,8 @@
               { label: "Less Chapter VI-A deductions", amount: -i.deductionsInr }
             ]) },
           { label: "Tax at slab rates", inr: i.slabTaxInr,
-            trace: calc("Progressive slab-rate tax under the " + i.regime + " regime, applied to normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately below, not at slab rates.", []) },
+            trace: calc("Progressive slab-rate tax under the " + i.regime + " regime, applied to ₹" + Math.round(i.totalNormalInr).toLocaleString("en-IN") + " of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
+              bracketParts(i.slabBreakdown, inr)) },
           { label: "Tax on special-rate income (111A/112A gains + 115BB/115BBJ winnings" + (i.s115a ? " + s.115A interest/dividend/royalty/FTS" : "") + ")", inr: i.specialTaxInr,
             trace: calc("s.111A STCG @ 20% + s.112A LTCG @ 12.5% (net of the ₹1,25,000 exemption) + s.115BB/115BBJ lottery/betting/gaming winnings @ 30% flat, no exemption" + (i.s115a ? " + s.115A interest/dividend/royalty/FTS at their own rates (broken out below)" : ""), []) }
         ]).concat(s115aTraces).concat([
@@ -1102,10 +1121,8 @@
               { label: "Less itemized deductions", amount: -u.deductionUsd }
             ]) },
           { label: "Tax on ECI (graduated brackets)", usd: u.nra.eciTaxUsd,
-            trace: calc("Progressive federal brackets (10%-37%) applied to taxable ECI, same brackets as a resident filer", [
-              { label: "Taxable ECI", amount: u.taxableIncomeUsd },
-              { label: "Tax on ECI", amount: u.nra.eciTaxUsd }
-            ]) },
+            trace: calc("Progressive federal brackets (10%-37%, same ladder as a resident filer) applied to $" + Math.round(u.nra.taxableEciUsd).toLocaleString("en-US") + " of taxable ECI",
+              bracketParts(u.nra.eciBracketBreakdown, usd)) },
           { label: "FDAP (interest/dividends/rental, Schedule NEC)", usd: u.nra.fdapUsd,
             trace: source("Fixed, Determinable, Annual or Periodical income — US-source passive income entered on Layer 1 US, taxed on a gross basis (no deductions).") },
           { label: "Tax on FDAP (flat " + Math.round(u.nra.fdapRate * 100) + "%, no deductions)", usd: u.nra.fdapTaxUsd,
@@ -1124,15 +1141,28 @@
         ],
         totalUsd: u.totalTaxBeforeFtcUsd,
         effectiveRate: u.effectiveRate
-      } : {
+      } : (function () {
+        // The US "by-head" total in Holdings is gross, pre-FEIE. When the gap
+        // between it and this engine's total income is fully explained by the
+        // §911 exclusion (the only known legitimate reason they'd differ),
+        // link straight to Holdings instead of re-deriving the same numbers;
+        // otherwise fall back to a plain formula so a click never lands on a
+        // Holdings figure that looks unexplainably different.
+        var usHoldingsTotalUsd = (model.income && model.income.us && model.income.us.total && model.income.us.total.usd) || 0;
+        var feieAppliedUsd = (u.feie && u.feie.appliedUsd) || 0;
+        var usGapExplainedByFeie = Math.abs((usHoldingsTotalUsd - u.totalIncomeUsd) - feieAppliedUsd) < 1;
+        var totalIncomeTrace = usGapExplainedByFeie
+          ? holdings("us", feieAppliedUsd > 0 ? ("Holdings shows gross foreign wages before the §911 FEIE exclusion (" + usd(feieAppliedUsd) + " excluded here), so this figure is that much lower.") : null)
+          : calc("Ordinary income (wages + business/self-employment + interest + non-qualified dividends + STCG + rental + pension" + (u.worldwide ? ", foreign amounts included since this is worldwide taxation" : "") + ") + preferential income (LTCG + qualified dividends)", [
+              { label: "Ordinary income", amount: u.ordinaryIncomeUsd },
+              { label: "Preferential income (LTCG/QDI)", amount: u.preferentialIncomeUsd }
+            ]);
+        return {
         title: u.isEntity ? ("US federal tax — " + u.filingStatus) : ("US federal income tax (" + u.filingStatus.toUpperCase() + ")"),
         currency: "USD",
         rows: [
           { label: "Total income" + (u.worldwide ? " (worldwide)" : " (US-source)"), usd: u.totalIncomeUsd,
-            trace: calc("Ordinary income (wages + interest + non-qualified dividends + STCG + rental + pension" + (u.worldwide ? ", foreign amounts included since this is worldwide taxation" : "") + ") + preferential income (LTCG + qualified dividends)", [
-              { label: "Ordinary income", amount: u.ordinaryIncomeUsd },
-              { label: "Preferential income (LTCG/QDI)", amount: u.preferentialIncomeUsd }
-            ]) }
+            trace: totalIncomeTrace }
         ]
           .concat((u.retirementEpfInterestUsd > 0) ? [{ label: "  — of which taxable EPF interest (India retirement a/c, worldwide taxation)", usd: u.retirementEpfInterestUsd,
             trace: source("Entered directly on Layer 1 India → Other Sources → \"Taxable EPF interest\". Included here because worldwide taxation applies to this taxpayer.") }] : [])
@@ -1162,9 +1192,8 @@
                 { label: "Less deduction", amount: -u.deductionUsd }
               ].concat(u.qbiDeductionUsd > 0 ? [{ label: "Less QBI deduction", amount: -u.qbiDeductionUsd }] : [])) },
             { label: "Ordinary-rate tax", usd: u.ordinaryTaxUsd,
-              trace: calc("Progressive federal brackets (10%-37%) applied to ordinary taxable income (taxable income less the LTCG/QDI portion, which is taxed separately below)", [
-                { label: "Ordinary-rate tax", amount: u.ordinaryTaxUsd }
-              ]) },
+              trace: calc("Progressive federal brackets (10%-37%, filing status " + u.filingStatus.toUpperCase() + ") applied to $" + Math.round(u.ordinaryTaxableUsd).toLocaleString("en-US") + " of ordinary taxable income (taxable income less the LTCG/QDI portion, which is taxed separately below)",
+                bracketParts(u.ordinaryBracketBreakdown, usd)) },
             { label: "Preferential LTCG/QDI tax", usd: u.preferentialTaxUsd,
               trace: calc("0%/15%/20% long-term capital gains brackets, stacked on top of ordinary taxable income", [
                 { label: "Preferential LTCG/QDI tax", amount: u.preferentialTaxUsd }
@@ -1250,7 +1279,8 @@
             ]) }]),
         totalUsd: u.totalTaxBeforeFtcUsd,
         effectiveRate: u.effectiveRate
-      }
+      };
+      })()
     };
   }
 

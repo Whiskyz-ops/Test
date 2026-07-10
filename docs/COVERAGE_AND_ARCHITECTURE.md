@@ -538,6 +538,74 @@ underlying computation exactly.
 
 ---
 
+## Part D.10 — Real bug found via the trace work + Holdings cross-links (tenth round)
+
+Once every row was clickable, the user actually used it to compare numbers across cards — and caught a
+real bug: `us_resident_indian_income` (Rohan) showed US total income as $293,011 in Holdings but $231,011
+in Tax Computation, a $62,000 gap. They also asked for two rows that are fundamentally "the Holdings
+by-head total restated" — India's "Gross total income" and the FTC card's "Foreign-source income (US
+view)" — to redirect to the Holdings view and highlight the source data instead of just popping open a
+formula, and for the genuinely bracket-based rows (India slab tax, US ordinary-rate tax) to show the
+real per-bracket ladder instead of a prose description.
+
+**The bug, found and fixed:** `computeUsTax`'s `ordinaryIncome` summed wages, interest, dividends,
+capital gains, rental, and pension/retirement — but never `inc.businessUs.usd` (Schedule C / S-corp /
+partnership K-1 income). For an individual filer, US business income was completely untaxed by this
+engine; SE tax was still computed correctly (it reads `seEarningsUsd` independently), but the income
+itself never entered AGI/taxable income. `$293,011 − $231,011 = $62,000` is exactly Rohan's business
+income — confirmed with a diagnostic script comparing Holdings' total against Tax Computation's total
+across all 9 profiles (only Rohan showed a business-income-sized, otherwise-unexplained gap; the other
+two apparent "gaps" — Anita's NRA profile and Grace's FEIE profile — turned out to be legitimate,
+addressed below, not bugs). Fixed by adding `inc.businessUs.usd` to `ordinaryIncome`, unconditionally
+(business income has no foreign counterpart in this model, so it isn't gated on `worldwide`). Rohan's US
+tax rose from $33,678 to $49,397 as a result — the correct, higher figure.
+
+**Real per-bracket breakdowns:** added `bracketBreakdown(amount, slabs)` next to the existing
+`bracketTax()` in `computation.js` — same ladder walk, but returns `{from, to, rate, taxable, tax}` per
+bracket actually reached. Wired into India slab tax (`i.slabBreakdown`), US ordinary-rate tax
+(`u.ordinaryBracketBreakdown`), and NRA ECI tax (`u.nra.eciBracketBreakdown`). `conflicts.js` turns these
+into trace `parts` via a new `bracketParts()` helper (one line per bracket, e.g. "20% on ₹16,00,000–
+₹20,00,000: ₹28,000") — the existing popup UI needed no changes, since a bracket breakdown is just a
+longer `parts` list.
+
+**Holdings cross-links:** a third trace kind, `holdings(section, note)`, marks a row as "this figure IS
+the Holdings by-head total" rather than a formula to unwind. `TraceRow` treats these differently — click
+navigates (`onGoToHoldings` callback, threaded from `page.jsx` through `FilingsView` → `TaxCard`/`FtcCard`)
+instead of opening a popup, switches to the Holdings view, and scrolls to + highlights (2.5s ring pulse)
+the matching income card. Applied to: India's "Gross total income" (both the with- and without-loss-
+set-off row variants), the US "Total income" row, and both FTC directions' foreign/US-source-income rows.
+
+Two *legitimate* reasons a Holdings total can still differ from the linked figure were found while
+building this (verified as expected, not bugs, via the same diagnostic comparison): the s.112A LTCG
+exemption (Holdings shows gross LTCG; Tax Computation nets the ₹1,25,000 exemption) and the §911 FEIE
+exclusion (Holdings shows gross foreign wages; Tax Computation nets the excluded amount). Rather than
+silently landing on a "different" number, `holdings()` carries an optional `note` — shown as small
+persistent text under the row — computed exactly (e.g. "₹1,25,000 of LTCG is exempt here") from fields
+newly exposed for this purpose (`i.ltcgTaxableInr`). The US "Total income" row additionally has a
+defensive check: it only uses the Holdings-link when the gap is *exactly* explained by FEIE (within
+rounding); otherwise it falls back to the pre-existing formula-only trace, so a click can never land on
+an unexplained mismatch.
+
+A third, smaller structural gap was closed directly rather than worked around: Holdings' India income
+list didn't show s.115A royalty/FTS income at all (Layer 1 has no aggregate field for it outside the DTAA
+election table — it was already documented as "the election table is the only place this income is ever
+recorded"). Added Royalty/FTS/Winnings(s.115BB)/Deemed-dividend rows to `HoldingsView`'s `indiaRows`, and
+likewise added the foreign-income rows (`foreignWages`/`foreignInterest`/etc.) to `usRows` that were
+computed but never displayed. Both cards' "Total" now sums the *displayed* rows (excluding explicitly
+non-additive memo rows like "— of which qualified" dividends) instead of trusting a separate model field
+— guaranteeing the card is internally consistent by construction, independent of what other totals exist
+elsewhere in the engine.
+
+Verified: re-ran `sanity_check.js`/`audit_profiles.js`/`verify_traces.js` (all pass; Rohan's tax figures
+changed as expected, one new finding — `no_totalization_agreement` — legitimately appears now that his
+business/SE income is correctly recognized). A new diagnostic (`check_income_mismatch.js`-style, ad hoc)
+confirmed the Holdings/Tax-Computation gap is now exactly 0 for every profile except the two
+legitimate/explained cases. Confirmed live via Playwright: real slab/bracket breakdowns render with exact
+figures for both India and US, and clicking "Gross total income" navigates to Holdings and highlights the
+India income card, whose total now matches the Tax Computation figure exactly (₹29,80,000 both places).
+
+---
+
 ## Part E — What "comprehensive" wiring involves
 
 - **`normalize.js`:** extend to read every section above into the unified model

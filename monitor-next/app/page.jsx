@@ -34,6 +34,9 @@ export default function MonitorPage() {
   const [result, setResult] = useState(null);
   const [activeProfile, setActiveProfile] = useState(null);
   const [clientSummaries, setClientSummaries] = useState([]);
+  const [holdingsHighlight, setHoldingsHighlight] = useState(null);
+
+  const goToHoldings = useCallback((section) => { setView("holdings"); setHoldingsHighlight(section); }, []);
 
   const recompute = useCallback((preferred) => {
     const wantLive = preferred === "live" || (preferred == null && hasLiveLayer1());
@@ -147,10 +150,10 @@ export default function MonitorPage() {
         )}
 
         {view === "clients" && <ClientsView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
-        {view === "holdings" && <HoldingsView result={result} />}
+        {view === "holdings" && <HoldingsView result={result} highlight={holdingsHighlight} onHighlightDone={() => setHoldingsHighlight(null)} />}
         {view === "business" && <BusinessView result={result} />}
         {view === "residency" && <ResidencyView result={result} />}
-        {view === "filings" && <FilingsView result={result} />}
+        {view === "filings" && <FilingsView result={result} onGoToHoldings={goToHoldings} />}
         {view === "documents" && <DocumentsView result={result} />}
         {view === "accounts" && <AccountsView result={result} />}
         {view === "integrations" && <IntegrationsView />}
