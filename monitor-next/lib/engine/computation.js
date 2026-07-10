@@ -590,10 +590,31 @@
       seTaxUsd: seTax,
       qbiDeductionUsd: qbiDeduction,
       amtUsd: amtOwed,
+      amtDetail: {
+        amtiUsd: amtiUsd,
+        addbackUsd: amtAddback,
+        exemptionFullUsd: amtExFull,
+        exemptionUsd: amtExemption,
+        amtBaseUsd: amtBase,
+        preferentialInBaseUsd: prefTaxable,
+        ordinaryAmtBaseUsd: amtOrdBase,
+        tmtOrdUsd: tmtOrd,
+        tmtUsd: tmtOrd + preferentialTax,
+        regularTaxUsd: incomeTax
+      },
       creditsUsd: creditsUsd,
       totalTaxBeforeFtcUsd: totalTaxBeforeFtc,
       foreignSourceIncomeUsd: fW + fI + fD + fR + fP + fStcg + fLtcg,
       usSourceIncomeUsd: inc.usSourceTotal.usd,
+      retirementEpfInterestUsd: worldwide ? (inc.retirementEpfInterestUsd || 0) : 0,
+      retirementNpsWithdrawalUsd: worldwide ? (inc.retirementNpsWithdrawalUsd || 0) : 0,
+      niitDetail: {
+        netInvestmentIncomeUsd: netInvestmentIncome,
+        magiUsd: magi,
+        thresholdUsd: niitThreshold,
+        excessUsd: Math.max(0, Math.min(Math.max(0, netInvestmentIncome), Math.max(0, agi - niitThreshold))),
+        rate: T.NIIT_RATE
+      },
       feie: {
         claimed: feie.claimed, eligible: feie.eligible, taxHomeAbroad: feie.taxHomeAbroad,
         testMet: feie.testMet, reasons: feie.reasons, appliedUsd: feieAppliedUsd

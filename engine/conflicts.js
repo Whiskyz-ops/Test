@@ -911,17 +911,42 @@
    * ----------------------------------------------------------------------*/
   function buildTaxComputation(computed) {
     var i = computed.indiaTax, u = computed.usTax;
+
+    // Brought-forward loss set-off breakdown (s.72/71B/74/32(2)) — shown as
+    // explicit "before -> deductions -> after" rows so the set-off is never a
+    // silent adjustment buried inside "Gross total income".
+    var lso = i.lossSetOff;
+    var LOSS_ROW_DEFS = [
+      { key: "businessInr", label: "  — brought-forward business loss set off (s.72)" },
+      { key: "housePropertyInr", label: "  — brought-forward house-property loss set off (s.71B)" },
+      { key: "stcgInr", label: "  — brought-forward STCG loss set off vs current STCG (s.74)" },
+      { key: "ltcgFromStcgLossInr", label: "  — brought-forward STCG loss set off vs current LTCG (s.74)" },
+      { key: "ltcgInr", label: "  — brought-forward LTCG loss set off vs current LTCG (s.74)" },
+      { key: "unabsorbedDepreciationInr", label: "  — unabsorbed depreciation set off (s.32(2))" }
+    ];
+    var indiaGrossRows = (lso && lso.totalUsedInr > 1) ? [
+      { label: "Current-year income (before brought-forward loss set-off)", inr: i.grossTotalIncomeInr + lso.totalUsedInr }
+    ].concat(LOSS_ROW_DEFS.filter(function (d) { return lso.used[d.key] > 1; }).map(function (d) {
+      return { label: d.label, inr: -lso.used[d.key] };
+    })).concat([
+      { label: "Gross total income (after brought-forward loss set-off)", inr: i.grossTotalIncomeInr }
+    ]) : [
+      { label: "Gross total income", inr: i.grossTotalIncomeInr }
+    ];
+    var indiaLossCarryRow = (lso && lso.totalUnusedInr > 1) ? [
+      { label: "Losses carried forward to future years (could not be set off this year)", inr: lso.totalUnusedInr }
+    ] : [];
+
     return {
       india: {
         title: i.isEntity ? ("India income tax — " + i.regime) : ("India income tax (" + i.regime + " regime)"),
         currency: "INR",
-        rows: [
-          { label: "Gross total income", inr: i.grossTotalIncomeInr },
+        rows: indiaGrossRows.concat([
           { label: "Chapter VI-A deductions", inr: -i.deductionsInr },
           { label: "Total income", inr: i.totalIncomeInr },
           { label: "Tax at slab rates", inr: i.slabTaxInr },
           { label: "Tax on special-rate income (111A/112A gains + 115BB/115BBJ winnings" + (i.s115a ? " + s.115A interest/dividend/royalty/FTS" : "") + ")", inr: i.specialTaxInr }
-        ].concat(i.s115a ? ["interest", "dividend", "royalty", "fts"].filter(function (k) {
+        ]).concat(i.s115a ? ["interest", "dividend", "royalty", "fts"].filter(function (k) {
           return i.s115a[k] && i.s115a[k].totalInr > 1;
         }).map(function (k) {
           var s = i.s115a[k];
@@ -931,7 +956,7 @@
           { label: "Surcharge", inr: i.surchargeInr },
           { label: "Health & education cess (4%)", inr: i.cessInr },
           { label: "Total India tax", inr: i.totalTaxInr, emphasis: true }
-        ]),
+        ]).concat(indiaLossCarryRow),
         totalUsd: i.totalTaxUsd,
         effectiveRate: i.effectiveRate
       },
@@ -954,19 +979,39 @@
         title: u.isEntity ? ("US federal tax — " + u.filingStatus) : ("US federal income tax (" + u.filingStatus.toUpperCase() + ")"),
         currency: "USD",
         rows: [
-          { label: "Total income" + (u.worldwide ? " (worldwide)" : " (US-source)"), usd: u.totalIncomeUsd },
-          { label: "Adjusted gross income", usd: u.agiUsd },
-          { label: "Less " + u.deductionMode + " deduction", usd: -u.deductionUsd }
-        ].concat(u.qbiDeductionUsd > 0 ? [{ label: "Less §199A QBI deduction", usd: -u.qbiDeductionUsd }] : [])
+          { label: "Total income" + (u.worldwide ? " (worldwide)" : " (US-source)"), usd: u.totalIncomeUsd }
+        ]
+          .concat((u.retirementEpfInterestUsd > 0) ? [{ label: "  — of which taxable EPF interest (India retirement a/c, worldwide taxation)", usd: u.retirementEpfInterestUsd }] : [])
+          .concat((u.retirementNpsWithdrawalUsd > 0) ? [{ label: "  — of which taxable NPS withdrawal (India retirement a/c, worldwide taxation)", usd: u.retirementNpsWithdrawalUsd }] : [])
+          .concat([
+            { label: "Adjusted gross income", usd: u.agiUsd },
+            { label: "Less " + u.deductionMode + " deduction", usd: -u.deductionUsd }
+          ])
+          .concat(u.qbiDeductionUsd > 0 ? [{ label: "Less §199A QBI deduction", usd: -u.qbiDeductionUsd }] : [])
           .concat([
             { label: "Taxable income", usd: u.taxableIncomeUsd },
             { label: "Ordinary-rate tax", usd: u.ordinaryTaxUsd },
             { label: "Preferential LTCG/QDI tax", usd: u.preferentialTaxUsd },
-            { label: "Net investment income tax (NIIT)", usd: u.niitUsd },
+            { label: "Net investment income tax (NIIT, §1411)", usd: u.niitUsd }
+          ])
+          .concat(u.niitUsd > 0 && u.niitDetail ? [
+            { label: "  — net investment income (interest/div/cap gains/rental)", usd: u.niitDetail.netInvestmentIncomeUsd },
+            { label: "  — MAGI", usd: u.niitDetail.magiUsd },
+            { label: "  — less filing-status threshold", usd: -u.niitDetail.thresholdUsd },
+            { label: "  — NIIT base (lesser of NII and MAGI-over-threshold) @ " + (u.niitDetail.rate * 100).toFixed(1) + "%", usd: u.niitDetail.excessUsd }
+          ] : [])
+          .concat([
             { label: "Additional Medicare tax", usd: u.additionalMedicareUsd }
           ])
           .concat(u.seTaxUsd > 0 ? [{ label: "Self-employment tax (Schedule SE)", usd: u.seTaxUsd }] : [])
-          .concat(u.amtUsd > 0 ? [{ label: "Alternative Minimum Tax (§55)", usd: u.amtUsd }] : [])
+          .concat(u.amtUsd > 0 && u.amtDetail ? [
+            { label: "Alternative Minimum Tax (§55)", usd: u.amtUsd },
+            { label: "  — AMTI (taxable income + standard/SALT addback + preference items)", usd: u.amtDetail.amtiUsd },
+            { label: "  — less AMT exemption (phased out above threshold)", usd: -u.amtDetail.exemptionUsd },
+            { label: "  — AMT base", usd: u.amtDetail.amtBaseUsd },
+            { label: "  — tentative minimum tax (26%/28% ordinary + LTCG/QDI at preferential rates)", usd: u.amtDetail.tmtUsd },
+            { label: "  — less regular tax (AMT owed = excess of TMT over this)", usd: -u.amtDetail.regularTaxUsd }
+          ] : [])
           .concat(u.creditsUsd > 0 ? [{ label: "Less non-refundable credits (care/AOTC/LLC)", usd: -u.creditsUsd }] : [])
           .concat([{ label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true }]),
         totalUsd: u.totalTaxBeforeFtcUsd,

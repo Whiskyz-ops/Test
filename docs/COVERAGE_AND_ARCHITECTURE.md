@@ -448,6 +448,52 @@ Verified via node harness (exact rupee figures checked by hand: Rohan's royalty 
 
 ---
 
+## Part D.8 — Tax Computation transparency pass (eighth round)
+
+User flagged the Tax Computation card as a black box: several numbers that feed the headline India/US
+totals — brought-forward loss set-off, the EPF/NPS retirement amounts folded into US income, and the
+entire AMT and NIIT derivations — were computed correctly inside the engine but never surfaced as line
+items, so a reviewer had no way to trace a total back to its components. Explicit instruction to keep in
+mind going forward: every number the dashboard shows must be traceable to source, not just internally
+correct.
+
+**What was already computed but not returned** (found by reading `computeUsTax`'s full body):
+`amtiUsd`, `amtExemption`, `amtBase`, `tmtOrd` (AMT) and `netInvestmentIncome`, `niitThreshold`, `magi`
+(NIIT) were all local variables used only to derive the final `amtUsd`/`niitUsd` figures, then discarded.
+Similarly, `aggregateUsIncome` in `normalize.js` computed `taxableEpfInterestUsd`/`taxableNpsWithdrawalUsd`
+and folded them into `foreignInterest`/`foreignPension` via `addMoney`, with no standalone reference kept.
+
+**Implemented:**
+- `normalize.js`: `aggregateUsIncome` now returns `retirementEpfInterestUsd`/`retirementNpsWithdrawalUsd`
+  as their own fields (hoisted the two `var`s outside the `if (annual)` block so they default to 0 rather
+  than being `undefined` when no annual slice is present).
+- `computation.js`: `computeUsTax`'s return object gained `amtDetail` (`amtiUsd`, `addbackUsd`,
+  `exemptionFullUsd`, `exemptionUsd`, `amtBaseUsd`, `preferentialInBaseUsd`, `ordinaryAmtBaseUsd`,
+  `tmtOrdUsd`, `tmtUsd`, `regularTaxUsd`), `niitDetail` (`netInvestmentIncomeUsd`, `magiUsd`,
+  `thresholdUsd`, `excessUsd`, `rate`), and `retirementEpfInterestUsd`/`retirementNpsWithdrawalUsd`
+  (zeroed when not a worldwide-taxation resident, matching the same gate `foreignInterest`/
+  `foreignPension` already use).
+- `conflicts.js`'s `buildTaxComputation`: extended both sides' `rows` arrays with "— of which" sub-rows,
+  following the same visual pattern already shipped for the s.115A breakdown (Part D.6):
+  - **India**: "Gross total income" is now split into "Current-year income (before brought-forward loss
+    set-off)" minus a line per non-zero used category (business/house-property/STCG-vs-STCG/STCG-vs-LTCG/
+    LTCG/unabsorbed depreciation, keyed off `lossSetOff.used.*`) down to "Gross total income (after...)".
+    A trailing "Losses carried forward to future years" row appears when `lossSetOff.totalUnusedInr > 0`.
+  - **US**: "Total income (worldwide)" gets an EPF-interest and/or NPS-withdrawal sub-row when non-zero;
+    the NIIT row gets net-investment-income/MAGI/threshold/base sub-rows; the AMT row (already gated on
+    `amtUsd > 0`) gets AMTI/exemption/AMT-base/TMT/regular-tax sub-rows so the excess-over-regular-tax
+    logic is visible line by line instead of a single opaque figure.
+- Fixed a rounding-display bug found while building this: the NIIT rate label used
+  `Math.round(rate * 100)`, which rounds 3.8% up to "4%" — changed to `.toFixed(1)`.
+
+Verified via node harness across all 9 profiles (no figures changed — purely additive display fields) and
+live in the dashboard for `dual_resident_h1b` (Aarav), whose profile triggers AMT, NIIT, a partial STCG
+loss set-off, and EPF interest simultaneously — confirmed via Playwright screenshot that all four
+breakdowns render with figures matching the harness output exactly (e.g. AMT: AMTI $415,713 − exemption
+$137,000 = base $278,713 → TMT $71,022 − regular tax $38,467 = AMT owed $32,555).
+
+---
+
 ## Part E — What "comprehensive" wiring involves
 
 - **`normalize.js`:** extend to read every section above into the unified model

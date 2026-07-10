@@ -309,9 +309,10 @@
     // the same worldwide-taxation condition applied to foreignInterest/
     // foreignPension below, so folding them in here doesn't change when
     // they count, only that they now actually count.
+    var taxableEpfInterestUsd = 0, taxableNpsWithdrawalUsd = 0;
     if (annual) {
-      var taxableEpfInterestUsd = inrToUsd(num(safe(annual.other_sources, "taxable_epf_interest_inr", 0)));
-      var taxableNpsWithdrawalUsd = inrToUsd(num(safe(annual.other_sources, "taxable_nps_withdrawal_inr", 0)));
+      taxableEpfInterestUsd = inrToUsd(num(safe(annual.other_sources, "taxable_epf_interest_inr", 0)));
+      taxableNpsWithdrawalUsd = inrToUsd(num(safe(annual.other_sources, "taxable_nps_withdrawal_inr", 0)));
       foreignInterest = addMoney(foreignInterest, moneyFromUsd(taxableEpfInterestUsd));
       foreignPension = addMoney(foreignPension, moneyFromUsd(taxableNpsWithdrawalUsd));
     }
@@ -329,6 +330,8 @@
       foreignRental: foreignRental, foreignPension: foreignPension,
       foreignStcg: foreignStcg, foreignLtcg: foreignLtcg,
       foreignCapitalGains: addMoney(foreignStcg, foreignLtcg),
+      retirementEpfInterestUsd: taxableEpfInterestUsd,
+      retirementNpsWithdrawalUsd: taxableNpsWithdrawalUsd,
       usSourceTotal: usSourceTotal, foreignSourceTotal: foreignSourceTotal,
       total: addMoney(usSourceTotal, foreignSourceTotal)
     };
