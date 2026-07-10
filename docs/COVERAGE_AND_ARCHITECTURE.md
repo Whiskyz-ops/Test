@@ -606,6 +606,29 @@ India income card, whose total now matches the Tax Computation figure exactly (�
 
 ---
 
+## Part D.11 — Real per-election detail for s.115A rows (eleventh round)
+
+User caught that the s.115A interest/dividend/royalty/FTS breakdown rows' popups only showed
+claimed/uncaptured totals — not the actual per-election detail (which treaty article, how much, whether
+it was accepted or denied and why). `computeS115aStream()` (`computation.js`) already looped over
+`treaty.treatyElections` to compute the totals but discarded each election's own detail once summed.
+
+**Implemented:** the loop now also pushes an `elections` array onto the stream's return value — one entry
+per matching election with its article, requested/applied amount, elected rate, domestic rate, the rate
+actually applied, its tax contribution, and an `outcome` tag (`denied_no_docs` / `elected_rate_applied` /
+`domestic_rate_wins`). `conflicts.js` gained `s115aParts(stream, fmt)`, which turns this into one trace
+`parts` line per election with a plain-English reason (e.g. "Election (Art 11(2)(b)) on ₹1,50,000 denied
+— TRC/Form 10F missing, domestic 20% applies instead: ₹30,000"), plus a final line for whatever income
+wasn't covered by any election. No UI changes needed — this is the same `parts`-list rendering used
+everywhere else, just with real per-election rows instead of a two-number summary.
+
+Verified via `verify_traces.js` (still zero regressions) and a dedicated print script confirming, for
+Rohan's profile, the exact election-level math: his interest stream's ₹1,50,000 election is shown denied
+(no TRC/Form 10F) at ₹30,000 tax, with the remaining ₹1,10,000 uncaptured at the same 20% domestic rate
+(₹22,000) — summing to the ₹52,000 total already shown on the parent row. Confirmed live via Playwright.
+
+---
+
 ## Part E — What "comprehensive" wiring involves
 
 - **`normalize.js`:** extend to read every section above into the unified model

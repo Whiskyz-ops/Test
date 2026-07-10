@@ -890,6 +890,30 @@
     });
   }
 
+  /* Turns a computeS115aStream() result into trace `parts` — one line per
+   * actual DTAA election (article, amount, which rate won and why) plus a
+   * final line for whatever wasn't covered by any election, so the s.115A
+   * rows show the real per-election math instead of a claimed/uncaptured
+   * summary with no detail on individual elections. */
+  function s115aParts(stream, fmt) {
+    var parts = (stream.elections || []).map(function (e) {
+      var artTxt = e.article ? " (" + e.article + ")" : "";
+      var label;
+      if (e.outcome === "denied_no_docs") {
+        label = "Election" + artTxt + " on " + fmt(e.appliedAmountInr) + " denied — TRC/Form 10F missing, domestic " + Math.round(e.domesticRate * 100) + "% applies instead";
+      } else if (e.outcome === "elected_rate_applied") {
+        label = "Election" + artTxt + " on " + fmt(e.appliedAmountInr) + " @ " + Math.round(e.rateApplied * 100) + "% treaty rate (beats " + Math.round(e.domesticRate * 100) + "% domestic)";
+      } else {
+        label = "Election" + artTxt + " on " + fmt(e.appliedAmountInr) + " — domestic " + Math.round(e.domesticRate * 100) + "% still wins over the " + Math.round(e.electedRate * 100) + "% elected rate";
+      }
+      return { label: label, amount: e.taxInr };
+    });
+    if (stream.uncapturedInr > 1) {
+      parts.push({ label: "No election covers " + fmt(stream.uncapturedInr) + " — taxed @ " + Math.round(stream.domesticRate * 100) + "% domestic default", amount: stream.uncapturedTaxInr });
+    }
+    return parts;
+  }
+
   /* ------------------------------------------------------------------------
    * buildFtcReport — flatten the FTC computation into a dashboard table.
    * ----------------------------------------------------------------------*/
@@ -1054,13 +1078,8 @@
     }).map(function (k) {
       var s = i.s115a[k];
       return { label: "  — of which s.115A " + k + " @ " + Math.round(s.effectiveRate * 100) + "% effective", inr: s.taxInr,
-        trace: calc("s.90(2) DTAA-elected amounts taxed at min(domestic, elected) rate; whatever isn't covered by a valid election is taxed at the plain domestic default", [
-          { label: "Total " + k + " income (s.115A)", amount: s.totalInr },
-          { label: "Claimed under treaty election(s)", amount: s.claimedInr },
-          { label: "Uncaptured (no/invalid election → domestic rate)", amount: s.uncapturedInr },
-          { label: "Domestic s.115A default rate", display: Math.round(s.domesticRate * 100) + "%" },
-          { label: "Effective blended rate on this stream", display: Math.round(s.effectiveRate * 100) + "%" }
-        ]) };
+        trace: calc("Total " + k + " income of " + inr(s.totalInr) + " under s.115A — each DTAA election (s.90(2)) is taxed at whichever is LOWER of the domestic default or the elected treaty rate, and only when TRC/Form 10F are on file; anything not covered by a valid election falls back to the domestic default",
+          s115aParts(s, inr)) };
     }) : [];
 
     return {

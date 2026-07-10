@@ -322,20 +322,35 @@
     var hasAggregate = aggregateTotalInr != null;
     var remainingInr = hasAggregate ? aggregateTotalInr : 0;
     var claimedInr = 0, taxInr = 0;
+    var elections = [];
     (treaty.treatyElections || []).forEach(function (e) {
       if (!e || e.income_type !== incomeType) return;
       var raw = U.num(e.amount_inr);
       var amt = hasAggregate ? Math.min(raw, Math.max(0, remainingInr)) : raw;
-      var rate = (docsOk && e.elected_rate != null) ? Math.min(domestic, e.elected_rate) : domestic;
+      var electedRate = e.elected_rate != null ? Number(e.elected_rate) : null;
+      var rate = (docsOk && electedRate != null) ? Math.min(domestic, electedRate) : domestic;
+      var electionTaxInr = amt * rate;
       claimedInr += amt;
-      taxInr += amt * rate;
+      taxInr += electionTaxInr;
+      elections.push({
+        article: e.treaty_article || null,
+        requestedAmountInr: raw,
+        appliedAmountInr: amt,
+        electedRate: electedRate,
+        domesticRate: domestic,
+        rateApplied: rate,
+        taxInr: electionTaxInr,
+        outcome: !docsOk ? "denied_no_docs" : (electedRate != null && electedRate < domestic ? "elected_rate_applied" : "domestic_rate_wins")
+      });
       if (hasAggregate) remainingInr -= amt;
     });
     var uncapturedInr = hasAggregate ? Math.max(0, remainingInr) : 0;
-    taxInr += uncapturedInr * domestic;
+    var uncapturedTaxInr = uncapturedInr * domestic;
+    taxInr += uncapturedTaxInr;
     var totalInr = hasAggregate ? aggregateTotalInr : claimedInr;
     return {
       totalInr: totalInr, taxInr: taxInr, claimedInr: claimedInr, uncapturedInr: uncapturedInr,
+      uncapturedTaxInr: uncapturedTaxInr, elections: elections,
       domesticRate: domestic, effectiveRate: totalInr > 0 ? taxInr / totalInr : domestic
     };
   }
