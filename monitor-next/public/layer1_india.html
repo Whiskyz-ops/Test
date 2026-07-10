@@ -257,7 +257,7 @@
         const invHTML = showInventory ? `
             <div class="flex flex-col gap-3">
                 <h4 class="text-[10px] text-white/70 font-black uppercase tracking-widest border-b border-white/10 pb-1">Inventory & COGS</h4>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     ${makeInput('Opening Stock', 'opening_stock_inr')}
                     ${makeInput('Purchases', 'purchases_inr')}
                     ${makeInput('Closing Stock', 'closing_stock_inr')}
@@ -360,7 +360,7 @@
                 dynamicCostsHTML = `
                     <div class="flex flex-col gap-3">
                         <h4 class="text-[10px] text-white/70 font-black uppercase tracking-widest border-b border-white/10 pb-1">Direct Generation Costs</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             ${makeInput('Coal/Fuel for Generation', 'coal_fuel_generation_inr')}
                             ${makeInput('Grid Transmission Charges', 'grid_transmission_charges_inr')}
                             ${makeInput('Substation Maintenance', 'substation_maintenance_inr')}
@@ -1701,7 +1701,7 @@
                               <label class="text-[9px] font-black uppercase tracking-widest text-brandGold/80 mb-0.5">Tax Regime</label>
                               <div class="relative">
                                   <select id="prof-regime" onchange="updateProfileField('tax_regime', this.value)" class="w-full bg-transparent border-0 p-0 text-sm text-white font-medium outline-none appearance-none cursor-pointer pr-8 focus:ring-0">
-                                      <option value="NEW" class="bg-[#050505]">New Tax Regime (Default Sec 115BAC)</option>
+                                      <option value="NEW" class="bg-[#050505]">New Tax Regime (Default Section 202)</option>
                                       <option value="OLD" class="bg-[#050505]">Old Tax Regime (With Deductions)</option>
                                   </select>
                                   <div class="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
@@ -3484,6 +3484,7 @@
                 <div class="flex items-center justify-between border-b border-white/5 pb-2">
                     <div class="flex items-center space-x-4">
                         <span class="text-xs font-black uppercase tracking-widest text-brandGold">Share Buybacks</span>
+                
                         <select id="bb-has" onchange="toggleBuybackModule(this.value)" class="bg-[#121212] border border-white/10 rounded-lg text-[10px] text-white px-3 py-1.5 focus:border-brandGold focus:outline-none">
                             <option value="false">No Buybacks</option>
                             <option value="true">Yes, Tendered Shares</option>
@@ -3492,9 +3493,7 @@
                     <button onclick="addBuybackRow()" id="btn-add-bb" class="px-3 py-1 bg-white/10 hover:bg-brandGold/20 hover:text-brandGold rounded text-[9px] font-black uppercase tracking-widest transition-all hidden">+ Add Buyback</button>
                 </div>
                 <div id="div-bb-box" class="hidden">
-                    <div class="text-[9px] text-brandGold/80 bg-brandGold/5 border border-brandGold/20 rounded-xl px-4 py-3 mb-3">
-                        ⚖️ **New Rules Apply**: The money you received is taxed as dividend, and your original purchase cost is treated as a loss you can carry forward.
-                    </div>
+                    
                     <div id="div-bb-list" class="grid grid-cols-1 gap-4"></div>
                 </div>
             </div>
@@ -7851,10 +7850,10 @@ const crDiv = document.getElementById('div-company-residency');
                     </select>
                 </div>
                 <div>
-                    <label class="block text-[10px] text-white/60 mb-1">Company Listed?</label>
-                    <select class="bb-listed w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all" onchange="syncBuybackState()" title="Affects the holding-period threshold and rate for buy-backs on/after 1-Apr-2026 (s.69): listed shares use the 12-month/flat-rate STT-paid rules, unlisted shares use 24 months and slab-rate STCG.">
-                        <option value="listed">Listed (stock exchange)</option>
-                        <option value="unlisted">Unlisted</option>
+                    <label class="block text-[10px] text-white/60 mb-1">Listed on Exchange?</label>
+                    <select class="bb-listed w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all" onchange="syncBuybackState()">
+                        <option value="yes">Yes (Listed)</option>
+                        <option value="no">No (Unlisted)</option>
                     </select>
                 </div>
                 <div>
@@ -7898,46 +7897,45 @@ const crDiv = document.getElementById('div-company-residency');
         const txs = [];
         document.querySelectorAll('.bb-card').forEach(card => {
             const bDate = card.querySelector('.bb-date').value || null;
+            const acqDate = card.querySelector('.bb-acq-date').value || null;
             const recd = parseFloat(card.querySelector('.bb-recd').value) || null;
             const cost = parseFloat(card.querySelector('.bb-cost').value) || null;
+            const isListed = card.querySelector('.bb-listed') ? card.querySelector('.bb-listed').value === 'yes' : true;
             
-            const acqDate = card.querySelector('.bb-acq-date').value || null;
-            const listedEl = card.querySelector('.bb-listed');
-            const isListed = !listedEl || listedEl.value !== 'unlisted';
             let era = 'pre_oct2024';
             let divIncome = 0;
             let capLoss = 0;
-            let capGainOrLoss = 0;
+            let capitalGainOrLoss = 0;
             let gainClassification = null;
 
-            if (bDate && new Date(bDate) >= new Date('2026-04-01')) {
-                // Budget 2026: buy-backs on/after 1 Apr 2026 (Tax Year 2026-27
-                // onward, s.69 ITA 2025) are taxed as CAPITAL GAINS — proceeds
-                // less cost of acquisition, not a full-consideration deemed
-                // dividend. Reverses the post-Oct-2024 dividend treatment below.
-                // Listed shares: >12 months => LTCG @12.5% (s.198, Rs1.25L
-                // exemption); <=12 months => STCG @20% (s.196). Unlisted
-                // shares: >24 months => LTCG @12.5% (no indexation); <=24
-                // months => STCG at slab rate (not the flat 20%).
-                era = 'capital_gains_era';
-                capGainOrLoss = (recd || 0) - (cost || 0);
-                let months = null;
-                if (acqDate && bDate) {
-                    const a = new Date(acqDate), b = new Date(bDate);
-                    months = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+            if (bDate) {
+                const bDateObj = new Date(bDate);
+                if (bDateObj >= new Date('2026-04-01')) {
+                    era = 'capital_gains_era';
+                    capitalGainOrLoss = (recd || 0) - (cost || 0);
+                    
+                    if (acqDate) {
+                        const acqDateObj = new Date(acqDate);
+                        const diffTime = Math.abs(bDateObj - acqDateObj);
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        const monthsHeld = diffDays / 30.436875;
+                        
+                        const ltThreshold = isListed ? 12 : 24;
+                        const isLongTerm = monthsHeld > ltThreshold;
+                        
+                        gainClassification = isLongTerm ? 'ltcg' : (isListed ? 'stcg' : 'stcg_slab');
+                    }
+                } else if (bDateObj >= new Date('2024-10-01')) {
+                    era = 'post_oct2024';
+                    divIncome = recd || 0;
+                    capLoss = cost || 0;
                 }
-                const ltThreshold = isListed ? 12 : 24;
-                const isLongTerm = months !== null && months > ltThreshold;
-                gainClassification = isLongTerm ? 'ltcg' : (isListed ? 'stcg' : 'stcg_slab');
-            } else if (bDate && new Date(bDate) >= new Date('2024-10-01')) {
-                era = 'post_oct2024';
-                divIncome = recd || 0;
-                capLoss = cost || 0;
             }
 
             txs.push({
                 company_name: card.querySelector('.bb-name').value || null,
                 isin: card.querySelector('.bb-isin').value || null,
+                is_listed: isListed,
                 buyback_date: bDate,
                 tender_or_open_market: card.querySelector('.bb-route').value,
                 shares_tendered: parseInt(card.querySelector('.bb-shares').value) || null,
@@ -7947,7 +7945,7 @@ const crDiv = document.getElementById('div-company-residency');
                 buyback_pre_or_post_oct2024: era,
                 deemed_dividend_inr: divIncome,
                 capital_loss_inr: capLoss,
-                capital_gain_or_loss_inr: capGainOrLoss,
+                capital_gain_or_loss: capitalGainOrLoss,
                 gain_classification: gainClassification
             });
         });
@@ -12752,26 +12750,27 @@ ${isProf ? '' : `
         const pensionGross = state.other_sources.family_pension_gross_inr || 0;
         const pensionNet   = Math.max(0, pensionGross - Math.min(15000, Math.round(pensionGross / 3)));
 
-        // Share buyback Oct-2024-to-Mar-2026 → deemed dividend (s.2(40)(f)/old
-        // s.2(22)(f)); on/after Apr-2026 → capital gains instead (s.69, Budget
-        // 2026 — see syncBuybackState()). Unlisted-company short-term gains
-        // (<=24 months) are slab-rate, not the flat 20% listed STCG rate, so
-        // they route to normal-slab income instead of the capital_gains bucket.
-        let deemedBuyback = 0, buybackStcg = 0, buybackLtcg = 0, buybackStcgSlab = 0;
+        // Share buyback post-Oct 2024 → deemed dividend u/s 2(22)(f)
+        let deemedBuyback = 0;
+        let bbLtcg = 0;
+        let bbStcg = 0;
+        let bbStcgSlab = 0;
+        let bbCapLoss = 0;
+
         (state.share_buyback.transactions || []).forEach(bb => {
             if (bb.buyback_pre_or_post_oct2024 === 'post_oct2024') {
                 deemedBuyback += (bb.consideration_received_inr || 0);
             } else if (bb.buyback_pre_or_post_oct2024 === 'capital_gains_era') {
-                const g = bb.capital_gain_or_loss_inr || 0;
-                if (bb.gain_classification === 'ltcg') buybackLtcg += g;
-                else if (bb.gain_classification === 'stcg_slab') buybackStcgSlab += g;
-                else buybackStcg += g;
+                if (bb.capital_gain_or_loss < 0) {
+                    bbCapLoss += bb.capital_gain_or_loss; // Accumulate as a negative value
+                } else if (bb.capital_gain_or_loss >= 0 && bb.gain_classification) {
+                    if (bb.gain_classification === 'ltcg') bbLtcg += bb.capital_gain_or_loss;
+                    if (bb.gain_classification === 'stcg') bbStcg += bb.capital_gain_or_loss;
+                    if (bb.gain_classification === 'stcg_slab') bbStcgSlab += bb.capital_gain_or_loss;
+                }
             }
         });
         state.other_sources.deemed_dividend_from_buyback_inr = deemedBuyback;
-        state.other_sources.buyback_stcg_slab_inr = buybackStcgSlab;
-        state.capital_gains.buyback_stcg_inr = buybackStcg;
-        state.capital_gains.buyback_ltcg_inr = buybackLtcg;
 
         // ── HOUSE PROPERTY (Head: Income from House Property) ────────
         let hpNetIncome = 0;
@@ -12801,14 +12800,14 @@ ${isProf ? '' : `
 
         // ── CAPITAL GAINS — enriched in Layer 2 ─────────────────────
         // Layer 1 collects transaction data; CG is computed in Layer 2.
-        const stcg111A = 0;
-        const ltcg112A = 0;
+        const stcg111A = bbStcg;
+        const ltcg112A = bbLtcg;
         const ltcg112  = 0;
 
         // ── GROSS TOTAL INCOME ───────────────────────────────────────
         // lotteryWin is taxed at flat 30% Lottery & Crossword Puzzles Winnings (same as online gaming post Apr-2023).
         // itRefundInt is taxable Excess Refund Granted Interest / Income Tax Refund Interest — included in normal slab.
-        const normalSlab  = salary + hpNetIncome + business + savingsInt + fdInt + bondInt + itRefundInt + gifts + pensionNet + deemedBuyback + buybackStcgSlab + otherSourcesAdditions + miscIncome;
+        const normalSlab  = salary + hpNetIncome + business + savingsInt + fdInt + bondInt + itRefundInt + gifts + pensionNet + deemedBuyback + otherSourcesAdditions + miscIncome + bbStcgSlab;
         
         // Non-Resident Deduction Wall (Tax on Dividends, Royalties and Technical Services (Non-Residents)): 
         // If NR/Foreign Company earns Dividend, Royalty, or FTS, they cannot claim Chapter VI-A deductions against it.
@@ -12963,10 +12962,20 @@ ${isProf ? '' : `
             baseTax += Math.max(0, ltcg112A)  * 0.125; // LTCG Long-Term Capital Gains on Listed Securities
             baseTax += Math.max(0, ltcg112)   * 0.20;  // Other LTCG Other Long-Term Capital Gains
             baseTax += Math.max(0, gaming)    * 0.30;  // Online gaming Online Gaming Winnings
-            // Rebate Section 156 under New Regime (if total income <= ₹12L, rebate = full tax)
+            // Rebate Section 156 under New Regime (if total income <= ₹12L, rebate = full tax, with marginal relief above)
             const isResident = state.residency_detail?.final_india_residency_status === 'ROR' || state.residency_detail?.final_india_residency_status === 'RNOR' || state.residency_detail?.status === 'ROR' || state.residency_detail?.status === 'RNOR';
-            if (entity === 'individual' && isResident) {
-                if (regime === 'NEW' && totalIncome <= 1200000) baseTax = 0;
+                        if (entity === 'individual' && isResident) {
+                if (regime === 'NEW') {
+                    if (totalIncome <= 1200000) {
+                        baseTax = 0;
+                    } else {
+                        // Section 156 Marginal Relief: tax cannot exceed (income - 12,00,000)
+                        const maxTax = totalIncome - 1200000;
+                        if (baseTax > maxTax) {
+                            baseTax = maxTax;
+                        }
+                    }
+                }
                 // Old Regime rebate: total income <= ₹5L
                 if (regime === 'OLD' && totalIncome <= 500000) baseTax = 0;
             }
@@ -14074,13 +14083,7 @@ ${isProf ? '' : `
                 }
             });
         state.config.base_year = baseYear;
-        state.metadata = state.metadata || {};
-        // Income-tax Act, 2025 (in force from 1 Apr 2026) collapses "Financial
-        // Year" + "Assessment Year" into a single "Tax Year" concept — the
-        // 12-month period itself (Apr 1 - Mar 31), same framing the US already
-        // uses. No more separate AY.
-        state.metadata.financial_year = `TY${baseYear}-${String(baseYear + 1).slice(-2)}`;
-
+        
         const indiaStart = `Apr 1, ${baseYear}`;
         const indiaEnd = `Mar 31, ${baseYear + 1}`;
         const banner = document.getElementById('global-tax-year-banner');
@@ -14088,6 +14091,9 @@ ${isProf ? '' : `
             banner.innerHTML = `Base Tax Year: ${baseYear} &nbsp;|&nbsp; Tax Year ${baseYear}-${String(baseYear + 1).slice(-2)}: ${indiaStart} - ${indiaEnd} &nbsp;|&nbsp; Income-tax Act, 2025`;
             banner.classList.remove('hidden');
         }
+
+        state.metadata = state.metadata || {};
+        state.metadata.financial_year = `TY${baseYear}-${String(baseYear + 1).slice(-2)}`;
 
         // Load saved L1 India state if exists
         const savedIndiaStateStr = localStorage.getItem('wising_layer1_india_state');

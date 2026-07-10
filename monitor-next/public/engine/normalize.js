@@ -167,13 +167,42 @@
     // Budget 2026 REVERSED this for buy-backs on/after 1-Apr-2026 (s.69,
     // Tax Year 2026-27 onward) — those are capital gains in India too now,
     // folded into stcg/ltcg below instead (listed shares only — see there).
-    var deemedDividendBuyback = moneyFromInr(num(safe(os, "deemed_dividend_from_buyback_inr", 0)));
+    //
+    // Two sources feed this, since either can be present depending on how the
+    // model got here: (a) the raw per-transaction array (india.share_buyback.
+    // transactions) that the live Layer 1 form persists — Layer 1's own
+    // preview computes these totals locally for its own on-page estimate but
+    // does NOT persist the aggregated totals, only the raw transactions, so
+    // this aggregates them itself; (b) demo/test profiles that set the
+    // aggregated capital_gains.buyback_*_inr / other_sources.deemed_dividend_
+    // from_buyback_inr fields directly, bypassing the transaction UI
+    // entirely. Both are summed in — real data will only ever populate one.
+    var buybackTxs = safe(india, "share_buyback.transactions", []) || [];
+    var deemedDividendInr = num(safe(os, "deemed_dividend_from_buyback_inr", 0));
+    var buybackLtcgInr = num(safe(annual.capital_gains, "buyback_ltcg_inr", 0));
+    var buybackStcgInr = num(safe(annual.capital_gains, "buyback_stcg_inr", 0));
+    var buybackStcgSlabInr = num(safe(os, "buyback_stcg_slab_inr", 0));
+    buybackTxs.forEach(function (bb) {
+      if (bb.buyback_pre_or_post_oct2024 === "post_oct2024") {
+        deemedDividendInr += num(bb.consideration_received_inr);
+      } else if (bb.buyback_pre_or_post_oct2024 === "capital_gains_era") {
+        var g = num(bb.capital_gain_or_loss);
+        if (bb.gain_classification === "ltcg") buybackLtcgInr += g;
+        else if (bb.gain_classification === "stcg") buybackStcgInr += g;
+        else if (bb.gain_classification === "stcg_slab") buybackStcgSlabInr += g;
+        // no gain_classification (e.g. acquisition date left blank) — not
+        // enough information to classify LTCG vs STCG, so it's dropped
+        // rather than guessed at; matches Layer 1's own (conservative, if
+        // silent) handling of that same gap.
+      }
+    });
+    var deemedDividendBuyback = moneyFromInr(deemedDividendInr);
     // Unlisted-company buyback capital gains, held <=24 months (s.69): taxed
     // at SLAB rate, not the flat 20% listed-STCG rate, so this joins the
     // normal-slab bucket (like the deemed dividend above) rather than the
     // capital-gains one. >24-month unlisted gains ARE flat-rate LTCG — those
     // fold into ltcg below same as listed shares (both s.198, 12.5%).
-    var buybackStcgSlab = num(safe(os, "buyback_stcg_slab_inr", 0));
+    var buybackStcgSlab = buybackStcgSlabInr;
     var dividend = moneyFromInr(num(safe(os, "dividend_inr", 0)));
 
     // Capital gains — Layer 1 stores transaction data; surface the simple
@@ -186,9 +215,9 @@
     // — see buybackStcgSlab above.
     var stcg = moneyFromInr(num(safe(di, "capital_gains.short_term_15_pct", 0)) +
                             num(safe(annual.capital_gains, "stcg_111a_inr", 0)) +
-                            num(safe(annual.capital_gains, "buyback_stcg_inr", 0)));
+                            buybackStcgInr);
     var ltcg = moneyFromInr(num(safe(annual.capital_gains, "ltcg_112a_inr", 0)) +
-                            num(safe(annual.capital_gains, "buyback_ltcg_inr", 0)));
+                            buybackLtcgInr);
 
     // Special-rate "other sources" income — flat 30% under s.128 (lottery/
     // betting) and s.194 (online gaming), no basic exemption, no Chapter
