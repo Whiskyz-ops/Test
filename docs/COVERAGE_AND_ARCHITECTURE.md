@@ -437,14 +437,17 @@ still gated on TRC/Form 10F being on file.
 **Bifurcated to show four distinct real outcomes across two profiles** (rather than one contrived
 example):
 - **Rohan** — ₹1.5L of his ₹2.6L NRO interest claimed at 15% (denied, docs missing, falls back to 20%
-  on the whole ₹2.6L) + a new ₹4L royalty stream at 15% (denied for the same reason, and would have been
-  worse than the 10% domestic rate anyway even with docs).
+  on the whole ₹2.6L) + a new ₹4L royalty stream at 15% (denied for the same reason).
+  **Correction (Part D.12): at the time this was written, the domestic s.115A royalty/FTS rate was
+  believed to be 10% (stale — that was the Finance Act 2013 rate), so this was described as "would have
+  been worse than domestic anyway even with docs." That's backwards under current law — see D.12.**
 - **Vikram** — his existing ₹5L dividend election at 25% (still correctly ignored, 20% domestic wins) +
   a new ₹2L interest election at 15% with TRC/Form 10F **present** — this one genuinely succeeds
   (effective rate 15% vs. 20% domestic), the first demo of an election actually lowering tax.
 
-Verified via node harness (exact rupee figures checked by hand: Rohan's royalty tax = ₹4,00,000 × 10% =
-₹40,000; Vikram's interest tax = ₹2,00,000 × 15% = ₹30,000) and live in the dashboard.
+Verified via node harness at the time (exact rupee figures checked by hand: Rohan's royalty tax =
+₹4,00,000 × 10% = ₹40,000; Vikram's interest tax = ₹2,00,000 × 15% = ₹30,000) and live in the dashboard.
+Rohan's royalty figure changed in Part D.12 once the stale rate was corrected.
 
 ---
 
@@ -626,6 +629,51 @@ Verified via `verify_traces.js` (still zero regressions) and a dedicated print s
 Rohan's profile, the exact election-level math: his interest stream's ₹1,50,000 election is shown denied
 (no TRC/Form 10F) at ₹30,000 tax, with the remaining ₹1,10,000 uncaptured at the same 20% domestic rate
 (₹22,000) — summing to the ₹52,000 total already shown on the parent row. Confirmed live via Playwright.
+
+---
+
+## Part D.12 — Stale statutory rate: s.115A royalty/FTS was 10%, actually 20% since 2023
+
+With the per-election detail from D.11 in front of them, the user asked why Rohan's royalty was taxed at
+10% instead of the 15% DTAA rate, and I explained (incorrectly) that the domestic 10% rate was simply
+lower than the treaty's 15% — a real answer for the code as it stood, but the *code's constant itself was
+outdated*. The user pushed back with a general question about NRI withholding, which prompted a live web
+check rather than answering from stale training data.
+
+**Finding, sourced:** the Finance Act 2013 reduced the s.115A royalty/FTS rate to 10%, but the **Finance
+Act 2023 doubled it back to 20%, effective 1 April 2023 (AY 2024-25)** — specifically, per multiple
+practitioner sources, to push non-residents toward properly claiming DTAA rates (which for royalty/FTS
+under India's treaties with the US/UK/Canada are typically 15%) instead of defaulting to a domestic rate
+that used to be even lower. `CONST.TAX.INDIA.S115A_RATES` in `constants.js` still had `royalty: 0.10,
+fts: 0.10` — current, correct values are `0.20` for both. This is the kind of error that's invisible
+until someone asks "why this specific number" — which is exactly what the Part D.9–D.11 transparency work
+was for.
+
+**Fixed:** `S115A_RATES.royalty`/`fts` → `0.20`. This **also reverses the substantive relationship** for
+Rohan's demo: previously "his missing TRC/Form 10F cost him nothing on the royalty stream since domestic
+(10%) already beat the 15% treaty rate" — now, domestic (20%) is *worse* than the treaty (15%), so his
+missing documentation genuinely costs him ₹20,000 (₹4,00,000 × the 5-point rate gap) that a real TRC/Form
+10F would have saved. His royalty tax rose from ₹40,000 to ₹80,000. No other profile has royalty/FTS
+income, so this was the only number affected engine-wide; the interest/dividend rate (20%, unaffected by
+either Finance Act change — it derives from a different s.115A sub-clause) needed no correction, and
+`us_resident_indian_income`'s comment block and `founder_indian_company`'s (which only involves interest/
+dividend) were already accurate and needed no changes.
+
+Separately, in the course of this the user raised a distinct, real question about NRI withholding
+generally: whether *any* amount received by an NR individual is subject to 30% TDS. That's accurate for
+one specific practical case that this engine doesn't model as a special rate: ordinary NRO savings/FD
+interest is customarily withheld at a flat 30% by Indian banks under s.195 as a conservative default
+(since banks can't independently verify treaty eligibility), separate from — and not the same computation
+as — the s.115A(1)(a) 20% concessional rate, which technically only covers interest on foreign-currency
+borrowings/specified bonds, not ordinary NRO deposit interest. This engine's "interest" bucket currently
+treats all NR interest as s.115A-eligible at 20%; whether ordinary NRO interest should instead default to
+normal slab-rate taxation (with the 30% figure being a TDS/withholding practice, refundable via the
+return, not the final liability) is a modeling question flagged here but **not yet resolved or changed** —
+worth a follow-up round if this level of interest-category precision matters for the product.
+
+Verified via `sanity_check.js`/`audit_profiles.js`/`verify_traces.js` (zero regressions elsewhere; only
+Rohan's numbers changed, exactly as expected) and a dedicated print of the corrected trace showing his
+royalty election denial now costing ₹80,000 instead of ₹40,000.
 
 ---
 

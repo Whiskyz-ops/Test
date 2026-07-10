@@ -136,7 +136,11 @@
         // a DTAA-elected rate (s.90(2)) displaces when TRC/Form 10F support
         // it. Shared between computation.js (actual NR tax) and conflicts.js
         // (the treaty-election comparison text) so they can't drift apart.
-        S115A_RATES: { interest: 0.20, dividend: 0.20, royalty: 0.10, fts: 0.10 },
+        // Royalty/FTS was 10% (Finance Act 2013) until the Finance Act 2023
+        // amendment DOUBLED it to 20%, effective 1 April 2023 (AY 2024-25) —
+        // specifically to push non-residents toward claiming DTAA rates
+        // (properly documented) instead of defaulting to domestic law.
+        S115A_RATES: { interest: 0.20, dividend: 0.20, royalty: 0.20, fts: 0.20 },
         // Surcharge brackets for individuals [income_over_inr, rate]
         SURCHARGE_IND: [
           [50000000, 0.25], [20000000, 0.25], [10000000, 0.15], [5000000, 0.10], [0, 0.00]
