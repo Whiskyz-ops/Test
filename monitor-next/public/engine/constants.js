@@ -12,13 +12,15 @@
  * "Financial Year"/"Assessment Year" into a single "Tax Year" concept and
  * renumbers every section — citations below use the ITA 2025 numbering.
  * SOURCING CAVEAT: the ITA 2025 section numbers were sourced from secondary
- * commentary (tax-publisher concordance articles), not the CBDT's official
- * mapping utility directly (it blocks automated access). One error was
- * already caught this way (a rebate citation initially sourced as §157 was
- * actually §156 — §157 is a different, unrelated provision) — treat every
- * §-citation here as a starting point for a manual cross-check against
- * incometaxindia.gov.in's own utility before relying on it in any real
- * filing or professional opinion, not as independently verified.
+ * commentary (tax-publisher concordance articles — chiefly TaxTMI's "Clause
+ * X of the Income Tax Bill, 2025 vs. Section Y of the Income-tax Act, 1961"
+ * series), not the CBDT's official mapping utility directly (it blocks
+ * automated access). Every citation has now been checked against at least
+ * two independent sources; two wrong initial guesses were caught and fixed
+ * this way (§87A is §156, not §157; §54 is §82, not §84). Reasonably
+ * reliable, but still not the same as pulling from the official utility —
+ * spot-check against incometaxindia.gov.in before relying on any single
+ * citation in a real filing or professional opinion.
  * They are NOT a
  * substitute for the live statutory tables — a production build would pull these
  * from a versioned rule service. Values are chosen to be consistent with the
