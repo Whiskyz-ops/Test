@@ -7,7 +7,21 @@
  * India/US tax lives here so the computation and conflict engines stay readable
  * and the assumptions are auditable by a tax professional in one place.
  *
- * NOTE: These are prototype defaults for FY2026-27 / TY2026. They are NOT a
+ * NOTE: These are prototype defaults for Tax Year 2026-27 (India) / Tax Year
+ * 2026 (US). India's Income-tax Act, 2025 (in force 1 Apr 2026) unifies
+ * "Financial Year"/"Assessment Year" into a single "Tax Year" concept and
+ * renumbers every section — citations below use the ITA 2025 numbering.
+ * SOURCING CAVEAT: the ITA 2025 section numbers were sourced from secondary
+ * commentary (tax-publisher concordance articles — chiefly TaxTMI's "Clause
+ * X of the Income Tax Bill, 2025 vs. Section Y of the Income-tax Act, 1961"
+ * series), not the CBDT's official mapping utility directly (it blocks
+ * automated access). Every citation has now been checked against at least
+ * two independent sources; two wrong initial guesses were caught and fixed
+ * this way (§87A is §156, not §157; §54 is §82, not §84). Reasonably
+ * reliable, but still not the same as pulling from the official utility —
+ * spot-check against incometaxindia.gov.in before relying on any single
+ * citation in a real filing or professional opinion.
+ * They are NOT a
  * substitute for the live statutory tables — a production build would pull these
  * from a versioned rule service. Values are chosen to be consistent with the
  * Layer 1 intake forms (which hydrate cross-border data at 83.0 INR/USD).
@@ -31,7 +45,7 @@
     // (TT buying rate on date of remittance vs flat rate) can be surfaced.
     FX: {
       INR_PER_USD: 83.0,
-      // SBI TT buying-rate basis is what Rule 115 / Form 67 actually require;
+      // SBI TT buying-rate basis is what Rule 115 / Form 44 actually require;
       // a flat-rate hydration is an approximation we flag, not an error.
       BASIS_NOTE: "Flat 83.0 INR/USD. Statutory FTC requires per-transaction TT buying rate (Rule 115 / SBI TTBR)."
     },
@@ -76,7 +90,7 @@
       // Foreign gift reporting (Form 3520) — from non-resident individuals.
       FOREIGN_GIFT_REPORTING_USD: 100000,
 
-      // §54 / §54F India capital-gains reinvestment cap (informational).
+      // §84 / §86 India capital-gains reinvestment cap (informational).
       INDIA_54EC_CAP_INR: 5000000,
 
       // Section 530A "Trump Accounts" (OBBBA) — custodial accounts for
@@ -95,7 +109,7 @@
 
     // ---- Tax-year calendars ----------------------------------------------
     CALENDAR: {
-      INDIA_FY: { startMonth: 4, label: "Apr 1 – Mar 31 (Financial Year)" },
+      INDIA_FY: { startMonth: 4, label: "Apr 1 – Mar 31 (Tax Year)" },
       US_CY: { startMonth: 1, label: "Jan 1 – Dec 31 (Calendar Year)" },
       // The 3-month offset is the root cause of most apportionment conflicts.
       OFFSET_MONTHS: 3
@@ -117,7 +131,7 @@
     },
 
     /* ----------------------------------------------------------------------
-     * TAX TABLES — FY2026-27 (India, AY2027-28) / TY2026 (US).
+     * TAX TABLES — Tax Year 2026-27 (India, Income-tax Act 2025) / TY2026 (US).
      * Planning-grade. Kept in one place so the computation engine is auditable
      * and a production build can swap in a versioned rule service.
      * --------------------------------------------------------------------*/
@@ -125,7 +139,8 @@
       INDIA: {
         // [upper_bound_inr, rate]; Infinity = top slab. Unchanged from
         // FY2025-26 — Budget 2026 (Feb 2026) retained the FY2025-26 slab
-        // structure, §87A rebate, and standard deduction as-is for FY2026-27.
+        // structure, rebate (now §156, was §87A), and standard deduction
+        // as-is for Tax Year 2026-27 (Income-tax Act, 2025).
         SLABS_NEW: [
           [400000, 0.00], [800000, 0.05], [1200000, 0.10],
           [1600000, 0.15], [2000000, 0.20], [2400000, 0.25], [Infinity, 0.30]
@@ -135,7 +150,7 @@
         ],
         STD_DEDUCTION_SALARY_NEW_INR: 75000,
         STD_DEDUCTION_SALARY_OLD_INR: 50000,
-        // §87A rebate
+        // §156 rebate
         REBATE_87A_NEW: { incomeCap: 1200000, maxRebate: 60000 },
         REBATE_87A_OLD: { incomeCap: 500000, maxRebate: 12500 },
         // Chapter VI-A caps (OLD regime). NEW regime disallows most of these.
@@ -145,12 +160,29 @@
         LTCG_112A_RATE: 0.125,
         LTCG_112A_EXEMPT_INR: 125000,
         LTCG_112_RATE: 0.125,
-        // s.115BB (lottery/betting) / s.115BBJ (online gaming): flat 30%,
-        // no basic exemption, no Chapter VI-A deduction, no §87A rebate.
+        // s.69(2)(b) promoter additional tax on buy-back capital gains (Budget
+        // 2026, buy-backs on/after 1-Apr-2026 only): a promoter (>10%
+        // shareholder, or a Companies Act/SEBI-defined promoter) pays ordinary
+        // LTCG/STCG tax on the gain PLUS an additional tax calibrated so the
+        // combined (base + additional) rate hits a fixed target — 30% for a
+        // non-corporate promoter (individual/HUF/firm), 22% for a corporate
+        // promoter (a company) — regardless of whether the gain was LTCG
+        // (12.5%) or STCG (20%). A further 12% surcharge applies on the
+        // ADDITIONAL tax only (not the base tax, not the total), irrespective
+        // of the promoter's total income. Only applies to buy-back capital
+        // gains taxed at the flat LTCG/STCG rates — NOT to the unlisted-
+        // short-term slice, which is already slab-rate income, not one of
+        // "the applicable rates" this provision layers onto (a scoped
+        // simplification, not independently confirmed either way).
+        PROMOTER_BUYBACK_TARGET_RATE_NON_CORPORATE: 0.30,
+        PROMOTER_BUYBACK_TARGET_RATE_CORPORATE: 0.22,
+        PROMOTER_BUYBACK_SURCHARGE_ON_ADDITIONAL_RATE: 0.12,
+        // s.128 (lottery/betting) / s.194 (online gaming): flat 30%,
+        // no basic exemption, no Chapter VI-A deduction, no §156 rebate.
         RATE_115BB: 0.30,
-        // s.115A domestic default withholding rates on India-source dividend/
+        // s.207 domestic default withholding rates on India-source dividend/
         // royalty/FTS paid to a NON-RESIDENT (no PE) — the baseline a DTAA-
-        // elected rate (s.90(2)) displaces when TRC/Form 10F support it.
+        // elected rate (s.159) displaces when TRC/Form 41 support it.
         // Shared between computation.js (actual NR tax) and conflicts.js (the
         // treaty-election comparison text) so they can't drift apart.
         // Royalty/FTS was 10% (Finance Act 2013) until the Finance Act 2023
@@ -158,8 +190,8 @@
         // specifically to push non-residents toward claiming DTAA rates
         // (properly documented) instead of defaulting to domestic law.
         // NOTE: no "interest" entry here on purpose — ordinary NRO interest
-        // isn't actually within s.115A's scope (that's narrowly limited to
-        // foreign-currency-borrowing interest under s.115A(1)(a)), so it has
+        // isn't actually within s.207's scope (that's narrowly limited to
+        // foreign-currency-borrowing interest under s.207 (narrowly, the foreign-currency-borrowing-interest limb)), so it has
         // no flat domestic rate to fall back to; see
         // computeNrInterestTreatment() in computation.js, which slab-taxes it
         // by default instead.
@@ -168,7 +200,7 @@
         SURCHARGE_IND: [
           [50000000, 0.25], [20000000, 0.25], [10000000, 0.15], [5000000, 0.10], [0, 0.00]
         ],
-        SURCHARGE_CG_DIV_CAP: 0.15, // surcharge on 111A/112A/dividend capped at 15%
+        SURCHARGE_CG_DIV_CAP: 0.15, // surcharge on 196/198/dividend capped at 15%
         SURCHARGE_NEW_MAX: 0.25,    // new regime caps top surcharge at 25%
         CESS_RATE: 0.04
       },
@@ -391,7 +423,7 @@
     {
       id: "form_67",
       jurisdiction: "IN",
-      name: "Form 67 (India FTC)",
+      name: "Form 44 (India FTC)",
       desc: "Statement of foreign income & foreign tax, filed before the ITR due date.",
       why: "Foreign (US) income is being offered to tax in India and FTC u/s 90/91 is claimed. Schedule FSI/TR must accompany the ITR.",
       severity: CONST.SEVERITY.CRITICAL
@@ -401,15 +433,15 @@
       jurisdiction: "IN",
       name: "Tax Residency Certificate (TRC)",
       desc: "Issued by the other contracting state (IRS Form 6166 for the US).",
-      why: "DTAA relief / treaty rate is being claimed — a TRC is mandatory u/s 90(4).",
+      why: "DTAA relief / treaty rate is being claimed — a TRC is mandatory u/s 159(8).",
       severity: CONST.SEVERITY.CRITICAL
     },
     {
       id: "form_10f",
       jurisdiction: "IN",
-      name: "Form 10F",
+      name: "Form 41",
       desc: "Self-declaration accompanying the TRC, filed electronically on the ITR portal.",
-      why: "Treaty benefit claimed and the TRC does not contain all particulars required u/r 21AB.",
+      why: "Treaty benefit claimed and the TRC does not contain all particulars required u/r 75.",
       severity: CONST.SEVERITY.WARNING
     },
     {

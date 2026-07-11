@@ -93,14 +93,14 @@
             "File a MAP request (competent authority assistance) with the IRS and/or CBDT rather than re-running the " +
             "wizard — the mechanical tie-breaker has already been exhausted. Both countries continue asserting worldwide " +
             "taxing rights and only partial FTC relief is available until MAP concludes.",
-            computed.doubleTax.totalDoublyTaxedUsd, ["DTAA Art. 4(3)", "MAP", "Form 8833", "TRC", "Form 10F"]);
+            computed.doubleTax.totalDoublyTaxedUsd, ["DTAA Art. 4(3)", "MAP", "Form 8833", "TRC", "Form 41"]);
         } else {
           add("dual_residency", S.CRITICAL, C.TREATY,
             "Dual tax residency — Article 4 tie-breaker not yet run",
             "The taxpayer is resident in BOTH India (" + (res.india.status || "resident") + ") and the US (" + usTag +
             ") for an overlapping period, and the Layer 1 Article 4 tie-breaker has not been completed. Until it is, both countries assert worldwide taxing rights and only partial FTC relief is available.",
-            "Complete the Layer 1 tie-breaker wizard (permanent home → centre of vital interests → habitual abode → nationality). WISING will then flag Form 8833 (US) and the TRC / Form 10F requirement (India) on the filing checklist for the loser side — actually preparing and filing those remains a manual step.",
-            computed.doubleTax.totalDoublyTaxedUsd, ["DTAA Art. 4", "Form 8833", "TRC", "Form 10F"]);
+            "Complete the Layer 1 tie-breaker wizard (permanent home → centre of vital interests → habitual abode → nationality). WISING will then flag Form 8833 (US) and the TRC / Form 41 requirement (India) on the filing checklist for the loser side — actually preparing and filing those remains a manual step.",
+            computed.doubleTax.totalDoublyTaxedUsd, ["DTAA Art. 4", "Form 8833", "TRC", "Form 41"]);
         }
       } else {
         add("dual_residency_resolved", S.INFO, C.TREATY,
@@ -109,8 +109,8 @@
           String(tbWinner).toUpperCase() + " for the overlapping period" +
           (tb ? " (" + tb.article + ": " + tb.reason + ")" : "") +
           ". WISING has applied this to the tax and FTC computation below; the loser jurisdiction is taxed on a source basis.",
-          "Keep " + (tbWinner === "india" ? "TRC + Form 10F (India) and Form 8833 (US)" : "Form 8833 (US) and TRC + Form 10F (India)") + " on file to support the position.",
-          0, ["DTAA Art. 4", tbWinner === "india" ? "Form 10F" : "Form 8833"]);
+          "Keep " + (tbWinner === "india" ? "TRC + Form 41 (India) and Form 8833 (US)" : "Form 8833 (US) and TRC + Form 41 (India)") + " on file to support the position.",
+          0, ["DTAA Art. 4", tbWinner === "india" ? "Form 41" : "Form 8833"]);
       }
     }
 
@@ -123,22 +123,22 @@
     if (claimsTreaty && (!model.treaty.trcStatus || !model.treaty.form10fFiled)) {
       var missing = [];
       if (!model.treaty.trcStatus) missing.push("TRC (IRS Form 6166)");
-      if (!model.treaty.form10fFiled) missing.push("Form 10F");
+      if (!model.treaty.form10fFiled) missing.push("Form 41");
       add("treaty_docs_missing", S.CRITICAL, C.TREATY,
         "Treaty relief claimed without supporting documents",
         "A treaty position / DTAA rate is being relied upon, but " + missing.join(" and ") +
-        " is not on file. Indian tax authorities will deny treaty relief u/s 90(4) without a valid TRC, and Form 10F is mandatory u/r 21AB.",
+        " is not on file. Indian tax authorities will deny treaty relief u/s 159(8) without a valid TRC, and Form 41 is mandatory u/r 75.",
         "Obtain " + missing.join(" and ") + " before filing. For US residents, request Form 6166 from the IRS (Form 8802 application) well in advance — it can take 6–8 weeks.",
-        0, ["s.90(4)", "Rule 21AB", "Form 6166"]);
+        0, ["s.159(8)", "Rule 75 (Income-tax Rules, 2026)", "Form 6166"]);
     }
 
     // -- 3b. DTAA TREATY RATE ELECTIONS ON FILE (per income stream) ---------
     // Layer 1 lets the taxpayer claim a specific DTAA article/rate on
     // India-source interest, royalty, FTS or dividend, against a specific
     // rupee amount_inr (e.g. Art. 11(2)(b) 15% on ₹1,50,000 of one NRO
-    // account's interest). Dividend/royalty/FTS genuinely fall under s.115A's
+    // account's interest). Dividend/royalty/FTS genuinely fall under s.207's
     // concessional domestic rate (a flat comparison, see computeS115aStream).
-    // Interest does NOT — s.115A(1)(a)'s concessional rate is narrowly
+    // Interest does NOT — s.207 (narrowly, the foreign-currency-borrowing-interest limb)'s concessional rate is narrowly
     // limited to foreign-currency-borrowing interest, so ordinary NRO
     // interest defaults to slab rates, and a treaty election only carves it
     // out when that beats the *marginal* slab rate on that slice (see
@@ -150,7 +150,7 @@
       var isNrForS115a = res.india.status === CONST.INDIA_STATUS.NR;
       var docsShortfall = [];
       if (!model.treaty.trcStatus) docsShortfall.push("TRC (IRS Form 6166)");
-      if (!model.treaty.form10fFiled) docsShortfall.push("Form 10F");
+      if (!model.treaty.form10fFiled) docsShortfall.push("Form 41");
       var s115aByType = (computed.indiaTax && computed.indiaTax.s115a) || {};
       var nrInterestElections = (computed.indiaTax && computed.indiaTax.nrInterest && computed.indiaTax.nrInterest.elections) || [];
       var interestSeen = 0;
@@ -171,16 +171,16 @@
           } else if (e.income_type === "interest") {
             var ie = nrInterestElections[interestSeen++];
             if (!ie) computedTag = " [not applied]";
-            else if (ie.outcome === "denied_no_docs") computedTag = " [election denied — TRC/Form 10F missing, ordinary slab rates apply to this slice instead]";
+            else if (ie.outcome === "denied_no_docs") computedTag = " [election denied — TRC/Form 41 missing, ordinary slab rates apply to this slice instead]";
             else if (ie.outcome === "treaty_beats_slab") computedTag = " [elected rate applied — beats the marginal slab rate this slice would otherwise cost]";
             else computedTag = " [not applied — the marginal slab rate on this slice is already cheaper than the elected treaty rate]";
           } else if (COMPUTED_S115A_TYPES[e.income_type]) {
             var stream = s115aByType[e.income_type];
             var se = stream && stream.elections && stream.elections[typeSeen[e.income_type]++];
             var domestic = CONST.TAX.INDIA.S115A_RATES[e.income_type];
-            var compareDom = domestic != null ? " (vs " + Math.round(domestic * 100) + "% domestic s.115A rate)" : "";
+            var compareDom = domestic != null ? " (vs " + Math.round(domestic * 100) + "% domestic s.207 rate)" : "";
             if (!se) computedTag = " [not applied]" + compareDom;
-            else if (se.outcome === "denied_no_docs") computedTag = " [election denied — domestic " + Math.round(domestic * 100) + "% rate applied instead, TRC/Form 10F missing]";
+            else if (se.outcome === "denied_no_docs") computedTag = " [election denied — domestic " + Math.round(domestic * 100) + "% rate applied instead, TRC/Form 41 missing]";
             else if (se.outcome === "elected_rate_applied") computedTag = " [elected rate applied to the India tax above" + compareDom + "]";
             else computedTag = " [domestic " + Math.round(domestic * 100) + "% rate applied instead — it's more beneficial than the elected rate]";
           } else {
@@ -192,11 +192,11 @@
         electionParts.length + " DTAA treaty rate election(s) on file",
         "Layer 1 records a claimed treaty rate on the following India-source income stream(s): " + electionParts.join("; ") + "." +
         (!isNrForS115a
-          ? " This taxpayer is resident (not NR) under India's own domestic law, so s.115A and every election above " +
+          ? " This taxpayer is resident (not NR) under India's own domestic law, so s.207 and every election above " +
             "has NO effect regardless of income type; residents are taxed on this income at slab rates instead. If the " +
             "taxpayer is genuinely meant to be NR, check the residency determination; if not, these elections are moot."
-          : " Dividend, royalty and FTS elections are compared against the flat domestic s.115A rate (s.90(2), whichever " +
-            "is lower). Interest is different — ordinary NRO interest isn't actually s.115A income (that concessional " +
+          : " Dividend, royalty and FTS elections are compared against the flat domestic s.207 rate (s.159, whichever " +
+            "is lower). Interest is different — ordinary NRO interest isn't actually s.207 income (that concessional " +
             "rate is narrow, foreign-currency-borrowing interest only), so it's slab-rate income by default, and an " +
             "election only helps when the flat treaty rate beats the marginal slab rate on that specific slice. Capital-" +
             "gains elections are NOT applied — Art. 13 itself provides no special treaty rate, domestic law governs " +
@@ -208,16 +208,16 @@
         docsShortfall.length > 0
           ? "Obtain " + docsShortfall.join(" and ") + " before relying on any of these elected rates — without it, the payer/" +
             "assessing officer can withhold or assess at the full domestic rate shown above instead."
-          : "Confirm each elected rate against the current India-US DTAA text for that article — TRC and Form 10F are on file, " +
+          : "Confirm each elected rate against the current India-US DTAA text for that article — TRC and Form 41 are on file, " +
             "but that alone doesn't verify the specific article/rate claimed is correct for this income stream.",
-        0, ["DTAA treaty election", "s.115A", "s.90(2)", "s.90(4)"]);
+        0, ["DTAA treaty election", "s.207", "s.159", "s.159(8)"]);
     }
 
     // -- 3c. PAN NOT LINKED TO AADHAAR — PAN TREATED AS INOPERATIVE ---------
     // Captured by Layer 1's profile toggle but never read anywhere in the
     // engine before this. Under Rule 114AAA, an unlinked PAN is "inoperative":
-    // every payer must withhold at the higher default rate u/s 206AA (TDS) /
-    // 206CC (TCS) as if no PAN had been furnished — this overrides ANY treaty
+    // every payer must withhold at the higher default rate u/s 397(2) (merges
+    // the old ss.206AA/206CC, TDS+TCS) as if no PAN had been furnished — this overrides ANY treaty
     // rate elected above, refunds are withheld while inoperative, and interest
     // keeps accruing for the period it stays that way. Only fires on an
     // explicit false (not simply unanswered/null).
@@ -225,13 +225,13 @@
       add("pan_not_linked_aadhaar", S.CRITICAL, C.DOCUMENT,
         "PAN not linked to Aadhaar — PAN is inoperative, higher TDS/TCS applies",
         "Layer 1 records the PAN as NOT linked to Aadhaar. Under Rule 114AAA an unlinked PAN is treated as inoperative — " +
-        "every payer must withhold TDS/TCS at the higher default rate u/s 206AA/206CC (generally 20%, or double the " +
+        "every payer must withhold TDS/TCS at the higher default rate u/s 397(2) (generally 20%, or double the " +
         "normal TCS rate, whichever is higher) as if no PAN had been furnished at all, REGARDLESS of any lower slab, " +
         "special, or DTAA treaty rate that would otherwise apply — including the treaty elections above, if any. " +
         "Refunds are also withheld while the PAN remains inoperative, and interest keeps accruing for that period.",
         "Link PAN to Aadhaar (paying the applicable late fee) before relying on any withholding-rate, refund, or treaty-" +
         "election figure on this page — every number computed here assumes a valid, operative PAN.",
-        0, ["s.206AA", "s.206CC", "Rule 114AAA", "PAN inoperative"]);
+        0, ["s.397(2)", "Rule 114AAA", "PAN inoperative"]);
     }
 
     // -- 4. FTC RECONCILIATION GAP (residual double tax) -------------------
@@ -252,8 +252,8 @@
         "Foreign Tax Credit available and within limit",
         "Indian tax of " + usd(ftc.us.indiaTaxPaidUsd) + " is fully creditable against US tax this year (" +
         usd(ftc.us.ftcAllowedUsd) + " within a " + usd(ftc.us.ftcLimitUsd) + " limitation).",
-        "Claim on Form 1116 (US) and file Form 67 (India) before the ITR due date to preserve symmetric relief.",
-        ftc.us.ftcAllowedUsd, ["Form 1116", "Form 67"]);
+        "Claim on Form 1116 (US) and file Form 44 (India) before the ITR due date to preserve symmetric relief.",
+        ftc.us.ftcAllowedUsd, ["Form 1116", "Form 44"]);
     }
 
     // -- 4b. FEIE CLAIMED BUT NOT ELIGIBLE (§911) ---------------------------
@@ -394,29 +394,29 @@
         0, ["DTAA Art. 4(3)", "s.6(3)", "POEM", "Mutual Agreement Procedure"]);
     }
 
-    // -- 4g. CHAPTER XII-A (s.115H/115C) ELECTED BUT NOT IN THE COMPUTATION -
-    // s.115H/115C give an NRI a concessional flat rate (20% investment income
+    // -- 4g. CHAPTER XII-A (s.217/212) ELECTED BUT NOT IN THE COMPUTATION -
+    // s.217/212 give an NRI a concessional flat rate (20% investment income
     // / 10% LTCG, no slab progression) on specified foreign-exchange assets,
-    // and — the easy-to-miss part — s.115H lets the taxpayer KEEP that regime
+    // and — the easy-to-miss part — s.217 lets the taxpayer KEEP that regime
     // even after becoming resident again, for as long as the assets are held,
     // by filing the election each year. WISING doesn't yet recompute India
     // tax under this regime, so the number below should not be trusted as-is
     // when this box is checked.
     if (model.treaty.chapterXiiaElected) {
       add("chapter_xiia_not_computed", S.WARNING, C.CREDIT,
-        "Chapter XII-A (s.115H/115C) elected — not reflected in the India tax computed below",
-        "The Layer 1 Chapter XII-A election is on. Under s.115H/115C, specified investment income from foreign-exchange " +
+        "Chapter XII-A (s.217/212) elected — not reflected in the India tax computed below",
+        "The Layer 1 Chapter XII-A election is on. Under s.217/212, specified investment income from foreign-exchange " +
         "assets is taxed at a flat 20% (10% for LTCG) instead of slab rates, and — unlike most NRI concessions — the " +
         "election can be KEPT even after the taxpayer becomes an ordinary resident, by re-filing it each year the assets " +
         "are retained. The India tax figure above is computed under normal slab/special rates and does not apply this election.",
-        "Recompute the specified-asset income separately at the s.115H/115C flat rates before relying on the India tax " +
+        "Recompute the specified-asset income separately at the s.217/212 flat rates before relying on the India tax " +
         "total above, and confirm the annual re-election was filed if residency status has since changed.",
-        0, ["s.115H", "s.115C", "Chapter XII-A"]);
+        0, ["s.217", "s.212", "Chapter XII-A"]);
     }
 
-    // -- 4g2. SPECIAL-RATE WINNINGS (s.115BB/115BBJ) — NOW COMPUTED ---------
+    // -- 4g2. SPECIAL-RATE WINNINGS (s.128/194) — NOW COMPUTED ---------
     // Lottery/betting/online-gaming winnings are flat 30% with no basic
-    // exemption, no Chapter VI-A deduction and no §87A rebate — this was
+    // exemption, no Chapter VI-A deduction and no §156 rebate — this was
     // previously invisible to the whole model (not even in total income).
     // It's now correctly taxed and included in the FTC/double-tax base; the
     // remaining caveat is that a flat special rate doesn't necessarily match
@@ -425,43 +425,46 @@
     var specialBBUsd = model.income.india.specialRate115bb ? model.income.india.specialRate115bb.usd : 0;
     if (specialBBUsd > 1) {
       add("special_rate_gaming_winnings", res.us.worldwide ? S.WARNING : S.INFO, C.INCOME,
-        usd(specialBBUsd) + " of lottery/gaming winnings — flat 30% (s.115BB/115BBJ), no exemptions",
-        "This income is taxed at a flat 30% with no basic exemption threshold, no Chapter VI-A deduction and no §87A " +
+        usd(specialBBUsd) + " of lottery/gaming winnings — flat 30% (s.128/194), no exemptions",
+        "This income is taxed at a flat 30% with no basic exemption threshold, no Chapter VI-A deduction and no §156 " +
         "rebate — it's now included in the India tax total and the FTC/double-tax figures above." +
         (res.us.worldwide ? " Because the US taxes worldwide income, the same winnings are very likely also US-taxable " +
           "as ordinary income — a real double-tax exposure that the general FTC computation only approximates, since it " +
           "doesn't specifically match this flat 30% Indian rate against whatever ordinary rate the US applies to it." : ""),
         "Confirm US-side treatment of the same winnings separately from the general FTC computation — a flat-rate/" +
         "graduated-rate mismatch on the same income can leave a residual gap the average-rate FTC approximation misses.",
-        specialBBUsd, ["s.115BB", "s.115BBJ"]);
+        specialBBUsd, ["s.128", "s.194"]);
     }
 
-    // -- 4g3. UNEXPLAINED INCOME (s.115BBE) — NOT REFLECTED IN THE COMPUTATION
-    // s.115BBE is uniquely punitive: ~78% effective rate (60% + 25% surcharge
-    // + cess) and it denies EVERY deduction, exemption, and loss set-off
-    // outright — nothing else in the Act gets this treatment. Flagged rather
-    // than computed (unlike s.115BB above) because getting a provision this
-    // punitive wrong in either direction is worse than leaving it explicit.
+    // -- 4g3. UNEXPLAINED INCOME (s.195) — NOT REFLECTED IN THE COMPUTATION
+    // s.195 is uniquely punitive and denies EVERY deduction, exemption, and
+    // loss set-off outright — nothing else in the Act gets this treatment.
+    // Rate note: Finance Act 2026 cut the base rate from 60% to 30% (the
+    // ~78% effective rate — 60% + 25% surcharge + 4% cess — was the pre-
+    // Tax-Year-2026-27 figure); the current effective rate is ~39% (30% tax
+    // + 25% surcharge + 4% cess). Flagged rather than computed (unlike
+    // s.128 above) because getting a provision this punitive wrong in
+    // either direction is worse than leaving it explicit.
     if (model.income.india.unexplained115bbeInr > 0) {
       add("s115bbe_unexplained_income", S.CRITICAL, C.INCOME,
-        "Unexplained income on file (s.115BBE) — not reflected in the India tax computed above",
+        "Unexplained income on file (s.195) — not reflected in the India tax computed above",
         "₹" + Math.round(model.income.india.unexplained115bbeInr).toLocaleString("en-IN") + " is recorded as unexplained " +
-        "income under s.115BBE. This carries a flat ~78% effective rate (60% tax + 25% surcharge + 4% cess) and — unlike " +
-        "any other provision — denies every deduction, exemption, and loss set-off with no exceptions. The India tax " +
-        "figure above does not include this; it needs to be added separately.",
-        "Compute the s.115BBE addition separately at the full ~78% effective rate before relying on the India tax total " +
+        "income under s.195. This carries a flat ~39% effective rate (30% tax + 25% surcharge + 4% cess, per Finance " +
+        "Act 2026) and — unlike any other provision — denies every deduction, exemption, and loss set-off with no " +
+        "exceptions. The India tax figure above does not include this; it needs to be added separately.",
+        "Compute the s.195 addition separately at the full ~39% effective rate before relying on the India tax total " +
         "above, and confirm the source of these funds is genuinely unexplained rather than misclassified income that " +
         "belongs under a normal head.",
-        0, ["s.115BBE"]);
+        0, ["s.195"]);
     }
 
     // -- 4g4. CARRY-FORWARD LOSSES — NOW ACTUALLY SET OFF --------------------
     // WISING sequences the real set-off (see computeLossSetOff in
-    // computation.js) against this year's income under s.71B/72/74/32(2),
+    // computation.js) against this year's income under s.110/112/111/33(11),
     // using the per-entry eligibility Layer 1 already resolved. This finding
     // now reports what actually happened — applied vs. still carrying
     // forward — rather than a blanket "not applied" disclosure. Entity
-    // (company/firm) taxpayers aren't covered (s.72A is a different regime
+    // (company/firm) taxpayers aren't covered (s.116 is a different regime
     // and lossSetOff isn't computed on that path), hence the guard below.
     var cfl = model.carryForwardLosses || {};
     var cflCount = (cfl.businessLossCfCount || 0) + (cfl.speculativeLossCfCount || 0) +
@@ -490,7 +493,7 @@
           "All eligible prior-year losses were absorbed against this year's income: " + appliedParts.join("; ") +
           ". The India tax computed above already reflects this — no residual carry-forward remains.",
           "Confirm the set-off is reported correctly on Schedule CFL/BFLA of the ITR, matching the ordering above.",
-          0, ["Loss carry-forward", "s.71B", "s.72", "s.74"]);
+          0, ["Loss carry-forward", "s.110", "s.112", "s.111"]);
       } else if (lso.totalUsedInr > 1) {
         add("carry_forward_losses_not_applied", S.WARNING, C.CREDIT,
           "Brought-forward losses partially set off — some still carrying forward",
@@ -498,7 +501,7 @@
           "to absorb it, or — for speculative loss — not modeled at all): " + unusedParts.join("; ") + ".",
           "Track the unused amounts on Schedule CFL for future years (subject to the 8-year limit, indefinite for " +
           "unabsorbed depreciation), and confirm speculative-income figures separately since WISING doesn't model that bucket.",
-          0, ["Loss carry-forward", "s.71B", "s.72", "s.74"]);
+          0, ["Loss carry-forward", "s.110", "s.112", "s.111"]);
       } else {
         add("carry_forward_losses_not_applied", S.WARNING, C.CREDIT,
           "Brought-forward losses on file — none could be set off against this year's income",
@@ -507,7 +510,7 @@
           "carry forward untouched.",
           "Track these on Schedule CFL for a future year with matching income (subject to the 8-year limit for capital/" +
           "business losses, indefinite for unabsorbed depreciation).",
-          0, ["Loss carry-forward", "s.71B", "s.72", "s.74"]);
+          0, ["Loss carry-forward", "s.110", "s.112", "s.111"]);
       }
     }
 
@@ -561,10 +564,10 @@
     // -- 5. FORM 67 TIMING (India FTC procedural) --------------------------
     if (model.income.us.foreignSourceTotal.usd > 0 || model.taxesPaid.us.total.usd > 0) {
       add("form67_required", S.INFO, C.DOCUMENT,
-        "Form 67 — required for the Indian FTC claim",
-        "Foreign income / foreign tax is present, so India requires Form 67 (with Schedule FSI and TR) on or before the ITR due date to allow FTC u/s 90/91.",
-        "WISING flags Form 67 (with Schedule FSI/TR) as required on the filing checklist, using the FSI/TR figures already computed above — actually preparing and e-filing it on the income-tax portal ahead of the ITR due date is still a manual step.",
-        0, ["Form 67", "Rule 128", "Schedule FSI", "Schedule TR"]);
+        "Form 44 — required for the Indian FTC claim",
+        "Foreign income / foreign tax is present, so India requires Form 44 (with Schedule FSI and TR) on or before the ITR due date to allow FTC u/s 90/91.",
+        "WISING flags Form 44 (with Schedule FSI/TR) as required on the filing checklist, using the FSI/TR figures already computed above — actually preparing and e-filing it on the income-tax portal ahead of the ITR due date is still a manual step.",
+        0, ["Form 44", "Rule 128", "Schedule FSI", "Schedule TR"]);
     }
 
     // -- 6. TAX-YEAR / APPORTIONMENT MISMATCH ------------------------------
@@ -575,7 +578,7 @@
         "India taxes Apr–Mar; the US taxes Jan–Dec. WISING splits the Indian FY across US calendar years — " +
         usd(ap.indiaToCyPrimaryUsd) + " into CY" + ap.cyPrimary + " and " + usd(ap.indiaToCyNextUsd) + " into CY" + ap.cyNext +
         " (" + ap.basis + ") — and apportions the US calendar year into the Indian FY (9/12 + 3/12).",
-        "See the FY ↔ CY Apportionment panel on the Filings tab for the period-matched figures behind Form 67 (India) and Form 1116 (US). Planning-grade — refine with per-transaction dates at filing.",
+        "See the FY ↔ CY Apportionment panel on the Filings tab for the period-matched figures behind Form 44 (India) and Form 1116 (US). Planning-grade — refine with per-transaction dates at filing.",
         0, [CONST.CALENDAR.INDIA_FY.label, CONST.CALENDAR.US_CY.label]);
     }
 
@@ -675,28 +678,104 @@
     }
 
     // -- 10b. DEEMED DIVIDEND ON BUYBACK — CHARACTERIZATION MISMATCH --------
-    // s.2(22)(f) (effective 1-Oct-2024): the FULL buyback consideration is
-    // taxed as a dividend at slab rates in India, with the share's cost
-    // becoming a capital LOSS instead of reducing the dividend. The US almost
-    // certainly characterizes the same cash differently — a buyback is
-    // ordinarily a capital transaction there (capital gain/return of capital
-    // against basis, not dividend income). Same cash, two different
-    // characters — exactly the kind of thing the cross-basis reconciliation
-    // exists for, but this income wasn't in the model at all until now.
+    // s.2(40)(f) applied ONLY to buy-backs between 1-Oct-2024 and 31-Mar-2026:
+    // the FULL buyback consideration was taxed as a dividend at slab rates in
+    // India, with the share's cost becoming a capital LOSS instead of
+    // reducing the dividend. The US almost certainly characterized the same
+    // cash differently — a buyback is ordinarily a capital transaction there
+    // (capital gain/return of capital against basis, not dividend income).
+    // Same cash, two different characters. Budget 2026 REVERSED this for
+    // buy-backs on/after 1-Apr-2026 (Tax Year 2026-27 onward) — those are
+    // capital gains in India too now (s.69), so this mismatch no longer
+    // applies going forward; the gating below only fires for the narrow
+    // historical window since only that window still lands in
+    // deemedDividendBuyback (see normalize.js).
     var deemedDivUsd = model.income.india.deemedDividendBuyback ? model.income.india.deemedDividendBuyback.usd : 0;
     if (deemedDivUsd > 1 && res.us.worldwide) {
       add("deemed_dividend_buyback_mismatch", S.WARNING, C.INCOME,
-        usd(deemedDivUsd) + " share buyback — India taxes it as dividend, the US likely taxes it as capital gain",
-        "Under s.2(22)(f) (effective 1-Oct-2024), India taxes the FULL buyback consideration as a deemed dividend at " +
-        "slab rates, with the shares' cost basis becoming a capital LOSS rather than reducing the dividend. The US, by " +
-        "contrast, ordinarily treats a share buyback as a capital transaction — gain or loss against the shares' cost " +
-        "basis, not dividend income. The same cash is very likely characterized differently by each country, which can " +
-        "distort both the FTC basket (passive/dividend vs. capital gain) and the true amount of relief available.",
+        usd(deemedDivUsd) + " share buyback (Oct 2024 - Mar 2026 window) — India taxed it as dividend, the US likely as capital gain",
+        "Under s.2(40)(f), buy-backs between 1-Oct-2024 and 31-Mar-2026 were taxed by India as the FULL consideration as " +
+        "a deemed dividend at slab rates, with the shares' cost basis becoming a capital LOSS rather than reducing the " +
+        "dividend. The US, by contrast, ordinarily treats a share buyback as a capital transaction — gain or loss " +
+        "against the shares' cost basis, not dividend income. The same cash is very likely characterized differently " +
+        "by each country, which can distort both the FTC basket (passive/dividend vs. capital gain) and the true " +
+        "amount of relief available. (Budget 2026 reversed this for buy-backs on/after 1-Apr-2026 — see s.69 instead.)",
         "Don't assume the general FTC computation resolves this cleanly — confirm how the US side actually reports the " +
         "buyback (capital transaction vs. dividend) and reconcile the mismatch explicitly, including the capital loss " +
         "India allows on the extinguished shares, which the US computation won't mirror the same way.",
-        deemedDivUsd, ["s.2(22)(f)", "Share buyback", "FTC basket"]);
+        deemedDivUsd, ["s.2(40)(f)", "Share buyback", "FTC basket"]);
     }
+
+    // -- 10b2. PROMOTER ADDITIONAL TAX ON BUYBACK GAINS (s.69(2)(b)) --------
+    // A promoter (>10% shareholder, or a Companies Act/SEBI-defined promoter)
+    // pays ordinary LTCG/STCG tax on a buy-back gain PLUS an additional tax
+    // that brings the combined rate to a fixed target (30% non-corporate,
+    // 22% corporate), plus a 12% surcharge on just the additional tax. This
+    // is a real, material extra tax burden that's easy to miss since it's
+    // layered on top of — not instead of — the ordinary capital-gains tax
+    // already shown elsewhere on the page.
+    var pb = computed.indiaTax && computed.indiaTax.promoterBuyback;
+    if (pb && pb.totalExtraTaxInr > 1) {
+      add("promoter_buyback_additional_tax", S.WARNING, C.INCOME,
+        "Promoter additional tax on buy-back gains — " + inr(pb.additionalTaxInr + pb.surchargeInr + pb.cessInr) + " on top of ordinary capital-gains tax",
+        "As a promoter (s.69(2)(b)) on this buy-back, the ordinary " + (pb.ltcgGainInr > 0 ? "12.5% LTCG" : "20% STCG") +
+        " tax on the gain is not the end of it: an additional tax brings the combined rate to " +
+        Math.round(pb.targetRate * 100) + "% (" + (pb.isCorporatePromoter ? "corporate promoter" : "non-corporate promoter") +
+        "), and a further 12% surcharge applies on that additional tax specifically — irrespective of total income. " +
+        "Additional tax: " + inr(pb.additionalTaxInr) + "; surcharge: " + inr(pb.surchargeInr) + "; cess: " + inr(pb.cessInr) + ".",
+        "Confirm promoter status (direct/indirect >10% shareholding, or Companies Act/SEBI promoter designation) is " +
+        "correct before relying on this — the additional tax and surcharge do not apply to non-promoter shareholders " +
+        "in the same buy-back at all.",
+        U.inrToUsd(pb.totalExtraTaxInr), ["s.69(2)(b)", "Promoter additional tax", "Share buyback"]);
+    }
+
+    // -- 10b3. BUYBACK HOLDING-PERIOD CHARACTERIZATION MISMATCH -------------
+    // India: unlisted shares need >24 months held for LTCG (12 for listed).
+    // The US uses a flat >12 months for LTCG on any asset — no listed/
+    // unlisted distinction. So an unlisted buy-back held 12-24 months is
+    // short-term (India slab rate) but long-term (US preferential rate) —
+    // same transaction, opposite character in each country. Computed
+    // straight from the same dates/listed-flag Layer 1 already collects for
+    // the transaction, not a second manual entry. The dollar figure below is
+    // a REAL recompute (calls the actual computeUsTax twice, once per
+    // classification) — not an estimate — so this is exactly as auditable
+    // as every other number on the page, not a black-box severity score.
+    var holdingMismatches = (model.income.india && model.income.india.buybackHoldingMismatches) || [];
+    holdingMismatches.forEach(function (mm, mi) {
+      var base = model.income.us || {};
+      function withForeignCg(classification) {
+        var clone = JSON.parse(JSON.stringify(model));
+        clone.income.us.foreignLtcg = clone.income.us.foreignLtcg || { inr: 0, usd: 0 };
+        clone.income.us.foreignStcg = clone.income.us.foreignStcg || { inr: 0, usd: 0 };
+        if (classification === "ltcg") {
+          clone.income.us.foreignLtcg.usd = (base.foreignLtcg ? base.foreignLtcg.usd : 0) + mm.gainUsd;
+        } else {
+          clone.income.us.foreignStcg.usd = (base.foreignStcg ? base.foreignStcg.usd : 0) + mm.gainUsd;
+        }
+        return WISING.computeInternals.computeUsTax(clone, computed.residency);
+      }
+      var asLtcg = withForeignCg("ltcg");
+      var asStcg = withForeignCg("stcg");
+      var deltaUsd = asStcg.totalTaxBeforeFtcUsd - asLtcg.totalTaxBeforeFtcUsd;
+      if (Math.abs(deltaUsd) < 1) return; // no real rate difference at this taxpayer's bracket — not worth flagging
+      var correctIsLtcg = mm.usClassification === "ltcg";
+      add("buyback_holding_period_mismatch_" + mi, S.WARNING, C.TREATY,
+        mm.companyName + " buy-back: " + Math.round(mm.monthsHeld) + " months held — India says " + mm.indiaClassification.toUpperCase() +
+        ", US says " + mm.usClassification.toUpperCase() + " (" + usd(Math.abs(deltaUsd)) + " at stake)",
+        "This " + (mm.isListed ? "listed" : "unlisted") + " buy-back was held " + Math.round(mm.monthsHeld) + " months. India requires " +
+        "more than " + mm.indiaThresholdMonths + " months for LTCG on " + (mm.isListed ? "listed" : "unlisted") + " shares, so this is " +
+        mm.indiaClassification.toUpperCase() + " there (taxed " + (mm.indiaClassification === "ltcg" ? "at 12.5%, s.198" : (mm.isListed ? "at 20%, s.196" : "at your India slab rate")) +
+        "). The US requires only more than 12 months for LTCG on any asset — no listed/unlisted distinction — so the SAME gain is " +
+        mm.usClassification.toUpperCase() + " under US rules. Recomputed your actual US return both ways: treated as LTCG, US tax is " +
+        usd(asLtcg.totalTaxBeforeFtcUsd) + "; treated as STCG (ordinary rates), US tax is " + usd(asStcg.totalTaxBeforeFtcUsd) + " — a difference of " +
+        usd(Math.abs(deltaUsd)) + ".",
+        correctIsLtcg
+          ? "Report this gain as LONG-TERM on the US return (Schedule D) even though it's short-term in India — using India's " +
+            "label on the US foreign-capital-gains input would cost roughly " + usd(Math.abs(deltaUsd)) + " in overpaid US tax."
+          : "Report this gain as SHORT-TERM on the US return even though it's long-term in India — using India's label on the US " +
+            "foreign-capital-gains input would understate US tax by roughly " + usd(Math.abs(deltaUsd)) + ".",
+        Math.abs(deltaUsd), ["Holding period", "s.198 vs IRC §1222", "Share buyback"]);
+    });
 
     // -- 10a. CROSS-FORM INCONSISTENCY — INDIA'S OWN SCHEDULE FA SELF-REPORT
     // The two Layer 1 forms are filled independently; nothing today checks
@@ -761,7 +840,7 @@
         lrs.status === "breached"
           ? "A breach can attract RBI scrutiny and AD-bank refusal. Verify remittances across all banks (the cap is per-PAN, not per-account) and document the source of funds."
           : "Monitor remaining headroom for the rest of the financial year; TCS at 20% applies above ₹10 lakh.",
-        0, ["RBI LRS", "TCS u/s 206C(1G)"]);
+        0, ["RBI LRS", "TCS u/s 394(1)"]);
     }
 
     // -- 12. FBAR / 8938 LIMIT BREACH --------------------------------------
@@ -812,7 +891,7 @@
     }
 
     // -- 12b. EQUITY COMPENSATION — CROSS-BORDER SOURCING CONFLICT ----------
-    // India's ESOP perquisite (s.17(2)(vi), taxed at exercise/allotment) and
+    // India's ESOP perquisite (s.17(1)(vi), taxed at exercise/allotment) and
     // the US's RSU-vest / NSO-exercise ordinary income are usually two views
     // of the SAME multi-year equity award, split by whichever country the
     // employee was in on each vesting/exercise date. When both sides show
@@ -825,14 +904,14 @@
       add("equity_comp_sourcing", S.WARNING, C.INCOME,
         "Equity compensation taxed on both sides — cross-border sourcing not applied",
         "Both an India ESOP/perquisite event and a US equity-compensation event (RSU vest / NSO exercise) are on file " +
-        "for this year. India taxes the ESOP perquisite in full at exercise/allotment (s.17(2)(vi)); the US taxes RSU " +
+        "for this year. India taxes the ESOP perquisite in full at exercise/allotment (s.17(1)(vi)); the US taxes RSU " +
         "vesting / NSO exercise in full as ordinary income in the vesting/exercise year. Absent a workday-based " +
         "allocation, the same equity award can be fully taxed by BOTH countries rather than apportioned to where the " +
         "services were actually performed during the vesting period.",
         "Reconstruct the vesting-period workday split between India and the US (DTAA Art. 15/16 dependent-personal-" +
-        "services sourcing) so each country only taxes its proportionate share, then claim FTC/§90 relief on the " +
+        "services sourcing) so each country only taxes its proportionate share, then claim FTC/§159 relief on the " +
         "genuinely overlapping portion rather than the full award twice.",
-        0, ["DTAA Art. 15", "s.17(2)(vi)", "RSU vesting", "NSO exercise"]);
+        0, ["DTAA Art. 15", "s.17(1)(vi)", "RSU vesting", "NSO exercise"]);
     }
 
     // -- 13. CROSS-BASIS SUMMARY (one finding; detail lives in the table) ---
@@ -845,10 +924,10 @@
         dtRows.length + " income head(s) taxed under both codes — see reconciliation",
         "The same income is taxed in India (its own Act) and the US (the IRC): " +
         dtRows.map(function (r) { return r.label; }).join(", ") + ". Overlapping exposure of " +
-        usd(recon.overlapUsd) + " is what the FTC / §90 relief resolves." +
+        usd(recon.overlapUsd) + " is what the FTC / §159 relief resolves." +
         (recon.anyEstimate ? " Some heads are planning-grade estimates pending line-item inputs." : ""),
-        "Open the Cross-Basis Reconciliation on the Filings tab to see each head on both bases, then relieve the overlap via Form 1116 (US) / Form 67 (India).",
-        recon.overlapUsd, ["DTAA", "Form 1116", "Form 67"]);
+        "Open the Cross-Basis Reconciliation on the Filings tab to see each head on both bases, then relieve the overlap via Form 1116 (US) / Form 44 (India).",
+        recon.overlapUsd, ["DTAA", "Form 1116", "Form 44"]);
     }
 
     // -- sort by severity then amount --------------------------------------
@@ -930,7 +1009,7 @@
 
   /* Turns a computeS115aStream() result into trace `parts` — one line per
    * actual DTAA election (article, amount, which rate won and why) plus a
-   * final line for whatever wasn't covered by any election, so the s.115A
+   * final line for whatever wasn't covered by any election, so the s.207
    * rows show the real per-election math instead of a claimed/uncaptured
    * summary with no detail on individual elections. */
   function s115aParts(stream, fmt) {
@@ -938,7 +1017,7 @@
       var artTxt = e.article ? " (" + e.article + ")" : "";
       var label;
       if (e.outcome === "denied_no_docs") {
-        label = "Election" + artTxt + " on " + fmt(e.appliedAmountInr) + " denied — TRC/Form 10F missing, domestic " + Math.round(e.domesticRate * 100) + "% applies instead";
+        label = "Election" + artTxt + " on " + fmt(e.appliedAmountInr) + " denied — TRC/Form 41 missing, domestic " + Math.round(e.domesticRate * 100) + "% applies instead";
       } else if (e.outcome === "elected_rate_applied") {
         label = "Election" + artTxt + " on " + fmt(e.appliedAmountInr) + " @ " + Math.round(e.rateApplied * 100) + "% treaty rate (beats " + Math.round(e.domesticRate * 100) + "% domestic)";
       } else {
@@ -1026,7 +1105,7 @@
         ])
       },
       direction_india_relief: {
-        title: "India §90 relief — for US taxes on doubly-taxed income",
+        title: "India §159 relief — for US taxes on doubly-taxed income",
         rows: [
           { label: "US-source income (foreign, India view)", usd: ftc.india.foreignSourceIncomeUsd,
             trace: holdings("us", ftc.india.foreignSourceIncomeUsd === 0 ? "Only counted when the taxpayer is India ROR (worldwide taxation) — zero here because that isn't the case." : null) },
@@ -1037,7 +1116,7 @@
               { label: "Total US income", amount: usTax.totalIncomeUsd }
             ]) },
           { label: "Indian tax on the doubly-taxed income (cap)", usd: ftc.india.reliefCapUsd,
-            trace: calc("Total India tax × (US-source income ÷ total India-view income) — s.90 relief can never exceed the Indian tax actually attributable to that income", [
+            trace: calc("Total India tax × (US-source income ÷ total India-view income) — s.159 relief can never exceed the Indian tax actually attributable to that income", [
               { label: "Total India tax", amount: indiaTax.totalTaxUsd },
               { label: "US-source income (India view)", amount: ftc.india.foreignSourceIncomeUsd },
               { label: "Total India-view income", amount: indiaTax.totalIncomeUsd }
@@ -1062,7 +1141,7 @@
     var T = CONST.TAX.INDIA;
     var dedIndia = (model.deductions && model.deductions.india) || {};
 
-    // The India "by-head" total shown in Holdings is GROSS LTCG (pre-s.112A
+    // The India "by-head" total shown in Holdings is GROSS LTCG (pre-s.198
     // exemption); Tax Computation uses the exemption-adjusted figure. That's
     // the only legitimate gap between the two views (verified: every other
     // income head sums identically) — surfaced as a note on the Holdings-link
@@ -1070,21 +1149,21 @@
     var ltcgGrossInrForNote = (model.income && model.income.india && model.income.india.ltcg && model.income.india.ltcg.inr) || 0;
     var ltcgExemptGapInr = Math.max(0, ltcgGrossInrForNote - (i.ltcgTaxableInr || 0));
     var indiaHoldingsNote = ltcgExemptGapInr > 1
-      ? ("Holdings shows gross LTCG before the s.112A exemption — ₹" + Math.round(ltcgExemptGapInr).toLocaleString("en-IN") + " of LTCG is exempt here, so this figure is that much lower.")
+      ? ("Holdings shows gross LTCG before the s.198 exemption — ₹" + Math.round(ltcgExemptGapInr).toLocaleString("en-IN") + " of LTCG is exempt here, so this figure is that much lower.")
       : null;
 
-    // Brought-forward loss set-off breakdown (s.72/71B/74/32(2)) — shown as
+    // Brought-forward loss set-off breakdown (s.112/110/111/33(11)) — shown as
     // explicit "before -> deductions -> after" rows so the set-off is never a
     // silent adjustment buried inside "Gross total income".
     var lso = i.lossSetOff;
     var cfl = model.carryForwardLosses || {};
     var LOSS_ROW_DEFS = [
-      { key: "businessInr", label: "  — brought-forward business loss set off (s.72)", availableKey: "businessLossAvailableInr", rule: "Set off only against business income (s.72)" },
-      { key: "housePropertyInr", label: "  — brought-forward house-property loss set off (s.71B)", availableKey: "housePropertyLossAvailableInr", rule: "Set off only against house-property income (s.71B) — unlike current-year HP loss, brought-forward HP loss can't go inter-head" },
-      { key: "stcgInr", label: "  — brought-forward STCG loss set off vs current STCG (s.74)", availableKey: "stcgLossAvailableInr", rule: "STCG loss is set off against current STCG first (s.74)" },
-      { key: "ltcgFromStcgLossInr", label: "  — brought-forward STCG loss set off vs current LTCG (s.74)", availableKey: "stcgLossAvailableInr", rule: "Any STCG loss left after offsetting current STCG can still offset LTCG (s.74)" },
-      { key: "ltcgInr", label: "  — brought-forward LTCG loss set off vs current LTCG (s.74)", availableKey: "ltcgLossAvailableInr", rule: "LTCG loss can only offset LTCG, never STCG (s.74)" },
-      { key: "unabsorbedDepreciationInr", label: "  — unabsorbed depreciation set off (s.32(2))", availableKey: "unabsorbedDepreciationCf", rule: "No time limit; can offset any head except salary (s.32(2))" }
+      { key: "businessInr", label: "  — brought-forward business loss set off (s.112)", availableKey: "businessLossAvailableInr", rule: "Set off only against business income (s.112)" },
+      { key: "housePropertyInr", label: "  — brought-forward house-property loss set off (s.110)", availableKey: "housePropertyLossAvailableInr", rule: "Set off only against house-property income (s.110) — unlike current-year HP loss, brought-forward HP loss can't go inter-head" },
+      { key: "stcgInr", label: "  — brought-forward STCG loss set off vs current STCG (s.111)", availableKey: "stcgLossAvailableInr", rule: "STCG loss is set off against current STCG first (s.111)" },
+      { key: "ltcgFromStcgLossInr", label: "  — brought-forward STCG loss set off vs current LTCG (s.111)", availableKey: "stcgLossAvailableInr", rule: "Any STCG loss left after offsetting current STCG can still offset LTCG (s.111)" },
+      { key: "ltcgInr", label: "  — brought-forward LTCG loss set off vs current LTCG (s.111)", availableKey: "ltcgLossAvailableInr", rule: "LTCG loss can only offset LTCG, never STCG (s.111)" },
+      { key: "unabsorbedDepreciationInr", label: "  — unabsorbed depreciation set off (s.33(11))", availableKey: "unabsorbedDepreciationCf", rule: "No time limit; can offset any head except salary (s.33(11))" }
     ];
     var indiaGrossRows = (lso && lso.totalUsedInr > 1) ? [
       { label: "Current-year income (before brought-forward loss set-off)", inr: i.grossTotalIncomeInr + lso.totalUsedInr,
@@ -1107,21 +1186,21 @@
     ];
     var indiaLossCarryRow = (lso && lso.totalUnusedInr > 1) ? [
       { label: "Losses carried forward to future years (could not be set off this year)", inr: lso.totalUnusedInr,
-        trace: calc("Brought-forward losses left over after set-off — different loss categories can only offset specific income heads (s.72/71B/74/32(2)), so a category with no matching income this year carries forward untouched (8 years for most heads, no limit for unabsorbed depreciation)", [
+        trace: calc("Brought-forward losses left over after set-off — different loss categories can only offset specific income heads (s.112/110/111/33(11)), so a category with no matching income this year carries forward untouched (8 years for most heads, no limit for unabsorbed depreciation)", [
           { label: "Total unused this year", amount: lso.totalUnusedInr }
         ]) }
     ] : [];
 
     var dedTrace = i.regime === "NEW"
-      ? calc("New regime allows only the employer's NPS contribution under s.80CCD(2) — s.80C/80D/80CCD(1B)/80TTA etc. are not available", [
-          { label: "Employer NPS contribution (s.80CCD(2))", amount: dedIndia.s80CCD2_employer || 0 }
+      ? calc("New regime allows only the employer's NPS contribution under s.124(2) — s.123/126/124(1B)/153 etc. are not available", [
+          { label: "Employer NPS contribution (s.124(2))", amount: dedIndia.s80CCD2_employer || 0 }
         ])
-      : calc("Old regime: s.80C (cap ₹1.5L) + s.80CCD(1B) NPS (cap ₹50k) + s.80D health insurance (cap ₹75k) + employer NPS s.80CCD(2) (uncapped) + s.80TTA/TTB savings interest (cap ₹10k)", [
-          { label: "s.80C (capped ₹1.5L)", amount: Math.min(dedIndia.s80C || 0, T.DEDUCTION_CAPS_OLD.s80C) },
-          { label: "s.80CCD(1B) NPS (capped ₹50k)", amount: Math.min(dedIndia.s80CCD1B || 0, T.DEDUCTION_CAPS_OLD.s80CCD1B) },
-          { label: "s.80D health insurance (capped ₹75k)", amount: Math.min(dedIndia.s80D || 0, T.DEDUCTION_CAPS_OLD.s80D_self + T.DEDUCTION_CAPS_OLD.s80D_parents_senior) },
-          { label: "Employer NPS s.80CCD(2)", amount: dedIndia.s80CCD2_employer || 0 },
-          { label: "s.80TTA/TTB savings interest (capped ₹10k)", amount: Math.min(dedIndia.s80TTA_TTB || 0, 10000) }
+      : calc("Old regime: s.123 (cap ₹1.5L) + s.124(1B) NPS (cap ₹50k) + s.126 health insurance (cap ₹75k) + employer NPS s.124(2) (uncapped) + s.153 savings interest (cap ₹10k)", [
+          { label: "s.123 (capped ₹1.5L)", amount: Math.min(dedIndia.s80C || 0, T.DEDUCTION_CAPS_OLD.s80C) },
+          { label: "s.124(1B) NPS (capped ₹50k)", amount: Math.min(dedIndia.s80CCD1B || 0, T.DEDUCTION_CAPS_OLD.s80CCD1B) },
+          { label: "s.126 health insurance (capped ₹75k)", amount: Math.min(dedIndia.s80D || 0, T.DEDUCTION_CAPS_OLD.s80D_self + T.DEDUCTION_CAPS_OLD.s80D_parents_senior) },
+          { label: "Employer NPS s.124(2)", amount: dedIndia.s80CCD2_employer || 0 },
+          { label: "s.153 savings interest (capped ₹10k)", amount: Math.min(dedIndia.s80TTA_TTB || 0, 10000) }
         ]);
 
     var rebateCap = i.regime === "NEW" ? T.REBATE_87A_NEW.maxRebate : T.REBATE_87A_OLD.maxRebate;
@@ -1129,13 +1208,13 @@
       return i.s115a[k] && i.s115a[k].totalInr > 1;
     }).map(function (k) {
       var s = i.s115a[k];
-      return { label: "  — of which s.115A " + k + " @ " + Math.round(s.effectiveRate * 100) + "% effective", inr: s.taxInr,
-        trace: calc("Total " + k + " income of " + inr(s.totalInr) + " under s.115A — each DTAA election (s.90(2)) is taxed at whichever is LOWER of the domestic default or the elected treaty rate, and only when TRC/Form 10F are on file; anything not covered by a valid election falls back to the domestic default",
+      return { label: "  — of which s.207 " + k + " @ " + Math.round(s.effectiveRate * 100) + "% effective", inr: s.taxInr,
+        trace: calc("Total " + k + " income of " + inr(s.totalInr) + " under s.207 — each DTAA election (s.159) is taxed at whichever is LOWER of the domestic default or the elected treaty rate, and only when TRC/Form 41 are on file; anything not covered by a valid election falls back to the domestic default",
           s115aParts(s, inr)) };
     }) : [];
     var nrInterestTrace = (i.nrInterest && i.nrInterest.carvedOutInr > 1) ? [
       { label: "  — of which DTAA-carved-out interest (Art 11) taxed separately", inr: i.nrInterest.carvedOutTaxInr,
-        trace: calc("Ordinary NRO interest is slab-rate income for a non-resident by default (s.115A's concessional rate doesn't actually cover it — that's narrowly limited to foreign-currency-borrowing interest). A specific claimed amount can still be carved out and taxed at the flat treaty rate instead of slab rates, but only when TRC/Form 10F are on file AND it's actually cheaper than the marginal slab rate on that slice (s.90(2))",
+        trace: calc("Ordinary NRO interest is slab-rate income for a non-resident by default (s.207's concessional rate doesn't actually cover it — that's narrowly limited to foreign-currency-borrowing interest). A specific claimed amount can still be carved out and taxed at the flat treaty rate instead of slab rates, but only when TRC/Form 41 are on file AND it's actually cheaper than the marginal slab rate on that slice (s.159)",
           nrInterestParts(i.nrInterest, inr)) }
     ] : [];
 
@@ -1153,10 +1232,10 @@
           { label: "Tax at slab rates", inr: i.slabTaxInr,
             trace: calc("Progressive slab-rate tax under the " + i.regime + " regime, applied to ₹" + Math.round(i.totalNormalInr).toLocaleString("en-IN") + " of normal-rate income (salary, house property, business, other sources" + (i.nrInterest ? " — including ordinary NRO interest, which is slab-rate income by default; only a DTAA-beneficial slice is carved out separately below" : "") + ", after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
               bracketParts(i.slabBreakdown, inr)) },
-          { label: "Tax on special-rate income (111A/112A gains + 115BB/115BBJ winnings" + (i.s115a ? " + s.115A dividend/royalty/FTS" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + DTAA-carved-out interest" : "") + ")", inr: i.specialTaxInr,
-            trace: calc("s.111A STCG @ 20% + s.112A LTCG @ 12.5% (net of the ₹1,25,000 exemption) + s.115BB/115BBJ lottery/betting/gaming winnings @ 30% flat, no exemption" + (i.s115a ? " + s.115A dividend/royalty/FTS at their own rates" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + any DTAA-carved-out interest at its treaty rate" : "") + " (each broken out below)", []) }
+          { label: "Tax on special-rate income (196/198 gains + 128/194 winnings" + (i.s115a ? " + s.207 dividend/royalty/FTS" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + DTAA-carved-out interest" : "") + ")", inr: i.specialTaxInr,
+            trace: calc("s.196 STCG @ 20% + s.198 LTCG @ 12.5% (net of the ₹1,25,000 exemption) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption" + (i.s115a ? " + s.207 dividend/royalty/FTS at their own rates" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + any DTAA-carved-out interest at its treaty rate" : "") + " (each broken out below)", []) }
         ]).concat(nrInterestTrace).concat(s115aTraces).concat([
-          { label: "Less §87A rebate", inr: -i.rebateInr,
+          { label: "Less §156 rebate", inr: -i.rebateInr,
             trace: calc("Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold — lesser of tax at slab rates and the statutory cap", [
               { label: "Statutory rebate cap", amount: rebateCap },
               { label: "Rebate actually allowed", amount: i.rebateInr }
@@ -1167,15 +1246,15 @@
             ]) },
           { label: "Health & education cess (4%)", inr: i.cessInr,
             trace: calc("4% of (tax after rebate + surcharge)", [
-              { label: "Tax after §87A rebate", amount: i.slabTaxInr - i.rebateInr + i.specialTaxInr },
+              { label: "Tax after §156 rebate", amount: i.slabTaxInr - i.rebateInr + i.specialTaxInr },
               { label: "Surcharge", amount: i.surchargeInr },
               { label: "Cess rate", display: "4%" }
             ]) },
           { label: "Total India tax", inr: i.totalTaxInr, emphasis: true,
-            trace: calc("Tax at slab rates + tax on special-rate income − §87A rebate + surcharge + cess", [
+            trace: calc("Tax at slab rates + tax on special-rate income − §156 rebate + surcharge + cess", [
               { label: "Tax at slab rates", amount: i.slabTaxInr },
               { label: "Tax on special-rate income", amount: i.specialTaxInr },
-              { label: "Less §87A rebate", amount: -i.rebateInr },
+              { label: "Less §156 rebate", amount: -i.rebateInr },
               { label: "Surcharge", amount: i.surchargeInr },
               { label: "Cess", amount: i.cessInr }
             ]) }

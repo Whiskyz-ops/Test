@@ -107,7 +107,7 @@
       tds_inr: 0,
       tcs_inr: 0
     },
-    metadata: { schema_version: "layer1_india_v5_1", financial_year: "FY2026-27" }
+    metadata: { schema_version: "layer1_india_v5_1", financial_year: "TY2026-27" }
   };
 
   var US = {

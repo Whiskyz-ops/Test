@@ -257,7 +257,7 @@
         const invHTML = showInventory ? `
             <div class="flex flex-col gap-3">
                 <h4 class="text-[10px] text-white/70 font-black uppercase tracking-widest border-b border-white/10 pb-1">Inventory & COGS</h4>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     ${makeInput('Opening Stock', 'opening_stock_inr')}
                     ${makeInput('Purchases', 'purchases_inr')}
                     ${makeInput('Closing Stock', 'closing_stock_inr')}
@@ -360,7 +360,7 @@
                 dynamicCostsHTML = `
                     <div class="flex flex-col gap-3">
                         <h4 class="text-[10px] text-white/70 font-black uppercase tracking-widest border-b border-white/10 pb-1">Direct Generation Costs</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             ${makeInput('Coal/Fuel for Generation', 'coal_fuel_generation_inr')}
                             ${makeInput('Grid Transmission Charges', 'grid_transmission_charges_inr')}
                             ${makeInput('Substation Maintenance', 'substation_maintenance_inr')}
@@ -1701,7 +1701,7 @@
                               <label class="text-[9px] font-black uppercase tracking-widest text-brandGold/80 mb-0.5">Tax Regime</label>
                               <div class="relative">
                                   <select id="prof-regime" onchange="updateProfileField('tax_regime', this.value)" class="w-full bg-transparent border-0 p-0 text-sm text-white font-medium outline-none appearance-none cursor-pointer pr-8 focus:ring-0">
-                                      <option value="NEW" class="bg-[#050505]">New Tax Regime (Default Sec 115BAC)</option>
+                                      <option value="NEW" class="bg-[#050505]">New Tax Regime (Default Section 202)</option>
                                       <option value="OLD" class="bg-[#050505]">Old Tax Regime (With Deductions)</option>
                                   </select>
                                   <div class="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
@@ -3484,6 +3484,7 @@
                 <div class="flex items-center justify-between border-b border-white/5 pb-2">
                     <div class="flex items-center space-x-4">
                         <span class="text-xs font-black uppercase tracking-widest text-brandGold">Share Buybacks</span>
+                
                         <select id="bb-has" onchange="toggleBuybackModule(this.value)" class="bg-[#121212] border border-white/10 rounded-lg text-[10px] text-white px-3 py-1.5 focus:border-brandGold focus:outline-none">
                             <option value="false">No Buybacks</option>
                             <option value="true">Yes, Tendered Shares</option>
@@ -3492,9 +3493,7 @@
                     <button onclick="addBuybackRow()" id="btn-add-bb" class="px-3 py-1 bg-white/10 hover:bg-brandGold/20 hover:text-brandGold rounded text-[9px] font-black uppercase tracking-widest transition-all hidden">+ Add Buyback</button>
                 </div>
                 <div id="div-bb-box" class="hidden">
-                    <div class="text-[9px] text-brandGold/80 bg-brandGold/5 border border-brandGold/20 rounded-xl px-4 py-3 mb-3">
-                        ⚖️ **New Rules Apply**: The money you received is taxed as dividend, and your original purchase cost is treated as a loss you can carry forward.
-                    </div>
+                    
                     <div id="div-bb-list" class="grid grid-cols-1 gap-4"></div>
                 </div>
             </div>
@@ -4993,7 +4992,7 @@
             Q1: {}, Q2: {}, Q3: {}, Q4: {}
         },
         metadata: {
-            financial_year: "FY2026-27",
+            financial_year: "TY2026-27",
             schema_version: "layer1_india_v5_1",
             created_at: new Date().toISOString(),
             last_updated_at: new Date().toISOString()
@@ -6421,7 +6420,7 @@ const crDiv = document.getElementById('div-company-residency');
         
         let currentYear = 2026;
         if (state.metadata && state.metadata.financial_year) {
-            const match = state.metadata.financial_year.match(/FY\d{4}-(\d{2})/);
+            const match = state.metadata.financial_year.match(/TY\d{4}-(\d{2})/);
             if (match) {
                 currentYear = 2000 + parseInt(match[1], 10);
             }
@@ -7328,17 +7327,17 @@ const crDiv = document.getElementById('div-company-residency');
             const acc = {
                 bank_name: div.querySelector('.bank-name').value || null,
                 account_type: type,
-                current_balance: parseFloat(div.querySelector('.bank-bal').value) || null,
+                current_balance: parseINRCurrency(div.querySelector('.bank-bal').value),
                 current_balance_currency: div.querySelector('.bank-bal-curr').value,
-                annual_interest_rate: parseFloat(div.querySelector('.bank-rate').value) / 100 || null,
-                interest_credited_this_fy_inr: parseInt(div.querySelector('.bank-int').value) || null
+                annual_interest_rate: parseINRCurrency(div.querySelector('.bank-rate').value) / 100 || null,
+                interest_credited_this_fy_inr: parseINRCurrency(div.querySelector('.bank-int').value) || null
             };
             if (type === 'NRE') {
                 acc.account_conversion_date = div.querySelector('.bank-nre-date').value || null;
             } else if (type === 'FCNR') {
                 acc.fcnr_maturity_date = div.querySelector('.bank-fcnr-date').value || null;
             } else if (type === 'NRO') {
-                acc.nro_balance = parseFloat(div.querySelector('.bank-nro-bal-input').value) || null;
+                acc.nro_balance = parseINRCurrency(div.querySelector('.bank-nro-bal-input').value);
                 acc.nro_balance_currency = "INR";
             }
             accounts.push(acc);
@@ -7349,8 +7348,8 @@ const crDiv = document.getElementById('div-company-residency');
         const hasNRO = accounts.some(a => a.account_type === 'NRO');
         if (hasNRO) {
             state.nro_repatriation = {
-                cumulative_repatriated_usd_this_fy: parseFloat(document.getElementById('nro-repat-usd').value) || null,
-                pending_repatriation_inr: parseFloat(document.getElementById('nro-pending-inr').value) || null,
+                cumulative_repatriated_usd_this_fy: parseINRCurrency(document.getElementById('nro-repat-usd').value),
+                pending_repatriation_inr: parseINRCurrency(document.getElementById('nro-pending-inr').value),
                 tds_deducted_on_nro_balance: document.getElementById('nro-tds-deducted').checked
             };
         } else {
@@ -7740,13 +7739,13 @@ const crDiv = document.getElementById('div-company-residency');
             // Stamp Duty Value for Capital Gains check
             const saleInput = div.querySelector('.prop-sale-val');
             // If we previously stored an original value, use it for the calculation, otherwise use the current input
-            let baseSaleVal = parseFloat(saleInput.dataset.originalVal);
-            if (isNaN(baseSaleVal)) {
-                baseSaleVal = parseFloat(saleInput.value) || 0;
+            let baseSaleVal = parseINRCurrency(saleInput.dataset.originalVal);
+            if (baseSaleVal === null || isNaN(baseSaleVal)) {
+                baseSaleVal = parseINRCurrency(saleInput.value) || 0;
             }
             
             const saleCurr = div.querySelector('.prop-sale-curr').value;
-            const sdvVal = parseFloat(div.querySelector('.prop-sdv').value) || 0;
+            const sdvVal = parseINRCurrency(div.querySelector('.prop-sdv').value) || 0;
             const s50cWarning = div.querySelector('.prop-50c-warning');
             
             if (s50cWarning) {
@@ -7771,31 +7770,51 @@ const crDiv = document.getElementById('div-company-residency');
                 }
             }
 
+            
+            const improvements = [];
+            div.querySelectorAll('.imp-date').forEach(dateInput => {
+                const row = dateInput.closest('div.flex'); // the wrapper div
+                if (row) {
+                    const costInput = row.querySelector('.imp-cost');
+                    if (costInput) {
+                        const date = dateInput.value;
+                        const cost = parseINRCurrency(costInput.value);
+                        if (date || cost) {
+                            improvements.push({
+                                improvement_date: date || null,
+                                improvement_cost_inr: cost || 0
+                            });
+                        }
+                    }
+                }
+            });
+
             const p = {
                 property_type: div.querySelector('.prop-type').value || null,
                 acquisition_date: div.querySelector('.prop-acq-date').value || null,
-                actual_cost: parseFloat(div.querySelector('.prop-cost').value) || null,
+                actual_cost: parseINRCurrency(div.querySelector('.prop-cost').value),
                 actual_cost_currency: div.querySelector('.prop-cost-curr').value,
-                pre_2001_fmv_inr: parseFloat(div.querySelector('.prop-pre2001').value) || null,
-                transfer_expenses_inr: isHolding ? null : (parseFloat(div.querySelector('.prop-exp').value) || null),
+                pre_2001_fmv_inr: parseINRCurrency(div.querySelector('.prop-pre2001').value),
+                transfer_expenses_inr: isHolding ? null : (parseINRCurrency(div.querySelector('.prop-exp').value)),
                 sale_date: isHolding ? null : (div.querySelector('.prop-sale-date').value || null),
-                sale_consideration: isHolding ? null : (parseFloat(div.querySelector('.prop-sale-val').value) || null),
+                sale_consideration: isHolding ? null : (parseINRCurrency(div.querySelector('.prop-sale-val').value)),
                 sale_consideration_currency: isHolding ? null : div.querySelector('.prop-sale-curr').value,
-                stamp_duty_value: isHolding ? null : (parseFloat(div.querySelector('.prop-sdv').value) || null),
+                stamp_duty_value: isHolding ? null : (parseINRCurrency(div.querySelector('.prop-sdv').value)),
                 stamp_duty_value_currency: "INR",
                 buyer_tan: (isHolding || state.residency_detail.final_india_residency_status !== 'NR') ? null : (div.querySelector('.prop-tan').value || null),
-                buyer_tds_deducted_inr: (isHolding || state.residency_detail.final_india_residency_status !== 'NR') ? null : (parseFloat(div.querySelector('.prop-tds').value) || null),
+                buyer_tds_deducted_inr: (isHolding || state.residency_detail.final_india_residency_status !== 'NR') ? null : (parseINRCurrency(div.querySelector('.prop-tds').value)),
                 buyer_tds_challan_number: (isHolding || state.residency_detail.final_india_residency_status !== 'NR') ? null : (div.querySelector('.prop-challan').value || null),
                 is_joint_property: isJoint,
-                ownership_percentage: isJoint ? (parseFloat(div.querySelector('.prop-share').value) || null) : null,
+                ownership_percentage: isJoint ? (parseINRCurrency(div.querySelector('.prop-share').value)) : null,
                 is_inherited: isInherited,
                 original_owner_acquisition_date: isInherited ? (div.querySelector('.prop-orig-date').value || null) : null,
-                original_owner_cost: isInherited ? (parseFloat(div.querySelector('.prop-orig-cost').value) || null) : null,
+                original_owner_cost: isInherited ? (parseINRCurrency(div.querySelector('.prop-orig-cost').value)) : null,
                 original_owner_cost_currency: isInherited ? div.querySelector('.prop-orig-curr').value : null,
                 cg_exemption_section: isHolding ? null : (div.querySelector('.prop-cg-exemption')?.value || null),
-                cg_exempt_invest_amount: isHolding ? null : (parseFloat(div.querySelector('.prop-cg-invest-amt')?.value) || null),
+                cg_exempt_invest_amount: isHolding ? null : (parseINRCurrency(div.querySelector('.prop-cg-invest-amt')?.value)),
                 cg_exempt_invest_date: isHolding ? null : (div.querySelector('.prop-cg-invest-date')?.value || null),
-                cg_deposited_in_cgas: isHolding ? false : (div.querySelector('.prop-cg-cgas')?.checked || false)
+                cg_deposited_in_cgas: isHolding ? false : (div.querySelector('.prop-cg-cgas')?.checked || false),
+                improvements: improvements
             };
             props.push(p);
         });
@@ -7851,6 +7870,26 @@ const crDiv = document.getElementById('div-company-residency');
                     </select>
                 </div>
                 <div>
+                    <label class="block text-[10px] text-white/60 mb-1">Listed on Exchange?</label>
+                    <select class="bb-listed w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all" onchange="syncBuybackState()">
+                        <option value="yes">Yes (Listed)</option>
+                        <option value="no">No (Unlisted)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="flex items-center gap-1 text-[10px] text-white/60 mb-1 relative group/tooltip w-max cursor-help">
+                        Are You a Promoter?
+                        <svg class="w-3 h-3 text-white/40 group-hover/tooltip:text-brandGold transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tooltip:block w-56 p-2 bg-[#1a1a1a] border border-brandGold/30 rounded shadow-2xl text-[9px] text-white/80 normal-case tracking-normal font-sans z-50 pointer-events-none text-center">
+                            A promoter is anyone who directly or indirectly holds more than 10% of the company's shares, or is designated a promoter under the Companies Act, 2013 / SEBI's Buy-back of Securities Regulations. Promoters owe an additional tax plus a 12% surcharge on top of the ordinary capital-gains tax on a buy-back (Section 69(2)(b)).
+                        </div>
+                    </label>
+                    <select class="bb-promoter w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all" onchange="syncBuybackState()">
+                        <option value="no">No</option>
+                        <option value="yes">Yes (Promoter)</option>
+                    </select>
+                </div>
+                <div>
                     <label class="block text-[10px] text-white/60 mb-1">Shares Tendered</label>
                     <input type="text" inputmode="numeric" step="1" class="inr-input bb-shares w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all font-mono" placeholder="0" oninput="syncBuybackState()">
                 </div>
@@ -7891,31 +7930,58 @@ const crDiv = document.getElementById('div-company-residency');
         const txs = [];
         document.querySelectorAll('.bb-card').forEach(card => {
             const bDate = card.querySelector('.bb-date').value || null;
-            const recd = parseFloat(card.querySelector('.bb-recd').value) || null;
-            const cost = parseFloat(card.querySelector('.bb-cost').value) || null;
+            const acqDate = card.querySelector('.bb-acq-date').value || null;
+            const recd = parseINRCurrency(card.querySelector('.bb-recd').value);
+            const cost = parseINRCurrency(card.querySelector('.bb-cost').value);
+            const isListed = card.querySelector('.bb-listed') ? card.querySelector('.bb-listed').value === 'yes' : true;
+            const isPromoter = card.querySelector('.bb-promoter') ? card.querySelector('.bb-promoter').value === 'yes' : false;
             
             let era = 'pre_oct2024';
             let divIncome = 0;
             let capLoss = 0;
+            let capitalGainOrLoss = 0;
+            let gainClassification = null;
 
-            if (bDate && new Date(bDate) >= new Date('2024-10-01')) {
-                era = 'post_oct2024';
-                divIncome = recd || 0;
-                capLoss = cost || 0;
+            if (bDate) {
+                const bDateObj = new Date(bDate);
+                if (bDateObj >= new Date('2026-04-01')) {
+                    era = 'capital_gains_era';
+                    capitalGainOrLoss = (recd || 0) - (cost || 0);
+                    
+                    if (acqDate) {
+                        const acqDateObj = new Date(acqDate);
+                        const diffTime = Math.abs(bDateObj - acqDateObj);
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        const monthsHeld = diffDays / 30.436875;
+                        
+                        const ltThreshold = isListed ? 12 : 24;
+                        const isLongTerm = monthsHeld > ltThreshold;
+                        
+                        gainClassification = isLongTerm ? 'ltcg' : (isListed ? 'stcg' : 'stcg_slab');
+                    }
+                } else if (bDateObj >= new Date('2024-10-01')) {
+                    era = 'post_oct2024';
+                    divIncome = recd || 0;
+                    capLoss = cost || 0;
+                }
             }
 
             txs.push({
                 company_name: card.querySelector('.bb-name').value || null,
                 isin: card.querySelector('.bb-isin').value || null,
+                is_listed: isListed,
+                is_promoter: isPromoter,
                 buyback_date: bDate,
                 tender_or_open_market: card.querySelector('.bb-route').value,
                 shares_tendered: parseInt(card.querySelector('.bb-shares').value) || null,
                 consideration_received_inr: recd,
                 original_cost_inr: cost,
-                original_acquisition_date: card.querySelector('.bb-acq-date').value || null,
+                original_acquisition_date: acqDate,
                 buyback_pre_or_post_oct2024: era,
                 deemed_dividend_inr: divIncome,
-                capital_loss_inr: capLoss
+                capital_loss_inr: capLoss,
+                capital_gain_or_loss: capitalGainOrLoss,
+                gain_classification: gainClassification
             });
         });
         state.share_buyback.transactions = txs;
@@ -8884,8 +8950,8 @@ const crDiv = document.getElementById('div-company-residency');
         document.querySelectorAll('#vehicle-table tbody tr').forEach(tr => {
             vehs.push({
                 vehicle_type: tr.querySelector('.veh-type').value,
-                gvw_tonnes: parseInt(tr.querySelector('.veh-gvw').value) || 0,
-                months_owned: parseInt(tr.querySelector('.veh-months').value) || 0
+                gvw_tonnes: parseINRCurrency(tr.querySelector('.veh-gvw').value) || 0,
+                months_owned: parseINRCurrency(tr.querySelector('.veh-months').value) || 0
             });
         });
         state.domestic_income.business_income.goods_vehicles = vehs;
@@ -9848,16 +9914,16 @@ const crDiv = document.getElementById('div-company-residency');
                 asset_class: card.querySelector('.fin-class').value,
                 asset_name_or_ticker: card.querySelector('.fin-name').value || null,
                 isin: null,
-                quantity: parseFloat(card.querySelector('.fin-qty').value) || null,
+                quantity: parseINRCurrency(card.querySelector('.fin-qty').value),
                 acquisition_date: card.querySelector('.fin-acq').value || null,
-                purchase_value: parseFloat(card.querySelector('.fin-pur').value) || null,
+                purchase_value: parseINRCurrency(card.querySelector('.fin-pur').value),
                 purchase_currency: card.querySelector('.fin-pur-curr')?.value || "INR",
-                fmv_31jan2018_per_unit_inr: parseFloat(card.querySelector('.fin-fmv').value) || null,
+                fmv_31jan2018_per_unit_inr: parseINRCurrency(card.querySelector('.fin-fmv').value),
                 sale_date: card.querySelector('.fin-sale-date').value || null,
-                sale_value: parseFloat(card.querySelector('.fin-sale').value) || null,
+                sale_value: parseINRCurrency(card.querySelector('.fin-sale').value),
                 sale_currency: card.querySelector('.fin-sale-curr')?.value || "INR",
                 stt_paid: card.querySelector('.fin-stt').value === 'true',
-                transfer_expenses: parseFloat(card.querySelector('.fin-exp').value) || null,
+                transfer_expenses: parseINRCurrency(card.querySelector('.fin-exp').value),
                 is_specified_foreign_exchange_asset: card.querySelector('.fin-sfea') ? card.querySelector('.fin-sfea').checked : false
             });
         });
@@ -10018,13 +10084,13 @@ const crDiv = document.getElementById('div-company-residency');
 
             txs.push({
                 commodity_type: card.querySelector('.com-type').value,
-                quantity: parseFloat(card.querySelector('.com-qty').value) || null,
+                quantity: parseINRCurrency(card.querySelector('.com-qty').value),
                 acquisition_date: card.querySelector('.com-acq-date').value || null,
-                purchase_value: parseFloat(card.querySelector('.com-pur-val').value) || null,
+                purchase_value: parseINRCurrency(card.querySelector('.com-pur-val').value),
                 purchase_currency: card.querySelector('.com-pur-curr').value || "INR",
                 is_maturity_redemption: (status === 'sold' && card.querySelector('.com-type').value === 'sovereign_gold_bond_original') ? card.querySelector('.com-maturity-cb').checked : null,
                 sale_date: status === 'sold' ? (card.querySelector('.com-sale-date').value || null) : null,
-                sale_value: status === 'sold' ? (parseFloat(card.querySelector('.com-sale-val').value) || null) : null,
+                sale_value: status === 'sold' ? (parseINRCurrency(card.querySelector('.com-sale-val').value)) : null,
                 sale_currency: status === 'sold' ? (card.querySelector('.com-sale-curr').value || "INR") : null
             });
         });
@@ -10176,15 +10242,15 @@ const crDiv = document.getElementById('div-company-residency');
             txs.push({
                 company_name: card.querySelector('.ul-name').value || null,
                 acquisition_date: card.querySelector('.ul-acq-date').value || null,
-                cost_per_share: parseFloat(card.querySelector('.ul-cost-val').value) || null,
+                cost_per_share: parseINRCurrency(card.querySelector('.ul-cost-val').value),
                 cost_per_share_currency: card.querySelector('.ul-cost-curr').value || "INR",
-                number_of_shares: parseFloat(card.querySelector('.ul-qty').value) || null,
-                sale_price_per_share: parseFloat(card.querySelector('.ul-sale-val').value) || null,
+                number_of_shares: parseINRCurrency(card.querySelector('.ul-qty').value),
+                sale_price_per_share: parseINRCurrency(card.querySelector('.ul-sale-val').value),
                 sale_price_per_share_currency: card.querySelector('.ul-sale-curr').value || "INR",
                 sale_date: card.querySelector('.ul-sale-date').value || null,
                 fmv_valuation_report_date: isNR ? (card.querySelector('.ul-fmv-date').value || null) : null,
                 original_investment_currency: isNR ? origCurr : null,
-                original_cost_in_foreign_currency: (isNR && origCurr !== 'INR') ? (parseFloat(card.querySelector('.ul-orig-cost').value) || null) : null
+                original_cost_in_foreign_currency: (isNR && origCurr !== 'INR') ? (parseINRCurrency(card.querySelector('.ul-orig-cost').value)) : null
             });
         });
         state.unlisted_equity.transactions = txs;
@@ -12721,8 +12787,23 @@ ${isProf ? '' : `
 
         // Share buyback post-Oct 2024 → deemed dividend u/s 2(22)(f)
         let deemedBuyback = 0;
+        let bbLtcg = 0;
+        let bbStcg = 0;
+        let bbStcgSlab = 0;
+        let bbCapLoss = 0;
+
         (state.share_buyback.transactions || []).forEach(bb => {
-            if (bb.buyback_pre_or_post_oct2024 === 'post_oct2024') deemedBuyback += (bb.consideration_received_inr || 0);
+            if (bb.buyback_pre_or_post_oct2024 === 'post_oct2024') {
+                deemedBuyback += (bb.consideration_received_inr || 0);
+            } else if (bb.buyback_pre_or_post_oct2024 === 'capital_gains_era') {
+                if (bb.capital_gain_or_loss < 0) {
+                    bbCapLoss += bb.capital_gain_or_loss; // Accumulate as a negative value
+                } else if (bb.capital_gain_or_loss >= 0 && bb.gain_classification) {
+                    if (bb.gain_classification === 'ltcg') bbLtcg += bb.capital_gain_or_loss;
+                    if (bb.gain_classification === 'stcg') bbStcg += bb.capital_gain_or_loss;
+                    if (bb.gain_classification === 'stcg_slab') bbStcgSlab += bb.capital_gain_or_loss;
+                }
+            }
         });
         state.other_sources.deemed_dividend_from_buyback_inr = deemedBuyback;
 
@@ -12754,14 +12835,14 @@ ${isProf ? '' : `
 
         // ── CAPITAL GAINS — enriched in Layer 2 ─────────────────────
         // Layer 1 collects transaction data; CG is computed in Layer 2.
-        const stcg111A = 0;
-        const ltcg112A = 0;
+        const stcg111A = bbStcg;
+        const ltcg112A = bbLtcg;
         const ltcg112  = 0;
 
         // ── GROSS TOTAL INCOME ───────────────────────────────────────
         // lotteryWin is taxed at flat 30% Lottery & Crossword Puzzles Winnings (same as online gaming post Apr-2023).
         // itRefundInt is taxable Excess Refund Granted Interest / Income Tax Refund Interest — included in normal slab.
-        const normalSlab  = salary + hpNetIncome + business + savingsInt + fdInt + bondInt + itRefundInt + gifts + pensionNet + deemedBuyback + otherSourcesAdditions + miscIncome;
+        const normalSlab  = salary + hpNetIncome + business + savingsInt + fdInt + bondInt + itRefundInt + gifts + pensionNet + deemedBuyback + otherSourcesAdditions + miscIncome + bbStcgSlab;
         
         // Non-Resident Deduction Wall (Tax on Dividends, Royalties and Technical Services (Non-Residents)): 
         // If NR/Foreign Company earns Dividend, Royalty, or FTS, they cannot claim Chapter VI-A deductions against it.
@@ -12872,15 +12953,17 @@ ${isProf ? '' : `
         // 3. BASE TAX COMPUTATION (approximate slab / flat rate)
         // ─────────────────────────────────────────────────────────────
         function slabTaxNewRegime(inc) {
-            // Tax Year 2025-26 New Tax Regime slabs (Section 202)
-            // Rebate Section 157: if total income ≤ ₹7L, tax = 0 (handled post-cess)
-            if (inc <= 300000) return 0;
+            // Tax Year 2026-27 New Tax Regime slabs (Section 202) — Budget 2026
+            // retained the FY2025-26 slab structure unchanged for FY2026-27.
+            // Rebate Section 156: if total income <= Rs12L, tax = 0 (handled post-cess)
+            if (inc <= 400000) return 0;
             let t = 0;
-            if (inc > 300000)  t += Math.min(inc - 300000, 400000) * 0.05;
-            if (inc > 700000)  t += Math.min(inc - 700000, 300000) * 0.10;
-            if (inc > 1000000) t += Math.min(inc - 1000000, 200000) * 0.15;
-            if (inc > 1200000) t += Math.min(inc - 1200000, 300000) * 0.20;
-            if (inc > 1500000) t += (inc - 1500000) * 0.30;
+            if (inc > 400000)  t += Math.min(inc - 400000, 400000) * 0.05;
+            if (inc > 800000)  t += Math.min(inc - 800000, 400000) * 0.10;
+            if (inc > 1200000) t += Math.min(inc - 1200000, 400000) * 0.15;
+            if (inc > 1600000) t += Math.min(inc - 1600000, 400000) * 0.20;
+            if (inc > 2000000) t += Math.min(inc - 2000000, 400000) * 0.25;
+            if (inc > 2400000) t += (inc - 2400000) * 0.30;
             return t;
         }
         function slabTaxOldRegime(inc, dob) {
@@ -12914,10 +12997,20 @@ ${isProf ? '' : `
             baseTax += Math.max(0, ltcg112A)  * 0.125; // LTCG Long-Term Capital Gains on Listed Securities
             baseTax += Math.max(0, ltcg112)   * 0.20;  // Other LTCG Other Long-Term Capital Gains
             baseTax += Math.max(0, gaming)    * 0.30;  // Online gaming Online Gaming Winnings
-            // Rebate Section 157 under New Regime (if total income <= ₹7L, rebate = full tax)
+            // Rebate Section 156 under New Regime (if total income <= ₹7L, rebate = full tax)
             const isResident = state.residency_detail?.final_india_residency_status === 'ROR' || state.residency_detail?.final_india_residency_status === 'RNOR' || state.residency_detail?.status === 'ROR' || state.residency_detail?.status === 'RNOR';
-            if (entity === 'individual' && isResident) {
-                if (regime === 'NEW' && totalIncome <= 700000) baseTax = 0;
+                        if (entity === 'individual' && isResident) {
+                if (regime === 'NEW') {
+                    if (totalIncome <= 1200000) {
+                        baseTax = 0;
+                    } else {
+                        // Section 156 Marginal Relief: tax cannot exceed (income - 12,00,000)
+                        const maxTax = totalIncome - 1200000;
+                        if (baseTax > maxTax) {
+                            baseTax = maxTax;
+                        }
+                    }
+                }
                 // Old Regime rebate: total income <= ₹5L
                 if (regime === 'OLD' && totalIncome <= 500000) baseTax = 0;
             }
@@ -14030,9 +14123,12 @@ ${isProf ? '' : `
         const indiaEnd = `Mar 31, ${baseYear + 1}`;
         const banner = document.getElementById('global-tax-year-banner');
         if (banner) {
-            banner.innerHTML = `Base Tax Year: ${baseYear} &nbsp;|&nbsp; Financial Year: ${baseYear}-${String(baseYear+1).slice(-2)} (${indiaStart} - ${indiaEnd}) &nbsp;|&nbsp; Assessment Year: ${baseYear+1}-${String(baseYear+2).slice(-2)}`;
+            banner.innerHTML = `Base Tax Year: ${baseYear} &nbsp;|&nbsp; Tax Year ${baseYear}-${String(baseYear + 1).slice(-2)}: ${indiaStart} - ${indiaEnd} &nbsp;|&nbsp; Income-tax Act, 2025`;
             banner.classList.remove('hidden');
         }
+
+        state.metadata = state.metadata || {};
+        state.metadata.financial_year = `TY${baseYear}-${String(baseYear + 1).slice(-2)}`;
 
         // Load saved L1 India state if exists
         const savedIndiaStateStr = localStorage.getItem('wising_layer1_india_state');

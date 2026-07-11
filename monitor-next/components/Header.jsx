@@ -3,7 +3,7 @@ import { Globe2, Settings } from "lucide-react";
 import { REGION_FILTERS, CLIENT } from "@/lib/mockData";
 
 export default function Header({ region, onRegionChange, clientName, baseYear }) {
-  const period = baseYear ? `FY${baseYear}-${String(baseYear + 1).slice(2)} / TY${baseYear}` : CLIENT.period;
+  const period = baseYear ? `TY${baseYear}-${String(baseYear + 1).slice(2)} (India) / TY${baseYear} (US)` : CLIENT.period;
   return (
     <div className="flex items-center justify-between gap-4 mb-5">
       <div className="flex items-center gap-3 min-w-0">

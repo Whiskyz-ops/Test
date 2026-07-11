@@ -158,25 +158,120 @@
       num(safe(os, "interest_on_it_refund_inr", 0)) +
       num(safe(di, "other_sources.interest_inr", 0))
     );
-    // Deemed dividend on share buyback (s.2(22)(f), post-1-Oct-2024): the
-    // FULL buyback consideration is taxed as a dividend at slab rates in the
-    // shareholder's hands (the acquisition cost instead becomes a capital
-    // loss). This is a genuine characterization mismatch candidate — the US
-    // almost certainly treats the same cash as capital gain/return of
-    // capital, not dividend income, so keep it distinct from ordinary
-    // dividend even though both are taxed at slab rates here.
-    var deemedDividendBuyback = moneyFromInr(num(safe(os, "deemed_dividend_from_buyback_inr", 0)));
+    // Deemed dividend on share buyback (s.2(40)(f) — window: 1-Oct-2024 to
+    // 31-Mar-2026 ONLY): the FULL buyback consideration is taxed as a
+    // dividend at slab rates in the shareholder's hands (the acquisition
+    // cost instead becomes a capital loss). This is a genuine
+    // characterization mismatch candidate — the US almost certainly treats
+    // the same cash as capital gain/return of capital, not dividend income.
+    // Budget 2026 REVERSED this for buy-backs on/after 1-Apr-2026 (s.69,
+    // Tax Year 2026-27 onward) — those are capital gains in India too now,
+    // folded into stcg/ltcg below instead (listed shares only — see there).
+    //
+    // Two sources feed this, since either can be present depending on how the
+    // model got here: (a) the raw per-transaction array (india.share_buyback.
+    // transactions) that the live Layer 1 form persists — Layer 1's own
+    // preview computes these totals locally for its own on-page estimate but
+    // does NOT persist the aggregated totals, only the raw transactions, so
+    // this aggregates them itself; (b) demo/test profiles that set the
+    // aggregated capital_gains.buyback_*_inr / other_sources.deemed_dividend_
+    // from_buyback_inr fields directly, bypassing the transaction UI
+    // entirely. Both are summed in — real data will only ever populate one.
+    var buybackTxs = safe(india, "share_buyback.transactions", []) || [];
+    var deemedDividendInr = num(safe(os, "deemed_dividend_from_buyback_inr", 0));
+    var buybackLtcgInr = num(safe(annual.capital_gains, "buyback_ltcg_inr", 0));
+    var buybackStcgInr = num(safe(annual.capital_gains, "buyback_stcg_inr", 0));
+    var buybackStcgSlabInr = num(safe(os, "buyback_stcg_slab_inr", 0));
+    // s.69(2)(b) promoter additional tax applies only to the promoter's OWN
+    // slice of flat-rate (LTCG/STCG) buy-back gains — tracked separately so
+    // computeUsTax's... no, computeIndiaTax's caller can layer the extra
+    // promoter tax on top without double-taxing the base gain (which is
+    // already included in buybackLtcgInr/buybackStcgInr above).
+    var promoterBuybackLtcgInr = 0, promoterBuybackStcgInr = 0;
+    // Holding-period characterization mismatch candidates: India uses a
+    // 24-month LTCG threshold for UNLISTED shares (12 months for listed);
+    // the US uses a uniform >12 months for LTCG on any asset, no listed/
+    // unlisted distinction. An unlisted buyback held 12-24 months is
+    // therefore short-term (slab rate) in India but long-term (preferential
+    // rate) in the US — same transaction, different character in each
+    // country. Flagged here as raw data; conflicts.js computes the actual
+    // US tax dollar impact (it has access to computeUsTax, normalize.js
+    // doesn't) and turns this into a finding.
+    var buybackHoldingMismatches = [];
+    function monthsBetween(fromStr, toStr) {
+      if (!fromStr || !toStr) return null;
+      var a = new Date(fromStr), b = new Date(toStr);
+      if (isNaN(a.getTime()) || isNaN(b.getTime())) return null;
+      var days = (b - a) / (1000 * 60 * 60 * 24);
+      return days / 30.436875;
+    }
+    buybackTxs.forEach(function (bb) {
+      if (bb.buyback_pre_or_post_oct2024 === "post_oct2024") {
+        deemedDividendInr += num(bb.consideration_received_inr);
+      } else if (bb.buyback_pre_or_post_oct2024 === "capital_gains_era") {
+        var g = num(bb.capital_gain_or_loss);
+        if (bb.gain_classification === "ltcg") {
+          buybackLtcgInr += g;
+          if (bb.is_promoter && g > 0) promoterBuybackLtcgInr += g;
+        } else if (bb.gain_classification === "stcg") {
+          buybackStcgInr += g;
+          if (bb.is_promoter && g > 0) promoterBuybackStcgInr += g;
+        } else if (bb.gain_classification === "stcg_slab") {
+          buybackStcgSlabInr += g;
+          // Promoter additional tax is scoped to the flat-rate LTCG/STCG
+          // gains only (see constants.js) — not applied to this slab-rate
+          // slice even if is_promoter is set.
+        }
+        // no gain_classification (e.g. acquisition date left blank) — not
+        // enough information to classify LTCG vs STCG, so it's dropped
+        // rather than guessed at; matches Layer 1's own (conservative, if
+        // silent) handling of that same gap.
+
+        var months = monthsBetween(bb.original_acquisition_date, bb.buyback_date);
+        if (months !== null && g > 0 && bb.gain_classification) {
+          var usClassification = months > 12 ? "ltcg" : "stcg";
+          var indiaClassification = bb.gain_classification === "ltcg" ? "ltcg" : "stcg"; // stcg_slab counts as short-term too
+          if (usClassification !== indiaClassification) {
+            buybackHoldingMismatches.push({
+              companyName: bb.company_name || "Unnamed company",
+              isListed: !!bb.is_listed,
+              monthsHeld: months,
+              gainInr: g,
+              gainUsd: inrToUsd(g),
+              indiaClassification: indiaClassification,
+              usClassification: usClassification,
+              indiaThresholdMonths: bb.is_listed ? 12 : 24
+            });
+          }
+        }
+      }
+    });
+    var deemedDividendBuyback = moneyFromInr(deemedDividendInr);
+    // Unlisted-company buyback capital gains, held <=24 months (s.69): taxed
+    // at SLAB rate, not the flat 20% listed-STCG rate, so this joins the
+    // normal-slab bucket (like the deemed dividend above) rather than the
+    // capital-gains one. >24-month unlisted gains ARE flat-rate LTCG — those
+    // fold into ltcg below same as listed shares (both s.198, 12.5%).
+    var buybackStcgSlab = buybackStcgSlabInr;
     var dividend = moneyFromInr(num(safe(os, "dividend_inr", 0)));
 
     // Capital gains — Layer 1 stores transaction data; surface the simple
     // short-term figure the form exposes, plus any annual capital_gains slice.
+    // Listed-share buyback capital gains (s.69, buy-backs on/after 1-Apr-2026
+    // — see the deemedDividendBuyback comment above) fold in here too, at the
+    // same s.196/198 STCG/LTCG rates as any other listed-equity gain.
+    // Unlisted-share buyback LTCG (>24mo) also lands here (s.198, 12.5%,
+    // same rate as listed LTCG); unlisted STCG (<=24mo) is slab-rate instead
+    // — see buybackStcgSlab above.
     var stcg = moneyFromInr(num(safe(di, "capital_gains.short_term_15_pct", 0)) +
-                            num(safe(annual.capital_gains, "stcg_111a_inr", 0)));
-    var ltcg = moneyFromInr(num(safe(annual.capital_gains, "ltcg_112a_inr", 0)));
+                            num(safe(annual.capital_gains, "stcg_111a_inr", 0)) +
+                            buybackStcgInr);
+    var ltcg = moneyFromInr(num(safe(annual.capital_gains, "ltcg_112a_inr", 0)) +
+                            buybackLtcgInr);
 
-    // Special-rate "other sources" income — flat 30% under s.115BB (lottery/
-    // betting) and s.115BBJ (online gaming), no basic exemption, no Chapter
-    // VI-A deduction, no §87A rebate. This was previously completely
+    // Special-rate "other sources" income — flat 30% under s.128 (lottery/
+    // betting) and s.194 (online gaming), no basic exemption, no Chapter
+    // VI-A deduction, no §156 rebate. This was previously completely
     // uncounted anywhere in the model (invisible to total income, FTC, and
     // cross-basis reconciliation) despite being real, taxable, and a genuine
     // cross-border double-tax candidate if the same winnings are also
@@ -185,14 +280,16 @@
       num(safe(os, "winnings_lottery_gaming_inr", 0)) +
       num(safe(os, "online_gaming_winnings_inr", 0))
     );
-    // s.115BBE unexplained-income addition: flat 60% + 25% surcharge + cess
-    // (effective ~78%), and uniquely denies ANY deduction/exemption/loss
-    // set-off — tracked separately (not folded into specialRate115bb) since
-    // its rate and total denial of relief are qualitatively different and
-    // this pass only flags it rather than computing it.
+    // s.195 unexplained-income addition: flat 30% + 25% surcharge + cess
+    // (effective ~39%, per Finance Act 2026 — was 60%/~78% pre-TY2026-27),
+    // and uniquely denies ANY deduction/exemption/loss set-off — tracked
+    // separately (not folded into specialRate115bb) since its rate and
+    // total denial of relief are qualitatively different and this pass
+    // only flags it rather than computing it.
     var unexplained115bbeInr = num(safe(os, "unexplained_income_115BBE_inr", 0));
 
-    var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg, specialRate115bb, deemedDividendBuyback].reduce(addMoney, zeroMoney());
+    var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg, specialRate115bb, deemedDividendBuyback,
+                 moneyFromInr(buybackStcgSlab)].reduce(addMoney, zeroMoney());
 
     return {
       salary: salary, business: business, houseProperty: houseProperty,
@@ -201,6 +298,10 @@
       capitalGains: addMoney(stcg, ltcg),
       specialRate115bb: specialRate115bb,
       deemedDividendBuyback: deemedDividendBuyback,
+      buybackStcgSlabInr: buybackStcgSlab,
+      promoterBuybackLtcgInr: promoterBuybackLtcgInr,
+      promoterBuybackStcgInr: promoterBuybackStcgInr,
+      buybackHoldingMismatches: buybackHoldingMismatches,
       unexplained115bbeInr: unexplained115bbeInr,
       total: total
     };
@@ -383,7 +484,7 @@
 
   /* ------------------------------------------------------------------------
    * Equity compensation — cross-border sourcing signal. India's ESOP
-   * perquisite (s.17(2)(vi), already folded into taxable_salary_inr — this is
+   * perquisite (s.17(1)(vi), already folded into taxable_salary_inr — this is
    * a breakdown figure, not additive) and the US RSU/NSO/ISO events are two
    * views into what is often the SAME multi-year vesting equity award, split
    * by whichever country the employee was in when each tranche vested /
