@@ -549,8 +549,8 @@
   var B4 = {
     id: "sharma_huf",
     label: "Sharma HUF (family investment vehicle)",
-    story: "Business POV: an HUF managing ancestral property and FD investments in India. Control & management is NOT wholly outside India, so it stays resident — a different test than the individual day-count. At ~₹6.5L income it sits right at the §156 rebate threshold, demonstrating the entity-aware fix (HUF isn't entitled to the individual-only rebate). PAN also isn't linked to Aadhaar, so every TDS figure here understates the higher rate actually being withheld.",
-    tags: ["HUF", "entity", "156", "control and management", "PAN-Aadhaar"],
+    story: "Business POV: an HUF managing ancestral property and FD investments in India. Control & management is NOT wholly outside India, so it stays resident — a different test than the individual day-count. At ~₹6.5L income it sits right at the §156 rebate threshold, demonstrating the entity-aware fix (HUF isn't entitled to the individual-only rebate). PAN also isn't linked to Aadhaar, so every TDS figure here understates the higher rate actually being withheld. Also sold some Bitcoin this year for a gain — taxed flat 30% under s.115BBH regardless of how long held, and the family's ₹2,00,000 brought-forward STCG loss can't touch it at all (VDA gains are never loss-set-off eligible, not even against another VDA's loss in the same year) — a common, costly misconception this demo makes concrete.",
+    tags: ["HUF", "entity", "156", "control and management", "PAN-Aadhaar", "VDA/crypto"],
     router: router("Sharma HUF", { us_days: 0, has_us_source_income_or_assets: false }),
     india: {
       profile: { full_name: "Sharma HUF", entity_type: "huf", tax_regime: "NEW", pan_aadhaar_linked: false },
@@ -559,7 +559,17 @@
       compliance_docs: {},
       bank_accounts: [{ bank_name: "SBI", account_type: "current", peak_balance_inr: 900000 }],
       property: { has_indian_property_transaction: true, properties: [{ address: "Ancestral home, Jaipur", property_type: "Residential", annual_value_inr: 300000, gross_rent_received_inr: 360000, municipal_taxes_paid_inr: 12000 }] },
-      financial_holdings: { has_financial_transactions: false, transactions: [] },
+      // Bitcoin sold this year for a ₹300,000 gain — s.115BBH flat 30%, no
+      // holding-period threshold, no set-off against the ₹200,000 STCG loss
+      // carryforward below (loss set-off is a Capital Gains head mechanism;
+      // VDA gains sit entirely outside that head).
+      financial_holdings: { has_financial_transactions: true, transactions: [
+        {
+          asset_class: "vda_crypto", asset_name_or_ticker: "BTC", quantity: 0.5,
+          acquisition_date: "2023-06-01", purchase_value: 900000, purchase_currency: "INR",
+          sale_date: "2026-08-01", sale_value: 1200000, sale_currency: "INR", transfer_expenses: 0
+        }
+      ] },
       domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 300000 }] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
       other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 350000 },
       deductions: {},

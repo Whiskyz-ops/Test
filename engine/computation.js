@@ -300,15 +300,26 @@
     // by any slab/exemption logic.
     var special115bbInr = (inc.specialRate115bb && inc.specialRate115bb.inr) || 0;
     var special115bbTaxInr = special115bbInr * T.RATE_115BB;
+    // s.115BBH VDA/crypto: flat 30% on POSITIVE gains only (normalize.js
+    // already dropped any negative-gain transactions rather than netting
+    // them — no loss set-off is ever allowed here, not even VDA-vs-VDA),
+    // no exemption, no indexation. Deliberately excluded from
+    // computeLossSetOff entirely, unlike every other capital-gains bucket
+    // above — it's not eligible for set-off against ANYTHING.
+    var vdaGainInr = (inc.vdaGainInr || 0);
+    var vdaTaxInr = vdaGainInr * T.RATE_115BBH;
     // Only CG/dividend-type special-rate tax gets the 15%-surcharge-cap
     // treatment (computeIndiaSurcharge below) — s.128/194 winnings do
     // NOT get that cap and take the full uncapped slab-based surcharge rate,
     // so keep it out of the "cap-eligible" bucket passed to that function.
     // s.207 dividend is "dividend income" for the cap's purposes; s.207
     // royalty/FTS and DTAA-carved-out interest are not, so they ride along
-    // with 128 instead.
+    // with 128 instead. s.115BBH is its own standalone section (not part of
+    // the ss.111A/112/112A capital-gains chapter the surcharge cap proviso
+    // lists), so VDA gains ride along with 128/194 here too — a documented,
+    // reasonable inference, not independently source-confirmed.
     var capEligibleSpecialTaxInr = stcgInr * T.STCG_111A_RATE + ltcgTaxableInr * T.LTCG_112A_RATE + ltcg197TaxableInr * T.LTCG_112A_RATE + s115aDividendTaxInr;
-    var specialTaxInr = capEligibleSpecialTaxInr + special115bbTaxInr + nrInterestCarvedOutTaxInr + s115aRoyaltyTaxInr + s115aFtsTaxInr;
+    var specialTaxInr = capEligibleSpecialTaxInr + special115bbTaxInr + vdaTaxInr + nrInterestCarvedOutTaxInr + s115aRoyaltyTaxInr + s115aFtsTaxInr;
 
     // Slab tax on normal income.
     var slabTaxInr = bracketTax(totalNormalInr, slabs);
@@ -326,7 +337,7 @@
     // computeIndiaSurcharge below, the surcharge threshold test) by the
     // exempt amount. ltcg197TaxableInr has no exemption to net out (s.197),
     // so it's already the full taxable amount.
-    var totalIncomeInr = totalNormalInr + stcgInr + ltcgTaxableInr + ltcg197TaxableInr + special115bbInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr;
+    var totalIncomeInr = totalNormalInr + stcgInr + ltcgTaxableInr + ltcg197TaxableInr + special115bbInr + vdaGainInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr;
     // ...and NR is excluded too (s.156 says "resident individual" — RNOR
     // still counts as resident for this, only genuine NR does not).
     var isIndividual = !model.entity || model.entity.indiaKind === "individual";
@@ -375,7 +386,7 @@
 
     return {
       regime: regime,
-      grossTotalIncomeInr: normalSlabInr + stcgInr + ltcgTaxableInr + ltcg197TaxableInr + special115bbInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr,
+      grossTotalIncomeInr: normalSlabInr + stcgInr + ltcgTaxableInr + ltcg197TaxableInr + special115bbInr + vdaGainInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr,
       deductionsInr: deductionsInr,
       totalIncomeInr: totalIncomeInr,
       slabTaxInr: slabTaxInr,
@@ -383,6 +394,8 @@
       totalNormalInr: totalNormalInr,
       ltcgTaxableInr: ltcgTaxableInr,
       ltcg197TaxableInr: ltcg197TaxableInr,
+      vdaGainInr: vdaGainInr,
+      vdaTaxInr: vdaTaxInr,
       specialTaxInr: specialTaxInr,
       rebateInr: rebateInr,
       surchargeInr: surchargeInr,

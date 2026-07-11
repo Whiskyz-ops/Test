@@ -1229,10 +1229,17 @@
           nrInterestParts(i.nrInterest, inr)) }
     ] : [];
     var ltcg197Trace = ((i.ltcg197TaxableInr || 0) > 1) ? [
-      { label: "  — of which s.197 LTCG @ 12.5% (unlisted/foreign — no exemption)", inr: (i.ltcg197TaxableInr || 0) * T.LTCG_112A_RATE,
-        trace: calc("Unlisted buy-back gains and foreign-equity gains (e.g. US stocks) held >24 months are LTCG under s.197, same 12.5% rate as s.198 — but s.197 has NO ₹1,25,000 exemption (that's textually specific to s.198's listed/STT-paid gains, and doesn't pool with s.197), so this whole amount is taxable from the first rupee", [
+      { label: "  — of which s.197 LTCG @ 12.5% (no exemption)", inr: (i.ltcg197TaxableInr || 0) * T.LTCG_112A_RATE,
+        trace: calc("Same 12.5% rate as s.198, but NO ₹1,25,000 exemption — that's textually specific to s.198's listed/STT-paid gains and doesn't pool with s.197, so this whole amount is taxable from the first rupee. Fed by: unlisted buy-back gains, foreign-equity gains (e.g. US stocks), unlisted bonds without STT, and non-equity-oriented/non-specified mutual funds (debt MF acquired pre-Apr-2023, 35-65%-equity hybrid funds, international/FoF funds no longer meeting s.50AA's specified-fund test) — all held >24 months, or >12 months for a listed bond specifically", [
           { label: "s.197 LTCG (after loss set-off)", amount: i.ltcg197TaxableInr || 0 },
           { label: "Tax @ 12.5%, no exemption", amount: (i.ltcg197TaxableInr || 0) * T.LTCG_112A_RATE }
+        ]) }
+    ] : [];
+    var vdaTrace = ((i.vdaGainInr || 0) > 1) ? [
+      { label: "  — of which s.115BBH VDA/crypto @ 30% flat", inr: i.vdaTaxInr || 0,
+        trace: calc("Virtual digital assets (crypto) are taxed at a flat 30% on positive gains only — no LTCG/STCG distinction, no holding-period threshold, no exemption or indexation, and crucially NO loss set-off is allowed at all, not even against a gain from a different VDA in the same year, and no carry-forward. Any losing VDA transaction is simply excluded, never netted against a gain", [
+          { label: "VDA gains (losses excluded, never netted)", amount: i.vdaGainInr || 0 },
+          { label: "Tax @ 30% flat", amount: i.vdaTaxInr || 0 }
         ]) }
     ] : [];
 
@@ -1250,9 +1257,9 @@
           { label: "Tax at slab rates", inr: i.slabTaxInr,
             trace: calc("Progressive slab-rate tax under the " + i.regime + " regime, applied to ₹" + Math.round(i.totalNormalInr).toLocaleString("en-IN") + " of normal-rate income (salary, house property, business, other sources" + (i.nrInterest ? " — including ordinary NRO interest, which is slab-rate income by default; only a DTAA-beneficial slice is carved out separately below" : "") + ", after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
               bracketParts(i.slabBreakdown, inr)) },
-          { label: "Tax on special-rate income (196/197/198 gains + 128/194 winnings" + (i.s115a ? " + s.207 dividend/royalty/FTS" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + DTAA-carved-out interest" : "") + ")", inr: i.specialTaxInr,
-            trace: calc("s.196 STCG @ 20% + s.198 LTCG @ 12.5% (listed/STT-paid, net of the ₹1,25,000 exemption) + s.197 LTCG @ 12.5% (unlisted/foreign — no exemption, separate section, does not pool with s.198's threshold) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption" + (i.s115a ? " + s.207 dividend/royalty/FTS at their own rates" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + any DTAA-carved-out interest at its treaty rate" : "") + " (each broken out below)", []) }
-        ]).concat(nrInterestTrace).concat(ltcg197Trace).concat(s115aTraces).concat([
+          { label: "Tax on special-rate income (196/197/198 gains + 115BBH VDA + 128/194 winnings" + (i.s115a ? " + s.207 dividend/royalty/FTS" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + DTAA-carved-out interest" : "") + ")", inr: i.specialTaxInr,
+            trace: calc("s.196 STCG @ 20% + s.198 LTCG @ 12.5% (listed/STT-paid, net of the ₹1,25,000 exemption) + s.197 LTCG @ 12.5% (unlisted/foreign — no exemption, separate section, does not pool with s.198's threshold) + s.115BBH VDA/crypto @ 30% flat (no set-off, ever) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption" + (i.s115a ? " + s.207 dividend/royalty/FTS at their own rates" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + any DTAA-carved-out interest at its treaty rate" : "") + " (each broken out below)", []) }
+        ]).concat(nrInterestTrace).concat(ltcg197Trace).concat(vdaTrace).concat(s115aTraces).concat([
           { label: "Less §156 rebate", inr: -i.rebateInr,
             trace: calc("Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold — lesser of tax at slab rates and the statutory cap", [
               { label: "Statutory rebate cap", amount: rebateCap },

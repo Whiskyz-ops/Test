@@ -325,13 +325,131 @@
         }
       }
     });
+    // Every other Financial Holdings asset class — UNLIKE foreign equity
+    // (above), these are all India-issued/registered instruments (even a
+    // mutual fund investing abroad is an Indian-AMC unit, India-source
+    // regardless of what it holds), so no residency gate applies here;
+    // taxable for any status. Multi-source-verified (TY2026-27 rules):
+    //
+    //  GROUP_A — s.198/196 equity-preferential (12mo threshold, STT paid):
+    //    listed_equity, equity_mutual_fund, hybrid_mf_equity (>=65% equity),
+    //    reit_invit (business trust units — s.112A/111A both explicitly
+    //    cover "a unit of a business trust"), etf (equity ETF — Layer 1
+    //    doesn't sub-type ETFs by underlying, so this is the most common
+    //    case, not a universal one; a gold/debt ETF should really be
+    //    GROUP_E/GROUP_C — flagged as a follow-up Layer 1 dropdown split,
+    //    same pattern as the earlier "Foreign Equity" split-out).
+    //    LTCG >12mo -> the s.198 `ltcg` bucket (12.5%, up to ₹1.25L exempt).
+    //    STCG <=12mo -> the flat-20% `stcg` bucket (s.196).
+    //    If STT was NOT paid (tx.stt_paid === false), s.111A/112A's
+    //    preferential RATE+exemption requires STT — falls back to GROUP_E
+    //    treatment (still a "listed security", 12mo threshold, but no
+    //    exemption and no 20% flat STCG rate).
+    //  GROUP_C — general "other capital asset" (s.112/197, 24mo threshold):
+    //    debt_mutual_fund_pre_apr23 (grandfathered out of s.50AA by
+    //    acquisition date — s.50AA only ever applies to funds ACQUIRED
+    //    on/after 1-Apr-2023), hybrid_mf_debt (35-65% equity — meets
+    //    neither the equity-oriented 65%+ test nor s.50AA's specified-fund
+    //    test), international_mf and fof (Finance Act 2024 redefined
+    //    "Specified Mutual Fund" under s.50AA from a <=35%-equity test to a
+    //    >65%-debt/money-market test for transfers from FY2025-26/TY2026-27
+    //    onward — a fund investing predominantly in FOREIGN EQUITY or
+    //    diversified holdings no longer meets that test purely by holding
+    //    little Indian equity, so these fall to ordinary s.112/197
+    //    treatment instead of s.50AA's always-short-term rule).
+    //    LTCG >24mo -> ltcg197Inr (12.5%, NO exemption — s.198's exemption
+    //    is textually specific to that section, doesn't pool with s.197).
+    //    STCG <=24mo -> the slab-rate stcgSlabInr bucket.
+    //  GROUP_D — s.50AA specified debt fund: ALWAYS short-term, ANY holding
+    //    period, slab rate — no LTCG path exists for this class at all.
+    //    debt_mutual_fund_post_apr23 (acquired on/after 1-Apr-2023, assumed
+    //    to meet the current >65%-debt/MMI test, consistent with what
+    //    "Debt MF" means as a label).
+    //  GROUP_E — listed security without STT-preferential-rate eligibility
+    //    (12mo threshold like GROUP_A, but taxed like GROUP_C — s.112's
+    //    12.5%-no-exemption LTCG, slab-rate STCG, since s.111A/112A
+    //    specifically require STT-paid equity/equity-fund/business-trust-
+    //    unit transactions, which a plain bond never has):
+    //    bond_listed (assumed plain-vanilla, not a Market-Linked Debenture
+    //    — MLDs are unconditionally short-term at slab under s.50AA
+    //    regardless of holding period, but Layer 1 doesn't distinguish
+    //    MLDs from ordinary listed bonds), and any GROUP_A class where
+    //    tx.stt_paid === false.
+    //  GROUP_G — VDA/crypto (s.115BBH): a completely separate, flat 30%
+    //    tax on POSITIVE gains only — no LTCG/STCG concept, no holding-
+    //    period threshold, no exemption or indexation, and critically NO
+    //    loss set-off allowed AT ALL, not even against a gain from a
+    //    DIFFERENT VDA in the same year (confirmed: the statute bars set-
+    //    off against income "under any provision of this Act"), and no
+    //    carry-forward. A losing VDA transaction is simply dropped, never
+    //    netted against anything.
+    //
+    // NOT computed (left on the existing chapter_xiia_not_computed warning
+    // below, not guessed at): nri_specified_debenture, nri_specified_
+    // company_deposit, nri_specified_govt_security. Research surfaced a
+    // real, unresolved question with no source able to answer it either
+    // way — whether s.50AA's "unlisted bonds are always short-term" rule
+    // overrides Chapter XII-A's LTCG path for specified debentures post-
+    // 23-Jul-2024, and whether a maturing deposit is even a "transfer"
+    // that triggers a capital gain at all. Shipping a number on
+    // confirmed-uncertain ground is worse than the existing honest
+    // "not yet computed" disclosure.
+    var GROUP_A_CLASSES = ["listed_equity", "equity_mutual_fund", "hybrid_mf_equity", "reit_invit", "etf"];
+    var GROUP_C_CLASSES = ["debt_mutual_fund_pre_apr23", "hybrid_mf_debt", "international_mf", "fof"];
+    var otherLtcg198Inr = 0, otherStcg20Inr = 0, otherLtcg197Inr = 0, otherStcgSlabInr = 0, vdaGainInr = 0;
+    (safe(india, "financial_holdings.transactions", []) || []).forEach(function (tx) {
+      var cls = tx.asset_class;
+      if (!cls || cls === "foreign_equity_unlisted") return; // handled above, or uncategorized (legacy transactions predating asset_class)
+      if (!tx.sale_date || tx.sale_value === null || tx.sale_value === undefined || tx.sale_value === "") return; // still holding — no taxable event yet
+      var saleInr = toInrAtCurrency(tx.sale_value, tx.sale_currency);
+      var purchaseInr = toInrAtCurrency(tx.purchase_value, tx.purchase_currency);
+      if (saleInr === null || purchaseInr === null) return; // EUR/GBP — uncomputed gap, not guessed
+
+      if (cls === "vda_crypto") {
+        var vg = saleInr - purchaseInr - num(tx.transfer_expenses);
+        if (vg > 0) vdaGainInr += vg;
+        return;
+      }
+
+      var months = monthsBetween(tx.acquisition_date, tx.sale_date);
+      if (months === null) return; // no acquisition date — can't classify, don't guess
+
+      // Grandfathered cost basis for pre-1-Feb-2018 listed-equity/equity-MF
+      // acquisitions (s.55(2)(ac)): higher of actual cost, or (lower of FMV
+      // as on 31-Jan-2018 and sale price). Layer 1 only collects the FMV
+      // field for these two classes (the only ones where s.112A's
+      // grandfathering transition applies).
+      var costBasisInr = purchaseInr;
+      if ((cls === "listed_equity" || cls === "equity_mutual_fund") && tx.fmv_31jan2018_per_unit_inr && tx.quantity) {
+        var fmvTotalInr = num(tx.fmv_31jan2018_per_unit_inr) * num(tx.quantity);
+        costBasisInr = Math.max(purchaseInr, Math.min(fmvTotalInr, saleInr));
+      }
+      var g = saleInr - costBasisInr - num(tx.transfer_expenses);
+
+      if (cls === "debt_mutual_fund_post_apr23") {
+        otherStcgSlabInr += g; // GROUP_D — always short-term, any holding period
+      } else if (GROUP_A_CLASSES.indexOf(cls) !== -1 && tx.stt_paid !== false) {
+        if (months > 12) otherLtcg198Inr += g; else otherStcg20Inr += g; // GROUP_A
+      } else if (GROUP_A_CLASSES.indexOf(cls) !== -1) {
+        if (months > 12) otherLtcg197Inr += g; else otherStcgSlabInr += g; // GROUP_A, STT not paid -> GROUP_E fallback
+      } else if (cls === "bond_listed") {
+        if (months > 12) otherLtcg197Inr += g; else otherStcgSlabInr += g; // GROUP_E
+      } else if (GROUP_C_CLASSES.indexOf(cls) !== -1) {
+        if (months > 24) otherLtcg197Inr += g; else otherStcgSlabInr += g; // GROUP_C
+      }
+      // Unrecognized asset_class (including the 3 NRI Chapter XII-A
+      // classes) — intentionally not classified; see the block comment
+      // above.
+    });
+
     var deemedDividendBuyback = moneyFromInr(deemedDividendInr);
     // Slab-rate STCG (<=24mo, no s.198/s.196 exemption or flat rate — taxed
     // at the taxpayer's own slab rate, but still Capital Gains head income,
-    // s.70/s.74 loss-set-off eligible): unlisted buy-backs and foreign
-    // equity holdings both land here, joining the normal-slab bucket (like
-    // the deemed dividend above) only AFTER computeLossSetOff, not before.
-    var unlistedStcgSlabInr = buybackStcgSlabInr + foreignEquityStcgSlabInr;
+    // s.70/s.74 loss-set-off eligible): unlisted buy-backs, foreign equity
+    // holdings, and every other GROUP_C/D/E-classified Financial Holdings
+    // asset land here, joining the normal-slab bucket (like the deemed
+    // dividend above) only AFTER computeLossSetOff, not before.
+    var unlistedStcgSlabInr = buybackStcgSlabInr + foreignEquityStcgSlabInr + otherStcgSlabInr;
     var dividend = moneyFromInr(num(safe(os, "dividend_inr", 0)));
 
     // Capital gains — Layer 1 stores transaction data; surface the simple
@@ -351,10 +469,10 @@
     // s.198 itself and does not extend to or pool with s.112/s.197.
     var stcg = moneyFromInr(num(safe(di, "capital_gains.short_term_15_pct", 0)) +
                             num(safe(annual.capital_gains, "stcg_111a_inr", 0)) +
-                            buybackStcgInr);
+                            buybackStcgInr + otherStcg20Inr);
     var ltcg = moneyFromInr(num(safe(annual.capital_gains, "ltcg_112a_inr", 0)) +
-                            buybackLtcgInr);
-    var ltcg197Inr = buybackLtcg197Inr + foreignEquityLtcg197Inr;
+                            buybackLtcgInr + otherLtcg198Inr);
+    var ltcg197Inr = buybackLtcg197Inr + foreignEquityLtcg197Inr + otherLtcg197Inr;
 
     // Special-rate "other sources" income — flat 30% under s.128 (lottery/
     // betting) and s.194 (online gaming), no basic exemption, no Chapter
@@ -376,7 +494,7 @@
     var unexplained115bbeInr = num(safe(os, "unexplained_income_115BBE_inr", 0));
 
     var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg, specialRate115bb, deemedDividendBuyback,
-                 moneyFromInr(unlistedStcgSlabInr), moneyFromInr(ltcg197Inr)].reduce(addMoney, zeroMoney());
+                 moneyFromInr(unlistedStcgSlabInr), moneyFromInr(ltcg197Inr), moneyFromInr(vdaGainInr)].reduce(addMoney, zeroMoney());
 
     return {
       salary: salary, business: business, houseProperty: houseProperty,
@@ -385,9 +503,14 @@
       capitalGains: addMoney(addMoney(stcg, ltcg), moneyFromInr(ltcg197Inr)),
       specialRate115bb: specialRate115bb,
       deemedDividendBuyback: deemedDividendBuyback,
-      // Slab-rate STCG (<=24mo unlisted — buy-backs and foreign equity
-      // both feed this), s.70/s.74 loss-set-off eligible.
+      // Slab-rate STCG (<=24mo unlisted — buy-backs, foreign equity, and
+      // every other GROUP_C/D/E Financial Holdings asset feed this),
+      // s.70/s.74 loss-set-off eligible.
       stcgSlabInr: unlistedStcgSlabInr,
+      // s.115BBH VDA/crypto gain — flat 30%, positive gains only, NEVER
+      // loss-set-off eligible (not even VDA-vs-VDA), no carry-forward.
+      // Kept completely separate from every capital-gains bucket above.
+      vdaGainInr: vdaGainInr,
       promoterBuybackLtcgInr: promoterBuybackLtcgInr,
       promoterBuybackStcgInr: promoterBuybackStcgInr,
       holdingPeriodMismatches: holdingPeriodMismatches,

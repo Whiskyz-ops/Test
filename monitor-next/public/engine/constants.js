@@ -180,6 +180,13 @@
         // s.128 (lottery/betting) / s.194 (online gaming): flat 30%,
         // no basic exemption, no Chapter VI-A deduction, no §156 rebate.
         RATE_115BB: 0.30,
+        // s.115BBH (VDA/crypto, renumbers to §194 under ITA 2025 per TaxTMI's
+        // "Clause 194 vs Section 115BBH" comparison) — flat 30%, no
+        // deduction except cost of acquisition (already netted out before
+        // this rate applies), no indexation, no exemption, no loss set-off
+        // (not even VDA-vs-VDA), no carry-forward. Confirmed unchanged
+        // through Budget 2025/2026 by multiple independent sources.
+        RATE_115BBH: 0.30,
         // s.207 domestic default withholding rates on India-source dividend/
         // royalty/FTS paid to a NON-RESIDENT (no PE) — the baseline a DTAA-
         // elected rate (s.159) displaces when TRC/Form 41 support it.
