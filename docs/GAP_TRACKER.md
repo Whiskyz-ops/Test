@@ -28,6 +28,12 @@ Living document tracking everything WISING does **not** yet model, viewed throug
 | IN-12 | s.194P (75+ senior, bank files for them — no return needed) | ❌ | P3 | Trivial disclosure from DOB + income mix. |
 | IN-13 | STT (raised on F&O by Finance Act 2026) | 🚫 | — | Transaction tax, not income tax. `stt_paid` flags already drive the CG regime correctly; the levy itself stays out of scope. |
 | IN-14 | GST | 🚫 | — | Indirect tax; out of scope by design. Note only so the decision is recorded. |
+| IN-15 | **Winnings TDS — s.194B / s.194BA (flat 30%)** | ❌ | P2 | Layer 1 already captures `winnings_lottery_gaming_inr` and `online_gaming_winnings_inr`, and the engine already taxes them at the special rate — but no expected-TDS row exists on the Withholding page. Computable **today** as a statutory estimate, exactly like the s.194S crypto row (194BA gaming TDS has no threshold at all; 194B lottery has ₹10,000 per-transaction). |
+| IN-16 | **s.197 Lower-TDS Certificate — engine never consumes it** | ❌ | P2 | Layer 1 collects the full certificate (approved rate, validity start/end dates, covered income types: property CG / NRO interest / dividend / royalty-FTS) but nothing engine-side reads it. Should cross-check the certificate rate against actual withholding on covered streams and flag expiry/coverage mismatches. Data fully exists. |
+| IN-17 | Form 15G / 15H self-declarations (no-TDS on interest below taxable limit) | ❌ | P3 | No Layer 1 field. Companion to the in-flight 194A interest-TDS field — a declaration on file explains a legitimately-zero TDS figure. |
+| IN-18 | s.206AB higher TDS for ITR non-filers (and s.206AA no-PAN quantification) | 🟡 | P3 | The PAN-Aadhaar-inoperative banner covers the s.397(2)/206AA-style override qualitatively; the non-filer double-rate rule needs a "filed ITR last year?" field, and neither is quantified per-row. |
+| IN-19 | Remaining resident TDS streams: s.194K (MF income), s.194LBA (REIT/InvIT distributions — the `reit_invit` asset class already exists), s.194N (cash withdrawal), s.192 salary-TDS breakout | ❌ | P3 | Beyond the five streams in the in-flight Antigravity prompt (XB-13). Each needs a Layer 1 field; salary TDS is currently indistinguishable inside the 26AS aggregate. |
+| IN-20 | Document-upload extraction is simulated | 🚫 product | — | The "26AS upload" (hardcodes ₹2,84,350), Lower-TDS-cert upload, bank-statement and property-doc uploads are demo mocks, not real OCR/parsing. Recording so nobody mistakes them for live extraction; real parsing is a product build, not a tax-rule gap. |
 
 **Verified current (India, 11 Jul 2026):** Finance Act 2026 (assented 30 Mar 2026) made **no slab changes** for TY2026-27 — new-regime slabs and the ₹60,000 / ₹12L §87A-equivalent rebate stand as already built; buyback-as-capital-gains from 1 Apr 2026 is already modeled; ITA 2025 renumbering already applied throughout.
 
@@ -71,6 +77,10 @@ Living document tracking everything WISING does **not** yet model, viewed throug
 | XB-11 | India-US DTAA | ✅ current | — | No amendment since the 2000 protocol; as modeled. |
 | XB-12 | W-9 / FATCA self-certification pair | 🟡 in flight | P2 | Both Antigravity prompts issued (India bank-level self-cert; US-side W-9-on-file). Engine wiring pending the updated Layer 1 files. |
 | XB-13 | India resident per-source TDS fields (194A/193/194/194DA/194-I) | 🟡 in flight | P2 | Antigravity prompt issued; engine wiring pending. |
+| XB-14 | **GILTI / Subpart F quantification — and OBBBA "NCTI" parameters if built** | 🟡 | P2 | Currently disclosure-only (Form 5471 flag; no dollar figure). If/when quantified, it must use the OBBBA rules effective TY2026: renamed **NCTI**, §250 deduction 50%→40% (effective corporate rate 12.6%), QBAI 10% deemed-return exclusion **eliminated**, FTC haircut 20%→10% (90% creditable) — and an individual only reaches those rules via a §962 election, otherwise full ordinary rates. Recording now so a future build doesn't use pre-2026 parameters. |
+| XB-15 | Chapter XII-A Layer 1 round-trip (`nri_exit_type` dropdown + `investment_income_this_year` field) | 🟡 in flight | P2 | Antigravity prompt issued earlier in the project; engine side is already built and safely gated (computes nothing while the fields are absent). Waiting on the updated `layer1_india.html`. |
+| XB-16 | Payer-side withholding-agent compliance (taxpayer AS deductor) | 🚫 recorded | — | The s.40(a)(i)/(ia) disallowance fields already feed the business computation (expense denial for failing to deduct TDS on payments made). Deliberately excluded from the Withholding Taxes page, which covers tax withheld FROM the taxpayer's income — recording the decision so it isn't re-litigated. |
+| XB-17 | FATCA Chapter 4 (§§1471-1474) withholding on payments to FFIs | 🚫 | — | Institution-side withholding regime; individuals interact with it only via the self-certification items already tracked (XB-12). Out of scope by design. |
 
 ---
 
@@ -81,7 +91,8 @@ Living document tracking everything WISING does **not** yet model, viewed throug
 3. **XB-1** — estate-exposure estimate (US-situs asset values already known; $60k vs $15M cliff is the single largest un-surfaced dollar figure in the app).
 4. **XB-2** — totalization disclosure finding (cheap, high credibility).
 5. **IN-4 verification** — property CG engine audit, then close whichever half is missing.
-6. Remaining P2s as Layer 1 round-trips return (XB-12/13, US-6).
+6. **IN-15 + IN-16** — winnings-TDS estimate row and Lower-TDS-certificate consumption (both computable from data Layer 1 already captures; no new fields).
+7. Remaining P2s as Layer 1 round-trips return (XB-12/13/15, US-6).
 
 ## Maintenance
 
