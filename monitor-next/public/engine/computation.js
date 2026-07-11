@@ -953,7 +953,19 @@
     var eciUsd = nra.eciIncomeUsd || 0;
     var fdapUsd = nra.fdapIncomeUsd || 0;
     var claim = (nra.treatyRateClaims || [])[0];
-    var fdapRate = (claim && claim.rate != null) ? Math.max(0, Math.min(1, Number(claim.rate) / 100)) : 0.30;
+    var claimedRate = (claim && claim.rate != null) ? Math.max(0, Math.min(1, Number(claim.rate) / 100)) : null;
+    // A treaty-reduced FDAP withholding rate requires a valid Form W-8BEN
+    // on file with the withholding agent (Treas. Reg. §1.1441-6) — without
+    // it, the payer must withhold at the 30% statutory default regardless
+    // of what the treaty would otherwise allow, and (absent other
+    // substantiation) that's what actually applies at return-filing too.
+    // Previously this used the claimed rate unconditionally even when
+    // nra.submittedW8ben was false — silently understating FDAP tax
+    // exactly when the nra_w8ben_missing finding was already warning that
+    // the claim was at risk; the disclosure and the computed number
+    // disagreed with each other.
+    var w8benOnFile = nra.submittedW8ben === true;
+    var fdapRate = (w8benOnFile && claimedRate != null) ? claimedRate : 0.30;
 
     var itemized = Math.min(ded.salt, computeSaltCap(eciUsd, status, T)) + ded.mortgageInterest + ded.charitable +
                    Math.max(0, ded.medical - 0.075 * eciUsd);
@@ -974,7 +986,8 @@
       totalTaxBeforeFtcUsd: totalTax,
       foreignSourceIncomeUsd: 0, // NRAs aren't taxed on foreign-source income — no US FTC need for it
       usSourceIncomeUsd: eciUsd + fdapUsd,
-      nra: { eciUsd: eciUsd, fdapUsd: fdapUsd, fdapRate: fdapRate, eciTaxUsd: eciTaxUsd, fdapTaxUsd: fdapTaxUsd, taxableEciUsd: taxableEciUsd, eciBracketBreakdown: eciBracketBreakdown },
+      nra: { eciUsd: eciUsd, fdapUsd: fdapUsd, fdapRate: fdapRate, eciTaxUsd: eciTaxUsd, fdapTaxUsd: fdapTaxUsd, taxableEciUsd: taxableEciUsd, eciBracketBreakdown: eciBracketBreakdown,
+        claimedRate: claimedRate, w8benOnFile: w8benOnFile, incomeType: (claim && claim.income_type) || null },
       feie: { claimed: false, eligible: false, taxHomeAbroad: false, testMet: false, reasons: [], appliedUsd: 0 },
       effectiveRate: (eciUsd + fdapUsd) > 0 ? totalTax / (eciUsd + fdapUsd) : 0
     };

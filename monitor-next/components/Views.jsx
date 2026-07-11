@@ -408,6 +408,98 @@ export function DocumentsView({ result }) {
   );
 }
 
+/* ============================ WITHHOLDING ============================ */
+export function WithholdingView({ result }) {
+  if (!result) return <Empty>Load a client to see withholding taxes.</Empty>;
+  const wh = result.withholding;
+  if (!wh) return <Empty>No withholding data for this taxpayer.</Empty>;
+  const jColor = { IN: PAL.jurIN, US: PAL.jurUS };
+  const allRows = [...wh.india.rows, ...wh.us.rows];
+
+  const Row = ({ r }) => {
+    const gross = r.jurisdiction === "IN" ? r.grossInr : r.grossUsd;
+    const fmtGross = r.jurisdiction === "IN" ? fmtInr : fmtUsd;
+    const tax = r.jurisdiction === "IN" ? r.taxInr : r.taxUsd;
+    const gap = r.jurisdiction === "IN" ? r.gapInr : r.gapUsd;
+    const hasGap = gap > 1;
+    return (
+      <div className={"p-3 rounded-lg border " + (hasGap ? "bg-exposed/[0.06] border-exposed/25" : "bg-white/[0.03] border-line")}>
+        <div className="flex items-start gap-3">
+          <span className="text-[9px] font-black px-2 py-0.5 rounded mt-0.5 shrink-0" style={{ background: jColor[r.jurisdiction] + "24", color: jColor[r.jurisdiction] }}>{r.jurisdiction}</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-[12px] font-bold text-head">{r.label}</div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-[11px] text-body">
+              {gross != null && <span>Gross: <span className="font-mono text-head">{fmtGross(gross)}</span></span>}
+              {r.domesticRatePct != null && <span>Default: <span className="font-mono text-head">{r.domesticRatePct}%</span></span>}
+              {r.treatyRatePct != null && <span>Treaty: <span className="font-mono text-head">{r.treatyRatePct}%</span></span>}
+              {r.rateAppliedPct != null && <span>Applied: <span className="font-mono" style={{ color: hasGap ? PAL.redText : PAL.greenText }}>{Math.round(r.rateAppliedPct * 10) / 10}%</span></span>}
+              <span>Tax: <span className="font-mono text-head">{fmtGross(tax)}</span></span>
+            </div>
+            {r.note && (
+              <div className="text-[10.5px] mt-1.5" style={{ color: hasGap ? PAL.redText : PAL.muted }}>
+                {r.docsOk === false ? "⚠ " : ""}{r.note}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-1.5 mt-2"><Ref>{r.citation}</Ref></div>
+          </div>
+          {hasGap && (
+            <div className="text-right shrink-0">
+              <div className="text-[9px] uppercase tracking-widest text-muted">Extra cost</div>
+              <div className="text-[13px] font-mono font-bold" style={{ color: PAL.redText }}>+{fmtGross(gap)}</div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card icon={<Receipt size={16} strokeWidth={2} />} title="Withholding Taxes"
+        sub="Every income stream subject to a treaty-dependent withholding rate — what's actually applied, and what's costing you for missing paperwork">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-1">
+          <div className="p-3 rounded-xl bg-white/[0.03] border border-line">
+            <div className="text-[9px] uppercase tracking-widest text-muted mb-1">Total avoidable cost</div>
+            <div className="text-[20px] font-mono font-bold" style={{ color: wh.totalGapUsd > 1 ? PAL.redText : PAL.greenText }}>{fmtUsd(wh.totalGapUsd)}</div>
+          </div>
+          <div className="p-3 rounded-xl bg-white/[0.03] border border-line">
+            <div className="text-[9px] uppercase tracking-widest text-muted mb-1">India (TRC / Form 41)</div>
+            <div className="text-[20px] font-mono font-bold text-head">{fmtInr(wh.india.totalGapInr)}</div>
+          </div>
+          <div className="p-3 rounded-xl bg-white/[0.03] border border-line">
+            <div className="text-[9px] uppercase tracking-widest text-muted mb-1">US (Form W-8BEN)</div>
+            <div className="text-[20px] font-mono font-bold text-head">{fmtUsd(wh.us.totalGapUsd)}</div>
+          </div>
+        </div>
+      </Card>
+
+      {wh.india.panAadhaarInoperative && (
+        <div className="rounded-2xl border border-exposed/30 bg-exposed/10 p-4">
+          <div className="text-[12px] font-bold" style={{ color: PAL.redText }}>⚠ PAN not linked to Aadhaar — PAN is inoperative</div>
+          <p className="text-[11.5px] text-body mt-1">Every payer must withhold TDS/TCS at the higher default rate under s.397(2) — generally 20%, or double the normal rate, whichever is higher — REGARDLESS of any rate shown below, including every treaty election. Not reflected in the rows below (Layer 1 doesn't capture how long the PAN stays inoperative), but it overrides all of them while it does.</p>
+        </div>
+      )}
+
+      {allRows.length === 0 ? (
+        <Card><Empty>No treaty-dependent withholding income on file for this taxpayer — nothing to reconcile.</Empty></Card>
+      ) : (
+        <>
+          {wh.india.rows.length > 0 && (
+            <Card icon={<span>🇮🇳</span>} title="India — s.207 / s.159" sub={wh.india.rows.length + " income stream(s)"}>
+              <div className="space-y-2">{wh.india.rows.map((r) => <Row key={r.id} r={r} />)}</div>
+            </Card>
+          )}
+          {wh.us.rows.length > 0 && (
+            <Card icon={<span>🇺🇸</span>} title="United States — FDAP / FIRPTA" sub={wh.us.rows.length + " income stream(s)"}>
+              <div className="space-y-2">{wh.us.rows.map((r) => <Row key={r.id} r={r} />)}</div>
+            </Card>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ============================ ACCOUNTS ============================ */
 export function AccountsView({ result }) {
   if (!result) return <Empty>Load a client to see accounts.</Empty>;

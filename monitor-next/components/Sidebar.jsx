@@ -1,5 +1,5 @@
 "use client";
-import { Radar, Users, Compass, FileText, FolderOpen, Wallet, Building2, Landmark, Plug } from "lucide-react";
+import { Radar, Users, Compass, FileText, FolderOpen, Wallet, Building2, Landmark, Plug, ShieldAlert } from "lucide-react";
 import WisingLogo from "@/components/WisingLogo";
 
 const MAIN = [
@@ -7,6 +7,7 @@ const MAIN = [
   { id: "clients", label: "Clients", icon: Users },
   { id: "residency", label: "Residency", icon: Compass },
   { id: "filings", label: "Filings", icon: FileText },
+  { id: "withholding", label: "Withholding", icon: ShieldAlert },
   { id: "documents", label: "Documents", icon: FolderOpen },
   { id: "holdings", label: "Holdings", icon: Wallet },
   { id: "business", label: "Business", icon: Building2 },

@@ -213,6 +213,34 @@
         0, ["DTAA treaty election", "s.207", "s.159", "s.159(8)"]);
     }
 
+    // -- 3c2. WITHHOLDING DOCUMENTATION GAP — QUANTIFIED HEADLINE -----------
+    // Consolidates every treaty-denied stream (India s.207/s.159 dividend/
+    // royalty/FTS/interest, US FDAP under IRC §1441/§1.1441-6) into ONE
+    // number: the real, computed extra tax being paid this year purely
+    // because supporting documentation (TRC, Form 41, Form W-8BEN) isn't on
+    // file — not an estimate, the same per-stream figures the Withholding
+    // Taxes page shows, summed. Fires only when that number is actually
+    // material; the per-stream detail (dtaa_treaty_elections, nra_w8ben_
+    // missing) above already covers the narrative for each individual
+    // stream — this is the one-line "how much is this actually costing you"
+    // a preparer would lead with.
+    var wh = buildWithholdingSummary(model, computed);
+    if (wh.totalGapUsd > 1) {
+      var whParts = [];
+      if (wh.india.totalGapInr > 1) whParts.push(inr(wh.india.totalGapInr) + " in India (TRC/Form 41)");
+      if (wh.us.totalGapUsd > 1) whParts.push(usd(wh.us.totalGapUsd) + " in the US (Form W-8BEN)");
+      add("withholding_documentation_gap", S.CRITICAL, C.DOCUMENT,
+        "Missing documentation is costing " + usd(wh.totalGapUsd) + " in avoidable withholding tax this year",
+        "Adding up every income stream where a treaty-reduced rate was claimed but denied for lack of supporting " +
+        "documentation: " + whParts.join(" + ") + " — " + usd(wh.totalGapUsd) + " total, computed directly from the " +
+        "same rate/amount figures used elsewhere on this page, not estimated. See the Withholding Taxes page for the " +
+        "full row-by-row breakdown of which income and which document.",
+        "File the missing documentation (TRC + Form 41 for India s.159 elections; Form W-8BEN with the US withholding " +
+        "agent for FDAP) as soon as possible — none of this is lost once filed for a FUTURE payment, but the tax " +
+        "already withheld/assessed on past payments this year may require a separate refund claim to recover.",
+        wh.totalGapUsd, ["Withholding tax", "TRC", "Form 41", "Form W-8BEN"]);
+    }
+
     // -- 3c. PAN NOT LINKED TO AADHAAR — PAN TREATED AS INOPERATIVE ---------
     // Captured by Layer 1's profile toggle but never read anywhere in the
     // engine before this. Under Rule 114AAA, an unlinked PAN is "inoperative":
@@ -1534,6 +1562,115 @@
   }
 
   /* ------------------------------------------------------------------------
+   * buildWithholdingSummary — every income stream subject to a treaty-
+   * dependent withholding rate, on both sides, broken out row by row: gross
+   * amount, domestic default rate, treaty-elected rate (if any), whether the
+   * supporting documentation is actually on file, the rate ACTUALLY being
+   * applied as a result, and the real dollar/rupee cost of any gap between
+   * "what you're paying" and "what you'd pay with the paperwork filed" —
+   * computed directly from the same election data computeIndiaTax/
+   * computeUsTax already produced, not re-estimated. Every number here
+   * already exists elsewhere in the engine; this just re-surfaces it in one
+   * dedicated, income-stream-first view instead of scattered across
+   * multiple findings.
+   * ----------------------------------------------------------------------*/
+  function buildWithholdingSummary(model, computed) {
+    var i = computed.indiaTax, u = computed.usTax;
+    var indiaRows = [];
+    var indiaTotalGapInr = 0;
+
+    function pushS115aRows(streamKey, label, citation) {
+      var stream = i.s115a && i.s115a[streamKey];
+      if (!stream) return;
+      (stream.elections || []).forEach(function (e, idx) {
+        var docsOk = e.outcome !== "denied_no_docs";
+        // If docs were missing, the amount was taxed at the domestic rate
+        // instead of the (better) elected rate — the gap is the exact
+        // difference on that slice, not an estimate.
+        var gapInr = (!docsOk && e.electedRate != null && e.electedRate < e.domesticRate)
+          ? e.appliedAmountInr * (e.domesticRate - e.electedRate) : 0;
+        indiaTotalGapInr += gapInr;
+        indiaRows.push({
+          id: streamKey + "_election_" + idx, jurisdiction: "IN", label: label + (e.article ? " (" + e.article + ")" : ""),
+          grossInr: e.appliedAmountInr, domesticRatePct: e.domesticRate * 100,
+          treatyRatePct: e.electedRate != null ? e.electedRate * 100 : null,
+          docsOk: docsOk, rateAppliedPct: e.rateApplied * 100, taxInr: e.taxInr, gapInr: gapInr,
+          note: docsOk ? null : "TRC/Form 41 missing — treaty rate denied, domestic rate applied instead",
+          citation: citation
+        });
+      });
+      if ((stream.uncapturedInr || 0) > 1) {
+        indiaRows.push({
+          id: streamKey + "_unclaimed", jurisdiction: "IN", label: label + " — unclaimed (no treaty election on file)",
+          grossInr: stream.uncapturedInr, domesticRatePct: stream.domesticRate * 100, treatyRatePct: null,
+          docsOk: null, rateAppliedPct: stream.domesticRate * 100, taxInr: stream.uncapturedTaxInr, gapInr: 0,
+          note: "Not a documentation gap — no treaty rate was ever claimed for this slice, so there's nothing to deny",
+          citation: citation
+        });
+      }
+    }
+    pushS115aRows("dividend", "Dividend", "s.207 / s.159");
+    pushS115aRows("royalty", "Royalty", "s.207 / s.159");
+    pushS115aRows("fts", "Fees for Technical Services", "s.207 / s.159");
+
+    if (i.nrInterest) {
+      (i.nrInterest.elections || []).forEach(function (e, idx) {
+        var docsOk = e.outcome !== "denied_no_docs";
+        var counterfactualTreatyTaxInr = e.electedRate != null ? e.appliedAmountInr * e.electedRate : null;
+        var gapInr = (!docsOk && counterfactualTreatyTaxInr != null && counterfactualTreatyTaxInr < e.marginalSlabTaxInr)
+          ? e.marginalSlabTaxInr - counterfactualTreatyTaxInr : 0;
+        indiaTotalGapInr += gapInr;
+        var actualTaxInr = docsOk && e.carvedOut ? e.treatyTaxInr : e.marginalSlabTaxInr;
+        indiaRows.push({
+          id: "nrInterest_election_" + idx, jurisdiction: "IN", label: "NRO Interest" + (e.article ? " (" + e.article + ")" : ""),
+          grossInr: e.appliedAmountInr, domesticRatePct: null, // no flat domestic rate — slab-based by default
+          treatyRatePct: e.electedRate != null ? e.electedRate * 100 : null,
+          docsOk: docsOk, rateAppliedPct: e.appliedAmountInr > 0 ? (actualTaxInr / e.appliedAmountInr) * 100 : null,
+          taxInr: actualTaxInr, gapInr: gapInr,
+          note: docsOk ? null : "TRC/Form 41 missing — treaty carve-out denied, taxed at marginal slab rate instead",
+          citation: "Art 11(2)(b), s.159"
+        });
+      });
+    }
+
+    var panAadhaarInoperative = model.identity.panAadhaarLinked === false;
+
+    var usRows = [];
+    var usTotalGapUsd = 0;
+    if (u.isNra && u.nra) {
+      var n = u.nra;
+      if (n.fdapUsd > 0) {
+        var gapUsd = (!n.w8benOnFile && n.claimedRate != null && n.claimedRate < 0.30)
+          ? n.fdapUsd * (0.30 - n.claimedRate) : 0;
+        usTotalGapUsd += gapUsd;
+        usRows.push({
+          id: "fdap", jurisdiction: "US", label: "FDAP" + (n.incomeType ? " (" + n.incomeType + ")" : "") + " — Schedule NEC",
+          grossUsd: n.fdapUsd, domesticRatePct: 30, treatyRatePct: n.claimedRate != null ? n.claimedRate * 100 : null,
+          docsOk: n.w8benOnFile, rateAppliedPct: n.fdapRate * 100, taxUsd: n.fdapTaxUsd, gapUsd: gapUsd,
+          note: n.w8benOnFile ? null : "Form W-8BEN missing — treaty rate denied, 30% statutory default withheld instead",
+          citation: "IRC §1441 / Treas. Reg. §1.1441-6"
+        });
+      }
+    }
+    var firptaUsd = model.nra && model.nra.usRealPropertyDisposed ? (model.nra.firptaWithholdingUsd || 0) : 0;
+    if (firptaUsd > 1) {
+      usRows.push({
+        id: "firpta", jurisdiction: "US", label: "FIRPTA — US real property disposition",
+        grossUsd: null, domesticRatePct: 15, treatyRatePct: null, docsOk: null, rateAppliedPct: null,
+        taxUsd: firptaUsd, gapUsd: 0,
+        note: "Mandatory withholding on gross proceeds regardless of documentation — not treaty-rate-dependent",
+        citation: "IRC §1445"
+      });
+    }
+
+    return {
+      india: { rows: indiaRows, totalGapInr: indiaTotalGapInr, totalGapUsd: U.inrToUsd(indiaTotalGapInr), panAadhaarInoperative: panAadhaarInoperative },
+      us: { rows: usRows, totalGapUsd: usTotalGapUsd },
+      totalGapUsd: U.inrToUsd(indiaTotalGapInr) + usTotalGapUsd
+    };
+  }
+
+  /* ------------------------------------------------------------------------
    * analyze — single entry point used by the dashboard.
    * ----------------------------------------------------------------------*/
   function analyze(opts) {
@@ -1559,6 +1696,7 @@
     var documents = buildDocuments(model, computed);
     var ftcReport = buildFtcReport(model, computed);
     var taxComputation = buildTaxComputation(model, computed);
+    var withholding = buildWithholdingSummary(model, computed);
     var monitoring = WISING.monitor
       ? WISING.monitor(model, computed, { findings: findings, asOf: (opts.scenario && opts.scenario.asOf) || opts.asOf })
       : null;
@@ -1573,6 +1711,7 @@
       documents: documents,
       ftcReport: ftcReport,
       taxComputation: taxComputation,
+      withholding: withholding,
       monitoring: monitoring,
       summary: {
         name: model.identity.name,
