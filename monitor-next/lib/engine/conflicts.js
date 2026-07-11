@@ -1664,6 +1664,49 @@
       });
     });
 
+    // TCS (Ch. XVII-BB, s.206C) — a DIFFERENT mechanism from everything
+    // above: collected on money going OUT (LRS remittances, overseas tour
+    // packages) rather than withheld from income coming in, but equally
+    // creditable against final India tax liability. Kept in its own
+    // "general" row, separate label, so it isn't mistaken for TDS.
+    if ((wd.india.tcsAggregateInr || 0) > 1) {
+      indiaRows.push({
+        id: "tcs_aggregate", jurisdiction: "IN", category: "general", label: "TCS Already Collected (Aggregate — Form 26AS)",
+        grossInr: null, domesticRatePct: null, treatyRatePct: null, docsOk: null, rateAppliedPct: null,
+        taxInr: wd.india.tcsAggregateInr, gapInr: 0,
+        note: "Tax Collected at Source on outbound payments (not income) — creditable against final tax liability the same as TDS",
+        citation: "s.206C"
+      });
+    }
+
+    // -- ESTIMATES — deterministic from known data, but NOT a confirmed
+    // withheld/collected receipt, so kept OUT of every total to avoid
+    // double-counting against the aggregates above (which may or may not
+    // already include these amounts — Layer 1 has no way to say either way).
+    var estimateRows = { india: [], us: [] };
+    if (wd.india.lrsTcs) {
+      var lrs = wd.india.lrsTcs;
+      estimateRows.india.push({
+        id: "lrs_tcs_estimate", jurisdiction: "IN", category: "estimate",
+        label: "Expected TCS on LRS Remittance — " + lrs.purposeLabel,
+        grossInr: lrs.totalRemittedInr, domesticRatePct: null, treatyRatePct: null, docsOk: null,
+        rateAppliedPct: null, taxInr: lrs.tcsInr, gapInr: 0,
+        note: lrs.note + " — cross-check against the TCS aggregate above, not a confirmed collection receipt (excluded from totals)",
+        citation: "s.206C(1G)"
+      });
+    }
+    var vdaSaleInr = (model.income && model.income.india && model.income.india.vdaSaleConsiderationInr) || 0;
+    if (vdaSaleInr > 10000) {
+      estimateRows.india.push({
+        id: "vda_194s_estimate", jurisdiction: "IN", category: "estimate",
+        label: "Expected TDS on Crypto/VDA Transfers (s.194S)",
+        grossInr: vdaSaleInr, domesticRatePct: null, treatyRatePct: null, docsOk: null,
+        rateAppliedPct: 1, taxInr: Math.round(vdaSaleInr * 0.01), gapInr: 0,
+        note: "1% of total transfer consideration (₹10,000 floor for most taxpayers, ₹50,000 for \"specified persons\" under s.44AB — not distinguishable from available data) — not confirmed as actually withheld, may already be inside the aggregate TDS credit above (excluded from totals)",
+        citation: "s.194S"
+      });
+    }
+
     var panAadhaarInoperative = model.identity.panAadhaarLinked === false;
 
     var usRows = [];
@@ -1729,8 +1772,8 @@
     }
 
     return {
-      india: { rows: indiaRows, totalGapInr: indiaTotalGapInr, totalGapUsd: U.inrToUsd(indiaTotalGapInr), panAadhaarInoperative: panAadhaarInoperative },
-      us: { rows: usRows, totalGapUsd: usTotalGapUsd },
+      india: { rows: indiaRows, estimateRows: estimateRows.india, totalGapInr: indiaTotalGapInr, totalGapUsd: U.inrToUsd(indiaTotalGapInr), panAadhaarInoperative: panAadhaarInoperative },
+      us: { rows: usRows, estimateRows: estimateRows.us, totalGapUsd: usTotalGapUsd },
       totalGapUsd: U.inrToUsd(indiaTotalGapInr) + usTotalGapUsd
     };
   }

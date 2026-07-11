@@ -427,21 +427,25 @@ export function WithholdingView({ result }) {
     const tax = r.jurisdiction === "IN" ? r.taxInr : r.taxUsd;
     const gap = r.jurisdiction === "IN" ? r.gapInr : r.gapUsd;
     const hasGap = gap > 1;
+    const isEstimate = r.category === "estimate";
     return (
-      <div className={"p-3 rounded-lg border " + (hasGap ? "bg-exposed/[0.06] border-exposed/25" : "bg-white/[0.03] border-line")}>
+      <div className={"p-3 rounded-lg border " + (hasGap ? "bg-exposed/[0.06] border-exposed/25" : isEstimate ? "bg-approaching/[0.05] border-approaching/25 border-dashed" : "bg-white/[0.03] border-line")}>
         <div className="flex items-start gap-3">
           <span className="text-[9px] font-black px-2 py-0.5 rounded mt-0.5 shrink-0" style={{ background: jColor[r.jurisdiction] + "24", color: jColor[r.jurisdiction] }}>{r.jurisdiction}</span>
           <div className="flex-1 min-w-0">
-            <div className="text-[12px] font-bold text-head">{r.label}</div>
+            <div className="flex items-center gap-2">
+              <div className="text-[12px] font-bold text-head">{r.label}</div>
+              {isEstimate && <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded" style={{ background: PAL.amberText + "22", color: PAL.amberText }}>Not in totals</span>}
+            </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-[11px] text-body">
               {gross != null && <span>Gross: <span className="font-mono text-head">{fmtGross(gross)}</span></span>}
               {r.domesticRatePct != null && <span>Default: <span className="font-mono text-head">{r.domesticRatePct}%</span></span>}
               {r.treatyRatePct != null && <span>Treaty: <span className="font-mono text-head">{r.treatyRatePct}%</span></span>}
               {r.rateAppliedPct != null && <span>Applied: <span className="font-mono" style={{ color: hasGap ? PAL.redText : PAL.greenText }}>{Math.round(r.rateAppliedPct * 10) / 10}%</span></span>}
-              <span>Tax: <span className="font-mono text-head">{fmtGross(tax)}</span></span>
+              <span>{isEstimate ? "Expected" : "Tax"}: <span className="font-mono text-head">{fmtGross(tax)}</span></span>
             </div>
             {r.note && (
-              <div className="text-[10.5px] mt-1.5" style={{ color: hasGap ? PAL.redText : PAL.muted }}>
+              <div className="text-[10.5px] mt-1.5" style={{ color: hasGap ? PAL.redText : isEstimate ? PAL.amberText : PAL.muted }}>
                 {r.docsOk === false ? "⚠ " : ""}{r.note}
               </div>
             )}
@@ -471,14 +475,15 @@ export function WithholdingView({ result }) {
     );
   };
 
-  const JurisdictionCard = ({ flag, label, rows, citationLabel }) => {
-    if (!rows.length) return null;
+  const JurisdictionCard = ({ flag, label, rows, estimateRows, citationLabel }) => {
+    if (!rows.length && !(estimateRows || []).length) return null;
     const general = rows.filter((r) => r.category === "general");
     const gaps = rows.filter((r) => r.category === "treaty_gap");
     return (
       <Card icon={<span>{flag}</span>} title={label} sub={rows.length + " income stream(s)"}>
         <Section rows={general} title="Withholding on file" />
         <Section rows={gaps} title={"Treaty elections — " + citationLabel} sub="documentation-dependent" />
+        <Section rows={estimateRows || []} title="Statutory estimates" sub="not confirmed, excluded from totals above" />
       </Card>
     );
   };
@@ -486,7 +491,7 @@ export function WithholdingView({ result }) {
   return (
     <div className="space-y-6">
       <Card icon={<Receipt size={16} strokeWidth={2} />} title="Withholding Taxes"
-        sub="Every income stream with tax withheld at source — salary/W-2, property, bank interest, dividends — for this taxpayer, resident or not, in either country. Treaty-election rows costing extra for missing paperwork are highlighted within.">
+        sub="Every rupee/dollar withheld or collected at source — salary/W-2, property, TCS on outbound remittances — for this taxpayer, resident or not, in either country. Treaty-election rows costing extra for missing paperwork are highlighted within; statutory estimates are called out separately.">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1">
           <div className="p-3 rounded-xl bg-white/[0.03] border border-line">
             <div className="text-[9px] uppercase tracking-widest text-muted mb-1">Total withheld</div>
@@ -514,12 +519,12 @@ export function WithholdingView({ result }) {
         </div>
       )}
 
-      {allRows.length === 0 ? (
+      {allRows.length === 0 && !(wh.india.estimateRows || []).length && !(wh.us.estimateRows || []).length ? (
         <Card><Empty>No withholding-tax income on file for this taxpayer — nothing to reconcile.</Empty></Card>
       ) : (
         <>
-          <JurisdictionCard flag="🇮🇳" label="India" rows={wh.india.rows} citationLabel="s.207 / s.159" />
-          <JurisdictionCard flag="🇺🇸" label="United States" rows={wh.us.rows} citationLabel="FDAP / FIRPTA" />
+          <JurisdictionCard flag="🇮🇳" label="India" rows={wh.india.rows} estimateRows={wh.india.estimateRows} citationLabel="s.207 / s.159" />
+          <JurisdictionCard flag="🇺🇸" label="United States" rows={wh.us.rows} estimateRows={wh.us.estimateRows} citationLabel="FDAP / FIRPTA" />
         </>
       )}
     </div>

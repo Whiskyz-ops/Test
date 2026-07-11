@@ -464,7 +464,7 @@
     var GROUP_A_CLASSES = ["listed_equity", "equity_mutual_fund", "hybrid_mf_equity", "reit_invit", "etf"];
     var GROUP_C_CLASSES = ["debt_mutual_fund_pre_apr23", "hybrid_mf_debt", "international_mf", "fof"];
     var S50AA_UNLISTED_DEBT_CUTOFF = "2024-07-23";
-    var otherLtcg198Inr = 0, otherStcg20Inr = 0, otherLtcg197Inr = 0, otherStcgSlabInr = 0, vdaGainInr = 0;
+    var otherLtcg198Inr = 0, otherStcg20Inr = 0, otherLtcg197Inr = 0, otherStcgSlabInr = 0, vdaGainInr = 0, vdaSaleConsiderationInr = 0;
     var chapterXiiaInvestmentIncomeInr = 0, chapterXiiaSfeaHoldingCount = 0;
     (safe(india, "financial_holdings.transactions", []) || []).forEach(function (tx) {
       var cls = tx.asset_class;
@@ -486,6 +486,9 @@
       if (saleInr === null || purchaseInr === null) return; // EUR/GBP — uncomputed gap, not guessed
 
       if (cls === "vda_crypto") {
+        // s.194S TDS applies to the TRANSFER CONSIDERATION, not the gain —
+        // unlike vdaGainInr (positive gains only), every sale counts here.
+        vdaSaleConsiderationInr += saleInr;
         var vg = saleInr - purchaseInr - num(tx.transfer_expenses);
         if (vg > 0) vdaGainInr += vg;
         return;
@@ -610,6 +613,9 @@
       // loss-set-off eligible (not even VDA-vs-VDA), no carry-forward.
       // Kept completely separate from every capital-gains bucket above.
       vdaGainInr: vdaGainInr,
+      // s.194S TDS base — total transfer consideration across every VDA
+      // sale this year, gain or loss (contrast vdaGainInr above).
+      vdaSaleConsiderationInr: vdaSaleConsiderationInr,
       // s.115E(1)(a) Chapter XII-A investment income — flat 20%, no
       // deductions, no exemption, not a capital gain (no loss set-off).
       chapterXiiaInvestmentIncomeInr: chapterXiiaInvestmentIncomeInr,
@@ -889,6 +895,50 @@
    * that's been withheld" view, as distinct from the narrower "here's what
    * missing documentation is costing you" conflict subset.
    * ----------------------------------------------------------------------*/
+  var LRS_PURPOSE_LABELS = {
+    investment: "Investment (Equity/Property)", education_own_funds: "Overseas Education (Own Funds)",
+    education_loan: "Overseas Education (Loan-Funded)", medical: "Medical Treatment Abroad",
+    travel: "International Travel (Overseas Tour Package)", gift_donation: "Gift or Donation to Non-Resident"
+  };
+  var LRS_TCS_THRESHOLD_INR = 1000000;
+
+  /* s.206C(1G) TCS on LRS outbound remittances — mirrors updateLrsTcs() in
+   * layer1_india.html EXACTLY (₹10L base threshold, 2% flat on tour
+   * packages from the first rupee, 20% on excess for investment/gift, 2% on
+   * excess for self-funded education/medical, 0% for loan-funded
+   * education). That function only ever renders a DOM preview and never
+   * persisted the figure to state, so the engine never had access to it —
+   * this is the same deterministic formula, re-run over the same inputs. */
+  function computeLrsTcs(lrsOutbound) {
+    var total = num(safe(lrsOutbound, "total_lrs_remitted_this_fy_inr", 0));
+    var purpose = safe(lrsOutbound, "lrs_purpose", null);
+    if (!(total > 0) || !purpose) return null;
+    var tcsInr = 0, ratePctLabel = "NIL", note;
+    if (purpose === "travel") {
+      tcsInr = Math.round(total * 0.02);
+      ratePctLabel = "2% flat";
+      note = "2% flat TCS on overseas tour packages from the first rupee";
+    } else if (total > LRS_TCS_THRESHOLD_INR) {
+      var excess = total - LRS_TCS_THRESHOLD_INR;
+      if (purpose === "investment" || purpose === "gift_donation") {
+        tcsInr = Math.round(excess * 0.20); ratePctLabel = "20% on excess";
+        note = "20% TCS on general/investment LRS exceeding ₹10L";
+      } else if (purpose === "education_own_funds" || purpose === "medical") {
+        tcsInr = Math.round(excess * 0.02); ratePctLabel = "2% on excess";
+        note = "2% TCS on self-funded education/medical exceeding ₹10L";
+      } else if (purpose === "education_loan") {
+        tcsInr = 0; ratePctLabel = "0%";
+        note = "NIL TCS on education remittance funded via loan";
+      }
+    } else {
+      note = "Remittance is below the ₹10L base threshold";
+    }
+    return {
+      totalRemittedInr: total, purpose: purpose, purposeLabel: LRS_PURPOSE_LABELS[purpose] || purpose,
+      tcsInr: tcsInr, ratePctLabel: ratePctLabel, note: note
+    };
+  }
+
   function aggregateWithholdingDetail(india, us) {
     var tc = safe(india, "tax_credits", {});
     var props = safe(india, "property.properties", []) || [];
@@ -907,6 +957,11 @@
         // demo simulation (hardcoded value), not real per-source extraction,
         // so there is no source/rate breakdown available for this figure.
         tdsAggregateInr: num(safe(tc, "tds_already_deducted_inr", 0)) + num(safe(tc, "tds_inr", 0)),
+        // TCS (Ch. XVII-BB) is a DIFFERENT mechanism from TDS — collected on
+        // money going OUT (e.g. LRS remittances), not withheld from income
+        // coming in — but is equally creditable against final tax liability.
+        tcsAggregateInr: num(safe(tc, "tcs_inr", 0)),
+        lrsTcs: computeLrsTcs(safe(india, "lrs_outbound", {})),
         propertyTds: propertyTds
       },
       us: {

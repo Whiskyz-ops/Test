@@ -197,7 +197,7 @@
   var P3 = {
     id: "india_ror_us_income",
     label: "India ROR · US income",
-    story: "Resident of India (ROR), formerly NRI, with US rental, dividends & brokerage. India taxes worldwide → Form 44/§159 credit for US tax; Schedule FA for US assets; files 1040-NR on US-source income with a treaty rate claimed but no W-8BEN on file, plus FIRPTA withholding on a US property sale; kept her Chapter XII-A election on specified assets after becoming ROR. Also sold NVDA (held directly in her US brokerage) after 18 months — India treats it as an unlisted foreign security (24mo LTCG threshold, no s.198 exemption) so it's STCG at her slab rate there, but the US calls the same gain LTCG (12mo threshold) — a holding-period characterization mismatch.",
+    story: "Resident of India (ROR), formerly NRI, with US rental, dividends & brokerage. India taxes worldwide → Form 44/§159 credit for US tax; Schedule FA for US assets; files 1040-NR on US-source income with a treaty rate claimed but no W-8BEN on file, plus FIRPTA withholding on a US property sale; kept her Chapter XII-A election on specified assets after becoming ROR. Also sold NVDA (held directly in her US brokerage) after 18 months — India treats it as an unlisted foreign security (24mo LTCG threshold, no s.198 exemption) so it's STCG at her slab rate there, but the US calls the same gain LTCG (12mo threshold) — a holding-period characterization mismatch. As an India resident, she also remitted ₹15L to top up that brokerage under LRS — the first demo of s.206C(1G) TCS (20% on the ₹5L over the ₹10L base threshold), a mechanism entirely separate from TDS since it's collected on money leaving India, not income arriving.",
     tags: ["Form 44", "Schedule FA", "1040-NR", "FIRPTA", "Foreign equity"],
     router: router("Anita Desai", { is_us_citizen: false, has_green_card: false, us_days: 35, date_of_birth: "1982-11-09" }),
     india: {
@@ -231,7 +231,11 @@
       capital_gains: { ltcg_112a_inr: 300000 },
       other_sources: { has_other_sources_income: true, interest_savings_inr: 60000, interest_fd_rd_inr: 140000 },
       deductions: { s80C: { epf_employee_inr: 150000 }, s80D: { self_family_premium_inr: 25000 } },
-      lrs_outbound: {},
+      // Remitted funds to top up her US brokerage this year — as an India
+      // ROR, LRS (s.206C(1G)) applies: 20% TCS on the ₹5L excess over the
+      // ₹10L base threshold, since "investment" isn't one of the
+      // concessional-rate purposes (education/medical).
+      lrs_outbound: { total_lrs_remitted_this_fy_inr: 1500000, lrs_purpose: "investment" },
       tax_credits: { advance_tax_q1_15jun_inr: 200000, advance_tax_q2_15sep_inr: 200000, tds_already_deducted_inr: 150000 },
       metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
