@@ -7911,8 +7911,8 @@ const crDiv = document.getElementById('div-company-residency');
         document.querySelectorAll('.bb-card').forEach(card => {
             const bDate = card.querySelector('.bb-date').value || null;
             const acqDate = card.querySelector('.bb-acq-date').value || null;
-            const recd = parseFloat(card.querySelector('.bb-recd').value) || null;
-            const cost = parseFloat(card.querySelector('.bb-cost').value) || null;
+            const recd = parseINRCurrency(card.querySelector('.bb-recd').value);
+            const cost = parseINRCurrency(card.querySelector('.bb-cost').value);
             const isListed = card.querySelector('.bb-listed') ? card.querySelector('.bb-listed').value === 'yes' : true;
             const isPromoter = card.querySelector('.bb-promoter') ? card.querySelector('.bb-promoter').value === 'yes' : false;
             
@@ -9894,16 +9894,16 @@ const crDiv = document.getElementById('div-company-residency');
                 asset_class: card.querySelector('.fin-class').value,
                 asset_name_or_ticker: card.querySelector('.fin-name').value || null,
                 isin: null,
-                quantity: parseFloat(card.querySelector('.fin-qty').value) || null,
+                quantity: parseINRCurrency(card.querySelector('.fin-qty').value),
                 acquisition_date: card.querySelector('.fin-acq').value || null,
-                purchase_value: parseFloat(card.querySelector('.fin-pur').value) || null,
+                purchase_value: parseINRCurrency(card.querySelector('.fin-pur').value),
                 purchase_currency: card.querySelector('.fin-pur-curr')?.value || "INR",
-                fmv_31jan2018_per_unit_inr: parseFloat(card.querySelector('.fin-fmv').value) || null,
+                fmv_31jan2018_per_unit_inr: parseINRCurrency(card.querySelector('.fin-fmv').value),
                 sale_date: card.querySelector('.fin-sale-date').value || null,
-                sale_value: parseFloat(card.querySelector('.fin-sale').value) || null,
+                sale_value: parseINRCurrency(card.querySelector('.fin-sale').value),
                 sale_currency: card.querySelector('.fin-sale-curr')?.value || "INR",
                 stt_paid: card.querySelector('.fin-stt').value === 'true',
-                transfer_expenses: parseFloat(card.querySelector('.fin-exp').value) || null,
+                transfer_expenses: parseINRCurrency(card.querySelector('.fin-exp').value),
                 is_specified_foreign_exchange_asset: card.querySelector('.fin-sfea') ? card.querySelector('.fin-sfea').checked : false
             });
         });
@@ -10064,13 +10064,13 @@ const crDiv = document.getElementById('div-company-residency');
 
             txs.push({
                 commodity_type: card.querySelector('.com-type').value,
-                quantity: parseFloat(card.querySelector('.com-qty').value) || null,
+                quantity: parseINRCurrency(card.querySelector('.com-qty').value),
                 acquisition_date: card.querySelector('.com-acq-date').value || null,
-                purchase_value: parseFloat(card.querySelector('.com-pur-val').value) || null,
+                purchase_value: parseINRCurrency(card.querySelector('.com-pur-val').value),
                 purchase_currency: card.querySelector('.com-pur-curr').value || "INR",
                 is_maturity_redemption: (status === 'sold' && card.querySelector('.com-type').value === 'sovereign_gold_bond_original') ? card.querySelector('.com-maturity-cb').checked : null,
                 sale_date: status === 'sold' ? (card.querySelector('.com-sale-date').value || null) : null,
-                sale_value: status === 'sold' ? (parseFloat(card.querySelector('.com-sale-val').value) || null) : null,
+                sale_value: status === 'sold' ? (parseINRCurrency(card.querySelector('.com-sale-val').value)) : null,
                 sale_currency: status === 'sold' ? (card.querySelector('.com-sale-curr').value || "INR") : null
             });
         });
@@ -10222,15 +10222,15 @@ const crDiv = document.getElementById('div-company-residency');
             txs.push({
                 company_name: card.querySelector('.ul-name').value || null,
                 acquisition_date: card.querySelector('.ul-acq-date').value || null,
-                cost_per_share: parseFloat(card.querySelector('.ul-cost-val').value) || null,
+                cost_per_share: parseINRCurrency(card.querySelector('.ul-cost-val').value),
                 cost_per_share_currency: card.querySelector('.ul-cost-curr').value || "INR",
-                number_of_shares: parseFloat(card.querySelector('.ul-qty').value) || null,
-                sale_price_per_share: parseFloat(card.querySelector('.ul-sale-val').value) || null,
+                number_of_shares: parseINRCurrency(card.querySelector('.ul-qty').value),
+                sale_price_per_share: parseINRCurrency(card.querySelector('.ul-sale-val').value),
                 sale_price_per_share_currency: card.querySelector('.ul-sale-curr').value || "INR",
                 sale_date: card.querySelector('.ul-sale-date').value || null,
                 fmv_valuation_report_date: isNR ? (card.querySelector('.ul-fmv-date').value || null) : null,
                 original_investment_currency: isNR ? origCurr : null,
-                original_cost_in_foreign_currency: (isNR && origCurr !== 'INR') ? (parseFloat(card.querySelector('.ul-orig-cost').value) || null) : null
+                original_cost_in_foreign_currency: (isNR && origCurr !== 'INR') ? (parseINRCurrency(card.querySelector('.ul-orig-cost').value)) : null
             });
         });
         state.unlisted_equity.transactions = txs;
