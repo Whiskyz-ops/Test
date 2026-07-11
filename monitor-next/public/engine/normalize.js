@@ -188,6 +188,23 @@
     // promoter tax on top without double-taxing the base gain (which is
     // already included in buybackLtcgInr/buybackStcgInr above).
     var promoterBuybackLtcgInr = 0, promoterBuybackStcgInr = 0;
+    // Holding-period characterization mismatch candidates: India uses a
+    // 24-month LTCG threshold for UNLISTED shares (12 months for listed);
+    // the US uses a uniform >12 months for LTCG on any asset, no listed/
+    // unlisted distinction. An unlisted buyback held 12-24 months is
+    // therefore short-term (slab rate) in India but long-term (preferential
+    // rate) in the US — same transaction, different character in each
+    // country. Flagged here as raw data; conflicts.js computes the actual
+    // US tax dollar impact (it has access to computeUsTax, normalize.js
+    // doesn't) and turns this into a finding.
+    var buybackHoldingMismatches = [];
+    function monthsBetween(fromStr, toStr) {
+      if (!fromStr || !toStr) return null;
+      var a = new Date(fromStr), b = new Date(toStr);
+      if (isNaN(a.getTime()) || isNaN(b.getTime())) return null;
+      var days = (b - a) / (1000 * 60 * 60 * 24);
+      return days / 30.436875;
+    }
     buybackTxs.forEach(function (bb) {
       if (bb.buyback_pre_or_post_oct2024 === "post_oct2024") {
         deemedDividendInr += num(bb.consideration_received_inr);
@@ -209,6 +226,24 @@
         // enough information to classify LTCG vs STCG, so it's dropped
         // rather than guessed at; matches Layer 1's own (conservative, if
         // silent) handling of that same gap.
+
+        var months = monthsBetween(bb.original_acquisition_date, bb.buyback_date);
+        if (months !== null && g > 0 && bb.gain_classification) {
+          var usClassification = months > 12 ? "ltcg" : "stcg";
+          var indiaClassification = bb.gain_classification === "ltcg" ? "ltcg" : "stcg"; // stcg_slab counts as short-term too
+          if (usClassification !== indiaClassification) {
+            buybackHoldingMismatches.push({
+              companyName: bb.company_name || "Unnamed company",
+              isListed: !!bb.is_listed,
+              monthsHeld: months,
+              gainInr: g,
+              gainUsd: inrToUsd(g),
+              indiaClassification: indiaClassification,
+              usClassification: usClassification,
+              indiaThresholdMonths: bb.is_listed ? 12 : 24
+            });
+          }
+        }
       }
     });
     var deemedDividendBuyback = moneyFromInr(deemedDividendInr);
@@ -266,6 +301,7 @@
       buybackStcgSlabInr: buybackStcgSlab,
       promoterBuybackLtcgInr: promoterBuybackLtcgInr,
       promoterBuybackStcgInr: promoterBuybackStcgInr,
+      buybackHoldingMismatches: buybackHoldingMismatches,
       unexplained115bbeInr: unexplained115bbeInr,
       total: total
     };

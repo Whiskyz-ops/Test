@@ -238,7 +238,7 @@
   var P4 = {
     id: "founder_indian_company",
     label: "Founder · Indian company",
-    story: "US resident owning an Indian Pvt Ltd (≥10%). Triggers Form 5471 + GILTI/Subpart-F on the US side while the company is taxed in India, plus a partial share buyback from his own company — since Budget 2026 (Tax Year 2026-27, s.69) this is unlisted-share LTCG at 12.5%, not the pre-2026 deemed-dividend-at-slab-rates treatment. As a 100%-owner he's also a \"promoter\" under s.69(2)(b), so an additional tax plus a 12% surcharge layers on top of that ordinary LTCG tax — the first demo of that provision. Two kids — the first demo of the (OBBBA, TY2025-2028) $2,200/child Child Tax Credit, and (both grandparents having pitched in) the first demo of a Trump Account (§530A) contribution cap breach — $11,000 across 2 children against the $10,000 combined annual cap. (Full entity separation arrives with multi-entity Phase 1.)",
+    story: "US resident owning an Indian Pvt Ltd (≥10%). Triggers Form 5471 + GILTI/Subpart-F on the US side while the company is taxed in India, plus a two-tranche share buyback from his own company. The founder-era tranche — since Budget 2026 (Tax Year 2026-27, s.69) — is unlisted-share LTCG at 12.5%, not the pre-2026 deemed-dividend-at-slab-rates treatment; as a 100%-owner he's also a \"promoter\" under s.69(2)(b), so an additional tax plus a 12% surcharge layers on top of that ordinary LTCG tax. A second, more recent tranche (~17 months held) demonstrates the holding-period characterization mismatch: India's unlisted-share threshold is 24 months (so this is short-term, slab-rate, there) while the US's uniform 12-month threshold makes the SAME gain long-term — the first demo of that cross-border conflict, with a real recomputed US-dollar figure showing what's at stake if the wrong classification is used on the US return. Two kids — the first demo of the (OBBBA, TY2025-2028) $2,200/child Child Tax Credit, and (both grandparents having pitched in) the first demo of a Trump Account (§530A) contribution cap breach — $11,000 across 2 children against the $10,000 combined annual cap. (Full entity separation arrives with multi-entity Phase 1.)",
     tags: ["Form 5471", "GILTI", "CFC", "entity", "buyback", "CTC", "Trump Account"],
     router: router("Vikram Rao", { is_us_citizen: false, has_green_card: true, us_days: 340, date_of_birth: "1986-05-30" }),
     india: {
@@ -264,25 +264,48 @@
       financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "unlisted_equity", asset_name: "Nova Systems Pvt Ltd (100%)", value_inr: 45000000 }] },
       unlisted_equity: { has_unlisted_equity_transaction: true, transactions: [{ company: "Nova Systems Pvt Ltd", holding_pct: 100 }] },
       domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: { short_term_15_pct: 100000 } },
-      // A partial share buyback by his own company, founder-era shares held
-      // since incorporation (>24 months, unlisted) — Budget 2026 (s.69, ITA
-      // 2025) taxes buy-backs on/after 1-Apr-2026 as LTCG @12.5%, not the
-      // pre-Apr-2026 full-consideration deemed dividend at slab rates. Cost
-      // basis is nominal founder-share value: Rs35L consideration less a
-      // Rs50k cost basis = Rs34.5L LTCG (unlisted, no indexation, s.198).
-      // As a 100%-owner he's also a "promoter" (s.69(2)(b)) — modeled via
-      // is_promoter, demonstrating the additional-tax-plus-surcharge layer
-      // (30% non-corporate target rate) on top of the ordinary 12.5% LTCG.
+      // Two partial buybacks by his own company, same round of corporate
+      // action, two different share tranches:
+      //
+      // 1. Founder-era shares held since incorporation (>24 months,
+      //    unlisted) — Budget 2026 (s.69, ITA 2025) taxes buy-backs on/after
+      //    1-Apr-2026 as LTCG @12.5%, not the pre-Apr-2026 full-consideration
+      //    deemed dividend at slab rates. Cost basis is nominal founder-share
+      //    value: Rs35L consideration less a Rs50k cost basis = Rs34.5L LTCG
+      //    (unlisted, no indexation, s.198). As a 100%-owner he's also a
+      //    "promoter" (s.69(2)(b)) — modeled via is_promoter, demonstrating
+      //    the additional-tax-plus-surcharge layer (30% non-corporate target
+      //    rate) on top of the ordinary 12.5% LTCG.
+      // 2. A later tranche (a secondary sale of shares from a follow-on
+      //    round, acquired 2025-01-15) tendered in the SAME buyback,  held
+      //    ~17 months — squarely in the 12-24 month gap where India's
+      //    unlisted-share threshold (24mo) and the US's uniform threshold
+      //    (12mo) DISAGREE: short-term (slab rate) in India, long-term
+      //    (preferential rate) in the US. Demonstrates the holding-period
+      //    characterization mismatch finding — same company, same buyback
+      //    event, deliberately different holding period from tranche 1 so
+      //    the profile shows both the clean case and the mismatch case
+      //    side by side.
+      //
       // Uses the full per-transaction shape (not the aggregated shortcut)
       // specifically so this profile also exercises normalize.js's
       // transaction-array aggregation path, not just the demo-shortcut one.
-      share_buyback: { transactions: [{
-        company_name: "Nova Systems Pvt Ltd", is_listed: false, is_promoter: true,
-        buyback_date: "2026-06-15", original_acquisition_date: "2018-04-01",
-        consideration_received_inr: 3500000, original_cost_inr: 50000,
-        capital_gain_or_loss: 3450000, gain_classification: "ltcg",
-        buyback_pre_or_post_oct2024: "capital_gains_era"
-      }] },
+      share_buyback: { transactions: [
+        {
+          company_name: "Nova Systems Pvt Ltd", is_listed: false, is_promoter: true,
+          buyback_date: "2026-06-15", original_acquisition_date: "2018-04-01",
+          consideration_received_inr: 3500000, original_cost_inr: 50000,
+          capital_gain_or_loss: 3450000, gain_classification: "ltcg",
+          buyback_pre_or_post_oct2024: "capital_gains_era"
+        },
+        {
+          company_name: "Nova Systems Pvt Ltd", is_listed: false, is_promoter: true,
+          buyback_date: "2026-06-15", original_acquisition_date: "2025-01-15",
+          consideration_received_inr: 1500000, original_cost_inr: 200000,
+          capital_gain_or_loss: 1300000, gain_classification: "stcg_slab",
+          buyback_pre_or_post_oct2024: "capital_gains_era"
+        }
+      ] },
       other_sources: { has_other_sources_income: true, dividend_inr: 500000, interest_fd_rd_inr: 200000 },
       // A brought-forward STCG loss bigger than this year's STCG gain — set
       // off first against current STCG, then the spillover offsets his new

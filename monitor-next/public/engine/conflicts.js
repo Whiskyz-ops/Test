@@ -729,6 +729,54 @@
         U.inrToUsd(pb.totalExtraTaxInr), ["s.69(2)(b)", "Promoter additional tax", "Share buyback"]);
     }
 
+    // -- 10b3. BUYBACK HOLDING-PERIOD CHARACTERIZATION MISMATCH -------------
+    // India: unlisted shares need >24 months held for LTCG (12 for listed).
+    // The US uses a flat >12 months for LTCG on any asset — no listed/
+    // unlisted distinction. So an unlisted buy-back held 12-24 months is
+    // short-term (India slab rate) but long-term (US preferential rate) —
+    // same transaction, opposite character in each country. Computed
+    // straight from the same dates/listed-flag Layer 1 already collects for
+    // the transaction, not a second manual entry. The dollar figure below is
+    // a REAL recompute (calls the actual computeUsTax twice, once per
+    // classification) — not an estimate — so this is exactly as auditable
+    // as every other number on the page, not a black-box severity score.
+    var holdingMismatches = (model.income.india && model.income.india.buybackHoldingMismatches) || [];
+    holdingMismatches.forEach(function (mm, mi) {
+      var base = model.income.us || {};
+      function withForeignCg(classification) {
+        var clone = JSON.parse(JSON.stringify(model));
+        clone.income.us.foreignLtcg = clone.income.us.foreignLtcg || { inr: 0, usd: 0 };
+        clone.income.us.foreignStcg = clone.income.us.foreignStcg || { inr: 0, usd: 0 };
+        if (classification === "ltcg") {
+          clone.income.us.foreignLtcg.usd = (base.foreignLtcg ? base.foreignLtcg.usd : 0) + mm.gainUsd;
+        } else {
+          clone.income.us.foreignStcg.usd = (base.foreignStcg ? base.foreignStcg.usd : 0) + mm.gainUsd;
+        }
+        return WISING.computeInternals.computeUsTax(clone, computed.residency);
+      }
+      var asLtcg = withForeignCg("ltcg");
+      var asStcg = withForeignCg("stcg");
+      var deltaUsd = asStcg.totalTaxBeforeFtcUsd - asLtcg.totalTaxBeforeFtcUsd;
+      if (Math.abs(deltaUsd) < 1) return; // no real rate difference at this taxpayer's bracket — not worth flagging
+      var correctIsLtcg = mm.usClassification === "ltcg";
+      add("buyback_holding_period_mismatch_" + mi, S.WARNING, C.TREATY,
+        mm.companyName + " buy-back: " + Math.round(mm.monthsHeld) + " months held — India says " + mm.indiaClassification.toUpperCase() +
+        ", US says " + mm.usClassification.toUpperCase() + " (" + usd(Math.abs(deltaUsd)) + " at stake)",
+        "This " + (mm.isListed ? "listed" : "unlisted") + " buy-back was held " + Math.round(mm.monthsHeld) + " months. India requires " +
+        "more than " + mm.indiaThresholdMonths + " months for LTCG on " + (mm.isListed ? "listed" : "unlisted") + " shares, so this is " +
+        mm.indiaClassification.toUpperCase() + " there (taxed " + (mm.indiaClassification === "ltcg" ? "at 12.5%, s.198" : (mm.isListed ? "at 20%, s.196" : "at your India slab rate")) +
+        "). The US requires only more than 12 months for LTCG on any asset — no listed/unlisted distinction — so the SAME gain is " +
+        mm.usClassification.toUpperCase() + " under US rules. Recomputed your actual US return both ways: treated as LTCG, US tax is " +
+        usd(asLtcg.totalTaxBeforeFtcUsd) + "; treated as STCG (ordinary rates), US tax is " + usd(asStcg.totalTaxBeforeFtcUsd) + " — a difference of " +
+        usd(Math.abs(deltaUsd)) + ".",
+        correctIsLtcg
+          ? "Report this gain as LONG-TERM on the US return (Schedule D) even though it's short-term in India — using India's " +
+            "label on the US foreign-capital-gains input would cost roughly " + usd(Math.abs(deltaUsd)) + " in overpaid US tax."
+          : "Report this gain as SHORT-TERM on the US return even though it's long-term in India — using India's label on the US " +
+            "foreign-capital-gains input would understate US tax by roughly " + usd(Math.abs(deltaUsd)) + ".",
+        Math.abs(deltaUsd), ["Holding period", "s.198 vs IRC §1222", "Share buyback"]);
+    });
+
     // -- 10a. CROSS-FORM INCONSISTENCY — INDIA'S OWN SCHEDULE FA SELF-REPORT
     // The two Layer 1 forms are filled independently; nothing today checks
     // whether they AGREE. An India ROR must disclose worldwide (Schedule FA)
