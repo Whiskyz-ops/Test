@@ -14202,6 +14202,23 @@ ${isProf ? '' : `
                     }
                 });
 
+                // ONE-TIME DATA CLEANERS — fix historically-scaffolded Q2-Q4
+                // quarters that got duplicate sale data copied from Q1. Each
+                // is idempotent (guarded by its own localStorage flag) and
+                // only mutates state.quarters, so re-sync the active
+                // quarter's commodities/unlisted_equity/property/
+                // financial_holdings from state.quarters afterward in case
+                // the currently active quarter was one of the ones cleaned.
+                if (typeof runDataCleaner === 'function') runDataCleaner();
+                if (typeof runAggressiveCleaner === 'function') runAggressiveCleaner();
+                if (typeof runNuclearCleaner === 'function') runNuclearCleaner();
+                if (state.active_quarter && state.active_quarter !== 'ANNUAL' && state.quarters[state.active_quarter]) {
+                    const cleanedQ = state.quarters[state.active_quarter];
+                    ['commodities', 'unlisted_equity', 'property', 'financial_holdings'].forEach(cat => {
+                        if (cleanedQ[cat]) state[cat] = JSON.parse(JSON.stringify(cleanedQ[cat]));
+                    });
+                }
+
             } catch (e) {
                 console.error("Error loading saved India L1 state:", e);
             }
@@ -15722,6 +15739,17 @@ ${isProf ? '' : `
     }
 
     
+    // Shared by the three one-time data cleaners below to persist a fix
+    // immediately after finding and correcting corrupted quarterly data —
+    // same inline pattern used elsewhere (e.g. _evaluateSurchargeBuckets),
+    // just named since these three cleaners call it independently of a
+    // user-triggered save.
+    function saveState() {
+        state.metadata = state.metadata || {};
+        state.metadata.last_updated_at = new Date().toISOString();
+        localStorage.setItem('wising_layer1_india_state', JSON.stringify(state));
+    }
+
     // --- ONE-TIME DATA CLEANER FOR BUGGED SCAFFOLDING ---
     function runDataCleaner() {
         if (localStorage.getItem('cg_bug_cleaned_v1')) return;
@@ -15753,18 +15781,9 @@ ${isProf ? '' : `
         localStorage.setItem('cg_bug_cleaned_v1', 'true');
     }
     
-    // Run cleaner immediately after loading state
-    const originalLoadState = loadState;
-    loadState = function() {
-        originalLoadState();
-        runDataCleaner();
-        // Re-render the active quarter
-        if (state.active_quarter !== 'ANNUAL') {
-            const currentQ = state.active_quarter;
-            state.active_quarter = null;
-            switchQuarter(currentQ);
-        }
-    };
+    // runDataCleaner() is invoked directly from _initWindowOnLoad(), once
+    // the saved state (including state.quarters) has finished loading —
+    // see the "ONE-TIME DATA CLEANERS" call site there.
 
     
     // --- AGGRESSIVE DATA CLEANER FOR BUGGED SCAFFOLDING v2 ---
@@ -15820,17 +15839,8 @@ ${isProf ? '' : `
         localStorage.setItem('cg_bug_cleaned_v2', 'true');
     }
     
-    // Inject into loadState
-    const originalLoadState2 = loadState;
-    loadState = function() {
-        originalLoadState2();
-        runAggressiveCleaner();
-        if (state.active_quarter !== 'ANNUAL') {
-            const currentQ = state.active_quarter;
-            state.active_quarter = null;
-            switchQuarter(currentQ);
-        }
-    };
+    // runAggressiveCleaner() is invoked directly from _initWindowOnLoad() —
+    // see the "ONE-TIME DATA CLEANERS" call site there.
 
     
     // --- NUCLEAR DATA CLEANER FOR BUGGED SCAFFOLDING v3 ---
@@ -15872,13 +15882,14 @@ ${isProf ? '' : `
         if (cleaned) {
             // Force the state of the active quarter to be refreshed from the quarters object
             // if we are currently looking at a bugged quarter
-            if (state.active_quarter && state.active_quarter !== 'Q1' && state.active_quarter !== 'ANNUAL') {
+            if (state.active_quarter && state.active_quarter !== 'Q1' && state.active_quarter !== 'ANNUAL' && state.quarters[state.active_quarter]) {
                  const currentQ = state.active_quarter;
-                 state.capital_gains = JSON.parse(JSON.stringify(state.quarters[currentQ].capital_gains));
-                 state.financial_holdings = JSON.parse(JSON.stringify(state.quarters[currentQ].financial_holdings));
-                 state.commodities = JSON.parse(JSON.stringify(state.quarters[currentQ].commodities));
-                 state.unlisted_equity = JSON.parse(JSON.stringify(state.quarters[currentQ].unlisted_equity));
-                 state.property = JSON.parse(JSON.stringify(state.quarters[currentQ].property));
+                 const cq = state.quarters[currentQ];
+                 if (cq.capital_gains) state.capital_gains = JSON.parse(JSON.stringify(cq.capital_gains));
+                 if (cq.financial_holdings) state.financial_holdings = JSON.parse(JSON.stringify(cq.financial_holdings));
+                 if (cq.commodities) state.commodities = JSON.parse(JSON.stringify(cq.commodities));
+                 if (cq.unlisted_equity) state.unlisted_equity = JSON.parse(JSON.stringify(cq.unlisted_equity));
+                 if (cq.property) state.property = JSON.parse(JSON.stringify(cq.property));
             }
             saveState();
             console.log("Nuclear cleaned bugged scaffolding data from local storage v3.");
@@ -15886,17 +15897,8 @@ ${isProf ? '' : `
         localStorage.setItem('cg_bug_cleaned_v3', 'true');
     }
     
-    // Inject into loadState
-    const originalLoadState3 = loadState;
-    loadState = function() {
-        originalLoadState3();
-        runNuclearCleaner();
-        if (state.active_quarter !== 'ANNUAL') {
-            const currentQ = state.active_quarter;
-            state.active_quarter = null;
-            switchQuarter(currentQ);
-        }
-    };
+    // runNuclearCleaner() is invoked directly from _initWindowOnLoad() —
+    // see the "ONE-TIME DATA CLEANERS" call site there.
 
     // --- ADVANCE TAX SIMULATOR ---
     function toggleProjectionMode(isOn) {
