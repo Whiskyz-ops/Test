@@ -473,6 +473,7 @@
     if (lso && (cfl.hasBroughtForwardLosses === true || cflCount > 0 || cfl.unabsorbedDepreciationCf > 0)) {
       var appliedParts = [];
       if (lso.used.businessInr > 1) appliedParts.push(inr(lso.used.businessInr) + " business loss vs. business income");
+      if (lso.used.stcgSlabInr > 1) appliedParts.push(inr(lso.used.stcgSlabInr) + " STCG loss vs. slab-rate STCG (s.69 unlisted buy-back)");
       if (lso.used.stcgInr > 1) appliedParts.push(inr(lso.used.stcgInr) + " STCG loss vs. STCG");
       if (lso.used.ltcgFromStcgLossInr > 1) appliedParts.push(inr(lso.used.ltcgFromStcgLossInr) + " STCG loss vs. LTCG");
       if (lso.used.ltcgInr > 1) appliedParts.push(inr(lso.used.ltcgInr) + " LTCG loss vs. LTCG");
@@ -1160,6 +1161,7 @@
     var LOSS_ROW_DEFS = [
       { key: "businessInr", label: "  — brought-forward business loss set off (s.112)", availableKey: "businessLossAvailableInr", rule: "Set off only against business income (s.112)" },
       { key: "housePropertyInr", label: "  — brought-forward house-property loss set off (s.110)", availableKey: "housePropertyLossAvailableInr", rule: "Set off only against house-property income (s.110) — unlike current-year HP loss, brought-forward HP loss can't go inter-head" },
+      { key: "stcgSlabInr", label: "  — brought-forward STCG loss set off vs current slab-rate STCG (s.111, s.69 unlisted buy-back)", availableKey: "stcgLossAvailableInr", rule: "STCG loss is set off against slab-rate STCG first — it's the more tax-expensive bucket to leave un-offset (s.111)" },
       { key: "stcgInr", label: "  — brought-forward STCG loss set off vs current STCG (s.111)", availableKey: "stcgLossAvailableInr", rule: "STCG loss is set off against current STCG first (s.111)" },
       { key: "ltcgFromStcgLossInr", label: "  — brought-forward STCG loss set off vs current LTCG (s.111)", availableKey: "stcgLossAvailableInr", rule: "Any STCG loss left after offsetting current STCG can still offset LTCG (s.111)" },
       { key: "ltcgInr", label: "  — brought-forward LTCG loss set off vs current LTCG (s.111)", availableKey: "ltcgLossAvailableInr", rule: "LTCG loss can only offset LTCG, never STCG (s.111)" },

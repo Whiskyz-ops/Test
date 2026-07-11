@@ -78,6 +78,16 @@
   function computeLossSetOff(cfl, buckets) {
     var businessInr = buckets.businessInr, housePropertyInr = buckets.housePropertyInr;
     var otherNormalInr = buckets.otherNormalInr, stcgInr = buckets.stcgInr, ltcgGrossInr = buckets.ltcgGrossInr;
+    // Slab-rate STCG (currently: unlisted buy-back gains held <=24 months,
+    // s.69) is STILL "Capital Gains" head income for loss set-off purposes —
+    // the slab rate is a rate mechanism (same principle as ordinary s.111
+    // non-STT STCG, e.g. on unlisted shares generally, which has always been
+    // both slab-rate AND loss-set-off-eligible). Set off FIRST, ahead of the
+    // flat-20%-rate STCG bucket, since it's the more tax-expensive slice for
+    // the taxpayer to leave un-offset — a reasonable, documented ordering
+    // choice where the Act doesn't dictate one, not an assumption baked in
+    // silently.
+    var stcgSlabInr = buckets.stcgSlabInr || 0;
 
     // 1. Business loss -> business income only (s.112).
     var businessLossUsed = Math.min(cfl.businessLossAvailableInr || 0, businessInr);
@@ -90,11 +100,15 @@
     housePropertyInr -= hpLossUsed;
     var hpLossUnused = (cfl.housePropertyLossAvailableInr || 0) - hpLossUsed;
 
-    // 3. STCG loss -> STCG first, remainder against LTCG (both allowed, s.111).
+    // 3. STCG loss -> slab-rate STCG first, then flat-rate STCG, remainder
+    // against LTCG (all three allowed, s.111).
     var stcgLossAvail = cfl.stcgLossAvailableInr || 0;
-    var stcgLossUsedVsStcg = Math.min(stcgLossAvail, stcgInr);
+    var stcgLossUsedVsStcgSlab = Math.min(stcgLossAvail, stcgSlabInr);
+    stcgSlabInr -= stcgLossUsedVsStcgSlab;
+    var stcgLossAfterSlab = stcgLossAvail - stcgLossUsedVsStcgSlab;
+    var stcgLossUsedVsStcg = Math.min(stcgLossAfterSlab, stcgInr);
     stcgInr -= stcgLossUsedVsStcg;
-    var stcgLossRemaining = stcgLossAvail - stcgLossUsedVsStcg;
+    var stcgLossRemaining = stcgLossAfterSlab - stcgLossUsedVsStcg;
     var stcgLossUsedVsLtcg = Math.min(stcgLossRemaining, ltcgGrossInr);
     ltcgGrossInr -= stcgLossUsedVsLtcg;
     var stcgLossUnused = stcgLossRemaining - stcgLossUsedVsLtcg;
@@ -111,22 +125,24 @@
 
     // 6. Unabsorbed depreciation (s.33(11)) -> any head except salary, no time
     // limit. Convention: business first (deemed current-year business loss),
-    // then house property, then capital gains, then other normal income.
+    // then house property, then capital gains (slab-rate STCG, then flat-rate
+    // STCG, then LTCG), then other normal income.
     var depRemaining = cfl.unabsorbedDepreciationCf || 0;
     var used;
     used = Math.min(depRemaining, businessInr); businessInr -= used; depRemaining -= used;
     used = Math.min(depRemaining, housePropertyInr); housePropertyInr -= used; depRemaining -= used;
+    used = Math.min(depRemaining, stcgSlabInr); stcgSlabInr -= used; depRemaining -= used;
     used = Math.min(depRemaining, stcgInr); stcgInr -= used; depRemaining -= used;
     used = Math.min(depRemaining, ltcgGrossInr); ltcgGrossInr -= used; depRemaining -= used;
     used = Math.min(depRemaining, otherNormalInr); otherNormalInr -= used; depRemaining -= used;
     var depUsed = (cfl.unabsorbedDepreciationCf || 0) - depRemaining;
 
-    var totalUsedInr = businessLossUsed + hpLossUsed + stcgLossUsedVsStcg + stcgLossUsedVsLtcg + ltcgLossUsed + depUsed;
+    var totalUsedInr = businessLossUsed + hpLossUsed + stcgLossUsedVsStcgSlab + stcgLossUsedVsStcg + stcgLossUsedVsLtcg + ltcgLossUsed + depUsed;
     var totalUnusedInr = businessLossUnused + hpLossUnused + stcgLossUnused + ltcgLossUnused + speculativeLossUnused + depRemaining;
 
     return {
       businessInr: businessInr, housePropertyInr: housePropertyInr, otherNormalInr: otherNormalInr,
-      stcgInr: stcgInr, ltcgGrossInr: ltcgGrossInr,
+      stcgInr: stcgInr, stcgSlabInr: stcgSlabInr, ltcgGrossInr: ltcgGrossInr,
       totalUsedInr: totalUsedInr, totalUnusedInr: totalUnusedInr,
       unused: {
         businessInr: businessLossUnused, housePropertyInr: hpLossUnused,
@@ -135,7 +151,7 @@
       },
       used: {
         businessInr: businessLossUsed, housePropertyInr: hpLossUsed,
-        stcgInr: stcgLossUsedVsStcg, ltcgFromStcgLossInr: stcgLossUsedVsLtcg, ltcgInr: ltcgLossUsed,
+        stcgSlabInr: stcgLossUsedVsStcgSlab, stcgInr: stcgLossUsedVsStcg, ltcgFromStcgLossInr: stcgLossUsedVsLtcg, ltcgInr: ltcgLossUsed,
         unabsorbedDepreciationInr: depUsed
       }
     };
@@ -162,9 +178,13 @@
     // rates, in Other Sources — so it joins the same normal-slab bucket
     // dividend already sits in. Buy-backs on/after 1-Apr-2026 are capital
     // gains instead (s.69) — listed shares and unlisted shares held >24mo
-    // fold into stcg/ltcg in normalize.js; unlisted shares held <=24mo are
-    // slab-rate, so that piece (buybackStcgSlabInr) joins this bucket too.
-    var deemedDividendInr = ((inc.deemedDividendBuyback && inc.deemedDividendBuyback.inr) || 0) + (inc.buybackStcgSlabInr || 0);
+    // fold into stcg/ltcg in normalize.js. Unlisted shares held <=24mo
+    // (buybackStcgSlabInr) are ALSO capital-gains-head income — slab rate is
+    // just the rate mechanism (same as ordinary non-STT STCG always has
+    // been) — so it stays OUT of this bucket and instead flows through
+    // computeLossSetOff's STCG pool below, joining normal-slab income only
+    // AFTER loss set-off, not before.
+    var deemedDividendInr = (inc.deemedDividendBuyback && inc.deemedDividendBuyback.inr) || 0;
 
     // s.207 — India-source interest/dividend/royalty/FTS paid to a NON-
     // RESIDENT is taxed flat (not slab), with no Chapter VI-A deduction or
@@ -218,10 +238,11 @@
       housePropertyInr: inc.houseProperty.inr,
       otherNormalInr: deemedDividendInr + (isNR ? nrInterestSlabEligibleInr : inc.interest.inr + inc.dividend.inr),
       stcgInr: inc.stcg.inr,
+      stcgSlabInr: inc.buybackStcgSlabInr || 0,
       ltcgGrossInr: inc.ltcg.inr
     });
 
-    var normalSlabInr = inc.salary.inr + lossSetOff.businessInr + lossSetOff.housePropertyInr + lossSetOff.otherNormalInr;
+    var normalSlabInr = inc.salary.inr + lossSetOff.businessInr + lossSetOff.housePropertyInr + lossSetOff.otherNormalInr + lossSetOff.stcgSlabInr;
 
     // Chapter VI-A deductions.
     var deductionsInr;
