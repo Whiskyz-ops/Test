@@ -7327,9 +7327,9 @@ const crDiv = document.getElementById('div-company-residency');
             const acc = {
                 bank_name: div.querySelector('.bank-name').value || null,
                 account_type: type,
-                current_balance: parseFloat(div.querySelector('.bank-bal').value) || null,
+                current_balance: parseINRCurrency(div.querySelector('.bank-bal').value),
                 current_balance_currency: div.querySelector('.bank-bal-curr').value,
-                annual_interest_rate: parseFloat(div.querySelector('.bank-rate').value) / 100 || null,
+                annual_interest_rate: parseINRCurrency(div.querySelector('.bank-rate').value) / 100 || null,
                 interest_credited_this_fy_inr: parseInt(div.querySelector('.bank-int').value) || null
             };
             if (type === 'NRE') {
@@ -7337,7 +7337,7 @@ const crDiv = document.getElementById('div-company-residency');
             } else if (type === 'FCNR') {
                 acc.fcnr_maturity_date = div.querySelector('.bank-fcnr-date').value || null;
             } else if (type === 'NRO') {
-                acc.nro_balance = parseFloat(div.querySelector('.bank-nro-bal-input').value) || null;
+                acc.nro_balance = parseINRCurrency(div.querySelector('.bank-nro-bal-input').value);
                 acc.nro_balance_currency = "INR";
             }
             accounts.push(acc);
@@ -7348,8 +7348,8 @@ const crDiv = document.getElementById('div-company-residency');
         const hasNRO = accounts.some(a => a.account_type === 'NRO');
         if (hasNRO) {
             state.nro_repatriation = {
-                cumulative_repatriated_usd_this_fy: parseFloat(document.getElementById('nro-repat-usd').value) || null,
-                pending_repatriation_inr: parseFloat(document.getElementById('nro-pending-inr').value) || null,
+                cumulative_repatriated_usd_this_fy: parseINRCurrency(document.getElementById('nro-repat-usd').value),
+                pending_repatriation_inr: parseINRCurrency(document.getElementById('nro-pending-inr').value),
                 tds_deducted_on_nro_balance: document.getElementById('nro-tds-deducted').checked
             };
         } else {
@@ -7739,13 +7739,13 @@ const crDiv = document.getElementById('div-company-residency');
             // Stamp Duty Value for Capital Gains check
             const saleInput = div.querySelector('.prop-sale-val');
             // If we previously stored an original value, use it for the calculation, otherwise use the current input
-            let baseSaleVal = parseFloat(saleInput.dataset.originalVal);
+            let baseSaleVal = parseINRCurrency(saleInput.dataset.originalVal);
             if (isNaN(baseSaleVal)) {
-                baseSaleVal = parseFloat(saleInput.value) || 0;
+                baseSaleVal = parseINRCurrency(saleInput.value) || 0;
             }
             
             const saleCurr = div.querySelector('.prop-sale-curr').value;
-            const sdvVal = parseFloat(div.querySelector('.prop-sdv').value) || 0;
+            const sdvVal = parseINRCurrency(div.querySelector('.prop-sdv').value) || 0;
             const s50cWarning = div.querySelector('.prop-50c-warning');
             
             if (s50cWarning) {
@@ -7770,31 +7770,51 @@ const crDiv = document.getElementById('div-company-residency');
                 }
             }
 
+            
+            const improvements = [];
+            div.querySelectorAll('.imp-date').forEach(dateInput => {
+                const row = dateInput.closest('div.flex'); // the wrapper div
+                if (row) {
+                    const costInput = row.querySelector('.imp-cost');
+                    if (costInput) {
+                        const date = dateInput.value;
+                        const cost = parseINRCurrency(costInput.value);
+                        if (date || cost) {
+                            improvements.push({
+                                improvement_date: date || null,
+                                improvement_cost_inr: cost || 0
+                            });
+                        }
+                    }
+                }
+            });
+
             const p = {
                 property_type: div.querySelector('.prop-type').value || null,
                 acquisition_date: div.querySelector('.prop-acq-date').value || null,
-                actual_cost: parseFloat(div.querySelector('.prop-cost').value) || null,
+                actual_cost: parseINRCurrency(div.querySelector('.prop-cost').value),
                 actual_cost_currency: div.querySelector('.prop-cost-curr').value,
-                pre_2001_fmv_inr: parseFloat(div.querySelector('.prop-pre2001').value) || null,
-                transfer_expenses_inr: isHolding ? null : (parseFloat(div.querySelector('.prop-exp').value) || null),
+                pre_2001_fmv_inr: parseINRCurrency(div.querySelector('.prop-pre2001').value),
+                transfer_expenses_inr: isHolding ? null : (parseINRCurrency(div.querySelector('.prop-exp').value)),
                 sale_date: isHolding ? null : (div.querySelector('.prop-sale-date').value || null),
-                sale_consideration: isHolding ? null : (parseFloat(div.querySelector('.prop-sale-val').value) || null),
+                sale_consideration: isHolding ? null : (parseINRCurrency(div.querySelector('.prop-sale-val').value)),
                 sale_consideration_currency: isHolding ? null : div.querySelector('.prop-sale-curr').value,
-                stamp_duty_value: isHolding ? null : (parseFloat(div.querySelector('.prop-sdv').value) || null),
+                stamp_duty_value: isHolding ? null : (parseINRCurrency(div.querySelector('.prop-sdv').value)),
                 stamp_duty_value_currency: "INR",
                 buyer_tan: (isHolding || state.residency_detail.final_india_residency_status !== 'NR') ? null : (div.querySelector('.prop-tan').value || null),
-                buyer_tds_deducted_inr: (isHolding || state.residency_detail.final_india_residency_status !== 'NR') ? null : (parseFloat(div.querySelector('.prop-tds').value) || null),
+                buyer_tds_deducted_inr: (isHolding || state.residency_detail.final_india_residency_status !== 'NR') ? null : (parseINRCurrency(div.querySelector('.prop-tds').value)),
                 buyer_tds_challan_number: (isHolding || state.residency_detail.final_india_residency_status !== 'NR') ? null : (div.querySelector('.prop-challan').value || null),
                 is_joint_property: isJoint,
-                ownership_percentage: isJoint ? (parseFloat(div.querySelector('.prop-share').value) || null) : null,
+                ownership_percentage: isJoint ? (parseINRCurrency(div.querySelector('.prop-share').value)) : null,
                 is_inherited: isInherited,
                 original_owner_acquisition_date: isInherited ? (div.querySelector('.prop-orig-date').value || null) : null,
-                original_owner_cost: isInherited ? (parseFloat(div.querySelector('.prop-orig-cost').value) || null) : null,
+                original_owner_cost: isInherited ? (parseINRCurrency(div.querySelector('.prop-orig-cost').value)) : null,
                 original_owner_cost_currency: isInherited ? div.querySelector('.prop-orig-curr').value : null,
                 cg_exemption_section: isHolding ? null : (div.querySelector('.prop-cg-exemption')?.value || null),
-                cg_exempt_invest_amount: isHolding ? null : (parseFloat(div.querySelector('.prop-cg-invest-amt')?.value) || null),
+                cg_exempt_invest_amount: isHolding ? null : (parseINRCurrency(div.querySelector('.prop-cg-invest-amt')?.value)),
                 cg_exempt_invest_date: isHolding ? null : (div.querySelector('.prop-cg-invest-date')?.value || null),
-                cg_deposited_in_cgas: isHolding ? false : (div.querySelector('.prop-cg-cgas')?.checked || false)
+                cg_deposited_in_cgas: isHolding ? false : (div.querySelector('.prop-cg-cgas')?.checked || false),
+                improvements: improvements
             };
             props.push(p);
         });
@@ -8930,8 +8950,8 @@ const crDiv = document.getElementById('div-company-residency');
         document.querySelectorAll('#vehicle-table tbody tr').forEach(tr => {
             vehs.push({
                 vehicle_type: tr.querySelector('.veh-type').value,
-                gvw_tonnes: parseInt(tr.querySelector('.veh-gvw').value) || 0,
-                months_owned: parseInt(tr.querySelector('.veh-months').value) || 0
+                gvw_tonnes: parseINRCurrency(tr.querySelector('.veh-gvw').value) || 0,
+                months_owned: parseINRCurrency(tr.querySelector('.veh-months').value) || 0
             });
         });
         state.domestic_income.business_income.goods_vehicles = vehs;
