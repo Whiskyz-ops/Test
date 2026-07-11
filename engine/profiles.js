@@ -37,8 +37,8 @@
   var P1 = {
     id: "dual_resident_h1b",
     label: "Dual Resident — H-1B",
-    story: "India ROR + US SPT, senior tech hire in California. Both tax worldwide income → DTAA tie-breaker + FTC shortfall; ISO exercise triggers AMT and mirrors an ESOP grant from his prior Indian employer (equity-comp sourcing); NIIT, a carried-forward capital loss, and a Schedule FA slip round it out.",
-    tags: ["dual residency", "FTC", "PFIC", "AMT", "equity comp"],
+    story: "India ROR + US SPT, senior tech hire in California. Both tax worldwide income → DTAA tie-breaker + FTC shortfall; ISO exercise triggers AMT and mirrors an ESOP grant from his prior Indian employer (equity-comp sourcing); NIIT, a carried-forward capital loss, and a Schedule FA slip round it out. Also sold some Schwab-held AMZN stock after 18 months — India treats a foreign stock as an unlisted security (24mo LTCG threshold, no s.198 exemption) so it's STCG at his slab rate there, but the US calls the same gain LTCG (12mo threshold) — and since he's worldwide-taxed by BOTH countries this year, that's a genuine characterization mismatch with real dollars at stake on both sides, not just a paperwork gap.",
+    tags: ["dual residency", "FTC", "PFIC", "AMT", "equity comp", "Foreign equity"],
     router: router("Aarav Sharma", { us_days: 330, date_of_birth: "1988-07-15" }),
     india: {
       profile: { full_name: "Aarav Sharma", entity_type: "individual", date_of_birth: "1988-07-15", pan: "ABCPS1234K", tax_regime: "NEW" },
@@ -54,7 +54,24 @@
       compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true }, chapter_xiia_elected: false },
       bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", peak_balance_inr: 3200000 }, { bank_name: "ICICI Bank", account_type: "nro", peak_balance_inr: 1500000 }],
       property: { has_indian_property_transaction: true, properties: [{ address: "Flat 12B, Pune", property_type: "Residential", annual_value_inr: 420000, gross_rent_received_inr: 600000, municipal_taxes_paid_inr: 30000 }] },
-      financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "equity_mutual_fund", asset_name: "Axis Bluechip Fund", value_inr: 2500000 }, { asset_type: "debt_mutual_fund", asset_name: "HDFC Corporate Bond Fund", value_inr: 1200000 }] },
+      // AMZN held 18 months (Nov 2024 - May 2026) via his US Schwab brokerage
+      // (see the matching account on the US side below): >12mo so LTCG for
+      // the US, but <=24mo so STCG-at-slab-rate for India (foreign shares
+      // are "unlisted foreign securities" under Indian law — 24mo threshold,
+      // not 12) — triggers the holding-period characterization mismatch,
+      // and since he's ROR + US worldwide-taxed, it actually fires (unlike
+      // a similar holding for a US non-resident-alien, where the US simply
+      // doesn't tax the gain at all and there's nothing to mismatch).
+      financial_holdings: { has_financial_transactions: true, transactions: [
+        { asset_type: "equity_mutual_fund", asset_name: "Axis Bluechip Fund", value_inr: 2500000 },
+        { asset_type: "debt_mutual_fund", asset_name: "HDFC Corporate Bond Fund", value_inr: 1200000 },
+        {
+          asset_class: "foreign_equity_unlisted", asset_name_or_ticker: "AMZN",
+          acquisition_date: "2024-11-01", purchase_value: 10000, purchase_currency: "USD",
+          sale_date: "2026-05-01", sale_value: 18000, sale_currency: "USD",
+          stt_paid: false, transfer_expenses: 0, is_specified_foreign_exchange_asset: false
+        }
+      ] },
       // Preparer left this unchecked despite the US brokerage/401(k)/bank
       // accounts shown on his US form below — as ROR he must disclose them on
       // Schedule FA; the two forms flatly disagree (schedule_fa_inconsistent).
@@ -180,8 +197,8 @@
   var P3 = {
     id: "india_ror_us_income",
     label: "India ROR · US income",
-    story: "Resident of India (ROR), formerly NRI, with US rental, dividends & brokerage. India taxes worldwide → Form 44/§159 credit for US tax; Schedule FA for US assets; files 1040-NR on US-source income with a treaty rate claimed but no W-8BEN on file, plus FIRPTA withholding on a US property sale; kept her Chapter XII-A election on specified assets after becoming ROR.",
-    tags: ["Form 44", "Schedule FA", "1040-NR", "FIRPTA"],
+    story: "Resident of India (ROR), formerly NRI, with US rental, dividends & brokerage. India taxes worldwide → Form 44/§159 credit for US tax; Schedule FA for US assets; files 1040-NR on US-source income with a treaty rate claimed but no W-8BEN on file, plus FIRPTA withholding on a US property sale; kept her Chapter XII-A election on specified assets after becoming ROR. Also sold NVDA (held directly in her US brokerage) after 18 months — India treats it as an unlisted foreign security (24mo LTCG threshold, no s.198 exemption) so it's STCG at her slab rate there, but the US calls the same gain LTCG (12mo threshold) — a holding-period characterization mismatch.",
+    tags: ["Form 44", "Schedule FA", "1040-NR", "FIRPTA", "Foreign equity"],
     router: router("Anita Desai", { is_us_citizen: false, has_green_card: false, us_days: 35, date_of_birth: "1982-11-09" }),
     india: {
       profile: { full_name: "Anita Desai", entity_type: "individual", date_of_birth: "1982-11-09", pan: "AADPD9012R", tax_regime: "OLD" },
@@ -194,7 +211,18 @@
       compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true }, chapter_xiia_elected: true },
       bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", peak_balance_inr: 1800000 }],
       property: { has_indian_property_transaction: false, properties: [] },
-      financial_holdings: { has_financial_transactions: false, transactions: [] },
+      // NVDA held 18 months (Feb 2025 - Aug 2026): >12mo so LTCG for the US,
+      // but <=24mo so STCG-at-slab-rate for India (foreign shares are
+      // "unlisted foreign securities" under Indian law — 24mo threshold,
+      // not 12) — triggers the holding-period characterization mismatch.
+      financial_holdings: { has_financial_transactions: true, transactions: [
+        {
+          asset_class: "foreign_equity_unlisted", asset_name_or_ticker: "NVDA",
+          acquisition_date: "2025-02-01", purchase_value: 8000, purchase_currency: "USD",
+          sale_date: "2026-08-01", sale_value: 15000, sale_currency: "USD",
+          stt_paid: false, transfer_expenses: 0, is_specified_foreign_exchange_asset: false
+        }
+      ] },
       foreign_assets: { has_foreign_assets: true, assets: [{ country: "US", type: "brokerage", value_inr: 6800000 }, { country: "US", type: "real_estate", value_inr: 12000000 }] },
       domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 3600000 }, house_property: { has_house_property_income: false, properties: [] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
       // LTCG well above the s.198 exemption threshold — exercises the fix

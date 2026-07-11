@@ -78,16 +78,24 @@
   function computeLossSetOff(cfl, buckets) {
     var businessInr = buckets.businessInr, housePropertyInr = buckets.housePropertyInr;
     var otherNormalInr = buckets.otherNormalInr, stcgInr = buckets.stcgInr, ltcgGrossInr = buckets.ltcgGrossInr;
-    // Slab-rate STCG (currently: unlisted buy-back gains held <=24 months,
-    // s.69) is STILL "Capital Gains" head income for loss set-off purposes —
-    // the slab rate is a rate mechanism (same principle as ordinary s.111
-    // non-STT STCG, e.g. on unlisted shares generally, which has always been
-    // both slab-rate AND loss-set-off-eligible). Set off FIRST, ahead of the
-    // flat-20%-rate STCG bucket, since it's the more tax-expensive slice for
-    // the taxpayer to leave un-offset — a reasonable, documented ordering
-    // choice where the Act doesn't dictate one, not an assumption baked in
-    // silently.
+    // Slab-rate STCG (currently: unlisted buy-back gains and foreign-equity
+    // gains held <=24 months) is STILL "Capital Gains" head income for loss
+    // set-off purposes — the slab rate is a rate mechanism (same principle
+    // as ordinary s.111 non-STT STCG, e.g. on unlisted shares generally,
+    // which has always been both slab-rate AND loss-set-off-eligible). Set
+    // off FIRST, ahead of the flat-20%-rate STCG bucket, since it's the more
+    // tax-expensive slice for the taxpayer to leave un-offset — a
+    // reasonable, documented ordering choice where the Act doesn't dictate
+    // one, not an assumption baked in silently.
     var stcgSlabInr = buckets.stcgSlabInr || 0;
+    // ltcgGrossInr = s.198 LTCG (listed, STT-paid — ₹1,25,000 exemption
+    // pool). ltcg197Inr = s.197 LTCG (unlisted buy-back / foreign equity —
+    // NO exemption, taxed from the first rupee). LTCG/STCG-spillover losses
+    // prefer to offset ltcg197Inr FIRST: every rupee offset there is a full
+    // 12.5% saved, whereas s.198 gains already get up to ₹1.25L free, so
+    // it's the less tax-expensive pool to leave un-offset — same ordering
+    // principle as stcgSlabInr vs stcgInr above.
+    var ltcg197Inr = buckets.ltcg197Inr || 0;
 
     // 1. Business loss -> business income only (s.112).
     var businessLossUsed = Math.min(cfl.businessLossAvailableInr || 0, businessInr);
@@ -100,24 +108,34 @@
     housePropertyInr -= hpLossUsed;
     var hpLossUnused = (cfl.housePropertyLossAvailableInr || 0) - hpLossUsed;
 
-    // 3. STCG loss -> slab-rate STCG first, then flat-rate STCG, remainder
-    // against LTCG (all three allowed, s.111).
+    // 3. STCG loss -> slab-rate STCG first, then flat-rate STCG, then s.197
+    // LTCG, then s.198 LTCG (all allowed under s.111 — STCG loss can offset
+    // either LTCG pool).
     var stcgLossAvail = cfl.stcgLossAvailableInr || 0;
     var stcgLossUsedVsStcgSlab = Math.min(stcgLossAvail, stcgSlabInr);
     stcgSlabInr -= stcgLossUsedVsStcgSlab;
     var stcgLossAfterSlab = stcgLossAvail - stcgLossUsedVsStcgSlab;
     var stcgLossUsedVsStcg = Math.min(stcgLossAfterSlab, stcgInr);
     stcgInr -= stcgLossUsedVsStcg;
-    var stcgLossRemaining = stcgLossAfterSlab - stcgLossUsedVsStcg;
-    var stcgLossUsedVsLtcg = Math.min(stcgLossRemaining, ltcgGrossInr);
-    ltcgGrossInr -= stcgLossUsedVsLtcg;
-    var stcgLossUnused = stcgLossRemaining - stcgLossUsedVsLtcg;
+    var stcgLossAfterFlat = stcgLossAfterSlab - stcgLossUsedVsStcg;
+    var stcgLossUsedVsLtcg197 = Math.min(stcgLossAfterFlat, ltcg197Inr);
+    ltcg197Inr -= stcgLossUsedVsLtcg197;
+    var stcgLossAfterLtcg197 = stcgLossAfterFlat - stcgLossUsedVsLtcg197;
+    var stcgLossUsedVsLtcg198 = Math.min(stcgLossAfterLtcg197, ltcgGrossInr);
+    ltcgGrossInr -= stcgLossUsedVsLtcg198;
+    var stcgLossUnused = stcgLossAfterLtcg197 - stcgLossUsedVsLtcg198;
+    var stcgLossUsedVsLtcg = stcgLossUsedVsLtcg197 + stcgLossUsedVsLtcg198;
 
-    // 4. LTCG loss -> LTCG only, never STCG (s.111).
+    // 4. LTCG loss -> s.197 LTCG first (no exemption cushion), then s.198
+    // LTCG. Never STCG (s.111).
     var ltcgLossAvail = cfl.ltcgLossAvailableInr || 0;
-    var ltcgLossUsed = Math.min(ltcgLossAvail, ltcgGrossInr);
-    ltcgGrossInr -= ltcgLossUsed;
-    var ltcgLossUnused = ltcgLossAvail - ltcgLossUsed;
+    var ltcgLossUsedVs197 = Math.min(ltcgLossAvail, ltcg197Inr);
+    ltcg197Inr -= ltcgLossUsedVs197;
+    var ltcgLossAfter197 = ltcgLossAvail - ltcgLossUsedVs197;
+    var ltcgLossUsedVs198 = Math.min(ltcgLossAfter197, ltcgGrossInr);
+    ltcgGrossInr -= ltcgLossUsedVs198;
+    var ltcgLossUnused = ltcgLossAfter197 - ltcgLossUsedVs198;
+    var ltcgLossUsed = ltcgLossUsedVs197 + ltcgLossUsedVs198;
 
     // 5. Speculative loss -> no speculative-income bucket modeled (see note
     // above), so it always stays fully carried forward.
@@ -126,13 +144,14 @@
     // 6. Unabsorbed depreciation (s.33(11)) -> any head except salary, no time
     // limit. Convention: business first (deemed current-year business loss),
     // then house property, then capital gains (slab-rate STCG, then flat-rate
-    // STCG, then LTCG), then other normal income.
+    // STCG, then s.197 LTCG, then s.198 LTCG), then other normal income.
     var depRemaining = cfl.unabsorbedDepreciationCf || 0;
     var used;
     used = Math.min(depRemaining, businessInr); businessInr -= used; depRemaining -= used;
     used = Math.min(depRemaining, housePropertyInr); housePropertyInr -= used; depRemaining -= used;
     used = Math.min(depRemaining, stcgSlabInr); stcgSlabInr -= used; depRemaining -= used;
     used = Math.min(depRemaining, stcgInr); stcgInr -= used; depRemaining -= used;
+    used = Math.min(depRemaining, ltcg197Inr); ltcg197Inr -= used; depRemaining -= used;
     used = Math.min(depRemaining, ltcgGrossInr); ltcgGrossInr -= used; depRemaining -= used;
     used = Math.min(depRemaining, otherNormalInr); otherNormalInr -= used; depRemaining -= used;
     var depUsed = (cfl.unabsorbedDepreciationCf || 0) - depRemaining;
@@ -142,7 +161,7 @@
 
     return {
       businessInr: businessInr, housePropertyInr: housePropertyInr, otherNormalInr: otherNormalInr,
-      stcgInr: stcgInr, stcgSlabInr: stcgSlabInr, ltcgGrossInr: ltcgGrossInr,
+      stcgInr: stcgInr, stcgSlabInr: stcgSlabInr, ltcgGrossInr: ltcgGrossInr, ltcg197Inr: ltcg197Inr,
       totalUsedInr: totalUsedInr, totalUnusedInr: totalUnusedInr,
       unused: {
         businessInr: businessLossUnused, housePropertyInr: hpLossUnused,
@@ -178,8 +197,10 @@
     // rates, in Other Sources — so it joins the same normal-slab bucket
     // dividend already sits in. Buy-backs on/after 1-Apr-2026 are capital
     // gains instead (s.69) — listed shares and unlisted shares held >24mo
-    // fold into stcg/ltcg in normalize.js. Unlisted shares held <=24mo
-    // (buybackStcgSlabInr) are ALSO capital-gains-head income — slab rate is
+    // fold into stcg/ltcg/ltcg197Inr in normalize.js (same rule applies to
+    // foreign equity holdings, e.g. US stocks — always "unlisted" for
+    // Indian tax purposes). Unlisted/foreign shares held <=24mo
+    // (inc.stcgSlabInr) are ALSO capital-gains-head income — slab rate is
     // just the rate mechanism (same as ordinary non-STT STCG always has
     // been) — so it stays OUT of this bucket and instead flows through
     // computeLossSetOff's STCG pool below, joining normal-slab income only
@@ -238,8 +259,9 @@
       housePropertyInr: inc.houseProperty.inr,
       otherNormalInr: deemedDividendInr + (isNR ? nrInterestSlabEligibleInr : inc.interest.inr + inc.dividend.inr),
       stcgInr: inc.stcg.inr,
-      stcgSlabInr: inc.buybackStcgSlabInr || 0,
-      ltcgGrossInr: inc.ltcg.inr
+      stcgSlabInr: inc.stcgSlabInr || 0,
+      ltcgGrossInr: inc.ltcg.inr,
+      ltcg197Inr: inc.ltcg197Inr || 0
     });
 
     var normalSlabInr = inc.salary.inr + lossSetOff.businessInr + lossSetOff.housePropertyInr + lossSetOff.otherNormalInr + lossSetOff.stcgSlabInr;
@@ -263,7 +285,16 @@
 
     // Special-rate incomes (already net of capital-loss set-off above).
     var stcgInr = lossSetOff.stcgInr;
+    // s.198 LTCG (listed, STT-paid): ₹1,25,000 annual exemption, then 12.5%.
     var ltcgTaxableInr = Math.max(0, lossSetOff.ltcgGrossInr - T.LTCG_112A_EXEMPT_INR);
+    // s.197 LTCG (unlisted buy-back / foreign equity, e.g. US stocks — both
+    // held >24mo): SAME 12.5% rate, but NO exemption — taxed from the first
+    // rupee. Multi-source-verified (CBDT FAQ via PIB, ClearTax, Bajaj
+    // Finserv, Tax2win, KPMG) that the ₹1,25,000 threshold is textually
+    // embedded in s.112A/s.198 itself and does not extend to or pool with
+    // s.112/s.197 — pooling these into one exemption-eligible bucket would
+    // silently under-tax unlisted/foreign LTCG.
+    var ltcg197TaxableInr = Math.max(0, lossSetOff.ltcg197Inr);
     // s.128/194 (lottery/betting/online gaming): flat rate, no basic
     // exemption threshold benefit — the full amount is taxed, never reduced
     // by any slab/exemption logic.
@@ -276,7 +307,7 @@
     // s.207 dividend is "dividend income" for the cap's purposes; s.207
     // royalty/FTS and DTAA-carved-out interest are not, so they ride along
     // with 128 instead.
-    var capEligibleSpecialTaxInr = stcgInr * T.STCG_111A_RATE + ltcgTaxableInr * T.LTCG_112A_RATE + s115aDividendTaxInr;
+    var capEligibleSpecialTaxInr = stcgInr * T.STCG_111A_RATE + ltcgTaxableInr * T.LTCG_112A_RATE + ltcg197TaxableInr * T.LTCG_112A_RATE + s115aDividendTaxInr;
     var specialTaxInr = capEligibleSpecialTaxInr + special115bbTaxInr + nrInterestCarvedOutTaxInr + s115aRoyaltyTaxInr + s115aFtsTaxInr;
 
     // Slab tax on normal income.
@@ -293,8 +324,9 @@
     // gross LTCG while specialTaxInr/capEligibleSpecialTaxInr used the
     // exemption-adjusted figure, silently inflating totalIncomeInr (and, via
     // computeIndiaSurcharge below, the surcharge threshold test) by the
-    // exempt amount.
-    var totalIncomeInr = totalNormalInr + stcgInr + ltcgTaxableInr + special115bbInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr;
+    // exempt amount. ltcg197TaxableInr has no exemption to net out (s.197),
+    // so it's already the full taxable amount.
+    var totalIncomeInr = totalNormalInr + stcgInr + ltcgTaxableInr + ltcg197TaxableInr + special115bbInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr;
     // ...and NR is excluded too (s.156 says "resident individual" — RNOR
     // still counts as resident for this, only genuine NR does not).
     var isIndividual = !model.entity || model.entity.indiaKind === "individual";
@@ -318,11 +350,14 @@
     // s.69(2)(b) promoter additional tax on buy-back capital gains (Budget
     // 2026, buy-backs on/after 1-Apr-2026): layered ON TOP of the ordinary
     // LTCG/STCG tax on the promoter's buy-back gain already included above
-    // (via ltcgTaxableInr/stcgInr, folded in at normalize.js) — this adds
-    // just the incremental piece, not a re-tax of the whole gain. Computed
-    // on the promoter's gross buy-back gain, not netted against the s.198
-    // exemption (which may be pooled with non-buy-back LTCG) — a modeling
-    // simplification. See constants.js for the target-rate/surcharge detail.
+    // (via ltcgTaxableInr/ltcg197TaxableInr/stcgInr, folded in at
+    // normalize.js) — this adds just the incremental piece, not a re-tax of
+    // the whole gain. Computed on the promoter's gross buy-back gain at the
+    // same 12.5% base rate regardless of whether it landed in the s.198 or
+    // s.197 bucket (identical rate either way — only the exemption differs,
+    // and this additional-tax layer isn't netted against that exemption
+    // either way) — a modeling simplification. See constants.js for the
+    // target-rate/surcharge detail.
     var isCorporatePromoter = !!(model.entity && model.entity.indiaKind === "company");
     var promoterTargetRate = isCorporatePromoter
       ? T.PROMOTER_BUYBACK_TARGET_RATE_CORPORATE
@@ -340,13 +375,14 @@
 
     return {
       regime: regime,
-      grossTotalIncomeInr: normalSlabInr + stcgInr + ltcgTaxableInr + special115bbInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr,
+      grossTotalIncomeInr: normalSlabInr + stcgInr + ltcgTaxableInr + ltcg197TaxableInr + special115bbInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr,
       deductionsInr: deductionsInr,
       totalIncomeInr: totalIncomeInr,
       slabTaxInr: slabTaxInr,
       slabBreakdown: slabBreakdown,
       totalNormalInr: totalNormalInr,
       ltcgTaxableInr: ltcgTaxableInr,
+      ltcg197TaxableInr: ltcg197TaxableInr,
       specialTaxInr: specialTaxInr,
       rebateInr: rebateInr,
       surchargeInr: surchargeInr,

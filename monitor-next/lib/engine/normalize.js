@@ -182,22 +182,30 @@
     var buybackLtcgInr = num(safe(annual.capital_gains, "buyback_ltcg_inr", 0));
     var buybackStcgInr = num(safe(annual.capital_gains, "buyback_stcg_inr", 0));
     var buybackStcgSlabInr = num(safe(os, "buyback_stcg_slab_inr", 0));
+    // Unlisted buy-back LTCG (>24mo) is s.197 territory — no s.198
+    // exemption (that's listed/STT-paid only, see ltcg197Inr below).
+    // Listed buy-back LTCG (>12mo) stays in buybackLtcgInr/the ordinary
+    // "ltcg" bucket below since it IS s.198-eligible.
+    var buybackLtcg197Inr = 0;
     // s.69(2)(b) promoter additional tax applies only to the promoter's OWN
     // slice of flat-rate (LTCG/STCG) buy-back gains — tracked separately so
     // computeUsTax's... no, computeIndiaTax's caller can layer the extra
     // promoter tax on top without double-taxing the base gain (which is
-    // already included in buybackLtcgInr/buybackStcgInr above).
+    // already included in buybackLtcgInr/buybackLtcg197Inr/buybackStcgInr
+    // above).
     var promoterBuybackLtcgInr = 0, promoterBuybackStcgInr = 0;
     // Holding-period characterization mismatch candidates: India uses a
-    // 24-month LTCG threshold for UNLISTED shares (12 months for listed);
-    // the US uses a uniform >12 months for LTCG on any asset, no listed/
-    // unlisted distinction. An unlisted buyback held 12-24 months is
+    // 24-month LTCG threshold for UNLISTED shares/securities (12 months for
+    // listed); the US uses a uniform >12 months for LTCG on any asset, no
+    // listed/unlisted distinction. An unlisted asset held 12-24 months is
     // therefore short-term (slab rate) in India but long-term (preferential
     // rate) in the US — same transaction, different character in each
-    // country. Flagged here as raw data; conflicts.js computes the actual
-    // US tax dollar impact (it has access to computeUsTax, normalize.js
-    // doesn't) and turns this into a finding.
-    var buybackHoldingMismatches = [];
+    // country. Applies to both unlisted buy-backs (below) and foreign
+    // equity holdings (further down) — same underlying rule, two sources.
+    // Flagged here as raw data; conflicts.js computes the actual US tax
+    // dollar impact (it has access to computeUsTax, normalize.js doesn't)
+    // and turns this into a finding.
+    var holdingPeriodMismatches = [];
     function monthsBetween(fromStr, toStr) {
       if (!fromStr || !toStr) return null;
       var a = new Date(fromStr), b = new Date(toStr);
@@ -211,7 +219,11 @@
       } else if (bb.buyback_pre_or_post_oct2024 === "capital_gains_era") {
         var g = num(bb.capital_gain_or_loss);
         if (bb.gain_classification === "ltcg") {
-          buybackLtcgInr += g;
+          if (bb.is_listed) {
+            buybackLtcgInr += g; // s.198-eligible (listed, >12mo)
+          } else {
+            buybackLtcg197Inr += g; // s.197, no exemption (unlisted, >24mo)
+          }
           if (bb.is_promoter && g > 0) promoterBuybackLtcgInr += g;
         } else if (bb.gain_classification === "stcg") {
           buybackStcgInr += g;
@@ -232,7 +244,7 @@
           var usClassification = months > 12 ? "ltcg" : "stcg";
           var indiaClassification = bb.gain_classification === "ltcg" ? "ltcg" : "stcg"; // stcg_slab counts as short-term too
           if (usClassification !== indiaClassification) {
-            buybackHoldingMismatches.push({
+            holdingPeriodMismatches.push({
               companyName: bb.company_name || "Unnamed company",
               isListed: !!bb.is_listed,
               monthsHeld: months,
@@ -240,19 +252,86 @@
               gainUsd: inrToUsd(g),
               indiaClassification: indiaClassification,
               usClassification: usClassification,
-              indiaThresholdMonths: bb.is_listed ? 12 : 24
+              indiaThresholdMonths: bb.is_listed ? 12 : 24,
+              sourceType: "buyback"
             });
           }
         }
       }
     });
+
+    // Foreign equity (US stocks etc.) held directly — not listed on a
+    // RECOGNIZED INDIAN exchange, so India treats it as an "unlisted
+    // foreign security" regardless of whether it's listed on a foreign
+    // exchange: >24 months for LTCG (s.197, 12.5%, NO s.198 exemption —
+    // that's listed+STT-paid only), <=24 months is STCG at slab rate (same
+    // principle as any other non-STT unlisted-share STCG — s.111/s.70/s.74
+    // loss-set-off eligible, joins the same stcgSlabInr pool buy-backs use).
+    // This is general, pre-existing Indian law — NOT specific to the s.69
+    // buy-back regime, though the mechanics (24mo threshold, slab-rate
+    // STCG) are identical.
+    //
+    // UNLIKE the buy-back gain above (an INDIAN company, so India-source and
+    // taxable for any residency status including NR), a foreign stock sale is
+    // FOREIGN-source income — India only taxes that on a worldwide basis for
+    // a ROR (Resident & Ordinarily Resident). RNOR is taxed only on
+    // India-source income plus foreign BUSINESS income controlled from India
+    // (a capital gain on a personal shareholding isn't that), and NR is
+    // taxed on India-source income only. So this whole block only applies
+    // when the taxpayer is a ROR this year — otherwise the gain isn't in
+    // India's tax net at all, and neither is a "characterization mismatch"
+    // (India isn't taxing it, so there's nothing to characterize).
+    var isIndiaRor = safe(india, "residency_detail.final_india_residency_status", null) === CONST.INDIA_STATUS.ROR;
+    var financialHoldingsTxs = isIndiaRor ? (safe(india, "financial_holdings.transactions", []) || []) : [];
+    var foreignEquityLtcg197Inr = 0, foreignEquityStcgSlabInr = 0;
+    function toInrAtCurrency(amount, currency) {
+      var amt = num(amount);
+      if (!currency || currency === "INR") return amt;
+      if (currency === "USD") return usdToInr(amt);
+      // EUR/GBP: no FX rate modeled anywhere in this engine (only INR/USD) —
+      // dropped rather than guessed at, same convention as the buy-back
+      // classification gap above.
+      return null;
+    }
+    financialHoldingsTxs.forEach(function (tx) {
+      if (tx.asset_class !== "foreign_equity_unlisted") return;
+      if (!tx.sale_date || tx.sale_value === null || tx.sale_value === undefined || tx.sale_value === "") return; // still holding — no taxable event yet
+      var saleInr = toInrAtCurrency(tx.sale_value, tx.sale_currency);
+      var purchaseInr = toInrAtCurrency(tx.purchase_value, tx.purchase_currency);
+      if (saleInr === null || purchaseInr === null) return; // EUR/GBP — uncomputed gap, not guessed
+      var months = monthsBetween(tx.acquisition_date, tx.sale_date);
+      if (months === null) return; // no acquisition date — can't classify, don't guess
+      var g = saleInr - purchaseInr - num(tx.transfer_expenses);
+      var indiaClassification = months > 24 ? "ltcg" : "stcg";
+      if (indiaClassification === "ltcg") {
+        foreignEquityLtcg197Inr += g;
+      } else {
+        foreignEquityStcgSlabInr += g;
+      }
+      if (g > 0) {
+        var usClassification = months > 12 ? "ltcg" : "stcg";
+        if (usClassification !== indiaClassification) {
+          holdingPeriodMismatches.push({
+            companyName: tx.asset_name_or_ticker || "Unnamed foreign holding",
+            isListed: false,
+            monthsHeld: months,
+            gainInr: g,
+            gainUsd: inrToUsd(g),
+            indiaClassification: indiaClassification,
+            usClassification: usClassification,
+            indiaThresholdMonths: 24,
+            sourceType: "foreign_equity"
+          });
+        }
+      }
+    });
     var deemedDividendBuyback = moneyFromInr(deemedDividendInr);
-    // Unlisted-company buyback capital gains, held <=24 months (s.69): taxed
-    // at SLAB rate, not the flat 20% listed-STCG rate, so this joins the
-    // normal-slab bucket (like the deemed dividend above) rather than the
-    // capital-gains one. >24-month unlisted gains ARE flat-rate LTCG — those
-    // fold into ltcg below same as listed shares (both s.198, 12.5%).
-    var buybackStcgSlab = buybackStcgSlabInr;
+    // Slab-rate STCG (<=24mo, no s.198/s.196 exemption or flat rate — taxed
+    // at the taxpayer's own slab rate, but still Capital Gains head income,
+    // s.70/s.74 loss-set-off eligible): unlisted buy-backs and foreign
+    // equity holdings both land here, joining the normal-slab bucket (like
+    // the deemed dividend above) only AFTER computeLossSetOff, not before.
+    var unlistedStcgSlabInr = buybackStcgSlabInr + foreignEquityStcgSlabInr;
     var dividend = moneyFromInr(num(safe(os, "dividend_inr", 0)));
 
     // Capital gains — Layer 1 stores transaction data; surface the simple
@@ -260,14 +339,22 @@
     // Listed-share buyback capital gains (s.69, buy-backs on/after 1-Apr-2026
     // — see the deemedDividendBuyback comment above) fold in here too, at the
     // same s.196/198 STCG/LTCG rates as any other listed-equity gain.
-    // Unlisted-share buyback LTCG (>24mo) also lands here (s.198, 12.5%,
-    // same rate as listed LTCG); unlisted STCG (<=24mo) is slab-rate instead
-    // — see buybackStcgSlab above.
+    //
+    // ltcg (this bucket) is s.198-ELIGIBLE ONLY: listed shares/equity-MF/
+    // business-trust units with STT paid, >12mo — gets the ₹1,25,000 annual
+    // exemption. ltcg197Inr (below, NOT included here) is everything else
+    // long-term: unlisted buy-back LTCG (>24mo) and foreign-equity LTCG
+    // (>24mo) — s.197, same 12.5% rate, but NO exemption, taxable from the
+    // first rupee. These are NOT interchangeable and must not be pooled —
+    // multi-source-verified (CBDT FAQ via PIB, ClearTax, Bajaj Finserv,
+    // Tax2win, KPMG) that the exemption is textually embedded in s.112A/
+    // s.198 itself and does not extend to or pool with s.112/s.197.
     var stcg = moneyFromInr(num(safe(di, "capital_gains.short_term_15_pct", 0)) +
                             num(safe(annual.capital_gains, "stcg_111a_inr", 0)) +
                             buybackStcgInr);
     var ltcg = moneyFromInr(num(safe(annual.capital_gains, "ltcg_112a_inr", 0)) +
                             buybackLtcgInr);
+    var ltcg197Inr = buybackLtcg197Inr + foreignEquityLtcg197Inr;
 
     // Special-rate "other sources" income — flat 30% under s.128 (lottery/
     // betting) and s.194 (online gaming), no basic exemption, no Chapter
@@ -289,19 +376,21 @@
     var unexplained115bbeInr = num(safe(os, "unexplained_income_115BBE_inr", 0));
 
     var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg, specialRate115bb, deemedDividendBuyback,
-                 moneyFromInr(buybackStcgSlab)].reduce(addMoney, zeroMoney());
+                 moneyFromInr(unlistedStcgSlabInr), moneyFromInr(ltcg197Inr)].reduce(addMoney, zeroMoney());
 
     return {
       salary: salary, business: business, houseProperty: houseProperty,
       interest: interest, dividend: dividend,
-      stcg: stcg, ltcg: ltcg,
-      capitalGains: addMoney(stcg, ltcg),
+      stcg: stcg, ltcg: ltcg, ltcg197Inr: ltcg197Inr,
+      capitalGains: addMoney(addMoney(stcg, ltcg), moneyFromInr(ltcg197Inr)),
       specialRate115bb: specialRate115bb,
       deemedDividendBuyback: deemedDividendBuyback,
-      buybackStcgSlabInr: buybackStcgSlab,
+      // Slab-rate STCG (<=24mo unlisted — buy-backs and foreign equity
+      // both feed this), s.70/s.74 loss-set-off eligible.
+      stcgSlabInr: unlistedStcgSlabInr,
       promoterBuybackLtcgInr: promoterBuybackLtcgInr,
       promoterBuybackStcgInr: promoterBuybackStcgInr,
-      buybackHoldingMismatches: buybackHoldingMismatches,
+      holdingPeriodMismatches: holdingPeriodMismatches,
       unexplained115bbeInr: unexplained115bbeInr,
       total: total
     };

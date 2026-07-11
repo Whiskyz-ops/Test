@@ -730,18 +730,22 @@
         U.inrToUsd(pb.totalExtraTaxInr), ["s.69(2)(b)", "Promoter additional tax", "Share buyback"]);
     }
 
-    // -- 10b3. BUYBACK HOLDING-PERIOD CHARACTERIZATION MISMATCH -------------
-    // India: unlisted shares need >24 months held for LTCG (12 for listed).
-    // The US uses a flat >12 months for LTCG on any asset — no listed/
-    // unlisted distinction. So an unlisted buy-back held 12-24 months is
+    // -- 10b3. HOLDING-PERIOD CHARACTERIZATION MISMATCH ----------------------
+    // India: unlisted shares/securities need >24 months held for LTCG (12
+    // for listed). The US uses a flat >12 months for LTCG on any asset — no
+    // listed/unlisted distinction. So an unlisted asset held 12-24 months is
     // short-term (India slab rate) but long-term (US preferential rate) —
-    // same transaction, opposite character in each country. Computed
-    // straight from the same dates/listed-flag Layer 1 already collects for
-    // the transaction, not a second manual entry. The dollar figure below is
-    // a REAL recompute (calls the actual computeUsTax twice, once per
-    // classification) — not an estimate — so this is exactly as auditable
-    // as every other number on the page, not a black-box severity score.
-    var holdingMismatches = (model.income.india && model.income.india.buybackHoldingMismatches) || [];
+    // same transaction, opposite character in each country. Two sources
+    // feed this: unlisted share buy-backs (s.69), and foreign equity
+    // holdings (e.g. US stocks — also always "unlisted" for Indian tax
+    // purposes, since they're not on a recognized Indian exchange). Same
+    // underlying rule either way. Computed straight from the same dates/
+    // listed-flag Layer 1 already collects for the transaction, not a
+    // second manual entry. The dollar figure below is a REAL recompute
+    // (calls the actual computeUsTax twice, once per classification) — not
+    // an estimate — so this is exactly as auditable as every other number
+    // on the page, not a black-box severity score.
+    var holdingMismatches = (model.income.india && model.income.india.holdingPeriodMismatches) || [];
     holdingMismatches.forEach(function (mm, mi) {
       var base = model.income.us || {};
       function withForeignCg(classification) {
@@ -760,12 +764,17 @@
       var deltaUsd = asStcg.totalTaxBeforeFtcUsd - asLtcg.totalTaxBeforeFtcUsd;
       if (Math.abs(deltaUsd) < 1) return; // no real rate difference at this taxpayer's bracket — not worth flagging
       var correctIsLtcg = mm.usClassification === "ltcg";
-      add("buyback_holding_period_mismatch_" + mi, S.WARNING, C.TREATY,
-        mm.companyName + " buy-back: " + Math.round(mm.monthsHeld) + " months held — India says " + mm.indiaClassification.toUpperCase() +
+      var assetLabel = mm.sourceType === "buyback" ? "buy-back" : "foreign equity holding";
+      // Listed LTCG is s.198 (STT-paid, exemption-eligible); unlisted/
+      // foreign LTCG is s.197 (no exemption) — different section, same
+      // 12.5% rate. Must not conflate the two in the citation.
+      var ltcgSection = mm.isListed ? "s.198" : "s.197";
+      add("holding_period_mismatch_" + mi, S.WARNING, C.TREATY,
+        mm.companyName + " " + assetLabel + ": " + Math.round(mm.monthsHeld) + " months held — India says " + mm.indiaClassification.toUpperCase() +
         ", US says " + mm.usClassification.toUpperCase() + " (" + usd(Math.abs(deltaUsd)) + " at stake)",
-        "This " + (mm.isListed ? "listed" : "unlisted") + " buy-back was held " + Math.round(mm.monthsHeld) + " months. India requires " +
+        "This " + (mm.isListed ? "listed" : "unlisted") + " " + assetLabel + " was held " + Math.round(mm.monthsHeld) + " months. India requires " +
         "more than " + mm.indiaThresholdMonths + " months for LTCG on " + (mm.isListed ? "listed" : "unlisted") + " shares, so this is " +
-        mm.indiaClassification.toUpperCase() + " there (taxed " + (mm.indiaClassification === "ltcg" ? "at 12.5%, s.198" : (mm.isListed ? "at 20%, s.196" : "at your India slab rate")) +
+        mm.indiaClassification.toUpperCase() + " there (taxed " + (mm.indiaClassification === "ltcg" ? "at 12.5%, " + ltcgSection + (mm.isListed ? " (₹1,25,000 exemption pool)" : " (no exemption, taxable from ₹1)") : (mm.isListed ? "at 20%, s.196" : "at your India slab rate")) +
         "). The US requires only more than 12 months for LTCG on any asset — no listed/unlisted distinction — so the SAME gain is " +
         mm.usClassification.toUpperCase() + " under US rules. Recomputed your actual US return both ways: treated as LTCG, US tax is " +
         usd(asLtcg.totalTaxBeforeFtcUsd) + "; treated as STCG (ordinary rates), US tax is " + usd(asStcg.totalTaxBeforeFtcUsd) + " — a difference of " +
@@ -775,7 +784,7 @@
             "label on the US foreign-capital-gains input would cost roughly " + usd(Math.abs(deltaUsd)) + " in overpaid US tax."
           : "Report this gain as SHORT-TERM on the US return even though it's long-term in India — using India's label on the US " +
             "foreign-capital-gains input would understate US tax by roughly " + usd(Math.abs(deltaUsd)) + ".",
-        Math.abs(deltaUsd), ["Holding period", "s.198 vs IRC §1222", "Share buyback"]);
+        Math.abs(deltaUsd), ["Holding period", ltcgSection + " vs IRC §1222", mm.sourceType === "buyback" ? "Share buyback" : "Foreign equity"]);
     });
 
     // -- 10a. CROSS-FORM INCONSISTENCY — INDIA'S OWN SCHEDULE FA SELF-REPORT
@@ -1219,6 +1228,13 @@
         trace: calc("Ordinary NRO interest is slab-rate income for a non-resident by default (s.207's concessional rate doesn't actually cover it — that's narrowly limited to foreign-currency-borrowing interest). A specific claimed amount can still be carved out and taxed at the flat treaty rate instead of slab rates, but only when TRC/Form 41 are on file AND it's actually cheaper than the marginal slab rate on that slice (s.159)",
           nrInterestParts(i.nrInterest, inr)) }
     ] : [];
+    var ltcg197Trace = ((i.ltcg197TaxableInr || 0) > 1) ? [
+      { label: "  — of which s.197 LTCG @ 12.5% (unlisted/foreign — no exemption)", inr: (i.ltcg197TaxableInr || 0) * T.LTCG_112A_RATE,
+        trace: calc("Unlisted buy-back gains and foreign-equity gains (e.g. US stocks) held >24 months are LTCG under s.197, same 12.5% rate as s.198 — but s.197 has NO ₹1,25,000 exemption (that's textually specific to s.198's listed/STT-paid gains, and doesn't pool with s.197), so this whole amount is taxable from the first rupee", [
+          { label: "s.197 LTCG (after loss set-off)", amount: i.ltcg197TaxableInr || 0 },
+          { label: "Tax @ 12.5%, no exemption", amount: (i.ltcg197TaxableInr || 0) * T.LTCG_112A_RATE }
+        ]) }
+    ] : [];
 
     return {
       india: {
@@ -1234,9 +1250,9 @@
           { label: "Tax at slab rates", inr: i.slabTaxInr,
             trace: calc("Progressive slab-rate tax under the " + i.regime + " regime, applied to ₹" + Math.round(i.totalNormalInr).toLocaleString("en-IN") + " of normal-rate income (salary, house property, business, other sources" + (i.nrInterest ? " — including ordinary NRO interest, which is slab-rate income by default; only a DTAA-beneficial slice is carved out separately below" : "") + ", after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
               bracketParts(i.slabBreakdown, inr)) },
-          { label: "Tax on special-rate income (196/198 gains + 128/194 winnings" + (i.s115a ? " + s.207 dividend/royalty/FTS" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + DTAA-carved-out interest" : "") + ")", inr: i.specialTaxInr,
-            trace: calc("s.196 STCG @ 20% + s.198 LTCG @ 12.5% (net of the ₹1,25,000 exemption) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption" + (i.s115a ? " + s.207 dividend/royalty/FTS at their own rates" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + any DTAA-carved-out interest at its treaty rate" : "") + " (each broken out below)", []) }
-        ]).concat(nrInterestTrace).concat(s115aTraces).concat([
+          { label: "Tax on special-rate income (196/197/198 gains + 128/194 winnings" + (i.s115a ? " + s.207 dividend/royalty/FTS" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + DTAA-carved-out interest" : "") + ")", inr: i.specialTaxInr,
+            trace: calc("s.196 STCG @ 20% + s.198 LTCG @ 12.5% (listed/STT-paid, net of the ₹1,25,000 exemption) + s.197 LTCG @ 12.5% (unlisted/foreign — no exemption, separate section, does not pool with s.198's threshold) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption" + (i.s115a ? " + s.207 dividend/royalty/FTS at their own rates" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + any DTAA-carved-out interest at its treaty rate" : "") + " (each broken out below)", []) }
+        ]).concat(nrInterestTrace).concat(ltcg197Trace).concat(s115aTraces).concat([
           { label: "Less §156 rebate", inr: -i.rebateInr,
             trace: calc("Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold — lesser of tax at slab rates and the statutory cap", [
               { label: "Statutory rebate cap", amount: rebateCap },
