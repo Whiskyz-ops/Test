@@ -7330,7 +7330,7 @@ const crDiv = document.getElementById('div-company-residency');
                 current_balance: parseINRCurrency(div.querySelector('.bank-bal').value),
                 current_balance_currency: div.querySelector('.bank-bal-curr').value,
                 annual_interest_rate: parseINRCurrency(div.querySelector('.bank-rate').value) / 100 || null,
-                interest_credited_this_fy_inr: parseInt(div.querySelector('.bank-int').value) || null
+                interest_credited_this_fy_inr: parseINRCurrency(div.querySelector('.bank-int').value) || null
             };
             if (type === 'NRE') {
                 acc.account_conversion_date = div.querySelector('.bank-nre-date').value || null;
@@ -7740,7 +7740,7 @@ const crDiv = document.getElementById('div-company-residency');
             const saleInput = div.querySelector('.prop-sale-val');
             // If we previously stored an original value, use it for the calculation, otherwise use the current input
             let baseSaleVal = parseINRCurrency(saleInput.dataset.originalVal);
-            if (isNaN(baseSaleVal)) {
+            if (baseSaleVal === null || isNaN(baseSaleVal)) {
                 baseSaleVal = parseINRCurrency(saleInput.value) || 0;
             }
             
