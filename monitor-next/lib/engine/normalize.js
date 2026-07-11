@@ -383,23 +383,83 @@
     //    off against income "under any provision of this Act"), and no
     //    carry-forward. A losing VDA transaction is simply dropped, never
     //    netted against anything.
+    //  GROUP_XIIA — Chapter XII-A "specified assets" (ss.115C-115I old Act,
+    //    §212-221 ITA 2025): shares of an Indian company, debentures of a
+    //    public Indian company, deposits with a public Indian company, and
+    //    Central Government securities, all purchased in convertible
+    //    foreign exchange by an NRI (tx.is_specified_foreign_exchange_asset
+    //    === true). Multi-source-verified (second research pass):
+    //    - LISTED equity (listed_equity, SFEA=true): still the ordinary
+    //      12mo threshold (s.115C(d) defers entirely to general s.2(42A)
+    //      classification), but the s.115E(1)(b) LTCG rate has NO
+    //      ₹1,25,000 exemption — unlike ordinary s.198 — so this
+    //      OVERRIDES the GROUP_A routing above for LTCG specifically (STCG
+    //      is unaffected — Chapter XII-A has no special short-term rate,
+    //      so s.111A/20% still applies as normal). A taxpayer can opt out
+    //      under s.115I if ordinary treatment is more beneficial (it is,
+    //      for listed equity specifically, since the exemption is worth
+    //      more) — Layer 1's chapterXiiaElected checkbox is presented as
+    //      that considered, flexible year-end choice, so it's trusted here
+    //      rather than second-guessed.
+    //    - Specified DEPOSITS (nri_specified_company_deposit): a deposit is
+    //      not a transferable security — its only "exit" is maturity/
+    //      withdrawal, and repayment of principal is not a "transfer"
+    //      under s.2(47) at all (well-established, no contrary authority
+    //      found). NO capital gain EVER arises on a specified deposit —
+    //      only interest, taxed as Chapter XII-A "investment income"
+    //      under s.115E's other limb (not computed here — Layer 1 doesn't
+    //      capture this transaction-by-transaction, only via the general
+    //      bank/FD interest fields elsewhere). So this class is
+    //      unconditionally excluded from capital-gains classification,
+    //      not a "don't know" gap — deliberately, confidently, zero.
+    //    - Specified DEBENTURES / Government securities: CAN generate
+    //      capital gains, but ONLY on an actual sale to a third party — a
+    //      real Tribunal precedent (Khushaal C. Thackersey v. ACIT, ITAT
+    //      Mumbai, 15-Apr-2024, TS-293-ITAT-2024(Mum)) holds that
+    //      REDEMPTION AT MATURITY of a debenture is "mere realisation of a
+    //      debt," not a transfer — any maturity premium is interest
+    //      income, not a capital gain. Layer 1's generic Sale Date/Sale
+    //      Value fields can't currently distinguish "sold on the market"
+    //      from "redeemed/matured" for these two classes specifically — so
+    //      this block only computes a gain when tx.nri_exit_type ===
+    //      "sold_to_third_party" (a NEW field, not yet in Layer 1 — flagged
+    //      to the user as a follow-up form addition); absent that signal,
+    //      it's dropped rather than guessed, same convention as EUR/GBP
+    //      currency and missing acquisition dates elsewhere in this
+    //      function. Once present: LISTED (tx.stt_paid !== false) gets the
+    //      ordinary 12mo threshold, LTCG -> ltcg197Inr (s.115E(1)(b)/
+    //      s.112, 12.5%, no exemption — the two converge to the same rate
+    //      for a listed debt instrument), STCG -> slab (s.111A doesn't
+    //      cover debentures/govt securities). UNLISTED and sold on/after
+    //      23-Jul-2024 is s.50AA-deemed short-term regardless of holding
+    //      period (Finance (No.2) Act 2024, inserted into s.50AA
+    //      alongside the MLD rule) — this is a legal fiction that a
+    //      logical reading of s.115C(d) can't satisfy ("long-term capital
+    //      gains" requires NOT being short-term), so it falls out of
+    //      Chapter XII-A's LTCG path entirely and lands at slab rate, same
+    //      bucket as GROUP_D/E's STCG (this specific "falls out entirely"
+    //      conclusion is the research's own reasoned inference, not a
+    //      directly-sourced authority — flagged as such, but the
+    //      underlying s.50AA deeming fact itself is high-confidence).
+    //      UNLISTED and sold before 23-Jul-2024 falls back to the general,
+    //      pre-amendment 24mo threshold (an edge case for older
+    //      transaction dates, included for completeness).
     //
-    // NOT computed (left on the existing chapter_xiia_not_computed warning
-    // below, not guessed at): nri_specified_debenture, nri_specified_
-    // company_deposit, nri_specified_govt_security. Research surfaced a
-    // real, unresolved question with no source able to answer it either
-    // way — whether s.50AA's "unlisted bonds are always short-term" rule
-    // overrides Chapter XII-A's LTCG path for specified debentures post-
-    // 23-Jul-2024, and whether a maturing deposit is even a "transfer"
-    // that triggers a capital gain at all. Shipping a number on
-    // confirmed-uncertain ground is worse than the existing honest
-    // "not yet computed" disclosure.
+    // NOT computed at all: Chapter XII-A "investment income" (interest on
+    // a specified debenture/deposit/govt security, s.115E's flat-20% other
+    // limb) — Layer 1 doesn't capture this on a per-transaction basis, only
+    // via the general bank/FD interest fields, which don't carry a
+    // Chapter-XII-A-eligibility flag. Left on the chapter_xiia_not_computed
+    // warning below, now scoped down to just this piece.
+    var chapterXiiaElected = safe(india, "compliance_docs.chapter_xiia_elected", false) === true;
     var GROUP_A_CLASSES = ["listed_equity", "equity_mutual_fund", "hybrid_mf_equity", "reit_invit", "etf"];
     var GROUP_C_CLASSES = ["debt_mutual_fund_pre_apr23", "hybrid_mf_debt", "international_mf", "fof"];
+    var S50AA_UNLISTED_DEBT_CUTOFF = "2024-07-23";
     var otherLtcg198Inr = 0, otherStcg20Inr = 0, otherLtcg197Inr = 0, otherStcgSlabInr = 0, vdaGainInr = 0;
     (safe(india, "financial_holdings.transactions", []) || []).forEach(function (tx) {
       var cls = tx.asset_class;
       if (!cls || cls === "foreign_equity_unlisted") return; // handled above, or uncategorized (legacy transactions predating asset_class)
+      if (cls === "nri_specified_company_deposit") return; // maturity is never a "transfer" — never generates capital gains, unconditionally
       if (!tx.sale_date || tx.sale_value === null || tx.sale_value === undefined || tx.sale_value === "") return; // still holding — no taxable event yet
       var saleInr = toInrAtCurrency(tx.sale_value, tx.sale_currency);
       var purchaseInr = toInrAtCurrency(tx.purchase_value, tx.purchase_currency);
@@ -409,6 +469,10 @@
         var vg = saleInr - purchaseInr - num(tx.transfer_expenses);
         if (vg > 0) vdaGainInr += vg;
         return;
+      }
+
+      if ((cls === "nri_specified_debenture" || cls === "nri_specified_govt_security") && tx.nri_exit_type !== "sold_to_third_party") {
+        return; // redeemed at maturity, or exit type not yet recorded — not a "transfer", or not enough info to say either way
       }
 
       var months = monthsBetween(tx.acquisition_date, tx.sale_date);
@@ -426,8 +490,24 @@
       }
       var g = saleInr - costBasisInr - num(tx.transfer_expenses);
 
+      var isChapterXiiaListedEquity = cls === "listed_equity" && chapterXiiaElected && tx.is_specified_foreign_exchange_asset === true;
+
       if (cls === "debt_mutual_fund_post_apr23") {
         otherStcgSlabInr += g; // GROUP_D — always short-term, any holding period
+      } else if (cls === "nri_specified_debenture" || cls === "nri_specified_govt_security") {
+        if (tx.stt_paid !== false) {
+          if (months > 12) otherLtcg197Inr += g; else otherStcgSlabInr += g; // listed: 12mo threshold, Chapter XII-A/s.112 rate (no exemption)
+        } else if (tx.sale_date >= S50AA_UNLISTED_DEBT_CUTOFF) {
+          otherStcgSlabInr += g; // unlisted, sold on/after 23-Jul-2024 -> s.50AA deems short-term, any holding period
+        } else if (months > 24) {
+          otherLtcg197Inr += g; // unlisted, sold before the amendment -> general pre-amendment 24mo threshold
+        } else {
+          otherStcgSlabInr += g;
+        }
+      } else if (isChapterXiiaListedEquity && months > 12) {
+        otherLtcg197Inr += g; // Chapter XII-A LTCG override: no exemption, unlike ordinary s.198
+      } else if (isChapterXiiaListedEquity) {
+        otherStcg20Inr += g; // STCG is unaffected by the election — s.111A/20% still applies as normal
       } else if (GROUP_A_CLASSES.indexOf(cls) !== -1 && tx.stt_paid !== false) {
         if (months > 12) otherLtcg198Inr += g; else otherStcg20Inr += g; // GROUP_A
       } else if (GROUP_A_CLASSES.indexOf(cls) !== -1) {
@@ -437,9 +517,7 @@
       } else if (GROUP_C_CLASSES.indexOf(cls) !== -1) {
         if (months > 24) otherLtcg197Inr += g; else otherStcgSlabInr += g; // GROUP_C
       }
-      // Unrecognized asset_class (including the 3 NRI Chapter XII-A
-      // classes) — intentionally not classified; see the block comment
-      // above.
+      // Unrecognized asset_class — intentionally not classified.
     });
 
     var deemedDividendBuyback = moneyFromInr(deemedDividendInr);

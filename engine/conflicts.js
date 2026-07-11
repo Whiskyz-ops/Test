@@ -394,23 +394,44 @@
         0, ["DTAA Art. 4(3)", "s.6(3)", "POEM", "Mutual Agreement Procedure"]);
     }
 
-    // -- 4g. CHAPTER XII-A (s.217/212) ELECTED BUT NOT IN THE COMPUTATION -
-    // s.217/212 give an NRI a concessional flat rate (20% investment income
-    // / 10% LTCG, no slab progression) on specified foreign-exchange assets,
-    // and — the easy-to-miss part — s.217 lets the taxpayer KEEP that regime
-    // even after becoming resident again, for as long as the assets are held,
-    // by filing the election each year. WISING doesn't yet recompute India
-    // tax under this regime, so the number below should not be trusted as-is
-    // when this box is checked.
+    // -- 4g. CHAPTER XII-A (s.217/212) ELECTED — INVESTMENT INCOME STILL NOT
+    // IN THE COMPUTATION -----------------------------------------------
+    // s.217/212 give an NRI a concessional flat rate on specified foreign-
+    // exchange assets: 20% on "investment income" (interest on a specified
+    // debenture/deposit, dividend on specified shares) and 12.5% on LTCG
+    // (raised from 10% by Budget 2024, alongside the general capital-gains
+    // rate simplification) — no slab progression either way. And — the
+    // easy-to-miss part — s.217 lets the taxpayer KEEP that regime even
+    // after becoming resident again, for as long as the assets are held, by
+    // filing the election each year.
+    //
+    // LTCG/STCG on specified LISTED EQUITY, DEBENTURES, and GOVERNMENT
+    // SECURITIES (transactions marked "sold to a third party" — Layer 1
+    // can't yet distinguish a market sale from a maturity redemption for
+    // debentures/govt securities, and a real Tribunal precedent confirms
+    // redemption isn't a taxable "transfer" at all) IS now correctly
+    // reflected in the India tax computed below. Specified DEPOSITS never
+    // generate capital gains (same redemption-isn't-a-transfer principle),
+    // so there's nothing to compute there.
+    //
+    // "Investment income" — interest on a specified debenture/deposit,
+    // dividend on specified shares — is NOT reflected: Layer 1 only
+    // captures bank/FD interest in aggregate, with no way to flag a
+    // specific account as a Chapter XII-A specified asset, so that slice
+    // can't be pulled out and taxed at the flat 20% rate here.
     if (model.treaty.chapterXiiaElected) {
-      add("chapter_xiia_not_computed", S.WARNING, C.CREDIT,
-        "Chapter XII-A (s.217/212) elected — not reflected in the India tax computed below",
-        "The Layer 1 Chapter XII-A election is on. Under s.217/212, specified investment income from foreign-exchange " +
-        "assets is taxed at a flat 20% (10% for LTCG) instead of slab rates, and — unlike most NRI concessions — the " +
-        "election can be KEPT even after the taxpayer becomes an ordinary resident, by re-filing it each year the assets " +
-        "are retained. The India tax figure above is computed under normal slab/special rates and does not apply this election.",
-        "Recompute the specified-asset income separately at the s.217/212 flat rates before relying on the India tax " +
-        "total above, and confirm the annual re-election was filed if residency status has since changed.",
+      add("chapter_xiia_investment_income_not_computed", S.WARNING, C.CREDIT,
+        "Chapter XII-A (s.217/212) elected — investment income (interest/dividend) not reflected in the India tax computed below",
+        "The Layer 1 Chapter XII-A election is on. Capital gains on specified listed equity/debentures/government " +
+        "securities sold to a third party are correctly taxed below at the flat 12.5% Chapter XII-A rate (no ₹1,25,000 " +
+        "exemption, unlike ordinary listed-equity LTCG) — and specified deposits correctly generate no capital gains at " +
+        "all, since redemption at maturity isn't a taxable transfer. What's still NOT reflected: \"investment income\" " +
+        "— interest on a specified debenture/deposit or dividend on specified shares — which s.217/212 taxes at a flat " +
+        "20% instead of slab rates. Layer 1 only captures bank/FD interest in aggregate, with no way to flag a specific " +
+        "account as a Chapter XII-A specified asset.",
+        "Recompute the specified-asset investment income (interest/dividend) separately at the flat 20% s.217/212 rate " +
+        "before relying on the India tax total above, and confirm the annual re-election was filed if residency status " +
+        "has since changed.",
         0, ["s.217", "s.212", "Chapter XII-A"]);
     }
 
@@ -1230,7 +1251,7 @@
     ] : [];
     var ltcg197Trace = ((i.ltcg197TaxableInr || 0) > 1) ? [
       { label: "  — of which s.197 LTCG @ 12.5% (no exemption)", inr: (i.ltcg197TaxableInr || 0) * T.LTCG_112A_RATE,
-        trace: calc("Same 12.5% rate as s.198, but NO ₹1,25,000 exemption — that's textually specific to s.198's listed/STT-paid gains and doesn't pool with s.197, so this whole amount is taxable from the first rupee. Fed by: unlisted buy-back gains, foreign-equity gains (e.g. US stocks), unlisted bonds without STT, and non-equity-oriented/non-specified mutual funds (debt MF acquired pre-Apr-2023, 35-65%-equity hybrid funds, international/FoF funds no longer meeting s.50AA's specified-fund test) — all held >24 months, or >12 months for a listed bond specifically", [
+        trace: calc("Same 12.5% rate as s.198, but NO ₹1,25,000 exemption — that's textually specific to s.198's listed/STT-paid gains and doesn't pool with s.197, so this whole amount is taxable from the first rupee. Fed by: unlisted buy-back gains, foreign-equity gains (e.g. US stocks), unlisted bonds without STT, non-equity-oriented/non-specified mutual funds (debt MF acquired pre-Apr-2023, 35-65%-equity hybrid funds, international/FoF funds no longer meeting s.50AA's specified-fund test), and Chapter XII-A specified listed equity/debentures/government securities sold to a third party (s.115E's LTCG rate has no exemption either, unlike ordinary s.198) — all held >24 months, or >12 months for a listed bond, specified debenture/govt security, or specified listed equity", [
           { label: "s.197 LTCG (after loss set-off)", amount: i.ltcg197TaxableInr || 0 },
           { label: "Tax @ 12.5%, no exemption", amount: (i.ltcg197TaxableInr || 0) * T.LTCG_112A_RATE }
         ]) }
