@@ -549,7 +549,7 @@
   var B4 = {
     id: "sharma_huf",
     label: "Sharma HUF (family investment vehicle)",
-    story: "Business POV: an HUF managing ancestral property and FD investments in India. Control & management is NOT wholly outside India, so it stays resident — a different test than the individual day-count. At ~₹6.5L income it sits right at the §156 rebate threshold, demonstrating the entity-aware fix (HUF isn't entitled to the individual-only rebate). PAN also isn't linked to Aadhaar, so every TDS figure here understates the higher rate actually being withheld. Also sold some Bitcoin this year for a gain — taxed flat 30% under s.115BBH regardless of how long held, and the family's ₹2,00,000 brought-forward STCG loss can't touch it at all (VDA gains are never loss-set-off eligible, not even against another VDA's loss in the same year) — a common, costly misconception this demo makes concrete.",
+    story: "Business POV: an HUF managing ancestral property and FD investments in India. Control & management is NOT wholly outside India, so it stays resident — a different test than the individual day-count. At ~₹6.5L income it sits right at the §156 rebate threshold, demonstrating the entity-aware fix (HUF isn't entitled to the individual-only rebate). PAN also isn't linked to Aadhaar, so every TDS figure here understates the higher rate actually being withheld. Also sold some Bitcoin this year for a gain — taxed flat 30% under s.115BBH regardless of how long held, and the family's ₹2,00,000 brought-forward STCG loss can't touch it at all (VDA gains are never loss-set-off eligible, not even against another VDA's loss in the same year) — a common, costly misconception this demo makes concrete. Also sold a plot this year for ₹68L — a purely domestic transaction where the RESIDENT buyer withholds 1% under s.194-IA, the first demo of resident-side (non-NRI) property TDS.",
     tags: ["HUF", "entity", "156", "control and management", "PAN-Aadhaar", "VDA/crypto"],
     router: router("Sharma HUF", { us_days: 0, has_us_source_income_or_assets: false }),
     india: {
@@ -558,7 +558,15 @@
       dtaa: {},
       compliance_docs: {},
       bank_accounts: [{ bank_name: "SBI", account_type: "current", peak_balance_inr: 900000 }],
-      property: { has_indian_property_transaction: true, properties: [{ address: "Ancestral home, Jaipur", property_type: "Residential", annual_value_inr: 300000, gross_rent_received_inr: 360000, municipal_taxes_paid_inr: 12000 }] },
+      // Also sold a plot this year — a RESIDENT seller, so the buyer withholds
+      // 1% under s.194-IA (not s.195, which is NR-only) on the ₹68L sale
+      // consideration. Layer 1 previously only ever collected buyer-TDS
+      // detail for NR sellers; this demonstrates it now capturing the same
+      // withholding for a domestic resident too.
+      property: { has_indian_property_transaction: true, properties: [
+        { address: "Ancestral home, Jaipur", property_type: "Residential", annual_value_inr: 300000, gross_rent_received_inr: 360000, municipal_taxes_paid_inr: 12000 },
+        { address: "Plot 7, Vasant Vihar, Jaipur", property_type: "Land (non-agricultural)", sale_date: "2026-09-15", sale_consideration: 6800000, sale_consideration_currency: "INR", buyer_tan: "JPRS12345K", buyer_tds_deducted_inr: 68000, buyer_tds_challan_number: "CHLN99182" }
+      ] },
       // Bitcoin sold this year for a ₹300,000 gain — s.115BBH flat 30%, no
       // holding-period threshold, no set-off against the ₹200,000 STCG loss
       // carryforward below (loss set-off is a Capital Gains head mechanism;

@@ -5877,12 +5877,6 @@
         evaluateSurchargeBuckets();
         syncResidencyUI();
         
-        // Update Property Buyer TDS visibility based on NR status
-        const isNR = state.residency_detail.final_india_residency_status === 'NR';
-        document.querySelectorAll('.prop-buyer-tds-container').forEach(el => {
-            el.classList.toggle('hidden', !isNR);
-        });
-
         // Evaluate NR fields for Unlisted Equity
         if (typeof evaluateUnlistedNRStatus === 'function') evaluateUnlistedNRStatus();
         checkDualResidencyConflict();
@@ -7632,12 +7626,12 @@ const crDiv = document.getElementById('div-company-residency');
 
             <!-- Additional Sections -->
             <div class="flex flex-col gap-4 mt-4 prop-sale-only-div">
-                <div class="bg-white/5 p-3 rounded-lg border border-white/10 prop-buyer-tds-container ${state.residency_detail.final_india_residency_status === 'NR' ? '' : 'hidden'}">
-                    <h5 class="text-[9px] font-bold text-white/60 uppercase tracking-widest mb-3">Buyer TDS (For NRIs)</h5>
+                <div class="bg-white/5 p-3 rounded-lg border border-white/10 prop-buyer-tds-container">
+                    <h5 class="text-[9px] font-bold text-white/60 uppercase tracking-widest mb-3">Buyer TDS (s.194-IA for resident sellers ≥₹50L, s.195 for NRI sellers)</h5>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Buyer TAN</label>
-                                <input type="text" class="prop-tan w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandGold focus:outline-none font-mono" placeholder="Req for 195">
+                                <input type="text" class="prop-tan w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandGold focus:outline-none font-mono" placeholder="Req for 194-IA/195">
                             </div>
                             <div>
                                 <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">TDS Deducted (INR)</label>
@@ -7801,9 +7795,9 @@ const crDiv = document.getElementById('div-company-residency');
                 sale_consideration_currency: isHolding ? null : div.querySelector('.prop-sale-curr').value,
                 stamp_duty_value: isHolding ? null : (parseINRCurrency(div.querySelector('.prop-sdv').value)),
                 stamp_duty_value_currency: "INR",
-                buyer_tan: (isHolding || state.residency_detail.final_india_residency_status !== 'NR') ? null : (div.querySelector('.prop-tan').value || null),
-                buyer_tds_deducted_inr: (isHolding || state.residency_detail.final_india_residency_status !== 'NR') ? null : (parseINRCurrency(div.querySelector('.prop-tds').value)),
-                buyer_tds_challan_number: (isHolding || state.residency_detail.final_india_residency_status !== 'NR') ? null : (div.querySelector('.prop-challan').value || null),
+                buyer_tan: isHolding ? null : (div.querySelector('.prop-tan').value || null),
+                buyer_tds_deducted_inr: isHolding ? null : (parseINRCurrency(div.querySelector('.prop-tds').value)),
+                buyer_tds_challan_number: isHolding ? null : (div.querySelector('.prop-challan').value || null),
                 is_joint_property: isJoint,
                 ownership_percentage: isJoint ? (parseINRCurrency(div.querySelector('.prop-share').value)) : null,
                 is_inherited: isInherited,

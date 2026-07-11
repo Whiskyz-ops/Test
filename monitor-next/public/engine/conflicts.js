@@ -1648,6 +1648,10 @@
         citation: "s.199"
       });
     }
+    // s.194-IA (resident seller, 1%, ≥₹50L) vs s.195 (NR seller, no floor,
+    // rate set by the AO/treaty) — same buyer-withholding mechanism, two
+    // different sections depending on the seller's residency status.
+    var isNrSellerForPropertyTds = model.residency.india.status === CONST.INDIA_STATUS.NR;
     (wd.india.propertyTds || []).forEach(function (p, idx) {
       var rateAppliedPct = p.saleConsiderationInr > 0 ? (p.tdsInr / p.saleConsiderationInr) * 100 : null;
       indiaRows.push({
@@ -1655,8 +1659,8 @@
         label: "Property Sale TDS — " + p.propertyType + (p.saleDate ? " (" + p.saleDate + ")" : ""),
         grossInr: p.saleConsiderationInr || null, domesticRatePct: null, treatyRatePct: null, docsOk: null,
         rateAppliedPct: rateAppliedPct, taxInr: p.tdsInr, gapInr: 0,
-        note: "Buyer-withheld on sale proceeds from an NR seller",
-        citation: "s.195"
+        note: isNrSellerForPropertyTds ? "Buyer-withheld on sale proceeds from an NR seller" : "Buyer-withheld on sale proceeds from a resident seller",
+        citation: isNrSellerForPropertyTds ? "s.195" : "s.194-IA"
       });
     });
 
