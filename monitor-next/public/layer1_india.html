@@ -7857,6 +7857,19 @@ const crDiv = document.getElementById('div-company-residency');
                     </select>
                 </div>
                 <div>
+                    <label class="flex items-center gap-1 text-[10px] text-white/60 mb-1 relative group/tooltip w-max cursor-help">
+                        Are You a Promoter?
+                        <svg class="w-3 h-3 text-white/40 group-hover/tooltip:text-brandGold transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tooltip:block w-56 p-2 bg-[#1a1a1a] border border-brandGold/30 rounded shadow-2xl text-[9px] text-white/80 normal-case tracking-normal font-sans z-50 pointer-events-none text-center">
+                            A promoter is anyone who directly or indirectly holds more than 10% of the company's shares, or is designated a promoter under the Companies Act, 2013 / SEBI's Buy-back of Securities Regulations. Promoters owe an additional tax plus a 12% surcharge on top of the ordinary capital-gains tax on a buy-back (Section 69(2)(b)).
+                        </div>
+                    </label>
+                    <select class="bb-promoter w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all" onchange="syncBuybackState()">
+                        <option value="no">No</option>
+                        <option value="yes">Yes (Promoter)</option>
+                    </select>
+                </div>
+                <div>
                     <label class="block text-[10px] text-white/60 mb-1">Shares Tendered</label>
                     <input type="text" inputmode="numeric" step="1" class="inr-input bb-shares w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all font-mono" placeholder="0" oninput="syncBuybackState()">
                 </div>
@@ -7901,6 +7914,7 @@ const crDiv = document.getElementById('div-company-residency');
             const recd = parseFloat(card.querySelector('.bb-recd').value) || null;
             const cost = parseFloat(card.querySelector('.bb-cost').value) || null;
             const isListed = card.querySelector('.bb-listed') ? card.querySelector('.bb-listed').value === 'yes' : true;
+            const isPromoter = card.querySelector('.bb-promoter') ? card.querySelector('.bb-promoter').value === 'yes' : false;
             
             let era = 'pre_oct2024';
             let divIncome = 0;
@@ -7936,6 +7950,7 @@ const crDiv = document.getElementById('div-company-residency');
                 company_name: card.querySelector('.bb-name').value || null,
                 isin: card.querySelector('.bb-isin').value || null,
                 is_listed: isListed,
+                is_promoter: isPromoter,
                 buyback_date: bDate,
                 tender_or_open_market: card.querySelector('.bb-route').value,
                 shares_tendered: parseInt(card.querySelector('.bb-shares').value) || null,
@@ -12962,7 +12977,7 @@ ${isProf ? '' : `
             baseTax += Math.max(0, ltcg112A)  * 0.125; // LTCG Long-Term Capital Gains on Listed Securities
             baseTax += Math.max(0, ltcg112)   * 0.20;  // Other LTCG Other Long-Term Capital Gains
             baseTax += Math.max(0, gaming)    * 0.30;  // Online gaming Online Gaming Winnings
-            // Rebate Section 156 under New Regime (if total income <= ₹12L, rebate = full tax, with marginal relief above)
+            // Rebate Section 156 under New Regime (if total income <= ₹7L, rebate = full tax)
             const isResident = state.residency_detail?.final_india_residency_status === 'ROR' || state.residency_detail?.final_india_residency_status === 'RNOR' || state.residency_detail?.status === 'ROR' || state.residency_detail?.status === 'RNOR';
                         if (entity === 'individual' && isResident) {
                 if (regime === 'NEW') {
