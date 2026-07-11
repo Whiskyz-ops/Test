@@ -187,6 +187,18 @@
         // (not even VDA-vs-VDA), no carry-forward. Confirmed unchanged
         // through Budget 2025/2026 by multiple independent sources.
         RATE_115BBH: 0.30,
+        // s.115E(1)(a) Chapter XII-A "investment income" (interest on a
+        // specified debenture/deposit, dividend on specified shares —
+        // renumbers to §214 under ITA 2025): flat 20%, no Chapter VI-A
+        // deductions, no basic exemption. Multi-source-verified
+        // (incometaxindia.gov.in bare-act text, TaxGuru, callmyca,
+        // TaxTMI's §214-vs-s.115E comparison) unchanged since long before
+        // Budget 2024 — only the LTCG leg of s.115E (RATE_115E_LTCG below,
+        // same section, different clause) moved 10%->12.5% that year.
+        // Ordinary surcharge (by total-income slab) and 4% cess apply on
+        // top, same as any other special-rate income — nothing
+        // Chapter-XII-A-specific overrides that.
+        RATE_115E_INVESTMENT_INCOME: 0.20,
         // s.207 domestic default withholding rates on India-source dividend/
         // royalty/FTS paid to a NON-RESIDENT (no PE) — the baseline a DTAA-
         // elected rate (s.159) displaces when TRC/Form 41 support it.

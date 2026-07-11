@@ -406,11 +406,10 @@
     //      withdrawal, and repayment of principal is not a "transfer"
     //      under s.2(47) at all (well-established, no contrary authority
     //      found). NO capital gain EVER arises on a specified deposit —
-    //      only interest, taxed as Chapter XII-A "investment income"
-    //      under s.115E's other limb (not computed here — Layer 1 doesn't
-    //      capture this transaction-by-transaction, only via the general
-    //      bank/FD interest fields elsewhere). So this class is
-    //      unconditionally excluded from capital-gains classification,
+    //      only interest, taxed as Chapter XII-A "investment income" under
+    //      s.115E's other limb (see chapterXiiaInvestmentIncomeInr below —
+    //      that IS computed, separately from capital gains). So this class
+    //      is unconditionally excluded from capital-gains classification,
     //      not a "don't know" gap — deliberately, confidently, zero.
     //    - Specified DEBENTURES / Government securities: CAN generate
     //      capital gains, but ONLY on an actual sale to a third party — a
@@ -445,20 +444,41 @@
     //      pre-amendment 24mo threshold (an edge case for older
     //      transaction dates, included for completeness).
     //
-    // NOT computed at all: Chapter XII-A "investment income" (interest on
-    // a specified debenture/deposit/govt security, s.115E's flat-20% other
-    // limb) — Layer 1 doesn't capture this on a per-transaction basis, only
-    // via the general bank/FD interest fields, which don't carry a
-    // Chapter-XII-A-eligibility flag. Left on the chapter_xiia_not_computed
-    // warning below, now scoped down to just this piece.
+    // Chapter XII-A "investment income" (s.115C(c)/s.115E(1)(a), §214 ITA
+    // 2025): interest on a specified debenture/deposit, or dividend on
+    // specified shares — a flat 20% (multi-source-verified unchanged
+    // through TY2026-27: incometaxindia.gov.in, TaxGuru, callmyca, and
+    // TaxTMI's new-vs-old §214/s.115E comparison all confirm the LTCG leg
+    // moved 10%->12.5% in 2024 but this leg was untouched), NO Chapter
+    // VI-A deductions, no basic exemption — applies to the gross amount.
+    // This is completely separate from capital gains (accrues every year
+    // regardless of whether the holding is sold), and doesn't participate
+    // in loss set-off (it isn't a capital gain at all). Layer 1 captures
+    // it as a per-holding "Investment Income This Year" field on any
+    // SFEA-marked transaction (interest for debentures/deposits, dividend
+    // for specified shares) — a preparer entering ₹0 or leaving it blank
+    // for a holding that plausibly earned something is a real, separate
+    // risk (see the conflicts.js finding), but that's a data-completeness
+    // question, not something this engine can second-guess.
     var chapterXiiaElected = safe(india, "compliance_docs.chapter_xiia_elected", false) === true;
     var GROUP_A_CLASSES = ["listed_equity", "equity_mutual_fund", "hybrid_mf_equity", "reit_invit", "etf"];
     var GROUP_C_CLASSES = ["debt_mutual_fund_pre_apr23", "hybrid_mf_debt", "international_mf", "fof"];
     var S50AA_UNLISTED_DEBT_CUTOFF = "2024-07-23";
     var otherLtcg198Inr = 0, otherStcg20Inr = 0, otherLtcg197Inr = 0, otherStcgSlabInr = 0, vdaGainInr = 0;
+    var chapterXiiaInvestmentIncomeInr = 0, chapterXiiaSfeaHoldingCount = 0;
     (safe(india, "financial_holdings.transactions", []) || []).forEach(function (tx) {
       var cls = tx.asset_class;
       if (!cls || cls === "foreign_equity_unlisted") return; // handled above, or uncategorized (legacy transactions predating asset_class)
+
+      // Investment income accrues every year regardless of whether the
+      // holding is sold this year, so this runs before the sale-status
+      // check below (which only gates the CAPITAL GAINS classification).
+      if (chapterXiiaElected && tx.is_specified_foreign_exchange_asset === true) {
+        chapterXiiaSfeaHoldingCount += 1;
+        var invIncomeInr = toInrAtCurrency(tx.investment_income_this_year, tx.investment_income_currency || "INR");
+        if (invIncomeInr !== null) chapterXiiaInvestmentIncomeInr += num(invIncomeInr);
+      }
+
       if (cls === "nri_specified_company_deposit") return; // maturity is never a "transfer" — never generates capital gains, unconditionally
       if (!tx.sale_date || tx.sale_value === null || tx.sale_value === undefined || tx.sale_value === "") return; // still holding — no taxable event yet
       var saleInr = toInrAtCurrency(tx.sale_value, tx.sale_currency);
@@ -572,7 +592,8 @@
     var unexplained115bbeInr = num(safe(os, "unexplained_income_115BBE_inr", 0));
 
     var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg, specialRate115bb, deemedDividendBuyback,
-                 moneyFromInr(unlistedStcgSlabInr), moneyFromInr(ltcg197Inr), moneyFromInr(vdaGainInr)].reduce(addMoney, zeroMoney());
+                 moneyFromInr(unlistedStcgSlabInr), moneyFromInr(ltcg197Inr), moneyFromInr(vdaGainInr),
+                 moneyFromInr(chapterXiiaInvestmentIncomeInr)].reduce(addMoney, zeroMoney());
 
     return {
       salary: salary, business: business, houseProperty: houseProperty,
@@ -589,6 +610,10 @@
       // loss-set-off eligible (not even VDA-vs-VDA), no carry-forward.
       // Kept completely separate from every capital-gains bucket above.
       vdaGainInr: vdaGainInr,
+      // s.115E(1)(a) Chapter XII-A investment income — flat 20%, no
+      // deductions, no exemption, not a capital gain (no loss set-off).
+      chapterXiiaInvestmentIncomeInr: chapterXiiaInvestmentIncomeInr,
+      chapterXiiaSfeaHoldingCount: chapterXiiaSfeaHoldingCount,
       promoterBuybackLtcgInr: promoterBuybackLtcgInr,
       promoterBuybackStcgInr: promoterBuybackStcgInr,
       holdingPeriodMismatches: holdingPeriodMismatches,

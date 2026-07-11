@@ -394,8 +394,7 @@
         0, ["DTAA Art. 4(3)", "s.6(3)", "POEM", "Mutual Agreement Procedure"]);
     }
 
-    // -- 4g. CHAPTER XII-A (s.217/212) ELECTED — INVESTMENT INCOME STILL NOT
-    // IN THE COMPUTATION -----------------------------------------------
+    // -- 4g. CHAPTER XII-A (s.217/212) ELECTED — INVESTMENT INCOME CHECK --
     // s.217/212 give an NRI a concessional flat rate on specified foreign-
     // exchange assets: 20% on "investment income" (interest on a specified
     // debenture/deposit, dividend on specified shares) and 12.5% on LTCG
@@ -411,28 +410,46 @@
     // debentures/govt securities, and a real Tribunal precedent confirms
     // redemption isn't a taxable "transfer" at all) IS now correctly
     // reflected in the India tax computed below. Specified DEPOSITS never
-    // generate capital gains (same redemption-isn't-a-transfer principle),
-    // so there's nothing to compute there.
-    //
-    // "Investment income" — interest on a specified debenture/deposit,
-    // dividend on specified shares — is NOT reflected: Layer 1 only
-    // captures bank/FD interest in aggregate, with no way to flag a
-    // specific account as a Chapter XII-A specified asset, so that slice
-    // can't be pulled out and taxed at the flat 20% rate here.
-    if (model.treaty.chapterXiiaElected) {
-      add("chapter_xiia_investment_income_not_computed", S.WARNING, C.CREDIT,
-        "Chapter XII-A (s.217/212) elected — investment income (interest/dividend) not reflected in the India tax computed below",
-        "The Layer 1 Chapter XII-A election is on. Capital gains on specified listed equity/debentures/government " +
-        "securities sold to a third party are correctly taxed below at the flat 12.5% Chapter XII-A rate (no ₹1,25,000 " +
-        "exemption, unlike ordinary listed-equity LTCG) — and specified deposits correctly generate no capital gains at " +
-        "all, since redemption at maturity isn't a taxable transfer. What's still NOT reflected: \"investment income\" " +
-        "— interest on a specified debenture/deposit or dividend on specified shares — which s.217/212 taxes at a flat " +
-        "20% instead of slab rates. Layer 1 only captures bank/FD interest in aggregate, with no way to flag a specific " +
-        "account as a Chapter XII-A specified asset.",
-        "Recompute the specified-asset investment income (interest/dividend) separately at the flat 20% s.217/212 rate " +
-        "before relying on the India tax total above, and confirm the annual re-election was filed if residency status " +
-        "has since changed.",
+    // generate capital gains (same redemption-isn't-a-transfer principle).
+    // "Investment income" IS now also computed, from a per-holding field
+    // on any SFEA-marked transaction — but since that's a manually-entered
+    // figure per holding (not derived from dates/prices the way capital
+    // gains are), a preparer forgetting to fill it in for a holding that
+    // plausibly earned interest/dividend is a real, silent risk this
+    // finding is specifically designed to catch.
+    var xiiaHoldingCount = (model.income.india && model.income.india.chapterXiiaSfeaHoldingCount) || 0;
+    var xiiaInvIncomeInr = (model.income.india && model.income.india.chapterXiiaInvestmentIncomeInr) || 0;
+    if (model.treaty.chapterXiiaElected && xiiaHoldingCount === 0) {
+      add("chapter_xiia_elected_no_holdings", S.WARNING, C.CREDIT,
+        "Chapter XII-A elected, but no Financial Holdings transaction is marked as a specified foreign-exchange asset",
+        "The Layer 1 Chapter XII-A election is on, but none of the Financial Holdings transactions on file are flagged " +
+        "as \"Specified Foreign Exchange Asset (NRI)\" — s.217/212's flat-rate regime only applies to shares/debentures/" +
+        "deposits/government securities actually purchased in convertible foreign exchange. Either a specified holding " +
+        "exists but wasn't flagged (so its capital gains and investment income are being computed under ordinary rules " +
+        "instead), or the election isn't actually needed this year.",
+        "If a specified holding exists, mark it \"Specified Foreign Exchange Asset\" on its Financial Holdings entry so " +
+        "it gets the correct s.217/212 treatment. If none exists, consider whether the election is still needed.",
         0, ["s.217", "s.212", "Chapter XII-A"]);
+    } else if (model.treaty.chapterXiiaElected && xiiaHoldingCount > 0 && xiiaInvIncomeInr < 1) {
+      add("chapter_xiia_investment_income_missing", S.WARNING, C.CREDIT,
+        "Chapter XII-A elected, " + xiiaHoldingCount + " specified holding(s) on file — but no investment income entered for any of them",
+        "The Layer 1 Chapter XII-A election is on, and " + xiiaHoldingCount + " Financial Holdings transaction(s) are marked as a " +
+        "specified foreign-exchange asset — but none of them has an \"Investment Income This Year\" figure entered. A specified " +
+        "debenture or deposit almost always earns some interest, and specified shares may pay dividends; if any of these holdings " +
+        "did, that income is taxed at a flat 20% under s.217/212 (s.115E(1)(a)) — separate from, and in addition to, any capital " +
+        "gains already reflected below.",
+        "Check each specified holding for interest/dividend actually received this year and enter it in the \"Investment Income " +
+        "This Year\" field — if genuinely none was received (e.g. a zero-coupon instrument still accruing, or shares that paid no " +
+        "dividend), no action needed.",
+        0, ["s.217", "s.212", "Chapter XII-A", "s.115E"]);
+    } else if (model.treaty.chapterXiiaElected && xiiaInvIncomeInr > 0) {
+      add("chapter_xiia_investment_income_computed", S.INFO, C.CREDIT,
+        "Chapter XII-A investment income of " + inr(xiiaInvIncomeInr) + " included at the flat 20% rate",
+        "Interest/dividend entered against your Chapter XII-A specified holdings (" + inr(xiiaInvIncomeInr) + " total) is taxed " +
+        "at the flat 20% s.217/212 (s.115E(1)(a)) rate in the India tax computed below — no Chapter VI-A deductions or basic " +
+        "exemption apply to this slice, per Chapter XII-A's own rules.",
+        "Confirm this figure covers ALL specified holdings' interest/dividend for the year, not just some of them.",
+        0, ["s.217", "s.212", "Chapter XII-A", "s.115E"]);
     }
 
     // -- 4g2. SPECIAL-RATE WINNINGS (s.128/194) — NOW COMPUTED ---------
