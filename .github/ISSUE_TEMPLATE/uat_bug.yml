@@ -1,0 +1,79 @@
+name: "UAT — Bug report"
+description: Report something broken or wrong you hit while testing the Cross-Border Monitor.
+title: "[UAT bug] "
+labels: ["uat", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for testing. One issue per report so we can track and de-duplicate. Search existing issues first."
+  - type: input
+    id: participant
+    attributes:
+      label: Participant ID
+      description: From your test link (e.g. priya-01).
+      placeholder: priya-01
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where did it happen?
+      options:
+        - Monitor (map / KPIs / table)
+        - Clients
+        - Residency
+        - Filings
+        - Documents
+        - Holdings
+        - Business
+        - Accounts
+        - Integrations
+        - App shell / navigation
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: Critical = wrong tax result or blocks a view.
+      options:
+        - Critical
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+  - type: input
+    id: profile
+    attributes:
+      label: Which test profile was loaded?
+      placeholder: Dual Resident — H-1B
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Load profile X
+        2. Open the Filings view
+        3. Click …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened?
+      description: Paste any wrong number/value. Screenshots welcome (drag them in).
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Browser / device
+      placeholder: Chrome 126 / macOS

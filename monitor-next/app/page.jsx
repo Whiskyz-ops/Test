@@ -11,6 +11,7 @@ import { ConflictsPanel, ResidencyView, FilingsView, DocumentsView, AccountsView
 import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries } from "@/lib/wising";
+import { track } from "@/lib/analytics";
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading world map…</div> });
 const UsStatesMap = dynamic(() => import("@/components/UsStatesMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading US map…</div> });
@@ -60,6 +61,14 @@ export default function MonitorPage() {
     window.addEventListener("storage", onStorage); window.addEventListener("focus", onFocus);
     return () => { window.removeEventListener("storage", onStorage); window.removeEventListener("focus", onFocus); };
   }, [recompute]);
+
+  // ── UAT usage analytics (no-op unless NEXT_PUBLIC_UAT_ENABLED=1) ──
+  useEffect(() => { track("app_open"); }, []);
+  useEffect(() => { track("view_change", { view }); }, [view]);
+  useEffect(() => { track("kpi_filter", { category }); }, [category]);
+  useEffect(() => { track("region_scope", { region }); }, [region]);
+  useEffect(() => { if (engineReady) track("data_mode", { mode }); }, [engineReady, mode]);
+  useEffect(() => { if (activeProfile) track("profile_load", { profile: activeProfile }); }, [activeProfile]);
 
   const isUsDrill = region === "United States";
   const dataset = isUsDrill ? US_STATES : scopeToCountries(countries, region);

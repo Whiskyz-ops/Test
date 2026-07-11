@@ -1,0 +1,4 @@
+ParticipantID,ParticipantName,Role,Date,CaseID,Result,Severity,Notes
+priya-01,Priya Menon,Tax advisor,2026-07-15,C5,Pass,,Approaching columns correct
+priya-01,Priya Menon,Tax advisor,2026-07-15,L3,Fail,Critical,FEIE conflict did not appear for Rohan profile
+sample-participant,,,,,,,"One row per (participant x CaseID). Result = Pass / Fail / Blocked / Skipped. Fill Severity only on Fail (Critical/High/Medium/Low). Pivot ParticipantID x Result for a per-user summary, or CaseID x Result to find the weakest scenarios."
