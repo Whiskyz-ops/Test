@@ -414,7 +414,12 @@ export function WithholdingView({ result }) {
   const wh = result.withholding;
   if (!wh) return <Empty>No withholding data for this taxpayer.</Empty>;
   const jColor = { IN: PAL.jurIN, US: PAL.jurUS };
+  const fx = (result.model && result.model.meta && result.model.meta.fxRate) || 83;
+  const inrToUsd = (n) => (n || 0) / fx;
   const allRows = [...wh.india.rows, ...wh.us.rows];
+  const indiaTaxInr = wh.india.rows.reduce((s, r) => s + (r.taxInr || 0), 0);
+  const usTaxUsd = wh.us.rows.reduce((s, r) => s + (r.taxUsd || 0), 0);
+  const totalWithheldUsd = inrToUsd(indiaTaxInr) + usTaxUsd;
 
   const Row = ({ r }) => {
     const gross = r.jurisdiction === "IN" ? r.grossInr : r.grossUsd;
@@ -453,22 +458,51 @@ export function WithholdingView({ result }) {
     );
   };
 
+  const Section = ({ rows, title, sub }) => {
+    if (!rows.length) return null;
+    return (
+      <div className="mb-4 last:mb-0">
+        <div className="flex items-baseline justify-between mb-2">
+          <div className="text-[10.5px] font-black uppercase tracking-widest text-muted">{title}</div>
+          {sub && <div className="text-[10.5px] text-muted">{sub}</div>}
+        </div>
+        <div className="space-y-2">{rows.map((r) => <Row key={r.id} r={r} />)}</div>
+      </div>
+    );
+  };
+
+  const JurisdictionCard = ({ flag, label, rows, citationLabel }) => {
+    if (!rows.length) return null;
+    const general = rows.filter((r) => r.category === "general");
+    const gaps = rows.filter((r) => r.category === "treaty_gap");
+    return (
+      <Card icon={<span>{flag}</span>} title={label} sub={rows.length + " income stream(s)"}>
+        <Section rows={general} title="Withholding on file" />
+        <Section rows={gaps} title={"Treaty elections — " + citationLabel} sub="documentation-dependent" />
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <Card icon={<Receipt size={16} strokeWidth={2} />} title="Withholding Taxes"
-        sub="Every income stream subject to a treaty-dependent withholding rate — what's actually applied, and what's costing you for missing paperwork">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-1">
+        sub="Every income stream with tax withheld at source — salary/W-2, property, bank interest, dividends — for this taxpayer, resident or not, in either country. Treaty-election rows costing extra for missing paperwork are highlighted within.">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1">
           <div className="p-3 rounded-xl bg-white/[0.03] border border-line">
-            <div className="text-[9px] uppercase tracking-widest text-muted mb-1">Total avoidable cost</div>
+            <div className="text-[9px] uppercase tracking-widest text-muted mb-1">Total withheld</div>
+            <div className="text-[20px] font-mono font-bold text-head">{fmtUsd(totalWithheldUsd)}</div>
+          </div>
+          <div className="p-3 rounded-xl bg-white/[0.03] border border-line">
+            <div className="text-[9px] uppercase tracking-widest text-muted mb-1">Avoidable cost (docs)</div>
             <div className="text-[20px] font-mono font-bold" style={{ color: wh.totalGapUsd > 1 ? PAL.redText : PAL.greenText }}>{fmtUsd(wh.totalGapUsd)}</div>
           </div>
           <div className="p-3 rounded-xl bg-white/[0.03] border border-line">
-            <div className="text-[9px] uppercase tracking-widest text-muted mb-1">India (TRC / Form 41)</div>
-            <div className="text-[20px] font-mono font-bold text-head">{fmtInr(wh.india.totalGapInr)}</div>
+            <div className="text-[9px] uppercase tracking-widest text-muted mb-1">India withheld</div>
+            <div className="text-[20px] font-mono font-bold text-head">{fmtInr(indiaTaxInr)}</div>
           </div>
           <div className="p-3 rounded-xl bg-white/[0.03] border border-line">
-            <div className="text-[9px] uppercase tracking-widest text-muted mb-1">US (Form W-8BEN)</div>
-            <div className="text-[20px] font-mono font-bold text-head">{fmtUsd(wh.us.totalGapUsd)}</div>
+            <div className="text-[9px] uppercase tracking-widest text-muted mb-1">US withheld</div>
+            <div className="text-[20px] font-mono font-bold text-head">{fmtUsd(usTaxUsd)}</div>
           </div>
         </div>
       </Card>
@@ -481,19 +515,11 @@ export function WithholdingView({ result }) {
       )}
 
       {allRows.length === 0 ? (
-        <Card><Empty>No treaty-dependent withholding income on file for this taxpayer — nothing to reconcile.</Empty></Card>
+        <Card><Empty>No withholding-tax income on file for this taxpayer — nothing to reconcile.</Empty></Card>
       ) : (
         <>
-          {wh.india.rows.length > 0 && (
-            <Card icon={<span>🇮🇳</span>} title="India — s.207 / s.159" sub={wh.india.rows.length + " income stream(s)"}>
-              <div className="space-y-2">{wh.india.rows.map((r) => <Row key={r.id} r={r} />)}</div>
-            </Card>
-          )}
-          {wh.us.rows.length > 0 && (
-            <Card icon={<span>🇺🇸</span>} title="United States — FDAP / FIRPTA" sub={wh.us.rows.length + " income stream(s)"}>
-              <div className="space-y-2">{wh.us.rows.map((r) => <Row key={r.id} r={r} />)}</div>
-            </Card>
-          )}
+          <JurisdictionCard flag="🇮🇳" label="India" rows={wh.india.rows} citationLabel="s.207 / s.159" />
+          <JurisdictionCard flag="🇺🇸" label="United States" rows={wh.us.rows} citationLabel="FDAP / FIRPTA" />
         </>
       )}
     </div>

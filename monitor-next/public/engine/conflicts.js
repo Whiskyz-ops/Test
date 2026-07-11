@@ -1591,7 +1591,7 @@
           ? e.appliedAmountInr * (e.domesticRate - e.electedRate) : 0;
         indiaTotalGapInr += gapInr;
         indiaRows.push({
-          id: streamKey + "_election_" + idx, jurisdiction: "IN", label: label + (e.article ? " (" + e.article + ")" : ""),
+          id: streamKey + "_election_" + idx, jurisdiction: "IN", category: "treaty_gap", label: label + (e.article ? " (" + e.article + ")" : ""),
           grossInr: e.appliedAmountInr, domesticRatePct: e.domesticRate * 100,
           treatyRatePct: e.electedRate != null ? e.electedRate * 100 : null,
           docsOk: docsOk, rateAppliedPct: e.rateApplied * 100, taxInr: e.taxInr, gapInr: gapInr,
@@ -1601,7 +1601,7 @@
       });
       if ((stream.uncapturedInr || 0) > 1) {
         indiaRows.push({
-          id: streamKey + "_unclaimed", jurisdiction: "IN", label: label + " — unclaimed (no treaty election on file)",
+          id: streamKey + "_unclaimed", jurisdiction: "IN", category: "treaty_gap", label: label + " — unclaimed (no treaty election on file)",
           grossInr: stream.uncapturedInr, domesticRatePct: stream.domesticRate * 100, treatyRatePct: null,
           docsOk: null, rateAppliedPct: stream.domesticRate * 100, taxInr: stream.uncapturedTaxInr, gapInr: 0,
           note: "Not a documentation gap — no treaty rate was ever claimed for this slice, so there's nothing to deny",
@@ -1622,7 +1622,7 @@
         indiaTotalGapInr += gapInr;
         var actualTaxInr = docsOk && e.carvedOut ? e.treatyTaxInr : e.marginalSlabTaxInr;
         indiaRows.push({
-          id: "nrInterest_election_" + idx, jurisdiction: "IN", label: "NRO Interest" + (e.article ? " (" + e.article + ")" : ""),
+          id: "nrInterest_election_" + idx, jurisdiction: "IN", category: "treaty_gap", label: "NRO Interest" + (e.article ? " (" + e.article + ")" : ""),
           grossInr: e.appliedAmountInr, domesticRatePct: null, // no flat domestic rate — slab-based by default
           treatyRatePct: e.electedRate != null ? e.electedRate * 100 : null,
           docsOk: docsOk, rateAppliedPct: e.appliedAmountInr > 0 ? (actualTaxInr / e.appliedAmountInr) * 100 : null,
@@ -1632,6 +1632,33 @@
         });
       });
     }
+
+    // -- GENERAL WITHHOLDING — every taxpayer, resident or not ---------------
+    // The rows above only exist for NR/NRA taxpayers electing a treaty rate.
+    // These rows show ordinary TDS/withholding that applies regardless of
+    // residency: salary TDS, property-sale TDS, W-2 federal/state withholding.
+    var wd = model.withholdingDetail || { india: { propertyTds: [] }, us: {} };
+
+    if ((wd.india.tdsAggregateInr || 0) > 1) {
+      indiaRows.push({
+        id: "tds_aggregate", jurisdiction: "IN", category: "general", label: "TDS Already Deducted (Aggregate — Form 26AS)",
+        grossInr: null, domesticRatePct: null, treatyRatePct: null, docsOk: null, rateAppliedPct: null,
+        taxInr: wd.india.tdsAggregateInr, gapInr: 0,
+        note: "Single aggregate figure — Layer 1 doesn't capture a per-source breakdown of income type or rate for this amount",
+        citation: "s.199"
+      });
+    }
+    (wd.india.propertyTds || []).forEach(function (p, idx) {
+      var rateAppliedPct = p.saleConsiderationInr > 0 ? (p.tdsInr / p.saleConsiderationInr) * 100 : null;
+      indiaRows.push({
+        id: "property_tds_" + idx, jurisdiction: "IN", category: "general",
+        label: "Property Sale TDS — " + p.propertyType + (p.saleDate ? " (" + p.saleDate + ")" : ""),
+        grossInr: p.saleConsiderationInr || null, domesticRatePct: null, treatyRatePct: null, docsOk: null,
+        rateAppliedPct: rateAppliedPct, taxInr: p.tdsInr, gapInr: 0,
+        note: "Buyer-withheld on sale proceeds from an NR seller",
+        citation: "s.195"
+      });
+    });
 
     var panAadhaarInoperative = model.identity.panAadhaarLinked === false;
 
@@ -1644,7 +1671,7 @@
           ? n.fdapUsd * (0.30 - n.claimedRate) : 0;
         usTotalGapUsd += gapUsd;
         usRows.push({
-          id: "fdap", jurisdiction: "US", label: "FDAP" + (n.incomeType ? " (" + n.incomeType + ")" : "") + " — Schedule NEC",
+          id: "fdap", jurisdiction: "US", category: "treaty_gap", label: "FDAP" + (n.incomeType ? " (" + n.incomeType + ")" : "") + " — Schedule NEC",
           grossUsd: n.fdapUsd, domesticRatePct: 30, treatyRatePct: n.claimedRate != null ? n.claimedRate * 100 : null,
           docsOk: n.w8benOnFile, rateAppliedPct: n.fdapRate * 100, taxUsd: n.fdapTaxUsd, gapUsd: gapUsd,
           note: n.w8benOnFile ? null : "Form W-8BEN missing — treaty rate denied, 30% statutory default withheld instead",
@@ -1655,11 +1682,45 @@
     var firptaUsd = model.nra && model.nra.usRealPropertyDisposed ? (model.nra.firptaWithholdingUsd || 0) : 0;
     if (firptaUsd > 1) {
       usRows.push({
-        id: "firpta", jurisdiction: "US", label: "FIRPTA — US real property disposition",
+        id: "firpta", jurisdiction: "US", category: "treaty_gap", label: "FIRPTA — US real property disposition",
         grossUsd: null, domesticRatePct: 15, treatyRatePct: null, docsOk: null, rateAppliedPct: null,
         taxUsd: firptaUsd, gapUsd: 0,
         note: "Mandatory withholding on gross proceeds regardless of documentation — not treaty-rate-dependent",
         citation: "IRC §1445"
+      });
+    }
+
+    // -- GENERAL WITHHOLDING — every US taxpayer, resident or not -----------
+    var w2Employers = (model.income && model.income.us && model.income.us.w2Employers) || [];
+    if (w2Employers.length > 0) {
+      w2Employers.forEach(function (w, idx) {
+        if (!(w.federalWithheldUsd > 1) && !(w.wagesUsd > 1)) return;
+        var rateAppliedPct = w.wagesUsd > 0 ? (w.federalWithheldUsd / w.wagesUsd) * 100 : null;
+        usRows.push({
+          id: "w2_" + idx, jurisdiction: "US", category: "general",
+          label: "W-2 Withholding — " + (w.employerName || "Unnamed Employer"),
+          grossUsd: w.wagesUsd || null, domesticRatePct: null, treatyRatePct: null, docsOk: null,
+          rateAppliedPct: rateAppliedPct, taxUsd: w.federalWithheldUsd, gapUsd: 0,
+          note: w.stateWithheldUsd > 1 ? ("+ " + usd(w.stateWithheldUsd) + " state tax withheld") : null,
+          citation: "IRC §3402 / Form W-2"
+        });
+      });
+    } else if (model.taxesPaid && model.taxesPaid.us.withholding.usd > 1) {
+      // Older/aggregate-only data shape — no per-employer breakdown captured.
+      usRows.push({
+        id: "w2_aggregate", jurisdiction: "US", category: "general", label: "Federal Withholding (Aggregate — Form W-2)",
+        grossUsd: null, domesticRatePct: null, treatyRatePct: null, docsOk: null, rateAppliedPct: null,
+        taxUsd: model.taxesPaid.us.withholding.usd, gapUsd: 0,
+        note: "Single aggregate figure — no per-employer breakdown on file",
+        citation: "IRC §3402 / Form W-2"
+      });
+    }
+    var stateWithUsd = (model.withholdingDetail && model.withholdingDetail.us.stateWithholdingUsd) || 0;
+    if (stateWithUsd > 1 && w2Employers.length === 0) {
+      usRows.push({
+        id: "state_withholding_aggregate", jurisdiction: "US", category: "general", label: "State Withholding (Aggregate — Form W-2 Box 17)",
+        grossUsd: null, domesticRatePct: null, treatyRatePct: null, docsOk: null, rateAppliedPct: null,
+        taxUsd: stateWithUsd, gapUsd: 0, note: null, citation: "Form W-2 Box 17"
       });
     }
 

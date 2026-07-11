@@ -653,15 +653,24 @@
     // already included in Box 1 wages above, these are informational fields
     // used only to size the above-the-line deduction, not additional income.
     var qualifiedTipsUsd = 0, qualifiedOvertimeUsd = 0;
+    // Per-employer breakdown — kept alongside the summed w2with total above
+    // (which every existing tax computation still consumes) so a withholding
+    // view can show "$X withheld by employer Y" instead of just one lump sum.
+    var w2Employers = [];
     var w2 = safe(ui, "wages_w2", null);
     if (Array.isArray(w2)) {
       w2.forEach(function (w) {
-        wages = addMoney(wages, moneyFromUsd(w.wages_box1_usd || w.wages_tips_compensation_usd || 0));
+        var wagesUsd = num(w.wages_box1_usd || w.wages_tips_compensation_usd || 0);
+        wages = addMoney(wages, moneyFromUsd(wagesUsd));
         var adv = w.tax_details_collapsed_by_default || w;
-        w2with += num(adv.federal_tax_withheld_usd || adv.federal_income_tax_withheld_usd || 0);
+        var fedWithUsd = num(adv.federal_tax_withheld_usd || adv.federal_income_tax_withheld_usd || 0);
+        w2with += fedWithUsd;
         medicareWages += num(adv.medicare_wages_box5_usd || w.wages_box1_usd || 0);
         qualifiedTipsUsd += num(w.qualified_tip_income_usd || 0);
         qualifiedOvertimeUsd += num(w.qualified_overtime_premium_usd || 0);
+        var stateWithUsd = 0;
+        (safe(w, "state_and_local_taxes", []) || []).forEach(function (st) { stateWithUsd += num(st.state_tax_withheld_box17_usd || 0); });
+        w2Employers.push({ employerName: w.employer_name || null, wagesUsd: wagesUsd, federalWithheldUsd: fedWithUsd, stateWithheldUsd: stateWithUsd });
       });
     }
 
@@ -743,7 +752,7 @@
     var foreignSourceTotal = [foreignWages, foreignInterest, foreignDividends, foreignRental, foreignPension, foreignStcg, foreignLtcg].reduce(addMoney, zeroMoney());
 
     return {
-      wages: wages, businessUs: businessUs, w2Withholding: w2with, medicareWages: medicareWages,
+      wages: wages, businessUs: businessUs, w2Withholding: w2with, w2Employers: w2Employers, medicareWages: medicareWages,
       qualifiedTipsUsd: qualifiedTipsUsd, qualifiedOvertimeUsd: qualifiedOvertimeUsd,
       seEarningsUsd: seEarnings, qbiIncomeUsd: Math.max(0, qbiIncome), qbiIsSSTB: sstb,
       usRetirementIncome: usRetirementIncome,
@@ -869,6 +878,40 @@
     return {
       india: { advance: moneyFromInr(indiaAdvance), tds: moneyFromInr(indiaTds), total: indiaPaid },
       us: { withholding: moneyFromUsd(usWithholding), estimated: moneyFromUsd(usEstimated), total: usPaid }
+    };
+  }
+
+  /* ------------------------------------------------------------------------
+   * General withholding detail — every withholding-tax data point Layer 1
+   * captures REGARDLESS of residency status (unlike the NR/NRA
+   * treaty-election machinery in computation.js, which only fires for
+   * non-residents). Feeds the Withholding Taxes page's "here's everything
+   * that's been withheld" view, as distinct from the narrower "here's what
+   * missing documentation is costing you" conflict subset.
+   * ----------------------------------------------------------------------*/
+  function aggregateWithholdingDetail(india, us) {
+    var tc = safe(india, "tax_credits", {});
+    var props = safe(india, "property.properties", []) || [];
+    var propertyTds = props.filter(function (p) { return num(p.buyer_tds_deducted_inr) > 0; }).map(function (p) {
+      return {
+        propertyType: p.property_type || "Property",
+        saleDate: p.sale_date || null,
+        saleConsiderationInr: num(p.sale_consideration),
+        tdsInr: num(p.buyer_tds_deducted_inr)
+      };
+    });
+    var we = safe(us, "withholding_and_estimated", {});
+    return {
+      india: {
+        // Single un-decomposable aggregate — Layer 1's "26AS upload" is a
+        // demo simulation (hardcoded value), not real per-source extraction,
+        // so there is no source/rate breakdown available for this figure.
+        tdsAggregateInr: num(safe(tc, "tds_already_deducted_inr", 0)) + num(safe(tc, "tds_inr", 0)),
+        propertyTds: propertyTds
+      },
+      us: {
+        stateWithholdingUsd: num(safe(we, "state_withholding_total_usd", 0))
+      }
     };
   }
 
@@ -1085,6 +1128,7 @@
       },
       accounts: aggregateAccounts(india, us),
       taxesPaid: aggregateTaxesPaid(india, us),
+      withholdingDetail: aggregateWithholdingDetail(india, us),
       assets: {
         indianMutualFunds: (safe(india, "financial_holdings.transactions", []) || []).filter(function (t) {
           return t.asset_type && String(t.asset_type).toLowerCase().indexOf("mutual_fund") >= 0;
