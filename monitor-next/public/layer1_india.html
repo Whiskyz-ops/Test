@@ -9422,14 +9422,19 @@ const crDiv = document.getElementById('div-company-residency');
         }
 
         // Parse origin AY — accept formats: Tax Year 2015-16, 2015-16, 2015
-        const match = ayStr.match(/(d{4})/);
+        const match = ayStr.match(/(\d{4})/);
         if (!match) {
             warning.classList.add('hidden');
             return;
         }
         const originYear = parseInt(match[1]); // e.g. 2015 from Tax Year 2015-16
-        const currentAY  = new Date().getFullYear() + (new Date().getMonth() >= 3 ? 1 : 0); // AY = FY+1
-        // e.g. if today is May 2025, currentAY = 2025-26 → year 2025
+        // Current AY's starting year, computed live (same formula as the
+        // s.44AD lock-in check above) — the AY window (Apr Y to Mar Y+1)
+        // that today falls into starts this calendar year for Apr-Dec, or
+        // last calendar year for Jan-Mar. E.g. today (2026-07-12) falls in
+        // the AY2026-27 window → currentAY = 2026.
+        const now = new Date();
+        const currentAY = now.getFullYear() - (now.getMonth() < 3 ? 1 : 0);
         const expiryYear = originYear + 15; // credit from Tax Year 2015-16 expires in Tax Year 2030-31
         const yearsToExpiry = expiryYear - currentAY;
 
