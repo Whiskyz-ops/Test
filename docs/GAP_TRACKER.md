@@ -41,8 +41,15 @@ Living document tracking everything WISING does **not** yet model, viewed throug
 | IN-18 | s.206AB higher TDS for ITR non-filers (and s.206AA no-PAN quantification) | 🟡 | 🟡 Needs field | P3 | The PAN-Aadhaar-inoperative banner covers the s.397(2)/206AA-style override qualitatively; the non-filer double-rate rule needs a "filed ITR last year?" field, and neither is quantified per-row. |
 | IN-19 | Remaining resident TDS streams: s.194K (MF income), s.194LBA (REIT/InvIT distributions — the `reit_invit` asset class already exists), s.194N (cash withdrawal), s.192 salary-TDS breakout | ❌ | 🟡 Needs field | P3 | Beyond the five streams in the in-flight Antigravity prompt (XB-13). Each needs a Layer 1 field; salary TDS is currently indistinguishable inside the 26AS aggregate. |
 | IN-20 | Document-upload extraction is simulated | 🚫 product | ⚪ N/A | — | The "26AS upload" (hardcodes ₹2,84,350), Lower-TDS-cert upload, bank-statement and property-doc uploads are demo mocks, not real OCR/parsing. Recording so nobody mistakes them for live extraction; real parsing is a product build, not a tax-rule gap. |
+| IN-21 | **CRITICAL — `net_profit_inr` is read by the engine but never set by Layer 1 India** | ❌ **broken for real data** | 🟢 Now | **P1** | `normalize.js` (lines 143, 1228) and `computeIndiaEntityTax`'s tax base all key off `business_entries[].net_profit_inr` — a field that appears NOWHERE in `layer1_india.html` (verified by grep, zero matches). It's only ever hand-injected in `profiles.js` demo data. Every real India business/firm/company filer currently computes ₹0 business income. Full spec + fix: `docs/BUSINESS_ENTITY_ARCHITECTURE.md` §0/§2.1. |
+| IN-22 | F&O vs speculative income — kept out of ordinary net profit, ring-fenced set-off | ❌ | 🟢 Now | P2 | Layer 1 already splits `fno_turnover_inr`/`non_speculative_income_inr` (ordinary PGBP) from `speculative_income_inr`/`speculative_turnover_inr` (settable only against speculative income/loss, same shape as the VDA-never-loss-set-off rule). Engine currently does neither. See spec §2.2. |
+| IN-23 | Business disallowances not folded into net profit (s.40A(3) cash limits, s.40(a) non-TDS payments, s.43B(h) MSME timing) | ❌ | 🟢 Now | P2 | `payments_to_non_residents_no_tds_inr`/`payments_to_residents_no_tds_inr` are already read for the existing disallowance *finding* but never actually reduce computed business income; the cash-payment and MSME-timing (`msme_payables[]`) disallowances aren't touched at all despite full data. See spec §2.1. |
+| IN-24 | Partner-firm pass-through (`partner_firms[]`) not read anywhere | ❌ | 🟢 Now | P2 | Remuneration + interest-on-capital (taxable PGBP to the partner) and exempt profit share (must NOT be taxed again) are fully captured per firm but never enter income aggregation. See spec §2.3. |
+| IN-25 | Depreciation (`asset_blocks[]`) not computed | ❌ | 🟢 Now | P2 | WDV-method blocks (opening WDV, additions, rate) are captured per business entry; no current-year depreciation charge is computed, so it neither reduces net profit nor feeds the (already-modeled) unabsorbed-depreciation carryforward correctly. See spec §2.4. |
 
-**Buildable-now count (India): 8 of 20** — IN-1, IN-4, IN-6, IN-7, IN-8, IN-12, IN-15, IN-16.
+**Buildable-now count (India): 13 of 25** — IN-1, IN-4, IN-6, IN-7, IN-8, IN-12, IN-15, IN-16, IN-21, IN-22, IN-23, IN-24, IN-25.
+
+**See also `docs/BUSINESS_ENTITY_ARCHITECTURE.md`** for the full multi-entity architecture spec (entity graph, inter-entity flows, phased build order) that IN-21 through IN-25 and US-16/17 all fold into — that document is the source of truth for sequencing this work; don't duplicate the phase plan here.
 
 **Verified current (India, 11 Jul 2026):** Finance Act 2026 (assented 30 Mar 2026) made **no slab changes** for TY2026-27 — new-regime slabs and the ₹60,000 / ₹12L §87A-equivalent rebate stand as already built; buyback-as-capital-gains from 1 Apr 2026 is already modeled; ITA 2025 renumbering already applied throughout.
 
@@ -67,8 +74,10 @@ Living document tracking everything WISING does **not** yet model, viewed throug
 | US-13 | **FICA withholding invisible on the Withholding page** | ❌ | 🟢 Now | P2 | Layer 1 US already captures `ss_tax_withheld_usd` (box 4) and `medicare_tax_withheld_usd` (box 6) per W-2, but the Withholding page shows only federal + state. Pure display addition — data fully exists, no new fields. |
 | US-14 | **Excess Social Security withholding credit (multiple employers)** | ❌ | 🟢 Now | P2 | When two employers each withhold 6.2% up to the wage base, the combined excess over one wage-base-worth is a refundable credit (Schedule 3). Computable from the same per-W2 box-4 fields Layer 1 already captures. Wage base: $176,100 for 2025; **2026 figure must be verified before building** (SSA COLA announcement). Directly relevant to job-switcher profiles like Aarav Sharma. |
 | US-15 | FICA/FUTA as a levy (employer + employee employment tax) | 🚫 recorded | ⚪ N/A | — | Different tax base from income tax; only Additional Medicare 0.9% (modeled ✓) and the two withholding-visibility items above intersect this app. Recording the boundary so it isn't re-litigated. |
+| US-16 | **`guaranteed_payments_usd` dropped from partnership K-1 income entirely** | ❌ **active understatement** | 🟢 Now | **P1** | Layer 1 US fully captures and branch-aggregates guaranteed payments per K-1 (`partnerships_k1[].guaranteed_payments_usd`), but `normalize.js` reads only `ordinary_business_income_usd`/`ordinary_income_usd` — guaranteed payments never reach `businessUs`, SE-tax base, or QBI exclusion. A general partner's guaranteed payments ARE SE-tax-subject and QBI-*ineligible* — both currently silently wrong. See `docs/BUSINESS_ENTITY_ARCHITECTURE.md` §0/§2.5. |
+| US-17 | `trusts_estates_k1[]` entirely absent from `businessEntities()` | ❌ | 🟢 Now | P2 | Fully collected (with its own QBI-addition helper already in the form) but never read engine-side. See `docs/BUSINESS_ENTITY_ARCHITECTURE.md` §2.5. |
 
-**Buildable-now count (US): 9 of 15 (2 partial)** — US-1, US-2, US-3 (partial), US-5 (partial), US-7, US-9, US-12, US-13, US-14.
+**Buildable-now count (US): 11 of 17 (2 partial)** — US-1, US-2, US-3 (partial), US-5 (partial), US-7, US-9, US-12, US-13, US-14, US-16, US-17.
 
 **Verified current / already modeled (US):** NIIT 3.8% ✓ · Additional Medicare 0.9% ✓ · SE tax ✓ · QBI §199A ✓ · AMT with ISO/PAB preferences ✓ · OBBBA SALT cap $40k with 30¢ phase-down ✓ · OBBBA senior deduction ✓ · OBBBA tips/overtime deductions ✓ · CTC $2,200 ✓ · Trump Account §530A cap ✓ · FBAR $10k and Form 8938 thresholds unchanged for 2025/2026 ✓.
 
@@ -102,29 +111,32 @@ Living document tracking everything WISING does **not** yet model, viewed throug
 
 ## D. Buildability summary
 
-Across all 52 rows:
+Across all 59 rows:
 
 | Bucket | India | US | Cross-border | Total |
 |---|---|---|---|---|
-| 🟢 Buildable now (no Layer 1 changes) | 8 | 9 (2 partial) | 6 (3 partial) | **23** |
+| 🟢 Buildable now (no Layer 1 changes) | 13 | 11 (2 partial) | 6 (3 partial) | **30** |
 | 🟡 Blocked on a new Layer 1 field | 7 | 5 | 3 | **15** |
 | ⚪ N/A (in-flight, recorded, or verify-first) | 5 | 1 | 8 | **14** |
-| **Total** | 20 | 15 | 17 | **52** |
+| **Total** | 25 | 17 | 17 | **59** |
 
-Reading this: **23 items need zero form changes** — I can build them directly against data Layer 1 already collects. **15 items are genuinely stuck** until a new field is added and round-tripped (several already have Antigravity prompts issued — see XB-12/13/15). The remaining **14** are either already handled, already decided, or need a quick Layer 1 audit before they can even be sorted into the other two buckets.
+Reading this: **30 items need zero form changes** — I can build them directly against data Layer 1 already collects. **15 items are genuinely stuck** until a new field is added and round-tripped (several already have Antigravity prompts issued — see XB-12/13/15). The remaining **14** are either already handled, already decided, or need a quick Layer 1 audit before they can even be sorted into the other two buckets.
 
 ---
 
 ## E. Suggested build order (P1s first, drawing only from the 🟢 Now bucket)
 
-1. **US-2** — SS taxability tiers (fixes an active overstatement; small, self-contained).
-2. **IN-1 + US-1 together** — advance-tax/estimated-tax interest & penalty engines (both sides' data already exists; symmetric feature, one "Payments & Penalties" surface).
-3. **XB-1** — estate-exposure estimate (US-situs asset values already known; $60k vs $15M cliff is the single largest un-surfaced dollar figure in the app).
-4. **XB-2** — totalization disclosure finding (cheap, high credibility).
-5. **IN-4 verification** — property CG engine audit, then close whichever half is missing.
-6. **IN-15 + IN-16** — winnings-TDS estimate row and Lower-TDS-certificate consumption (both computable from data Layer 1 already captures; no new fields).
-7. **US-13 + US-14** — FICA visibility and excess-SS credit (same W-2 data already driving US-1/US-2 work).
-8. Remaining 🟢 items (US-3/5/7/9/12 partials, XB-3/6/7/8) as capacity allows.
+1. **IN-21 + US-16 together** — the two CRITICAL business-income bugs (India business/firm/company computes ₹0 for real filers; US guaranteed payments dropped entirely). Highest severity in the whole tracker — not a misstatement, a non-functional computation. This is Phase 0 of `docs/BUSINESS_ENTITY_ARCHITECTURE.md`.
+2. **US-2** — SS taxability tiers (fixes an active overstatement; small, self-contained).
+3. **IN-1 + US-1 together** — advance-tax/estimated-tax interest & penalty engines (both sides' data already exists; symmetric feature, one "Payments & Penalties" surface).
+4. **XB-1** — estate-exposure estimate (US-situs asset values already known; $60k vs $15M cliff is the single largest un-surfaced dollar figure in the app).
+5. **XB-2** — totalization disclosure finding (cheap, high credibility).
+6. **IN-22 + IN-23 + IN-24 + IN-25** — F&O/speculative separation, disallowances, partner-firm pass-through, depreciation (Phase 1 of the business-entity spec, immediately after Phase 0 lands).
+7. **IN-4 verification** — property CG engine audit, then close whichever half is missing.
+8. **IN-15 + IN-16** — winnings-TDS estimate row and Lower-TDS-certificate consumption (both computable from data Layer 1 already captures; no new fields).
+9. **US-13 + US-14 + US-17** — FICA visibility, excess-SS credit, and trusts/estates K-1 inclusion (same W-2/entity data already driving the work above).
+10. Remaining 🟢 items (US-3/5/7/9/12 partials, XB-3/6/7/8) as capacity allows.
+11. **Business-entity Phases 2-6** (entity graph, inter-entity flow edges, entity-switcher frontend) per `docs/BUSINESS_ENTITY_ARCHITECTURE.md` §5, once Phase 0-1's per-entity numbers are solid.
 9. 🟡 items as Layer 1 round-trips return (XB-12/13/15 already have prompts issued; US-6, IN-3/17-19 need prompts written).
 
 ## Maintenance

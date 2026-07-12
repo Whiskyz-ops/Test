@@ -981,6 +981,18 @@ showing the $11,000/$10,000 (110%) breach.
 
 ## Part F — Multi-Entity Architecture
 
+> **⚠️ SUPERSEDED — see `docs/BUSINESS_ENTITY_ARCHITECTURE.md`.** Parts F/G describe an
+> entity-graph model that was never built this way; what shipped instead was the
+> simpler flat `BusinessView` tab (git: `6dd9f3f`, `f3daea0`). That divergence went
+> undocumented until this note. The new doc is grounded in what Layer 1 actually
+> collects today (verified by direct grep, not this section's original sketch) and
+> also found a critical bug this section didn't know about: India business/firm/
+> company tax computation currently reads a `net_profit_inr` field that
+> `layer1_india.html` never sets — it only works in hand-authored demo profiles.
+> Parts F/G below are kept for historical reference only; do not treat them as
+> current design intent. **Part H's "flattened into the individual" claim is also
+> stale** — the Business tab already shows entities separately, just not as a graph.
+
 ### F.1 Problem
 A single "client" is often a **set of tax entities**: the individual (resident of
 IN and/or US) plus companies, LLCs, partnerships, S/C-corps, trusts, HUF. Each is
@@ -1125,5 +1137,8 @@ renders.
 - The engine trusts the Layer 1 forms' *final residency status* rather than
   re-deriving it from the determination inputs.
 - FX is a flat anchor; statutory FTC needs per-transaction TT rates.
-- Until Phases 1–4 land, multi-entity numbers are **flattened into the individual**
-  and US-state rows in the Monitor are **illustrative**.
+- ~~Until Phases 1–4 land, multi-entity numbers are flattened into the individual~~
+  — **stale as of the Business tab shipping**; entities show separately (not
+  flattened), just not yet as a traceable graph. See
+  `docs/BUSINESS_ENTITY_ARCHITECTURE.md` for the current, accurate state.
+- US-state rows in the Monitor are **illustrative** (state tax computation not built — gap tracker US-12).
