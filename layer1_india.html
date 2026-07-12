@@ -4641,6 +4641,10 @@
     // ═══════════════════════════════════════════════════════════════════════
     const state = {
         global_quarter: 'Q1',
+        // Written by evaluateITRForm() every time it re-evaluates, so Layer 2
+        // can read the real 7-form eligibility determination instead of its
+        // own crude entity-type-only fallback.
+        itr_recommendation: { form: null, explanation: null },
         profile: {
             full_name: null,
             entity_type: 'individual',
@@ -14887,7 +14891,11 @@ ${isProf ? '' : `
         const elReason = document.getElementById('ui-itr-reason');
         if (elForm) elForm.textContent = itr;
         if (elReason) elReason.textContent = explanation;
-        
+
+        if (!state.itr_recommendation) state.itr_recommendation = {};
+        state.itr_recommendation.form = itr;
+        state.itr_recommendation.explanation = explanation;
+
         return { itr, explanation };
     } catch (e) {
         console.error('Error evaluating ITR form', e);

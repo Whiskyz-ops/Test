@@ -771,6 +771,38 @@
     };
   }
 
+  /* Layer 1 US's self-employment form (income_us_source.self_employment[])
+   * never actually sets self_employment_earnings_usd or net_profit_usd — it
+   * only persists gross_receipts_usd, returns_and_allowances_usd, COGS
+   * components, other_income_usd and expenses_usd (see
+   * docs/BUSINESS_ENTITY_ARCHITECTURE.md). Reading only those two phantom
+   * fields meant every real filer's self-employment income silently
+   * computed to $0; only hand-authored demo profiles worked, by injecting
+   * self_employment_earnings_usd directly. Mirrors the India IN-21 fix.
+   * Phase-0 scoped: home-office and asset depreciation aren't netted here. */
+  function computeSelfEmploymentNetProfitUsd(s) {
+    var cogs = num(s.cogs_beginning_inventory) + num(s.cogs_purchases) + num(s.cogs_labor) + num(s.cogs_materials) - num(s.cogs_ending_inventory);
+    var grossProfit = num(s.gross_receipts_usd) - num(s.returns_and_allowances_usd) - cogs;
+    return grossProfit + num(s.other_income_usd) - num(s.expenses_usd);
+  }
+  function selfEmploymentNetProfitUsd(s) {
+    var explicit = s.self_employment_earnings_usd != null ? s.self_employment_earnings_usd : s.net_profit_usd;
+    return (explicit === undefined || explicit === null) ? computeSelfEmploymentNetProfitUsd(s) : num(explicit);
+  }
+  function selfEmploymentIncomeTrace(s) {
+    var explicit = s.self_employment_earnings_usd != null ? s.self_employment_earnings_usd : s.net_profit_usd;
+    if (explicit !== undefined && explicit !== null) {
+      return source("Net self-employment earnings entered directly on Layer 1 US for this business (not derived from gross receipts and expenses).");
+    }
+    var cogs = num(s.cogs_beginning_inventory) + num(s.cogs_purchases) + num(s.cogs_labor) + num(s.cogs_materials) - num(s.cogs_ending_inventory);
+    var parts = [{ label: "Gross receipts", amount: num(s.gross_receipts_usd) }];
+    if (num(s.returns_and_allowances_usd) > 0) parts.push({ label: "Less: returns & allowances", amount: -num(s.returns_and_allowances_usd) });
+    if (cogs > 0) parts.push({ label: "Less: cost of goods sold", amount: -cogs });
+    if (num(s.other_income_usd) > 0) parts.push({ label: "Plus: other business income", amount: num(s.other_income_usd) });
+    if (num(s.expenses_usd) > 0) parts.push({ label: "Less: business expenses", amount: -num(s.expenses_usd) });
+    return calc("Schedule C: gross receipts less returns/COGS, plus other income, less expenses. Home-office and asset depreciation aren't netted yet (Phase 1).", parts);
+  }
+
   /* ------------------------------------------------------------------------
    * US income aggregation — keeps the us-source / foreign-source split that
    * drives the FTC limitation, and a qualified/ordinary dividend split that
@@ -827,7 +859,7 @@
       ));
     });
     (safe(ui, "self_employment", []) || []).forEach(function (s) {
-      businessUs = addMoney(businessUs, moneyFromUsd(s.self_employment_earnings_usd || s.net_profit_usd || 0));
+      businessUs = addMoney(businessUs, moneyFromUsd(selfEmploymentNetProfitUsd(s)));
     });
     (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) {
       businessUs = addMoney(businessUs, moneyFromUsd(s.scorp_income_usd || s.ordinary_business_income_usd || 0));
@@ -836,7 +868,7 @@
     // Self-employment-TAX-subject earnings (Sch C + Sch F + general-partner SE):
     // NOT S-corp/C-corp wages/distributions. Drives Schedule SE.
     var seEarnings = 0;
-    (safe(ui, "self_employment", []) || []).forEach(function (s) { seEarnings += num(s.self_employment_earnings_usd || s.net_profit_usd || 0); });
+    (safe(ui, "self_employment", []) || []).forEach(function (s) { seEarnings += selfEmploymentNetProfitUsd(s); });
     (safe(ui, "schedule_c_businesses", []) || []).forEach(function (s) { seEarnings += num(s.net_profit_usd || s.net_earnings_usd || 0); });
     (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { seEarnings += num(s.net_profit_usd || 0); });
     // QBI-eligible pass-through business income (§199A): SE + S-corp + partnership
@@ -1131,6 +1163,23 @@
     var router = raw.router || {};
     var annual = indiaAnnualSlice(india);
 
+    // Resolved once, shared by entity.indiaReturnForm and each India business
+    // entity's per-row returnForm below, so they never disagree with each
+    // other. Layer 1 India's evaluateITRForm() runs a real 7-form eligibility
+    // check (income thresholds, residency, capital gains, foreign
+    // assets/income, directorship, crypto, multiple house properties, etc.)
+    // and persists its verdict to itr_recommendation.form — read that when
+    // present; only fall back to the crude entity-type-only mapping when
+    // Layer 1 hasn't run it (e.g. a hand-authored profile that never went
+    // through the browser form).
+    var indiaEntityKind = safe(india, "profile.entity_type", "individual");
+    var indiaIsCompany = indiaEntityKind === "company";
+    var indiaIsFirm = ["firm", "llp", "local"].indexOf(indiaEntityKind) >= 0;
+    var indiaLayer1Itr = safe(india, "itr_recommendation.form", null);
+    if (indiaLayer1Itr === "Unknown") indiaLayer1Itr = null;
+    var indiaReturnFormCrude = indiaIsCompany ? "ITR-6" : (indiaIsFirm ? "ITR-5" : "ITR-2/3");
+    var indiaReturnForm = indiaLayer1Itr || indiaReturnFormCrude;
+
     return {
       meta: {
         hasIndia: !!raw.india,
@@ -1171,22 +1220,25 @@
         panAadhaarLinked: safe(india, "profile.pan_aadhaar_linked", null)
       },
       entity: (function () {
-        var inK = safe(india, "profile.entity_type", "individual");
         var usT = safe(us, "profile.tax_entity_type", "individual");
         if (usT === "llc") usT = safe(us, "profile.llc_tax_election", "individual");
-        var indiaIsCompany = inK === "company";
-        var indiaIsFirm = ["firm", "llp", "local"].indexOf(inK) >= 0;
         var usIsBusiness = ["ccorp", "scorp", "partnership", "trust"].indexOf(usT) >= 0;
         // A profile is "business POV" when either side is a non-individual entity.
         return {
-          indiaKind: inK, usKind: usT,
+          indiaKind: indiaEntityKind, usKind: usT,
           indiaIsCompany: indiaIsCompany, indiaIsFirm: indiaIsFirm,
           indiaOpt115baa: safe(india, "profile.opt_115baa", false) === true,
           indiaTurnoverLte400cr: safe(india, "profile.turnover_lte_400cr", false) === true,
           usIsBusiness: usIsBusiness,
           isBusiness: indiaIsCompany || indiaIsFirm || usIsBusiness,
-          indiaReturnForm: indiaIsCompany ? "ITR-6" : (indiaIsFirm ? "ITR-5" : "ITR-2/3"),
-          usReturnForm: usT === "ccorp" ? "1120" : usT === "scorp" ? "1120-S" : usT === "partnership" ? "1065" : usT === "trust" ? "1041" : "1040"
+          indiaReturnForm: indiaReturnForm,
+          indiaReturnFormIsRecommendation: !!indiaLayer1Itr,
+          indiaReturnFormExplanation: indiaLayer1Itr ? safe(india, "itr_recommendation.explanation", null) : null,
+          // 1040-NR when Layer 1 US recorded the taxpayer as filing the NRA
+          // return, else the standard resident/citizen 1040 (or the entity
+          // forms above for a business-mode US profile).
+          usReturnForm: usT === "ccorp" ? "1120" : usT === "scorp" ? "1120-S" : usT === "partnership" ? "1065" : usT === "trust" ? "1041" :
+            (safe(us, "nra_specific.files_form_1040nr", false) === true ? "1040-NR" : "1040")
         };
       })(),
       residency: {
@@ -1365,18 +1417,16 @@
         businessEntities: (function () {
           var list = [], ui = safe(us, "income_us_source", {});
           var entityKind = safe(us, "profile.tax_entity_type", "individual");
-          var inK = safe(india, "profile.entity_type", "individual");
-          var indiaIsCompanyOrFirm = inK === "company" || ["firm", "llp", "local"].indexOf(inK) >= 0;
-          var indiaOwnReturnForm = inK === "company" ? "ITR-6 (company)" : (indiaIsCompanyOrFirm ? "ITR-5 (firm/LLP)" : null);
+          var indiaIsCompanyOrFirm = indiaIsCompany || indiaIsFirm;
           // The US entity's OWN return income (e.g. a C-Corp's 1120 income).
           if (entityKind === "ccorp" || safe(us, "profile.incorporated_in_us", false) === true) {
             var selfInc = num(safe(ui, "business_income_usd", 0));
             if (selfInc > 0) list.push({ country: "US", type: "C-Corp (Form 1120)", name: safe(us, "profile.full_name", "US C-Corp"), incomeUsd: selfInc, corp: true,
               filesOwnReturn: true, returnForm: "Form 1120 (C-Corp — entity-level return, 21% flat)",
               calcTrace: source("Entity-level taxable income as entered on Layer 1 US (business_income_usd). Taxed at 21% at the entity; not on a personal return until distributed as a dividend.") }); }
-          (safe(ui, "self_employment", []) || []).forEach(function (s) { list.push({ country: "US", type: "Self-employment (Sch C)", name: s.business_name || s.name || "Self-employment", incomeUsd: num(s.self_employment_earnings_usd || s.net_profit_usd || 0), se: true, qbi: true,
+          (safe(ui, "self_employment", []) || []).forEach(function (s) { list.push({ country: "US", type: "Self-employment (Sch C)", name: s.business_name || s.name || "Self-employment", incomeUsd: selfEmploymentNetProfitUsd(s), se: true, qbi: true,
             filesOwnReturn: false, returnForm: "Schedule C + Schedule SE (Form 1040)",
-            calcTrace: source("Net self-employment earnings as entered on Layer 1 US for this business (self_employment_earnings_usd, or net_profit_usd if that field wasn't used).") }); });
+            calcTrace: selfEmploymentIncomeTrace(s) }); });
           (safe(ui, "schedule_c_businesses", []) || []).forEach(function (s) { list.push({ country: "US", type: "Schedule C", name: s.business_name || s.name || "Sole proprietorship", incomeUsd: num(s.net_profit_usd || s.net_earnings_usd || 0), se: true, qbi: true,
             filesOwnReturn: false, returnForm: "Schedule C (Form 1040)",
             calcTrace: source("Net profit as entered directly on Layer 1 US for this Schedule C business (net_profit_usd, or net_earnings_usd if that field wasn't used).") }); });
@@ -1402,8 +1452,18 @@
             var netProfitInr = b.net_profit_inr || b.net_profit;
             if (netProfitInr === undefined || netProfitInr === null) netProfitInr = computeBusinessEntryNetProfitInr(b);
             netProfitInr = num(netProfitInr);
+            // Same resolved form as entity.indiaReturnForm — Layer 1's real
+            // eligibility check when it ran, else a business-aware crude
+            // guess (never "ITR-2", since ITR-2 can't carry PGBP income at
+            // all — a presumptive entry defaults to ITR-4, everything else
+            // to ITR-3, both still labeled as a guess pending the real check).
+            var entryReturnForm = indiaLayer1Itr ? indiaReturnForm :
+              (indiaIsCompanyOrFirm ? indiaReturnFormCrude :
+                (["s44AD", "s44ADA", "s44AE"].indexOf(b.presumptive_scheme) >= 0
+                  ? "ITR-4 (Sugam) if eligible, else ITR-3 — presumptive scheme"
+                  : "ITR-3 — regular books"));
             list.push({ country: "IN", type: "Business / Profession (PGBP)", name: b.trade_name || b.name || "Indian business", incomeUsd: inrToUsd(netProfitInr), inr: netProfitInr,
-              filesOwnReturn: indiaIsCompanyOrFirm, returnForm: indiaOwnReturnForm || "ITR-3/4 (personal return, via presumptive scheme or regular books)",
+              filesOwnReturn: indiaIsCompanyOrFirm, returnForm: entryReturnForm,
               calcTrace: businessEntryIncomeTrace(b) });
           });
           (safe(us, "foreign_entities.foreign_corporations", []) || []).forEach(function (c) { list.push({ country: c.country === "IN" ? "IN" : "US", type: "Foreign corporation (CFC)", name: c.corp_name || "Foreign corporation", incomeUsd: num(c.gilti_income_usd || 0), cfc: true, gilti: num(c.gilti_income_usd || 0), ownershipPct: num(c.ownership_pct || 0),
