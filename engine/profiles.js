@@ -161,7 +161,7 @@
       // proving the real computation now works (₹18,00,000 x 50% = ₹9,00,000,
       // deliberately matching the old injected figure so nothing else in his
       // profile needed to change).
-      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [{ trade_name: "Mehta Advisory Services", nature: "consulting", presumptive_scheme: "s44ADA", gross_receipts_inr: 1800000, holding_pct: 5 }] }, capital_gains: { short_term_15_pct: 180000 } },
+      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [{ business_name: "Mehta Advisory Services", nature: "consulting", presumptive_scheme: "s44ADA", gross_receipts_inr: 1800000, holding_pct: 5 }] }, capital_gains: { short_term_15_pct: 180000 } },
       // Occasional fantasy-sports/online-gaming winnings (very common alongside
       // NRI rental/dividend income today) plus an unexplained cash deposit the
       // client can't source-document (a routine real-world s.195/115BBE flag, not a
@@ -458,7 +458,7 @@
       bank_accounts: [{ bank_name: "Kotak (Current)", account_type: "current", peak_balance_inr: 42000000 }],
       property: { properties: [] },
       financial_holdings: { has_financial_transactions: false, transactions: [] },
-      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ trade_name: "Nimbus Analytics Pvt Ltd", nature: "software", net_profit_inr: 60000000 }] }, capital_gains: {} },
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ business_name: "Nimbus Analytics Pvt Ltd", nature: "software", net_profit_inr: 60000000 }] }, capital_gains: {} },
       other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 900000 },
       deductions: {},
       lrs_outbound: {},
@@ -495,7 +495,7 @@
       bank_accounts: [{ bank_name: "HSBC (Current)", account_type: "current", peak_balance_inr: 30000000 }],
       property: { properties: [] },
       financial_holdings: { has_financial_transactions: false, transactions: [] },
-      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ trade_name: "Cloudspire India Pvt Ltd", nature: "software", net_profit_inr: 80000000 }] }, capital_gains: {} },
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ business_name: "Cloudspire India Pvt Ltd", nature: "software", net_profit_inr: 80000000 }] }, capital_gains: {} },
       other_sources: {},
       deductions: {}, lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 4000000, advance_tax_q2_15sep_inr: 5000000, advance_tax_q3_15dec_inr: 5000000, advance_tax_q4_15mar_inr: 4000000 },
@@ -542,7 +542,7 @@
       bank_accounts: [{ bank_name: "DBS (Current)", account_type: "current", peak_balance_inr: 18000000 }],
       property: { properties: [] },
       financial_holdings: { has_financial_transactions: false, transactions: [] },
-      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ trade_name: "Meridian Holdings Pte Ltd", nature: "investment holding", net_profit_inr: 22000000 }] }, capital_gains: {} },
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ business_name: "Meridian Holdings Pte Ltd", nature: "investment holding", net_profit_inr: 22000000 }] }, capital_gains: {} },
       other_sources: {},
       deductions: {}, lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 1200000, advance_tax_q2_15sep_inr: 1400000, advance_tax_q3_15dec_inr: 1400000, advance_tax_q4_15mar_inr: 1200000 },

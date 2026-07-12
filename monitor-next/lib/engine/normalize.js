@@ -172,24 +172,42 @@
     return Infinity;
   }
 
-  function computeBusinessEntryNetProfitInr(b) {
+  // s.44AD/44ADA are ROR-only, and 44AD additionally excludes firms/LLPs/
+  // companies/AOPs/trusts/local authorities/co-ops (44ADA further excludes
+  // HUFs) — matched exactly to Layer 1 India's own live eligibility gate
+  // (the eligible44AD/eligible44ADA computation in layer1_india.html, which
+  // force-reverts an ineligible election with an alert). Same safety-net
+  // reasoning as the turnover ceiling above: real Layer 1 usage should
+  // never reach the fallback this enables, since the election is reverted
+  // before it's saved — this exists for state that bypassed that check
+  // (hand-authored profiles, imports).
+  function presumptiveResidencyEligible(india) {
+    var ror = safe(india, "residency_detail.final_india_residency_status", null) === "ROR";
+    var entity = safe(india, "profile.entity_type", null) || safe(india, "domestic_income.business_income.entity_type", "individual");
+    var eligible44AD = ror && ["llp", "company", "aop", "trust", "local", "coop", "ajp"].indexOf(entity) < 0;
+    return { eligible44AD: eligible44AD, eligible44ADA: eligible44AD && entity !== "huf" };
+  }
+
+  function computeBusinessEntryNetProfitInr(b, eligibility) {
+    eligibility = eligibility || { eligible44AD: true, eligible44ADA: true };
     var scheme = b.presumptive_scheme;
     if (scheme === "s44AD") {
       // s.58 table (old s.44AD): 6% of digital receipts, 8% of cash receipts.
       var dig44AD = num(b.digital_receipts_inr), csh44AD = num(b.cash_receipts_inr);
-      if (dig44AD + csh44AD <= presumptiveCeilingInr("s44AD", dig44AD, csh44AD)) {
+      if (eligibility.eligible44AD && dig44AD + csh44AD <= presumptiveCeilingInr("s44AD", dig44AD, csh44AD)) {
         return dig44AD * 0.06 + csh44AD * 0.08;
       }
-      // Over the ceiling — election invalid, falls through to regular books.
+      // Ineligible by residency/entity-type, or over the ceiling — either
+      // way the election is invalid, falls through to regular books.
     } else if (scheme === "s44ADA") {
       // s.58 table (old s.44ADA): flat 50% of gross receipts, no digital/cash
       // rate differential (unlike s44AD).
       var adaDig = num(b.ada_digital_receipts_inr), adaCsh = num(b.ada_cash_receipts_inr);
       var adaReceipts = num(b.gross_receipts_inr) || (adaDig + adaCsh);
-      if (adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh)) {
+      if (eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh)) {
         return adaReceipts * 0.50;
       }
-      // Over the ceiling — same fallback.
+      // Same fallback.
     } else if (scheme === "s44AE") {
       return null; // computed once from goods_vehicles[] at the aggregate level, not per-entry
     }
@@ -233,19 +251,21 @@
   }
 
   var PRESUMPTIVE_CEILING_CITATION = "s.44AD/44ADA turnover ceilings (Rs.2cr/Rs.3cr and Rs.50L/Rs.75L, the higher figure requiring digital receipts ≥95% of total) verified 2026-07-12, matched to Layer 1 India's own live eligibility check — re-check each Finance Act cycle.";
+  var PRESUMPTIVE_RESIDENCY_CITATION = "s.44AD/44ADA residency and entity-type eligibility (ROR-only; 44AD additionally excludes firms/LLPs/companies/AOPs/trusts/local authorities/co-ops, 44ADA further excludes HUFs) verified 2026-07-12, matched to Layer 1 India's own live eligibility check.";
 
   /* Mirrors computeBusinessEntryNetProfitInr's branches exactly, but returns
    * the "show your work" trace instead of the number, for the Business tab. */
-  function businessEntryIncomeTrace(b) {
+  function businessEntryIncomeTrace(b, eligibility) {
+    eligibility = eligibility || { eligible44AD: true, eligible44ADA: true };
     var explicit = b.net_profit_inr != null ? b.net_profit_inr : b.net_profit;
     if (explicit !== undefined && explicit !== null) {
       return source("Net profit entered directly on Layer 1 India for this business entry (not derived from a presumptive rate or books).");
     }
-    var scheme = b.presumptive_scheme, ceilingNote = null;
+    var scheme = b.presumptive_scheme, ceilingNote = null, ceilingCitation = null;
     if (scheme === "s44AD") {
       var dig44AD = num(b.digital_receipts_inr), csh44AD = num(b.cash_receipts_inr);
       var ceiling44AD = presumptiveCeilingInr("s44AD", dig44AD, csh44AD);
-      if (dig44AD + csh44AD <= ceiling44AD) {
+      if (eligibility.eligible44AD && dig44AD + csh44AD <= ceiling44AD) {
         return calc("Presumptive income under s.44AD: digital/banking receipts × 6% + cash receipts × 8%", [
           { label: "Digital / banking receipts", amount: dig44AD },
           { label: "Rate", display: "6%" },
@@ -253,18 +273,30 @@
           { label: "Rate", display: "8%" }
         ], PRESUMPTIVE_CEILING_CITATION);
       }
-      ceilingNote = "Total receipts (₹" + Math.round(dig44AD + csh44AD).toLocaleString("en-IN") + ") exceed the s.44AD turnover ceiling for this cash-receipts mix (₹" + Math.round(ceiling44AD).toLocaleString("en-IN") + ") — the presumptive election is invalid above this, so regular books apply instead:";
+      if (!eligibility.eligible44AD) {
+        ceilingNote = "s.44AD is only available to Resident & Ordinarily Resident (ROR) individuals/HUFs and eligible firms — this taxpayer's residency status or entity type doesn't qualify, so the presumptive election is invalid and regular books apply instead:";
+        ceilingCitation = PRESUMPTIVE_RESIDENCY_CITATION;
+      } else {
+        ceilingNote = "Total receipts (₹" + Math.round(dig44AD + csh44AD).toLocaleString("en-IN") + ") exceed the s.44AD turnover ceiling for this cash-receipts mix (₹" + Math.round(ceiling44AD).toLocaleString("en-IN") + ") — the presumptive election is invalid above this, so regular books apply instead:";
+        ceilingCitation = PRESUMPTIVE_CEILING_CITATION;
+      }
     } else if (scheme === "s44ADA") {
       var adaDig = num(b.ada_digital_receipts_inr), adaCsh = num(b.ada_cash_receipts_inr);
       var adaReceipts = num(b.gross_receipts_inr) || (adaDig + adaCsh);
       var ceiling44ADA = presumptiveCeilingInr("s44ADA", adaDig, adaCsh);
-      if (adaReceipts <= ceiling44ADA) {
+      if (eligibility.eligible44ADA && adaReceipts <= ceiling44ADA) {
         return calc("Presumptive income under s.44ADA: gross receipts × 50% (professionals)", [
           { label: "Gross receipts", amount: adaReceipts },
           { label: "Rate", display: "50%" }
         ], PRESUMPTIVE_CEILING_CITATION);
       }
-      ceilingNote = "Gross receipts (₹" + Math.round(adaReceipts).toLocaleString("en-IN") + ") exceed the s.44ADA turnover ceiling for this cash-receipts mix (₹" + Math.round(ceiling44ADA).toLocaleString("en-IN") + ") — the presumptive election is invalid above this, so regular books apply instead:";
+      if (!eligibility.eligible44ADA) {
+        ceilingNote = "s.44ADA is only available to Resident & Ordinarily Resident (ROR) individuals — this taxpayer's residency status or entity type (e.g. HUF) doesn't qualify, so the presumptive election is invalid and regular books apply instead:";
+        ceilingCitation = PRESUMPTIVE_RESIDENCY_CITATION;
+      } else {
+        ceilingNote = "Gross receipts (₹" + Math.round(adaReceipts).toLocaleString("en-IN") + ") exceed the s.44ADA turnover ceiling for this cash-receipts mix (₹" + Math.round(ceiling44ADA).toLocaleString("en-IN") + ") — the presumptive election is invalid above this, so regular books apply instead:";
+        ceilingCitation = PRESUMPTIVE_CEILING_CITATION;
+      }
     } else if (scheme === "s44AE") {
       return source("s.44AE tonnage-based presumptive income (goods carriages) is computed once from the Goods Vehicles schedule and rolled into the total business income figure above — it isn't split per vehicle here, so this entry shows ₹0 on its own.");
     }
@@ -290,7 +322,7 @@
       if (v > 0) parts.push({ label: "Less: " + f[1], amount: -v });
     });
     var formula = ceilingNote || "Regular books: gross receipts/turnover less the itemized deductible expenses on file. Depreciation, F&O-specific costs and other disallowances aren't modeled yet (Phase 1 — see gap tracker IN-22..25), so this is a floor, not the final figure.";
-    return calc(formula, parts, ceilingNote ? PRESUMPTIVE_CEILING_CITATION : null);
+    return calc(formula, parts, ceilingCitation);
   }
 
   /* ------------------------------------------------------------------------
@@ -305,6 +337,7 @@
     var salary = moneyFromInr(salaryTaxable);
 
     var bizEntries = safe(di, "business_income.business_entries", []);
+    var bizEligibility = presumptiveResidencyEligible(india);
     var business = zeroMoney();
     (bizEntries || []).forEach(function (b) {
       // net_profit_inr/net_profit are honored first ONLY because hand-authored
@@ -313,7 +346,7 @@
       // every real filer this falls through to the real computation below.
       var netProfitInr = b.net_profit_inr || b.net_profit;
       if (netProfitInr === undefined || netProfitInr === null) {
-        netProfitInr = computeBusinessEntryNetProfitInr(b);
+        netProfitInr = computeBusinessEntryNetProfitInr(b, bizEligibility);
       }
       business = addMoney(business, moneyFromInr(num(netProfitInr)));
     });
@@ -1499,9 +1532,10 @@
           (safe(ui, "c_corporations_1120", []) || []).forEach(function (c) { list.push({ country: "US", type: "C-Corp (Form 1120)", name: c.corp_name || c.name || "C-Corporation", incomeUsd: num(c.taxable_income_usd || c.net_income_usd || 0), corp: true,
             filesOwnReturn: true, returnForm: "Form 1120 (C-Corp — entity-level return, 21% flat)",
             calcTrace: source("Entity-level taxable income as entered on Layer 1 US for this C-corp (taxable_income_usd, or net_income_usd if that field wasn't used). Taxed at 21% at the entity; not on a personal return until distributed.") }); });
+          var bizEligibility = presumptiveResidencyEligible(india);
           (safe(annual.domestic_income, "business_income.business_entries", []) || []).forEach(function (b) {
             var netProfitInr = b.net_profit_inr || b.net_profit;
-            if (netProfitInr === undefined || netProfitInr === null) netProfitInr = computeBusinessEntryNetProfitInr(b);
+            if (netProfitInr === undefined || netProfitInr === null) netProfitInr = computeBusinessEntryNetProfitInr(b, bizEligibility);
             netProfitInr = num(netProfitInr);
             // Same resolved form as entity.indiaReturnForm — Layer 1's real
             // eligibility check when it ran, else a business-aware crude
@@ -1513,9 +1547,9 @@
                 (["s44AD", "s44ADA", "s44AE"].indexOf(b.presumptive_scheme) >= 0
                   ? "ITR-4 (Sugam) if eligible, else ITR-3 — presumptive scheme"
                   : "ITR-3 — regular books"));
-            list.push({ country: "IN", type: "Business / Profession (PGBP)", name: b.trade_name || b.name || "Indian business", incomeUsd: inrToUsd(netProfitInr), inr: netProfitInr,
+            list.push({ country: "IN", type: "Business / Profession (PGBP)", name: b.business_name || b.trade_name || b.name || "Indian business", incomeUsd: inrToUsd(netProfitInr), inr: netProfitInr,
               filesOwnReturn: indiaIsCompanyOrFirm, returnForm: entryReturnForm,
-              calcTrace: businessEntryIncomeTrace(b) });
+              calcTrace: businessEntryIncomeTrace(b, bizEligibility) });
           });
           (safe(us, "foreign_entities.foreign_corporations", []) || []).forEach(function (c) { list.push({ country: c.country === "IN" ? "IN" : "US", type: "Foreign corporation (CFC)", name: c.corp_name || "Foreign corporation", incomeUsd: num(c.gilti_income_usd || 0), cfc: true, gilti: num(c.gilti_income_usd || 0), ownershipPct: num(c.ownership_pct || 0),
             filesOwnReturn: true, returnForm: "Foreign local return (not modeled) + Form 5471 (informational, US) + GILTI on Schedule 1 (Form 1040)",
