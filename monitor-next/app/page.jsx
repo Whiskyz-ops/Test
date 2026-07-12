@@ -7,7 +7,7 @@ import Header from "@/components/Header";
 import StatMeter from "@/components/StatMeter";
 import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
-import { ConflictsPanel, ResidencyView, FilingsView, DocumentsView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView } from "@/components/Views";
+import { ConflictsPanel, ResidencyView, FilingsView, DocumentsView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard } from "@/components/Views";
 import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries } from "@/lib/wising";
@@ -148,6 +148,13 @@ export default function MonitorPage() {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {meters.map((m, i) => <StatMeter key={i} {...m} />)}
                 </div>
+              </section>
+            )}
+
+            {/* recorded engine boundaries — what these numbers deliberately don't cover */}
+            {result && result.scopeNotes && result.scopeNotes.length > 0 && (
+              <section className="mt-8">
+                <ScopeNotesCard notes={result.scopeNotes} />
               </section>
             )}
           </>

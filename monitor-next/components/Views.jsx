@@ -854,6 +854,46 @@ export function ClientsView({ clients, activeId, onPick }) {
   );
 }
 
+/* ============================ SCOPE NOTES ============================ */
+// Deliberately-not-computed boundaries (engine's buildScopeNotes) — surfaced
+// on the Monitor overview so the professional reading the numbers also sees
+// what the numbers deliberately do NOT cover. Pure disclosures.
+export function ScopeNotesCard({ notes }) {
+  const [open, setOpen] = useState(false);
+  if (!notes || !notes.length) return null;
+  const excluded = notes.filter((n) => n.kind === "excluded");
+  const assurances = notes.filter((n) => n.kind === "assurance");
+  const areaColor = { India: PAL.jurIN, "United States": PAL.jurUS, "Cross-border": PAL.filing, App: PAL.muted };
+  const Note = ({ n }) => (
+    <div className="p-3 rounded-lg bg-white/[0.03] border border-line">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[8.5px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0" style={{ background: (areaColor[n.area] || PAL.muted) + "22", color: areaColor[n.area] || PAL.muted }}>{n.area}</span>
+        <span className="text-[11.5px] font-bold text-head">{n.title}</span>
+      </div>
+      <p className="text-[10.5px] text-body leading-relaxed">{n.body}</p>
+    </div>
+  );
+  return (
+    <Card icon={<Scale size={16} strokeWidth={2} />} title="Deliberately out of scope"
+      sub="Boundaries this engine will not cross — judgment calls, separate tax bases, and simulated features — recorded here so a silent number is never mistaken for a complete one">
+      <button onClick={() => setOpen(!open)} className="text-[11px] font-bold text-accent hover:underline mb-3">
+        {open ? "Hide" : "Show"} {excluded.length} boundar{excluded.length === 1 ? "y" : "ies"}{assurances.length ? " + " + assurances.length + " verified assurance(s)" : ""} {open ? "▴" : "▾"}
+      </button>
+      {open && (
+        <div className="space-y-2">
+          {excluded.map((n) => <Note key={n.id} n={n} />)}
+          {assurances.length > 0 && (
+            <>
+              <div className="text-[10px] font-black uppercase tracking-widest text-muted pt-2">Verified — nothing to do</div>
+              {assurances.map((n) => <Note key={n.id} n={n} />)}
+            </>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 /* ============================ INTEGRATIONS ============================ */
 export function IntegrationsView() {
   const rows = [

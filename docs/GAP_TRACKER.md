@@ -6,6 +6,8 @@ Living document tracking everything WISING does **not** yet model, viewed throug
 
 **Status legend:** ✅ modeled · 🟡 partial · ❌ missing · 🔍 needs code verification · 🚫 out of scope by design
 
+**In-product surfacing:** every 🚫/assurance row that is not rule-encodable (GAAR, STT, payer-side TDS, clubbing depth, FICA levy, FATCA Ch.4, mocked uploads, plus the MLI/DTAA assurances) is ALSO shown inside the Monitor itself — the "Deliberately out of scope" card at the bottom of the overview, built by `buildScopeNotes()` in conflicts.js and gated per profile (e.g. the payer-TDS note only appears for business profiles, FICA only when US wages/SE income exist). The tracker records the decision; the Monitor discloses it to the professional.
+
 **Priority legend:** P1 = real money exposure computable or misstatement risk now · P2 = valuable, needs new Layer 1 fields or moderate build · P3 = completeness/edge audience
 
 ---

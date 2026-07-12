@@ -1779,6 +1779,57 @@
   }
 
   /* ------------------------------------------------------------------------
+   * buildScopeNotes — deliberately-not-computed boundaries, surfaced in the
+   * Monitor itself (not just the docs page) so a professional reading the
+   * numbers also sees what the numbers deliberately do NOT cover. These are
+   * the recorded decisions from docs/GAP_TRACKER.md that are not
+   * rule-encodable (or are verified assurances), each shown only when the
+   * loaded profile actually makes it relevant. Pure disclosures — no note
+   * here ever changes a computed figure.
+   * ----------------------------------------------------------------------*/
+  function buildScopeNotes(model) {
+    var notes = [];
+    var hasIndia = model.meta.hasIndia, hasUs = model.meta.hasUs, dual = hasIndia && hasUs;
+    var hasIndiaBusiness = (model.entity && model.entity.isBusiness) || (model.income.india.business && model.income.india.business.inr > 0);
+    var hasSecuritiesTrades = ((model.assets && model.assets.indianSecurities) || []).length > 0;
+    var hasUsWagesOrSe = model.income.us.wages.usd > 0 || (model.income.us.seEarningsUsd || 0) > 0;
+
+    function note(id, area, kind, title, body, relevant) {
+      if (relevant) notes.push({ id: id, area: area, kind: kind, title: title, body: body });
+    }
+
+    note("scope_gaar", "India", "excluded", "GAAR is not evaluated",
+      "India's General Anti-Avoidance Rule can recharacterize arrangements that lack commercial substance — a facts-and-circumstances judgment no rules engine can safely make. WISING flags mechanical conflicts only; whether an arrangement invites GAAR scrutiny remains a professional call.",
+      hasIndia);
+    note("scope_stt", "India", "excluded", "STT is not computed as a levy",
+      "Securities Transaction Tax charged on trades (raised on F&O by Finance Act 2026) isn't calculated here. The stt_paid flag on each transaction drives the capital-gains regime (s.196/198 vs s.197) — the levy amount itself is neither a tax credit nor a capital-gains deduction, so nothing downstream depends on it.",
+      hasSecuritiesTrades);
+    note("scope_payer_tds", "India", "excluded", "Your obligations as a TDS deductor aren't tracked",
+      "The Withholding page covers tax withheld FROM this taxpayer's income. Duties in the opposite direction — deducting TDS on payments the business makes to vendors, contractors, or professionals — aren't monitored, except that the s.40(a) expense disallowance for failures already flows into business income.",
+      hasIndiaBusiness);
+    note("scope_clubbing", "India", "excluded", "Clubbing amounts are taken as entered",
+      "Spousal and minor-child clubbed income entered in Layer 1 is taxed as given. WISING doesn't trace asset transfers between family members to detect clubbing that should have been reported but wasn't.",
+      hasIndia);
+    note("scope_fica", "United States", "excluded", "FICA/FUTA levies aren't computed",
+      "Employee and employer Social Security/Medicare/unemployment payroll taxes are a separate tax base from income tax. Only the pieces that touch the 1040 are computed: Additional Medicare 0.9%, self-employment tax, and the W-2 withholding shown on the Withholding page.",
+      hasUsWagesOrSe);
+    note("scope_fatca_ch4", "Cross-border", "excluded", "FATCA Chapter 4 withholding is institution-side",
+      "The 30% FATCA withholding regime (IRC §§1471-1474) applies to payments to non-compliant foreign financial institutions — banks' problem, not yours directly. Where it touches an individual is the US-person self-certification banks request, which is tracked with your documents.",
+      dual);
+    note("scope_mocked_uploads", "App", "excluded", "Document-upload extraction is simulated",
+      "Every \"upload to auto-fill\" feature in Layer 1 (Form 26AS, Lower-TDS certificate, bank statements, property documents) is a demo simulation with representative values — not live OCR. Figures sourced from an upload should be treated as manually-entered until real extraction ships.",
+      true);
+    note("scope_mli", "Cross-border", "assurance", "MLI does not affect the India-US treaty",
+      "The US never signed the OECD Multilateral Instrument, so the India-US DTAA text is untouched by it — unlike India's treaties with the UK, Netherlands, or Singapore. Verified; nothing to apply.",
+      dual);
+    note("scope_dtaa_current", "Cross-border", "assurance", "Treaty text current as modeled",
+      "The India-US DTAA has not been amended since the 2000 protocol. Every treaty rate and tie-breaker rule in this engine reflects the treaty as it stands.",
+      dual);
+
+    return notes;
+  }
+
+  /* ------------------------------------------------------------------------
    * analyze — single entry point used by the dashboard.
    * ----------------------------------------------------------------------*/
   function analyze(opts) {
@@ -1805,6 +1856,7 @@
     var ftcReport = buildFtcReport(model, computed);
     var taxComputation = buildTaxComputation(model, computed);
     var withholding = buildWithholdingSummary(model, computed);
+    var scopeNotes = buildScopeNotes(model);
     var monitoring = WISING.monitor
       ? WISING.monitor(model, computed, { findings: findings, asOf: (opts.scenario && opts.scenario.asOf) || opts.asOf })
       : null;
@@ -1820,6 +1872,7 @@
       ftcReport: ftcReport,
       taxComputation: taxComputation,
       withholding: withholding,
+      scopeNotes: scopeNotes,
       monitoring: monitoring,
       summary: {
         name: model.identity.name,
