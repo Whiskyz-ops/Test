@@ -37,10 +37,12 @@
   function zeroMoney() { return { usd: 0, inr: 0 }; }
 
   // Same trace shape conflicts.js uses for Tax Computation / FTC rows —
-  // { kind: "calc", formula, parts } or { kind: "source", detail } — so the
-  // Business tab can reuse the existing TraceRow/TracePopup UI unchanged.
-  function calc(formula, parts) { return { kind: "calc", formula: formula, parts: parts || [] }; }
-  function source(detail) { return { kind: "source", detail: detail }; }
+  // { kind: "calc", formula, parts, citation } or { kind: "source", detail,
+  // citation } — so the Business tab can reuse the existing
+  // TraceRow/TracePopup UI unchanged. citation is an optional dated pointer
+  // to an externally-verified rule (as opposed to pure internal math).
+  function calc(formula, parts, citation) { return { kind: "calc", formula: formula, parts: parts || [], citation: citation || null }; }
+  function source(detail, citation) { return { kind: "source", detail: detail, citation: citation || null }; }
 
   function safe(obj, path, dflt) {
     var cur = obj, parts = path.split("."), i;
@@ -149,23 +151,46 @@
    * (business_entries[].branches[]) revenue/expense breakdowns are also not
    * yet folded in — entry-level totals only.
    * ----------------------------------------------------------------------*/
+  // s.44AD/s.44ADA turnover-eligibility ceilings — verified 2026-07-12:
+  // 44AD Rs.2 crore (Rs.3 crore if cash receipts are under 5% of total
+  // receipts); 44ADA Rs.50 lakh (Rs.75 lakh under the same 5% cash-receipts
+  // condition). Above the applicable ceiling the presumptive election is
+  // invalid — the taxpayer must maintain regular books instead. cashInr/
+  // digitalInr unknown (both zero) defaults to the lower ceiling, since the
+  // higher one requires proving the digital-receipts condition.
+  function presumptiveCeilingInr(scheme, digitalInr, cashInr) {
+    var total = digitalInr + cashInr;
+    var underFivePctCash = total > 0 && (cashInr / total) < 0.05;
+    if (scheme === "s44AD") return underFivePctCash ? 30000000 : 20000000;
+    if (scheme === "s44ADA") return underFivePctCash ? 7500000 : 5000000;
+    return Infinity;
+  }
+
   function computeBusinessEntryNetProfitInr(b) {
     var scheme = b.presumptive_scheme;
     if (scheme === "s44AD") {
       // s.58 table (old s.44AD): 6% of digital receipts, 8% of cash receipts.
-      return num(b.digital_receipts_inr) * 0.06 + num(b.cash_receipts_inr) * 0.08;
-    }
-    if (scheme === "s44ADA") {
+      var dig44AD = num(b.digital_receipts_inr), csh44AD = num(b.cash_receipts_inr);
+      if (dig44AD + csh44AD <= presumptiveCeilingInr("s44AD", dig44AD, csh44AD)) {
+        return dig44AD * 0.06 + csh44AD * 0.08;
+      }
+      // Over the ceiling — election invalid, falls through to regular books.
+    } else if (scheme === "s44ADA") {
       // s.58 table (old s.44ADA): flat 50% of gross receipts, no digital/cash
       // rate differential (unlike s44AD).
-      var adaReceipts = num(b.gross_receipts_inr) || (num(b.ada_digital_receipts_inr) + num(b.ada_cash_receipts_inr));
-      return adaReceipts * 0.50;
-    }
-    if (scheme === "s44AE") {
+      var adaDig = num(b.ada_digital_receipts_inr), adaCsh = num(b.ada_cash_receipts_inr);
+      var adaReceipts = num(b.gross_receipts_inr) || (adaDig + adaCsh);
+      if (adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh)) {
+        return adaReceipts * 0.50;
+      }
+      // Over the ceiling — same fallback.
+    } else if (scheme === "s44AE") {
       return null; // computed once from goods_vehicles[] at the aggregate level, not per-entry
     }
     // Regular books — gross receipts less the clean, unambiguous general PGBP
-    // expense categories only (see the Phase-0 scoping note above).
+    // expense categories only (see the Phase-0 scoping note above). Also the
+    // fallback when a presumptive scheme was selected but receipts exceed
+    // its turnover ceiling above.
     var exp = b.expenses || {};
     var deductible =
       num(exp.rent_for_business_premises_inr) + num(exp.repairs_maintenance_inr) +
@@ -173,7 +198,13 @@
       num(exp.interest_on_borrowed_capital_inr) + num(exp.insurance_premium_inr) +
       num(exp.bad_debts_written_off_inr) + num(exp.other_business_expenses_inr) +
       num(exp.ca_professional_fees_inr) + num(exp.employer_pf_esi_contribution_inr);
-    var receipts = num(b.gross_receipts_inr) || num(b.turnover_inr);
+    // A presumptive entry that fell through here for exceeding its ceiling
+    // may never have had gross_receipts_inr/turnover_inr filled in at all —
+    // the preparer only entered the scheme-specific digital/cash split. Fall
+    // back to that known total rather than silently treating receipts as 0.
+    var receipts = num(b.gross_receipts_inr) || num(b.turnover_inr) ||
+      (scheme === "s44AD" ? (dig44AD + csh44AD) : 0) ||
+      (scheme === "s44ADA" ? adaReceipts : 0);
     return receipts - deductible;
   }
 
@@ -195,6 +226,8 @@
     return total;
   }
 
+  var PRESUMPTIVE_CEILING_CITATION = "s.44AD/44ADA turnover ceilings (Rs.2cr/Rs.3cr and Rs.50L/Rs.75L, the higher figure requiring under-5%-cash receipts) verified 2026-07-12 — re-check each Finance Act cycle.";
+
   /* Mirrors computeBusinessEntryNetProfitInr's branches exactly, but returns
    * the "show your work" trace instead of the number, for the Business tab. */
   function businessEntryIncomeTrace(b) {
@@ -202,23 +235,31 @@
     if (explicit !== undefined && explicit !== null) {
       return source("Net profit entered directly on Layer 1 India for this business entry (not derived from a presumptive rate or books).");
     }
-    var scheme = b.presumptive_scheme;
+    var scheme = b.presumptive_scheme, ceilingNote = null;
     if (scheme === "s44AD") {
-      return calc("Presumptive income under s.44AD: digital/banking receipts × 6% + cash receipts × 8%", [
-        { label: "Digital / banking receipts", amount: num(b.digital_receipts_inr) },
-        { label: "Rate", display: "6%" },
-        { label: "Cash receipts", amount: num(b.cash_receipts_inr) },
-        { label: "Rate", display: "8%" }
-      ]);
-    }
-    if (scheme === "s44ADA") {
-      var adaReceipts = num(b.gross_receipts_inr) || (num(b.ada_digital_receipts_inr) + num(b.ada_cash_receipts_inr));
-      return calc("Presumptive income under s.44ADA: gross receipts × 50% (professionals)", [
-        { label: "Gross receipts", amount: adaReceipts },
-        { label: "Rate", display: "50%" }
-      ]);
-    }
-    if (scheme === "s44AE") {
+      var dig44AD = num(b.digital_receipts_inr), csh44AD = num(b.cash_receipts_inr);
+      var ceiling44AD = presumptiveCeilingInr("s44AD", dig44AD, csh44AD);
+      if (dig44AD + csh44AD <= ceiling44AD) {
+        return calc("Presumptive income under s.44AD: digital/banking receipts × 6% + cash receipts × 8%", [
+          { label: "Digital / banking receipts", amount: dig44AD },
+          { label: "Rate", display: "6%" },
+          { label: "Cash receipts", amount: csh44AD },
+          { label: "Rate", display: "8%" }
+        ], PRESUMPTIVE_CEILING_CITATION);
+      }
+      ceilingNote = "Total receipts (₹" + Math.round(dig44AD + csh44AD).toLocaleString("en-IN") + ") exceed the s.44AD turnover ceiling for this cash-receipts mix (₹" + Math.round(ceiling44AD).toLocaleString("en-IN") + ") — the presumptive election is invalid above this, so regular books apply instead:";
+    } else if (scheme === "s44ADA") {
+      var adaDig = num(b.ada_digital_receipts_inr), adaCsh = num(b.ada_cash_receipts_inr);
+      var adaReceipts = num(b.gross_receipts_inr) || (adaDig + adaCsh);
+      var ceiling44ADA = presumptiveCeilingInr("s44ADA", adaDig, adaCsh);
+      if (adaReceipts <= ceiling44ADA) {
+        return calc("Presumptive income under s.44ADA: gross receipts × 50% (professionals)", [
+          { label: "Gross receipts", amount: adaReceipts },
+          { label: "Rate", display: "50%" }
+        ], PRESUMPTIVE_CEILING_CITATION);
+      }
+      ceilingNote = "Gross receipts (₹" + Math.round(adaReceipts).toLocaleString("en-IN") + ") exceed the s.44ADA turnover ceiling for this cash-receipts mix (₹" + Math.round(ceiling44ADA).toLocaleString("en-IN") + ") — the presumptive election is invalid above this, so regular books apply instead:";
+    } else if (scheme === "s44AE") {
       return source("s.44AE tonnage-based presumptive income (goods carriages) is computed once from the Goods Vehicles schedule and rolled into the total business income figure above — it isn't split per vehicle here, so this entry shows ₹0 on its own.");
     }
     var exp = b.expenses || {};
@@ -234,12 +275,16 @@
       ["ca_professional_fees_inr", "CA / professional fees"],
       ["employer_pf_esi_contribution_inr", "Employer PF/ESI contribution"]
     ];
-    var parts = [{ label: "Gross receipts / turnover", amount: num(b.gross_receipts_inr) || num(b.turnover_inr) }];
+    var fallbackReceipts = num(b.gross_receipts_inr) || num(b.turnover_inr) ||
+      (scheme === "s44AD" ? (dig44AD + csh44AD) : 0) ||
+      (scheme === "s44ADA" ? adaReceipts : 0);
+    var parts = [{ label: "Gross receipts / turnover", amount: fallbackReceipts }];
     expenseFields.forEach(function (f) {
       var v = num(exp[f[0]]);
       if (v > 0) parts.push({ label: "Less: " + f[1], amount: -v });
     });
-    return calc("Regular books: gross receipts/turnover less the itemized deductible expenses on file. Depreciation, F&O-specific costs and other disallowances aren't modeled yet (Phase 1 — see gap tracker IN-22..25), so this is a floor, not the final figure.", parts);
+    var formula = ceilingNote || "Regular books: gross receipts/turnover less the itemized deductible expenses on file. Depreciation, F&O-specific costs and other disallowances aren't modeled yet (Phase 1 — see gap tracker IN-22..25), so this is a floor, not the final figure.";
+    return calc(formula, parts, ceilingNote ? PRESUMPTIVE_CEILING_CITATION : null);
   }
 
   /* ------------------------------------------------------------------------

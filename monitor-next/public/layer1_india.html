@@ -14788,10 +14788,31 @@ ${isProf ? '' : `
         const otherCapitalGains = (sb.income_stcg_111A_inr || 0) + (sb.income_ltcg_112_inr || 0) + (sb.income_stcg_other_inr || 0);
         const hasDisqualifyingCapitalGains = hasCapitalGains && (otherCapitalGains > 0 || ltcg112A > 125000);
 
-        const hasPresumptiveEntry = hasBusiness && entries.some(e => ['s44AD', 's44ADA', 's44AE'].includes(e.presumptive_scheme));
+        // s.44AD/44ADA turnover ceilings (Rs.2cr/Rs.3cr, Rs.50L/Rs.75L — the
+        // higher figure needs cash receipts under 5% of the total) — an
+        // entry above its ceiling can't actually use the presumptive scheme,
+        // so it doesn't count toward ITR-4 eligibility even though the field
+        // says s44AD/s44ADA. Mirrors engine/normalize.js's
+        // presumptiveCeilingInr(), verified 2026-07-12.
+        const isPresumptiveEntryValid = (e) => {
+            if (e.presumptive_scheme === 's44AD') {
+                const dig = e.digital_receipts_inr || 0, csh = e.cash_receipts_inr || 0;
+                const underFivePctCash = (dig + csh) > 0 && (csh / (dig + csh)) < 0.05;
+                return (dig + csh) <= (underFivePctCash ? 30000000 : 20000000);
+            }
+            if (e.presumptive_scheme === 's44ADA') {
+                const adaDig = e.ada_digital_receipts_inr || 0, adaCsh = e.ada_cash_receipts_inr || 0;
+                const gross = e.gross_receipts_inr || (adaDig + adaCsh);
+                const underFivePctCash = (adaDig + adaCsh) > 0 && (adaCsh / (adaDig + adaCsh)) < 0.05;
+                return gross <= (underFivePctCash ? 7500000 : 5000000);
+            }
+            return true; // s44AE has no turnover-based ceiling here
+        };
+        const hasPresumptiveEntry = hasBusiness && entries.some(e => ['s44AD', 's44ADA', 's44AE'].includes(e.presumptive_scheme) && isPresumptiveEntryValid(e));
         const hasPresumptiveLegacy = hasBusiness && Array.isArray(biz.presumptive_scheme) && biz.presumptive_scheme.some(s => ['s44AD', 's44ADA', 's44AE'].includes(s));
         const isPresumptive = hasPresumptiveEntry || hasPresumptiveLegacy;
-        const hasRegularEntry = hasBusiness && entries.some(e => ['regular', null, undefined, ''].includes(e.presumptive_scheme));
+        const hasRegularEntry = hasBusiness && entries.some(e => ['regular', null, undefined, ''].includes(e.presumptive_scheme) ||
+            (['s44AD', 's44ADA'].includes(e.presumptive_scheme) && !isPresumptiveEntryValid(e)));
         const hasPartnerIncome = hasBusiness && (biz.partner_remuneration_inr > 0 || biz.partner_interest_inr > 0);
         
         const isDirector = isInd && (state.profile?.is_company_director === true);
