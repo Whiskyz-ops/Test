@@ -769,21 +769,32 @@ export function BusinessView({ result }) {
   const inEnts = ents.filter((e) => e.country === "IN");
   const cfcCount = ents.filter((e) => e.cfc).length;
   const seTax = u.seTaxUsd || 0, qbi = u.qbiDeductionUsd || 0;
-  const Row = (e, i) => (
-    <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.03] border border-line">
-      <Flag c={e.country} />
-      <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-semibold text-head truncate flex items-center gap-2 flex-wrap">{e.name}
-          {e.se && <Tag color={PAL.approaching}>SE tax</Tag>}
-          {e.qbi && <Tag color={PAL.accent}>QBI</Tag>}
-          {e.corp && <Tag color={PAL.filing}>C-Corp 21%</Tag>}
-          {e.cfc && <Tag color={PAL.exposed}>CFC · 5471</Tag>}
+  const Row = (e, i) => {
+    const fmtRow = e.country === "IN" ? fmtInr : fmtUsd;
+    return (
+    <div key={e.country + ":" + e.type + ":" + e.name} className="p-3 rounded-lg bg-white/[0.03] border border-line">
+      <div className="flex items-center gap-3">
+        <Flag c={e.country} />
+        <div className="flex-1 min-w-0">
+          <div className="text-[13px] font-semibold text-head truncate flex items-center gap-2 flex-wrap">{e.name}
+            {e.se && <Tag color={PAL.approaching}>SE tax</Tag>}
+            {e.qbi && <Tag color={PAL.accent}>QBI</Tag>}
+            {e.corp && <Tag color={PAL.filing}>C-Corp 21%</Tag>}
+            {e.cfc && <Tag color={PAL.exposed}>CFC · 5471</Tag>}
+            <Tag color={e.filesOwnReturn ? PAL.blueText : PAL.muted}>{e.filesOwnReturn ? "Files its own return" : "Flows to personal return"}</Tag>
+          </div>
+          <div className="text-[10px] text-muted">{e.type}{e.gilti > 0 ? " · GILTI " + fmtUsd(e.gilti) : ""}{e.returnForm ? " · " + e.returnForm : ""}</div>
         </div>
-        <div className="text-[10px] text-muted">{e.type}{e.gilti > 0 ? " · GILTI " + fmtUsd(e.gilti) : ""}</div>
+        <div className="text-[13px] font-mono text-head whitespace-nowrap shrink-0">{e.inr ? fmtInr(e.inr) + " ≈ " : ""}{fmtUsd(e.incomeUsd)}</div>
       </div>
-      <div className="text-[13px] font-mono text-head whitespace-nowrap">{e.inr ? fmtInr(e.inr) + " ≈ " : ""}{fmtUsd(e.incomeUsd)}</div>
+      {e.calcTrace && (
+        <div className="mt-1.5 pl-6">
+          <TraceRow label="How this figure was calculated" valueDisp="Show workflow ↓" color={PAL.muted} trace={e.calcTrace} fmt={fmtRow} />
+        </div>
+      )}
     </div>
-  );
+    );
+  };
   return (
     <div className="space-y-6">
       <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Building2 size={16} strokeWidth={2} /></HeadChip>Business &amp; Entities</h2><p className="text-muted text-sm mt-2">Every business/entity from Layer 1 — Schedule C, K-1, S-corp, C-corp and foreign corporations — with its US tax treatment.</p></div>

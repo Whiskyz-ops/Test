@@ -36,6 +36,12 @@
   function addMoney(a, b) { return { usd: a.usd + b.usd, inr: a.inr + b.inr }; }
   function zeroMoney() { return { usd: 0, inr: 0 }; }
 
+  // Same trace shape conflicts.js uses for Tax Computation / FTC rows —
+  // { kind: "calc", formula, parts } or { kind: "source", detail } — so the
+  // Business tab can reuse the existing TraceRow/TracePopup UI unchanged.
+  function calc(formula, parts) { return { kind: "calc", formula: formula, parts: parts || [] }; }
+  function source(detail) { return { kind: "source", detail: detail }; }
+
   function safe(obj, path, dflt) {
     var cur = obj, parts = path.split("."), i;
     for (i = 0; i < parts.length; i++) {
@@ -187,6 +193,53 @@
       }
     });
     return total;
+  }
+
+  /* Mirrors computeBusinessEntryNetProfitInr's branches exactly, but returns
+   * the "show your work" trace instead of the number, for the Business tab. */
+  function businessEntryIncomeTrace(b) {
+    var explicit = b.net_profit_inr != null ? b.net_profit_inr : b.net_profit;
+    if (explicit !== undefined && explicit !== null) {
+      return source("Net profit entered directly on Layer 1 India for this business entry (not derived from a presumptive rate or books).");
+    }
+    var scheme = b.presumptive_scheme;
+    if (scheme === "s44AD") {
+      return calc("Presumptive income under s.44AD: digital/banking receipts × 6% + cash receipts × 8%", [
+        { label: "Digital / banking receipts", amount: num(b.digital_receipts_inr) },
+        { label: "Rate", display: "6%" },
+        { label: "Cash receipts", amount: num(b.cash_receipts_inr) },
+        { label: "Rate", display: "8%" }
+      ]);
+    }
+    if (scheme === "s44ADA") {
+      var adaReceipts = num(b.gross_receipts_inr) || (num(b.ada_digital_receipts_inr) + num(b.ada_cash_receipts_inr));
+      return calc("Presumptive income under s.44ADA: gross receipts × 50% (professionals)", [
+        { label: "Gross receipts", amount: adaReceipts },
+        { label: "Rate", display: "50%" }
+      ]);
+    }
+    if (scheme === "s44AE") {
+      return source("s.44AE tonnage-based presumptive income (goods carriages) is computed once from the Goods Vehicles schedule and rolled into the total business income figure above — it isn't split per vehicle here, so this entry shows ₹0 on its own.");
+    }
+    var exp = b.expenses || {};
+    var expenseFields = [
+      ["rent_for_business_premises_inr", "Rent for business premises"],
+      ["repairs_maintenance_inr", "Repairs & maintenance"],
+      ["employee_salary_wages_inr", "Employee salary & wages"],
+      ["employee_bonus_commission_inr", "Employee bonus & commission"],
+      ["interest_on_borrowed_capital_inr", "Interest on borrowed capital"],
+      ["insurance_premium_inr", "Insurance premium"],
+      ["bad_debts_written_off_inr", "Bad debts written off"],
+      ["other_business_expenses_inr", "Other business expenses"],
+      ["ca_professional_fees_inr", "CA / professional fees"],
+      ["employer_pf_esi_contribution_inr", "Employer PF/ESI contribution"]
+    ];
+    var parts = [{ label: "Gross receipts / turnover", amount: num(b.gross_receipts_inr) || num(b.turnover_inr) }];
+    expenseFields.forEach(function (f) {
+      var v = num(exp[f[0]]);
+      if (v > 0) parts.push({ label: "Less: " + f[1], amount: -v });
+    });
+    return calc("Regular books: gross receipts/turnover less the itemized deductible expenses on file. Depreciation, F&O-specific costs and other disallowances aren't modeled yet (Phase 1 — see gap tracker IN-22..25), so this is a floor, not the final figure.", parts);
   }
 
   /* ------------------------------------------------------------------------
@@ -1312,24 +1365,50 @@
         businessEntities: (function () {
           var list = [], ui = safe(us, "income_us_source", {});
           var entityKind = safe(us, "profile.tax_entity_type", "individual");
+          var inK = safe(india, "profile.entity_type", "individual");
+          var indiaIsCompanyOrFirm = inK === "company" || ["firm", "llp", "local"].indexOf(inK) >= 0;
+          var indiaOwnReturnForm = inK === "company" ? "ITR-6 (company)" : (indiaIsCompanyOrFirm ? "ITR-5 (firm/LLP)" : null);
           // The US entity's OWN return income (e.g. a C-Corp's 1120 income).
           if (entityKind === "ccorp" || safe(us, "profile.incorporated_in_us", false) === true) {
             var selfInc = num(safe(ui, "business_income_usd", 0));
-            if (selfInc > 0) list.push({ country: "US", type: "C-Corp (Form 1120)", name: safe(us, "profile.full_name", "US C-Corp"), incomeUsd: selfInc, corp: true });
-          }
-          (safe(ui, "self_employment", []) || []).forEach(function (s) { list.push({ country: "US", type: "Self-employment (Sch C)", name: s.business_name || s.name || "Self-employment", incomeUsd: num(s.self_employment_earnings_usd || s.net_profit_usd || 0), se: true, qbi: true }); });
-          (safe(ui, "schedule_c_businesses", []) || []).forEach(function (s) { list.push({ country: "US", type: "Schedule C", name: s.business_name || s.name || "Sole proprietorship", incomeUsd: num(s.net_profit_usd || s.net_earnings_usd || 0), se: true, qbi: true }); });
-          (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { list.push({ country: "US", type: "Farm (Sch F)", name: s.name || "Farm", incomeUsd: num(s.net_profit_usd || 0), se: true, qbi: true }); });
-          (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { list.push({ country: "US", type: "Partnership K-1 (1065)", name: k.partnership_name || k.name || "Partnership", incomeUsd: num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) + num(k.guaranteed_payments_usd || 0), se: true, qbi: true }); });
-          (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { list.push({ country: "US", type: "S-Corp K-1 (1120-S)", name: s.corp_name || s.name || "S-Corporation", incomeUsd: num(s.scorp_income_usd || s.ordinary_business_income_usd || 0), se: false, qbi: true }); });
-          (safe(ui, "c_corporations_1120", []) || []).forEach(function (c) { list.push({ country: "US", type: "C-Corp (Form 1120)", name: c.corp_name || c.name || "C-Corporation", incomeUsd: num(c.taxable_income_usd || c.net_income_usd || 0), corp: true }); });
+            if (selfInc > 0) list.push({ country: "US", type: "C-Corp (Form 1120)", name: safe(us, "profile.full_name", "US C-Corp"), incomeUsd: selfInc, corp: true,
+              filesOwnReturn: true, returnForm: "Form 1120 (C-Corp — entity-level return, 21% flat)",
+              calcTrace: source("Entity-level taxable income as entered on Layer 1 US (business_income_usd). Taxed at 21% at the entity; not on a personal return until distributed as a dividend.") }); }
+          (safe(ui, "self_employment", []) || []).forEach(function (s) { list.push({ country: "US", type: "Self-employment (Sch C)", name: s.business_name || s.name || "Self-employment", incomeUsd: num(s.self_employment_earnings_usd || s.net_profit_usd || 0), se: true, qbi: true,
+            filesOwnReturn: false, returnForm: "Schedule C + Schedule SE (Form 1040)",
+            calcTrace: source("Net self-employment earnings as entered on Layer 1 US for this business (self_employment_earnings_usd, or net_profit_usd if that field wasn't used).") }); });
+          (safe(ui, "schedule_c_businesses", []) || []).forEach(function (s) { list.push({ country: "US", type: "Schedule C", name: s.business_name || s.name || "Sole proprietorship", incomeUsd: num(s.net_profit_usd || s.net_earnings_usd || 0), se: true, qbi: true,
+            filesOwnReturn: false, returnForm: "Schedule C (Form 1040)",
+            calcTrace: source("Net profit as entered directly on Layer 1 US for this Schedule C business (net_profit_usd, or net_earnings_usd if that field wasn't used).") }); });
+          (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { list.push({ country: "US", type: "Farm (Sch F)", name: s.name || "Farm", incomeUsd: num(s.net_profit_usd || 0), se: true, qbi: true,
+            filesOwnReturn: false, returnForm: "Schedule F (Form 1040)",
+            calcTrace: source("Net farm profit as entered directly on Layer 1 US for this farm (net_profit_usd).") }); });
+          (safe(ui, "partnerships_k1", []) || []).forEach(function (k) {
+            var ord = num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0), gp = num(k.guaranteed_payments_usd || 0);
+            list.push({ country: "US", type: "Partnership K-1 (1065)", name: k.partnership_name || k.name || "Partnership", incomeUsd: ord + gp, se: true, qbi: true,
+              filesOwnReturn: false, returnForm: "Form 1065 (partnership return, informational) → Schedule E + Schedule SE (Form 1040)",
+              calcTrace: calc("Ordinary business income (K-1 Box 1) + guaranteed payments (K-1 Box 4). Guaranteed payments count for SE tax but are excluded from the §199A QBI base.", [
+                { label: "Ordinary business income (Box 1)", amount: ord },
+                { label: "Guaranteed payments (Box 4)", amount: gp }
+              ]) });
+          });
+          (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { list.push({ country: "US", type: "S-Corp K-1 (1120-S)", name: s.corp_name || s.name || "S-Corporation", incomeUsd: num(s.scorp_income_usd || s.ordinary_business_income_usd || 0), se: false, qbi: true,
+            filesOwnReturn: false, returnForm: "Form 1120-S (S-corp return, informational) → Schedule E (Form 1040)",
+            calcTrace: source("Ordinary business income as entered on Layer 1 US from this S-corp's K-1 (scorp_income_usd, or ordinary_business_income_usd if that field wasn't used). S-corp distributions aren't subject to SE tax.") }); });
+          (safe(ui, "c_corporations_1120", []) || []).forEach(function (c) { list.push({ country: "US", type: "C-Corp (Form 1120)", name: c.corp_name || c.name || "C-Corporation", incomeUsd: num(c.taxable_income_usd || c.net_income_usd || 0), corp: true,
+            filesOwnReturn: true, returnForm: "Form 1120 (C-Corp — entity-level return, 21% flat)",
+            calcTrace: source("Entity-level taxable income as entered on Layer 1 US for this C-corp (taxable_income_usd, or net_income_usd if that field wasn't used). Taxed at 21% at the entity; not on a personal return until distributed.") }); });
           (safe(annual.domestic_income, "business_income.business_entries", []) || []).forEach(function (b) {
             var netProfitInr = b.net_profit_inr || b.net_profit;
             if (netProfitInr === undefined || netProfitInr === null) netProfitInr = computeBusinessEntryNetProfitInr(b);
             netProfitInr = num(netProfitInr);
-            list.push({ country: "IN", type: "Business / Profession (PGBP)", name: b.trade_name || b.name || "Indian business", incomeUsd: inrToUsd(netProfitInr), inr: netProfitInr });
+            list.push({ country: "IN", type: "Business / Profession (PGBP)", name: b.trade_name || b.name || "Indian business", incomeUsd: inrToUsd(netProfitInr), inr: netProfitInr,
+              filesOwnReturn: indiaIsCompanyOrFirm, returnForm: indiaOwnReturnForm || "ITR-3/4 (personal return, via presumptive scheme or regular books)",
+              calcTrace: businessEntryIncomeTrace(b) });
           });
-          (safe(us, "foreign_entities.foreign_corporations", []) || []).forEach(function (c) { list.push({ country: c.country === "IN" ? "IN" : "US", type: "Foreign corporation (CFC)", name: c.corp_name || "Foreign corporation", incomeUsd: num(c.gilti_income_usd || 0), cfc: true, gilti: num(c.gilti_income_usd || 0), ownershipPct: num(c.ownership_pct || 0) }); });
+          (safe(us, "foreign_entities.foreign_corporations", []) || []).forEach(function (c) { list.push({ country: c.country === "IN" ? "IN" : "US", type: "Foreign corporation (CFC)", name: c.corp_name || "Foreign corporation", incomeUsd: num(c.gilti_income_usd || 0), cfc: true, gilti: num(c.gilti_income_usd || 0), ownershipPct: num(c.ownership_pct || 0),
+            filesOwnReturn: true, returnForm: "Foreign local return (not modeled) + Form 5471 (informational, US) + GILTI on Schedule 1 (Form 1040)",
+            calcTrace: source("GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) — a hand-entered estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled yet (see gap tracker). Ownership: " + Math.round(num(c.ownership_pct || 0)) + "%. This is a US inclusion only — the entity's own foreign-country income tax return is separate and not shown here.") }); });
           // Merge same-named entities so income is counted once; CFC/GILTI flags
           // fold onto the entity's real income row.
           var byName = {}, order = [];
