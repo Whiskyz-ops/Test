@@ -8054,7 +8054,14 @@ const crDiv = document.getElementById('div-company-residency');
             const match = lastExitAY.match(/(?:AY\s*)?(\d{4})(?:-\d{2,4})?/i);
             if (match) {
                 const exitYear = parseInt(match[1], 10);
-                const CURRENT_AY_START = 2024; // Assuming current AY is 2024-25
+                // Current AY's starting year, computed live instead of a
+                // hardcoded value that goes stale every April — the AY
+                // window (Apr Y to Mar Y+1) that today falls into starts
+                // this calendar year if we're in Apr-Dec, or last calendar
+                // year if we're in Jan-Mar. E.g. today (2026-07-12) falls in
+                // the AY2026-27 window → CURRENT_AY_START = 2026.
+                const now = new Date();
+                const CURRENT_AY_START = now.getFullYear() - (now.getMonth() < 3 ? 1 : 0);
                 if (CURRENT_AY_START - exitYear < 5 && CURRENT_AY_START - exitYear > 0) {
                     lockInActive = true;
                 }
