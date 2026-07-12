@@ -63,6 +63,12 @@ function TracePopup({ trace, fmt, onClose }) {
           )}
         </>
       )}
+      {trace.citation && (
+        <div className="flex items-start gap-1.5 border-t border-line mt-2 pt-2 text-[10px] text-muted leading-relaxed">
+          <BookOpen size={11} strokeWidth={2} className="shrink-0 mt-[1px]" />
+          <span>{trace.citation}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -230,6 +236,34 @@ export function ResidencyView({ result }) {
 }
 
 /* ============================ FILINGS ============================ */
+/* Which return form applies, and why — click to expand the eligibility
+ * reasoning and (where it came from an external rule check, not pure
+ * internal math) the dated source citation. */
+function ReturnFormCard({ returnForms }) {
+  if (!returnForms) return null;
+  const Row = ({ jur, form, isRecommendation, trace }) => (
+    <div className="flex-1 rounded-xl p-3 bg-white/[0.03] border border-line">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[9px] font-black px-2 py-0.5 rounded" style={{ background: (jur === "IN" ? PAL.jurIN : PAL.jurUS) + "24", color: jur === "IN" ? PAL.jurIN : PAL.jurUS }}>{jur}</span>
+        <span className="font-display font-extrabold text-lg text-head">{form}</span>
+        {jur === "IN" && (
+          <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: (isRecommendation ? PAL.positive : PAL.approaching) + "24", color: isRecommendation ? PAL.greenText : PAL.amberText }}>
+            {isRecommendation ? "Checked" : "Fallback — complete Layer 1"}
+          </span>
+        )}
+      </div>
+      <TraceRow label="Why this form" valueDisp="Show reasoning ↓" color={PAL.muted} trace={trace} fmt={jur === "IN" ? fmtInr : fmtUsd} />
+    </div>
+  );
+  return (
+    <Card icon={<ScrollText size={16} strokeWidth={2} />} title="Return Form" sub="Which form applies on each side, and why — click to see the eligibility check and its source">
+      <div className="flex flex-col md:flex-row gap-3">
+        <Row jur="IN" form={returnForms.india.form} isRecommendation={returnForms.india.isRecommendation} trace={returnForms.india.trace} />
+        <Row jur="US" form={returnForms.us.form} trace={returnForms.us.trace} />
+      </div>
+    </Card>
+  );
+}
 export function FilingsView({ result, onGoToHoldings }) {
   if (!result) return <Empty>Load a client to see filings.</Empty>;
   const cal = result.monitoring ? result.monitoring.calendar.all.slice().sort((a, b) => a.date - b.date) : [];
@@ -238,6 +272,7 @@ export function FilingsView({ result, onGoToHoldings }) {
   const jColor = { US: PAL.jurUS, IN: PAL.jurIN };
   return (
     <div className="space-y-6">
+      <ReturnFormCard returnForms={result.returnForms} />
       <Card icon={<CalendarClock size={16} strokeWidth={2} />} title="Compliance Calendar" sub="Filing & payment deadlines with countdowns">
         <div className="space-y-1.5">
           {upcoming.concat(passed).map((x, i) => {

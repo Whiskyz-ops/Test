@@ -1066,9 +1066,17 @@
    * "where did this come from" panel. "source" = pulled from Layer 1 with no
    * material computation; "calc" = a formula over other already-shown
    * numbers (parts are {label, amount} in the row's own currency, or
-   * {label, display} for a non-currency operand like a rate). */
-  function calc(formula, parts) { return { kind: "calc", formula: formula, parts: parts || [] }; }
-  function source(detail) { return { kind: "source", detail: detail }; }
+   * {label, display} for a non-currency operand like a rate).
+   *
+   * citation (optional, both kinds): a dated pointer to the external rule
+   * this trace relied on — e.g. a CBDT/IRS form or threshold that was
+   * verified against a live source rather than derived purely from numbers
+   * already on screen. Omit it for pure internal computation; only rules
+   * that could go stale (they change on a yearly notification/Finance Act
+   * cycle) should carry one, so its presence itself signals "this needs
+   * periodic re-verification," not "everything here is externally sourced." */
+  function calc(formula, parts, citation) { return { kind: "calc", formula: formula, parts: parts || [], citation: citation || null }; }
+  function source(detail, citation) { return { kind: "source", detail: detail, citation: citation || null }; }
   function holdings(section, note) { return { kind: "holdings", section: section, note: note || null }; }
 
   /* Turns a computation.js bracketBreakdown() array into trace `parts` — one
@@ -1830,6 +1838,41 @@
   }
 
   /* ------------------------------------------------------------------------
+   * buildReturnFormDetermination — surfaces WHICH return form applies and
+   * WHY, for both sides, on the Filings page. entity.indiaReturnForm/
+   * usReturnForm already carry the resolved values (normalize.js); this
+   * just builds the click-to-expand trace, with a dated citation on the
+   * India side since that value came from an external rule verification
+   * (CBDT's notified AY 2026-27 forms) rather than pure internal math.
+   * ----------------------------------------------------------------------*/
+  function buildReturnFormDetermination(model) {
+    var E = model.entity;
+    var CBDT_CITATION = "CBDT notified the AY 2026-27 ITR forms 2026-03-30 (corrigendum 2026-04-10). Eligibility rules verified against that notification 2026-07-12 — re-check each filing season, since CBDT re-notifies forms (and sometimes changes eligibility) annually.";
+
+    var indiaTrace = E.indiaReturnFormIsRecommendation
+      ? source(
+          (E.indiaReturnFormExplanation || "Determined by Layer 1 India's full eligibility check (income thresholds, residency, capital gains, foreign assets/income, directorship, crypto, multiple house properties, brought-forward losses, speculative/F&O income).") ,
+          CBDT_CITATION)
+      : source(
+          "Layer 1 India hasn't produced a full eligibility recommendation for this profile yet, so this is the crude entity-type-only fallback (" + E.indiaReturnForm + "), not a checked recommendation. Complete Layer 1 India's income, residency and capital-gains sections to get the real 7-form determination.",
+          E.indiaIsCompany || E.indiaIsFirm ? CBDT_CITATION : null);
+
+    var usDetail =
+      E.usReturnForm === "1120" ? "C-Corp: entity-level return, taxed at 21% flat." :
+      E.usReturnForm === "1120-S" ? "S-Corp: informational return, income passes through via K-1." :
+      E.usReturnForm === "1065" ? "Partnership: informational return, income passes through via K-1." :
+      E.usReturnForm === "1041" ? "Trust/estate return." :
+      E.usReturnForm === "1040-NR" ? "Nonresident alien individual return — Layer 1 US recorded this taxpayer as filing Form 1040-NR." :
+      "Resident/citizen individual return — standard Form 1040 (not recorded as an NRA 1040-NR filer).";
+    var usTrace = source(usDetail, "IRS form-per-entity-type/residency-status mapping, verified 2026-07-12.");
+
+    return {
+      india: { form: E.indiaReturnForm, isRecommendation: E.indiaReturnFormIsRecommendation, trace: indiaTrace },
+      us: { form: E.usReturnForm, trace: usTrace }
+    };
+  }
+
+  /* ------------------------------------------------------------------------
    * analyze — single entry point used by the dashboard.
    * ----------------------------------------------------------------------*/
   function analyze(opts) {
@@ -1857,6 +1900,7 @@
     var taxComputation = buildTaxComputation(model, computed);
     var withholding = buildWithholdingSummary(model, computed);
     var scopeNotes = buildScopeNotes(model);
+    var returnForms = buildReturnFormDetermination(model);
     var monitoring = WISING.monitor
       ? WISING.monitor(model, computed, { findings: findings, asOf: (opts.scenario && opts.scenario.asOf) || opts.asOf })
       : null;
@@ -1873,6 +1917,7 @@
       taxComputation: taxComputation,
       withholding: withholding,
       scopeNotes: scopeNotes,
+      returnForms: returnForms,
       monitoring: monitoring,
       summary: {
         name: model.identity.name,
