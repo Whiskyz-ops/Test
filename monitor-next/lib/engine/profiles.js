@@ -129,8 +129,8 @@
   var P2 = {
     id: "us_resident_indian_income",
     label: "US Resident · Indian income",
-    story: "US green-card holder with Indian rent, dividends, mutual funds, a small India consulting stake and a US-side consulting side gig. US taxes worldwide → FTC (Form 1116) for Indian TDS; PFIC; a below-threshold Indian business stake; no US-India Totalization Agreement on his US self-employment tax; plus occasional online-gaming winnings and an unexplained cash deposit back home. His W-2 job also reports qualified tip income and overtime premium pay — the first demo of the (OBBBA, TY2025-2028) \"no tax on tips\"/\"no tax on overtime\" deductions, both intact here since his AGI sits just under the $300,000 MFJ phase-out threshold.",
-    tags: ["FTC 1116", "PFIC", "FBAR", "NR in India", "self-employment", "tips/overtime"],
+    story: "US green-card holder with Indian rent, dividends, mutual funds, a small India consulting stake and a US-side consulting side gig. US taxes worldwide → FTC (Form 1116) for Indian TDS; PFIC; a below-threshold Indian business stake; no US-India Totalization Agreement on his US self-employment tax; plus occasional online-gaming winnings and an unexplained cash deposit back home. His W-2 job also reports qualified tip income and overtime premium pay — the first demo of the (OBBBA, TY2025-2028) \"no tax on tips\"/\"no tax on overtime\" deductions, both intact here since his AGI sits just under the $300,000 MFJ phase-out threshold. Also a general partner in a small consulting LLC — the first demo of partnership K-1 guaranteed payments (previously dropped from income entirely) and Box 14A self-employment earnings (previously unread, so partnership SE tax was always $0).",
+    tags: ["FTC 1116", "PFIC", "FBAR", "NR in India", "self-employment", "tips/overtime", "K-1"],
     router: router("Rohan Mehta", { is_us_citizen: false, has_green_card: true, us_days: 365, date_of_birth: "1985-03-22" }),
     india: {
       profile: { full_name: "Rohan Mehta", entity_type: "individual", date_of_birth: "1985-03-22", pan: "AAAPM5678Q", tax_regime: "NEW" },
@@ -169,7 +169,16 @@
     us: {
       profile: { tax_entity_type: "individual", full_name: "Rohan Mehta", date_of_birth: "1985-03-22", filing_status: "mfj", ssn_or_itin_type: "ssn" },
       us_residency_detail: { is_us_citizen: false, has_green_card: true, us_days_current_year: 345, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "none" },
-      income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Northwind Labs", wages_box1_usd: 158000, qualified_tip_income_usd: 2400, qualified_overtime_premium_usd: 5800, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 30000, medicare_wages_box5_usd: 158000 } }], self_employment: [{ business_name: "Mehta Analytics (consulting)", self_employment_earnings_usd: 62000 }], interest_us_source_usd: 5200, ordinary_dividends_us_source_usd: 6400, qualified_dividends_us_source_usd: 4000, ltcg_us_source_usd: 12000, rental_income_us_source_usd: 27000 },
+      income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Northwind Labs", wages_box1_usd: 158000, qualified_tip_income_usd: 2400, qualified_overtime_premium_usd: 5800, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 30000, medicare_wages_box5_usd: 158000 } }], self_employment: [{ business_name: "Mehta Analytics (consulting)", self_employment_earnings_usd: 62000 }],
+        // A general-partner stake in a small consulting partnership — Box 4
+        // guaranteed payments (previously dropped from income entirely) plus
+        // Box 1 ordinary income; Box 14A (self_employment_earnings_usd) is the
+        // K-1's own combined SE-tax figure, exercising the fix that
+        // partnership SE tax was unconditionally $0 before (Box 14A was never
+        // read). QBI only picks up the $18,000 ordinary slice, correctly
+        // excluding the $12,000 guaranteed payments.
+        partnerships_k1: [{ partnership_name: "Meridian Consulting Partners LLC", partner_type: "general", ordinary_business_income_usd: 18000, guaranteed_payments_usd: 12000, self_employment_earnings_usd: 30000 }],
+        interest_us_source_usd: 5200, ordinary_dividends_us_source_usd: 6400, qualified_dividends_us_source_usd: 4000, ltcg_us_source_usd: 12000, rental_income_us_source_usd: 27000 },
       income_foreign_source: { foreign_rental_income_usd: 14458, foreign_dividends_usd: 2651, foreign_interest_usd: 3133, foreign_stcg_usd: 2169 },
       retirement_accounts: { "401k_employee_contribution_usd": 23000, "401k_employer_match_usd": 9500, roth_ira_contribution_usd: 7000, hsa_contribution_usd: 4150 },
       financial_holdings: [{ asset_name: "Fidelity — Taxable Brokerage", account_type: "taxable_brokerage", peak_balance_usd: 224000, country: "US" }, { asset_name: "Vanguard — VTSAX / VTI", account_type: "taxable_brokerage", peak_balance_usd: 141000, country: "US" }],

@@ -693,7 +693,11 @@
       businessUs = addMoney(businessUs, moneyFromUsd(c.taxable_income_usd || c.net_income_usd || 0));
     });
     (safe(ui, "partnerships_k1", []) || []).forEach(function (k) {
-      businessUs = addMoney(businessUs, moneyFromUsd(k.ordinary_business_income_usd || k.ordinary_income_usd || 0));
+      // Guaranteed payments (Box 4) are real income to the partner regardless
+      // of general/limited status — they were previously dropped entirely.
+      businessUs = addMoney(businessUs, moneyFromUsd(
+        num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) + num(k.guaranteed_payments_usd || 0)
+      ));
     });
     (safe(ui, "self_employment", []) || []).forEach(function (s) {
       businessUs = addMoney(businessUs, moneyFromUsd(s.self_employment_earnings_usd || s.net_profit_usd || 0));
@@ -710,11 +714,31 @@
     (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { seEarnings += num(s.net_profit_usd || 0); });
     // QBI-eligible pass-through business income (§199A): SE + S-corp + partnership
     // ordinary (excludes C-corp and wages). SSTB flag if any business is flagged.
+    // Seeded from seEarnings BEFORE partnership Box 14A is added below — Box
+    // 14A can include guaranteed payments (QBI-ineligible under §199A) and
+    // would otherwise double-count the ordinary-income slice added explicitly
+    // via ordinary_business_income_usd two lines down.
     var qbiIncome = seEarnings, sstb = false;
     (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { qbiIncome += num(s.scorp_income_usd || s.ordinary_business_income_usd || 0); });
     (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { qbiIncome += num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0); });
     [].concat(safe(ui, "self_employment", []) || [], safe(ui, "schedule_c_businesses", []) || [], safe(ui, "s_corporations_k1", []) || [], safe(ui, "partnerships_k1", []) || [])
       .forEach(function (x) { if (x && (x.is_sstb === true || x.sstb === true)) sstb = true; });
+    // Partnership K-1 Box 14A (self_employment_earnings_usd) is the
+    // authoritative SE-tax base as actually reported on the K-1 — already
+    // partner-type-aware (a limited partner's distributive share of ordinary
+    // income is excluded from SE tax per s.1402(a)(13); guaranteed payments
+    // for services are not, for either partner type). Previously not read at
+    // all, so partnership SE tax was unconditionally $0. Falls back to
+    // guaranteed payments (+ ordinary income for a general partner only)
+    // when Box 14A itself wasn't entered. Added to seEarnings only AFTER
+    // qbiIncome is seeded above, so it never leaks into the QBI base.
+    (safe(ui, "partnerships_k1", []) || []).forEach(function (k) {
+      var box14a = k.self_employment_earnings_usd;
+      if (box14a === null || box14a === undefined || box14a === "") {
+        box14a = num(k.guaranteed_payments_usd || 0) + (k.partner_type === "general" ? num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) : 0);
+      }
+      seEarnings += num(box14a);
+    });
 
     // US retirement / pension income (US-source, ordinary): IRA & 401(k)
     // distributions, Social Security, and pension.
@@ -1222,7 +1246,7 @@
           (safe(ui, "self_employment", []) || []).forEach(function (s) { list.push({ country: "US", type: "Self-employment (Sch C)", name: s.business_name || s.name || "Self-employment", incomeUsd: num(s.self_employment_earnings_usd || s.net_profit_usd || 0), se: true, qbi: true }); });
           (safe(ui, "schedule_c_businesses", []) || []).forEach(function (s) { list.push({ country: "US", type: "Schedule C", name: s.business_name || s.name || "Sole proprietorship", incomeUsd: num(s.net_profit_usd || s.net_earnings_usd || 0), se: true, qbi: true }); });
           (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { list.push({ country: "US", type: "Farm (Sch F)", name: s.name || "Farm", incomeUsd: num(s.net_profit_usd || 0), se: true, qbi: true }); });
-          (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { list.push({ country: "US", type: "Partnership K-1 (1065)", name: k.partnership_name || k.name || "Partnership", incomeUsd: num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0), se: true, qbi: true }); });
+          (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { list.push({ country: "US", type: "Partnership K-1 (1065)", name: k.partnership_name || k.name || "Partnership", incomeUsd: num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) + num(k.guaranteed_payments_usd || 0), se: true, qbi: true }); });
           (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { list.push({ country: "US", type: "S-Corp K-1 (1120-S)", name: s.corp_name || s.name || "S-Corporation", incomeUsd: num(s.scorp_income_usd || s.ordinary_business_income_usd || 0), se: false, qbi: true }); });
           (safe(ui, "c_corporations_1120", []) || []).forEach(function (c) { list.push({ country: "US", type: "C-Corp (Form 1120)", name: c.corp_name || c.name || "C-Corporation", incomeUsd: num(c.taxable_income_usd || c.net_income_usd || 0), corp: true }); });
           (safe(annual.domestic_income, "business_income.business_entries", []) || []).forEach(function (b) { list.push({ country: "IN", type: "Business / Profession (PGBP)", name: b.trade_name || b.name || "Indian business", incomeUsd: inrToUsd(num(b.net_profit_inr || b.net_profit || 0)), inr: num(b.net_profit_inr || b.net_profit || 0) }); });
