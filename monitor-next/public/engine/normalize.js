@@ -151,18 +151,24 @@
    * (business_entries[].branches[]) revenue/expense breakdowns are also not
    * yet folded in — entry-level totals only.
    * ----------------------------------------------------------------------*/
-  // s.44AD/s.44ADA turnover-eligibility ceilings — verified 2026-07-12:
-  // 44AD Rs.2 crore (Rs.3 crore if cash receipts are under 5% of total
-  // receipts); 44ADA Rs.50 lakh (Rs.75 lakh under the same 5% cash-receipts
-  // condition). Above the applicable ceiling the presumptive election is
-  // invalid — the taxpayer must maintain regular books instead. cashInr/
-  // digitalInr unknown (both zero) defaults to the lower ceiling, since the
-  // higher one requires proving the digital-receipts condition.
+  // s.44AD/s.44ADA turnover-eligibility ceilings — verified 2026-07-12, and
+  // matched exactly (including the boundary) to Layer 1 India's own live
+  // validator (validateS44ADEligibility()/validateS44ADAEligibility() in
+  // layer1_india.html, which already force-reverts an over-ceiling election
+  // with an alert): 44AD Rs.2 crore (Rs.3 crore when digital receipts are
+  // AT LEAST 95% of total — cash <= 5%, inclusive, per Layer 1's own
+  // `dig >= 0.95 * total` check); 44ADA Rs.50 lakh (Rs.75 lakh under the
+  // same >=95%-digital condition). This engine-side check is a safety net
+  // for state that didn't pass through that live validator (hand-authored
+  // profiles, imports) — real Layer 1 usage should never actually reach the
+  // fallback branch below, since the election is reverted before it's ever
+  // saved. cashInr/digitalInr both zero defaults to the lower ceiling,
+  // since the higher one requires proving the digital-receipts condition.
   function presumptiveCeilingInr(scheme, digitalInr, cashInr) {
     var total = digitalInr + cashInr;
-    var underFivePctCash = total > 0 && (cashInr / total) < 0.05;
-    if (scheme === "s44AD") return underFivePctCash ? 30000000 : 20000000;
-    if (scheme === "s44ADA") return underFivePctCash ? 7500000 : 5000000;
+    var atLeast95PctDigital = total > 0 && (cashInr / total) <= 0.05;
+    if (scheme === "s44AD") return atLeast95PctDigital ? 30000000 : 20000000;
+    if (scheme === "s44ADA") return atLeast95PctDigital ? 7500000 : 5000000;
     return Infinity;
   }
 
@@ -226,7 +232,7 @@
     return total;
   }
 
-  var PRESUMPTIVE_CEILING_CITATION = "s.44AD/44ADA turnover ceilings (Rs.2cr/Rs.3cr and Rs.50L/Rs.75L, the higher figure requiring under-5%-cash receipts) verified 2026-07-12 — re-check each Finance Act cycle.";
+  var PRESUMPTIVE_CEILING_CITATION = "s.44AD/44ADA turnover ceilings (Rs.2cr/Rs.3cr and Rs.50L/Rs.75L, the higher figure requiring digital receipts ≥95% of total) verified 2026-07-12, matched to Layer 1 India's own live eligibility check — re-check each Finance Act cycle.";
 
   /* Mirrors computeBusinessEntryNetProfitInr's branches exactly, but returns
    * the "show your work" trace instead of the number, for the Business tab. */
