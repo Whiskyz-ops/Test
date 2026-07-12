@@ -14775,8 +14775,19 @@ ${isProf ? '' : `
         
         // Mask out variables
         const hasCrypto = hasCapitalGains && (cg.vda_gains_inr > 0 || (Array.isArray(fh.transactions) && fh.transactions.some(t => t.asset_class === 'vda_crypto')));
-        const multipleHP = hasHouseProperty && (hp.properties && hp.properties.length > 1);
-        
+        // AY 2026-27 CBDT change: ITR-1 and ITR-4 now allow up to TWO house
+        // properties (previously only one) — verified against the notified
+        // AY 2026-27 forms, July 2026.
+        const multipleHP = hasHouseProperty && (hp.properties && hp.properties.length > 2);
+        // AY 2026-27 CBDT change: ITR-1 and ITR-4 now also allow LTCG under
+        // s.112A up to Rs.1,25,000 (the exemption threshold) with no other
+        // capital gains and no capital losses carried forward — previously
+        // ANY capital gain forced ITR-2/3. Verified against the notified
+        // AY 2026-27 forms, July 2026.
+        const ltcg112A = sb.income_ltcg_112A_inr || 0;
+        const otherCapitalGains = (sb.income_stcg_111A_inr || 0) + (sb.income_ltcg_112_inr || 0) + (sb.income_stcg_other_inr || 0);
+        const hasDisqualifyingCapitalGains = hasCapitalGains && (otherCapitalGains > 0 || ltcg112A > 125000);
+
         const hasPresumptiveEntry = hasBusiness && entries.some(e => ['s44AD', 's44ADA', 's44AE'].includes(e.presumptive_scheme));
         const hasPresumptiveLegacy = hasBusiness && Array.isArray(biz.presumptive_scheme) && biz.presumptive_scheme.some(s => ['s44AD', 's44ADA', 's44AE'].includes(s));
         const isPresumptive = hasPresumptiveEntry || hasPresumptiveLegacy;
@@ -14795,14 +14806,14 @@ ${isProf ? '' : `
         const hasCryptoEval = (isInd || isHuf) ? hasCrypto : false;
         const hasLotteryEval = (isInd || isHuf) ? hasLotteryOrGaming : false;
 
-        const isDisqualifiedFromSimpleForms = totalInc > 5000000 || !isROR || hasCapitalGains || hasForeignIncomeEval || hasForeignAssetsEval || isDirector || hasCryptoEval || multipleHP || hasHighAgriIncome || hasLotteryEval || hasBFLosses || hasSpeculativeOrFNO;
+        const isDisqualifiedFromSimpleForms = totalInc > 5000000 || !isROR || hasDisqualifyingCapitalGains || hasForeignIncomeEval || hasForeignAssetsEval || isDirector || hasCryptoEval || multipleHP || hasHighAgriIncome || hasLotteryEval || hasBFLosses || hasSpeculativeOrFNO;
 
         // DEBUG: Output why it's disqualified
         if (isDisqualifiedFromSimpleForms) {
             console.log('--- ITR EVALUATION DEBUG ---');
             console.log('totalInc > 50L:', totalInc > 5000000);
             console.log('!isROR:', !isROR);
-            console.log('hasCapitalGains:', hasCapitalGains);
+            console.log('hasDisqualifyingCapitalGains:', hasDisqualifyingCapitalGains, '(ltcg112A=' + ltcg112A + ', otherCapitalGains=' + otherCapitalGains + ')');
             console.log('hasForeignIncomeEval:', hasForeignIncomeEval);
             console.log('hasForeignAssetsEval:', hasForeignAssetsEval);
             console.log('isDirector:', isDirector);
@@ -14861,13 +14872,10 @@ ${isProf ? '' : `
                         if (totalInc > 5000000) reasons.push('Total Income > ₹50L');
                         if (!isROR) reasons.push('Non-Resident / RNOR Status');
                         
-                        if (hasCapitalGains) {
-                            const cgDOM = document.getElementById('setup-cg');
-                            const cgCard = document.getElementById('card-setup-cg');
-                            const domState = cgDOM ? (cgDOM.checked ? 'true' : 'false') : 'null';
-                            const isActiveClass = cgCard ? (cgCard.classList.contains('active') ? 'true' : 'false') : 'null';
-                            const stateStr = (state.capital_gains && state.capital_gains.has_capital_gains) ? 'true' : 'false';
-                            reasons.push('Capital Gains active (State: ' + stateStr + ', DOM checked: ' + domState + ', UI active: ' + isActiveClass + ')');
+                        if (hasDisqualifyingCapitalGains) {
+                            reasons.push(otherCapitalGains > 0
+                                ? 'Capital gains beyond the s.112A-only allowance (STCG and/or non-112A LTCG present)'
+                                : 'LTCG under s.112A exceeds the Rs.1,25,000 threshold (Rs.' + ltcg112A.toLocaleString('en-IN') + ')');
                         }
                         if (hasForeignIncomeEval) reasons.push('Foreign Income active');
                         if (hasForeignAssetsEval) reasons.push('Foreign Assets active');
