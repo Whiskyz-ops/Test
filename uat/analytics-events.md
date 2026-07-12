@@ -25,8 +25,9 @@ Every record also carries: `t` (ISO time), `sid`, `pid`, `path`.
 - **No endpoint set** → events buffer in the browser (`localStorage` key `uat_events`, last 1000).
   At the end of a session run `window.__uat.export()` in the console to copy them out.
 - **Endpoint set** (`NEXT_PUBLIC_UAT_ANALYTICS_URL`) → each event is also POSTed
-  (via `navigator.sendBeacon`) to your collector. Easiest free option: a Google Apps
-  Script web app that appends the JSON body to a Sheet. Point PostHog/your own API here too.
+  (via `navigator.sendBeacon`) to your collector. Easiest free option: the Google Apps
+  Script → Sheet collector in [`collector.gs`](./collector.gs) — deploy steps in
+  [`collector-setup.md`](./collector-setup.md). Point PostHog/your own API here too.
 
 ## What to read from it
 - **Coverage** — did each participant actually reach every view? (`view_change` per `pid`)
