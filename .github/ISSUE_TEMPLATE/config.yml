@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: UAT feedback survey
+    url: https://github.com/Whiskyz-ops/Test/blob/claude/india-us-tax-conflict-prototype-wpz0kl/uat/feedback-survey.md
+    about: Complete the post-session feedback survey (usability, trust, NPS).
+  - name: UAT plan & how testing works
+    url: https://github.com/Whiskyz-ops/Test/blob/claude/india-us-tax-conflict-prototype-wpz0kl/uat/README.md
+    about: How the User Assessment Testing programme runs.

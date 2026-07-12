@@ -1,0 +1,31 @@
+Section,Question,Type,Options
+About you,Participant ID,Short answer,
+About you,Your role,Multiple choice,Tax preparer|Reviewer|Partner|Ops|Other
+About you,Cross-border tax experience,Multiple choice,<1 year|1-3 years|3-7 years|7+ years
+SUS,I would like to use this Monitor frequently,Linear scale,1-5
+SUS,I found the Monitor unnecessarily complex,Linear scale,1-5
+SUS,I thought the Monitor was easy to use,Linear scale,1-5
+SUS,I would need technical support to use this,Linear scale,1-5
+SUS,The views were well integrated,Linear scale,1-5
+SUS,There was too much inconsistency,Linear scale,1-5
+SUS,Most people would learn this very quickly,Linear scale,1-5
+SUS,The Monitor was very awkward to use,Linear scale,1-5
+SUS,I felt confident using the Monitor,Linear scale,1-5
+SUS,I needed to learn a lot before getting going,Linear scale,1-5
+Task confidence,Monitor overview did its job,Linear scale,1-5
+Task confidence,Residency & DTAA did its job,Linear scale,1-5
+Task confidence,Filings did its job,Linear scale,1-5
+Task confidence,Documents did its job,Linear scale,1-5
+Task confidence,Holdings did its job,Linear scale,1-5
+Task confidence,Business & entities did its job,Linear scale,1-5
+Task confidence,Accounts did its job,Linear scale,1-5
+Task confidence,Clients portfolio did its job,Linear scale,1-5
+Trust,Did any number look wrong or unreconcilable,Paragraph,
+Trust,Were the conflicts/recommendations actionable,Multiple choice,Yes all|Mostly|Some|No
+Trust,Would you trust this to triage a real client,Multiple choice,Yes|With checks|Not yet
+Open feedback,Single most useful thing,Paragraph,
+Open feedback,Most confusing or frustrating,Paragraph,
+Open feedback,One thing to add or change first,Paragraph,
+Open feedback,Anything that stopped you completing a task,Paragraph,
+Overall,NPS - likelihood to recommend,Linear scale,0-10
+Overall,Overall readiness,Multiple choice,Ship|Ship with fixes|Not ready

@@ -1,0 +1,51 @@
+CaseID,Area,Priority,View,Scenario,Expected
+A1,App shell,Medium,Shell,Load the app,"Sidebar: logo, 9 nav items (Monitor active), engine-online line, 3 footer links, user card"
+A2,App shell,Medium,Shell,Read the header,"Title Cross-Border Monitor; subtitle client name + tax period; Settings + region dropdown"
+A3,App shell,High,Shell,Click each of the 9 nav items,Each view renders without error; active item highlighted
+A4,App shell,High,Shell,Observe sidebar badges,Monitor=conflicts count; Clients=profile count; Documents=required docs; Filings=next-deadline countdown
+B1,Data modes,Critical,Shell,Read the mode pill on load,Badge reads Demo; engine online (not stuck Loading)
+B2,Data modes,Critical,Shell,Load each of the 9 test profiles,Header + every view updates to that taxpayer
+B3,Data modes,High,Shell,Click Refresh after loading a profile,Re-runs engine; no error; values stable
+B4,Data modes,High,Shell,Edit a Layer 1 form in another tab and return,Monitor auto-recomputes; badge flips to Live
+B5,Data modes,Medium,Shell,Load a Business profile,Residency-day meters suppressed; reporting limits lead
+C1,Monitor,High,Monitor,Inspect the exposure map,India + US colour-coded by status; legend shown
+C2,Monitor,High,Monitor,Click the United States,Drills into US-states choropleth; Back to world returns
+C3,Monitor,Critical,Monitor,Read the 4 KPI cards,"Exposed, Approaching, Filing-only, All Jurisdictions; clicking filters the table"
+C4,Monitor,Critical,Monitor,Select Exposed,"Columns: Region, Status, Estimated Tax, Resident Since, Income Exposed"
+C5,Monitor,Critical,Monitor,Select Approaching,"Columns: Region, Tracker, Days Present, Reporting Exposure, Physical Presence"
+C6,Monitor,Critical,Monitor,Select Filing-only,"Columns: Region, Triggered, Reason ($0 tax), Days Present, Physical Presence"
+C7,Monitor,High,Monitor,Read the alerts banner,Lists N alerts; names region + driver (days or reporting)
+C8,Monitor,High,Monitor,Open Conflicts & Mismatches,Severity chips + counts; filters work; row expands to detail + Action + refs
+C9,Monitor,High,Monitor,Read Residency & Reporting Limits,StatMeter cards with segmented bars + at-current-pace projection
+D1,Clients,High,Clients,Open Clients,5 stat tiles + table of all 9 profiles
+D2,Clients,High,Clients,Read a client row,"Columns: Client, Type, Residency, Combined tax, Residual, Conflicts, Health, Next filing"
+D3,Clients,High,Clients,Click a client row,Loads that profile and opens its Monitor
+D4,Clients,Medium,Clients,Check sort order,Rows sorted by health score ascending (most at-risk first)
+E1,Residency,Critical,Residency,Load Dual Resident and open Residency,Red Dual tax residency banner shown
+E2,Residency,High,Residency,Read India/US residency flags,Status + worldwide vs source-only (+ citizen where applicable)
+E3,Residency,High,Residency,Read Day-Counters,India + US counters with bars + projected-flip labels
+E4,Residency,High,Residency,Read DTAA Treaty Position,Rows for tie-breaker/TRC/10F/PE/1040-NR match the profile
+E5,Residency,High,Residency,Load US Resident Indian income,Not dual-resident; treaty rows show missing TRC/10F
+F1,Filings,High,Filings,Open Filings,Compliance calendar with countdowns; overdue dimmed; IN/US tags
+F2,Filings,Critical,Filings,Read FTC Reconciliation,Net unrelieved double tax headline (red>0/green=0); both directions itemised
+F3,Filings,Critical,Filings,Read Tax Computation,India block (INR + USD) + US block (USD) with effective-rate chips
+F4,Filings,High,Filings,Click a Tax Computation / FTC row,Trace popup: Source or Calculated; holdings-linked rows jump to Holdings
+F5,Filings,High,Filings,Read Cross-Basis Reconciliation,Same income under IN vs US law + doubly-taxed total; capsule chart renders
+F6,Filings,Medium,Filings,Read FY-CY Apportionment,Indian FY split across US calendar years both directions
+G1,Documents,High,Documents,Open Documents for a rich profile,Required docs first with jurisdiction tag + reason; count matches badge
+G2,Documents,High,Documents,Load Founder Indian company,Form 5471 / CFC docs appear required
+H1,Holdings,High,Holdings,Open Holdings,4 stat tiles + India/US income-by-head cards with totals
+H2,Holdings,Critical,Holdings,Check Securities & Funds,Indian mutual funds held by a US person tagged PFIC 8621
+H3,Holdings,High,Holdings,Load Founder Indian company and check entities,Foreign corp shows CFC 5471 tag + GILTI inclusion
+H4,Holdings,Medium,Holdings,From Filings click a holdings-linked row,Navigates to Holdings and highlights the income card
+I1,Business,High,Business,Open Business for an individual with no entities,Empty-state message
+I2,Business,High,Business,Load US C-Corp + Indian sub,Stat tiles + US/Indian entity lists with C-Corp/CFC tags + explainer
+J1,Accounts,Critical,Accounts,Open Accounts,Reporting Limits FBAR/8938/LRS/FEIE bars; breached shows BREACHED tag
+J2,Accounts,High,Accounts,Read Foreign Accounts,Each account with type/country/peak USD
+K1,Integrations,Medium,Integrations,Open Integrations,6 sources; Trip Log/Plaid/Payroll/Brokerage connected; MCA/DocuSign not
+L1,Consistency,Critical,Cross-view,Compare Monitor Estimated Tax vs Filings Tax Computation,They reconcile (same engine result)
+L2,Consistency,Critical,Cross-view,Compare conflicts count across Monitor / badge / panel,All three agree
+L3,Tax logic,Critical,Cross-view,US Resident Indian income FEIE check,Conflict flags FEIE-claimed-but-ineligible; exclusion zeroed
+L4,Tax logic,Critical,Cross-view,Dual Resident DTAA + FTC,Dual-residency conflict; residual double-tax figure; tie-breaker recorded
+L5,Tax logic,High,Cross-view,India ROR US income NR path,Files 1040-NR; FIRPTA + W-8BEN-missing conflicts; Schedule FA required
+L6,Tax logic,High,Cross-view,Business vs Individual profiles,Entity/corporate treatment shown; personal residency budgets suppressed
