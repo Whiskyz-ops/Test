@@ -155,7 +155,13 @@
       // Small India-side consulting stake, held below the 10% US CFC threshold
       // (see the matching foreign_entities block on the US side below) →
       // triggers cfc_below_threshold instead of the full CFC/Form 5471 finding.
-      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [{ trade_name: "Mehta Advisory Services", nature: "consulting", net_profit_inr: 900000, holding_pct: 5 }] }, capital_gains: { short_term_15_pct: 180000 } },
+      // Computed via s.58/44ADA presumptive (50% of gross receipts) from real
+      // Layer 1-shaped fields (gross_receipts_inr, presumptive_scheme) — the
+      // first demo profile that DOESN'T inject a hand-authored net_profit_inr,
+      // proving the real computation now works (₹18,00,000 x 50% = ₹9,00,000,
+      // deliberately matching the old injected figure so nothing else in his
+      // profile needed to change).
+      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [{ trade_name: "Mehta Advisory Services", nature: "consulting", presumptive_scheme: "s44ADA", gross_receipts_inr: 1800000, holding_pct: 5 }] }, capital_gains: { short_term_15_pct: 180000 } },
       // Occasional fantasy-sports/online-gaming winnings (very common alongside
       // NRI rental/dividend income today) plus an unexplained cash deposit the
       // client can't source-document (a routine real-world s.195/115BBE flag, not a

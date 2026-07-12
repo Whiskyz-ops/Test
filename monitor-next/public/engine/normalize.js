@@ -127,6 +127,69 @@
   }
 
   /* ------------------------------------------------------------------------
+   * s.58 (old 44AD/44ADA) presumptive rate + regular-books net profit per
+   * business_entries[] item. Replaces a phantom net_profit_inr field the
+   * engine used to read that layer1_india.html never actually sets (see
+   * docs/BUSINESS_ENTITY_ARCHITECTURE.md §0/§2.1 — every real filer
+   * previously computed ₹0 business income; only hand-authored demo
+   * profiles worked, by injecting the field directly).
+   *
+   * Deliberately Phase-0 scoped: presumptive schemes are computed in full,
+   * but regular-books net profit only nets out the unambiguous, generically
+   * -deductible expense categories. Depreciation (asset_blocks[]),
+   * F&O-specific costs, s.35/35D/35DDA amortization, and s.40A(3)/40(a)/
+   * 43B(h) disallowances are Phase 1 work (gap tracker IN-22..25) —
+   * deliberately excluded here rather than guessed at. Branch-level
+   * (business_entries[].branches[]) revenue/expense breakdowns are also not
+   * yet folded in — entry-level totals only.
+   * ----------------------------------------------------------------------*/
+  function computeBusinessEntryNetProfitInr(b) {
+    var scheme = b.presumptive_scheme;
+    if (scheme === "s44AD") {
+      // s.58 table (old s.44AD): 6% of digital receipts, 8% of cash receipts.
+      return num(b.digital_receipts_inr) * 0.06 + num(b.cash_receipts_inr) * 0.08;
+    }
+    if (scheme === "s44ADA") {
+      // s.58 table (old s.44ADA): flat 50% of gross receipts, no digital/cash
+      // rate differential (unlike s44AD).
+      var adaReceipts = num(b.gross_receipts_inr) || (num(b.ada_digital_receipts_inr) + num(b.ada_cash_receipts_inr));
+      return adaReceipts * 0.50;
+    }
+    if (scheme === "s44AE") {
+      return null; // computed once from goods_vehicles[] at the aggregate level, not per-entry
+    }
+    // Regular books — gross receipts less the clean, unambiguous general PGBP
+    // expense categories only (see the Phase-0 scoping note above).
+    var exp = b.expenses || {};
+    var deductible =
+      num(exp.rent_for_business_premises_inr) + num(exp.repairs_maintenance_inr) +
+      num(exp.employee_salary_wages_inr) + num(exp.employee_bonus_commission_inr) +
+      num(exp.interest_on_borrowed_capital_inr) + num(exp.insurance_premium_inr) +
+      num(exp.bad_debts_written_off_inr) + num(exp.other_business_expenses_inr) +
+      num(exp.ca_professional_fees_inr) + num(exp.employer_pf_esi_contribution_inr);
+    var receipts = num(b.gross_receipts_inr) || num(b.turnover_inr);
+    return receipts - deductible;
+  }
+
+  // s.58 table (old s.44AE), goods-carriage presumptive income — rates stable
+  // since the 2018 Budget amendment, re-verify periodically (see gap tracker
+  // maintenance note): heavy (>12MT) = Rs1,000/ton/month; other = Rs7,500/month
+  // flat, either way pro-rated by months owned (part of a month counts whole).
+  function computeGoodsVehiclePresumptiveInr(vehicles) {
+    var total = 0;
+    (vehicles || []).forEach(function (v) {
+      var months = num(v.months_owned);
+      if (!(months > 0)) return;
+      if (v.vehicle_type === "heavy") {
+        total += 1000 * num(v.gvw_tonnes) * months;
+      } else if (v.vehicle_type === "light") {
+        total += 7500 * months;
+      }
+    });
+    return total;
+  }
+
+  /* ------------------------------------------------------------------------
    * India income aggregation (annual), normalized to {inr, usd} per head.
    * ----------------------------------------------------------------------*/
   function aggregateIndiaIncome(india, annual) {
@@ -140,8 +203,19 @@
     var bizEntries = safe(di, "business_income.business_entries", []);
     var business = zeroMoney();
     (bizEntries || []).forEach(function (b) {
-      business = addMoney(business, moneyFromInr(b.net_profit_inr || b.net_profit || 0));
+      // net_profit_inr/net_profit are honored first ONLY because hand-authored
+      // demo profiles (engine/profiles.js) inject them directly, bypassing the
+      // real form — layer1_india.html itself never sets either field, so for
+      // every real filer this falls through to the real computation below.
+      var netProfitInr = b.net_profit_inr || b.net_profit;
+      if (netProfitInr === undefined || netProfitInr === null) {
+        netProfitInr = computeBusinessEntryNetProfitInr(b);
+      }
+      business = addMoney(business, moneyFromInr(num(netProfitInr)));
     });
+    // s.58/44AE goods-carriage presumptive income — computed once from the
+    // shared goods_vehicles[] list, not per business_entries[] item.
+    business = addMoney(business, moneyFromInr(computeGoodsVehiclePresumptiveInr(safe(di, "business_income.goods_vehicles", []))));
 
     var hpProps = safe(di, "house_property.properties", []);
     var houseProperty = zeroMoney();
@@ -1249,7 +1323,12 @@
           (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { list.push({ country: "US", type: "Partnership K-1 (1065)", name: k.partnership_name || k.name || "Partnership", incomeUsd: num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) + num(k.guaranteed_payments_usd || 0), se: true, qbi: true }); });
           (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { list.push({ country: "US", type: "S-Corp K-1 (1120-S)", name: s.corp_name || s.name || "S-Corporation", incomeUsd: num(s.scorp_income_usd || s.ordinary_business_income_usd || 0), se: false, qbi: true }); });
           (safe(ui, "c_corporations_1120", []) || []).forEach(function (c) { list.push({ country: "US", type: "C-Corp (Form 1120)", name: c.corp_name || c.name || "C-Corporation", incomeUsd: num(c.taxable_income_usd || c.net_income_usd || 0), corp: true }); });
-          (safe(annual.domestic_income, "business_income.business_entries", []) || []).forEach(function (b) { list.push({ country: "IN", type: "Business / Profession (PGBP)", name: b.trade_name || b.name || "Indian business", incomeUsd: inrToUsd(num(b.net_profit_inr || b.net_profit || 0)), inr: num(b.net_profit_inr || b.net_profit || 0) }); });
+          (safe(annual.domestic_income, "business_income.business_entries", []) || []).forEach(function (b) {
+            var netProfitInr = b.net_profit_inr || b.net_profit;
+            if (netProfitInr === undefined || netProfitInr === null) netProfitInr = computeBusinessEntryNetProfitInr(b);
+            netProfitInr = num(netProfitInr);
+            list.push({ country: "IN", type: "Business / Profession (PGBP)", name: b.trade_name || b.name || "Indian business", incomeUsd: inrToUsd(netProfitInr), inr: netProfitInr });
+          });
           (safe(us, "foreign_entities.foreign_corporations", []) || []).forEach(function (c) { list.push({ country: c.country === "IN" ? "IN" : "US", type: "Foreign corporation (CFC)", name: c.corp_name || "Foreign corporation", incomeUsd: num(c.gilti_income_usd || 0), cfc: true, gilti: num(c.gilti_income_usd || 0), ownershipPct: num(c.ownership_pct || 0) }); });
           // Merge same-named entities so income is counted once; CFC/GILTI flags
           // fold onto the entity's real income row.

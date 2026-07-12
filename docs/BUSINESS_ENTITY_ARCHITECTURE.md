@@ -188,7 +188,7 @@ Once §3's graph exists:
 
 | Phase | Deliverable | Blocked on new Layer 1 fields? | Depends on |
 |---|---|---|---|
-| **0** | Fix the phantom `net_profit_inr` bug (real net-profit computation, §2.1) + fold `guaranteed_payments_usd` into US income/SE/QBI correctly (§2.5) | No | — |
+| **0** | ✅ **Shipped.** Fix the phantom `net_profit_inr` bug (real net-profit computation, §2.1 — presumptive s.44AD/44ADA/44AE plus regular-books-from-clean-expenses; depreciation/F&O/disallowances deliberately deferred to Phase 1) + fold `guaranteed_payments_usd` and Box 14A into US income/SE/QBI correctly (§2.5 — turned out Box 14A was never read at all, not just guaranteed payments) | No | — |
 | **1** | India depreciation from `asset_blocks[]` (§2.4), F&O/speculative separation (§2.2), disallowances (s.40A(3)/40(a)/43B(h)) folded into net profit, partner-firm pass-through (§2.3) | No | Phase 0 |
 | **1b** | US depreciation/§179/bonus from the asset-row UI (§2.6) — same shape of work as Phase 1, different jurisdiction, can run in parallel to it | No | Phase 0 |
 | **2** | `trusts_estates_k1[]` added to `businessEntities()` (§2.5) | No | — (independent, can run parallel to 0/1) |
