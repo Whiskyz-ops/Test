@@ -46,8 +46,9 @@ Living document tracking everything WISING does **not** yet model, viewed throug
 | IN-23 | Business disallowances not folded into net profit (s.40A(3) cash limits, s.40(a) non-TDS payments, s.43B(h) MSME timing) | ❌ | 🟢 Now | P2 | `payments_to_non_residents_no_tds_inr`/`payments_to_residents_no_tds_inr` are already read for the existing disallowance *finding* but never actually reduce computed business income; the cash-payment and MSME-timing (`msme_payables[]`) disallowances aren't touched at all despite full data. See spec §2.1. |
 | IN-24 | Partner-firm pass-through (`partner_firms[]`) not read anywhere | ❌ | 🟢 Now | P2 | Remuneration + interest-on-capital (taxable PGBP to the partner) and exempt profit share (must NOT be taxed again) are fully captured per firm but never enter income aggregation. See spec §2.3. |
 | IN-25 | Depreciation (`asset_blocks[]`) not computed | ❌ | 🟢 Now | P2 | WDV-method blocks (opening WDV, additions, rate) are captured per business entry; no current-year depreciation charge is computed, so it neither reduces net profit nor feeds the (already-modeled) unabsorbed-depreciation carryforward correctly. See spec §2.4. |
+| IN-26 | s.44BBB (foreign co. civil construction, 10% presumptive) / s.35AD (100% capex deduction, specified businesses) / s.115V tonnage tax (shipping) — all uncomputed | ❌ | 🟢 Now | P3 | `s44bbb_receipts_inr`, `specified_business_s35AD_inr`, `tonnage_tax_115V_inr` are fully captured (found on re-audit — the first tracker pass truncated its field read and missed these) but never touched engine-side. Smaller affected population than IN-21/22 but genuinely data-complete. See spec §2.7. |
 
-**Buildable-now count (India): 13 of 25** — IN-1, IN-4, IN-6, IN-7, IN-8, IN-12, IN-15, IN-16, IN-21, IN-22, IN-23, IN-24, IN-25.
+**Buildable-now count (India): 14 of 26** — IN-1, IN-4, IN-6, IN-7, IN-8, IN-12, IN-15, IN-16, IN-21, IN-22, IN-23, IN-24, IN-25, IN-26.
 
 **See also `docs/BUSINESS_ENTITY_ARCHITECTURE.md`** for the full multi-entity architecture spec (entity graph, inter-entity flows, phased build order) that IN-21 through IN-25 and US-16/17 all fold into — that document is the source of truth for sequencing this work; don't duplicate the phase plan here.
 
@@ -76,8 +77,9 @@ Living document tracking everything WISING does **not** yet model, viewed throug
 | US-15 | FICA/FUTA as a levy (employer + employee employment tax) | 🚫 recorded | ⚪ N/A | — | Different tax base from income tax; only Additional Medicare 0.9% (modeled ✓) and the two withholding-visibility items above intersect this app. Recording the boundary so it isn't re-litigated. |
 | US-16 | **`guaranteed_payments_usd` dropped from partnership K-1 income entirely** | ❌ **active understatement** | 🟢 Now | **P1** | Layer 1 US fully captures and branch-aggregates guaranteed payments per K-1 (`partnerships_k1[].guaranteed_payments_usd`), but `normalize.js` reads only `ordinary_business_income_usd`/`ordinary_income_usd` — guaranteed payments never reach `businessUs`, SE-tax base, or QBI exclusion. A general partner's guaranteed payments ARE SE-tax-subject and QBI-*ineligible* — both currently silently wrong. See `docs/BUSINESS_ENTITY_ARCHITECTURE.md` §0/§2.5. |
 | US-17 | `trusts_estates_k1[]` entirely absent from `businessEntities()` | ❌ | 🟢 Now | P2 | Fully collected (with its own QBI-addition helper already in the form) but never read engine-side. See `docs/BUSINESS_ENTITY_ARCHITECTURE.md` §2.5. |
+| US-18 | US depreciation / §179 / bonus depreciation — full MACRS asset system uncomputed | ❌ | 🟢 Now | P2 | Found on re-audit (missed in the first pass, which only checked India-side depreciation): the asset-row UI shared across Sch C/farm/rental/K-1/1120 already carries real MACRS class rates, §179 amount (with the form's own published caps), bonus-depreciation election, cost basis, and placed-in-service date — none of it computed. C-corp `schedule_m1`/`schedule_m2` book-to-tax reconciliation also collected and unread (currently bypassed via direct `taxable_income_usd`). See spec §2.6. |
 
-**Buildable-now count (US): 11 of 17 (2 partial)** — US-1, US-2, US-3 (partial), US-5 (partial), US-7, US-9, US-12, US-13, US-14, US-16, US-17.
+**Buildable-now count (US): 12 of 18 (2 partial)** — US-1, US-2, US-3 (partial), US-5 (partial), US-7, US-9, US-12, US-13, US-14, US-16, US-17, US-18.
 
 **Verified current / already modeled (US):** NIIT 3.8% ✓ · Additional Medicare 0.9% ✓ · SE tax ✓ · QBI §199A ✓ · AMT with ISO/PAB preferences ✓ · OBBBA SALT cap $40k with 30¢ phase-down ✓ · OBBBA senior deduction ✓ · OBBBA tips/overtime deductions ✓ · CTC $2,200 ✓ · Trump Account §530A cap ✓ · FBAR $10k and Form 8938 thresholds unchanged for 2025/2026 ✓.
 
@@ -111,16 +113,16 @@ Living document tracking everything WISING does **not** yet model, viewed throug
 
 ## D. Buildability summary
 
-Across all 59 rows:
+Across all 61 rows:
 
 | Bucket | India | US | Cross-border | Total |
 |---|---|---|---|---|
-| 🟢 Buildable now (no Layer 1 changes) | 13 | 11 (2 partial) | 6 (3 partial) | **30** |
+| 🟢 Buildable now (no Layer 1 changes) | 14 | 12 (2 partial) | 6 (3 partial) | **32** |
 | 🟡 Blocked on a new Layer 1 field | 7 | 5 | 3 | **15** |
 | ⚪ N/A (in-flight, recorded, or verify-first) | 5 | 1 | 8 | **14** |
-| **Total** | 25 | 17 | 17 | **59** |
+| **Total** | 26 | 18 | 17 | **61** |
 
-Reading this: **30 items need zero form changes** — I can build them directly against data Layer 1 already collects. **15 items are genuinely stuck** until a new field is added and round-tripped (several already have Antigravity prompts issued — see XB-12/13/15). The remaining **14** are either already handled, already decided, or need a quick Layer 1 audit before they can even be sorted into the other two buckets.
+Reading this: **32 items need zero form changes** — I can build them directly against data Layer 1 already collects. **15 items are genuinely stuck** until a new field is added and round-tripped (several already have Antigravity prompts issued — see XB-12/13/15). The remaining **14** are either already handled, already decided, or need a quick Layer 1 audit before they can even be sorted into the other two buckets.
 
 ---
 
@@ -131,7 +133,7 @@ Reading this: **30 items need zero form changes** — I can build them directly 
 3. **IN-1 + US-1 together** — advance-tax/estimated-tax interest & penalty engines (both sides' data already exists; symmetric feature, one "Payments & Penalties" surface).
 4. **XB-1** — estate-exposure estimate (US-situs asset values already known; $60k vs $15M cliff is the single largest un-surfaced dollar figure in the app).
 5. **XB-2** — totalization disclosure finding (cheap, high credibility).
-6. **IN-22 + IN-23 + IN-24 + IN-25** — F&O/speculative separation, disallowances, partner-firm pass-through, depreciation (Phase 1 of the business-entity spec, immediately after Phase 0 lands).
+6. **IN-22 + IN-23 + IN-24 + IN-25** (India, Phase 1) + **US-18** (US, Phase 1b, parallel) — F&O/speculative separation, disallowances, partner-firm pass-through, depreciation on both sides, immediately after Phase 0 lands.
 7. **IN-4 verification** — property CG engine audit, then close whichever half is missing.
 8. **IN-15 + IN-16** — winnings-TDS estimate row and Lower-TDS-certificate consumption (both computable from data Layer 1 already captures; no new fields).
 9. **US-13 + US-14 + US-17** — FICA visibility, excess-SS credit, and trusts/estates K-1 inclusion (same W-2/entity data already driving the work above).

@@ -36,21 +36,27 @@ Verified directly against the two forms — this is the actual current data mode
 | F&O / speculative | `speculative_income_inr`, `speculative_turnover_inr`, `non_speculative_income_inr`, `fno_turnover_inr` — collected as **separate** buckets (correct — F&O is non-speculative business income per the s.43(5) proviso; speculative equity delivery-fail trades are a genuinely separate, ring-fenced bucket that can only be set off against speculative income) |
 | Remissions | `s41_remission_income_inr`, `s41_bad_debt_recovery_inr` |
 | Partner-firm pass-through | `partner_firms[]`: `firm_name`, `entity_type`, `remuneration_from_entity_inr`, `interest_on_capital_from_entity_inr`, `profit_share_exempt_inr` |
-| Compliance | `msme_payables[]` (s.43B(h), Finance Act 2023 — unpaid-beyond-terms MSME dues disallowed), `amt_credit_bf_inr` (non-corporate AMT credit), `s44AD_last_exit_ay` + `s44AD_opted_current_year` (5-year presumptive lock-in) |
+| Other presumptive/specified regimes | `s44bbb_receipts_inr` (foreign companies, civil construction/turnkey power projects, presumptive 10%), `specified_business_s35AD_inr` (s.35AD capital expenditure deduction for specified businesses — cold chain, warehousing, hotels, etc.), `tonnage_tax_115V_inr` (shipping companies, tonnage-based presumptive scheme) |
+| Compliance | `msme_payables[]` (s.43B(h), Finance Act 2023 — unpaid-beyond-terms MSME dues disallowed), `amt_credit_bf_inr` (AMT/MAT credit brought forward — **the same field serves both s.115JC non-corporate AMT and s.115JD corporate MAT credit**, the form relabels the UI text by entity type rather than using two fields), `s44AD_last_exit_ay` + `s44AD_opted_current_year` (5-year presumptive lock-in) |
 | Entity classification | `profile.entity_type`: `individual` \| `huf` \| `firm` \| `llp` \| `company` |
 
-### US — entity-bearing arrays in `income_us_source`
+*Correction from the first version of this doc:* the first pass truncated its read of `business_income{}` and missed the s.44BBB/s.35AD/s.115V row entirely — added above, and as gap-tracker IN-26.
+
+### US — entity-bearing arrays in `income_us_source` + `corporate_financials`
 
 | Array | Contents | Currently in `businessEntities()`? |
 |---|---|---|
 | `self_employment[]` | Sole prop, SE-tax + QBI eligible | ✅ |
 | `schedule_c_businesses[]` | Same shape | ✅ |
 | `farming_schedule_f[]` | Farm income | ✅ |
-| `partnerships_k1[]` | `ordinary_business_income_usd`, **`guaranteed_payments_usd`** (SE-tax base, QBI-ineligible), `self_employment_earnings_usd`, branch-aggregated | 🟡 partial — guaranteed payments dropped (see §0) |
-| `s_corporations_k1[]` | `scorp_income_usd`/`ordinary_business_income_usd`, QBI-eligible, not SE-tax | ✅ |
-| `c_corporations_1120[]` | `taxable_income_usd`/`net_income_usd`, 21% flat | ✅ |
+| `partnerships_k1[]` | `ordinary_business_income_usd`, **`guaranteed_payments_usd`** (SE-tax base, QBI-ineligible), `self_employment_earnings_usd`, `depreciation_allocation_usd`, `section_179_usd`, branch-aggregated | 🟡 partial — guaranteed payments dropped (see §0) |
+| `s_corporations_k1[]` | `scorp_income_usd`/`ordinary_business_income_usd`, QBI-eligible, not SE-tax, `section_179_usd` | ✅ (income only) |
+| `c_corporations_1120[]` | `taxable_income_usd`/`net_income_usd`, 21% flat, plus `corporate_financials.schedule_m1{}` (book-to-tax reconciliation: net income per books, federal tax expense, 50%-meals disallowance, tax-vs-book depreciation difference, taxable income) and `schedule_m2{}` (retained-earnings roll-forward) | ✅ (income only — Schedule M-1/M-2 collected but never read) |
 | `trusts_estates_k1[]` | Present with its own QBI-addition helper (`addK1Qbi`) | ❌ **entirely absent from `businessEntities()`** |
+| **Depreciable assets (`asset-row` UI, used across Sch C/farm/rental/K-1/1120)** | Full MACRS system: asset class (3/5/7/15/27.5/39-year, correct published rates in the dropdown itself), date placed in service (mid-year convention/bonus eligibility), cost basis, **§179 immediate expensing** (form shows the correct 2025-published caps: $1,160,000 / $2,890,000 phase-out — verify current for TY2026 before computing), **bonus depreciation** checkbox | ❌ **entirely uncomputed** — this is a US-side twin of the India `asset_blocks[]` gap, not previously documented |
 | `foreign_entities.foreign_corporations[]` | GILTI/CFC | ✅ (flag-level; no NCTI quantification — tracked as XB-14 in the gap tracker) |
+
+*Correction from the first version of this doc:* the first pass covered India depreciation (`asset_blocks[]`, §2.4) but never checked whether the US side had an equivalent — it does, and it's collected with more granularity (real MACRS class rates, §179, bonus depreciation) than the India side. Added above, and as gap-tracker US-18.
 
 `profile.tax_entity_type` (`individual`/`ccorp`/`scorp`/`partnership`/`trust`) plus `profile.llc_tax_election` already drive `computeUsEntityTax`'s routing (C-corp 21% flat vs S-corp/partnership pass-through), confirmed in `computation.js`.
 
@@ -104,6 +110,38 @@ Track current-year depreciation charge separately from net profit (needed both t
 - Add `trusts_estates_k1[]` to `businessEntities()` (§0) — same shape as the other K-1 arrays, straightforward.
 - Fold `guaranteed_payments_usd` into: (a) `businessUs` income, (b) SE-tax base (guaranteed payments to a general partner ARE self-employment income), (c) **excluded** from QBI (guaranteed payments are explicitly QBI-ineligible under §199A — this must NOT follow the same `qbiIncome +=` line as ordinary K-1 income, or QBI would be overstated).
 
+### 2.6 US depreciation, §179, bonus depreciation, and Schedule M-1 (gap tracker US-18)
+
+The asset-row UI (§1) already carries real MACRS class rates (3/5/7/15/27.5/39-year), §179 immediate-expensing amount, a bonus-depreciation checkbox, cost basis, and placed-in-service date — across Schedule C, farm, rental, and K-1-branch contexts. None of it is computed:
+
+```
+per asset:
+    macrs_deduction = cost_basis × published_rate[asset_class]
+                       (half-year / mid-quarter convention from placed-in-service date
+                       — the published rate table already bakes in half-year for most classes)
+    if section_179_claimed: reduce cost_basis by the §179 amount BEFORE computing
+                             MACRS on the remainder (can't double-deduct); enforce the
+                             $1,160,000 cap / $2,890,000 phase-out (verify TY2026 figures
+                             before shipping — OBBBA may have adjusted these, check current)
+    if bonus_depreciation checked: 100% first-year (post-OBBBA restoration) on
+                             qualifying property placed in service, taken BEFORE
+                             regular MACRS on the remaining basis
+```
+
+Schedule M-1 (`corporate_financials.schedule_m1`) is the book-to-tax bridge for C-corp filers specifically — `net_income_per_books + federal_tax_expense + meals_disallowed_50 + tax_depreciation_over_book = taxable_income`. This is captured as a full reconciliation but the engine currently reads only `c_corporations_1120[].taxable_income_usd` directly (bypassing M-1 entirely) — fine if that field is always populated correctly by the form, worth confirming rather than assuming.
+
+### 2.7 India — s.44BBB / s.35AD / s.115V (gap tracker IN-26)
+
+Three narrower presumptive/specified regimes, lower priority than 2.1 (smaller affected population) but real, fully-data-complete gaps:
+- **s.44BBB**: foreign companies engaged in civil construction/turnkey power-project business — 10% of gross receipts deemed profit, flat presumptive, no expense computation needed.
+- **s.35AD**: 100% capital-expenditure deduction for specified businesses (cold chain, warehousing, hospitals, hotels, etc.) in the year incurred — an alternative to normal depreciation for that asset, not a supplement to it.
+- **s.115V (tonnage tax)**: shipping companies — presumptive income based on net tonnage × per-day rate schedule, not actual profit at all. A shipping company that's opted in has its `tonnage_tax_115V_inr` figure used directly, bypassing 2.1's net-profit computation entirely for that entry.
+
+### 2.8 Explicitly out of scope (confirmed, not just omitted)
+
+- **Transfer pricing (s.92 / IRC §482)** — already tracked as gap-tracker XB-8, disclosure-flag only ("related-party cross-border dealing detected"), no arm's-length-price computation, by design. Genuinely not rule-encodable at the depth an ALP study requires.
+- **S-corp reasonable-compensation testing, built-in-gains tax, accumulated E&P tracking** — checked directly: none of the underlying data (shareholder wage-vs-distribution split, prior C-corp E&P balance, asset built-in-gain basis) exists anywhere in Layer 1 US. Not a computation gap so much as a data-collection gap that would need new fields before it's even a candidate for Phase 1-level work — parking here rather than adding a false "buildable now" row.
+
 ---
 
 ## 3. Entity graph — the architectural layer Part F originally asked for
@@ -151,15 +189,16 @@ Once §3's graph exists:
 | Phase | Deliverable | Blocked on new Layer 1 fields? | Depends on |
 |---|---|---|---|
 | **0** | Fix the phantom `net_profit_inr` bug (real net-profit computation, §2.1) + fold `guaranteed_payments_usd` into US income/SE/QBI correctly (§2.5) | No | — |
-| **1** | Depreciation from `asset_blocks[]` (§2.4), F&O/speculative separation (§2.2), disallowances (s.40A(3)/40(a)/43B(h)) folded into net profit, partner-firm pass-through (§2.3) | No | Phase 0 |
+| **1** | India depreciation from `asset_blocks[]` (§2.4), F&O/speculative separation (§2.2), disallowances (s.40A(3)/40(a)/43B(h)) folded into net profit, partner-firm pass-through (§2.3) | No | Phase 0 |
+| **1b** | US depreciation/§179/bonus from the asset-row UI (§2.6) — same shape of work as Phase 1, different jurisdiction, can run in parallel to it | No | Phase 0 |
 | **2** | `trusts_estates_k1[]` added to `businessEntities()` (§2.5) | No | — (independent, can run parallel to 0/1) |
 | **3** | Entity graph model + extractor in `normalize()` (§3) | No | Phases 0-2 (needs correct per-entity numbers first) |
 | **4** | Inter-entity flow edges (K-1, dividends, partner remuneration) wired as traceable edges, not silent sums | No | Phase 3 |
 | **5** | GILTI/Subpart-F NCTI quantification (gap tracker XB-14) | **Yes** — CFC financials (E&P, QBAI, tested income) | Phase 3 |
 | **6** | Frontend entity switcher + per-entity Filings/Documents/drill-down (§4) | No | Phase 3-4 |
-| **7** | Presumptive lock-in disclosure, non-corporate AMT (gap tracker IN-5), MSME-disallowance finding | No | Phase 0-1 |
+| **7** | Presumptive lock-in disclosure, non-corporate AMT (gap tracker IN-5), MSME-disallowance finding, s.44BBB/35AD/115V (§2.7) | No | Phase 0-1 |
 
-Phases 0-2 and 6-7 need zero Layer 1 changes — same "buildable now" pattern as the rest of the gap tracker. Only Phase 5 is genuinely blocked on new fields.
+Phases 0-2, 1b, and 6-7 need zero Layer 1 changes — same "buildable now" pattern as the rest of the gap tracker. Only Phase 5 is genuinely blocked on new fields. §2.8's exclusions (transfer pricing, S-corp reasonable-comp/BIG/E&P) are deliberately not in this table — TP is a recorded XB-8 decision, and the S-corp items need new fields before they're even candidates.
 
 ## 6. Cross-references
 
