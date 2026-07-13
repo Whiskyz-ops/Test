@@ -11,7 +11,9 @@
     "test": "node tests/engine/run.js",
     "audit:handlers": "node scripts/audit/dom-handler-coverage.js",
     "audit:fields": "node scripts/audit/field-coverage.js",
-    "audit": "npm run audit:handlers && npm run audit:fields"
+    "audit:arrays": "node scripts/audit/array-item-coverage.js",
+    "audit:e2e": "node scripts/audit/e2e-field-sweep.js",
+    "audit": "npm run audit:handlers && npm run audit:fields && npm run audit:arrays"
   },
   "repository": {
     "type": "git",

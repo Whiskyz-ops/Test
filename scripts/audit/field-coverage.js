@@ -138,6 +138,30 @@ function diff(engineReads, formLeaves) {
 const MONEY_OR_FLAG_RE = /(_inr|_usd|_pct|_percent|_count)$|^(has_|is_|claims_)/i;
 
 // ---------------------------------------------------------------------------
+// KNOWN_OK — an explicit, justified allowlist for form leaves already
+// reviewed and confirmed as correctly unread, so re-running this script
+// doesn't keep re-surfacing the same cleared items every time. This is
+// NOT where a genuinely still-open gap belongs — e.g. business-expense
+// fields (gap tracker IN-23) or per-property capital-gains detail (IN-4)
+// are real, tracked backlog and must keep showing up here as a reminder,
+// not get suppressed for the sake of a quieter report. Only add an entry
+// when you can state affirmatively why the engine correctly never reads
+// it — not just "haven't checked yet."
+// Each entry is a RegExp tested against the full dotted leaf path.
+// ---------------------------------------------------------------------------
+const KNOWN_OK = [
+  { re: /(^|\.)has_[a-z0-9_]+$/i, reason: "module-visibility UI toggle, not a tax data field itself — the underlying data fields it gates are checked separately" },
+  { re: /(^|\.)is_(wholly_outside_india|poem_in_india|departure_year|us_resident_for_dtaa|available|metro_city|eligible_pwd)$/i, reason: "eligibility/classification flag consumed by the form's own wizard logic (residency/DTAA/HRA determination), not a raw amount the engine sums" },
+  { re: /(^|\.)exempt_[a-z0-9_]+_inr$/i, reason: "explicitly exempt income (PPF/EPF/NPS/PF withdrawal) — correctly never added to taxable income by design" },
+  { re: /^other_sources\.family_pension_standard_deduction_inr$/, reason: "the form's own display-only precomputation of the s.57(iia) standard deduction; the engine independently recomputes the identical Math.max(0, gross - Math.min(15000, gross/3)) formula from family_pension_gross_inr in aggregateIndiaIncome's otherSourcesMisc bucket — reading this raw field too would double-apply the deduction" },
+  { re: /^(metadata|config)\./, reason: "schema/versioning/timestamp bookkeeping, not taxpayer data" },
+];
+function knownOkReason(leafPath) {
+  const hit = KNOWN_OK.find((k) => k.re.test(leafPath));
+  return hit ? hit.reason : null;
+}
+
+// ---------------------------------------------------------------------------
 // Run
 // ---------------------------------------------------------------------------
 const engineReads = extractEngineReads();
@@ -207,14 +231,26 @@ if (result.dynamicallyAssigned.length) {
   if (result.dynamicallyAssigned.length > 40) console.log(`  ... and ${result.dynamicallyAssigned.length - 40} more`);
 }
 
-const unreadMoneyLeaves = result.unreadLeaves.filter((l) => {
+const unreadMoneyLeavesAll = result.unreadLeaves.filter((l) => {
   const lastSeg = l.split(".").pop();
   return MONEY_OR_FLAG_RE.test(lastSeg);
 });
-console.log(`\n--- CANDIDATES: form fields that look like money/flags and have no matching engine read (${unreadMoneyLeaves.length} of ${result.unreadLeaves.length} total unread leaves) ---`);
-console.log("(needs human/Claude triage — many of these are legitimately UI-only, display, or compliance metadata, not tax computation inputs)");
+const unreadMoneyLeaves = unreadMoneyLeavesAll.filter((l) => !knownOkReason(l));
+const clearedByAllowlist = unreadMoneyLeavesAll.filter((l) => knownOkReason(l));
+
+console.log(`\n--- CANDIDATES: form fields that look like money/flags and have no matching engine read (${unreadMoneyLeaves.length} of ${result.unreadLeaves.length} total unread leaves; ${clearedByAllowlist.length} more cleared by the KNOWN_OK allowlist, see below) ---`);
+console.log("(needs human/Claude triage — many of these are legitimately UI-only, display, or compliance metadata, not tax computation inputs; a lot of the rest is already-tracked gap-tracker backlog, not a NEW finding)");
 unreadMoneyLeaves.slice(0, 80).forEach((l) => console.log("  " + l));
 if (unreadMoneyLeaves.length > 80) console.log(`  ... and ${unreadMoneyLeaves.length - 80} more`);
+
+if (clearedByAllowlist.length) {
+  console.log(`\n--- CLEARED (${clearedByAllowlist.length}): matched KNOWN_OK, reviewed and confirmed correctly unread — not shown above ---`);
+  const byReason = {};
+  clearedByAllowlist.forEach((l) => { const r = knownOkReason(l); (byReason[r] = byReason[r] || []).push(l); });
+  Object.keys(byReason).forEach((r) => {
+    console.log(`  ${byReason[r].length} field(s) — ${r}`);
+  });
+}
 
 console.log("\n" + "=".repeat(78));
 console.log(result.unmatchedReads.length
