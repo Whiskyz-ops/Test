@@ -721,6 +721,28 @@
         0, ["Form 5471", "10% threshold"]);
     }
 
+    // -- 9b. TRANSFER PRICING — related-party flag, not a price computation -
+    // Same ownership fact as the CFC check above establishes these are
+    // "associated enterprises"; not gated on res.us.isResident since s.92
+    // applies to the Indian entity's own return regardless of the US
+    // owner's current personal residency status. Deliberately amountUsd: 0
+    // and no ALP computation — that needs a comparables/benchmarking study,
+    // normally a separate specialist engagement even where the same advisor
+    // prepares the income tax return. This is a "go check" flag, not a
+    // quantified exposure.
+    if (usOwnsForeignCorp) {
+      add("transfer_pricing", S.WARNING, C.DOCUMENT,
+        "Related-party cross-border transactions — transfer pricing documentation may apply",
+        "Layer 1 records a related-party cross-border ownership link (US person owning ≥10% of a foreign/Indian corporation). " +
+        "Any transactions between you and that related entity this year — service fees, cost allocations, loans, guarantees, " +
+        "IP licensing — must be priced at arm's length under India's s.92-92F and the US's parallel §482 regime. WISING does " +
+        "NOT evaluate whether pricing is arm's-length; it only flags that the relationship exists.",
+        "If related-party cross-border transactions occurred this year, confirm Form 3CEB certification and Rule 10D " +
+        "documentation requirements (India side) and §482 documentation (US side) with a transfer-pricing specialist — " +
+        "penalties for missing documentation run 2% of transaction value, up to 200% for concealment.",
+        0, ["s.92-92F", "Form 3CEB", "Rule 10D", "§482"]);
+    }
+
     // -- 10. RETIREMENT ACCOUNT TREATMENT MISMATCH -------------------------
     if ((model.assets.epfInr > 0 || model.assets.ppfInr > 0 || model.assets.npsInr > 0) && res.us.isResident) {
       var epfInterestUsd = U.inrToUsd(model.assets.taxableEpfInterestInr || 0);
@@ -1840,13 +1862,6 @@
     var hasIndiaBusiness = (model.entity && model.entity.isBusiness) || (model.income.india.business && model.income.india.business.inr > 0);
     var hasSecuritiesTrades = ((model.assets && model.assets.indianSecurities) || []).length > 0;
     var hasUsWagesOrSe = model.income.us.wages.usd > 0 || (model.income.us.seEarningsUsd || 0) > 0;
-    // Same signal buildDocuments' form_5471 trigger already trusts for "a
-    // real US<->India related-party ownership link exists in the data" —
-    // ≥10% US-side ownership of an Indian/foreign corp. Deliberately not
-    // "any business entity" (india_pvt_ltd/foreign_holdco_poem_india are
-    // business profiles with no US-side owner on file, so there's no
-    // recorded related-party relationship to flag for them).
-    var hasCrossBorderRelatedParty = !!model.assets.usOwns10PctForeignCorp || (model.assets.usForeignCorps || []).length > 0;
 
     function note(id, area, kind, title, body, relevant) {
       if (relevant) notes.push({ id: id, area: area, kind: kind, title: title, body: body });
@@ -1870,9 +1885,6 @@
     note("scope_fatca_ch4", "Cross-border", "excluded", "FATCA Chapter 4 withholding is institution-side",
       "The 30% FATCA withholding regime (IRC §§1471-1474) applies to payments to non-compliant foreign financial institutions — banks' problem, not yours directly. Where it touches an individual is the US-person self-certification banks request, which is tracked with your documents.",
       dual);
-    note("scope_transfer_pricing", "Cross-border", "excluded", "Transfer pricing (arm's-length pricing) is not evaluated",
-      "You have a cross-border related-party ownership relationship on file. Transactions with that related entity — service fees, cost allocations, loans, guarantees, IP licensing — must be priced at arm's length under India's s.92-92F (Form 3CEB certification, Rule 10D documentation) and the US's parallel §482 regime. WISING flags that the relationship exists; it does not evaluate whether pricing is arm's-length, since that requires a comparables/benchmarking study — normally a separate specialist engagement even where the same advisor prepares the income tax return. If related-party cross-border transactions occurred this year, confirm TP documentation requirements independently.",
-      hasCrossBorderRelatedParty);
     note("scope_mocked_uploads", "App", "excluded", "Document-upload extraction is simulated",
       "Every \"upload to auto-fill\" feature in Layer 1 (Form 26AS, Lower-TDS certificate, bank statements, property documents) is a demo simulation with representative values — not live OCR. Figures sourced from an upload should be treated as manually-entered until real extraction ships.",
       true);
