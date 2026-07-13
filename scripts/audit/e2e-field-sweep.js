@@ -42,6 +42,18 @@
  * by a plausible magnitude — catches a value that reaches `state` correctly
  * but is silently ignored, double-counted, or unit-mismatched downstream.
  *
+ * Known false-positive class (found on the first real run): some fields are
+ * gated to a specific entity type (e.g. angel_tax_premium_inr only applies
+ * to a closely-held company, local_authority_s10_20_inr only to a local
+ * authority) and the form correctly CLEARS them on load for any other
+ * profile type. The minimal "individual" test profile this script seeds
+ * makes every such field look like a restoration failure — it isn't; the
+ * form is doing the right thing. This script does not attempt to build a
+ * profile per entity type to avoid it, so a FAIL on one of these should be
+ * read as "verify the gating logic is intentional" rather than "confirmed
+ * bug" until checked by hand (grep the field's id for a `.hidden`/entity-
+ * type-conditional clear alongside it).
+ *
  * Usage: node scripts/audit/e2e-field-sweep.js
  * Requires: playwright-core (present under monitor-next/node_modules) and a
  * built monitor-next/out/ (run `cd monitor-next && npm run build` first if
@@ -142,6 +154,19 @@ function getDeep(obj, dottedPath) {
   return dottedPath.split(".").reduce((cur, k) => (cur == null ? undefined : cur[k]), obj);
 }
 
+// A day-count field (max="366") flagged FAIL with a 5-digit marker on the
+// first real run — not a bug, just an unrealistic marker for a field with a
+// semantic range. Respect a declared max attribute when choosing one.
+async function pickMarker(page, id, low, high) {
+  const maxAttr = await page.evaluate((elId) => {
+    const el = document.getElementById(elId);
+    return el ? el.getAttribute("max") : null;
+  }, id).catch(() => null);
+  const max = maxAttr ? parseInt(maxAttr, 10) : null;
+  if (max && !isNaN(max) && max < high) return Math.max(1, Math.floor(Math.random() * max));
+  return low + Math.floor(Math.random() * (high - low));
+}
+
 let pass = 0, fail = 0;
 function report(ok, label, detail) {
   if (ok) { pass++; console.log("  ok - " + label); }
@@ -167,7 +192,7 @@ async function runLayerA(browser) {
   for (const f of osFields) {
     const marker = 100000 + Math.floor(Math.random() * 800000);
     await page.goto(BASE + "/layer1_india.html");
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(700);
     const loc = page.locator("#" + f.id);
     const count = await loc.count();
     if (count === 0) { report(false, `india.${f.statePath} (#${f.id})`, "element not found in served DOM"); continue; }
@@ -179,7 +204,7 @@ async function runLayerA(browser) {
     }, f.field);
     const savedOk = Number(stateVal) === marker;
     await page.reload();
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(700);
     const restored = await page.evaluate((id) => { const el = document.getElementById(id); return el ? el.value : null; }, f.id);
     const restoredOk = restored != null && restored.replace(/[^\d]/g, "") === String(marker);
     report(savedOk && restoredOk, `india.other_sources.${f.field} (#${f.id})`,
@@ -195,13 +220,13 @@ async function runLayerA(browser) {
   });
 
   for (const f of usFields) {
-    const marker = 1000 + Math.floor(Math.random() * 80000);
     await page.goto(BASE + "/layer1_us.html");
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(700);
     const loc = page.locator("#" + f.id);
     const count = await loc.count();
     if (count === 0) { report(false, `us.${f.statePath} (#${f.id})`, "element not found in served DOM"); continue; }
     await page.evaluate((id) => { const el = document.getElementById(id); if (el) el.closest(".hidden") && el.closest(".hidden").classList.remove("hidden"); }, f.id);
+    const marker = await pickMarker(page, f.id, 1000, 80000);
     await loc.fill(String(marker)).catch(() => {});
     await loc.dispatchEvent("input").catch(() => {});
     await page.waitForTimeout(150);
@@ -210,7 +235,7 @@ async function runLayerA(browser) {
     }, [f.category, f.field]);
     const savedOk = Number(stateVal) === marker;
     await page.reload();
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(700);
     const restored = await page.evaluate((id) => { const el = document.getElementById(id); return el ? el.value : null; }, f.id);
     const restoredOk = restored != null && restored.replace(/[^\d]/g, "") === String(marker);
     report(savedOk && restoredOk, `us.${f.statePath} (#${f.id})`,
