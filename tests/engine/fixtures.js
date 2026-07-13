@@ -145,6 +145,13 @@ var us = {
   },
   amt_inputs: {
     private_activity_bond_interest_usd: 5000 // real path (amt_inputs.*, not amt.* or itemized_deductions_and_credits.*)
+  },
+  // The real "Add Foreign Corporation" UI (syncCorpState()) writes these
+  // field names, NOT corp_name/country/ownership_pct — gap tracker US-26.
+  foreign_entities: {
+    foreign_corporations: [
+      { corporation_name: "Fixture Foreign Co", country_of_incorporation: "SG", ownership_percentage: 60, cfc_status: "controlled_foreign_corporation" }
+    ]
   }
 };
 

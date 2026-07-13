@@ -1718,9 +1718,27 @@
               filesOwnReturn: indiaIsCompanyOrFirm, returnForm: entryReturnForm,
               calcTrace: businessEntryIncomeTrace(b, bizEligibility) });
           });
-          (safe(us, "foreign_entities.foreign_corporations", []) || []).forEach(function (c) { list.push({ country: c.country === "IN" ? "IN" : "US", type: "Foreign corporation (CFC)", name: c.corp_name || "Foreign corporation", incomeUsd: num(c.gilti_income_usd || 0), cfc: true, gilti: num(c.gilti_income_usd || 0), ownershipPct: num(c.ownership_pct || 0),
+          (safe(us, "foreign_entities.foreign_corporations", []) || []).forEach(function (c) {
+            // The real "Add Foreign Corporation" UI (syncCorpState() in
+            // layer1_us.html) writes corporation_name/country_of_incorporation/
+            // ownership_percentage — none of which match corp_name/country/
+            // ownership_pct below. A separate India->US auto-hydration
+            // shortcut happens to use the short names, which is what hid this
+            // mismatch from a naive "does the field exist somewhere" check —
+            // found by scripts/audit/array-item-coverage.js (gap tracker
+            // US-26). Aliased here rather than renaming the form fields:
+            // lower-risk, and every one of these except a GILTI figure was
+            // already being collected correctly, just under the other name.
+            // gilti_income_usd has NO equivalent on the manual entry card at
+            // all — that's the separate, larger XB-14 gap (needs real CFC
+            // financials: E&P, QBAI, tested income — not just a rename) and
+            // deliberately isn't guessed at here.
+            var country = c.country != null ? c.country : c.country_of_incorporation;
+            var corpName = c.corp_name || c.corporation_name;
+            var ownershipPct = num(c.ownership_pct != null ? c.ownership_pct : c.ownership_percentage);
+            list.push({ country: country === "IN" ? "IN" : "US", type: "Foreign corporation (CFC)", name: corpName || "Foreign corporation", incomeUsd: num(c.gilti_income_usd || 0), cfc: true, gilti: num(c.gilti_income_usd || 0), ownershipPct: ownershipPct,
             filesOwnReturn: true, returnForm: "Foreign local return (not modeled) + Form 5471 (informational, US) + GILTI on Schedule 1 (Form 1040)",
-            calcTrace: source("GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) — a hand-entered estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled yet (see gap tracker). Ownership: " + Math.round(num(c.ownership_pct || 0)) + "%. This is a US inclusion only — the entity's own foreign-country income tax return is separate and not shown here.") }); });
+            calcTrace: source("GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) — a hand-entered estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled yet (see gap tracker). Ownership: " + Math.round(ownershipPct) + "%. This is a US inclusion only — the entity's own foreign-country income tax return is separate and not shown here.") }); });
           // Merge same-named entities so income is counted once; CFC/GILTI flags
           // fold onto the entity's real income row.
           var byName = {}, order = [];

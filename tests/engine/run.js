@@ -117,6 +117,14 @@ test("AMT private-activity-bond-interest is read from the real path (amt_inputs.
   assert.ok(dedUs.amtPrefs >= 5000, "amtPrefs should include the 5000 private-activity-bond-interest slice, got " + dedUs.amtPrefs);
 });
 
+test("foreign_corporations reads the real 'Add Foreign Corporation' UI's field names (US-26)", function () {
+  var entity = modelUs.assets.businessEntities.find(function (e) { return e.type === "Foreign corporation (CFC)"; });
+  assert.ok(entity, "expected a Foreign corporation (CFC) entity in businessEntities()");
+  approx(entity.ownershipPct, 60, "ownershipPct (from ownership_percentage, not ownership_pct)");
+  assert.strictEqual(entity.name, "Fixture Foreign Co", "name should read corporation_name, not corp_name");
+  assert.strictEqual(entity.country, "US", "country_of_incorporation='SG' should resolve to non-IN bucket");
+});
+
 test("computeUsTax actually applies SE health/retirement as above-the-line AGI deductions", function () {
   var resultUs = WISING.compute(modelUs);
   // wages 120000 + SE net (40000*0.9235=36940) = 156940 ordinary income (before halfSeTax/health/retirement adjustments)
