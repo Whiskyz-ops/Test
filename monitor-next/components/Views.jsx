@@ -483,18 +483,7 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
 
   return (
     <div className="space-y-6">
-      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Scale size={16} strokeWidth={2} /></HeadChip>Reconciliation</h2><p className="text-muted text-sm mt-2">The same income under each country's own code — Tax Computation, FTC relief, cross-basis overlap, and the FY↔CY apportionment that ties them together.</p></div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <FtcCard ftcReport={result.ftcReport} onJump={onJump} />
-        <TaxCard taxComputation={result.taxComputation} fxRate={result.model.meta.fxRate} onJump={onJump} />
-      </div>
-
-      {result.computed.reconciliation && result.computed.reconciliation.rows && result.computed.reconciliation.rows.length > 0 && (
-        <CapsuleChart rows={result.computed.reconciliation.rows} />
-      )}
-      <ReconciliationCard recon={result.computed.reconciliation} />
-      <ApportionmentCard ap={result.computed.apportionment} />
+      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Scale size={16} strokeWidth={2} /></HeadChip>Reconciliation</h2><p className="text-muted text-sm mt-2">Income by head first, since that's what everything below is derived from — then Tax Computation, FTC relief, cross-basis overlap, and the FY↔CY apportionment that ties them together.</p></div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div id="recon-india-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "india" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "india" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
@@ -510,6 +499,17 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
           </Card>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <FtcCard ftcReport={result.ftcReport} onJump={onJump} />
+        <TaxCard taxComputation={result.taxComputation} fxRate={result.model.meta.fxRate} onJump={onJump} />
+      </div>
+
+      {result.computed.reconciliation && result.computed.reconciliation.rows && result.computed.reconciliation.rows.length > 0 && (
+        <CapsuleChart rows={result.computed.reconciliation.rows} />
+      )}
+      <ReconciliationCard recon={result.computed.reconciliation} />
+      <ApportionmentCard ap={result.computed.apportionment} />
     </div>
   );
 }

@@ -3,8 +3,8 @@ import { Radar, Users, Compass, FileText, Scale, ShieldAlert, Wallet, Building2,
 import WisingLogo from "@/components/WisingLogo";
 
 const MAIN = [
-  { id: "monitor", label: "Monitor", icon: Radar },
   { id: "clients", label: "Clients", icon: Users },
+  { id: "monitor", label: "Monitor", icon: Radar },
   { id: "residency", label: "Residency", icon: Compass },
   { id: "filings", label: "Filings", icon: FileText },
   { id: "reconciliation", label: "Reconciliation", icon: Scale },
