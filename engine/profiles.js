@@ -496,7 +496,16 @@
       foreign_earned_income: { claims_feie: false },
       bank_accounts: [{ bank_name: "Kotak (Company)", account_type: "current", country: "India", peak_balance_usd: 65060 }],
       fbar_aggregate_peak_usd: 65060,
-      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corp_name: "Nova Systems Pvt Ltd", country: "IN", ownership_pct: 100, gilti_income_usd: 108433, subpart_f_income_usd: 0, section_962_election_active: false }], pfic_holdings: [], has_pfics: false },
+      // Shaped like the real "Add Foreign Corporation" UI (syncCorpState())
+      // actually writes — corporation_name/country_of_incorporation/
+      // ownership_percentage, not corp_name/country/ownership_pct — so this
+      // profile exercises the gap tracker US-26 alias fix instead of the
+      // short internal names the engine used to require. gilti_income_usd
+      // stays a hand-entered estimate (the real card has no GILTI input at
+      // all — that's the separate, larger XB-14 quantification gap), same
+      // convention as every other "demo profile injects a figure the real
+      // form can't yet produce" shortcut elsewhere in this file.
+      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corporation_name: "Nova Systems Pvt Ltd", country_of_incorporation: "IN", ownership_percentage: 100, gilti_income_usd: 108433, subpart_f_income_usd: 0, section_962_election_active: false }], pfic_holdings: [], has_pfics: false },
       retirement_accounts: { "401k_employee_contribution_usd": 23000, "401k_employer_match_usd": 8000 },
       financial_holdings: [{ asset_name: "Fidelity — Taxable Brokerage (US equities)", account_type: "taxable_brokerage", peak_balance_usd: 240000, country: "US" }],
       real_estate: { has_real_estate_transaction: true, properties: [{ name: "Primary home — Austin, TX", property_type: "Residential (own use)", gross_rent_usd: 0, expenses_usd: 0 }] },
@@ -537,7 +546,15 @@
     us: {
       profile: { tax_entity_type: "individual", full_name: "Grace Thomas", date_of_birth: "1958-09-12", filing_status: "single", ssn_or_itin_type: "ssn" },
       us_residency_detail: { is_us_citizen: true, has_green_card: false, us_days_current_year: 20, spt_test_met: false, final_us_residency_status: "US_CITIZEN", dtaa_treaty_residence: "none" },
-      income_us_source: { interest_us_source_usd: 2400, ordinary_dividends_us_source_usd: 5200, qualified_dividends_us_source_usd: 4100, ltcg_us_source_usd: 9000 },
+      // At 67 she's collecting Social Security while still consulting —
+      // exercises the gap tracker US-2 fix (IRC §86 provisional-income
+      // worksheet). Her US-source investment income plus half her benefit
+      // lands provisional income just above the $25,000 single-filer base
+      // threshold, so only a small tier-1 slice (~11%, not 0% and not the
+      // old-wrong 100%) of the $24,000 benefit ends up taxable — most of
+      // her income is FEIE-excluded foreign wages, which this worksheet
+      // correctly leaves out of provisional income.
+      income_us_source: { interest_us_source_usd: 2400, ordinary_dividends_us_source_usd: 5200, qualified_dividends_us_source_usd: 4100, ltcg_us_source_usd: 9000, social_security_benefits_usd: 24000 },
       income_foreign_source: { foreign_wages: [{ employer_name: "Freshworks (India)", wages_usd: 60241 }], foreign_interest_usd: 1446 },
       foreign_earned_income: { claims_feie: true, foreign_earned_income_usd: 60241, feie_amount_claimed_usd: 60241, qualification_test: "bona_fide_residence", tax_home_country: "India", bona_fide_residence: true, bona_fide_residence_start_date: "2022-06-01", physical_presence: false, days_in_us_during_test_period: 20 },
       bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", country: "India", peak_balance_usd: 25301 }],
