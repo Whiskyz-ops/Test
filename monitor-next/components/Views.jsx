@@ -229,7 +229,37 @@ export function ResidencyView({ result }) {
   );
 }
 
+
 /* ============================ FILINGS ============================ */
+/* Which return form applies, and why — click to expand the eligibility
+ * reasoning and (where it came from an external rule check, not pure
+ * internal math) the dated source citation. */
+function ReturnFormCard({ returnForms }) {
+  if (!returnForms) return null;
+  const Row = ({ jur, form, isRecommendation, trace }) => (
+    <div className="flex-1 rounded-xl p-3 bg-white/[0.03] border border-line">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[9px] font-black px-2 py-0.5 rounded" style={{ background: (jur === "IN" ? PAL.jurIN : PAL.jurUS) + "24", color: jur === "IN" ? PAL.jurIN : PAL.jurUS }}>{jur}</span>
+        <span className="font-display font-extrabold text-lg text-head">{form}</span>
+        {jur === "IN" && (
+          <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: (isRecommendation ? PAL.positive : PAL.approaching) + "24", color: isRecommendation ? PAL.greenText : PAL.amberText }}>
+            {isRecommendation ? "Checked" : "Fallback — complete Layer 1"}
+          </span>
+        )}
+      </div>
+      <TraceRow label="Why this form" valueDisp="Show reasoning ↓" color={PAL.muted} trace={trace} fmt={jur === "IN" ? fmtInr : fmtUsd} />
+    </div>
+  );
+  return (
+    <Card icon={<ScrollText size={16} strokeWidth={2} />} title="Return Form" sub="Which form applies on each side, and why — click to see the eligibility check and its source">
+      <div className="flex flex-col md:flex-row gap-3">
+        <Row jur="IN" form={returnForms.india.form} isRecommendation={returnForms.india.isRecommendation} trace={returnForms.india.trace} />
+        <Row jur="US" form={returnForms.us.form} trace={returnForms.us.trace} />
+      </div>
+    </Card>
+  );
+}
+
 export function FilingsView({ result }) {
   if (!result) return <Empty>Load a client to see filings.</Empty>;
   const cal = result.monitoring ? result.monitoring.calendar.all.slice().sort((a, b) => a.date - b.date) : [];
@@ -240,6 +270,7 @@ export function FilingsView({ result }) {
   const req = docs.filter((d) => d.required).length;
   return (
     <div className="space-y-6">
+      <ReturnFormCard returnForms={result.returnForms} />
       <Card icon={<CalendarClock size={16} strokeWidth={2} />} title="Compliance Calendar" sub="Filing & payment deadlines with countdowns">
         <div className="space-y-1.5">
           {upcoming.concat(passed).map((x, i) => {
@@ -274,7 +305,6 @@ export function FilingsView({ result }) {
   );
 }
 
-/* FY ↔ CY tax-year apportionment. */
 function ApportionmentCard({ ap }) {
   if (!ap) return null;
   const Split = ({ title, sub, a, b, aLabel, bLabel }) => (
@@ -484,6 +514,130 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
   );
 }
 
+
+/* ============================ WITHHOLDING ============================ */
+export function WithholdingView({ result }) {
+  if (!result) return <Empty>Load a client to see withholding taxes.</Empty>;
+  const wh = result.withholding;
+  if (!wh) return <Empty>No withholding data for this taxpayer.</Empty>;
+  const jColor = { IN: PAL.jurIN, US: PAL.jurUS };
+  const fx = (result.model && result.model.meta && result.model.meta.fxRate) || 83;
+  const inrToUsd = (n) => (n || 0) / fx;
+  const allRows = [...wh.india.rows, ...wh.us.rows];
+  const indiaTaxInr = wh.india.rows.reduce((s, r) => s + (r.taxInr || 0), 0);
+  const usTaxUsd = wh.us.rows.reduce((s, r) => s + (r.taxUsd || 0), 0);
+  const totalWithheldUsd = inrToUsd(indiaTaxInr) + usTaxUsd;
+
+  const Row = ({ r }) => {
+    const gross = r.jurisdiction === "IN" ? r.grossInr : r.grossUsd;
+    const fmtGross = r.jurisdiction === "IN" ? fmtInr : fmtUsd;
+    const tax = r.jurisdiction === "IN" ? r.taxInr : r.taxUsd;
+    const gap = r.jurisdiction === "IN" ? r.gapInr : r.gapUsd;
+    const hasGap = gap > 1;
+    const isEstimate = r.category === "estimate";
+    return (
+      <div className={"p-3 rounded-lg border " + (hasGap ? "bg-exposed/[0.06] border-exposed/25" : isEstimate ? "bg-approaching/[0.05] border-approaching/25 border-dashed" : "bg-white/[0.03] border-line")}>
+        <div className="flex items-start gap-3">
+          <span className="text-[9px] font-black px-2 py-0.5 rounded mt-0.5 shrink-0" style={{ background: jColor[r.jurisdiction] + "24", color: jColor[r.jurisdiction] }}>{r.jurisdiction}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="text-[12px] font-bold text-head">{r.label}</div>
+              {isEstimate && <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded" style={{ background: PAL.amberText + "22", color: PAL.amberText }}>Not in totals</span>}
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-[11px] text-body">
+              {gross != null && <span>Gross: <span className="font-mono text-head">{fmtGross(gross)}</span></span>}
+              {r.domesticRatePct != null && <span>Default: <span className="font-mono text-head">{r.domesticRatePct}%</span></span>}
+              {r.treatyRatePct != null && <span>Treaty: <span className="font-mono text-head">{r.treatyRatePct}%</span></span>}
+              {r.rateAppliedPct != null && <span>Applied: <span className="font-mono" style={{ color: hasGap ? PAL.redText : PAL.greenText }}>{Math.round(r.rateAppliedPct * 10) / 10}%</span></span>}
+              <span>{isEstimate ? "Expected" : "Tax"}: <span className="font-mono text-head">{fmtGross(tax)}</span></span>
+            </div>
+            {r.note && (
+              <div className="text-[10.5px] mt-1.5" style={{ color: hasGap ? PAL.redText : isEstimate ? PAL.amberText : PAL.muted }}>
+                {r.docsOk === false ? "⚠ " : ""}{r.note}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-1.5 mt-2"><Ref>{r.citation}</Ref></div>
+          </div>
+          {hasGap && (
+            <div className="text-right shrink-0">
+              <div className="text-[9px] uppercase tracking-widest text-muted">Extra cost</div>
+              <div className="text-[13px] font-mono font-bold" style={{ color: PAL.redText }}>+{fmtGross(gap)}</div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const Section = ({ rows, title, sub }) => {
+    if (!rows.length) return null;
+    return (
+      <div className="mb-4 last:mb-0">
+        <div className="flex items-baseline justify-between mb-2">
+          <div className="text-[10.5px] font-black uppercase tracking-widest text-muted">{title}</div>
+          {sub && <div className="text-[10.5px] text-muted">{sub}</div>}
+        </div>
+        <div className="space-y-2">{rows.map((r) => <Row key={r.id} r={r} />)}</div>
+      </div>
+    );
+  };
+
+  const JurisdictionCard = ({ flag, label, rows, estimateRows, citationLabel }) => {
+    if (!rows.length && !(estimateRows || []).length) return null;
+    const general = rows.filter((r) => r.category === "general");
+    const gaps = rows.filter((r) => r.category === "treaty_gap");
+    return (
+      <Card icon={<span>{flag}</span>} title={label} sub={rows.length + " income stream(s)"}>
+        <Section rows={general} title="Withholding on file" />
+        <Section rows={gaps} title={"Treaty elections — " + citationLabel} sub="documentation-dependent" />
+        <Section rows={estimateRows || []} title="Statutory estimates" sub="not confirmed, excluded from totals above" />
+      </Card>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card icon={<Receipt size={16} strokeWidth={2} />} title="Withholding Taxes"
+        sub="Every rupee/dollar withheld or collected at source — salary/W-2, property, TCS on outbound remittances — for this taxpayer, resident or not, in either country. Treaty-election rows costing extra for missing paperwork are highlighted within; statutory estimates are called out separately.">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1">
+          <div className="p-3 rounded-xl bg-white/[0.03] border border-line">
+            <div className="text-[9px] uppercase tracking-widest text-muted mb-1">Total withheld</div>
+            <div className="text-[20px] font-mono font-bold text-head">{fmtUsd(totalWithheldUsd)}</div>
+          </div>
+          <div className="p-3 rounded-xl bg-white/[0.03] border border-line">
+            <div className="text-[9px] uppercase tracking-widest text-muted mb-1">Avoidable cost (docs)</div>
+            <div className="text-[20px] font-mono font-bold" style={{ color: wh.totalGapUsd > 1 ? PAL.redText : PAL.greenText }}>{fmtUsd(wh.totalGapUsd)}</div>
+          </div>
+          <div className="p-3 rounded-xl bg-white/[0.03] border border-line">
+            <div className="text-[9px] uppercase tracking-widest text-muted mb-1">India withheld</div>
+            <div className="text-[20px] font-mono font-bold text-head">{fmtInr(indiaTaxInr)}</div>
+          </div>
+          <div className="p-3 rounded-xl bg-white/[0.03] border border-line">
+            <div className="text-[9px] uppercase tracking-widest text-muted mb-1">US withheld</div>
+            <div className="text-[20px] font-mono font-bold text-head">{fmtUsd(usTaxUsd)}</div>
+          </div>
+        </div>
+      </Card>
+
+      {wh.india.panAadhaarInoperative && (
+        <div className="rounded-2xl border border-exposed/30 bg-exposed/10 p-4">
+          <div className="text-[12px] font-bold" style={{ color: PAL.redText }}>⚠ PAN not linked to Aadhaar — PAN is inoperative</div>
+          <p className="text-[11.5px] text-body mt-1">Every payer must withhold TDS/TCS at the higher default rate under s.397(2) — generally 20%, or double the normal rate, whichever is higher — REGARDLESS of any rate shown below, including every treaty election. Not reflected in the rows below (Layer 1 doesn't capture how long the PAN stays inoperative), but it overrides all of them while it does.</p>
+        </div>
+      )}
+
+      {allRows.length === 0 && !(wh.india.estimateRows || []).length && !(wh.us.estimateRows || []).length ? (
+        <Card><Empty>No withholding-tax income on file for this taxpayer — nothing to reconcile.</Empty></Card>
+      ) : (
+        <>
+          <JurisdictionCard flag="🇮🇳" label="India" rows={wh.india.rows} estimateRows={wh.india.estimateRows} citationLabel="s.207 / s.159" />
+          <JurisdictionCard flag="🇺🇸" label="United States" rows={wh.us.rows} estimateRows={wh.us.estimateRows} citationLabel="FDAP / FIRPTA" />
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ============================ ACCOUNTS ============================ */
 export function AccountsView({ result }) {
   if (!result) return <Empty>Load a client to see accounts.</Empty>;
@@ -640,6 +794,7 @@ export function HoldingsView({ result }) {
   );
 }
 
+
 /* ============================ BUSINESS & ENTITIES ============================ */
 export function BusinessView({ result }) {
   if (!result) return <Empty>Load a client to see business entities.</Empty>;
@@ -660,21 +815,32 @@ export function BusinessView({ result }) {
   const inEnts = ents.filter((e) => e.country === "IN");
   const cfcCount = ents.filter((e) => e.cfc).length;
   const seTax = u.seTaxUsd || 0, qbi = u.qbiDeductionUsd || 0;
-  const Row = (e, i) => (
-    <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.03] border border-line">
-      <Flag c={e.country} />
-      <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-semibold text-head truncate flex items-center gap-2 flex-wrap">{e.name}
-          {e.se && <Tag color={PAL.approaching}>SE tax</Tag>}
-          {e.qbi && <Tag color={PAL.accent}>QBI</Tag>}
-          {e.corp && <Tag color={PAL.filing}>C-Corp 21%</Tag>}
-          {e.cfc && <Tag color={PAL.exposed}>CFC · 5471</Tag>}
+  const Row = (e, i) => {
+    const fmtRow = e.country === "IN" ? fmtInr : fmtUsd;
+    return (
+    <div key={e.country + ":" + e.type + ":" + e.name} className="p-3 rounded-lg bg-white/[0.03] border border-line">
+      <div className="flex items-center gap-3">
+        <Flag c={e.country} />
+        <div className="flex-1 min-w-0">
+          <div className="text-[13px] font-semibold text-head truncate flex items-center gap-2 flex-wrap">{e.name}
+            {e.se && <Tag color={PAL.approaching}>SE tax</Tag>}
+            {e.qbi && <Tag color={PAL.accent}>QBI</Tag>}
+            {e.corp && <Tag color={PAL.filing}>C-Corp 21%</Tag>}
+            {e.cfc && <Tag color={PAL.exposed}>CFC · 5471</Tag>}
+            <Tag color={e.filesOwnReturn ? PAL.blueText : PAL.muted}>{e.filesOwnReturn ? "Files its own return" : "Flows to personal return"}</Tag>
+          </div>
+          <div className="text-[10px] text-muted">{e.type}{e.gilti > 0 ? " · GILTI " + fmtUsd(e.gilti) : ""}{e.returnForm ? " · " + e.returnForm : ""}</div>
         </div>
-        <div className="text-[10px] text-muted">{e.type}{e.gilti > 0 ? " · GILTI " + fmtUsd(e.gilti) : ""}</div>
+        <div className="text-[13px] font-mono text-head whitespace-nowrap shrink-0">{e.inr ? fmtInr(e.inr) + " ≈ " : ""}{fmtUsd(e.incomeUsd)}</div>
       </div>
-      <div className="text-[13px] font-mono text-head whitespace-nowrap">{e.inr ? fmtInr(e.inr) + " ≈ " : ""}{fmtUsd(e.incomeUsd)}</div>
+      {e.calcTrace && (
+        <div className="mt-1.5 pl-6">
+          <TraceRow label="How this figure was calculated" valueDisp="Show workflow ↓" color={PAL.muted} trace={e.calcTrace} fmt={fmtRow} />
+        </div>
+      )}
     </div>
-  );
+    );
+  };
   return (
     <div className="space-y-6">
       <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Building2 size={16} strokeWidth={2} /></HeadChip>Business &amp; Entities</h2><p className="text-muted text-sm mt-2">Every business/entity from Layer 1 — Schedule C, K-1, S-corp, C-corp and foreign corporations — with its US tax treatment.</p></div>
@@ -697,6 +863,8 @@ export function BusinessView({ result }) {
     </div>
   );
 }
+
+/* ============================ CLIENTS (portfolio) ============================ */
 
 /* ============================ CLIENTS (portfolio) ============================ */
 export function ClientsView({ clients, activeId, onPick }) {
@@ -745,6 +913,48 @@ export function ClientsView({ clients, activeId, onPick }) {
   );
 }
 
+
+// Deliberately-not-computed boundaries (engine's buildScopeNotes) — surfaced
+// on the Monitor overview so the professional reading the numbers also sees
+// what the numbers deliberately do NOT cover. Pure disclosures.
+export function ScopeNotesCard({ notes }) {
+  const [open, setOpen] = useState(false);
+  if (!notes || !notes.length) return null;
+  const excluded = notes.filter((n) => n.kind === "excluded");
+  const assurances = notes.filter((n) => n.kind === "assurance");
+  const areaColor = { India: PAL.jurIN, "United States": PAL.jurUS, "Cross-border": PAL.filing, App: PAL.muted };
+  const Note = ({ n }) => (
+    <div className="p-3 rounded-lg bg-white/[0.03] border border-line">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[8.5px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0" style={{ background: (areaColor[n.area] || PAL.muted) + "22", color: areaColor[n.area] || PAL.muted }}>{n.area}</span>
+        <span className="text-[11.5px] font-bold text-head">{n.title}</span>
+      </div>
+      <p className="text-[10.5px] text-body leading-relaxed">{n.body}</p>
+    </div>
+  );
+  return (
+    <Card icon={<Scale size={16} strokeWidth={2} />} title="Deliberately out of scope"
+      sub="Boundaries this engine will not cross — judgment calls, separate tax bases, and simulated features — recorded here so a silent number is never mistaken for a complete one">
+      <button onClick={() => setOpen(!open)} className="text-[11px] font-bold text-accent hover:underline mb-3">
+        {open ? "Hide" : "Show"} {excluded.length} boundar{excluded.length === 1 ? "y" : "ies"}{assurances.length ? " + " + assurances.length + " verified assurance(s)" : ""} {open ? "▴" : "▾"}
+      </button>
+      {open && (
+        <div className="space-y-2">
+          {excluded.map((n) => <Note key={n.id} n={n} />)}
+          {assurances.length > 0 && (
+            <>
+              <div className="text-[10px] font-black uppercase tracking-widest text-muted pt-2">Verified — nothing to do</div>
+              {assurances.map((n) => <Note key={n.id} n={n} />)}
+            </>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/* ============================ INTEGRATIONS ============================ */
+
 /* ============================ INTEGRATIONS ============================ */
 export function IntegrationsView() {
   const rows = [
@@ -771,3 +981,4 @@ export function IntegrationsView() {
     </Card>
   );
 }
+

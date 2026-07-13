@@ -9,7 +9,7 @@ const path = require("path");
 const REPO = path.resolve(__dirname, "..", "..");
 const DOCS_DIR = path.join(REPO, "docs");
 const OUT = path.resolve(__dirname, "..", "public", "docs.html");
-const FILES = ["COVERAGE_AND_ARCHITECTURE.md", "DEVELOPER_HANDOFF.md", "US_LAYER1_COVERAGE.md"];
+const FILES = ["COVERAGE_AND_ARCHITECTURE.md", "BUSINESS_ENTITY_ARCHITECTURE.md", "GAP_TRACKER.md", "DEVELOPER_HANDOFF.md", "US_LAYER1_COVERAGE.md"];
 
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 // inline: `code`, **bold**, *italic*, [text](url)

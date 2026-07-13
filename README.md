@@ -26,32 +26,54 @@ The Layer 1 forms already cross-link to `router.html`, `layer1_india.html`,
 navigation — so this prototype slots directly into the forms you provided. No edits
 were made to the intake forms themselves.
 
-### How the layers connect
+### How the layers connect: the data flow (L0 → L1 → L2)
+
+The demo data travels **Layer 0 → Layer 1 → Layer 2**, and every layer shares it
+through the browser's `localStorage`:
+
+```
+Router (L0) ─┐
+India form (L1) ─┼─▶ localStorage ─┬─▶ forms hydrate (show the data)
+US form (L1) ─┘   (3 wising_* keys) └─▶ Monitor (L2) reads + computes
+
+pick a test profile in the Monitor ─▶ writes the 3 keys ─▶ forms populate
+edit a form + it saves ─────────────▶ writes the keys  ─▶ Monitor re-runs (live)
+```
+
+> **⚠️ This only works when everything is served from ONE web address (origin).**
+> `localStorage` is tied to the exact address a page was saved under. If the Monitor
+> is on one address (e.g. `localhost:3000`) and you open a form on another (e.g. a
+> `file://` double-click, or `localhost:8099`), they get **separate** localStorage and
+> can't see each other — the forms look empty even though nothing is broken. The
+> launcher below guarantees one address.
 
 ### Easiest way to run (no terminal)
 
-- **Just the dashboard:** double-click **`dashboard-standalone.html`** — a single
-  self-contained file (engine + CSS inlined). Opens offline with the demo taxpayer,
-  no server, no wifi. Best for a quick investor demo.
-- **The full flow** (router → forms → dashboard): double-click **`start.command`**
-  (macOS/Linux) or **`start.bat`** (Windows). It starts a local server in the folder
-  and opens your browser automatically. Leave the window open during the demo.
+Double-click **`start.command`** (macOS/Linux) or **`start.bat`** (Windows). On the
+first run it builds the app bundle (needs Node.js); after that it serves the router,
+both Layer 1 forms **and** the Monitor from a single address
+(`http://localhost:8099/`) and opens your browser. Leave the window open during the
+demo. Then: **pick a test profile in the Monitor's dropdown**, and click the
+**Router / India / US** links at the top — each form opens already populated from
+that profile. Edit a form and the Monitor updates when you return to it.
 
-### Run with a server (full flow, manual)
+### Run with a server (manual)
 
-The router → forms → dashboard flow shares data through the browser's `localStorage`,
-which is origin-scoped — so for that flow, **serve the folder over one origin**
-instead of opening the files directly:
+The launcher just automates this — build the single-origin bundle, then serve it:
 
 ```bash
-cd Test
-python3 -m http.server 8099     # or: npm run serve
-# then open http://localhost:8099/index.html
+cd monitor-next && npm install && npm run build   # → monitor-next/out/
+cd out && python3 -m http.server 8099             # serve the bundle (NOT the repo root)
+# then open http://localhost:8099/
 ```
 
+`monitor-next/out/` is a self-contained bundle: the Monitor's `index.html` plus
+same-origin copies of `router.html`, `layer1_india.html`, `layer1_us.html` and
+`engine/*.js` (the build copies them in). This is exactly what the Vercel deployment
+serves, so local matches production.
+
 > Note: `http://localhost:8099` only works while that server command is running on
-> *your* machine. If the link "won't open," the server isn't running — use the
-> double-click options above instead.
+> *your* machine. If the link "won't open," the server isn't running.
 
 ### Styling / offline demo
 
@@ -68,12 +90,16 @@ npm run watch:css  # rebuild on save while developing
 The two Layer 1 intake forms are left exactly as you provided them (they load
 Tailwind from their own CDN); only the Layer 2 pages were made offline-safe.
 
-Flow: `index.html` → `router.html` (set profile) → `layer1_india.html` /
-`layer1_us.html` (collect data) → `dtaa_bridge.html` (see conflicts).
+Flow: the **Monitor** (`monitor-next`, served at `/`) is Layer 2 → `router.html`
+(set profile / Layer 0) → `layer1_india.html` / `layer1_us.html` (collect data,
+Layer 1) → back to the Monitor to see conflicts. Pick a test profile in the Monitor
+to seed all three at once.
 
-The dashboard also works **standalone**: if no Layer 1 data is found it auto-loads
-a realistic demo taxpayer so the value proposition is always visible. You can also
-**Import JSON** (a `{india, us, router}` bundle or a single state) on the dashboard.
+The Monitor also works **standalone**: if no Layer 1 data is found in `localStorage`
+it renders a realistic demo taxpayer in-memory (so the value proposition is always
+visible) — but note that in-memory demo does **not** populate the forms. To see the
+forms populated, pick a test profile from the dropdown first (that writes the shared
+`localStorage` keys the forms read).
 
 ---
 

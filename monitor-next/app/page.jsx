@@ -7,7 +7,7 @@ import Header from "@/components/Header";
 import StatMeter from "@/components/StatMeter";
 import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
-import { ConflictsPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView } from "@/components/Views";
+import { ConflictsPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard } from "@/components/Views";
 import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries } from "@/lib/wising";
@@ -72,7 +72,9 @@ export default function MonitorPage() {
   const badges = {
     monitor: result ? { text: result.summary.counts.critical + result.summary.counts.warning, tone: result.summary.counts.critical > 0 ? "alert" : "" } : null,
     clients: { text: profiles.length },
-    filings: result && result.summary.nextDeadline ? { text: (result.monitoring && result.monitoring.calendar.next ? "in " + result.monitoring.calendar.next.daysUntil + "d" : "") } : null
+    filings: result && result.summary.nextDeadline ? { text: (result.monitoring && result.monitoring.calendar.next ? "in " + result.monitoring.calendar.next.daysUntil + "d" : "") } : null,
+    withholding: result && result.withholding && result.withholding.totalGapUsd > 1
+      ? { text: "$" + Math.round(result.withholding.totalGapUsd).toLocaleString("en-US"), tone: "alert" } : null
   };
 
   const pickFromClients = (id) => { onPickProfile(id); setView("monitor"); };
@@ -147,6 +149,13 @@ export default function MonitorPage() {
                 </div>
               </section>
             )}
+
+            {/* recorded engine boundaries — what these numbers deliberately don't cover */}
+            {result && result.scopeNotes && result.scopeNotes.length > 0 && (
+              <section className="mt-8">
+                <ScopeNotesCard notes={result.scopeNotes} />
+              </section>
+            )}
           </>
         )}
 
@@ -156,6 +165,7 @@ export default function MonitorPage() {
         {view === "residency" && <ResidencyView result={result} />}
         {view === "filings" && <FilingsView result={result} />}
         {view === "reconciliation" && <ReconciliationView result={result} highlight={reconHighlight} onHighlightDone={() => setReconHighlight(null)} onJump={goToRecon} />}
+        {view === "withholding" && <WithholdingView result={result} />}
         {view === "accounts" && <AccountsView result={result} />}
         {view === "integrations" && <IntegrationsView />}
       </main>

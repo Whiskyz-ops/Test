@@ -36,6 +36,14 @@
   function addMoney(a, b) { return { usd: a.usd + b.usd, inr: a.inr + b.inr }; }
   function zeroMoney() { return { usd: 0, inr: 0 }; }
 
+  // Same trace shape conflicts.js uses for Tax Computation / FTC rows —
+  // { kind: "calc", formula, parts, citation } or { kind: "source", detail,
+  // citation } — so the Business tab can reuse the existing
+  // TraceRow/TracePopup UI unchanged. citation is an optional dated pointer
+  // to an externally-verified rule (as opposed to pure internal math).
+  function calc(formula, parts, citation) { return { kind: "calc", formula: formula, parts: parts || [], citation: citation || null }; }
+  function source(detail, citation) { return { kind: "source", detail: detail, citation: citation || null }; }
+
   function safe(obj, path, dflt) {
     var cur = obj, parts = path.split("."), i;
     for (i = 0; i < parts.length; i++) {
@@ -127,6 +135,197 @@
   }
 
   /* ------------------------------------------------------------------------
+   * s.58 (old 44AD/44ADA) presumptive rate + regular-books net profit per
+   * business_entries[] item. Replaces a phantom net_profit_inr field the
+   * engine used to read that layer1_india.html never actually sets (see
+   * docs/BUSINESS_ENTITY_ARCHITECTURE.md §0/§2.1 — every real filer
+   * previously computed ₹0 business income; only hand-authored demo
+   * profiles worked, by injecting the field directly).
+   *
+   * Deliberately Phase-0 scoped: presumptive schemes are computed in full,
+   * but regular-books net profit only nets out the unambiguous, generically
+   * -deductible expense categories. Depreciation (asset_blocks[]),
+   * F&O-specific costs, s.35/35D/35DDA amortization, and s.40A(3)/40(a)/
+   * 43B(h) disallowances are Phase 1 work (gap tracker IN-22..25) —
+   * deliberately excluded here rather than guessed at. Branch-level
+   * (business_entries[].branches[]) revenue/expense breakdowns are also not
+   * yet folded in — entry-level totals only.
+   * ----------------------------------------------------------------------*/
+  // s.44AD/s.44ADA turnover-eligibility ceilings — verified 2026-07-12, and
+  // matched exactly (including the boundary) to Layer 1 India's own live
+  // validator (validateS44ADEligibility()/validateS44ADAEligibility() in
+  // layer1_india.html, which already force-reverts an over-ceiling election
+  // with an alert): 44AD Rs.2 crore (Rs.3 crore when digital receipts are
+  // AT LEAST 95% of total — cash <= 5%, inclusive, per Layer 1's own
+  // `dig >= 0.95 * total` check); 44ADA Rs.50 lakh (Rs.75 lakh under the
+  // same >=95%-digital condition). This engine-side check is a safety net
+  // for state that didn't pass through that live validator (hand-authored
+  // profiles, imports) — real Layer 1 usage should never actually reach the
+  // fallback branch below, since the election is reverted before it's ever
+  // saved. cashInr/digitalInr both zero defaults to the lower ceiling,
+  // since the higher one requires proving the digital-receipts condition.
+  function presumptiveCeilingInr(scheme, digitalInr, cashInr) {
+    var total = digitalInr + cashInr;
+    var atLeast95PctDigital = total > 0 && (cashInr / total) <= 0.05;
+    if (scheme === "s44AD") return atLeast95PctDigital ? 30000000 : 20000000;
+    if (scheme === "s44ADA") return atLeast95PctDigital ? 7500000 : 5000000;
+    return Infinity;
+  }
+
+  // s.44AD/44ADA are ROR-only, and 44AD additionally excludes firms/LLPs/
+  // companies/AOPs/trusts/local authorities/co-ops (44ADA further excludes
+  // HUFs) — matched exactly to Layer 1 India's own live eligibility gate
+  // (the eligible44AD/eligible44ADA computation in layer1_india.html, which
+  // force-reverts an ineligible election with an alert). Same safety-net
+  // reasoning as the turnover ceiling above: real Layer 1 usage should
+  // never reach the fallback this enables, since the election is reverted
+  // before it's saved — this exists for state that bypassed that check
+  // (hand-authored profiles, imports).
+  function presumptiveResidencyEligible(india) {
+    var ror = safe(india, "residency_detail.final_india_residency_status", null) === "ROR";
+    var entity = safe(india, "profile.entity_type", null) || safe(india, "domestic_income.business_income.entity_type", "individual");
+    var eligible44AD = ror && ["llp", "company", "aop", "trust", "local", "coop", "ajp"].indexOf(entity) < 0;
+    return { eligible44AD: eligible44AD, eligible44ADA: eligible44AD && entity !== "huf" };
+  }
+
+  function computeBusinessEntryNetProfitInr(b, eligibility) {
+    eligibility = eligibility || { eligible44AD: true, eligible44ADA: true };
+    var scheme = b.presumptive_scheme;
+    if (scheme === "s44AD") {
+      // s.58 table (old s.44AD): 6% of digital receipts, 8% of cash receipts.
+      var dig44AD = num(b.digital_receipts_inr), csh44AD = num(b.cash_receipts_inr);
+      if (eligibility.eligible44AD && dig44AD + csh44AD <= presumptiveCeilingInr("s44AD", dig44AD, csh44AD)) {
+        return dig44AD * 0.06 + csh44AD * 0.08;
+      }
+      // Ineligible by residency/entity-type, or over the ceiling — either
+      // way the election is invalid, falls through to regular books.
+    } else if (scheme === "s44ADA") {
+      // s.58 table (old s.44ADA): flat 50% of gross receipts, no digital/cash
+      // rate differential (unlike s44AD).
+      var adaDig = num(b.ada_digital_receipts_inr), adaCsh = num(b.ada_cash_receipts_inr);
+      var adaReceipts = num(b.gross_receipts_inr) || (adaDig + adaCsh);
+      if (eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh)) {
+        return adaReceipts * 0.50;
+      }
+      // Same fallback.
+    } else if (scheme === "s44AE") {
+      return null; // computed once from goods_vehicles[] at the aggregate level, not per-entry
+    }
+    // Regular books — gross receipts less the clean, unambiguous general PGBP
+    // expense categories only (see the Phase-0 scoping note above). Also the
+    // fallback when a presumptive scheme was selected but receipts exceed
+    // its turnover ceiling above.
+    var exp = b.expenses || {};
+    var deductible =
+      num(exp.rent_for_business_premises_inr) + num(exp.repairs_maintenance_inr) +
+      num(exp.employee_salary_wages_inr) + num(exp.employee_bonus_commission_inr) +
+      num(exp.interest_on_borrowed_capital_inr) + num(exp.insurance_premium_inr) +
+      num(exp.bad_debts_written_off_inr) + num(exp.other_business_expenses_inr) +
+      num(exp.ca_professional_fees_inr) + num(exp.employer_pf_esi_contribution_inr);
+    // A presumptive entry that fell through here for exceeding its ceiling
+    // may never have had gross_receipts_inr/turnover_inr filled in at all —
+    // the preparer only entered the scheme-specific digital/cash split. Fall
+    // back to that known total rather than silently treating receipts as 0.
+    var receipts = num(b.gross_receipts_inr) || num(b.turnover_inr) ||
+      (scheme === "s44AD" ? (dig44AD + csh44AD) : 0) ||
+      (scheme === "s44ADA" ? adaReceipts : 0);
+    return receipts - deductible;
+  }
+
+  // s.58 table (old s.44AE), goods-carriage presumptive income — rates stable
+  // since the 2018 Budget amendment, re-verify periodically (see gap tracker
+  // maintenance note): heavy (>12MT) = Rs1,000/ton/month; other = Rs7,500/month
+  // flat, either way pro-rated by months owned (part of a month counts whole).
+  function computeGoodsVehiclePresumptiveInr(vehicles) {
+    var total = 0;
+    (vehicles || []).forEach(function (v) {
+      var months = num(v.months_owned);
+      if (!(months > 0)) return;
+      if (v.vehicle_type === "heavy") {
+        total += 1000 * num(v.gvw_tonnes) * months;
+      } else if (v.vehicle_type === "light") {
+        total += 7500 * months;
+      }
+    });
+    return total;
+  }
+
+  var PRESUMPTIVE_CEILING_CITATION = "s.44AD/44ADA turnover ceilings (Rs.2cr/Rs.3cr and Rs.50L/Rs.75L, the higher figure requiring digital receipts ≥95% of total) verified 2026-07-12, matched to Layer 1 India's own live eligibility check — re-check each Finance Act cycle.";
+  var PRESUMPTIVE_RESIDENCY_CITATION = "s.44AD/44ADA residency and entity-type eligibility (ROR-only; 44AD additionally excludes firms/LLPs/companies/AOPs/trusts/local authorities/co-ops, 44ADA further excludes HUFs) verified 2026-07-12, matched to Layer 1 India's own live eligibility check.";
+
+  /* Mirrors computeBusinessEntryNetProfitInr's branches exactly, but returns
+   * the "show your work" trace instead of the number, for the Business tab. */
+  function businessEntryIncomeTrace(b, eligibility) {
+    eligibility = eligibility || { eligible44AD: true, eligible44ADA: true };
+    var explicit = b.net_profit_inr != null ? b.net_profit_inr : b.net_profit;
+    if (explicit !== undefined && explicit !== null) {
+      return source("Net profit entered directly on Layer 1 India for this business entry (not derived from a presumptive rate or books).");
+    }
+    var scheme = b.presumptive_scheme, ceilingNote = null, ceilingCitation = null;
+    if (scheme === "s44AD") {
+      var dig44AD = num(b.digital_receipts_inr), csh44AD = num(b.cash_receipts_inr);
+      var ceiling44AD = presumptiveCeilingInr("s44AD", dig44AD, csh44AD);
+      if (eligibility.eligible44AD && dig44AD + csh44AD <= ceiling44AD) {
+        return calc("Presumptive income under s.44AD: digital/banking receipts × 6% + cash receipts × 8%", [
+          { label: "Digital / banking receipts", amount: dig44AD },
+          { label: "Rate", display: "6%" },
+          { label: "Cash receipts", amount: csh44AD },
+          { label: "Rate", display: "8%" }
+        ], PRESUMPTIVE_CEILING_CITATION);
+      }
+      if (!eligibility.eligible44AD) {
+        ceilingNote = "s.44AD is only available to Resident & Ordinarily Resident (ROR) individuals/HUFs and eligible firms — this taxpayer's residency status or entity type doesn't qualify, so the presumptive election is invalid and regular books apply instead:";
+        ceilingCitation = PRESUMPTIVE_RESIDENCY_CITATION;
+      } else {
+        ceilingNote = "Total receipts (₹" + Math.round(dig44AD + csh44AD).toLocaleString("en-IN") + ") exceed the s.44AD turnover ceiling for this cash-receipts mix (₹" + Math.round(ceiling44AD).toLocaleString("en-IN") + ") — the presumptive election is invalid above this, so regular books apply instead:";
+        ceilingCitation = PRESUMPTIVE_CEILING_CITATION;
+      }
+    } else if (scheme === "s44ADA") {
+      var adaDig = num(b.ada_digital_receipts_inr), adaCsh = num(b.ada_cash_receipts_inr);
+      var adaReceipts = num(b.gross_receipts_inr) || (adaDig + adaCsh);
+      var ceiling44ADA = presumptiveCeilingInr("s44ADA", adaDig, adaCsh);
+      if (eligibility.eligible44ADA && adaReceipts <= ceiling44ADA) {
+        return calc("Presumptive income under s.44ADA: gross receipts × 50% (professionals)", [
+          { label: "Gross receipts", amount: adaReceipts },
+          { label: "Rate", display: "50%" }
+        ], PRESUMPTIVE_CEILING_CITATION);
+      }
+      if (!eligibility.eligible44ADA) {
+        ceilingNote = "s.44ADA is only available to Resident & Ordinarily Resident (ROR) individuals — this taxpayer's residency status or entity type (e.g. HUF) doesn't qualify, so the presumptive election is invalid and regular books apply instead:";
+        ceilingCitation = PRESUMPTIVE_RESIDENCY_CITATION;
+      } else {
+        ceilingNote = "Gross receipts (₹" + Math.round(adaReceipts).toLocaleString("en-IN") + ") exceed the s.44ADA turnover ceiling for this cash-receipts mix (₹" + Math.round(ceiling44ADA).toLocaleString("en-IN") + ") — the presumptive election is invalid above this, so regular books apply instead:";
+        ceilingCitation = PRESUMPTIVE_CEILING_CITATION;
+      }
+    } else if (scheme === "s44AE") {
+      return source("s.44AE tonnage-based presumptive income (goods carriages) is computed once from the Goods Vehicles schedule and rolled into the total business income figure above — it isn't split per vehicle here, so this entry shows ₹0 on its own.");
+    }
+    var exp = b.expenses || {};
+    var expenseFields = [
+      ["rent_for_business_premises_inr", "Rent for business premises"],
+      ["repairs_maintenance_inr", "Repairs & maintenance"],
+      ["employee_salary_wages_inr", "Employee salary & wages"],
+      ["employee_bonus_commission_inr", "Employee bonus & commission"],
+      ["interest_on_borrowed_capital_inr", "Interest on borrowed capital"],
+      ["insurance_premium_inr", "Insurance premium"],
+      ["bad_debts_written_off_inr", "Bad debts written off"],
+      ["other_business_expenses_inr", "Other business expenses"],
+      ["ca_professional_fees_inr", "CA / professional fees"],
+      ["employer_pf_esi_contribution_inr", "Employer PF/ESI contribution"]
+    ];
+    var fallbackReceipts = num(b.gross_receipts_inr) || num(b.turnover_inr) ||
+      (scheme === "s44AD" ? (dig44AD + csh44AD) : 0) ||
+      (scheme === "s44ADA" ? adaReceipts : 0);
+    var parts = [{ label: "Gross receipts / turnover", amount: fallbackReceipts }];
+    expenseFields.forEach(function (f) {
+      var v = num(exp[f[0]]);
+      if (v > 0) parts.push({ label: "Less: " + f[1], amount: -v });
+    });
+    var formula = ceilingNote || "Regular books: gross receipts/turnover less the itemized deductible expenses on file. Depreciation, F&O-specific costs and other disallowances aren't modeled yet (Phase 1 — see gap tracker IN-22..25), so this is a floor, not the final figure.";
+    return calc(formula, parts, ceilingCitation);
+  }
+
+  /* ------------------------------------------------------------------------
    * India income aggregation (annual), normalized to {inr, usd} per head.
    * ----------------------------------------------------------------------*/
   function aggregateIndiaIncome(india, annual) {
@@ -138,16 +337,35 @@
     var salary = moneyFromInr(salaryTaxable);
 
     var bizEntries = safe(di, "business_income.business_entries", []);
+    var bizEligibility = presumptiveResidencyEligible(india);
     var business = zeroMoney();
     (bizEntries || []).forEach(function (b) {
-      business = addMoney(business, moneyFromInr(b.net_profit_inr || b.net_profit || 0));
+      // net_profit_inr/net_profit are honored first ONLY because hand-authored
+      // demo profiles (engine/profiles.js) inject them directly, bypassing the
+      // real form — layer1_india.html itself never sets either field, so for
+      // every real filer this falls through to the real computation below.
+      var netProfitInr = b.net_profit_inr || b.net_profit;
+      if (netProfitInr === undefined || netProfitInr === null) {
+        netProfitInr = computeBusinessEntryNetProfitInr(b, bizEligibility);
+      }
+      business = addMoney(business, moneyFromInr(num(netProfitInr)));
     });
+    // s.58/44AE goods-carriage presumptive income — computed once from the
+    // shared goods_vehicles[] list, not per business_entries[] item.
+    business = addMoney(business, moneyFromInr(computeGoodsVehiclePresumptiveInr(safe(di, "business_income.goods_vehicles", []))));
 
     var hpProps = safe(di, "house_property.properties", []);
     var houseProperty = zeroMoney();
     (hpProps || []).forEach(function (p) {
+      // gross_annual_value_inr is what Layer 1 India's own "Gross Annual
+      // Value (GAV)" input actually writes (updateHPField) — every real user
+      // entry landed here, silently invisible to this fallback chain, which
+      // only ever recognized annual_value_inr/net_income_inr/
+      // gross_rent_received_inr (the shapes demo profiles use). Same
+      // Phase-0-shortcut treatment either way (see gap tracker IN-8 for the
+      // municipal-tax/30%-deduction/interest computation this doesn't do yet).
       houseProperty = addMoney(houseProperty, moneyFromInr(
-        p.annual_value_inr || p.net_income_inr || p.gross_rent_received_inr || 0
+        p.annual_value_inr || p.gross_annual_value_inr || p.net_income_inr || p.gross_rent_received_inr || 0
       ));
     });
 
@@ -325,14 +543,331 @@
         }
       }
     });
+    // Every other Financial Holdings asset class — UNLIKE foreign equity
+    // (above), these are all India-issued/registered instruments (even a
+    // mutual fund investing abroad is an Indian-AMC unit, India-source
+    // regardless of what it holds), so no residency gate applies here;
+    // taxable for any status. Multi-source-verified (TY2026-27 rules):
+    //
+    //  GROUP_A — s.198/196 equity-preferential (12mo threshold, STT paid):
+    //    listed_equity, equity_mutual_fund, hybrid_mf_equity (>=65% equity),
+    //    reit_invit (business trust units — s.112A/111A both explicitly
+    //    cover "a unit of a business trust"), etf (equity ETF — Layer 1
+    //    doesn't sub-type ETFs by underlying, so this is the most common
+    //    case, not a universal one; a gold/debt ETF should really be
+    //    GROUP_E/GROUP_C — flagged as a follow-up Layer 1 dropdown split,
+    //    same pattern as the earlier "Foreign Equity" split-out).
+    //    LTCG >12mo -> the s.198 `ltcg` bucket (12.5%, up to ₹1.25L exempt).
+    //    STCG <=12mo -> the flat-20% `stcg` bucket (s.196).
+    //    If STT was NOT paid (tx.stt_paid === false), s.111A/112A's
+    //    preferential RATE+exemption requires STT — falls back to GROUP_E
+    //    treatment (still a "listed security", 12mo threshold, but no
+    //    exemption and no 20% flat STCG rate).
+    //  GROUP_C — general "other capital asset" (s.112/197, 24mo threshold):
+    //    debt_mutual_fund_pre_apr23 (grandfathered out of s.50AA by
+    //    acquisition date — s.50AA only ever applies to funds ACQUIRED
+    //    on/after 1-Apr-2023), hybrid_mf_debt (35-65% equity — meets
+    //    neither the equity-oriented 65%+ test nor s.50AA's specified-fund
+    //    test), international_mf and fof (Finance Act 2024 redefined
+    //    "Specified Mutual Fund" under s.50AA from a <=35%-equity test to a
+    //    >65%-debt/money-market test for transfers from FY2025-26/TY2026-27
+    //    onward — a fund investing predominantly in FOREIGN EQUITY or
+    //    diversified holdings no longer meets that test purely by holding
+    //    little Indian equity, so these fall to ordinary s.112/197
+    //    treatment instead of s.50AA's always-short-term rule).
+    //    LTCG >24mo -> ltcg197Inr (12.5%, NO exemption — s.198's exemption
+    //    is textually specific to that section, doesn't pool with s.197).
+    //    STCG <=24mo -> the slab-rate stcgSlabInr bucket.
+    //  GROUP_D — s.50AA specified debt fund: ALWAYS short-term, ANY holding
+    //    period, slab rate — no LTCG path exists for this class at all.
+    //    debt_mutual_fund_post_apr23 (acquired on/after 1-Apr-2023, assumed
+    //    to meet the current >65%-debt/MMI test, consistent with what
+    //    "Debt MF" means as a label).
+    //  GROUP_E — listed security without STT-preferential-rate eligibility
+    //    (12mo threshold like GROUP_A, but taxed like GROUP_C — s.112's
+    //    12.5%-no-exemption LTCG, slab-rate STCG, since s.111A/112A
+    //    specifically require STT-paid equity/equity-fund/business-trust-
+    //    unit transactions, which a plain bond never has):
+    //    bond_listed (assumed plain-vanilla, not a Market-Linked Debenture
+    //    — MLDs are unconditionally short-term at slab under s.50AA
+    //    regardless of holding period, but Layer 1 doesn't distinguish
+    //    MLDs from ordinary listed bonds), and any GROUP_A class where
+    //    tx.stt_paid === false.
+    //  GROUP_G — VDA/crypto (s.115BBH): a completely separate, flat 30%
+    //    tax on POSITIVE gains only — no LTCG/STCG concept, no holding-
+    //    period threshold, no exemption or indexation, and critically NO
+    //    loss set-off allowed AT ALL, not even against a gain from a
+    //    DIFFERENT VDA in the same year (confirmed: the statute bars set-
+    //    off against income "under any provision of this Act"), and no
+    //    carry-forward. A losing VDA transaction is simply dropped, never
+    //    netted against anything.
+    //  GROUP_XIIA — Chapter XII-A "specified assets" (ss.115C-115I old Act,
+    //    §212-221 ITA 2025): shares of an Indian company, debentures of a
+    //    public Indian company, deposits with a public Indian company, and
+    //    Central Government securities, all purchased in convertible
+    //    foreign exchange by an NRI (tx.is_specified_foreign_exchange_asset
+    //    === true). Multi-source-verified (second research pass):
+    //    - LISTED equity (listed_equity, SFEA=true): still the ordinary
+    //      12mo threshold (s.115C(d) defers entirely to general s.2(42A)
+    //      classification), but the s.115E(1)(b) LTCG rate has NO
+    //      ₹1,25,000 exemption — unlike ordinary s.198 — so this
+    //      OVERRIDES the GROUP_A routing above for LTCG specifically (STCG
+    //      is unaffected — Chapter XII-A has no special short-term rate,
+    //      so s.111A/20% still applies as normal). A taxpayer can opt out
+    //      under s.115I if ordinary treatment is more beneficial (it is,
+    //      for listed equity specifically, since the exemption is worth
+    //      more) — Layer 1's chapterXiiaElected checkbox is presented as
+    //      that considered, flexible year-end choice, so it's trusted here
+    //      rather than second-guessed.
+    //    - Specified DEPOSITS (nri_specified_company_deposit): a deposit is
+    //      not a transferable security — its only "exit" is maturity/
+    //      withdrawal, and repayment of principal is not a "transfer"
+    //      under s.2(47) at all (well-established, no contrary authority
+    //      found). NO capital gain EVER arises on a specified deposit —
+    //      only interest, taxed as Chapter XII-A "investment income" under
+    //      s.115E's other limb (see chapterXiiaInvestmentIncomeInr below —
+    //      that IS computed, separately from capital gains). So this class
+    //      is unconditionally excluded from capital-gains classification,
+    //      not a "don't know" gap — deliberately, confidently, zero.
+    //    - Specified DEBENTURES / Government securities: CAN generate
+    //      capital gains, but ONLY on an actual sale to a third party — a
+    //      real Tribunal precedent (Khushaal C. Thackersey v. ACIT, ITAT
+    //      Mumbai, 15-Apr-2024, TS-293-ITAT-2024(Mum)) holds that
+    //      REDEMPTION AT MATURITY of a debenture is "mere realisation of a
+    //      debt," not a transfer — any maturity premium is interest
+    //      income, not a capital gain. Layer 1's generic Sale Date/Sale
+    //      Value fields can't currently distinguish "sold on the market"
+    //      from "redeemed/matured" for these two classes specifically — so
+    //      this block only computes a gain when tx.nri_exit_type ===
+    //      "sold_to_third_party" (a NEW field, not yet in Layer 1 — flagged
+    //      to the user as a follow-up form addition); absent that signal,
+    //      it's dropped rather than guessed, same convention as EUR/GBP
+    //      currency and missing acquisition dates elsewhere in this
+    //      function. Once present: LISTED (tx.stt_paid !== false) gets the
+    //      ordinary 12mo threshold, LTCG -> ltcg197Inr (s.115E(1)(b)/
+    //      s.112, 12.5%, no exemption — the two converge to the same rate
+    //      for a listed debt instrument), STCG -> slab (s.111A doesn't
+    //      cover debentures/govt securities). UNLISTED and sold on/after
+    //      23-Jul-2024 is s.50AA-deemed short-term regardless of holding
+    //      period (Finance (No.2) Act 2024, inserted into s.50AA
+    //      alongside the MLD rule) — this is a legal fiction that a
+    //      logical reading of s.115C(d) can't satisfy ("long-term capital
+    //      gains" requires NOT being short-term), so it falls out of
+    //      Chapter XII-A's LTCG path entirely and lands at slab rate, same
+    //      bucket as GROUP_D/E's STCG (this specific "falls out entirely"
+    //      conclusion is the research's own reasoned inference, not a
+    //      directly-sourced authority — flagged as such, but the
+    //      underlying s.50AA deeming fact itself is high-confidence).
+    //      UNLISTED and sold before 23-Jul-2024 falls back to the general,
+    //      pre-amendment 24mo threshold (an edge case for older
+    //      transaction dates, included for completeness).
+    //
+    // Chapter XII-A "investment income" (s.115C(c)/s.115E(1)(a), §214 ITA
+    // 2025): interest on a specified debenture/deposit, or dividend on
+    // specified shares — a flat 20% (multi-source-verified unchanged
+    // through TY2026-27: incometaxindia.gov.in, TaxGuru, callmyca, and
+    // TaxTMI's new-vs-old §214/s.115E comparison all confirm the LTCG leg
+    // moved 10%->12.5% in 2024 but this leg was untouched), NO Chapter
+    // VI-A deductions, no basic exemption — applies to the gross amount.
+    // This is completely separate from capital gains (accrues every year
+    // regardless of whether the holding is sold), and doesn't participate
+    // in loss set-off (it isn't a capital gain at all). Layer 1 captures
+    // it as a per-holding "Investment Income This Year" field on any
+    // SFEA-marked transaction (interest for debentures/deposits, dividend
+    // for specified shares) — a preparer entering ₹0 or leaving it blank
+    // for a holding that plausibly earned something is a real, separate
+    // risk (see the conflicts.js finding), but that's a data-completeness
+    // question, not something this engine can second-guess.
+    var chapterXiiaElected = safe(india, "compliance_docs.chapter_xiia_elected", false) === true;
+    var GROUP_A_CLASSES = ["listed_equity", "equity_mutual_fund", "hybrid_mf_equity", "reit_invit", "etf"];
+    var GROUP_C_CLASSES = ["debt_mutual_fund_pre_apr23", "hybrid_mf_debt", "international_mf", "fof"];
+    var S50AA_UNLISTED_DEBT_CUTOFF = "2024-07-23";
+    var otherLtcg198Inr = 0, otherStcg20Inr = 0, otherLtcg197Inr = 0, otherStcgSlabInr = 0, vdaGainInr = 0, vdaSaleConsiderationInr = 0;
+    var chapterXiiaInvestmentIncomeInr = 0, chapterXiiaSfeaHoldingCount = 0;
+    (safe(india, "financial_holdings.transactions", []) || []).forEach(function (tx) {
+      var cls = tx.asset_class;
+      if (!cls || cls === "foreign_equity_unlisted") return; // handled above, or uncategorized (legacy transactions predating asset_class)
+
+      // Investment income accrues every year regardless of whether the
+      // holding is sold this year, so this runs before the sale-status
+      // check below (which only gates the CAPITAL GAINS classification).
+      if (chapterXiiaElected && tx.is_specified_foreign_exchange_asset === true) {
+        chapterXiiaSfeaHoldingCount += 1;
+        var invIncomeInr = toInrAtCurrency(tx.investment_income_this_year, tx.investment_income_currency || "INR");
+        if (invIncomeInr !== null) chapterXiiaInvestmentIncomeInr += num(invIncomeInr);
+      }
+
+      if (cls === "nri_specified_company_deposit") return; // maturity is never a "transfer" — never generates capital gains, unconditionally
+      if (!tx.sale_date || tx.sale_value === null || tx.sale_value === undefined || tx.sale_value === "") return; // still holding — no taxable event yet
+      var saleInr = toInrAtCurrency(tx.sale_value, tx.sale_currency);
+      var purchaseInr = toInrAtCurrency(tx.purchase_value, tx.purchase_currency);
+      if (saleInr === null || purchaseInr === null) return; // EUR/GBP — uncomputed gap, not guessed
+
+      if (cls === "vda_crypto") {
+        // s.194S TDS applies to the TRANSFER CONSIDERATION, not the gain —
+        // unlike vdaGainInr (positive gains only), every sale counts here.
+        vdaSaleConsiderationInr += saleInr;
+        var vg = saleInr - purchaseInr - num(tx.transfer_expenses);
+        if (vg > 0) vdaGainInr += vg;
+        return;
+      }
+
+      if ((cls === "nri_specified_debenture" || cls === "nri_specified_govt_security") && tx.nri_exit_type !== "sold_to_third_party") {
+        return; // redeemed at maturity, or exit type not yet recorded — not a "transfer", or not enough info to say either way
+      }
+
+      var months = monthsBetween(tx.acquisition_date, tx.sale_date);
+      if (months === null) return; // no acquisition date — can't classify, don't guess
+
+      // Grandfathered cost basis for pre-1-Feb-2018 listed-equity/equity-MF
+      // acquisitions (s.55(2)(ac)): higher of actual cost, or (lower of FMV
+      // as on 31-Jan-2018 and sale price). Layer 1 only collects the FMV
+      // field for these two classes (the only ones where s.112A's
+      // grandfathering transition applies).
+      var costBasisInr = purchaseInr;
+      if ((cls === "listed_equity" || cls === "equity_mutual_fund") && tx.fmv_31jan2018_per_unit_inr && tx.quantity) {
+        var fmvTotalInr = num(tx.fmv_31jan2018_per_unit_inr) * num(tx.quantity);
+        costBasisInr = Math.max(purchaseInr, Math.min(fmvTotalInr, saleInr));
+      }
+      var g = saleInr - costBasisInr - num(tx.transfer_expenses);
+
+      var isChapterXiiaListedEquity = cls === "listed_equity" && chapterXiiaElected && tx.is_specified_foreign_exchange_asset === true;
+
+      if (cls === "debt_mutual_fund_post_apr23") {
+        otherStcgSlabInr += g; // GROUP_D — always short-term, any holding period
+      } else if (cls === "nri_specified_debenture" || cls === "nri_specified_govt_security") {
+        if (tx.stt_paid !== false) {
+          if (months > 12) otherLtcg197Inr += g; else otherStcgSlabInr += g; // listed: 12mo threshold, Chapter XII-A/s.112 rate (no exemption)
+        } else if (tx.sale_date >= S50AA_UNLISTED_DEBT_CUTOFF) {
+          otherStcgSlabInr += g; // unlisted, sold on/after 23-Jul-2024 -> s.50AA deems short-term, any holding period
+        } else if (months > 24) {
+          otherLtcg197Inr += g; // unlisted, sold before the amendment -> general pre-amendment 24mo threshold
+        } else {
+          otherStcgSlabInr += g;
+        }
+      } else if (isChapterXiiaListedEquity && months > 12) {
+        otherLtcg197Inr += g; // Chapter XII-A LTCG override: no exemption, unlike ordinary s.198
+      } else if (isChapterXiiaListedEquity) {
+        otherStcg20Inr += g; // STCG is unaffected by the election — s.111A/20% still applies as normal
+      } else if (GROUP_A_CLASSES.indexOf(cls) !== -1 && tx.stt_paid !== false) {
+        if (months > 12) otherLtcg198Inr += g; else otherStcg20Inr += g; // GROUP_A
+      } else if (GROUP_A_CLASSES.indexOf(cls) !== -1) {
+        if (months > 12) otherLtcg197Inr += g; else otherStcgSlabInr += g; // GROUP_A, STT not paid -> GROUP_E fallback
+      } else if (cls === "bond_listed") {
+        if (months > 12) otherLtcg197Inr += g; else otherStcgSlabInr += g; // GROUP_E
+      } else if (GROUP_C_CLASSES.indexOf(cls) !== -1) {
+        if (months > 24) otherLtcg197Inr += g; else otherStcgSlabInr += g; // GROUP_C
+      }
+      // Unrecognized asset_class — intentionally not classified.
+    });
+
+    // Commodities (Financial Life Snapshot's separate "Commodities" module —
+    // physical gold/silver, Sovereign Gold Bonds, gold ETFs/FoFs). Never read
+    // anywhere in this engine before this fix — layer1_india.html persists
+    // these transactions (state.commodities.transactions) and even renders
+    // them back into the form, but nothing downstream ever computed a
+    // capital gain from them; a user's commodity sale was invisible to tax
+    // computation regardless of how carefully it was entered.
+    //   physical_gold / silver / "other": plain capital asset, s.112, 24mo
+    //     threshold, 12.5% LTCG (no exemption) / slab STCG — GROUP_C
+    //     treatment, same as any other non-equity, non-specified asset.
+    //   sovereign_gold_bond_original redeemed AT MATURITY (is_maturity_
+    //     redemption === true): exempt under s.47(viic) — no transfer, no
+    //     gain, same convention as nri_specified_company_deposit above.
+    //   sovereign_gold_bond_original (sold before maturity) / _secondary:
+    //     SGBs are listed on stock exchanges — GROUP_E treatment (12mo
+    //     threshold, s.112 12.5% no-exemption LTCG / slab STCG).
+    //   gold_etf / gold_fund_of_funds: Finance Act 2023 extended s.50AA's
+    //     "specified mutual fund" always-short-term/slab treatment beyond
+    //     debt funds to gold/silver ETFs and FoFs acquired on/after
+    //     1-Apr-2023 — GROUP_D treatment (always short-term, any holding
+    //     period). Single-pass verification only (not the multi-source pass
+    //     the financial_holdings classes above received) — re-verify before
+    //     relying on this for a real filing, same as any freshly-added gap.
+    var commodityLtcg197Inr = 0, commodityStcgSlabInr = 0;
+    (safe(india, "commodities.transactions", []) || []).forEach(function (tx) {
+      if (tx.is_maturity_redemption === true) return; // s.47(viic) — exempt, not a taxable transfer
+      if (!tx.sale_date || tx.sale_value === null || tx.sale_value === undefined || tx.sale_value === "") return; // still holding — no taxable event yet
+      var saleInr = toInrAtCurrency(tx.sale_value, tx.sale_currency);
+      var purchaseInr = toInrAtCurrency(tx.purchase_value, tx.purchase_currency);
+      if (saleInr === null || purchaseInr === null) return; // EUR/GBP — uncomputed gap, not guessed
+      var months = monthsBetween(tx.acquisition_date, tx.sale_date);
+      if (months === null) return; // no acquisition date — can't classify, don't guess
+      var g = saleInr - purchaseInr;
+      var ctype = tx.commodity_type;
+      if (ctype === "gold_etf" || ctype === "gold_fund_of_funds") {
+        commodityStcgSlabInr += g; // GROUP_D — always short-term, any holding period
+      } else if (ctype === "sovereign_gold_bond_original" || ctype === "sovereign_gold_bond_secondary") {
+        if (months > 12) commodityLtcg197Inr += g; else commodityStcgSlabInr += g; // GROUP_E — listed, 12mo threshold
+      } else {
+        if (months > 24) commodityLtcg197Inr += g; else commodityStcgSlabInr += g; // GROUP_C — physical gold/silver/other
+      }
+    });
+
+    // Unlisted Equity ("Private Shares Transferred" module) — privately-held
+    // company shares, distinct from the financial_holdings listed/mutual-
+    // fund transactions above. Same gap as commodities: persisted and
+    // rendered back by Layer 1, never read by this engine before this fix.
+    // No exchange means no STT was ever paid, so this gets the general
+    // s.112/s.197 24-month threshold — the same GROUP_C-equivalent rate as
+    // the unlisted buy-back LTCG bucket earlier in this function, not the
+    // listed-equity 12-month/STT-preferential treatment.
+    var unlistedEquityLtcg197Inr = 0, unlistedEquityStcgSlabInr = 0;
+    (safe(india, "unlisted_equity.transactions", []) || []).forEach(function (tx) {
+      if (!tx.sale_date || tx.sale_price_per_share === null || tx.sale_price_per_share === undefined || tx.sale_price_per_share === "") return; // still holding
+      var shares = num(tx.number_of_shares);
+      if (!(shares > 0)) return; // no share count on file — can't total the transaction, don't guess
+      var saleInr = toInrAtCurrency(num(tx.sale_price_per_share) * shares, tx.sale_price_per_share_currency);
+      var purchaseInr;
+      if (tx.original_investment_currency && tx.original_investment_currency !== "INR" && tx.original_cost_in_foreign_currency != null) {
+        purchaseInr = toInrAtCurrency(num(tx.original_cost_in_foreign_currency), tx.original_investment_currency);
+      } else {
+        purchaseInr = toInrAtCurrency(num(tx.cost_per_share) * shares, tx.cost_per_share_currency);
+      }
+      if (saleInr === null || purchaseInr === null) return; // EUR/GBP — uncomputed gap, not guessed
+      var months = monthsBetween(tx.acquisition_date, tx.sale_date);
+      if (months === null) return; // no acquisition date — can't classify, don't guess
+      var g = saleInr - purchaseInr;
+      if (months > 24) unlistedEquityLtcg197Inr += g; else unlistedEquityStcgSlabInr += g;
+    });
+
     var deemedDividendBuyback = moneyFromInr(deemedDividendInr);
     // Slab-rate STCG (<=24mo, no s.198/s.196 exemption or flat rate — taxed
     // at the taxpayer's own slab rate, but still Capital Gains head income,
-    // s.70/s.74 loss-set-off eligible): unlisted buy-backs and foreign
-    // equity holdings both land here, joining the normal-slab bucket (like
-    // the deemed dividend above) only AFTER computeLossSetOff, not before.
-    var unlistedStcgSlabInr = buybackStcgSlabInr + foreignEquityStcgSlabInr;
+    // s.70/s.74 loss-set-off eligible): unlisted buy-backs, foreign equity
+    // holdings, and every other GROUP_C/D/E-classified Financial Holdings
+    // asset land here, joining the normal-slab bucket (like the deemed
+    // dividend above) only AFTER computeLossSetOff, not before.
+    var unlistedStcgSlabInr = buybackStcgSlabInr + foreignEquityStcgSlabInr + otherStcgSlabInr + commodityStcgSlabInr + unlistedEquityStcgSlabInr;
     var dividend = moneyFromInr(num(safe(os, "dividend_inr", 0)));
+
+    // Other Sources slab-rate residuals: gifts above ₹50,000 (s.56(2)(x),
+    // taxed in full — no ₹50k "exemption slice," the threshold just decides
+    // whether the WHOLE amount is taxable), family pension net of its s.57
+    // (iia) standard deduction (lower of 1/3rd or ₹15,000), spousal income
+    // clubbing (s.64) net of the s.64(1A) minor-child clubbing exemption,
+    // non-s.10(10D)-exempt life-insurance maturity proceeds, s.56(2)(viib)
+    // angel-tax share premium, less s.10(20) local-authority exemption, plus
+    // any residual "miscellaneous" entry. Every one of these fields was
+    // being collected by Layer 1 India, and even fed the form's OWN on-page
+    // live-preview total (evaluateSurchargeBuckets's normalSlab/
+    // otherSourcesAdditions calculation), but was never read by this engine
+    // at all — silently ₹0 in every real computation. taxable_epf_interest_
+    // inr/taxable_nps_withdrawal_inr were already read elsewhere in this
+    // function (for the US cross-border exposure figure) but, per the same
+    // form formula, ALSO belong in India's own other-sources total and
+    // weren't previously added here either.
+    var giftsAbove50kInr = num(safe(os, "gifts_above_50k_inr", 0));
+    var familyPensionGrossInr = num(safe(os, "family_pension_gross_inr", 0));
+    var familyPensionNetInr = Math.max(0, familyPensionGrossInr - Math.min(15000, Math.round(familyPensionGrossInr / 3)));
+    var taxableEpfInterestInrForIndia = num(safe(os, "taxable_epf_interest_inr", 0));
+    var taxableNpsWithdrawalInrForIndia = num(safe(os, "taxable_nps_withdrawal_inr", 0));
+    var otherSourcesMiscInr = giftsAbove50kInr + familyPensionNetInr +
+      num(safe(os, "spousal_clubbing_s64_inr", 0)) - num(safe(os, "minor_child_exemption_inr", 0)) +
+      num(safe(os, "lic_maturity_inr", 0)) + num(safe(os, "angel_tax_premium_inr", 0)) -
+      num(safe(os, "local_authority_s10_20_inr", 0)) + num(safe(os, "miscellaneous_income_inr", 0)) +
+      taxableEpfInterestInrForIndia + taxableNpsWithdrawalInrForIndia;
+    var otherSourcesMisc = moneyFromInr(otherSourcesMiscInr);
 
     // Capital gains — Layer 1 stores transaction data; surface the simple
     // short-term figure the form exposes, plus any annual capital_gains slice.
@@ -351,10 +886,10 @@
     // s.198 itself and does not extend to or pool with s.112/s.197.
     var stcg = moneyFromInr(num(safe(di, "capital_gains.short_term_15_pct", 0)) +
                             num(safe(annual.capital_gains, "stcg_111a_inr", 0)) +
-                            buybackStcgInr);
+                            buybackStcgInr + otherStcg20Inr);
     var ltcg = moneyFromInr(num(safe(annual.capital_gains, "ltcg_112a_inr", 0)) +
-                            buybackLtcgInr);
-    var ltcg197Inr = buybackLtcg197Inr + foreignEquityLtcg197Inr;
+                            buybackLtcgInr + otherLtcg198Inr);
+    var ltcg197Inr = buybackLtcg197Inr + foreignEquityLtcg197Inr + otherLtcg197Inr + commodityLtcg197Inr + unlistedEquityLtcg197Inr;
 
     // Special-rate "other sources" income — flat 30% under s.128 (lottery/
     // betting) and s.194 (online gaming), no basic exemption, no Chapter
@@ -376,18 +911,31 @@
     var unexplained115bbeInr = num(safe(os, "unexplained_income_115BBE_inr", 0));
 
     var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg, specialRate115bb, deemedDividendBuyback,
-                 moneyFromInr(unlistedStcgSlabInr), moneyFromInr(ltcg197Inr)].reduce(addMoney, zeroMoney());
+                 moneyFromInr(unlistedStcgSlabInr), moneyFromInr(ltcg197Inr), moneyFromInr(vdaGainInr),
+                 moneyFromInr(chapterXiiaInvestmentIncomeInr), otherSourcesMisc].reduce(addMoney, zeroMoney());
 
     return {
       salary: salary, business: business, houseProperty: houseProperty,
-      interest: interest, dividend: dividend,
+      interest: interest, dividend: dividend, otherSourcesMisc: otherSourcesMisc,
       stcg: stcg, ltcg: ltcg, ltcg197Inr: ltcg197Inr,
       capitalGains: addMoney(addMoney(stcg, ltcg), moneyFromInr(ltcg197Inr)),
       specialRate115bb: specialRate115bb,
       deemedDividendBuyback: deemedDividendBuyback,
-      // Slab-rate STCG (<=24mo unlisted — buy-backs and foreign equity
-      // both feed this), s.70/s.74 loss-set-off eligible.
+      // Slab-rate STCG (<=24mo unlisted — buy-backs, foreign equity, and
+      // every other GROUP_C/D/E Financial Holdings asset feed this),
+      // s.70/s.74 loss-set-off eligible.
       stcgSlabInr: unlistedStcgSlabInr,
+      // s.115BBH VDA/crypto gain — flat 30%, positive gains only, NEVER
+      // loss-set-off eligible (not even VDA-vs-VDA), no carry-forward.
+      // Kept completely separate from every capital-gains bucket above.
+      vdaGainInr: vdaGainInr,
+      // s.194S TDS base — total transfer consideration across every VDA
+      // sale this year, gain or loss (contrast vdaGainInr above).
+      vdaSaleConsiderationInr: vdaSaleConsiderationInr,
+      // s.115E(1)(a) Chapter XII-A investment income — flat 20%, no
+      // deductions, no exemption, not a capital gain (no loss set-off).
+      chapterXiiaInvestmentIncomeInr: chapterXiiaInvestmentIncomeInr,
+      chapterXiiaSfeaHoldingCount: chapterXiiaSfeaHoldingCount,
       promoterBuybackLtcgInr: promoterBuybackLtcgInr,
       promoterBuybackStcgInr: promoterBuybackStcgInr,
       holdingPeriodMismatches: holdingPeriodMismatches,
@@ -397,8 +945,41 @@
   }
 
   /* India deduction inputs (Chapter VI-A) for the tax engine. */
+  var S80DD_U_FLAT = { standard: 75000, severe: 125000 };
+  var S80DDB_CAP = { normal: 40000, senior: 100000 };
+  // s.80EE (loans sanctioned 1-Apr-2016 to 31-Mar-2017, cap ₹50,000) vs
+  // s.80EEA (loans sanctioned 1-Apr-2019 to 31-Mar-2022, cap ₹1,50,000) —
+  // both sanction windows are long closed to NEW loans, but a taxpayer still
+  // repaying a loan sanctioned inside either window can keep claiming it
+  // every year until the loan is paid off. Layer 1 collects one shared field
+  // for both sections; the sanction date alone decides which cap (if
+  // either) applies.
+  function s80eeaEeCapInr(sanctionDate) {
+    if (!sanctionDate) return 0; // no date on file — can't determine eligibility, don't guess
+    var d = new Date(sanctionDate);
+    if (isNaN(d.getTime())) return 0;
+    if (d >= new Date("2016-04-01") && d <= new Date("2017-03-31")) return 50000; // s.80EE
+    if (d >= new Date("2019-04-01") && d <= new Date("2022-03-31")) return 150000; // s.80EEA
+    return 0; // outside both windows — not eligible
+  }
+
   function aggregateIndiaDeductions(india) {
     var d = safe(india, "deductions", {});
+    // s.80DD (disability of a dependent) / s.80U (self) — a FIXED statutory
+    // amount by disability severity, not the taxpayer's actual expenditure:
+    // ₹75,000 standard (40-79% disability), ₹1,25,000 severe (>=80%). Layer
+    // 1 already resolves the severity into "standard"/"severe" — mirror
+    // that mapping directly rather than re-deriving it.
+    var s80ddInr = safe(d, "s80DD.has_disabled_dependents", false) === true
+      ? (S80DD_U_FLAT[safe(d, "s80DD.disability_percentage", null)] || 0) : 0;
+    var s80uInr = safe(d, "s80U.has_self_disability", false) === true
+      ? (S80DD_U_FLAT[safe(d, "s80U.disability_percentage", null)] || 0) : 0;
+    // s.80DDB (medical treatment, specified diseases) — actual expenditure,
+    // capped by patient age band (Layer 1 already resolves this to
+    // "normal"/"senior").
+    var s80ddbInr = safe(d, "s80DDB.has_specified_diseases_treatment", false) === true
+      ? Math.min(num(safe(d, "s80DDB.medical_expenses_inr", 0)), S80DDB_CAP[safe(d, "s80DDB.patient_category", null)] || S80DDB_CAP.normal) : 0;
+    var s80eeaEeInr = Math.min(num(safe(d, "s80EEA_EE.affordable_home_loan_interest_inr", 0)), s80eeaEeCapInr(safe(d, "s80EEA_EE.loan_sanction_date", null)));
     return {
       s80C: num(safe(d, "s80C.epf_employee_inr", 0)) + num(safe(d, "s80C.ppf_inr", 0)) +
             num(safe(d, "s80C.elss_inr", 0)) + num(safe(d, "s80C.life_insurance_premium_inr", 0)) +
@@ -408,8 +989,55 @@
       s80CCD1B: num(safe(d, "s80CCD_1B.nps_additional_inr", 0)),
       s80CCD2_employer: num(safe(india, "domestic_income.salary.employer_nps_contribution_inr", 0)),
       s80D: num(safe(d, "s80D.self_family_premium_inr", 0)) + num(safe(d, "s80D.parents_premium_inr", 0)),
-      s80TTA_TTB: num(safe(d, "s80TTA_TTB.savings_interest_inr", 0))
+      s80TTA_TTB: num(safe(d, "s80TTA_TTB.savings_interest_inr", 0)),
+      // Newly wired (previously read nowhere in this engine — see
+      // docs/FIELD_COVERAGE_AUDIT.md): flat-amount and directly-capped
+      // deductions computed here; s.80GG (income-dependent 3-way minimum)
+      // is passed through raw and capped in computeIndiaTax, where gross
+      // total income is already available. s.80G (donations, per-entry %
+      // + qualifying-limit categorization) and s.80M (inter-corporate
+      // dividend, business-entity-only) remain unread — genuinely gross-
+      // income/entity-dependent, deliberately not guessed at here.
+      s80DD: s80ddInr,
+      s80DDB: s80ddbInr,
+      s80U: s80uInr,
+      s80E: num(safe(d, "s80E.education_loan_interest_inr", 0)),
+      s80EEA_EE: s80eeaEeInr,
+      s80GGB_GGC: num(safe(d, "s80ggb_ggc_political_donation_inr", 0)),
+      s80GG_rentPaidInr: safe(d, "s80GG.has_rent_paid_no_hra", false) === true ? num(safe(d, "s80GG.rent_paid_inr", 0)) : 0
     };
+  }
+
+  /* Layer 1 US's self-employment form (income_us_source.self_employment[])
+   * never actually sets self_employment_earnings_usd or net_profit_usd — it
+   * only persists gross_receipts_usd, returns_and_allowances_usd, COGS
+   * components, other_income_usd and expenses_usd (see
+   * docs/BUSINESS_ENTITY_ARCHITECTURE.md). Reading only those two phantom
+   * fields meant every real filer's self-employment income silently
+   * computed to $0; only hand-authored demo profiles worked, by injecting
+   * self_employment_earnings_usd directly. Mirrors the India IN-21 fix.
+   * Phase-0 scoped: home-office and asset depreciation aren't netted here. */
+  function computeSelfEmploymentNetProfitUsd(s) {
+    var cogs = num(s.cogs_beginning_inventory) + num(s.cogs_purchases) + num(s.cogs_labor) + num(s.cogs_materials) - num(s.cogs_ending_inventory);
+    var grossProfit = num(s.gross_receipts_usd) - num(s.returns_and_allowances_usd) - cogs;
+    return grossProfit + num(s.other_income_usd) - num(s.expenses_usd);
+  }
+  function selfEmploymentNetProfitUsd(s) {
+    var explicit = s.self_employment_earnings_usd != null ? s.self_employment_earnings_usd : s.net_profit_usd;
+    return (explicit === undefined || explicit === null) ? computeSelfEmploymentNetProfitUsd(s) : num(explicit);
+  }
+  function selfEmploymentIncomeTrace(s) {
+    var explicit = s.self_employment_earnings_usd != null ? s.self_employment_earnings_usd : s.net_profit_usd;
+    if (explicit !== undefined && explicit !== null) {
+      return source("Net self-employment earnings entered directly on Layer 1 US for this business (not derived from gross receipts and expenses).");
+    }
+    var cogs = num(s.cogs_beginning_inventory) + num(s.cogs_purchases) + num(s.cogs_labor) + num(s.cogs_materials) - num(s.cogs_ending_inventory);
+    var parts = [{ label: "Gross receipts", amount: num(s.gross_receipts_usd) }];
+    if (num(s.returns_and_allowances_usd) > 0) parts.push({ label: "Less: returns & allowances", amount: -num(s.returns_and_allowances_usd) });
+    if (cogs > 0) parts.push({ label: "Less: cost of goods sold", amount: -cogs });
+    if (num(s.other_income_usd) > 0) parts.push({ label: "Plus: other business income", amount: num(s.other_income_usd) });
+    if (num(s.expenses_usd) > 0) parts.push({ label: "Less: business expenses", amount: -num(s.expenses_usd) });
+    return calc("Schedule C: gross receipts less returns/COGS, plus other income, less expenses. Home-office and asset depreciation aren't netted yet (Phase 1).", parts);
   }
 
   /* ------------------------------------------------------------------------
@@ -427,15 +1055,24 @@
     // already included in Box 1 wages above, these are informational fields
     // used only to size the above-the-line deduction, not additional income.
     var qualifiedTipsUsd = 0, qualifiedOvertimeUsd = 0;
+    // Per-employer breakdown — kept alongside the summed w2with total above
+    // (which every existing tax computation still consumes) so a withholding
+    // view can show "$X withheld by employer Y" instead of just one lump sum.
+    var w2Employers = [];
     var w2 = safe(ui, "wages_w2", null);
     if (Array.isArray(w2)) {
       w2.forEach(function (w) {
-        wages = addMoney(wages, moneyFromUsd(w.wages_box1_usd || w.wages_tips_compensation_usd || 0));
+        var wagesUsd = num(w.wages_box1_usd || w.wages_tips_compensation_usd || 0);
+        wages = addMoney(wages, moneyFromUsd(wagesUsd));
         var adv = w.tax_details_collapsed_by_default || w;
-        w2with += num(adv.federal_tax_withheld_usd || adv.federal_income_tax_withheld_usd || 0);
+        var fedWithUsd = num(adv.federal_tax_withheld_usd || adv.federal_income_tax_withheld_usd || 0);
+        w2with += fedWithUsd;
         medicareWages += num(adv.medicare_wages_box5_usd || w.wages_box1_usd || 0);
         qualifiedTipsUsd += num(w.qualified_tip_income_usd || 0);
         qualifiedOvertimeUsd += num(w.qualified_overtime_premium_usd || 0);
+        var stateWithUsd = 0;
+        (safe(w, "state_and_local_taxes", []) || []).forEach(function (st) { stateWithUsd += num(st.state_tax_withheld_box17_usd || 0); });
+        w2Employers.push({ employerName: w.employer_name || null, wagesUsd: wagesUsd, federalWithheldUsd: fedWithUsd, stateWithheldUsd: stateWithUsd });
       });
     }
 
@@ -452,10 +1089,14 @@
       businessUs = addMoney(businessUs, moneyFromUsd(c.taxable_income_usd || c.net_income_usd || 0));
     });
     (safe(ui, "partnerships_k1", []) || []).forEach(function (k) {
-      businessUs = addMoney(businessUs, moneyFromUsd(k.ordinary_business_income_usd || k.ordinary_income_usd || 0));
+      // Guaranteed payments (Box 4) are real income to the partner regardless
+      // of general/limited status — they were previously dropped entirely.
+      businessUs = addMoney(businessUs, moneyFromUsd(
+        num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) + num(k.guaranteed_payments_usd || 0)
+      ));
     });
     (safe(ui, "self_employment", []) || []).forEach(function (s) {
-      businessUs = addMoney(businessUs, moneyFromUsd(s.self_employment_earnings_usd || s.net_profit_usd || 0));
+      businessUs = addMoney(businessUs, moneyFromUsd(selfEmploymentNetProfitUsd(s)));
     });
     (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) {
       businessUs = addMoney(businessUs, moneyFromUsd(s.scorp_income_usd || s.ordinary_business_income_usd || 0));
@@ -464,16 +1105,35 @@
     // Self-employment-TAX-subject earnings (Sch C + Sch F + general-partner SE):
     // NOT S-corp/C-corp wages/distributions. Drives Schedule SE.
     var seEarnings = 0;
-    (safe(ui, "self_employment", []) || []).forEach(function (s) { seEarnings += num(s.self_employment_earnings_usd || s.net_profit_usd || 0); });
-    (safe(ui, "schedule_c_businesses", []) || []).forEach(function (s) { seEarnings += num(s.net_profit_usd || s.net_earnings_usd || 0); });
+    (safe(ui, "self_employment", []) || []).forEach(function (s) { seEarnings += selfEmploymentNetProfitUsd(s); });
     (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { seEarnings += num(s.net_profit_usd || 0); });
     // QBI-eligible pass-through business income (§199A): SE + S-corp + partnership
     // ordinary (excludes C-corp and wages). SSTB flag if any business is flagged.
+    // Seeded from seEarnings BEFORE partnership Box 14A is added below — Box
+    // 14A can include guaranteed payments (QBI-ineligible under §199A) and
+    // would otherwise double-count the ordinary-income slice added explicitly
+    // via ordinary_business_income_usd two lines down.
     var qbiIncome = seEarnings, sstb = false;
     (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { qbiIncome += num(s.scorp_income_usd || s.ordinary_business_income_usd || 0); });
     (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { qbiIncome += num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0); });
-    [].concat(safe(ui, "self_employment", []) || [], safe(ui, "schedule_c_businesses", []) || [], safe(ui, "s_corporations_k1", []) || [], safe(ui, "partnerships_k1", []) || [])
+    [].concat(safe(ui, "self_employment", []) || [], safe(ui, "s_corporations_k1", []) || [], safe(ui, "partnerships_k1", []) || [])
       .forEach(function (x) { if (x && (x.is_sstb === true || x.sstb === true)) sstb = true; });
+    // Partnership K-1 Box 14A (self_employment_earnings_usd) is the
+    // authoritative SE-tax base as actually reported on the K-1 — already
+    // partner-type-aware (a limited partner's distributive share of ordinary
+    // income is excluded from SE tax per s.1402(a)(13); guaranteed payments
+    // for services are not, for either partner type). Previously not read at
+    // all, so partnership SE tax was unconditionally $0. Falls back to
+    // guaranteed payments (+ ordinary income for a general partner only)
+    // when Box 14A itself wasn't entered. Added to seEarnings only AFTER
+    // qbiIncome is seeded above, so it never leaks into the QBI base.
+    (safe(ui, "partnerships_k1", []) || []).forEach(function (k) {
+      var box14a = k.self_employment_earnings_usd;
+      if (box14a === null || box14a === undefined || box14a === "") {
+        box14a = num(k.guaranteed_payments_usd || 0) + (k.partner_type === "general" ? num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) : 0);
+      }
+      seEarnings += num(box14a);
+    });
 
     // US retirement / pension income (US-source, ordinary): IRA & 401(k)
     // distributions, Social Security, and pension.
@@ -517,7 +1177,7 @@
     var foreignSourceTotal = [foreignWages, foreignInterest, foreignDividends, foreignRental, foreignPension, foreignStcg, foreignLtcg].reduce(addMoney, zeroMoney());
 
     return {
-      wages: wages, businessUs: businessUs, w2Withholding: w2with, medicareWages: medicareWages,
+      wages: wages, businessUs: businessUs, w2Withholding: w2with, w2Employers: w2Employers, medicareWages: medicareWages,
       qualifiedTipsUsd: qualifiedTipsUsd, qualifiedOvertimeUsd: qualifiedOvertimeUsd,
       seEarningsUsd: seEarnings, qbiIncomeUsd: Math.max(0, qbiIncome), qbiIsSSTB: sstb,
       usRetirementIncome: usRetirementIncome,
@@ -557,17 +1217,35 @@
       // AMT preference / adjustment items (§57): private-activity-bond interest,
       // ISO bargain element / other preference spread.
       isoAmtPrefUsd: isoAmtPrefUsd,
-      amtPrefs: num(safe(it, "private_activity_bond_interest_usd", 0)) +
+      // amt_inputs.private_activity_bond_interest_usd is the real path
+      // layer1_us.html's #amt-private-bond input writes (see
+      // docs/FIELD_COVERAGE_AUDIT.md) — the it.*/"amt."-prefixed paths below
+      // don't exist anywhere in the form; kept as harmless no-op fallbacks
+      // in case a hand-authored profile used one of those shapes instead.
+      amtPrefs: num(safe(us, "amt_inputs.private_activity_bond_interest_usd", 0)) +
+                num(safe(it, "private_activity_bond_interest_usd", 0)) +
                 num(safe(it, "amt_preference_spread_usd", 0)) +
                 num(safe(us, "amt.private_activity_bond_interest_usd", 0)) +
                 num(safe(us, "amt.amt_preference_spread_usd", 0)) +
                 num(safe(us, "amt_items_usd", 0)) +
                 isoAmtPrefUsd,
-      // Non-refundable personal credits
-      careExpenses: num(safe(it, "dependent_care_expenses_usd", 0)),
+      // Non-refundable personal credits. child_and_dependent_care_expenses_usd
+      // is what layer1_us.html's Child & Dependent Care Credit input
+      // (#ded-care) actually writes — this previously read a field name
+      // (dependent_care_expenses_usd) that exists nowhere in the form, so
+      // the credit was silently ₹0 for every filer regardless of what was
+      // entered (see docs/FIELD_COVERAGE_AUDIT.md).
+      careExpenses: num(safe(it, "child_and_dependent_care_expenses_usd", 0)) || num(safe(it, "dependent_care_expenses_usd", 0)),
       aotc: num(safe(it, "education_credits_aotc_usd", 0)),
       lifetimeLearning: num(safe(it, "education_credits_llc_usd", 0)),
-      dependents: num(safe(us, "profile.dependents_count", 0)) || num(safe(it, "dependents_count", 0))
+      dependents: num(safe(us, "profile.dependents_count", 0)) || num(safe(it, "dependents_count", 0)),
+      // Above-the-line SE health-insurance / SE retirement-plan (SEP-IRA,
+      // Solo 401k) deductions — layer1_us.html's #se-ded-health/#se-ded-ret
+      // inputs already persist these correctly to income_us_source; this
+      // engine just never read them back out, so a self-employed filer's
+      // AGI was always overstated by the full amount of both.
+      seHealthInsuranceDeductionUsd: num(safe(us, "income_us_source.se_health_insurance_deduction_usd", 0)),
+      seRetirementDeductionUsd: num(safe(us, "income_us_source.se_retirement_deduction_usd", 0))
     };
   }
 
@@ -647,6 +1325,89 @@
   }
 
   /* ------------------------------------------------------------------------
+   * General withholding detail — every withholding-tax data point Layer 1
+   * captures REGARDLESS of residency status (unlike the NR/NRA
+   * treaty-election machinery in computation.js, which only fires for
+   * non-residents). Feeds the Withholding Taxes page's "here's everything
+   * that's been withheld" view, as distinct from the narrower "here's what
+   * missing documentation is costing you" conflict subset.
+   * ----------------------------------------------------------------------*/
+  var LRS_PURPOSE_LABELS = {
+    investment: "Investment (Equity/Property)", education_own_funds: "Overseas Education (Own Funds)",
+    education_loan: "Overseas Education (Loan-Funded)", medical: "Medical Treatment Abroad",
+    travel: "International Travel (Overseas Tour Package)", gift_donation: "Gift or Donation to Non-Resident"
+  };
+  var LRS_TCS_THRESHOLD_INR = 1000000;
+
+  /* s.206C(1G) TCS on LRS outbound remittances — mirrors updateLrsTcs() in
+   * layer1_india.html EXACTLY (₹10L base threshold, 2% flat on tour
+   * packages from the first rupee, 20% on excess for investment/gift, 2% on
+   * excess for self-funded education/medical, 0% for loan-funded
+   * education). That function only ever renders a DOM preview and never
+   * persisted the figure to state, so the engine never had access to it —
+   * this is the same deterministic formula, re-run over the same inputs. */
+  function computeLrsTcs(lrsOutbound) {
+    var total = num(safe(lrsOutbound, "total_lrs_remitted_this_fy_inr", 0));
+    var purpose = safe(lrsOutbound, "lrs_purpose", null);
+    if (!(total > 0) || !purpose) return null;
+    var tcsInr = 0, ratePctLabel = "NIL", note;
+    if (purpose === "travel") {
+      tcsInr = Math.round(total * 0.02);
+      ratePctLabel = "2% flat";
+      note = "2% flat TCS on overseas tour packages from the first rupee";
+    } else if (total > LRS_TCS_THRESHOLD_INR) {
+      var excess = total - LRS_TCS_THRESHOLD_INR;
+      if (purpose === "investment" || purpose === "gift_donation") {
+        tcsInr = Math.round(excess * 0.20); ratePctLabel = "20% on excess";
+        note = "20% TCS on general/investment LRS exceeding ₹10L";
+      } else if (purpose === "education_own_funds" || purpose === "medical") {
+        tcsInr = Math.round(excess * 0.02); ratePctLabel = "2% on excess";
+        note = "2% TCS on self-funded education/medical exceeding ₹10L";
+      } else if (purpose === "education_loan") {
+        tcsInr = 0; ratePctLabel = "0%";
+        note = "NIL TCS on education remittance funded via loan";
+      }
+    } else {
+      note = "Remittance is below the ₹10L base threshold";
+    }
+    return {
+      totalRemittedInr: total, purpose: purpose, purposeLabel: LRS_PURPOSE_LABELS[purpose] || purpose,
+      tcsInr: tcsInr, ratePctLabel: ratePctLabel, note: note
+    };
+  }
+
+  function aggregateWithholdingDetail(india, us) {
+    var tc = safe(india, "tax_credits", {});
+    var props = safe(india, "property.properties", []) || [];
+    var propertyTds = props.filter(function (p) { return num(p.buyer_tds_deducted_inr) > 0; }).map(function (p) {
+      return {
+        propertyType: p.property_type || "Property",
+        saleDate: p.sale_date || null,
+        saleConsiderationInr: num(p.sale_consideration),
+        tdsInr: num(p.buyer_tds_deducted_inr)
+      };
+    });
+    var we = safe(us, "withholding_and_estimated", {});
+    return {
+      india: {
+        // Single un-decomposable aggregate — Layer 1's "26AS upload" is a
+        // demo simulation (hardcoded value), not real per-source extraction,
+        // so there is no source/rate breakdown available for this figure.
+        tdsAggregateInr: num(safe(tc, "tds_already_deducted_inr", 0)) + num(safe(tc, "tds_inr", 0)),
+        // TCS (Ch. XVII-BB) is a DIFFERENT mechanism from TDS — collected on
+        // money going OUT (e.g. LRS remittances), not withheld from income
+        // coming in — but is equally creditable against final tax liability.
+        tcsAggregateInr: num(safe(tc, "tcs_inr", 0)),
+        lrsTcs: computeLrsTcs(safe(india, "lrs_outbound", {})),
+        propertyTds: propertyTds
+      },
+      us: {
+        stateWithholdingUsd: num(safe(we, "state_withholding_total_usd", 0))
+      }
+    };
+  }
+
+  /* ------------------------------------------------------------------------
    * normalize — the public entry point.
    * ----------------------------------------------------------------------*/
   function normalize(opts) {
@@ -655,6 +1416,23 @@
     var us = raw.us || {};
     var router = raw.router || {};
     var annual = indiaAnnualSlice(india);
+
+    // Resolved once, shared by entity.indiaReturnForm and each India business
+    // entity's per-row returnForm below, so they never disagree with each
+    // other. Layer 1 India's evaluateITRForm() runs a real 7-form eligibility
+    // check (income thresholds, residency, capital gains, foreign
+    // assets/income, directorship, crypto, multiple house properties, etc.)
+    // and persists its verdict to itr_recommendation.form — read that when
+    // present; only fall back to the crude entity-type-only mapping when
+    // Layer 1 hasn't run it (e.g. a hand-authored profile that never went
+    // through the browser form).
+    var indiaEntityKind = safe(india, "profile.entity_type", "individual");
+    var indiaIsCompany = indiaEntityKind === "company";
+    var indiaIsFirm = ["firm", "llp", "local"].indexOf(indiaEntityKind) >= 0;
+    var indiaLayer1Itr = safe(india, "itr_recommendation.form", null);
+    if (indiaLayer1Itr === "Unknown") indiaLayer1Itr = null;
+    var indiaReturnFormCrude = indiaIsCompany ? "ITR-6" : (indiaIsFirm ? "ITR-5" : "ITR-2/3");
+    var indiaReturnForm = indiaLayer1Itr || indiaReturnFormCrude;
 
     return {
       meta: {
@@ -696,22 +1474,25 @@
         panAadhaarLinked: safe(india, "profile.pan_aadhaar_linked", null)
       },
       entity: (function () {
-        var inK = safe(india, "profile.entity_type", "individual");
         var usT = safe(us, "profile.tax_entity_type", "individual");
         if (usT === "llc") usT = safe(us, "profile.llc_tax_election", "individual");
-        var indiaIsCompany = inK === "company";
-        var indiaIsFirm = ["firm", "llp", "local"].indexOf(inK) >= 0;
         var usIsBusiness = ["ccorp", "scorp", "partnership", "trust"].indexOf(usT) >= 0;
         // A profile is "business POV" when either side is a non-individual entity.
         return {
-          indiaKind: inK, usKind: usT,
+          indiaKind: indiaEntityKind, usKind: usT,
           indiaIsCompany: indiaIsCompany, indiaIsFirm: indiaIsFirm,
           indiaOpt115baa: safe(india, "profile.opt_115baa", false) === true,
           indiaTurnoverLte400cr: safe(india, "profile.turnover_lte_400cr", false) === true,
           usIsBusiness: usIsBusiness,
           isBusiness: indiaIsCompany || indiaIsFirm || usIsBusiness,
-          indiaReturnForm: indiaIsCompany ? "ITR-6" : (indiaIsFirm ? "ITR-5" : "ITR-2/3"),
-          usReturnForm: usT === "ccorp" ? "1120" : usT === "scorp" ? "1120-S" : usT === "partnership" ? "1065" : usT === "trust" ? "1041" : "1040"
+          indiaReturnForm: indiaReturnForm,
+          indiaReturnFormIsRecommendation: !!indiaLayer1Itr,
+          indiaReturnFormExplanation: indiaLayer1Itr ? safe(india, "itr_recommendation.explanation", null) : null,
+          // 1040-NR when Layer 1 US recorded the taxpayer as filing the NRA
+          // return, else the standard resident/citizen 1040 (or the entity
+          // forms above for a business-mode US profile).
+          usReturnForm: usT === "ccorp" ? "1120" : usT === "scorp" ? "1120-S" : usT === "partnership" ? "1065" : usT === "trust" ? "1041" :
+            (safe(us, "nra_specific.files_form_1040nr", false) === true ? "1040-NR" : "1040")
         };
       })(),
       residency: {
@@ -859,6 +1640,7 @@
       },
       accounts: aggregateAccounts(india, us),
       taxesPaid: aggregateTaxesPaid(india, us),
+      withholdingDetail: aggregateWithholdingDetail(india, us),
       assets: {
         indianMutualFunds: (safe(india, "financial_holdings.transactions", []) || []).filter(function (t) {
           return t.asset_type && String(t.asset_type).toLowerCase().indexOf("mutual_fund") >= 0;
@@ -889,19 +1671,56 @@
         businessEntities: (function () {
           var list = [], ui = safe(us, "income_us_source", {});
           var entityKind = safe(us, "profile.tax_entity_type", "individual");
+          var indiaIsCompanyOrFirm = indiaIsCompany || indiaIsFirm;
           // The US entity's OWN return income (e.g. a C-Corp's 1120 income).
           if (entityKind === "ccorp" || safe(us, "profile.incorporated_in_us", false) === true) {
             var selfInc = num(safe(ui, "business_income_usd", 0));
-            if (selfInc > 0) list.push({ country: "US", type: "C-Corp (Form 1120)", name: safe(us, "profile.full_name", "US C-Corp"), incomeUsd: selfInc, corp: true });
-          }
-          (safe(ui, "self_employment", []) || []).forEach(function (s) { list.push({ country: "US", type: "Self-employment (Sch C)", name: s.business_name || s.name || "Self-employment", incomeUsd: num(s.self_employment_earnings_usd || s.net_profit_usd || 0), se: true, qbi: true }); });
-          (safe(ui, "schedule_c_businesses", []) || []).forEach(function (s) { list.push({ country: "US", type: "Schedule C", name: s.business_name || s.name || "Sole proprietorship", incomeUsd: num(s.net_profit_usd || s.net_earnings_usd || 0), se: true, qbi: true }); });
-          (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { list.push({ country: "US", type: "Farm (Sch F)", name: s.name || "Farm", incomeUsd: num(s.net_profit_usd || 0), se: true, qbi: true }); });
-          (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { list.push({ country: "US", type: "Partnership K-1 (1065)", name: k.partnership_name || k.name || "Partnership", incomeUsd: num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0), se: true, qbi: true }); });
-          (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { list.push({ country: "US", type: "S-Corp K-1 (1120-S)", name: s.corp_name || s.name || "S-Corporation", incomeUsd: num(s.scorp_income_usd || s.ordinary_business_income_usd || 0), se: false, qbi: true }); });
-          (safe(ui, "c_corporations_1120", []) || []).forEach(function (c) { list.push({ country: "US", type: "C-Corp (Form 1120)", name: c.corp_name || c.name || "C-Corporation", incomeUsd: num(c.taxable_income_usd || c.net_income_usd || 0), corp: true }); });
-          (safe(annual.domestic_income, "business_income.business_entries", []) || []).forEach(function (b) { list.push({ country: "IN", type: "Business / Profession (PGBP)", name: b.trade_name || b.name || "Indian business", incomeUsd: inrToUsd(num(b.net_profit_inr || b.net_profit || 0)), inr: num(b.net_profit_inr || b.net_profit || 0) }); });
-          (safe(us, "foreign_entities.foreign_corporations", []) || []).forEach(function (c) { list.push({ country: c.country === "IN" ? "IN" : "US", type: "Foreign corporation (CFC)", name: c.corp_name || "Foreign corporation", incomeUsd: num(c.gilti_income_usd || 0), cfc: true, gilti: num(c.gilti_income_usd || 0), ownershipPct: num(c.ownership_pct || 0) }); });
+            if (selfInc > 0) list.push({ country: "US", type: "C-Corp (Form 1120)", name: safe(us, "profile.full_name", "US C-Corp"), incomeUsd: selfInc, corp: true,
+              filesOwnReturn: true, returnForm: "Form 1120 (C-Corp — entity-level return, 21% flat)",
+              calcTrace: source("Entity-level taxable income as entered on Layer 1 US (business_income_usd). Taxed at 21% at the entity; not on a personal return until distributed as a dividend.") }); }
+          (safe(ui, "self_employment", []) || []).forEach(function (s) { list.push({ country: "US", type: "Self-employment (Sch C)", name: s.business_name || s.name || "Self-employment", incomeUsd: selfEmploymentNetProfitUsd(s), se: true, qbi: true,
+            filesOwnReturn: false, returnForm: "Schedule C + Schedule SE (Form 1040)",
+            calcTrace: selfEmploymentIncomeTrace(s) }); });
+          (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { list.push({ country: "US", type: "Farm (Sch F)", name: s.name || "Farm", incomeUsd: num(s.net_profit_usd || 0), se: true, qbi: true,
+            filesOwnReturn: false, returnForm: "Schedule F (Form 1040)",
+            calcTrace: source("Net farm profit as entered directly on Layer 1 US for this farm (net_profit_usd).") }); });
+          (safe(ui, "partnerships_k1", []) || []).forEach(function (k) {
+            var ord = num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0), gp = num(k.guaranteed_payments_usd || 0);
+            list.push({ country: "US", type: "Partnership K-1 (1065)", name: k.partnership_name || k.name || "Partnership", incomeUsd: ord + gp, se: true, qbi: true,
+              filesOwnReturn: false, returnForm: "Form 1065 (partnership return, informational) → Schedule E + Schedule SE (Form 1040)",
+              calcTrace: calc("Ordinary business income (K-1 Box 1) + guaranteed payments (K-1 Box 4). Guaranteed payments count for SE tax but are excluded from the §199A QBI base.", [
+                { label: "Ordinary business income (Box 1)", amount: ord },
+                { label: "Guaranteed payments (Box 4)", amount: gp }
+              ]) });
+          });
+          (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { list.push({ country: "US", type: "S-Corp K-1 (1120-S)", name: s.corp_name || s.name || "S-Corporation", incomeUsd: num(s.scorp_income_usd || s.ordinary_business_income_usd || 0), se: false, qbi: true,
+            filesOwnReturn: false, returnForm: "Form 1120-S (S-corp return, informational) → Schedule E (Form 1040)",
+            calcTrace: source("Ordinary business income as entered on Layer 1 US from this S-corp's K-1 (scorp_income_usd, or ordinary_business_income_usd if that field wasn't used). S-corp distributions aren't subject to SE tax.") }); });
+          (safe(ui, "c_corporations_1120", []) || []).forEach(function (c) { list.push({ country: "US", type: "C-Corp (Form 1120)", name: c.corp_name || c.name || "C-Corporation", incomeUsd: num(c.taxable_income_usd || c.net_income_usd || 0), corp: true,
+            filesOwnReturn: true, returnForm: "Form 1120 (C-Corp — entity-level return, 21% flat)",
+            calcTrace: source("Entity-level taxable income as entered on Layer 1 US for this C-corp (taxable_income_usd, or net_income_usd if that field wasn't used). Taxed at 21% at the entity; not on a personal return until distributed.") }); });
+          var bizEligibility = presumptiveResidencyEligible(india);
+          (safe(annual.domestic_income, "business_income.business_entries", []) || []).forEach(function (b) {
+            var netProfitInr = b.net_profit_inr || b.net_profit;
+            if (netProfitInr === undefined || netProfitInr === null) netProfitInr = computeBusinessEntryNetProfitInr(b, bizEligibility);
+            netProfitInr = num(netProfitInr);
+            // Same resolved form as entity.indiaReturnForm — Layer 1's real
+            // eligibility check when it ran, else a business-aware crude
+            // guess (never "ITR-2", since ITR-2 can't carry PGBP income at
+            // all — a presumptive entry defaults to ITR-4, everything else
+            // to ITR-3, both still labeled as a guess pending the real check).
+            var entryReturnForm = indiaLayer1Itr ? indiaReturnForm :
+              (indiaIsCompanyOrFirm ? indiaReturnFormCrude :
+                (["s44AD", "s44ADA", "s44AE"].indexOf(b.presumptive_scheme) >= 0
+                  ? "ITR-4 (Sugam) if eligible, else ITR-3 — presumptive scheme"
+                  : "ITR-3 — regular books"));
+            list.push({ country: "IN", type: "Business / Profession (PGBP)", name: b.business_name || b.trade_name || b.name || "Indian business", incomeUsd: inrToUsd(netProfitInr), inr: netProfitInr,
+              filesOwnReturn: indiaIsCompanyOrFirm, returnForm: entryReturnForm,
+              calcTrace: businessEntryIncomeTrace(b, bizEligibility) });
+          });
+          (safe(us, "foreign_entities.foreign_corporations", []) || []).forEach(function (c) { list.push({ country: c.country === "IN" ? "IN" : "US", type: "Foreign corporation (CFC)", name: c.corp_name || "Foreign corporation", incomeUsd: num(c.gilti_income_usd || 0), cfc: true, gilti: num(c.gilti_income_usd || 0), ownershipPct: num(c.ownership_pct || 0),
+            filesOwnReturn: true, returnForm: "Foreign local return (not modeled) + Form 5471 (informational, US) + GILTI on Schedule 1 (Form 1040)",
+            calcTrace: source("GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) — a hand-entered estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled yet (see gap tracker). Ownership: " + Math.round(num(c.ownership_pct || 0)) + "%. This is a US inclusion only — the entity's own foreign-country income tax return is separate and not shown here.") }); });
           // Merge same-named entities so income is counted once; CFC/GILTI flags
           // fold onto the entity's real income row.
           var byName = {}, order = [];

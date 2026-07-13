@@ -213,6 +213,34 @@
         0, ["DTAA treaty election", "s.207", "s.159", "s.159(8)"]);
     }
 
+    // -- 3c2. WITHHOLDING DOCUMENTATION GAP — QUANTIFIED HEADLINE -----------
+    // Consolidates every treaty-denied stream (India s.207/s.159 dividend/
+    // royalty/FTS/interest, US FDAP under IRC §1441/§1.1441-6) into ONE
+    // number: the real, computed extra tax being paid this year purely
+    // because supporting documentation (TRC, Form 41, Form W-8BEN) isn't on
+    // file — not an estimate, the same per-stream figures the Withholding
+    // Taxes page shows, summed. Fires only when that number is actually
+    // material; the per-stream detail (dtaa_treaty_elections, nra_w8ben_
+    // missing) above already covers the narrative for each individual
+    // stream — this is the one-line "how much is this actually costing you"
+    // a preparer would lead with.
+    var wh = buildWithholdingSummary(model, computed);
+    if (wh.totalGapUsd > 1) {
+      var whParts = [];
+      if (wh.india.totalGapInr > 1) whParts.push(inr(wh.india.totalGapInr) + " in India (TRC/Form 41)");
+      if (wh.us.totalGapUsd > 1) whParts.push(usd(wh.us.totalGapUsd) + " in the US (Form W-8BEN)");
+      add("withholding_documentation_gap", S.CRITICAL, C.DOCUMENT,
+        "Missing documentation is costing " + usd(wh.totalGapUsd) + " in avoidable withholding tax this year",
+        "Adding up every income stream where a treaty-reduced rate was claimed but denied for lack of supporting " +
+        "documentation: " + whParts.join(" + ") + " — " + usd(wh.totalGapUsd) + " total, computed directly from the " +
+        "same rate/amount figures used elsewhere on this page, not estimated. See the Withholding Taxes page for the " +
+        "full row-by-row breakdown of which income and which document.",
+        "File the missing documentation (TRC + Form 41 for India s.159 elections; Form W-8BEN with the US withholding " +
+        "agent for FDAP) as soon as possible — none of this is lost once filed for a FUTURE payment, but the tax " +
+        "already withheld/assessed on past payments this year may require a separate refund claim to recover.",
+        wh.totalGapUsd, ["Withholding tax", "TRC", "Form 41", "Form W-8BEN"]);
+    }
+
     // -- 3c. PAN NOT LINKED TO AADHAAR — PAN TREATED AS INOPERATIVE ---------
     // Captured by Layer 1's profile toggle but never read anywhere in the
     // engine before this. Under Rule 114AAA, an unlinked PAN is "inoperative":
@@ -394,24 +422,62 @@
         0, ["DTAA Art. 4(3)", "s.6(3)", "POEM", "Mutual Agreement Procedure"]);
     }
 
-    // -- 4g. CHAPTER XII-A (s.217/212) ELECTED BUT NOT IN THE COMPUTATION -
-    // s.217/212 give an NRI a concessional flat rate (20% investment income
-    // / 10% LTCG, no slab progression) on specified foreign-exchange assets,
-    // and — the easy-to-miss part — s.217 lets the taxpayer KEEP that regime
-    // even after becoming resident again, for as long as the assets are held,
-    // by filing the election each year. WISING doesn't yet recompute India
-    // tax under this regime, so the number below should not be trusted as-is
-    // when this box is checked.
-    if (model.treaty.chapterXiiaElected) {
-      add("chapter_xiia_not_computed", S.WARNING, C.CREDIT,
-        "Chapter XII-A (s.217/212) elected — not reflected in the India tax computed below",
-        "The Layer 1 Chapter XII-A election is on. Under s.217/212, specified investment income from foreign-exchange " +
-        "assets is taxed at a flat 20% (10% for LTCG) instead of slab rates, and — unlike most NRI concessions — the " +
-        "election can be KEPT even after the taxpayer becomes an ordinary resident, by re-filing it each year the assets " +
-        "are retained. The India tax figure above is computed under normal slab/special rates and does not apply this election.",
-        "Recompute the specified-asset income separately at the s.217/212 flat rates before relying on the India tax " +
-        "total above, and confirm the annual re-election was filed if residency status has since changed.",
+    // -- 4g. CHAPTER XII-A (s.217/212) ELECTED — INVESTMENT INCOME CHECK --
+    // s.217/212 give an NRI a concessional flat rate on specified foreign-
+    // exchange assets: 20% on "investment income" (interest on a specified
+    // debenture/deposit, dividend on specified shares) and 12.5% on LTCG
+    // (raised from 10% by Budget 2024, alongside the general capital-gains
+    // rate simplification) — no slab progression either way. And — the
+    // easy-to-miss part — s.217 lets the taxpayer KEEP that regime even
+    // after becoming resident again, for as long as the assets are held, by
+    // filing the election each year.
+    //
+    // LTCG/STCG on specified LISTED EQUITY, DEBENTURES, and GOVERNMENT
+    // SECURITIES (transactions marked "sold to a third party" — Layer 1
+    // can't yet distinguish a market sale from a maturity redemption for
+    // debentures/govt securities, and a real Tribunal precedent confirms
+    // redemption isn't a taxable "transfer" at all) IS now correctly
+    // reflected in the India tax computed below. Specified DEPOSITS never
+    // generate capital gains (same redemption-isn't-a-transfer principle).
+    // "Investment income" IS now also computed, from a per-holding field
+    // on any SFEA-marked transaction — but since that's a manually-entered
+    // figure per holding (not derived from dates/prices the way capital
+    // gains are), a preparer forgetting to fill it in for a holding that
+    // plausibly earned interest/dividend is a real, silent risk this
+    // finding is specifically designed to catch.
+    var xiiaHoldingCount = (model.income.india && model.income.india.chapterXiiaSfeaHoldingCount) || 0;
+    var xiiaInvIncomeInr = (model.income.india && model.income.india.chapterXiiaInvestmentIncomeInr) || 0;
+    if (model.treaty.chapterXiiaElected && xiiaHoldingCount === 0) {
+      add("chapter_xiia_elected_no_holdings", S.WARNING, C.CREDIT,
+        "Chapter XII-A elected, but no Financial Holdings transaction is marked as a specified foreign-exchange asset",
+        "The Layer 1 Chapter XII-A election is on, but none of the Financial Holdings transactions on file are flagged " +
+        "as \"Specified Foreign Exchange Asset (NRI)\" — s.217/212's flat-rate regime only applies to shares/debentures/" +
+        "deposits/government securities actually purchased in convertible foreign exchange. Either a specified holding " +
+        "exists but wasn't flagged (so its capital gains and investment income are being computed under ordinary rules " +
+        "instead), or the election isn't actually needed this year.",
+        "If a specified holding exists, mark it \"Specified Foreign Exchange Asset\" on its Financial Holdings entry so " +
+        "it gets the correct s.217/212 treatment. If none exists, consider whether the election is still needed.",
         0, ["s.217", "s.212", "Chapter XII-A"]);
+    } else if (model.treaty.chapterXiiaElected && xiiaHoldingCount > 0 && xiiaInvIncomeInr < 1) {
+      add("chapter_xiia_investment_income_missing", S.WARNING, C.CREDIT,
+        "Chapter XII-A elected, " + xiiaHoldingCount + " specified holding(s) on file — but no investment income entered for any of them",
+        "The Layer 1 Chapter XII-A election is on, and " + xiiaHoldingCount + " Financial Holdings transaction(s) are marked as a " +
+        "specified foreign-exchange asset — but none of them has an \"Investment Income This Year\" figure entered. A specified " +
+        "debenture or deposit almost always earns some interest, and specified shares may pay dividends; if any of these holdings " +
+        "did, that income is taxed at a flat 20% under s.217/212 (s.115E(1)(a)) — separate from, and in addition to, any capital " +
+        "gains already reflected below.",
+        "Check each specified holding for interest/dividend actually received this year and enter it in the \"Investment Income " +
+        "This Year\" field — if genuinely none was received (e.g. a zero-coupon instrument still accruing, or shares that paid no " +
+        "dividend), no action needed.",
+        0, ["s.217", "s.212", "Chapter XII-A", "s.115E"]);
+    } else if (model.treaty.chapterXiiaElected && xiiaInvIncomeInr > 0) {
+      add("chapter_xiia_investment_income_computed", S.INFO, C.CREDIT,
+        "Chapter XII-A investment income of " + inr(xiiaInvIncomeInr) + " included at the flat 20% rate",
+        "Interest/dividend entered against your Chapter XII-A specified holdings (" + inr(xiiaInvIncomeInr) + " total) is taxed " +
+        "at the flat 20% s.217/212 (s.115E(1)(a)) rate in the India tax computed below — no Chapter VI-A deductions or basic " +
+        "exemption apply to this slice, per Chapter XII-A's own rules.",
+        "Confirm this figure covers ALL specified holdings' interest/dividend for the year, not just some of them.",
+        0, ["s.217", "s.212", "Chapter XII-A", "s.115E"]);
     }
 
     // -- 4g2. SPECIAL-RATE WINNINGS (s.128/194) — NOW COMPUTED ---------
@@ -1000,9 +1066,17 @@
    * "where did this come from" panel. "source" = pulled from Layer 1 with no
    * material computation; "calc" = a formula over other already-shown
    * numbers (parts are {label, amount} in the row's own currency, or
-   * {label, display} for a non-currency operand like a rate). */
-  function calc(formula, parts) { return { kind: "calc", formula: formula, parts: parts || [] }; }
-  function source(detail) { return { kind: "source", detail: detail }; }
+   * {label, display} for a non-currency operand like a rate).
+   *
+   * citation (optional, both kinds): a dated pointer to the external rule
+   * this trace relied on — e.g. a CBDT/IRS form or threshold that was
+   * verified against a live source rather than derived purely from numbers
+   * already on screen. Omit it for pure internal computation; only rules
+   * that could go stale (they change on a yearly notification/Finance Act
+   * cycle) should carry one, so its presence itself signals "this needs
+   * periodic re-verification," not "everything here is externally sourced." */
+  function calc(formula, parts, citation) { return { kind: "calc", formula: formula, parts: parts || [], citation: citation || null }; }
+  function source(detail, citation) { return { kind: "source", detail: detail, citation: citation || null }; }
   function holdings(section, note) { return { kind: "holdings", section: section, note: note || null }; }
 
   /* Turns a computation.js bracketBreakdown() array into trace `parts` — one
@@ -1229,10 +1303,17 @@
           nrInterestParts(i.nrInterest, inr)) }
     ] : [];
     var ltcg197Trace = ((i.ltcg197TaxableInr || 0) > 1) ? [
-      { label: "  — of which s.197 LTCG @ 12.5% (unlisted/foreign — no exemption)", inr: (i.ltcg197TaxableInr || 0) * T.LTCG_112A_RATE,
-        trace: calc("Unlisted buy-back gains and foreign-equity gains (e.g. US stocks) held >24 months are LTCG under s.197, same 12.5% rate as s.198 — but s.197 has NO ₹1,25,000 exemption (that's textually specific to s.198's listed/STT-paid gains, and doesn't pool with s.197), so this whole amount is taxable from the first rupee", [
+      { label: "  — of which s.197 LTCG @ 12.5% (no exemption)", inr: (i.ltcg197TaxableInr || 0) * T.LTCG_112A_RATE,
+        trace: calc("Same 12.5% rate as s.198, but NO ₹1,25,000 exemption — that's textually specific to s.198's listed/STT-paid gains and doesn't pool with s.197, so this whole amount is taxable from the first rupee. Fed by: unlisted buy-back gains, foreign-equity gains (e.g. US stocks), unlisted bonds without STT, non-equity-oriented/non-specified mutual funds (debt MF acquired pre-Apr-2023, 35-65%-equity hybrid funds, international/FoF funds no longer meeting s.50AA's specified-fund test), and Chapter XII-A specified listed equity/debentures/government securities sold to a third party (s.115E's LTCG rate has no exemption either, unlike ordinary s.198) — all held >24 months, or >12 months for a listed bond, specified debenture/govt security, or specified listed equity", [
           { label: "s.197 LTCG (after loss set-off)", amount: i.ltcg197TaxableInr || 0 },
           { label: "Tax @ 12.5%, no exemption", amount: (i.ltcg197TaxableInr || 0) * T.LTCG_112A_RATE }
+        ]) }
+    ] : [];
+    var vdaTrace = ((i.vdaGainInr || 0) > 1) ? [
+      { label: "  — of which s.115BBH VDA/crypto @ 30% flat", inr: i.vdaTaxInr || 0,
+        trace: calc("Virtual digital assets (crypto) are taxed at a flat 30% on positive gains only — no LTCG/STCG distinction, no holding-period threshold, no exemption or indexation, and crucially NO loss set-off is allowed at all, not even against a gain from a different VDA in the same year, and no carry-forward. Any losing VDA transaction is simply excluded, never netted against a gain", [
+          { label: "VDA gains (losses excluded, never netted)", amount: i.vdaGainInr || 0 },
+          { label: "Tax @ 30% flat", amount: i.vdaTaxInr || 0 }
         ]) }
     ] : [];
 
@@ -1250,9 +1331,9 @@
           { label: "Tax at slab rates", inr: i.slabTaxInr,
             trace: calc("Progressive slab-rate tax under the " + i.regime + " regime, applied to ₹" + Math.round(i.totalNormalInr).toLocaleString("en-IN") + " of normal-rate income (salary, house property, business, other sources" + (i.nrInterest ? " — including ordinary NRO interest, which is slab-rate income by default; only a DTAA-beneficial slice is carved out separately below" : "") + ", after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
               bracketParts(i.slabBreakdown, inr)) },
-          { label: "Tax on special-rate income (196/197/198 gains + 128/194 winnings" + (i.s115a ? " + s.207 dividend/royalty/FTS" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + DTAA-carved-out interest" : "") + ")", inr: i.specialTaxInr,
-            trace: calc("s.196 STCG @ 20% + s.198 LTCG @ 12.5% (listed/STT-paid, net of the ₹1,25,000 exemption) + s.197 LTCG @ 12.5% (unlisted/foreign — no exemption, separate section, does not pool with s.198's threshold) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption" + (i.s115a ? " + s.207 dividend/royalty/FTS at their own rates" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + any DTAA-carved-out interest at its treaty rate" : "") + " (each broken out below)", []) }
-        ]).concat(nrInterestTrace).concat(ltcg197Trace).concat(s115aTraces).concat([
+          { label: "Tax on special-rate income (196/197/198 gains + 115BBH VDA + 128/194 winnings" + (i.s115a ? " + s.207 dividend/royalty/FTS" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + DTAA-carved-out interest" : "") + ")", inr: i.specialTaxInr,
+            trace: calc("s.196 STCG @ 20% + s.198 LTCG @ 12.5% (listed/STT-paid, net of the ₹1,25,000 exemption) + s.197 LTCG @ 12.5% (unlisted/foreign — no exemption, separate section, does not pool with s.198's threshold) + s.115BBH VDA/crypto @ 30% flat (no set-off, ever) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption" + (i.s115a ? " + s.207 dividend/royalty/FTS at their own rates" : "") + (i.nrInterest && i.nrInterest.carvedOutInr > 1 ? " + any DTAA-carved-out interest at its treaty rate" : "") + " (each broken out below)", []) }
+        ]).concat(nrInterestTrace).concat(ltcg197Trace).concat(vdaTrace).concat(s115aTraces).concat([
           { label: "Less §156 rebate", inr: -i.rebateInr,
             trace: calc("Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold — lesser of tax at slab rates and the statutory cap", [
               { label: "Statutory rebate cap", amount: rebateCap },
@@ -1489,6 +1570,309 @@
   }
 
   /* ------------------------------------------------------------------------
+   * buildWithholdingSummary — every income stream subject to a treaty-
+   * dependent withholding rate, on both sides, broken out row by row: gross
+   * amount, domestic default rate, treaty-elected rate (if any), whether the
+   * supporting documentation is actually on file, the rate ACTUALLY being
+   * applied as a result, and the real dollar/rupee cost of any gap between
+   * "what you're paying" and "what you'd pay with the paperwork filed" —
+   * computed directly from the same election data computeIndiaTax/
+   * computeUsTax already produced, not re-estimated. Every number here
+   * already exists elsewhere in the engine; this just re-surfaces it in one
+   * dedicated, income-stream-first view instead of scattered across
+   * multiple findings.
+   * ----------------------------------------------------------------------*/
+  function buildWithholdingSummary(model, computed) {
+    var i = computed.indiaTax, u = computed.usTax;
+    var indiaRows = [];
+    var indiaTotalGapInr = 0;
+
+    function pushS115aRows(streamKey, label, citation) {
+      var stream = i.s115a && i.s115a[streamKey];
+      if (!stream) return;
+      (stream.elections || []).forEach(function (e, idx) {
+        var docsOk = e.outcome !== "denied_no_docs";
+        // If docs were missing, the amount was taxed at the domestic rate
+        // instead of the (better) elected rate — the gap is the exact
+        // difference on that slice, not an estimate.
+        var gapInr = (!docsOk && e.electedRate != null && e.electedRate < e.domesticRate)
+          ? e.appliedAmountInr * (e.domesticRate - e.electedRate) : 0;
+        indiaTotalGapInr += gapInr;
+        indiaRows.push({
+          id: streamKey + "_election_" + idx, jurisdiction: "IN", category: "treaty_gap", label: label + (e.article ? " (" + e.article + ")" : ""),
+          grossInr: e.appliedAmountInr, domesticRatePct: e.domesticRate * 100,
+          treatyRatePct: e.electedRate != null ? e.electedRate * 100 : null,
+          docsOk: docsOk, rateAppliedPct: e.rateApplied * 100, taxInr: e.taxInr, gapInr: gapInr,
+          note: docsOk ? null : "TRC/Form 41 missing — treaty rate denied, domestic rate applied instead",
+          citation: citation
+        });
+      });
+      if ((stream.uncapturedInr || 0) > 1) {
+        indiaRows.push({
+          id: streamKey + "_unclaimed", jurisdiction: "IN", category: "treaty_gap", label: label + " — unclaimed (no treaty election on file)",
+          grossInr: stream.uncapturedInr, domesticRatePct: stream.domesticRate * 100, treatyRatePct: null,
+          docsOk: null, rateAppliedPct: stream.domesticRate * 100, taxInr: stream.uncapturedTaxInr, gapInr: 0,
+          note: "Not a documentation gap — no treaty rate was ever claimed for this slice, so there's nothing to deny",
+          citation: citation
+        });
+      }
+    }
+    pushS115aRows("dividend", "Dividend", "s.207 / s.159");
+    pushS115aRows("royalty", "Royalty", "s.207 / s.159");
+    pushS115aRows("fts", "Fees for Technical Services", "s.207 / s.159");
+
+    if (i.nrInterest) {
+      (i.nrInterest.elections || []).forEach(function (e, idx) {
+        var docsOk = e.outcome !== "denied_no_docs";
+        var counterfactualTreatyTaxInr = e.electedRate != null ? e.appliedAmountInr * e.electedRate : null;
+        var gapInr = (!docsOk && counterfactualTreatyTaxInr != null && counterfactualTreatyTaxInr < e.marginalSlabTaxInr)
+          ? e.marginalSlabTaxInr - counterfactualTreatyTaxInr : 0;
+        indiaTotalGapInr += gapInr;
+        var actualTaxInr = docsOk && e.carvedOut ? e.treatyTaxInr : e.marginalSlabTaxInr;
+        indiaRows.push({
+          id: "nrInterest_election_" + idx, jurisdiction: "IN", category: "treaty_gap", label: "NRO Interest" + (e.article ? " (" + e.article + ")" : ""),
+          grossInr: e.appliedAmountInr, domesticRatePct: null, // no flat domestic rate — slab-based by default
+          treatyRatePct: e.electedRate != null ? e.electedRate * 100 : null,
+          docsOk: docsOk, rateAppliedPct: e.appliedAmountInr > 0 ? (actualTaxInr / e.appliedAmountInr) * 100 : null,
+          taxInr: actualTaxInr, gapInr: gapInr,
+          note: docsOk ? null : "TRC/Form 41 missing — treaty carve-out denied, taxed at marginal slab rate instead",
+          citation: "Art 11(2)(b), s.159"
+        });
+      });
+    }
+
+    // -- GENERAL WITHHOLDING — every taxpayer, resident or not ---------------
+    // The rows above only exist for NR/NRA taxpayers electing a treaty rate.
+    // These rows show ordinary TDS/withholding that applies regardless of
+    // residency: salary TDS, property-sale TDS, W-2 federal/state withholding.
+    var wd = model.withholdingDetail || { india: { propertyTds: [] }, us: {} };
+
+    if ((wd.india.tdsAggregateInr || 0) > 1) {
+      indiaRows.push({
+        id: "tds_aggregate", jurisdiction: "IN", category: "general", label: "TDS Already Deducted (Aggregate — Form 26AS)",
+        grossInr: null, domesticRatePct: null, treatyRatePct: null, docsOk: null, rateAppliedPct: null,
+        taxInr: wd.india.tdsAggregateInr, gapInr: 0,
+        note: "Single aggregate figure — Layer 1 doesn't capture a per-source breakdown of income type or rate for this amount",
+        citation: "s.199"
+      });
+    }
+    // s.194-IA (resident seller, 1%, ≥₹50L) vs s.195 (NR seller, no floor,
+    // rate set by the AO/treaty) — same buyer-withholding mechanism, two
+    // different sections depending on the seller's residency status.
+    var isNrSellerForPropertyTds = model.residency.india.status === CONST.INDIA_STATUS.NR;
+    (wd.india.propertyTds || []).forEach(function (p, idx) {
+      var rateAppliedPct = p.saleConsiderationInr > 0 ? (p.tdsInr / p.saleConsiderationInr) * 100 : null;
+      indiaRows.push({
+        id: "property_tds_" + idx, jurisdiction: "IN", category: "general",
+        label: "Property Sale TDS — " + p.propertyType + (p.saleDate ? " (" + p.saleDate + ")" : ""),
+        grossInr: p.saleConsiderationInr || null, domesticRatePct: null, treatyRatePct: null, docsOk: null,
+        rateAppliedPct: rateAppliedPct, taxInr: p.tdsInr, gapInr: 0,
+        note: isNrSellerForPropertyTds ? "Buyer-withheld on sale proceeds from an NR seller" : "Buyer-withheld on sale proceeds from a resident seller",
+        citation: isNrSellerForPropertyTds ? "s.195" : "s.194-IA"
+      });
+    });
+
+    // TCS (Ch. XVII-BB, s.206C) — a DIFFERENT mechanism from everything
+    // above: collected on money going OUT (LRS remittances, overseas tour
+    // packages) rather than withheld from income coming in, but equally
+    // creditable against final India tax liability. Kept in its own
+    // "general" row, separate label, so it isn't mistaken for TDS.
+    if ((wd.india.tcsAggregateInr || 0) > 1) {
+      indiaRows.push({
+        id: "tcs_aggregate", jurisdiction: "IN", category: "general", label: "TCS Already Collected (Aggregate — Form 26AS)",
+        grossInr: null, domesticRatePct: null, treatyRatePct: null, docsOk: null, rateAppliedPct: null,
+        taxInr: wd.india.tcsAggregateInr, gapInr: 0,
+        note: "Tax Collected at Source on outbound payments (not income) — creditable against final tax liability the same as TDS",
+        citation: "s.206C"
+      });
+    }
+
+    // -- ESTIMATES — deterministic from known data, but NOT a confirmed
+    // withheld/collected receipt, so kept OUT of every total to avoid
+    // double-counting against the aggregates above (which may or may not
+    // already include these amounts — Layer 1 has no way to say either way).
+    var estimateRows = { india: [], us: [] };
+    if (wd.india.lrsTcs) {
+      var lrs = wd.india.lrsTcs;
+      estimateRows.india.push({
+        id: "lrs_tcs_estimate", jurisdiction: "IN", category: "estimate",
+        label: "Expected TCS on LRS Remittance — " + lrs.purposeLabel,
+        grossInr: lrs.totalRemittedInr, domesticRatePct: null, treatyRatePct: null, docsOk: null,
+        rateAppliedPct: null, taxInr: lrs.tcsInr, gapInr: 0,
+        note: lrs.note + " — cross-check against the TCS aggregate above, not a confirmed collection receipt (excluded from totals)",
+        citation: "s.206C(1G)"
+      });
+    }
+    var vdaSaleInr = (model.income && model.income.india && model.income.india.vdaSaleConsiderationInr) || 0;
+    if (vdaSaleInr > 10000) {
+      estimateRows.india.push({
+        id: "vda_194s_estimate", jurisdiction: "IN", category: "estimate",
+        label: "Expected TDS on Crypto/VDA Transfers (s.194S)",
+        grossInr: vdaSaleInr, domesticRatePct: null, treatyRatePct: null, docsOk: null,
+        rateAppliedPct: 1, taxInr: Math.round(vdaSaleInr * 0.01), gapInr: 0,
+        note: "1% of total transfer consideration (₹10,000 floor for most taxpayers, ₹50,000 for \"specified persons\" under s.44AB — not distinguishable from available data) — not confirmed as actually withheld, may already be inside the aggregate TDS credit above (excluded from totals)",
+        citation: "s.194S"
+      });
+    }
+
+    var panAadhaarInoperative = model.identity.panAadhaarLinked === false;
+
+    var usRows = [];
+    var usTotalGapUsd = 0;
+    if (u.isNra && u.nra) {
+      var n = u.nra;
+      if (n.fdapUsd > 0) {
+        var gapUsd = (!n.w8benOnFile && n.claimedRate != null && n.claimedRate < 0.30)
+          ? n.fdapUsd * (0.30 - n.claimedRate) : 0;
+        usTotalGapUsd += gapUsd;
+        usRows.push({
+          id: "fdap", jurisdiction: "US", category: "treaty_gap", label: "FDAP" + (n.incomeType ? " (" + n.incomeType + ")" : "") + " — Schedule NEC",
+          grossUsd: n.fdapUsd, domesticRatePct: 30, treatyRatePct: n.claimedRate != null ? n.claimedRate * 100 : null,
+          docsOk: n.w8benOnFile, rateAppliedPct: n.fdapRate * 100, taxUsd: n.fdapTaxUsd, gapUsd: gapUsd,
+          note: n.w8benOnFile ? null : "Form W-8BEN missing — treaty rate denied, 30% statutory default withheld instead",
+          citation: "IRC §1441 / Treas. Reg. §1.1441-6"
+        });
+      }
+    }
+    var firptaUsd = model.nra && model.nra.usRealPropertyDisposed ? (model.nra.firptaWithholdingUsd || 0) : 0;
+    if (firptaUsd > 1) {
+      usRows.push({
+        id: "firpta", jurisdiction: "US", category: "treaty_gap", label: "FIRPTA — US real property disposition",
+        grossUsd: null, domesticRatePct: 15, treatyRatePct: null, docsOk: null, rateAppliedPct: null,
+        taxUsd: firptaUsd, gapUsd: 0,
+        note: "Mandatory withholding on gross proceeds regardless of documentation — not treaty-rate-dependent",
+        citation: "IRC §1445"
+      });
+    }
+
+    // -- GENERAL WITHHOLDING — every US taxpayer, resident or not -----------
+    var w2Employers = (model.income && model.income.us && model.income.us.w2Employers) || [];
+    if (w2Employers.length > 0) {
+      w2Employers.forEach(function (w, idx) {
+        if (!(w.federalWithheldUsd > 1) && !(w.wagesUsd > 1)) return;
+        var rateAppliedPct = w.wagesUsd > 0 ? (w.federalWithheldUsd / w.wagesUsd) * 100 : null;
+        usRows.push({
+          id: "w2_" + idx, jurisdiction: "US", category: "general",
+          label: "W-2 Withholding — " + (w.employerName || "Unnamed Employer"),
+          grossUsd: w.wagesUsd || null, domesticRatePct: null, treatyRatePct: null, docsOk: null,
+          rateAppliedPct: rateAppliedPct, taxUsd: w.federalWithheldUsd, gapUsd: 0,
+          note: w.stateWithheldUsd > 1 ? ("+ " + usd(w.stateWithheldUsd) + " state tax withheld") : null,
+          citation: "IRC §3402 / Form W-2"
+        });
+      });
+    } else if (model.taxesPaid && model.taxesPaid.us.withholding.usd > 1) {
+      // Older/aggregate-only data shape — no per-employer breakdown captured.
+      usRows.push({
+        id: "w2_aggregate", jurisdiction: "US", category: "general", label: "Federal Withholding (Aggregate — Form W-2)",
+        grossUsd: null, domesticRatePct: null, treatyRatePct: null, docsOk: null, rateAppliedPct: null,
+        taxUsd: model.taxesPaid.us.withholding.usd, gapUsd: 0,
+        note: "Single aggregate figure — no per-employer breakdown on file",
+        citation: "IRC §3402 / Form W-2"
+      });
+    }
+    var stateWithUsd = (model.withholdingDetail && model.withholdingDetail.us.stateWithholdingUsd) || 0;
+    if (stateWithUsd > 1 && w2Employers.length === 0) {
+      usRows.push({
+        id: "state_withholding_aggregate", jurisdiction: "US", category: "general", label: "State Withholding (Aggregate — Form W-2 Box 17)",
+        grossUsd: null, domesticRatePct: null, treatyRatePct: null, docsOk: null, rateAppliedPct: null,
+        taxUsd: stateWithUsd, gapUsd: 0, note: null, citation: "Form W-2 Box 17"
+      });
+    }
+
+    return {
+      india: { rows: indiaRows, estimateRows: estimateRows.india, totalGapInr: indiaTotalGapInr, totalGapUsd: U.inrToUsd(indiaTotalGapInr), panAadhaarInoperative: panAadhaarInoperative },
+      us: { rows: usRows, estimateRows: estimateRows.us, totalGapUsd: usTotalGapUsd },
+      totalGapUsd: U.inrToUsd(indiaTotalGapInr) + usTotalGapUsd
+    };
+  }
+
+  /* ------------------------------------------------------------------------
+   * buildScopeNotes — deliberately-not-computed boundaries, surfaced in the
+   * Monitor itself (not just the docs page) so a professional reading the
+   * numbers also sees what the numbers deliberately do NOT cover. These are
+   * the recorded decisions from docs/GAP_TRACKER.md that are not
+   * rule-encodable (or are verified assurances), each shown only when the
+   * loaded profile actually makes it relevant. Pure disclosures — no note
+   * here ever changes a computed figure.
+   * ----------------------------------------------------------------------*/
+  function buildScopeNotes(model) {
+    var notes = [];
+    var hasIndia = model.meta.hasIndia, hasUs = model.meta.hasUs, dual = hasIndia && hasUs;
+    var hasIndiaBusiness = (model.entity && model.entity.isBusiness) || (model.income.india.business && model.income.india.business.inr > 0);
+    var hasSecuritiesTrades = ((model.assets && model.assets.indianSecurities) || []).length > 0;
+    var hasUsWagesOrSe = model.income.us.wages.usd > 0 || (model.income.us.seEarningsUsd || 0) > 0;
+
+    function note(id, area, kind, title, body, relevant) {
+      if (relevant) notes.push({ id: id, area: area, kind: kind, title: title, body: body });
+    }
+
+    note("scope_gaar", "India", "excluded", "GAAR is not evaluated",
+      "India's General Anti-Avoidance Rule can recharacterize arrangements that lack commercial substance — a facts-and-circumstances judgment no rules engine can safely make. WISING flags mechanical conflicts only; whether an arrangement invites GAAR scrutiny remains a professional call.",
+      hasIndia);
+    note("scope_stt", "India", "excluded", "STT is not computed as a levy",
+      "Securities Transaction Tax charged on trades (raised on F&O by Finance Act 2026) isn't calculated here. The stt_paid flag on each transaction drives the capital-gains regime (s.196/198 vs s.197) — the levy amount itself is neither a tax credit nor a capital-gains deduction, so nothing downstream depends on it.",
+      hasSecuritiesTrades);
+    note("scope_payer_tds", "India", "excluded", "Your obligations as a TDS deductor aren't tracked",
+      "The Withholding page covers tax withheld FROM this taxpayer's income. Duties in the opposite direction — deducting TDS on payments the business makes to vendors, contractors, or professionals — aren't monitored, except that the s.40(a) expense disallowance for failures already flows into business income.",
+      hasIndiaBusiness);
+    note("scope_clubbing", "India", "excluded", "Clubbing amounts are taken as entered",
+      "Spousal and minor-child clubbed income entered in Layer 1 is taxed as given. WISING doesn't trace asset transfers between family members to detect clubbing that should have been reported but wasn't.",
+      hasIndia);
+    note("scope_fica", "United States", "excluded", "FICA/FUTA levies aren't computed",
+      "Employee and employer Social Security/Medicare/unemployment payroll taxes are a separate tax base from income tax. Only the pieces that touch the 1040 are computed: Additional Medicare 0.9%, self-employment tax, and the W-2 withholding shown on the Withholding page.",
+      hasUsWagesOrSe);
+    note("scope_fatca_ch4", "Cross-border", "excluded", "FATCA Chapter 4 withholding is institution-side",
+      "The 30% FATCA withholding regime (IRC §§1471-1474) applies to payments to non-compliant foreign financial institutions — banks' problem, not yours directly. Where it touches an individual is the US-person self-certification banks request, which is tracked with your documents.",
+      dual);
+    note("scope_mocked_uploads", "App", "excluded", "Document-upload extraction is simulated",
+      "Every \"upload to auto-fill\" feature in Layer 1 (Form 26AS, Lower-TDS certificate, bank statements, property documents) is a demo simulation with representative values — not live OCR. Figures sourced from an upload should be treated as manually-entered until real extraction ships.",
+      true);
+    note("scope_mli", "Cross-border", "assurance", "MLI does not affect the India-US treaty",
+      "The US never signed the OECD Multilateral Instrument, so the India-US DTAA text is untouched by it — unlike India's treaties with the UK, Netherlands, or Singapore. Verified; nothing to apply.",
+      dual);
+    note("scope_dtaa_current", "Cross-border", "assurance", "Treaty text current as modeled",
+      "The India-US DTAA has not been amended since the 2000 protocol. Every treaty rate and tie-breaker rule in this engine reflects the treaty as it stands.",
+      dual);
+
+    return notes;
+  }
+
+  /* ------------------------------------------------------------------------
+   * buildReturnFormDetermination — surfaces WHICH return form applies and
+   * WHY, for both sides, on the Filings page. entity.indiaReturnForm/
+   * usReturnForm already carry the resolved values (normalize.js); this
+   * just builds the click-to-expand trace, with a dated citation on the
+   * India side since that value came from an external rule verification
+   * (CBDT's notified AY 2026-27 forms) rather than pure internal math.
+   * ----------------------------------------------------------------------*/
+  function buildReturnFormDetermination(model) {
+    var E = model.entity;
+    var CBDT_CITATION = "CBDT notified the AY 2026-27 ITR forms 2026-03-30 (corrigendum 2026-04-10). Eligibility rules verified against that notification 2026-07-12 — re-check each filing season, since CBDT re-notifies forms (and sometimes changes eligibility) annually.";
+
+    var indiaTrace = E.indiaReturnFormIsRecommendation
+      ? source(
+          (E.indiaReturnFormExplanation || "Determined by Layer 1 India's full eligibility check (income thresholds, residency, capital gains, foreign assets/income, directorship, crypto, multiple house properties, brought-forward losses, speculative/F&O income).") ,
+          CBDT_CITATION)
+      : source(
+          "Layer 1 India hasn't produced a full eligibility recommendation for this profile yet, so this is the crude entity-type-only fallback (" + E.indiaReturnForm + "), not a checked recommendation. Complete Layer 1 India's income, residency and capital-gains sections to get the real 7-form determination.",
+          E.indiaIsCompany || E.indiaIsFirm ? CBDT_CITATION : null);
+
+    var usDetail =
+      E.usReturnForm === "1120" ? "C-Corp: entity-level return, taxed at 21% flat." :
+      E.usReturnForm === "1120-S" ? "S-Corp: informational return, income passes through via K-1." :
+      E.usReturnForm === "1065" ? "Partnership: informational return, income passes through via K-1." :
+      E.usReturnForm === "1041" ? "Trust/estate return." :
+      E.usReturnForm === "1040-NR" ? "Nonresident alien individual return — Layer 1 US recorded this taxpayer as filing Form 1040-NR." :
+      "Resident/citizen individual return — standard Form 1040 (not recorded as an NRA 1040-NR filer).";
+    var usTrace = source(usDetail, "IRS form-per-entity-type/residency-status mapping, verified 2026-07-12.");
+
+    return {
+      india: { form: E.indiaReturnForm, isRecommendation: E.indiaReturnFormIsRecommendation, trace: indiaTrace },
+      us: { form: E.usReturnForm, trace: usTrace }
+    };
+  }
+
+  /* ------------------------------------------------------------------------
    * analyze — single entry point used by the dashboard.
    * ----------------------------------------------------------------------*/
   function analyze(opts) {
@@ -1514,6 +1898,9 @@
     var documents = buildDocuments(model, computed);
     var ftcReport = buildFtcReport(model, computed);
     var taxComputation = buildTaxComputation(model, computed);
+    var withholding = buildWithholdingSummary(model, computed);
+    var scopeNotes = buildScopeNotes(model);
+    var returnForms = buildReturnFormDetermination(model);
     var monitoring = WISING.monitor
       ? WISING.monitor(model, computed, { findings: findings, asOf: (opts.scenario && opts.scenario.asOf) || opts.asOf })
       : null;
@@ -1528,6 +1915,9 @@
       documents: documents,
       ftcReport: ftcReport,
       taxComputation: taxComputation,
+      withholding: withholding,
+      scopeNotes: scopeNotes,
+      returnForms: returnForms,
       monitoring: monitoring,
       summary: {
         name: model.identity.name,

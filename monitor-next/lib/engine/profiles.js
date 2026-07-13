@@ -31,6 +31,125 @@
   }
   function meta(schema, fy) { return { schema_version: schema, financial_year: fy }; }
 
+  // ---- quarterly income split ----
+  // Profiles previously only carried ANNUAL india.domestic_income / other_sources
+  // / capital_gains / lrs_outbound. Layer 1 India's own "no quarters saved yet"
+  // migration path (see layer1_india.html _initWindowOnLoad) then dumped the
+  // WHOLE annual figure into Q1 and left Q2-Q4 at zero — misrepresenting every
+  // profile as "100% earned Apr-Jun" — and it also meant normalize.js's real
+  // India-FY/US-CY apportionment logic (computeApportionment in computation.js)
+  // never saw quarterly data and always fell back to its documented 75/25
+  // even-earning assumption instead of the sharper quarterly basis.
+  //
+  // buildQuarters() spreads recurring flows evenly across the 4 India-FY
+  // quarters (Apr-Jun / Jul-Sep / Oct-Dec / Jan-Mar) so every quarter shows a
+  // realistic slice instead of one lump sum. A small set of numeric fields are
+  // NOT flows — a % stake, a per-share price, a share count — and are kept
+  // whole in Q1 (null elsewhere) rather than divided into meaningless
+  // fractions. One-off dated events (e.g. an ESOP exercise) are placed whole
+  // in the quarter matching their real date instead of being smeared evenly.
+  var QUARTERLY_STATIC_NUMERIC_KEYS = {
+    holding_pct: true, shares: true, shares_acquired: true,
+    fmv_per_share_inr: true, exercise_price_per_share_inr: true
+  };
+  function fyQuarterOf(dateStr, baseYear) {
+    if (!dateStr) return "Q1";
+    var d = new Date(dateStr + "T00:00:00");
+    if (isNaN(d.getTime())) return "Q1";
+    var y = d.getFullYear(), m = d.getMonth(); // 0 = Jan
+    if (y === baseYear && m >= 3 && m <= 5) return "Q1";        // Apr-Jun
+    if (y === baseYear && m >= 6 && m <= 8) return "Q2";        // Jul-Sep
+    if (y === baseYear && m >= 9 && m <= 11) return "Q3";       // Oct-Dec
+    if (y === baseYear + 1 && m >= 0 && m <= 2) return "Q4";    // Jan-Mar
+    return "Q1";
+  }
+  // Returns [q1,q2,q3,q4] clones of `node` — flow numbers divided by 4 (any
+  // remainder folded into Q4 so the 4 parts always sum back to the original),
+  // static numeric keys kept only in Q1 (null elsewhere so they're skipped
+  // rather than summed by the quarter-merge), booleans/strings repeated
+  // identically (safe: OR-merge / last-value-wins both reproduce the same
+  // value), objects/arrays recursed the same way.
+  function splitFlow(node) {
+    if (node === null || node === undefined) return [null, null, null, null];
+    if (Array.isArray(node)) {
+      var outA = [[], [], [], []];
+      node.forEach(function (el) {
+        var parts = splitFlow(el);
+        for (var i = 0; i < 4; i++) outA[i].push(parts[i]);
+      });
+      return outA;
+    }
+    if (typeof node === "object") {
+      var outO = [{}, {}, {}, {}];
+      for (var k in node) {
+        if (!Object.prototype.hasOwnProperty.call(node, k)) continue;
+        var v = node[k];
+        if (typeof v === "number") {
+          if (QUARTERLY_STATIC_NUMERIC_KEYS[k]) {
+            outO[0][k] = v; outO[1][k] = null; outO[2][k] = null; outO[3][k] = null;
+          } else {
+            var base = Math.floor(v / 4), rem = v - base * 3;
+            outO[0][k] = base; outO[1][k] = base; outO[2][k] = base; outO[3][k] = rem;
+          }
+        } else if (typeof v === "boolean" || typeof v === "string") {
+          outO[0][k] = outO[1][k] = outO[2][k] = outO[3][k] = v;
+        } else {
+          var parts = splitFlow(v);
+          for (var i = 0; i < 4; i++) outO[i][k] = parts[i];
+        }
+      }
+      return outO;
+    }
+    return [node, node, node, node];
+  }
+  function buildQuarters(india, baseYear) {
+    var di = india.domestic_income || {};
+    var os = india.other_sources || {};
+    var cg = india.capital_gains || {};
+    var lrs = india.lrs_outbound || {};
+
+    // Carve out one-off dated ESOP events before the generic split so they
+    // land whole in a single quarter rather than fractionally in all 4.
+    var esopEvents = (di.salary && di.salary.esop_perquisite_events) || [];
+    var diForSplit = di;
+    if (esopEvents.length) {
+      diForSplit = JSON.parse(JSON.stringify(di));
+      diForSplit.salary.esop_perquisite_events = [];
+    }
+
+    var diQ = splitFlow(diForSplit), osQ = splitFlow(os), cgQ = splitFlow(cg), lrsQ = splitFlow(lrs);
+
+    esopEvents.forEach(function (ev) {
+      var q = fyQuarterOf(ev.vesting_or_exercise_date || ev.grant_date, baseYear);
+      var idx = ["Q1", "Q2", "Q3", "Q4"].indexOf(q);
+      diQ[idx].salary.esop_perquisite_events = (diQ[idx].salary.esop_perquisite_events || []).concat([ev]);
+    });
+
+    var quarters = {};
+    ["Q1", "Q2", "Q3", "Q4"].forEach(function (q, i) {
+      quarters[q] = { domestic_income: diQ[i], other_sources: osQ[i], capital_gains: cgQ[i], lrs_outbound: lrsQ[i] };
+    });
+    // financial_holdings/commodities/unlisted_equity/property/nro_repatriation
+    // are NOT summed across quarters by the engine (indiaAnnualSlice never
+    // reads them from india.quarters — they stay top-level for tax
+    // computation) — but Layer 1 India's own switchQuarter()/
+    // aggregateAnnualState() DO treat all 9 categories as quarter-scoped
+    // internally, always reading financial_holdings etc from
+    // state.quarters[activeQuarter]. Leaving them out of Q1 here meant the
+    // form's own quarter-tab machinery would overwrite the real top-level
+    // transaction data with an empty per-quarter default the moment it
+    // touched Q1 — a real data-loss bug, not just a display gap. Whole
+    // discrete-transaction categories go in Q1 only (matching the pre-existing
+    // "migration from annual" path's own behavior for nro_repatriation),
+    // not split like recurring flows — a single BTC sale or property sale
+    // belongs in the quarter it happened in, not divided into meaningless
+    // quarter-fractions.
+    ["financial_holdings", "commodities", "unlisted_equity", "property", "nro_repatriation"].forEach(function (cat) {
+      if (india[cat]) quarters.Q1[cat] = JSON.parse(JSON.stringify(india[cat]));
+    });
+    return quarters;
+  }
+
   /* ======================================================================
    * PROFILE 1 — Dual resident (India ROR + US SPT). The flagship FTC/tie-break case.
    * ====================================================================*/
@@ -129,8 +248,8 @@
   var P2 = {
     id: "us_resident_indian_income",
     label: "US Resident · Indian income",
-    story: "US green-card holder with Indian rent, dividends, mutual funds, a small India consulting stake and a US-side consulting side gig. US taxes worldwide → FTC (Form 1116) for Indian TDS; PFIC; a below-threshold Indian business stake; no US-India Totalization Agreement on his US self-employment tax; plus occasional online-gaming winnings and an unexplained cash deposit back home. His W-2 job also reports qualified tip income and overtime premium pay — the first demo of the (OBBBA, TY2025-2028) \"no tax on tips\"/\"no tax on overtime\" deductions, both intact here since his AGI sits just under the $300,000 MFJ phase-out threshold.",
-    tags: ["FTC 1116", "PFIC", "FBAR", "NR in India", "self-employment", "tips/overtime"],
+    story: "US green-card holder with Indian rent, dividends, mutual funds, a small India consulting stake and a US-side consulting side gig. US taxes worldwide → FTC (Form 1116) for Indian TDS; PFIC; a below-threshold Indian business stake; no US-India Totalization Agreement on his US self-employment tax; plus occasional online-gaming winnings and an unexplained cash deposit back home. His W-2 job also reports qualified tip income and overtime premium pay — the first demo of the (OBBBA, TY2025-2028) \"no tax on tips\"/\"no tax on overtime\" deductions, both intact here since his AGI sits just under the $300,000 MFJ phase-out threshold. Also a general partner in a small consulting LLC — the first demo of partnership K-1 guaranteed payments (previously dropped from income entirely) and Box 14A self-employment earnings (previously unread, so partnership SE tax was always $0).",
+    tags: ["FTC 1116", "PFIC", "FBAR", "NR in India", "self-employment", "tips/overtime", "K-1"],
     router: router("Rohan Mehta", { is_us_citizen: false, has_green_card: true, us_days: 365, date_of_birth: "1985-03-22" }),
     india: {
       profile: { full_name: "Rohan Mehta", entity_type: "individual", date_of_birth: "1985-03-22", pan: "AAAPM5678Q", tax_regime: "NEW" },
@@ -155,7 +274,13 @@
       // Small India-side consulting stake, held below the 10% US CFC threshold
       // (see the matching foreign_entities block on the US side below) →
       // triggers cfc_below_threshold instead of the full CFC/Form 5471 finding.
-      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [{ trade_name: "Mehta Advisory Services", nature: "consulting", net_profit_inr: 900000, holding_pct: 5 }] }, capital_gains: { short_term_15_pct: 180000 } },
+      // Computed via s.58/44ADA presumptive (50% of gross receipts) from real
+      // Layer 1-shaped fields (gross_receipts_inr, presumptive_scheme) — the
+      // first demo profile that DOESN'T inject a hand-authored net_profit_inr,
+      // proving the real computation now works (₹18,00,000 x 50% = ₹9,00,000,
+      // deliberately matching the old injected figure so nothing else in his
+      // profile needed to change).
+      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [{ business_name: "Mehta Advisory Services", nature: "consulting", presumptive_scheme: "s44ADA", gross_receipts_inr: 1800000, holding_pct: 5 }] }, capital_gains: { short_term_15_pct: 180000 } },
       // Occasional fantasy-sports/online-gaming winnings (very common alongside
       // NRI rental/dividend income today) plus an unexplained cash deposit the
       // client can't source-document (a routine real-world s.195/115BBE flag, not a
@@ -169,7 +294,16 @@
     us: {
       profile: { tax_entity_type: "individual", full_name: "Rohan Mehta", date_of_birth: "1985-03-22", filing_status: "mfj", ssn_or_itin_type: "ssn" },
       us_residency_detail: { is_us_citizen: false, has_green_card: true, us_days_current_year: 345, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "none" },
-      income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Northwind Labs", wages_box1_usd: 158000, qualified_tip_income_usd: 2400, qualified_overtime_premium_usd: 5800, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 30000, medicare_wages_box5_usd: 158000 } }], self_employment: [{ business_name: "Mehta Analytics (consulting)", self_employment_earnings_usd: 62000 }], interest_us_source_usd: 5200, ordinary_dividends_us_source_usd: 6400, qualified_dividends_us_source_usd: 4000, ltcg_us_source_usd: 12000, rental_income_us_source_usd: 27000 },
+      income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Northwind Labs", wages_box1_usd: 158000, qualified_tip_income_usd: 2400, qualified_overtime_premium_usd: 5800, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 30000, medicare_wages_box5_usd: 158000 } }], self_employment: [{ business_name: "Mehta Analytics (consulting)", self_employment_earnings_usd: 62000 }],
+        // A general-partner stake in a small consulting partnership — Box 4
+        // guaranteed payments (previously dropped from income entirely) plus
+        // Box 1 ordinary income; Box 14A (self_employment_earnings_usd) is the
+        // K-1's own combined SE-tax figure, exercising the fix that
+        // partnership SE tax was unconditionally $0 before (Box 14A was never
+        // read). QBI only picks up the $18,000 ordinary slice, correctly
+        // excluding the $12,000 guaranteed payments.
+        partnerships_k1: [{ partnership_name: "Meridian Consulting Partners LLC", partner_type: "general", ordinary_business_income_usd: 18000, guaranteed_payments_usd: 12000, self_employment_earnings_usd: 30000 }],
+        interest_us_source_usd: 5200, ordinary_dividends_us_source_usd: 6400, qualified_dividends_us_source_usd: 4000, ltcg_us_source_usd: 12000, rental_income_us_source_usd: 27000 },
       income_foreign_source: { foreign_rental_income_usd: 14458, foreign_dividends_usd: 2651, foreign_interest_usd: 3133, foreign_stcg_usd: 2169 },
       retirement_accounts: { "401k_employee_contribution_usd": 23000, "401k_employer_match_usd": 9500, roth_ira_contribution_usd: 7000, hsa_contribution_usd: 4150 },
       financial_holdings: [{ asset_name: "Fidelity — Taxable Brokerage", account_type: "taxable_brokerage", peak_balance_usd: 224000, country: "US" }, { asset_name: "Vanguard — VTSAX / VTI", account_type: "taxable_brokerage", peak_balance_usd: 141000, country: "US" }],
@@ -197,7 +331,7 @@
   var P3 = {
     id: "india_ror_us_income",
     label: "India ROR · US income",
-    story: "Resident of India (ROR), formerly NRI, with US rental, dividends & brokerage. India taxes worldwide → Form 44/§159 credit for US tax; Schedule FA for US assets; files 1040-NR on US-source income with a treaty rate claimed but no W-8BEN on file, plus FIRPTA withholding on a US property sale; kept her Chapter XII-A election on specified assets after becoming ROR. Also sold NVDA (held directly in her US brokerage) after 18 months — India treats it as an unlisted foreign security (24mo LTCG threshold, no s.198 exemption) so it's STCG at her slab rate there, but the US calls the same gain LTCG (12mo threshold) — a holding-period characterization mismatch.",
+    story: "Resident of India (ROR), formerly NRI, with US rental, dividends & brokerage. India taxes worldwide → Form 44/§159 credit for US tax; Schedule FA for US assets; files 1040-NR on US-source income with a treaty rate claimed but no W-8BEN on file, plus FIRPTA withholding on a US property sale; kept her Chapter XII-A election on specified assets after becoming ROR. Also sold NVDA (held directly in her US brokerage) after 18 months — India treats it as an unlisted foreign security (24mo LTCG threshold, no s.198 exemption) so it's STCG at her slab rate there, but the US calls the same gain LTCG (12mo threshold) — a holding-period characterization mismatch. As an India resident, she also remitted ₹15L to top up that brokerage under LRS — the first demo of s.206C(1G) TCS (20% on the ₹5L over the ₹10L base threshold), a mechanism entirely separate from TDS since it's collected on money leaving India, not income arriving.",
     tags: ["Form 44", "Schedule FA", "1040-NR", "FIRPTA", "Foreign equity"],
     router: router("Anita Desai", { is_us_citizen: false, has_green_card: false, us_days: 35, date_of_birth: "1982-11-09" }),
     india: {
@@ -231,7 +365,11 @@
       capital_gains: { ltcg_112a_inr: 300000 },
       other_sources: { has_other_sources_income: true, interest_savings_inr: 60000, interest_fd_rd_inr: 140000 },
       deductions: { s80C: { epf_employee_inr: 150000 }, s80D: { self_family_premium_inr: 25000 } },
-      lrs_outbound: {},
+      // Remitted funds to top up her US brokerage this year — as an India
+      // ROR, LRS (s.206C(1G)) applies: 20% TCS on the ₹5L excess over the
+      // ₹10L base threshold, since "investment" isn't one of the
+      // concessional-rate purposes (education/medical).
+      lrs_outbound: { total_lrs_remitted_this_fy_inr: 1500000, lrs_purpose: "investment" },
       tax_credits: { advance_tax_q1_15jun_inr: 200000, advance_tax_q2_15sep_inr: 200000, tds_already_deducted_inr: 150000 },
       metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
@@ -439,7 +577,7 @@
       bank_accounts: [{ bank_name: "Kotak (Current)", account_type: "current", peak_balance_inr: 42000000 }],
       property: { properties: [] },
       financial_holdings: { has_financial_transactions: false, transactions: [] },
-      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ trade_name: "Nimbus Analytics Pvt Ltd", nature: "software", net_profit_inr: 60000000 }] }, capital_gains: {} },
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ business_name: "Nimbus Analytics Pvt Ltd", nature: "software", net_profit_inr: 60000000 }] }, capital_gains: {} },
       other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 900000 },
       deductions: {},
       lrs_outbound: {},
@@ -476,7 +614,7 @@
       bank_accounts: [{ bank_name: "HSBC (Current)", account_type: "current", peak_balance_inr: 30000000 }],
       property: { properties: [] },
       financial_holdings: { has_financial_transactions: false, transactions: [] },
-      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ trade_name: "Cloudspire India Pvt Ltd", nature: "software", net_profit_inr: 80000000 }] }, capital_gains: {} },
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ business_name: "Cloudspire India Pvt Ltd", nature: "software", net_profit_inr: 80000000 }] }, capital_gains: {} },
       other_sources: {},
       deductions: {}, lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 4000000, advance_tax_q2_15sep_inr: 5000000, advance_tax_q3_15dec_inr: 5000000, advance_tax_q4_15mar_inr: 4000000 },
@@ -523,7 +661,7 @@
       bank_accounts: [{ bank_name: "DBS (Current)", account_type: "current", peak_balance_inr: 18000000 }],
       property: { properties: [] },
       financial_holdings: { has_financial_transactions: false, transactions: [] },
-      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ trade_name: "Meridian Holdings Pte Ltd", nature: "investment holding", net_profit_inr: 22000000 }] }, capital_gains: {} },
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ business_name: "Meridian Holdings Pte Ltd", nature: "investment holding", net_profit_inr: 22000000 }] }, capital_gains: {} },
       other_sources: {},
       deductions: {}, lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 1200000, advance_tax_q2_15sep_inr: 1400000, advance_tax_q3_15dec_inr: 1400000, advance_tax_q4_15mar_inr: 1200000 },
@@ -549,8 +687,8 @@
   var B4 = {
     id: "sharma_huf",
     label: "Sharma HUF (family investment vehicle)",
-    story: "Business POV: an HUF managing ancestral property and FD investments in India. Control & management is NOT wholly outside India, so it stays resident — a different test than the individual day-count. At ~₹6.5L income it sits right at the §156 rebate threshold, demonstrating the entity-aware fix (HUF isn't entitled to the individual-only rebate). PAN also isn't linked to Aadhaar, so every TDS figure here understates the higher rate actually being withheld.",
-    tags: ["HUF", "entity", "156", "control and management", "PAN-Aadhaar"],
+    story: "Business POV: an HUF managing ancestral property and FD investments in India. Control & management is NOT wholly outside India, so it stays resident — a different test than the individual day-count. At ~₹6.5L income it sits right at the §156 rebate threshold, demonstrating the entity-aware fix (HUF isn't entitled to the individual-only rebate). PAN also isn't linked to Aadhaar, so every TDS figure here understates the higher rate actually being withheld. Also sold some Bitcoin this year for a gain — taxed flat 30% under s.115BBH regardless of how long held, and the family's ₹2,00,000 brought-forward STCG loss can't touch it at all (VDA gains are never loss-set-off eligible, not even against another VDA's loss in the same year) — a common, costly misconception this demo makes concrete. Also sold a plot this year for ₹68L — a purely domestic transaction where the RESIDENT buyer withholds 1% under s.194-IA, the first demo of resident-side (non-NRI) property TDS.",
+    tags: ["HUF", "entity", "156", "control and management", "PAN-Aadhaar", "VDA/crypto"],
     router: router("Sharma HUF", { us_days: 0, has_us_source_income_or_assets: false }),
     india: {
       profile: { full_name: "Sharma HUF", entity_type: "huf", tax_regime: "NEW", pan_aadhaar_linked: false },
@@ -558,8 +696,26 @@
       dtaa: {},
       compliance_docs: {},
       bank_accounts: [{ bank_name: "SBI", account_type: "current", peak_balance_inr: 900000 }],
-      property: { has_indian_property_transaction: true, properties: [{ address: "Ancestral home, Jaipur", property_type: "Residential", annual_value_inr: 300000, gross_rent_received_inr: 360000, municipal_taxes_paid_inr: 12000 }] },
-      financial_holdings: { has_financial_transactions: false, transactions: [] },
+      // Also sold a plot this year — a RESIDENT seller, so the buyer withholds
+      // 1% under s.194-IA (not s.195, which is NR-only) on the ₹68L sale
+      // consideration. Layer 1 previously only ever collected buyer-TDS
+      // detail for NR sellers; this demonstrates it now capturing the same
+      // withholding for a domestic resident too.
+      property: { has_indian_property_transaction: true, properties: [
+        { address: "Ancestral home, Jaipur", property_type: "Residential", annual_value_inr: 300000, gross_rent_received_inr: 360000, municipal_taxes_paid_inr: 12000 },
+        { address: "Plot 7, Vasant Vihar, Jaipur", property_type: "Land (non-agricultural)", sale_date: "2026-09-15", sale_consideration: 6800000, sale_consideration_currency: "INR", buyer_tan: "JPRS12345K", buyer_tds_deducted_inr: 68000, buyer_tds_challan_number: "CHLN99182" }
+      ] },
+      // Bitcoin sold this year for a ₹300,000 gain — s.115BBH flat 30%, no
+      // holding-period threshold, no set-off against the ₹200,000 STCG loss
+      // carryforward below (loss set-off is a Capital Gains head mechanism;
+      // VDA gains sit entirely outside that head).
+      financial_holdings: { has_financial_transactions: true, transactions: [
+        {
+          asset_class: "vda_crypto", asset_name_or_ticker: "BTC", quantity: 0.5,
+          acquisition_date: "2023-06-01", purchase_value: 900000, purchase_currency: "INR",
+          sale_date: "2026-08-01", sale_value: 1200000, sale_currency: "INR", transfer_expenses: 0
+        }
+      ] },
       domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 300000 }] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
       other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 350000 },
       deductions: {},
@@ -584,6 +740,14 @@
   };
 
   var PROFILES = [P1, P2, P3, P4, P5, B1, B2, B3, B4];
+
+  // Attach a realistic Q1-Q4 breakdown to every profile (see buildQuarters
+  // above) so Layer 1 India's quarter tabs show a genuine spread instead of
+  // the whole year dumped into Q1, and so the engine's real quarterly
+  // apportionment path (vs. its 75/25 fallback) is actually exercised.
+  PROFILES.forEach(function (p) {
+    p.india.quarters = buildQuarters(p.india, p.router.base_tax_year || 2026);
+  });
 
   function listProfiles() {
     return PROFILES.map(function (p) { return { id: p.id, label: p.label, story: p.story, tags: p.tags }; });

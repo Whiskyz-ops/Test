@@ -230,8 +230,9 @@
     // Ordinary NRO interest is NOT s.207 income (see computeNrInterestTreatment)
     // — it defaults to slab rates, with only a DTAA-beneficial slice carved
     // out. Dividend/royalty/FTS genuinely are s.207 income, unchanged.
+    var otherSourcesMiscInr = (inc.otherSourcesMisc && inc.otherSourcesMisc.inr) || 0;
     var nrInterest = isNR
-      ? computeNrInterestTreatment(model, T, slabs, inc.salary.inr + inc.business.inr + inc.houseProperty.inr + deemedDividendInr, inc.interest.inr)
+      ? computeNrInterestTreatment(model, T, slabs, inc.salary.inr + inc.business.inr + inc.houseProperty.inr + deemedDividendInr + otherSourcesMiscInr, inc.interest.inr)
       : null;
     var s115aDividend = isNR ? computeS115aStream(model, T, "dividend", inc.dividend.inr) : null;
     var s115aRoyalty = isNR ? computeS115aStream(model, T, "royalty", null) : null;
@@ -257,7 +258,7 @@
     var lossSetOff = computeLossSetOff(model.carryForwardLosses || {}, {
       businessInr: inc.business.inr,
       housePropertyInr: inc.houseProperty.inr,
-      otherNormalInr: deemedDividendInr + (isNR ? nrInterestSlabEligibleInr : inc.interest.inr + inc.dividend.inr),
+      otherNormalInr: deemedDividendInr + otherSourcesMiscInr + (isNR ? nrInterestSlabEligibleInr : inc.interest.inr + inc.dividend.inr),
       stcgInr: inc.stcg.inr,
       stcgSlabInr: inc.stcgSlabInr || 0,
       ltcgGrossInr: inc.ltcg.inr,
@@ -273,12 +274,28 @@
       deductionsInr = ded.s80CCD2_employer || 0;
     } else {
       var caps = T.DEDUCTION_CAPS_OLD;
+      // s.80GG (rent paid, no HRA received): least of (a) rent paid less 10%
+      // of adjusted total income, (b) ₹5,000/month (₹60,000/year), (c) 25%
+      // of adjusted total income. normalSlabInr (gross total income before
+      // Chapter VI-A deductions) is used as the adjusted-total-income proxy
+      // — not the exact statutory definition (which also excludes LTCG/
+      // STCG/certain other items) but a disclosed, directly-available floor,
+      // consistent with this file's existing Phase-0 approximations
+      // elsewhere. Only ever previously read nowhere in this engine (see
+      // docs/FIELD_COVERAGE_AUDIT.md) — was unconditionally ₹0.
+      var s80ggRentInr = ded.s80GG_rentPaidInr || 0;
+      var s80ggInr = s80ggRentInr > 0
+        ? Math.max(0, Math.min(s80ggRentInr - 0.10 * normalSlabInr, 60000, 0.25 * normalSlabInr))
+        : 0;
       deductionsInr =
         Math.min(ded.s80C, caps.s80C) +
         Math.min(ded.s80CCD1B, caps.s80CCD1B) +
         Math.min(ded.s80D, caps.s80D_self + caps.s80D_parents_senior) +
         (ded.s80CCD2_employer || 0) +
-        Math.min(ded.s80TTA_TTB, 10000);
+        Math.min(ded.s80TTA_TTB, 10000) +
+        (ded.s80DD || 0) + (ded.s80DDB || 0) + (ded.s80U || 0) +
+        (ded.s80E || 0) + (ded.s80EEA_EE || 0) + (ded.s80GGB_GGC || 0) +
+        s80ggInr;
     }
 
     var totalNormalInr = Math.max(0, normalSlabInr - deductionsInr);
@@ -300,15 +317,35 @@
     // by any slab/exemption logic.
     var special115bbInr = (inc.specialRate115bb && inc.specialRate115bb.inr) || 0;
     var special115bbTaxInr = special115bbInr * T.RATE_115BB;
+    // s.115BBH VDA/crypto: flat 30% on POSITIVE gains only (normalize.js
+    // already dropped any negative-gain transactions rather than netting
+    // them — no loss set-off is ever allowed here, not even VDA-vs-VDA),
+    // no exemption, no indexation. Deliberately excluded from
+    // computeLossSetOff entirely, unlike every other capital-gains bucket
+    // above — it's not eligible for set-off against ANYTHING.
+    var vdaGainInr = (inc.vdaGainInr || 0);
+    var vdaTaxInr = vdaGainInr * T.RATE_115BBH;
+    // s.115E(1)(a) Chapter XII-A investment income: flat 20% on interest
+    // (specified debenture/deposit) or dividend (specified shares), no
+    // Chapter VI-A deductions, no exemption. Not a capital gain — never
+    // touches computeLossSetOff, same as VDA above.
+    var chapterXiiaInvestmentIncomeInr = (inc.chapterXiiaInvestmentIncomeInr || 0);
+    var chapterXiiaInvestmentIncomeTaxInr = chapterXiiaInvestmentIncomeInr * T.RATE_115E_INVESTMENT_INCOME;
     // Only CG/dividend-type special-rate tax gets the 15%-surcharge-cap
     // treatment (computeIndiaSurcharge below) — s.128/194 winnings do
     // NOT get that cap and take the full uncapped slab-based surcharge rate,
     // so keep it out of the "cap-eligible" bucket passed to that function.
     // s.207 dividend is "dividend income" for the cap's purposes; s.207
     // royalty/FTS and DTAA-carved-out interest are not, so they ride along
-    // with 128 instead.
+    // with 128 instead. s.115BBH is its own standalone section (not part of
+    // the ss.111A/112/112A capital-gains chapter the surcharge cap proviso
+    // lists), so VDA gains ride along with 128/194 here too — a documented,
+    // reasonable inference, not independently source-confirmed. Chapter
+    // XII-A investment income is the same: its own standalone section, no
+    // source found indicating any special surcharge-cap treatment, so it
+    // rides along uncapped too.
     var capEligibleSpecialTaxInr = stcgInr * T.STCG_111A_RATE + ltcgTaxableInr * T.LTCG_112A_RATE + ltcg197TaxableInr * T.LTCG_112A_RATE + s115aDividendTaxInr;
-    var specialTaxInr = capEligibleSpecialTaxInr + special115bbTaxInr + nrInterestCarvedOutTaxInr + s115aRoyaltyTaxInr + s115aFtsTaxInr;
+    var specialTaxInr = capEligibleSpecialTaxInr + special115bbTaxInr + vdaTaxInr + chapterXiiaInvestmentIncomeTaxInr + nrInterestCarvedOutTaxInr + s115aRoyaltyTaxInr + s115aFtsTaxInr;
 
     // Slab tax on normal income.
     var slabTaxInr = bracketTax(totalNormalInr, slabs);
@@ -326,7 +363,7 @@
     // computeIndiaSurcharge below, the surcharge threshold test) by the
     // exempt amount. ltcg197TaxableInr has no exemption to net out (s.197),
     // so it's already the full taxable amount.
-    var totalIncomeInr = totalNormalInr + stcgInr + ltcgTaxableInr + ltcg197TaxableInr + special115bbInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr;
+    var totalIncomeInr = totalNormalInr + stcgInr + ltcgTaxableInr + ltcg197TaxableInr + special115bbInr + vdaGainInr + chapterXiiaInvestmentIncomeInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr;
     // ...and NR is excluded too (s.156 says "resident individual" — RNOR
     // still counts as resident for this, only genuine NR does not).
     var isIndividual = !model.entity || model.entity.indiaKind === "individual";
@@ -375,7 +412,7 @@
 
     return {
       regime: regime,
-      grossTotalIncomeInr: normalSlabInr + stcgInr + ltcgTaxableInr + ltcg197TaxableInr + special115bbInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr,
+      grossTotalIncomeInr: normalSlabInr + stcgInr + ltcgTaxableInr + ltcg197TaxableInr + special115bbInr + vdaGainInr + chapterXiiaInvestmentIncomeInr + nrInterestCarvedOutInr + s115aDividendInr + s115aRoyaltyInr + s115aFtsInr,
       deductionsInr: deductionsInr,
       totalIncomeInr: totalIncomeInr,
       slabTaxInr: slabTaxInr,
@@ -383,6 +420,10 @@
       totalNormalInr: totalNormalInr,
       ltcgTaxableInr: ltcgTaxableInr,
       ltcg197TaxableInr: ltcg197TaxableInr,
+      vdaGainInr: vdaGainInr,
+      vdaTaxInr: vdaTaxInr,
+      chapterXiiaInvestmentIncomeInr: chapterXiiaInvestmentIncomeInr,
+      chapterXiiaInvestmentIncomeTaxInr: chapterXiiaInvestmentIncomeTaxInr,
       specialTaxInr: specialTaxInr,
       rebateInr: rebateInr,
       surchargeInr: surchargeInr,
@@ -692,8 +733,18 @@
     var seTax = seNet > 0 ? (T.SE_RATE_SS * Math.min(seNet, ssBaseRemaining) + T.SE_RATE_MEDICARE * seNet) : 0;
     var halfSeDeduction = seTax / 2;
 
-    // Adjustments (above-the-line) — student-loan interest + 1/2 SE tax.
-    var adjustments = Math.min(ded.studentLoanInterest, 2500) + halfSeDeduction;
+    // Adjustments (above-the-line) — student-loan interest + 1/2 SE tax +
+    // SE health insurance (§162(l)) + SE retirement plan (SEP-IRA/Solo
+    // 401k, §404). Both were previously read nowhere in this engine (see
+    // docs/FIELD_COVERAGE_AUDIT.md) despite the form correctly collecting
+    // them — AGI was always overstated by the full amount of both for a
+    // self-employed filer. Floored at seNet (can't deduct more SE health
+    // insurance than there was SE income to support it), matching this
+    // file's existing Phase-0-floor convention rather than modeling the
+    // exact §162(l)(2)(A) earned-income limitation precisely.
+    var seHealthDeduction = Math.min(ded.seHealthInsuranceDeductionUsd || 0, Math.max(0, seNet));
+    var adjustments = Math.min(ded.studentLoanInterest, 2500) + halfSeDeduction +
+      seHealthDeduction + (ded.seRetirementDeductionUsd || 0);
     var agi = Math.max(0, totalIncome - adjustments);
 
     // Deduction: standard vs itemized.
@@ -929,7 +980,19 @@
     var eciUsd = nra.eciIncomeUsd || 0;
     var fdapUsd = nra.fdapIncomeUsd || 0;
     var claim = (nra.treatyRateClaims || [])[0];
-    var fdapRate = (claim && claim.rate != null) ? Math.max(0, Math.min(1, Number(claim.rate) / 100)) : 0.30;
+    var claimedRate = (claim && claim.rate != null) ? Math.max(0, Math.min(1, Number(claim.rate) / 100)) : null;
+    // A treaty-reduced FDAP withholding rate requires a valid Form W-8BEN
+    // on file with the withholding agent (Treas. Reg. §1.1441-6) — without
+    // it, the payer must withhold at the 30% statutory default regardless
+    // of what the treaty would otherwise allow, and (absent other
+    // substantiation) that's what actually applies at return-filing too.
+    // Previously this used the claimed rate unconditionally even when
+    // nra.submittedW8ben was false — silently understating FDAP tax
+    // exactly when the nra_w8ben_missing finding was already warning that
+    // the claim was at risk; the disclosure and the computed number
+    // disagreed with each other.
+    var w8benOnFile = nra.submittedW8ben === true;
+    var fdapRate = (w8benOnFile && claimedRate != null) ? claimedRate : 0.30;
 
     var itemized = Math.min(ded.salt, computeSaltCap(eciUsd, status, T)) + ded.mortgageInterest + ded.charitable +
                    Math.max(0, ded.medical - 0.075 * eciUsd);
@@ -950,7 +1013,8 @@
       totalTaxBeforeFtcUsd: totalTax,
       foreignSourceIncomeUsd: 0, // NRAs aren't taxed on foreign-source income — no US FTC need for it
       usSourceIncomeUsd: eciUsd + fdapUsd,
-      nra: { eciUsd: eciUsd, fdapUsd: fdapUsd, fdapRate: fdapRate, eciTaxUsd: eciTaxUsd, fdapTaxUsd: fdapTaxUsd, taxableEciUsd: taxableEciUsd, eciBracketBreakdown: eciBracketBreakdown },
+      nra: { eciUsd: eciUsd, fdapUsd: fdapUsd, fdapRate: fdapRate, eciTaxUsd: eciTaxUsd, fdapTaxUsd: fdapTaxUsd, taxableEciUsd: taxableEciUsd, eciBracketBreakdown: eciBracketBreakdown,
+        claimedRate: claimedRate, w8benOnFile: w8benOnFile, incomeType: (claim && claim.income_type) || null },
       feie: { claimed: false, eligible: false, taxHomeAbroad: false, testMet: false, reasons: [], appliedUsd: 0 },
       effectiveRate: (eciUsd + fdapUsd) > 0 ? totalTax / (eciUsd + fdapUsd) : 0
     };

@@ -4641,6 +4641,10 @@
     // ═══════════════════════════════════════════════════════════════════════
     const state = {
         global_quarter: 'Q1',
+        // Written by evaluateITRForm() every time it re-evaluates, so Layer 2
+        // can read the real 7-form eligibility determination instead of its
+        // own crude entity-type-only fallback.
+        itr_recommendation: { form: null, explanation: null },
         profile: {
             full_name: null,
             entity_type: 'individual',
@@ -5877,12 +5881,6 @@
         evaluateSurchargeBuckets();
         syncResidencyUI();
         
-        // Update Property Buyer TDS visibility based on NR status
-        const isNR = state.residency_detail.final_india_residency_status === 'NR';
-        document.querySelectorAll('.prop-buyer-tds-container').forEach(el => {
-            el.classList.toggle('hidden', !isNR);
-        });
-
         // Evaluate NR fields for Unlisted Equity
         if (typeof evaluateUnlistedNRStatus === 'function') evaluateUnlistedNRStatus();
         checkDualResidencyConflict();
@@ -7632,12 +7630,12 @@ const crDiv = document.getElementById('div-company-residency');
 
             <!-- Additional Sections -->
             <div class="flex flex-col gap-4 mt-4 prop-sale-only-div">
-                <div class="bg-white/5 p-3 rounded-lg border border-white/10 prop-buyer-tds-container ${state.residency_detail.final_india_residency_status === 'NR' ? '' : 'hidden'}">
-                    <h5 class="text-[9px] font-bold text-white/60 uppercase tracking-widest mb-3">Buyer TDS (For NRIs)</h5>
+                <div class="bg-white/5 p-3 rounded-lg border border-white/10 prop-buyer-tds-container">
+                    <h5 class="text-[9px] font-bold text-white/60 uppercase tracking-widest mb-3">Buyer TDS (s.194-IA for resident sellers ≥₹50L, s.195 for NRI sellers)</h5>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Buyer TAN</label>
-                                <input type="text" class="prop-tan w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandGold focus:outline-none font-mono" placeholder="Req for 195">
+                                <input type="text" class="prop-tan w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandGold focus:outline-none font-mono" placeholder="Req for 194-IA/195">
                             </div>
                             <div>
                                 <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">TDS Deducted (INR)</label>
@@ -7678,6 +7676,45 @@ const crDiv = document.getElementById('div-company-residency');
                 </div>
             </div>`;
         list.appendChild(div);
+
+        // Populate from saved data — this parameter used to be accepted and
+        // silently ignored, so a loaded profile's property sales (address,
+        // sale date/consideration, buyer TDS, etc) never actually appeared in
+        // this card even once state.property.properties was correctly loaded.
+        if (tx) {
+            const typeEl = div.querySelector('.prop-type');
+            if (typeEl && tx.property_type) {
+                const t = String(tx.property_type).toLowerCase();
+                const match = [...typeEl.options].find(o => t.indexOf(o.value.replace('_', ' ')) === 0 || t.indexOf(o.value) === 0);
+                if (match) typeEl.value = match.value;
+            }
+            const addrEl = div.querySelector('.prop-address');
+            if (addrEl && tx.address) addrEl.value = tx.address;
+            const acqDateEl = div.querySelector('.prop-acq-date');
+            if (acqDateEl && tx.acquisition_date) acqDateEl.value = tx.acquisition_date;
+            const costEl = div.querySelector('.prop-cost');
+            if (costEl && tx.purchase_value != null) costEl.value = tx.purchase_value;
+            const isSold = !!(tx.sale_date || tx.sale_consideration);
+            const statusRadio = div.querySelector(`.prop-status[value="${isSold ? 'sold' : 'holding'}"]`);
+            if (statusRadio) statusRadio.checked = true;
+            const saleDateEl = div.querySelector('.prop-sale-date');
+            if (saleDateEl && tx.sale_date) saleDateEl.value = tx.sale_date;
+            const saleValEl = div.querySelector('.prop-sale-val');
+            if (saleValEl && tx.sale_consideration != null) saleValEl.value = tx.sale_consideration;
+            const saleCurrEl = div.querySelector('.prop-sale-curr');
+            if (saleCurrEl && tx.sale_consideration_currency) saleCurrEl.value = tx.sale_consideration_currency;
+            const sdvEl = div.querySelector('.prop-sdv');
+            if (sdvEl && tx.stamp_duty_value != null) sdvEl.value = tx.stamp_duty_value;
+            const expEl = div.querySelector('.prop-exp');
+            if (expEl && tx.transfer_expenses != null) expEl.value = tx.transfer_expenses;
+            const tanEl = div.querySelector('.prop-tan');
+            if (tanEl && tx.buyer_tan) tanEl.value = tx.buyer_tan;
+            const tdsEl = div.querySelector('.prop-tds');
+            if (tdsEl && tx.buyer_tds_deducted_inr != null) tdsEl.value = tx.buyer_tds_deducted_inr;
+            const challanEl = div.querySelector('.prop-challan');
+            if (challanEl && tx.buyer_tds_challan_number) challanEl.value = tx.buyer_tds_challan_number;
+            togglePropertyDependencies(rowId);
+        }
 
         div.querySelectorAll('input, select').forEach(el => {
             el.addEventListener('input', () => {
@@ -7801,9 +7838,9 @@ const crDiv = document.getElementById('div-company-residency');
                 sale_consideration_currency: isHolding ? null : div.querySelector('.prop-sale-curr').value,
                 stamp_duty_value: isHolding ? null : (parseINRCurrency(div.querySelector('.prop-sdv').value)),
                 stamp_duty_value_currency: "INR",
-                buyer_tan: (isHolding || state.residency_detail.final_india_residency_status !== 'NR') ? null : (div.querySelector('.prop-tan').value || null),
-                buyer_tds_deducted_inr: (isHolding || state.residency_detail.final_india_residency_status !== 'NR') ? null : (parseINRCurrency(div.querySelector('.prop-tds').value)),
-                buyer_tds_challan_number: (isHolding || state.residency_detail.final_india_residency_status !== 'NR') ? null : (div.querySelector('.prop-challan').value || null),
+                buyer_tan: isHolding ? null : (div.querySelector('.prop-tan').value || null),
+                buyer_tds_deducted_inr: isHolding ? null : (parseINRCurrency(div.querySelector('.prop-tds').value)),
+                buyer_tds_challan_number: isHolding ? null : (div.querySelector('.prop-challan').value || null),
                 is_joint_property: isJoint,
                 ownership_percentage: isJoint ? (parseINRCurrency(div.querySelector('.prop-share').value)) : null,
                 is_inherited: isInherited,
@@ -7838,7 +7875,7 @@ const crDiv = document.getElementById('div-company-residency');
         }
     }
 
-    function addBuybackRow() {
+    function addBuybackRow(tx = null) {
         const rowId = 'bb-' + Date.now();
         const list = document.getElementById('div-bb-list');
         const div = document.createElement('div');
@@ -7916,7 +7953,37 @@ const crDiv = document.getElementById('div-company-residency');
             </div>
         `;
         list.appendChild(div);
+        if (tx) {
+            const nameEl = div.querySelector('.bb-name');
+            if (nameEl) nameEl.value = tx.company_name || '';
+            const listedEl = div.querySelector('.bb-listed');
+            if (listedEl && tx.is_listed !== undefined) listedEl.value = tx.is_listed ? 'yes' : 'no';
+            const promoterEl = div.querySelector('.bb-promoter');
+            if (promoterEl && tx.is_promoter !== undefined) promoterEl.value = tx.is_promoter ? 'yes' : 'no';
+            const dateEl = div.querySelector('.bb-date');
+            if (dateEl && tx.buyback_date) dateEl.value = tx.buyback_date;
+            const recdEl = div.querySelector('.bb-recd');
+            if (recdEl && tx.consideration_received_inr != null) recdEl.value = tx.consideration_received_inr;
+            const costEl = div.querySelector('.bb-cost');
+            if (costEl && tx.original_cost_inr != null) costEl.value = tx.original_cost_inr;
+            const acqEl = div.querySelector('.bb-acq-date');
+            if (acqEl && tx.original_acquisition_date) acqEl.value = tx.original_acquisition_date;
+        }
         syncBuybackState();
+    }
+
+    // Loops state.share_buyback.transactions and renders each as a card —
+    // addBuybackRow() previously took no parameters at all (manual "+ Add
+    // Buyback" clicks only), so a loaded profile's real buyback transactions
+    // (Vikram's two-tranche founder buyback, the profile's centerpiece
+    // s.69 LTCG/promoter-surcharge demo) never appeared on this screen even
+    // though the Monitor's engine correctly computes them from localStorage.
+    function renderBuybackRows() {
+        const list = document.getElementById('div-bb-list');
+        if (!list) return;
+        list.innerHTML = '';
+        const txs = (state.share_buyback && state.share_buyback.transactions) || [];
+        txs.forEach(tx => addBuybackRow(tx));
     }
 
     function removeBuybackRow(id) {
@@ -8056,7 +8123,14 @@ const crDiv = document.getElementById('div-company-residency');
             const match = lastExitAY.match(/(?:AY\s*)?(\d{4})(?:-\d{2,4})?/i);
             if (match) {
                 const exitYear = parseInt(match[1], 10);
-                const CURRENT_AY_START = 2024; // Assuming current AY is 2024-25
+                // Current AY's starting year, computed live instead of a
+                // hardcoded value that goes stale every April — the AY
+                // window (Apr Y to Mar Y+1) that today falls into starts
+                // this calendar year if we're in Apr-Dec, or last calendar
+                // year if we're in Jan-Mar. E.g. today (2026-07-12) falls in
+                // the AY2026-27 window → CURRENT_AY_START = 2026.
+                const now = new Date();
+                const CURRENT_AY_START = now.getFullYear() - (now.getMonth() < 3 ? 1 : 0);
                 if (CURRENT_AY_START - exitYear < 5 && CURRENT_AY_START - exitYear > 0) {
                     lockInActive = true;
                 }
@@ -9417,14 +9491,19 @@ const crDiv = document.getElementById('div-company-residency');
         }
 
         // Parse origin AY — accept formats: Tax Year 2015-16, 2015-16, 2015
-        const match = ayStr.match(/(d{4})/);
+        const match = ayStr.match(/(\d{4})/);
         if (!match) {
             warning.classList.add('hidden');
             return;
         }
         const originYear = parseInt(match[1]); // e.g. 2015 from Tax Year 2015-16
-        const currentAY  = new Date().getFullYear() + (new Date().getMonth() >= 3 ? 1 : 0); // AY = FY+1
-        // e.g. if today is May 2025, currentAY = 2025-26 → year 2025
+        // Current AY's starting year, computed live (same formula as the
+        // s.44AD lock-in check above) — the AY window (Apr Y to Mar Y+1)
+        // that today falls into starts this calendar year for Apr-Dec, or
+        // last calendar year for Jan-Mar. E.g. today (2026-07-12) falls in
+        // the AY2026-27 window → currentAY = 2026.
+        const now = new Date();
+        const currentAY = now.getFullYear() - (now.getMonth() < 3 ? 1 : 0);
         const expiryYear = originYear + 15; // credit from Tax Year 2015-16 expires in Tax Year 2030-31
         const yearsToExpiry = expiryYear - currentAY;
 
@@ -9626,7 +9705,30 @@ const crDiv = document.getElementById('div-company-residency');
         state.domestic_income.salary.esop_perquisite_events = events;
         saveLayer1State();
     }
-    
+
+    // capital_gains has no single canonical "has data" flag (unlike the other
+    // income heads) — profiles / real entries just set amounts directly — so
+    // derive it from any nonzero capital-gains-bearing figure across every
+    // place the form records one: the two capital_gains shapes (nested under
+    // domestic_income, and the top-level bucket), realized transactions
+    // (financial holdings, commodities, unlisted equity), a share buyback, or
+    // a property sale. Shared by both the Financial Life Snapshot card sync
+    // and the Capital Gains screen's own gatekeeper toggle.
+    function hasAnyCapitalGainsData() {
+        const cgNum = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+        const nestedCg = (state.domestic_income && state.domestic_income.capital_gains) || {};
+        const topCg = state.capital_gains || {};
+        const anyCgAmount = Object.keys(nestedCg).some((k) => cgNum(nestedCg[k]) > 0) ||
+            Object.keys(topCg).some((k) => cgNum(topCg[k]) > 0);
+        const anyCgTransactions =
+            !!(state.financial_holdings && state.financial_holdings.transactions && state.financial_holdings.transactions.length) ||
+            !!(state.commodities && state.commodities.transactions && state.commodities.transactions.length) ||
+            !!(state.unlisted_equity && state.unlisted_equity.transactions && state.unlisted_equity.transactions.some((t) => t.sale_date || t.sale_value)) ||
+            !!(state.share_buyback && state.share_buyback.transactions && state.share_buyback.transactions.length) ||
+            !!(state.property && state.property.properties && state.property.properties.some((p) => p.sale_date || p.sale_consideration));
+        return anyCgAmount || anyCgTransactions;
+    }
+
     function renderEsopRows() {
         const container = document.getElementById('div-esop-list');
         if (!container) return;
@@ -9680,17 +9782,20 @@ const crDiv = document.getElementById('div-company-residency');
             }
         };
 
+        // These read the SAME fields the tax computation reads (has_salary_income,
+        // has_house_property_income, has_business_or_fo_income, top-level
+        // other_sources.has_other_sources_income) — not a separate wizard-only
+        // flag — so a profile loaded directly into state (bypassing the setup
+        // wizard clicks) still lights up the correct cards.
         if (state.domestic_income) {
-            syncCard('setup-salary', !!state.domestic_income.has_salary);
-            syncCard('setup-hp', !!state.domestic_income.has_house_property);
-            syncCard('setup-business', !!(state.domestic_income.business_income && state.domestic_income.business_income.has_business_income));
-            syncCard('setup-os', !!state.domestic_income.has_other_sources);
+            syncCard('setup-salary', !!(state.domestic_income.salary && state.domestic_income.salary.has_salary_income));
+            syncCard('setup-hp', !!(state.domestic_income.house_property && state.domestic_income.house_property.has_house_property_income));
+            syncCard('setup-business', !!(state.domestic_income.business_income && state.domestic_income.business_income.has_business_or_fo_income));
         }
-        
-        if (state.capital_gains) {
-            syncCard('setup-cg', !!state.capital_gains.has_capital_gains);
-        }
-        
+        syncCard('setup-os', !!(state.other_sources && state.other_sources.has_other_sources_income));
+
+        syncCard('setup-cg', hasAnyCapitalGainsData());
+
         // Ensure foreign objects exist before checking
         const hasForeign = !!((state.foreign_income && state.foreign_income.has_foreign_income) || (state.foreign_assets && state.foreign_assets.has_foreign_assets));
         syncCard('setup-international', hasForeign);
@@ -9860,8 +9965,22 @@ const crDiv = document.getElementById('div-company-residency');
         }));
         
         if (tx) {
+            // Accept BOTH this card's own legacy field names AND the shape
+            // engine/normalize.js actually reads (asset_name_or_ticker,
+            // acquisition_date, purchase_value/currency, sale_value/currency,
+            // transfer_expenses — used by every profile and by the engine's
+            // own transaction-array aggregation, since the tax computation
+            // was always correct even when this card showed the row blank).
+            const assetName = tx.asset_name || tx.asset_name_or_ticker;
+            const acqDate = tx.purchase_date || tx.acquisition_date;
+            const purCurr = tx.purchase_curr || tx.purchase_currency;
+            const purVal = tx.purchase_val != null ? tx.purchase_val : tx.purchase_value;
+            const saleCurr = tx.sale_curr || tx.sale_currency;
+            const saleVal = tx.sale_val != null ? tx.sale_val : tx.sale_value;
+            const expenses = tx.brokerage != null ? tx.brokerage : tx.transfer_expenses;
+
             if (tx.asset_class) card.querySelector('.fin-class').value = tx.asset_class;
-            if (tx.asset_name) card.querySelector('.fin-name').value = tx.asset_name;
+            if (assetName) card.querySelector('.fin-name').value = assetName;
             if (tx.quantity) card.querySelector('.fin-qty').value = tx.quantity;
             if (tx.status) {
                 const statusRadio = card.querySelector(`input[name="fin-status-${rowId}"][value="${tx.status}"]`);
@@ -9870,16 +9989,25 @@ const crDiv = document.getElementById('div-company-residency');
                     toggleFinancialFields(rowId);
                 }
             }
-            if (tx.purchase_date) card.querySelector('.fin-acq').value = tx.purchase_date;
-            if (tx.purchase_curr) card.querySelector('.fin-pur-curr').value = tx.purchase_curr;
-            if (tx.purchase_val) card.querySelector('.fin-pur').value = tx.purchase_val;
+            if (acqDate) card.querySelector('.fin-acq').value = acqDate;
+            if (purCurr) card.querySelector('.fin-pur-curr').value = purCurr;
+            if (purVal != null) card.querySelector('.fin-pur').value = purVal;
             if (tx.grandfathering_fmv) card.querySelector('.fin-fmv').value = tx.grandfathering_fmv;
             if (tx.sale_date) card.querySelector('.fin-sale-date').value = tx.sale_date;
-            if (tx.sale_curr) card.querySelector('.fin-sale-curr').value = tx.sale_curr;
-            if (tx.sale_val) card.querySelector('.fin-sale').value = tx.sale_val;
+            if (saleCurr) card.querySelector('.fin-sale-curr').value = saleCurr;
+            if (saleVal != null) card.querySelector('.fin-sale').value = saleVal;
             if (tx.stt_paid) card.querySelector('.fin-stt').value = tx.stt_paid;
-            if (tx.brokerage) card.querySelector('.fin-exp').value = tx.brokerage;
+            if (expenses != null) card.querySelector('.fin-exp').value = expenses;
             if (tx.is_specified_foreign_exchange_asset !== undefined) card.querySelector('.fin-sfea').checked = tx.is_specified_foreign_exchange_asset;
+
+            // A profile-shape entry with sale_date/sale_value implies "sold"
+            // even without an explicit tx.status radio value — without this,
+            // the status radio stayed at its default (Currently Holding) and
+            // the sale-only fields above stayed hidden despite being filled.
+            if (!tx.status && (tx.sale_date || saleVal != null)) {
+                const soldRadio = card.querySelector(`input[name="fin-status-${rowId}"][value="sold"]`);
+                if (soldRadio) { soldRadio.checked = true; toggleFinancialFields(rowId); }
+            }
         }
 
         // Trigger initial state
@@ -10226,6 +10354,20 @@ const crDiv = document.getElementById('div-company-residency');
             </div>
         `;
         list.appendChild(div);
+        if (tx) {
+            const nameEl = div.querySelector('.ul-name');
+            if (nameEl) nameEl.value = tx.company_name || tx.company || '';
+            const qtyEl = div.querySelector('.ul-qty');
+            if (qtyEl && tx.shares_acquired != null) qtyEl.value = tx.shares_acquired;
+            const acqEl = div.querySelector('.ul-acq-date');
+            if (acqEl && tx.acquisition_date) acqEl.value = tx.acquisition_date;
+            const costEl = div.querySelector('.ul-cost-val');
+            if (costEl && tx.cost_inr != null) costEl.value = tx.cost_inr;
+            const saleDateEl = div.querySelector('.ul-sale-date');
+            if (saleDateEl && tx.sale_date) saleDateEl.value = tx.sale_date;
+            const saleValEl = div.querySelector('.ul-sale-val');
+            if (saleValEl && tx.sale_value != null) saleValEl.value = tx.sale_value;
+        }
         evaluateUnlistedNRStatus();
     }
 
@@ -12106,7 +12248,7 @@ ${isProf ? '' : `
             const tbody = document.querySelector('#lrs-table tbody');
             if (tbody) tbody.innerHTML = '';
             toggleReceivedForeignIncome(false);
-            syncLrsState();
+            if (typeof syncLrsState === 'function') syncLrsState();  // guarded: no such function is defined anywhere in this file
         } else {
             if (container) container.classList.add('hidden');
             if (incomeGate) incomeGate.classList.add('hidden');
@@ -12116,7 +12258,7 @@ ${isProf ? '' : `
             const tbody = document.querySelector('#lrs-table tbody');
             if (tbody) tbody.innerHTML = '';
             toggleReceivedForeignIncome(null);
-            syncLrsState();
+            if (typeof syncLrsState === 'function') syncLrsState();  // guarded: no such function is defined anywhere in this file
         }
     }
 
@@ -12819,7 +12961,12 @@ ${isProf ? '' : `
                 if (prop.property_use === 'SOP') {
                     totalInterestSOP += intCap;
                 } else {
-                    let gav = prop.gross_annual_value_inr || 0;
+                    // annual_value_inr is what demo profiles (and
+                    // engine/normalize.js's own fallback chain) use — this
+                    // only ever recognized gross_annual_value_inr (the form's
+                    // own field name), so a loaded profile's real GAV showed
+                    // as ₹0 here even though the data was present.
+                    let gav = prop.gross_annual_value_inr != null ? prop.gross_annual_value_inr : (prop.annual_value_inr || 0);
                     let tax = prop.municipal_taxes_paid_inr || 0;
                     if (prop.financial_values_represent === 'TOTAL_PROPERTY') { gav *= prop.co_owner_share_percent / 100; tax *= prop.co_owner_share_percent / 100; }
                     const nav = Math.max(0, gav - tax);
@@ -13435,9 +13582,71 @@ ${isProf ? '' : `
         syncMsmeState();
         sync80GState();
         syncLossState();
-        syncLrsState();
-        syncFtcState();
+        if (typeof syncLrsState === 'function') syncLrsState();  // guarded: no such function is defined anywhere in this file
+        if (typeof syncFtcState === 'function') syncFtcState();  // guarded: no such function is defined anywhere in this file
         runResidencySolver();
+
+        // Spread this persona's salary/other-sources/capital-gains/lrs_outbound
+        // across the 4 India-FY quarters, the same way engine/profiles.js's
+        // buildQuarters() does for the Monitor's demo profiles. Every persona
+        // branch above sets these fields directly on the live `state` object
+        // and never touches state.quarters — so without this, switchQuarter()
+        // (which always reads/writes through state.quarters) shows 100% of
+        // the data in Q1 and nothing at all in Q2-Q4 the moment a quarter tab
+        // is clicked. Splitting the LIVE state.domestic_income/etc (already
+        // template-complete from file load, not a sparse persona-only blob)
+        // means every quarter's copy stays template-complete too — no risk of
+        // the sparse-quarters crash the loader path had to guard against.
+        state.active_quarter = 'Q1';
+        (function spreadPersonaDataAcrossQuarters() {
+            function splitFlow(node) {
+                if (node === null || node === undefined) return [null, null, null, null];
+                if (Array.isArray(node)) {
+                    const out = [[], [], [], []];
+                    node.forEach((el) => { const parts = splitFlow(el); for (let i = 0; i < 4; i++) out[i].push(parts[i]); });
+                    return out;
+                }
+                if (typeof node === 'object') {
+                    const out = [{}, {}, {}, {}];
+                    for (const k in node) {
+                        if (!Object.prototype.hasOwnProperty.call(node, k)) continue;
+                        const v = node[k];
+                        if (typeof v === 'number') {
+                            const base = Math.floor(v / 4), rem = v - base * 3;
+                            out[0][k] = base; out[1][k] = base; out[2][k] = base; out[3][k] = rem;
+                        } else if (typeof v === 'boolean' || typeof v === 'string') {
+                            out[0][k] = out[1][k] = out[2][k] = out[3][k] = v;
+                        } else {
+                            const parts = splitFlow(v);
+                            for (let i = 0; i < 4; i++) out[i][k] = parts[i];
+                        }
+                    }
+                    return out;
+                }
+                return [node, node, node, node];
+            }
+            const diQ = splitFlow(state.domestic_income);
+            const osQ = splitFlow(state.other_sources);
+            const cgQ = splitFlow(state.capital_gains);
+            const lrsQ = splitFlow(state.lrs_outbound);
+            ['Q1', 'Q2', 'Q3', 'Q4'].forEach((q, i) => {
+                state.quarters[q] = state.quarters[q] || {};
+                state.quarters[q].domestic_income = diQ[i];
+                state.quarters[q].other_sources = osQ[i];
+                state.quarters[q].capital_gains = cgQ[i];
+                state.quarters[q].lrs_outbound = lrsQ[i];
+            });
+        })();
+
+        // Re-paint every Financial Life Snapshot card, sidebar income-step
+        // button, and section gatekeeper toggle (sal-has, hp-gatekeeper,
+        // biz-has, cg-has, os-has) from the state this persona just set,
+        // instead of relying on each persona branch above to remember to
+        // toggle every section it touches individually. Fixes personas that
+        // set real data (e.g. other_sources above) without also revealing
+        // that section — the same class of bug as the localStorage-load path.
+        if (typeof restoreIndiaDOMFromState === 'function') restoreIndiaDOMFromState();
+
         switchStep('step-profile');
     }
 
@@ -13981,15 +14190,74 @@ ${isProf ? '' : `
             if (elMetro) elMetro.checked = sal.is_metro_city || false;
             
             const hasSal = document.getElementById('sal-has');
-            if (hasSal) hasSal.checked = sal.has_salary_income || false;
+            // Setting .checked via JS does NOT fire the checkbox's own onchange
+            // handler, so the toggle function that actually reveals
+            // div-salary-section (and every other gated section below) has to
+            // be called explicitly too — a checked-but-still-hidden section
+            // was invisible in exactly the same way an unchecked one is.
+            if (hasSal) { hasSal.checked = sal.has_salary_income || false; toggleSalarySection(hasSal.checked); }
+        }
+
+        // Restore House Property / Capital Gains / Other Sources gatekeeper
+        // toggles. These were previously never restored on load at all (only
+        // sal-has and biz-has were) — real field values were correctly
+        // painted below, but the toggle gating the section stayed off,
+        // hiding the very data that had just been restored underneath it.
+        const hpForToggle = state.domestic_income.house_property;
+        if (hpForToggle) {
+            const hasHp = document.getElementById('hp-gatekeeper');
+            if (hasHp) { hasHp.checked = hpForToggle.has_house_property_income || false; toggleHPSection(hasHp.checked); }
+        }
+        const cgGatekeeper = document.getElementById('cg-has');
+        if (cgGatekeeper) { cgGatekeeper.checked = hasAnyCapitalGainsData(); toggleCGSection(cgGatekeeper.checked); }
+        const osGatekeeper = document.getElementById('os-has');
+        if (osGatekeeper && state.other_sources) { osGatekeeper.checked = state.other_sources.has_other_sources_income || false; toggleOSSection(osGatekeeper.checked); }
+
+        // Restore the "Immovable Property Sales" sub-module inside Capital
+        // Gains. Render the real rows FIRST so togglePropertyModule('true')'s
+        // own "add a blank row if the list is empty" guard doesn't fire.
+        const propGatekeeper = document.getElementById('prop-has');
+        if (propGatekeeper) {
+            if (typeof renderPropertyTransactions === 'function') renderPropertyTransactions();
+            const hasProp = !!(state.property && (state.property.has_indian_property_transaction ||
+                (state.property.properties && state.property.properties.length > 0)));
+            propGatekeeper.value = hasProp ? 'true' : 'false';
+            togglePropertyModule(propGatekeeper.value);
+        }
+
+        // Financial holdings (listed/foreign equity, MFs, VDA/crypto),
+        // commodities, and unlisted equity — three more Capital Gains
+        // sub-modules whose render functions existed but had zero call
+        // sites anywhere in the file, so a loaded profile's real
+        // transactions (e.g. the AMZN/NVDA/BTC holding-period-mismatch
+        // demos) never appeared despite the data being correctly loaded.
+        if (typeof renderFinancialHoldings === 'function') renderFinancialHoldings();
+        if (typeof renderCommodities === 'function') renderCommodities();
+        if (typeof renderUnlistedEquity === 'function') renderUnlistedEquity();
+
+        // Schedule FA (foreign assets/income) — renderFaRows() already
+        // correctly loops state.foreign_assets.assets and reveals the
+        // section via toggleForeignAssets(), it just had zero call sites.
+        if (typeof renderFaRows === 'function') renderFaRows();
+
+        // Share buyback sub-module (bb-has) — same pattern as prop-has:
+        // render real rows first so toggleBuybackModule('true')'s own
+        // "add a blank row if empty" guard doesn't fire.
+        const bbGatekeeper = document.getElementById('bb-has');
+        if (bbGatekeeper) {
+            if (typeof renderBuybackRows === 'function') renderBuybackRows();
+            const hasBb = !!(state.share_buyback && (state.share_buyback.has_buyback_transaction ||
+                (state.share_buyback.transactions && state.share_buyback.transactions.length > 0)));
+            bbGatekeeper.value = hasBb ? 'true' : 'false';
+            toggleBuybackModule(bbGatekeeper.value);
         }
 
         // Restore Business Fixed Inputs
         const biz = state.domestic_income.business_income;
         if (biz) {
             const hasBiz = document.getElementById('biz-has');
-            if (hasBiz) hasBiz.checked = biz.has_business_or_fo_income || false;
-            
+            if (hasBiz) { hasBiz.checked = biz.has_business_or_fo_income || false; toggleBusinessModule(hasBiz.checked); }
+
             const elIdMapBiz = {
                 'biz-fno-profit': biz.non_speculative_income_inr,
                 'biz-fno-turnover': biz.fno_turnover_inr,
@@ -14152,6 +14420,20 @@ ${isProf ? '' : `
                 if (savedState.commodities) Object.assign(state.commodities, savedState.commodities);
                 if (savedState.unlisted_equity) Object.assign(state.unlisted_equity, savedState.unlisted_equity);
                 if (savedState.carry_forward_losses) Object.assign(state.carry_forward_losses, savedState.carry_forward_losses);
+                // Never merged at all before — Vikram's founder buyback (the
+                // profile's centerpiece: two-tranche s.69 LTCG/promoter-surcharge
+                // demo) stayed at its empty default in the form's own state no
+                // matter what was loaded, even though the Monitor's engine reads
+                // this correctly (it goes straight from localStorage, not through
+                // this in-memory state object).
+                if (savedState.share_buyback) Object.assign(state.share_buyback, savedState.share_buyback);
+                // Also never merged — Anita's directly-declared Schedule FA
+                // assets (US brokerage + real estate) stayed invisible on this
+                // form; only entries the US-to-India bidirectional hydration
+                // block synthesizes separately (e.g. from 401k/RSU data) ever
+                // reached state.foreign_assets before this.
+                if (savedState.foreign_assets) Object.assign(state.foreign_assets, savedState.foreign_assets);
+                if (savedState.foreign_income) Object.assign(state.foreign_income, savedState.foreign_income);
                 if (savedState.tax_credits) Object.assign(state.tax_credits, savedState.tax_credits);
                 if (savedState.deductions) {
                     for (const key in savedState.deductions) {
@@ -14181,7 +14463,39 @@ ${isProf ? '' : `
                 // MIGRATION & QUARTER LOAD
                 if (savedState.quarters) {
                     state.active_quarter = savedState.active_quarter || 'Q1';
-                    state.quarters = savedState.quarters;
+                    // Merge onto the existing dense per-quarter template (already
+                    // initialized above with full default shapes for every field the
+                    // UI touches) instead of replacing it outright. A saved/generated
+                    // quarters object may only carry the fields that actually differ
+                    // (e.g. a demo profile's quarters set just the income figures it
+                    // has); a wholesale replace would silently drop UI-required
+                    // defaults like business_income.nature_of_business, crashing
+                    // dropdown logic downstream that assumes they're always at least
+                    // an empty string. Mirrors the same merge-or-replace pattern used
+                    // for savedState.domestic_income etc. just above.
+                    ['Q1', 'Q2', 'Q3', 'Q4'].forEach(function (q) {
+                        const savedQ = savedState.quarters[q];
+                        if (!savedQ) return;
+                        // financial_holdings/commodities/unlisted_equity/property are
+                        // also read quarter-scoped by switchQuarter()/
+                        // aggregateAnnualState() below, even though the engine only
+                        // ever reads them top-level — merge them here too so a saved
+                        // quarters object that seeds real transaction data into Q1
+                        // (see profiles.js buildQuarters) doesn't get silently
+                        // overwritten by the empty per-quarter template the moment
+                        // the form touches that quarter.
+                        ['domestic_income', 'other_sources', 'lrs_outbound', 'nro_repatriation', 'capital_gains', 'financial_holdings', 'commodities', 'unlisted_equity', 'property'].forEach(function (cat) {
+                            if (!savedQ[cat]) return;
+                            if (!state.quarters[q][cat]) state.quarters[q][cat] = {};
+                            for (const key in savedQ[cat]) {
+                                if (state.quarters[q][cat][key] && typeof savedQ[cat][key] === 'object' && !Array.isArray(savedQ[cat][key])) {
+                                    Object.assign(state.quarters[q][cat][key], savedQ[cat][key]);
+                                } else {
+                                    state.quarters[q][cat][key] = savedQ[cat][key];
+                                }
+                            }
+                        });
+                    });
                 } else {
                     // Migration from annual: put all loaded income into Q1, keep Q2-Q4 blank
                     state.active_quarter = 'Q1';
@@ -14624,7 +14938,11 @@ ${isProf ? '' : `
         const list = document.getElementById('div-property-list');
         if (!list) return;
         list.innerHTML = '';
-        const txs = state.property?.transactions || [];
+        // Profiles / real saved state use .properties (matching Layer 1's own
+        // syncPropertyState(), which writes state.property.properties) — this
+        // read .transactions, a field nothing else in the file ever sets, so
+        // this function always rendered zero rows despite being defined.
+        const txs = state.property?.properties || [];
         txs.forEach(tx => addPropertyRow(tx));
     }
 
@@ -14637,9 +14955,18 @@ ${isProf ? '' : `
         const isCorp = (entity !== 'individual' && entity !== 'huf');
 
         state.domestic_income.house_property.properties.forEach((prop, idx) => {
-            const isSOP = prop.property_use === 'SOP';
+            // Profiles set annual_value_inr (the shape engine/normalize.js
+            // reads — see the same fallback chain there) without ever setting
+            // property_use, so this always defaulted to the SOP branch even
+            // for a property that's clearly generating rental income —
+            // hiding GAV/municipal-tax/interest and showing them all blank.
+            // Infer LOP whenever there's real annual-value data and no
+            // explicit use was set, matching what that data actually means.
+            const gav = prop.gross_annual_value_inr != null ? prop.gross_annual_value_inr : prop.annual_value_inr;
+            const inferredUse = prop.property_use || ((gav || prop.gross_rent_received_inr) ? 'LOP' : 'SOP');
+            const isSOP = inferredUse === 'SOP';
             const hideInterest = isSOP && regime === 'NEW';
-            
+
             const html = `
                 <div class="p-5 bg-[#121212] border border-white/10 rounded-2xl flex flex-col gap-5 relative group">
                     <button onclick="removeHouseProperty(${idx})" class="absolute top-4 right-4 text-white/20 hover:text-brandRed transition-colors">
@@ -14676,9 +15003,9 @@ ${isProf ? '' : `
                         <div>
                             <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Property Use</label>
                             <select onchange="updateHPField(${idx}, 'property_use', this.value)" class="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono">
-                                <option class="bg-[#1c1c1c] text-white" value="SOP" ${prop.property_use === 'SOP' ? 'selected' : ''}>Self-Occupied (SOP)</option>
-                                <option class="bg-[#1c1c1c] text-white" value="LOP" ${prop.property_use === 'LOP' ? 'selected' : ''}>Let-Out (LOP)</option>
-                                <option class="bg-[#1c1c1c] text-white" value="DLOP" ${prop.property_use === 'DLOP' ? 'selected' : ''}>Deemed Let-Out (DLOP)</option>
+                                <option class="bg-[#1c1c1c] text-white" value="SOP" ${inferredUse === 'SOP' ? 'selected' : ''}>Self-Occupied (SOP)</option>
+                                <option class="bg-[#1c1c1c] text-white" value="LOP" ${inferredUse === 'LOP' ? 'selected' : ''}>Let-Out (LOP)</option>
+                                <option class="bg-[#1c1c1c] text-white" value="DLOP" ${inferredUse === 'DLOP' ? 'selected' : ''}>Deemed Let-Out (DLOP)</option>
                             </select>
                         </div>
                         
@@ -14701,7 +15028,7 @@ ${isProf ? '' : `
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="transition-all ${isSOP ? 'opacity-30 pointer-events-none hidden' : ''}">
                             <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Gross Annual Value (GAV)</label>
-                            <input type="text" inputmode="numeric" onblur="updateHPField(${idx}, 'gross_annual_value_inr', this.value)" value="${prop.gross_annual_value_inr || ''}" ${isSOP ? 'disabled' : ''} class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono">
+                            <input type="text" inputmode="numeric" onblur="updateHPField(${idx}, 'gross_annual_value_inr', this.value)" value="${gav || ''}" ${isSOP ? 'disabled' : ''} class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono">
                         </div>
                         <div class="transition-all ${isSOP ? 'opacity-30 pointer-events-none hidden' : ''}">
                             <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Municipal Taxes Paid</label>
@@ -14777,12 +15104,44 @@ ${isProf ? '' : `
         
         // Mask out variables
         const hasCrypto = hasCapitalGains && (cg.vda_gains_inr > 0 || (Array.isArray(fh.transactions) && fh.transactions.some(t => t.asset_class === 'vda_crypto')));
-        const multipleHP = hasHouseProperty && (hp.properties && hp.properties.length > 1);
-        
-        const hasPresumptiveEntry = hasBusiness && entries.some(e => ['s44AD', 's44ADA', 's44AE'].includes(e.presumptive_scheme));
+        // AY 2026-27 CBDT change: ITR-1 and ITR-4 now allow up to TWO house
+        // properties (previously only one) — verified against the notified
+        // AY 2026-27 forms, July 2026.
+        const multipleHP = hasHouseProperty && (hp.properties && hp.properties.length > 2);
+        // AY 2026-27 CBDT change: ITR-1 and ITR-4 now also allow LTCG under
+        // s.112A up to Rs.1,25,000 (the exemption threshold) with no other
+        // capital gains and no capital losses carried forward — previously
+        // ANY capital gain forced ITR-2/3. Verified against the notified
+        // AY 2026-27 forms, July 2026.
+        const ltcg112A = sb.income_ltcg_112A_inr || 0;
+        const otherCapitalGains = (sb.income_stcg_111A_inr || 0) + (sb.income_ltcg_112_inr || 0) + (sb.income_stcg_other_inr || 0);
+        const hasDisqualifyingCapitalGains = hasCapitalGains && (otherCapitalGains > 0 || ltcg112A > 125000);
+
+        // s.44AD/44ADA turnover ceilings (Rs.2cr/Rs.3cr, Rs.50L/Rs.75L — the
+        // higher figure needs cash receipts under 5% of the total) — an
+        // entry above its ceiling can't actually use the presumptive scheme,
+        // so it doesn't count toward ITR-4 eligibility even though the field
+        // says s44AD/s44ADA. Mirrors engine/normalize.js's
+        // presumptiveCeilingInr(), verified 2026-07-12.
+        const isPresumptiveEntryValid = (e) => {
+            if (e.presumptive_scheme === 's44AD') {
+                const dig = e.digital_receipts_inr || 0, csh = e.cash_receipts_inr || 0;
+                const underFivePctCash = (dig + csh) > 0 && (csh / (dig + csh)) < 0.05;
+                return (dig + csh) <= (underFivePctCash ? 30000000 : 20000000);
+            }
+            if (e.presumptive_scheme === 's44ADA') {
+                const adaDig = e.ada_digital_receipts_inr || 0, adaCsh = e.ada_cash_receipts_inr || 0;
+                const gross = e.gross_receipts_inr || (adaDig + adaCsh);
+                const underFivePctCash = (adaDig + adaCsh) > 0 && (adaCsh / (adaDig + adaCsh)) < 0.05;
+                return gross <= (underFivePctCash ? 7500000 : 5000000);
+            }
+            return true; // s44AE has no turnover-based ceiling here
+        };
+        const hasPresumptiveEntry = hasBusiness && entries.some(e => ['s44AD', 's44ADA', 's44AE'].includes(e.presumptive_scheme) && isPresumptiveEntryValid(e));
         const hasPresumptiveLegacy = hasBusiness && Array.isArray(biz.presumptive_scheme) && biz.presumptive_scheme.some(s => ['s44AD', 's44ADA', 's44AE'].includes(s));
         const isPresumptive = hasPresumptiveEntry || hasPresumptiveLegacy;
-        const hasRegularEntry = hasBusiness && entries.some(e => ['regular', null, undefined, ''].includes(e.presumptive_scheme));
+        const hasRegularEntry = hasBusiness && entries.some(e => ['regular', null, undefined, ''].includes(e.presumptive_scheme) ||
+            (['s44AD', 's44ADA'].includes(e.presumptive_scheme) && !isPresumptiveEntryValid(e)));
         const hasPartnerIncome = hasBusiness && (biz.partner_remuneration_inr > 0 || biz.partner_interest_inr > 0);
         
         const isDirector = isInd && (state.profile?.is_company_director === true);
@@ -14797,14 +15156,14 @@ ${isProf ? '' : `
         const hasCryptoEval = (isInd || isHuf) ? hasCrypto : false;
         const hasLotteryEval = (isInd || isHuf) ? hasLotteryOrGaming : false;
 
-        const isDisqualifiedFromSimpleForms = totalInc > 5000000 || !isROR || hasCapitalGains || hasForeignIncomeEval || hasForeignAssetsEval || isDirector || hasCryptoEval || multipleHP || hasHighAgriIncome || hasLotteryEval || hasBFLosses || hasSpeculativeOrFNO;
+        const isDisqualifiedFromSimpleForms = totalInc > 5000000 || !isROR || hasDisqualifyingCapitalGains || hasForeignIncomeEval || hasForeignAssetsEval || isDirector || hasCryptoEval || multipleHP || hasHighAgriIncome || hasLotteryEval || hasBFLosses || hasSpeculativeOrFNO;
 
         // DEBUG: Output why it's disqualified
         if (isDisqualifiedFromSimpleForms) {
             console.log('--- ITR EVALUATION DEBUG ---');
             console.log('totalInc > 50L:', totalInc > 5000000);
             console.log('!isROR:', !isROR);
-            console.log('hasCapitalGains:', hasCapitalGains);
+            console.log('hasDisqualifyingCapitalGains:', hasDisqualifyingCapitalGains, '(ltcg112A=' + ltcg112A + ', otherCapitalGains=' + otherCapitalGains + ')');
             console.log('hasForeignIncomeEval:', hasForeignIncomeEval);
             console.log('hasForeignAssetsEval:', hasForeignAssetsEval);
             console.log('isDirector:', isDirector);
@@ -14863,13 +15222,10 @@ ${isProf ? '' : `
                         if (totalInc > 5000000) reasons.push('Total Income > ₹50L');
                         if (!isROR) reasons.push('Non-Resident / RNOR Status');
                         
-                        if (hasCapitalGains) {
-                            const cgDOM = document.getElementById('setup-cg');
-                            const cgCard = document.getElementById('card-setup-cg');
-                            const domState = cgDOM ? (cgDOM.checked ? 'true' : 'false') : 'null';
-                            const isActiveClass = cgCard ? (cgCard.classList.contains('active') ? 'true' : 'false') : 'null';
-                            const stateStr = (state.capital_gains && state.capital_gains.has_capital_gains) ? 'true' : 'false';
-                            reasons.push('Capital Gains active (State: ' + stateStr + ', DOM checked: ' + domState + ', UI active: ' + isActiveClass + ')');
+                        if (hasDisqualifyingCapitalGains) {
+                            reasons.push(otherCapitalGains > 0
+                                ? 'Capital gains beyond the s.112A-only allowance (STCG and/or non-112A LTCG present)'
+                                : 'LTCG under s.112A exceeds the Rs.1,25,000 threshold (Rs.' + ltcg112A.toLocaleString('en-IN') + ')');
                         }
                         if (hasForeignIncomeEval) reasons.push('Foreign Income active');
                         if (hasForeignAssetsEval) reasons.push('Foreign Assets active');
@@ -14893,7 +15249,11 @@ ${isProf ? '' : `
         const elReason = document.getElementById('ui-itr-reason');
         if (elForm) elForm.textContent = itr;
         if (elReason) elReason.textContent = explanation;
-        
+
+        if (!state.itr_recommendation) state.itr_recommendation = {};
+        state.itr_recommendation.form = itr;
+        state.itr_recommendation.explanation = explanation;
+
         return { itr, explanation };
     } catch (e) {
         console.error('Error evaluating ITR form', e);
@@ -15759,7 +16119,12 @@ ${isProf ? '' : `
             if (state.quarters[q]) {
                 const categories = ['commodities', 'unlisted_equity', 'property', 'financial_holdings'];
                 categories.forEach(cat => {
-                    if (state.quarters[q][cat] && state.quarters[q][cat].transactions) {
+                    // .transactions is truthy even when it's an empty array (every
+                    // quarter's default template carries one) — require it to
+                    // actually hold something, or this "cleaner" spuriously fires
+                    // on quarters with no real transactions at all and re-saves
+                    // state for no reason.
+                    if (state.quarters[q][cat] && state.quarters[q][cat].transactions && state.quarters[q][cat].transactions.length > 0) {
                         state.quarters[q][cat].transactions.forEach(tx => {
                             // The bug caused sale_date to be cleared, but sale_value to remain.
                             // If we see a transaction with sale_value but NO sale_date, it's highly likely to be the bugged scaffolded data.
@@ -15795,11 +16160,11 @@ ${isProf ? '' : `
         // Let's aggressively wipe out the data in Q2, Q3, Q4 that looks exactly like Q1's data,
         // specifically looking for identical purchase values and identical sale values across quarters.
         
-        if (state.quarters['Q1'] && state.quarters['Q1'].commodities && state.quarters['Q1'].commodities.transactions) {
+        if (state.quarters['Q1'] && state.quarters['Q1'].commodities && state.quarters['Q1'].commodities.transactions && state.quarters['Q1'].commodities.transactions.length > 0) {
             const q1Txs = state.quarters['Q1'].commodities.transactions;
-            
+
             ['Q2', 'Q3', 'Q4'].forEach(q => {
-                if (state.quarters[q] && state.quarters[q].commodities && state.quarters[q].commodities.transactions) {
+                if (state.quarters[q] && state.quarters[q].commodities && state.quarters[q].commodities.transactions && state.quarters[q].commodities.transactions.length > 0) {
                     state.quarters[q].commodities.transactions.forEach((tx, i) => {
                         const q1Tx = q1Txs[i];
                         if (q1Tx && tx.purchase_value === q1Tx.purchase_value && tx.sale_value === q1Tx.sale_value && tx.sale_value !== null) {
@@ -15815,11 +16180,11 @@ ${isProf ? '' : `
         }
         
         // And for financial holdings
-        if (state.quarters['Q1'] && state.quarters['Q1'].financial_holdings && state.quarters['Q1'].financial_holdings.transactions) {
+        if (state.quarters['Q1'] && state.quarters['Q1'].financial_holdings && state.quarters['Q1'].financial_holdings.transactions && state.quarters['Q1'].financial_holdings.transactions.length > 0) {
             const q1Txs = state.quarters['Q1'].financial_holdings.transactions;
-            
+
             ['Q2', 'Q3', 'Q4'].forEach(q => {
-                if (state.quarters[q] && state.quarters[q].financial_holdings && state.quarters[q].financial_holdings.transactions) {
+                if (state.quarters[q] && state.quarters[q].financial_holdings && state.quarters[q].financial_holdings.transactions && state.quarters[q].financial_holdings.transactions.length > 0) {
                     state.quarters[q].financial_holdings.transactions.forEach((tx, i) => {
                         const q1Tx = q1Txs[i];
                         if (q1Tx && tx.purchase_value === q1Tx.purchase_value && tx.sale_value === q1Tx.sale_value && tx.sale_value !== null) {
@@ -15855,11 +16220,11 @@ ${isProf ? '' : `
         const categories = ['commodities', 'unlisted_equity', 'property', 'financial_holdings'];
         
         categories.forEach(cat => {
-            if (state.quarters['Q1'] && state.quarters['Q1'][cat] && state.quarters['Q1'][cat].transactions) {
+            if (state.quarters['Q1'] && state.quarters['Q1'][cat] && state.quarters['Q1'][cat].transactions && state.quarters['Q1'][cat].transactions.length > 0) {
                 const q1Txs = state.quarters['Q1'][cat].transactions;
-                
+
                 ['Q2', 'Q3', 'Q4'].forEach(q => {
-                    if (state.quarters[q] && state.quarters[q][cat] && state.quarters[q][cat].transactions) {
+                    if (state.quarters[q] && state.quarters[q][cat] && state.quarters[q][cat].transactions && state.quarters[q][cat].transactions.length > 0) {
                         // Let's just completely reset the transactions for these quarters based on Q1
                         // to guarantee we wipe out any corrupted saved state!
                         state.quarters[q][cat].transactions = q1Txs.map(t => {

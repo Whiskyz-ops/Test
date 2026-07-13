@@ -44,9 +44,16 @@
       Exposure map (India + US, drill into US states), KPI tiers, and — folded in — Conflicts, FTC reconciliation,
       tax computation, documents &amp; limits. Individual <em>and</em> business (company) taxpayers. Sphere-inspired.
     </p>
-    <pre class="text-[12px] font-mono bg-black/40 rounded-xl p-3 text-white/70 overflow-x-auto">cd monitor-next
-npm install
-npm run dev     <span class="text-white/30"># → http://localhost:3000</span></pre>
+    <p class="text-[13px] text-white/55 leading-relaxed mb-3">
+      <b class="text-white">To run the demo:</b> double-click <span class="font-mono">start.command</span> (Mac/Linux)
+      or <span class="font-mono">start.bat</span> (Windows). It serves the router, both Layer&nbsp;1 forms and the
+      Monitor from <b class="text-white">one address</b> — which is what makes the Layer&nbsp;0 → Layer&nbsp;1 → Layer&nbsp;2
+      data flow work. Pick a test profile in the Monitor, then open a form: it's populated from that profile.
+    </p>
+    <pre class="text-[12px] font-mono bg-black/40 rounded-xl p-3 text-white/70 overflow-x-auto">./start.command        <span class="text-white/30"># or start.bat on Windows → http://localhost:8099/</span>
+
+<span class="text-white/30"># Dev mode is for editing the Monitor's React code only:</span>
+cd monitor-next &amp;&amp; npm install &amp;&amp; npm run dev   <span class="text-white/30"># :3000 — do NOT open the forms from a different address than this</span></pre>
   </div>
 </section>
 

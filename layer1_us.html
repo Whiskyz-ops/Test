@@ -2021,31 +2021,31 @@
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">US Bank Interest (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1 of Form 1099-INT</span></label>
-                        <input type="text" inputmode="numeric" id="inc-us-interest" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-interest" placeholder="0" oninput="syncUsInterestTotal()" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">US Treasury / Bond Interest<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 3 of Form 1099-INT</span></label>
-                        <input type="text" inputmode="numeric" id="inc-us-interest-treasury" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-interest-treasury" placeholder="0" oninput="syncUsInterestTotal()" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Original Issue Discount (OID)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Form 1099-OID</span></label>
-                        <input type="text" inputmode="numeric" id="inc-us-interest-oid" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-interest-oid" placeholder="0" oninput="syncUsInterestTotal()" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Seller-Financed Mortgage<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Private loan / P2P interest</span></label>
-                        <input type="text" inputmode="numeric" id="inc-us-interest-private" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-interest-private" placeholder="0" oninput="syncUsInterestTotal()" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
-                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Tax-Exempt Interest (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 8 of Form 1099-INT</span></label>
-                        <input type="text" inputmode="numeric" id="inc-us-interest-exempt" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Tax-Exempt Interest (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 8 of Form 1099-INT — not federally taxable, recordkeeping only</span></label>
+                        <input type="text" inputmode="numeric" id="inc-us-interest-exempt" placeholder="0" oninput="updateStateField('income_us_source', 'interest_us_exempt_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">US Ordinary Dividends (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1a of Form 1099-DIV</span></label>
-                        <input type="text" inputmode="numeric" id="inc-us-div-ord" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-div-ord" placeholder="0" oninput="updateStateField('income_us_source', 'ordinary_dividends_us_source_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">US Qualified Dividends (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1b of Form 1099-DIV</span></label>
-                        <input type="text" inputmode="numeric" id="inc-us-div-qual" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-div-qual" placeholder="0" oninput="updateStateField('income_us_source', 'qualified_dividends_us_source_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                 </div>
             </div>
@@ -2059,7 +2059,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Gross US Rental Earnings (USD)</label>
-                        <input type="text" inputmode="numeric" id="inc-us-rental" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-rental" placeholder="0" oninput="updateStateField('income_us_source', 'rental_income_us_source_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Total Rental Expenses (USD)</label>
@@ -3987,6 +3987,11 @@
             trusts_estates_k1: [],
             se_health_insurance_deduction_usd: null,
             se_retirement_deduction_usd: null,
+            interest_us_bank_usd: null,
+            interest_us_treasury_usd: null,
+            interest_us_oid_usd: null,
+            interest_us_private_usd: null,
+            interest_us_exempt_usd: null,
             interest_us_source_usd: null,
             ordinary_dividends_us_source_usd: null,
             qualified_dividends_us_source_usd: null,
@@ -5746,6 +5751,28 @@
         if (!usState[category]) usState[category] = {};
         if (!usState[category][subcategory]) usState[category][subcategory] = {};
         usState[category][subcategory][field] = val;
+        recalculateDerivedFields();
+        saveStateAndSync();
+    }
+
+    // Schedule B splits interest across 4 boxes (bank / treasury / OID /
+    // seller-financed); the engine only reads one aggregate
+    // (interest_us_source_usd), so this sums the 3 ordinary-income boxes
+    // into it on every keystroke. Tax-exempt interest (Box 8) is tracked
+    // separately and deliberately excluded from the taxable total — it
+    // isn't subject to federal income tax. These 4 inputs previously had no
+    // handler at all (see docs/FIELD_COVERAGE_AUDIT.md): typing into them
+    // did nothing.
+    function syncUsInterestTotal() {
+        const bank = parseFormattedNumber(document.getElementById('inc-us-interest')?.value) || 0;
+        const treasury = parseFormattedNumber(document.getElementById('inc-us-interest-treasury')?.value) || 0;
+        const oid = parseFormattedNumber(document.getElementById('inc-us-interest-oid')?.value) || 0;
+        const priv = parseFormattedNumber(document.getElementById('inc-us-interest-private')?.value) || 0;
+        usState.income_us_source.interest_us_bank_usd = bank;
+        usState.income_us_source.interest_us_treasury_usd = treasury;
+        usState.income_us_source.interest_us_oid_usd = oid;
+        usState.income_us_source.interest_us_private_usd = priv;
+        usState.income_us_source.interest_us_source_usd = bank + treasury + oid + priv;
         recalculateDerivedFields();
         saveStateAndSync();
     }
@@ -17045,10 +17072,6 @@
             }
         });
         
-        (usState?.income_us_source?.schedule_c_businesses || []).forEach(b => {
-            totalDeductions += (b.total_expenses_usd || 0);
-        });
-        
         (usState?.income_us_source?.schedule_f_farms || []).forEach(f => {
             totalDeductions += (f.total_expenses_usd || 0);
         });
@@ -17166,6 +17189,11 @@
             trusts_estates_k1: [],
             se_health_insurance_deduction_usd: null,
             se_retirement_deduction_usd: null,
+            interest_us_bank_usd: null,
+            interest_us_treasury_usd: null,
+            interest_us_oid_usd: null,
+            interest_us_private_usd: null,
+            interest_us_exempt_usd: null,
             interest_us_source_usd: null,
             ordinary_dividends_us_source_usd: null,
             qualified_dividends_us_source_usd: null,
@@ -17595,8 +17623,48 @@
         }
             
             // Merge states
-            if (savedState.metadata && savedState.metadata.intake_setup) {
-                const s = savedState.metadata.intake_setup;
+            // The user's own wizard clicks persist into metadata.intake_setup (see
+            // updateSidebarVisibility, which writes it on every toggle) and used to
+            // be the ONLY source these cards were restored from. A profile loaded
+            // directly into localStorage (bypassing the wizard clicks) never sets
+            // intake_setup, so every card silently stayed unchecked and every
+            // income-head sidebar section stayed hidden regardless of the real data
+            // underneath — same class of bug as Layer 1 India's setup cards. Derive
+            // each card from the actual saved data too (read from savedState, since
+            // usState hasn't been merged with it yet at this point), OR'd with any
+            // saved wizard preference so an explicit click on an otherwise-empty
+            // section is still honored.
+            {
+                const s = (savedState.metadata && savedState.metadata.intake_setup) || {};
+                const iu = savedState.income_us_source || {};
+                const hasForeignAssets = !!(
+                    (savedState.bank_accounts && savedState.bank_accounts.some((b) => b.country && b.country !== 'US' && b.country !== 'United States')) ||
+                    (savedState.fbar_aggregate_peak_usd || 0) > 0
+                );
+                const hasForeignEntities = !!(savedState.foreign_entities && (savedState.foreign_entities.owns_10_percent_foreign_corp || savedState.foreign_entities.has_pfics));
+                const hasForeignFeie = !!(savedState.foreign_earned_income && savedState.foreign_earned_income.claims_feie);
+                const hasForeignGifts = !!(savedState.foreign_gifts_and_trusts && (savedState.foreign_gifts_and_trusts.received_foreign_gifts_above_100k || savedState.foreign_gifts_and_trusts.received_gift_from_covered_expatriate));
+                const hasPassiveIntDiv = (iu.interest_us_source_usd || 0) > 0 || (iu.ordinary_dividends_us_source_usd || 0) > 0;
+                const hasPassiveCapGains = (iu.ltcg_us_source_usd || 0) > 0;
+                const derived = {
+                    setupW2: !!(iu.has_employment_income || (iu.wages_w2 && iu.wages_w2.length > 0)),
+                    setupBiz: !!(
+                        (iu.self_employment && iu.self_employment.length) ||
+                        (iu.partnerships_k1 && iu.partnerships_k1.length) ||
+                        (iu.s_corporations_k1 && iu.s_corporations_k1.length) ||
+                        (iu.c_corporations_1120 && iu.c_corporations_1120.length) ||
+                        (iu.farming_schedule_f && iu.farming_schedule_f.length) ||
+                        (iu.business_income_usd || 0) > 0
+                    ),
+                    setupPassive: hasPassiveIntDiv || hasPassiveCapGains,
+                    setupProp: !!(savedState.real_estate && savedState.real_estate.has_real_estate_transaction),
+                    setupForeign: hasForeignAssets || hasForeignEntities || hasForeignFeie || hasForeignGifts,
+                    setupRetirement: !!(savedState.retirement_accounts && Object.keys(savedState.retirement_accounts).some((k) => (savedState.retirement_accounts[k] || 0) > 0)),
+                    setupEquity: !!(savedState.equity_compensation && (
+                        (savedState.equity_compensation.iso_exercises && savedState.equity_compensation.iso_exercises.length) ||
+                        (savedState.equity_compensation.rsu_vestings && savedState.equity_compensation.rsu_vestings.length)
+                    ))
+                };
                 const updateCardUI = (id, checked) => {
                     const el = document.getElementById(id);
                     if (el) el.checked = checked;
@@ -17611,15 +17679,36 @@
                         }
                     }
                 };
-                if (s.setupW2 !== undefined) updateCardUI('setup-w2', s.setupW2);
-                if (s.setupBiz !== undefined) updateCardUI('setup-biz', s.setupBiz);
-                if (s.setupPassive !== undefined) updateCardUI('setup-passive', s.setupPassive);
-                if (s.setupProp !== undefined) updateCardUI('setup-prop', s.setupProp);
-                
-                if (s.setupForeign !== undefined) updateCardUI('setup-foreign', s.setupForeign);
-                if (s.setupRetirement !== undefined) updateCardUI('setup-retirement', s.setupRetirement);
-                if (s.setupEquity !== undefined) updateCardUI('setup-equity-btn', s.setupEquity);
-                usState.metadata.intake_setup = s;
+                const finalSetup = {
+                    setupW2: derived.setupW2 || s.setupW2 === true,
+                    setupBiz: derived.setupBiz || s.setupBiz === true,
+                    setupPassive: derived.setupPassive || s.setupPassive === true,
+                    setupProp: derived.setupProp || s.setupProp === true,
+                    setupEntities: false,
+                    setupForeign: derived.setupForeign || s.setupForeign === true,
+                    setupRetirement: derived.setupRetirement || s.setupRetirement === true,
+                    setupEquity: derived.setupEquity || s.setupEquity === true
+                };
+                updateCardUI('setup-w2', finalSetup.setupW2);
+                updateCardUI('setup-biz', finalSetup.setupBiz);
+                updateCardUI('setup-passive', finalSetup.setupPassive);
+                updateCardUI('setup-prop', finalSetup.setupProp);
+                updateCardUI('setup-foreign', finalSetup.setupForeign);
+                updateCardUI('setup-retirement', finalSetup.setupRetirement);
+                updateCardUI('setup-equity-btn', finalSetup.setupEquity);
+
+                // Nested checkboxes inside the "International"/"Passive" cards aren't
+                // part of intake_setup at all, so these were never restored on load
+                // before either — same bug, one level deeper.
+                const setChecked = (id, checked) => { const el = document.getElementById(id); if (el) el.checked = checked; };
+                setChecked('setup-foreign-assets', hasForeignAssets);
+                setChecked('setup-foreign-feie', hasForeignFeie);
+                setChecked('setup-foreign-entities', hasForeignEntities);
+                setChecked('setup-foreign-gifts', hasForeignGifts);
+                setChecked('setup-passive-intdiv', hasPassiveIntDiv);
+                setChecked('setup-passive-capgains', hasPassiveCapGains);
+
+                usState.metadata.intake_setup = finalSetup;
             }
             if (savedState.profile) Object.assign(usState.profile, savedState.profile);
             if (savedState.us_residency_detail) Object.assign(usState.us_residency_detail, savedState.us_residency_detail);
@@ -17647,6 +17736,11 @@
                 usState.income_us_source.se_retirement_deduction_usd = savedState.income_us_source.se_retirement_deduction_usd || null;
 
                 usState.income_us_source.interest_us_source_usd = savedState.income_us_source.interest_us_source_usd;
+                usState.income_us_source.interest_us_bank_usd = savedState.income_us_source.interest_us_bank_usd;
+                usState.income_us_source.interest_us_treasury_usd = savedState.income_us_source.interest_us_treasury_usd;
+                usState.income_us_source.interest_us_oid_usd = savedState.income_us_source.interest_us_oid_usd;
+                usState.income_us_source.interest_us_private_usd = savedState.income_us_source.interest_us_private_usd;
+                usState.income_us_source.interest_us_exempt_usd = savedState.income_us_source.interest_us_exempt_usd;
                 usState.income_us_source.ordinary_dividends_us_source_usd = savedState.income_us_source.ordinary_dividends_us_source_usd;
                 usState.income_us_source.qualified_dividends_us_source_usd = savedState.income_us_source.qualified_dividends_us_source_usd;
                 usState.income_us_source.stcg_us_source_usd = savedState.income_us_source.stcg_us_source_usd;
@@ -17735,7 +17829,13 @@
             
             const w2Has = document.getElementById('us-emp-has');
             if (w2Has) {
-                w2Has.checked = usState.income_us_source.has_employment_income || false;
+                // has_employment_income is never actually copied from the saved
+                // JSON anywhere above (only wages_w2 itself is) — a profile with
+                // real W-2 rows but no explicit flag left this toggle (and the
+                // whole Employment section beneath it) looking off/empty. Derive
+                // from the real wage data too, not just the flag.
+                w2Has.checked = !!(usState.income_us_source.has_employment_income ||
+                    (usState.income_us_source.wages_w2 && usState.income_us_source.wages_w2.length > 0));
                 toggleUSEmpSection(w2Has.checked);
             }
             
@@ -17829,7 +17929,11 @@
             } else {
                 // document.getElementById('div-se-container').classList.add('hidden');
             }
-            document.getElementById('inc-us-interest').value = usState.income_us_source.interest_us_source_usd || '';
+            document.getElementById('inc-us-interest').value = usState.income_us_source.interest_us_bank_usd || '';
+            document.getElementById('inc-us-interest-treasury').value = usState.income_us_source.interest_us_treasury_usd || '';
+            document.getElementById('inc-us-interest-oid').value = usState.income_us_source.interest_us_oid_usd || '';
+            document.getElementById('inc-us-interest-private').value = usState.income_us_source.interest_us_private_usd || '';
+            document.getElementById('inc-us-interest-exempt').value = usState.income_us_source.interest_us_exempt_usd || '';
             document.getElementById('inc-us-div-ord').value = usState.income_us_source.ordinary_dividends_us_source_usd || '';
             document.getElementById('inc-us-div-qual').value = usState.income_us_source.qualified_dividends_us_source_usd || '';
             const stcgEl = document.getElementById('inc-us-stcg');
@@ -18013,37 +18117,60 @@
             computeNyStatutoryResidency();
             syncCaliforniaAlerts();
             toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || false);
-            const hasSeToggled = (usState.income_us_source.self_employment || []).some(se => se.has_se_income);
+            // Each `.some(has_X_income)` check requires an ITEM-level flag that
+            // real Layer 1 usage may never set explicitly (e.g. a K-1 added via
+            // "+ Add Row" with income filled in but the row's own toggle never
+            // touched) — OR with the array simply being non-empty so a populated
+            // row still surfaces even without that per-item flag.
+            const hasSeToggled = (usState.income_us_source.self_employment || []).some(se => se.has_se_income) ||
+                (usState.income_us_source.self_employment || []).length > 0;
             const seToggleEl = document.getElementById('se-has-toggle');
             if (seToggleEl) seToggleEl.checked = hasSeToggled;
             setAccordionState('div-se-container', 'chevron-se', hasSeToggled);
 
-            const hasFarmToggled = (usState.income_us_source.farming_schedule_f || []).some(farm => farm.has_farm_income);
+            const hasFarmToggled = (usState.income_us_source.farming_schedule_f || []).some(farm => farm.has_farm_income) ||
+                (usState.income_us_source.farming_schedule_f || []).length > 0;
             const farmToggleEl = document.getElementById('farm-has-toggle');
             if (farmToggleEl) farmToggleEl.checked = hasFarmToggled;
             setAccordionState('div-farm-container', 'chevron-farm', hasFarmToggled);
 
-            const hasPartK1Toggled = (usState.income_us_source.partnerships_k1 || []).some(k1 => k1.has_part_income);
+            const hasPartK1Toggled = (usState.income_us_source.partnerships_k1 || []).some(k1 => k1.has_part_income) ||
+                (usState.income_us_source.partnerships_k1 || []).length > 0;
             const partK1ToggleEl = document.getElementById('part-k1-has-toggle');
             if (partK1ToggleEl) partK1ToggleEl.checked = hasPartK1Toggled;
             setAccordionState('div-part-k1-container', 'chevron-part', hasPartK1Toggled);
 
-            const hasScorpK1Toggled = (usState.income_us_source.s_corporations_k1 || []).some(k1 => k1.has_scorp_income);
+            const hasScorpK1Toggled = (usState.income_us_source.s_corporations_k1 || []).some(k1 => k1.has_scorp_income) ||
+                (usState.income_us_source.s_corporations_k1 || []).length > 0;
             const scorpK1ToggleEl = document.getElementById('scorp-k1-has-toggle');
             if (scorpK1ToggleEl) scorpK1ToggleEl.checked = hasScorpK1Toggled;
             setAccordionState('div-scorp-k1-container', 'chevron-scorp', hasScorpK1Toggled);
 
-            const hasCcorpToggled = (usState.income_us_source.c_corporations_1120 || []).some(ccorp => ccorp.has_ccorp);
+            const hasCcorpToggled = (usState.income_us_source.c_corporations_1120 || []).some(ccorp => ccorp.has_ccorp) ||
+                (usState.income_us_source.c_corporations_1120 || []).length > 0;
             const ccorpToggleEl = document.getElementById('ccorp-has-toggle');
             if (ccorpToggleEl) ccorpToggleEl.checked = hasCcorpToggled;
             setAccordionState('div-ccorp-container', 'chevron-ccorp', hasCcorpToggled);
 
-            const hasTrustK1Toggled = (usState.income_us_source.trusts_estates_k1 || []).some(k1 => k1.has_trust_income);
+            const hasTrustK1Toggled = (usState.income_us_source.trusts_estates_k1 || []).some(k1 => k1.has_trust_income) ||
+                (usState.income_us_source.trusts_estates_k1 || []).length > 0;
             const trustK1ToggleEl = document.getElementById('trust-k1-has-toggle');
             if (trustK1ToggleEl) {
                 trustK1ToggleEl.checked = hasTrustK1Toggled;
                 const container = document.getElementById('biz-card-trust');
                 if (container) container.classList.toggle('hidden', !hasTrustK1Toggled);
+            }
+
+            // business-has-toggle (the umbrella card gating the whole Business
+            // module) was never restored on load at all — derive it from any of
+            // the six sub-categories above, or a raw business_income_usd figure
+            // (the shape a C-corp-as-taxpayer profile uses instead of a K-1).
+            const hasAnyBusiness = hasSeToggled || hasFarmToggled || hasPartK1Toggled || hasScorpK1Toggled || hasCcorpToggled || hasTrustK1Toggled ||
+                (usState.income_us_source.business_income_usd || 0) > 0;
+            const bizToggleEl = document.getElementById('business-has-toggle');
+            if (bizToggleEl) {
+                bizToggleEl.checked = hasAnyBusiness;
+                if (typeof toggleUSBusinessModule === 'function') toggleUSBusinessModule();
             }
 
             toggleEquityCompSections(usState.equity_compensation.has_equity_comp);
