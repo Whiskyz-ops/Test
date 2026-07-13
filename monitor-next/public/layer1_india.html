@@ -7875,7 +7875,7 @@ const crDiv = document.getElementById('div-company-residency');
         }
     }
 
-    function addBuybackRow() {
+    function addBuybackRow(tx = null) {
         const rowId = 'bb-' + Date.now();
         const list = document.getElementById('div-bb-list');
         const div = document.createElement('div');
@@ -7953,7 +7953,37 @@ const crDiv = document.getElementById('div-company-residency');
             </div>
         `;
         list.appendChild(div);
+        if (tx) {
+            const nameEl = div.querySelector('.bb-name');
+            if (nameEl) nameEl.value = tx.company_name || '';
+            const listedEl = div.querySelector('.bb-listed');
+            if (listedEl && tx.is_listed !== undefined) listedEl.value = tx.is_listed ? 'yes' : 'no';
+            const promoterEl = div.querySelector('.bb-promoter');
+            if (promoterEl && tx.is_promoter !== undefined) promoterEl.value = tx.is_promoter ? 'yes' : 'no';
+            const dateEl = div.querySelector('.bb-date');
+            if (dateEl && tx.buyback_date) dateEl.value = tx.buyback_date;
+            const recdEl = div.querySelector('.bb-recd');
+            if (recdEl && tx.consideration_received_inr != null) recdEl.value = tx.consideration_received_inr;
+            const costEl = div.querySelector('.bb-cost');
+            if (costEl && tx.original_cost_inr != null) costEl.value = tx.original_cost_inr;
+            const acqEl = div.querySelector('.bb-acq-date');
+            if (acqEl && tx.original_acquisition_date) acqEl.value = tx.original_acquisition_date;
+        }
         syncBuybackState();
+    }
+
+    // Loops state.share_buyback.transactions and renders each as a card —
+    // addBuybackRow() previously took no parameters at all (manual "+ Add
+    // Buyback" clicks only), so a loaded profile's real buyback transactions
+    // (Vikram's two-tranche founder buyback, the profile's centerpiece
+    // s.69 LTCG/promoter-surcharge demo) never appeared on this screen even
+    // though the Monitor's engine correctly computes them from localStorage.
+    function renderBuybackRows() {
+        const list = document.getElementById('div-bb-list');
+        if (!list) return;
+        list.innerHTML = '';
+        const txs = (state.share_buyback && state.share_buyback.transactions) || [];
+        txs.forEach(tx => addBuybackRow(tx));
     }
 
     function removeBuybackRow(id) {
@@ -9935,8 +9965,22 @@ const crDiv = document.getElementById('div-company-residency');
         }));
         
         if (tx) {
+            // Accept BOTH this card's own legacy field names AND the shape
+            // engine/normalize.js actually reads (asset_name_or_ticker,
+            // acquisition_date, purchase_value/currency, sale_value/currency,
+            // transfer_expenses — used by every profile and by the engine's
+            // own transaction-array aggregation, since the tax computation
+            // was always correct even when this card showed the row blank).
+            const assetName = tx.asset_name || tx.asset_name_or_ticker;
+            const acqDate = tx.purchase_date || tx.acquisition_date;
+            const purCurr = tx.purchase_curr || tx.purchase_currency;
+            const purVal = tx.purchase_val != null ? tx.purchase_val : tx.purchase_value;
+            const saleCurr = tx.sale_curr || tx.sale_currency;
+            const saleVal = tx.sale_val != null ? tx.sale_val : tx.sale_value;
+            const expenses = tx.brokerage != null ? tx.brokerage : tx.transfer_expenses;
+
             if (tx.asset_class) card.querySelector('.fin-class').value = tx.asset_class;
-            if (tx.asset_name) card.querySelector('.fin-name').value = tx.asset_name;
+            if (assetName) card.querySelector('.fin-name').value = assetName;
             if (tx.quantity) card.querySelector('.fin-qty').value = tx.quantity;
             if (tx.status) {
                 const statusRadio = card.querySelector(`input[name="fin-status-${rowId}"][value="${tx.status}"]`);
@@ -9945,16 +9989,25 @@ const crDiv = document.getElementById('div-company-residency');
                     toggleFinancialFields(rowId);
                 }
             }
-            if (tx.purchase_date) card.querySelector('.fin-acq').value = tx.purchase_date;
-            if (tx.purchase_curr) card.querySelector('.fin-pur-curr').value = tx.purchase_curr;
-            if (tx.purchase_val) card.querySelector('.fin-pur').value = tx.purchase_val;
+            if (acqDate) card.querySelector('.fin-acq').value = acqDate;
+            if (purCurr) card.querySelector('.fin-pur-curr').value = purCurr;
+            if (purVal != null) card.querySelector('.fin-pur').value = purVal;
             if (tx.grandfathering_fmv) card.querySelector('.fin-fmv').value = tx.grandfathering_fmv;
             if (tx.sale_date) card.querySelector('.fin-sale-date').value = tx.sale_date;
-            if (tx.sale_curr) card.querySelector('.fin-sale-curr').value = tx.sale_curr;
-            if (tx.sale_val) card.querySelector('.fin-sale').value = tx.sale_val;
+            if (saleCurr) card.querySelector('.fin-sale-curr').value = saleCurr;
+            if (saleVal != null) card.querySelector('.fin-sale').value = saleVal;
             if (tx.stt_paid) card.querySelector('.fin-stt').value = tx.stt_paid;
-            if (tx.brokerage) card.querySelector('.fin-exp').value = tx.brokerage;
+            if (expenses != null) card.querySelector('.fin-exp').value = expenses;
             if (tx.is_specified_foreign_exchange_asset !== undefined) card.querySelector('.fin-sfea').checked = tx.is_specified_foreign_exchange_asset;
+
+            // A profile-shape entry with sale_date/sale_value implies "sold"
+            // even without an explicit tx.status radio value — without this,
+            // the status radio stayed at its default (Currently Holding) and
+            // the sale-only fields above stayed hidden despite being filled.
+            if (!tx.status && (tx.sale_date || saleVal != null)) {
+                const soldRadio = card.querySelector(`input[name="fin-status-${rowId}"][value="sold"]`);
+                if (soldRadio) { soldRadio.checked = true; toggleFinancialFields(rowId); }
+            }
         }
 
         // Trigger initial state
@@ -10301,6 +10354,20 @@ const crDiv = document.getElementById('div-company-residency');
             </div>
         `;
         list.appendChild(div);
+        if (tx) {
+            const nameEl = div.querySelector('.ul-name');
+            if (nameEl) nameEl.value = tx.company_name || tx.company || '';
+            const qtyEl = div.querySelector('.ul-qty');
+            if (qtyEl && tx.shares_acquired != null) qtyEl.value = tx.shares_acquired;
+            const acqEl = div.querySelector('.ul-acq-date');
+            if (acqEl && tx.acquisition_date) acqEl.value = tx.acquisition_date;
+            const costEl = div.querySelector('.ul-cost-val');
+            if (costEl && tx.cost_inr != null) costEl.value = tx.cost_inr;
+            const saleDateEl = div.querySelector('.ul-sale-date');
+            if (saleDateEl && tx.sale_date) saleDateEl.value = tx.sale_date;
+            const saleValEl = div.querySelector('.ul-sale-val');
+            if (saleValEl && tx.sale_value != null) saleValEl.value = tx.sale_value;
+        }
         evaluateUnlistedNRStatus();
     }
 
@@ -12894,7 +12961,12 @@ ${isProf ? '' : `
                 if (prop.property_use === 'SOP') {
                     totalInterestSOP += intCap;
                 } else {
-                    let gav = prop.gross_annual_value_inr || 0;
+                    // annual_value_inr is what demo profiles (and
+                    // engine/normalize.js's own fallback chain) use — this
+                    // only ever recognized gross_annual_value_inr (the form's
+                    // own field name), so a loaded profile's real GAV showed
+                    // as ₹0 here even though the data was present.
+                    let gav = prop.gross_annual_value_inr != null ? prop.gross_annual_value_inr : (prop.annual_value_inr || 0);
                     let tax = prop.municipal_taxes_paid_inr || 0;
                     if (prop.financial_values_represent === 'TOTAL_PROPERTY') { gav *= prop.co_owner_share_percent / 100; tax *= prop.co_owner_share_percent / 100; }
                     const nav = Math.max(0, gav - tax);
@@ -13514,6 +13586,58 @@ ${isProf ? '' : `
         if (typeof syncFtcState === 'function') syncFtcState();  // guarded: no such function is defined anywhere in this file
         runResidencySolver();
 
+        // Spread this persona's salary/other-sources/capital-gains/lrs_outbound
+        // across the 4 India-FY quarters, the same way engine/profiles.js's
+        // buildQuarters() does for the Monitor's demo profiles. Every persona
+        // branch above sets these fields directly on the live `state` object
+        // and never touches state.quarters — so without this, switchQuarter()
+        // (which always reads/writes through state.quarters) shows 100% of
+        // the data in Q1 and nothing at all in Q2-Q4 the moment a quarter tab
+        // is clicked. Splitting the LIVE state.domestic_income/etc (already
+        // template-complete from file load, not a sparse persona-only blob)
+        // means every quarter's copy stays template-complete too — no risk of
+        // the sparse-quarters crash the loader path had to guard against.
+        state.active_quarter = 'Q1';
+        (function spreadPersonaDataAcrossQuarters() {
+            function splitFlow(node) {
+                if (node === null || node === undefined) return [null, null, null, null];
+                if (Array.isArray(node)) {
+                    const out = [[], [], [], []];
+                    node.forEach((el) => { const parts = splitFlow(el); for (let i = 0; i < 4; i++) out[i].push(parts[i]); });
+                    return out;
+                }
+                if (typeof node === 'object') {
+                    const out = [{}, {}, {}, {}];
+                    for (const k in node) {
+                        if (!Object.prototype.hasOwnProperty.call(node, k)) continue;
+                        const v = node[k];
+                        if (typeof v === 'number') {
+                            const base = Math.floor(v / 4), rem = v - base * 3;
+                            out[0][k] = base; out[1][k] = base; out[2][k] = base; out[3][k] = rem;
+                        } else if (typeof v === 'boolean' || typeof v === 'string') {
+                            out[0][k] = out[1][k] = out[2][k] = out[3][k] = v;
+                        } else {
+                            const parts = splitFlow(v);
+                            for (let i = 0; i < 4; i++) out[i][k] = parts[i];
+                        }
+                    }
+                    return out;
+                }
+                return [node, node, node, node];
+            }
+            const diQ = splitFlow(state.domestic_income);
+            const osQ = splitFlow(state.other_sources);
+            const cgQ = splitFlow(state.capital_gains);
+            const lrsQ = splitFlow(state.lrs_outbound);
+            ['Q1', 'Q2', 'Q3', 'Q4'].forEach((q, i) => {
+                state.quarters[q] = state.quarters[q] || {};
+                state.quarters[q].domestic_income = diQ[i];
+                state.quarters[q].other_sources = osQ[i];
+                state.quarters[q].capital_gains = cgQ[i];
+                state.quarters[q].lrs_outbound = lrsQ[i];
+            });
+        })();
+
         // Re-paint every Financial Life Snapshot card, sidebar income-step
         // button, and section gatekeeper toggle (sal-has, hp-gatekeeper,
         // biz-has, cg-has, os-has) from the state this persona just set,
@@ -14101,6 +14225,33 @@ ${isProf ? '' : `
             togglePropertyModule(propGatekeeper.value);
         }
 
+        // Financial holdings (listed/foreign equity, MFs, VDA/crypto),
+        // commodities, and unlisted equity — three more Capital Gains
+        // sub-modules whose render functions existed but had zero call
+        // sites anywhere in the file, so a loaded profile's real
+        // transactions (e.g. the AMZN/NVDA/BTC holding-period-mismatch
+        // demos) never appeared despite the data being correctly loaded.
+        if (typeof renderFinancialHoldings === 'function') renderFinancialHoldings();
+        if (typeof renderCommodities === 'function') renderCommodities();
+        if (typeof renderUnlistedEquity === 'function') renderUnlistedEquity();
+
+        // Schedule FA (foreign assets/income) — renderFaRows() already
+        // correctly loops state.foreign_assets.assets and reveals the
+        // section via toggleForeignAssets(), it just had zero call sites.
+        if (typeof renderFaRows === 'function') renderFaRows();
+
+        // Share buyback sub-module (bb-has) — same pattern as prop-has:
+        // render real rows first so toggleBuybackModule('true')'s own
+        // "add a blank row if empty" guard doesn't fire.
+        const bbGatekeeper = document.getElementById('bb-has');
+        if (bbGatekeeper) {
+            if (typeof renderBuybackRows === 'function') renderBuybackRows();
+            const hasBb = !!(state.share_buyback && (state.share_buyback.has_buyback_transaction ||
+                (state.share_buyback.transactions && state.share_buyback.transactions.length > 0)));
+            bbGatekeeper.value = hasBb ? 'true' : 'false';
+            toggleBuybackModule(bbGatekeeper.value);
+        }
+
         // Restore Business Fixed Inputs
         const biz = state.domestic_income.business_income;
         if (biz) {
@@ -14269,6 +14420,20 @@ ${isProf ? '' : `
                 if (savedState.commodities) Object.assign(state.commodities, savedState.commodities);
                 if (savedState.unlisted_equity) Object.assign(state.unlisted_equity, savedState.unlisted_equity);
                 if (savedState.carry_forward_losses) Object.assign(state.carry_forward_losses, savedState.carry_forward_losses);
+                // Never merged at all before — Vikram's founder buyback (the
+                // profile's centerpiece: two-tranche s.69 LTCG/promoter-surcharge
+                // demo) stayed at its empty default in the form's own state no
+                // matter what was loaded, even though the Monitor's engine reads
+                // this correctly (it goes straight from localStorage, not through
+                // this in-memory state object).
+                if (savedState.share_buyback) Object.assign(state.share_buyback, savedState.share_buyback);
+                // Also never merged — Anita's directly-declared Schedule FA
+                // assets (US brokerage + real estate) stayed invisible on this
+                // form; only entries the US-to-India bidirectional hydration
+                // block synthesizes separately (e.g. from 401k/RSU data) ever
+                // reached state.foreign_assets before this.
+                if (savedState.foreign_assets) Object.assign(state.foreign_assets, savedState.foreign_assets);
+                if (savedState.foreign_income) Object.assign(state.foreign_income, savedState.foreign_income);
                 if (savedState.tax_credits) Object.assign(state.tax_credits, savedState.tax_credits);
                 if (savedState.deductions) {
                     for (const key in savedState.deductions) {
@@ -14790,9 +14955,18 @@ ${isProf ? '' : `
         const isCorp = (entity !== 'individual' && entity !== 'huf');
 
         state.domestic_income.house_property.properties.forEach((prop, idx) => {
-            const isSOP = prop.property_use === 'SOP';
+            // Profiles set annual_value_inr (the shape engine/normalize.js
+            // reads — see the same fallback chain there) without ever setting
+            // property_use, so this always defaulted to the SOP branch even
+            // for a property that's clearly generating rental income —
+            // hiding GAV/municipal-tax/interest and showing them all blank.
+            // Infer LOP whenever there's real annual-value data and no
+            // explicit use was set, matching what that data actually means.
+            const gav = prop.gross_annual_value_inr != null ? prop.gross_annual_value_inr : prop.annual_value_inr;
+            const inferredUse = prop.property_use || ((gav || prop.gross_rent_received_inr) ? 'LOP' : 'SOP');
+            const isSOP = inferredUse === 'SOP';
             const hideInterest = isSOP && regime === 'NEW';
-            
+
             const html = `
                 <div class="p-5 bg-[#121212] border border-white/10 rounded-2xl flex flex-col gap-5 relative group">
                     <button onclick="removeHouseProperty(${idx})" class="absolute top-4 right-4 text-white/20 hover:text-brandRed transition-colors">
@@ -14829,9 +15003,9 @@ ${isProf ? '' : `
                         <div>
                             <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Property Use</label>
                             <select onchange="updateHPField(${idx}, 'property_use', this.value)" class="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono">
-                                <option class="bg-[#1c1c1c] text-white" value="SOP" ${prop.property_use === 'SOP' ? 'selected' : ''}>Self-Occupied (SOP)</option>
-                                <option class="bg-[#1c1c1c] text-white" value="LOP" ${prop.property_use === 'LOP' ? 'selected' : ''}>Let-Out (LOP)</option>
-                                <option class="bg-[#1c1c1c] text-white" value="DLOP" ${prop.property_use === 'DLOP' ? 'selected' : ''}>Deemed Let-Out (DLOP)</option>
+                                <option class="bg-[#1c1c1c] text-white" value="SOP" ${inferredUse === 'SOP' ? 'selected' : ''}>Self-Occupied (SOP)</option>
+                                <option class="bg-[#1c1c1c] text-white" value="LOP" ${inferredUse === 'LOP' ? 'selected' : ''}>Let-Out (LOP)</option>
+                                <option class="bg-[#1c1c1c] text-white" value="DLOP" ${inferredUse === 'DLOP' ? 'selected' : ''}>Deemed Let-Out (DLOP)</option>
                             </select>
                         </div>
                         
@@ -14854,7 +15028,7 @@ ${isProf ? '' : `
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="transition-all ${isSOP ? 'opacity-30 pointer-events-none hidden' : ''}">
                             <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Gross Annual Value (GAV)</label>
-                            <input type="text" inputmode="numeric" onblur="updateHPField(${idx}, 'gross_annual_value_inr', this.value)" value="${prop.gross_annual_value_inr || ''}" ${isSOP ? 'disabled' : ''} class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono">
+                            <input type="text" inputmode="numeric" onblur="updateHPField(${idx}, 'gross_annual_value_inr', this.value)" value="${gav || ''}" ${isSOP ? 'disabled' : ''} class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono">
                         </div>
                         <div class="transition-all ${isSOP ? 'opacity-30 pointer-events-none hidden' : ''}">
                             <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Municipal Taxes Paid</label>

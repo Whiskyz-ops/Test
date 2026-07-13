@@ -357,8 +357,15 @@
     var hpProps = safe(di, "house_property.properties", []);
     var houseProperty = zeroMoney();
     (hpProps || []).forEach(function (p) {
+      // gross_annual_value_inr is what Layer 1 India's own "Gross Annual
+      // Value (GAV)" input actually writes (updateHPField) — every real user
+      // entry landed here, silently invisible to this fallback chain, which
+      // only ever recognized annual_value_inr/net_income_inr/
+      // gross_rent_received_inr (the shapes demo profiles use). Same
+      // Phase-0-shortcut treatment either way (see gap tracker IN-8 for the
+      // municipal-tax/30%-deduction/interest computation this doesn't do yet).
       houseProperty = addMoney(houseProperty, moneyFromInr(
-        p.annual_value_inr || p.net_income_inr || p.gross_rent_received_inr || 0
+        p.annual_value_inr || p.gross_annual_value_inr || p.net_income_inr || p.gross_rent_received_inr || 0
       ));
     });
 
