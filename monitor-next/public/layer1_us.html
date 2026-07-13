@@ -2021,31 +2021,31 @@
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">US Bank Interest (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1 of Form 1099-INT</span></label>
-                        <input type="text" inputmode="numeric" id="inc-us-interest" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-interest" placeholder="0" oninput="syncUsInterestTotal()" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">US Treasury / Bond Interest<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 3 of Form 1099-INT</span></label>
-                        <input type="text" inputmode="numeric" id="inc-us-interest-treasury" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-interest-treasury" placeholder="0" oninput="syncUsInterestTotal()" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Original Issue Discount (OID)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Form 1099-OID</span></label>
-                        <input type="text" inputmode="numeric" id="inc-us-interest-oid" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-interest-oid" placeholder="0" oninput="syncUsInterestTotal()" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Seller-Financed Mortgage<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Private loan / P2P interest</span></label>
-                        <input type="text" inputmode="numeric" id="inc-us-interest-private" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-interest-private" placeholder="0" oninput="syncUsInterestTotal()" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
-                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Tax-Exempt Interest (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 8 of Form 1099-INT</span></label>
-                        <input type="text" inputmode="numeric" id="inc-us-interest-exempt" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Tax-Exempt Interest (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 8 of Form 1099-INT — not federally taxable, recordkeeping only</span></label>
+                        <input type="text" inputmode="numeric" id="inc-us-interest-exempt" placeholder="0" oninput="updateStateField('income_us_source', 'interest_us_exempt_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">US Ordinary Dividends (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1a of Form 1099-DIV</span></label>
-                        <input type="text" inputmode="numeric" id="inc-us-div-ord" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-div-ord" placeholder="0" oninput="updateStateField('income_us_source', 'ordinary_dividends_us_source_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">US Qualified Dividends (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1b of Form 1099-DIV</span></label>
-                        <input type="text" inputmode="numeric" id="inc-us-div-qual" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-div-qual" placeholder="0" oninput="updateStateField('income_us_source', 'qualified_dividends_us_source_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                 </div>
             </div>
@@ -2059,7 +2059,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Gross US Rental Earnings (USD)</label>
-                        <input type="text" inputmode="numeric" id="inc-us-rental" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-rental" placeholder="0" oninput="updateStateField('income_us_source', 'rental_income_us_source_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Total Rental Expenses (USD)</label>
@@ -3987,6 +3987,11 @@
             trusts_estates_k1: [],
             se_health_insurance_deduction_usd: null,
             se_retirement_deduction_usd: null,
+            interest_us_bank_usd: null,
+            interest_us_treasury_usd: null,
+            interest_us_oid_usd: null,
+            interest_us_private_usd: null,
+            interest_us_exempt_usd: null,
             interest_us_source_usd: null,
             ordinary_dividends_us_source_usd: null,
             qualified_dividends_us_source_usd: null,
@@ -5746,6 +5751,28 @@
         if (!usState[category]) usState[category] = {};
         if (!usState[category][subcategory]) usState[category][subcategory] = {};
         usState[category][subcategory][field] = val;
+        recalculateDerivedFields();
+        saveStateAndSync();
+    }
+
+    // Schedule B splits interest across 4 boxes (bank / treasury / OID /
+    // seller-financed); the engine only reads one aggregate
+    // (interest_us_source_usd), so this sums the 3 ordinary-income boxes
+    // into it on every keystroke. Tax-exempt interest (Box 8) is tracked
+    // separately and deliberately excluded from the taxable total — it
+    // isn't subject to federal income tax. These 4 inputs previously had no
+    // handler at all (see docs/FIELD_COVERAGE_AUDIT.md): typing into them
+    // did nothing.
+    function syncUsInterestTotal() {
+        const bank = parseFormattedNumber(document.getElementById('inc-us-interest')?.value) || 0;
+        const treasury = parseFormattedNumber(document.getElementById('inc-us-interest-treasury')?.value) || 0;
+        const oid = parseFormattedNumber(document.getElementById('inc-us-interest-oid')?.value) || 0;
+        const priv = parseFormattedNumber(document.getElementById('inc-us-interest-private')?.value) || 0;
+        usState.income_us_source.interest_us_bank_usd = bank;
+        usState.income_us_source.interest_us_treasury_usd = treasury;
+        usState.income_us_source.interest_us_oid_usd = oid;
+        usState.income_us_source.interest_us_private_usd = priv;
+        usState.income_us_source.interest_us_source_usd = bank + treasury + oid + priv;
         recalculateDerivedFields();
         saveStateAndSync();
     }
@@ -17166,6 +17193,11 @@
             trusts_estates_k1: [],
             se_health_insurance_deduction_usd: null,
             se_retirement_deduction_usd: null,
+            interest_us_bank_usd: null,
+            interest_us_treasury_usd: null,
+            interest_us_oid_usd: null,
+            interest_us_private_usd: null,
+            interest_us_exempt_usd: null,
             interest_us_source_usd: null,
             ordinary_dividends_us_source_usd: null,
             qualified_dividends_us_source_usd: null,
@@ -17708,6 +17740,11 @@
                 usState.income_us_source.se_retirement_deduction_usd = savedState.income_us_source.se_retirement_deduction_usd || null;
 
                 usState.income_us_source.interest_us_source_usd = savedState.income_us_source.interest_us_source_usd;
+                usState.income_us_source.interest_us_bank_usd = savedState.income_us_source.interest_us_bank_usd;
+                usState.income_us_source.interest_us_treasury_usd = savedState.income_us_source.interest_us_treasury_usd;
+                usState.income_us_source.interest_us_oid_usd = savedState.income_us_source.interest_us_oid_usd;
+                usState.income_us_source.interest_us_private_usd = savedState.income_us_source.interest_us_private_usd;
+                usState.income_us_source.interest_us_exempt_usd = savedState.income_us_source.interest_us_exempt_usd;
                 usState.income_us_source.ordinary_dividends_us_source_usd = savedState.income_us_source.ordinary_dividends_us_source_usd;
                 usState.income_us_source.qualified_dividends_us_source_usd = savedState.income_us_source.qualified_dividends_us_source_usd;
                 usState.income_us_source.stcg_us_source_usd = savedState.income_us_source.stcg_us_source_usd;
@@ -17896,7 +17933,11 @@
             } else {
                 // document.getElementById('div-se-container').classList.add('hidden');
             }
-            document.getElementById('inc-us-interest').value = usState.income_us_source.interest_us_source_usd || '';
+            document.getElementById('inc-us-interest').value = usState.income_us_source.interest_us_bank_usd || '';
+            document.getElementById('inc-us-interest-treasury').value = usState.income_us_source.interest_us_treasury_usd || '';
+            document.getElementById('inc-us-interest-oid').value = usState.income_us_source.interest_us_oid_usd || '';
+            document.getElementById('inc-us-interest-private').value = usState.income_us_source.interest_us_private_usd || '';
+            document.getElementById('inc-us-interest-exempt').value = usState.income_us_source.interest_us_exempt_usd || '';
             document.getElementById('inc-us-div-ord').value = usState.income_us_source.ordinary_dividends_us_source_usd || '';
             document.getElementById('inc-us-div-qual').value = usState.income_us_source.qualified_dividends_us_source_usd || '';
             const stcgEl = document.getElementById('inc-us-stcg');

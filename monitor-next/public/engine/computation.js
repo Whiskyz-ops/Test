@@ -230,8 +230,9 @@
     // Ordinary NRO interest is NOT s.207 income (see computeNrInterestTreatment)
     // — it defaults to slab rates, with only a DTAA-beneficial slice carved
     // out. Dividend/royalty/FTS genuinely are s.207 income, unchanged.
+    var otherSourcesMiscInr = (inc.otherSourcesMisc && inc.otherSourcesMisc.inr) || 0;
     var nrInterest = isNR
-      ? computeNrInterestTreatment(model, T, slabs, inc.salary.inr + inc.business.inr + inc.houseProperty.inr + deemedDividendInr, inc.interest.inr)
+      ? computeNrInterestTreatment(model, T, slabs, inc.salary.inr + inc.business.inr + inc.houseProperty.inr + deemedDividendInr + otherSourcesMiscInr, inc.interest.inr)
       : null;
     var s115aDividend = isNR ? computeS115aStream(model, T, "dividend", inc.dividend.inr) : null;
     var s115aRoyalty = isNR ? computeS115aStream(model, T, "royalty", null) : null;
@@ -257,7 +258,7 @@
     var lossSetOff = computeLossSetOff(model.carryForwardLosses || {}, {
       businessInr: inc.business.inr,
       housePropertyInr: inc.houseProperty.inr,
-      otherNormalInr: deemedDividendInr + (isNR ? nrInterestSlabEligibleInr : inc.interest.inr + inc.dividend.inr),
+      otherNormalInr: deemedDividendInr + otherSourcesMiscInr + (isNR ? nrInterestSlabEligibleInr : inc.interest.inr + inc.dividend.inr),
       stcgInr: inc.stcg.inr,
       stcgSlabInr: inc.stcgSlabInr || 0,
       ltcgGrossInr: inc.ltcg.inr,
@@ -273,12 +274,28 @@
       deductionsInr = ded.s80CCD2_employer || 0;
     } else {
       var caps = T.DEDUCTION_CAPS_OLD;
+      // s.80GG (rent paid, no HRA received): least of (a) rent paid less 10%
+      // of adjusted total income, (b) ₹5,000/month (₹60,000/year), (c) 25%
+      // of adjusted total income. normalSlabInr (gross total income before
+      // Chapter VI-A deductions) is used as the adjusted-total-income proxy
+      // — not the exact statutory definition (which also excludes LTCG/
+      // STCG/certain other items) but a disclosed, directly-available floor,
+      // consistent with this file's existing Phase-0 approximations
+      // elsewhere. Only ever previously read nowhere in this engine (see
+      // docs/FIELD_COVERAGE_AUDIT.md) — was unconditionally ₹0.
+      var s80ggRentInr = ded.s80GG_rentPaidInr || 0;
+      var s80ggInr = s80ggRentInr > 0
+        ? Math.max(0, Math.min(s80ggRentInr - 0.10 * normalSlabInr, 60000, 0.25 * normalSlabInr))
+        : 0;
       deductionsInr =
         Math.min(ded.s80C, caps.s80C) +
         Math.min(ded.s80CCD1B, caps.s80CCD1B) +
         Math.min(ded.s80D, caps.s80D_self + caps.s80D_parents_senior) +
         (ded.s80CCD2_employer || 0) +
-        Math.min(ded.s80TTA_TTB, 10000);
+        Math.min(ded.s80TTA_TTB, 10000) +
+        (ded.s80DD || 0) + (ded.s80DDB || 0) + (ded.s80U || 0) +
+        (ded.s80E || 0) + (ded.s80EEA_EE || 0) + (ded.s80GGB_GGC || 0) +
+        s80ggInr;
     }
 
     var totalNormalInr = Math.max(0, normalSlabInr - deductionsInr);
@@ -716,8 +733,18 @@
     var seTax = seNet > 0 ? (T.SE_RATE_SS * Math.min(seNet, ssBaseRemaining) + T.SE_RATE_MEDICARE * seNet) : 0;
     var halfSeDeduction = seTax / 2;
 
-    // Adjustments (above-the-line) — student-loan interest + 1/2 SE tax.
-    var adjustments = Math.min(ded.studentLoanInterest, 2500) + halfSeDeduction;
+    // Adjustments (above-the-line) — student-loan interest + 1/2 SE tax +
+    // SE health insurance (§162(l)) + SE retirement plan (SEP-IRA/Solo
+    // 401k, §404). Both were previously read nowhere in this engine (see
+    // docs/FIELD_COVERAGE_AUDIT.md) despite the form correctly collecting
+    // them — AGI was always overstated by the full amount of both for a
+    // self-employed filer. Floored at seNet (can't deduct more SE health
+    // insurance than there was SE income to support it), matching this
+    // file's existing Phase-0-floor convention rather than modeling the
+    // exact §162(l)(2)(A) earned-income limitation precisely.
+    var seHealthDeduction = Math.min(ded.seHealthInsuranceDeductionUsd || 0, Math.max(0, seNet));
+    var adjustments = Math.min(ded.studentLoanInterest, 2500) + halfSeDeduction +
+      seHealthDeduction + (ded.seRetirementDeductionUsd || 0);
     var agi = Math.max(0, totalIncome - adjustments);
 
     // Deduction: standard vs itemized.

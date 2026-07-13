@@ -761,6 +761,76 @@
       // Unrecognized asset_class — intentionally not classified.
     });
 
+    // Commodities (Financial Life Snapshot's separate "Commodities" module —
+    // physical gold/silver, Sovereign Gold Bonds, gold ETFs/FoFs). Never read
+    // anywhere in this engine before this fix — layer1_india.html persists
+    // these transactions (state.commodities.transactions) and even renders
+    // them back into the form, but nothing downstream ever computed a
+    // capital gain from them; a user's commodity sale was invisible to tax
+    // computation regardless of how carefully it was entered.
+    //   physical_gold / silver / "other": plain capital asset, s.112, 24mo
+    //     threshold, 12.5% LTCG (no exemption) / slab STCG — GROUP_C
+    //     treatment, same as any other non-equity, non-specified asset.
+    //   sovereign_gold_bond_original redeemed AT MATURITY (is_maturity_
+    //     redemption === true): exempt under s.47(viic) — no transfer, no
+    //     gain, same convention as nri_specified_company_deposit above.
+    //   sovereign_gold_bond_original (sold before maturity) / _secondary:
+    //     SGBs are listed on stock exchanges — GROUP_E treatment (12mo
+    //     threshold, s.112 12.5% no-exemption LTCG / slab STCG).
+    //   gold_etf / gold_fund_of_funds: Finance Act 2023 extended s.50AA's
+    //     "specified mutual fund" always-short-term/slab treatment beyond
+    //     debt funds to gold/silver ETFs and FoFs acquired on/after
+    //     1-Apr-2023 — GROUP_D treatment (always short-term, any holding
+    //     period). Single-pass verification only (not the multi-source pass
+    //     the financial_holdings classes above received) — re-verify before
+    //     relying on this for a real filing, same as any freshly-added gap.
+    var commodityLtcg197Inr = 0, commodityStcgSlabInr = 0;
+    (safe(india, "commodities.transactions", []) || []).forEach(function (tx) {
+      if (tx.is_maturity_redemption === true) return; // s.47(viic) — exempt, not a taxable transfer
+      if (!tx.sale_date || tx.sale_value === null || tx.sale_value === undefined || tx.sale_value === "") return; // still holding — no taxable event yet
+      var saleInr = toInrAtCurrency(tx.sale_value, tx.sale_currency);
+      var purchaseInr = toInrAtCurrency(tx.purchase_value, tx.purchase_currency);
+      if (saleInr === null || purchaseInr === null) return; // EUR/GBP — uncomputed gap, not guessed
+      var months = monthsBetween(tx.acquisition_date, tx.sale_date);
+      if (months === null) return; // no acquisition date — can't classify, don't guess
+      var g = saleInr - purchaseInr;
+      var ctype = tx.commodity_type;
+      if (ctype === "gold_etf" || ctype === "gold_fund_of_funds") {
+        commodityStcgSlabInr += g; // GROUP_D — always short-term, any holding period
+      } else if (ctype === "sovereign_gold_bond_original" || ctype === "sovereign_gold_bond_secondary") {
+        if (months > 12) commodityLtcg197Inr += g; else commodityStcgSlabInr += g; // GROUP_E — listed, 12mo threshold
+      } else {
+        if (months > 24) commodityLtcg197Inr += g; else commodityStcgSlabInr += g; // GROUP_C — physical gold/silver/other
+      }
+    });
+
+    // Unlisted Equity ("Private Shares Transferred" module) — privately-held
+    // company shares, distinct from the financial_holdings listed/mutual-
+    // fund transactions above. Same gap as commodities: persisted and
+    // rendered back by Layer 1, never read by this engine before this fix.
+    // No exchange means no STT was ever paid, so this gets the general
+    // s.112/s.197 24-month threshold — the same GROUP_C-equivalent rate as
+    // the unlisted buy-back LTCG bucket earlier in this function, not the
+    // listed-equity 12-month/STT-preferential treatment.
+    var unlistedEquityLtcg197Inr = 0, unlistedEquityStcgSlabInr = 0;
+    (safe(india, "unlisted_equity.transactions", []) || []).forEach(function (tx) {
+      if (!tx.sale_date || tx.sale_price_per_share === null || tx.sale_price_per_share === undefined || tx.sale_price_per_share === "") return; // still holding
+      var shares = num(tx.number_of_shares);
+      if (!(shares > 0)) return; // no share count on file — can't total the transaction, don't guess
+      var saleInr = toInrAtCurrency(num(tx.sale_price_per_share) * shares, tx.sale_price_per_share_currency);
+      var purchaseInr;
+      if (tx.original_investment_currency && tx.original_investment_currency !== "INR" && tx.original_cost_in_foreign_currency != null) {
+        purchaseInr = toInrAtCurrency(num(tx.original_cost_in_foreign_currency), tx.original_investment_currency);
+      } else {
+        purchaseInr = toInrAtCurrency(num(tx.cost_per_share) * shares, tx.cost_per_share_currency);
+      }
+      if (saleInr === null || purchaseInr === null) return; // EUR/GBP — uncomputed gap, not guessed
+      var months = monthsBetween(tx.acquisition_date, tx.sale_date);
+      if (months === null) return; // no acquisition date — can't classify, don't guess
+      var g = saleInr - purchaseInr;
+      if (months > 24) unlistedEquityLtcg197Inr += g; else unlistedEquityStcgSlabInr += g;
+    });
+
     var deemedDividendBuyback = moneyFromInr(deemedDividendInr);
     // Slab-rate STCG (<=24mo, no s.198/s.196 exemption or flat rate — taxed
     // at the taxpayer's own slab rate, but still Capital Gains head income,
@@ -768,8 +838,36 @@
     // holdings, and every other GROUP_C/D/E-classified Financial Holdings
     // asset land here, joining the normal-slab bucket (like the deemed
     // dividend above) only AFTER computeLossSetOff, not before.
-    var unlistedStcgSlabInr = buybackStcgSlabInr + foreignEquityStcgSlabInr + otherStcgSlabInr;
+    var unlistedStcgSlabInr = buybackStcgSlabInr + foreignEquityStcgSlabInr + otherStcgSlabInr + commodityStcgSlabInr + unlistedEquityStcgSlabInr;
     var dividend = moneyFromInr(num(safe(os, "dividend_inr", 0)));
+
+    // Other Sources slab-rate residuals: gifts above ₹50,000 (s.56(2)(x),
+    // taxed in full — no ₹50k "exemption slice," the threshold just decides
+    // whether the WHOLE amount is taxable), family pension net of its s.57
+    // (iia) standard deduction (lower of 1/3rd or ₹15,000), spousal income
+    // clubbing (s.64) net of the s.64(1A) minor-child clubbing exemption,
+    // non-s.10(10D)-exempt life-insurance maturity proceeds, s.56(2)(viib)
+    // angel-tax share premium, less s.10(20) local-authority exemption, plus
+    // any residual "miscellaneous" entry. Every one of these fields was
+    // being collected by Layer 1 India, and even fed the form's OWN on-page
+    // live-preview total (evaluateSurchargeBuckets's normalSlab/
+    // otherSourcesAdditions calculation), but was never read by this engine
+    // at all — silently ₹0 in every real computation. taxable_epf_interest_
+    // inr/taxable_nps_withdrawal_inr were already read elsewhere in this
+    // function (for the US cross-border exposure figure) but, per the same
+    // form formula, ALSO belong in India's own other-sources total and
+    // weren't previously added here either.
+    var giftsAbove50kInr = num(safe(os, "gifts_above_50k_inr", 0));
+    var familyPensionGrossInr = num(safe(os, "family_pension_gross_inr", 0));
+    var familyPensionNetInr = Math.max(0, familyPensionGrossInr - Math.min(15000, Math.round(familyPensionGrossInr / 3)));
+    var taxableEpfInterestInrForIndia = num(safe(os, "taxable_epf_interest_inr", 0));
+    var taxableNpsWithdrawalInrForIndia = num(safe(os, "taxable_nps_withdrawal_inr", 0));
+    var otherSourcesMiscInr = giftsAbove50kInr + familyPensionNetInr +
+      num(safe(os, "spousal_clubbing_s64_inr", 0)) - num(safe(os, "minor_child_exemption_inr", 0)) +
+      num(safe(os, "lic_maturity_inr", 0)) + num(safe(os, "angel_tax_premium_inr", 0)) -
+      num(safe(os, "local_authority_s10_20_inr", 0)) + num(safe(os, "miscellaneous_income_inr", 0)) +
+      taxableEpfInterestInrForIndia + taxableNpsWithdrawalInrForIndia;
+    var otherSourcesMisc = moneyFromInr(otherSourcesMiscInr);
 
     // Capital gains — Layer 1 stores transaction data; surface the simple
     // short-term figure the form exposes, plus any annual capital_gains slice.
@@ -791,7 +889,7 @@
                             buybackStcgInr + otherStcg20Inr);
     var ltcg = moneyFromInr(num(safe(annual.capital_gains, "ltcg_112a_inr", 0)) +
                             buybackLtcgInr + otherLtcg198Inr);
-    var ltcg197Inr = buybackLtcg197Inr + foreignEquityLtcg197Inr + otherLtcg197Inr;
+    var ltcg197Inr = buybackLtcg197Inr + foreignEquityLtcg197Inr + otherLtcg197Inr + commodityLtcg197Inr + unlistedEquityLtcg197Inr;
 
     // Special-rate "other sources" income — flat 30% under s.128 (lottery/
     // betting) and s.194 (online gaming), no basic exemption, no Chapter
@@ -814,11 +912,11 @@
 
     var total = [salary, business, houseProperty, interest, dividend, stcg, ltcg, specialRate115bb, deemedDividendBuyback,
                  moneyFromInr(unlistedStcgSlabInr), moneyFromInr(ltcg197Inr), moneyFromInr(vdaGainInr),
-                 moneyFromInr(chapterXiiaInvestmentIncomeInr)].reduce(addMoney, zeroMoney());
+                 moneyFromInr(chapterXiiaInvestmentIncomeInr), otherSourcesMisc].reduce(addMoney, zeroMoney());
 
     return {
       salary: salary, business: business, houseProperty: houseProperty,
-      interest: interest, dividend: dividend,
+      interest: interest, dividend: dividend, otherSourcesMisc: otherSourcesMisc,
       stcg: stcg, ltcg: ltcg, ltcg197Inr: ltcg197Inr,
       capitalGains: addMoney(addMoney(stcg, ltcg), moneyFromInr(ltcg197Inr)),
       specialRate115bb: specialRate115bb,
@@ -847,8 +945,41 @@
   }
 
   /* India deduction inputs (Chapter VI-A) for the tax engine. */
+  var S80DD_U_FLAT = { standard: 75000, severe: 125000 };
+  var S80DDB_CAP = { normal: 40000, senior: 100000 };
+  // s.80EE (loans sanctioned 1-Apr-2016 to 31-Mar-2017, cap ₹50,000) vs
+  // s.80EEA (loans sanctioned 1-Apr-2019 to 31-Mar-2022, cap ₹1,50,000) —
+  // both sanction windows are long closed to NEW loans, but a taxpayer still
+  // repaying a loan sanctioned inside either window can keep claiming it
+  // every year until the loan is paid off. Layer 1 collects one shared field
+  // for both sections; the sanction date alone decides which cap (if
+  // either) applies.
+  function s80eeaEeCapInr(sanctionDate) {
+    if (!sanctionDate) return 0; // no date on file — can't determine eligibility, don't guess
+    var d = new Date(sanctionDate);
+    if (isNaN(d.getTime())) return 0;
+    if (d >= new Date("2016-04-01") && d <= new Date("2017-03-31")) return 50000; // s.80EE
+    if (d >= new Date("2019-04-01") && d <= new Date("2022-03-31")) return 150000; // s.80EEA
+    return 0; // outside both windows — not eligible
+  }
+
   function aggregateIndiaDeductions(india) {
     var d = safe(india, "deductions", {});
+    // s.80DD (disability of a dependent) / s.80U (self) — a FIXED statutory
+    // amount by disability severity, not the taxpayer's actual expenditure:
+    // ₹75,000 standard (40-79% disability), ₹1,25,000 severe (>=80%). Layer
+    // 1 already resolves the severity into "standard"/"severe" — mirror
+    // that mapping directly rather than re-deriving it.
+    var s80ddInr = safe(d, "s80DD.has_disabled_dependents", false) === true
+      ? (S80DD_U_FLAT[safe(d, "s80DD.disability_percentage", null)] || 0) : 0;
+    var s80uInr = safe(d, "s80U.has_self_disability", false) === true
+      ? (S80DD_U_FLAT[safe(d, "s80U.disability_percentage", null)] || 0) : 0;
+    // s.80DDB (medical treatment, specified diseases) — actual expenditure,
+    // capped by patient age band (Layer 1 already resolves this to
+    // "normal"/"senior").
+    var s80ddbInr = safe(d, "s80DDB.has_specified_diseases_treatment", false) === true
+      ? Math.min(num(safe(d, "s80DDB.medical_expenses_inr", 0)), S80DDB_CAP[safe(d, "s80DDB.patient_category", null)] || S80DDB_CAP.normal) : 0;
+    var s80eeaEeInr = Math.min(num(safe(d, "s80EEA_EE.affordable_home_loan_interest_inr", 0)), s80eeaEeCapInr(safe(d, "s80EEA_EE.loan_sanction_date", null)));
     return {
       s80C: num(safe(d, "s80C.epf_employee_inr", 0)) + num(safe(d, "s80C.ppf_inr", 0)) +
             num(safe(d, "s80C.elss_inr", 0)) + num(safe(d, "s80C.life_insurance_premium_inr", 0)) +
@@ -858,7 +989,22 @@
       s80CCD1B: num(safe(d, "s80CCD_1B.nps_additional_inr", 0)),
       s80CCD2_employer: num(safe(india, "domestic_income.salary.employer_nps_contribution_inr", 0)),
       s80D: num(safe(d, "s80D.self_family_premium_inr", 0)) + num(safe(d, "s80D.parents_premium_inr", 0)),
-      s80TTA_TTB: num(safe(d, "s80TTA_TTB.savings_interest_inr", 0))
+      s80TTA_TTB: num(safe(d, "s80TTA_TTB.savings_interest_inr", 0)),
+      // Newly wired (previously read nowhere in this engine — see
+      // docs/FIELD_COVERAGE_AUDIT.md): flat-amount and directly-capped
+      // deductions computed here; s.80GG (income-dependent 3-way minimum)
+      // is passed through raw and capped in computeIndiaTax, where gross
+      // total income is already available. s.80G (donations, per-entry %
+      // + qualifying-limit categorization) and s.80M (inter-corporate
+      // dividend, business-entity-only) remain unread — genuinely gross-
+      // income/entity-dependent, deliberately not guessed at here.
+      s80DD: s80ddInr,
+      s80DDB: s80ddbInr,
+      s80U: s80uInr,
+      s80E: num(safe(d, "s80E.education_loan_interest_inr", 0)),
+      s80EEA_EE: s80eeaEeInr,
+      s80GGB_GGC: num(safe(d, "s80ggb_ggc_political_donation_inr", 0)),
+      s80GG_rentPaidInr: safe(d, "s80GG.has_rent_paid_no_hra", false) === true ? num(safe(d, "s80GG.rent_paid_inr", 0)) : 0
     };
   }
 
@@ -1072,17 +1218,35 @@
       // AMT preference / adjustment items (§57): private-activity-bond interest,
       // ISO bargain element / other preference spread.
       isoAmtPrefUsd: isoAmtPrefUsd,
-      amtPrefs: num(safe(it, "private_activity_bond_interest_usd", 0)) +
+      // amt_inputs.private_activity_bond_interest_usd is the real path
+      // layer1_us.html's #amt-private-bond input writes (see
+      // docs/FIELD_COVERAGE_AUDIT.md) — the it.*/"amt."-prefixed paths below
+      // don't exist anywhere in the form; kept as harmless no-op fallbacks
+      // in case a hand-authored profile used one of those shapes instead.
+      amtPrefs: num(safe(us, "amt_inputs.private_activity_bond_interest_usd", 0)) +
+                num(safe(it, "private_activity_bond_interest_usd", 0)) +
                 num(safe(it, "amt_preference_spread_usd", 0)) +
                 num(safe(us, "amt.private_activity_bond_interest_usd", 0)) +
                 num(safe(us, "amt.amt_preference_spread_usd", 0)) +
                 num(safe(us, "amt_items_usd", 0)) +
                 isoAmtPrefUsd,
-      // Non-refundable personal credits
-      careExpenses: num(safe(it, "dependent_care_expenses_usd", 0)),
+      // Non-refundable personal credits. child_and_dependent_care_expenses_usd
+      // is what layer1_us.html's Child & Dependent Care Credit input
+      // (#ded-care) actually writes — this previously read a field name
+      // (dependent_care_expenses_usd) that exists nowhere in the form, so
+      // the credit was silently ₹0 for every filer regardless of what was
+      // entered (see docs/FIELD_COVERAGE_AUDIT.md).
+      careExpenses: num(safe(it, "child_and_dependent_care_expenses_usd", 0)) || num(safe(it, "dependent_care_expenses_usd", 0)),
       aotc: num(safe(it, "education_credits_aotc_usd", 0)),
       lifetimeLearning: num(safe(it, "education_credits_llc_usd", 0)),
-      dependents: num(safe(us, "profile.dependents_count", 0)) || num(safe(it, "dependents_count", 0))
+      dependents: num(safe(us, "profile.dependents_count", 0)) || num(safe(it, "dependents_count", 0)),
+      // Above-the-line SE health-insurance / SE retirement-plan (SEP-IRA,
+      // Solo 401k) deductions — layer1_us.html's #se-ded-health/#se-ded-ret
+      // inputs already persist these correctly to income_us_source; this
+      // engine just never read them back out, so a self-employed filer's
+      // AGI was always overstated by the full amount of both.
+      seHealthInsuranceDeductionUsd: num(safe(us, "income_us_source.se_health_insurance_deduction_usd", 0)),
+      seRetirementDeductionUsd: num(safe(us, "income_us_source.se_retirement_deduction_usd", 0))
     };
   }
 
