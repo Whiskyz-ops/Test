@@ -519,7 +519,11 @@ function DeadlineDetailModal({ x, jColor, docs, returnForms, onClose }) {
   const isFiling = x.cat === "Filing" || x.cat === "Extension";
   const form = x.jur === "IN" ? returnForms && returnForms.india && returnForms.india.form
     : returnForms && returnForms.us && returnForms.us.form;
-  const relatedDocs = isFiling && docs ? docs.filter((d) => d.jurisdiction === x.jur && d.required) : [];
+  // The deadline carries the exact document IDs filed on that date; show the
+  // ones this client actually triggers (required), in catalogue order.
+  const docIds = new Set(x.docIds || []);
+  const mapsDocs = docIds.size > 0;
+  const relatedDocs = docs ? docs.filter((d) => docIds.has(d.id) && d.required) : [];
   const longDate = x.date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
   const countdownWords = past ? Math.abs(x.daysUntil) + " days ago" : "in " + x.daysUntil + " days";
   return (
@@ -547,7 +551,7 @@ function DeadlineDetailModal({ x, jColor, docs, returnForms, onClose }) {
           </div>
         </div>
         <p className="text-[11px] text-body leading-relaxed mt-3">{CAT_NOTE[x.cat] || ""}</p>
-        {isFiling && (
+        {mapsDocs && (
           <div className="mt-3">
             <div className="text-[9px] font-bold uppercase tracking-widest text-muted mb-1.5">Filed with this deadline</div>
             {relatedDocs.length ? (
@@ -562,7 +566,7 @@ function DeadlineDetailModal({ x, jColor, docs, returnForms, onClose }) {
                   </div>
                 ))}
               </div>
-            ) : <div className="text-[11px] text-muted">No jurisdiction-specific documents flagged for this client.</div>}
+            ) : <div className="text-[11px] text-muted">None of this filing’s disclosures are triggered for this client.</div>}
           </div>
         )}
       </div>

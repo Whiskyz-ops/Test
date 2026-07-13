@@ -117,20 +117,29 @@
     });
 
     // ================= 3. COMPLIANCE CALENDAR =================
+    // docIds ties each deadline to the specific CONST.DOCUMENTS that are filed
+    // on/by that date, so the UI can show a precise document subset per deadline
+    // (intersected with what this client actually triggers) instead of "every
+    // document for the jurisdiction". Payment installments (advance / estimated
+    // tax) carry no informational forms. Note Form 15CA/CB is deliberately
+    // absent — it's filed at the time of each remittance, not with the return.
+    var US_RETURN_DOCS = ["fincen_114", "form_8938", "form_1116", "form_2555", "form_8833",
+      "form_8621", "form_5471", "form_8865", "form_3520", "form_1040nr", "form_8960", "form_8959"];
+    var IN_RETURN_DOCS = ["form_67", "trc", "form_10f", "schedule_fa", "schedule_fsi_tr"];
     function d(y, m, day) { return new Date(y, m - 1, day); }
     var deadlines = [
-      { name: "India advance tax — Q1 (15%)", jur: "IN", date: d(baseYear, 6, 15), cat: "Advance tax" },
-      { name: "India advance tax — Q2 (45%)", jur: "IN", date: d(baseYear, 9, 15), cat: "Advance tax" },
-      { name: "India advance tax — Q3 (75%)", jur: "IN", date: d(baseYear, 12, 15), cat: "Advance tax" },
-      { name: "India advance tax — Q4 (100%)", jur: "IN", date: d(baseYear + 1, 3, 15), cat: "Advance tax" },
-      { name: "US estimated tax — Q1", jur: "US", date: d(baseYear, 4, 15), cat: "Estimated tax" },
-      { name: "US estimated tax — Q2", jur: "US", date: d(baseYear, 6, 15), cat: "Estimated tax" },
-      { name: "US estimated tax — Q3", jur: "US", date: d(baseYear, 9, 15), cat: "Estimated tax" },
-      { name: "US estimated tax — Q4", jur: "US", date: d(baseYear + 1, 1, 15), cat: "Estimated tax" },
-      { name: "US Form 1040 + Form 1116 + FBAR", jur: "US", date: d(baseYear + 1, 4, 15), cat: "Filing" },
-      { name: "India ITR + Form 44 (non-audit)", jur: "IN", date: d(baseYear + 1, 7, 31), cat: "Filing" },
-      { name: "US extended 1040 / FBAR deadline", jur: "US", date: d(baseYear + 1, 10, 15), cat: "Extension" },
-      { name: "India belated / revised ITR", jur: "IN", date: d(baseYear + 1, 12, 31), cat: "Extension" }
+      { name: "India advance tax — Q1 (15%)", jur: "IN", date: d(baseYear, 6, 15), cat: "Advance tax", docIds: [] },
+      { name: "India advance tax — Q2 (45%)", jur: "IN", date: d(baseYear, 9, 15), cat: "Advance tax", docIds: [] },
+      { name: "India advance tax — Q3 (75%)", jur: "IN", date: d(baseYear, 12, 15), cat: "Advance tax", docIds: [] },
+      { name: "India advance tax — Q4 (100%)", jur: "IN", date: d(baseYear + 1, 3, 15), cat: "Advance tax", docIds: [] },
+      { name: "US estimated tax — Q1", jur: "US", date: d(baseYear, 4, 15), cat: "Estimated tax", docIds: [] },
+      { name: "US estimated tax — Q2", jur: "US", date: d(baseYear, 6, 15), cat: "Estimated tax", docIds: [] },
+      { name: "US estimated tax — Q3", jur: "US", date: d(baseYear, 9, 15), cat: "Estimated tax", docIds: [] },
+      { name: "US estimated tax — Q4", jur: "US", date: d(baseYear + 1, 1, 15), cat: "Estimated tax", docIds: [] },
+      { name: "US Form 1040 + Form 1116 + FBAR", jur: "US", date: d(baseYear + 1, 4, 15), cat: "Filing", docIds: US_RETURN_DOCS },
+      { name: "India ITR + Form 44 (non-audit)", jur: "IN", date: d(baseYear + 1, 7, 31), cat: "Filing", docIds: IN_RETURN_DOCS },
+      { name: "US extended 1040 / FBAR deadline", jur: "US", date: d(baseYear + 1, 10, 15), cat: "Extension", docIds: US_RETURN_DOCS },
+      { name: "India belated / revised ITR", jur: "IN", date: d(baseYear + 1, 12, 31), cat: "Extension", docIds: IN_RETURN_DOCS }
     ].map(function (x) {
       var du = daysBetween(today, x.date);
       x.daysUntil = du;
