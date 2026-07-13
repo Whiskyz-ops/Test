@@ -6,12 +6,12 @@ const MAIN = [
   { id: "clients", label: "Clients", icon: Users },
   { id: "monitor", label: "Monitor", icon: Radar },
   { id: "residency", label: "Residency", icon: Compass },
-  { id: "filings", label: "Filings", icon: FileText },
   { id: "reconciliation", label: "Reconciliation", icon: Scale },
   { id: "withholding", label: "Withholding", icon: ShieldAlert },
   { id: "holdings", label: "Holdings", icon: Wallet },
   { id: "business", label: "Business", icon: Building2 },
   { id: "accounts", label: "Accounts", icon: Landmark },
+  { id: "filings", label: "Filings", icon: FileText },
   { id: "integrations", label: "Integrations", icon: Plug }
 ];
 const FOOTER = ["Personal details", "Account settings", "Knowledge base"];
