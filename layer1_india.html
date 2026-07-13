@@ -7677,6 +7677,45 @@ const crDiv = document.getElementById('div-company-residency');
             </div>`;
         list.appendChild(div);
 
+        // Populate from saved data — this parameter used to be accepted and
+        // silently ignored, so a loaded profile's property sales (address,
+        // sale date/consideration, buyer TDS, etc) never actually appeared in
+        // this card even once state.property.properties was correctly loaded.
+        if (tx) {
+            const typeEl = div.querySelector('.prop-type');
+            if (typeEl && tx.property_type) {
+                const t = String(tx.property_type).toLowerCase();
+                const match = [...typeEl.options].find(o => t.indexOf(o.value.replace('_', ' ')) === 0 || t.indexOf(o.value) === 0);
+                if (match) typeEl.value = match.value;
+            }
+            const addrEl = div.querySelector('.prop-address');
+            if (addrEl && tx.address) addrEl.value = tx.address;
+            const acqDateEl = div.querySelector('.prop-acq-date');
+            if (acqDateEl && tx.acquisition_date) acqDateEl.value = tx.acquisition_date;
+            const costEl = div.querySelector('.prop-cost');
+            if (costEl && tx.purchase_value != null) costEl.value = tx.purchase_value;
+            const isSold = !!(tx.sale_date || tx.sale_consideration);
+            const statusRadio = div.querySelector(`.prop-status[value="${isSold ? 'sold' : 'holding'}"]`);
+            if (statusRadio) statusRadio.checked = true;
+            const saleDateEl = div.querySelector('.prop-sale-date');
+            if (saleDateEl && tx.sale_date) saleDateEl.value = tx.sale_date;
+            const saleValEl = div.querySelector('.prop-sale-val');
+            if (saleValEl && tx.sale_consideration != null) saleValEl.value = tx.sale_consideration;
+            const saleCurrEl = div.querySelector('.prop-sale-curr');
+            if (saleCurrEl && tx.sale_consideration_currency) saleCurrEl.value = tx.sale_consideration_currency;
+            const sdvEl = div.querySelector('.prop-sdv');
+            if (sdvEl && tx.stamp_duty_value != null) sdvEl.value = tx.stamp_duty_value;
+            const expEl = div.querySelector('.prop-exp');
+            if (expEl && tx.transfer_expenses != null) expEl.value = tx.transfer_expenses;
+            const tanEl = div.querySelector('.prop-tan');
+            if (tanEl && tx.buyer_tan) tanEl.value = tx.buyer_tan;
+            const tdsEl = div.querySelector('.prop-tds');
+            if (tdsEl && tx.buyer_tds_deducted_inr != null) tdsEl.value = tx.buyer_tds_deducted_inr;
+            const challanEl = div.querySelector('.prop-challan');
+            if (challanEl && tx.buyer_tds_challan_number) challanEl.value = tx.buyer_tds_challan_number;
+            togglePropertyDependencies(rowId);
+        }
+
         div.querySelectorAll('input, select').forEach(el => {
             el.addEventListener('input', () => {
                 syncPropertyState();
@@ -14050,6 +14089,18 @@ ${isProf ? '' : `
         const osGatekeeper = document.getElementById('os-has');
         if (osGatekeeper && state.other_sources) { osGatekeeper.checked = state.other_sources.has_other_sources_income || false; toggleOSSection(osGatekeeper.checked); }
 
+        // Restore the "Immovable Property Sales" sub-module inside Capital
+        // Gains. Render the real rows FIRST so togglePropertyModule('true')'s
+        // own "add a blank row if the list is empty" guard doesn't fire.
+        const propGatekeeper = document.getElementById('prop-has');
+        if (propGatekeeper) {
+            if (typeof renderPropertyTransactions === 'function') renderPropertyTransactions();
+            const hasProp = !!(state.property && (state.property.has_indian_property_transaction ||
+                (state.property.properties && state.property.properties.length > 0)));
+            propGatekeeper.value = hasProp ? 'true' : 'false';
+            togglePropertyModule(propGatekeeper.value);
+        }
+
         // Restore Business Fixed Inputs
         const biz = state.domestic_income.business_income;
         if (biz) {
@@ -14722,7 +14773,11 @@ ${isProf ? '' : `
         const list = document.getElementById('div-property-list');
         if (!list) return;
         list.innerHTML = '';
-        const txs = state.property?.transactions || [];
+        // Profiles / real saved state use .properties (matching Layer 1's own
+        // syncPropertyState(), which writes state.property.properties) — this
+        // read .transactions, a field nothing else in the file ever sets, so
+        // this function always rendered zero rows despite being defined.
+        const txs = state.property?.properties || [];
         txs.forEach(tx => addPropertyRow(tx));
     }
 
