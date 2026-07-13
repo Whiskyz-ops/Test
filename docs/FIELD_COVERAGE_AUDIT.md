@@ -151,6 +151,53 @@ that zero gaps remain.
   pre-existing financial-holdings classification received — flagged
   inline in the code and re-flagged here.
 
+## Audit tooling (added 14 Jul 2026)
+
+The manual method above doesn't scale to re-checking a form after every
+future update, so it was turned into two re-runnable scripts (`npm run
+audit`, or `audit:handlers`/`audit:fields` individually):
+
+- **`scripts/audit/dom-handler-coverage.js`** — flags `<input>`/`<select>`/
+  `<textarea>` elements with no `oninput`/`onchange`/`addEventListener`
+  wiring anywhere in the file (the "typing does nothing" bug class found in
+  the Passive & Other Income screen). Hardened against two false-positive
+  patterns (a custom card-toggle driven by a wrapping element's `onclick`;
+  a "pick a value, read it on a separate button click" pattern) by
+  spot-checking its own first output before trusting it.
+- **`scripts/audit/field-coverage.js`** — diffs every `safe()` path
+  `normalize.js` reads against both forms' state schemas (parsed via `vm`,
+  not regex, into a real object to walk), with a textual fallback so fields
+  only ever assigned at runtime (never in the static default literal, e.g.
+  `wages_w2[]`) aren't misreported as missing.
+
+First real run against the current files (not synthetic — this repo's
+actual state as of 14 Jul 2026) surfaced 6 more findings beyond the 9 in
+the sections above:
+
+- `schedule_c_businesses` — read by the engine (3 places) and one form-side
+  display function, written by nothing on either side. Investigated and
+  confirmed dead, not a gap: `self_employment[]` is the real, fully-wired
+  Schedule-C path and already carries this income. Removed rather than
+  wired. `docs/BUSINESS_ENTITY_ARCHITECTURE.md`'s coverage table, which had
+  wrongly marked it "✅ covered," was corrected too.
+- The entire US retirement-income group (`ira_distributions_usd`,
+  `401k_distributions_usd`, `social_security_benefits_usd`,
+  `pension_income_usd`) — read by the engine, zero working input anywhere
+  in the form. Logged as gap tracker **US-24** (P1).
+- Two dead checkboxes in `layer1_india.html` ("gift received on occasion of
+  marriage" / "from a specified relative") — no handler at all, so once
+  IN-28 made `gifts_above_50k_inr` reach the engine, a preparer gained no
+  way to actually mark a gift exempt. Logged as **IN-31**.
+- An unwired Form 5472 "Total Intercompany Payments to Foreign Owner"
+  field in `layer1_us.html` — no handler, and no engine-side field exists
+  to receive it either (a full build, not a one-line fix). Logged as
+  **US-25**.
+
+`business_income_usd` (flagged in the same first run) turned out to be a
+symptom of an already-tracked gap, not a new one — the form's Schedule M-1
+book-to-tax reconciliation UI is fully wired but never computes a final
+number into anything the engine reads. Already covered by **US-18**.
+
 ## Regression harness
 
 `tests/engine/run.js` (`npm test`) — plain Node, no framework, matching the
