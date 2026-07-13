@@ -292,7 +292,7 @@ function CalLegend({ jColor }) {
 /* Bi-directional timeline: India deadlines pinned above a shared time axis, US
  * below it, with month gridlines and a live "today" marker. Scrolls sideways on
  * narrow screens so the pins never crowd. */
-function DeadlineTimeline({ cal, jColor }) {
+function DeadlineTimeline({ cal, jColor, onSelect }) {
   if (!cal.length) return null;
   const min = new Date(cal[0].date.getTime() - 16 * DAY_MS);
   const max = new Date(cal[cal.length - 1].date.getTime() + 16 * DAY_MS);
@@ -321,7 +321,7 @@ function DeadlineTimeline({ cal, jColor }) {
 
   const PinLabel = ({ x }) => (
     <div className="flex flex-col items-center text-center gap-0.5 py-1" style={{ width: 108 }}>
-      <span className="text-[10px] font-semibold leading-tight text-body"
+      <span className="text-[10px] font-semibold leading-tight text-body group-hover:text-head transition-colors"
         style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{shortDeadline(x.name)}</span>
       <span className="text-[8px] text-faint whitespace-nowrap">{x.dateLabel}</span>
       <span className="text-[9px] font-mono font-bold whitespace-nowrap" style={{ color: dueColor(x) }}>{dueText(x)}</span>
@@ -332,12 +332,13 @@ function DeadlineTimeline({ cal, jColor }) {
     const past = x.status === "passed";
     const ring = x.status === "due_soon" ? PAL.approaching : col;
     const connector = <span className="w-px" style={{ height: 14, background: col, opacity: 0.4 }} />;
-    const dot = <span className="w-2.5 h-2.5 rounded-full ring-2 ring-[#161616] shrink-0" style={{ background: col, boxShadow: `0 0 0 3px ${ring}33` }} />;
+    const dot = <span className="w-2.5 h-2.5 rounded-full ring-2 ring-[#161616] shrink-0 transition-transform group-hover:scale-150" style={{ background: col, boxShadow: `0 0 0 3px ${ring}33` }} />;
     return (
-      <div className={"absolute -translate-x-1/2 flex flex-col items-center " + (dir === "up" ? "justify-end" : "justify-start")}
+      <button type="button" onClick={() => onSelect(x)} title="View details"
+        className={"group absolute -translate-x-1/2 flex flex-col items-center p-0 bg-transparent border-0 cursor-pointer focus:outline-none " + (dir === "up" ? "justify-end" : "justify-start")}
         style={{ left: pos(x.date) + "%", [dir === "up" ? "bottom" : "top"]: "50%", opacity: past ? 0.5 : 1 }}>
         {dir === "up" ? <><PinLabel x={x} />{connector}{dot}</> : <>{dot}{connector}<PinLabel x={x} /></>}
-      </div>
+      </button>
     );
   };
 
@@ -375,7 +376,7 @@ function DeadlineTimeline({ cal, jColor }) {
  * month of the next upcoming deadline; deadline days are highlighted by
  * jurisdiction (with a dot per deadline so days carrying both an IN and a US
  * filing still read clearly) and listed in full below the grid. */
-function DeadlineCalendar({ cal, jColor }) {
+function DeadlineCalendar({ cal, jColor, onSelect }) {
   const today = new Date();
   const toIdx = (y, m) => y * 12 + m;
   const byMonth = new Map();
@@ -450,24 +451,25 @@ function DeadlineCalendar({ cal, jColor }) {
             const bg = jurs.length === 1 ? jColor[jurs[0]] + (past ? "14" : "26") : "rgba(255,255,255,0.06)";
             const outline = isToday ? PAL.accent : soon ? PAL.approaching : jurs.length === 1 ? jColor[jurs[0]] + "88" : "rgba(255,255,255,0.22)";
             return (
-              <div key={i} title={dItems.map((x) => x.name + " — " + dueText(x)).join(" · ")}
-                className="aspect-square relative flex items-center justify-center rounded-lg text-[11px] font-bold"
+              <button key={i} type="button" onClick={() => onSelect(dItems[0])} title={dItems.map((x) => x.name + " — " + dueText(x)).join(" · ")}
+                className="aspect-square relative flex items-center justify-center rounded-lg text-[11px] font-bold cursor-pointer transition hover:brightness-125 focus:outline-none focus:ring-1 focus:ring-white/40"
                 style={{ background: bg, color: past ? PAL.muted : "#fff", boxShadow: `inset 0 0 0 1px ${outline}` }}>
                 {dn}
                 <span className="absolute bottom-1 flex gap-0.5">
                   {dItems.map((x, k) => <span key={k} className="w-1 h-1 rounded-full" style={{ background: jColor[x.jur], opacity: x.status === "passed" ? 0.5 : 1 }} />)}
                 </span>
-              </div>
+              </button>
             );
           })}
         </div>
         <div className="mt-4 space-y-1.5">
           {items.length ? items.map((x, i) => (
-            <div key={i} className={"flex items-center gap-2.5 p-2 rounded-lg " + (x.status === "passed" ? "opacity-50" : "bg-white/[0.03]")}>
+            <button key={i} type="button" onClick={() => onSelect(x)}
+              className={"w-full text-left flex items-center gap-2.5 p-2 rounded-lg transition hover:bg-white/[0.06] focus:outline-none " + (x.status === "passed" ? "opacity-50" : "bg-white/[0.03]")}>
               <span className="text-[9px] font-black px-2 py-0.5 rounded" style={{ background: jColor[x.jur] + "24", color: jColor[x.jur] }}>{x.jur}</span>
               <div className="flex-1 min-w-0"><div className="text-[12px] font-semibold text-head truncate">{x.name}</div><div className="text-[10px] text-muted">{x.dateLabel} · {x.cat}</div></div>
               <span className="text-[11px] font-mono whitespace-nowrap" style={{ color: dueColor(x) }}>{dueText(x)}</span>
-            </div>
+            </button>
           )) : <div className="text-center text-muted text-[11px] py-4">No deadlines in {monthName}.</div>}
         </div>
       </div>
@@ -476,7 +478,7 @@ function DeadlineCalendar({ cal, jColor }) {
 }
 
 /* The original compact countdown list — kept as a third view. */
-function DeadlineList({ cal, jColor }) {
+function DeadlineList({ cal, jColor, onSelect }) {
   const upcoming = cal.filter((x) => x.status !== "passed");
   const passed = cal.filter((x) => x.status === "passed").slice(-3);
   return (
@@ -484,26 +486,100 @@ function DeadlineList({ cal, jColor }) {
       {upcoming.concat(passed).map((x, i) => {
         const isPast = x.status === "passed";
         return (
-          <div key={i} className={"flex items-center gap-3 p-2 rounded-lg " + (isPast ? "opacity-45" : "bg-white/[0.03]")}>
+          <button key={i} type="button" onClick={() => onSelect(x)}
+            className={"w-full text-left flex items-center gap-3 p-2 rounded-lg transition hover:bg-white/[0.06] focus:outline-none " + (isPast ? "opacity-45" : "bg-white/[0.03]")}>
             <span className="text-[9px] font-black px-2 py-0.5 rounded" style={{ background: jColor[x.jur] + "24", color: jColor[x.jur] }}>{x.jur}</span>
             <div className="flex-1 min-w-0"><div className="text-[12px] font-semibold text-head truncate">{x.name}</div><div className="text-[10px] text-muted">{x.dateLabel} · {x.cat}</div></div>
             <div className="text-[11px] font-mono whitespace-nowrap" style={{ color: dueColor(x) }}>{dueText(x)}</div>
-          </div>
+          </button>
         );
       })}
     </div>
   );
 }
 
-function ComplianceCalendarCard({ cal, jColor }) {
+/* Detail popover shown when a deadline is clicked in any of the three views —
+ * jurisdiction, form, category, exact date, countdown, and (for filings) the
+ * documents that go in with it. Backdrop / × / Esc all close it. */
+const CAT_NOTE = {
+  "Advance tax": "Advance-tax installment — pay the cumulative percentage of the year's estimated liability by this date to avoid §234B / §234C interest.",
+  "Estimated tax": "Quarterly estimated payment to the IRS. Underpaying across the year can trigger a Form 2210 penalty.",
+  "Filing": "Return-filing deadline — file the return together with any required disclosures listed below.",
+  "Extension": "Extended / belated filing window — the last date to file or revise without forfeiting the position."
+};
+function DeadlineDetailModal({ x, jColor, docs, returnForms, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const col = jColor[x.jur];
+  const past = x.status === "passed";
+  const jurName = x.jur === "IN" ? "India" : "United States";
+  const isFiling = x.cat === "Filing" || x.cat === "Extension";
+  const form = x.jur === "IN" ? returnForms && returnForms.india && returnForms.india.form
+    : returnForms && returnForms.us && returnForms.us.form;
+  const relatedDocs = isFiling && docs ? docs.filter((d) => d.jurisdiction === x.jur && d.required) : [];
+  const longDate = x.date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  const countdownWords = past ? Math.abs(x.daysUntil) + " days ago" : "in " + x.daysUntil + " days";
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }}>
+      <div onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true"
+        className="w-full max-w-sm rounded-2xl border border-line shadow-cardhover p-5" style={{ background: PAL.panel }}>
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[9px] font-black px-2 py-0.5 rounded" style={{ background: col + "24", color: col }}>{x.jur}</span>
+            <span className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded bg-white/[0.05] border border-line text-muted">{x.cat}</span>
+            {x.status === "due_soon" && <span className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded" style={{ background: PAL.approaching + "22", color: PAL.amberText }}>Due soon</span>}
+            {past && <span className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded bg-white/[0.05] text-muted">Passed</span>}
+          </div>
+          <button onClick={onClose} aria-label="Close" className="text-muted hover:text-head text-lg leading-none px-1 -mt-1">×</button>
+        </div>
+        <h4 className="font-display font-extrabold text-lg text-head leading-snug">{x.name}</h4>
+        <div className="flex items-baseline justify-between gap-3 mt-2 pb-3 border-b border-line">
+          <div>
+            <div className="text-[12px] text-body">{longDate}</div>
+            <div className="text-[10px] text-muted">{jurName}{form && isFiling ? " · " + form : ""}</div>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="font-mono font-bold text-[15px]" style={{ color: dueColor(x) }}>{dueText(x)}</div>
+            <div className="text-[9px] text-muted">{countdownWords}</div>
+          </div>
+        </div>
+        <p className="text-[11px] text-body leading-relaxed mt-3">{CAT_NOTE[x.cat] || ""}</p>
+        {isFiling && (
+          <div className="mt-3">
+            <div className="text-[9px] font-bold uppercase tracking-widest text-muted mb-1.5">Filed with this deadline</div>
+            {relatedDocs.length ? (
+              <div className="space-y-1.5">
+                {relatedDocs.map((d) => (
+                  <div key={d.id} className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5" style={{ background: col }} />
+                    <div>
+                      <div className="text-[11px] font-semibold text-head">{d.name}</div>
+                      {d.why && <div className="text-[10px] text-muted leading-snug">{d.why}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : <div className="text-[11px] text-muted">No jurisdiction-specific documents flagged for this client.</div>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ComplianceCalendarCard({ cal, jColor, docs, returnForms }) {
   const [mode, setMode] = useState("timeline");
+  const [selected, setSelected] = useState(null);
   const Seg = ({ id, label }) => (
     <button onClick={() => setMode(id)}
       className={"px-2.5 py-1 rounded-lg text-[10px] font-bold transition " + (mode === id ? "text-head" : "text-muted hover:text-body")}
       style={mode === id ? { background: "rgba(255,255,255,0.08)" } : undefined}>{label}</button>
   );
   return (
-    <Card icon={<CalendarClock size={16} strokeWidth={2} />} title="Compliance Calendar" sub="Filing & payment deadlines with countdowns"
+    <Card icon={<CalendarClock size={16} strokeWidth={2} />} title="Compliance Calendar" sub="Filing & payment deadlines with countdowns · click any deadline for details"
       right={
         <div className="flex items-center gap-0.5 p-0.5 rounded-xl bg-white/[0.03] border border-line shrink-0">
           <Seg id="timeline" label="Timeline" />
@@ -512,9 +588,10 @@ function ComplianceCalendarCard({ cal, jColor }) {
         </div>
       }>
       {!cal.length ? <Empty>No deadlines for this client.</Empty>
-        : mode === "timeline" ? <DeadlineTimeline cal={cal} jColor={jColor} />
-        : mode === "calendar" ? <DeadlineCalendar cal={cal} jColor={jColor} />
-        : <DeadlineList cal={cal} jColor={jColor} />}
+        : mode === "timeline" ? <DeadlineTimeline cal={cal} jColor={jColor} onSelect={setSelected} />
+        : mode === "calendar" ? <DeadlineCalendar cal={cal} jColor={jColor} onSelect={setSelected} />
+        : <DeadlineList cal={cal} jColor={jColor} onSelect={setSelected} />}
+      {selected && <DeadlineDetailModal x={selected} jColor={jColor} docs={docs} returnForms={returnForms} onClose={() => setSelected(null)} />}
     </Card>
   );
 }
@@ -528,7 +605,7 @@ export function FilingsView({ result }) {
   return (
     <div className="space-y-6">
       <ReturnFormCard returnForms={result.returnForms} />
-      <ComplianceCalendarCard cal={cal} jColor={jColor} />
+      <ComplianceCalendarCard cal={cal} jColor={jColor} docs={result.documents} returnForms={result.returnForms} />
       <Card icon={<FolderOpen size={16} strokeWidth={2} />} title="Documents to File" sub={req + " required · triggered by this taxpayer's cross-border facts"}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {docs.map((d) => (
