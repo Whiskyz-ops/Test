@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Compass, ScrollText, Scale, CalendarClock, CalendarRange, RefreshCcw, Calculator,
   FolderOpen, Ruler, Landmark, TrendingUp, Building2, Home, Palmtree, BookOpen, Plug,
@@ -260,33 +260,246 @@ function ReturnFormCard({ returnForms }) {
   );
 }
 
+/* ---- Compliance Calendar helpers (shared by Timeline / Calendar / List) ---- */
+const DAY_MS = 86400000;
+// Trim the long official label down to something that fits a timeline pin or a
+// calendar caption without losing the part that identifies the deadline.
+function shortDeadline(name) {
+  return name
+    .replace(/^India\s+/, "").replace(/^US\s+/, "")
+    .replace(/advance tax — /i, "Advance ")
+    .replace(/estimated tax — /i, "Est. ")
+    .replace(/\s*\(non-audit\)/i, "");
+}
+const dueText = (x) => (x.status === "passed" ? Math.abs(x.daysUntil) + "d ago" : "in " + x.daysUntil + "d");
+const dueColor = (x) => (x.status === "due_soon" ? PAL.amberText : x.status === "passed" ? PAL.muted : PAL.greenText);
+
+// Small shared legend so every view reads the same colour language.
+function CalLegend({ jColor }) {
+  const Dot = ({ c }) => <span className="w-2 h-2 rounded-full" style={{ background: c }} />;
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3 text-[10px] text-muted">
+      <span className="inline-flex items-center gap-1.5"><Dot c={jColor.IN} /> India</span>
+      <span className="inline-flex items-center gap-1.5"><Dot c={jColor.US} /> United States</span>
+      <span className="inline-flex items-center gap-1.5"><span className="w-px h-3" style={{ background: PAL.accent }} /> Today</span>
+      <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: PAL.approaching }} /> Due ≤ 30d</span>
+      <span className="inline-flex items-center gap-1.5 opacity-50"><Dot c={PAL.muted} /> Passed</span>
+    </div>
+  );
+}
+
+/* Bi-directional timeline: India deadlines pinned above a shared time axis, US
+ * below it, with month gridlines and a live "today" marker. Scrolls sideways on
+ * narrow screens so the pins never crowd. */
+function DeadlineTimeline({ cal, jColor }) {
+  if (!cal.length) return null;
+  const min = new Date(cal[0].date.getTime() - 16 * DAY_MS);
+  const max = new Date(cal[cal.length - 1].date.getTime() + 16 * DAY_MS);
+  const span = max - min || 1;
+  const pos = (d) => ((d - min) / span) * 100;
+
+  const months = [];
+  for (let m = new Date(min.getFullYear(), min.getMonth(), 1); m <= max; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) months.push(new Date(m));
+  const monthLabel = (mm) => mm.toLocaleDateString("en-US", { month: "short" }) + (mm.getMonth() === 0 ? " '" + String(mm.getFullYear()).slice(2) : "");
+
+  const today = new Date();
+  const showToday = today >= min && today <= max;
+  const inItems = cal.filter((x) => x.jur === "IN");
+  const usItems = cal.filter((x) => x.jur === "US");
+  const minWidth = Math.max(820, months.length * 80);
+
+  // On mount, bring "today" into view — otherwise a client with mostly-passed
+  // deadlines opens scrolled to year-old items instead of what's next.
+  const scrollRef = useRef(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !showToday) return;
+    const target = (pos(today) / 100) * minWidth - el.clientWidth / 2;
+    el.scrollLeft = Math.max(0, Math.min(target, el.scrollWidth - el.clientWidth));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const PinLabel = ({ x }) => (
+    <div className="flex flex-col items-center text-center gap-0.5 py-1" style={{ width: 108 }}>
+      <span className="text-[10px] font-semibold leading-tight text-body"
+        style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{shortDeadline(x.name)}</span>
+      <span className="text-[8px] text-faint whitespace-nowrap">{x.dateLabel}</span>
+      <span className="text-[9px] font-mono font-bold whitespace-nowrap" style={{ color: dueColor(x) }}>{dueText(x)}</span>
+    </div>
+  );
+  const Pin = ({ x, dir }) => {
+    const col = jColor[x.jur];
+    const past = x.status === "passed";
+    const ring = x.status === "due_soon" ? PAL.approaching : col;
+    const connector = <span className="w-px" style={{ height: 14, background: col, opacity: 0.4 }} />;
+    const dot = <span className="w-2.5 h-2.5 rounded-full ring-2 ring-[#161616] shrink-0" style={{ background: col, boxShadow: `0 0 0 3px ${ring}33` }} />;
+    return (
+      <div className={"absolute -translate-x-1/2 flex flex-col items-center " + (dir === "up" ? "justify-end" : "justify-start")}
+        style={{ left: pos(x.date) + "%", [dir === "up" ? "bottom" : "top"]: "50%", opacity: past ? 0.5 : 1 }}>
+        {dir === "up" ? <><PinLabel x={x} />{connector}{dot}</> : <>{dot}{connector}<PinLabel x={x} /></>}
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <CalLegend jColor={jColor} />
+      <div ref={scrollRef} className="overflow-x-auto -mx-1 px-1 pb-1">
+        <div className="relative" style={{ minWidth, height: 236 }}>
+          {months.map((mm, i) => (
+            <div key={i} className="absolute top-0 w-px bg-white/[0.035]" style={{ left: pos(mm) + "%", bottom: 20 }} />
+          ))}
+          <div className="absolute left-0 right-0 top-1/2 h-px bg-white/[0.09]" />
+          <span className="absolute left-0 top-2 text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: jColor.IN + "24", color: jColor.IN }}>IN</span>
+          <span className="absolute left-0 bottom-6 text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: jColor.US + "24", color: jColor.US }}>US</span>
+          {showToday && (
+            <>
+              <div className="absolute top-0 z-10 w-px" style={{ left: pos(today) + "%", bottom: 20, background: PAL.accent, opacity: 0.55 }} />
+              <div className="absolute z-20 -translate-x-1/2 text-[8px] font-black tracking-widest px-1.5 py-0.5 rounded" style={{ left: pos(today) + "%", top: 0, background: PAL.accent + "22", color: PAL.greenText }}>TODAY</div>
+            </>
+          )}
+          {inItems.map((x, i) => <Pin key={"in" + i} x={x} dir="up" />)}
+          {usItems.map((x, i) => <Pin key={"us" + i} x={x} dir="down" />)}
+          <div className="absolute left-0 right-0 bottom-0 h-5">
+            {months.map((mm, i) => (
+              <div key={i} className="absolute -translate-x-1/2 text-[9px] text-faint whitespace-nowrap" style={{ left: pos(mm) + "%" }}>{monthLabel(mm)}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Month-grid calendar: one mini-month per month that carries a deadline, with
+ * the deadline days highlighted by jurisdiction and captioned below the grid. */
+function DeadlineCalendar({ cal, jColor }) {
+  if (!cal.length) return null;
+  const today = new Date();
+  const groups = new Map();
+  cal.forEach((x) => {
+    const key = x.date.getFullYear() + "-" + x.date.getMonth();
+    if (!groups.has(key)) groups.set(key, { year: x.date.getFullYear(), month: x.date.getMonth(), items: [] });
+    groups.get(key).items.push(x);
+  });
+  const months = Array.from(groups.values()).sort((a, b) => a.year - b.year || a.month - b.month);
+  const WD = ["S", "M", "T", "W", "T", "F", "S"];
+
+  return (
+    <div>
+      <CalLegend jColor={jColor} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {months.map((g) => {
+          const firstWd = new Date(g.year, g.month, 1).getDay();
+          const nDays = new Date(g.year, g.month + 1, 0).getDate();
+          const byDay = {};
+          g.items.forEach((x) => { (byDay[x.date.getDate()] = byDay[x.date.getDate()] || []).push(x); });
+          const cells = [];
+          for (let i = 0; i < firstWd; i++) cells.push(null);
+          for (let dnum = 1; dnum <= nDays; dnum++) cells.push(dnum);
+          const isThisMonth = today.getFullYear() === g.year && today.getMonth() === g.month;
+          const allPast = g.items.every((x) => x.status === "passed");
+          return (
+            <div key={g.year + "-" + g.month} className={"rounded-2xl border border-line p-3 " + (allPast ? "opacity-60 bg-white/[0.01]" : "bg-white/[0.02]")}>
+              <div className="flex items-baseline justify-between mb-2">
+                <span className="font-display font-bold text-sm text-head">{new Date(g.year, g.month, 1).toLocaleDateString("en-US", { month: "long" })}</span>
+                <span className="text-[10px] text-faint">{g.year}</span>
+              </div>
+              <div className="grid grid-cols-7 gap-0.5 mb-1">
+                {WD.map((w, i) => <div key={i} className="text-[8px] text-faint text-center">{w}</div>)}
+              </div>
+              <div className="grid grid-cols-7 gap-0.5">
+                {cells.map((dnum, i) => {
+                  if (dnum == null) return <div key={i} className="aspect-square" />;
+                  const items = byDay[dnum];
+                  const isToday = isThisMonth && today.getDate() === dnum;
+                  if (!items) {
+                    return (
+                      <div key={i} className="aspect-square flex items-center justify-center text-[9px] rounded"
+                        style={isToday ? { color: PAL.greenText, boxShadow: `inset 0 0 0 1px ${PAL.accent}66` } : { color: PAL.faint }}>{dnum}</div>
+                    );
+                  }
+                  const col = jColor[items[0].jur];
+                  const past = items.every((x) => x.status === "passed");
+                  const soon = items.some((x) => x.status === "due_soon");
+                  const outline = isToday ? PAL.accent : soon ? PAL.approaching + "88" : col + "66";
+                  return (
+                    <div key={i} title={items.map((x) => x.name + " — " + dueText(x)).join(" · ")}
+                      className="aspect-square flex items-center justify-center rounded text-[9px] font-bold"
+                      style={{ background: col + (past ? "14" : "26"), color: past ? PAL.muted : "#fff", boxShadow: `inset 0 0 0 1px ${outline}` }}>{dnum}</div>
+                  );
+                })}
+              </div>
+              <div className="mt-2 space-y-1">
+                {g.items.slice().sort((a, b) => a.date - b.date).map((x, i) => (
+                  <div key={i} className="flex items-center gap-1.5" style={{ opacity: x.status === "passed" ? 0.6 : 1 }}>
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: jColor[x.jur] }} />
+                    <span className="text-[10px] text-body truncate flex-1">{shortDeadline(x.name)}</span>
+                    <span className="text-[9px] font-mono whitespace-nowrap" style={{ color: dueColor(x) }}>{dueText(x)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* The original compact countdown list — kept as a third view. */
+function DeadlineList({ cal, jColor }) {
+  const upcoming = cal.filter((x) => x.status !== "passed");
+  const passed = cal.filter((x) => x.status === "passed").slice(-3);
+  return (
+    <div className="space-y-1.5">
+      {upcoming.concat(passed).map((x, i) => {
+        const isPast = x.status === "passed";
+        return (
+          <div key={i} className={"flex items-center gap-3 p-2 rounded-lg " + (isPast ? "opacity-45" : "bg-white/[0.03]")}>
+            <span className="text-[9px] font-black px-2 py-0.5 rounded" style={{ background: jColor[x.jur] + "24", color: jColor[x.jur] }}>{x.jur}</span>
+            <div className="flex-1 min-w-0"><div className="text-[12px] font-semibold text-head truncate">{x.name}</div><div className="text-[10px] text-muted">{x.dateLabel} · {x.cat}</div></div>
+            <div className="text-[11px] font-mono whitespace-nowrap" style={{ color: dueColor(x) }}>{dueText(x)}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ComplianceCalendarCard({ cal, jColor }) {
+  const [mode, setMode] = useState("timeline");
+  const Seg = ({ id, label }) => (
+    <button onClick={() => setMode(id)}
+      className={"px-2.5 py-1 rounded-lg text-[10px] font-bold transition " + (mode === id ? "text-head" : "text-muted hover:text-body")}
+      style={mode === id ? { background: "rgba(255,255,255,0.08)" } : undefined}>{label}</button>
+  );
+  return (
+    <Card icon={<CalendarClock size={16} strokeWidth={2} />} title="Compliance Calendar" sub="Filing & payment deadlines with countdowns"
+      right={
+        <div className="flex items-center gap-0.5 p-0.5 rounded-xl bg-white/[0.03] border border-line shrink-0">
+          <Seg id="timeline" label="Timeline" />
+          <Seg id="calendar" label="Calendar" />
+          <Seg id="list" label="List" />
+        </div>
+      }>
+      {!cal.length ? <Empty>No deadlines for this client.</Empty>
+        : mode === "timeline" ? <DeadlineTimeline cal={cal} jColor={jColor} />
+        : mode === "calendar" ? <DeadlineCalendar cal={cal} jColor={jColor} />
+        : <DeadlineList cal={cal} jColor={jColor} />}
+    </Card>
+  );
+}
+
 export function FilingsView({ result }) {
   if (!result) return <Empty>Load a client to see filings.</Empty>;
   const cal = result.monitoring ? result.monitoring.calendar.all.slice().sort((a, b) => a.date - b.date) : [];
-  const upcoming = cal.filter((x) => x.status !== "passed");
-  const passed = cal.filter((x) => x.status === "passed").slice(-3);
   const jColor = { US: PAL.jurUS, IN: PAL.jurIN };
   const docs = result.documents.slice().sort((a, b) => (b.required ? 1 : 0) - (a.required ? 1 : 0));
   const req = docs.filter((d) => d.required).length;
   return (
     <div className="space-y-6">
       <ReturnFormCard returnForms={result.returnForms} />
-      <Card icon={<CalendarClock size={16} strokeWidth={2} />} title="Compliance Calendar" sub="Filing & payment deadlines with countdowns">
-        <div className="space-y-1.5">
-          {upcoming.concat(passed).map((x, i) => {
-            const isPast = x.status === "passed";
-            const due = isPast ? Math.abs(x.daysUntil) + "d ago" : "in " + x.daysUntil + "d";
-            const dueColor = x.status === "due_soon" ? PAL.amberText : (isPast ? PAL.muted : PAL.greenText);
-            return (
-              <div key={i} className={"flex items-center gap-3 p-2 rounded-lg " + (isPast ? "opacity-45" : "bg-white/[0.03]")}>
-                <span className="text-[9px] font-black px-2 py-0.5 rounded" style={{ background: jColor[x.jur] + "24", color: jColor[x.jur] }}>{x.jur}</span>
-                <div className="flex-1 min-w-0"><div className="text-[12px] font-semibold text-head truncate">{x.name}</div><div className="text-[10px] text-muted">{x.dateLabel} · {x.cat}</div></div>
-                <div className="text-[11px] font-mono whitespace-nowrap" style={{ color: dueColor }}>{due}</div>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
+      <ComplianceCalendarCard cal={cal} jColor={jColor} />
       <Card icon={<FolderOpen size={16} strokeWidth={2} />} title="Documents to File" sub={req + " required · triggered by this taxpayer's cross-border facts"}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {docs.map((d) => (
