@@ -9690,17 +9690,38 @@ const crDiv = document.getElementById('div-company-residency');
             }
         };
 
+        // These read the SAME fields the tax computation reads (has_salary_income,
+        // has_house_property_income, has_business_or_fo_income, top-level
+        // other_sources.has_other_sources_income) — not a separate wizard-only
+        // flag — so a profile loaded directly into state (bypassing the setup
+        // wizard clicks) still lights up the correct cards.
         if (state.domestic_income) {
-            syncCard('setup-salary', !!state.domestic_income.has_salary);
-            syncCard('setup-hp', !!state.domestic_income.has_house_property);
-            syncCard('setup-business', !!(state.domestic_income.business_income && state.domestic_income.business_income.has_business_income));
-            syncCard('setup-os', !!state.domestic_income.has_other_sources);
+            syncCard('setup-salary', !!(state.domestic_income.salary && state.domestic_income.salary.has_salary_income));
+            syncCard('setup-hp', !!(state.domestic_income.house_property && state.domestic_income.house_property.has_house_property_income));
+            syncCard('setup-business', !!(state.domestic_income.business_income && state.domestic_income.business_income.has_business_or_fo_income));
         }
-        
-        if (state.capital_gains) {
-            syncCard('setup-cg', !!state.capital_gains.has_capital_gains);
-        }
-        
+        syncCard('setup-os', !!(state.other_sources && state.other_sources.has_other_sources_income));
+
+        // capital_gains has no single canonical "has data" flag (unlike the
+        // other heads) — profiles / real entries just set amounts directly —
+        // so derive it from any nonzero capital-gains-bearing figure across
+        // every place the form records one: the two capital_gains shapes
+        // (nested under domestic_income, and the top-level bucket), realized
+        // transactions (financial holdings, commodities, unlisted equity),
+        // a share buyback, or a property sale.
+        const cgNum = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+        const nestedCg = (state.domestic_income && state.domestic_income.capital_gains) || {};
+        const topCg = state.capital_gains || {};
+        const anyCgAmount = Object.keys(nestedCg).some((k) => cgNum(nestedCg[k]) > 0) ||
+            Object.keys(topCg).some((k) => cgNum(topCg[k]) > 0);
+        const anyCgTransactions =
+            !!(state.financial_holdings && state.financial_holdings.transactions && state.financial_holdings.transactions.length) ||
+            !!(state.commodities && state.commodities.transactions && state.commodities.transactions.length) ||
+            !!(state.unlisted_equity && state.unlisted_equity.transactions && state.unlisted_equity.transactions.some((t) => t.sale_date || t.sale_value)) ||
+            !!(state.share_buyback && state.share_buyback.transactions && state.share_buyback.transactions.length) ||
+            !!(state.property && state.property.properties && state.property.properties.some((p) => p.sale_date || p.sale_consideration));
+        syncCard('setup-cg', anyCgAmount || anyCgTransactions);
+
         // Ensure foreign objects exist before checking
         const hasForeign = !!((state.foreign_income && state.foreign_income.has_foreign_income) || (state.foreign_assets && state.foreign_assets.has_foreign_assets));
         syncCard('setup-international', hasForeign);
@@ -14191,7 +14212,31 @@ ${isProf ? '' : `
                 // MIGRATION & QUARTER LOAD
                 if (savedState.quarters) {
                     state.active_quarter = savedState.active_quarter || 'Q1';
-                    state.quarters = savedState.quarters;
+                    // Merge onto the existing dense per-quarter template (already
+                    // initialized above with full default shapes for every field the
+                    // UI touches) instead of replacing it outright. A saved/generated
+                    // quarters object may only carry the fields that actually differ
+                    // (e.g. a demo profile's quarters set just the income figures it
+                    // has); a wholesale replace would silently drop UI-required
+                    // defaults like business_income.nature_of_business, crashing
+                    // dropdown logic downstream that assumes they're always at least
+                    // an empty string. Mirrors the same merge-or-replace pattern used
+                    // for savedState.domestic_income etc. just above.
+                    ['Q1', 'Q2', 'Q3', 'Q4'].forEach(function (q) {
+                        const savedQ = savedState.quarters[q];
+                        if (!savedQ) return;
+                        ['domestic_income', 'other_sources', 'lrs_outbound', 'nro_repatriation', 'capital_gains'].forEach(function (cat) {
+                            if (!savedQ[cat]) return;
+                            if (!state.quarters[q][cat]) state.quarters[q][cat] = {};
+                            for (const key in savedQ[cat]) {
+                                if (state.quarters[q][cat][key] && typeof savedQ[cat][key] === 'object' && !Array.isArray(savedQ[cat][key])) {
+                                    Object.assign(state.quarters[q][cat][key], savedQ[cat][key]);
+                                } else {
+                                    state.quarters[q][cat][key] = savedQ[cat][key];
+                                }
+                            }
+                        });
+                    });
                 } else {
                     // Migration from annual: put all loaded income into Q1, keep Q2-Q4 blank
                     state.active_quarter = 'Q1';

@@ -31,6 +31,107 @@
   }
   function meta(schema, fy) { return { schema_version: schema, financial_year: fy }; }
 
+  // ---- quarterly income split ----
+  // Profiles previously only carried ANNUAL india.domestic_income / other_sources
+  // / capital_gains / lrs_outbound. Layer 1 India's own "no quarters saved yet"
+  // migration path (see layer1_india.html _initWindowOnLoad) then dumped the
+  // WHOLE annual figure into Q1 and left Q2-Q4 at zero — misrepresenting every
+  // profile as "100% earned Apr-Jun" — and it also meant normalize.js's real
+  // India-FY/US-CY apportionment logic (computeApportionment in computation.js)
+  // never saw quarterly data and always fell back to its documented 75/25
+  // even-earning assumption instead of the sharper quarterly basis.
+  //
+  // buildQuarters() spreads recurring flows evenly across the 4 India-FY
+  // quarters (Apr-Jun / Jul-Sep / Oct-Dec / Jan-Mar) so every quarter shows a
+  // realistic slice instead of one lump sum. A small set of numeric fields are
+  // NOT flows — a % stake, a per-share price, a share count — and are kept
+  // whole in Q1 (null elsewhere) rather than divided into meaningless
+  // fractions. One-off dated events (e.g. an ESOP exercise) are placed whole
+  // in the quarter matching their real date instead of being smeared evenly.
+  var QUARTERLY_STATIC_NUMERIC_KEYS = {
+    holding_pct: true, shares: true, shares_acquired: true,
+    fmv_per_share_inr: true, exercise_price_per_share_inr: true
+  };
+  function fyQuarterOf(dateStr, baseYear) {
+    if (!dateStr) return "Q1";
+    var d = new Date(dateStr + "T00:00:00");
+    if (isNaN(d.getTime())) return "Q1";
+    var y = d.getFullYear(), m = d.getMonth(); // 0 = Jan
+    if (y === baseYear && m >= 3 && m <= 5) return "Q1";        // Apr-Jun
+    if (y === baseYear && m >= 6 && m <= 8) return "Q2";        // Jul-Sep
+    if (y === baseYear && m >= 9 && m <= 11) return "Q3";       // Oct-Dec
+    if (y === baseYear + 1 && m >= 0 && m <= 2) return "Q4";    // Jan-Mar
+    return "Q1";
+  }
+  // Returns [q1,q2,q3,q4] clones of `node` — flow numbers divided by 4 (any
+  // remainder folded into Q4 so the 4 parts always sum back to the original),
+  // static numeric keys kept only in Q1 (null elsewhere so they're skipped
+  // rather than summed by the quarter-merge), booleans/strings repeated
+  // identically (safe: OR-merge / last-value-wins both reproduce the same
+  // value), objects/arrays recursed the same way.
+  function splitFlow(node) {
+    if (node === null || node === undefined) return [null, null, null, null];
+    if (Array.isArray(node)) {
+      var outA = [[], [], [], []];
+      node.forEach(function (el) {
+        var parts = splitFlow(el);
+        for (var i = 0; i < 4; i++) outA[i].push(parts[i]);
+      });
+      return outA;
+    }
+    if (typeof node === "object") {
+      var outO = [{}, {}, {}, {}];
+      for (var k in node) {
+        if (!Object.prototype.hasOwnProperty.call(node, k)) continue;
+        var v = node[k];
+        if (typeof v === "number") {
+          if (QUARTERLY_STATIC_NUMERIC_KEYS[k]) {
+            outO[0][k] = v; outO[1][k] = null; outO[2][k] = null; outO[3][k] = null;
+          } else {
+            var base = Math.floor(v / 4), rem = v - base * 3;
+            outO[0][k] = base; outO[1][k] = base; outO[2][k] = base; outO[3][k] = rem;
+          }
+        } else if (typeof v === "boolean" || typeof v === "string") {
+          outO[0][k] = outO[1][k] = outO[2][k] = outO[3][k] = v;
+        } else {
+          var parts = splitFlow(v);
+          for (var i = 0; i < 4; i++) outO[i][k] = parts[i];
+        }
+      }
+      return outO;
+    }
+    return [node, node, node, node];
+  }
+  function buildQuarters(india, baseYear) {
+    var di = india.domestic_income || {};
+    var os = india.other_sources || {};
+    var cg = india.capital_gains || {};
+    var lrs = india.lrs_outbound || {};
+
+    // Carve out one-off dated ESOP events before the generic split so they
+    // land whole in a single quarter rather than fractionally in all 4.
+    var esopEvents = (di.salary && di.salary.esop_perquisite_events) || [];
+    var diForSplit = di;
+    if (esopEvents.length) {
+      diForSplit = JSON.parse(JSON.stringify(di));
+      diForSplit.salary.esop_perquisite_events = [];
+    }
+
+    var diQ = splitFlow(diForSplit), osQ = splitFlow(os), cgQ = splitFlow(cg), lrsQ = splitFlow(lrs);
+
+    esopEvents.forEach(function (ev) {
+      var q = fyQuarterOf(ev.vesting_or_exercise_date || ev.grant_date, baseYear);
+      var idx = ["Q1", "Q2", "Q3", "Q4"].indexOf(q);
+      diQ[idx].salary.esop_perquisite_events = (diQ[idx].salary.esop_perquisite_events || []).concat([ev]);
+    });
+
+    var quarters = {};
+    ["Q1", "Q2", "Q3", "Q4"].forEach(function (q, i) {
+      quarters[q] = { domestic_income: diQ[i], other_sources: osQ[i], capital_gains: cgQ[i], lrs_outbound: lrsQ[i] };
+    });
+    return quarters;
+  }
+
   /* ======================================================================
    * PROFILE 1 — Dual resident (India ROR + US SPT). The flagship FTC/tie-break case.
    * ====================================================================*/
@@ -621,6 +722,14 @@
   };
 
   var PROFILES = [P1, P2, P3, P4, P5, B1, B2, B3, B4];
+
+  // Attach a realistic Q1-Q4 breakdown to every profile (see buildQuarters
+  // above) so Layer 1 India's quarter tabs show a genuine spread instead of
+  // the whole year dumped into Q1, and so the engine's real quarterly
+  // apportionment path (vs. its 75/25 fallback) is actually exercised.
+  PROFILES.forEach(function (p) {
+    p.india.quarters = buildQuarters(p.india, p.router.base_tax_year || 2026);
+  });
 
   function listProfiles() {
     return PROFILES.map(function (p) { return { id: p.id, label: p.label, story: p.story, tags: p.tags }; });
