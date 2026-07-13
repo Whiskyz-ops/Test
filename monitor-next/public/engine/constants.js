@@ -503,6 +503,30 @@
       desc: "Remittance certificates for foreign outward remittances.",
       why: "Outward remittances under LRS / to non-residents were made during the year.",
       severity: CONST.SEVERITY.INFO
+    },
+    {
+      id: "schedule_al",
+      jurisdiction: "IN",
+      name: "Schedule AL (Assets & Liabilities)",
+      desc: "Disclosure of assets and liabilities at cost, filed with the ITR.",
+      why: "Total income exceeds ₹50 lakh — Schedule AL is mandatory at this threshold u/s 139(1) (ITR-2/3/5 filers).",
+      severity: CONST.SEVERITY.WARNING
+    },
+    {
+      id: "form_3cb_3cd",
+      jurisdiction: "IN",
+      name: "Form 3CB / 3CD (Tax Audit Report)",
+      desc: "Chartered Accountant's tax-audit report and statement of particulars, filed before the ITR due date.",
+      why: "Business turnover exceeds the s.44AB tax-audit threshold (₹1 crore, or ₹10 crore where cash receipts and payments are each ≤5% of the total).",
+      severity: CONST.SEVERITY.CRITICAL
+    },
+    {
+      id: "form_8802",
+      jurisdiction: "US",
+      name: "IRS Form 8802 (Application for US Residency Certification)",
+      desc: "Application to the IRS for Form 6166 — the US residency certificate India's TRC requirement expects the other contracting state to issue.",
+      why: "DTAA relief is being claimed on Indian-source income — Form 6166 must be requested via Form 8802 before it can be filed with the Indian TRC/Form 41 paperwork; IRS processing typically takes 4-6+ weeks, so file well ahead of the India due date.",
+      severity: CONST.SEVERITY.WARNING
     }
   ];
 

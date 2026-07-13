@@ -1018,6 +1018,25 @@
   /* ------------------------------------------------------------------------
    * buildDocuments — evaluate the document catalogue against the model.
    * ----------------------------------------------------------------------*/
+  // Sums s.44AB tax-audit turnover across Indian business entries, using the
+  // same receipts field-fallback chain as computeBusinessEntryNetProfitInr /
+  // presumptiveCeilingInr in normalize.js (gross receipts, else turnover,
+  // else the scheme-specific digital+cash split) so this reads the same
+  // numbers those functions already trust rather than a second guess at
+  // field names. Returns the total and the cash-receipts share so the caller
+  // can apply the ₹1cr / ₹10cr(≥95%-digital) threshold.
+  function indiaBusinessTurnoverInr(entries) {
+    var totalInr = 0, cashInr = 0;
+    (entries || []).forEach(function (b) {
+      var digital = U.num(b.digital_receipts_inr) + U.num(b.ada_digital_receipts_inr);
+      var cash = U.num(b.cash_receipts_inr) + U.num(b.ada_cash_receipts_inr);
+      var receipts = U.num(b.gross_receipts_inr) || U.num(b.turnover_inr) || (digital + cash);
+      totalInr += receipts;
+      cashInr += cash;
+    });
+    return { totalInr: totalInr, cashInr: cashInr };
+  }
+
   function buildDocuments(model, computed) {
     var res = computed.residency;
     var triggers = {
@@ -1044,7 +1063,27 @@
       schedule_fa: res.india.status === CONST.INDIA_STATUS.ROR &&
                    (model.income.us.usSourceTotal.usd > 0 || (model.accounts.accounts || []).some(function (a) { return a.country !== "India"; })),
       schedule_fsi_tr: model.taxesPaid.us.total.usd > 0 || model.income.us.usSourceTotal.usd > 0,
-      form_15ca_cb: model.limitsRaw.lrsRemittedInr > 0
+      form_15ca_cb: model.limitsRaw.lrsRemittedInr > 0,
+      // Schedule AL is an ITR-2/3 (individual/HUF) threshold rule — ITR-5/6
+      // filers (firm/company) carry their own unconditional balance-sheet
+      // requirement instead, so they're excluded here rather than double-
+      // counted against the same ₹50L test.
+      schedule_al: !model.entity.indiaIsCompany && !model.entity.indiaIsFirm &&
+                   computed.indiaTax && computed.indiaTax.totalIncomeInr > 5000000,
+      form_3cb_3cd: model.entity.indiaIsCompany || (function () {
+        // A company is a statutory-audit case unconditionally (Companies Act,
+        // independent of s.44AB turnover); an individual/firm business only
+        // above the turnover threshold — checked from actual receipts below.
+        var t = indiaBusinessTurnoverInr(model.assets.indianBusinesses);
+        if (t.totalInr <= 0) return false;
+        var atLeast95PctDigital = (t.cashInr / t.totalInr) <= 0.05;
+        return t.totalInr > (atLeast95PctDigital ? 100000000 : 10000000);
+      })(),
+      // Mirrors the `trc` trigger — same underlying fact (a treaty benefit is
+      // being claimed) but framed for the US side: obtaining IRS Form 6166
+      // (via Form 8802) is the prerequisite step to producing the TRC/Form 41
+      // paperwork the India side needs.
+      form_8802: res.dualResident || model.treaty.treatyResidence !== "none" || model.treaty.usTreatyResidence !== "none"
     };
 
     return CONST.DOCUMENTS.map(function (d) {

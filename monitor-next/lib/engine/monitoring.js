@@ -121,12 +121,66 @@
     // on/by that date, so the UI can show a precise document subset per deadline
     // (intersected with what this client actually triggers) instead of "every
     // document for the jurisdiction". Payment installments (advance / estimated
-    // tax) carry no informational forms. Note Form 15CA/CB is deliberately
-    // absent — it's filed at the time of each remittance, not with the return.
+    // tax) carry no informational forms. Note Form 15CA/CB and Form 8802 are
+    // deliberately absent — both are filed ahead of / independent from the
+    // return's own due date, not "with" it on a single fixed day.
     var US_RETURN_DOCS = ["fincen_114", "form_8938", "form_1116", "form_2555", "form_8833",
       "form_8621", "form_5471", "form_8865", "form_3520", "form_1040nr", "form_8960", "form_8959"];
-    var IN_RETURN_DOCS = ["form_67", "trc", "form_10f", "schedule_fa", "schedule_fsi_tr"];
+    var IN_RETURN_DOCS = ["form_67", "trc", "form_10f", "schedule_fa", "schedule_fsi_tr", "schedule_al", "form_3cb_3cd"];
     function d(y, m, day) { return new Date(y, m - 1, day); }
+
+    // ---- entity-aware filing dates -----------------------------------
+    // The Return Form card already resolves which US/India return this
+    // taxpayer files (model.entity.usReturnForm / indiaIsCompany|indiaIsFirm);
+    // the calendar used to hardcode individual 1040 / ITR-2,3 dates
+    // regardless. Business/entity returns carry their own statutory due
+    // dates — wire the calendar to the same determination instead of a
+    // second, disagreeing guess.
+    var usKind = model.entity ? model.entity.usReturnForm : "1040";
+    // Calendar-year statutory due dates (original / extended). 1120 and
+    // 1040/1040-NR coincide (Apr 15 / Oct 15) so only the label differs for
+    // C-corps; 1120-S/1065 and 1041 have their own earlier dates.
+    var US_FILING_DATES = {
+      "1120":    { orig: d(baseYear + 1, 4, 15), ext: d(baseYear + 1, 10, 15), label: "US Form 1120 (C-Corp)" },
+      "1120-S":  { orig: d(baseYear + 1, 3, 15), ext: d(baseYear + 1, 9, 15), label: "US Form 1120-S (S-Corp)" },
+      "1065":    { orig: d(baseYear + 1, 3, 15), ext: d(baseYear + 1, 9, 15), label: "US Form 1065 (Partnership)" },
+      "1041":    { orig: d(baseYear + 1, 4, 15), ext: d(baseYear + 1, 9, 30), label: "US Form 1041 (Trust/Estate)" },
+      "1040-NR": { orig: d(baseYear + 1, 4, 15), ext: d(baseYear + 1, 10, 15), label: "US Form 1040-NR + FBAR" },
+      "1040":    { orig: d(baseYear + 1, 4, 15), ext: d(baseYear + 1, 10, 15), label: "US Form 1040 + Form 1116 + FBAR" }
+    };
+    var usFiling = US_FILING_DATES[usKind] || US_FILING_DATES["1040"];
+    // A C-corp pays its own estimated tax on its own calendar (Apr/Jun/Sep/Dec
+    // of the SAME year — no Jan-of-next-year quarter, unlike individuals).
+    // Pass-through entities (S-corp/partnership) don't pay entity-level
+    // estimated tax at all — their owners do, on the individual Apr/Jun/Sep/
+    // Jan schedule already below — so only ccorp's Q4 date/label differs.
+    var usQ4 = usKind === "1120" ? { date: d(baseYear, 12, 15), label: "US estimated tax — Q4 (C-Corp)" }
+                                  : { date: d(baseYear + 1, 1, 15), label: "US estimated tax — Q4" };
+
+    // India: a company (ITR-6) is unconditionally an audit case; an
+    // individual/firm business crosses into one only above the s.44AB
+    // turnover threshold (₹1cr, or ₹10cr where cash receipts are ≤5% of the
+    // total) — same threshold and field-fallback chain as buildDocuments'
+    // form_3cb_3cd trigger in conflicts.js, kept in sync deliberately rather
+    // than shared, since monitoring.js and conflicts.js don't otherwise
+    // depend on each other.
+    var inTurnover = (function () {
+      var totalInr = 0, cashInr = 0;
+      (model.assets && model.assets.indianBusinesses || []).forEach(function (b) {
+        var digital = U.num(b.digital_receipts_inr) + U.num(b.ada_digital_receipts_inr);
+        var cash = U.num(b.cash_receipts_inr) + U.num(b.ada_cash_receipts_inr);
+        var receipts = U.num(b.gross_receipts_inr) || U.num(b.turnover_inr) || (digital + cash);
+        totalInr += receipts; cashInr += cash;
+      });
+      return { totalInr: totalInr, cashInr: cashInr };
+    })();
+    var inTurnoverAuditCase = inTurnover.totalInr > 0 &&
+      inTurnover.totalInr > ((inTurnover.cashInr / inTurnover.totalInr) <= 0.05 ? 100000000 : 10000000);
+    var indiaIsAuditCase = (model.entity && model.entity.indiaIsCompany) || inTurnoverAuditCase;
+    var indiaFiling = indiaIsAuditCase
+      ? { date: d(baseYear + 1, 10, 31), label: "India ITR + Form 44 (audit case)" }
+      : { date: d(baseYear + 1, 7, 31), label: "India ITR + Form 44 (non-audit)" };
+
     var deadlines = [
       { name: "India advance tax — Q1 (15%)", jur: "IN", date: d(baseYear, 6, 15), cat: "Advance tax", docIds: [] },
       { name: "India advance tax — Q2 (45%)", jur: "IN", date: d(baseYear, 9, 15), cat: "Advance tax", docIds: [] },
@@ -135,10 +189,10 @@
       { name: "US estimated tax — Q1", jur: "US", date: d(baseYear, 4, 15), cat: "Estimated tax", docIds: [] },
       { name: "US estimated tax — Q2", jur: "US", date: d(baseYear, 6, 15), cat: "Estimated tax", docIds: [] },
       { name: "US estimated tax — Q3", jur: "US", date: d(baseYear, 9, 15), cat: "Estimated tax", docIds: [] },
-      { name: "US estimated tax — Q4", jur: "US", date: d(baseYear + 1, 1, 15), cat: "Estimated tax", docIds: [] },
-      { name: "US Form 1040 + Form 1116 + FBAR", jur: "US", date: d(baseYear + 1, 4, 15), cat: "Filing", docIds: US_RETURN_DOCS },
-      { name: "India ITR + Form 44 (non-audit)", jur: "IN", date: d(baseYear + 1, 7, 31), cat: "Filing", docIds: IN_RETURN_DOCS },
-      { name: "US extended 1040 / FBAR deadline", jur: "US", date: d(baseYear + 1, 10, 15), cat: "Extension", docIds: US_RETURN_DOCS },
+      { name: usQ4.label, jur: "US", date: usQ4.date, cat: "Estimated tax", docIds: [] },
+      { name: usFiling.label, jur: "US", date: usFiling.orig, cat: "Filing", docIds: US_RETURN_DOCS },
+      { name: indiaFiling.label, jur: "IN", date: indiaFiling.date, cat: "Filing", docIds: IN_RETURN_DOCS },
+      { name: "US extended " + usFiling.label.replace(/^US /, "") + " deadline", jur: "US", date: usFiling.ext, cat: "Extension", docIds: US_RETURN_DOCS },
       { name: "India belated / revised ITR", jur: "IN", date: d(baseYear + 1, 12, 31), cat: "Extension", docIds: IN_RETURN_DOCS }
     ].map(function (x) {
       var du = daysBetween(today, x.date);
