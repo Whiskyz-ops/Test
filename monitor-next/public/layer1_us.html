@@ -3462,7 +3462,7 @@
                         <span class="text-xs font-bold text-white/80">Prior Year FTC Carryovers</span>
                         <div class="relative">
                             <span class="absolute left-3 top-2.5 text-xs text-brandCyan/50">$</span>
-                            <input type="text" inputmode="numeric" id="ftc-carryover" oninput="updateStateField('ftc_inputs', 'prior_year_carryovers', this.value)" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-7 py-2 focus:border-brandCyan focus:outline-none placeholder-white/20" placeholder="0">
+                            <input type="text" inputmode="numeric" id="ftc-carryover" oninput="updateStateField('ftc_inputs', 'prior_year_carryovers_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-7 py-2 focus:border-brandCyan focus:outline-none placeholder-white/20" placeholder="0">
                         </div>
                     </div>
                 </div>
@@ -4030,6 +4030,7 @@
             physical_presence_start_date: null,
             physical_presence_end_date: null,
             days_in_us_during_test_period: 0,
+            us_business_days: 0,
             bona_fide_residence_start_date: null,
             foreign_earned_income_usd: null,
             feie_amount_claimed_usd: 0,
@@ -17233,6 +17234,7 @@
             physical_presence_start_date: "",
             physical_presence_end_date: "",
             days_in_us_during_test_period: 0,
+            us_business_days: 0,
             bona_fide_residence_start_date: "",
             foreign_housing_expenses_usd: null,
             housing_exclusion_base_usd: 21264,
@@ -17781,6 +17783,7 @@
             if (savedState.ftc_inputs) {
                 usState.ftc_inputs.claims_ftc = savedState.ftc_inputs.claims_ftc;
                 usState.ftc_inputs.claims_ftc_simplified_under_300 = savedState.ftc_inputs.claims_ftc_simplified_under_300;
+                usState.ftc_inputs.prior_year_carryovers_usd = savedState.ftc_inputs.prior_year_carryovers_usd || 0;
             }
             if (savedState.withholding_and_estimated) {
                 Object.assign(usState.withholding_and_estimated, savedState.withholding_and_estimated);
@@ -17967,6 +17970,7 @@
             if (usState.foreign_earned_income.physical_presence_start_date) document.getElementById('feie-phys-start').value = usState.foreign_earned_income.physical_presence_start_date;
             if (usState.foreign_earned_income.physical_presence_end_date) document.getElementById('feie-phys-end').value = usState.foreign_earned_income.physical_presence_end_date;
             document.getElementById('feie-phys-usdays').value = usState.foreign_earned_income.days_in_us_during_test_period || 0;
+            document.getElementById('feie-phys-busdays').value = usState.foreign_earned_income.us_business_days || 0;
             if (usState.foreign_earned_income.bona_fide_residence_start_date) document.getElementById('feie-bf-start').value = usState.foreign_earned_income.bona_fide_residence_start_date;
             document.getElementById('feie-housing').value = usState.foreign_earned_income.foreign_housing_expenses_usd || '';
 
@@ -18027,6 +18031,7 @@
             // Restore FTC Dom
             document.getElementById('ftc-has').checked = usState.ftc_inputs.claims_ftc || false;
             document.getElementById('ftc-simpl').checked = usState.ftc_inputs.claims_ftc_simplified_under_300 || false;
+            document.getElementById('ftc-carryover').value = usState.ftc_inputs.prior_year_carryovers_usd || '';
 
             // Restore Withholding Dom
             document.getElementById('with-q1').value = usState.withholding_and_estimated.estimated_tax_q1_apr15_usd || '';

@@ -198,6 +198,81 @@ symptom of an already-tracked gap, not a new one — the form's Schedule M-1
 book-to-tax reconciliation UI is fully wired but never computes a final
 number into anything the engine reads. Already covered by **US-18**.
 
+### Tool 3 — array-item field coverage (added 14 Jul 2026)
+
+`scripts/audit/array-item-coverage.js` closes a gap the first two tools
+share: both treat every array (`financial_holdings.transactions`,
+`wages_w2`, etc.) as one opaque leaf, never checking the fields *inside*
+array items — exactly the class most of this document's earlier findings
+(GAV, `sale_val`/`sale_value` aliasing) belonged to. It extracts the fields
+the engine reads inside each array's `forEach` body and the fields the
+form's construction site(s) actually push, per site (not just a union —
+a union masked a real bug on the first run: one construction site can
+coincidentally use the correct names while the real one doesn't).
+
+First real run found **US-26**: the real "Add Foreign Corporation" UI
+(`syncCorpState()`) writes `corporation_name`/`country_of_incorporation`/
+`ownership_percentage` with no GILTI field at all — zero overlap with what
+the engine reads (`corp_name`/`country`/`ownership_pct`/`gilti_income_usd`).
+A separate India→US auto-hydration shortcut happened to use 2 of the 4
+correct names, which is what hid this from a naive union check. Confirmed
+by direct code reading, not just the tool's output. **P1 — silently
+understates CFC ownership/GILTI for any manually-entered foreign
+corporation.** Not fixed yet (needs a decision: rename the form's fields,
+or alias in `normalize.js` — the latter is lower-risk since all the data
+except GILTI already exists under different names).
+
+### Tool 4 — end-to-end field sweep (added 14 Jul 2026)
+
+`scripts/audit/e2e-field-sweep.js` is the only one of the four that
+actually drives a browser — the other three are static text analysis.
+Layer A parses every input wired through the `updateOSField`/
+`updateStateField` conventions (target path is literal in the call, no
+manual list needed), sets a marker value, and checks both the exact state
+path and DOM restoration after reload. Layer B seeds curated money fields
+directly and checks the Monitor's computed tax moves in the right
+direction — catching a value that reaches `state` but never affects the
+number.
+
+Getting a trustworthy result took three iterations, each a real lesson
+about testing this codebase, not just the target:
+1. First run produced ~10 failures that were actually correct product
+   behavior: `angel_tax_premium_inr`/`local_authority_s10_20_inr` are
+   entity-type-gated and the form correctly clears them for the script's
+   generic "individual" test profile.
+2. Second run produced a much larger, consistent block of false failures
+   (values truncated to their first 2 digits) — traced to a genuine race
+   between the script's simulated `.fill()` and `layer1_us.html`'s own
+   `setTimeout(..., 500)` that re-runs currency formatting shortly after
+   page load. A larger fixed wait did not reliably fix it under this
+   environment's load.
+3. Redesigned to call `window.updateOSField(...)`/`window.updateStateField(
+   ...)` directly instead of simulating keystrokes — same code path a real
+   keystroke triggers, without also racing the page's own async formatter.
+   This run was clean and reproducible.
+
+The clean run (71 passed, 5 failed) found two more genuine bugs, both
+fixed same-day: `foreign_earned_income.us_business_days` (`#feie-phys-
+busdays`) had a working save but literally no restoration code anywhere in
+the file — the schema didn't even declare it; and `ftc_inputs.
+prior_year_carryovers` (what the input wrote) never matched
+`prior_year_carryovers_usd` (what the schema declared) — a field-name
+mismatch that silently dropped a real user's FTC carryover entry on every
+reload. Both fixed by adding the missing schema field / restoration line
+and aligning the input's write target with the schema, verified with a
+direct save→reload→check script before considering them closed. Neither
+was previously read by the engine either (FTC carryover computation itself
+is unbuilt — part of the existing US-9 gap), so this was purely a data-
+loss/UX fix, not a tax-computation one.
+
+The remaining 2 of the 5 failures were also false positives, for reasons
+specific to each check: `angel_tax_premium_inr` (same entity-gating
+class as Layer A's first run) and `se_health_insurance_deduction_usd` in
+Layer B, which correctly computed a $0 deduction because the seeded
+baseline profile had no self-employment income — the deduction is
+deliberately floored at net SE earnings (see the US-20 fix earlier in
+this document), so there was nothing to deduct against by design.
+
 ## Regression harness
 
 `tests/engine/run.js` (`npm test`) — plain Node, no framework, matching the
