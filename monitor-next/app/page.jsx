@@ -7,7 +7,7 @@ import Header from "@/components/Header";
 import StatMeter from "@/components/StatMeter";
 import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
-import { ConflictsPanel, ResidencyView, FilingsView, DocumentsView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView } from "@/components/Views";
+import { ConflictsPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView } from "@/components/Views";
 import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries } from "@/lib/wising";
@@ -35,9 +35,9 @@ export default function MonitorPage() {
   const [result, setResult] = useState(null);
   const [activeProfile, setActiveProfile] = useState(null);
   const [clientSummaries, setClientSummaries] = useState([]);
-  const [holdingsHighlight, setHoldingsHighlight] = useState(null);
+  const [reconHighlight, setReconHighlight] = useState(null);
 
-  const goToHoldings = useCallback((section) => { setView("holdings"); setHoldingsHighlight(section); }, []);
+  const goToRecon = useCallback((section) => { setView("reconciliation"); setReconHighlight(section); }, []);
 
   const recompute = useCallback((preferred) => {
     const wantLive = preferred === "live" || (preferred == null && hasLiveLayer1());
@@ -72,7 +72,6 @@ export default function MonitorPage() {
   const badges = {
     monitor: result ? { text: result.summary.counts.critical + result.summary.counts.warning, tone: result.summary.counts.critical > 0 ? "alert" : "" } : null,
     clients: { text: profiles.length },
-    documents: result ? { text: result.summary.requiredDocs } : null,
     filings: result && result.summary.nextDeadline ? { text: (result.monitoring && result.monitoring.calendar.next ? "in " + result.monitoring.calendar.next.daysUntil + "d" : "") } : null
   };
 
@@ -152,11 +151,11 @@ export default function MonitorPage() {
         )}
 
         {view === "clients" && <ClientsView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
-        {view === "holdings" && <HoldingsView result={result} highlight={holdingsHighlight} onHighlightDone={() => setHoldingsHighlight(null)} />}
+        {view === "holdings" && <HoldingsView result={result} />}
         {view === "business" && <BusinessView result={result} />}
         {view === "residency" && <ResidencyView result={result} />}
-        {view === "filings" && <FilingsView result={result} onGoToHoldings={goToHoldings} />}
-        {view === "documents" && <DocumentsView result={result} />}
+        {view === "filings" && <FilingsView result={result} />}
+        {view === "reconciliation" && <ReconciliationView result={result} highlight={reconHighlight} onHighlightDone={() => setReconHighlight(null)} onJump={goToRecon} />}
         {view === "accounts" && <AccountsView result={result} />}
         {view === "integrations" && <IntegrationsView />}
       </main>

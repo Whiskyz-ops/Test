@@ -66,19 +66,19 @@ function TracePopup({ trace, fmt, onClose }) {
     </div>
   );
 }
-function TraceRow({ label, valueDisp, color, emphasis, trace, fmt, onGoToHoldings }) {
+function TraceRow({ label, valueDisp, color, emphasis, trace, fmt, onJump }) {
   const [open, setOpen] = useState(false);
-  const isHoldingsLink = trace && trace.kind === "holdings" && onGoToHoldings;
+  const isJumpLink = trace && trace.kind === "holdings" && onJump;
   return (
     <div className="relative">
-      <button onClick={() => (isHoldingsLink ? onGoToHoldings(trace.section) : setOpen((o) => !o))}
+      <button onClick={() => (isJumpLink ? onJump(trace.section) : setOpen((o) => !o))}
         className={"w-full flex justify-between gap-3 text-[12px] text-left rounded px-1 -mx-1 transition-colors hover:bg-white/[0.06] cursor-pointer " +
           (emphasis ? "border-t border-line pt-1.5 mt-1 font-bold text-head" : "text-body")}>
-        <span style={color && !emphasis ? { color } : undefined}>{label}{isHoldingsLink && <span className="text-muted ml-1" title="Jumps to Holdings">↗</span>}</span>
+        <span style={color && !emphasis ? { color } : undefined}>{label}{isJumpLink && <span className="text-muted ml-1" title="Jumps to the income-by-head breakdown below">↗</span>}</span>
         <span className="font-mono" style={color ? { color } : undefined}>{valueDisp}</span>
       </button>
-      {open && !isHoldingsLink && trace && <TracePopup trace={trace} fmt={fmt} onClose={() => setOpen(false)} />}
-      {isHoldingsLink && trace.note && <div className="text-[10px] text-muted mt-0.5 ml-1">{trace.note}</div>}
+      {open && !isJumpLink && trace && <TracePopup trace={trace} fmt={fmt} onClose={() => setOpen(false)} />}
+      {isJumpLink && trace.note && <div className="text-[10px] text-muted mt-0.5 ml-1">{trace.note}</div>}
     </div>
   );
 }
@@ -230,12 +230,14 @@ export function ResidencyView({ result }) {
 }
 
 /* ============================ FILINGS ============================ */
-export function FilingsView({ result, onGoToHoldings }) {
+export function FilingsView({ result }) {
   if (!result) return <Empty>Load a client to see filings.</Empty>;
   const cal = result.monitoring ? result.monitoring.calendar.all.slice().sort((a, b) => a.date - b.date) : [];
   const upcoming = cal.filter((x) => x.status !== "passed");
   const passed = cal.filter((x) => x.status === "passed").slice(-3);
   const jColor = { US: PAL.jurUS, IN: PAL.jurIN };
+  const docs = result.documents.slice().sort((a, b) => (b.required ? 1 : 0) - (a.required ? 1 : 0));
+  const req = docs.filter((d) => d.required).length;
   return (
     <div className="space-y-6">
       <Card icon={<CalendarClock size={16} strokeWidth={2} />} title="Compliance Calendar" sub="Filing & payment deadlines with countdowns">
@@ -254,15 +256,20 @@ export function FilingsView({ result, onGoToHoldings }) {
           })}
         </div>
       </Card>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <FtcCard ftcReport={result.ftcReport} onGoToHoldings={onGoToHoldings} />
-        <TaxCard taxComputation={result.taxComputation} fxRate={result.model.meta.fxRate} onGoToHoldings={onGoToHoldings} />
-      </div>
-      {result.computed.reconciliation && result.computed.reconciliation.rows && result.computed.reconciliation.rows.length > 0 && (
-        <CapsuleChart rows={result.computed.reconciliation.rows} />
-      )}
-      <ReconciliationCard recon={result.computed.reconciliation} />
-      <ApportionmentCard ap={result.computed.apportionment} />
+      <Card icon={<FolderOpen size={16} strokeWidth={2} />} title="Documents to File" sub={req + " required · triggered by this taxpayer's cross-border facts"}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {docs.map((d) => (
+            <div key={d.id} className={"flex items-start gap-3 p-3 rounded-lg " + (d.required ? "bg-white/[0.03] border border-line" : "opacity-45")}>
+              <span className="text-[9px] font-black px-2 py-0.5 rounded mt-0.5" style={{ background: jColor[d.jurisdiction] + "24", color: jColor[d.jurisdiction] }}>{d.jurisdiction}</span>
+              <div className="flex-1">
+                <div className="text-[12px] font-bold text-head flex items-center gap-2">{d.name}{d.required ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-exposed/15" style={{ color: PAL.redText }}>Required</span> : <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/[0.05] text-muted">N/A</span>}</div>
+                <div className="text-[11px] text-muted">{d.desc}</div>
+                {d.required && <div className="text-[11px] text-body mt-0.5">↳ {d.why}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 }
@@ -339,14 +346,14 @@ function ReconciliationCard({ recon }) {
     </Card>
   );
 }
-function FtcCard({ ftcReport, onGoToHoldings }) {
+function FtcCard({ ftcReport, onJump }) {
   const net = ftcReport.headlineNetDoubleTaxUsd;
   const Block = ({ block }) => (
     <div className="mb-2"><div className="text-[11px] font-bold text-body mb-2">{block.title}</div>
       <div className="space-y-1">{block.rows.map((r, i) => {
         const c = r.warn ? PAL.redText : r.emphasis ? PAL.greenText : PAL.body;
         const disp = r.usd < 0 ? "(" + fmtUsd(Math.abs(r.usd)) + ")" : fmtUsd(r.usd);
-        return <TraceRow key={i} label={r.label} valueDisp={disp} color={c} emphasis={r.emphasis || r.warn} trace={r.trace} fmt={fmtUsd} onGoToHoldings={onGoToHoldings} />;
+        return <TraceRow key={i} label={r.label} valueDisp={disp} color={c} emphasis={r.emphasis || r.warn} trace={r.trace} fmt={fmtUsd} onJump={onJump} />;
       })}</div></div>
   );
   return (
@@ -361,7 +368,7 @@ function FtcCard({ ftcReport, onGoToHoldings }) {
     </Card>
   );
 }
-function TaxCard({ taxComputation, fxRate, onGoToHoldings }) {
+function TaxCard({ taxComputation, fxRate, onJump }) {
   const Block = ({ block, isInr, accent }) => {
     const fmt = isInr ? fmtInr : fmtUsd;
     return (
@@ -369,7 +376,7 @@ function TaxCard({ taxComputation, fxRate, onGoToHoldings }) {
         <div className="flex items-center justify-between mb-2"><div className="text-[12px] font-bold text-head">{block.title}</div><span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-white/[0.05] border border-line text-muted">eff {Math.round(block.effectiveRate * 100)}%</span></div>
         <div className="space-y-1">{block.rows.map((r, i) => {
           const val = isInr ? r.inr : r.usd; let disp = fmt(Math.abs(val)); if (val < 0) disp = "(" + disp + ")";
-          return <TraceRow key={i} label={r.label} valueDisp={disp} emphasis={r.emphasis} trace={r.trace} fmt={fmt} onGoToHoldings={onGoToHoldings} />;
+          return <TraceRow key={i} label={r.label} valueDisp={disp} emphasis={r.emphasis} trace={r.trace} fmt={fmt} onJump={onJump} />;
         })}</div>
         <div className="text-[10px] text-muted mt-2">≈ {fmtUsd(block.totalUsd)} at {fxRate} INR/USD</div>
       </div>
@@ -384,112 +391,25 @@ function TaxCard({ taxComputation, fxRate, onGoToHoldings }) {
   );
 }
 
-/* ============================ DOCUMENTS ============================ */
-export function DocumentsView({ result }) {
-  if (!result) return <Empty>Load a client to see documents.</Empty>;
-  const jColor = { US: PAL.jurUS, IN: PAL.jurIN };
-  const docs = result.documents.slice().sort((a, b) => (b.required ? 1 : 0) - (a.required ? 1 : 0));
-  const req = docs.filter((d) => d.required).length;
-  return (
-    <Card icon={<FolderOpen size={16} strokeWidth={2} />} title="Documents to File" sub={req + " required · triggered by this taxpayer's cross-border facts"}>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        {docs.map((d) => (
-          <div key={d.id} className={"flex items-start gap-3 p-3 rounded-lg " + (d.required ? "bg-white/[0.03] border border-line" : "opacity-45")}>
-            <span className="text-[9px] font-black px-2 py-0.5 rounded mt-0.5" style={{ background: jColor[d.jurisdiction] + "24", color: jColor[d.jurisdiction] }}>{d.jurisdiction}</span>
-            <div className="flex-1">
-              <div className="text-[12px] font-bold text-head flex items-center gap-2">{d.name}{d.required ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-exposed/15" style={{ color: PAL.redText }}>Required</span> : <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/[0.05] text-muted">N/A</span>}</div>
-              <div className="text-[11px] text-muted">{d.desc}</div>
-              {d.required && <div className="text-[11px] text-body mt-0.5">↳ {d.why}</div>}
-            </div>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-/* ============================ ACCOUNTS ============================ */
-export function AccountsView({ result }) {
-  if (!result) return <Empty>Load a client to see accounts.</Empty>;
-  const color = { ok: PAL.positive, approaching: PAL.approaching, breached: PAL.exposed };
-  const accts = result.model.accounts.accounts || [];
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card icon={<Ruler size={16} strokeWidth={2} />} title="Reporting Limits" sub="FBAR · FATCA 8938 · LRS · FEIE">
-        <div className="space-y-4">
-          {result.computed.limits.map((g) => (
-            <div key={g.id}>
-              <div className="flex justify-between text-[11px] mb-1.5"><span className="text-body font-semibold">{g.label}{g.status === "breached" && <span className="ml-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-exposed/15" style={{ color: PAL.redText }}>BREACHED</span>}</span><span className="font-mono" style={{ color: color[g.status] }}>{Math.round(g.pct * 100)}%</span></div>
-              <SegBar pct={g.pct} color={color[g.status]} projPct={g.projPct} />
-              <div className="flex justify-between text-[10px] text-muted mt-1.5"><span>{fmtUsd(g.value)}</span><span>limit {fmtUsd(g.limit)}</span></div>
-            </div>
-          ))}
-        </div>
-      </Card>
-      <Card icon={<Landmark size={16} strokeWidth={2} />} title="Foreign Accounts" sub={accts.length + " account(s) · drives FBAR / Schedule FA"}>
-        {accts.length === 0 ? <Empty>No foreign accounts on file.</Empty> : (
-          <div className="space-y-1.5">
-            {accts.map((a, i) => (
-              <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-white/[0.03]">
-                {a.country === "India" ? <span className="text-base">🇮🇳</span> : <Landmark size={15} strokeWidth={2} className="text-muted shrink-0" />}
-                <div className="flex-1 min-w-0"><div className="text-[12px] font-semibold text-head truncate">{a.bank}</div><div className="text-[10px] text-muted">{a.type} · {a.country}</div></div>
-                <div className="text-[12px] font-mono text-head">{fmtUsd(a.peak.usd)}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-}
-
-/* ============================ HOLDINGS (income & assets from Layer 1) ======= */
-export function HoldingsView({ result, highlight, onHighlightDone }) {
+/* ============================ RECONCILIATION ============================
+ * The "how is this number actually computed" surface: FTC reconciliation,
+ * the India/US tax computation trace tables, the cross-basis chart/table
+ * (same income under each country's own code), FY↔CY apportionment, and the
+ * India/US income-by-head breakdown that everything above cross-references.
+ * Kept together in one tab since they're all views onto the same underlying
+ * reconciliation, not separate concerns. */
+export function ReconciliationView({ result, highlight, onHighlightDone, onJump }) {
   useEffect(() => {
     if (!highlight) return;
-    const id = highlight === "us" ? "holdings-us-income" : "holdings-india-income";
+    const id = highlight === "us" ? "recon-us-income" : "recon-india-income";
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
     const t = setTimeout(() => { if (onHighlightDone) onHighlightDone(); }, 2500);
     return () => clearTimeout(t);
   }, [highlight, onHighlightDone]);
-  if (!result) return <Empty>Load a client to see income &amp; holdings.</Empty>;
-  const m = result.model, inc = m.income, a = m.assets, fx = m.meta.fxRate || 83;
-  const usPerson = result.computed.residency.us.isResident;
+  if (!result) return <Empty>Load a client to see the tax reconciliation.</Empty>;
+  const m = result.model, inc = m.income, fx = m.meta.fxRate || 83;
   const inrToUsd = (n) => (n || 0) / fx;
-
-  // Securities — US brokerage/investment holdings + Indian funds/equities
-  const inSec = ((a.indianSecurities && a.indianSecurities.length ? a.indianSecurities : a.indianMutualFunds) || []).map((s) => ({
-    name: s.asset_name || "Holding", type: (s.asset_type || "security").replace(/_/g, " "),
-    valueUsd: inrToUsd(s.value_inr || (s.value_usd || 0) * fx), country: "IN",
-    pfic: usPerson && /fund|etf|mutual/i.test(s.asset_type || "")
-  }));
-  const usSec = (a.usSecurities || []).map((s) => ({
-    name: s.asset_name || s.institution_name || s.account_type || "US holding",
-    type: (s.account_type || s.asset_type || "brokerage").replace(/_/g, " "),
-    valueUsd: s.peak_balance_usd || s.market_value_usd || s.value_usd || 0, country: "US", pfic: false
-  }));
-  const securities = [...usSec, ...inSec];
-  const corps = a.usForeignCorps || [];
-
-  // Property — US real estate + Indian property
-  const inProp = (a.indianProperties || []).map((p) => ({ name: p.address || "Property", type: p.property_type || "Residential", grossRentUsd: inrToUsd(p.gross_rent_received_inr || p.annual_value_inr || 0), country: "IN", note: p.municipal_taxes_paid_inr ? "municipal tax " + fmtInr(p.municipal_taxes_paid_inr) : "" }));
-  const usProp = (a.usProperties || []).filter((p) => !p._hydratedFromIndia).map((p) => ({ name: p.name || p.address || "US property", type: p.property_type || "Residential", grossRentUsd: p.gross_rent_usd || p.rental_income_usd || 0, country: "US", note: p.expenses_usd ? "expenses " + fmtUsd(p.expenses_usd) : "" }));
-  const properties = [...usProp, ...inProp];
-
-  // Retirement — US 401k/IRA/Roth contributions (this year) + Indian EPF/PPF/NPS balances
-  const usr = a.usRetirement || {};
-  const usRet = [["401(k) — employee", usr["401k_employee_contribution_usd"]], ["401(k) — employer match", usr["401k_employer_match_usd"]], ["Roth 401(k)", usr.roth_401k_contribution_usd], ["Traditional IRA", usr.traditional_ira_contribution_usd], ["Roth IRA", usr.roth_ira_contribution_usd], ["SEP / Solo 401(k)", (usr.sep_ira_contribution_usd || 0) + (usr.solo_401k_contribution_usd || 0)], ["HSA", usr.hsa_contribution_usd]]
-    .filter(([, v]) => v > 0).map(([l, v]) => ({ label: l, valueUsd: v, country: "US", kind: "contribution" }));
-  const inRet = [["EPF (Employees' Provident Fund)", a.epfInr], ["PPF (Public Provident Fund)", a.ppfInr], ["NPS (National Pension System)", a.npsInr]]
-    .filter(([, v]) => v > 0).map(([l, v]) => ({ label: l, valueUsd: inrToUsd(v), inr: v, country: "IN", kind: "balance" }));
-  const retire = [...usRet, ...inRet];
-  const accts = (m.accounts && m.accounts.accounts) || [];
-
-  const secValueUsd = securities.reduce((s, x) => s + x.valueUsd, 0);
-  const retireUsd = retire.reduce((s, x) => s + x.valueUsd, 0);
-  const acctUsd = accts.reduce((s, x) => s + (x.peak && x.peak.usd || 0), 0);
-  const propGrossUsd = properties.reduce((s, p) => s + p.grossRentUsd, 0);
 
   const isTaxed = (mv) => mv && (mv.usd > 0 || mv.inr > 0);
   const IncomeRow = ({ label, mv, inr, additive }) => (
@@ -530,33 +450,127 @@ export function HoldingsView({ result, highlight, onHighlightDone }) {
     ["Foreign long-term gains", inc.us.foreignLtcg]
   ] : []));
   const usTotalUsd = rowsTotal(usRows, "usd");
+
+  return (
+    <div className="space-y-6">
+      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Scale size={16} strokeWidth={2} /></HeadChip>Reconciliation</h2><p className="text-muted text-sm mt-2">The same income under each country's own code — Tax Computation, FTC relief, cross-basis overlap, and the FY↔CY apportionment that ties them together.</p></div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <FtcCard ftcReport={result.ftcReport} onJump={onJump} />
+        <TaxCard taxComputation={result.taxComputation} fxRate={result.model.meta.fxRate} onJump={onJump} />
+      </div>
+
+      {result.computed.reconciliation && result.computed.reconciliation.rows && result.computed.reconciliation.rows.length > 0 && (
+        <CapsuleChart rows={result.computed.reconciliation.rows} />
+      )}
+      <ReconciliationCard recon={result.computed.reconciliation} />
+      <ApportionmentCard ap={result.computed.apportionment} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div id="recon-india-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "india" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "india" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
+          <Card title="🇮🇳 India income — by head" sub="From Layer 1 India (₹, with USD equivalent)">
+            {indiaRows.length ? indiaRows.map((r, i) => <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} inr />) : <Empty>No India income on file.</Empty>}
+            {indiaRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtInr(indiaTotalInr)} <span className="text-muted">≈ {fmtUsd(indiaTotalUsd)}</span></span></div>}
+          </Card>
+        </div>
+        <div id="recon-us-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "us" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "us" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
+          <Card title="🇺🇸 US income — by head" sub="From Layer 1 US (USD)">
+            {usRows.length ? usRows.map((r, i) => <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} />) : <Empty>No US income on file.</Empty>}
+            {usRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtUsd(usTotalUsd)}</span></div>}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ ACCOUNTS ============================ */
+export function AccountsView({ result }) {
+  if (!result) return <Empty>Load a client to see accounts.</Empty>;
+  const color = { ok: PAL.positive, approaching: PAL.approaching, breached: PAL.exposed };
+  const accts = result.model.accounts.accounts || [];
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <Card icon={<Ruler size={16} strokeWidth={2} />} title="Reporting Limits" sub="FBAR · FATCA 8938 · LRS · FEIE">
+        <div className="space-y-4">
+          {result.computed.limits.map((g) => (
+            <div key={g.id}>
+              <div className="flex justify-between text-[11px] mb-1.5"><span className="text-body font-semibold">{g.label}{g.status === "breached" && <span className="ml-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-exposed/15" style={{ color: PAL.redText }}>BREACHED</span>}</span><span className="font-mono" style={{ color: color[g.status] }}>{Math.round(g.pct * 100)}%</span></div>
+              <SegBar pct={g.pct} color={color[g.status]} projPct={g.projPct} />
+              <div className="flex justify-between text-[10px] text-muted mt-1.5"><span>{fmtUsd(g.value)}</span><span>limit {fmtUsd(g.limit)}</span></div>
+            </div>
+          ))}
+        </div>
+      </Card>
+      <Card icon={<Landmark size={16} strokeWidth={2} />} title="Foreign Accounts" sub={accts.length + " account(s) · drives FBAR / Schedule FA"}>
+        {accts.length === 0 ? <Empty>No foreign accounts on file.</Empty> : (
+          <div className="space-y-1.5">
+            {accts.map((a, i) => (
+              <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-white/[0.03]">
+                {a.country === "India" ? <span className="text-base">🇮🇳</span> : <Landmark size={15} strokeWidth={2} className="text-muted shrink-0" />}
+                <div className="flex-1 min-w-0"><div className="text-[12px] font-semibold text-head truncate">{a.bank}</div><div className="text-[10px] text-muted">{a.type} · {a.country}</div></div>
+                <div className="text-[12px] font-mono text-head">{fmtUsd(a.peak.usd)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+/* ============================ HOLDINGS (income & assets from Layer 1) ======= */
+export function HoldingsView({ result }) {
+  if (!result) return <Empty>Load a client to see income &amp; holdings.</Empty>;
+  const m = result.model, inc = m.income, a = m.assets, fx = m.meta.fxRate || 83;
+  const usPerson = result.computed.residency.us.isResident;
+  const inrToUsd = (n) => (n || 0) / fx;
+
+  // Securities — US brokerage/investment holdings + Indian funds/equities
+  const inSec = ((a.indianSecurities && a.indianSecurities.length ? a.indianSecurities : a.indianMutualFunds) || []).map((s) => ({
+    name: s.asset_name || "Holding", type: (s.asset_type || "security").replace(/_/g, " "),
+    valueUsd: inrToUsd(s.value_inr || (s.value_usd || 0) * fx), country: "IN",
+    pfic: usPerson && /fund|etf|mutual/i.test(s.asset_type || "")
+  }));
+  const usSec = (a.usSecurities || []).map((s) => ({
+    name: s.asset_name || s.institution_name || s.account_type || "US holding",
+    type: (s.account_type || s.asset_type || "brokerage").replace(/_/g, " "),
+    valueUsd: s.peak_balance_usd || s.market_value_usd || s.value_usd || 0, country: "US", pfic: false
+  }));
+  const securities = [...usSec, ...inSec];
+  const corps = a.usForeignCorps || [];
+
+  // Property — US real estate + Indian property
+  const inProp = (a.indianProperties || []).map((p) => ({ name: p.address || "Property", type: p.property_type || "Residential", grossRentUsd: inrToUsd(p.gross_rent_received_inr || p.annual_value_inr || 0), country: "IN", note: p.municipal_taxes_paid_inr ? "municipal tax " + fmtInr(p.municipal_taxes_paid_inr) : "" }));
+  const usProp = (a.usProperties || []).filter((p) => !p._hydratedFromIndia).map((p) => ({ name: p.name || p.address || "US property", type: p.property_type || "Residential", grossRentUsd: p.gross_rent_usd || p.rental_income_usd || 0, country: "US", note: p.expenses_usd ? "expenses " + fmtUsd(p.expenses_usd) : "" }));
+  const properties = [...usProp, ...inProp];
+
+  // Retirement — US 401k/IRA/Roth contributions (this year) + Indian EPF/PPF/NPS balances
+  const usr = a.usRetirement || {};
+  const usRet = [["401(k) — employee", usr["401k_employee_contribution_usd"]], ["401(k) — employer match", usr["401k_employer_match_usd"]], ["Roth 401(k)", usr.roth_401k_contribution_usd], ["Traditional IRA", usr.traditional_ira_contribution_usd], ["Roth IRA", usr.roth_ira_contribution_usd], ["SEP / Solo 401(k)", (usr.sep_ira_contribution_usd || 0) + (usr.solo_401k_contribution_usd || 0)], ["HSA", usr.hsa_contribution_usd]]
+    .filter(([, v]) => v > 0).map(([l, v]) => ({ label: l, valueUsd: v, country: "US", kind: "contribution" }));
+  const inRet = [["EPF (Employees' Provident Fund)", a.epfInr], ["PPF (Public Provident Fund)", a.ppfInr], ["NPS (National Pension System)", a.npsInr]]
+    .filter(([, v]) => v > 0).map(([l, v]) => ({ label: l, valueUsd: inrToUsd(v), inr: v, country: "IN", kind: "balance" }));
+  const retire = [...usRet, ...inRet];
+  const accts = (m.accounts && m.accounts.accounts) || [];
+
+  const secValueUsd = securities.reduce((s, x) => s + x.valueUsd, 0);
+  const retireUsd = retire.reduce((s, x) => s + x.valueUsd, 0);
+  const acctUsd = accts.reduce((s, x) => s + (x.peak && x.peak.usd || 0), 0);
+  const propGrossUsd = properties.reduce((s, p) => s + p.grossRentUsd, 0);
+
   const HoldTag = ({ color, children }) => <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: color + "24", color }}>{children}</span>;
   const Flag = ({ c }) => <span className="text-[13px]" title={c === "US" ? "United States" : "India"}>{c === "US" ? "🇺🇸" : "🇮🇳"}</span>;
 
   return (
     <div className="space-y-6">
-      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Wallet size={16} strokeWidth={2} /></HeadChip>Income &amp; Holdings</h2><p className="text-muted text-sm mt-2">Everything captured in Layer 1 for {m.identity.name} — income by head, property, securities, entities and retirement.</p></div>
+      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Wallet size={16} strokeWidth={2} /></HeadChip>Income &amp; Holdings</h2><p className="text-muted text-sm mt-2">Everything captured in Layer 1 for {m.identity.name} — property, securities, entities and retirement.</p></div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatTile icon={<TrendingUp size={15} strokeWidth={2} />} label="Securities &amp; funds" value={fmtUsd(secValueUsd)} sub={securities.length + " holding(s) · US + India"} accent={PAL.accent} highlight />
         <StatTile icon={<Home size={15} strokeWidth={2} />} label="Property (annual rent)" value={fmtUsd(propGrossUsd)} sub={properties.length + " property(ies)"} />
         <StatTile icon={<Landmark size={15} strokeWidth={2} />} label="Bank balances (peak)" value={fmtUsd(acctUsd)} sub={accts.length + " account(s)"} />
         <StatTile icon={<Palmtree size={15} strokeWidth={2} />} label="Retirement" value={fmtUsd(retireUsd)} sub="401k/IRA · EPF/PPF/NPS" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div id="holdings-india-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "india" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "india" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
-          <Card title="🇮🇳 India income — by head" sub="From Layer 1 India (₹, with USD equivalent)">
-            {indiaRows.length ? indiaRows.map((r, i) => <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} inr />) : <Empty>No India income on file.</Empty>}
-            {indiaRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtInr(indiaTotalInr)} <span className="text-muted">≈ {fmtUsd(indiaTotalUsd)}</span></span></div>}
-          </Card>
-        </div>
-        <div id="holdings-us-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "us" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "us" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
-          <Card title="🇺🇸 US income — by head" sub="From Layer 1 US (USD)">
-            {usRows.length ? usRows.map((r, i) => <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} />) : <Empty>No US income on file.</Empty>}
-            {usRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtUsd(usTotalUsd)}</span></div>}
-          </Card>
-        </div>
       </div>
 
       <Card icon={<TrendingUp size={16} strokeWidth={2} />} title="Securities &amp; Funds" sub={usPerson ? "US brokerage + Indian funds — Indian funds held by a US person are PFICs (Form 8621)" : "Holdings on file (US + India)"}>
