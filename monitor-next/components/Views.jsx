@@ -3,7 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import {
   Compass, ScrollText, Scale, CalendarClock, CalendarRange, RefreshCcw, Calculator,
   FolderOpen, Ruler, Landmark, TrendingUp, Building2, Home, Palmtree, BookOpen, Plug,
-  Wallet, Receipt, TrendingDown, Globe2, Users, AlertTriangle, Siren, DollarSign, Banknote, PenLine
+  Wallet, Receipt, TrendingDown, Globe2, Users, AlertTriangle, Siren, DollarSign, Banknote, PenLine,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import { fmtUsd, PAL } from "@/lib/logic";
 import CapsuleChart from "@/components/CapsuleChart";
@@ -370,77 +371,105 @@ function DeadlineTimeline({ cal, jColor }) {
   );
 }
 
-/* Month-grid calendar: one mini-month per month that carries a deadline, with
- * the deadline days highlighted by jurisdiction and captioned below the grid. */
+/* Single-month calendar the user pages through with ‹ / › arrows. Opens on the
+ * month of the next upcoming deadline; deadline days are highlighted by
+ * jurisdiction (with a dot per deadline so days carrying both an IN and a US
+ * filing still read clearly) and listed in full below the grid. */
 function DeadlineCalendar({ cal, jColor }) {
-  if (!cal.length) return null;
   const today = new Date();
-  const groups = new Map();
+  const toIdx = (y, m) => y * 12 + m;
+  const byMonth = new Map();
   cal.forEach((x) => {
-    const key = x.date.getFullYear() + "-" + x.date.getMonth();
-    if (!groups.has(key)) groups.set(key, { year: x.date.getFullYear(), month: x.date.getMonth(), items: [] });
-    groups.get(key).items.push(x);
+    const k = toIdx(x.date.getFullYear(), x.date.getMonth());
+    (byMonth.get(k) || byMonth.set(k, []).get(k)).push(x);
   });
-  const months = Array.from(groups.values()).sort((a, b) => a.year - b.year || a.month - b.month);
+  const minIdx = toIdx(cal[0].date.getFullYear(), cal[0].date.getMonth());
+  const maxIdx = toIdx(cal[cal.length - 1].date.getFullYear(), cal[cal.length - 1].date.getMonth());
+  const clampIdx = (i) => Math.max(minIdx, Math.min(maxIdx, i));
+  const todayIdx = toIdx(today.getFullYear(), today.getMonth());
+  const next = cal.find((x) => x.status !== "passed");
+  const [idx, setIdx] = useState(clampIdx(next ? toIdx(next.date.getFullYear(), next.date.getMonth()) : todayIdx));
+
+  const year = Math.floor(idx / 12), month = idx % 12;
+  const monthName = new Date(year, month, 1).toLocaleDateString("en-US", { month: "long" });
+  const items = (byMonth.get(idx) || []).slice().sort((a, b) => a.date - b.date);
+  const isThisMonth = todayIdx === idx;
+  const todayInRange = todayIdx >= minIdx && todayIdx <= maxIdx;
+
   const WD = ["S", "M", "T", "W", "T", "F", "S"];
+  const firstWd = new Date(year, month, 1).getDay();
+  const nDays = new Date(year, month + 1, 0).getDate();
+  const dayItems = {};
+  items.forEach((x) => { (dayItems[x.date.getDate()] = dayItems[x.date.getDate()] || []).push(x); });
+  const cells = [];
+  for (let i = 0; i < firstWd; i++) cells.push(null);
+  for (let dn = 1; dn <= nDays; dn++) cells.push(dn);
+
+  const NavBtn = ({ dir }) => {
+    const disabled = dir < 0 ? idx <= minIdx : idx >= maxIdx;
+    return (
+      <button aria-label={dir < 0 ? "Previous month" : "Next month"} disabled={disabled}
+        onClick={() => setIdx((v) => clampIdx(v + dir))}
+        className={"w-8 h-8 rounded-lg flex items-center justify-center border border-line transition " + (disabled ? "opacity-25 cursor-not-allowed text-muted" : "text-body hover:bg-white/[0.06] hover:text-head")}>
+        {dir < 0 ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+      </button>
+    );
+  };
 
   return (
     <div>
       <CalLegend jColor={jColor} />
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {months.map((g) => {
-          const firstWd = new Date(g.year, g.month, 1).getDay();
-          const nDays = new Date(g.year, g.month + 1, 0).getDate();
-          const byDay = {};
-          g.items.forEach((x) => { (byDay[x.date.getDate()] = byDay[x.date.getDate()] || []).push(x); });
-          const cells = [];
-          for (let i = 0; i < firstWd; i++) cells.push(null);
-          for (let dnum = 1; dnum <= nDays; dnum++) cells.push(dnum);
-          const isThisMonth = today.getFullYear() === g.year && today.getMonth() === g.month;
-          const allPast = g.items.every((x) => x.status === "passed");
-          return (
-            <div key={g.year + "-" + g.month} className={"rounded-2xl border border-line p-3 " + (allPast ? "opacity-60 bg-white/[0.01]" : "bg-white/[0.02]")}>
-              <div className="flex items-baseline justify-between mb-2">
-                <span className="font-display font-bold text-sm text-head">{new Date(g.year, g.month, 1).toLocaleDateString("en-US", { month: "long" })}</span>
-                <span className="text-[10px] text-faint">{g.year}</span>
+      <div className="max-w-md mx-auto">
+        <div className="flex items-center justify-between mb-3">
+          <NavBtn dir={-1} />
+          <div className="text-center">
+            <div className="font-display font-bold text-base text-head leading-tight">{monthName} <span className="text-muted font-normal">{year}</span></div>
+            {!isThisMonth && todayInRange && (
+              <button onClick={() => setIdx(todayIdx)} className="text-[9px] font-bold uppercase tracking-wide hover:underline" style={{ color: PAL.greenText }}>Jump to today</button>
+            )}
+          </div>
+          <NavBtn dir={1} />
+        </div>
+        <div className="grid grid-cols-7 gap-1 mb-1">
+          {WD.map((w, i) => <div key={i} className="text-[9px] text-faint text-center font-semibold">{w}</div>)}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {cells.map((dn, i) => {
+            if (dn == null) return <div key={i} className="aspect-square" />;
+            const dItems = dayItems[dn];
+            const isToday = isThisMonth && today.getDate() === dn;
+            if (!dItems) {
+              return (
+                <div key={i} className="aspect-square flex items-center justify-center text-[11px] rounded-lg"
+                  style={isToday ? { color: PAL.greenText, boxShadow: `inset 0 0 0 1px ${PAL.accent}66` } : { color: PAL.faint }}>{dn}</div>
+              );
+            }
+            const jurs = Array.from(new Set(dItems.map((x) => x.jur)));
+            const past = dItems.every((x) => x.status === "passed");
+            const soon = dItems.some((x) => x.status === "due_soon");
+            const bg = jurs.length === 1 ? jColor[jurs[0]] + (past ? "14" : "26") : "rgba(255,255,255,0.06)";
+            const outline = isToday ? PAL.accent : soon ? PAL.approaching : jurs.length === 1 ? jColor[jurs[0]] + "88" : "rgba(255,255,255,0.22)";
+            return (
+              <div key={i} title={dItems.map((x) => x.name + " — " + dueText(x)).join(" · ")}
+                className="aspect-square relative flex items-center justify-center rounded-lg text-[11px] font-bold"
+                style={{ background: bg, color: past ? PAL.muted : "#fff", boxShadow: `inset 0 0 0 1px ${outline}` }}>
+                {dn}
+                <span className="absolute bottom-1 flex gap-0.5">
+                  {dItems.map((x, k) => <span key={k} className="w-1 h-1 rounded-full" style={{ background: jColor[x.jur], opacity: x.status === "passed" ? 0.5 : 1 }} />)}
+                </span>
               </div>
-              <div className="grid grid-cols-7 gap-0.5 mb-1">
-                {WD.map((w, i) => <div key={i} className="text-[8px] text-faint text-center">{w}</div>)}
-              </div>
-              <div className="grid grid-cols-7 gap-0.5">
-                {cells.map((dnum, i) => {
-                  if (dnum == null) return <div key={i} className="aspect-square" />;
-                  const items = byDay[dnum];
-                  const isToday = isThisMonth && today.getDate() === dnum;
-                  if (!items) {
-                    return (
-                      <div key={i} className="aspect-square flex items-center justify-center text-[9px] rounded"
-                        style={isToday ? { color: PAL.greenText, boxShadow: `inset 0 0 0 1px ${PAL.accent}66` } : { color: PAL.faint }}>{dnum}</div>
-                    );
-                  }
-                  const col = jColor[items[0].jur];
-                  const past = items.every((x) => x.status === "passed");
-                  const soon = items.some((x) => x.status === "due_soon");
-                  const outline = isToday ? PAL.accent : soon ? PAL.approaching + "88" : col + "66";
-                  return (
-                    <div key={i} title={items.map((x) => x.name + " — " + dueText(x)).join(" · ")}
-                      className="aspect-square flex items-center justify-center rounded text-[9px] font-bold"
-                      style={{ background: col + (past ? "14" : "26"), color: past ? PAL.muted : "#fff", boxShadow: `inset 0 0 0 1px ${outline}` }}>{dnum}</div>
-                  );
-                })}
-              </div>
-              <div className="mt-2 space-y-1">
-                {g.items.slice().sort((a, b) => a.date - b.date).map((x, i) => (
-                  <div key={i} className="flex items-center gap-1.5" style={{ opacity: x.status === "passed" ? 0.6 : 1 }}>
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: jColor[x.jur] }} />
-                    <span className="text-[10px] text-body truncate flex-1">{shortDeadline(x.name)}</span>
-                    <span className="text-[9px] font-mono whitespace-nowrap" style={{ color: dueColor(x) }}>{dueText(x)}</span>
-                  </div>
-                ))}
-              </div>
+            );
+          })}
+        </div>
+        <div className="mt-4 space-y-1.5">
+          {items.length ? items.map((x, i) => (
+            <div key={i} className={"flex items-center gap-2.5 p-2 rounded-lg " + (x.status === "passed" ? "opacity-50" : "bg-white/[0.03]")}>
+              <span className="text-[9px] font-black px-2 py-0.5 rounded" style={{ background: jColor[x.jur] + "24", color: jColor[x.jur] }}>{x.jur}</span>
+              <div className="flex-1 min-w-0"><div className="text-[12px] font-semibold text-head truncate">{x.name}</div><div className="text-[10px] text-muted">{x.dateLabel} · {x.cat}</div></div>
+              <span className="text-[11px] font-mono whitespace-nowrap" style={{ color: dueColor(x) }}>{dueText(x)}</span>
             </div>
-          );
-        })}
+          )) : <div className="text-center text-muted text-[11px] py-4">No deadlines in {monthName}.</div>}
+        </div>
       </div>
     </div>
   );
