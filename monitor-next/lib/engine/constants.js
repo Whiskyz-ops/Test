@@ -259,6 +259,23 @@
         NIIT_RATE: 0.038,
         ADDL_MEDICARE_RATE: 0.009,
         C_CORP_RATE: 0.21,
+        // ---- Social Security benefit taxability (s.86) ----
+        // "Provisional income" (a.k.a. combined income) test: base/
+        // additional thresholds, UNLIKE nearly every other figure in this
+        // file, are NOT inflation-indexed — fixed by statute since 1984
+        // (base) and 1993 (additional) and unchanged by OBBBA (which added
+        // the separate $6,000 senior deduction instead of touching s.86).
+        // No expiry/re-verification needed the way bracket/exemption
+        // figures do. MFS who lived WITH their spouse at any point in the
+        // year gets $0/$0 (85% of benefits taxable from the first dollar,
+        // no exclusion at all) — the favorable "lived apart all year"
+        // exception uses the single thresholds instead, but Layer 1 US
+        // doesn't capture that fact, so MFS conservatively uses the $0/$0
+        // punitive default rather than assuming the exception applies.
+        SS_PROVISIONAL_INCOME_BASE_USD: { single: 25000, mfj: 32000, mfs: 0, hoh: 25000 },
+        SS_PROVISIONAL_INCOME_ADDITIONAL_USD: { single: 34000, mfj: 44000, mfs: 0, hoh: 34000 },
+        SS_TAXABLE_TIER1_RATE: 0.5,
+        SS_TAXABLE_TIER2_RATE: 0.85,
         // ---- Self-employment tax (Schedule SE) ----
         SE_NET_FACTOR: 0.9235,          // 92.35% of net SE earnings is SE-taxable
         SE_RATE_SS: 0.124,              // Social Security portion (capped)

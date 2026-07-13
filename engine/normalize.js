@@ -1136,13 +1136,28 @@
     });
 
     // US retirement / pension income (US-source, ordinary): IRA & 401(k)
-    // distributions, Social Security, and pension.
-    var usRetirementIncome = moneyFromUsd(
-      num(safe(ui, "ira_distributions_usd", 0)) +
-      num(safe(ui, "401k_distributions_usd", 0)) +
-      num(safe(ui, "social_security_benefits_usd", 0)) +
-      num(safe(ui, "pension_income_usd", 0))
-    );
+    // distributions and pension are fully taxable. Social Security is kept
+    // SEPARATE (socialSecurityUs below) — under s.86, only 0%/50%/85% of it
+    // is actually taxable depending on the "provisional income" test, which
+    // needs the rest of AGI already assembled to compute — that happens in
+    // computeUsTax, not here. usRetirementIncome (all 4 combined, SS at its
+    // full gross amount) stays as a GROSS total-income aggregate only —
+    // computeUsTax builds the real taxable ordinary-income figure from
+    // usRetirementIncomeExclSs plus the computed taxable SS amount, not
+    // from this field. Previously SS was folded in here at 100%, which
+    // overstated tax for every SS-receiving profile (gap tracker US-2).
+    var iraDistUsd = num(safe(ui, "ira_distributions_usd", 0));
+    var dist401kUsd = num(safe(ui, "401k_distributions_usd", 0));
+    var pensionUsd = num(safe(ui, "pension_income_usd", 0));
+    var socialSecurityGrossUsd = num(safe(ui, "social_security_benefits_usd", 0));
+    var usRetirementIncomeExclSs = moneyFromUsd(iraDistUsd + dist401kUsd + pensionUsd);
+    var socialSecurityUs = moneyFromUsd(socialSecurityGrossUsd);
+    var usRetirementIncome = addMoney(usRetirementIncomeExclSs, socialSecurityUs);
+
+    // Tax-exempt interest (municipal bonds etc.) — not itself taxable, but
+    // s.86(b)(2) requires it in the SS "provisional income" test below, so
+    // it needs to be readable there even though it never joins interestUs.
+    var taxExemptInterestUs = moneyFromUsd(safe(ui, "interest_us_exempt_usd", 0));
 
     var interestUs = moneyFromUsd(safe(ui, "interest_us_source_usd", 0));
     var ordDivUs = moneyFromUsd(safe(ui, "ordinary_dividends_us_source_usd", 0));
@@ -1181,6 +1196,9 @@
       qualifiedTipsUsd: qualifiedTipsUsd, qualifiedOvertimeUsd: qualifiedOvertimeUsd,
       seEarningsUsd: seEarnings, qbiIncomeUsd: Math.max(0, qbiIncome), qbiIsSSTB: sstb,
       usRetirementIncome: usRetirementIncome,
+      usRetirementIncomeExclSs: usRetirementIncomeExclSs,
+      socialSecurityUs: socialSecurityUs,
+      taxExemptInterestUs: taxExemptInterestUs,
       interestUs: interestUs, ordinaryDividendsUs: ordDivUs, qualifiedDividendsUs: qualDivUs,
       ltcgUs: ltcgUs, stcgUs: stcgUs, capitalGainsUs: addMoney(ltcgUs, stcgUs), rentalUs: rentalUs,
       foreignWages: foreignWages, foreignInterest: foreignInterest, foreignDividends: foreignDividends,

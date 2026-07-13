@@ -46,6 +46,34 @@
     return Math.max(T.SALT_CAP_FLOOR_USD, Math.min(base, reduced));
   }
 
+  /* Social Security benefit taxability (s.86) — IRS Pub 915 Worksheet 1,
+   * transcribed line-for-line (the comments below are the worksheet's own
+   * line numbers) so the arithmetic can be checked against the published
+   * form rather than re-derived from the tiered-rate description of the
+   * rule. otherAgiExclSs is AGI computed WITHOUT any Social Security
+   * (ordinary + preferential income, before adjustments — s.86 uses gross
+   * income items, not post-adjustment AGI, for this specific test).
+   * Returns the taxable portion of grossSsUsd — never more than 85% of it,
+   * never more than actual provisional income can support. */
+  function computeSsTaxableUsd(grossSsUsd, otherAgiExclSs, taxExemptInterestUsd, status, T) {
+    if (grossSsUsd <= 0) return 0;
+    var baseAmt = T.SS_PROVISIONAL_INCOME_BASE_USD[status] != null ? T.SS_PROVISIONAL_INCOME_BASE_USD[status] : T.SS_PROVISIONAL_INCOME_BASE_USD.single;
+    var addlAmt = T.SS_PROVISIONAL_INCOME_ADDITIONAL_USD[status] != null ? T.SS_PROVISIONAL_INCOME_ADDITIONAL_USD[status] : T.SS_PROVISIONAL_INCOME_ADDITIONAL_USD.single;
+    var line2 = 0.5 * grossSsUsd;
+    var line5 = line2 + Math.max(0, otherAgiExclSs) + Math.max(0, taxExemptInterestUsd); // provisional income
+    var line7 = Math.max(0, line5 - baseAmt);
+    if (line7 <= 0) return 0; // below base threshold — nothing taxable
+    var line8 = Math.max(0, addlAmt - baseAmt);
+    var line9 = Math.min(line7, line8);
+    var line10 = line7 - line9;
+    var line11 = 0.5 * line9;
+    var line12 = Math.min(line2, line11);
+    var line13 = T.SS_TAXABLE_TIER2_RATE * line10;
+    var line14 = line12 + line13;
+    var line15 = T.SS_TAXABLE_TIER2_RATE * grossSsUsd;
+    return Math.min(line14, line15);
+  }
+
   /* Same ladder as bracketTax, but returns the actual per-bracket breakdown
    * (only brackets the income actually reaches) so the UI can show the real
    * slab-by-slab math instead of a single opaque total. */
@@ -708,19 +736,34 @@
 
     var nonQualDivUs = Math.max(0, inc.ordinaryDividendsUs.usd - inc.qualifiedDividendsUs.usd);
 
-    // Ordinary income (taxed at bracket rates). US retirement/pension
-    // distributions and Social Security are US-source ordinary income.
+    // Ordinary income (taxed at bracket rates), EXCLUDING Social Security —
+    // SS needs the rest of ordinary + preferential income already totaled
+    // before its own taxable portion can be computed (s.86 "provisional
+    // income" test, below). IRA/401(k) distributions and pension remain
+    // fully taxable US-source ordinary income, included here as always.
     // Business/self-employment income (Sch C, S-corp/partnership K-1) is
     // always US-source in this model (no foreign-business counterpart is
     // collected), so it's included unconditionally, not gated on `worldwide`.
-    var ordinaryIncome =
+    var ordinaryIncomeExclSs =
       inc.wages.usd + fW + (inc.businessUs ? inc.businessUs.usd : 0) + inc.interestUs.usd + fI +
       nonQualDivUs + fD + inc.stcgUs.usd + fStcg +
-      inc.rentalUs.usd + fR + fP + (inc.usRetirementIncome ? inc.usRetirementIncome.usd : 0);
+      inc.rentalUs.usd + fR + fP + (inc.usRetirementIncomeExclSs ? inc.usRetirementIncomeExclSs.usd : (inc.usRetirementIncome ? inc.usRetirementIncome.usd : 0));
 
     // Preferential income (LTCG + qualified dividends).
     var preferentialIncome = inc.ltcgUs.usd + fLtcg + inc.qualifiedDividendsUs.usd;
 
+    // s.86: only 0%/50%/85% of Social Security benefits are actually
+    // taxable, via the "provisional income" test — previously 100% was
+    // folded into ordinary income unconditionally, overstating tax for
+    // every SS-receiving profile (gap tracker US-2, an active
+    // misstatement, not just a gap). Preferential income counts toward
+    // provisional income even though it's taxed at a different rate (s.86
+    // uses gross income items, not the post-adjustment AGI figure).
+    var grossSsUsd = (inc.socialSecurityUs && inc.socialSecurityUs.usd) || 0;
+    var taxExemptInterestUsd = (inc.taxExemptInterestUs && inc.taxExemptInterestUs.usd) || 0;
+    var taxableSsUsd = computeSsTaxableUsd(grossSsUsd, ordinaryIncomeExclSs + preferentialIncome, taxExemptInterestUsd, status, T);
+
+    var ordinaryIncome = ordinaryIncomeExclSs + taxableSsUsd;
     var totalIncome = ordinaryIncome + preferentialIncome;
 
     // ---- Self-employment tax (Schedule SE) ----
@@ -900,6 +943,13 @@
       deductionUsd: deduction,
       deductionMode: (ded.mode === "itemized" || ded.mode === "standard") ? ded.mode : (itemized > standard ? "itemized" : "standard"),
       saltCapUsd: saltCapUsd,
+      socialSecurityDetail: {
+        grossUsd: grossSsUsd, taxableUsd: taxableSsUsd,
+        taxablePct: grossSsUsd > 0 ? taxableSsUsd / grossSsUsd : 0,
+        provisionalIncomeUsd: ordinaryIncomeExclSs + preferentialIncome + 0.5 * grossSsUsd + taxExemptInterestUsd,
+        baseThresholdUsd: T.SS_PROVISIONAL_INCOME_BASE_USD[status] != null ? T.SS_PROVISIONAL_INCOME_BASE_USD[status] : T.SS_PROVISIONAL_INCOME_BASE_USD.single,
+        additionalThresholdUsd: T.SS_PROVISIONAL_INCOME_ADDITIONAL_USD[status] != null ? T.SS_PROVISIONAL_INCOME_ADDITIONAL_USD[status] : T.SS_PROVISIONAL_INCOME_ADDITIONAL_USD.single
+      },
       seniorDeductionUsd: seniorDeductionUsd,
       seniorDetail: { age: taxpayerAge, isSenior: isSenior, fullAmountUsd: T.SENIOR_DEDUCTION_PER_PERSON_USD, phaseoutThresholdUsd: seniorPhaseoutThr },
       tipsDeductionUsd: tipsDeductionUsd,

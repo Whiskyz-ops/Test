@@ -155,6 +155,28 @@ var us = {
   }
 };
 
+// Separate, isolated fixtures for Social Security taxability (gap tracker
+// US-2) — kept apart from the main `us` fixture above so these don't
+// disturb its existing income/deduction assertions. Each expected value is
+// IRS Pub 915 Worksheet 1, hand-computed line-by-line and cross-checked
+// against the engine before being hardcoded here (see computation.js's
+// computeSsTaxableUsd for the same line-numbered worksheet).
+function ssUs(filingStatus, wagesUsd, ssGrossUsd) {
+  return {
+    profile: { tax_entity_type: "individual", filing_status: filingStatus },
+    us_residency_detail: { is_us_citizen: true, final_us_residency_status: "RESIDENT_ALIEN" },
+    income_us_source: { wages_w2: [{ wages_box1_usd: wagesUsd }], social_security_benefits_usd: ssGrossUsd },
+    itemized_deductions_and_credits: { use_standard_or_itemized: "standard" }
+  };
+}
+var socialSecurityCases = [
+  // label, us fixture, expected taxable SS (worksheet hand-computed)
+  { label: "single, below base threshold -> 0% taxable", us: ssUs("single", 5000, 15000), expectedTaxableUsd: 0 },
+  { label: "single, tier-2 (between base/additional)", us: ssUs("single", 30000, 20000), expectedTaxableUsd: 9600 },
+  { label: "single, tier-3, well above additional -> capped at 85%", us: ssUs("single", 200000, 20000), expectedTaxableUsd: 17000 },
+  { label: "mfj, tier-3", us: ssUs("mfj", 40000, 24000), expectedTaxableUsd: 12800 }
+];
+
 var router = { jurisdiction: "dual", base_tax_year: 2026, full_name: "Fixture Taxpayer" };
 
-module.exports = { india: india, us: us, router: router };
+module.exports = { india: india, us: us, router: router, socialSecurityCases: socialSecurityCases };

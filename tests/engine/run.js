@@ -125,6 +125,15 @@ test("foreign_corporations reads the real 'Add Foreign Corporation' UI's field n
   assert.strictEqual(entity.country, "US", "country_of_incorporation='SG' should resolve to non-IN bucket");
 });
 
+console.log("Social Security taxability (s.86 provisional-income worksheet, gap tracker US-2)");
+fx.socialSecurityCases.forEach(function (c) {
+  test(c.label, function () {
+    var m = WISING.normalize({ router: fx.router, india: null, us: c.us });
+    var r = WISING.compute(m);
+    approx(r.usTax.socialSecurityDetail.taxableUsd, c.expectedTaxableUsd, "taxable SS for: " + c.label);
+  });
+});
+
 test("computeUsTax actually applies SE health/retirement as above-the-line AGI deductions", function () {
   var resultUs = WISING.compute(modelUs);
   // wages 120000 + SE net (40000*0.9235=36940) = 156940 ordinary income (before halfSeTax/health/retirement adjustments)
