@@ -47,7 +47,6 @@ Verified directly against the two forms — this is the actual current data mode
 | Array | Contents | Currently in `businessEntities()`? |
 |---|---|---|
 | `self_employment[]` | Sole prop, SE-tax + QBI eligible | ✅ |
-| `schedule_c_businesses[]` | Same shape | ✅ |
 | `farming_schedule_f[]` | Farm income | ✅ |
 | `partnerships_k1[]` | `ordinary_business_income_usd`, **`guaranteed_payments_usd`** (SE-tax base, QBI-ineligible), `self_employment_earnings_usd`, `depreciation_allocation_usd`, `section_179_usd`, branch-aggregated | 🟡 partial — guaranteed payments dropped (see §0) |
 | `s_corporations_k1[]` | `scorp_income_usd`/`ordinary_business_income_usd`, QBI-eligible, not SE-tax, `section_179_usd` | ✅ (income only) |
@@ -57,6 +56,8 @@ Verified directly against the two forms — this is the actual current data mode
 | `foreign_entities.foreign_corporations[]` | GILTI/CFC | ✅ (flag-level; no NCTI quantification — tracked as XB-14 in the gap tracker) |
 
 *Correction from the first version of this doc:* the first pass covered India depreciation (`asset_blocks[]`, §2.4) but never checked whether the US side had an equivalent — it does, and it's collected with more granularity (real MACRS class rates, §179, bonus depreciation) than the India side. Added above, and as gap-tracker US-18.
+
+*Second correction (13 Jul 2026):* `schedule_c_businesses[]`, listed above as "✅" covered, was never actually real — Layer 1 US has no UI that populates it (`self_employment[]`, which has a full add-row UI, is the real Schedule-C path and was always the one actually carrying data). The array was a dead reference on both sides: the engine read it (always empty, so a no-op) and one leftover form-side reference read it too. Both removed rather than wired, since the functionality it was meant to represent already fully exists under `self_employment[]`. Found by `scripts/audit/field-coverage.js`.
 
 `profile.tax_entity_type` (`individual`/`ccorp`/`scorp`/`partnership`/`trust`) plus `profile.llc_tax_election` already drive `computeUsEntityTax`'s routing (C-corp 21% flat vs S-corp/partnership pass-through), confirmed in `computation.js`.
 

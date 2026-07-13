@@ -1106,7 +1106,6 @@
     // NOT S-corp/C-corp wages/distributions. Drives Schedule SE.
     var seEarnings = 0;
     (safe(ui, "self_employment", []) || []).forEach(function (s) { seEarnings += selfEmploymentNetProfitUsd(s); });
-    (safe(ui, "schedule_c_businesses", []) || []).forEach(function (s) { seEarnings += num(s.net_profit_usd || s.net_earnings_usd || 0); });
     (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { seEarnings += num(s.net_profit_usd || 0); });
     // QBI-eligible pass-through business income (§199A): SE + S-corp + partnership
     // ordinary (excludes C-corp and wages). SSTB flag if any business is flagged.
@@ -1117,7 +1116,7 @@
     var qbiIncome = seEarnings, sstb = false;
     (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { qbiIncome += num(s.scorp_income_usd || s.ordinary_business_income_usd || 0); });
     (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { qbiIncome += num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0); });
-    [].concat(safe(ui, "self_employment", []) || [], safe(ui, "schedule_c_businesses", []) || [], safe(ui, "s_corporations_k1", []) || [], safe(ui, "partnerships_k1", []) || [])
+    [].concat(safe(ui, "self_employment", []) || [], safe(ui, "s_corporations_k1", []) || [], safe(ui, "partnerships_k1", []) || [])
       .forEach(function (x) { if (x && (x.is_sstb === true || x.sstb === true)) sstb = true; });
     // Partnership K-1 Box 14A (self_employment_earnings_usd) is the
     // authoritative SE-tax base as actually reported on the K-1 — already
@@ -1682,9 +1681,6 @@
           (safe(ui, "self_employment", []) || []).forEach(function (s) { list.push({ country: "US", type: "Self-employment (Sch C)", name: s.business_name || s.name || "Self-employment", incomeUsd: selfEmploymentNetProfitUsd(s), se: true, qbi: true,
             filesOwnReturn: false, returnForm: "Schedule C + Schedule SE (Form 1040)",
             calcTrace: selfEmploymentIncomeTrace(s) }); });
-          (safe(ui, "schedule_c_businesses", []) || []).forEach(function (s) { list.push({ country: "US", type: "Schedule C", name: s.business_name || s.name || "Sole proprietorship", incomeUsd: num(s.net_profit_usd || s.net_earnings_usd || 0), se: true, qbi: true,
-            filesOwnReturn: false, returnForm: "Schedule C (Form 1040)",
-            calcTrace: source("Net profit as entered directly on Layer 1 US for this Schedule C business (net_profit_usd, or net_earnings_usd if that field wasn't used).") }); });
           (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { list.push({ country: "US", type: "Farm (Sch F)", name: s.name || "Farm", incomeUsd: num(s.net_profit_usd || 0), se: true, qbi: true,
             filesOwnReturn: false, returnForm: "Schedule F (Form 1040)",
             calcTrace: source("Net farm profit as entered directly on Layer 1 US for this farm (net_profit_usd).") }); });

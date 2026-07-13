@@ -87,8 +87,9 @@ Living document tracking everything WISING does **not** yet model, viewed throug
 | US-21 | ~~AMT private-activity-bond interest read wrong field paths (`itemized_deductions_and_credits.*` / `amt.*`, neither of which exist) instead of the real `amt_inputs.private_activity_bond_interest_usd`~~ **FIXED** | ✅ shipped | — | — | Same audit. The old paths are kept as harmless no-op fallbacks for any hand-authored profile that used one of those shapes. |
 | US-22 | **"Passive & Other Income" screen — most inputs have no `oninput`/`onchange` handler at all** | ❌ | 🟡 Needs build | **P1** | Found via the same audit: `layer1_us.html`'s entire Schedule B/E/1099-G "Passive & Other Income" screen (screen 3C-3) was built visually but never wired to `usState` — typing into most of these fields did nothing. **Fixed this session** (now wired to the existing `interest_us_source_usd`/`ordinary_dividends_us_source_usd`/`qualified_dividends_us_source_usd`/`rental_income_us_source_usd` fields the engine already reads): US bank/treasury/OID/seller-financed interest (summed into one taxable total; tax-exempt interest kept separate and correctly excluded), ordinary dividends, qualified dividends, rental income. **Still entirely unwired** (no `id`, no handler, would need new schema fields + engine treatment, not just a wiring fix): state/local tax refunds (1099-G), unemployment compensation, Social Security benefits (this screen's copy — a working `social_security_benefits_usd` field already exists and IS read, reachable elsewhere in the form; this specific input is an orphaned duplicate), alimony received, royalties (Schedule E), cancellation of debt (1099-C), HSA/MSA distributions (1099-SA), and misc/gambling income. |
 | US-23 | **No manual-entry UI exists at all for US STCG/LTCG** (`stcg_us_source_usd`/`ltcg_us_source_usd`) | ❌ | 🟡 Needs build | **P1** | Found during US-22's investigation: the engine reads these two fields, and restoration code references `#inc-us-stcg`/`#inc-us-ltcg` elements — but neither element exists anywhere in the DOM. For a real user (not a hand-authored demo profile), there is currently no way to enter US capital gains at all. Needs new input elements + wiring, analogous to the US-22 fix. |
+| US-24 | **No manual-entry UI exists at all for the entire US retirement-income group** (`ira_distributions_usd`, `401k_distributions_usd`, `social_security_benefits_usd`, `pension_income_usd`) | ❌ | 🟡 Needs build | **P1** | Found by `scripts/audit/field-coverage.js`'s first real run (14 Jul 2026). All four are read by `aggregateUsIncome`'s `usRetirementIncome` sum but have zero occurrences anywhere in `layer1_us.html` beyond their own schema declaration (`: null,`) — confirmed by direct grep, not just the audit script. The one "Social Security Benefits (SSA-1099)" label that exists on the Passive & Other Income screen has no `id` at all, so it isn't even reachable by the restoration code, let alone writable — same screen as US-22, but this specific field wasn't wired even when the sibling interest/dividend/rental fields were fixed there. A real US-resident or dual-status filer with any IRA/401(k)/pension/Social Security income currently has no way to enter it. Needs new input elements + wiring, same shape as the US-22/US-23 fixes. |
 
-**Buildable-now count (US): 11 of 20 remaining (2 partial)** (US-16, US-19, US-20, US-21 shipped) — US-1, US-2, US-3 (partial), US-5 (partial), US-7, US-9, US-12, US-13, US-14, US-17, US-18.
+**Buildable-now count (US): 11 of 21 remaining (2 partial)** (US-16, US-19, US-20, US-21 shipped) — US-1, US-2, US-3 (partial), US-5 (partial), US-7, US-9, US-12, US-13, US-14, US-17, US-18.
 
 **Verified current / already modeled (US):** NIIT 3.8% ✓ · Additional Medicare 0.9% ✓ · SE tax ✓ · QBI §199A ✓ · AMT with ISO/PAB preferences ✓ · OBBBA SALT cap $40k with 30¢ phase-down ✓ · OBBBA senior deduction ✓ · OBBBA tips/overtime deductions ✓ · CTC $2,200 ✓ · Trump Account §530A cap ✓ · FBAR $10k and Form 8938 thresholds unchanged for 2025/2026 ✓.
 
@@ -122,17 +123,17 @@ Living document tracking everything WISING does **not** yet model, viewed throug
 
 ## D. Buildability summary
 
-Across all 70 rows (9 added 13 Jul 2026 from a field-coverage audit — see `docs/FIELD_COVERAGE_AUDIT.md` — IN-27..30, US-19..23):
+Across all 71 rows (10 added since 13 Jul 2026 from the field-coverage audit and its follow-on tooling — see `docs/FIELD_COVERAGE_AUDIT.md` — IN-27..30, US-19..24):
 
 | Bucket | India | US | Cross-border | Total |
 |---|---|---|---|---|
 | 🟢 Buildable now, not yet done | 14 | 11 (2 partial) | 6 (3 partial) | **31** |
 | ✅ Shipped from the 🟢 bucket | 3 (IN-21, IN-27, IN-28) | 4 (US-16, US-19, US-20, US-21) | 0 | **7** |
-| 🟡 Blocked on a new Layer 1 field / build | 8 | 7 | 3 | **18** |
+| 🟡 Blocked on a new Layer 1 field / build | 8 | 8 | 3 | **19** |
 | ⚪ N/A (in-flight, recorded, or verify-first) | 5 | 1 | 8 | **14** |
-| **Total** | 30 | 23 | 17 | **70** |
+| **Total** | 30 | 24 | 17 | **71** |
 
-Reading this: of the 38 items that needed zero form changes, **7 have shipped** and **31 remain**. **18 items are genuinely stuck** until a new field/build is added and round-tripped (several already have Antigravity prompts issued — see XB-12/13/15). The remaining **14** are either already handled, already decided, or need a quick Layer 1 audit before they can even be sorted into the other two buckets.
+Reading this: of the 38 items that needed zero form changes, **7 have shipped** and **31 remain**. **19 items are genuinely stuck** until a new field/build is added and round-tripped (several already have Antigravity prompts issued — see XB-12/13/15). The remaining **14** are either already handled, already decided, or need a quick Layer 1 audit before they can even be sorted into the other two buckets.
 
 ---
 

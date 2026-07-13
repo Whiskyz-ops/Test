@@ -17072,10 +17072,6 @@
             }
         });
         
-        (usState?.income_us_source?.schedule_c_businesses || []).forEach(b => {
-            totalDeductions += (b.total_expenses_usd || 0);
-        });
-        
         (usState?.income_us_source?.schedule_f_farms || []).forEach(f => {
             totalDeductions += (f.total_expenses_usd || 0);
         });
