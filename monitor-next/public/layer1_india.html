@@ -9636,7 +9636,30 @@ const crDiv = document.getElementById('div-company-residency');
         state.domestic_income.salary.esop_perquisite_events = events;
         saveLayer1State();
     }
-    
+
+    // capital_gains has no single canonical "has data" flag (unlike the other
+    // income heads) — profiles / real entries just set amounts directly — so
+    // derive it from any nonzero capital-gains-bearing figure across every
+    // place the form records one: the two capital_gains shapes (nested under
+    // domestic_income, and the top-level bucket), realized transactions
+    // (financial holdings, commodities, unlisted equity), a share buyback, or
+    // a property sale. Shared by both the Financial Life Snapshot card sync
+    // and the Capital Gains screen's own gatekeeper toggle.
+    function hasAnyCapitalGainsData() {
+        const cgNum = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+        const nestedCg = (state.domestic_income && state.domestic_income.capital_gains) || {};
+        const topCg = state.capital_gains || {};
+        const anyCgAmount = Object.keys(nestedCg).some((k) => cgNum(nestedCg[k]) > 0) ||
+            Object.keys(topCg).some((k) => cgNum(topCg[k]) > 0);
+        const anyCgTransactions =
+            !!(state.financial_holdings && state.financial_holdings.transactions && state.financial_holdings.transactions.length) ||
+            !!(state.commodities && state.commodities.transactions && state.commodities.transactions.length) ||
+            !!(state.unlisted_equity && state.unlisted_equity.transactions && state.unlisted_equity.transactions.some((t) => t.sale_date || t.sale_value)) ||
+            !!(state.share_buyback && state.share_buyback.transactions && state.share_buyback.transactions.length) ||
+            !!(state.property && state.property.properties && state.property.properties.some((p) => p.sale_date || p.sale_consideration));
+        return anyCgAmount || anyCgTransactions;
+    }
+
     function renderEsopRows() {
         const container = document.getElementById('div-esop-list');
         if (!container) return;
@@ -9702,25 +9725,7 @@ const crDiv = document.getElementById('div-company-residency');
         }
         syncCard('setup-os', !!(state.other_sources && state.other_sources.has_other_sources_income));
 
-        // capital_gains has no single canonical "has data" flag (unlike the
-        // other heads) — profiles / real entries just set amounts directly —
-        // so derive it from any nonzero capital-gains-bearing figure across
-        // every place the form records one: the two capital_gains shapes
-        // (nested under domestic_income, and the top-level bucket), realized
-        // transactions (financial holdings, commodities, unlisted equity),
-        // a share buyback, or a property sale.
-        const cgNum = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
-        const nestedCg = (state.domestic_income && state.domestic_income.capital_gains) || {};
-        const topCg = state.capital_gains || {};
-        const anyCgAmount = Object.keys(nestedCg).some((k) => cgNum(nestedCg[k]) > 0) ||
-            Object.keys(topCg).some((k) => cgNum(topCg[k]) > 0);
-        const anyCgTransactions =
-            !!(state.financial_holdings && state.financial_holdings.transactions && state.financial_holdings.transactions.length) ||
-            !!(state.commodities && state.commodities.transactions && state.commodities.transactions.length) ||
-            !!(state.unlisted_equity && state.unlisted_equity.transactions && state.unlisted_equity.transactions.some((t) => t.sale_date || t.sale_value)) ||
-            !!(state.share_buyback && state.share_buyback.transactions && state.share_buyback.transactions.length) ||
-            !!(state.property && state.property.properties && state.property.properties.some((p) => p.sale_date || p.sale_consideration));
-        syncCard('setup-cg', anyCgAmount || anyCgTransactions);
+        syncCard('setup-cg', hasAnyCapitalGainsData());
 
         // Ensure foreign objects exist before checking
         const hasForeign = !!((state.foreign_income && state.foreign_income.has_foreign_income) || (state.foreign_assets && state.foreign_assets.has_foreign_assets));
@@ -12137,7 +12142,7 @@ ${isProf ? '' : `
             const tbody = document.querySelector('#lrs-table tbody');
             if (tbody) tbody.innerHTML = '';
             toggleReceivedForeignIncome(false);
-            syncLrsState();
+            if (typeof syncLrsState === 'function') syncLrsState();  // guarded: no such function is defined anywhere in this file
         } else {
             if (container) container.classList.add('hidden');
             if (incomeGate) incomeGate.classList.add('hidden');
@@ -12147,7 +12152,7 @@ ${isProf ? '' : `
             const tbody = document.querySelector('#lrs-table tbody');
             if (tbody) tbody.innerHTML = '';
             toggleReceivedForeignIncome(null);
-            syncLrsState();
+            if (typeof syncLrsState === 'function') syncLrsState();  // guarded: no such function is defined anywhere in this file
         }
     }
 
@@ -13466,9 +13471,19 @@ ${isProf ? '' : `
         syncMsmeState();
         sync80GState();
         syncLossState();
-        syncLrsState();
-        syncFtcState();
+        if (typeof syncLrsState === 'function') syncLrsState();  // guarded: no such function is defined anywhere in this file
+        if (typeof syncFtcState === 'function') syncFtcState();  // guarded: no such function is defined anywhere in this file
         runResidencySolver();
+
+        // Re-paint every Financial Life Snapshot card, sidebar income-step
+        // button, and section gatekeeper toggle (sal-has, hp-gatekeeper,
+        // biz-has, cg-has, os-has) from the state this persona just set,
+        // instead of relying on each persona branch above to remember to
+        // toggle every section it touches individually. Fixes personas that
+        // set real data (e.g. other_sources above) without also revealing
+        // that section — the same class of bug as the localStorage-load path.
+        if (typeof restoreIndiaDOMFromState === 'function') restoreIndiaDOMFromState();
+
         switchStep('step-profile');
     }
 
@@ -14012,15 +14027,35 @@ ${isProf ? '' : `
             if (elMetro) elMetro.checked = sal.is_metro_city || false;
             
             const hasSal = document.getElementById('sal-has');
-            if (hasSal) hasSal.checked = sal.has_salary_income || false;
+            // Setting .checked via JS does NOT fire the checkbox's own onchange
+            // handler, so the toggle function that actually reveals
+            // div-salary-section (and every other gated section below) has to
+            // be called explicitly too — a checked-but-still-hidden section
+            // was invisible in exactly the same way an unchecked one is.
+            if (hasSal) { hasSal.checked = sal.has_salary_income || false; toggleSalarySection(hasSal.checked); }
         }
+
+        // Restore House Property / Capital Gains / Other Sources gatekeeper
+        // toggles. These were previously never restored on load at all (only
+        // sal-has and biz-has were) — real field values were correctly
+        // painted below, but the toggle gating the section stayed off,
+        // hiding the very data that had just been restored underneath it.
+        const hpForToggle = state.domestic_income.house_property;
+        if (hpForToggle) {
+            const hasHp = document.getElementById('hp-gatekeeper');
+            if (hasHp) { hasHp.checked = hpForToggle.has_house_property_income || false; toggleHPSection(hasHp.checked); }
+        }
+        const cgGatekeeper = document.getElementById('cg-has');
+        if (cgGatekeeper) { cgGatekeeper.checked = hasAnyCapitalGainsData(); toggleCGSection(cgGatekeeper.checked); }
+        const osGatekeeper = document.getElementById('os-has');
+        if (osGatekeeper && state.other_sources) { osGatekeeper.checked = state.other_sources.has_other_sources_income || false; toggleOSSection(osGatekeeper.checked); }
 
         // Restore Business Fixed Inputs
         const biz = state.domestic_income.business_income;
         if (biz) {
             const hasBiz = document.getElementById('biz-has');
-            if (hasBiz) hasBiz.checked = biz.has_business_or_fo_income || false;
-            
+            if (hasBiz) { hasBiz.checked = biz.has_business_or_fo_income || false; toggleBusinessModule(hasBiz.checked); }
+
             const elIdMapBiz = {
                 'biz-fno-profit': biz.non_speculative_income_inr,
                 'biz-fno-turnover': biz.fno_turnover_inr,
@@ -14225,7 +14260,15 @@ ${isProf ? '' : `
                     ['Q1', 'Q2', 'Q3', 'Q4'].forEach(function (q) {
                         const savedQ = savedState.quarters[q];
                         if (!savedQ) return;
-                        ['domestic_income', 'other_sources', 'lrs_outbound', 'nro_repatriation', 'capital_gains'].forEach(function (cat) {
+                        // financial_holdings/commodities/unlisted_equity/property are
+                        // also read quarter-scoped by switchQuarter()/
+                        // aggregateAnnualState() below, even though the engine only
+                        // ever reads them top-level — merge them here too so a saved
+                        // quarters object that seeds real transaction data into Q1
+                        // (see profiles.js buildQuarters) doesn't get silently
+                        // overwritten by the empty per-quarter template the moment
+                        // the form touches that quarter.
+                        ['domestic_income', 'other_sources', 'lrs_outbound', 'nro_repatriation', 'capital_gains', 'financial_holdings', 'commodities', 'unlisted_equity', 'property'].forEach(function (cat) {
                             if (!savedQ[cat]) return;
                             if (!state.quarters[q][cat]) state.quarters[q][cat] = {};
                             for (const key in savedQ[cat]) {
@@ -15847,7 +15890,12 @@ ${isProf ? '' : `
             if (state.quarters[q]) {
                 const categories = ['commodities', 'unlisted_equity', 'property', 'financial_holdings'];
                 categories.forEach(cat => {
-                    if (state.quarters[q][cat] && state.quarters[q][cat].transactions) {
+                    // .transactions is truthy even when it's an empty array (every
+                    // quarter's default template carries one) — require it to
+                    // actually hold something, or this "cleaner" spuriously fires
+                    // on quarters with no real transactions at all and re-saves
+                    // state for no reason.
+                    if (state.quarters[q][cat] && state.quarters[q][cat].transactions && state.quarters[q][cat].transactions.length > 0) {
                         state.quarters[q][cat].transactions.forEach(tx => {
                             // The bug caused sale_date to be cleared, but sale_value to remain.
                             // If we see a transaction with sale_value but NO sale_date, it's highly likely to be the bugged scaffolded data.
@@ -15883,11 +15931,11 @@ ${isProf ? '' : `
         // Let's aggressively wipe out the data in Q2, Q3, Q4 that looks exactly like Q1's data,
         // specifically looking for identical purchase values and identical sale values across quarters.
         
-        if (state.quarters['Q1'] && state.quarters['Q1'].commodities && state.quarters['Q1'].commodities.transactions) {
+        if (state.quarters['Q1'] && state.quarters['Q1'].commodities && state.quarters['Q1'].commodities.transactions && state.quarters['Q1'].commodities.transactions.length > 0) {
             const q1Txs = state.quarters['Q1'].commodities.transactions;
-            
+
             ['Q2', 'Q3', 'Q4'].forEach(q => {
-                if (state.quarters[q] && state.quarters[q].commodities && state.quarters[q].commodities.transactions) {
+                if (state.quarters[q] && state.quarters[q].commodities && state.quarters[q].commodities.transactions && state.quarters[q].commodities.transactions.length > 0) {
                     state.quarters[q].commodities.transactions.forEach((tx, i) => {
                         const q1Tx = q1Txs[i];
                         if (q1Tx && tx.purchase_value === q1Tx.purchase_value && tx.sale_value === q1Tx.sale_value && tx.sale_value !== null) {
@@ -15903,11 +15951,11 @@ ${isProf ? '' : `
         }
         
         // And for financial holdings
-        if (state.quarters['Q1'] && state.quarters['Q1'].financial_holdings && state.quarters['Q1'].financial_holdings.transactions) {
+        if (state.quarters['Q1'] && state.quarters['Q1'].financial_holdings && state.quarters['Q1'].financial_holdings.transactions && state.quarters['Q1'].financial_holdings.transactions.length > 0) {
             const q1Txs = state.quarters['Q1'].financial_holdings.transactions;
-            
+
             ['Q2', 'Q3', 'Q4'].forEach(q => {
-                if (state.quarters[q] && state.quarters[q].financial_holdings && state.quarters[q].financial_holdings.transactions) {
+                if (state.quarters[q] && state.quarters[q].financial_holdings && state.quarters[q].financial_holdings.transactions && state.quarters[q].financial_holdings.transactions.length > 0) {
                     state.quarters[q].financial_holdings.transactions.forEach((tx, i) => {
                         const q1Tx = q1Txs[i];
                         if (q1Tx && tx.purchase_value === q1Tx.purchase_value && tx.sale_value === q1Tx.sale_value && tx.sale_value !== null) {
@@ -15943,11 +15991,11 @@ ${isProf ? '' : `
         const categories = ['commodities', 'unlisted_equity', 'property', 'financial_holdings'];
         
         categories.forEach(cat => {
-            if (state.quarters['Q1'] && state.quarters['Q1'][cat] && state.quarters['Q1'][cat].transactions) {
+            if (state.quarters['Q1'] && state.quarters['Q1'][cat] && state.quarters['Q1'][cat].transactions && state.quarters['Q1'][cat].transactions.length > 0) {
                 const q1Txs = state.quarters['Q1'][cat].transactions;
-                
+
                 ['Q2', 'Q3', 'Q4'].forEach(q => {
-                    if (state.quarters[q] && state.quarters[q][cat] && state.quarters[q][cat].transactions) {
+                    if (state.quarters[q] && state.quarters[q][cat] && state.quarters[q][cat].transactions && state.quarters[q][cat].transactions.length > 0) {
                         // Let's just completely reset the transactions for these quarters based on Q1
                         // to guarantee we wipe out any corrupted saved state!
                         state.quarters[q][cat].transactions = q1Txs.map(t => {

@@ -17619,7 +17619,7 @@
                 const hasPassiveIntDiv = (iu.interest_us_source_usd || 0) > 0 || (iu.ordinary_dividends_us_source_usd || 0) > 0;
                 const hasPassiveCapGains = (iu.ltcg_us_source_usd || 0) > 0;
                 const derived = {
-                    setupW2: !!iu.has_employment_income,
+                    setupW2: !!(iu.has_employment_income || (iu.wages_w2 && iu.wages_w2.length > 0)),
                     setupBiz: !!(
                         (iu.self_employment && iu.self_employment.length) ||
                         (iu.partnerships_k1 && iu.partnerships_k1.length) ||
@@ -17796,7 +17796,13 @@
             
             const w2Has = document.getElementById('us-emp-has');
             if (w2Has) {
-                w2Has.checked = usState.income_us_source.has_employment_income || false;
+                // has_employment_income is never actually copied from the saved
+                // JSON anywhere above (only wages_w2 itself is) — a profile with
+                // real W-2 rows but no explicit flag left this toggle (and the
+                // whole Employment section beneath it) looking off/empty. Derive
+                // from the real wage data too, not just the flag.
+                w2Has.checked = !!(usState.income_us_source.has_employment_income ||
+                    (usState.income_us_source.wages_w2 && usState.income_us_source.wages_w2.length > 0));
                 toggleUSEmpSection(w2Has.checked);
             }
             
@@ -18074,37 +18080,60 @@
             computeNyStatutoryResidency();
             syncCaliforniaAlerts();
             toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || false);
-            const hasSeToggled = (usState.income_us_source.self_employment || []).some(se => se.has_se_income);
+            // Each `.some(has_X_income)` check requires an ITEM-level flag that
+            // real Layer 1 usage may never set explicitly (e.g. a K-1 added via
+            // "+ Add Row" with income filled in but the row's own toggle never
+            // touched) — OR with the array simply being non-empty so a populated
+            // row still surfaces even without that per-item flag.
+            const hasSeToggled = (usState.income_us_source.self_employment || []).some(se => se.has_se_income) ||
+                (usState.income_us_source.self_employment || []).length > 0;
             const seToggleEl = document.getElementById('se-has-toggle');
             if (seToggleEl) seToggleEl.checked = hasSeToggled;
             setAccordionState('div-se-container', 'chevron-se', hasSeToggled);
 
-            const hasFarmToggled = (usState.income_us_source.farming_schedule_f || []).some(farm => farm.has_farm_income);
+            const hasFarmToggled = (usState.income_us_source.farming_schedule_f || []).some(farm => farm.has_farm_income) ||
+                (usState.income_us_source.farming_schedule_f || []).length > 0;
             const farmToggleEl = document.getElementById('farm-has-toggle');
             if (farmToggleEl) farmToggleEl.checked = hasFarmToggled;
             setAccordionState('div-farm-container', 'chevron-farm', hasFarmToggled);
 
-            const hasPartK1Toggled = (usState.income_us_source.partnerships_k1 || []).some(k1 => k1.has_part_income);
+            const hasPartK1Toggled = (usState.income_us_source.partnerships_k1 || []).some(k1 => k1.has_part_income) ||
+                (usState.income_us_source.partnerships_k1 || []).length > 0;
             const partK1ToggleEl = document.getElementById('part-k1-has-toggle');
             if (partK1ToggleEl) partK1ToggleEl.checked = hasPartK1Toggled;
             setAccordionState('div-part-k1-container', 'chevron-part', hasPartK1Toggled);
 
-            const hasScorpK1Toggled = (usState.income_us_source.s_corporations_k1 || []).some(k1 => k1.has_scorp_income);
+            const hasScorpK1Toggled = (usState.income_us_source.s_corporations_k1 || []).some(k1 => k1.has_scorp_income) ||
+                (usState.income_us_source.s_corporations_k1 || []).length > 0;
             const scorpK1ToggleEl = document.getElementById('scorp-k1-has-toggle');
             if (scorpK1ToggleEl) scorpK1ToggleEl.checked = hasScorpK1Toggled;
             setAccordionState('div-scorp-k1-container', 'chevron-scorp', hasScorpK1Toggled);
 
-            const hasCcorpToggled = (usState.income_us_source.c_corporations_1120 || []).some(ccorp => ccorp.has_ccorp);
+            const hasCcorpToggled = (usState.income_us_source.c_corporations_1120 || []).some(ccorp => ccorp.has_ccorp) ||
+                (usState.income_us_source.c_corporations_1120 || []).length > 0;
             const ccorpToggleEl = document.getElementById('ccorp-has-toggle');
             if (ccorpToggleEl) ccorpToggleEl.checked = hasCcorpToggled;
             setAccordionState('div-ccorp-container', 'chevron-ccorp', hasCcorpToggled);
 
-            const hasTrustK1Toggled = (usState.income_us_source.trusts_estates_k1 || []).some(k1 => k1.has_trust_income);
+            const hasTrustK1Toggled = (usState.income_us_source.trusts_estates_k1 || []).some(k1 => k1.has_trust_income) ||
+                (usState.income_us_source.trusts_estates_k1 || []).length > 0;
             const trustK1ToggleEl = document.getElementById('trust-k1-has-toggle');
             if (trustK1ToggleEl) {
                 trustK1ToggleEl.checked = hasTrustK1Toggled;
                 const container = document.getElementById('biz-card-trust');
                 if (container) container.classList.toggle('hidden', !hasTrustK1Toggled);
+            }
+
+            // business-has-toggle (the umbrella card gating the whole Business
+            // module) was never restored on load at all — derive it from any of
+            // the six sub-categories above, or a raw business_income_usd figure
+            // (the shape a C-corp-as-taxpayer profile uses instead of a K-1).
+            const hasAnyBusiness = hasSeToggled || hasFarmToggled || hasPartK1Toggled || hasScorpK1Toggled || hasCcorpToggled || hasTrustK1Toggled ||
+                (usState.income_us_source.business_income_usd || 0) > 0;
+            const bizToggleEl = document.getElementById('business-has-toggle');
+            if (bizToggleEl) {
+                bizToggleEl.checked = hasAnyBusiness;
+                if (typeof toggleUSBusinessModule === 'function') toggleUSBusinessModule();
             }
 
             toggleEquityCompSections(usState.equity_compensation.has_equity_comp);

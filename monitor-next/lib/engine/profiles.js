@@ -129,6 +129,24 @@
     ["Q1", "Q2", "Q3", "Q4"].forEach(function (q, i) {
       quarters[q] = { domestic_income: diQ[i], other_sources: osQ[i], capital_gains: cgQ[i], lrs_outbound: lrsQ[i] };
     });
+    // financial_holdings/commodities/unlisted_equity/property/nro_repatriation
+    // are NOT summed across quarters by the engine (indiaAnnualSlice never
+    // reads them from india.quarters — they stay top-level for tax
+    // computation) — but Layer 1 India's own switchQuarter()/
+    // aggregateAnnualState() DO treat all 9 categories as quarter-scoped
+    // internally, always reading financial_holdings etc from
+    // state.quarters[activeQuarter]. Leaving them out of Q1 here meant the
+    // form's own quarter-tab machinery would overwrite the real top-level
+    // transaction data with an empty per-quarter default the moment it
+    // touched Q1 — a real data-loss bug, not just a display gap. Whole
+    // discrete-transaction categories go in Q1 only (matching the pre-existing
+    // "migration from annual" path's own behavior for nro_repatriation),
+    // not split like recurring flows — a single BTC sale or property sale
+    // belongs in the quarter it happened in, not divided into meaningless
+    // quarter-fractions.
+    ["financial_holdings", "commodities", "unlisted_equity", "property", "nro_repatriation"].forEach(function (cat) {
+      if (india[cat]) quarters.Q1[cat] = JSON.parse(JSON.stringify(india[cat]));
+    });
     return quarters;
   }
 
