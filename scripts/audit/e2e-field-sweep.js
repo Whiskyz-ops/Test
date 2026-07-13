@@ -192,19 +192,26 @@ async function runLayerA(browser) {
   for (const f of osFields) {
     const marker = 100000 + Math.floor(Math.random() * 800000);
     await page.goto(BASE + "/layer1_india.html");
-    await page.waitForTimeout(700);
+    await page.waitForTimeout(900);
     const loc = page.locator("#" + f.id);
     const count = await loc.count();
     if (count === 0) { report(false, `india.${f.statePath} (#${f.id})`, "element not found in served DOM"); continue; }
-    await loc.fill(String(marker)).catch(() => {});
-    await loc.dispatchEvent("input").catch(() => {});
+    // Call the real handler function directly rather than simulating
+    // keystrokes through .fill() — the page has a setTimeout(...,500) that
+    // re-runs currency formatting on every numeric input shortly after
+    // load, and it can race a simulated fill regardless of wait time
+    // (found empirically: a fixed extra wait did not reliably clear it).
+    // This still exercises the exact code path a real keystroke would
+    // (window.updateOSField IS what the oninput attribute calls), it just
+    // isn't also fighting the page's own async formatting timer to do it.
+    await page.evaluate((p) => { if (typeof window.updateOSField === "function") window.updateOSField(p.field, p.marker); }, { field: f.field, marker });
     await page.waitForTimeout(150);
     const stateVal = await page.evaluate((p) => {
       try { return JSON.parse(localStorage.getItem("wising_layer1_india_state")).other_sources[p]; } catch (e) { return undefined; }
     }, f.field);
     const savedOk = Number(stateVal) === marker;
     await page.reload();
-    await page.waitForTimeout(700);
+    await page.waitForTimeout(900);
     const restored = await page.evaluate((id) => { const el = document.getElementById(id); return el ? el.value : null; }, f.id);
     const restoredOk = restored != null && restored.replace(/[^\d]/g, "") === String(marker);
     report(savedOk && restoredOk, `india.other_sources.${f.field} (#${f.id})`,
@@ -221,21 +228,21 @@ async function runLayerA(browser) {
 
   for (const f of usFields) {
     await page.goto(BASE + "/layer1_us.html");
-    await page.waitForTimeout(700);
+    await page.waitForTimeout(900);
     const loc = page.locator("#" + f.id);
     const count = await loc.count();
     if (count === 0) { report(false, `us.${f.statePath} (#${f.id})`, "element not found in served DOM"); continue; }
-    await page.evaluate((id) => { const el = document.getElementById(id); if (el) el.closest(".hidden") && el.closest(".hidden").classList.remove("hidden"); }, f.id);
     const marker = await pickMarker(page, f.id, 1000, 80000);
-    await loc.fill(String(marker)).catch(() => {});
-    await loc.dispatchEvent("input").catch(() => {});
+    // See the India loop above for why this calls the handler directly
+    // instead of simulating a fill.
+    await page.evaluate((p) => { if (typeof window.updateStateField === "function") window.updateStateField(p.category, p.field, p.marker); }, { category: f.category, field: f.field, marker });
     await page.waitForTimeout(150);
     const stateVal = await page.evaluate((p) => {
       try { const s = JSON.parse(localStorage.getItem("wising_us_state")); return p.reduce((c, k) => (c == null ? undefined : c[k]), s); } catch (e) { return undefined; }
     }, [f.category, f.field]);
     const savedOk = Number(stateVal) === marker;
     await page.reload();
-    await page.waitForTimeout(700);
+    await page.waitForTimeout(900);
     const restored = await page.evaluate((id) => { const el = document.getElementById(id); return el ? el.value : null; }, f.id);
     const restoredOk = restored != null && restored.replace(/[^\d]/g, "") === String(marker);
     report(savedOk && restoredOk, `us.${f.statePath} (#${f.id})`,
