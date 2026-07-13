@@ -17595,8 +17595,48 @@
         }
             
             // Merge states
-            if (savedState.metadata && savedState.metadata.intake_setup) {
-                const s = savedState.metadata.intake_setup;
+            // The user's own wizard clicks persist into metadata.intake_setup (see
+            // updateSidebarVisibility, which writes it on every toggle) and used to
+            // be the ONLY source these cards were restored from. A profile loaded
+            // directly into localStorage (bypassing the wizard clicks) never sets
+            // intake_setup, so every card silently stayed unchecked and every
+            // income-head sidebar section stayed hidden regardless of the real data
+            // underneath — same class of bug as Layer 1 India's setup cards. Derive
+            // each card from the actual saved data too (read from savedState, since
+            // usState hasn't been merged with it yet at this point), OR'd with any
+            // saved wizard preference so an explicit click on an otherwise-empty
+            // section is still honored.
+            {
+                const s = (savedState.metadata && savedState.metadata.intake_setup) || {};
+                const iu = savedState.income_us_source || {};
+                const hasForeignAssets = !!(
+                    (savedState.bank_accounts && savedState.bank_accounts.some((b) => b.country && b.country !== 'US' && b.country !== 'United States')) ||
+                    (savedState.fbar_aggregate_peak_usd || 0) > 0
+                );
+                const hasForeignEntities = !!(savedState.foreign_entities && (savedState.foreign_entities.owns_10_percent_foreign_corp || savedState.foreign_entities.has_pfics));
+                const hasForeignFeie = !!(savedState.foreign_earned_income && savedState.foreign_earned_income.claims_feie);
+                const hasForeignGifts = !!(savedState.foreign_gifts_and_trusts && (savedState.foreign_gifts_and_trusts.received_foreign_gifts_above_100k || savedState.foreign_gifts_and_trusts.received_gift_from_covered_expatriate));
+                const hasPassiveIntDiv = (iu.interest_us_source_usd || 0) > 0 || (iu.ordinary_dividends_us_source_usd || 0) > 0;
+                const hasPassiveCapGains = (iu.ltcg_us_source_usd || 0) > 0;
+                const derived = {
+                    setupW2: !!iu.has_employment_income,
+                    setupBiz: !!(
+                        (iu.self_employment && iu.self_employment.length) ||
+                        (iu.partnerships_k1 && iu.partnerships_k1.length) ||
+                        (iu.s_corporations_k1 && iu.s_corporations_k1.length) ||
+                        (iu.c_corporations_1120 && iu.c_corporations_1120.length) ||
+                        (iu.farming_schedule_f && iu.farming_schedule_f.length) ||
+                        (iu.business_income_usd || 0) > 0
+                    ),
+                    setupPassive: hasPassiveIntDiv || hasPassiveCapGains,
+                    setupProp: !!(savedState.real_estate && savedState.real_estate.has_real_estate_transaction),
+                    setupForeign: hasForeignAssets || hasForeignEntities || hasForeignFeie || hasForeignGifts,
+                    setupRetirement: !!(savedState.retirement_accounts && Object.keys(savedState.retirement_accounts).some((k) => (savedState.retirement_accounts[k] || 0) > 0)),
+                    setupEquity: !!(savedState.equity_compensation && (
+                        (savedState.equity_compensation.iso_exercises && savedState.equity_compensation.iso_exercises.length) ||
+                        (savedState.equity_compensation.rsu_vestings && savedState.equity_compensation.rsu_vestings.length)
+                    ))
+                };
                 const updateCardUI = (id, checked) => {
                     const el = document.getElementById(id);
                     if (el) el.checked = checked;
@@ -17611,15 +17651,36 @@
                         }
                     }
                 };
-                if (s.setupW2 !== undefined) updateCardUI('setup-w2', s.setupW2);
-                if (s.setupBiz !== undefined) updateCardUI('setup-biz', s.setupBiz);
-                if (s.setupPassive !== undefined) updateCardUI('setup-passive', s.setupPassive);
-                if (s.setupProp !== undefined) updateCardUI('setup-prop', s.setupProp);
-                
-                if (s.setupForeign !== undefined) updateCardUI('setup-foreign', s.setupForeign);
-                if (s.setupRetirement !== undefined) updateCardUI('setup-retirement', s.setupRetirement);
-                if (s.setupEquity !== undefined) updateCardUI('setup-equity-btn', s.setupEquity);
-                usState.metadata.intake_setup = s;
+                const finalSetup = {
+                    setupW2: derived.setupW2 || s.setupW2 === true,
+                    setupBiz: derived.setupBiz || s.setupBiz === true,
+                    setupPassive: derived.setupPassive || s.setupPassive === true,
+                    setupProp: derived.setupProp || s.setupProp === true,
+                    setupEntities: false,
+                    setupForeign: derived.setupForeign || s.setupForeign === true,
+                    setupRetirement: derived.setupRetirement || s.setupRetirement === true,
+                    setupEquity: derived.setupEquity || s.setupEquity === true
+                };
+                updateCardUI('setup-w2', finalSetup.setupW2);
+                updateCardUI('setup-biz', finalSetup.setupBiz);
+                updateCardUI('setup-passive', finalSetup.setupPassive);
+                updateCardUI('setup-prop', finalSetup.setupProp);
+                updateCardUI('setup-foreign', finalSetup.setupForeign);
+                updateCardUI('setup-retirement', finalSetup.setupRetirement);
+                updateCardUI('setup-equity-btn', finalSetup.setupEquity);
+
+                // Nested checkboxes inside the "International"/"Passive" cards aren't
+                // part of intake_setup at all, so these were never restored on load
+                // before either — same bug, one level deeper.
+                const setChecked = (id, checked) => { const el = document.getElementById(id); if (el) el.checked = checked; };
+                setChecked('setup-foreign-assets', hasForeignAssets);
+                setChecked('setup-foreign-feie', hasForeignFeie);
+                setChecked('setup-foreign-entities', hasForeignEntities);
+                setChecked('setup-foreign-gifts', hasForeignGifts);
+                setChecked('setup-passive-intdiv', hasPassiveIntDiv);
+                setChecked('setup-passive-capgains', hasPassiveCapGains);
+
+                usState.metadata.intake_setup = finalSetup;
             }
             if (savedState.profile) Object.assign(usState.profile, savedState.profile);
             if (savedState.us_residency_detail) Object.assign(usState.us_residency_detail, savedState.us_residency_detail);
