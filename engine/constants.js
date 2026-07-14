@@ -342,6 +342,52 @@
         TIPS_OVERTIME_PHASEOUT_THRESHOLD_USD: { single: 150000, mfj: 300000, hoh: 150000 },
         TIPS_OVERTIME_PHASEOUT_PER_1000_USD: 100
       },
+      // ---- US state individual income tax (TY2025, returns filed 2026) ----
+      // Only CA and NY are modeled — Layer 1 US only collects dedicated
+      // statutory-residency-test facts (state_residency.ca_*, .ny_*) for
+      // these two states; every other state on the dropdown is a bare
+      // domicile string with no residency-test data to key a computation
+      // off of. Single/MFJ only — Layer 1's 9 demo profiles never use HOH/
+      // MFS, and this engine's own bracket tables for those two statuses
+      // could not be independently verified against a second source this
+      // session, so they are left unmodeled rather than guessed (see
+      // computeUsStateTax's status fallback).
+      US_STATES: {
+        CA: {
+          NAME: "California",
+          FORM_NAME: "Form 540",
+          // FTB 2025 Schedule X, single/MFS filers; MFJ/HOH/QSS thresholds
+          // are exactly 2x single throughout.
+          BRACKETS: {
+            single: [[11079,0.01],[26264,0.02],[41452,0.04],[57542,0.06],[72724,0.08],[371479,0.093],[445771,0.103],[742953,0.113],[Infinity,0.123]],
+            mfj:    [[22158,0.01],[52528,0.02],[82904,0.04],[115084,0.06],[145448,0.08],[742958,0.093],[891542,0.103],[1485906,0.113],[Infinity,0.123]]
+          },
+          STD_DEDUCTION: { single: 5706, mfj: 11412 },
+          // Personal exemption CREDIT (subtracted from tax, not income), FTB 2025.
+          EXEMPTION_CREDIT_USD: { single: 153, mfj: 307 },
+          DEPENDENT_CREDIT_USD: 475,
+          // Mental Health Services Tax: flat 1% on taxable income over $1M,
+          // NOT doubled for MFJ (same $1M threshold regardless of status) —
+          // this is what produces CA's well-known 13.3% marginal top rate.
+          SURCHARGE_THRESHOLD_USD: 1000000,
+          SURCHARGE_RATE: 0.01,
+          SURCHARGE_LABEL: "Mental Health Services Tax (1% over $1,000,000, not doubled for MFJ)"
+        },
+        NY: {
+          NAME: "New York",
+          FORM_NAME: "Form IT-201",
+          // NYS Dept. of Taxation & Finance 2025 rate schedule.
+          BRACKETS: {
+            single: [[8500,0.04],[11700,0.045],[13900,0.0525],[80650,0.055],[215400,0.06],[1077550,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]],
+            mfj:    [[17150,0.04],[23600,0.045],[27900,0.0525],[161550,0.055],[323200,0.06],[2155350,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]]
+          },
+          STD_DEDUCTION: { single: 8000, mfj: 16050 },
+          // NY dropped a personal exemption for filer/spouse decades ago;
+          // only the $1,000/dependent exemption survives, taken against
+          // income (not a credit, unlike CA's).
+          DEPENDENT_EXEMPTION_USD: 1000
+        }
+      },
       // ---- entity (business) corporate rates ----
       INDIA_COMPANY: {
         RATE_115BAA: 0.22, SURCHARGE_115BAA: 0.10,   // domestic co, no incentives
@@ -458,6 +504,22 @@
       desc: "Additional 0.9% Medicare tax on wages/SE income above the filing-status threshold, and reconciles employer over/under-withholding.",
       why: "Additional Medicare Tax is owed and is not offset by the Foreign Tax Credit.",
       severity: CONST.SEVERITY.INFO
+    },
+    {
+      id: "form_540",
+      jurisdiction: "US",
+      name: "California Form 540 (Resident Income Tax Return)",
+      desc: "California state income tax return — computed on worldwide income for a full-year CA resident, including Indian-source income. CA grants no credit for tax paid to a foreign country.",
+      why: "State-of-residence facts on file point to California, and CA taxes worldwide income independently of the federal treaty position.",
+      severity: CONST.SEVERITY.WARNING
+    },
+    {
+      id: "form_it201",
+      jurisdiction: "US",
+      name: "New York Form IT-201 (Resident Income Tax Return)",
+      desc: "New York state income tax return — computed on worldwide income for a full-year NY resident, including Indian-source income. NY grants no credit for tax paid to a foreign country.",
+      why: "State-of-residence facts on file point to New York, and NY taxes worldwide income independently of the federal treaty position.",
+      severity: CONST.SEVERITY.WARNING
     },
     // ---------------------------- India side -----------------------------
     {

@@ -397,6 +397,32 @@
         0, ["Form 1099-DA"]);
     }
 
+    // -- 4c6. STATE INCOME TAX (CA / NY only) — a real, computed liability,
+    // not just the disclosure-only "state residency isn't treaty-bound"
+    // warning above (which fires even when no state tax has actually been
+    // computed, e.g. no CA/NY residency facts on file, or a no-income-tax
+    // state like TX/WA/FL). This finding only fires once computeUsStateTax
+    // has actually resolved a CA or NY liability.
+    if (computed.stateTax && computed.stateTax.totalTaxUsd > 0) {
+      var st = computed.stateTax;
+      add("state_income_tax", S.WARNING, C.CREDIT,
+        st.stateName + " state income tax: " + usd(st.totalTaxUsd) + " (" + st.formName + ")",
+        st.stateName + " taxes a full-year resident's WORLDWIDE income, including Indian-source income already reported " +
+        "on the federal and Indian returns — computed here as " + usd(st.taxableIncomeUsd) + " of state taxable income " +
+        "(federal AGI " + usd(st.agiUsd) + " less the " + st.stateName + " standard deduction" +
+        (st.dependentExemptionUsd > 0 ? " and dependent exemption" : "") + ") at " + st.stateName + "'s own bracket rates" +
+        (st.surchargeUsd > 0 ? ", plus " + usd(st.surchargeUsd) + " (" + st.surchargeLabel + ")" : "") +
+        (st.exemptionCreditUsd + st.dependentCreditUsd > 0 ? ", less " + usd(st.exemptionCreditUsd + st.dependentCreditUsd) + " of personal/dependent credits" : "") +
+        ". Neither the Foreign Tax Credit computed above nor any DTAA relief applies here — " + st.stateName +
+        " is not a party to the India-US treaty and " + (st.state === "CA" ? "grants no credit for tax paid to a foreign country at all." : "does not treat Indian tax as a creditable state-level offset."),
+        "File " + st.formName + " alongside the federal return. This is a full-year-resident, TY2025-rates estimate — it does not " +
+        "split state-source income for a part-year or nonresident allocation, does not model " + st.stateName +
+        "'s own AGI addition/subtraction adjustments beyond the standard deduction" +
+        (st.dependentExemptionUsd > 0 ? "/dependent exemption" : "") + ", and (for California) does not include the local-jurisdiction " +
+        "SDI/VPDI payroll tax. Treat as directional, not filing-ready.",
+        st.totalTaxUsd, [st.formName, st.stateName + " residency"]);
+    }
+
     // -- 4d. NIIT / ADDITIONAL MEDICARE — NOT OFFSET BY THE FTC -------------
     // §1411 NIIT and §3101(b)(2) Additional Medicare are surtaxes, not "income
     // tax" for §901/§904 purposes (Reg. 1.901-1(a); the treaty's FTC article
@@ -1207,7 +1233,9 @@
       // Same reasoning as form_16_16a: every US filer needs to know this
       // form exists ahead of the Apr 15 deadline, not just the ones who will
       // end up filing late (which isn't a fact WISING can know in advance).
-      form_4868: model.meta.hasUs
+      form_4868: model.meta.hasUs,
+      form_540: !!(computed.stateTax && computed.stateTax.state === "CA"),
+      form_it201: !!(computed.stateTax && computed.stateTax.state === "NY")
     };
 
     // Catalogue entries are static reference data — form_1116 is the only one
@@ -1257,10 +1285,16 @@
    * line per bracket actually reached, so a "slab tax" row shows the real
    * ladder instead of a vague description. */
   function bracketParts(breakdown, fmt) {
+    // Federal US and India slab rates are all whole percentages, but state
+    // brackets (NY 4.5%/5.25%/6.85%..., CA 9.3%/10.3%/11.3%/12.3%) are not —
+    // Math.round(rate*100) silently collapsed 4.5%/5.25% to the same "5%".
+    // parseFloat(...toFixed(2)) keeps up to 2 decimals but drops trailing
+    // zeros, so integer rates still print as plain "10%", not "10.00%".
+    function pctLabel(rate) { return (parseFloat((rate * 100).toFixed(2))) + "%"; }
     return (breakdown || []).map(function (b) {
       var label = b.to === Infinity
-        ? Math.round(b.rate * 100) + "% above " + fmt(b.from)
-        : Math.round(b.rate * 100) + "% on " + fmt(b.from) + "–" + fmt(b.to);
+        ? pctLabel(b.rate) + " above " + fmt(b.from)
+        : pctLabel(b.rate) + " on " + fmt(b.from) + "–" + fmt(b.to);
       return { label: label, amount: b.tax };
     });
   }
@@ -1739,6 +1773,51 @@
         totalUsd: u.totalTaxBeforeFtcUsd,
         effectiveRate: u.effectiveRate
       };
+      })(),
+      usState: (function () {
+        var st = computed.stateTax;
+        if (!st) return null;
+        return {
+          title: st.stateName + " state income tax (" + st.formName + ", " + st.filingStatus.toUpperCase() + ")",
+          currency: "USD",
+          rows: [
+            { label: "Federal AGI (starting point)", usd: st.agiUsd,
+              trace: source("Same federal AGI computed above — " + st.stateName + " taxes a full-year resident's worldwide income, so no separate state-source recomputation is done.") },
+            { label: "Less " + st.stateName + " standard deduction", usd: -st.standardDeductionUsd,
+              trace: source(st.stateName + "'s own standard deduction for " + st.filingStatus.toUpperCase() + " — separate from, and smaller than, the federal one.") }
+          ].concat(st.dependentExemptionUsd > 0 ? [
+            { label: "Less NY dependent exemption ($1,000/dependent)", usd: -st.dependentExemptionUsd,
+              trace: source("NY dropped the personal exemption for filer/spouse decades ago; only the $1,000-per-dependent exemption survives.") }
+          ] : []).concat([
+            { label: "State taxable income", usd: st.taxableIncomeUsd,
+              trace: calc("Federal AGI less the state standard deduction" + (st.dependentExemptionUsd > 0 ? " and dependent exemption" : ""), [
+                { label: "Federal AGI", amount: st.agiUsd },
+                { label: "Less standard deduction", amount: -st.standardDeductionUsd }
+              ].concat(st.dependentExemptionUsd > 0 ? [{ label: "Less dependent exemption", amount: -st.dependentExemptionUsd }] : [])) },
+            { label: "Tax at " + st.stateName + " bracket rates", usd: st.bracketTaxUsd,
+              trace: calc("Progressive " + st.stateName + " brackets applied to $" + Math.round(st.taxableIncomeUsd).toLocaleString("en-US") + " of state taxable income",
+                bracketParts(st.bracketBreakdown, usd)) }
+          ]).concat(st.surchargeUsd > 0 ? [
+            { label: st.surchargeLabel, usd: st.surchargeUsd,
+              trace: calc("1% of state taxable income over $1,000,000 — this threshold is NOT doubled for MFJ", [
+                { label: "State taxable income over $1,000,000", amount: Math.max(0, st.taxableIncomeUsd - 1000000) },
+                { label: "Surcharge @ 1%", amount: st.surchargeUsd }
+              ]) }
+          ] : []).concat((st.exemptionCreditUsd + st.dependentCreditUsd) > 0 ? [
+            { label: "Less personal/dependent exemption credit", usd: -(st.exemptionCreditUsd + st.dependentCreditUsd),
+              trace: source("California's personal exemption credit ($153 single/MFS/HOH, $307 MFJ) plus $475 per dependent — a credit against tax, not a deduction from income.") }
+          ] : []).concat([
+            { label: "Total " + st.stateName + " tax", usd: st.totalTaxUsd, emphasis: true,
+              trace: calc("Bracket tax" + (st.surchargeUsd > 0 ? " + surcharge" : "") + (st.exemptionCreditUsd + st.dependentCreditUsd > 0 ? " − exemption/dependent credits" : ""), [
+                { label: "Bracket tax", amount: st.bracketTaxUsd },
+                { label: "Surcharge", amount: st.surchargeUsd },
+                { label: "Less credits", amount: -(st.exemptionCreditUsd + st.dependentCreditUsd) }
+              ]) }
+          ]),
+          totalUsd: st.totalTaxUsd,
+          effectiveRate: st.effectiveRate,
+          basis: st.basis
+        };
       })()
     };
   }

@@ -1009,6 +1009,71 @@
     };
   }
 
+  // ---- US state individual income tax (CA / NY only, TY2025) ----
+  // Scoped to a full-year-resident computation on the single state resolved
+  // from Layer 1's domicile/primary-state facts — Layer 1 collects no
+  // state-source-income breakdown, so true nonresident/part-year allocation
+  // (or a two-state split when moved_states_this_year is set) is out of
+  // scope; the FX-basis/tax-year-apportionment findings elsewhere in this
+  // engine use the same "planning-grade, flag imprecision rather than model
+  // it" convention. Base is federal AGI less the state's own standard
+  // deduction — not a full state-specific AGI recomputation (CA/NY each
+  // have their own addition/subtraction adjustments this does not model).
+  // Business entities (ccorp/scorp/etc.) file separate state franchise/
+  // entity-level returns, an unrelated and unmodeled regime, so this
+  // function only fires for individual filers; NRAs (Form 1040-NR) are
+  // skipped for the same "no state-source split" reason above.
+  function computeUsStateTax(model, usTax) {
+    var ek = model.entity ? model.entity.usKind : "individual";
+    if (ek !== "individual" || usTax.isNra) return null;
+
+    var sr = model.stateResidency || {};
+    var stateCode = sr.domicileDec31 || sr.primaryState || sr.domicileJan1;
+    var T = CONST.TAX.US_STATES[stateCode];
+    if (!T) return null;
+
+    // Single/MFJ only — see the US_STATES comment in constants.js.
+    var status = model.identity.usFilingStatus === "mfj" ? "mfj" : "single";
+    var brackets = T.BRACKETS[status];
+    var standardDeductionUsd = T.STD_DEDUCTION[status];
+    var dependents = (model.deductions && model.deductions.us && model.deductions.us.dependents) || 0;
+    var dependentExemptionUsd = (T.DEPENDENT_EXEMPTION_USD || 0) * dependents;
+
+    var taxableIncomeUsd = Math.max(0, usTax.agiUsd - standardDeductionUsd - dependentExemptionUsd);
+    var bracketTaxUsd = bracketTax(taxableIncomeUsd, brackets);
+    var bracketBreakdownRows = bracketBreakdown(taxableIncomeUsd, brackets);
+
+    var surchargeUsd = 0;
+    if (T.SURCHARGE_THRESHOLD_USD != null && taxableIncomeUsd > T.SURCHARGE_THRESHOLD_USD) {
+      surchargeUsd = (taxableIncomeUsd - T.SURCHARGE_THRESHOLD_USD) * T.SURCHARGE_RATE;
+    }
+
+    var exemptionCreditUsd = (T.EXEMPTION_CREDIT_USD && T.EXEMPTION_CREDIT_USD[status]) || 0;
+    var dependentCreditUsd = (T.DEPENDENT_CREDIT_USD || 0) * dependents;
+
+    var totalTaxUsd = Math.max(0, Math.round(bracketTaxUsd + surchargeUsd - exemptionCreditUsd - dependentCreditUsd));
+
+    return {
+      state: stateCode,
+      stateName: T.NAME,
+      formName: T.FORM_NAME,
+      filingStatus: status,
+      agiUsd: usTax.agiUsd,
+      standardDeductionUsd: standardDeductionUsd,
+      dependentExemptionUsd: dependentExemptionUsd,
+      taxableIncomeUsd: taxableIncomeUsd,
+      bracketTaxUsd: bracketTaxUsd,
+      bracketBreakdown: bracketBreakdownRows,
+      surchargeUsd: surchargeUsd,
+      surchargeLabel: T.SURCHARGE_LABEL || null,
+      exemptionCreditUsd: exemptionCreditUsd,
+      dependentCreditUsd: dependentCreditUsd,
+      totalTaxUsd: totalTaxUsd,
+      effectiveRate: usTax.agiUsd > 0 ? totalTaxUsd / usTax.agiUsd : 0,
+      basis: "TY2025 rates (returns filed 2026); full-year resident, worldwide income via federal AGI, no foreign tax credit against state tax."
+    };
+  }
+
   // ---- Form 1040-NR computation (non-resident alien, no §6013(g)/(h) election) ----
   // Layer 1 already classifies US-source income into ECI (wages + net
   // self-employment) and FDAP (interest + ordinary dividends + rental) — see
@@ -1437,6 +1502,7 @@
     var residency = resolveResidency(model);
     var indiaTax = computeIndiaTax(model);
     var usTax = computeUsTax(model, residency);
+    var stateTax = computeUsStateTax(model, usTax);
     var ftc = computeFtc(model, residency, indiaTax, usTax);
     var doubleTax = mapDoubleTaxedIncome(model, residency);
     var reconciliation = crossBasis(model, residency, usTax);
@@ -1447,6 +1513,7 @@
       residency: residency,
       indiaTax: indiaTax,
       usTax: usTax,
+      stateTax: stateTax,
       reconciliation: reconciliation,
       apportionment: apportionment,
       // back-compat alias used by older dashboard code
@@ -1474,6 +1541,7 @@
     feieEligibility: feieEligibility,
     computeIndiaTax: computeIndiaTax,
     computeUsTax: computeUsTax,
+    computeUsStateTax: computeUsStateTax,
     resolveResidency: resolveResidency,
     mapDoubleTaxedIncome: mapDoubleTaxedIncome,
     computeFtc: computeFtc,

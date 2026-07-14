@@ -740,6 +740,13 @@ function TaxCard({ taxComputation, fxRate, onJump }) {
       <Block block={taxComputation.india} isInr accent={PAL.jurIN} />
       <div className="h-3" />
       <Block block={taxComputation.us} accent={PAL.jurUS} />
+      {taxComputation.usState && (
+        <>
+          <div className="h-3" />
+          <Block block={taxComputation.usState} accent={PAL.filing} />
+          {taxComputation.usState.basis && <p className="text-[10px] text-muted mt-2">{taxComputation.usState.basis}</p>}
+        </>
+      )}
     </Card>
   );
 }

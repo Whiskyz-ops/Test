@@ -225,7 +225,7 @@
       equity_compensation: { iso_exercises: [{ shares_exercised: 3000, fmv_at_exercise_usd: 65, strike_price_usd: 12 }] },
       // California is the single most common H-1B/relocated-tech-worker state;
       // the federal DTAA tie-breaker above doesn't bind it (state_treaty_not_binding).
-      state_residency: { primary_state_of_residence: "California", ca_retains_property_or_voter_reg: true },
+      state_residency: { primary_state_of_residence: "CA", ca_retains_property_or_voter_reg: true },
       bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", country: "India", peak_balance_usd: 38554 }, { bank_name: "ICICI Bank", account_type: "nro", country: "India", peak_balance_usd: 18072 }],
       fbar_aggregate_peak_usd: 56626,
       foreign_entities: { owns_10_percent_foreign_corp: false, foreign_corporations: [], pfic_holdings: [{ asset_name: "Axis Bluechip Fund", holding_value_usd: 30120 }, { asset_name: "HDFC Corporate Bond Fund", holding_value_usd: 14458 }], has_pfics: true },
@@ -308,6 +308,11 @@
       retirement_accounts: { "401k_employee_contribution_usd": 23000, "401k_employer_match_usd": 9500, roth_ira_contribution_usd: 7000, hsa_contribution_usd: 4150 },
       financial_holdings: [{ asset_name: "Fidelity — Taxable Brokerage", account_type: "taxable_brokerage", peak_balance_usd: 224000, country: "US" }, { asset_name: "Vanguard — VTSAX / VTI", account_type: "taxable_brokerage", peak_balance_usd: 141000, country: "US" }],
       real_estate: { has_real_estate_transaction: true, properties: [{ name: "Rental condo — Jersey City, NJ", property_type: "Residential rental", gross_rent_usd: 36000, expenses_usd: 9000 }] },
+      // Works in Manhattan, lives across the river — NY statutory-residency
+      // facts (permanent abode + 184+ days present) put NY state tax in play
+      // even though the rental property itself is in NJ (unmodeled — no NJ
+      // bracket data exists in this engine).
+      state_residency: { primary_state_of_residence: "NY", ny_actual_days_present: 240, ny_permanent_place_of_abode: true },
       // Deliberate demo error: a US-based green-card holder (365 US days) cannot
       // claim FEIE — no foreign tax home, no presence test. The engine must zero
       // the exclusion and raise the "FEIE claimed but not eligible" conflict.
