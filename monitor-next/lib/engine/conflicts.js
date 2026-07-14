@@ -327,6 +327,76 @@
         computed.usTax.amtUsd, ["§55", "Form 6251", "Form 8801"]);
     }
 
+    // -- 4c2. FORM 2210 — UNDERPAYMENT PENALTY (90%-of-current-year safe
+    // harbor only). The alternative 100%/110%-of-PRIOR-year safe harbor
+    // needs last year's total tax, which isn't tracked (WISING is a
+    // single-year snapshot) — so this can only ever say "you might owe a
+    // penalty", never "you definitely do": meeting the prior-year safe
+    // harbor instead would still avoid it.
+    if (computed.usTax && model.meta.hasUs) {
+      var us2210TotalTaxUsd = Math.max(0, (computed.usTax.totalTaxBeforeFtcUsd || 0) - (ftc.us.ftcAllowedUsd || 0));
+      var us2210PaidUsd = model.taxesPaid.us.total.usd;
+      var us2210SafeHarborUsd = us2210TotalTaxUsd * 0.9;
+      var us2210BalanceDueUsd = us2210TotalTaxUsd - us2210PaidUsd;
+      if (us2210BalanceDueUsd > 1000 && us2210PaidUsd < us2210SafeHarborUsd) {
+        add("underpayment_2210", S.WARNING, C.CREDIT,
+          "US estimated-tax underpayment penalty may apply (Form 2210)",
+          "Withholding + estimated payments (" + usd(us2210PaidUsd) + ") fall short of 90% of this year's total US tax (" +
+          usd(us2210SafeHarborUsd) + " of " + usd(us2210TotalTaxUsd) + "), with a balance due over the $1,000 de-minimis. " +
+          "WISING only checks the 90%-of-CURRENT-year safe harbor — it does NOT check the alternative 100%/110%-of-PRIOR-year " +
+          "safe harbor (needs last year's total tax, which isn't tracked), so meeting that instead could still avoid the penalty.",
+          "Confirm last year's total tax against the 100%/110% prior-year safe harbor before assuming a penalty applies. If " +
+          "neither safe harbor is met, Form 2210 computes the actual penalty using quarterly IRS underpayment rates.",
+          Math.max(0, us2210BalanceDueUsd), ["Form 2210", "§6654"]);
+      }
+    }
+
+    // -- 4c3. FORM 3921 — ISO INFORMATION RETURN -----------------------------
+    if (model.equityComp && model.equityComp.isoExerciseCount > 0) {
+      add("iso_3921", S.INFO, C.DOCUMENT,
+        "ISO exercise(s) on file — employer owes you Form 3921",
+        model.equityComp.isoExerciseCount + " incentive stock option exercise(s) recorded this year. The employer is " +
+        "required to furnish Form 3921 (one per exercise) by January 31 of the following year, reporting the grant/exercise " +
+        "dates, exercise price, and FMV at exercise — the same figures already driving the AMT preference computed above.",
+        "Confirm Form 3921 was received from the employer for each exercise and that its FMV/exercise-price figures match " +
+        "what's on file here before relying on the AMT number.",
+        0, ["Form 3921", "§6039"]);
+    }
+
+    // -- 4c4. FORM 10-IEA — OLD-REGIME ELECTION (business/professional
+    // income only; a once-in-a-lifetime election under s.115BAC(6)/s.202,
+    // withdrawable only once). Company/firm entities file ITR-6/5 and don't
+    // make this individual-regime election, so they're excluded.
+    if (model.residency.india.taxRegime === "OLD" && (model.income.india.business.inr || 0) > 0 &&
+        !model.entity.indiaIsCompany && !model.entity.indiaIsFirm) {
+      add("form_10iea", S.WARNING, C.DOCUMENT,
+        "Form 10-IEA required to elect the old regime with business/professional income",
+        "The old tax regime is selected and business/professional (PGBP) income is on file. Unlike a salary-only filer, an " +
+        "assessee with PGBP income can't just choose the old regime on the ITR itself — Form 10-IEA must be filed by the " +
+        "s.139(1) due date, and once withdrawn from the old regime this way, old-regime eligibility is gone for good " +
+        "except for those without PGBP income.",
+        "File Form 10-IEA before the ITR due date. Confirm this taxpayer hasn't already exercised and withdrawn the " +
+        "election in a prior year, which would make the old regime unavailable regardless of what's chosen this year.",
+        0, ["Form 10-IEA", "s.115BAC(6)"]);
+    }
+
+    // -- 4c5. FORM 1099-DA AWARENESS — inferred from India-side VDA/crypto
+    // activity, the only crypto signal anywhere in the model. This is
+    // deliberately NOT a claim that a US Form 1099-DA obligation exists —
+    // Indian-exchange-only crypto activity has no US broker involvement at
+    // all. Framed as an awareness prompt, not a filing requirement.
+    if (model.income.india.vdaSaleConsiderationInr > 0 && model.meta.hasUs) {
+      add("form_1099da_awareness", S.INFO, C.DOCUMENT,
+        "Crypto/VDA activity on file — check for US Form 1099-DA broker reporting",
+        "Virtual digital asset transactions are recorded on the India side this year. If any of this activity (or other " +
+        "crypto activity not entered here) ran through a US-regulated broker or exchange, that broker owes the taxpayer " +
+        "Form 1099-DA — gross-proceeds reporting is mandatory for 2025 transactions, and basis reporting becomes mandatory " +
+        "for covered assets from 1 Jan 2026. Indian-exchange-only activity has no US 1099-DA angle at all.",
+        "Ask whether any crypto activity this year touched a US-based broker/exchange; if so, reconcile against the " +
+        "1099-DA received before relying on the capital-gains figures shown elsewhere.",
+        0, ["Form 1099-DA"]);
+    }
+
     // -- 4d. NIIT / ADDITIONAL MEDICARE — NOT OFFSET BY THE FTC -------------
     // §1411 NIIT and §3101(b)(2) Additional Medicare are surtaxes, not "income
     // tax" for §901/§904 purposes (Reg. 1.901-1(a); the treaty's FTC article
@@ -933,9 +1003,10 @@
         "A gift or bequest was received from someone Layer 1 flags as a covered expatriate. Unlike an ordinary foreign gift, " +
         "§2801 imposes a special transfer tax on the US RECIPIENT, at the highest gift/estate tax rate, on the value received " +
         "from a covered expatriate — this is a real tax liability, not just an information filing.",
-        "Confirm the donor's covered-expatriate status and compute the §2801 tax on Form 708 (once finalized) / per current IRS " +
-        "guidance; this is separate from and in addition to the Form 3520 reporting above.",
-        0, ["§2801", "Covered expatriate"]);
+        "Confirm the donor's covered-expatriate status and compute the §2801 tax on Form 708, finalized January 2026 (TD 10027) " +
+        "with the first return due 15 Jul 2027 for gifts/bequests received in calendar 2025; this is separate from and in " +
+        "addition to the Form 3520 reporting above.",
+        0, ["§2801", "Form 708", "Covered expatriate"]);
     }
 
     // -- 11. LRS LIMIT MONITORING ------------------------------------------
@@ -1119,7 +1190,24 @@
       // being claimed) but framed for the US side: obtaining IRS Form 6166
       // (via Form 8802) is the prerequisite step to producing the TRC/Form 41
       // paperwork the India side needs.
-      form_8802: res.dualResident || model.treaty.treatyResidence !== "none" || model.treaty.usTreatyResidence !== "none"
+      form_8802: res.dualResident || model.treaty.treatyResidence !== "none" || model.treaty.usTreatyResidence !== "none",
+      // amtUsd is already computed and shown elsewhere — this just promotes
+      // it to a filing requirement instead of a citation buried in a finding.
+      form_6251: !!(computed.usTax && computed.usTax.amtUsd > 0),
+      form_8288: !!(model.nra && model.nra.usRealPropertyDisposed && (model.nra.firptaWithholdingUsd || 0) > 0),
+      // Same ownership signal the CFC/Form 5471 check and the transfer_pricing
+      // finding already trust — a real related-party cross-border link.
+      form_3ceb: !!model.assets.usOwns10PctForeignCorp || (model.assets.usForeignCorps || []).length > 0,
+      // Any India-side income implies a reconciliation obligation — these
+      // aren't taxpayer-filed, so there's no narrower per-client fact to gate
+      // on beyond "does this taxpayer have an India return at all".
+      form_26as_ais_tis: model.meta.hasIndia,
+      form_16_16a: model.meta.hasIndia,
+      lrs_form_a2: model.limitsRaw.lrsRemittedInr > 0,
+      // Same reasoning as form_16_16a: every US filer needs to know this
+      // form exists ahead of the Apr 15 deadline, not just the ones who will
+      // end up filing late (which isn't a fact WISING can know in advance).
+      form_4868: model.meta.hasUs
     };
 
     // Catalogue entries are static reference data — form_1116 is the only one

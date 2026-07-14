@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { Landmark, FileText, Send, Plane, BarChart3 } from "lucide-react";
+import { Landmark, FileText, Send, Plane, BarChart3, ArrowLeftRight } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import StatMeter from "@/components/StatMeter";
@@ -192,7 +192,7 @@ function deriveMeters(result) {
       : c.status === "safe" ? ("proj. " + (c.projectedFullYear || 0) + " days by year-end at current pace") : null,
     note: c.test, highlight: i === 0
   }));
-  const ICON = { fbar: Landmark, form8938: FileText, lrs: Send, feie: Plane };
+  const ICON = { fbar: Landmark, form8938: FileText, lrs: Send, feie: Plane, nro_repatriation: ArrowLeftRight };
   const proj = (mon.projections || []).map((p) => {
     const Ic = ICON[p.id] || BarChart3;
     return {

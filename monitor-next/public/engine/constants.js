@@ -76,6 +76,10 @@
       // RBI Liberalised Remittance Scheme — USD 250,000 per individual / FY.
       LRS_ANNUAL_USD: 250000,
 
+      // RBI NRO-account repatriation ceiling — USD 1,000,000 per individual /
+      // FY, subject to Form 15CA/15CB (Form 145/146 from TY2026-27).
+      NRO_REPATRIATION_ANNUAL_USD: 1000000,
+
       // Foreign Earned Income Exclusion (Form 2555) — TY2026 figure (was
       // $130,000 for TY2025).
       FEIE_MAX_USD: 132900,
@@ -499,9 +503,9 @@
     {
       id: "form_15ca_cb",
       jurisdiction: "IN",
-      name: "Form 15CA / 15CB",
+      name: "Form 145 / Form 146 (was 15CA / 15CB)",
       desc: "Remittance certificates for foreign outward remittances.",
-      why: "Outward remittances under LRS / to non-residents were made during the year.",
+      why: "Outward remittances under LRS / to non-residents were made during the year. Renumbered from Form 15CA/15CB effective 1 Apr 2026 under the Income-tax Rules, 2026 (Rule 220) — the old numbers still apply to remittances made before that date.",
       severity: CONST.SEVERITY.INFO
     },
     {
@@ -527,6 +531,62 @@
       desc: "Application to the IRS for Form 6166 — the US residency certificate India's TRC requirement expects the other contracting state to issue.",
       why: "DTAA relief is being claimed on Indian-source income — Form 6166 must be requested via Form 8802 before it can be filed with the Indian TRC/Form 41 paperwork; IRS processing typically takes 4-6+ weeks, so file well ahead of the India due date.",
       severity: CONST.SEVERITY.WARNING
+    },
+    {
+      id: "form_6251",
+      jurisdiction: "US",
+      name: "IRS Form 6251 (Alternative Minimum Tax)",
+      desc: "Computes AMT and reconciles it against regular tax liability.",
+      why: "AMT preference items (commonly an ISO exercise, or the SALT-cap add-back) push tentative minimum tax above the regular tax for the year.",
+      severity: CONST.SEVERITY.WARNING
+    },
+    {
+      id: "form_8288",
+      jurisdiction: "US",
+      name: "IRS Form 8288 / 8288-A / 8288-B (FIRPTA Withholding)",
+      desc: "Withholding certificate and returns for a foreign person's disposition of US real property.",
+      why: "A US real property interest was disposed of by a foreign person — 15% FIRPTA withholding applies at closing unless a Form 8288-B withholding certificate reduces it.",
+      severity: CONST.SEVERITY.WARNING
+    },
+    {
+      id: "form_3ceb",
+      jurisdiction: "IN",
+      name: "Form 3CEB (Transfer Pricing Certification)",
+      desc: "Chartered Accountant's report on international transactions with associated enterprises, filed before the ITR due date u/s 92E.",
+      why: "A cross-border related-party ownership relationship is on file — international transactions with that entity must be reported and certified, independent of whether pricing is at arm's length.",
+      severity: CONST.SEVERITY.WARNING
+    },
+    {
+      id: "form_26as_ais_tis",
+      jurisdiction: "IN",
+      name: "Form 26AS / AIS / TIS",
+      desc: "Annual tax-credit statement (26AS) and the Annual/Taxpayer Information Statements — the pre-filled record every ITR should be reconciled against before filing.",
+      why: "Indian income is on file for this taxpayer — TDS, advance tax and reported high-value transactions should be cross-checked against these statements before the return is filed.",
+      severity: CONST.SEVERITY.INFO
+    },
+    {
+      id: "form_16_16a",
+      jurisdiction: "IN",
+      name: "Form 16 / Form 16A (TDS Certificates)",
+      desc: "Salary (Form 16) and non-salary (Form 16A) TDS certificates issued by each deductor.",
+      why: "Indian income subject to TDS is on file — hold the certificate from each deductor to reconcile against Form 26AS/AIS and support the credit claimed in the ITR.",
+      severity: CONST.SEVERITY.INFO
+    },
+    {
+      id: "lrs_form_a2",
+      jurisdiction: "IN",
+      name: "LRS Form A2 (Outward Remittance Declaration)",
+      desc: "Declaration furnished to the remitting bank for each outward remittance under the Liberalised Remittance Scheme.",
+      why: "Outward remittances under LRS were made this year — each remittance requires its own Form A2 filed with the bank at the time of transfer, separate from the annual Form 145/146 (was 15CA/15CB) return-time reporting.",
+      severity: CONST.SEVERITY.INFO
+    },
+    {
+      id: "form_4868",
+      jurisdiction: "US",
+      name: "IRS Form 4868 (Extension Request)",
+      desc: "Automatic 6-month extension of time to file (not to pay) the US return.",
+      why: "Must be filed by the original due date to legally reach the extended deadline already on your Compliance Calendar — the extension does not happen automatically.",
+      severity: CONST.SEVERITY.INFO
     }
   ];
 

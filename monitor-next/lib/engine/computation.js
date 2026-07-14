@@ -1265,6 +1265,10 @@
       "Threshold shown is the 'any time during year' figure for your status/residence.");
     gauge("lrs", "LRS outbound remittance", U.inrToUsd(model.limitsRaw.lrsRemittedInr), L.LRS_ANNUAL_USD, "USD",
       "RBI cap is per individual per financial year; TCS applies above ₹10L.");
+    if (model.limitsRaw.nroCumulativeRepatriatedUsd > 0) {
+      gauge("nro_repatriation", "NRO repatriation (this FY)", model.limitsRaw.nroCumulativeRepatriatedUsd, L.NRO_REPATRIATION_ANNUAL_USD, "USD",
+        "RBI ceiling on NRO-account repatriation abroad, separate from and in addition to the LRS cap above — each repatriation needs its own Form 15CA/15CB (Form 145/146 from TY2026-27).");
+    }
     if (feieEl.claimed || model.limitsRaw.foreignEarnedIncomeUsd > 0) {
       var feieUsed = feieEl.eligible
         ? Math.min(model.limitsRaw.feieAmountUsd || model.limitsRaw.foreignEarnedIncomeUsd, L.FEIE_MAX_USD)

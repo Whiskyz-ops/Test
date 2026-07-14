@@ -1783,7 +1783,11 @@
         trumpAccountsOpened: safe(us, "profile.trump_accounts_opened", false) === true,
         trumpAccountsNumChildren: num(safe(us, "profile.trump_accounts_num_children", 0)),
         trumpAccountsSeedEligibleChildren: num(safe(us, "profile.trump_accounts_children_born_2025_2028", 0)),
-        trumpAccountsContributionsUsd: num(safe(us, "profile.trump_accounts_total_contributions_usd", 0))
+        trumpAccountsContributionsUsd: num(safe(us, "profile.trump_accounts_total_contributions_usd", 0)),
+        // nro_repatriation stays top-level (like financial_holdings/commodities/
+        // property) rather than flowing through indiaAnnualSlice's quarterly
+        // merge — read directly off india, not annual.
+        nroCumulativeRepatriatedUsd: num(safe(india, "nro_repatriation.cumulative_repatriated_usd_this_fy", 0))
       },
       // FEIE (Form 2555) eligibility inputs — the exclusion is only available to a
       // taxpayer whose TAX HOME is abroad AND who meets the bona-fide-residence or
