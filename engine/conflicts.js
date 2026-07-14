@@ -26,6 +26,16 @@
     return "₹" + Math.round(n).toLocaleString("en-IN");
   }
 
+  // Form 1118 is the corporate Foreign Tax Credit form — same core §904
+  // limitation this engine computes, but filed by a C-corp instead of the
+  // individual/estate/trust Form 1116 (which also covers pass-through
+  // owners, so S-corp/partnership/trust profiles correctly stay on 1116).
+  // Every FTC-adjacent citation should call this instead of hardcoding
+  // "Form 1116", so a C-corp profile is never told to file the wrong form.
+  function usFtcForm(model) {
+    return (model.entity && model.entity.usReturnForm === "1120") ? "Form 1118" : "Form 1116";
+  }
+
   /* Reconstructs WHICH Article 4 test actually decided the tie-break (the
    * winner alone doesn't say whether it was permanent home, centre of vital
    * interests, habitual abode, or nationality) — mirrors the same step
@@ -271,17 +281,17 @@
         " of Indian tax cannot be credited currently and would otherwise be double-taxed.",
         usd(ftc.us.carryoverUsd) + " is eligible to carry over under §904(c) (back 1 year / forward 10), but WISING is a " +
         "single-year snapshot — it does NOT persist this carryover across tax years or track it for you. Record " +
-        usd(ftc.us.carryoverUsd) + " on Form 1116 Schedule B this year, and re-enter it as prior-year carryover when you " +
+        usd(ftc.us.carryoverUsd) + " on " + usFtcForm(model) + " Schedule B this year, and re-enter it as prior-year carryover when you " +
         "run next year's numbers. Also check whether treaty re-sourcing (Art. 25) could reclassify some income to lift " +
         "the limitation — WISING does not test this automatically.",
-        ftc.us.residualDoubleTaxUsd, ["Form 1116", "§904(c)"]);
+        ftc.us.residualDoubleTaxUsd, [usFtcForm(model), "§904(c)"]);
     } else if (ftc.us.indiaTaxPaidUsd > 0 && ftc.us.ftcAllowedUsd > 0) {
       add("ftc_available", S.INFO, C.CREDIT,
         "Foreign Tax Credit available and within limit",
         "Indian tax of " + usd(ftc.us.indiaTaxPaidUsd) + " is fully creditable against US tax this year (" +
         usd(ftc.us.ftcAllowedUsd) + " within a " + usd(ftc.us.ftcLimitUsd) + " limitation).",
-        "Claim on Form 1116 (US) and file Form 44 (India) before the ITR due date to preserve symmetric relief.",
-        ftc.us.ftcAllowedUsd, ["Form 1116", "Form 44"]);
+        "Claim on " + usFtcForm(model) + " (US) and file Form 44 (India) before the ITR due date to preserve symmetric relief.",
+        ftc.us.ftcAllowedUsd, [usFtcForm(model), "Form 44"]);
     }
 
     // -- 4b. FEIE CLAIMED BUT NOT ELIGIBLE (§911) ---------------------------
@@ -645,7 +655,7 @@
         "India taxes Apr–Mar; the US taxes Jan–Dec. WISING splits the Indian FY across US calendar years — " +
         usd(ap.indiaToCyPrimaryUsd) + " into CY" + ap.cyPrimary + " and " + usd(ap.indiaToCyNextUsd) + " into CY" + ap.cyNext +
         " (" + ap.basis + ") — and apportions the US calendar year into the Indian FY (9/12 + 3/12).",
-        "See the FY ↔ CY Apportionment panel on the Filings tab for the period-matched figures behind Form 44 (India) and Form 1116 (US). Planning-grade — refine with per-transaction dates at filing.",
+        "See the FY ↔ CY Apportionment panel on the Filings tab for the period-matched figures behind Form 44 (India) and " + usFtcForm(model) + " (US). Planning-grade — refine with per-transaction dates at filing.",
         0, [CONST.CALENDAR.INDIA_FY.label, CONST.CALENDAR.US_CY.label]);
     }
 
@@ -1024,8 +1034,8 @@
         dtRows.map(function (r) { return r.label; }).join(", ") + ". Overlapping exposure of " +
         usd(recon.overlapUsd) + " is what the FTC / §159 relief resolves." +
         (recon.anyEstimate ? " Some heads are planning-grade estimates pending line-item inputs." : ""),
-        "Open the Cross-Basis Reconciliation on the Filings tab to see each head on both bases, then relieve the overlap via Form 1116 (US) / Form 44 (India).",
-        recon.overlapUsd, ["DTAA", "Form 1116", "Form 44"]);
+        "Open the Cross-Basis Reconciliation on the Filings tab to see each head on both bases, then relieve the overlap via " + usFtcForm(model) + " (US) / Form 44 (India).",
+        recon.overlapUsd, ["DTAA", usFtcForm(model), "Form 44"]);
     }
 
     // -- sort by severity then amount --------------------------------------
@@ -1067,7 +1077,11 @@
         var g = computed.limits.filter(function (x) { return x.id === "form8938"; })[0];
         return !!g && g.status === "breached" && res.us.isResident;
       })(),
-      form_1116: model.taxesPaid.india.total.usd > 0 && res.us.isResident,
+      // res.us.isResident is an individual-residency concept (SPT/citizenship)
+      // that's meaningless for a corporation — a C-corp filer needs Form 1118
+      // (see usFtcForm) whenever it paid Indian tax, regardless of that flag.
+      form_1116: model.taxesPaid.india.total.usd > 0 &&
+                 (res.us.isResident || (model.entity && model.entity.usReturnForm === "1120")),
       form_2555: model.limitsRaw.feieClaimed,
       form_8833: res.dualResident || model.treaty.usTreatyResidence !== "none" || model.treaty.files1040nr,
       form_8621: (model.assets.indianMutualFunds || []).length > 0 && res.us.isResident,
@@ -1108,14 +1122,25 @@
       form_8802: res.dualResident || model.treaty.treatyResidence !== "none" || model.treaty.usTreatyResidence !== "none"
     };
 
+    // Catalogue entries are static reference data — form_1116 is the only one
+    // whose real-world form NUMBER (not just applicability) depends on who's
+    // filing, so it's the only one that needs a per-client name/desc/why
+    // override rather than just a trigger.
+    var isForm1118 = model.entity && model.entity.usReturnForm === "1120";
     return CONST.DOCUMENTS.map(function (d) {
       var triggered = !!triggers[d.id];
+      var name = d.name, desc = d.desc, why = d.why;
+      if (d.id === "form_1116" && isForm1118) {
+        name = "IRS Form 1118 (Foreign Tax Credit — Corporations)";
+        desc = "Claims credit for income tax paid to India against US corporate tax liability.";
+        why = "This C-corp paid Indian income tax on income that is also taxable in the US. C-corps file Form 1118, not the individual/estate/trust Form 1116.";
+      }
       return {
         id: d.id,
         jurisdiction: d.jurisdiction,
-        name: d.name,
-        desc: d.desc,
-        why: d.why,
+        name: name,
+        desc: desc,
+        why: why,
         severity: d.severity,
         required: triggered,
         status: triggered ? "required" : "not_triggered"
@@ -1209,7 +1234,7 @@
       : [];
     return {
       direction_us_claims_india: {
-        title: "US Form 1116 — credit for Indian taxes",
+        title: "US " + usFtcForm(model) + " — credit for Indian taxes",
         rows: feieRows.concat([
           { label: "Indian income tax (creditable)", usd: ftc.us.indiaTaxPaidUsd,
             trace: calc("Total India tax × creditable fraction (gross Indian income less any FEIE-excluded slice, over gross Indian income)", [
