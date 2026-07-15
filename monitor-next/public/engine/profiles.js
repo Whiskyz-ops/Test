@@ -355,8 +355,19 @@
         // K-1's own combined SE-tax figure, exercising the fix that
         // partnership SE tax was unconditionally $0 before (Box 14A was never
         // read). QBI only picks up the $18,000 ordinary slice, correctly
-        // excluding the $12,000 guaranteed payments.
-        partnerships_k1: [{ partnership_name: "Meridian Consulting Partners LLC", partner_type: "general", ordinary_business_income_usd: 18000, guaranteed_payments_usd: 12000, self_employment_earnings_usd: 30000 }],
+        // excluding the $12,000 guaranteed payments. Also carries a small
+        // Box 5 interest allocation and a Box 12 s.179 deduction, exercising
+        // the K-1 passive-income-box and s.179 fixes on the SAME K-1 that
+        // already exercises Box 1/4/14A.
+        partnerships_k1: [{ business_name: "Meridian Consulting Partners LLC", partner_type: "general", ordinary_business_income_usd: 18000, guaranteed_payments_usd: 12000, self_employment_earnings_usd: 30000, interest_income_usd: 900, sec179_deduction_usd: 2000 }],
+        // A passive minority stake in a friend's S-corp — Box 1 ordinary
+        // income under ordinary_income_usd, the REAL Layer 1 US field name
+        // (scorp_income_usd/ordinary_business_income_usd exist nowhere on
+        // the live form and previously left EVERY S-corp K-1's Box 1 at $0
+        // regardless of what was entered — the single highest-value gap
+        // found in the ccorp/scorp/partnership/trust form audit). No
+        // material participation, so correctly excluded from SE tax.
+        s_corporations_k1: [{ business_name: "Harborline Print Co", ordinary_income_usd: 9000, ordinary_dividends_usd: 500, is_specified_service_trade: false }],
         interest_us_source_usd: 5200, ordinary_dividends_us_source_usd: 6400, qualified_dividends_us_source_usd: 4000, ltcg_us_source_usd: 12000, rental_income_us_source_usd: 27000 },
       income_foreign_source: { foreign_rental_income_usd: 14458, foreign_dividends_usd: 2651, foreign_interest_usd: 3133, foreign_stcg_usd: 2169 },
       retirement_accounts: { "401k_employee_contribution_usd": 23000, "401k_employer_match_usd": 9500, roth_ira_contribution_usd: 7000, hsa_contribution_usd: 4150 },
@@ -653,6 +664,14 @@
         // which the old wages characterization never exposed at all.
         self_employment: [
           { id: "grace-consulting-in", business_name: "Grace Thomas Consulting (India)", llc_type: "foreign_disregarded", has_se_income: true, gross_receipts_usd: 60241, expenses_usd: 0, is_specified_service_trade: true }
+        ],
+        // A modest distribution from her late mother's family trust — the
+        // trust K-1 card (trusts_estates_k1[]) was previously read NOWHERE
+        // in the engine at all (gap tracker US-17): Box 1 ordinary income
+        // plus a Box 5/6a/6b passive slice, none of which reached AGI
+        // before this fix regardless of how it was entered.
+        trusts_estates_k1: [
+          { business_name: "Thomas Family Trust", trust_type: "simple", ordinary_income_usd: 4000, interest_income_usd: 300, ordinary_dividends_usd: 600, qualified_dividends_usd: 500, is_specified_service_trade: false }
         ]
       },
       income_foreign_source: { foreign_interest_usd: 1446 },
@@ -772,7 +791,24 @@
     us: {
       profile: { tax_entity_type: "ccorp", full_name: "Cloudspire Inc", incorporation_state: "DE", incorporated_in_us: true, filing_status: "single" },
       us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 365, spt_test_met: false, final_us_residency_status: "DOMESTIC_ENTITY" },
-      income_us_source: { business_income_usd: 4200000, interest_us_source_usd: 60000, c_corporations_1120: [] },
+      // business_income_usd was a shortcut: verified by direct grep, no
+      // input anywhere in layer1_us.html ever writes that field — a real
+      // ccorp-entity-type filer has no way to enter it. The real mechanism
+      // Layer 1 US actually exposes for "this entity's own taxable income"
+      // is Schedule M-1 (corp-tab-M1, shown once tax_entity_type is
+      // ccorp/scorp/partnership) — book income plus/less the standard
+      // book-to-tax reconciliation items. Engineered to net to the exact
+      // same $4,260,000 the old shortcut asserted directly: $4.99M of
+      // additions (book income + federal tax provision + disallowed meals +
+      // foreign tax deducted-not-credited, thematically tied to the Indian
+      // subsidiary's own FTC claim below) less $730k of subtractions
+      // (municipal-bond tax-exempt interest + tax depreciation in excess of
+      // book, e.g. bonus depreciation on servers).
+      income_us_source: { c_corporations_1120: [] },
+      corporate_financials: { schedule_m1: {
+        net_income_per_books: 4000000, federal_tax_expense: 900000, meals_disallowed_50: 50000, foreign_taxes_credited: 40000,
+        tax_exempt_interest: 30000, tax_depreciation_over_book: 700000
+      } },
       income_foreign_source: {}, foreign_earned_income: { claims_feie: false },
       bank_accounts: [{ bank_name: "SVB", account_type: "current", country: "US", peak_balance_usd: 1800000 }],
       fbar_aggregate_peak_usd: 0,

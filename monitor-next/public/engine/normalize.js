@@ -1338,6 +1338,35 @@
     return calc("Schedule C: gross receipts less returns/COGS, plus other income, less expenses. Home-office and asset depreciation aren't netted yet (Phase 1).", parts);
   }
 
+  // Interest/dividend/capital-gain/rental/royalty boxes on a K-1 (Box
+  // numbers differ by K-1 type — partnership 2/5/6a/6b/7/8/9a/10, S-corp
+  // 2/4/5a/5b/6/7/8a/9, trust 3/5/6a/6b/7/8/9 — but partnerships_k1/
+  // s_corporations_k1/trusts_estates_k1 all persist them under the SAME
+  // field names, confirmed field-by-field against layer1_us.html, EXCEPT
+  // royalties (royalties_usd on partnership/S-corp, royalty_income_usd on
+  // trust) and net section 1231 gain (net_sec1231_gain_usd on partnership,
+  // sec1231_gain_usd on S-corp, absent on trust), bridged here. Previously
+  // NONE of this reached AGI for any K-1 recipient — only the headline
+  // ordinary-income box (plus guaranteed payments/SE earnings, already
+  // fixed) was ever read; a K-1 with real interest/dividend/capital-gain/
+  // rental income silently vanished.
+  function k1PassiveIncomeUsd(k) {
+    return {
+      interestUsd: num(k.interest_income_usd),
+      ordDivUsd: num(k.ordinary_dividends_usd),
+      qualDivUsd: num(k.qualified_dividends_usd),
+      stcgUsd: num(k.stcg_usd),
+      // Net section 1231 gain is LTCG-taxed when the entity-level netting is
+      // positive (the common case — a net loss is ordinary and isn't
+      // tracked separately here); collectibles/unrecaptured-1250 gain stay
+      // unmodeled, matching every OTHER capital-gains source in this engine
+      // (no source anywhere breaks preferential-rate subtypes out further).
+      ltcgUsd: num(k.ltcg_usd) + Math.max(0, num(k.net_sec1231_gain_usd || k.sec1231_gain_usd || 0)),
+      rentalUsd: num(k.net_rental_real_estate_usd) + num(k.other_rental_income_usd) +
+        num(k.royalties_usd || k.royalty_income_usd || 0)
+    };
+  }
+
   /* ------------------------------------------------------------------------
    * US income aggregation — keeps the us-source / foreign-source split that
    * drives the FTC limitation, and a qualified/ordinary dividend split that
@@ -1386,12 +1415,25 @@
     (safe(ui, "c_corporations_1120", []) || []).forEach(function (c) {
       businessUs = addMoney(businessUs, moneyFromUsd(c.taxable_income_usd || c.net_income_usd || 0));
     });
+    // K-1 passive-income boxes (interest/dividends/capital gains/rental/
+    // royalties) accumulate here across all three K-1 types, then fold into
+    // the ordinary aggregate buckets below (interestUs/ordDivUs/etc.) —
+    // declared before the K-1 loops so each loop can add into them directly.
+    var k1InterestUsd = 0, k1OrdDivUsd = 0, k1QualDivUsd = 0, k1StcgUsd = 0, k1LtcgUsd = 0, k1RentalUsd = 0;
+    function addK1Passive(k) {
+      var p = k1PassiveIncomeUsd(k);
+      k1InterestUsd += p.interestUsd; k1OrdDivUsd += p.ordDivUsd; k1QualDivUsd += p.qualDivUsd;
+      k1StcgUsd += p.stcgUsd; k1LtcgUsd += p.ltcgUsd; k1RentalUsd += p.rentalUsd;
+    }
     (safe(ui, "partnerships_k1", []) || []).forEach(function (k) {
       // Guaranteed payments (Box 4) are real income to the partner regardless
       // of general/limited status — they were previously dropped entirely.
+      // s.179 deduction (Box 12) reduces the ordinary pass-through figure.
       businessUs = addMoney(businessUs, moneyFromUsd(
-        num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) + num(k.guaranteed_payments_usd || 0)
+        num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) + num(k.guaranteed_payments_usd || 0) -
+        num(k.sec179_deduction_usd || 0)
       ));
+      addK1Passive(k);
     });
     // A Schedule C row marked llc_type "foreign_disregarded" (Layer 1 US's
     // own "Foreign Disregarded Entity" flow, addSeBusinessRow/Form 8858) is
@@ -1410,7 +1452,28 @@
       }
     });
     (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) {
-      businessUs = addMoney(businessUs, moneyFromUsd(s.scorp_income_usd || s.ordinary_business_income_usd || 0));
+      // ordinary_income_usd (Box 1) is the REAL field syncScorpK1State/
+      // normalizeScorpK1Item actually write — scorp_income_usd and
+      // ordinary_business_income_usd exist nowhere in layer1_us.html, so
+      // Box 1 (the single largest figure on an S-corp K-1) silently
+      // computed to $0 for every S-corp K-1 ever entered. Old names kept as
+      // harmless trailing fallbacks. s.179 deduction (Box 11) reduces it.
+      businessUs = addMoney(businessUs, moneyFromUsd(
+        num(s.ordinary_income_usd || s.scorp_income_usd || s.ordinary_business_income_usd || 0) -
+        num(s.sec179_deduction_usd || 0)
+      ));
+      addK1Passive(s);
+    });
+    // trusts_estates_k1 was previously read NOWHERE in this engine (gap
+    // tracker US-17) — 100% of a beneficiary's distributable K-1 income
+    // (ordinary, interest, dividends, capital gains, rental, royalties)
+    // vanished regardless of how carefully it was entered. Box 1 ordinary
+    // income folds into businessUs like the other two K-1 types; the trust
+    // card's own "ordinary gain" sub-line (no dedicated bucket anywhere in
+    // this engine) rides along with it rather than being dropped.
+    (safe(ui, "trusts_estates_k1", []) || []).forEach(function (t) {
+      businessUs = addMoney(businessUs, moneyFromUsd(num(t.ordinary_income_usd || 0) + num(t.ordinary_gain_usd || 0)));
+      addK1Passive(t);
     });
 
     // Self-employment-TAX-subject earnings (Sch C + Sch F + general-partner SE):
@@ -1419,22 +1482,29 @@
     (safe(ui, "self_employment", []) || []).forEach(function (s) { seEarnings += selfEmploymentNetProfitUsd(s); });
     (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { seEarnings += num(s.net_profit_usd || 0); });
     // QBI-eligible pass-through business income (§199A): SE + S-corp + partnership
-    // ordinary (excludes C-corp and wages). SSTB flag if any business is flagged.
-    // Seeded from seEarnings BEFORE partnership Box 14A is added below — Box
-    // 14A can include guaranteed payments (QBI-ineligible under §199A) and
-    // would otherwise double-count the ordinary-income slice added explicitly
-    // via ordinary_business_income_usd two lines down.
+    // + trust ordinary (excludes C-corp and wages). SSTB flag if any business
+    // is flagged. Seeded from seEarnings BEFORE partnership Box 14A is added
+    // below — Box 14A can include guaranteed payments (QBI-ineligible under
+    // §199A) and would otherwise double-count the ordinary-income slice
+    // added explicitly via ordinary_business_income_usd two lines down.
     var qbiIncome = seEarnings, sstb = false;
-    (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { qbiIncome += num(s.scorp_income_usd || s.ordinary_business_income_usd || 0); });
-    (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { qbiIncome += num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0); });
+    (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) {
+      qbiIncome += num(s.ordinary_income_usd || s.scorp_income_usd || s.ordinary_business_income_usd || 0) - num(s.sec179_deduction_usd || 0);
+    });
+    (safe(ui, "partnerships_k1", []) || []).forEach(function (k) {
+      qbiIncome += num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) - num(k.sec179_deduction_usd || 0);
+    });
+    (safe(ui, "trusts_estates_k1", []) || []).forEach(function (t) { qbiIncome += num(t.ordinary_income_usd || 0); });
     // Layer 1 US persists this flag as is_specified_service_trade on every
     // entity-type row (self-employment .se-sstb, S-corp K-1 .scorp-sstb,
-    // partnership K-1 .part-sstb — see syncSeState/syncScorpK1State/
-    // syncPartK1State) — is_sstb/sstb were never the real field name, so the
-    // SSTB checkbox silently never phased out/eliminated QBI for any filer
-    // regardless of what they actually checked. Kept as trailing fallbacks
-    // in case a future shape uses the shorter name.
-    [].concat(safe(ui, "self_employment", []) || [], safe(ui, "s_corporations_k1", []) || [], safe(ui, "partnerships_k1", []) || [])
+    // partnership K-1 .part-sstb, trust K-1 .trust-sstb — see syncSeState/
+    // syncScorpK1State/syncPartK1State/syncTrustK1State) — is_sstb/sstb were
+    // never the real field name, so the SSTB checkbox silently never phased
+    // out/eliminated QBI for any filer regardless of what they actually
+    // checked. Kept as trailing fallbacks in case a future shape uses the
+    // shorter name.
+    [].concat(safe(ui, "self_employment", []) || [], safe(ui, "s_corporations_k1", []) || [],
+      safe(ui, "partnerships_k1", []) || [], safe(ui, "trusts_estates_k1", []) || [])
       .forEach(function (x) { if (x && (x.is_specified_service_trade === true || x.is_sstb === true || x.sstb === true)) sstb = true; });
     // Partnership K-1 Box 14A (self_employment_earnings_usd) is the
     // authoritative SE-tax base as actually reported on the K-1 — already
@@ -1477,12 +1547,17 @@
     // it needs to be readable there even though it never joins interestUs.
     var taxExemptInterestUs = moneyFromUsd(safe(ui, "interest_us_exempt_usd", 0));
 
-    var interestUs = moneyFromUsd(safe(ui, "interest_us_source_usd", 0));
-    var ordDivUs = moneyFromUsd(safe(ui, "ordinary_dividends_us_source_usd", 0));
-    var qualDivUs = moneyFromUsd(safe(ui, "qualified_dividends_us_source_usd", 0));
-    var ltcgUs = moneyFromUsd(safe(ui, "ltcg_us_source_usd", 0));
-    var stcgUs = moneyFromUsd(safe(ui, "stcg_us_source_usd", 0));
-    var rentalUs = moneyFromUsd(safe(ui, "rental_income_us_source_usd", 0));
+    // K-1 interest/dividend/capital-gain/rental boxes (k1InterestUsd etc.,
+    // accumulated above across partnerships_k1/s_corporations_k1/
+    // trusts_estates_k1) fold into the same buckets their directly-held
+    // counterparts use — this income is taxed identically regardless of
+    // whether it came from a 1099 or passed through a K-1.
+    var interestUs = moneyFromUsd(safe(ui, "interest_us_source_usd", 0) + k1InterestUsd);
+    var ordDivUs = moneyFromUsd(safe(ui, "ordinary_dividends_us_source_usd", 0) + k1OrdDivUsd);
+    var qualDivUs = moneyFromUsd(safe(ui, "qualified_dividends_us_source_usd", 0) + k1QualDivUsd);
+    var ltcgUs = moneyFromUsd(safe(ui, "ltcg_us_source_usd", 0) + k1LtcgUsd);
+    var stcgUs = moneyFromUsd(safe(ui, "stcg_us_source_usd", 0) + k1StcgUsd);
+    var rentalUs = moneyFromUsd(safe(ui, "rental_income_us_source_usd", 0) + k1RentalUsd);
 
     var foreignInterest = moneyFromUsd(safe(fi, "foreign_interest_usd", 0));
     var foreignDividends = moneyFromUsd(safe(fi, "foreign_dividends_usd", 0));
@@ -1814,6 +1889,34 @@
         var usT = safe(us, "profile.tax_entity_type", "individual");
         if (usT === "llc") usT = safe(us, "profile.llc_tax_election", "individual");
         var usIsBusiness = ["ccorp", "scorp", "partnership", "trust"].indexOf(usT) >= 0;
+        // Schedule M-1 (Form 1120/1120-S/1065 book-to-tax reconciliation) —
+        // collected whenever the FILER'S OWN entity type is ccorp/scorp/
+        // partnership (corp-tab-M1, gated the same way Layer 1 US itself
+        // gates it: isCorpOrPartnership, trusts excluded since Form 1041
+        // doesn't carry Schedule M-1) but previously read by NEITHER Layer
+        // 1's own calc NOR this engine — both left the entity's own taxable
+        // income entirely dependent on business_income_usd, a field that
+        // (verified by direct grep) no input anywhere in layer1_us.html
+        // ever writes to. Mirrors the exact same "collected book-to-tax
+        // figure, unread on both ends" shape as India's MAT book-profit fix
+        // above. Formula follows the real Schedule M-1 Line 1-10 structure:
+        // book income, plus items deductible on books but not the return
+        // (federal tax expense, 50%-disallowed meals, foreign tax deducted
+        // instead of credited, s.163(j)-limited interest, other additions),
+        // less items includible on books but not the return (tax-exempt
+        // interest, tax depreciation in excess of book, other subtractions).
+        var usIsCorpOrPartnership = ["ccorp", "scorp", "partnership"].indexOf(usT) >= 0;
+        var m1 = safe(us, "corporate_financials.schedule_m1", null);
+        var m1HasData = usIsCorpOrPartnership && m1 && [
+          "net_income_per_books", "federal_tax_expense", "tax_exempt_interest",
+          "tax_depreciation_over_book", "meals_disallowed_50", "foreign_taxes_credited",
+          "interest_expense_limitation", "other_additions", "other_subtractions"
+        ].some(function (k) { return num(m1[k]) !== 0; });
+        var usScheduleM1TaxableIncomeUsd = m1HasData
+          ? num(m1.net_income_per_books) + num(m1.federal_tax_expense) + num(m1.meals_disallowed_50) +
+            num(m1.foreign_taxes_credited) + num(m1.interest_expense_limitation) + num(m1.other_additions) -
+            num(m1.tax_exempt_interest) - num(m1.tax_depreciation_over_book) - num(m1.other_subtractions)
+          : null;
         // A profile is "business POV" when either side is a non-individual entity.
         return {
           indiaKind: indiaEntityKind, usKind: usT,
@@ -1839,6 +1942,7 @@
           // explicitly wherever it matters instead of asserting non-director.
           isCompanyDirector: safe(india, "profile.is_company_director", false) === true,
           usIsBusiness: usIsBusiness,
+          usScheduleM1TaxableIncomeUsd: usScheduleM1TaxableIncomeUsd,
           isBusiness: indiaIsCompany || indiaIsFirm || usIsBusiness,
           // Layer 1's OWN persisted recommendation (itr_recommendation.form),
           // when it ran — kept for the backend solver (computed.indiaItrForm)
@@ -2037,12 +2141,37 @@
           var list = [], ui = safe(us, "income_us_source", {});
           var entityKind = safe(us, "profile.tax_entity_type", "individual");
           var indiaIsCompanyOrFirm = indiaIsCompany || indiaIsFirm;
-          // The US entity's OWN return income (e.g. a C-Corp's 1120 income).
-          if (entityKind === "ccorp" || safe(us, "profile.incorporated_in_us", false) === true) {
-            var selfInc = num(safe(ui, "business_income_usd", 0));
-            if (selfInc > 0) list.push({ country: "US", type: "C-Corp (Form 1120)", name: safe(us, "profile.full_name", "US C-Corp"), incomeUsd: selfInc, corp: true,
-              filesOwnReturn: true, returnForm: "Form 1120 (C-Corp — entity-level return, 21% flat)",
-              calcTrace: source("Entity-level taxable income as entered on Layer 1 US (business_income_usd). Taxed at 21% at the entity; not on a personal return until distributed as a dividend.") }); }
+          // The US entity's OWN return income. business_income_usd is a dead
+          // field (verified by direct grep: no input anywhere in
+          // layer1_us.html ever writes it) — the real mechanism Layer 1 US
+          // exposes for "this entity's own taxable income" is Schedule M-1
+          // (corp-tab-M1, shown once tax_entity_type is ccorp/scorp/
+          // partnership), same figure computeUsEntityTax now prefers.
+          if (["ccorp", "scorp", "partnership"].indexOf(entityKind) >= 0 || safe(us, "profile.incorporated_in_us", false) === true) {
+            var m1ForTrace = safe(us, "corporate_financials.schedule_m1", null);
+            var m1SelfInc = m1ForTrace ? (
+              num(m1ForTrace.net_income_per_books) + num(m1ForTrace.federal_tax_expense) + num(m1ForTrace.meals_disallowed_50) +
+              num(m1ForTrace.foreign_taxes_credited) + num(m1ForTrace.interest_expense_limitation) + num(m1ForTrace.other_additions) -
+              num(m1ForTrace.tax_exempt_interest) - num(m1ForTrace.tax_depreciation_over_book) - num(m1ForTrace.other_subtractions)
+            ) : 0;
+            var selfInc = m1SelfInc !== 0 ? m1SelfInc : num(safe(ui, "business_income_usd", 0));
+            var selfForm = entityKind === "ccorp" ? "1120 (C-Corp, 21% flat)" : entityKind === "scorp" ? "1120-S (pass-through)" : entityKind === "partnership" ? "1065 (pass-through)" : "1120";
+            if (selfInc !== 0) list.push({ country: "US", type: entityKind === "ccorp" ? "C-Corp (Form 1120)" : entityKind === "scorp" ? "S-Corp (Form 1120-S)" : entityKind === "partnership" ? "Partnership (Form 1065)" : "C-Corp (Form 1120)",
+              name: safe(us, "profile.full_name", "US entity"), incomeUsd: selfInc, corp: true,
+              filesOwnReturn: true, returnForm: "Form " + selfForm + " — entity-level return",
+              calcTrace: m1SelfInc !== 0
+                ? calc("Schedule M-1 book-to-tax reconciliation (this entity's own return, not a K-1 received from another entity).", [
+                    { label: "Net income per books", amount: num(m1ForTrace.net_income_per_books) },
+                    { label: "Plus: federal tax expense", amount: num(m1ForTrace.federal_tax_expense) },
+                    { label: "Plus: meals & entertainment disallowed", amount: num(m1ForTrace.meals_disallowed_50) },
+                    { label: "Plus: foreign taxes deducted (not credited)", amount: num(m1ForTrace.foreign_taxes_credited) },
+                    { label: "Plus: s.163(j) interest expense limitation", amount: num(m1ForTrace.interest_expense_limitation) },
+                    { label: "Plus: other additions", amount: num(m1ForTrace.other_additions) },
+                    { label: "Less: tax-exempt interest", amount: -num(m1ForTrace.tax_exempt_interest) },
+                    { label: "Less: tax depreciation over book depreciation", amount: -num(m1ForTrace.tax_depreciation_over_book) },
+                    { label: "Less: other subtractions", amount: -num(m1ForTrace.other_subtractions) }
+                  ])
+                : source("Entity-level taxable income as entered on Layer 1 US (business_income_usd) — no Schedule M-1 data on file for this entity.") }); }
           (safe(ui, "self_employment", []) || []).forEach(function (s) { list.push({ country: "US", type: "Self-employment (Sch C)", name: s.business_name || s.name || "Self-employment", incomeUsd: selfEmploymentNetProfitUsd(s), se: true, qbi: true,
             filesOwnReturn: false, returnForm: "Schedule C + Schedule SE (Form 1040)",
             calcTrace: selfEmploymentIncomeTrace(s) }); });
@@ -2050,17 +2179,36 @@
             filesOwnReturn: false, returnForm: "Schedule F (Form 1040)",
             calcTrace: source("Net farm profit as entered directly on Layer 1 US for this farm (net_profit_usd).") }); });
           (safe(ui, "partnerships_k1", []) || []).forEach(function (k) {
-            var ord = num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0), gp = num(k.guaranteed_payments_usd || 0);
-            list.push({ country: "US", type: "Partnership K-1 (1065)", name: k.partnership_name || k.name || "Partnership", incomeUsd: ord + gp, se: true, qbi: true,
+            var ord = num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0), gp = num(k.guaranteed_payments_usd || 0),
+              s179 = num(k.sec179_deduction_usd || 0);
+            list.push({ country: "US", type: "Partnership K-1 (1065)", name: k.business_name || k.partnership_name || k.name || "Partnership", incomeUsd: ord + gp - s179, se: true, qbi: true,
               filesOwnReturn: false, returnForm: "Form 1065 (partnership return, informational) → Schedule E + Schedule SE (Form 1040)",
-              calcTrace: calc("Ordinary business income (K-1 Box 1) + guaranteed payments (K-1 Box 4). Guaranteed payments count for SE tax but are excluded from the §199A QBI base.", [
+              calcTrace: calc("Ordinary business income (K-1 Box 1) + guaranteed payments (K-1 Box 4) − s.179 deduction (K-1 Box 12). Guaranteed payments count for SE tax but are excluded from the §199A QBI base. Interest/dividend/capital-gain/rental/royalty boxes on this K-1, if any, are folded into this taxpayer's general investment-income totals, not shown per-entity here.", [
                 { label: "Ordinary business income (Box 1)", amount: ord },
-                { label: "Guaranteed payments (Box 4)", amount: gp }
+                { label: "Guaranteed payments (Box 4)", amount: gp },
+                { label: "Less: s.179 deduction (Box 12)", amount: -s179 }
               ]) });
           });
-          (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { list.push({ country: "US", type: "S-Corp K-1 (1120-S)", name: s.corp_name || s.name || "S-Corporation", incomeUsd: num(s.scorp_income_usd || s.ordinary_business_income_usd || 0), se: false, qbi: true,
-            filesOwnReturn: false, returnForm: "Form 1120-S (S-corp return, informational) → Schedule E (Form 1040)",
-            calcTrace: source("Ordinary business income as entered on Layer 1 US from this S-corp's K-1 (scorp_income_usd, or ordinary_business_income_usd if that field wasn't used). S-corp distributions aren't subject to SE tax.") }); });
+          (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) {
+            var ord = num(s.ordinary_income_usd || s.scorp_income_usd || s.ordinary_business_income_usd || 0), s179 = num(s.sec179_deduction_usd || 0);
+            list.push({ country: "US", type: "S-Corp K-1 (1120-S)", name: s.business_name || s.corp_name || s.name || "S-Corporation", incomeUsd: ord - s179, se: false, qbi: true,
+              filesOwnReturn: false, returnForm: "Form 1120-S (S-corp return, informational) → Schedule E (Form 1040)",
+              calcTrace: calc("Ordinary business income (K-1 Box 1, ordinary_income_usd — the real Layer 1 US field; scorp_income_usd/ordinary_business_income_usd are legacy fallbacks that don't exist on the live form) − s.179 deduction (Box 11). S-corp distributions aren't subject to SE tax.", [
+                { label: "Ordinary business income (Box 1)", amount: ord },
+                { label: "Less: s.179 deduction (Box 11)", amount: -s179 }
+              ]) });
+          });
+          // trusts_estates_k1 was previously not shown in this list at all
+          // (gap tracker US-17 — 100% unread anywhere in the engine).
+          (safe(ui, "trusts_estates_k1", []) || []).forEach(function (t) {
+            var ord = num(t.ordinary_income_usd || 0), og = num(t.ordinary_gain_usd || 0);
+            list.push({ country: "US", type: "Trust/Estate K-1 (1041)", name: t.business_name || "Trust/Estate", incomeUsd: ord + og, se: false, qbi: true,
+              filesOwnReturn: false, returnForm: "Form 1041 (fiduciary return, informational) → Schedule E (Form 1040)",
+              calcTrace: calc("Ordinary income (K-1 Box 1) + ordinary gain (Box 8 sub-line). Interest/dividend/capital-gain/rental/royalty boxes on this K-1, if any, are folded into this taxpayer's general investment-income totals, not shown per-entity here.", [
+                { label: "Ordinary income (Box 1)", amount: ord },
+                { label: "Ordinary gain (Box 8)", amount: og }
+              ]) });
+          });
           (safe(ui, "c_corporations_1120", []) || []).forEach(function (c) { list.push({ country: "US", type: "C-Corp (Form 1120)", name: c.corp_name || c.name || "C-Corporation", incomeUsd: num(c.taxable_income_usd || c.net_income_usd || 0), corp: true,
             filesOwnReturn: true, returnForm: "Form 1120 (C-Corp — entity-level return, 21% flat)",
             calcTrace: source("Entity-level taxable income as entered on Layer 1 US for this C-corp (taxable_income_usd, or net_income_usd if that field wasn't used). Taxed at 21% at the entity; not on a personal return until distributed.") }); });

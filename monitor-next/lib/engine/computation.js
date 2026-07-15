@@ -1205,7 +1205,16 @@
 
   // ---- US corporate / pass-through computation ----
   function computeUsEntityTax(model, inc, kind) {
-    var taxable = inc.total.usd; // business income + other
+    // Schedule M-1 (when Layer 1 US actually collected one for this entity's
+    // own return — corporate_financials.schedule_m1, ccorp/scorp/partnership
+    // only) is the real book-to-tax-reconciled taxable income for THIS
+    // entity's own return; inc.total.usd is only the generic aggregate
+    // (wages/business/interest/etc.) that business_income_usd — the one
+    // field a demo profile could otherwise use for "this entity's own
+    // income" — silently falls back to, despite no real Layer 1 US input
+    // ever writing that field. Prefer the M-1 figure whenever present.
+    var m1Taxable = model.entity && model.entity.usScheduleM1TaxableIncomeUsd;
+    var taxable = m1Taxable != null ? m1Taxable : inc.total.usd; // business income + other
     var form = kind === "ccorp" ? "1120" : kind === "scorp" ? "1120-S" : kind === "partnership" ? "1065" : "1041";
     if (kind === "ccorp") {
       var tax = taxable * CONST.TAX.US.C_CORP_RATE;
