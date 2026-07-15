@@ -590,8 +590,8 @@
   var P5 = {
     id: "us_citizen_expat_india",
     label: "US Citizen expat in India",
-    story: "US citizen living/working in India, past traditional retirement age but still consulting. FEIE on foreign earned income, PFIC on Indian MFs, FBAR — US citizenship-based taxation always applies. A gift from her father, a long-term green-card holder who formally relinquished it and was found to be a covered expatriate, brings Form 3520 reporting plus the §2801 recipient-side transfer tax. At 67, the first demo of the (OBBBA, TY2025-2028) $6,000 senior deduction.",
-    tags: ["FEIE", "PFIC", "citizen", "covered expatriate", "senior deduction"],
+    story: "US citizen living/working in India, past traditional retirement age but still consulting as an independent professional — genuinely eligible for (and electing) India's s.44ADA presumptive scheme, the suite's first VALID applied presumptive election. FEIE on the same foreign self-employment earnings (Schedule C, Foreign Disregarded Entity), but SE tax still applies in full since §911 never reaches it. PFIC on Indian MFs, FBAR — US citizenship-based taxation always applies. A gift from her father, a long-term green-card holder who formally relinquished it and was found to be a covered expatriate, brings Form 3520 reporting plus the §2801 recipient-side transfer tax. At 67, the first demo of the (OBBBA, TY2025-2028) $6,000 senior deduction.",
+    tags: ["FEIE", "PFIC", "citizen", "covered expatriate", "senior deduction", "s44ADA", "SE tax"],
     router: router("Grace Thomas", { is_us_citizen: true, has_green_card: false, us_days: 20, date_of_birth: "1958-09-12" }),
     india: {
       profile: { full_name: "Grace Thomas", entity_type: "individual", date_of_birth: "1958-09-12", pan: "AGTPT7890T", tax_regime: "NEW" },
@@ -601,14 +601,32 @@
       bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", peak_balance_inr: 2100000 }],
       property: { properties: [] },
       financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "equity_mutual_fund", asset_name: "Parag Parikh Flexi Cap", value_inr: 1800000 }] },
-      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 5000000 }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
+      // Recharacterized from salary (the old shape) to real s.44ADA
+      // professional income — she's an independent consultant paid fees by
+      // an Indian client, not a W-2-style employee, and as ROR + individual
+      // she's genuinely eligible (not excluded like Rohan's NR status,
+      // Sharma HUF's entity type, or a company/firm) — the first demo
+      // profile in the whole suite with a VALID, applied presumptive
+      // election rather than one that falls through to regular books.
+      // Digital receipts are 100% of the total, clearing the 95% bar for
+      // the higher Rs75L ceiling; Rs50L in receipts still clears either
+      // ceiling. Mirrored on the US side below as foreign self-employment
+      // (Schedule C, Foreign Disregarded Entity), not foreign_wages —
+      // matching her real classification as an independent contractor.
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, business_entries: [
+        { business_name: "Grace Thomas Consulting", nature: "technical consultancy", presumptive_scheme: "s44ADA", gross_receipts_inr: 5000000, ada_digital_receipts_inr: 5000000, ada_cash_receipts_inr: 0 }
+      ] }, capital_gains: {} },
       // NPS withdrawal Layer 1 records as taxable this year — exercises the
       // fix where this now actually raises US taxable income (folded into
       // foreign-source pension), distinct from Aarav's EPF-interest case.
       other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 120000, taxable_nps_withdrawal_inr: 30000 },
       deductions: { s80C: { ppf_inr: 150000 } },
       lrs_outbound: {},
-      tax_credits: { tds_already_deducted_inr: 900000 },
+      // s.194J professional-fees TDS (10% of gross receipts) — the old
+      // Rs9L figure was calibrated to salary-slab withholding on a Rs50L
+      // W-2-style wage, wildly disproportionate to a client's flat 10%
+      // deduction on Rs50L of consulting fees.
+      tax_credits: { tds_already_deducted_inr: 500000 },
       metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
     us: {
@@ -620,14 +638,28 @@
       // lands provisional income just above the $25,000 single-filer base
       // threshold, so only a small tier-1 slice (~11%, not 0% and not the
       // old-wrong 100%) of the $24,000 benefit ends up taxable — most of
-      // her income is FEIE-excluded foreign wages, which this worksheet
-      // correctly leaves out of provisional income.
-      income_us_source: { interest_us_source_usd: 2400, ordinary_dividends_us_source_usd: 5200, qualified_dividends_us_source_usd: 4100, ltcg_us_source_usd: 9000, social_security_benefits_usd: 24000 },
-      income_foreign_source: { foreign_wages: [{ employer_name: "Freshworks (India)", wages_usd: 60241 }], foreign_interest_usd: 1446 },
+      // her income is FEIE-excluded foreign self-employment earnings, which
+      // this worksheet correctly leaves out of provisional income.
+      income_us_source: {
+        interest_us_source_usd: 2400, ordinary_dividends_us_source_usd: 5200, qualified_dividends_us_source_usd: 4100, ltcg_us_source_usd: 9000, social_security_benefits_usd: 24000,
+        // Real classification: an independent contractor paid fees by an
+        // Indian client, not a W-2-style employee — Layer 1 US's own "Add
+        // Foreign Corporation"-style FDE flow (llc_type foreign_disregarded)
+        // is what actually models this, not income_foreign_source.foreign_wages.
+        // Same $60,241 as her India-side Rs50L gross receipts (Rs50L / 83).
+        // net self-employment earnings ARE foreign earned income for FEIE,
+        // but the resulting SE tax is NOT excluded by it (Schedule SE runs
+        // on the full, unexcluded figure) — she genuinely owes SE tax now,
+        // which the old wages characterization never exposed at all.
+        self_employment: [
+          { id: "grace-consulting-in", business_name: "Grace Thomas Consulting (India)", llc_type: "foreign_disregarded", has_se_income: true, gross_receipts_usd: 60241, expenses_usd: 0, is_specified_service_trade: true }
+        ]
+      },
+      income_foreign_source: { foreign_interest_usd: 1446 },
       foreign_earned_income: { claims_feie: true, foreign_earned_income_usd: 60241, feie_amount_claimed_usd: 60241, qualification_test: "bona_fide_residence", tax_home_country: "India", bona_fide_residence: true, bona_fide_residence_start_date: "2022-06-01", physical_presence: false, days_in_us_during_test_period: 20 },
       bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", country: "India", peak_balance_usd: 25301 }],
       fbar_aggregate_peak_usd: 25301,
-      foreign_entities: { foreign_corporations: [], pfic_holdings: [{ asset_name: "Parag Parikh Flexi Cap", holding_value_usd: 21687 }], has_pfics: true },
+      foreign_entities: { foreign_corporations: [], owns_foreign_disregarded_entity: true, pfic_holdings: [{ asset_name: "Parag Parikh Flexi Cap", holding_value_usd: 21687 }], has_pfics: true },
       financial_holdings: [{ asset_name: "Vanguard — Taxable Brokerage (US, pre-move)", account_type: "taxable_brokerage", peak_balance_usd: 118000, country: "US" }],
       retirement_accounts: { indian_epf_balance_usd: 3600 },
       ftc_inputs: { claims_ftc: false },
@@ -655,14 +687,33 @@
     tags: ["company", "ITR-6", "200", "corporate"],
     router: router("Nimbus Analytics Pvt Ltd", { us_days: 0, has_us_source_income_or_assets: false }),
     india: {
-      profile: { full_name: "Nimbus Analytics Pvt Ltd", entity_type: "company", tax_regime: "NEW", turnover_lte_400cr: true, opt_115baa: true, mat_book_profit: 62000000 },
+      // mat_book_profit intentionally absent: Layer 1 India nulls that field
+      // the moment opt_115baa is checked (div-prof-mat-profit is hidden and
+      // cleared — s.115JB(5A) exempts s.115BAA companies from MAT outright),
+      // so a concessional company can never actually carry a live book-profit
+      // figure alongside the election.
+      profile: { full_name: "Nimbus Analytics Pvt Ltd", entity_type: "company", tax_regime: "NEW", turnover_lte_400cr: true, opt_115baa: true },
       residency_detail: { days_in_india_current_year: 365, final_india_residency_status: "ROR", is_poem_in_india: true, is_indian_company: true },
       dtaa: { dtaa_treaty_residence: "none", trc_status: false, has_permanent_establishment_in_india: false },
       compliance_docs: { trc: { document_uploaded: false }, form_10f: { is_filed: false } },
       bank_accounts: [{ bank_name: "Kotak (Current)", account_type: "current", peak_balance_inr: 42000000 }],
       property: { properties: [] },
       financial_holdings: { has_financial_transactions: false, transactions: [] },
-      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ business_name: "Nimbus Analytics Pvt Ltd", nature: "software", net_profit_inr: 60000000 }] }, capital_gains: {} },
+      // Real regular-books company entry (companies are categorically
+      // excluded from both s.44AD and s.44ADA, so this always lands on
+      // books regardless of presumptive_scheme being left unset) — turnover
+      // less clean PGBP expenses less s.32 WDV depreciation nets to the same
+      // Rs6cr the old net_profit_inr shortcut asserted directly, but now
+      // genuinely earned through Phase 1's expense/depreciation machinery
+      // instead of bypassing it. Server room (computers, 40%) + owned office
+      // (commercial building, 10%) asset blocks.
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [
+        { business_name: "Nimbus Analytics Pvt Ltd", nature: "software", presumptive_scheme: null, turnover_inr: 100000000,
+          expenses: { employee_salary_wages_inr: 24000000, rent_for_business_premises_inr: 3000000, other_business_expenses_inr: 8000000, ca_professional_fees_inr: 700000, insurance_premium_inr: 300000 } }
+      ], asset_blocks: [
+        { unit_biz_idx: 0, unit_branch_idx: null, asset_class: "plant_machinery_computers", opening_wdv_inr: 7000000, additions_during_year_inr: 0, addition_date: null, sale_consideration_inr: 0, is_new_manufacturing_asset: false },
+        { unit_biz_idx: 0, unit_branch_idx: null, asset_class: "building_commercial", opening_wdv_inr: 12000000, additions_during_year_inr: 0, addition_date: null, sale_consideration_inr: 0, is_new_manufacturing_asset: false }
+      ] }, capital_gains: {} },
       other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 900000 },
       deductions: {},
       lrs_outbound: {},
@@ -699,7 +750,20 @@
       bank_accounts: [{ bank_name: "HSBC (Current)", account_type: "current", peak_balance_inr: 30000000 }],
       property: { properties: [] },
       financial_holdings: { has_financial_transactions: false, transactions: [] },
-      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ business_name: "Cloudspire India Pvt Ltd", nature: "software", net_profit_inr: 80000000 }] }, capital_gains: {} },
+      // Real regular-books company entry (same s.44AD/44ADA entity-type
+      // exclusion as Nimbus above). Net profit is engineered to land on the
+      // exact same Rs8cr the old net_profit_inr shortcut asserted directly,
+      // since that figure is precisely mirrored into this same profile's
+      // US-side gilti_income_usd/foreign_taxes_usd below (Rs8cr / 83 and
+      // 25% of Rs8cr / 83 respectively) — changing it here without
+      // recomputing those would silently desync the two sides again.
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [
+        { business_name: "Cloudspire India Pvt Ltd", nature: "software", presumptive_scheme: null, turnover_inr: 140000000,
+          expenses: { employee_salary_wages_inr: 35000000, rent_for_business_premises_inr: 4000000, other_business_expenses_inr: 12000000, ca_professional_fees_inr: 700000, insurance_premium_inr: 300000 } }
+      ], asset_blocks: [
+        { unit_biz_idx: 0, unit_branch_idx: null, asset_class: "plant_machinery_computers", opening_wdv_inr: 10000000, additions_during_year_inr: 0, addition_date: null, sale_consideration_inr: 0, is_new_manufacturing_asset: false },
+        { unit_biz_idx: 0, unit_branch_idx: null, asset_class: "building_commercial", opening_wdv_inr: 40000000, additions_during_year_inr: 0, addition_date: null, sale_consideration_inr: 0, is_new_manufacturing_asset: false }
+      ] }, capital_gains: {} },
       other_sources: {},
       deductions: {}, lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 4000000, advance_tax_q2_15sep_inr: 5000000, advance_tax_q3_15dec_inr: 5000000, advance_tax_q4_15mar_inr: 4000000 },
@@ -746,7 +810,18 @@
       bank_accounts: [{ bank_name: "DBS (Current)", account_type: "current", peak_balance_inr: 18000000 }],
       property: { properties: [] },
       financial_holdings: { has_financial_transactions: false, transactions: [] },
-      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [{ business_name: "Meridian Holdings Pte Ltd", nature: "investment holding", net_profit_inr: 22000000 }] }, capital_gains: {} },
+      // Real regular-books company entry, same entity-type exclusion as the
+      // other two company profiles above. Owned Mumbai office (commercial
+      // building, 10%) doubles as the seat of the key-management-location
+      // fact this profile's POEM finding hinges on. Nets to the same Rs2.2cr
+      // the old net_profit_inr shortcut asserted directly.
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [
+        { business_name: "Meridian Holdings Pte Ltd", nature: "investment holding", presumptive_scheme: null, turnover_inr: 30000000,
+          expenses: { employee_salary_wages_inr: 3000000, rent_for_business_premises_inr: 800000, other_business_expenses_inr: 1200000, ca_professional_fees_inr: 300000, insurance_premium_inr: 100000 } }
+      ], asset_blocks: [
+        { unit_biz_idx: 0, unit_branch_idx: null, asset_class: "building_commercial", opening_wdv_inr: 20000000, additions_during_year_inr: 0, addition_date: null, sale_consideration_inr: 0, is_new_manufacturing_asset: false },
+        { unit_biz_idx: 0, unit_branch_idx: null, asset_class: "plant_machinery_computers", opening_wdv_inr: 1500000, additions_during_year_inr: 0, addition_date: null, sale_consideration_inr: 0, is_new_manufacturing_asset: false }
+      ] }, capital_gains: {} },
       other_sources: {},
       deductions: {}, lrs_outbound: {},
       tax_credits: { advance_tax_q1_15jun_inr: 1200000, advance_tax_q2_15sep_inr: 1400000, advance_tax_q3_15dec_inr: 1400000, advance_tax_q4_15mar_inr: 1200000 },
