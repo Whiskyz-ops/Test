@@ -583,6 +583,19 @@
     // never actually had a speculative-income bucket to set off against).
     var speculativeIncomeInr = num(safe(di, "business_income.speculative_income_inr", 0));
 
+    // Partner-firm pass-through (Phase 1, §2.3) — business_income.partner_firms[],
+    // a top-level array (not tied to business_entries[]), real/live-written
+    // via updatePartnerFirm. Remuneration + interest on capital are taxable
+    // PGBP income to the partner — the s.40(b) cap on what the FIRM may pay
+    // out is tested at the firm's own return, which this app doesn't
+    // prepare, so the entered figure is trusted rather than re-derived.
+    // profit_share_exempt_inr is genuinely exempt (already taxed at the
+    // firm level under s.10(2A)) — deliberately excluded from `business`,
+    // shown only for reconciliation via the Business tab trace.
+    (safe(di, "business_income.partner_firms", []) || []).forEach(function (firm) {
+      business = addMoney(business, moneyFromInr(num(firm.remuneration_from_entity_inr) + num(firm.interest_on_capital_from_entity_inr)));
+    });
+
     var hpProps = safe(di, "house_property.properties", []);
     var houseProperty = zeroMoney();
     (hpProps || []).forEach(function (p) {

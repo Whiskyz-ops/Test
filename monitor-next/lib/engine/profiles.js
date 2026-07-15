@@ -303,7 +303,11 @@
       // business total above — with no brought-forward speculative loss on
       // file to eventually net against, it simply carries no consequence
       // this year (a single-year-snapshot engine has no carry-forward
-      // output for it), rather than being wrongly absorbed.
+      // output for it), rather than being wrongly absorbed. Also a partner
+      // stake in a third firm (§2.3): ₹6,00,000 remuneration + ₹1,20,000
+      // interest on capital are taxable PGBP income to Rohan; the firm's
+      // own ₹9,00,000 profit share is genuinely exempt (already taxed at
+      // the firm level) and must NOT double up here.
       domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true,
         non_speculative_income_inr: 250000, fno_turnover_inr: 4000000,
         speculative_income_inr: -80000, speculative_turnover_inr: 900000,
@@ -316,6 +320,8 @@
         { unit_biz_idx: 1, unit_branch_idx: null, asset_class: "plant_machinery_general", opening_wdv_inr: 2000000, additions_during_year_inr: 500000, addition_date: "2026-06-01", sale_consideration_inr: 0, is_new_manufacturing_asset: false }
       ], msme_payables: [
         { unit_biz_idx: 1, unit_branch_idx: null, supplier_name: "Precision Tools Co", amount_inr: 50000, invoice_date: "2026-01-01", has_written_agreement: false, payment_date: null }
+      ], partner_firms: [
+        { firm_name: "Kapoor & Mehta Consulting LLP", entity_type: "llp", remuneration_from_entity_inr: 600000, interest_on_capital_from_entity_inr: 120000, profit_share_exempt_inr: 900000 }
       ] }, capital_gains: { short_term_15_pct: 180000 } },
       // Occasional fantasy-sports/online-gaming winnings (very common alongside
       // NRI rental/dividend income today) plus an unexplained cash deposit the
