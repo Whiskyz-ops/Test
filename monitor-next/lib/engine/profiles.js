@@ -290,14 +290,22 @@
       // presumptive election — exercises Phase 1's asset_blocks[] WDV
       // depreciation (§2.4): opening ₹20,00,000 + additions ₹5,00,000
       // (both full-rate, addition date well before the <180-day cutoff) on
-      // General P&M (15%) = ₹3,75,000 depreciation, netted straight into
-      // this entry's regular-books profit alongside its ordinary expenses.
+      // General P&M (15%) = ₹3,75,000 depreciation. Also exercises Phase 1's
+      // statutory disallowances: ₹1,00,000 paid to a resident without TDS
+      // (30% disallowed = ₹30,000) plus one MSME invoice unpaid past its
+      // 15-day (no written agreement) window (₹50,000, fully disallowed) —
+      // both are add-backs against the expense pool, not new deductions.
+      // Net: ₹24,00,000 − (₹6,00,000 expenses − ₹80,000 disallowances) −
+      // ₹3,75,000 depreciation = ₹15,05,000.
       domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [
         { business_name: "Mehta Advisory Services", nature: "consulting", presumptive_scheme: "s44ADA", gross_receipts_inr: 1800000, holding_pct: 5 },
         { business_name: "Mehta Equipment Rentals", nature: "equipment rental", presumptive_scheme: null, gross_receipts_inr: 2400000,
-          expenses: { rent_for_business_premises_inr: 180000, employee_salary_wages_inr: 300000, other_business_expenses_inr: 120000 } }
+          expenses: { rent_for_business_premises_inr: 180000, employee_salary_wages_inr: 300000, other_business_expenses_inr: 120000,
+            payments_to_residents_no_tds_inr: 100000 } }
       ], asset_blocks: [
         { unit_biz_idx: 1, unit_branch_idx: null, asset_class: "plant_machinery_general", opening_wdv_inr: 2000000, additions_during_year_inr: 500000, addition_date: "2026-06-01", sale_consideration_inr: 0, is_new_manufacturing_asset: false }
+      ], msme_payables: [
+        { unit_biz_idx: 1, unit_branch_idx: null, supplier_name: "Precision Tools Co", amount_inr: 50000, invoice_date: "2026-01-01", has_written_agreement: false, payment_date: null }
       ] }, capital_gains: { short_term_15_pct: 180000 } },
       // Occasional fantasy-sports/online-gaming winnings (very common alongside
       // NRI rental/dividend income today) plus an unexplained cash deposit the
