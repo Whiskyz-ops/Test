@@ -16276,6 +16276,28 @@ ${isProf ? '' : `
     function saveState() {
         state.metadata = state.metadata || {};
         state.metadata.last_updated_at = new Date().toISOString();
+
+        // switchQuarter() already does this same sync when the user switches
+        // quarter tabs (so the quarter being left behind isn't lost) — but a
+        // session that never touches the quarter tabs (the common case: stay
+        // on the Q1 default the whole time) never runs it. _initWindowOnLoad's
+        // restore-on-load path always overwrites these same 9 categories FROM
+        // state.quarters[active_quarter], so without this, any edit here gets
+        // silently discarded the moment the page reloads, even though it just
+        // saved to localStorage correctly. Mirrors switchQuarter()'s own list.
+        if (state.active_quarter && state.active_quarter !== 'ANNUAL' && state.quarters[state.active_quarter]) {
+            const activeQ = state.quarters[state.active_quarter];
+            activeQ.domestic_income = JSON.parse(JSON.stringify(state.domestic_income));
+            activeQ.other_sources = JSON.parse(JSON.stringify(state.other_sources));
+            activeQ.lrs_outbound = JSON.parse(JSON.stringify(state.lrs_outbound));
+            activeQ.nro_repatriation = JSON.parse(JSON.stringify(state.nro_repatriation));
+            activeQ.capital_gains = JSON.parse(JSON.stringify(state.capital_gains));
+            activeQ.financial_holdings = JSON.parse(JSON.stringify(state.financial_holdings));
+            activeQ.commodities = JSON.parse(JSON.stringify(state.commodities));
+            activeQ.unlisted_equity = JSON.parse(JSON.stringify(state.unlisted_equity));
+            activeQ.property = JSON.parse(JSON.stringify(state.property));
+        }
+
         localStorage.setItem('wising_layer1_india_state', JSON.stringify(state));
     }
 
