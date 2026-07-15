@@ -651,7 +651,13 @@
       var baseTax = taxable * rate;
       surRate = E.indiaOpt115baa ? C.SURCHARGE_115BAA : (taxable > 100000000 ? C.SURCHARGE_OVER_10CR : (taxable > 10000000 ? C.SURCHARGE_OVER_1CR : 0));
       var normal = baseTax + baseTax * surRate;
-      var mat = taxable * C.MAT_RATE;         // MAT floor (book-profit proxy)
+      // MAT floor: use the real Schedule III book profit (s.115JB) when
+      // Layer 1 India actually collected one (div-prof-mat-profit) — only
+      // falls back to a taxable-income proxy when that field was left
+      // blank, since book profit and taxable income routinely diverge
+      // (book depreciation/provisions vs. the Act's own add-backs).
+      var matBaseInr = E.indiaMatBookProfitInr != null ? E.indiaMatBookProfitInr : taxable;
+      var mat = matBaseInr * C.MAT_RATE;
       matApplied = !E.indiaOpt115baa && normal < mat;
       preCess = matApplied ? mat : normal;
       var cessC = preCess * C.CESS_RATE;
@@ -762,16 +768,30 @@
 
     // Foreign income is included only for worldwide residents/citizens.
     var fW = worldwide ? inc.foreignWages.usd : 0;
+    // Self-employment earnings from a Schedule C row flagged as a Foreign
+    // Disregarded Entity (llc_type "foreign_disregarded") — the one real
+    // Layer 1 US signal that a self-employment business is foreign-earned.
+    // Net self-employment earnings ARE foreign earned income for §911
+    // purposes (unlike SE TAX itself under §1401, which the exclusion never
+    // reaches — see the Schedule SE computation below, which still draws
+    // seEarningsUsd unreduced by feieAppliedUsd).
+    var fSE = worldwide ? inc.foreignSelfEmployment.usd : 0;
 
     // FEIE (Form 2555) — gated on eligibility, not on the checkbox. Only a
     // taxpayer living abroad (foreign tax home + bona-fide-residence or
-    // physical-presence test) may exclude, and only foreign EARNED income.
+    // physical-presence test) may exclude, and only foreign EARNED income
+    // (wages + net self-employment earnings, combined against one cap —
+    // mirrors Layer 1 US's own single feie_amount_claimed_usd field, which
+    // likewise doesn't distinguish the underlying income's source array).
     var feie = feieEligibility(model);
     var feieAppliedUsd = 0;
-    if (worldwide && feie.claimed && feie.eligible && fW > 0) {
-      var feieBase = feie.amountClaimedUsd > 0 ? feie.amountClaimedUsd : fW;
-      feieAppliedUsd = Math.min(fW, feieBase, CONST.LIMITS.FEIE_MAX_USD);
-      fW = fW - feieAppliedUsd;
+    if (worldwide && feie.claimed && feie.eligible && (fW + fSE) > 0) {
+      var feieEarnedBaseUsd = fW + fSE;
+      var feieBase = feie.amountClaimedUsd > 0 ? feie.amountClaimedUsd : feieEarnedBaseUsd;
+      feieAppliedUsd = Math.min(feieEarnedBaseUsd, feieBase, CONST.LIMITS.FEIE_MAX_USD);
+      var feieAppliedToWagesUsd = Math.min(fW, feieAppliedUsd);
+      fW = fW - feieAppliedToWagesUsd;
+      fSE = fSE - (feieAppliedUsd - feieAppliedToWagesUsd);
     }
     var fI = worldwide ? inc.foreignInterest.usd : 0;
     var fD = worldwide ? inc.foreignDividends.usd : 0;
@@ -788,10 +808,12 @@
     // income" test, below). IRA/401(k) distributions and pension remain
     // fully taxable US-source ordinary income, included here as always.
     // Business/self-employment income (Sch C, S-corp/partnership K-1) is
-    // always US-source in this model (no foreign-business counterpart is
-    // collected), so it's included unconditionally, not gated on `worldwide`.
+    // always US-source in this model EXCEPT the foreign_disregarded slice
+    // already carved into fSE above — every other self-employment/K-1
+    // source has no foreign-business counterpart collected, so the rest of
+    // businessUs stays unconditional, not gated on `worldwide`.
     var ordinaryIncomeExclSs =
-      inc.wages.usd + fW + (inc.businessUs ? inc.businessUs.usd : 0) + inc.interestUs.usd + fI +
+      inc.wages.usd + fW + fSE + (inc.businessUs ? inc.businessUs.usd : 0) + inc.interestUs.usd + fI +
       nonQualDivUs + fD + inc.stcgUs.usd + fStcg +
       inc.rentalUs.usd + fR + fP + (inc.usRetirementIncomeExclSs ? inc.usRetirementIncomeExclSs.usd : (inc.usRetirementIncome ? inc.usRetirementIncome.usd : 0));
 
@@ -969,7 +991,7 @@
     var remainingTaxAfterOtherCredits = Math.max(0, Math.round(incomeTax) - otherCreditsUsd);
     var ctcNonRefundableUsd = Math.min(ctcAvailableUsd, remainingTaxAfterOtherCredits);
     var ctcUnusedUsd = ctcAvailableUsd - ctcNonRefundableUsd;
-    var earnedIncomeUsd = inc.wages.usd + fW + (inc.businessUs ? inc.businessUs.usd : 0);
+    var earnedIncomeUsd = inc.wages.usd + fW + fSE + (inc.businessUs ? inc.businessUs.usd : 0);
     var actcCapUsd = Math.min(
       T.CTC_REFUNDABLE_MAX_PER_CHILD_USD * numChildrenForCtc,
       T.CTC_REFUNDABLE_RATE * Math.max(0, earnedIncomeUsd - T.CTC_REFUNDABLE_EARNED_INCOME_FLOOR_USD)
@@ -1036,7 +1058,7 @@
         earnedIncomeUsd: earnedIncomeUsd
       },
       totalTaxBeforeFtcUsd: totalTaxBeforeFtc,
-      foreignSourceIncomeUsd: fW + fI + fD + fR + fP + fStcg + fLtcg,
+      foreignSourceIncomeUsd: fW + fSE + fI + fD + fR + fP + fStcg + fLtcg,
       usSourceIncomeUsd: inc.usSourceTotal.usd,
       retirementEpfInterestUsd: worldwide ? (inc.retirementEpfInterestUsd || 0) : 0,
       retirementNpsWithdrawalUsd: worldwide ? (inc.retirementNpsWithdrawalUsd || 0) : 0,
@@ -1337,7 +1359,15 @@
     }
     pair("Salary / Wages (India-source)", inc.india.salary, inc.us.foreignWages,
       "Indian employment income is foreign-source for the US; creditable via Form 1116 general basket.");
-    pair("Business / Professional income", inc.india.business, U.zeroMoney(),
+    // US side previously hardcoded to zero — every business/professional
+    // profile showed no double-tax exposure on this row regardless of
+    // actual US self-employment income. inc.us.foreignSelfEmployment is the
+    // one bucket that's genuinely comparable to Indian-source business
+    // income (a Schedule C row flagged foreign_disregarded, i.e., the same
+    // underlying foreign business Layer 1 India also taxed) — domestic US
+    // self-employment/K-1 income (inc.us.businessUs) is a different pool
+    // with no Indian-source counterpart, so it's deliberately excluded here.
+    pair("Business / Professional income", inc.india.business, inc.us.foreignSelfEmployment,
       "Indian business profits may also flow through GILTI/Subpart F if held via a corp (Form 5471).");
     pair("House property / Rental (India)", inc.india.houseProperty, inc.us.foreignRental,
       "Indian rent: net-of-expense basis differs (IN 30% standard deduction vs US actual + depreciation).");

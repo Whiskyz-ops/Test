@@ -1393,8 +1393,21 @@
         num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) + num(k.guaranteed_payments_usd || 0)
       ));
     });
+    // A Schedule C row marked llc_type "foreign_disregarded" (Layer 1 US's
+    // own "Foreign Disregarded Entity" flow, addSeBusinessRow/Form 8858) is
+    // the one signal the real form gives that a self-employment business is
+    // foreign-earned, not domestic — kept OUT of businessUs (which every
+    // other computation here still treats as unconditionally US-source) and
+    // tracked separately so it can be FEIE-eligible below, mirroring how
+    // foreignWages is already split out from wages.
+    var foreignSelfEmployment = zeroMoney();
     (safe(ui, "self_employment", []) || []).forEach(function (s) {
-      businessUs = addMoney(businessUs, moneyFromUsd(selfEmploymentNetProfitUsd(s)));
+      var netUsd = selfEmploymentNetProfitUsd(s);
+      if (s.llc_type === "foreign_disregarded") {
+        foreignSelfEmployment = addMoney(foreignSelfEmployment, moneyFromUsd(netUsd));
+      } else {
+        businessUs = addMoney(businessUs, moneyFromUsd(netUsd));
+      }
     });
     (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) {
       businessUs = addMoney(businessUs, moneyFromUsd(s.scorp_income_usd || s.ordinary_business_income_usd || 0));
@@ -1414,8 +1427,15 @@
     var qbiIncome = seEarnings, sstb = false;
     (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { qbiIncome += num(s.scorp_income_usd || s.ordinary_business_income_usd || 0); });
     (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { qbiIncome += num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0); });
+    // Layer 1 US persists this flag as is_specified_service_trade on every
+    // entity-type row (self-employment .se-sstb, S-corp K-1 .scorp-sstb,
+    // partnership K-1 .part-sstb — see syncSeState/syncScorpK1State/
+    // syncPartK1State) — is_sstb/sstb were never the real field name, so the
+    // SSTB checkbox silently never phased out/eliminated QBI for any filer
+    // regardless of what they actually checked. Kept as trailing fallbacks
+    // in case a future shape uses the shorter name.
     [].concat(safe(ui, "self_employment", []) || [], safe(ui, "s_corporations_k1", []) || [], safe(ui, "partnerships_k1", []) || [])
-      .forEach(function (x) { if (x && (x.is_sstb === true || x.sstb === true)) sstb = true; });
+      .forEach(function (x) { if (x && (x.is_specified_service_trade === true || x.is_sstb === true || x.sstb === true)) sstb = true; });
     // Partnership K-1 Box 14A (self_employment_earnings_usd) is the
     // authoritative SE-tax base as actually reported on the K-1 — already
     // partner-type-aware (a limited partner's distributive share of ordinary
@@ -1487,7 +1507,7 @@
     }
 
     var usSourceTotal = [wages, businessUs, interestUs, ordDivUs, ltcgUs, stcgUs, rentalUs, usRetirementIncome].reduce(addMoney, zeroMoney());
-    var foreignSourceTotal = [foreignWages, foreignInterest, foreignDividends, foreignRental, foreignPension, foreignStcg, foreignLtcg].reduce(addMoney, zeroMoney());
+    var foreignSourceTotal = [foreignWages, foreignSelfEmployment, foreignInterest, foreignDividends, foreignRental, foreignPension, foreignStcg, foreignLtcg].reduce(addMoney, zeroMoney());
 
     return {
       wages: wages, businessUs: businessUs, w2Withholding: w2with, w2Employers: w2Employers, medicareWages: medicareWages,
@@ -1499,7 +1519,8 @@
       taxExemptInterestUs: taxExemptInterestUs,
       interestUs: interestUs, ordinaryDividendsUs: ordDivUs, qualifiedDividendsUs: qualDivUs,
       ltcgUs: ltcgUs, stcgUs: stcgUs, capitalGainsUs: addMoney(ltcgUs, stcgUs), rentalUs: rentalUs,
-      foreignWages: foreignWages, foreignInterest: foreignInterest, foreignDividends: foreignDividends,
+      foreignWages: foreignWages, foreignSelfEmployment: foreignSelfEmployment,
+      foreignInterest: foreignInterest, foreignDividends: foreignDividends,
       foreignRental: foreignRental, foreignPension: foreignPension,
       foreignStcg: foreignStcg, foreignLtcg: foreignLtcg,
       foreignCapitalGains: addMoney(foreignStcg, foreignLtcg),
@@ -1799,6 +1820,15 @@
           indiaIsCompany: indiaIsCompany, indiaIsFirm: indiaIsFirm,
           indiaOpt115baa: safe(india, "profile.opt_115baa", false) === true,
           indiaTurnoverLte400cr: safe(india, "profile.turnover_lte_400cr", false) === true,
+          // Layer 1 India's own MAT book-profit input (Schedule III book
+          // profit under s.115JB, distinct from taxable income under the
+          // Act) — collected on the profile form (div-prof-mat-profit) but
+          // previously read by NEITHER Layer 1's own calc NOR this engine,
+          // which both approximated the MAT base as taxable income itself.
+          // null when never entered (not opted into s.115BAA, MAT div is
+          // shown, but the preparer left it blank) — computeIndiaEntityTax
+          // falls back to the taxable-income proxy only in that case.
+          indiaMatBookProfitInr: safe(india, "profile.mat_book_profit", null),
           indiaIsSection8: safe(india, "profile.is_section_8", false) === true,
           // Layer 1 India's evaluateITRForm() checks this field to detect an
           // ITR-1-disqualifying directorship, but NO input anywhere in
