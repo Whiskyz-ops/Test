@@ -43,6 +43,14 @@ const { execFileSync, spawnSync } = require("child_process");
 
 const repoRoot = path.join(__dirname, "..", "..");
 
+// This repo's history mixes CRLF and LF versions of the tracked file (it was
+// normalized to LF partway through). Left unnormalized, git merge-file's diff3
+// sees every line as different across that boundary and collapses the whole
+// file into one giant conflict instead of real, localized ones.
+function normalizeCRLF(buf) {
+  return buf.toString("utf8").replace(/\r\n/g, "\n");
+}
+
 function parseArgs(argv) {
   const out = { file: "layer1_india.html", currentRef: null, out: null, diff3: false };
   const rest = [];
@@ -91,11 +99,20 @@ function main() {
     currentContent = fs.readFileSync(path.join(repoRoot, args.file));
   }
 
+  const incomingContent = fs.readFileSync(incomingPath);
+  const anyCRLF = [incomingContent, baseContent, currentContent].some((b) => b.toString("utf8").includes("\r\n"));
+
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "wising-3waymerge-"));
+  const normIncomingPath = path.join(tmpDir, "incoming.html");
   const basePath = path.join(tmpDir, "base.html");
   const currentPath = path.join(tmpDir, "current.html");
-  fs.writeFileSync(basePath, baseContent);
-  fs.writeFileSync(currentPath, currentContent);
+  fs.writeFileSync(normIncomingPath, normalizeCRLF(incomingContent));
+  fs.writeFileSync(basePath, normalizeCRLF(baseContent));
+  fs.writeFileSync(currentPath, normalizeCRLF(currentContent));
+
+  if (anyCRLF) {
+    console.log("(Note: line endings normalized to LF before merging — this repo's history mixes CRLF and LF versions of this file.)");
+  }
 
   const mergeArgs = ["merge-file", "-p"];
   if (args.diff3) mergeArgs.push("--diff3");
@@ -103,7 +120,7 @@ function main() {
     "-L", "INCOMING (your uploaded file)",
     "-L", `BASE (${args.baseCommit.slice(0, 8)})`,
     "-L", `CURRENT (${args.currentRef || "working tree"})`,
-    incomingPath, basePath, currentPath
+    normIncomingPath, basePath, currentPath
   );
 
   const result = spawnSync("git", mergeArgs, { cwd: repoRoot, maxBuffer: 200 * 1024 * 1024 });
@@ -111,6 +128,7 @@ function main() {
   const outPath = args.out ? path.resolve(args.out) : `${incomingPath}.merged.html`;
   fs.writeFileSync(outPath, merged);
 
+  fs.unlinkSync(normIncomingPath);
   fs.unlinkSync(basePath);
   fs.unlinkSync(currentPath);
   fs.rmdirSync(tmpDir);

@@ -1475,13 +1475,10 @@
                 </button>
                 <div id="sidebar-menu" class="fixed left-0 top-20 bottom-0 w-80 bg-black opacity-0 invisible transition-all duration-300 z-50 border-r border-white/5 pointer-events-none">
                     <div class="flex flex-col text-[11px] font-bold tracking-[0.15em] uppercase text-white/50 pt-6">
-                        <a href="index.html" class="flex items-center px-10 py-5 hover:bg-white/5 transition-colors">Tax Intelligence</a>
-                        <a href="income.html" class="flex items-center px-10 py-5 hover:bg-white/5 transition-colors">Salaries & RSUs</a>
                         <a href="router.html" class="flex items-center px-10 py-5 hover:bg-white/5 transition-colors">Jurisdiction Router</a>
                         <div id="sidebar-switcher-separator" class="h-[1px] bg-white/5 my-2 mx-10"></div>
                         <a id="sidebar-link-india" href="layer1_india.html" class="flex items-center px-10 py-5 hover:bg-[#121212] transition-colors text-brandGold">India Specialist L1</a>
                         <a id="sidebar-link-us" href="layer1_us.html" class="flex items-center px-10 py-5 hover:bg-white/5 transition-colors text-brandCyan/80 hover:text-brandCyan font-bold">US Specialist L1</a>
-                        <a href="dtaa_bridge.html" class="flex items-center px-10 py-5 hover:bg-white/5 transition-colors text-brandGold font-bold">DTAA Bridge Compiler</a>
                     </div>
                 </div>
             </div>
@@ -3673,32 +3670,67 @@
                     <h3 class="text-xs font-black uppercase tracking-widest text-brandGold mb-4 relative">1. Slab-Rate Streams</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 relative">
                         <div>
-                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Savings Bank Interest</label>
+                            <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Savings Bank Interest</label>
+                                        
+                                    </div>
                             <input type="text" inputmode="numeric" id="os-interest-savings" oninput="updateOSField('interest_savings_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
                         </div>
                         <div>
-                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">FD / RD Interest</label>
-                            <input type="text" inputmode="numeric" id="os-interest-fd" oninput="updateOSField('interest_fd_rd_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
-                        </div>
+                            <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">FD / RD Interest</label>
+                                        <div class="flex gap-2">
+                                        <button type="button" onclick="document.getElementById('div-os-interest-fd-tds').classList.toggle('hidden')" class="text-[8px] text-brandGold/80 hover:text-brandGold uppercase font-bold tracking-wider">+ Add TDS</button>
+                                    </div></div>
+                                    <input type="text" inputmode="numeric" id="os-interest-fd" oninput="updateOSField('interest_fd_rd_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
+                                    <div id="div-os-interest-fd-tds" class="hidden mt-3">
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">TDS Deducted on FD/RD Interest<span class="block text-[7px] text-white/30 normal-case tracking-normal font-normal mt-0.5">s.194A — usually 10%, only above the annual threshold</span></label>
+                                        <input type="text" inputmode="numeric" id="os-interest-fd-tds" oninput="updateOSField('interest_fd_rd_tds_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
+                                    </div>
+                                    </div>
                         <div>
-                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Bonds / Debentures Interest</label>
-                            <input type="text" inputmode="numeric" id="os-bonds" oninput="updateOSField('interest_bonds_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
-                        </div>
+                            <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Bonds / Debentures Interest</label>
+                                        <div class="flex gap-2">
+                                        <button type="button" onclick="document.getElementById('div-os-bonds-tds').classList.toggle('hidden')" class="text-[8px] text-brandGold/80 hover:text-brandGold uppercase font-bold tracking-wider">+ Add TDS</button>
+                                    </div></div>
+                                    <input type="text" inputmode="numeric" id="os-bonds" oninput="updateOSField('interest_bonds_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
+                                    <div id="div-os-bonds-tds" class="hidden mt-3">
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">TDS Deducted on Bonds/Debentures Interest<span class="block text-[7px] text-white/30 normal-case tracking-normal font-normal mt-0.5">s.193 — usually 10%</span></label>
+                                        <input type="text" inputmode="numeric" id="os-bonds-tds" oninput="updateOSField('interest_bonds_tds_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
+                                    </div>
+                                    </div>
                         <div>
-                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">IT Refund Interest</label>
+                            <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">IT Refund Interest</label>
+                                        
+                                    </div>
                             <input type="text" inputmode="numeric" id="os-it-refund" oninput="updateOSField('interest_on_it_refund_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
                         </div>
                         <div>
-                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Dividend Income</label>
-                            <input type="text" inputmode="numeric" id="os-dividend" oninput="updateOSField('dividend_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
-                        </div>
+                            <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Dividend Income</label>
+                                        <div class="flex gap-2">
+                                        <button type="button" onclick="document.getElementById('div-os-dividend-tds').classList.toggle('hidden')" class="text-[8px] text-brandGold/80 hover:text-brandGold uppercase font-bold tracking-wider">+ Add TDS</button>
+                                    </div></div>
+                                    <input type="text" inputmode="numeric" id="os-dividend" oninput="updateOSField('dividend_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
+                                    <div id="div-os-dividend-tds" class="hidden mt-3">
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">TDS Deducted on Dividend<span class="block text-[7px] text-white/30 normal-case tracking-normal font-normal mt-0.5">s.194 — usually 10%, only above ₹5,000/payer/FY</span></label>
+                                        <input type="text" inputmode="numeric" id="os-dividend-tds" oninput="updateOSField('dividend_tds_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
+                                    </div>
+                                    </div>
                         <div id="div-os-gifts-wrapper">
-                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1 flex items-center gap-1 group relative w-fit">Gifts > ₹50k (Income from Other Sources)
-        <span class="cursor-help text-brandGold/70 hover:text-brandGold transition-colors"><span class="font-bold text-[9px]">(i)</span></span>
-        <div class="hidden group-hover:block absolute bottom-full left-0 mb-2 w-64 p-3 bg-[#1A1A1A] border border-brandGold/20 rounded-xl shadow-2xl text-[9px] text-white/80 normal-case tracking-normal leading-relaxed z-20 text-left" id="tooltip-relative-definition">
-            Gifts received from specified relatives (spouse, siblings, lineal ascendants/descendants, and their spouses) or on the occasion of marriage are entirely exempt.
-        </div>
+                            <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1 flex items-center gap-1 w-fit relative z-10">Gifts > ₹50k (Income from Other Sources)
+        <span class="cursor-help text-brandGold/70 hover:text-brandGold transition-colors relative z-50">
+            <span class="font-bold text-[9px] peer">(i)</span>
+            <div class="hidden peer-hover:block hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-[#1A1A1A] border border-brandGold/20 rounded-xl shadow-2xl text-[9px] text-white/80 normal-case tracking-normal leading-relaxed z-50 text-left cursor-default" id="tooltip-relative-definition">
+                Gifts received from specified relatives (spouse, siblings, lineal ascendants/descendants, and their spouses) or on the occasion of marriage are entirely exempt.
+            </div>
+        </span>
     </label>
+                                        
+                                    </div>
     <input type="text" inputmode="numeric" id="os-gifts" oninput="updateOSField('gifts_above_50k_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono mb-2" placeholder="₹ 0">
     <div id="div-os-gifts-exemptions" class="flex flex-col gap-1 mt-1">
         <label class="flex items-center gap-2 cursor-pointer group">
@@ -3723,27 +3755,46 @@
                             <p class="text-[8px] text-white/30 mt-1">Blanket exemption on income of a Local Authority.</p>
                         </div>
 <div id="div-os-spousal-clubbing">
-                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Spousal Income Clubbing (Clubbing of Income)</label>
+                            <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Spousal Income Clubbing (Clubbing of Income)</label>
+                                        
+                                    </div>
                             <input type="text" inputmode="numeric" id="os-spousal-clubbing" oninput="updateOSField('spousal_clubbing_s64_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
                             <p class="text-[8px] text-white/30 mt-1">Income of spouse clubbed with your income under Clubbing of Income.</p>
                         </div>
 <div id="div-os-minor-child">
-    <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Minor Child Income Exemption</label>
+    <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Minor Child Income Exemption</label>
+                                        
+                                    </div>
     <input type="text" inputmode="numeric" id="os-minor-child" oninput="updateOSField('minor_child_exemption_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
     <p class="text-[8px] text-white/30 mt-1">Minor Child Income Exemption: ₹1,500 max per minor child whose income is clubbed.</p>
 </div>
 <div id="div-os-lic-maturity">
-    <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Life Insurance Policy Maturity Exemption</label>
+    <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Life Insurance Policy Maturity Exemption</label>
+                                        <div class="flex gap-2">
+                                        <button type="button" onclick="document.getElementById('div-os-lic-maturity-tds').classList.toggle('hidden')" class="text-[8px] text-brandGold/80 hover:text-brandGold uppercase font-bold tracking-wider">+ Add TDS</button>
+                                    </div></div>
     <input type="text" inputmode="numeric" id="os-lic-maturity" oninput="updateOSField('lic_maturity_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
     <p class="text-[8px] text-white/30 mt-1">Amount received from life insurance policies not exempt u/s 10(10D).</p>
+                                    <div id="div-os-lic-maturity-tds" class="hidden mt-3">
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">TDS Deducted on Maturity Payout<span class="block text-[7px] text-white/30 normal-case tracking-normal font-normal mt-0.5">s.194DA — usually 5% on the taxable portion</span></label>
+                                        <input type="text" inputmode="numeric" id="os-lic-maturity-tds" oninput="updateOSField('lic_maturity_tds_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
+                                    </div>
 </div>
 <div id="div-os-misc">
-    <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1 flex items-center gap-1 group relative w-fit">Miscellaneous / Other Income
-        <span class="cursor-help text-brandGold/70 hover:text-brandGold transition-colors"><span class="font-bold text-[9px]">(i)</span></span>
-        <div class="hidden group-hover:block absolute bottom-full left-0 mb-2 w-64 p-3 bg-[#1A1A1A] border border-brandGold/20 rounded-xl shadow-2xl text-[9px] text-white/80 normal-case tracking-normal leading-relaxed z-20 text-left">
-            Any other residual taxable income not covered elsewhere (e.g. Director fees, commissions, agricultural land rent, etc.).
-        </div>
+    <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1 flex items-center gap-1 w-fit relative z-10">Miscellaneous / Other income
+        <span class="cursor-help text-brandGold/70 hover:text-brandGold transition-colors relative z-50">
+            <span class="font-bold text-[9px] peer">(i)</span>
+            <div class="hidden peer-hover:block hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-[#1A1A1A] border border-brandGold/20 rounded-xl shadow-2xl text-[9px] text-white/80 normal-case tracking-normal leading-relaxed z-50 text-left cursor-default">
+                Any other residual taxable income not covered elsewhere (e.g. Director fees, commissions, agricultural land rent, etc.).
+            </div>
+        </span>
     </label>
+                                        
+                                    </div>
     <input type="text" inputmode="numeric" id="os-misc" oninput="updateOSField('miscellaneous_income_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
     <p class="text-[8px] text-white/30 mt-1">Any other miscellaneous or residual income taxed at standard slab rates.</p>
 </div>
@@ -4841,9 +4892,14 @@
         },
         other_sources: {
             has_other_sources_income: false,
+            quarters: {},
             interest_savings_inr: null,
             interest_fd_rd_inr: null,
+            interest_fd_rd_tds_inr: null,
             interest_bonds_inr: null,
+            interest_bonds_tds_inr: null,
+            dividend_tds_inr: null,
+            lic_maturity_tds_inr: null,
             interest_on_it_refund_inr: null,
             dividend_inr: null,
             gifts_above_50k_inr: null,
@@ -4996,7 +5052,7 @@
             Q1: {}, Q2: {}, Q3: {}, Q4: {}
         },
         metadata: {
-            financial_year: "TY2026-27",
+            financial_year: "Tax Year 2026-27",
             schema_version: "layer1_india_v5_1",
             created_at: new Date().toISOString(),
             last_updated_at: new Date().toISOString()
@@ -7304,6 +7360,22 @@ const crDiv = document.getElementById('div-company-residency');
                 <label class="block text-[10px] text-white/60 mb-1">FCNR Maturity Date</label>
                 <input type="date" class="bank-fcnr-date w-full bg-[#1A1A1A] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all font-mono" onchange="syncBankAccountsState()">
             </div>
+            <div class="mt-2 pt-3 border-t border-white/5">
+                <label class="block text-[10px] text-white/60 mb-1 flex items-center gap-1 group relative w-fit">
+                    US Person Self-Certification (W-9/FATCA) on File With This Bank?
+                    <span class="cursor-help text-brandGold/70 hover:text-brandGold transition-colors">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </span>
+                    <div class="hidden group-hover:block absolute bottom-full left-0 mb-2 w-72 p-3 bg-[#1A1A1A] border border-brandGold/20 rounded-xl shadow-2xl text-[9px] text-white/80 normal-case tracking-normal leading-relaxed z-20 text-left">
+                        Only relevant if you're a US citizen or green card holder. Under FATCA and the India-US IGA, Indian banks must identify US-person accountholders (usually via a Form W-9 or FATCA self-certification you give the bank) and report those accounts either way — without it on file, the bank may treat you as "recalcitrant," which can mean account restrictions.
+                    </div>
+                </label>
+                <select class="bank-us-person-cert w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all" onchange="syncBankAccountsState()">
+                    <option value="null">-- Not sure / not applicable --</option>
+                    <option value="true">Yes — certified</option>
+                    <option value="false">No — not certified</option>
+                </select>
+            </div>
         `;
         list.appendChild(div);
 
@@ -7328,7 +7400,12 @@ const crDiv = document.getElementById('div-company-residency');
                 current_balance: parseINRCurrency(div.querySelector('.bank-bal').value),
                 current_balance_currency: div.querySelector('.bank-bal-curr').value,
                 annual_interest_rate: parseINRCurrency(div.querySelector('.bank-rate').value) / 100 || null,
-                interest_credited_this_fy_inr: parseINRCurrency(div.querySelector('.bank-int').value) || null
+                interest_credited_this_fy_inr: parseINRCurrency(div.querySelector('.bank-int').value) || null,
+                us_person_certified_to_bank: (function () {
+                    var el = div.querySelector('.bank-us-person-cert');
+                    if (!el || el.value === 'null') return null;
+                    return el.value === 'true';
+                })()
             };
             if (type === 'NRE') {
                 acc.account_conversion_date = div.querySelector('.bank-nre-date').value || null;
@@ -9921,21 +9998,39 @@ const crDiv = document.getElementById('div-company-residency');
                                 <option value="false">No (Off-Market / Unlisted)</option>
                             </select>
                         </div>
+                        <div class="fin-nri-exit-container hidden">
+                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">
+                                How Was This Exited?
+                                <span class="inline-flex items-center justify-center w-3 h-3 rounded-full bg-brandGold/20 text-[7px] text-brandGold ml-1 cursor-help peer">i</span>
+                            </label>
+                            <select class="fin-nri-exit-type w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none">
+                                <option value="redeemed_at_maturity">Redeemed / Matured (not a capital gain — interest only)</option>
+                                <option value="sold_to_third_party">Sold to a Third Party (market sale — capital gain applies)</option>
+                            </select>
+                            <span class="text-[8px] text-white/40 mt-1 block">Redemption at maturity is not a taxable "transfer" under Indian law (Khushaal C. Thackersey v. ACIT, ITAT Mumbai 2024) — only an actual sale to a third party generates a capital gain.</span>
+                        </div>
                         <div>
                             <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Brokerage / Expenses (₹)</label>
                             <input type="text" inputmode="numeric" placeholder="Optional" class="inr-input fin-exp w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandGold focus:outline-none font-mono">
                         </div>
                     </div>
-                    <div class="fin-sfea-container mt-4 flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-xl">
-                        <div class="flex flex-col">
-                            <span class="text-[10px] font-bold text-white/90">Specified Foreign Exchange Asset (NRI)?</span>
-                            <span class="text-[8px] text-white/40">Chapter XII-A flat rate eligibility</span>
+                    <div class="fin-sfea-container mt-4 flex flex-col gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
+                            <div class="flex items-center justify-between gap-4">
+                                <div class="flex flex-col">
+                                    <span class="text-[10px] font-bold text-white/90">Specified Foreign Exchange Asset (NRI)?</span>
+                                    <span class="text-[8px] text-white/40">Chapter XII-A flat rate eligibility</span>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="fin-sfea sr-only peer">
+                                    <div class="w-7 h-4 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white/30 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-brandGold"></div>
+                                </label>
+                            </div>
+                            <div class="fin-sfea-investment-income-div hidden">
+                                <label class="block text-[9px] font-black uppercase tracking-widest text-brandGold mb-1.5">Investment Income This Year (Interest/Dividend, ₹)</label>
+                                <input type="text" inputmode="numeric" placeholder="0" class="inr-input fin-sfea-inv-income w-full bg-[#121212] border border-brandGold/30 rounded-lg text-xs text-brandGold px-3 py-2 focus:border-brandGold focus:outline-none font-mono">
+                                <span class="text-[8px] text-brandGold/60 mt-1 block">Enter any **Interest** (for debentures/deposits) or **Dividend** (for shares) you received from this asset THIS TAX YEAR. Because this is a Specified Foreign Exchange Asset (purchased in foreign currency), this income gets a special flat 20% tax rate under Chapter XII-A.</span>
+                            </div>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" class="fin-sfea sr-only peer">
-                            <div class="w-7 h-4 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white/30 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-brandGold"></div>
-                        </label>
-                    </div>
                 </div>
             </div>
         `;
@@ -9952,6 +10047,16 @@ const crDiv = document.getElementById('div-company-residency');
                 card.querySelector('.fin-fmv').value = '';
             }
             
+            const nriExitContainer = card.querySelector('.fin-nri-exit-container');
+            const allowedNriExitType = ['nri_specified_debenture', 'nri_specified_govt_security'];
+            if (nriExitContainer) {
+                if (allowedNriExitType.includes(assetClass)) {
+                    nriExitContainer.style.display = 'block';
+                } else {
+                    nriExitContainer.style.display = 'none';
+                }
+            }
+
             const sfeaContainer = card.querySelector('.fin-sfea-container');
             const allowedSFEA = ['listed_equity', 'nri_specified_debenture', 'nri_specified_company_deposit', 'nri_specified_govt_security'];
             if (sfeaContainer) {
@@ -9962,7 +10067,34 @@ const crDiv = document.getElementById('div-company-residency');
                     card.querySelector('.fin-sfea').checked = false;
                 }
             }
+            
+            // Toggle investment income div visibility immediately when any input changes
+            const sfeaCheckbox = card.querySelector('.fin-sfea');
+            const sfeaInvIncomeDiv = card.querySelector('.fin-sfea-investment-income-div');
+            if (sfeaCheckbox && sfeaInvIncomeDiv) {
+                if (sfeaCheckbox.checked) {
+                    sfeaInvIncomeDiv.classList.remove('hidden');
+                } else {
+                    sfeaInvIncomeDiv.classList.add('hidden');
+                }
+            }
         }));
+        
+        // Also attach the specific change listener the user requested
+        const sfeaCheckbox = card.querySelector('.fin-sfea');
+        const sfeaInvIncomeDiv = card.querySelector('.fin-sfea-investment-income-div');
+        if (sfeaCheckbox && sfeaInvIncomeDiv) {
+            sfeaCheckbox.addEventListener('change', () => {
+                if (sfeaCheckbox.checked) {
+                    sfeaInvIncomeDiv.classList.remove('hidden');
+                } else {
+                    sfeaInvIncomeDiv.classList.add('hidden');
+                    card.querySelector('.fin-sfea-inv-income').value = '';
+                }
+            });
+        }
+
+        
         
         if (tx) {
             // Accept BOTH this card's own legacy field names AND the shape
@@ -9999,6 +10131,10 @@ const crDiv = document.getElementById('div-company-residency');
             if (tx.stt_paid) card.querySelector('.fin-stt').value = tx.stt_paid;
             if (expenses != null) card.querySelector('.fin-exp').value = expenses;
             if (tx.is_specified_foreign_exchange_asset !== undefined) card.querySelector('.fin-sfea').checked = tx.is_specified_foreign_exchange_asset;
+            if (tx.nri_exit_type && card.querySelector('.fin-nri-exit-type')) card.querySelector('.fin-nri-exit-type').value = tx.nri_exit_type;
+            if (tx.investment_income_this_year !== null && tx.investment_income_this_year !== undefined && card.querySelector('.fin-sfea-inv-income')) {
+                card.querySelector('.fin-sfea-inv-income').value = tx.investment_income_this_year;
+            }
 
             // A profile-shape entry with sale_date/sale_value implies "sold"
             // even without an explicit tx.status radio value — without this,
@@ -10053,7 +10189,9 @@ const crDiv = document.getElementById('div-company-residency');
                 sale_currency: card.querySelector('.fin-sale-curr')?.value || "INR",
                 stt_paid: card.querySelector('.fin-stt').value === 'true',
                 transfer_expenses: parseINRCurrency(card.querySelector('.fin-exp').value),
-                is_specified_foreign_exchange_asset: card.querySelector('.fin-sfea') ? card.querySelector('.fin-sfea').checked : false
+                is_specified_foreign_exchange_asset: card.querySelector('.fin-sfea') ? card.querySelector('.fin-sfea').checked : false,
+                nri_exit_type: card.querySelector('.fin-nri-exit-type')?.value || null,
+                investment_income_this_year: parseINRCurrency(card.querySelector('.fin-sfea-inv-income')?.value)
             });
         });
         state.financial_holdings.transactions = txs;
@@ -13797,6 +13935,22 @@ ${isProf ? '' : `
                             <input type="text" inputmode="numeric" class="inr-input bank-nro-bal-input w-full bg-[#1A1A1A] border border-brandGold/30 rounded-lg text-xs text-white pl-7 pr-3 py-2.5 focus:border-brandGold focus:outline-none transition-all font-mono" placeholder="0" oninput="syncBankAccountsState()">
                         </div>
                     </div>
+                    <div class="mt-2 pt-3 border-t border-white/5">
+                        <label class="block text-[10px] text-white/60 mb-1 flex items-center gap-1 group relative w-fit">
+                            US Person Self-Certification (W-9/FATCA) on File With This Bank?
+                            <span class="cursor-help text-brandGold/70 hover:text-brandGold transition-colors">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </span>
+                            <div class="hidden group-hover:block absolute bottom-full left-0 mb-2 w-72 p-3 bg-[#1A1A1A] border border-brandGold/20 rounded-xl shadow-2xl text-[9px] text-white/80 normal-case tracking-normal leading-relaxed z-20 text-left">
+                                Only relevant if you're a US citizen or green card holder. Under FATCA and the India-US IGA, Indian banks must identify US-person accountholders (usually via a Form W-9 or FATCA self-certification you give the bank) and report those accounts either way — without it on file, the bank may treat you as "recalcitrant," which can mean account restrictions.
+                            </div>
+                        </label>
+                        <select class="bank-us-person-cert w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all" onchange="syncBankAccountsState()">
+                            <option value="null">-- Not sure / not applicable --</option>
+                            <option value="true">Yes — certified</option>
+                            <option value="false">No — not certified</option>
+                        </select>
+                    </div>
                 `;
                 
                 list.appendChild(div);
@@ -13808,6 +13962,9 @@ ${isProf ? '' : `
                 div.querySelector('.bank-bal-curr').value = acc.current_balance_currency || 'INR';
                 div.querySelector('.bank-rate').value = acc.annual_interest_rate ? (acc.annual_interest_rate * 100).toFixed(2) : '';
                 div.querySelector('.bank-int').value = acc.interest_credited_this_fy_inr || '';
+                
+                const usCertEl = div.querySelector('.bank-us-person-cert');
+                if (usCertEl) usCertEl.value = (acc.us_person_certified_to_bank === null || acc.us_person_certified_to_bank === undefined) ? 'null' : String(acc.us_person_certified_to_bank);
                 
                 toggleBankTypeDependencies(rowId);
                 
@@ -14002,14 +14159,18 @@ ${isProf ? '' : `
             const elIdMap = {
                 'os-interest-savings': os.interest_savings_inr,
                 'os-interest-fd': os.interest_fd_rd_inr,
+                'os-interest-fd-tds': os.interest_fd_rd_tds_inr,
                 'os-bonds': os.interest_bonds_inr,
+                'os-bonds-tds': os.interest_bonds_tds_inr,
                 'os-it-refund': os.interest_on_it_refund_inr,
                 'os-dividend': os.dividend_inr,
+                'os-dividend-tds': os.dividend_tds_inr,
                 'os-gifts': os.gifts_above_50k_inr,
                 'os-local-authority': os.local_authority_s10_20_inr,
                 'os-spousal-clubbing': os.spousal_clubbing_s64_inr,
                 'os-minor-child': os.minor_child_exemption_inr,
                 'os-lic-maturity': os.lic_maturity_inr,
+                'os-lic-maturity-tds': os.lic_maturity_tds_inr,
                 'os-angel-tax': os.angel_tax_premium_inr,
                 'os-misc': os.miscellaneous_income_inr,
                 'os-pension': os.family_pension_gross_inr,
@@ -14873,6 +15034,7 @@ ${isProf ? '' : `
             property_use: 'SOP',
             gross_annual_value_inr: null,
             municipal_taxes_paid_inr: null,
+            tenant_tds_deducted_inr: null,
             interest_on_borrowed_capital_inr: null,
             pre_construction_interest_inr: null,
             is_self_occupied_with_loan: false,
@@ -15027,8 +15189,15 @@ ${isProf ? '' : `
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="transition-all ${isSOP ? 'opacity-30 pointer-events-none hidden' : ''}">
-                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Gross Annual Value (GAV)</label>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-[9px] font-black uppercase tracking-widest text-white/40">Gross Annual Value (GAV)</label>
+                                <button type="button" onclick="document.getElementById('div-hp-tds-${idx}').classList.toggle('hidden')" class="text-[8px] text-brandGold/80 hover:text-brandGold uppercase font-bold tracking-wider">+ Add TDS</button>
+                            </div>
                             <input type="text" inputmode="numeric" onblur="updateHPField(${idx}, 'gross_annual_value_inr', this.value)" value="${gav || ''}" ${isSOP ? 'disabled' : ''} class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono">
+                            <div id="div-hp-tds-${idx}" class="${prop.tenant_tds_deducted_inr ? '' : 'hidden'} mt-3">
+                                <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Tenant TDS Deducted<span class="block text-[7px] text-white/30 normal-case tracking-normal font-normal mt-0.5">s.194-I (10%, business tenant) or s.194-IB (2%, individual/HUF tenant)</span></label>
+                                <input type="text" inputmode="numeric" onblur="updateHPField(${idx}, 'tenant_tds_deducted_inr', this.value)" value="${prop.tenant_tds_deducted_inr || ''}" ${isSOP ? 'disabled' : ''} class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono">
+                            </div>
                         </div>
                         <div class="transition-all ${isSOP ? 'opacity-30 pointer-events-none hidden' : ''}">
                             <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Municipal Taxes Paid</label>
@@ -16396,7 +16565,191 @@ ${isProf ? '' : `
         }
     }
 
+
+function openOSQuarterModal(fieldId, title, hasTds) {
+    document.getElementById('os-qm-title').innerText = "Quarterly Breakdown: " + title;
+    document.getElementById('os-qm-field-id').value = fieldId;
+    document.getElementById('os-qm-has-tds').value = hasTds ? '1' : '0';
+    
+    // Toggle TDS column visibility
+    const tdsCols = document.querySelectorAll('.os-qm-tds-col');
+    tdsCols.forEach(el => el.style.display = hasTds ? '' : 'none');
+    
+    // Load existing data if any
+    const quarters = state.other_sources.quarters[fieldId] || { Q1:{income:null,tds:null}, Q2:{income:null,tds:null}, Q3:{income:null,tds:null}, Q4:{income:null,tds:null} };
+    
+    for(let q of [1,2,3,4]) {
+        document.getElementById(`os-qm-q${q}-inc`).value = formatINRCurrency(quarters[`Q${q}`].income);
+        document.getElementById(`os-qm-q${q}-tds`).value = formatINRCurrency(quarters[`Q${q}`].tds);
+    }
+    
+    calcOSQuarterSums();
+    document.getElementById('os-quarter-modal').classList.remove('hidden');
+}
+
+function closeOSQuarterModal() {
+    document.getElementById('os-quarter-modal').classList.add('hidden');
+}
+
+function clearOSQuarterModal() {
+    for(let q of [1,2,3,4]) {
+        document.getElementById(`os-qm-q${q}-inc`).value = '';
+        document.getElementById(`os-qm-q${q}-tds`).value = '';
+    }
+    calcOSQuarterSums();
+    saveOSQuarterModal();
+}
+
+function calcOSQuarterSums() {
+    let sumInc = 0;
+    let sumTds = 0;
+    for(let q of [1,2,3,4]) {
+        sumInc += parseINRCurrency(document.getElementById(`os-qm-q${q}-inc`).value) || 0;
+        sumTds += parseINRCurrency(document.getElementById(`os-qm-q${q}-tds`).value) || 0;
+    }
+    document.getElementById('os-qm-sum-inc').value = formatINRCurrency(sumInc);
+    document.getElementById('os-qm-sum-tds').value = formatINRCurrency(sumTds);
+}
+
+function saveOSQuarterModal() {
+    const fieldId = document.getElementById('os-qm-field-id').value;
+    const hasTds = document.getElementById('os-qm-has-tds').value === '1';
+    
+    let sumInc = 0;
+    let sumTds = 0;
+    let hasData = false;
+    
+    const qData = {};
+    for(let q of [1,2,3,4]) {
+        const inc = parseINRCurrency(document.getElementById(`os-qm-q${q}-inc`).value) || null;
+        const tds = parseINRCurrency(document.getElementById(`os-qm-q${q}-tds`).value) || null;
+        qData[`Q${q}`] = { income: inc, tds: tds };
+        sumInc += inc || 0;
+        sumTds += tds || 0;
+        if(inc !== null || tds !== null) hasData = true;
+    }
+    
+    if (hasData) {
+        state.other_sources.quarters[fieldId] = qData;
+        
+        // Push sums to main inputs and lock them
+        const incInput = document.getElementById(fieldId);
+        if (incInput) {
+            incInput.value = formatINRCurrency(sumInc);
+            incInput.readOnly = true;
+            incInput.classList.add('bg-white/20'); // visual lock indicator
+            incInput.dispatchEvent(new Event('input')); // trigger updateOSField
+        }
+        
+        if (hasTds) {
+            const tdsInput = document.getElementById(fieldId + '-tds');
+            if (tdsInput) {
+                tdsInput.value = formatINRCurrency(sumTds);
+                tdsInput.readOnly = true;
+                tdsInput.classList.add('bg-white/20');
+                tdsInput.dispatchEvent(new Event('input'));
+                
+                // Unhide TDS wrapper if hidden
+                const tdsDiv = document.getElementById(`div-${fieldId}-tds`);
+                if (tdsDiv) tdsDiv.classList.remove('hidden');
+            }
+        }
+    } else {
+        if(state.other_sources.quarters[fieldId]) {
+            delete state.other_sources.quarters[fieldId];
+        }
+        
+        // Unlock inputs
+        const incInput = document.getElementById(fieldId);
+        if(incInput) {
+            incInput.readOnly = false;
+            incInput.classList.remove('bg-white/20');
+        }
+        
+        if (hasTds) {
+            const tdsInput = document.getElementById(fieldId + '-tds');
+            if(tdsInput) {
+                tdsInput.readOnly = false;
+                tdsInput.classList.remove('bg-white/20');
+            }
+        }
+    }
+    
+    saveState();
+    closeOSQuarterModal();
+}
 </script>
+
+
+<!-- OS Quarter Split Modal -->
+<div id="os-quarter-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeOSQuarterModal()"></div>
+    <div class="relative bg-[#111111] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        
+        <!-- Header -->
+        <div class="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+            <div>
+                <h3 id="os-qm-title" class="text-brandGold font-bold text-sm tracking-widest uppercase">Quarterly Breakdown</h3>
+                <p class="text-white/40 text-[10px] mt-1">Split annual income to resolve US-India FTC calendar mismatch</p>
+            </div>
+            <button onclick="closeOSQuarterModal()" class="text-white/40 hover:text-white transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        
+        <!-- Body -->
+        <div class="p-6 overflow-y-auto custom-scrollbar">
+            <input type="hidden" id="os-qm-field-id">
+            <input type="hidden" id="os-qm-has-tds">
+            
+            <div class="grid grid-cols-[100px_1fr_1fr] gap-4 mb-2">
+                <div class="text-[9px] font-black uppercase tracking-widest text-white/30">Quarter</div>
+                <div class="text-[9px] font-black uppercase tracking-widest text-white/30 text-right">Income (₹)</div>
+                <div class="text-[9px] font-black uppercase tracking-widest text-white/30 text-right os-qm-tds-col">TDS (₹)</div>
+            </div>
+            
+            <!-- Q1 -->
+            <div class="grid grid-cols-[100px_1fr_1fr] gap-4 items-center mb-4">
+                <div class="text-[10px] text-white/60 font-medium">Q1 <span class="opacity-50 text-[8px] ml-1">Apr-Jun</span></div>
+                <input type="text" inputmode="numeric" id="os-qm-q1-inc" oninput="calcOSQuarterSums()" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 text-right focus:border-brandGold focus:ring-0 font-mono" placeholder="0">
+                <input type="text" inputmode="numeric" id="os-qm-q1-tds" oninput="calcOSQuarterSums()" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 text-right focus:border-brandGold focus:ring-0 font-mono os-qm-tds-col" placeholder="0">
+            </div>
+            <!-- Q2 -->
+            <div class="grid grid-cols-[100px_1fr_1fr] gap-4 items-center mb-4">
+                <div class="text-[10px] text-white/60 font-medium">Q2 <span class="opacity-50 text-[8px] ml-1">Jul-Sep</span></div>
+                <input type="text" inputmode="numeric" id="os-qm-q2-inc" oninput="calcOSQuarterSums()" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 text-right focus:border-brandGold focus:ring-0 font-mono" placeholder="0">
+                <input type="text" inputmode="numeric" id="os-qm-q2-tds" oninput="calcOSQuarterSums()" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 text-right focus:border-brandGold focus:ring-0 font-mono os-qm-tds-col" placeholder="0">
+            </div>
+            <!-- Q3 -->
+            <div class="grid grid-cols-[100px_1fr_1fr] gap-4 items-center mb-4">
+                <div class="text-[10px] text-white/60 font-medium">Q3 <span class="opacity-50 text-[8px] ml-1">Oct-Dec</span></div>
+                <input type="text" inputmode="numeric" id="os-qm-q3-inc" oninput="calcOSQuarterSums()" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 text-right focus:border-brandGold focus:ring-0 font-mono" placeholder="0">
+                <input type="text" inputmode="numeric" id="os-qm-q3-tds" oninput="calcOSQuarterSums()" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 text-right focus:border-brandGold focus:ring-0 font-mono os-qm-tds-col" placeholder="0">
+            </div>
+            <!-- Q4 -->
+            <div class="grid grid-cols-[100px_1fr_1fr] gap-4 items-center mb-6">
+                <div class="text-[10px] text-white/60 font-medium">Q4 <span class="opacity-50 text-[8px] ml-1">Jan-Mar</span></div>
+                <input type="text" inputmode="numeric" id="os-qm-q4-inc" oninput="calcOSQuarterSums()" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 text-right focus:border-brandGold focus:ring-0 font-mono" placeholder="0">
+                <input type="text" inputmode="numeric" id="os-qm-q4-tds" oninput="calcOSQuarterSums()" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 text-right focus:border-brandGold focus:ring-0 font-mono os-qm-tds-col" placeholder="0">
+            </div>
+            
+            <!-- Sums -->
+            <div class="grid grid-cols-[100px_1fr_1fr] gap-4 items-center pt-4 border-t border-white/10">
+                <div class="text-[10px] text-brandGold font-bold uppercase tracking-widest">Total</div>
+                <input type="text" id="os-qm-sum-inc" disabled class="w-full bg-transparent border-none text-brandGold px-3 py-2 text-right font-mono text-sm font-bold" value="0">
+                <input type="text" id="os-qm-sum-tds" disabled class="w-full bg-transparent border-none text-brandGold px-3 py-2 text-right font-mono text-sm font-bold os-qm-tds-col" value="0">
+            </div>
+            
+        </div>
+        
+        <!-- Footer -->
+        <div class="p-6 border-t border-white/5 bg-black/20 flex gap-3 justify-end">
+            <button onclick="clearOSQuarterModal()" class="px-5 py-2.5 rounded-xl border border-white/10 text-white/70 text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition-colors">Clear Split</button>
+            <button onclick="saveOSQuarterModal()" class="px-5 py-2.5 rounded-xl bg-brandGold text-black text-xs font-black uppercase tracking-wider hover:bg-brandGold/90 transition-colors shadow-[0_0_15px_rgba(212,175,55,0.3)]">Save & Close</button>
+        </div>
+        
+    </div>
+</div>
 
 </body>
 </html>

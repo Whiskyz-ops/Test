@@ -45,6 +45,14 @@ function parseArgs(argv) {
   return out;
 }
 
+// Some historical commits used CRLF line endings, others LF (the file was
+// normalized partway through this repo's history). Left unnormalized, every
+// single line looks "different" across that boundary and swamps the real
+// content diff — normalize both sides to LF before comparing.
+function normalizeCRLF(buf) {
+  return buf.toString("utf8").replace(/\r\n/g, "\n");
+}
+
 function countChangedLines(pathA, pathB) {
   try {
     execFileSync("diff", ["-u0", pathA, pathB], { maxBuffer: 200 * 1024 * 1024 });
@@ -86,17 +94,29 @@ function main() {
   });
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "wising-basefind-"));
+  const normalizedIncomingPath = path.join(tmpDir, "incoming.normalized.html");
+  const incomingRaw = fs.readFileSync(incomingPath);
+  const incomingHadCRLF = incomingRaw.toString("utf8").includes("\r\n");
+  fs.writeFileSync(normalizedIncomingPath, normalizeCRLF(incomingRaw));
+
   const results = [];
+  let anyCRLF = incomingHadCRLF;
   for (const c of commits) {
     const content = execFileSync("git", ["show", `${c.hash}:${args.file}`], { cwd: repoRoot, maxBuffer: 200 * 1024 * 1024 });
+    if (content.toString("utf8").includes("\r\n")) anyCRLF = true;
+    const normalized = normalizeCRLF(content);
     const tmpFile = path.join(tmpDir, `${c.hash}.html`);
-    fs.writeFileSync(tmpFile, content);
-    const changed = countChangedLines(incomingPath, tmpFile);
-    const totalLines = content.toString("utf8").split("\n").length;
+    fs.writeFileSync(tmpFile, normalized);
+    const changed = countChangedLines(normalizedIncomingPath, tmpFile);
+    const totalLines = normalized.split("\n").length;
     results.push({ ...c, changed, totalLines, pctChanged: totalLines ? (changed / totalLines * 100) : 0 });
     fs.unlinkSync(tmpFile);
   }
+  fs.unlinkSync(normalizedIncomingPath);
   fs.rmdirSync(tmpDir);
+  if (anyCRLF) {
+    console.log("(Note: line endings were normalized to LF before comparing — this repo's history mixes CRLF and LF versions of this file.)\n");
+  }
 
   results.sort((a, b) => a.changed - b.changed);
 
