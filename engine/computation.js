@@ -91,21 +91,23 @@
   }
 
   /* ---- Carry-forward loss set-off (s.110 house property, s.112 business,
-   * s.111 capital gains, s.33(11) unabsorbed depreciation) --------------------
+   * s.111 capital gains, s.113 speculative business, s.33(11) unabsorbed
+   * depreciation) --------------------------------------------------------
    * Layer 1 already resolves per-entry eligibility (late-filing denial,
    * new-regime HP/business-depreciation restrictions) into the "available"
    * amounts read in normalize.js; this sequences the actual SET-OFF against
    * this year's income under the Act's ordering rules, instead of just
-   * flagging that brought-forward losses exist.
-   *
-   * Known simplification: speculative business loss (s.113) can only be set
-   * off against speculative business income, which Layer 1 doesn't collect
-   * as a separate bucket from ordinary business income — so a speculative
-   * loss always stays fully carried forward here rather than being (wrongly)
-   * absorbed against ordinary business income. */
+   * flagging that brought-forward losses exist. */
   function computeLossSetOff(cfl, buckets) {
     var businessInr = buckets.businessInr, housePropertyInr = buckets.housePropertyInr;
     var otherNormalInr = buckets.otherNormalInr, stcgInr = buckets.stcgInr, ltcgGrossInr = buckets.ltcgGrossInr;
+    // s.73/s.113: speculative business loss/income is genuinely ring-fenced
+    // — a brought-forward speculative loss can ONLY be set off against THIS
+    // YEAR's speculative income, never ordinary business profit (Phase 1,
+    // §2.2 — same shape as the VDA-never-loss-set-off rule). Floored at 0
+    // by the caller before this runs; a negative current-year speculative
+    // result doesn't participate in set-off at all this year.
+    var speculativeInr = Math.max(0, buckets.speculativeInr || 0);
     // Slab-rate STCG (currently: unlisted buy-back gains and foreign-equity
     // gains held <=24 months) is STILL "Capital Gains" head income for loss
     // set-off purposes — the slab rate is a rate mechanism (same principle
@@ -165,9 +167,12 @@
     var ltcgLossUnused = ltcgLossAfter197 - ltcgLossUsedVs198;
     var ltcgLossUsed = ltcgLossUsedVs197 + ltcgLossUsedVs198;
 
-    // 5. Speculative loss -> no speculative-income bucket modeled (see note
-    // above), so it always stays fully carried forward.
-    var speculativeLossUnused = cfl.speculativeLossAvailableInr || 0;
+    // 5. Speculative loss -> speculative income ONLY (s.73/s.113) — the one
+    // bucket brought-forward speculative loss is legally allowed to offset.
+    var speculativeLossAvail = cfl.speculativeLossAvailableInr || 0;
+    var speculativeLossUsed = Math.min(speculativeLossAvail, speculativeInr);
+    speculativeInr -= speculativeLossUsed;
+    var speculativeLossUnused = speculativeLossAvail - speculativeLossUsed;
 
     // 6. Unabsorbed depreciation (s.33(11)) -> any head except salary, no time
     // limit. Convention: business first (deemed current-year business loss),
@@ -182,14 +187,20 @@
     used = Math.min(depRemaining, ltcg197Inr); ltcg197Inr -= used; depRemaining -= used;
     used = Math.min(depRemaining, ltcgGrossInr); ltcgGrossInr -= used; depRemaining -= used;
     used = Math.min(depRemaining, otherNormalInr); otherNormalInr -= used; depRemaining -= used;
+    // s.32(2): unabsorbed depreciation is deemed current-year depreciation
+    // "for the purposes of this Act" — the same broad any-head eligibility
+    // extends to speculative business income (still the PGBP head), unlike
+    // ordinary business/speculative losses which stay ring-fenced.
+    used = Math.min(depRemaining, speculativeInr); speculativeInr -= used; depRemaining -= used;
     var depUsed = (cfl.unabsorbedDepreciationCf || 0) - depRemaining;
 
-    var totalUsedInr = businessLossUsed + hpLossUsed + stcgLossUsedVsStcgSlab + stcgLossUsedVsStcg + stcgLossUsedVsLtcg + ltcgLossUsed + depUsed;
+    var totalUsedInr = businessLossUsed + hpLossUsed + stcgLossUsedVsStcgSlab + stcgLossUsedVsStcg + stcgLossUsedVsLtcg + ltcgLossUsed + speculativeLossUsed + depUsed;
     var totalUnusedInr = businessLossUnused + hpLossUnused + stcgLossUnused + ltcgLossUnused + speculativeLossUnused + depRemaining;
 
     return {
       businessInr: businessInr, housePropertyInr: housePropertyInr, otherNormalInr: otherNormalInr,
       stcgInr: stcgInr, stcgSlabInr: stcgSlabInr, ltcgGrossInr: ltcgGrossInr, ltcg197Inr: ltcg197Inr,
+      speculativeInr: speculativeInr,
       totalUsedInr: totalUsedInr, totalUnusedInr: totalUnusedInr,
       unused: {
         businessInr: businessLossUnused, housePropertyInr: hpLossUnused,
@@ -199,7 +210,7 @@
       used: {
         businessInr: businessLossUsed, housePropertyInr: hpLossUsed,
         stcgSlabInr: stcgLossUsedVsStcgSlab, stcgInr: stcgLossUsedVsStcg, ltcgFromStcgLossInr: stcgLossUsedVsLtcg, ltcgInr: ltcgLossUsed,
-        unabsorbedDepreciationInr: depUsed
+        speculativeInr: speculativeLossUsed, unabsorbedDepreciationInr: depUsed
       }
     };
   }
@@ -317,10 +328,18 @@
       stcgInr: inc.stcg.inr,
       stcgSlabInr: inc.stcgSlabInr || 0,
       ltcgGrossInr: inc.ltcg.inr,
-      ltcg197Inr: inc.ltcg197Inr || 0
+      ltcg197Inr: inc.ltcg197Inr || 0,
+      // s.73/s.113: only a POSITIVE current-year speculative result
+      // participates in set-off (against brought-forward speculative loss,
+      // then unabsorbed depreciation) — a current-year speculative LOSS is
+      // ring-fenced out entirely, not netted against ordinary business
+      // income, and (single-year-snapshot engine) has no carry-forward
+      // output of its own, same documented limitation as an ordinary
+      // current-year business loss.
+      speculativeInr: Math.max(0, inc.speculativeIncomeInr || 0)
     });
 
-    var normalSlabInr = inc.salary.inr + lossSetOff.businessInr + lossSetOff.housePropertyInr + lossSetOff.otherNormalInr + lossSetOff.stcgSlabInr;
+    var normalSlabInr = inc.salary.inr + lossSetOff.businessInr + lossSetOff.housePropertyInr + lossSetOff.otherNormalInr + lossSetOff.stcgSlabInr + lossSetOff.speculativeInr;
 
     // Chapter VI-A deductions.
     var deductionsInr;

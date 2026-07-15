@@ -297,7 +297,17 @@
       // both are add-backs against the expense pool, not new deductions.
       // Net: ₹24,00,000 − (₹6,00,000 expenses − ₹80,000 disallowances) −
       // ₹3,75,000 depreciation = ₹15,05,000.
-      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [
+      // F&O trading (₹2,50,000 profit) is ordinary PGBP income, added
+      // straight in. A small intraday (speculative) LOSS of ₹80,000
+      // exercises the ring-fence (§2.2): it must NOT reduce the ordinary
+      // business total above — with no brought-forward speculative loss on
+      // file to eventually net against, it simply carries no consequence
+      // this year (a single-year-snapshot engine has no carry-forward
+      // output for it), rather than being wrongly absorbed.
+      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true,
+        non_speculative_income_inr: 250000, fno_turnover_inr: 4000000,
+        speculative_income_inr: -80000, speculative_turnover_inr: 900000,
+        business_entries: [
         { business_name: "Mehta Advisory Services", nature: "consulting", presumptive_scheme: "s44ADA", gross_receipts_inr: 1800000, holding_pct: 5 },
         { business_name: "Mehta Equipment Rentals", nature: "equipment rental", presumptive_scheme: null, gross_receipts_inr: 2400000,
           expenses: { rent_for_business_premises_inr: 180000, employee_salary_wages_inr: 300000, other_business_expenses_inr: 120000,

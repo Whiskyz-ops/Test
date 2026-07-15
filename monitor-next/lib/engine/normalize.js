@@ -562,6 +562,26 @@
     // s.58/44AE goods-carriage presumptive income — computed once from the
     // shared goods_vehicles[] list, not per business_entries[] item.
     business = addMoney(business, moneyFromInr(computeGoodsVehiclePresumptiveInr(safe(di, "business_income.goods_vehicles", []))));
+    // F&O / non-speculative derivative income (Phase 1, §2.2) — a top-level
+    // aggregate field (business_income.non_speculative_income_inr), not tied
+    // to any specific business_entries[] item; real, live-written (via
+    // updateBizNum, confirmed against layer1_india.html). Ordinary PGBP
+    // income under the s.43(5) proviso — a loss here CAN offset other
+    // business income normally, so it's added directly, sign included.
+    var fnoIncomeInr = num(safe(di, "business_income.non_speculative_income_inr", 0));
+    business = addMoney(business, moneyFromInr(fnoIncomeInr));
+    // Speculative income (intraday equity delivery-fail trades) — GENUINELY
+    // ring-fenced under s.73/s.113: can only be set off against speculative
+    // income/loss, never ordinary business profit (same shape as the
+    // VDA-never-loss-set-off rule already built for crypto). Deliberately
+    // NOT added into `business` here — Layer 1's own live preview
+    // calculator (_evaluateSurchargeBuckets) sums it in unconditionally,
+    // but that's a simplified estimate, not the legally correct treatment
+    // this engine aims for. Exposed separately so computation.js's loss
+    // set-off can net it against brought-forward speculative losses
+    // (cfl.speculativeLossAvailableInr — already modeled but, until now,
+    // never actually had a speculative-income bucket to set off against).
+    var speculativeIncomeInr = num(safe(di, "business_income.speculative_income_inr", 0));
 
     var hpProps = safe(di, "house_property.properties", []);
     var houseProperty = zeroMoney();
@@ -1124,7 +1144,7 @@
                  moneyFromInr(chapterXiiaInvestmentIncomeInr), otherSourcesMisc].reduce(addMoney, zeroMoney());
 
     return {
-      salary: salary, business: business, businessDepreciationInr: businessDepreciationInr, houseProperty: houseProperty,
+      salary: salary, business: business, businessDepreciationInr: businessDepreciationInr, speculativeIncomeInr: speculativeIncomeInr, houseProperty: houseProperty,
       interest: interest, dividend: dividend, otherSourcesMisc: otherSourcesMisc,
       stcg: stcg, ltcg: ltcg, ltcg197Inr: ltcg197Inr,
       capitalGains: addMoney(addMoney(stcg, ltcg), moneyFromInr(ltcg197Inr)),
