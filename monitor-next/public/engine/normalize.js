@@ -142,11 +142,12 @@
    * previously computed ₹0 business income; only hand-authored demo
    * profiles worked, by injecting the field directly).
    *
-   * Deliberately Phase-0 scoped: presumptive schemes are computed in full,
-   * but regular-books net profit only nets out the unambiguous, generically
-   * -deductible expense categories. Depreciation (asset_blocks[]),
-   * F&O-specific costs, s.35/35D/35DDA amortization, and s.40A(3)/40(a)/
-   * 43B(h) disallowances are Phase 1 work (gap tracker IN-22..25) —
+   * Phase 0 scoped presumptive schemes in full, but regular-books net profit
+   * only netted out the unambiguous, generically-deductible expense
+   * categories. Phase 1 (gap tracker IN-22..25) adds current-year
+   * depreciation (asset_blocks[], WDV method + s.32(1)(iia) additional
+   * depreciation) below — F&O-specific costs, s.35/35D/35DDA amortization,
+   * and s.40A(3)/40(a)/43B(h) disallowances remain Phase 1 follow-on work,
    * deliberately excluded here rather than guessed at. Branch-level
    * (business_entries[].branches[]) revenue/expense breakdowns are also not
    * yet folded in — entry-level totals only.
@@ -188,7 +189,129 @@
     return { eligible44AD: eligible44AD, eligible44ADA: eligible44AD && entity !== "huf" };
   }
 
-  function computeBusinessEntryNetProfitInr(b, eligibility) {
+  // s.32 block-of-assets WDV rates — matched exactly to layer1_india.html's
+  // own asset_class dropdown (generateAssetBlocksCardHTML), including its
+  // exact percentages, so a Layer 1 selection always resolves to a real rate.
+  var ASSET_CLASS_RATES_INDIA = {
+    building_residential: 0.05, building_commercial: 0.10, building_temporary: 0.40,
+    plant_machinery_general: 0.15, plant_machinery_motor_cars: 0.15,
+    plant_machinery_commercial_vehicles: 0.30, plant_machinery_computers: 0.40,
+    plant_machinery_books: 0.40, plant_machinery_pollution: 0.40,
+    ships: 0.20, intangible_assets: 0.25
+  };
+
+  // "Used for less than 180 days" (s.32(1) proviso) — half rate on the
+  // ADDITIONS only, opening WDV always gets the full rate. Layer 1's own
+  // additional-depreciation preview (generateAssetBlocksCardHTML) already
+  // draws this exact boundary (on/after 4 Oct through 31 Mar of the FY —
+  // the ~180-day mark) for its s.32(1)(iia) estimate; mirrored here so
+  // normal WDV depreciation uses the identical cutoff.
+  function isUnder180DaysAdditionInr(additionDateStr) {
+    if (!additionDateStr) return false;
+    var d = new Date(additionDateStr);
+    if (isNaN(d.getTime())) return false;
+    var month = d.getMonth(), date = d.getDate(); // month is 0-indexed
+    return (month === 9 && date >= 4) || month > 9 || month <= 2;
+  }
+
+  // Normal WDV depreciation for a single asset_blocks[] entry. Sale
+  // consideration is treated as reducing the OPENING (full-rate-eligible)
+  // portion of the block first — the standard convention when a block
+  // continues rather than being fully extinguished — with any sale proceeds
+  // beyond opening WDV reducing the half-rate additions portion next.
+  // Negative/zero resulting WDV (block extinguished, or oversold) yields
+  // zero depreciation here — the s.50 short-term-capital-gains treatment of
+  // that excess is a genuinely separate computation, deliberately not
+  // modeled (see the Phase 1 scope note at the call site).
+  function computeAssetBlockNormalDepreciationInr(block) {
+    var rate = ASSET_CLASS_RATES_INDIA[block.asset_class];
+    if (!rate) return 0;
+    var opening = num(block.opening_wdv_inr), additions = num(block.additions_during_year_inr),
+        sale = num(block.sale_consideration_inr);
+    var wdvBeforeDep = opening + additions - sale;
+    if (wdvBeforeDep <= 0) return 0;
+    var halfYear = additions > 0 && isUnder180DaysAdditionInr(block.addition_date);
+    if (!halfYear) return wdvBeforeDep * rate;
+    var fullRateBase = Math.max(0, opening - sale);
+    var saleAgainstAdditions = Math.max(0, sale - opening);
+    var halfRateBase = Math.max(0, additions - saleAgainstAdditions);
+    return Math.min(wdvBeforeDep, fullRateBase * rate + halfRateBase * rate * 0.5);
+  }
+
+  // s.32(1)(iia) additional depreciation — 20% (10% if the <180-day proviso
+  // applies) on ADDITIONS only, general plant & machinery only, and only
+  // when the taxpayer both elects it (is_new_manufacturing_asset) and is
+  // actually eligible: the entry's own business is manufacturing/power-gen,
+  // and the regime doesn't disallow it (concessional company regimes
+  // 115BA/115BAA/115BAB, or new-regime individual/HUF — both bar additional
+  // depreciation). Mirrors layer1_india.html's own eligibleForAddDep /
+  // regimeDisallowsAddDep gates exactly (generateAssetBlocksCardHTML).
+  function additionalDepreciationEligibleInr(india, entry) {
+    var entityType = safe(india, "profile.entity_type", null) || safe(india, "domestic_income.business_income.entity_type", "individual");
+    var isCompany = entityType === "company";
+    var isConcessionalCompany = isCompany && (
+      safe(india, "profile.opt_115baa", false) === true ||
+      safe(india, "profile.opt_115bab", false) === true ||
+      safe(india, "profile.opt_115ba", false) === true
+    );
+    var isNewRegimeIndHuf = (entityType === "individual" || entityType === "huf") &&
+      (safe(india, "profile.tax_regime", "NEW") || "NEW").toUpperCase() !== "OLD";
+    var regimeDisallows = isConcessionalCompany || isNewRegimeIndHuf;
+    var hasMfgOrPowerGen = entry.business_code === "01000" || entry.business_code === "power_gen";
+    return hasMfgOrPowerGen && !regimeDisallows;
+  }
+
+  function computeAssetBlockAdditionalDepreciationInr(block, india, entry) {
+    if (block.asset_class !== "plant_machinery_general" || block.is_new_manufacturing_asset !== true) return 0;
+    var additions = num(block.additions_during_year_inr);
+    if (additions <= 0) return 0;
+    if (!additionalDepreciationEligibleInr(india, entry)) return 0;
+    var rate = isUnder180DaysAdditionInr(block.addition_date) ? 0.10 : 0.20;
+    return additions * rate;
+  }
+
+  // Total current-year depreciation (normal + additional) for one
+  // business_entries[] item, from every asset_blocks[] row whose
+  // unit_biz_idx matches this entry's own array index — branch-level blocks
+  // (unit_branch_idx set) roll into the parent entry's total rather than
+  // being broken out separately, consistent with this file's existing
+  // "entry-level totals only" scoping for business_entries[].branches[].
+  function aggregateEntryDepreciationInr(entryIdx, assetBlocks, india, entry) {
+    var total = 0;
+    (assetBlocks || []).forEach(function (block) {
+      if (block.unit_biz_idx !== entryIdx) return;
+      total += computeAssetBlockNormalDepreciationInr(block);
+      total += computeAssetBlockAdditionalDepreciationInr(block, india, entry);
+    });
+    return total;
+  }
+
+  // Single source of truth for "will this entry actually land on regular
+  // books" (as opposed to a valid presumptive election) — mirrors the exact
+  // same condition computeBusinessEntryNetProfitInr branches on below.
+  // Needed by the aggregation loop BEFORE it can know whether to feed a
+  // computed depreciation figure in at all: a presumptive election's deemed
+  // rate already covers depreciation, so depreciation must only be computed
+  // (and counted toward the current-year total the loss-set-off step relies
+  // on) for entries that genuinely fall through to regular books — including
+  // an entry where a presumptive scheme was SELECTED but is invalid
+  // (ineligible or over its turnover ceiling), which still falls through.
+  function usesRegularBooksInr(b, eligibility) {
+    var scheme = b.presumptive_scheme;
+    if (scheme === "s44AD") {
+      var dig = num(b.digital_receipts_inr), csh = num(b.cash_receipts_inr);
+      return !(eligibility.eligible44AD && dig + csh <= presumptiveCeilingInr("s44AD", dig, csh));
+    }
+    if (scheme === "s44ADA") {
+      var adaDig = num(b.ada_digital_receipts_inr), adaCsh = num(b.ada_cash_receipts_inr);
+      var adaReceipts = num(b.gross_receipts_inr) || (adaDig + adaCsh);
+      return !(eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh));
+    }
+    if (scheme === "s44AE") return false;
+    return true;
+  }
+
+  function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr) {
     eligibility = eligibility || { eligible44AD: true, eligible44ADA: true };
     var scheme = b.presumptive_scheme;
     if (scheme === "s44AD") {
@@ -212,9 +335,13 @@
       return null; // computed once from goods_vehicles[] at the aggregate level, not per-entry
     }
     // Regular books — gross receipts less the clean, unambiguous general PGBP
-    // expense categories only (see the Phase-0 scoping note above). Also the
-    // fallback when a presumptive scheme was selected but receipts exceed
-    // its turnover ceiling above.
+    // expense categories, less current-year depreciation (Phase 1, §2.4 —
+    // asset_blocks[], WDV method). Also the fallback when a presumptive
+    // scheme was selected but receipts exceed its turnover ceiling above —
+    // a presumptive entry never separately claims depreciation (the deemed
+    // rate already covers it), so depreciationInr is simply 0 for those.
+    // F&O-specific costs and s.40A(3)/40(a)/43B(h) disallowances remain
+    // Phase 1 follow-on work (gap tracker IN-22/23/24).
     var exp = b.expenses || {};
     var deductible =
       num(exp.rent_for_business_premises_inr) + num(exp.repairs_maintenance_inr) +
@@ -229,7 +356,7 @@
     var receipts = num(b.gross_receipts_inr) || num(b.turnover_inr) ||
       (scheme === "s44AD" ? (dig44AD + csh44AD) : 0) ||
       (scheme === "s44ADA" ? adaReceipts : 0);
-    return receipts - deductible;
+    return receipts - deductible - num(depreciationInr);
   }
 
   // s.58 table (old s.44AE), goods-carriage presumptive income — rates stable
@@ -255,7 +382,7 @@
 
   /* Mirrors computeBusinessEntryNetProfitInr's branches exactly, but returns
    * the "show your work" trace instead of the number, for the Business tab. */
-  function businessEntryIncomeTrace(b, eligibility) {
+  function businessEntryIncomeTrace(b, eligibility, depreciationInr) {
     eligibility = eligibility || { eligible44AD: true, eligible44ADA: true };
     var explicit = b.net_profit_inr != null ? b.net_profit_inr : b.net_profit;
     if (explicit !== undefined && explicit !== null) {
@@ -321,7 +448,10 @@
       var v = num(exp[f[0]]);
       if (v > 0) parts.push({ label: "Less: " + f[1], amount: -v });
     });
-    var formula = ceilingNote || "Regular books: gross receipts/turnover less the itemized deductible expenses on file. Depreciation, F&O-specific costs and other disallowances aren't modeled yet (Phase 1 — see gap tracker IN-22..25), so this is a floor, not the final figure.";
+    if (num(depreciationInr) > 0) {
+      parts.push({ label: "Less: current-year depreciation (s.32, asset blocks)", amount: -num(depreciationInr) });
+    }
+    var formula = ceilingNote || "Regular books: gross receipts/turnover less the itemized deductible expenses on file, less current-year depreciation (s.32 WDV method + s.32(1)(iia) additional depreciation, from the asset blocks on file). F&O-specific costs and s.40A(3)/40(a)/43B(h) disallowances aren't modeled yet (Phase 1 follow-on — see gap tracker IN-22/23/24), so this is still a floor, not the final figure.";
     return calc(formula, parts, ceilingCitation);
   }
 
@@ -338,15 +468,26 @@
 
     var bizEntries = safe(di, "business_income.business_entries", []);
     var bizEligibility = presumptiveResidencyEligible(india);
+    var bizAssetBlocks = safe(di, "business_income.asset_blocks", []);
     var business = zeroMoney();
-    (bizEntries || []).forEach(function (b) {
+    // Aggregate current-year depreciation actually claimed (regular-books
+    // entries only — a presumptive election's deemed rate already covers
+    // depreciation, so nothing is double-subtracted for those). Exposed
+    // separately below so computation.js can route any portion that pushes
+    // aggregate business income negative into this year's unabsorbed-
+    // depreciation pool (s.32(2)) rather than silently going nowhere.
+    var businessDepreciationInr = 0;
+    (bizEntries || []).forEach(function (b, idx) {
       // net_profit_inr/net_profit are honored first ONLY because hand-authored
       // demo profiles (engine/profiles.js) inject them directly, bypassing the
       // real form — layer1_india.html itself never sets either field, so for
       // every real filer this falls through to the real computation below.
       var netProfitInr = b.net_profit_inr || b.net_profit;
       if (netProfitInr === undefined || netProfitInr === null) {
-        netProfitInr = computeBusinessEntryNetProfitInr(b, bizEligibility);
+        var entryDepreciationInr = usesRegularBooksInr(b, bizEligibility)
+          ? aggregateEntryDepreciationInr(idx, bizAssetBlocks, india, b) : 0;
+        netProfitInr = computeBusinessEntryNetProfitInr(b, bizEligibility, entryDepreciationInr);
+        businessDepreciationInr += entryDepreciationInr;
       }
       business = addMoney(business, moneyFromInr(num(netProfitInr)));
     });
@@ -915,7 +1056,7 @@
                  moneyFromInr(chapterXiiaInvestmentIncomeInr), otherSourcesMisc].reduce(addMoney, zeroMoney());
 
     return {
-      salary: salary, business: business, houseProperty: houseProperty,
+      salary: salary, business: business, businessDepreciationInr: businessDepreciationInr, houseProperty: houseProperty,
       interest: interest, dividend: dividend, otherSourcesMisc: otherSourcesMisc,
       stcg: stcg, ltcg: ltcg, ltcg197Inr: ltcg197Inr,
       capitalGains: addMoney(addMoney(stcg, ltcg), moneyFromInr(ltcg197Inr)),
@@ -1718,9 +1859,16 @@
             filesOwnReturn: true, returnForm: "Form 1120 (C-Corp — entity-level return, 21% flat)",
             calcTrace: source("Entity-level taxable income as entered on Layer 1 US for this C-corp (taxable_income_usd, or net_income_usd if that field wasn't used). Taxed at 21% at the entity; not on a personal return until distributed.") }); });
           var bizEligibility = presumptiveResidencyEligible(india);
-          (safe(annual.domestic_income, "business_income.business_entries", []) || []).forEach(function (b) {
+          var bizAssetBlocksForTrace = safe(annual.domestic_income, "business_income.asset_blocks", []);
+          (safe(annual.domestic_income, "business_income.business_entries", []) || []).forEach(function (b, bIdx) {
             var netProfitInr = b.net_profit_inr || b.net_profit;
-            if (netProfitInr === undefined || netProfitInr === null) netProfitInr = computeBusinessEntryNetProfitInr(b, bizEligibility);
+            // Same depreciation treatment as aggregateIndiaIncome above —
+            // kept in lockstep so this (Business tab drill-down) never shows
+            // a different net-profit figure than what actually feeds
+            // computeIndiaTax.
+            var entryDepreciationInrForTrace = usesRegularBooksInr(b, bizEligibility)
+              ? aggregateEntryDepreciationInr(bIdx, bizAssetBlocksForTrace, india, b) : 0;
+            if (netProfitInr === undefined || netProfitInr === null) netProfitInr = computeBusinessEntryNetProfitInr(b, bizEligibility, entryDepreciationInrForTrace);
             netProfitInr = num(netProfitInr);
             // Same resolved form as entity.indiaReturnForm — Layer 1's real
             // eligibility check when it ran, else a business-aware crude
@@ -1734,7 +1882,7 @@
                   : "ITR-3 — regular books"));
             list.push({ country: "IN", type: "Business / Profession (PGBP)", name: b.business_name || b.trade_name || b.name || "Indian business", incomeUsd: inrToUsd(netProfitInr), inr: netProfitInr,
               filesOwnReturn: indiaIsCompanyOrFirm, returnForm: entryReturnForm,
-              calcTrace: businessEntryIncomeTrace(b, bizEligibility) });
+              calcTrace: businessEntryIncomeTrace(b, bizEligibility, entryDepreciationInrForTrace) });
           });
           (safe(us, "foreign_entities.foreign_corporations", []) || []).forEach(function (c) {
             // The real "Add Foreign Corporation" UI (syncCorpState() in

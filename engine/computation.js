@@ -275,6 +275,33 @@
     var s115aRoyaltyTaxInr = s115aRoyalty ? s115aRoyalty.taxInr : 0;
     var s115aFtsTaxInr = s115aFts ? s115aFts.taxInr : 0;
 
+    // Current-year depreciation (Phase 1, §2.4) can now push aggregate
+    // business income negative — a case computeLossSetOff's businessInr
+    // input was never designed for (it assumes a non-negative starting
+    // bucket, matching every other head). Per s.32(2), depreciation
+    // specifically (unlike an ordinary current-year operating loss, which
+    // this single-year-snapshot engine has no future-year carry-forward
+    // output for and so cannot otherwise model) is immediately eligible for
+    // set-off against ANY head this year, exactly like brought-forward
+    // unabsorbed depreciation — so the depreciation-caused portion of a
+    // negative result is folded into this year's unabsorbedDepreciationCf
+    // pool before set-off runs, and business income itself is floored at 0
+    // going in. Any residual negative result beyond what depreciation
+    // explains (a genuine non-depreciation current-year loss) is a known,
+    // documented simplification: it's absorbed by the floor rather than
+    // carried forward, since there's no output for it to carry into.
+    var businessInrRaw = inc.business.inr;
+    var currentYearDepreciationInr = inc.businessDepreciationInr || 0;
+    var unabsorbedDepThisYearInr = businessInrRaw < 0 ? Math.min(currentYearDepreciationInr, -businessInrRaw) : 0;
+    var cflForSetOff = model.carryForwardLosses ? {
+      businessLossAvailableInr: model.carryForwardLosses.businessLossAvailableInr,
+      speculativeLossAvailableInr: model.carryForwardLosses.speculativeLossAvailableInr,
+      stcgLossAvailableInr: model.carryForwardLosses.stcgLossAvailableInr,
+      ltcgLossAvailableInr: model.carryForwardLosses.ltcgLossAvailableInr,
+      housePropertyLossAvailableInr: model.carryForwardLosses.housePropertyLossAvailableInr,
+      unabsorbedDepreciationCf: (model.carryForwardLosses.unabsorbedDepreciationCf || 0) + unabsorbedDepThisYearInr
+    } : { unabsorbedDepreciationCf: unabsorbedDepThisYearInr };
+
     // Sequence brought-forward loss set-off against this year's income
     // BEFORE computing the slab/special-rate totals below, so the actual tax
     // reflects it (not just a disclosure that losses exist). Salary and
@@ -283,8 +310,8 @@
     // s.207 dividend/royalty/FTS is excluded too, for the same no-set-off
     // reason — but slab-eligible NR interest is ordinary income now, so it
     // DOES participate in loss set-off like any other "other normal" income.
-    var lossSetOff = computeLossSetOff(model.carryForwardLosses || {}, {
-      businessInr: inc.business.inr,
+    var lossSetOff = computeLossSetOff(cflForSetOff, {
+      businessInr: Math.max(0, businessInrRaw),
       housePropertyInr: inc.houseProperty.inr,
       otherNormalInr: deemedDividendInr + otherSourcesMiscInr + (isNR ? nrInterestSlabEligibleInr : inc.interest.inr + inc.dividend.inr),
       stcgInr: inc.stcg.inr,

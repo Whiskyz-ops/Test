@@ -274,13 +274,31 @@
       // Small India-side consulting stake, held below the 10% US CFC threshold
       // (see the matching foreign_entities block on the US side below) →
       // triggers cfc_below_threshold instead of the full CFC/Form 5471 finding.
-      // Computed via s.58/44ADA presumptive (50% of gross receipts) from real
-      // Layer 1-shaped fields (gross_receipts_inr, presumptive_scheme) — the
-      // first demo profile that DOESN'T inject a hand-authored net_profit_inr,
-      // proving the real computation now works (₹18,00,000 x 50% = ₹9,00,000,
-      // deliberately matching the old injected figure so nothing else in his
-      // profile needed to change).
-      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [{ business_name: "Mehta Advisory Services", nature: "consulting", presumptive_scheme: "s44ADA", gross_receipts_inr: 1800000, holding_pct: 5 }] }, capital_gains: { short_term_15_pct: 180000 } },
+      // The first demo profile that DOESN'T inject a hand-authored
+      // net_profit_inr, proving the real computation now works from real
+      // Layer 1-shaped fields (gross_receipts_inr, presumptive_scheme).
+      // Correction (Phase 1 build): this entry's presumptive_scheme:
+      // "s44ADA" election is actually INVALID — Rohan is NR for India this
+      // year (final_india_residency_status below), and s.44AD/44ADA are
+      // ROR-only — so it correctly falls through to regular books at the
+      // full ₹18,00,000 gross receipts (no expenses were ever entered for
+      // this line item). A prior version of this comment claimed the
+      // presumptive 50% rate applied (₹9,00,000, matching the old injected
+      // figure) — that was never actually true once residency was checked;
+      // this is the correct, law-accurate result, not a bug.
+      // Second entry ("Mehta Equipment Rentals") is regular books, no
+      // presumptive election — exercises Phase 1's asset_blocks[] WDV
+      // depreciation (§2.4): opening ₹20,00,000 + additions ₹5,00,000
+      // (both full-rate, addition date well before the <180-day cutoff) on
+      // General P&M (15%) = ₹3,75,000 depreciation, netted straight into
+      // this entry's regular-books profit alongside its ordinary expenses.
+      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [
+        { business_name: "Mehta Advisory Services", nature: "consulting", presumptive_scheme: "s44ADA", gross_receipts_inr: 1800000, holding_pct: 5 },
+        { business_name: "Mehta Equipment Rentals", nature: "equipment rental", presumptive_scheme: null, gross_receipts_inr: 2400000,
+          expenses: { rent_for_business_premises_inr: 180000, employee_salary_wages_inr: 300000, other_business_expenses_inr: 120000 } }
+      ], asset_blocks: [
+        { unit_biz_idx: 1, unit_branch_idx: null, asset_class: "plant_machinery_general", opening_wdv_inr: 2000000, additions_during_year_inr: 500000, addition_date: "2026-06-01", sale_consideration_inr: 0, is_new_manufacturing_asset: false }
+      ] }, capital_gains: { short_term_15_pct: 180000 } },
       // Occasional fantasy-sports/online-gaming winnings (very common alongside
       // NRI rental/dividend income today) plus an unexplained cash deposit the
       // client can't source-document (a routine real-world s.195/115BBE flag, not a
