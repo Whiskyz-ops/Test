@@ -62,6 +62,19 @@ function renderMarkdown(md) {
     }
     // blank
     if (/^\s*$/.test(line)) { i++; continue; }
+    // A pipe-bounded line that reaches here (no header+separator immediately
+    // above it, e.g. a stray blank line orphaned it from its table) has no
+    // real markdown meaning under this parser's other rules — treat it as
+    // a one-row, headerless table rather than looping forever: the
+    // paragraph branch below always leaves such a line unconsumed (its own
+    // "not pipe-bounded" guard excludes it), so falling through here without
+    // advancing i hangs indefinitely instead of degrading gracefully.
+    if (/^\s*\|.*\|\s*$/.test(line)) {
+      const cells = (r) => r.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+      out.push("<p>" + cells(line).map(inline).join(" · ") + "</p>");
+      i++;
+      continue;
+    }
     // paragraph (gather until blank / block)
     const buf = [];
     while (i < lines.length && !/^\s*$/.test(lines[i]) && !/^(#{1,6}\s|```|\s*>|\s*([-*]|\d+\.)\s|\s*---\s*$)/.test(lines[i]) && !/^\s*\|.*\|\s*$/.test(lines[i])) { buf.push(inline(lines[i])); i++; }

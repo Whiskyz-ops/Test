@@ -1922,6 +1922,14 @@
           indiaKind: indiaEntityKind, usKind: usT,
           indiaIsCompany: indiaIsCompany, indiaIsFirm: indiaIsFirm,
           indiaOpt115baa: safe(india, "profile.opt_115baa", false) === true,
+          // Previously read only for the additional-depreciation
+          // regime-disallowance check (additionalDepreciationEligibleInr) —
+          // never for the company's own tax RATE, so a company that
+          // elected 115BAB (15%, new manufacturing) or 115BA (25% flat,
+          // manufacturing) silently fell through to the default
+          // turnover/30% schedule instead of its actual elected rate.
+          indiaOpt115bab: safe(india, "profile.opt_115bab", false) === true,
+          indiaOpt115ba: safe(india, "profile.opt_115ba", false) === true,
           indiaTurnoverLte400cr: safe(india, "profile.turnover_lte_400cr", false) === true,
           // Layer 1 India's own MAT book-profit input (Schedule III book
           // profit under s.115JB, distinct from taxable income under the
@@ -1943,6 +1951,17 @@
           isCompanyDirector: safe(india, "profile.is_company_director", false) === true,
           usIsBusiness: usIsBusiness,
           usScheduleM1TaxableIncomeUsd: usScheduleM1TaxableIncomeUsd,
+          // A US ccorp/scorp/partnership/trust is a domestic entity by
+          // ORGANIZATION (IRC s.7701(a)(4) for corporations; analogous
+          // organized-under-state-law tests for partnerships — trusts have
+          // their own court-test/control-test under s.7701(a)(30)(E), not
+          // modeled distinctly here since Layer 1 US only collects
+          // incorporated_in_us/incorporation_state for all four types
+          // alike), never by a day-count presence test — that's an
+          // INDIVIDUAL-only concept (s.7701(b)). null when unset/not a
+          // business entity (an individual's own residency uses SPT below).
+          usIncorporatedInUs: usIsBusiness ? safe(us, "profile.incorporated_in_us", null) : null,
+          usIncorporationState: usIsBusiness ? safe(us, "profile.incorporation_state", null) : null,
           isBusiness: indiaIsCompany || indiaIsFirm || usIsBusiness,
           // Layer 1's OWN persisted recommendation (itr_recommendation.form),
           // when it ran — kept for the backend solver (computed.indiaItrForm)
@@ -1968,7 +1987,15 @@
           // (place of incorporation controls); POEM only determines residency
           // for a company that is NOT Indian-incorporated. Null when unset
           // (e.g. not a company entity).
-          isIndianCompanyFact: safe(india, "residency_detail.is_indian_company", null)
+          isIndianCompanyFact: safe(india, "residency_detail.is_indian_company", null),
+          // s.6(2)/s.6(4) test for HUF/firm/LLP/AOP/BOI/trust/etc — resident
+          // UNLESS control and management of its affairs is situated WHOLLY
+          // outside India (a qualitative fact, never a day-count) — Layer 1's
+          // own div-res-wholly-outside question (updateBizEntityType's
+          // isHuf/isFirm branches). Previously captured by the form but read
+          // NOWHERE in this engine. Null when unset/not applicable (company
+          // uses the separate POEM test above; individual uses day-count).
+          indiaWhollyOutsideIndiaFact: safe(india, "residency_detail.is_wholly_outside_india", null)
         },
         us: {
           status: safe(us, "us_residency_detail.final_us_residency_status", null),

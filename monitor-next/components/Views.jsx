@@ -202,9 +202,20 @@ export function ResidencyView({ result }) {
         <Flag label="🇮🇳 India residency" s={r.india} />
         <Flag label="🇺🇸 US residency" s={r.us} />
       </div>
-      <Card icon={<Compass size={16} strokeWidth={2} />} title="Residency Day-Counters" sub="Physical-presence tests · projections at current pace">
+      <Card icon={<Compass size={16} strokeWidth={2} />} title="Residency Determination" sub="Physical-presence tests for individuals · qualitative tests (incorporation/POEM/control &amp; management) for companies, HUFs, firms, and other entities">
         <div className="space-y-4">
-          {(mon ? mon.residency : []).map((c, i) => (
+          {(mon ? mon.residency : []).map((c, i) => c.kind === "qualitative" ? (
+            <div key={i} className="rounded-2xl bg-white/[0.02] border border-line p-3.5">
+              <div className="flex justify-between items-start text-[12px] mb-1.5">
+                <span className="font-semibold text-head">{c.flag} {c.country} <span className="text-muted font-normal">· {c.test}</span></span>
+                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded" style={{ background: (c.status === "resident" ? PAL.exposed : PAL.positive) + "24", color: c.status === "resident" ? PAL.redText : PAL.greenText }}>{c.status === "resident" ? "Resident" : "Non-resident"}</span>
+              </div>
+              <ul className="space-y-1 mt-2">
+                {c.facts.map((f, j) => <li key={j} className="text-[11px] text-body flex gap-1.5"><span className="text-muted">·</span>{f}</li>)}
+              </ul>
+              <div className="text-[11px] text-muted mt-2">{c.headline}</div>
+            </div>
+          ) : (
             <div key={i}>
               <div className="flex justify-between text-[12px] mb-1.5"><span className="font-semibold text-head">{c.flag} {c.country} <span className="text-muted font-normal">· {c.test}</span></span><span className="font-mono" style={{ color: stCol[c.status] }}>{c.days}/{c.threshold}d</span></div>
               <SegBar pct={c.pct} color={stCol[c.status]} projPct={c.threshold ? (c.projectedFullYear || 0) / c.threshold : 0} />

@@ -85,13 +85,22 @@ export function countriesFromEngine(result) {
   const proj = {};
   (m.projections || []).forEach((p) => { proj[p.id] = p; });
 
+  // Day-count only makes sense for an individual's own presence test — a
+  // company/HUF/firm/entity's residency entry (monitoring.js) carries
+  // kind: "qualitative" instead, with no days/threshold at all. Pulling
+  // days/threshold/test from the SAME entry this table's "Days Present"
+  // column reads keeps both surfaces in sync instead of re-deriving a
+  // fabricated day-count independently here.
+  const inEntry = byCountry["India"], usEntry = byCountry["United States"];
   const india = {
     id: "IN", name: "India", mapName: "India", iso3: "IND", flag: "🇮🇳", continent: "Asia", type: "country",
     taxesWorldwide: c.residency.india.worldwide,
-    residency: { days: model.residency.india.daysCurrentYear, threshold: 182, test: "182-day residency (ITA s.6)" },
+    residency: inEntry && inEntry.kind === "days"
+      ? { days: inEntry.days, threshold: inEntry.threshold, test: inEntry.test }
+      : { days: null, threshold: null, test: inEntry ? inEntry.test : "Entity-level residency (not day-count)", isResident: inEntry ? inEntry.isResident : false },
     reporting: proj.lrs ? { label: "LRS remitted", value: Math.round(proj.lrs.current), limit: proj.lrs.limit, unit: "$" } : null,
-    physicalPresence: model.residency.india.daysCurrentYear > 0,
-    triggerDate: crossedDate(byCountry["India"]),
+    physicalPresence: inEntry && inEntry.kind === "days" ? model.residency.india.daysCurrentYear > 0 : null,
+    triggerDate: crossedDate(inEntry),
     estimatedTaxUsd: Math.round(c.indiaTax.totalTaxUsd),
     incomeExposedUsd: Math.round(model.income.india.total.usd),
     reason: null
@@ -99,10 +108,12 @@ export function countriesFromEngine(result) {
   const us = {
     id: "US", name: "United States", mapName: "United States of America", iso3: "USA", flag: "🇺🇸", continent: "US", type: "country", hasStates: true,
     taxesWorldwide: c.residency.us.worldwide,
-    residency: { days: model.residency.us.daysCurrentYear, threshold: 183, test: "Substantial Presence (≥183 weighted)" },
+    residency: usEntry && usEntry.kind === "days"
+      ? { days: usEntry.days, threshold: usEntry.threshold, test: usEntry.test }
+      : { days: null, threshold: null, test: usEntry ? usEntry.test : "Entity-level residency (not day-count)", isResident: usEntry ? usEntry.isResident : false },
     reporting: proj.fbar ? { label: "FBAR aggregate", value: Math.round(proj.fbar.current), limit: proj.fbar.limit, unit: "$" } : null,
-    physicalPresence: model.residency.us.daysCurrentYear > 0,
-    triggerDate: crossedDate(byCountry["United States"]),
+    physicalPresence: usEntry && usEntry.kind === "days" ? model.residency.us.daysCurrentYear > 0 : null,
+    triggerDate: crossedDate(usEntry),
     estimatedTaxUsd: Math.round(c.usTax.totalTaxBeforeFtcUsd),
     incomeExposedUsd: Math.round(model.income.us.total.usd),
     reason: null

@@ -25,11 +25,15 @@ function Tracker({ r }) {
     </div>
   );
 }
-const YesNo = ({ v }) => <span className={v ? "font-semibold" : "text-muted"} style={v ? { color: PAL.accent } : undefined}>{v ? "Yes" : "No"}</span>;
+const YesNo = ({ v }) => v == null
+  ? <span className="text-muted">n/a</span>
+  : <span className={v ? "font-semibold" : "text-muted"} style={v ? { color: PAL.accent } : undefined}>{v ? "Yes" : "No"}</span>;
 const Reporting = ({ r }) => r.reporting
   ? <span><span className="text-head font-medium">{fmtUsd(r.reporting.value)}</span> <span className="text-muted">/ {fmtUsd(r.reporting.limit)}</span> <span className="text-muted text-[10px]">{r.reporting.label}</span></span>
   : <span className="text-muted">—</span>;
-const Days = ({ r }) => <span><span className="text-head font-medium">{r.residency.days}</span> <span className="text-muted">/ {r.residency.threshold}d</span></span>;
+const Days = ({ r }) => r.residency.days == null
+  ? <span className="text-muted" title={r.residency.test}>— (entity-level test)</span>
+  : <span><span className="text-head font-medium">{r.residency.days}</span> <span className="text-muted">/ {r.residency.threshold}d</span></span>;
 const TH = ({ children, right }) => <th className={"px-4 py-2.5 text-[10px] uppercase tracking-widest text-muted font-bold " + (right ? "text-right" : "text-left")}>{children}</th>;
 const TD = ({ children, right, mono }) => <td className={"px-4 py-3 text-[13px] text-body " + (right ? "text-right " : "") + (mono ? "font-mono " : "")}>{children}</td>;
 

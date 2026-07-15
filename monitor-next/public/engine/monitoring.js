@@ -48,11 +48,26 @@
     var simulated = !((today - cyStart) / (cyEnd - cyStart) > 0.03 && (today - cyEnd) < 0);
 
     // ================= 1. RESIDENCY DAY-COUNTERS =================
+    // Day-count presence tests (US Substantial Presence s.7701(b), India
+    // s.6(1) ≥182 days) are INDIVIDUAL-only concepts. A company/HUF/firm/
+    // LLP/trust/etc taxpayer has its own, qualitative residency test — India
+    // companies: incorporation (unconditional) or POEM for a foreign-
+    // incorporated one (s.6(3)); India HUF/firm/LLP/AOP/BOI/trust/etc:
+    // control & management wholly outside India or not (s.6(2)/s.6(4)); a US
+    // ccorp/scorp/partnership/trust: place of organization/incorporation
+    // (s.7701(a)(4) for corporations), never a presence test. Previously
+    // every profile got the same two day-count bars regardless of entity
+    // type, so a company or HUF's own residency panel showed a fabricated,
+    // sometimes self-contradicting "days present" figure that had nothing
+    // to do with how its residency was actually determined (e.g. an HUF
+    // with 0 days entered but resident on file would show "non-resident,
+    // headroom" directly under a Flag card correctly saying "ROR").
     function counter(cfg) {
       var days = cfg.days, threshold = cfg.threshold, prog = cfg.prog;
       var already = cfg.isResident || days >= threshold;
       var pace = days / (prog * 365);         // residency-days accrued per calendar day
       var res = {
+        kind: "days",
         country: cfg.country, flag: cfg.flag, test: cfg.test,
         days: days, threshold: threshold, pct: clamp(days / threshold, 0, 1.5),
         isResident: already, projectedFullYear: Math.round(prog > 0 ? days / prog : days),
@@ -80,20 +95,90 @@
       }
       return res;
     }
+    // Non-individual residency: a fact list instead of a day-count bar.
+    function qualitative(cfg) {
+      return {
+        kind: "qualitative",
+        country: cfg.country, flag: cfg.flag, test: cfg.test,
+        status: cfg.isResident ? "resident" : "safe", isResident: cfg.isResident,
+        headline: cfg.isResident
+          ? (cfg.worldwide === false ? "Resident (source basis) — foreign income not taxed here" : "Tax resident — worldwide income in scope")
+          : "Non-resident — this entity type has no day-count or presence test",
+        facts: cfg.facts || []
+      };
+    }
 
-    var residency = [
-      counter({
+    var E = model.entity || {};
+    var indiaKind = E.indiaKind || "individual";
+
+    var indiaEntry;
+    if (indiaKind === "individual") {
+      indiaEntry = counter({
+        country: "India", flag: "🇮🇳", test: "≥182 days in the FY",
+        days: model.residency.india.daysCurrentYear, threshold: 182, prog: progIN,
+        isResident: computed.residency.india.isResident, worldwide: computed.residency.india.worldwide, yearStart: fyStart
+      });
+    } else if (indiaKind === "company") {
+      var isIndianCo = model.residency.india.isIndianCompanyFact;
+      var cr = model.companyResidency || {};
+      var coFacts = [];
+      if (isIndianCo === true) {
+        coFacts.push("Incorporated in India — unconditionally resident regardless of POEM (s.6(3))");
+      } else if (isIndianCo === false) {
+        coFacts.push("NOT incorporated in India — residency turns on Place of Effective Management (POEM)");
+        coFacts.push(cr.boardMeetingsOutsideIndia ? "Board meets primarily outside India" : "Board meets primarily in India");
+        if (cr.keyManagementLocation) coFacts.push("Key management location: " + cr.keyManagementLocation);
+        if (cr.directorsInIndia || cr.directorsOutsideIndia) coFacts.push(cr.directorsInIndia + " director(s) in India, " + cr.directorsOutsideIndia + " outside");
+      } else {
+        coFacts.push("Incorporation status (Indian vs. foreign) not yet answered on Layer 1 India");
+      }
+      indiaEntry = qualitative({
+        country: "India", flag: "🇮🇳", test: isIndianCo === false ? "Place of Effective Management (POEM) — s.6(3)" : "Incorporation — s.6(3)",
+        isResident: computed.residency.india.isResident, worldwide: computed.residency.india.worldwide, facts: coFacts
+      });
+    } else {
+      // HUF / firm / LLP / local authority / trust / AOP / BOI / AJP /
+      // NGO / society / political party — s.6(2)/s.6(4): resident UNLESS
+      // control & management of its affairs is wholly outside India.
+      var wo = model.residency.india.indiaWhollyOutsideIndiaFact;
+      var nonIndFacts = [wo === true ? "Control & management of its affairs is wholly outside India" :
+        wo === false ? "Control & management is (at least partly) situated in India" :
+        "Control & management location not yet answered on Layer 1 India"];
+      // HUF-only wrinkle: once the HUF itself is resident, ROR-vs-RNOR
+      // sub-status still turns on the KARTA's OWN day-count history
+      // (s.6(6)(b)) — Layer 1 itself surfaces the individual day-count
+      // block in exactly this case (isHuf && wo === false), so this
+      // carries the same fact forward instead of silently dropping it.
+      if (indiaKind === "huf" && wo === false) {
+        nonIndFacts.push("Karta's own presence this FY (" + model.residency.india.daysCurrentYear + " days) still determines ROR vs. RNOR sub-status, separately from the HUF's own residency");
+      }
+      indiaEntry = qualitative({
+        country: "India", flag: "🇮🇳", test: "Control & management (s.6(2)/s.6(4)) — not day-count",
+        isResident: computed.residency.india.isResident, worldwide: computed.residency.india.worldwide, facts: nonIndFacts
+      });
+    }
+
+    var usEntry;
+    if (!E.usIsBusiness) {
+      usEntry = counter({
         country: "United States", flag: "🇺🇸", test: "Substantial Presence (≥183 weighted)",
         days: model.residency.us.daysCurrentYear, threshold: 183, prog: progUS,
         isResident: model.residency.us.sptMet || model.residency.us.isCitizen || model.residency.us.hasGreenCard,
         worldwide: computed.residency.us.worldwide, yearStart: cyStart
-      }),
-      counter({
-        country: "India", flag: "🇮🇳", test: "≥182 days in the FY",
-        days: model.residency.india.daysCurrentYear, threshold: 182, prog: progIN,
-        isResident: computed.residency.india.isResident, worldwide: computed.residency.india.worldwide, yearStart: fyStart
-      })
-    ];
+      });
+    } else {
+      var incUs = E.usIncorporatedInUs, incState = E.usIncorporationState;
+      var usFacts = [];
+      if (incUs === true) usFacts.push("Organized/incorporated in the United States" + (incState ? " (" + incState + ")" : "") + " — a domestic entity taxed on worldwide income regardless of where it operates");
+      else if (incUs === false) usFacts.push("NOT organized/incorporated in the United States — a foreign entity for US tax purposes (files Form 1120-F or the analogous foreign-entity return, not modeled here)");
+      else usFacts.push("Place of organization/incorporation not yet answered on Layer 1 US");
+      usEntry = qualitative({
+        country: "United States", flag: "🇺🇸", test: "Place of organization/incorporation — not a presence test",
+        isResident: incUs === true, worldwide: incUs === true, facts: usFacts
+      });
+    }
+
+    var residency = [usEntry, indiaEntry];
 
     // ================= 2. THRESHOLD BREACH PROJECTIONS =================
     var projections = computed.limits.map(function (g) {

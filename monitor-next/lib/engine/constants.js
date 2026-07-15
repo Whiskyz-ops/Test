@@ -389,11 +389,33 @@
         }
       },
       // ---- entity (business) corporate rates ----
+      // Domestic-company-only elections (s.115BA/115BAA/115BAB) and the
+      // domestic default schedule — a FOREIGN company (not incorporated in
+      // India, whether or not it's resident via POEM) is never eligible for
+      // any of these regardless of what's on file; see INDIA_COMPANY_FOREIGN
+      // below, verified 2026-07-15, re-check each Finance Act cycle.
       INDIA_COMPANY: {
+        RATE_115BAB: 0.15, SURCHARGE_115BAB: 0.10,   // domestic co, new manufacturing (s.115BAB)
         RATE_115BAA: 0.22, SURCHARGE_115BAA: 0.10,   // domestic co, no incentives
-        RATE_TURNOVER_LTE_400CR: 0.25,
+        RATE_115BA: 0.25,                            // domestic co, manufacturing (s.115BA) — flat, no turnover test
+        RATE_TURNOVER_LTE_400CR: 0.25,                // default (no election): turnover-gated
         RATE_DEFAULT: 0.30,
         SURCHARGE_OVER_1CR: 0.07, SURCHARGE_OVER_10CR: 0.12,
+        MAT_RATE: 0.15, CESS_RATE: 0.04
+      },
+      // Foreign company (not incorporated in India — POEM can still make it
+      // an Indian TAX RESIDENT, taxed on worldwide income, but incorporation
+      // alone controls which RATE schedule applies, not residency). Flat
+      // 35% (cut from 40% by the Finance Act 2025, effective this same
+      // AY2026-27 — verified 2026-07-15, re-check each Finance Act cycle),
+      // lower surcharge slabs than the domestic schedule, same 4% cess.
+      // s.115JB(4A)/(4C) MAT exemption applies when the company has no
+      // India PE (approximated here on that single fact — the fuller
+      // DTAA-residence/no-Companies-Act-registration distinction in the
+      // statute isn't modeled, same Phase-0-floor precision convention as
+      // the rest of this engine's MAT/AMT handling).
+      INDIA_COMPANY_FOREIGN: {
+        RATE: 0.35, SURCHARGE_OVER_1CR: 0.02, SURCHARGE_OVER_10CR: 0.05,
         MAT_RATE: 0.15, CESS_RATE: 0.04
       },
       INDIA_FIRM: { RATE: 0.30, SURCHARGE_OVER_1CR: 0.12, CESS_RATE: 0.04 }

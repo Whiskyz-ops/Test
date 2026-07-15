@@ -2,8 +2,23 @@
 import { Globe2, Settings } from "lucide-react";
 import { REGION_FILTERS, CLIENT } from "@/lib/mockData";
 
-export default function Header({ region, onRegionChange, clientName, baseYear }) {
+// entity_type (India) / resolved tax_entity_type (US) → a short, unambiguous
+// label — shown as its own badge pair so the taxpayer TYPE is visible on
+// every tab without digging into Residency/Business, and never confusable
+// with the client's name/period line next to it.
+const INDIA_ENTITY_LABEL = {
+  individual: "Individual", huf: "HUF", firm: "Firm", llp: "LLP", company: "Company",
+  trust: "Trust", ngo: "NGO", society: "Society", political_party: "Political Party",
+  aop: "AOP", boi: "BOI", ajp: "AJP", local: "Local Authority"
+};
+const US_ENTITY_LABEL = {
+  individual: "Individual", ccorp: "C-Corp", scorp: "S-Corp", partnership: "Partnership", trust: "Trust"
+};
+
+export default function Header({ region, onRegionChange, clientName, baseYear, entity }) {
   const period = baseYear ? `TY${baseYear}-${String(baseYear + 1).slice(2)} (India) / TY${baseYear} (US)` : CLIENT.period;
+  const indiaLabel = entity ? (INDIA_ENTITY_LABEL[entity.indiaKind] || entity.indiaKind) : null;
+  const usLabel = entity ? (US_ENTITY_LABEL[entity.usKind] || entity.usKind) : null;
   return (
     <div className="flex items-center justify-between gap-4 mb-5">
       <div className="flex items-center gap-3 min-w-0">
@@ -15,6 +30,12 @@ export default function Header({ region, onRegionChange, clientName, baseYear })
             <span className="font-semibold text-body">{clientName || CLIENT.name}</span> · {period}
           </p>
         </div>
+        {entity && (
+          <div className="hidden md:flex items-center gap-1.5 shrink-0 ml-1" title="Tax entity type — India / US">
+            <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-white/[0.04] border border-line text-body">🇮🇳 {indiaLabel}</span>
+            <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-white/[0.04] border border-line text-body">🇺🇸 {usLabel}</span>
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-2.5 shrink-0">
         <button className="w-10 h-10 rounded-2xl bg-surface border border-line text-muted hover:text-head hover:border-accent/40 flex items-center justify-center shadow-card" title="Settings"><Settings size={16} strokeWidth={2} /></button>

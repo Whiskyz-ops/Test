@@ -33,10 +33,16 @@ export const PAL = {
   seriesIN: "#12996a", seriesUS: "#3b82f6"
 };
 
-// Residency day-count fraction (physical-presence test).
+// Residency day-count fraction (physical-presence test) — or, for a
+// company/HUF/firm/entity taxpayer (no day-count test applies at all), the
+// qualitative resident/non-resident fact collapsed to 1/0 so classify()'s
+// "threshold crossed" check still means the right thing for an entity: IS
+// it resident, not "have enough days accrued" (a concept that doesn't
+// exist for it).
 export function residencyPct(r) {
   const d = r.residency || {};
-  return d.threshold ? d.days / d.threshold : 0;
+  if (!d.threshold) return d.isResident ? 1 : 0;
+  return d.days / d.threshold;
 }
 // Reporting-limit fraction (FBAR / LRS), if the region has one.
 export function reportingPct(r) {

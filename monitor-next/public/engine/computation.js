@@ -646,10 +646,47 @@
     var regime, rate, surRate, matApplied = false, preCess;
 
     if (E.indiaIsCompany) {
+      // Place of incorporation — NOT residency — controls which rate
+      // schedule applies. A foreign-incorporated company that's resident
+      // via POEM (worldwide income in scope, computed.residency.india
+      // already reflects that correctly) still uses the FOREIGN company
+      // schedule: s.115BA/115BAA/115BAB are domestic-incorporated-only
+      // elections, unavailable regardless of residency or what a demo
+      // profile might have set. Previously every company — domestic or
+      // foreign, resident or not — was taxed under the domestic schedule.
+      if (model.residency.india.isIndianCompanyFact === false) {
+        var FC = CONST.TAX.INDIA_COMPANY_FOREIGN;
+        rate = FC.RATE;
+        var baseTaxF = taxable * rate;
+        surRate = taxable > 100000000 ? FC.SURCHARGE_OVER_10CR : (taxable > 10000000 ? FC.SURCHARGE_OVER_1CR : 0);
+        var normalF = baseTaxF + baseTaxF * surRate;
+        // s.115JB(4A)/(4C): a foreign company with no India PE is exempt
+        // from MAT outright (approximated on that single fact — see
+        // constants.js note on the DTAA-residence nuance not modeled).
+        var hasIndiaPE = !!(model.treaty && model.treaty.hasPE);
+        var matBaseInrF = E.indiaMatBookProfitInr != null ? E.indiaMatBookProfitInr : taxable;
+        var matF = matBaseInrF * FC.MAT_RATE;
+        matApplied = hasIndiaPE && normalF < matF;
+        preCess = matApplied ? matF : normalF;
+        var cessF = preCess * FC.CESS_RATE;
+        regime = "Foreign Company ITR-6 (" + Math.round(rate * 100) + "%" + (matApplied ? ", MAT" : (hasIndiaPE ? "" : ", MAT-exempt (no India PE)")) + ")";
+        return entityResult(taxable, baseTaxF, preCess - baseTaxF, cessF, preCess + cessF, regime, matApplied);
+      }
       var C = CONST.TAX.INDIA_COMPANY;
-      rate = E.indiaOpt115baa ? C.RATE_115BAA : (E.indiaTurnoverLte400cr ? C.RATE_TURNOVER_LTE_400CR : C.RATE_DEFAULT);
+      // 115BAB (new manufacturing, 15%) and 115BA (manufacturing, 25% flat,
+      // no turnover test) were previously read only for the additional-
+      // depreciation disallowance check, never for the company's own rate —
+      // a company that elected either fell through to the default
+      // turnover-400cr/30% schedule instead of its actual elected rate.
+      rate = E.indiaOpt115bab ? C.RATE_115BAB : E.indiaOpt115baa ? C.RATE_115BAA :
+        E.indiaOpt115ba ? C.RATE_115BA : (E.indiaTurnoverLte400cr ? C.RATE_TURNOVER_LTE_400CR : C.RATE_DEFAULT);
       var baseTax = taxable * rate;
-      surRate = E.indiaOpt115baa ? C.SURCHARGE_115BAA : (taxable > 100000000 ? C.SURCHARGE_OVER_10CR : (taxable > 10000000 ? C.SURCHARGE_OVER_1CR : 0));
+      // Only 115BAA/115BAB get the flat 10% surcharge (and MAT exemption,
+      // s.115JB(5A)) — 115BA and the no-election default both use the
+      // general income-tiered surcharge scale and remain MAT-subject.
+      var concessional115 = E.indiaOpt115bab || E.indiaOpt115baa;
+      surRate = concessional115 ? (E.indiaOpt115bab ? C.SURCHARGE_115BAB : C.SURCHARGE_115BAA) :
+        (taxable > 100000000 ? C.SURCHARGE_OVER_10CR : (taxable > 10000000 ? C.SURCHARGE_OVER_1CR : 0));
       var normal = baseTax + baseTax * surRate;
       // MAT floor: use the real Schedule III book profit (s.115JB) when
       // Layer 1 India actually collected one (div-prof-mat-profit) — only
@@ -658,10 +695,12 @@
       // (book depreciation/provisions vs. the Act's own add-backs).
       var matBaseInr = E.indiaMatBookProfitInr != null ? E.indiaMatBookProfitInr : taxable;
       var mat = matBaseInr * C.MAT_RATE;
-      matApplied = !E.indiaOpt115baa && normal < mat;
+      matApplied = !concessional115 && normal < mat;
       preCess = matApplied ? mat : normal;
       var cessC = preCess * C.CESS_RATE;
-      regime = "Corporate ITR-6 (" + Math.round(rate * 100) + "%" + (E.indiaOpt115baa ? " §200" : "") + (matApplied ? ", MAT" : "") + ")";
+      regime = "Corporate ITR-6 (" + Math.round(rate * 100) + "%" +
+        (E.indiaOpt115bab ? " §115BAB" : E.indiaOpt115baa ? " §200" : E.indiaOpt115ba ? " §115BA" : "") +
+        (matApplied ? ", MAT" : "") + ")";
       return entityResult(taxable, baseTax, preCess - baseTax, cessC, preCess + cessC, regime, matApplied);
     }
     // firm / LLP
