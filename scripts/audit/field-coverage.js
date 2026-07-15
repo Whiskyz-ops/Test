@@ -78,6 +78,28 @@ function extractBalancedObjectLiteral(src, declRe) {
   return src.slice(start, i);
 }
 
+// router.html's object literal is a flat, LIVE-COMPUTED object (each value is
+// an inline `document.getElementById(...).value` read, not a literal
+// default) — vm-evaluating it would need a full DOM/document stub for
+// marginal benefit, since all that's actually needed here is the flat list
+// of top-level key names. Regex-extract those directly instead.
+function loadFlatKeysOnly(htmlFile, declRe, varName) {
+  const file = path.join(repoRoot, htmlFile);
+  const html = fs.readFileSync(file, "utf8");
+  const literal = extractBalancedObjectLiteral(html, declRe);
+  if (!literal) {
+    console.error(`Could not locate ${varName} object literal in ${htmlFile}`);
+    return null;
+  }
+  const keys = [];
+  const keyRe = /(?:^|[{,])\s*(\w+)\s*:/g;
+  let km;
+  while ((km = keyRe.exec(literal)) !== null) keys.push(km[1]);
+  const obj = {};
+  keys.forEach((k) => { obj[k] = null; });
+  return obj;
+}
+
 function loadFormSchema(htmlFile, declRe, varName) {
   const file = path.join(repoRoot, htmlFile);
   const html = fs.readFileSync(file, "utf8");
@@ -168,18 +190,25 @@ const engineReads = extractEngineReads();
 
 const indiaSchema = loadFormSchema("layer1_india.html", /const\s+state\s*=\s*\{/, "state");
 const usSchema = loadFormSchema("layer1_us.html", /const\s+usState\s*=\s*\{/, "usState");
+// router.html (Layer 0) is much smaller — a single flat object literal built
+// inline in saveRouter(), not a declared template — but it's a real source
+// of engine-read fields (base_tax_year, jurisdiction, us_days, ...) and was
+// previously excluded from this audit entirely.
+const routerSchema = loadFlatKeysOnly("router.html", /var\s+r\s*=\s*\{/, "r");
 
 const indiaLeaves = [];
 if (indiaSchema) flattenLeaves(indiaSchema, "", indiaLeaves);
 const usLeaves = [];
 if (usSchema) flattenLeaves(usSchema, "", usLeaves);
+const routerLeaves = [];
+if (routerSchema) flattenLeaves(routerSchema, "", routerLeaves);
 
 // normalize.js reads both india and us through several different root
 // variables (india/us directly, or di/os/ui/it/... aliases assigned partway
 // down) — since suffix matching doesn't need to know which, run every
-// engine read against BOTH form schemas' leaves combined and report which
+// engine read against ALL THREE forms' leaves combined and report which
 // side(s) matched, rather than trying to statically resolve each alias.
-const allLeaves = indiaLeaves.concat(usLeaves);
+const allLeaves = indiaLeaves.concat(usLeaves, routerLeaves);
 const result = diff(engineReads, allLeaves);
 
 // The static schema literal only captures fields declared in the initial
@@ -192,10 +221,11 @@ const result = diff(engineReads, allLeaves);
 // the high-confidence bucket instead of misreporting them as mismatches.
 const indiaHtml = fs.readFileSync(path.join(repoRoot, "layer1_india.html"), "utf8");
 const usHtml = fs.readFileSync(path.join(repoRoot, "layer1_us.html"), "utf8");
+const routerHtml = fs.readFileSync(path.join(repoRoot, "router.html"), "utf8");
 function seenAsAssignmentAnywhere(fieldName) {
   const escaped = fieldName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const re = new RegExp("[.\\[\"']" + escaped + "[\"'\\]]?\\s*[:=]", "");
-  return re.test(indiaHtml) || re.test(usHtml);
+  return re.test(indiaHtml) || re.test(usHtml) || re.test(routerHtml);
 }
 const trulyUnmatched = [], dynamicallyAssigned = [];
 result.unmatchedReads.forEach((r) => {
@@ -206,11 +236,11 @@ result.unmatchedReads = trulyUnmatched;
 result.dynamicallyAssigned = dynamicallyAssigned;
 
 console.log("=".repeat(78));
-console.log("Field coverage diff — engine/normalize.js  vs  layer1_india.html + layer1_us.html");
+console.log("Field coverage diff — engine/normalize.js  vs  router.html + layer1_india.html + layer1_us.html");
 console.log("=".repeat(78));
 console.log(`Engine read paths (safe() calls): ${engineReads.length}`);
-console.log(`India form leaf paths: ${indiaLeaves.length}   US form leaf paths: ${usLeaves.length}`);
-console.log(`Matched (engine path found somewhere in either form's static schema): ${result.matchedReads.length}`);
+console.log(`Router (Layer 0) leaf paths: ${routerLeaves.length}   India form leaf paths: ${indiaLeaves.length}   US form leaf paths: ${usLeaves.length}`);
+console.log(`Matched (engine path found somewhere in any of the three forms' static schema): ${result.matchedReads.length}`);
 console.log(`Reclassified — path absent from the static schema but the field name appears as an assignment elsewhere (dynamically assigned, likely fine): ${result.dynamicallyAssigned.length}`);
 console.log(`UNMATCHED (engine reads a path/field name found NOWHERE in either form — check for a rename/typo): ${result.unmatchedReads.length}`);
 console.log(`Form leaves with no matching engine read at all: ${result.unreadLeaves.length}`);

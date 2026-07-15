@@ -20,7 +20,7 @@
  *
  * Usage:
  *   node scripts/audit/dom-handler-coverage.js [file.html ...]
- *   (defaults to layer1_india.html and layer1_us.html at the repo root)
+ *   (defaults to router.html, layer1_india.html, and layer1_us.html at the repo root)
  * ==========================================================================*/
 "use strict";
 const fs = require("fs");
@@ -29,7 +29,7 @@ const path = require("path");
 const repoRoot = path.join(__dirname, "..", "..");
 const targets = process.argv.slice(2).length
   ? process.argv.slice(2)
-  : ["layer1_india.html", "layer1_us.html"];
+  : ["router.html", "layer1_india.html", "layer1_us.html"];
 
 // Element kinds that represent actual user data entry — buttons/hidden
 // fields/file-upload triggers are excluded (this repo's uploads are mocked
@@ -109,8 +109,14 @@ function hasIdEventListenerElsewhere(html, id) {
   const getRe = new RegExp("getElementById\\(['\"]" + escaped + "['\"]\\)", "gi");
   let gm;
   while ((gm = getRe.exec(html)) !== null) {
-    const after = html.slice(gm.index, gm.index + 500);
-    if (/saveStateAndSync\s*\(|updateStateField\s*\(|recalculateDerivedFields\s*\(/.test(after)) return true;
+    // Widen the window past 500 chars for this specific check: router.html's
+    // saveRouter() builds an entire ~10-field object literal (each field its
+    // own getElementById(...).value line) before the single localStorage.
+    // setItem() call at the end — the persistence call can be 700-900 chars
+    // past the FIRST field's getElementById, well outside the narrower window
+    // used for the other layer1-form-specific helper calls below.
+    const after = html.slice(gm.index, gm.index + 1200);
+    if (/saveStateAndSync\s*\(|updateStateField\s*\(|recalculateDerivedFields\s*\(|localStorage\.setItem\s*\(/.test(after)) return true;
   }
   return false;
 }
