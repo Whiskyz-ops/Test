@@ -183,10 +183,20 @@
   // before it's saved — this exists for state that bypassed that check
   // (hand-authored profiles, imports).
   function presumptiveResidencyEligible(india) {
-    var ror = safe(india, "residency_detail.final_india_residency_status", null) === "ROR";
+    var status = safe(india, "residency_detail.final_india_residency_status", null);
+    var ror = status === "ROR";
     var entity = safe(india, "profile.entity_type", null) || safe(india, "domestic_income.business_income.entity_type", "individual");
-    var eligible44AD = ror && ["llp", "company", "aop", "trust", "local", "coop", "ajp"].indexOf(entity) < 0;
-    return { eligible44AD: eligible44AD, eligible44ADA: eligible44AD && entity !== "huf" };
+    var entityExcluded44AD = ["llp", "company", "aop", "trust", "local", "coop", "ajp"].indexOf(entity) >= 0;
+    var eligible44AD = ror && !entityExcluded44AD;
+    // Facts kept alongside the two booleans so a trace can state the ACTUAL
+    // reason for THIS taxpayer precisely (e.g. "this taxpayer is NR") rather
+    // than a vague "residency status or entity type" that names both
+    // possible reasons without saying which one applies.
+    return {
+      eligible44AD: eligible44AD, eligible44ADA: eligible44AD && entity !== "huf",
+      indiaStatus: status, entityType: entity,
+      rorFails: !ror, entity44ADExcluded: entityExcluded44AD, entity44ADAExcluded: entity === "huf"
+    };
   }
 
   // s.32 block-of-assets WDV rates — matched exactly to layer1_india.html's
@@ -461,7 +471,10 @@
         ], PRESUMPTIVE_CEILING_CITATION);
       }
       if (!eligibility.eligible44AD) {
-        ceilingNote = "s.44AD is only available to Resident & Ordinarily Resident (ROR) individuals/HUFs and eligible firms — this taxpayer's residency status or entity type doesn't qualify, so the presumptive election is invalid and regular books apply instead:";
+        var why44AD = eligibility.rorFails
+          ? "this taxpayer's India residency status is " + (eligibility.indiaStatus || "not on file") + ", not Resident & Ordinarily Resident (ROR)"
+          : "this taxpayer's entity type (" + eligibility.entityType + ") is one s.44AD excludes (firms/LLPs/companies/AOPs/trusts/local authorities/co-ops)";
+        ceilingNote = "s.44AD is only available to Resident & Ordinarily Resident (ROR) individuals/HUFs and eligible firms — " + why44AD + ", so the presumptive election is invalid and regular books apply instead:";
         ceilingCitation = PRESUMPTIVE_RESIDENCY_CITATION;
       } else {
         ceilingNote = "Total receipts (₹" + Math.round(dig44AD + csh44AD).toLocaleString("en-IN") + ") exceed the s.44AD turnover ceiling for this cash-receipts mix (₹" + Math.round(ceiling44AD).toLocaleString("en-IN") + ") — the presumptive election is invalid above this, so regular books apply instead:";
@@ -478,7 +491,10 @@
         ], PRESUMPTIVE_CEILING_CITATION);
       }
       if (!eligibility.eligible44ADA) {
-        ceilingNote = "s.44ADA is only available to Resident & Ordinarily Resident (ROR) individuals — this taxpayer's residency status or entity type (e.g. HUF) doesn't qualify, so the presumptive election is invalid and regular books apply instead:";
+        var why44ADA = eligibility.rorFails
+          ? "this taxpayer's India residency status is " + (eligibility.indiaStatus || "not on file") + ", not Resident & Ordinarily Resident (ROR)"
+          : "this taxpayer's entity type is HUF, which s.44ADA excludes";
+        ceilingNote = "s.44ADA is only available to Resident & Ordinarily Resident (ROR) individuals — " + why44ADA + ", so the presumptive election is invalid and regular books apply instead:";
         ceilingCitation = PRESUMPTIVE_RESIDENCY_CITATION;
       } else {
         ceilingNote = "Gross receipts (₹" + Math.round(adaReceipts).toLocaleString("en-IN") + ") exceed the s.44ADA turnover ceiling for this cash-receipts mix (₹" + Math.round(ceiling44ADA).toLocaleString("en-IN") + ") — the presumptive election is invalid above this, so regular books apply instead:";
@@ -517,6 +533,12 @@
     if (num(depreciationInr) > 0) {
       parts.push({ label: "Less: current-year depreciation (s.32, asset blocks)", amount: -num(depreciationInr) });
     }
+    // Closing total — summed from the parts above (never independently
+    // recomputed) so it can never drift from what's actually itemized, and
+    // the reader isn't left to mentally add a list of Less:/Add back: rows
+    // to find the number already shown at the top of this card.
+    var netProfitInr = parts.reduce(function (s, p) { return s + (p.amount || 0); }, 0);
+    parts.push({ label: "Net profit (this entry)", amount: netProfitInr });
     var formula = ceilingNote || "Regular books: gross receipts/turnover less the itemized deductible expenses on file, less statutory disallowances (s.40A(3)/40(a)/43B(h)) already included in those expenses, less current-year depreciation (s.32 WDV method + s.32(1)(iia) additional depreciation). F&O-specific costs and s.35/35D/35DDA amortization aren't modeled yet (Phase 1 follow-on — see gap tracker IN-22/26), so this is still a floor, not the final figure.";
     return calc(formula, parts, ceilingCitation);
   }
@@ -544,6 +566,14 @@
     // aggregate business income negative into this year's unabsorbed-
     // depreciation pool (s.32(2)) rather than silently going nowhere.
     var businessDepreciationInr = 0;
+    // ITR-4 (SUGAM) eligibility (Phase: ITR solver) needs to know, across
+    // ALL entries, whether ANY entry is genuinely regular-books and whether
+    // ANY entry is a genuinely valid presumptive election — a taxpayer with
+    // even one regular-books entry can never use ITR-4, no matter how many
+    // other entries validly use a presumptive scheme. A hand-injected
+    // net_profit_inr entry (bypasses computation entirely) is conservatively
+    // treated as regular-books, since there's no way to know its real basis.
+    var indiaHasRegularBooksEntry = false, indiaHasValidPresumptiveEntry = false;
     (bizEntries || []).forEach(function (b, idx) {
       // net_profit_inr/net_profit are honored first ONLY because hand-authored
       // demo profiles (engine/profiles.js) inject them directly, bypassing the
@@ -552,10 +582,13 @@
       var netProfitInr = b.net_profit_inr || b.net_profit;
       if (netProfitInr === undefined || netProfitInr === null) {
         var isRegularBooks = usesRegularBooksInr(b, bizEligibility);
+        if (isRegularBooks) indiaHasRegularBooksEntry = true; else indiaHasValidPresumptiveEntry = true;
         var entryDepreciationInr = isRegularBooks ? aggregateEntryDepreciationInr(idx, bizAssetBlocks, india, b) : 0;
         var entryDisallowancesInr = isRegularBooks ? aggregateEntryDisallowancesInr(idx, b.expenses || {}, bizMsmePayables) : 0;
         netProfitInr = computeBusinessEntryNetProfitInr(b, bizEligibility, entryDepreciationInr, entryDisallowancesInr);
         businessDepreciationInr += entryDepreciationInr;
+      } else {
+        indiaHasRegularBooksEntry = true;
       }
       business = addMoney(business, moneyFromInr(num(netProfitInr)));
     });
@@ -592,11 +625,29 @@
     // profit_share_exempt_inr is genuinely exempt (already taxed at the
     // firm level under s.10(2A)) — deliberately excluded from `business`,
     // shown only for reconciliation via the Business tab trace.
+    //
+    // indiaHasPartnerFirmIncome feeds the ITR solver: Layer 1's OWN
+    // evaluateITRForm() checks a DIFFERENT pair of fields for this
+    // (business_income.partner_remuneration_inr / partner_interest_inr,
+    // singular) that are never written by any real UI control anywhere in
+    // layer1_india.html — genuinely dead, always false. This reads the
+    // actual live array instead.
+    var indiaHasPartnerFirmIncome = false;
     (safe(di, "business_income.partner_firms", []) || []).forEach(function (firm) {
-      business = addMoney(business, moneyFromInr(num(firm.remuneration_from_entity_inr) + num(firm.interest_on_capital_from_entity_inr)));
+      var firmIncomeInr = num(firm.remuneration_from_entity_inr) + num(firm.interest_on_capital_from_entity_inr);
+      if (firmIncomeInr !== 0) indiaHasPartnerFirmIncome = true;
+      business = addMoney(business, moneyFromInr(firmIncomeInr));
     });
 
+    // Agricultural income (domestic_income.agricultural_income_inr) — used
+    // only for the ITR-1/4 >₹5,000 disqualifier below; not otherwise taxed
+    // by this engine (agricultural income is exempt under s.10(1), only
+    // relevant for the partial-integration rate-on-other-income mechanism,
+    // which is a separate, unmodeled computation).
+    var agriculturalIncomeInr = num(safe(di, "agricultural_income_inr", 0));
+
     var hpProps = safe(di, "house_property.properties", []);
+    var housePropertyCount = (hpProps || []).length;
     var houseProperty = zeroMoney();
     (hpProps || []).forEach(function (p) {
       // gross_annual_value_inr is what Layer 1 India's own "Gross Annual
@@ -1157,7 +1208,12 @@
                  moneyFromInr(chapterXiiaInvestmentIncomeInr), otherSourcesMisc].reduce(addMoney, zeroMoney());
 
     return {
-      salary: salary, business: business, businessDepreciationInr: businessDepreciationInr, speculativeIncomeInr: speculativeIncomeInr, houseProperty: houseProperty,
+      salary: salary, business: business, businessDepreciationInr: businessDepreciationInr,
+      businessFnoIncomeInr: fnoIncomeInr, speculativeIncomeInr: speculativeIncomeInr,
+      housePropertyCount: housePropertyCount, agriculturalIncomeInr: agriculturalIncomeInr,
+      indiaHasRegularBooksEntry: indiaHasRegularBooksEntry, indiaHasValidPresumptiveEntry: indiaHasValidPresumptiveEntry,
+      indiaHasPartnerFirmIncome: indiaHasPartnerFirmIncome,
+      houseProperty: houseProperty,
       interest: interest, dividend: dividend, otherSourcesMisc: otherSourcesMisc,
       stcg: stcg, ltcg: ltcg, ltcg197Inr: ltcg197Inr,
       capitalGains: addMoney(addMoney(stcg, ltcg), moneyFromInr(ltcg197Inr)),
@@ -1743,8 +1799,21 @@
           indiaIsCompany: indiaIsCompany, indiaIsFirm: indiaIsFirm,
           indiaOpt115baa: safe(india, "profile.opt_115baa", false) === true,
           indiaTurnoverLte400cr: safe(india, "profile.turnover_lte_400cr", false) === true,
+          indiaIsSection8: safe(india, "profile.is_section_8", false) === true,
+          // Layer 1 India's evaluateITRForm() checks this field to detect an
+          // ITR-1-disqualifying directorship, but NO input anywhere in
+          // layer1_india.html ever writes it — genuinely uncapturable today,
+          // not merely unset. Read defensively (in case a future Layer 1
+          // version adds the control) but never assume it's false in a way
+          // that hides a real answer — computeIndiaItrForm documents this
+          // explicitly wherever it matters instead of asserting non-director.
+          isCompanyDirector: safe(india, "profile.is_company_director", false) === true,
           usIsBusiness: usIsBusiness,
           isBusiness: indiaIsCompany || indiaIsFirm || usIsBusiness,
+          // Layer 1's OWN persisted recommendation (itr_recommendation.form),
+          // when it ran — kept for the backend solver (computed.indiaItrForm)
+          // to cross-check against, NOT trusted as the primary answer (see
+          // docs/GAP_TRACKER.md and the ITR solver in computation.js).
           indiaReturnForm: indiaReturnForm,
           indiaReturnFormIsRecommendation: !!indiaLayer1Itr,
           indiaReturnFormExplanation: indiaLayer1Itr ? safe(india, "itr_recommendation.explanation", null) : null,
@@ -1851,6 +1920,12 @@
       // finding: the two intake forms can flatly disagree about whether
       // foreign assets exist).
       indiaForeignAssetsDeclared: safe(india, "foreign_assets.has_foreign_assets", null),
+      // Same pattern as indiaForeignAssetsDeclared, for the ITR-1/4
+      // foreign-income disqualifier — a separate raw toggle from foreign
+      // ASSETS, and from the US-side income entirely (a taxpayer can have
+      // zero US presence and still hold non-US foreign income/assets India
+      // needs to know about).
+      indiaForeignIncomeDeclared: safe(india, "foreign_income.has_foreign_income", null),
       // Carry-forward losses — WISING now actually sequences the set-off
       // against current-year income (see computeLossSetOff in computation.js)
       // rather than only flagging that they exist. Layer 1 already resolves
@@ -1975,16 +2050,18 @@
               ? aggregateEntryDisallowancesInr(bIdx, b.expenses || {}, bizMsmePayablesForTrace) : 0;
             if (netProfitInr === undefined || netProfitInr === null) netProfitInr = computeBusinessEntryNetProfitInr(b, bizEligibility, entryDepreciationInrForTrace, entryDisallowancesInrForTrace);
             netProfitInr = num(netProfitInr);
-            // Same resolved form as entity.indiaReturnForm — Layer 1's real
-            // eligibility check when it ran, else a business-aware crude
-            // guess (never "ITR-2", since ITR-2 can't carry PGBP income at
-            // all — a presumptive entry defaults to ITR-4, everything else
-            // to ITR-3, both still labeled as a guess pending the real check).
-            var entryReturnForm = indiaLayer1Itr ? indiaReturnForm :
-              (indiaIsCompanyOrFirm ? indiaReturnFormCrude :
-                (["s44AD", "s44ADA", "s44AE"].indexOf(b.presumptive_scheme) >= 0
-                  ? "ITR-4 (Sugam) if eligible, else ITR-3 — presumptive scheme"
-                  : "ITR-3 — regular books"));
+            // A company/firm entity files ITR-5/6 regardless of any
+            // individual-scheme eligibility question, so that's definitive
+            // already. For an individual/HUF, state a FACT about THIS entry
+            // (already verified via usesRegularBooksInr just above — not a
+            // guess) rather than hedging with "if eligible, else": an
+            // individual/HUF doesn't file a different ITR per business, so
+            // the taxpayer-level checked answer lives on the Filings →
+            // Return Form card (computed.indiaItrForm), not re-derived here.
+            var entryReturnForm = indiaIsCompanyOrFirm ? indiaReturnFormCrude :
+              (isRegularBooksForTrace
+                ? "Regular books (this entry) — feeds the taxpayer's overall return form; see Filings → Return Form for the checked ITR"
+                : "Valid presumptive election (this entry) — feeds the taxpayer's overall return form; see Filings → Return Form for the checked ITR");
             list.push({ country: "IN", type: "Business / Profession (PGBP)", name: b.business_name || b.trade_name || b.name || "Indian business", incomeUsd: inrToUsd(netProfitInr), inr: netProfitInr,
               filesOwnReturn: indiaIsCompanyOrFirm, returnForm: entryReturnForm,
               calcTrace: businessEntryIncomeTrace(b, bizEligibility, entryDepreciationInrForTrace, entryDisallowancesInrForTrace) });

@@ -200,7 +200,19 @@
       // equity grant across the move, exercised the same year as the US-side
       // ISO grant → equity_comp_sourcing (both countries taxing the same
       // multi-year award independently, no day-count allocation).
-      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 1800000, esop_perquisite_events: [{ employer_name: "Infosys Ltd", grant_date: "2021-06-01", vesting_or_exercise_date: "2026-06-01", shares: 400, fmv_per_share_inr: 1800, exercise_price_per_share_inr: 300, perquisite_value_inr: 600000 }] }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 420000 }] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: { short_term_15_pct: 250000 } },
+      // Small side freelance-development income alongside the W-2 job —
+      // deliberately regular books (presumptive_scheme: null, not just
+      // omitted), NOT a demo of the presumptive schemes — exercises Phase 1
+      // depreciation on a real ROR-eligible individual (contrast Rohan
+      // Mehta's NR-forced fallthrough and Sharma HUF's entity-type
+      // exclusion below — three different reasons an entry lands on
+      // regular books).
+      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 1800000, esop_perquisite_events: [{ employer_name: "Infosys Ltd", grant_date: "2021-06-01", vesting_or_exercise_date: "2026-06-01", shares: 400, fmv_per_share_inr: 1800, exercise_price_per_share_inr: 300, perquisite_value_inr: 600000 }] }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 420000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [
+        { business_name: "Sharma Freelance Dev", nature: "software consulting", presumptive_scheme: null, gross_receipts_inr: 900000,
+          expenses: { rent_for_business_premises_inr: 60000, other_business_expenses_inr: 40000 } }
+      ], asset_blocks: [
+        { unit_biz_idx: 0, unit_branch_idx: null, asset_class: "plant_machinery_computers", opening_wdv_inr: 80000, additions_during_year_inr: 0, addition_date: null, sale_consideration_inr: 0, is_new_manufacturing_asset: false }
+      ] }, capital_gains: { short_term_15_pct: 250000 } },
       // taxable_epf_interest_inr now actually lands in the US income
       // computation (folded into foreign-source interest), not just this
       // finding's display text.
@@ -405,7 +417,16 @@
         }
       ] },
       foreign_assets: { has_foreign_assets: true, assets: [{ country: "US", type: "brokerage", value_inr: 6800000 }, { country: "US", type: "real_estate", value_inr: 12000000 }] },
-      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 3600000 }, house_property: { has_house_property_income: false, properties: [] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
+      // Small side consulting practice alongside the salaried role —
+      // regular books (Phase 1 depreciation on a second ROR-eligible
+      // profile, different asset class than Aarav's — a furnished home
+      // office, General P&M — for coverage diversity).
+      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 3600000 }, house_property: { has_house_property_income: false, properties: [] }, business_income: { has_business_or_fo_income: true, business_entries: [
+        { business_name: "Desai Advisory", nature: "management consulting", presumptive_scheme: null, gross_receipts_inr: 700000,
+          expenses: { other_business_expenses_inr: 50000, ca_professional_fees_inr: 15000 } }
+      ], asset_blocks: [
+        { unit_biz_idx: 0, unit_branch_idx: null, asset_class: "plant_machinery_general", opening_wdv_inr: 150000, additions_during_year_inr: 0, addition_date: null, sale_consideration_inr: 0, is_new_manufacturing_asset: false }
+      ] }, capital_gains: {} },
       // LTCG well above the s.198 exemption threshold — exercises the fix
       // where totalIncomeInr now correctly excludes the exempt slice instead
       // of counting the full gross gain.
@@ -780,7 +801,18 @@
           sale_date: "2026-08-01", sale_value: 1200000, sale_currency: "INR", transfer_expenses: 0
         }
       ] },
-      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 300000 }] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
+      // Family kirana (general store) trading business — deliberately
+      // ELECTS s.44ADA (presumptive_scheme set), but HUFs are specifically
+      // excluded from s.44ADA (entity44ADAExcluded, not rorFails — a
+      // genuinely different ineligibility reason than Rohan Mehta's NR
+      // exclusion) — the election is invalid and falls through to regular
+      // books, exercising that exact branch of the trace message fix.
+      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 300000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [
+        { business_name: "Sharma Kirana Store", nature: "general trading", presumptive_scheme: "s44ADA", gross_receipts_inr: 1200000,
+          expenses: { rent_for_business_premises_inr: 100000, employee_salary_wages_inr: 180000, other_business_expenses_inr: 60000 } }
+      ], asset_blocks: [
+        { unit_biz_idx: 0, unit_branch_idx: null, asset_class: "building_commercial", opening_wdv_inr: 400000, additions_during_year_inr: 0, addition_date: null, sale_consideration_inr: 0, is_new_manufacturing_asset: false }
+      ] }, capital_gains: {} },
       other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 350000 },
       deductions: {},
       // A prior-year business loss and STCG loss on file, but the HUF has no

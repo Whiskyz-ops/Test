@@ -1002,6 +1002,30 @@
         0, ["Schedule FA", "Black Money Act"]);
     }
 
+    // -- 10b. ITR FORM MISMATCH — WISING's independent backend computation
+    // vs Layer 1 India's own persisted recommendation (itr_recommendation.form,
+    // when it ran). computeIndiaItrForm is the authoritative answer here
+    // (see its own header comment for the concrete bugs found in Layer 1's
+    // frontend calculator that motivate not trusting it alone) — a
+    // disagreement is worth surfacing rather than silently picking one,
+    // since it usually points to stale Layer 1 state or a real data gap.
+    if (computed.indiaItrForm && computed.indiaItrForm.matchesFrontend === false) {
+      var itrM = computed.indiaItrForm;
+      add("india_itr_form_mismatch", S.WARNING, C.DOCUMENT,
+        "ITR form disagreement: WISING computes " + itrM.form + ", Layer 1 says " + itrM.frontendForm,
+        "WISING's own independent eligibility check (income thresholds, residency, capital gains, foreign assets/income, " +
+        "crypto, house-property count, brought-forward losses, speculative/F&O income) computes " + itrM.form +
+        ". Layer 1 India's own recommendation, last computed client-side, was " + itrM.frontendForm +
+        " (\"" + (itrM.frontendExplanation || "no explanation on file") + "\"). Common causes: Layer 1's client-side check ran " +
+        "before a later edit (its recommendation is only recomputed when the eligibility function re-runs, not on every " +
+        "field change), or a genuine difference in what each side reads (see computeIndiaItrForm's header comment for three " +
+        "confirmed Layer 1 field bugs this backend check deliberately doesn't inherit).",
+        "Trust WISING's " + itrM.form + " unless you can identify a specific reason Layer 1's client-side check is right and " +
+        "this backend computation is wrong — re-running Layer 1's eligibility check (revisit the Review/Summary step) after " +
+        "any income or residency edit is the most common fix.",
+        0, ["ITR eligibility", itrM.form, itrM.frontendForm]);
+    }
+
     // -- 10b. FOREIGN GIFTS / TRUSTS — FORM 3520 PENALTY EXPOSURE -----------
     // No tax is due on a foreign gift itself, which is exactly why this gets
     // missed: Form 3520 Part IV reporting is required once gifts from a
@@ -2092,23 +2116,47 @@
 
   /* ------------------------------------------------------------------------
    * buildReturnFormDetermination — surfaces WHICH return form applies and
-   * WHY, for both sides, on the Filings page. entity.indiaReturnForm/
-   * usReturnForm already carry the resolved values (normalize.js); this
-   * just builds the click-to-expand trace, with a dated citation on the
-   * India side since that value came from an external rule verification
-   * (CBDT's notified AY 2026-27 forms) rather than pure internal math.
+   * WHY, for both sides, on the Filings page.
+   *
+   * India side: computed.indiaItrForm (computeIndiaItrForm in computation.js)
+   * is now the AUTHORITATIVE answer — a real, independent backend
+   * computation from verified-reliable model/computed fields, run
+   * unconditionally for every profile. Layer 1's own persisted
+   * itr_recommendation.form (when present) is shown as a cross-check, not
+   * trusted as the primary source — see computeIndiaItrForm's own comment
+   * for the three concrete, verified bugs in Layer 1's frontend calculator
+   * that motivate not trusting it alone (a desyncable "setup wizard"
+   * checkbox, two dead partner-income fields, and an uncapturable
+   * directorship field).
    * ----------------------------------------------------------------------*/
-  function buildReturnFormDetermination(model) {
+  function buildReturnFormDetermination(model, computed) {
     var E = model.entity;
     var CBDT_CITATION = "CBDT notified the AY 2026-27 ITR forms 2026-03-30 (corrigendum 2026-04-10). Eligibility rules verified against that notification 2026-07-12 — re-check each filing season, since CBDT re-notifies forms (and sometimes changes eligibility) annually.";
+    var itr = computed.indiaItrForm;
 
-    var indiaTrace = E.indiaReturnFormIsRecommendation
-      ? source(
-          (E.indiaReturnFormExplanation || "Determined by Layer 1 India's full eligibility check (income thresholds, residency, capital gains, foreign assets/income, directorship, crypto, multiple house properties, brought-forward losses, speculative/F&O income).") ,
-          CBDT_CITATION)
-      : source(
-          "Layer 1 India hasn't produced a full eligibility recommendation for this profile yet, so this is the crude entity-type-only fallback (" + E.indiaReturnForm + "), not a checked recommendation. Complete Layer 1 India's income, residency and capital-gains sections to get the real 7-form determination.",
-          E.indiaIsCompany || E.indiaIsFirm ? CBDT_CITATION : null);
+    var reasonsSuffix = (itr && itr.disqualifiers.length) ? " Reasons: " + itr.disqualifiers.join("; ") + "." : "";
+    var indiaTrace;
+    if (!itr) {
+      indiaTrace = source("No India-side data on file.", null);
+    } else if (itr.frontendForm == null) {
+      indiaTrace = source(
+        (itr.explanation || "Backend-computed eligibility check.") + reasonsSuffix +
+        " Layer 1 India hasn't produced its own recommendation for this profile (itr_recommendation.form is unset) — this is WISING's own independent computation, run unconditionally, not a hedge pending the frontend.",
+        CBDT_CITATION);
+    } else if (itr.matchesFrontend) {
+      indiaTrace = source(
+        (itr.explanation || "") + reasonsSuffix + " Cross-checked against Layer 1 India's own recommendation (" + itr.frontendForm + ") — they agree.",
+        CBDT_CITATION);
+    } else {
+      // Disagreement between WISING's independent computation and Layer 1's
+      // own persisted verdict — surfaced here AND as a real finding
+      // (india_itr_form_mismatch in detectConflicts) rather than silently
+      // picking one.
+      indiaTrace = source(
+        "WISING computes " + itr.form + "; Layer 1 India's own recommendation was " + itr.frontendForm +
+        " (\"" + (itr.frontendExplanation || "no explanation on file") + "\"). They disagree — see the india_itr_form_mismatch finding for likely causes." + reasonsSuffix,
+        CBDT_CITATION);
+    }
 
     var usDetail =
       E.usReturnForm === "1120" ? "C-Corp: entity-level return, taxed at 21% flat." :
@@ -2120,7 +2168,15 @@
     var usTrace = source(usDetail, "IRS form-per-entity-type/residency-status mapping, verified 2026-07-12.");
 
     return {
-      india: { form: E.indiaReturnForm, isRecommendation: E.indiaReturnFormIsRecommendation, trace: indiaTrace },
+      india: {
+        form: itr ? itr.form : E.indiaReturnForm,
+        // "isRecommendation" now means "a real, checked computation" —
+        // true unconditionally whenever India data exists, since
+        // computeIndiaItrForm always runs (no more crude fallback).
+        isRecommendation: !!itr,
+        matchesFrontend: itr ? itr.matchesFrontend : null,
+        trace: indiaTrace
+      },
       us: { form: E.usReturnForm, trace: usTrace }
     };
   }
@@ -2153,7 +2209,7 @@
     var taxComputation = buildTaxComputation(model, computed);
     var withholding = buildWithholdingSummary(model, computed);
     var scopeNotes = buildScopeNotes(model);
-    var returnForms = buildReturnFormDetermination(model);
+    var returnForms = buildReturnFormDetermination(model, computed);
     var monitoring = WISING.monitor
       ? WISING.monitor(model, computed, { findings: findings, asOf: (opts.scenario && opts.scenario.asOf) || opts.asOf })
       : null;

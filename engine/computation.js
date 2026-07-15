@@ -1542,6 +1542,151 @@
   }
 
   /* =========================================================================
+   * INDIA ITR FORM SOLVER — independent backend determination
+   * =========================================================================
+   * Mirrors layer1_india.html's own evaluateITRForm() (the AY 2026-27 CBDT
+   * notified-form eligibility rules — verified 2026-07-12 against the same
+   * notification the frontend cites) but computed HERE, from model/computed
+   * fields this engine has already independently verified against Layer 1's
+   * real, live-written data — not from the frontend's own precomputed
+   * surcharge_buckets or its persisted itr_recommendation.form.
+   *
+   * This exists because the frontend calculator has real, verified bugs a
+   * backend-only fallback would otherwise inherit or simply not catch:
+   *   - hasBusiness reads business_income.has_business_income, a "setup
+   *     wizard" checkbox that desyncs from business_income.has_business_or_fo_income
+   *     (the field the actual Business/F&O module and every other reader —
+   *     including this engine — writes to and reads from). A user who fills
+   *     in real business data without separately re-toggling the wizard
+   *     checkbox gets evaluated as if they had none.
+   *   - hasPartnerIncome reads business_income.partner_remuneration_inr /
+   *     partner_interest_inr (singular) — fields NO input anywhere in
+   *     layer1_india.html ever writes. Always false. The real data lives in
+   *     partner_firms[] (Phase 1, §2.3), which this solver reads instead.
+   *   - isDirector reads profile.is_company_director — a field with no
+   *     backing UI control at all anywhere in the file. Always false;
+   *     documented below as a genuine, undisclosed Layer 1 gap, not
+   *     silently assumed non-director.
+   *
+   * Runs unconditionally (unlike the old crude entity-type-only fallback)
+   * so every profile gets a real, checked recommendation — hand-authored
+   * demo profiles included, not just ones that went through the browser
+   * form. See buildReturnFormDetermination (conflicts.js) for the
+   * frontend cross-check this feeds.
+   * ----------------------------------------------------------------------*/
+  function computeIndiaItrForm(model, computed) {
+    var E = model.entity, inc = model.income.india, R = model.residency.india;
+    var entity = E.indiaKind;
+    var isInd = entity === "individual", isHuf = entity === "huf";
+    var isROR = R.status === "ROR";
+    var totalIncomeInr = computed.indiaTax.grossTotalIncomeInr || 0;
+
+    var stcg111A = (inc.stcg && inc.stcg.inr) || 0;                 // s.196 (old 111A)
+    var ltcg112A = (inc.ltcg && inc.ltcg.inr) || 0;                 // s.198 (old 112A) — has the ₹1,25,000 exemption
+    var ltcg112 = inc.ltcg197Inr || 0;                              // s.197 (old 112, non-112A) — no exemption
+    var stcgOther = inc.stcgSlabInr || 0;                           // unlisted/foreign STCG ≤24mo, slab rate
+    var otherCapitalGains = stcg111A + ltcg112 + stcgOther;
+    // AY 2026-27: ITR-1/4 now tolerate s.112A LTCG up to the ₹1,25,000
+    // exemption threshold ALONE (no other capital gains, no BF capital
+    // losses) — previously any capital gain at all forced ITR-2/3.
+    var hasDisqualifyingCapitalGains = otherCapitalGains > 0 || ltcg112A > 125000;
+
+    var hasForeignIncome = (isInd || isHuf) && model.indiaForeignIncomeDeclared === true;
+    var hasForeignAssets = (isInd || isHuf) && model.indiaForeignAssetsDeclared === true;
+    var hasCrypto = (isInd || isHuf) && ((inc.vdaGainInr || 0) > 0 || (inc.vdaSaleConsiderationInr || 0) > 0);
+    // AY 2026-27: ITR-1/4 now tolerate up to TWO house properties (was one).
+    var multipleHP = (inc.housePropertyCount || 0) > 2;
+    var hasHighAgriIncome = (inc.agriculturalIncomeInr || 0) > 5000;
+    var hasLotteryOrGaming = ((inc.specialRate115bb && inc.specialRate115bb.inr) || 0) > 0;
+    var hasBFLosses = !!(model.carryForwardLosses && model.carryForwardLosses.hasBroughtForwardLosses === true);
+    var hasSpeculativeOrFNO = (inc.speculativeIncomeInr || 0) !== 0 || (inc.businessFnoIncomeInr || 0) !== 0;
+    // Layer 1 has no UI control anywhere that sets profile.is_company_director
+    // — this can never be a real "true" today. Read the field anyway (in
+    // case a future Layer 1 revision adds the control) but flag the gap so
+    // this isn't mistaken for a checked "not a director" answer.
+    var isDirector = isInd && E.isCompanyDirector === true;
+    var directorUnknown = isInd && !isDirector;
+
+    var disqualifiers = [];
+    if (totalIncomeInr > 5000000) disqualifiers.push("Total income exceeds ₹50,00,000 (₹" + Math.round(totalIncomeInr).toLocaleString("en-IN") + ")");
+    if (!isROR) disqualifiers.push("Not Resident & Ordinarily Resident (status: " + (R.status || "unknown") + ")");
+    if (hasDisqualifyingCapitalGains) {
+      disqualifiers.push(otherCapitalGains > 0
+        ? "Capital gains beyond the s.198-only allowance (STCG and/or non-s.198 LTCG present)"
+        : "LTCG under s.198 exceeds the ₹1,25,000 threshold (₹" + Math.round(ltcg112A).toLocaleString("en-IN") + ")");
+    }
+    if (hasForeignIncome) disqualifiers.push("Foreign income declared (foreign_income.has_foreign_income)");
+    if (hasForeignAssets) disqualifiers.push("Foreign assets declared (Schedule FA)");
+    if (hasCrypto) disqualifiers.push("Crypto/VDA gains or sale activity on file");
+    if (multipleHP) disqualifiers.push("More than 2 house properties (" + inc.housePropertyCount + ")");
+    if (hasHighAgriIncome) disqualifiers.push("Agricultural income exceeds ₹5,000 (₹" + Math.round(inc.agriculturalIncomeInr).toLocaleString("en-IN") + ")");
+    if (hasLotteryOrGaming) disqualifiers.push("Lottery/betting/online-gaming winnings on file (s.128/194)");
+    if (hasBFLosses) disqualifiers.push("Brought-forward losses on file");
+    if (hasSpeculativeOrFNO) disqualifiers.push("Speculative or F&O business income on file");
+    if (isDirector) disqualifiers.push("Company director (profile.is_company_director)");
+
+    var isDisqualified = disqualifiers.length > 0;
+
+    var hasBusiness = !!(inc.indiaHasRegularBooksEntry || inc.indiaHasValidPresumptiveEntry ||
+      (inc.businessFnoIncomeInr || 0) !== 0 || (inc.speculativeIncomeInr || 0) !== 0);
+    var hasPartnerIncome = !!inc.indiaHasPartnerFirmIncome;
+    // ITR-4 needs EVERY business signal to be a valid presumptive election —
+    // one regular-books entry, one partner-firm rupee, or any F&O/speculative
+    // activity at all forces ITR-3 regardless of how many other entries
+    // validly use s.44AD/44ADA/44AE.
+    var presumptiveOnly = inc.indiaHasValidPresumptiveEntry === true && !inc.indiaHasRegularBooksEntry &&
+      !hasPartnerIncome && (inc.businessFnoIncomeInr || 0) === 0 && (inc.speculativeIncomeInr || 0) === 0;
+
+    var form, explanation;
+
+    if (entity === "company") {
+      if (E.indiaIsSection8) { form = "ITR-7"; explanation = "For NGOs, Public Charitable Trusts, registered Societies, and Section 8 Companies claiming tax exemptions."; }
+      else { form = "ITR-6"; explanation = "For Corporate Companies (Private Limited, Public Limited, OPCs) not claiming charitable exemptions."; }
+    } else if (["trust", "ngo", "society", "political_party"].indexOf(entity) >= 0) {
+      form = "ITR-7"; explanation = "For NGOs, Public Charitable Trusts, registered Societies, and Political Parties claiming tax exemptions under Trust & NGO Tax Exemptions.";
+    } else if (["firm", "aop", "boi", "ajp", "local"].indexOf(entity) >= 0) {
+      if (entity === "firm" && !isDisqualified && presumptiveOnly) {
+        form = "ITR-4 (SUGAM)"; explanation = "For Resident Partnership Firms (excluding LLPs) with total income up to ₹50 Lakhs opting for Presumptive Taxation (44AD, 44ADA, 44AE).";
+      } else {
+        form = "ITR-5"; explanation = "For Partnership Firms, LLPs, commercial AOPs, BOIs, AJPs, and Local Authorities.";
+      }
+    } else if (entity === "llp") {
+      form = "ITR-5"; explanation = "For Partnership Firms, LLPs, commercial AOPs, BOIs, AJPs, and Local Authorities.";
+    } else if (isInd || isHuf) {
+      if (hasBusiness || hasPartnerIncome) {
+        if (!isDisqualified && presumptiveOnly && !hasPartnerIncome) {
+          form = "ITR-4 (SUGAM)"; explanation = "For Resident Individuals and HUFs with total income up to ₹50 Lakhs who opt exclusively for the Presumptive Taxation Scheme (44AD/44ADA/44AE).";
+        } else {
+          form = "ITR-3"; explanation = "For Individuals and HUFs with Business or Professional Income maintaining books, or receiving remuneration/interest as a partner in a firm. Mandatory if disqualified from ITR-4.";
+        }
+      } else if (isInd && !isDisqualified) {
+        form = "ITR-1 (SAHAJ)"; explanation = "For Resident Salaried Individuals with total income up to ₹50 Lakhs (Salary, up to 2 house properties, basic other sources). Restrictions: no foreign assets/income, no capital gains beyond the s.198-only allowance, no directorships.";
+      } else {
+        form = "ITR-2"; explanation = "For Individuals and HUFs not having business/profession income but having Capital Gains, Foreign Income/Assets, multiple properties, or otherwise not qualifying for ITR-1." +
+          (disqualifiers.length ? " Disqualified from ITR-1 due to: " + disqualifiers.join("; ") + "." : "");
+      }
+    } else {
+      form = "ITR-2"; explanation = "Entity type not otherwise classified — defaulting to ITR-2 pending a proper Layer 1 entity-type read.";
+    }
+
+    return {
+      form: form,
+      explanation: explanation,
+      disqualified: isDisqualified,
+      disqualifiers: disqualifiers,
+      totalIncomeInr: totalIncomeInr,
+      directorUnknown: directorUnknown,
+      // Frontend's own persisted verdict (Layer 1's evaluateITRForm(), when
+      // it ran) — for cross-check only, never as the primary answer. null
+      // when Layer 1 never produced one (e.g. a hand-authored profile that
+      // bypassed the browser form entirely).
+      frontendForm: E.indiaReturnFormIsRecommendation ? E.indiaReturnForm : null,
+      frontendExplanation: E.indiaReturnFormExplanation || null,
+      matchesFrontend: E.indiaReturnFormIsRecommendation ? (E.indiaReturnForm === form) : null
+    };
+  }
+
+  /* =========================================================================
    * ORCHESTRATOR
    * =======================================================================*/
   function compute(model) {
@@ -1554,12 +1699,14 @@
     var reconciliation = crossBasis(model, residency, usTax);
     var apportionment = computeApportionment(model);
     var limits = computeLimits(model);
+    var indiaItrForm = model.meta.hasIndia ? computeIndiaItrForm(model, { indiaTax: indiaTax }) : null;
 
     return {
       residency: residency,
       indiaTax: indiaTax,
       usTax: usTax,
       stateTax: stateTax,
+      indiaItrForm: indiaItrForm,
       reconciliation: reconciliation,
       apportionment: apportionment,
       // back-compat alias used by older dashboard code
@@ -1591,6 +1738,7 @@
     resolveResidency: resolveResidency,
     mapDoubleTaxedIncome: mapDoubleTaxedIncome,
     computeFtc: computeFtc,
-    computeLimits: computeLimits
+    computeLimits: computeLimits,
+    computeIndiaItrForm: computeIndiaItrForm
   };
 })(typeof window !== "undefined" ? window : globalThis);
