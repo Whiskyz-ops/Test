@@ -1314,17 +1314,25 @@
    * fields meant every real filer's self-employment income silently
    * computed to $0; only hand-authored demo profiles worked, by injecting
    * self_employment_earnings_usd directly. Mirrors the India IN-21 fix.
-   * Phase-0 scoped: home-office and asset depreciation aren't netted here. */
+   * Phase-0 scoped: home-office isn't netted here (asset depreciation now
+   * is, via the depreciationUsd param both functions below take). */
   function computeSelfEmploymentNetProfitUsd(s) {
     var cogs = num(s.cogs_beginning_inventory) + num(s.cogs_purchases) + num(s.cogs_labor) + num(s.cogs_materials) - num(s.cogs_ending_inventory);
     var grossProfit = num(s.gross_receipts_usd) - num(s.returns_and_allowances_usd) - cogs;
     return grossProfit + num(s.other_income_usd) - num(s.expenses_usd);
   }
-  function selfEmploymentNetProfitUsd(s) {
+  // depreciationUsd is pre-computed taxpayer-wide (computeSelfEmploymentDepreciationPlan,
+  // below) since §179's cap/phase-out/income-limitation is a TAXPAYER-level
+  // aggregate, not a per-business one — deliberately NOT subtracted when an
+  // explicit self_employment_earnings_usd/net_profit_usd override is on
+  // file, since that's an already-final black-box figure this engine can't
+  // know whether depreciation was already reflected in.
+  function selfEmploymentNetProfitUsd(s, depreciationUsd) {
     var explicit = s.self_employment_earnings_usd != null ? s.self_employment_earnings_usd : s.net_profit_usd;
-    return (explicit === undefined || explicit === null) ? computeSelfEmploymentNetProfitUsd(s) : num(explicit);
+    if (explicit !== undefined && explicit !== null) return num(explicit);
+    return computeSelfEmploymentNetProfitUsd(s) - num(depreciationUsd || 0);
   }
-  function selfEmploymentIncomeTrace(s) {
+  function selfEmploymentIncomeTrace(s, depreciationPlanEntry) {
     var explicit = s.self_employment_earnings_usd != null ? s.self_employment_earnings_usd : s.net_profit_usd;
     if (explicit !== undefined && explicit !== null) {
       return source("Net self-employment earnings entered directly on Layer 1 US for this business (not derived from gross receipts and expenses).");
@@ -1335,7 +1343,176 @@
     if (cogs > 0) parts.push({ label: "Less: cost of goods sold", amount: -cogs });
     if (num(s.other_income_usd) > 0) parts.push({ label: "Plus: other business income", amount: num(s.other_income_usd) });
     if (num(s.expenses_usd) > 0) parts.push({ label: "Less: business expenses", amount: -num(s.expenses_usd) });
-    return calc("Schedule C: gross receipts less returns/COGS, plus other income, less expenses. Home-office and asset depreciation aren't netted yet (Phase 1).", parts);
+    (depreciationPlanEntry ? depreciationPlanEntry.assets : []).forEach(function (a) {
+      var label = "Asset (" + a.class + ", yr " + a.yearN + ")";
+      if (a.sec179Usd > 0) parts.push({ label: label + " — §179", amount: -a.sec179Usd });
+      if (a.bonusUsd > 0) parts.push({ label: label + " — 100% bonus depreciation", amount: -a.bonusUsd });
+      if (a.macrsUsd > 0) parts.push({ label: label + " — MACRS", amount: -a.macrsUsd });
+    });
+    return calc("Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less asset depreciation (§179 / 100% bonus, permanent under OBBBA / MACRS — computed from each asset's own class and placed-in-service date, not Layer 1's own first-year-only preview). Home-office isn't netted yet (Phase 1).", parts);
+  }
+  function computeSelfEmploymentDepreciationPlan(us, baseYear) {
+    var list = safe(us, "income_us_source.self_employment", []) || [];
+    var businesses = list.map(function (s, idx) {
+      var assets = (s.assets || []).slice();
+      (s.branches || []).forEach(function (br) { assets = assets.concat(br.assets || []); });
+      return { key: idx, grossReceiptsMinusExpensesUsd: computeSelfEmploymentNetProfitUsd(s), assets: assets };
+    });
+    return aggregateAssetDepreciationUsd(businesses, baseYear);
+  }
+
+  /* ------------------------------------------------------------------------
+   * US asset depreciation (MACRS/§179/bonus) — Schedule C (self_employment)
+   * only. Every asset row on Layer 1 US (self-employment, farm, partnership/
+   * S-corp/trust K-1s, and the C-corp's own 1120) shares one identical
+   * 7-field component (createAssetRowDOM), but the other array types are
+   * deliberately left unwired here: K-1/1120 asset rows sit on entity types
+   * whose reported income already reflects the ENTITY's own depreciation
+   * before flow-through (a K-1 recipient doesn't separately depreciate
+   * assets the partnership/S-corp/trust itself owns — K-1 §179, a box-level
+   * pass-through figure not derived from an asset list, and C-corp Schedule
+   * M-1 book-to-tax reconciliation are already wired separately, see
+   * US-28); farming_schedule_f[]'s net profit is ALWAYS a flat, already-net
+   * `net_profit_usd` figure with no real gross-receipts/expenses derivation
+   * anywhere in this engine (unlike self-employment's own
+   * computeSelfEmploymentNetProfitUsd) — subtracting a newly-computed
+   * depreciation figure from an already-net manual entry risks double-
+   * deducting if the preparer's own number already accounted for it, so
+   * farm assets are left unwired too rather than guessed at. Both remain
+   * documented open slices of US-18.
+   *
+   * Layer 1 US's own local preview math (updateAssetDepreciationPreviews,
+   * layer1_us.html ~10645-10710) computes only a first-year deduction for
+   * EVERY asset regardless of placed_in_service_date (no year-2+ table
+   * exists in its code at all), and hardcodes stale figures throughout:
+   * 20% bonus depreciation (labeled there as "the 2026 rate" — pre-OBBBA
+   * law; OBBBA permanently restored 100% for property placed in service
+   * after 19 Jan 2025) and a $1.2M/$3M §179 cap/phase-out (2024 figures;
+   * OBBBA's actual TY2026 figures are $2,560,000/$4,090,000). This engine
+   * deliberately does NOT mirror any of those three stale numbers, and DOES
+   * apply the real multi-year MACRS table via placed_in_service_date
+   * instead of treating every asset as brand new every year.
+   * ----------------------------------------------------------------------*/
+
+  // Which recovery-period "year N" (1 = the year placed in service) applies
+  // this tax year — null if the date is missing/unparseable/in the future.
+  function assetRecoveryYearN(asset, baseYear) {
+    if (!asset || !asset.placed_in_service_date) return null;
+    var d = new Date(asset.placed_in_service_date);
+    if (isNaN(d.getTime())) return null;
+    var yearN = baseYear - d.getFullYear() + 1;
+    return yearN >= 1 ? yearN : null;
+  }
+
+  // Mid-month convention proration for straight-line real property/
+  // amortization: half a month's depreciation in the month placed in
+  // service itself, full months for the rest of the year — matches IRS
+  // Pub 946 Table A-6/A-7's mid-year columns (which all converge on the
+  // SAME full annual rate for every middle year regardless of month, so
+  // only year 1 needs this — years 2+ below just use the flat annual rate).
+  function straightLineYear1FractionInr(placedInServiceDateStr) {
+    var d = new Date(placedInServiceDateStr);
+    if (isNaN(d.getTime())) return 1;
+    var monthsRemainingInclHalf = (12 - d.getMonth()) - 0.5;
+    return Math.max(0, Math.min(1, monthsRemainingInclHalf / 12));
+  }
+
+  // One asset's §179/bonus/regular-MACRS breakdown for THIS tax year.
+  // requestedSec179Usd is what the preparer asked for (capped at cost) —
+  // the CALLER (aggregateAssetDepreciationUsd below) still has to scale
+  // this down across every asset/business for the taxpayer if the
+  // aggregate cap/phase-out/income-limitation bites; bonus/MACRS are
+  // computed against that requested (not yet scaled) figure to avoid a
+  // genuine circularity (business income depends on depreciation, which
+  // depends on the income-limited §179 cap, which depends on business
+  // income) — a documented Phase-0 floor, immaterial unless a taxpayer's
+  // aggregate elections actually exceed the cap.
+  function computeAssetDepreciationUsd(asset, baseYear) {
+    var T = CONST.TAX;
+    var cost = num(asset.cost);
+    var yearN = assetRecoveryYearN(asset, baseYear);
+    var klass = asset.class;
+    var isStraightLine = !!T.US_MACRS_STRAIGHT_LINE_ANNUAL[klass];
+    var eligibleForSec179Bonus = !isStraightLine; // real property/amortization: categorically ineligible
+    var isCurrentYear = yearN === 1;
+
+    var requestedSec179Usd = (isCurrentYear && eligibleForSec179Bonus) ? Math.min(Math.max(0, num(asset.sec179)), cost) : 0;
+    var bonusEligibleBasisUsd = Math.max(0, cost - requestedSec179Usd);
+    var bonusUsd = (isCurrentYear && eligibleForSec179Bonus && asset.bonus === true) ? bonusEligibleBasisUsd * T.US_BONUS_DEPRECIATION_RATE : 0;
+    var macrsBasisUsd = Math.max(0, cost - requestedSec179Usd - bonusUsd);
+
+    var macrsUsd = 0;
+    if (yearN != null && macrsBasisUsd > 0) {
+      if (isStraightLine) {
+        var annualRate = T.US_MACRS_STRAIGHT_LINE_ANNUAL[klass];
+        macrsUsd = yearN === 1
+          ? macrsBasisUsd * annualRate * straightLineYear1FractionInr(asset.placed_in_service_date)
+          : macrsBasisUsd * annualRate;
+      } else {
+        var table = T.US_MACRS_HALF_YEAR[klass];
+        if (table && yearN <= table.length) macrsUsd = macrsBasisUsd * table[yearN - 1];
+      }
+    }
+
+    return {
+      cost: cost, yearN: yearN, isCurrentYear: isCurrentYear, class: klass,
+      eligibleForSec179Bonus: eligibleForSec179Bonus,
+      requestedSec179Usd: requestedSec179Usd, bonusUsd: bonusUsd, macrsUsd: macrsUsd,
+      totalUsd: requestedSec179Usd + bonusUsd + macrsUsd
+    };
+  }
+
+  // Taxpayer-wide §179 aggregation across every self_employment/
+  // farming_schedule_f asset (head office + branches — branch-level assets
+  // roll into the parent entry's total, mirroring the same convention
+  // aggregateEntryDepreciationInr already uses on the India side): real
+  // law caps the election at US_SEC179_MAX_USD, phased out dollar-for-
+  // dollar once total QUALIFYING property placed in service this year
+  // exceeds US_SEC179_PHASEOUT_THRESHOLD_USD, and further limited to the
+  // taxpayer's aggregate active-business income (excess simply denied
+  // here, not carried forward to a future year — no multi-year state
+  // exists in this engine, matching the SE-health-insurance-deduction
+  // floor's same documented precision convention elsewhere in this file).
+  function aggregateAssetDepreciationUsd(businesses, baseYear) {
+    // businesses: [{ key, grossReceiptsMinusExpensesUsd, assets: [...] }]
+    var perAsset = [];
+    businesses.forEach(function (b) {
+      (b.assets || []).forEach(function (a) {
+        perAsset.push({ businessKey: b.key, calc: computeAssetDepreciationUsd(a, baseYear) });
+      });
+    });
+    var totalRequestedSec179Usd = perAsset.reduce(function (s, p) { return s + p.calc.requestedSec179Usd; }, 0);
+    var totalQualifyingAdditionsUsd = perAsset.reduce(function (s, p) {
+      return s + (p.calc.isCurrentYear && p.calc.eligibleForSec179Bonus ? p.calc.cost : 0);
+    }, 0);
+    var T = CONST.TAX;
+    var phaseoutReductionUsd = Math.max(0, totalQualifyingAdditionsUsd - T.US_SEC179_PHASEOUT_THRESHOLD_USD);
+    var capAfterPhaseoutUsd = Math.max(0, T.US_SEC179_MAX_USD - phaseoutReductionUsd);
+    var preSec179BusinessIncomeUsd = businesses.reduce(function (s, b) {
+      var bonusMacrs = perAsset.filter(function (p) { return p.businessKey === b.key; })
+        .reduce(function (s2, p) { return s2 + p.calc.bonusUsd + p.calc.macrsUsd; }, 0);
+      return s + (b.grossReceiptsMinusExpensesUsd - bonusMacrs);
+    }, 0);
+    var allowedSec179AggregateUsd = Math.max(0, Math.min(totalRequestedSec179Usd, capAfterPhaseoutUsd, preSec179BusinessIncomeUsd));
+    var scale = totalRequestedSec179Usd > 0 ? (allowedSec179AggregateUsd / totalRequestedSec179Usd) : 0;
+
+    var byBusiness = {};
+    perAsset.forEach(function (p) {
+      var actualSec179Usd = p.calc.requestedSec179Usd * scale;
+      var totalUsd = actualSec179Usd + p.calc.bonusUsd + p.calc.macrsUsd;
+      if (!byBusiness[p.businessKey]) byBusiness[p.businessKey] = { totalUsd: 0, assets: [] };
+      byBusiness[p.businessKey].totalUsd += totalUsd;
+      byBusiness[p.businessKey].assets.push({
+        name: null, class: p.calc.class, yearN: p.calc.yearN, cost: p.calc.cost,
+        sec179Usd: actualSec179Usd, bonusUsd: p.calc.bonusUsd, macrsUsd: p.calc.macrsUsd, totalUsd: totalUsd
+      });
+    });
+    return {
+      byBusiness: byBusiness,
+      capApplied: scale < 1 && totalRequestedSec179Usd > 0,
+      totalRequestedSec179Usd: totalRequestedSec179Usd, allowedSec179AggregateUsd: allowedSec179AggregateUsd,
+      capAfterPhaseoutUsd: capAfterPhaseoutUsd, phaseoutReductionUsd: phaseoutReductionUsd
+    };
   }
 
   // Interest/dividend/capital-gain/rental/royalty boxes on a K-1 (Box
@@ -1375,6 +1552,11 @@
   function aggregateUsIncome(us, annual) {
     var ui = safe(us, "income_us_source", {});
     var fi = safe(us, "income_foreign_source", {});
+    // "This tax year" for MACRS recovery-year purposes — the US calendar
+    // year Layer 1 itself tracks, not the (possibly router-overridden)
+    // model.meta.baseYear computed separately from this function.
+    var baseYearUs = num(safe(us, "metadata.us_calendar_year", 2025)) || 2025;
+    var seDeprPlan = computeSelfEmploymentDepreciationPlan(us, baseYearUs);
 
     // Wages: wages_w2[].wages_box1_usd  (+ fallbacks for older shapes)
     var wages = zeroMoney(), w2with = 0, medicareWages = 0;
@@ -1443,8 +1625,9 @@
     // tracked separately so it can be FEIE-eligible below, mirroring how
     // foreignWages is already split out from wages.
     var foreignSelfEmployment = zeroMoney();
-    (safe(ui, "self_employment", []) || []).forEach(function (s) {
-      var netUsd = selfEmploymentNetProfitUsd(s);
+    (safe(ui, "self_employment", []) || []).forEach(function (s, idx) {
+      var deprUsd = seDeprPlan.byBusiness[idx] ? seDeprPlan.byBusiness[idx].totalUsd : 0;
+      var netUsd = selfEmploymentNetProfitUsd(s, deprUsd);
       if (s.llc_type === "foreign_disregarded") {
         foreignSelfEmployment = addMoney(foreignSelfEmployment, moneyFromUsd(netUsd));
       } else {
@@ -1479,7 +1662,10 @@
     // Self-employment-TAX-subject earnings (Sch C + Sch F + general-partner SE):
     // NOT S-corp/C-corp wages/distributions. Drives Schedule SE.
     var seEarnings = 0;
-    (safe(ui, "self_employment", []) || []).forEach(function (s) { seEarnings += selfEmploymentNetProfitUsd(s); });
+    (safe(ui, "self_employment", []) || []).forEach(function (s, idx) {
+      var deprUsd = seDeprPlan.byBusiness[idx] ? seDeprPlan.byBusiness[idx].totalUsd : 0;
+      seEarnings += selfEmploymentNetProfitUsd(s, deprUsd);
+    });
     (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { seEarnings += num(s.net_profit_usd || 0); });
     // QBI-eligible pass-through business income (§199A): SE + S-corp + partnership
     // + trust ordinary (excludes C-corp and wages). SSTB flag if any business
@@ -2199,9 +2385,14 @@
                     { label: "Less: other subtractions", amount: -num(m1ForTrace.other_subtractions) }
                   ])
                 : source("Entity-level taxable income as entered on Layer 1 US (business_income_usd) — no Schedule M-1 data on file for this entity.") }); }
-          (safe(ui, "self_employment", []) || []).forEach(function (s) { list.push({ country: "US", type: "Self-employment (Sch C)", name: s.business_name || s.name || "Self-employment", incomeUsd: selfEmploymentNetProfitUsd(s), se: true, qbi: true,
-            filesOwnReturn: false, returnForm: "Schedule C + Schedule SE (Form 1040)",
-            calcTrace: selfEmploymentIncomeTrace(s) }); });
+          var seDeprPlanForTrace = computeSelfEmploymentDepreciationPlan(us, num(safe(us, "metadata.us_calendar_year", 2025)) || 2025);
+          (safe(ui, "self_employment", []) || []).forEach(function (s, seIdx) {
+            var seDeprEntry = seDeprPlanForTrace.byBusiness[seIdx];
+            var seDeprUsd = seDeprEntry ? seDeprEntry.totalUsd : 0;
+            list.push({ country: "US", type: "Self-employment (Sch C)", name: s.business_name || s.name || "Self-employment", incomeUsd: selfEmploymentNetProfitUsd(s, seDeprUsd), se: true, qbi: true,
+              filesOwnReturn: false, returnForm: "Schedule C + Schedule SE (Form 1040)",
+              calcTrace: selfEmploymentIncomeTrace(s, seDeprEntry) });
+          });
           (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { list.push({ country: "US", type: "Farm (Sch F)", name: s.name || "Farm", incomeUsd: num(s.net_profit_usd || 0), se: true, qbi: true,
             filesOwnReturn: false, returnForm: "Schedule F (Form 1040)",
             calcTrace: source("Net farm profit as entered directly on Layer 1 US for this farm (net_profit_usd).") }); });

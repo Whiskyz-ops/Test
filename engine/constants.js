@@ -418,7 +418,39 @@
         RATE: 0.35, SURCHARGE_OVER_1CR: 0.02, SURCHARGE_OVER_10CR: 0.05,
         MAT_RATE: 0.15, CESS_RATE: 0.04
       },
-      INDIA_FIRM: { RATE: 0.30, SURCHARGE_OVER_1CR: 0.12, CESS_RATE: 0.04 }
+      INDIA_FIRM: { RATE: 0.30, SURCHARGE_OVER_1CR: 0.12, CESS_RATE: 0.04 },
+      // ---- US depreciation (MACRS/§179/bonus) — Sch C/F asset rows ----
+      // §179: OBBBA raised both the cap and phase-out threshold, now
+      // permanent parts of the code and inflation-adjusted annually — TY2026
+      // figures ($2,560,000 / $4,090,000) verified 2026-07-15 (IRS Rev.
+      // Proc., re-check each filing season). Layer 1 US's OWN local preview
+      // calculators still hardcode the stale pre-OBBBA 2024 figures
+      // ($1,200,000 / $3,000,000) in three separate places — this engine
+      // deliberately does NOT trust that copy.
+      US_SEC179_MAX_USD: 2560000,
+      US_SEC179_PHASEOUT_THRESHOLD_USD: 4090000,
+      // Bonus depreciation: OBBBA permanently restored 100% for qualified
+      // property placed in service after 19 Jan 2025 (was on a TCJA
+      // phase-down to 0% by 2027) — so every asset in scope for this
+      // TY2026 engine gets 100%, not the 20% Layer 1's own UI copy/preview
+      // calculators still hardcode (labeled there as "the 2026 rate").
+      US_BONUS_DEPRECIATION_RATE: 1.00,
+      // IRS Pub 946 Table A-1 (200%-declining-balance, half-year convention)
+      // for 3/5/7-year property, and the 150%-DB-derived table for 15-year
+      // property — stable, unchanged for decades. Year-1 values match
+      // Layer 1's own hardcoded first-year-only rates exactly (33.33/20.00/
+      // 14.29/5.00%), confirming table selection; years 2+ are this
+      // engine's own addition (Layer 1 has no multi-year table at all).
+      US_MACRS_HALF_YEAR: {
+        "3-year":  [0.3333, 0.4445, 0.1481, 0.0741],
+        "5-year":  [0.2000, 0.3200, 0.1920, 0.1152, 0.1152, 0.0576],
+        "7-year":  [0.1429, 0.2449, 0.1749, 0.1249, 0.0893, 0.0892, 0.0893, 0.0446],
+        "15-year": [0.0500, 0.0950, 0.0855, 0.0770, 0.0693, 0.0623, 0.0590, 0.0590, 0.0591, 0.0590, 0.0591, 0.0590, 0.0591, 0.0590, 0.0591, 0.0295]
+      },
+      // Straight-line classes — full annual rate; §179/bonus categorically
+      // ineligible for these (real property + intangible amortization),
+      // matching Layer 1's own eligibility gating exactly.
+      US_MACRS_STRAIGHT_LINE_ANNUAL: { "27.5-year": 1 / 27.5, "39-year": 1 / 39, "amortization-15": 1 / 15 }
     }
   };
 

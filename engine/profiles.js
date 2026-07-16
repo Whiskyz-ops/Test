@@ -662,8 +662,21 @@
         // but the resulting SE tax is NOT excluded by it (Schedule SE runs
         // on the full, unexcluded figure) — she genuinely owes SE tax now,
         // which the old wages characterization never exposed at all.
+        // A laptop bought this year for the consulting practice — exercises
+        // real MACRS/bonus depreciation (US-18) on a Schedule C business,
+        // not just the gross-receipts-less-expenses shell. 100% bonus
+        // depreciation (permanent under OBBBA) fully expenses it in year 1.
+        // Known simplification, same as Layer 1 US's own asset-row form
+        // (no "used predominantly outside the US" flag exists to enter):
+        // real law (s.168(g)) mandates the Alternative Depreciation System
+        // — straight-line, longer recovery periods, NO bonus depreciation
+        // — for property used predominantly abroad, which this laptop (used
+        // in her India practice) technically is. Not modeled here, matching
+        // the gap in the source form rather than guessing at ADS figures
+        // the preparer has no way to signal.
         self_employment: [
-          { id: "grace-consulting-in", business_name: "Grace Thomas Consulting (India)", llc_type: "foreign_disregarded", has_se_income: true, gross_receipts_usd: 60241, expenses_usd: 0, is_specified_service_trade: true }
+          { id: "grace-consulting-in", business_name: "Grace Thomas Consulting (India)", llc_type: "foreign_disregarded", has_se_income: true, gross_receipts_usd: 60241, expenses_usd: 0, is_specified_service_trade: true,
+            assets: [{ id: "grace-laptop", name: "Consulting laptop", class: "5-year", cost: 2500, sec179: 0, bonus: true, placed_in_service_date: "2026-02-01" }] }
         ],
         // A modest distribution from her late mother's family trust — the
         // trust K-1 card (trusts_estates_k1[]) was previously read NOWHERE
