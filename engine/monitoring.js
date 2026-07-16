@@ -159,14 +159,29 @@
     }
 
     var usEntry;
-    if (!E.usIsBusiness) {
+    // The US side is a day-count (SPT) candidate only when the WHOLE
+    // taxpayer is an individual. `E.usIsBusiness` alone used to gate this,
+    // but it only reflects Layer 1 US's own tax_entity_type field — which
+    // several demo profiles (and real cases) leave at its "individual"
+    // default because the taxpayer never organized a separate US entity at
+    // all (e.g. an India-incorporated company with zero US presence). That
+    // left a company/HUF/firm taxpayer's India side correctly showing a
+    // qualitative POEM/control-and-management test while its US side still
+    // ran a fabricated 0/183-day Substantial Presence bar — a test that,
+    // per s.7701(b), only ever applies to individuals. `indiaKind` is this
+    // engine's authoritative "what kind of taxpayer is this" signal (Layer 1
+    // India's entity_type is asked for every profile; Layer 1 US's is not),
+    // so a non-individual India entity_type means the taxpayer is an entity
+    // on the US side too, regardless of what Layer 1 US's own field says.
+    var usIsEntityTaxpayer = indiaKind !== "individual" || E.usIsBusiness;
+    if (!usIsEntityTaxpayer) {
       usEntry = counter({
         country: "United States", flag: "🇺🇸", test: "Substantial Presence (≥183 weighted)",
         days: model.residency.us.daysCurrentYear, threshold: 183, prog: progUS,
         isResident: model.residency.us.sptMet || model.residency.us.isCitizen || model.residency.us.hasGreenCard,
         worldwide: computed.residency.us.worldwide, yearStart: cyStart
       });
-    } else {
+    } else if (E.usIsBusiness) {
       var incUs = E.usIncorporatedInUs, incState = E.usIncorporationState;
       var usFacts = [];
       if (incUs === true) usFacts.push("Organized/incorporated in the United States" + (incState ? " (" + incState + ")" : "") + " — a domestic entity taxed on worldwide income regardless of where it operates");
@@ -175,6 +190,19 @@
       usEntry = qualitative({
         country: "United States", flag: "🇺🇸", test: "Place of organization/incorporation — not a presence test",
         isResident: incUs === true, worldwide: incUs === true, facts: usFacts
+      });
+    } else {
+      // Entity taxpayer overall (India-side company/HUF/firm/etc.), but no
+      // ccorp/scorp/partnership/trust election exists for it on Layer 1 US
+      // at all — i.e. no US entity was ever organized for it. That absence
+      // IS the fact: with no US entity on file there is nothing to test,
+      // and a company/HUF/firm has no individual-style presence test either
+      // way, so it's foreign to the US by default rather than "0 of 183
+      // days toward becoming resident".
+      usEntry = qualitative({
+        country: "United States", flag: "🇺🇸", test: "Place of organization/incorporation — not a presence test",
+        isResident: false, worldwide: false,
+        facts: ["No US business entity (ccorp/scorp/partnership/trust) organized for this taxpayer on Layer 1 US — a foreign entity for US tax purposes with no day-count or presence test to run"]
       });
     }
 
