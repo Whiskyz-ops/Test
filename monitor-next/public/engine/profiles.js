@@ -708,7 +708,264 @@
   };
 
   /* ======================================================================
-   * PROFILE 6 — BUSINESS POV: Indian Pvt Ltd (domestic company).
+   * PROFILE 6 — SINGLE-JURISDICTION: India only, zero US exposure.
+   * Built to answer a direct question: how much value does WISING deliver
+   * to a CA whose client has no US ties at all? Router jurisdiction is
+   * explicitly "single_india" (also independently auto-detected from
+   * us_days:0/has_us_source_income_or_assets:false — see model.meta.
+   * hasIndiaScope/hasUsScope, XB-19) so the Monitor collapses to a pure
+   * India view: no US badge, no US residency card, no DTAA panel. A senior
+   * salaried professional running two side businesses (one presumptive, one
+   * regular-books) plus a partner stake, capital-market/crypto/commodity
+   * investing, and a full Chapter VI-A deduction spread — deliberately
+   * "kitchen sink" to exercise as much of Layer 1 India's real width as one
+   * coherent taxpayer can plausibly carry at once: salary + two house
+   * properties + presumptive AND regular-books business income (with
+   * depreciation, MSME disallowance, F&O/speculative ring-fence, partner-
+   * firm pass-through) + listed-equity STCG/LTCG + unlisted-equity buyback
+   * + VDA/crypto + commodities (physical gold sale + SGB maturity exemption)
+   * + the full other-sources list (family pension, gifts, gaming winnings,
+   * taxable EPF interest) + nine distinct Chapter VI-A deductions (OLD
+   * regime, so they actually bite) + LRS outbound + a brought-forward
+   * capital loss + advance tax + TDS.
+   * ====================================================================*/
+  var P6 = {
+    id: "india_only_ca_client",
+    label: "India-Only · CA client (no US exposure)",
+    story: "Business POV of a pure-India CA practice: a Bengaluru senior manager with zero US ties at all — Router is explicitly \"India only,\" and the Monitor collapses to a single-country view (no US badge, no US residency card, no DTAA panel) rather than fabricating a dual-jurisdiction picture. Deliberately dense: salary plus two side businesses (a presumptive s.44ADA UX-consulting practice and a regular-books stationery retail shop exercising depreciation, an MSME-payment disallowance, and F&O/speculative ring-fencing), a partner stake in a family LLP, listed-equity STCG/LTCG, an unlisted-company share buyback, a crypto sale taxed flat under s.115BBH, a physical-gold sale plus a Sovereign Gold Bond redeemed exempt at maturity, the full spread of \"other sources\" (family pension, a taxable gift, online-gaming winnings, taxable EPF interest), nine separate Chapter VI-A deductions under the OLD regime, an LRS remittance, a brought-forward capital loss, and a full advance-tax/TDS reconciliation — everything a well-off, purely domestic Indian client actually brings a CA in one filing year.",
+    tags: ["India-only", "single-jurisdiction", "presumptive + regular books", "F&O", "VDA/crypto", "partner-firm", "depreciation", "Chapter VI-A"],
+    router: router("Kavya Iyer", { us_days: 0, is_us_citizen: false, has_green_card: false, has_us_source_income_or_assets: false, date_of_birth: "1984-11-20", jurisdiction: "single_india" }),
+    india: {
+      profile: { full_name: "Kavya Iyer", entity_type: "individual", date_of_birth: "1984-11-20", pan: "AKIPI4567L", tax_regime: "OLD" },
+      residency_detail: { days_in_india_current_year: 365, final_india_residency_status: "ROR" },
+      dtaa: {},
+      compliance_docs: {},
+      bank_accounts: [{ bank_name: "HDFC Bank", account_type: "savings", peak_balance_inr: 2800000 }, { bank_name: "SBI", account_type: "current", peak_balance_inr: 950000 }],
+      property: { has_indian_property_transaction: true, properties: [
+        { address: "Flat 3B, Indiranagar, Bengaluru", property_type: "Residential", annual_value_inr: 360000, gross_rent_received_inr: 480000, municipal_taxes_paid_inr: 18000 },
+        { address: "2BHK, Mysore", property_type: "Residential", annual_value_inr: 180000, gross_rent_received_inr: 240000, municipal_taxes_paid_inr: 9000 }
+      ] },
+      foreign_assets: { has_foreign_assets: false, assets: [] },
+      foreign_income: { has_foreign_income: false },
+      // Listed-fund holdings (no capital gain modeled on these directly —
+      // held, not sold) + an ETH sale (s.115BBH flat 30%, no threshold, no
+      // loss set-off eligibility — the same VDA ring-fence Sharma HUF's BTC
+      // sale exercises).
+      financial_holdings: { has_financial_transactions: true, transactions: [
+        { asset_type: "equity_mutual_fund", asset_name: "Parag Parikh Flexi Cap", value_inr: 3200000 },
+        { asset_type: "debt_mutual_fund", asset_name: "ICICI Pru Corporate Bond Fund", value_inr: 1400000 },
+        { asset_class: "vda_crypto", asset_name_or_ticker: "ETH", quantity: 3, acquisition_date: "2024-02-10", purchase_value: 480000, purchase_currency: "INR", sale_date: "2026-09-01", sale_value: 720000, sale_currency: "INR", transfer_expenses: 0 }
+      ] },
+      // A small angel stake, tendered in a buyback this year — LTCG on an
+      // unlisted, non-promoter holding (contrast Vikram Rao's promoter
+      // buyback in founder_indian_company, which additionally carries the
+      // s.69(2)(b) promoter surcharge layer this one doesn't).
+      unlisted_equity: { has_unlisted_equity_transaction: true, transactions: [{ company: "Brightlane Foods Pvt Ltd", holding_pct: 4 }] },
+      share_buyback: { transactions: [
+        { company_name: "Brightlane Foods Pvt Ltd", is_listed: false, is_promoter: false,
+          buyback_date: "2026-07-10", original_acquisition_date: "2021-03-01",
+          consideration_received_inr: 900000, original_cost_inr: 250000,
+          capital_gain_or_loss: 650000, gain_classification: "ltcg",
+          buyback_pre_or_post_oct2024: "capital_gains_era" }
+      ] },
+      // Physical gold sold at a gain (GROUP_C, s.112, 24mo threshold) plus a
+      // Sovereign Gold Bond redeemed AT MATURITY — exempt under s.47(viic),
+      // exercising the "genuinely no taxable event" branch, not just a low
+      // one.
+      commodities: { transactions: [
+        { asset_class: "physical_gold", acquisition_date: "2023-11-01", purchase_value: 320000, purchase_currency: "INR", sale_date: "2026-10-15", sale_value: 410000, sale_currency: "INR" },
+        { asset_class: "sovereign_gold_bond_original", acquisition_date: "2018-11-05", purchase_value: 150000, purchase_currency: "INR", sale_date: "2026-11-05", sale_value: 260000, sale_currency: "INR", is_maturity_redemption: true }
+      ] },
+      domestic_income: {
+        salary: { has_salary_income: true, taxable_salary_inr: 2400000, employer_nps_contribution_inr: 120000 },
+        house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 360000 }, { annual_value_inr: 180000 }] },
+        business_income: {
+          has_business_or_fo_income: true,
+          // F&O ordinary profit + a small ring-fenced speculative LOSS (must
+          // NOT offset the ordinary business total — same rule Rohan Mehta's
+          // profile exercises).
+          non_speculative_income_inr: 320000, fno_turnover_inr: 6500000,
+          speculative_income_inr: -45000, speculative_turnover_inr: 500000,
+          business_entries: [
+            { business_name: "Kavya Iyer UX Consulting", nature: "design consultancy", presumptive_scheme: "s44ADA", gross_receipts_inr: 2200000, ada_digital_receipts_inr: 2000000, ada_cash_receipts_inr: 200000 },
+            { business_name: "Iyer Stationery Mart", nature: "retail trading", presumptive_scheme: null, turnover_inr: 8500000, gross_receipts_inr: 8500000,
+              expenses: { rent_for_business_premises_inr: 480000, employee_salary_wages_inr: 960000, other_business_expenses_inr: 620000, insurance_premium_inr: 40000,
+                payments_to_residents_no_tds_inr: 150000 } }
+          ],
+          asset_blocks: [
+            { unit_biz_idx: 1, unit_branch_idx: null, asset_class: "plant_machinery_general", opening_wdv_inr: 900000, additions_during_year_inr: 300000, addition_date: "2026-05-15", sale_consideration_inr: 0, is_new_manufacturing_asset: false }
+          ],
+          msme_payables: [
+            { unit_biz_idx: 1, unit_branch_idx: null, supplier_name: "Sunrise Packaging Co", amount_inr: 65000, invoice_date: "2026-02-01", has_written_agreement: false, payment_date: null }
+          ],
+          partner_firms: [
+            { firm_name: "Iyer & Rao Jewelry Trading LLP", entity_type: "llp", remuneration_from_entity_inr: 480000, interest_on_capital_from_entity_inr: 90000, profit_share_exempt_inr: 700000 }
+          ]
+        },
+        capital_gains: { short_term_15_pct: 340000, ltcg_112a_inr: 210000 }
+      },
+      other_sources: { has_other_sources_income: true, interest_savings_inr: 32000, interest_fd_rd_inr: 210000, dividend_inr: 95000, family_pension_gross_inr: 180000, gifts_above_50k_inr: 120000, online_gaming_winnings_inr: 40000, taxable_epf_interest_inr: 28000 },
+      // Nine distinct Chapter VI-A sections, only meaningful under the OLD
+      // regime (why this profile picks OLD, unlike most others in the
+      // suite) — 80C intentionally oversubscribed (₹2,00,000 of
+      // contributions against the ₹1,50,000 cap) to exercise the cap itself,
+      // not just an under-cap figure.
+      deductions: {
+        s80C: { epf_employee_inr: 150000, elss_inr: 50000, life_insurance_premium_inr: 35000, tuition_fees_inr: 60000 },
+        s80CCD_1B: { nps_additional_inr: 50000 },
+        s80D: { self_family_premium_inr: 28000, parents_premium_inr: 45000 },
+        s80DDB: { has_specified_diseases_treatment: true, medical_expenses_inr: 55000, patient_category: "senior" },
+        s80E: { education_loan_interest_inr: 85000 },
+        s80EEA_EE: { affordable_home_loan_interest_inr: 140000, loan_sanction_date: "2020-06-15" },
+        s80TTA_TTB: { savings_interest_inr: 32000 },
+        s80ggb_ggc_political_donation_inr: 25000
+      },
+      carry_forward_losses: { has_brought_forward_losses: true, stcg_loss_cf: [{ assessment_year: "AY2024-25", amount_inr: 90000 }] },
+      lrs_outbound: { total_lrs_remitted_this_fy_inr: 1200000 },
+      tax_credits: { advance_tax_q1_15jun_inr: 180000, advance_tax_q2_15sep_inr: 220000, advance_tax_q3_15dec_inr: 220000, advance_tax_q4_15mar_inr: 180000, tds_already_deducted_inr: 310000 },
+      metadata: meta("layer1_india_v5_1", "TY2026-27")
+    },
+    // Minimal shell — Layer 1's own profile-seeding contract always ships
+    // both sides so neither form crashes if opened, but every field here is
+    // genuinely empty/zero (not a hand-waved guess): this taxpayer has no US
+    // days, no US citizenship/green card, no US-source income or assets.
+    // Combined with the router's explicit "single_india" jurisdiction (also
+    // independently auto-detected — see model.meta.hasUsScope), the Monitor
+    // renders NOTHING US-related for this profile.
+    us: {
+      profile: { tax_entity_type: "individual", full_name: "Kavya Iyer", filing_status: "single" },
+      us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 0, spt_test_met: false, final_us_residency_status: "NON_RESIDENT_ALIEN" },
+      income_us_source: {}, income_foreign_source: {}, foreign_earned_income: { claims_feie: false },
+      bank_accounts: [], fbar_aggregate_peak_usd: 0,
+      foreign_entities: { foreign_corporations: [], pfic_holdings: [] }, retirement_accounts: {},
+      ftc_inputs: { claims_ftc: false }, withholding_and_estimated: {}, nra_specific: { files_form_1040nr: false },
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
+    }
+  };
+
+  /* ======================================================================
+   * PROFILE 7 — SINGLE-JURISDICTION: US only, zero India exposure.
+   * The mirror-image question: how much value does WISING deliver to a CPA
+   * whose client has no India ties at all? Router jurisdiction is
+   * explicitly "single_us" (there's no data-driven "no India presence"
+   * signal to auto-detect from — India is this tool's base jurisdiction, so
+   * the explicit Router choice is the only way to narrow scope away from
+   * it, see model.meta.hasIndiaScope). A high earner exercising Schedule C
+   * (with real per-asset MACRS/§179/bonus depreciation, US-29) alongside a
+   * limited-partnership K-1, an SSTB S-corp K-1 (QBI phase-out), a trust
+   * K-1, W-2 wages, rental real estate, capital gains, an ISO-exercise AMT
+   * preference plus private-activity-bond interest, a full itemized-
+   * deduction spread (SALT capped, mortgage interest, charitable, medical,
+   * student loan), the Child & Dependent Care Credit, education credits,
+   * CTC-eligible dependents, retirement contributions AND distributions,
+   * and state residency — the US-side breadth this suite otherwise only
+   * ever shows split across several cross-border profiles at once.
+   * ====================================================================*/
+  var P7 = {
+    id: "us_only_cpa_client",
+    label: "US-Only · CPA client (no India exposure)",
+    story: "Business POV of a pure-US CPA practice: a Sacramento data consultant with zero India ties at all — Router is explicitly \"US only,\" and the Monitor collapses to a single-country view (no India badge, no India residency card, no DTAA panel) rather than fabricating a dual-jurisdiction picture. Deliberately dense: W-2 wages, a Schedule C consulting practice with two real depreciable assets (a server rack partially §179-expensed, a business SUV 100%-bonus-depreciated), a limited-partner K-1, an SSTB S-corp K-1 (exercising the QBI phase-out a non-SSTB K-1 never triggers), a family-trust K-1, rental real estate, both short- and long-term capital gains, an ISO exercise plus private-activity-bond interest (both AMT preference items), a full itemized-deduction spread landing above the SALT cap, the Child & Dependent Care Credit plus an education credit for two CTC-eligible dependents, 401(k)/HSA contributions alongside IRA/401(k) distributions in the same year, and California state residency — everything a well-off, purely domestic US client actually brings a CPA in one filing year.",
+    tags: ["US-only", "single-jurisdiction", "Schedule C depreciation", "K-1", "SSTB/QBI", "AMT", "itemized deductions", "credits"],
+    router: router("David Chen", { is_us_citizen: true, has_green_card: false, us_days: 365, date_of_birth: "1979-03-08", jurisdiction: "single_us" }),
+    // Minimal shell — mirror-image of P6's US side: zero India days, no
+    // Indian income, no Indian assets, on file. Combined with the router's
+    // explicit "single_us" jurisdiction, the Monitor renders NOTHING
+    // India-related for this profile.
+    india: {
+      profile: { full_name: "David Chen", entity_type: "individual", tax_regime: "NEW" },
+      residency_detail: { days_in_india_current_year: 0, final_india_residency_status: "NR" },
+      dtaa: {},
+      compliance_docs: {},
+      bank_accounts: [],
+      property: { properties: [] },
+      financial_holdings: { transactions: [] },
+      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: false, properties: [] }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} },
+      other_sources: {},
+      deductions: {},
+      carry_forward_losses: {},
+      lrs_outbound: {},
+      tax_credits: {},
+      metadata: meta("layer1_india_v5_1", "TY2026-27")
+    },
+    us: {
+      profile: { tax_entity_type: "individual", full_name: "David Chen", date_of_birth: "1979-03-08", filing_status: "mfj", ssn_or_itin_type: "ssn", dependents_count: 2 },
+      us_residency_detail: { is_us_citizen: true, has_green_card: false, us_days_current_year: 365, spt_test_met: true, final_us_residency_status: "US_CITIZEN", dtaa_treaty_residence: "none" },
+      income_us_source: {
+        has_employment_income: true,
+        wages_w2: [{ employer_name: "Meridian Analytics Inc", wages_box1_usd: 210000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 41000, medicare_wages_box5_usd: 210000 } }],
+        // Real per-asset MACRS/§179/100%-bonus depreciation (US-29, shipped
+        // this session) on TWO assets in the same business: the server rack
+        // splits §179 ($10,000) and bonus (100% on the $12,000 remainder);
+        // the SUV takes 100% bonus on the full $20,000 basis outright —
+        // exercising both paths in one Schedule C, sized to still leave a
+        // real positive net-SE-income figure (Schedule SE tax, QBI) rather
+        // than depreciating the whole practice's profit away to $0.
+        self_employment: [
+          { id: "david-consulting", business_name: "Chen Data Consulting", has_se_income: true, gross_receipts_usd: 95000, expenses_usd: 18000, is_specified_service_trade: false,
+            assets: [
+              { id: "david-server", name: "Office server rack", class: "7-year", cost: 22000, sec179: 10000, bonus: true, placed_in_service_date: "2026-03-01" },
+              { id: "david-suv", name: "Business SUV (>6,000 lb GVWR)", class: "5-year", cost: 20000, sec179: 0, bonus: true, placed_in_service_date: "2026-06-15" }
+            ] }
+        ],
+        // Limited partner (no material participation) — ordinary income only,
+        // no guaranteed payments, no SE tax base.
+        partnerships_k1: [{ business_name: "Ridgeline Capital Partners LP", partner_type: "limited", ordinary_business_income_usd: 14000, guaranteed_payments_usd: 0, self_employment_earnings_usd: 0, interest_income_usd: 1200, ordinary_dividends_usd: 800, sec179_deduction_usd: 0 }],
+        // A specified-service-trade S-corp (health field) — exercises the
+        // QBI SSTB phase-out the non-SSTB K-1s in this same profile don't
+        // trigger.
+        s_corporations_k1: [{ business_name: "Brightpath Dental PC", ordinary_income_usd: 22000, ordinary_dividends_usd: 0, is_specified_service_trade: true }],
+        trusts_estates_k1: [{ business_name: "Chen Family Trust", trust_type: "simple", ordinary_income_usd: 6000, interest_income_usd: 400, ordinary_dividends_usd: 700, qualified_dividends_usd: 600, is_specified_service_trade: false }],
+        interest_us_source_usd: 4200, ordinary_dividends_us_source_usd: 8200, qualified_dividends_us_source_usd: 6100,
+        ltcg_us_source_usd: 32000, stcg_us_source_usd: 9000,
+        rental_income_us_source_usd: 21000,
+        // Retirement DISTRIBUTIONS in the same year as active retirement
+        // CONTRIBUTIONS below (realistic: an old employer's 401(k) rolled
+        // out / partially cashed while still actively saving elsewhere) —
+        // Layer 1 US has no live UI for these fields yet (gap tracker
+        // US-24), but the engine itself already reads them.
+        ira_distributions_usd: 12000, "401k_distributions_usd": 8000,
+        se_health_insurance_deduction_usd: 9600, se_retirement_deduction_usd: 15000
+      },
+      income_foreign_source: {}, foreign_earned_income: { claims_feie: false },
+      // ISO bargain element — an AMT preference item alongside the private-
+      // activity-bond interest below, both landing in the same return.
+      equity_compensation: { iso_exercises: [{ shares_exercised: 2000, fmv_at_exercise_usd: 40, strike_price_usd: 15 }] },
+      itemized_deductions_and_credits: {
+        use_standard_or_itemized: "itemized",
+        state_and_local_taxes_paid_usd: 45000, mortgage_interest_paid_usd: 24000,
+        charitable_contributions_cash_usd: 12000, charitable_contributions_appreciated_usd: 5000,
+        medical_expenses_usd: 8000, student_loan_interest_usd: 2500,
+        child_and_dependent_care_expenses_usd: 9000,
+        education_credits_aotc_usd: 2500, education_credits_llc_usd: 0,
+        dependents_count: 2
+      },
+      // Real field path (amt_inputs.private_activity_bond_interest_usd, not
+      // the itemized-card fallback) — see gap tracker US-21.
+      amt_inputs: { private_activity_bond_interest_usd: 3000 },
+      state_residency: { primary_state_of_residence: "CA", ca_retains_property_or_voter_reg: true },
+      // Layer 1 US's bank_accounts field is specifically for FOREIGN account
+      // disclosure (FBAR/8938) — a real US taxpayer with only domestic
+      // banking has nothing to enter here at all, and a US-domestic account
+      // entered here would (bug found building this profile: aggregateAccounts'
+      // fallback summed ALL disclosed accounts toward the FBAR aggregate
+      // without filtering out US-country ones) incorrectly count toward the
+      // $10,000 FBAR reporting cliff. David has no foreign accounts, so this
+      // stays empty rather than listing his ordinary US checking account.
+      bank_accounts: [],
+      fbar_aggregate_peak_usd: 0,
+      foreign_entities: { foreign_corporations: [], pfic_holdings: [] },
+      retirement_accounts: { "401k_employee_contribution_usd": 23000, "401k_employer_match_usd": 11000, hsa_contribution_usd: 8300 },
+      financial_holdings: [{ asset_name: "Vanguard — Taxable Brokerage", account_type: "taxable_brokerage", peak_balance_usd: 340000, country: "US" }, { asset_name: "Fidelity 401(k)", account_type: "retirement_brokerage", peak_balance_usd: 410000, country: "US" }],
+      real_estate: { has_real_estate_transaction: true, properties: [{ name: "Rental duplex — Sacramento, CA", property_type: "Residential rental", gross_rent_usd: 36000, expenses_usd: 15000 }] },
+      ftc_inputs: { claims_ftc: false },
+      withholding_and_estimated: { federal_withholding_total_usd: 41000, estimated_tax_q1_apr15_usd: 8000, estimated_tax_q2_jun15_usd: 8000, estimated_tax_q3_sep15_usd: 8000, estimated_tax_q4_jan15_usd: 8000 },
+      nra_specific: { files_form_1040nr: false },
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
+    }
+  };
+
+  /* ======================================================================
+   * PROFILE 8 — BUSINESS POV: Indian Pvt Ltd (domestic company).
    * The entity itself is the taxpayer (ITR-6): business profits, corporate
    * tax (§200 22%), advance tax — no salary/retirement.
    * ====================================================================*/
@@ -764,7 +1021,7 @@
   };
 
   /* ======================================================================
-   * PROFILE 7 — BUSINESS POV: US C-Corp with an Indian subsidiary.
+   * PROFILE 9 — BUSINESS POV: US C-Corp with an Indian subsidiary.
    * US C-corp (Form 1120, 21%) + an Indian Pvt Ltd subsidiary (ITR-6);
    * cross-border corporate structure → transfer pricing / CFC territory.
    * ====================================================================*/
@@ -835,7 +1092,7 @@
   };
 
   /* ======================================================================
-   * PROFILE 8 — BUSINESS POV: foreign-incorporated holding company with its
+   * PROFILE 10 — BUSINESS POV: foreign-incorporated holding company with its
    * Place of Effective Management in India (entity-level dual residency).
    * Not incorporated in India, so India's own s.6(3) test hinges entirely on
    * POEM — and this one's POEM facts point straight at Mumbai.
@@ -888,7 +1145,7 @@
   };
 
   /* ======================================================================
-   * PROFILE 9 — BUSINESS POV: an HUF (Hindu Undivided Family).
+   * PROFILE 11 — BUSINESS POV: an HUF (Hindu Undivided Family).
    * Control-and-management residency test (not day-count, not POEM) —
    * demonstrates the entity-aware fix that HUF is NOT entitled to the
    * individual-only §156 rebate, plus an unlinked PAN/Aadhaar (s.397(2)).
@@ -959,7 +1216,7 @@
     }
   };
 
-  var PROFILES = [P1, P2, P3, P4, P5, B1, B2, B3, B4];
+  var PROFILES = [P1, P2, P3, P4, P5, P6, P7, B1, B2, B3, B4];
 
   // Attach a realistic Q1-Q4 breakdown to every profile (see buildQuarters
   // above) so Layer 1 India's quarter tabs show a genuine spread instead of

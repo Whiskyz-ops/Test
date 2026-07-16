@@ -1879,8 +1879,18 @@
     };
   }
 
-  /* Foreign accounts (FBAR / 8938 / Schedule FA). */
-  function aggregateAccounts(india, us) {
+  /* Foreign accounts (FBAR / 8938 / Schedule FA) — a US-person concept.
+   * hasUsScope gates the fallback that treats a taxpayer's own Indian bank
+   * accounts as "foreign" (i.e., foreign TO A US PERSON): that framing only
+   * makes sense when the taxpayer actually has US exposure at all. Without
+   * it, a purely domestic Indian resident's own savings account would get
+   * summed into an "FBAR aggregate peak" and could trip the $10,000
+   * reporting-cliff finding for someone with zero US nexus to report
+   * anything to (found building the india_only_ca_client demo profile,
+   * gap tracker XB pending). accounts.list itself is still returned
+   * unconditionally — Schedule FA (an India-side disclosure, not a US one)
+   * has its own independent gating elsewhere and still needs the raw list. */
+  function aggregateAccounts(india, us, hasUsScope) {
     var indianAccounts = (safe(india, "bank_accounts", []) || []).map(function (b) {
       return { bank: b.bank_name || "Indian Bank", type: b.account_type || "savings",
                peak: moneyFromInr(b.peak_balance_inr || 0), country: "India" };
@@ -1895,7 +1905,7 @@
     var formFbar = num(safe(us, "fbar_aggregate_peak_usd", 0));
     var aggregatePeak = formFbar > 0
       ? moneyFromUsd(formFbar)
-      : accounts.reduce(function (acc, a) { return addMoney(acc, a.peak); }, zeroMoney());
+      : (hasUsScope === false ? zeroMoney() : accounts.reduce(function (acc, a) { return addMoney(acc, a.peak); }, zeroMoney()));
     return { accounts: accounts, aggregatePeak: aggregatePeak };
   }
 
@@ -2349,7 +2359,7 @@
         india: aggregateIndiaDeductions(india),
         us: aggregateUsDeductions(us)
       },
-      accounts: aggregateAccounts(india, us),
+      accounts: aggregateAccounts(india, us, scopeHasUs),
       taxesPaid: aggregateTaxesPaid(india, us),
       withholdingDetail: aggregateWithholdingDetail(india, us),
       assets: {

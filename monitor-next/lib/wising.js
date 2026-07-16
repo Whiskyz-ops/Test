@@ -118,7 +118,19 @@ export function countriesFromEngine(result) {
     incomeExposedUsd: Math.round(model.income.us.total.usd),
     reason: null
   };
-  return [india, us];
+  // Scope — see model.meta.hasIndiaScope/hasUsScope (normalize.js): a
+  // taxpayer with no real exposure in one country (e.g. an India-only CA
+  // client with zero US days/citizenship/income) isn't just "on track" in
+  // that country, they're not a taxpayer there at all. Omitting it here
+  // (rather than including it as STATUS.NONE, which renders as a green
+  // "On track" jurisdiction) lets the map/KPI counts fall through to their
+  // existing "not tracked" treatment for any country with no status entry,
+  // instead of implying the US is being actively monitored for a client who
+  // has nothing to monitor there.
+  const out = [];
+  if (model.meta.hasIndiaScope !== false) out.push(india);
+  if (model.meta.hasUsScope !== false) out.push(us);
+  return out;
 }
 
 // Convenience: full engine-derived snapshot for the Monitor.

@@ -273,7 +273,13 @@
     }
 
     // -- 4. FTC RECONCILIATION GAP (residual double tax) -------------------
-    if (ftc.netUnrelievedDoubleTaxUsd > 1) {
+    // Requires real dual scope: "residual double taxation" is meaningless
+    // for a taxpayer who was never taxed by the second country in the first
+    // place — without a US tax liability to credit against, indiaTaxPaidUsd
+    // trivially exceeds a near-zero ftcLimitUsd and this fired for every
+    // purely-domestic Indian taxpayer regardless of actual US exposure
+    // (found building the india_only_ca_client demo profile).
+    if (model.meta.hasIndiaScope && model.meta.hasUsScope && ftc.netUnrelievedDoubleTaxUsd > 1) {
       add("ftc_gap", S.CRITICAL, C.CREDIT,
         "Foreign Tax Credit shortfall — residual double taxation",
         "Indian tax paid (" + usd(ftc.us.indiaTaxPaidUsd) + ") exceeds the US FTC limitation (" +
@@ -285,7 +291,7 @@
         "run next year's numbers. Also check whether treaty re-sourcing (Art. 25) could reclassify some income to lift " +
         "the limitation — WISING does not test this automatically.",
         ftc.us.residualDoubleTaxUsd, [usFtcForm(model), "§904(c)"]);
-    } else if (ftc.us.indiaTaxPaidUsd > 0 && ftc.us.ftcAllowedUsd > 0) {
+    } else if (model.meta.hasIndiaScope && model.meta.hasUsScope && ftc.us.indiaTaxPaidUsd > 0 && ftc.us.ftcAllowedUsd > 0) {
       add("ftc_available", S.INFO, C.CREDIT,
         "Foreign Tax Credit available and within limit",
         "Indian tax of " + usd(ftc.us.indiaTaxPaidUsd) + " is fully creditable against US tax this year (" +
@@ -333,7 +339,7 @@
     // single-year snapshot) — so this can only ever say "you might owe a
     // penalty", never "you definitely do": meeting the prior-year safe
     // harbor instead would still avoid it.
-    if (computed.usTax && model.meta.hasUs) {
+    if (computed.usTax && model.meta.hasUsScope) {
       var us2210TotalTaxUsd = Math.max(0, (computed.usTax.totalTaxBeforeFtcUsd || 0) - (ftc.us.ftcAllowedUsd || 0));
       var us2210PaidUsd = model.taxesPaid.us.total.usd;
       var us2210SafeHarborUsd = us2210TotalTaxUsd * 0.9;
@@ -385,7 +391,7 @@
     // deliberately NOT a claim that a US Form 1099-DA obligation exists —
     // Indian-exchange-only crypto activity has no US broker involvement at
     // all. Framed as an awareness prompt, not a filing requirement.
-    if (model.income.india.vdaSaleConsiderationInr > 0 && model.meta.hasUs) {
+    if (model.income.india.vdaSaleConsiderationInr > 0 && model.meta.hasUsScope) {
       add("form_1099da_awareness", S.INFO, C.DOCUMENT,
         "Crypto/VDA activity on file — check for US Form 1099-DA broker reporting",
         "Virtual digital asset transactions are recorded on the India side this year. If any of this activity (or other " +
@@ -735,7 +741,17 @@
     }
 
     // -- 5. FORM 67 TIMING (India FTC procedural) --------------------------
-    if (model.income.us.foreignSourceTotal.usd > 0 || model.taxesPaid.us.total.usd > 0) {
+    // Form 44 is a checkbox on the INDIA return — it requires real India
+    // scope, not just US scope, on top of the existing income/tax check.
+    // (a) hasUsScope alone wasn't enough: foreignSourceTotal can be nonzero
+    // from India-side auto-hydration (e.g. taxable EPF interest folded into
+    // "foreign-source interest" for a dual taxpayer's US return) even for a
+    // taxpayer with zero actual US exposure (india_only_ca_client). (b) a
+    // taxpayer with real US exposure but NO India return to file at all
+    // (us_only_cpa_client) has no Form 44 to file either — India isn't
+    // "the second country" for a US-only taxpayer, so requiring hasUsScope
+    // alone still let this fire for her.
+    if (model.meta.hasIndiaScope && model.meta.hasUsScope && (model.income.us.foreignSourceTotal.usd > 0 || model.taxesPaid.us.total.usd > 0)) {
       add("form67_required", S.INFO, C.DOCUMENT,
         "Form 44 — required for the Indian FTC claim",
         "Foreign income / foreign tax is present, so India requires Form 44 (with Schedule FSI and TR) on or before the ITR due date to allow FTC u/s 90/91.",
@@ -744,7 +760,12 @@
     }
 
     // -- 6. TAX-YEAR / APPORTIONMENT MISMATCH ------------------------------
-    if (res.dualResident || (model.meta.hasIndia && model.meta.hasUs)) {
+    // hasIndiaScope/hasUsScope (not the structural hasIndia/hasUs, which are
+    // true for ANY profile since Layer 1's shell exists on both sides
+    // regardless of real exposure) — apportioning a tax year across two
+    // calendars is meaningless for a taxpayer who only has one calendar to
+    // begin with.
+    if (res.dualResident || (model.meta.hasIndiaScope && model.meta.hasUsScope)) {
       var ap = computed.apportionment;
       add("tax_year_mismatch", S.INFO, C.CREDIT,
         "Tax-year apportionment: Indian FY ↔ US CY (computed)",
@@ -756,12 +777,16 @@
     }
 
     // -- 7. FX BASIS MISMATCH ----------------------------------------------
-    add("fx_basis", S.INFO, C.CREDIT,
-      "FX conversion basis is an approximation",
-      "Cross-border amounts are normalized at a flat " + CONST.FX.INR_PER_USD +
-      " INR/USD. Statutory FTC computations require the telegraphic-transfer buying rate on the relevant date (Rule 115 / SBI TTBR).",
-      "Re-price each foreign income and tax item at the correct per-transaction rate before filing; the flat rate is for planning visibility only.",
-      0, ["Rule 115", "SBI TTBR"]);
+    // Same scope gate — an FX conversion-basis caveat only means something
+    // when amounts are actually being converted/compared cross-border.
+    if (model.meta.hasIndiaScope && model.meta.hasUsScope) {
+      add("fx_basis", S.INFO, C.CREDIT,
+        "FX conversion basis is an approximation",
+        "Cross-border amounts are normalized at a flat " + CONST.FX.INR_PER_USD +
+        " INR/USD. Statutory FTC computations require the telegraphic-transfer buying rate on the relevant date (Rule 115 / SBI TTBR).",
+        "Re-price each foreign income and tax item at the correct per-transaction rate before filing; the flat rate is for planning visibility only.",
+        0, ["Rule 115", "SBI TTBR"]);
+    }
 
     // -- 7b. STATE RESIDENCY — THE INDIA-US TREATY DOES NOT BIND STATES -----
     // Article 4 / the federal §911/§901 machinery is FEDERAL law only. States
@@ -1251,13 +1276,13 @@
       // Any India-side income implies a reconciliation obligation — these
       // aren't taxpayer-filed, so there's no narrower per-client fact to gate
       // on beyond "does this taxpayer have an India return at all".
-      form_26as_ais_tis: model.meta.hasIndia,
-      form_16_16a: model.meta.hasIndia,
+      form_26as_ais_tis: model.meta.hasIndiaScope,
+      form_16_16a: model.meta.hasIndiaScope,
       lrs_form_a2: model.limitsRaw.lrsRemittedInr > 0,
       // Same reasoning as form_16_16a: every US filer needs to know this
       // form exists ahead of the Apr 15 deadline, not just the ones who will
       // end up filing late (which isn't a fact WISING can know in advance).
-      form_4868: model.meta.hasUs,
+      form_4868: model.meta.hasUsScope,
       form_540: !!(computed.stateTax && computed.stateTax.state === "CA"),
       form_it201: !!(computed.stateTax && computed.stateTax.state === "NY")
     };
@@ -2074,7 +2099,7 @@
    * ----------------------------------------------------------------------*/
   function buildScopeNotes(model) {
     var notes = [];
-    var hasIndia = model.meta.hasIndia, hasUs = model.meta.hasUs, dual = hasIndia && hasUs;
+    var hasIndia = model.meta.hasIndiaScope, hasUs = model.meta.hasUsScope, dual = hasIndia && hasUs;
     var hasIndiaBusiness = (model.entity && model.entity.isBusiness) || (model.income.india.business && model.income.india.business.inr > 0);
     var hasSecuritiesTrades = ((model.assets && model.assets.indianSecurities) || []).length > 0;
     var hasUsWagesOrSe = model.income.us.wages.usd > 0 || (model.income.us.seEarningsUsd || 0) > 0;

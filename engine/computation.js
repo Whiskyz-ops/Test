@@ -1777,7 +1777,7 @@
     var reconciliation = crossBasis(model, residency, usTax);
     var apportionment = computeApportionment(model);
     var limits = computeLimits(model);
-    var indiaItrForm = model.meta.hasIndia ? computeIndiaItrForm(model, { indiaTax: indiaTax }) : null;
+    var indiaItrForm = model.meta.hasIndiaScope ? computeIndiaItrForm(model, { indiaTax: indiaTax }) : null;
 
     return {
       residency: residency,
