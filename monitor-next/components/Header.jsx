@@ -18,7 +18,21 @@ const US_ENTITY_LABEL = {
 export default function Header({ region, onRegionChange, clientName, baseYear, entity }) {
   const period = baseYear ? `TY${baseYear}-${String(baseYear + 1).slice(2)} (India) / TY${baseYear} (US)` : CLIENT.period;
   const indiaLabel = entity ? (INDIA_ENTITY_LABEL[entity.indiaKind] || entity.indiaKind) : null;
-  const usLabel = entity ? (US_ENTITY_LABEL[entity.usKind] || entity.usKind) : null;
+  // Entity type is one fact about the taxpayer, not two — Layer 1 US's own
+  // tax_entity_type field only has a real, deliberately-set value when a
+  // SEPARATE US entity (ccorp/scorp/partnership/trust) was actually
+  // organized (E.usIsBusiness). Otherwise it just sits at its unset
+  // "individual" default, including for taxpayers who are plainly not
+  // individuals at all (a company/HUF/firm whose only registration is in
+  // India). Showing that default as "US: Individual" next to "India:
+  // Company" reads as two conflicting classifications for one taxpayer;
+  // mirror India's label instead whenever the US side has no real entity
+  // election of its own to show.
+  const usLabel = entity
+    ? (entity.usIsBusiness ? (US_ENTITY_LABEL[entity.usKind] || entity.usKind)
+      : entity.indiaKind !== "individual" ? (INDIA_ENTITY_LABEL[entity.indiaKind] || entity.indiaKind)
+      : (US_ENTITY_LABEL[entity.usKind] || entity.usKind))
+    : null;
   return (
     <div className="flex items-center justify-between gap-4 mb-5">
       <div className="flex items-center gap-3 min-w-0">
