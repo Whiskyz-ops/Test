@@ -390,14 +390,31 @@
       // a given quarter's due date — not modeled, since Layer 1 doesn't
       // capture per-transaction dates at that granularity; this can
       // overstate the estimate for income concentrated late in the year.
+      // s.425's own proviso (carried over from the old 234C proviso): an
+      // assessee declaring business profits ONLY under the presumptive
+      // scheme (s.58, old 44AD/44ADA) owes a single installment — 100% by
+      // 15 March — not the quarterly 15/45/75% ladder, and a shortfall
+      // draws just 1 month of interest. Applied only when every business
+      // entry is a valid presumptive one (no regular-books entry, no
+      // partner-firm PGBP): where presumptive and non-presumptive business
+      // income coexist, the quarterly ladder is retained for the whole
+      // liability — the proviso's relief is scoped to "an eligible
+      // business", and the conservative reading is standard practice for
+      // mixed profiles. Verified against FY2026-27 practitioner guidance
+      // (ClearTax / Tax2win / India Briefing, 16 Jul 2026).
+      var inPurelyPresumptive = !!(model.income.india.indiaHasValidPresumptiveEntry &&
+        !model.income.india.indiaHasRegularBooksEntry &&
+        !model.income.india.indiaHasPartnerFirmIncome);
       var inS425Inr = 0;
       if (inAssessedTaxInr > 0) {
-        [
+        (inPurelyPresumptive ? [
+          { required: 1.00, paid: inAdvQ.q1 + inAdvQ.q2 + inAdvQ.q3 + inAdvQ.q4, months: 1 }
+        ] : [
           { required: 0.15, paid: inAdvQ.q1, months: 3 },
           { required: 0.30, paid: inAdvQ.q2, months: 3 },
           { required: 0.30, paid: inAdvQ.q3, months: 3 },
           { required: 0.25, paid: inAdvQ.q4, months: 1 }
-        ].forEach(function (q) {
+        ]).forEach(function (q) {
           var shortInr = Math.max(0, inAssessedTaxInr * q.required - q.paid);
           inS425Inr += shortInr * 0.01 * q.months;
         });
@@ -410,7 +427,9 @@
           "Advance tax paid (" + inr(inAdvancePaidInr) + ") falls short of the assessed tax (" + inr(inAssessedTaxInr) +
           ") this year. At 1%/month simple interest: " + inr(inS424Inr) + " under s.424 (shortfall below the 90% floor, " +
           inS424Months + " months to the " + (inIsAuditCase ? "audit-case (31 Oct)" : "non-audit (31 Jul)") +
-          " due date) + " + inr(inS425Inr) + " under s.425 (quarter-by-quarter installment shortfalls). Both keep " +
+          " due date) + " + inr(inS425Inr) + " under s.425 (" +
+          (inPurelyPresumptive ? "single 15-Mar installment shortfall — presumptive-scheme filers owe 100% in one installment, s.425 proviso"
+            : "quarter-by-quarter installment shortfalls") + "). Both keep " +
           "accruing past the due date until actually paid — this is the exposure AS OF the due date, not a final number.",
           "Pay the shortfall before filing to stop s.424 interest accruing further; s.425's quarter-by-quarter amount is " +
           "fixed once the year ends and doesn't grow. If the year isn't over yet, revise the remaining installment(s) upward.",

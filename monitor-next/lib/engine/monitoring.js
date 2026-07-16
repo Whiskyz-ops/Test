@@ -295,11 +295,23 @@
       ? { date: d(baseYear + 1, 10, 31), label: "India ITR + Form 44 (audit case)" }
       : { date: d(baseYear + 1, 7, 31), label: "India ITR + Form 44 (non-audit)" };
 
-    var deadlines = [
+    // s.425 proviso: a business that is ONLY presumptive (s.58, old
+    // 44AD/44ADA — no regular-books entry, no partner-firm PGBP) owes a
+    // single 100% installment by 15 Mar, not the quarterly ladder. Same
+    // signal as conflicts.js's india_advance_tax_interest branch.
+    var inPurelyPresumptive = !!(model.income && model.income.india &&
+      model.income.india.indiaHasValidPresumptiveEntry &&
+      !model.income.india.indiaHasRegularBooksEntry &&
+      !model.income.india.indiaHasPartnerFirmIncome);
+    var indiaAdvanceTaxRows = inPurelyPresumptive ? [
+      { name: "India advance tax — single installment (100%, presumptive scheme)", jur: "IN", date: d(baseYear + 1, 3, 15), cat: "Advance tax", docIds: [] }
+    ] : [
       { name: "India advance tax — Q1 (15%)", jur: "IN", date: d(baseYear, 6, 15), cat: "Advance tax", docIds: [] },
       { name: "India advance tax — Q2 (45%)", jur: "IN", date: d(baseYear, 9, 15), cat: "Advance tax", docIds: [] },
       { name: "India advance tax — Q3 (75%)", jur: "IN", date: d(baseYear, 12, 15), cat: "Advance tax", docIds: [] },
-      { name: "India advance tax — Q4 (100%)", jur: "IN", date: d(baseYear + 1, 3, 15), cat: "Advance tax", docIds: [] },
+      { name: "India advance tax — Q4 (100%)", jur: "IN", date: d(baseYear + 1, 3, 15), cat: "Advance tax", docIds: [] }
+    ];
+    var deadlines = indiaAdvanceTaxRows.concat([
       { name: "US estimated tax — Q1", jur: "US", date: d(baseYear, 4, 15), cat: "Estimated tax", docIds: [] },
       { name: "US estimated tax — Q2", jur: "US", date: d(baseYear, 6, 15), cat: "Estimated tax", docIds: [] },
       { name: "US estimated tax — Q3", jur: "US", date: d(baseYear, 9, 15), cat: "Estimated tax", docIds: [] },
@@ -308,7 +320,15 @@
       { name: indiaFiling.label, jur: "IN", date: indiaFiling.date, cat: "Filing", docIds: IN_RETURN_DOCS },
       { name: "US extended " + usFiling.label.replace(/^US /, "") + " deadline", jur: "US", date: usFiling.ext, cat: "Extension", docIds: US_RETURN_DOCS },
       { name: "India belated / revised ITR", jur: "IN", date: d(baseYear + 1, 12, 31), cat: "Extension", docIds: IN_RETURN_DOCS }
-    ].map(function (x) {
+    ]).filter(function (x) {
+      // Same dynamic scope rule as findings/FTC/residency (XB-19/23/24):
+      // a single-jurisdiction taxpayer gets only their own country's
+      // deadlines — a US-only client has no India advance-tax quarters,
+      // an India-only client no 1040/1040-ES dates.
+      if (x.jur === "IN") return model.meta.hasIndiaScope !== false;
+      if (x.jur === "US") return model.meta.hasUsScope !== false;
+      return true;
+    }).map(function (x) {
       var du = daysBetween(today, x.date);
       x.daysUntil = du;
       x.status = du < 0 ? "passed" : (du <= 30 ? "due_soon" : "upcoming");

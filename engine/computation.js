@@ -1453,8 +1453,16 @@
       var status = pct >= 1 ? "breached" : (pct >= 0.8 ? "approaching" : "ok");
       gauges.push({ id: id, label: label, value: valueUsd, limit: limitUsd, pct: pct, status: status, unit: unit || "USD", note: note || "" });
     }
-    gauge("fbar", "FBAR (FinCEN 114) aggregate", model.accounts.aggregatePeak.usd, L.FBAR_AGGREGATE_USD, "USD",
-      "Threshold is a cliff: any breach = full reporting of every foreign account.");
+    // Scope-gated like the calendar/findings (XB-19/23/24 class): FBAR/8938
+    // are US-person obligations — an India-only taxpayer showing a $0 FBAR
+    // gauge reads as "this tool thinks I'm a US filer"; LRS/NRO are RBI
+    // (India-side) limits with the mirror problem for a US-only taxpayer.
+    var scopeHasUs = model.meta.hasUsScope !== false;
+    var scopeHasIndia = model.meta.hasIndiaScope !== false;
+    if (scopeHasUs) {
+      gauge("fbar", "FBAR (FinCEN 114) aggregate", model.accounts.aggregatePeak.usd, L.FBAR_AGGREGATE_USD, "USD",
+        "Threshold is a cliff: any breach = full reporting of every foreign account.");
+    }
     var status = model.identity.usFilingStatus;
     var isMfj = status === "mfj";
     // "Living abroad" for the 8938 threshold table follows the §911 facts
@@ -1462,11 +1470,15 @@
     var feieEl = feieEligibility(model);
     var abroad = feieEl.taxHomeAbroad && feieEl.testMet;
     var tbl = L.FORM_8938[abroad ? (isMfj ? "ABROAD_MFJ" : "ABROAD_SINGLE") : (isMfj ? "US_RESIDENT_MFJ" : "US_RESIDENT_SINGLE")];
-    gauge("form8938", "Form 8938 (FATCA) any-time", model.accounts.aggregatePeak.usd, tbl.anyTime, "USD",
-      "Threshold shown is the 'any time during year' figure for your status/residence.");
-    gauge("lrs", "LRS outbound remittance", U.inrToUsd(model.limitsRaw.lrsRemittedInr), L.LRS_ANNUAL_USD, "USD",
-      "RBI cap is per individual per financial year; TCS applies above ₹10L.");
-    if (model.limitsRaw.nroCumulativeRepatriatedUsd > 0) {
+    if (scopeHasUs) {
+      gauge("form8938", "Form 8938 (FATCA) any-time", model.accounts.aggregatePeak.usd, tbl.anyTime, "USD",
+        "Threshold shown is the 'any time during year' figure for your status/residence.");
+    }
+    if (scopeHasIndia) {
+      gauge("lrs", "LRS outbound remittance", U.inrToUsd(model.limitsRaw.lrsRemittedInr), L.LRS_ANNUAL_USD, "USD",
+        "RBI cap is per individual per financial year; TCS applies above ₹10L.");
+    }
+    if (scopeHasIndia && model.limitsRaw.nroCumulativeRepatriatedUsd > 0) {
       gauge("nro_repatriation", "NRO repatriation (this FY)", model.limitsRaw.nroCumulativeRepatriatedUsd, L.NRO_REPATRIATION_ANNUAL_USD, "USD",
         "RBI ceiling on NRO-account repatriation abroad, separate from and in addition to the LRS cap above — each repatriation needs its own Form 15CA/15CB (Form 145/146 from TY2026-27).");
     }
