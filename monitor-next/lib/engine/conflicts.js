@@ -346,6 +346,33 @@
         model.taxesPaid.india.tds.inr - model.taxesPaid.india.tcs.inr);
       var inAdvancePaidInr = model.taxesPaid.india.advance.inr;
       var inAdvQ = model.taxesPaid.india.advanceByQuarter;
+      // s.404 (old s.208): the advance-tax OBLIGATION itself exists only
+      // when assessed tax (net of TDS/TCS) is ₹10,000 or more — below that
+      // floor ss.424/425 interest cannot arise at all. The US twin (Form
+      // 2210's $1,000 balance-due de minimis) was built in from the start;
+      // this Indian floor was found missing in the 16 Jul 2026 first-class
+      // symmetry sweep. Senior carve-out (old s.207(2)): a RESIDENT
+      // individual aged 60+ with no PGBP-head income is exempt from
+      // advance tax entirely — common for retired returnees living on
+      // pension/interest/capital gains. "Has PGBP income" is read broadly
+      // (any business entry at all, F&O, speculative, partner-firm) so the
+      // exemption is never applied to a marginal business case.
+      var inAdvTaxObliged = inAssessedTaxInr >= 10000;
+      if (inAdvTaxObliged) {
+        var inDob = model.identity.dob ? new Date(model.identity.dob) : null;
+        var inFyEnd = new Date(model.meta.baseYear + 1, 2, 31); // 31 Mar, FY end
+        var inAgeFyEnd = inDob ? (inFyEnd.getFullYear() - inDob.getFullYear() -
+          ((inFyEnd.getMonth() < inDob.getMonth() || (inFyEnd.getMonth() === inDob.getMonth() && inFyEnd.getDate() < inDob.getDate())) ? 1 : 0)) : null;
+        var inIsIndividualTaxpayer = !model.entity || model.entity.indiaKind === "individual";
+        var inHasPgbpIncome = (model.income.india.business.inr || 0) !== 0 ||
+          (model.income.india.speculativeIncomeInr || 0) !== 0 ||
+          !!model.income.india.indiaHasRegularBooksEntry ||
+          !!model.income.india.indiaHasValidPresumptiveEntry ||
+          !!model.income.india.indiaHasPartnerFirmIncome;
+        if (inIsIndividualTaxpayer && res.india.isResident && inAgeFyEnd !== null && inAgeFyEnd >= 60 && !inHasPgbpIncome) {
+          inAdvTaxObliged = false;
+        }
+      }
       // Same s.44AB turnover-threshold / audit-case test as monitoring.js's
       // Compliance Calendar due-date selection (₹1cr, or ₹10cr where cash
       // receipts are ≤5% of the total) — kept in sync deliberately rather
@@ -373,7 +400,7 @@
       // assessed tax; interest then runs on the FULL shortfall (assessed
       // tax less advance tax paid), not just the amount below the 90% line.
       var inS424Inr = 0;
-      if (inAssessedTaxInr > 0 && inAdvancePaidInr < inAssessedTaxInr * 0.9) {
+      if (inAdvTaxObliged && inAssessedTaxInr > 0 && inAdvancePaidInr < inAssessedTaxInr * 0.9) {
         inS424Inr = (inAssessedTaxInr - inAdvancePaidInr) * 0.01 * inS424Months;
       }
 
@@ -406,7 +433,7 @@
         !model.income.india.indiaHasRegularBooksEntry &&
         !model.income.india.indiaHasPartnerFirmIncome);
       var inS425Inr = 0;
-      if (inAssessedTaxInr > 0) {
+      if (inAdvTaxObliged && inAssessedTaxInr > 0) {
         (inPurelyPresumptive ? [
           { required: 1.00, paid: inAdvQ.q1 + inAdvQ.q2 + inAdvQ.q3 + inAdvQ.q4, months: 1 }
         ] : [
