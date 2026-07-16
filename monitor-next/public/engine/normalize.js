@@ -1776,6 +1776,11 @@
       seEarningsUsd: seEarnings, qbiIncomeUsd: Math.max(0, qbiIncome), qbiIsSSTB: sstb,
       usRetirementIncome: usRetirementIncome,
       usRetirementIncomeExclSs: usRetirementIncomeExclSs,
+      // IRA/401(k) distributions only — NOT pension/annuity income (its own,
+      // different early-distribution rules under §72(q)/(t) specifics) and
+      // NOT Social Security (no early-distribution concept at all) — the
+      // base §72(t) 10% penalty applies to.
+      retirementDistributionsSubjectTo72tUsd: iraDistUsd + dist401kUsd,
       socialSecurityUs: socialSecurityUs,
       taxExemptInterestUs: taxExemptInterestUs,
       interestUs: interestUs, ordinaryDividendsUs: ordDivUs, qualifiedDividendsUs: qualDivUs,
@@ -1912,23 +1917,38 @@
   /* Taxes already paid (raw material for FTC; distinct from computed tax). */
   function aggregateTaxesPaid(india, us) {
     var tc = safe(india, "tax_credits", {});
-    var indiaAdvance =
-      num(safe(tc, "advance_tax_q1_15jun_inr", 0)) + num(safe(tc, "advance_tax_q2_15sep_inr", 0)) +
-      num(safe(tc, "advance_tax_q3_15dec_inr", 0)) + num(safe(tc, "advance_tax_q4_15mar_inr", 0));
+    var inQ1 = num(safe(tc, "advance_tax_q1_15jun_inr", 0)), inQ2 = num(safe(tc, "advance_tax_q2_15sep_inr", 0)),
+        inQ3 = num(safe(tc, "advance_tax_q3_15dec_inr", 0)), inQ4 = num(safe(tc, "advance_tax_q4_15mar_inr", 0));
+    var indiaAdvance = inQ1 + inQ2 + inQ3 + inQ4;
     var indiaTds = num(safe(tc, "tds_already_deducted_inr", 0)) + num(safe(tc, "tds_inr", 0));
     var indiaTcs = num(safe(tc, "tcs_inr", 0));
     var indiaPaid = moneyFromInr(indiaAdvance + indiaTds + indiaTcs);
 
     var we = safe(us, "withholding_and_estimated", {});
     var usWithholding = num(safe(we, "federal_withholding_total_usd", 0));
-    var usEstimated =
-      num(safe(we, "estimated_tax_q1_apr15_usd", 0)) + num(safe(we, "estimated_tax_q2_jun15_usd", 0)) +
-      num(safe(we, "estimated_tax_q3_sep15_usd", 0)) + num(safe(we, "estimated_tax_q4_jan15_usd", 0));
+    var usQ1 = num(safe(we, "estimated_tax_q1_apr15_usd", 0)), usQ2 = num(safe(we, "estimated_tax_q2_jun15_usd", 0)),
+        usQ3 = num(safe(we, "estimated_tax_q3_sep15_usd", 0)), usQ4 = num(safe(we, "estimated_tax_q4_jan15_usd", 0));
+    var usEstimated = usQ1 + usQ2 + usQ3 + usQ4;
     var usPaid = moneyFromUsd(usWithholding + usEstimated);
+    // Layer 1 US's #with-prior-tax input (withholding_and_estimated.
+    // prior_year_total_tax_usd) — collected but, until now, never read: the
+    // Form 2210 100%/110%-of-prior-year safe harbor needs it and previously
+    // could never be checked at all. null (not 0) when never entered, so a
+    // real "no penalty, prior year had zero tax" answer isn't confused with
+    // "the preparer didn't say."
+    var priorYearTotalTaxUsd = safe(we, "prior_year_total_tax_usd", null);
 
     return {
-      india: { advance: moneyFromInr(indiaAdvance), tds: moneyFromInr(indiaTds), total: indiaPaid },
-      us: { withholding: moneyFromUsd(usWithholding), estimated: moneyFromUsd(usEstimated), total: usPaid }
+      india: {
+        advance: moneyFromInr(indiaAdvance), advanceByQuarter: { q1: inQ1, q2: inQ2, q3: inQ3, q4: inQ4 },
+        tds: moneyFromInr(indiaTds), tcs: moneyFromInr(indiaTcs), total: indiaPaid
+      },
+      us: {
+        withholding: moneyFromUsd(usWithholding), estimated: moneyFromUsd(usEstimated),
+        estimatedByQuarter: { q1: usQ1, q2: usQ2, q3: usQ3, q4: usQ4 },
+        priorYearTotalTaxUsd: priorYearTotalTaxUsd === null ? null : num(priorYearTotalTaxUsd),
+        total: usPaid
+      }
     };
   }
 

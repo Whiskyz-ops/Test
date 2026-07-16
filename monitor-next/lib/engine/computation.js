@@ -1327,14 +1327,26 @@
     // foreign-source income at all, so there is nothing for a US-side FTC to
     // relieve — zeroing this avoids a misleading "credit available/shortfall"
     // finding computed against income that was never in the US tax base.
-    var foreignSrcGrossUsd = usTax.isNra ? 0 : model.income.india.total.usd;
+    // Same reasoning extends to a taxpayer with no US exposure whatsoever
+    // (model.meta.hasUsScope false, e.g. a purely domestic Indian resident):
+    // without this, India income was unconditionally treated as "foreign-
+    // source relative to a US return" for ANY taxpayer not specifically
+    // flagged NRA — for someone who was never a US taxpayer at all (not
+    // even NRA), that produced a genuinely nonsensical "$X of Indian tax
+    // can't be credited, therefore double-taxed" result on the FTC
+    // Reconciliation card, bypassing the scope gate already applied to the
+    // equivalent Conflicts-panel finding (found building india_only_ca_client).
+    var foreignSrcGrossUsd = (usTax.isNra || !model.meta.hasUsScope) ? 0 : model.income.india.total.usd;
     var foreignSrcUsd = Math.max(0, foreignSrcGrossUsd - feieExcludedUsd);
     // The `: 1` fallback below is only valid when there's genuinely no foreign
-    // income to begin with; for an NRA, foreignSrcGrossUsd is zeroed by FIAT
-    // (not because there's no Indian income) so the fallback would wrongly
-    // multiply a real India tax figure by 1 and present it as an unrelieved
-    // US-side credit shortfall. Force the whole US-direction credit to 0 for NRAs.
-    var creditableFraction = usTax.isNra ? 0 : (foreignSrcGrossUsd > 0 ? foreignSrcUsd / foreignSrcGrossUsd : 1);
+    // income to begin with; for an NRA (or a taxpayer with no US exposure at
+    // all), foreignSrcGrossUsd is zeroed by FIAT above (not because there's
+    // no Indian income) so the fallback would wrongly multiply a real India
+    // tax figure by 1 and present it as an unrelieved US-side credit
+    // shortfall. Force the whole US-direction credit to 0 in both cases —
+    // this exact fallback is what still leaked the india_only_ca_client bug
+    // through after zeroing foreignSrcGrossUsd above alone.
+    var creditableFraction = (usTax.isNra || !model.meta.hasUsScope) ? 0 : (foreignSrcGrossUsd > 0 ? foreignSrcUsd / foreignSrcGrossUsd : 1);
     var usTaxableUsd = usTax.taxableIncomeUsd;
     // Only income tax (not NIIT/Medicare) is creditable.
     var usIncomeTaxUsd = usTax.incomeTaxUsd;

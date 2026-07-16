@@ -333,27 +333,182 @@
         computed.usTax.amtUsd, ["§55", "Form 6251", "Form 8801"]);
     }
 
-    // -- 4c2. FORM 2210 — UNDERPAYMENT PENALTY (90%-of-current-year safe
-    // harbor only). The alternative 100%/110%-of-PRIOR-year safe harbor
-    // needs last year's total tax, which isn't tracked (WISING is a
-    // single-year snapshot) — so this can only ever say "you might owe a
-    // penalty", never "you definitely do": meeting the prior-year safe
-    // harbor instead would still avoid it.
+    // -- 4c1a. INDIA ADVANCE-TAX INTEREST — ss.424 (old 234B, default in
+    // paying advance tax) / 425 (old 234C, short/deferred installments),
+    // unchanged at 1%/month simple interest in the ITA 2025 renumbering.
+    // s.423 (old 234A, late RETURN filing) is NOT computed — it needs the
+    // actual return-FILING date, and this single-year-snapshot tool only
+    // ever has the statutory DUE date, never an actual-filed date to
+    // measure from. All inputs (quarterly advance tax, TDS/TCS aggregate,
+    // computed liability) already exist — gap tracker IN-1.
+    if (model.meta.hasIndiaScope) {
+      var inAssessedTaxInr = Math.max(0, (computed.indiaTax.totalTaxInr || 0) -
+        model.taxesPaid.india.tds.inr - model.taxesPaid.india.tcs.inr);
+      var inAdvancePaidInr = model.taxesPaid.india.advance.inr;
+      var inAdvQ = model.taxesPaid.india.advanceByQuarter;
+      // Same s.44AB turnover-threshold / audit-case test as monitoring.js's
+      // Compliance Calendar due-date selection (₹1cr, or ₹10cr where cash
+      // receipts are ≤5% of the total) — kept in sync deliberately rather
+      // than shared, matching this file's own existing convention for the
+      // identical check in buildDocuments' form_3cb_3cd trigger.
+      var inTurnoverForAudit = (function () {
+        var totalInr = 0, cashInr = 0;
+        (model.assets.indianBusinesses || []).forEach(function (b) {
+          var digital = U.num(b.digital_receipts_inr) + U.num(b.ada_digital_receipts_inr);
+          var cash = U.num(b.cash_receipts_inr) + U.num(b.ada_cash_receipts_inr);
+          var receipts = U.num(b.gross_receipts_inr) || U.num(b.turnover_inr) || (digital + cash);
+          totalInr += receipts; cashInr += cash;
+        });
+        return totalInr > 0 && totalInr > ((cashInr / totalInr) <= 0.05 ? 100000000 : 10000000);
+      })();
+      var inIsAuditCase = (model.entity && model.entity.indiaIsCompany) || inTurnoverForAudit;
+      // Months of s.424 interest accrual: 1 Apr (of the assessment year) to
+      // the statutory (non-extended) filing due date — 31 Jul (non-audit)
+      // is 4 months; 31 Oct (audit case) is 7. Interest keeps accruing past
+      // the due date until actually paid/assessed — this is the exposure
+      // AS OF the due date, a floor, not a final number.
+      var inS424Months = inIsAuditCase ? 7 : 4;
+
+      // s.424 (234B): triggers only if advance tax paid is under 90% of
+      // assessed tax; interest then runs on the FULL shortfall (assessed
+      // tax less advance tax paid), not just the amount below the 90% line.
+      var inS424Inr = 0;
+      if (inAssessedTaxInr > 0 && inAdvancePaidInr < inAssessedTaxInr * 0.9) {
+        inS424Inr = (inAssessedTaxInr - inAdvancePaidInr) * 0.01 * inS424Months;
+      }
+
+      // s.425 (234C): each installment tested independently against its own
+      // required slice of assessed tax (cumulative 15/45/75/100%, i.e.
+      // 15/30/30/25 per quarter — Layer 1's advance_tax_q1..q4 fields are
+      // the amount paid THAT quarter, not a running cumulative total) using
+      // only what was actually paid in that quarter; a later quarter's
+      // overpayment is NOT netted back to cure an earlier quarter's
+      // shortfall (matches the real provision — each installment stands on
+      // its own). 3 months of interest for a Q1-Q3 shortfall, 1 month for
+      // Q4. Known simplification: the real s.425 has a narrow relief for
+      // income (capital gains, lottery, dividends) genuinely arising AFTER
+      // a given quarter's due date — not modeled, since Layer 1 doesn't
+      // capture per-transaction dates at that granularity; this can
+      // overstate the estimate for income concentrated late in the year.
+      var inS425Inr = 0;
+      if (inAssessedTaxInr > 0) {
+        [
+          { required: 0.15, paid: inAdvQ.q1, months: 3 },
+          { required: 0.30, paid: inAdvQ.q2, months: 3 },
+          { required: 0.30, paid: inAdvQ.q3, months: 3 },
+          { required: 0.25, paid: inAdvQ.q4, months: 1 }
+        ].forEach(function (q) {
+          var shortInr = Math.max(0, inAssessedTaxInr * q.required - q.paid);
+          inS425Inr += shortInr * 0.01 * q.months;
+        });
+      }
+
+      var inAdvInterestInr = inS424Inr + inS425Inr;
+      if (inAdvInterestInr > 100) {
+        add("india_advance_tax_interest", S.WARNING, C.CREDIT,
+          "Advance-tax interest exposure — ss.424/425 (" + inr(inAdvInterestInr) + ")",
+          "Advance tax paid (" + inr(inAdvancePaidInr) + ") falls short of the assessed tax (" + inr(inAssessedTaxInr) +
+          ") this year. At 1%/month simple interest: " + inr(inS424Inr) + " under s.424 (shortfall below the 90% floor, " +
+          inS424Months + " months to the " + (inIsAuditCase ? "audit-case (31 Oct)" : "non-audit (31 Jul)") +
+          " due date) + " + inr(inS425Inr) + " under s.425 (quarter-by-quarter installment shortfalls). Both keep " +
+          "accruing past the due date until actually paid — this is the exposure AS OF the due date, not a final number.",
+          "Pay the shortfall before filing to stop s.424 interest accruing further; s.425's quarter-by-quarter amount is " +
+          "fixed once the year ends and doesn't grow. If the year isn't over yet, revise the remaining installment(s) upward.",
+          U.inrToUsd(inAdvInterestInr), ["s.424", "s.425", "1%/month simple interest"]);
+      }
+    }
+
+    // -- 4c2. FORM 2210 — UNDERPAYMENT PENALTY. Checks BOTH safe harbors:
+    // 90% of this year's tax, OR 100%/110%-of-PRIOR-year (110% when prior
+    // AGI exceeded $150k — Layer 1 has no prior-year-AGI field, so current-
+    // year AGI is used as a practical proxy; income rarely swings enough
+    // year-to-year to flip this test, but it's an approximation, not an
+    // exact match). If neither harbor is met, computes an actual dollar
+    // penalty estimate (not just the raw balance due) using a simplified
+    // Form 2210 Part III regular method: four equal required installments
+    // (25% of the required annual payment each), withholding treated as
+    // paid evenly across all four quarters (the real, standard IRS
+    // convention — no per-paycheck timing needed), estimated payments
+    // applied to their own quarter, each quarter's shortfall accruing
+    // interest independently (no cross-quarter netting of a later
+    // overpayment against an earlier shortfall) at that quarter's IRS
+    // underpayment rate for the months remaining to the following Apr 15.
+    // Rates verified for TY2026 Q1-Q3 (7%/6%/7%); Q4 uses Q3's rate as a
+    // documented approximation pending separate verification.
     if (computed.usTax && model.meta.hasUsScope) {
       var us2210TotalTaxUsd = Math.max(0, (computed.usTax.totalTaxBeforeFtcUsd || 0) - (ftc.us.ftcAllowedUsd || 0));
       var us2210PaidUsd = model.taxesPaid.us.total.usd;
-      var us2210SafeHarborUsd = us2210TotalTaxUsd * 0.9;
+      var us2210PriorYearTaxUsd = model.taxesPaid.us.priorYearTotalTaxUsd;
+      var us2210CurrentHarborUsd = us2210TotalTaxUsd * 0.9;
+      var us2210PriorHarborPct = (computed.usTax.agiUsd || 0) > 150000 ? 1.10 : 1.00;
+      var us2210PriorHarborUsd = us2210PriorYearTaxUsd != null ? us2210PriorYearTaxUsd * us2210PriorHarborPct : null;
+      var us2210RequiredUsd = us2210PriorHarborUsd != null
+        ? Math.min(us2210CurrentHarborUsd, us2210PriorHarborUsd)
+        : us2210CurrentHarborUsd;
       var us2210BalanceDueUsd = us2210TotalTaxUsd - us2210PaidUsd;
-      if (us2210BalanceDueUsd > 1000 && us2210PaidUsd < us2210SafeHarborUsd) {
+      if (us2210BalanceDueUsd > 1000 && us2210PaidUsd < us2210RequiredUsd) {
+        var us2210WithholdingPerQUsd = model.taxesPaid.us.withholding.usd / 4;
+        var us2210EstQ = model.taxesPaid.us.estimatedByQuarter;
+        var us2210Rate = { q1: 0.07, q2: 0.06, q3: 0.07, q4: 0.07 }; // q4 approximated at q3's rate — not separately verified
+        var us2210PenaltyUsd = 0;
+        [
+          { key: "q1", paid: us2210EstQ.q1, monthsRemaining: 12 },
+          { key: "q2", paid: us2210EstQ.q2, monthsRemaining: 10 },
+          { key: "q3", paid: us2210EstQ.q3, monthsRemaining: 7 },
+          { key: "q4", paid: us2210EstQ.q4, monthsRemaining: 3 }
+        ].forEach(function (q) {
+          var requiredUsd = us2210RequiredUsd / 4;
+          var paidUsd = us2210WithholdingPerQUsd + q.paid;
+          var shortUsd = Math.max(0, requiredUsd - paidUsd);
+          us2210PenaltyUsd += shortUsd * us2210Rate[q.key] * (q.monthsRemaining / 12);
+        });
         add("underpayment_2210", S.WARNING, C.CREDIT,
-          "US estimated-tax underpayment penalty may apply (Form 2210)",
-          "Withholding + estimated payments (" + usd(us2210PaidUsd) + ") fall short of 90% of this year's total US tax (" +
-          usd(us2210SafeHarborUsd) + " of " + usd(us2210TotalTaxUsd) + "), with a balance due over the $1,000 de-minimis. " +
-          "WISING only checks the 90%-of-CURRENT-year safe harbor — it does NOT check the alternative 100%/110%-of-PRIOR-year " +
-          "safe harbor (needs last year's total tax, which isn't tracked), so meeting that instead could still avoid the penalty.",
-          "Confirm last year's total tax against the 100%/110% prior-year safe harbor before assuming a penalty applies. If " +
-          "neither safe harbor is met, Form 2210 computes the actual penalty using quarterly IRS underpayment rates.",
-          Math.max(0, us2210BalanceDueUsd), ["Form 2210", "§6654"]);
+          "US estimated-tax underpayment penalty — Form 2210 (" + usd(us2210PenaltyUsd) + " estimated)",
+          "Withholding + estimated payments (" + usd(us2210PaidUsd) + ") fall short of both safe harbors: 90% of this year's " +
+          "tax (" + usd(us2210CurrentHarborUsd) + ") and " + (us2210PriorHarborUsd != null
+            ? Math.round(us2210PriorHarborPct * 100) + "% of last year's tax (" + usd(us2210PriorHarborUsd) + ")"
+            : "the prior-year safe harbor (last year's total tax was never entered, so only the current-year harbor could be checked)") +
+          ", with a balance due over the $1,000 de-minimis. Estimated penalty (simplified regular method, equal quarterly " +
+          "installments, withholding spread evenly, no cross-quarter netting): " + usd(us2210PenaltyUsd) + ".",
+          "Confirm against the real Form 2210 (it can use the Annualized Income Installment Method for uneven income, which " +
+          "this estimate does not model, and could produce a lower number). Paying the shortfall now stops further accrual.",
+          Math.max(0, us2210PenaltyUsd), ["Form 2210", "§6654"]);
+      }
+    }
+
+    // -- 4c1b. §72(t) 10% EARLY-WITHDRAWAL PENALTY — a flat additional tax
+    // on the taxable portion of an early (pre-59½) IRA/401(k) distribution,
+    // stacking on top of ordinary income tax on the same dollars. Computed
+    // from gross distribution amounts (ira_distributions_usd +
+    // "401k_distributions_usd", NOT pension/annuity income or Social
+    // Security, which have their own/no early-distribution concept) + DOB —
+    // both already collected. Known simplification: Layer 1 has no field
+    // for any of the real statutory exceptions (death, disability,
+    // substantially-equal-periodic-payments/SEPP, qualified first-time-
+    // homebuyer $10k IRA carve-out, higher-education, medical-over-7.5%-AGI,
+    // qualified birth/adoption, etc.) — the full 10% is assumed on the
+    // whole distribution whenever the age test fails, which can overstate
+    // the real penalty for a taxpayer who genuinely qualifies for one.
+    // RMDs (age 73/75) and the excess-contribution excise are NOT computed
+    // — both need account BALANCES, which aren't captured — gap tracker
+    // US-5 stays 🟡 partial for those two pieces.
+    if (model.meta.hasUsScope) {
+      var earlyDistUsd = model.income.us.retirementDistributionsSubjectTo72tUsd || 0;
+      var dob = model.identity.dob ? new Date(model.identity.dob) : null;
+      var baseYearEnd = new Date(model.meta.baseYear, 11, 31);
+      var ageAtYearEnd = dob ? (baseYearEnd.getFullYear() - dob.getFullYear() -
+        ((baseYearEnd.getMonth() < dob.getMonth() || (baseYearEnd.getMonth() === dob.getMonth() && baseYearEnd.getDate() < dob.getDate())) ? 1 : 0)) : null;
+      if (earlyDistUsd > 0 && ageAtYearEnd != null && ageAtYearEnd < 59) {
+        var penalty72tUsd = earlyDistUsd * 0.10;
+        add("early_withdrawal_penalty_72t", S.WARNING, C.CREDIT,
+          "§72(t) 10% early-withdrawal penalty on IRA/401(k) distributions (" + usd(penalty72tUsd) + ")",
+          usd(earlyDistUsd) + " of IRA/401(k) distributions are on file for a taxpayer age " + ageAtYearEnd +
+          " at year-end — under the 59½ threshold. Absent a statutory exception, §72(t) adds a flat 10% additional tax (" +
+          usd(penalty72tUsd) + ") on top of ordinary income tax already computed on this same income.",
+          "Confirm whether a real exception applies (death, disability, SEPP under §72(t)(2)(A)(iv), first $10,000 for a " +
+          "first-time home purchase, higher education, medical expenses over 7.5% of AGI, qualified birth/adoption up to " +
+          "$5,000) — none of these are captured by Layer 1 today, so this assumes the full 10% applies until confirmed otherwise.",
+          penalty72tUsd, ["§72(t)", "Form 5329"]);
       }
     }
 
