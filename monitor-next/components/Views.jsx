@@ -752,7 +752,7 @@ function FtcCard({ ftcReport, onJump }) {
     </Card>
   );
 }
-function TaxCard({ taxComputation, fxRate, onJump }) {
+function TaxCard({ taxComputation, fxRate, onJump, hasIndiaScope, hasUsScope }) {
   const Block = ({ block, isInr, accent }) => {
     const fmt = isInr ? fmtInr : fmtUsd;
     return (
@@ -766,11 +766,15 @@ function TaxCard({ taxComputation, fxRate, onJump }) {
       </div>
     );
   };
+  // hasIndiaScope/hasUsScope default true when undefined (callers other than
+  // ReconciliationView that haven't been made scope-aware yet still get the
+  // old always-both-blocks behavior).
+  const showIndia = hasIndiaScope !== false, showUs = hasUsScope !== false;
   return (
     <Card icon={<Calculator size={16} strokeWidth={2} />} title="Tax Computation" sub="Planning-grade, from Layer 1">
-      <Block block={taxComputation.india} isInr accent={PAL.jurIN} />
-      <div className="h-3" />
-      <Block block={taxComputation.us} accent={PAL.jurUS} />
+      {showIndia && <Block block={taxComputation.india} isInr accent={PAL.jurIN} />}
+      {showIndia && showUs && <div className="h-3" />}
+      {showUs && <Block block={taxComputation.us} accent={PAL.jurUS} />}
       {taxComputation.usState && (
         <>
           <div className="h-3" />
@@ -801,6 +805,14 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
   if (!result) return <Empty>Load a client to see the tax reconciliation.</Empty>;
   const m = result.model, inc = m.income, fx = m.meta.fxRate || 83;
   const inrToUsd = (n) => (n || 0) / fx;
+  // Scope — see model.meta.hasIndiaScope/hasUsScope (normalize.js). FTC
+  // relief, cross-basis double-taxation overlap, and FY↔CY apportionment
+  // are all inherently CROSS-BORDER concepts — meaningless (and, worse,
+  // liable to render as a wall of "$0" rows) for a taxpayer with no real
+  // exposure in the second country. Hide them outright instead.
+  const hasIndiaScope = m.meta.hasIndiaScope !== false;
+  const hasUsScope = m.meta.hasUsScope !== false;
+  const isDualScope = hasIndiaScope && hasUsScope;
 
   const isTaxed = (mv) => mv && (mv.usd > 0 || mv.inr > 0);
   const IncomeRow = ({ label, mv, inr, additive }) => (
@@ -846,31 +858,42 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
     <div className="space-y-6">
       <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Scale size={16} strokeWidth={2} /></HeadChip>Reconciliation</h2><p className="text-muted text-sm mt-2">Income by head first, since that's what everything below is derived from — then Tax Computation, FTC relief, cross-basis overlap, and the FY↔CY apportionment that ties them together.</p></div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div id="recon-india-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "india" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "india" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
-          <Card title="🇮🇳 India income — by head" sub="From Layer 1 India (₹, with USD equivalent)">
-            {indiaRows.length ? indiaRows.map((r, i) => <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} inr />) : <Empty>No India income on file.</Empty>}
-            {indiaRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtInr(indiaTotalInr)} <span className="text-muted">≈ {fmtUsd(indiaTotalUsd)}</span></span></div>}
-          </Card>
-        </div>
-        <div id="recon-us-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "us" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "us" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
-          <Card title="🇺🇸 US income — by head" sub="From Layer 1 US (USD)">
-            {usRows.length ? usRows.map((r, i) => <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} />) : <Empty>No US income on file.</Empty>}
-            {usRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtUsd(usTotalUsd)}</span></div>}
-          </Card>
-        </div>
+      <div className={"grid grid-cols-1 gap-6" + (isDualScope ? " lg:grid-cols-2" : "")}>
+        {hasIndiaScope && (
+          <div id="recon-india-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "india" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "india" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
+            <Card title="🇮🇳 India income — by head" sub="From Layer 1 India (₹, with USD equivalent)">
+              {indiaRows.length ? indiaRows.map((r, i) => <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} inr />) : <Empty>No India income on file.</Empty>}
+              {indiaRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtInr(indiaTotalInr)} <span className="text-muted">≈ {fmtUsd(indiaTotalUsd)}</span></span></div>}
+            </Card>
+          </div>
+        )}
+        {hasUsScope && (
+          <div id="recon-us-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "us" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "us" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
+            <Card title="🇺🇸 US income — by head" sub="From Layer 1 US (USD)">
+              {usRows.length ? usRows.map((r, i) => <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} />) : <Empty>No US income on file.</Empty>}
+              {usRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtUsd(usTotalUsd)}</span></div>}
+            </Card>
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <FtcCard ftcReport={result.ftcReport} onJump={onJump} />
-        <TaxCard taxComputation={result.taxComputation} fxRate={result.model.meta.fxRate} onJump={onJump} />
+      <div className={"grid grid-cols-1 gap-6" + (isDualScope ? " lg:grid-cols-2" : "")}>
+        {/* FTC relief only exists where a taxpayer is genuinely exposed to
+            BOTH countries — nothing to reconcile for a single-jurisdiction
+            taxpayer, so the whole card (not just its numbers) disappears. */}
+        {isDualScope && <FtcCard ftcReport={result.ftcReport} onJump={onJump} />}
+        <TaxCard taxComputation={result.taxComputation} fxRate={result.model.meta.fxRate} onJump={onJump} hasIndiaScope={hasIndiaScope} hasUsScope={hasUsScope} />
       </div>
 
-      {result.computed.reconciliation && result.computed.reconciliation.rows && result.computed.reconciliation.rows.length > 0 && (
-        <CapsuleChart rows={result.computed.reconciliation.rows} />
+      {isDualScope && (
+        <>
+          {result.computed.reconciliation && result.computed.reconciliation.rows && result.computed.reconciliation.rows.length > 0 && (
+            <CapsuleChart rows={result.computed.reconciliation.rows} />
+          )}
+          <ReconciliationCard recon={result.computed.reconciliation} />
+          <ApportionmentCard ap={result.computed.apportionment} />
+        </>
       )}
-      <ReconciliationCard recon={result.computed.reconciliation} />
-      <ApportionmentCard ap={result.computed.apportionment} />
     </div>
   );
 }
