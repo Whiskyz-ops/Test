@@ -181,6 +181,20 @@ export function ConflictsPanel({ findings }) {
 export function ResidencyView({ result }) {
   if (!result) return <Empty>Load a client to see residency.</Empty>;
   const r = result.computed.residency, t = result.model.treaty, mon = result.monitoring;
+  // Scope — see model.meta.hasIndiaScope/hasUsScope (normalize.js): a
+  // taxpayer with no real US-side facts (no days present, no citizenship/
+  // green card, no US-source income or assets) is India-only in substance
+  // even though Layer 1's own `us` object always exists as a shell so the
+  // form doesn't crash if opened. A day-count/qualitative test, a DTAA
+  // tie-breaker, TRC/Form 10F, etc. are all meaningless for a country the
+  // taxpayer has no real exposure to — show only the country(ies) actually
+  // in scope instead of a fabricated dual-jurisdiction picture.
+  const meta = result.model.meta || {};
+  const hasIndiaScope = meta.hasIndiaScope !== false;
+  const hasUsScope = meta.hasUsScope !== false;
+  const isDualScope = hasIndiaScope && hasUsScope;
+  const residencyEntries = (mon ? mon.residency : []).filter((c) =>
+    c.country === "India" ? hasIndiaScope : c.country === "United States" ? hasUsScope : true);
   const stCol = { resident: PAL.exposed, will_flip: PAL.approaching, safe: PAL.positive };
   const Flag = ({ label, s }) => (
     <div className="rounded-2xl bg-surface border border-line shadow-card p-4">
@@ -198,13 +212,13 @@ export function ResidencyView({ result }) {
   return (
     <div className="space-y-6">
       {r.dualResident && <div className="rounded-xl border border-exposed/30 bg-exposed/10 p-3 text-[13px] font-semibold flex items-center gap-2" style={{ color: PAL.redText }}><AlertTriangle size={15} strokeWidth={2.25} className="shrink-0" /> Dual tax residency — resolve the India-US DTAA Article 4 tie-breaker.</div>}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Flag label="🇮🇳 India residency" s={r.india} />
-        <Flag label="🇺🇸 US residency" s={r.us} />
+      <div className={"grid grid-cols-1 gap-4" + (isDualScope ? " md:grid-cols-2" : "")}>
+        {hasIndiaScope && <Flag label="🇮🇳 India residency" s={r.india} />}
+        {hasUsScope && <Flag label="🇺🇸 US residency" s={r.us} />}
       </div>
       <Card icon={<Compass size={16} strokeWidth={2} />} title="Residency Determination" sub="Physical-presence tests for individuals · qualitative tests (incorporation/POEM/control &amp; management) for companies, HUFs, firms, and other entities">
         <div className="space-y-4">
-          {(mon ? mon.residency : []).map((c, i) => c.kind === "qualitative" ? (
+          {residencyEntries.map((c, i) => c.kind === "qualitative" ? (
             <div key={i} className="rounded-2xl bg-white/[0.02] border border-line p-3.5">
               <div className="flex justify-between items-start text-[12px] mb-1.5">
                 <span className="font-semibold text-head">{c.flag} {c.country} <span className="text-muted font-normal">· {c.test}</span></span>
@@ -224,15 +238,21 @@ export function ResidencyView({ result }) {
           ))}
         </div>
       </Card>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card icon={<ScrollText size={16} strokeWidth={2} />} title="DTAA Treaty Position" sub="India-US Double Taxation Avoidance Agreement">
-          {treatyRow("Article 4 tie-breaker applied", t.treatyResidence !== "none" || t.usTreatyResidence !== "none", "Recorded", "Not applied")}
-          {treatyRow("Tax Residency Certificate (TRC)", t.trcStatus, "On file", "Missing")}
-          {treatyRow("Form 10F filed", t.form10fFiled, "Filed", "Not filed")}
-          {treatyRow("Permanent Establishment in India", !t.hasPE, "None", "Yes — attributable profits")}
-          {treatyRow("Files US 1040-NR", true, t.files1040nr ? "Yes" : "No", "")}
-          <div className="text-[11px] text-muted mt-3">Treaty residence claimed: <span className="text-body font-mono">{t.treatyResidence !== "none" ? t.treatyResidence : (t.usTreatyResidence !== "none" ? t.usTreatyResidence : "none")}</span></div>
-        </Card>
+      <div className={"grid grid-cols-1 gap-6" + (isDualScope ? " lg:grid-cols-2" : "")}>
+        {/* DTAA relief (Article 4 tie-breaker, TRC, Form 10F, PE, 1040-NR)
+            only has meaning where a taxpayer has real exposure in BOTH
+            countries — single-jurisdiction taxpayers have no treaty
+            position to take. */}
+        {isDualScope && (
+          <Card icon={<ScrollText size={16} strokeWidth={2} />} title="DTAA Treaty Position" sub="India-US Double Taxation Avoidance Agreement">
+            {treatyRow("Article 4 tie-breaker applied", t.treatyResidence !== "none" || t.usTreatyResidence !== "none", "Recorded", "Not applied")}
+            {treatyRow("Tax Residency Certificate (TRC)", t.trcStatus, "On file", "Missing")}
+            {treatyRow("Form 10F filed", t.form10fFiled, "Filed", "Not filed")}
+            {treatyRow("Permanent Establishment in India", !t.hasPE, "None", "Yes — attributable profits")}
+            {treatyRow("Files US 1040-NR", true, t.files1040nr ? "Yes" : "No", "")}
+            <div className="text-[11px] text-muted mt-3">Treaty residence claimed: <span className="text-body font-mono">{t.treatyResidence !== "none" ? t.treatyResidence : (t.usTreatyResidence !== "none" ? t.usTreatyResidence : "none")}</span></div>
+          </Card>
+        )}
         <Card icon={<Scale size={16} strokeWidth={2} />} title="Residency & Treaty Conflicts">
           <ConflictsPanel findings={result.findings.filter((f) => f.category === "residency" || f.category === "treaty")} />
         </Card>

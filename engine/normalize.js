@@ -2032,12 +2032,41 @@
     var indiaReturnFormCrude = indiaIsCompany ? "ITR-6" : (indiaIsFirm ? "ITR-5" : "ITR-2/3");
     var indiaReturnForm = indiaLayer1Itr || indiaReturnFormCrude;
 
+    // Real cross-border SCOPE — which country actually has a taxpayer in it
+    // — is distinct from whether an `india`/`us` object merely EXISTS in the
+    // bundle (Layer 1's own profile-seeding always ships a shell for both
+    // sides so neither form crashes if opened) and from Router's own
+    // "jurisdiction" toggle (a real preparer can leave that on "Dual" out of
+    // habit while never entering a single US fact — every demo profile's own
+    // router() helper defaults to "dual" this same way). Derive it instead
+    // from what was actually reported: days present, citizenship/green-card,
+    // or a flagged US-source income/assets checkbox — Router's own explicit
+    // "India only"/"US only" selection still wins outright when set, since
+    // that's a deliberate choice to skip a side regardless of what other
+    // fields happen to hold.
+    var routerJurisdictionRaw = safe(router, "jurisdiction", null);
+    var routerHasUsSignal = num(safe(router, "us_days", 0)) > 0 ||
+      safe(router, "is_us_citizen", false) === true ||
+      safe(router, "has_green_card", false) === true ||
+      safe(router, "has_us_source_income_or_assets", false) === true;
+    var scopeHasUs = routerJurisdictionRaw === "single_india" ? false :
+      routerJurisdictionRaw === "single_us" ? true : routerHasUsSignal;
+    // No equivalent "has_india_source_income_or_assets" field exists on
+    // Router — India is this tool's base jurisdiction — so only Router's own
+    // explicit "US only" choice narrows scope away from India.
+    var scopeHasIndia = routerJurisdictionRaw !== "single_us";
+    var effectiveJurisdiction = scopeHasIndia && scopeHasUs ? "dual" : scopeHasUs ? "single_us" : "single_india";
+
     return {
       meta: {
         hasIndia: !!raw.india,
         hasUs: !!raw.us,
         hasRouter: !!raw.router,
-        jurisdiction: safe(router, "jurisdiction", (raw.india && raw.us) ? "dual" : (raw.india ? "single_india" : "single_us")),
+        // Effective, data-aware scope — see scopeHasUs/scopeHasIndia above.
+        // Prefer these two booleans over string-matching `jurisdiction`.
+        hasIndiaScope: scopeHasIndia,
+        hasUsScope: scopeHasUs,
+        jurisdiction: effectiveJurisdiction,
         baseYear: num(safe(router, "base_tax_year", safe(us, "metadata.us_calendar_year", 2025))) || 2025,
         fxRate: CONST.FX.INR_PER_USD,
         indiaSchemaVersion: safe(india, "metadata.schema_version", null),

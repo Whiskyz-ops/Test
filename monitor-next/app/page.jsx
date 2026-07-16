@@ -84,7 +84,7 @@ export default function MonitorPage() {
       <div className="starfield" />
       <Sidebar active={view} onNavigate={setView} badges={badges} />
       <main className="relative z-10 flex-1 min-w-0 px-8 py-6">
-        <Header region={region} onRegionChange={setRegion} clientName={clientName} baseYear={baseYear} entity={result ? result.model.entity : null} />
+        <Header region={region} onRegionChange={setRegion} clientName={clientName} baseYear={baseYear} entity={result ? result.model.entity : null} scope={result ? result.model.meta : null} />
 
         {/* single, compact utility bar — status + actions */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-6 pb-4 border-b border-line text-[12px]">

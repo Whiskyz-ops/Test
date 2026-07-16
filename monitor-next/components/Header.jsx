@@ -15,24 +15,23 @@ const US_ENTITY_LABEL = {
   individual: "Individual", ccorp: "C-Corp", scorp: "S-Corp", partnership: "Partnership", trust: "Trust"
 };
 
-export default function Header({ region, onRegionChange, clientName, baseYear, entity }) {
-  const period = baseYear ? `TY${baseYear}-${String(baseYear + 1).slice(2)} (India) / TY${baseYear} (US)` : CLIENT.period;
+export default function Header({ region, onRegionChange, clientName, baseYear, entity, scope }) {
+  // Scope is the ENGINE's own determination of which country a taxpayer is
+  // actually exposed in — see model.meta.hasIndiaScope/hasUsScope
+  // (normalize.js) — derived from real reported facts (days present,
+  // citizenship/green-card, US-source income/assets), not merely from
+  // whether Layer 1's `india`/`us` object exists in the bundle (both always
+  // exist as a shell so neither form crashes if opened). Default to both
+  // in scope so this degrades to the old always-dual behavior before a
+  // result has loaded.
+  const hasIndiaScope = scope ? scope.hasIndiaScope !== false : true;
+  const hasUsScope = scope ? scope.hasUsScope !== false : true;
+  const periodParts = [];
+  if (baseYear && hasIndiaScope) periodParts.push(`TY${baseYear}-${String(baseYear + 1).slice(2)} (India)`);
+  if (baseYear && hasUsScope) periodParts.push(`TY${baseYear} (US)`);
+  const period = periodParts.length ? periodParts.join(" / ") : CLIENT.period;
   const indiaLabel = entity ? (INDIA_ENTITY_LABEL[entity.indiaKind] || entity.indiaKind) : null;
-  // Entity type is one fact about the taxpayer, not two — Layer 1 US's own
-  // tax_entity_type field only has a real, deliberately-set value when a
-  // SEPARATE US entity (ccorp/scorp/partnership/trust) was actually
-  // organized (E.usIsBusiness). Otherwise it just sits at its unset
-  // "individual" default, including for taxpayers who are plainly not
-  // individuals at all (a company/HUF/firm whose only registration is in
-  // India). Showing that default as "US: Individual" next to "India:
-  // Company" reads as two conflicting classifications for one taxpayer;
-  // mirror India's label instead whenever the US side has no real entity
-  // election of its own to show.
-  const usLabel = entity
-    ? (entity.usIsBusiness ? (US_ENTITY_LABEL[entity.usKind] || entity.usKind)
-      : entity.indiaKind !== "individual" ? (INDIA_ENTITY_LABEL[entity.indiaKind] || entity.indiaKind)
-      : (US_ENTITY_LABEL[entity.usKind] || entity.usKind))
-    : null;
+  const usLabel = entity ? (US_ENTITY_LABEL[entity.usKind] || entity.usKind) : null;
   return (
     <div className="flex items-center justify-between gap-4 mb-5">
       <div className="flex items-center gap-3 min-w-0">
@@ -45,9 +44,9 @@ export default function Header({ region, onRegionChange, clientName, baseYear, e
           </p>
         </div>
         {entity && (
-          <div className="hidden md:flex items-center gap-1.5 shrink-0 ml-1" title="Tax entity type — India / US">
-            <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-white/[0.04] border border-line text-body">🇮🇳 {indiaLabel}</span>
-            <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-white/[0.04] border border-line text-body">🇺🇸 {usLabel}</span>
+          <div className="hidden md:flex items-center gap-1.5 shrink-0 ml-1" title="Tax entity type — only the country(ies) this taxpayer is actually in scope for">
+            {hasIndiaScope && <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-white/[0.04] border border-line text-body">🇮🇳 {indiaLabel}</span>}
+            {hasUsScope && <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-white/[0.04] border border-line text-body">🇺🇸 {usLabel}</span>}
           </div>
         )}
       </div>
