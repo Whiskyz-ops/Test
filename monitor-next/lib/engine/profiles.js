@@ -802,8 +802,18 @@
             { firm_name: "Iyer & Rao Jewelry Trading LLP", entity_type: "llp", remuneration_from_entity_inr: 480000, interest_on_capital_from_entity_inr: 90000, profit_share_exempt_inr: 700000 }
           ]
         },
-        capital_gains: { short_term_15_pct: 340000, ltcg_112a_inr: 210000 }
+        // short_term_15_pct is read from domestic_income.capital_gains (via
+        // di.capital_gains — di = annual.domestic_income), same path as
+        // every other profile. ltcg_112a_inr is NOT read from here — it
+        // needs the separate TOP-LEVEL india.capital_gains sibling below
+        // (annual.capital_gains, a genuinely different container); nesting
+        // it here instead silently dropped ₹2,10,000 of real LTCG from the
+        // computation entirely (found matching Anita Desai's
+        // india_ror_us_income profile, the one other profile that uses
+        // ltcg_112a_inr and gets the container right).
+        capital_gains: { short_term_15_pct: 340000 }
       },
+      capital_gains: { ltcg_112a_inr: 210000 },
       other_sources: { has_other_sources_income: true, interest_savings_inr: 32000, interest_fd_rd_inr: 210000, dividend_inr: 95000, family_pension_gross_inr: 180000, gifts_above_50k_inr: 120000, online_gaming_winnings_inr: 40000, taxable_epf_interest_inr: 28000 },
       // Nine distinct Chapter VI-A sections, only meaningful under the OLD
       // regime (why this profile picks OLD, unlike most others in the
