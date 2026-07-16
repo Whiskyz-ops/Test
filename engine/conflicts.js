@@ -1180,6 +1180,46 @@
         "US-side accounts/income need to be re-checked. Schedule FA penalties for non-disclosure are severe and independent " +
         "of whether any tax is actually due on the asset.",
         0, ["Schedule FA", "Black Money Act"]);
+
+      // -- 10a2. BLACK MONEY ACT 2015 — QUANTIFIED EXPOSURE (gap tracker
+      // XB-7). Same under-reporting fact pattern as schedule_fa_inconsistent
+      // just above (an India ROR whose India form denies foreign assets
+      // while the US form shows real foreign holdings) — that finding only
+      // flags the CONTRADICTION as a document-reconciliation issue; this one
+      // quantifies what's actually at stake if it's never corrected. The
+      // Black Money (Undisclosed Foreign Income and Assets) and Imposition
+      // of Tax Act, 2015 imposes a flat 30% tax (s.10) on the undisclosed
+      // asset value PLUS a penalty of up to 3x that tax (s.41) — up to 90%
+      // of asset value on top of the 30%, so up to 120% of the asset's
+      // value in total — PLUS possible prosecution (s.51, up to 10 years'
+      // rigorous imprisonment for willful evasion), independent of and on
+      // top of the monetary exposure. Categorically more severe than an
+      // ordinary under-reporting penalty, which is the whole point of
+      // surfacing it as its own finding rather than folding it into the
+      // generic contradiction one above. Asset value approximated from the
+      // same non-India-country signals the contradiction check above
+      // already established (US brokerage/retirement holdings + non-India
+      // bank accounts) — the actual undisclosed figure could be larger if
+      // other foreign asset classes exist that Layer 1 doesn't itemize.
+      var bmaAssetValueUsd = (model.assets.usSecurities || []).reduce(function (s, h) { return s + (h.peak_balance_usd || 0); }, 0) +
+        (model.accounts.accounts || []).filter(function (a) { return a.country !== "India"; })
+          .reduce(function (s, a) { return s + ((a.peak && a.peak.usd) || 0); }, 0);
+      if (bmaAssetValueUsd > 0) {
+        var bmaTaxUsd = bmaAssetValueUsd * 0.30;
+        var bmaMaxPenaltyUsd = bmaTaxUsd * 3;
+        var bmaMaxTotalUsd = bmaTaxUsd + bmaMaxPenaltyUsd;
+        add("black_money_act_exposure", S.CRITICAL, C.DOCUMENT,
+          "Black Money Act 2015 exposure on undisclosed foreign assets — up to " + usd(bmaMaxTotalUsd) + " at stake",
+          usd(bmaAssetValueUsd) + " of foreign asset value is undisclosed on Schedule FA (same forms-disagree fact as " +
+          "above). The Black Money Act imposes a flat 30% tax (" + usd(bmaTaxUsd) + ") on the asset value PLUS a penalty " +
+          "of up to 3x that tax (up to " + usd(bmaMaxPenaltyUsd) + ") — up to " + usd(bmaMaxTotalUsd) +
+          " total (120% of the asset's value) — PLUS possible prosecution (up to 10 years' rigorous imprisonment for " +
+          "willful evasion), independent of and in addition to the monetary exposure.",
+          "Correct the Schedule FA disclosure before this compounds further. FAST-DS 2026 (a one-time amnesty window, gap " +
+          "tracker XB-21) offers a much cheaper cure — 30% tax + 30% penalty (60% total) if the asset/income was never " +
+          "taxed, or a flat ₹1,00,000 fee if it was bought from already-taxed income or acquired while genuinely NRI.",
+          bmaMaxTotalUsd, ["Black Money Act 2015", "s.10", "s.41", "s.51", "Schedule FA"]);
+      }
     }
 
     // -- 10b. ITR FORM MISMATCH — WISING's independent backend computation
@@ -2169,6 +2209,28 @@
         rateAppliedPct: 1, taxInr: Math.round(vdaSaleInr * 0.01), gapInr: 0,
         note: "1% of total transfer consideration (₹10,000 floor for most taxpayers, ₹50,000 for \"specified persons\" under s.44AB — not distinguishable from available data) — not confirmed as actually withheld, may already be inside the aggregate TDS credit above (excluded from totals)",
         citation: "s.194S"
+      });
+    }
+    // Lottery (s.194B, ₹10,000 per-transaction floor) and online gaming
+    // (s.194BA, NO floor) winnings — both flat 30% TDS at source, no basic
+    // exemption. Layer 1 collects them as two separate annual aggregates
+    // (winnings_lottery_gaming_inr / online_gaming_winnings_inr) but they're
+    // combined into one model figure (specialRate115bb) with no per-
+    // transaction breakdown, so the ₹10,000 floor's applicability to the
+    // lottery slice specifically isn't distinguishable here — same kind of
+    // documented granularity gap as s.194S's ₹50,000 specified-person
+    // threshold above. Gap tracker IN-15: the engine already TAXES this
+    // income correctly (s.128/115BB), but no expected-TDS row existed on
+    // the Withholding page to reconcile against, unlike the crypto row.
+    var winningsInr = (model.income && model.income.india && model.income.india.specialRate115bb) ? model.income.india.specialRate115bb.inr : 0;
+    if (winningsInr > 0) {
+      estimateRows.india.push({
+        id: "winnings_tds_estimate", jurisdiction: "IN", category: "estimate",
+        label: "Expected TDS on Lottery/Gaming Winnings (s.194B/194BA)",
+        grossInr: winningsInr, domesticRatePct: null, treatyRatePct: null, docsOk: null,
+        rateAppliedPct: 30, taxInr: Math.round(winningsInr * 0.30), gapInr: 0,
+        note: "30% flat, no basic exemption (s.194B lottery/betting has a ₹10,000 per-transaction floor; s.194BA online gaming has none — not distinguishable from this annual aggregate) — not confirmed as actually withheld, may already be inside the aggregate TDS credit above (excluded from totals)",
+        citation: "s.194B / s.194BA"
       });
     }
 
