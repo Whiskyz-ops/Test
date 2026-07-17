@@ -175,18 +175,26 @@ Reading this: **34 of 95** rows are shipped. Of the **61 open** rows, **21 need 
 
 ## E. Suggested build order (P1s first, drawing only from the 🟢 Now bucket)
 
-1. ~~**IN-21 + US-16 together**~~ **✅ DONE** — the two CRITICAL business-income bugs (India business/firm/company computed ₹0 for real filers; US guaranteed payments + partnership SE tax dropped entirely). Phase 0 of `docs/BUSINESS_ENTITY_ARCHITECTURE.md`, shipped.
-2. **US-2** — SS taxability tiers (fixes an active overstatement; small, self-contained).
-3. **IN-1 + US-1 together** — advance-tax/estimated-tax interest & penalty engines (both sides' data already exists; symmetric feature, one "Payments & Penalties" surface).
-4. **XB-1** — estate-exposure estimate (US-situs asset values already known; $60k vs $15M cliff is the single largest un-surfaced dollar figure in the app).
-5. **XB-2** — totalization disclosure finding (cheap, high credibility).
-6. **IN-22 + IN-23 + IN-24 + IN-25** (India, Phase 1) + **US-18** (US, Phase 1b, parallel) — F&O/speculative separation, disallowances, partner-firm pass-through, depreciation on both sides, immediately after Phase 0 lands.
-7. **IN-4 verification** — property CG engine audit, then close whichever half is missing.
-8. **IN-15 + IN-16** — winnings-TDS estimate row and Lower-TDS-certificate consumption (both computable from data Layer 1 already captures; no new fields).
-9. **US-13 + US-14 + US-17** — FICA visibility, excess-SS credit, and trusts/estates K-1 inclusion (same W-2/entity data already driving the work above).
-10. Remaining 🟢 items (US-3/5/7/9/12 partials, XB-3/6/7/8) as capacity allows.
-11. **Business-entity Phases 2-6** (entity graph, inter-entity flow edges, entity-switcher frontend) per `docs/BUSINESS_ENTITY_ARCHITECTURE.md` §5, once Phase 0-1's per-entity numbers are solid.
-9. 🟡 items as Layer 1 round-trips return (XB-12/13/15 already have prompts issued; US-6, IN-3/17-19 need prompts written).
+**Rebuilt 16 Jul 2026** against section D's corrected count. The prior version of this list had gone stale in the same way D had: it named US-2 and XB-2 as still-to-build (both shipped since), XB-1 as a quick win citing "US-situs asset values already known" (the row was corrected 13 Jul to say the opposite — no such field exists — which demoted it out of the 🟢 bucket entirely), and carried a duplicate "9." Every item below is drawn fresh from D's current 21-row jurisdiction-scoped 🟢 bucket plus the 6 non-jurisdiction items in sections F/G (CL-1..5, PD-1) — 27 buildable-now items total, none shipped yet, grouped by natural build-together clusters rather than a flat priority sort.
+
+**Already shipped, for reference (not part of this list):** Phase 0 (IN-21+US-16), IN-1+US-1 (advance-tax/estimated-tax interest), US-2 (SS taxability), XB-2 (totalization, found already-built), IN-22..25 (India Phase 1), IN-15 (winnings TDS), US-29 (MACRS depreciation core), and everything else marked ✅ in sections A-C.
+
+1. **CL-1 (checks-run registry)** — build first: it's the structural fix for the "known-answer test" a pro runs before trusting anything else, and both CL-3 (falls out of the same registry per its own row) and PD-1 (client report needs a "checked and clean" surface, not just failures) are cheaper once this exists.
+2. **CL-2 (forward-looking calendar amounts)** — pure reuse of IN-1/US-1's already-shipped interest math run prospectively instead of retrospectively; the single most-pulled number per client per quarter.
+3. **IN-36 + US-31 + CL-5 together** — one "comparator" feature: regime (India), filing-status/FEIE-vs-FTC (US), and standard-vs-itemized (the CL-5 general case) are the same "run the computation twice, show the delta" pattern, all P1/P2, all zero new fields.
+4. **US-30 (FTC carryover + basket split)** — P1, standalone Form 1116 correctness fix; current-year basket split is the 🟢 half, carryover input stays 🟡 until a field is added.
+5. **XB-25 (dual-status year, disclosure/eligibility half)** — P1, standalone; the arrival-year scenario this corridor sees most often.
+6. **IN-4 (property-sale CG verification)** — P1, "audit then close whichever half is missing" rather than a from-scratch build; the highest-uncertainty item on this list, do it early to find out how much work actually remains.
+7. **CL-3 + CL-4** — safe-harbor-met confirmations and elective-headroom gauges, same UI surface as items 1-2, cheap once the registry exists.
+8. **PD-1 (client-ready branded export)** — sequenced after CL-1 per its own row's note; the first client-facing deliverable.
+9. **XB-3 + XB-21 + XB-26** — three disclosure-only cross-border findings (Form 3520/3520-A exposure, FAST-DS 2026 amnesty framing, Roth account disclosure), same shape as the already-shipped XB-7/XB-8/XB-27-class findings.
+10. **US-3 + US-9 + US-13 + US-14** — Withholding-tab depth: capital-loss carryover, Form 1116 basket/HTKO detail, FICA visibility, excess-SS credit — all read from data already driving the Withholding page.
+11. **US-18 (remaining MACRS scope)** — extend the already-shipped US-29 depreciation engine to K-1/1120 asset rows and `farming_schedule_f[]`, the two array types deliberately left out of the original build.
+12. **IN-6 + IN-8 + IN-16 + IN-30** — remaining India engine-depth items (presumptive-scheme limit tests, house-property caps, lower-TDS-certificate consumption, NRO-repatriation gauge) — verification/depth work against data already captured.
+13. **US-12 (state income tax)** — flagged "large" in its own row; needs a scoping decision (which states beyond CA/NY already shipped) before estimating, so sequenced after the smaller wins above.
+14. **P3 items as capacity allows**: IN-12 (s.194P senior disclosure), IN-26 (s.44BBB/35AD/115V, small population), US-7 (Form 1099-DA awareness).
+15. **🟡 items as Layer 1 round-trips return** (XB-12/13/15 already have prompts issued; US-6, IN-3/17-19 need prompts written) — outside the 🟢 bucket, listed here only as the next queue once a field lands.
+16. **Business-entity Phases 2-6** (entity graph, inter-entity flow edges, entity-switcher frontend) per `docs/BUSINESS_ENTITY_ARCHITECTURE.md` §5, once the queue above is solid.
 
 ## F. Confirmatory (green-state) layer — recorded 16 Jul 2026
 
