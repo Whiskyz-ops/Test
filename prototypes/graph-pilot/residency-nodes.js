@@ -27,73 +27,160 @@
  * forced-NR outcome; the US cedes if the winner is India or the taxpayer
  * files 1040-NR — EXCEPT a US citizen, who keeps worldwide taxation
  * regardless per the §. saving clause), and assemble dualResident/
- * tieBreakWinner/worldwideOverlap. Small, self-contained, entirely raw-
- * input-driven — genuinely 🟢 effort, not the 🟡 "new pattern" the tracker
- * had guessed before this file existed to check.
+ * tieBreakWinner/worldwideOverlap.
  *
  * Verified in run-residency.js: full parity (every field) against
  * computed.residency for all 11 real profiles — no boundary left at all,
  * unlike every other phase in this effort.
  *
  * ----------------------------------------------------------------------
- * residencyConsistencyFindings — NEW, added on top of the port above.
- * Unlike every other finding closed in this effort (IN-1, US-1, US-5,
- * XB-7, holding_period_mismatch), this one has NO counterpart anywhere in
- * engine/conflicts.js today — it's a genuinely new check this DAG pilot is
- * introducing, not a port. Scope, from the residency assessment this same
- * session did: the engine stores day-count facts (daysCurrentYear, sptMet)
- * right next to the trusted status conclusion and never compares them —
- * monitoring.js will render a "210 of 182 days" progress bar next to a
- * status that came from a different source entirely, with nothing to
- * catch the contradiction. This closes that specific, narrow gap.
+ * residencyConsistencyFindings — NEW, no engine/conflicts.js counterpart.
  *
- * Deliberately NOT a re-derivation of residency status (that would require
- * multi-year day-count history and qualitative facts this engine doesn't
- * even collect — s.6(1A)'s 9-of-10-years/729-day lookback, SPT's 3-year
- * weighted formula with prior-year days). Only two implications per
- * country are checked, each chosen because it holds under EVERY variant of
- * the rule with no exception (or, where a real exception exists, the
- * finding says so explicitly rather than asserting an error):
+ * REWRITTEN from the original narrow day-count heuristic after two things
+ * were found by reading layer1_india.html/layer1_us.html directly (not just
+ * the engine) rather than assumed:
  *
- *   India (individual profiles only — company/HUF residency runs on
- *   POEM/control-and-management facts, not day-count, and daysCurrentYear
- *   isn't even populated in their raw data; confirmed against india_pvt_ltd/
- *   foreign_holdco_poem_india/sharma_huf profile fixtures before writing
- *   this gate, not assumed):
- *     - understated: days >= 182 (the unconditional s.6(1)(a) threshold —
- *       every lower alternate threshold only ADDS ways to become resident,
- *       never removes this one) but status === "NR". No known exception.
- *     - overstated: days === 0 but status is ROR/RNOR. s.6(1) requires SOME
- *       presence in the FY under every limb — EXCEPT s.6(1A)'s "deemed
- *       resident" provision (citizen, >Rs.15L non-foreign income, not
- *       liable to tax anywhere else), which this engine doesn't model
- *       anywhere (grepped, zero hits) — flagged as "verify," not "wrong."
+ * (1) Layer 1 India's runResidencySolver() (layer1_india.html:5717-5919) is
+ *     a full ~20-branch statutory determination — the 60/182-day tests, the
+ *     4-year lookback, RNOR sub-status (9-of-10-years / 729-days-in-7-years),
+ *     the employment/crew departure exception, the PIO/citizen visit
+ *     exception, and s.6(1A) deemed-residency (income >Rs.15L, not liable to
+ *     tax elsewhere) — that normalize.js never reads at all. Only the final
+ *     locked final_india_residency_status string crosses into the engine.
+ *     deriveIndiaDomesticStatus() below is a faithful, line-by-line port of
+ *     that ENTIRE function (individual + company POEM "mock rule" + HUF +
+ *     firm/LLP/AOP/trust branches) using the SAME raw fields Layer 1 itself
+ *     uses. This replaces the old narrow "days>=182 or days===0" heuristic,
+ *     which only caught two of many possible inconsistencies and had to
+ *     hedge with "one exception this engine can't model" — that hedge is
+ *     gone now, because every fact the real solver uses is now read here
+ *     too, not a subset of it.
  *
- *   US (individual profiles only, and not a citizen/green-card holder —
- *   for whom sptMet is moot since they're resident regardless):
- *     - understated: days >= 183 (current-year days alone satisfy IRC
- *       7701(b)(3)'s weighted 3-year sum at full weight, regardless of the
- *       other two years) but sptMet === false. EXCEPT "exempt individual"
- *       status (F/J/M/Q student/trainee visas in their exempt years,
- *       foreign-government-related individuals, charitable-event athletes)
- *       excludes days from the SPT count entirely — also not modeled
- *       anywhere in this engine — flagged as "verify," not "wrong."
- *     - overstated: days < 31 but sptMet === true. IRC 7701(b)(3)(A)'s
- *       31-day floor is unconditional — no exemption can raise a count
- *       back up, only lower it further. No known exception.
+ * (2) The live wizard ALSO overwrites final_india_residency_status to "NR"
+ *     whenever dtaa_treaty_residence === "us" or dtaa_forced_nr === true —
+ *     for EVERY entity type, applied unconditionally after the branches
+ *     above. But resolveResidency() (XBR-1, ported above in this same file)
+ *     treats that field as pure, TREATY-INDEPENDENT domestic-law status: it
+ *     derives isResident/worldwide from status alone, then applies the
+ *     treaty "cedes worldwide taxation" consequence separately (indiaCedes),
+ *     never touching status or isResident. This is a real conflict between
+ *     Layer 1's live behavior and the engine's own contract for what this
+ *     field means — RESOLVED here by tax-law reasoning, not by picking a
+ *     side arbitrarily: Indian residential status under s.6 is genuinely a
+ *     domestic-law-only concept, unaffected by any treaty. Article 4 only
+ *     ever governs which country gets to tax which income under the treaty
+ *     (and only when both countries already, independently, consider the
+ *     person domestically resident) — "losing" the tie-break to the US does
+ *     NOT make someone stop being domestically resident in India for
+ *     s.234B/234C advance-tax interest, PAN-Aadhaar linking, Schedule FA
+ *     disclosure, or any other domestic-law purpose. So resolveResidency()'s
+ *     contract is the legally correct one, and Layer 1's live wizard
+ *     conflating the two is itself the bug — deriveIndiaDomesticStatus()
+ *     below deliberately does NOT reproduce that conflation (it computes
+ *     PURE domestic status, no DTAA override, matching resolveResidency()'s
+ *     assumption). The consistency check below therefore does NOT gate on
+ *     the treaty fields to suppress a mismatch — instead, when a mismatch is
+ *     found AND the treaty override fields are set, the finding explicitly
+ *     diagnoses it as the wizard's own DTAA/domestic-status conflation
+ *     (residency_status_dtaa_conflated_india) rather than a generic
+ *     data-entry error, since that's almost certainly the real cause.
  *
- * Verified in run-residency.js: zero findings across all 11 real profiles
- * (true-negative check — the demo data is internally consistent) plus a
- * set of hand-built synthetic cases proving each of the four directions
- * fires exactly when it should (real data has no inconsistent profiles to
- * exercise the positive path, so synthetic cases are the only way to prove
- * the logic actually works, not just that it stays quiet).
+ * Ground-truth limitation, stated plainly: the 11 demo profiles in
+ * engine/profiles.js were hand-authored with a chosen final status directly
+ * (e.g. dual_resident_h1b: 183 days, "ROR", dtaa_treaty_residence "us" — a
+ * state the real wizard could not itself produce, since it would compute
+ * RNOR from 183 days with nr9/d7_729 unanswered, then the DTAA override
+ * would push it to NR, not leave it "ROR") rather than run through the real
+ * wizard, which needs the fuller fact set (p4y/emp/visit/nr9/d7_729/inc15/
+ * ltac) this doc's earlier phases confirmed the fixtures never populate.
+ * This means comparing the full derivation against the 11 real profiles is
+ * NOT a valid exact-match test the way every other phase in this effort has
+ * used real profiles — the mismatches it would produce reflect fixture
+ * incompleteness, not a bug in this port. So verification here uses the
+ * approach the rest of this effort reaches for when real profiles can't
+ * exercise a path: a synthetic case for every one of the ~26 branches
+ * (17 individual + 4 company + 2 firm/LLP/AOP/trust + 3 HUF), each checked
+ * against the exact path label in the real source. The 11 real profiles are
+ * still run, but reported (not asserted) — see run-residency.js.
  * ==========================================================================*/
 function safe(obj, path, dflt) {
   var parts = path.split(".");
   var cur = obj;
   for (var i = 0; i < parts.length; i++) { if (cur == null) return dflt; cur = cur[parts[i]]; }
   return cur === undefined || cur === null ? dflt : cur;
+}
+
+/* ---- Company POEM "mock rule" — layer1_india.html:5731-5758, verbatim --- */
+function deriveCompanyPoem(cr) {
+  cr = cr || {};
+  if (cr.isActiveBusiness === true) {
+    return cr.boardMeetingsOutsideIndia === false;
+  } else if (cr.keyManagementLocation) {
+    if (cr.keyManagementLocation === "india") return true;
+    if (cr.keyManagementLocation === "outside_india") return false;
+    if (cr.keyManagementLocation === "mixed") {
+      var inCount = cr.directorsInIndia || 0, outCount = cr.directorsOutsideIndia || 0;
+      if (inCount > outCount) return true;
+      if (outCount > inCount) return false;
+      return cr.managementDelegatedOutsideIndia === false;
+    }
+    return false;
+  } else {
+    return false;
+  }
+}
+
+/* ---- runResidencySolver(), PURE DOMESTIC-LAW status only (no DTAA
+ * override — see file header for why) — layer1_india.html:5717-5903,
+ * verbatim branch-for-branch. entity: "company"|"huf"|"firm"|"llp"|"aop"|
+ * "trust"|"individual" (anything else routes to the individual branch,
+ * matching the real solver's own catch-all else). f: raw facts object. ---*/
+function deriveIndiaDomesticStatus(entity, f) {
+  if (entity === "company") {
+    var isIndian = f.isIndianCompany;
+    if (isIndian === true) return "ROR";
+    if (isIndian === false) return deriveCompanyPoem(f.company) === true ? "ROR" : "NR";
+    return "ROR"; // unanswered defaults to treated-as-Indian-company, matching source exactly
+  }
+  if (entity === "firm" || entity === "llp" || entity === "aop" || entity === "trust") {
+    return f.whollyOutside === true ? "NR" : "ROR";
+  }
+  if (entity === "huf") {
+    if (f.whollyOutside === true) return "NR";
+    return (f.nr9 === true || f.d7729 === true) ? "RNOR" : "ROR";
+  }
+  // INDIVIDUAL
+  var days = f.days, p4y = f.p4y, emp = f.emp || "none", visit = f.visit,
+    nr9 = f.nr9, d7729 = f.d7729, inc15 = f.inc15, ltac = f.ltac || false;
+  if (days >= 182) {
+    if (nr9 === false && d7729 === false) return "ROR";
+    if (nr9 === true) return "RNOR";
+    return "RNOR";
+  } else if (days >= 60 && days < 182) {
+    if (p4y === true) {
+      if (emp !== "none") {
+        if (inc15 === true && ltac === false) return "RNOR";
+        if (inc15 === false) return "NR";
+        return "NR";
+      } else if (visit === true) {
+        if (days >= 120 && inc15 === true) return "RNOR";
+        if (days >= 120 && inc15 === false) return "NR";
+        if (days < 120 && inc15 === true && ltac === false) return "RNOR";
+        return "NR";
+      } else {
+        if (nr9 === false && d7729 === false) return "ROR";
+        if (nr9 === true) return "RNOR";
+        return "RNOR";
+      }
+    } else {
+      if (inc15 === true && ltac === false) return "RNOR";
+      return "NR";
+    }
+  } else if (days < 60) {
+    if (inc15 === true && ltac === false) return "RNOR";
+    return "NR";
+  }
+  return "NR"; // days null/undefined — none of the three ranges match, matches the solver's own initial default
 }
 
 var NODES = {
@@ -137,12 +224,26 @@ var NODES = {
     }
   },
 
-  // ---- raw leaves for the consistency finding ------------------------------
-  indiaDaysCurrentYearRaw: { deps: [], compute: function (d, ctx) { return Number(safe(ctx.india, "residency_detail.days_in_india_current_year", 0)) || 0; } },
-  usDaysCurrentYearRaw: { deps: [], compute: function (d, ctx) { return Number(safe(ctx.us, "us_residency_detail.us_days_current_year", 0)) || 0; } },
+  // ---- raw leaves: entity kind + the FULL individual/company/HUF fact set -
   indiaEntityKindRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "profile.entity_type", "individual"); } },
+  indiaDaysCurrentYearRaw: { deps: [], compute: function (d, ctx) { return Number(safe(ctx.india, "residency_detail.days_in_india_current_year", 0)) || 0; } },
+  indiaDays4YearRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.days_in_india_preceding_4_years_gte_365", null); } },
+  indiaEmploymentOrCrewRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.employment_or_crew_status", null); } },
+  indiaVisitPioCitizenRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.came_on_visit_to_india_pio_citizen", null); } },
+  indiaNr9Raw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.nr_years_last_10_gte_9", null); } },
+  indiaD7729Raw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.days_in_india_last_7_years_lte_729", null); } },
+  indiaIncome15lRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.india_source_income_above_15l", null); } },
+  indiaLtacRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.liable_to_tax_in_another_country_being_indian_citizen", false) === true; } },
   indiaIsIndianCompanyRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.is_indian_company", null); } },
   indiaWhollyOutsideIndiaRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.is_wholly_outside_india", null); } },
+  companyIsActiveBusinessRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "company_residency.is_active_business", false) === true; } },
+  companyBoardOutsideIndiaRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "company_residency.board_meetings_primarily_outside_india", false) === true; } },
+  companyKeyManagementLocationRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "company_residency.key_management_location", ""); } },
+  companyManagementDelegatedOutsideRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "company_residency.management_delegated_outside_india", false) === true; } },
+  companyDirectorsInIndiaRaw: { deps: [], compute: function (d, ctx) { return Number(safe(ctx.india, "company_residency.directors_in_india_count", 0)) || 0; } },
+  companyDirectorsOutsideIndiaRaw: { deps: [], compute: function (d, ctx) { return Number(safe(ctx.india, "company_residency.directors_outside_india_count", 0)) || 0; } },
+
+  usDaysCurrentYearRaw: { deps: [], compute: function (d, ctx) { return Number(safe(ctx.us, "us_residency_detail.us_days_current_year", 0)) || 0; } },
   usIncorporatedInUsRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "profile.incorporated_in_us", null); } },
   usEntityKindRaw: {
     deps: [],
@@ -153,90 +254,90 @@ var NODES = {
     }
   },
 
-  // ---- the new finding: declared status vs. the day-count facts also on file
+  // ---- deriveCompanyPoem, as its own node (individually testable) ---------
+  indiaCompanyPoemDerived: {
+    deps: ["companyIsActiveBusinessRaw", "companyBoardOutsideIndiaRaw", "companyKeyManagementLocationRaw",
+      "companyManagementDelegatedOutsideRaw", "companyDirectorsInIndiaRaw", "companyDirectorsOutsideIndiaRaw"],
+    compute: function (d) {
+      return deriveCompanyPoem({
+        isActiveBusiness: d.companyIsActiveBusinessRaw, boardMeetingsOutsideIndia: d.companyBoardOutsideIndiaRaw,
+        keyManagementLocation: d.companyKeyManagementLocationRaw, managementDelegatedOutsideIndia: d.companyManagementDelegatedOutsideRaw,
+        directorsInIndia: d.companyDirectorsInIndiaRaw, directorsOutsideIndia: d.companyDirectorsOutsideIndiaRaw
+      });
+    }
+  },
+
+  // ---- deriveIndiaDomesticStatus, as a node — full runResidencySolver() ---
+  // port, PURE domestic law, no DTAA override (see file header). -----------
+  indiaDomesticStatusDerived: {
+    deps: ["indiaEntityKindRaw", "indiaDaysCurrentYearRaw", "indiaDays4YearRaw", "indiaEmploymentOrCrewRaw",
+      "indiaVisitPioCitizenRaw", "indiaNr9Raw", "indiaD7729Raw", "indiaIncome15lRaw", "indiaLtacRaw",
+      "indiaIsIndianCompanyRaw", "indiaWhollyOutsideIndiaRaw", "indiaCompanyPoemDerived",
+      "companyIsActiveBusinessRaw", "companyBoardOutsideIndiaRaw", "companyKeyManagementLocationRaw",
+      "companyManagementDelegatedOutsideRaw", "companyDirectorsInIndiaRaw", "companyDirectorsOutsideIndiaRaw"],
+    compute: function (d) {
+      return deriveIndiaDomesticStatus(d.indiaEntityKindRaw, {
+        days: d.indiaDaysCurrentYearRaw, p4y: d.indiaDays4YearRaw, emp: d.indiaEmploymentOrCrewRaw,
+        visit: d.indiaVisitPioCitizenRaw, nr9: d.indiaNr9Raw, d7729: d.indiaD7729Raw,
+        inc15: d.indiaIncome15lRaw, ltac: d.indiaLtacRaw, isIndianCompany: d.indiaIsIndianCompanyRaw,
+        whollyOutside: d.indiaWhollyOutsideIndiaRaw,
+        company: {
+          isActiveBusiness: d.companyIsActiveBusinessRaw, boardMeetingsOutsideIndia: d.companyBoardOutsideIndiaRaw,
+          keyManagementLocation: d.companyKeyManagementLocationRaw, managementDelegatedOutsideIndia: d.companyManagementDelegatedOutsideRaw,
+          directorsInIndia: d.companyDirectorsInIndiaRaw, directorsOutsideIndia: d.companyDirectorsOutsideIndiaRaw
+        }
+      });
+    }
+  },
+
+  // ---- the consistency finding: derived domestic status vs. recorded ------
   residencyConsistencyFindings: {
-    deps: ["indiaStatusRaw", "indiaDaysCurrentYearRaw", "indiaEntityKindRaw", "indiaIsIndianCompanyRaw", "indiaWhollyOutsideIndiaRaw",
+    deps: ["indiaStatusRaw", "indiaEntityKindRaw", "indiaDomesticStatusDerived", "treatyIndiaResidenceRaw", "treatyDtaaForcedNrRaw",
       "usStatusRaw", "usDaysCurrentYearRaw", "usSptMetRaw", "usIsCitizenRaw", "usHasGreenCardRaw", "usEntityKindRaw", "usIncorporatedInUsRaw"],
     compute: function (d) {
       var findings = [];
 
-      if (d.indiaEntityKindRaw === "individual") {
-        if (d.indiaDaysCurrentYearRaw >= 182 && d.indiaStatusRaw === "NR") {
+      if (d.indiaStatusRaw != null && d.indiaDomesticStatusDerived !== d.indiaStatusRaw) {
+        var treatyOverrideActive = d.treatyIndiaResidenceRaw === "us" || d.treatyDtaaForcedNrRaw === true;
+        var entityLabel = d.indiaEntityKindRaw === "individual" ? "" :
+          d.indiaEntityKindRaw === "company" ? " (company)" :
+          d.indiaEntityKindRaw === "huf" ? " (HUF)" : " (" + d.indiaEntityKindRaw + ")";
+        if (treatyOverrideActive && d.indiaStatusRaw === "NR" && d.indiaDomesticStatusDerived !== "NR") {
+          // The recorded status is fully explained by Layer 1's own DTAA/
+          // domestic-status conflation (see file header) — diagnose it as
+          // that specifically, not a generic data-entry error.
           findings.push({
-            id: "residency_status_understated_india", severity: "warning", category: "residency",
-            title: "India residency may be understated — " + d.indiaDaysCurrentYearRaw + " days present but marked Non-Resident",
-            detail: "Layer 1 records " + d.indiaDaysCurrentYearRaw + " days of physical presence in India this FY — at or above the unconditional " +
-              "182-day threshold under s.6(1)(a), which is sufficient for residency on its own regardless of which alternate test " +
-              "(the lower 60-day test, citizen/PIO carve-outs) might otherwise apply — yet the recorded final status is NR. No " +
-              "known exception makes >=182 days consistent with NR.",
-            recommendation: "Re-run the Layer 1 India residency wizard, or verify days_in_india_current_year was entered for the " +
-              "correct financial year — a wrong-year entry is the most common cause of this mismatch.",
-            amountUsd: 0, refs: ["s.6(1)(a)"]
+            id: "residency_status_dtaa_conflated_india", severity: "warning", category: "residency",
+            title: "India residential status may be conflated with the DTAA treaty tie-break" + entityLabel,
+            detail: "Based on the residency facts on file, this taxpayer's India DOMESTIC-LAW status under s.6 should be " +
+              d.indiaDomesticStatusDerived + ", but the recorded final_india_residency_status is NR. The DTAA Article 4 tie-break " +
+              "is recorded as resolving to the US (dtaa_treaty_residence = \"us\"" + (d.treatyDtaaForcedNrRaw ? " / dtaa_forced_nr = true" : "") +
+              "). Layer 1's residency wizard currently overwrites the domestic status field itself whenever the treaty tie-break " +
+              "resolves away from India — but under Indian law, residential status (ROR/RNOR/NR) is a purely domestic-law " +
+              "determination, unaffected by any treaty. \"Losing\" the Article 4 tie-breaker doesn't make someone stop being " +
+              "domestically resident — it only changes worldwide-taxation scope for treaty purposes (already handled correctly, " +
+              "separately, by this DAG's residencyResult.india.worldwide/cedesViaTreaty). This finding is the domestic-status " +
+              "side of that same fact pattern, surfaced because the two concepts appear to have been conflated in what was " +
+              "recorded.",
+            recommendation: "For domestic-law purposes (advance-tax interest under s.234B/234C, PAN-Aadhaar linking, Schedule FA " +
+              "disclosure, TDS rates on India-source payments), this taxpayer's status should likely be treated as " +
+              d.indiaDomesticStatusDerived + ", with the treaty position tracked separately as a worldwide-taxation election, not " +
+              "as a change to the underlying residential status.",
+            amountUsd: 0, refs: ["s.6", "DTAA Art. 4"]
           });
-        } else if (d.indiaDaysCurrentYearRaw === 0 && (d.indiaStatusRaw === "ROR" || d.indiaStatusRaw === "RNOR")) {
+        } else {
           findings.push({
-            id: "residency_status_overstated_india", severity: "info", category: "residency",
-            title: "India residency may be overstated — 0 days present but marked " + d.indiaStatusRaw,
-            detail: "Layer 1 records ZERO days of physical presence in India this FY, yet the recorded final status is " + d.indiaStatusRaw +
-              " (resident). Every limb of s.6(1) requires some physical presence in the FY itself. One narrow exception exists: " +
-              "s.6(1A)'s 'deemed resident' provision treats certain Indian citizens (>Rs.15 lakh of non-foreign-source income, not " +
-              "liable to tax in any other country) as resident even with zero days present, specifically to prevent engineered " +
-              "statelessness. This engine does not model that provision, so this flag cannot rule it out — verify before assuming error.",
-            recommendation: "Confirm whether s.6(1A) deemed-residency applies before correcting — if it doesn't, this status is " +
-              "likely a wizard or data-entry error.",
-            amountUsd: 0, refs: ["s.6(1)", "s.6(1A)"]
-          });
-        }
-      } else if (d.indiaEntityKindRaw === "company") {
-        // s.6(3): an Indian-incorporated company is UNCONDITIONALLY resident —
-        // incorporation alone settles it, no POEM override can reduce it back
-        // to NR. (The other direction — foreign-incorporated but POEM resolves
-        // to ROR — is a real, different situation, already a genuine engine
-        // finding, entity_dual_residency_poem (conflicts.js:723, unported,
-        // CFL-6) — deliberately not duplicated here.)
-        if (d.indiaIsIndianCompanyRaw === true && d.indiaStatusRaw === "NR") {
-          findings.push({
-            id: "residency_status_understated_india_company", severity: "warning", category: "residency",
-            title: "India company residency may be understated — incorporated in India but marked Non-Resident",
-            detail: "Layer 1 records this company as incorporated in India (residency_detail.is_indian_company = true), yet the " +
-              "recorded final status is NR. Under s.6(3), an Indian-incorporated company is unconditionally resident regardless " +
-              "of Place of Effective Management — incorporation status alone settles it, with no POEM override that can reduce " +
-              "it to NR. No known exception.",
-            recommendation: "Re-run the Layer 1 India residency wizard, or verify is_indian_company and " +
-              "final_india_residency_status were entered consistently — this looks like a wizard or data-entry error.",
-            amountUsd: 0, refs: ["s.6(3)"]
-          });
-        }
-      } else {
-        // HUF / firm / LLP / local authority / trust / AOP / BOI / AJP, etc. —
-        // s.6(2)/s.6(4): resident UNLESS control & management of its affairs
-        // is wholly outside India. Binary test, both directions exception-free
-        // (unlike the individual day-count checks above, there's no lower
-        // alternate threshold or citizen/PIO carve-out complicating this one).
-        if (d.indiaWhollyOutsideIndiaRaw === true && (d.indiaStatusRaw === "ROR" || d.indiaStatusRaw === "RNOR")) {
-          findings.push({
-            id: "residency_status_overstated_india_entity", severity: "warning", category: "residency",
-            title: "India entity residency may be overstated — control & management wholly outside India but marked " + d.indiaStatusRaw,
-            detail: "Layer 1 records that this entity's control and management is wholly situated outside India " +
-              "(residency_detail.is_wholly_outside_india = true), yet the recorded final status is " + d.indiaStatusRaw +
-              " (resident). Under s.6(2)/s.6(4), an entity of this type is resident UNLESS control and management is wholly " +
-              "outside India — 'wholly outside' is the one condition that flips it to non-resident, so this combination has " +
-              "no known exception.",
-            recommendation: "Re-run the Layer 1 India residency wizard, or verify the control-and-management fact and final " +
-              "status were entered consistently.",
-            amountUsd: 0, refs: ["s.6(2)", "s.6(4)"]
-          });
-        } else if (d.indiaWhollyOutsideIndiaRaw === false && d.indiaStatusRaw === "NR") {
-          findings.push({
-            id: "residency_status_understated_india_entity", severity: "warning", category: "residency",
-            title: "India entity residency may be understated — control & management NOT wholly outside India but marked Non-Resident",
-            detail: "Layer 1 records that this entity's control and management is NOT wholly situated outside India " +
-              "(residency_detail.is_wholly_outside_india = false), yet the recorded final status is NR. Under s.6(2)/s.6(4), an " +
-              "entity of this type is resident UNLESS control and management is wholly outside India — since it isn't wholly " +
-              "outside here, the entity should be resident, not NR. No known exception.",
-            recommendation: "Re-run the Layer 1 India residency wizard, or verify the control-and-management fact and final " +
-              "status were entered consistently.",
-            amountUsd: 0, refs: ["s.6(2)", "s.6(4)"]
+            id: d.indiaEntityKindRaw === "company" ? "residency_status_mismatch_india_company" :
+              (d.indiaEntityKindRaw === "individual" ? "residency_status_mismatch_india" : "residency_status_mismatch_india_entity"),
+            severity: "warning", category: "residency",
+            title: "India residency status may not match the facts on file" + entityLabel + " — derived " + d.indiaDomesticStatusDerived + ", recorded " + d.indiaStatusRaw,
+            detail: "Re-deriving India's residential-status determination from the same raw facts Layer 1's own wizard uses " +
+              "(day-count, the 4-year lookback, RNOR sub-status conditions, employment/PIO-visit exceptions, s.6(1A) deemed-" +
+              "residency, incorporation/POEM, or control-and-management, depending on entity type) produces " +
+              d.indiaDomesticStatusDerived + ", but the recorded final_india_residency_status is " + d.indiaStatusRaw + ".",
+            recommendation: "Re-run the Layer 1 India residency wizard, or verify the underlying residency facts were entered " +
+              "consistently — this looks like a wizard or data-entry error.",
+            amountUsd: 0, refs: ["s.6"]
           });
         }
       }
@@ -311,4 +412,8 @@ var NODES = {
   }
 };
 
-module.exports = { NODES: NODES };
+module.exports = {
+  NODES: NODES,
+  deriveIndiaDomesticStatus: deriveIndiaDomesticStatus,
+  deriveCompanyPoem: deriveCompanyPoem
+};
