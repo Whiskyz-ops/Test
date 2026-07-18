@@ -138,6 +138,21 @@ syntheticCheck("US: 10 days + sptMet=true on a CITIZEN does not fire (citizen ga
   {}, { us_residency_detail: { us_days_current_year: 10, spt_test_met: true, is_us_citizen: true, has_green_card: false }, profile: { tax_entity_type: "individual" } },
   []);
 
+// US entity: incorporated in the US but marked FOREIGN_ENTITY.
+syntheticCheck("US entity: incorporated_in_us=true + FOREIGN_ENTITY fires residency_status_understated_us_entity",
+  {}, { profile: { tax_entity_type: "ccorp", incorporated_in_us: true }, us_residency_detail: { final_us_residency_status: "FOREIGN_ENTITY" } },
+  ["residency_status_understated_us_entity"]);
+
+// US entity: NOT incorporated in the US but marked DOMESTIC_ENTITY.
+syntheticCheck("US entity: incorporated_in_us=false + DOMESTIC_ENTITY fires residency_status_overstated_us_entity",
+  {}, { profile: { tax_entity_type: "scorp", incorporated_in_us: false }, us_residency_detail: { final_us_residency_status: "DOMESTIC_ENTITY" } },
+  ["residency_status_overstated_us_entity"]);
+
+// US entity: consistent (incorporated + DOMESTIC_ENTITY) must NOT fire.
+syntheticCheck("US entity: incorporated_in_us=true + DOMESTIC_ENTITY does not fire (consistent)",
+  {}, { profile: { tax_entity_type: "partnership", incorporated_in_us: true }, us_residency_detail: { final_us_residency_status: "DOMESTIC_ENTITY" } },
+  []);
+
 console.log("");
 console.log(pass + " passed, " + fail + " failed");
 process.exit(fail > 0 ? 1 : 0);

@@ -143,6 +143,7 @@ var NODES = {
   indiaEntityKindRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "profile.entity_type", "individual"); } },
   indiaIsIndianCompanyRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.is_indian_company", null); } },
   indiaWhollyOutsideIndiaRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.is_wholly_outside_india", null); } },
+  usIncorporatedInUsRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "profile.incorporated_in_us", null); } },
   usEntityKindRaw: {
     deps: [],
     compute: function (d, ctx) {
@@ -155,7 +156,7 @@ var NODES = {
   // ---- the new finding: declared status vs. the day-count facts also on file
   residencyConsistencyFindings: {
     deps: ["indiaStatusRaw", "indiaDaysCurrentYearRaw", "indiaEntityKindRaw", "indiaIsIndianCompanyRaw", "indiaWhollyOutsideIndiaRaw",
-      "usStatusRaw", "usDaysCurrentYearRaw", "usSptMetRaw", "usIsCitizenRaw", "usHasGreenCardRaw", "usEntityKindRaw"],
+      "usStatusRaw", "usDaysCurrentYearRaw", "usSptMetRaw", "usIsCitizenRaw", "usHasGreenCardRaw", "usEntityKindRaw", "usIncorporatedInUsRaw"],
     compute: function (d) {
       var findings = [];
 
@@ -240,32 +241,67 @@ var NODES = {
         }
       }
 
-      if (d.usEntityKindRaw === "individual" && !d.usIsCitizenRaw && !d.usHasGreenCardRaw) {
-        if (d.usDaysCurrentYearRaw >= 183 && d.usSptMetRaw === false) {
+      if (d.usEntityKindRaw === "individual") {
+        if (!d.usIsCitizenRaw && !d.usHasGreenCardRaw) {
+          if (d.usDaysCurrentYearRaw >= 183 && d.usSptMetRaw === false) {
+            findings.push({
+              id: "residency_status_understated_us", severity: "info", category: "residency",
+              title: "US Substantial Presence Test may be understated — " + d.usDaysCurrentYearRaw + " days present but SPT marked not met",
+              detail: "Layer 1 records " + d.usDaysCurrentYearRaw + " days of physical presence in the US this year — at or above the " +
+                "183-day figure IRC 7701(b)(3)'s weighted 3-year sum reaches from current-year days alone (full weight, regardless " +
+                "of the prior two years) — yet spt_test_met is recorded false. Two narrow exception categories exist, confirmed " +
+                "against Layer 1 US's own SPT calculation (layer1_us.html): 'exempt individual' status (F/J/M/Q student/trainee " +
+                "visas within their exempt years, foreign-government-related individuals, charitable-event athletes) excludes " +
+                "ALL days from the SPT count; separately, specific days can be excluded even for a non-exempt individual (e.g. a " +
+                "medical-condition exception). This engine does not model either, so this flag cannot rule them out — verify " +
+                "before assuming error.",
+              recommendation: "Confirm exempt-individual status or a day-exclusion claim doesn't apply before correcting " +
+                "spt_test_met — if neither does, this looks like a wizard or data-entry error.",
+              amountUsd: 0, refs: ["IRC 7701(b)(3)"]
+            });
+          } else if (d.usDaysCurrentYearRaw < 31 && d.usSptMetRaw === true) {
+            findings.push({
+              id: "residency_status_overstated_us", severity: "warning", category: "residency",
+              title: "US Substantial Presence Test may be overstated — only " + d.usDaysCurrentYearRaw + " days present but SPT marked met",
+              detail: "Layer 1 records only " + d.usDaysCurrentYearRaw + " days of physical presence in the US this year, but " +
+                "spt_test_met is recorded true. IRC 7701(b)(3)(A) sets an unconditional floor: the SPT cannot be satisfied with " +
+                "fewer than 31 days of presence in the current year, regardless of the weighted 3-year total. No known exception " +
+                "(exempt-individual status and day-exclusions can only reduce the count, never add days back).",
+              recommendation: "Re-run the Layer 1 US residency wizard, or verify us_days_current_year was entered for the correct " +
+                "calendar year.",
+              amountUsd: 0, refs: ["IRC 7701(b)(3)(A)"]
+            });
+          }
+        }
+      } else {
+        // Business entity (ccorp/scorp/partnership/trust). Layer 1 US's own
+        // corporate short-circuit (layer1_us.html:7099-7126) sets
+        // final_us_residency_status = incorporated_in_us ? "DOMESTIC_ENTITY" :
+        // "FOREIGN_ENTITY" and returns immediately — none of the individual-
+        // style SPT/DTAA/citizen logic even runs for an entity, so this
+        // comparison is exception-free in both directions, confirmed by
+        // reading the real branch (not assumed).
+        if (d.usIncorporatedInUsRaw === true && d.usStatusRaw !== "DOMESTIC_ENTITY") {
           findings.push({
-            id: "residency_status_understated_us", severity: "info", category: "residency",
-            title: "US Substantial Presence Test may be understated — " + d.usDaysCurrentYearRaw + " days present but SPT marked not met",
-            detail: "Layer 1 records " + d.usDaysCurrentYearRaw + " days of physical presence in the US this year — at or above the " +
-              "183-day figure IRC 7701(b)(3)'s weighted 3-year sum reaches from current-year days alone (full weight, regardless " +
-              "of the prior two years) — yet spt_test_met is recorded false. One narrow exception exists: 'exempt individual' " +
-              "status (F/J/M/Q student/trainee visas within their exempt years, foreign-government-related individuals, " +
-              "charitable-event athletes) excludes days from the SPT count entirely. This engine does not model visa/exempt-" +
-              "individual status, so this flag cannot rule that out — verify before assuming error.",
-            recommendation: "Confirm exempt-individual status doesn't apply before correcting spt_test_met — if it doesn't, this " +
-              "looks like a wizard or data-entry error.",
-            amountUsd: 0, refs: ["IRC 7701(b)(3)"]
+            id: "residency_status_understated_us_entity", severity: "warning", category: "residency",
+            title: "US entity residency may be understated — incorporated in the US but not marked Domestic Entity",
+            detail: "Layer 1 records this entity as incorporated in the US (profile.incorporated_in_us = true), yet the recorded " +
+              "final status is " + d.usStatusRaw + ", not DOMESTIC_ENTITY. Layer 1's own corporate residency logic sets this " +
+              "field directly from incorporated_in_us with no other factor involved — no known exception.",
+            recommendation: "Re-run the Layer 1 US residency wizard, or verify incorporated_in_us and final_us_residency_status " +
+              "were entered consistently — this looks like a wizard or data-entry error.",
+            amountUsd: 0, refs: []
           });
-        } else if (d.usDaysCurrentYearRaw < 31 && d.usSptMetRaw === true) {
+        } else if (d.usIncorporatedInUsRaw === false && d.usStatusRaw === "DOMESTIC_ENTITY") {
           findings.push({
-            id: "residency_status_overstated_us", severity: "warning", category: "residency",
-            title: "US Substantial Presence Test may be overstated — only " + d.usDaysCurrentYearRaw + " days present but SPT marked met",
-            detail: "Layer 1 records only " + d.usDaysCurrentYearRaw + " days of physical presence in the US this year, but " +
-              "spt_test_met is recorded true. IRC 7701(b)(3)(A) sets an unconditional floor: the SPT cannot be satisfied with " +
-              "fewer than 31 days of presence in the current year, regardless of the weighted 3-year total. No known exception " +
-              "(exempt-individual status can only exclude days, never add them back).",
-            recommendation: "Re-run the Layer 1 US residency wizard, or verify us_days_current_year was entered for the correct " +
-              "calendar year.",
-            amountUsd: 0, refs: ["IRC 7701(b)(3)(A)"]
+            id: "residency_status_overstated_us_entity", severity: "warning", category: "residency",
+            title: "US entity residency may be overstated — not incorporated in the US but marked Domestic Entity",
+            detail: "Layer 1 records this entity as NOT incorporated in the US (profile.incorporated_in_us = false), yet the " +
+              "recorded final status is DOMESTIC_ENTITY. Layer 1's own corporate residency logic sets this field directly from " +
+              "incorporated_in_us with no other factor involved — no known exception.",
+            recommendation: "Re-run the Layer 1 US residency wizard, or verify incorporated_in_us and final_us_residency_status " +
+              "were entered consistently — this looks like a wizard or data-entry error.",
+            amountUsd: 0, refs: []
           });
         }
       }
