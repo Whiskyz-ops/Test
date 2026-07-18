@@ -309,13 +309,37 @@ logic by line count, and the other half of the product's value prop
 | CFL-6 | **The remaining 48 findings** | ❌ | — | No DAG reference for any of: `amt_applies`, `carry_forward_losses_not_applied`, `cfc`, `cfc_below_threshold`, `chapter_xiia_elected_no_holdings`, `chapter_xiia_investment_income_computed`, `chapter_xiia_investment_income_missing`, `covered_expat_gift_tax`, `cross_basis_summary`, `deemed_dividend_buyback_mismatch`, `dtaa_treaty_elections`, `dual_residency`, `dual_residency_resolved`, `entity_dual_residency_poem`, `equity_comp_sourcing`, `fbar_limit`, `feie_applied`, `feie_ineligible`, `firpta`, `foreign_gift_3520`, `form67_required`, `form_1099da_awareness`, `form_10iea`, `ftc_available`, `ftc_gap`, `fx_basis`, `holding_period_mismatch_`, `india_itr_form_mismatch`, `iso_3921`, `lrs_limit`, `niit_medicare_not_creditable`, `no_totalization_agreement`, `nra_fdap_flat_rate`, `nra_w8ben_missing`, `pan_not_linked_aadhaar`, `pe_article7`, `pfic`, `promoter_buyback_additional_tax`, `retirement_mismatch`, `s115bbe_unexplained_income`, `special_rate_gaming_winnings`, `state_income_tax`, `state_treaty_not_binding`, `tax_year_mismatch`, `transfer_pricing`, `treaty_docs_missing`, `trump_account_contribution_limit`, `withholding_documentation_gap`. **Caveat:** this list was built by extracting every `add("...")` call ID from `conflicts.js` and diffing against every DAG node/file name — a name-level inventory, not a per-finding logic audit (matches the "reported, not asserted" discipline used elsewhere in the DAG's own comments, applied here to the tracker itself). Several of these depend on gaps already listed above being closed first (e.g. `ftc_gap`/`ftc_available` need XBR-2; `state_income_tax` needs TAX-9). |
 | CFL-7 | Report-assembly layer: `buildDocuments`, `buildFtcReport`, `buildTaxComputation`, `buildWithholdingSummary`, `buildScopeNotes`, `buildReturnFormDetermination` | ❌ | — | Zero DAG reference. This is the layer that turns computed figures into the `WISING.analyze()` return shape (`{ summary, findings, documents, ftcReport, taxComputation, computed, model }` per `README.md`) — needed for the DAG to be a drop-in replacement even after every finding above is closed. |
 
-### E-bis. New DAG-only findings (no `engine/conflicts.js` counterpart)
+### E-bis. New DAG-only findings (no `engine/conflicts.js` counterpart) — *see follow-up below, table title is now historical*
 
 Everything in the table above tracks PARITY with an existing engine finding.
 This table is different on purpose — it's the one place in this doc for
 checks the DAG introduces that production doesn't have at all. Doesn't get
 a CFL-N id (there's no engine row to be "at parity" with) and isn't counted
 in section G's buildability totals, which are scoped to engine coverage.
+
+**Follow-up, same session, title no longer literally accurate: all 7
+finding IDs in the table below now have a real `engine/conflicts.js`
+counterpart too (GAP_TRACKER.md IN-40).** User instruction, after
+confirming the strategic reason ("we have to keep engine and DAG as close
+to each other as possible until DAG has everything the engine has and is
+able to replace it"): ported `deriveIndiaDomesticStatus`/`deriveCompanyPoem`
+verbatim into `engine/normalize.js`, and the matching
+`residencyConsistencyFindings` logic into `engine/conflicts.js` (new §4f3,
+right after `entity_dual_residency_poem`) — same two-tier structure, same
+7 finding IDs, same reasoning. Kept as a "DAG-only" table rather than
+retitled or moved into section E with new CFL-N rows, because the DAG
+built these FIRST — this table is the dated record of that, and rewriting
+it to look like parity-with-the-engine-from-day-one would erase real
+project history (the engine trusting Layer 1's residency conclusion
+blindly, with no independent verification, was a genuine gap this session
+found and closed in that order: DAG first, engine second, on explicit
+request each time). `scripts/audit/dag-coverage.js`'s `DAG_FINDING_IDS`
+map — previously never updated when this table's 4 rows were added,
+which showed all 7 IDs as informational "MISSING" in the audit's
+finding-ID diff even though the DAG already had them — is now current.
+78/78 on the engine's own suite (`tests/engine/run.js`, up from 27 — 37
+synthetic branch cases + 13 consistency-finding cases added, real-profile
+report matches the DAG's own 6/11), `audit:dag` clean.
 
 | Finding ID | DAG file | Added | Why |
 |---|---|---|---|

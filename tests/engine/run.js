@@ -147,6 +147,148 @@ test("Child & Dependent Care Credit is nonzero once the field-name fix is in pla
   assert.ok(resultUs.usTax.otherCreditsUsd > 0, "otherCreditsUsd should be > 0 (care credit), got " + resultUs.usTax.otherCreditsUsd);
 });
 
+console.log("India residency: deriveIndiaDomesticStatus/deriveCompanyPoem — full runResidencySolver() port (IN-37/GAP_TRACKER.md), one synthetic case per branch, same set already verified in prototypes/graph-pilot/residency-nodes.js");
+var deriveIndiaDomesticStatus = WISING.util.deriveIndiaDomesticStatus;
+var deriveCompanyPoem = WISING.util.deriveCompanyPoem;
+
+function statusCheck(label, entity, facts, expected) {
+  test(label, function () {
+    var got = deriveIndiaDomesticStatus(entity, facts);
+    assert.strictEqual(got, expected, "expected " + expected + ", got " + got);
+  });
+}
+function poemCheck(label, cr, expected) {
+  test(label, function () {
+    var got = deriveCompanyPoem(cr);
+    assert.strictEqual(got, expected, "expected " + expected + ", got " + got);
+  });
+}
+
+statusCheck("individual ROR-1: days=200, nr9=false, d7729=false", "individual", { days: 200, nr9: false, d7729: false }, "ROR");
+statusCheck("individual RNOR-1: days=200, nr9=true", "individual", { days: 200, nr9: true, d7729: false }, "RNOR");
+statusCheck("individual RNOR-2: days=200, nr9=false, d7729=true", "individual", { days: 200, nr9: false, d7729: true }, "RNOR");
+statusCheck("individual RNOR-3: days=100, p4y=true, emp=employment, inc15=true, ltac=false", "individual", { days: 100, p4y: true, emp: "employment", inc15: true, ltac: false }, "RNOR");
+statusCheck("individual NR-7: days=100, p4y=true, emp=employment, inc15=false", "individual", { days: 100, p4y: true, emp: "employment", inc15: false }, "NR");
+statusCheck("individual NR-8: days=100, p4y=true, emp=employment, inc15=true, ltac=true", "individual", { days: 100, p4y: true, emp: "employment", inc15: true, ltac: true }, "NR");
+statusCheck("individual RNOR-4: days=150, p4y=true, visit=true, inc15=true", "individual", { days: 150, p4y: true, emp: "none", visit: true, inc15: true }, "RNOR");
+statusCheck("individual NR-5: days=150, p4y=true, visit=true, inc15=false", "individual", { days: 150, p4y: true, emp: "none", visit: true, inc15: false }, "NR");
+statusCheck("individual RNOR-6 (visitor): days=100, p4y=true, visit=true, inc15=true, ltac=false", "individual", { days: 100, p4y: true, emp: "none", visit: true, inc15: true, ltac: false }, "RNOR");
+statusCheck("individual NR-10: days=100, p4y=true, visit=true, inc15=false", "individual", { days: 100, p4y: true, emp: "none", visit: true, inc15: false }, "NR");
+statusCheck("individual ROR-2: days=100, p4y=true, visit=false, nr9=false, d7729=false", "individual", { days: 100, p4y: true, emp: "none", visit: false, nr9: false, d7729: false }, "ROR");
+statusCheck("individual RNOR-5: days=100, p4y=true, visit=false, nr9=true", "individual", { days: 100, p4y: true, emp: "none", visit: false, nr9: true }, "RNOR");
+statusCheck("individual RNOR-6 (non-visitor): days=100, p4y=true, visit=false, nr9=false, d7729=true", "individual", { days: 100, p4y: true, emp: "none", visit: false, nr9: false, d7729: true }, "RNOR");
+statusCheck("individual RNOR-7: days=100, p4y=false, inc15=true, ltac=false", "individual", { days: 100, p4y: false, inc15: true, ltac: false }, "RNOR");
+statusCheck("individual NR-6: days=100, p4y=false, inc15=false", "individual", { days: 100, p4y: false, inc15: false }, "NR");
+statusCheck("individual RNOR-8: days=30, inc15=true, ltac=false", "individual", { days: 30, inc15: true, ltac: false }, "RNOR");
+statusCheck("individual NR-9: days=30, inc15=false", "individual", { days: 30, inc15: false }, "NR");
+statusCheck("individual default: days unanswered", "individual", {}, "NR");
+
+statusCheck("company RES-1: is_indian_company=true", "company", { isIndianCompany: true }, "ROR");
+statusCheck("company RES-2: is_indian_company=false, POEM in India", "company", { isIndianCompany: false, company: { isActiveBusiness: true, boardMeetingsOutsideIndia: false } }, "ROR");
+statusCheck("company NR-1: is_indian_company=false, POEM outside India", "company", { isIndianCompany: false, company: {} }, "NR");
+statusCheck("company RES-1 default: is_indian_company unanswered", "company", {}, "ROR");
+
+poemCheck("POEM active business, board outside=false -> true", { isActiveBusiness: true, boardMeetingsOutsideIndia: false }, true);
+poemCheck("POEM active business, board outside=true -> false", { isActiveBusiness: true, boardMeetingsOutsideIndia: true }, false);
+poemCheck("POEM not active, key mgmt=india -> true", { isActiveBusiness: false, keyManagementLocation: "india" }, true);
+poemCheck("POEM not active, key mgmt=outside_india -> false", { isActiveBusiness: false, keyManagementLocation: "outside_india" }, false);
+poemCheck("POEM not active, mixed, majority in India -> true", { isActiveBusiness: false, keyManagementLocation: "mixed", directorsInIndia: 3, directorsOutsideIndia: 1 }, true);
+poemCheck("POEM not active, mixed, majority outside -> false", { isActiveBusiness: false, keyManagementLocation: "mixed", directorsInIndia: 1, directorsOutsideIndia: 3 }, false);
+poemCheck("POEM not active, mixed, tied, delegated=false -> true", { isActiveBusiness: false, keyManagementLocation: "mixed", directorsInIndia: 2, directorsOutsideIndia: 2, managementDelegatedOutsideIndia: false }, true);
+poemCheck("POEM not active, mixed, tied, delegated=true -> false", { isActiveBusiness: false, keyManagementLocation: "mixed", directorsInIndia: 2, directorsOutsideIndia: 2, managementDelegatedOutsideIndia: true }, false);
+poemCheck("POEM no facts at all -> false (default)", {}, false);
+
+statusCheck("firm NR-2: wholly_outside=true", "firm", { whollyOutside: true }, "NR");
+statusCheck("llp RES-3: wholly_outside=false", "llp", { whollyOutside: false }, "ROR");
+statusCheck("aop RES-3 default: wholly_outside unanswered", "aop", {}, "ROR");
+
+statusCheck("huf NR-3: wholly_outside=true", "huf", { whollyOutside: true }, "NR");
+statusCheck("huf RNOR: wholly_outside=false, nr9=true", "huf", { whollyOutside: false, nr9: true }, "RNOR");
+statusCheck("huf RNOR: wholly_outside=false, d7729=true", "huf", { whollyOutside: false, d7729: true }, "RNOR");
+statusCheck("huf ROR: wholly_outside=false, nr9=false, d7729=false", "huf", { whollyOutside: false, nr9: false, d7729: false }, "ROR");
+
+console.log("India residency: domesticStatusDerived vs recorded status across all 11 real profiles, REPORTED not asserted (fixtures were hand-authored with a chosen final status directly, not run through the real wizard, so they don't carry the full fact set the derivation needs — see residency-nodes.js's header in prototypes/graph-pilot for the same limitation already documented there)");
+(function () {
+  var derivedMatchCount = 0;
+  WISING.PROFILES.forEach(function (p) {
+    var r = WISING.analyze({ router: p.router, india: p.india, us: p.us });
+    var derived = r.model.residency.india.domesticStatusDerived, recorded = r.model.residency.india.status;
+    var matches = derived === recorded;
+    if (matches) derivedMatchCount++;
+    console.log("    " + p.id + ": derived=" + derived + " recorded=" + recorded + (matches ? "  (match)" : "  (fixture doesn't carry the full fact set)"));
+  });
+  console.log("    " + derivedMatchCount + "/" + WISING.PROFILES.length + " real profiles happen to match — informational only, not a pass/fail signal.");
+})();
+
+console.log("India/US residency-consistency findings (conflicts.js), ported from residencyConsistencyFindings in prototypes/graph-pilot/residency-nodes.js");
+function findingsCheck(label, india, us, expectIds) {
+  test(label, function () {
+    var r = WISING.analyze({ router: {}, india: india, us: us });
+    var ids = r.findings.filter(function (fnd) { return fnd.id.indexOf("residency_status_") === 0; }).map(function (fnd) { return fnd.id; });
+    var ok = ids.length === expectIds.length && expectIds.every(function (id) { return ids.indexOf(id) !== -1; });
+    assert.ok(ok, "expected [" + expectIds.join(", ") + "], got [" + ids.join(", ") + "]");
+  });
+}
+
+findingsCheck("India individual: derived ROR, recorded NR, no treaty -> residency_status_mismatch_india",
+  { residency_detail: { days_in_india_current_year: 200, nr_years_last_10_gte_9: false, days_in_india_last_7_years_lte_729: false, final_india_residency_status: "NR" }, profile: { entity_type: "individual" } },
+  {}, ["residency_status_mismatch_india"]);
+
+findingsCheck("India company: is_indian_company=true, recorded NR, no treaty -> residency_status_mismatch_india_company",
+  { residency_detail: { is_indian_company: true, final_india_residency_status: "NR" }, profile: { entity_type: "company" } },
+  {}, ["residency_status_mismatch_india_company"]);
+
+findingsCheck("India HUF: wholly_outside=false + nr9/d7729=false (ROR), recorded NR -> residency_status_mismatch_india_entity",
+  { residency_detail: { is_wholly_outside_india: false, nr_years_last_10_gte_9: false, days_in_india_last_7_years_lte_729: false, final_india_residency_status: "NR" }, profile: { entity_type: "huf" } },
+  {}, ["residency_status_mismatch_india_entity"]);
+
+findingsCheck("India individual: derived matches recorded -> no finding",
+  { residency_detail: { days_in_india_current_year: 200, nr_years_last_10_gte_9: false, days_in_india_last_7_years_lte_729: false, final_india_residency_status: "ROR" }, profile: { entity_type: "individual" } },
+  {}, []);
+
+findingsCheck("India individual: derived ROR (200 days) but recorded NR + dtaa_treaty_residence=us -> residency_status_dtaa_conflated_india, NOT a generic mismatch",
+  {
+    residency_detail: { days_in_india_current_year: 200, nr_years_last_10_gte_9: false, days_in_india_last_7_years_lte_729: false, final_india_residency_status: "NR" },
+    profile: { entity_type: "individual" },
+    dtaa: { dtaa_treaty_residence: "us" }
+  },
+  {}, ["residency_status_dtaa_conflated_india"]);
+
+findingsCheck("India individual: derived ROR but recorded NR + dtaa_forced_nr=true -> residency_status_dtaa_conflated_india",
+  {
+    residency_detail: { days_in_india_current_year: 200, nr_years_last_10_gte_9: false, days_in_india_last_7_years_lte_729: false, final_india_residency_status: "NR" },
+    profile: { entity_type: "individual" },
+    dtaa: { dtaa_forced_nr: true }
+  },
+  {}, ["residency_status_dtaa_conflated_india"]);
+
+findingsCheck("India company: derived ROR but recorded NR + dtaa_treaty_residence=us -> residency_status_dtaa_conflated_india (applies to every entity type)",
+  {
+    residency_detail: { is_indian_company: true, final_india_residency_status: "NR" },
+    profile: { entity_type: "company" },
+    dtaa: { dtaa_treaty_residence: "us" }
+  },
+  {}, ["residency_status_dtaa_conflated_india"]);
+
+findingsCheck("US: 200 days + sptMet=false fires residency_status_understated_us",
+  {}, { us_residency_detail: { us_days_current_year: 200, spt_test_met: false, is_us_citizen: false, has_green_card: false }, profile: { tax_entity_type: "individual" } },
+  ["residency_status_understated_us"]);
+findingsCheck("US: 10 days + sptMet=true fires residency_status_overstated_us",
+  {}, { us_residency_detail: { us_days_current_year: 10, spt_test_met: true, is_us_citizen: false, has_green_card: false }, profile: { tax_entity_type: "individual" } },
+  ["residency_status_overstated_us"]);
+findingsCheck("US: 10 days + sptMet=true on a CITIZEN does not fire (citizen gate)",
+  {}, { us_residency_detail: { us_days_current_year: 10, spt_test_met: true, is_us_citizen: true, has_green_card: false }, profile: { tax_entity_type: "individual" } },
+  []);
+findingsCheck("US entity: incorporated_in_us=true + FOREIGN_ENTITY fires residency_status_understated_us_entity",
+  {}, { profile: { tax_entity_type: "ccorp", incorporated_in_us: true }, us_residency_detail: { final_us_residency_status: "FOREIGN_ENTITY" } },
+  ["residency_status_understated_us_entity"]);
+findingsCheck("US entity: incorporated_in_us=false + DOMESTIC_ENTITY fires residency_status_overstated_us_entity",
+  {}, { profile: { tax_entity_type: "scorp", incorporated_in_us: false }, us_residency_detail: { final_us_residency_status: "DOMESTIC_ENTITY" } },
+  ["residency_status_overstated_us_entity"]);
+findingsCheck("US entity: incorporated_in_us=true + DOMESTIC_ENTITY does not fire (consistent)",
+  {}, { profile: { tax_entity_type: "partnership", incorporated_in_us: true }, us_residency_detail: { final_us_residency_status: "DOMESTIC_ENTITY" } },
+  []);
+
 console.log("Demo profile smoke test (all 9 WISING.PROFILES)");
 WISING.PROFILES.forEach(function (p) {
   test(p.id + " analyzes without throwing and produces finite numbers", function () {

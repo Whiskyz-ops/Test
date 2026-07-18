@@ -55,6 +55,17 @@ var MAP = {
     moneyFromInr: m("util", "util"), moneyFromUsd: m("util", "util"), addMoney: m("util", "util"),
     zeroMoney: m("util", "util"), calc: m("util", "util"), source: m("util", "util"),
     safe: m("util", "util"), normalizeFilingStatus: m("util", "util"),
+    /* Ported the OTHER direction from every other XBR-1 row here: written
+     * first in residency-nodes.js (19 Jul 2026), then ported verbatim into
+     * this engine (same date, same session) once the user asked for the
+     * DAG's full residency derivation + consistency check in the engine
+     * too. Structurally trivial 0/0 like resolveResidency/compute above —
+     * both operate on already-normalized camelCase params (f.isIndianCompany,
+     * f.days, cr.keyManagementLocation, etc.), no safe()/snake_case reads
+     * of their own; the raw snake_case facts they ultimately depend on are
+     * read separately, just above their call site in normalize(). */
+    deriveCompanyPoem: m("XBR-1", "ported", ["residency-nodes.js"]),
+    deriveIndiaDomesticStatus: m("XBR-1", "ported", ["residency-nodes.js"]),
     loadRawStates: m("AGG-10", "boundary"),
     indiaAnnualSlice: m("AGG-1", "ported", ["aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js"]),
     presumptiveCeilingInr: m("AGG-1", "ported", ["aggregateindiaincome-nodes.js"]),
@@ -172,13 +183,21 @@ var MAP = {
   }
 };
 
-/* Finding IDs the DAG implements today (tracker CFL-1..5). */
+/* Finding IDs the DAG implements today (tracker CFL-1..5, XBR-1). */
 var DAG_FINDING_IDS = {
   india_advance_tax_interest: "in1-nodes*.js",
   underpayment_2210: "us1-nodes.js",
   early_withdrawal_penalty_72t: "us5-nodes.js",
   black_money_act_exposure: "xb7-nodes.js",
-  schedule_fa_inconsistent: "xb7-nodes.js (shared node)"
+  schedule_fa_inconsistent: "xb7-nodes.js (shared node)",
+  residency_status_mismatch_india: "residency-nodes.js",
+  residency_status_mismatch_india_company: "residency-nodes.js",
+  residency_status_mismatch_india_entity: "residency-nodes.js",
+  residency_status_dtaa_conflated_india: "residency-nodes.js",
+  residency_status_understated_us: "residency-nodes.js",
+  residency_status_overstated_us: "residency-nodes.js",
+  residency_status_understated_us_entity: "residency-nodes.js",
+  residency_status_overstated_us_entity: "residency-nodes.js"
 };
 
 /* ---- comment-aware line reader ------------------------------------------ */

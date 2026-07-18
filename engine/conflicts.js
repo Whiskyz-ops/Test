@@ -735,6 +735,124 @@
         0, ["DTAA Art. 4(3)", "s.6(3)", "POEM", "Mutual Agreement Procedure"]);
     }
 
+    // -- 4f3. RESIDENCY STATUS CONSISTENCY — DERIVED VS RECORDED -----------
+    // Ported from prototypes/graph-pilot/residency-nodes.js's
+    // residencyConsistencyFindings (built for the DAG migration, same
+    // session) — re-derives India's domestic residential status from the
+    // raw facts IN-37 taught this engine to read (model.residency.india.
+    // domesticStatusDerived, computed in normalize.js) and compares it
+    // against the recorded final_india_residency_status. Two-tier: when
+    // the mismatch is fully explained by Layer 1's own DTAA/domestic-
+    // status conflation (the bug fixed in layer1_india.html this same
+    // session — the wizard used to force status to "NR" whenever the
+    // treaty tie-break went to the US, even though residential status
+    // under s.6 is a domestic-law-only concept unaffected by treaty
+    // outcome), diagnose it as that specifically rather than a generic
+    // data-entry error. Also covers the US side: SPT under/overstated for
+    // individuals, and incorporated_in_us vs DOMESTIC_ENTITY/FOREIGN_ENTITY
+    // for business entities (Layer 1 US's own corporate short-circuit sets
+    // that field directly from incorporated_in_us with no other factor
+    // involved, confirmed by reading layer1_us.html directly — no known
+    // exception in either direction).
+    var indiaEntityKindForResidency = model.entity && model.entity.indiaKind;
+    if (model.residency.india.status != null &&
+        model.residency.india.domesticStatusDerived !== model.residency.india.status) {
+      var treatyOverrideActive = model.treaty.treatyResidence === "us" || model.treaty.dtaaForcedNr === true;
+      var entityLabel = indiaEntityKindForResidency === "individual" ? "" :
+        indiaEntityKindForResidency === "company" ? " (company)" :
+        indiaEntityKindForResidency === "huf" ? " (HUF)" : " (" + indiaEntityKindForResidency + ")";
+      if (treatyOverrideActive && model.residency.india.status === CONST.INDIA_STATUS.NR &&
+          model.residency.india.domesticStatusDerived !== CONST.INDIA_STATUS.NR) {
+        add("residency_status_dtaa_conflated_india", S.WARNING, C.RESIDENCY,
+          "India residential status may be conflated with the DTAA treaty tie-break" + entityLabel,
+          "Based on the residency facts on file, this taxpayer's India DOMESTIC-LAW status under s.6 should be " +
+          model.residency.india.domesticStatusDerived + ", but the recorded final_india_residency_status is NR. The DTAA " +
+          "Article 4 tie-break is recorded as resolving to the US (dtaa_treaty_residence = \"us\"" +
+          (model.treaty.dtaaForcedNr ? " / dtaa_forced_nr = true" : "") + "). Layer 1's residency wizard used to overwrite " +
+          "the domestic status field itself whenever the treaty tie-break resolved away from India — but under Indian law, " +
+          "residential status (ROR/RNOR/NR) is a purely domestic-law determination, unaffected by any treaty. \"Losing\" the " +
+          "Article 4 tie-breaker doesn't make someone stop being domestically resident — it only changes worldwide-taxation " +
+          "scope for treaty purposes (already handled correctly, separately, by dtaaWorldwideCeded / the isIndiaRor gate in " +
+          "aggregateIndiaIncome). This finding is the domestic-status side of that same fact pattern, surfaced because the " +
+          "two concepts appear to have been conflated in what was recorded for this profile.",
+          "For domestic-law purposes (advance-tax interest under s.234B/234C, PAN-Aadhaar linking, Schedule FA disclosure, " +
+          "TDS rates on India-source payments), this taxpayer's status should likely be treated as " +
+          model.residency.india.domesticStatusDerived + ", with the treaty position tracked separately as a worldwide-" +
+          "taxation election, not as a change to the underlying residential status.",
+          0, ["s.6", "DTAA Art. 4"]);
+      } else {
+        add(indiaEntityKindForResidency === "company" ? "residency_status_mismatch_india_company" :
+            (indiaEntityKindForResidency === "individual" ? "residency_status_mismatch_india" : "residency_status_mismatch_india_entity"),
+          S.WARNING, C.RESIDENCY,
+          "India residency status may not match the facts on file" + entityLabel + " — derived " +
+          model.residency.india.domesticStatusDerived + ", recorded " + model.residency.india.status,
+          "Re-deriving India's residential-status determination from the same raw facts Layer 1's own wizard uses " +
+          "(day-count, the 4-year lookback, RNOR sub-status conditions, employment/PIO-visit exceptions, s.6(1A) deemed-" +
+          "residency, incorporation/POEM, or control-and-management, depending on entity type) produces " +
+          model.residency.india.domesticStatusDerived + ", but the recorded final_india_residency_status is " +
+          model.residency.india.status + ".",
+          "Re-run the Layer 1 India residency wizard, or verify the underlying residency facts were entered consistently " +
+          "— this looks like a wizard or data-entry error.",
+          0, ["s.6"]);
+      }
+    }
+
+    var usEntityKindForResidency = model.entity && model.entity.usKind;
+    if (usEntityKindForResidency === "individual") {
+      if (!res.us.isCitizen && !model.residency.us.hasGreenCard) {
+        if (model.residency.us.daysCurrentYear >= 183 && model.residency.us.sptMet === false) {
+          add("residency_status_understated_us", S.INFO, C.RESIDENCY,
+            "US Substantial Presence Test may be understated — " + model.residency.us.daysCurrentYear + " days present but SPT marked not met",
+            "Layer 1 records " + model.residency.us.daysCurrentYear + " days of physical presence in the US this year — at or " +
+            "above the 183-day figure IRC 7701(b)(3)'s weighted 3-year sum reaches from current-year days alone (full weight, " +
+            "regardless of the prior two years) — yet spt_test_met is recorded false. Two narrow exception categories exist, " +
+            "confirmed against Layer 1 US's own SPT calculation (layer1_us.html): 'exempt individual' status (F/J/M/Q " +
+            "student/trainee visas within their exempt years, foreign-government-related individuals, charitable-event " +
+            "athletes) excludes ALL days from the SPT count; separately, specific days can be excluded even for a non-exempt " +
+            "individual (e.g. a medical-condition exception). This engine does not model either, so this flag cannot rule " +
+            "them out — verify before assuming error.",
+            "Confirm exempt-individual status or a day-exclusion claim doesn't apply before correcting spt_test_met — if " +
+            "neither does, this looks like a wizard or data-entry error.",
+            0, ["IRC 7701(b)(3)"]);
+        } else if (model.residency.us.daysCurrentYear < 31 && model.residency.us.sptMet === true) {
+          add("residency_status_overstated_us", S.WARNING, C.RESIDENCY,
+            "US Substantial Presence Test may be overstated — only " + model.residency.us.daysCurrentYear + " days present but SPT marked met",
+            "Layer 1 records only " + model.residency.us.daysCurrentYear + " days of physical presence in the US this year, " +
+            "but spt_test_met is recorded true. IRC 7701(b)(3)(A) sets an unconditional floor: the SPT cannot be satisfied " +
+            "with fewer than 31 days of presence in the current year, regardless of the weighted 3-year total. No known " +
+            "exception (exempt-individual status and day-exclusions can only reduce the count, never add days back).",
+            "Re-run the Layer 1 US residency wizard, or verify us_days_current_year was entered for the correct calendar year.",
+            0, ["IRC 7701(b)(3)(A)"]);
+        }
+      }
+    } else if (usEntityKindForResidency) {
+      // Business entity (ccorp/scorp/partnership/trust). Layer 1 US's own
+      // corporate short-circuit sets final_us_residency_status directly
+      // from incorporated_in_us and returns immediately — none of the
+      // individual-style SPT/DTAA/citizen logic even runs for an entity,
+      // so this comparison is exception-free in both directions, confirmed
+      // by reading the real branch (not assumed).
+      if (model.entity.usIncorporatedInUs === true && model.residency.us.status !== "DOMESTIC_ENTITY") {
+        add("residency_status_understated_us_entity", S.WARNING, C.RESIDENCY,
+          "US entity residency may be understated — incorporated in the US but not marked Domestic Entity",
+          "Layer 1 records this entity as incorporated in the US (profile.incorporated_in_us = true), yet the recorded " +
+          "final status is " + model.residency.us.status + ", not DOMESTIC_ENTITY. Layer 1's own corporate residency logic " +
+          "sets this field directly from incorporated_in_us with no other factor involved — no known exception.",
+          "Re-run the Layer 1 US residency wizard, or verify incorporated_in_us and final_us_residency_status were entered " +
+          "consistently — this looks like a wizard or data-entry error.",
+          0, []);
+      } else if (model.entity.usIncorporatedInUs === false && model.residency.us.status === "DOMESTIC_ENTITY") {
+        add("residency_status_overstated_us_entity", S.WARNING, C.RESIDENCY,
+          "US entity residency may be overstated — not incorporated in the US but marked Domestic Entity",
+          "Layer 1 records this entity as NOT incorporated in the US (profile.incorporated_in_us = false), yet the recorded " +
+          "final status is DOMESTIC_ENTITY. Layer 1's own corporate residency logic sets this field directly from " +
+          "incorporated_in_us with no other factor involved — no known exception.",
+          "Re-run the Layer 1 US residency wizard, or verify incorporated_in_us and final_us_residency_status were entered " +
+          "consistently — this looks like a wizard or data-entry error.",
+          0, []);
+      }
+    }
+
     // -- 4g. CHAPTER XII-A (s.217/212) ELECTED — INVESTMENT INCOME CHECK --
     // s.217/212 give an NRI a concessional flat rate on specified foreign-
     // exchange assets: 20% on "investment income" (interest on a specified
