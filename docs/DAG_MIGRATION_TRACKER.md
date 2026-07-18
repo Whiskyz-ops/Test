@@ -15,6 +15,20 @@ was not treated as proof of either coverage or its absence). Re-verify after
 every graph-pilot commit that touches a node file, since this document has no
 automated check keeping it in sync (see SYS-2).
 
+**Re-verified 19 July 2026:** every `run-*.js` harness under `graph-pilot/`
+was personally re-executed (not just cited from its originating commit
+message) — `run-aggregateindiaincome.js` 165/165, `run-aggregateusincome.js`
+385/385, `run-entitytax.js` 6/6, `run-in1.js`/`-v2`/`-v3` 22/22, 66/66, 8/8,
+`run-india-tax-combined.js` 22/22, `run-ustax.js` 81/81, `run.js` 32/32,
+`run-batch2.js` 77/77 — all green, no discrepancies from what this doc
+already claimed. **This raises confidence in the ✅ rows but does not make
+them exhaustive**: every number above is checked against the same 11 demo
+profiles, the same ceiling `tests/engine/run.js` (the production suite)
+itself has — a real, correct-looking pass count is not proof against an
+input combination none of the 11 profiles happen to exercise. Section E's
+CFL-6 list (48 findings) also remains a name-level inventory, not a
+logic-level one — see its own caveat below.
+
 **Status legend:** ✅ ported & verified (diffed against the real function, not
 just same-named) · 🟡 partial · 🔶 boundary-only (the DAG *consumes* the
 engine's output for this as a `ctx` input rather than re-deriving it — looks
@@ -39,9 +53,9 @@ comments say so — an honest gap, not an accidental one)
 
 | ID | Item | Status | DAG file | Effort | Detail |
 |---|---|---|---|---|---|
-| AGG-1 | `aggregateIndiaIncome` | ✅ | `aggregateindiaincome-nodes.js` | — | Full port incl. presumptive-scheme business income, depreciation, F&O/speculative ring-fencing, capital-gains classification. Verified via `run-aggregateindiaincome.js` against all 11 real profiles. |
+| AGG-1 | `aggregateIndiaIncome` | ✅ | `aggregateindiaincome-nodes.js` | — | Full port incl. presumptive-scheme business income, depreciation, F&O/speculative ring-fencing, capital-gains classification. `run-aggregateindiaincome.js` personally re-run 19 Jul 2026: **165/165 field checks pass** against all 11 real profiles. Verified in aggregate (every output field matches); the ~13 internal sub-helpers (`computeAssetBlockNormalDepreciationInr`, `computeMsmeDisallowanceInr`, `computeGoodsVehiclePresumptiveInr`, etc.) were not individually diffed 1:1 against DAG nodes the way AGG-2/AGG-4 were. |
 | AGG-2 | `aggregateIndiaDeductions` | ✅ | `in1-nodes-v3.js` (`dedS80C`/`dedS80CCD1B`/`dedS80D`/`dedS80TTA_TTB`/`dedS80DD`/`dedS80DDB`/`dedS80U`/`dedS80E`/`dedS80EEA_EE`/`dedS80GGB_GGC`/`dedS80GGRentPaidInr`, ~L235-246) | — | Diffed line-for-line against `normalize.js:1264-1307` — identical field paths, identical caps/flat-amount tables. |
-| AGG-3 | `aggregateUsIncome` | ✅ | `aggregateusincome-nodes.js` | — | Full port incl. MACRS/§179/bonus depreciation (`computeAssetDepreciationUsd`), K-1 passive aggregation across all 3 entity types. Verified via `run-aggregateusincome.js`, 385/385 field checks across 11 profiles. |
+| AGG-3 | `aggregateUsIncome` | ✅ | `aggregateusincome-nodes.js` | — | Full port incl. MACRS/§179/bonus depreciation (`computeAssetDepreciationUsd`), K-1 passive aggregation across all 3 entity types. `run-aggregateusincome.js` personally re-run 19 Jul 2026: **385/385 field checks pass** across all 11 profiles (this number was previously only sourced from the commit message; now independently confirmed). |
 | AGG-4 | `aggregateUsDeductions` | ✅ | `ustax-nodes.js` (`dedUs`, ~L165-190) | — | Diffed line-for-line against `normalize.js:1801-1853` — identical, including the ISO-AMT-preference sub-computation. |
 | AGG-5 | `aggregateAccounts` | 🔶 | `scope-nodes.js` (`fbarAggregatePeakUsd*`) | 🟢 | Reads `ctx.model.accounts.accounts` — the **engine's own already-aggregated** account list — not re-derived from raw `financial_holdings`/foreign-account form data. The scope-gating logic layered on top of it is real and verified; the aggregation itself is borrowed. |
 | AGG-6 | `aggregateTaxesPaid` (TDS/TCS/withholding totals feeding FTC) | ❌ | — | 🟢 | No reference anywhere in `graph-pilot/`. |
@@ -54,12 +68,12 @@ comments say so — an honest gap, not an accidental one)
 
 | ID | Item | Status | DAG file | Effort | Detail |
 |---|---|---|---|---|---|
-| TAX-1 | `computeIndiaTax` (individual/HUF slab path) | ✅ | `in1-nodes-v3.js` | — | Full: new/old regime, §87A rebate, surcharge w/ marginal relief, cess, special CG rates (111A/112/112A/115BB/115BBH), s.115A NR streams. |
-| TAX-2 | `computeIndiaEntityTax` (company/firm) | ✅ | `entitytax-nodes.js` | — | Full: 115BAB/115BAA/115BA rate elections, turnover-based default rate, MAT, PE gate for foreign companies. |
-| TAX-3 | `computeIndiaSurcharge`, `computeLossSetOff` (India) | ✅ | `in1-nodes-v3.js` (`lossSetOffV3`, embedded surcharge logic) | — | Embedded rather than standalone nodes, but diffed and verified. |
-| TAX-4 | Individual/entity routing (`if (indiaIsCompany \|\| indiaIsFirm) → computeIndiaEntityTax`) | ✅ | `india-tax-combined-nodes.js` | — | The one piece of routing logic that lived only inside `computeIndiaTax`'s own `if` — separately ported and verified against all 11 profiles (22/22 checks, `run-india-tax-combined.js`). |
-| TAX-5 | `computeUsTax` (resident/individual path) | ✅ | `ustax-nodes.js` | — | Full: AGI assembly (ordinary + preferential + taxable SS + FEIE), Schedule SE, std-vs-itemized, OBBBA senior/tips/overtime deductions, QBI (§199A + SSTB), AMT (§55 parallel computation), NIIT, additional Medicare, CTC/ACTC, AOTC/LLC, dependent care credit. |
-| TAX-6 | `computeSsTaxableUsd`, `bracketTax`/`bracketBreakdown`, `feieEligibility` | ✅ | `ustax-nodes.js` | — | Full Pub 915 Worksheet 1 transcription, verified against `computeUsTax`'s own copy. |
+| TAX-1 | `computeIndiaTax` (individual/HUF slab path) | ✅ | `in1-nodes-v3.js` | — | Full: new/old regime, §87A rebate, surcharge w/ marginal relief, cess, special CG rates (111A/112/112A/115BB/115BBH), s.115A NR streams. `run-in1-v3.js` personally re-run 19 Jul 2026: **8/8** on the 8 individual/HUF profiles (the 3 company profiles are reported, not asserted, in this same script — see TAX-2/TAX-4 for how those are actually covered). Earlier versions of the same graph (`run-in1.js` 22/22, `run-in1-v2.js` 66/66) also re-run and passing — kept as regression evidence the graph didn't break as it deepened across 3 iterations. |
+| TAX-2 | `computeIndiaEntityTax` (company/firm) | ✅ | `entitytax-nodes.js` | — | Full: 115BAB/115BAA/115BA rate elections, turnover-based default rate, MAT, PE gate for foreign companies. `run-entitytax.js` personally re-run 19 Jul 2026: **6/6** on the company/firm profiles. |
+| TAX-3 | `computeIndiaSurcharge`, `computeLossSetOff` (India) | ✅ | `in1-nodes-v3.js` (`lossSetOffV3`, embedded surcharge logic) | — | Embedded rather than standalone nodes, but diffed and verified (covered by the same TAX-1 re-run). |
+| TAX-4 | Individual/entity routing (`if (indiaIsCompany \|\| indiaIsFirm) → computeIndiaEntityTax`) | ✅ | `india-tax-combined-nodes.js` | — | The one piece of routing logic that lived only inside `computeIndiaTax`'s own `if` — separately ported and verified against all 11 profiles. `run-india-tax-combined.js` personally re-run 19 Jul 2026: **22/22**, across all 11 profiles with no per-profile branching by the caller (i.e. the graph itself decides individual-vs-entity correctly, not the test). |
+| TAX-5 | `computeUsTax` (resident/individual path) | ✅ | `ustax-nodes.js` | — | Full: AGI assembly (ordinary + preferential + taxable SS + FEIE), Schedule SE, std-vs-itemized, OBBBA senior/tips/overtime deductions, QBI (§199A + SSTB), AMT (§55 parallel computation), NIIT, additional Medicare, CTC/ACTC, AOTC/LLC, dependent care credit. `run-ustax.js` personally re-run 19 Jul 2026: **81/81** on resident/individual profiles (entity + NRA profiles reported, not asserted — see TAX-7/TAX-8). |
+| TAX-6 | `computeSsTaxableUsd`, `bracketTax`/`bracketBreakdown`, `feieEligibility` | ✅ | `ustax-nodes.js` | — | Full Pub 915 Worksheet 1 transcription, verified against `computeUsTax`'s own copy (covered by the same TAX-5 re-run). |
 | TAX-7 | `computeUsEntityTax` (US C-corp/1120) | 📝 | — | 🟡 | `ustax-nodes.js`'s own header comment states this explicitly: "not ported, reporting only." `run-ustax.js` detects the one entity profile (`us_ccorp_indian_sub`) and skips comparison rather than asserting a wrong answer — honest, but the function itself does not exist in the DAG. |
 | TAX-8 | `computeNraTax` (1040-NR flat-tax path for NRAs with US-source FDAP) | 📝 | — | 🟡 | Same file, same comment: "not ported, reporting only," for the one NRA profile (`india_ror_us_income`). The `files1040nr` leaf node (`ustax-nodes.js` L133) is defined and then **never used as a dependency anywhere in the file** — a dead flag, consistent with the branch genuinely not existing. |
 | TAX-9 | `computeUsStateTax` (CA/NY state income tax) | ❌ | — | 🟢 | **Not scoped out anywhere, not mentioned in `ustax-nodes.js`'s own "what this covers" comment** even though that comment claims to port "`computeUsTax`'s entire body." A real function, called from `compute()` at `computation.js:1798`, whose output (`stateTax`) is part of the production result and drives the `state_income_tax` finding (US-12 in `GAP_TRACKER.md`, already shipped in the engine). Reads as an accidental miss, not a decision — flag this one first if closing gaps in order of "surprise." |
