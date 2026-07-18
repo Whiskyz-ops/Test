@@ -177,25 +177,37 @@ matching exactly: ceded → `ltcg197Inr` 0 on both; not ceded → `ltcg197Inr`
 pattern.
 
 **Third follow-up, same session: a separate, pre-existing DAG-only bug
-found while re-verifying the above — NOT fixed, tracked as GAP_TRACKER.md
-IN-39.** The DAG's `capitalGainsComputation` gates its entire
-`financialHoldingsTxs` read behind `isIndiaRor` — one shared array feeds
+found while re-verifying the above — fixed, GAP_TRACKER.md IN-39.** The
+DAG's `capitalGainsComputation` used to gate its entire
+`financialHoldingsTxs` read behind `isIndiaRor` — one shared array fed
 BOTH the foreign-holdings loop and the general-classes (listed_equity/
 mutual-fund/bond/etc.) loop. The real engine only gates the foreign-
 holdings-specific read; its general-classes loop re-reads
 `financial_holdings.transactions` a second time, deliberately ungated,
 since India-registered instruments are India-source and stay taxable
-regardless of residency. Confirmed live: an NR taxpayer with a synthetic
-₹3,00,000 India-source `listed_equity` LTCG computes `ltcg197Inr` =
-3,00,000 in the engine but 0 in the DAG. This predates this session's
-IN-38 work — the shared, gated variable already existed before the
-`!dtaaWorldwideCeded` conjunct was added — so IN-38 inherited the
+regardless of residency. Confirmed live before the fix: an NR taxpayer
+with a synthetic ₹3,00,000 India-source `listed_equity` LTCG computed
+`ltcg197Inr` = 3,00,000 in the engine but 0 in the DAG. This predated this
+session's IN-38 work — the shared, gated variable already existed before
+the `!dtaaWorldwideCeded` conjunct was added — so IN-38 inherited the
 over-gating rather than causing it. Not in the 11-real-profile suite's
 coverage (no demo fixture combines non-ROR status with domestic financial
 holdings), so `run-aggregateindiaincome.js`'s existing checks never
-exercised this path. Left open: materially larger in scope than IN-38
-(affects every non-ROR profile with domestic financial holdings, not just
-the DTAA-cede case) and wasn't part of what this turn authorized.
+exercised this path.
+
+User instruction: "Yes, fix IN-39 in the DAG too." Fixed by mirroring
+`normalize.js`'s own structure exactly: the gated variable was renamed to
+`foreignFinancialHoldingsTxs` and now feeds only the `foreign_equity_
+unlisted` loop; the general-classes loop takes its own fresh, always-
+ungated `safe(india, "financial_holdings.transactions", [])` read, same
+as the engine's second read at `normalize.js` ~995. Verified with a new
+`run-aggregateindiaincome.js` case checking the same ₹3,00,000 India-
+source `listed_equity` gain across NR, RNOR, and ROR+DTAA-ceded — all
+three now match `WISING.analyze()` exactly (previously only plain ROR
+matched; the other three wrongly zeroed it). 189/189 on
+`run-aggregateindiaincome.js`, 27/27 production suite (unaffected — this
+was a DAG-only bug, the engine never had it), `audit:dag` clean. Both
+IN-38 and IN-39 are now closed on the DAG side, matching the engine.
 
 **Status legend:** ✅ ported & verified (diffed against the real function, not
 just same-named) · 🟡 partial · 🔶 boundary-only (the DAG *consumes* the

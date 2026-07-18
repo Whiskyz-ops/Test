@@ -115,5 +115,40 @@ console.log("-- IN-38: DTAA worldwide-cede excludes foreign financial holdings -
     "graph=" + outCeded.ltcg197Inr + " model=" + rCeded.model.income.india.ltcg197Inr);
 })();
 
+// ---- IN-39: India-registered instruments (listed_equity here) stay
+// taxable regardless of residency/DTAA status — s.9(1)(i) source rule,
+// not worldwide income. The DAG used to gate its ENTIRE financial_holdings
+// read behind isIndiaRor (one shared array fed both the foreign-holdings
+// loop and this one), wrongly zeroing this out for NR/RNOR/DTAA-ceded
+// taxpayers; the real engine never gated this read (a second, separate,
+// always-ungated read, normalize.js ~995). Checked against
+// WISING.analyze() across NR, RNOR, and ROR+DTAA-ceded — all three should
+// tax the same India-source gain identically to a plain ROR case. --------
+console.log("-- IN-39: India-source listed_equity gains stay taxable regardless of residency/DTAA status --");
+(function () {
+  function withStatus(status, ceded) {
+    var india = {
+      residency_detail: { final_india_residency_status: status },
+      financial_holdings: { transactions: [{
+        asset_class: "listed_equity", sale_date: "2026-01-15", sale_value: 500000, purchase_value: 200000,
+        acquisition_date: "2024-01-01", quantity: 100, stt_paid: true
+      }] }
+    };
+    if (ceded) india.residency_detail.dtaa_worldwide_ceded = true;
+    return india;
+  }
+  ["NR", "RNOR", "ROR"].forEach(function (status) {
+    var india = withStatus(status, status === "ROR");
+    var ctx = { router: {}, india: india, us: {} };
+    var out = graph.resolve(["capitalGainsComputation"], ctx).values.capitalGainsComputation;
+    var r = WISING.analyze({ router: {}, india: india, us: {} });
+    var modelLtcgInr = num(r.model.income.india.ltcg && r.model.income.india.ltcg.inr);
+    check(status + (status === "ROR" ? " (DTAA-ceded)" : "") + ": India-source gain still taxed (ltcgInr > 0)", out.ltcgInr > 0,
+      "ltcgInr=" + out.ltcgInr);
+    check(status + (status === "ROR" ? " (DTAA-ceded)" : "") + ": DAG matches engine exactly", close(out.ltcgInr, modelLtcgInr),
+      "graph=" + out.ltcgInr + " model=" + modelLtcgInr);
+  });
+})();
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail > 0 ? 1 : 0);

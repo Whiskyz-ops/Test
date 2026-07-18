@@ -312,10 +312,19 @@ var NODES = {
       // IN-38: ROR alone isn't enough — a domestically-ROR taxpayer who
       // ceded worldwide taxation via a DTAA Article 4 tie-break to the US
       // shouldn't have foreign financial holdings taxed by India either.
+      // IN-39: this gate applies ONLY to foreign_equity_unlisted (foreign
+      // holdings, in scope only for ROR/non-ceded worldwide taxation).
+      // India-registered instruments (listed_equity, mutual funds, bonds,
+      // etc., below) are India-source under s.9(1)(i) and stay taxable
+      // regardless of residency/treaty status — a separate, deliberately
+      // UNGATED read, matching normalize.js's own two-reads structure
+      // (~809-811 gated, ~995 ungated). Sharing one gated array between
+      // both loops used to wrongly zero out domestic holdings for any
+      // non-ROR (or DTAA-ceded) taxpayer.
       var isIndiaRor = d.indiaResidencyStatusRawAgg === "ROR" && !d.indiaDtaaWorldwideCededAgg;
-      var financialHoldingsTxs = isIndiaRor ? (safe(india, "financial_holdings.transactions", []) || []) : [];
+      var foreignFinancialHoldingsTxs = isIndiaRor ? (safe(india, "financial_holdings.transactions", []) || []) : [];
       var foreignEquityLtcg197Inr = 0, foreignEquityStcgSlabInr = 0;
-      financialHoldingsTxs.forEach(function (tx) {
+      foreignFinancialHoldingsTxs.forEach(function (tx) {
         if (tx.asset_class !== "foreign_equity_unlisted") return;
         if (!tx.sale_date || tx.sale_value === null || tx.sale_value === undefined || tx.sale_value === "") return;
         var saleInr = toInrAtCurrency(tx.sale_value, tx.sale_currency, USD_TO_INR);
@@ -341,7 +350,7 @@ var NODES = {
       var chapterXiiaElected = safe(india, "compliance_docs.chapter_xiia_elected", false) === true;
       var otherLtcg198Inr = 0, otherStcg20Inr = 0, otherLtcg197Inr = 0, otherStcgSlabInr = 0, vdaGainInr = 0, vdaSaleConsiderationInr = 0;
       var chapterXiiaInvestmentIncomeInr = 0;
-      financialHoldingsTxs.forEach(function (tx) {
+      (safe(india, "financial_holdings.transactions", []) || []).forEach(function (tx) {
         var cls = tx.asset_class;
         if (!cls || cls === "foreign_equity_unlisted") return;
         if (chapterXiiaElected && tx.is_specified_foreign_exchange_asset === true) {
