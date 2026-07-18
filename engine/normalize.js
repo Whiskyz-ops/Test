@@ -2240,7 +2240,33 @@
           // isHuf/isFirm branches). Previously captured by the form but read
           // NOWHERE in this engine. Null when unset/not applicable (company
           // uses the separate POEM test above; individual uses day-count).
-          indiaWhollyOutsideIndiaFact: safe(india, "residency_detail.is_wholly_outside_india", null)
+          indiaWhollyOutsideIndiaFact: safe(india, "residency_detail.is_wholly_outside_india", null),
+          // The rest of the individual/HUF s.6(1)/s.6(1A)/s.6(6)(b) residency
+          // test — Layer 1's own runResidencySolver() (layer1_india.html)
+          // reads every one of these to determine final_india_residency_status
+          // above, but until now this engine only ever read that ALREADY-
+          // DECIDED conclusion, never the underlying facts. Captured here so
+          // this engine can independently verify/explain the status, not just
+          // trust it blindly — same motivation as the DTAA-conflation fix in
+          // layer1_india.html (found while auditing this same area). All raw
+          // pass-throughs, no re-derivation done here (see IN-37 in
+          // GAP_TRACKER.md for the actual status/consistency work this
+          // enables downstream).
+          daysPreceding4YearsGte365: safe(india, "residency_detail.days_in_india_preceding_4_years_gte_365", null),
+          employmentOrCrewStatus: safe(india, "residency_detail.employment_or_crew_status", null),
+          cameOnVisitPioCitizen: safe(india, "residency_detail.came_on_visit_to_india_pio_citizen", null),
+          nrYearsLast10Gte9: safe(india, "residency_detail.nr_years_last_10_gte_9", null),
+          daysLast7YearsLte729: safe(india, "residency_detail.days_in_india_last_7_years_lte_729", null),
+          indiaSourceIncomeAbove15L: safe(india, "residency_detail.india_source_income_above_15l", null),
+          liableToTaxElsewhereAsIndianCitizen: safe(india, "residency_detail.liable_to_tax_in_another_country_being_indian_citizen", false) === true,
+          // The DTAA-conflation fix (layer1_india.html, same session): the
+          // wizard now tracks "worldwide taxation ceded via treaty" as its
+          // own fact instead of corrupting final_india_residency_status —
+          // read here so this engine can eventually do the same for its own
+          // worldwide-income-inclusion gate (see IN-38 in GAP_TRACKER.md,
+          // still open — aggregateIndiaIncome's isIndiaRor check below does
+          // NOT yet consult this field).
+          dtaaWorldwideCeded: safe(india, "residency_detail.dtaa_worldwide_ceded", false) === true
         },
         us: {
           status: safe(us, "us_residency_detail.final_us_residency_status", null),
