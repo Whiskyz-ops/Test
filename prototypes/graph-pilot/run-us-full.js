@@ -10,6 +10,11 @@
  * structural guarantee, not just an empirical one, that it can no longer
  * read ctx.model.income.us even by accident.
  *
+ * Also verifies XBR-1's wiring: ctx deliberately omits `computed` entirely
+ * (only router/india/us/model survive) — worldwideUs must still resolve
+ * correctly by deriving residencyResult itself, proving computed.residency
+ * is no longer read anywhere in this chain.
+ *
  * Run: node prototypes/graph-pilot/run-us-full.js
  * ==========================================================================*/
 var path = require("path");
@@ -33,7 +38,9 @@ console.log("Verifying us-full-nodes.js (aggregateUsIncome physically wired into
 
 WISING.PROFILES.forEach(function (p) {
   var r = WISING.analyze({ router: p.router, india: p.india, us: p.us });
-  var ctx = { router: p.router, india: p.india, us: p.us, model: r.model, computed: r.computed };
+  // Deliberately no `computed` — worldwideUs must derive residencyResult
+  // itself now, not read computed.residency.
+  var ctx = { router: p.router, india: p.india, us: p.us, model: r.model };
   var usKind = r.model.entity ? r.model.entity.usKind : "individual";
   var isEntity = ["ccorp", "scorp", "partnership", "trust"].indexOf(usKind) >= 0;
   var isNra = r.model.treaty.files1040nr && r.model.nra && !r.model.nra.s6013hElection;

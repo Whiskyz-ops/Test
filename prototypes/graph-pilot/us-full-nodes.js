@@ -7,14 +7,16 @@
  * field-for-field compatible by construction (both use the same {usd: X}
  * shape and the same field names, confirmed by inspection before wiring).
  *
+ * Also wires in residency-nodes.js (XBR-1, closed separately): worldwideUs
+ * originally read ctx.computed.residency.us.worldwide as a boundary — now
+ * reads residencyResult.us.worldwide, a genuine derivation with zero
+ * remaining ctx.computed dependency.
+ *
  * Everything else ustax-nodes.js reads from ctx.model/ctx.computed
- * (usEntityKind from model.entity.usKind, worldwideUs from
- * computed.residency.us.worldwide, baseYearUs from model.meta.baseYear) is
- * NOT part of aggregateUsIncome — those are entity classification and
- * residency determination, genuinely separate machinery not touched by
- * this wiring (see the "does residency belong in the DAG" question this
- * was raised alongside — those three stay real, currently-unclosed
- * boundaries on purpose, not silently swept in here).
+ * (usEntityKind from model.entity.usKind, baseYearUs from
+ * model.meta.baseYear) is NOT part of aggregateUsIncome or resolveResidency
+ * — entity classification is genuinely separate machinery, left as a real,
+ * currently-unclosed boundary on purpose, not silently swept in here.
  *
  * Verified in run-us-full.js against the 9 individual/resident profiles
  * (same honest scope as ustax-nodes.js itself — entity/NRA profiles
@@ -22,16 +24,22 @@
  * ==========================================================================*/
 var incomeNodes = require("./aggregateusincome-nodes.js").NODES;
 var taxNodes = require("./ustax-nodes.js").NODES;
+var residencyNodes = require("./residency-nodes.js").NODES;
+
+var OVERRIDDEN_BOUNDARY_IDS = ["incUs", "worldwideUs"];
 
 var NODES = {};
-[incomeNodes, taxNodes].forEach(function (src) {
+[incomeNodes, taxNodes, residencyNodes].forEach(function (src) {
   Object.keys(src).forEach(function (k) {
-    if (NODES[k] && k !== "incUs") throw new Error("Unexpected node name collision on merge: '" + k + "' — resolve before combining.");
+    if (NODES[k] && OVERRIDDEN_BOUNDARY_IDS.indexOf(k) === -1) {
+      throw new Error("Unexpected node name collision on merge: '" + k + "' — resolve before combining.");
+    }
     NODES[k] = src[k];
   });
 });
 
-// ---- redefine the one boundary to read the merged income subgraph -------
+// ---- redefine the two boundaries to read the merged subgraphs -----------
 NODES.incUs = { deps: ["aggregateUsIncomeResult"], compute: function (d) { return d.aggregateUsIncomeResult; } };
+NODES.worldwideUs = { deps: ["residencyResult"], compute: function (d) { return d.residencyResult.us.worldwide; } };
 
 module.exports = { NODES: NODES };
