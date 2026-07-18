@@ -44,8 +44,9 @@ var ROOT = path.join(__dirname, "..", "..");
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js",
   "entitytax-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
-  "india-full-nodes.js", "india-tax-combined-nodes.js", "scope-nodes.js",
-  "us1-nodes.js", "us5-nodes.js", "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js"
+  "india-full-nodes.js", "india-tax-combined-nodes.js", "residency-nodes.js",
+  "scope-nodes.js", "us1-nodes.js", "us5-nodes.js", "us-full-nodes.js",
+  "ustax-nodes.js", "xb7-nodes.js"
 ];
 function m(row, status, dagFiles, knownMissing) { return { row: row, status: status, dagFiles: dagFiles || ["*"], knownMissing: knownMissing || [] }; }
 var MAP = {
@@ -122,7 +123,17 @@ var MAP = {
     computeUsStateTax: m("TAX-9", "missing"),
     computeNraTax: m("TAX-8", "scoped-out"),
     computeUsEntityTax: m("TAX-7", "scoped-out"),
-    resolveResidency: m("XBR-1", "boundary"),
+    /* XBR-1 closed 19 Jul 2026: residency-nodes.js ports resolveResidency
+     * in full (verified 132/132 in run-residency.js, all 11 profiles, zero
+     * boundary reads). resolveResidency()'s own body has no snake_case or
+     * safe() tokens of its own (it reads pre-normalized camelCase
+     * model.residency and model.treaty fields) — same situation as
+     * compute()/TAX-10, a legitimate but structurally-trivial 0/0 check.
+     * The underlying raw fields it ultimately depends on
+     * (residency_detail.final_india_residency_status, dtaa.dtaa_treaty_
+     * residence, etc.) are read directly by residency-nodes.js itself and
+     * so drop out of normalize()'s own AGG-10 boundary-gap list below. */
+    resolveResidency: m("XBR-1", "ported", ["residency-nodes.js"]),
     computeFtc: m("XBR-2", "missing"),
     mapDoubleTaxedIncome: m("XBR-3", "missing"),
     computeLimits: m("LIM-1..6", "boundary"),

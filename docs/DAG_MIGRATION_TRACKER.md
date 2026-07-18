@@ -58,6 +58,33 @@ after both changes (`MAP` updated: `compute()` → TAX-10 `"ported"`, AGG-1's
 `knownMissing` down to the two remaining side-channels). See TAX-10 and
 AGG-1 rows below for detail.
 
+**XBR-1 closed, same day.** `residency-nodes.js` ports `resolveResidency`
+in full — verified 132/132 in `run-residency.js` (every field, all 11
+profiles, `ctx` deliberately carrying no `model`/`computed` at all). Worth
+recording plainly since it changes how the remaining XBR rows should be
+read: `resolveResidency()` does **not** itself run any day-count or the
+home → CVI → habitual-abode → nationality tie-break cascade. Those are
+Layer 1's job entirely (the residency wizard and `evaluateTieBreaker()` in
+`layer1_india.html`, outside this engine) — the engine receives their
+already-decided conclusions as plain fields
+(`residency_detail.final_india_residency_status`,
+`dtaa.dtaa_treaty_residence`, etc., confirmed by grep to be raw `safe()`
+pass-throughs in `normalize.js:2225-2308`, not derived values).
+`resolveResidency()`'s real content is smaller: turn those conclusions into
+per-side worldwide-taxation booleans and apply the treaty "who cedes"
+consequence. This means the tracker's original 🟡 "New pattern" effort
+estimate for XBR-1 was too high — it was 🟢 all along, this file just
+hadn't been written yet to prove it — and, more importantly, that **actual
+SPT/day-count/tie-break-cascade logic has no home in this engine at all,
+DAG or production** — porting it (if ever wanted) would be new scope, not
+migration. Wired into `us-full-nodes.js`: `worldwideUs` now reads
+`residencyResult.us.worldwide` instead of `ctx.computed.residency.us.worldwide`
+— re-verified 81/81 in `run-us-full.js` with `ctx.computed` removed
+entirely from the test harness. `npm run audit:dag` re-run clean (`MAP`:
+`resolveResidency` → `"ported"`; `normalize()`'s own AGG-10 gap count also
+dropped, from 150 to 139 missing reads, since the raw residency/treaty
+fields this file reads are no longer nowhere-in-DAG).
+
 **Status legend:** ✅ ported & verified (diffed against the real function, not
 just same-named) · 🟡 partial · 🔶 boundary-only (the DAG *consumes* the
 engine's output for this as a `ctx` input rather than re-deriving it — looks
@@ -115,7 +142,7 @@ Reconciliation) and the DAG has made the least progress here of any area.
 
 | ID | Item | Status | DAG file | Effort | Detail |
 |---|---|---|---|---|---|
-| XBR-1 | `resolveResidency` (dual-residency + DTAA Art. 4 tie-breaker) | 🔶 | `ustax-nodes.js` (`worldwideUs` reads `ctx.computed.residency.us.worldwide`) | 🟡 | Every DAG node that needs a residency fact reads it from the **real engine's own already-resolved** `computed.residency` — the tie-breaker logic itself (home/CVI/habitual-abode cascade) has never been re-derived in the DAG. |
+| XBR-1 | `resolveResidency` (dual-residency + DTAA Art. 4 tie-breaker) | ✅ | `residency-nodes.js`, wired into `us-full-nodes.js` | — | **Closed 19 Jul 2026** (re-scoped from the 🔶/🟡 the tracker originally guessed — see the dated note above for why). `resolveResidency` doesn't run the tie-break cascade itself; that decision is Layer 1's, handed to the engine as already-resolved fields (`residency_detail.final_india_residency_status`, `dtaa.dtaa_treaty_residence`, etc.). What the function DOES do — turn those into per-side worldwide-taxation booleans, apply the treaty cede consequence (with the US-citizen saving-clause carve-out), and assemble `dualResident`/`tieBreakWinner`/`worldwideOverlap` — is ported in full and verified 132/132 in `run-residency.js` against all 11 profiles, `ctx` carrying no `model`/`computed` at all (a genuine derivation, not a disguised boundary read). `us-full-nodes.js`'s `worldwideUs` now resolves `residencyResult.us.worldwide` instead of reading `computed.residency` — re-verified 81/81 in `run-us-full.js` with `ctx.computed` removed from the harness entirely. India side needed no wiring: `in1-nodes-v3.js`/`entitytax-nodes.js` were already reading India residency status as a raw field, never via `computed.residency`. |
 | XBR-2 | `computeFtc` (§904 limitation, both directions, credit pool + carryover) | ❌ | `scope-nodes.js` (`foreignSrcGrossUsd*` — narrow slice only) | 🔴 | The only DAG code touching FTC territory is the XB-24 scope-gating proof, which reproduces one intermediate figure (gross foreign-source income) to demonstrate the gating *pattern* — it was never meant to, and does not, replace `computeFtc`. The §904 basket math, the FTC credit/carryover computation, and the reverse-direction (India §90 relief) computation are 0% ported. Given README's own framing of FTC reconciliation as the headline feature, this is the most consequential gap in the whole tracker. |
 | XBR-3 | `mapDoubleTaxedIncome` (per-head doubly-taxed-income breakdown) | ❌ | — | 🟡 | No reference anywhere. |
 | XBR-4 | `crossBasis` (income re-computed under the other country's code — the "same income, both codes" reconciliation table) | ❌ | — | 🔴 | No reference. Depends on XBR-2/TAX-9 being closed first to have real figures to reconcile. |
@@ -169,13 +196,13 @@ logic by line count, and the other half of the product's value prop
 
 ## G. Buildability summary
 
-Counted mechanically from every row's own Status cell across A-E (SYS rows in F excluded — they're risks, not coverage gaps; CFL-6 counts as one row here even though it represents 48 individual findings — see its own caveat). Recounted 19 Jul 2026, first after `audit:dag`'s first run moved AGG-1 from ✅ to 🟡, again same day after TAX-10 closed (❌ → ✅).
+Counted mechanically from every row's own Status cell across A-E (SYS rows in F excluded — they're risks, not coverage gaps; CFL-6 counts as one row here even though it represents 48 individual findings — see its own caveat). Recounted 19 Jul 2026: first after `audit:dag`'s first run moved AGG-1 from ✅ to 🟡, again after TAX-10 closed (❌ → ✅), again after XBR-1 closed (🔶 → ✅).
 
 | Bucket | Count (rows) |
 |---|---|
-| ✅ Ported & verified | 15 |
+| ✅ Ported & verified | 16 |
 | 🟡 Partial (ported with recorded gaps) | 1 (AGG-1) |
-| 🔶 Boundary-only (looks covered, isn't) | 4 |
+| 🔶 Boundary-only (looks covered, isn't) | 3 |
 | 📝 Explicitly scoped out (documented) | 2 |
 | ❌ Not ported, no DAG reference | 18 (of which CFL-6 alone stands in for 48 individual findings) |
 | **Total rows** | **40** |
@@ -183,7 +210,7 @@ Counted mechanically from every row's own Status cell across A-E (SYS rows in F 
 By subsystem, share of engine logic with zero DAG reference:
 - **Income/deduction aggregation (A):** mostly closed — 3 rows ✅ plus AGG-1 🟡 (two specific side-channel reads short of full, down from six), the rest are smaller withholding/equity-comp utility functions.
 - **Core tax computation, resident path (B):** essentially closed for individuals — TAX-10 (wiring) is now ✅; the one remaining open item, TAX-9 (state tax), is 🟢 effort rather than a large build.
-- **Cross-border reconciliation (C):** ~0% — the section carrying the product's headline FTC claim is the least-built area in the entire DAG.
+- **Cross-border reconciliation (C):** the one row that WAS built (XBR-1, residency) is now ✅, but `computeFtc` (XBR-2) — the section carrying the product's headline FTC claim — is still 0% built and is the least-built area in the entire DAG. XBR-1's closure removes what would otherwise have been a real blocker in front of it.
 - **Limits & monitoring (D):** ~0% (1 of 7 rows even partially touched).
 - **Conflict rule-book (E):** ~9% by finding count (5 of 53).
 
@@ -193,6 +220,6 @@ By subsystem, share of engine logic with zero DAG reference:
 2. **TAX-9 (`computeUsStateTax`)** — small, self-contained, currently the only *undocumented* gap in an otherwise mostly-complete section; closing it turns B into a genuinely complete section.
 3. **AGG-1's two remaining recorded side-channel reads (`agricultural_income_inr`, `unexplained_income_115BBE_inr`) + AGG-6/7/8/9 (remaining `normalize.js` work)** — same shape as the already-closed aggregations, small, no new pattern needed; closing the AGG-1 leftovers also empties its `knownMissing` list in `dag-coverage.js`, restoring that row to a clean ✅ the script enforces. (Its third leftover, `holdingPeriodMismatches[]`, closed 19 Jul 2026 alongside TAX-10.)
 4. **LIM-1..6 (limit gauges)** — the underlying math for most of these already exists elsewhere in the DAG (`feieEligibility` for LIM-5, `computeLrsTcs` once AGG-8 lands for LIM-3/4); this is largely wiring, not new tax logic.
-5. **XBR-1 (residency tie-breaker) then XBR-2 (`computeFtc`)** — in that order, since FTC computation depends on a real (not boundary-read) residency determination. This is the highest-value, highest-effort pair in the whole tracker — closing it is what would let the DAG actually claim the product's headline feature.
-6. **CFL-6, in the same priority order `GAP_TRACKER.md` already uses for the underlying tax logic** — a finding is only worth porting once the computation it depends on exists in the DAG; don't port `ftc_gap` before XBR-2, don't port `state_income_tax` before TAX-9. (`holding_period_mismatch_`'s underlying array is now ported — see AGG-1 — but the finding itself, which additionally recomputes `computeUsTax` twice to price the dollar impact, is still unported CFL-6 work.)
+5. ~~**XBR-1 (residency tie-breaker) then XBR-2 (`computeFtc`)**~~ **XBR-1 CLOSED 19 Jul 2026** — `residency-nodes.js`, verified 132/132, wired into `us-full-nodes.js` (81/81). Turned out smaller than estimated: `resolveResidency` reads Layer 1's own already-decided conclusions rather than running the tie-break cascade itself (see the dated note near the top of this doc). **XBR-2 (`computeFtc`) is next** and now has a real, non-boundary residency input to build on — this remains the highest-value, highest-effort item left in the whole tracker; closing it is what would let the DAG actually claim the product's headline feature.
+6. **CFL-6, in the same priority order `GAP_TRACKER.md` already uses for the underlying tax logic** — a finding is only worth porting once the computation it depends on exists in the DAG; don't port `ftc_gap` before XBR-2, don't port `state_income_tax` before TAX-9. (`holding_period_mismatch_`'s underlying array is now ported — see AGG-1 — but the finding itself, which additionally recomputes `computeUsTax` twice to price the dollar impact, is still unported CFL-6 work. `dual_residency`/`dual_residency_resolved` similarly now have a real, non-boundary `residencyResult` to build on.)
 7. **LIM-7 (compliance calendar) and CFL-7 (report assembly)** — last, since both are pure consumers of everything above and represent a genuinely new node shape (dates/formatting rather than tax arithmetic) worth prototyping once there's real output to render.
