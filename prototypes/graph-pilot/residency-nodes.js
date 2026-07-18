@@ -141,6 +141,8 @@ var NODES = {
   indiaDaysCurrentYearRaw: { deps: [], compute: function (d, ctx) { return Number(safe(ctx.india, "residency_detail.days_in_india_current_year", 0)) || 0; } },
   usDaysCurrentYearRaw: { deps: [], compute: function (d, ctx) { return Number(safe(ctx.us, "us_residency_detail.us_days_current_year", 0)) || 0; } },
   indiaEntityKindRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "profile.entity_type", "individual"); } },
+  indiaIsIndianCompanyRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.is_indian_company", null); } },
+  indiaWhollyOutsideIndiaRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.is_wholly_outside_india", null); } },
   usEntityKindRaw: {
     deps: [],
     compute: function (d, ctx) {
@@ -152,7 +154,7 @@ var NODES = {
 
   // ---- the new finding: declared status vs. the day-count facts also on file
   residencyConsistencyFindings: {
-    deps: ["indiaStatusRaw", "indiaDaysCurrentYearRaw", "indiaEntityKindRaw",
+    deps: ["indiaStatusRaw", "indiaDaysCurrentYearRaw", "indiaEntityKindRaw", "indiaIsIndianCompanyRaw", "indiaWhollyOutsideIndiaRaw",
       "usStatusRaw", "usDaysCurrentYearRaw", "usSptMetRaw", "usIsCitizenRaw", "usHasGreenCardRaw", "usEntityKindRaw"],
     compute: function (d) {
       var findings = [];
@@ -182,6 +184,58 @@ var NODES = {
             recommendation: "Confirm whether s.6(1A) deemed-residency applies before correcting — if it doesn't, this status is " +
               "likely a wizard or data-entry error.",
             amountUsd: 0, refs: ["s.6(1)", "s.6(1A)"]
+          });
+        }
+      } else if (d.indiaEntityKindRaw === "company") {
+        // s.6(3): an Indian-incorporated company is UNCONDITIONALLY resident —
+        // incorporation alone settles it, no POEM override can reduce it back
+        // to NR. (The other direction — foreign-incorporated but POEM resolves
+        // to ROR — is a real, different situation, already a genuine engine
+        // finding, entity_dual_residency_poem (conflicts.js:723, unported,
+        // CFL-6) — deliberately not duplicated here.)
+        if (d.indiaIsIndianCompanyRaw === true && d.indiaStatusRaw === "NR") {
+          findings.push({
+            id: "residency_status_understated_india_company", severity: "warning", category: "residency",
+            title: "India company residency may be understated — incorporated in India but marked Non-Resident",
+            detail: "Layer 1 records this company as incorporated in India (residency_detail.is_indian_company = true), yet the " +
+              "recorded final status is NR. Under s.6(3), an Indian-incorporated company is unconditionally resident regardless " +
+              "of Place of Effective Management — incorporation status alone settles it, with no POEM override that can reduce " +
+              "it to NR. No known exception.",
+            recommendation: "Re-run the Layer 1 India residency wizard, or verify is_indian_company and " +
+              "final_india_residency_status were entered consistently — this looks like a wizard or data-entry error.",
+            amountUsd: 0, refs: ["s.6(3)"]
+          });
+        }
+      } else {
+        // HUF / firm / LLP / local authority / trust / AOP / BOI / AJP, etc. —
+        // s.6(2)/s.6(4): resident UNLESS control & management of its affairs
+        // is wholly outside India. Binary test, both directions exception-free
+        // (unlike the individual day-count checks above, there's no lower
+        // alternate threshold or citizen/PIO carve-out complicating this one).
+        if (d.indiaWhollyOutsideIndiaRaw === true && (d.indiaStatusRaw === "ROR" || d.indiaStatusRaw === "RNOR")) {
+          findings.push({
+            id: "residency_status_overstated_india_entity", severity: "warning", category: "residency",
+            title: "India entity residency may be overstated — control & management wholly outside India but marked " + d.indiaStatusRaw,
+            detail: "Layer 1 records that this entity's control and management is wholly situated outside India " +
+              "(residency_detail.is_wholly_outside_india = true), yet the recorded final status is " + d.indiaStatusRaw +
+              " (resident). Under s.6(2)/s.6(4), an entity of this type is resident UNLESS control and management is wholly " +
+              "outside India — 'wholly outside' is the one condition that flips it to non-resident, so this combination has " +
+              "no known exception.",
+            recommendation: "Re-run the Layer 1 India residency wizard, or verify the control-and-management fact and final " +
+              "status were entered consistently.",
+            amountUsd: 0, refs: ["s.6(2)", "s.6(4)"]
+          });
+        } else if (d.indiaWhollyOutsideIndiaRaw === false && d.indiaStatusRaw === "NR") {
+          findings.push({
+            id: "residency_status_understated_india_entity", severity: "warning", category: "residency",
+            title: "India entity residency may be understated — control & management NOT wholly outside India but marked Non-Resident",
+            detail: "Layer 1 records that this entity's control and management is NOT wholly situated outside India " +
+              "(residency_detail.is_wholly_outside_india = false), yet the recorded final status is NR. Under s.6(2)/s.6(4), an " +
+              "entity of this type is resident UNLESS control and management is wholly outside India — since it isn't wholly " +
+              "outside here, the entity should be resident, not NR. No known exception.",
+            recommendation: "Re-run the Layer 1 India residency wizard, or verify the control-and-management fact and final " +
+              "status were entered consistently.",
+            amountUsd: 0, refs: ["s.6(2)", "s.6(4)"]
           });
         }
       }

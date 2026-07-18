@@ -7,15 +7,19 @@
  * ctx deliberately carries ONLY { router, india, us } — no model/computed —
  * to prove this is a genuine derivation, not a disguised boundary read.
  *
- * Also verifies residencyConsistencyFindings, the NEW status-vs-day-count
- * finding this session added on top of the port (no engine/conflicts.js
- * counterpart — see the file header). Two passes: (1) all 11 real profiles
- * must produce ZERO findings (true-negative — the demo data is internally
- * consistent, and this also proves the entity-kind gates correctly exclude
- * the 3 company/HUF profiles whose raw data has no day-count field at all);
- * (2) hand-built synthetic cases, one per direction, prove the logic
- * actually fires when it should — real profiles have no inconsistencies to
- * exercise that path.
+ * Also verifies residencyConsistencyFindings, the NEW status-vs-facts-on-
+ * file findings this session added on top of the port (no engine/
+ * conflicts.js counterpart — see the file header). Covers three entity
+ * shapes on the India side (individual day-count, company incorporation,
+ * HUF/firm/etc. control-and-management) and one on the US side (individual
+ * SPT day-count). Two passes: (1) all 11 real profiles must produce ZERO
+ * findings (true-negative — the demo data is internally consistent, and
+ * this exercises all three India entity-kind branches for real, since 3 of
+ * the 11 profiles genuinely are company/HUF); (2) hand-built synthetic
+ * cases prove each direction actually fires when it should, and that the
+ * gates correctly stay silent where they must (company POEM territory,
+ * unanswered facts) — real profiles have no inconsistencies to exercise
+ * the positive path with.
  *
  * Run: node prototypes/graph-pilot/run-residency.js
  * ==========================================================================*/
@@ -89,6 +93,34 @@ syntheticCheck("India: 0 days + ROR fires residency_status_overstated_india",
 // India: company entity type must NOT fire even with the same 0-day/ROR shape.
 syntheticCheck("India: 0 days + ROR on a COMPANY does not fire (entity-kind gate)",
   { residency_detail: { final_india_residency_status: "ROR", is_indian_company: true }, profile: { entity_type: "company" } },
+  {}, []);
+
+// India company: incorporated in India but marked NR.
+syntheticCheck("India company: is_indian_company=true + NR fires residency_status_understated_india_company",
+  { residency_detail: { final_india_residency_status: "NR", is_indian_company: true }, profile: { entity_type: "company" } },
+  {}, ["residency_status_understated_india_company"]);
+
+// India company: foreign-incorporated but POEM resolves to ROR — genuinely
+// different situation (entity_dual_residency_poem territory), must NOT fire
+// any of these new checks (confirms no accidental duplication).
+syntheticCheck("India company: is_indian_company=false + ROR does not fire (different finding's territory)",
+  { residency_detail: { final_india_residency_status: "ROR", is_indian_company: false }, profile: { entity_type: "company" } },
+  {}, []);
+
+// India HUF/firm/etc.: control & management wholly outside India but marked resident.
+syntheticCheck("India entity: is_wholly_outside_india=true + ROR fires residency_status_overstated_india_entity",
+  { residency_detail: { final_india_residency_status: "ROR", is_wholly_outside_india: true }, profile: { entity_type: "huf" } },
+  {}, ["residency_status_overstated_india_entity"]);
+
+// India HUF/firm/etc.: control & management NOT wholly outside India but marked NR.
+syntheticCheck("India entity: is_wholly_outside_india=false + NR fires residency_status_understated_india_entity",
+  { residency_detail: { final_india_residency_status: "NR", is_wholly_outside_india: false }, profile: { entity_type: "huf" } },
+  {}, ["residency_status_understated_india_entity"]);
+
+// India HUF/firm/etc.: control-and-management fact not yet answered — must
+// NOT fire (no data to assert an inconsistency from).
+syntheticCheck("India entity: is_wholly_outside_india unanswered does not fire (no data, no guess)",
+  { residency_detail: { final_india_residency_status: "NR" }, profile: { entity_type: "huf" } },
   {}, []);
 
 // US understated: 200 days present but SPT marked not met.
