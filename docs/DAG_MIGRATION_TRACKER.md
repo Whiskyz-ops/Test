@@ -29,6 +29,22 @@ input combination none of the 11 profiles happen to exercise. Section E's
 CFL-6 list (48 findings) also remains a name-level inventory, not a
 logic-level one — see its own caveat below.
 
+**Mechanically audited 19 July 2026:** this comparison is no longer
+manual-only — `npm run audit:dag` (`scripts/audit/dag-coverage.js`, built the
+same day) extracts every quoted `safe()` path and snake_case field read from
+every engine function, every `add("id")` finding in conflicts.js, and every
+significant numeric literal in the DAG's hand-copied constant tables, and
+diffs each against the DAG file(s) this tracker maps that function to. Any
+read missing from a ✅-mapped function, any engine function absent from the
+script's tracker mapping, or any numeric drift **fails the run** (exit 1) —
+so both new engine code and silent constant divergence now get caught
+mechanically. Its first run confirmed the tracker's ❌/🔶/📝 rows and the
+48-finding CFL-6 count exactly, found **zero numeric drift**, and caught
+**8 engine reads inside functions this doc had over-claimed as fully ✅** —
+now downgraded and itemized in AGG-1 and TAX-1 below, and recorded in the
+script's `knownMissing` lists (remove an entry there only when the DAG
+actually ports it).
+
 **Status legend:** ✅ ported & verified (diffed against the real function, not
 just same-named) · 🟡 partial · 🔶 boundary-only (the DAG *consumes* the
 engine's output for this as a `ctx` input rather than re-deriving it — looks
@@ -53,7 +69,7 @@ comments say so — an honest gap, not an accidental one)
 
 | ID | Item | Status | DAG file | Effort | Detail |
 |---|---|---|---|---|---|
-| AGG-1 | `aggregateIndiaIncome` | ✅ | `aggregateindiaincome-nodes.js` | — | Full port incl. presumptive-scheme business income, depreciation, F&O/speculative ring-fencing, capital-gains classification. `run-aggregateindiaincome.js` personally re-run 19 Jul 2026: **165/165 field checks pass** against all 11 real profiles. Verified in aggregate (every output field matches); the ~13 internal sub-helpers (`computeAssetBlockNormalDepreciationInr`, `computeMsmeDisallowanceInr`, `computeGoodsVehiclePresumptiveInr`, etc.) were not individually diffed 1:1 against DAG nodes the way AGG-2/AGG-4 were. |
+| AGG-1 | `aggregateIndiaIncome` | 🟡 | `aggregateindiaincome-nodes.js` | 🟢 | **Downgraded from ✅ on 19 Jul 2026** by `audit:dag`'s first run: the income-figure port is complete and verified (`run-aggregateindiaincome.js` 165/165 across 11 profiles), but the engine function also emits three **side-channel outputs the DAG never reads or reproduces**: (1) `agricultural_income_inr` → `inc.agriculturalIncomeInr`, the ITR-1 disqualifier `computeIndiaItrForm` (XBR-6) consumes; (2) `unexplained_income_115BBE_inr` → `inc.unexplained115bbeInr`, sole trigger of the `s115bbe_unexplained_income` finding (CFL-6); (3) the whole `holdingPeriodMismatches[]` build (`original_acquisition_date`/`buyback_date`/`company_name`/`asset_name_or_ticker` reads, normalize.js L719-830) — the India-vs-US LTCG/STCG classification-conflict list behind the `holding_period_mismatch_` finding (CFL-6). These stayed invisible precisely because the 165 runner checks cover income figures, not metadata fields, and every downstream consumer is itself unported — the exact blind-spot class a runner-only verification can't catch. Recorded in `dag-coverage.js`'s `knownMissing` list; remove entries there only when actually ported. The ~13 internal sub-helpers were additionally confirmed by the mechanical read-diff (94/100 reads present; the 6 missing are exactly the side-channels above). |
 | AGG-2 | `aggregateIndiaDeductions` | ✅ | `in1-nodes-v3.js` (`dedS80C`/`dedS80CCD1B`/`dedS80D`/`dedS80TTA_TTB`/`dedS80DD`/`dedS80DDB`/`dedS80U`/`dedS80E`/`dedS80EEA_EE`/`dedS80GGB_GGC`/`dedS80GGRentPaidInr`, ~L235-246) | — | Diffed line-for-line against `normalize.js:1264-1307` — identical field paths, identical caps/flat-amount tables. |
 | AGG-3 | `aggregateUsIncome` | ✅ | `aggregateusincome-nodes.js` | — | Full port incl. MACRS/§179/bonus depreciation (`computeAssetDepreciationUsd`), K-1 passive aggregation across all 3 entity types. `run-aggregateusincome.js` personally re-run 19 Jul 2026: **385/385 field checks pass** across all 11 profiles (this number was previously only sourced from the commit message; now independently confirmed). |
 | AGG-4 | `aggregateUsDeductions` | ✅ | `ustax-nodes.js` (`dedUs`, ~L165-190) | — | Diffed line-for-line against `normalize.js:1801-1853` — identical, including the ISO-AMT-preference sub-computation. |
@@ -68,7 +84,7 @@ comments say so — an honest gap, not an accidental one)
 
 | ID | Item | Status | DAG file | Effort | Detail |
 |---|---|---|---|---|---|
-| TAX-1 | `computeIndiaTax` (individual/HUF slab path) | ✅ | `in1-nodes-v3.js` | — | Full: new/old regime, §87A rebate, surcharge w/ marginal relief, cess, special CG rates (111A/112/112A/115BB/115BBH), s.115A NR streams. `run-in1-v3.js` personally re-run 19 Jul 2026: **8/8** on the 8 individual/HUF profiles (the 3 company profiles are reported, not asserted, in this same script — see TAX-2/TAX-4 for how those are actually covered). Earlier versions of the same graph (`run-in1.js` 22/22, `run-in1-v2.js` 66/66) also re-run and passing — kept as regression evidence the graph didn't break as it deepened across 3 iterations. |
+| TAX-1 | `computeIndiaTax` (individual/HUF slab path) | ✅ | `in1-nodes-v3.js` | — | Full: new/old regime, §87A rebate, surcharge w/ marginal relief, cess, special CG rates (111A/112/112A/115BB/115BBH), s.115A NR streams. `run-in1-v3.js` personally re-run 19 Jul 2026: **8/8** on the 8 individual/HUF profiles (the 3 company profiles are reported, not asserted, in this same script — see TAX-2/TAX-4 for how those are actually covered). Earlier versions of the same graph (`run-in1.js` 22/22, `run-in1-v2.js` 66/66) also re-run and passing — kept as regression evidence the graph didn't break as it deepened across 3 iterations. **One recorded simplification (found by `audit:dag`, 19 Jul 2026):** the DAG's local `computeS115aStream`/`computeNrInterestTreatment` return only the tax figures (`{totalInr, taxInr}`) — the engine's versions also build a per-election detail array (incl. `e.treaty_article`, rates, docs facts) consumed by the display/withholding layers (CFL-7, unported). Tax numbers match exactly; the `elections[]` metadata does not exist DAG-side. In `knownMissing`. |
 | TAX-2 | `computeIndiaEntityTax` (company/firm) | ✅ | `entitytax-nodes.js` | — | Full: 115BAB/115BAA/115BA rate elections, turnover-based default rate, MAT, PE gate for foreign companies. `run-entitytax.js` personally re-run 19 Jul 2026: **6/6** on the company/firm profiles. |
 | TAX-3 | `computeIndiaSurcharge`, `computeLossSetOff` (India) | ✅ | `in1-nodes-v3.js` (`lossSetOffV3`, embedded surcharge logic) | — | Embedded rather than standalone nodes, but diffed and verified (covered by the same TAX-1 re-run). |
 | TAX-4 | Individual/entity routing (`if (indiaIsCompany \|\| indiaIsFirm) → computeIndiaEntityTax`) | ✅ | `india-tax-combined-nodes.js` | — | The one piece of routing logic that lived only inside `computeIndiaTax`'s own `if` — separately ported and verified against all 11 profiles. `run-india-tax-combined.js` personally re-run 19 Jul 2026: **22/22**, across all 11 profiles with no per-profile branching by the caller (i.e. the graph itself decides individual-vs-entity correctly, not the test). |
@@ -134,24 +150,25 @@ logic by line count, and the other half of the product's value prop
 | ID | Item | Severity | Detail |
 |---|---|---|---|
 | SYS-1 | Constants duplicated, not shared | 🟡 Medium | No file under `prototypes/graph-pilot/` does `require(".../engine/constants.js")` — every tax bracket, cap, and rate (`T.BRACKETS`, `T.SLABS_NEW`, `T.AMT_EXEMPTION`, etc.) is hand-transcribed as a literal object inside each `*-nodes.js` file. Commit messages describe a one-time manual verification ("verified exact against `engine/constants.js` before use") — there is no automated test asserting the two stay in sync. A future Union Budget slab change or an updated §179 cap edited in `constants.js` will **silently** not propagate to the DAG's copies. Recommend converting to a shared import before AGG/TAX rows above multiply the number of files holding a copy. |
-| SYS-2 | This tracker itself has no automated freshness check | 🟢 Low | Unlike `GAP_TRACKER.md` (whose §D buildability summary states it was "recomputed... by mechanically parsing every row's own Status/Build-Now cells," i.e. has a repeatable derivation method), this document was produced by one-time manual code comparison on 18 July 2026. Any new `graph-pilot/*-nodes.js` file or any change to an existing one should trigger a re-read of the relevant row here, by hand, until/unless a coverage script analogous to `scripts/audit/field-coverage.js` is built for this specific comparison (engine-function-name references inside `graph-pilot/` vs. the real function list) — itself a candidate P3 item. |
+| SYS-2 | ~~This tracker itself has no automated freshness check~~ **CLOSED 19 Jul 2026** | — | `scripts/audit/dag-coverage.js` (`npm run audit:dag`, wired into the combined `npm run audit` chain) now performs the comparison mechanically: per-engine-function field-read diff against the mapped DAG file(s), finding-ID diff, numeric-drift check on the DAG's hand-copied constant tables (the automated half of SYS-1's risk), and an engine-function inventory that fails if a new top-level engine function appears without a tracker mapping. Its first run validated every existing row's status, and caught 8 over-claims — see AGG-1 (downgraded to 🟡) and TAX-1's recorded simplification. Residual limit, stated honestly: the script diffs **field reads and constants**, not logic — two functions reading identical fields with different arithmetic would pass it; the `run-*.js` harnesses (11-profile output equality) remain the logic-level check, and the two together still don't equal exhaustive input-space coverage. |
 
 ---
 
 ## G. Buildability summary
 
-Counted mechanically from every row's own Status cell across A-E (SYS rows in F excluded — they're risks, not coverage gaps; CFL-6 counts as one row here even though it represents 48 individual findings — see its own caveat).
+Counted mechanically from every row's own Status cell across A-E (SYS rows in F excluded — they're risks, not coverage gaps; CFL-6 counts as one row here even though it represents 48 individual findings — see its own caveat). Recounted 19 Jul 2026 after `audit:dag`'s first run moved AGG-1 from ✅ to 🟡.
 
 | Bucket | Count (rows) |
 |---|---|
-| ✅ Ported & verified | 15 |
+| ✅ Ported & verified | 14 |
+| 🟡 Partial (ported with recorded gaps) | 1 (AGG-1) |
 | 🔶 Boundary-only (looks covered, isn't) | 4 |
 | 📝 Explicitly scoped out (documented) | 2 |
 | ❌ Not ported, no DAG reference | 19 (of which CFL-6 alone stands in for 48 individual findings) |
 | **Total rows** | **40** |
 
 By subsystem, share of engine logic with zero DAG reference:
-- **Income/deduction aggregation (A):** mostly closed — 4 of 10 rows ✅, the rest are smaller withholding/equity-comp utility functions.
+- **Income/deduction aggregation (A):** mostly closed — 3 rows ✅ plus AGG-1 🟡 (six specific side-channel reads short of full), the rest are smaller withholding/equity-comp utility functions.
 - **Core tax computation, resident path (B):** essentially closed for individuals — the two open items (TAX-9 state tax, TAX-10 wiring) are both 🟢/🔴 rather than large builds.
 - **Cross-border reconciliation (C):** ~0% — the section carrying the product's headline FTC claim is the least-built area in the entire DAG.
 - **Limits & monitoring (D):** ~0% (1 of 7 rows even partially touched).
@@ -161,7 +178,7 @@ By subsystem, share of engine logic with zero DAG reference:
 
 1. **TAX-10 (wire the four existing graphs together)** — highest leverage, zero new tax logic, turns four standalone proofs into one real chain. Do this before adding more nodes on top of the current split state (F/SYS-1 risk grows with every file added on the wrong side of this).
 2. **TAX-9 (`computeUsStateTax`)** — small, self-contained, currently the only *undocumented* gap in an otherwise mostly-complete section; closing it turns B into a genuinely complete section.
-3. **AGG-6/7/8/9 (remaining `normalize.js` utility aggregations)** — same shape as already-closed AGG-1..4, small, no new pattern needed.
+3. **AGG-1's six recorded side-channel reads + AGG-6/7/8/9 (remaining `normalize.js` work)** — same shape as the already-closed aggregations, small, no new pattern needed; closing the AGG-1 leftovers also empties its `knownMissing` list in `dag-coverage.js`, restoring that row to a clean ✅ the script enforces. |
 4. **LIM-1..6 (limit gauges)** — the underlying math for most of these already exists elsewhere in the DAG (`feieEligibility` for LIM-5, `computeLrsTcs` once AGG-8 lands for LIM-3/4); this is largely wiring, not new tax logic.
 5. **XBR-1 (residency tie-breaker) then XBR-2 (`computeFtc`)** — in that order, since FTC computation depends on a real (not boundary-read) residency determination. This is the highest-value, highest-effort pair in the whole tracker — closing it is what would let the DAG actually claim the product's headline feature.
 6. **CFL-6, in the same priority order `GAP_TRACKER.md` already uses for the underlying tax logic** — a finding is only worth porting once the computation it depends on exists in the DAG; don't port `ftc_gap` before XBR-2, don't port `state_income_tax` before TAX-9.

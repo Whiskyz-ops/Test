@@ -16,7 +16,8 @@
     "audit:steps": "node scripts/audit/step-reachability.js",
     "audit:options": "node scripts/audit/option-value-coverage.js",
     "audit:output": "node scripts/audit/engine-output-frontend-coverage.js",
-    "audit": "npm run audit:handlers && npm run audit:fields && npm run audit:arrays && npm run audit:steps && npm run audit:options && npm run audit:output",
+    "audit:dag": "node scripts/audit/dag-coverage.js",
+    "audit": "npm run audit:handlers && npm run audit:fields && npm run audit:arrays && npm run audit:steps && npm run audit:options && npm run audit:output && npm run audit:dag",
     "merge:find-base": "node scripts/merge/find-base-commit.js",
     "merge:apply": "node scripts/merge/three-way-merge.js",
     "audit:fix-regression": "node scripts/audit/fix-regression-check.js"
