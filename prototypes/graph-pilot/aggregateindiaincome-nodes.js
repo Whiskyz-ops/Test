@@ -218,6 +218,14 @@ var NODES = {
   speculativeIncomeInrAgg: { deps: ["diAgg"], compute: function (d) { return num(safe(d.diAgg, "business_income.speculative_income_inr", 0)); } },
 
   indiaResidencyStatusRawAgg: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.final_india_residency_status", null); } },
+  // IN-38: the DTAA Article 4 tie-break to the US doesn't change domestic
+  // residential status (s.6) — see residency-nodes.js's file header for the
+  // full reasoning — but it DOES mean worldwide income is outside India's
+  // tax net under the treaty. Read here so capitalGainsComputation's
+  // isIndiaRor gate (below) can exclude foreign financial holdings for a
+  // treaty-ceding taxpayer without relying on the (now-fixed) status-
+  // conflation bug that used to achieve this by accident.
+  indiaDtaaWorldwideCededAgg: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.dtaa_worldwide_ceded", false) === true; } },
   presumptiveEligibilityAgg: {
     deps: ["indiaResidencyStatusRawAgg"],
     compute: function (d, ctx) {
@@ -264,7 +272,7 @@ var NODES = {
   // ---- capital gains: buy-back + foreign equity + financial holdings +
   // commodities + unlisted equity, ported in full -----------------------
   capitalGainsComputation: {
-    deps: ["indiaResidencyStatusRawAgg", "cgAgg", "osAgg", "diAgg"],
+    deps: ["indiaResidencyStatusRawAgg", "indiaDtaaWorldwideCededAgg", "cgAgg", "osAgg", "diAgg"],
     compute: function (d, ctx) {
       var india = ctx.india, os = d.osAgg, annualCg = d.cgAgg;
       var buybackTxs = safe(india, "share_buyback.transactions", []) || [];
@@ -301,7 +309,10 @@ var NODES = {
         }
       });
 
-      var isIndiaRor = d.indiaResidencyStatusRawAgg === "ROR";
+      // IN-38: ROR alone isn't enough — a domestically-ROR taxpayer who
+      // ceded worldwide taxation via a DTAA Article 4 tie-break to the US
+      // shouldn't have foreign financial holdings taxed by India either.
+      var isIndiaRor = d.indiaResidencyStatusRawAgg === "ROR" && !d.indiaDtaaWorldwideCededAgg;
       var financialHoldingsTxs = isIndiaRor ? (safe(india, "financial_holdings.transactions", []) || []) : [];
       var foreignEquityLtcg197Inr = 0, foreignEquityStcgSlabInr = 0;
       financialHoldingsTxs.forEach(function (tx) {

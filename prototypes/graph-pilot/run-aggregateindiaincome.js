@@ -73,5 +73,35 @@ WISING.PROFILES.forEach(function (p) {
 });
 
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
-console.log(pass + " passed, " + fail + " failed");
+
+// ---- IN-38: DTAA worldwide-cede must exclude foreign financial holdings,
+// same as ROR alone already does. NOT checked against WISING.analyze() —
+// the real engine's own isIndiaRor gate doesn't have this fix yet (flagged,
+// not yet built, in GAP_TRACKER.md IN-38), so comparing against it here
+// would assert the DAG matches a known-wrong answer. Standalone synthetic
+// case instead, same approach used throughout this effort whenever real
+// profiles/the real engine can't serve as ground truth. ----------------
+console.log("-- IN-38: DTAA worldwide-cede excludes foreign financial holdings (standalone, not checked against the real engine — see comment) --");
+(function () {
+  var baseIndia = {
+    residency_detail: { final_india_residency_status: "ROR" },
+    financial_holdings: { transactions: [{
+      asset_class: "listed_equity", sale_date: "2026-01-15", sale_value: 500000, purchase_value: 200000,
+      acquisition_date: "2020-01-01", quantity: 100
+    }] }
+  };
+  var ctxNotCeded = { router: {}, india: baseIndia, us: {} };
+  var outNotCeded = graph.resolve(["capitalGainsComputation"], ctxNotCeded).values.capitalGainsComputation;
+  check("ROR, not ceded: foreign/financial holdings gain included (ltcgInr > 0)", outNotCeded.ltcgInr > 0,
+    "ltcgInr=" + outNotCeded.ltcgInr);
+
+  var cededIndia = JSON.parse(JSON.stringify(baseIndia));
+  cededIndia.residency_detail.dtaa_worldwide_ceded = true;
+  var ctxCeded = { router: {}, india: cededIndia, us: {} };
+  var outCeded = graph.resolve(["capitalGainsComputation"], ctxCeded).values.capitalGainsComputation;
+  check("ROR, DTAA-ceded: same financial holdings gain now excluded (ltcgInr === 0)", outCeded.ltcgInr === 0,
+    "ltcgInr=" + outCeded.ltcgInr);
+})();
+
+console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail > 0 ? 1 : 0);

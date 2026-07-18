@@ -147,6 +147,26 @@ never reads) than this doc's (engine vs. DAG parity) for the underlying
 gap in `normalize.js` itself — not in `GAP_TRACKER.md` today, checked —
 but the DAG-side consequence (this consistency check) is closed here.
 
+**Follow-up, same session: the engine caught up on the field reads
+(GAP_TRACKER.md IN-37), which surfaced a real, live regression in BOTH
+the engine and this DAG (IN-38).** `aggregateIndiaIncome`'s (and this
+DAG's `aggregateindiaincome-nodes.js`'s own port of it) `isIndiaRor` gate
+— the only mechanism that excludes foreign `financial_holdings` from
+India's taxable total — checks `status === "ROR"` only, never the treaty-
+cede fact. Before the Layer 1 DTAA-conflation fix this was accidentally
+masked (status collapsing to `"NR"` on a US tie-break zeroed the gate for
+the wrong reason); now that the conflation is fixed on both sides, the
+gate needs its own explicit fix, which it didn't have. Closed here in the
+DAG (`isIndiaRor = status === "ROR" && !dtaaWorldwideCeded`, a new
+`indiaDtaaWorldwideCededAgg` raw leaf reading the same
+`residency_detail.dtaa_worldwide_ceded` fact the Layer 1 fix produces) —
+verified with a standalone synthetic case in `run-aggregateindiaincome.js`
+(181/181), deliberately NOT checked against `WISING.analyze()` for this
+one scenario, since the real engine doesn't have this fix yet (still open
+as GAP_TRACKER.md IN-38) and would assert a known-wrong answer. The two
+sides are now intentionally, temporarily out of sync on this one point —
+recorded here so it isn't mistaken for silent drift.
+
 **Status legend:** ✅ ported & verified (diffed against the real function, not
 just same-named) · 🟡 partial · 🔶 boundary-only (the DAG *consumes* the
 engine's output for this as a `ctx` input rather than re-deriving it — looks
