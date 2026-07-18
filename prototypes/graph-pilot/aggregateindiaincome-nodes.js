@@ -13,6 +13,17 @@
  * >24mo, financial_holdings across GROUP_A/C/D/E/G/XII-A, commodities,
  * unlisted equity), and otherSourcesMisc's full formula.
  *
+ * holdingPeriodMismatches (flagged as an open gap during the "have you
+ * considered everything" audit) is now also ported — the buy-back and
+ * foreign-equity loops in capitalGainsComputation build this array
+ * alongside their existing gain totals, matching normalize.js's own
+ * interleaving exactly (same loop, same push() calls). It's a raw side-
+ * output only: the actual holding_period_mismatch_* FINDING in
+ * conflicts.js additionally calls the real computeUsTax twice per mismatch
+ * to price the dollar impact — that recompute-and-diff step is not part of
+ * this boundary and stays out of scope here, same as every other finding
+ * built on top of a closed boundary in this effort.
+ *
  * Self-contained — does not import in1-nodes-v2.js/v3.js, to avoid
  * cross-file dependency-ordering assumptions; some nodes here duplicate
  * logic already proven in earlier phases (annualSlice, business-entry
@@ -162,6 +173,7 @@ function toInrAtCurrency(amount, currency, usdToInrRate) {
   if (currency === "USD") return amt * usdToInrRate;
   return null;
 }
+function inrToUsd(inr) { return num(inr) / 83.0; }
 
 var GROUP_A_CLASSES = ["listed_equity", "equity_mutual_fund", "hybrid_mf_equity", "reit_invit", "etf"];
 var GROUP_C_CLASSES = ["debt_mutual_fund_pre_apr23", "hybrid_mf_debt", "international_mf", "fof"];
@@ -261,6 +273,7 @@ var NODES = {
       var buybackStcgInr = num(safe(annualCg, "buyback_stcg_inr", 0));
       var buybackStcgSlabInr = num(safe(os, "buyback_stcg_slab_inr", 0));
       var buybackLtcg197Inr = 0, promoterBuybackLtcgInr = 0, promoterBuybackStcgInr = 0;
+      var holdingPeriodMismatches = [];
       buybackTxs.forEach(function (bb) {
         if (bb.buyback_pre_or_post_oct2024 === "post_oct2024") { deemedDividendInr += num(bb.consideration_received_inr); }
         else if (bb.buyback_pre_or_post_oct2024 === "capital_gains_era") {
@@ -272,6 +285,19 @@ var NODES = {
             buybackStcgInr += g;
             if (bb.is_promoter && g > 0) promoterBuybackStcgInr += g;
           } else if (bb.gain_classification === "stcg_slab") { buybackStcgSlabInr += g; }
+
+          var bbMonths = monthsBetween(bb.original_acquisition_date, bb.buyback_date);
+          if (bbMonths !== null && g > 0 && bb.gain_classification) {
+            var bbUsClassification = bbMonths > 12 ? "ltcg" : "stcg";
+            var bbIndiaClassification = bb.gain_classification === "ltcg" ? "ltcg" : "stcg";
+            if (bbUsClassification !== bbIndiaClassification) {
+              holdingPeriodMismatches.push({
+                companyName: bb.company_name || "Unnamed company", isListed: !!bb.is_listed, monthsHeld: bbMonths,
+                gainInr: g, gainUsd: inrToUsd(g), indiaClassification: bbIndiaClassification, usClassification: bbUsClassification,
+                indiaThresholdMonths: bb.is_listed ? 12 : 24, sourceType: "buyback"
+              });
+            }
+          }
         }
       });
 
@@ -287,7 +313,18 @@ var NODES = {
         var months = monthsBetween(tx.acquisition_date, tx.sale_date);
         if (months === null) return;
         var g = saleInr - purchaseInr - num(tx.transfer_expenses);
-        if (months > 24) foreignEquityLtcg197Inr += g; else foreignEquityStcgSlabInr += g;
+        var feIndiaClassification = months > 24 ? "ltcg" : "stcg";
+        if (feIndiaClassification === "ltcg") foreignEquityLtcg197Inr += g; else foreignEquityStcgSlabInr += g;
+        if (g > 0) {
+          var feUsClassification = months > 12 ? "ltcg" : "stcg";
+          if (feUsClassification !== feIndiaClassification) {
+            holdingPeriodMismatches.push({
+              companyName: tx.asset_name_or_ticker || "Unnamed foreign holding", isListed: false, monthsHeld: months,
+              gainInr: g, gainUsd: inrToUsd(g), indiaClassification: feIndiaClassification, usClassification: feUsClassification,
+              indiaThresholdMonths: 24, sourceType: "foreign_equity"
+            });
+          }
+        }
       });
 
       var chapterXiiaElected = safe(india, "compliance_docs.chapter_xiia_elected", false) === true;
@@ -376,7 +413,8 @@ var NODES = {
         stcgInr: stcgInr, ltcgInr: ltcgInr, ltcg197Inr: ltcg197Inr, stcgSlabInr: stcgSlabInr,
         vdaGainInr: vdaGainInr, vdaSaleConsiderationInr: vdaSaleConsiderationInr,
         chapterXiiaInvestmentIncomeInr: chapterXiiaInvestmentIncomeInr,
-        deemedDividendInr: deemedDividendInr, promoterBuybackLtcgInr: promoterBuybackLtcgInr, promoterBuybackStcgInr: promoterBuybackStcgInr
+        deemedDividendInr: deemedDividendInr, promoterBuybackLtcgInr: promoterBuybackLtcgInr, promoterBuybackStcgInr: promoterBuybackStcgInr,
+        holdingPeriodMismatches: holdingPeriodMismatches
       };
     }
   },

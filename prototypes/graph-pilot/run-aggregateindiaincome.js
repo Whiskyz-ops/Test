@@ -53,6 +53,19 @@ WISING.PROFILES.forEach(function (p) {
   check("promoterBuybackLtcgInr matches exactly", close(cg.promoterBuybackLtcgInr, num(inc.promoterBuybackLtcgInr)), "graph=" + Math.round(cg.promoterBuybackLtcgInr) + " model=" + Math.round(num(inc.promoterBuybackLtcgInr)));
   check("deemedDividendInr matches exactly", close(cg.deemedDividendInr, num(inc.deemedDividendBuyback && inc.deemedDividendBuyback.inr)));
 
+  var realMismatches = inc.holdingPeriodMismatches || [];
+  check("holdingPeriodMismatches count matches", cg.holdingPeriodMismatches.length === realMismatches.length,
+    "graph=" + cg.holdingPeriodMismatches.length + " model=" + realMismatches.length);
+  cg.holdingPeriodMismatches.forEach(function (mm, i) {
+    var rm = realMismatches[i];
+    if (!rm) return;
+    check("holdingPeriodMismatches[" + i + "] matches exactly (" + mm.companyName + ")",
+      mm.sourceType === rm.sourceType && mm.indiaClassification === rm.indiaClassification &&
+      mm.usClassification === rm.usClassification && close(mm.gainInr, rm.gainInr) && close(mm.gainUsd, rm.gainUsd, 0.5) &&
+      mm.indiaThresholdMonths === rm.indiaThresholdMonths && mm.isListed === rm.isListed,
+      "graph=" + JSON.stringify(mm) + " model=" + JSON.stringify(rm));
+  });
+
   check("otherSourcesMisc matches exactly", close(out.otherSourcesMiscComputation, num(inc.otherSourcesMisc && inc.otherSourcesMisc.inr)), "graph=" + Math.round(out.otherSourcesMiscComputation) + " model=" + Math.round(num(inc.otherSourcesMisc && inc.otherSourcesMisc.inr)));
 
   check("totalIndiaIncomeInr matches model.income.india.total.inr exactly", close(out.totalIndiaIncomeInr, num(inc.total && inc.total.inr)), "graph=" + Math.round(out.totalIndiaIncomeInr) + " model=" + Math.round(num(inc.total && inc.total.inr)));
