@@ -303,10 +303,24 @@ var engineNums = new Set();
     (line.match(/\b\d+(?:\.\d+)?\b/g) || []).forEach(function (n) { engineNums.add(Number(n)); });
   });
 });
+// Quoted string contents (finding titles/detail/refs prose — e.g. a legal
+// citation like "IRC 7701(b)(3)") are excluded from the drift scan below.
+// This check exists for "the DAG's hand-copied constant tables" (see file
+// header) — actual rates/caps/thresholds used in arithmetic, which never
+// live inside a quoted string in this codebase's style (every real
+// constant table here is a bare numeric literal in an object/array). A
+// citation number in prose isn't a hand-copied constant and has nothing to
+// drift against; scanning it only produces false positives. Left
+// unstripped on the engine side (engineNums, above) is intentionally safe
+// either way — more inclusion there can only reduce false positives, never
+// hide a real one.
+function stripStringLiterals(line) {
+  return line.replace(/"(?:[^"\\]|\\.)*"/g, "\"\"").replace(/'(?:[^'\\]|\\.)*'/g, "''");
+}
 var drifted = [];
 NODE_FILES.forEach(function (f) {
   codeLines(path.join(ROOT, "prototypes", "graph-pilot", f)).forEach(function (line, i) {
-    (line.match(/\b\d+(?:\.\d+)?\b/g) || []).forEach(function (n) {
+    (stripStringLiterals(line).match(/\b\d+(?:\.\d+)?\b/g) || []).forEach(function (n) {
       var v = Number(n);
       var significant = Math.abs(v) >= 100 || (v > 0 && v < 1 && n.indexOf(".") !== -1);
       if (significant && !engineNums.has(v) && !drifted.some(function (d) { return d.v === v && d.f === f; })) {
