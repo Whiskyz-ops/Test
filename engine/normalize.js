@@ -792,8 +792,23 @@
     // when the taxpayer is a ROR this year — otherwise the gain isn't in
     // India's tax net at all, and neither is a "characterization mismatch"
     // (India isn't taxing it, so there's nothing to characterize).
+    // ROR alone isn't the whole test: a domestically-ROR taxpayer who ties
+    // the DTAA Article 4 test to the US has ceded WORLDWIDE taxation to the
+    // treaty, even though domestic residential status (this ROR label) is
+    // unaffected by that treaty position (see the DTAA-conflation fix in
+    // layer1_india.html's runResidencySolver() — same session — which
+    // stopped writing the treaty outcome into final_india_residency_status
+    // itself and started tracking it as its own fact here instead). Before
+    // that fix, this gate accidentally excluded foreign income anyway,
+    // because status used to collapse to "NR" on the same tie-break — right
+    // answer, wrong mechanism, and it broke ~20 other domestic-law-only
+    // checks in that file that all expected pure, treaty-independent
+    // status. Now that status stays correct, this gate needs its own
+    // explicit treaty check to keep excluding foreign income the way it
+    // did before, for the right reason this time.
     var isIndiaRor = safe(india, "residency_detail.final_india_residency_status", null) === CONST.INDIA_STATUS.ROR;
-    var financialHoldingsTxs = isIndiaRor ? (safe(india, "financial_holdings.transactions", []) || []) : [];
+    var dtaaWorldwideCeded = safe(india, "residency_detail.dtaa_worldwide_ceded", false) === true;
+    var financialHoldingsTxs = (isIndiaRor && !dtaaWorldwideCeded) ? (safe(india, "financial_holdings.transactions", []) || []) : [];
     var foreignEquityLtcg197Inr = 0, foreignEquityStcgSlabInr = 0;
     function toInrAtCurrency(amount, currency) {
       var amt = num(amount);

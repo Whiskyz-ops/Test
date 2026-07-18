@@ -75,32 +75,44 @@ WISING.PROFILES.forEach(function (p) {
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 
 // ---- IN-38: DTAA worldwide-cede must exclude foreign financial holdings,
-// same as ROR alone already does. NOT checked against WISING.analyze() —
-// the real engine's own isIndiaRor gate doesn't have this fix yet (flagged,
-// not yet built, in GAP_TRACKER.md IN-38), so comparing against it here
-// would assert the DAG matches a known-wrong answer. Standalone synthetic
-// case instead, same approach used throughout this effort whenever real
-// profiles/the real engine can't serve as ground truth. ----------------
-console.log("-- IN-38: DTAA worldwide-cede excludes foreign financial holdings (standalone, not checked against the real engine — see comment) --");
+// same as ROR alone already does. Now checked against WISING.analyze()
+// directly — the real engine has this fix too (GAP_TRACKER.md IN-38,
+// closed on both sides in the same session). Uses foreign_equity_unlisted
+// specifically, not listed_equity: in the real engine, isIndiaRor only
+// gates a foreign_equity_unlisted-specific read (normalize.js ~809-811);
+// listed_equity/mutual funds/bonds/etc. go through a second, deliberately
+// UNGATED read further down (normalize.js ~995) because India-registered
+// instruments are India-source and stay taxable regardless of residency.
+// A listed_equity test would exercise that ungated path and show no
+// difference between ceded/not-ceded — confirmed by hand while verifying
+// the engine-side fix. The gain lands in ltcg197Inr here (>24mo foreign
+// holding), not ltcgInr — matches how the engine reports it too. --------
+console.log("-- IN-38: DTAA worldwide-cede excludes foreign financial holdings --");
 (function () {
   var baseIndia = {
     residency_detail: { final_india_residency_status: "ROR" },
     financial_holdings: { transactions: [{
-      asset_class: "listed_equity", sale_date: "2026-01-15", sale_value: 500000, purchase_value: 200000,
+      asset_class: "foreign_equity_unlisted", sale_date: "2026-01-15", sale_value: 500000, purchase_value: 200000,
       acquisition_date: "2020-01-01", quantity: 100
     }] }
   };
   var ctxNotCeded = { router: {}, india: baseIndia, us: {} };
   var outNotCeded = graph.resolve(["capitalGainsComputation"], ctxNotCeded).values.capitalGainsComputation;
-  check("ROR, not ceded: foreign/financial holdings gain included (ltcgInr > 0)", outNotCeded.ltcgInr > 0,
-    "ltcgInr=" + outNotCeded.ltcgInr);
+  var rNotCeded = WISING.analyze({ router: {}, india: baseIndia, us: {} });
+  check("ROR, not ceded: foreign holdings gain included (ltcg197Inr > 0)", outNotCeded.ltcg197Inr > 0,
+    "ltcg197Inr=" + outNotCeded.ltcg197Inr);
+  check("ROR, not ceded: DAG matches engine exactly", close(outNotCeded.ltcg197Inr, num(rNotCeded.model.income.india.ltcg197Inr)),
+    "graph=" + outNotCeded.ltcg197Inr + " model=" + rNotCeded.model.income.india.ltcg197Inr);
 
   var cededIndia = JSON.parse(JSON.stringify(baseIndia));
   cededIndia.residency_detail.dtaa_worldwide_ceded = true;
   var ctxCeded = { router: {}, india: cededIndia, us: {} };
   var outCeded = graph.resolve(["capitalGainsComputation"], ctxCeded).values.capitalGainsComputation;
-  check("ROR, DTAA-ceded: same financial holdings gain now excluded (ltcgInr === 0)", outCeded.ltcgInr === 0,
-    "ltcgInr=" + outCeded.ltcgInr);
+  var rCeded = WISING.analyze({ router: {}, india: cededIndia, us: {} });
+  check("ROR, DTAA-ceded: same financial holdings gain now excluded (ltcg197Inr === 0)", outCeded.ltcg197Inr === 0,
+    "ltcg197Inr=" + outCeded.ltcg197Inr);
+  check("ROR, DTAA-ceded: DAG matches engine exactly", close(outCeded.ltcg197Inr, num(rCeded.model.income.india.ltcg197Inr)),
+    "graph=" + outCeded.ltcg197Inr + " model=" + rCeded.model.income.india.ltcg197Inr);
 })();
 
 console.log("\n" + pass + " passed, " + fail + " failed");
