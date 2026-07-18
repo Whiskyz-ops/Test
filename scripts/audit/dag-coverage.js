@@ -44,8 +44,8 @@ var ROOT = path.join(__dirname, "..", "..");
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js",
   "entitytax-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
-  "india-tax-combined-nodes.js", "scope-nodes.js", "us1-nodes.js",
-  "us5-nodes.js", "ustax-nodes.js", "xb7-nodes.js"
+  "india-full-nodes.js", "india-tax-combined-nodes.js", "scope-nodes.js",
+  "us1-nodes.js", "us5-nodes.js", "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js"
 ];
 function m(row, status, dagFiles, knownMissing) { return { row: row, status: status, dagFiles: dagFiles || ["*"], knownMissing: knownMissing || [] }; }
 var MAP = {
@@ -70,18 +70,17 @@ var MAP = {
     computeGoodsVehiclePresumptiveInr: m("AGG-1", "ported", ["aggregateindiaincome-nodes.js"]),
     businessEntryIncomeTrace: m("AGG-1", "ported", ["aggregateindiaincome-nodes.js"]),
     /* AGG-1 knownMissing (found by this script's first run, 19 Jul 2026 —
-     * see tracker AGG-1 Detail): three side-channel outputs the income-total
-     * port skipped because run-aggregateindiaincome.js's 165 checks cover
-     * income figures, not metadata fields. Each feeds a downstream consumer
-     * that is itself unported, which is how they stayed invisible:
+     * see tracker AGG-1 Detail): originally three side-channel outputs the
+     * income-total port skipped because run-aggregateindiaincome.js's 165
+     * checks cover income figures, not metadata fields. The
+     * holdingPeriodMismatches[] side-channel was closed (ported, verified
+     * 179/179 in run-aggregateindiaincome.js) — removed from this list.
+     * Two remain:
      *   agricultural_income_inr  -> inc.agriculturalIncomeInr -> computeIndiaItrForm (XBR-6) ITR-1 disqualifier
      *   unexplained_income_115BBE_inr -> inc.unexplained115bbeInr -> s115bbe_unexplained_income finding (CFL-6)
-     *   original_acquisition_date/buyback_date/company_name/asset_name_or_ticker
-     *     -> inc.holdingPeriodMismatches[] -> holding_period_mismatch_ finding (CFL-6)
      * Remove an entry here ONLY when the DAG actually ports it. */
     aggregateIndiaIncome: m("AGG-1", "ported", ["aggregateindiaincome-nodes.js"],
-      ["agricultural_income_inr", "unexplained_income_115BBE_inr",
-       "original_acquisition_date", "buyback_date", "company_name", "asset_name_or_ticker"]),
+      ["agricultural_income_inr", "unexplained_income_115BBE_inr"]),
     s80eeaEeCapInr: m("AGG-2", "ported", ["in1-nodes-v3.js"]),
     aggregateIndiaDeductions: m("AGG-2", "ported", ["in1-nodes-v3.js"]),
     computeSelfEmploymentNetProfitUsd: m("AGG-3", "ported", ["aggregateusincome-nodes.js"]),
@@ -130,7 +129,14 @@ var MAP = {
     crossBasis: m("XBR-4", "missing"),
     computeApportionment: m("XBR-5", "missing"),
     computeIndiaItrForm: m("XBR-6", "missing"),
-    compute: m("TAX-10", "missing")
+    /* TAX-10 (wiring AGG-1/AGG-3 into TAX-1/TAX-5) closed 19 Jul 2026:
+     * india-full-nodes.js and us-full-nodes.js merge the income-aggregation
+     * and tax-computation node sets and redefine every boundary node to
+     * read the merged subgraph instead of ctx.model. compute() itself has
+     * no snake_case/safe() reads of its own (this mapping is a place to
+     * hang the row's status, not a real field-diff target — its own body
+     * is pure camelCase orchestration, so this check is trivially 0/0). */
+    compute: m("TAX-10", "ported", ["india-full-nodes.js", "us-full-nodes.js"])
   },
   "monitoring.js": {
     addDays: m("util", "util"), fmtDate: m("util", "util"),

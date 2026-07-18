@@ -45,6 +45,19 @@ now downgraded and itemized in AGG-1 and TAX-1 below, and recorded in the
 script's `knownMissing` lists (remove an entry there only when the DAG
 actually ports it).
 
+**TAX-10 closed, and AGG-1 narrowed, 19 July 2026:** `india-full-nodes.js`
+and `us-full-nodes.js` now physically wire the two income-aggregation graphs
+into their respective tax-computation graphs — the highest-leverage open
+item this tracker's own §H called out first. Same pass also closed one of
+AGG-1's three recorded side-channels: `capitalGainsComputation` in
+`aggregateindiaincome-nodes.js` now builds `holdingPeriodMismatches[]`
+inline in the same buy-back/foreign-equity loops normalize.js uses,
+verified 179/179 in `run-aggregateindiaincome.js` (3 real mismatches found
+in the demo data, not a vacuous pass). `npm run audit:dag` re-run clean
+after both changes (`MAP` updated: `compute()` → TAX-10 `"ported"`, AGG-1's
+`knownMissing` down to the two remaining side-channels). See TAX-10 and
+AGG-1 rows below for detail.
+
 **Status legend:** ✅ ported & verified (diffed against the real function, not
 just same-named) · 🟡 partial · 🔶 boundary-only (the DAG *consumes* the
 engine's output for this as a `ctx` input rather than re-deriving it — looks
@@ -69,7 +82,7 @@ comments say so — an honest gap, not an accidental one)
 
 | ID | Item | Status | DAG file | Effort | Detail |
 |---|---|---|---|---|---|
-| AGG-1 | `aggregateIndiaIncome` | 🟡 | `aggregateindiaincome-nodes.js` | 🟢 | **Downgraded from ✅ on 19 Jul 2026** by `audit:dag`'s first run: the income-figure port is complete and verified (`run-aggregateindiaincome.js` 165/165 across 11 profiles), but the engine function also emits three **side-channel outputs the DAG never reads or reproduces**: (1) `agricultural_income_inr` → `inc.agriculturalIncomeInr`, the ITR-1 disqualifier `computeIndiaItrForm` (XBR-6) consumes; (2) `unexplained_income_115BBE_inr` → `inc.unexplained115bbeInr`, sole trigger of the `s115bbe_unexplained_income` finding (CFL-6); (3) the whole `holdingPeriodMismatches[]` build (`original_acquisition_date`/`buyback_date`/`company_name`/`asset_name_or_ticker` reads, normalize.js L719-830) — the India-vs-US LTCG/STCG classification-conflict list behind the `holding_period_mismatch_` finding (CFL-6). These stayed invisible precisely because the 165 runner checks cover income figures, not metadata fields, and every downstream consumer is itself unported — the exact blind-spot class a runner-only verification can't catch. Recorded in `dag-coverage.js`'s `knownMissing` list; remove entries there only when actually ported. The ~13 internal sub-helpers were additionally confirmed by the mechanical read-diff (94/100 reads present; the 6 missing are exactly the side-channels above). |
+| AGG-1 | `aggregateIndiaIncome` | 🟡 | `aggregateindiaincome-nodes.js` | 🟢 | **Downgraded from ✅ on 19 Jul 2026** by `audit:dag`'s first run: the income-figure port is complete and verified (`run-aggregateindiaincome.js` 165/165 across 11 profiles), but the engine function also emitted three **side-channel outputs the DAG didn't read or reproduce**. **One of three closed, same day:** `holdingPeriodMismatches[]` (`original_acquisition_date`/`buyback_date`/`company_name`/`asset_name_or_ticker` reads, normalize.js L719-830 — the India-vs-US LTCG/STCG classification-conflict list behind the `holding_period_mismatch_` finding, CFL-6) is now built inline inside `capitalGainsComputation`'s existing buy-back/foreign-equity loops, verified 179/179 in `run-aggregateindiaincome.js` (count + every field checked against the real array; 3 real mismatches in the demo data — AMZN, NVDA, Nova Systems Pvt Ltd — confirming the pass isn't vacuous). Two remain open: (1) `agricultural_income_inr` → `inc.agriculturalIncomeInr`, the ITR-1 disqualifier `computeIndiaItrForm` (XBR-6) consumes; (2) `unexplained_income_115BBE_inr` → `inc.unexplained115bbeInr`, sole trigger of the `s115bbe_unexplained_income` finding (CFL-6). Both stayed invisible for the same reason the third one did — the 165/179 runner checks cover income figures, not these metadata fields, and each downstream consumer is itself unported. Recorded in `dag-coverage.js`'s `knownMissing` list (now 2 entries, was 6 field-path entries representing the 3 side-channels); remove an entry there only when actually ported. The ~13 internal sub-helpers were additionally confirmed by the mechanical read-diff (now 98/100 reads present; the 2 missing are exactly the two remaining side-channels above). |
 | AGG-2 | `aggregateIndiaDeductions` | ✅ | `in1-nodes-v3.js` (`dedS80C`/`dedS80CCD1B`/`dedS80D`/`dedS80TTA_TTB`/`dedS80DD`/`dedS80DDB`/`dedS80U`/`dedS80E`/`dedS80EEA_EE`/`dedS80GGB_GGC`/`dedS80GGRentPaidInr`, ~L235-246) | — | Diffed line-for-line against `normalize.js:1264-1307` — identical field paths, identical caps/flat-amount tables. |
 | AGG-3 | `aggregateUsIncome` | ✅ | `aggregateusincome-nodes.js` | — | Full port incl. MACRS/§179/bonus depreciation (`computeAssetDepreciationUsd`), K-1 passive aggregation across all 3 entity types. `run-aggregateusincome.js` personally re-run 19 Jul 2026: **385/385 field checks pass** across all 11 profiles (this number was previously only sourced from the commit message; now independently confirmed). |
 | AGG-4 | `aggregateUsDeductions` | ✅ | `ustax-nodes.js` (`dedUs`, ~L165-190) | — | Diffed line-for-line against `normalize.js:1801-1853` — identical, including the ISO-AMT-preference sub-computation. |
@@ -93,7 +106,7 @@ comments say so — an honest gap, not an accidental one)
 | TAX-7 | `computeUsEntityTax` (US C-corp/1120) | 📝 | — | 🟡 | `ustax-nodes.js`'s own header comment states this explicitly: "not ported, reporting only." `run-ustax.js` detects the one entity profile (`us_ccorp_indian_sub`) and skips comparison rather than asserting a wrong answer — honest, but the function itself does not exist in the DAG. |
 | TAX-8 | `computeNraTax` (1040-NR flat-tax path for NRAs with US-source FDAP) | 📝 | — | 🟡 | Same file, same comment: "not ported, reporting only," for the one NRA profile (`india_ror_us_income`). The `files1040nr` leaf node (`ustax-nodes.js` L133) is defined and then **never used as a dependency anywhere in the file** — a dead flag, consistent with the branch genuinely not existing. |
 | TAX-9 | `computeUsStateTax` (CA/NY state income tax) | ❌ | — | 🟢 | **Not scoped out anywhere, not mentioned in `ustax-nodes.js`'s own "what this covers" comment** even though that comment claims to port "`computeUsTax`'s entire body." A real function, called from `compute()` at `computation.js:1798`, whose output (`stateTax`) is part of the production result and drives the `state_income_tax` finding (US-12 in `GAP_TRACKER.md`, already shipped in the engine). Reads as an accidental miss, not a decision — flag this one first if closing gaps in order of "surprise." |
-| TAX-10 | Wiring AGG-1/AGG-3's output graphs into TAX-1/TAX-5's tax-computation graphs | ❌ | — | 🔴 | Both income-aggregation graphs and both tax-computation graphs exist as **separate, unconnected** node sets today. `ustax-nodes.js` still takes `model.income.us` as a `ctx` boundary rather than resolving `aggregateusincome-nodes.js`'s own `aggregateUsIncomeResult` node; same on the India side. Stated as open work in the most recent commit (`1a2ef92`) — restated here so it's tracked in one place rather than only in a commit message. This is the single highest-leverage item: closing it turns four standalone proofs into one real replacement chain for `normalize()` + `computeIndiaTax`/`computeUsTax` combined. |
+| TAX-10 | Wiring AGG-1/AGG-3's output graphs into TAX-1/TAX-5's tax-computation graphs | ✅ | `india-full-nodes.js`, `us-full-nodes.js` | — | **Closed 19 Jul 2026.** India side: `india-full-nodes.js` merges `aggregateindiaincome-nodes.js` + `in1-nodes-v3.js` + `entitytax-nodes.js` and redefines all 13 explicit boundary nodes (`businessInrBoundaryV3`, `stcgInrBoundary`, `ltcgInrBoundary`, etc., `entityTaxableInrBoundary` included) to read the merged income subgraph's own output nodes instead of `ctx.model.income.india` — confirmed by grep that this leaves ZERO remaining `ctx.model`/`ctx.computed` reads in the individual/HUF or entity path. Verified via `run-india-full.js` with `ctx` deliberately carrying only `{router, india, us}` (no `model`/`computed`, to prove the boundary is actually gone, not just unused): **22/22** across all 11 profiles, both `totalTaxInr` and regime label, including all 3 entity/company profiles (the old `in1-nodes-v3.js`-only runner never covered those). US side: `us-full-nodes.js` merges `aggregateusincome-nodes.js` + `ustax-nodes.js`, redefines the one boundary node `incUs` to read `aggregateUsIncomeResult` — its `compute()` now takes no `ctx` parameter at all, a structural (not just empirical) guarantee. Verified via `run-us-full.js`: **81/81** on the 9 individual/resident profiles, identical to `ustax-nodes.js`'s own pre-wiring result (entity/NRA profiles still reported, not asserted — TAX-7/TAX-8 unchanged). `usEntityKind`/`worldwideUs`/`baseYearUs` deliberately NOT swept into this wiring — entity classification and residency determination are separate machinery (see XBR-1), left as real open boundaries rather than silently absorbed. |
 
 ## C. Cross-border reconciliation (`engine/computation.js`, continued)
 
@@ -156,30 +169,30 @@ logic by line count, and the other half of the product's value prop
 
 ## G. Buildability summary
 
-Counted mechanically from every row's own Status cell across A-E (SYS rows in F excluded — they're risks, not coverage gaps; CFL-6 counts as one row here even though it represents 48 individual findings — see its own caveat). Recounted 19 Jul 2026 after `audit:dag`'s first run moved AGG-1 from ✅ to 🟡.
+Counted mechanically from every row's own Status cell across A-E (SYS rows in F excluded — they're risks, not coverage gaps; CFL-6 counts as one row here even though it represents 48 individual findings — see its own caveat). Recounted 19 Jul 2026, first after `audit:dag`'s first run moved AGG-1 from ✅ to 🟡, again same day after TAX-10 closed (❌ → ✅).
 
 | Bucket | Count (rows) |
 |---|---|
-| ✅ Ported & verified | 14 |
+| ✅ Ported & verified | 15 |
 | 🟡 Partial (ported with recorded gaps) | 1 (AGG-1) |
 | 🔶 Boundary-only (looks covered, isn't) | 4 |
 | 📝 Explicitly scoped out (documented) | 2 |
-| ❌ Not ported, no DAG reference | 19 (of which CFL-6 alone stands in for 48 individual findings) |
+| ❌ Not ported, no DAG reference | 18 (of which CFL-6 alone stands in for 48 individual findings) |
 | **Total rows** | **40** |
 
 By subsystem, share of engine logic with zero DAG reference:
-- **Income/deduction aggregation (A):** mostly closed — 3 rows ✅ plus AGG-1 🟡 (six specific side-channel reads short of full), the rest are smaller withholding/equity-comp utility functions.
-- **Core tax computation, resident path (B):** essentially closed for individuals — the two open items (TAX-9 state tax, TAX-10 wiring) are both 🟢/🔴 rather than large builds.
+- **Income/deduction aggregation (A):** mostly closed — 3 rows ✅ plus AGG-1 🟡 (two specific side-channel reads short of full, down from six), the rest are smaller withholding/equity-comp utility functions.
+- **Core tax computation, resident path (B):** essentially closed for individuals — TAX-10 (wiring) is now ✅; the one remaining open item, TAX-9 (state tax), is 🟢 effort rather than a large build.
 - **Cross-border reconciliation (C):** ~0% — the section carrying the product's headline FTC claim is the least-built area in the entire DAG.
 - **Limits & monitoring (D):** ~0% (1 of 7 rows even partially touched).
 - **Conflict rule-book (E):** ~9% by finding count (5 of 53).
 
 ## H. Suggested closing order
 
-1. **TAX-10 (wire the four existing graphs together)** — highest leverage, zero new tax logic, turns four standalone proofs into one real chain. Do this before adding more nodes on top of the current split state (F/SYS-1 risk grows with every file added on the wrong side of this).
+1. ~~**TAX-10 (wire the four existing graphs together)**~~ **CLOSED 19 Jul 2026** — `india-full-nodes.js`/`us-full-nodes.js`, verified 22/22 + 81/81. Was the highest-leverage item (zero new tax logic, turned four standalone proofs into two real chains); do the remaining items below on TOP of the now-wired state, not the old split one.
 2. **TAX-9 (`computeUsStateTax`)** — small, self-contained, currently the only *undocumented* gap in an otherwise mostly-complete section; closing it turns B into a genuinely complete section.
-3. **AGG-1's six recorded side-channel reads + AGG-6/7/8/9 (remaining `normalize.js` work)** — same shape as the already-closed aggregations, small, no new pattern needed; closing the AGG-1 leftovers also empties its `knownMissing` list in `dag-coverage.js`, restoring that row to a clean ✅ the script enforces. |
+3. **AGG-1's two remaining recorded side-channel reads (`agricultural_income_inr`, `unexplained_income_115BBE_inr`) + AGG-6/7/8/9 (remaining `normalize.js` work)** — same shape as the already-closed aggregations, small, no new pattern needed; closing the AGG-1 leftovers also empties its `knownMissing` list in `dag-coverage.js`, restoring that row to a clean ✅ the script enforces. (Its third leftover, `holdingPeriodMismatches[]`, closed 19 Jul 2026 alongside TAX-10.)
 4. **LIM-1..6 (limit gauges)** — the underlying math for most of these already exists elsewhere in the DAG (`feieEligibility` for LIM-5, `computeLrsTcs` once AGG-8 lands for LIM-3/4); this is largely wiring, not new tax logic.
 5. **XBR-1 (residency tie-breaker) then XBR-2 (`computeFtc`)** — in that order, since FTC computation depends on a real (not boundary-read) residency determination. This is the highest-value, highest-effort pair in the whole tracker — closing it is what would let the DAG actually claim the product's headline feature.
-6. **CFL-6, in the same priority order `GAP_TRACKER.md` already uses for the underlying tax logic** — a finding is only worth porting once the computation it depends on exists in the DAG; don't port `ftc_gap` before XBR-2, don't port `state_income_tax` before TAX-9.
+6. **CFL-6, in the same priority order `GAP_TRACKER.md` already uses for the underlying tax logic** — a finding is only worth porting once the computation it depends on exists in the DAG; don't port `ftc_gap` before XBR-2, don't port `state_income_tax` before TAX-9. (`holding_period_mismatch_`'s underlying array is now ported — see AGG-1 — but the finding itself, which additionally recomputes `computeUsTax` twice to price the dollar impact, is still unported CFL-6 work.)
 7. **LIM-7 (compliance calendar) and CFL-7 (report assembly)** — last, since both are pure consumers of everything above and represent a genuinely new node shape (dates/formatting rather than tax arithmetic) worth prototyping once there's real output to render.
