@@ -4729,7 +4729,8 @@
             days_in_india_last_7_years_lte_729: null,
             india_source_income_above_15l: null,
             liable_to_tax_in_another_country_being_indian_citizen: false,
-            final_india_residency_status: 'ROR'
+            final_india_residency_status: 'ROR',
+            dtaa_worldwide_ceded: false
         },
         company_residency: {
             is_active_business: false,
@@ -5902,22 +5903,30 @@
             }
         }
 
-        if (state.dtaa.dtaa_treaty_residence === 'us') {
-            status = "NR";
-            path = "DTAA Article 4 Treaty Tie-Breaker to United States";
-            scope = "India-source income only (DTAA Article 4 non-resident status).";
+        // DTAA Article 4 tie-break to the United States governs TREATY taxing
+        // rights only — it does NOT change domestic residential status under
+        // s.6. "Losing" the tie-break doesn't stop someone being domestically
+        // resident for s.234B/234C advance-tax interest, PAN-Aadhaar linking,
+        // Schedule FA disclosure, s.44BB/other domestic eligibility tests, or
+        // any other domestic-law purpose — it only means worldwide income
+        // falls outside India's tax net under the treaty. Previously this
+        // block overwrote `status` itself to "NR", which silently corrupted
+        // every domestic-law check elsewhere in this file that reads
+        // final_india_residency_status (s.44BB eligibility, s.87A/156 rebate,
+        // domestic-company classification, and more all inspect this field
+        // expecting pure domestic status). Tracked as its own fact instead.
+        const dtaaWorldwideCeded = state.dtaa.dtaa_treaty_residence === 'us' || state.dtaa.dtaa_forced_nr === true;
+        state.residency_detail.dtaa_worldwide_ceded = dtaaWorldwideCeded;
+        if (dtaaWorldwideCeded) {
+            path += " + DTAA Article 4 Treaty Tie-Breaker to United States (worldwide-taxation scope ceded)";
+            scope = "India-source income only for treaty purposes (DTAA Article 4 ceded worldwide taxation to the United States). " +
+                "Domestic residential status (" + status + ") is unaffected — it still governs advance-tax interest, PAN-Aadhaar " +
+                "linking, Schedule FA disclosure, and every other domestic-law purpose.";
         }
 
-        // DTAA Tie Breaker Override
-        if (state.dtaa.dtaa_forced_nr === true || state.dtaa.dtaa_treaty_residence === 'us') {
-            status = 'NR';
-            path = "DTAA Article 4 Treaty Tie-Breaker to United States";
-            scope = "India-source income only (DTAA Article 4 non-resident status).";
-        }
-
-        // Apply derived lock
+        // Apply derived lock — pure domestic-law status, never treaty-tainted.
         state.residency_detail.final_india_residency_status = status;
-        
+
         // Render lock card UI
         const badge = document.getElementById('badge-lock-status');
         const certPath = document.getElementById('cert-statutory-path');
