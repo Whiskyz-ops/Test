@@ -85,6 +85,30 @@ entirely from the test harness. `npm run audit:dag` re-run clean (`MAP`:
 dropped, from 150 to 139 missing reads, since the raw residency/treaty
 fields this file reads are no longer nowhere-in-DAG).
 
+**New DAG-only finding added, same day: residency status vs. day-count
+consistency.** The residency assessment above surfaced a real product gap
+— the engine stores `daysCurrentYear`/`sptMet` right next to the trusted
+status and never cross-checks them (`monitoring.js` will render a
+progress-bar day count next to a status from an unrelated source with
+nothing to catch a contradiction). `residency-nodes.js` now also builds
+`residencyConsistencyFindings`, four new finding IDs with no
+`engine/conflicts.js` counterpart — see §E-bis below rather than the CFL
+table, since there's no engine baseline to be "at parity" with. Verified
+149/149 in `run-residency.js` (the original 132 XBR-1 checks, plus 11
+real-profile empty-findings checks — true negative — plus 6 synthetic
+cases proving each direction fires correctly).
+
+Building this also surfaced a real false positive in `audit:dag`'s own
+numeric-drift check: a legal citation ("IRC 7701(b)(3)") embedded in a
+finding's prose got flagged as if it were a hand-copied tax constant that
+had drifted from `engine/constants.js`. Fixed by excluding quoted-string
+contents from that specific scan (`stripStringLiterals` in
+`dag-coverage.js`) — legal citations and other prose numbers were never
+what SYS-1's drift check was meant to catch (real rate/cap/threshold
+tables in this codebase are always bare numeric literals, never inside a
+string), and the fix doesn't weaken the check: re-run confirmed zero drift
+across every other file, unchanged from before.
+
 **Status legend:** ✅ ported & verified (diffed against the real function, not
 just same-named) · 🟡 partial · 🔶 boundary-only (the DAG *consumes* the
 engine's output for this as a `ctx` input rather than re-deriving it — looks
@@ -184,6 +208,18 @@ logic by line count, and the other half of the product's value prop
 | CFL-5 | `schedule_fa_inconsistent` | ✅ | `xb7-nodes.js` (`scheduleFaInconsistentTrigger`, shared node) | Confirmed by `run-batch2.js`: "matches production's independent `schedule_fa_inconsistent` finding." |
 | CFL-6 | **The remaining 48 findings** | ❌ | — | No DAG reference for any of: `amt_applies`, `carry_forward_losses_not_applied`, `cfc`, `cfc_below_threshold`, `chapter_xiia_elected_no_holdings`, `chapter_xiia_investment_income_computed`, `chapter_xiia_investment_income_missing`, `covered_expat_gift_tax`, `cross_basis_summary`, `deemed_dividend_buyback_mismatch`, `dtaa_treaty_elections`, `dual_residency`, `dual_residency_resolved`, `entity_dual_residency_poem`, `equity_comp_sourcing`, `fbar_limit`, `feie_applied`, `feie_ineligible`, `firpta`, `foreign_gift_3520`, `form67_required`, `form_1099da_awareness`, `form_10iea`, `ftc_available`, `ftc_gap`, `fx_basis`, `holding_period_mismatch_`, `india_itr_form_mismatch`, `iso_3921`, `lrs_limit`, `niit_medicare_not_creditable`, `no_totalization_agreement`, `nra_fdap_flat_rate`, `nra_w8ben_missing`, `pan_not_linked_aadhaar`, `pe_article7`, `pfic`, `promoter_buyback_additional_tax`, `retirement_mismatch`, `s115bbe_unexplained_income`, `special_rate_gaming_winnings`, `state_income_tax`, `state_treaty_not_binding`, `tax_year_mismatch`, `transfer_pricing`, `treaty_docs_missing`, `trump_account_contribution_limit`, `withholding_documentation_gap`. **Caveat:** this list was built by extracting every `add("...")` call ID from `conflicts.js` and diffing against every DAG node/file name — a name-level inventory, not a per-finding logic audit (matches the "reported, not asserted" discipline used elsewhere in the DAG's own comments, applied here to the tracker itself). Several of these depend on gaps already listed above being closed first (e.g. `ftc_gap`/`ftc_available` need XBR-2; `state_income_tax` needs TAX-9). |
 | CFL-7 | Report-assembly layer: `buildDocuments`, `buildFtcReport`, `buildTaxComputation`, `buildWithholdingSummary`, `buildScopeNotes`, `buildReturnFormDetermination` | ❌ | — | Zero DAG reference. This is the layer that turns computed figures into the `WISING.analyze()` return shape (`{ summary, findings, documents, ftcReport, taxComputation, computed, model }` per `README.md`) — needed for the DAG to be a drop-in replacement even after every finding above is closed. |
+
+### E-bis. New DAG-only findings (no `engine/conflicts.js` counterpart)
+
+Everything in the table above tracks PARITY with an existing engine finding.
+This table is different on purpose — it's the one place in this doc for
+checks the DAG introduces that production doesn't have at all. Doesn't get
+a CFL-N id (there's no engine row to be "at parity" with) and isn't counted
+in section G's buildability totals, which are scoped to engine coverage.
+
+| Finding ID | DAG file | Added | Why |
+|---|---|---|---|
+| `residency_status_understated_india` / `_overstated_india` / `_understated_us` / `_overstated_us` | `residency-nodes.js` (`residencyConsistencyFindings`) | 19 Jul 2026 | Closing XBR-1 surfaced a real gap: the engine stores day-count facts (`daysCurrentYear`, `sptMet`) right next to the trusted residency-status conclusion and never cross-checks them — `monitoring.js` will render a "210 of 182 days" progress bar next to a status that came from an entirely different source, with nothing to catch the contradiction. This checks two implications per country chosen specifically because they hold under every variant of the rule (days ≥182/183 but marked non-resident; days at 0 or below the 31-day SPT floor but marked resident) — not a re-derivation of residency status itself, which would need multi-year day-count history and qualitative facts (s.6(1A)'s 9-of-10-years lookback, SPT's 3-year weighted formula) this engine doesn't collect at all. Two of the four directions have a real, unmodeled legal exception (India s.6(1A) deemed-residency; US SPT exempt-individual visa status) and are worded as "verify," not "wrong," rather than overclaiming certainty. Verified in `run-residency.js`: zero findings across all 11 real profiles (true-negative — confirms the entity-kind/citizen gates correctly exclude the 3 company/HUF profiles and citizen profiles, whose raw data either lacks a day-count field entirely or makes SPT moot) plus 6 hand-built synthetic cases proving each direction fires exactly when it should. |
 
 ## F. Structural risks (not gaps in coverage — risks to the migration itself)
 
