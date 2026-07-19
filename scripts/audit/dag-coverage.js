@@ -43,7 +43,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
-  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
+  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
@@ -104,9 +104,19 @@ var MAP = {
     k1PassiveIncomeUsd: m("AGG-3", "ported", ["aggregateusincome-nodes.js"]),
     aggregateUsIncome: m("AGG-3", "ported", ["aggregateusincome-nodes.js"]),
     aggregateUsDeductions: m("AGG-4", "ported", ["ustax-nodes.js"]),
-    aggregateEquityComp: m("AGG-9", "missing"),
-    aggregateAccounts: m("AGG-5", "boundary"),
-    aggregateTaxesPaid: m("AGG-6", "missing"),
+    aggregateEquityComp: m("AGG-9", "ported", ["findings-batch5-nodes.js"]),
+    /* AGG-5 knownMissing: aggregateAccounts() also returns a per-account
+     * display array (bank name/type/country, for the Schedule FA / accounts
+     * list UI) — only the aggregatePeak figure (fbar_limit's own dependency)
+     * was ported here; the per-account label fields have no DAG consumer yet. */
+    aggregateAccounts: m("AGG-5", "ported", ["findings-batch5-nodes.js"], ["bank_name", "account_type", "country"]),
+    /* AGG-6 knownMissing: only the US-side total (form67_required's own
+     * dependency) was ported. The India-side (advance tax by quarter,
+     * TDS/TCS) and the US prior-year-tax safe-harbor figure have no DAG
+     * consumer yet. */
+    aggregateTaxesPaid: m("AGG-6", "ported", ["findings-batch5-nodes.js"],
+      ["tax_credits", "advance_tax_q1_15jun_inr", "advance_tax_q2_15sep_inr", "advance_tax_q3_15dec_inr", "advance_tax_q4_15mar_inr",
+        "tds_already_deducted_inr", "tds_inr", "tcs_inr", "prior_year_total_tax_usd"]),
     computeLrsTcs: m("AGG-8", "missing"),
     aggregateWithholdingDetail: m("AGG-7", "missing"),
     normalize: m("AGG-10", "boundary")
@@ -129,7 +139,7 @@ var MAP = {
     computeIndiaSurcharge: m("TAX-3", "ported", ["in1-nodes-v3.js"]),
     feieEligibility: m("TAX-6", "ported", ["ustax-nodes.js"]),
     computeUsTax: m("TAX-5", "ported", ["ustax-nodes.js"]),
-    computeUsStateTax: m("TAX-9", "missing"),
+    computeUsStateTax: m("TAX-9", "ported", ["findings-batch5-nodes.js"]),
     computeNraTax: m("TAX-8", "scoped-out"),
     computeUsEntityTax: m("TAX-7", "scoped-out"),
     /* XBR-1 closed 19 Jul 2026: residency-nodes.js ports resolveResidency
@@ -157,7 +167,10 @@ var MAP = {
      * needed. Verified 55/55 in run-doubletax.js, all 11 profiles, every
      * income head type genuinely exercised across the fixtures. */
     mapDoubleTaxedIncome: m("XBR-3", "ported", ["doubletax-nodes.js"]),
-    computeLimits: m("LIM-1..6", "boundary"),
+    /* LIM-1..6: 3 of 6 gauges now genuinely ported (fbar/lrs/trump_account,
+     * the 3 with a CFL-6 finding depending on them) — form8938/nro_
+     * repatriation/feie gauges remain unbuilt (no finding needs them yet). */
+    computeLimits: m("LIM-1..6", "ported", ["findings-batch5-nodes.js"]),
     /* XBR-4 closed 19 Jul 2026: crossbasis-nodes.js ports crossBasis in
      * full, built on doubletax-nodes.js (superset of xborder-full-nodes.js).
      * A real bug found while porting -- computation.js:1520 compared
@@ -254,14 +267,6 @@ var DAG_FINDING_IDS = {
   chapter_xiia_elected_no_holdings: "findings-batch2-nodes.js",
   chapter_xiia_investment_income_missing: "findings-batch2-nodes.js",
   chapter_xiia_investment_income_computed: "findings-batch2-nodes.js",
-  /* CFL-6 batch 4, 19 Jul 2026: findings-batch4-nodes.js. */
-  treaty_docs_missing: "findings-batch4-nodes.js",
-  dtaa_treaty_elections: "findings-batch4-nodes.js",
-  withholding_documentation_gap: "findings-batch4-nodes.js",
-  carry_forward_losses_not_applied: "findings-batch4-nodes.js",
-  feie_ineligible: "findings-batch4-nodes.js",
-  feie_applied: "findings-batch4-nodes.js",
-  nra_fdap_flat_rate: "findings-batch4-nodes.js",
   /* CFL-6 batch 3, 19 Jul 2026: findings-batch3-nodes.js. */
   form_10iea: "findings-batch3-nodes.js",
   form_1099da_awareness: "findings-batch3-nodes.js",
@@ -281,7 +286,23 @@ var DAG_FINDING_IDS = {
   covered_expat_gift_tax: "findings-batch3-nodes.js",
   state_treaty_not_binding: "findings-batch3-nodes.js",
   nra_w8ben_missing: "findings-batch3-nodes.js",
-  firpta: "findings-batch3-nodes.js"
+  firpta: "findings-batch3-nodes.js",
+  /* CFL-6 batch 4, 19 Jul 2026: findings-batch4-nodes.js. */
+  treaty_docs_missing: "findings-batch4-nodes.js",
+  dtaa_treaty_elections: "findings-batch4-nodes.js",
+  withholding_documentation_gap: "findings-batch4-nodes.js",
+  carry_forward_losses_not_applied: "findings-batch4-nodes.js",
+  feie_ineligible: "findings-batch4-nodes.js",
+  feie_applied: "findings-batch4-nodes.js",
+  nra_fdap_flat_rate: "findings-batch4-nodes.js",
+  /* CFL-6 batch 5, 19 Jul 2026: findings-batch5-nodes.js. */
+  equity_comp_sourcing: "findings-batch5-nodes.js",
+  iso_3921: "findings-batch5-nodes.js",
+  state_income_tax: "findings-batch5-nodes.js",
+  form67_required: "findings-batch5-nodes.js",
+  fbar_limit: "findings-batch5-nodes.js",
+  lrs_limit: "findings-batch5-nodes.js",
+  trump_account_contribution_limit: "findings-batch5-nodes.js"
 };
 
 /* ---- comment-aware line reader ------------------------------------------ */

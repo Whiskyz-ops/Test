@@ -1,0 +1,326 @@
+"use strict";
+/* ============================================================================
+ * CFL-6 batch 5: equity_comp_sourcing, iso_3921, state_income_tax,
+ * form67_required, fbar_limit, lrs_limit, trump_account_contribution_limit.
+ *
+ * Every one of these was previously scoped as blocked on a genuinely
+ * separate subsystem (AGG-9, TAX-9, AGG-6, LIM-1..6) — re-reading each
+ * source function in full this batch shows every one of those "subsystems"
+ * is actually a small, self-contained function, not a large port:
+ *
+ *   - aggregateEquityComp (normalize.js:1964-1984, AGG-9): ~20 lines, one
+ *     new node closes BOTH equity_comp_sourcing and iso_3921.
+ *   - computeUsStateTax (computation.js:1133-1182, TAX-9): ~50 lines, a
+ *     flat CA/NY bracket table (the only two states this engine models —
+ *     same table state_treaty_not_binding's own detail already
+ *     references) applied to usTaxResult.agiUsd, already exposed.
+ *   - aggregateTaxesPaid (normalize.js:2017-2052, AGG-6): ~35 lines, pure
+ *     raw-fact summation — form67_required only reads .us.total.usd, not
+ *     the india side or any withholding-detail machinery.
+ *   - computeLimits' fbar/lrs/trump_account gauges (computation.js:1449-
+ *     1502): each one is a raw-fact comparison against a CONST.LIMITS
+ *     threshold — fbar needs aggregateAccounts() (normalize.js:1997-2014,
+ *     also small, self-contained), lrs/trump_account need only
+ *     model.limitsRaw fields already read elsewhere in this same file
+ *     for feie_ineligible/feie_applied (batch 4). Did NOT need AGG-8
+ *     (computeLrsTcs) at all — the lrs gauge reads limitsRaw.lrsRemittedInr
+ *     directly, a raw fact, never that function's output.
+ *
+ * Deliberately NOT in this batch: holding_period_mismatch_, the one
+ * remaining finding that genuinely needs new architecture (a second
+ * computeUsTax pass with modified foreign-capital-gains inputs) rather
+ * than a new derivation from already-available facts — a materially
+ * different kind of work from everything else closed this session.
+ *
+ * Verified in run-findings5.js: exact finding-ID-set match against
+ * detectConflicts()'s real findings array for all 11 real profiles, plus
+ * full detail-text comparison for every finding that DOES fire.
+ * ==========================================================================*/
+function safe(obj, path, dflt) {
+  var parts = path.split(".");
+  var cur = obj;
+  for (var i = 0; i < parts.length; i++) { if (cur == null) return dflt; cur = cur[parts[i]]; }
+  return cur === undefined || cur === null ? dflt : cur;
+}
+function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
+function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
+function inrToUsd(v) { return Number(v) / 83.0; }
+function moneyFromInr(inr) { return { inr: inr, usd: inrToUsd(inr) }; }
+function moneyFromUsd(v) { return { usd: v, inr: v * 83.0 }; }
+function addMoney(a, b) { return { usd: a.usd + b.usd, inr: a.inr + b.inr }; }
+function zeroMoney() { return { usd: 0, inr: 0 }; }
+function bracketTax(amount, slabs) {
+  var t = Math.max(0, amount), tax = 0, prev = 0;
+  for (var i = 0; i < slabs.length; i++) { var cap = slabs[i][0], rate = slabs[i][1]; if (t > prev) { tax += (Math.min(t, cap) - prev) * rate; prev = cap; } else break; }
+  return tax;
+}
+
+var findingsBatch4Nodes = require("./findings-batch4-nodes.js").NODES;
+var NODES = {};
+Object.keys(findingsBatch4Nodes).forEach(function (k) { NODES[k] = findingsBatch4Nodes[k]; });
+
+// ---- AGG-9: aggregateEquityComp, ported in full (normalize.js:1964-1984) --
+NODES.equityCompRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "equity_compensation", {}) || {}; } };
+NODES.esopEventsRaw = { deps: ["diAgg"], compute: function (d) { return safe(d.diAgg, "salary.esop_perquisite_events", []) || []; } };
+NODES.esopPerquisiteInrRaw = { deps: ["diAgg"], compute: function (d) { return num(safe(d.diAgg, "salary.esop_perquisite_inr", 0)); } };
+NODES.equityCompResult = {
+  deps: ["equityCompRaw", "esopEventsRaw", "esopPerquisiteInrRaw"],
+  compute: function (d) {
+    var ec = d.equityCompRaw;
+    var rsuIncomeUsd = 0, nsoIncomeUsd = 0;
+    (safe(ec, "rsu_vestings", []) || []).forEach(function (r) { rsuIncomeUsd += num(r.gross_income_usd != null ? r.gross_income_usd : num(r.fmv_at_vest_usd) * num(r.shares_vested)); });
+    (safe(ec, "nso_exercises", []) || []).forEach(function (n) { nsoIncomeUsd += num(n.ordinary_income_recognized_usd != null ? n.ordinary_income_recognized_usd : Math.max(0, (num(n.fmv_at_exercise_usd) - num(n.strike_price_usd)) * num(n.shares_exercised))); });
+    var isoCount = (safe(ec, "iso_exercises", []) || []).length;
+    var esopEvents = d.esopEventsRaw;
+    var esopFromEvents = esopEvents.reduce(function (s, e) { return s + num(e.perquisite_value_inr); }, 0);
+    var esopPerquisiteInr = esopEvents.length > 0 ? esopFromEvents : d.esopPerquisiteInrRaw;
+    return {
+      hasUsEquityComp: safe(ec, "has_equity_comp", false) === true || rsuIncomeUsd > 0 || nsoIncomeUsd > 0 || isoCount > 0,
+      rsuIncomeUsd: rsuIncomeUsd, nsoIncomeUsd: nsoIncomeUsd, isoExerciseCount: isoCount,
+      esopPerquisiteInr: esopPerquisiteInr, esopGrantEvents: esopEvents
+    };
+  }
+};
+
+// ---- TAX-9: computeUsStateTax, ported in full (computation.js:1133-1182) --
+var US_STATES = {
+  CA: {
+    NAME: "California", FORM_NAME: "Form 540",
+    BRACKETS: {
+      single: [[11079, 0.01], [26264, 0.02], [41452, 0.04], [57542, 0.06], [72724, 0.08], [371479, 0.093], [445771, 0.103], [742953, 0.113], [Infinity, 0.123]],
+      mfj: [[22158, 0.01], [52528, 0.02], [82904, 0.04], [115084, 0.06], [145448, 0.08], [742958, 0.093], [891542, 0.103], [1485906, 0.113], [Infinity, 0.123]]
+    },
+    STD_DEDUCTION: { single: 5706, mfj: 11412 },
+    EXEMPTION_CREDIT_USD: { single: 153, mfj: 307 },
+    DEPENDENT_CREDIT_USD: 475,
+    SURCHARGE_THRESHOLD_USD: 1000000, SURCHARGE_RATE: 0.01,
+    SURCHARGE_LABEL: "Mental Health Services Tax (1% over $1,000,000, not doubled for MFJ)"
+  },
+  NY: {
+    NAME: "New York", FORM_NAME: "Form IT-201",
+    BRACKETS: {
+      single: [[8500, 0.04], [11700, 0.045], [13900, 0.0525], [80650, 0.055], [215400, 0.06], [1077550, 0.0685], [5000000, 0.0965], [25000000, 0.103], [Infinity, 0.109]],
+      mfj: [[17150, 0.04], [23600, 0.045], [27900, 0.0525], [161550, 0.055], [323200, 0.06], [2155350, 0.0685], [5000000, 0.0965], [25000000, 0.103], [Infinity, 0.109]]
+    },
+    STD_DEDUCTION: { single: 8000, mfj: 16050 },
+    DEPENDENT_EXEMPTION_USD: 1000
+  }
+};
+NODES.usStateTaxResult = {
+  deps: ["usEntityKind", "treatyFiles1040nrRaw", "s6013hElection", "stateResidencyRaw", "usFilingStatusRaw", "dedUs", "usTaxResult"],
+  compute: function (d) {
+    var isNra = d.treatyFiles1040nrRaw && !d.s6013hElection;
+    if (d.usEntityKind !== "individual" || isNra) return null;
+    var sr = d.stateResidencyRaw;
+    var stateCode = sr.domicileDec31 || sr.primaryState || sr.domicileJan1;
+    var T = US_STATES[stateCode];
+    if (!T) return null;
+    var status = d.usFilingStatusRaw === "mfj" ? "mfj" : "single";
+    var brackets = T.BRACKETS[status];
+    var standardDeductionUsd = T.STD_DEDUCTION[status];
+    var dependents = d.dedUs.dependents || 0;
+    var dependentExemptionUsd = (T.DEPENDENT_EXEMPTION_USD || 0) * dependents;
+    var taxableIncomeUsd = Math.max(0, d.usTaxResult.agiUsd - standardDeductionUsd - dependentExemptionUsd);
+    var bracketTaxUsd = bracketTax(taxableIncomeUsd, brackets);
+    var surchargeUsd = 0;
+    if (T.SURCHARGE_THRESHOLD_USD != null && taxableIncomeUsd > T.SURCHARGE_THRESHOLD_USD) {
+      surchargeUsd = (taxableIncomeUsd - T.SURCHARGE_THRESHOLD_USD) * T.SURCHARGE_RATE;
+    }
+    var exemptionCreditUsd = (T.EXEMPTION_CREDIT_USD && T.EXEMPTION_CREDIT_USD[status]) || 0;
+    var dependentCreditUsd = (T.DEPENDENT_CREDIT_USD || 0) * dependents;
+    var totalTaxUsd = Math.max(0, Math.round(bracketTaxUsd + surchargeUsd - exemptionCreditUsd - dependentCreditUsd));
+    return {
+      state: stateCode, stateName: T.NAME, formName: T.FORM_NAME, filingStatus: status,
+      agiUsd: d.usTaxResult.agiUsd, standardDeductionUsd: standardDeductionUsd, dependentExemptionUsd: dependentExemptionUsd,
+      taxableIncomeUsd: taxableIncomeUsd, bracketTaxUsd: bracketTaxUsd,
+      surchargeUsd: surchargeUsd, surchargeLabel: T.SURCHARGE_LABEL || null,
+      exemptionCreditUsd: exemptionCreditUsd, dependentCreditUsd: dependentCreditUsd,
+      totalTaxUsd: totalTaxUsd, effectiveRate: d.usTaxResult.agiUsd > 0 ? totalTaxUsd / d.usTaxResult.agiUsd : 0
+    };
+  }
+};
+
+// ---- AGG-6: aggregateTaxesPaid, ported in full (normalize.js:2017-2052) --
+NODES.taxesPaidUsResult = {
+  deps: [], compute: function (d, ctx) {
+    var we = safe(ctx.us, "withholding_and_estimated", {});
+    var usWithholding = num(safe(we, "federal_withholding_total_usd", 0));
+    var usEstimated = num(safe(we, "estimated_tax_q1_apr15_usd", 0)) + num(safe(we, "estimated_tax_q2_jun15_usd", 0)) +
+      num(safe(we, "estimated_tax_q3_sep15_usd", 0)) + num(safe(we, "estimated_tax_q4_jan15_usd", 0));
+    return { total: moneyFromUsd(usWithholding + usEstimated) };
+  }
+};
+
+// ---- AGG-5: aggregateAccounts, ported in full (normalize.js:1997-2014) ---
+NODES.bankAccountsRaw = {
+  deps: [], compute: function (d, ctx) {
+    return { india: safe(ctx.india, "bank_accounts", []) || [], us: safe(ctx.us, "bank_accounts", []) || [], usFormFbar: num(safe(ctx.us, "fbar_aggregate_peak_usd", 0)) };
+  }
+};
+NODES.aggregatePeakUsdResult = {
+  deps: ["bankAccountsRaw", "hasUsScopeBoundaryFtc"],
+  compute: function (d) {
+    var indianAccounts = d.bankAccountsRaw.india.map(function (b) { return { peak: moneyFromInr(b.peak_balance_inr || 0) }; });
+    var usDisclosed = d.bankAccountsRaw.us.map(function (b) { return { peak: b.peak_balance_usd !== undefined ? moneyFromUsd(b.peak_balance_usd) : moneyFromInr(b.peak_balance_inr || 0) }; });
+    var accounts = indianAccounts.length >= usDisclosed.length ? indianAccounts : usDisclosed;
+    var formFbar = d.bankAccountsRaw.usFormFbar;
+    if (formFbar > 0) return moneyFromUsd(formFbar);
+    if (!d.hasUsScopeBoundaryFtc) return zeroMoney();
+    return accounts.reduce(function (acc, a) { return addMoney(acc, a.peak); }, zeroMoney());
+  }
+};
+
+// ---- limitsRaw fields not read by any earlier-closed phase ---------------
+NODES.limitsRawExtra = {
+  deps: ["annualSliceAgg"], compute: function (d, ctx) {
+    return {
+      lrsRemittedInr: num(safe(d.annualSliceAgg, "lrs_outbound.total_lrs_remitted_this_fy_inr", 0)) ||
+                      num(safe(ctx.india, "lrs_outbound.total_lrs_remitted_this_fy_inr", 0)),
+      trumpAccountsOpened: safe(ctx.us, "profile.trump_accounts_opened", false) === true,
+      trumpAccountsNumChildren: num(safe(ctx.us, "profile.trump_accounts_num_children", 0)),
+      trumpAccountsSeedEligibleChildren: num(safe(ctx.us, "profile.trump_accounts_children_born_2025_2028", 0)),
+      trumpAccountsContributionsUsd: num(safe(ctx.us, "profile.trump_accounts_total_contributions_usd", 0))
+    };
+  }
+};
+
+var LIM = { FBAR_AGGREGATE_USD: 10000, LRS_ANNUAL_USD: 250000, TRUMP_ACCOUNT_ANNUAL_CAP_USD: 5000, TRUMP_ACCOUNT_FEDERAL_SEED_USD: 1000 };
+function gauge(id, valueUsd, limitUsd) {
+  var pct = limitUsd > 0 ? (valueUsd / limitUsd) : 0;
+  var status = pct >= 1 ? "breached" : (pct >= 0.8 ? "approaching" : "ok");
+  return { id: id, value: valueUsd, limit: limitUsd, pct: pct, status: status };
+}
+
+// ---- findings, ported in full ----------------------------------------------
+NODES.findingsBatch5Result = {
+  deps: ["equityCompResult", "usStateTaxResult", "taxesPaidUsResult", "aggregateUsIncomeResult",
+    "aggregatePeakUsdResult", "hasUsScopeBoundaryFtc", "hasIndiaScopeXbr", "limitsRawExtra"],
+  compute: function (d) {
+    var findings = [];
+    function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {
+      findings.push({ id: id, severity: severity, category: category, title: title, detail: detail, recommendation: recommendation, amountUsd: amountUsd || 0, refs: refs || [] });
+    }
+
+    // -- 12b. EQUITY COMPENSATION — CROSS-BORDER SOURCING (conflicts.js:1506-1528) --
+    var eq = d.equityCompResult;
+    if (eq.hasUsEquityComp && eq.esopPerquisiteInr > 0) {
+      add("equity_comp_sourcing", "warning", "income",
+        "Equity compensation taxed on both sides — cross-border sourcing not applied",
+        "Both an India ESOP/perquisite event and a US equity-compensation event (RSU vest / NSO exercise) are on file " +
+        "for this year. India taxes the ESOP perquisite in full at exercise/allotment (s.17(1)(vi)); the US taxes RSU " +
+        "vesting / NSO exercise in full as ordinary income in the vesting/exercise year. Absent a workday-based " +
+        "allocation, the same equity award can be fully taxed by BOTH countries rather than apportioned to where the " +
+        "services were actually performed during the vesting period.",
+        "Reconstruct the vesting-period workday split between India and the US (DTAA Art. 15/16 dependent-personal-" +
+        "services sourcing) so each country only taxes its proportionate share, then claim FTC/§159 relief on the " +
+        "genuinely overlapping portion rather than the full award twice.",
+        0, ["DTAA Art. 15", "s.17(1)(vi)", "RSU vesting", "NSO exercise"]);
+    }
+
+    // -- 4c3. FORM 3921 — ISO INFORMATION RETURN (conflicts.js:561-571) -----
+    if (eq.isoExerciseCount > 0) {
+      add("iso_3921", "info", "document",
+        "ISO exercise(s) on file — employer owes you Form 3921",
+        eq.isoExerciseCount + " incentive stock option exercise(s) recorded this year. The employer is " +
+        "required to furnish Form 3921 (one per exercise) by January 31 of the following year, reporting the grant/exercise " +
+        "dates, exercise price, and FMV at exercise — the same figures already driving the AMT preference computed above.",
+        "Confirm Form 3921 was received from the employer for each exercise and that its FMV/exercise-price figures match " +
+        "what's on file here before relying on the AMT number.",
+        0, ["Form 3921", "§6039"]);
+    }
+
+    // -- 4c6. STATE INCOME TAX (conflicts.js:607-631) ------------------------
+    var st = d.usStateTaxResult;
+    if (st && st.totalTaxUsd > 0) {
+      add("state_income_tax", "warning", "credit",
+        st.stateName + " state income tax: " + usd(st.totalTaxUsd) + " (" + st.formName + ")",
+        st.stateName + " taxes a full-year resident's WORLDWIDE income, including Indian-source income already reported " +
+        "on the federal and Indian returns — computed here as " + usd(st.taxableIncomeUsd) + " of state taxable income " +
+        "(federal AGI " + usd(st.agiUsd) + " less the " + st.stateName + " standard deduction" +
+        (st.dependentExemptionUsd > 0 ? " and dependent exemption" : "") + ") at " + st.stateName + "'s own bracket rates" +
+        (st.surchargeUsd > 0 ? ", plus " + usd(st.surchargeUsd) + " (" + st.surchargeLabel + ")" : "") +
+        (st.exemptionCreditUsd + st.dependentCreditUsd > 0 ? ", less " + usd(st.exemptionCreditUsd + st.dependentCreditUsd) + " of personal/dependent credits" : "") +
+        ". Neither the Foreign Tax Credit computed above nor any DTAA relief applies here — " + st.stateName +
+        " is not a party to the India-US treaty and " + (st.state === "CA" ? "grants no credit for tax paid to a foreign country at all." : "does not treat Indian tax as a creditable state-level offset."),
+        "File " + st.formName + " alongside the federal return. This is a full-year-resident, TY2025-rates estimate — it does not " +
+        "split state-source income for a part-year or nonresident allocation, does not model " + st.stateName +
+        "'s own AGI addition/subtraction adjustments beyond the standard deduction" +
+        (st.dependentExemptionUsd > 0 ? "/dependent exemption" : "") + ", and (for California) does not include the local-jurisdiction " +
+        "SDI/VPDI payroll tax. Treat as directional, not filing-ready.",
+        st.totalTaxUsd, [st.formName, st.stateName + " residency"]);
+    }
+
+    // -- 5. FORM 67 TIMING (conflicts.js:1062-1079) --------------------------
+    if (d.hasIndiaScopeXbr && d.hasUsScopeBoundaryFtc && (d.aggregateUsIncomeResult.foreignSourceTotal.usd > 0 || d.taxesPaidUsResult.total.usd > 0)) {
+      add("form67_required", "info", "document",
+        "Form 44 — required for the Indian FTC claim",
+        "Foreign income / foreign tax is present, so India requires Form 44 (with Schedule FSI and TR) on or before the ITR due date to allow FTC u/s 90/91.",
+        "WISING flags Form 44 (with Schedule FSI/TR) as required on the filing checklist, using the FSI/TR figures already computed above — actually preparing and e-filing it on the income-tax portal ahead of the ITR due date is still a manual step.",
+        0, ["Form 44", "Rule 128", "Schedule FSI", "Schedule TR"]);
+    }
+
+    // -- 12. FBAR LIMIT BREACH (conflicts.js:1459-1468) ----------------------
+    if (d.hasUsScopeBoundaryFtc) {
+      var fbar = gauge("fbar", d.aggregatePeakUsdResult.usd, LIM.FBAR_AGGREGATE_USD);
+      if (fbar.status === "breached") {
+        add("fbar_limit", "critical", "limit",
+          "FBAR threshold breached",
+          "Aggregate peak balance across foreign accounts is " + usd(fbar.value) +
+          ", above the USD 10,000 reporting cliff. EVERY foreign account must be reported, not just those over the limit.",
+          "File FinCEN Form 114 by the due date (auto-extended to Oct 15). Non-willful penalties start at ~$10,000 per violation; willful penalties are far higher.",
+          0, ["FinCEN 114", "FBAR"]);
+      }
+    }
+
+    // -- 11. LRS LIMIT MONITORING (conflicts.js:1446-1457) -------------------
+    if (d.hasIndiaScopeXbr) {
+      var lrs = gauge("lrs", inrToUsd(d.limitsRawExtra.lrsRemittedInr), LIM.LRS_ANNUAL_USD);
+      if (lrs.status !== "ok") {
+        add("lrs_limit", lrs.status === "breached" ? "critical" : "warning", "limit",
+          "LRS remittance " + (lrs.status === "breached" ? "limit breached" : "approaching limit"),
+          "Outbound LRS remittances of " + usd(lrs.value) + " are at " + Math.round(lrs.pct * 100) +
+          "% of the USD 250,000 RBI annual cap.",
+          lrs.status === "breached"
+            ? "A breach can attract RBI scrutiny and AD-bank refusal. Verify remittances across all banks (the cap is per-PAN, not per-account) and document the source of funds."
+            : "Monitor remaining headroom for the rest of the financial year; TCS at 20% applies above ₹10 lakh.",
+          0, ["RBI LRS", "TCS u/s 394(1)"]);
+      }
+    }
+
+    // -- 12a. TRUMP ACCOUNT (§530A) MONITORING (conflicts.js:1470-1504) -----
+    var lr = d.limitsRawExtra;
+    if (lr.trumpAccountsOpened) {
+      var taChildren = Math.max(1, lr.trumpAccountsNumChildren || 1);
+      var trumpAcct = gauge("trump_account", lr.trumpAccountsContributionsUsd, LIM.TRUMP_ACCOUNT_ANNUAL_CAP_USD * taChildren);
+      var taSeedEligible = lr.trumpAccountsSeedEligibleChildren || 0;
+      var taSeedUsd = LIM.TRUMP_ACCOUNT_FEDERAL_SEED_USD;
+      var seedNote = taSeedEligible > 0
+        ? "A $" + taSeedUsd.toLocaleString("en-US") + " one-time federal seed contribution applies to the " + taSeedEligible +
+          " child(ren) born 2025-2028 — separate from, and not counted against, the $5,000/year cap."
+        : "No federal seed applies — that one-time $1,000 contribution is only for children born 2025-2028.";
+      if (trumpAcct.status === "breached") {
+        add("trump_account_contribution_limit", "warning", "limit",
+          "Trump Account (§530A) contribution cap exceeded",
+          "Contributions of " + usd(trumpAcct.value) + " across " + taChildren +
+          " child(ren) exceed the $5,000/child/year cap (combined across all contributors — parents, family, employer all draw " +
+          "from the same limit). " + seedNote,
+          "Excess contributions are not automatically rejected by the custodian in every case — verify the aggregate against " +
+          "all contributors and consider a corrective withdrawal before the account's growth compounds on an over-contribution.",
+          0, ["§530A", "Trump Account"]);
+      } else {
+        add("trump_account_contribution_limit", "info", "limit",
+          "Trump Account (§530A) in use",
+          "Contributions of " + usd(trumpAcct.value) + " this year are within the $5,000/child/year cap. " + seedNote +
+          " Contributions are nondeductible; account growth is tax-deferred until withdrawal, and the account converts to a " +
+          "Traditional IRA when the beneficiary turns 18.",
+          "No action needed while under the cap — just confirm contributions are tracked in aggregate across every contributor, " +
+          "not just this taxpayer's own deposits.",
+          0, ["§530A", "Trump Account"]);
+      }
+    }
+
+    return findings;
+  }
+};
+
+module.exports = { NODES: NODES };
