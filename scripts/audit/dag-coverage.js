@@ -44,7 +44,7 @@ var ROOT = path.join(__dirname, "..", "..");
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
   "entitytax-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
-  "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js",
+  "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
 ];
@@ -84,15 +84,14 @@ var MAP = {
     /* AGG-1 knownMissing (found by this script's first run, 19 Jul 2026 —
      * see tracker AGG-1 Detail): originally three side-channel outputs the
      * income-total port skipped because run-aggregateindiaincome.js's 165
-     * checks cover income figures, not metadata fields. The
-     * holdingPeriodMismatches[] side-channel was closed (ported, verified
-     * 179/179 in run-aggregateindiaincome.js) — removed from this list.
-     * Two remain:
-     *   agricultural_income_inr  -> inc.agriculturalIncomeInr -> computeIndiaItrForm (XBR-6) ITR-1 disqualifier
+     * checks cover income figures, not metadata fields. holdingPeriodMismatches[]
+     * closed (verified 179/179), then agricultural_income_inr closed
+     * (agriculturalIncomeInrAgg, verified 200/200 — XBR-6's one real
+     * consumer). One remains:
      *   unexplained_income_115BBE_inr -> inc.unexplained115bbeInr -> s115bbe_unexplained_income finding (CFL-6)
      * Remove an entry here ONLY when the DAG actually ports it. */
     aggregateIndiaIncome: m("AGG-1", "ported", ["aggregateindiaincome-nodes.js"],
-      ["agricultural_income_inr", "unexplained_income_115BBE_inr"]),
+      ["unexplained_income_115BBE_inr"]),
     s80eeaEeCapInr: m("AGG-2", "ported", ["in1-nodes-v3.js"]),
     aggregateIndiaDeductions: m("AGG-2", "ported", ["in1-nodes-v3.js"]),
     computeSelfEmploymentNetProfitUsd: m("AGG-3", "ported", ["aggregateusincome-nodes.js"]),
@@ -164,7 +163,19 @@ var MAP = {
      * from-scratch phase (not a ctx.model boundary read like ustax-nodes.js's
      * separate baseYearUs node, which stays a boundary on purpose). */
     computeApportionment: m("XBR-5", "ported", ["apportionment-nodes.js"]),
-    computeIndiaItrForm: m("XBR-6", "missing"),
+    /* XBR-6 closed 19 Jul 2026: itrform-nodes.js ports computeIndiaItrForm
+     * in full. The one real gap the scoping pass flagged (grossTotalIncomeInr
+     * is PRE-Chapter-VI-A-deduction, distinct from the already-ported
+     * totalIncomeInrV3) is closed by grossTotalIncomeInrV3 (a sibling of
+     * totalIncomeInrV3, one term swapped) + grossTotalIncomeInrCombined
+     * (routes to entityTaxableInrBoundary for companies/firms, whose own
+     * gross figure already equals their taxable figure, no deductions).
+     * Also closes AGG-1's agricultural_income_inr knownMissing item
+     * (agriculturalIncomeInrAgg, aggregateindiaincome-nodes.js) — XBR-6 is
+     * its one real consumer. Verified 91/91 in run-itrform.js, all 10
+     * India-scoped profiles asserted (form, disqualifiers, frontend
+     * cross-check fields), the one non-India-scoped profile confirmed null. */
+    computeIndiaItrForm: m("XBR-6", "ported", ["itrform-nodes.js"]),
     /* TAX-10 (wiring AGG-1/AGG-3 into TAX-1/TAX-5) closed 19 Jul 2026:
      * india-full-nodes.js and us-full-nodes.js merge the income-aggregation
      * and tax-computation node sets and redefine every boundary node to

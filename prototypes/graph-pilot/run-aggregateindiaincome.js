@@ -33,10 +33,11 @@ console.log("Closing the aggregateIndiaIncome boundary, run against all " + WISI
 WISING.PROFILES.forEach(function (p) {
   var r = WISING.analyze({ router: p.router, india: p.india, us: p.us });
   var ctx = { router: p.router, india: p.india, us: p.us, model: r.model, computed: r.computed };
-  var out = graph.resolve(["businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "totalIndiaIncomeInr"], ctx).values;
+  var out = graph.resolve(["businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "totalIndiaIncomeInr", "agriculturalIncomeInrAgg"], ctx).values;
   var inc = r.model.income.india;
 
   console.log(p.id);
+  check("agriculturalIncomeInrAgg matches exactly (closes AGG-1's last knownMissing item)", close(out.agriculturalIncomeInrAgg, num(inc.agriculturalIncomeInr)), "graph=" + Math.round(out.agriculturalIncomeInrAgg) + " model=" + Math.round(num(inc.agriculturalIncomeInr)));
   check("business.inr matches exactly", close(out.businessComputation.businessInr, num(inc.business && inc.business.inr)), "graph=" + Math.round(out.businessComputation.businessInr) + " model=" + Math.round(num(inc.business && inc.business.inr)));
   check("businessDepreciationInr matches exactly", close(out.businessComputation.businessDepreciationInr, num(inc.businessDepreciationInr)), "graph=" + Math.round(out.businessComputation.businessDepreciationInr) + " model=" + Math.round(num(inc.businessDepreciationInr)));
   check("indiaHasRegularBooksEntry matches", out.businessComputation.indiaHasRegularBooksEntry === !!inc.indiaHasRegularBooksEntry);

@@ -216,6 +216,11 @@ var NODES = {
   partnerFirmsAgg: { deps: ["diAgg"], compute: function (d) { return safe(d.diAgg, "business_income.partner_firms", []); } },
   fnoIncomeInrAgg: { deps: ["diAgg"], compute: function (d) { return num(safe(d.diAgg, "business_income.non_speculative_income_inr", 0)); } },
   speculativeIncomeInrAgg: { deps: ["diAgg"], compute: function (d) { return num(safe(d.diAgg, "business_income.speculative_income_inr", 0)); } },
+  // Closes AGG-1's last recorded knownMissing side-channel (normalize.js
+  // L731) — used only by computeIndiaItrForm's (XBR-6) >Rs5,000 ITR-1/4
+  // disqualifier, not otherwise taxed by this engine (agricultural income
+  // is exempt under s.10(1)).
+  agriculturalIncomeInrAgg: { deps: ["diAgg"], compute: function (d) { return num(safe(d.diAgg, "agricultural_income_inr", 0)); } },
 
   indiaResidencyStatusRawAgg: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.final_india_residency_status", null); } },
   // IN-38: the DTAA Article 4 tie-break to the US doesn't change domestic
