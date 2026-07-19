@@ -157,7 +157,7 @@ NODES.taxesPaidUsResult = {
     var usWithholding = num(safe(we, "federal_withholding_total_usd", 0));
     var usEstimated = num(safe(we, "estimated_tax_q1_apr15_usd", 0)) + num(safe(we, "estimated_tax_q2_jun15_usd", 0)) +
       num(safe(we, "estimated_tax_q3_sep15_usd", 0)) + num(safe(we, "estimated_tax_q4_jan15_usd", 0));
-    return { total: moneyFromUsd(usWithholding + usEstimated) };
+    return { total: moneyFromUsd(usWithholding + usEstimated), withholding: moneyFromUsd(usWithholding) };
   }
 };
 

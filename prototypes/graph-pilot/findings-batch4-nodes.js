@@ -345,7 +345,8 @@ NODES.nraFdapDetail = {
     var fdapRate = (w8benOnFile && claimedRateFraction != null) ? claimedRateFraction : 0.30;
     var fdapUsd = d.nraFdapIncomeUsdRaw;
     var gapUsd = (!w8benOnFile && claimedRateFraction != null && claimedRateFraction < 0.30) ? fdapUsd * (0.30 - claimedRateFraction) : 0;
-    return { fdapUsd: fdapUsd, fdapRate: fdapRate, claimedRate: rawClaimedRatePct, w8benOnFile: w8benOnFile, fdapTaxUsd: fdapUsd * fdapRate, gapUsd: gapUsd };
+    return { fdapUsd: fdapUsd, fdapRate: fdapRate, claimedRate: rawClaimedRatePct, w8benOnFile: w8benOnFile, fdapTaxUsd: fdapUsd * fdapRate, gapUsd: gapUsd,
+      incomeType: (claim && claim.income_type) || null };
   }
 };
 

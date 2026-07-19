@@ -43,7 +43,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
-  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "report-batch2-nodes.js", "report-batch3-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
+  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "report-batch2-nodes.js", "report-batch3-nodes.js", "report-batch4-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
@@ -121,8 +121,18 @@ var MAP = {
      * One field remains: prior_year_total_tax_usd, the Form 2210 100%/
      * 110%-of-prior-year safe-harbor figure — no current DAG consumer. */
     aggregateTaxesPaid: m("AGG-6", "ported", ["findings-batch5-nodes.js", "report-batch1-nodes.js"], ["prior_year_total_tax_usd"]),
-    computeLrsTcs: m("AGG-8", "missing"),
-    aggregateWithholdingDetail: m("AGG-7", "missing"),
+    /* CFL-7 batch 4, 19 Jul 2026: report-batch4-nodes.js, built for
+     * buildWithholdingSummary's LRS estimate row. Turned out genuinely
+     * small and self-contained once actually read (same pattern as every
+     * other "separate subsystem" AGG-1/5/9/TAX-9/LIM-1..6 turned out to be)
+     * — computeLrsTcs is ~30 lines, no upstream dependency beyond
+     * lrs_outbound's two raw fields. Closes AGG-8's one recorded gap
+     * (lrs_purpose) too, since the full function reads it directly. */
+    computeLrsTcs: m("AGG-8", "ported", ["report-batch4-nodes.js"]),
+    /* CFL-7 batch 4, 19 Jul 2026: report-batch4-nodes.js. Also ~30 lines,
+     * no upstream dependency — tds_already_deducted_inr/tcs_inr/property
+     * TDS array/state withholding, all raw reads. */
+    aggregateWithholdingDetail: m("AGG-7", "ported", ["report-batch4-nodes.js"]),
     normalize: m("AGG-10", "boundary")
   },
   "computation.js": {
@@ -279,7 +289,21 @@ var MAP = {
     nrInterestParts: m("CFL-7", "ported", ["report-batch3-nodes.js"]),
     buildFtcReport: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
     buildTaxComputation: m("CFL-7", "ported", ["report-batch2-nodes.js", "report-batch3-nodes.js"]),
-    buildWithholdingSummary: m("CFL-7", "missing"),
+    /* CFL-7 batch 4, 19 Jul 2026: report-batch4-nodes.js, merging
+     * report-batch2-nodes.js (US-side: nraFdapDetail/nraRaw,
+     * aggregateUsIncomeResult's w2Employers, panAadhaarLinkedRaw,
+     * taxesPaidUsResult) with report-batch3-nodes.js (India-side:
+     * s115aDividend/s115aRoyalty/s115aFts/nrInterest, already carrying
+     * their real elections[] detail since batch 3). Closes AGG-7
+     * (aggregateWithholdingDetail) and AGG-8 (computeLrsTcs) as side
+     * effects of what this function's rows need. Verified in
+     * run-report4.js: 11/11 exact structural match against
+     * WISING.analyze()'s own withholding field across all 11 real
+     * profiles — no US-entity/NRA demotion needed (isNra determined from
+     * raw treatyFiles1040nrRaw/s6013hElection facts, same pattern
+     * findings-batch4/5-nodes.js already established, not from
+     * usTaxResult, which doesn't cover that path). */
+    buildWithholdingSummary: m("CFL-7", "ported", ["report-batch4-nodes.js"]),
     buildScopeNotes: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
     buildReturnFormDetermination: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
     analyze: m("CFL-7", "missing")
