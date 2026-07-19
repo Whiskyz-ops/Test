@@ -341,7 +341,13 @@ var NODES = {
         // .usd, engine L1101), the FEIE amount actually applied (engine's
         // usTax.feie.appliedUsd, flat here), and the worldwide flag.
         totalIncomeUsd: totalIncome, usSourceIncomeUsd: inc.usSourceTotal.usd,
-        feieAppliedUsd: feieAppliedUsd, worldwide: worldwide
+        feieAppliedUsd: feieAppliedUsd, worldwide: worldwide,
+        // Added for CFL-7 (buildFtcReport's trace detail) — the ordinary/
+        // preferential split computeUsTax's own result carries (engine
+        // L289: incomeTax = ordinaryTax + preferentialTax) but this node
+        // didn't expose separately until now; incomeTaxUsd above remains
+        // their sum, unchanged.
+        ordinaryTaxUsd: ordinaryTax, preferentialTaxUsd: preferentialTax
       };
     }
   },

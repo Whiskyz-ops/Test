@@ -43,7 +43,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
-  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
+  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
@@ -105,18 +105,22 @@ var MAP = {
     aggregateUsIncome: m("AGG-3", "ported", ["aggregateusincome-nodes.js"]),
     aggregateUsDeductions: m("AGG-4", "ported", ["ustax-nodes.js"]),
     aggregateEquityComp: m("AGG-9", "ported", ["findings-batch5-nodes.js"]),
-    /* AGG-5 knownMissing: aggregateAccounts() also returns a per-account
-     * display array (bank name/type/country, for the Schedule FA / accounts
-     * list UI) — only the aggregatePeak figure (fbar_limit's own dependency)
-     * was ported here; the per-account label fields have no DAG consumer yet. */
-    aggregateAccounts: m("AGG-5", "ported", ["findings-batch5-nodes.js"], ["bank_name", "account_type", "country"]),
+    /* AGG-5: batch 5 (findings-batch5-nodes.js) closed aggregatePeak only
+     * (fbar_limit's own dependency); CFL-7 batch 1 (report-batch1-nodes.js)
+     * closed the rest — the full per-account display array (bank name/
+     * type/country), needed for buildDocuments' schedule_fa trigger. */
+    aggregateAccounts: m("AGG-5", "ported", ["findings-batch5-nodes.js", "report-batch1-nodes.js"]),
     /* AGG-6 knownMissing: only the US-side total (form67_required's own
      * dependency) was ported. The India-side (advance tax by quarter,
      * TDS/TCS) and the US prior-year-tax safe-harbor figure have no DAG
      * consumer yet. */
-    aggregateTaxesPaid: m("AGG-6", "ported", ["findings-batch5-nodes.js"],
-      ["tax_credits", "advance_tax_q1_15jun_inr", "advance_tax_q2_15sep_inr", "advance_tax_q3_15dec_inr", "advance_tax_q4_15mar_inr",
-        "tds_already_deducted_inr", "tds_inr", "tcs_inr", "prior_year_total_tax_usd"]),
+    /* AGG-6: batch 5 (findings-batch5-nodes.js) closed the US side only
+     * (form67_required's own dependency); CFL-7 batch 1
+     * (report-batch1-nodes.js) closed the India side (advance tax by
+     * quarter, TDS/TCS — form_1116's trigger needed the India total).
+     * One field remains: prior_year_total_tax_usd, the Form 2210 100%/
+     * 110%-of-prior-year safe-harbor figure — no current DAG consumer. */
+    aggregateTaxesPaid: m("AGG-6", "ported", ["findings-batch5-nodes.js", "report-batch1-nodes.js"], ["prior_year_total_tax_usd"]),
     computeLrsTcs: m("AGG-8", "missing"),
     aggregateWithholdingDetail: m("AGG-7", "missing"),
     normalize: m("AGG-10", "boundary")
@@ -220,18 +224,26 @@ var MAP = {
   },
   "conflicts.js": {
     usd: m("util", "util"), inr: m("util", "util"),
-    usFtcForm: m("CFL-7", "missing"), describeTieBreak: m("CFL-7", "missing"),
+    usFtcForm: m("CFL-7", "ported", ["findings-nodes.js"]), describeTieBreak: m("CFL-7", "ported", ["findings-nodes.js"]),
     detectConflicts: m("CFL-1..6", "boundary"),
-    indiaBusinessTurnoverInr: m("CFL-7", "missing"),
-    buildDocuments: m("CFL-7", "missing"),
+    /* CFL-7 batch 1, 19 Jul 2026: report-batch1-nodes.js. Closes
+     * buildDocuments/buildScopeNotes/buildReturnFormDetermination/
+     * buildFtcReport — the four the tracker's own scoping note called
+     * "already unblocked" once XBR-2/XBR-6 closed. Verified in
+     * run-report1.js: exact structural match against WISING.analyze()'s
+     * own documents/scopeNotes/returnForms/ftcReport fields (not findings)
+     * for all 11 real profiles; ftcReport reported-not-asserted for the
+     * 2 US-entity/NRA profiles (same TAX-7/TAX-8 boundary as CFL-6). */
+    indiaBusinessTurnoverInr: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
+    buildDocuments: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
     calc: m("util", "util"), source: m("util", "util"), holdings: m("util", "util"),
     bracketParts: m("CFL-7", "missing"), s115aParts: m("CFL-7", "missing"),
     nrInterestParts: m("CFL-7", "missing"),
-    buildFtcReport: m("CFL-7", "missing"),
+    buildFtcReport: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
     buildTaxComputation: m("CFL-7", "missing"),
     buildWithholdingSummary: m("CFL-7", "missing"),
-    buildScopeNotes: m("CFL-7", "missing"),
-    buildReturnFormDetermination: m("CFL-7", "missing"),
+    buildScopeNotes: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
+    buildReturnFormDetermination: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
     analyze: m("CFL-7", "missing")
   }
 };
