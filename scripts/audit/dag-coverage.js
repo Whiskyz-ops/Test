@@ -45,7 +45,7 @@ var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
   "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "report-batch2-nodes.js", "report-batch3-nodes.js", "report-batch4-nodes.js", "report-batch5-nodes.js", "report-batch6-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
-  "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
+  "limits-nodes.js", "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
 ];
 function m(row, status, dagFiles, knownMissing) { return { row: row, status: status, dagFiles: dagFiles || ["*"], knownMissing: knownMissing || [] }; }
@@ -195,10 +195,16 @@ var MAP = {
      * needed. Verified 55/55 in run-doubletax.js, all 11 profiles, every
      * income head type genuinely exercised across the fixtures. */
     mapDoubleTaxedIncome: m("XBR-3", "ported", ["doubletax-nodes.js"]),
-    /* LIM-1..6: 3 of 6 gauges now genuinely ported (fbar/lrs/trump_account,
-     * the 3 with a CFL-6 finding depending on them) — form8938/nro_
-     * repatriation/feie gauges remain unbuilt (no finding needs them yet). */
-    computeLimits: m("LIM-1..6", "ported", ["findings-batch5-nodes.js"]),
+    /* LIM-1..6 fully closed 19 Jul 2026: limits-nodes.js ports computeLimits
+     * IN FULL — all six gauges as one limitsResult node (exact order,
+     * labels/notes byte-for-byte), reusing batch5's aggregatePeakUsdResult/
+     * limitsRawExtra and adding the three previously-unbuilt gauges'
+     * inputs (FORM_8938 4-way table + §911 abroad test w/ the reasons
+     * array computeUsTax's feie port drops, NRO raw read, FEIE raw reads).
+     * Verified 296/296 in run-limits.js: 11 profiles deep-compared against
+     * computed.limits + 2 synthetic cases (NRO in flight, FEIE claimed-but-
+     * ineligible) checked against the real engine on the same inputs. */
+    computeLimits: m("LIM-1..6", "ported", ["limits-nodes.js", "findings-batch5-nodes.js"]),
     /* XBR-4 closed 19 Jul 2026: crossbasis-nodes.js ports crossBasis in
      * full, built on doubletax-nodes.js (superset of xborder-full-nodes.js).
      * A real bug found while porting -- computation.js:1520 compared
