@@ -134,6 +134,7 @@ function computeLossSetOff(cfl, buckets) {
   var stcgLossAfterLtcg197 = stcgLossAfterFlat - stcgLossUsedVsLtcg197;
   var stcgLossUsedVsLtcg198 = Math.min(stcgLossAfterLtcg197, ltcgGrossInr);
   ltcgGrossInr -= stcgLossUsedVsLtcg198;
+  var stcgLossUnused = stcgLossAfterLtcg197 - stcgLossUsedVsLtcg198;
   var stcgLossUsedVsLtcg = stcgLossUsedVsLtcg197 + stcgLossUsedVsLtcg198;
 
   var ltcgLossAvail = cfl.ltcgLossAvailableInr || 0;
@@ -142,11 +143,13 @@ function computeLossSetOff(cfl, buckets) {
   var ltcgLossAfter197 = ltcgLossAvail - ltcgLossUsedVs197;
   var ltcgLossUsedVs198 = Math.min(ltcgLossAfter197, ltcgGrossInr);
   ltcgGrossInr -= ltcgLossUsedVs198;
+  var ltcgLossUnused = ltcgLossAfter197 - ltcgLossUsedVs198;
   var ltcgLossUsed = ltcgLossUsedVs197 + ltcgLossUsedVs198;
 
   var speculativeLossAvail = cfl.speculativeLossAvailableInr || 0;
   var speculativeLossUsed = Math.min(speculativeLossAvail, speculativeInr);
   speculativeInr -= speculativeLossUsed;
+  var speculativeLossUnused = speculativeLossAvail - speculativeLossUsed;
 
   var depRemaining = cfl.unabsorbedDepreciationCf || 0;
   var used;
@@ -158,9 +161,24 @@ function computeLossSetOff(cfl, buckets) {
   used = Math.min(depRemaining, ltcgGrossInr); ltcgGrossInr -= used; depRemaining -= used;
   used = Math.min(depRemaining, otherNormalInr); otherNormalInr -= used; depRemaining -= used;
   used = Math.min(depRemaining, speculativeInr); speculativeInr -= used; depRemaining -= used;
+  var depUsed = (cfl.unabsorbedDepreciationCf || 0) - depRemaining;
+
+  var totalUsedInr = businessLossUsed + hpLossUsed + stcgLossUsedVsStcgSlab + stcgLossUsedVsStcg + stcgLossUsedVsLtcg + ltcgLossUsed + speculativeLossUsed + depUsed;
+  var totalUnusedInr = businessLossUnused + hpLossUnused + stcgLossUnused + ltcgLossUnused + speculativeLossUnused + depRemaining;
 
   return { businessInr: businessInr, housePropertyInr: housePropertyInr, otherNormalInr: otherNormalInr,
-    stcgInr: stcgInr, stcgSlabInr: stcgSlabInr, ltcgGrossInr: ltcgGrossInr, ltcg197Inr: ltcg197Inr, speculativeInr: speculativeInr };
+    stcgInr: stcgInr, stcgSlabInr: stcgSlabInr, ltcgGrossInr: ltcgGrossInr, ltcg197Inr: ltcg197Inr, speculativeInr: speculativeInr,
+    totalUsedInr: totalUsedInr, totalUnusedInr: totalUnusedInr,
+    unused: {
+      businessInr: businessLossUnused, housePropertyInr: hpLossUnused,
+      stcgInr: stcgLossUnused, ltcgInr: ltcgLossUnused,
+      speculativeInr: speculativeLossUnused, unabsorbedDepreciationInr: depRemaining
+    },
+    used: {
+      businessInr: businessLossUsed, housePropertyInr: hpLossUsed,
+      stcgSlabInr: stcgLossUsedVsStcgSlab, stcgInr: stcgLossUsedVsStcg, ltcgFromStcgLossInr: stcgLossUsedVsLtcg, ltcgInr: ltcgLossUsed,
+      speculativeInr: speculativeLossUsed, unabsorbedDepreciationInr: depUsed
+    } };
 }
 function computeS115aStream(treaty, incomeType, aggregateTotalInr) {
   var domestic = T.S115A_RATES[incomeType];
@@ -168,22 +186,41 @@ function computeS115aStream(treaty, incomeType, aggregateTotalInr) {
   var hasAggregate = aggregateTotalInr != null;
   var remainingInr = hasAggregate ? aggregateTotalInr : 0;
   var claimedInr = 0, taxInr = 0;
+  var elections = [];
   (treaty.treatyElections || []).forEach(function (e) {
     if (!e || e.income_type !== incomeType) return;
     var raw = num(e.amount_inr);
     var amt = hasAggregate ? Math.min(raw, Math.max(0, remainingInr)) : raw;
     var electedRate = e.elected_rate != null ? Number(e.elected_rate) : null;
     var rate = (docsOk && electedRate != null) ? Math.min(domestic, electedRate) : domestic;
-    claimedInr += amt; taxInr += amt * rate;
+    var electionTaxInr = amt * rate;
+    claimedInr += amt; taxInr += electionTaxInr;
+    elections.push({
+      article: e.treaty_article || null,
+      requestedAmountInr: raw,
+      appliedAmountInr: amt,
+      electedRate: electedRate,
+      domesticRate: domestic,
+      rateApplied: rate,
+      taxInr: electionTaxInr,
+      outcome: !docsOk ? "denied_no_docs" : (electedRate != null && electedRate < domestic ? "elected_rate_applied" : "domestic_rate_wins")
+    });
     if (hasAggregate) remainingInr -= amt;
   });
   var uncapturedInr = hasAggregate ? Math.max(0, remainingInr) : 0;
-  taxInr += uncapturedInr * domestic;
-  return { totalInr: hasAggregate ? aggregateTotalInr : claimedInr, taxInr: taxInr };
+  var uncapturedTaxInr = uncapturedInr * domestic;
+  taxInr += uncapturedTaxInr;
+  var totalInr = hasAggregate ? aggregateTotalInr : claimedInr;
+  return {
+    totalInr: totalInr, taxInr: taxInr, claimedInr: claimedInr, uncapturedInr: uncapturedInr,
+    uncapturedTaxInr: uncapturedTaxInr, elections: elections,
+    domesticRate: domestic, effectiveRate: totalInr > 0 ? taxInr / totalInr : domestic
+  };
 }
 function computeNrInterestTreatment(treaty, slabs, otherSlabIncomeInr, interestAggregateInr) {
   var docsOk = treaty.trcStatus && treaty.form10fFiled;
   var remainingInr = interestAggregateInr;
+  var elections = [];
   var carvedOutInr = 0, carvedOutTaxInr = 0;
   (treaty.treatyElections || []).forEach(function (e) {
     if (!e || e.income_type !== "interest") return;
@@ -195,9 +232,22 @@ function computeNrInterestTreatment(treaty, slabs, otherSlabIncomeInr, interestA
     var canElect = docsOk && electedRate != null;
     var marginalSlabTaxInr = bracketTax(otherSlabIncomeInr + interestAggregateInr, slabs) - bracketTax(otherSlabIncomeInr + interestAggregateInr - amt, slabs);
     var treatyTaxInr = canElect ? amt * electedRate : null;
-    if (canElect && treatyTaxInr < marginalSlabTaxInr) { carvedOutInr += amt; carvedOutTaxInr += treatyTaxInr; }
+    var carvedOut = canElect && treatyTaxInr < marginalSlabTaxInr;
+    if (carvedOut) { carvedOutInr += amt; carvedOutTaxInr += treatyTaxInr; }
+    elections.push({
+      article: e.treaty_article || null, requestedAmountInr: raw, appliedAmountInr: amt,
+      electedRate: electedRate, marginalSlabTaxInr: marginalSlabTaxInr, treatyTaxInr: treatyTaxInr,
+      carvedOut: carvedOut,
+      outcome: !docsOk ? "denied_no_docs" : (electedRate == null ? "no_rate" : (carvedOut ? "treaty_beats_slab" : "slab_beats_treaty"))
+    });
   });
-  return { totalInr: interestAggregateInr, slabEligibleInr: interestAggregateInr - carvedOutInr, carvedOutInr: carvedOutInr, carvedOutTaxInr: carvedOutTaxInr };
+  var uncapturedInr = Math.max(0, remainingInr);
+  return {
+    totalInr: interestAggregateInr,
+    slabEligibleInr: interestAggregateInr - carvedOutInr,
+    carvedOutInr: carvedOutInr, carvedOutTaxInr: carvedOutTaxInr,
+    uncapturedInr: uncapturedInr, elections: elections
+  };
 }
 
 var NODES = {

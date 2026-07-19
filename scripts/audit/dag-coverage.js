@@ -43,7 +43,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
-  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "report-batch2-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
+  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "report-batch2-nodes.js", "report-batch3-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
@@ -130,15 +130,23 @@ var MAP = {
     computeSaltCap: m("TAX-6", "ported", ["ustax-nodes.js"]),
     computeSsTaxableUsd: m("TAX-6", "ported", ["ustax-nodes.js"]),
     bracketBreakdown: m("TAX-6", "ported", ["ustax-nodes.js", "in1-nodes-v3.js"]),
+    /* computeLossSetOff extended CFL-7 batch 3, 19 Jul 2026: now also
+     * returns totalUsedInr/totalUnusedInr/used{}/unused{} (previously only
+     * the post-set-off head buckets) — needed by buildTaxComputation's
+     * india loss-set-off trace rows. Zero new logic, verified via
+     * run-in1-v3.js (8/8) and run-india-tax-combined.js (22/22). */
     computeLossSetOff: m("TAX-3", "ported", ["in1-nodes-v3.js"]),
     computeIndiaTax: m("TAX-1", "ported", ["in1-nodes-v3.js"]),
-    /* TAX-1 knownMissing: the DAG's local computeS115aStream returns only
-     * {totalInr, taxInr} — the engine's also builds a per-election detail
-     * array (article/rates/docs facts, incl. e.treaty_article) consumed by
-     * display/withholding layers (CFL-7, unported). Tax figures match;
-     * the elections[] metadata does not exist DAG-side. */
-    computeS115aStream: m("TAX-1", "ported", ["in1-nodes-v3.js"], ["treaty_article"]),
-    computeNrInterestTreatment: m("TAX-1", "ported", ["in1-nodes-v3.js"], ["treaty_article"]),
+    /* CFL-7 batch 3, 19 Jul 2026: the previously-recorded knownMissing gap
+     * here is now closed — computeS115aStream/computeNrInterestTreatment
+     * were extended (in1-nodes-v3.js) to also build the real per-election
+     * elections[] detail array (article/rates/docs facts, incl.
+     * e.treaty_article), matching the engine exactly. Needed by
+     * buildTaxComputation's india s.207/DTAA-interest trace rows
+     * (report-batch3-nodes.js's s115aParts/nrInterestParts). Verified in
+     * run-report3.js: 11/11 exact match including the elections[] detail. */
+    computeS115aStream: m("TAX-1", "ported", ["in1-nodes-v3.js"]),
+    computeNrInterestTreatment: m("TAX-1", "ported", ["in1-nodes-v3.js"]),
     computeIndiaEntityTax: m("TAX-2", "ported", ["entitytax-nodes.js"]),
     computeIndiaSurcharge: m("TAX-3", "ported", ["in1-nodes-v3.js"]),
     feieEligibility: m("TAX-6", "ported", ["ustax-nodes.js"]),
@@ -248,16 +256,29 @@ var MAP = {
      * US-entity/NRA profiles (same TAX-7/TAX-8 boundary as CFL-6);
      * taxComputation.usState asserted unconditionally (usStateTaxResult
      * already self-gates to null for those profiles). bracketParts was
-     * ported verbatim as part of this batch. The `india` sub-object of
-     * buildTaxComputation remains unported (deferred to a future batch),
-     * so buildTaxComputation itself is still mapped "missing" below —
-     * reclassifying it "ported" here would falsely certify full coverage
-     * of a function that's only 2 of 3 sub-objects closed; the tracker
-     * doc narrates the real partial progress instead. */
-    bracketParts: m("CFL-7", "ported", ["report-batch2-nodes.js"]), s115aParts: m("CFL-7", "missing"),
-    nrInterestParts: m("CFL-7", "missing"),
+     * ported verbatim as part of this batch. */
+    bracketParts: m("CFL-7", "ported", ["report-batch2-nodes.js"]),
+    /* CFL-7 batch 3, 19 Jul 2026: report-batch3-nodes.js. Closes
+     * buildTaxComputation's `india` sub-object — the last of the three —
+     * built on india-tax-combined-nodes.js (TAX-1 individual/HUF slab path
+     * + TAX-2 entity path, already merged there via isEntityTaxpayer).
+     * Needed two additive extensions to in1-nodes-v3.js's local
+     * computeS115aStream/computeNrInterestTreatment/computeLossSetOff (see
+     * their own mapping entries above) to expose the elections[]/used{}/
+     * unused{} trace detail the display layer needs, beyond the tax
+     * figures TAX-1 already verified. s115aParts/nrInterestParts ported
+     * verbatim as part of this batch. Verified in run-report3.js: 11/11
+     * exact structural match against WISING.analyze()'s own
+     * taxComputation.india across all 11 real profiles (individual/HUF AND
+     * all 3 company/foreign-company/firm entity profiles asserted
+     * unconditionally — computeIndiaEntityTax's simpler return shape needs
+     * no US-entity/NRA-style demotion). With all three sub-objects (us,
+     * usState, india) now closed, buildTaxComputation itself is reclassified
+     * "ported" below. */
+    s115aParts: m("CFL-7", "ported", ["report-batch3-nodes.js"]),
+    nrInterestParts: m("CFL-7", "ported", ["report-batch3-nodes.js"]),
     buildFtcReport: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
-    buildTaxComputation: m("CFL-7", "missing"),
+    buildTaxComputation: m("CFL-7", "ported", ["report-batch2-nodes.js", "report-batch3-nodes.js"]),
     buildWithholdingSummary: m("CFL-7", "missing"),
     buildScopeNotes: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
     buildReturnFormDetermination: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
