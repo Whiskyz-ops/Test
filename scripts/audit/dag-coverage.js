@@ -44,9 +44,9 @@ var ROOT = path.join(__dirname, "..", "..");
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js",
   "entitytax-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
-  "india-full-nodes.js", "india-tax-combined-nodes.js", "residency-nodes.js",
-  "scope-nodes.js", "us1-nodes.js", "us5-nodes.js", "us-full-nodes.js",
-  "ustax-nodes.js", "xb7-nodes.js"
+  "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js",
+  "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
+  "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
 ];
 function m(row, status, dagFiles, knownMissing) { return { row: row, status: status, dagFiles: dagFiles || ["*"], knownMissing: knownMissing || [] }; }
 var MAP = {
@@ -145,7 +145,12 @@ var MAP = {
      * residence, etc.) are read directly by residency-nodes.js itself and
      * so drop out of normalize()'s own AGG-10 boundary-gap list below. */
     resolveResidency: m("XBR-1", "ported", ["residency-nodes.js"]),
-    computeFtc: m("XBR-2", "missing"),
+    /* XBR-2 closed 19 Jul 2026: ftc-nodes.js ports computeFtc line-for-line
+     * (both directions + FEIE no-double-dip + the NRA/no-scope zeroing),
+     * verified 176/176 standalone (all 11 profiles, every output field);
+     * xborder-full-nodes.js wires all 12 of its boundary leaves in-graph,
+     * verified 144/144 end-to-end with ctx.model = {entity, meta} ONLY. */
+    computeFtc: m("XBR-2", "ported", ["ftc-nodes.js", "xborder-full-nodes.js"]),
     mapDoubleTaxedIncome: m("XBR-3", "missing"),
     computeLimits: m("LIM-1..6", "boundary"),
     crossBasis: m("XBR-4", "missing"),

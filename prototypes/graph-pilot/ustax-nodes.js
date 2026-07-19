@@ -334,7 +334,14 @@ var NODES = {
         agiUsd: agi, taxableIncomeUsd: taxableIncome, incomeTaxUsd: incomeTax, niitUsd: niit,
         additionalMedicareUsd: addlMedicare, seTaxUsd: seTax, qbiDeductionUsd: qbiDeduction, amtUsd: amtOwed,
         creditsUsd: creditsUsd, totalTaxBeforeFtcUsd: totalTaxBeforeFtc,
-        deductionUsd: deduction, deductionMode: usedMode
+        deductionUsd: deduction, deductionMode: usedMode,
+        // Added for XBR-2 (ftc-nodes.js wiring) — mirrors the same four
+        // fields computeUsTax's own result carries for computeFtc's benefit:
+        // totalIncomeUsd (engine L1046), usSourceIncomeUsd (= inc.usSourceTotal
+        // .usd, engine L1101), the FEIE amount actually applied (engine's
+        // usTax.feie.appliedUsd, flat here), and the worldwide flag.
+        totalIncomeUsd: totalIncome, usSourceIncomeUsd: inc.usSourceTotal.usd,
+        feieAppliedUsd: feieAppliedUsd, worldwide: worldwide
       };
     }
   },

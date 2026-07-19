@@ -209,6 +209,19 @@ matched; the other three wrongly zeroed it). 189/189 on
 was a DAG-only bug, the engine never had it), `audit:dag` clean. Both
 IN-38 and IN-39 are now closed on the DAG side, matching the engine.
 
+**XBR-2 closed, 19 July 2026 (second session pass):** `ftc-nodes.js` ports
+`computeFtc` line-for-line — both directions, the FEIE no-double-dip, and
+the NRA/no-scope double-zeroing whose fallback leak was the historical
+XB-24 bug — verified **176/176** standalone (all 11 profiles, entity + NRA
+included, every output field). `xborder-full-nodes.js` then merges
+india-full + us-full + ftc and closes all 12 FTC boundary leaves in-graph,
+verified **144/144** by `run-xborder-full.js` under the strictest ctx of
+any runner: `model` carries only `{entity, meta}` — no `income`, no
+`computed`. The product's headline number (net unrelieved double tax) now
+computes end-to-end from raw Layer 1 form data. `usTaxResult` gained four
+FTC-facing fields (`totalIncomeUsd`/`usSourceIncomeUsd`/`feieAppliedUsd`/
+`worldwide`) mirroring the engine result's own. See the XBR-2 row.
+
 **Status legend:** ✅ ported & verified (diffed against the real function, not
 just same-named) · 🟡 partial · 🔶 boundary-only (the DAG *consumes* the
 engine's output for this as a `ctx` input rather than re-deriving it — looks
@@ -267,7 +280,7 @@ Reconciliation) and the DAG has made the least progress here of any area.
 | ID | Item | Status | DAG file | Effort | Detail |
 |---|---|---|---|---|---|
 | XBR-1 | `resolveResidency` (dual-residency + DTAA Art. 4 tie-breaker) | ✅ | `residency-nodes.js`, wired into `us-full-nodes.js` | — | **Closed 19 Jul 2026** (re-scoped from the 🔶/🟡 the tracker originally guessed — see the dated note above for why). `resolveResidency` doesn't run the tie-break cascade itself; that decision is Layer 1's, handed to the engine as already-resolved fields (`residency_detail.final_india_residency_status`, `dtaa.dtaa_treaty_residence`, etc.). What the function DOES do — turn those into per-side worldwide-taxation booleans, apply the treaty cede consequence (with the US-citizen saving-clause carve-out), and assemble `dualResident`/`tieBreakWinner`/`worldwideOverlap` — is ported in full and verified 132/132 in `run-residency.js` against all 11 profiles, `ctx` carrying no `model`/`computed` at all (a genuine derivation, not a disguised boundary read). `us-full-nodes.js`'s `worldwideUs` now resolves `residencyResult.us.worldwide` instead of reading `computed.residency` — re-verified 81/81 in `run-us-full.js` with `ctx.computed` removed from the harness entirely. India side needed no wiring: `in1-nodes-v3.js`/`entitytax-nodes.js` were already reading India residency status as a raw field, never via `computed.residency`. |
-| XBR-2 | `computeFtc` (§904 limitation, both directions, credit pool + carryover) | ❌ | `scope-nodes.js` (`foreignSrcGrossUsd*` — narrow slice only) | 🔴 | The only DAG code touching FTC territory is the XB-24 scope-gating proof, which reproduces one intermediate figure (gross foreign-source income) to demonstrate the gating *pattern* — it was never meant to, and does not, replace `computeFtc`. The §904 basket math, the FTC credit/carryover computation, and the reverse-direction (India §90 relief) computation are 0% ported. Given README's own framing of FTC reconciliation as the headline feature, this is the most consequential gap in the whole tracker. |
+| XBR-2 | `computeFtc` (§904 limitation, both directions, credit pool + carryover) | ✅ | `ftc-nodes.js` + `xborder-full-nodes.js` | — | **Closed 19 Jul 2026.** `ftc-nodes.js` ports `computeFtc` (computation.js L1319-1402) line-for-line: the US Form 1116 direction (FEIE §911(d)(6) no-double-dip with proportional Indian-tax disallowance, §904-style limit fraction, carryover) and the India §159 relief direction, including the NRA/no-US-scope double-zeroing whose `: 1` fallback leak was the historical XB-24 bug, and the by-construction-zero `indiaResidual` expression kept verbatim rather than "improved". Verified standalone via `run-ftc.js`: **176/176** — all 11 profiles asserted (entity + NRA included, since boundaries there read real engine outputs), every output field (11 US-direction + 4 India-direction + net). Then `xborder-full-nodes.js` merges india-full + us-full + ftc and redefines all 12 FTC boundary leaves to in-graph values — `usTaxResult` (extended with `totalIncomeUsd`/`usSourceIncomeUsd`/`feieAppliedUsd`/`worldwide`, mirroring the engine result's own FTC-facing fields), `totalTaxInrCombined`/`totalIncomeInrV3`/`entityTaxableInrBoundary` (entity-routed, matching engine L517/L720), `totalIndiaIncomeInr`, `aggregateUsIncomeResult.usSourceTotal`, `residencyResult.india.worldwide`, and a router-derived scope node mirroring normalize L2177-2182. Verified via `run-xborder-full.js`: **144/144** — the strictest ctx of any runner (`model` carries ONLY `{entity, meta}`; no `income`, no `computed`), so the product's headline net-unrelieved-double-tax figure now computes end-to-end from raw Layer 1 data (real nonzero matches: $1,068 / $6,389 / $7,177 to the dollar). US-entity + NRA profiles reported, not asserted (their US tax is TAX-7/TAX-8, scoped out); India-entity profiles ARE asserted. Prior-state note kept for history: before this, the only FTC-adjacent DAG code was the XB-24 scope-gating slice in `scope-nodes.js`. |
 | XBR-3 | `mapDoubleTaxedIncome` (per-head doubly-taxed-income breakdown) | ❌ | — | 🟡 | No reference anywhere. |
 | XBR-4 | `crossBasis` (income re-computed under the other country's code — the "same income, both codes" reconciliation table) | ❌ | — | 🔴 | No reference. Depends on XBR-2/TAX-9 being closed first to have real figures to reconcile. |
 | XBR-5 | `computeApportionment` (FY-vs-CY tax-year apportionment) | ❌ | — | 🟡 | No reference. |
@@ -359,21 +372,21 @@ report matches the DAG's own 6/11), `audit:dag` clean.
 
 ## G. Buildability summary
 
-Counted mechanically from every row's own Status cell across A-E (SYS rows in F excluded — they're risks, not coverage gaps; CFL-6 counts as one row here even though it represents 48 individual findings — see its own caveat). Recounted 19 Jul 2026: first after `audit:dag`'s first run moved AGG-1 from ✅ to 🟡, again after TAX-10 closed (❌ → ✅), again after XBR-1 closed (🔶 → ✅).
+Counted mechanically from every row's own Status cell across A-E (SYS rows in F excluded — they're risks, not coverage gaps; CFL-6 counts as one row here even though it represents 48 individual findings — see its own caveat). Recounted 19 Jul 2026: first after `audit:dag`'s first run moved AGG-1 from ✅ to 🟡, again after TAX-10 closed (❌ → ✅), again after XBR-1 closed (🔶 → ✅), again after XBR-2 closed (❌ → ✅).
 
 | Bucket | Count (rows) |
 |---|---|
-| ✅ Ported & verified | 16 |
+| ✅ Ported & verified | 17 |
 | 🟡 Partial (ported with recorded gaps) | 1 (AGG-1) |
 | 🔶 Boundary-only (looks covered, isn't) | 3 |
 | 📝 Explicitly scoped out (documented) | 2 |
-| ❌ Not ported, no DAG reference | 18 (of which CFL-6 alone stands in for 48 individual findings) |
+| ❌ Not ported, no DAG reference | 17 (of which CFL-6 alone stands in for 48 individual findings) |
 | **Total rows** | **40** |
 
 By subsystem, share of engine logic with zero DAG reference:
 - **Income/deduction aggregation (A):** mostly closed — 3 rows ✅ plus AGG-1 🟡 (two specific side-channel reads short of full, down from six), the rest are smaller withholding/equity-comp utility functions.
 - **Core tax computation, resident path (B):** essentially closed for individuals — TAX-10 (wiring) is now ✅; the one remaining open item, TAX-9 (state tax), is 🟢 effort rather than a large build.
-- **Cross-border reconciliation (C):** the one row that WAS built (XBR-1, residency) is now ✅, but `computeFtc` (XBR-2) — the section carrying the product's headline FTC claim — is still 0% built and is the least-built area in the entire DAG. XBR-1's closure removes what would otherwise have been a real blocker in front of it.
+- **Cross-border reconciliation (C):** the headline is now in-graph — XBR-1 (residency) and XBR-2 (`computeFtc`, the product's headline FTC claim) are both ✅, and `run-xborder-full.js` proves the net-unrelieved-double-tax figure end-to-end from raw form data. Remaining: the display/breakdown layers around it (XBR-3 double-taxed-income map, XBR-4 cross-basis, XBR-5 apportionment, XBR-6 ITR form).
 - **Limits & monitoring (D):** ~0% (1 of 7 rows even partially touched).
 - **Conflict rule-book (E):** ~9% by finding count (5 of 53).
 
