@@ -43,7 +43,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
-  "entitytax-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
+  "doubletax-nodes.js", "entitytax-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
@@ -150,7 +150,14 @@ var MAP = {
      * xborder-full-nodes.js wires all 12 of its boundary leaves in-graph,
      * verified 144/144 end-to-end with ctx.model = {entity, meta} ONLY. */
     computeFtc: m("XBR-2", "ported", ["ftc-nodes.js", "xborder-full-nodes.js"]),
-    mapDoubleTaxedIncome: m("XBR-3", "missing"),
+    /* XBR-3 closed 19 Jul 2026: doubletax-nodes.js ports mapDoubleTaxedIncome
+     * in full, built on xborder-full-nodes.js (needs both countries' income
+     * plus residencyResult.us.worldwide in one place). The scoping pass's
+     * "needs verifying" turned out fully positive -- aggregateUsIncomeResult
+     * already exposed every foreign* field this reads, no new US-side work
+     * needed. Verified 55/55 in run-doubletax.js, all 11 profiles, every
+     * income head type genuinely exercised across the fixtures. */
+    mapDoubleTaxedIncome: m("XBR-3", "ported", ["doubletax-nodes.js"]),
     computeLimits: m("LIM-1..6", "boundary"),
     crossBasis: m("XBR-4", "missing"),
     /* XBR-5 closed 19 Jul 2026: apportionment-nodes.js ports computeApportionment
