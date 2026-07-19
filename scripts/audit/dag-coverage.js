@@ -43,7 +43,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
-  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "report-batch2-nodes.js", "report-batch3-nodes.js", "report-batch4-nodes.js", "report-batch5-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
+  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "report-batch2-nodes.js", "report-batch3-nodes.js", "report-batch4-nodes.js", "report-batch5-nodes.js", "report-batch6-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
@@ -238,7 +238,39 @@ var MAP = {
   "monitoring.js": {
     addDays: m("util", "util"), fmtDate: m("util", "util"),
     daysBetween: m("util", "util"), clamp: m("util", "util"),
-    monitor: m("LIM-7", "missing")
+    /* LIM-7, 19 Jul 2026: report-batch6-nodes.js. Genuinely new territory
+     * for this migration — the first node file built around date/calendar
+     * math rather than tax computation. Four pieces: residency day-counters
+     * + a predicted "flip" date (individuals) or a qualitative fact list
+     * (entities); threshold breach projections off computed.limits
+     * (LIM-1..6, separately tracked, read here as a boundary like every
+     * other computed.* field, not re-derived); a compliance calendar of
+     * filing deadlines, entity-aware; a compliance-health score + a capped
+     * alerts feed. opts.asOf and opts.findings are genuine caller-supplied
+     * inputs — findings is exactly findingsAllResult (CFL-7 batch 5); asOf
+     * is read as an explicit boundary (monitorAsOfBoundary) so verification
+     * can pin it to a real WISING.analyze() call's own instant instead of
+     * two independent new Date() calls racing a day boundary. The India
+     * audit-case test and the presumptive-only s.425 test are byte-
+     * identical to the same two tests conflicts.js's india_advance_tax_
+     * interest finding already uses (in1-nodes.js, merged in since CFL-7
+     * batch 5) — reused directly rather than re-derived a second time.
+     * Surfaced and fixed one real gap in findingsAllResult itself (CFL-7
+     * batch 5, report-batch5-nodes.js) along the way: detectConflicts's
+     * own final step sorts its findings array by severity then amountUsd
+     * descending before returning it (conflicts.js:1546-1551) — invisible
+     * to every earlier CFL-6/CFL-7 verification (all ID-based, order-
+     * independent), but monitor()'s alerts feed depends on that real order
+     * (.filter(critical).slice(0,4)) to pick its top-4 critical alerts.
+     * findingsAllResult now replicates the same sort, plus a stable
+     * pre-sort by the real add()-call sequence so same-severity/same-
+     * amountUsd ties (e.g. schedule_fa_inconsistent's amountUsd is always a
+     * literal 0) resolve identically to production's own push order.
+     * Verified in run-monitor.js: 11/11 exact structural match against
+     * WISING.analyze()'s own monitoring field across all 11 real profiles —
+     * no demotion needed for any profile, including the 2 US-entity/NRA
+     * ones (monitor() has no usTaxResult-style dependency at all). */
+    monitor: m("LIM-7", "ported", ["report-batch6-nodes.js", "in1-nodes.js"])
   },
   "conflicts.js": {
     usd: m("util", "util"), inr: m("util", "util"),

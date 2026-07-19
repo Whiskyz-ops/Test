@@ -186,16 +186,64 @@ NODES.buildTaxComputationResult = {
   }
 };
 
+/* The exact order detectConflicts calls add() in (conflicts.js:97-1544) —
+ * needed only as a stable-sort TIE-BREAK, matching JS's guaranteed-stable
+ * Array.sort: when two findings share both severity and amountUsd (e.g.
+ * schedule_fa_inconsistent's amountUsd is always a literal 0, so it ties
+ * with anything else that's also 0 at "info"/that severity), the engine's
+ * final order still reflects whichever was pushed first, which this
+ * merged array's own concatenation order doesn't naturally reproduce. */
+var FINDING_ADD_ORDER = ["dual_residency", "dual_residency_resolved", "treaty_docs_missing", "dtaa_treaty_elections",
+  "withholding_documentation_gap", "pan_not_linked_aadhaar", "ftc_gap", "ftc_available", "feie_ineligible", "feie_applied",
+  "amt_applies", "india_advance_tax_interest", "underpayment_2210", "early_withdrawal_penalty_72t", "iso_3921", "form_10iea",
+  "form_1099da_awareness", "state_income_tax", "niit_medicare_not_creditable", "no_totalization_agreement", "pe_article7",
+  "entity_dual_residency_poem", "residency_status_dtaa_conflated_india", "residency_status_mismatch_india_company",
+  "residency_status_mismatch_india", "residency_status_mismatch_india_entity", "residency_status_understated_us",
+  "residency_status_overstated_us", "residency_status_understated_us_entity", "residency_status_overstated_us_entity",
+  "chapter_xiia_elected_no_holdings", "chapter_xiia_investment_income_missing", "chapter_xiia_investment_income_computed",
+  "special_rate_gaming_winnings", "s115bbe_unexplained_income", "carry_forward_losses_not_applied", "nra_fdap_flat_rate",
+  "nra_w8ben_missing", "firpta", "form67_required", "tax_year_mismatch", "fx_basis", "state_treaty_not_binding", "pfic",
+  "cfc", "cfc_below_threshold", "transfer_pricing", "retirement_mismatch", "deemed_dividend_buyback_mismatch",
+  "promoter_buyback_additional_tax", "holding_period_mismatch_", "schedule_fa_inconsistent", "black_money_act_exposure",
+  "india_itr_form_mismatch", "foreign_gift_3520", "covered_expat_gift_tax", "lrs_limit", "fbar_limit",
+  "trump_account_contribution_limit", "equity_comp_sourcing", "cross_basis_summary"];
+function findingAddOrderIndex(id) {
+  var i = FINDING_ADD_ORDER.indexOf(id);
+  if (i >= 0) return i;
+  return FINDING_ADD_ORDER.indexOf("holding_period_mismatch_"); // dynamic "holding_period_mismatch_N" suffix
+}
+
 NODES.findingsAllResult = {
   deps: ["findingsBatch1Result", "findingsBatch2Result", "findingsBatch3Result", "findingsBatch4Result",
     "findingsBatch5Result", "holdingPeriodMismatchFindingsResult", "residencyConsistencyFindings",
     "indiaAdvanceTaxInterestFinding", "underpayment2210Finding", "earlyWithdrawalPenalty72tFinding",
     "scheduleFaInconsistentFinding", "blackMoneyActExposureFinding"],
   compute: function (d) {
-    return [].concat(d.findingsBatch1Result, d.findingsBatch2Result, d.findingsBatch3Result,
+    var all = [].concat(d.findingsBatch1Result, d.findingsBatch2Result, d.findingsBatch3Result,
       d.findingsBatch4Result, d.findingsBatch5Result, d.holdingPeriodMismatchFindingsResult,
       d.residencyConsistencyFindings, d.indiaAdvanceTaxInterestFinding, d.underpayment2210Finding,
       d.earlyWithdrawalPenalty72tFinding, d.scheduleFaInconsistentFinding, d.blackMoneyActExposureFinding);
+    // detectConflicts's own final step (conflicts.js:1546-1551) — not just a
+    // convenience, LIM-7's alerts feed (monitor()) depends on findings[]
+    // actually being in this order (.filter(critical).slice(0,4)) to pick
+    // its top-4 critical alerts. Each batch's own internal push order was
+    // only ever verified for CONTENT (ID-based comparison, every earlier
+    // CFL-6 runner), never for matching this final sort — added here,
+    // once, on the merged array, rather than reordering any already-shipped
+    // batch file's own internal sequence. A pre-sort by FINDING_ADD_ORDER
+    // comes first so that Array.sort's guaranteed stability (ES2019+, true
+    // in Node) reproduces the engine's real tie-break for same-severity/
+    // same-amountUsd findings (e.g. schedule_fa_inconsistent's amountUsd is
+    // always a literal 0) exactly as if they'd been pushed in add()-call
+    // order to begin with, without needing this merged array's own
+    // concatenation order to already match that sequence.
+    all.sort(function (a, b) { return findingAddOrderIndex(a.id) - findingAddOrderIndex(b.id); });
+    var weight = { critical: 0, warning: 1, info: 2 };
+    all.sort(function (a, b) {
+      if (weight[a.severity] !== weight[b.severity]) return weight[a.severity] - weight[b.severity];
+      return b.amountUsd - a.amountUsd;
+    });
+    return all;
   }
 };
 
