@@ -114,13 +114,19 @@ var MAP = {
      * dependency) was ported. The India-side (advance tax by quarter,
      * TDS/TCS) and the US prior-year-tax safe-harbor figure have no DAG
      * consumer yet. */
-    /* AGG-6: batch 5 (findings-batch5-nodes.js) closed the US side only
-     * (form67_required's own dependency); CFL-7 batch 1
+    /* AGG-6: FULLY CLOSED 19 Jul 2026. Batch 5 (findings-batch5-nodes.js)
+     * closed the US side (form67_required's own dependency); CFL-7 batch 1
      * (report-batch1-nodes.js) closed the India side (advance tax by
-     * quarter, TDS/TCS — form_1116's trigger needed the India total).
-     * One field remains: prior_year_total_tax_usd, the Form 2210 100%/
-     * 110%-of-prior-year safe-harbor figure — no current DAG consumer. */
-    aggregateTaxesPaid: m("AGG-6", "ported", ["findings-batch5-nodes.js", "report-batch1-nodes.js"], ["prior_year_total_tax_usd"]),
+     * quarter, TDS/TCS — form_1116's trigger needed the India total). The
+     * last recorded gap, prior_year_total_tax_usd (the Form 2210 100%/
+     * 110%-of-prior-year safe-harbor figure), closed the same way —
+     * additively exposed on taxesPaidUsResult, matching aggregateTaxesPaid's
+     * own null-vs-0 distinction exactly. It already had a DAG consumer
+     * (underpayment2210Finding, CFL-7 batch 5) via a separate raw leaf
+     * (usPriorYearTaxUsdRaw, us1-nodes.js) — this closes the gap in
+     * taxesPaidUsResult's own return shape, the thing AGG-6's row tracks,
+     * not a new consumer. knownMissing now empty. */
+    aggregateTaxesPaid: m("AGG-6", "ported", ["findings-batch5-nodes.js", "report-batch1-nodes.js"]),
     /* CFL-7 batch 4, 19 Jul 2026: report-batch4-nodes.js, built for
      * buildWithholdingSummary's LRS estimate row. Turned out genuinely
      * small and self-contained once actually read (same pattern as every
