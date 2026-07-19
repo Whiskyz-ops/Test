@@ -163,6 +163,25 @@
         STCG_111A_RATE: 0.20,
         LTCG_112A_RATE: 0.125,
         LTCG_112A_EXEMPT_INR: 125000,
+        // s.80DD/80U flat statutory amounts by disability severity, and the
+        // s.80DDB medical-expense cap by patient age band — promoted here
+        // from normalize.js-local literals (SYS-1) so the engine and the
+        // DAG (prototypes/graph-pilot) share one authoritative copy.
+        S80DD_U_FLAT_INR: { standard: 75000, severe: 125000 },
+        S80DDB_CAP_INR: { normal: 40000, senior: 100000 },
+        // s.32 WDV depreciation rates by Layer 1 asset class, and the
+        // capital-gains classification groups (Group A: STT-paid equity-class
+        // s.196/198; Group C: slab-rate debt-class) — promoted here from
+        // normalize.js-local literals (SYS-1) so engine and DAG share one copy.
+        ASSET_CLASS_RATES_INDIA: {
+          building_residential: 0.05, building_commercial: 0.10, building_temporary: 0.40,
+          plant_machinery_general: 0.15, plant_machinery_motor_cars: 0.15,
+          plant_machinery_commercial_vehicles: 0.30, plant_machinery_computers: 0.40,
+          plant_machinery_books: 0.40, plant_machinery_pollution: 0.40,
+          ships: 0.20, intangible_assets: 0.25
+        },
+        CG_GROUP_A_CLASSES: ["listed_equity", "equity_mutual_fund", "hybrid_mf_equity", "reit_invit", "etf"],
+        CG_GROUP_C_CLASSES: ["debt_mutual_fund_pre_apr23", "hybrid_mf_debt", "international_mf", "fof"],
         LTCG_112_RATE: 0.125,
         // s.69(2)(b) promoter additional tax on buy-back capital gains (Budget
         // 2026, buy-backs on/after 1-Apr-2026 only): a promoter (>10%
@@ -707,4 +726,9 @@
   ];
 
   WISING.CONST = CONST;
+  // CommonJS export for direct require() — the DAG (prototypes/graph-pilot)
+  // imports the SAME tables instead of hand-copying them (SYS-1 in
+  // docs/DAG_MIGRATION_TRACKER.md). No behavior change for the browser
+  // script-tag path above.
+  if (typeof module !== "undefined" && module.exports) module.exports = { CONST: CONST };
 })(typeof window !== "undefined" ? window : globalThis);

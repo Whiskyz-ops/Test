@@ -26,17 +26,12 @@ function safe(obj, path, dflt) {
 }
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 
-var C = {
-  RATE_115BAB: 0.15, SURCHARGE_115BAB: 0.10,
-  RATE_115BAA: 0.22, SURCHARGE_115BAA: 0.10,
-  RATE_115BA: 0.25,
-  RATE_TURNOVER_LTE_400CR: 0.25,
-  RATE_DEFAULT: 0.30,
-  SURCHARGE_OVER_1CR: 0.07, SURCHARGE_OVER_10CR: 0.12,
-  MAT_RATE: 0.15, CESS_RATE: 0.04
-};
-var FC = { RATE: 0.35, SURCHARGE_OVER_1CR: 0.02, SURCHARGE_OVER_10CR: 0.05, MAT_RATE: 0.15, CESS_RATE: 0.04 };
-var F = { RATE: 0.30, SURCHARGE_OVER_1CR: 0.12, CESS_RATE: 0.04 };
+/* SYS-1: verified-identical copies of CONST.TAX.INDIA_COMPANY /
+ * INDIA_COMPANY_FOREIGN / INDIA_FIRM replaced by the shared import. */
+var CONST_ET = require("../../engine/constants.js").CONST;
+var C = CONST_ET.TAX.INDIA_COMPANY;
+var FC = CONST_ET.TAX.INDIA_COMPANY_FOREIGN;
+var F = CONST_ET.TAX.INDIA_FIRM;
 
 var NODES = {
   indiaEntityTypeRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "profile.entity_type", "individual"); } },

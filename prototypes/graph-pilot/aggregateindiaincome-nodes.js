@@ -43,13 +43,9 @@ function monthsBetween(fromStr, toStr) {
   if (isNaN(a.getTime()) || isNaN(b.getTime())) return null;
   return ((b - a) / (1000 * 60 * 60 * 24)) / 30.436875;
 }
-var ASSET_CLASS_RATES_INDIA = {
-  building_residential: 0.05, building_commercial: 0.10, building_temporary: 0.40,
-  plant_machinery_general: 0.15, plant_machinery_motor_cars: 0.15,
-  plant_machinery_commercial_vehicles: 0.30, plant_machinery_computers: 0.40,
-  plant_machinery_books: 0.40, plant_machinery_pollution: 0.40,
-  ships: 0.20, intangible_assets: 0.25
-};
+/* SYS-1: shared import (promoted into constants.js from normalize-local). */
+var CONST_AGGIN = require("../../engine/constants.js").CONST;
+var ASSET_CLASS_RATES_INDIA = CONST_AGGIN.TAX.INDIA.ASSET_CLASS_RATES_INDIA;
 function isUnder180DaysAdditionInr(additionDateStr) {
   if (!additionDateStr) return false;
   var d = new Date(additionDateStr);
@@ -175,8 +171,8 @@ function toInrAtCurrency(amount, currency, usdToInrRate) {
 }
 function inrToUsd(inr) { return num(inr) / 83.0; }
 
-var GROUP_A_CLASSES = ["listed_equity", "equity_mutual_fund", "hybrid_mf_equity", "reit_invit", "etf"];
-var GROUP_C_CLASSES = ["debt_mutual_fund_pre_apr23", "hybrid_mf_debt", "international_mf", "fof"];
+var GROUP_A_CLASSES = CONST_AGGIN.TAX.INDIA.CG_GROUP_A_CLASSES;
+var GROUP_C_CLASSES = CONST_AGGIN.TAX.INDIA.CG_GROUP_C_CLASSES;
 var S50AA_UNLISTED_DEBT_CUTOFF = "2024-07-23";
 var USD_TO_INR = 83; // matches U.inrToUsd's own rate, engine-wide constant
 

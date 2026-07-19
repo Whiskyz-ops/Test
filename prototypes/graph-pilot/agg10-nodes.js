@@ -41,7 +41,7 @@ function safe(obj, path, dflt) {
   for (var i = 0; i < parts.length; i++) { if (cur == null) return dflt; cur = cur[parts[i]]; }
   return cur === undefined || cur === null ? dflt : cur;
 }
-var INR_PER_USD = 83.0;
+var INR_PER_USD = require("../../engine/constants.js").CONST.FX.INR_PER_USD; // SYS-1: shared
 
 var NODES = {};
 Object.keys(baseNodes).forEach(function (k) { NODES[k] = baseNodes[k]; });

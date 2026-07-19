@@ -91,29 +91,10 @@ NODES.equityCompResult = {
 };
 
 // ---- TAX-9: computeUsStateTax, ported in full (computation.js:1133-1182) --
-var US_STATES = {
-  CA: {
-    NAME: "California", FORM_NAME: "Form 540",
-    BRACKETS: {
-      single: [[11079, 0.01], [26264, 0.02], [41452, 0.04], [57542, 0.06], [72724, 0.08], [371479, 0.093], [445771, 0.103], [742953, 0.113], [Infinity, 0.123]],
-      mfj: [[22158, 0.01], [52528, 0.02], [82904, 0.04], [115084, 0.06], [145448, 0.08], [742958, 0.093], [891542, 0.103], [1485906, 0.113], [Infinity, 0.123]]
-    },
-    STD_DEDUCTION: { single: 5706, mfj: 11412 },
-    EXEMPTION_CREDIT_USD: { single: 153, mfj: 307 },
-    DEPENDENT_CREDIT_USD: 475,
-    SURCHARGE_THRESHOLD_USD: 1000000, SURCHARGE_RATE: 0.01,
-    SURCHARGE_LABEL: "Mental Health Services Tax (1% over $1,000,000, not doubled for MFJ)"
-  },
-  NY: {
-    NAME: "New York", FORM_NAME: "Form IT-201",
-    BRACKETS: {
-      single: [[8500, 0.04], [11700, 0.045], [13900, 0.0525], [80650, 0.055], [215400, 0.06], [1077550, 0.0685], [5000000, 0.0965], [25000000, 0.103], [Infinity, 0.109]],
-      mfj: [[17150, 0.04], [23600, 0.045], [27900, 0.0525], [161550, 0.055], [323200, 0.06], [2155350, 0.0685], [5000000, 0.0965], [25000000, 0.103], [Infinity, 0.109]]
-    },
-    STD_DEDUCTION: { single: 8000, mfj: 16050 },
-    DEPENDENT_EXEMPTION_USD: 1000
-  }
-};
+/* SYS-1: verified-identical copy of CONST.TAX.US_STATES (CA/NY brackets,
+ * std deductions, AGI thresholds) replaced by the shared import. */
+var CONST_B5 = require("../../engine/constants.js").CONST;
+var US_STATES = CONST_B5.TAX.US_STATES;
 NODES.usStateTaxResult = {
   deps: ["usEntityKind", "treatyFiles1040nrRaw", "s6013hElection", "stateResidencyRaw", "usFilingStatusRaw", "dedUs", "usTaxResult"],
   compute: function (d) {
@@ -202,7 +183,7 @@ NODES.limitsRawExtra = {
   }
 };
 
-var LIM = { FBAR_AGGREGATE_USD: 10000, LRS_ANNUAL_USD: 250000, TRUMP_ACCOUNT_ANNUAL_CAP_USD: 5000, TRUMP_ACCOUNT_FEDERAL_SEED_USD: 1000 };
+var LIM = CONST_B5.LIMITS; // SYS-1: shared (superset of the four keys read here)
 function gauge(id, valueUsd, limitUsd) {
   var pct = limitUsd > 0 ? (valueUsd / limitUsd) : 0;
   var status = pct >= 1 ? "breached" : (pct >= 0.8 ? "approaching" : "ok");

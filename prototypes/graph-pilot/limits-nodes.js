@@ -38,22 +38,11 @@ function safe(obj, path, dflt) {
   for (var i = 0; i < parts.length; i++) { if (cur == null) return dflt; cur = cur[parts[i]]; }
   return cur === undefined || cur === null ? dflt : cur;
 }
-var INR_PER_USD = 83.0;
+var INR_PER_USD = require("../../engine/constants.js").CONST.FX.INR_PER_USD; // SYS-1: shared
 
-// constants.js LIMITS — copied exact (audit:dag numeric-drift-checked):
-var L = {
-  FBAR_AGGREGATE_USD: 10000,
-  FORM_8938: {
-    US_RESIDENT_SINGLE: { lastDay: 50000, anyTime: 75000 },
-    US_RESIDENT_MFJ: { lastDay: 100000, anyTime: 150000 },
-    ABROAD_SINGLE: { lastDay: 200000, anyTime: 300000 },
-    ABROAD_MFJ: { lastDay: 400000, anyTime: 600000 }
-  },
-  LRS_ANNUAL_USD: 250000,
-  NRO_REPATRIATION_ANNUAL_USD: 1000000,
-  FEIE_MAX_USD: 132900,
-  TRUMP_ACCOUNT_ANNUAL_CAP_USD: 5000
-};
+// SYS-1 closed 19 Jul 2026: the L table below was a verified-identical
+// copy of CONST.LIMITS — now the same object, imported.
+var L = require("../../engine/constants.js").CONST.LIMITS;
 
 // computation.js L758-785, verbatim — including the reasons array the
 // ustax-nodes copy drops (the feie gauge note is built from it).

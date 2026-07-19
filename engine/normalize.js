@@ -286,13 +286,8 @@
   // s.32 block-of-assets WDV rates — matched exactly to layer1_india.html's
   // own asset_class dropdown (generateAssetBlocksCardHTML), including its
   // exact percentages, so a Layer 1 selection always resolves to a real rate.
-  var ASSET_CLASS_RATES_INDIA = {
-    building_residential: 0.05, building_commercial: 0.10, building_temporary: 0.40,
-    plant_machinery_general: 0.15, plant_machinery_motor_cars: 0.15,
-    plant_machinery_commercial_vehicles: 0.30, plant_machinery_computers: 0.40,
-    plant_machinery_books: 0.40, plant_machinery_pollution: 0.40,
-    ships: 0.20, intangible_assets: 0.25
-  };
+  // Shared with the DAG via constants.js (SYS-1).
+  var ASSET_CLASS_RATES_INDIA = CONST.TAX.INDIA.ASSET_CLASS_RATES_INDIA;
 
   // "Used for less than 180 days" (s.32(1) proviso) — half rate on the
   // ADDITIONS only, opening WDV always gets the full rate. Layer 1's own
@@ -1071,8 +1066,8 @@
     // risk (see the conflicts.js finding), but that's a data-completeness
     // question, not something this engine can second-guess.
     var chapterXiiaElected = safe(india, "compliance_docs.chapter_xiia_elected", false) === true;
-    var GROUP_A_CLASSES = ["listed_equity", "equity_mutual_fund", "hybrid_mf_equity", "reit_invit", "etf"];
-    var GROUP_C_CLASSES = ["debt_mutual_fund_pre_apr23", "hybrid_mf_debt", "international_mf", "fof"];
+    var GROUP_A_CLASSES = CONST.TAX.INDIA.CG_GROUP_A_CLASSES;
+    var GROUP_C_CLASSES = CONST.TAX.INDIA.CG_GROUP_C_CLASSES;
     var S50AA_UNLISTED_DEBT_CUTOFF = "2024-07-23";
     var otherLtcg198Inr = 0, otherStcg20Inr = 0, otherLtcg197Inr = 0, otherStcgSlabInr = 0, vdaGainInr = 0, vdaSaleConsiderationInr = 0;
     var chapterXiiaInvestmentIncomeInr = 0, chapterXiiaSfeaHoldingCount = 0;
@@ -1341,9 +1336,10 @@
     };
   }
 
-  /* India deduction inputs (Chapter VI-A) for the tax engine. */
-  var S80DD_U_FLAT = { standard: 75000, severe: 125000 };
-  var S80DDB_CAP = { normal: 40000, senior: 100000 };
+  /* India deduction inputs (Chapter VI-A) for the tax engine. Flat amounts
+   * and caps live in constants.js (shared with the DAG — SYS-1). */
+  var S80DD_U_FLAT = CONST.TAX.INDIA.S80DD_U_FLAT_INR;
+  var S80DDB_CAP = CONST.TAX.INDIA.S80DDB_CAP_INR;
   // s.80EE (loans sanctioned 1-Apr-2016 to 31-Mar-2017, cap ₹50,000) vs
   // s.80EEA (loans sanctioned 1-Apr-2019 to 31-Mar-2022, cap ₹1,50,000) —
   // both sanction windows are long closed to NEW loans, but a taxpayer still

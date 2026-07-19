@@ -37,16 +37,14 @@ function safe(obj, path, dflt) {
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 function inrToUsd(inr) { return num(inr) / 83.0; }
 
-var US_SEC179_MAX_USD = 2560000;
-var US_SEC179_PHASEOUT_THRESHOLD_USD = 4090000;
-var US_BONUS_DEPRECIATION_RATE = 1.00;
-var US_MACRS_HALF_YEAR = {
-  "3-year": [0.3333, 0.4445, 0.1481, 0.0741],
-  "5-year": [0.2000, 0.3200, 0.1920, 0.1152, 0.1152, 0.0576],
-  "7-year": [0.1429, 0.2449, 0.1749, 0.1249, 0.0893, 0.0892, 0.0893, 0.0446],
-  "15-year": [0.0500, 0.0950, 0.0855, 0.0770, 0.0693, 0.0623, 0.0590, 0.0590, 0.0591, 0.0590, 0.0591, 0.0590, 0.0591, 0.0590, 0.0591, 0.0295]
-};
-var US_MACRS_STRAIGHT_LINE_ANNUAL = { "27.5-year": 1 / 27.5, "39-year": 1 / 39, "amortization-15": 1 / 15 };
+/* SYS-1: verified-identical copies of CONST.TAX.US_SEC179_* / US_BONUS_* /
+ * US_MACRS_* replaced by the shared import. */
+var CONST_AGGUS = require("../../engine/constants.js").CONST;
+var US_SEC179_MAX_USD = CONST_AGGUS.TAX.US_SEC179_MAX_USD;
+var US_SEC179_PHASEOUT_THRESHOLD_USD = CONST_AGGUS.TAX.US_SEC179_PHASEOUT_THRESHOLD_USD;
+var US_BONUS_DEPRECIATION_RATE = CONST_AGGUS.TAX.US_BONUS_DEPRECIATION_RATE;
+var US_MACRS_HALF_YEAR = CONST_AGGUS.TAX.US_MACRS_HALF_YEAR;
+var US_MACRS_STRAIGHT_LINE_ANNUAL = CONST_AGGUS.TAX.US_MACRS_STRAIGHT_LINE_ANNUAL;
 
 function computeSelfEmploymentNetProfitUsd(s) {
   var cogs = num(s.cogs_beginning_inventory) + num(s.cogs_purchases) + num(s.cogs_labor) + num(s.cogs_materials) - num(s.cogs_ending_inventory);

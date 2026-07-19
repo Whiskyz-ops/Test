@@ -141,12 +141,8 @@ NODES.indianMutualFundsResult = {
 };
 
 // ---- LIM-2: Form 8938 gauge (computeLimits, computation.js:1466-1476) -----
-var FORM_8938 = {
-  US_RESIDENT_SINGLE: { lastDay: 50000, anyTime: 75000 },
-  US_RESIDENT_MFJ: { lastDay: 100000, anyTime: 150000 },
-  ABROAD_SINGLE: { lastDay: 200000, anyTime: 300000 },
-  ABROAD_MFJ: { lastDay: 400000, anyTime: 600000 }
-};
+var CONST_B1_LIMITS = require("../../engine/constants.js").CONST.LIMITS; // SYS-1: shared
+var FORM_8938 = CONST_B1_LIMITS.FORM_8938;
 NODES.form8938GaugeResult = {
   deps: ["feie", "usFilingStatusRaw", "accountsListResult", "hasUsScopeBoundaryFtc"],
   compute: function (d) {
@@ -228,7 +224,7 @@ NODES.buildDocumentsResult = {
       form_8865: false,
       form_3520: ((d.ppfInrRaw > 0 || d.epfInrRaw > 0) && res.us.isResident) || d.foreignGiftsRaw.receivedAbove100k || d.foreignGiftsRaw.isTrustBeneficiary,
       form_1040nr: d.treatyFiles1040nrRaw || res.us.status === "NON_RESIDENT_ALIEN",
-      form_8960: d.headlineTotalIncomeUsdResult > (({ single: 200000, mfj: 250000, mfs: 125000, hoh: 200000 })[d.usFilingStatusRaw] || 200000) &&
+      form_8960: d.headlineTotalIncomeUsdResult > ((CONST_B1_LIMITS.NIIT_THRESHOLD)[d.usFilingStatusRaw] || 200000) &&
         (d.aggregateUsIncomeResult.interestUs.usd + d.aggregateUsIncomeResult.ordinaryDividendsUs.usd + d.aggregateUsIncomeResult.capitalGainsUs.usd) > 0,
       form_8959: d.usTaxResult.additionalMedicareUsd > 0,
       form_67: d.aggregateUsIncomeResult.foreignSourceTotal.usd > 0 || d.taxesPaidUsResult.total.usd > 0 || res.india.isResident,

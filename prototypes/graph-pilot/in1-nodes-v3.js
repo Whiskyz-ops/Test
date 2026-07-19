@@ -46,28 +46,14 @@ function safe(obj, path, dflt) {
 }
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 
-var T = {
-  SLABS_NEW: [[400000, 0.00], [800000, 0.05], [1200000, 0.10], [1600000, 0.15], [2000000, 0.20], [2400000, 0.25], [Infinity, 0.30]],
-  SLABS_OLD: [[250000, 0.00], [500000, 0.05], [1000000, 0.20], [Infinity, 0.30]],
-  REBATE_87A_NEW: { incomeCap: 1200000, maxRebate: 60000 },
-  REBATE_87A_OLD: { incomeCap: 500000, maxRebate: 12500 },
-  DEDUCTION_CAPS_OLD: { s80C: 150000, s80CCD1B: 50000, s80D_self: 25000, s80D_parents_senior: 50000 },
-  STCG_111A_RATE: 0.20,
-  LTCG_112A_RATE: 0.125,
-  LTCG_112A_EXEMPT_INR: 125000,
-  PROMOTER_BUYBACK_TARGET_RATE_NON_CORPORATE: 0.30,
-  PROMOTER_BUYBACK_TARGET_RATE_CORPORATE: 0.22,
-  PROMOTER_BUYBACK_SURCHARGE_ON_ADDITIONAL_RATE: 0.12,
-  RATE_115BB: 0.30,
-  RATE_115BBH: 0.30,
-  RATE_115E_INVESTMENT_INCOME: 0.20,
-  S115A_RATES: { dividend: 0.20, royalty: 0.20, fts: 0.20 },
-  SURCHARGE_CG_DIV_CAP: 0.15,
-  SURCHARGE_NEW_MAX: 0.25,
-  CESS_RATE: 0.04
-};
-var S80DD_U_FLAT = { standard: 75000, severe: 125000 };
-var S80DDB_CAP = { normal: 40000, senior: 100000 };
+/* SYS-1 closed 19 Jul 2026: hand-copied tables replaced by the shared
+ * import (verified byte-identical against CONST.TAX.INDIA by
+ * check-const.js before the swap; S80DD/S80DDB caps were promoted INTO
+ * constants.js from normalize.js-local literals in the same pass). */
+var CONST = require("../../engine/constants.js").CONST;
+var T = CONST.TAX.INDIA;
+var S80DD_U_FLAT = CONST.TAX.INDIA.S80DD_U_FLAT_INR;
+var S80DDB_CAP = CONST.TAX.INDIA.S80DDB_CAP_INR;
 function s80eeaEeCapInr(sanctionDate) {
   if (!sanctionDate) return 0;
   var d = new Date(sanctionDate);
