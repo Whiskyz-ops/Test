@@ -43,7 +43,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
-  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
+  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
@@ -253,7 +253,27 @@ var DAG_FINDING_IDS = {
   s115bbe_unexplained_income: "findings-batch2-nodes.js",
   chapter_xiia_elected_no_holdings: "findings-batch2-nodes.js",
   chapter_xiia_investment_income_missing: "findings-batch2-nodes.js",
-  chapter_xiia_investment_income_computed: "findings-batch2-nodes.js"
+  chapter_xiia_investment_income_computed: "findings-batch2-nodes.js",
+  /* CFL-6 batch 3, 19 Jul 2026: findings-batch3-nodes.js. */
+  form_10iea: "findings-batch3-nodes.js",
+  form_1099da_awareness: "findings-batch3-nodes.js",
+  fx_basis: "findings-batch3-nodes.js",
+  tax_year_mismatch: "findings-batch3-nodes.js",
+  pfic: "findings-batch3-nodes.js",
+  cfc: "findings-batch3-nodes.js",
+  cfc_below_threshold: "findings-batch3-nodes.js",
+  transfer_pricing: "findings-batch3-nodes.js",
+  no_totalization_agreement: "findings-batch3-nodes.js",
+  niit_medicare_not_creditable: "findings-batch3-nodes.js",
+  pe_article7: "findings-batch3-nodes.js",
+  retirement_mismatch: "findings-batch3-nodes.js",
+  deemed_dividend_buyback_mismatch: "findings-batch3-nodes.js",
+  promoter_buyback_additional_tax: "findings-batch3-nodes.js",
+  foreign_gift_3520: "findings-batch3-nodes.js",
+  covered_expat_gift_tax: "findings-batch3-nodes.js",
+  state_treaty_not_binding: "findings-batch3-nodes.js",
+  nra_w8ben_missing: "findings-batch3-nodes.js",
+  firpta: "findings-batch3-nodes.js"
 };
 
 /* ---- comment-aware line reader ------------------------------------------ */
