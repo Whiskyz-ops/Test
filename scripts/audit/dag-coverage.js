@@ -43,7 +43,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
-  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
+  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
@@ -254,6 +254,14 @@ var DAG_FINDING_IDS = {
   chapter_xiia_elected_no_holdings: "findings-batch2-nodes.js",
   chapter_xiia_investment_income_missing: "findings-batch2-nodes.js",
   chapter_xiia_investment_income_computed: "findings-batch2-nodes.js",
+  /* CFL-6 batch 4, 19 Jul 2026: findings-batch4-nodes.js. */
+  treaty_docs_missing: "findings-batch4-nodes.js",
+  dtaa_treaty_elections: "findings-batch4-nodes.js",
+  withholding_documentation_gap: "findings-batch4-nodes.js",
+  carry_forward_losses_not_applied: "findings-batch4-nodes.js",
+  feie_ineligible: "findings-batch4-nodes.js",
+  feie_applied: "findings-batch4-nodes.js",
+  nra_fdap_flat_rate: "findings-batch4-nodes.js",
   /* CFL-6 batch 3, 19 Jul 2026: findings-batch3-nodes.js. */
   form_10iea: "findings-batch3-nodes.js",
   form_1099da_awareness: "findings-batch3-nodes.js",
