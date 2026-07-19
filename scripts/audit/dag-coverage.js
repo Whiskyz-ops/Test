@@ -43,7 +43,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
-  "doubletax-nodes.js", "entitytax-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
+  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
@@ -159,7 +159,16 @@ var MAP = {
      * income head type genuinely exercised across the fixtures. */
     mapDoubleTaxedIncome: m("XBR-3", "ported", ["doubletax-nodes.js"]),
     computeLimits: m("LIM-1..6", "boundary"),
-    crossBasis: m("XBR-4", "missing"),
+    /* XBR-4 closed 19 Jul 2026: crossbasis-nodes.js ports crossBasis in
+     * full, built on doubletax-nodes.js (superset of xborder-full-nodes.js).
+     * A real bug found while porting -- computation.js:1520 compared
+     * taxRegime against lowercase "old" (always false; the field is always
+     * stored uppercase) -- was fixed in the engine first (GAP_TRACKER.md
+     * IN-41). This DAG port never had the bug (in1-nodes-v3.js's own
+     * taxRegime node already normalizes to uppercase). Verified 69/69 in
+     * run-crossbasis.js, all 11 profiles plus a synthetic OLD-regime case
+     * (no real profile combines OLD regime with a salary row here). */
+    crossBasis: m("XBR-4", "ported", ["crossbasis-nodes.js"]),
     /* XBR-5 closed 19 Jul 2026: apportionment-nodes.js ports computeApportionment
      * in full (verified 132/132 in run-apportionment.js, all 11 profiles,
      * zero boundary reads — ctx carries only {router, india, us}). Reuses
