@@ -43,7 +43,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
-  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "report-batch2-nodes.js", "report-batch3-nodes.js", "report-batch4-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
+  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "report-batch2-nodes.js", "report-batch3-nodes.js", "report-batch4-nodes.js", "report-batch5-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
@@ -306,7 +306,37 @@ var MAP = {
     buildWithholdingSummary: m("CFL-7", "ported", ["report-batch4-nodes.js"]),
     buildScopeNotes: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
     buildReturnFormDetermination: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
-    analyze: m("CFL-7", "missing")
+    /* CFL-7 batch 5 (LAST), 19 Jul 2026: report-batch5-nodes.js — the
+     * top-level orchestration itself. Assembles findings + all six
+     * buildXxx() results + a small summary derivation into the exact
+     * 11-key WISING.analyze() shape. model/computed/monitoring stay
+     * explicit boundary inputs (normalize/compute are AGG-10/TAX-N/XBR-N,
+     * separately tracked; monitor() is LIM-7, a separate untouched
+     * subsystem) — consistent with how every other node file in this
+     * migration already treats them, not a new exception carved out here.
+     * findingsAllResult needed 5 findings that lived entirely outside the
+     * findings-batchN-nodes.js chain (india_advance_tax_interest,
+     * underpayment_2210, early_withdrawal_penalty_72t,
+     * black_money_act_exposure, schedule_fa_inconsistent — CFL-1..5's
+     * earliest prototype work, in1/us1/us5/xb7-nodes.js, which only ever
+     * built {shouldFire, amountUsd} pairs, never full finding objects) —
+     * built fresh here from those already-verified pieces, with title/
+     * detail/recommendation text re-read from conflicts.js. Caught a real
+     * bug during merge, not by a failed test: all four of those files
+     * independently name their fire-condition node "shouldFire" — a plain
+     * Object.keys().forEach merge would have silently kept only the last
+     * file's version, breaking the other three; fixed by aliasing each to
+     * a unique per-file name before merging. Verified in run-analyze.js:
+     * 139/139 — exact structural match against WISING.analyze()'s
+     * complete return object across all 11 real profiles; findings/
+     * ftcReport/taxComputation.us reported-not-asserted for the 2
+     * US-entity/NRA profiles for the same TAX-7/TAX-8-dependent IDs/
+     * fields every earlier batch already demoted (ftc_gap/ftc_available/
+     * amt_applies; taxComputation.us; ftcReport) — everything else,
+     * including taxComputation.india/usState, documents, withholding,
+     * scopeNotes, returnForms, model, computed, monitoring, and summary,
+     * asserted unconditionally for all 11. CFL-7 is now fully closed. */
+    analyze: m("CFL-7", "ported", ["report-batch5-nodes.js"])
   }
 };
 
