@@ -43,7 +43,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
-  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
+  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
@@ -238,7 +238,15 @@ var DAG_FINDING_IDS = {
   residency_status_understated_us: "residency-nodes.js",
   residency_status_overstated_us: "residency-nodes.js",
   residency_status_understated_us_entity: "residency-nodes.js",
-  residency_status_overstated_us_entity: "residency-nodes.js"
+  residency_status_overstated_us_entity: "residency-nodes.js",
+  /* CFL-6 batch 1, 19 Jul 2026: findings-nodes.js. */
+  pan_not_linked_aadhaar: "findings-nodes.js",
+  ftc_gap: "findings-nodes.js",
+  ftc_available: "findings-nodes.js",
+  amt_applies: "findings-nodes.js",
+  entity_dual_residency_poem: "findings-nodes.js",
+  dual_residency: "findings-nodes.js",
+  dual_residency_resolved: "findings-nodes.js"
 };
 
 /* ---- comment-aware line reader ------------------------------------------ */
