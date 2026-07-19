@@ -42,7 +42,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * dagFiles: which node files the port lives in ("*" = check against all —
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
-  "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js",
+  "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
   "entitytax-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
@@ -154,7 +154,16 @@ var MAP = {
     mapDoubleTaxedIncome: m("XBR-3", "missing"),
     computeLimits: m("LIM-1..6", "boundary"),
     crossBasis: m("XBR-4", "missing"),
-    computeApportionment: m("XBR-5", "missing"),
+    /* XBR-5 closed 19 Jul 2026: apportionment-nodes.js ports computeApportionment
+     * in full (verified 132/132 in run-apportionment.js, all 11 profiles,
+     * zero boundary reads — ctx carries only {router, india, us}). Reuses
+     * the already-closed AGG-1/AGG-3 income totals rather than re-deriving
+     * income classification; adds two new raw leaves (baseYear,
+     * indiaQuarterlyUsd) read directly from ctx.router/ctx.us/ctx.india,
+     * matching the "genuine derivation" discipline of every other
+     * from-scratch phase (not a ctx.model boundary read like ustax-nodes.js's
+     * separate baseYearUs node, which stays a boundary on purpose). */
+    computeApportionment: m("XBR-5", "ported", ["apportionment-nodes.js"]),
     computeIndiaItrForm: m("XBR-6", "missing"),
     /* TAX-10 (wiring AGG-1/AGG-3 into TAX-1/TAX-5) closed 19 Jul 2026:
      * india-full-nodes.js and us-full-nodes.js merge the income-aggregation
