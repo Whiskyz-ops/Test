@@ -35,8 +35,19 @@ function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
 var reportBatch2Nodes = require("./report-batch2-nodes.js").NODES;
 var reportBatch3Nodes = require("./report-batch3-nodes.js").NODES;
 var NODES = {};
-Object.keys(reportBatch2Nodes).forEach(function (k) { NODES[k] = reportBatch2Nodes[k]; });
+/* MERGE ORDER MATTERS — batch3 FIRST, batch2's chain SECOND. batch3 builds
+ * its standalone set from india-tax-combined-nodes.js, whose boundary nodes
+ * (businessInrBoundaryV3, stcgInrBoundary, …, entityTaxableInrBoundary)
+ * still read ctx.model.income.india raw. batch2's lineage carries
+ * india-full-nodes.js's IN-GRAPH overrides of those same ids. The original
+ * batch2-then-batch3 order silently reverted the TAX-10 wiring for every
+ * report node from here up — undetected because every runner passed a full
+ * model in ctx, so the raw reads still worked. Found by run-agg10.js's
+ * bare-ctx resolve (the first runner with NO model at all), 19 Jul 2026.
+ * batch3's own NEW nodes (slabBreakdownV3, the buildTaxComputation india
+ * parts) have unique ids and survive either order. */
 Object.keys(reportBatch3Nodes).forEach(function (k) { NODES[k] = reportBatch3Nodes[k]; });
+Object.keys(reportBatch2Nodes).forEach(function (k) { NODES[k] = reportBatch2Nodes[k]; });
 
 /* ---- LRS TCS (AGG-8, computeLrsTcs, normalize.js:2062-2104), ported in
  * full — genuinely small and self-contained once actually read, same as

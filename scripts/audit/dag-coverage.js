@@ -42,7 +42,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * dagFiles: which node files the port lives in ("*" = check against all —
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
-  "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
+  "agg10-nodes.js", "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
   "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "report-batch2-nodes.js", "report-batch3-nodes.js", "report-batch4-nodes.js", "report-batch5-nodes.js", "report-batch6-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "limits-nodes.js", "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
@@ -66,6 +66,17 @@ var MAP = {
      * read separately, just above their call site in normalize(). */
     deriveCompanyPoem: m("XBR-1", "ported", ["residency-nodes.js"]),
     deriveIndiaDomesticStatus: m("XBR-1", "ported", ["residency-nodes.js"]),
+    /* AGG-10 closed 19 Jul 2026: agg10-nodes.js derives model.entity/meta/
+     * identity (+ the residency/companyResidency slices and computed.headline)
+     * in-graph and re-points every remaining ctx.model/ctx.computed read in
+     * the chain — incl. the four original finding graphs' v1-era boundaries
+     * (in1/us1/us5/xb7) that report-batch5's merge had left un-repointed,
+     * and a real merge-order clobber in report-batch4 that had silently
+     * reverted the india-full boundary overrides for the report layers
+     * (found by run-agg10.js's bare-ctx resolve — the first runner passing
+     * NO model/computed at all; 1188/1188 across all 11 profiles).
+     * loadRawStates itself (localStorage IO) has no graph analogue by
+     * design — the graph takes raw form JSON as its input contract. */
     loadRawStates: m("AGG-10", "boundary"),
     indiaAnnualSlice: m("AGG-1", "ported", ["aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js"]),
     presumptiveCeilingInr: m("AGG-1", "ported", ["aggregateindiaincome-nodes.js"]),
@@ -139,7 +150,30 @@ var MAP = {
      * no upstream dependency — tds_already_deducted_inr/tcs_inr/property
      * TDS array/state withholding, all raw reads. */
     aggregateWithholdingDetail: m("AGG-7", "ported", ["report-batch4-nodes.js"]),
-    normalize: m("AGG-10", "boundary")
+    /* normalize()'s 16 remaining unmatched reads (of 288) after AGG-10's
+     * closure, each verified echo-only or phantom — NOT consumed by any
+     * computation the DAG runs:
+     *  - model-echo asset/nra blocks nothing ported reads from the model
+     *    (the DAG's equivalents read raw form data directly):
+     *    pfic_holdings, real_estate.properties, retirement_accounts,
+     *    nra_specific.has_us_pe, form_8938_required
+     *  - businessEntities() display-name fallbacks + the US-26 alias set
+     *    kept engine-side as harmless no-ops (several are the exact
+     *    "field exists nowhere in the form" phantoms the field-coverage
+     *    audit already tracks): business_name, partnership_name, corp_name,
+     *    trade_name, country_of_incorporation, corporation_name,
+     *    ownership_pct, ownership_percentage, gilti_income_usd
+     *  - profile.filing_status: read via normalizeFilingStatus (util) —
+     *    the DAG's usFilingStatusRaw reads the same path; the token pair
+     *    lands on the util helper's line here, a scanner-attribution quirk.
+     * Remove entries only when a DAG node genuinely consumes the same
+     * model field. */
+    normalize: m("AGG-10", "ported", ["*"],
+      ["nra_specific.has_us_pe", "has_us_pe", "foreign_entities.pfic_holdings", "pfic_holdings",
+       "real_estate.properties", "retirement_accounts", "business_name", "partnership_name",
+       "corp_name", "trade_name", "country_of_incorporation", "corporation_name",
+       "ownership_pct", "ownership_percentage", "gilti_income_usd", "form_8938_required",
+       "profile.filing_status", "filing_status"])
   },
   "computation.js": {
     bracketTax: m("TAX-6", "ported", ["ustax-nodes.js", "in1-nodes-v3.js"]),

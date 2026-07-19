@@ -1,0 +1,135 @@
+"use strict";
+/* ============================================================================
+ * Verifies agg10-nodes.js — normalize()'s orchestration blocks derived
+ * in-graph — with the strictest ctx in this entire effort:
+ *
+ *     ctx = { router, india, us, monitorAsOfBoundary }
+ *
+ * NO model. NO computed. (monitorAsOfBoundary pins "now" to the engine
+ * run's own asOf, exactly as run-monitor.js does — dates aren't data.)
+ *
+ * Asserted per profile, all deep field-by-field (strings byte-for-byte):
+ *   1. entityResult / metaResult / identityResult vs model.entity/meta/
+ *      identity — the AGG-10 block ports themselves.
+ *   2. The whole computational chain resolved bare: totalTaxInrCombined,
+ *      usTaxResult.totalTaxBeforeFtcUsd, ftcResult, limitsResult,
+ *      findingsAllResult (id/severity sequence), summaryResult,
+ *      monitorResult health score — against the engine's real outputs.
+ *   3. analyzeResult's non-echo keys resolve bare too; its model/computed
+ *      echo keys are asserted null under the bare ctx (proving they are
+ *      echoes, not inputs) and asserted === the engine objects when the
+ *      caller supplies them.
+ * Run: node prototypes/graph-pilot/run-agg10.js
+ * ==========================================================================*/
+var path = require("path");
+global.window = global;
+["constants", "normalize", "computation", "monitoring", "conflicts", "sample-data", "profiles"].forEach(function (m) {
+  require(path.join("/home/user/Test", "engine", m + ".js"));
+});
+var WISING = global.WISING;
+var createGraph = require("./graph.js").createGraph;
+var NODES = require("./agg10-nodes.js").NODES;
+var graph = createGraph(NODES);
+
+var pass = 0, fail = 0;
+function ok(label) { pass++; }
+function bad(label, detail) { fail++; console.log("    FAIL - " + label + (detail ? "  (" + detail + ")" : "")); }
+function deepCheck(label, a, b) {
+  if (a === null || b === null || a === undefined || b === undefined) {
+    if ((a === null || a === undefined) && (b === null || b === undefined)) return ok(label);
+    return bad(label, "graph=" + JSON.stringify(a) + " prod=" + JSON.stringify(b));
+  }
+  if (typeof a === "number" && typeof b === "number") {
+    if (isNaN(a) && isNaN(b)) return ok(label);
+    var tol = (Math.abs(b) <= 1 && Math.abs(a) <= 1) ? 1e-6 : 2;
+    if (Math.abs(a - b) <= tol) return ok(label);
+    return bad(label, "graph=" + a + " prod=" + b);
+  }
+  if (a instanceof Date && b instanceof Date) {
+    if (Math.abs(a - b) < 1000) return ok(label);
+    return bad(label, "graph=" + a + " prod=" + b);
+  }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return bad(label + ".length", "graph=" + a.length + " prod=" + b.length);
+    for (var i = 0; i < a.length; i++) deepCheck(label + "[" + i + "]", a[i], b[i]);
+    return;
+  }
+  if (typeof a === "object" && typeof b === "object") {
+    var keys = {};
+    Object.keys(a).forEach(function (k) { keys[k] = true; });
+    Object.keys(b).forEach(function (k) { keys[k] = true; });
+    Object.keys(keys).forEach(function (k) { deepCheck(label + "." + k, a[k], b[k]); });
+    return;
+  }
+  if (a === b) return ok(label);
+  return bad(label, "graph=" + JSON.stringify(a) + " prod=" + JSON.stringify(b));
+}
+
+console.log("AGG-10: normalize() orchestration in-graph — BARE ctx {router, india, us}, no model, no computed. All " + WISING.PROFILES.length + " profiles.\n");
+
+WISING.PROFILES.forEach(function (p) {
+  var r = WISING.analyze({ router: p.router, india: p.india, us: p.us });
+  var bareCtx = { router: p.router, india: p.india, us: p.us, monitorAsOfBoundary: r.monitoring.asOf };
+
+  var out = graph.resolve(
+    ["entityResult", "metaResult", "identityResult", "headlineResult",
+      "totalTaxInrCombined", "usTaxResult", "ftcResult", "limitsResult",
+      "findingsAllResult", "summaryResult", "monitorResult", "analyzeResult"],
+    bareCtx).values;
+
+  var before = fail;
+  var usKind = r.model.entity ? r.model.entity.usKind : "individual";
+  var isUsEntity = ["ccorp", "scorp", "partnership", "trust"].indexOf(usKind) >= 0;
+  var isNra = r.model.treaty.files1040nr && r.model.nra && !r.model.nra.s6013hElection;
+  // Production's US tax on entity/NRA profiles comes from computeUsEntityTax/
+  // computeNraTax (TAX-7/TAX-8, deliberately unported) — the same fields
+  // every runner in this effort reports rather than asserts there. Strip
+  // exactly those fields from headline/summary before the deep compare;
+  // everything else on those profiles is still asserted.
+  function stripUsTaxDependent(o) {
+    if (!isUsEntity && !isNra) return o;
+    var c = Object.assign({}, o);
+    delete c.usTaxUsd; delete c.combinedTaxBeforeReliefUsd; delete c.netUnrelievedDoubleTaxUsd;
+    return c;
+  }
+
+  // 1. The AGG-10 block ports themselves.
+  deepCheck("entity", out.entityResult, r.model.entity);
+  deepCheck("meta", out.metaResult, r.model.meta);
+  deepCheck("identity", out.identityResult, r.model.identity);
+  deepCheck("headline", stripUsTaxDependent(out.headlineResult), stripUsTaxDependent(r.computed.headline));
+
+  // 2. The computational chain, resolved with no engine objects in ctx.
+  deepCheck("indiaTax.totalTaxInr", out.totalTaxInrCombined, r.computed.indiaTax.totalTaxInr);
+  deepCheck("limits", out.limitsResult, r.computed.limits);
+  if (!isUsEntity && !isNra) {
+    deepCheck("usTax.totalTaxBeforeFtcUsd", out.usTaxResult.totalTaxBeforeFtcUsd, r.computed.usTax.totalTaxBeforeFtcUsd);
+    deepCheck("ftc", out.ftcResult, r.computed.ftc);
+    // Findings, summary, and health cascade from FTC/US-tax figures, so on
+    // entity/NRA profiles (TAX-7/TAX-8 unported) they are reported, not
+    // asserted — the same convention as every other runner in this effort.
+    deepCheck("findings.sequence",
+      out.findingsAllResult.map(function (f) { return f.id + ":" + f.severity; }),
+      r.findings.map(function (f) { return f.id + ":" + f.severity; }));
+    deepCheck("summary", out.summaryResult, r.summary);
+    deepCheck("monitor.health.score", out.monitorResult.health.score, r.monitoring.health.score);
+  } else {
+    console.log("    info - findings/summary/health reported only (US tax from " + (isUsEntity ? "computeUsEntityTax, TAX-7" : "computeNraTax, TAX-8") + " — unported): graph health=" +
+      out.monitorResult.health.score + " prod=" + r.monitoring.health.score +
+      ", graph findings=" + out.findingsAllResult.length + " prod=" + r.findings.length);
+  }
+
+  // 3. Echo semantics: null under bare ctx…
+  deepCheck("analyze.model is null under bare ctx (echo, not input)", out.analyzeResult.model, null);
+  deepCheck("analyze.computed is null under bare ctx (echo, not input)", out.analyzeResult.computed, null);
+  // …and the supplied objects when the caller provides them.
+  var echoCtx = { router: p.router, india: p.india, us: p.us, monitorAsOfBoundary: r.monitoring.asOf, model: r.model, computed: r.computed };
+  var echoed = graph.resolve(["analyzeResult"], echoCtx).values.analyzeResult;
+  deepCheck("analyze.model === supplied engine model (identity echo)", echoed.model === r.model, true);
+  deepCheck("analyze.computed === supplied engine computed (identity echo)", echoed.computed === r.computed, true);
+
+  console.log(p.id + "  " + (fail === before ? "all checks pass (bare ctx)" : "FAILURES above"));
+});
+
+console.log("\n" + pass + " passed, " + fail + " failed (bare-ctx end-to-end, deep, all 11 profiles)");
+process.exit(fail > 0 ? 1 : 0);
