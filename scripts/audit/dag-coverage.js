@@ -43,7 +43,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
-  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
+  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
@@ -302,7 +302,12 @@ var DAG_FINDING_IDS = {
   form67_required: "findings-batch5-nodes.js",
   fbar_limit: "findings-batch5-nodes.js",
   lrs_limit: "findings-batch5-nodes.js",
-  trump_account_contribution_limit: "findings-batch5-nodes.js"
+  trump_account_contribution_limit: "findings-batch5-nodes.js",
+  /* CFL-6 batch 6, 19 Jul 2026: findings-batch6-nodes.js. CFL-6's 48th and
+   * last finding — dynamically ID'd (add("holding_period_mismatch_" + mi,
+   * ...)), so the scanner's literal-string regex captures the ID with its
+   * trailing underscore, same shape as the raw conflicts.js source. */
+  "holding_period_mismatch_": "findings-batch6-nodes.js"
 };
 
 /* ---- comment-aware line reader ------------------------------------------ */
