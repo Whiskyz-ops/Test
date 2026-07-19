@@ -222,6 +222,10 @@ var NODES = {
   // is exempt under s.10(1)).
   agriculturalIncomeInrAgg: { deps: ["diAgg"], compute: function (d) { return num(safe(d.diAgg, "agricultural_income_inr", 0)); } },
 
+  // Closes AGG-1's LAST remaining knownMissing side-channel (normalize.js
+  // L1303) — needed for CFL-6 batch 2's s115bbe_unexplained_income finding.
+  unexplained115bbeInrAgg: { deps: ["osAgg"], compute: function (d) { return num(safe(d.osAgg, "unexplained_income_115BBE_inr", 0)); } },
+
   indiaResidencyStatusRawAgg: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.final_india_residency_status", null); } },
   // IN-38: the DTAA Article 4 tie-break to the US doesn't change domestic
   // residential status (s.6) — see residency-nodes.js's file header for the
@@ -354,11 +358,12 @@ var NODES = {
 
       var chapterXiiaElected = safe(india, "compliance_docs.chapter_xiia_elected", false) === true;
       var otherLtcg198Inr = 0, otherStcg20Inr = 0, otherLtcg197Inr = 0, otherStcgSlabInr = 0, vdaGainInr = 0, vdaSaleConsiderationInr = 0;
-      var chapterXiiaInvestmentIncomeInr = 0;
+      var chapterXiiaInvestmentIncomeInr = 0, chapterXiiaSfeaHoldingCount = 0;
       (safe(india, "financial_holdings.transactions", []) || []).forEach(function (tx) {
         var cls = tx.asset_class;
         if (!cls || cls === "foreign_equity_unlisted") return;
         if (chapterXiiaElected && tx.is_specified_foreign_exchange_asset === true) {
+          chapterXiiaSfeaHoldingCount += 1;
           var invIncomeInr = toInrAtCurrency(tx.investment_income_this_year, tx.investment_income_currency || "INR", USD_TO_INR);
           if (invIncomeInr !== null) chapterXiiaInvestmentIncomeInr += num(invIncomeInr);
         }
@@ -438,6 +443,7 @@ var NODES = {
         stcgInr: stcgInr, ltcgInr: ltcgInr, ltcg197Inr: ltcg197Inr, stcgSlabInr: stcgSlabInr,
         vdaGainInr: vdaGainInr, vdaSaleConsiderationInr: vdaSaleConsiderationInr,
         chapterXiiaInvestmentIncomeInr: chapterXiiaInvestmentIncomeInr,
+        chapterXiiaSfeaHoldingCount: chapterXiiaSfeaHoldingCount,
         deemedDividendInr: deemedDividendInr, promoterBuybackLtcgInr: promoterBuybackLtcgInr, promoterBuybackStcgInr: promoterBuybackStcgInr,
         holdingPeriodMismatches: holdingPeriodMismatches
       };

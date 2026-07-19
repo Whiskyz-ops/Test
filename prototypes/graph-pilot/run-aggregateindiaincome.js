@@ -33,11 +33,12 @@ console.log("Closing the aggregateIndiaIncome boundary, run against all " + WISI
 WISING.PROFILES.forEach(function (p) {
   var r = WISING.analyze({ router: p.router, india: p.india, us: p.us });
   var ctx = { router: p.router, india: p.india, us: p.us, model: r.model, computed: r.computed };
-  var out = graph.resolve(["businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "totalIndiaIncomeInr", "agriculturalIncomeInrAgg"], ctx).values;
+  var out = graph.resolve(["businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "totalIndiaIncomeInr", "agriculturalIncomeInrAgg", "unexplained115bbeInrAgg"], ctx).values;
   var inc = r.model.income.india;
 
   console.log(p.id);
   check("agriculturalIncomeInrAgg matches exactly (closes AGG-1's last knownMissing item)", close(out.agriculturalIncomeInrAgg, num(inc.agriculturalIncomeInr)), "graph=" + Math.round(out.agriculturalIncomeInrAgg) + " model=" + Math.round(num(inc.agriculturalIncomeInr)));
+  check("unexplained115bbeInrAgg matches exactly (closes AGG-1's LAST knownMissing item)", close(out.unexplained115bbeInrAgg, num(inc.unexplained115bbeInr)), "graph=" + Math.round(out.unexplained115bbeInrAgg) + " model=" + Math.round(num(inc.unexplained115bbeInr)));
   check("business.inr matches exactly", close(out.businessComputation.businessInr, num(inc.business && inc.business.inr)), "graph=" + Math.round(out.businessComputation.businessInr) + " model=" + Math.round(num(inc.business && inc.business.inr)));
   check("businessDepreciationInr matches exactly", close(out.businessComputation.businessDepreciationInr, num(inc.businessDepreciationInr)), "graph=" + Math.round(out.businessComputation.businessDepreciationInr) + " model=" + Math.round(num(inc.businessDepreciationInr)));
   check("indiaHasRegularBooksEntry matches", out.businessComputation.indiaHasRegularBooksEntry === !!inc.indiaHasRegularBooksEntry);
@@ -51,6 +52,7 @@ WISING.PROFILES.forEach(function (p) {
   check("stcgSlabInr matches exactly", close(cg.stcgSlabInr, num(inc.stcgSlabInr)), "graph=" + Math.round(cg.stcgSlabInr) + " model=" + Math.round(num(inc.stcgSlabInr)));
   check("vdaGainInr matches exactly", close(cg.vdaGainInr, num(inc.vdaGainInr)), "graph=" + Math.round(cg.vdaGainInr) + " model=" + Math.round(num(inc.vdaGainInr)));
   check("chapterXiiaInvestmentIncomeInr matches exactly", close(cg.chapterXiiaInvestmentIncomeInr, num(inc.chapterXiiaInvestmentIncomeInr)));
+  check("chapterXiiaSfeaHoldingCount matches exactly", cg.chapterXiiaSfeaHoldingCount === (inc.chapterXiiaSfeaHoldingCount || 0), "graph=" + cg.chapterXiiaSfeaHoldingCount + " model=" + inc.chapterXiiaSfeaHoldingCount);
   check("promoterBuybackLtcgInr matches exactly", close(cg.promoterBuybackLtcgInr, num(inc.promoterBuybackLtcgInr)), "graph=" + Math.round(cg.promoterBuybackLtcgInr) + " model=" + Math.round(num(inc.promoterBuybackLtcgInr)));
   check("deemedDividendInr matches exactly", close(cg.deemedDividendInr, num(inc.deemedDividendBuyback && inc.deemedDividendBuyback.inr)));
 

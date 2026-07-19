@@ -43,7 +43,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
-  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
+  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
@@ -86,12 +86,11 @@ var MAP = {
      * income-total port skipped because run-aggregateindiaincome.js's 165
      * checks cover income figures, not metadata fields. holdingPeriodMismatches[]
      * closed (verified 179/179), then agricultural_income_inr closed
-     * (agriculturalIncomeInrAgg, verified 200/200 — XBR-6's one real
-     * consumer). One remains:
-     *   unexplained_income_115BBE_inr -> inc.unexplained115bbeInr -> s115bbe_unexplained_income finding (CFL-6)
-     * Remove an entry here ONLY when the DAG actually ports it. */
-    aggregateIndiaIncome: m("AGG-1", "ported", ["aggregateindiaincome-nodes.js"],
-      ["unexplained_income_115BBE_inr"]),
+     * (agriculturalIncomeInrAgg, verified 200/200), then
+     * unexplained_income_115BBE_inr closed same day (unexplained115bbeInrAgg,
+     * verified 222/222 — s115bbe_unexplained_income's one real consumer,
+     * CFL-6 batch 2). None remain. */
+    aggregateIndiaIncome: m("AGG-1", "ported", ["aggregateindiaincome-nodes.js"]),
     s80eeaEeCapInr: m("AGG-2", "ported", ["in1-nodes-v3.js"]),
     aggregateIndiaDeductions: m("AGG-2", "ported", ["in1-nodes-v3.js"]),
     computeSelfEmploymentNetProfitUsd: m("AGG-3", "ported", ["aggregateusincome-nodes.js"]),
@@ -246,7 +245,15 @@ var DAG_FINDING_IDS = {
   amt_applies: "findings-nodes.js",
   entity_dual_residency_poem: "findings-nodes.js",
   dual_residency: "findings-nodes.js",
-  dual_residency_resolved: "findings-nodes.js"
+  dual_residency_resolved: "findings-nodes.js",
+  /* CFL-6 batch 2, 19 Jul 2026: findings-batch2-nodes.js. */
+  cross_basis_summary: "findings-batch2-nodes.js",
+  india_itr_form_mismatch: "findings-batch2-nodes.js",
+  special_rate_gaming_winnings: "findings-batch2-nodes.js",
+  s115bbe_unexplained_income: "findings-batch2-nodes.js",
+  chapter_xiia_elected_no_holdings: "findings-batch2-nodes.js",
+  chapter_xiia_investment_income_missing: "findings-batch2-nodes.js",
+  chapter_xiia_investment_income_computed: "findings-batch2-nodes.js"
 };
 
 /* ---- comment-aware line reader ------------------------------------------ */
