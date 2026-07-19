@@ -43,7 +43,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
   "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
-  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
+  "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "report-batch2-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
   "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
@@ -237,7 +237,24 @@ var MAP = {
     indiaBusinessTurnoverInr: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
     buildDocuments: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
     calc: m("util", "util"), source: m("util", "util"), holdings: m("util", "util"),
-    bracketParts: m("CFL-7", "missing"), s115aParts: m("CFL-7", "missing"),
+    /* CFL-7 batch 2, 19 Jul 2026: report-batch2-nodes.js. Closes
+     * buildTaxComputation's `us` and `usState` sub-objects (resident/
+     * individual path + state tax) via buildTaxComputationUsResult /
+     * buildTaxComputationUsStateResult, built on additive extensions to
+     * the already-closed usTaxResult/usStateTaxResult nodes. Verified in
+     * run-report2.js: exact structural match against WISING.analyze()'s
+     * own taxComputation.us/taxComputation.usState for all 11 real
+     * profiles; taxComputation.us reported-not-asserted for the 2
+     * US-entity/NRA profiles (same TAX-7/TAX-8 boundary as CFL-6);
+     * taxComputation.usState asserted unconditionally (usStateTaxResult
+     * already self-gates to null for those profiles). bracketParts was
+     * ported verbatim as part of this batch. The `india` sub-object of
+     * buildTaxComputation remains unported (deferred to a future batch),
+     * so buildTaxComputation itself is still mapped "missing" below —
+     * reclassifying it "ported" here would falsely certify full coverage
+     * of a function that's only 2 of 3 sub-objects closed; the tracker
+     * doc narrates the real partial progress instead. */
+    bracketParts: m("CFL-7", "ported", ["report-batch2-nodes.js"]), s115aParts: m("CFL-7", "missing"),
     nrInterestParts: m("CFL-7", "missing"),
     buildFtcReport: m("CFL-7", "ported", ["report-batch1-nodes.js"]),
     buildTaxComputation: m("CFL-7", "missing"),

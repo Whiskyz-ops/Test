@@ -277,6 +277,7 @@ var NODES = {
       var ordTaxable = taxableIncome - prefTaxable;
 
       var ordinaryTax = bracketTax(ordTaxable, brackets);
+      var ordinaryBracketBreakdown = bracketBreakdown(ordTaxable, brackets);
 
       var lb = T.LTCG_BRACKETS[status] || T.LTCG_BRACKETS.single;
       var start = ordTaxable;
@@ -347,7 +348,55 @@ var NODES = {
         // L289: incomeTax = ordinaryTax + preferentialTax) but this node
         // didn't expose separately until now; incomeTaxUsd above remains
         // their sum, unchanged.
-        ordinaryTaxUsd: ordinaryTax, preferentialTaxUsd: preferentialTax
+        ordinaryTaxUsd: ordinaryTax, preferentialTaxUsd: preferentialTax,
+        // Added for CFL-7 (buildTaxComputation) — every one of these is
+        // already computed above as a local variable; this just exposes
+        // them, matching the real computeUsTax's own return shape exactly
+        // (computation.js:1043-1116) field-for-field. No new logic.
+        filingStatus: status,
+        ordinaryIncomeUsd: ordinaryIncome, preferentialIncomeUsd: preferentialIncome,
+        saltCapUsd: saltCapUsd,
+        socialSecurityDetail: {
+          grossUsd: grossSsUsd, taxableUsd: taxableSsUsd,
+          taxablePct: grossSsUsd > 0 ? taxableSsUsd / grossSsUsd : 0,
+          provisionalIncomeUsd: ordinaryIncomeExclSs + preferentialIncome + 0.5 * grossSsUsd + taxExemptInterestUsd,
+          baseThresholdUsd: T.SS_PROVISIONAL_INCOME_BASE_USD[status] != null ? T.SS_PROVISIONAL_INCOME_BASE_USD[status] : T.SS_PROVISIONAL_INCOME_BASE_USD.single,
+          additionalThresholdUsd: T.SS_PROVISIONAL_INCOME_ADDITIONAL_USD[status] != null ? T.SS_PROVISIONAL_INCOME_ADDITIONAL_USD[status] : T.SS_PROVISIONAL_INCOME_ADDITIONAL_USD.single
+        },
+        seniorDeductionUsd: seniorDeductionUsd,
+        seniorDetail: { age: taxpayerAge, isSenior: isSenior, fullAmountUsd: T.SENIOR_DEDUCTION_PER_PERSON_USD, phaseoutThresholdUsd: seniorPhaseoutThr },
+        tipsDeductionUsd: tipsDeductionUsd,
+        overtimeDeductionUsd: overtimeDeductionUsd,
+        tipsOvertimeDetail: {
+          isMfs: isMfs, qualifiedTipsUsd: qualifiedTipsUsd, qualifiedOvertimeUsd: qualifiedOvertimeUsd,
+          tipsMaxUsd: T.TIPS_DEDUCTION_MAX_USD, overtimeMaxUsd: overtimeMaxUsd,
+          phaseoutThresholdUsd: tipsOtPhaseoutThr, phaseoutReductionUsd: tipsOtPhaseoutReduction
+        },
+        ordinaryTaxableUsd: ordTaxable, ordinaryBracketBreakdown: ordinaryBracketBreakdown,
+        amtDetail: {
+          amtiUsd: amtiUsd, addbackUsd: amtAddback, exemptionFullUsd: amtExFull, exemptionUsd: amtExemption,
+          amtBaseUsd: amtBase, preferentialInBaseUsd: prefTaxable, ordinaryAmtBaseUsd: amtOrdBase,
+          tmtOrdUsd: tmtOrd, tmtUsd: tmtOrd + preferentialTax, regularTaxUsd: incomeTax
+        },
+        otherCreditsUsd: otherCreditsUsd,
+        ctcDetail: {
+          numChildren: numChildrenForCtc, maxTotalUsd: ctcMaxTotalUsd, phaseoutReductionUsd: ctcPhaseoutReductionUsd,
+          availableUsd: ctcAvailableUsd, nonRefundableUsd: ctcNonRefundableUsd, refundableUsd: ctcRefundableUsd,
+          earnedIncomeUsd: earnedIncomeUsd
+        },
+        foreignSourceIncomeUsd: fW + fSE + fI + fD + fR + fP + fStcg + fLtcg,
+        retirementEpfInterestUsd: worldwide ? (inc.retirementEpfInterestUsd || 0) : 0,
+        retirementNpsWithdrawalUsd: worldwide ? (inc.retirementNpsWithdrawalUsd || 0) : 0,
+        niitDetail: {
+          netInvestmentIncomeUsd: netInvestmentIncome, magiUsd: magi, thresholdUsd: niitThreshold,
+          excessUsd: Math.max(0, Math.min(Math.max(0, netInvestmentIncome), Math.max(0, agi - niitThreshold))),
+          rate: T.NIIT_RATE
+        },
+        feie: {
+          claimed: feie.claimed, eligible: feie.eligible, taxHomeAbroad: feie.taxHomeAbroad,
+          testMet: feie.testMet, reasons: feie.reasons, appliedUsd: feieAppliedUsd
+        },
+        effectiveRate: totalIncome > 0 ? totalTaxBeforeFtc / totalIncome : 0
       };
     }
   },

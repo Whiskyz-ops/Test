@@ -54,6 +54,14 @@ function bracketTax(amount, slabs) {
   for (var i = 0; i < slabs.length; i++) { var cap = slabs[i][0], rate = slabs[i][1]; if (t > prev) { tax += (Math.min(t, cap) - prev) * rate; prev = cap; } else break; }
   return tax;
 }
+// Added for CFL-7 (buildTaxComputation's usState.rows trace) — same
+// bracket-walk as bracketTax above, but returns one row per bracket
+// actually reached instead of just the total.
+function bracketBreakdown(amount, slabs) {
+  var t = Math.max(0, amount), prev = 0, rows = [];
+  for (var i = 0; i < slabs.length; i++) { var cap = slabs[i][0], rate = slabs[i][1]; if (t > prev) { var taxable = Math.min(t, cap) - prev; rows.push({ from: prev, to: cap, rate: rate, taxable: taxable, tax: taxable * rate }); prev = cap; } else break; }
+  return rows;
+}
 
 var findingsBatch4Nodes = require("./findings-batch4-nodes.js").NODES;
 var NODES = {};
@@ -122,6 +130,7 @@ NODES.usStateTaxResult = {
     var dependentExemptionUsd = (T.DEPENDENT_EXEMPTION_USD || 0) * dependents;
     var taxableIncomeUsd = Math.max(0, d.usTaxResult.agiUsd - standardDeductionUsd - dependentExemptionUsd);
     var bracketTaxUsd = bracketTax(taxableIncomeUsd, brackets);
+    var bracketBreakdownRows = bracketBreakdown(taxableIncomeUsd, brackets);
     var surchargeUsd = 0;
     if (T.SURCHARGE_THRESHOLD_USD != null && taxableIncomeUsd > T.SURCHARGE_THRESHOLD_USD) {
       surchargeUsd = (taxableIncomeUsd - T.SURCHARGE_THRESHOLD_USD) * T.SURCHARGE_RATE;
@@ -132,10 +141,11 @@ NODES.usStateTaxResult = {
     return {
       state: stateCode, stateName: T.NAME, formName: T.FORM_NAME, filingStatus: status,
       agiUsd: d.usTaxResult.agiUsd, standardDeductionUsd: standardDeductionUsd, dependentExemptionUsd: dependentExemptionUsd,
-      taxableIncomeUsd: taxableIncomeUsd, bracketTaxUsd: bracketTaxUsd,
+      taxableIncomeUsd: taxableIncomeUsd, bracketTaxUsd: bracketTaxUsd, bracketBreakdown: bracketBreakdownRows,
       surchargeUsd: surchargeUsd, surchargeLabel: T.SURCHARGE_LABEL || null,
       exemptionCreditUsd: exemptionCreditUsd, dependentCreditUsd: dependentCreditUsd,
-      totalTaxUsd: totalTaxUsd, effectiveRate: d.usTaxResult.agiUsd > 0 ? totalTaxUsd / d.usTaxResult.agiUsd : 0
+      totalTaxUsd: totalTaxUsd, effectiveRate: d.usTaxResult.agiUsd > 0 ? totalTaxUsd / d.usTaxResult.agiUsd : 0,
+      basis: "TY2025 rates (returns filed 2026); full-year resident, worldwide income via federal AGI, no foreign tax credit against state tax."
     };
   }
 };
