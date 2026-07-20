@@ -193,18 +193,6 @@ export default function MonitorPage() {
           </span>
         </div>
 
-        <WhatIfBar
-          regime={regimeOverride !== null ? regimeOverride : (result && result.computed.indiaTax.regime) || "NEW"}
-          onRegimeChange={setRegimeOverride}
-          fxRate={fxRateOverride !== null ? fxRateOverride : (result && result.model.meta.fxRate) || 83}
-          onFxRateChange={setFxRateOverride}
-          feieClaimed={feieOverride !== null ? feieOverride : !!(result && result.computed.usTax.feie && result.computed.usTax.feie.claimed)}
-          onFeieChange={setFeieOverride}
-          active={whatIfActive}
-          onReset={onWhatIfReset}
-          disabled={engineSource !== "dag"}
-        />
-
         {/* ============ MONITOR (overview) ============ */}
         {view === "monitor" && (
           <>
@@ -260,7 +248,22 @@ export default function MonitorPage() {
         {view === "business" && <BusinessView result={result} />}
         {view === "residency" && <ResidencyView result={result} />}
         {view === "filings" && <FilingsView result={result} />}
-        {view === "reconciliation" && <ReconciliationView result={result} highlight={reconHighlight} onHighlightDone={() => setReconHighlight(null)} onJump={goToRecon} />}
+        {view === "reconciliation" && (
+          <>
+            <WhatIfBar
+              regime={regimeOverride !== null ? regimeOverride : (result && result.computed.indiaTax.regime) || "NEW"}
+              onRegimeChange={setRegimeOverride}
+              fxRate={fxRateOverride !== null ? fxRateOverride : (result && result.model.meta.fxRate) || 83}
+              onFxRateChange={setFxRateOverride}
+              feieClaimed={feieOverride !== null ? feieOverride : !!(result && result.computed.usTax.feie && result.computed.usTax.feie.claimed)}
+              onFeieChange={setFeieOverride}
+              active={whatIfActive}
+              onReset={onWhatIfReset}
+              disabled={engineSource !== "dag"}
+            />
+            <ReconciliationView result={result} highlight={reconHighlight} onHighlightDone={() => setReconHighlight(null)} onJump={goToRecon} />
+          </>
+        )}
         {view === "withholding" && <WithholdingView result={result} />}
         {view === "accounts" && <AccountsView result={result} />}
         {view === "integrations" && <IntegrationsView />}
