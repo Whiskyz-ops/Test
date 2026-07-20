@@ -222,12 +222,25 @@ function computeUsTaxCore(d, extraLtcgUsd, extraStcgUsd) {
 
 // ---- the finding, ported in full --------------------------------------
 NODES.holdingPeriodMismatchFindingsResult = {
-  deps: ["capitalGainsComputation", "incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs"],
+  deps: ["capitalGainsComputation", "incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs", "usEntityKind", "files1040nr", "s6013hElection"],
   compute: function (d) {
     var findings = [];
     function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {
       findings.push({ id: id, severity: severity, category: category, title: title, detail: detail, recommendation: recommendation, amountUsd: amountUsd || 0, refs: refs || [] });
     }
+    // The engine's withForeignCg re-runs the FULL routed computeUsTax: for an
+    // NRA (computeNraTax) or entity (computeUsEntityTax), adding foreign
+    // capital gains changes nothing (neither taxes foreign-source CG), so its
+    // delta is structurally 0 and the finding never fires. computeUsTaxCore
+    // below only models the INDIVIDUAL path, so on an NRA/entity it would see
+    // a bogus non-zero LTCG-vs-STCG delta and fire spuriously. Guard to match
+    // the engine (found by run-fuzz-differential.js, 19 Jul 2026). Determined
+    // from the RAW routing inputs, not usTaxResult.isNra/isEntity — this node
+    // is reused by the monitor/report chain where usTaxResult resolves to the
+    // individual-only path (isNra always false), which would defeat the guard.
+    var isUsEntity = ["ccorp", "scorp", "partnership", "trust"].indexOf(d.usEntityKind) >= 0;
+    var isNra = !isUsEntity && d.files1040nr && !d.s6013hElection;
+    if (isNra || isUsEntity) return findings;
     var holdingMismatches = d.capitalGainsComputation.holdingPeriodMismatches || [];
     holdingMismatches.forEach(function (mm, mi) {
       var asLtcg = computeUsTaxCore(d, mm.gainUsd, 0);

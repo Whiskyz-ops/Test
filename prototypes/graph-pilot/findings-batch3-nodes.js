@@ -316,7 +316,13 @@ NODES.findingsBatch3Result = {
     }
 
     // -- 10b2. PROMOTER ADDITIONAL TAX ON BUYBACK GAINS (conflicts.js:1248-1269) --
-    var pb = d.promoterBuybackDetail;
+    // Engine gate: computed.indiaTax.promoterBuyback — only produced on the
+    // individual India tax path, absent for company/firm (s.116 regime)
+    // taxpayers, so this finding can't fire for them. The DAG computes
+    // promoterBuybackDetail unconditionally; suppress it for entities to match
+    // (fuzz seed 1 it410/596: an India LLP/firm with a promoter buy-back gain
+    // spuriously fired this finding).
+    var pb = (d.indiaIsCompany || d.indiaIsFirm) ? null : d.promoterBuybackDetail;
     if (pb && pb.totalExtraTaxInr > 1) {
       add("promoter_buyback_additional_tax", "warning", "income",
         "Promoter additional tax on buy-back gains — " + inr(pb.additionalTaxInr + pb.surchargeInr + pb.cessInr) + " on top of ordinary capital-gains tax",

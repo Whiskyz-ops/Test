@@ -72,6 +72,26 @@ NODES.promoterBuybackStcgInrBoundary = { deps: ["capitalGainsComputation"], comp
 NODES.otherSourcesMiscInrBoundary = { deps: ["otherSourcesMiscComputation"], compute: function (d) { return d.otherSourcesMiscComputation; } };
 NODES.entityTaxableInrBoundary = { deps: ["totalIndiaIncomeInr"], compute: function (d) { return d.totalIndiaIncomeInr; } };
 
+/* Bug found by run-fuzz-differential.js (19 Jul 2026): in1-nodes-v3.js's
+ * salary/houseProperty/interest/dividend/specialRate115bb income-head nodes
+ * feed the TAX computation but read RAW ctx.india.* — bypassing the
+ * quarter-merged annual slice the engine's aggregateIndiaIncome (and this
+ * DAG's own indiaIncomeModelResult) use. On any profile carrying `quarters`
+ * data whose quarterly income exceeds the top-level fields, the DAG's tax
+ * path under-counted vs the engine (and disagreed with its own income
+ * model). The TAX-10 wiring above redefined the CG/business boundary nodes
+ * but missed these five plain heads. Point them at the same annual-merged
+ * aggregation, so the tax path and the income model share ONE source — the
+ * engine's own invariant (one aggregateIndiaIncome result feeds
+ * computeIndiaTax). The 12 fixtures missed this because none cross a
+ * quarters-bearing india block with a tax path the way a real user (or a
+ * cross-bred fuzz profile) can. */
+NODES.salaryInr = { deps: ["indiaIncomeModelResult"], compute: function (d) { return d.indiaIncomeModelResult.salary.inr; } };
+NODES.housePropertyInr = { deps: ["indiaIncomeModelResult"], compute: function (d) { return d.indiaIncomeModelResult.houseProperty.inr; } };
+NODES.interestInr = { deps: ["indiaIncomeModelResult"], compute: function (d) { return d.indiaIncomeModelResult.interest.inr; } };
+NODES.dividendInr = { deps: ["indiaIncomeModelResult"], compute: function (d) { return d.indiaIncomeModelResult.dividend.inr; } };
+NODES.specialRate115bbInr = { deps: ["indiaIncomeModelResult"], compute: function (d) { return d.indiaIncomeModelResult.specialRate115bb.inr; } };
+
 // ---- routing gate, identical to india-tax-combined-nodes.js -------------
 NODES.isEntityTaxpayer = {
   deps: ["indiaIsCompany", "indiaIsFirm"],

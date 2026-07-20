@@ -345,7 +345,7 @@ NODES.nraFdapDetail = {
     var fdapRate = (w8benOnFile && claimedRateFraction != null) ? claimedRateFraction : 0.30;
     var fdapUsd = d.nraFdapIncomeUsdRaw;
     var gapUsd = (!w8benOnFile && claimedRateFraction != null && claimedRateFraction < 0.30) ? fdapUsd * (0.30 - claimedRateFraction) : 0;
-    return { fdapUsd: fdapUsd, fdapRate: fdapRate, claimedRate: rawClaimedRatePct, w8benOnFile: w8benOnFile, fdapTaxUsd: fdapUsd * fdapRate, gapUsd: gapUsd,
+    return { fdapUsd: fdapUsd, fdapRate: fdapRate, claimedRate: rawClaimedRatePct, claimedRateFraction: claimedRateFraction, w8benOnFile: w8benOnFile, fdapTaxUsd: fdapUsd * fdapRate, gapUsd: gapUsd,
       incomeType: (claim && claim.income_type) || null };
   }
 };
@@ -356,8 +356,8 @@ NODES.findingsBatch4Result = {
     "treatyTrcStatus", "treatyForm10fFiled", "residencyResult",
     "s115aDividendDetailed", "s115aRoyaltyDetailed", "s115aFtsDetailed", "nrInterestDetailed",
     "s6013hElection", "nraFdapDetail", "nraEciIncomeUsdRaw",
-    "lossSetOffDetailed", "carryForwardLossesMetaRaw",
-    "feieDetailed"],
+    "lossSetOffDetailed", "carryForwardLossesMetaRaw", "isEntityTaxpayer", "usEntityKind",
+    "feieDetailed", "usTaxResult"],
   compute: function (d) {
     var findings = [];
     function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {
@@ -451,22 +451,37 @@ NODES.findingsBatch4Result = {
     }
 
     // -- 3c2. WITHHOLDING DOCUMENTATION GAP (conflicts.js:226-252) ----------
+    // Engine sums wh.india.totalGapInr off buildWithholdingSummary, whose
+    // s115a/nrInterest streams come from computed.indiaTax — absent on the
+    // company/firm path. So the India gap is always 0 for an entity taxpayer
+    // and this finding fires only on its US (FDAP) slice, if any. Mirror that
+    // by skipping the India accumulation for entities (fuzz it642: an India
+    // LLP spuriously fired this on royalty/interest treaty gaps).
     var indiaTotalGapInr = 0;
-    [d.s115aDividendDetailed, d.s115aRoyaltyDetailed, d.s115aFtsDetailed].forEach(function (stream) {
-      if (!stream) return;
-      (stream.elections || []).forEach(function (e) {
-        var docsOk = e.outcome !== "denied_no_docs";
-        if (!docsOk && e.electedRate != null && e.electedRate < e.domesticRate) indiaTotalGapInr += e.appliedAmountInr * (e.domesticRate - e.electedRate);
+    if (!d.isEntityTaxpayer) {
+      [d.s115aDividendDetailed, d.s115aRoyaltyDetailed, d.s115aFtsDetailed].forEach(function (stream) {
+        if (!stream) return;
+        (stream.elections || []).forEach(function (e) {
+          var docsOk = e.outcome !== "denied_no_docs";
+          if (!docsOk && e.electedRate != null && e.electedRate < e.domesticRate) indiaTotalGapInr += e.appliedAmountInr * (e.domesticRate - e.electedRate);
+        });
       });
-    });
-    if (d.nrInterestDetailed) {
-      (d.nrInterestDetailed.elections || []).forEach(function (e) {
-        var docsOk = e.outcome !== "denied_no_docs";
-        var counterfactualTreatyTaxInr = e.electedRate != null ? e.appliedAmountInr * e.electedRate : null;
-        if (!docsOk && counterfactualTreatyTaxInr != null && counterfactualTreatyTaxInr < e.marginalSlabTaxInr) indiaTotalGapInr += e.marginalSlabTaxInr - counterfactualTreatyTaxInr;
-      });
+      if (d.nrInterestDetailed) {
+        (d.nrInterestDetailed.elections || []).forEach(function (e) {
+          var docsOk = e.outcome !== "denied_no_docs";
+          var counterfactualTreatyTaxInr = e.electedRate != null ? e.appliedAmountInr * e.electedRate : null;
+          if (!docsOk && counterfactualTreatyTaxInr != null && counterfactualTreatyTaxInr < e.marginalSlabTaxInr) indiaTotalGapInr += e.marginalSlabTaxInr - counterfactualTreatyTaxInr;
+        });
+      }
     }
-    var isNraForWh = d.treatyFiles1040nrRaw && !d.s6013hElection;
+    // The engine's US withholding gap comes from buildWithholdingSummary,
+    // which gates the FDAP row on the ROUTED computed.usTax.isNra — a US
+    // entity (routed to the entity path before the 1040-NR check) is never
+    // isNra, so it contributes no US gap. Mirror that entity precedence here
+    // (fuzz it1229: a US C-corp with a mutated files_form_1040nr spuriously
+    // added a US FDAP gap, firing this finding when the engine didn't).
+    var isUsEntityWh = ["ccorp", "scorp", "partnership", "trust"].indexOf(d.usEntityKind) >= 0;
+    var isNraForWh = !isUsEntityWh && d.treatyFiles1040nrRaw && !d.s6013hElection;
     var usTotalGapUsd = (isNraForWh && d.nraFdapDetail.fdapUsd > 0) ? d.nraFdapDetail.gapUsd : 0;
     var totalGapUsd = inrToUsd(indiaTotalGapInr) + usTotalGapUsd;
     if (totalGapUsd > 1) {
@@ -486,14 +501,28 @@ NODES.findingsBatch4Result = {
     }
 
     // -- 4b. FEIE CLAIMED BUT NOT ELIGIBLE (conflicts.js:303-323) -----------
-    var feieRes = d.feieDetailed;
+    // Read feie off the ROUTED usTaxResult (as the engine reads computed.usTax
+    // .feie), NOT the standalone feieDetailed node — the engine's entity
+    // result (computeUsEntityTax) omits `feie` entirely, which structurally
+    // suppresses this finding for a US entity; feieDetailed is always
+    // populated, so the DAG fired feie_ineligible on a C-corp with a stray
+    // FEIE claim while the engine did not (found by run-fuzz-differential.js,
+    // 19 Jul 2026 — the fixtures never crossed a FEIE claim onto an entity).
+    // usTaxResult.feie: real eligibility on the individual path, the
+    // claimed:false stub on the NRA path, and undefined for an entity — each
+    // matching the engine's routed result exactly.
+    var feieRes = d.usTaxResult.feie;
     if (feieRes && feieRes.claimed && !feieRes.eligible) {
       add("feie_ineligible", "critical", "credit",
         "FEIE claimed but the taxpayer does not qualify",
         "Form 2555 exclusion was claimed in Layer 1, but the §911 tests fail: " + feieRes.reasons.join("; ") +
         ". FEIE is only available to someone living abroad — a US-based taxpayer with foreign income must use the Foreign Tax Credit instead. The engine has computed US tax WITHOUT the exclusion.",
         "Remove the FEIE claim and rely on Form 1116 FTC for the Indian taxes (usually better anyway when Indian rates exceed US rates). If the taxpayer genuinely lives abroad, complete the tax-home and presence-test fields in the US Layer 1 so the exclusion can be applied.",
-        feieRes.amountClaimedUsd || 0, ["§911", "Form 2555", "Form 1116"]);
+        // Amount = the raw claimed FEIE (engine: model.limitsRaw.feieAmountUsd);
+        // usTaxResult.feie (the gate source) doesn't expose it, so read the
+        // claimed amount from feieDetailed (= feieRaw.amountClaimedUsd = the
+        // same feie_amount_claimed_usd field). Drives the finding's sort rank.
+        d.feieDetailed.amountClaimedUsd || 0, ["§911", "Form 2555", "Form 1116"]);
     } else if (feieRes && feieRes.claimed && feieRes.eligible && feieRes.appliedUsd > 0) {
       add("feie_applied", "info", "credit",
         "FEIE applied — " + usd(feieRes.appliedUsd) + " of foreign wages excluded",
@@ -520,7 +549,14 @@ NODES.findingsBatch4Result = {
     // -- 4g4. CARRY-FORWARD LOSSES — NOW ACTUALLY SET OFF (conflicts.js:958-1013) --
     var cfl = d.carryForwardLossesMetaRaw;
     var cflCount = cfl.businessLossCfCount + cfl.speculativeLossCfCount + cfl.stcgLossCfCount + cfl.ltcgLossCfCount + cfl.housePropertyLossCfCount;
-    var lso = d.lossSetOffDetailed;
+    // Engine gate: lso = computed.indiaTax.lossSetOff — only computed on the
+    // individual India tax path. Company/firm taxpayers (s.116 regime) never
+    // get a lossSetOff block, so the engine's `lso` is falsy and this finding
+    // can't fire for them. The DAG computes lossSetOffDetailed unconditionally,
+    // so mirror the engine by treating it as absent for entity taxpayers
+    // (fuzz it386: an India company with brought-forward losses spuriously
+    // fired this finding).
+    var lso = d.isEntityTaxpayer ? null : d.lossSetOffDetailed;
     if (lso && (cfl.hasBroughtForwardLosses === true || cflCount > 0 || cfl.unabsorbedDepreciationCf > 0)) {
       var appliedParts = [];
       if (lso.used.businessInr > 1) appliedParts.push(inr(lso.used.businessInr) + " business loss vs. business income");

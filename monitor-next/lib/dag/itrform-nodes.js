@@ -92,14 +92,27 @@ NODES.indiaLayer1ItrRaw = {
 NODES.indiaReturnFormExplanationRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.india, "itr_recommendation.explanation", null); } };
 
 // ---- computeIndiaItrForm, ported in full -----------------------------------
+// Scope gate — the engine computes indiaItrForm ONLY when hasIndiaScope,
+// else null (computation.js/analyze: `model.meta.hasIndiaScope ?
+// computeIndiaItrForm(...) : null`). normalize's scopeHasIndia is exactly
+// `jurisdiction !== "single_us"`. Without this the DAG produced a bogus
+// India ITR recommendation for a US-only taxpayer — found by
+// run-fuzz-differential.js (19 Jul 2026), missed by the 12 fixtures because
+// no test compared computed.indiaItrForm on a US-only profile.
+NODES.hasIndiaScopeItr = {
+  deps: [],
+  compute: function (d, ctx) { return safe(ctx.router, "jurisdiction", null) !== "single_us"; }
+};
 NODES.indiaItrFormResult = {
-  deps: ["indiaEntityTypeRaw", "indiaResidencyStatusRawAgg", "grossTotalIncomeInrCombined",
+  scopeGate: "hasIndiaScopeItr",
+  outOfScopeValue: null,
+  deps: ["hasIndiaScopeItr", "indiaEntityTypeRaw", "indiaResidencyStatusRawAgg", "grossTotalIncomeInrCombined",
     "stcgInrBoundary", "ltcgInrBoundary", "ltcg197InrBoundary", "stcgSlabInrBoundary",
     "indiaForeignIncomeDeclaredRaw", "indiaForeignAssetsDeclaredRaw",
     "vdaGainInrBoundary", "capitalGainsComputation", "totalIndiaIncomeInr",
     "agriculturalIncomeInrAgg", "specialRate115bbInr", "indiaHasBroughtForwardLossesRaw",
     "speculativeIncomeInrAgg", "fnoIncomeInrAgg", "indiaIsCompanyDirectorRaw",
-    "businessComputation", "indiaIsSection8Raw",
+    "businessComputation", "indiaIncomeModelResult", "indiaIsSection8Raw",
     "indiaLayer1ItrRaw", "indiaReturnFormExplanationRaw"],
   compute: function (d) {
     var entity = d.indiaEntityTypeRaw;
@@ -117,7 +130,16 @@ NODES.indiaItrFormResult = {
     var hasForeignIncome = (isInd || isHuf) && d.indiaForeignIncomeDeclaredRaw === true;
     var hasForeignAssets = (isInd || isHuf) && d.indiaForeignAssetsDeclaredRaw === true;
     var hasCrypto = (isInd || isHuf) && ((d.vdaGainInrBoundary || 0) > 0 || (d.capitalGainsComputation.vdaSaleConsiderationInr || 0) > 0);
-    var multipleHP = (d.businessComputation.housePropertyCount || 0) > 2;
+    // Engine reads inc.housePropertyCount off aggregateIndiaIncome — the
+    // QUARTER-MERGED annual slice (normalize.js indiaAnnualSlice index-merges
+    // the per-quarter house_property.properties arrays, so the count is the
+    // max length across quarters, not the top-level snapshot). businessComputation
+    // never carried this field (always undefined → multipleHP always false);
+    // indiaIncomeModelResult.housePropertyCount is the DAG's faithful mirror,
+    // built off diAgg (the same quarter-merged slice). Fuzz it780/it1068: a
+    // profile whose merged quarters held 3 properties (top-level held 2) lost
+    // the "More than 2 house properties" ITR-3 disqualifier.
+    var multipleHP = (d.indiaIncomeModelResult.housePropertyCount || 0) > 2;
     var hasHighAgriIncome = (d.agriculturalIncomeInrAgg || 0) > 5000;
     var hasLotteryOrGaming = (d.specialRate115bbInr || 0) > 0;
     var hasBFLosses = d.indiaHasBroughtForwardLossesRaw === true;
@@ -136,7 +158,7 @@ NODES.indiaItrFormResult = {
     if (hasForeignIncome) disqualifiers.push("Foreign income declared (foreign_income.has_foreign_income)");
     if (hasForeignAssets) disqualifiers.push("Foreign assets declared (Schedule FA)");
     if (hasCrypto) disqualifiers.push("Crypto/VDA gains or sale activity on file");
-    if (multipleHP) disqualifiers.push("More than 2 house properties (" + d.businessComputation.housePropertyCount + ")");
+    if (multipleHP) disqualifiers.push("More than 2 house properties (" + d.indiaIncomeModelResult.housePropertyCount + ")");
     if (hasHighAgriIncome) disqualifiers.push("Agricultural income exceeds ₹5,000 (₹" + Math.round(d.agriculturalIncomeInrAgg).toLocaleString("en-IN") + ")");
     if (hasLotteryOrGaming) disqualifiers.push("Lottery/betting/online-gaming winnings on file (s.128/194)");
     if (hasBFLosses) disqualifiers.push("Brought-forward losses on file");

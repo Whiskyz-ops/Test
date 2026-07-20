@@ -63,6 +63,47 @@ NODES.buildTaxComputationUsResult = {
   deps: ["usTaxResult", "aggregateUsIncomeResult"],
   compute: function (d) {
     var u = d.usTaxResult;
+    // NRA branch (conflicts.js:1980-2013), ported verbatim — the report layer
+    // was written before TAX-8 routed usTaxResult; buildTaxComputation must
+    // reflect the 1040-NR shape (ECI graduated + FDAP flat), not the resident
+    // waterfall. Found by run-fuzz-differential.js (19 Jul 2026).
+    if (u.isNra) {
+      return {
+        title: "US federal tax — Form 1040-NR (ECI graduated / FDAP flat)",
+        currency: "USD",
+        rows: [
+          { label: "ECI (wages + net self-employment)", usd: u.nra.eciUsd,
+            trace: source("Effectively Connected Income — US wages + net self-employment earnings, entered on Layer 1 US.") },
+          { label: "Less itemized deductions (no standard deduction for NRAs)", usd: -u.deductionUsd,
+            trace: source("NRAs cannot claim the standard deduction (with narrow treaty exceptions) — itemized deductions from Layer 1 US only.") },
+          { label: "Taxable ECI", usd: u.taxableIncomeUsd,
+            trace: calc("ECI less itemized deductions", [
+              { label: "ECI", amount: u.nra.eciUsd },
+              { label: "Less itemized deductions", amount: -u.deductionUsd }
+            ]) },
+          { label: "Tax on ECI (graduated brackets)", usd: u.nra.eciTaxUsd,
+            trace: calc("Progressive federal brackets (10%-37%, same ladder as a resident filer) applied to $" + Math.round(u.nra.taxableEciUsd).toLocaleString("en-US") + " of taxable ECI",
+              bracketParts(u.nra.eciBracketBreakdown, usd)) },
+          { label: "FDAP (interest/dividends/rental, Schedule NEC)", usd: u.nra.fdapUsd,
+            trace: source("Fixed, Determinable, Annual or Periodical income — US-source passive income entered on Layer 1 US, taxed on a gross basis (no deductions).") },
+          { label: "Tax on FDAP (flat " + Math.round(u.nra.fdapRate * 100) + "%, no deductions)", usd: u.nra.fdapTaxUsd,
+            trace: calc("FDAP × flat rate (30% statutory default, or a lower treaty rate if a valid W-8BEN treaty claim is on file)", [
+              { label: "FDAP income", amount: u.nra.fdapUsd },
+              { label: "Rate applied", display: Math.round(u.nra.fdapRate * 100) + "%" }
+            ]) },
+          { label: "Additional Medicare tax", usd: u.additionalMedicareUsd,
+            trace: source("Computed directly on Layer 1 US (Form 8959) and taken as-is — the engine does not recompute it.") },
+          { label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true,
+            trace: calc("Tax on ECI + tax on FDAP + Additional Medicare tax", [
+              { label: "Tax on ECI", amount: u.nra.eciTaxUsd },
+              { label: "Tax on FDAP", amount: u.nra.fdapTaxUsd },
+              { label: "Additional Medicare tax", amount: u.additionalMedicareUsd }
+            ]) }
+        ],
+        totalUsd: u.totalTaxBeforeFtcUsd,
+        effectiveRate: u.effectiveRate
+      };
+    }
     // Ported verbatim (conflicts.js:2015-2029): Holdings' own gross total
     // (model.income.us.total.usd — NOT gated by worldwide, unlike
     // u.totalIncomeUsd) usually differs from u.totalIncomeUsd by exactly the
@@ -82,7 +123,9 @@ NODES.buildTaxComputationUsResult = {
         ]);
 
     return {
-      title: "US federal income tax (" + u.filingStatus.toUpperCase() + ")",
+      // Entity title (conflicts.js:2031): "US federal tax — <label>" for a
+      // C-corp/etc., vs "US federal income tax (STATUS)" for an individual.
+      title: u.isEntity ? ("US federal tax — " + u.filingStatus) : ("US federal income tax (" + u.filingStatus.toUpperCase() + ")"),
       currency: "USD",
       rows: [
         { label: "Total income" + (u.worldwide ? " (worldwide)" : " (US-source)"), usd: u.totalIncomeUsd, trace: totalIncomeTrace }

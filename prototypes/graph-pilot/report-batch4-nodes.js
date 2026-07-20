@@ -58,6 +58,9 @@ var LRS_PURPOSE_LABELS = {
   travel: "International Travel (Overseas Tour Package)", gift_donation: "Gift or Donation to Non-Resident"
 };
 var LRS_TCS_THRESHOLD_INR = 1000000;
+// compute()'s US-tax routing selects the entity path for these usKinds before
+// ever reaching the 1040-NR/NRA branch — so an entity is never isNra.
+var ENTITY_US_KINDS = ["ccorp", "scorp", "partnership", "trust"];
 function computeLrsTcs(lrsOutbound) {
   var total = num(safe(lrsOutbound, "total_lrs_remitted_this_fy_inr", 0));
   var purpose = safe(lrsOutbound, "lrs_purpose", null);
@@ -121,18 +124,26 @@ NODES.vdaSaleConsiderationInrBoundary = { deps: [], compute: function (d, ctx) {
 
 NODES.buildWithholdingSummaryResult = {
   deps: [
-    "s115aDividend", "s115aRoyalty", "s115aFts", "nrInterest", "isNRV3",
+    "s115aDividend", "s115aRoyalty", "s115aFts", "nrInterest", "isNRV3", "isEntityTaxpayer",
     "withholdingDetailIndiaRaw", "withholdingDetailUsRaw", "vdaSaleConsiderationInrBoundary", "specialRate115bbInr",
     "panAadhaarLinkedRaw",
-    "treatyFiles1040nrRaw", "s6013hElection", "nraRaw", "nraFdapDetail",
+    "treatyFiles1040nrRaw", "s6013hElection", "nraRaw", "nraFdapDetail", "usEntityKind",
     "aggregateUsIncomeResult", "taxesPaidUsResult"
   ],
   compute: function (d) {
     var indiaRows = [];
     var indiaTotalGapInr = 0;
+    // Engine reads i.s115a / i.nrInterest off computed.indiaTax — both are
+    // only produced on the individual India tax path, so a company/firm
+    // taxpayer (s.116 regime) yields no s115a/nrInterest streams and none of
+    // these treaty-gap rows fire. The DAG computes those streams
+    // unconditionally, so mirror the engine by suppressing them for entities
+    // (fuzz it642: an India LLP/firm spuriously emitted royalty/interest
+    // treaty-gap rows and a phantom documentation gap).
+    var isEntity = d.isEntityTaxpayer;
 
     function pushS115aRows(streamKey, label, citation, stream) {
-      if (!stream) return;
+      if (isEntity || !stream) return;
       (stream.elections || []).forEach(function (e, idx) {
         var docsOk = e.outcome !== "denied_no_docs";
         var gapInr = (!docsOk && e.electedRate != null && e.electedRate < e.domesticRate)
@@ -161,7 +172,7 @@ NODES.buildWithholdingSummaryResult = {
     pushS115aRows("royalty", "Royalty", "s.207 / s.159", d.s115aRoyalty);
     pushS115aRows("fts", "Fees for Technical Services", "s.207 / s.159", d.s115aFts);
 
-    if (d.nrInterest) {
+    if (!isEntity && d.nrInterest) {
       (d.nrInterest.elections || []).forEach(function (e, idx) {
         var docsOk = e.outcome !== "denied_no_docs";
         var counterfactualTreatyTaxInr = e.electedRate != null ? e.appliedAmountInr * e.electedRate : null;
@@ -257,14 +268,20 @@ NODES.buildWithholdingSummaryResult = {
     // usTaxResult only covers the resident/individual path (TAX-7/TAX-8) —
     // isNra can't be read from it for an NRA profile, same as every other
     // NRA-aware node in this chain (findings-batch4/5, xborder-full).
-    var isNra = d.treatyFiles1040nrRaw && !d.s6013hElection;
+    // Engine gates on computed.usTax.isNra — the ROUTED result, where
+    // compute()'s entity routing (ccorp/scorp/partnership/trust) precedes the
+    // 1040-NR check, so a US entity never carries isNra even when files1040nr
+    // is set. Mirror that precedence here (fuzz it1229: a US C-corp with a
+    // mutated files_form_1040nr spuriously emitted an FDAP treaty-gap row).
+    var isUsEntity = ENTITY_US_KINDS.indexOf(d.usEntityKind) >= 0;
+    var isNra = !isUsEntity && d.treatyFiles1040nrRaw && !d.s6013hElection;
     if (isNra && d.nraFdapDetail.fdapUsd > 0) {
       var n = d.nraFdapDetail;
       var gapUsd = n.gapUsd;
       usTotalGapUsd += gapUsd;
       usRows.push({
         id: "fdap", jurisdiction: "US", category: "treaty_gap", label: "FDAP" + (n.incomeType ? " (" + n.incomeType + ")" : "") + " — Schedule NEC",
-        grossUsd: n.fdapUsd, domesticRatePct: 30, treatyRatePct: n.claimedRate != null ? n.claimedRate : null,
+        grossUsd: n.fdapUsd, domesticRatePct: 30, treatyRatePct: n.claimedRateFraction != null ? n.claimedRateFraction * 100 : null,
         docsOk: n.w8benOnFile, rateAppliedPct: n.fdapRate * 100, taxUsd: n.fdapTaxUsd, gapUsd: gapUsd,
         note: n.w8benOnFile ? null : "Form W-8BEN missing — treaty rate denied, 30% statutory default withheld instead",
         citation: "IRC §1441 / Treas. Reg. §1.1441-6"
