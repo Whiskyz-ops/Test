@@ -7,3 +7,6 @@ monitor-next/out/
 monitor-next/WISING-Monitor/
 monitor-next/WISING-Monitor.zip
 *.zip
+
+# run-fuzz.js failure dumps — reproducible via --seed, not meant to be committed
+prototypes/graph-pilot/fuzz-failures/*.json

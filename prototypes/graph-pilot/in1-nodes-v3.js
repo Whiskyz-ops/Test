@@ -46,6 +46,62 @@ function safe(obj, path, dflt) {
 }
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 
+/* Found by run-fuzz.js (randomized differential testing, 20 Jul 2026): the
+ * "confirmed simple, direct reads" claim in the header above was wrong for
+ * a taxpayer using Layer 1 India's quarterly entry mode. normalize.js's
+ * indiaAnnualSlice (also independently re-derived in aggregateindiaincome-
+ * nodes.js's annualSliceAgg, AGG-1) deep-sums india.quarters.Q1-Q4 into the
+ * effective domestic_income/other_sources/capital_gains whenever
+ * india.quarters is present — the top-level india.domestic_income/
+ * other_sources objects become a stale, ignored snapshot at that point.
+ * salaryInr/housePropertyInr/interestInr/dividendInr/specialRate115bbInr
+ * below read the top-level objects directly, bypassing that merge — wrong
+ * for ANY real quarterly-entry taxpayer whose top-level snapshot doesn't
+ * exactly equal the true quarterly sum, not just a fuzzer artifact. None of
+ * the 11 real profiles combine "quarters present" with a top-level/
+ * quarterly-sum mismatch, which is exactly why no earlier fixture-based
+ * check (run-in1-v3.js, run-india-tax-combined.js, audit:dag) ever caught
+ * it — audit:dag's field-read diff only proves both sides read the same
+ * field NAMES, not that they read them off the same effective object.
+ * Same merge logic as indiaAnnualSlice/annualSliceAgg, duplicated locally
+ * rather than depending on aggregateindiaincome-nodes.js — this file is
+ * deliberately self-contained (see the file header's own reasoning for
+ * businessComputation etc., same principle). */
+function indiaAnnualSliceV3(india) {
+  var quarters = safe(india, "quarters", null);
+  if (!quarters) {
+    return {
+      domestic_income: safe(india, "domestic_income", {}),
+      other_sources: safe(india, "other_sources", {})
+    };
+  }
+  function merge(target, source) {
+    for (var k in source) {
+      if (!Object.prototype.hasOwnProperty.call(source, k)) continue;
+      var sv = source[k];
+      if (sv === null || sv === undefined) continue;
+      if (typeof sv === "number") target[k] = (target[k] || 0) + sv;
+      else if (typeof sv === "boolean") target[k] = target[k] || sv;
+      else if (Array.isArray(sv)) {
+        if (!Array.isArray(target[k])) target[k] = [];
+        sv.forEach(function (el, i) {
+          if (el && typeof el === "object") { target[k][i] = target[k][i] || {}; merge(target[k][i], el); }
+          else if (target[k].indexOf(el) < 0) { target[k].push(el); }
+        });
+      } else if (typeof sv === "object") { target[k] = target[k] || {}; merge(target[k], sv); }
+      else { target[k] = sv; }
+    }
+    return target;
+  }
+  var out = { domestic_income: {}, other_sources: {} };
+  ["Q1", "Q2", "Q3", "Q4"].forEach(function (q) {
+    var qs = quarters[q]; if (!qs) return;
+    if (qs.domestic_income) merge(out.domestic_income, qs.domestic_income);
+    if (qs.other_sources) merge(out.other_sources, qs.other_sources);
+  });
+  return out;
+}
+
 /* SYS-1 closed 19 Jul 2026: hand-copied tables replaced by the shared
  * import (verified byte-identical against CONST.TAX.INDIA by
  * check-const.js before the swap; S80DD/S80DDB caps were promoted INTO
@@ -238,28 +294,30 @@ function computeNrInterestTreatment(treaty, slabs, otherSlabIncomeInr, interestA
 
 var NODES = {
   // ---- raw leaves: salary/houseProperty/interest/dividend/specialRate115bb
-  salaryInr: { deps: [], compute: function (d, ctx) { return num(safe(ctx.india, "domestic_income.salary.taxable_salary_inr", null)) || num(safe(ctx.india, "domestic_income.salary.gross_salary_inr", 0)); } },
+  // — quarterly-merge-aware (indiaAnnualSliceV3 above) since 20 Jul 2026.
+  annualSliceV3: { deps: [], compute: function (d, ctx) { return indiaAnnualSliceV3(ctx.india); } },
+  salaryInr: { deps: ["annualSliceV3"], compute: function (d) { return num(safe(d.annualSliceV3.domestic_income, "salary.taxable_salary_inr", null)) || num(safe(d.annualSliceV3.domestic_income, "salary.gross_salary_inr", 0)); } },
   housePropertyInr: {
-    deps: [],
-    compute: function (d, ctx) {
-      var hpProps = safe(ctx.india, "domestic_income.house_property.properties", []) || [];
+    deps: ["annualSliceV3"],
+    compute: function (d) {
+      var hpProps = safe(d.annualSliceV3.domestic_income, "house_property.properties", []) || [];
       return hpProps.reduce(function (s, p) { return s + num(p.annual_value_inr || p.gross_annual_value_inr || p.net_income_inr || p.gross_rent_received_inr || 0); }, 0);
     }
   },
   interestInr: {
-    deps: [],
-    compute: function (d, ctx) {
-      var os = safe(ctx.india, "other_sources", {});
+    deps: ["annualSliceV3"],
+    compute: function (d) {
+      var os = d.annualSliceV3.other_sources;
       return num(safe(os, "interest_savings_inr", 0)) + num(safe(os, "interest_fd_rd_inr", 0)) +
         num(safe(os, "interest_bonds_inr", 0)) + num(safe(os, "interest_on_it_refund_inr", 0)) +
-        num(safe(ctx.india, "domestic_income.other_sources.interest_inr", 0));
+        num(safe(d.annualSliceV3.domestic_income, "other_sources.interest_inr", 0));
     }
   },
-  dividendInr: { deps: [], compute: function (d, ctx) { return num(safe(ctx.india, "other_sources.dividend_inr", 0)); } },
+  dividendInr: { deps: ["annualSliceV3"], compute: function (d) { return num(safe(d.annualSliceV3.other_sources, "dividend_inr", 0)); } },
   specialRate115bbInr: {
-    deps: [],
-    compute: function (d, ctx) {
-      var os = safe(ctx.india, "other_sources", {});
+    deps: ["annualSliceV3"],
+    compute: function (d) {
+      var os = d.annualSliceV3.other_sources;
       return num(safe(os, "winnings_lottery_gaming_inr", 0)) + num(safe(os, "online_gaming_winnings_inr", 0));
     }
   },

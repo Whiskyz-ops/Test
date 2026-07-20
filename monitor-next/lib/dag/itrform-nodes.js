@@ -99,7 +99,7 @@ NODES.indiaItrFormResult = {
     "vdaGainInrBoundary", "capitalGainsComputation", "totalIndiaIncomeInr",
     "agriculturalIncomeInrAgg", "specialRate115bbInr", "indiaHasBroughtForwardLossesRaw",
     "speculativeIncomeInrAgg", "fnoIncomeInrAgg", "indiaIsCompanyDirectorRaw",
-    "businessComputation", "indiaIsSection8Raw",
+    "businessComputation", "indiaIncomeModelResult", "indiaIsSection8Raw",
     "indiaLayer1ItrRaw", "indiaReturnFormExplanationRaw"],
   compute: function (d) {
     var entity = d.indiaEntityTypeRaw;
@@ -117,7 +117,17 @@ NODES.indiaItrFormResult = {
     var hasForeignIncome = (isInd || isHuf) && d.indiaForeignIncomeDeclaredRaw === true;
     var hasForeignAssets = (isInd || isHuf) && d.indiaForeignAssetsDeclaredRaw === true;
     var hasCrypto = (isInd || isHuf) && ((d.vdaGainInrBoundary || 0) > 0 || (d.capitalGainsComputation.vdaSaleConsiderationInr || 0) > 0);
-    var multipleHP = (d.businessComputation.housePropertyCount || 0) > 2;
+    // Found by run-fuzz.js (randomized differential testing, 20 Jul 2026):
+    // businessComputation has no housePropertyCount field at all (it only
+    // ever returns businessInr/businessDepreciationInr/indiaHasRegular-
+    // BooksEntry/indiaHasValidPresumptiveEntry/indiaHasPartnerFirmIncome) —
+    // this read was always undefined, so the "more than 2 house properties"
+    // ITR disqualifier could never fire, on any profile. The correct count
+    // already exists on indiaIncomeModelResult (built for the monitor-next
+    // integration, same file), just never wired here. None of the 11 real
+    // profiles has >2 house properties, which is why no earlier fixture-
+    // based check ever exercised this branch.
+    var multipleHP = (d.indiaIncomeModelResult.housePropertyCount || 0) > 2;
     var hasHighAgriIncome = (d.agriculturalIncomeInrAgg || 0) > 5000;
     var hasLotteryOrGaming = (d.specialRate115bbInr || 0) > 0;
     var hasBFLosses = d.indiaHasBroughtForwardLossesRaw === true;
@@ -136,7 +146,7 @@ NODES.indiaItrFormResult = {
     if (hasForeignIncome) disqualifiers.push("Foreign income declared (foreign_income.has_foreign_income)");
     if (hasForeignAssets) disqualifiers.push("Foreign assets declared (Schedule FA)");
     if (hasCrypto) disqualifiers.push("Crypto/VDA gains or sale activity on file");
-    if (multipleHP) disqualifiers.push("More than 2 house properties (" + d.businessComputation.housePropertyCount + ")");
+    if (multipleHP) disqualifiers.push("More than 2 house properties (" + d.indiaIncomeModelResult.housePropertyCount + ")");
     if (hasHighAgriIncome) disqualifiers.push("Agricultural income exceeds ₹5,000 (₹" + Math.round(d.agriculturalIncomeInrAgg).toLocaleString("en-IN") + ")");
     if (hasLotteryOrGaming) disqualifiers.push("Lottery/betting/online-gaming winnings on file (s.128/194)");
     if (hasBFLosses) disqualifiers.push("Brought-forward losses on file");

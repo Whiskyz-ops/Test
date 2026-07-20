@@ -138,15 +138,37 @@ NODES.entityResult = {
 
 /* ---- the model.residency fields the monitor layer consumes -------------- */
 NODES.residencyModelSliceResult = {
-  deps: [],
+  // Found by run-fuzz.js (randomized differential testing, 20 Jul 2026):
+  // this node only ever carried the 4 fields the DAG's own computation
+  // reads (status/daysCurrentYear/isIndianCompanyFact/
+  // indiaWhollyOutsideIndiaFact) — no fixed fixture's run-agg10.js/
+  // test-adapter.mjs check ever deep-compared model.residency.india's FULL
+  // shape, so the other 9 raw pass-through fields (normalize.js:2354,
+  // 2380-2394 — taxRegime, the individual s.6(1)/s.6(1A) residency-solver
+  // facts, dtaaWorldwideCeded) plus domesticStatusDerived went unnoticed as
+  // missing. All raw reads, same style as the 4 already here; only
+  // domesticStatusDerived is an actual re-derivation, already ported
+  // (residency-nodes.js's indiaDomesticStatusDerived, XBR-1) — reused, not
+  // duplicated.
+  deps: ["indiaDomesticStatusDerived"],
   compute: function (d, ctx) {
     var india = ctx.india, us = ctx.us;
     return {
       india: {
         status: safe(india, "residency_detail.final_india_residency_status", null),
         daysCurrentYear: num(safe(india, "residency_detail.days_in_india_current_year", 0)),
+        taxRegime: safe(india, "profile.tax_regime", "NEW"),
         isIndianCompanyFact: safe(india, "residency_detail.is_indian_company", null),
-        indiaWhollyOutsideIndiaFact: safe(india, "residency_detail.is_wholly_outside_india", null)
+        indiaWhollyOutsideIndiaFact: safe(india, "residency_detail.is_wholly_outside_india", null),
+        daysPreceding4YearsGte365: safe(india, "residency_detail.days_in_india_preceding_4_years_gte_365", null),
+        employmentOrCrewStatus: safe(india, "residency_detail.employment_or_crew_status", null),
+        cameOnVisitPioCitizen: safe(india, "residency_detail.came_on_visit_to_india_pio_citizen", null),
+        nrYearsLast10Gte9: safe(india, "residency_detail.nr_years_last_10_gte_9", null),
+        daysLast7YearsLte729: safe(india, "residency_detail.days_in_india_last_7_years_lte_729", null),
+        indiaSourceIncomeAbove15L: safe(india, "residency_detail.india_source_income_above_15l", null),
+        liableToTaxElsewhereAsIndianCitizen: safe(india, "residency_detail.liable_to_tax_in_another_country_being_indian_citizen", false) === true,
+        dtaaWorldwideCeded: safe(india, "residency_detail.dtaa_worldwide_ceded", false) === true,
+        domesticStatusDerived: d.indiaDomesticStatusDerived
       },
       us: {
         status: safe(us, "us_residency_detail.final_us_residency_status", null),
