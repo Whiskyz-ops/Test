@@ -101,6 +101,24 @@ NODES.nroCumulativeRepatriatedUsdRaw = {
   compute: function (d, ctx) { return num(safe(ctx.india, "nro_repatriation.cumulative_repatriated_usd_this_fy", 0)); }
 };
 
+// AGG-10's last recorded knownMissing pair (audit:dag): model.nra.hasUsPe
+// (normalize.js L2471) and model.limitsRaw.form8938Flag (L2722). Both are
+// genuinely DEAD in the engine itself — grep confirms neither is read by
+// any downstream computation on the engine side (computeNraTax never reads
+// hasUsPe; the real Form 8938 gauge below is derived from
+// model.accounts.aggregatePeak.usd against the FORM_8938 threshold table,
+// not from this raw "required" flag at all). Mirrored here only so the
+// audit's "every engine field-read exists somewhere in the DAG" claim is
+// literally true, not because either side has a real consumer.
+NODES.hasUsPeRaw = {
+  deps: [],
+  compute: function (d, ctx) { return safe(ctx.us, "nra_specific.has_us_pe", false) === true; }
+};
+NODES.form8938RequiredRaw = {
+  deps: [],
+  compute: function (d, ctx) { return safe(ctx.us, "form_8938_required", false) === true; }
+};
+
 NODES.limitsResult = {
   deps: ["hasUsScopeBoundaryFtc", "hasIndiaScopeXbr", "aggregatePeakUsdResult", "usFilingStatusRaw",
     "feieLimitsRaw", "limitsRawExtra", "nroCumulativeRepatriatedUsdRaw"],

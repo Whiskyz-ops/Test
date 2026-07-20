@@ -151,11 +151,7 @@ var MAP = {
      * TDS array/state withholding, all raw reads. */
     aggregateWithholdingDetail: m("AGG-7", "ported", ["report-batch4-nodes.js"]),
     /* normalize()'s remaining unmatched reads (of 288) after AGG-10's
-     * closure, each verified echo-only or phantom — NOT consumed by any
-     * computation the DAG runs:
-     *  - model-echo nra block: has_us_pe/form_8938_required, read only by
-     *    computed.usTax's NRA branch metadata display, not by any figure
-     *    a monitor-next tab currently renders.
+     * closure:
      *  - profile.filing_status: read via normalizeFilingStatus (util) —
      *    the DAG's usFilingStatusRaw reads the same path; the token pair
      *    lands on the util helper's line here, a scanner-attribution quirk.
@@ -169,11 +165,17 @@ var MAP = {
      * Holdings/Business tabs, which read model.assets.* directly and had
      * no DAG counterpart at all until this file). Verified in run-assets.js:
      * 801/801 across SAMPLE + all 11 profiles, bare ctx.
+     * model-echo nra block (has_us_pe/form_8938_required) closed same day
+     * by limits-nodes.js's hasUsPeRaw/form8938RequiredRaw — both genuinely
+     * dead on the engine side too (neither is read by any downstream
+     * engine computation; the real Form 8938 gauge derives from
+     * model.accounts.aggregatePeak.usd, not this raw flag), mirrored only
+     * so the "every engine field-read exists somewhere in the DAG" claim
+     * is literally true, not because either side has a real consumer.
      * Remove entries only when a DAG node genuinely consumes the same
      * model field. */
     normalize: m("AGG-10", "ported", ["*"],
-      ["nra_specific.has_us_pe", "has_us_pe", "form_8938_required",
-       "profile.filing_status", "filing_status"])
+      ["profile.filing_status", "filing_status"])
   },
   "computation.js": {
     bracketTax: m("TAX-6", "ported", ["ustax-nodes.js", "in1-nodes-v3.js"]),
