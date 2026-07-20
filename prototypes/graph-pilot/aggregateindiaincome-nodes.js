@@ -169,12 +169,12 @@ function toInrAtCurrency(amount, currency, usdToInrRate) {
   if (currency === "USD") return amt * usdToInrRate;
   return null;
 }
-function inrToUsd(inr) { return num(inr) / 83.0; }
+var fxRate = require("./fx-util.js").fxRate;
+function inrToUsd(inr, ctx) { return num(inr) / fxRate(ctx); } // rate overridable via ctx.fxRateOverride — see fx-util.js
 
 var GROUP_A_CLASSES = CONST_AGGIN.TAX.INDIA.CG_GROUP_A_CLASSES;
 var GROUP_C_CLASSES = CONST_AGGIN.TAX.INDIA.CG_GROUP_C_CLASSES;
 var S50AA_UNLISTED_DEBT_CUTOFF = "2024-07-23";
-var USD_TO_INR = 83; // matches U.inrToUsd's own rate, engine-wide constant
 
 var NODES = {
   // ---- annual slice (re-verified independently, same logic as XB-25's port) ----
@@ -284,6 +284,7 @@ var NODES = {
     deps: ["indiaResidencyStatusRawAgg", "indiaDtaaWorldwideCededAgg", "cgAgg", "osAgg", "diAgg"],
     compute: function (d, ctx) {
       var india = ctx.india, os = d.osAgg, annualCg = d.cgAgg;
+      var USD_TO_INR = fxRate(ctx);
       var buybackTxs = safe(india, "share_buyback.transactions", []) || [];
       var deemedDividendInr = num(safe(os, "deemed_dividend_from_buyback_inr", 0));
       var buybackLtcgInr = num(safe(annualCg, "buyback_ltcg_inr", 0));
@@ -310,7 +311,7 @@ var NODES = {
             if (bbUsClassification !== bbIndiaClassification) {
               holdingPeriodMismatches.push({
                 companyName: bb.company_name || "Unnamed company", isListed: !!bb.is_listed, monthsHeld: bbMonths,
-                gainInr: g, gainUsd: inrToUsd(g), indiaClassification: bbIndiaClassification, usClassification: bbUsClassification,
+                gainInr: g, gainUsd: inrToUsd(g, ctx), indiaClassification: bbIndiaClassification, usClassification: bbUsClassification,
                 indiaThresholdMonths: bb.is_listed ? 12 : 24, sourceType: "buyback"
               });
             }
@@ -349,7 +350,7 @@ var NODES = {
           if (feUsClassification !== feIndiaClassification) {
             holdingPeriodMismatches.push({
               companyName: tx.asset_name_or_ticker || "Unnamed foreign holding", isListed: false, monthsHeld: months,
-              gainInr: g, gainUsd: inrToUsd(g), indiaClassification: feIndiaClassification, usClassification: feUsClassification,
+              gainInr: g, gainUsd: inrToUsd(g, ctx), indiaClassification: feIndiaClassification, usClassification: feUsClassification,
               indiaThresholdMonths: 24, sourceType: "foreign_equity"
             });
           }
@@ -497,9 +498,7 @@ var NODES = {
     deps: ["businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "diAgg", "osAgg",
       "fnoIncomeInrAgg", "speculativeIncomeInrAgg"],
     compute: function (d, ctx) {
-      var CONST = require("../../engine/constants.js").CONST;
-      var INR_PER_USD = CONST.FX.INR_PER_USD;
-      function m(inr) { return { inr: inr, usd: inr / INR_PER_USD }; }
+      function m(inr) { return { inr: inr, usd: inr / fxRate(ctx) }; }
 
       var di = d.diAgg, os = d.osAgg;
       var salaryInr = num(safe(di, "salary.taxable_salary_inr", null)) || num(safe(di, "salary.gross_salary_inr", 0));

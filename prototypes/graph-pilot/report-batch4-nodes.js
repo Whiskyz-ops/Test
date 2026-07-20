@@ -31,6 +31,7 @@ function safe(obj, path, dflt) {
 }
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
+var fxRate = require("./fx-util.js").fxRate;
 
 var reportBatch2Nodes = require("./report-batch2-nodes.js").NODES;
 var reportBatch3Nodes = require("./report-batch3-nodes.js").NODES;
@@ -127,7 +128,7 @@ NODES.buildWithholdingSummaryResult = {
     "treatyFiles1040nrRaw", "s6013hElection", "nraRaw", "nraFdapDetail",
     "aggregateUsIncomeResult", "taxesPaidUsResult", "usEntityKind"
   ],
-  compute: function (d) {
+  compute: function (d, ctx) {
     var indiaRows = [];
     var indiaTotalGapInr = 0;
 
@@ -334,9 +335,9 @@ NODES.buildWithholdingSummaryResult = {
     }
 
     return {
-      india: { rows: indiaRows, estimateRows: estimateRows.india, totalGapInr: indiaTotalGapInr, totalGapUsd: indiaTotalGapInr / 83.0, panAadhaarInoperative: panAadhaarInoperative },
+      india: { rows: indiaRows, estimateRows: estimateRows.india, totalGapInr: indiaTotalGapInr, totalGapUsd: indiaTotalGapInr / fxRate(ctx), panAadhaarInoperative: panAadhaarInoperative },
       us: { rows: usRows, estimateRows: estimateRows.us, totalGapUsd: usTotalGapUsd },
-      totalGapUsd: (indiaTotalGapInr / 83.0) + usTotalGapUsd
+      totalGapUsd: (indiaTotalGapInr / fxRate(ctx)) + usTotalGapUsd
     };
   }
 };

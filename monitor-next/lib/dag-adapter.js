@@ -35,7 +35,7 @@
 import { createGraph } from "./dag/graph.js";
 import { NODES } from "./dag/checks-registry-nodes.js";
 import { countriesFromEngine } from "./wising.js";
-import { CONST } from "./engine/constants.js";
+import { fxRate } from "./dag/fx-util.js";
 
 const graph = createGraph(NODES);
 
@@ -58,19 +58,31 @@ function readRaw(key, override) {
 
 // "demo" | "live" | {router,india,us} — mirrors lib/wising.js's analyzeSource
 // contract exactly so callers can swap sources without touching call sites.
-export function analyzeDagSource(source) {
+export function analyzeDagSource(source, overrides) {
   const W = typeof window !== "undefined" ? window.WISING : null;
-  if (source === "demo") { if (!W) return null; return analyzeDag({ router: W.SAMPLE.router, india: W.SAMPLE.india, us: W.SAMPLE.us }); }
-  if (source === "live") return analyzeDag({});
-  if (source && typeof source === "object") return analyzeDag(source);
+  if (source === "demo") { if (!W) return null; return analyzeDag(Object.assign({ router: W.SAMPLE.router, india: W.SAMPLE.india, us: W.SAMPLE.us }, overrides)); }
+  if (source === "live") return analyzeDag(Object.assign({}, overrides));
+  if (source && typeof source === "object") return analyzeDag(Object.assign({}, source, overrides));
   return null;
 }
 
 export function analyzeDag(opts) {
   opts = opts || {};
   const router = readRaw(STORAGE_KEYS.ROUTER, opts.router);
-  const india = readRaw(STORAGE_KEYS.INDIA, opts.india);
-  const us = readRaw(STORAGE_KEYS.US, opts.us);
+  let india = readRaw(STORAGE_KEYS.INDIA, opts.india);
+  let us = readRaw(STORAGE_KEYS.US, opts.us);
+  // What-if regime/FEIE toggles: shallow-clone just the one nested object
+  // being patched, never mutate india/us in place — opts.india/opts.us (and
+  // readRaw's localStorage-parsed fallback) can be a shared reference (e.g.
+  // a profiles.js PROFILES[i] entry, reused across every future analyze()
+  // call), so writing into it directly would permanently corrupt that
+  // profile for the rest of the session.
+  if (opts.regimeOverride !== undefined) {
+    india = Object.assign({}, india, { profile: Object.assign({}, india && india.profile, { tax_regime: opts.regimeOverride }) });
+  }
+  if (opts.feieOverride !== undefined) {
+    us = Object.assign({}, us, { foreign_earned_income: Object.assign({}, us && us.foreign_earned_income, { claims_feie: opts.feieOverride }) });
+  }
   const ctx = { router, india, us };
   // Shadow mode pins the same "now" on both engine and DAG so monitoring's
   // date-derived fields (asOf, calendar daysUntil, projection breach dates)
@@ -78,6 +90,11 @@ export function analyzeDag(opts) {
   // Omitted in normal use → the DAG's monitorAsOfBoundary node falls back to
   // new Date(), exactly as before.
   if (opts.monitorAsOf !== undefined) ctx.monitorAsOfBoundary = opts.monitorAsOf;
+  // What-if FX slider: ctx.fxRateOverride is read directly (no boundary node
+  // needed — fx-util.js's fxRate(ctx) is the single read point every DAG
+  // node's INR<->USD conversion goes through). Omitted → defaults to 83.0
+  // (fx-util.js's DEFAULT_FX_RATE, matching engine/constants.js).
+  if (opts.fxRateOverride !== undefined) ctx.fxRateOverride = opts.fxRateOverride;
 
   const out = graph.resolve([
     "entityResult", "metaResult", "identityResult", "treatyModelResult",
@@ -111,7 +128,7 @@ export function analyzeDag(opts) {
 
   const computed = {
     indiaTax: {
-      totalTaxInr: out.totalTaxInrCombined, totalTaxUsd: out.totalTaxInrCombined / CONST.FX.INR_PER_USD,
+      totalTaxInr: out.totalTaxInrCombined, totalTaxUsd: out.totalTaxInrCombined / fxRate(ctx),
       regime: out.regimeCombined, isEntity: out.isEntityTaxpayer,
       // computation.js: s115a is the object ONLY for a non-entity NR
       // (computeIndiaTax's `isNR ? {...} : null`); null for a resident
@@ -145,8 +162,8 @@ export function analyzeDag(opts) {
 // caller can switch source functions without touching how the result is
 // consumed. countriesFromEngine() is reused as-is: it's a pure derivation
 // off the result shape, not engine-specific.
-export function monitorSnapshotDag(source) {
-  const result = analyzeDagSource(source);
+export function monitorSnapshotDag(source, overrides) {
+  const result = analyzeDagSource(source, overrides);
   if (!result) return null;
   return {
     result,

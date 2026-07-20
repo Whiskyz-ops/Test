@@ -53,7 +53,8 @@ function safe(obj, path, dflt) {
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
 function inr(n) { return "₹" + Math.round(n).toLocaleString("en-IN"); }
-function inrToUsd(v) { return Number(v) / 83.0; } // engine-wide rate, CONST.FX.INR_PER_USD
+var fxRate = require("./fx-util.js").fxRate;
+function inrToUsd(v, ctx) { return Number(v) / fxRate(ctx); } // rate overridable via ctx.fxRateOverride — see fx-util.js
 
 var findingsBatch2Nodes = require("./findings-batch2-nodes.js").NODES;
 var apportionmentNodes = require("./apportionment-nodes.js").NODES;
@@ -153,7 +154,7 @@ NODES.findingsBatch3Result = {
     "epfInrRaw", "ppfInrRaw", "npsInrRaw", "taxableEpfInterestInrAgg", "taxableNpsWithdrawalInrAgg",
     "promoterBuybackDetail", "foreignGiftsRaw", "stateResidencyRaw",
     "treatyIndiaResidenceRaw", "treatyUsResidenceRaw", "treatyDtaaForcedNrRaw", "nraRaw"],
-  compute: function (d) {
+  compute: function (d, ctx) {
     var findings = [];
     function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {
       findings.push({ id: id, severity: severity, category: category, title: title, detail: detail, recommendation: recommendation, amountUsd: amountUsd || 0, refs: refs || [] });
@@ -277,8 +278,8 @@ NODES.findingsBatch3Result = {
 
     // -- 10. RETIREMENT ACCOUNT TREATMENT MISMATCH (conflicts.js:1196-1217) -
     if ((d.epfInrRaw > 0 || d.ppfInrRaw > 0 || d.npsInrRaw > 0) && res.us.isResident) {
-      var epfInterestUsd = inrToUsd(d.taxableEpfInterestInrAgg || 0);
-      var npsWithdrawalUsd = inrToUsd(d.taxableNpsWithdrawalInrAgg || 0);
+      var epfInterestUsd = inrToUsd(d.taxableEpfInterestInrAgg || 0, ctx);
+      var npsWithdrawalUsd = inrToUsd(d.taxableNpsWithdrawalInrAgg || 0, ctx);
       var hasQuantified = epfInterestUsd > 1 || npsWithdrawalUsd > 1;
       var quantifiedParts = [];
       if (epfInterestUsd > 1) quantifiedParts.push(usd(epfInterestUsd) + " of EPF interest");
@@ -299,7 +300,7 @@ NODES.findingsBatch3Result = {
     }
 
     // -- 10b. DEEMED DIVIDEND ON BUYBACK (conflicts.js:1219-1246) -----------
-    var deemedDivUsd = inrToUsd(d.capitalGainsComputation.deemedDividendInr || 0);
+    var deemedDivUsd = inrToUsd(d.capitalGainsComputation.deemedDividendInr || 0, ctx);
     if (deemedDivUsd > 1 && res.us.worldwide) {
       add("deemed_dividend_buyback_mismatch", "warning", "income",
         usd(deemedDivUsd) + " share buyback (Oct 2024 - Mar 2026 window) — India taxed it as dividend, the US likely as capital gain",
@@ -331,7 +332,7 @@ NODES.findingsBatch3Result = {
         "Confirm promoter status (direct/indirect >10% shareholding, or Companies Act/SEBI promoter designation) is " +
         "correct before relying on this — the additional tax and surcharge do not apply to non-promoter shareholders " +
         "in the same buy-back at all.",
-        inrToUsd(pb.totalExtraTaxInr), ["s.69(2)(b)", "Promoter additional tax", "Share buyback"]);
+        inrToUsd(pb.totalExtraTaxInr, ctx), ["s.69(2)(b)", "Promoter additional tax", "Share buyback"]);
     }
 
     // -- 10b. FOREIGN GIFTS / TRUSTS — FORM 3520 (conflicts.js:1413-1444) ---
@@ -388,7 +389,7 @@ NODES.findingsBatch3Result = {
     }
 
     // -- 4f. PERMANENT ESTABLISHMENT — ARTICLE 7 (conflicts.js:681-699) -----
-    var businessUsd = inrToUsd(d.businessComputation.businessInr || 0);
+    var businessUsd = inrToUsd(d.businessComputation.businessInr || 0, ctx);
     if (d.hasPERaw && businessUsd > 0) {
       add("pe_article7", "warning", "treaty",
         "Permanent establishment in India — Article 7 business profits survive the tie-breaker",
@@ -403,7 +404,7 @@ NODES.findingsBatch3Result = {
 
     // -- 4e. NO US-INDIA TOTALIZATION AGREEMENT (conflicts.js:657-679) ------
     var seTaxUsd = d.usTaxResult.seTaxUsd || 0;
-    var salaryUsd = inrToUsd(d.salaryInr || 0);
+    var salaryUsd = inrToUsd(d.salaryInr || 0, ctx);
     var hasIndiaNexus = res.india.isResident || businessUsd > 0 || salaryUsd > 0;
     if (seTaxUsd > 1 && hasIndiaNexus) {
       add("no_totalization_agreement", "warning", "credit",

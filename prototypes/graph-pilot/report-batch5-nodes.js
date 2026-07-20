@@ -71,12 +71,13 @@ NODES.in1ShouldFire = in1Nodes.shouldFire;
 
 function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
 function inr(n) { return "₹" + Math.round(n).toLocaleString("en-IN"); }
-function inrToUsd(v) { return Number(v) / 83.0; }
+var fxRate = require("./fx-util.js").fxRate;
+function inrToUsd(v, ctx) { return Number(v) / fxRate(ctx); } // rate overridable via ctx.fxRateOverride — see fx-util.js
 
 /* india_advance_tax_interest — conflicts.js:452-463, ss.424/425. */
 NODES.indiaAdvanceTaxInterestFinding = {
   deps: ["in1ShouldFire", "totalInterestInr", "advancePaidInr", "assessedTaxInr", "s424Inr", "inS424Months", "inIsAuditCase", "s425Inr", "inPurelyPresumptive"],
-  compute: function (d) {
+  compute: function (d, ctx) {
     if (!d.in1ShouldFire) return [];
     var inAdvInterestInr = d.totalInterestInr;
     return [{
@@ -91,7 +92,7 @@ NODES.indiaAdvanceTaxInterestFinding = {
         "accruing past the due date until actually paid — this is the exposure AS OF the due date, not a final number.",
       recommendation: "Pay the shortfall before filing to stop s.424 interest accruing further; s.425's quarter-by-quarter amount is " +
         "fixed once the year ends and doesn't grow. If the year isn't over yet, revise the remaining installment(s) upward.",
-      amountUsd: inrToUsd(inAdvInterestInr), refs: ["s.424", "s.425", "1%/month simple interest"]
+      amountUsd: inrToUsd(inAdvInterestInr, ctx), refs: ["s.424", "s.425", "1%/month simple interest"]
     }];
   }
 };

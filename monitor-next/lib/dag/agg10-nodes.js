@@ -41,7 +41,7 @@ function safe(obj, path, dflt) {
   for (var i = 0; i < parts.length; i++) { if (cur == null) return dflt; cur = cur[parts[i]]; }
   return cur === undefined || cur === null ? dflt : cur;
 }
-var INR_PER_USD = require("../engine/constants.js").CONST.FX.INR_PER_USD; // SYS-1: shared
+var fxRate = require("./fx-util.js").fxRate; // rate overridable via ctx.fxRateOverride — see fx-util.js
 
 var NODES = {};
 Object.keys(baseNodes).forEach(function (k) { NODES[k] = baseNodes[k]; });
@@ -76,7 +76,7 @@ NODES.metaResult = {
       hasUsScope: scopeHasUs,
       jurisdiction: scopeHasIndia && scopeHasUs ? "dual" : scopeHasUs ? "single_us" : "single_india",
       baseYear: num(safe(router, "base_tax_year", safe(us, "metadata.us_calendar_year", 2025))) || 2025,
-      fxRate: INR_PER_USD,
+      fxRate: fxRate(ctx),
       indiaSchemaVersion: safe(india, "metadata.schema_version", null),
       usSchemaVersion: safe(us, "metadata.schema_version", null),
       indiaQuarterly: !!safe(india, "quarters", null)
@@ -227,15 +227,15 @@ NODES.treatyModelResult = {
 NODES.headlineResult = {
   deps: ["identityResult", "metaResult", "totalIndiaIncomeInr", "aggregateUsIncomeResult",
     "totalTaxInrCombined", "usTaxResult", "residencyResult", "ftcResult"],
-  compute: function (d) {
+  compute: function (d, ctx) {
     return {
       name: d.identityResult.name,
       baseYear: d.metaResult.baseYear,
       jurisdiction: d.metaResult.jurisdiction,
-      totalIncomeUsd: d.aggregateUsIncomeResult.total.usd + d.totalIndiaIncomeInr / INR_PER_USD,
-      indiaTaxUsd: d.totalTaxInrCombined / INR_PER_USD,
+      totalIncomeUsd: d.aggregateUsIncomeResult.total.usd + d.totalIndiaIncomeInr / fxRate(ctx),
+      indiaTaxUsd: d.totalTaxInrCombined / fxRate(ctx),
       usTaxUsd: d.usTaxResult.totalTaxBeforeFtcUsd,
-      combinedTaxBeforeReliefUsd: d.totalTaxInrCombined / INR_PER_USD + d.usTaxResult.totalTaxBeforeFtcUsd,
+      combinedTaxBeforeReliefUsd: d.totalTaxInrCombined / fxRate(ctx) + d.usTaxResult.totalTaxBeforeFtcUsd,
       worldwideOverlap: d.residencyResult.worldwideOverlap,
       netUnrelievedDoubleTaxUsd: d.ftcResult.netUnrelievedDoubleTaxUsd
     };
@@ -310,16 +310,16 @@ NODES.usFtcAllowedUsdBoundary = { deps: ["ftcResult"], compute: function (d) { r
 // rows. Same source raw node, same construction:
 NODES.accountsBoundary = {
   deps: ["bankAccountsRaw"],
-  compute: function (d) {
+  compute: function (d, ctx) {
     var indianAccounts = d.bankAccountsRaw.india.map(function (b) {
       return { bank: b.bank_name || "Indian Bank", type: b.account_type || "savings",
-               peak: { inr: num(b.peak_balance_inr), usd: num(b.peak_balance_inr) / INR_PER_USD }, country: "India" };
+               peak: { inr: num(b.peak_balance_inr), usd: num(b.peak_balance_inr) / fxRate(ctx) }, country: "India" };
     });
     var usDisclosed = d.bankAccountsRaw.us.map(function (b) {
       return { bank: b.bank_name || "Bank", type: b.account_type || "savings",
                peak: b.peak_balance_usd !== undefined
-                 ? { usd: num(b.peak_balance_usd), inr: num(b.peak_balance_usd) * INR_PER_USD }
-                 : { inr: num(b.peak_balance_inr), usd: num(b.peak_balance_inr) / INR_PER_USD },
+                 ? { usd: num(b.peak_balance_usd), inr: num(b.peak_balance_usd) * fxRate(ctx) }
+                 : { inr: num(b.peak_balance_inr), usd: num(b.peak_balance_inr) / fxRate(ctx) },
                country: b.country || "India" };
     });
     return indianAccounts.length >= usDisclosed.length ? indianAccounts : usDisclosed;

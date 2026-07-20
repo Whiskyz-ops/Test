@@ -35,7 +35,8 @@ function safe(obj, path, dflt) {
 }
 function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
 function inr(n) { return "₹" + Math.round(n).toLocaleString("en-IN"); }
-function inrToUsd(v) { return Number(v) / 83.0; } // engine-wide rate, matches normalize.js's own inrToUsd
+var fxRate = require("./fx-util.js").fxRate;
+function inrToUsd(v, ctx) { return Number(v) / fxRate(ctx); } // rate overridable via ctx.fxRateOverride — see fx-util.js
 
 var itrformNodes = require("./itrform-nodes.js").NODES;
 var findingsNodes = require("./findings-nodes.js").NODES;
@@ -56,7 +57,7 @@ NODES.findingsBatch2Result = {
     "specialRate115bbInr", "residencyResult",
     "unexplained115bbeInrAgg",
     "chapterXiiaElectedRaw", "capitalGainsComputation"],
-  compute: function (d) {
+  compute: function (d, ctx) {
     var findings = [];
     function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {
       findings.push({ id: id, severity: severity, category: category, title: title, detail: detail, recommendation: recommendation, amountUsd: amountUsd || 0, refs: refs || [] });
@@ -95,7 +96,7 @@ NODES.findingsBatch2Result = {
     }
 
     // -- special_rate_gaming_winnings (conflicts.js:914-934) -----------------
-    var specialBBUsd = inrToUsd(d.specialRate115bbInr || 0);
+    var specialBBUsd = inrToUsd(d.specialRate115bbInr || 0, ctx);
     if (specialBBUsd > 1) {
       add("special_rate_gaming_winnings", d.residencyResult.us.worldwide ? "warning" : "info", "income",
         usd(specialBBUsd) + " of lottery/gaming winnings — flat 30% (s.128/194), no exemptions",
