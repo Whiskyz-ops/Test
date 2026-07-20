@@ -772,9 +772,9 @@
           "the domestic status field itself whenever the treaty tie-break resolved away from India — but under Indian law, " +
           "residential status (ROR/RNOR/NR) is a purely domestic-law determination, unaffected by any treaty. \"Losing\" the " +
           "Article 4 tie-breaker doesn't make someone stop being domestically resident — it only changes worldwide-taxation " +
-          "scope for treaty purposes (already handled correctly, separately, by dtaaWorldwideCeded / the isIndiaRor gate in " +
-          "aggregateIndiaIncome). This finding is the domestic-status side of that same fact pattern, surfaced because the " +
-          "two concepts appear to have been conflated in what was recorded for this profile.",
+          "scope for treaty purposes (already handled correctly, separately, elsewhere in this computation). This finding is " +
+          "the domestic-status side of that same fact pattern, surfaced because the two concepts appear to have been " +
+          "conflated in what was recorded for this profile.",
           "For domestic-law purposes (advance-tax interest under s.234B/234C, PAN-Aadhaar linking, Schedule FA disclosure, " +
           "TDS rates on India-source payments), this taxpayer's status should likely be treated as " +
           model.residency.india.domesticStatusDerived + ", with the treaty position tracked separately as a worldwide-" +

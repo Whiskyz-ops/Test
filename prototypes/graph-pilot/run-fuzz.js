@@ -123,36 +123,49 @@
  *    as every other isNra-family fix. Verified: 0 new divergences across 14
  *    seeds × 800 iterations plus one seed × 3000.
  *
- * REMAINING (10-ish/1000, seed-dependent) — a KNOWN-DIVERGENCE allowlist,
- * same convention as dag-coverage.js's knownMissing, distinguishes these
- * from a genuinely NEW regression (see KNOWN_* below):
- *   B. dtaa_treaty_elections (CONTENT diff) — same entity/NRA
+ * B and C — the last two items on what was a KNOWN-DIVERGENCE allowlist
+ * (same convention as dag-coverage.js's knownMissing) — are ALSO now fixed,
+ * 20 Jul 2026, the allowlist is empty, and the fuzzer runs with ZERO known
+ * divergences of any kind:
+ *   B. dtaa_treaty_elections (CONTENT diff) — FIXED. Same entity/NRA
  *      report-detail family as #4-10: an India entity's dtaa_treaty_elections
- *      narrates the individual s115a stream's per-election outcome text,
- *      which the engine doesn't build at all for an entity (computed.
- *      indiaTax.s115a is absent) — the DAG's version still reads the raw
- *      individual streams. Mechanical but many per-string variants; deferred.
- *   C. residency_status_dtaa_conflated_india (1, CONTENT diff) — NOT a bug:
- *      a PERMANENT, by-design divergence. This finding's `.detail` cites the
- *      DAG's own field names (residencyResult.india.worldwide/cedesViaTreaty)
- *      instead of the engine's internal function names (dtaaWorldwideCeded /
- *      the isIndiaRor gate in aggregateIndiaIncome) — more useful to a reader
- *      of this codebase, a deliberate choice when residency-nodes.js was
- *      first built, not a copy that fell out of sync (the REST of that
- *      string is kept byte-for-byte in sync — this run actually caught and
- *      fixed a real tense drift in it, "currently overwrites" → "used to
- *      overwrite", 20 Jul 2026). Will never converge to a byte-for-byte
- *      match; allowlisted permanently, not "deferred."
+ *      was narrating the individual s115a/nrInterest stream's per-election
+ *      outcome text, which the engine never builds for an entity at all
+ *      (computeIndiaTax short-circuits to computeIndiaEntityTax before
+ *      computeS115aStream/computeNrInterestTreatment ever run — computed.
+ *      indiaTax.s115a doesn't exist, not just "empty"). s115aDividendDetailed/
+ *      s115aRoyaltyDetailed/s115aFtsDetailed/nrInterestDetailed
+ *      (findings-batch4-nodes.js) were gated only on isNRV3 (raw individual
+ *      residency status), which an entity can carry without ever routing
+ *      through the individual computation. Fixed by adding the same
+ *      isEntityTaxpayer gate (indiaIsCompany || indiaIsFirm — mirrors
+ *      computeIndiaTax's own routing condition exactly) already used
+ *      elsewhere in this same file for the analogous US-side bugs. Verified:
+ *      0 new divergences across seeds 1784573526 (3000) and 99991 (5000).
+ *   C. residency_status_dtaa_conflated_india (CONTENT diff) — FIXED, but not
+ *      by porting one side to match the other. The one difference was each
+ *      side's `.detail` citing its OWN internal names for an already-correct
+ *      mechanism (engine: dtaaWorldwideCeded / the isIndiaRor gate in
+ *      aggregateIndiaIncome; DAG: residencyResult.india.worldwide/
+ *      cedesViaTreaty) — genuinely unfixable as a byte-for-byte port, since
+ *      either direction means one side citing implementation details that
+ *      don't exist in its own code. Resolved instead by genericizing the
+ *      wording on BOTH sides (engine/conflicts.js and residency-nodes.js) —
+ *      "...already handled correctly, separately, elsewhere in this
+ *      computation" — true on both sides, and arguably better production
+ *      copy besides: those were raw camelCase JS identifiers in a
+ *      preparer-facing finding, unlike this engine's actual citation style
+ *      elsewhere (s.207, Art. 13 — real statute/treaty references).
  * ftc_gap/underpayment_2210 "diffs" seen in early triage turned out to be
  * pure floating-point representation noise (~1e-11 relative) already inside
  * the tolerant deepEqual's own tolerance — not real, don't reappear here.
  * See docs/DAG_MIGRATION_TRACKER.md SYS-3 for the tracked write-up.
  *
- * Exit code reflects ONLY unknown/new divergences — 0 with the current
- * allowlist, safe to gate CI on. A genuinely new divergence (a different
- * finding ID, a model/computed/documents/withholding/taxComputation field
- * outside the findings-cascade, or the two "always a real bug" throw
- * categories) fails the run regardless of how small.
+ * Exit code reflects ONLY unknown/new divergences — 0 currently, with an
+ * EMPTY allowlist (nothing left to excuse), safe to gate CI on. A genuinely
+ * new divergence (a different finding ID, a model/computed/documents/
+ * withholding/taxComputation field outside the findings-cascade, or the two
+ * "always a real bug" throw categories) fails the run regardless of how small.
  *
  * Run: node prototypes/graph-pilot/run-fuzz.js [--n=3000] [--seed=1]
  *      [--stop-on-first] [--repro=<path to a saved fuzz-failures/*.json>]
@@ -320,12 +333,18 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 
 // ---- KNOWN-DIVERGENCE allowlist — same convention as dag-coverage.js's
 // knownMissing: distinguishes a characterized, already-investigated gap from
-// a genuinely NEW regression. See the file header for what each one is and
-// why it's here (one, C, is permanent by design; the rest are real bugs
-// deferred, not hidden). Extend this list only after actually investigating
-// a new mismatch — never to silence a failure you haven't looked at. -------
-var KNOWN_EXTRA_FINDING_ID = /^$/; // none currently — holding_period_mismatch fixed 20 Jul 2026
-var KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = ["dtaa_treaty_elections", "residency_status_dtaa_conflated_india"];
+// a genuinely NEW regression. Extend this list only after actually
+// investigating a new mismatch — never to silence a failure you haven't
+// looked at. Empty as of 20 Jul 2026: dtaa_treaty_elections fixed (see
+// s115a*Detailed/nrInterestDetailed in findings-batch4-nodes.js — they weren't
+// gated on India entity/firm routing, so they kept computing real per-election
+// outcomes on India-entity fuzz profiles the engine's own computeIndiaTax
+// never reaches, since it short-circuits to computeIndiaEntityTax first).
+// residency_status_dtaa_conflated_india's one-parenthetical divergence (each
+// side citing its own internal names for an already-correct mechanism) was
+// resolved by genericizing the wording on both sides — same-day, same fix.
+var KNOWN_EXTRA_FINDING_ID = /^$/;
+var KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = [];
 // Fields that are MECHANICALLY DERIVED from findings[] (severity counts,
 // health score, the alerts feed) — only excusable as "known" when the SAME
 // comparison also has a known findings-level issue causing them; if one of

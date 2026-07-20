@@ -255,23 +255,34 @@ NODES.carryForwardLossesMetaRaw = {
 };
 
 // ---- detailed sibling nodes (same inputs as the already-closed ones) ------
+// Entity-gated to match computeIndiaTax's own routing (computation.js:221-227):
+// a company/firm short-circuits to computeIndiaEntityTax BEFORE
+// computeS115aStream/computeNrInterestTreatment ever run, so computed.indiaTax.s115a
+// doesn't exist at all for an entity taxpayer — not "empty", genuinely absent.
+// isNRV3 alone (raw individual residency status) isn't sufficient: an entity
+// can carry an NR-shaped raw residency status without ever routing through
+// the individual computation. Found via run-fuzz.js, SYS-3, 20 Jul 2026 —
+// dtaa_treaty_elections' detail text disagreed with the engine specifically
+// on India-entity fuzz profiles (the finding kept computing real per-election
+// outcomes the engine's entity path never produces, since it never reaches
+// this code at all).
 NODES.s115aDividendDetailed = {
-  deps: ["isNRV3", "treatyTrcStatus", "treatyForm10fFiled", "treatyElectionsRaw", "dividendInr"],
-  compute: function (d) { return d.isNRV3 ? computeS115aStreamDetailed({ trcStatus: d.treatyTrcStatus, form10fFiled: d.treatyForm10fFiled, treatyElections: d.treatyElectionsRaw }, "dividend", d.dividendInr) : null; }
+  deps: ["isNRV3", "isEntityTaxpayer", "treatyTrcStatus", "treatyForm10fFiled", "treatyElectionsRaw", "dividendInr"],
+  compute: function (d) { return (d.isNRV3 && !d.isEntityTaxpayer) ? computeS115aStreamDetailed({ trcStatus: d.treatyTrcStatus, form10fFiled: d.treatyForm10fFiled, treatyElections: d.treatyElectionsRaw }, "dividend", d.dividendInr) : null; }
 };
 NODES.s115aRoyaltyDetailed = {
-  deps: ["isNRV3", "treatyTrcStatus", "treatyForm10fFiled", "treatyElectionsRaw"],
-  compute: function (d) { return d.isNRV3 ? computeS115aStreamDetailed({ trcStatus: d.treatyTrcStatus, form10fFiled: d.treatyForm10fFiled, treatyElections: d.treatyElectionsRaw }, "royalty", null) : null; }
+  deps: ["isNRV3", "isEntityTaxpayer", "treatyTrcStatus", "treatyForm10fFiled", "treatyElectionsRaw"],
+  compute: function (d) { return (d.isNRV3 && !d.isEntityTaxpayer) ? computeS115aStreamDetailed({ trcStatus: d.treatyTrcStatus, form10fFiled: d.treatyForm10fFiled, treatyElections: d.treatyElectionsRaw }, "royalty", null) : null; }
 };
 NODES.s115aFtsDetailed = {
-  deps: ["isNRV3", "treatyTrcStatus", "treatyForm10fFiled", "treatyElectionsRaw"],
-  compute: function (d) { return d.isNRV3 ? computeS115aStreamDetailed({ trcStatus: d.treatyTrcStatus, form10fFiled: d.treatyForm10fFiled, treatyElections: d.treatyElectionsRaw }, "fts", null) : null; }
+  deps: ["isNRV3", "isEntityTaxpayer", "treatyTrcStatus", "treatyForm10fFiled", "treatyElectionsRaw"],
+  compute: function (d) { return (d.isNRV3 && !d.isEntityTaxpayer) ? computeS115aStreamDetailed({ trcStatus: d.treatyTrcStatus, form10fFiled: d.treatyForm10fFiled, treatyElections: d.treatyElectionsRaw }, "fts", null) : null; }
 };
 NODES.nrInterestDetailed = {
-  deps: ["isNRV3", "treatyTrcStatus", "treatyForm10fFiled", "treatyElectionsRaw", "slabs", "salaryInr", "businessInrBoundaryV3",
+  deps: ["isNRV3", "isEntityTaxpayer", "treatyTrcStatus", "treatyForm10fFiled", "treatyElectionsRaw", "slabs", "salaryInr", "businessInrBoundaryV3",
     "housePropertyInr", "deemedDividendBuybackInrBoundary", "otherSourcesMiscInrBoundary", "interestInr"],
   compute: function (d) {
-    if (!d.isNRV3) return null;
+    if (!d.isNRV3 || d.isEntityTaxpayer) return null;
     var otherSlabIncomeInr = d.salaryInr + d.businessInrBoundaryV3 + d.housePropertyInr + d.deemedDividendBuybackInrBoundary + d.otherSourcesMiscInrBoundary;
     return computeNrInterestTreatmentDetailed({ trcStatus: d.treatyTrcStatus, form10fFiled: d.treatyForm10fFiled, treatyElections: d.treatyElectionsRaw }, d.slabs, otherSlabIncomeInr, d.interestInr, bracketTax);
   }

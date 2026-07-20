@@ -316,20 +316,8 @@ var NODES = {
               "resolved away from India — but under Indian law, residential status (ROR/RNOR/NR) is a purely domestic-law " +
               "determination, unaffected by any treaty. \"Losing\" the Article 4 tie-breaker doesn't make someone stop being " +
               "domestically resident — it only changes worldwide-taxation scope for treaty purposes (already handled correctly, " +
-              // Deliberately DAG-native here, not a byte-for-byte port: the engine's
-              // own text cites its OWN internal names (dtaaWorldwideCeded / the
-              // isIndiaRor gate in aggregateIndiaIncome) — citing this DAG's own
-              // equivalent (residencyResult.india.worldwide/cedesViaTreaty) is more
-              // useful to a reader of THIS codebase and was a deliberate choice when
-              // this node was first built, not a copy that fell out of sync. This is
-              // the one permanent, by-design difference from production's text —
-              // everything else in this string is kept in exact sync with source
-              // (most recently 20 Jul 2026, after run-fuzz.js caught this same
-              // string's tense drifting stale: "currently overwrites"/"resolves"
-              // had been superseded by "used to overwrite"/"resolved" upstream).
-              "separately, by this DAG's residencyResult.india.worldwide/cedesViaTreaty). This finding is the domestic-status " +
-              "side of that same fact pattern, surfaced because the two concepts appear to have been conflated in what was " +
-              "recorded for this profile.",
+              "separately, elsewhere in this computation). This finding is the domestic-status side of that same fact pattern, " +
+              "surfaced because the two concepts appear to have been conflated in what was recorded for this profile.",
             recommendation: "For domestic-law purposes (advance-tax interest under s.234B/234C, PAN-Aadhaar linking, Schedule FA " +
               "disclosure, TDS rates on India-source payments), this taxpayer's status should likely be treated as " +
               d.indiaDomesticStatusDerived + ", with the treaty position tracked separately as a worldwide-taxation election, not " +
