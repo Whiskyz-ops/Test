@@ -11,6 +11,7 @@ import { ConflictsPanel, ResidencyView, FilingsView, ReconciliationView, Account
 import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries } from "@/lib/wising";
+import { monitorSnapshotDag } from "@/lib/dag-adapter";
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading world map…</div> });
 const UsStatesMap = dynamic(() => import("@/components/UsStatesMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading US map…</div> });
@@ -36,20 +37,27 @@ export default function MonitorPage() {
   const [activeProfile, setActiveProfile] = useState(null);
   const [clientSummaries, setClientSummaries] = useState([]);
   const [reconHighlight, setReconHighlight] = useState(null);
+  // DAG-vs-engine comparison toggle (docs/DAG_MIGRATION_TRACKER.md, 40/40
+  // rows ported) — defaults to "engine" so default behavior is untouched;
+  // ?engine=dag or the header pill switches the compute source live, same
+  // countries/result shape either way (monitorSnapshotDag mirrors
+  // monitorSnapshot exactly — see lib/dag-adapter.js).
+  const [engineSource, setEngineSource] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("engine") === "dag" ? "dag" : "engine");
 
   const goToRecon = useCallback((section) => { setView("reconciliation"); setReconHighlight(section); }, []);
 
   const recompute = useCallback((preferred) => {
     const wantLive = preferred === "live" || (preferred == null && hasLiveLayer1());
     const source = wantLive && hasLiveLayer1() ? "live" : "demo";
-    const snap = monitorSnapshot(source);
+    const snap = engineSource === "dag" ? monitorSnapshotDag(source) : monitorSnapshot(source);
     if (snap && snap.countries && snap.countries.length) {
       setCountries(snap.countries); setMode(source); setEngineReady(true); setResult(snap.result);
       if (snap.clientName) setClientName(snap.clientName);
       if (snap.baseYear) setBaseYear(snap.baseYear);
       setActiveProfile(activeProfileId());
     }
-  }, []);
+  }, [engineSource]);
 
   useEffect(() => { setProfiles(listProfiles()); setClientSummaries(allClientSummaries()); recompute(null); }, [recompute]);
   const onPickProfile = useCallback((id) => { if (id && loadProfile(id)) { recompute("live"); } }, [recompute]);
@@ -93,6 +101,16 @@ export default function MonitorPage() {
             {engineReady ? (mode === "live" ? "Live" : "Demo") : "Loading…"}
           </span>
           <button onClick={() => recompute("live")} className="font-semibold text-body hover:text-head transition-colors">↻ Refresh</button>
+          <button
+            onClick={() => setEngineSource((s) => (s === "dag" ? "engine" : "dag"))}
+            title="Compute source: the hand-written engine (engine/*.js) or the verified dependency-graph replacement (prototypes/graph-pilot — docs/DAG_MIGRATION_TRACKER.md, 40/40 rows ported). Same result shape either way."
+            className="font-semibold px-2 py-0.5 rounded-full border transition-colors"
+            style={engineSource === "dag"
+              ? { color: PAL.greenText, borderColor: PAL.positive + "55", background: PAL.positive + "18" }
+              : { color: PAL.muted, borderColor: "currentColor", opacity: 0.6 }}
+          >
+            ⚙ {engineSource === "dag" ? "DAG" : "Engine"}
+          </button>
           <div className="relative">
             <select onChange={(e) => onPickProfile(e.target.value)} value={activeProfile || ""} title="Load a coherent India+US test taxpayer"
               className="appearance-none pl-2.5 pr-7 py-1 text-[12px] font-semibold rounded-lg text-[#04120f] cursor-pointer"

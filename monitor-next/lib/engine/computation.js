@@ -1517,7 +1517,15 @@
     var feieApplied = (usTax.feie && usTax.feie.appliedUsd) || 0;
     var usWW = residency.us.worldwide, inWW = residency.india.worldwide;
     var viaForeignCorp = model.assets.usOwns10PctForeignCorp || (model.assets.usForeignCorps || []).length > 0;
-    var stdDedInr = model.residency.india.taxRegime === "old" ? 50000 : 75000;
+    // Case-sensitivity bug (found 19 Jul 2026 while porting to the DAG,
+    // XBR-4): taxRegime is always stored uppercase ("OLD"/"NEW", confirmed
+    // in both real profile data and layer1_india.html's own source), but
+    // this compared against lowercase "old" — always false, so this table
+    // silently used the NEW-regime std deduction even for an OLD-regime
+    // taxpayer. Every other read of this field in this engine normalizes
+    // case first (see computeIndiaTax's own (taxRegime || "NEW").toUpperCase()
+    // a few hundred lines up) — this is the one place that didn't.
+    var stdDedInr = (model.residency.india.taxRegime || "NEW").toUpperCase() === "OLD" ? 50000 : 75000;
     var stdDedUsd = stdDedInr / CONST.FX.INR_PER_USD;
     var stdDedLabel = "₹" + stdDedInr.toLocaleString("en-IN");
     function row(o) {

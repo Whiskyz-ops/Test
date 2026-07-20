@@ -1,0 +1,86 @@
+globalThis.window = globalThis;
+await import("./lib/engine/constants.js");
+await import("./lib/engine/normalize.js");
+await import("./lib/engine/computation.js");
+await import("./lib/engine/monitoring.js");
+await import("./lib/engine/conflicts.js");
+await import("./lib/engine/sample-data.js");
+await import("./lib/engine/profiles.js");
+const WISING = globalThis.WISING;
+const { analyzeDag } = await import("./lib/dag-adapter.js");
+
+let fails = 0, checks = 0;
+function ok() { checks++; }
+function bad(label, a, b) { checks++; fails++; console.log("FAIL " + label + "  dag=" + JSON.stringify(a) + " real=" + JSON.stringify(b)); }
+function deepCheck(label, a, b) {
+  if (a === null || b === null || a === undefined || b === undefined) {
+    if ((a === null || a === undefined) && (b === null || b === undefined)) return ok();
+    return bad(label, a, b);
+  }
+  if (typeof a === "number" && typeof b === "number") {
+    if (isNaN(a) && isNaN(b)) return ok();
+    if (Math.abs(a - b) <= 2) return ok();
+    return bad(label, a, b);
+  }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return bad(label + ".length", a.length, b.length);
+    for (let i = 0; i < a.length; i++) deepCheck(label + "[" + i + "]", a[i], b[i]);
+    return;
+  }
+  if (typeof a === "object" && typeof b === "object") {
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    keys.forEach((k) => deepCheck(label + "." + k, a[k], b[k]));
+    return;
+  }
+  if (a === b) return ok();
+  return bad(label, a, b);
+}
+
+// Every field the exhaustive grep survey (lib/wising.js, lib/logic.js,
+// components/*, app/*) actually reads off an analyze() result — not a
+// full-object dump (which would flag hundreds of fields no consumer touches).
+function checkResult(id, dag, real) {
+  const before = fails;
+  deepCheck(id + " summary", dag.summary, real.summary);
+  deepCheck(id + " findings ids", dag.findings.map(f => f.id), real.findings.map(f => f.id));
+  deepCheck(id + " model.entity", dag.model.entity, real.model.entity);
+  deepCheck(id + " model.meta", dag.model.meta, real.model.meta);
+  deepCheck(id + " model.treaty", dag.model.treaty, real.model.treaty);
+  deepCheck(id + " model.residency.india.daysCurrentYear", dag.model.residency.india.daysCurrentYear, real.model.residency.india.daysCurrentYear);
+  deepCheck(id + " model.residency.us.daysCurrentYear", dag.model.residency.us.daysCurrentYear, real.model.residency.us.daysCurrentYear);
+  deepCheck(id + " model.income.india", dag.model.income.india, real.model.income.india);
+  deepCheck(id + " model.income.us", dag.model.income.us, real.model.income.us);
+  deepCheck(id + " model.accounts.accounts", dag.model.accounts.accounts, real.model.accounts.accounts);
+  deepCheck(id + " computed.indiaTax.totalTaxUsd", dag.computed.indiaTax.totalTaxUsd, real.computed.indiaTax.totalTaxUsd);
+  deepCheck(id + " computed.indiaTax.s115a", dag.computed.indiaTax.s115a, real.computed.indiaTax.s115a || null);
+  deepCheck(id + " computed.usTax", dag.computed.usTax, real.computed.usTax);
+  deepCheck(id + " computed.usTax.isEntity", !!dag.computed.usTax.isEntity, !!real.computed.usTax.isEntity);
+  deepCheck(id + " computed.residency.india.worldwide", dag.computed.residency.india.worldwide, real.computed.residency.india.worldwide);
+  deepCheck(id + " computed.residency.us.worldwide", dag.computed.residency.us.worldwide, real.computed.residency.us.worldwide);
+  deepCheck(id + " computed.residency.us.isResident", dag.computed.residency.us.isResident, real.computed.residency.us.isResident);
+  deepCheck(id + " computed.ftc", dag.computed.ftc, real.computed.ftc);
+  deepCheck(id + " computed.limits", dag.computed.limits, real.computed.limits);
+  deepCheck(id + " computed.reconciliation", dag.computed.reconciliation, real.computed.reconciliation);
+  deepCheck(id + " computed.headline", dag.computed.headline, real.computed.headline);
+  deepCheck(id + " computed.apportionment", dag.computed.apportionment, real.computed.apportionment);
+  deepCheck(id + " monitoring.health.score", dag.monitoring.health.score, real.monitoring.health.score);
+  console.log(id + "  " + (fails === before ? "all match" : "FAILURES above"));
+}
+
+console.log("=== SAMPLE (the actual Demo-mode default) ===");
+{
+  const S = WISING.SAMPLE;
+  const real = WISING.analyze({ router: S.router, india: S.india, us: S.us });
+  const dag = analyzeDag({ router: S.router, india: S.india, us: S.us });
+  checkResult("SAMPLE", dag, real);
+}
+
+console.log("\n=== all 11 PROFILES ===");
+WISING.PROFILES.forEach((p) => {
+  const real = WISING.analyze({ router: p.router, india: p.india, us: p.us });
+  const dag = analyzeDag({ router: p.router, india: p.india, us: p.us });
+  checkResult(p.id, dag, real);
+});
+
+console.log("\n" + checks + " checks, " + fails + " failed");
+process.exit(fails > 0 ? 1 : 0);

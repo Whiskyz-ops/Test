@@ -39,7 +39,7 @@ function inrToUsd(inr) { return num(inr) / 83.0; }
 
 /* SYS-1: verified-identical copies of CONST.TAX.US_SEC179_* / US_BONUS_* /
  * US_MACRS_* replaced by the shared import. */
-var CONST_AGGUS = require("../../engine/constants.js").CONST;
+var CONST_AGGUS = require("../engine/constants.js").CONST;
 var US_SEC179_MAX_USD = CONST_AGGUS.TAX.US_SEC179_MAX_USD;
 var US_SEC179_PHASEOUT_THRESHOLD_USD = CONST_AGGUS.TAX.US_SEC179_PHASEOUT_THRESHOLD_USD;
 var US_BONUS_DEPRECIATION_RATE = CONST_AGGUS.TAX.US_BONUS_DEPRECIATION_RATE;

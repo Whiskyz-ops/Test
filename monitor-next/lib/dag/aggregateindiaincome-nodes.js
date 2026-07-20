@@ -44,7 +44,7 @@ function monthsBetween(fromStr, toStr) {
   return ((b - a) / (1000 * 60 * 60 * 24)) / 30.436875;
 }
 /* SYS-1: shared import (promoted into constants.js from normalize-local). */
-var CONST_AGGIN = require("../../engine/constants.js").CONST;
+var CONST_AGGIN = require("../engine/constants.js").CONST;
 var ASSET_CLASS_RATES_INDIA = CONST_AGGIN.TAX.INDIA.ASSET_CLASS_RATES_INDIA;
 function isUnder180DaysAdditionInr(additionDateStr) {
   if (!additionDateStr) return false;
@@ -493,7 +493,7 @@ var NODES = {
     deps: ["businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "diAgg", "osAgg",
       "fnoIncomeInrAgg", "speculativeIncomeInrAgg"],
     compute: function (d, ctx) {
-      var CONST = require("../../engine/constants.js").CONST;
+      var CONST = require("../engine/constants.js").CONST;
       var INR_PER_USD = CONST.FX.INR_PER_USD;
       function m(inr) { return { inr: inr, usd: inr / INR_PER_USD }; }
 

@@ -62,6 +62,90 @@
   }
 
   /* ------------------------------------------------------------------------
+   * deriveCompanyPoem / deriveIndiaDomesticStatus — ported verbatim from
+   * layer1_india.html's runResidencySolver() (company POEM "mock rule",
+   * layer1_india.html:5731-5758; the full individual/company/HUF/firm
+   * determination, layer1_india.html:5717-5903), same port already built
+   * and verified in prototypes/graph-pilot/residency-nodes.js (37 synthetic
+   * branch-coverage cases there). PURE domestic-law status only — no DTAA
+   * override folded in, matching resolveResidency()'s existing contract
+   * that residential status (ROR/RNOR/NR) is a domestic-law-only concept,
+   * unaffected by the Article 4 treaty tie-break (see the DTAA-conflation
+   * fix in layer1_india.html itself, same session, which stopped the live
+   * wizard from writing the treaty outcome into this same field). Used
+   * below to populate model.residency.india.domesticStatusDerived, purely
+   * for the residency-consistency finding in conflicts.js — never fed back
+   * into what's actually taxed (see IN-38/39 for the real worldwide-income
+   * exclusion mechanism, a separate DTAA-cede fact).
+   * ----------------------------------------------------------------------*/
+  function deriveCompanyPoem(cr) {
+    cr = cr || {};
+    if (cr.isActiveBusiness === true) {
+      return cr.boardMeetingsOutsideIndia === false;
+    } else if (cr.keyManagementLocation) {
+      if (cr.keyManagementLocation === "india") return true;
+      if (cr.keyManagementLocation === "outside_india") return false;
+      if (cr.keyManagementLocation === "mixed") {
+        var inCount = cr.directorsInIndia || 0, outCount = cr.directorsOutsideIndia || 0;
+        if (inCount > outCount) return true;
+        if (outCount > inCount) return false;
+        return cr.managementDelegatedOutsideIndia === false;
+      }
+      return false;
+    } else {
+      return false;
+    }
+  }
+
+  function deriveIndiaDomesticStatus(entity, f) {
+    if (entity === "company") {
+      var isIndian = f.isIndianCompany;
+      if (isIndian === true) return "ROR";
+      if (isIndian === false) return deriveCompanyPoem(f.company) === true ? "ROR" : "NR";
+      return "ROR"; // unanswered defaults to treated-as-Indian-company, matching source exactly
+    }
+    if (entity === "firm" || entity === "llp" || entity === "aop" || entity === "trust") {
+      return f.whollyOutside === true ? "NR" : "ROR";
+    }
+    if (entity === "huf") {
+      if (f.whollyOutside === true) return "NR";
+      return (f.nr9 === true || f.d7729 === true) ? "RNOR" : "ROR";
+    }
+    // INDIVIDUAL
+    var days = f.days, p4y = f.p4y, emp = f.emp || "none", visit = f.visit,
+      nr9 = f.nr9, d7729 = f.d7729, inc15 = f.inc15, ltac = f.ltac || false;
+    if (days >= 182) {
+      if (nr9 === false && d7729 === false) return "ROR";
+      if (nr9 === true) return "RNOR";
+      return "RNOR";
+    } else if (days >= 60 && days < 182) {
+      if (p4y === true) {
+        if (emp !== "none") {
+          if (inc15 === true && ltac === false) return "RNOR";
+          if (inc15 === false) return "NR";
+          return "NR";
+        } else if (visit === true) {
+          if (days >= 120 && inc15 === true) return "RNOR";
+          if (days >= 120 && inc15 === false) return "NR";
+          if (days < 120 && inc15 === true && ltac === false) return "RNOR";
+          return "NR";
+        } else {
+          if (nr9 === false && d7729 === false) return "ROR";
+          if (nr9 === true) return "RNOR";
+          return "RNOR";
+        }
+      } else {
+        if (inc15 === true && ltac === false) return "RNOR";
+        return "NR";
+      }
+    } else if (days < 60) {
+      if (inc15 === true && ltac === false) return "RNOR";
+      return "NR";
+    }
+    return "NR"; // days null/undefined — none of the three ranges match, matches the solver's own initial default
+  }
+
+  /* ------------------------------------------------------------------------
    * loadRawStates — pull the three states out of localStorage (or accept
    * explicitly-passed objects, used for sample data / tests).
    * ----------------------------------------------------------------------*/
@@ -202,13 +286,8 @@
   // s.32 block-of-assets WDV rates — matched exactly to layer1_india.html's
   // own asset_class dropdown (generateAssetBlocksCardHTML), including its
   // exact percentages, so a Layer 1 selection always resolves to a real rate.
-  var ASSET_CLASS_RATES_INDIA = {
-    building_residential: 0.05, building_commercial: 0.10, building_temporary: 0.40,
-    plant_machinery_general: 0.15, plant_machinery_motor_cars: 0.15,
-    plant_machinery_commercial_vehicles: 0.30, plant_machinery_computers: 0.40,
-    plant_machinery_books: 0.40, plant_machinery_pollution: 0.40,
-    ships: 0.20, intangible_assets: 0.25
-  };
+  // Shared with the DAG via constants.js (SYS-1).
+  var ASSET_CLASS_RATES_INDIA = CONST.TAX.INDIA.ASSET_CLASS_RATES_INDIA;
 
   // "Used for less than 180 days" (s.32(1) proviso) — half rate on the
   // ADDITIONS only, opening WDV always gets the full rate. Layer 1's own
@@ -792,8 +871,23 @@
     // when the taxpayer is a ROR this year — otherwise the gain isn't in
     // India's tax net at all, and neither is a "characterization mismatch"
     // (India isn't taxing it, so there's nothing to characterize).
+    // ROR alone isn't the whole test: a domestically-ROR taxpayer who ties
+    // the DTAA Article 4 test to the US has ceded WORLDWIDE taxation to the
+    // treaty, even though domestic residential status (this ROR label) is
+    // unaffected by that treaty position (see the DTAA-conflation fix in
+    // layer1_india.html's runResidencySolver() — same session — which
+    // stopped writing the treaty outcome into final_india_residency_status
+    // itself and started tracking it as its own fact here instead). Before
+    // that fix, this gate accidentally excluded foreign income anyway,
+    // because status used to collapse to "NR" on the same tie-break — right
+    // answer, wrong mechanism, and it broke ~20 other domestic-law-only
+    // checks in that file that all expected pure, treaty-independent
+    // status. Now that status stays correct, this gate needs its own
+    // explicit treaty check to keep excluding foreign income the way it
+    // did before, for the right reason this time.
     var isIndiaRor = safe(india, "residency_detail.final_india_residency_status", null) === CONST.INDIA_STATUS.ROR;
-    var financialHoldingsTxs = isIndiaRor ? (safe(india, "financial_holdings.transactions", []) || []) : [];
+    var dtaaWorldwideCeded = safe(india, "residency_detail.dtaa_worldwide_ceded", false) === true;
+    var financialHoldingsTxs = (isIndiaRor && !dtaaWorldwideCeded) ? (safe(india, "financial_holdings.transactions", []) || []) : [];
     var foreignEquityLtcg197Inr = 0, foreignEquityStcgSlabInr = 0;
     function toInrAtCurrency(amount, currency) {
       var amt = num(amount);
@@ -972,8 +1066,8 @@
     // risk (see the conflicts.js finding), but that's a data-completeness
     // question, not something this engine can second-guess.
     var chapterXiiaElected = safe(india, "compliance_docs.chapter_xiia_elected", false) === true;
-    var GROUP_A_CLASSES = ["listed_equity", "equity_mutual_fund", "hybrid_mf_equity", "reit_invit", "etf"];
-    var GROUP_C_CLASSES = ["debt_mutual_fund_pre_apr23", "hybrid_mf_debt", "international_mf", "fof"];
+    var GROUP_A_CLASSES = CONST.TAX.INDIA.CG_GROUP_A_CLASSES;
+    var GROUP_C_CLASSES = CONST.TAX.INDIA.CG_GROUP_C_CLASSES;
     var S50AA_UNLISTED_DEBT_CUTOFF = "2024-07-23";
     var otherLtcg198Inr = 0, otherStcg20Inr = 0, otherLtcg197Inr = 0, otherStcgSlabInr = 0, vdaGainInr = 0, vdaSaleConsiderationInr = 0;
     var chapterXiiaInvestmentIncomeInr = 0, chapterXiiaSfeaHoldingCount = 0;
@@ -1242,9 +1336,10 @@
     };
   }
 
-  /* India deduction inputs (Chapter VI-A) for the tax engine. */
-  var S80DD_U_FLAT = { standard: 75000, severe: 125000 };
-  var S80DDB_CAP = { normal: 40000, senior: 100000 };
+  /* India deduction inputs (Chapter VI-A) for the tax engine. Flat amounts
+   * and caps live in constants.js (shared with the DAG — SYS-1). */
+  var S80DD_U_FLAT = CONST.TAX.INDIA.S80DD_U_FLAT_INR;
+  var S80DDB_CAP = CONST.TAX.INDIA.S80DDB_CAP_INR;
   // s.80EE (loans sanctioned 1-Apr-2016 to 31-Mar-2017, cap ₹50,000) vs
   // s.80EEA (loans sanctioned 1-Apr-2019 to 31-Mar-2022, cap ₹1,50,000) —
   // both sanction windows are long closed to NEW loans, but a taxpayer still
@@ -2087,6 +2182,36 @@
     var scopeHasIndia = routerJurisdictionRaw !== "single_us";
     var effectiveJurisdiction = scopeHasIndia && scopeHasUs ? "dual" : scopeHasUs ? "single_us" : "single_india";
 
+    // Full re-derivation of India's domestic residential status from the
+    // same raw facts Layer 1's own runResidencySolver() uses (IN-37 read
+    // them into this engine; this is the first thing that actually
+    // consumes them for a status determination, not just a tax-base gate
+    // like IN-38/39). PURE domestic law, no DTAA override folded in — see
+    // deriveIndiaDomesticStatus's own header comment for why. Feeds only
+    // model.residency.india.domesticStatusDerived, used by the residency-
+    // consistency finding in conflicts.js; never fed back into what's
+    // actually taxed.
+    var indiaDomesticStatusDerived = deriveIndiaDomesticStatus(indiaEntityKind, {
+      days: num(safe(india, "residency_detail.days_in_india_current_year", 0)),
+      p4y: safe(india, "residency_detail.days_in_india_preceding_4_years_gte_365", null),
+      emp: safe(india, "residency_detail.employment_or_crew_status", null),
+      visit: safe(india, "residency_detail.came_on_visit_to_india_pio_citizen", null),
+      nr9: safe(india, "residency_detail.nr_years_last_10_gte_9", null),
+      d7729: safe(india, "residency_detail.days_in_india_last_7_years_lte_729", null),
+      inc15: safe(india, "residency_detail.india_source_income_above_15l", null),
+      ltac: safe(india, "residency_detail.liable_to_tax_in_another_country_being_indian_citizen", false) === true,
+      isIndianCompany: safe(india, "residency_detail.is_indian_company", null),
+      whollyOutside: safe(india, "residency_detail.is_wholly_outside_india", null),
+      company: {
+        isActiveBusiness: safe(india, "company_residency.is_active_business", false) === true,
+        boardMeetingsOutsideIndia: safe(india, "company_residency.board_meetings_primarily_outside_india", false) === true,
+        keyManagementLocation: safe(india, "company_residency.key_management_location", null),
+        managementDelegatedOutsideIndia: safe(india, "company_residency.management_delegated_outside_india", false) === true,
+        directorsInIndia: num(safe(india, "company_residency.directors_in_india_count", 0)),
+        directorsOutsideIndia: num(safe(india, "company_residency.directors_outside_india_count", 0))
+      }
+    });
+
     return {
       meta: {
         hasIndia: !!raw.india,
@@ -2240,7 +2365,38 @@
           // isHuf/isFirm branches). Previously captured by the form but read
           // NOWHERE in this engine. Null when unset/not applicable (company
           // uses the separate POEM test above; individual uses day-count).
-          indiaWhollyOutsideIndiaFact: safe(india, "residency_detail.is_wholly_outside_india", null)
+          indiaWhollyOutsideIndiaFact: safe(india, "residency_detail.is_wholly_outside_india", null),
+          // The rest of the individual/HUF s.6(1)/s.6(1A)/s.6(6)(b) residency
+          // test — Layer 1's own runResidencySolver() (layer1_india.html)
+          // reads every one of these to determine final_india_residency_status
+          // above, but until now this engine only ever read that ALREADY-
+          // DECIDED conclusion, never the underlying facts. Captured here so
+          // this engine can independently verify/explain the status, not just
+          // trust it blindly — same motivation as the DTAA-conflation fix in
+          // layer1_india.html (found while auditing this same area). All raw
+          // pass-throughs, no re-derivation done here (see IN-37 in
+          // GAP_TRACKER.md for the actual status/consistency work this
+          // enables downstream).
+          daysPreceding4YearsGte365: safe(india, "residency_detail.days_in_india_preceding_4_years_gte_365", null),
+          employmentOrCrewStatus: safe(india, "residency_detail.employment_or_crew_status", null),
+          cameOnVisitPioCitizen: safe(india, "residency_detail.came_on_visit_to_india_pio_citizen", null),
+          nrYearsLast10Gte9: safe(india, "residency_detail.nr_years_last_10_gte_9", null),
+          daysLast7YearsLte729: safe(india, "residency_detail.days_in_india_last_7_years_lte_729", null),
+          indiaSourceIncomeAbove15L: safe(india, "residency_detail.india_source_income_above_15l", null),
+          liableToTaxElsewhereAsIndianCitizen: safe(india, "residency_detail.liable_to_tax_in_another_country_being_indian_citizen", false) === true,
+          // The DTAA-conflation fix (layer1_india.html, same session): the
+          // wizard now tracks "worldwide taxation ceded via treaty" as its
+          // own fact instead of corrupting final_india_residency_status —
+          // read here so this engine's own worldwide-income-inclusion gate
+          // can consult it too (see IN-38/39 in GAP_TRACKER.md, shipped —
+          // aggregateIndiaIncome's isIndiaRor check below does consult
+          // this field).
+          dtaaWorldwideCeded: safe(india, "residency_detail.dtaa_worldwide_ceded", false) === true,
+          // Full re-derivation of the ABOVE status from the raw facts —
+          // PURE domestic law, computed once above (indiaDomesticStatusDerived).
+          // Consumed by the residency-consistency finding in conflicts.js;
+          // never fed back into `status` itself or anything that's taxed.
+          domesticStatusDerived: indiaDomesticStatusDerived
         },
         us: {
           status: safe(us, "us_residency_detail.final_us_residency_status", null),
@@ -2596,6 +2752,8 @@
     num: num, inrToUsd: inrToUsd, usdToInr: usdToInr,
     moneyFromInr: moneyFromInr, moneyFromUsd: moneyFromUsd,
     addMoney: addMoney, zeroMoney: zeroMoney, safe: safe,
-    normalizeFilingStatus: normalizeFilingStatus
+    normalizeFilingStatus: normalizeFilingStatus,
+    deriveCompanyPoem: deriveCompanyPoem,
+    deriveIndiaDomesticStatus: deriveIndiaDomesticStatus
   };
 })(typeof window !== "undefined" ? window : globalThis);

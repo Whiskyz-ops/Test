@@ -75,7 +75,7 @@ WISING.PROFILES.forEach(function (p) {
   var bareCtx = { router: p.router, india: p.india, us: p.us, monitorAsOfBoundary: r.monitoring.asOf };
 
   var out = graph.resolve(
-    ["entityResult", "metaResult", "identityResult", "headlineResult",
+    ["entityResult", "metaResult", "identityResult", "headlineResult", "treatyModelResult", "indiaIncomeModelResult",
       "totalTaxInrCombined", "usTaxResult", "ftcResult", "limitsResult",
       "findingsAllResult", "summaryResult", "monitorResult", "analyzeResult"],
     bareCtx).values;
@@ -87,6 +87,8 @@ WISING.PROFILES.forEach(function (p) {
   deepCheck("meta", out.metaResult, r.model.meta);
   deepCheck("identity", out.identityResult, r.model.identity);
   deepCheck("headline", out.headlineResult, r.computed.headline);
+  deepCheck("treaty", out.treatyModelResult, r.model.treaty);
+  deepCheck("indiaIncome (monitor-next integration)", out.indiaIncomeModelResult, r.model.income.india);
 
   // 2. The computational chain, resolved with no engine objects in ctx —
   // ALL profiles asserted fully now that usTaxResult routes entity/NRA
