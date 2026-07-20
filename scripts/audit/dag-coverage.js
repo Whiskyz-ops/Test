@@ -42,7 +42,7 @@ var ROOT = path.join(__dirname, "..", "..");
  * dagFiles: which node files the port lives in ("*" = check against all —
  * used for non-ported rows so partial touches anywhere still count). */
 var NODE_FILES = [
-  "agg10-nodes.js", "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js",
+  "agg10-nodes.js", "aggregateindiaincome-nodes.js", "aggregateusincome-nodes.js", "apportionment-nodes.js", "assets-nodes.js",
   "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "report-batch2-nodes.js", "report-batch3-nodes.js", "report-batch4-nodes.js", "report-batch5-nodes.js", "report-batch6-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "limits-nodes.js", "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
@@ -150,29 +150,29 @@ var MAP = {
      * no upstream dependency — tds_already_deducted_inr/tcs_inr/property
      * TDS array/state withholding, all raw reads. */
     aggregateWithholdingDetail: m("AGG-7", "ported", ["report-batch4-nodes.js"]),
-    /* normalize()'s 16 remaining unmatched reads (of 288) after AGG-10's
+    /* normalize()'s remaining unmatched reads (of 288) after AGG-10's
      * closure, each verified echo-only or phantom — NOT consumed by any
      * computation the DAG runs:
-     *  - model-echo asset/nra blocks nothing ported reads from the model
-     *    (the DAG's equivalents read raw form data directly):
-     *    pfic_holdings, real_estate.properties, retirement_accounts,
-     *    nra_specific.has_us_pe, form_8938_required
-     *  - businessEntities() display-name fallbacks + the US-26 alias set
-     *    kept engine-side as harmless no-ops (several are the exact
-     *    "field exists nowhere in the form" phantoms the field-coverage
-     *    audit already tracks): business_name, partnership_name, corp_name,
-     *    trade_name, country_of_incorporation, corporation_name,
-     *    ownership_pct, ownership_percentage, gilti_income_usd
+     *  - model-echo nra block: has_us_pe/form_8938_required, read only by
+     *    computed.usTax's NRA branch metadata display, not by any figure
+     *    a monitor-next tab currently renders.
      *  - profile.filing_status: read via normalizeFilingStatus (util) —
      *    the DAG's usFilingStatusRaw reads the same path; the token pair
      *    lands on the util helper's line here, a scanner-attribution quirk.
+     * assets.pfic_holdings/real_estate.properties/retirement_accounts and
+     * the businessEntities() display-name fallbacks + US-26 alias set
+     * (business_name, partnership_name, corp_name, trade_name,
+     * country_of_incorporation, corporation_name, ownership_pct,
+     * ownership_percentage, gilti_income_usd) all closed 20 Jul 2026 by
+     * assets-nodes.js's assetsModelResult — the first genuine consumer of
+     * model.assets anywhere in this migration (built for monitor-next's
+     * Holdings/Business tabs, which read model.assets.* directly and had
+     * no DAG counterpart at all until this file). Verified in run-assets.js:
+     * 801/801 across SAMPLE + all 11 profiles, bare ctx.
      * Remove entries only when a DAG node genuinely consumes the same
      * model field. */
     normalize: m("AGG-10", "ported", ["*"],
-      ["nra_specific.has_us_pe", "has_us_pe", "foreign_entities.pfic_holdings", "pfic_holdings",
-       "real_estate.properties", "retirement_accounts", "business_name", "partnership_name",
-       "corp_name", "trade_name", "country_of_incorporation", "corporation_name",
-       "ownership_pct", "ownership_percentage", "gilti_income_usd", "form_8938_required",
+      ["nra_specific.has_us_pe", "has_us_pe", "form_8938_required",
        "profile.filing_status", "filing_status"])
   },
   "computation.js": {

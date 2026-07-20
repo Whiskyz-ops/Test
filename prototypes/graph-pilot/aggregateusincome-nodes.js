@@ -90,7 +90,7 @@ function computeAssetDepreciationUsd(asset, baseYear) {
       if (table && yearN <= table.length) macrsUsd = macrsBasisUsd * table[yearN - 1];
     }
   }
-  return { cost: cost, yearN: yearN, isCurrentYear: isCurrentYear, eligibleForSec179Bonus: eligibleForSec179Bonus, requestedSec179Usd: requestedSec179Usd, bonusUsd: bonusUsd, macrsUsd: macrsUsd };
+  return { cost: cost, yearN: yearN, isCurrentYear: isCurrentYear, class: klass, eligibleForSec179Bonus: eligibleForSec179Bonus, requestedSec179Usd: requestedSec179Usd, bonusUsd: bonusUsd, macrsUsd: macrsUsd };
 }
 function aggregateAssetDepreciationUsd(businesses, baseYear) {
   var perAsset = [];
@@ -111,8 +111,14 @@ function aggregateAssetDepreciationUsd(businesses, baseYear) {
   perAsset.forEach(function (p) {
     var actualSec179Usd = p.calc.requestedSec179Usd * scale;
     var totalUsd = actualSec179Usd + p.calc.bonusUsd + p.calc.macrsUsd;
-    if (!byBusiness[p.businessKey]) byBusiness[p.businessKey] = { totalUsd: 0 };
+    if (!byBusiness[p.businessKey]) byBusiness[p.businessKey] = { totalUsd: 0, assets: [] };
     byBusiness[p.businessKey].totalUsd += totalUsd;
+    // assets[] added for assets-nodes.js's businessEntities trace (normalize.js
+    // L1600-1603) — previously dropped since nothing here read it.
+    byBusiness[p.businessKey].assets.push({
+      name: null, class: p.calc.class, yearN: p.calc.yearN, cost: p.calc.cost,
+      sec179Usd: actualSec179Usd, bonusUsd: p.calc.bonusUsd, macrsUsd: p.calc.macrsUsd, totalUsd: totalUsd
+    });
   });
   return { byBusiness: byBusiness };
 }

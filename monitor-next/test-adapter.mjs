@@ -51,6 +51,13 @@ function checkResult(id, dag, real) {
   deepCheck(id + " model.income.india", dag.model.income.india, real.model.income.india);
   deepCheck(id + " model.income.us", dag.model.income.us, real.model.income.us);
   deepCheck(id + " model.accounts.accounts", dag.model.accounts.accounts, real.model.accounts.accounts);
+  deepCheck(id + " model.assets", dag.model.assets, real.model.assets);
+  deepCheck(id + " documents", dag.documents, real.documents);
+  deepCheck(id + " returnForms", dag.returnForms, real.returnForms);
+  deepCheck(id + " withholding", dag.withholding, real.withholding);
+  deepCheck(id + " monitoring.calendar.all", dag.monitoring.calendar.all, real.monitoring.calendar.all);
+  deepCheck(id + " monitoring.residency", dag.monitoring.residency, real.monitoring.residency);
+  deepCheck(id + " monitoring.projections", dag.monitoring.projections, real.monitoring.projections);
   deepCheck(id + " computed.indiaTax.totalTaxUsd", dag.computed.indiaTax.totalTaxUsd, real.computed.indiaTax.totalTaxUsd);
   deepCheck(id + " computed.indiaTax.s115a", dag.computed.indiaTax.s115a, real.computed.indiaTax.s115a || null);
   deepCheck(id + " computed.usTax", dag.computed.usTax, real.computed.usTax);

@@ -14,6 +14,12 @@
  *                                          (run-aggregateusincome.js, 385/385)
  *   model.residency                    <- agg10-nodes.js residencyModelSliceResult
  *   model.accounts.accounts            <- agg10-nodes.js accountsBoundary
+ *   model.assets                       <- assets-nodes.js assetsModelResult
+ *                                          (run-assets.js, 801/801) — the
+ *                                          Holdings/Business tabs' own
+ *                                          dependency, never built until
+ *                                          those two tabs were actually
+ *                                          click-tested under DAG mode
  *   computed.*                         <- ustax-full-nodes.js's analyzeResult
  *                                          chain (indiaTax/usTax/residency/
  *                                          ftc/reconciliation/limits/headline)
@@ -27,7 +33,7 @@
 "use client";
 
 import { createGraph } from "./dag/graph.js";
-import { NODES } from "./dag/ustax-full-nodes.js";
+import { NODES } from "./dag/assets-nodes.js";
 import { countriesFromEngine } from "./wising.js";
 import { CONST } from "./engine/constants.js";
 
@@ -70,7 +76,7 @@ export function analyzeDag(opts) {
   const out = graph.resolve([
     "entityResult", "metaResult", "identityResult", "treatyModelResult",
     "residencyModelSliceResult", "companyResidencyResult", "indiaIncomeModelResult",
-    "aggregateUsIncomeResult", "accountsBoundary",
+    "aggregateUsIncomeResult", "accountsBoundary", "assetsModelResult",
     "totalTaxInrCombined", "regimeCombined", "isEntityTaxpayer", "usTaxResult", "residencyResult",
     "ftcResult", "crossBasisResult", "limitsResult", "headlineResult",
     "apportionmentResult", "s115aDividend", "s115aRoyalty", "s115aFts", "isNRV3",
@@ -87,7 +93,8 @@ export function analyzeDag(opts) {
     residency: out.residencyModelSliceResult,
     companyResidency: out.companyResidencyResult,
     income: { india: out.indiaIncomeModelResult, us: out.aggregateUsIncomeResult },
-    accounts: { accounts: out.accountsBoundary, aggregatePeak: null }
+    accounts: { accounts: out.accountsBoundary, aggregatePeak: null },
+    assets: out.assetsModelResult
   };
   // feieAppliedUsd is a DAG-internal convenience field (ustax-nodes.js,
   // added so ftc-nodes.js's boundary reads don't need a separate node) —

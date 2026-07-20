@@ -239,7 +239,11 @@ var NODES = {
       var entity = safe(india, "profile.entity_type", null) || safe(india, "domestic_income.business_income.entity_type", "individual");
       var entityExcluded44AD = ["llp", "company", "aop", "trust", "local", "coop", "ajp"].indexOf(entity) >= 0;
       var eligible44AD = ror && !entityExcluded44AD;
-      return { eligible44AD: eligible44AD, eligible44ADA: eligible44AD && entity !== "huf" };
+      // indiaStatus/entityType/rorFails added for assets-nodes.js's
+      // businessEntryIncomeTrace port (normalize.js L279-282) — previously
+      // dropped since aggregateIndiaIncome's own totals never read them,
+      // only a trace-display consumer needs the precise "why" facts.
+      return { eligible44AD: eligible44AD, eligible44ADA: eligible44AD && entity !== "huf", indiaStatus: d.indiaResidencyStatusRawAgg, entityType: entity, rorFails: !ror };
     }
   },
 
