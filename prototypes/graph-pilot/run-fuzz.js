@@ -104,20 +104,29 @@
  *      boundary — a US entity with a 1040-NR flag got a phantom FDAP
  *      withholding row the engine never builds.
  *
- * REMAINING (31/1000 at seed=1) — a KNOWN-DIVERGENCE allowlist, same
- * convention as dag-coverage.js's knownMissing, distinguishes these from a
- * genuinely NEW regression (see KNOWN_* below and classifyMismatch()):
- *   A. holding_period_mismatch_N (17, EXTRA finding ID) — a genuine numerical
- *      divergence in an INTERNAL what-if recompute: the finding prices each
- *      mismatch by running US tax twice (gain as LTCG vs STCG). The engine
- *      uses computeUsTax; the DAG uses computeUsTaxCore (a copy). On mutated
- *      NRA/entity-base profiles whose individual US tax collapses to ~0, the
- *      two disagree (engine delta 0 → doesn't fire; DAG delta > 1 → fires).
- *      The ROUTED computed.usTax still matches — only this internal
- *      individual recompute diverges. A real, deep bug in the copy on
- *      near-zero-tax inputs; distinct from the gating family above, not a
- *      quick fix.
- *   B. dtaa_treaty_elections (14, CONTENT diff) — same entity/NRA
+ * A. holding_period_mismatch_N — FIXED 20 Jul 2026, the deepest instance of
+ *    the #4-10 family. WISING.computeInternals.computeUsTax, which the
+ *    engine's own what-if recompute calls (conflicts.js:1298), is NOT an
+ *    individual-only formula — it's compute()'s own ROUTER (computation.js:
+ *    789), dispatching to computeUsEntityTax/computeNraTax BEFORE ever
+ *    reaching the individual bracket logic computeUsTaxCore is a copy of.
+ *    Neither computeUsEntityTax (a flat rate on Schedule-M1/aggregate
+ *    income) nor computeNraTax (ECI/FDAP only) reads foreignLtcg/foreignStcg
+ *    AT ALL — so for an entity or NRA taxpayer, the engine's own LTCG-vs-STCG
+ *    delta is PROVABLY always exactly 0, and the finding never fires.
+ *    computeUsTaxCore had no such routing (extracted before TAX-7/TAX-8
+ *    existed), so it always ran the individual formula regardless of entity/
+ *    NRA status, producing a real nonzero delta. Fixed by skipping the whole
+ *    recompute (holdingPeriodMismatchFindingsResult) when raw routing facts
+ *    show the taxpayer routes away from the individual path — same "recompute
+ *    from raw facts, safe in both the routed AND isolated chains" discipline
+ *    as every other isNra-family fix. Verified: 0 new divergences across 14
+ *    seeds × 800 iterations plus one seed × 3000.
+ *
+ * REMAINING (10-ish/1000, seed-dependent) — a KNOWN-DIVERGENCE allowlist,
+ * same convention as dag-coverage.js's knownMissing, distinguishes these
+ * from a genuinely NEW regression (see KNOWN_* below):
+ *   B. dtaa_treaty_elections (CONTENT diff) — same entity/NRA
  *      report-detail family as #4-10: an India entity's dtaa_treaty_elections
  *      narrates the individual s115a stream's per-election outcome text,
  *      which the engine doesn't build at all for an entity (computed.
@@ -315,7 +324,7 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // why it's here (one, C, is permanent by design; the rest are real bugs
 // deferred, not hidden). Extend this list only after actually investigating
 // a new mismatch — never to silence a failure you haven't looked at. -------
-var KNOWN_EXTRA_FINDING_ID = /^holding_period_mismatch_\d+$/;
+var KNOWN_EXTRA_FINDING_ID = /^$/; // none currently — holding_period_mismatch fixed 20 Jul 2026
 var KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = ["dtaa_treaty_elections", "residency_status_dtaa_conflated_india"];
 // Fields that are MECHANICALLY DERIVED from findings[] (severity counts,
 // health score, the alerts feed) — only excusable as "known" when the SAME

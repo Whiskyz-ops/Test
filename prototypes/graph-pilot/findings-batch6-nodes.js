@@ -222,13 +222,35 @@ function computeUsTaxCore(d, extraLtcgUsd, extraStcgUsd) {
 
 // ---- the finding, ported in full --------------------------------------
 NODES.holdingPeriodMismatchFindingsResult = {
-  deps: ["capitalGainsComputation", "incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs"],
+  deps: ["capitalGainsComputation", "incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs",
+    "usEntityKind", "treatyFiles1040nrRaw", "s6013hElection"],
   compute: function (d) {
     var findings = [];
     function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {
       findings.push({ id: id, severity: severity, category: category, title: title, detail: detail, recommendation: recommendation, amountUsd: amountUsd || 0, refs: refs || [] });
     }
-    var holdingMismatches = d.capitalGainsComputation.holdingPeriodMismatches || [];
+    // The engine's own recompute (conflicts.js:1298) calls
+    // WISING.computeInternals.computeUsTax — which is NOT an individual-only
+    // formula, it's compute()'s own ROUTER: it dispatches to
+    // computeUsEntityTax/computeNraTax FIRST, before ever reaching the
+    // individual bracket logic this file's computeUsTaxCore is a copy of.
+    // Neither computeUsEntityTax (a flat rate on Schedule-M1/aggregate
+    // income, entirely independent of ltcg/stcg classification) nor
+    // computeNraTax (ECI/FDAP only, never reads foreignLtcg/foreignStcg at
+    // all) is affected BY DEFINITION by reclassifying a gain between LTCG
+    // and STCG — so for an entity or NRA taxpayer, the engine's own delta is
+    // PROVABLY always exactly 0 and this finding never fires. computeUsTaxCore
+    // has no such routing (it's a parameterized copy of only the individual
+    // formula, extracted before TAX-7/TAX-8 existed) — it always ran the
+    // individual bracket computation regardless of entity/NRA status,
+    // producing a real (wrong) nonzero delta for those profiles. Found by
+    // run-fuzz.js, SYS-3, 20 Jul 2026 — the deepest instance of the same
+    // "report/finding node predates TAX-7/TAX-8 routing" family fixed
+    // elsewhere in this migration, here affecting an internal what-if rather
+    // than a top-level field.
+    var routesAwayFromIndividual = ["ccorp", "scorp", "partnership", "trust"].indexOf(d.usEntityKind) >= 0 ||
+      (d.treatyFiles1040nrRaw && !d.s6013hElection);
+    var holdingMismatches = routesAwayFromIndividual ? [] : (d.capitalGainsComputation.holdingPeriodMismatches || []);
     holdingMismatches.forEach(function (mm, mi) {
       var asLtcg = computeUsTaxCore(d, mm.gainUsd, 0);
       var asStcg = computeUsTaxCore(d, 0, mm.gainUsd);
