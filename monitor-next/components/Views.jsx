@@ -569,7 +569,15 @@ function DeadlineList({ cal, jColor, onSelect }) {
           <button key={i} type="button" onClick={() => onSelect(x)}
             className={"w-full text-left flex items-center gap-3 p-2 rounded-lg transition hover:bg-white/[0.06] focus:outline-none " + (isPast ? "opacity-45" : "bg-white/[0.03]")}>
             <span className="text-[9px] font-black px-2 py-0.5 rounded" style={{ background: jColor[x.jur] + "24", color: jColor[x.jur] }}>{x.jur}</span>
-            <div className="flex-1 min-w-0"><div className="text-[12px] font-semibold text-head truncate">{x.name}</div><div className="text-[10px] text-muted">{x.dateLabel} · {x.cat}</div></div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[12px] font-semibold text-head truncate">{x.name}</div>
+              <div className="text-[10px] text-muted">{x.dateLabel} · {x.cat}</div>
+              {x.amountDueFmt !== undefined && (
+                <div className="text-[10px] font-mono mt-0.5" style={{ color: x.amountDue > 0 ? PAL.amberText : PAL.greenText }}>
+                  {x.amountDue > 0 ? x.amountDueFmt + " still needed" : "✓ Covered"}
+                </div>
+              )}
+            </div>
             <div className="text-[11px] font-mono whitespace-nowrap" style={{ color: dueColor(x) }}>{dueText(x)}</div>
           </button>
         );
@@ -630,6 +638,22 @@ function DeadlineDetailModal({ x, jColor, docs, returnForms, onClose }) {
             <div className="text-[9px] text-muted">{countdownWords}</div>
           </div>
         </div>
+        {x.amountDueFmt !== undefined && (
+          <div className="mt-3 p-3 rounded-lg" style={{
+            background: (x.amountDue > 0 ? PAL.approaching : PAL.positive) + "14",
+            border: "1px solid " + (x.amountDue > 0 ? PAL.approaching : PAL.positive) + "33"
+          }}>
+            <div className="text-[9px] font-bold uppercase tracking-widest" style={{ color: x.amountDue > 0 ? PAL.amberText : PAL.greenText }}>
+              {x.amountDue > 0 ? "Still needed this installment" : "Installment covered"}
+            </div>
+            <div className="font-mono font-bold text-[18px] text-head mt-0.5">{x.amountDueFmt}</div>
+            <div className="text-[10px] text-muted mt-1">
+              {x.jur === "IN"
+                ? "ss.424/425 shortfall — pay this by the due date to avoid 1%/month interest on this installment."
+                : "Form 2210 shortfall — pay this by the due date to avoid the IRS underpayment penalty on this installment."}
+            </div>
+          </div>
+        )}
         <p className="text-[11px] text-body leading-relaxed mt-3">{CAT_NOTE[x.cat] || ""}</p>
         {mapsDocs && (
           <div className="mt-3">
@@ -680,9 +704,37 @@ function ComplianceCalendarCard({ cal, jColor, docs, returnForms }) {
   );
 }
 
+// CL-2 (docs/GAP_TRACKER.md): attach a forward-looking ₹/$ figure to each
+// advance-tax/estimated-tax calendar row. DAG-only — result.calendarAmounts
+// is absent in Engine mode (lib/wising.js never sets it, same precedent as
+// CL-1's checksRegistry — see lib/dag-adapter.js), so this is a no-op there.
+// Matched by quarter parsed from the row's own name string, not by array
+// index: the name text is already verified byte-identical between engine and
+// DAG (shadow mode's full "monitoring" surface compare), and a C-corp's US
+// Q4 row carries a different label than an individual's, so index position
+// isn't a stable key across entity types.
+function attachCalendarAmounts(cal, calendarAmounts) {
+  if (!calendarAmounts) return cal;
+  return cal.map((x) => {
+    if (x.cat === "Advance tax") {
+      const ins = x.name.indexOf("single installment") >= 0
+        ? calendarAmounts.india.installments[0]
+        : calendarAmounts.india.installments.find((i) => i.quarter === Number((x.name.match(/Q(\d)/) || [])[1]));
+      if (ins) return Object.assign({}, x, { amountDue: ins.amountDueInr, amountDueFmt: fmtInr(ins.amountDueInr) });
+    } else if (x.cat === "Estimated tax") {
+      const q = Number((x.name.match(/Q(\d)/) || [])[1]);
+      const ins = calendarAmounts.us.installments.find((i) => i.quarter === q);
+      if (ins) return Object.assign({}, x, { amountDue: ins.amountDueUsd, amountDueFmt: fmtUsd(ins.amountDueUsd) });
+    }
+    return x;
+  });
+}
+
 export function FilingsView({ result }) {
   if (!result) return <Empty>Load a client to see filings.</Empty>;
-  const cal = result.monitoring ? result.monitoring.calendar.all.slice().sort((a, b) => a.date - b.date) : [];
+  const cal = result.monitoring
+    ? attachCalendarAmounts(result.monitoring.calendar.all.slice().sort((a, b) => a.date - b.date), result.calendarAmounts)
+    : [];
   const jColor = { US: PAL.jurUS, IN: PAL.jurIN };
   const docs = result.documents.slice().sort((a, b) => (b.required ? 1 : 0) - (a.required ? 1 : 0));
   const req = docs.filter((d) => d.required).length;
