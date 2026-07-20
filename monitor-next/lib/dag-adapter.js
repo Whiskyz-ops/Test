@@ -66,6 +66,12 @@ export function analyzeDag(opts) {
   const india = readRaw(STORAGE_KEYS.INDIA, opts.india);
   const us = readRaw(STORAGE_KEYS.US, opts.us);
   const ctx = { router, india, us };
+  // Shadow mode pins the same "now" on both engine and DAG so monitoring's
+  // date-derived fields (asOf, calendar daysUntil, projection breach dates)
+  // compare fairly instead of drifting by the few ms between the two calls.
+  // Omitted in normal use → the DAG's monitorAsOfBoundary node falls back to
+  // new Date(), exactly as before.
+  if (opts.monitorAsOf !== undefined) ctx.monitorAsOfBoundary = opts.monitorAsOf;
 
   const out = graph.resolve([
     "entityResult", "metaResult", "identityResult", "treatyModelResult",
