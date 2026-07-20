@@ -73,7 +73,8 @@ function safe(obj, path, dflt) {
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
 function inr(n) { return "₹" + Math.round(n).toLocaleString("en-IN"); }
-function inrToUsd(v) { return Number(v) / 83.0; }
+var fxRate = require("./fx-util.js").fxRate;
+function inrToUsd(v, ctx) { return Number(v) / fxRate(ctx); } // rate overridable via ctx.fxRateOverride — see fx-util.js
 
 var findingsBatch3Nodes = require("./findings-batch3-nodes.js").NODES;
 var NODES = {};
@@ -382,7 +383,7 @@ NODES.findingsBatch4Result = {
     "s6013hElection", "nraFdapDetail", "nraEciIncomeUsdRaw",
     "lossSetOffDetailed", "carryForwardLossesMetaRaw",
     "feieDetailed", "usTaxResult", "isEntityTaxpayer", "usEntityKind"],
-  compute: function (d) {
+  compute: function (d, ctx) {
     var findings = [];
     function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {
       findings.push({ id: id, severity: severity, category: category, title: title, detail: detail, recommendation: recommendation, amountUsd: amountUsd || 0, refs: refs || [] });
@@ -506,7 +507,7 @@ NODES.findingsBatch4Result = {
     }
     var isNraForWh = (["ccorp", "scorp", "partnership", "trust"].indexOf(d.usEntityKind) < 0) && d.treatyFiles1040nrRaw && !d.s6013hElection;
     var usTotalGapUsd = (isNraForWh && d.nraFdapDetail.fdapUsd > 0) ? d.nraFdapDetail.gapUsd : 0;
-    var totalGapUsd = inrToUsd(indiaTotalGapInr) + usTotalGapUsd;
+    var totalGapUsd = inrToUsd(indiaTotalGapInr, ctx) + usTotalGapUsd;
     if (totalGapUsd > 1) {
       var whParts = [];
       if (indiaTotalGapInr > 1) whParts.push(inr(indiaTotalGapInr) + " in India (TRC/Form 41)");

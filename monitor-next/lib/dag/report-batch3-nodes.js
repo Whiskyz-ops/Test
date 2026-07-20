@@ -29,7 +29,8 @@ function safe(obj, path, dflt) {
 }
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 function inr(n) { return "₹" + Math.round(n).toLocaleString("en-IN"); }
-function inrToUsd(v) { return Number(v) / 83.0; }
+var fxRate = require("./fx-util.js").fxRate;
+function inrToUsd(v, ctx) { return Number(v) / fxRate(ctx); } // rate overridable via ctx.fxRateOverride — see fx-util.js
 function calc(formula, parts, citation) { return { kind: "calc", formula: formula, parts: parts || [], citation: citation || null }; }
 function holdings(section, note) { return { kind: "holdings", section: section, note: note || null }; }
 
@@ -90,7 +91,7 @@ NODES.buildTaxComputationIndiaResult = {
     "ltcg197TaxableInr", "vdaGainInrBoundary", "vdaTaxInr", "specialRate115bbInr", "chapterXiiaInvestmentIncomeInrBoundary",
     "rebateInrV3", "surchargeInrV3", "cessInrV3", "totalTaxInrV3"
   ],
-  compute: function (d) {
+  compute: function (d, ctx) {
     var isEntity = d.isEntityTaxpayer;
     var i = isEntity ? {
       isEntity: true,
@@ -104,7 +105,7 @@ NODES.buildTaxComputationIndiaResult = {
       surchargeInr: d.entityTaxResult.surchargeInr,
       cessInr: d.entityTaxResult.cessInr,
       totalTaxInr: d.entityTaxResult.totalTaxInr,
-      totalTaxUsd: inrToUsd(d.entityTaxResult.totalTaxInr),
+      totalTaxUsd: inrToUsd(d.entityTaxResult.totalTaxInr, ctx),
       effectiveRate: d.entityTaxableInrBoundary > 0 ? d.entityTaxResult.totalTaxInr / d.entityTaxableInrBoundary : 0
     } : {
       isEntity: false,
@@ -132,8 +133,8 @@ NODES.buildTaxComputationIndiaResult = {
       surchargeInr: d.surchargeInrV3,
       cessInr: d.cessInrV3,
       totalTaxInr: d.totalTaxInrV3,
-      totalTaxUsd: inrToUsd(d.totalTaxInrV3),
-      totalIncomeUsd: inrToUsd(d.totalIncomeInrV3),
+      totalTaxUsd: inrToUsd(d.totalTaxInrV3, ctx),
+      totalIncomeUsd: inrToUsd(d.totalIncomeInrV3, ctx),
       effectiveRate: d.totalIncomeInrV3 > 0 ? d.totalTaxInrV3 / d.totalIncomeInrV3 : 0,
       lossSetOff: d.lossSetOffV3,
       s115a: d.isNRV3 ? { dividend: d.s115aDividend, royalty: d.s115aRoyalty, fts: d.s115aFts } : null,

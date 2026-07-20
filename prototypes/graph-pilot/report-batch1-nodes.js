@@ -54,9 +54,10 @@ function safe(obj, path, dflt) {
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
 function inr(n) { return "₹" + Math.round(n).toLocaleString("en-IN"); }
-function inrToUsd(v) { return Number(v) / 83.0; }
-function moneyFromInr(v) { return { inr: v, usd: inrToUsd(v) }; }
-function moneyFromUsd(v) { return { usd: v, inr: v * 83.0 }; }
+var fxRate = require("./fx-util.js").fxRate;
+function inrToUsd(v, ctx) { return Number(v) / fxRate(ctx); } // rate overridable via ctx.fxRateOverride — see fx-util.js
+function moneyFromInr(v, ctx) { return { inr: v, usd: inrToUsd(v, ctx) }; }
+function moneyFromUsd(v, ctx) { return { usd: v, inr: v * fxRate(ctx) }; }
 function addMoney(a, b) { return { usd: a.usd + b.usd, inr: a.inr + b.inr }; }
 function zeroMoney() { return { usd: 0, inr: 0 }; }
 
@@ -86,17 +87,17 @@ function indiaBusinessTurnoverInr(entries) {
 // (batch 5 only built aggregatePeakUsdResult; this closes the rest.)
 NODES.accountsListResult = {
   deps: ["bankAccountsRaw", "hasUsScopeBoundaryFtc"],
-  compute: function (d) {
+  compute: function (d, ctx) {
     var indianAccounts = d.bankAccountsRaw.india.map(function (b) {
-      return { bank: b.bank_name || "Indian Bank", type: b.account_type || "savings", peak: moneyFromInr(b.peak_balance_inr || 0), country: "India" };
+      return { bank: b.bank_name || "Indian Bank", type: b.account_type || "savings", peak: moneyFromInr(b.peak_balance_inr || 0, ctx), country: "India" };
     });
     var usDisclosed = d.bankAccountsRaw.us.map(function (b) {
       return { bank: b.bank_name || "Bank", type: b.account_type || "savings",
-        peak: b.peak_balance_usd !== undefined ? moneyFromUsd(b.peak_balance_usd) : moneyFromInr(b.peak_balance_inr || 0), country: b.country || "India" };
+        peak: b.peak_balance_usd !== undefined ? moneyFromUsd(b.peak_balance_usd, ctx) : moneyFromInr(b.peak_balance_inr || 0, ctx), country: b.country || "India" };
     });
     var accounts = indianAccounts.length >= usDisclosed.length ? indianAccounts : usDisclosed;
     var formFbar = d.bankAccountsRaw.usFormFbar;
-    var aggregatePeak = formFbar > 0 ? moneyFromUsd(formFbar) : (!d.hasUsScopeBoundaryFtc ? zeroMoney() : accounts.reduce(function (acc, a) { return addMoney(acc, a.peak); }, zeroMoney()));
+    var aggregatePeak = formFbar > 0 ? moneyFromUsd(formFbar, ctx) : (!d.hasUsScopeBoundaryFtc ? zeroMoney() : accounts.reduce(function (acc, a) { return addMoney(acc, a.peak); }, zeroMoney()));
     return { accounts: accounts, aggregatePeak: aggregatePeak };
   }
 };
@@ -113,11 +114,11 @@ NODES.taxCreditsIndiaRaw = {
   }
 };
 NODES.taxesPaidIndiaResult = {
-  deps: ["taxCreditsIndiaRaw"], compute: function (d) {
+  deps: ["taxCreditsIndiaRaw"], compute: function (d, ctx) {
     var tc = d.taxCreditsIndiaRaw;
     var advance = tc.q1 + tc.q2 + tc.q3 + tc.q4;
     var tds = tc.tdsAlreadyDeducted + tc.tds;
-    return { advance: moneyFromInr(advance), tds: moneyFromInr(tds), tcs: moneyFromInr(tc.tcs), total: moneyFromInr(advance + tds + tc.tcs) };
+    return { advance: moneyFromInr(advance, ctx), tds: moneyFromInr(tds, ctx), tcs: moneyFromInr(tc.tcs, ctx), total: moneyFromInr(advance + tds + tc.tcs, ctx) };
   }
 };
 
@@ -160,7 +161,7 @@ NODES.form8938GaugeResult = {
 // ---- headline.totalIncomeUsd (computation.js:1831) -------------------------
 NODES.headlineTotalIncomeUsdResult = {
   deps: ["totalIndiaIncomeInr", "aggregateUsIncomeResult"],
-  compute: function (d) { return inrToUsd(d.totalIndiaIncomeInr) + d.aggregateUsIncomeResult.total.usd; }
+  compute: function (d, ctx) { return inrToUsd(d.totalIndiaIncomeInr, ctx) + d.aggregateUsIncomeResult.total.usd; }
 };
 
 // ============================================================================

@@ -29,7 +29,8 @@
  * computed.doubleTax.{items,totalDoublyTaxedUsd} for all 11 real profiles,
  * ctx carrying only {router, india, us} — no model/computed at all.
  * ==========================================================================*/
-function inrToUsd(inr) { return Number(inr) / 83.0; } // matches U.inrToUsd's own rate, engine-wide constant
+var fxRate = require("./fx-util.js").fxRate;
+function inrToUsd(inr, ctx) { return Number(inr) / fxRate(ctx); } // rate overridable via ctx.fxRateOverride — see fx-util.js
 
 var xborderFullNodes = require("./xborder-full-nodes.js").NODES;
 
@@ -46,13 +47,13 @@ NODES.indiaCapitalGainsInrXbr3 = {
 NODES.mapDoubleTaxedIncomeResult = {
   deps: ["salaryInr", "businessComputation", "housePropertyInr", "interestInr", "dividendInr",
     "indiaCapitalGainsInrXbr3", "aggregateUsIncomeResult", "residencyResult"],
-  compute: function (d) {
+  compute: function (d, ctx) {
     var items = [];
     var usWorldwide = d.residencyResult.us.worldwide;
     var us = d.aggregateUsIncomeResult;
 
     function pair(label, indiaInr, usMoney, note) {
-      var indiaUsd = inrToUsd(indiaInr);
+      var indiaUsd = inrToUsd(indiaInr, ctx);
       var usUsd = usMoney ? usMoney.usd : 0;
       var inExposed = indiaUsd > 0;
       var usExposed = usUsd > 0;

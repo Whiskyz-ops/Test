@@ -42,7 +42,8 @@ function safe(obj, path, dflt) {
   return cur === undefined || cur === null ? dflt : cur;
 }
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
-function inrToUsd(inr) { return num(inr) / 83.0; } // matches U.inrToUsd's own rate, engine-wide constant
+var fxRate = require("./fx-util.js").fxRate;
+function inrToUsd(inr, ctx) { return num(inr) / fxRate(ctx); } // rate overridable via ctx.fxRateOverride — see fx-util.js
 
 var incomeNodesIndia = require("./aggregateindiaincome-nodes.js").NODES;
 var incomeNodesUs = require("./aggregateusincome-nodes.js").NODES;
@@ -72,7 +73,8 @@ NODES.apportionmentIndiaQuarterlyUsdRaw = {
       return inrToUsd(
         num(safe(di, "salary.taxable_salary_inr", 0)) + num(safe(di, "salary.gross_salary_inr", 0)) +
         num(safe(os, "interest_inr", 0)) + num(safe(os, "dividend_inr", 0)) +
-        num(safe(cg, "stcg_111a_inr", 0)) + num(safe(cg, "ltcg_112a_inr", 0))
+        num(safe(cg, "stcg_111a_inr", 0)) + num(safe(cg, "ltcg_112a_inr", 0)),
+        ctx
       );
     });
   }
@@ -81,7 +83,7 @@ NODES.apportionmentIndiaQuarterlyUsdRaw = {
 // ---- India FY total, in USD — reuses the already-closed AGG-1 boundary --
 NODES.indiaTotalIncomeUsdForApportionment = {
   deps: ["totalIndiaIncomeInr"],
-  compute: function (d) { return inrToUsd(d.totalIndiaIncomeInr); }
+  compute: function (d, ctx) { return inrToUsd(d.totalIndiaIncomeInr, ctx); }
 };
 
 // ---- computeApportionment, ported in full ---------------------------------

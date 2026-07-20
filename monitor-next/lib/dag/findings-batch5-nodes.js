@@ -44,9 +44,10 @@ function safe(obj, path, dflt) {
 }
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
-function inrToUsd(v) { return Number(v) / 83.0; }
-function moneyFromInr(inr) { return { inr: inr, usd: inrToUsd(inr) }; }
-function moneyFromUsd(v) { return { usd: v, inr: v * 83.0 }; }
+var fxRate = require("./fx-util.js").fxRate;
+function inrToUsd(v, ctx) { return Number(v) / fxRate(ctx); } // rate overridable via ctx.fxRateOverride — see fx-util.js
+function moneyFromInr(inr, ctx) { return { inr: inr, usd: inrToUsd(inr, ctx) }; }
+function moneyFromUsd(v, ctx) { return { usd: v, inr: v * fxRate(ctx) }; }
 function addMoney(a, b) { return { usd: a.usd + b.usd, inr: a.inr + b.inr }; }
 function zeroMoney() { return { usd: 0, inr: 0 }; }
 function bracketTax(amount, slabs) {
@@ -144,7 +145,7 @@ NODES.taxesPaidUsResult = {
     // tax" answer is never confused with "the preparer didn't say."
     var priorYearTotalTaxUsdRaw = safe(we, "prior_year_total_tax_usd", null);
     return {
-      total: moneyFromUsd(usWithholding + usEstimated), withholding: moneyFromUsd(usWithholding),
+      total: moneyFromUsd(usWithholding + usEstimated, ctx), withholding: moneyFromUsd(usWithholding, ctx),
       priorYearTotalTaxUsd: priorYearTotalTaxUsdRaw === null ? null : num(priorYearTotalTaxUsdRaw)
     };
   }
@@ -158,12 +159,12 @@ NODES.bankAccountsRaw = {
 };
 NODES.aggregatePeakUsdResult = {
   deps: ["bankAccountsRaw", "hasUsScopeBoundaryFtc"],
-  compute: function (d) {
-    var indianAccounts = d.bankAccountsRaw.india.map(function (b) { return { peak: moneyFromInr(b.peak_balance_inr || 0) }; });
-    var usDisclosed = d.bankAccountsRaw.us.map(function (b) { return { peak: b.peak_balance_usd !== undefined ? moneyFromUsd(b.peak_balance_usd) : moneyFromInr(b.peak_balance_inr || 0) }; });
+  compute: function (d, ctx) {
+    var indianAccounts = d.bankAccountsRaw.india.map(function (b) { return { peak: moneyFromInr(b.peak_balance_inr || 0, ctx) }; });
+    var usDisclosed = d.bankAccountsRaw.us.map(function (b) { return { peak: b.peak_balance_usd !== undefined ? moneyFromUsd(b.peak_balance_usd, ctx) : moneyFromInr(b.peak_balance_inr || 0, ctx) }; });
     var accounts = indianAccounts.length >= usDisclosed.length ? indianAccounts : usDisclosed;
     var formFbar = d.bankAccountsRaw.usFormFbar;
-    if (formFbar > 0) return moneyFromUsd(formFbar);
+    if (formFbar > 0) return moneyFromUsd(formFbar, ctx);
     if (!d.hasUsScopeBoundaryFtc) return zeroMoney();
     return accounts.reduce(function (acc, a) { return addMoney(acc, a.peak); }, zeroMoney());
   }
@@ -194,7 +195,7 @@ function gauge(id, valueUsd, limitUsd) {
 NODES.findingsBatch5Result = {
   deps: ["equityCompResult", "usStateTaxResult", "taxesPaidUsResult", "aggregateUsIncomeResult",
     "aggregatePeakUsdResult", "hasUsScopeBoundaryFtc", "hasIndiaScopeXbr", "limitsRawExtra"],
-  compute: function (d) {
+  compute: function (d, ctx) {
     var findings = [];
     function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {
       findings.push({ id: id, severity: severity, category: category, title: title, detail: detail, recommendation: recommendation, amountUsd: amountUsd || 0, refs: refs || [] });
@@ -273,7 +274,7 @@ NODES.findingsBatch5Result = {
 
     // -- 11. LRS LIMIT MONITORING (conflicts.js:1446-1457) -------------------
     if (d.hasIndiaScopeXbr) {
-      var lrs = gauge("lrs", inrToUsd(d.limitsRawExtra.lrsRemittedInr), LIM.LRS_ANNUAL_USD);
+      var lrs = gauge("lrs", inrToUsd(d.limitsRawExtra.lrsRemittedInr, ctx), LIM.LRS_ANNUAL_USD);
       if (lrs.status !== "ok") {
         add("lrs_limit", lrs.status === "breached" ? "critical" : "warning", "limit",
           "LRS remittance " + (lrs.status === "breached" ? "limit breached" : "approaching limit"),
