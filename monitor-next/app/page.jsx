@@ -42,8 +42,21 @@ export default function MonitorPage() {
   // ?engine=dag or the header pill switches the compute source live, same
   // countries/result shape either way (monitorSnapshotDag mirrors
   // monitorSnapshot exactly — see lib/dag-adapter.js).
-  const [engineSource, setEngineSource] = useState(() =>
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("engine") === "dag" ? "dag" : "engine");
+  //
+  // Always initialize to "engine", matching the server's render exactly —
+  // reading window.location in the lazy useState initializer used to
+  // return "dag" on the client's first (hydrating) render whenever the
+  // URL carried ?engine=dag, while the server (no window) always rendered
+  // "engine": a real text mismatch on the pill's own label, logged as a
+  // hydration error and silently forcing a full client-side re-render.
+  // Reading the query param in an effect instead means the FIRST client
+  // render matches the server unconditionally; recompute's own effect
+  // below re-fires automatically once this flips, since recompute is a
+  // useCallback keyed on engineSource.
+  const [engineSource, setEngineSource] = useState("engine");
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("engine") === "dag") setEngineSource("dag");
+  }, []);
 
   const goToRecon = useCallback((section) => { setView("reconciliation"); setReconHighlight(section); }, []);
 
