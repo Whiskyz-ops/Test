@@ -125,7 +125,7 @@ NODES.buildWithholdingSummaryResult = {
     "withholdingDetailIndiaRaw", "withholdingDetailUsRaw", "vdaSaleConsiderationInrBoundary", "specialRate115bbInr",
     "panAadhaarLinkedRaw",
     "treatyFiles1040nrRaw", "s6013hElection", "nraRaw", "nraFdapDetail",
-    "aggregateUsIncomeResult", "taxesPaidUsResult"
+    "aggregateUsIncomeResult", "taxesPaidUsResult", "usEntityKind"
   ],
   compute: function (d) {
     var indiaRows = [];
@@ -266,17 +266,25 @@ NODES.buildWithholdingSummaryResult = {
 
     var usRows = [];
     var usTotalGapUsd = 0;
-    // usTaxResult only covers the resident/individual path (TAX-7/TAX-8) —
-    // isNra can't be read from it for an NRA profile, same as every other
-    // NRA-aware node in this chain (findings-batch4/5, xborder-full).
-    var isNra = d.treatyFiles1040nrRaw && !d.s6013hElection;
+    // The engine gates this row on `u.isNra && u.nra` — the ROUTED result,
+    // where entity routing wins over NRA (a US entity that also carries a
+    // 1040-NR flag routes to computeUsEntityTax, isNra false, no FDAP row
+    // built at all). The old `files1040nr && !s6013h` recompute ignored that
+    // precedence and built the row anyway (found by run-fuzz.js, SYS-3,
+    // 20 Jul 2026 — the same family as the FTC isNra boundary and
+    // withholding_documentation_gap). Recomputed from raw routing facts, not
+    // usTaxResult.isNra — this node also resolves in isolation (report-
+    // batch4 built on report-batch3, individual-only usTaxResult), where
+    // reading usTaxResult.isNra would silently be wrong for a real NRA
+    // profile (same trap documented on findings-batch4's nra_fdap_flat_rate).
+    var isNra = ["ccorp", "scorp", "partnership", "trust"].indexOf(d.usEntityKind) < 0 && d.treatyFiles1040nrRaw && !d.s6013hElection;
     if (isNra && d.nraFdapDetail.fdapUsd > 0) {
       var n = d.nraFdapDetail;
       var gapUsd = n.gapUsd;
       usTotalGapUsd += gapUsd;
       usRows.push({
         id: "fdap", jurisdiction: "US", category: "treaty_gap", label: "FDAP" + (n.incomeType ? " (" + n.incomeType + ")" : "") + " — Schedule NEC",
-        grossUsd: n.fdapUsd, domesticRatePct: 30, treatyRatePct: n.claimedRate != null ? n.claimedRate : null,
+        grossUsd: n.fdapUsd, domesticRatePct: 30, treatyRatePct: n.claimedRatePctClamped,
         docsOk: n.w8benOnFile, rateAppliedPct: n.fdapRate * 100, taxUsd: n.fdapTaxUsd, gapUsd: gapUsd,
         note: n.w8benOnFile ? null : "Form W-8BEN missing — treaty rate denied, 30% statutory default withheld instead",
         citation: "IRC §1441 / Treas. Reg. §1.1441-6"

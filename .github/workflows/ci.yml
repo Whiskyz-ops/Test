@@ -1,0 +1,56 @@
+name: CI
+
+# The repo's first CI workflow (added 20 Jul 2026, alongside run-fuzz.js /
+# SYS-3 in docs/DAG_MIGRATION_TRACKER.md). Two independent jobs:
+#   - engine-and-dag: the production engine suite, the mechanical DAG-vs-
+#     engine field-coverage audit, and the randomized differential fuzzer —
+#     all pure Node scripts against engine/*.js and prototypes/graph-pilot/,
+#     no build step needed.
+#   - monitor-next: syncs engine+DAG into the Next.js app (predev/prebuild),
+#     builds it, and runs its own adapter differential test (dag-adapter.js
+#     vs the real engine, on every field the app's own source reads).
+#
+# fuzz:dag's exit code reflects ONLY new/unknown divergences — see
+# prototypes/graph-pilot/run-fuzz.js's own header for the KNOWN-DIVERGENCE
+# allowlist (holding_period_mismatch's internal what-if copy, and two
+# characterized detail-text differences). A genuinely new divergence fails
+# this job regardless of how small; the known ones don't turn CI permanently
+# red for issues already investigated and deliberately deferred.
+on:
+  push:
+  pull_request:
+
+jobs:
+  engine-and-dag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Production engine suite
+        run: npm test
+      - name: DAG-vs-engine field coverage audit
+        run: npm run audit:dag
+      - name: Randomized differential fuzz (engine vs DAG)
+        run: npm run fuzz:dag -- --n=3000 --seed=${{ github.run_number }}
+
+  monitor-next:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: monitor-next
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: monitor-next/package-lock.json
+      - run: npm ci
+      - name: Build (runs predev's engine+DAG sync first)
+        run: npm run build
+      - name: Adapter differential test (dag-adapter.js vs the real engine)
+        run: node test-adapter.mjs

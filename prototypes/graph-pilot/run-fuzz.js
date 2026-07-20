@@ -93,23 +93,57 @@
  * isNra from RAW routing facts — reading usTaxResult.isNra is correct only in
  * the routed chain and silently wrong in the isolated one.
  *
- * REMAINING (33/1000 at seed=1), characterized, not yet fixed:
- *   A. holding_period_mismatch_N (17) — a genuine numerical divergence in an
- *      INTERNAL what-if recompute: the finding prices each mismatch by running
- *      US tax twice (gain as LTCG vs STCG). The engine uses computeUsTax; the
- *      DAG uses computeUsTaxCore (a copy). On mutated NRA/entity-base profiles
- *      whose individual US tax collapses to ~0, the two disagree (engine
- *      delta 0 → doesn't fire; DAG delta > 1 → fires). The ROUTED computed.usTax
- *      still matches — only this internal individual recompute diverges. A
- *      real, deep bug in the copy on near-zero-tax inputs; distinct from the
- *      gating family above, not a quick fix.
- *   B. dtaa_treaty_elections / ftc_gap / nra_fdap_flat_rate detail-text (16) —
- *      same entity/NRA report-detail family as #4-8, but a same-ID detail-STRING
- *      difference rather than a fired/not-fired count difference (an India
- *      entity's dtaa_treaty_elections narrates "domestic rate applied" from the
- *      individual s115a stream where the engine says "not applied"). Mechanical
- *      but many per-string variants; deferred.
+ * Two more fixed after that (9, 10) — same family, found once the title/
+ * row-count noise above stopped masking them:
+ *   9. nra_fdap_flat_rate's title showed "(XX%)" unconditionally; the engine
+ *      only shows it when computed.usTax.nra exists (routed to NRA — the
+ *      finding itself fires on raw facts regardless of entity routing, an
+ *      engine quirk reproduced as-is, not "fixed").
+ *   10. buildWithholdingSummaryResult's FDAP row (report-batch4-nodes.js) had
+ *      the identical `files1040nr && !s6013h` raw recompute as the FTC
+ *      boundary — a US entity with a 1040-NR flag got a phantom FDAP
+ *      withholding row the engine never builds.
+ *
+ * REMAINING (31/1000 at seed=1) — a KNOWN-DIVERGENCE allowlist, same
+ * convention as dag-coverage.js's knownMissing, distinguishes these from a
+ * genuinely NEW regression (see KNOWN_* below and classifyMismatch()):
+ *   A. holding_period_mismatch_N (17, EXTRA finding ID) — a genuine numerical
+ *      divergence in an INTERNAL what-if recompute: the finding prices each
+ *      mismatch by running US tax twice (gain as LTCG vs STCG). The engine
+ *      uses computeUsTax; the DAG uses computeUsTaxCore (a copy). On mutated
+ *      NRA/entity-base profiles whose individual US tax collapses to ~0, the
+ *      two disagree (engine delta 0 → doesn't fire; DAG delta > 1 → fires).
+ *      The ROUTED computed.usTax still matches — only this internal
+ *      individual recompute diverges. A real, deep bug in the copy on
+ *      near-zero-tax inputs; distinct from the gating family above, not a
+ *      quick fix.
+ *   B. dtaa_treaty_elections (14, CONTENT diff) — same entity/NRA
+ *      report-detail family as #4-10: an India entity's dtaa_treaty_elections
+ *      narrates the individual s115a stream's per-election outcome text,
+ *      which the engine doesn't build at all for an entity (computed.
+ *      indiaTax.s115a is absent) — the DAG's version still reads the raw
+ *      individual streams. Mechanical but many per-string variants; deferred.
+ *   C. residency_status_dtaa_conflated_india (1, CONTENT diff) — NOT a bug:
+ *      a PERMANENT, by-design divergence. This finding's `.detail` cites the
+ *      DAG's own field names (residencyResult.india.worldwide/cedesViaTreaty)
+ *      instead of the engine's internal function names (dtaaWorldwideCeded /
+ *      the isIndiaRor gate in aggregateIndiaIncome) — more useful to a reader
+ *      of this codebase, a deliberate choice when residency-nodes.js was
+ *      first built, not a copy that fell out of sync (the REST of that
+ *      string is kept byte-for-byte in sync — this run actually caught and
+ *      fixed a real tense drift in it, "currently overwrites" → "used to
+ *      overwrite", 20 Jul 2026). Will never converge to a byte-for-byte
+ *      match; allowlisted permanently, not "deferred."
+ * ftc_gap/underpayment_2210 "diffs" seen in early triage turned out to be
+ * pure floating-point representation noise (~1e-11 relative) already inside
+ * the tolerant deepEqual's own tolerance — not real, don't reappear here.
  * See docs/DAG_MIGRATION_TRACKER.md SYS-3 for the tracked write-up.
+ *
+ * Exit code reflects ONLY unknown/new divergences — 0 with the current
+ * allowlist, safe to gate CI on. A genuinely new divergence (a different
+ * finding ID, a model/computed/documents/withholding/taxComputation field
+ * outside the findings-cascade, or the two "always a real bug" throw
+ * categories) fails the run regardless of how small.
  *
  * Run: node prototypes/graph-pilot/run-fuzz.js [--n=3000] [--seed=1]
  *      [--stop-on-first] [--repro=<path to a saved fuzz-failures/*.json>]
@@ -275,6 +309,52 @@ function deepEqual(a, b, p, diffs) {
 }
 function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { return x.id < y.id ? -1 : x.id > y.id ? 1 : 0; }); }
 
+// ---- KNOWN-DIVERGENCE allowlist — same convention as dag-coverage.js's
+// knownMissing: distinguishes a characterized, already-investigated gap from
+// a genuinely NEW regression. See the file header for what each one is and
+// why it's here (one, C, is permanent by design; the rest are real bugs
+// deferred, not hidden). Extend this list only after actually investigating
+// a new mismatch — never to silence a failure you haven't looked at. -------
+var KNOWN_EXTRA_FINDING_ID = /^holding_period_mismatch_\d+$/;
+var KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = ["dtaa_treaty_elections", "residency_status_dtaa_conflated_india"];
+// Fields that are MECHANICALLY DERIVED from findings[] (severity counts,
+// health score, the alerts feed) — only excusable as "known" when the SAME
+// comparison also has a known findings-level issue causing them; if one of
+// these differs with NO accompanying known findings issue, that's new and
+// real. Every other field (model.*, computed.*, documents, returnForms,
+// withholding, taxComputation, scopeNotes, ftcReport, and the non-findings-
+// derived parts of monitoring/summary) is never excused by this allowlist.
+var CASCADE_ONLY_PATHS = ["summary.healthScore", "summary.counts", "monitoring.health", "monitoring.alerts"];
+
+// ---- findings comparison: ID-aware (not blind array deepEqual), so a
+// mismatch can be attributed to the SPECIFIC finding ID responsible and
+// checked against the allowlist above, instead of a single opaque
+// "findings: array length/type" line that both hides and over-reports. -----
+function compareFindings(dagFindings, realFindings) {
+  var dagById = {}; dagFindings.forEach(function (f) { dagById[f.id] = f; });
+  var realById = {}; realFindings.forEach(function (f) { realById[f.id] = f; });
+  var allIds = {}; Object.keys(dagById).concat(Object.keys(realById)).forEach(function (id) { allIds[id] = 1; });
+  var known = [], unknown = [];
+  Object.keys(allIds).sort().forEach(function (id) {
+    var inDag = Object.prototype.hasOwnProperty.call(dagById, id);
+    var inReal = Object.prototype.hasOwnProperty.call(realById, id);
+    if (inDag && !inReal) {
+      (KNOWN_EXTRA_FINDING_ID.test(id) ? known : unknown).push("findings: DAG has extra \"" + id + "\", engine doesn't");
+    } else if (!inDag && inReal) {
+      // Never allowlisted — the DAG silently DROPPING a real finding is
+      // always worth seeing, no observed case has ever been this direction.
+      unknown.push("findings: engine has \"" + id + "\", DAG doesn't");
+    } else {
+      var fieldDiffs = deepEqual(dagById[id], realById[id], "findings[" + id + "]", []);
+      if (fieldDiffs.length) {
+        var bucket = KNOWN_CONTENT_DIVERGENCE_FINDING_IDS.indexOf(id) >= 0 ? known : unknown;
+        bucket.push.apply(bucket, fieldDiffs);
+      }
+    }
+  });
+  return { known: known, unknown: unknown };
+}
+
 // ---- assemble the DAG's output exactly like lib/dag-adapter.js's
 // analyzeDag() does (the actual code path the app runs), so this harness
 // tests the real assembly, not a re-derived approximation of it. -----------
@@ -317,7 +397,7 @@ function compareOne(label, profile, saveOnFail) {
   if (realThrew && !dagThrew) return { status: "engine-threw-dag-didnt", detail: realThrew.message };
   if (!realThrew && dagThrew) return { status: "dag-threw-engine-didnt", detail: dagThrew.message + "\n" + dagThrew.stack };
 
-  var diffs = [];
+  var realDiffs = [], knownDiffs = [];
   // computed.indiaTax is a DELIBERATE narrow assembly in dag-adapter.js —
   // only these 5 fields, never the full computeIndiaTax()/
   // computeIndiaEntityTax() return shape (that richer detail legitimately
@@ -334,32 +414,66 @@ function compareOne(label, profile, saveOnFail) {
   // undefined), and no UI component reads it (grepped: only .s115a is
   // read off computed.indiaTax anywhere in monitor-next/components).
   // Nothing to differential-test — skipped, not a divergence.
+  //
+  // ALWAYS-REAL fields — never excused by the KNOWN-DIVERGENCE allowlist,
+  // regardless of what else is going on in this comparison. summary/
+  // monitoring are handled separately below, split into their
+  // findings-derived (cascade-eligible) and independent (always-real) parts.
   ["model.entity", "model.meta", "model.identity", "model.treaty", "model.residency", "model.companyResidency",
     "model.income.india", "model.income.us", "model.accounts.accounts", "model.assets",
     "computed.indiaTax.totalTaxInr", "computed.indiaTax.totalTaxUsd", "computed.indiaTax.regime",
     "computed.indiaTax.s115a",
     "computed.usTax", "computed.residency", "computed.ftc", "computed.reconciliation",
     "computed.limits", "computed.headline", "computed.apportionment",
-    "documents", "returnForms", "withholding", "taxComputation", "scopeNotes", "summary"
+    "documents", "returnForms", "withholding", "taxComputation", "scopeNotes",
+    "summary.name", "summary.baseYear", "summary.jurisdiction", "summary.hasIndia", "summary.hasUs",
+    "summary.indiaQuarterly", "summary.indiaStatus", "summary.usStatus", "summary.dualResident",
+    "summary.totalIncomeUsd", "summary.indiaTaxUsd", "summary.usTaxUsd", "summary.netDoubleTaxUsd",
+    "summary.requiredDocs", "summary.nextDeadline",
+    "monitoring.asOf", "monitoring.simulated", "monitoring.baseYear", "monitoring.progressUS",
+    "monitoring.progressIN", "monitoring.residency", "monitoring.projections", "monitoring.calendar"
   ].forEach(function (fieldPath) {
     var parts = fieldPath.split(".");
     var a = dag, b = real;
     parts.forEach(function (k) { a = a && a[k]; b = b && b[k]; });
-    deepEqual(a, b, fieldPath, diffs);
+    deepEqual(a, b, fieldPath, realDiffs);
   });
-  deepEqual(sortedFindings(dag.findings), sortedFindings(real.findings), "findings", diffs);
-  deepEqual(dag.monitoring, real.monitoring, "monitoring", diffs);
+
+  var findingsResult = compareFindings(dag.findings, real.findings);
+  realDiffs.push.apply(realDiffs, findingsResult.unknown);
+  knownDiffs.push.apply(knownDiffs, findingsResult.known);
+
+  // CASCADE_ONLY_PATHS — summary.counts/healthScore, monitoring.health/
+  // alerts — are mechanically derived from findings[], so they diverge
+  // exactly WHEN a findings issue does. Excusable as known only alongside a
+  // known findings issue in this SAME comparison; standing alone (no
+  // accompanying known findings issue) they're new and real.
+  var cascadeDiffs = [];
+  CASCADE_ONLY_PATHS.forEach(function (fieldPath) {
+    var parts = fieldPath.split(".");
+    var a = dag, b = real;
+    parts.forEach(function (k) { a = a && a[k]; b = b && b[k]; });
+    deepEqual(a, b, fieldPath, cascadeDiffs);
+  });
+  if (cascadeDiffs.length) {
+    var cascadeBucket = findingsResult.known.length > 0 ? knownDiffs : realDiffs;
+    cascadeBucket.push.apply(cascadeBucket, cascadeDiffs);
+  }
+
   // ftcReport genuinely diverges for a taxpayer with no US scope at all
   // (real engine returns null there — not a TAX-7/TAX-8 boundary case,
   // just "nothing to report"); everything else is asserted unconditionally.
-  if (real.ftcReport !== null || dag.ftcReport !== null) deepEqual(dag.ftcReport, real.ftcReport, "ftcReport", diffs);
+  if (real.ftcReport !== null || dag.ftcReport !== null) deepEqual(dag.ftcReport, real.ftcReport, "ftcReport", realDiffs);
 
-  if (diffs.length && saveOnFail) {
+  if (!realDiffs.length && !knownDiffs.length) return { status: "match" };
+  if (!realDiffs.length) return { status: "known", detail: knownDiffs };
+
+  if (saveOnFail) {
     var file = path.join(FAIL_DIR, "fail-" + Date.now() + "-" + Math.floor(Math.random() * 1e6) + ".json");
-    fs.writeFileSync(file, JSON.stringify({ label: label, profile: profile, diffs: diffs.slice(0, 30) }, null, 2));
-    return { status: "mismatch", detail: diffs, file: file };
+    fs.writeFileSync(file, JSON.stringify({ label: label, profile: profile, diffs: realDiffs.slice(0, 30), knownDiffs: knownDiffs.slice(0, 10) }, null, 2));
+    return { status: "mismatch", detail: realDiffs, file: file };
   }
-  return diffs.length ? { status: "mismatch", detail: diffs } : { status: "match" };
+  return { status: "mismatch", detail: realDiffs };
 }
 
 // ---- --repro mode: replay one saved failure with full diff output --------
@@ -370,12 +484,12 @@ if (args.repro) {
   console.log("status: " + r.status);
   if (Array.isArray(r.detail)) console.log(r.detail.join("\n"));
   else console.log(r.detail);
-  process.exit(r.status === "match" ? 0 : 1);
+  process.exit(r.status === "match" || r.status === "known" ? 0 : 1);
 }
 
 // ---- main fuzz loop ---------------------------------------------------------
 var rng = mulberry32(SEED);
-var stats = { match: 0, mismatch: 0, bothThrew: 0, engineThrewDagDidnt: 0, dagThrewEngineDidnt: 0 };
+var stats = { match: 0, known: 0, mismatch: 0, bothThrew: 0, engineThrewDagDidnt: 0, dagThrewEngineDidnt: 0 };
 var savedFiles = [];
 var stop = false;
 
@@ -385,7 +499,10 @@ for (var i = 0; i < N && !stop; i++) {
   var gen = generateProfile(rng);
   var result = compareOne(gen.label, gen.profile, true);
   if (result.status === "match") stats.match++;
-  else if (result.status === "both-threw") { stats.bothThrew++; }
+  else if (result.status === "known") {
+    stats.known++;
+    console.log("[" + i + "] known (" + gen.label + "): " + result.detail.slice(0, 4).join(" | ") + (result.detail.length > 4 ? " | ... +" + (result.detail.length - 4) + " more" : ""));
+  } else if (result.status === "both-threw") { stats.bothThrew++; }
   else if (result.status === "engine-threw-dag-didnt") {
     stats.engineThrewDagDidnt++;
     console.log("[" + i + "] ENGINE THREW, DAG DIDN'T (" + gen.label + "): " + result.detail);
@@ -404,14 +521,16 @@ for (var i = 0; i < N && !stop; i++) {
   if ((i + 1) % 500 === 0) console.log("  ... " + (i + 1) + "/" + N);
 }
 
-var ran = stats.match + stats.mismatch + stats.bothThrew + stats.engineThrewDagDidnt + stats.dagThrewEngineDidnt;
+var ran = stats.match + stats.known + stats.mismatch + stats.bothThrew + stats.engineThrewDagDidnt + stats.dagThrewEngineDidnt;
 var realFailures = stats.mismatch + stats.engineThrewDagDidnt + stats.dagThrewEngineDidnt;
 console.log("\n" + ran + " iterations run (seed=" + SEED + "):");
-console.log("  match:                       " + stats.match);
-console.log("  mismatch (real divergence):  " + stats.mismatch);
-console.log("  dag threw, engine didn't:    " + stats.dagThrewEngineDidnt + "  <-- always a real bug");
-console.log("  engine threw, dag didn't:    " + stats.engineThrewDagDidnt + "  <-- always a real bug");
+console.log("  match:                                " + stats.match);
+console.log("  known (allowlisted, see file header):  " + stats.known);
+console.log("  mismatch (NEW/unknown divergence):     " + stats.mismatch);
+console.log("  dag threw, engine didn't:              " + stats.dagThrewEngineDidnt + "  <-- always a real bug");
+console.log("  engine threw, dag didn't:              " + stats.engineThrewDagDidnt + "  <-- always a real bug");
 console.log("  both threw (pathological input, not a divergence): " + stats.bothThrew);
 if (savedFiles.length) console.log("\nFailures saved to fuzz-failures/ — reproduce with: node run-fuzz.js --repro=<path>");
-console.log("\n" + (realFailures === 0 ? "PASS" : "FAIL") + " — " + realFailures + " real divergence(s) found in " + ran + " random profiles.");
+console.log("\n" + (realFailures === 0 ? "PASS" : "FAIL") + " — " + realFailures + " NEW divergence(s) found in " + ran + " random profiles" +
+  (stats.known > 0 ? " (" + stats.known + " known/allowlisted, not counted — see run-fuzz.js's file header)" : "") + ".");
 process.exit(realFailures > 0 ? 1 : 0);

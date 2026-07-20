@@ -345,8 +345,21 @@ NODES.nraFdapDetail = {
     var fdapRate = (w8benOnFile && claimedRateFraction != null) ? claimedRateFraction : 0.30;
     var fdapUsd = d.nraFdapIncomeUsdRaw;
     var gapUsd = (!w8benOnFile && claimedRateFraction != null && claimedRateFraction < 0.30) ? fdapUsd * (0.30 - claimedRateFraction) : 0;
-    return { fdapUsd: fdapUsd, fdapRate: fdapRate, claimedRate: rawClaimedRatePct, w8benOnFile: w8benOnFile, fdapTaxUsd: fdapUsd * fdapRate, gapUsd: gapUsd,
-      incomeType: (claim && claim.income_type) || null };
+    return {
+      fdapUsd: fdapUsd, fdapRate: fdapRate, claimedRate: rawClaimedRatePct, w8benOnFile: w8benOnFile, fdapTaxUsd: fdapUsd * fdapRate, gapUsd: gapUsd,
+      // Clamped percentage (computed.usTax.nra.claimedRate * 100, the
+      // ROUTED value buildWithholdingSummary's treatyRatePct actually reads,
+      // conflicts.js:2413) — DIFFERENT from claimedRate above, which is the
+      // raw unclamped Layer 1 value the nra_fdap_flat_rate FINDING's own
+      // detail text reads instead (conflicts.js:1025's separate local
+      // `claimedRate` var, never clamped there either — both are faithful
+      // ports of two genuinely different engine variables with the same
+      // name in different scopes, not a duplicate). A garbage/out-of-range
+      // claim.rate (e.g. 395) previously passed through unclamped into
+      // treatyRatePct — found by run-fuzz.js, SYS-3, 20 Jul 2026.
+      claimedRatePctClamped: claimedRateFraction != null ? claimedRateFraction * 100 : null,
+      incomeType: (claim && claim.income_type) || null
+    };
   }
 };
 
@@ -530,10 +543,25 @@ NODES.findingsBatch4Result = {
     }
 
     // -- 4h. NRA (1040-NR): FDAP SHOULD BE FLAT-RATE (conflicts.js:1015-1035) --
+    // The engine's title conditionally shows "(XX%)" only when
+    // computed.usTax.nra exists — which is set ONLY by computeNraTax, so it's
+    // truthy exactly when routed to NRA (entity routing wins over NRA, same
+    // precedence as everywhere else in this family). The outer `if` gating
+    // whether the finding fires AT ALL uses raw facts and does NOT check
+    // entity — so a US entity that also carries a 1040-NR flag still fires
+    // this finding, just with the rate suffix omitted (a genuine engine
+    // quirk, reproduced here rather than "fixed"). nraFdapDetail is a raw
+    // node with no entity awareness, so it was showing the suffix
+    // unconditionally (found by run-fuzz.js, SYS-3, 20 Jul 2026). Recomputed
+    // from raw routing facts, not usTaxResult.nra — the isolated findings-
+    // batch4 chain's usTaxResult is the individual-only node (no .nra field
+    // ever), so reading usTaxResult.nra there would wrongly omit the suffix
+    // even for the real NRA fixture (same trap as the FTC isNra boundary).
+    var isRoutedToNraForFdap = ["ccorp", "scorp", "partnership", "trust"].indexOf(d.usEntityKind) < 0 && d.treatyFiles1040nrRaw && !d.s6013hElection;
     if (d.treatyFiles1040nrRaw && !d.s6013hElection && d.nraFdapDetail.fdapUsd > 0) {
       var nraDetail = d.nraFdapDetail;
       add("nra_fdap_flat_rate", "info", "credit",
-        "1040-NR: FDAP taxed flat (" + Math.round(nraDetail.fdapRate * 100) + "%), ECI at graduated rates",
+        "1040-NR: FDAP taxed flat" + (isRoutedToNraForFdap ? " (" + Math.round(nraDetail.fdapRate * 100) + "%)" : "") + ", ECI at graduated rates",
         usd(nraDetail.fdapUsd) + " of FDAP income (interest/dividends/rents not effectively connected with a US trade or " +
         "business) is taxed flat" + (nraDetail.claimedRate ? " at the claimed " + nraDetail.claimedRate + "% treaty rate" : " at the 30% statutory rate (no treaty rate on file)") +
         " with no deductions (Schedule NEC), separate from " + usd(d.nraEciIncomeUsdRaw) + " of ECI taxed at graduated brackets" +
