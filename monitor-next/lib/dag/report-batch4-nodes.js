@@ -121,7 +121,7 @@ NODES.vdaSaleConsiderationInrBoundary = { deps: [], compute: function (d, ctx) {
 
 NODES.buildWithholdingSummaryResult = {
   deps: [
-    "s115aDividend", "s115aRoyalty", "s115aFts", "nrInterest", "isNRV3",
+    "s115aDividend", "s115aRoyalty", "s115aFts", "nrInterest", "isNRV3", "isEntityTaxpayer",
     "withholdingDetailIndiaRaw", "withholdingDetailUsRaw", "vdaSaleConsiderationInrBoundary", "specialRate115bbInr",
     "panAadhaarLinkedRaw",
     "treatyFiles1040nrRaw", "s6013hElection", "nraRaw", "nraFdapDetail",
@@ -157,28 +157,40 @@ NODES.buildWithholdingSummaryResult = {
         });
       }
     }
-    pushS115aRows("dividend", "Dividend", "s.207 / s.159", d.s115aDividend);
-    pushS115aRows("royalty", "Royalty", "s.207 / s.159", d.s115aRoyalty);
-    pushS115aRows("fts", "Fees for Technical Services", "s.207 / s.159", d.s115aFts);
+    // The s115a / NRO-interest treaty rows read computed.indiaTax.s115a /
+    // .nrInterest, which computeIndiaEntityTax omits entirely — so for an
+    // India company/firm entity the engine builds NONE of these rows. The DAG
+    // reads the individual computeIndiaTax stream nodes directly, which stay
+    // populated even for an entity that also carries NR-flagged raw data, so
+    // gate the whole block on !isEntityTaxpayer to match (found by run-fuzz.js,
+    // SYS-3, 20 Jul 2026 — same TAX-7/TAX-8-era boundary as the s115a adapter
+    // gate and the feie finding). Individual (resident OR NR) behaviour is
+    // unchanged: d.s115aDividend etc. are already null for a non-NR individual,
+    // so pushS115aRows early-returns exactly as the engine's `i.s115a` null does.
+    if (!d.isEntityTaxpayer) {
+      pushS115aRows("dividend", "Dividend", "s.207 / s.159", d.s115aDividend);
+      pushS115aRows("royalty", "Royalty", "s.207 / s.159", d.s115aRoyalty);
+      pushS115aRows("fts", "Fees for Technical Services", "s.207 / s.159", d.s115aFts);
 
-    if (d.nrInterest) {
-      (d.nrInterest.elections || []).forEach(function (e, idx) {
-        var docsOk = e.outcome !== "denied_no_docs";
-        var counterfactualTreatyTaxInr = e.electedRate != null ? e.appliedAmountInr * e.electedRate : null;
-        var gapInr = (!docsOk && counterfactualTreatyTaxInr != null && counterfactualTreatyTaxInr < e.marginalSlabTaxInr)
-          ? e.marginalSlabTaxInr - counterfactualTreatyTaxInr : 0;
-        indiaTotalGapInr += gapInr;
-        var actualTaxInr = docsOk && e.carvedOut ? e.treatyTaxInr : e.marginalSlabTaxInr;
-        indiaRows.push({
-          id: "nrInterest_election_" + idx, jurisdiction: "IN", category: "treaty_gap", label: "NRO Interest" + (e.article ? " (" + e.article + ")" : ""),
-          grossInr: e.appliedAmountInr, domesticRatePct: null,
-          treatyRatePct: e.electedRate != null ? e.electedRate * 100 : null,
-          docsOk: docsOk, rateAppliedPct: e.appliedAmountInr > 0 ? (actualTaxInr / e.appliedAmountInr) * 100 : null,
-          taxInr: actualTaxInr, gapInr: gapInr,
-          note: docsOk ? null : "TRC/Form 41 missing — treaty carve-out denied, taxed at marginal slab rate instead",
-          citation: "Art 11(2)(b), s.159"
+      if (d.nrInterest) {
+        (d.nrInterest.elections || []).forEach(function (e, idx) {
+          var docsOk = e.outcome !== "denied_no_docs";
+          var counterfactualTreatyTaxInr = e.electedRate != null ? e.appliedAmountInr * e.electedRate : null;
+          var gapInr = (!docsOk && counterfactualTreatyTaxInr != null && counterfactualTreatyTaxInr < e.marginalSlabTaxInr)
+            ? e.marginalSlabTaxInr - counterfactualTreatyTaxInr : 0;
+          indiaTotalGapInr += gapInr;
+          var actualTaxInr = docsOk && e.carvedOut ? e.treatyTaxInr : e.marginalSlabTaxInr;
+          indiaRows.push({
+            id: "nrInterest_election_" + idx, jurisdiction: "IN", category: "treaty_gap", label: "NRO Interest" + (e.article ? " (" + e.article + ")" : ""),
+            grossInr: e.appliedAmountInr, domesticRatePct: null,
+            treatyRatePct: e.electedRate != null ? e.electedRate * 100 : null,
+            docsOk: docsOk, rateAppliedPct: e.appliedAmountInr > 0 ? (actualTaxInr / e.appliedAmountInr) * 100 : null,
+            taxInr: actualTaxInr, gapInr: gapInr,
+            note: docsOk ? null : "TRC/Form 41 missing — treaty carve-out denied, taxed at marginal slab rate instead",
+            citation: "Art 11(2)(b), s.159"
+          });
         });
-      });
+      }
     }
 
     var wd = { india: d.withholdingDetailIndiaRaw, us: d.withholdingDetailUsRaw };

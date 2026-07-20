@@ -107,9 +107,16 @@ export function analyzeDag(opts) {
     indiaTax: {
       totalTaxInr: out.totalTaxInrCombined, totalTaxUsd: out.totalTaxInrCombined / CONST.FX.INR_PER_USD,
       regime: out.regimeCombined, isEntity: out.isEntityTaxpayer,
-      // computation.js: s115a is null entirely for a resident (not NR)
-      // taxpayer — matched here rather than an all-null object shape.
-      s115a: out.isNRV3 ? { dividend: out.s115aDividend, royalty: out.s115aRoyalty, fts: out.s115aFts } : null
+      // computation.js: s115a is the object ONLY for a non-entity NR
+      // (computeIndiaTax's `isNR ? {...} : null`); null for a resident
+      // individual; and absent entirely on the entity path
+      // (computeIndiaEntityTax returns no s115a key at all). The
+      // !isEntityTaxpayer guard was missing — an entity mutated to NR
+      // residency status made isNRV3 true and wrongly produced the object
+      // (found by run-fuzz.js, SYS-3, 20 Jul 2026). null and absent are
+      // equivalent to every consumer (Views.jsx gates on truthiness) and to
+      // the differential comparators (null == undefined).
+      s115a: (out.isNRV3 && !out.isEntityTaxpayer) ? { dividend: out.s115aDividend, royalty: out.s115aRoyalty, fts: out.s115aFts } : null
     },
     usTax,
     residency: out.residencyResult,

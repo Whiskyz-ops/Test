@@ -51,50 +51,65 @@
  * disagrees with the other); one-side-threw-the-other-didn't is a real bug
  * and counted as one.
  *
- * First real run (20 Jul 2026) found 5 genuine divergences, invisible to
- * every fixed-fixture check in this migration because none of the 12 real
- * profiles exercises the combination that exposes each one:
- *   1. FIXED — residencyModelSliceResult (agg10-nodes.js) only carried 4 of
- *      model.residency.india's 14 fields; no earlier check ever deep-
- *      compared that sub-object's full shape.
- *   2. FIXED — in1-nodes-v3.js's salaryInr/housePropertyInr/interestInr/
- *      dividendInr/specialRate115bbInr read india.domestic_income/
- *      other_sources directly, bypassing the india.quarters merge every
- *      OTHER income-head node already applies (annualSliceAgg, and the
- *      real engine's own indiaAnnualSlice) — wrong for any real quarterly-
- *      entry taxpayer whose top-level snapshot doesn't equal the true
- *      quarterly sum, not a fuzzer-only artifact.
- *   3. FIXED — itrform-nodes.js's "more than 2 house properties" ITR
- *      disqualifier read d.businessComputation.housePropertyCount, a field
- *      businessComputation never returns (always undefined) — the
- *      disqualifier could never fire, on any profile. The correct value
- *      already existed on indiaIncomeModelResult, just never wired here.
- *   4. NOT YET FIXED — buildTaxComputationUsResult (report-batch2-nodes.js)
- *      unconditionally builds an individual/resident-shaped bracket trace
- *      (reads u.filingStatus/u.ordinaryIncomeUsd/u.agiUsd/u.deductionMode/
- *      u.ordinaryBracketBreakdown, etc.) — written for CFL-7 batch 2,
- *      BEFORE TAX-7/TAX-8 existed, when entity/NRA were still genuine
- *      boundaries deliberately excluded from this node's own verification
- *      ("reported, not asserted" in run-report2.js/run-analyze.js). TAX-7/
- *      TAX-8 closed later (usTaxResult now correctly routes and computes
- *      all three paths, verified 1015/1015) but this report-layer node was
- *      never revisited — the "reported, not asserted" demotion's original
- *      justification no longer holds, yet the trace-building code for
- *      entity/NRA was never actually built. A real, now-fixable gap, not a
- *      permanent boundary — needs a genuine new port of conflicts.js's
- *      buildTaxComputation entity/NRA branch, comparable in size to a CFL-7
- *      sub-batch, not attempted in this pass.
- *   5. NOT YET FIXED — ftc-nodes.js's entity-path foreignSourceIncomeUsd
- *      (the computeUsEntityTax-routed branch) doesn't correctly carry
- *      aggregateUsIncomeResult.foreignSourceTotal.usd through the way
- *      computation.js:1274 does — likely the same "built before TAX-7/
- *      TAX-8, never revisited" root cause as #4. Not yet isolated to a
- *      specific line; flagged for the same follow-up pass.
- * At n=1000 (seed=1), findings #4/#5 and their downstream cascades
- * (computed.indiaTax.s115a, summary.healthScore, findings[] count — all on
- * entity/NRA-mutated profiles) account for 384/1000 mismatches; #1-3 are
- * closed and no longer contribute. See docs/DAG_MIGRATION_TRACKER.md for
- * the tracked write-up.
+ * First run (20 Jul 2026) surfaced a family of divergences invisible to
+ * every fixed-fixture check, because no combination of the 12 real profiles
+ * exercises them. Eight are now FIXED (384 → 33 mismatches per 1000 seeds):
+ *
+ *   1. residencyModelSliceResult (agg10-nodes.js) carried only 4 of
+ *      model.residency.india's 14 fields — no earlier check deep-compared
+ *      that sub-object's full shape.
+ *   2. in1-nodes-v3.js's salary/houseProperty/interest/dividend/special-rate
+ *      leaves read india.domestic_income/other_sources directly, bypassing
+ *      the india.quarters merge every other income-head node applies — wrong
+ *      for any real quarterly-entry taxpayer, not a fuzzer artifact.
+ *   3. itrform-nodes.js's ">2 house properties" ITR disqualifier read a
+ *      field (businessComputation.housePropertyCount) that never exists, so
+ *      it could never fire on any profile.
+ *   4. buildTaxComputationUsResult (report-batch2-nodes.js) built the
+ *      individual-shaped trace unconditionally — now handles all three routed
+ *      paths (NRA 1040-NR rows; entity title). It was CFL-7 batch 2 code that
+ *      predated TAX-7/TAX-8 and was never revisited after routing closed.
+ *      Deterministically asserted for all 11 profiles now in run-agg10.js.
+ *   5. ftc-nodes.js / xborder-full-nodes.js usIsNraBoundaryFtc recomputed
+ *      isNra as `files1040nr && !s6013h`, ignoring that entity routing WINS
+ *      over NRA — so a US entity that also carried a 1040-NR flag was wrongly
+ *      treated NRA, zeroing foreignSrcGross and disallowing the whole India
+ *      FTC. Now recomputes the engine's exact routing condition.
+ *   6. dag-adapter.js computed.indiaTax.s115a was ungated on entity — an
+ *      India entity mutated to NR status wrongly got the s115a object.
+ *   7. feie_ineligible/feie_applied read raw feie facts instead of the routed
+ *      usTaxResult.feie the engine reads — fired for entity/NRA wrongly.
+ *   8. buildWithholdingSummary India treaty rows + carry_forward_losses_not_
+ *      applied + promoter_buyback_additional_tax + withholding_documentation_
+ *      gap all read individual-path computed.indiaTax.* fields the entity path
+ *      omits — now gated on !isEntityTaxpayer, mirroring the engine.
+ *
+ * Common root cause for #4-8: report/finding nodes written before TAX-7/TAX-8
+ * routing existed, reading an individual-path value (or a from-scratch
+ * isNra/feie recompute) instead of the routed result the engine reads.
+ * KEY subtlety learned the hard way: nodes resolved in BOTH the full routed
+ * chain (fuzzer/app) AND an isolated report-batchN chain (run-analyze/
+ * run-monitor, where usTaxResult is the individual-only node) must recompute
+ * isNra from RAW routing facts — reading usTaxResult.isNra is correct only in
+ * the routed chain and silently wrong in the isolated one.
+ *
+ * REMAINING (33/1000 at seed=1), characterized, not yet fixed:
+ *   A. holding_period_mismatch_N (17) — a genuine numerical divergence in an
+ *      INTERNAL what-if recompute: the finding prices each mismatch by running
+ *      US tax twice (gain as LTCG vs STCG). The engine uses computeUsTax; the
+ *      DAG uses computeUsTaxCore (a copy). On mutated NRA/entity-base profiles
+ *      whose individual US tax collapses to ~0, the two disagree (engine
+ *      delta 0 → doesn't fire; DAG delta > 1 → fires). The ROUTED computed.usTax
+ *      still matches — only this internal individual recompute diverges. A
+ *      real, deep bug in the copy on near-zero-tax inputs; distinct from the
+ *      gating family above, not a quick fix.
+ *   B. dtaa_treaty_elections / ftc_gap / nra_fdap_flat_rate detail-text (16) —
+ *      same entity/NRA report-detail family as #4-8, but a same-ID detail-STRING
+ *      difference rather than a fired/not-fired count difference (an India
+ *      entity's dtaa_treaty_elections narrates "domestic rate applied" from the
+ *      individual s115a stream where the engine says "not applied"). Mechanical
+ *      but many per-string variants; deferred.
+ * See docs/DAG_MIGRATION_TRACKER.md SYS-3 for the tracked write-up.
  *
  * Run: node prototypes/graph-pilot/run-fuzz.js [--n=3000] [--seed=1]
  *      [--stop-on-first] [--repro=<path to a saved fuzz-failures/*.json>]
@@ -283,7 +298,7 @@ function assembleDag(profile, monitorAsOfBoundary) {
     accounts: { accounts: out.accountsBoundary, aggregatePeak: null }, assets: out.assetsModelResult
   };
   var computed = {
-    indiaTax: { totalTaxInr: out.totalTaxInrCombined, totalTaxUsd: out.totalTaxInrCombined / CONST.FX.INR_PER_USD, regime: out.regimeCombined, isEntity: out.isEntityTaxpayer, s115a: out.isNRV3 ? { dividend: out.s115aDividend, royalty: out.s115aRoyalty, fts: out.s115aFts } : null },
+    indiaTax: { totalTaxInr: out.totalTaxInrCombined, totalTaxUsd: out.totalTaxInrCombined / CONST.FX.INR_PER_USD, regime: out.regimeCombined, isEntity: out.isEntityTaxpayer, s115a: (out.isNRV3 && !out.isEntityTaxpayer) ? { dividend: out.s115aDividend, royalty: out.s115aRoyalty, fts: out.s115aFts } : null },
     usTax: usTax, residency: out.residencyResult, ftc: out.ftcResult, reconciliation: out.crossBasisResult,
     limits: out.limitsResult, headline: out.headlineResult, apportionment: out.apportionmentResult
   };

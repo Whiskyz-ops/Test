@@ -357,7 +357,7 @@ NODES.findingsBatch4Result = {
     "s115aDividendDetailed", "s115aRoyaltyDetailed", "s115aFtsDetailed", "nrInterestDetailed",
     "s6013hElection", "nraFdapDetail", "nraEciIncomeUsdRaw",
     "lossSetOffDetailed", "carryForwardLossesMetaRaw",
-    "feieDetailed"],
+    "feieDetailed", "usTaxResult", "isEntityTaxpayer", "usEntityKind"],
   compute: function (d) {
     var findings = [];
     function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {
@@ -451,22 +451,36 @@ NODES.findingsBatch4Result = {
     }
 
     // -- 3c2. WITHHOLDING DOCUMENTATION GAP (conflicts.js:226-252) ----------
+    // The engine derives this from buildWithholdingSummary, whose India rows
+    // read computed.indiaTax.s115a/.nrInterest (absent on the entity path) and
+    // whose US FDAP gap reads computed.usTax.isNra (routed). Mirror BOTH
+    // gates: no India treaty gap for an India company/firm, and the US NRA
+    // gap keyed off the engine's exact routing condition — usTax.isNra is
+    // true only when NOT routed to a US entity first (entity precedence).
+    // Recomputed from raw facts (not read off usTaxResult.isNra) so it's
+    // correct in the isolated report-batch5 chain too, where usTaxResult is
+    // the individual-only node (found by run-fuzz.js, SYS-3, 20 Jul 2026:
+    // a US entity that also carries a 1040-NR flag was wrongly treated as
+    // NRA by the old `files1040nr && !s6013h` recompute, which ignored the
+    // entity-wins routing).
     var indiaTotalGapInr = 0;
-    [d.s115aDividendDetailed, d.s115aRoyaltyDetailed, d.s115aFtsDetailed].forEach(function (stream) {
-      if (!stream) return;
-      (stream.elections || []).forEach(function (e) {
-        var docsOk = e.outcome !== "denied_no_docs";
-        if (!docsOk && e.electedRate != null && e.electedRate < e.domesticRate) indiaTotalGapInr += e.appliedAmountInr * (e.domesticRate - e.electedRate);
+    if (!d.isEntityTaxpayer) {
+      [d.s115aDividendDetailed, d.s115aRoyaltyDetailed, d.s115aFtsDetailed].forEach(function (stream) {
+        if (!stream) return;
+        (stream.elections || []).forEach(function (e) {
+          var docsOk = e.outcome !== "denied_no_docs";
+          if (!docsOk && e.electedRate != null && e.electedRate < e.domesticRate) indiaTotalGapInr += e.appliedAmountInr * (e.domesticRate - e.electedRate);
+        });
       });
-    });
-    if (d.nrInterestDetailed) {
-      (d.nrInterestDetailed.elections || []).forEach(function (e) {
-        var docsOk = e.outcome !== "denied_no_docs";
-        var counterfactualTreatyTaxInr = e.electedRate != null ? e.appliedAmountInr * e.electedRate : null;
-        if (!docsOk && counterfactualTreatyTaxInr != null && counterfactualTreatyTaxInr < e.marginalSlabTaxInr) indiaTotalGapInr += e.marginalSlabTaxInr - counterfactualTreatyTaxInr;
-      });
+      if (d.nrInterestDetailed) {
+        (d.nrInterestDetailed.elections || []).forEach(function (e) {
+          var docsOk = e.outcome !== "denied_no_docs";
+          var counterfactualTreatyTaxInr = e.electedRate != null ? e.appliedAmountInr * e.electedRate : null;
+          if (!docsOk && counterfactualTreatyTaxInr != null && counterfactualTreatyTaxInr < e.marginalSlabTaxInr) indiaTotalGapInr += e.marginalSlabTaxInr - counterfactualTreatyTaxInr;
+        });
+      }
     }
-    var isNraForWh = d.treatyFiles1040nrRaw && !d.s6013hElection;
+    var isNraForWh = (["ccorp", "scorp", "partnership", "trust"].indexOf(d.usEntityKind) < 0) && d.treatyFiles1040nrRaw && !d.s6013hElection;
     var usTotalGapUsd = (isNraForWh && d.nraFdapDetail.fdapUsd > 0) ? d.nraFdapDetail.gapUsd : 0;
     var totalGapUsd = inrToUsd(indiaTotalGapInr) + usTotalGapUsd;
     if (totalGapUsd > 1) {
@@ -486,14 +500,26 @@ NODES.findingsBatch4Result = {
     }
 
     // -- 4b. FEIE CLAIMED BUT NOT ELIGIBLE (conflicts.js:303-323) -----------
-    var feieRes = d.feieDetailed;
+    // Gate on the ROUTED usTaxResult.feie, exactly as the engine reads
+    // `computed.usTax.feie` — NOT the raw-derived feieDetailed. For an entity
+    // usTaxResult.feie is undefined (computeUsEntityTax has no feie); for an
+    // NRA it's {claimed:false} (computeNraTax); only the individual path
+    // carries a real claim. feieDetailed reads the raw form regardless of
+    // routing, so a US-entity/NRA profile that also has claims_feie set in
+    // the raw US form wrongly fired feie_ineligible (found by run-fuzz.js,
+    // SYS-3, 20 Jul 2026 — the same "report/finding node predates TAX-7/
+    // TAX-8 routing" root cause as buildTaxComputationUsResult / the FTC
+    // isNra boundary). amountClaimedUsd stays sourced from feieDetailed —
+    // the engine's own amount is model.limitsRaw.feieAmountUsd, which reads
+    // the identical foreign_earned_income.feie_amount_claimed_usd field.
+    var feieRes = d.usTaxResult.feie;
     if (feieRes && feieRes.claimed && !feieRes.eligible) {
       add("feie_ineligible", "critical", "credit",
         "FEIE claimed but the taxpayer does not qualify",
         "Form 2555 exclusion was claimed in Layer 1, but the §911 tests fail: " + feieRes.reasons.join("; ") +
         ". FEIE is only available to someone living abroad — a US-based taxpayer with foreign income must use the Foreign Tax Credit instead. The engine has computed US tax WITHOUT the exclusion.",
         "Remove the FEIE claim and rely on Form 1116 FTC for the Indian taxes (usually better anyway when Indian rates exceed US rates). If the taxpayer genuinely lives abroad, complete the tax-home and presence-test fields in the US Layer 1 so the exclusion can be applied.",
-        feieRes.amountClaimedUsd || 0, ["§911", "Form 2555", "Form 1116"]);
+        d.feieDetailed.amountClaimedUsd || 0, ["§911", "Form 2555", "Form 1116"]);
     } else if (feieRes && feieRes.claimed && feieRes.eligible && feieRes.appliedUsd > 0) {
       add("feie_applied", "info", "credit",
         "FEIE applied — " + usd(feieRes.appliedUsd) + " of foreign wages excluded",
@@ -520,7 +546,10 @@ NODES.findingsBatch4Result = {
     // -- 4g4. CARRY-FORWARD LOSSES — NOW ACTUALLY SET OFF (conflicts.js:958-1013) --
     var cfl = d.carryForwardLossesMetaRaw;
     var cflCount = cfl.businessLossCfCount + cfl.speculativeLossCfCount + cfl.stcgLossCfCount + cfl.ltcgLossCfCount + cfl.housePropertyLossCfCount;
-    var lso = d.lossSetOffDetailed;
+    // Engine reads computed.indiaTax.lossSetOff — which computeIndiaEntityTax
+    // omits, so this finding never fires for an India company/firm. Mirror the
+    // undefined-for-entity here (found by run-fuzz.js, SYS-3, 20 Jul 2026).
+    var lso = d.isEntityTaxpayer ? null : d.lossSetOffDetailed;
     if (lso && (cfl.hasBroughtForwardLosses === true || cflCount > 0 || cfl.unabsorbedDepreciationCf > 0)) {
       var appliedParts = [];
       if (lso.used.businessInr > 1) appliedParts.push(inr(lso.used.businessInr) + " business loss vs. business income");

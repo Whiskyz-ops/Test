@@ -316,7 +316,10 @@ NODES.findingsBatch3Result = {
     }
 
     // -- 10b2. PROMOTER ADDITIONAL TAX ON BUYBACK GAINS (conflicts.js:1248-1269) --
-    var pb = d.promoterBuybackDetail;
+    // Engine reads computed.indiaTax.promoterBuyback — omitted by
+    // computeIndiaEntityTax, so this never fires for an India company/firm.
+    // Mirror the undefined-for-entity (found by run-fuzz.js, SYS-3, 20 Jul 2026).
+    var pb = (d.indiaIsCompany || d.indiaIsFirm) ? null : d.promoterBuybackDetail;
     if (pb && pb.totalExtraTaxInr > 1) {
       add("promoter_buyback_additional_tax", "warning", "income",
         "Promoter additional tax on buy-back gains — " + inr(pb.additionalTaxInr + pb.surchargeInr + pb.cessInr) + " on top of ordinary capital-gains tax",

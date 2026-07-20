@@ -102,6 +102,17 @@ WISING.PROFILES.forEach(function (p) {
     r.findings.map(function (f) { return f.id + ":" + f.severity; }));
   deepCheck("summary", out.summaryResult, r.summary);
   deepCheck("monitor.health.score", out.monitorResult.health.score, r.monitoring.health.score);
+  // taxComputation deep, ALL profiles incl. entity/NRA — the routed
+  // usTaxResult (ustax-full-nodes.js) means buildTaxComputationUsResult now
+  // builds the correct C-Corp/1040-NR trace, not the individual one. This is
+  // the deterministic counterpart to run-fuzz.js's finding that CFL-7 batch
+  // 2's original individual-only report node was stale post-TAX-7/TAX-8
+  // (20 Jul 2026). run-report2.js/run-analyze.js still resolve report-batchN
+  // in ISOLATION, where usTaxResult is the individual-only node one level
+  // down, so their entity/NRA demotion stays correct for those sub-graphs.
+  deepCheck("taxComputation.us (routed — entity/NRA now asserted)", out.analyzeResult.taxComputation.us, r.taxComputation.us);
+  deepCheck("taxComputation.india", out.analyzeResult.taxComputation.india, r.taxComputation.india);
+  deepCheck("taxComputation.usState", out.analyzeResult.taxComputation.usState, r.taxComputation.usState);
 
   // 3. Echo semantics: null under bare ctx…
   deepCheck("analyze.model is null under bare ctx (echo, not input)", out.analyzeResult.model, null);

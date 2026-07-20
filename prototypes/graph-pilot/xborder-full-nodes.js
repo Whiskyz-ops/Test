@@ -73,10 +73,22 @@ NODES.hasUsScopeBoundaryFtc = {
   compute: function (d) { return d.routerJurisdictionXB === "single_india" ? false : d.routerJurisdictionXB === "single_us" ? true : d.routerUsSignalXB; }
 };
 NODES.feieExcludedUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.feieAppliedUsd || 0; } };
-// Same condition compute() routes on (files 1040-NR without a §6013(h)
-// election). For the profiles the full-chain runner asserts this is always
-// false; the one real NRA profile is report-only there (TAX-8).
-NODES.usIsNraBoundaryFtc = { deps: ["files1040nr", "s6013hElection"], compute: function (d) { return d.files1040nr && !d.s6013hElection; } };
+// The engine's usTax.isNra is true ONLY when compute() actually routes to
+// computeNraTax — which happens after the entity check, so a taxpayer that
+// is BOTH a US entity kind AND carries a 1040-NR flag routes to the ENTITY
+// (isNra false). The old `files1040nr && !s6013hElection` recompute ignored
+// that entity-precedence and returned true, zeroing foreignSrcGross and
+// disallowing the entire India FTC for such a profile (found by run-fuzz.js,
+// SYS-3, 20 Jul 2026 — the "built before TAX-7/TAX-8, never revisited" root
+// cause). Recompute the ENGINE'S EXACT ROUTING CONDITION from raw facts —
+// not `usTaxResult.isNra`, because this boundary is also resolved in the
+// isolated us-full/xborder chain where usTaxResult is the individual-only
+// node (isNra undefined) and reading it there would wrongly treat a real NRA
+// as non-NRA (caught by run-monitor.js's individual-chain assertion).
+NODES.usIsNraBoundaryFtc = {
+  deps: ["usEntityKind", "files1040nr", "s6013hElection"],
+  compute: function (d) { return ["ccorp", "scorp", "partnership", "trust"].indexOf(d.usEntityKind) < 0 && d.files1040nr && !d.s6013hElection; }
+};
 NODES.indiaIncomeTotalUsdBoundaryFtc = { deps: ["totalIndiaIncomeInr"], compute: function (d) { return d.totalIndiaIncomeInr / INR_PER_USD; } };
 NODES.usTaxableIncomeUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.taxableIncomeUsd; } };
 NODES.usIncomeTaxUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.incomeTaxUsd; } };

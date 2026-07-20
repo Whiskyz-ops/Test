@@ -56,13 +56,73 @@ var NODES = {};
 Object.keys(reportBatch1Nodes).forEach(function (k) { NODES[k] = reportBatch1Nodes[k]; });
 
 // ============================================================================
-// buildTaxComputation's `us` section, resident/individual path only
-// (conflicts.js:2014-2184)
+// buildTaxComputation's `us` section (conflicts.js:1980-2184) — all three
+// routed paths.
+//
+// Originally (CFL-7 batch 2) this built ONLY the resident/individual rows and
+// left entity/NRA "reported, not asserted" in run-report2.js/run-analyze.js,
+// because TAX-7/TAX-8 didn't exist yet — usTaxResult couldn't produce a
+// correct entity/NRA liability to build a trace from. TAX-7/TAX-8 closed
+// later (usTaxResult now routes all three paths, verified 1015/1015 in
+// run-ustax-full.js), but this report-layer node was never revisited, so the
+// demotion outlived its own justification. Found by run-fuzz.js (SYS-3,
+// 20 Jul 2026) — an entity/NRA profile produced the wrong title (and, for
+// NRA, the wrong rows entirely). Now ports the engine's two other branches:
+//   - u.isNra   → the Form 1040-NR ECI/FDAP structure (conflicts.js:1980-2013)
+//   - u.isEntity → the SAME big else-branch rows as an individual (the engine
+//     itself routes entity through that branch, conflicts.js:2014+), differing
+//     ONLY in the title: "US federal tax — <label>" vs "US federal income tax
+//     (<STATUS>)". The entity result object (computeUsEntityTax) deliberately
+//     omits ordinaryIncomeUsd/ordinaryBracketBreakdown/feie/etc., so several
+//     row traces interpolate `undefined` amounts — reproduced exactly, same
+//     "match production's own quirk, don't fix it" discipline as the india
+//     entity path's literal "₹NaN" (CFL-7 batch 3).
 // ============================================================================
 NODES.buildTaxComputationUsResult = {
   deps: ["usTaxResult", "aggregateUsIncomeResult"],
   compute: function (d) {
     var u = d.usTaxResult;
+
+    // ---- NRA branch (conflicts.js:1980-2013) --------------------------------
+    if (u.isNra) {
+      return {
+        title: "US federal tax — Form 1040-NR (ECI graduated / FDAP flat)",
+        currency: "USD",
+        rows: [
+          { label: "ECI (wages + net self-employment)", usd: u.nra.eciUsd,
+            trace: source("Effectively Connected Income — US wages + net self-employment earnings, entered on Layer 1 US.") },
+          { label: "Less itemized deductions (no standard deduction for NRAs)", usd: -u.deductionUsd,
+            trace: source("NRAs cannot claim the standard deduction (with narrow treaty exceptions) — itemized deductions from Layer 1 US only.") },
+          { label: "Taxable ECI", usd: u.taxableIncomeUsd,
+            trace: calc("ECI less itemized deductions", [
+              { label: "ECI", amount: u.nra.eciUsd },
+              { label: "Less itemized deductions", amount: -u.deductionUsd }
+            ]) },
+          { label: "Tax on ECI (graduated brackets)", usd: u.nra.eciTaxUsd,
+            trace: calc("Progressive federal brackets (10%-37%, same ladder as a resident filer) applied to $" + Math.round(u.nra.taxableEciUsd).toLocaleString("en-US") + " of taxable ECI",
+              bracketParts(u.nra.eciBracketBreakdown, usd)) },
+          { label: "FDAP (interest/dividends/rental, Schedule NEC)", usd: u.nra.fdapUsd,
+            trace: source("Fixed, Determinable, Annual or Periodical income — US-source passive income entered on Layer 1 US, taxed on a gross basis (no deductions).") },
+          { label: "Tax on FDAP (flat " + Math.round(u.nra.fdapRate * 100) + "%, no deductions)", usd: u.nra.fdapTaxUsd,
+            trace: calc("FDAP × flat rate (30% statutory default, or a lower treaty rate if a valid W-8BEN treaty claim is on file)", [
+              { label: "FDAP income", amount: u.nra.fdapUsd },
+              { label: "Rate applied", display: Math.round(u.nra.fdapRate * 100) + "%" }
+            ]) },
+          { label: "Additional Medicare tax", usd: u.additionalMedicareUsd,
+            trace: source("Computed directly on Layer 1 US (Form 8959) and taken as-is — the engine does not recompute it.") },
+          { label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true,
+            trace: calc("Tax on ECI + tax on FDAP + Additional Medicare tax", [
+              { label: "Tax on ECI", amount: u.nra.eciTaxUsd },
+              { label: "Tax on FDAP", amount: u.nra.fdapTaxUsd },
+              { label: "Additional Medicare tax", amount: u.additionalMedicareUsd }
+            ]) }
+        ],
+        totalUsd: u.totalTaxBeforeFtcUsd,
+        effectiveRate: u.effectiveRate
+      };
+    }
+
+    // ---- resident/individual AND entity branch (conflicts.js:2014-2184) ------
     // Ported verbatim (conflicts.js:2015-2029): Holdings' own gross total
     // (model.income.us.total.usd — NOT gated by worldwide, unlike
     // u.totalIncomeUsd) usually differs from u.totalIncomeUsd by exactly the
@@ -82,7 +142,7 @@ NODES.buildTaxComputationUsResult = {
         ]);
 
     return {
-      title: "US federal income tax (" + u.filingStatus.toUpperCase() + ")",
+      title: u.isEntity ? ("US federal tax — " + u.filingStatus) : ("US federal income tax (" + u.filingStatus.toUpperCase() + ")"),
       currency: "USD",
       rows: [
         { label: "Total income" + (u.worldwide ? " (worldwide)" : " (US-source)"), usd: u.totalIncomeUsd, trace: totalIncomeTrace }
