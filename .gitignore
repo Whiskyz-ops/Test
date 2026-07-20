@@ -7,3 +7,7 @@ monitor-next/out/
 monitor-next/WISING-Monitor/
 monitor-next/WISING-Monitor.zip
 *.zip
+
+# Fuzz harness failure dumps (regenerated per-run; CI uploads them as an
+# artifact on failure instead of committing them — see run-fuzz-differential.js)
+prototypes/graph-pilot/fuzz-failures/

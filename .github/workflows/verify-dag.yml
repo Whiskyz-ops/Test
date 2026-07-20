@@ -1,0 +1,103 @@
+name: Verify engine ⇔ DAG parity
+
+# Guards the invariant the fuzz harness and shadow mode exist to prove: the
+# DAG (prototypes/graph-pilot/*-nodes.js, mirrored into monitor-next/lib/dag)
+# must keep producing exactly what engine/*.js produces. Without this, a
+# future DAG change (engine/*.js is now frozen — see CLAUDE.md/commit history,
+# all new work happens in the DAG) could silently drift and nobody would
+# notice until a real user hit it in the Monitor.
+#
+# Runs, in order of increasing cost: the engine's own unit tests, the
+# mechanical field/finding/function audit, all 34 hand-authored DAG-vs-engine
+# fixture runners, the monitor-next adapter + shadow-core test suites, and a
+# bounded randomized differential fuzz pass (fixed seeds, so a failure is
+# reproducible from the log alone — see prototypes/graph-pilot/
+# run-fuzz-differential.js's own replay instructions).
+#
+# No `npm ci` / node_modules needed for any of this: engine/*.js, the DAG
+# node files, and every script this workflow runs are dependency-free plain
+# Node (only monitor-next's actual Next.js build needs the full install,
+# which this workflow doesn't do).
+
+on:
+  pull_request:
+    paths:
+      - "engine/**"
+      - "prototypes/graph-pilot/**"
+      - "monitor-next/lib/dag/**"
+      - "monitor-next/lib/dag-adapter.js"
+      - "monitor-next/lib/shadow*.js"
+      - "monitor-next/lib/wising.js"
+      - "monitor-next/lib/engine/**"
+      - "monitor-next/scripts/sync-dag.js"
+      - "monitor-next/scripts/sync-engine.js"
+      - "monitor-next/test-adapter.mjs"
+      - "monitor-next/test-shadow.mjs"
+      - "scripts/audit/dag-coverage.js"
+      - "tests/engine/**"
+      - ".github/workflows/verify-dag.yml"
+  push:
+    branches: [main, master]
+  workflow_dispatch: {}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Engine unit tests
+        run: npm test
+
+      - name: Mechanical engine ⇔ DAG audit (docs/DAG_MIGRATION_TRACKER.md)
+        run: npm run audit:dag
+
+      - name: All graph-pilot fixture runners (engine-vs-DAG, per node batch)
+        working-directory: prototypes/graph-pilot
+        run: |
+          set -e
+          fail=0
+          for f in run-*.js; do
+            if [ "$f" = "run-fuzz-differential.js" ]; then continue; fi
+            echo "::group::node $f"
+            if ! node "$f"; then
+              echo "::error::$f failed"
+              fail=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
+
+      - name: Randomized differential fuzz — seed 12345 (primary, largest history)
+        working-directory: prototypes/graph-pilot
+        run: node run-fuzz-differential.js 5000 12345
+
+      - name: Randomized differential fuzz — second seed (breadth)
+        working-directory: prototypes/graph-pilot
+        run: node run-fuzz-differential.js 3000 424242
+
+      - name: Sync DAG + engine into monitor-next/lib (mirrors predev/prebuild)
+        working-directory: monitor-next
+        run: |
+          node scripts/sync-engine.js
+          node scripts/sync-dag.js
+
+      - name: monitor-next DAG adapter test (byte-exact vs engine, 11 fixtures)
+        working-directory: monitor-next
+        run: node test-adapter.mjs
+
+      - name: monitor-next shadow-mode test (compareSurface unit + planted divergences)
+        working-directory: monitor-next
+        run: node test-shadow.mjs
+
+      - name: Upload divergent fuzz profiles (only runs on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-divergence-profiles
+          path: prototypes/graph-pilot/fuzz-failures/*.json
+          if-no-files-found: ignore

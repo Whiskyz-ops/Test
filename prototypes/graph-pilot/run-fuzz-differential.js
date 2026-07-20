@@ -39,7 +39,7 @@ var path = require("path");
 var fs = require("fs");
 global.window = global;
 ["constants", "normalize", "computation", "monitoring", "conflicts", "sample-data", "profiles"].forEach(function (m) {
-  require(path.join("/home/user/Test", "engine", m + ".js"));
+  require(path.join(path.join(__dirname, "..", ".."), "engine", m + ".js"));
 });
 var WISING = global.WISING;
 var createGraph = require("./graph.js").createGraph;
@@ -49,7 +49,11 @@ var graph = createGraph(NODES);
 var ITERATIONS = parseInt(process.argv[2], 10) || 3000;
 var SEED = process.argv[3] != null ? (parseInt(process.argv[3], 10) >>> 0) : (Date.now() >>> 0);
 var FIXED_ASOF_TS = Date.UTC(2026, 6, 15, 12, 0, 0); // pin "now" so monitoring dates are deterministic on both sides
-var SCRATCH = "/tmp/claude-0/-home-user-Test/da747a60-be20-5c98-8464-f502f0d5878a/scratchpad";
+// Portable scratch dir: next to this script, not a hardcoded session path —
+// CI (and any other developer) needs failing profiles written somewhere that
+// actually exists, so a CI artifact-upload step can pick them up.
+var SCRATCH = path.join(__dirname, "fuzz-failures");
+try { fs.mkdirSync(SCRATCH, { recursive: true }); } catch (e) {}
 
 /* ---- seeded PRNG (mulberry32) — deterministic + replayable -------------- */
 function mulberry32(a) {
