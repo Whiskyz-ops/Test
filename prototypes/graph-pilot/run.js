@@ -21,7 +21,7 @@
 var path = require("path");
 global.window = global;
 ["constants", "normalize", "computation", "monitoring", "conflicts", "sample-data", "profiles"].forEach(function (m) {
-  require(path.join("/home/user/Test", "engine", m + ".js"));
+  require(path.join(path.join(__dirname, "..", ".."), "engine", m + ".js"));
 });
 var WISING = global.WISING;
 var createGraph = require("./graph.js").createGraph;

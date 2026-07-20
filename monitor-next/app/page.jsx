@@ -12,6 +12,8 @@ import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries } from "@/lib/wising";
 import { monitorSnapshotDag } from "@/lib/dag-adapter";
+import { runShadow, getShadowLog, clearShadowLog } from "@/lib/shadow";
+import ShadowBadge from "@/components/ShadowBadge";
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading world map…</div> });
 const UsStatesMap = dynamic(() => import("@/components/UsStatesMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading US map…</div> });
@@ -60,6 +62,16 @@ export default function MonitorPage() {
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("engine") === "engine") setEngineSource("engine");
   }, []);
+  // Shadow mode: on every recompute, run the OTHER compute path silently and
+  // deep-compare the whole product surface (lib/shadow.js). On by default;
+  // ?shadow=0 disables it (e.g. to isolate primary-path perf). Runs
+  // regardless of which side is primary (engineSource) — it always compares
+  // the real engine against the DAG, so it stays meaningful whichever one
+  // the toggle currently shows.
+  const [shadowOn] = useState(() =>
+    typeof window === "undefined" || new URLSearchParams(window.location.search).get("shadow") !== "0");
+  const [shadowRun, setShadowRun] = useState(null);
+  const [shadowLog, setShadowLog] = useState(null);
 
   const goToRecon = useCallback((section) => { setView("reconciliation"); setReconHighlight(section); }, []);
 
@@ -73,7 +85,19 @@ export default function MonitorPage() {
       if (snap.baseYear) setBaseYear(snap.baseYear);
       setActiveProfile(activeProfileId());
     }
-  }, [engineSource]);
+    // Kick the shadow comparison off the render path: the primary result is
+    // already committed above, so this deferred tick never delays what the user
+    // sees. runShadow runs BOTH engine and DAG (pinned to one "now") and records
+    // any divergence — see lib/shadow.js.
+    if (shadowOn) {
+      const defer = typeof window !== "undefined" && window.requestIdleCallback
+        ? window.requestIdleCallback : (fn) => setTimeout(fn, 0);
+      defer(() => {
+        const rec = runShadow(source);
+        if (rec) { setShadowRun(rec); setShadowLog(getShadowLog()); }
+      });
+    }
+  }, [engineSource, shadowOn]);
 
   useEffect(() => { setProfiles(listProfiles()); setClientSummaries(allClientSummaries()); recompute(null); }, [recompute]);
   const onPickProfile = useCallback((id) => { if (id && loadProfile(id)) { recompute("live"); } }, [recompute]);
@@ -127,6 +151,13 @@ export default function MonitorPage() {
           >
             ⚙ {engineSource === "dag" ? "DAG" : "Engine"}
           </button>
+          {shadowOn && (
+            <ShadowBadge
+              run={shadowRun}
+              log={shadowLog}
+              onClear={() => { const cleared = clearShadowLog(); setShadowLog(cleared); setShadowRun(null); }}
+            />
+          )}
           <div className="relative">
             <select onChange={(e) => onPickProfile(e.target.value)} value={activeProfile || ""} title="Load a coherent India+US test taxpayer"
               className="appearance-none pl-2.5 pr-7 py-1 text-[12px] font-semibold rounded-lg text-[#04120f] cursor-pointer"
