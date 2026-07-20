@@ -58,6 +58,7 @@ function safe(obj, path, dflt) {
   return cur === undefined || cur === null ? dflt : cur;
 }
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
+var fxRate = require("./fx-util.js").fxRate;
 
 /* Trace helpers — same {kind,...} shape report-batch1-nodes.js's calc/
  * source/holdings already established (conflicts.js:1688-1690). */
@@ -411,7 +412,7 @@ function businessEntitiesResult(d, ctx) {
         : "Valid presumptive election (this entry) — feeds the taxpayer's overall return form; see Filings → Return Form for the checked ITR");
     list.push({
       country: "IN", type: "Business / Profession (PGBP)", name: b.business_name || b.trade_name || b.name || "Indian business",
-      incomeUsd: netProfitInr / 83.0, inr: netProfitInr,
+      incomeUsd: netProfitInr / fxRate(ctx), inr: netProfitInr,
       filesOwnReturn: indiaIsCompanyOrFirm, returnForm: entryReturnForm,
       calcTrace: businessEntryIncomeTrace(b, bizEligibility, entryDepreciationInrForTrace, entryDisallowancesInrForTrace)
     });

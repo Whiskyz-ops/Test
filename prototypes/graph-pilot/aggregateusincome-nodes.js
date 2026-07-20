@@ -35,7 +35,8 @@ function safe(obj, path, dflt) {
   return cur === undefined || cur === null ? dflt : cur;
 }
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
-function inrToUsd(inr) { return num(inr) / 83.0; }
+var fxRate = require("./fx-util.js").fxRate;
+function inrToUsd(inr, ctx) { return num(inr) / fxRate(ctx); } // rate overridable via ctx.fxRateOverride — see fx-util.js
 
 /* SYS-1: verified-identical copies of CONST.TAX.US_SEC179_* / US_BONUS_* /
  * US_MACRS_* replaced by the shared import. */
@@ -137,7 +138,7 @@ function k1PassiveIncomeUsd(k) {
 // wholesale for model.income.us and arbitrary UI code may read either
 // currency off any money object generically. No existing consumer inside
 // the DAG reads .inr here, so this is purely additive.
-function m(usd) { return { usd: usd, inr: usd * CONST_AGGUS.FX.INR_PER_USD }; }
+function m(usd, ctx) { return { usd: usd, inr: usd * fxRate(ctx) }; } // rate overridable via ctx.fxRateOverride — see fx-util.js
 
 var NODES = {
   baseYearUsAgg: { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "metadata.us_calendar_year", 2025)) || 2025; } },
@@ -300,10 +301,10 @@ var NODES = {
   },
   epfNpsCrossBorder: {
     deps: ["indiaAnnualSliceForUs"],
-    compute: function (d) {
+    compute: function (d, ctx) {
       return {
-        taxableEpfInterestUsd: inrToUsd(num(safe(d.indiaAnnualSliceForUs.other_sources, "taxable_epf_interest_inr", 0))),
-        taxableNpsWithdrawalUsd: inrToUsd(num(safe(d.indiaAnnualSliceForUs.other_sources, "taxable_nps_withdrawal_inr", 0)))
+        taxableEpfInterestUsd: inrToUsd(num(safe(d.indiaAnnualSliceForUs.other_sources, "taxable_epf_interest_inr", 0)), ctx),
+        taxableNpsWithdrawalUsd: inrToUsd(num(safe(d.indiaAnnualSliceForUs.other_sources, "taxable_nps_withdrawal_inr", 0)), ctx)
       };
     }
   },
@@ -311,7 +312,7 @@ var NODES = {
   // ---- final assembly, matching aggregateUsIncome's own return object ----
   aggregateUsIncomeResult: {
     deps: ["wagesComputation", "foreignWagesUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder"],
-    compute: function (d) {
+    compute: function (d, ctx) {
       var w = d.wagesComputation, biz = d.businessAndSeComputation, ret = d.retirementComputation, di = d.directIncomeComputation, epf = d.epfNpsCrossBorder;
       var foreignInterest = di.foreignInterestUsd + epf.taxableEpfInterestUsd;
       var foreignPension = di.foreignPensionUsd + epf.taxableNpsWithdrawalUsd;
@@ -320,24 +321,24 @@ var NODES = {
       var foreignSourceTotal = d.foreignWagesUsd + biz.foreignSelfEmploymentUsd + foreignInterest + di.foreignDividendsUsd + di.foreignRentalUsd + foreignPension + di.foreignStcgUsd + di.foreignLtcgUsd;
 
       return {
-        wages: m(w.wagesUsd), businessUs: m(biz.businessUsUsd), w2Withholding: w.w2WithholdingUsd, w2Employers: w.w2Employers, medicareWages: w.medicareWagesUsd,
+        wages: m(w.wagesUsd, ctx), businessUs: m(biz.businessUsUsd, ctx), w2Withholding: w.w2WithholdingUsd, w2Employers: w.w2Employers, medicareWages: w.medicareWagesUsd,
         qualifiedTipsUsd: w.qualifiedTipsUsd, qualifiedOvertimeUsd: w.qualifiedOvertimeUsd,
         seEarningsUsd: biz.seEarningsUsd, qbiIncomeUsd: biz.qbiIncomeUsd, qbiIsSSTB: biz.qbiIsSSTB,
-        usRetirementIncome: m(ret.usRetirementIncomeExclSsUsd + ret.socialSecurityUsUsd),
-        usRetirementIncomeExclSs: m(ret.usRetirementIncomeExclSsUsd),
+        usRetirementIncome: m(ret.usRetirementIncomeExclSsUsd + ret.socialSecurityUsUsd, ctx),
+        usRetirementIncomeExclSs: m(ret.usRetirementIncomeExclSsUsd, ctx),
         retirementDistributionsSubjectTo72tUsd: ret.retirementDistributionsSubjectTo72tUsd,
-        socialSecurityUs: m(ret.socialSecurityUsUsd),
-        taxExemptInterestUs: m(di.taxExemptInterestUsUsd),
-        interestUs: m(di.interestUsUsd), ordinaryDividendsUs: m(di.ordinaryDividendsUsUsd), qualifiedDividendsUs: m(di.qualifiedDividendsUsUsd),
-        ltcgUs: m(di.ltcgUsUsd), stcgUs: m(di.stcgUsUsd), capitalGainsUs: m(di.ltcgUsUsd + di.stcgUsUsd), rentalUs: m(di.rentalUsUsd),
-        foreignWages: m(d.foreignWagesUsd), foreignSelfEmployment: m(biz.foreignSelfEmploymentUsd),
-        foreignInterest: m(foreignInterest), foreignDividends: m(di.foreignDividendsUsd),
-        foreignRental: m(di.foreignRentalUsd), foreignPension: m(foreignPension),
-        foreignStcg: m(di.foreignStcgUsd), foreignLtcg: m(di.foreignLtcgUsd),
-        foreignCapitalGains: m(di.foreignStcgUsd + di.foreignLtcgUsd),
+        socialSecurityUs: m(ret.socialSecurityUsUsd, ctx),
+        taxExemptInterestUs: m(di.taxExemptInterestUsUsd, ctx),
+        interestUs: m(di.interestUsUsd, ctx), ordinaryDividendsUs: m(di.ordinaryDividendsUsUsd, ctx), qualifiedDividendsUs: m(di.qualifiedDividendsUsUsd, ctx),
+        ltcgUs: m(di.ltcgUsUsd, ctx), stcgUs: m(di.stcgUsUsd, ctx), capitalGainsUs: m(di.ltcgUsUsd + di.stcgUsUsd, ctx), rentalUs: m(di.rentalUsUsd, ctx),
+        foreignWages: m(d.foreignWagesUsd, ctx), foreignSelfEmployment: m(biz.foreignSelfEmploymentUsd, ctx),
+        foreignInterest: m(foreignInterest, ctx), foreignDividends: m(di.foreignDividendsUsd, ctx),
+        foreignRental: m(di.foreignRentalUsd, ctx), foreignPension: m(foreignPension, ctx),
+        foreignStcg: m(di.foreignStcgUsd, ctx), foreignLtcg: m(di.foreignLtcgUsd, ctx),
+        foreignCapitalGains: m(di.foreignStcgUsd + di.foreignLtcgUsd, ctx),
         retirementEpfInterestUsd: epf.taxableEpfInterestUsd, retirementNpsWithdrawalUsd: epf.taxableNpsWithdrawalUsd,
-        usSourceTotal: m(usSourceTotal), foreignSourceTotal: m(foreignSourceTotal),
-        total: m(usSourceTotal + foreignSourceTotal)
+        usSourceTotal: m(usSourceTotal, ctx), foreignSourceTotal: m(foreignSourceTotal, ctx),
+        total: m(usSourceTotal + foreignSourceTotal, ctx)
       };
     }
   }

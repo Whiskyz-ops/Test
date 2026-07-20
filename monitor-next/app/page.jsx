@@ -14,6 +14,7 @@ import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfil
 import { monitorSnapshotDag } from "@/lib/dag-adapter";
 import { runShadow, getShadowLog, clearShadowLog } from "@/lib/shadow";
 import ShadowBadge from "@/components/ShadowBadge";
+import WhatIfBar from "@/components/WhatIfBar";
 
 const WorldMap = dynamic(() => import("@/components/WorldMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading world map…</div> });
 const UsStatesMap = dynamic(() => import("@/components/UsStatesMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading US map…</div> });
@@ -73,12 +74,28 @@ export default function MonitorPage() {
   const [shadowRun, setShadowRun] = useState(null);
   const [shadowLog, setShadowLog] = useState(null);
 
+  // What-if tool: regime/FX/FEIE overrides, DAG-only (no plumbing exists in
+  // the legacy engine — see WhatIfBar.jsx's header comment). null/undefined
+  // means "no override, use whatever the loaded profile/live data says";
+  // shadow mode never sees these (runShadow always compares baseline
+  // engine-vs-DAG, unaffected by what-if state) so it stays a meaningful
+  // parity check regardless of what the what-if bar is set to.
+  const [regimeOverride, setRegimeOverride] = useState(null);
+  const [fxRateOverride, setFxRateOverride] = useState(null);
+  const [feieOverride, setFeieOverride] = useState(null);
+  const whatIfActive = regimeOverride !== null || fxRateOverride !== null || feieOverride !== null;
+
   const goToRecon = useCallback((section) => { setView("reconciliation"); setReconHighlight(section); }, []);
 
   const recompute = useCallback((preferred) => {
     const wantLive = preferred === "live" || (preferred == null && hasLiveLayer1());
     const source = wantLive && hasLiveLayer1() ? "live" : "demo";
-    const snap = engineSource === "dag" ? monitorSnapshotDag(source) : monitorSnapshot(source);
+    const overrides = engineSource === "dag" ? {
+      regimeOverride: regimeOverride === null ? undefined : regimeOverride,
+      fxRateOverride: fxRateOverride === null ? undefined : fxRateOverride,
+      feieOverride: feieOverride === null ? undefined : feieOverride
+    } : undefined;
+    const snap = engineSource === "dag" ? monitorSnapshotDag(source, overrides) : monitorSnapshot(source);
     if (snap && snap.countries && snap.countries.length) {
       setCountries(snap.countries); setMode(source); setEngineReady(true); setResult(snap.result);
       if (snap.clientName) setClientName(snap.clientName);
@@ -97,10 +114,11 @@ export default function MonitorPage() {
         if (rec) { setShadowRun(rec); setShadowLog(getShadowLog()); }
       });
     }
-  }, [engineSource, shadowOn]);
+  }, [engineSource, shadowOn, regimeOverride, fxRateOverride, feieOverride]);
 
   useEffect(() => { setProfiles(listProfiles()); setClientSummaries(allClientSummaries()); recompute(null); }, [recompute]);
   const onPickProfile = useCallback((id) => { if (id && loadProfile(id)) { recompute("live"); } }, [recompute]);
+  const onWhatIfReset = useCallback(() => { setRegimeOverride(null); setFxRateOverride(null); setFeieOverride(null); }, []);
 
   useEffect(() => {
     const onStorage = (e) => { if (!e.key || e.key.indexOf("wising_") === 0) recompute(null); };
@@ -174,6 +192,18 @@ export default function MonitorPage() {
             <a href="layer1_us.html" className="font-semibold hover:text-accent transition-colors">US</a>
           </span>
         </div>
+
+        <WhatIfBar
+          regime={regimeOverride !== null ? regimeOverride : (result && result.computed.indiaTax.regime) || "NEW"}
+          onRegimeChange={setRegimeOverride}
+          fxRate={fxRateOverride !== null ? fxRateOverride : (result && result.model.meta.fxRate) || 83}
+          onFxRateChange={setFxRateOverride}
+          feieClaimed={feieOverride !== null ? feieOverride : !!(result && result.computed.usTax.feie && result.computed.usTax.feie.claimed)}
+          onFeieChange={setFeieOverride}
+          active={whatIfActive}
+          onReset={onWhatIfReset}
+          disabled={engineSource !== "dag"}
+        />
 
         {/* ============ MONITOR (overview) ============ */}
         {view === "monitor" && (

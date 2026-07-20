@@ -38,7 +38,8 @@ function safe(obj, path, dflt) {
   for (var i = 0; i < parts.length; i++) { if (cur == null) return dflt; cur = cur[parts[i]]; }
   return cur === undefined || cur === null ? dflt : cur;
 }
-function inrToUsd(inr) { return Number(inr) / 83.0; } // matches U.inrToUsd's own rate, engine-wide constant
+var fxRate = require("./fx-util.js").fxRate;
+function inrToUsd(inr, ctx) { return Number(inr) / fxRate(ctx); } // rate overridable via ctx.fxRateOverride — see fx-util.js
 
 var doubleTaxNodes = require("./doubletax-nodes.js").NODES;
 
@@ -58,7 +59,7 @@ NODES.crossBasisResult = {
   deps: ["usTaxResult", "residencyResult", "viaForeignCorpXbr4", "taxRegime",
     "salaryInr", "businessComputation", "housePropertyInr", "interestInr", "dividendInr", "indiaCapitalGainsInrXbr3",
     "aggregateUsIncomeResult"],
-  compute: function (d) {
+  compute: function (d, ctx) {
     function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
     var rows = [];
     var feieApplied = d.usTaxResult.feieAppliedUsd || 0;
@@ -69,7 +70,7 @@ NODES.crossBasisResult = {
     // taxRegime dep (in1-nodes-v3.js) already normalizes to uppercase, so
     // the DAG never had the engine's lowercase-comparison bug to begin with.
     var stdDedInr = d.taxRegime === "OLD" ? 50000 : 75000;
-    var stdDedUsd = stdDedInr / 83.0;
+    var stdDedUsd = stdDedInr / fxRate(ctx);
     var stdDedLabel = "₹" + stdDedInr.toLocaleString("en-IN");
 
     function row(o) {
@@ -79,12 +80,12 @@ NODES.crossBasisResult = {
       rows.push(o);
     }
 
-    var salaryUsd = inrToUsd(d.salaryInr);
-    var businessUsd = inrToUsd(d.businessComputation.businessInr);
-    var housePropertyUsd = inrToUsd(d.housePropertyInr);
-    var interestUsd = inrToUsd(d.interestInr);
-    var dividendUsd = inrToUsd(d.dividendInr);
-    var capitalGainsUsd = inrToUsd(d.indiaCapitalGainsInrXbr3);
+    var salaryUsd = inrToUsd(d.salaryInr, ctx);
+    var businessUsd = inrToUsd(d.businessComputation.businessInr, ctx);
+    var housePropertyUsd = inrToUsd(d.housePropertyInr, ctx);
+    var interestUsd = inrToUsd(d.interestInr, ctx);
+    var dividendUsd = inrToUsd(d.dividendInr, ctx);
+    var capitalGainsUsd = inrToUsd(d.indiaCapitalGainsInrXbr3, ctx);
     var us = d.aggregateUsIncomeResult;
 
     if (usWW) {

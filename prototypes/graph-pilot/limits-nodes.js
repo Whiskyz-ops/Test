@@ -38,7 +38,7 @@ function safe(obj, path, dflt) {
   for (var i = 0; i < parts.length; i++) { if (cur == null) return dflt; cur = cur[parts[i]]; }
   return cur === undefined || cur === null ? dflt : cur;
 }
-var INR_PER_USD = require("../../engine/constants.js").CONST.FX.INR_PER_USD; // SYS-1: shared
+var fxRate = require("./fx-util.js").fxRate; // rate overridable via ctx.fxRateOverride — see fx-util.js
 
 // SYS-1 closed 19 Jul 2026: the L table below was a verified-identical
 // copy of CONST.LIMITS — now the same object, imported.
@@ -104,7 +104,7 @@ NODES.nroCumulativeRepatriatedUsdRaw = {
 NODES.limitsResult = {
   deps: ["hasUsScopeBoundaryFtc", "hasIndiaScopeXbr", "aggregatePeakUsdResult", "usFilingStatusRaw",
     "feieLimitsRaw", "limitsRawExtra", "nroCumulativeRepatriatedUsdRaw"],
-  compute: function (d) {
+  compute: function (d, ctx) {
     var gauges = [];
     function gauge(id, label, valueUsd, limitUsd, unit, note) {
       var pct = limitUsd > 0 ? (valueUsd / limitUsd) : 0;
@@ -128,7 +128,7 @@ NODES.limitsResult = {
         "Threshold shown is the 'any time during year' figure for your status/residence.");
     }
     if (scopeHasIndia) {
-      gauge("lrs", "LRS outbound remittance", d.limitsRawExtra.lrsRemittedInr / INR_PER_USD, L.LRS_ANNUAL_USD, "USD",
+      gauge("lrs", "LRS outbound remittance", d.limitsRawExtra.lrsRemittedInr / fxRate(ctx), L.LRS_ANNUAL_USD, "USD",
         "RBI cap is per individual per financial year; TCS applies above ₹10L.");
     }
     if (scopeHasIndia && d.nroCumulativeRepatriatedUsdRaw > 0) {

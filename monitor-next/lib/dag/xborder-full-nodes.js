@@ -20,10 +20,11 @@
  *   ctx.model.entity (usEntityKind — AGG-10), ctx.model.meta.baseYear
  *   (baseYearUs — AGG-10). ctx.computed: NONE. ctx.model.income: NONE.
  *
- * FX note: the 83.0 INR/USD literal matches engine/constants.js
- * (CONST.FX.INR_PER_USD) and the same literal already used by
- * aggregateindiaincome-nodes.js's own inrToUsd — covered by audit:dag's
- * numeric-drift check like every other hand-copied constant.
+ * FX note: fxRate(ctx) (fx-util.js) defaults to 83.0 INR/USD, matching
+ * engine/constants.js's CONST.FX.INR_PER_USD, and is overridable via
+ * ctx.fxRateOverride (the what-if FX slider) — same source every other
+ * INR<->USD conversion in the graph reads, so the default (no override)
+ * behavior stays covered by audit:dag's numeric-drift check unchanged.
  * ==========================================================================*/
 var indiaFullNodes = require("./india-full-nodes.js").NODES;
 var usFullNodes = require("./us-full-nodes.js").NODES;
@@ -36,7 +37,7 @@ function safe(obj, path, dflt) {
   for (var i = 0; i < parts.length; i++) { if (cur == null) return dflt; cur = cur[parts[i]]; }
   return cur === undefined || cur === null ? dflt : cur;
 }
-var INR_PER_USD = require("../engine/constants.js").CONST.FX.INR_PER_USD; // SYS-1: shared
+var fxRate = require("./fx-util.js").fxRate; // rate overridable via ctx.fxRateOverride — see fx-util.js
 
 var OVERRIDDEN_BOUNDARY_IDS = [
   "feieExcludedUsdBoundaryFtc", "usIsNraBoundaryFtc", "hasUsScopeBoundaryFtc",
@@ -89,18 +90,18 @@ NODES.usIsNraBoundaryFtc = {
   deps: ["usEntityKind", "files1040nr", "s6013hElection"],
   compute: function (d) { return ["ccorp", "scorp", "partnership", "trust"].indexOf(d.usEntityKind) < 0 && d.files1040nr && !d.s6013hElection; }
 };
-NODES.indiaIncomeTotalUsdBoundaryFtc = { deps: ["totalIndiaIncomeInr"], compute: function (d) { return d.totalIndiaIncomeInr / INR_PER_USD; } };
+NODES.indiaIncomeTotalUsdBoundaryFtc = { deps: ["totalIndiaIncomeInr"], compute: function (d, ctx) { return d.totalIndiaIncomeInr / fxRate(ctx); } };
 NODES.usTaxableIncomeUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.taxableIncomeUsd; } };
 NODES.usIncomeTaxUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.incomeTaxUsd; } };
 NODES.usTotalIncomeUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.totalIncomeUsd; } };
 NODES.usSourceIncomeUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.usSourceIncomeUsd; } };
-NODES.indiaTotalTaxUsdBoundaryFtc = { deps: ["totalTaxInrCombined"], compute: function (d) { return d.totalTaxInrCombined / INR_PER_USD; } };
+NODES.indiaTotalTaxUsdBoundaryFtc = { deps: ["totalTaxInrCombined"], compute: function (d, ctx) { return d.totalTaxInrCombined / fxRate(ctx); } };
 // Engine's indiaTax.totalIncomeUsd: individual path = inrToUsd(totalIncomeInr)
 // (computation.js L517); entity path = inrToUsd(taxableInr) (L720). Routed
 // on the same isEntityTaxpayer gate india-full already resolves.
 NODES.indiaTotalIncomeUsdBoundaryFtc = {
   deps: ["isEntityTaxpayer", "totalIncomeInrV3", "entityTaxableInrBoundary"],
-  compute: function (d) { return (d.isEntityTaxpayer ? d.entityTaxableInrBoundary : d.totalIncomeInrV3) / INR_PER_USD; }
+  compute: function (d, ctx) { return (d.isEntityTaxpayer ? d.entityTaxableInrBoundary : d.totalIncomeInrV3) / fxRate(ctx); }
 };
 NODES.indiaWorldwideBoundaryFtc = { deps: ["residencyResult"], compute: function (d) { return !!d.residencyResult.india.worldwide; } };
 NODES.usSourceTotalUsdBoundaryFtc = { deps: ["aggregateUsIncomeResult"], compute: function (d) { return d.aggregateUsIncomeResult.usSourceTotal.usd; } };
