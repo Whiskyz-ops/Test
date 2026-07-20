@@ -33,7 +33,7 @@
 "use client";
 
 import { createGraph } from "./dag/graph.js";
-import { NODES } from "./dag/checks-registry-nodes.js";
+import { NODES } from "./dag/calendar-amounts-nodes.js";
 import { countriesFromEngine } from "./wising.js";
 import { fxRate } from "./dag/fx-util.js";
 
@@ -103,7 +103,7 @@ export function analyzeDag(opts) {
     "totalTaxInrCombined", "regimeCombined", "isEntityTaxpayer", "usTaxResult", "residencyResult",
     "ftcResult", "crossBasisResult", "limitsResult", "headlineResult",
     "apportionmentResult", "s115aDividend", "s115aRoyalty", "s115aFts", "isNRV3",
-    "analyzeResult", "checksRegistryResult"
+    "analyzeResult", "checksRegistryResult", "calendarAmountsResult"
   ], ctx).values;
 
   // The same shape r.model/r.computed carries from WISING.analyze() —
@@ -154,7 +154,11 @@ export function analyzeDag(opts) {
   // equivalent, so lib/wising.js's analyzeSource() never sets this key.
   // Consumers should treat its absence as "not available in this mode",
   // not "zero checks ran."
-  return Object.assign({}, out.analyzeResult, { model, computed, checksRegistry: out.checksRegistryResult });
+  // calendarAmounts: CL-2, same DAG-only precedent — the forward-looking
+  // ₹/$ figure per advance-tax/estimated-tax calendar row.
+  return Object.assign({}, out.analyzeResult, {
+    model, computed, checksRegistry: out.checksRegistryResult, calendarAmounts: out.calendarAmountsResult
+  });
 }
 
 // DAG-backed counterpart to lib/wising.js's monitorSnapshot() — same
