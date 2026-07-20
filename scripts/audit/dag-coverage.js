@@ -46,7 +46,7 @@ var NODE_FILES = [
   "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "report-batch2-nodes.js", "report-batch3-nodes.js", "report-batch4-nodes.js", "report-batch5-nodes.js", "report-batch6-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "limits-nodes.js", "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
-  "us-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
+  "us-full-nodes.js", "ustax-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
 ];
 function m(row, status, dagFiles, knownMissing) { return { row: row, status: status, dagFiles: dagFiles || ["*"], knownMissing: knownMissing || [] }; }
 var MAP = {
@@ -202,8 +202,15 @@ var MAP = {
     feieEligibility: m("TAX-6", "ported", ["ustax-nodes.js"]),
     computeUsTax: m("TAX-5", "ported", ["ustax-nodes.js"]),
     computeUsStateTax: m("TAX-9", "ported", ["findings-batch5-nodes.js"]),
-    computeNraTax: m("TAX-8", "scoped-out"),
-    computeUsEntityTax: m("TAX-7", "scoped-out"),
+    /* TAX-7/TAX-8 closed 19 Jul 2026: ustax-full-nodes.js ports both result
+     * builders to the engine's exact output shape and REDEFINES usTaxResult
+     * as the same router compute() uses (entity kinds -> entity tax;
+     * 1040-NR without s.6013(h) -> NRA tax; else individual). Verified
+     * 1015/1015 in run-ustax-full.js (all 11 profiles full-object for
+     * entity/NRA + 6 synthetics vs the real engine), and run-agg10.js
+     * dropped its entity/NRA carve-outs entirely: 1290/1290 bare-ctx. */
+    computeNraTax: m("TAX-8", "ported", ["ustax-full-nodes.js"]),
+    computeUsEntityTax: m("TAX-7", "ported", ["ustax-full-nodes.js"]),
     /* XBR-1 closed 19 Jul 2026: residency-nodes.js ports resolveResidency
      * in full (verified 132/132 in run-residency.js, all 11 profiles, zero
      * boundary reads). resolveResidency()'s own body has no snake_case or

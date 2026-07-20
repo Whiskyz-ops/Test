@@ -92,7 +92,19 @@ function feieEligibility(f) {
   var ppDaysOk = (f.daysInUsTestPeriod || 0) <= 35;
   var ppMet = !!f.physicalPresence && ppDaysOk;
   var bfMet = !!f.bonaFide;
-  return { claimed: claimed, amountClaimedUsd: f.amountClaimedUsd || 0, taxHomeAbroad: taxHomeAbroad, testMet: bfMet || ppMet, eligible: taxHomeAbroad && (bfMet || ppMet) };
+  // reasons ported too (engine L767-775) — the result's feie block carries
+  // them; previously dropped here because computeUsTax's own math never
+  // reads them, which left feie.reasons undefined vs the engine's [].
+  var reasons = [];
+  if (claimed && !taxHomeAbroad) reasons.push(home === "" ? "no foreign tax home entered" : "tax home is in the US");
+  if (claimed && !bfMet && !ppMet) {
+    reasons.push(!f.physicalPresence && !f.bonaFide
+      ? "neither the bona-fide-residence nor the physical-presence test is met"
+      : (f.physicalPresence && !ppDaysOk
+        ? (f.daysInUsTestPeriod + " US days in the test period — over the ~35-day allowance (330 full days abroad required)")
+        : "bona-fide-residence test not met"));
+  }
+  return { claimed: claimed, amountClaimedUsd: f.amountClaimedUsd || 0, taxHomeAbroad: taxHomeAbroad, testMet: bfMet || ppMet, eligible: taxHomeAbroad && (bfMet || ppMet), reasons: reasons };
 }
 
 var NODES = {

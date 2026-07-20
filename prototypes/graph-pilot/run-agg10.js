@@ -28,7 +28,10 @@ global.window = global;
 });
 var WISING = global.WISING;
 var createGraph = require("./graph.js").createGraph;
-var NODES = require("./agg10-nodes.js").NODES;
+// Upgraded to the TAX-7/TAX-8 routed chain (ustax-full-nodes.js): usTaxResult
+// now routes entity/NRA/individual exactly as compute() does, so the
+// entity/NRA carve-outs below are GONE — all 11 profiles asserted fully.
+var NODES = require("./ustax-full-nodes.js").NODES;
 var graph = createGraph(NODES);
 
 var pass = 0, fail = 0;
@@ -78,46 +81,25 @@ WISING.PROFILES.forEach(function (p) {
     bareCtx).values;
 
   var before = fail;
-  var usKind = r.model.entity ? r.model.entity.usKind : "individual";
-  var isUsEntity = ["ccorp", "scorp", "partnership", "trust"].indexOf(usKind) >= 0;
-  var isNra = r.model.treaty.files1040nr && r.model.nra && !r.model.nra.s6013hElection;
-  // Production's US tax on entity/NRA profiles comes from computeUsEntityTax/
-  // computeNraTax (TAX-7/TAX-8, deliberately unported) — the same fields
-  // every runner in this effort reports rather than asserts there. Strip
-  // exactly those fields from headline/summary before the deep compare;
-  // everything else on those profiles is still asserted.
-  function stripUsTaxDependent(o) {
-    if (!isUsEntity && !isNra) return o;
-    var c = Object.assign({}, o);
-    delete c.usTaxUsd; delete c.combinedTaxBeforeReliefUsd; delete c.netUnrelievedDoubleTaxUsd;
-    return c;
-  }
 
   // 1. The AGG-10 block ports themselves.
   deepCheck("entity", out.entityResult, r.model.entity);
   deepCheck("meta", out.metaResult, r.model.meta);
   deepCheck("identity", out.identityResult, r.model.identity);
-  deepCheck("headline", stripUsTaxDependent(out.headlineResult), stripUsTaxDependent(r.computed.headline));
+  deepCheck("headline", out.headlineResult, r.computed.headline);
 
-  // 2. The computational chain, resolved with no engine objects in ctx.
+  // 2. The computational chain, resolved with no engine objects in ctx —
+  // ALL profiles asserted fully now that usTaxResult routes entity/NRA
+  // exactly as compute() does (TAX-7/TAX-8 closed).
   deepCheck("indiaTax.totalTaxInr", out.totalTaxInrCombined, r.computed.indiaTax.totalTaxInr);
   deepCheck("limits", out.limitsResult, r.computed.limits);
-  if (!isUsEntity && !isNra) {
-    deepCheck("usTax.totalTaxBeforeFtcUsd", out.usTaxResult.totalTaxBeforeFtcUsd, r.computed.usTax.totalTaxBeforeFtcUsd);
-    deepCheck("ftc", out.ftcResult, r.computed.ftc);
-    // Findings, summary, and health cascade from FTC/US-tax figures, so on
-    // entity/NRA profiles (TAX-7/TAX-8 unported) they are reported, not
-    // asserted — the same convention as every other runner in this effort.
-    deepCheck("findings.sequence",
-      out.findingsAllResult.map(function (f) { return f.id + ":" + f.severity; }),
-      r.findings.map(function (f) { return f.id + ":" + f.severity; }));
-    deepCheck("summary", out.summaryResult, r.summary);
-    deepCheck("monitor.health.score", out.monitorResult.health.score, r.monitoring.health.score);
-  } else {
-    console.log("    info - findings/summary/health reported only (US tax from " + (isUsEntity ? "computeUsEntityTax, TAX-7" : "computeNraTax, TAX-8") + " — unported): graph health=" +
-      out.monitorResult.health.score + " prod=" + r.monitoring.health.score +
-      ", graph findings=" + out.findingsAllResult.length + " prod=" + r.findings.length);
-  }
+  deepCheck("usTax.totalTaxBeforeFtcUsd", out.usTaxResult.totalTaxBeforeFtcUsd, r.computed.usTax.totalTaxBeforeFtcUsd);
+  deepCheck("ftc", out.ftcResult, r.computed.ftc);
+  deepCheck("findings.sequence",
+    out.findingsAllResult.map(function (f) { return f.id + ":" + f.severity; }),
+    r.findings.map(function (f) { return f.id + ":" + f.severity; }));
+  deepCheck("summary", out.summaryResult, r.summary);
+  deepCheck("monitor.health.score", out.monitorResult.health.score, r.monitoring.health.score);
 
   // 3. Echo semantics: null under bare ctx…
   deepCheck("analyze.model is null under bare ctx (echo, not input)", out.analyzeResult.model, null);
