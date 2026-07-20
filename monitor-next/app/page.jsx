@@ -38,24 +38,27 @@ export default function MonitorPage() {
   const [clientSummaries, setClientSummaries] = useState([]);
   const [reconHighlight, setReconHighlight] = useState(null);
   // DAG-vs-engine comparison toggle (docs/DAG_MIGRATION_TRACKER.md, 40/40
-  // rows ported) — defaults to "engine" so default behavior is untouched;
-  // ?engine=dag or the header pill switches the compute source live, same
-  // countries/result shape either way (monitorSnapshotDag mirrors
-  // monitorSnapshot exactly — see lib/dag-adapter.js).
+  // rows ported, run-fuzz.js clean at CI scale with a 2-item allowlist —
+  // both text-wording-only, no known value/logic divergence) — DAG is now
+  // the default compute source; ?engine=engine or the header pill falls
+  // back to the original hand-written engine live, same countries/result
+  // shape either way (monitorSnapshotDag mirrors monitorSnapshot exactly —
+  // see lib/dag-adapter.js). The pill stays so a fallback is always one
+  // click away, not a code change.
   //
-  // Always initialize to "engine", matching the server's render exactly —
-  // reading window.location in the lazy useState initializer used to
-  // return "dag" on the client's first (hydrating) render whenever the
-  // URL carried ?engine=dag, while the server (no window) always rendered
-  // "engine": a real text mismatch on the pill's own label, logged as a
-  // hydration error and silently forcing a full client-side re-render.
-  // Reading the query param in an effect instead means the FIRST client
-  // render matches the server unconditionally; recompute's own effect
-  // below re-fires automatically once this flips, since recompute is a
-  // useCallback keyed on engineSource.
-  const [engineSource, setEngineSource] = useState("engine");
+  // Always initialize to "dag", matching the server's render exactly (no
+  // window there either) — see the ?engine=dag hydration-mismatch bug this
+  // same pattern fixed on the OTHER side, 20 Jul 2026: reading
+  // window.location in the lazy useState initializer produces a different
+  // value on the server's render vs the client's first (hydrating) one
+  // whenever the URL carries a query param that flips it, which React logs
+  // as a hydration error. Reading the query param in an effect instead
+  // means the FIRST client render matches the server unconditionally;
+  // recompute's own effect below re-fires automatically once this flips,
+  // since recompute is a useCallback keyed on engineSource.
+  const [engineSource, setEngineSource] = useState("dag");
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("engine") === "dag") setEngineSource("dag");
+    if (new URLSearchParams(window.location.search).get("engine") === "engine") setEngineSource("engine");
   }, []);
 
   const goToRecon = useCallback((section) => { setView("reconciliation"); setReconHighlight(section); }, []);
