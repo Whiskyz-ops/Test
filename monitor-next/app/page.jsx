@@ -7,7 +7,7 @@ import Header from "@/components/Header";
 import StatMeter from "@/components/StatMeter";
 import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
-import { ConflictsPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard } from "@/components/Views";
+import { ConflictsPanel, ChecksRegistryPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard } from "@/components/Views";
 import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries } from "@/lib/wising";
@@ -171,6 +171,7 @@ export default function MonitorPage() {
               <section className="mt-8">
                 <h3 className="font-display font-bold text-lg text-head mb-4">Conflicts &amp; Mismatches</h3>
                 <ConflictsPanel findings={result.findings} />
+                <ChecksRegistryPanel checks={result.checksRegistry} />
               </section>
             )}
 

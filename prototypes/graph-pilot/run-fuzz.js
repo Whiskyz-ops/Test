@@ -178,7 +178,7 @@ global.window = global;
 });
 var WISING = global.WISING;
 var createGraph = require("./graph.js").createGraph;
-var NODES = require("./assets-nodes.js").NODES;
+var NODES = require("./checks-registry-nodes.js").NODES;
 var graph = createGraph(NODES);
 var CONST = require("../../engine/constants.js").CONST;
 
@@ -393,7 +393,7 @@ var RESOLVE_LIST = [
   "totalTaxInrCombined", "regimeCombined", "isEntityTaxpayer", "usTaxResult", "residencyResult",
   "ftcResult", "crossBasisResult", "limitsResult", "headlineResult",
   "apportionmentResult", "s115aDividend", "s115aRoyalty", "s115aFts", "isNRV3",
-  "analyzeResult"
+  "analyzeResult", "checksRegistryResult"
 ];
 function assembleDag(profile, monitorAsOfBoundary) {
   var ctx = { router: profile.router, india: profile.india, us: profile.us, monitorAsOfBoundary: monitorAsOfBoundary };
@@ -410,7 +410,7 @@ function assembleDag(profile, monitorAsOfBoundary) {
     usTax: usTax, residency: out.residencyResult, ftc: out.ftcResult, reconciliation: out.crossBasisResult,
     limits: out.limitsResult, headline: out.headlineResult, apportionment: out.apportionmentResult
   };
-  return Object.assign({}, out.analyzeResult, { model: model, computed: computed });
+  return Object.assign({}, out.analyzeResult, { model: model, computed: computed, checksRegistry: out.checksRegistryResult });
 }
 
 function compareOne(label, profile, saveOnFail) {
@@ -426,6 +426,19 @@ function compareOne(label, profile, saveOnFail) {
   if (!realThrew && dagThrew) return { status: "dag-threw-engine-didnt", detail: dagThrew.message + "\n" + dagThrew.stack };
 
   var realDiffs = [], knownDiffs = [];
+
+  // checksRegistryResult (CL-1) has no engine equivalent — nothing to
+  // differential-test against real. Its one real invariant, checked here
+  // instead: no finding id may EVER appear in both dag.findings (fired) and
+  // dag.checksRegistry (checked-clean) on the same profile. A violation
+  // here is always a real bug in checks-registry-nodes.js's own pass()
+  // conditions (drifted from the finding's actual gate) — always real,
+  // never excused by the allowlist.
+  var firedIds = {};
+  (dag.findings || []).forEach(function (f) { firedIds[f.id] = true; });
+  (dag.checksRegistry || []).forEach(function (c) {
+    if (firedIds[c.id]) realDiffs.push("checksRegistry: \"" + c.id + "\" is BOTH fired (in findings[]) and reported passed — pass() condition has drifted from its finding's real gate");
+  });
   // computed.indiaTax is a DELIBERATE narrow assembly in dag-adapter.js —
   // only these 5 fields, never the full computeIndiaTax()/
   // computeIndiaEntityTax() return shape (that richer detail legitimately

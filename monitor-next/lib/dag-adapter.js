@@ -33,7 +33,7 @@
 "use client";
 
 import { createGraph } from "./dag/graph.js";
-import { NODES } from "./dag/assets-nodes.js";
+import { NODES } from "./dag/checks-registry-nodes.js";
 import { countriesFromEngine } from "./wising.js";
 import { CONST } from "./engine/constants.js";
 
@@ -80,7 +80,7 @@ export function analyzeDag(opts) {
     "totalTaxInrCombined", "regimeCombined", "isEntityTaxpayer", "usTaxResult", "residencyResult",
     "ftcResult", "crossBasisResult", "limitsResult", "headlineResult",
     "apportionmentResult", "s115aDividend", "s115aRoyalty", "s115aFts", "isNRV3",
-    "analyzeResult"
+    "analyzeResult", "checksRegistryResult"
   ], ctx).values;
 
   // The same shape r.model/r.computed carries from WISING.analyze() —
@@ -127,7 +127,11 @@ export function analyzeDag(opts) {
     apportionment: out.apportionmentResult
   };
 
-  return Object.assign({}, out.analyzeResult, { model, computed });
+  // checksRegistry: CL-1 (docs/GAP_TRACKER.md), DAG-only — no engine
+  // equivalent, so lib/wising.js's analyzeSource() never sets this key.
+  // Consumers should treat its absence as "not available in this mode",
+  // not "zero checks ran."
+  return Object.assign({}, out.analyzeResult, { model, computed, checksRegistry: out.checksRegistryResult });
 }
 
 // DAG-backed counterpart to lib/wising.js's monitorSnapshot() — same

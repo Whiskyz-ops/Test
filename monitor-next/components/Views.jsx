@@ -177,6 +177,41 @@ export function ConflictsPanel({ findings }) {
   );
 }
 
+/* ============================ CHECKS-RUN REGISTRY (CL-1) ============================
+ * A collapsed "✓ N checks passed" strip under the Conflicts list. Every
+ * finding gate above vanishes silently when it evaluates false — this is
+ * the negative-space record that the check actually ran and came back
+ * clean, not "never evaluated." DAG mode only: absent (not empty) in
+ * Engine mode, since checks-registry-nodes.js has no engine equivalent —
+ * see that file's own header for why. */
+export function ChecksRegistryPanel({ checks }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!checks || !checks.length) return null;
+  return (
+    <div className="rounded-lg bg-surface border border-line shadow-card overflow-hidden mt-3" style={{ borderLeft: `3px solid ${GREEN}` }}>
+      <button onClick={() => setExpanded((v) => !v)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/[0.03]">
+        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: GREEN, boxShadow: `0 0 8px ${GREEN}` }} />
+        <span className="font-semibold text-[13px] text-head flex-1">✓ {checks.length} check{checks.length === 1 ? "" : "s"} passed</span>
+        <span className="text-[11px] text-muted">evaluated, no issue found</span>
+        <span className="text-muted text-xs" style={{ transform: expanded ? "rotate(90deg)" : "none" }}>▸</span>
+      </button>
+      {expanded && (
+        <div className="px-3 pb-3 pt-0 space-y-1">
+          {checks.map((c) => (
+            <div key={c.id} className="flex items-start gap-2 py-1.5 border-t border-line first:border-t-0 text-[12px]">
+              <span className="shrink-0 mt-0.5" style={{ color: GREEN }}>✓</span>
+              <div className="min-w-0">
+                <span className="font-semibold text-head">{c.label}</span>
+                <span className="text-muted"> — {c.detail}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ============================ RESIDENCY ============================ */
 export function ResidencyView({ result }) {
   if (!result) return <Empty>Load a client to see residency.</Empty>;
@@ -255,6 +290,7 @@ export function ResidencyView({ result }) {
         )}
         <Card icon={<Scale size={16} strokeWidth={2} />} title="Residency & Treaty Conflicts">
           <ConflictsPanel findings={result.findings.filter((f) => f.category === "residency" || f.category === "treaty")} />
+          <ChecksRegistryPanel checks={(result.checksRegistry || []).filter((c) => c.category === "residency" || c.category === "treaty")} />
         </Card>
       </div>
     </div>
