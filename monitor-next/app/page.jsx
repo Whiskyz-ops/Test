@@ -246,11 +246,21 @@ export default function MonitorPage() {
 function deriveMeters(result) {
   if (!result || !result.model) return [];
   const mon = result.monitoring || {};
-  // A corporation has no personal "days present" — only individuals get the
-  // residency-budget meters; entities lead with their reporting limits.
-  const isEntity = !!(result.computed && result.computed.usTax && result.computed.usTax.isEntity);
   const stMap = { resident: "breached", will_flip: "will_breach", safe: "ok" };
-  const res = isEntity ? [] : (mon.residency || []).map((c, i) => ({
+  // Day-count presence tests (US SPT, India s.6(1)) are an INDIVIDUAL-only
+  // concept — a company/HUF/firm/trust has its own qualitative test instead
+  // (incorporation/POEM, control & management) and monitoring.js already
+  // tags each country's entry with which kind applies (kind: "days" vs
+  // "qualitative" — engine/monitoring.js's own counter()/qualitative()).
+  // Filtering per-COUNTRY on that real signal, not a single US-entity-only
+  // proxy: computed.usTax.isEntity is undefined for an India-only entity
+  // (an HUF has no US taxpayer type at all), so the old check showed a
+  // fabricated "NaN days" bar for it, and would do the same for the INDIA
+  // side of a mixed profile (US individual + Indian company) even though
+  // the US side is legitimately day-count. Filtering here instead of
+  // gating the whole array keeps a genuinely mixed profile's individual
+  // country card while dropping only the qualitative one(s).
+  const res = (mon.residency || []).filter((c) => c.kind === "days").map((c, i) => ({
     icon: c.flag, label: c.country + " days present", value: c.days, limit: c.threshold, unit: "days",
     pct: c.pct, status: stMap[c.status] || "ok",
     projPct: c.threshold ? (c.projectedFullYear || 0) / c.threshold : 0,
@@ -269,7 +279,9 @@ function deriveMeters(result) {
     };
   });
   // residency budgets first, then the highest-utilisation reporting limits.
+  // No day-count meters at all (every jurisdiction on file is qualitative)
+  // → lead with more reporting-limit cards instead of leaving empty space.
   proj.sort((a, b) => (b.pct || 0) - (a.pct || 0));
-  return res.concat(proj.slice(0, isEntity ? 4 : 2));
+  return res.concat(proj.slice(0, res.length === 0 ? 4 : 2));
 }
 
