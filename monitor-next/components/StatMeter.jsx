@@ -37,12 +37,17 @@ export default function StatMeter({ icon, label, value, limit, unit = "$", pct =
   const showProj = typeof projPct === "number" && projPct > 0 && status !== "breached";
   const projLeft = Math.min(100, Math.max(0, projPct * 100));
   return (
-    <div className="rounded-[26px] p-5 border shadow-card transition-all hover:shadow-cardhover fade-in"
+    <div className="relative rounded-[26px] p-5 border shadow-card transition-all hover:shadow-cardhover fade-in"
       style={{
         background: highlight ? "linear-gradient(155deg,rgba(52,211,153,0.16),rgba(96,165,250,0.05))" : "#161616",
         borderColor: highlight ? "rgba(52,211,153,0.35)" : "rgba(255,255,255,0.08)"
       }}>
-      <div className="flex items-center gap-2.5 mb-4">
+      {/* Anchored to the card corner, outside the value row's flex flow — a
+          wide dollar figure (6+ digits) on a 4-column layout doesn't leave
+          room for the ring inline, and letting it compete for flex space
+          pushed it half off the card edge or clipped it entirely. */}
+      <span className="absolute top-5 right-5"><Ring pct={pct} color={tone.ring} /></span>
+      <div className="flex items-center gap-2.5 mb-4 pr-11">
         <span className="w-9 h-9 rounded-2xl flex items-center justify-center text-[15px] border"
           style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)" }}>{icon}</span>
         <span className="text-[13px] font-bold flex-1 text-head">{label}</span>
@@ -50,8 +55,7 @@ export default function StatMeter({ icon, label, value, limit, unit = "$", pct =
       </div>
       <div className="flex items-end gap-3 mb-4">
         <div className="font-display font-extrabold text-[38px] leading-none tracking-tight" style={{ color: numColor }}>{fmt(value)}</div>
-        <div className="text-[12px] mb-2 flex-1 text-muted">/ {fmt(limit)}</div>
-        <Ring pct={pct} color={tone.ring} />
+        <div className="text-[12px] mb-2 flex-1 text-muted whitespace-nowrap">/ {fmt(limit)}</div>
       </div>
       <div className="relative">
         <div className="flex items-center gap-[5px]">

@@ -157,10 +157,15 @@ export function ConflictsPanel({ findings }) {
           return (
             <div key={f.id} className="rounded-lg bg-surface border border-line shadow-card overflow-hidden" style={{ borderLeft: `3px solid ${SEV[f.severity]}` }}>
               <button onClick={() => setOpen(isOpen ? null : f.id)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/[0.03]">
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: SEV[f.severity], boxShadow: `0 0 8px ${SEV[f.severity]}` }} />
-                <span className="font-semibold text-[13px] text-head flex-1 truncate">{f.title}</span>
-                {f.amountUsd > 0 && <span className="font-mono text-[12px] whitespace-nowrap" style={{ color: SEV_TEXT[f.severity] }}>{fmtUsd(f.amountUsd)}</span>}
-                <span className="text-muted text-xs" style={{ transform: isOpen ? "rotate(90deg)" : "none" }}>▸</span>
+                <span className="w-2 h-2 rounded-full shrink-0 mt-1.5 self-start" style={{ background: SEV[f.severity], boxShadow: `0 0 8px ${SEV[f.severity]}` }} />
+                {/* Narrower containers (e.g. the Residency tab's half-width card)
+                    were truncating this to a couple characters with no room to
+                    read it — the same title renders in full on Monitor's
+                    full-width panel, so wrapping (not truncating) here keeps it
+                    legible everywhere instead of only where there's space. */}
+                <span className="font-semibold text-[13px] text-head flex-1 leading-snug">{f.title}</span>
+                {f.amountUsd > 0 && <span className="font-mono text-[12px] whitespace-nowrap self-start mt-0.5" style={{ color: SEV_TEXT[f.severity] }}>{fmtUsd(f.amountUsd)}</span>}
+                <span className="text-muted text-xs self-start mt-0.5" style={{ transform: isOpen ? "rotate(90deg)" : "none" }}>▸</span>
               </button>
               {isOpen && (
                 <div className="px-3 pb-3 pt-0">
@@ -364,7 +369,6 @@ function DeadlineTimeline({ cal, jColor, onSelect }) {
   const min = new Date(cal[0].date.getTime() - 16 * DAY_MS);
   const max = new Date(cal[cal.length - 1].date.getTime() + 16 * DAY_MS);
   const span = max - min || 1;
-  const pos = (d) => ((d - min) / span) * 100;
 
   const months = [];
   for (let m = new Date(min.getFullYear(), min.getMonth(), 1); m <= max; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) months.push(new Date(m));
@@ -374,7 +378,16 @@ function DeadlineTimeline({ cal, jColor, onSelect }) {
   const showToday = today >= min && today <= max;
   const inItems = cal.filter((x) => x.jur === "IN");
   const usItems = cal.filter((x) => x.jur === "US");
-  const minWidth = Math.max(820, months.length * 80);
+  const trackWidth = Math.max(820, months.length * 80);
+  // PinLabel is a fixed 108px, centered on its pin via -translate-x-1/2 — a
+  // pin placed exactly at the 0%/100% edge of a date-span-only track has its
+  // label's far half (54px) hanging off the container with nothing to
+  // render into, getting hard-clipped with no ellipsis (the label's own
+  // line-clamp only handles vertical overflow, not this). Insetting pos()
+  // into an EDGE_PAD-padded range reserves that room on both ends instead.
+  const EDGE_PAD = 54;
+  const minWidth = trackWidth + EDGE_PAD * 2;
+  const pos = (d) => (EDGE_PAD + ((d - min) / span) * trackWidth) / minWidth * 100;
 
   // On mount, bring "today" into view — otherwise a client with mostly-passed
   // deadlines opens scrolled to year-old items instead of what's next.
@@ -1106,11 +1119,34 @@ export function HoldingsView({ result }) {
   const usPerson = result.computed.residency.us.isResident;
   const inrToUsd = (n) => (n || 0) / fx;
 
-  // Securities — US brokerage/investment holdings + Indian funds/equities
+  // Securities — US brokerage/investment holdings + Indian funds/equities.
+  // model.assets.indianSecurities is a raw, unfiltered echo of Layer 1's
+  // financial_holdings.transactions (normalize.js) — every asset_class this
+  // engine classifies for capital gains (listed/mutual-fund entries plus
+  // foreign_equity_unlisted, vda_crypto, nri_specified_*, bond_listed, etc.)
+  // lands in the same array. Older mutual-fund-style entries carry
+  // asset_name/asset_type/value_inr; the newer asset_class-based shape
+  // (everything with a purchase/sale pair) carries asset_name_or_ticker/
+  // asset_class/purchase_value+sale_value with their own currency fields
+  // instead — reading only the first shape's field names left the second
+  // shape (e.g. a lone crypto sale) rendering as a nameless "Holding" at $0.
+  const secAmountUsd = (s) => {
+    if (s.value_usd != null) return s.value_usd;
+    if (s.value_inr != null) return inrToUsd(s.value_inr);
+    // Prefer the realized sale (a completed disposition) over cost basis;
+    // EUR/GBP-currency entries are an uncomputed gap engine-side too
+    // (normalize.js's own capital-gains classification skips them rather
+    // than guess) — displayed as-is here for the same reason.
+    const amt = s.sale_value != null ? s.sale_value : s.purchase_value;
+    const curr = s.sale_value != null ? s.sale_currency : s.purchase_currency;
+    if (amt == null) return 0;
+    return curr === "INR" ? inrToUsd(amt) : amt;
+  };
   const inSec = ((a.indianSecurities && a.indianSecurities.length ? a.indianSecurities : a.indianMutualFunds) || []).map((s) => ({
-    name: s.asset_name || "Holding", type: (s.asset_type || "security").replace(/_/g, " "),
-    valueUsd: inrToUsd(s.value_inr || (s.value_usd || 0) * fx), country: "IN",
-    pfic: usPerson && /fund|etf|mutual/i.test(s.asset_type || "")
+    name: s.asset_name || s.asset_name_or_ticker || "Holding",
+    type: (s.asset_type || s.asset_class || "security").replace(/_/g, " "),
+    valueUsd: secAmountUsd(s), country: "IN",
+    pfic: usPerson && /fund|etf|mutual/i.test(s.asset_type || s.asset_class || "")
   }));
   const usSec = (a.usSecurities || []).map((s) => ({
     name: s.asset_name || s.institution_name || s.account_type || "US holding",
@@ -1177,8 +1213,8 @@ export function HoldingsView({ result }) {
               <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.03] border border-line">
                 <Building2 size={15} strokeWidth={2} className="text-muted shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-[12px] font-semibold text-head truncate flex items-center gap-2">{c.corp_name || "Foreign corporation"}<HoldTag color={PAL.filing}>CFC · 5471</HoldTag></div>
-                  <div className="text-[10px] text-muted">{c.country || "—"}</div>
+                  <div className="text-[12px] font-semibold text-head truncate flex items-center gap-2">{c.corporation_name || "Foreign corporation"}<HoldTag color={PAL.filing}>CFC · 5471</HoldTag></div>
+                  <div className="text-[10px] text-muted">{c.country_of_incorporation || "—"}</div>
                 </div>
                 {c.gilti_income_usd > 0 && <div className="text-right"><div className="text-[12px] font-mono text-head">{fmtUsd(c.gilti_income_usd)}</div><div className="text-[9px] text-muted">GILTI inclusion</div></div>}
               </div>
