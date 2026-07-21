@@ -1234,7 +1234,84 @@
     }
   };
 
-  var PROFILES = [P1, P2, P3, P4, P5, P6, P7, B1, B2, B3, B4];
+  /* ======================================================================
+   * PROFILE 8 — the two Monitor statuses no other profile ever reaches.
+   * Every other profile lands on Exposed or On track (classify() in
+   * monitor-next/lib/logic.js) — nothing here demonstrated Approaching or
+   * Filing-only. A single, coherent retiree story reaches both at once
+   * without any artificial edge-case rigging:
+   *
+   * Lakshmi is a US green-card holder who has moved back to India for
+   * retirement, spending most of the year there and drawing a modest
+   * family pension. She is genuinely "Resident" in both countries this
+   * year — India by day-count (300 days, past the 182-day test), the US
+   * unconditionally by green-card status (residency there never depends
+   * on a day count at all, so the visible SPT gauge sits at a sleepy
+   * 20/183 even though she's still, formally, a worldwide US taxpayer) —
+   * but her income is modest enough that BOTH countries' own relief
+   * mechanisms wipe the tax to zero: India's s.87A rebate fully absorbs
+   * tax on ₹6L of total income, and her worldwide income (pension +
+   * interest, reported honestly on both returns) sits comfortably under
+   * the US standard deduction. Two different reasons, same result on both
+   * sides — real tax due is $0 everywhere, even though she's a resident,
+   * not a non-resident, in either country:
+   *  - India: threshold crossed (300 days), $0 net tax → Filing-only
+   *    (Schedule FA still discloses the foreign bank account)
+   *  - US: worldwide taxpayer by green card, gauge nowhere near tripped,
+   *    $0 tax due → Approaching
+   * ====================================================================*/
+  var P8 = {
+    id: "greencard_retiree_india",
+    label: "Green Card Retiree in India",
+    story: "A US green-card holder who has retired back to India, spending most of the year there (300 days — past India's 182-day residency test) on a modest family pension, with a short visit back to see family (20 US days). She's genuinely a tax resident of BOTH countries this year — India by day-count, the US unconditionally by green-card status, which never depends on days at all — yet owes $0 real tax in either: India's s.87A rebate fully absorbs tax on her ₹6L income, and her honestly-reported worldwide income (the same pension, plus a little interest on each side) sits comfortably under the US standard deduction. The Monitor's two statuses no other demo profile ever reaches: India is threshold-crossed-but-$0-tax (Filing-only — she must still file to disclose the foreign account), and the US is worldwide-taxpayer-but-nowhere-near-any-threshold (Approaching) — both real, both correctly NOT 'Exposed' or 'On track'.",
+    tags: ["green card", "retiree", "dual resident", "Approaching", "Filing-only", "s87A rebate"],
+    router: router("Lakshmi Pillai", { is_us_citizen: false, has_green_card: true, us_days: 20, date_of_birth: "1958-04-15" }),
+    india: {
+      profile: { full_name: "Lakshmi Pillai", entity_type: "individual", date_of_birth: "1958-04-15", pan: "ALPPL1234M", tax_regime: "NEW" },
+      // days>=182 with nr9/d7729 both false derives ROR — matches the
+      // recorded status below, so this doesn't also trip the residency
+      // consistency finding; that's not what this profile is demonstrating.
+      residency_detail: { days_in_india_current_year: 300, final_india_residency_status: "ROR", nr_years_last_10_gte_9: false, days_in_india_last_7_years_lte_729: false },
+      dtaa: { tax_residency_country: "IN", dtaa_treaty_residence: "none", trc_status: false, form_10f: false },
+      compliance_docs: { trc: { document_uploaded: false }, form_10f: { is_filed: false } },
+      bank_accounts: [{ bank_name: "SBI", account_type: "savings", peak_balance_inr: 850000 }],
+      property: { properties: [] },
+      financial_holdings: { has_financial_transactions: false, transactions: [] },
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: false }, capital_gains: {} },
+      other_sources: { has_other_sources_income: true, family_pension_inr: 600000, interest_fd_rd_inr: 8000 },
+      deductions: {},
+      lrs_outbound: {},
+      tax_credits: {},
+      metadata: meta("layer1_india_v5_1", "TY2026-27")
+    },
+    us: {
+      profile: { tax_entity_type: "individual", full_name: "Lakshmi Pillai", date_of_birth: "1958-04-15", filing_status: "single", ssn_or_itin_type: "ssn" },
+      // hasGreenCard alone makes her a worldwide US taxpayer (resolveResidency
+      // in computation.js) — spt_test_met is irrelevant here and the SPT
+      // consistency check in conflicts.js skips entirely once has_green_card
+      // is true, so a low day count next to a green card never looks like a
+      // data-entry error the way it would for a non-citizen/non-green-card filer.
+      us_residency_detail: { is_us_citizen: false, has_green_card: true, us_days_current_year: 20, spt_test_met: false, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "none" },
+      income_us_source: { interest_us_source_usd: 200 },
+      // Worldwide income reported honestly (not omitted) — same India pension
+      // and interest, converted — and it's still under the $16,100 single
+      // standard deduction, so this is genuinely $0 tax, not a hidden gap.
+      income_foreign_source: { foreign_interest_usd: 96, foreign_pension_usd: 7228 },
+      foreign_earned_income: { claims_feie: false },
+      bank_accounts: [{ bank_name: "Wells Fargo", account_type: "savings", country: "US", peak_balance_usd: 4000 }],
+      fbar_aggregate_peak_usd: 4000,
+      foreign_entities: { foreign_corporations: [], owns_foreign_disregarded_entity: false, pfic_holdings: [], has_pfics: false },
+      financial_holdings: [],
+      retirement_accounts: {},
+      ftc_inputs: { claims_ftc: false },
+      withholding_and_estimated: { federal_withholding_total_usd: 0 },
+      nra_specific: { files_form_1040nr: false },
+      foreign_gifts_and_trusts: {},
+      metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
+    }
+  };
+
+  var PROFILES = [P1, P2, P3, P4, P5, P6, P7, P8, B1, B2, B3, B4];
 
   // Attach a realistic Q1-Q4 breakdown to every profile (see buildQuarters
   // above) so Layer 1 India's quarter tabs show a genuine spread instead of

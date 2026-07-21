@@ -289,7 +289,7 @@ findingsCheck("US entity: incorporated_in_us=true + DOMESTIC_ENTITY does not fir
   {}, { profile: { tax_entity_type: "partnership", incorporated_in_us: true }, us_residency_detail: { final_us_residency_status: "DOMESTIC_ENTITY" } },
   []);
 
-console.log("Demo profile smoke test (all 9 WISING.PROFILES)");
+console.log("Demo profile smoke test (all " + WISING.PROFILES.length + " WISING.PROFILES)");
 WISING.PROFILES.forEach(function (p) {
   test(p.id + " analyzes without throwing and produces finite numbers", function () {
     var r = WISING.analyze({ router: p.router, india: p.india, us: p.us });
