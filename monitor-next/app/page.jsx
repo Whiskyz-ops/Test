@@ -27,7 +27,7 @@ function scopeToCountries(countries, scope) {
 }
 
 export default function MonitorPage() {
-  const [view, setView] = useState("monitor");
+  const [view, setView] = useState("clients");
   const [region, setRegion] = useState("All");
   const [category, setCategory] = useState(STATUS.EXPOSED);
   const [mode, setMode] = useState("demo");
