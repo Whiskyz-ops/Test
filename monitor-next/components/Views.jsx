@@ -620,7 +620,15 @@ function DeadlineDetailModal({ x, jColor, docs, returnForms, onClose }) {
   // ones this client actually triggers (required), in catalogue order.
   const docIds = new Set(x.docIds || []);
   const mapsDocs = docIds.size > 0;
-  const relatedDocs = docs ? docs.filter((d) => docIds.has(d.id) && d.required) : [];
+  // A merged multi-entity calendar (docs/GAP_TRACKER.md section H.11) can't
+  // just filter the whole combined `docs` pool by id — two different linked
+  // entities can legitimately share a catalog document id (e.g. both file
+  // their own Form 8938), and this deadline's docIds only ever describe
+  // ONE entity's filing. x.entityDocs (attached per-row when merging) scopes
+  // the lookup to that row's own entity; falls back to the plain `docs` prop
+  // for the ordinary, unmerged single-client case.
+  const scopedDocs = x.entityDocs || docs;
+  const relatedDocs = scopedDocs ? scopedDocs.filter((d) => docIds.has(d.id) && d.required) : [];
   const longDate = x.date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
   const countdownWords = past ? Math.abs(x.daysUntil) + " days ago" : "in " + x.daysUntil + " days";
   return (
@@ -739,22 +747,60 @@ function attachCalendarAmounts(cal, calendarAmounts) {
   });
 }
 
-export function FilingsView({ result }) {
+// Multi-entity Filings merge, Tier 1 follow-up (docs/GAP_TRACKER.md section
+// H.11): when the active client owns other entities on file (page.jsx's
+// linkedFilings, a real per-entity analyze() call — the calendar/documents
+// aren't part of the lightweight clientSummaries shape used elsewhere),
+// their compliance calendars and documents merge into ONE combined view
+// instead of requiring an advisor to switch clients and check each entity
+// separately. Every merged-in row/doc gets " — <entity name>" appended to
+// its own name (every calendar view — Timeline/Calendar/List — and the
+// documents grid just render `.name` directly, so this is the one
+// attribution mechanism that propagates everywhere without touching those
+// renderers) and `entityDocs`/`linkedFrom` attached for the detail modal's
+// per-row-scoped document lookup (see DeadlineDetailModal's own comment).
+// Only OUTGOING links (this client's own `owns`) roll up — matches the
+// Clients tab's nesting direction; viewing the owned entity's OWN Filings
+// tab does not pull the owner's personal deadlines back in.
+export function FilingsView({ result, linkedEntities }) {
   if (!result) return <Empty>Load a client to see filings.</Empty>;
-  const cal = result.monitoring
-    ? attachCalendarAmounts(result.monitoring.calendar.all.slice().sort((a, b) => a.date - b.date), result.calendarAmounts)
-    : [];
+  const hasLinked = linkedEntities && linkedEntities.length > 0;
   const jColor = { US: PAL.jurUS, IN: PAL.jurIN };
-  const docs = result.documents.slice().sort((a, b) => (b.required ? 1 : 0) - (a.required ? 1 : 0));
+
+  const ownCal = result.monitoring
+    ? attachCalendarAmounts(result.monitoring.calendar.all.slice(), result.calendarAmounts).map((x) => Object.assign({}, x, { entityDocs: result.documents }))
+    : [];
+  const cal = (hasLinked
+    ? ownCal.concat(linkedEntities.flatMap((le) => {
+        const leCal = le.result.monitoring ? attachCalendarAmounts(le.result.monitoring.calendar.all.slice(), le.result.calendarAmounts) : [];
+        return leCal.map((x) => Object.assign({}, x, { name: x.name + " — " + le.label, linkedFrom: le.label, entityDocs: le.result.documents }));
+      }))
+    : ownCal
+  ).sort((a, b) => a.date - b.date);
+
+  const docs = (hasLinked
+    ? result.documents.map((d) => Object.assign({}, d, { key: d.id })).concat(
+        linkedEntities.flatMap((le) => le.result.documents.map((d) => Object.assign({}, d, { key: d.id + "::" + le.id, name: d.name + " — " + le.label, linkedFrom: le.label }))))
+    : result.documents.map((d) => Object.assign({}, d, { key: d.id }))
+  ).sort((a, b) => (b.required ? 1 : 0) - (a.required ? 1 : 0));
   const req = docs.filter((d) => d.required).length;
+
   return (
     <div className="space-y-6">
+      {hasLinked && (
+        <div className="rounded-xl border border-line bg-white/[0.03] px-4 py-2.5 flex items-start gap-2.5">
+          <Network size={14} strokeWidth={2} className="shrink-0 mt-0.5" style={{ color: PAL.accent }} />
+          <p className="text-[11.5px] text-body leading-relaxed">
+            Includes deadlines and documents from {linkedEntities.map((le) => le.label).join(" and ")} — {linkedEntities.length === 1 ? "an entity" : "entities"} this client owns on file. Each row is tagged with which entity it belongs to; nothing here is combined into a single filing.
+          </p>
+        </div>
+      )}
       <ReturnFormCard returnForms={result.returnForms} />
-      <ComplianceCalendarCard cal={cal} jColor={jColor} docs={result.documents} returnForms={result.returnForms} />
-      <Card icon={<FolderOpen size={16} strokeWidth={2} />} title="Documents to File" sub={req + " required · triggered by this taxpayer's cross-border facts"}>
+      <ComplianceCalendarCard cal={cal} jColor={jColor} docs={docs} returnForms={result.returnForms} />
+      <Card icon={<FolderOpen size={16} strokeWidth={2} />} title="Documents to File" sub={req + " required · triggered by this taxpayer's cross-border facts" + (hasLinked ? " (incl. linked entities)" : "")}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {docs.map((d) => (
-            <div key={d.id} className={"flex items-start gap-3 p-3 rounded-lg " + (d.required ? "bg-white/[0.03] border border-line" : "opacity-45")}>
+            <div key={d.key} className={"flex items-start gap-3 p-3 rounded-lg " + (d.required ? "bg-white/[0.03] border border-line" : "opacity-45")}>
               <span className="text-[9px] font-black px-2 py-0.5 rounded mt-0.5" style={{ background: jColor[d.jurisdiction] + "24", color: jColor[d.jurisdiction] }}>{d.jurisdiction}</span>
               <div className="flex-1">
                 <div className="text-[12px] font-bold text-head flex items-center gap-2">{d.name}{d.required ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-exposed/15" style={{ color: PAL.redText }}>Required</span> : <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/[0.05] text-muted">N/A</span>}</div>
@@ -1174,7 +1220,7 @@ export function AccountsView({ result }) {
 }
 
 /* ============================ HOLDINGS (income & assets from Layer 1) ======= */
-export function HoldingsView({ result }) {
+export function HoldingsView({ result, links, onPick }) {
   if (!result) return <Empty>Load a client to see income &amp; holdings.</Empty>;
   const m = result.model, inc = m.income, a = m.assets, fx = m.meta.fxRate || 83;
   const usPerson = result.computed.residency.us.isResident;
@@ -1242,6 +1288,7 @@ export function HoldingsView({ result }) {
   return (
     <div className="space-y-6">
       <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Wallet size={16} strokeWidth={2} /></HeadChip>Income &amp; Holdings</h2><p className="text-muted text-sm mt-2">Everything captured in Layer 1 for {m.identity.name} — property, securities, entities and retirement.</p></div>
+      <OwnedEntitiesBanner links={links} onPick={onPick} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatTile icon={<TrendingUp size={15} strokeWidth={2} />} label="Securities &amp; funds" value={fmtUsd(secValueUsd)} sub={securities.length + " holding(s) · US + India"} accent={PAL.accent} highlight />
@@ -1319,7 +1366,7 @@ export function HoldingsView({ result }) {
 
 
 /* ============================ BUSINESS & ENTITIES ============================ */
-export function BusinessView({ result }) {
+export function BusinessView({ result, links, onPick }) {
   if (!result) return <Empty>Load a client to see business entities.</Empty>;
   const m = result.model, u = result.computed.usTax || {};
   const ents = m.assets.businessEntities || [];
@@ -1329,6 +1376,7 @@ export function BusinessView({ result }) {
     return (
       <div className="space-y-6">
         <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Building2 size={16} strokeWidth={2} /></HeadChip>Business &amp; Entities</h2><p className="text-muted text-sm mt-2">Schedule C, K-1, S-corp, C-corp and foreign corporations — with US tax treatment.</p></div>
+        <OwnedEntitiesBanner links={links} onPick={onPick} />
         <Card icon={<Building2 size={16} strokeWidth={2} />} title="No business entities on file"><Empty>{m.identity.name} has no Schedule C / K-1 / corporate income in Layer 1.</Empty></Card>
       </div>
     );
@@ -1367,6 +1415,7 @@ export function BusinessView({ result }) {
   return (
     <div className="space-y-6">
       <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Building2 size={16} strokeWidth={2} /></HeadChip>Business &amp; Entities</h2><p className="text-muted text-sm mt-2">Every business/entity from Layer 1 — Schedule C, K-1, S-corp, C-corp and foreign corporations — with its US tax treatment.</p></div>
+      <OwnedEntitiesBanner links={links} onPick={onPick} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatTile icon={<Building2 size={15} strokeWidth={2} />} label="Business income" value={fmtUsd(totalUsd)} sub={ents.length + " entity(ies)"} accent={PAL.accent} highlight />
         <StatTile icon={<Receipt size={15} strokeWidth={2} />} label="Self-employment tax" value={fmtUsd(seTax)} sub="Schedule SE" accent={seTax ? PAL.amberText : PAL.muted} />
@@ -1383,6 +1432,34 @@ export function BusinessView({ result }) {
           <li><span className="font-bold" style={{ color: PAL.redText }}>Foreign corp (CFC)</span> — ≥10% US ownership triggers Form 5471; GILTI / Subpart F can accelerate US tax on undistributed profits (see the Monitor conflict).</li>
         </ul>
       </Card>
+    </div>
+  );
+}
+
+// Compact "also owns X" pointer (docs/GAP_TRACKER.md section H.11) — a
+// client browsed to DIRECTLY (Monitor/Business/Holdings, not via the
+// Clients tab or Structure tab) previously had zero on-page indication
+// that they own another entity on file; this closes that gap without a
+// trip back to either of those views. Only the OWNS direction (matches the
+// Clients tab's own nesting/roll-up direction) — being OWNED isn't
+// surfaced here, same asymmetry as everywhere else this graph shows.
+export function OwnedEntitiesBanner({ links, onPick }) {
+  const owned = links ? links.owns.filter((l) => l.summary) : [];
+  if (!owned.length) return null;
+  return (
+    <div className="rounded-xl border border-line bg-white/[0.03] px-4 py-2.5 flex items-start gap-2.5 flex-wrap">
+      <Network size={14} strokeWidth={2} className="shrink-0 mt-0.5" style={{ color: PAL.accent }} />
+      <p className="text-[11.5px] text-body leading-relaxed flex-1 min-w-[200px]">
+        Also owns {owned.length === 1 ? "an entity" : owned.length + " entities"} on file:{" "}
+        {owned.map((l, i) => (
+          <span key={l.ownedId}>
+            <button onClick={() => onPick(l.ownedId)} className="font-bold text-accent hover:underline">{l.summary.label}</button>
+            {" "}<span className="text-muted">({l.ownershipPct}%)</span>
+            {i < owned.length - 1 ? ", " : ""}
+          </span>
+        ))}
+        {" — click to open their own filing."}
+      </p>
     </div>
   );
 }
@@ -1526,11 +1603,23 @@ const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, on
 export function ClientsView({ clients, activeId, onPick }) {
   const [expanded, setExpanded] = useState(() => new Set());
   if (!clients || !clients.length) return <Empty>Loading clients…</Empty>;
+  // KPI tiles sum the FULL book (every real filing, whether nested or not)
+  // — an owned entity's own tax/conflicts are still real exposure this
+  // practice is responsible for; hiding them from the totals just because
+  // they're now shown nested would under-report actual numbers, a worse
+  // failure than the duplicate-row confusion this filtering fixes below.
   const totalTax = clients.reduce((a, c) => a + (c.combinedTaxUsd || 0), 0);
   const totalResidual = clients.reduce((a, c) => a + (c.netDoubleTaxUsd || 0), 0);
   const openCritical = clients.reduce((a, c) => a + (c.critical || 0), 0);
   const atRisk = clients.filter((c) => c.healthScore < 50).length;
-  const sorted = clients.slice().sort((a, b) => (a.healthScore ?? 100) - (b.healthScore ?? 100));
+  // The TABLE ROWS, unlike the KPI tiles above, show each real filing
+  // exactly once: an entity that's owned by another client on file is
+  // dropped from the top-level list entirely (it still exists — it just
+  // renders nested under its owner instead of also duplicated at the top
+  // level, which read as confusing: same company, same numbers, two
+  // unrelated-looking rows).
+  const ownedIds = new Set(clients.flatMap((c) => { const l = entityLinksFor(c.id, clients); return l ? l.owns.map((x) => x.ownedId) : []; }));
+  const sorted = clients.filter((c) => !ownedIds.has(c.id)).slice().sort((a, b) => (a.healthScore ?? 100) - (b.healthScore ?? 100));
   const toggleExpand = (id) => setExpanded((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
 
   // Flattens a client + however many of its owned entities are currently
@@ -1563,7 +1652,7 @@ export function ClientsView({ clients, activeId, onPick }) {
     <div className="space-y-6">
       <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Users size={16} strokeWidth={2} /></HeadChip>Client Portfolio</h2><p className="text-muted text-sm mt-2">Your book of business — cross-border exposure at a glance. Click a client to open their Monitor. A client who owns another entity on file shows a ▸ — click it to see that entity nested underneath, without leaving this view.</p></div>
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatTile icon={<Users size={15} strokeWidth={2} />} label="Clients" value={clients.length} highlight />
+        <StatTile icon={<Users size={15} strokeWidth={2} />} label="Clients" value={clients.length} highlight sub={ownedIds.size > 0 ? (sorted.length + " shown · " + ownedIds.size + " nested under an owner") : undefined} />
         <StatTile icon={<AlertTriangle size={15} strokeWidth={2} />} label="At risk" value={atRisk} accent={atRisk ? PAL.redText : PAL.greenText} sub="health < 50" />
         <StatTile icon={<Siren size={15} strokeWidth={2} />} label="Open critical" value={openCritical} accent={openCritical ? PAL.redText : PAL.greenText} sub="conflicts" />
         <StatTile icon={<DollarSign size={15} strokeWidth={2} />} label="Combined tax" value={fmtUsd(totalTax)} sub="IN + US, all clients" />

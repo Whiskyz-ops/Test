@@ -7,12 +7,12 @@ import Header from "@/components/Header";
 import StatMeter from "@/components/StatMeter";
 import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
-import { ConflictsPanel, ChecksRegistryPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard, EntityStructureView } from "@/components/Views";
+import { ConflictsPanel, ChecksRegistryPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard, EntityStructureView, OwnedEntitiesBanner } from "@/components/Views";
 import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
-import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries } from "@/lib/wising";
-import { monitorSnapshotDag, allClientSummariesDag } from "@/lib/dag-adapter";
-import { entityLinksFor } from "@/lib/entity-graph";
+import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById } from "@/lib/wising";
+import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
+import { entityLinksFor, ownedEntityIds, flattenOwnershipTree } from "@/lib/entity-graph";
 import { runShadow, getShadowLog, clearShadowLog } from "@/lib/shadow";
 import ShadowBadge from "@/components/ShadowBadge";
 import WhatIfBar from "@/components/WhatIfBar";
@@ -180,6 +180,34 @@ export default function MonitorPage() {
   const meters = useMemo(() => deriveMeters(result), [result]);
 
   const activeLinks = useMemo(() => entityLinksFor(activeProfile, clientSummaries), [activeProfile, clientSummaries]);
+  // Header "Switch client…" dropdown, nested to match the Clients tab (docs/
+  // GAP_TRACKER.md section H.11): an owned entity is pulled out of its
+  // normal alphabetical/declaration position and placed immediately under
+  // its owner instead, indented — same "show it once, in the right place"
+  // rule the Clients tab already applies, so this is the last place in the
+  // UI that still showed the flat, unlinked list.
+  const orderedProfiles = useMemo(() => {
+    const owned = ownedEntityIds(profiles);
+    const roots = profiles.filter((p) => !owned.has(p.id));
+    return flattenOwnershipTree(roots, profiles);
+  }, [profiles]);
+  // Filings tab (docs/GAP_TRACKER.md section H.11): merge each OWNED
+  // entity's own compliance calendar/documents into the active client's
+  // view — a real full analyzeDag()/analyze() call per linked entity, not
+  // just the lightweight clientSummaries row, since the calendar/documents
+  // aren't part of that summary shape. Only outgoing (owns) links roll up
+  // this way, matching the Clients tab's own "children nest under the
+  // parent" direction — viewing the owned entity itself does NOT pull in
+  // the owner's personal deadlines, which wouldn't read as "this entity's
+  // filings." No what-if overrides applied (same convention as the
+  // Clients-tab summaries — each entity's own on-file baseline).
+  const linkedFilings = useMemo(() => {
+    if (!activeLinks || !activeLinks.owns.length) return [];
+    return activeLinks.owns.map((l) => {
+      const r = engineSource === "dag" ? analyzeProfileByIdDag(l.ownedId) : analyzeProfileById(l.ownedId);
+      return r ? { id: l.ownedId, label: (l.summary && l.summary.label) || l.ownedId, relationship: l.relationship, result: r } : null;
+    }).filter(Boolean);
+  }, [activeLinks, engineSource]);
   const badges = {
     monitor: result ? { text: result.summary.counts.critical + result.summary.counts.warning, tone: result.summary.counts.critical > 0 ? "alert" : "" } : null,
     clients: { text: profiles.length },
@@ -234,7 +262,11 @@ export default function MonitorPage() {
               className="appearance-none pl-2.5 pr-7 py-1 text-[12px] font-semibold rounded-lg text-[#04120f] cursor-pointer"
               style={{ background: "linear-gradient(135deg,#34d399,#60a5fa)" }}>
               <option value="" className="bg-[#161616] text-head">Switch client…</option>
-              {profiles.map((p) => <option key={p.id} value={p.id} className="bg-[#161616] text-head">{p.label}</option>)}
+              {orderedProfiles.map(({ item: p, depth }) => (
+                <option key={p.id} value={p.id} className="bg-[#161616] text-head">
+                  {depth > 0 ? "    ↳ " + p.label : p.label}
+                </option>
+              ))}
             </select>
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#04120f]/60 text-[9px]">▾</span>
           </div>
@@ -251,6 +283,9 @@ export default function MonitorPage() {
         {/* ============ MONITOR (overview) ============ */}
         {view === "monitor" && (
           <>
+            {activeLinks && activeLinks.owns.length > 0 && (
+              <div className="mb-5"><OwnedEntitiesBanner links={activeLinks} onPick={pickFromClients} /></div>
+            )}
             {alerts.length > 0 && (
               <div className="mb-5 rounded-2xl border border-approaching/30 bg-approaching/10 p-3.5">
                 <div className="text-[11px] uppercase tracking-widest font-bold mb-1" style={{ color: PAL.amberText }}>{alerts.length} automated alert{alerts.length > 1 ? "s" : ""}</div>
@@ -305,10 +340,10 @@ export default function MonitorPage() {
 
         {view === "clients" && <ClientsView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
         {view === "structure" && <EntityStructureView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
-        {view === "holdings" && <HoldingsView result={result} />}
-        {view === "business" && <BusinessView result={result} />}
+        {view === "holdings" && <HoldingsView result={result} links={activeLinks} onPick={pickFromClients} />}
+        {view === "business" && <BusinessView result={result} links={activeLinks} onPick={pickFromClients} />}
         {view === "residency" && <ResidencyView result={result} />}
-        {view === "filings" && <FilingsView result={result} />}
+        {view === "filings" && <FilingsView result={result} linkedEntities={linkedFilings} />}
         {view === "reconciliation" && (
           <>
             <WhatIfBar

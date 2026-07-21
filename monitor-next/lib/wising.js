@@ -31,6 +31,20 @@ export function activeProfileId() {
   return W && W.activeProfileId ? W.activeProfileId() : null;
 }
 
+// Full analyze() result for a SPECIFIC profile id, regardless of which
+// client is currently active/loaded — used to merge a linked (owned)
+// entity's own compliance calendar/documents into the active client's
+// Filings tab (docs/GAP_TRACKER.md section H.11) without switching away
+// from the active client's Layer 1 data in localStorage. Engine-mode
+// counterpart to dag-adapter.js's analyzeProfileByIdDag.
+export function analyzeProfileById(id) {
+  const W = getWISING();
+  if (!W || !W.PROFILES) return null;
+  const p = W.PROFILES.find((x) => x.id === id);
+  if (!p) return null;
+  return W.analyze({ router: p.router, india: p.india, us: p.us });
+}
+
 // Run the engine over every profile → compact summaries for the Clients portfolio.
 export function allClientSummaries() {
   const W = getWISING();
