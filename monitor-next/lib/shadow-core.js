@@ -49,6 +49,18 @@ export const SYMMETRIC_SURFACE = [
 
 export const DIRECTIONAL_SURFACE = [];
 
+// Leaf keys the DAG adds on top of an otherwise-symmetric object, with no
+// engine equivalent by design — informational annotations, not divergences
+// in the underlying computation. Same category as checksRegistry (which
+// stays out of SYMMETRIC_SURFACE entirely at the top level); these live
+// nested inside `taxComputation` rows, so the exclusion has to be a key
+// name skipped during traversal instead. "caveat": the Chapter VI-A
+// deductions row's what-if warning (report-batch3-nodes.js) — fires only
+// when OLD regime is in effect and every underlying deduction section is
+// empty (Layer 1 India hides that whole step under NEW regime), a
+// what-if-tool-only concern the engine has no override plumbing to need.
+const DAG_ONLY_KEYS = new Set(["caveat"]);
+
 // Back-compat alias (the full path list).
 export const SHADOW_SURFACE = SYMMETRIC_SURFACE.concat(DIRECTIONAL_SURFACE);
 
@@ -113,7 +125,10 @@ export function diff(path, eng, dag, out, directional) {
   }
   // directional: walk only keys the DAG produced; symmetric: the union.
   const keys = directional ? Object.keys(dag) : new Set([...Object.keys(eng), ...Object.keys(dag)]);
-  for (const k of keys) diff(path ? path + "." + k : k, eng[k], dag[k], out, directional);
+  for (const k of keys) {
+    if (DAG_ONLY_KEYS.has(k)) continue;
+    diff(path ? path + "." + k : k, eng[k], dag[k], out, directional);
+  }
 }
 
 /* Compare the two analyze()-shaped results: symmetric over the product-surface

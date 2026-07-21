@@ -205,6 +205,18 @@ NODES.buildTaxComputationIndiaResult = {
           { label: "Employer NPS s.124(2)", amount: dedIndia.s80CCD2_employer || 0 },
           { label: "s.153 savings interest (capped ₹10k)", amount: Math.min(dedIndia.s80TTA_TTB || 0, 10000) }
         ]);
+    // Layer 1 India's own step-gating (layer1_india.html's switchStep(),
+    // 'step-deductions' only isAllowed when profile.tax_regime === 'OLD')
+    // hides the entire Chapter VI-A entry step for a NEW-regime taxpayer —
+    // so a what-if (or real) switch to OLD for that profile computes this
+    // row from data that was never collected, not from a genuine zero.
+    // Flag it here (not as a silent ₹0) whenever OLD is in effect and every
+    // underlying section is empty, so the number isn't mistaken for "this
+    // person really has no deductions."
+    var dedNeverEntered = !(num(dedIndia.s80C) || num(dedIndia.s80CCD1B) || num(dedIndia.s80D) || num(dedIndia.s80CCD2_employer) || num(dedIndia.s80TTA_TTB));
+    var dedCaveat = (i.regime === "OLD" && dedNeverEntered)
+      ? "Deductions weren't entered for this profile — Layer 1 India hides this step under NEW regime, so this OLD-regime figure assumes ₹0 and is understated. Fill in Chapter VI-A on Layer 1 India (regime must be OLD there) for an accurate comparison."
+      : null;
 
     var REBATE_87A_NEW = { maxRebate: 60000 }, REBATE_87A_OLD = { maxRebate: 12500 };
     var rebateCap = i.regime === "NEW" ? REBATE_87A_NEW.maxRebate : REBATE_87A_OLD.maxRebate;
@@ -237,7 +249,7 @@ NODES.buildTaxComputationIndiaResult = {
     ] : [];
 
     var rows = indiaGrossRows.concat([
-      { label: "Chapter VI-A deductions", inr: -i.deductionsInr, trace: dedTrace },
+      Object.assign({ label: "Chapter VI-A deductions", inr: -i.deductionsInr, trace: dedTrace }, dedCaveat ? { caveat: dedCaveat } : {}),
       { label: "Total income", inr: i.totalIncomeInr,
         trace: calc("Gross total income less Chapter VI-A deductions", [
           { label: "Gross total income", amount: i.grossTotalIncomeInr },

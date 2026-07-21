@@ -67,7 +67,7 @@ function TracePopup({ trace, fmt, onClose }) {
     </div>
   );
 }
-function TraceRow({ label, valueDisp, color, emphasis, trace, fmt, onJump }) {
+function TraceRow({ label, valueDisp, color, emphasis, trace, fmt, onJump, caveat }) {
   const [open, setOpen] = useState(false);
   const isJumpLink = trace && trace.kind === "holdings" && onJump;
   return (
@@ -80,6 +80,14 @@ function TraceRow({ label, valueDisp, color, emphasis, trace, fmt, onJump }) {
       </button>
       {open && !isJumpLink && trace && <TracePopup trace={trace} fmt={fmt} onClose={() => setOpen(false)} />}
       {isJumpLink && trace.note && <div className="text-[10px] text-muted mt-0.5 ml-1">{trace.note}</div>}
+      {/* Regime-what-if caveat (report-batch3-nodes.js's Chapter VI-A row) — visible
+          without needing to click into the trace popup, since it's a warning about
+          what the number ISN'T, not an explanation of how it was calculated. */}
+      {caveat && (
+        <div className="text-[10px] leading-snug mt-1 ml-1 flex items-start gap-1" style={{ color: PAL.amberText }}>
+          <span>⚠</span><span>{caveat}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -861,7 +869,7 @@ function TaxCard({ taxComputation, fxRate, onJump, hasIndiaScope, hasUsScope }) 
         <div className="flex items-center justify-between mb-2"><div className="text-[12px] font-bold text-head">{block.title}</div><span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-white/[0.05] border border-line text-muted">eff {Math.round(block.effectiveRate * 100)}%</span></div>
         <div className="space-y-1">{block.rows.map((r, i) => {
           const val = isInr ? r.inr : r.usd; let disp = fmt(Math.abs(val)); if (val < 0) disp = "(" + disp + ")";
-          return <TraceRow key={i} label={r.label} valueDisp={disp} emphasis={r.emphasis} trace={r.trace} fmt={fmt} onJump={onJump} />;
+          return <TraceRow key={i} label={r.label} valueDisp={disp} emphasis={r.emphasis} trace={r.trace} fmt={fmt} onJump={onJump} caveat={r.caveat} />;
         })}</div>
         <div className="text-[10px] text-muted mt-2">≈ {fmtUsd(block.totalUsd)} at {fxRate} INR/USD</div>
       </div>
