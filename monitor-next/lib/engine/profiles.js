@@ -1,3 +1,5 @@
+/* GENERATED — mirrored from prototypes/graph-pilot/profiles.js by scripts/sync-fixtures-to-engine.js.
+ * Do not hand-edit this copy — edit prototypes/graph-pilot/profiles.js and re-run that script. */
 /* ============================================================================
  * WISING — Demo Test Profiles
  * ----------------------------------------------------------------------------
@@ -6,6 +8,12 @@
  * so `loadProfile(id)` seeds all three localStorage keys and every surface
  * (both Layer 1 forms, the dashboard, the Monitor) populates from it at once —
  * no manual typing during a demo.
+ *
+ * Canonical home as of docs/GAP_TRACKER.md section H.9 (21 Jul 2026): this is
+ * reference DATA, not computation logic, so it lives with the DAG
+ * (prototypes/graph-pilot), not engine/ — edit it here. engine/profiles.js
+ * is a generated mirror (scripts/sync-fixtures-to-engine.js); never hand-edit
+ * that copy.
  *
  * Self-contained: defines the storage keys itself (falls back to WISING.CONST
  * when present) so it can be loaded by pages that don't include constants.js.

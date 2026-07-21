@@ -1,5 +1,3 @@
-/* GENERATED — mirrored from prototypes/graph-pilot/sample-data.js by scripts/sync-fixtures-to-engine.js.
- * Do not hand-edit this copy — edit prototypes/graph-pilot/sample-data.js and re-run that script. */
 /* ============================================================================
  * WISING — Layer 2 Engine :: sample-data.js
  * ----------------------------------------------------------------------------

@@ -94,7 +94,7 @@ NODES.equityCompResult = {
 // ---- TAX-9: computeUsStateTax, ported in full (computation.js:1133-1182) --
 /* SYS-1: verified-identical copy of CONST.TAX.US_STATES (CA/NY brackets,
  * std deductions, AGI thresholds) replaced by the shared import. */
-var CONST_B5 = require("../engine/constants.js").CONST;
+var CONST_B5 = require("./constants.js").CONST;
 var US_STATES = CONST_B5.TAX.US_STATES;
 
 // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.7 —

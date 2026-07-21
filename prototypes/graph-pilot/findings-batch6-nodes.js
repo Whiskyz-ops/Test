@@ -45,7 +45,7 @@ Object.keys(findingsBatch5Nodes).forEach(function (k) { NODES[k] = findingsBatch
 // engine's own clone-and-override touches (fLtcg/fStcg). Everything else is
 // unchanged from the already-verified usTaxResult. -------------------------
 /* SYS-1: verified-identical copies replaced by the shared import. */
-var CONST_B6 = require("../../engine/constants.js").CONST;
+var CONST_B6 = require("./constants.js").CONST;
 var T = CONST_B6.TAX.US;
 var FEIE_MAX_USD = CONST_B6.LIMITS.FEIE_MAX_USD;
 var NIIT_THRESHOLD = CONST_B6.LIMITS.NIIT_THRESHOLD;

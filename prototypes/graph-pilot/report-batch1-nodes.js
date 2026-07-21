@@ -145,7 +145,7 @@ NODES.indianMutualFundsResult = {
 };
 
 // ---- LIM-2: Form 8938 gauge (computeLimits, computation.js:1466-1476) -----
-var CONST_B1_LIMITS = require("../../engine/constants.js").CONST.LIMITS; // SYS-1: shared
+var CONST_B1_LIMITS = require("./constants.js").CONST.LIMITS; // SYS-1: shared
 var FORM_8938 = CONST_B1_LIMITS.FORM_8938;
 NODES.form8938GaugeResult = {
   deps: ["feie", "usFilingStatusRaw", "accountsListResult", "hasUsScopeBoundaryFtc"],

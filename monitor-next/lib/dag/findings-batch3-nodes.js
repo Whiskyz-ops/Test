@@ -116,7 +116,7 @@ NODES.taxableNpsWithdrawalInrAgg = { deps: ["osAgg"], compute: function (d) { re
 // same math, full breakdown object instead of just the summed total (computation.js:472-514).
 // SYS-1: shared — short local names aliased to CONST.TAX.INDIA's own keys
 // (values verified equal before the swap: 0.30/0.22/0.12/0.125/0.20/0.04).
-var CONST_IN_B3 = require("../engine/constants.js").CONST.TAX.INDIA;
+var CONST_IN_B3 = require("./constants.js").CONST.TAX.INDIA;
 var PROMOTER = {
   TARGET_NON_CORP: CONST_IN_B3.PROMOTER_BUYBACK_TARGET_RATE_NON_CORPORATE,
   TARGET_CORP: CONST_IN_B3.PROMOTER_BUYBACK_TARGET_RATE_CORPORATE,

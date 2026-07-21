@@ -1,3 +1,5 @@
+/* GENERATED — mirrored from prototypes/graph-pilot/constants.js by scripts/sync-fixtures-to-engine.js.
+ * Do not hand-edit this copy — edit prototypes/graph-pilot/constants.js and re-run that script. */
 /* ============================================================================
  * WISING — India-US Tax Conflict Detection Tool
  * Layer 2 Engine :: constants.js
@@ -6,6 +8,12 @@
  * document-filing rule-book. Everything that is a "magic number" in cross-border
  * India/US tax lives here so the computation and conflict engines stay readable
  * and the assumptions are auditable by a tax professional in one place.
+ *
+ * Canonical home as of docs/GAP_TRACKER.md section H.9 (21 Jul 2026): this is
+ * reference DATA, not computation logic, so it lives with the DAG
+ * (prototypes/graph-pilot), not engine/ — edit it here. engine/constants.js
+ * is a generated mirror (scripts/sync-fixtures-to-engine.js); never hand-edit
+ * that copy.
  *
  * NOTE: These are prototype defaults for Tax Year 2026-27 (India) / Tax Year
  * 2026 (US). India's Income-tax Act, 2025 (in force 1 Apr 2026) unifies

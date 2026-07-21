@@ -32,7 +32,7 @@
  *     ECI-level AGI.
  * ==========================================================================*/
 var baseNodes = require("./agg10-nodes.js").NODES;
-var CONST = require("../engine/constants.js").CONST;
+var CONST = require("./constants.js").CONST;
 var T = CONST.TAX.US;
 
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }

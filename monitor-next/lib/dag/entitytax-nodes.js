@@ -61,7 +61,7 @@ function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 
 /* SYS-1: verified-identical copies of CONST.TAX.INDIA_COMPANY /
  * INDIA_COMPANY_FOREIGN / INDIA_FIRM replaced by the shared import. */
-var CONST_ET = require("../engine/constants.js").CONST;
+var CONST_ET = require("./constants.js").CONST;
 var C = CONST_ET.TAX.INDIA_COMPANY;
 var FC = CONST_ET.TAX.INDIA_COMPANY_FOREIGN;
 var F = CONST_ET.TAX.INDIA_FIRM;

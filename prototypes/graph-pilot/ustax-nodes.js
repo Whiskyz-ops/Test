@@ -45,7 +45,7 @@ function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
  * engine/constants.js (verified byte-identical by scratchpad check-const.js
  * before this swap). Now the SAME objects, imported — a Union Budget or IRS
  * revenue-procedure edit in constants.js propagates here automatically. */
-var CONST = require("../../engine/constants.js").CONST;
+var CONST = require("./constants.js").CONST;
 var T = CONST.TAX.US;
 var FEIE_MAX_USD = CONST.LIMITS.FEIE_MAX_USD;
 var NIIT_THRESHOLD = CONST.LIMITS.NIIT_THRESHOLD;

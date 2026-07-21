@@ -1,5 +1,3 @@
-/* GENERATED — mirrored from prototypes/graph-pilot/profiles.js by scripts/sync-fixtures-to-engine.js.
- * Do not hand-edit this copy — edit prototypes/graph-pilot/profiles.js and re-run that script. */
 /* ============================================================================
  * WISING — Demo Test Profiles
  * ----------------------------------------------------------------------------

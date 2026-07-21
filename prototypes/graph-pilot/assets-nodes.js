@@ -66,7 +66,7 @@ function calc(formula, parts, citation) { return { kind: "calc", formula: formul
 function source(detail, citation) { return { kind: "source", detail: detail, citation: citation || null }; }
 
 /* SYS-1: shared import. */
-var CONST_ASSETS = require("../../engine/constants.js").CONST;
+var CONST_ASSETS = require("./constants.js").CONST;
 var ASSET_CLASS_RATES_INDIA = CONST_ASSETS.TAX.INDIA.ASSET_CLASS_RATES_INDIA;
 
 /* ---- self-employment trace (normalize.js:1414-1447) ----------------------- */

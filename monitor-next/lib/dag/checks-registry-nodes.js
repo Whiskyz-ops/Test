@@ -250,14 +250,14 @@ NODES.checksRegistryResult = {
       pass("state_income_tax", "credit", d.usStateTaxResult.stateName + " state tax: none due", detail);
     }
     if (d.hasUsScopeBoundaryFtc) {
-      var LIM = require("../engine/constants.js").CONST.LIMITS;
+      var LIM = require("./constants.js").CONST.LIMITS;
       var fbarPeakUsd = d.aggregatePeakUsdResult.usd;
       if (fbarPeakUsd < LIM.FBAR_AGGREGATE_USD) {
         pass("fbar_limit", "limit", "FBAR: not required", "Aggregate peak balance across foreign accounts is " + usd(fbarPeakUsd) + " — below the " + usd(LIM.FBAR_AGGREGATE_USD) + " reporting threshold.");
       }
     }
     if (d.hasIndiaScopeXbr) {
-      var LIM2 = require("../engine/constants.js").CONST.LIMITS;
+      var LIM2 = require("./constants.js").CONST.LIMITS;
       var lrsRemittedUsd = (d.limitsRawExtra.lrsRemittedInr || 0) / 83.0;
       if (lrsRemittedUsd < LIM2.LRS_ANNUAL_USD * 0.8) {
         pass("lrs_limit", "limit", "LRS: well within annual cap", "Outbound LRS remittances of " + usd(lrsRemittedUsd) + " are under 80% of the " + usd(LIM2.LRS_ANNUAL_USD) + " RBI annual cap.");
