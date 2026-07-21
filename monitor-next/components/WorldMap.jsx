@@ -155,7 +155,7 @@ export default function WorldMap({ statusByName, onSelectCountry }) {
 export function Legend() {
   return (
     <div className="flex flex-wrap items-center gap-4 mt-3 px-1">
-      {["exposed", "approaching", "nexus"].map((s) => (
+      {["exposed", "approaching", "nexus", "none"].map((s) => (
         <div key={s} className="flex items-center gap-2 text-[11px] text-body font-medium">
           <span className="w-3 h-3 rounded-sm" style={{ background: STATUS_META[s].color, boxShadow: `0 0 8px ${STATUS_META[s].color}` }} />
           {STATUS_META[s].label}

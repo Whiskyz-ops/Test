@@ -56,17 +56,21 @@ export function isBreached(r) {
 }
 
 // Classification:
-//  Exposed      = taxes worldwide income AND threshold crossed  → liability accruing
+//  Exposed      = any real, accruing tax liability in the jurisdiction — whether
+//                 from worldwide-resident taxation after a threshold crossing, or
+//                 from source-basis taxation of a non-resident (e.g. NR India-source
+//                 income, or an owned entity's own tax) that never depends on the
+//                 individual's own residency/reporting threshold at all.
 //  Approaching  = taxes worldwide income, threshold NOT crossed → heading toward residency
-//  Filing-only  = threshold crossed but jurisdiction does NOT tax worldwide income → $0 tax, filing/disclosure only
-//  Monitored    = neither
+//  Filing-only  = threshold crossed but $0 tax → filing/disclosure only, no liability
+//  On track     = neither: no liability, no threshold crossed
 export function classify(r) {
   const breached = isBreached(r);
   const hasTax = (r.estimatedTaxUsd || 0) > 0;
-  // Exposed = real liability accruing (worldwide resident, OR source-taxed with
-  // actual tax after a treaty tie-breaker). Filing-only = threshold crossed but
-  // genuinely $0 tax (source-only, no liability).
-  if (breached && (r.taxesWorldwide || hasTax)) return STATUS.EXPOSED;
+  // A real liability is Exposed regardless of why it exists — gating this on
+  // `breached` hid genuine non-resident source-basis tax (e.g. an NR's India-source
+  // income, or tax owed by an entity the taxpayer owns) behind "On track".
+  if (hasTax) return STATUS.EXPOSED;
   if (r.taxesWorldwide && !breached) return STATUS.APPROACHING;
   if (breached) return STATUS.NEXUS;
   return STATUS.NONE;
