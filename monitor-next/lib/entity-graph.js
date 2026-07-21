@@ -80,3 +80,40 @@ export function entityLinksFor(clientId, allSummaries) {
 export function hasEntityLinks(clientId) {
   return ENTITY_LINKS.some((l) => l.ownerId === clientId || l.ownedId === clientId);
 }
+
+// Every client id that's owned by another client on file — used to keep an
+// owned entity from also showing at the top level of a flat list (docs/
+// GAP_TRACKER.md section H.10: showing it both nested AND at the top level
+// read as a confusing duplicate, fixed in the Clients tab, same rule
+// applies anywhere else a flat client list renders).
+export function ownedEntityIds(items) {
+  return new Set(items.flatMap((c) => { const l = entityLinksFor(c.id, items); return l ? l.owns.map((x) => x.ownedId) : []; }));
+}
+
+// Flattens the ownership graph into DISPLAY order for anything that needs a
+// plain (non-interactive) list rather than the Clients tab's own click-to-
+// expand rows — e.g. the header's client switcher. `orderedRoots` is the
+// already-sorted/filtered top-level items (typically `items` with
+// ownedEntityIds() results removed); each root is immediately followed by
+// its owned entities, recursively, one level deeper each time, so a chain
+// more than one link deep nests correctly with no caller changes. `items`
+// only needs `.id` (and whatever the caller's own row rendering reads —
+// `.label` at minimum); it does NOT need the full clientSummary shape, so
+// this works equally well against `listProfiles()`'s lightweight
+// `{id, label, story, tags}` rows (the header switcher's data) or the full
+// `allClientSummaries[Dag]()` rows (the Clients tab's data). Cycle-safe
+// (a `visited` id can't be re-entered), though not reachable with today's
+// single seed link.
+export function flattenOwnershipTree(orderedRoots, items) {
+  const out = [];
+  function visit(c, depth, link, visited) {
+    if (visited.has(c.id)) return;
+    const nextVisited = new Set(visited); nextVisited.add(c.id);
+    const links = entityLinksFor(c.id, items);
+    const owned = (links ? links.owns : []).filter((l) => l.summary);
+    out.push({ item: c, depth, link, hasChildren: owned.length > 0 });
+    owned.forEach((l) => visit(l.summary, depth + 1, l, nextVisited));
+  }
+  orderedRoots.forEach((c) => visit(c, 0, null, new Set()));
+  return out;
+}

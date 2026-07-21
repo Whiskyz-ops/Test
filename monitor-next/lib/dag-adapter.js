@@ -204,3 +204,16 @@ export function allClientSummariesDag() {
     };
   });
 }
+
+// DAG-mode counterpart to lib/wising.js's analyzeProfileById — full
+// analyzeDag() result for a specific profile id, regardless of which
+// client is currently active. Used to merge a linked (owned) entity's own
+// compliance calendar/documents into the active client's Filings tab
+// (docs/GAP_TRACKER.md section H.11).
+export function analyzeProfileByIdDag(id) {
+  const W = typeof window !== "undefined" ? window.WISING : null;
+  if (!W || !W.PROFILES) return null;
+  const p = W.PROFILES.find((x) => x.id === id);
+  if (!p) return null;
+  return analyzeDag({ router: p.router, india: p.india, us: p.us });
+}
