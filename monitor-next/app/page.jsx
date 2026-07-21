@@ -77,15 +77,18 @@ export default function MonitorPage() {
   // Presentation mode: hides engineering-only chrome (compute-source pill,
   // shadow-diff badge, raw Layer-1 form links) for a client-facing or
   // recorded view — everything a prospect would actually want to see
-  // (client switcher, What-If tool, the Monitor itself) stays. Toggled via
-  // the header's gear button, or loads pre-enabled with ?present=1. Same
-  // hydration-safe pattern as engineSource above: initialize to the
-  // server's value (always false — no window there), flip in an effect
-  // that only runs after mount, so the first client render matches the
-  // server exactly instead of racing it.
-  const [presentationMode, setPresentationMode] = useState(false);
+  // (client switcher, What-If tool, the Monitor itself) stays. ON by
+  // default — this app is client-facing first, engineering chrome is the
+  // exception a developer opts INTO, not the default a presenter has to
+  // remember to opt out of. Toggle via the header's gear button, or load
+  // with ?present=0 to start with engineering chrome showing. Same
+  // hydration-safe pattern as engineSource above: initialize to a fixed
+  // value matching the server's render, flip in an effect that only runs
+  // after mount, so the first client render matches the server exactly
+  // instead of racing it.
+  const [presentationMode, setPresentationMode] = useState(true);
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("present") === "1") setPresentationMode(true);
+    if (new URLSearchParams(window.location.search).get("present") === "0") setPresentationMode(false);
   }, []);
 
   // What-if tool: regime/FX/FEIE overrides, DAG-only (no plumbing exists in
