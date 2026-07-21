@@ -7,11 +7,12 @@ import Header from "@/components/Header";
 import StatMeter from "@/components/StatMeter";
 import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
-import { ConflictsPanel, ChecksRegistryPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard } from "@/components/Views";
+import { ConflictsPanel, ChecksRegistryPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard, EntityStructureView } from "@/components/Views";
 import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries } from "@/lib/wising";
 import { monitorSnapshotDag, allClientSummariesDag } from "@/lib/dag-adapter";
+import { entityLinksFor } from "@/lib/entity-graph";
 import { runShadow, getShadowLog, clearShadowLog } from "@/lib/shadow";
 import ShadowBadge from "@/components/ShadowBadge";
 import WhatIfBar from "@/components/WhatIfBar";
@@ -178,9 +179,11 @@ export default function MonitorPage() {
   const alerts = useMemo(() => runAlertScan(dataset), [dataset]);
   const meters = useMemo(() => deriveMeters(result), [result]);
 
+  const activeLinks = useMemo(() => entityLinksFor(activeProfile, clientSummaries), [activeProfile, clientSummaries]);
   const badges = {
     monitor: result ? { text: result.summary.counts.critical + result.summary.counts.warning, tone: result.summary.counts.critical > 0 ? "alert" : "" } : null,
     clients: { text: profiles.length },
+    structure: activeLinks ? { text: activeLinks.owns.length + activeLinks.ownedBy.length } : null,
     filings: result && result.summary.nextDeadline ? { text: (result.monitoring && result.monitoring.calendar.next ? "in " + result.monitoring.calendar.next.daysUntil + "d" : "") } : null,
     withholding: result && result.withholding && result.withholding.totalGapUsd > 1
       ? { text: "$" + Math.round(result.withholding.totalGapUsd).toLocaleString("en-US"), tone: "alert" } : null
@@ -301,6 +304,7 @@ export default function MonitorPage() {
         )}
 
         {view === "clients" && <ClientsView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
+        {view === "structure" && <EntityStructureView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
         {view === "holdings" && <HoldingsView result={result} />}
         {view === "business" && <BusinessView result={result} />}
         {view === "residency" && <ResidencyView result={result} />}

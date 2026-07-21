@@ -4,9 +4,10 @@ import {
   Compass, ScrollText, Scale, CalendarClock, CalendarRange, RefreshCcw, Calculator,
   FolderOpen, Ruler, Landmark, TrendingUp, Building2, Home, Palmtree, BookOpen, Plug,
   Wallet, Receipt, TrendingDown, Globe2, Users, AlertTriangle, Siren, DollarSign, Banknote, PenLine,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Network, ArrowUpRight, ArrowDownRight, AlertCircle
 } from "lucide-react";
 import { fmtUsd, PAL } from "@/lib/logic";
+import { entityLinksFor } from "@/lib/entity-graph";
 import CapsuleChart from "@/components/CapsuleChart";
 
 const SEV = { critical: PAL.exposed, warning: PAL.approaching, info: PAL.filing };
@@ -1386,7 +1387,98 @@ export function BusinessView({ result }) {
   );
 }
 
-/* ============================ CLIENTS (portfolio) ============================ */
+/* ============================ ENTITY STRUCTURE (ownership graph, Tier 1) ============================ */
+
+// One linked entity's summary row — same shape whether it's something the
+// active client OWNS or is OWNED BY, just the arrow/verb flip. `summary` can
+// be null (a link pointing at an id that isn't a real profile) — shown as a
+// broken-link state rather than silently dropped.
+const EntityLinkRow = ({ link, direction, onPick }) => {
+  const s = link.summary;
+  const healthColor = (h) => (h >= 80 ? PAL.positive : h >= 50 ? PAL.approaching : PAL.exposed);
+  const Arrow = direction === "owns" ? ArrowDownRight : ArrowUpRight;
+  return (
+    <div className="rounded-xl border border-line bg-white/[0.03] p-3.5">
+      <div className="flex items-start gap-3">
+        <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)", color: PAL.accent }}>
+          <Arrow size={15} strokeWidth={2} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[13px] font-bold text-head">{s ? s.label : link[direction === "owns" ? "ownedId" : "ownerId"] + " (not found)"}</span>
+            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: PAL.accent + "1c", color: PAL.accent }}>{link.ownershipPct}%</span>
+            {s && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: (s.isBusiness ? PAL.filing : PAL.accent) + "24", color: s.isBusiness ? PAL.blueText : PAL.accent }}>{s.isBusiness ? "Business" : "Individual"}</span>}
+          </div>
+          <div className="text-[11px] text-muted mt-0.5">{link.relationship}</div>
+        </div>
+        {s && (
+          <div className="text-right shrink-0">
+            <div className="font-mono text-[13px] text-head">{fmtUsd(s.combinedTaxUsd)}</div>
+            <div className="flex items-center gap-1.5 justify-end mt-0.5">
+              <div className="w-10 h-1.5 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full rounded-full" style={{ width: Math.max(4, s.healthScore) + "%", background: healthColor(s.healthScore) }} /></div>
+              <span className="text-[10px] font-mono" style={{ color: healthColor(s.healthScore) }}>{s.healthScore}</span>
+            </div>
+          </div>
+        )}
+      </div>
+      {link.note && (
+        <div className="mt-2.5 pt-2.5 border-t border-line flex items-start gap-1.5">
+          <AlertCircle size={12} strokeWidth={2} className="shrink-0 mt-0.5" style={{ color: PAL.amberText }} />
+          <p className="text-[10.5px] text-muted leading-relaxed">{link.note}</p>
+        </div>
+      )}
+      {s && (
+        <button onClick={() => onPick(s.id)} className="mt-2.5 text-[11px] font-bold text-accent hover:underline">Open {s.label} →</button>
+      )}
+    </div>
+  );
+};
+
+// Tier 1 of the multi-entity/entity-graph model (docs/GAP_TRACKER.md section
+// H.8): shows the ownership relationships around the active client — who
+// owns them, and what they own — with each side's OWN already-computed
+// numbers shown alongside instead of a disconnected client row. No new tax
+// computation here; see lib/entity-graph.js's header for the full scope
+// note and what Tier 2/3 would add on top of this.
+export function EntityStructureView({ activeId, clients, onPick }) {
+  const active = (clients || []).find((c) => c.id === activeId);
+  if (!active) return <Empty>Select a client to see their ownership structure.</Empty>;
+  const links = entityLinksFor(activeId, clients);
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Network size={16} strokeWidth={2} /></HeadChip>Entity Structure</h2>
+        <p className="text-muted text-sm mt-2">Ownership links between {active.label} and other client profiles on file — each side keeps its own independently-computed return; this just makes the relationship (and any flow between them) traceable instead of a floating estimate.</p>
+      </div>
+
+      <Card icon={<Building2 size={16} strokeWidth={2} />} title={active.label} sub={(active.isBusiness ? "Business" : "Individual") + " · this client's own combined position"}>
+        <div className="grid grid-cols-3 gap-3">
+          <StatTile icon={<DollarSign size={15} strokeWidth={2} />} label="Combined tax" value={fmtUsd(active.combinedTaxUsd)} highlight />
+          <StatTile icon={<Siren size={15} strokeWidth={2} />} label="Conflicts" value={active.critical + active.warning} accent={active.critical ? PAL.redText : PAL.greenText} sub={active.critical + " critical · " + active.warning + " warning"} />
+          <StatTile icon={<AlertTriangle size={15} strokeWidth={2} />} label="Health" value={active.healthScore} accent={active.healthScore >= 80 ? PAL.positive : active.healthScore >= 50 ? PAL.approaching : PAL.exposed} />
+        </div>
+      </Card>
+
+      {!links && (
+        <Card icon={<Network size={16} strokeWidth={2} />} title="No ownership links on file" sub="This client isn't connected to any other client profile yet.">
+          <p className="text-[11.5px] text-muted leading-relaxed">Tier 1 of the entity-graph model only covers the ownership relationships an advisor has explicitly linked — {active.label} has none on file. This is a coverage gap in the DEMO data, not a claim that {active.label} owns or is owned by nothing in real life.</p>
+        </Card>
+      )}
+
+      {links && links.ownedBy.length > 0 && (
+        <Card icon={<ArrowUpRight size={16} strokeWidth={2} />} title="Owned by" sub={active.label + " is owned/controlled by the following"}>
+          <div className="space-y-2.5">{links.ownedBy.map((l, i) => <EntityLinkRow key={i} link={l} direction="ownedBy" onPick={onPick} />)}</div>
+        </Card>
+      )}
+
+      {links && links.owns.length > 0 && (
+        <Card icon={<ArrowDownRight size={16} strokeWidth={2} />} title="Owns" sub={active.label + " owns or controls the following"}>
+          <div className="space-y-2.5">{links.owns.map((l, i) => <EntityLinkRow key={i} link={l} direction="owns" onPick={onPick} />)}</div>
+        </Card>
+      )}
+    </div>
+  );
+}
 
 /* ============================ CLIENTS (portfolio) ============================ */
 export function ClientsView({ clients, activeId, onPick }) {
