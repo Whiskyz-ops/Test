@@ -92,9 +92,15 @@ NODES.entityResult = {
     var indiaEntityKind = safe(india, "profile.entity_type", "individual");
     var indiaIsCompany = indiaEntityKind === "company";
     var indiaIsFirm = ["firm", "llp", "local"].indexOf(indiaEntityKind) >= 0;
+    // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.6, 21
+    // Jul 2026) — see entitytax-nodes.js's file header for the full
+    // writeup. indiaIsAop/indiaIsTrust have no engine equivalent (the
+    // engine's model.entity never carries them); DAG-only additions.
+    var indiaIsAop = indiaEntityKind === "aop";
+    var indiaIsTrust = indiaEntityKind === "trust";
     var indiaLayer1Itr = safe(india, "itr_recommendation.form", null);
     if (indiaLayer1Itr === "Unknown") indiaLayer1Itr = null;
-    var indiaReturnFormCrude = indiaIsCompany ? "ITR-6" : (indiaIsFirm ? "ITR-5" : "ITR-2/3");
+    var indiaReturnFormCrude = indiaIsCompany ? "ITR-6" : (indiaIsTrust ? "ITR-7" : (indiaIsFirm || indiaIsAop) ? "ITR-5" : "ITR-2/3");
     var indiaReturnForm = indiaLayer1Itr || indiaReturnFormCrude;
 
     var usT = safe(us, "profile.tax_entity_type", "individual");
@@ -115,6 +121,7 @@ NODES.entityResult = {
     return {
       indiaKind: indiaEntityKind, usKind: usT,
       indiaIsCompany: indiaIsCompany, indiaIsFirm: indiaIsFirm,
+      indiaIsAop: indiaIsAop, indiaIsTrust: indiaIsTrust,
       indiaOpt115baa: safe(india, "profile.opt_115baa", false) === true,
       indiaOpt115bab: safe(india, "profile.opt_115bab", false) === true,
       indiaOpt115ba: safe(india, "profile.opt_115ba", false) === true,
@@ -126,7 +133,7 @@ NODES.entityResult = {
       usScheduleM1TaxableIncomeUsd: usScheduleM1TaxableIncomeUsd,
       usIncorporatedInUs: usIsBusiness ? safe(us, "profile.incorporated_in_us", null) : null,
       usIncorporationState: usIsBusiness ? safe(us, "profile.incorporation_state", null) : null,
-      isBusiness: indiaIsCompany || indiaIsFirm || usIsBusiness,
+      isBusiness: indiaIsCompany || indiaIsFirm || indiaIsAop || indiaIsTrust || usIsBusiness,
       indiaReturnForm: indiaReturnForm,
       indiaReturnFormIsRecommendation: !!indiaLayer1Itr,
       indiaReturnFormExplanation: indiaLayer1Itr ? safe(india, "itr_recommendation.explanation", null) : null,

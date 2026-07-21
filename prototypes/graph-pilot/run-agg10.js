@@ -34,6 +34,13 @@ var createGraph = require("./graph.js").createGraph;
 var NODES = require("./ustax-full-nodes.js").NODES;
 var graph = createGraph(NODES);
 
+// DAG-only keys with no engine equivalent — same convention as run-fuzz.js's
+// DAG_ONLY_KEYS. indiaIsAop/indiaIsTrust (docs/GAP_TRACKER.md section H.6,
+// 21 Jul 2026): the engine's model.entity never carries these at all
+// (undefined on that side, always a real boolean false/true on the DAG
+// side) — entitytax-nodes.js's file header has the full writeup.
+var DAG_ONLY_KEYS = { indiaIsAop: true, indiaIsTrust: true };
+
 var pass = 0, fail = 0;
 function ok(label) { pass++; }
 function bad(label, detail) { fail++; console.log("    FAIL - " + label + (detail ? "  (" + detail + ")" : "")); }
@@ -61,7 +68,7 @@ function deepCheck(label, a, b) {
     var keys = {};
     Object.keys(a).forEach(function (k) { keys[k] = true; });
     Object.keys(b).forEach(function (k) { keys[k] = true; });
-    Object.keys(keys).forEach(function (k) { deepCheck(label + "." + k, a[k], b[k]); });
+    Object.keys(keys).forEach(function (k) { if (!DAG_ONLY_KEYS[k]) deepCheck(label + "." + k, a[k], b[k]); });
     return;
   }
   if (a === b) return ok(label);

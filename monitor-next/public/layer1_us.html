@@ -2464,6 +2464,11 @@
                     </div>
                     <div id="div-trust-k1-container" class="overflow-hidden transition-all duration-500 max-h-0 opacity-0">
                         <div class="p-5 border-t border-white/10 flex flex-col gap-4 bg-[#121212]/50">
+                            <div id="wrapper-trust-retained-income" style="display:none;" class="flex flex-col gap-1.5 pb-4 border-b border-white/5">
+                                <label class="text-[10px] font-black uppercase text-white/50">Income retained by the trust (not allocated to any beneficiary this year)</label>
+                                <input type="text" id="trust-retained-income-usd" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2.5 focus:border-brandCyan focus:outline-none font-mono" placeholder="0" oninput="updateProfileField('trust_retained_income_usd', parseFormattedNumber(this.value) || 0)">
+                                <span class="text-[9px] text-white/40 leading-relaxed">A trust/estate owes federal tax on income it keeps (accumulates), not on income allocated to beneficiaries below — that portion is taxed on the beneficiaries' own returns instead. Leave at 0 for a trust that distributes everything.</span>
+                            </div>
                             <div class="flex justify-end gap-2 pb-1 border-b border-white/5">
                                 <button type="button" onclick="addTrustK1Row()" class="px-3 py-1 bg-white/10 hover:bg-brandCyan/20 hover:text-brandCyan rounded text-[9px] font-black uppercase tracking-widest transition-all">+ Add Trust/Estate K-1</button>
                             </div>
@@ -3860,6 +3865,7 @@
             llc_tax_election: "individual",
             incorporation_state: null,
             incorporated_in_us: null,
+            trust_retained_income_usd: 0,
             full_name: null,
             date_of_birth: null,
             filing_status: "single",
@@ -5553,13 +5559,22 @@
         const trustTitle = document.querySelector('#container-trust span.text-sm.font-bold');
         const trustToggleLabel = document.querySelector('label[for="trust-k1-has-toggle"]');
         const trustBtn = document.querySelector('#div-trust-k1-container button');
+        const trustRetainedWrapper = document.getElementById('wrapper-trust-retained-income');
         if (type === 'trust') {
             if (trustTitle) trustTitle.textContent = "Beneficiaries' Share of Income (Form 1041 Schedule K-1)";
             if (trustToggleLabel) trustToggleLabel.textContent = "Has Beneficiaries";
             if (trustBtn) trustBtn.textContent = "+ Add Beneficiary";
+            // Only meaningful when THIS taxpayer IS the trust (Form 1041 filer)
+            // — not when they're merely a beneficiary receiving a K-1 from
+            // some other trust (the "else" branch below, still labeled
+            // "Fiduciary Trusts & Estates").
+            if (trustRetainedWrapper) trustRetainedWrapper.style.display = 'flex';
+            const trustRetainedInput = document.getElementById('trust-retained-income-usd');
+            if (trustRetainedInput) trustRetainedInput.value = usState.profile.trust_retained_income_usd || '';
         } else {
             if (trustTitle) trustTitle.textContent = "Fiduciary Trusts & Estates (Form 1041 K-1)";
             if (trustToggleLabel) trustToggleLabel.textContent = "Has Trusts/Estates K-1";
+            if (trustRetainedWrapper) trustRetainedWrapper.style.display = 'none';
             if (trustBtn) trustBtn.textContent = "+ Add Trust/Estate K-1";
         }
 

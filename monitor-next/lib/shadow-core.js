@@ -59,7 +59,10 @@ export const DIRECTIONAL_SURFACE = [];
 // when OLD regime is in effect and every underlying deduction section is
 // empty (Layer 1 India hides that whole step under NEW regime), a
 // what-if-tool-only concern the engine has no override plumbing to need.
-const DAG_ONLY_KEYS = new Set(["caveat"]);
+// indiaIsAop/indiaIsTrust (docs/GAP_TRACKER.md section H.6, 21 Jul 2026):
+// model.entity.* additions with no engine equivalent — entitytax-nodes.js's
+// file header has the full writeup.
+const DAG_ONLY_KEYS = new Set(["caveat", "indiaIsAop", "indiaIsTrust"]);
 
 // Back-compat alias (the full path list).
 export const SHADOW_SURFACE = SYMMETRIC_SURFACE.concat(DIRECTIONAL_SURFACE);
@@ -159,7 +162,7 @@ export function diff(path, eng, dag, out, directional) {
 export function compareSurface(engineResult, dagResult) {
   const entity = engineResult && engineResult.model && engineResult.model.entity;
   const usEntity = !!(entity && ["ccorp", "scorp", "partnership", "trust"].includes(entity.usKind));
-  const indiaEntity = !!(entity && (entity.indiaIsCompany || entity.indiaIsFirm));
+  const indiaEntity = !!(entity && (entity.indiaIsCompany || entity.indiaIsFirm || entity.indiaIsAop || entity.indiaIsTrust));
   const nra = !!(engineResult && engineResult.computed && engineResult.computed.usTax && engineResult.computed.usTax.isNra === true);
 
   // findings: a US entity drops underpayment_2210 (agg10-nodes.js's

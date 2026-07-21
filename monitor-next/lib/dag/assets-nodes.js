@@ -303,7 +303,11 @@ function businessEntitiesResult(d, ctx) {
   var list = [];
   var ui = d.uiAgg;
   var entityKind = safe(us, "profile.tax_entity_type", "individual");
-  var indiaIsCompanyOrFirm = d.indiaIsCompany || d.indiaIsFirm;
+  // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.6, 21
+  // Jul 2026) — widened to include AOP/BOI and Trust/NGO/Political Party,
+  // same as isEntityTaxpayer (entitytax-nodes.js's file header has the
+  // full writeup).
+  var indiaIsCompanyOrFirm = d.indiaIsCompany || d.indiaIsFirm || d.indiaIsAop || d.indiaIsTrust;
 
   if (["ccorp", "scorp", "partnership"].indexOf(entityKind) >= 0 || safe(us, "profile.incorporated_in_us", false) === true) {
     var m1ForTrace = safe(us, "corporate_financials.schedule_m1", null);
@@ -398,7 +402,7 @@ function businessEntitiesResult(d, ctx) {
   });
 
   var bizEligibility = d.presumptiveEligibilityAgg;
-  var indiaReturnFormCrude = d.indiaIsCompany ? "ITR-6" : (d.indiaIsFirm ? "ITR-5" : "ITR-2/3");
+  var indiaReturnFormCrude = d.indiaIsCompany ? "ITR-6" : (d.indiaIsTrust ? "ITR-7" : (d.indiaIsFirm || d.indiaIsAop) ? "ITR-5" : "ITR-2/3");
   (d.bizEntriesAgg || []).forEach(function (b, bIdx) {
     var netProfitInr = b.net_profit_inr || b.net_profit;
     var isRegularBooksForTrace = usesRegularBooksInr(b, bizEligibility);
@@ -448,7 +452,7 @@ NODES.assetsModelResult = {
     "usForeignCorpsRaw", "usOwns10PctForeignCorpRaw", "usSecuritiesBoundary",
     "epfInrRaw", "ppfInrRaw", "npsInrRaw", "taxableEpfInterestInrAgg", "taxableNpsWithdrawalInrAgg",
     "uiAgg", "selfEmploymentDepreciationPlan", "bizEntriesAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg",
-    "presumptiveEligibilityAgg", "indiaIsCompany", "indiaIsFirm"],
+    "presumptiveEligibilityAgg", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust"],
   compute: function (d, ctx) {
     return {
       indianMutualFunds: d.indianMutualFundsResult,

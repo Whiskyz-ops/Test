@@ -67,7 +67,7 @@ NODES.checksRegistryResult = {
     "crossBasisResult", "indiaItrFormResult", "specialRate115bbInr", "unexplained115bbeInrAgg",
     "chapterXiiaElectedRaw",
     // C
-    "taxRegime", "businessComputation", "indiaIsFirm", "capitalGainsComputation",
+    "taxRegime", "businessComputation", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "capitalGainsComputation",
     "stateResidencyRaw", "indiaFinancialHoldingsTxRaw", "viaForeignCorpXbr4", "bizEntriesAgg",
     "epfInrRaw", "ppfInrRaw", "npsInrRaw", "foreignGiftsRaw", "nraRaw", "hasPERaw",
     "salaryInr",
@@ -149,7 +149,11 @@ NODES.checksRegistryResult = {
     }
 
     // ---- C: findings-batch3-nodes.js ------------------------------------
-    if (d.taxRegime === "OLD" && !d.indiaIsCompany && !d.indiaIsFirm) {
+    // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.6, 21
+    // Jul 2026): widened to also exclude AOP/Trust — Form 10-IEA is an
+    // individual/HUF election mechanism; an AOP/Trust wouldn't file it
+    // either, same as a company/firm (see entitytax-nodes.js's file header).
+    if (d.taxRegime === "OLD" && !d.indiaIsCompany && !d.indiaIsFirm && !d.indiaIsAop && !d.indiaIsTrust) {
       if (!((d.businessComputation.businessInr || 0) > 0)) {
         pass("form_10iea", "document", "Form 10-IEA not required", "Old regime elected, but no business/professional income on file — a salaried/other-income-only filer can choose the old regime on the ITR itself, no Form 10-IEA needed.");
       }

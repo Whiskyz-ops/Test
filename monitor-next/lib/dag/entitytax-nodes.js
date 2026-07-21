@@ -17,6 +17,39 @@
  * IN-1's individual path, read straight off model.income.india.total.inr
  * rather than re-derived. Everything else here — the rate/regime
  * selection, MAT floor, surcharge, cess — is genuinely ported.
+ *
+ * DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.6 —
+ * "business entity coverage", 21 Jul 2026): AOP/BOI and Trust/NGO/Political
+ * Party (Layer 1 India's entity_type = "aop" / "trust") are NEITHER
+ * indiaIsCompany NOR indiaIsFirm — the engine's own routing condition
+ * (computation.js, `if (E.indiaIsCompany || E.indiaIsFirm)`) never reaches
+ * computeIndiaEntityTax for them at all, so they fall through and get taxed
+ * as a plain resident individual: slab rates, a standard deduction, a §156
+ * rebate. That's wrong for both, in different directions:
+ *   - AOP/BOI (s.167B): when member shares are indeterminate — or determinate
+ *     but any member's own income exceeds the basic exemption limit, the
+ *     common case for a real commercial AOP — tax is at the Maximum Marginal
+ *     Rate, not slab rates. Layer 1 collects no member-share-determinacy
+ *     facts at all, so MMR (the statutory DEFAULT for the unestablished
+ *     case, not a guess) is applied unconditionally below.
+ *   - Trust/NGO/Political Party: the engine's OWN computeIndiaItrForm
+ *     (computation.js:1753-1756, ported unchanged in itrform-nodes.js)
+ *     already recommends ITR-7 "claiming tax exemptions under Trust & NGO
+ *     Tax Exemptions" for this exact entity_type value — i.e. the engine's
+ *     own form-determination logic already assumes s.11/12A (charitable) or
+ *     s.13A (political party) exemption. computeIndiaEntityTax computing a
+ *     nonzero individual-slab tax on the SAME income directly contradicts
+ *     its own ITR-7 recommendation. Aligned here: treated as exemption-
+ *     claiming (tax = 0), with the compliance conditions (85% application-
+ *     of-income test, valid 12A/12AB registration, s.13A's books/audit/
+ *     cash-donation conditions) flagged as unverified rather than silently
+ *     assumed met — same "self-documented simplification, not silently
+ *     wrong" discipline as every other unverified-condition item in this
+ *     codebase (GAP_TRACKER.md section H.2's `estimate` flag precedent). A
+ *     genuine private/family trust (not claiming any exemption) is a
+ *     different real-world case this Layer 1 field cannot currently
+ *     distinguish from the charitable/political case — recorded as a
+ *     known remaining gap, not solved by this fix (see GAP_TRACKER H.6).
  * ==========================================================================*/
 function safe(obj, path, dflt) {
   var parts = path.split(".");
@@ -33,10 +66,31 @@ var C = CONST_ET.TAX.INDIA_COMPANY;
 var FC = CONST_ET.TAX.INDIA_COMPANY_FOREIGN;
 var F = CONST_ET.TAX.INDIA_FIRM;
 
+// Maximum Marginal Rate (Explanation to s.2(29C)): the rate applicable to
+// the highest slab of an individual's income, INCLUDING surcharge and cess
+// — 30% x 1.37 x 1.04 = 42.744%. Derived from the same top-slab-rate/cess
+// constants the individual path already uses (CONST.TAX.INDIA.SLABS_OLD's
+// top bracket = 30%, CESS_RATE = 4%) plus the old-regime top surcharge
+// (>Rs5cr), which is a bare 0.37 literal inline in engine/computation.js's
+// own computeIndiaSurcharge (`rate = isNew ? T.SURCHARGE_NEW_MAX : 0.37`),
+// not otherwise exposed there as a named constant — restated here as its
+// own named literal rather than silently duplicated. AOP/BOI without
+// exclusively-corporate members gets the same MMR as an individual; the
+// narrower "AOP with only corporate members" surcharge-cap carve-out (a
+// distinct sub-rule) isn't modeled — Layer 1 doesn't capture AOP membership
+// composition at all.
+var INDIA_MMR_TOP_SLAB_RATE = 0.30;
+var INDIA_MMR_TOP_SURCHARGE_RATE = 0.37;
+var INDIA_MMR_CESS_RATE = 0.04;
+
 var NODES = {
   indiaEntityTypeRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "profile.entity_type", "individual"); } },
   indiaIsCompany: { deps: ["indiaEntityTypeRaw"], compute: function (d) { return d.indiaEntityTypeRaw === "company"; } },
   indiaIsFirm: { deps: ["indiaEntityTypeRaw"], compute: function (d) { return ["firm", "llp", "local"].indexOf(d.indiaEntityTypeRaw) >= 0; } },
+  // "aop" covers AOP/BOI (one shared Layer 1 dropdown value); "trust" covers
+  // Trust/NGO/Political Party (also one shared value — see file header).
+  indiaIsAop: { deps: ["indiaEntityTypeRaw"], compute: function (d) { return d.indiaEntityTypeRaw === "aop"; } },
+  indiaIsTrust: { deps: ["indiaEntityTypeRaw"], compute: function (d) { return d.indiaEntityTypeRaw === "trust"; } },
   isIndianCompanyFact: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.is_indian_company", null); } },
   indiaOpt115baa: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "profile.opt_115baa", false) === true; } },
   indiaOpt115bab: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "profile.opt_115bab", false) === true; } },
@@ -49,7 +103,7 @@ var NODES = {
   entityTaxableInrBoundary: { deps: [], compute: function (d, ctx) { return num(ctx.model.income.india.total && ctx.model.income.india.total.inr); } },
 
   entityTaxResult: {
-    deps: ["indiaIsCompany", "indiaIsFirm", "isIndianCompanyFact", "indiaOpt115baa", "indiaOpt115bab", "indiaOpt115ba",
+    deps: ["indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "isIndianCompanyFact", "indiaOpt115baa", "indiaOpt115bab", "indiaOpt115ba",
       "indiaTurnoverLte400cr", "indiaMatBookProfitInr", "hasIndiaPE", "entityTaxableInrBoundary"],
     compute: function (d) {
       var taxable = d.entityTaxableInrBoundary;
@@ -57,6 +111,21 @@ var NODES = {
       function entityResult(base, sur, cess, label, mat) {
         var total = base + sur + cess;
         return { regime: label, matApplied: mat, totalTaxInr: total, slabTaxInr: base, surchargeInr: sur, cessInr: cess };
+      }
+
+      // AOP/BOI — s.167B Maximum Marginal Rate (see file header for why).
+      if (d.indiaIsAop) {
+        var aopBase = taxable * INDIA_MMR_TOP_SLAB_RATE;
+        var aopSur = aopBase * INDIA_MMR_TOP_SURCHARGE_RATE;
+        var aopCess = (aopBase + aopSur) * INDIA_MMR_CESS_RATE;
+        return entityResult(aopBase, aopSur, aopCess, "AOP/BOI ITR-5 (Maximum Marginal Rate, s.167B)", false);
+      }
+
+      // Trust/NGO/Political Party — treated as exemption-claiming (ITR-7),
+      // consistent with the engine's own computeIndiaItrForm recommendation
+      // for this same entity_type value (see file header).
+      if (d.indiaIsTrust) {
+        return entityResult(0, 0, 0, "Trust/NGO/Political Party ITR-7 (exempt — s.11/12A or s.13A, compliance unverified)", false);
       }
 
       if (d.indiaIsCompany) {

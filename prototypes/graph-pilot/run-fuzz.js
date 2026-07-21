@@ -354,7 +354,15 @@ function generateProfile(rng) {
 // when OLD regime is in effect and every underlying deduction section is
 // empty — a what-if-tool-only concern the engine has no override plumbing
 // to need, so it never carries this key at all.
-var DAG_ONLY_KEYS = { caveat: true };
+// indiaIsAop/indiaIsTrust (docs/GAP_TRACKER.md section H.6, 21 Jul 2026):
+// model.entity.* additions with no engine equivalent — entitytax-nodes.js's
+// file header has the full writeup. trustDistributedUsd/trustRetainedUsd/
+// trustBracketBreakdown: same section, computed.usTax additions for a US
+// trust — see ustax-full-nodes.js's usEntityTaxResult trust branch.
+var DAG_ONLY_KEYS = {
+  caveat: true, indiaIsAop: true, indiaIsTrust: true,
+  trustDistributedUsd: true, trustRetainedUsd: true, trustBracketBreakdown: true
+};
 function close(a, b) { var tol = Math.max(2, Math.abs(b) * 1e-6); return Math.abs(a - b) <= tol; }
 function deepEqual(a, b, p, diffs) {
   p = p || "$"; diffs = diffs || [];
@@ -418,6 +426,40 @@ var KNOWN_US_ENTITY_DIVERGENT_PATHS = [
 ];
 var KNOWN_INDIA_ENTITY_DIVERGENT_PATHS = ["taxComputation.india"];
 var KNOWN_NRA_DIVERGENT_PATHS = ["computed.ftc.india", "ftcReport.direction_india_relief"];
+// ---- H.6: India AOP/BOI and Trust/NGO/Political Party (docs/GAP_TRACKER.md
+// section H.6, 21 Jul 2026) — a WIDER divergence than the company/firm case
+// above, because company/firm were already correctly entity-routed in the
+// engine (only their TRACE had the "₹NaN" bug); AOP/Trust were previously
+// taxed as a plain individual by the engine, a real AMOUNT bug. Fixing the
+// amount cascades into nearly everything India-tax-derived: the FTC both
+// directions (India tax paid changed), headline/summary totals, findings
+// that depend on India tax amount (ftc_gap, promoter_buyback_additional_tax,
+// carry_forward_losses_not_applied — all correctly disappear for an exempt
+// trust; verified by direct reproduction, not guessed), monitoring health/
+// alerts, and documents/scopeNotes/returnForms wherever they read the
+// now-different tax amount or entity classification. See entitytax-nodes.js's
+// file header for the full root-cause writeup.
+function isIndiaAopOrTrustProfile(dag) { return !!(dag.model.entity && (dag.model.entity.indiaIsAop || dag.model.entity.indiaIsTrust)); }
+// US trust (docs/GAP_TRACKER.md section H.6, 21 Jul 2026): computed.usTax.
+// taxableIncomeUsd now correctly narrows to JUST the retained (undistributed)
+// portion — the engine's version reflects the full distributed+retained
+// total, since it has no concept of "retained" at all (see ustax-full-
+// nodes.js's usEntityTaxResult trust branch). That narrower figure cascades
+// into computed.ftc.us.taxableIncomeUsd and the "US claims India" FTC report
+// direction (which reads the same field) — filingStatus also carries a new
+// retained-vs-distributed qualifier the engine's static string never had.
+function isUsTrustProfile(dag) { return dag.model.entity && dag.model.entity.usKind === "trust"; }
+var KNOWN_US_TRUST_DIVERGENT_PATHS = [
+  "computed.usTax.filingStatus", "computed.usTax.taxableIncomeUsd",
+  "computed.ftc.us.taxableIncomeUsd", "ftcReport.direction_us_claims_india"
+];
+var KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS = [
+  "model.entity.isBusiness", "model.entity.indiaReturnForm", "model.assets",
+  "computed.indiaTax", "computed.ftc", "computed.headline", "computed.reconciliation",
+  "taxComputation.india", "ftcReport", "withholding", "monitoring",
+  "summary.indiaTaxUsd", "summary.netDoubleTaxUsd", "summary.healthScore", "summary.counts",
+  "documents", "scopeNotes", "returnForms"
+];
 function pathMatchesAny(p, prefixes) {
   return prefixes.some(function (prefix) { return p === prefix || p.indexOf(prefix + ".") === 0 || p.indexOf(prefix + "[") === 0; });
 }
@@ -570,8 +612,14 @@ function compareOne(label, profile, saveOnFail) {
   });
 
   var usEntity = isUsEntityProfile(dag);
+  var indiaAopOrTrust = isIndiaAopOrTrustProfile(dag);
   var findingsResult = compareFindings(dag.findings, real.findings, usEntity);
-  realDiffs.push.apply(realDiffs, findingsResult.unknown);
+  // AOP/Trust: findings content genuinely cascades from the (now correct)
+  // India tax amount in ways too varied to enumerate by finding ID (see
+  // KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS's comment) — treated wholesale as
+  // known rather than diffed ID-by-ID, same principle as taxComputation.us/
+  // india being treated as fully-diverging blocks for the entity cases above.
+  (indiaAopOrTrust ? knownDiffs : realDiffs).push.apply(indiaAopOrTrust ? knownDiffs : realDiffs, findingsResult.unknown);
   knownDiffs.push.apply(knownDiffs, findingsResult.known);
 
   // CASCADE_ONLY_PATHS — summary.counts/healthScore, monitoring.health/
@@ -603,7 +651,9 @@ function compareOne(label, profile, saveOnFail) {
   var allowedPaths = []
     .concat(usEntity ? KNOWN_US_ENTITY_DIVERGENT_PATHS : [])
     .concat(isIndiaEntityProfile(dag) ? KNOWN_INDIA_ENTITY_DIVERGENT_PATHS : [])
-    .concat(isNraProfile(dag) ? KNOWN_NRA_DIVERGENT_PATHS : []);
+    .concat(isNraProfile(dag) ? KNOWN_NRA_DIVERGENT_PATHS : [])
+    .concat(indiaAopOrTrust ? KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS : [])
+    .concat(isUsTrustProfile(dag) ? KNOWN_US_TRUST_DIVERGENT_PATHS : []);
   if (allowedPaths.length) {
     var stillReal = [];
     realDiffs.forEach(function (diff) {

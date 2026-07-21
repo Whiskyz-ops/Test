@@ -10,6 +10,12 @@ const WISING = globalThis.WISING;
 const { analyzeDag, allClientSummariesDag } = await import("./lib/dag-adapter.js");
 const { allClientSummaries } = await import("./lib/wising.js");
 
+// DAG-only keys with no engine equivalent — same convention as
+// shadow-core.js's DAG_ONLY_KEYS. indiaIsAop/indiaIsTrust (docs/
+// GAP_TRACKER.md section H.6, 21 Jul 2026): the engine's model.entity never
+// carries these — entitytax-nodes.js's file header has the full writeup.
+const DAG_ONLY_KEYS = new Set(["indiaIsAop", "indiaIsTrust"]);
+
 let fails = 0, checks = 0;
 function ok() { checks++; }
 function bad(label, a, b) { checks++; fails++; console.log("FAIL " + label + "  dag=" + JSON.stringify(a) + " real=" + JSON.stringify(b)); }
@@ -30,7 +36,7 @@ function deepCheck(label, a, b) {
   }
   if (typeof a === "object" && typeof b === "object") {
     const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
-    keys.forEach((k) => deepCheck(label + "." + k, a[k], b[k]));
+    keys.forEach((k) => { if (!DAG_ONLY_KEYS.has(k)) deepCheck(label + "." + k, a[k], b[k]); });
     return;
   }
   if (a === b) return ok();

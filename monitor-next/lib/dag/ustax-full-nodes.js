@@ -62,6 +62,18 @@ function computeSaltCap(agi, status) {
 var NODES = {};
 Object.keys(baseNodes).forEach(function (k) { NODES[k] = baseNodes[k]; });
 
+// Trust/estate ordinary-income brackets (IRC §1(e)) — highly compressed
+// relative to the individual brackets above (37% starts around $15,650,
+// vs. $640,600+ for a single individual). TY2025 figures (Rev. Proc.
+// 2024-40) — the most recent CONFIRMED figures at hand; TY2026's Rev.
+// Proc. 2025-32 almost certainly nudges these up slightly for inflation
+// (single-digit-percent, same as the individual brackets above), but that
+// specific trust/estate table hasn't been independently verified here, so
+// these are stated as the best-available figures, not asserted as the
+// final TY2026 numbers — same "confirm before filing" discipline as every
+// other estimated figure in this codebase.
+var TRUST_ESTATE_BRACKETS = [[3150, 0.10], [11450, 0.24], [15650, 0.35], [Infinity, 0.37]];
+
 /* ---- model.nra mirror (normalize.js L2470-2479), raw ---------------------- */
 NODES.nraRaw = {
   deps: [],
@@ -80,9 +92,19 @@ NODES.nraRaw = {
   }
 };
 
+// DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.6, 21 Jul
+// 2026): new raw field, no engine equivalent — a trust taxpayer previously
+// had no way to report retained (undistributed) income at all, so
+// computeUsEntityTax's blanket "trust = pass-through, $0 entity tax" was
+// silently wrong for any REAL retaining trust (only correct for one that
+// genuinely distributes everything, a "simple trust" under §651). Layer 1
+// US now collects this on the trust profile step; see usEntityTaxResult
+// below for how it's used.
+NODES.trustRetainedIncomeUsdRaw = { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "profile.trust_retained_income_usd", 0)); } };
+
 /* ---- TAX-7: computeUsEntityTax ------------------------------------------- */
 NODES.usEntityTaxResult = {
-  deps: ["usEntityKind", "entityResult", "aggregateUsIncomeResult"],
+  deps: ["usEntityKind", "entityResult", "aggregateUsIncomeResult", "trustRetainedIncomeUsdRaw"],
   compute: function (d) {
     var kind = d.usEntityKind;
     var m1Taxable = d.entityResult.usScheduleM1TaxableIncomeUsd;
@@ -124,7 +146,31 @@ NODES.usEntityTaxResult = {
       var tax = taxable * T.C_CORP_RATE;
       return usEntityResult(taxable, tax, "C-Corp (1120, 21%)", false);
     }
-    return usEntityResult(taxable, 0, (kind === "scorp" ? "S-Corp (1120-S)" : kind === "partnership" ? "Partnership (1065)" : "Trust/Estate (1041)") + " · pass-through", true);
+    if (kind === "trust") {
+      // "taxable" here (from aggregateUsIncomeResult, since Schedule M-1
+      // isn't collected for a trust) is effectively the SUM of what Layer 1
+      // labels "Beneficiaries' Share of Income" for a trust filer — i.e.
+      // income the distribution deduction offsets, taxed on the
+      // beneficiaries' own returns instead, not here. Only the NEW
+      // trustRetainedIncomeUsdRaw field (income the trust actually kept)
+      // is subject to real entity-level tax, at the compressed §1(e)
+      // brackets — not the flat $0 every trust got before this field
+      // existed to say otherwise. totalIncomeUsd/usSourceIncomeUsd still
+      // report the FULL economic total (distributed + retained) — the
+      // cross-border FTC/apportionment consumers of this result want "how
+      // much did this entity earn," not "how much is taxed at its level."
+      var retainedUsd = d.trustRetainedIncomeUsdRaw;
+      var distributedUsd = taxable;
+      var totalTrustIncomeUsd = distributedUsd + retainedUsd;
+      var trustTax = bracketTax(retainedUsd, TRUST_ESTATE_BRACKETS);
+      var r = usEntityResult(totalTrustIncomeUsd, trustTax, "Trust/Estate (1041)" + (retainedUsd > 0 ? " — retained income at compressed §1(e) rates" : " · pass-through (fully distributed)"), retainedUsd <= 0);
+      r.taxableIncomeUsd = retainedUsd;
+      r.trustDistributedUsd = distributedUsd;
+      r.trustRetainedUsd = retainedUsd;
+      r.trustBracketBreakdown = bracketBreakdown(retainedUsd, TRUST_ESTATE_BRACKETS);
+      return r;
+    }
+    return usEntityResult(taxable, 0, (kind === "scorp" ? "S-Corp (1120-S)" : "Partnership (1065)") + " · pass-through", true);
   }
 };
 
