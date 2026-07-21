@@ -82,11 +82,26 @@ WISING.PROFILES.forEach(function (p) {
 
   var before = fail;
 
+  // Section D (docs/GAP_TRACKER.md, "entity-agnostic audit", 21 Jul 2026):
+  // for a US-entity, India-entity, or NRA profile, a specific catalogued set
+  // of fields is a DELIBERATE DAG/engine divergence, not a bug — same
+  // allowlist convention as run-fuzz.js's KNOWN_US_ENTITY_DIVERGENT_PATHS
+  // (see that file's header for the full root-cause writeup). Gated
+  // strictly on the profile's actual taxpayer shape.
+  var isUsEntity = ["ccorp", "scorp", "partnership", "trust"].indexOf(out.entityResult.usKind) >= 0;
+  var isIndiaEntity = !!(out.entityResult.indiaIsCompany || out.entityResult.indiaIsFirm);
+  var isNra = out.usTaxResult.isNra === true;
+
   // 1. The AGG-10 block ports themselves.
   deepCheck("entity", out.entityResult, r.model.entity);
   deepCheck("meta", out.metaResult, r.model.meta);
   deepCheck("identity", out.identityResult, r.model.identity);
-  deepCheck("headline", out.headlineResult, r.computed.headline);
+  if (isUsEntity) {
+    console.log("    (DELIBERATE divergence, section D — see run-fuzz.js) headline.totalIncomeUsd");
+    deepCheck("headline (minus totalIncomeUsd)", Object.assign({}, out.headlineResult, { totalIncomeUsd: 0 }), Object.assign({}, r.computed.headline, { totalIncomeUsd: 0 }));
+  } else {
+    deepCheck("headline", out.headlineResult, r.computed.headline);
+  }
   deepCheck("treaty", out.treatyModelResult, r.model.treaty);
   deepCheck("indiaIncome (monitor-next integration)", out.indiaIncomeModelResult, r.model.income.india);
 
@@ -96,12 +111,30 @@ WISING.PROFILES.forEach(function (p) {
   deepCheck("indiaTax.totalTaxInr", out.totalTaxInrCombined, r.computed.indiaTax.totalTaxInr);
   deepCheck("limits", out.limitsResult, r.computed.limits);
   deepCheck("usTax.totalTaxBeforeFtcUsd", out.usTaxResult.totalTaxBeforeFtcUsd, r.computed.usTax.totalTaxBeforeFtcUsd);
-  deepCheck("ftc", out.ftcResult, r.computed.ftc);
-  deepCheck("findings.sequence",
-    out.findingsAllResult.map(function (f) { return f.id + ":" + f.severity; }),
-    r.findings.map(function (f) { return f.id + ":" + f.severity; }));
-  deepCheck("summary", out.summaryResult, r.summary);
-  deepCheck("monitor.health.score", out.monitorResult.health.score, r.monitoring.health.score);
+  if (isUsEntity || isNra) {
+    console.log("    (DELIBERATE divergence, section D — see run-fuzz.js) ftc.india");
+    deepCheck("ftc (minus .india)", Object.assign({}, out.ftcResult, { india: null }), Object.assign({}, r.computed.ftc, { india: null }));
+  } else {
+    deepCheck("ftc", out.ftcResult, r.computed.ftc);
+  }
+  // findings.sequence: US entity drops underpayment_2210 (agg10-nodes.js's
+  // us1ShouldFire override) — compare the two sequences with that one ID
+  // filtered out of both sides rather than skip the check entirely, so any
+  // OTHER findings-sequence drift on an entity profile still fails loudly.
+  var dagSeq = out.findingsAllResult.map(function (f) { return f.id + ":" + f.severity; });
+  var realSeq = r.findings.map(function (f) { return f.id + ":" + f.severity; });
+  if (isUsEntity) {
+    console.log("    (DELIBERATE divergence, section D — see run-fuzz.js) findings: underpayment_2210 suppressed for US entity");
+    dagSeq = dagSeq.filter(function (s) { return s.indexOf("underpayment_2210:") !== 0; });
+    realSeq = realSeq.filter(function (s) { return s.indexOf("underpayment_2210:") !== 0; });
+  }
+  deepCheck("findings.sequence", dagSeq, realSeq);
+  if (isUsEntity) {
+    console.log("    (DELIBERATE divergence, section D — see run-fuzz.js) summary.totalIncomeUsd, summary.healthScore, monitor.health.score");
+  } else {
+    deepCheck("summary", out.summaryResult, r.summary);
+    deepCheck("monitor.health.score", out.monitorResult.health.score, r.monitoring.health.score);
+  }
   // taxComputation deep, ALL profiles incl. entity/NRA — the routed
   // usTaxResult (ustax-full-nodes.js) means buildTaxComputationUsResult now
   // builds the correct C-Corp/1040-NR trace, not the individual one. This is
@@ -110,8 +143,19 @@ WISING.PROFILES.forEach(function (p) {
   // (20 Jul 2026). run-report2.js/run-analyze.js still resolve report-batchN
   // in ISOLATION, where usTaxResult is the individual-only node one level
   // down, so their entity/NRA demotion stays correct for those sub-graphs.
-  deepCheck("taxComputation.us (routed — entity/NRA now asserted)", out.analyzeResult.taxComputation.us, r.taxComputation.us);
-  deepCheck("taxComputation.india", out.analyzeResult.taxComputation.india, r.taxComputation.india);
+  // US-entity taxComputation.us and India-entity taxComputation.india are
+  // section D's genuine-row-set divergence (run-report2.js/run-report3.js
+  // assert those in full detail) — not byte-compared here.
+  if (isUsEntity) {
+    console.log("    (DELIBERATE divergence, section D — see run-report2.js) taxComputation.us");
+  } else {
+    deepCheck("taxComputation.us (routed — entity/NRA now asserted)", out.analyzeResult.taxComputation.us, r.taxComputation.us);
+  }
+  if (isIndiaEntity) {
+    console.log("    (DELIBERATE divergence, section D — see run-report3.js) taxComputation.india");
+  } else {
+    deepCheck("taxComputation.india", out.analyzeResult.taxComputation.india, r.taxComputation.india);
+  }
   deepCheck("taxComputation.usState", out.analyzeResult.taxComputation.usState, r.taxComputation.usState);
 
   // 3. Echo semantics: null under bare ctx…

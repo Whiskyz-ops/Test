@@ -95,8 +95,18 @@ WISING.PROFILES.forEach(function (p) {
     var usDiff = deepEqual(out.taxComputation.us, r.taxComputation.us);
     check("taxComputation.us matches exactly", !usDiff, usDiff && usDiff.slice(0, 4).join(" | "));
   }
-  var indiaDiff = deepEqual(out.taxComputation.india, r.taxComputation.india);
-  check("taxComputation.india matches exactly", !indiaDiff, indiaDiff && indiaDiff.slice(0, 4).join(" | "));
+  // India entity: DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md
+  // section H, 21 Jul 2026) — report-batch3-nodes.js's entity branch builds
+  // genuine rows instead of reusing the individual trace, which the engine
+  // interpolates an undefined field into (a literal "₹NaN") — see
+  // run-report3.js for the field-level assertion of this same case.
+  var isIndiaEntity = !!(r.model.entity && (r.model.entity.indiaIsCompany || r.model.entity.indiaIsFirm));
+  if (isIndiaEntity) {
+    console.log("    (DELIBERATE divergence, not asserted byte-identical — see run-report3.js) taxComputation.india");
+  } else {
+    var indiaDiff = deepEqual(out.taxComputation.india, r.taxComputation.india);
+    check("taxComputation.india matches exactly", !indiaDiff, indiaDiff && indiaDiff.slice(0, 4).join(" | "));
+  }
   var usStateDiff = deepEqual(out.taxComputation.usState, r.taxComputation.usState);
   check("taxComputation.usState matches exactly", !usStateDiff, usStateDiff && usStateDiff.slice(0, 4).join(" | "));
 

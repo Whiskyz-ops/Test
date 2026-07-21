@@ -161,10 +161,63 @@
  * the tolerant deepEqual's own tolerance — not real, don't reappear here.
  * See docs/DAG_MIGRATION_TRACKER.md SYS-3 for the tracked write-up.
  *
+ * D. ENTITY-AGNOSTIC AUDIT (docs/GAP_TRACKER.md section H, 21 Jul 2026) — a
+ * DIFFERENT kind of allowlist entry than A-C above. A-C were bugs SHARED by
+ * both sides, ported byte-for-byte until fixed on both. These are not: by
+ * explicit product direction, the DAG is now the authoritative, more-correct
+ * implementation for a US or India ENTITY taxpayer, and engine/*.js stays
+ * frozen (and wrong) on these specific fields. Byte-identical parity is no
+ * longer the goal for the paths below, on the specific taxpayer shapes
+ * below — everywhere else, parity is still required and still checked.
+ * Root cause: model.income.us.total/usSourceTotal/foreignSourceTotal is an
+ * INDIVIDUAL-1040-shaped aggregate, always $0 for an entity (whose own
+ * income is a separate Schedule M-1 book-to-tax figure) — engine code that
+ * read it for an entity got real wrong numbers, not just display noise:
+ *   - computed.headline.totalIncomeUsd / summary.totalIncomeUsd: the
+ *     engine drops the entity's own income from the headline total
+ *     entirely (ustax-full-nodes.js's usEntityResult fix).
+ *   - computed.ftc.india (foreignSourceIncomeUsd/usTaxOnUsSourceUsd/
+ *     reliefCapUsd/reliefAllowedUsd): the engine zeroes India's own s.90
+ *     FTC relief for US tax paid, for BOTH a US entity (root cause above,
+ *     xborder-full-nodes.js's usSourceTotalUsdBoundaryFtc) and — found as
+ *     an incidental side effect of the same fix, not a separate bug — an
+ *     NRA taxpayer whose isNra boundary recompute previously used a
+ *     stale/inconsistent source (see run-agg10.js's india_ror_us_income
+ *     case; that fix is correctness-only, no divergence remains once
+ *     applied, so it does NOT need this allowlist — only the genuine US-
+ *     entity-vs-engine gap does).
+ *   - taxComputation.us: report-batch2-nodes.js's entity branch now
+ *     builds genuine flat-rate-entity rows instead of reusing the
+ *     individual row set, which the engine interpolates undefined entity
+ *     fields into — a literal "$NaN" in engine output (confirmed still
+ *     present: this allowlist entry's own runtime check would fail loudly
+ *     if the engine ever stopped producing it).
+ *   - taxComputation.india: report-batch3-nodes.js's entity branch, same
+ *     "$NaN" family, India side ("₹NaN" — entitytax-nodes.js's flat-rate
+ *     result has no totalNormalInr, which the individual-shaped trace
+ *     formula string interpolated unconditionally).
+ *   - findings: "underpayment_2210" (Form 2210/§6654 estimated-tax
+ *     underpayment) is an individual-taxpayer statute; agg10-nodes.js's
+ *     us1ShouldFire override suppresses it for a US entity (a corporation's
+ *     estimated tax is Form 2220/§6655, a distinct, unmodeled regime) —
+ *     the one case in this whole harness where the DAG deliberately drops
+ *     a finding the engine still fires, normally never excused (see
+ *     compareFindings below).
+ *   - summary.healthScore / monitoring.health (CASCADE_ONLY_PATHS): follow
+ *     mechanically from the findings change above via the existing cascade
+ *     rule, no separate allowlist entry needed.
+ * Gated STRICTLY on taxpayer shape (dag.model.entity.usKind for the US
+ * fields, indiaIsCompany/indiaIsFirm for the India fields, computed.usTax.
+ * isNra for the NRA FTC case) — an individual/HUF profile that happens to
+ * hit one of these paths for an unrelated reason is never excused; only a
+ * genuine entity/NRA profile is. See isUsEntityProfile/isIndiaEntityProfile
+ * below and their use in compareOne.
+ *
  * Exit code reflects ONLY unknown/new divergences — 0 currently, with an
- * EMPTY allowlist (nothing left to excuse), safe to gate CI on. A genuinely
- * new divergence (a different finding ID, a model/computed/documents/
- * withholding/taxComputation field outside the findings-cascade, or the two
+ * allowlist that excuses ONLY the catalogued cases A-D above (nothing else),
+ * safe to gate CI on. A genuinely new divergence (a different finding ID, a
+ * model/computed/documents/withholding/taxComputation field outside the
+ * findings-cascade and outside D's entity/NRA-gated paths, or the two
  * "always a real bug" throw categories) fails the run regardless of how small.
  *
  * Run: node prototypes/graph-pilot/run-fuzz.js [--n=3000] [--seed=1]
@@ -353,6 +406,21 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // resolved by genericizing the wording on both sides — same-day, same fix.
 var KNOWN_EXTRA_FINDING_ID = /^$/;
 var KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = [];
+
+// ---- D. entity-agnostic audit allowlist (see file header, section D) -----
+function isUsEntityProfile(dag) { return ["ccorp", "scorp", "partnership", "trust"].indexOf(dag.model.entity && dag.model.entity.usKind) >= 0; }
+function isIndiaEntityProfile(dag) { return !!(dag.model.entity && (dag.model.entity.indiaIsCompany || dag.model.entity.indiaIsFirm)); }
+function isNraProfile(dag) { return !!(dag.computed.usTax && dag.computed.usTax.isNra === true); }
+var KNOWN_US_ENTITY_DIVERGENT_PATHS = [
+  "computed.headline.totalIncomeUsd", "computed.ftc.india", "taxComputation.us", "summary.totalIncomeUsd",
+  "computed.usTax.foreignSourceIncomeUsd", "computed.usTax.usSourceIncomeUsd", "computed.apportionment",
+  "ftcReport.direction_india_relief"
+];
+var KNOWN_INDIA_ENTITY_DIVERGENT_PATHS = ["taxComputation.india"];
+var KNOWN_NRA_DIVERGENT_PATHS = ["computed.ftc.india", "ftcReport.direction_india_relief"];
+function pathMatchesAny(p, prefixes) {
+  return prefixes.some(function (prefix) { return p === prefix || p.indexOf(prefix + ".") === 0 || p.indexOf(prefix + "[") === 0; });
+}
 // Fields that are MECHANICALLY DERIVED from findings[] (severity counts,
 // health score, the alerts feed) — only excusable as "known" when the SAME
 // comparison also has a known findings-level issue causing them; if one of
@@ -366,7 +434,7 @@ var CASCADE_ONLY_PATHS = ["summary.healthScore", "summary.counts", "monitoring.h
 // mismatch can be attributed to the SPECIFIC finding ID responsible and
 // checked against the allowlist above, instead of a single opaque
 // "findings: array length/type" line that both hides and over-reports. -----
-function compareFindings(dagFindings, realFindings) {
+function compareFindings(dagFindings, realFindings, isUsEntity) {
   var dagById = {}; dagFindings.forEach(function (f) { dagById[f.id] = f; });
   var realById = {}; realFindings.forEach(function (f) { realById[f.id] = f; });
   var allIds = {}; Object.keys(dagById).concat(Object.keys(realById)).forEach(function (id) { allIds[id] = 1; });
@@ -377,9 +445,17 @@ function compareFindings(dagFindings, realFindings) {
     if (inDag && !inReal) {
       (KNOWN_EXTRA_FINDING_ID.test(id) ? known : unknown).push("findings: DAG has extra \"" + id + "\", engine doesn't");
     } else if (!inDag && inReal) {
-      // Never allowlisted — the DAG silently DROPPING a real finding is
-      // always worth seeing, no observed case has ever been this direction.
-      unknown.push("findings: engine has \"" + id + "\", DAG doesn't");
+      // Never allowlisted, with exactly ONE catalogued exception (section D
+      // above): underpayment_2210 for a US entity, deliberately suppressed
+      // in agg10-nodes.js's us1ShouldFire override because the engine cites
+      // the wrong form/statute (Form 2210/§6654, an individual-only regime)
+      // for an entity. Every other DAG-drops-a-finding case is still always
+      // real — no observed case besides this one has ever been legitimate.
+      if (id === "underpayment_2210" && isUsEntity) {
+        known.push("findings: engine has \"underpayment_2210\", DAG doesn't (US entity — Form 2210/§6654 doesn't apply; see agg10-nodes.js's us1ShouldFire override, GAP_TRACKER.md section H)");
+      } else {
+        unknown.push("findings: engine has \"" + id + "\", DAG doesn't");
+      }
     } else {
       var fieldDiffs = deepEqual(dagById[id], realById[id], "findings[" + id + "]", []);
       if (fieldDiffs.length) {
@@ -464,10 +540,15 @@ function compareOne(label, profile, saveOnFail) {
   // read off computed.indiaTax anywhere in monitor-next/components).
   // Nothing to differential-test — skipped, not a divergence.
   //
-  // ALWAYS-REAL fields — never excused by the KNOWN-DIVERGENCE allowlist,
-  // regardless of what else is going on in this comparison. summary/
-  // monitoring are handled separately below, split into their
-  // findings-derived (cascade-eligible) and independent (always-real) parts.
+  // ALWAYS-REAL fields for an individual/HUF profile — never excused by the
+  // KNOWN-DIVERGENCE allowlist. For a US-entity/India-entity/NRA profile, a
+  // handful of these paths ARE excusable, but ONLY the specific ones listed
+  // in KNOWN_US_ENTITY_DIVERGENT_PATHS/KNOWN_INDIA_ENTITY_DIVERGENT_PATHS/
+  // KNOWN_NRA_DIVERGENT_PATHS (section D above) — filtered out of realDiffs
+  // into knownDiffs just below this loop, gated strictly on taxpayer shape,
+  // never on profile label or any other signal. summary/monitoring are
+  // handled separately below, split into their findings-derived
+  // (cascade-eligible) and independent (always-real) parts.
   ["model.entity", "model.meta", "model.identity", "model.treaty", "model.residency", "model.companyResidency",
     "model.income.india", "model.income.us", "model.accounts.accounts", "model.assets",
     "computed.indiaTax.totalTaxInr", "computed.indiaTax.totalTaxUsd", "computed.indiaTax.regime",
@@ -488,7 +569,8 @@ function compareOne(label, profile, saveOnFail) {
     deepEqual(a, b, fieldPath, realDiffs);
   });
 
-  var findingsResult = compareFindings(dag.findings, real.findings);
+  var usEntity = isUsEntityProfile(dag);
+  var findingsResult = compareFindings(dag.findings, real.findings, usEntity);
   realDiffs.push.apply(realDiffs, findingsResult.unknown);
   knownDiffs.push.apply(knownDiffs, findingsResult.known);
 
@@ -513,6 +595,23 @@ function compareOne(label, profile, saveOnFail) {
   // (real engine returns null there — not a TAX-7/TAX-8 boundary case,
   // just "nothing to report"); everything else is asserted unconditionally.
   if (real.ftcReport !== null || dag.ftcReport !== null) deepEqual(dag.ftcReport, real.ftcReport, "ftcReport", realDiffs);
+
+  // Section D allowlist: reclassify realDiffs (now including ftcReport)
+  // whose path matches a catalogued entity/NRA-only divergence, gated
+  // strictly on the profile's actual taxpayer shape (never on label or any
+  // other signal).
+  var allowedPaths = []
+    .concat(usEntity ? KNOWN_US_ENTITY_DIVERGENT_PATHS : [])
+    .concat(isIndiaEntityProfile(dag) ? KNOWN_INDIA_ENTITY_DIVERGENT_PATHS : [])
+    .concat(isNraProfile(dag) ? KNOWN_NRA_DIVERGENT_PATHS : []);
+  if (allowedPaths.length) {
+    var stillReal = [];
+    realDiffs.forEach(function (diff) {
+      var p = diff.slice(0, diff.indexOf(": "));
+      (pathMatchesAny(p, allowedPaths) ? knownDiffs : stillReal).push(diff);
+    });
+    realDiffs = stillReal;
+  }
 
   if (!realDiffs.length && !knownDiffs.length) return { status: "match" };
   if (!realDiffs.length) return { status: "known", detail: knownDiffs };

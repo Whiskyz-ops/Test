@@ -228,11 +228,24 @@ NODES.headlineResult = {
   deps: ["identityResult", "metaResult", "totalIndiaIncomeInr", "aggregateUsIncomeResult",
     "totalTaxInrCombined", "usTaxResult", "residencyResult", "ftcResult"],
   compute: function (d, ctx) {
+    // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H, 21
+    // Jul 2026): d.aggregateUsIncomeResult.total.usd is the individual-shaped
+    // aggregate — $0 for a US business entity, whose own income is
+    // usTaxResult.totalIncomeUsd (Schedule M-1) instead — so summary.
+    // totalIncomeUsd silently dropped an entity's entire US income from a
+    // portfolio-wide "how much does this client earn" figure. Same
+    // isEntity-gated pattern as usEntityResult's own fix above and
+    // countriesFromEngine's (monitor-next/lib/wising.js): use the routed
+    // total for an entity, the gross individual aggregate otherwise (the
+    // latter deliberately preserved as-is for NRA/FEIE individuals, whose
+    // narrower usTaxResult.totalIncomeUsd is a real "taxed" vs "exposed"
+    // distinction this fix isn't touching).
+    var usTotalIncomeUsd = d.usTaxResult.isEntity ? d.usTaxResult.totalIncomeUsd : d.aggregateUsIncomeResult.total.usd;
     return {
       name: d.identityResult.name,
       baseYear: d.metaResult.baseYear,
       jurisdiction: d.metaResult.jurisdiction,
-      totalIncomeUsd: d.aggregateUsIncomeResult.total.usd + d.totalIndiaIncomeInr / fxRate(ctx),
+      totalIncomeUsd: usTotalIncomeUsd + d.totalIndiaIncomeInr / fxRate(ctx),
       indiaTaxUsd: d.totalTaxInrCombined / fxRate(ctx),
       usTaxUsd: d.usTaxResult.totalTaxBeforeFtcUsd,
       combinedTaxBeforeReliefUsd: d.totalTaxInrCombined / fxRate(ctx) + d.usTaxResult.totalTaxBeforeFtcUsd,
@@ -305,6 +318,27 @@ NODES.indianBusinessesBoundary = { deps: ["annualSliceAgg"], compute: function (
 NODES.usTotalTaxBeforeFtcUsdBoundary = { deps: ["usTaxResult"], compute: function (d) { return num(d.usTaxResult.totalTaxBeforeFtcUsd); } };
 NODES.usAgiUsdBoundary = { deps: ["usTaxResult"], compute: function (d) { return num(d.usTaxResult.agiUsd); } };
 NODES.usFtcAllowedUsdBoundary = { deps: ["ftcResult"], compute: function (d) { return num(d.ftcResult.us.ftcAllowedUsd); } };
+// DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H —
+// "entity-agnostic audit", 21 Jul 2026): us1-nodes.js's underpayment_2210
+// finding is Form 2210 / §6654 — the INDIVIDUAL estimated-tax underpayment
+// penalty. Once usTotalTaxBeforeFtcUsdBoundary/usAgiUsdBoundary above went
+// entity-aware, a US entity taxpayer with a real balance due and no
+// estimated payments started tripping this gate and firing a finding
+// captioned "Form 2210"/"§6654" — the wrong form and the wrong statute (a
+// corporation's estimated-tax underpayment is Form 2220 / §6655, a
+// different safe-harbor test this engine does not model at all). Rather
+// than fabricate a §6655 computation, suppress the finding entirely for an
+// entity taxpayer — reporting nothing is more correct than reporting the
+// wrong regime's number under the wrong form's name.
+NODES.us1ShouldFire = {
+  deps: ["hasUsScope", "us2210PenaltyUsd", "usBalanceDueUsd", "usPaidTotalUsd", "usRequiredUsd", "usTaxResult"],
+  scopeGate: "hasUsScope",
+  outOfScopeValue: false,
+  compute: function (d) {
+    if (d.usTaxResult.isEntity) return false;
+    return d.usBalanceDueUsd > 1000 && d.usPaidTotalUsd < d.usRequiredUsd;
+  }
+};
 // aggregateAccounts' account LIST (normalize L1997-2008) — batch5's
 // aggregatePeakUsdResult ports only the peak; XB-7 needs the per-account
 // rows. Same source raw node, same construction:

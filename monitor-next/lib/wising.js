@@ -115,7 +115,23 @@ export function countriesFromEngine(result) {
     physicalPresence: usEntry && usEntry.kind === "days" ? model.residency.us.daysCurrentYear > 0 : null,
     triggerDate: crossedDate(usEntry),
     estimatedTaxUsd: Math.round(c.usTax.totalTaxBeforeFtcUsd),
-    incomeExposedUsd: Math.round(model.income.us.total.usd),
+    // model.income.us.total is the INDIVIDUAL-shaped aggregate (wages +
+    // interest + dividends + business_us + ...) — genuinely empty for a US
+    // business entity (ccorp/scorp/partnership/trust), whose own income is
+    // Schedule M-1 book-to-tax reconciled (entity.usScheduleM1TaxableIncomeUsd
+    // -> computed.usTax.totalIncomeUsd, the same figure the Business tab's
+    // model.assets.businessEntities row shows), not an individual 1040
+    // aggregate at all. Reading model.income.us.total for an entity taxpayer
+    // showed a fabricated $0 "Income Exposed" on the US country card even
+    // when the Business tab (same profile) showed real income — e.g.
+    // us_ccorp_indian_sub: $0 shown vs $4.26M in computed.usTax.totalIncomeUsd.
+    // Scoped strictly to c.usTax.isEntity (the entity-path marker
+    // computeUsEntityTax already sets) rather than switching every profile
+    // to computed.usTax.totalIncomeUsd: for an NRA or an FEIE-electing
+    // individual that figure is deliberately NARROWER than the gross
+    // aggregate (ECI+FDAP only / net of the §911 exclusion) — a legitimate,
+    // separate distinction ("taxed" vs "exposed") this fix isn't touching.
+    incomeExposedUsd: Math.round(c.usTax.isEntity ? c.usTax.totalIncomeUsd : model.income.us.total.usd),
     reason: null
   };
   // Scope — see model.meta.hasIndiaScope/hasUsScope (normalize.js): a

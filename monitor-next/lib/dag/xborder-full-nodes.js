@@ -104,6 +104,16 @@ NODES.indiaTotalIncomeUsdBoundaryFtc = {
   compute: function (d, ctx) { return (d.isEntityTaxpayer ? d.entityTaxableInrBoundary : d.totalIncomeInrV3) / fxRate(ctx); }
 };
 NODES.indiaWorldwideBoundaryFtc = { deps: ["residencyResult"], compute: function (d) { return !!d.residencyResult.india.worldwide; } };
-NODES.usSourceTotalUsdBoundaryFtc = { deps: ["aggregateUsIncomeResult"], compute: function (d) { return d.aggregateUsIncomeResult.usSourceTotal.usd; } };
+// DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H, 21 Jul
+// 2026): was aggregateUsIncomeResult.usSourceTotal.usd directly — the
+// individual-shaped aggregate, $0 for a US entity taxpayer, which zeroed
+// out India's own s.90 FTC relief entirely for anyone with a US business
+// entity. Redirected to usTaxResult.usSourceIncomeUsd — the SAME concept
+// (how much of this taxpayer's US-side income is US-source), already fixed
+// entity-aware at its one source (ustax-full-nodes.js's usEntityResult) —
+// so this boundary and usSourceIncomeUsdBoundaryFtc (line 97 above) can't
+// silently drift back out of sync with each other the way the two
+// separately-sourced originals did.
+NODES.usSourceTotalUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.usSourceIncomeUsd; } };
 
 module.exports = { NODES: NODES };

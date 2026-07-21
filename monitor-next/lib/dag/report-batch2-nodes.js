@@ -32,6 +32,15 @@
  * the 2 US-entity/NRA profiles (same TAX-7/TAX-8 boundary as every prior
  * batch — the DAG's usTaxResult only computes the resident/individual
  * path).
+ *
+ * DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H, 21 Jul
+ * 2026): the entity branch below no longer reuses the individual row set.
+ * The engine interpolates undefined entity fields (ordinaryTaxableUsd,
+ * saltCapUsd, etc.) straight into formula strings, producing a literal
+ * "$NaN" in user-facing trace text for every US-entity profile — not
+ * reproduced here. usEntityResult() (ustax-full-nodes.js TAX-7) returns a
+ * flat-rate result with no brackets/deductions/NIIT/SE-tax/AMT, so the
+ * trace below shows only what that result actually computes.
  * ==========================================================================*/
 function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
 
@@ -122,7 +131,39 @@ NODES.buildTaxComputationUsResult = {
       };
     }
 
-    // ---- resident/individual AND entity branch (conflicts.js:2014-2184) ------
+    // ---- entity branch (DELIBERATE DAG/engine divergence — see file header)--
+    // usEntityResult() (TAX-7) is a flat-rate result: taxableIncomeUsd (the
+    // Schedule M-1 book-to-tax figure) taxed once at the entity's rate (21%
+    // for a C-Corp, 0% pass-through for S-Corp/partnership/trust), no
+    // brackets, no deductions, no NIIT/SE/AMT. The row set mirrors that
+    // shape instead of the individual one.
+    if (u.isEntity) {
+      var entityRatePct = u.taxableIncomeUsd > 0 ? Math.round((u.ordinaryTaxUsd / u.taxableIncomeUsd) * 1000) / 10 : 0;
+      return {
+        title: "US federal tax — " + u.filingStatus,
+        currency: "USD",
+        rows: [
+          { label: "Taxable income (Schedule M-1 book-to-tax reconciliation)", usd: u.taxableIncomeUsd,
+            trace: source("Book income from the entity's own books, reconciled to US taxable income on Schedule M-1 — entered on Layer 1 US Business.") },
+          u.passthrough
+            ? { label: "Tax (pass-through — no entity-level federal income tax)", usd: u.ordinaryTaxUsd,
+                trace: source(u.filingStatus + " income passes through to the owners' own returns; no entity-level federal income tax is computed here.") }
+            : { label: "Tax at flat " + entityRatePct + "% (§11 C-Corp rate)", usd: u.ordinaryTaxUsd,
+                trace: calc("Flat 21% × taxable income (§11 — no brackets for a C-Corp)", [
+                  { label: "Taxable income", amount: u.taxableIncomeUsd },
+                  { label: "Rate", display: entityRatePct + "%" }
+                ]) },
+          { label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true,
+            trace: calc("Entity-level tax computed above — no NIIT, SE tax, AMT, or individual credits apply to an entity's own return", [
+              { label: "Tax", amount: u.totalTaxBeforeFtcUsd }
+            ]) }
+        ],
+        totalUsd: u.totalTaxBeforeFtcUsd,
+        effectiveRate: u.effectiveRate
+      };
+    }
+
+    // ---- resident/individual branch (conflicts.js:2014-2184) -----------------
     // Ported verbatim (conflicts.js:2015-2029): Holdings' own gross total
     // (model.income.us.total.usd — NOT gated by worldwide, unlike
     // u.totalIncomeUsd) usually differs from u.totalIncomeUsd by exactly the
@@ -142,7 +183,7 @@ NODES.buildTaxComputationUsResult = {
         ]);
 
     return {
-      title: u.isEntity ? ("US federal tax — " + u.filingStatus) : ("US federal income tax (" + u.filingStatus.toUpperCase() + ")"),
+      title: "US federal income tax (" + u.filingStatus.toUpperCase() + ")",
       currency: "USD",
       rows: [
         { label: "Total income" + (u.worldwide ? " (worldwide)" : " (US-source)"), usd: u.totalIncomeUsd, trace: totalIncomeTrace }

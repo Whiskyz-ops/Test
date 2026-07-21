@@ -37,13 +37,29 @@ function deepCheck(label, a, b) {
   return bad(label, a, b);
 }
 
+// Section D (docs/GAP_TRACKER.md, "entity-agnostic audit", 21 Jul 2026):
+// same DELIBERATE DAG/engine divergence allowlist as run-fuzz.js's
+// KNOWN_US_ENTITY_DIVERGENT_PATHS — see that file's header for the full
+// root-cause writeup. Gated strictly on the profile's actual taxpayer
+// shape, never on profile label.
+function isUsEntity(r) { return ["ccorp", "scorp", "partnership", "trust"].indexOf(r.model.entity && r.model.entity.usKind) >= 0; }
+function isIndiaEntity(r) { return !!(r.model.entity && (r.model.entity.indiaIsCompany || r.model.entity.indiaIsFirm)); }
+function isNra(r) { return r.computed.usTax && r.computed.usTax.isNra === true; }
+
 // Every field the exhaustive grep survey (lib/wising.js, lib/logic.js,
 // components/*, app/*) actually reads off an analyze() result — not a
 // full-object dump (which would flag hundreds of fields no consumer touches).
 function checkResult(id, dag, real) {
   const before = fails;
-  deepCheck(id + " summary", dag.summary, real.summary);
-  deepCheck(id + " findings ids", dag.findings.map(f => f.id), real.findings.map(f => f.id));
+  const usEntity = isUsEntity(real), indiaEntity = isIndiaEntity(real), nra = isNra(real);
+  if (usEntity) {
+    console.log("    (DELIBERATE divergence, section D — see run-fuzz.js) summary.totalIncomeUsd/healthScore, findings ids (underpayment_2210), computed.usTax.usSourceIncomeUsd/foreignSourceIncomeUsd, computed.headline.totalIncomeUsd, computed.apportionment, monitoring.health.score");
+    deepCheck(id + " summary (minus totalIncomeUsd/healthScore)", { ...dag.summary, totalIncomeUsd: 0, healthScore: 0 }, { ...real.summary, totalIncomeUsd: 0, healthScore: 0 });
+    deepCheck(id + " findings ids (minus underpayment_2210)", dag.findings.map(f => f.id).filter(x => x !== "underpayment_2210"), real.findings.map(f => f.id).filter(x => x !== "underpayment_2210"));
+  } else {
+    deepCheck(id + " summary", dag.summary, real.summary);
+    deepCheck(id + " findings ids", dag.findings.map(f => f.id), real.findings.map(f => f.id));
+  }
   deepCheck(id + " model.entity", dag.model.entity, real.model.entity);
   deepCheck(id + " model.meta", dag.model.meta, real.model.meta);
   deepCheck(id + " model.treaty", dag.model.treaty, real.model.treaty);
@@ -61,17 +77,28 @@ function checkResult(id, dag, real) {
   deepCheck(id + " monitoring.projections", dag.monitoring.projections, real.monitoring.projections);
   deepCheck(id + " computed.indiaTax.totalTaxUsd", dag.computed.indiaTax.totalTaxUsd, real.computed.indiaTax.totalTaxUsd);
   deepCheck(id + " computed.indiaTax.s115a", dag.computed.indiaTax.s115a, real.computed.indiaTax.s115a || null);
-  deepCheck(id + " computed.usTax", dag.computed.usTax, real.computed.usTax);
+  if (usEntity) {
+    deepCheck(id + " computed.usTax (minus usSourceIncomeUsd/foreignSourceIncomeUsd)", { ...dag.computed.usTax, usSourceIncomeUsd: 0, foreignSourceIncomeUsd: 0 }, { ...real.computed.usTax, usSourceIncomeUsd: 0, foreignSourceIncomeUsd: 0 });
+  } else {
+    deepCheck(id + " computed.usTax", dag.computed.usTax, real.computed.usTax);
+  }
   deepCheck(id + " computed.usTax.isEntity", !!dag.computed.usTax.isEntity, !!real.computed.usTax.isEntity);
   deepCheck(id + " computed.residency.india.worldwide", dag.computed.residency.india.worldwide, real.computed.residency.india.worldwide);
   deepCheck(id + " computed.residency.us.worldwide", dag.computed.residency.us.worldwide, real.computed.residency.us.worldwide);
   deepCheck(id + " computed.residency.us.isResident", dag.computed.residency.us.isResident, real.computed.residency.us.isResident);
-  deepCheck(id + " computed.ftc", dag.computed.ftc, real.computed.ftc);
+  if (usEntity || nra) {
+    console.log("    (DELIBERATE divergence, section D — see run-fuzz.js) computed.ftc.india");
+    deepCheck(id + " computed.ftc (minus .india)", { ...dag.computed.ftc, india: null }, { ...real.computed.ftc, india: null });
+  } else {
+    deepCheck(id + " computed.ftc", dag.computed.ftc, real.computed.ftc);
+  }
   deepCheck(id + " computed.limits", dag.computed.limits, real.computed.limits);
   deepCheck(id + " computed.reconciliation", dag.computed.reconciliation, real.computed.reconciliation);
-  deepCheck(id + " computed.headline", dag.computed.headline, real.computed.headline);
-  deepCheck(id + " computed.apportionment", dag.computed.apportionment, real.computed.apportionment);
-  deepCheck(id + " monitoring.health.score", dag.monitoring.health.score, real.monitoring.health.score);
+  if (!usEntity) deepCheck(id + " computed.headline", dag.computed.headline, real.computed.headline);
+  if (!usEntity) deepCheck(id + " computed.apportionment", dag.computed.apportionment, real.computed.apportionment);
+  if (!usEntity) deepCheck(id + " monitoring.health.score", dag.monitoring.health.score, real.monitoring.health.score);
+  if (usEntity) console.log("    (DELIBERATE divergence, section D — see run-report2.js) taxComputation.us — not checked here, see run-report2.js/run-analyze.js");
+  if (indiaEntity) console.log("    (DELIBERATE divergence, section D — see run-report3.js) taxComputation.india — not checked here, see run-report3.js/run-analyze.js");
   console.log(id + "  " + (fails === before ? "all match" : "FAILURES above"));
 }
 
@@ -96,10 +123,20 @@ console.log("\n=== Clients tab: allClientSummariesDag() vs allClientSummaries() 
   const dagSummaries = allClientSummariesDag();
   const realSummaries = allClientSummaries();
   deepCheck("client summaries length", dagSummaries.length, realSummaries.length);
+  // Section D: healthScore/totalIncomeUsd are the same US-entity divergence
+  // as checkResult above (a real analyze() lookup by profile id, since the
+  // summary object itself doesn't carry usKind).
+  const usEntityIds = new Set(WISING.PROFILES.filter((p) => {
+    const r = WISING.analyze({ router: p.router, india: p.india, us: p.us });
+    return isUsEntity(r);
+  }).map((p) => p.id));
   realSummaries.forEach((real, i) => {
     const dag = dagSummaries[i];
+    const skip = usEntityIds.has(real.id) ? new Set(["healthScore", "totalIncomeUsd"]) : new Set();
+    if (skip.size) console.log("    (DELIBERATE divergence, section D — see run-fuzz.js) clientSummaries[" + i + "]." + real.id + ".healthScore/totalIncomeUsd");
     ["id", "healthScore", "critical", "warning", "indiaStatus", "usStatus", "dualResident",
       "totalIncomeUsd", "netDoubleTaxUsd", "combinedTaxUsd", "requiredDocs", "isBusiness"].forEach((k) => {
+      if (skip.has(k)) return;
       deepCheck("clientSummaries[" + i + "]." + real.id + "." + k, dag && dag[k], real[k]);
     });
   });

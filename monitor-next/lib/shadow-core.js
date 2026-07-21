@@ -64,6 +64,28 @@ const DAG_ONLY_KEYS = new Set(["caveat"]);
 // Back-compat alias (the full path list).
 export const SHADOW_SURFACE = SYMMETRIC_SURFACE.concat(DIRECTIONAL_SURFACE);
 
+// Section D (docs/GAP_TRACKER.md, "entity-agnostic audit", 21 Jul 2026):
+// DELIBERATE DAG/engine divergences for a US-entity, India-entity, or NRA
+// taxpayer — the DAG is now the more-correct implementation on these
+// specific paths, engine/*.js stays frozen and wrong there by explicit
+// product direction. Same allowlist convention (and same root cause) as
+// prototypes/graph-pilot/run-fuzz.js's KNOWN_US_ENTITY_DIVERGENT_PATHS —
+// see that file's header for the full writeup. Gated strictly on the
+// profile's actual taxpayer shape, checked against model.entity/computed.
+// usTax.isNra on the engine side (the ground-truth classification both
+// sides are separately asserted to agree on elsewhere).
+const KNOWN_US_ENTITY_PATHS = [
+  "computed.headline.totalIncomeUsd", "computed.ftc.india", "taxComputation.us", "summary.totalIncomeUsd",
+  "summary.healthScore", "summary.counts", "monitoring.health.score",
+  "computed.usTax.foreignSourceIncomeUsd", "computed.usTax.usSourceIncomeUsd", "computed.apportionment",
+  "ftcReport.direction_india_relief"
+];
+const KNOWN_INDIA_ENTITY_PATHS = ["taxComputation.india"];
+const KNOWN_NRA_PATHS = ["computed.ftc.india", "ftcReport.direction_india_relief"];
+function pathMatchesKnown(path, prefixes) {
+  return prefixes.some((prefix) => path === prefix || path.startsWith(prefix + ".") || path.startsWith(prefix + "["));
+}
+
 // Relative+absolute float tolerance — the engine and DAG do the same
 // arithmetic but occasionally in a different associative order (e.g. summing
 // a quarter-merged slice), so bit-exact equality would flag noise, not bugs.
@@ -135,10 +157,32 @@ export function diff(path, eng, dag, out, directional) {
  * outputs, directional over the assembled model/computed. Returns [] when they
  * agree (within float tolerance). */
 export function compareSurface(engineResult, dagResult) {
-  const out = [];
-  for (const p of SYMMETRIC_SURFACE) diff(p, getPath(engineResult, p), getPath(dagResult, p), out, false);
-  for (const p of DIRECTIONAL_SURFACE) diff(p, getPath(engineResult, p), getPath(dagResult, p), out, true);
-  return out;
+  const entity = engineResult && engineResult.model && engineResult.model.entity;
+  const usEntity = !!(entity && ["ccorp", "scorp", "partnership", "trust"].includes(entity.usKind));
+  const indiaEntity = !!(entity && (entity.indiaIsCompany || entity.indiaIsFirm));
+  const nra = !!(engineResult && engineResult.computed && engineResult.computed.usTax && engineResult.computed.usTax.isNra === true);
+
+  // findings: a US entity drops underpayment_2210 (agg10-nodes.js's
+  // us1ShouldFire override, section D) — array-index-diff every OTHER
+  // finding after that position if left in place, so it's filtered out of
+  // both sides before diffing rather than caught by the path-prefix
+  // allowlist below (which can't repair an index shift).
+  let eng = engineResult, dag = dagResult;
+  if (usEntity && Array.isArray(engineResult && engineResult.findings) && Array.isArray(dagResult && dagResult.findings)) {
+    eng = { ...engineResult, findings: engineResult.findings.filter((f) => f.id !== "underpayment_2210") };
+    dag = { ...dagResult, findings: dagResult.findings.filter((f) => f.id !== "underpayment_2210") };
+  }
+
+  const raw = [];
+  for (const p of SYMMETRIC_SURFACE) diff(p, getPath(eng, p), getPath(dag, p), raw, false);
+  for (const p of DIRECTIONAL_SURFACE) diff(p, getPath(eng, p), getPath(dag, p), raw, true);
+
+  const allowedPaths = []
+    .concat(usEntity ? KNOWN_US_ENTITY_PATHS : [])
+    .concat(indiaEntity ? KNOWN_INDIA_ENTITY_PATHS : [])
+    .concat(nra ? KNOWN_NRA_PATHS : []);
+  if (!allowedPaths.length) return raw;
+  return raw.filter((d) => !pathMatchesKnown(d.path, allowedPaths));
 }
 
 // A stable signature for a set of divergences, so repeated loads of the same

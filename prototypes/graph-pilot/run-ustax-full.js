@@ -67,8 +67,20 @@ function runCase(id, router, india, us) {
   var before = fail;
 
   if (real.isEntity || real.isNra) {
-    // Exact-shape ports: compare the ENTIRE engine result object.
-    deepCheck("usTax(full)", out, real);
+    // Exact-shape ports: compare the ENTIRE engine result object — EXCEPT
+    // usSourceIncomeUsd for an entity, a DELIBERATE DAG/engine divergence
+    // (docs/GAP_TRACKER.md section H, 21 Jul 2026): the engine reads the
+    // individual-shaped aggregateUsIncomeResult.usSourceTotal.usd here,
+    // always $0 for an entity (whose own income is a separate Schedule M-1
+    // figure that aggregate never captures) — fixed in-graph to the full
+    // taxable amount instead (see this file's usEntityTaxResult comment).
+    if (real.isEntity) {
+      if (out.usSourceIncomeUsd === out.totalIncomeUsd) ok("usTax(full).usSourceIncomeUsd (DELIBERATE divergence — see comment above)");
+      else bad("usTax(full).usSourceIncomeUsd (DELIBERATE divergence — see comment above)", "graph=" + out.usSourceIncomeUsd + " expected=" + out.totalIncomeUsd);
+      Object.keys(out).forEach(function (k) { if (k !== "usSourceIncomeUsd") deepCheck("usTax(full)." + k, out[k], real[k]); });
+    } else {
+      deepCheck("usTax(full)", out, real);
+    }
   } else {
     // Individual path emits a documented subset — compare every field it has.
     // feieAppliedUsd is the DAG's flat alias of the engine's feie.appliedUsd
