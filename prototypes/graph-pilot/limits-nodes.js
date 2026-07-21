@@ -42,7 +42,7 @@ var fxRate = require("./fx-util.js").fxRate; // rate overridable via ctx.fxRateO
 
 // SYS-1 closed 19 Jul 2026: the L table below was a verified-identical
 // copy of CONST.LIMITS — now the same object, imported.
-var L = require("../../engine/constants.js").CONST.LIMITS;
+var L = require("./constants.js").CONST.LIMITS;
 
 // computation.js L758-785, verbatim — including the reasons array the
 // ustax-nodes copy drops (the feie gauge note is built from it).

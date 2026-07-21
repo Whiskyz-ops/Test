@@ -1,3 +1,5 @@
+/* GENERATED — mirrored from prototypes/graph-pilot/sample-data.js by scripts/sync-fixtures-to-engine.js.
+ * Do not hand-edit this copy — edit prototypes/graph-pilot/sample-data.js and re-run that script. */
 /* ============================================================================
  * WISING — Layer 2 Engine :: sample-data.js
  * ----------------------------------------------------------------------------
@@ -5,6 +7,12 @@
  * before the Layer 1 forms have been filled in. Shapes mirror the actual
  * `state` (India) and `usState` (US) objects defined in the Layer 1 forms, so
  * loading these is indistinguishable from a real intake.
+ *
+ * Canonical home as of docs/GAP_TRACKER.md section H.9 (21 Jul 2026): this is
+ * reference DATA, not computation logic, so it lives with the DAG
+ * (prototypes/graph-pilot), not engine/ — edit it here. engine/sample-data.js
+ * is a generated mirror (scripts/sync-fixtures-to-engine.js); never hand-edit
+ * that copy.
  *
  * Persona: "Aarav Sharma" — Indian citizen on H-1B in the US, ROR in India,
  * SPT met + green-card pending in the US. Holds Indian salary, Indian MFs,

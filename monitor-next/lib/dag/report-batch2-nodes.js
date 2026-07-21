@@ -131,12 +131,47 @@ NODES.buildTaxComputationUsResult = {
       };
     }
 
+    // ---- trust/estate branch (DELIBERATE DAG/engine divergence — see file
+    // header and ustax-full-nodes.js's usEntityTaxResult trust branch): a
+    // trust splits into a DISTRIBUTED portion (taxed on the beneficiaries'
+    // own returns, not here) and a RETAINED portion (taxed at the entity
+    // level, at real compressed §1(e) brackets — not the flat/pass-through
+    // shape every other entity kind uses).
+    if (u.isEntity && u.trustBracketBreakdown !== undefined) {
+      var trustRows = [
+        { label: "Total trust/estate income (distributed + retained)", usd: u.totalIncomeUsd,
+          trace: source("Beneficiaries' share of income (Layer 1 US, Form 1041 K-1 section) plus any income the trust retained — entered on Layer 1 US Business.") }
+      ];
+      if (u.trustDistributedUsd > 0) {
+        trustRows.push({ label: "  — distributed to beneficiaries (not taxed here)", usd: -u.trustDistributedUsd,
+          trace: source("Offset by the trust's distribution deduction (§651/§661) — taxed on the beneficiaries' own returns instead, not this entity-level computation.") });
+      }
+      trustRows.push({ label: "Retained (undistributed) income", usd: u.trustRetainedUsd,
+        trace: calc("Total trust/estate income less the amount distributed to beneficiaries", [
+          { label: "Total income", amount: u.totalIncomeUsd },
+          { label: "Less distributed to beneficiaries", amount: -u.trustDistributedUsd }
+        ]) });
+      if (u.trustRetainedUsd > 0) {
+        trustRows.push({ label: "Tax on retained income (§1(e) compressed brackets)", usd: u.ordinaryTaxUsd,
+          trace: calc("Progressive trust/estate brackets (10%-37%, 37% starting around $15,650 — far more compressed than the individual brackets) applied to $" + Math.round(u.trustRetainedUsd).toLocaleString("en-US") + " of retained income",
+            bracketParts(u.trustBracketBreakdown, usd)) });
+      } else {
+        trustRows.push({ label: "Tax on retained income", usd: 0,
+          trace: source("No retained income this year — fully distributed, so no entity-level tax under §1(e).") });
+      }
+      trustRows.push({ label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true,
+        trace: calc("Tax on retained income only — no NIIT, SE tax, AMT, or individual credits apply to a trust's own Form 1041", [
+          { label: "Tax", amount: u.totalTaxBeforeFtcUsd }
+        ]) });
+      return { title: "US federal tax — " + u.filingStatus, currency: "USD", rows: trustRows, totalUsd: u.totalTaxBeforeFtcUsd, effectiveRate: u.effectiveRate };
+    }
+
     // ---- entity branch (DELIBERATE DAG/engine divergence — see file header)--
     // usEntityResult() (TAX-7) is a flat-rate result: taxableIncomeUsd (the
     // Schedule M-1 book-to-tax figure) taxed once at the entity's rate (21%
-    // for a C-Corp, 0% pass-through for S-Corp/partnership/trust), no
-    // brackets, no deductions, no NIIT/SE/AMT. The row set mirrors that
-    // shape instead of the individual one.
+    // for a C-Corp, 0% pass-through for S-Corp/partnership), no brackets, no
+    // deductions, no NIIT/SE/AMT. The row set mirrors that shape instead of
+    // the individual one.
     if (u.isEntity) {
       var entityRatePct = u.taxableIncomeUsd > 0 ? Math.round((u.ordinaryTaxUsd / u.taxableIncomeUsd) * 1000) / 10 : 0;
       return {
@@ -346,17 +381,35 @@ NODES.buildTaxComputationUsStateResult = {
   compute: function (d) {
     var st = d.usStateTaxResult;
     if (!st) return null;
+    // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.7, 21
+    // Jul 2026): a confirmed no-income-tax state (usStateTaxResult.
+    // noIncomeTax) gets a short confirmation card instead of the full
+    // bracket-trace shape below — no engine equivalent (the engine's
+    // computeUsStateTax returns null for these too, same silence H.7 closes).
+    if (st.noIncomeTax) {
+      return {
+        title: st.stateName + " state income tax",
+        currency: "USD",
+        rows: [{ label: "State income tax", usd: 0, emphasis: true, trace: source(st.basis) }],
+        totalUsd: 0, effectiveRate: 0, basis: st.basis
+      };
+    }
     return {
       title: st.stateName + " state income tax (" + st.formName + ", " + st.filingStatus.toUpperCase() + ")",
       currency: "USD",
       rows: [
         { label: "Federal AGI (starting point)", usd: st.agiUsd,
           trace: source("Same federal AGI computed above — " + st.stateName + " taxes a full-year resident's worldwide income, so no separate state-source recomputation is done.") },
-        { label: "Less " + st.stateName + " standard deduction", usd: -st.standardDeductionUsd,
-          trace: source(st.stateName + "'s own standard deduction for " + st.filingStatus.toUpperCase() + " — separate from, and smaller than, the federal one.") }
+        { label: "Less " + st.stateName + " " + st.standardDeductionLabel, usd: -st.standardDeductionUsd,
+          trace: source(st.stateName + "'s own " + st.standardDeductionLabel + " for " + st.filingStatus.toUpperCase() + " — separate from, and smaller than, the federal one.") }
       ].concat(st.dependentExemptionUsd > 0 ? [
-        { label: "Less NY dependent exemption ($1,000/dependent)", usd: -st.dependentExemptionUsd,
-          trace: source("NY dropped the personal exemption for filer/spouse decades ago; only the $1,000-per-dependent exemption survives.") }
+        st.state === "NY" ? {
+          label: "Less NY dependent exemption ($1,000/dependent)", usd: -st.dependentExemptionUsd,
+          trace: source("NY dropped the personal exemption for filer/spouse decades ago; only the $1,000-per-dependent exemption survives.")
+        } : {
+          label: "Less " + st.dependentExemptionLabel, usd: -st.dependentExemptionUsd,
+          trace: source(st.stateName + "'s per-dependent exemption.")
+        }
       ] : []).concat([
         { label: "State taxable income", usd: st.taxableIncomeUsd,
           trace: calc("Federal AGI less the state standard deduction" + (st.dependentExemptionUsd > 0 ? " and dependent exemption" : ""), [

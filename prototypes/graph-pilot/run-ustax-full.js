@@ -74,10 +74,22 @@ function runCase(id, router, india, us) {
     // always $0 for an entity (whose own income is a separate Schedule M-1
     // figure that aggregate never captures) — fixed in-graph to the full
     // taxable amount instead (see this file's usEntityTaxResult comment).
+    // trustDistributedUsd/trustRetainedUsd/trustBracketBreakdown (docs/
+    // GAP_TRACKER.md section H.6, 21 Jul 2026): new fields, no engine
+    // equivalent (a genuinely new fact Layer 1 didn't collect before — see
+    // ustax-full-nodes.js's usEntityTaxResult trust branch). filingStatus
+    // for a trust now carries a retained-vs-distributed qualifier the
+    // engine's static string never had.
+    var TRUST_ONLY_KEYS = { trustDistributedUsd: true, trustRetainedUsd: true, trustBracketBreakdown: true };
     if (real.isEntity) {
       if (out.usSourceIncomeUsd === out.totalIncomeUsd) ok("usTax(full).usSourceIncomeUsd (DELIBERATE divergence — see comment above)");
       else bad("usTax(full).usSourceIncomeUsd (DELIBERATE divergence — see comment above)", "graph=" + out.usSourceIncomeUsd + " expected=" + out.totalIncomeUsd);
-      Object.keys(out).forEach(function (k) { if (k !== "usSourceIncomeUsd") deepCheck("usTax(full)." + k, out[k], real[k]); });
+      if (out.filingStatus.indexOf("Trust/Estate (1041)") === 0) {
+        ok("usTax(full).filingStatus (DELIBERATE divergence — trust retained/distributed qualifier)");
+      } else {
+        deepCheck("usTax(full).filingStatus", out.filingStatus, real.filingStatus);
+      }
+      Object.keys(out).forEach(function (k) { if (k !== "usSourceIncomeUsd" && k !== "filingStatus" && !TRUST_ONLY_KEYS[k]) deepCheck("usTax(full)." + k, out[k], real[k]); });
     } else {
       deepCheck("usTax(full)", out, real);
     }

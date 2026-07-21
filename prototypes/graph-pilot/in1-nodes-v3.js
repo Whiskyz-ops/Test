@@ -106,7 +106,7 @@ function indiaAnnualSliceV3(india) {
  * import (verified byte-identical against CONST.TAX.INDIA by
  * check-const.js before the swap; S80DD/S80DDB caps were promoted INTO
  * constants.js from normalize.js-local literals in the same pass). */
-var CONST = require("../../engine/constants.js").CONST;
+var CONST = require("./constants.js").CONST;
 var T = CONST.TAX.INDIA;
 var S80DD_U_FLAT = CONST.TAX.INDIA.S80DD_U_FLAT_INR;
 var S80DDB_CAP = CONST.TAX.INDIA.S80DDB_CAP_INR;

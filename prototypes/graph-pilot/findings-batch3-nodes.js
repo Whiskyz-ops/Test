@@ -116,7 +116,7 @@ NODES.taxableNpsWithdrawalInrAgg = { deps: ["osAgg"], compute: function (d) { re
 // same math, full breakdown object instead of just the summed total (computation.js:472-514).
 // SYS-1: shared — short local names aliased to CONST.TAX.INDIA's own keys
 // (values verified equal before the swap: 0.30/0.22/0.12/0.125/0.20/0.04).
-var CONST_IN_B3 = require("../../engine/constants.js").CONST.TAX.INDIA;
+var CONST_IN_B3 = require("./constants.js").CONST.TAX.INDIA;
 var PROMOTER = {
   TARGET_NON_CORP: CONST_IN_B3.PROMOTER_BUYBACK_TARGET_RATE_NON_CORPORATE,
   TARGET_CORP: CONST_IN_B3.PROMOTER_BUYBACK_TARGET_RATE_CORPORATE,
@@ -146,7 +146,7 @@ NODES.promoterBuybackDetail = {
 
 // ---- findings, ported in full ----------------------------------------------
 NODES.findingsBatch3Result = {
-  deps: ["taxRegime", "businessComputation", "indiaIsCompany", "indiaIsFirm",
+  deps: ["taxRegime", "businessComputation", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust",
     "capitalGainsComputation", "hasUsScopeBoundaryFtc", "hasIndiaScopeXbr",
     "residencyResult", "apportionmentResult", "usFtcFormXbr",
     "indiaFinancialHoldingsTxRaw", "viaForeignCorpXbr4", "bizEntriesAgg",
@@ -162,7 +162,11 @@ NODES.findingsBatch3Result = {
     var res = d.residencyResult;
 
     // -- 4c4. FORM 10-IEA (conflicts.js:573-588) -----------------------------
-    if (d.taxRegime === "OLD" && (d.businessComputation.businessInr || 0) > 0 && !d.indiaIsCompany && !d.indiaIsFirm) {
+    // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.6, 21
+    // Jul 2026): widened to also exclude AOP/Trust — see checks-registry-
+    // nodes.js's matching pass()-gate widening (must stay in sync — the
+    // fuzzer asserts no finding ID is ever both fired and passed).
+    if (d.taxRegime === "OLD" && (d.businessComputation.businessInr || 0) > 0 && !d.indiaIsCompany && !d.indiaIsFirm && !d.indiaIsAop && !d.indiaIsTrust) {
       add("form_10iea", "warning", "document",
         "Form 10-IEA required to elect the old regime with business/professional income",
         "The old tax regime is selected and business/professional (PGBP) income is on file. Unlike a salary-only filer, an " +
@@ -320,7 +324,10 @@ NODES.findingsBatch3Result = {
     // Engine reads computed.indiaTax.promoterBuyback — omitted by
     // computeIndiaEntityTax, so this never fires for an India company/firm.
     // Mirror the undefined-for-entity (found by run-fuzz.js, SYS-3, 20 Jul 2026).
-    var pb = (d.indiaIsCompany || d.indiaIsFirm) ? null : d.promoterBuybackDetail;
+    // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.6, 21
+    // Jul 2026): widened to also exclude AOP/Trust, whose entityTaxResult
+    // similarly omits promoterBuyback detail (entitytax-nodes.js).
+    var pb = (d.indiaIsCompany || d.indiaIsFirm || d.indiaIsAop || d.indiaIsTrust) ? null : d.promoterBuybackDetail;
     if (pb && pb.totalExtraTaxInr > 1) {
       add("promoter_buyback_additional_tax", "warning", "income",
         "Promoter additional tax on buy-back gains — " + inr(pb.additionalTaxInr + pb.surchargeInr + pb.cessInr) + " on top of ordinary capital-gains tax",

@@ -67,7 +67,7 @@ NODES.checksRegistryResult = {
     "crossBasisResult", "indiaItrFormResult", "specialRate115bbInr", "unexplained115bbeInrAgg",
     "chapterXiiaElectedRaw",
     // C
-    "taxRegime", "businessComputation", "indiaIsFirm", "capitalGainsComputation",
+    "taxRegime", "businessComputation", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "capitalGainsComputation",
     "stateResidencyRaw", "indiaFinancialHoldingsTxRaw", "viaForeignCorpXbr4", "bizEntriesAgg",
     "epfInrRaw", "ppfInrRaw", "npsInrRaw", "foreignGiftsRaw", "nraRaw", "hasPERaw",
     "salaryInr",
@@ -149,7 +149,11 @@ NODES.checksRegistryResult = {
     }
 
     // ---- C: findings-batch3-nodes.js ------------------------------------
-    if (d.taxRegime === "OLD" && !d.indiaIsCompany && !d.indiaIsFirm) {
+    // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.6, 21
+    // Jul 2026): widened to also exclude AOP/Trust — Form 10-IEA is an
+    // individual/HUF election mechanism; an AOP/Trust wouldn't file it
+    // either, same as a company/firm (see entitytax-nodes.js's file header).
+    if (d.taxRegime === "OLD" && !d.indiaIsCompany && !d.indiaIsFirm && !d.indiaIsAop && !d.indiaIsTrust) {
       if (!((d.businessComputation.businessInr || 0) > 0)) {
         pass("form_10iea", "document", "Form 10-IEA not required", "Old regime elected, but no business/professional income on file — a salaried/other-income-only filer can choose the old regime on the ITR itself, no Form 10-IEA needed.");
       }
@@ -234,17 +238,26 @@ NODES.checksRegistryResult = {
       pass("iso_3921", "document", "No ISO exercises on file", "No incentive-stock-option exercises this year — no Form 3921 to expect.");
     }
     if (d.usStateTaxResult && d.usStateTaxResult.totalTaxUsd <= 0) {
-      pass("state_income_tax", "credit", d.usStateTaxResult.stateName + " state tax: none due", "State taxable income nets to zero or below at " + d.usStateTaxResult.stateName + "'s own rates after the standard deduction.");
+      // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.7,
+      // 21 Jul 2026): distinguishes a genuine no-income-tax state (a
+      // categorical fact) from a state whose bracket computation happened
+      // to net to zero — the engine's version couldn't reach this state at
+      // all before H.7 (it returned null, not a zero result), so it never
+      // had to make this distinction.
+      var detail = d.usStateTaxResult.noIncomeTax
+        ? d.usStateTaxResult.stateName + " has no individual income tax at all."
+        : "State taxable income nets to zero or below at " + d.usStateTaxResult.stateName + "'s own rates after the standard deduction.";
+      pass("state_income_tax", "credit", d.usStateTaxResult.stateName + " state tax: none due", detail);
     }
     if (d.hasUsScopeBoundaryFtc) {
-      var LIM = require("../../engine/constants.js").CONST.LIMITS;
+      var LIM = require("./constants.js").CONST.LIMITS;
       var fbarPeakUsd = d.aggregatePeakUsdResult.usd;
       if (fbarPeakUsd < LIM.FBAR_AGGREGATE_USD) {
         pass("fbar_limit", "limit", "FBAR: not required", "Aggregate peak balance across foreign accounts is " + usd(fbarPeakUsd) + " — below the " + usd(LIM.FBAR_AGGREGATE_USD) + " reporting threshold.");
       }
     }
     if (d.hasIndiaScopeXbr) {
-      var LIM2 = require("../../engine/constants.js").CONST.LIMITS;
+      var LIM2 = require("./constants.js").CONST.LIMITS;
       var lrsRemittedUsd = (d.limitsRawExtra.lrsRemittedInr || 0) / 83.0;
       if (lrsRemittedUsd < LIM2.LRS_ANNUAL_USD * 0.8) {
         pass("lrs_limit", "limit", "LRS: well within annual cap", "Outbound LRS remittances of " + usd(lrsRemittedUsd) + " are under 80% of the " + usd(LIM2.LRS_ANNUAL_USD) + " RBI annual cap.");

@@ -637,6 +637,25 @@ var engineNums = new Set();
 function stripStringLiterals(line) {
   return line.replace(/"(?:[^"\\]|\\.)*"/g, "\"\"").replace(/'(?:[^'\\]|\\.)*'/g, "''");
 }
+// KNOWN-DAG-ONLY: numeric literals from new, deliberately DAG-only feature
+// work (docs/DAG_MIGRATION_TRACKER.md's tracker-direction note, 20 Jul
+// 2026 — "new product features now land DAG-only... engine/*.js untouched
+// by this file or anything it depends on") that will NEVER have an
+// engine-side match by design. Distinct from the original SYS-1 problem
+// this check exists to catch (a value hand-copied on BOTH sides that
+// later drifted apart) — these are one-sided from the start, not drifted.
+// Scoped to file+value, mirroring this script's own knownMissing
+// convention (see section 1b), so an unrelated, genuinely accidental new
+// duplication elsewhere still fails loudly.
+var KNOWN_DAG_ONLY = {
+  // NJ individual state-tax brackets (single/mfj) + dependent exemption —
+  // GAP_TRACKER.md H.7, "Business-entity Phase 2: US state income tax"
+  "findings-batch5-nodes.js": [20000, 0.014, 35000, 0.0175, 0.035, 0.05525, 0.0637, 0.0897, 0.1075, 70000, 0.0245, 1500],
+  // US trust IRC S.1(e) brackets (H.6) + entity CA/NY/NJ corporate rates (H.7)
+  "ustax-full-nodes.js": [3150, 11450, 15650, 0.0884, 0.0725, 0.09]
+};
+function isKnownDagOnly(f, v) { return (KNOWN_DAG_ONLY[f] || []).indexOf(v) !== -1; }
+
 var drifted = [];
 NODE_FILES.forEach(function (f) {
   codeLines(path.join(ROOT, "prototypes", "graph-pilot", f)).forEach(function (line, i) {
@@ -644,7 +663,7 @@ NODE_FILES.forEach(function (f) {
       var v = Number(n);
       var significant = Math.abs(v) >= 100 || (v > 0 && v < 1 && n.indexOf(".") !== -1);
       if (significant && !engineNums.has(v) && !drifted.some(function (d) { return d.v === v && d.f === f; })) {
-        drifted.push({ f: f, v: v, line: i + 1 });
+        drifted.push({ f: f, v: v, line: i + 1, known: isKnownDagOnly(f, v) });
       }
     });
   });
@@ -684,14 +703,20 @@ console.log("  engine finding IDs: " + findingIds.length + "   implemented in DA
 findingsMissing.forEach(function (f) { console.log("      MISSING  " + f.id + "  (conflicts.js L" + f.line + ")"); });
 
 console.log("\n--- 4. NUMERIC DRIFT: DAG constant values with no matching literal anywhere in engine/*.js ---");
-if (drifted.length === 0) console.log("  none — every significant DAG numeric literal also exists engine-side (no drift yet; see tracker SYS-1).");
-drifted.forEach(function (d) { console.log("      " + d.f + " L" + d.line + "  " + d.v); });
+var newDrift = drifted.filter(function (d) { return !d.known; });
+if (newDrift.length === 0) console.log("  none — every significant DAG numeric literal also exists engine-side, or is on the known-DAG-only list below (no unexplained drift; see tracker SYS-1).");
+newDrift.forEach(function (d) { console.log("      " + d.f + " L" + d.line + "  " + d.v); });
+
+console.log("\n--- 4b. KNOWN DAG-ONLY: accepted constants from deliberately DAG-only feature work (tracker-direction note, 20 Jul 2026) ---");
+var knownDrift = drifted.filter(function (d) { return d.known; });
+if (knownDrift.length === 0) console.log("  none.");
+knownDrift.forEach(function (d) { console.log("      " + d.f + " L" + d.line + "  " + d.v); });
 
 console.log("\n--- 5. ENGINE FUNCTIONS NOT IN THE TRACKER MAPPING (new code the tracker hasn't heard of) ---");
 if (untracked.length === 0) console.log("  none — every top-level engine function is accounted for in the tracker mapping.");
 untracked.forEach(function (u) { console.log("      " + u); });
 
-var fail = unexpected.length > 0 || untracked.length > 0 || drifted.length > 0;
+var fail = unexpected.length > 0 || untracked.length > 0 || newDrift.length > 0;
 console.log("\n" + BAR);
 console.log("Result: " + (fail
   ? "ATTENTION REQUIRED — unexpected gaps / untracked functions / numeric drift above."

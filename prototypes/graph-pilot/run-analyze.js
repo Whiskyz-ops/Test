@@ -84,7 +84,10 @@ WISING.PROFILES.forEach(function (p) {
   var findingsDiff = deepEqual(byId(mineFindings), byId(realFindings));
   check("findings match exactly (by ID, order-independent)", !findingsDiff, findingsDiff && findingsDiff.slice(0, 6).join(" | "));
 
-  var docsDiff = deepEqual(out.documents, r.documents);
+  // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026): new DAG-only
+  // document, no engine equivalent (NJ wasn't modeled at all before this).
+  var docsForDiff = out.documents.filter(function (x) { return x.id !== "form_nj1040"; });
+  var docsDiff = deepEqual(docsForDiff, r.documents);
   check("documents match exactly", !docsDiff, docsDiff && docsDiff.slice(0, 4).join(" | "));
 
   if (isUsEntity || isNra) {

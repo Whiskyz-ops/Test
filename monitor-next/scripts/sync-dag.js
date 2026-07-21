@@ -1,12 +1,18 @@
-/* Copies prototypes/graph-pilot/*-nodes.js + graph.js (the DAG — NOT the
- * run-*.js test harnesses, which hardcode a repo-root absolute path and
- * only make sense under Node) into lib/dag, so the Next app can require()
- * them client-side. Rewrites each file's require("../../engine/constants.js")
- * to require("../engine/constants.js") — lib/dag and lib/engine are siblings
- * here, two levels up from prototypes/graph-pilot's own location at the repo
- * root. Runs on predev/prebuild, right after sync-engine (which must land
- * lib/engine/constants.js first — the DAG's shared-constants import,
- * SYS-1, needs it there). Tolerant like sync-engine: if the source dir
+/* Copies prototypes/graph-pilot/*-nodes.js + graph.js + constants.js/
+ * profiles.js/sample-data.js (the DAG — NOT the run-*.js test harnesses,
+ * which hardcode a repo-root absolute path and only make sense under Node)
+ * into lib/dag, so the Next app can require() them client-side.
+ *
+ * constants.js/profiles.js/sample-data.js live IN prototypes/graph-pilot
+ * now (docs/GAP_TRACKER.md section H.9, 21 Jul 2026 — moved out of engine/
+ * so the DAG's own node files no longer reach into engine/ for anything at
+ * all), so every DAG node file's require("./constants.js") is already a
+ * same-directory sibling reference — copying the whole directory verbatim
+ * keeps it correct with no path rewriting needed (the old version of this
+ * script rewrote require("../../engine/constants.js") for exactly this
+ * reason; that hack is gone along with the reference it rewrote).
+ *
+ * Runs on predev/prebuild. Tolerant like sync-engine: if the source dir
  * isn't present, keeps the existing copy. */
 const fs = require("fs");
 const path = require("path");
@@ -23,9 +29,7 @@ fs.mkdirSync(dst, { recursive: true });
 const files = fs.readdirSync(src).filter((f) => f.endsWith(".js") && !f.startsWith("run-") && f !== "run.js");
 let n = 0;
 files.forEach((f) => {
-  let content = fs.readFileSync(path.join(src, f), "utf8");
-  content = content.split('"../../engine/constants.js"').join('"../engine/constants.js"');
-  fs.writeFileSync(path.join(dst, f), content);
+  fs.copyFileSync(path.join(src, f), path.join(dst, f));
   n++;
 });
-console.log(`[sync-dag] synced ${n} DAG node files → lib/dag`);
+console.log(`[sync-dag] synced ${n} DAG files → lib/dag`);

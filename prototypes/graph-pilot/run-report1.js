@@ -58,7 +58,11 @@ WISING.PROFILES.forEach(function (p) {
 
   console.log(p.id + (isUsEntity ? " (US ENTITY — ftcReport not in-graph, reporting only)" : isNra ? " (NRA — ftcReport not in-graph, reporting only)" : ""));
 
-  var docDiff = deepEqual(out.buildDocumentsResult, r.documents);
+  // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026): new DAG-only
+  // document, no engine equivalent (NJ wasn't modeled at all before this) —
+  // see findings-batch5-nodes.js's usStateTaxResult.
+  var docsForDiff = out.buildDocumentsResult.filter(function (x) { return x.id !== "form_nj1040"; });
+  var docDiff = deepEqual(docsForDiff, r.documents);
   check("documents matches exactly (" + r.documents.length + " entries, " + r.documents.filter(function (x) { return x.required; }).length + " required)", !docDiff, docDiff && docDiff.slice(0, 3).join(" | "));
 
   var scopeDiff = deepEqual(out.buildScopeNotesResult, r.scopeNotes);

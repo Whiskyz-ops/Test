@@ -27,9 +27,15 @@ Object.keys(entityNodes).forEach(function (k) {
   NODES[k] = entityNodes[k];
 });
 
+// DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.6, 21 Jul
+// 2026): widened to include AOP/BOI and Trust/NGO/Political Party — see
+// entitytax-nodes.js's file header for the full writeup. The engine's own
+// routing condition (`E.indiaIsCompany || E.indiaIsFirm`) never reaches
+// computeIndiaEntityTax for either, silently taxing them as a plain
+// individual.
 NODES.isEntityTaxpayer = {
-  deps: ["indiaIsCompany", "indiaIsFirm"],
-  compute: function (d) { return d.indiaIsCompany || d.indiaIsFirm; }
+  deps: ["indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust"],
+  compute: function (d) { return d.indiaIsCompany || d.indiaIsFirm || d.indiaIsAop || d.indiaIsTrust; }
 };
 NODES.totalTaxInrCombined = {
   deps: ["isEntityTaxpayer", "totalTaxInrV3", "totalTaxInrEntity"],

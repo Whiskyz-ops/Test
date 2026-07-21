@@ -1,5 +1,20 @@
 # DAG Migration Tracker
 
+**21 Jul 2026 — `constants.js`/`profiles.js`/`sample-data.js` moved out of
+`engine/` into `prototypes/graph-pilot/`** (`docs/GAP_TRACKER.md` section
+H.9). These were always reference DATA, not computation logic — they were
+never in scope for THIS tracker's 40/40 (which counts computation logic
+only) — but they used to sit inside the `engine/` folder anyway, which read
+as "part of the frozen engine" even though nothing in this tracker's own
+row list ever covered them. They now live with the DAG; `engine/` keeps a
+generated, never-hand-edited mirror of all 3 (`scripts/
+sync-fixtures-to-engine.js`) so every consumer below that expects a
+classic 7-file `engine/` folder — `router.html`, every `run-*.js` harness,
+`npm run audit:dag`, `sync-engine.js` — keeps working unchanged. The 4
+computation files this tracker actually tracks (`computation.js`,
+`conflicts.js`, `monitoring.js`, `normalize.js`) are untouched by this
+move and remain exactly where the rest of this document describes them.
+
 Tracks parity between `engine/*.js` (the hand-written production engine) and
 `prototypes/graph-pilot/` (the dependency-graph rewrite intended to
 eventually **replace** it). **As of 20 Jul 2026, `monitor-next` defaults to

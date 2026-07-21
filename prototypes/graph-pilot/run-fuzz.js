@@ -354,7 +354,15 @@ function generateProfile(rng) {
 // when OLD regime is in effect and every underlying deduction section is
 // empty — a what-if-tool-only concern the engine has no override plumbing
 // to need, so it never carries this key at all.
-var DAG_ONLY_KEYS = { caveat: true };
+// indiaIsAop/indiaIsTrust (docs/GAP_TRACKER.md section H.6, 21 Jul 2026):
+// model.entity.* additions with no engine equivalent — entitytax-nodes.js's
+// file header has the full writeup. trustDistributedUsd/trustRetainedUsd/
+// trustBracketBreakdown: same section, computed.usTax additions for a US
+// trust — see ustax-full-nodes.js's usEntityTaxResult trust branch.
+var DAG_ONLY_KEYS = {
+  caveat: true, indiaIsAop: true, indiaIsTrust: true,
+  trustDistributedUsd: true, trustRetainedUsd: true, trustBracketBreakdown: true
+};
 function close(a, b) { var tol = Math.max(2, Math.abs(b) * 1e-6); return Math.abs(a - b) <= tol; }
 function deepEqual(a, b, p, diffs) {
   p = p || "$"; diffs = diffs || [];
@@ -404,7 +412,12 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // residency_status_dtaa_conflated_india's one-parenthetical divergence (each
 // side citing its own internal names for an already-correct mechanism) was
 // resolved by genericizing the wording on both sides — same-day, same fix.
-var KNOWN_EXTRA_FINDING_ID = /^$/;
+// us_entity_state_tax(_not_modeled) (docs/GAP_TRACKER.md section H.7, Phase
+// 2, 21 Jul 2026): new DAG-only findings, no engine equivalent —
+// ustax-full-nodes.js's usEntityStateTaxResult/findingsAllResult override
+// covers a gap the engine's computeUsStateTax explicitly excludes (business
+// entities entirely) — see that file's header for the full writeup.
+var KNOWN_EXTRA_FINDING_ID = /^us_entity_state_tax(_not_modeled)?$/;
 var KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = [];
 
 // ---- D. entity-agnostic audit allowlist (see file header, section D) -----
@@ -418,6 +431,40 @@ var KNOWN_US_ENTITY_DIVERGENT_PATHS = [
 ];
 var KNOWN_INDIA_ENTITY_DIVERGENT_PATHS = ["taxComputation.india"];
 var KNOWN_NRA_DIVERGENT_PATHS = ["computed.ftc.india", "ftcReport.direction_india_relief"];
+// ---- H.6: India AOP/BOI and Trust/NGO/Political Party (docs/GAP_TRACKER.md
+// section H.6, 21 Jul 2026) — a WIDER divergence than the company/firm case
+// above, because company/firm were already correctly entity-routed in the
+// engine (only their TRACE had the "₹NaN" bug); AOP/Trust were previously
+// taxed as a plain individual by the engine, a real AMOUNT bug. Fixing the
+// amount cascades into nearly everything India-tax-derived: the FTC both
+// directions (India tax paid changed), headline/summary totals, findings
+// that depend on India tax amount (ftc_gap, promoter_buyback_additional_tax,
+// carry_forward_losses_not_applied — all correctly disappear for an exempt
+// trust; verified by direct reproduction, not guessed), monitoring health/
+// alerts, and documents/scopeNotes/returnForms wherever they read the
+// now-different tax amount or entity classification. See entitytax-nodes.js's
+// file header for the full root-cause writeup.
+function isIndiaAopOrTrustProfile(dag) { return !!(dag.model.entity && (dag.model.entity.indiaIsAop || dag.model.entity.indiaIsTrust)); }
+// US trust (docs/GAP_TRACKER.md section H.6, 21 Jul 2026): computed.usTax.
+// taxableIncomeUsd now correctly narrows to JUST the retained (undistributed)
+// portion — the engine's version reflects the full distributed+retained
+// total, since it has no concept of "retained" at all (see ustax-full-
+// nodes.js's usEntityTaxResult trust branch). That narrower figure cascades
+// into computed.ftc.us.taxableIncomeUsd and the "US claims India" FTC report
+// direction (which reads the same field) — filingStatus also carries a new
+// retained-vs-distributed qualifier the engine's static string never had.
+function isUsTrustProfile(dag) { return dag.model.entity && dag.model.entity.usKind === "trust"; }
+var KNOWN_US_TRUST_DIVERGENT_PATHS = [
+  "computed.usTax.filingStatus", "computed.usTax.taxableIncomeUsd",
+  "computed.ftc.us.taxableIncomeUsd", "ftcReport.direction_us_claims_india"
+];
+var KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS = [
+  "model.entity.isBusiness", "model.entity.indiaReturnForm", "model.assets",
+  "computed.indiaTax", "computed.ftc", "computed.headline", "computed.reconciliation",
+  "taxComputation.india", "ftcReport", "withholding", "monitoring",
+  "summary.indiaTaxUsd", "summary.netDoubleTaxUsd", "summary.healthScore", "summary.counts",
+  "documents", "scopeNotes", "returnForms"
+];
 function pathMatchesAny(p, prefixes) {
   return prefixes.some(function (prefix) { return p === prefix || p.indexOf(prefix + ".") === 0 || p.indexOf(prefix + "[") === 0; });
 }
@@ -494,7 +541,24 @@ function assembleDag(profile, monitorAsOfBoundary) {
     usTax: usTax, residency: out.residencyResult, ftc: out.ftcResult, reconciliation: out.crossBasisResult,
     limits: out.limitsResult, headline: out.headlineResult, apportionment: out.apportionmentResult
   };
-  return Object.assign({}, out.analyzeResult, { model: model, computed: computed, checksRegistry: out.checksRegistryResult });
+  // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026): new DAG-only
+  // document, no engine equivalent (NJ wasn't modeled at all before this) —
+  // stripped from both the documents list and the calendar's bundled
+  // docIds, same category as checksRegistry above. Shallow-copy the
+  // calendar rows (not a full JSON clone, which would turn Date objects
+  // into strings elsewhere in this same tree).
+  var documents = (out.analyzeResult.documents || []).filter(function (x) { return x.id !== "form_nj1040"; });
+  var stripNj1040 = function (row) {
+    return Array.isArray(row.docIds) ? Object.assign({}, row, { docIds: row.docIds.filter(function (id) { return id !== "form_nj1040"; }) }) : row;
+  };
+  var monitoring = Object.assign({}, out.analyzeResult.monitoring, {
+    calendar: Object.assign({}, out.analyzeResult.monitoring.calendar, {
+      all: out.analyzeResult.monitoring.calendar.all.map(stripNj1040),
+      upcoming: out.analyzeResult.monitoring.calendar.upcoming.map(stripNj1040),
+      next: out.analyzeResult.monitoring.calendar.next ? stripNj1040(out.analyzeResult.monitoring.calendar.next) : out.analyzeResult.monitoring.calendar.next
+    })
+  });
+  return Object.assign({}, out.analyzeResult, { documents: documents, monitoring: monitoring, model: model, computed: computed, checksRegistry: out.checksRegistryResult });
 }
 
 function compareOne(label, profile, saveOnFail) {
@@ -570,8 +634,14 @@ function compareOne(label, profile, saveOnFail) {
   });
 
   var usEntity = isUsEntityProfile(dag);
+  var indiaAopOrTrust = isIndiaAopOrTrustProfile(dag);
   var findingsResult = compareFindings(dag.findings, real.findings, usEntity);
-  realDiffs.push.apply(realDiffs, findingsResult.unknown);
+  // AOP/Trust: findings content genuinely cascades from the (now correct)
+  // India tax amount in ways too varied to enumerate by finding ID (see
+  // KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS's comment) — treated wholesale as
+  // known rather than diffed ID-by-ID, same principle as taxComputation.us/
+  // india being treated as fully-diverging blocks for the entity cases above.
+  (indiaAopOrTrust ? knownDiffs : realDiffs).push.apply(indiaAopOrTrust ? knownDiffs : realDiffs, findingsResult.unknown);
   knownDiffs.push.apply(knownDiffs, findingsResult.known);
 
   // CASCADE_ONLY_PATHS — summary.counts/healthScore, monitoring.health/
@@ -603,7 +673,9 @@ function compareOne(label, profile, saveOnFail) {
   var allowedPaths = []
     .concat(usEntity ? KNOWN_US_ENTITY_DIVERGENT_PATHS : [])
     .concat(isIndiaEntityProfile(dag) ? KNOWN_INDIA_ENTITY_DIVERGENT_PATHS : [])
-    .concat(isNraProfile(dag) ? KNOWN_NRA_DIVERGENT_PATHS : []);
+    .concat(isNraProfile(dag) ? KNOWN_NRA_DIVERGENT_PATHS : [])
+    .concat(indiaAopOrTrust ? KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS : [])
+    .concat(isUsTrustProfile(dag) ? KNOWN_US_TRUST_DIVERGENT_PATHS : []);
   if (allowedPaths.length) {
     var stillReal = [];
     realDiffs.forEach(function (diff) {

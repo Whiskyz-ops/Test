@@ -73,9 +73,13 @@ NODES.otherSourcesMiscInrBoundary = { deps: ["otherSourcesMiscComputation"], com
 NODES.entityTaxableInrBoundary = { deps: ["totalIndiaIncomeInr"], compute: function (d) { return d.totalIndiaIncomeInr; } };
 
 // ---- routing gate, identical to india-tax-combined-nodes.js -------------
+// DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.6, 21 Jul
+// 2026): widened to include AOP/BOI and Trust/NGO/Political Party — see
+// entitytax-nodes.js's file header and india-tax-combined-nodes.js's
+// identical widening for the full writeup.
 NODES.isEntityTaxpayer = {
-  deps: ["indiaIsCompany", "indiaIsFirm"],
-  compute: function (d) { return d.indiaIsCompany || d.indiaIsFirm; }
+  deps: ["indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust"],
+  compute: function (d) { return d.indiaIsCompany || d.indiaIsFirm || d.indiaIsAop || d.indiaIsTrust; }
 };
 NODES.totalTaxInrCombined = {
   deps: ["isEntityTaxpayer", "totalTaxInrV3", "totalTaxInrEntity"],

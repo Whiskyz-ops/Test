@@ -123,10 +123,13 @@ NODES.taxesPaidIndiaResult = {
 };
 
 // ---- entity.indiaReturnForm / usReturnForm (normalize.js:2156-2351) -------
+// DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.6, 21 Jul
+// 2026): AOP -> ITR-5, Trust/NGO/Political Party -> ITR-7 — see
+// entitytax-nodes.js's file header for the full writeup.
 NODES.entityFormsResult = {
-  deps: ["indiaIsCompany", "indiaIsFirm", "indiaLayer1ItrRaw", "usEntityKind", "treatyFiles1040nrRaw"],
+  deps: ["indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "indiaLayer1ItrRaw", "usEntityKind", "treatyFiles1040nrRaw"],
   compute: function (d) {
-    var crude = d.indiaIsCompany ? "ITR-6" : (d.indiaIsFirm ? "ITR-5" : "ITR-2/3");
+    var crude = d.indiaIsCompany ? "ITR-6" : (d.indiaIsTrust ? "ITR-7" : (d.indiaIsFirm || d.indiaIsAop) ? "ITR-5" : "ITR-2/3");
     var indiaReturnForm = d.indiaLayer1ItrRaw || crude;
     var usT = d.usEntityKind;
     var usReturnForm = usT === "ccorp" ? "1120" : usT === "scorp" ? "1120-S" : usT === "partnership" ? "1065" : usT === "trust" ? "1041" :
@@ -142,7 +145,7 @@ NODES.indianMutualFundsResult = {
 };
 
 // ---- LIM-2: Form 8938 gauge (computeLimits, computation.js:1466-1476) -----
-var CONST_B1_LIMITS = require("../engine/constants.js").CONST.LIMITS; // SYS-1: shared
+var CONST_B1_LIMITS = require("./constants.js").CONST.LIMITS; // SYS-1: shared
 var FORM_8938 = CONST_B1_LIMITS.FORM_8938;
 NODES.form8938GaugeResult = {
   deps: ["feie", "usFilingStatusRaw", "accountsListResult", "hasUsScopeBoundaryFtc"],
@@ -182,6 +185,11 @@ var DOCUMENTS_CATALOG = [
   { id: "form_8959", jurisdiction: "US", name: "IRS Form 8959 (Additional Medicare Tax)", desc: "Additional 0.9% Medicare tax on wages/SE income above the filing-status threshold, and reconciles employer over/under-withholding.", why: "Additional Medicare Tax is owed and is not offset by the Foreign Tax Credit.", severity: "info" },
   { id: "form_540", jurisdiction: "US", name: "California Form 540 (Resident Income Tax Return)", desc: "California state income tax return — computed on worldwide income for a full-year CA resident, including Indian-source income. CA grants no credit for tax paid to a foreign country.", why: "State-of-residence facts on file point to California, and CA taxes worldwide income independently of the federal treaty position.", severity: "warning" },
   { id: "form_it201", jurisdiction: "US", name: "New York Form IT-201 (Resident Income Tax Return)", desc: "New York state income tax return — computed on worldwide income for a full-year NY resident, including Indian-source income. NY grants no credit for tax paid to a foreign country.", why: "State-of-residence facts on file point to New York, and NY taxes worldwide income independently of the federal treaty position.", severity: "warning" },
+  // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.7, 21
+  // Jul 2026): new document trigger, no engine equivalent (NJ wasn't
+  // modeled at all before this) — see findings-batch5-nodes.js's
+  // usStateTaxResult.
+  { id: "form_nj1040", jurisdiction: "US", name: "New Jersey Form NJ-1040 (Resident Income Tax Return)", desc: "New Jersey state income tax return — computed on worldwide income for a full-year NJ resident, including Indian-source income. NJ grants no credit for tax paid to a foreign country.", why: "State-of-residence facts on file point to New Jersey, and NJ taxes worldwide income independently of the federal treaty position.", severity: "warning" },
   { id: "form_67", jurisdiction: "IN", name: "Form 44 (India FTC)", desc: "Statement of foreign income & foreign tax, filed before the ITR due date.", why: "Foreign (US) income is being offered to tax in India and FTC u/s 90/91 is claimed. Schedule FSI/TR must accompany the ITR.", severity: "critical" },
   { id: "trc", jurisdiction: "IN", name: "Tax Residency Certificate (TRC)", desc: "Issued by the other contracting state (IRS Form 6166 for the US).", why: "DTAA relief / treaty rate is being claimed — a TRC is mandatory u/s 159(8).", severity: "critical" },
   { id: "form_10f", jurisdiction: "IN", name: "Form 41", desc: "Self-declaration accompanying the TRC, filed electronically on the ITR portal.", why: "Treaty benefit claimed and the TRC does not contain all particulars required u/r 75.", severity: "warning" },
@@ -206,7 +214,7 @@ NODES.buildDocumentsResult = {
     "indianMutualFundsResult", "bizEntriesAgg", "ppfInrRaw", "epfInrRaw", "foreignGiftsRaw",
     "usTaxResult", "headlineTotalIncomeUsdResult", "usFilingStatusRaw", "aggregateUsIncomeResult",
     "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
-    "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw"],
+    "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw"],
   compute: function (d) {
     var res = d.residencyResult;
     var isForm1118 = d.entityFormsResult.usReturnForm === "1120";
@@ -234,7 +242,11 @@ NODES.buildDocumentsResult = {
       schedule_fa: res.india.status === "ROR" && (d.aggregateUsIncomeResult.usSourceTotal.usd > 0 || d.accountsListResult.accounts.some(function (a) { return a.country !== "India"; })),
       schedule_fsi_tr: d.taxesPaidUsResult.total.usd > 0 || d.aggregateUsIncomeResult.usSourceTotal.usd > 0,
       form_15ca_cb: d.limitsRawExtra.lrsRemittedInr > 0,
-      schedule_al: !d.indiaIsCompany && !d.indiaIsFirm && d.totalIncomeInrV3 > 5000000,
+      // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.6,
+      // 21 Jul 2026): AOP/Trust excluded here too, consistent with how firm
+      // is already treated (whether or not firm's own exclusion is itself
+      // fully correct is a separate, pre-existing question, out of scope).
+      schedule_al: !d.indiaIsCompany && !d.indiaIsFirm && !d.indiaIsAop && !d.indiaIsTrust && d.totalIncomeInrV3 > 5000000,
       form_3cb_3cd: d.indiaIsCompany || (t.totalInr > 0 && t.totalInr > (atLeast95PctDigital ? 100000000 : 10000000)),
       form_8802: res.dualResident || d.treatyIndiaResidenceRaw !== "none" || d.treatyUsResidenceRaw !== "none",
       form_6251: d.usTaxResult.amtUsd > 0,
@@ -245,7 +257,8 @@ NODES.buildDocumentsResult = {
       lrs_form_a2: d.limitsRawExtra.lrsRemittedInr > 0,
       form_4868: d.hasUsScopeBoundaryFtc,
       form_540: !!d.usStateTaxResult && d.usStateTaxResult.state === "CA",
-      form_it201: !!d.usStateTaxResult && d.usStateTaxResult.state === "NY"
+      form_it201: !!d.usStateTaxResult && d.usStateTaxResult.state === "NY",
+      form_nj1040: !!d.usStateTaxResult && d.usStateTaxResult.state === "NJ"
     };
 
     return DOCUMENTS_CATALOG.map(function (doc) {
@@ -265,12 +278,12 @@ NODES.buildDocumentsResult = {
 // buildScopeNotes, ported in full (conflicts.js:2481-2521)
 // ============================================================================
 NODES.buildScopeNotesResult = {
-  deps: ["hasIndiaScopeXbr", "hasUsScopeBoundaryFtc", "indiaIsCompany", "indiaIsFirm", "usEntityKind",
+  deps: ["hasIndiaScopeXbr", "hasUsScopeBoundaryFtc", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "usEntityKind",
     "businessComputation", "indiaFinancialHoldingsTxRaw", "aggregateUsIncomeResult"],
   compute: function (d) {
     var notes = [];
     var hasIndia = d.hasIndiaScopeXbr, hasUs = d.hasUsScopeBoundaryFtc, dual = hasIndia && hasUs;
-    var hasIndiaBusiness = d.indiaIsCompany || d.indiaIsFirm || d.usEntityKind !== "individual" || (d.businessComputation.businessInr || 0) > 0;
+    var hasIndiaBusiness = d.indiaIsCompany || d.indiaIsFirm || d.indiaIsAop || d.indiaIsTrust || d.usEntityKind !== "individual" || (d.businessComputation.businessInr || 0) > 0;
     var hasSecuritiesTrades = d.indiaFinancialHoldingsTxRaw.length > 0;
     var hasUsWagesOrSe = d.aggregateUsIncomeResult.wages.usd > 0 || (d.aggregateUsIncomeResult.seEarningsUsd || 0) > 0;
 

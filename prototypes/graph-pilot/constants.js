@@ -1,5 +1,3 @@
-/* GENERATED — mirrored from prototypes/graph-pilot/constants.js by scripts/sync-fixtures-to-engine.js.
- * Do not hand-edit this copy — edit prototypes/graph-pilot/constants.js and re-run that script. */
 /* ============================================================================
  * WISING — India-US Tax Conflict Detection Tool
  * Layer 2 Engine :: constants.js

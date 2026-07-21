@@ -80,7 +80,7 @@ var findingsBatch3Nodes = require("./findings-batch3-nodes.js").NODES;
 var NODES = {};
 Object.keys(findingsBatch3Nodes).forEach(function (k) { NODES[k] = findingsBatch3Nodes[k]; });
 
-var S115A_RATES = require("../../engine/constants.js").CONST.TAX.INDIA.S115A_RATES; // SYS-1: shared
+var S115A_RATES = require("./constants.js").CONST.TAX.INDIA.S115A_RATES; // SYS-1: shared
 
 /* ---- computeS115aStreamDetailed: sibling of in1-nodes-v3.js's
  * computeS115aStream, same math (computation.js:547-585), plus the
