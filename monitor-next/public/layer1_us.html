@@ -11,8 +11,16 @@
 
 
 </script>
+<!-- docs/GAP_TRACKER.md section H.12: loaded here (in <head>, before any of
+     this page's own inline scripts) so window.WISING.listProfiles() is
+     guaranteed available before hydration runs — the Foreign Corporation
+     card's new "Linked client" dropdown (below) populates from it. Same 3
+     files router.html already loads, in the same order. -->
+<script src="engine/constants.js"></script>
+<script src="engine/sample-data.js"></script>
+<script src="engine/profiles.js"></script>
 <script>
-    
+
     // --- Live Format Currency Helpers ---
     window.parseFormattedNumber = function(val) {
         if (val === null || val === undefined || val === '') return null;
@@ -16675,6 +16683,26 @@
         saveStateAndSync();
     }
 
+    // docs/GAP_TRACKER.md section H.12: builds the <option> list for the
+    // "Linked client" dropdown from window.WISING.listProfiles() (loaded in
+    // <head>, above) — every other client currently in the system, so an
+    // advisor can explicitly tag which existing client profile this CFC/
+    // unlisted-equity entry actually refers to, instead of the relationship
+    // only existing as a free-text name with no real link anywhere. No
+    // "exclude self" filtering: this form doesn't reliably know its own
+    // profile id while live-editing (only a loaded demo profile has one),
+    // and entity-graph.js's discovery already ignores a self-referential
+    // linked_client_id defensively.
+    function buildLinkedClientOptionsHtml(selectedId) {
+        var profiles = (window.WISING && window.WISING.listProfiles) ? window.WISING.listProfiles() : [];
+        var opts = '<option value="">— not linked —</option>';
+        profiles.forEach(function (p) {
+            var sel = (selectedId && p.id === selectedId) ? ' selected' : '';
+            opts += '<option value="' + p.id + '"' + sel + '>' + p.label + '</option>';
+        });
+        return opts;
+    }
+
     function addCorpRow(data = null) {
         const rowId = 'corp-' + Date.now() + Math.random().toString(36).substring(2, 5);
         const list = document.getElementById('div-corp-list');
@@ -16722,6 +16750,15 @@
                             <input type="checkbox" class="crp-ncti rounded bg-[#121212] border-white/20 text-brandCyan focus:ring-0" onchange="syncCorpState()">
                         </div>
                     </div>
+                    <div class="grid grid-cols-1 gap-3 pr-6">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Linked client (optional)</label>
+                            <select class="crp-linked-client w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" onchange="syncCorpState()">
+                                ${buildLinkedClientOptionsHtml(data && data.linked_client_id)}
+                            </select>
+                            <span class="text-[9px] text-white/40 leading-relaxed mt-1 block">If this corporation is also a separate client you represent, pick them here — connects the two profiles (Clients tab, Filings, Monitor) instead of leaving this as a name only.</span>
+                        </div>
+                    </div>
                 </div>
               </details>
             </div>
@@ -16758,7 +16795,8 @@
                 ownership_percentage: pct,
                 tax_year_start: div.querySelector('.crp-start').value || null,
                 transition_to_ncti_post_2026: div.querySelector('.crp-ncti').checked,
-                cfc_status: isCfc ? "controlled_foreign_corporation" : "non_cfc_holding"
+                cfc_status: isCfc ? "controlled_foreign_corporation" : "non_cfc_holding",
+                linked_client_id: (div.querySelector('.crp-linked-client') && div.querySelector('.crp-linked-client').value) || null
             });
         });
         usState.foreign_entities.foreign_corporations = list;

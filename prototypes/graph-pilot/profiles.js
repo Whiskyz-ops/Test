@@ -513,7 +513,12 @@
       bank_accounts: [{ bank_name: "Kotak (Company)", account_type: "current", peak_balance_inr: 5400000 }],
       property: { properties: [] },
       financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "unlisted_equity", asset_name: "Nova Systems Pvt Ltd (100%)", value_inr: 45000000 }] },
-      unlisted_equity: { has_unlisted_equity_transaction: true, transactions: [{ company: "Nova Systems Pvt Ltd", holding_pct: 100 }] },
+      // linked_client_id (docs/GAP_TRACKER.md section H.12): same explicit
+      // tag as the US foreign_corporations entry above, on this profile's
+      // India-side declaration of the same holding — both sides of one
+      // real-world relationship now carry the tag independently, exactly
+      // as a live advisor filling out both forms would do.
+      unlisted_equity: { has_unlisted_equity_transaction: true, transactions: [{ company: "Nova Systems Pvt Ltd", holding_pct: 100, linked_client_id: "india_pvt_ltd" }] },
       domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: { short_term_15_pct: 100000 } },
       // Two partial buybacks by his own company, same round of corporate
       // action, two different share tranches:
@@ -590,7 +595,13 @@
       // all — that's the separate, larger XB-14 quantification gap), same
       // convention as every other "demo profile injects a figure the real
       // form can't yet produce" shortcut elsewhere in this file.
-      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corporation_name: "Nova Systems Pvt Ltd", country_of_incorporation: "IN", ownership_percentage: 100, gilti_income_usd: 108433, subpart_f_income_usd: 0, section_962_election_active: false }], pfic_holdings: [], has_pfics: false },
+      // linked_client_id (docs/GAP_TRACKER.md section H.12): the advisor's
+      // own explicit tag that this CFC is india_pvt_ltd's own client
+      // profile, entered the same way any real advisor would via the new
+      // Layer 1 US "Linked client" field on this entry — not a hardcoded
+      // ENTITY_LINKS seed anymore (that array is gone; entity-graph.js now
+      // discovers links by scanning for this exact field).
+      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corporation_name: "Nova Systems Pvt Ltd", country_of_incorporation: "IN", ownership_percentage: 100, gilti_income_usd: 108433, subpart_f_income_usd: 0, section_962_election_active: false, linked_client_id: "india_pvt_ltd" }], pfic_holdings: [], has_pfics: false },
       retirement_accounts: { "401k_employee_contribution_usd": 23000, "401k_employer_match_usd": 8000 },
       financial_holdings: [{ asset_name: "Fidelity — Taxable Brokerage (US equities)", account_type: "taxable_brokerage", peak_balance_usd: 240000, country: "US" }],
       real_estate: { has_real_estate_transaction: true, properties: [{ name: "Primary home — Austin, TX", property_type: "Residential (own use)", gross_rent_usd: 0, expenses_usd: 0 }] },

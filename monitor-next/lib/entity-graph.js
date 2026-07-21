@@ -1,16 +1,15 @@
 /* ============================================================================
- * Multi-entity / entity-graph model, Tier 1 (docs/GAP_TRACKER.md section
- * H.8, 21 Jul 2026): connects two ALREADY-SEPARATE client profiles by
- * ownership — the gap the engine's own profiles.js flagged in a comment on
- * founder_indian_company ("Full entity separation arrives with multi-entity
- * Phase 1"). Before this, an individual who owns a company and the company
- * itself were two unrelated rows in the Client Portfolio with no
- * representation that one owns the other; any GILTI/Subpart-F/K-1 flow
- * between them was a bare hand-typed number on the owner's own Layer 1 form,
- * with no link to the owned entity's own (separately, already-correctly)
- * computed return.
+ * Multi-entity / entity-graph model. Connects two ALREADY-SEPARATE client
+ * profiles by ownership — the gap the engine's own profiles.js flagged in a
+ * comment on founder_indian_company ("Full entity separation arrives with
+ * multi-entity Phase 1"). Before Tier 1 (docs/GAP_TRACKER.md section H.8),
+ * an individual who owns a company and the company itself were two
+ * unrelated rows in the Client Portfolio with no representation that one
+ * owns the other; any GILTI/Subpart-F/K-1 flow between them was a bare
+ * hand-typed number on the owner's own Layer 1 form, with no link to the
+ * owned entity's own (separately, already-correctly) computed return.
  *
- * Tier 1 scope, deliberately: NO new tax computation. Each side keeps
+ * Tier 1 scope, still true here: NO new tax computation. Each side keeps
  * whatever figure its own Layer 1 + engine/DAG already produces — this only
  * adds the RELATIONSHIP and renders both sides' numbers side by side so a
  * hand-entered estimate becomes visibly "linked to entity X, whose own
@@ -18,39 +17,134 @@
  * flow amount FROM the linked entity's own results (so the K-1/GILTI figure
  * stops being manual entry at all) is Tier 2 — not done here.
  *
- * This is pure client-portfolio-level data, not a tax computation the frozen
- * engine (engine/*.js) has any equivalent for — the DAG-parity/fuzzer/
- * shadow-mode discipline that governs prototypes/graph-pilot doesn't apply;
- * there is nothing to diff against. Lives in lib/ alongside
- * allClientSummaries()/allClientSummariesDag(), the same "aggregate over
- * many independent analyze() calls" shape this reuses (both already return
- * the exact same summary shape per client, so this file works unchanged
- * whichever compute source — engine or DAG — is currently active).
+ * H.12 (21 Jul 2026): links are now DISCOVERED, not hardcoded. A hand-typed
+ * `ENTITY_LINKS` seed array — one hardcoded { ownerId, ownedId, ... } record
+ * — used to be the only source. That meant the ONE relationship in the demo
+ * data (founder_indian_company owns india_pvt_ltd) only existed because I'd
+ * written it down separately from the actual Layer 1 data describing it,
+ * which is exactly the "floating, unverifiable" problem this whole feature
+ * exists to fix for GILTI/K-1 figures — the LINK ITSELF was floating too.
+ *
+ * Fixed by scanning for a real `linked_client_id` field an advisor sets
+ * directly on the Layer 1 entry that already names the other entity —
+ * Layer 1 US's Foreign Corporation card (`foreign_entities.
+ * foreign_corporations[].linked_client_id`) and Layer 1 India's Unlisted
+ * Equity card (`unlisted_equity.transactions[].linked_client_id`). This is
+ * pure client-portfolio-level data, not a tax computation the frozen engine
+ * (engine/*.js) has any equivalent for — the DAG-parity/fuzzer/shadow-mode
+ * discipline that governs prototypes/graph-pilot doesn't apply here.
+ *
+ * Two data sources per profile id, same pattern lib/wising.js's
+ * analyzeProfileById already established: the 12 static WISING.PROFILES
+ * entries carry their own fixed india/us data, EXCEPT for whichever profile
+ * id is currently `WISING.activeProfileId()` — that one's Layer 1 data may
+ * have been live-edited since it was loaded, so its CURRENT localStorage
+ * state (not the static profiles.js snapshot) is authoritative. Getting
+ * this wrong would mean a relationship an advisor just tagged via the new
+ * Layer 1 dropdown never actually shows up anywhere until a full page
+ * reload re-seeds the static array — silently broken, not just untested.
  *
  * india_pvt_ltd's own entity name (engine/profiles.js) was renamed from
- * "Nimbus Analytics Pvt Ltd" to "Nova Systems Pvt Ltd" specifically so this
- * one seed link reads as one real, name-consistent company end to end —
- * founder_indian_company's own Layer 1 US already named its GILTI-triggering
- * CFC, its unlisted-equity holding, and its promoter-buyback transactions
- * all "Nova Systems Pvt Ltd" independently of this link; india_pvt_ltd was
- * the only unrelated other profile with its own real Indian-company return,
- * so the two were reconciled to the SAME name (an explicit, one-off,
- * user-approved exception to the "engine/*.js frozen" policy that governs
- * everything else in this codebase — text-only, no computed figure changed).
- * This is still a Tier 1 link, not a verified data match: WISING doesn't
- * auto-match entities across client profiles by name or anything else — an
- * advisor asserted this relationship because she knows both clients.
+ * "Nimbus Analytics Pvt Ltd" to "Nova Systems Pvt Ltd" (docs/GAP_TRACKER.md
+ * section H.8's follow-up) specifically so the seed link reads as one real,
+ * name-consistent company end to end — an explicit, one-off, user-approved
+ * exception to the "engine/*.js frozen" policy (text-only, no computed
+ * figure changed). PAN/EIN were deliberately ruled out as a matching
+ * signal, in either direction: a taxpayer's own PAN/EIN and the SEPARATE
+ * legal entity they own always have DIFFERENT numbers by definition (a
+ * company is its own registered person) — a match there would actually
+ * mean a duplicate-profile data error, not an ownership relationship, a
+ * genuinely different (and not built) feature.
  * ==========================================================================*/
 
-export const ENTITY_LINKS = [
+function getWISING() {
+  return typeof window !== "undefined" ? window.WISING : null;
+}
+
+function readLocalStorageJson(key) {
+  try {
+    const raw = typeof window !== "undefined" && window.localStorage && window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+// The india/us raw data for one profile id — the static profiles.js
+// snapshot, UNLESS this id is the currently-active/live-edited client, in
+// which case current localStorage wins (see file header). Every consumer
+// of a discovered link goes through this, so a link an advisor tags via
+// the Layer 1 dropdown right now is visible immediately, not just after
+// loadProfile() re-seeds the static array on next load.
+function rawSideFor(profileId, W) {
+  const p = (W.PROFILES || []).find((x) => x.id === profileId);
+  const KEYS = (W.CONST && W.CONST.STORAGE_KEYS) || { INDIA: "wising_layer1_india_state", US: "wising_us_state" };
+  const isActive = !!(W.activeProfileId && W.activeProfileId() === profileId);
+  const liveIndia = isActive ? readLocalStorageJson(KEYS.INDIA) : null;
+  const liveUs = isActive ? readLocalStorageJson(KEYS.US) : null;
+  return {
+    india: liveIndia || (p && p.india) || null,
+    us: liveUs || (p && p.us) || null
+  };
+}
+
+function safeGet(obj, path) {
+  return path.split(".").reduce((o, k) => (o == null ? o : o[k]), obj);
+}
+
+// Scans every profile's raw Layer 1 data for an explicit `linked_client_id`
+// tag. Two source fields today (docs/GAP_TRACKER.md section H.12) — US
+// foreign-corporation entries and India unlisted-equity transactions — each
+// producing a link with a relationship label and a note explaining exactly
+// which Layer 1 entry it came from, so the link is traceable back to real
+// data rather than asserted out of nowhere. The SAME real-world
+// relationship is often tagged on BOTH sides (an advisor fills out both
+// forms for the same client) — `seen` dedupes by (ownerId, ownedId) pair,
+// keeping the first source found rather than showing the same relationship
+// twice. A pair can never link to itself (linked_client_id === the
+// declaring profile's own id is ignored, not treated as self-ownership).
+const LINK_SOURCES = [
   {
-    ownerId: "founder_indian_company",
-    ownedId: "india_pvt_ltd",
-    ownershipPct: 100,
+    path: "us.foreign_entities.foreign_corporations",
     relationship: "CFC shareholder (>10% — Form 5471 / GILTI)",
-    note: "Linked by the advisor from her own knowledge of the client relationship — Vikram's Layer 1 US independently names this CFC \"Nova Systems Pvt Ltd\" (foreign_entities.foreign_corporations[0]), matching india_pvt_ltd's own entity name. The GILTI figure shown on his side is still his own manual Layer 1 estimate, not derived from Nova Systems' own computed India return below (that derivation is Tier 2, not done yet)."
+    ownershipPct: (entry) => Number(entry.ownership_percentage) || 0,
+    entityName: (entry) => entry.corporation_name || entry.corp_name || "unnamed entity",
+    noteVerb: "US foreign-corporation"
+  },
+  {
+    path: "india.unlisted_equity.transactions",
+    relationship: "Unlisted equity holding (India)",
+    ownershipPct: (entry) => (entry.holding_pct != null ? Number(entry.holding_pct) : null),
+    entityName: (entry) => entry.company_name || entry.company || "unnamed entity",
+    noteVerb: "India unlisted-equity"
   }
 ];
+
+function discoverLinks() {
+  const W = getWISING();
+  if (!W || !W.PROFILES) return [];
+  const links = [];
+  const seen = new Set();
+  W.PROFILES.forEach((p) => {
+    const raw = rawSideFor(p.id, W);
+    LINK_SOURCES.forEach((src) => {
+      const entries = safeGet(raw, src.path) || [];
+      entries.forEach((entry) => {
+        const ownedId = entry.linked_client_id;
+        if (!ownedId || ownedId === p.id) return;
+        const key = p.id + "->" + ownedId;
+        if (seen.has(key)) return;
+        seen.add(key);
+        links.push({
+          ownerId: p.id,
+          ownedId: ownedId,
+          ownershipPct: src.ownershipPct(entry),
+          relationship: src.relationship,
+          note: "Tagged directly on this client's own Layer 1 " + src.noteVerb + " entry (“" + src.entityName(entry) + "”) — not inferred, an advisor set this explicitly."
+        });
+      });
+    });
+  });
+  return links;
+}
 
 function findSummary(id, allSummaries) {
   return (allSummaries || []).find((s) => s.id === id) || null;
@@ -60,13 +154,16 @@ function findSummary(id, allSummaries) {
  * unconnected-taxpayer case). Otherwise: { owns: [...], ownedBy: [...] },
  * each entry = the link's own fields plus `summary` (the OTHER side's
  * already-computed clientSummary row — same shape allClientSummaries[Dag]()
- * produces — or null if that id isn't a real profile). */
+ * produces — or null if that id isn't a real profile). Re-discovers links
+ * fresh on every call (cheap at this scale) rather than caching, so a link
+ * tagged moments ago is never stale within the same session. */
 export function entityLinksFor(clientId, allSummaries) {
   if (!clientId) return null;
-  const owns = ENTITY_LINKS.filter((l) => l.ownerId === clientId).map((l) => ({
+  const allLinks = discoverLinks();
+  const owns = allLinks.filter((l) => l.ownerId === clientId).map((l) => ({
     ...l, summary: findSummary(l.ownedId, allSummaries)
   }));
-  const ownedBy = ENTITY_LINKS.filter((l) => l.ownedId === clientId).map((l) => ({
+  const ownedBy = allLinks.filter((l) => l.ownedId === clientId).map((l) => ({
     ...l, summary: findSummary(l.ownerId, allSummaries)
   }));
   if (!owns.length && !ownedBy.length) return null;
@@ -78,7 +175,7 @@ export function entityLinksFor(clientId, allSummaries) {
 // without resolving the full link (still cheap either way at this size, but
 // keeps the intent explicit at the call site).
 export function hasEntityLinks(clientId) {
-  return ENTITY_LINKS.some((l) => l.ownerId === clientId || l.ownedId === clientId);
+  return discoverLinks().some((l) => l.ownerId === clientId || l.ownedId === clientId);
 }
 
 // Every client id that's owned by another client on file — used to keep an

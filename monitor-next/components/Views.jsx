@@ -1454,7 +1454,7 @@ export function OwnedEntitiesBanner({ links, onPick }) {
         {owned.map((l, i) => (
           <span key={l.ownedId}>
             <button onClick={() => onPick(l.ownedId)} className="font-bold text-accent hover:underline">{l.summary.label}</button>
-            {" "}<span className="text-muted">({l.ownershipPct}%)</span>
+            {l.ownershipPct != null && <span className="text-muted"> ({l.ownershipPct}%)</span>}
             {i < owned.length - 1 ? ", " : ""}
           </span>
         ))}
@@ -1483,7 +1483,7 @@ const EntityLinkRow = ({ link, direction, onPick }) => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[13px] font-bold text-head">{s ? s.label : link[direction === "owns" ? "ownedId" : "ownerId"] + " (not found)"}</span>
-            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: PAL.accent + "1c", color: PAL.accent }}>{link.ownershipPct}%</span>
+            {link.ownershipPct != null && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: PAL.accent + "1c", color: PAL.accent }}>{link.ownershipPct}%</span>}
             {s && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: (s.isBusiness ? PAL.filing : PAL.accent) + "24", color: s.isBusiness ? PAL.blueText : PAL.accent }}>{s.isBusiness ? "Business" : "Individual"}</span>}
           </div>
           <div className="text-[11px] text-muted mt-0.5">{link.relationship}</div>
@@ -1582,7 +1582,7 @@ const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, on
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className={"font-semibold text-head " + (depth > 0 ? "text-[12px]" : "text-[13px]")}>{c.label}</span>
-              {link && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0" style={{ background: PAL.accent + "1c", color: PAL.accent }}>{link.ownershipPct}% · {link.relationship}</span>}
+              {link && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0" style={{ background: PAL.accent + "1c", color: PAL.accent }}>{link.ownershipPct != null ? link.ownershipPct + "% · " : ""}{link.relationship}</span>}
             </div>
             <div className="text-[10px] text-muted truncate max-w-[240px]">{c.story}</div>
           </div>

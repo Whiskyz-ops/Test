@@ -1460,6 +1460,14 @@
         cursor: not-allowed;
     }
 </style>
+<!-- docs/GAP_TRACKER.md section H.12: loaded here (end of <head>, before any
+     body script runs) so window.WISING.listProfiles() is guaranteed
+     available before hydration runs — the Unlisted Equity card's new
+     "Linked client" dropdown (below) populates from it. Same 3 files
+     router.html/layer1_us.html already load, in the same order. -->
+<script src="engine/constants.js"></script>
+<script src="engine/sample-data.js"></script>
+<script src="engine/profiles.js"></script>
 </head>
 <body class="min-h-screen flex flex-col">
 
@@ -10392,7 +10400,18 @@ const crDiv = document.getElementById('div-company-residency');
             if (isNR) el.classList.remove('hidden');
             else el.classList.add('hidden');
         });
-        syncUnlistedState();
+        // Only re-sync from the DOM if unlisted-equity cards actually exist.
+        // This runs via runResidencySolver() -> updateBizEntityType(), which
+        // fires from the very top of restoreIndiaDOMFromState() (the Profile
+        // section restore) — long before that same function's own Unlisted
+        // Equity render block gets a chance to create any .ul-card elements.
+        // Calling syncUnlistedState() unconditionally here read 0 cards and
+        // overwrote state.unlisted_equity.transactions with [], silently
+        // discarding a just-hydrated profile's real holdings (e.g. Vikram's
+        // Nova Systems entry, linked_client_id and all) before it was ever
+        // rendered — a hydration-order bug, not something the render fix
+        // above (H.12) could see on its own since the wipe happens earlier.
+        if (document.querySelectorAll('.ul-card').length > 0) syncUnlistedState();
     }
 
     function toggleUnlistedCurrency(rowId) {
@@ -10418,6 +10437,25 @@ const crDiv = document.getElementById('div-company-residency');
         } else { box.classList.add('hidden'); btn.classList.add('hidden'); }
     }
 
+    // docs/GAP_TRACKER.md section H.12: builds the <option> list for the
+    // "Linked client" dropdown from window.WISING.listProfiles() (loaded at
+    // the end of <head>, above) — every other client currently in the
+    // system, so an advisor can explicitly tag which existing client
+    // profile this unlisted-equity holding actually refers to, instead of
+    // it only existing as a free-text company name with no real link
+    // anywhere. No "exclude self" filtering: this form doesn't reliably
+    // know its own profile id while live-editing, and entity-graph.js's
+    // discovery already ignores a self-referential linked_client_id.
+    function buildLinkedClientOptionsHtml(selectedId) {
+        var profiles = (window.WISING && window.WISING.listProfiles) ? window.WISING.listProfiles() : [];
+        var opts = '<option value="">— not linked —</option>';
+        profiles.forEach(function (p) {
+            var sel = (selectedId && p.id === selectedId) ? ' selected' : '';
+            opts += '<option value="' + p.id + '"' + sel + '>' + p.label + '</option>';
+        });
+        return opts;
+    }
+
     function addUnlistedRow(tx = null) {
         const rowId = 'ul-' + Date.now();
         const list = document.getElementById('div-unlisted-list');
@@ -10438,6 +10476,16 @@ const crDiv = document.getElementById('div-company-residency');
                 <div>
                     <label class="block text-[10px] text-white/60 mb-1">Number of Shares</label>
                     <input type="text" inputmode="numeric" step="1" class="inr-input ul-qty w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all font-mono" placeholder="0" oninput="syncUnlistedState()">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4">
+                <div>
+                    <label class="block text-[10px] text-white/60 mb-1">Linked client (optional)</label>
+                    <select class="ul-linked-client w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all" onchange="syncUnlistedState()">
+                        ${buildLinkedClientOptionsHtml(tx && tx.linked_client_id)}
+                    </select>
+                    <span class="text-[9px] text-white/40 leading-relaxed mt-1 block">If this company is also a separate client you represent, pick them here — connects the two profiles (Clients tab, Filings, Monitor) instead of leaving this as a name only.</span>
                 </div>
             </div>
 
@@ -10540,7 +10588,8 @@ const crDiv = document.getElementById('div-company-residency');
                 sale_date: card.querySelector('.ul-sale-date').value || null,
                 fmv_valuation_report_date: isNR ? (card.querySelector('.ul-fmv-date').value || null) : null,
                 original_investment_currency: isNR ? origCurr : null,
-                original_cost_in_foreign_currency: (isNR && origCurr !== 'INR') ? (parseINRCurrency(card.querySelector('.ul-orig-cost').value)) : null
+                original_cost_in_foreign_currency: (isNR && origCurr !== 'INR') ? (parseINRCurrency(card.querySelector('.ul-orig-cost').value)) : null,
+                linked_client_id: (card.querySelector('.ul-linked-client') && card.querySelector('.ul-linked-client').value) || null
             });
         });
         state.unlisted_equity.transactions = txs;
@@ -13719,12 +13768,27 @@ ${isProf ? '' : `
         document.getElementById('days-val').value = state.residency_detail.days_in_india_current_year;
 
         // Run solvers
+        //
+        // syncFinancialState/syncCommodityState/syncUnlistedState deliberately
+        // NOT called here (H.12, 21 Jul 2026) — each reads its rows straight
+        // from the DOM (.fin-table tr / .com-card / .ul-card), and at this
+        // point in a fresh page load none of those cards exist yet (they're
+        // only created later in this same function, by renderFinancialHoldings/
+        // renderCommodities/renderUnlistedEquity). Calling the sync here first
+        // silently overwrote the just-hydrated state.{financial_holdings,
+        // commodities,unlisted_equity}.transactions with an empty array before
+        // the render functions ever got to read it — e.g. Vikram's Nova
+        // Systems unlisted-equity holding (with its new linked_client_id)
+        // loaded correctly into state, then got wiped back to [] right here,
+        // so the render further down always produced one blank card instead
+        // of the real one. The render+restore block below already re-derives
+        // each of these three from the DOM via addFinancialRow/addCommodityRow/
+        // addUnlistedRow's own end-of-function sync call, once real rows
+        // actually exist — so re-syncing from an empty DOM up here is both
+        // redundant and destructive, never load-bearing.
         syncBankAccountsState();
         syncPropertyState();
         syncBuybackState();
-        syncFinancialState();
-        syncCommodityState();
-        syncUnlistedState();
         syncVehiclesState();
         syncMsmeState();
         sync80GState();
@@ -14401,9 +14465,38 @@ ${isProf ? '' : `
         // sites anywhere in the file, so a loaded profile's real
         // transactions (e.g. the AMZN/NVDA/BTC holding-period-mismatch
         // demos) never appeared despite the data being correctly loaded.
+        // Render rows FIRST (same ordering reason as prop-has/bb-has below),
+        // then restore each gatekeeper select + un-hide its box — rendering
+        // alone filled the list divs but left div-fin-box/div-com-box/
+        // div-ul-box sitting under their default "hidden" class, so a
+        // profile's real rows existed in the DOM but were invisible (this is
+        // what hid the new Layer 1 "Linked client" dropdown on this page's
+        // Unlisted Equity card during H.12 verification).
         if (typeof renderFinancialHoldings === 'function') renderFinancialHoldings();
         if (typeof renderCommodities === 'function') renderCommodities();
         if (typeof renderUnlistedEquity === 'function') renderUnlistedEquity();
+
+        const finGatekeeper = document.getElementById('fin-has');
+        if (finGatekeeper && state.financial_holdings) {
+            const hasFin = !!(state.financial_holdings.has_financial_transactions ||
+                (state.financial_holdings.transactions && state.financial_holdings.transactions.length > 0));
+            finGatekeeper.value = hasFin ? 'true' : 'false';
+            toggleFinancialModule(finGatekeeper.value);
+        }
+        const comGatekeeper = document.getElementById('com-has');
+        if (comGatekeeper && state.commodities) {
+            const hasCom = !!(state.commodities.has_commodity_transactions ||
+                (state.commodities.transactions && state.commodities.transactions.length > 0));
+            comGatekeeper.value = hasCom ? 'true' : 'false';
+            toggleCommodityModule(comGatekeeper.value);
+        }
+        const ulGatekeeper = document.getElementById('ul-has');
+        if (ulGatekeeper && state.unlisted_equity) {
+            const hasUl = !!(state.unlisted_equity.has_unlisted_equity_transaction ||
+                (state.unlisted_equity.transactions && state.unlisted_equity.transactions.length > 0));
+            ulGatekeeper.value = hasUl ? 'true' : 'false';
+            toggleUnlistedModule(ulGatekeeper.value);
+        }
 
         // Schedule FA (foreign assets/income) — renderFaRows() already
         // correctly loops state.foreign_assets.assets and reveals the
