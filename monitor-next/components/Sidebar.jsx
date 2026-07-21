@@ -16,7 +16,7 @@ const MAIN = [
 ];
 const FOOTER = ["Personal details", "Account settings", "Knowledge base"];
 
-export default function Sidebar({ active = "monitor", onNavigate, badges = {} }) {
+export default function Sidebar({ active = "monitor", onNavigate, badges = {}, engineReady = false, syncing = false }) {
   return (
     <aside className="w-60 shrink-0 h-screen sticky top-0 glass-black border-r border-inkline flex flex-col text-white z-20">
       {/* Logo — real WISING brand mark (Main Logo.svg) + Cormorant Garamond
@@ -52,8 +52,14 @@ export default function Sidebar({ active = "monitor", onNavigate, badges = {} })
       </nav>
 
       <div className="px-3 py-3 border-t border-inkline space-y-0.5">
+        {/* Real, not decorative: engineReady/syncing come from page.jsx's
+            actual recompute() state — "Syncing Layer 1…" flashes for the
+            ~900ms after a genuine recompute (mount, client switch, another
+            tab editing Layer 1, or a window-focus refresh), not a permanent
+            claim about a background process that doesn't exist here. */}
         <div className="flex items-center gap-2 px-3 py-1.5 text-[10px] text-white/45">
-          <span className="w-1.5 h-1.5 rounded-full bg-positive pulse-dot" /> Engine online · syncing Layer 1
+          <span className={"w-1.5 h-1.5 rounded-full " + (engineReady ? "bg-positive pulse-dot" : "bg-white/25")} />
+          {!engineReady ? "Connecting…" : syncing ? "Syncing Layer 1…" : "Engine online"}
         </div>
         {FOOTER.map((l) => (
           <button key={l} className="w-full text-left px-3 py-2 rounded-lg text-[12px] text-white/40 hover:text-white/80 hover:bg-white/[0.05]">{l}</button>

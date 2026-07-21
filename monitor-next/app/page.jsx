@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import { Landmark, FileText, Send, Plane, BarChart3, ArrowLeftRight } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
@@ -102,9 +102,22 @@ export default function MonitorPage() {
   const [feieOverride, setFeieOverride] = useState(null);
   const whatIfActive = regimeOverride !== null || fxRateOverride !== null || feieOverride !== null;
 
+  // Sidebar's "Engine online / Syncing Layer 1" status — real, not
+  // decorative: syncing flashes true for ~900ms after every ACTUAL
+  // recompute() call (mount, client switch, another tab editing Layer 1 via
+  // the storage listener below, or a window-focus refresh with live data
+  // present) — the real events that mean "we just read Layer 1 and
+  // recomputed," not a permanently-claimed background process this
+  // client-only app doesn't have.
+  const [syncing, setSyncing] = useState(false);
+  const syncTimeoutRef = useRef(null);
+
   const goToRecon = useCallback((section) => { setView("reconciliation"); setReconHighlight(section); }, []);
 
   const recompute = useCallback((preferred) => {
+    setSyncing(true);
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    syncTimeoutRef.current = setTimeout(() => setSyncing(false), 900);
     const wantLive = preferred === "live" || (preferred == null && hasLiveLayer1());
     const source = wantLive && hasLiveLayer1() ? "live" : "demo";
     const overrides = engineSource === "dag" ? {
@@ -151,7 +164,10 @@ export default function MonitorPage() {
     const onStorage = (e) => { if (!e.key || e.key.indexOf("wising_") === 0) recompute(null); };
     const onFocus = () => { if (hasLiveLayer1()) recompute("live"); };
     window.addEventListener("storage", onStorage); window.addEventListener("focus", onFocus);
-    return () => { window.removeEventListener("storage", onStorage); window.removeEventListener("focus", onFocus); };
+    return () => {
+      window.removeEventListener("storage", onStorage); window.removeEventListener("focus", onFocus);
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    };
   }, [recompute]);
 
   const isUsDrill = region === "United States";
@@ -175,7 +191,7 @@ export default function MonitorPage() {
   return (
     <div className="relative flex min-h-screen">
       <div className="starfield" />
-      <Sidebar active={view} onNavigate={setView} badges={badges} />
+      <Sidebar active={view} onNavigate={setView} badges={badges} engineReady={engineReady} syncing={syncing} />
       <main className="relative z-10 flex-1 min-w-0 px-8 py-6">
         <Header region={region} onRegionChange={setRegion} clientName={clientName} baseYear={baseYear} entity={result ? result.model.entity : null} scope={result ? result.model.meta : null}
           presentationMode={presentationMode} onTogglePresentation={() => setPresentationMode((v) => !v)} />
