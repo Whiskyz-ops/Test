@@ -294,6 +294,14 @@ function generateProfile(rng) {
 
 // ---- deep-equal, same tolerant-numeric/Date/array/object shape every
 // earlier runner in this migration established. -----------------------------
+// Leaf keys the DAG adds with no engine equivalent by design — same
+// exclusion, same rationale, as monitor-next/lib/shadow-core.js's
+// DAG_ONLY_KEYS (keep both lists in sync). "caveat": the Chapter VI-A
+// deductions row's what-if warning (report-batch3-nodes.js), present only
+// when OLD regime is in effect and every underlying deduction section is
+// empty — a what-if-tool-only concern the engine has no override plumbing
+// to need, so it never carries this key at all.
+var DAG_ONLY_KEYS = { caveat: true };
 function close(a, b) { var tol = Math.max(2, Math.abs(b) * 1e-6); return Math.abs(a - b) <= tol; }
 function deepEqual(a, b, p, diffs) {
   p = p || "$"; diffs = diffs || [];
@@ -323,7 +331,7 @@ function deepEqual(a, b, p, diffs) {
   }
   if (typeof a === "object" && typeof b === "object") {
     var keys = {}; Object.keys(a).forEach(function (k) { keys[k] = 1; }); Object.keys(b).forEach(function (k) { keys[k] = 1; });
-    Object.keys(keys).forEach(function (k) { deepEqual(a[k], b[k], p + "." + k, diffs); });
+    Object.keys(keys).forEach(function (k) { if (!DAG_ONLY_KEYS[k]) deepEqual(a[k], b[k], p + "." + k, diffs); });
     return diffs;
   }
   diffs.push(p + ": " + JSON.stringify(a) + " !== " + JSON.stringify(b));
