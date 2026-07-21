@@ -185,6 +185,11 @@ var DOCUMENTS_CATALOG = [
   { id: "form_8959", jurisdiction: "US", name: "IRS Form 8959 (Additional Medicare Tax)", desc: "Additional 0.9% Medicare tax on wages/SE income above the filing-status threshold, and reconciles employer over/under-withholding.", why: "Additional Medicare Tax is owed and is not offset by the Foreign Tax Credit.", severity: "info" },
   { id: "form_540", jurisdiction: "US", name: "California Form 540 (Resident Income Tax Return)", desc: "California state income tax return — computed on worldwide income for a full-year CA resident, including Indian-source income. CA grants no credit for tax paid to a foreign country.", why: "State-of-residence facts on file point to California, and CA taxes worldwide income independently of the federal treaty position.", severity: "warning" },
   { id: "form_it201", jurisdiction: "US", name: "New York Form IT-201 (Resident Income Tax Return)", desc: "New York state income tax return — computed on worldwide income for a full-year NY resident, including Indian-source income. NY grants no credit for tax paid to a foreign country.", why: "State-of-residence facts on file point to New York, and NY taxes worldwide income independently of the federal treaty position.", severity: "warning" },
+  // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.7, 21
+  // Jul 2026): new document trigger, no engine equivalent (NJ wasn't
+  // modeled at all before this) — see findings-batch5-nodes.js's
+  // usStateTaxResult.
+  { id: "form_nj1040", jurisdiction: "US", name: "New Jersey Form NJ-1040 (Resident Income Tax Return)", desc: "New Jersey state income tax return — computed on worldwide income for a full-year NJ resident, including Indian-source income. NJ grants no credit for tax paid to a foreign country.", why: "State-of-residence facts on file point to New Jersey, and NJ taxes worldwide income independently of the federal treaty position.", severity: "warning" },
   { id: "form_67", jurisdiction: "IN", name: "Form 44 (India FTC)", desc: "Statement of foreign income & foreign tax, filed before the ITR due date.", why: "Foreign (US) income is being offered to tax in India and FTC u/s 90/91 is claimed. Schedule FSI/TR must accompany the ITR.", severity: "critical" },
   { id: "trc", jurisdiction: "IN", name: "Tax Residency Certificate (TRC)", desc: "Issued by the other contracting state (IRS Form 6166 for the US).", why: "DTAA relief / treaty rate is being claimed — a TRC is mandatory u/s 159(8).", severity: "critical" },
   { id: "form_10f", jurisdiction: "IN", name: "Form 41", desc: "Self-declaration accompanying the TRC, filed electronically on the ITR portal.", why: "Treaty benefit claimed and the TRC does not contain all particulars required u/r 75.", severity: "warning" },
@@ -252,7 +257,8 @@ NODES.buildDocumentsResult = {
       lrs_form_a2: d.limitsRawExtra.lrsRemittedInr > 0,
       form_4868: d.hasUsScopeBoundaryFtc,
       form_540: !!d.usStateTaxResult && d.usStateTaxResult.state === "CA",
-      form_it201: !!d.usStateTaxResult && d.usStateTaxResult.state === "NY"
+      form_it201: !!d.usStateTaxResult && d.usStateTaxResult.state === "NY",
+      form_nj1040: !!d.usStateTaxResult && d.usStateTaxResult.state === "NJ"
     };
 
     return DOCUMENTS_CATALOG.map(function (doc) {

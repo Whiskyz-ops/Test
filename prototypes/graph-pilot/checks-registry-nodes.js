@@ -238,7 +238,16 @@ NODES.checksRegistryResult = {
       pass("iso_3921", "document", "No ISO exercises on file", "No incentive-stock-option exercises this year — no Form 3921 to expect.");
     }
     if (d.usStateTaxResult && d.usStateTaxResult.totalTaxUsd <= 0) {
-      pass("state_income_tax", "credit", d.usStateTaxResult.stateName + " state tax: none due", "State taxable income nets to zero or below at " + d.usStateTaxResult.stateName + "'s own rates after the standard deduction.");
+      // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.7,
+      // 21 Jul 2026): distinguishes a genuine no-income-tax state (a
+      // categorical fact) from a state whose bracket computation happened
+      // to net to zero — the engine's version couldn't reach this state at
+      // all before H.7 (it returned null, not a zero result), so it never
+      // had to make this distinction.
+      var detail = d.usStateTaxResult.noIncomeTax
+        ? d.usStateTaxResult.stateName + " has no individual income tax at all."
+        : "State taxable income nets to zero or below at " + d.usStateTaxResult.stateName + "'s own rates after the standard deduction.";
+      pass("state_income_tax", "credit", d.usStateTaxResult.stateName + " state tax: none due", detail);
     }
     if (d.hasUsScopeBoundaryFtc) {
       var LIM = require("../../engine/constants.js").CONST.LIMITS;

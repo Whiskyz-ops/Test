@@ -172,8 +172,35 @@ export function compareSurface(engineResult, dagResult) {
   // allowlist below (which can't repair an index shift).
   let eng = engineResult, dag = dagResult;
   if (usEntity && Array.isArray(engineResult && engineResult.findings) && Array.isArray(dagResult && dagResult.findings)) {
-    eng = { ...engineResult, findings: engineResult.findings.filter((f) => f.id !== "underpayment_2210") };
-    dag = { ...dagResult, findings: dagResult.findings.filter((f) => f.id !== "underpayment_2210") };
+    // us_entity_state_tax(_not_modeled) (docs/GAP_TRACKER.md section H.7,
+    // Phase 2, 21 Jul 2026): new DAG-only finding, no engine equivalent —
+    // same filter-before-diff treatment as underpayment_2210 above.
+    const dropEntityOnlyIds = (f) => f.id !== "underpayment_2210" && f.id !== "us_entity_state_tax" && f.id !== "us_entity_state_tax_not_modeled";
+    eng = { ...engineResult, findings: engineResult.findings.filter(dropEntityOnlyIds) };
+    dag = { ...dagResult, findings: dagResult.findings.filter(dropEntityOnlyIds) };
+  }
+
+  // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026): new DAG-only
+  // document, no engine equivalent (NJ wasn't modeled at all before this) —
+  // stripped from both the documents list and the calendar's bundled
+  // docIds, same convention as run-fuzz.js's assembleDag().
+  if (Array.isArray(dag && dag.documents)) {
+    dag = { ...dag, documents: dag.documents.filter((x) => x.id !== "form_nj1040") };
+  }
+  if (dag && dag.monitoring && dag.monitoring.calendar) {
+    const stripNj1040 = (row) => Array.isArray(row.docIds) ? { ...row, docIds: row.docIds.filter((id) => id !== "form_nj1040") } : row;
+    dag = {
+      ...dag,
+      monitoring: {
+        ...dag.monitoring,
+        calendar: {
+          ...dag.monitoring.calendar,
+          all: dag.monitoring.calendar.all.map(stripNj1040),
+          upcoming: dag.monitoring.calendar.upcoming.map(stripNj1040),
+          next: dag.monitoring.calendar.next ? stripNj1040(dag.monitoring.calendar.next) : dag.monitoring.calendar.next
+        }
+      }
+    };
   }
 
   const raw = [];

@@ -381,17 +381,35 @@ NODES.buildTaxComputationUsStateResult = {
   compute: function (d) {
     var st = d.usStateTaxResult;
     if (!st) return null;
+    // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.7, 21
+    // Jul 2026): a confirmed no-income-tax state (usStateTaxResult.
+    // noIncomeTax) gets a short confirmation card instead of the full
+    // bracket-trace shape below — no engine equivalent (the engine's
+    // computeUsStateTax returns null for these too, same silence H.7 closes).
+    if (st.noIncomeTax) {
+      return {
+        title: st.stateName + " state income tax",
+        currency: "USD",
+        rows: [{ label: "State income tax", usd: 0, emphasis: true, trace: source(st.basis) }],
+        totalUsd: 0, effectiveRate: 0, basis: st.basis
+      };
+    }
     return {
       title: st.stateName + " state income tax (" + st.formName + ", " + st.filingStatus.toUpperCase() + ")",
       currency: "USD",
       rows: [
         { label: "Federal AGI (starting point)", usd: st.agiUsd,
           trace: source("Same federal AGI computed above — " + st.stateName + " taxes a full-year resident's worldwide income, so no separate state-source recomputation is done.") },
-        { label: "Less " + st.stateName + " standard deduction", usd: -st.standardDeductionUsd,
-          trace: source(st.stateName + "'s own standard deduction for " + st.filingStatus.toUpperCase() + " — separate from, and smaller than, the federal one.") }
+        { label: "Less " + st.stateName + " " + st.standardDeductionLabel, usd: -st.standardDeductionUsd,
+          trace: source(st.stateName + "'s own " + st.standardDeductionLabel + " for " + st.filingStatus.toUpperCase() + " — separate from, and smaller than, the federal one.") }
       ].concat(st.dependentExemptionUsd > 0 ? [
-        { label: "Less NY dependent exemption ($1,000/dependent)", usd: -st.dependentExemptionUsd,
-          trace: source("NY dropped the personal exemption for filer/spouse decades ago; only the $1,000-per-dependent exemption survives.") }
+        st.state === "NY" ? {
+          label: "Less NY dependent exemption ($1,000/dependent)", usd: -st.dependentExemptionUsd,
+          trace: source("NY dropped the personal exemption for filer/spouse decades ago; only the $1,000-per-dependent exemption survives.")
+        } : {
+          label: "Less " + st.dependentExemptionLabel, usd: -st.dependentExemptionUsd,
+          trace: source(st.stateName + "'s per-dependent exemption.")
+        }
       ] : []).concat([
         { label: "State taxable income", usd: st.taxableIncomeUsd,
           trace: calc("Federal AGI less the state standard deduction" + (st.dependentExemptionUsd > 0 ? " and dependent exemption" : ""), [

@@ -96,6 +96,56 @@ NODES.equityCompResult = {
  * std deductions, AGI thresholds) replaced by the shared import. */
 var CONST_B5 = require("../../engine/constants.js").CONST;
 var US_STATES = CONST_B5.TAX.US_STATES;
+
+// DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.7 —
+// "US state income tax, Phase 2", 21 Jul 2026): the engine models only
+// CA/NY (this file's own header comment already says so). Extended here,
+// DAG-only, with the two remaining "top-5 NRI state" gaps the tracker's
+// own US-12 row named:
+//   - NJ: a real bracket table, structured the same shape as CA/NY so the
+//     existing report-layer trace (report-batch2-nodes.js's
+//     buildTaxComputationUsStateResult) needs no changes to render it. NJ's
+//     own "personal exemption" ($1,000 filer + $1,000 spouse if MFJ, $1,500/
+//     dependent) is modeled as STD_DEDUCTION/DEPENDENT_EXEMPTION_USD — same
+//     dollar effect, different NJ-specific label wired through
+//     STD_DEDUCTION_LABEL/DEPENDENT_EXEMPTION_LABEL so the trace text still
+//     reads correctly (NJ doesn't literally have a "standard deduction").
+//     TY2025 brackets (NJ hasn't changed these in several years) — best-
+//     available figures, not independently re-verified for the exact
+//     TY2026 vintage, same "confirm before filing" discipline as every
+//     other estimated figure in this codebase.
+//   - AK/FL/NV/SD/TN/TX/WA/WY: states with NO individual income tax at all.
+//     Previously indistinguishable from an unmodeled state — both silently
+//     returned null, so a TX/WA resident saw no state card at all, reading
+//     as "not computed" rather than "genuinely zero." Now returns an
+//     explicit confirmed-zero result instead of silence.
+var US_STATES_NJ_NY_SHAPE_EXT = {
+  NJ: {
+    NAME: "New Jersey",
+    FORM_NAME: "Form NJ-1040",
+    // NJ Div. of Taxation, TY2024 schedule (unchanged for several years) —
+    // best-available figures, see file comment above.
+    BRACKETS: {
+      single: [[20000, 0.014], [35000, 0.0175], [40000, 0.035], [75000, 0.05525], [500000, 0.0637], [1000000, 0.0897], [Infinity, 0.1075]],
+      mfj: [[20000, 0.014], [50000, 0.0175], [70000, 0.0245], [80000, 0.035], [150000, 0.05525], [500000, 0.0637], [1000000, 0.0897], [Infinity, 0.1075]]
+    },
+    // NJ has no standard deduction — a $1,000 personal exemption (filer),
+    // another $1,000 if MFJ (spouse), modeled here as the STD_DEDUCTION
+    // slot since the dollar effect (subtracted from AGI before bracket tax)
+    // is identical; STD_DEDUCTION_LABEL corrects the trace wording.
+    STD_DEDUCTION: { single: 1000, mfj: 2000 },
+    STD_DEDUCTION_LABEL: "personal exemption",
+    DEPENDENT_EXEMPTION_USD: 1500,
+    DEPENDENT_EXEMPTION_LABEL: "NJ dependent exemption ($1,500/dependent)"
+  }
+};
+var NO_INDIVIDUAL_INCOME_TAX_STATES = { AK: 1, FL: 1, NV: 1, SD: 1, TN: 1, TX: 1, WA: 1, WY: 1 };
+var STATE_NAMES = {
+  AK: "Alaska", FL: "Florida", NV: "Nevada", SD: "South Dakota",
+  TN: "Tennessee", TX: "Texas", WA: "Washington", WY: "Wyoming"
+};
+var US_STATES_EXT = Object.assign({}, US_STATES, US_STATES_NJ_NY_SHAPE_EXT);
+
 NODES.usStateTaxResult = {
   deps: ["usEntityKind", "treatyFiles1040nrRaw", "s6013hElection", "stateResidencyRaw", "usFilingStatusRaw", "dedUs", "usTaxResult"],
   compute: function (d) {
@@ -103,7 +153,17 @@ NODES.usStateTaxResult = {
     if (d.usEntityKind !== "individual" || isNra) return null;
     var sr = d.stateResidencyRaw;
     var stateCode = sr.domicileDec31 || sr.primaryState || sr.domicileJan1;
-    var T = US_STATES[stateCode];
+    if (!stateCode) return null;
+    if (NO_INDIVIDUAL_INCOME_TAX_STATES[stateCode]) {
+      return {
+        state: stateCode, stateName: STATE_NAMES[stateCode] || stateCode, formName: null, filingStatus: d.usFilingStatusRaw === "mfj" ? "mfj" : "single",
+        noIncomeTax: true, agiUsd: d.usTaxResult.agiUsd, standardDeductionUsd: 0, dependentExemptionUsd: 0,
+        taxableIncomeUsd: 0, bracketTaxUsd: 0, bracketBreakdown: [], surchargeUsd: 0, surchargeLabel: null,
+        exemptionCreditUsd: 0, dependentCreditUsd: 0, totalTaxUsd: 0, effectiveRate: 0,
+        basis: (STATE_NAMES[stateCode] || stateCode) + " has no individual income tax."
+      };
+    }
+    var T = US_STATES_EXT[stateCode];
     if (!T) return null;
     var status = d.usFilingStatusRaw === "mfj" ? "mfj" : "single";
     var brackets = T.BRACKETS[status];
@@ -122,7 +182,10 @@ NODES.usStateTaxResult = {
     var totalTaxUsd = Math.max(0, Math.round(bracketTaxUsd + surchargeUsd - exemptionCreditUsd - dependentCreditUsd));
     return {
       state: stateCode, stateName: T.NAME, formName: T.FORM_NAME, filingStatus: status,
+      noIncomeTax: false,
       agiUsd: d.usTaxResult.agiUsd, standardDeductionUsd: standardDeductionUsd, dependentExemptionUsd: dependentExemptionUsd,
+      standardDeductionLabel: T.STD_DEDUCTION_LABEL || "standard deduction",
+      dependentExemptionLabel: T.DEPENDENT_EXEMPTION_LABEL || (T.NAME + " dependent exemption"),
       taxableIncomeUsd: taxableIncomeUsd, bracketTaxUsd: bracketTaxUsd, bracketBreakdown: bracketBreakdownRows,
       surchargeUsd: surchargeUsd, surchargeLabel: T.SURCHARGE_LABEL || null,
       exemptionCreditUsd: exemptionCreditUsd, dependentCreditUsd: dependentCreditUsd,

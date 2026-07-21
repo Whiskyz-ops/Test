@@ -52,6 +52,7 @@ function bracketBreakdown(amount, slabs) {
   for (var i = 0; i < slabs.length; i++) { var cap = slabs[i][0], rate = slabs[i][1]; if (t > prev) { var taxable = Math.min(t, cap) - prev; rows.push({ from: prev, to: cap, rate: rate, taxable: taxable, tax: taxable * rate }); prev = cap; } else break; }
   return rows;
 }
+function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
 function computeSaltCap(agi, status) {
   var base = T.SALT_CAP_BASE_USD[status] || T.SALT_CAP_BASE_USD.single;
   var threshold = T.SALT_CAP_PHASEOUT_THRESHOLD_USD[status] || T.SALT_CAP_PHASEOUT_THRESHOLD_USD.single;
@@ -171,6 +172,137 @@ NODES.usEntityTaxResult = {
       return r;
     }
     return usEntityResult(taxable, 0, (kind === "scorp" ? "S-Corp (1120-S)" : "Partnership (1065)") + " · pass-through", true);
+  }
+};
+
+// DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.7 —
+// "US state income tax, Phase 2", 21 Jul 2026): computeUsStateTax excludes
+// ALL business entities entirely (computation.js:1129-1132's own comment:
+// "Business entities... file separate state franchise/entity-level returns,
+// an unrelated and unmodeled regime, so this function only fires for
+// individual filers") — a real gap this closes for the one case that's
+// genuinely tractable at the same "planning-grade, single-state, no
+// apportionment" fidelity as the individual brackets above, with everything
+// else honestly flagged as unmodeled rather than silently treated as $0:
+//
+//   - C-Corp in CA/NY/NJ: a real (simplified — top-bracket flat rate, no
+//     apportionment/minimum-tax/surtax) entity-level income tax.
+//   - S-Corp/Partnership (any state): pass-through at the state level too,
+//     same as federal above — no entity-level income tax by default, but a
+//     state PTET (pass-through entity tax) election can shift liability
+//     onto the entity as a federal-SALT-cap workaround; not modeled.
+//   - Trust: state fiduciary income tax has its own throwback/accumulation-
+//     distribution rules, a materially different computation from the
+//     federal §1(e) brackets above; not modeled.
+//   - TX/WA (any entity kind): NOT no-tax states for a business, unlike for
+//     an individual — Texas's Franchise (Margin) Tax and Washington's B&O
+//     tax are real, gross-receipts/margin-based taxes with no income-tax
+//     analog to reuse the bracket model for. Deliberately NOT given the
+//     same "$0, confirmed no tax" treatment individuals get in these two
+//     states (usStateTaxResult's own NO_INDIVIDUAL_INCOME_TAX_STATES,
+//     findings-batch5-nodes.js) — that would be actively misleading here.
+//   - every other state: genuinely not modeled.
+//
+// Surfaced as a finding only (see the findingsAllResult override below), not
+// a new taxComputation/document card — avoids a frontend schema change for
+// a first cut; Views.jsx already renders arbitrary findings generically.
+var ENTITY_STATE_CCORP_RATES = {
+  CA: { rate: 0.0884, name: "California", label: "California's flat 8.84% corporate franchise tax rate — excludes the $800 minimum franchise tax and the 10.84% financial-corporation rate" },
+  NY: { rate: 0.0725, name: "New York", label: "New York's 7.25% Article 9-A top-bracket business income base rate — excludes the lower 6.5% bracket (ENI ≤ $5M), the fixed-dollar-minimum tax based on NY receipts, and the MTA surcharge" },
+  NJ: { rate: 0.09, name: "New Jersey", label: "New Jersey's 9% Corporation Business Tax top-bracket rate — excludes the lower 6.5%/7.5% brackets and the temporary 2.5% surtax on income over $1M" }
+};
+var ENTITY_NO_INCOME_TAX_REAL_REGIME = {
+  TX: "Texas has no corporate income tax, but levies its own Franchise (Margin) Tax — a gross-receipts/margin-based tax, structurally different from an income tax. Not modeled here — do not assume $0 state tax exposure.",
+  WA: "Washington has no corporate income tax, but levies its own Business & Occupation (B&O) Tax — a gross-receipts tax on most business activity, structurally different from an income tax. Not modeled here — do not assume $0 state tax exposure."
+};
+
+NODES.usEntityStateOfDomicileRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "profile.state_of_domicile", null); } };
+
+NODES.usEntityStateTaxResult = {
+  deps: ["usEntityKind", "usEntityStateOfDomicileRaw", "usEntityTaxResult"],
+  compute: function (d) {
+    if (d.usEntityKind === "individual") return null;
+    var stateCode = d.usEntityStateOfDomicileRaw;
+    if (!stateCode) return null;
+    var kind = d.usEntityKind;
+    var base = { state: stateCode, kind: kind };
+
+    if (ENTITY_NO_INCOME_TAX_REAL_REGIME[stateCode]) {
+      return Object.assign({}, base, {
+        modeled: false, stateName: stateCode === "TX" ? "Texas" : "Washington",
+        reason: ENTITY_NO_INCOME_TAX_REAL_REGIME[stateCode]
+      });
+    }
+    if (kind === "scorp" || kind === "partnership") {
+      return Object.assign({}, base, {
+        modeled: false, stateName: null,
+        reason: "Pass-through at the state level too, same as federal — no entity-level state income tax by default. Not checked here: whether " +
+          stateCode + " offers a PTET (pass-through entity tax) election, which shifts state tax liability onto the entity as a federal-SALT-cap workaround."
+      });
+    }
+    if (kind === "trust") {
+      return Object.assign({}, base, {
+        modeled: false, stateName: null,
+        reason: "State fiduciary income tax has its own throwback/accumulation-distribution rules, materially different from the federal §1(e) brackets computed above — not modeled."
+      });
+    }
+    // kind === "ccorp" from here
+    var T = ENTITY_STATE_CCORP_RATES[stateCode];
+    if (!T) {
+      return Object.assign({}, base, {
+        modeled: false, stateName: null,
+        reason: "State-level C-Corp income tax is not modeled for " + stateCode + " — do not assume $0 exposure."
+      });
+    }
+    var taxableUsd = Math.max(0, d.usEntityTaxResult.taxableIncomeUsd);
+    var totalTaxUsd = Math.round(taxableUsd * T.rate);
+    return Object.assign({}, base, {
+      modeled: true, stateName: T.name, rate: T.rate, rateLabel: T.label,
+      taxableIncomeUsd: taxableUsd, totalTaxUsd: totalTaxUsd,
+      basis: "TY2025 rates (returns filed 2026); " + T.label + ". Single-state, no apportionment (assumes 100% of federal taxable income is allocated to " + T.name + ")."
+    });
+  }
+};
+
+// Appends the new entity-state-tax finding to the existing merged findings
+// array — the same "concat + re-sort" shape the base array is already built
+// with (report-batch5-nodes.js's findingsAllResult), so the new entry lands
+// in its correct severity/amountUsd position rather than always at the end.
+// Stable-sorting an already-sorted array with the same comparator (V8's
+// Array.sort is stable, ES2019+) leaves every pre-existing element's
+// relative order untouched — only the new element gets placed.
+NODES.findingsAllResult = {
+  deps: baseNodes.findingsAllResult.deps.concat(["usEntityStateTaxResult"]),
+  compute: function (d, ctx) {
+    var all = baseNodes.findingsAllResult.compute(d, ctx).slice();
+    var est = d.usEntityStateTaxResult;
+    if (est) {
+      if (est.modeled) {
+        all.push({
+          id: "us_entity_state_tax", severity: "warning", category: "credit",
+          title: est.stateName + " state entity-level tax: " + usd(est.totalTaxUsd) + " (C-Corp)",
+          detail: est.stateName + " taxes this entity's own net income at the entity level, separate from and in addition to the 21% federal corporate rate — computed here as " +
+            usd(est.totalTaxUsd) + " on " + usd(est.taxableIncomeUsd) + " of federal taxable income at " + est.rateLabel + ".",
+          recommendation: "File the entity's " + est.stateName + " corporate return (in addition to Form 1120) alongside the federal return. This is a simplified top-bracket-rate, single-state estimate — confirm the exact minimum-tax/surtax/apportionment figures with a preparer before relying on it.",
+          amountUsd: est.totalTaxUsd, refs: [est.stateName + " corporate income tax", "Form 1120"]
+        });
+      } else {
+        all.push({
+          id: "us_entity_state_tax_not_modeled", severity: "info", category: "credit",
+          title: (est.stateName || est.state) + " entity-level state tax exposure — not modeled",
+          detail: est.reason,
+          recommendation: "Confirm this entity's actual state-level tax exposure in " + (est.stateName || est.state) +
+            " with a preparer — WISING does not compute it here, and this is NOT a confirmed-zero result.",
+          amountUsd: 0, refs: [est.stateName || est.state]
+        });
+      }
+      var weight = { critical: 0, warning: 1, info: 2 };
+      all.sort(function (a, b) {
+        if (weight[a.severity] !== weight[b.severity]) return weight[a.severity] - weight[b.severity];
+        return b.amountUsd - a.amountUsd;
+      });
+    }
+    return all;
   }
 };
 
