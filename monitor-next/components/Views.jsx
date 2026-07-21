@@ -1526,11 +1526,23 @@ const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, on
 export function ClientsView({ clients, activeId, onPick }) {
   const [expanded, setExpanded] = useState(() => new Set());
   if (!clients || !clients.length) return <Empty>Loading clients…</Empty>;
+  // KPI tiles sum the FULL book (every real filing, whether nested or not)
+  // — an owned entity's own tax/conflicts are still real exposure this
+  // practice is responsible for; hiding them from the totals just because
+  // they're now shown nested would under-report actual numbers, a worse
+  // failure than the duplicate-row confusion this filtering fixes below.
   const totalTax = clients.reduce((a, c) => a + (c.combinedTaxUsd || 0), 0);
   const totalResidual = clients.reduce((a, c) => a + (c.netDoubleTaxUsd || 0), 0);
   const openCritical = clients.reduce((a, c) => a + (c.critical || 0), 0);
   const atRisk = clients.filter((c) => c.healthScore < 50).length;
-  const sorted = clients.slice().sort((a, b) => (a.healthScore ?? 100) - (b.healthScore ?? 100));
+  // The TABLE ROWS, unlike the KPI tiles above, show each real filing
+  // exactly once: an entity that's owned by another client on file is
+  // dropped from the top-level list entirely (it still exists — it just
+  // renders nested under its owner instead of also duplicated at the top
+  // level, which read as confusing: same company, same numbers, two
+  // unrelated-looking rows).
+  const ownedIds = new Set(clients.flatMap((c) => { const l = entityLinksFor(c.id, clients); return l ? l.owns.map((x) => x.ownedId) : []; }));
+  const sorted = clients.filter((c) => !ownedIds.has(c.id)).slice().sort((a, b) => (a.healthScore ?? 100) - (b.healthScore ?? 100));
   const toggleExpand = (id) => setExpanded((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
 
   // Flattens a client + however many of its owned entities are currently
@@ -1563,7 +1575,7 @@ export function ClientsView({ clients, activeId, onPick }) {
     <div className="space-y-6">
       <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Users size={16} strokeWidth={2} /></HeadChip>Client Portfolio</h2><p className="text-muted text-sm mt-2">Your book of business — cross-border exposure at a glance. Click a client to open their Monitor. A client who owns another entity on file shows a ▸ — click it to see that entity nested underneath, without leaving this view.</p></div>
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatTile icon={<Users size={15} strokeWidth={2} />} label="Clients" value={clients.length} highlight />
+        <StatTile icon={<Users size={15} strokeWidth={2} />} label="Clients" value={clients.length} highlight sub={ownedIds.size > 0 ? (sorted.length + " shown · " + ownedIds.size + " nested under an owner") : undefined} />
         <StatTile icon={<AlertTriangle size={15} strokeWidth={2} />} label="At risk" value={atRisk} accent={atRisk ? PAL.redText : PAL.greenText} sub="health < 50" />
         <StatTile icon={<Siren size={15} strokeWidth={2} />} label="Open critical" value={openCritical} accent={openCritical ? PAL.redText : PAL.greenText} sub="conflicts" />
         <StatTile icon={<DollarSign size={15} strokeWidth={2} />} label="Combined tax" value={fmtUsd(totalTax)} sub="IN + US, all clients" />
