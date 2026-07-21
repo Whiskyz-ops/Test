@@ -7,7 +7,8 @@ await import("./lib/engine/conflicts.js");
 await import("./lib/engine/sample-data.js");
 await import("./lib/engine/profiles.js");
 const WISING = globalThis.WISING;
-const { analyzeDag } = await import("./lib/dag-adapter.js");
+const { analyzeDag, allClientSummariesDag } = await import("./lib/dag-adapter.js");
+const { allClientSummaries } = await import("./lib/wising.js");
 
 let fails = 0, checks = 0;
 function ok() { checks++; }
@@ -88,6 +89,22 @@ WISING.PROFILES.forEach((p) => {
   const dag = analyzeDag({ router: p.router, india: p.india, us: p.us });
   checkResult(p.id, dag, real);
 });
+
+console.log("\n=== Clients tab: allClientSummariesDag() vs allClientSummaries() ===");
+{
+  const before = fails;
+  const dagSummaries = allClientSummariesDag();
+  const realSummaries = allClientSummaries();
+  deepCheck("client summaries length", dagSummaries.length, realSummaries.length);
+  realSummaries.forEach((real, i) => {
+    const dag = dagSummaries[i];
+    ["id", "healthScore", "critical", "warning", "indiaStatus", "usStatus", "dualResident",
+      "totalIncomeUsd", "netDoubleTaxUsd", "combinedTaxUsd", "requiredDocs", "isBusiness"].forEach((k) => {
+      deepCheck("clientSummaries[" + i + "]." + real.id + "." + k, dag && dag[k], real[k]);
+    });
+  });
+  console.log(fails === before ? "all match" : "FAILURES above");
+}
 
 console.log("\n" + checks + " checks, " + fails + " failed");
 process.exit(fails > 0 ? 1 : 0);

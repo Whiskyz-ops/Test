@@ -11,7 +11,7 @@ import { ConflictsPanel, ChecksRegistryPanel, ResidencyView, FilingsView, Reconc
 import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries } from "@/lib/wising";
-import { monitorSnapshotDag } from "@/lib/dag-adapter";
+import { monitorSnapshotDag, allClientSummariesDag } from "@/lib/dag-adapter";
 import { runShadow, getShadowLog, clearShadowLog } from "@/lib/shadow";
 import ShadowBadge from "@/components/ShadowBadge";
 import WhatIfBar from "@/components/WhatIfBar";
@@ -130,7 +130,17 @@ export default function MonitorPage() {
     }
   }, [engineSource, shadowOn, regimeOverride, fxRateOverride, feieOverride]);
 
-  useEffect(() => { setProfiles(listProfiles()); setClientSummaries(allClientSummaries()); recompute(null); }, [recompute]);
+  // Clients tab routes through the same engineSource as everything else —
+  // previously allClientSummaries() (engine-only) ran unconditionally here,
+  // so the portfolio table stayed engine-computed even while the primary
+  // Monitor was set to DAG mode. Re-fires whenever engineSource flips: it's
+  // in the deps directly (not just transitively via recompute), since
+  // clientSummaries isn't recompute's job to refresh.
+  useEffect(() => {
+    setProfiles(listProfiles());
+    setClientSummaries(engineSource === "dag" ? allClientSummariesDag() : allClientSummaries());
+    recompute(null);
+  }, [recompute, engineSource]);
   const onPickProfile = useCallback((id) => { if (id && loadProfile(id)) { recompute("live"); } }, [recompute]);
   const onWhatIfReset = useCallback(() => { setRegimeOverride(null); setFxRateOverride(null); setFeieOverride(null); }, []);
 

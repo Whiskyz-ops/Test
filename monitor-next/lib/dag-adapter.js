@@ -177,3 +177,30 @@ export function monitorSnapshotDag(source, overrides) {
     baseYear: result.summary.baseYear
   };
 }
+
+// DAG-backed counterpart to lib/wising.js's allClientSummaries() — same
+// shape, so ClientsView renders identically regardless of source. Previously
+// the Clients tab always ran the real engine here even when the primary
+// Monitor was set to DAG mode (analyzeDag was never called from this
+// function at all) — the one place in the app that didn't actually route
+// through the current engineSource toggle. No overrides applied: the
+// portfolio view is each client's own on-file baseline, not the active
+// what-if scenario (matching allClientSummaries()'s own behavior).
+export function allClientSummariesDag() {
+  const W = typeof window !== "undefined" ? window.WISING : null;
+  if (!W || !W.PROFILES) return [];
+  return W.PROFILES.map((p) => {
+    const r = analyzeDag({ router: p.router, india: p.india, us: p.us });
+    const s = r.summary;
+    return {
+      id: p.id, label: p.label, story: p.story, tags: p.tags,
+      isBusiness: r.model.entity ? r.model.entity.isBusiness : false,
+      indiaStatus: s.indiaStatus, usStatus: s.usStatus, dualResident: s.dualResident,
+      totalIncomeUsd: s.totalIncomeUsd, netDoubleTaxUsd: s.netDoubleTaxUsd,
+      combinedTaxUsd: (s.indiaTaxUsd || 0) + (s.usTaxUsd || 0),
+      critical: s.counts.critical, warning: s.counts.warning,
+      requiredDocs: s.requiredDocs, healthScore: s.healthScore,
+      nextDeadline: r.monitoring && r.monitoring.calendar.next ? r.monitoring.calendar.next : null
+    };
+  });
+}
