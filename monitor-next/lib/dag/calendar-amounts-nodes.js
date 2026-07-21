@@ -29,7 +29,19 @@
  * exist; installments is [] in that case, not a list of zeros. US has no
  * equivalent blanket exemption in the existing model, so its installments
  * are always populated (a genuinely fully-covered quarter simply shows $0
- * still needed, which is itself the correct "you're covered" signal).
+ * still needed, which is itself the correct "you're covered" signal) —
+ * EXCEPT for a US entity taxpayer (added DELIBERATE DAG/engine divergence,
+ * docs/GAP_TRACKER.md section H — "entity-agnostic audit", 21 Jul 2026):
+ * us.installments' underlying math is us1-nodes.js's §6654 individual
+ * estimated-tax structure (same one underpayment_2210 uses, now suppressed
+ * for entities in agg10-nodes.js for the same reason) — four equal 25%
+ * slices, a 90%-of-current/100-or-110%-of-prior harbor test keyed to an
+ * individual's AGI. A corporation's estimated tax is §6655, its own
+ * distinct safe-harbor and installment structure this engine does not
+ * model. Same "no obligation shown is more correct than the wrong
+ * regime's number" choice as India's inAdvTaxObliged gate above:
+ * installments is [] for a US entity, not four §6654 figures mislabeled
+ * as if they were §6655.
  *
  * DAG-only, same precedent as CL-1: no engine equivalent, so
  * lib/wising.js's return shape never carries this field — only DAG mode
@@ -48,7 +60,7 @@ NODES.calendarAmountsResult = {
   deps: [
     "hasIndiaScope", "hasUsScope", "inAdvTaxObliged", "inPurelyPresumptive", "assessedTaxInr",
     "advQ1Inr", "advQ2Inr", "advQ3Inr", "advQ4Inr",
-    "usRequiredUsd", "usWithholdingTotalUsd", "usEstQ1Usd", "usEstQ2Usd", "usEstQ3Usd", "usEstQ4Usd"
+    "usRequiredUsd", "usWithholdingTotalUsd", "usEstQ1Usd", "usEstQ2Usd", "usEstQ3Usd", "usEstQ4Usd", "usTaxResult"
   ],
   compute: function (d) {
     var india = { obliged: false, purelyPresumptive: !!d.inPurelyPresumptive, installments: [] };
@@ -73,7 +85,7 @@ NODES.calendarAmountsResult = {
     }
 
     var us = { requiredUsd: 0, installments: [] };
-    if (d.hasUsScope) {
+    if (d.hasUsScope && !d.usTaxResult.isEntity) {
       us.requiredUsd = d.usRequiredUsd;
       var perQWithholdingUsd = d.usWithholdingTotalUsd / 4;
       var estByQ = { 1: d.usEstQ1Usd, 2: d.usEstQ2Usd, 3: d.usEstQ3Usd, 4: d.usEstQ4Usd };

@@ -20,6 +20,19 @@
  * zero-new-logic exposures of values already computed internally — verified
  * safe via run-in1-v3.js (8/8) and run-india-tax-combined.js (22/22)
  * immediately after.
+ *
+ * DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H, 21 Jul
+ * 2026): the entity branch below now builds its own genuine row set instead
+ * of falling through into the individual/HUF row builder further down.
+ * That builder reads several fields the entity shape of `i` never sets
+ * (i.totalNormalInr, i.slabBreakdown, i.lossSetOff, i.s115a, i.nrInterest) —
+ * most are guarded by `||`/`&&` fallbacks, but i.totalNormalInr is
+ * interpolated directly into the "Tax at slab rates" trace formula string
+ * with no guard, producing a literal "₹NaN" for every India-entity profile
+ * (the analog this file's own header comment already flagged as an
+ * unfixed sibling of CFL-7 batch 2's US-side "$NaN"). entityTaxResult
+ * (entitytax-nodes.js) is a flat-rate-plus-MAT-floor result, not a
+ * slab computation, so the row set below reflects that shape instead.
  * ==========================================================================*/
 function safe(obj, path, dflt) {
   var parts = path.split(".");
@@ -33,6 +46,7 @@ var fxRate = require("./fx-util.js").fxRate;
 function inrToUsd(v, ctx) { return Number(v) / fxRate(ctx); } // rate overridable via ctx.fxRateOverride — see fx-util.js
 function calc(formula, parts, citation) { return { kind: "calc", formula: formula, parts: parts || [], citation: citation || null }; }
 function holdings(section, note) { return { kind: "holdings", section: section, note: note || null }; }
+function source(detail, citation) { return { kind: "source", detail: detail, citation: citation || null }; }
 
 /* Ported verbatim, conflicts.js:1710-1746. */
 function s115aParts(stream, fmt) {
@@ -140,6 +154,42 @@ NODES.buildTaxComputationIndiaResult = {
       s115a: d.isNRV3 ? { dividend: d.s115aDividend, royalty: d.s115aRoyalty, fts: d.s115aFts } : null,
       nrInterest: d.nrInterest
     };
+
+    // ---- entity branch (DELIBERATE DAG/engine divergence — see file header)
+    if (i.isEntity) {
+      var et = d.entityTaxResult;
+      return {
+        title: "India income tax — " + i.regime,
+        currency: "INR",
+        rows: [
+          { label: "Taxable income", inr: i.totalIncomeInr,
+            trace: source("India-source income aggregated for this entity — entered on Layer 1 India Business/Company.") },
+          { label: "Tax at entity rate" + (et.matApplied ? " (MAT/AMT floor applies)" : ""), inr: i.slabTaxInr,
+            trace: et.matApplied
+              ? source("The MAT floor (s.115JB, companies) / AMT floor (s.115JC, firms/LLPs) exceeds the normal-rate tax on this taxable income, so the MAT/AMT floor applies instead — the difference between the two is folded into the surcharge line below.")
+              : calc("Flat statutory rate for " + i.regime + " applied to taxable income — no slabs, no Chapter VI-A deductions, no §156 rebate; none of those individual/HUF concepts apply to an entity's own return", [
+                  { label: "Taxable income", amount: i.totalIncomeInr },
+                  { label: "Tax", amount: i.slabTaxInr }
+                ]) },
+          { label: "Surcharge", inr: i.surchargeInr,
+            trace: source("Turnover/income-band surcharge for " + i.regime + (et.matApplied ? ", plus the MAT/AMT-vs-normal-tax difference from the row above" : "") + ".") },
+          { label: "Health & education cess (4%)", inr: i.cessInr,
+            trace: calc("4% of (tax + surcharge)", [
+              { label: "Tax", amount: i.slabTaxInr },
+              { label: "Surcharge", amount: i.surchargeInr },
+              { label: "Cess rate", display: "4%" }
+            ]) },
+          { label: "Total India tax", inr: i.totalTaxInr, emphasis: true,
+            trace: calc("Tax + surcharge + cess", [
+              { label: "Tax", amount: i.slabTaxInr },
+              { label: "Surcharge", amount: i.surchargeInr },
+              { label: "Cess", amount: i.cessInr }
+            ]) }
+        ],
+        totalUsd: i.totalTaxUsd,
+        effectiveRate: i.effectiveRate
+      };
+    }
 
     var T = { DEDUCTION_CAPS_OLD: { s80C: 150000, s80CCD1B: 50000, s80D_self: 25000, s80D_parents_senior: 50000 } };
     var dedIndia = {
@@ -291,7 +341,7 @@ NODES.buildTaxComputationIndiaResult = {
     ]).concat(indiaLossCarryRow);
 
     return {
-      title: i.isEntity ? ("India income tax — " + i.regime) : ("India income tax (" + i.regime + " regime)"),
+      title: "India income tax (" + i.regime + " regime)",
       currency: "INR",
       rows: rows,
       totalUsd: i.totalTaxUsd,

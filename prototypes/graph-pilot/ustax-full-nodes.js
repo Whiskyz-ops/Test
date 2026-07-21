@@ -95,8 +95,28 @@ NODES.usEntityTaxResult = {
         incomeTaxUsd: tax, niitUsd: 0, additionalMedicareUsd: 0,
         seTaxUsd: 0, qbiDeductionUsd: 0, amtUsd: 0, creditsUsd: 0,
         totalTaxBeforeFtcUsd: tax,
-        foreignSourceIncomeUsd: d.aggregateUsIncomeResult.foreignSourceTotal.usd,
-        usSourceIncomeUsd: d.aggregateUsIncomeResult.usSourceTotal.usd,
+        // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H —
+        // "entity-agnostic audit", 21 Jul 2026): the engine reads
+        // model.income.us.foreignSourceTotal/usSourceTotal here — the
+        // INDIVIDUAL-shaped aggregate (wages+interest+dividends+...), which
+        // is always $0 for an entity, since an entity's own income is
+        // Schedule M-1 book-to-tax reconciled (taxableUsd, above), a
+        // completely separate figure Layer 1 never folds into that
+        // individual aggregate. That $0 cascades into real wrong numbers,
+        // not just display: India's own s.90 FTC relief for US tax paid
+        // zeroes out entirely (ftc-nodes.js's usSourceTotalUsdBoundaryFtc
+        // reads the same field), and the FY<->CY apportionment card shows
+        // $0 for the whole US side. Fixed here at the source: this engine
+        // model has no data splitting an entity's OWN M-1 income into
+        // US-source vs foreign-source pieces (that's a distinct, separately-
+        // tracked GILTI/CFC inclusion on model.assets.businessEntities, not
+        // part of this entity's own return) — worldwide:true already three
+        // lines up encodes the same "tax the whole M-1 figure, no further
+        // split" assumption this model already makes for entity taxpayers,
+        // so treating the full taxableUsd as US-source (zero foreign-source)
+        // is the same assumption stated consistently, not a new one.
+        foreignSourceIncomeUsd: 0,
+        usSourceIncomeUsd: taxableUsd,
         effectiveRate: taxableUsd > 0 ? tax / taxableUsd : 0
       };
     }
@@ -160,6 +180,60 @@ NODES.usTaxResult = {
     if (ek === "ccorp" || ek === "scorp" || ek === "partnership" || ek === "trust") return d.usEntityTaxResult;
     if (d.files1040nr && !d.s6013hElection) return d.nraTaxResult;
     return d.usTaxIndividualResult;
+  }
+};
+
+// DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H, 21 Jul
+// 2026): apportionment-nodes.js's own apportionmentResult reads
+// aggregateUsIncomeResult.usSourceTotal.usd directly for usCyTotalUsd — the
+// same individual-shaped aggregate usEntityResult's own fix above addresses,
+// $0 for a US business entity, so the FY<->CY Apportionment card showed $0
+// for the entire US side of a real C-Corp's income. Overridden here (not in
+// apportionment-nodes.js itself) because usTaxResult — the routed, now
+// entity-aware total — only exists once this file's routing above has run;
+// apportionment-nodes.js stays independently resolvable with just
+// {router, india, us} (run-apportionment.js's own standalone harness), this
+// override only takes effect once it's folded into the full chain.
+//
+// ENTITY-ONLY: gated on isEntity, not swapped in unconditionally. usTaxResult.
+// usSourceIncomeUsd legitimately NARROWS below the raw aggregate for an NRA
+// (ECI+FDAP only) or an FEIE-electing individual (net of the §911 exclusion)
+// — both correct, pre-existing divergences from the gross figure, not bugs.
+// Apportionment is a "how much of this calendar year's ACTUAL income falls
+// in which fiscal year" concept, which wants the gross figure for those two
+// cases (same one Holdings shows), same as the un-overridden engine — only
+// the entity case (aggregate always $0, a data-modeling gap, not a real
+// narrowing) needs the swap. Found by run-fuzz.js after this override first
+// shipped unconditionally: FEIE/NRA profiles started showing a real new
+// apportionment divergence with no entity involved at all.
+NODES.apportionmentResult = {
+  deps: ["apportionmentBaseYearRaw", "apportionmentIndiaQuarterlyUsdRaw", "indiaTotalIncomeUsdForApportionment", "usTaxResult", "aggregateUsIncomeResult"],
+  compute: function (d) {
+    var baseYear = d.apportionmentBaseYearRaw;
+    var q = d.apportionmentIndiaQuarterlyUsdRaw;
+    var hasQ = !!(q && q.some(function (x) { return x > 0; }));
+    var indiaFyTotal = d.indiaTotalIncomeUsdForApportionment;
+    var primaryShare, nextShare;
+    if (hasQ) {
+      var qTot = (q[0] + q[1] + q[2] + q[3]) || indiaFyTotal || 1;
+      primaryShare = (q[0] + q[1] + q[2]) / qTot;
+      nextShare = q[3] / qTot;
+    } else {
+      primaryShare = 0.75; nextShare = 0.25; // 9 months (Apr-Dec) vs 3 (Jan-Mar)
+    }
+    var usCyTotal = d.usTaxResult.isEntity ? d.usTaxResult.usSourceIncomeUsd : d.aggregateUsIncomeResult.usSourceTotal.usd;
+    return {
+      basis: hasQ ? "Indian quarterly data" : "even-earning assumption (Apr–Dec vs Jan–Mar)",
+      fyLabel: "FY " + baseYear + "–" + String(baseYear + 1).slice(2),
+      cyPrimary: baseYear, cyNext: baseYear + 1,
+      indiaFyTotalUsd: indiaFyTotal,
+      indiaToCyPrimaryUsd: Math.round(indiaFyTotal * primaryShare),
+      indiaToCyNextUsd: Math.round(indiaFyTotal * nextShare),
+      primaryShare: primaryShare, nextShare: nextShare,
+      usCyTotalUsd: usCyTotal,
+      usCyToFyPrimaryUsd: Math.round(usCyTotal * 9 / 12),
+      usCyToFyNextUsd: Math.round(usCyTotal * 3 / 12)
+    };
   }
 };
 

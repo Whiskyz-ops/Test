@@ -42,9 +42,16 @@ FIXTURES.forEach(function (fx) {
   var ctx = { router: fx.router, india: fx.india, us: fx.us };
   var out = graph.resolve([
     "calendarAmountsResult", "s425Inr", "us2210PenaltyUsd",
-    "hasIndiaScope", "hasUsScope", "inAdvTaxObliged", "inPurelyPresumptive"
+    "hasIndiaScope", "hasUsScope", "inAdvTaxObliged", "inPurelyPresumptive", "usTaxResult"
   ], ctx).values;
   var ca = out.calendarAmountsResult;
+  // US entity: DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md
+  // section H, 21 Jul 2026) — a corporation's estimated tax is §6655, a
+  // distinct regime this engine doesn't model; us1-nodes.js's §6654
+  // structure calendarAmountsResult reuses doesn't apply, so installments
+  // is [] for a US entity, same "no obligation shown is more correct than
+  // the wrong regime's number" choice as India's inAdvTaxObliged gate.
+  var usEntityCal = out.usTaxResult.isEntity;
 
   // ---- gating -------------------------------------------------------------
   var expectObliged = out.hasIndiaScope && out.inAdvTaxObliged;
@@ -57,10 +64,10 @@ FIXTURES.forEach(function (fx) {
   } else {
     if (ca.india.installments.length === 4) ok(); else bad(fx.id + ": expected 4 India installments", ca.india.installments.length);
   }
-  if (out.hasUsScope) {
+  if (out.hasUsScope && !usEntityCal) {
     if (ca.us.installments.length === 4) ok(); else bad(fx.id + ": expected 4 US installments", ca.us.installments.length);
   } else {
-    if (ca.us.installments.length === 0) ok(); else bad(fx.id + ": !hasUsScope but US installments non-empty");
+    if (ca.us.installments.length === 0) ok(); else bad(fx.id + ": !hasUsScope/US-entity but US installments non-empty");
   }
 
   // ---- reconstruction: India (s425Inr) -------------------------------------
@@ -74,7 +81,7 @@ FIXTURES.forEach(function (fx) {
   }
 
   // ---- reconstruction: US (us2210PenaltyUsd) -------------------------------
-  if (out.hasUsScope) {
+  if (out.hasUsScope && !usEntityCal) {
     var rate = { 1: 0.07, 2: 0.06, 3: 0.07, 4: 0.07 };
     var monthsRemaining = { 1: 12, 2: 10, 3: 7, 4: 3 };
     var reconstructedUs2210 = ca.us.installments.reduce(function (sum, ins) {
