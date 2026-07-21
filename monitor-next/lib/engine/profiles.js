@@ -984,14 +984,14 @@
     label: "Indian Pvt Ltd (company)",
     story: "Business POV: an Indian domestic company (SaaS exporter). Corporate tax under §200 (22%), MAT check, ITR-6 — business profits, not salary.",
     tags: ["company", "ITR-6", "200", "corporate"],
-    router: router("Nimbus Analytics Pvt Ltd", { us_days: 0, has_us_source_income_or_assets: false }),
+    router: router("Nova Systems Pvt Ltd", { us_days: 0, has_us_source_income_or_assets: false }),
     india: {
       // mat_book_profit intentionally absent: Layer 1 India nulls that field
       // the moment opt_115baa is checked (div-prof-mat-profit is hidden and
       // cleared — s.115JB(5A) exempts s.115BAA companies from MAT outright),
       // so a concessional company can never actually carry a live book-profit
       // figure alongside the election.
-      profile: { full_name: "Nimbus Analytics Pvt Ltd", entity_type: "company", tax_regime: "NEW", turnover_lte_400cr: true, opt_115baa: true },
+      profile: { full_name: "Nova Systems Pvt Ltd", entity_type: "company", tax_regime: "NEW", turnover_lte_400cr: true, opt_115baa: true },
       residency_detail: { days_in_india_current_year: 365, final_india_residency_status: "ROR", is_poem_in_india: true, is_indian_company: true },
       dtaa: { dtaa_treaty_residence: "none", trc_status: false, has_permanent_establishment_in_india: false },
       compliance_docs: { trc: { document_uploaded: false }, form_10f: { is_filed: false } },
@@ -1007,7 +1007,7 @@
       // instead of bypassing it. Server room (computers, 40%) + owned office
       // (commercial building, 10%) asset blocks.
       domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [
-        { business_name: "Nimbus Analytics Pvt Ltd", nature: "software", presumptive_scheme: null, turnover_inr: 100000000,
+        { business_name: "Nova Systems Pvt Ltd", nature: "software", presumptive_scheme: null, turnover_inr: 100000000,
           expenses: { employee_salary_wages_inr: 24000000, rent_for_business_premises_inr: 3000000, other_business_expenses_inr: 8000000, ca_professional_fees_inr: 700000, insurance_premium_inr: 300000 } }
       ], asset_blocks: [
         { unit_biz_idx: 0, unit_branch_idx: null, asset_class: "plant_machinery_computers", opening_wdv_inr: 7000000, additions_during_year_inr: 0, addition_date: null, sale_consideration_inr: 0, is_new_manufacturing_asset: false },
@@ -1020,7 +1020,7 @@
       metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
     us: {
-      profile: { tax_entity_type: "individual", full_name: "Nimbus Analytics Pvt Ltd", filing_status: "single" },
+      profile: { tax_entity_type: "individual", full_name: "Nova Systems Pvt Ltd", filing_status: "single" },
       us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 0, spt_test_met: false, final_us_residency_status: "NON_RESIDENT_ALIEN" },
       income_us_source: {}, income_foreign_source: {}, foreign_earned_income: { claims_feie: false },
       bank_accounts: [], fbar_aggregate_peak_usd: 0,
@@ -1050,7 +1050,7 @@
       property: { properties: [] },
       financial_holdings: { has_financial_transactions: false, transactions: [] },
       // Real regular-books company entry (same s.44AD/44ADA entity-type
-      // exclusion as Nimbus above). Net profit is engineered to land on the
+      // exclusion as Nova Systems above). Net profit is engineered to land on the
       // exact same Rs8cr the old net_profit_inr shortcut asserted directly,
       // since that figure is precisely mirrored into this same profile's
       // US-side gilti_income_usd/foreign_taxes_usd below (Rs8cr / 83 and

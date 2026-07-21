@@ -27,15 +27,19 @@
  * the exact same summary shape per client, so this file works unchanged
  * whichever compute source — engine or DAG — is currently active).
  *
- * engine/profiles.js is frozen, so the one seed link below can't rename
- * founder_indian_company's own hand-entered CFC label ("Nova Systems Pvt
- * Ltd", us.foreign_entities.foreign_corporations[0].corporation_name) to
- * match india_pvt_ltd's actual entity name ("Nimbus Analytics Pvt Ltd").
- * Rather than silently pretending they match, the mismatch is surfaced in
- * the link's own `note` — a realistic case in its own right: an advisor's
- * ownership-graph link (what they actually know about the client
- * relationship) and a taxpayer's own hand-typed Layer 1 entry don't always
- * agree word-for-word, and WISING does not auto-match entities by name.
+ * india_pvt_ltd's own entity name (engine/profiles.js) was renamed from
+ * "Nimbus Analytics Pvt Ltd" to "Nova Systems Pvt Ltd" specifically so this
+ * one seed link reads as one real, name-consistent company end to end —
+ * founder_indian_company's own Layer 1 US already named its GILTI-triggering
+ * CFC, its unlisted-equity holding, and its promoter-buyback transactions
+ * all "Nova Systems Pvt Ltd" independently of this link; india_pvt_ltd was
+ * the only unrelated other profile with its own real Indian-company return,
+ * so the two were reconciled to the SAME name (an explicit, one-off,
+ * user-approved exception to the "engine/*.js frozen" policy that governs
+ * everything else in this codebase — text-only, no computed figure changed).
+ * This is still a Tier 1 link, not a verified data match: WISING doesn't
+ * auto-match entities across client profiles by name or anything else — an
+ * advisor asserted this relationship because she knows both clients.
  * ==========================================================================*/
 
 export const ENTITY_LINKS = [
@@ -44,7 +48,7 @@ export const ENTITY_LINKS = [
     ownedId: "india_pvt_ltd",
     ownershipPct: 100,
     relationship: "CFC shareholder (>10% — Form 5471 / GILTI)",
-    note: "founder_indian_company's own Layer 1 US lists this CFC as “Nova Systems Pvt Ltd” (foreign_entities.foreign_corporations[0], a hand-entered GILTI estimate) — linked here to the india_pvt_ltd client profile (“Nimbus Analytics Pvt Ltd”) as the entity actually on file for this ownership relationship. Confirm this is the same company before relying on the link — WISING does not auto-match entities by name, and the GILTI figure below is still the owner's own manual estimate, not derived from Nimbus Analytics' own computed India return (that derivation is Tier 2, not done yet)."
+    note: "Linked by the advisor from her own knowledge of the client relationship — Vikram's Layer 1 US independently names this CFC \"Nova Systems Pvt Ltd\" (foreign_entities.foreign_corporations[0]), matching india_pvt_ltd's own entity name. The GILTI figure shown on his side is still his own manual Layer 1 estimate, not derived from Nova Systems' own computed India return below (that derivation is Tier 2, not done yet)."
   }
 ];
 
