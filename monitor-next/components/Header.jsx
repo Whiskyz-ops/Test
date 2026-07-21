@@ -1,6 +1,7 @@
 "use client";
 import { Globe2, Settings } from "lucide-react";
 import { REGION_FILTERS, CLIENT } from "@/lib/mockData";
+import { PAL } from "@/lib/logic";
 
 // entity_type (India) / resolved tax_entity_type (US) → a short, unambiguous
 // label — shown as its own badge pair so the taxpayer TYPE is visible on
@@ -15,7 +16,7 @@ const US_ENTITY_LABEL = {
   individual: "Individual", ccorp: "C-Corp", scorp: "S-Corp", partnership: "Partnership", trust: "Trust"
 };
 
-export default function Header({ region, onRegionChange, clientName, baseYear, entity, scope }) {
+export default function Header({ region, onRegionChange, clientName, baseYear, entity, scope, presentationMode, onTogglePresentation }) {
   // Scope is the ENGINE's own determination of which country a taxpayer is
   // actually exposed in — see model.meta.hasIndiaScope/hasUsScope
   // (normalize.js) — derived from real reported facts (days present,
@@ -51,7 +52,11 @@ export default function Header({ region, onRegionChange, clientName, baseYear, e
         )}
       </div>
       <div className="flex items-center gap-2.5 shrink-0">
-        <button className="w-10 h-10 rounded-2xl bg-surface border border-line text-muted hover:text-head hover:border-accent/40 flex items-center justify-center shadow-card" title="Settings"><Settings size={16} strokeWidth={2} /></button>
+        <button onClick={onTogglePresentation}
+          title={presentationMode ? "Presentation mode is ON — engineering controls (compute-source pill, shadow-diff badge, raw intake-form links) are hidden. Click to show them again." : "Presentation mode — hides engineering-only controls for a client-facing or recorded view."}
+          className={"w-10 h-10 rounded-2xl border flex items-center justify-center shadow-card transition-colors " + (presentationMode ? "" : "bg-surface text-muted hover:text-head hover:border-accent/40")}
+          style={presentationMode ? { color: PAL.greenText, borderColor: PAL.positive + "55", background: PAL.positive + "18" } : undefined}
+        ><Settings size={16} strokeWidth={2} /></button>
         <div className="relative">
           <select value={region} onChange={(e) => onRegionChange(e.target.value)}
             className="appearance-none bg-surface border border-line rounded-2xl pl-4 pr-9 py-2.5 text-[13px] font-semibold text-head shadow-card hover:border-accent/50 focus:outline-none focus:border-accent cursor-pointer">

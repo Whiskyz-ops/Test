@@ -74,6 +74,20 @@ export default function MonitorPage() {
   const [shadowRun, setShadowRun] = useState(null);
   const [shadowLog, setShadowLog] = useState(null);
 
+  // Presentation mode: hides engineering-only chrome (compute-source pill,
+  // shadow-diff badge, raw Layer-1 form links) for a client-facing or
+  // recorded view — everything a prospect would actually want to see
+  // (client switcher, What-If tool, the Monitor itself) stays. Toggled via
+  // the header's gear button, or loads pre-enabled with ?present=1. Same
+  // hydration-safe pattern as engineSource above: initialize to the
+  // server's value (always false — no window there), flip in an effect
+  // that only runs after mount, so the first client render matches the
+  // server exactly instead of racing it.
+  const [presentationMode, setPresentationMode] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("present") === "1") setPresentationMode(true);
+  }, []);
+
   // What-if tool: regime/FX/FEIE overrides, DAG-only (no plumbing exists in
   // the legacy engine — see WhatIfBar.jsx's header comment). null/undefined
   // means "no override, use whatever the loaded profile/live data says";
@@ -150,7 +164,8 @@ export default function MonitorPage() {
       <div className="starfield" />
       <Sidebar active={view} onNavigate={setView} badges={badges} />
       <main className="relative z-10 flex-1 min-w-0 px-8 py-6">
-        <Header region={region} onRegionChange={setRegion} clientName={clientName} baseYear={baseYear} entity={result ? result.model.entity : null} scope={result ? result.model.meta : null} />
+        <Header region={region} onRegionChange={setRegion} clientName={clientName} baseYear={baseYear} entity={result ? result.model.entity : null} scope={result ? result.model.meta : null}
+          presentationMode={presentationMode} onTogglePresentation={() => setPresentationMode((v) => !v)} />
 
         {/* single, compact utility bar — status + actions */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-6 pb-4 border-b border-line text-[12px]">
@@ -159,17 +174,23 @@ export default function MonitorPage() {
             {engineReady ? (mode === "live" ? "Live" : "Demo") : "Loading…"}
           </span>
           <button onClick={() => recompute("live")} className="font-semibold text-body hover:text-head transition-colors">↻ Refresh</button>
-          <button
-            onClick={() => setEngineSource((s) => (s === "dag" ? "engine" : "dag"))}
-            title="Compute source: the hand-written engine (engine/*.js) or the verified dependency-graph replacement (prototypes/graph-pilot — docs/DAG_MIGRATION_TRACKER.md, 40/40 rows ported). Same result shape either way."
-            className="font-semibold px-2 py-0.5 rounded-full border transition-colors"
-            style={engineSource === "dag"
-              ? { color: PAL.greenText, borderColor: PAL.positive + "55", background: PAL.positive + "18" }
-              : { color: PAL.muted, borderColor: "currentColor", opacity: 0.6 }}
-          >
-            ⚙ {engineSource === "dag" ? "DAG" : "Engine"}
-          </button>
-          {shadowOn && (
+          {/* Engineering-only chrome — compute-source pill, shadow-diff badge,
+              raw Layer-1 form links — hidden in presentation mode (the header's
+              gear button, or ?present=1) for a client-facing or recorded view.
+              None of this affects what's computed, only what's shown. */}
+          {!presentationMode && (
+            <button
+              onClick={() => setEngineSource((s) => (s === "dag" ? "engine" : "dag"))}
+              title="Compute source: the hand-written engine (engine/*.js) or the verified dependency-graph replacement (prototypes/graph-pilot — docs/DAG_MIGRATION_TRACKER.md, 40/40 rows ported). Same result shape either way."
+              className="font-semibold px-2 py-0.5 rounded-full border transition-colors"
+              style={engineSource === "dag"
+                ? { color: PAL.greenText, borderColor: PAL.positive + "55", background: PAL.positive + "18" }
+                : { color: PAL.muted, borderColor: "currentColor", opacity: 0.6 }}
+            >
+              ⚙ {engineSource === "dag" ? "DAG" : "Engine"}
+            </button>
+          )}
+          {shadowOn && !presentationMode && (
             <ShadowBadge
               run={shadowRun}
               log={shadowLog}
@@ -177,20 +198,22 @@ export default function MonitorPage() {
             />
           )}
           <div className="relative">
-            <select onChange={(e) => onPickProfile(e.target.value)} value={activeProfile || ""} title="Load a coherent India+US test taxpayer"
+            <select onChange={(e) => onPickProfile(e.target.value)} value={activeProfile || ""} title="Switch which client this Monitor shows"
               className="appearance-none pl-2.5 pr-7 py-1 text-[12px] font-semibold rounded-lg text-[#04120f] cursor-pointer"
               style={{ background: "linear-gradient(135deg,#34d399,#60a5fa)" }}>
-              <option value="" className="bg-[#161616] text-head">Load test profile…</option>
+              <option value="" className="bg-[#161616] text-head">Switch client…</option>
               {profiles.map((p) => <option key={p.id} value={p.id} className="bg-[#161616] text-head">{p.label}</option>)}
             </select>
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#04120f]/60 text-[9px]">▾</span>
           </div>
-          <span className="ml-auto flex items-center gap-3 text-body">
-            <span className="text-muted">Layer 1:</span>
-            <a href="router.html" className="font-semibold hover:text-accent transition-colors">Router</a>
-            <a href="layer1_india.html" className="font-semibold hover:text-accent transition-colors">India</a>
-            <a href="layer1_us.html" className="font-semibold hover:text-accent transition-colors">US</a>
-          </span>
+          {!presentationMode && (
+            <span className="ml-auto flex items-center gap-3 text-body">
+              <span className="text-muted">Layer 1:</span>
+              <a href="router.html" className="font-semibold hover:text-accent transition-colors">Router</a>
+              <a href="layer1_india.html" className="font-semibold hover:text-accent transition-colors">India</a>
+              <a href="layer1_us.html" className="font-semibold hover:text-accent transition-colors">US</a>
+            </span>
+          )}
         </div>
 
         {/* ============ MONITOR (overview) ============ */}
