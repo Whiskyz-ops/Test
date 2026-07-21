@@ -280,7 +280,12 @@ export default function MonitorPage() {
             {meters.length > 0 && (
               <section className="mt-8">
                 <h3 className="font-display font-bold text-lg text-head mb-4">Residency &amp; Reporting Limits</h3>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* xl (1280px), not lg (1024px): below that, 4 cards leave too
+                    little width per card for a real label + ring + icon —
+                    verified by screenshotting at 1150-1280px, where
+                    "United States days present" wrapped 3-4 lines and
+                    crowded the ring badge. 2-column fallback has real room. */}
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
                   {meters.map((m, i) => <StatMeter key={i} {...m} />)}
                 </div>
               </section>

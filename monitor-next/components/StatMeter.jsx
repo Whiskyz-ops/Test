@@ -47,11 +47,16 @@ export default function StatMeter({ icon, label, value, limit, unit = "$", pct =
           room for the ring inline, and letting it compete for flex space
           pushed it half off the card edge or clipped it entirely. */}
       <span className="absolute top-5 right-5"><Ring pct={pct} color={tone.ring} /></span>
-      <div className="flex items-center gap-2.5 mb-4 pr-11">
-        <span className="w-9 h-9 rounded-2xl flex items-center justify-center text-[15px] border"
+      <div className="flex items-center gap-2.5 mb-4 pr-11 min-h-[40px]">
+        <span className="w-9 h-9 rounded-2xl flex items-center justify-center text-[15px] border shrink-0"
           style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)" }}>{icon}</span>
-        <span className="text-[13px] font-bold flex-1 text-head">{label}</span>
-        <span className="text-lg leading-none tracking-tighter select-none text-muted">⋯</span>
+        {/* line-clamp-2, not unbounded wrap: on a narrow 4-up card a 3+ word
+            label (e.g. "United States days present") would otherwise wrap to
+            3-4 lines and visually crowd the ring badge, which sits pinned to
+            the card's top-right corner regardless of header height. Full
+            text stays available via the title tooltip. */}
+        <span className="text-[13px] font-bold flex-1 min-w-0 text-head line-clamp-2 leading-snug" title={label}>{label}</span>
+        <span className="text-lg leading-none tracking-tighter select-none text-muted shrink-0">⋯</span>
       </div>
       <div className="flex items-end gap-3 mb-4">
         <div className="font-display font-extrabold text-[38px] leading-none tracking-tight" style={{ color: numColor }}>{fmt(value)}</div>
