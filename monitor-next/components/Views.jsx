@@ -1405,13 +1405,13 @@ export function ClientsView({ clients, activeId, onPick }) {
         <StatTile icon={<AlertTriangle size={15} strokeWidth={2} />} label="At risk" value={atRisk} accent={atRisk ? PAL.redText : PAL.greenText} sub="health < 50" />
         <StatTile icon={<Siren size={15} strokeWidth={2} />} label="Open critical" value={openCritical} accent={openCritical ? PAL.redText : PAL.greenText} sub="conflicts" />
         <StatTile icon={<DollarSign size={15} strokeWidth={2} />} label="Combined tax" value={fmtUsd(totalTax)} sub="IN + US, all clients" />
-        <StatTile icon={<TrendingDown size={15} strokeWidth={2} />} label="Residual double tax" value={fmtUsd(totalResidual)} accent={totalResidual ? PAL.redText : PAL.greenText} sub="unrelieved" />
+        <StatTile icon={<TrendingDown size={15} strokeWidth={2} />} label="FTC residual" value={fmtUsd(totalResidual)} accent={totalResidual ? PAL.redText : PAL.greenText} sub="unrelieved double tax" />
       </div>
       <div className="overflow-x-auto rounded-2xl border border-line bg-surface shadow-card">
         <table className="w-full">
           <thead className="bg-white/[0.02]"><tr>
-            {["Client", "Type", "Residency", "Combined tax", "Residual", "Conflicts", "Health", "Next filing", ""].map((h, i) => (
-              <th key={i} className={"px-4 py-2.5 text-[10px] uppercase tracking-widest text-muted font-bold " + (["Combined tax", "Residual"].includes(h) ? "text-right" : "text-left")}>{h}</th>
+            {["Client", "Type", "Residency", "Combined tax", "FTC Residual", "Conflicts", "Health", "Next filing", ""].map((h, i) => (
+              <th key={i} className={"px-4 py-2.5 text-[10px] uppercase tracking-widest text-muted font-bold " + (["Combined tax", "FTC Residual"].includes(h) ? "text-right" : "text-left")}>{h}</th>
             ))}
           </tr></thead>
           <tbody>
