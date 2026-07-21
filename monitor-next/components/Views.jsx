@@ -1481,17 +1481,87 @@ export function EntityStructureView({ activeId, clients, onPick }) {
 }
 
 /* ============================ CLIENTS (portfolio) ============================ */
+
+// One row, nested to `depth` levels under an owner (0 = top-level client).
+// `link` is the ownership edge that produced this row (undefined at depth 0)
+// — carries ownershipPct/relationship for the small badge next to the name.
+// `hasChildren`/`expanded`/`onToggle` drive the twisty arrow; a row with no
+// owned entities gets no arrow at all, not a disabled one.
+const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, onToggle }) => {
+  const healthColor = (h) => (h >= 80 ? PAL.positive : h >= 50 ? PAL.approaching : PAL.exposed);
+  return (
+    <tr onClick={() => onPick(c.id)}
+      className={"border-t border-line cursor-pointer hover:bg-white/[0.03] " + (activeId === c.id ? "bg-accentSoft" : "") + (depth > 0 ? " bg-white/[0.015]" : "")}>
+      <td className="px-4 py-3">
+        <div className="flex items-start gap-1.5" style={{ paddingLeft: depth * 22 }}>
+          {depth > 0 && <span className="text-muted text-[13px] leading-[1.4] shrink-0" title="Owned entity">↳</span>}
+          {hasChildren ? (
+            <button onClick={(e) => { e.stopPropagation(); onToggle(c.id); }}
+              className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5 text-muted hover:text-head hover:bg-white/[0.08] transition-colors"
+              title={expanded ? "Collapse owned entities" : "Show owned entities"}>
+              <span className="text-[10px] transition-transform" style={{ display: "inline-block", transform: expanded ? "rotate(90deg)" : "none" }}>▸</span>
+            </button>
+          ) : depth === 0 ? <span className="w-5 shrink-0" /> : null}
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className={"font-semibold text-head " + (depth > 0 ? "text-[12px]" : "text-[13px]")}>{c.label}</span>
+              {link && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0" style={{ background: PAL.accent + "1c", color: PAL.accent }}>{link.ownershipPct}% · {link.relationship}</span>}
+            </div>
+            <div className="text-[10px] text-muted truncate max-w-[240px]">{c.story}</div>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-3"><span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded" style={{ background: (c.isBusiness ? PAL.filing : PAL.accent) + "24", color: c.isBusiness ? PAL.blueText : PAL.accent }}>{c.isBusiness ? "Business" : "Individual"}</span></td>
+      <td className="px-4 py-3 text-[12px] text-body">{(c.indiaStatus || "—")}<span className="text-muted"> / </span>{(c.usStatus ? c.usStatus.replace(/_/g, " ") : "—")}{c.dualResident && <span className="ml-1 text-[9px] font-bold px-1 py-0.5 rounded bg-exposed/15" style={{ color: PAL.redText }}>DUAL</span>}</td>
+      <td className="px-4 py-3 text-right font-mono text-[12px] text-head">{fmtUsd(c.combinedTaxUsd)}</td>
+      <td className="px-4 py-3 text-right font-mono text-[12px]" style={{ color: c.netDoubleTaxUsd > 0 ? PAL.redText : PAL.muted }}>{fmtUsd(c.netDoubleTaxUsd)}</td>
+      <td className="px-4 py-3 text-[12px]"><span className="font-bold" style={{ color: PAL.redText }}>{c.critical}</span><span className="text-muted"> · </span><span style={{ color: PAL.amberText }}>{c.warning}</span></td>
+      <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="w-16 h-1.5 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full rounded-full" style={{ width: Math.max(4, c.healthScore) + "%", background: healthColor(c.healthScore) }} /></div><span className="text-[11px] font-mono" style={{ color: healthColor(c.healthScore) }}>{c.healthScore}</span></div></td>
+      <td className="px-4 py-3 text-[11px] text-body">{c.nextDeadline ? c.nextDeadline.dateLabel + " · in " + c.nextDeadline.daysUntil + "d" : "—"}</td>
+      <td className="px-4 py-3 text-right"><span className="text-[11px] font-bold text-accent">Open →</span></td>
+    </tr>
+  );
+};
+
 export function ClientsView({ clients, activeId, onPick }) {
+  const [expanded, setExpanded] = useState(() => new Set());
   if (!clients || !clients.length) return <Empty>Loading clients…</Empty>;
   const totalTax = clients.reduce((a, c) => a + (c.combinedTaxUsd || 0), 0);
   const totalResidual = clients.reduce((a, c) => a + (c.netDoubleTaxUsd || 0), 0);
   const openCritical = clients.reduce((a, c) => a + (c.critical || 0), 0);
   const atRisk = clients.filter((c) => c.healthScore < 50).length;
   const sorted = clients.slice().sort((a, b) => (a.healthScore ?? 100) - (b.healthScore ?? 100));
-  const healthColor = (h) => (h >= 80 ? PAL.positive : h >= 50 ? PAL.approaching : PAL.exposed);
+  const toggleExpand = (id) => setExpanded((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+
+  // Flattens a client + however many of its owned entities are currently
+  // expanded into a plain array of <tr> rows (a table can't nest <tr>
+  // inside <tr>, so the tree has to render as a flat, indented sequence).
+  // Recursive by design — an owned entity that ITSELF owns something else
+  // gets its own arrow, indented one level further, with no special-casing
+  // needed once a second-level link exists. `visited` guards against a
+  // cycle in the ownership data (A owns B owns A) turning into infinite
+  // recursion; not reachable with today's single seed link, but the graph
+  // itself doesn't guarantee acyclic, so this is real protection, not
+  // decoration.
+  function buildRows(c, depth, link, visited) {
+    if (visited.has(c.id)) return [];
+    const nextVisited = new Set(visited); nextVisited.add(c.id);
+    const links = entityLinksFor(c.id, clients);
+    const owned = (links ? links.owns : []).filter((l) => l.summary);
+    const isExpanded = expanded.has(c.id);
+    const rows = [
+      <ClientRow key={(link ? link.ownerId + "-" : "") + c.id} c={c} depth={depth} link={link} activeId={activeId} onPick={onPick}
+        hasChildren={owned.length > 0} expanded={isExpanded} onToggle={toggleExpand} />
+    ];
+    if (isExpanded) {
+      owned.forEach((l) => { rows.push(...buildRows(l.summary, depth + 1, l, nextVisited)); });
+    }
+    return rows;
+  }
+
   return (
     <div className="space-y-6">
-      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Users size={16} strokeWidth={2} /></HeadChip>Client Portfolio</h2><p className="text-muted text-sm mt-2">Your book of business — cross-border exposure at a glance. Click a client to open their Monitor.</p></div>
+      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Users size={16} strokeWidth={2} /></HeadChip>Client Portfolio</h2><p className="text-muted text-sm mt-2">Your book of business — cross-border exposure at a glance. Click a client to open their Monitor. A client who owns another entity on file shows a ▸ — click it to see that entity nested underneath, without leaving this view.</p></div>
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatTile icon={<Users size={15} strokeWidth={2} />} label="Clients" value={clients.length} highlight />
         <StatTile icon={<AlertTriangle size={15} strokeWidth={2} />} label="At risk" value={atRisk} accent={atRisk ? PAL.redText : PAL.greenText} sub="health < 50" />
@@ -1507,19 +1577,7 @@ export function ClientsView({ clients, activeId, onPick }) {
             ))}
           </tr></thead>
           <tbody>
-            {sorted.map((c) => (
-              <tr key={c.id} onClick={() => onPick(c.id)} className={"border-t border-line cursor-pointer hover:bg-white/[0.03] " + (activeId === c.id ? "bg-accentSoft" : "")}>
-                <td className="px-4 py-3"><div className="text-[13px] font-semibold text-head">{c.label}</div><div className="text-[10px] text-muted truncate max-w-[240px]">{c.story}</div></td>
-                <td className="px-4 py-3"><span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded" style={{ background: (c.isBusiness ? PAL.filing : PAL.accent) + "24", color: c.isBusiness ? PAL.blueText : PAL.accent }}>{c.isBusiness ? "Business" : "Individual"}</span></td>
-                <td className="px-4 py-3 text-[12px] text-body">{(c.indiaStatus || "—")}<span className="text-muted"> / </span>{(c.usStatus ? c.usStatus.replace(/_/g, " ") : "—")}{c.dualResident && <span className="ml-1 text-[9px] font-bold px-1 py-0.5 rounded bg-exposed/15" style={{ color: PAL.redText }}>DUAL</span>}</td>
-                <td className="px-4 py-3 text-right font-mono text-[12px] text-head">{fmtUsd(c.combinedTaxUsd)}</td>
-                <td className="px-4 py-3 text-right font-mono text-[12px]" style={{ color: c.netDoubleTaxUsd > 0 ? PAL.redText : PAL.muted }}>{fmtUsd(c.netDoubleTaxUsd)}</td>
-                <td className="px-4 py-3 text-[12px]"><span className="font-bold" style={{ color: PAL.redText }}>{c.critical}</span><span className="text-muted"> · </span><span style={{ color: PAL.amberText }}>{c.warning}</span></td>
-                <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="w-16 h-1.5 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full rounded-full" style={{ width: Math.max(4, c.healthScore) + "%", background: healthColor(c.healthScore) }} /></div><span className="text-[11px] font-mono" style={{ color: healthColor(c.healthScore) }}>{c.healthScore}</span></div></td>
-                <td className="px-4 py-3 text-[11px] text-body">{c.nextDeadline ? c.nextDeadline.dateLabel + " · in " + c.nextDeadline.daysUntil + "d" : "—"}</td>
-                <td className="px-4 py-3 text-right"><span className="text-[11px] font-bold text-accent">Open →</span></td>
-              </tr>
-            ))}
+            {sorted.flatMap((c) => buildRows(c, 0, null, new Set()))}
           </tbody>
         </table>
       </div>
