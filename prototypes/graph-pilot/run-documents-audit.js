@@ -244,5 +244,111 @@ console.log("=== Batch A: US information returns ===");
   else { fail++; console.log("  FAIL - NJ Form 1040: CA resident should be DAG N/A (got " + dagVal + ")"); }
 })();
 
-console.log("\n" + pass + " passed, " + fail + " failed (Batch A: US information returns + NJ engine/DAG parity fix)");
+console.log(pass + " passed, " + fail + " failed (Batch A)");
+
+console.log("\n=== Batch B: US income-tax adjustment forms ===");
+
+// ---- form_1116 (FTC) — India tax paid on income also taxable in the US ----
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  india.tax_credits = Object.assign({}, india.tax_credits, { tds_already_deducted_inr: 50000 });
+  check("FTC 1116: resident individual, Indian tax paid -> Required", "form_1116", true, RESIDENT.router, india, us);
+})();
+(function () {
+  var india = clone(CCORP.india), us = clone(CCORP.us);
+  us.profile.tax_entity_type = "scorp";
+  check("FTC 1116: domestic S-corp (pass-through, no entity-level 1116) -> N/A (deliberately not broadened past C-corp)", "form_1116", false, CCORP.router, india, us);
+})();
+
+// ---- form_2555 (FEIE) — claimed on the US-side Foreign Earned Income card ----
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  us.foreign_earned_income = Object.assign({}, us.foreign_earned_income, { claims_feie: true });
+  check("FEIE: claims_feie = true -> Required", "form_2555", true, RESIDENT.router, india, us);
+})();
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  us.foreign_earned_income = Object.assign({}, us.foreign_earned_income, { claims_feie: false });
+  check("FEIE: claims_feie = false -> N/A", "form_2555", false, RESIDENT.router, india, us);
+})();
+
+// ---- form_8833 (treaty-based position) — an ACTUAL treaty rate/residency claim, not just filing 1040-NR ----
+(function () {
+  var india = clone(NRA.india), us = clone(NRA.us);
+  us.nra_specific = Object.assign({}, us.nra_specific, { files_form_1040nr: true, treaty_rate_claims: [] });
+  us.us_residency_detail = Object.assign({}, us.us_residency_detail, { dtaa_treaty_residence: "none" });
+  check("Treaty position 8833: plain NRA, files 1040-NR, ZERO treaty claims -> N/A (this was the bug)", "form_8833", false, NRA.router, india, us);
+})();
+(function () {
+  var india = clone(NRA.india), us = clone(NRA.us);
+  us.nra_specific = Object.assign({}, us.nra_specific, { files_form_1040nr: true, treaty_rate_claims: [{ income_type: "dividends", rate: 15 }] });
+  check("Treaty position 8833: NRA with a real treaty-rate claim -> Required", "form_8833", true, NRA.router, india, us);
+})();
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  check("Treaty position 8833: dual resident (Article 4 tie-breaker) -> Required", "form_8833", true, RESIDENT.router, india, us);
+})();
+
+// ---- form_1040nr (re-verify today's earlier fix still holds) ----
+(function () {
+  var india = clone(NRA.india), us = clone(NRA.us);
+  check("1040-NR: genuine NRA with files_form_1040nr=true on file -> Required", "form_1040nr", true, NRA.router, india, us);
+})();
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  check("1040-NR: resident alien -> N/A", "form_1040nr", false, RESIDENT.router, india, us);
+})();
+
+// ---- form_8960 (NIIT) — MAGI over threshold AND net investment income present ----
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  us.profile.filing_status = "single";
+  us.income_us_source = Object.assign({}, us.income_us_source, { interest_us_source_usd: 5000 });
+  check("NIIT 8960: single filer, real investment income, high total income -> Required", "form_8960", true, RESIDENT.router, india, us);
+})();
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  us.profile.filing_status = "single";
+  us.income_us_source = Object.assign({}, us.income_us_source, { interest_us_source_usd: 0, ordinary_dividends_us_source_usd: 0, ltcg_us_source_usd: 0, wages_w2: [] });
+  india.domestic_income = { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: {} };
+  india.capital_gains = {};
+  india.other_sources = {};
+  check("NIIT 8960: no net investment income at all -> N/A", "form_8960", false, RESIDENT.router, india, us);
+})();
+
+// ---- form_8959 (Additional Medicare Tax) — real tax owed ----
+// additional_medicare_tax_owed_usd is computed client-side by layer1_us.html
+// (Math.max(0, (totalMedicareWages - threshold) * 0.009)) and stored as an
+// already-computed result; the frozen engine/DAG only reads it as a
+// pass-through (normalize.js:2723), same pattern as files_form_1040nr. A
+// synthetic profile must set this field directly to simulate what a real
+// filled-out form would have produced from these wages.
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  us.profile.filing_status = "single";
+  us.income_us_source.wages_w2 = [{ employer_name: "Big Co", wages_box1_usd: 260000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 60000, medicare_wages_box5_usd: 260000 } }];
+  us.withholding_and_estimated = Object.assign({}, us.withholding_and_estimated, { additional_medicare_tax_owed_usd: 540 });
+  check("Additional Medicare 8959: single, $260k wages (over $200k threshold) -> Required", "form_8959", true, RESIDENT.router, india, us);
+})();
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  us.profile.filing_status = "single";
+  us.income_us_source.wages_w2 = [{ employer_name: "Small Co", wages_box1_usd: 90000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 15000, medicare_wages_box5_usd: 90000 } }];
+  us.withholding_and_estimated = Object.assign({}, us.withholding_and_estimated, { additional_medicare_tax_owed_usd: 0 });
+  check("Additional Medicare 8959: single, $90k wages -> N/A", "form_8959", false, RESIDENT.router, india, us);
+})();
+
+// ---- form_6251 (AMT) — real tentative-minimum-tax-over-regular-tax amount ----
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  us.equity_compensation = { iso_exercises: [{ shares_exercised: 5000, fmv_at_exercise_usd: 90, strike_price_usd: 5 }] };
+  check("AMT 6251: large ISO bargain element -> Required", "form_6251", true, RESIDENT.router, india, us);
+})();
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  us.equity_compensation = { iso_exercises: [] };
+  check("AMT 6251: no AMT preference items -> N/A", "form_6251", false, RESIDENT.router, india, us);
+})();
+
+console.log(pass + " passed, " + fail + " failed (Batch A + B cumulative, " + cases + " total cases)");
 process.exit(fail > 0 ? 1 : 0);

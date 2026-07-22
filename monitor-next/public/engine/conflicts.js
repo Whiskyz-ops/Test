@@ -1606,7 +1606,17 @@
       form_1116: model.taxesPaid.india.total.usd > 0 &&
                  (res.us.isResident || (model.entity && model.entity.usReturnForm === "1120")),
       form_2555: model.limitsRaw.feieClaimed,
-      form_8833: res.dualResident || model.treaty.usTreatyResidence !== "none" || model.treaty.files1040nr,
+      // Was OR'd with model.treaty.files1040nr — filing 1040-NR alone doesn't
+      // mean a treaty position was taken (a "plain" NRA reporting US-source
+      // income at standard statutory rates, no treaty benefit invoked, needs
+      // no Form 8833 disclosure at all). The precise signal — an actual
+      // treaty rate being claimed — already exists as model.nra.
+      // treatyRateClaims (the same field the W-8BEN finding already trusts,
+      // conflicts.js:1038) and is what's used here instead. res.dualResident
+      // and usTreatyResidence !== "none" (Article 4 tie-breaker cases) are
+      // unaffected — those are already precise, real treaty-position facts.
+      form_8833: res.dualResident || model.treaty.usTreatyResidence !== "none" ||
+                 (model.nra && (model.nra.treatyRateClaims || []).length > 0),
       // Was only checking indianMutualFunds (India-side financial_holdings
       // filtered for "mutual_fund"), ignoring model.assets.usPficHoldings
       // (Layer 1 US's own dedicated "PFIC Holdings" card,

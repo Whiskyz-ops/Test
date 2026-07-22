@@ -245,7 +245,11 @@ NODES.buildDocumentsResult = {
       // to its owners' own 1040/1116, not the entity's own return).
       form_1116: d.taxesPaidIndiaResult.total.usd > 0 && (res.us.isResident || isForm1118),
       form_2555: d.feieRaw.claimed,
-      form_8833: res.dualResident || d.treatyUsResidenceRaw !== "none" || d.treatyFiles1040nrRaw,
+      // Same engine/conflicts.js fix: files1040nr alone doesn't mean a
+      // treaty position was taken. d.nraRaw.treatyRateClaims is the precise
+      // signal (already trusted by the W-8BEN finding).
+      form_8833: res.dualResident || d.treatyUsResidenceRaw !== "none" ||
+                 (d.nraRaw && (d.nraRaw.treatyRateClaims || []).length > 0),
       // Was only checking indianMutualFundsResult (India-side financial_
       // holdings filtered for "mutual_fund"), ignoring Layer 1 US's own
       // dedicated "PFIC Holdings" card (usPficHoldingsRaw) entirely — a
