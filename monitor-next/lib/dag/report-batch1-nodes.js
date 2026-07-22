@@ -238,7 +238,11 @@ NODES.buildDocumentsResult = {
       form_5471: d.viaForeignCorpXbr4 && (res.us.isResident || isForm1118),
       form_8865: false,
       form_3520: ((d.ppfInrRaw > 0 || d.epfInrRaw > 0) && res.us.isResident) || d.foreignGiftsRaw.receivedAbove100k || d.foreignGiftsRaw.isTrustBeneficiary,
-      form_1040nr: d.treatyFiles1040nrRaw || res.us.status === "NON_RESIDENT_ALIEN",
+      // Same engine/conflicts.js fix: the OR'd NON_RESIDENT_ALIEN status
+      // check was a false positive on every "zero US exposure" placeholder
+      // profile — treatyFiles1040nrRaw (the explicit Layer 1 US flag) is
+      // the correct, sufficient signal on its own.
+      form_1040nr: d.treatyFiles1040nrRaw,
       form_8960: d.headlineTotalIncomeUsdResult > ((CONST_B1_LIMITS.NIIT_THRESHOLD)[d.usFilingStatusRaw] || 200000) &&
         (d.aggregateUsIncomeResult.interestUs.usd + d.aggregateUsIncomeResult.ordinaryDividendsUs.usd + d.aggregateUsIncomeResult.capitalGainsUs.usd) > 0,
       form_8959: d.usTaxResult.additionalMedicareUsd > 0,

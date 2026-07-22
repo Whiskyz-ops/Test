@@ -1606,7 +1606,18 @@
       form_8865: false,
       form_3520: ((model.assets.ppfInr > 0 || model.assets.epfInr > 0) && res.us.isResident) ||
                  model.foreignGifts.receivedAbove100k || model.foreignGifts.isTrustBeneficiary,
-      form_1040nr: model.treaty.files1040nr || (res.us.status === CONST.US_STATUS.NON_RESIDENT_ALIEN),
+      // Was also OR'd with (res.us.status === CONST.US_STATUS.NON_RESIDENT_ALIEN)
+      // — redundant with files1040nr (Layer 1 US's own purpose-built
+      // nra_specific.files_form_1040nr flag) on the one profile that
+      // genuinely needs this form, and a false positive on every profile
+      // whose US side is a "zero US exposure" placeholder shell (which
+      // fills final_us_residency_status with NON_RESIDENT_ALIEN as filler,
+      // not as a real filing determination) — including india_only_ca_client,
+      // whose entire purpose is demonstrating NO US filing obligations at
+      // all. NRA status alone doesn't create a 1040-NR obligation; having
+      // US-source income/a US trade-business does, which is exactly what
+      // the explicit flag already captures correctly on every profile.
+      form_1040nr: model.treaty.files1040nr,
       form_8960: computed.headline.totalIncomeUsd > (CONST.LIMITS.NIIT_THRESHOLD[model.identity.usFilingStatus] || 200000) &&
                  (model.income.us.interestUs.usd + model.income.us.ordinaryDividendsUs.usd + model.income.us.capitalGainsUs.usd) > 0,
       form_8959: (computed.usTax && computed.usTax.additionalMedicareUsd > 0) || (model.limitsRaw.additionalMedicareOwed || 0) > 0,
