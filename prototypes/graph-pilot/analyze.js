@@ -44,16 +44,19 @@
  * shape exactly.
  * ==========================================================================*/
 (function (root) {
-  var path = require("path");
-  require(path.join(__dirname, "constants.js"));
-  require(path.join(__dirname, "sample-data.js"));
-  require(path.join(__dirname, "profiles.js"));
+  // Plain relative literals (not path.join(__dirname,...)) so this file is
+  // statically analyzable by a bundler (esbuild/webpack) — Node resolves
+  // require("./x.js") relative to __dirname the same way regardless, so
+  // this is a no-op change for the Node harnesses.
+  require("./constants.js");
+  require("./sample-data.js");
+  require("./profiles.js");
 
   var WISING = root.WISING = root.WISING || {};
-  var createGraph = require(path.join(__dirname, "graph.js")).createGraph;
-  var fxRate = require(path.join(__dirname, "fx-util.js")).fxRate;
-  var residencyUtil = require(path.join(__dirname, "residency-nodes.js"));
-  var NODES = require(path.join(__dirname, "assets-nodes.js")).NODES;
+  var createGraph = require("./graph.js").createGraph;
+  var fxRate = require("./fx-util.js").fxRate;
+  var residencyUtil = require("./residency-nodes.js");
+  var NODES = require("./assets-nodes.js").NODES;
   var graph = createGraph(NODES);
 
   var TARGET_IDS = [

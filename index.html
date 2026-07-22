@@ -77,8 +77,8 @@ cd monitor-next &amp;&amp; npm install &amp;&amp; npm run dev   <span class="tex
     </div>
     <div class="glass rounded-2xl p-5 border-brandCyan/20">
       <div class="font-mono text-[10px] px-2 py-0.5 rounded bg-brandCyan/20 text-brandCyan inline-block mb-2">LAYER 2</div>
-      <h3 class="font-display font-bold">Engine → Monitor</h3>
-      <p class="text-[12px] text-white/50 mt-1">Shared <span class="font-mono">engine/*.js</span> computes everything; the Monitor renders it.</p>
+      <h3 class="font-display font-bold">DAG → Monitor</h3>
+      <p class="text-[12px] text-white/50 mt-1">The <span class="font-mono">prototypes/graph-pilot</span> DAG computes everything; the Monitor renders it.</p>
     </div>
   </div>
 </section>
@@ -95,16 +95,10 @@ cd monitor-next &amp;&amp; npm install &amp;&amp; npm run dev   <span class="tex
 
 <footer class="max-w-5xl mx-auto px-5 py-10 text-[11px] text-white/30 leading-relaxed border-t border-white/5">
   WISING prototype · Planning estimates only — not professional tax advice. Layer 1 forms are the data base;
-  <span class="font-mono">engine/*.js</span> is the shared computation + conflict engine; the Monitor is the single frontend.
+  the <span class="font-mono">prototypes/graph-pilot</span> DAG is the shared computation + conflict engine; the Monitor is the single frontend.
 </footer>
 
-<script src="engine/constants.js"></script>
-<script src="engine/normalize.js"></script>
-<script src="engine/computation.js"></script>
-<script src="engine/monitoring.js"></script>
-<script src="engine/conflicts.js"></script>
-<script src="engine/sample-data.js"></script>
-<script src="engine/profiles.js"></script>
+<script src="assets/dag-analyze.bundle.js"></script>
 <script>
   var W = window.WISING;
   function fmtUsd(n){ return "$" + Math.round(n||0).toLocaleString("en-US"); }
