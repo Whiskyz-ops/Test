@@ -424,4 +424,143 @@ console.log("\n=== Batch C: US state + procedural forms ===");
 })();
 
 console.log(pass + " passed, " + fail + " failed (Batch A + B + C cumulative, " + cases + " total cases)");
+
+console.log("\n=== Batch D: India forms ===");
+var US_ONLY = base("us_only_cpa_client");
+
+// ---- form_67 (India FTC / Form 44) & schedule_fsi_tr — real bugs found ----
+// Both were: (a) form_67 used the WRONG field (foreignSourceTotal — the
+// FOREIGN-from-the-US-model's-own-view income, an unrelated US Form 1116
+// concept) OR'd with a bare isResident catch-all that made it unconditionally
+// "Required" for any India resident/RNOR; (b) schedule_fsi_tr had no
+// residency gate at all. Confirmed false positives on 6/12 (form_67) and
+// 3/12 (schedule_fsi_tr) demo profiles before the fix.
+(function () {
+  // RESIDENT: ROR, real US-source income + US tax paid on file (base profile).
+  check("Form 67 (India FTC): ROR with US-source income and US tax paid (base profile) -> Required", "form_67", true, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+  check("Schedule FSI/TR: ROR with US-source income and US tax paid (base profile) -> Required", "schedule_fsi_tr", true, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+})();
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  india.residency_detail = Object.assign({}, india.residency_detail, { final_india_residency_status: "NR" });
+  check("Form 67: plain NR with US-source income/US tax paid on file -> N/A (this was the bug — NR isn't taxed on foreign income in India at all)", "form_67", false, RESIDENT.router, india, us);
+  check("Schedule FSI/TR: plain NR with US-source income/US tax paid on file -> N/A (this was the bug)", "schedule_fsi_tr", false, RESIDENT.router, india, us);
+})();
+(function () {
+  // ROR but zero US-source income and zero US tax paid on file.
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  us.income_us_source = {};
+  us.withholding_and_estimated = {};
+  check("Form 67: ROR with zero US income/US tax on file -> N/A (this was the bug — bare isResident catch-all)", "form_67", false, RESIDENT.router, india, us);
+  check("Schedule FSI/TR: ROR with zero US income/US tax on file -> N/A", "schedule_fsi_tr", false, RESIDENT.router, india, us);
+})();
+
+// ---- schedule_fa (Foreign Assets) — real bug found: financial_holdings
+// (foreign brokerage/securities, separately FBAR/FATCA-reportable) was never
+// checked, only bank_accounts and usSourceTotal. ----
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  us.income_us_source = {};
+  us.bank_accounts = [];
+  us.fbar_aggregate_peak_usd = 0;
+  us.financial_holdings = [{ asset_name: "Vanguard Brokerage", peak_balance_usd: 500000, country: "US", is_fbar_reportable: true }];
+  check("Schedule FA: ROR holding ONLY US brokerage securities (no bank account, no US income) -> Required (this was the bug)", "schedule_fa", true, RESIDENT.router, india, us);
+})();
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  us.income_us_source = {};
+  us.bank_accounts = [];
+  us.fbar_aggregate_peak_usd = 0;
+  us.financial_holdings = [];
+  check("Schedule FA: ROR with no foreign assets of any kind on file -> N/A", "schedule_fa", false, RESIDENT.router, india, us);
+})();
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  india.residency_detail = Object.assign({}, india.residency_detail, { final_india_residency_status: "NR" });
+  check("Schedule FA: plain NR with foreign accounts on file -> N/A (NR has no Schedule FA obligation)", "schedule_fa", false, RESIDENT.router, india, us);
+})();
+
+// ---- trc (Tax Residency Certificate) / form_10f — confirmed correct ----
+(function () {
+  check("TRC: dual resident (RESIDENT base profile) -> Required", "trc", true, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+  check("Form 10F: dual resident (RESIDENT base profile) -> Required", "form_10f", true, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+})();
+(function () {
+  check("TRC: domestic C-corp with no treaty-residence facts on file -> N/A", "trc", false, CCORP.router, CCORP.india, CCORP.us);
+  check("Form 10F: domestic C-corp with no treaty-residence facts on file -> N/A", "form_10f", false, CCORP.router, CCORP.india, CCORP.us);
+})();
+
+// ---- form_15ca_cb / lrs_form_a2 (outward remittance certificates) — confirmed correct, share the same underlying LRS-remittance signal ----
+(function () {
+  // RESIDENT's base already has a nonzero LRS remittance on file.
+  check("Form 145/146 (was 15CA/15CB): LRS remittance on file (base profile) -> Required", "form_15ca_cb", true, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+  check("LRS Form A2: LRS remittance on file (base profile) -> Required", "lrs_form_a2", true, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+})();
+(function () {
+  // RESIDENT's india has a quarters[] structure that indiaAnnualSlice sums
+  // and prefers over the top-level object — delete it so the mutation below
+  // (the fallback path) actually takes effect.
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  delete india.quarters;
+  india.lrs_outbound = { total_lrs_remitted_this_fy_inr: 0 };
+  check("Form 145/146: zero LRS remittance -> N/A", "form_15ca_cb", false, RESIDENT.router, india, us);
+  check("LRS Form A2: zero LRS remittance -> N/A", "lrs_form_a2", false, RESIDENT.router, india, us);
+})();
+
+// ---- schedule_al (Assets & Liabilities) — confirmed correct ----
+(function () {
+  // RESIDENT: individual, ₹40.17L total income — below the ₹50L threshold.
+  check("Schedule AL: individual below ₹50L total income (base profile) -> N/A", "schedule_al", false, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+})();
+(function () {
+  // CCORP: company, ₹8cr total income — well above ₹50L, but companies carry
+  // their own unconditional balance-sheet requirement, not this ITR-2/3 rule.
+  check("Schedule AL: domestic company well above ₹50L (base profile) -> N/A (companies have their own unconditional balance-sheet requirement)", "schedule_al", false, CCORP.router, CCORP.india, CCORP.us);
+})();
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  delete india.quarters;
+  india.domestic_income.salary = { has_salary_income: true, taxable_salary_inr: 8000000 };
+  check("Schedule AL: individual with ₹80L+ salary alone -> Required", "schedule_al", true, RESIDENT.router, india, us);
+})();
+
+// ---- form_3cb_3cd (Tax Audit Report) — confirmed correct ----
+(function () {
+  // CCORP: a company is a statutory-audit case unconditionally.
+  check("Form 3CB/3CD: domestic company (base profile) -> Required (unconditional, Companies Act)", "form_3cb_3cd", true, CCORP.router, CCORP.india, CCORP.us);
+})();
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  delete india.quarters;
+  india.domestic_income.business_income.business_entries = [{
+    business_name: "High-Turnover Trading Co", nature: "retail trading", presumptive_scheme: null,
+    turnover_inr: 150000000, gross_receipts_inr: 150000000, expenses: {}
+  }];
+  check("Form 3CB/3CD: individual, ₹15cr turnover (over the ₹10cr non-digital threshold) -> Required", "form_3cb_3cd", true, RESIDENT.router, india, us);
+})();
+(function () {
+  // RESIDENT's base business turnover (₹9L) is well under the s.44AB threshold.
+  check("Form 3CB/3CD: individual with small (₹9L) business turnover (base profile) -> N/A", "form_3cb_3cd", false, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+})();
+
+// ---- form_3ceb (Transfer Pricing Certification) — confirmed correct ----
+(function () {
+  // CCORP's base already owns 100% of an Indian subsidiary (a real AE relationship).
+  check("Form 3CEB: cross-border AE ownership on file (CCORP base profile) -> Required", "form_3ceb", true, CCORP.router, CCORP.india, CCORP.us);
+})();
+(function () {
+  check("Form 3CEB: no foreign-corp ownership on file (RESIDENT base profile) -> N/A", "form_3ceb", false, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+})();
+
+// ---- form_26as_ais_tis / form_16_16a (India reconciliation forms) — confirmed correct ----
+(function () {
+  check("Form 26AS/AIS/TIS: has India scope (RESIDENT base profile) -> Required", "form_26as_ais_tis", true, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+  check("Form 16/16A: has India scope (RESIDENT base profile) -> Required", "form_16_16a", true, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+})();
+(function () {
+  check("Form 26AS/AIS/TIS: US-only profile, no India scope -> N/A", "form_26as_ais_tis", false, US_ONLY.router, US_ONLY.india, US_ONLY.us);
+  check("Form 16/16A: US-only profile, no India scope -> N/A", "form_16_16a", false, US_ONLY.router, US_ONLY.india, US_ONLY.us);
+})();
+
+console.log(pass + " passed, " + fail + " failed (Batch A + B + C + D cumulative, " + cases + " total cases)");
 process.exit(fail > 0 ? 1 : 0);

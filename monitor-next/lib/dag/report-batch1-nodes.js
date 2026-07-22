@@ -152,6 +152,15 @@ NODES.indianMutualFundsResult = {
 // added as its own leaf so buildDocumentsResult can depend on it directly.
 NODES.usPficHoldingsRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_entities.pfic_holdings", []) || []; } };
 
+// ---- model.assets.usSecurities (us.financial_holdings) — foreign brokerage/
+// securities holdings, separately FBAR/FATCA-reportable per Layer 1 US's own
+// is_fbar_reportable flag. schedule_fa's own accountsListResult only ever
+// comes from bank_accounts, never financial_holdings — a ROR holding only
+// foreign securities (no bank account, no US-source income) was silently
+// missing Schedule FA (docs/GAP_TRACKER.md, 22 Jul 2026 audit) — added as
+// its own leaf so buildDocumentsResult can depend on it directly.
+NODES.usSecuritiesRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "financial_holdings", []) || []; } };
+
 // ---- LIM-2: Form 8938 gauge (computeLimits, computation.js:1466-1476) -----
 var CONST_B1_LIMITS = require("./constants.js").CONST.LIMITS; // SYS-1: shared
 var FORM_8938 = CONST_B1_LIMITS.FORM_8938;
@@ -219,7 +228,7 @@ var DOCUMENTS_CATALOG = [
 NODES.buildDocumentsResult = {
   deps: ["residencyResult", "accountsListResult", "form8938GaugeResult", "taxesPaidIndiaResult", "entityFormsResult",
     "feieRaw", "treatyUsResidenceRaw", "treatyFiles1040nrRaw", "treatyIndiaResidenceRaw",
-    "indianMutualFundsResult", "usPficHoldingsRaw", "bizEntriesAgg", "ppfInrRaw", "epfInrRaw", "foreignGiftsRaw",
+    "indianMutualFundsResult", "usPficHoldingsRaw", "usSecuritiesRaw", "bizEntriesAgg", "ppfInrRaw", "epfInrRaw", "foreignGiftsRaw",
     "usTaxResult", "headlineTotalIncomeUsdResult", "usFilingStatusRaw", "aggregateUsIncomeResult",
     "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
     "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw"],
@@ -282,11 +291,22 @@ NODES.buildDocumentsResult = {
       form_8960: d.headlineTotalIncomeUsdResult > ((CONST_B1_LIMITS.NIIT_THRESHOLD)[d.usFilingStatusRaw] || 200000) &&
         (d.aggregateUsIncomeResult.interestUs.usd + d.aggregateUsIncomeResult.ordinaryDividendsUs.usd + d.aggregateUsIncomeResult.capitalGainsUs.usd) > 0,
       form_8959: d.usTaxResult.additionalMedicareUsd > 0,
-      form_67: d.aggregateUsIncomeResult.foreignSourceTotal.usd > 0 || d.taxesPaidUsResult.total.usd > 0 || res.india.isResident,
+      // See engine/conflicts.js's form_67 comment: was the wrong field
+      // (foreignSourceTotal, an unrelated US-model concept) OR'd with a bare
+      // isResident catch-all — false-positive on 6/12 demo profiles. Fixed
+      // to usSourceTotal, properly ANDed with the ROR gate (RNOR/NR aren't
+      // taxed on foreign income in India, matching schedule_fa 2 lines down).
+      form_67: res.india.status === "ROR" &&
+               (d.aggregateUsIncomeResult.usSourceTotal.usd > 0 || d.taxesPaidUsResult.total.usd > 0),
       trc: res.dualResident || d.treatyIndiaResidenceRaw !== "none" || d.treatyUsResidenceRaw !== "none",
       form_10f: res.dualResident || d.treatyIndiaResidenceRaw !== "none",
-      schedule_fa: res.india.status === "ROR" && (d.aggregateUsIncomeResult.usSourceTotal.usd > 0 || d.accountsListResult.accounts.some(function (a) { return a.country !== "India"; })),
-      schedule_fsi_tr: d.taxesPaidUsResult.total.usd > 0 || d.aggregateUsIncomeResult.usSourceTotal.usd > 0,
+      schedule_fa: res.india.status === "ROR" && (d.aggregateUsIncomeResult.usSourceTotal.usd > 0 ||
+                   d.accountsListResult.accounts.some(function (a) { return a.country !== "India"; }) ||
+                   d.usSecuritiesRaw.some(function (h) { return (h.peak_balance_usd || 0) > 0; })),
+      // See engine/conflicts.js's schedule_fsi_tr comment: same bug class as
+      // form_67 above — no ROR gate, false positive for a plain NR.
+      schedule_fsi_tr: res.india.status === "ROR" &&
+                        (d.taxesPaidUsResult.total.usd > 0 || d.aggregateUsIncomeResult.usSourceTotal.usd > 0),
       form_15ca_cb: d.limitsRawExtra.lrsRemittedInr > 0,
       // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.6,
       // 21 Jul 2026): AOP/Trust excluded here too, consistent with how firm

@@ -1671,12 +1671,56 @@
       form_8960: computed.headline.totalIncomeUsd > (CONST.LIMITS.NIIT_THRESHOLD[model.identity.usFilingStatus] || 200000) &&
                  (model.income.us.interestUs.usd + model.income.us.ordinaryDividendsUs.usd + model.income.us.capitalGainsUs.usd) > 0,
       form_8959: (computed.usTax && computed.usTax.additionalMedicareUsd > 0) || (model.limitsRaw.additionalMedicareOwed || 0) > 0,
-      form_67: model.income.us.foreignSourceTotal.usd > 0 || model.taxesPaid.us.total.usd > 0 || res.india.isResident,
+      // Was model.income.us.foreignSourceTotal (the FOREIGN-from-the-US-model's
+      // own view, i.e. India-source income reported on a US 1040 for THAT
+      // return's own FTC/Form 1116 — an unrelated concept) OR'd with a bare
+      // res.india.isResident catch-all, making this unconditionally "Required"
+      // for any India resident/RNOR regardless of whether they had any
+      // US-source income or paid any US tax at all — a false positive on
+      // 6 of the 12 demo profiles (india_only_ca_client, india_pvt_ltd,
+      // foreign_holdco_poem_india, sharma_huf: zero US income/tax on file;
+      // us_resident_indian_income, founder_indian_company: outright NR for
+      // India, not even resident). Form 67/s.90-91 FTC is for a taxpayer
+      // whose FOREIGN (US)-source income is itself taxable in India — i.e.
+      // an ROR only (RNOR/NR aren't taxed on foreign income in India at
+      // all, matching the schedule_fa gate 2 lines below) — who has US
+      // income and/or paid US tax on it. Fixed to the correct field
+      // (usSourceTotal, matching this trigger's own "why" text and the
+      // schedule_fsi_tr trigger right below it) properly ANDed with the ROR
+      // gate instead of OR'd in as an unconditional catch-all.
+      form_67: res.india.status === CONST.INDIA_STATUS.ROR &&
+               (model.income.us.usSourceTotal.usd > 0 || model.taxesPaid.us.total.usd > 0),
       trc: res.dualResident || model.treaty.treatyResidence !== "none" || model.treaty.usTreatyResidence !== "none",
       form_10f: res.dualResident || model.treaty.treatyResidence !== "none",
+      // model.accounts.accounts only ever comes from bank_accounts (see
+      // aggregateAccounts, normalize.js) — it never included
+      // model.assets.usSecurities (us.financial_holdings: foreign brokerage/
+      // securities holdings, separately FBAR/FATCA-reportable per Layer 1
+      // US's own is_fbar_reportable flag and already rolled into
+      // fbar_aggregate_peak_usd). A ROR holding only foreign securities (no
+      // traditional bank account, no US-source income this year) was
+      // silently missing Schedule FA entirely — confirmed via a synthetic
+      // ROR profile with a $500k US brokerage holding and nothing else,
+      // which showed schedule_fa as not_triggered before this fix. The same
+      // gap exists in the schedule_fa_inconsistent finding and the XB-7
+      // Black Money Act exposure quantification (both also only check
+      // accounts+usSourceTotal) — out of scope for this Filings-tab pass,
+      // noted in docs/GAP_TRACKER.md for a future audit of the Conflicts tab.
       schedule_fa: res.india.status === CONST.INDIA_STATUS.ROR &&
-                   (model.income.us.usSourceTotal.usd > 0 || (model.accounts.accounts || []).some(function (a) { return a.country !== "India"; })),
-      schedule_fsi_tr: model.taxesPaid.us.total.usd > 0 || model.income.us.usSourceTotal.usd > 0,
+                   (model.income.us.usSourceTotal.usd > 0 ||
+                    (model.accounts.accounts || []).some(function (a) { return a.country !== "India"; }) ||
+                    (model.assets.usSecurities || []).some(function (h) { return (h.peak_balance_usd || 0) > 0; })),
+      // Same bug class as form_67 just above (whose own "why" text says
+      // "Schedule FSI/TR must accompany the ITR" — the two are filed
+      // together for the same fact): fired for a plain NR (no ROR gate at
+      // all), even though a true India non-resident reports only India-
+      // source income on their return — no foreign income is "offered to
+      // tax" in India at all, so there's nothing for FSI/TR to report.
+      // Confirmed false positive on us_resident_indian_income,
+      // founder_indian_company, us_only_cpa_client (all India-NR) before
+      // this fix. Gated the same way as form_67/schedule_fa.
+      schedule_fsi_tr: res.india.status === CONST.INDIA_STATUS.ROR &&
+                        (model.taxesPaid.us.total.usd > 0 || model.income.us.usSourceTotal.usd > 0),
       form_15ca_cb: model.limitsRaw.lrsRemittedInr > 0,
       // Schedule AL is an ITR-2/3 (individual/HUF) threshold rule — ITR-5/6
       // filers (firm/company) carry their own unconditional balance-sheet
