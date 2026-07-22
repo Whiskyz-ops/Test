@@ -144,6 +144,14 @@ NODES.indianMutualFundsResult = {
   compute: function (d) { return d.indiaFinancialHoldingsTxRaw.filter(function (t) { return t.asset_type && String(t.asset_type).toLowerCase().indexOf("mutual_fund") >= 0; }); }
 };
 
+// ---- model.assets.usPficHoldings (normalize.js:2546) — Layer 1 US's own
+// dedicated "PFIC Holdings" card (foreign_entities.pfic_holdings), a
+// SEPARATE signal from indianMutualFunds above. Was defined in
+// assets-nodes.js's assetsModelResult but never independently read by
+// form_8621's own trigger below (docs/GAP_TRACKER.md, 22 Jul 2026 audit) —
+// added as its own leaf so buildDocumentsResult can depend on it directly.
+NODES.usPficHoldingsRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_entities.pfic_holdings", []) || []; } };
+
 // ---- LIM-2: Form 8938 gauge (computeLimits, computation.js:1466-1476) -----
 var CONST_B1_LIMITS = require("./constants.js").CONST.LIMITS; // SYS-1: shared
 var FORM_8938 = CONST_B1_LIMITS.FORM_8938;
@@ -211,33 +219,57 @@ var DOCUMENTS_CATALOG = [
 NODES.buildDocumentsResult = {
   deps: ["residencyResult", "accountsListResult", "form8938GaugeResult", "taxesPaidIndiaResult", "entityFormsResult",
     "feieRaw", "treatyUsResidenceRaw", "treatyFiles1040nrRaw", "treatyIndiaResidenceRaw",
-    "indianMutualFundsResult", "bizEntriesAgg", "ppfInrRaw", "epfInrRaw", "foreignGiftsRaw",
+    "indianMutualFundsResult", "usPficHoldingsRaw", "bizEntriesAgg", "ppfInrRaw", "epfInrRaw", "foreignGiftsRaw",
     "usTaxResult", "headlineTotalIncomeUsdResult", "usFilingStatusRaw", "aggregateUsIncomeResult",
     "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
     "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw"],
   compute: function (d) {
     var res = d.residencyResult;
     var isForm1118 = d.entityFormsResult.usReturnForm === "1120";
+    // "US person" for information-return purposes (FBAR/FATCA/CFC/PFIC):
+    // individual (citizen/resident alien) OR a domestic entity — a US-
+    // organized corp/S-corp/partnership/trust can independently own foreign
+    // accounts/CFC stock/PFIC shares with its own filing obligation, same
+    // engine/conflicts.js fix, generalized past just C-corps (isForm1118).
+    var isUsDomesticEntity = ["1120", "1120-S", "1065", "1041"].indexOf(d.entityFormsResult.usReturnForm) !== -1;
+    var isUsPerson = res.us.isResident || isUsDomesticEntity;
     var t = indiaBusinessTurnoverInr(d.bizEntriesAgg);
     var atLeast95PctDigital = t.totalInr > 0 && (t.cashInr / t.totalInr) <= 0.05;
     var form8938 = d.form8938GaugeResult;
 
     var triggers = {
-      fincen_114: d.accountsListResult.aggregatePeak.usd > 10000 && res.us.isResident,
-      form_8938: !!form8938 && form8938.status === "breached" && res.us.isResident,
+      fincen_114: d.accountsListResult.aggregatePeak.usd > 10000 && isUsPerson,
+      form_8938: !!form8938 && form8938.status === "breached" && isUsPerson,
+      // NOT broadened to isUsPerson: Form 1118 vs 1116 is a real, C-corp-
+      // specific distinction (a pass-through S-corp/partnership's FTC flows
+      // to its owners' own 1040/1116, not the entity's own return).
       form_1116: d.taxesPaidIndiaResult.total.usd > 0 && (res.us.isResident || isForm1118),
       form_2555: d.feieRaw.claimed,
       form_8833: res.dualResident || d.treatyUsResidenceRaw !== "none" || d.treatyFiles1040nrRaw,
-      form_8621: d.indianMutualFundsResult.length > 0 && res.us.isResident,
+      // Was only checking indianMutualFundsResult (India-side financial_
+      // holdings filtered for "mutual_fund"), ignoring Layer 1 US's own
+      // dedicated "PFIC Holdings" card (usPficHoldingsRaw) entirely — a
+      // user who fills in only the US-side card (holds PFICs through a
+      // vehicle other than an India-side mutual fund entry, or just didn't
+      // duplicate the same holding on both forms) got Form 8621 silently
+      // marked N/A despite explicitly saying they hold PFICs. Masked in
+      // every demo profile because whoever built them always populated
+      // both fields together for the same holding.
+      form_8621: (d.indianMutualFundsResult.length > 0 || d.usPficHoldingsRaw.length > 0) && isUsPerson,
       // Was checking d.bizEntriesAgg.length > 0 (India-side domestic
       // business_entries, an unrelated concept) — same engine/conflicts.js
       // bug, fixed the same way: viaForeignCorpXbr4 is the correct CFC-
-      // ownership signal (form_3ceb below already uses it), and isForm1118
-      // (already computed above for form_1116) covers a domestic C-corp CFC
-      // owner an individual-residency check alone would miss.
-      form_5471: d.viaForeignCorpXbr4 && (res.us.isResident || isForm1118),
+      // ownership signal (form_3ceb below already uses it). Broadened to
+      // isUsPerson (any domestic entity, not just C-corp).
+      form_5471: d.viaForeignCorpXbr4 && isUsPerson,
+      // Form 8865 hardcoded false: not a wiring bug, a genuine unmodeled-
+      // feature gap — no field anywhere represents "owns an interest in a
+      // FOREIGN partnership" (docs/GAP_TRACKER.md, 22 Jul 2026 full audit).
       form_8865: false,
-      form_3520: ((d.ppfInrRaw > 0 || d.epfInrRaw > 0) && res.us.isResident) || d.foreignGiftsRaw.receivedAbove100k || d.foreignGiftsRaw.isTrustBeneficiary,
+      // Was OR'ing receivedAbove100k/isTrustBeneficiary in unconditionally —
+      // Form 3520 (IRC §6039F) is US-persons-only; gated the whole trigger
+      // behind isUsPerson instead of just the ppfInr/epfInr clause.
+      form_3520: isUsPerson && ((d.ppfInrRaw > 0 || d.epfInrRaw > 0) || d.foreignGiftsRaw.receivedAbove100k || d.foreignGiftsRaw.isTrustBeneficiary),
       // Same engine/conflicts.js fix: the OR'd NON_RESIDENT_ALIEN status
       // check was a false positive on every "zero US exposure" placeholder
       // profile — treatyFiles1040nrRaw (the explicit Layer 1 US flag) is

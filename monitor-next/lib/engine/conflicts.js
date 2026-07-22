@@ -1576,20 +1576,45 @@
 
   function buildDocuments(model, computed) {
     var res = computed.residency;
+    // "US person" for information-return purposes (FBAR/FATCA/CFC/PFIC) means
+    // an individual (citizen/resident alien) OR a domestic entity — a US-
+    // organized corporation, S-corp, partnership, or trust can independently
+    // own foreign accounts/CFC stock/PFIC shares and carries its OWN filing
+    // obligation for them, separate from its owners'. res.us.isResident is
+    // individual-only (citizen/green-card/SPT); model.entity.usReturnForm
+    // being one of the 4 entity return types is the domestic-entity signal
+    // (mirrors the narrower res.us.isResident-or-"1120" pattern form_1116/
+    // form_5471 already used, generalized past just C-corps — a domestic
+    // partnership or S-corp that itself owns >=10% of a foreign corp, say,
+    // files its own Form 5471 exactly like a C-corp would).
+    var isUsDomesticEntity = !!(model.entity &&
+      ["1120", "1120-S", "1065", "1041"].indexOf(model.entity.usReturnForm) !== -1);
+    var isUsPerson = res.us.isResident || isUsDomesticEntity;
     var triggers = {
-      fincen_114: model.accounts.aggregatePeak.usd > CONST.LIMITS.FBAR_AGGREGATE_USD && res.us.isResident,
+      fincen_114: model.accounts.aggregatePeak.usd > CONST.LIMITS.FBAR_AGGREGATE_USD && isUsPerson,
       form_8938: (function () {
         var g = computed.limits.filter(function (x) { return x.id === "form8938"; })[0];
-        return !!g && g.status === "breached" && res.us.isResident;
+        return !!g && g.status === "breached" && isUsPerson;
       })(),
       // res.us.isResident is an individual-residency concept (SPT/citizenship)
       // that's meaningless for a corporation — a C-corp filer needs Form 1118
       // (see usFtcForm) whenever it paid Indian tax, regardless of that flag.
+      // NOT broadened to isUsPerson: Form 1118 vs 1116 is a real, C-corp-
+      // specific distinction — an S-corp/partnership is a pass-through
+      // entity whose FTC flows to its OWNERS' own 1040/1116, not a filing
+      // on the entity's own return at all, so "1120" alone is correct here.
       form_1116: model.taxesPaid.india.total.usd > 0 &&
                  (res.us.isResident || (model.entity && model.entity.usReturnForm === "1120")),
       form_2555: model.limitsRaw.feieClaimed,
       form_8833: res.dualResident || model.treaty.usTreatyResidence !== "none" || model.treaty.files1040nr,
-      form_8621: (model.assets.indianMutualFunds || []).length > 0 && res.us.isResident,
+      // Was only checking indianMutualFunds (India-side financial_holdings
+      // filtered for "mutual_fund"), ignoring model.assets.usPficHoldings
+      // (Layer 1 US's own dedicated "PFIC Holdings" card,
+      // us.foreign_entities.pfic_holdings) entirely — a user who fills in
+      // only the US-side card got Form 8621 silently marked N/A despite
+      // explicitly saying they hold PFICs. Masked in every demo profile
+      // because whoever built them always populated both fields together.
+      form_8621: ((model.assets.indianMutualFunds || []).length > 0 || (model.assets.usPficHoldings || []).length > 0) && isUsPerson,
       // Was checking model.assets.indianBusinesses.length > 0 — the India-
       // side domestic business_entries array, an unrelated concept (someone
       // running a PGBP business/profession IN India). Form 5471 is required
@@ -1598,14 +1623,29 @@
       // signal form_3ceb below already uses (its own comment says so: "Same
       // ownership signal the CFC/Form 5471 check... already trust", which
       // was aspirational, not actually true, until this fix). Also broadened
-      // res.us.isResident with the same C-corp fallback form_1116 already
-      // uses just above — an individual-residency concept alone would still
-      // miss a domestic C-corp CFC owner (e.g. us_ccorp_indian_sub).
-      form_5471: (model.assets.usOwns10PctForeignCorp || (model.assets.usForeignCorps || []).length > 0) &&
-                 (res.us.isResident || (model.entity && model.entity.usReturnForm === "1120")),
+      // to isUsPerson (any domestic entity, not just C-corp) — a domestic
+      // partnership or S-corp can independently own >=10% of a foreign
+      // corporation too.
+      form_5471: (model.assets.usOwns10PctForeignCorp || (model.assets.usForeignCorps || []).length > 0) && isUsPerson,
+      // Form 8865 (US persons with interests in a foreign partnership) is
+      // hardcoded false, not a wiring bug like the ones above — the data
+      // model has NO field anywhere (Layer 1 US or the profile schema)
+      // representing "this taxpayer owns an interest in a FOREIGN
+      // partnership" at all (confirmed by a full audit of all 12 demo
+      // profiles, docs/GAP_TRACKER.md, 22 Jul 2026). Fixing the trigger
+      // condition alone would do nothing without that underlying fact to
+      // check — a genuine unmodeled-feature gap, not a trigger bug, left
+      // honestly false rather than guessed at (same convention as GILTI's
+      // own hand-entered-estimate gap noted below).
       form_8865: false,
-      form_3520: ((model.assets.ppfInr > 0 || model.assets.epfInr > 0) && res.us.isResident) ||
-                 model.foreignGifts.receivedAbove100k || model.foreignGifts.isTrustBeneficiary,
+      // Was OR'ing receivedAbove100k/isTrustBeneficiary in unconditionally —
+      // Form 3520 (IRC §6039F) is a US-PERSONS-ONLY filing requirement; a
+      // pure NRA with zero US ties has no Form 3520 obligation no matter
+      // what these flags say. Gated the whole trigger behind isUsPerson
+      // (individual-or-domestic-entity, same signal as the rest of this
+      // function) rather than just the ppfInr/epfInr clause.
+      form_3520: isUsPerson && ((model.assets.ppfInr > 0 || model.assets.epfInr > 0) ||
+                 model.foreignGifts.receivedAbove100k || model.foreignGifts.isTrustBeneficiary),
       // Was also OR'd with (res.us.status === CONST.US_STATUS.NON_RESIDENT_ALIEN)
       // — redundant with files1040nr (Layer 1 US's own purpose-built
       // nra_specific.files_form_1040nr flag) on the one profile that
@@ -1667,6 +1707,18 @@
       form_4868: model.meta.hasUsScope,
       form_540: !!(computed.stateTax && computed.stateTax.state === "CA"),
       form_it201: !!(computed.stateTax && computed.stateTax.state === "NY")
+      // form_nj1040 deliberately has no entry here — a DAG-only document
+      // (docs/GAP_TRACKER.md section H.7/H.7.3), not a bug: the engine's own
+      // computeUsStateTax (computation.js) genuinely has no New Jersey
+      // bracket data (CONST.US_STATES here only has CA/NY — new state-tax
+      // coverage goes in the DAG under the frozen-engine policy, same as
+      // everything else). CONST.DOCUMENTS in the shared constants.js
+      // correspondingly has no form_nj1040 catalog entry at all for the
+      // engine's own CONST.DOCUMENTS.map(...) below to iterate over, so
+      // adding a trigger key here would be dead code either way — briefly
+      // added, then reverted, during the 22 Jul 2026 Filings audit once
+      // this was traced back to H.7's own already-documented decision
+      // rather than an oversight.
     };
 
     // Catalogue entries are static reference data — form_1116 is the only one
