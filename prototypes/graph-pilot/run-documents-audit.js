@@ -351,4 +351,77 @@ console.log("\n=== Batch B: US income-tax adjustment forms ===");
 })();
 
 console.log(pass + " passed, " + fail + " failed (Batch A + B cumulative, " + cases + " total cases)");
+
+console.log("\n=== Batch C: US state + procedural forms ===");
+
+// ---- form_540 (CA resident return) / form_it201 (NY resident return) ----
+// computeUsStateTax (computation.js:1133) only fires for individual filers,
+// is null for NRAs (no state-source split modeled), and is null for
+// non-individual entities (separate franchise/entity-level state regime,
+// unmodeled — documented limitation, same "flag imprecision rather than
+// model it" convention as the rest of the frozen engine).
+(function () {
+  // RESIDENT's base state_residency is already CA.
+  check("CA Form 540: CA resident (base profile) -> Required", "form_540", true, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+})();
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  us.state_residency = { primary_state_of_residence: "NY" };
+  check("CA Form 540: NY resident -> N/A", "form_540", false, RESIDENT.router, india, us);
+  check("NY Form IT-201: NY resident -> Required", "form_it201", true, RESIDENT.router, india, us);
+})();
+(function () {
+  check("NY Form IT-201: CA resident (base profile) -> N/A", "form_it201", false, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+})();
+(function () {
+  var india = clone(CCORP.india), us = clone(CCORP.us);
+  us.state_residency = { primary_state_of_residence: "CA" };
+  check("CA Form 540: domestic C-corp with CA facts on file -> N/A (entity files separate franchise return, unmodeled)", "form_540", false, CCORP.router, india, us);
+})();
+(function () {
+  var india = clone(NRA.india), us = clone(NRA.us);
+  us.state_residency = { primary_state_of_residence: "CA" };
+  check("CA Form 540: NRA with CA facts on file -> N/A (no state-source split modeled for 1040-NR filers)", "form_540", false, NRA.router, india, us);
+})();
+
+// ---- form_8802 (Form 6166/US residency certification, mirrors India's TRC) ----
+(function () {
+  // RESIDENT is dual_resident_h1b -> res.dualResident true in the base profile.
+  check("Form 8802: dual resident (base profile) -> Required", "form_8802", true, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+})();
+(function () {
+  // NRA's base already claims usTreatyResidence = "IN".
+  check("Form 8802: NRA claiming a DTAA treaty-residence position (base profile) -> Required", "form_8802", true, NRA.router, NRA.india, NRA.us);
+})();
+(function () {
+  // CCORP's base has no treaty-residence facts and is not a dual resident.
+  check("Form 8802: domestic C-corp with no treaty-residence facts on file (base profile) -> N/A", "form_8802", false, CCORP.router, CCORP.india, CCORP.us);
+})();
+
+// ---- form_4868 (federal extension request) ----
+(function () {
+  check("Form 4868: has US scope (RESIDENT base profile) -> Required", "form_4868", true, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+})();
+(function () {
+  var INDIA_ONLY = base("india_only_ca_client");
+  check("Form 4868: India-only profile with no US scope -> N/A", "form_4868", false, INDIA_ONLY.router, INDIA_ONLY.india, INDIA_ONLY.us);
+})();
+
+// ---- form_8288 (FIRPTA withholding) ----
+(function () {
+  // NRA's base already has us_real_property_disposed=true, firpta_withholding_usd=45000.
+  check("Form 8288: NRA disposed US real property, withholding collected (base profile) -> Required", "form_8288", true, NRA.router, NRA.india, NRA.us);
+})();
+(function () {
+  var india = clone(NRA.india), us = clone(NRA.us);
+  us.nra_specific = Object.assign({}, us.nra_specific, { us_real_property_disposed: false, firpta_withholding_usd: 0 });
+  check("Form 8288: NRA with no US real property disposition -> N/A", "form_8288", false, NRA.router, india, us);
+})();
+(function () {
+  var india = clone(NRA.india), us = clone(NRA.us);
+  us.nra_specific = Object.assign({}, us.nra_specific, { us_real_property_disposed: true, firpta_withholding_usd: 0 });
+  check("Form 8288: NRA disposed US real property but a full 8288-B exemption reduced withholding to $0 -> N/A", "form_8288", false, NRA.router, india, us);
+})();
+
+console.log(pass + " passed, " + fail + " failed (Batch A + B + C cumulative, " + cases + " total cases)");
 process.exit(fail > 0 ? 1 : 0);
