@@ -58,11 +58,12 @@ WISING.PROFILES.forEach(function (p) {
 
   console.log(p.id + (isUsEntity ? " (US ENTITY — ftcReport not in-graph, reporting only)" : isNra ? " (NRA — ftcReport not in-graph, reporting only)" : ""));
 
-  // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026) and form_8858
-  // (section H.13, 22 Jul 2026): new DAG-only documents, no engine
-  // equivalent — see findings-batch5-nodes.js's usStateTaxResult and
-  // report-batch1-nodes.js's form_8858 comment.
-  var docsForDiff = out.buildDocumentsResult.filter(function (x) { return x.id !== "form_nj1040" && x.id !== "form_8858"; });
+  // DAG-only documents (docs/GAP_TRACKER.md section H.7/H.13, 21-22 Jul
+  // 2026): no engine equivalent for any of these — see
+  // findings-batch5-nodes.js's usStateTaxResult and report-batch1-nodes.js's
+  // DOCUMENTS_CATALOG comments.
+  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea"];
+  var docsForDiff = out.buildDocumentsResult.filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) === -1; });
   var docDiff = deepEqual(docsForDiff, r.documents);
   check("documents matches exactly (" + r.documents.length + " entries, " + r.documents.filter(function (x) { return x.required; }).length + " required)", !docDiff, docDiff && docDiff.slice(0, 3).join(" | "));
 

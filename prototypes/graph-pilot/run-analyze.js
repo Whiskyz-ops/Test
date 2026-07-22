@@ -84,10 +84,12 @@ WISING.PROFILES.forEach(function (p) {
   var findingsDiff = deepEqual(byId(mineFindings), byId(realFindings));
   check("findings match exactly (by ID, order-independent)", !findingsDiff, findingsDiff && findingsDiff.slice(0, 6).join(" | "));
 
-  // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026) and form_8858
-  // (section H.13, 22 Jul 2026): new DAG-only documents, no engine
-  // equivalent (NJ state tax and Form 8858 weren't modeled at all before).
-  var docsForDiff = out.documents.filter(function (x) { return x.id !== "form_nj1040" && x.id !== "form_8858"; });
+  // DAG-only documents (docs/GAP_TRACKER.md section H.7/H.13, 21-22 Jul
+  // 2026): no engine equivalent for any of these — new state tax / new
+  // catalog entries added after the frozen-engine cutoff.
+  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea"];
+  var droppedRequiredCount = out.documents.filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) !== -1 && x.required; }).length;
+  var docsForDiff = out.documents.filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) === -1; });
   var docsDiff = deepEqual(docsForDiff, r.documents);
   check("documents match exactly", !docsDiff, docsDiff && docsDiff.slice(0, 4).join(" | "));
 
@@ -125,7 +127,12 @@ WISING.PROFILES.forEach(function (p) {
 
   check("monitoring matches exactly", out.monitoring === r.monitoring);
 
-  var summaryDiff = deepEqual(out.summary, r.summary);
+  // summary.requiredDocs is a DAG-computed count baked in from the
+  // UN-stripped documents list — adjust it the same amount as above.
+  var outSummary = (droppedRequiredCount > 0 && out.summary && typeof out.summary.requiredDocs === "number")
+    ? Object.assign({}, out.summary, { requiredDocs: out.summary.requiredDocs - droppedRequiredCount })
+    : out.summary;
+  var summaryDiff = deepEqual(outSummary, r.summary);
   check("summary matches exactly", !summaryDiff, summaryDiff && summaryDiff.slice(0, 6).join(" | "));
 
   console.log("");

@@ -547,7 +547,8 @@ function assembleDag(profile, monitorAsOfBoundary) {
   // calendar's bundled docIds, same category as checksRegistry above.
   // Shallow-copy the calendar rows (not a full JSON clone, which would turn
   // Date objects into strings elsewhere in this same tree).
-  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858"];
+  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea"];
+  var droppedRequiredCount = (out.analyzeResult.documents || []).filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) !== -1 && x.required; }).length;
   var documents = (out.analyzeResult.documents || []).filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) === -1; });
   var stripNj1040 = function (row) {
     return Array.isArray(row.docIds) ? Object.assign({}, row, { docIds: row.docIds.filter(function (id) { return DAG_ONLY_DOC_IDS.indexOf(id) === -1; }) }) : row;
@@ -559,7 +560,13 @@ function assembleDag(profile, monitorAsOfBoundary) {
       next: out.analyzeResult.monitoring.calendar.next ? stripNj1040(out.analyzeResult.monitoring.calendar.next) : out.analyzeResult.monitoring.calendar.next
     })
   });
-  return Object.assign({}, out.analyzeResult, { documents: documents, monitoring: monitoring, model: model, computed: computed, checksRegistry: out.checksRegistryResult });
+  // summary.requiredDocs is a DAG-computed count baked in from the
+  // UN-stripped documents list — adjust it the same amount the strip above
+  // just removed, same fix as test-adapter.mjs/shadow-core.js.
+  var summary = (droppedRequiredCount > 0 && out.analyzeResult.summary && typeof out.analyzeResult.summary.requiredDocs === "number")
+    ? Object.assign({}, out.analyzeResult.summary, { requiredDocs: out.analyzeResult.summary.requiredDocs - droppedRequiredCount })
+    : out.analyzeResult.summary;
+  return Object.assign({}, out.analyzeResult, { documents: documents, monitoring: monitoring, summary: summary, model: model, computed: computed, checksRegistry: out.checksRegistryResult });
 }
 
 function compareOne(label, profile, saveOnFail) {

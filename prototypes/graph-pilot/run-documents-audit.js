@@ -617,4 +617,61 @@ console.log("\n=== Batch E: catalog completeness + Compliance Calendar dates ===
 })();
 
 console.log(pass + " passed, " + fail + " failed (Batch A + B + C + D + E cumulative, " + cases + " total cases)");
+
+console.log("\n=== Batch F: catalog completeness, round 2 (external-research pass) ===");
+// docs/GAP_TRACKER.md, second catalog-completeness pass: canonical US/India
+// cross-border checklists (IRS instructions, practitioner checklists;
+// incometax.gov.in guidance) cross-referenced against the 32-entry catalog.
+// 3 more real, well-supported gaps found — all DAG-only (brand-new
+// documents, same asymmetry-test shape as form_8858 above).
+function dagOnlyDocCheck(label, docId, expected, router, india, us) {
+  cases++;
+  var r = WISING.analyze({ router: router, india: india, us: us });
+  var engineVal = docStatus(r.documents, docId);
+  var dagVal = dagDocStatus(router, india, us, r.model, docId);
+  if (engineVal === undefined && dagVal === expected) { pass++; console.log("  ok - " + label); }
+  else { fail++; console.log("  FAIL - " + label + " (expected engine=undefined dag=" + expected + "; got engine=" + engineVal + " dag=" + dagVal + ")"); }
+}
+
+// ---- form_3520a (Foreign Trust Annual Return) — companion to form_3520,
+// only the OWNERSHIP subset (ppfInr/epfInr), not the gift/beneficiary subset.
+dagOnlyDocCheck("Form 3520-A: US person with a real PPF/EPF account on file (RESIDENT base profile) -> Required", "form_3520a", true, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+(function () {
+  var india = clone(NRA.india), us = clone(NRA.us);
+  dagOnlyDocCheck("Form 3520-A: genuine NRA (not a US person) -> N/A", "form_3520a", false, NRA.router, india, us);
+})();
+
+// ---- form_29b (MAT Report) — real signal already computed by the frozen
+// engine (computed.indiaTax.matApplied) but never promoted to a document.
+(function () {
+  var IP = base("india_pvt_ltd");
+  var india = clone(IP.india), us = clone(IP.us);
+  delete india.profile.opt_115baa;
+  india.profile.mat_book_profit = 500000000;
+  dagOnlyDocCheck("Form 29B: company where MAT actually exceeds normal tax -> Required", "form_29b", true, IP.router, india, us);
+})();
+(function () {
+  var IP = base("india_pvt_ltd");
+  dagOnlyDocCheck("Form 29B: company under s.115BAA (MAT never applies, base profile) -> N/A", "form_29b", false, IP.router, IP.india, IP.us);
+})();
+
+// ---- form_10iea (Old Regime Election) — same condition already
+// independently derived for the diagnostic-only checks-registry entry.
+(function () {
+  var IR = base("india_ror_us_income");
+  dagOnlyDocCheck("Form 10-IEA: old regime elected + real business income on file (base profile) -> Required", "form_10iea", true, IR.router, IR.india, IR.us);
+})();
+(function () {
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  dagOnlyDocCheck("Form 10-IEA: new regime (RESIDENT base profile) -> N/A", "form_10iea", false, RESIDENT.router, india, us);
+})();
+(function () {
+  var IR = base("india_ror_us_income");
+  var india = clone(IR.india), us = clone(IR.us);
+  delete india.quarters;
+  india.domestic_income.business_income = { has_business_or_fo_income: false };
+  dagOnlyDocCheck("Form 10-IEA: old regime but no business/professional income -> N/A (a salaried filer just ticks a box on the ITR itself)", "form_10iea", false, IR.router, india, us);
+})();
+
+console.log(pass + " passed, " + fail + " failed (Batch A + B + C + D + E + F cumulative, " + cases + " total cases)");
 process.exit(fail > 0 ? 1 : 0);

@@ -227,6 +227,33 @@ var DOCUMENTS_CATALOG = [
   // disregarded entity on file (an India-based consulting sole
   // proprietorship) and got no Form 8858 prompt whatsoever.
   { id: "form_8858", jurisdiction: "US", name: "IRS Form 8858 (Foreign Disregarded Entities)", desc: "Information return for US persons who own a foreign disregarded entity or foreign branch.", why: "A foreign disregarded entity is on file (Reg. §1.6038-2) — a single-owner foreign business entity, or a foreign branch of a US business, that isn't itself taxed as a corporation.", severity: "warning" },
+  // DELIBERATE DAG/engine divergence, same pattern as form_8858 above — see
+  // docs/GAP_TRACKER.md, second (external-research) catalog-completeness
+  // pass. This is the ANNUAL RETURN OF THE TRUST ITSELF (or its US agent),
+  // separate from form_3520 (the US owner/beneficiary's own return) — a US
+  // person treated as the OWNER (not just a beneficiary) of a foreign trust
+  // under the grantor-trust rules must ALSO ensure the trust files this.
+  // Reuses the same ppfInr/epfInr ownership-signal subset of form_3520's own
+  // condition (Indian PPF/EPF accounts are commonly treated as foreign
+  // grantor trusts for this purpose) — deliberately NOT the gift-received/
+  // beneficiary-distribution subset, since those don't make the US person
+  // the trust's "owner."
+  { id: "form_3520a", jurisdiction: "US", name: "IRS Form 3520-A (Annual Information Return of Foreign Trust)", desc: "Annual return filed by (or on behalf of) a foreign trust with a US owner — distinct from Form 3520, which the US owner/beneficiary files themselves.", why: "A US person is treated as the owner of a foreign trust for grantor-trust purposes (e.g. an Indian PPF/EPF account) — the trust itself (or a US agent) must file this annually, in addition to the owner's own Form 3520.", severity: "warning" },
+  // DELIBERATE DAG/engine divergence, same pattern — s.115JB requires a CA-
+  // certified book-profit report whenever MAT actually applies. The engine
+  // already computes this exact signal (computed.indiaTax.matApplied,
+  // computation.js's computeIndiaEntityTax) but never promoted it to a
+  // Filings-tab document — same "computed elsewhere, never surfaced as a
+  // filing requirement" pattern as form_6251/AMT before Batch B.
+  { id: "form_29b", jurisdiction: "IN", name: "Form 29B (MAT Report)", desc: "Chartered Accountant's report certifying book profit under s.115JB, filed when Minimum Alternate Tax applies.", why: "MAT (s.115JB) applies this year — tax computed on book profit exceeds tax computed under the normal provisions.", severity: "warning" },
+  // DELIBERATE DAG/engine divergence, same pattern. An individual/HUF with
+  // business/professional income who elects the OLD regime (opting out of
+  // the s.115BAC default) must file this declaration by the s.139(1) due
+  // date — a salaried/other-income-only filer can just tick a box on the
+  // ITR itself instead, no separate form. Reuses the exact condition
+  // already independently derived for the (separate, diagnostic-only)
+  // "form_10iea" entry in checks-registry-nodes.js.
+  { id: "form_10iea", jurisdiction: "IN", name: "Form 10-IEA (Old Regime Election)", desc: "Declaration to opt out of the default new tax regime (s.115BAC) — or to switch back — required for an individual/HUF with business/professional income.", why: "The old tax regime is elected on file, and business/professional income is present — this combination requires a filed Form 10-IEA, not just a checkbox on the ITR.", severity: "info" },
   { id: "form_67", jurisdiction: "IN", name: "Form 44 (India FTC)", desc: "Statement of foreign income & foreign tax, filed before the ITR due date.", why: "Foreign (US) income is being offered to tax in India and FTC u/s 90/91 is claimed. Schedule FSI/TR must accompany the ITR.", severity: "critical" },
   { id: "trc", jurisdiction: "IN", name: "Tax Residency Certificate (TRC)", desc: "Issued by the other contracting state (IRS Form 6166 for the US).", why: "DTAA relief / treaty rate is being claimed — a TRC is mandatory u/s 159(8).", severity: "critical" },
   { id: "form_10f", jurisdiction: "IN", name: "Form 41", desc: "Self-declaration accompanying the TRC, filed electronically on the ITR portal.", why: "Treaty benefit claimed and the TRC does not contain all particulars required u/r 75.", severity: "warning" },
@@ -251,7 +278,8 @@ NODES.buildDocumentsResult = {
     "indianMutualFundsResult", "usPficHoldingsRaw", "usSecuritiesRaw", "usOwnsForeignDisregardedEntityRaw", "usSelfEmploymentRaw", "bizEntriesAgg", "ppfInrRaw", "epfInrRaw", "foreignGiftsRaw",
     "usTaxResult", "headlineTotalIncomeUsdResult", "usFilingStatusRaw", "aggregateUsIncomeResult",
     "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
-    "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw"],
+    "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw",
+    "entityTaxResult", "taxRegime", "businessComputation"],
   compute: function (d) {
     var res = d.residencyResult;
     var isForm1118 = d.entityFormsResult.usReturnForm === "1120";
@@ -303,6 +331,11 @@ NODES.buildDocumentsResult = {
       // Form 3520 (IRC §6039F) is US-persons-only; gated the whole trigger
       // behind isUsPerson instead of just the ppfInr/epfInr clause.
       form_3520: isUsPerson && ((d.ppfInrRaw > 0 || d.epfInrRaw > 0) || d.foreignGiftsRaw.receivedAbove100k || d.foreignGiftsRaw.isTrustBeneficiary),
+      // Only the OWNERSHIP subset of form_3520's own condition — a gift
+      // received or a plain beneficiary distribution doesn't make the US
+      // person the trust's "owner," so 3520-A (the trust's own return)
+      // doesn't apply to those cases the way it does to a PPF/EPF holder.
+      form_3520a: isUsPerson && (d.ppfInrRaw > 0 || d.epfInrRaw > 0),
       // Same engine/conflicts.js fix: the OR'd NON_RESIDENT_ALIEN status
       // check was a false positive on every "zero US exposure" placeholder
       // profile — treatyFiles1040nrRaw (the explicit Layer 1 US flag) is
@@ -348,7 +381,16 @@ NODES.buildDocumentsResult = {
       // DELIBERATE DAG/engine divergence, same reasoning as form_nj1040
       // above — see the DOCUMENTS_CATALOG entry for the full explanation.
       form_8858: d.usOwnsForeignDisregardedEntityRaw ||
-                 d.usSelfEmploymentRaw.some(function (s) { return s.llc_type === "foreign_disregarded"; })
+                 d.usSelfEmploymentRaw.some(function (s) { return s.llc_type === "foreign_disregarded"; }),
+      // matApplied is only meaningful for the company branch of
+      // entityTaxResult (MAT/s.115JB only applies to companies) — gating on
+      // indiaIsCompany ensures it's read from the right branch.
+      form_29b: d.indiaIsCompany && !!d.entityTaxResult.matApplied,
+      // Same condition already independently derived for the diagnostic-
+      // only "form_10iea" checks-registry entry (checks-registry-nodes.js) —
+      // reused here rather than re-derived, now promoted to a real document.
+      form_10iea: d.taxRegime === "OLD" && !d.indiaIsCompany && !d.indiaIsFirm && !d.indiaIsAop && !d.indiaIsTrust &&
+                  (d.businessComputation.businessInr || 0) > 0
     };
 
     return DOCUMENTS_CATALOG.map(function (doc) {
