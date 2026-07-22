@@ -28,14 +28,20 @@
  *     pure helpers residency-nodes.js already exports) — both real,
  *     achievable pieces of the classic engine's lower-level API.
  *
- * Known, deliberate gap: WISING.compute(model) — the classic engine's
- * second-phase call that takes an already-built model object and continues
- * from there — has no DAG equivalent here. The graph only resolves forward
- * from raw {router, india, us}; there is no node whose input is an
- * arbitrary pre-built model object. tests/engine/run.js's fixture-assertion
- * layer calls WISING.compute() directly on hand-authored synthetic models,
- * which this file cannot serve — only its "demo profile smoke test" layer
- * (WISING.PROFILES + WISING.analyze()) can run against this entry point today.
+ * WISING.compute(model), reconsidered: every real call site in
+ * tests/engine/run.js's fixture-assertion layer calls WISING.normalize(raw)
+ * then WISING.compute(thatSameModel) — never an independently hand-built
+ * model bypassing normalize(). That means compute(model) there is just
+ * phase 2 of a normal analyze()-shaped flow on raw {router, india, us}, not
+ * a call the DAG structurally can't serve. WISING.analyze(opts) already
+ * covers it: read r.model/r.computed from one call instead of two. To make
+ * that actually work, model.deductions (india + us) is now assembled too —
+ * the one field group those specific fixture assertions read that wasn't
+ * needed by dag-adapter.js's own (monitor-next UI-driven) field list.
+ * India's 12 s80* deductions are separate raw-fact nodes in in1-nodes-v3.js
+ * (no combined node existed); the US side is one already-combined node,
+ * dedUs, verified to already match the classic engine's model.deductions.us
+ * shape exactly.
  * ==========================================================================*/
 (function (root) {
   var path = require("path");
@@ -57,7 +63,16 @@
     "totalTaxInrCombined", "regimeCombined", "isEntityTaxpayer", "usTaxResult", "residencyResult",
     "ftcResult", "crossBasisResult", "limitsResult", "headlineResult",
     "apportionmentResult", "s115aDividend", "s115aRoyalty", "s115aFts", "isNRV3",
-    "analyzeResult"
+    "analyzeResult",
+    // model.deductions.india — in1-nodes-v3.js's aggregateIndiaDeductions
+    // port, one raw-fact node per section (no single combined node exists).
+    "dedS80C", "dedS80CCD1B", "dedS80CCD2Employer", "dedS80D", "dedS80TTA_TTB",
+    "dedS80DD", "dedS80DDB", "dedS80U", "dedS80E", "dedS80EEA_EE", "dedS80GGB_GGC", "dedS80GGRentPaidInr",
+    // model.deductions.us — ustax-nodes.js's dedUs, already one combined node.
+    "dedUs",
+    // computed.indiaTax.deductionsInr — in1-nodes-v3.js's final combined
+    // deduction total (post-caps), read by the same fixture test above.
+    "deductionsInrV3"
   ];
 
   // Same shape r.model carries from the classic engine's WISING.analyze() —
@@ -72,7 +87,16 @@
       companyResidency: out.companyResidencyResult,
       income: { india: out.indiaIncomeModelResult, us: out.aggregateUsIncomeResult },
       accounts: { accounts: out.accountsBoundary, aggregatePeak: null },
-      assets: out.assetsModelResult
+      assets: out.assetsModelResult,
+      deductions: {
+        india: {
+          s80C: out.dedS80C, s80CCD1B: out.dedS80CCD1B, s80CCD2_employer: out.dedS80CCD2Employer,
+          s80D: out.dedS80D, s80TTA_TTB: out.dedS80TTA_TTB, s80DD: out.dedS80DD, s80DDB: out.dedS80DDB,
+          s80U: out.dedS80U, s80E: out.dedS80E, s80EEA_EE: out.dedS80EEA_EE,
+          s80GGB_GGC: out.dedS80GGB_GGC, s80GG_rentPaidInr: out.dedS80GGRentPaidInr
+        },
+        us: out.dedUs
+      }
     };
   }
 
@@ -86,6 +110,7 @@
       indiaTax: {
         totalTaxInr: out.totalTaxInrCombined, totalTaxUsd: out.totalTaxInrCombined / fxRate(ctx),
         regime: out.regimeCombined, isEntity: out.isEntityTaxpayer,
+        deductionsInr: out.deductionsInrV3,
         // s115a is the object ONLY for a non-entity NR (computeIndiaTax's
         // `isNR ? {...} : null`); null for a resident individual; absent
         // entirely on the entity path (computeIndiaEntityTax returns no
