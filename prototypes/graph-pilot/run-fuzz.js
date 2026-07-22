@@ -541,15 +541,16 @@ function assembleDag(profile, monitorAsOfBoundary) {
     usTax: usTax, residency: out.residencyResult, ftc: out.ftcResult, reconciliation: out.crossBasisResult,
     limits: out.limitsResult, headline: out.headlineResult, apportionment: out.apportionmentResult
   };
-  // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026): new DAG-only
-  // document, no engine equivalent (NJ wasn't modeled at all before this) —
-  // stripped from both the documents list and the calendar's bundled
-  // docIds, same category as checksRegistry above. Shallow-copy the
-  // calendar rows (not a full JSON clone, which would turn Date objects
-  // into strings elsewhere in this same tree).
-  var documents = (out.analyzeResult.documents || []).filter(function (x) { return x.id !== "form_nj1040"; });
+  // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026) and form_8858
+  // (section H.13, 22 Jul 2026): new DAG-only documents, no engine
+  // equivalent for either — stripped from both the documents list and the
+  // calendar's bundled docIds, same category as checksRegistry above.
+  // Shallow-copy the calendar rows (not a full JSON clone, which would turn
+  // Date objects into strings elsewhere in this same tree).
+  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858"];
+  var documents = (out.analyzeResult.documents || []).filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) === -1; });
   var stripNj1040 = function (row) {
-    return Array.isArray(row.docIds) ? Object.assign({}, row, { docIds: row.docIds.filter(function (id) { return id !== "form_nj1040"; }) }) : row;
+    return Array.isArray(row.docIds) ? Object.assign({}, row, { docIds: row.docIds.filter(function (id) { return DAG_ONLY_DOC_IDS.indexOf(id) === -1; }) }) : row;
   };
   var monitoring = Object.assign({}, out.analyzeResult.monitoring, {
     calendar: Object.assign({}, out.analyzeResult.monitoring.calendar, {

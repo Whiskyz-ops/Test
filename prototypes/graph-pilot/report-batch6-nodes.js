@@ -222,7 +222,7 @@ NODES.projectionsMonitorResult = {
 /* ================= 3. COMPLIANCE CALENDAR ================= */
 var US_RETURN_DOCS = ["fincen_114", "form_8938", "form_1116", "form_2555", "form_8833",
   "form_8621", "form_5471", "form_8865", "form_3520", "form_1040nr", "form_8960", "form_8959", "form_6251",
-  "form_540", "form_it201", "form_nj1040"];
+  "form_540", "form_it201", "form_nj1040", "form_8858"];
 var IN_RETURN_DOCS = ["form_67", "trc", "form_10f", "schedule_fa", "schedule_fsi_tr", "schedule_al", "form_3cb_3cd", "form_3ceb"];
 function mdate(y, m, day) { return new Date(y, m - 1, day); }
 var US_FILING_DATES = {
@@ -235,7 +235,7 @@ var US_FILING_DATES = {
 };
 
 NODES.calendarMonitorResult = {
-  deps: ["monitorProgressResult", "entityFormsResult", "indiaIsCompany", "inIsAuditCase", "inPurelyPresumptive"],
+  deps: ["monitorProgressResult", "entityFormsResult", "indiaIsCompany", "inIsAuditCase", "inPurelyPresumptive", "viaForeignCorpXbr4"],
   compute: function (d, ctx) {
     var model = ctx.model;
     var prog = d.monitorProgressResult;
@@ -248,7 +248,13 @@ NODES.calendarMonitorResult = {
                                   : { date: mdate(baseYear + 1, 1, 15), label: "US estimated tax — Q4" };
 
     var indiaIsAuditCase = d.inIsAuditCase;
-    var indiaFiling = indiaIsAuditCase
+    // See engine/monitoring.js's indiaHas92eObligation comment: a s.92E
+    // transfer-pricing reporting obligation (form_3ceb's own signal) gets
+    // 30 Nov per s.139(1) Explanation 2(a)(ii), one month past the plain
+    // audit-case date — was missing this tier entirely.
+    var indiaFiling = d.viaForeignCorpXbr4
+      ? { date: mdate(baseYear + 1, 11, 30), label: "India ITR + Form 44 (s.92E/transfer-pricing case)" }
+      : indiaIsAuditCase
       ? { date: mdate(baseYear + 1, 10, 31), label: "India ITR + Form 44 (audit case)" }
       : { date: mdate(baseYear + 1, 7, 31), label: "India ITR + Form 44 (non-audit)" };
 

@@ -563,4 +563,58 @@ var US_ONLY = base("us_only_cpa_client");
 })();
 
 console.log(pass + " passed, " + fail + " failed (Batch A + B + C + D cumulative, " + cases + " total cases)");
+
+console.log("\n=== Batch E: catalog completeness + Compliance Calendar dates ===");
+
+// ---- form_8858 (Foreign Disregarded Entities) — a catalog-completeness gap
+// found in the final audit pass: Reg. §1.6038-2 requires this from a US
+// person who owns a foreign disregarded entity, and Layer 1 US collects the
+// signal (a Schedule C row with llc_type "foreign_disregarded" — the same
+// field normalize.js already reads to route income into
+// foreignSelfEmployment), but the 31-entry catalog had no Form 8858 row at
+// all. Added DAG-only (same H.7/form_nj1040 pattern) since this is a brand
+// new document, not a fix to an existing trigger. Engine structurally has
+// no row for it — same asymmetry test shape as the NJ Form 1040 case above.
+(function () {
+  var GRACE = base("us_citizen_expat_india");
+  var r = WISING.analyze({ router: GRACE.router, india: GRACE.india, us: GRACE.us });
+  var engineVal = docStatus(r.documents, "form_8858");
+  var dagVal = dagDocStatus(GRACE.router, GRACE.india, GRACE.us, r.model, "form_8858");
+  cases++;
+  if (engineVal === undefined && dagVal === true) { pass++; console.log("  ok - Form 8858: real foreign disregarded entity on file (Grace Thomas base profile) -> DAG Required, engine structurally omits the row (deliberate, brand-new document)"); }
+  else { fail++; console.log("  FAIL - Form 8858 positive check (expected engine=undefined, dag=true; got engine=" + engineVal + ", dag=" + dagVal + ")"); }
+})();
+(function () {
+  var r = WISING.analyze({ router: RESIDENT.router, india: RESIDENT.india, us: RESIDENT.us });
+  var dagVal = dagDocStatus(RESIDENT.router, RESIDENT.india, RESIDENT.us, r.model, "form_8858");
+  cases++;
+  if (dagVal === false) { pass++; console.log("  ok - Form 8858: no foreign disregarded entity on file (RESIDENT base profile) -> DAG N/A"); }
+  else { fail++; console.log("  FAIL - Form 8858 negative check (expected dag=false, got " + dagVal + ")"); }
+})();
+
+// ---- Compliance Calendar: s.139(1) Explanation 2(a)(ii) — a s.92E
+// transfer-pricing reporting obligation (form_3ceb's own signal) gets 30 Nov,
+// one month past the plain audit-case date (31 Oct) — was missing this tier
+// entirely, so an entity like us_ccorp_indian_sub (a company that ALSO has
+// a Form 3CEB obligation via its Indian subsidiary) showed 31 Oct, one month
+// earlier than its real statutory deadline. Checked directly against
+// monitoring.calendar (not the check() helper, which only covers documents[]).
+(function () {
+  var r = WISING.analyze({ router: CCORP.router, india: CCORP.india, us: CCORP.us });
+  var row = r.monitoring.calendar.all.filter(function (x) { return x.cat === "Filing" && x.jur === "IN"; })[0];
+  cases++;
+  var ok = row && row.date.getMonth() === 10 && row.date.getDate() === 30; // month is 0-indexed: 10 = November
+  if (ok) { pass++; console.log("  ok - Compliance Calendar: s.92E obligation on file (CCORP base profile) -> India ITR due 30 Nov"); }
+  else { fail++; console.log("  FAIL - Compliance Calendar s.92E date check (got " + (row && row.dateLabel)); }
+})();
+(function () {
+  var r = WISING.analyze({ router: RESIDENT.router, india: RESIDENT.india, us: RESIDENT.us });
+  var row = r.monitoring.calendar.all.filter(function (x) { return x.cat === "Filing" && x.jur === "IN"; })[0];
+  cases++;
+  var ok = row && row.date.getMonth() === 6 && row.date.getDate() === 31; // 6 = July
+  if (ok) { pass++; console.log("  ok - Compliance Calendar: no s.92E obligation, non-audit case (RESIDENT base profile) -> India ITR due 31 Jul"); }
+  else { fail++; console.log("  FAIL - Compliance Calendar non-audit-case date check (got " + (row && row.dateLabel)); }
+})();
+
+console.log(pass + " passed, " + fail + " failed (Batch A + B + C + D + E cumulative, " + cases + " total cases)");
 process.exit(fail > 0 ? 1 : 0);

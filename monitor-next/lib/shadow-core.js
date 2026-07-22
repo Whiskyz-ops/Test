@@ -180,15 +180,25 @@ export function compareSurface(engineResult, dagResult) {
     dag = { ...dagResult, findings: dagResult.findings.filter(dropEntityOnlyIds) };
   }
 
-  // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026): new DAG-only
-  // document, no engine equivalent (NJ wasn't modeled at all before this) —
-  // stripped from both the documents list and the calendar's bundled
-  // docIds, same convention as run-fuzz.js's assembleDag().
+  // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026) and form_8858
+  // (section H.13, 22 Jul 2026): new DAG-only documents, no engine
+  // equivalent for either — stripped from both the documents list and the
+  // calendar's bundled docIds, same convention as run-fuzz.js's assembleDag().
+  const DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858"];
   if (Array.isArray(dag && dag.documents)) {
-    dag = { ...dag, documents: dag.documents.filter((x) => x.id !== "form_nj1040") };
+    const droppedRequiredCount = dag.documents.filter((x) => DAG_ONLY_DOC_IDS.includes(x.id) && x.required).length;
+    dag = { ...dag, documents: dag.documents.filter((x) => !DAG_ONLY_DOC_IDS.includes(x.id)) };
+    // summary.requiredDocs is a DAG-computed count baked in report-batch5-
+    // nodes.js from the UN-stripped buildDocumentsResult — adjust it the
+    // same amount the documents-array strip above just removed, so this
+    // known, deliberate divergence doesn't also show up as a fake mismatch
+    // in the derived count.
+    if (droppedRequiredCount > 0 && dag.summary && typeof dag.summary.requiredDocs === "number") {
+      dag = { ...dag, summary: { ...dag.summary, requiredDocs: dag.summary.requiredDocs - droppedRequiredCount } };
+    }
   }
   if (dag && dag.monitoring && dag.monitoring.calendar) {
-    const stripNj1040 = (row) => Array.isArray(row.docIds) ? { ...row, docIds: row.docIds.filter((id) => id !== "form_nj1040") } : row;
+    const stripNj1040 = (row) => Array.isArray(row.docIds) ? { ...row, docIds: row.docIds.filter((id) => !DAG_ONLY_DOC_IDS.includes(id)) } : row;
     dag = {
       ...dag,
       monitoring: {

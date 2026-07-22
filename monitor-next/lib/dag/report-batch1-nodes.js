@@ -161,6 +161,12 @@ NODES.usPficHoldingsRaw = { deps: [], compute: function (d, ctx) { return safe(c
 // its own leaf so buildDocumentsResult can depend on it directly.
 NODES.usSecuritiesRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "financial_holdings", []) || []; } };
 
+// ---- form_8858 (Foreign Disregarded Entities) — two independent leaves for
+// the two real signals Layer 1 US collects (see the DOCUMENTS_CATALOG entry
+// above for the full explanation).
+NODES.usOwnsForeignDisregardedEntityRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_entities.owns_foreign_disregarded_entity", false) === true; } };
+NODES.usSelfEmploymentRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "income_us_source.self_employment", []) || []; } };
+
 // ---- LIM-2: Form 8938 gauge (computeLimits, computation.js:1466-1476) -----
 var CONST_B1_LIMITS = require("./constants.js").CONST.LIMITS; // SYS-1: shared
 var FORM_8938 = CONST_B1_LIMITS.FORM_8938;
@@ -207,6 +213,20 @@ var DOCUMENTS_CATALOG = [
   // modeled at all before this) — see findings-batch5-nodes.js's
   // usStateTaxResult.
   { id: "form_nj1040", jurisdiction: "US", name: "New Jersey Form NJ-1040 (Resident Income Tax Return)", desc: "New Jersey state income tax return — computed on worldwide income for a full-year NJ resident, including Indian-source income. NJ grants no credit for tax paid to a foreign country.", why: "State-of-residence facts on file point to New Jersey, and NJ taxes worldwide income independently of the federal treaty position.", severity: "warning" },
+  // DELIBERATE DAG/engine divergence, same pattern as form_nj1040 above:
+  // a brand-new document, not a fixed-up existing trigger, so per the
+  // standing frozen-engine policy it's added DAG-only (docs/GAP_TRACKER.md,
+  // 22 Jul 2026 audit's catalog-completeness pass). Reg. §1.6038-2 requires
+  // Form 8858 from a US person who owns a foreign disregarded entity — Layer
+  // 1 US collects TWO real signals for this (foreign_entities.
+  // owns_foreign_disregarded_entity, a direct flag; and a Schedule C row
+  // with llc_type "foreign_disregarded", the same field normalize.js
+  // already reads to route income into foreignSelfEmployment) but the
+  // 31-entry catalog had no Form 8858 row at all — confirmed via
+  // us_citizen_expat_india (Grace Thomas), who has a real foreign
+  // disregarded entity on file (an India-based consulting sole
+  // proprietorship) and got no Form 8858 prompt whatsoever.
+  { id: "form_8858", jurisdiction: "US", name: "IRS Form 8858 (Foreign Disregarded Entities)", desc: "Information return for US persons who own a foreign disregarded entity or foreign branch.", why: "A foreign disregarded entity is on file (Reg. §1.6038-2) — a single-owner foreign business entity, or a foreign branch of a US business, that isn't itself taxed as a corporation.", severity: "warning" },
   { id: "form_67", jurisdiction: "IN", name: "Form 44 (India FTC)", desc: "Statement of foreign income & foreign tax, filed before the ITR due date.", why: "Foreign (US) income is being offered to tax in India and FTC u/s 90/91 is claimed. Schedule FSI/TR must accompany the ITR.", severity: "critical" },
   { id: "trc", jurisdiction: "IN", name: "Tax Residency Certificate (TRC)", desc: "Issued by the other contracting state (IRS Form 6166 for the US).", why: "DTAA relief / treaty rate is being claimed — a TRC is mandatory u/s 159(8).", severity: "critical" },
   { id: "form_10f", jurisdiction: "IN", name: "Form 41", desc: "Self-declaration accompanying the TRC, filed electronically on the ITR portal.", why: "Treaty benefit claimed and the TRC does not contain all particulars required u/r 75.", severity: "warning" },
@@ -228,7 +248,7 @@ var DOCUMENTS_CATALOG = [
 NODES.buildDocumentsResult = {
   deps: ["residencyResult", "accountsListResult", "form8938GaugeResult", "taxesPaidIndiaResult", "entityFormsResult",
     "feieRaw", "treatyUsResidenceRaw", "treatyFiles1040nrRaw", "treatyIndiaResidenceRaw",
-    "indianMutualFundsResult", "usPficHoldingsRaw", "usSecuritiesRaw", "bizEntriesAgg", "ppfInrRaw", "epfInrRaw", "foreignGiftsRaw",
+    "indianMutualFundsResult", "usPficHoldingsRaw", "usSecuritiesRaw", "usOwnsForeignDisregardedEntityRaw", "usSelfEmploymentRaw", "bizEntriesAgg", "ppfInrRaw", "epfInrRaw", "foreignGiftsRaw",
     "usTaxResult", "headlineTotalIncomeUsdResult", "usFilingStatusRaw", "aggregateUsIncomeResult",
     "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
     "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw"],
@@ -324,7 +344,11 @@ NODES.buildDocumentsResult = {
       form_4868: d.hasUsScopeBoundaryFtc,
       form_540: !!d.usStateTaxResult && d.usStateTaxResult.state === "CA",
       form_it201: !!d.usStateTaxResult && d.usStateTaxResult.state === "NY",
-      form_nj1040: !!d.usStateTaxResult && d.usStateTaxResult.state === "NJ"
+      form_nj1040: !!d.usStateTaxResult && d.usStateTaxResult.state === "NJ",
+      // DELIBERATE DAG/engine divergence, same reasoning as form_nj1040
+      // above — see the DOCUMENTS_CATALOG entry for the full explanation.
+      form_8858: d.usOwnsForeignDisregardedEntityRaw ||
+                 d.usSelfEmploymentRaw.some(function (s) { return s.llc_type === "foreign_disregarded"; })
     };
 
     return DOCUMENTS_CATALOG.map(function (doc) {

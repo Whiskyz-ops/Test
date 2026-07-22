@@ -58,13 +58,27 @@ function isNra(r) { return r.computed.usTax && r.computed.usTax.isNra === true; 
 function checkResult(id, dag, real) {
   const before = fails;
   const usEntity = isUsEntity(real), indiaEntity = isIndiaEntity(real), nra = isNra(real);
+  // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026) and form_8858
+  // (section H.13, 22 Jul 2026): new DAG-only documents, no engine
+  // equivalent for either — stripped from both the documents list and the
+  // calendar's bundled docIds, same convention as run-fuzz.js's assembleDag().
+  // summary.requiredDocs is a DAG-computed count baked in from the
+  // UN-stripped documents list (report-batch5-nodes.js) — adjusted by the
+  // same amount so this known, deliberate divergence doesn't rely on
+  // deepCheck's +/-2 numeric tolerance to go unnoticed.
+  const DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858"];
+  const droppedRequiredCount = dag.documents.filter((x) => DAG_ONLY_DOC_IDS.includes(x.id) && x.required).length;
+  const dagDocs = dag.documents.filter((x) => !DAG_ONLY_DOC_IDS.includes(x.id));
+  const dagSummary = droppedRequiredCount > 0 && dag.summary && typeof dag.summary.requiredDocs === "number"
+    ? { ...dag.summary, requiredDocs: dag.summary.requiredDocs - droppedRequiredCount }
+    : dag.summary;
   if (usEntity) {
     console.log("    (DELIBERATE divergence, section D — see run-fuzz.js) summary.totalIncomeUsd/healthScore, findings ids (underpayment_2210), computed.usTax.usSourceIncomeUsd/foreignSourceIncomeUsd, computed.headline.totalIncomeUsd, computed.apportionment, monitoring.health.score");
-    deepCheck(id + " summary (minus totalIncomeUsd/healthScore)", { ...dag.summary, totalIncomeUsd: 0, healthScore: 0 }, { ...real.summary, totalIncomeUsd: 0, healthScore: 0 });
+    deepCheck(id + " summary (minus totalIncomeUsd/healthScore)", { ...dagSummary, totalIncomeUsd: 0, healthScore: 0 }, { ...real.summary, totalIncomeUsd: 0, healthScore: 0 });
     const stripEntityOnlyIds = (id) => id !== "underpayment_2210" && id !== "us_entity_state_tax" && id !== "us_entity_state_tax_not_modeled";
     deepCheck(id + " findings ids (minus underpayment_2210/us_entity_state_tax)", dag.findings.map(f => f.id).filter(stripEntityOnlyIds), real.findings.map(f => f.id).filter(stripEntityOnlyIds));
   } else {
-    deepCheck(id + " summary", dag.summary, real.summary);
+    deepCheck(id + " summary", dagSummary, real.summary);
     deepCheck(id + " findings ids", dag.findings.map(f => f.id), real.findings.map(f => f.id));
   }
   deepCheck(id + " model.entity", dag.model.entity, real.model.entity);
@@ -76,15 +90,10 @@ function checkResult(id, dag, real) {
   deepCheck(id + " model.income.us", dag.model.income.us, real.model.income.us);
   deepCheck(id + " model.accounts.accounts", dag.model.accounts.accounts, real.model.accounts.accounts);
   deepCheck(id + " model.assets", dag.model.assets, real.model.assets);
-  // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026): new DAG-only
-  // document, no engine equivalent (NJ wasn't modeled at all before this) —
-  // stripped from both the documents list and the calendar's bundled
-  // docIds, same convention as run-fuzz.js's assembleDag().
-  const dagDocs = dag.documents.filter((x) => x.id !== "form_nj1040");
   deepCheck(id + " documents", dagDocs, real.documents);
   deepCheck(id + " returnForms", dag.returnForms, real.returnForms);
   deepCheck(id + " withholding", dag.withholding, real.withholding);
-  const stripNj1040 = (row) => Array.isArray(row.docIds) ? { ...row, docIds: row.docIds.filter((x) => x !== "form_nj1040") } : row;
+  const stripNj1040 = (row) => Array.isArray(row.docIds) ? { ...row, docIds: row.docIds.filter((x) => !DAG_ONLY_DOC_IDS.includes(x)) } : row;
   deepCheck(id + " monitoring.calendar.all", dag.monitoring.calendar.all.map(stripNj1040), real.monitoring.calendar.all);
   deepCheck(id + " monitoring.residency", dag.monitoring.residency, real.monitoring.residency);
   deepCheck(id + " monitoring.projections", dag.monitoring.projections, real.monitoring.projections);

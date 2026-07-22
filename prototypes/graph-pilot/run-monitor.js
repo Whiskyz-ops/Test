@@ -68,15 +68,16 @@ WISING.PROFILES.forEach(function (p) {
   console.log(p.id);
 
   var out = graph.resolve(["monitorResult"], ctx).values.monitorResult;
-  // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026): new DAG-only
-  // document bundled into the US filing deadline's docIds — no engine
-  // equivalent (NJ wasn't modeled at all before this). Shallow-copy just
-  // the calendar rows (not a full JSON clone, which would turn Date
+  // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026) and form_8858
+  // (section H.13, 22 Jul 2026): new DAG-only documents bundled into the US
+  // filing deadline's docIds — no engine equivalent for either. Shallow-copy
+  // just the calendar rows (not a full JSON clone, which would turn Date
   // objects into strings and break deepEqual's Date handling).
+  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858"];
   var outForDiff = Object.assign({}, out, {
     calendar: Object.assign({}, out.calendar, {
-      all: out.calendar.all.map(function (row) { return Array.isArray(row.docIds) ? Object.assign({}, row, { docIds: row.docIds.filter(function (id) { return id !== "form_nj1040"; }) }) : row; }),
-      upcoming: out.calendar.upcoming.map(function (row) { return Array.isArray(row.docIds) ? Object.assign({}, row, { docIds: row.docIds.filter(function (id) { return id !== "form_nj1040"; }) }) : row; })
+      all: out.calendar.all.map(function (row) { return Array.isArray(row.docIds) ? Object.assign({}, row, { docIds: row.docIds.filter(function (id) { return DAG_ONLY_DOC_IDS.indexOf(id) === -1; }) }) : row; }),
+      upcoming: out.calendar.upcoming.map(function (row) { return Array.isArray(row.docIds) ? Object.assign({}, row, { docIds: row.docIds.filter(function (id) { return DAG_ONLY_DOC_IDS.indexOf(id) === -1; }) }) : row; })
     })
   });
   var diff = deepEqual(outForDiff, r.monitoring);

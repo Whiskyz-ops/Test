@@ -291,7 +291,21 @@
     var inTurnoverAuditCase = inTurnover.totalInr > 0 &&
       inTurnover.totalInr > ((inTurnover.cashInr / inTurnover.totalInr) <= 0.05 ? 100000000 : 10000000);
     var indiaIsAuditCase = (model.entity && model.entity.indiaIsCompany) || inTurnoverAuditCase;
-    var indiaFiling = indiaIsAuditCase
+    // s.139(1) Explanation 2(a)(ii): an assessee required to furnish a s.92E
+    // transfer-pricing report (the SAME signal form_3ceb's own trigger in
+    // conflicts.js uses — a real cross-border AE ownership relationship) gets
+    // 30 Nov, one month later than the plain audit-case date — independent
+    // of whether they're also an audit case for a different reason. Was
+    // missing this tier entirely: an entity like us_ccorp_indian_sub (a
+    // company that ALSO has a Form 3CEB obligation via its Indian
+    // subsidiary) showed the calendar's audit-case date (31 Oct) as "the"
+    // due date, one month earlier than the real statutory deadline it
+    // actually has.
+    var indiaHas92eObligation = !!(model.assets &&
+      (model.assets.usOwns10PctForeignCorp || (model.assets.usForeignCorps || []).length > 0));
+    var indiaFiling = indiaHas92eObligation
+      ? { date: d(baseYear + 1, 11, 30), label: "India ITR + Form 44 (s.92E/transfer-pricing case)" }
+      : indiaIsAuditCase
       ? { date: d(baseYear + 1, 10, 31), label: "India ITR + Form 44 (audit case)" }
       : { date: d(baseYear + 1, 7, 31), label: "India ITR + Form 44 (non-audit)" };
 
