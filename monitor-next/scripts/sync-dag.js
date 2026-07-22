@@ -26,7 +26,10 @@ if (!fs.existsSync(src)) {
 }
 fs.mkdirSync(dst, { recursive: true });
 
-const files = fs.readdirSync(src).filter((f) => f.endsWith(".js") && !f.startsWith("run-") && f !== "run.js");
+// analyze.js: a standalone Node-only WISING.analyze() entry point (built for
+// tests/engine/run.js, no browser use) — same "only makes sense under Node"
+// rationale as the run-*.js exclusion above, so it's excluded the same way.
+const files = fs.readdirSync(src).filter((f) => f.endsWith(".js") && !f.startsWith("run-") && f !== "run.js" && f !== "analyze.js");
 let n = 0;
 files.forEach((f) => {
   fs.copyFileSync(path.join(src, f), path.join(dst, f));
