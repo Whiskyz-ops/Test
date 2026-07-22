@@ -62,7 +62,14 @@ export const DIRECTIONAL_SURFACE = [];
 // indiaIsAop/indiaIsTrust (docs/GAP_TRACKER.md section H.6, 21 Jul 2026):
 // model.entity.* additions with no engine equivalent — entitytax-nodes.js's
 // file header has the full writeup.
-const DAG_ONLY_KEYS = new Set(["caveat", "indiaIsAop", "indiaIsTrust"]);
+// trustDistributedUsd/trustRetainedUsd/trustBracketBreakdown (same H.6
+// family, ustax-full-nodes.js's trust branch): the engine has no concept of
+// "retained vs. distributed" trust income at all (every trust taxed at
+// $0 entity-level before this field existed) — new keys on computed.usTax
+// that only ever appear for a trust-kind US taxpayer, so unconditionally
+// skipping the key names is safe for every other profile shape too (they
+// simply never appear on either side).
+const DAG_ONLY_KEYS = new Set(["caveat", "indiaIsAop", "indiaIsTrust", "trustDistributedUsd", "trustRetainedUsd", "trustBracketBreakdown"]);
 
 // Back-compat alias (the full path list).
 export const SHADOW_SURFACE = SYMMETRIC_SURFACE.concat(DIRECTIONAL_SURFACE);
@@ -85,6 +92,39 @@ const KNOWN_US_ENTITY_PATHS = [
 ];
 const KNOWN_INDIA_ENTITY_PATHS = ["taxComputation.india"];
 const KNOWN_NRA_PATHS = ["computed.ftc.india", "ftcReport.direction_india_relief"];
+// India AOP/BOI and Trust/NGO/Political Party (docs/GAP_TRACKER.md section
+// H.6, 21 Jul 2026) — a WIDER divergence than the company/firm case above:
+// company/firm were already correctly entity-routed in the engine (only
+// their trace had a display bug), but AOP/Trust were previously taxed as a
+// plain INDIVIDUAL by the engine — a real amount bug whose fix cascades
+// into nearly everything India-tax-derived. Same allowlist as
+// prototypes/graph-pilot/run-fuzz.js's KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS
+// — keep both lists in sync. Verified empirically (a synthetic India-Trust
+// and India-AOP profile each produced ~55-60 divergences across exactly
+// these paths before this fix, with no engine equivalent to reconcile them
+// against — this is the DAG being newly correct, not a bug to close).
+const KNOWN_INDIA_AOP_TRUST_PATHS = [
+  "model.entity.isBusiness", "model.entity.indiaReturnForm", "model.assets",
+  "computed.indiaTax", "computed.ftc", "computed.headline", "computed.reconciliation",
+  "taxComputation.india", "ftcReport", "withholding", "monitoring",
+  "summary.indiaTaxUsd", "summary.netDoubleTaxUsd", "summary.healthScore", "summary.counts",
+  "documents", "scopeNotes", "returnForms", "findings"
+];
+// US Trust (same H.6 family): computed.usTax.taxableIncomeUsd now correctly
+// narrows to JUST the retained (undistributed) portion — the engine's
+// version reflects the full distributed+retained total, since it has no
+// concept of "retained" at all (see ustax-full-nodes.js's usEntityResult
+// trust branch, and the DAG_ONLY_KEYS entries above for its 3 new detail
+// fields). Cascades into computed.ftc.us.taxableIncomeUsd and the "US
+// claims India" FTC direction; filingStatus also carries a new
+// retained-vs-distributed qualifier the engine's static string never had.
+// ADDITIVE to KNOWN_US_ENTITY_PATHS above, not a replacement — a US trust
+// is also a usEntity and gets both sets excused. Same allowlist as
+// run-fuzz.js's KNOWN_US_TRUST_DIVERGENT_PATHS — keep both lists in sync.
+const KNOWN_US_TRUST_PATHS = [
+  "computed.usTax.filingStatus", "computed.usTax.taxableIncomeUsd",
+  "computed.ftc.us.taxableIncomeUsd", "ftcReport.direction_us_claims_india"
+];
 function pathMatchesKnown(path, prefixes) {
   return prefixes.some((prefix) => path === prefix || path.startsWith(prefix + ".") || path.startsWith(prefix + "["));
 }
@@ -162,7 +202,20 @@ export function diff(path, eng, dag, out, directional) {
 export function compareSurface(engineResult, dagResult) {
   const entity = engineResult && engineResult.model && engineResult.model.entity;
   const usEntity = !!(entity && ["ccorp", "scorp", "partnership", "trust"].includes(entity.usKind));
-  const indiaEntity = !!(entity && (entity.indiaIsCompany || entity.indiaIsFirm || entity.indiaIsAop || entity.indiaIsTrust));
+  const usTrust = !!(entity && entity.usKind === "trust");
+  // India company/firm: narrow divergence (only the trace's "₹NaN" display
+  // bug). AOP/Trust: a WIDER divergence (a real amount bug the engine never
+  // had a fix for) — kept as separate flags/allowlists, not merged, so the
+  // narrow company/firm case never accidentally inherits the AOP/Trust
+  // cascade's much larger excuse list.
+  const indiaEntity = !!(entity && (entity.indiaIsCompany || entity.indiaIsFirm));
+  // indiaIsAop/indiaIsTrust exist ONLY on the DAG's model.entity (that's
+  // exactly why they're in DAG_ONLY_KEYS above) — the engine has no such
+  // fields at all, so reading them off engineResult would always read
+  // undefined and this gate would never fire. Read the DAG's own entity
+  // classification instead; it's the one side that actually carries it.
+  const dagEntity = dagResult && dagResult.model && dagResult.model.entity;
+  const indiaAopOrTrust = !!(dagEntity && (dagEntity.indiaIsAop || dagEntity.indiaIsTrust));
   const nra = !!(engineResult && engineResult.computed && engineResult.computed.usTax && engineResult.computed.usTax.isNra === true);
 
   // findings: a US entity drops underpayment_2210 (agg10-nodes.js's
@@ -219,7 +272,9 @@ export function compareSurface(engineResult, dagResult) {
 
   const allowedPaths = []
     .concat(usEntity ? KNOWN_US_ENTITY_PATHS : [])
+    .concat(usTrust ? KNOWN_US_TRUST_PATHS : [])
     .concat(indiaEntity ? KNOWN_INDIA_ENTITY_PATHS : [])
+    .concat(indiaAopOrTrust ? KNOWN_INDIA_AOP_TRUST_PATHS : [])
     .concat(nra ? KNOWN_NRA_PATHS : []);
   if (!allowedPaths.length) return raw;
   return raw.filter((d) => !pathMatchesKnown(d.path, allowedPaths));
