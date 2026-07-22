@@ -518,7 +518,17 @@
       // India-side declaration of the same holding — both sides of one
       // real-world relationship now carry the tag independently, exactly
       // as a live advisor filling out both forms would do.
-      unlisted_equity: { has_unlisted_equity_transaction: true, transactions: [{ company: "Nova Systems Pvt Ltd", holding_pct: 100, linked_client_id: "india_pvt_ltd" }] },
+      //
+      // acquisition_date/number_of_shares/cost_per_share (added same
+      // session, per user request to complete this as a real acquisition
+      // record rather than a name-only stub): founder's original paid-up
+      // capital, well before the current tax year — still a HELD position
+      // (no sale_date/sale_price_per_share), consistent with the US side
+      // showing him as an ACTIVE 100% CFC owner with ongoing GILTI income.
+      // engine/normalize.js only reads cost/date fields once sale_date is
+      // present ("still holding — no taxable event yet" otherwise), so
+      // this doesn't change any computed tax figure.
+      unlisted_equity: { has_unlisted_equity_transaction: true, transactions: [{ company: "Nova Systems Pvt Ltd", holding_pct: 100, linked_client_id: "india_pvt_ltd", acquisition_date: "2019-04-15", number_of_shares: 10000, cost_per_share: 10, cost_per_share_currency: "INR" }] },
       domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: { short_term_15_pct: 100000 } },
       // Two partial buybacks by his own company, same round of corporate
       // action, two different share tranches:
@@ -601,7 +611,12 @@
       // Layer 1 US "Linked client" field on this entry — not a hardcoded
       // ENTITY_LINKS seed anymore (that array is gone; entity-graph.js now
       // discovers links by scanning for this exact field).
-      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corporation_name: "Nova Systems Pvt Ltd", country_of_incorporation: "IN", ownership_percentage: 100, gilti_income_usd: 108433, subpart_f_income_usd: 0, section_962_election_active: false, linked_client_id: "india_pvt_ltd" }], pfic_holdings: [], has_pfics: false },
+      // tax_year_start (added same session): the CFC's own accounting year
+      // start, aligned to its Indian FY (Apr-Mar) — purely descriptive
+      // Form 5471 metadata, not read anywhere in normalize.js/
+      // computation.js, so this has no effect on GILTI or any other
+      // computed figure.
+      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corporation_name: "Nova Systems Pvt Ltd", country_of_incorporation: "IN", ownership_percentage: 100, tax_year_start: "2026-04-01", gilti_income_usd: 108433, subpart_f_income_usd: 0, section_962_election_active: false, linked_client_id: "india_pvt_ltd" }], pfic_holdings: [], has_pfics: false },
       retirement_accounts: { "401k_employee_contribution_usd": 23000, "401k_employer_match_usd": 8000 },
       financial_holdings: [{ asset_name: "Fidelity — Taxable Brokerage (US equities)", account_type: "taxable_brokerage", peak_balance_usd: 240000, country: "US" }],
       real_estate: { has_real_estate_transaction: true, properties: [{ name: "Primary home — Austin, TX", property_type: "Residential (own use)", gross_rent_usd: 0, expenses_usd: 0 }] },
@@ -776,8 +791,16 @@
       // A small angel stake, tendered in a buyback this year — LTCG on an
       // unlisted, non-promoter holding (contrast Vikram Rao's promoter
       // buyback in founder_indian_company, which additionally carries the
-      // s.69(2)(b) promoter surcharge layer this one doesn't).
-      unlisted_equity: { has_unlisted_equity_transaction: true, transactions: [{ company: "Brightlane Foods Pvt Ltd", holding_pct: 4 }] },
+      // s.69(2)(b) promoter surcharge layer this one doesn't). The actual
+      // taxable event (the buyback) is modeled below via share_buyback,
+      // not here — this entry is just "also holds a stake in X," same as
+      // Vikram Rao's. acquisition_date/number_of_shares/cost_per_share
+      // (added same session) match share_buyback's own
+      // original_acquisition_date ("2021-03-01") and original_cost_inr
+      // (250000 = 2500 shares x Rs.100) exactly, so the two records agree
+      // on the same historical purchase instead of each stating it
+      // independently.
+      unlisted_equity: { has_unlisted_equity_transaction: true, transactions: [{ company: "Brightlane Foods Pvt Ltd", holding_pct: 4, acquisition_date: "2021-03-01", number_of_shares: 2500, cost_per_share: 100, cost_per_share_currency: "INR" }] },
       share_buyback: { transactions: [
         { company_name: "Brightlane Foods Pvt Ltd", is_listed: false, is_promoter: false,
           buyback_date: "2026-07-10", original_acquisition_date: "2021-03-01",

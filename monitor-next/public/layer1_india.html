@@ -10553,15 +10553,35 @@ const crDiv = document.getElementById('div-company-residency');
             const nameEl = div.querySelector('.ul-name');
             if (nameEl) nameEl.value = tx.company_name || tx.company || '';
             const qtyEl = div.querySelector('.ul-qty');
-            if (qtyEl && tx.shares_acquired != null) qtyEl.value = tx.shares_acquired;
+            // Was reading tx.shares_acquired/tx.cost_inr/tx.sale_value — fields
+            // syncUnlistedState() (this same file) never writes and
+            // engine/normalize.js never reads (it reads number_of_shares/
+            // cost_per_share(+currency)/sale_price_per_share(+currency)). A
+            // real round trip — type values in, save, reload — silently lost
+            // every one of these fields. Fixed to read what actually gets
+            // written and what the engine actually consumes.
+            if (qtyEl && tx.number_of_shares != null) qtyEl.value = tx.number_of_shares;
             const acqEl = div.querySelector('.ul-acq-date');
             if (acqEl && tx.acquisition_date) acqEl.value = tx.acquisition_date;
+            const costCurrEl = div.querySelector('.ul-cost-curr');
+            if (costCurrEl && tx.cost_per_share_currency) costCurrEl.value = tx.cost_per_share_currency;
             const costEl = div.querySelector('.ul-cost-val');
-            if (costEl && tx.cost_inr != null) costEl.value = tx.cost_inr;
+            if (costEl && tx.cost_per_share != null) costEl.value = tx.cost_per_share;
             const saleDateEl = div.querySelector('.ul-sale-date');
             if (saleDateEl && tx.sale_date) saleDateEl.value = tx.sale_date;
+            const saleCurrEl = div.querySelector('.ul-sale-curr');
+            if (saleCurrEl && tx.sale_price_per_share_currency) saleCurrEl.value = tx.sale_price_per_share_currency;
             const saleValEl = div.querySelector('.ul-sale-val');
-            if (saleValEl && tx.sale_value != null) saleValEl.value = tx.sale_value;
+            if (saleValEl && tx.sale_price_per_share != null) saleValEl.value = tx.sale_price_per_share;
+            const fmvEl = div.querySelector('.ul-fmv-date');
+            if (fmvEl && tx.fmv_valuation_report_date) fmvEl.value = tx.fmv_valuation_report_date;
+            const origCurrEl = div.querySelector('.ul-orig-curr');
+            if (origCurrEl && tx.original_investment_currency) {
+                origCurrEl.value = tx.original_investment_currency;
+                toggleUnlistedCurrency(rowId);
+            }
+            const origCostEl = div.querySelector('.ul-orig-cost');
+            if (origCostEl && tx.original_cost_in_foreign_currency != null) origCostEl.value = tx.original_cost_in_foreign_currency;
         }
         evaluateUnlistedNRStatus();
     }
