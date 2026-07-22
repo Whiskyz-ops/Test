@@ -229,7 +229,13 @@ NODES.buildDocumentsResult = {
       form_2555: d.feieRaw.claimed,
       form_8833: res.dualResident || d.treatyUsResidenceRaw !== "none" || d.treatyFiles1040nrRaw,
       form_8621: d.indianMutualFundsResult.length > 0 && res.us.isResident,
-      form_5471: d.bizEntriesAgg.length > 0 && res.us.isResident,
+      // Was checking d.bizEntriesAgg.length > 0 (India-side domestic
+      // business_entries, an unrelated concept) — same engine/conflicts.js
+      // bug, fixed the same way: viaForeignCorpXbr4 is the correct CFC-
+      // ownership signal (form_3ceb below already uses it), and isForm1118
+      // (already computed above for form_1116) covers a domestic C-corp CFC
+      // owner an individual-residency check alone would miss.
+      form_5471: d.viaForeignCorpXbr4 && (res.us.isResident || isForm1118),
       form_8865: false,
       form_3520: ((d.ppfInrRaw > 0 || d.epfInrRaw > 0) && res.us.isResident) || d.foreignGiftsRaw.receivedAbove100k || d.foreignGiftsRaw.isTrustBeneficiary,
       form_1040nr: d.treatyFiles1040nrRaw || res.us.status === "NON_RESIDENT_ALIEN",

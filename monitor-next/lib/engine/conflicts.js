@@ -1590,7 +1590,19 @@
       form_2555: model.limitsRaw.feieClaimed,
       form_8833: res.dualResident || model.treaty.usTreatyResidence !== "none" || model.treaty.files1040nr,
       form_8621: (model.assets.indianMutualFunds || []).length > 0 && res.us.isResident,
-      form_5471: (model.assets.indianBusinesses || []).length > 0 && res.us.isResident,
+      // Was checking model.assets.indianBusinesses.length > 0 — the India-
+      // side domestic business_entries array, an unrelated concept (someone
+      // running a PGBP business/profession IN India). Form 5471 is required
+      // for US persons owning >=10% of a FOREIGN CORPORATION, which this
+      // model tracks as usOwns10PctForeignCorp/usForeignCorps — the exact
+      // signal form_3ceb below already uses (its own comment says so: "Same
+      // ownership signal the CFC/Form 5471 check... already trust", which
+      // was aspirational, not actually true, until this fix). Also broadened
+      // res.us.isResident with the same C-corp fallback form_1116 already
+      // uses just above — an individual-residency concept alone would still
+      // miss a domestic C-corp CFC owner (e.g. us_ccorp_indian_sub).
+      form_5471: (model.assets.usOwns10PctForeignCorp || (model.assets.usForeignCorps || []).length > 0) &&
+                 (res.us.isResident || (model.entity && model.entity.usReturnForm === "1120")),
       form_8865: false,
       form_3520: ((model.assets.ppfInr > 0 || model.assets.epfInr > 0) && res.us.isResident) ||
                  model.foreignGifts.receivedAbove100k || model.foreignGifts.isTrustBeneficiary,
