@@ -223,7 +223,7 @@ NODES.projectionsMonitorResult = {
 var US_RETURN_DOCS = ["fincen_114", "form_8938", "form_1116", "form_2555", "form_8833",
   "form_8621", "form_5471", "form_8865", "form_3520", "form_3520a", "form_1040nr", "form_8960", "form_8959", "form_6251",
   "form_540", "form_it201", "form_nj1040", "form_8858"];
-var IN_RETURN_DOCS = ["form_67", "trc", "form_10f", "schedule_fa", "schedule_fsi_tr", "schedule_al", "form_3cb_3cd", "form_3ceb", "form_29b", "form_10iea"];
+var IN_RETURN_DOCS = ["form_67", "trc", "form_10f", "schedule_fa", "schedule_fsi_tr", "schedule_al", "form_3cb_3cd", "form_3ceb", "form_29b", "form_10iea", "form_10ic", "form_10id"];
 function mdate(y, m, day) { return new Date(y, m - 1, day); }
 var US_FILING_DATES = {
   "1120":    { orig: function (by) { return mdate(by + 1, 4, 15); }, ext: function (by) { return mdate(by + 1, 10, 15); }, label: "US Form 1120 (C-Corp)" },

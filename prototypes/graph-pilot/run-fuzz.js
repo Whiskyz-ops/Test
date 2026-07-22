@@ -547,7 +547,7 @@ function assembleDag(profile, monitorAsOfBoundary) {
   // calendar's bundled docIds, same category as checksRegistry above.
   // Shallow-copy the calendar rows (not a full JSON clone, which would turn
   // Date objects into strings elsewhere in this same tree).
-  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea"];
+  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id"];
   var droppedRequiredCount = (out.analyzeResult.documents || []).filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) !== -1 && x.required; }).length;
   var documents = (out.analyzeResult.documents || []).filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) === -1; });
   var stripNj1040 = function (row) {

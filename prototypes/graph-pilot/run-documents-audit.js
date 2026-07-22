@@ -674,4 +674,39 @@ dagOnlyDocCheck("Form 3520-A: US person with a real PPF/EPF account on file (RES
 })();
 
 console.log(pass + " passed, " + fail + " failed (Batch A + B + C + D + E + F cumulative, " + cases + " total cases)");
+
+console.log("\n=== Batch G: company-side regime-election forms (Form 10-IC / Form 10-ID) ===");
+// Company-side equivalents of form_10iea, following the same user question:
+// "is Form 10-IEA for the company?" -> no, it's individual/HUF only. These
+// two are the actual company forms — mutually exclusive elections, each
+// with its own form.
+(function () {
+  // india_pvt_ltd's base profile already has opt_115baa: true on file.
+  var IP = base("india_pvt_ltd");
+  dagOnlyDocCheck("Form 10-IC: company elected s.115BAA (base profile) -> Required", "form_10ic", true, IP.router, IP.india, IP.us);
+  dagOnlyDocCheck("Form 10-ID: same company, s.115BAB NOT elected (base profile) -> N/A", "form_10id", false, IP.router, IP.india, IP.us);
+})();
+(function () {
+  var IP = base("india_pvt_ltd");
+  var india = clone(IP.india), us = clone(IP.us);
+  delete india.profile.opt_115baa;
+  india.profile.opt_115bab = true;
+  dagOnlyDocCheck("Form 10-ID: company elected s.115BAB instead -> Required", "form_10id", true, IP.router, india, us);
+  dagOnlyDocCheck("Form 10-IC: same company, s.115BAA NOT elected -> N/A", "form_10ic", false, IP.router, india, us);
+})();
+(function () {
+  var IP = base("india_pvt_ltd");
+  var india = clone(IP.india), us = clone(IP.us);
+  delete india.profile.opt_115baa;
+  dagOnlyDocCheck("Form 10-IC: company under the default rate, no concessional election -> N/A", "form_10ic", false, IP.router, india, us);
+})();
+(function () {
+  // RESIDENT is an individual, not a company — neither form applies
+  // regardless of any regime facts on file (companies use 10-IC/10-ID,
+  // individuals use 10-IEA — mutually exclusive by entity kind).
+  dagOnlyDocCheck("Form 10-IC: individual (RESIDENT base profile) -> N/A (not a company)", "form_10ic", false, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+  dagOnlyDocCheck("Form 10-ID: individual (RESIDENT base profile) -> N/A (not a company)", "form_10id", false, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+})();
+
+console.log(pass + " passed, " + fail + " failed (Batch A + B + C + D + E + F + G cumulative, " + cases + " total cases)");
 process.exit(fail > 0 ? 1 : 0);

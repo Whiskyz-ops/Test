@@ -167,6 +167,14 @@ NODES.usSecuritiesRaw = { deps: [], compute: function (d, ctx) { return safe(ctx
 NODES.usOwnsForeignDisregardedEntityRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_entities.owns_foreign_disregarded_entity", false) === true; } };
 NODES.usSelfEmploymentRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "income_us_source.self_employment", []) || []; } };
 
+// ---- form_10ic / form_10id — the company-side regime-election forms,
+// mirroring form_10iea's individual/HUF equivalent. Same raw flags
+// entitytax-nodes.js/agg10-nodes.js already read for the entity-tax rate
+// itself, exposed here as their own leaves rather than importing across
+// files (same local-leaf convention as every other Raw node in this file).
+NODES.indiaOpt115baaRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.india, "profile.opt_115baa", false) === true; } };
+NODES.indiaOpt115babRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.india, "profile.opt_115bab", false) === true; } };
+
 // ---- LIM-2: Form 8938 gauge (computeLimits, computation.js:1466-1476) -----
 var CONST_B1_LIMITS = require("./constants.js").CONST.LIMITS; // SYS-1: shared
 var FORM_8938 = CONST_B1_LIMITS.FORM_8938;
@@ -254,6 +262,17 @@ var DOCUMENTS_CATALOG = [
   // already independently derived for the (separate, diagnostic-only)
   // "form_10iea" entry in checks-registry-nodes.js.
   { id: "form_10iea", jurisdiction: "IN", name: "Form 10-IEA (Old Regime Election)", desc: "Declaration to opt out of the default new tax regime (s.115BAC) — or to switch back — required for an individual/HUF with business/professional income.", why: "The old tax regime is elected on file, and business/professional income is present — this combination requires a filed Form 10-IEA, not just a checkbox on the ITR.", severity: "info" },
+  // DELIBERATE DAG/engine divergence, same pattern — Form 10-IEA's COMPANY-
+  // side equivalents. A domestic company opting into the s.115BAA 22%
+  // concessional rate (indiaOpt115baaRaw) must file Form 10-IC; a domestic
+  // company opting into the s.115BAB 15% new-manufacturing rate
+  // (indiaOpt115babRaw) must file Form 10-ID instead — the two elections are
+  // mutually exclusive and each has its own form, not a shared one. Both
+  // flags already drive entitytax-nodes.js's actual rate/surcharge
+  // computation (the india_pvt_ltd demo profile has opt_115baa: true on
+  // file already) but neither was ever promoted to a Filings-tab document.
+  { id: "form_10ic", jurisdiction: "IN", name: "Form 10-IC (s.115BAA Election)", desc: "Declaration to opt into the 22% concessional corporate tax rate under s.115BAA.", why: "The company has elected the s.115BAA concessional rate on file — this election requires a filed Form 10-IC (on or before the return due date), not just the rate applied silently.", severity: "info" },
+  { id: "form_10id", jurisdiction: "IN", name: "Form 10-ID (s.115BAB Election)", desc: "Declaration to opt into the 15% concessional rate for new manufacturing companies under s.115BAB.", why: "The company has elected the s.115BAB new-manufacturing concessional rate on file — this election requires a filed Form 10-ID, distinct from (and mutually exclusive with) Form 10-IC.", severity: "info" },
   { id: "form_67", jurisdiction: "IN", name: "Form 44 (India FTC)", desc: "Statement of foreign income & foreign tax, filed before the ITR due date.", why: "Foreign (US) income is being offered to tax in India and FTC u/s 90/91 is claimed. Schedule FSI/TR must accompany the ITR.", severity: "critical" },
   { id: "trc", jurisdiction: "IN", name: "Tax Residency Certificate (TRC)", desc: "Issued by the other contracting state (IRS Form 6166 for the US).", why: "DTAA relief / treaty rate is being claimed — a TRC is mandatory u/s 159(8).", severity: "critical" },
   { id: "form_10f", jurisdiction: "IN", name: "Form 41", desc: "Self-declaration accompanying the TRC, filed electronically on the ITR portal.", why: "Treaty benefit claimed and the TRC does not contain all particulars required u/r 75.", severity: "warning" },
@@ -279,7 +298,7 @@ NODES.buildDocumentsResult = {
     "usTaxResult", "headlineTotalIncomeUsdResult", "usFilingStatusRaw", "aggregateUsIncomeResult",
     "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
     "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw",
-    "entityTaxResult", "taxRegime", "businessComputation"],
+    "entityTaxResult", "taxRegime", "businessComputation", "indiaOpt115baaRaw", "indiaOpt115babRaw"],
   compute: function (d) {
     var res = d.residencyResult;
     var isForm1118 = d.entityFormsResult.usReturnForm === "1120";
@@ -390,7 +409,11 @@ NODES.buildDocumentsResult = {
       // only "form_10iea" checks-registry entry (checks-registry-nodes.js) —
       // reused here rather than re-derived, now promoted to a real document.
       form_10iea: d.taxRegime === "OLD" && !d.indiaIsCompany && !d.indiaIsFirm && !d.indiaIsAop && !d.indiaIsTrust &&
-                  (d.businessComputation.businessInr || 0) > 0
+                  (d.businessComputation.businessInr || 0) > 0,
+      // Company-side equivalents of form_10iea — mutually exclusive
+      // elections, each with its own form.
+      form_10ic: d.indiaIsCompany && d.indiaOpt115baaRaw,
+      form_10id: d.indiaIsCompany && d.indiaOpt115babRaw
     };
 
     return DOCUMENTS_CATALOG.map(function (doc) {
