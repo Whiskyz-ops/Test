@@ -1134,7 +1134,20 @@
       income_foreign_source: {}, foreign_earned_income: { claims_feie: false },
       bank_accounts: [{ bank_name: "SVB", account_type: "current", country: "US", peak_balance_usd: 1800000 }],
       fbar_aggregate_peak_usd: 0,
-      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corp_name: "Cloudspire India Pvt Ltd", country: "IN", ownership_pct: 100, gilti_income_usd: 963855, subpart_f_income_usd: 0 }], pfic_holdings: [] },
+      // corporation_name/country_of_incorporation/ownership_percentage
+      // (renamed same session from corp_name/country/ownership_pct): the
+      // real "Add Foreign Corporation" UI (syncCorpState() in
+      // layer1_us.html) only ever writes/reads these names — the short
+      // names normalize.js/assets-nodes.js alias them to (see comment at
+      // that call site, gap tracker US-26) were never what the actual form
+      // produces, so this card rendered completely blank (Corporation
+      // Name/Country/Ownership% all empty) despite carrying real data
+      // underneath. Renaming is computationally inert (both engine and DAG
+      // alias both names identically: `c.corp_name || c.corporation_name`,
+      // etc.) — this only fixes what's visible in the form.
+      // tax_year_start added same session too, same rationale as
+      // founder_indian_company's own entry above.
+      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corporation_name: "Cloudspire India Pvt Ltd", country_of_incorporation: "IN", ownership_percentage: 100, tax_year_start: "2026-04-01", gilti_income_usd: 963855, subpart_f_income_usd: 0 }], pfic_holdings: [] },
       retirement_accounts: {},
       ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "General", foreign_taxes_usd: 240964 }] },
       withholding_and_estimated: { estimated_tax_q1_apr15_usd: 200000, estimated_tax_q2_jun15_usd: 220000 },
