@@ -29,13 +29,14 @@ const path = require("path");
 const vm = require("vm");
 
 const repoRoot = path.join(__dirname, "..", "..");
+const resolveEngineFile = require("../engine-frozen.js").resolveEngineFile;
 
 // ---------------------------------------------------------------------------
 // 1. Extract every safe(obj, "path", default) read from normalize.js,
 //    tagged with the enclosing function name for human review context.
 // ---------------------------------------------------------------------------
 function extractEngineReads() {
-  const file = path.join(repoRoot, "engine", "normalize.js");
+  const file = resolveEngineFile("normalize.js");
   const src = fs.readFileSync(file, "utf8");
   const lines = src.split("\n");
 

@@ -18,9 +18,10 @@
 var assert = require("assert");
 var path = require("path");
 
+var resolveEngineFile = require(path.join(__dirname, "..", "..", "scripts", "engine-frozen.js")).resolveEngineFile;
 global.window = global;
 ["constants", "normalize", "computation", "monitoring", "conflicts", "sample-data", "profiles"].forEach(function (m) {
-  require(path.join(__dirname, "..", "..", "engine", m + ".js"));
+  require(resolveEngineFile(m + ".js"));
 });
 var WISING = global.WISING;
 var fx = require("./fixtures.js");

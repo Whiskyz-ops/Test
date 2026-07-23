@@ -35,6 +35,7 @@
 var fs = require("fs");
 var path = require("path");
 var ROOT = path.join(__dirname, "..", "..");
+var resolveEngineFile = require("../engine-frozen.js").resolveEngineFile;
 
 /* ---- tracker mapping: engine function -> { row, status, dagFiles } -------
  * status: "ported" (✅ — zero missing tokens expected), "boundary" (🔶),
@@ -554,7 +555,7 @@ var untracked = [];    // engine functions absent from MAP
 var inventory = [];    // { file, fn, row, status, missing: [...] }
 
 ["normalize.js", "computation.js", "monitoring.js", "conflicts.js"].forEach(function (engFile) {
-  var lines = codeLines(path.join(ROOT, "engine", engFile));
+  var lines = codeLines(resolveEngineFile(engFile));
   var fnMap = MAP[engFile];
   var current = null;                 // { name, paths: Map(display -> line) }
   var perFn = {};                     // name -> { paths: Map }
@@ -604,7 +605,7 @@ var inventory = [];    // { file, fn, row, status, missing: [...] }
 });
 
 /* ---- finding-ID diff ----------------------------------------------------- */
-var conflictLines = codeLines(path.join(ROOT, "engine", "conflicts.js"));
+var conflictLines = codeLines(resolveEngineFile("conflicts.js"));
 var findingIds = [];
 conflictLines.forEach(function (line, i) {
   var re = /add\("([A-Za-z0-9_]+)"/g, hit;
@@ -619,7 +620,7 @@ var findingsMissing = findingIds.filter(function (f) { return !DAG_FINDING_IDS[f
 /* ---- numeric drift ------------------------------------------------------- */
 var engineNums = new Set();
 ["constants.js", "normalize.js", "computation.js", "monitoring.js", "conflicts.js"].forEach(function (f) {
-  codeLines(path.join(ROOT, "engine", f)).forEach(function (line) {
+  codeLines(resolveEngineFile(f)).forEach(function (line) {
     (line.match(/\b\d+(?:\.\d+)?\b/g) || []).forEach(function (n) { engineNums.add(Number(n)); });
   });
 });

@@ -34,6 +34,7 @@ const fs = require("fs");
 const path = require("path");
 
 const repoRoot = path.join(__dirname, "..", "..");
+const resolveEngineFile = require("../engine-frozen.js").resolveEngineFile;
 const DEFAULT_FORMS = ["router.html", "layer1_india.html", "layer1_us.html"];
 const ENGINE_FILES = ["constants.js", "normalize.js", "computation.js", "monitoring.js", "conflicts.js"];
 
@@ -91,7 +92,7 @@ function extractSelectsWithOptions(html) {
 function loadEngineSource() {
   return ENGINE_FILES
     .map((f) => {
-      const p = path.join(repoRoot, "engine", f);
+      const p = resolveEngineFile(f);
       return fs.existsSync(p) ? fs.readFileSync(p, "utf8") : "";
     })
     .join("\n");

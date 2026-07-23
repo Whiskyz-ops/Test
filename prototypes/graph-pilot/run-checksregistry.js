@@ -15,15 +15,16 @@
  * Run: node prototypes/graph-pilot/run-checksregistry.js
  * ==========================================================================*/
 var path = require("path");
+var resolveEngineFile = require("../../scripts/engine-frozen.js").resolveEngineFile;
 global.window = global;
 ["constants", "normalize", "computation", "monitoring", "conflicts", "sample-data", "profiles"].forEach(function (m) {
-  require(path.join("/home/user/Test", "engine", m + ".js"));
+  require(resolveEngineFile(m + ".js"));
 });
 var WISING = global.WISING;
 var createGraph = require("./graph.js").createGraph;
 var NODES = require("./checks-registry-nodes.js").NODES;
 var graph = createGraph(NODES);
-var CONST = require("../../engine/constants.js").CONST;
+var CONST = require("./constants.js").CONST;
 
 var pass = 0, fail = 0;
 function ok() { pass++; }

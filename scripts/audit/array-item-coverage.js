@@ -50,7 +50,8 @@ const fs = require("fs");
 const path = require("path");
 
 const repoRoot = path.join(__dirname, "..", "..");
-const normalizeSrc = fs.readFileSync(path.join(repoRoot, "engine", "normalize.js"), "utf8");
+const resolveEngineFile = require("../engine-frozen.js").resolveEngineFile;
+const normalizeSrc = fs.readFileSync(resolveEngineFile("normalize.js"), "utf8");
 const indiaHtml = fs.readFileSync(path.join(repoRoot, "layer1_india.html"), "utf8");
 const usHtml = fs.readFileSync(path.join(repoRoot, "layer1_us.html"), "utf8");
 

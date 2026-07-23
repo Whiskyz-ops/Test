@@ -1,4 +1,16 @@
 /* ============================================================================
+ * FROZEN — archived 22 Jul 2026 (docs/DAG_MIGRATION_TRACKER.md section I).
+ * This file no longer lives at engine/ and is never hand-edited again: the
+ * DAG (prototypes/graph-pilot/) is the authoritative, actively-developed
+ * computation engine (40/40 parity, 0/8000 fuzz divergences at flip time).
+ * This copy is kept ONLY as a fixture — the differential fuzzer's oracle
+ * (run-fuzz.js), the audit scripts' comparison baseline (scripts/audit/
+ * dag-coverage.js and siblings), monitor-next's "Engine" fallback mode
+ * (sync-engine.js), and tests/engine/run.js's own regression suite all
+ * read it from here now, via scripts/engine-frozen.js's resolveEngineFile().
+ * Do not add new logic here — new features land in the DAG only.
+ * ==========================================================================*/
+/* ============================================================================
  * WISING — Layer 2 Engine :: computation.js
  * ----------------------------------------------------------------------------
  * The computation engine. Turns the normalized unified model into the

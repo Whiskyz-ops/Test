@@ -48,6 +48,7 @@ const fs = require("fs");
 const path = require("path");
 
 const repoRoot = path.join(__dirname, "..", "..");
+const resolveEngineFile = require("../engine-frozen.js").resolveEngineFile;
 const MAX_DEPTH = 6;
 
 function findMatchingBrace(src, openPos) {
@@ -62,7 +63,7 @@ function findMatchingBrace(src, openPos) {
 function extractFunctionBodies(files) {
   const bodies = new Map(); // name -> body text (first definition wins if duplicated)
   files.forEach((file) => {
-    const p = path.join(repoRoot, "engine", file);
+    const p = resolveEngineFile(file);
     if (!fs.existsSync(p)) return;
     const src = fs.readFileSync(p, "utf8");
     const re = /function\s+(\w+)\s*\([^)]*\)\s*\{/g;
