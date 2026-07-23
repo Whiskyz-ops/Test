@@ -1,5 +1,19 @@
 #!/usr/bin/env node
 /* ============================================================================
+ * RETIRED 23 Jul 2026 (docs/DAG_MIGRATION_TRACKER.md section I) — no longer
+ * wired into anything (removed from monitor-next's predev/prebuild). The
+ * engine/ folder that this script used to keep alive as a generated mirror
+ * has itself been fully frozen: constants.js/profiles.js/sample-data.js were
+ * moved to archive/engine-frozen/ alongside the other 4 classic engine
+ * files, and router.html/layer1_*.html now load straight from
+ * prototypes/graph-pilot/ instead of engine/. Running this script by hand
+ * would still work exactly as described below, but would just recreate a
+ * live engine/*.js copy that nothing reads anymore — there's no reason to
+ * run it. Left in place, not deleted, as a record of how the old
+ * engine/-as-mirror setup worked.
+ *
+ * ---- everything below is the original (now-historical) header ----
+ *
  * constants.js, profiles.js, and sample-data.js moved OUT of engine/ and
  * into prototypes/graph-pilot/ (docs/GAP_TRACKER.md section H.9, 21 Jul
  * 2026) — they're reference DATA (tax tables/rates, the 11 demo clients, the

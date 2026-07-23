@@ -1,5 +1,16 @@
-/* GENERATED — mirrored from prototypes/graph-pilot/constants.js by scripts/sync-fixtures-to-engine.js.
- * Do not hand-edit this copy — edit prototypes/graph-pilot/constants.js and re-run that script. */
+/* ============================================================================
+ * FROZEN — archived 22 Jul 2026 (docs/DAG_MIGRATION_TRACKER.md section I).
+ * This was previously a GENERATED mirror of prototypes/graph-pilot/constants.js,
+ * kept in sync by scripts/sync-fixtures-to-engine.js. That script no longer
+ * runs — this file is now a permanent, point-in-time snapshot and will NOT
+ * reflect any future change to the live DAG file (a future tax-year
+ * constants update, a new demo profile, etc. lands in prototypes/graph-pilot/
+ * only). Never hand-edited again, same as the other archived engine files:
+ * the differential fuzzer's oracle (run-fuzz.js), the audit scripts'
+ * comparison baseline, monitor-next's "Engine" fallback mode, and
+ * tests/engine/run.js's own regression suite all read it from here now,
+ * via scripts/engine-frozen.js's resolveEngineFile().
+ * ==========================================================================*/
 /* ============================================================================
  * WISING — India-US Tax Conflict Detection Tool
  * Layer 2 Engine :: constants.js

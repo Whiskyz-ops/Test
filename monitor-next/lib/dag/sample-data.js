@@ -8,9 +8,11 @@
  *
  * Canonical home as of docs/GAP_TRACKER.md section H.9 (21 Jul 2026): this is
  * reference DATA, not computation logic, so it lives with the DAG
- * (prototypes/graph-pilot), not engine/ — edit it here. engine/sample-data.js
- * is a generated mirror (scripts/sync-fixtures-to-engine.js); never hand-edit
- * that copy.
+ * (prototypes/graph-pilot), not engine/ — edit it here, only here. As of the
+ * full engine freeze (docs/DAG_MIGRATION_TRACKER.md section I, 23 Jul 2026)
+ * engine/sample-data.js no longer exists — router.html/layer1_*.html load
+ * this file directly, and the classic engine's own frozen copy (a
+ * permanent, no-longer-updated snapshot) lives at archive/engine-frozen/.
  *
  * Persona: "Aarav Sharma" — Indian citizen on H-1B in the US, ROR in India,
  * SPT met + green-card pending in the US. Holds Indian salary, Indian MFs,
