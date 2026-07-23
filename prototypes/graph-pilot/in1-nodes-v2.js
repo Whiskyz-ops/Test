@@ -325,7 +325,8 @@ var NODES = {
     }
   },
 
-  hasIndiaScope: { deps: ["routerJurisdiction"], compute: function (d) { return d.routerJurisdiction !== "single_us"; } },
+  // "us_only" is the new Layer 0 router's synonym for "single_us" (additive).
+  hasIndiaScope: { deps: ["routerJurisdiction"], compute: function (d) { return d.routerJurisdiction !== "single_us" && d.routerJurisdiction !== "us_only"; } },
   totalInterestInr: {
     deps: ["hasIndiaScope", "s424Inr", "s425Inr"],
     scopeGate: "hasIndiaScope",

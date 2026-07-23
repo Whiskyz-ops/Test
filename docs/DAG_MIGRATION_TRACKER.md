@@ -611,3 +611,56 @@ codebase writes to, or reads live from, `engine/` anymore. The DAG
 (`prototypes/graph-pilot/`) is the sole actively-developed, operational
 compute path — for real product surfaces AND for the data the static
 Layer 0/1 pages load.
+
+## K. Layer 0 rebuild — richer questionnaire router (23 Jul 2026)
+
+`router.html` replaced with a much richer typeform-style questionnaire
+(entity-type selection for both jurisdictions, DTAA tie-breaker questions,
+auto-redirect based on the computed jurisdiction) — while keeping it
+correctly wired into everything built in sections I/J:
+
+- **Jurisdiction enum**: the new router produces `"india_only"`/`"us_only"`
+  instead of the original `"single_india"`/`"single_us"`. Rather than change
+  the router to match (or touch the frozen archive, which is off-limits),
+  the DAG's own scope-derivation logic — duplicated by design across 6 files
+  (`xborder-full-nodes.js`, `findings-nodes.js`, `in1-nodes.js`, `us1-nodes.js`,
+  `us5-nodes.js`, `xb7-nodes.js`, `in1-nodes-v2.js`) — now accepts both old
+  and new strings additively. The 12 demo profiles and the fuzzer only ever
+  produce the old strings, so this is invisible to them; verified with a
+  500-iteration fresh-seed fuzz run (0 new divergences) plus a direct check
+  that `india_only`/`us_only` resolve identically to `single_india`/`single_us`.
+- **ClientRegistry integration**: the new router loads
+  `prototypes/graph-pilot/constants.js` and routes both of its
+  `localStorage.setItem('wising_router_state', ...)` call sites through
+  `W.ClientRegistry.storageKeyFor('ROUTER')`, syncs the registry label to
+  the entered name, and carries `?client=<id>` through its own JS-driven
+  redirects (`W.ClientRegistry.navigate(...)` — the automatic `<a href>`
+  rewriting in constants.js only covers real anchor tags, not
+  `window.location.href` assignments). No demo-profile grid/sample-data
+  button — those stay exclusively in the Monitor's own Clients tab/header
+  dropdown, which never depended on `router.html`'s UI to load `W.PROFILES`.
+- **Layer 0 → Layer 1 pre-fill**: a new `prefillLayer1()` writes the
+  router's collected facts into the correct Layer 1 India/US destination
+  fields (via the same per-client `storageKeyFor`) before redirecting —
+  `residency_detail.days_in_india_current_year`, `.liable_to_tax_in_another_
+  country_being_indian_citizen`, `.employment_or_crew_status`, India/US
+  `profile.entity_type`/`tax_entity_type` (translating the router's
+  `"partnership"`→`"firm"`, `"c_corp"`→`"ccorp"`, `"s_corp"`→`"scorp"`),
+  `us_residency_detail.{is_us_citizen,has_green_card,us_days_current_year}`,
+  PAN/SSN/EIN/entity name/formation date. Deliberately NOT pre-filled —
+  no clean destination field exists, or the nearest similarly-named field
+  means something narrower: plain Indian citizenship, PIO/OCI as a
+  standalone flag, either side's "has income" summary answer, India entity
+  name/formation date/CIN/a separate corporate PAN, "was in US this year"
+  as a fact distinct from days present. These stay local to the
+  questionnaire's own jurisdiction math and completion report.
+- Verified end-to-end with headless Chromium: the full individual
+  dual-jurisdiction questionnaire flow correctly computes `jurisdiction:
+  "dual"`, redirects to whichever side had higher day-count with `?client=`
+  intact, and the pre-filled India/US localStorage exactly matches the
+  mapping above (checked byte-for-byte, not just "no error"); the
+  entity-translation table verified directly (`"partnership"`→`"firm"`,
+  `"c_corp"`→`"ccorp"` + business fields); and the full "+ Add Client" →
+  new router → Monitor round trip (via the Monitor's own button, not a
+  seeded test) shows the new client in the Clients tab alongside all 12
+  demo profiles, undisturbed.

@@ -30,9 +30,14 @@ var NODES = {
         safe(ctx.router, "has_green_card", false) === true || safe(ctx.router, "has_us_source_income_or_assets", false) === true;
     }
   },
+  // "india_only"/"us_only" are the new Layer 0 router's own jurisdiction
+  // values — additive synonyms for "single_india"/"single_us".
   hasUsScope: {
     deps: ["routerJurisdiction", "routerUsSignal"],
-    compute: function (d) { return d.routerJurisdiction === "single_india" ? false : d.routerJurisdiction === "single_us" ? true : d.routerUsSignal; }
+    compute: function (d) {
+      return (d.routerJurisdiction === "single_india" || d.routerJurisdiction === "india_only") ? false :
+        (d.routerJurisdiction === "single_us" || d.routerJurisdiction === "us_only") ? true : d.routerUsSignal;
+    }
   },
 
   // ---- Genuinely raw leaves: withholding/estimated figures ----------------

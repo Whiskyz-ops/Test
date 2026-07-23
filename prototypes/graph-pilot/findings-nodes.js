@@ -87,7 +87,9 @@ NODES.tieBreakNationalityRaw = { deps: [], compute: function (d, ctx) { return s
 // (conflicts.js:35-37, computation.js's usReturnForm derivation) — traced,
 // not assumed, before simplifying.
 NODES.usFtcFormXbr = { deps: ["usEntityKind"], compute: function (d) { return d.usEntityKind === "ccorp" ? "Form 1118" : "Form 1116"; } };
-NODES.hasIndiaScopeXbr = { deps: ["routerJurisdictionXB"], compute: function (d) { return d.routerJurisdictionXB !== "single_us"; } };
+// "us_only" is the new Layer 0 router's synonym for "single_us" (additive,
+// see hasUsScopeBoundaryFtc in xborder-full-nodes.js for the full note).
+NODES.hasIndiaScopeXbr = { deps: ["routerJurisdictionXB"], compute: function (d) { return d.routerJurisdictionXB !== "single_us" && d.routerJurisdictionXB !== "us_only"; } };
 
 // ---- findings, ported in full ----------------------------------------------
 NODES.findingsBatch1Result = {

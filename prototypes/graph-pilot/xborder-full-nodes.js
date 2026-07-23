@@ -71,7 +71,14 @@ NODES.routerUsSignalXB = {
 // ---- redefine every FTC boundary to its in-graph source ------------------
 NODES.hasUsScopeBoundaryFtc = {
   deps: ["routerJurisdictionXB", "routerUsSignalXB"],
-  compute: function (d) { return d.routerJurisdictionXB === "single_india" ? false : d.routerJurisdictionXB === "single_us" ? true : d.routerUsSignalXB; }
+  // "india_only"/"us_only" are the new Layer 0 router's own jurisdiction
+  // values (docs/DAG_MIGRATION_TRACKER.md — the router.html rebuild),
+  // additive synonyms for "single_india"/"single_us" — the 12 demo profiles
+  // and the fuzzer only ever produce the original strings, unaffected.
+  compute: function (d) {
+    return (d.routerJurisdictionXB === "single_india" || d.routerJurisdictionXB === "india_only") ? false :
+      (d.routerJurisdictionXB === "single_us" || d.routerJurisdictionXB === "us_only") ? true : d.routerUsSignalXB;
+  }
 };
 NODES.feieExcludedUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.feieAppliedUsd || 0; } };
 // The engine's usTax.isNra is true ONLY when compute() actually routes to

@@ -74,15 +74,18 @@ var NODES = {
   indianBusinessesBoundary: { deps: [], compute: function (d, ctx) { return ctx.model.assets.indianBusinesses || []; } },
 
   // ---- Derived nodes: real logic, ported unchanged from conflicts.js ------
+  // "india_only"/"us_only" are the new Layer 0 router's own jurisdiction
+  // values — additive synonyms for "single_india"/"single_us" (the 12 demo
+  // profiles and the fuzzer only ever produce the original strings).
   hasIndiaScope: {
     deps: ["routerJurisdiction"],
-    compute: function (d) { return d.routerJurisdiction !== "single_us"; }
+    compute: function (d) { return d.routerJurisdiction !== "single_us" && d.routerJurisdiction !== "us_only"; }
   },
   hasUsScope: {
     deps: ["routerJurisdiction", "routerUsSignal"],
     compute: function (d) {
-      return d.routerJurisdiction === "single_india" ? false :
-        d.routerJurisdiction === "single_us" ? true : d.routerUsSignal;
+      return (d.routerJurisdiction === "single_india" || d.routerJurisdiction === "india_only") ? false :
+        (d.routerJurisdiction === "single_us" || d.routerJurisdiction === "us_only") ? true : d.routerUsSignal;
     }
   },
   isResidentIndia: {
