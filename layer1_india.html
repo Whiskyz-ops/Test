@@ -6700,7 +6700,7 @@ const crDiv = document.getElementById('div-company-residency');
         
         let isUSDomesticResident = false;
         try {
-            const usStateStr = localStorage.getItem('wising_us_state');
+            const usStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('US'));
             if (usStateStr) {
                 const usStateParsed = JSON.parse(usStateStr);
                 const details = usStateParsed?.us_residency_detail;
@@ -6725,12 +6725,12 @@ const crDiv = document.getElementById('div-company-residency');
                   if (state.dtaa?.dtaa_treaty_residence && state.dtaa.dtaa_treaty_residence !== 'none') {
                       state.dtaa.dtaa_treaty_residence = 'none';
                       try {
-                          const usStateStr = localStorage.getItem('wising_us_state');
+                          const usStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('US'));
                           if (usStateStr) {
                               const usState = JSON.parse(usStateStr);
                               if (usState.us_residency_detail) {
                                   usState.us_residency_detail.dtaa_treaty_residence = 'none';
-                                  localStorage.setItem('wising_us_state', JSON.stringify(usState));
+                                  localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('US'), JSON.stringify(usState));
                               }
                           }
                       } catch(e) {}
@@ -6836,12 +6836,12 @@ const crDiv = document.getElementById('div-company-residency');
         state.dtaa.dtaa_forced_nr = (val === 'us');
         
         try {
-            const usStateStr = localStorage.getItem('wising_us_state');
+            const usStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('US'));
             if (usStateStr) {
                 const usState = JSON.parse(usStateStr);
                 if (!usState.us_residency_detail) usState.us_residency_detail = {};
                 usState.us_residency_detail.dtaa_treaty_residence = val;
-                localStorage.setItem('wising_us_state', JSON.stringify(usState));
+                localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('US'), JSON.stringify(usState));
             }
         } catch (e) {
             console.error("Error syncing DTAA change to US state in India L1:", e);
@@ -12923,7 +12923,7 @@ ${isProf ? '' : `
 
             if (!window.isHeadlessSimulation) {
                 state.metadata.last_updated_at = new Date().toISOString();
-                localStorage.setItem('wising_layer1_india_state', JSON.stringify(state));
+                localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'), JSON.stringify(state));
             }
 
             return ret;
@@ -13639,7 +13639,7 @@ ${isProf ? '' : `
         const optJson = document.getElementById('output-json');
         if (optJson) optJson.textContent = JSON.stringify(state, null, 2);
         if (typeof evaluateITRForm === 'function') evaluateITRForm();
-        localStorage.setItem('wising_layer1_india_state', JSON.stringify(state));
+        localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'), JSON.stringify(state));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -14647,10 +14647,10 @@ ${isProf ? '' : `
     }
     
     function _initWindowOnLoad() {
-        const routerStr = localStorage.getItem('wising_router_state');
+        const routerStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('ROUTER'));
         if (!routerStr) {
             alert("No active Jurisdiction Router (Layer 0) state detected. Redirecting to Layer 0 to complete onboarding first.");
-            window.location.href = 'router.html';
+            window.WISING.ClientRegistry.navigate('router.html');
             return;
         }
         
@@ -14683,7 +14683,7 @@ ${isProf ? '' : `
         state.metadata.financial_year = `TY${baseYear}-${String(baseYear + 1).slice(-2)}`;
 
         // Load saved L1 India state if exists
-        const savedIndiaStateStr = localStorage.getItem('wising_layer1_india_state');
+        const savedIndiaStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'));
         if (savedIndiaStateStr) {
             try {
                 const savedState = JSON.parse(savedIndiaStateStr);
@@ -14845,7 +14845,7 @@ ${isProf ? '' : `
 
         // --- UNIVERSAL BIDIRECTIONAL HYDRATION ENGINE: US TO INDIA ---
         try {
-            const routerStateStr = localStorage.getItem('wising_router_state');
+            const routerStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('ROUTER'));
             let isDual = false;
             if (routerStateStr) {
                 try {
@@ -14854,7 +14854,7 @@ ${isProf ? '' : `
                 } catch(e){}
             }
 
-            const usStateStr = localStorage.getItem('wising_us_state');
+            const usStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('US'));
             if (isDual && usStateStr) {
                 const usState = JSON.parse(usStateStr);
                 
@@ -16420,7 +16420,7 @@ ${isProf ? '' : `
             activeQ.property = JSON.parse(JSON.stringify(state.property));
         }
 
-        localStorage.setItem('wising_layer1_india_state', JSON.stringify(state));
+        localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'), JSON.stringify(state));
     }
 
     // --- ONE-TIME DATA CLEANER FOR BUGGED SCAFFOLDING ---

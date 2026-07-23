@@ -10,7 +10,7 @@ import DetailTable from "@/components/DetailTable";
 import { ConflictsPanel, ChecksRegistryPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard, EntityStructureView, OwnedEntitiesBanner } from "@/components/Views";
 import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
-import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById } from "@/lib/wising";
+import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState } from "@/lib/wising";
 import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
 import { entityLinksFor, ownedEntityIds, flattenOwnershipTree } from "@/lib/entity-graph";
 import { runShadow, getShadowLog, clearShadowLog } from "@/lib/shadow";
@@ -112,6 +112,15 @@ export default function MonitorPage() {
   // client-only app doesn't have.
   const [syncing, setSyncing] = useState(false);
   const syncTimeoutRef = useRef(null);
+  // The registry client ("+ Add Client") currently pinned as the active
+  // Monitor view, or null when showing the shared "Live"/demo slot. A ref,
+  // not state: recompute() reads it on every call (including calls fired by
+  // the storage listener / focus / refresh button, none of which pass a
+  // client id explicitly) so those keep re-showing THIS SAME client instead
+  // of silently falling back to demo/live — without needing pinnedClientId
+  // in recompute's own dependency array (it would otherwise recreate the
+  // callback, and every consumer's own effect, on every pin/unpin).
+  const pinnedClientRef = useRef(null);
 
   const goToRecon = useCallback((section) => { setView("reconciliation"); setReconHighlight(section); }, []);
 
@@ -119,8 +128,23 @@ export default function MonitorPage() {
     setSyncing(true);
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     syncTimeoutRef.current = setTimeout(() => setSyncing(false), 900);
-    const wantLive = preferred === "live" || (preferred == null && hasLiveLayer1());
-    const source = wantLive && hasLiveLayer1() ? "live" : "demo";
+
+    // A registry client, explicitly picked (preferred = {clientId}) or
+    // already pinned from a previous pick — read straight from that one
+    // client's own namespaced keys (lib/wising.js's getClientRawState),
+    // never the shared global "Live" slot, so viewing/refreshing it can
+    // never leak another client's data in, or leak its own data out.
+    const explicitClientId = preferred && typeof preferred === "object" && preferred.clientId ? preferred.clientId : null;
+    const pinnedId = explicitClientId || pinnedClientRef.current;
+    pinnedClientRef.current = pinnedId;
+
+    let source;
+    if (pinnedId) {
+      source = getClientRawState(pinnedId);
+    } else {
+      const wantLive = preferred === "live" || (preferred == null && hasLiveLayer1());
+      source = wantLive && hasLiveLayer1() ? "live" : "demo";
+    }
     const overrides = engineSource === "dag" ? {
       regimeOverride: regimeOverride === null ? undefined : regimeOverride,
       fxRateOverride: fxRateOverride === null ? undefined : fxRateOverride,
@@ -128,10 +152,10 @@ export default function MonitorPage() {
     } : undefined;
     const snap = engineSource === "dag" ? monitorSnapshotDag(source, overrides) : monitorSnapshot(source);
     if (snap && snap.countries && snap.countries.length) {
-      setCountries(snap.countries); setMode(source); setEngineReady(true); setResult(snap.result);
+      setCountries(snap.countries); setMode(pinnedId ? "live" : source); setEngineReady(true); setResult(snap.result);
       if (snap.clientName) setClientName(snap.clientName);
       if (snap.baseYear) setBaseYear(snap.baseYear);
-      setActiveProfile(activeProfileId());
+      setActiveProfile(pinnedId || activeProfileId());
     }
     // Kick the shadow comparison off the render path: the primary result is
     // already committed above, so this deferred tick never delays what the user
@@ -153,23 +177,50 @@ export default function MonitorPage() {
   // Monitor was set to DAG mode. Re-fires whenever engineSource flips: it's
   // in the deps directly (not just transitively via recompute), since
   // clientSummaries isn't recompute's job to refresh.
+  const refreshClientSummaries = useCallback(() => {
+    setClientSummaries(engineSource === "dag" ? allClientSummariesDag() : allClientSummaries());
+  }, [engineSource]);
   useEffect(() => {
     setProfiles(listProfiles());
-    setClientSummaries(engineSource === "dag" ? allClientSummariesDag() : allClientSummaries());
+    refreshClientSummaries();
     recompute(null);
-  }, [recompute, engineSource]);
-  const onPickProfile = useCallback((id) => { if (id && loadProfile(id)) { recompute("live"); } }, [recompute]);
+  }, [recompute, engineSource, refreshClientSummaries]);
+  const onPickProfile = useCallback((id) => { pinnedClientRef.current = null; if (id && loadProfile(id)) { recompute("live"); } }, [recompute]);
+  const onPickClient = useCallback((id) => { recompute({ clientId: id }); }, [recompute]);
+  // The Clients-tab table and the owned-entity banner both call this with
+  // whatever id the row/link carries — demo profile ids and registry client
+  // ids are visually indistinguishable there, so branch on the summary's own
+  // isRegistryClient flag (set by allClientSummariesDag/allClientSummaries)
+  // rather than asking the caller to know which kind of id it has.
+  const pickFromClients = useCallback((id) => {
+    const summary = clientSummaries.find((c) => c.id === id);
+    if (summary && summary.isRegistryClient) onPickClient(id); else onPickProfile(id);
+    setView("monitor");
+  }, [clientSummaries, onPickClient, onPickProfile]);
+  const onAddClient = useCallback(() => {
+    const id = createClient();
+    if (!id) return;
+    if (typeof window !== "undefined") window.open("router.html?client=" + encodeURIComponent(id), "_blank");
+    refreshClientSummaries();
+  }, [refreshClientSummaries]);
   const onWhatIfReset = useCallback(() => { setRegimeOverride(null); setFxRateOverride(null); setFeieOverride(null); }, []);
 
   useEffect(() => {
-    const onStorage = (e) => { if (!e.key || e.key.indexOf("wising_") === 0) recompute(null); };
-    const onFocus = () => { if (hasLiveLayer1()) recompute("live"); };
+    const onStorage = (e) => {
+      if (!e.key || e.key.indexOf("wising_") === 0) {
+        recompute(null);
+        // A client's Layer 0/1 data can change in another tab — the Clients
+        // portfolio should reflect that without waiting for a manual reload.
+        if (e.key && e.key.indexOf("wising_client_") === 0) refreshClientSummaries();
+      }
+    };
+    const onFocus = () => { if (hasLiveLayer1() || pinnedClientRef.current) recompute(pinnedClientRef.current ? { clientId: pinnedClientRef.current } : "live"); };
     window.addEventListener("storage", onStorage); window.addEventListener("focus", onFocus);
     return () => {
       window.removeEventListener("storage", onStorage); window.removeEventListener("focus", onFocus);
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     };
-  }, [recompute]);
+  }, [recompute, refreshClientSummaries]);
 
   const isUsDrill = region === "United States";
   const dataset = isUsDrill ? US_STATES : scopeToCountries(countries, region);
@@ -210,14 +261,12 @@ export default function MonitorPage() {
   }, [activeLinks, engineSource]);
   const badges = {
     monitor: result ? { text: result.summary.counts.critical + result.summary.counts.warning, tone: result.summary.counts.critical > 0 ? "alert" : "" } : null,
-    clients: { text: profiles.length },
+    clients: { text: clientSummaries.length || profiles.length },
     structure: activeLinks ? { text: activeLinks.owns.length + activeLinks.ownedBy.length } : null,
     filings: result && result.summary.nextDeadline ? { text: (result.monitoring && result.monitoring.calendar.next ? "in " + result.monitoring.calendar.next.daysUntil + "d" : "") } : null,
     withholding: result && result.withholding && result.withholding.totalGapUsd > 1
       ? { text: "$" + Math.round(result.withholding.totalGapUsd).toLocaleString("en-US"), tone: "alert" } : null
   };
-
-  const pickFromClients = (id) => { onPickProfile(id); setView("monitor"); };
 
   return (
     <div className="relative flex min-h-screen">
@@ -338,7 +387,7 @@ export default function MonitorPage() {
           </>
         )}
 
-        {view === "clients" && <ClientsView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
+        {view === "clients" && <ClientsView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} onAddClient={onAddClient} />}
         {view === "structure" && <EntityStructureView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
         {view === "holdings" && <HoldingsView result={result} links={activeLinks} onPick={pickFromClients} />}
         {view === "business" && <BusinessView result={result} links={activeLinks} onPick={pickFromClients} />}

@@ -31,6 +31,33 @@ export function activeProfileId() {
   return W && W.activeProfileId ? W.activeProfileId() : null;
 }
 
+// "+ Add Client" — registers a new, empty client in the persisted registry
+// (separate from the 12 static demo profiles, and separate from the single
+// shared "Live" localStorage slot) and returns its id. The caller opens
+// router.html?client=<id> in a new tab; every Layer 0/1 write on that page
+// (and any router.html/layer1_*.html page reached from it) is scoped to
+// this one client's own namespaced keys — see constants.js's ClientRegistry
+// header comment for the full mechanism.
+export function createClient() {
+  const W = getWISING();
+  return W && W.ClientRegistry ? W.ClientRegistry.create() : null;
+}
+
+// A registry client's raw {router,india,us} — read directly from its own
+// namespaced keys, bypassing the shared global slot entirely. Used to view
+// a SPECIFIC client's Monitor without disturbing whatever "Live"/demo state
+// the shared slot currently holds.
+export function getClientRawState(id) {
+  const W = getWISING();
+  return W && W.ClientRegistry ? W.ClientRegistry.getRawState(id) : { router: {}, india: {}, us: {} };
+}
+
+export function isRegistryClientId(id) {
+  const W = getWISING();
+  if (!W || !W.ClientRegistry) return false;
+  return W.ClientRegistry.list().some((c) => c.id === id);
+}
+
 // Full analyze() result for a SPECIFIC profile id, regardless of which
 // client is currently active/loaded — used to merge a linked (owned)
 // entity's own compliance calendar/documents into the active client's
@@ -45,24 +72,35 @@ export function analyzeProfileById(id) {
   return W.analyze({ router: p.router, india: p.india, us: p.us });
 }
 
-// Run the engine over every profile → compact summaries for the Clients portfolio.
+function summarizeEngine(W, id, label, story, tags, raw, isRegistryClient) {
+  let r;
+  try { r = W.analyze(raw); } catch (e) { return null; }
+  const s = r.summary;
+  return {
+    id, label, story, tags, isRegistryClient: !!isRegistryClient,
+    isBusiness: r.model.entity ? r.model.entity.isBusiness : false,
+    indiaStatus: s.indiaStatus, usStatus: s.usStatus, dualResident: s.dualResident,
+    totalIncomeUsd: s.totalIncomeUsd, netDoubleTaxUsd: s.netDoubleTaxUsd,
+    combinedTaxUsd: (s.indiaTaxUsd || 0) + (s.usTaxUsd || 0),
+    critical: s.counts.critical, warning: s.counts.warning,
+    requiredDocs: s.requiredDocs, healthScore: s.healthScore,
+    nextDeadline: r.monitoring && r.monitoring.calendar.next ? r.monitoring.calendar.next : null
+  };
+}
+
+// Run the engine over every profile → compact summaries for the Clients
+// portfolio. Also includes every registry client added via "+ Add Client" —
+// see dag-adapter.js's allClientSummariesDag for the full rationale; kept in
+// sync here so the Engine-mode fallback shows the same client list too.
 export function allClientSummaries() {
   const W = getWISING();
   if (!W || !W.PROFILES) return [];
-  return W.PROFILES.map((p) => {
-    const r = W.analyze({ router: p.router, india: p.india, us: p.us });
-    const s = r.summary;
-    return {
-      id: p.id, label: p.label, story: p.story, tags: p.tags,
-      isBusiness: r.model.entity ? r.model.entity.isBusiness : false,
-      indiaStatus: s.indiaStatus, usStatus: s.usStatus, dualResident: s.dualResident,
-      totalIncomeUsd: s.totalIncomeUsd, netDoubleTaxUsd: s.netDoubleTaxUsd,
-      combinedTaxUsd: (s.indiaTaxUsd || 0) + (s.usTaxUsd || 0),
-      critical: s.counts.critical, warning: s.counts.warning,
-      requiredDocs: s.requiredDocs, healthScore: s.healthScore,
-      nextDeadline: r.monitoring && r.monitoring.calendar.next ? r.monitoring.calendar.next : null
-    };
-  });
+  const demo = W.PROFILES.map((p) => summarizeEngine(W, p.id, p.label, p.story, p.tags, { router: p.router, india: p.india, us: p.us })).filter(Boolean);
+  const registry = (W.ClientRegistry ? W.ClientRegistry.list() : []).map((c) => {
+    const raw = W.ClientRegistry.getRawState(c.id);
+    return summarizeEngine(W, c.id, c.label || "New client", "Added by this practice — not a demo profile.", ["live"], raw, true);
+  }).filter(Boolean);
+  return demo.concat(registry);
 }
 
 export function hasLiveLayer1() {

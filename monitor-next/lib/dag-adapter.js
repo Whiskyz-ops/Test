@@ -178,6 +178,32 @@ export function monitorSnapshotDag(source, overrides) {
   };
 }
 
+// One demo-profile or registry-client's raw {router,india,us} -> the same
+// compact summary shape allClientSummariesDag returns per row. Registry
+// clients read via W.ClientRegistry.getRawState(id) (this client's own
+// namespaced localStorage keys — see constants.js's ClientRegistry header
+// comment) rather than the single shared global slot, so this never
+// collides with "Live" mode or any other client. A brand-new client with no
+// Layer 0/1 data saved yet still analyzes cleanly (engine/DAG both treat a
+// fully blank {router:{},india:{},us:{}} as an "Unnamed Taxpayer" with
+// all-zero figures, not a throw) — the try/catch is just cheap insurance
+// against genuinely malformed localStorage content, not the expected path.
+function summarize(id, label, story, tags, raw, isRegistryClient) {
+  let r;
+  try { r = analyzeDag(raw); } catch (e) { return null; }
+  const s = r.summary;
+  return {
+    id, label, story, tags, isRegistryClient: !!isRegistryClient,
+    isBusiness: r.model.entity ? r.model.entity.isBusiness : false,
+    indiaStatus: s.indiaStatus, usStatus: s.usStatus, dualResident: s.dualResident,
+    totalIncomeUsd: s.totalIncomeUsd, netDoubleTaxUsd: s.netDoubleTaxUsd,
+    combinedTaxUsd: (s.indiaTaxUsd || 0) + (s.usTaxUsd || 0),
+    critical: s.counts.critical, warning: s.counts.warning,
+    requiredDocs: s.requiredDocs, healthScore: s.healthScore,
+    nextDeadline: r.monitoring && r.monitoring.calendar.next ? r.monitoring.calendar.next : null
+  };
+}
+
 // DAG-backed counterpart to lib/wising.js's allClientSummaries() — same
 // shape, so ClientsView renders identically regardless of source. Previously
 // the Clients tab always ran the real engine here even when the primary
@@ -186,23 +212,21 @@ export function monitorSnapshotDag(source, overrides) {
 // through the current engineSource toggle. No overrides applied: the
 // portfolio view is each client's own on-file baseline, not the active
 // what-if scenario (matching allClientSummaries()'s own behavior).
+//
+// Also includes every real, professional-added client from the registry
+// ("+ Add Client" — docs section on per-client storage isolation) alongside
+// the 12 static demo profiles. Each registry client's data is read directly
+// from its own namespaced keys, never the shared "Live" slot, so this list
+// can never leak one client's numbers into another's row.
 export function allClientSummariesDag() {
   const W = typeof window !== "undefined" ? window.WISING : null;
   if (!W || !W.PROFILES) return [];
-  return W.PROFILES.map((p) => {
-    const r = analyzeDag({ router: p.router, india: p.india, us: p.us });
-    const s = r.summary;
-    return {
-      id: p.id, label: p.label, story: p.story, tags: p.tags,
-      isBusiness: r.model.entity ? r.model.entity.isBusiness : false,
-      indiaStatus: s.indiaStatus, usStatus: s.usStatus, dualResident: s.dualResident,
-      totalIncomeUsd: s.totalIncomeUsd, netDoubleTaxUsd: s.netDoubleTaxUsd,
-      combinedTaxUsd: (s.indiaTaxUsd || 0) + (s.usTaxUsd || 0),
-      critical: s.counts.critical, warning: s.counts.warning,
-      requiredDocs: s.requiredDocs, healthScore: s.healthScore,
-      nextDeadline: r.monitoring && r.monitoring.calendar.next ? r.monitoring.calendar.next : null
-    };
-  });
+  const demo = W.PROFILES.map((p) => summarize(p.id, p.label, p.story, p.tags, { router: p.router, india: p.india, us: p.us })).filter(Boolean);
+  const registry = (W.ClientRegistry ? W.ClientRegistry.list() : []).map((c) => {
+    const raw = W.ClientRegistry.getRawState(c.id);
+    return summarize(c.id, c.label || "New client", "Added by this practice — not a demo profile.", ["live"], raw, true);
+  }).filter(Boolean);
+  return demo.concat(registry);
 }
 
 // DAG-mode counterpart to lib/wising.js's analyzeProfileById — full

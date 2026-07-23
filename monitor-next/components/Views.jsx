@@ -4,7 +4,7 @@ import {
   Compass, ScrollText, Scale, CalendarClock, CalendarRange, RefreshCcw, Calculator,
   FolderOpen, Ruler, Landmark, TrendingUp, Building2, Home, Palmtree, BookOpen, Plug,
   Wallet, Receipt, TrendingDown, Globe2, Users, AlertTriangle, Siren, DollarSign, Banknote, PenLine,
-  ChevronLeft, ChevronRight, Network, ArrowUpRight, ArrowDownRight, AlertCircle
+  ChevronLeft, ChevronRight, Network, ArrowUpRight, ArrowDownRight, AlertCircle, UserPlus
 } from "lucide-react";
 import { fmtUsd, PAL } from "@/lib/logic";
 import { entityLinksFor } from "@/lib/entity-graph";
@@ -1582,6 +1582,7 @@ const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, on
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className={"font-semibold text-head " + (depth > 0 ? "text-[12px]" : "text-[13px]")}>{c.label}</span>
+              {c.isRegistryClient && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0" style={{ background: PAL.positive + "1c", color: PAL.greenText }} title="Added by this practice — real client data, not a demo profile">Live</span>}
               {link && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0" style={{ background: PAL.accent + "1c", color: PAL.accent }}>{link.ownershipPct != null ? link.ownershipPct + "% · " : ""}{link.relationship}</span>}
             </div>
             <div className="text-[10px] text-muted truncate max-w-[240px]">{c.story}</div>
@@ -1600,7 +1601,7 @@ const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, on
   );
 };
 
-export function ClientsView({ clients, activeId, onPick }) {
+export function ClientsView({ clients, activeId, onPick, onAddClient }) {
   const [expanded, setExpanded] = useState(() => new Set());
   if (!clients || !clients.length) return <Empty>Loading clients…</Empty>;
   // KPI tiles sum the FULL book (every real filing, whether nested or not)
@@ -1650,7 +1651,16 @@ export function ClientsView({ clients, activeId, onPick }) {
 
   return (
     <div className="space-y-6">
-      <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Users size={16} strokeWidth={2} /></HeadChip>Client Portfolio</h2><p className="text-muted text-sm mt-2">Your book of business — cross-border exposure at a glance. Click a client to open their Monitor. A client who owns another entity on file shows a ▸ — click it to see that entity nested underneath, without leaving this view.</p></div>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Users size={16} strokeWidth={2} /></HeadChip>Client Portfolio</h2><p className="text-muted text-sm mt-2 max-w-2xl">Your book of business — cross-border exposure at a glance. Click a client to open their Monitor. A client who owns another entity on file shows a ▸ — click it to see that entity nested underneath, without leaving this view.</p></div>
+        {onAddClient && (
+          <button onClick={onAddClient} title="Opens the Jurisdiction Router (Layer 0) in a new tab for a brand-new client — their Layer 0/1 data is isolated to them alone, never shared with any other client on file"
+            className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold text-black transition-transform hover:scale-[1.02]"
+            style={{ background: "linear-gradient(135deg,#34d399,#60a5fa)" }}>
+            <UserPlus size={14} strokeWidth={2.5} /> Add Client
+          </button>
+        )}
+      </div>
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatTile icon={<Users size={15} strokeWidth={2} />} label="Clients" value={clients.length} highlight sub={ownedIds.size > 0 ? (sorted.length + " shown · " + ownedIds.size + " nested under an owner") : undefined} />
         <StatTile icon={<AlertTriangle size={15} strokeWidth={2} />} label="At risk" value={atRisk} accent={atRisk ? PAL.redText : PAL.greenText} sub="health < 50" />

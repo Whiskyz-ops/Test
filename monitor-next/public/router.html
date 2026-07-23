@@ -33,7 +33,11 @@
 
 <main class="flex-1 max-w-3xl w-full mx-auto px-5 py-8">
   <h1 class="font-display font-extrabold text-2xl mb-1">Who are we filing for?</h1>
-  <p class="text-white/50 text-sm mb-7">Layer 0 establishes the taxpayer's cross-border profile. It drives which Layer 1 specialists open and seeds the conflict engine.</p>
+  <p class="text-white/50 text-sm mb-4">Layer 0 establishes the taxpayer's cross-border profile. It drives which Layer 1 specialists open and seeds the conflict engine.</p>
+  <div id="new-client-banner" class="hidden mb-7 rounded-xl border border-brandCyan/30 bg-brandCyan/10 px-4 py-3">
+    <div class="text-brandCyan font-bold text-sm">＋ Adding a new client</div>
+    <div class="text-[11.5px] text-white/50 mt-0.5">This data is isolated to this one client — it will never mix with any other client's Layer 0/1 data, even if you have other clients open in other tabs.</div>
+  </div>
 
   <!-- Jurisdiction -->
   <div class="mb-6">
@@ -77,14 +81,14 @@
     <label class="flex items-center gap-3 text-sm"><input id="has_us_income" type="checkbox" class="rounded bg-black border-white/20"/> Has US-source income or assets</label>
   </div>
 
-  <div class="mb-6">
+  <div id="demo-profile-section" class="mb-6">
     <div class="text-[11px] uppercase tracking-widest text-white/40 mb-2">Or load a ready-made test profile — seeds both Layer 1 forms + dashboard + monitor</div>
     <div id="profile-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
   </div>
 
   <div class="flex flex-wrap items-center gap-3">
     <button onclick="saveRouter()" class="px-5 py-2.5 rounded-xl bg-brandCyan text-black font-black text-xs uppercase tracking-widest hover:brightness-110">Save &amp; continue</button>
-    <button onclick="loadDemo()" class="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 font-bold text-xs hover:bg-white/10">Load demo taxpayer</button>
+    <button id="demo-taxpayer-btn" onclick="loadDemo()" class="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 font-bold text-xs hover:bg-white/10">Load demo taxpayer</button>
     <span id="status" class="text-[12px] text-brandGreen"></span>
   </div>
 
@@ -106,6 +110,16 @@
 <script src="engine/profiles.js"></script>
 <script>
   var W = window.WISING;
+  var ACTIVE_CLIENT_ID = W.ClientRegistry.activeIdFromUrl();
+  if (ACTIVE_CLIENT_ID) {
+    document.getElementById("new-client-banner").classList.remove("hidden");
+    // Demo-profile shortcuts write to the shared GLOBAL slot (profiles.js/
+    // sample-data.js are untouched by the per-client scoping below) — hiding
+    // them while adding a real client avoids the confusing case of picking
+    // one and having it silently land in the wrong place.
+    document.getElementById("demo-profile-section").classList.add("hidden");
+    document.getElementById("demo-taxpayer-btn").classList.add("hidden");
+  }
   var jurisdiction = "dual";
   function setJur(j) {
     jurisdiction = j;
@@ -124,7 +138,8 @@
       has_green_card: document.getElementById("has_green_card").checked,
       has_us_source_income_or_assets: document.getElementById("has_us_income").checked
     };
-    localStorage.setItem(W.CONST.STORAGE_KEYS.ROUTER, JSON.stringify(r));
+    localStorage.setItem(W.ClientRegistry.storageKeyFor("ROUTER"), JSON.stringify(r));
+    if (ACTIVE_CLIENT_ID) W.ClientRegistry.updateLabel(ACTIVE_CLIENT_ID, r.full_name || "New client");
     document.getElementById("status").textContent = "✓ Saved. Open a Layer 1 specialist below.";
     document.getElementById("next-links").classList.remove("hidden");
   }
@@ -169,7 +184,7 @@
   (function () {
     populateProfileGrid();
     try {
-      var raw = localStorage.getItem(W.CONST.STORAGE_KEYS.ROUTER);
+      var raw = localStorage.getItem(W.ClientRegistry.storageKeyFor("ROUTER"));
       if (raw) {
         var r = JSON.parse(raw);
         setJur(r.jurisdiction || "dual");

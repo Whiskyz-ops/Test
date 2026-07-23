@@ -4515,7 +4515,7 @@
             usState.metadata.intake_setup = {
                 setupW2, setupBiz, setupPassive: setupPassiveAny, setupProp, setupEntities, setupForeign: setupForeignAny, setupRetirement, setupEquity
             };
-            try { localStorage.setItem('wising_us_state', JSON.stringify(usState)); } catch(e) {}
+            try { localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('US'), JSON.stringify(usState)); } catch(e) {}
         }
 
         const toggleGroup = (id, condition) => {
@@ -4966,7 +4966,7 @@
         
         let isIndiaDomesticResident = false;
         try {
-            const indiaStateStr = localStorage.getItem('wising_layer1_india_state');
+            const indiaStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'));
             if (indiaStateStr) {
                 const indiaState = JSON.parse(indiaStateStr);
                 const indRes = indiaState?.residency_detail?.final_india_residency_status;
@@ -5007,12 +5007,12 @@
                   if (details.dtaa_treaty_residence !== 'none') {
                       details.dtaa_treaty_residence = 'none';
                       try {
-                          const indiaStateStr = localStorage.getItem('wising_layer1_india_state');
+                          const indiaStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'));
                           if (indiaStateStr) {
                               const indiaState = JSON.parse(indiaStateStr);
                               if (!indiaState.dtaa) indiaState.dtaa = {};
                               indiaState.dtaa.dtaa_treaty_residence = 'none';
-                              localStorage.setItem('wising_layer1_india_state', JSON.stringify(indiaState));
+                              localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'), JSON.stringify(indiaState));
                           }
                       } catch(e) {}
                       setTimeout(() => {
@@ -5121,13 +5121,13 @@
         usState.us_residency_detail.dtaa_treaty_residence = val;
         
         try {
-            const indiaStateStr = localStorage.getItem('wising_layer1_india_state');
+            const indiaStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'));
             if (indiaStateStr) {
                 const indiaState = JSON.parse(indiaStateStr);
                 if (!indiaState.dtaa) indiaState.dtaa = {};
                 indiaState.dtaa.dtaa_treaty_residence = val;
                 indiaState.dtaa.dtaa_forced_nr = (val === 'us');
-                localStorage.setItem('wising_layer1_india_state', JSON.stringify(indiaState));
+                localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'), JSON.stringify(indiaState));
             }
         } catch (e) {
             console.error("Error syncing DTAA change to India state:", e);
@@ -5142,12 +5142,12 @@
         usState.us_residency_detail.dtaa_treaty_residence = val;
         
         try {
-            const indiaStateStr = localStorage.getItem('wising_layer1_india_state');
+            const indiaStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'));
             if (indiaStateStr) {
                 const indiaState = JSON.parse(indiaStateStr);
                 if (!indiaState.dtaa) indiaState.dtaa = {};
                 indiaState.dtaa.dtaa_treaty_residence = val;
-                localStorage.setItem('wising_layer1_india_state', JSON.stringify(indiaState));
+                localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'), JSON.stringify(indiaState));
             }
         } catch (e) {
             console.error("Error syncing DTAA change to India state:", e);
@@ -17159,7 +17159,7 @@
         calculateTaxSavings();
         try {
             usState.metadata.last_updated_at = new Date().toISOString();
-            localStorage.setItem('wising_us_state', JSON.stringify(usState));
+            localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('US'), JSON.stringify(usState));
             
             const schemaBox = document.getElementById('schema-json-output');
             if (schemaBox) {
@@ -17475,17 +17475,17 @@
         }
 
         // Sync persona identity to router state in localStorage
-        const routerStateStr = localStorage.getItem('wising_router_state');
+        const routerStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('ROUTER'));
         if (routerStateStr) {
             const rState = JSON.parse(routerStateStr);
             rState.full_name = usState.profile.full_name;
             rState.date_of_birth = usState.profile.date_of_birth;
-            localStorage.setItem('wising_router_state', JSON.stringify(rState));
+            localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('ROUTER'), JSON.stringify(rState));
         }
 
         saveStateAndSync();
         
-        const savedUSStateStr = localStorage.getItem('wising_us_state');
+        const savedUSStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('US'));
         if (savedUSStateStr) {
             const savedState = JSON.parse(savedUSStateStr);
             
@@ -17517,10 +17517,10 @@
     }
 
     function initFromLocalStorage() {
-        const routerStateStr = localStorage.getItem('wising_router_state');
+        const routerStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('ROUTER'));
         if (!routerStateStr) {
             alert("No active Jurisdiction Router (Layer 0) state detected. Redirecting to Layer 0 to complete onboarding first.");
-            window.location.href = 'router.html';
+            window.WISING.ClientRegistry.navigate('router.html');
             return;
         }
         
@@ -17547,7 +17547,7 @@
 
             // --- UNIVERSAL BIDIRECTIONAL HYDRATION ENGINE: INDIA TO US ---
             try {
-                const indiaStateStr = localStorage.getItem('wising_layer1_india_state');
+                const indiaStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'));
                 if (routerState.jurisdiction === 'dual' && indiaStateStr) {
                     const indiaState = JSON.parse(indiaStateStr);
                     
@@ -17671,7 +17671,7 @@
                 if (sidebarLinkUs) sidebarLinkUs.classList.add('hidden');
             }
 
-        const savedUSStateStr = localStorage.getItem('wising_us_state');
+        const savedUSStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('US'));
         let savedState = {};
         if (savedUSStateStr) {
             savedState = JSON.parse(savedUSStateStr);

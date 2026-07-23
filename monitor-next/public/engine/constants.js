@@ -734,6 +734,148 @@
   ];
 
   WISING.CONST = CONST;
+
+  /* ==========================================================================
+   * ClientRegistry — per-client Layer 0/1 storage isolation ("+ Add Client").
+   * Browser-only (uses localStorage/location/document) — irrelevant to the
+   * Node-side DAG computation, so it's attached directly to WISING here
+   * rather than exported via module.exports below.
+   *
+   * The classic single "live" slot (CONST.STORAGE_KEYS.ROUTER/INDIA/US) is
+   * unchanged default behavior for router.html/layer1_*.html opened plain,
+   * with no query string — existing bookmarks/demo flows keep working
+   * exactly as before. When the Monitor's "+ Add Client" button opens
+   * router.html?client=<id> in a new tab, EVERY read/write of router/india/us
+   * state on that page (and any layer1_*.html/router.html page reached by
+   * following an in-page link, since the id is propagated onto same-page-set
+   * links automatically — see propagateClientParamInLinks below) is scoped
+   * to that one client's own namespaced keys instead of the shared global
+   * ones — so two clients' Layer 0/1 data can never cross-contaminate, even
+   * with several tabs open for different clients at once. Demo profiles
+   * (PROFILES/SAMPLE, engine/profiles.js) are untouched by any of this —
+   * they're plain in-memory objects, never read/write localStorage at all.
+   * ==========================================================================*/
+  var CLIENT_REGISTRY_KEY = "wising_client_registry";
+  var CLIENT_LINK_TARGETS = ["router.html", "layer1_india.html", "layer1_us.html"];
+
+  function activeClientIdFromUrl() {
+    try {
+      if (typeof root.location === "undefined" || !root.URLSearchParams) return null;
+      return new root.URLSearchParams(root.location.search).get("client") || null;
+    } catch (e) { return null; }
+  }
+
+  function clientScopedKey(which, clientId) {
+    return "wising_client_" + clientId + "_" + which.toLowerCase();
+  }
+
+  // The key a Layer 0/1 page should actually read/write for `which`
+  // ("ROUTER"|"INDIA"|"US") given THIS page's own URL — falls back to the
+  // shared global key with no ?client= param present (unchanged behavior).
+  function storageKeyFor(which) {
+    var id = activeClientIdFromUrl();
+    return id ? clientScopedKey(which, id) : CONST.STORAGE_KEYS[which];
+  }
+
+  function listClients() {
+    try {
+      var raw = root.localStorage.getItem(CLIENT_REGISTRY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+
+  function saveClientRegistry(list) {
+    try { root.localStorage.setItem(CLIENT_REGISTRY_KEY, JSON.stringify(list)); } catch (e) { /* ignore */ }
+  }
+
+  // Generates a new stable client id, registers it (placeholder label —
+  // updateLabel below keeps it in sync with the real name once Layer 0 is
+  // saved), and returns the id. Does NOT write any router/india/us data —
+  // those keys simply don't exist yet, which getRawState below already
+  // treats as "blank client," so there's nothing to clear/reset.
+  function createClient() {
+    var id = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    var list = listClients();
+    list.push({ id: id, label: "New client", createdAt: new Date().toISOString() });
+    saveClientRegistry(list);
+    return id;
+  }
+
+  function removeClient(clientId) {
+    try {
+      root.localStorage.removeItem(clientScopedKey("ROUTER", clientId));
+      root.localStorage.removeItem(clientScopedKey("INDIA", clientId));
+      root.localStorage.removeItem(clientScopedKey("US", clientId));
+    } catch (e) { /* ignore */ }
+    saveClientRegistry(listClients().filter(function (c) { return c.id !== clientId; }));
+  }
+
+  function updateClientLabel(clientId, label) {
+    var list = listClients(), found = false;
+    list.forEach(function (c) { if (c.id === clientId) { c.label = label; found = true; } });
+    if (found) saveClientRegistry(list);
+  }
+
+  // Reads one client's raw {router, india, us} state directly by id —
+  // bypassing the shared global keys entirely, usable from anywhere (the
+  // Monitor computing every registry client's summary, not just the one
+  // page.jsx currently has open via ?client=).
+  function getClientRawState(clientId) {
+    function read(key) {
+      try { var raw = root.localStorage.getItem(key); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; }
+    }
+    return {
+      router: read(clientScopedKey("ROUTER", clientId)),
+      india: read(clientScopedKey("INDIA", clientId)),
+      us: read(clientScopedKey("US", clientId))
+    };
+  }
+
+  // Rewrites every same-page-set <a href="router.html|layer1_india.html|
+  // layer1_us.html"> on THIS page to carry ?client=<id> forward, so
+  // clicking between Layer 0/1 pages while editing one client never
+  // silently drops back to the shared global slot. No-op with no active
+  // client id (plain/demo usage, unchanged). Run once on DOMContentLoaded.
+  function propagateClientParamInLinks() {
+    var id = activeClientIdFromUrl();
+    if (!id || typeof root.document === "undefined" || !root.document.querySelectorAll) return;
+    var anchors = root.document.querySelectorAll("a[href]");
+    for (var i = 0; i < anchors.length; i++) {
+      var href = anchors[i].getAttribute("href");
+      if (CLIENT_LINK_TARGETS.indexOf(href) !== -1) {
+        anchors[i].setAttribute("href", href + "?client=" + encodeURIComponent(id));
+      }
+    }
+  }
+
+  // For the rare JS-driven navigation (window.location.href = '...') that
+  // can't be caught by the anchor-rewrite pass above — carries the active
+  // client id forward the same way.
+  function navigateWithClient(targetHtml) {
+    var id = activeClientIdFromUrl();
+    root.location.href = id ? (targetHtml + "?client=" + encodeURIComponent(id)) : targetHtml;
+  }
+
+  WISING.ClientRegistry = {
+    activeIdFromUrl: activeClientIdFromUrl,
+    storageKeyFor: storageKeyFor,
+    list: listClients,
+    create: createClient,
+    remove: removeClient,
+    updateLabel: updateClientLabel,
+    getRawState: getClientRawState,
+    propagateLinks: propagateClientParamInLinks,
+    navigate: navigateWithClient
+  };
+
+  if (typeof root.document !== "undefined") {
+    if (root.document.readyState === "loading") {
+      root.document.addEventListener("DOMContentLoaded", propagateClientParamInLinks);
+    } else {
+      propagateClientParamInLinks();
+    }
+  }
+
   // CommonJS export for direct require() — the DAG (prototypes/graph-pilot)
   // imports the SAME tables instead of hand-copying them (SYS-1 in
   // docs/DAG_MIGRATION_TRACKER.md). No behavior change for the browser
