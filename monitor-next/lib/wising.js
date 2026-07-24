@@ -78,6 +78,10 @@ function summarizeEngine(W, id, label, story, tags, raw, isRegistryClient) {
   const s = r.summary;
   return {
     id, label, story, tags, isRegistryClient: !!isRegistryClient,
+    // The taxpayer's actual name — see dag-adapter.js's summarize() for why
+    // this is distinct from `label` (a scenario description for demo
+    // profiles, not a person's name).
+    name: s.name,
     isBusiness: r.model.entity ? r.model.entity.isBusiness : false,
     indiaStatus: s.indiaStatus, usStatus: s.usStatus, dualResident: s.dualResident,
     totalIncomeUsd: s.totalIncomeUsd, netDoubleTaxUsd: s.netDoubleTaxUsd,

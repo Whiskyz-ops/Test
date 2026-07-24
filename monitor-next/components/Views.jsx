@@ -1566,6 +1566,18 @@ export function EntityStructureView({ activeId, clients, onPick }) {
 // owned entities gets no arrow at all, not a disabled one.
 const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, onToggle }) => {
   const healthColor = (h) => (h >= 80 ? PAL.positive : h >= 50 ? PAL.approaching : PAL.exposed);
+  // A preparer recognizes a client by NAME, not by their residency scenario
+  // — `label` is a scenario description for demo profiles ("Dual Resident —
+  // H-1B"), not a person's name at all. Show the real name as the primary
+  // text whenever one is on file; keep `label` alongside as a small tag
+  // (still useful context, e.g. for telling demo profiles apart) rather
+  // than dropping it. `s.name` defaults to "Unnamed Taxpayer" before any
+  // name has been entered (a fresh "+ Add Client" row) — fall back to
+  // `label` (e.g. "New client") in that case instead of showing the
+  // placeholder as if it were real data.
+  const hasRealName = c.name && c.name !== "Unnamed Taxpayer";
+  const primaryText = hasRealName ? c.name : c.label;
+  const showLabelTag = hasRealName && c.label && c.label !== c.name;
   return (
     <tr onClick={() => onPick(c.id)}
       className={"border-t border-line cursor-pointer hover:bg-white/[0.03] " + (activeId === c.id ? "bg-accentSoft" : "") + (depth > 0 ? " bg-white/[0.015]" : "")}>
@@ -1581,7 +1593,8 @@ const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, on
           ) : depth === 0 ? <span className="w-5 shrink-0" /> : null}
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className={"font-semibold text-head " + (depth > 0 ? "text-[12px]" : "text-[13px]")}>{c.label}</span>
+              <span className={"font-semibold text-head " + (depth > 0 ? "text-[12px]" : "text-[13px]")}>{primaryText}</span>
+              {showLabelTag && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 bg-white/5 text-muted" title="On-file scenario label">{c.label}</span>}
               {c.isRegistryClient && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0" style={{ background: PAL.positive + "1c", color: PAL.greenText }} title="Added by this practice — real client data, not a demo profile">Live</span>}
               {link && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0" style={{ background: PAL.accent + "1c", color: PAL.accent }}>{link.ownershipPct != null ? link.ownershipPct + "% · " : ""}{link.relationship}</span>}
             </div>
@@ -1625,7 +1638,11 @@ export function ClientsView({ clients, activeId, onPick, onAddClient, search }) 
   // rows — KPI tiles above stay whole-book totals (computed from `clients`,
   // untouched by this) so the search never reads as "the portfolio shrank."
   const query = (search || "").trim().toLowerCase();
-  const searched = query ? sorted.filter((c) => (c.label || "").toLowerCase().includes(query) || (c.story || "").toLowerCase().includes(query)) : sorted;
+  const searched = query ? sorted.filter((c) =>
+    (c.name || "").toLowerCase().includes(query) ||
+    (c.label || "").toLowerCase().includes(query) ||
+    (c.story || "").toLowerCase().includes(query)
+  ) : sorted;
   const toggleExpand = (id) => setExpanded((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
 
   // Flattens a client + however many of its owned entities are currently

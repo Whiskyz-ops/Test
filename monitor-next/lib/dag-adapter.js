@@ -194,6 +194,12 @@ function summarize(id, label, story, tags, raw, isRegistryClient) {
   const s = r.summary;
   return {
     id, label, story, tags, isRegistryClient: !!isRegistryClient,
+    // The taxpayer's actual name (router/Layer 1 full_name/entity name) —
+    // distinct from `label`, which for demo profiles is a scenario
+    // description ("Dual Resident — H-1B"), not a person's name at all. A
+    // preparer recognizes a client by name, not by their residency
+    // scenario — see ClientRow, which shows this as the primary text.
+    name: s.name,
     isBusiness: r.model.entity ? r.model.entity.isBusiness : false,
     indiaStatus: s.indiaStatus, usStatus: s.usStatus, dualResident: s.dualResident,
     totalIncomeUsd: s.totalIncomeUsd, netDoubleTaxUsd: s.netDoubleTaxUsd,
