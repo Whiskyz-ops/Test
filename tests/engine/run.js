@@ -11,8 +11,10 @@
  *      reaches the engine" bugs — the exact failure mode this suite was
  *      written after finding several real instances of (see
  *      docs/FIELD_COVERAGE_AUDIT.md).
- *   2. Demo-profile smoke test — all 9 engine/profiles.js WISING.PROFILES
- *      run through analyze() and must not throw / must not return NaN.
+ *   2. Demo-profile smoke test — all of profiles.js's WISING.PROFILES (count
+ *      varies as profiles are added; read WISING.PROFILES.length at runtime,
+ *      never hardcode it here) run through analyze() and must not throw /
+ *      must not return NaN.
  * ==========================================================================*/
 "use strict";
 var assert = require("assert");
