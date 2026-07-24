@@ -41,6 +41,10 @@ export default function MonitorPage() {
   const [activeProfile, setActiveProfile] = useState(null);
   const [clientSummaries, setClientSummaries] = useState([]);
   const [reconHighlight, setReconHighlight] = useState(null);
+  // Clients-tab search — filters the portfolio table by name/story without
+  // touching the KPI tiles above it (those stay whole-book totals; see
+  // ClientsView's own filtering, which only narrows the rendered rows).
+  const [clientSearch, setClientSearch] = useState("");
   // DAG-vs-engine comparison toggle (docs/DAG_MIGRATION_TRACKER.md, 40/40
   // rows ported, run-fuzz.js clean at CI scale with a 2-item allowlist —
   // both text-wording-only, no known value/logic divergence) — DAG is now
@@ -274,7 +278,8 @@ export default function MonitorPage() {
       <Sidebar active={view} onNavigate={setView} badges={badges} engineReady={engineReady} syncing={syncing} />
       <main className="relative z-10 flex-1 min-w-0 px-8 py-6">
         <Header region={region} onRegionChange={setRegion} clientName={clientName} baseYear={baseYear} entity={result ? result.model.entity : null} scope={result ? result.model.meta : null}
-          presentationMode={presentationMode} onTogglePresentation={() => setPresentationMode((v) => !v)} />
+          presentationMode={presentationMode} onTogglePresentation={() => setPresentationMode((v) => !v)}
+          showClientSearch={view === "clients"} clientSearch={clientSearch} onClientSearchChange={setClientSearch} />
 
         {/* single, compact utility bar — status + actions */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-6 pb-4 border-b border-line text-[12px]">
@@ -387,7 +392,7 @@ export default function MonitorPage() {
           </>
         )}
 
-        {view === "clients" && <ClientsView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} onAddClient={onAddClient} />}
+        {view === "clients" && <ClientsView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} onAddClient={onAddClient} search={clientSearch} />}
         {view === "structure" && <EntityStructureView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
         {view === "holdings" && <HoldingsView result={result} links={activeLinks} onPick={pickFromClients} />}
         {view === "business" && <BusinessView result={result} links={activeLinks} onPick={pickFromClients} />}

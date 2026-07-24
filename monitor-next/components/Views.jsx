@@ -1601,7 +1601,7 @@ const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, on
   );
 };
 
-export function ClientsView({ clients, activeId, onPick, onAddClient }) {
+export function ClientsView({ clients, activeId, onPick, onAddClient, search }) {
   const [expanded, setExpanded] = useState(() => new Set());
   if (!clients || !clients.length) return <Empty>Loading clients…</Empty>;
   // KPI tiles sum the FULL book (every real filing, whether nested or not)
@@ -1621,6 +1621,11 @@ export function ClientsView({ clients, activeId, onPick, onAddClient }) {
   // unrelated-looking rows).
   const ownedIds = new Set(clients.flatMap((c) => { const l = entityLinksFor(c.id, clients); return l ? l.owns.map((x) => x.ownedId) : []; }));
   const sorted = clients.filter((c) => !ownedIds.has(c.id)).slice().sort((a, b) => (a.healthScore ?? 100) - (b.healthScore ?? 100));
+  // Header's search box (only shown on this tab) narrows just the rendered
+  // rows — KPI tiles above stay whole-book totals (computed from `clients`,
+  // untouched by this) so the search never reads as "the portfolio shrank."
+  const query = (search || "").trim().toLowerCase();
+  const searched = query ? sorted.filter((c) => (c.label || "").toLowerCase().includes(query) || (c.story || "").toLowerCase().includes(query)) : sorted;
   const toggleExpand = (id) => setExpanded((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
 
   // Flattens a client + however many of its owned entities are currently
@@ -1668,6 +1673,9 @@ export function ClientsView({ clients, activeId, onPick, onAddClient }) {
         <StatTile icon={<DollarSign size={15} strokeWidth={2} />} label="Combined tax" value={fmtUsd(totalTax)} sub="IN + US, all clients" />
         <StatTile icon={<TrendingDown size={15} strokeWidth={2} />} label="FTC residual" value={fmtUsd(totalResidual)} accent={totalResidual ? PAL.redText : PAL.greenText} sub="unrelieved double tax" />
       </div>
+      {query && !searched.length ? (
+        <Empty>No clients match “{search}”.</Empty>
+      ) : (
       <div className="overflow-x-auto rounded-2xl border border-line bg-surface shadow-card">
         <table className="w-full">
           <thead className="bg-white/[0.02]"><tr>
@@ -1676,10 +1684,11 @@ export function ClientsView({ clients, activeId, onPick, onAddClient }) {
             ))}
           </tr></thead>
           <tbody>
-            {sorted.flatMap((c) => buildRows(c, 0, null, new Set()))}
+            {searched.flatMap((c) => buildRows(c, 0, null, new Set()))}
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }

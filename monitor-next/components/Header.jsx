@@ -1,5 +1,5 @@
 "use client";
-import { Globe2, Settings } from "lucide-react";
+import { Globe2, Settings, Search, X } from "lucide-react";
 import { REGION_FILTERS, CLIENT } from "@/lib/mockData";
 import { PAL } from "@/lib/logic";
 
@@ -16,7 +16,7 @@ const US_ENTITY_LABEL = {
   individual: "Individual", ccorp: "C-Corp", scorp: "S-Corp", partnership: "Partnership", trust: "Trust"
 };
 
-export default function Header({ region, onRegionChange, clientName, baseYear, entity, scope, presentationMode, onTogglePresentation }) {
+export default function Header({ region, onRegionChange, clientName, baseYear, entity, scope, presentationMode, onTogglePresentation, showClientSearch, clientSearch, onClientSearchChange }) {
   // Scope is the ENGINE's own determination of which country a taxpayer is
   // actually exposed in — see model.meta.hasIndiaScope/hasUsScope
   // (normalize.js) — derived from real reported facts (days present,
@@ -51,6 +51,17 @@ export default function Header({ region, onRegionChange, clientName, baseYear, e
           </div>
         )}
       </div>
+      {showClientSearch && (
+        <div className="relative w-full max-w-[260px] hidden lg:block">
+          <Search size={14} strokeWidth={2} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+          <input type="text" value={clientSearch} onChange={(e) => onClientSearchChange(e.target.value)} placeholder="Search clients…"
+            className="w-full bg-surface border border-line rounded-2xl pl-9 pr-8 py-2.5 text-[13px] text-head placeholder:text-muted shadow-card hover:border-accent/50 focus:outline-none focus:border-accent" />
+          {clientSearch && (
+            <button onClick={() => onClientSearchChange("")} title="Clear search"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-head"><X size={13} strokeWidth={2.5} /></button>
+          )}
+        </div>
+      )}
       <div className="flex items-center gap-2.5 shrink-0">
         <button onClick={onTogglePresentation}
           title={presentationMode ? "Presentation mode is ON — engineering controls (compute-source pill, shadow-diff badge, raw intake-form links) are hidden. Click to show them again." : "Presentation mode — hides engineering-only controls for a client-facing or recorded view."}
