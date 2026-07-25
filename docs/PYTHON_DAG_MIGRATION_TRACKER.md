@@ -75,6 +75,52 @@ imply any interim cutover.
 Run: `npm run test:dag-py` (or `cd dag_py && pytest`). Regenerate fixtures/
 golden with `npm run port:dag-py-profiles` / `npm run golden:dag-py`.
 
+## Traceability layer (added after Phase 2, applies to all future phases)
+
+Every node needs to answer two questions on demand: "which Layer 1
+India/US field(s) feed this?" and "which intake step is that field
+collected on?" — added as a structural extension, not just comments:
+
+- `NodeDef.layer1_fields` (`dag_py/src/wising_dag/core/graph.py`) — a tuple
+  of every individual leaf field a node's `compute()` reads directly, as
+  `"<router|india|us>.<dotted.path>"` (array items marked `[]`, e.g.
+  `"india.financial_holdings.transactions[].asset_class"`). Full field-level
+  granularity, not section-level — e.g. `dedS80C` lists all 9 individual
+  `deductions.s80C.*` fields it sums, not just `"india.deductions.s80C"`.
+  Pure derivation nodes (no direct Layer 1 read) carry none — their
+  provenance is their `deps` chain instead.
+- `NodeRegistry.dependency_closure(node_id)` /
+  `.transitive_layer1_fields(node_id)` (`core/registry.py`) — pure
+  structural walks over `deps` (no ctx, no compute() calls, diamond-safe)
+  that compute, for ANY node however deep in the graph, the complete set of
+  Layer 1 fields feeding into it — generated from the graph itself, not
+  hand-maintained. This is the actual "absolute traceability" answer for a
+  derived node like `totalTaxInrCombined`: `transitive_layer1_fields`
+  returns all 179 fields across every India Layer 1 step it depends on,
+  computed automatically.
+- `core/layer1_steps.py`'s `step_for_field()` — maps a `layer1_fields` path
+  to its Layer 1 intake step id (the real `panel-step-*` DOM ids from
+  `layer1_india.html`/`layer1_us.html`). **Best-effort, not DOM-verified**
+  — inferred from JSON namespace and step naming, not checked field-by-field
+  against which panel's inputs actually write it. Flagged explicitly in the
+  module docstring, same "confirm before relying on it" discipline as every
+  other estimated mapping in this codebase.
+- `dag_py/tools/layer1_trace_report.py` — CLI: `python dag_py/tools/
+  layer1_trace_report.py [node_id ...]` prints deps, own/transitive Layer 1
+  fields, and touched steps for any node (or every node with no args).
+
+**Important note on the dependency shape**: this is a DAG, not a tree — a
+node like `entityResult` has many consumers across multiple domains
+converging on it (a diamond), not one parent. `dependency_closure`/
+`transitive_layer1_fields` are diamond-safe (each node visited once); the
+composition/build order (`core` → `india`/`us` → `crossborder` → ... )
+is the part that's roughly hierarchical, not the node graph itself.
+
+Retrofitted onto `core/entry.py` and all 5 `india/` files (Phase 2, 135
+tests still green — this is metadata only, no compute logic changed). Every
+future phase adds `layer1_fields` to new leaf nodes as they're written,
+not as a follow-up pass.
+
 **Not yet done in Phase 1** (deliberately deferred, not forgotten): a
 CI lint check banning `pyodide`/`js` imports outside `dag_py/adapter/`
 (nothing under `dag_py/adapter/` exists yet to violate it against — added

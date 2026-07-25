@@ -316,49 +316,108 @@ def _promoter_buyback_extra_tax_inr(d, ctx):
 
 
 NODES = {
-    # ---- raw leaves ----------------------------------------------------------
+    # ---- raw leaves ------------------------------------------------------------
+    # annualSliceV3 itself carries no layer1_fields — it's a quarter-merge
+    # passthrough (reads whichever of india.domestic_income/india.other_sources
+    # or india.quarters.Q1-4.* the profile uses), not a specific tax field.
+    # The specific field-level provenance lives on the nodes below that pull a
+    # named field OUT of its merged result — that's what "which Layer 1 field
+    # feeds this number" actually means for a preparer, regardless of whether
+    # the profile happens to use quarterly or annual entry mode.
     "annualSliceV3": NodeDef(deps=(), compute=lambda d, ctx: _india_annual_slice_v3(ctx.get("india"))),
-    "salaryInr": NodeDef(deps=("annualSliceV3",), compute=lambda d, ctx: num(safe(d["annualSliceV3"]["domestic_income"], "salary.taxable_salary_inr", None)) or num(safe(d["annualSliceV3"]["domestic_income"], "salary.gross_salary_inr", 0))),
-    "housePropertyInr": NodeDef(deps=("annualSliceV3",), compute=lambda d, ctx: _house_property_inr(safe(d["annualSliceV3"]["domestic_income"], "house_property.properties", []) or [])),
-    "interestInr": NodeDef(deps=("annualSliceV3",), compute=lambda d, ctx: (
-        num(safe(d["annualSliceV3"]["other_sources"], "interest_savings_inr", 0)) + num(safe(d["annualSliceV3"]["other_sources"], "interest_fd_rd_inr", 0)) +
-        num(safe(d["annualSliceV3"]["other_sources"], "interest_bonds_inr", 0)) + num(safe(d["annualSliceV3"]["other_sources"], "interest_on_it_refund_inr", 0)) +
-        num(safe(d["annualSliceV3"]["domestic_income"], "other_sources.interest_inr", 0))
-    )),
-    "dividendInr": NodeDef(deps=("annualSliceV3",), compute=lambda d, ctx: num(safe(d["annualSliceV3"]["other_sources"], "dividend_inr", 0))),
-    "specialRate115bbInr": NodeDef(deps=("annualSliceV3",), compute=lambda d, ctx: (
-        num(safe(d["annualSliceV3"]["other_sources"], "winnings_lottery_gaming_inr", 0)) + num(safe(d["annualSliceV3"]["other_sources"], "online_gaming_winnings_inr", 0))
-    )),
-    "taxRegime": NodeDef(deps=(), compute=lambda d, ctx: (safe(ctx.get("india"), "profile.tax_regime", "NEW") or "NEW").upper()),
-    "indiaResidencyStatusRawV3": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.final_india_residency_status", None)),
-    "indiaEntityTypeRawV3": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.entity_type", "individual")),
+    "salaryInr": NodeDef(
+        deps=("annualSliceV3",),
+        compute=lambda d, ctx: num(safe(d["annualSliceV3"]["domestic_income"], "salary.taxable_salary_inr", None)) or num(safe(d["annualSliceV3"]["domestic_income"], "salary.gross_salary_inr", 0)),
+        layer1_fields=("india.domestic_income.salary.taxable_salary_inr", "india.domestic_income.salary.gross_salary_inr"),
+    ),
+    "housePropertyInr": NodeDef(
+        deps=("annualSliceV3",),
+        compute=lambda d, ctx: _house_property_inr(safe(d["annualSliceV3"]["domestic_income"], "house_property.properties", []) or []),
+        layer1_fields=(
+            "india.domestic_income.house_property.properties[].annual_value_inr",
+            "india.domestic_income.house_property.properties[].gross_annual_value_inr",
+            "india.domestic_income.house_property.properties[].net_income_inr",
+            "india.domestic_income.house_property.properties[].gross_rent_received_inr",
+        ),
+    ),
+    "interestInr": NodeDef(
+        deps=("annualSliceV3",),
+        compute=lambda d, ctx: (
+            num(safe(d["annualSliceV3"]["other_sources"], "interest_savings_inr", 0)) + num(safe(d["annualSliceV3"]["other_sources"], "interest_fd_rd_inr", 0)) +
+            num(safe(d["annualSliceV3"]["other_sources"], "interest_bonds_inr", 0)) + num(safe(d["annualSliceV3"]["other_sources"], "interest_on_it_refund_inr", 0)) +
+            num(safe(d["annualSliceV3"]["domestic_income"], "other_sources.interest_inr", 0))
+        ),
+        layer1_fields=(
+            "india.other_sources.interest_savings_inr", "india.other_sources.interest_fd_rd_inr",
+            "india.other_sources.interest_bonds_inr", "india.other_sources.interest_on_it_refund_inr",
+            "india.domestic_income.other_sources.interest_inr",
+        ),
+    ),
+    "dividendInr": NodeDef(deps=("annualSliceV3",), compute=lambda d, ctx: num(safe(d["annualSliceV3"]["other_sources"], "dividend_inr", 0)), layer1_fields=("india.other_sources.dividend_inr",)),
+    "specialRate115bbInr": NodeDef(
+        deps=("annualSliceV3",),
+        compute=lambda d, ctx: (
+            num(safe(d["annualSliceV3"]["other_sources"], "winnings_lottery_gaming_inr", 0)) + num(safe(d["annualSliceV3"]["other_sources"], "online_gaming_winnings_inr", 0))
+        ),
+        layer1_fields=("india.other_sources.winnings_lottery_gaming_inr", "india.other_sources.online_gaming_winnings_inr"),
+    ),
+    "taxRegime": NodeDef(deps=(), compute=lambda d, ctx: (safe(ctx.get("india"), "profile.tax_regime", "NEW") or "NEW").upper(), layer1_fields=("india.profile.tax_regime",)),
+    "indiaResidencyStatusRawV3": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.final_india_residency_status", None), layer1_fields=("india.residency_detail.final_india_residency_status",)),
+    "indiaEntityTypeRawV3": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.entity_type", "individual"), layer1_fields=("india.profile.entity_type",)),
 
     # ---- deductions -----------------------------------------------------------
-    "dedS80C": NodeDef(deps=(), compute=lambda d, ctx: (lambda x: num(x.get("epf_employee_inr")) + num(x.get("ppf_inr")) + num(x.get("elss_inr")) + num(x.get("life_insurance_premium_inr")) + num(x.get("principal_home_loan_inr")) + num(x.get("tuition_fees_inr")) + num(x.get("nsc_inr")) + num(x.get("tax_saving_fd_inr")) + num(x.get("sukanya_samriddhi_inr")))(safe(ctx.get("india"), "deductions.s80C", {}) or {})),
-    "dedS80CCD1B": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "deductions.s80CCD_1B.nps_additional_inr", 0))),
-    "dedS80CCD2Employer": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "domestic_income.salary.employer_nps_contribution_inr", 0))),
-    "dedS80D": NodeDef(deps=(), compute=lambda d, ctx: (lambda x: num(x.get("self_family_premium_inr")) + num(x.get("parents_premium_inr")))(safe(ctx.get("india"), "deductions.s80D", {}) or {})),
-    "dedS80TTA_TTB": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "deductions.s80TTA_TTB.savings_interest_inr", 0))),
-    "dedS80DD": NodeDef(deps=(), compute=lambda d, ctx: (lambda x: (S80DD_U_FLAT.get(x.get("disability_percentage")) or 0) if x.get("has_disabled_dependents") is True else 0)(safe(ctx.get("india"), "deductions.s80DD", {}) or {})),
-    "dedS80DDB": NodeDef(deps=(), compute=lambda d, ctx: (lambda x: min(num(x.get("medical_expenses_inr")), S80DDB_CAP.get(x.get("patient_category")) or S80DDB_CAP["normal"]) if x.get("has_specified_diseases_treatment") is True else 0)(safe(ctx.get("india"), "deductions.s80DDB", {}) or {})),
-    "dedS80U": NodeDef(deps=(), compute=lambda d, ctx: (lambda x: (S80DD_U_FLAT.get(x.get("disability_percentage")) or 0) if x.get("has_self_disability") is True else 0)(safe(ctx.get("india"), "deductions.s80U", {}) or {})),
-    "dedS80E": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "deductions.s80E.education_loan_interest_inr", 0))),
-    "dedS80EEA_EE": NodeDef(deps=(), compute=lambda d, ctx: (lambda x: min(num(x.get("affordable_home_loan_interest_inr")), _s80eea_ee_cap_inr(x.get("loan_sanction_date"))))(safe(ctx.get("india"), "deductions.s80EEA_EE", {}) or {})),
-    "dedS80GGB_GGC": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "deductions.s80ggb_ggc_political_donation_inr", 0))),
-    "dedS80GGRentPaidInr": NodeDef(deps=(), compute=lambda d, ctx: (lambda x: num(x.get("rent_paid_inr")) if x.get("has_rent_paid_no_hra") is True else 0)(safe(ctx.get("india"), "deductions.s80GG", {}) or {})),
+    "dedS80C": NodeDef(
+        deps=(),
+        compute=lambda d, ctx: (lambda x: num(x.get("epf_employee_inr")) + num(x.get("ppf_inr")) + num(x.get("elss_inr")) + num(x.get("life_insurance_premium_inr")) + num(x.get("principal_home_loan_inr")) + num(x.get("tuition_fees_inr")) + num(x.get("nsc_inr")) + num(x.get("tax_saving_fd_inr")) + num(x.get("sukanya_samriddhi_inr")))(safe(ctx.get("india"), "deductions.s80C", {}) or {}),
+        layer1_fields=(
+            "india.deductions.s80C.epf_employee_inr", "india.deductions.s80C.ppf_inr", "india.deductions.s80C.elss_inr",
+            "india.deductions.s80C.life_insurance_premium_inr", "india.deductions.s80C.principal_home_loan_inr",
+            "india.deductions.s80C.tuition_fees_inr", "india.deductions.s80C.nsc_inr",
+            "india.deductions.s80C.tax_saving_fd_inr", "india.deductions.s80C.sukanya_samriddhi_inr",
+        ),
+    ),
+    "dedS80CCD1B": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "deductions.s80CCD_1B.nps_additional_inr", 0)), layer1_fields=("india.deductions.s80CCD_1B.nps_additional_inr",)),
+    "dedS80CCD2Employer": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "domestic_income.salary.employer_nps_contribution_inr", 0)), layer1_fields=("india.domestic_income.salary.employer_nps_contribution_inr",)),
+    "dedS80D": NodeDef(
+        deps=(), compute=lambda d, ctx: (lambda x: num(x.get("self_family_premium_inr")) + num(x.get("parents_premium_inr")))(safe(ctx.get("india"), "deductions.s80D", {}) or {}),
+        layer1_fields=("india.deductions.s80D.self_family_premium_inr", "india.deductions.s80D.parents_premium_inr"),
+    ),
+    "dedS80TTA_TTB": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "deductions.s80TTA_TTB.savings_interest_inr", 0)), layer1_fields=("india.deductions.s80TTA_TTB.savings_interest_inr",)),
+    "dedS80DD": NodeDef(
+        deps=(), compute=lambda d, ctx: (lambda x: (S80DD_U_FLAT.get(x.get("disability_percentage")) or 0) if x.get("has_disabled_dependents") is True else 0)(safe(ctx.get("india"), "deductions.s80DD", {}) or {}),
+        layer1_fields=("india.deductions.s80DD.has_disabled_dependents", "india.deductions.s80DD.disability_percentage"),
+    ),
+    "dedS80DDB": NodeDef(
+        deps=(), compute=lambda d, ctx: (lambda x: min(num(x.get("medical_expenses_inr")), S80DDB_CAP.get(x.get("patient_category")) or S80DDB_CAP["normal"]) if x.get("has_specified_diseases_treatment") is True else 0)(safe(ctx.get("india"), "deductions.s80DDB", {}) or {}),
+        layer1_fields=("india.deductions.s80DDB.has_specified_diseases_treatment", "india.deductions.s80DDB.medical_expenses_inr", "india.deductions.s80DDB.patient_category"),
+    ),
+    "dedS80U": NodeDef(
+        deps=(), compute=lambda d, ctx: (lambda x: (S80DD_U_FLAT.get(x.get("disability_percentage")) or 0) if x.get("has_self_disability") is True else 0)(safe(ctx.get("india"), "deductions.s80U", {}) or {}),
+        layer1_fields=("india.deductions.s80U.has_self_disability", "india.deductions.s80U.disability_percentage"),
+    ),
+    "dedS80E": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "deductions.s80E.education_loan_interest_inr", 0)), layer1_fields=("india.deductions.s80E.education_loan_interest_inr",)),
+    "dedS80EEA_EE": NodeDef(
+        deps=(), compute=lambda d, ctx: (lambda x: min(num(x.get("affordable_home_loan_interest_inr")), _s80eea_ee_cap_inr(x.get("loan_sanction_date"))))(safe(ctx.get("india"), "deductions.s80EEA_EE", {}) or {}),
+        layer1_fields=("india.deductions.s80EEA_EE.affordable_home_loan_interest_inr", "india.deductions.s80EEA_EE.loan_sanction_date"),
+    ),
+    "dedS80GGB_GGC": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "deductions.s80ggb_ggc_political_donation_inr", 0)), layer1_fields=("india.deductions.s80ggb_ggc_political_donation_inr",)),
+    "dedS80GGRentPaidInr": NodeDef(
+        deps=(), compute=lambda d, ctx: (lambda x: num(x.get("rent_paid_inr")) if x.get("has_rent_paid_no_hra") is True else 0)(safe(ctx.get("india"), "deductions.s80GG", {}) or {}),
+        layer1_fields=("india.deductions.s80GG.has_rent_paid_no_hra", "india.deductions.s80GG.rent_paid_inr"),
+    ),
 
     # ---- carry-forward losses ---------------------------------------------
-    "cflBusinessInr": NodeDef(deps=(), compute=lambda d, ctx: _sum_allowed(safe(ctx.get("india"), "carry_forward_losses.business_loss_cf", []))),
-    "cflSpeculativeInr": NodeDef(deps=(), compute=lambda d, ctx: _sum_allowed(safe(ctx.get("india"), "carry_forward_losses.speculative_loss_cf", []))),
-    "cflStcgInr": NodeDef(deps=(), compute=lambda d, ctx: _sum_allowed(safe(ctx.get("india"), "carry_forward_losses.stcg_loss_cf", []))),
-    "cflLtcgInr": NodeDef(deps=(), compute=lambda d, ctx: _sum_allowed(safe(ctx.get("india"), "carry_forward_losses.ltcg_loss_cf", []))),
-    "cflHousePropertyInr": NodeDef(deps=(), compute=lambda d, ctx: _sum_allowed(safe(ctx.get("india"), "carry_forward_losses.house_property_loss_cf", []))),
-    "cflUnabsorbedDepreciationInr": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "carry_forward_losses.unabsorbed_depreciation_cf", 0))),
+    "cflBusinessInr": NodeDef(deps=(), compute=lambda d, ctx: _sum_allowed(safe(ctx.get("india"), "carry_forward_losses.business_loss_cf", [])), layer1_fields=("india.carry_forward_losses.business_loss_cf[].final_allowed_amount_inr", "india.carry_forward_losses.business_loss_cf[].amount_inr")),
+    "cflSpeculativeInr": NodeDef(deps=(), compute=lambda d, ctx: _sum_allowed(safe(ctx.get("india"), "carry_forward_losses.speculative_loss_cf", [])), layer1_fields=("india.carry_forward_losses.speculative_loss_cf[].final_allowed_amount_inr", "india.carry_forward_losses.speculative_loss_cf[].amount_inr")),
+    "cflStcgInr": NodeDef(deps=(), compute=lambda d, ctx: _sum_allowed(safe(ctx.get("india"), "carry_forward_losses.stcg_loss_cf", [])), layer1_fields=("india.carry_forward_losses.stcg_loss_cf[].final_allowed_amount_inr", "india.carry_forward_losses.stcg_loss_cf[].amount_inr")),
+    "cflLtcgInr": NodeDef(deps=(), compute=lambda d, ctx: _sum_allowed(safe(ctx.get("india"), "carry_forward_losses.ltcg_loss_cf", [])), layer1_fields=("india.carry_forward_losses.ltcg_loss_cf[].final_allowed_amount_inr", "india.carry_forward_losses.ltcg_loss_cf[].amount_inr")),
+    "cflHousePropertyInr": NodeDef(deps=(), compute=lambda d, ctx: _sum_allowed(safe(ctx.get("india"), "carry_forward_losses.house_property_loss_cf", [])), layer1_fields=("india.carry_forward_losses.house_property_loss_cf[].final_allowed_amount_inr", "india.carry_forward_losses.house_property_loss_cf[].amount_inr")),
+    "cflUnabsorbedDepreciationInr": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "carry_forward_losses.unabsorbed_depreciation_cf", 0)), layer1_fields=("india.carry_forward_losses.unabsorbed_depreciation_cf",)),
 
     # ---- treaty --------------------------------------------------------------
-    "treatyTrcStatus": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "dtaa.trc_status", False) is True or safe(ctx.get("india"), "compliance_docs.trc.document_uploaded", False) is True),
-    "treatyForm10fFiled": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "compliance_docs.form_10f.is_filed", False) is True),
-    "treatyElectionsRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "dtaa.treaty_elections", []) or []),
+    "treatyTrcStatus": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "dtaa.trc_status", False) is True or safe(ctx.get("india"), "compliance_docs.trc.document_uploaded", False) is True, layer1_fields=("india.dtaa.trc_status", "india.compliance_docs.trc.document_uploaded")),
+    "treatyForm10fFiled": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "compliance_docs.form_10f.is_filed", False) is True, layer1_fields=("india.compliance_docs.form_10f.is_filed",)),
+    "treatyElectionsRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "dtaa.treaty_elections", []) or [], layer1_fields=("india.dtaa.treaty_elections",)),
 
     # ---- EXPLICIT BOUNDARY INPUTS — overridden by india_full.py ------------
     "businessInrBoundaryV3": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx, "model.income.india.business.inr", None))),

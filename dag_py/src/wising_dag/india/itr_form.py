@@ -130,13 +130,13 @@ def build(base):
         compute=lambda d, ctx: d["entityTaxableInrBoundary"] if d["isEntityTaxpayer"] else d["grossTotalIncomeInrV3"],
     ))
 
-    r.register("indiaForeignIncomeDeclaredRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "foreign_income.has_foreign_income", None)))
-    r.register("indiaForeignAssetsDeclaredRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "foreign_assets.has_foreign_assets", None)))
-    r.register("indiaHasBroughtForwardLossesRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "carry_forward_losses.has_brought_forward_losses", None)))
-    r.register("indiaIsCompanyDirectorRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.is_company_director", False) is True))
-    r.register("indiaIsSection8Raw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.is_section_8", False) is True))
-    r.register("indiaLayer1ItrRaw", NodeDef(deps=(), compute=lambda d, ctx: (lambda v: None if v == "Unknown" else v)(safe(ctx.get("india"), "itr_recommendation.form", None))))
-    r.register("indiaReturnFormExplanationRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "itr_recommendation.explanation", None)))
+    r.register("indiaForeignIncomeDeclaredRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "foreign_income.has_foreign_income", None), layer1_fields=("india.foreign_income.has_foreign_income",)))
+    r.register("indiaForeignAssetsDeclaredRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "foreign_assets.has_foreign_assets", None), layer1_fields=("india.foreign_assets.has_foreign_assets",)))
+    r.register("indiaHasBroughtForwardLossesRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "carry_forward_losses.has_brought_forward_losses", None), layer1_fields=("india.carry_forward_losses.has_brought_forward_losses",)))
+    r.register("indiaIsCompanyDirectorRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.is_company_director", False) is True, layer1_fields=("india.profile.is_company_director",)))
+    r.register("indiaIsSection8Raw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.is_section_8", False) is True, layer1_fields=("india.profile.is_section_8",)))
+    r.register("indiaLayer1ItrRaw", NodeDef(deps=(), compute=lambda d, ctx: (lambda v: None if v == "Unknown" else v)(safe(ctx.get("india"), "itr_recommendation.form", None)), layer1_fields=("india.itr_recommendation.form",)))
+    r.register("indiaReturnFormExplanationRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "itr_recommendation.explanation", None), layer1_fields=("india.itr_recommendation.explanation",)))
 
     r.register("indiaItrFormResult", NodeDef(
         deps=("indiaEntityTypeRaw", "indiaResidencyStatusRawAgg", "grossTotalIncomeInrCombined",

@@ -99,6 +99,14 @@ class NodeDef:
     compute: ComputeFn
     scope_gate: str | None = None
     out_of_scope_value: OutOfScopeValue = None
+    # Every individual Layer 1 leaf field this node's compute() reads
+    # directly, as "<router|india|us>.<dotted.path>" — array-item fields use
+    # "[]" on the segment they iterate, e.g.
+    # "india.financial_holdings.transactions[].asset_class". Empty for a
+    # pure derivation node (one with no direct Layer 1 read) — its
+    # provenance is its `deps` chain instead, walkable via
+    # NodeRegistry.transitive_layer1_fields().
+    layer1_fields: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

@@ -81,3 +81,36 @@ class NodeRegistry:
 
     def resolve(self, target_ids: list[str], ctx: dict) -> ResolveResult:
         return _resolve(self._nodes, target_ids, ctx)
+
+    def dependency_closure(self, node_id: str) -> tuple[str, ...]:
+        """Every node id transitively reachable from `node_id` via `deps`
+        (not including `node_id` itself). Pure structural walk over deps —
+        no ctx, no compute() calls — same static-analysis spirit as the JS
+        side's scripts/audit/dag-coverage.js."""
+        seen: set[str] = set()
+
+        def walk(nid: str) -> None:
+            node = self.get(nid)
+            if node is None:
+                return
+            for dep in node.deps:
+                if dep not in seen:
+                    seen.add(dep)
+                    walk(dep)
+
+        walk(node_id)
+        return tuple(sorted(seen))
+
+    def transitive_layer1_fields(self, node_id: str) -> tuple[str, ...]:
+        """Every Layer 1 field that feeds into `node_id`, directly or
+        through any number of intermediate nodes — the union of
+        `layer1_fields` across `node_id` and its full dependency closure.
+        This is the "absolute traceability" answer for a derived node deep
+        in the graph: no manual deps-walking required, computed once from
+        the static graph structure."""
+        fields: set[str] = set()
+        for nid in (node_id, *self.dependency_closure(node_id)):
+            node = self.get(nid)
+            if node is not None:
+                fields.update(node.layer1_fields)
+        return tuple(sorted(fields))

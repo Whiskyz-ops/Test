@@ -608,40 +608,168 @@ def _india_income_model_result(d, ctx):
     }
 
 
+# ---- field-level Layer 1 provenance for the two dense compute-heavy nodes.
+# Kept as named constants (not inlined) purely for readability at this size —
+# still exactly the same "every leaf field this compute() reads" convention
+# used everywhere else in this package.
+_BUSINESS_COMPUTATION_FIELDS = (
+    "india.profile.entity_type", "india.domestic_income.business_income.entity_type",
+    "india.profile.opt_115baa", "india.profile.opt_115bab", "india.profile.opt_115ba", "india.profile.tax_regime",
+    "india.domestic_income.business_income.business_entries[].net_profit_inr",
+    "india.domestic_income.business_income.business_entries[].net_profit",
+    "india.domestic_income.business_income.business_entries[].presumptive_scheme",
+    "india.domestic_income.business_income.business_entries[].digital_receipts_inr",
+    "india.domestic_income.business_income.business_entries[].cash_receipts_inr",
+    "india.domestic_income.business_income.business_entries[].ada_digital_receipts_inr",
+    "india.domestic_income.business_income.business_entries[].ada_cash_receipts_inr",
+    "india.domestic_income.business_income.business_entries[].gross_receipts_inr",
+    "india.domestic_income.business_income.business_entries[].turnover_inr",
+    "india.domestic_income.business_income.business_entries[].business_code",
+    "india.domestic_income.business_income.business_entries[].expenses.rent_for_business_premises_inr",
+    "india.domestic_income.business_income.business_entries[].expenses.repairs_maintenance_inr",
+    "india.domestic_income.business_income.business_entries[].expenses.employee_salary_wages_inr",
+    "india.domestic_income.business_income.business_entries[].expenses.employee_bonus_commission_inr",
+    "india.domestic_income.business_income.business_entries[].expenses.interest_on_borrowed_capital_inr",
+    "india.domestic_income.business_income.business_entries[].expenses.insurance_premium_inr",
+    "india.domestic_income.business_income.business_entries[].expenses.bad_debts_written_off_inr",
+    "india.domestic_income.business_income.business_entries[].expenses.other_business_expenses_inr",
+    "india.domestic_income.business_income.business_entries[].expenses.ca_professional_fees_inr",
+    "india.domestic_income.business_income.business_entries[].expenses.employer_pf_esi_paid_before_due_date",
+    "india.domestic_income.business_income.business_entries[].expenses.employer_pf_esi_contribution_inr",
+    "india.domestic_income.business_income.business_entries[].expenses.payments_to_non_residents_no_tds_inr",
+    "india.domestic_income.business_income.business_entries[].expenses.payments_to_residents_no_tds_inr",
+    "india.domestic_income.business_income.business_entries[].expenses.total_cash_payments_exceeding_limit_inr",
+    "india.domestic_income.business_income.business_entries[].expenses.total_cash_payments_exceeding_35k_inr",
+    "india.domestic_income.business_income.asset_blocks[].unit_biz_idx",
+    "india.domestic_income.business_income.asset_blocks[].asset_class",
+    "india.domestic_income.business_income.asset_blocks[].opening_wdv_inr",
+    "india.domestic_income.business_income.asset_blocks[].additions_during_year_inr",
+    "india.domestic_income.business_income.asset_blocks[].sale_consideration_inr",
+    "india.domestic_income.business_income.asset_blocks[].addition_date",
+    "india.domestic_income.business_income.asset_blocks[].is_new_manufacturing_asset",
+    "india.domestic_income.business_income.msme_payables[].unit_biz_idx",
+    "india.domestic_income.business_income.msme_payables[].amount_inr",
+    "india.domestic_income.business_income.msme_payables[].invoice_date",
+    "india.domestic_income.business_income.msme_payables[].has_written_agreement",
+    "india.domestic_income.business_income.msme_payables[].payment_date",
+    "india.domestic_income.business_income.goods_vehicles[].months_owned",
+    "india.domestic_income.business_income.goods_vehicles[].vehicle_type",
+    "india.domestic_income.business_income.goods_vehicles[].gvw_tonnes",
+    "india.domestic_income.business_income.partner_firms[].remuneration_from_entity_inr",
+    "india.domestic_income.business_income.partner_firms[].interest_on_capital_from_entity_inr",
+)
+
+_CAPITAL_GAINS_COMPUTATION_FIELDS = (
+    "india.share_buyback.transactions[].buyback_pre_or_post_oct2024",
+    "india.share_buyback.transactions[].consideration_received_inr",
+    "india.share_buyback.transactions[].capital_gain_or_loss",
+    "india.share_buyback.transactions[].gain_classification",
+    "india.share_buyback.transactions[].is_listed",
+    "india.share_buyback.transactions[].is_promoter",
+    "india.share_buyback.transactions[].original_acquisition_date",
+    "india.share_buyback.transactions[].buyback_date",
+    "india.share_buyback.transactions[].company_name",
+    "india.other_sources.deemed_dividend_from_buyback_inr",
+    "india.capital_gains.buyback_ltcg_inr", "india.capital_gains.buyback_stcg_inr",
+    "india.other_sources.buyback_stcg_slab_inr",
+    "india.domestic_income.capital_gains.short_term_15_pct",
+    "india.capital_gains.stcg_111a_inr", "india.capital_gains.ltcg_112a_inr",
+    "india.financial_holdings.transactions[].asset_class",
+    "india.financial_holdings.transactions[].sale_date", "india.financial_holdings.transactions[].sale_value",
+    "india.financial_holdings.transactions[].sale_currency", "india.financial_holdings.transactions[].purchase_value",
+    "india.financial_holdings.transactions[].purchase_currency", "india.financial_holdings.transactions[].transfer_expenses",
+    "india.financial_holdings.transactions[].acquisition_date", "india.financial_holdings.transactions[].asset_name_or_ticker",
+    "india.financial_holdings.transactions[].is_specified_foreign_exchange_asset",
+    "india.financial_holdings.transactions[].investment_income_this_year",
+    "india.financial_holdings.transactions[].investment_income_currency",
+    "india.financial_holdings.transactions[].nri_exit_type",
+    "india.financial_holdings.transactions[].fmv_31jan2018_per_unit_inr", "india.financial_holdings.transactions[].quantity",
+    "india.financial_holdings.transactions[].stt_paid",
+    "india.compliance_docs.chapter_xiia_elected",
+    "india.commodities.transactions[].is_maturity_redemption", "india.commodities.transactions[].sale_date",
+    "india.commodities.transactions[].sale_value", "india.commodities.transactions[].sale_currency",
+    "india.commodities.transactions[].purchase_value", "india.commodities.transactions[].purchase_currency",
+    "india.commodities.transactions[].acquisition_date", "india.commodities.transactions[].commodity_type",
+    "india.unlisted_equity.transactions[].sale_date", "india.unlisted_equity.transactions[].sale_price_per_share",
+    "india.unlisted_equity.transactions[].number_of_shares",
+    "india.unlisted_equity.transactions[].sale_price_per_share_currency",
+    "india.unlisted_equity.transactions[].original_investment_currency",
+    "india.unlisted_equity.transactions[].original_cost_in_foreign_currency",
+    "india.unlisted_equity.transactions[].cost_per_share", "india.unlisted_equity.transactions[].cost_per_share_currency",
+    "india.unlisted_equity.transactions[].acquisition_date",
+)
+
+_OTHER_SOURCES_MISC_FIELDS = (
+    "india.other_sources.gifts_exemption_marriage", "india.other_sources.gifts_exemption_relative",
+    "india.other_sources.gifts_above_50k_inr", "india.other_sources.family_pension_gross_inr",
+    "india.other_sources.spousal_clubbing_s64_inr", "india.other_sources.minor_child_exemption_inr",
+    "india.other_sources.lic_maturity_inr", "india.other_sources.angel_tax_premium_inr",
+    "india.other_sources.local_authority_s10_20_inr", "india.other_sources.miscellaneous_income_inr",
+    "india.other_sources.taxable_epf_interest_inr", "india.other_sources.taxable_nps_withdrawal_inr",
+)
+
+# salary/house-property/interest/dividend/special-rate-115bb: read independently
+# here (not via in1_v3.py's salaryInr/etc. nodes) — same fields, deliberately
+# re-derived, per this file's own header ("re-verified here independently
+# rather than trusted by reference"). Same field set as in1_v3.py's nodes.
+_INCOME_BASES_FIELDS = (
+    "india.domestic_income.salary.taxable_salary_inr", "india.domestic_income.salary.gross_salary_inr",
+    "india.domestic_income.house_property.properties[].annual_value_inr",
+    "india.domestic_income.house_property.properties[].gross_annual_value_inr",
+    "india.domestic_income.house_property.properties[].net_income_inr",
+    "india.domestic_income.house_property.properties[].gross_rent_received_inr",
+    "india.other_sources.interest_savings_inr", "india.other_sources.interest_fd_rd_inr",
+    "india.other_sources.interest_bonds_inr", "india.other_sources.interest_on_it_refund_inr",
+    "india.domestic_income.other_sources.interest_inr", "india.other_sources.dividend_inr",
+    "india.other_sources.winnings_lottery_gaming_inr", "india.other_sources.online_gaming_winnings_inr",
+)
+
+
 NODES = {
+    # annualSliceAgg/diAgg/osAgg/cgAgg carry no layer1_fields — same
+    # passthrough-container convention as in1_v3.py's annualSliceV3: they
+    # merge/extract whole subtrees, not a specific tax field. Field-level
+    # provenance lives on the nodes below that pull a named field out.
     "annualSliceAgg": NodeDef(deps=(), compute=lambda d, ctx: _annual_slice_agg(ctx)),
     "diAgg": NodeDef(deps=("annualSliceAgg",), compute=lambda d, ctx: d["annualSliceAgg"].get("domestic_income") or {}),
     "osAgg": NodeDef(deps=("annualSliceAgg",), compute=lambda d, ctx: d["annualSliceAgg"].get("other_sources") or {}),
     "cgAgg": NodeDef(deps=("annualSliceAgg",), compute=lambda d, ctx: d["annualSliceAgg"].get("capital_gains") or {}),
-    "bizEntriesAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: safe(d["diAgg"], "business_income.business_entries", [])),
-    "bizAssetBlocksAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: safe(d["diAgg"], "business_income.asset_blocks", [])),
-    "bizMsmePayablesAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: safe(d["diAgg"], "business_income.msme_payables", [])),
-    "goodsVehiclesAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: safe(d["diAgg"], "business_income.goods_vehicles", [])),
-    "partnerFirmsAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: safe(d["diAgg"], "business_income.partner_firms", [])),
-    "fnoIncomeInrAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: num(safe(d["diAgg"], "business_income.non_speculative_income_inr", 0))),
-    "speculativeIncomeInrAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: num(safe(d["diAgg"], "business_income.speculative_income_inr", 0))),
-    "agriculturalIncomeInrAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: num(safe(d["diAgg"], "agricultural_income_inr", 0))),
-    "unexplained115bbeInrAgg": NodeDef(deps=("osAgg",), compute=lambda d, ctx: num(safe(d["osAgg"], "unexplained_income_115BBE_inr", 0))),
-    "indiaResidencyStatusRawAgg": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.final_india_residency_status", None)),
-    "indiaDtaaWorldwideCededAgg": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.dtaa_worldwide_ceded", False) is True),
-    "presumptiveEligibilityAgg": NodeDef(deps=("indiaResidencyStatusRawAgg",), compute=_presumptive_eligibility_agg),
+    "bizEntriesAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: safe(d["diAgg"], "business_income.business_entries", []), layer1_fields=("india.domestic_income.business_income.business_entries",)),
+    "bizAssetBlocksAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: safe(d["diAgg"], "business_income.asset_blocks", []), layer1_fields=("india.domestic_income.business_income.asset_blocks",)),
+    "bizMsmePayablesAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: safe(d["diAgg"], "business_income.msme_payables", []), layer1_fields=("india.domestic_income.business_income.msme_payables",)),
+    "goodsVehiclesAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: safe(d["diAgg"], "business_income.goods_vehicles", []), layer1_fields=("india.domestic_income.business_income.goods_vehicles",)),
+    "partnerFirmsAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: safe(d["diAgg"], "business_income.partner_firms", []), layer1_fields=("india.domestic_income.business_income.partner_firms",)),
+    "fnoIncomeInrAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: num(safe(d["diAgg"], "business_income.non_speculative_income_inr", 0)), layer1_fields=("india.domestic_income.business_income.non_speculative_income_inr",)),
+    "speculativeIncomeInrAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: num(safe(d["diAgg"], "business_income.speculative_income_inr", 0)), layer1_fields=("india.domestic_income.business_income.speculative_income_inr",)),
+    "agriculturalIncomeInrAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: num(safe(d["diAgg"], "agricultural_income_inr", 0)), layer1_fields=("india.domestic_income.agricultural_income_inr",)),
+    "unexplained115bbeInrAgg": NodeDef(deps=("osAgg",), compute=lambda d, ctx: num(safe(d["osAgg"], "unexplained_income_115BBE_inr", 0)), layer1_fields=("india.other_sources.unexplained_income_115BBE_inr",)),
+    "indiaResidencyStatusRawAgg": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.final_india_residency_status", None), layer1_fields=("india.residency_detail.final_india_residency_status",)),
+    "indiaDtaaWorldwideCededAgg": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.dtaa_worldwide_ceded", False) is True, layer1_fields=("india.residency_detail.dtaa_worldwide_ceded",)),
+    "presumptiveEligibilityAgg": NodeDef(
+        deps=("indiaResidencyStatusRawAgg",), compute=_presumptive_eligibility_agg,
+        layer1_fields=("india.profile.entity_type", "india.domestic_income.business_income.entity_type"),
+    ),
 
     "businessComputation": NodeDef(
         deps=("bizEntriesAgg", "presumptiveEligibilityAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg", "goodsVehiclesAgg", "fnoIncomeInrAgg", "partnerFirmsAgg"),
         compute=_business_computation,
+        layer1_fields=_BUSINESS_COMPUTATION_FIELDS,
     ),
     "capitalGainsComputation": NodeDef(
         deps=("indiaResidencyStatusRawAgg", "indiaDtaaWorldwideCededAgg", "cgAgg", "osAgg", "diAgg"),
         compute=_capital_gains_computation,
+        layer1_fields=_CAPITAL_GAINS_COMPUTATION_FIELDS,
     ),
-    "otherSourcesMiscComputation": NodeDef(deps=("osAgg", "diAgg"), compute=_other_sources_misc_computation),
+    "otherSourcesMiscComputation": NodeDef(deps=("osAgg", "diAgg"), compute=_other_sources_misc_computation, layer1_fields=_OTHER_SOURCES_MISC_FIELDS),
     "totalIndiaIncomeInr": NodeDef(
         deps=("businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "diAgg", "osAgg"),
         compute=_total_india_income_inr,
+        layer1_fields=_INCOME_BASES_FIELDS,
     ),
     "indiaIncomeModelResult": NodeDef(
         deps=("businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "diAgg", "osAgg", "fnoIncomeInrAgg", "speculativeIncomeInrAgg"),
         compute=_india_income_model_result,
+        layer1_fields=_INCOME_BASES_FIELDS + ("india.domestic_income.agricultural_income_inr", "india.other_sources.unexplained_income_115BBE_inr"),
     ),
 }
 

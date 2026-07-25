@@ -133,9 +133,49 @@ def _compute_treaty_model_result(d, ctx):
     }
 
 
-ENTITY_RESULT = NodeDef(deps=(), compute=_compute_entity_result)
-COMPANY_RESIDENCY_RESULT = NodeDef(deps=(), compute=_compute_company_residency_result)
-TREATY_MODEL_RESULT = NodeDef(deps=(), compute=_compute_treaty_model_result)
+ENTITY_RESULT = NodeDef(
+    deps=(), compute=_compute_entity_result,
+    layer1_fields=(
+        "india.profile.entity_type", "india.itr_recommendation.form", "india.itr_recommendation.explanation",
+        "india.profile.opt_115baa", "india.profile.opt_115bab", "india.profile.opt_115ba",
+        "india.profile.turnover_lte_400cr", "india.profile.mat_book_profit", "india.profile.is_section_8",
+        "india.profile.is_company_director",
+        "us.profile.tax_entity_type", "us.profile.llc_tax_election",
+        "us.corporate_financials.schedule_m1.net_income_per_books",
+        "us.corporate_financials.schedule_m1.federal_tax_expense",
+        "us.corporate_financials.schedule_m1.tax_exempt_interest",
+        "us.corporate_financials.schedule_m1.tax_depreciation_over_book",
+        "us.corporate_financials.schedule_m1.meals_disallowed_50",
+        "us.corporate_financials.schedule_m1.foreign_taxes_credited",
+        "us.corporate_financials.schedule_m1.interest_expense_limitation",
+        "us.corporate_financials.schedule_m1.other_additions",
+        "us.corporate_financials.schedule_m1.other_subtractions",
+        "us.profile.incorporated_in_us", "us.profile.incorporation_state",
+        "us.nra_specific.files_form_1040nr",
+    ),
+)
+COMPANY_RESIDENCY_RESULT = NodeDef(
+    deps=(), compute=_compute_company_residency_result,
+    layer1_fields=(
+        "india.company_residency.is_active_business",
+        "india.company_residency.board_meetings_primarily_outside_india",
+        "india.company_residency.key_management_location",
+        "india.company_residency.management_delegated_outside_india",
+        "india.company_residency.directors_in_india_count",
+        "india.company_residency.directors_outside_india_count",
+    ),
+)
+TREATY_MODEL_RESULT = NodeDef(
+    deps=(), compute=_compute_treaty_model_result,
+    layer1_fields=(
+        "india.dtaa.trc_status", "india.compliance_docs.trc.document_uploaded",
+        "india.compliance_docs.form_10f.is_filed", "india.dtaa.dtaa_treaty_residence",
+        "india.dtaa.dtaa_forced_nr", "india.dtaa.has_permanent_establishment_in_india",
+        "us.us_residency_detail.dtaa_treaty_residence", "us.nra_specific.files_form_1040nr",
+        "india.compliance_docs.chapter_xiia_elected", "india.dtaa.tb_home", "india.dtaa.tb_cvi",
+        "india.dtaa.tb_abode", "india.dtaa.tb_nationality", "india.dtaa.treaty_elections",
+    ),
+)
 
 
 def build(base):

@@ -82,3 +82,50 @@ def test_undeclared_dep_still_guarded_through_registry():
     r.freeze()
     with pytest.raises(UndeclaredDepAccess):
         r.resolve(["bad"], {})
+
+
+def test_dependency_closure_walks_full_chain():
+    r = NodeRegistry()
+    r.register("leaf1", NodeDef(deps=(), compute=lambda d, ctx: 1, layer1_fields=("india.a",)))
+    r.register("leaf2", NodeDef(deps=(), compute=lambda d, ctx: 2, layer1_fields=("india.b",)))
+    r.register("mid", NodeDef(deps=("leaf1", "leaf2"), compute=lambda d, ctx: d["leaf1"] + d["leaf2"]))
+    r.register("top", NodeDef(deps=("mid",), compute=lambda d, ctx: d["mid"] * 10))
+    r.freeze()
+
+    assert r.dependency_closure("top") == ("leaf1", "leaf2", "mid")
+    assert r.dependency_closure("mid") == ("leaf1", "leaf2")
+    assert r.dependency_closure("leaf1") == ()
+
+
+def test_dependency_closure_handles_diamonds_without_duplication():
+    # top depends on both mid_a and mid_b, which both depend on shared_leaf —
+    # a diamond, not a tree. Must appear once, not be double-counted or loop.
+    r = NodeRegistry()
+    r.register("shared_leaf", NodeDef(deps=(), compute=lambda d, ctx: 1, layer1_fields=("india.shared",)))
+    r.register("mid_a", NodeDef(deps=("shared_leaf",), compute=lambda d, ctx: d["shared_leaf"]))
+    r.register("mid_b", NodeDef(deps=("shared_leaf",), compute=lambda d, ctx: d["shared_leaf"]))
+    r.register("top", NodeDef(deps=("mid_a", "mid_b"), compute=lambda d, ctx: d["mid_a"] + d["mid_b"]))
+    r.freeze()
+
+    closure = r.dependency_closure("top")
+    assert closure == ("mid_a", "mid_b", "shared_leaf")
+    assert closure.count("shared_leaf") == 1
+
+
+def test_transitive_layer1_fields_unions_across_the_full_chain():
+    r = NodeRegistry()
+    r.register("leaf1", NodeDef(deps=(), compute=lambda d, ctx: 1, layer1_fields=("india.deductions.s80C.ppf_inr",)))
+    r.register("leaf2", NodeDef(deps=(), compute=lambda d, ctx: 2, layer1_fields=("india.deductions.s80C.elss_inr",)))
+    r.register("mid", NodeDef(deps=("leaf1", "leaf2"), compute=lambda d, ctx: d["leaf1"] + d["leaf2"], layer1_fields=()))
+    r.register("top", NodeDef(deps=("mid",), compute=lambda d, ctx: d["mid"] * 10))
+    r.freeze()
+
+    assert r.transitive_layer1_fields("top") == ("india.deductions.s80C.elss_inr", "india.deductions.s80C.ppf_inr")
+    assert r.transitive_layer1_fields("leaf1") == ("india.deductions.s80C.ppf_inr",)
+
+
+def test_transitive_layer1_fields_empty_for_pure_derivation_with_no_leaves():
+    r = NodeRegistry()
+    r.register("pure", NodeDef(deps=(), compute=lambda d, ctx: 42))
+    r.freeze()
+    assert r.transitive_layer1_fields("pure") == ()

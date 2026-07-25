@@ -98,18 +98,18 @@ def _compute_entity_tax_result(d, ctx):
 
 
 NODES = {
-    "indiaEntityTypeRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.entity_type", "individual")),
+    "indiaEntityTypeRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.entity_type", "individual"), layer1_fields=("india.profile.entity_type",)),
     "indiaIsCompany": NodeDef(deps=("indiaEntityTypeRaw",), compute=lambda d, ctx: d["indiaEntityTypeRaw"] == "company"),
     "indiaIsFirm": NodeDef(deps=("indiaEntityTypeRaw",), compute=lambda d, ctx: d["indiaEntityTypeRaw"] in ("firm", "llp", "local")),
     "indiaIsAop": NodeDef(deps=("indiaEntityTypeRaw",), compute=lambda d, ctx: d["indiaEntityTypeRaw"] == "aop"),
     "indiaIsTrust": NodeDef(deps=("indiaEntityTypeRaw",), compute=lambda d, ctx: d["indiaEntityTypeRaw"] == "trust"),
-    "isIndianCompanyFact": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.is_indian_company", None)),
-    "indiaOpt115baa": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.opt_115baa", False) is True),
-    "indiaOpt115bab": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.opt_115bab", False) is True),
-    "indiaOpt115ba": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.opt_115ba", False) is True),
-    "indiaTurnoverLte400cr": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.turnover_lte_400cr", False) is True),
-    "indiaMatBookProfitInr": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.mat_book_profit", None)),
-    "hasIndiaPE": NodeDef(deps=(), compute=lambda d, ctx: bool(safe(ctx.get("india"), "dtaa.has_permanent_establishment_in_india", False))),
+    "isIndianCompanyFact": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.is_indian_company", None), layer1_fields=("india.residency_detail.is_indian_company",)),
+    "indiaOpt115baa": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.opt_115baa", False) is True, layer1_fields=("india.profile.opt_115baa",)),
+    "indiaOpt115bab": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.opt_115bab", False) is True, layer1_fields=("india.profile.opt_115bab",)),
+    "indiaOpt115ba": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.opt_115ba", False) is True, layer1_fields=("india.profile.opt_115ba",)),
+    "indiaTurnoverLte400cr": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.turnover_lte_400cr", False) is True, layer1_fields=("india.profile.turnover_lte_400cr",)),
+    "indiaMatBookProfitInr": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.mat_book_profit", None), layer1_fields=("india.profile.mat_book_profit",)),
+    "hasIndiaPE": NodeDef(deps=(), compute=lambda d, ctx: bool(safe(ctx.get("india"), "dtaa.has_permanent_establishment_in_india", False)), layer1_fields=("india.dtaa.has_permanent_establishment_in_india",)),
 
     # ---- the one boundary input: the entity's total India income ----------
     "entityTaxableInrBoundary": NodeDef(
