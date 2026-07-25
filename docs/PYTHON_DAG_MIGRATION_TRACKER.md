@@ -21,8 +21,8 @@ imply any interim cutover.
 | 2 | `india/` domain | ✅ done (see below) |
 | 3 | `us/` domain | ✅ done (see below) |
 | 4 | `crossborder/` domain + fuzz corpus | ✅ done (see below) |
-| 5 | `findings/` domain-split | ⬜ not started |
-| 6 | `filings/` + `reports/` | ⬜ not started |
+| 5 | `findings/` domain-split | ✅ done (see below) |
+| 6 | `filings/` + `reports/` | 🟡 in progress (see below) |
 | 7 | `analyze()` assembly + Pyodide adapter + wheel | ⬜ not started |
 | 8 | Toggle + shadow mode + cutover (production-touching, gated) | ⬜ not started |
 
@@ -163,6 +163,258 @@ convenience field that `analyze.js`'s own `assembleComputed()` strips
 before ever comparing against the engine (which keeps the same value at
 `usTax.feie.appliedUsd` instead) — `test_us.py` replicates that exact
 strip rather than treating the mismatch as a bug.
+
+## Phase 6 detail (filings/ + reports/, IN PROGRESS — 294 tests green cumulative)
+
+**Scoping correction, found before any code was written**: the plan's guessed
+filenames (`documents-nodes.js`, `monitoring-nodes.js`) don't exist. The real
+JS sources are `report-batch1-nodes.js` (documents/scopeNotes/returnForms/
+ftcReport → `filings/documents.py`) and `report-batch6-nodes.js` (monitoring/
+LIM-7 → `filings/monitoring.py`). Phase 6 is also considerably bigger than
+the plan assumed: `assets-nodes.js` alone is 972 lines (the entity-ownership
+graph + per-entity trace builder), and `report-batch1-nodes.js` is 627.
+
+**A real architectural question, resolved by extending an existing
+pattern**: `monitoring.py`'s `monitorProgressResult`/`residencyMonitorResult`/
+`projectionsMonitorResult`/`calendarMonitorResult` and `reports/assembly.py`'s
+`summaryResult`/`analyzeResult` all read `ctx.model`/`ctx.computed` directly
+in the JS source (via `agg10-nodes.js`'s `withSyntheticCtx()` override
+wrapper) — but this Python port's `ctx` shape is `{router, india, us,
+fxRateOverride?, monitorAsOfBoundary?}`, never `model`/`computed`. Rather
+than invent a new resolution for this, it gets the SAME deferred-boundary-
+node treatment already used pervasively since Phase 3 (`us1_penalty_2210.py`'s
+`usTotalTaxBeforeFtcUsdBoundary`, `black_money_act.py`'s `accountsBoundary`,
+etc.) — closed once `metaResult`/`identityResult`/`residencyModelSliceResult`/
+`headlineResult` (deferred from `core/entry.py` since Phase 1) and the rest
+of the AGG-10 override layer are built in Phase 7's `analyze()` assembly.
+**Not yet built this phase**: `filings/monitoring.py` and `summaryResult`/
+`analyzeResult` themselves — deliberately left for Phase 7, where the
+prerequisite `metaResult`-family nodes actually get built.
+
+**A second real gap, found scoping (not introduced by) Phase 5**:
+`assets-nodes.js` OVERRIDES `findingsAllResult` to push 2 more findings —
+`msme_disallowance_s43Bh_india` and `presumptive_lockin_active_india` — that
+live outside every `findings-batchN-nodes.js` file Phase 5's inventory was
+scoped against (`report-batch5-nodes.js`'s own `FINDING_ADD_ORDER`, 61 ids).
+The true production count is 63, not 61. Tracked here, not yet closed —
+will be ported into `india/findings.py` (or a `filings/assets.py` override,
+matching the JS structure) when `filings/assets.py` is built.
+
+**Built and tested this phase** (`reports/assembly.py`'s `findingsAllResult`,
+`filings/limits.py`, `filings/calendar_amounts.py`,
+`filings/checks_registry.py` — 294 tests green, 13 new):
+- `reports/assembly.py`: `findingsAllResult` — concatenates Phase 5's
+  consolidated `findingsIndiaResult`/`indiaResidencyConsistencyFinding`/
+  `findingsUsResult`/`usResidencyConsistencyFinding`/
+  `findingsCrossborderResult` (5 lists, not the JS source's 12 — Phase 5's
+  domain-split already absorbed the old batch5/batch6/split-pattern
+  findings into those 5), then applies the same `FINDING_ADD_ORDER`
+  stable-sort tie-break + severity/amountUsd sort as
+  `report-batch5-nodes.js`'s own two-pass sort.
+- `filings/limits.py`: `limitsResult` (LIM-2/4/5, all six Monitor gauges:
+  fbar/form8938/lrs/nro_repatriation/feie/trump_account) — turned out to
+  have zero real blocking dependency once actually traced (all inputs
+  already ported in Phase 4/5's crossborder/us modules); deferred from
+  Phase 4 purely for organizational reasons, confirmed. Reused `us/ustax.py`'s
+  `feie_eligibility()` directly instead of re-deriving JS's
+  `feieEligibilityFull()` — already includes `reasons[]`, contrary to a
+  stale note in the Phase 5 tracker section claiming the US-side port
+  needed a sibling for that.
+- `filings/calendar_amounts.py`: `calendarAmountsResult` (CL-2, forward-
+  looking ₹/$ figures for the Compliance Calendar) — cleanest file in this
+  batch, reuses `india/findings.py`'s IN-1 chain and `us/findings.py`'s US1
+  chain verbatim.
+- `filings/checks_registry.py`: `checksRegistryResult` (CL-1, the "checks-run
+  registry" — explicit `passed` records for findings that were evaluated and
+  came back clean) — deps-only port of the ~55-dep node, no new raw leaves.
+
+**Architectural pattern used throughout this phase's 4 modules**: each one's
+`build(base)` registers ONLY its own node(s) and trusts `base` already
+carries every dependency — composing india/findings.py + us/findings.py +
+crossborder/findings.py into ONE shared registry without duplicate-
+registering their common `aggregate_india_income`/`aggregate_us_income` base
+(each of those three files' own `build()` independently re-derives it) is
+explicitly `core.registry.build_full_registry()`'s job, a Phase 7 task per
+the plan's own package layout. Verified instead via synthetic-dep-bag unit
+tests (`tests/test_filings_reports_phase6.py`) that call each node's
+`compute(d, ctx)` directly — same discipline `test_us_penalties.py`
+established in Phase 3 for boundary-stub nodes.
+
+One real bug caught by the new tests: `filings/limits.py`'s FEIE gauge read
+`core.constants.LIMITS["FEIE_MAX_USD"]`, which didn't exist there (only as a
+separate flat name in `us/constants.py`) — added to `core/constants.py`'s
+`LIMITS` dict (duplicated value, not moved, since `us/ustax.py`'s own
+`FEIE_MAX_USD` import site didn't need the surrounding namespace).
+
+**`reports/trace.py` + `reports/assembly.py`'s `buildTaxComputationResult`
+— done** (333 tests green cumulative, 39 new). Ports report-batch2-nodes.js
+(`us`/`usState` sections) and report-batch3-nodes.js (`india` section) —
+the UI trace/display assembly for the Tax Computation panel.
+`buildTaxComputationIndiaResult` ports BOTH the individual/HUF and entity
+branches in full (india/entity_tax.py's `entityTaxResult` already existed
+from Phase 2, so no carve-out was needed there). `buildTaxComputationUsResult`
+ports only the resident/individual branch — the JS source's NRA/entity/trust
+branches read `u.isNra`/`u.nra`/`u.trustBracketBreakdown`/`u.passthrough`,
+fields this port's `usTaxResult` doesn't carry yet (same entity/NRA-routing
+carve-out `test_us.py` already established in Phase 3); since those fields
+are simply absent rather than `False`, the individual branch is the only one
+ever reached, which is exactly the correct behavior for now.
+
+Two real bugs caught by the new golden-diff tests (`test_reports_trace.py`),
+fixed at the source: a missing `₹` prefix (same class of bug Phase 5 already
+caught twice — used `core.util.format_inr()` directly instead of a
+`₹`-prefixed wrapper; fixed with a local `inr()` helper matching every JS
+report-batchN-nodes.js file's own local helper) and a `"2.0"` vs `"2"`
+float-display bug in the Child Tax Credit trace's `numChildren` label (same
+root cause as Phase 5's `"3.0" vs "3"` director-count bug — `round()` at the
+one embed site fixes it).
+
+One DELIBERATE, PERMANENT (not "not yet ported") divergence from golden,
+carved out explicitly in `test_reports_trace.py` rather than silently
+ignored: for an India entity/company taxpayer, the frozen engine (which
+golden is generated from) has an uncorrected bug — it falls through into the
+individual/HUF row builder, which reads several entity-shaped fields as
+`undefined` and interpolates a literal `"₹NaN"` into the trace text. The JS
+DAG's `report-batch3-nodes.js` deliberately built its own entity-specific
+row set instead of reproducing that bug (documented in its own file header)
+— ported here unchanged. This carve-out is permanent, unlike every other
+"deferred to Phase 7" carve-out in this port.
+
+**Not yet done this phase** (real remaining Phase 6 work, not deferred to
+Phase 7): `filings/documents.py` (`buildDocumentsResult`, ~140 lines of
+`report-batch1-nodes.js`'s 627 — a 30-entry document catalog run through a
+trigger map; also carries `buildScopeNotesResult`/
+`buildReturnFormDeterminationResult`/`buildFtcReportResult`, folded into
+`reports/trace.py` instead per the plan's own filings-vs-reports split);
+`filings/assets.py` (`assetsModelResult` + the `findingsAllResult` override,
+~700 of 972 lines — the entity-ownership graph/per-entity trace builder,
+the single largest remaining file in this port); `reports/trace.py`'s
+`buildWithholdingSummaryResult` (report-batch4-nodes.js — deps-only, one
+`ctx.model` boundary read to fix at port time, not defer). `filings/
+monitoring.py` and `summaryResult`/`analyzeResult` are correctly deferred to
+Phase 7 (see above), not merely postponed.
+
+## Phase 5 detail (findings/ domain-split, 281 tests green cumulative)
+
+Split the 61 findings previously scattered across build-history files
+(`findings-nodes.js`, `findings-batch2..6-nodes.js`, `residency-nodes.js`'s
+`residencyConsistencyFindings`, and the split-pattern quartet
+`in1-nodes.js`/`us1-nodes.js`/`us5-nodes.js`/`xb7-nodes.js` +
+`report-batch5-nodes.js`) into `dag_py/src/wising_dag/{india,us,crossborder}/
+findings.py` — 17 India, 17 US, 27 crossborder. Per the plan's own
+discipline, `tests/test_findings_domain_split.py` was written FIRST (before
+any finding was ported), listing the full 61-id inventory and asserting no
+id appears twice — the port then proceeded finding-by-finding against that
+red test until every module-existence check went green.
+
+**Domain classification rule** (encoded in the pre-port inventory test's
+docstring): a finding is "crossborder" if its own `compute()` reads a
+crossborder-domain node (`residencyResult`, `ftcResult`, `apportionmentResult`,
+`crossBasisResult`, `mapDoubleTaxedIncomeResult`) directly — not merely
+because its category label says "treaty" or its subject sounds cross-border.
+Two documented exceptions where the rule was overridden by the JS source's
+own established split: `equity_comp_sourcing` (crossborder, despite reading
+only `equityCompResult` — that node itself mixes India's ESOP perquisite with
+the US's RSU/NSO income, the same award taxed by both countries) and
+`residencyConsistencyFindings` (one JS node split across two Python files —
+the India-branch output goes to `india/findings.py`, the US-branch output to
+`us/findings.py`, both built on the same underlying `crossborder/residency.py`
+raw+derived facts).
+
+**Two deliberate substitutions**, made to keep `india/findings.py` free of
+crossborder deps despite the JS source reading a crossborder node for a fact
+India's own domain already carries under a different name: `dtaa_treaty_
+elections` substitutes `in1_v3.py`'s `isNRV3` for JS's `residencyResult.india.
+status === "NR"`; `lrs_limit` substitutes a fresh self-contained `hasIndiaScope`
+leaf for JS's `hasIndiaScopeXbr` (mirroring the standalone-file pattern
+`us1_penalty_2210.py`/`us5_penalty_72t.py`/`black_money_act.py` already use).
+
+**New shared infrastructure**: `core/findings.py`'s `make_finding()` replaces
+the `add(id, severity, ...)` closure duplicated at the top of every JS
+findings-batchN-nodes.js compute function; `core/util.py` gained `format_usd()`
+(Western digit grouping, alongside the existing Indian-grouping `format_inr()`);
+`core/constants.py` (new) holds `LIMITS` (FBAR/LRS/Trump-Account thresholds) —
+genuinely shared across all three domains, so it doesn't live in any one of
+them. `us/constants.py` gained the full `US_STATES` table (CA/NY, port of
+`findings-batch5-nodes.js`'s TAX-9) plus a DAG-only NJ/no-income-tax-state
+extension, carried over verbatim from the JS source's own documented
+DAG/engine divergence (`docs/GAP_TRACKER.md` §H.7).
+
+**The 5 split-pattern findings** (`india_advance_tax_interest`,
+`underpayment_2210`, `early_withdrawal_penalty_72t`, `schedule_fa_
+inconsistent`, `black_money_act_exposure`) reuse already-shipped Phase 3/4
+computation nodes (`us1_penalty_2210.py`, `us5_penalty_72t.py`,
+`black_money_act.py`) wherever they already existed; only `india_advance_tax_
+interest`'s full ss.424/425 computation chain (`in1-nodes.js`) was new —
+ported into `india/findings.py` under the same deferred-boundary discipline
+(`assessedTaxInrBoundary` etc. read `ctx["computed"]`/`ctx["model"]`, closed
+in Phase 7). Each file's own `shouldFire` node (a different fire-condition
+per file, same id in every JS source) is aliased to a unique name
+(`in1ShouldFire`/`us1ShouldFire`/`us5ShouldFire`/`xb7ShouldFire`) before the
+generic node-merge, mirroring `report-batch5-nodes.js`'s own "the one
+genuine, dangerous exception" handling.
+
+**`holding_period_mismatch_<N>`** (crossborder, dynamic per-mismatch id)
+required porting `computeUsTaxCore` — a parameterized copy of `us/ustax.py`'s
+individual-path `_compute_us_tax_result`, extended with `extraLtcgUsd`/
+`extraStcgUsd` added on top of `foreignLtcg`/`foreignStcg` at the same point
+the frozen engine's own `withForeignCg` clone-and-override touches — run
+twice per mismatch (once per classification) against the SAME already-
+resolved deps bag, exactly matching the JS source's own approach.
+
+**A real cross-file composition constraint, resolved rather than worked
+around**: `crossborder/apportionment.py` independently re-derives
+`aggregate_india_income`/`aggregate_us_income` on its own registry (needed
+for its Phase-7 entity-aware override), which collides
+(`DuplicateNodeError`) if chained onto `cross_basis.build()`'s registry (which
+reaches the same two modules transitively via `india_full`/`us_full`).
+`tax_year_mismatch` needs both `apportionmentResult` and `crossBasisResult`-
+chain facts in the same finding — resolved by treating `apportionmentResult`
+as an EXPLICIT BOUNDARY INPUT (`apportionmentResultBoundary`, reads
+`ctx["computed"]["apportionment"]`) in `crossborder/findings.py`, same
+deferred-boundary discipline as everything else in this port, closed once
+Phase 7's `build_full_registry()` composes everything without duplication.
+Similarly, `withholding_documentation_gap` needs India's `s115a*Detailed`/
+`nrInterestDetailed` nodes (built in `india/findings.py`) AND the US's
+`nraFdapDetail` (built in `us/findings.py`) in the SAME registry —
+re-registered under an `-Xbr` suffix in `crossborder/findings.py` reusing the
+exact same compute functions (`india_findings._s115a_dividend_detailed` etc.),
+rather than importing either file's full `build()` chain a second time.
+
+Two real bugs caught by golden-diff testing (`tests/test_findings.py`, new),
+fixed at the source:
+- Several `_inr()`-shaped detail strings (carry-forward-loss set-off,
+  promoter-buyback additional tax, s.195 unexplained income, DTAA election
+  amounts) were built with `format_inr()` — Indian digit grouping, but
+  missing the JS source's own local `inr(n)` helper's `"₹"` prefix. Added a
+  matching `_inr()` wrapper in `india/findings.py` and swapped every call
+  site — a straightforward "which helper did the JS source actually use"
+  miss, not a computation error.
+- `entity_dual_residency_poem`'s POEM-factors sentence embedded raw director
+  counts (`num()`-derived, always float in Python) directly in an f-string —
+  `"3.0 director(s)"` vs JS's `Number(3.0)` template-literal-stringifying as
+  `"3"`. Fixed with an explicit `round()` at the one embed site (both counts
+  are always whole numbers by construction).
+- `state_income_tax`'s recommendation text dropped a literal comma before
+  "and (for California)" that's part of the JS source's static string, not
+  its conditional branch — a transcription slip, not a logic error.
+
+**Golden-diff coverage** (`test_findings.py`, all 3 domains × 13 fixtures):
+soundness-only for this phase — every finding a domain fires must exact-match
+a same-id golden entry; completeness (every golden finding that *should* fire
+*did* fire) is deferred to Phase 7's `test_analyze_golden.py`, once entity/NRA
+routing and `apportionmentResultBoundary` are both closed and the full 61-id
+set can be compared without carve-outs. Carve-outs applied, all already-
+established elsewhere in this port: `usTaxResult`-dependent findings
+(`amt_applies`, `feie_*`, `state_income_tax`, `underpayment_2210`,
+`niit_medicare_not_creditable`, `no_totalization_agreement`, `ftc_gap`/
+`ftc_available`, `holding_period_mismatch_*`) skip the 1 US-entity + 1 NRA
+profile; `tax_year_mismatch` never fires under the `{router, india, us}` ctx
+shape these fixtures use (no `ctx["computed"]`); `early_withdrawal_penalty_
+72t` skips all fixtures (its age computation depends on `baseYearUs`, which
+resolves `None` → a hardcoded 2025 fallback that can be off-by-one from
+golden's real base year — same gap `test_us_penalties.py` already documents
+with an explicit-ctx unit test for this exact node).
 
 ## Phase 4 detail (crossborder/ domain + fuzz corpus, 236 tests green cumulative)
 
