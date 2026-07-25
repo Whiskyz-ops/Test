@@ -2334,7 +2334,9 @@
                 </div>
             </div>
 
-            
+            <div class="flex justify-end mt-4">
+                <button onclick="state.residency_detail.final_india_residency_status === 'NR' ? switchStep('step-dtaa') : (((state.residency_detail.final_india_residency_status === 'ROR' || state.residency_detail.final_india_residency_status === 'RNOR') && document.getElementById('setup-international') && document.getElementById('setup-international').checked) ? switchStep('step-fa') : switchStep('step-bank'))" class="px-6 py-3 bg-brandGold hover:bg-brandGold/80 text-black font-black tracking-widest uppercase text-xs rounded-xl shadow-[0_0_15px_rgba(212,175,55,0.3)] transition-all">Next Step →</button>
+            </div>
         </div>
 
         <!-- STEP 2: DTAA TREATY (Conditional) -->
@@ -2687,7 +2689,7 @@
             </div>
 
             <div class="flex justify-between mt-4">
-                <button onclick="switchStep(state.profile.residency_lock === 'NR' ? 'step-compliance' : (state.profile.residency_lock === 'ROR' ? 'step-fa' : 'step-profile'))" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
+                <button onclick="state.residency_detail.final_india_residency_status === 'NR' ? switchStep('step-compliance') : (((state.residency_detail.final_india_residency_status === 'ROR' || state.residency_detail.final_india_residency_status === 'RNOR') && document.getElementById('setup-international') && document.getElementById('setup-international').checked) ? switchStep('step-fa') : switchStep('step-profile'))" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
                 <button onclick="state.profile.entity_type === 'individual' ? switchStep('step-salary') : switchStep('step-hp')" class="px-6 py-2.5 bg-brandGold text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:brightness-110 transition-all">Next Step</button>
             </div>
         </div>
@@ -3443,7 +3445,7 @@
         </div>
         
 <div class="flex justify-between mt-4">
-                <button onclick="switchStep('step-deductions')" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
+                <button onclick="switchStep('step-hp')" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
                 <button onclick="switchStep('step-cg')" class="px-6 py-2.5 bg-brandGold text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:brightness-110 transition-all">Next Step</button>
             </div>
         
@@ -3906,7 +3908,7 @@
             <div class="flex justify-between mt-4">
             <div class="flex justify-between mt-4">
                 <button onclick="switchStep('step-cg')" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
-                <button onclick="switchStep('step-dtaa')" class="px-6 py-2.5 bg-brandGold text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:brightness-110 transition-all">Next Step</button>
+                <button onclick="switchStep(state.profile.tax_regime === 'OLD' ? 'step-deductions' : 'step-credits')" class="px-6 py-2.5 bg-brandGold text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:brightness-110 transition-all">Next Step</button>
             </div>
         </div>
 
@@ -4300,7 +4302,7 @@
             </div>
 
             <div class="flex justify-between mt-4">
-                <button onclick="switchStep('step-income')" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
+                <button onclick="switchStep('step-os')" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
                 <button onclick="switchStep('step-credits')" class="px-6 py-2.5 bg-brandGold text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:brightness-110 transition-all">Next Step</button>
             </div>
         </div>
