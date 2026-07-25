@@ -887,3 +887,84 @@ strengthened per-edge trace assertion), differential fuzzer 300 iterations
 `trace`/new edges live entirely inside the already-excluded `entityGraph`
 key), `npm run audit` byte-identical before/after, all other DAG runners
 and `tests/engine/run.js` (frozen engine, correctly untouched) unaffected.
+
+## P. IN-6/IN-26 given real demo-profile coverage; monitor-next's profile list re-pointed to the live DAG fixtures (25 Jul 2026)
+
+Two Phase 4 findings (IN-6 presumptive lock-in, IN-26 s.44BBB/35AD/115V)
+were correct and DAG-tested (`run-assets.js`'s hand-checked synthetic
+cases) but had **zero real demo-profile coverage** — confirmed by grepping
+`profiles.js`/`sample-data.js` for their trigger fields (`s44AD_last_exit_ay`,
+`specified_business_s35AD_inr`, `presumptive_scheme: "s44BBB"`): zero
+matches across all 12 fixtures. Neither could be seen live in the app on
+any "Switch client…" profile — only in an offline test script's output.
+
+**Fixture additions, both real Layer 1 fields** (confirmed against
+`layer1_india.html`'s own live inputs before adding, not invented):
+- `india_only_ca_client`: `s44AD_last_exit_ay: "AY 2024-25"` on
+  `business_income` (top-level, matches `#biz-s44ad-exit`'s own write
+  path) — 2 years into the 5-year lock-in as of 25 Jul 2026, with total
+  income well above the OLD-regime basic exemption, so `presumptive_
+  lockin_active_india` fires and `form_3cb_3cd` (tax audit) is forced true
+  (previously `false` — turnover alone never crossed the audit threshold).
+- `foreign_holdco_poem_india`: a second business entry, "Meridian Power
+  Projects (India Branch)" (`presumptive_scheme: "s44BBB"`, matches the
+  real dropdown option gated to `entity==="company" && is_indian_company
+  === false` — exactly this profile's own facts), plus `specified_
+  business_s35AD_inr: 4500000` and `tonnage_tax_115V_inr: 850000` (both
+  matching real `layer1_india.html` inputs, gated to `entity==="company"
+  && !isNrCompany` — also satisfied, since this profile is ROR via POEM,
+  not NR).
+
+**A real architectural gap found while wiring this up, not assumed**:
+`monitor-next/lib/wising.js` imported `./engine/profiles.js` — the
+**frozen** archive snapshot (§J) — for `WISING.PROFILES`/`.loadProfile()`,
+not `prototypes/graph-pilot/profiles.js` (the live, actively-developed
+source these 2 edits went into). Confirmed structurally: `dag-adapter.js`'s
+own `W.PROFILES` reads are just `window.WISING.PROFILES`, the same global
+`wising.js` populates — so even DAG mode's "Switch client" dropdown was
+silently sourcing its profile LIST from the frozen 23-Jul snapshot, not
+the live fixtures, for both Engine and DAG mode alike. New demo profiles
+built on the DAG side were reaching the standalone Layer 0/1 HTML pages
+(§J already repointed those `<script src>` tags) but never monitor-next's
+own demo mode.
+
+Fixed by swapping just the one import: `./engine/profiles.js` →
+`./dag/profiles.js` (the already-synced live mirror). `sample-data.js`
+and all 4 logic files stay pointed at the frozen archive — `WISING.
+analyze()` itself is untouched, only which `PROFILES` array `WISING.
+loadProfile()`/`.listProfiles()` closes over. Safe because both files are
+the byte-identical IIFE shape (verified: `prototypes/graph-pilot/
+profiles.js` is the literal file `git mv`'d out of `engine/`, same
+`WISING.PROFILES = PROFILES; WISING.loadProfile = loadProfile; ...`
+attachment pattern) — a drop-in data swap, not a behavioral change to how
+profiles load.
+
+**Consequence, expected and verified, not a bug**: Engine mode now
+processes these 2 profiles' new fields through frozen (pre-fix) logic,
+producing genuinely different numbers than DAG mode — the same "DAG has
+it, frozen engine doesn't" divergence this whole migration documents
+throughout. Quantified directly (a differential script loading the live
+profiles.js and running both `WISING.analyze()` and `graph.resolve()`
+against it, since the standard fuzz/audit harnesses all resolve through
+`resolveEngineFile()` → the frozen archive and never see these edits at
+all): on `foreign_holdco_poem_india`, frozen engine computes the new
+entry as $542,169 (turnover treated as Regular Books income, its historical
+bug), vs. DAG's correct $54,217 (10% flat) — and frozen engine's total
+India business income is ₹6,70,00,000 vs. DAG's real ₹2,28,50,000 (s.35AD/
+tonnage tax never reach the frozen computation at all). On `india_only_ca_
+client`, `form_3cb_3cd` flips `false`→`true` DAG-side only, exactly as
+designed. `form_10iea`'s own pre-existing divergence (confirmed unrelated
+by checking untouched `sharma_huf` too) is unaffected by this change.
+
+**Verified**: `run-assets.js` (890/890, unaffected — resolves through the
+frozen archive, never sees these 2 edits), `run-fuzz.js -- --n=200` (0 new
+divergences, same reason), `tests/engine/run.js` (79/79, unaffected), a
+clean production `next build`, and live in a real browser (Playwright
+against `monitor-next`'s dev server): `india_only_ca_client`'s Monitor tab
+shows the new critical finding ("s.44AD presumptive taxation locked out
+for 3 more years — mandatory tax audit applies this year") and Filings
+shows Form 3CB/3CD flip to Required; `foreign_holdco_poem_india`'s
+Business tab shows the new "Meridian Power Projects (India Branch)" entity
+row, and `businessComputation`'s own return value directly confirms
+`tonnageTaxInr: 850000` and `s35adDeductionInr: 4500000` both reached the
+real computation.
