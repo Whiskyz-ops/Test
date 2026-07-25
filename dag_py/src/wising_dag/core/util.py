@@ -36,6 +36,13 @@ def format_inr(n: float) -> str:
     return sign + ",".join(parts) + "," + last3
 
 
+def format_usd(n: float) -> str:
+    """Port of `"$" + Math.round(n).toLocaleString("en-US")` — Western
+    digit grouping (unlike format_inr's Indian grouping), used for every
+    USD amount embedded in finding text."""
+    return f"${round(n):,}"
+
+
 def safe(obj: Any, path: str, default: Any = None) -> Any:
     """Port of JS `safe(obj, path, dflt)`: walks a dotted path, returning
     `default` if any level along the way is missing/None."""

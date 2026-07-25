@@ -75,3 +75,56 @@ US = {
     },
     "US_MACRS_STRAIGHT_LINE_ANNUAL": {"27.5-year": 1 / 27.5, "39-year": 1 / 39, "amortization-15": 1 / 15},
 }
+
+US_STATES = {
+    "CA": {
+        "NAME": "California",
+        "FORM_NAME": "Form 540",
+        "BRACKETS": {
+            "single": [[11079, 0.01], [26264, 0.02], [41452, 0.04], [57542, 0.06], [72724, 0.08], [371479, 0.093], [445771, 0.103], [742953, 0.113], [INF, 0.123]],
+            "mfj": [[22158, 0.01], [52528, 0.02], [82904, 0.04], [115084, 0.06], [145448, 0.08], [742958, 0.093], [891542, 0.103], [1485906, 0.113], [INF, 0.123]],
+        },
+        "STD_DEDUCTION": {"single": 5706, "mfj": 11412},
+        "EXEMPTION_CREDIT_USD": {"single": 153, "mfj": 307},
+        "DEPENDENT_CREDIT_USD": 475,
+        "SURCHARGE_THRESHOLD_USD": 1000000,
+        "SURCHARGE_RATE": 0.01,
+        "SURCHARGE_LABEL": "Mental Health Services Tax (1% over $1,000,000, not doubled for MFJ)",
+    },
+    "NY": {
+        "NAME": "New York",
+        "FORM_NAME": "Form IT-201",
+        "BRACKETS": {
+            "single": [[8500, 0.04], [11700, 0.045], [13900, 0.0525], [80650, 0.055], [215400, 0.06], [1077550, 0.0685], [5000000, 0.0965], [25000000, 0.103], [INF, 0.109]],
+            "mfj": [[17150, 0.04], [23600, 0.045], [27900, 0.0525], [161550, 0.055], [323200, 0.06], [2155350, 0.0685], [5000000, 0.0965], [25000000, 0.103], [INF, 0.109]],
+        },
+        "STD_DEDUCTION": {"single": 8000, "mfj": 16050},
+        "DEPENDENT_EXEMPTION_USD": 1000,
+    },
+}
+
+# DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.7 — "US
+# state income tax, Phase 2", 21 Jul 2026): the frozen engine models only
+# CA/NY. Extended here, DAG-only, with NJ (a real bracket table, same shape
+# as CA/NY) and the 8 states with no individual income tax at all (previously
+# indistinguishable from an unmodeled state — both silently returned null).
+US_STATES_NJ_NY_SHAPE_EXT = {
+    "NJ": {
+        "NAME": "New Jersey",
+        "FORM_NAME": "Form NJ-1040",
+        "BRACKETS": {
+            "single": [[20000, 0.014], [35000, 0.0175], [40000, 0.035], [75000, 0.05525], [500000, 0.0637], [1000000, 0.0897], [INF, 0.1075]],
+            "mfj": [[20000, 0.014], [50000, 0.0175], [70000, 0.0245], [80000, 0.035], [150000, 0.05525], [500000, 0.0637], [1000000, 0.0897], [INF, 0.1075]],
+        },
+        "STD_DEDUCTION": {"single": 1000, "mfj": 2000},
+        "STD_DEDUCTION_LABEL": "personal exemption",
+        "DEPENDENT_EXEMPTION_USD": 1500,
+        "DEPENDENT_EXEMPTION_LABEL": "NJ dependent exemption ($1,500/dependent)",
+    },
+}
+NO_INDIVIDUAL_INCOME_TAX_STATES = {"AK": 1, "FL": 1, "NV": 1, "SD": 1, "TN": 1, "TX": 1, "WA": 1, "WY": 1}
+STATE_NAMES = {
+    "AK": "Alaska", "FL": "Florida", "NV": "Nevada", "SD": "South Dakota",
+    "TN": "Tennessee", "TX": "Texas", "WA": "Washington", "WY": "Wyoming",
+}
+US_STATES_EXT = {**US_STATES, **US_STATES_NJ_NY_SHAPE_EXT}

@@ -67,4 +67,14 @@ def build(base: NodeRegistry) -> NodeRegistry:
     r.override("indiaWorldwideBoundaryFtc", NodeDef(deps=("residencyResult",), compute=lambda d, ctx: bool(d["residencyResult"]["india"]["worldwide"])), reason=OVERRIDE_REASON)
     r.override("usSourceTotalUsdBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["usSourceIncomeUsd"]), reason=OVERRIDE_REASON)
 
+    # Companion to hasUsScopeBoundaryFtc above — port of findings-nodes.js's
+    # hasIndiaScopeXbr, added here (not in crossborder/findings.py) because
+    # it's shared scope infrastructure consumed by findings across all three
+    # domains (e.g. india/findings.py's lrs_limit), not a crossborder-only
+    # concept itself.
+    r.register("hasIndiaScopeXbr", NodeDef(
+        deps=("routerJurisdictionXB",),
+        compute=lambda d, ctx: d["routerJurisdictionXB"] not in ("single_us", "us_only"),
+    ))
+
     return r
