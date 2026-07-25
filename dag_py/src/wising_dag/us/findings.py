@@ -33,6 +33,7 @@ from ..core.constants import LIMITS
 from ..core.findings import make_finding
 from ..core.graph import NodeDef
 from ..core.util import num, safe
+from ..india.aggregate_india_income import _annual_slice_agg
 from . import constants as C
 from . import us1_penalty_2210, us5_penalty_72t, us_full
 
@@ -217,14 +218,22 @@ NODES = {
     ),
     "usStateTaxResult": NodeDef(deps=("usEntityKind", "treatyFiles1040nrRaw", "s6013hElection", "stateResidencyRaw", "usFilingStatusRaw", "dedUs", "usTaxResult"), compute=_us_state_tax_result),
 
+    # lrsRemittedInr's primary source (the quarterly-merge-aware annual
+    # slice) is read via india/aggregate_india_income.py's pure
+    # `_annual_slice_agg(ctx)` helper directly — NOT the "annualSliceAgg"
+    # node itself, which isn't available in this file's own build() chain
+    # (us_full.build() never pulls in aggregate_india_income.py, the same
+    # cross-domain-read situation as this file's own diAggUs leaf above).
     "limitsRawExtra": NodeDef(
         deps=(), compute=lambda d, ctx: {
+            "lrsRemittedInr": num(safe(_annual_slice_agg(ctx), "lrs_outbound.total_lrs_remitted_this_fy_inr", 0)) or num(safe(ctx.get("india"), "lrs_outbound.total_lrs_remitted_this_fy_inr", 0)),
             "trumpAccountsOpened": safe(ctx.get("us"), "profile.trump_accounts_opened", False) is True,
             "trumpAccountsNumChildren": num(safe(ctx.get("us"), "profile.trump_accounts_num_children", 0)),
             "trumpAccountsSeedEligibleChildren": num(safe(ctx.get("us"), "profile.trump_accounts_children_born_2025_2028", 0)),
             "trumpAccountsContributionsUsd": num(safe(ctx.get("us"), "profile.trump_accounts_total_contributions_usd", 0)),
         },
         layer1_fields=(
+            "india.lrs_outbound.total_lrs_remitted_this_fy_inr",
             "us.profile.trump_accounts_opened", "us.profile.trump_accounts_num_children",
             "us.profile.trump_accounts_children_born_2025_2028", "us.profile.trump_accounts_total_contributions_usd",
         ),

@@ -280,19 +280,51 @@ row set instead of reproducing that bug (documented in its own file header)
 — ported here unchanged. This carve-out is permanent, unlike every other
 "deferred to Phase 7" carve-out in this port.
 
+**`filings/documents.py` — done** (385 tests green cumulative, 52 new).
+Ports all four functions in `report-batch1-nodes.js` (`buildDocumentsResult`
+— the 30-entry document catalog run through a trigger map — plus
+`buildScopeNotesResult`/`buildReturnFormDeterminationResult`/
+`buildFtcReportResult`, kept together since they live in the same JS file).
+
+The JS source's `entityFormsResult` node is NOT re-derived — it duplicates
+`core/entry.py`'s already-ported `entityResult` field-for-field
+(`indiaReturnForm`/`usReturnForm`/`indiaOpt115baa`/`indiaOpt115bab`), a
+duplication the JS source only carries for build-history reasons (flagged
+by the Phase 6 scoping agent, confirmed by direct comparison) — reused
+directly instead, avoiding ~15 lines of pointless duplicate logic.
+`presumptiveLockinAgg` (the one node needing real wall-clock "now", for the
+s.44AD(4) 5-year re-election lock-in) reads `ctx["monitorAsOfBoundary"]`
+instead of a bare `datetime.now()`, per this port's own architecture rule.
+
+One real bug caught by the new golden-diff tests, found while composing the
+test registry rather than in `documents.py` itself: `us/findings.py`'s
+`limitsRawExtra` node was missing the `lrsRemittedInr` field the JS source's
+own `limitsRawExtra` carries — silently dropped when Phase 5 ported this
+node (an earlier synthetic-dict unit test happened to hand-supply the
+field, masking the gap). Fixed by reading `india/aggregate_india_income.py`'s
+pure `_annual_slice_agg(ctx)` helper directly (not the `annualSliceAgg`
+node itself, which isn't reachable from `us/findings.py`'s own build chain —
+same cross-domain-read situation as that file's existing `diAggUs` leaf).
+
+One DELIBERATE, PERMANENT divergence, carved out explicitly in
+`test_filings_documents.py`: the JS DAG's document catalog is a strict
+superset of the frozen engine's original 30 entries — 7 more
+(`form_nj1040`, `form_8858`, `form_3520a`, `form_29b`, `form_10iea`,
+`form_10ic`, `form_10id`) were added DAG-only, each with its own "no engine
+equivalent" comment in the source. Golden (frozen-engine-generated) never
+carries these ids — filtered out before comparing, same permanent-carve-out
+discipline as `test_reports_trace.py`'s entity-branch divergence.
+
 **Not yet done this phase** (real remaining Phase 6 work, not deferred to
-Phase 7): `filings/documents.py` (`buildDocumentsResult`, ~140 lines of
-`report-batch1-nodes.js`'s 627 — a 30-entry document catalog run through a
-trigger map; also carries `buildScopeNotesResult`/
-`buildReturnFormDeterminationResult`/`buildFtcReportResult`, folded into
-`reports/trace.py` instead per the plan's own filings-vs-reports split);
-`filings/assets.py` (`assetsModelResult` + the `findingsAllResult` override,
-~700 of 972 lines — the entity-ownership graph/per-entity trace builder,
-the single largest remaining file in this port); `reports/trace.py`'s
-`buildWithholdingSummaryResult` (report-batch4-nodes.js — deps-only, one
-`ctx.model` boundary read to fix at port time, not defer). `filings/
-monitoring.py` and `summaryResult`/`analyzeResult` are correctly deferred to
-Phase 7 (see above), not merely postponed.
+Phase 7): `filings/assets.py` (`assetsModelResult` + the `findingsAllResult`
+override, ~700 of 972 lines — the entity-ownership graph/per-entity trace
+builder, the single largest remaining file in this port — also the source
+of the 2 extra findings, `msme_disallowance_s43Bh_india`/
+`presumptive_lockin_active_india`, noted earlier as a Phase-5-adjacent gap);
+`reports/trace.py`'s `buildWithholdingSummaryResult` (report-batch4-nodes.js
+— deps-only, one `ctx.model` boundary read to fix at port time, not defer).
+`filings/monitoring.py` and `summaryResult`/`analyzeResult` are correctly
+deferred to Phase 7 (see above), not merely postponed.
 
 ## Phase 5 detail (findings/ domain-split, 281 tests green cumulative)
 
