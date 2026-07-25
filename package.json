@@ -20,6 +20,9 @@
     "audit:dag": "node scripts/audit/dag-coverage.js",
     "audit": "npm run audit:handlers && npm run audit:fields && npm run audit:arrays && npm run audit:steps && npm run audit:options && npm run audit:output && npm run audit:dag",
     "fuzz:dag": "node prototypes/graph-pilot/run-fuzz.js",
+    "port:dag-py-profiles": "node dag_py/tools/port_profiles.js",
+    "golden:dag-py": "node dag_py/tools/generate_golden.js",
+    "test:dag-py": "cd dag_py && pytest -q",
     "merge:find-base": "node scripts/merge/find-base-commit.js",
     "merge:apply": "node scripts/merge/three-way-merge.js",
     "audit:fix-regression": "node scripts/audit/fix-regression-check.js"
