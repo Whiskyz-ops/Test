@@ -19,7 +19,7 @@ imply any interim cutover.
 |---|---|---|
 | 1 | Foundation: resolver, registry, 3 leaf entry nodes, verification pipeline | ✅ done |
 | 2 | `india/` domain | ✅ done (see below) |
-| 3 | `us/` domain | ⬜ not started |
+| 3 | `us/` domain | ✅ done (see below) |
 | 4 | `crossborder/` domain + fuzz corpus | ⬜ not started |
 | 5 | `findings/` domain-split | ⬜ not started |
 | 6 | `filings/` + `reports/` | ⬜ not started |
@@ -120,6 +120,49 @@ Retrofitted onto `core/entry.py` and all 5 `india/` files (Phase 2, 135
 tests still green — this is metadata only, no compute logic changed). Every
 future phase adds `layer1_fields` to new leaf nodes as they're written,
 not as a follow-up pass.
+
+## Phase 3 detail (us/ domain, 169 tests green cumulative)
+
+Ported `prototypes/graph-pilot/{aggregateusincome,ustax,us-full,us1,us5}-nodes.js`
+to `dag_py/src/wising_dag/us/{aggregate_us_income,ustax,us_full,
+us1_penalty_2210,us5_penalty_72t}.py` — W-2/K-1/self-employment income
+aggregation (MACRS/§179/bonus depreciation, K-1 passive-box aggregation),
+the individual/resident computeUsTax (AGI, Schedule SE, QBI, AMT, NIIT,
+every credit), and the two "going wider" penalty findings (Form 2210
+underpayment, §72(t) early-withdrawal).
+
+Two **deliberate, tracked, temporary** boundary gaps, both because their
+closer lives in a domain not yet built:
+- `worldwideUs` (us_full.py) is not wired to a real residency derivation
+  yet — that node (`residencyResult.us.worldwide`) lives in
+  `crossborder/residency.py`, Phase 4. Always resolves `False` for now, so
+  FEIE and worldwide-taxed foreign income aren't reflected in `usTaxResult`
+  yet. `test_us.py` partitions its fixture set by golden's own
+  `computed.usTax.worldwide` flag to skip exactly the affected profiles
+  (7 of 13), asserting the other 6 (+ the always-unconditional
+  `aggregateUsIncomeResult` check, all 13) exactly.
+- `usEntityKind`/`baseYearUs` (ustax.py) and the entity/NRA tax routing
+  (`ustax-full-nodes.js`'s `usEntityTaxResult`/`nraTaxResult`/the
+  `usTaxResult` router) are deferred to Phase 7's `analyze()` assembly,
+  same reasoning as `core/entry.py`'s `agg10-nodes.js` scoping correction —
+  `ustax-full-nodes.js` itself composes on top of `agg10-nodes.js`'s fully
+  merged graph in the JS source, so it can't be closed before every other
+  domain exists either. `test_us.py` skips the 1 entity profile
+  (`us_ccorp_indian_sub`) and the 1 NRA profile (`india_ror_us_income`),
+  matching `ustax-nodes.js`'s own documented scope exactly ("reported, not
+  asserted").
+- `us1_penalty_2210.py`/`us5_penalty_72t.py` carry their own unwired
+  boundary stubs too (`ctx["computed"].usTax`/`.ftc`, `ctx["model"].meta`) —
+  not golden-tested yet (nothing to compare against without the full
+  graph); `test_us_penalties.py` instead pins the parts that ARE correct
+  now (scope routing, the penalty formulas) with synthetic ctx, the same
+  spirit as the core resolver's own unit tests.
+
+One caught-by-testing correction: `feieAppliedUsd` is a DAG-internal
+convenience field that `analyze.js`'s own `assembleComputed()` strips
+before ever comparing against the engine (which keeps the same value at
+`usTax.feie.appliedUsd` instead) — `test_us.py` replicates that exact
+strip rather than treating the mismatch as a bug.
 
 **Not yet done in Phase 1** (deliberately deferred, not forgotten): a
 CI lint check banning `pyodide`/`js` imports outside `dag_py/adapter/`
