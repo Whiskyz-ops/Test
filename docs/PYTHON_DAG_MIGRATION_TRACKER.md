@@ -23,7 +23,7 @@ imply any interim cutover.
 | 4 | `crossborder/` domain + fuzz corpus | ✅ done (see below) |
 | 5 | `findings/` domain-split | ✅ done (see below) |
 | 6 | `filings/` + `reports/` | ✅ done (see below) |
-| 7 | `analyze()` assembly + Pyodide adapter + wheel | ⬜ not started |
+| 7 | `analyze()` assembly + Pyodide adapter + wheel | 🟡 infrastructure done, one known gap remains (see below) |
 | 8 | Toggle + shadow mode + cutover (production-touching, gated) | ⬜ not started |
 
 ## Phase 1 detail (18 modules/files, 73 tests green as of this writing)
@@ -163,6 +163,179 @@ convenience field that `analyze.js`'s own `assembleComputed()` strips
 before ever comparing against the engine (which keeps the same value at
 `usTax.feie.appliedUsd` instead) — `test_us.py` replicates that exact
 strip rather than treating the mismatch as a bug.
+
+## Phase 7 detail (analyze() assembly + Pyodide adapter + wheel, 🟡 infrastructure done — 522 tests green cumulative)
+
+**`core/registry.py`'s `build_full_registry()` — the single composition
+point every domain's `build(base)` docstring promised, built.** The hard
+part: `india_findings.build()`/`us_findings.build()`/`crossborder_findings.
+build()` each independently call their OWN prerequisite chain internally
+(`cross_basis.build()` → `xborder_full` → `india_full`/`us_full` → ...) —
+calling more than one of those `build()`s on the same registry re-derives
+the shared base and hits `DuplicateNodeError`. Solved the way every
+composed-registry test file (`test_filings_documents.py`/
+`test_filings_assets.py`/`test_reports_trace.py`) already worked around
+this for testing purposes, generalized into the one real production path:
+call the shared base chain (`cross_basis.build()`) ONCE, then layer in each
+domain findings module's own additional nodes directly from its `NODES`
+dict (skipping the redundant base-rebuild), in dependency order — itr_form
+extras → `core/entry.py` → india findings → us1_penalty_2210/us5_penalty_72t
++ us findings → black_money_act + s115a*DetailedXbr/nraFdapDetail (guarded —
+see below) + crossborder findings → `crossborder/apportionment.py` extras →
+`reports/assembly.py` → `reports/trace.py` → `filings/limits.py` →
+`filings/calendar_amounts.py` → `filings/checks_registry.py` →
+`filings/documents.py` → `filings/assets.py` → `filings/monitoring.py`
+(new, see below) → `core/orchestration.py` (new, see below). Verified with
+zero `DuplicateNodeError`s on the first complete run — 367 nodes before the
+final closure layer, 376 after.
+
+One real de-duplication decision this composition forced: `us/findings.py`'s
+own `nraRaw`/`nraFdapIncomeUsdRaw`/`nraFdapDetail` and
+`crossborder/findings.py`'s OWN separate copies of the same three ids are
+NOT identical (the us/findings.py copies are the complete, fixed versions —
+see the `nraFdapDetail` bug fix in Phase 6 — the crossborder copies are an
+older, narrower duplicate nobody has since touched). `build_full_registry()`
+registers `us_findings.NODES` first, then skips crossborder's own
+(otherwise-unconditional) re-registration of those same three ids if
+already present — the complete versions win, without needing to touch
+`crossborder/findings.py`'s own file at all (its own standalone build/tests
+are unaffected, since standalone it never has us_findings' copies present
+first).
+
+**`filings/monitoring.py` — new, ports `report-batch6-nodes.js`'s LIM-7
+monitor layer in full**: `monitorAsOfBoundary` (the explicit "now" boundary
+— same architecture rule every other real-wall-clock read in this port
+follows), `monitorProgressResult`, `residencyMonitorResult` (day-counters +
+predicted "flip" dates for individuals, qualitative fact lists for entities),
+`projectionsMonitorResult` (threshold-breach projections off `limitsResult`),
+`calendarMonitorResult` (the compliance calendar, entity-aware US filing
+dates + India audit-case/presumptive-only s.425 handling, reusing
+`india/findings.py`'s already-ported `inIsAuditCase`/`inPurelyPresumptive`
+verbatim), `healthAlertsMonitorResult` (score + capped alerts feed), and
+`monitorResult`. Unlike the JS source's own `withSyntheticCtx()` technique
+(wrap one function body to run against two different ctx shapes — a
+JS-only trick with no Python equivalent worth building), every node here
+reads its real in-graph deps directly (`entityResult`/`metaResult`/
+`residencyModelSliceResult`/`companyResidencyResult`/`residencyResult`/
+`limitsResult`/`findingsAllResult`) — there's only ever one ctx shape in
+this port.
+
+**`core/orchestration.py` — new, the final closure layer, port of
+agg10-nodes.js's `identityResult`/`metaResult`/`residencyModelSliceResult`/
+`headlineResult`/`summaryResult` plus its remaining "v1-era boundaries
+closed here" overrides**: `usEntityKind` (→ `entityResult["usKind"]`),
+`baseYearUs` (→ `metaResult["baseYear"]`), `usTotalTaxBeforeFtcUsdBoundary`/
+`usAgiUsdBoundary` (→ `usTaxResult`), `usFtcAllowedUsdBoundary` (→
+`ftcResult`), `usSourceTotalUsdBoundary` (→ `aggregateUsIncomeResult`),
+`accountsBoundary` (→ `bankAccountsRaw`), and one more found while wiring
+this module up that wasn't in agg10-nodes.js's own list at all —
+`apportionmentResultBoundary` (crossborder/findings.py's `tax_year_mismatch`
+finding boundary, closed to the real `apportionmentResult`,
+crossborder/apportionment.py — apportionment.py itself was never wired into
+any earlier phase's registry composition, only unit-tested standalone).
+Deliberately the LAST module composed — every dep needs the full registry
+already assembled.
+
+**`analyze.py` — new, the `analyze(opts) -> dict` / `normalize(opts) -> dict`
+pure-function boundary**, port of `analyze.js`. Builds `ctx` from `opts`
+exactly as `resolveAll()` does, resolves the same `TARGET_IDS` list against
+a module-level, built-once `build_full_registry()` (safe to share across
+calls — `NodeRegistry.resolve()`'s `cache`/`in_stack` are always per-call
+locals, the property that also keeps a future `adapter/http_adapter.py`
+cheap), and assembles the result field-for-field matching `analyze.js`'s
+own `assembleModel`/`assembleComputed` plus its `analyzeResult` node's
+remaining keys (`findings`/`documents`/`ftcReport`/`taxComputation`/
+`withholding`/`scopeNotes`/`returnForms`/`monitoring`/`summary`).
+
+**End-to-end golden verification (`tests/test_analyze_golden.py`, 91 new
+tests) — the first test in this port to resolve against the REAL, single,
+fully-composed production registry**, not an isolated hand-composed one.
+`model.identity`/`model.meta`/`model.residency` match golden EXACTLY across
+all 13 fixtures, zero carve-outs needed. `summary`/`monitoring` match once
+adjusted for carve-outs already established by name in earlier phases —
+nothing new: the entity/NRA `usTaxResult` carve-out (Phase 3), the DAG-only
+7-document superset (Phase 6, now also visible inside
+`monitoring.calendar.*[].docIds`), and the DAG-only 2 extra findings (Phase
+6, `filings/assets.py`) — see the test file's own module docstring for the
+full accounting, including the exact `healthScore`/`counts` arithmetic
+adjustment each carve-out implies.
+
+**Three real bugs found and fixed while building this verification** (all
+newly surfaced by this being the first test to exercise these exact paths
+end-to-end — none were reachable from any earlier phase's narrower,
+hand-composed test registries):
+- `filings/limits.py`'s trump_account gauge note had a stray `$` before
+  `TRUMP_ACCOUNT_ANNUAL_CAP_USD` — the JS source's own
+  `.toLocaleString("en-US")` never had a currency symbol; nothing before
+  this test's `monitoring` comparison exercised that specific gauge's note
+  text against golden.
+- `filings/monitoring.py` itself shipped with four `"X.0"` vs `"X"`
+  float-display bugs (days-of-headroom/days-until-flip counts, India-vs-
+  outside director counts, HUF karta's own-presence day count) — the same
+  recurring float-vs-int display class this port has hit and fixed several
+  times before (`num()` always returns float; JS `Number` auto-stringifies
+  a whole-valued float without the trailing `.0`) — fixed with `round()` at
+  each embed site, same pattern as every earlier instance.
+- `filings/monitoring.py`'s `healthAlertsMonitorResult` also crashed
+  outright (`KeyError: 'dateLabel'`) for every entity-taxpayer fixture: the
+  JS source reads `r.dateLabel` on a "qualitative" residency entry (entity
+  taxpayers never get a `dateLabel` field at all, only "days"-kind entries
+  do), which is `undefined` in JS — not a crash. Fixed with `.get()`
+  instead of `[...]` at that one read site, reproducing JS's forgiving
+  missing-property read rather than Python's strict `KeyError`.
+
+**`adapter/pyodide_adapter.py` — new**, the one file allowed to import
+`pyodide`/`js`: wraps `analyze()`/`normalize()` via `pyodide.ffi.to_py`/
+`to_js(..., dict_converter=js.Object.fromEntries)` (plain JS objects, not
+`Map`s — every existing consumer does `result.model.entity...` property
+access) and an idempotent `install()` that assigns
+`window.WISING.analyze`/`window.WISING.normalize` — the exact call shape
+`index.html`/`monitor-next/lib/dag-adapter.js` already use against the JS
+DAG's own `window.WISING.analyze`, so switching the loading mechanism at
+Phase 8 cutover won't require touching either consumer. A new guard test
+(`tests/test_no_browser_imports.py`, AST-based, 2 tests) enforces the plan's
+"nothing under `wising_dag/**` imports pyodide/js/touches window/
+localStorage" rule automatically, rather than relying on review discipline —
+confirmed clean on the existing codebase before adding the rule.
+
+**Wheel packaging — new**: `scripts/build-dag-wheel.py` (`npm run
+build:dag-wheel`) builds `dag_py/` via `pip wheel --no-deps` into
+`assets/wising_dag.whl` — the same pipeline slot `scripts/build-dag-bundle.js`
+(esbuild) occupies for the JS DAG's own bundle. Verified: builds a
+`py3-none-any` pure-Python wheel, confirmed to contain every module
+including `analyze.py`/`filings/assets.py`/`core/orchestration.py` by
+inspecting the built archive directly.
+
+**NOT verified this phase, explicitly flagged rather than silently
+skipped**: an actual browser load of the wheel via Pyodide
+(`micropip.install()` → `pyodide_adapter.install()` → confirm
+`window.WISING.analyze` works from real JS) — the plan's own "Verification"
+section calls for this manual/headless-browser smoke test. Not attempted:
+this sandboxed environment has no vendored Pyodide runtime and no network
+route to fetch one (`https://cdn.jsdelivr.net/pyodide/...` returns 403
+through the environment's proxy) — downloading and committing a multi-MB
+WASM runtime speculatively wasn't judged worthwhile either. The Python-side
+adapter code is written to the documented Pyodide FFI conventions but is
+unverified against a real Pyodide runtime. This is a real open item, not
+a formality — flagging it explicitly rather than claiming a smoke test that
+didn't happen.
+
+**THE ONE REAL GAP this phase does NOT close, and was never going to in one
+sitting**: `us/ustax.py`'s `usTaxResult` still has no entity/NRA/trust
+routing at all (`isEntity`/`isNra` are simply absent from its return dict,
+not `False`) — the plan's own Phase 7 description calls for "closing...
+the entity/NRA/worldwide-income routing gaps carried as carve-outs
+throughout usTaxResult-dependent code," and that is genuinely NOT done.
+Every override in `core/orchestration.py` that reads `usTaxResult` uses
+`.get("isEntity")`/similar defensive reads specifically so they'll pick up
+real entity/NRA facts automatically the day that routing exists, with no
+further change needed here — but building `computeUsEntityTax`/
+`computeUsNraTax`/trust-tax-computation routing itself is a genuinely large,
+separate body of work (on the order of Phase 3's own US-domain build), not
+a boundary-wiring task like everything else in this phase. Scoped out
+explicitly rather than attempted partially or claimed done. The 2
+entity/NRA fixtures (of 13) remain correctly carved out at the full
+`analyze()` level, same as every earlier phase.
 
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 

@@ -70,7 +70,7 @@ def _limits_result(d, ctx):
         ta_children = max(1, d["limitsRawExtra"]["trumpAccountsNumChildren"] or 1)
         _gauge(gauges, "trump_account", "Trump Account (§530A) annual contributions", d["limitsRawExtra"]["trumpAccountsContributionsUsd"],
                L["TRUMP_ACCOUNT_ANNUAL_CAP_USD"] * ta_children, "USD",
-               f"Cap is ${L['TRUMP_ACCOUNT_ANNUAL_CAP_USD']:,}/child/year, combined across all contributors (parents, family, "
+               f"Cap is {L['TRUMP_ACCOUNT_ANNUAL_CAP_USD']:,}/child/year, combined across all contributors (parents, family, "
                f"employer) — shown here as the aggregate across {round(ta_children)} child(ren).")
 
     return gauges
