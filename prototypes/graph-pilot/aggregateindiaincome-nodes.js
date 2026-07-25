@@ -456,7 +456,14 @@ var NODES = {
     deps: ["osAgg", "diAgg"],
     compute: function (d) {
       var os = d.osAgg;
-      var giftsAbove50kInr = num(safe(os, "gifts_above_50k_inr", 0));
+      // s.56(2)(x) exemption: a gift received on the occasion of marriage,
+      // or from a specified relative, is entirely exempt -- not merely
+      // "under 50k". Layer 1 collects the amount AND these two checkboxes;
+      // previously only the amount was ever read, so a preparer had no way
+      // to tell the engine an entered gift was exempt other than deleting
+      // the amount (losing the recordkeeping too).
+      var giftsExempt = !!safe(os, "gifts_exemption_marriage", false) || !!safe(os, "gifts_exemption_relative", false);
+      var giftsAbove50kInr = giftsExempt ? 0 : num(safe(os, "gifts_above_50k_inr", 0));
       var familyPensionGrossInr = num(safe(os, "family_pension_gross_inr", 0));
       var familyPensionNetInr = Math.max(0, familyPensionGrossInr - Math.min(15000, Math.round(familyPensionGrossInr / 3)));
       return giftsAbove50kInr + familyPensionNetInr + num(safe(os, "spousal_clubbing_s64_inr", 0)) -
