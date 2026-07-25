@@ -844,3 +844,46 @@ divergences after the `DAG_ONLY_KEYS` update on both copies), `npm run
 audit` byte-identical before/after, all other DAG runners (`run-
 aggregateindiaincome.js`/`run-aggregateusincome.js`/`run-checksregistry.js`/
 `run-agg10.js`) and `tests/engine/run.js` (frozen engine) unaffected.
+
+## O. Phase 6 — traceable inter-entity flow edges (25 Jul 2026)
+
+§6's explicit Phase 6 ask, distinct from Phase 5 (§N): edges shouldn't just
+carry a bare labeled amount — every dollar crossing an entity boundary
+should be traceable back to its source, the same way every OTHER figure in
+this app already gets a `calc`/`source` object (the same convention
+`businessEntityIncomeTrace`/`selfEmploymentIncomeTrace`/etc. already use).
+
+**What was a genuine "silent sum", concretely**: `aggregateusincome-
+nodes.js`'s `k1PassiveIncomeUsd`/`addK1Passive` already correctly sums each
+K-1's interest/dividend/capital-gain/rental/royalty boxes into the
+taxpayer's overall `interestUs`/`ordinaryDividendsUs`/etc. totals — right
+for tax computation, but it means the FINAL number can't say which K-1
+entity contributed which slice. Phase 5's own K-1 edges only carried the
+ORDINARY business income amount, not this passive-box contribution at all.
+
+**Fixed**: every edge in `buildEntityGraph` (assets-nodes.js) now carries a
+`trace` object built the same way the rest of this app's figures are —
+per-entity-type business income (`businessEntryIncomeTrace`, reused
+directly, not re-derived), partner-firm remuneration/exempt-share (new
+`calc`/`source` objects, s.40(b)/s.10(2A) citations), K-1 ordinary income
+(full Box-by-box breakdown), C-corp/GILTI (source objects carrying the same
+caveats `businessEntitiesResult`'s own trace text already uses). K-1's
+passive-box contribution is now a genuinely NEW second edge per K-1 entity
+(`flow: "k1_passive_income"`), decomposing what was previously invisible —
+re-verified fresh from source (`k1PassiveIncomeUsdForGraph`, a byte-for-byte
+copy of `aggregateusincome-nodes.js`'s own `k1PassiveIncomeUsd`, not
+cross-required, matching this whole migration's discipline) and cross-
+checked: the sum of a K-1's decomposed interest/dividend/etc. amounts never
+exceeds the taxpayer's own overall total for that income type — confirms
+the split attributes existing money, doesn't invent or drop any.
+
+**Verification strengthened, not just extended**: `run-assets.js`'s
+`checkEntityGraph` now asserts every edge across all 12 fixtures carries a
+real `trace` (`kind === "calc" || "source"`) — a structural claim Phase 5's
+own tests never made, since Phase 5 didn't promise traceability, only
+structure. 890/890 (up from 867 — the new per-K1 passive edges plus the
+strengthened per-edge trace assertion), differential fuzzer 300 iterations
+(0 new divergences — no `DAG_ONLY_KEYS` change needed this time, since
+`trace`/new edges live entirely inside the already-excluded `entityGraph`
+key), `npm run audit` byte-identical before/after, all other DAG runners
+and `tests/engine/run.js` (frozen engine, correctly untouched) unaffected.

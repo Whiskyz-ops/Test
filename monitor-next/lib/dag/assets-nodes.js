@@ -611,11 +611,11 @@ function buildEntityGraph(d, ctx) {
     var kind = INDIA_ENTITY_KIND_MAP[b.entity_type];
     if (!kind) return; // unset/individual — sole-prop income, part of root
     var id = "in_biz_" + idx;
+    var isRegularBooksForGraph = usesRegularBooksInr(b, d.presumptiveEligibilityAgg);
+    var entryDeprInrForGraph = isRegularBooksForGraph ? aggregateEntryDepreciationInr(idx, d.bizAssetBlocksAgg, india, b) : 0;
+    var entryDisallowInrForGraph = isRegularBooksForGraph ? aggregateEntryDisallowancesInr(idx, b.expenses || {}, d.bizMsmePayablesAgg) : 0;
     var netProfitInr = b.net_profit_inr || b.net_profit;
     if (netProfitInr === undefined || netProfitInr === null) {
-      var isRegularBooksForGraph = usesRegularBooksInr(b, d.presumptiveEligibilityAgg);
-      var entryDeprInrForGraph = isRegularBooksForGraph ? aggregateEntryDepreciationInr(idx, d.bizAssetBlocksAgg, india, b) : 0;
-      var entryDisallowInrForGraph = isRegularBooksForGraph ? aggregateEntryDisallowancesInr(idx, b.expenses || {}, d.bizMsmePayablesAgg) : 0;
       netProfitInr = computeBusinessEntryNetProfitInr(b, d.presumptiveEligibilityAgg, entryDeprInrForGraph, entryDisallowInrForGraph);
     }
     netProfitInr = num(netProfitInr);
@@ -624,7 +624,14 @@ function buildEntityGraph(d, ctx) {
       returnForm: null, layer1Ref: { form: "layer1_india", path: "domestic_income.business_income.business_entries[" + idx + "]" },
       income: { inr: netProfitInr, usd: netProfitInr / fxRate(ctx) }
     });
-    edges.push({ from: id, to: primaryRootId, ownershipPct: null, flow: "business_income", amountInr: netProfitInr });
+    // Phase 6 (§6): a real trace, not just a bare amount — reuses the SAME
+    // businessEntryIncomeTrace already shown on the Business tab for this
+    // entry, so the graph edge and the flat-list row can never disagree on
+    // how the figure was derived.
+    edges.push({
+      from: id, to: primaryRootId, ownershipPct: null, flow: "business_income", amountInr: netProfitInr,
+      trace: businessEntryIncomeTrace(b, d.presumptiveEligibilityAgg, entryDeprInrForGraph, entryDisallowInrForGraph)
+    });
   });
 
   // India partner_firms[] — per §6, an edge into the individual, not a
@@ -640,9 +647,24 @@ function buildEntityGraph(d, ctx) {
       id: id, kind: kind, jurisdiction: "IN", name: firm.firm_name || null,
       returnForm: null, layer1Ref: { form: "layer1_india", path: "domestic_income.business_income.partner_firms[" + idx + "]" }
     });
-    var remunerationInr = num(firm.remuneration_from_entity_inr) + num(firm.interest_on_capital_from_entity_inr);
-    if (remunerationInr !== 0) edges.push({ from: id, to: primaryRootId, ownershipPct: null, flow: "partner_remuneration", amountInr: remunerationInr });
-    if (num(firm.profit_share_exempt_inr) !== 0) edges.push({ from: id, to: primaryRootId, ownershipPct: null, flow: "exempt_profit_share", amountInr: num(firm.profit_share_exempt_inr) });
+    var remunerationInr = num(firm.remuneration_from_entity_inr), interestInr = num(firm.interest_on_capital_from_entity_inr);
+    var totalRemunerationInr = remunerationInr + interestInr;
+    if (totalRemunerationInr !== 0) {
+      edges.push({
+        from: id, to: primaryRootId, ownershipPct: null, flow: "partner_remuneration", amountInr: totalRemunerationInr,
+        trace: calc("Taxable PGBP income to the partner (s.40(b)) — the firm's own s.40(b) cap on what it may pay out is tested at the firm's own return, which this app doesn't prepare, so the entered figure is trusted rather than re-derived (§3.3).", [
+          { label: "Remuneration from entity", amount: remunerationInr },
+          { label: "Interest on capital from entity", amount: interestInr }
+        ])
+      });
+    }
+    var exemptShareInr = num(firm.profit_share_exempt_inr);
+    if (exemptShareInr !== 0) {
+      edges.push({
+        from: id, to: primaryRootId, ownershipPct: null, flow: "exempt_profit_share", amountInr: exemptShareInr,
+        trace: source("Genuinely exempt to the partner under s.10(2A) — already taxed at the firm's own level. Shown for reconciliation only; not added to the partner's taxable income.")
+      });
+    }
   });
 
   // US K-1 types — per §6, "K-1 pass-through -> owner's income" as an
@@ -652,27 +674,87 @@ function buildEntityGraph(d, ctx) {
   // at root_us specifically when the taxpayer bundle has two roots (a K-1
   // is inherently a US-side flow), else whichever single root exists.
   var usFlowTargetId = rootIds.indexOf("root_us") >= 0 ? "root_us" : rootIds[0];
-  function pushK1Entities(kind, idPrefix, sourcePath, nameFn, flowLabel, incomeUsdFn) {
+
+  // Phase 6's own concrete "silent sum" to decompose: aggregateUsIncome-
+  // nodes.js's k1PassiveIncomeUsd/addK1Passive sums interest/dividend/
+  // capital-gain/rental/royalty boxes from EVERY K-1 into one taxpayer-wide
+  // pool (k1InterestUsd, k1OrdDivUsd, etc.) before folding into the overall
+  // interestUs/ordinaryDividendsUs/etc. totals — correct for the tax
+  // computation, but it means the FINAL number can't say which K-1 entity
+  // produced which slice. Re-verified fresh from source here (same
+  // discipline as every other function in this file, not cross-required)
+  // — byte-for-byte the same formula as aggregateusincome-nodes.js's own
+  // k1PassiveIncomeUsd, confirmed by direct comparison, not assumed.
+  function k1PassiveIncomeUsdForGraph(k) {
+    return {
+      interestUsd: num(k.interest_income_usd), ordDivUsd: num(k.ordinary_dividends_usd), qualDivUsd: num(k.qualified_dividends_usd),
+      stcgUsd: num(k.stcg_usd),
+      ltcgUsd: num(k.ltcg_usd) + Math.max(0, num(k.net_sec1231_gain_usd || k.sec1231_gain_usd || 0)),
+      rentalUsd: num(k.net_rental_real_estate_usd) + num(k.other_rental_income_usd) + num(k.royalties_usd || k.royalty_income_usd || 0)
+    };
+  }
+  function passiveIncomeTraceParts(passive) {
+    var parts = [];
+    if (passive.interestUsd !== 0) parts.push({ label: "Interest income (K-1 passive box)", amount: passive.interestUsd });
+    if (passive.ordDivUsd !== 0) parts.push({ label: "Ordinary dividends (K-1 passive box)", amount: passive.ordDivUsd });
+    if (passive.stcgUsd !== 0) parts.push({ label: "Short-term capital gain (K-1 passive box)", amount: passive.stcgUsd });
+    if (passive.ltcgUsd !== 0) parts.push({ label: "Long-term capital gain + net s.1231 gain (K-1 passive box)", amount: passive.ltcgUsd });
+    if (passive.rentalUsd !== 0) parts.push({ label: "Rental + royalty income (K-1 passive box)", amount: passive.rentalUsd });
+    return parts;
+  }
+  function pushK1Entities(kind, idPrefix, sourcePath, nameFn, flowLabel, incomeUsdFn, ordinaryTraceParts, formulaNote) {
     (safe(us, sourcePath, []) || []).forEach(function (k, idx) {
       var id = idPrefix + idx;
       var incomeUsd = incomeUsdFn(k);
+      var passive = k1PassiveIncomeUsdForGraph(k);
       entities.push({
         id: id, kind: kind, jurisdiction: "US", name: nameFn(k),
         returnForm: null, layer1Ref: { form: "layer1_us", path: sourcePath + "[" + idx + "]" },
-        income: { usd: incomeUsd, inr: incomeUsd * fxRate(ctx) }
+        income: { usd: incomeUsd, inr: incomeUsd * fxRate(ctx) }, passiveIncomeUsd: passive
       });
-      edges.push({ from: id, to: usFlowTargetId, ownershipPct: null, flow: flowLabel, amountUsd: incomeUsd });
+      // Two edges, not one: the ordinary/QBI-eligible business income (the
+      // "k1_passthrough" flow this edge always carried) and — new here,
+      // the actual Phase 6 decomposition — the passive-box amounts, which
+      // otherwise only ever existed as an anonymous slice of the taxpayer's
+      // OVERALL interest/dividend/capital-gain/rental totals.
+      edges.push({
+        from: id, to: usFlowTargetId, ownershipPct: null, flow: flowLabel, amountUsd: incomeUsd,
+        trace: calc(formulaNote, ordinaryTraceParts(k))
+      });
+      var passiveTotalUsd = passive.interestUsd + passive.ordDivUsd + passive.stcgUsd + passive.ltcgUsd + passive.rentalUsd;
+      if (passiveTotalUsd !== 0) {
+        edges.push({
+          from: id, to: usFlowTargetId, ownershipPct: null, flow: "k1_passive_income", amountUsd: passiveTotalUsd,
+          trace: calc("This K-1's own interest/dividend/capital-gain/rental/royalty boxes — folded into the taxpayer's overall totals for those income types elsewhere, but shown here so this specific entity's contribution is traceable rather than anonymous within the combined figure.", passiveIncomeTraceParts(passive))
+        });
+      }
     });
   }
   pushK1Entities("us_partnership", "us_k1_partnership_", "income_us_source.partnerships_k1",
     function (k) { return k.business_name || k.partnership_name || k.name || null; }, "k1_passthrough",
-    function (k) { return num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) + num(k.guaranteed_payments_usd || 0) - num(k.sec179_deduction_usd || 0); });
+    function (k) { return num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) + num(k.guaranteed_payments_usd || 0) - num(k.sec179_deduction_usd || 0); },
+    function (k) { return [
+      { label: "Ordinary business income (Box 1)", amount: num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) },
+      { label: "Guaranteed payments (Box 4)", amount: num(k.guaranteed_payments_usd || 0) },
+      { label: "Less: s.179 deduction (Box 12)", amount: -num(k.sec179_deduction_usd || 0) }
+    ]; },
+    "Ordinary business income (K-1 Box 1) + guaranteed payments (K-1 Box 4) − s.179 deduction (K-1 Box 12). Guaranteed payments count for SE tax but are excluded from the §199A QBI base.");
   pushK1Entities("us_scorp", "us_k1_scorp_", "income_us_source.s_corporations_k1",
     function (k) { return k.business_name || k.corp_name || k.name || null; }, "k1_passthrough",
-    function (k) { return num(k.ordinary_income_usd || k.scorp_income_usd || k.ordinary_business_income_usd || 0) - num(k.sec179_deduction_usd || 0); });
+    function (k) { return num(k.ordinary_income_usd || k.scorp_income_usd || k.ordinary_business_income_usd || 0) - num(k.sec179_deduction_usd || 0); },
+    function (k) { return [
+      { label: "Ordinary business income (Box 1)", amount: num(k.ordinary_income_usd || k.scorp_income_usd || k.ordinary_business_income_usd || 0) },
+      { label: "Less: s.179 deduction (Box 11)", amount: -num(k.sec179_deduction_usd || 0) }
+    ]; },
+    "Ordinary business income (K-1 Box 1, ordinary_income_usd — the real Layer 1 US field; scorp_income_usd/ordinary_business_income_usd are legacy fallbacks that don't exist on the live form) − s.179 deduction (Box 11). S-corp distributions aren't subject to SE tax.");
   pushK1Entities("us_trust", "us_k1_trust_", "income_us_source.trusts_estates_k1",
     function (k) { return k.business_name || null; }, "k1_passthrough",
-    function (k) { return num(k.ordinary_income_usd || 0) + num(k.ordinary_gain_usd || 0); });
+    function (k) { return num(k.ordinary_income_usd || 0) + num(k.ordinary_gain_usd || 0); },
+    function (k) { return [
+      { label: "Ordinary income (Box 1)", amount: num(k.ordinary_income_usd || 0) },
+      { label: "Ordinary gain (Box 8)", amount: num(k.ordinary_gain_usd || 0) }
+    ]; },
+    "Ordinary income (K-1 Box 1) + ordinary gain (Box 8 sub-line).");
 
   // US c_corporations_1120[] — entries the taxpayer holds an interest in
   // (distinct from a ROOT entity's own Form 1120 when tax_entity_type IS
@@ -693,7 +775,10 @@ function buildEntityGraph(d, ctx) {
       returnForm: "Form 1120 (C-Corp, 21% flat)", layer1Ref: { form: "layer1_us", path: "income_us_source.c_corporations_1120[" + idx + "]" },
       income: { usd: incomeUsd, inr: incomeUsd * fxRate(ctx) }
     });
-    edges.push({ from: id, to: usFlowTargetId, ownershipPct: null, flow: "dividend", amountUsd: incomeUsd });
+    edges.push({
+      from: id, to: usFlowTargetId, ownershipPct: null, flow: "dividend", amountUsd: incomeUsd,
+      trace: source("Entity-level taxable income as entered on Layer 1 US for this C-corp (taxable_income_usd, or net_income_usd if that field wasn't used). Taxed at 21% at the entity; not on a personal return until distributed — shown here as a placeholder for the eventual dividend flow, not an actual distribution WISING has independently confirmed occurred.")
+    });
   });
 
   // US foreign_entities.foreign_corporations[] — CFC ownership. WISING
@@ -718,7 +803,10 @@ function buildEntityGraph(d, ctx) {
       // (a US individual's own CFC record naming their sole India company
       // root, with no separate US-entity root to draw the edge to) and is
       // deliberately left unmodeled rather than drawn as a self-reference.
-      if (otherRootId) edges.push({ from: matchedRootId, to: otherRootId, ownershipPct: ownershipPct, flow: "gilti", amountUsd: giltiUsd });
+      if (otherRootId) edges.push({
+        from: matchedRootId, to: otherRootId, ownershipPct: ownershipPct, flow: "gilti", amountUsd: giltiUsd,
+        trace: source("GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) — a hand-entered estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled yet (gap tracker XB-14). Ownership: " + Math.round(ownershipPct) + "%. This edge connects two entities BOTH already modeled as their own root here (a US parent and its differently-named subsidiary), not a newly-created placeholder node.")
+      });
       return;
     }
     var id = "foreign_corp_" + idx;
@@ -730,7 +818,10 @@ function buildEntityGraph(d, ctx) {
       // "hand-entered estimate" caveat businessEntityResult's own trace uses.
       income: { usd: giltiUsd, inr: giltiUsd * fxRate(ctx) }
     });
-    edges.push({ from: id, to: usFlowTargetId, ownershipPct: ownershipPct, flow: "gilti", amountUsd: giltiUsd });
+    edges.push({
+      from: id, to: usFlowTargetId, ownershipPct: ownershipPct, flow: "gilti", amountUsd: giltiUsd,
+      trace: source("GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) — a hand-entered estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled yet (gap tracker XB-14). Ownership: " + Math.round(ownershipPct) + "%. This is a US inclusion only — the entity's own foreign-country income tax return is separate and not shown here.")
+    });
   });
 
   return { entities: entities, edges: edges };

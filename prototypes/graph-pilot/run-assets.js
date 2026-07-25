@@ -74,6 +74,12 @@ function checkEntityGraph(id, graphResult) {
     if (!ids[e.from]) bad(id + " entityGraph edge.from references unknown entity", JSON.stringify(e));
     else if (!ids[e.to]) bad(id + " entityGraph edge.to references unknown entity", JSON.stringify(e));
     else ok();
+    // Phase 6's own claim ("wired as traceable edges, not silent sums") —
+    // every edge must carry a real calc/source trace object, not just a
+    // bare labeled number.
+    if (!e.trace || (e.trace.kind !== "calc" && e.trace.kind !== "source")) {
+      bad(id + " entityGraph edge missing a real trace", JSON.stringify(e));
+    } else ok();
   });
 }
 function checkOne(id, r) {
