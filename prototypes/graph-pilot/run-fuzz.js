@@ -418,7 +418,17 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // ustax-full-nodes.js's usEntityStateTaxResult/findingsAllResult override
 // covers a gap the engine's computeUsStateTax explicitly excludes (business
 // entities entirely) — see that file's header for the full writeup.
-var KNOWN_EXTRA_FINDING_ID = /^us_entity_state_tax(_not_modeled)?$/;
+// presumptive_lockin_active_india / msme_disallowance_s43Bh_india (Phase 4,
+// gap tracker IN-6/MSME-disallowance-finding, 25 Jul 2026): same shape —
+// new DAG-only findings (assets-nodes.js's findingsAllResult override), no
+// engine equivalent, since the classic engine is permanently frozen
+// (docs/DAG_MIGRATION_TRACKER.md §J/§L) and these fixes deliberately landed
+// DAG-only. Unlike us_entity_state_tax, these two DO fire on real fixture
+// data (us_resident_indian_income/india_only_ca_client both carry real
+// msme_payables), so — unlike the farm-depreciation and s.44BB/BBB fixes
+// landed the same session, which happened to touch zero existing fixture
+// data — this allowlist entry is load-bearing, not theoretical.
+var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india)$/;
 var KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = [];
 
 // ---- D. entity-agnostic audit allowlist (see file header, section D) -----

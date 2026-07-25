@@ -720,3 +720,61 @@ unexpected DAG-coverage gaps introduced), `tests/engine/run.js` 79/79
 unaffected (the frozen engine, correctly untouched). `assets/dag-analyze.
 bundle.js` rebuilt (`npm run build:dag-bundle`) and `monitor-next/lib/dag/`
 re-synced (`npm run sync:dag`) so both consumers of the DAG pick up the fix.
+
+## M. Phase 4 batch — three more DAG-only fixes, one confirmed still blocked (25 Jul 2026)
+
+Same shape as §L, three more times, plus one item investigated and correctly
+NOT built. All in `aggregateindiaincome-nodes.js`/`assets-nodes.js`/
+`report-batch1-nodes.js` — none touch `archive/engine-frozen/`.
+
+1. **s.44AD(4)/(5) presumptive re-election lock-in** (gap tracker IN-6): a
+   new `presumptiveLockinAgg` node parses `s44AD_last_exit_ay` with the same
+   regex/date math `layer1_india.html`'s own `validateS44ADEligibility()`
+   already uses to force-revert a UI attempt to re-select s.44AD during the
+   lock-in — but the live form never disclosed the lock-in itself, and never
+   computed s.44AD(5)'s real consequence (mandatory tax audit under s.44AB
+   whenever total income exceeds the basic exemption limit in ANY
+   locked-out year, regardless of turnover). New `presumptive_lockin_
+   active_india` finding discloses it; `report-batch1-nodes.js`'s
+   `form_3cb_3cd` trigger extended to force the audit document.
+2. **s.44BB/s.44BBB presumptive schemes + s.35AD/s.115V** (gap tracker
+   IN-26): found IN-26's own prior claim was partly wrong — `s44bbb_
+   receipts_inr` is itself a phantom top-level field (zero writers). The
+   REAL mechanism is a per-entry `presumptive_scheme` value, completely
+   unhandled engine-side (any entry with `s44BB`/`s44BBB` silently fell
+   through to Regular Books). `tonnage_tax_115V_inr` had the same "phantom
+   top-level field, real per-entry field" bug the whole farm fix (§L) was
+   built around — `layer1_india.html`'s OWN preview reads the wrong
+   location too, so this wasn't just an engine gap. `specified_business_
+   s35AD_inr` was real and live but never read engine-side at all. All
+   three now wired into `businessComputation`/`computeBusinessEntryNetProfitInr`.
+3. **MSME s.43B(h) disallowance finding** (gap tracker IN-42, new row): the
+   disallowance amount was already computed into net profit (IN-23) but
+   never surfaced as its own finding. New `msme_disallowance_s43Bh_india`
+   discloses the dollar total + overdue-invoice count directly. This one
+   DOES fire on real fixture data (2 of 11 profiles carry real
+   `msme_payables`) — unlike the other Phase 4 items and §L's farm fix,
+   which happened to touch zero existing fixture data, this one needed a
+   real allowlist entry (`run-fuzz.js`'s `KNOWN_EXTRA_FINDING_ID`, extended
+   to match `presumptive_lockin_active_india`/`msme_disallowance_s43Bh_
+   india` — the exact same mechanism `us_entity_state_tax` already used).
+4. **Non-corporate AMT** (gap tracker IN-5) — investigated, NOT built. The
+   architecture doc's phase table said this phase was "blocked on new
+   fields: No," which was wrong for this one item specifically. The only
+   candidate add-back Layer 1 captures (`specified_business_s35AD_inr`) is
+   scoped to company entities only (`layer1_india.html`'s own UI, "For
+   Indian Companies only") — and s.115JC (non-corporate AMT) by definition
+   only applies to NON-company entities, which have their own separate MAT
+   (s.115JB) instead. Zero real data overlap, confirmed by direct grep
+   rather than assumed, so this stays a genuine "needs field" item — split
+   into its own Phase 4b row in the architecture doc rather than left
+   misclassified alongside the three items that were genuinely buildable.
+
+Verified: `run-aggregateindiaincome.js` 248/248 (241 pre-existing + 7 new
+synthetic s.44BB/BBB/35AD/115V cases), `run-assets.js` 817/817 (810
+pre-existing + 9 new synthetic lock-in cases, MSME finding checked directly
+against 2 real profiles' real data), `run-aggregateusincome.js`/`run-
+checksregistry.js`/`run-agg10.js` unaffected, differential fuzzer 200
+iterations (0 new divergences after the `KNOWN_EXTRA_FINDING_ID` allowlist
+update), `npm run audit` byte-identical before/after (diffed directly),
+`tests/engine/run.js` 79/79 unaffected (frozen engine correctly untouched).

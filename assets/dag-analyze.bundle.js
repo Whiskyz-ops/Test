@@ -3020,6 +3020,7 @@
           return !(eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh));
         }
         if (scheme === "s44AE") return false;
+        if (scheme === "s44BB" || scheme === "s44BBB") return false;
         return true;
       }
       function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr, disallowancesInr) {
@@ -3034,6 +3035,7 @@
           adaReceipts = num(b.gross_receipts_inr) || adaDig + adaCsh;
           if (eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh)) return adaReceipts * 0.5;
         } else if (scheme === "s44AE") return null;
+        else if (scheme === "s44BB" || scheme === "s44BBB") return Math.round((num(b.turnover_inr) + num(b.cash_receipts_inr)) * 0.1);
         var exp = b.expenses || {};
         var pfEsiDeductibleInr = exp.employer_pf_esi_paid_before_due_date === true ? num(exp.employer_pf_esi_contribution_inr) : 0;
         var deductibleBeforeDisallowances = num(exp.rent_for_business_premises_inr) + num(exp.repairs_maintenance_inr) + num(exp.employee_salary_wages_inr) + num(exp.employee_bonus_commission_inr) + num(exp.interest_on_borrowed_capital_inr) + num(exp.insurance_premium_inr) + num(exp.bad_debts_written_off_inr) + num(exp.other_business_expenses_inr) + num(exp.ca_professional_fees_inr) + pfEsiDeductibleInr;
@@ -3129,12 +3131,72 @@
         bizMsmePayablesAgg: { deps: ["diAgg"], compute: function(d) {
           return safe(d.diAgg, "business_income.msme_payables", []);
         } },
+        // s.43B(h) MSME disallowance total across the WHOLE taxpayer (every
+        // business_entries[] unit, not just one) — computeMsmeDisallowanceInr
+        // above already nets each unit's overdue invoices into that unit's own
+        // net profit (IN-23), but the amount only ever surfaced as a silently
+        // lower per-entry number, never as its own disclosed figure anywhere. A
+        // preparer reviewing the return has no way to see "₹X was disallowed
+        // under s.43B(h) this year" without re-deriving it by hand from the raw
+        // MSME payables table — this aggregate exists so a dedicated finding
+        // (assets-nodes.js's findingsAllResult override) can surface it directly.
+        msmeDisallowanceTotalAgg: {
+          deps: ["bizMsmePayablesAgg"],
+          compute: function(d) {
+            var totalInr = 0, overdueCount = 0, today = /* @__PURE__ */ new Date();
+            today.setHours(0, 0, 0, 0);
+            (d.bizMsmePayablesAgg || []).forEach(function(m) {
+              var amt = num(m.amount_inr);
+              if (!m.invoice_date || amt <= 0) return;
+              var invDate = new Date(m.invoice_date);
+              invDate.setHours(0, 0, 0, 0);
+              if (isNaN(invDate.getTime())) return;
+              var dueDate = new Date(invDate);
+              dueDate.setDate(dueDate.getDate() + (m.has_written_agreement === true ? 45 : 15));
+              var refDate = m.payment_date ? new Date(m.payment_date) : today;
+              refDate.setHours(0, 0, 0, 0);
+              if (refDate > dueDate) {
+                totalInr += amt;
+                overdueCount++;
+              }
+            });
+            return { totalInr, overdueCount };
+          }
+        },
         goodsVehiclesAgg: { deps: ["diAgg"], compute: function(d) {
           return safe(d.diAgg, "business_income.goods_vehicles", []);
         } },
         partnerFirmsAgg: { deps: ["diAgg"], compute: function(d) {
           return safe(d.diAgg, "business_income.partner_firms", []);
         } },
+        s44adLastExitAyRaw: { deps: ["diAgg"], compute: function(d) {
+          return safe(d.diAgg, "business_income.s44AD_last_exit_ay", null);
+        } },
+        // s.44AD(4)'s 5-year re-election lock-in — ported from layer1_india.html's
+        // own validateS44ADEligibility() (~L8217-8236), same regex/date math, so a
+        // hand-authored AY string like "AY 2023-24" parses identically to how the
+        // live form itself already gates the presumptive-scheme dropdown. The
+        // live form's OWN gate only prevents SELECTING s44AD again during lock-in
+        // (a UI-level force-revert) — it doesn't compute the deeper s.44AD(5)
+        // consequence (mandatory tax audit if total income exceeds the basic
+        // exemption limit in any locked-out year), which is genuinely engine-side
+        // depth, not something the UI already covers (gap tracker IN-6's own
+        // "audit-if-opt-out interplay" phrasing).
+        presumptiveLockinAgg: {
+          deps: ["s44adLastExitAyRaw"],
+          compute: function(d) {
+            var lastExitAy = d.s44adLastExitAyRaw;
+            if (!lastExitAy) return { lockInActive: false, yearsRemaining: 0, exitYear: null };
+            var match = String(lastExitAy).match(/(?:AY\s*)?(\d{4})(?:-\d{2,4})?/i);
+            if (!match) return { lockInActive: false, yearsRemaining: 0, exitYear: null };
+            var exitYear = parseInt(match[1], 10);
+            var now = /* @__PURE__ */ new Date();
+            var currentAyStart = now.getFullYear() - (now.getMonth() < 3 ? 1 : 0);
+            var yearsSinceExit = currentAyStart - exitYear;
+            var lockInActive = yearsSinceExit > 0 && yearsSinceExit < 5;
+            return { lockInActive, yearsRemaining: lockInActive ? 5 - yearsSinceExit : 0, exitYear, currentAyStart };
+          }
+        },
         fnoIncomeInrAgg: { deps: ["diAgg"], compute: function(d) {
           return num(safe(d.diAgg, "business_income.non_speculative_income_inr", 0));
         } },
@@ -3179,11 +3241,12 @@
         },
         // ---- EXACT business.inr, with real WDV depreciation + disallowances ----
         businessComputation: {
-          deps: ["bizEntriesAgg", "presumptiveEligibilityAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg", "goodsVehiclesAgg", "fnoIncomeInrAgg", "partnerFirmsAgg"],
+          deps: ["bizEntriesAgg", "presumptiveEligibilityAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg", "goodsVehiclesAgg", "fnoIncomeInrAgg", "partnerFirmsAgg", "indiaResidencyStatusRawAgg", "diAgg"],
           compute: function(d, ctx) {
             var india = ctx.india;
             var businessInr = 0, businessDepreciationInr = 0;
             var indiaHasRegularBooksEntry = false, indiaHasValidPresumptiveEntry = false;
+            var tonnageTaxInr = 0;
             (d.bizEntriesAgg || []).forEach(function(b, idx) {
               var netProfitInr = b.net_profit_inr || b.net_profit;
               if (netProfitInr === void 0 || netProfitInr === null) {
@@ -3198,6 +3261,7 @@
                 indiaHasRegularBooksEntry = true;
               }
               businessInr += num(netProfitInr);
+              tonnageTaxInr += num(b.tonnage_tax_115V_inr);
             });
             businessInr += computeGoodsVehiclePresumptiveInr(d.goodsVehiclesAgg);
             businessInr += d.fnoIncomeInrAgg;
@@ -3207,7 +3271,15 @@
               if (firmIncomeInr !== 0) indiaHasPartnerFirmIncome = true;
               businessInr += firmIncomeInr;
             });
-            return { businessInr, businessDepreciationInr, indiaHasRegularBooksEntry, indiaHasValidPresumptiveEntry, indiaHasPartnerFirmIncome };
+            var entity = d.presumptiveEligibilityAgg.entityType;
+            var isNrCompany = d.indiaResidencyStatusRawAgg === "NR";
+            var s35adInr = 0;
+            if (entity === "company" && !isNrCompany) {
+              businessInr += tonnageTaxInr;
+              s35adInr = num(safe(d.diAgg, "business_income.specified_business_s35AD_inr", 0));
+              businessInr -= s35adInr;
+            }
+            return { businessInr, businessDepreciationInr, indiaHasRegularBooksEntry, indiaHasValidPresumptiveEntry, indiaHasPartnerFirmIncome, tonnageTaxInr, s35adDeductionInr: s35adInr };
           }
         },
         // ---- capital gains: buy-back + foreign equity + financial holdings +
@@ -8284,6 +8356,7 @@
         return safe(ctx.india, "profile.opt_115bab", false) === true;
       } };
       var CONST_B1_LIMITS = require_constants().CONST.LIMITS;
+      var CONST_B1_INDIA = require_constants().CONST.TAX.INDIA;
       var FORM_8938 = CONST_B1_LIMITS.FORM_8938;
       NODES.form8938GaugeResult = {
         deps: ["feie", "usFilingStatusRaw", "accountsListResult", "hasUsScopeBoundaryFtc"],
@@ -8433,7 +8506,8 @@
           "taxRegime",
           "businessComputation",
           "indiaOpt115baaRaw",
-          "indiaOpt115babRaw"
+          "indiaOpt115babRaw",
+          "presumptiveLockinAgg"
         ],
         compute: function(d) {
           var res = d.residencyResult;
@@ -8513,7 +8587,14 @@
             // is already treated (whether or not firm's own exclusion is itself
             // fully correct is a separate, pre-existing question, out of scope).
             schedule_al: !d.indiaIsCompany && !d.indiaIsFirm && !d.indiaIsAop && !d.indiaIsTrust && d.totalIncomeInrV3 > 5e6,
-            form_3cb_3cd: d.indiaIsCompany || t.totalInr > 0 && t.totalInr > (atLeast95PctDigital ? 1e8 : 1e7),
+            // s.44AD(5): once the s.44AD(4) 5-year presumptive re-election lock-in
+            // is active (presumptiveLockinAgg), a mandatory tax audit applies in
+            // ANY locked-out year the taxpayer's total income exceeds the basic
+            // exemption limit — regardless of turnover, and regardless of whether
+            // this year's business is even presumptive-eligible at all. Genuinely
+            // additive to the existing turnover-threshold/company triggers, not a
+            // replacement (gap tracker IN-6's "audit-if-opt-out interplay").
+            form_3cb_3cd: d.indiaIsCompany || t.totalInr > 0 && t.totalInr > (atLeast95PctDigital ? 1e8 : 1e7) || d.presumptiveLockinAgg.lockInActive && d.totalIncomeInrV3 > (d.taxRegime === "OLD" ? CONST_B1_INDIA.SLABS_OLD : CONST_B1_INDIA.SLABS_NEW)[0][0],
             form_8802: res.dualResident || d.treatyIndiaResidenceRaw !== "none" || d.treatyUsResidenceRaw !== "none",
             form_6251: d.usTaxResult.amtUsd > 0,
             form_8288: !!(d.nraRaw.usRealPropertyDisposed && (d.nraRaw.firptaWithholdingUsd || 0) > 0),
@@ -12514,6 +12595,7 @@
           return !(eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh));
         }
         if (scheme === "s44AE") return false;
+        if (scheme === "s44BB" || scheme === "s44BBB") return false;
         return true;
       }
       function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr, disallowancesInr) {
@@ -12528,6 +12610,7 @@
           adaReceipts = num(b.gross_receipts_inr) || adaDig + adaCsh;
           if (eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh)) return adaReceipts * 0.5;
         } else if (scheme === "s44AE") return null;
+        else if (scheme === "s44BB" || scheme === "s44BBB") return Math.round((num(b.turnover_inr) + num(b.cash_receipts_inr)) * 0.1);
         var exp = b.expenses || {};
         var pfEsiDeductibleInr = exp.employer_pf_esi_paid_before_due_date === true ? num(exp.employer_pf_esi_contribution_inr) : 0;
         var deductibleBeforeDisallowances = num(exp.rent_for_business_premises_inr) + num(exp.repairs_maintenance_inr) + num(exp.employee_salary_wages_inr) + num(exp.employee_bonus_commission_inr) + num(exp.interest_on_borrowed_capital_inr) + num(exp.insurance_premium_inr) + num(exp.bad_debts_written_off_inr) + num(exp.other_business_expenses_inr) + num(exp.ca_professional_fees_inr) + pfEsiDeductibleInr;
@@ -12585,6 +12668,14 @@
           }
         } else if (scheme === "s44AE") {
           return source("s.44AE tonnage-based presumptive income (goods carriages) is computed once from the Goods Vehicles schedule and rolled into the total business income figure above \u2014 it isn't split per vehicle here, so this entry shows \u20B90 on its own.");
+        } else if (scheme === "s44BB" || scheme === "s44BBB") {
+          var bbTurnover = num(b.turnover_inr), bbCash = num(b.cash_receipts_inr);
+          var bbLabel = scheme === "s44BB" ? "s.44BB (non-resident, mineral-oil exploration services)" : "s.44BBB (foreign company, civil construction / turnkey power project)";
+          return calc("Presumptive income under " + bbLabel + ": 10% of gross receipts, no ceiling test.", [
+            { label: "Turnover / gross receipts", amount: bbTurnover },
+            { label: "Cash receipts", amount: bbCash },
+            { label: "Rate", display: "10%" }
+          ]);
         }
         var exp = b.expenses || {};
         var expenseFields = [
@@ -12855,6 +12946,56 @@
             usRetirement: safe(ctx.us, "retirement_accounts", {}) || {},
             businessEntities: businessEntitiesResult(d, ctx)
           };
+        }
+      };
+      function inr(n) {
+        return "\u20B9" + Math.round(n).toLocaleString("en-IN");
+      }
+      var CONST_ASSETS_INDIA = CONST_ASSETS.TAX.INDIA;
+      var msmeSortWeight = { critical: 0, warning: 1, info: 2 };
+      NODES.findingsAllResult = {
+        deps: baseNodes.findingsAllResult.deps.concat(["presumptiveLockinAgg", "totalIncomeInrV3", "taxRegime", "msmeDisallowanceTotalAgg"]),
+        compute: function(d, ctx) {
+          var all = baseNodes.findingsAllResult.compute(d, ctx).slice();
+          var msme = d.msmeDisallowanceTotalAgg;
+          var addedAny = false;
+          if (msme && msme.totalInr > 0) {
+            addedAny = true;
+            all.push({
+              id: "msme_disallowance_s43Bh_india",
+              severity: "warning",
+              category: "income",
+              title: "s.43B(h) MSME disallowance: " + inr(msme.totalInr) + " added back to business income",
+              detail: "This taxpayer has " + msme.overdueCount + " MSME payable" + (msme.overdueCount === 1 ? "" : "s") + " (" + inr(msme.totalInr) + " total) still unpaid beyond the statutory window (15 days, or 45 days with a written agreement) as of today. Under s.43B(h) (Finance Act 2023), that amount is disallowed as a business deduction for this AY and only becomes deductible in the year actually paid \u2014 it has already been added back into the business income figure computed above, not left as a separate manual step.",
+              recommendation: "Confirm these MSME dues before filing \u2014 paying before the return due date does not cure a s.43B(h) disallowance once the statutory window has already lapsed; the deduction shifts to the year of actual payment regardless.",
+              amountUsd: msme.totalInr / fxRate(ctx),
+              refs: ["s.43B(h) (Finance Act 2023, MSME payables)", "MSMED Act 2006 s.15/16"]
+            });
+          }
+          var lockin = d.presumptiveLockinAgg;
+          if (lockin && lockin.lockInActive) {
+            addedAny = true;
+            var basicExemptionInr = (d.taxRegime === "OLD" ? CONST_ASSETS_INDIA.SLABS_OLD : CONST_ASSETS_INDIA.SLABS_NEW)[0][0];
+            var auditApplies = d.totalIncomeInrV3 > basicExemptionInr;
+            var reelectAy = lockin.currentAyStart + lockin.yearsRemaining;
+            all.push({
+              id: "presumptive_lockin_active_india",
+              severity: auditApplies ? "critical" : "warning",
+              category: "document",
+              title: "s.44AD presumptive taxation locked out for " + lockin.yearsRemaining + " more year" + (lockin.yearsRemaining === 1 ? "" : "s") + (auditApplies ? " \u2014 mandatory tax audit applies this year" : ""),
+              detail: "This taxpayer exited s.44AD presumptive taxation in AY " + lockin.exitYear + "-" + String(lockin.exitYear + 1).slice(-2) + ". Under s.44AD(4), the presumptive scheme cannot be re-elected for 5 assessment years from that exit \u2014 re-election is possible starting AY " + reelectAy + "-" + String(reelectAy + 1).slice(-2) + "." + (auditApplies ? " Total income this year (" + inr(d.totalIncomeInrV3) + ") exceeds the basic exemption limit (" + inr(basicExemptionInr) + ") while this lock-out is active \u2014 s.44AD(5) makes a tax audit under s.44AB MANDATORY this year, regardless of turnover or the usual \u20B91cr/\u20B910cr threshold." : " Total income this year (" + inr(d.totalIncomeInrV3) + ") is below the basic exemption limit (" + inr(basicExemptionInr) + "), so s.44AD(5)'s mandatory-audit consequence does not apply THIS year \u2014 but re-check every year the lock-out remains active."),
+              recommendation: auditApplies ? "Arrange a tax audit (Form 3CB/3CD) for this AY \u2014 see Documents to File. Do not rely on the turnover threshold alone; s.44AD(5) overrides it while this lock-out is active." : "No audit required this year on this basis alone, but confirm total income against the basic exemption limit again next year while the lock-out remains active.",
+              amountUsd: auditApplies ? d.totalIncomeInrV3 / fxRate(ctx) : 0,
+              refs: ["s.44AD(4)/(5) (5-year presumptive re-election lock-in and mandatory audit)", "Form 3CB/3CD"]
+            });
+          }
+          if (addedAny) {
+            all.sort(function(a, b) {
+              if (msmeSortWeight[a.severity] !== msmeSortWeight[b.severity]) return msmeSortWeight[a.severity] - msmeSortWeight[b.severity];
+              return b.amountUsd - a.amountUsd;
+            });
+          }
+          return all;
         }
       };
       module.exports = { NODES };

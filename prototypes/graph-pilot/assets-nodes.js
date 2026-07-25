@@ -233,6 +233,11 @@ function usesRegularBooksInr(b, eligibility) {
   if (scheme === "s44AD") { var dig = num(b.digital_receipts_inr), csh = num(b.cash_receipts_inr); return !(eligibility.eligible44AD && dig + csh <= presumptiveCeilingInr("s44AD", dig, csh)); }
   if (scheme === "s44ADA") { var adaDig = num(b.ada_digital_receipts_inr), adaCsh = num(b.ada_cash_receipts_inr); var adaReceipts = num(b.gross_receipts_inr) || (adaDig + adaCsh); return !(eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh)); }
   if (scheme === "s44AE") return false;
+  // s.44BB (non-resident, mineral-oil services) / s.44BBB (foreign company,
+  // civil construction/turnkey power projects) — flat 10% presumptive, no
+  // eligibility/ceiling test (aggregateindiaincome-nodes.js's businessComputation
+  // mirror, IN-26).
+  if (scheme === "s44BB" || scheme === "s44BBB") return false;
   return true;
 }
 function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr, disallowancesInr) {
@@ -247,6 +252,7 @@ function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr, disal
     adaReceipts = num(b.gross_receipts_inr) || (adaDig + adaCsh);
     if (eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh)) return adaReceipts * 0.50;
   } else if (scheme === "s44AE") return null;
+  else if (scheme === "s44BB" || scheme === "s44BBB") return Math.round((num(b.turnover_inr) + num(b.cash_receipts_inr)) * 0.10);
   var exp = b.expenses || {};
   var pfEsiDeductibleInr = exp.employer_pf_esi_paid_before_due_date === true ? num(exp.employer_pf_esi_contribution_inr) : 0;
   var deductibleBeforeDisallowances = num(exp.rent_for_business_premises_inr) + num(exp.repairs_maintenance_inr) +
@@ -310,6 +316,14 @@ function businessEntryIncomeTrace(b, eligibility, depreciationInr, disallowances
     }
   } else if (scheme === "s44AE") {
     return source("s.44AE tonnage-based presumptive income (goods carriages) is computed once from the Goods Vehicles schedule and rolled into the total business income figure above — it isn't split per vehicle here, so this entry shows ₹0 on its own.");
+  } else if (scheme === "s44BB" || scheme === "s44BBB") {
+    var bbTurnover = num(b.turnover_inr), bbCash = num(b.cash_receipts_inr);
+    var bbLabel = scheme === "s44BB" ? "s.44BB (non-resident, mineral-oil exploration services)" : "s.44BBB (foreign company, civil construction / turnkey power project)";
+    return calc("Presumptive income under " + bbLabel + ": 10% of gross receipts, no ceiling test.", [
+      { label: "Turnover / gross receipts", amount: bbTurnover },
+      { label: "Cash receipts", amount: bbCash },
+      { label: "Rate", display: "10%" }
+    ]);
   }
   var exp = b.expenses || {};
   var expenseFields = [
@@ -524,6 +538,80 @@ NODES.assetsModelResult = {
       usRetirement: safe(ctx.us, "retirement_accounts", {}) || {},
       businessEntities: businessEntitiesResult(d, ctx)
     };
+  }
+};
+
+/* ---- IN-6: s.44AD(4) presumptive re-election lock-in disclosure ----------
+ * Layer 1 India's own validateS44ADEligibility() already prevents SELECTING
+ * s44AD again during the 5-year lock-in (a UI-level force-revert, silent
+ * once the box is simply left unchecked) — it never actually discloses to
+ * the preparer that the lock-in is running, how many years remain, or that
+ * s.44AD(5)'s mandatory-tax-audit consequence (report-batch1-nodes.js's
+ * form_3cb_3cd trigger, extended alongside this finding) may already apply
+ * this year regardless of turnover. This finding surfaces that fact
+ * directly instead of leaving it as an invisible UI constraint. */
+function inr(n) { return "₹" + Math.round(n).toLocaleString("en-IN"); }
+var CONST_ASSETS_INDIA = CONST_ASSETS.TAX.INDIA;
+/* ---- MSME s.43B(h) disallowance finding ----------------------------------
+ * The disallowance itself was already netted into each business entry's own
+ * net profit (IN-23, msmeDisallowanceTotalAgg above sums the same
+ * computation taxpayer-wide) — but that only ever showed up as a silently
+ * lower net-profit number. A preparer has no way to see "₹X was disallowed
+ * under s.43B(h) this year, across N overdue MSME invoices" without
+ * re-deriving it by hand from the raw MSME payables table. This finding
+ * surfaces the dollar impact directly. */
+var msmeSortWeight = { critical: 0, warning: 1, info: 2 };
+NODES.findingsAllResult = {
+  deps: baseNodes.findingsAllResult.deps.concat(["presumptiveLockinAgg", "totalIncomeInrV3", "taxRegime", "msmeDisallowanceTotalAgg"]),
+  compute: function (d, ctx) {
+    var all = baseNodes.findingsAllResult.compute(d, ctx).slice();
+    var msme = d.msmeDisallowanceTotalAgg;
+    var addedAny = false;
+    if (msme && msme.totalInr > 0) {
+      addedAny = true;
+      all.push({
+        id: "msme_disallowance_s43Bh_india", severity: "warning", category: "income",
+        title: "s.43B(h) MSME disallowance: " + inr(msme.totalInr) + " added back to business income",
+        detail: "This taxpayer has " + msme.overdueCount + " MSME payable" + (msme.overdueCount === 1 ? "" : "s") +
+          " (" + inr(msme.totalInr) + " total) still unpaid beyond the statutory window (15 days, or 45 days with a written agreement) as of today. " +
+          "Under s.43B(h) (Finance Act 2023), that amount is disallowed as a business deduction for this AY and only becomes deductible in the year actually paid — it has already been added back into the business income figure computed above, not left as a separate manual step.",
+        recommendation: "Confirm these MSME dues before filing — paying before the return due date does not cure a s.43B(h) disallowance once the statutory window has already lapsed; the deduction shifts to the year of actual payment regardless.",
+        amountUsd: msme.totalInr / fxRate(ctx),
+        refs: ["s.43B(h) (Finance Act 2023, MSME payables)", "MSMED Act 2006 s.15/16"]
+      });
+    }
+    var lockin = d.presumptiveLockinAgg;
+    if (lockin && lockin.lockInActive) {
+      addedAny = true;
+      var basicExemptionInr = (d.taxRegime === "OLD" ? CONST_ASSETS_INDIA.SLABS_OLD : CONST_ASSETS_INDIA.SLABS_NEW)[0][0];
+      var auditApplies = d.totalIncomeInrV3 > basicExemptionInr;
+      var reelectAy = lockin.currentAyStart + lockin.yearsRemaining;
+      all.push({
+        id: "presumptive_lockin_active_india", severity: auditApplies ? "critical" : "warning", category: "document",
+        title: "s.44AD presumptive taxation locked out for " + lockin.yearsRemaining + " more year" + (lockin.yearsRemaining === 1 ? "" : "s") +
+          (auditApplies ? " — mandatory tax audit applies this year" : ""),
+        detail: "This taxpayer exited s.44AD presumptive taxation in AY " + lockin.exitYear + "-" + String(lockin.exitYear + 1).slice(-2) +
+          ". Under s.44AD(4), the presumptive scheme cannot be re-elected for 5 assessment years from that exit — re-election is possible starting AY " +
+          reelectAy + "-" + String(reelectAy + 1).slice(-2) + "." +
+          (auditApplies
+            ? " Total income this year (" + inr(d.totalIncomeInrV3) + ") exceeds the basic exemption limit (" + inr(basicExemptionInr) +
+              ") while this lock-out is active — s.44AD(5) makes a tax audit under s.44AB MANDATORY this year, regardless of turnover or the usual ₹1cr/₹10cr threshold."
+            : " Total income this year (" + inr(d.totalIncomeInrV3) + ") is below the basic exemption limit (" + inr(basicExemptionInr) +
+              "), so s.44AD(5)'s mandatory-audit consequence does not apply THIS year — but re-check every year the lock-out remains active."),
+        recommendation: auditApplies
+          ? "Arrange a tax audit (Form 3CB/3CD) for this AY — see Documents to File. Do not rely on the turnover threshold alone; s.44AD(5) overrides it while this lock-out is active."
+          : "No audit required this year on this basis alone, but confirm total income against the basic exemption limit again next year while the lock-out remains active.",
+        amountUsd: auditApplies ? (d.totalIncomeInrV3 / fxRate(ctx)) : 0,
+        refs: ["s.44AD(4)/(5) (5-year presumptive re-election lock-in and mandatory audit)", "Form 3CB/3CD"]
+      });
+    }
+    if (addedAny) {
+      all.sort(function (a, b) {
+        if (msmeSortWeight[a.severity] !== msmeSortWeight[b.severity]) return msmeSortWeight[a.severity] - msmeSortWeight[b.severity];
+        return b.amountUsd - a.amountUsd;
+      });
+    }
+    return all;
   }
 };
 

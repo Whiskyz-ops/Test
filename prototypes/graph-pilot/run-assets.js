@@ -75,5 +75,87 @@ WISING.PROFILES.forEach(function (p) {
   checkOne(p.id, r);
 });
 
+// ---------------------------------------------------------------------
+// IN-6: s.44AD(4)/(5) presumptive re-election lock-in — hand-checked
+// synthetic cases for the new presumptive_lockin_active_india finding and
+// the form_3cb_3cd mandatory-audit extension (report-batch1-nodes.js).
+// Not diffed against the frozen engine (neither exists there); no real
+// profile carries s44AD_last_exit_ay, so this can't be caught by the
+// SAMPLE/PROFILES loop above either. Same DAG-only-fix shape as the farm
+// depreciation and s.44BB/BBB fixes this session (docs/DAG_MIGRATION_TRACKER.md §L).
+// ---------------------------------------------------------------------
+console.log("\nSynthetic s.44AD(4)/(5) presumptive lock-in cases (DAG-only fix, hand-checked)\n");
+(function () {
+  var now = new Date();
+  var currentAyStart = now.getFullYear() - (now.getMonth() < 3 ? 1 : 0);
+
+  function findingsFor(india) {
+    var ctx = { router: {}, india: india, us: {} };
+    return graph.resolve(["findingsAllResult"], ctx).values.findingsAllResult;
+  }
+  function documentsFor(india) {
+    var ctx = { router: {}, india: india, us: {} };
+    var docs = graph.resolve(["buildDocumentsResult"], ctx).values.buildDocumentsResult;
+    var byId = {};
+    docs.forEach(function (doc) { byId[doc.id] = doc.required; });
+    return byId;
+  }
+
+  console.log("2 years into a 5-year lock-in, income above basic exemption -> mandatory audit");
+  (function () {
+    var exitYear = currentAyStart - 2;
+    var india = {
+      residency_detail: { final_india_residency_status: "ROR" },
+      domestic_income: { business_income: {
+        s44AD_last_exit_ay: "AY " + exitYear + "-" + String(exitYear + 1).slice(-2),
+        business_entries: [{ turnover_inr: 500000 }]
+      } }
+    };
+    var f = findingsFor(india).filter(function (x) { return x.id === "presumptive_lockin_active_india"; });
+    if (f.length === 1 && f[0].severity === "critical") { pass++; } else { bad("finding fires as critical (mandatory audit)", JSON.stringify(f)); }
+    var docs = documentsFor(india);
+    if (docs.form_3cb_3cd === true) { pass++; } else { bad("form_3cb_3cd forced true by the lock-in, even though turnover (500000) is far below the audit threshold", "form_3cb_3cd=" + docs.form_3cb_3cd); }
+  })();
+
+  console.log("6 years since exit (lock-in expired) -> no finding, no forced audit");
+  (function () {
+    var exitYear = currentAyStart - 6;
+    var india = {
+      residency_detail: { final_india_residency_status: "ROR" },
+      domestic_income: { business_income: {
+        s44AD_last_exit_ay: "AY " + exitYear + "-" + String(exitYear + 1).slice(-2),
+        business_entries: [{ turnover_inr: 500000 }]
+      } }
+    };
+    var f = findingsFor(india).filter(function (x) { return x.id === "presumptive_lockin_active_india"; });
+    if (f.length === 0) { pass++; } else { bad("no finding once the 5-year lock-in has expired", JSON.stringify(f)); }
+    var docs = documentsFor(india);
+    if (docs.form_3cb_3cd !== true) { pass++; } else { bad("form_3cb_3cd NOT forced once lock-in has expired", "form_3cb_3cd=" + docs.form_3cb_3cd); }
+  })();
+
+  console.log("2 years into lock-in, income BELOW basic exemption -> disclosed but no mandatory audit");
+  (function () {
+    var exitYear = currentAyStart - 2;
+    var india = {
+      residency_detail: { final_india_residency_status: "ROR" },
+      domestic_income: { business_income: {
+        s44AD_last_exit_ay: "AY " + exitYear + "-" + String(exitYear + 1).slice(-2),
+        business_entries: [{ turnover_inr: 100000 }]
+      } }
+    };
+    var f = findingsFor(india).filter(function (x) { return x.id === "presumptive_lockin_active_india"; });
+    if (f.length === 1 && f[0].severity === "warning") { pass++; } else { bad("finding fires as warning (disclosure only, no audit trigger)", JSON.stringify(f)); }
+    var docs = documentsFor(india);
+    if (docs.form_3cb_3cd !== true) { pass++; } else { bad("form_3cb_3cd NOT forced when income is below the basic exemption limit", "form_3cb_3cd=" + docs.form_3cb_3cd); }
+  })();
+
+  console.log("no s44AD_last_exit_ay at all -> no finding");
+  (function () {
+    var india = { residency_detail: { final_india_residency_status: "ROR" }, domestic_income: { business_income: { business_entries: [] } } };
+    var f = findingsFor(india).filter(function (x) { return x.id === "presumptive_lockin_active_india"; });
+    if (f.length === 0) { pass++; } else { bad("no finding when s44AD_last_exit_ay was never entered", JSON.stringify(f)); }
+  })();
+})();
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail > 0 ? 1 : 0);

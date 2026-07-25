@@ -154,5 +154,84 @@ console.log("-- IN-39: India-source listed_equity gains stay taxable regardless 
   });
 })();
 
+// ---------------------------------------------------------------------
+// IN-26: s.44BB/s.44BBB (flat 10% presumptive), s.35AD (specified-business
+// capex deduction), s.115V (tonnage tax) — hand-checked synthetic cases,
+// NOT diffed against the frozen engine (archive/engine-frozen/normalize.js
+// still has the old behavior: s44BB/s44BBB entries silently fall through to
+// Regular Books, and neither s35AD nor tonnage tax is read at all). None of
+// the 11 real profiles exercise any of these three, so the profile loop
+// above can't catch this either way — same DAG-only-fix shape as the farm
+// depreciation fix (docs/DAG_MIGRATION_TRACKER.md §L).
+// ---------------------------------------------------------------------
+console.log("\nSynthetic s.44BB/s.44BBB/s.35AD/s.115V cases (DAG-only fix, hand-checked)\n");
+
+(function () {
+  console.log("s.44BBB: foreign company, civil construction, 10% of turnover+cash");
+  var india = { domestic_income: { business_income: { business_entries: [
+    { presumptive_scheme: "s44BBB", turnover_inr: 500000, cash_receipts_inr: 100000 }
+  ] } } };
+  var out = graph.resolve(["businessComputation"], { router: {}, india: india, us: {} }).values.businessComputation;
+  check("businessInr = 60000 (10% of 600000)", close(out.businessInr, 60000), "got " + out.businessInr);
+  console.log("");
+})();
+
+(function () {
+  console.log("s.44BB: non-resident, mineral-oil services, 10% of turnover");
+  var india = { domestic_income: { business_income: { business_entries: [
+    { presumptive_scheme: "s44BB", turnover_inr: 1000000, cash_receipts_inr: 0 }
+  ] } } };
+  var out = graph.resolve(["businessComputation"], { router: {}, india: india, us: {} }).values.businessComputation;
+  check("businessInr = 100000 (10% of 1000000)", close(out.businessInr, 100000), "got " + out.businessInr);
+  console.log("");
+})();
+
+(function () {
+  console.log("s.115V tonnage tax + s.35AD deduction, domestic company (not NR)");
+  var india = {
+    profile: { entity_type: "company" },
+    residency_detail: { final_india_residency_status: "ROR" },
+    domestic_income: { business_income: {
+      specified_business_s35AD_inr: 50000,
+      business_entries: [{ tonnage_tax_115V_inr: 200000 }]
+    } }
+  };
+  var out = graph.resolve(["businessComputation"], { router: {}, india: india, us: {} }).values.businessComputation;
+  check("businessInr = 150000 (0 entry + 200000 tonnage - 50000 s35AD)", close(out.businessInr, 150000), "got " + out.businessInr);
+  check("tonnageTaxInr = 200000", close(out.tonnageTaxInr, 200000));
+  check("s35adDeductionInr = 50000", close(out.s35adDeductionInr, 50000));
+  console.log("");
+})();
+
+(function () {
+  console.log("s.115V/s.35AD gated OFF for an NR-resident foreign company");
+  var india = {
+    profile: { entity_type: "company" },
+    residency_detail: { final_india_residency_status: "NR" },
+    domestic_income: { business_income: {
+      specified_business_s35AD_inr: 50000,
+      business_entries: [{ tonnage_tax_115V_inr: 200000 }]
+    } }
+  };
+  var out = graph.resolve(["businessComputation"], { router: {}, india: india, us: {} }).values.businessComputation;
+  check("businessInr = 0 (NR company: no tonnage tax, no s35AD deduction)", close(out.businessInr, 0), "got " + out.businessInr);
+  console.log("");
+})();
+
+(function () {
+  console.log("s.115V/s.35AD gated OFF for a non-company entity (individual)");
+  var india = {
+    profile: { entity_type: "individual" },
+    residency_detail: { final_india_residency_status: "ROR" },
+    domestic_income: { business_income: {
+      specified_business_s35AD_inr: 50000,
+      business_entries: [{ tonnage_tax_115V_inr: 200000 }]
+    } }
+  };
+  var out = graph.resolve(["businessComputation"], { router: {}, india: india, us: {} }).values.businessComputation;
+  check("businessInr = 0 (non-company: layer1_india.html's own UI scopes both to companies only)", close(out.businessInr, 0), "got " + out.businessInr);
+  console.log("");
+})();
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail > 0 ? 1 : 0);
