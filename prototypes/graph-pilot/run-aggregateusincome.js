@@ -75,5 +75,82 @@ WISING.PROFILES.forEach(function (p) {
   console.log("");
 });
 
+/* ----------------------------------------------------------------------
+ * Synthetic farming_schedule_f cases — hand-checked, NOT diffed against
+ * the frozen engine (archive/engine-frozen/normalize.js still has the
+ * pre-fix behavior: farm income never reaches businessUs at all, and
+ * seEarnings only reads the phantom net_profit_usd field — this is a
+ * deliberate DAG-only fix, exactly the "new features/fixes land DAG-only"
+ * pattern DAG_MIGRATION_TRACKER.md section I documents. None of the 11 real
+ * profiles carry farming_schedule_f data, so the profile loop above can't
+ * exercise this at all.
+ * ------------------------------------------------------------------------*/
+console.log("Synthetic farming_schedule_f cases (DAG-only fix, hand-checked)\n");
+
+function farmCtx(farm) {
+  return { router: {}, india: {}, us: { metadata: { us_calendar_year: 2025 }, income_us_source: { farming_schedule_f: [farm] } } };
+}
+function farmBusinessUs(farm) {
+  var out = graph.resolve(["aggregateUsIncomeResult"], farmCtx(farm)).values.aggregateUsIncomeResult;
+  return { businessUs: usd(out.businessUs), seEarnings: out.seEarningsUsd };
+}
+
+(function () {
+  console.log("cash-method, no assets, no override");
+  var farm = {
+    accounting_method: "cash",
+    itemized_income: { sales_livestock_produce_raised: 50000, sales_livestock_produce_purchased: 10000, cooperative_distributions: 2000, agricultural_program_payments: 1000, crop_insurance_proceeds: 3000, custom_hire_income: 500, other_income: 500 },
+    expenses_usd: 40000
+  };
+  var r = farmBusinessUs(farm);
+  check("businessUs = 27000 (67000 gross - 40000 expenses)", close(r.businessUs, 27000), "got " + r.businessUs);
+  check("seEarnings = 27000 (farm income is SE-tax-subject)", close(r.seEarnings, 27000), "got " + r.seEarnings);
+  console.log("");
+})();
+
+(function () {
+  console.log("accrual-method, inventory adjustment");
+  var farm = {
+    accounting_method: "accrual",
+    itemized_income: { sales_livestock_produce_raised: 50000, sales_livestock_produce_purchased: 10000, cooperative_distributions: 2000, agricultural_program_payments: 1000, crop_insurance_proceeds: 3000, custom_hire_income: 500, other_income: 500 },
+    inventory: { beginning_inventory: 5000, cost_of_purchases: 8000, ending_inventory: 6000 },
+    expenses_usd: 40000
+  };
+  var r = farmBusinessUs(farm);
+  // gross 67000 - invAdj(5000+8000-6000=7000) = 60000; less 40000 expenses = 20000
+  check("businessUs = 20000 (accrual inventory swing netted)", close(r.businessUs, 20000), "got " + r.businessUs);
+  console.log("");
+})();
+
+(function () {
+  console.log("cash-method + one asset, full §179 election");
+  var farm = {
+    accounting_method: "cash",
+    itemized_income: { sales_livestock_produce_raised: 50000, sales_livestock_produce_purchased: 10000, cooperative_distributions: 2000, agricultural_program_payments: 1000, crop_insurance_proceeds: 3000, custom_hire_income: 500, other_income: 500 },
+    expenses_usd: 40000,
+    assets: [{ class: "5-year", cost: 10000, sec179: 10000, bonus: false, placed_in_service_date: "2025-06-01" }]
+  };
+  var r = farmBusinessUs(farm);
+  // 27000 gross-less-expenses, full $10,000 §179 (business income of 27000 easily covers it, aggregate cap nowhere close)
+  check("businessUs = 17000 (27000 - 10000 full §179)", close(r.businessUs, 17000), "got " + r.businessUs);
+  console.log("");
+})();
+
+(function () {
+  console.log("explicit net_profit_usd override wins outright (hand-authored profile shortcut)");
+  var farm = { net_profit_usd: 99999, itemized_income: { sales_livestock_produce_raised: 500000 }, expenses_usd: 1 };
+  var r = farmBusinessUs(farm);
+  check("businessUs = 99999 (override, ignores itemized_income/expenses)", close(r.businessUs, 99999), "got " + r.businessUs);
+  console.log("");
+})();
+
+(function () {
+  console.log("explicit gross_income_usd override (partial shortcut, expenses_usd still applied)");
+  var farm = { gross_income_usd: 80000, expenses_usd: 30000, itemized_income: { sales_livestock_produce_raised: 999999 } };
+  var r = farmBusinessUs(farm);
+  check("businessUs = 50000 (80000 override - 30000 expenses, ignores itemized_income)", close(r.businessUs, 50000), "got " + r.businessUs);
+  console.log("");
+})();
+
 console.log(pass + " passed, " + fail + " failed");
 process.exit(fail > 0 ? 1 : 0);

@@ -1366,30 +1366,44 @@ export function HoldingsView({ result, links, onPick }) {
 
 
 /* ============================ BUSINESS & ENTITIES ============================ */
-export function BusinessView({ result, links, onPick }) {
-  if (!result) return <Empty>Load a client to see business entities.</Empty>;
-  const m = result.model, u = result.computed.usTax || {};
-  const ents = m.assets.businessEntities || [];
+// Phase 8 (docs/BUSINESS_ENTITY_ARCHITECTURE.md §7): match a businessEntities
+// row to its entityGraph node by normalized name — the two lists are built
+// separately (businessEntities merges by name for display; entityGraph is a
+// fresh per-source-array extraction with stable ids), so name is the only
+// shared key. A row with no match (rare — only if the two lists' own name
+// resolution genuinely disagree) just shows no drill-down section, same as
+// before this phase existed.
+function normEntityNameForUi(n) { return String(n || "").toLowerCase().replace(/\s+/g, " ").trim(); }
+function findGraphEntityForRow(row, entityGraph) {
+  if (!entityGraph) return null;
+  const n = normEntityNameForUi(row.name);
+  if (!n) return null;
+  return (entityGraph.entities || []).find((ge) => normEntityNameForUi(ge.name) === n) || null;
+}
+const EDGE_FLOW_LABEL = {
+  business_income: "Business income", partner_remuneration: "Partner remuneration", exempt_profit_share: "Exempt profit share (s.10(2A))",
+  k1_passthrough: "K-1 ordinary income", k1_passive_income: "K-1 passive income (interest/div/gain/rental)", dividend: "Dividend (C-corp)", gilti: "GILTI inclusion"
+};
+const ENTITY_KIND_LABEL = {
+  individual: "Individual", in_huf: "HUF", in_firm: "Firm", in_llp: "LLP", in_company: "Company", in_aop: "AOP", in_trust: "Trust (India)",
+  in_local: "Local authority", in_coop: "Co-operative", in_ajp: "AJP", us_scorp: "S-Corp", us_ccorp: "C-Corp", us_partnership: "Partnership",
+  us_llc: "LLC", us_trust: "Trust (US)", foreign_corp: "Foreign corporation"
+};
+
+// Phase 8's own drill-down: click an entity row -> see the entity graph's
+// own record for it (id/kind/jurisdiction/Layer 1 source) plus every edge
+// connected to it, each with a REAL trace (Phase 6) — not just the existing
+// flat calcTrace line, which only ever showed this one entity's own income
+// formula, never how it connects to anything else on the return.
+function BusinessEntityRow({ e, entityGraph }) {
+  const [graphOpen, setGraphOpen] = useState(false);
+  const fmtRow = e.country === "IN" ? fmtInr : fmtUsd;
   const Flag = ({ c }) => <span className="text-[13px]">{c === "US" ? "🇺🇸" : "🇮🇳"}</span>;
   const Tag = ({ color, children }) => <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: color + "24", color }}>{children}</span>;
-  if (!ents.length) {
-    return (
-      <div className="space-y-6">
-        <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Building2 size={16} strokeWidth={2} /></HeadChip>Business &amp; Entities</h2><p className="text-muted text-sm mt-2">Schedule C, K-1, S-corp, C-corp and foreign corporations — with US tax treatment.</p></div>
-        <OwnedEntitiesBanner links={links} onPick={onPick} />
-        <Card icon={<Building2 size={16} strokeWidth={2} />} title="No business entities on file"><Empty>{m.identity.name} has no Schedule C / K-1 / corporate income in Layer 1.</Empty></Card>
-      </div>
-    );
-  }
-  const totalUsd = ents.reduce((s, e) => s + (e.incomeUsd || 0), 0);
-  const usEnts = ents.filter((e) => e.country === "US");
-  const inEnts = ents.filter((e) => e.country === "IN");
-  const cfcCount = ents.filter((e) => e.cfc).length;
-  const seTax = u.seTaxUsd || 0, qbi = u.qbiDeductionUsd || 0;
-  const Row = (e, i) => {
-    const fmtRow = e.country === "IN" ? fmtInr : fmtUsd;
-    return (
-    <div key={e.country + ":" + e.type + ":" + e.name} className="p-3 rounded-lg bg-white/[0.03] border border-line">
+  const ge = findGraphEntityForRow(e, entityGraph);
+  const edges = ge ? (entityGraph.edges || []).filter((ed) => ed.from === ge.id || ed.to === ge.id) : [];
+  return (
+    <div className="p-3 rounded-lg bg-white/[0.03] border border-line">
       <div className="flex items-center gap-3">
         <Flag c={e.country} />
         <div className="flex-1 min-w-0">
@@ -1409,9 +1423,121 @@ export function BusinessView({ result, links, onPick }) {
           <TraceRow label="How this figure was calculated" valueDisp="Show workflow ↓" color={PAL.muted} trace={e.calcTrace} fmt={fmtRow} />
         </div>
       )}
+      {ge && (
+        <div className="mt-1.5 pl-6">
+          <button onClick={() => setGraphOpen((o) => !o)}
+            className="w-full flex items-center justify-between gap-3 text-[11px] text-left rounded px-1 -mx-1 transition-colors hover:bg-white/[0.06] cursor-pointer text-muted">
+            <span className="flex items-center gap-1.5"><Network size={11} strokeWidth={2} />Entity graph detail{edges.length > 0 ? " (" + edges.length + " flow" + (edges.length === 1 ? "" : "s") + ")" : ""}</span>
+            <span style={{ transform: graphOpen ? "rotate(90deg)" : "none" }}>▸</span>
+          </button>
+          {graphOpen && (
+            <div className="mt-1.5 p-2.5 rounded-lg bg-black/20 border border-white/5 space-y-2">
+              <div className="flex flex-wrap gap-1.5 text-[10px]">
+                <Tag color={PAL.muted}>{ENTITY_KIND_LABEL[ge.kind] || ge.kind}</Tag>
+                <Tag color={PAL.muted}>{ge.jurisdiction}</Tag>
+                <Tag color={PAL.muted}>id: {ge.id}</Tag>
+              </div>
+              {ge.layer1Ref && <div className="text-[10px] text-muted">Source: {ge.layer1Ref.form} → <span className="font-mono">{ge.layer1Ref.path}</span></div>}
+              {edges.length === 0 && <div className="text-[10px] text-muted">No cross-entity flows recorded for this entity.</div>}
+              {edges.map((ed, i) => {
+                const isOutgoing = ed.from === ge.id;
+                const amount = ed.amountInr != null ? ed.amountInr : ed.amountUsd;
+                const amountFmt = ed.amountInr != null ? fmtInr : fmtUsd;
+                const otherId = isOutgoing ? ed.to : ed.from;
+                const otherEntity = (entityGraph.entities || []).find((x) => x.id === otherId);
+                return (
+                  <TraceRow key={i}
+                    label={<>{isOutgoing ? <ArrowUpRight size={11} strokeWidth={2} className="inline -mt-0.5 mr-1" /> : <ArrowDownRight size={11} strokeWidth={2} className="inline -mt-0.5 mr-1" />}
+                      {EDGE_FLOW_LABEL[ed.flow] || ed.flow}{otherEntity ? " · " + (isOutgoing ? "to " : "from ") + otherEntity.name : ""}</>}
+                    valueDisp={amount != null ? amountFmt(amount) : "—"}
+                    color={PAL.muted} trace={ed.trace} fmt={amountFmt} />
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+// Phase 8's own drill-down surfaced a real, pre-existing gap: partner_firms[]
+// (India) has never had its own row in businessEntities at all (only folded
+// into the taxpayer's total business income), so a real, taxable flow —
+// partner remuneration/interest, and the exempt profit share shown for
+// reconciliation — was invisible in this tab entirely, not just un-traceable.
+// entityGraph already models it correctly (§6's own note: an edge into the
+// individual, still a real node the edge points FROM) — this section shows
+// whatever entityGraph knows about that businessEntities' own flat list
+// doesn't already show, rather than leaving it invisible.
+function GraphOnlyEntityRow({ ge, entityGraph }) {
+  const [open, setOpen] = useState(true);
+  const edges = (entityGraph.edges || []).filter((ed) => ed.from === ge.id || ed.to === ge.id);
+  return (
+    <div className="p-3 rounded-lg bg-white/[0.03] border border-line">
+      <div className="flex items-center gap-3">
+        <span className="text-[13px]">{ge.jurisdiction === "US" ? "🇺🇸" : "🇮🇳"}</span>
+        <div className="flex-1 min-w-0">
+          <div className="text-[13px] font-semibold text-head truncate flex items-center gap-2 flex-wrap">{ge.name || "(unnamed entity)"}</div>
+          <div className="text-[10px] text-muted">{ENTITY_KIND_LABEL[ge.kind] || ge.kind} · not its own row above — shown here from the entity graph only</div>
+        </div>
+      </div>
+      <div className="mt-1.5 pl-6">
+        <button onClick={() => setOpen((o) => !o)}
+          className="w-full flex items-center justify-between gap-3 text-[11px] text-left rounded px-1 -mx-1 transition-colors hover:bg-white/[0.06] cursor-pointer text-muted">
+          <span className="flex items-center gap-1.5"><Network size={11} strokeWidth={2} />Entity graph detail{edges.length > 0 ? " (" + edges.length + " flow" + (edges.length === 1 ? "" : "s") + ")" : ""}</span>
+          <span style={{ transform: open ? "rotate(90deg)" : "none" }}>▸</span>
+        </button>
+        {open && (
+          <div className="mt-1.5 p-2.5 rounded-lg bg-black/20 border border-white/5 space-y-2">
+            <div className="flex flex-wrap gap-1.5 text-[10px]">
+              <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: PAL.muted + "24", color: PAL.muted }}>id: {ge.id}</span>
+            </div>
+            {ge.layer1Ref && <div className="text-[10px] text-muted">Source: {ge.layer1Ref.form} → <span className="font-mono">{ge.layer1Ref.path}</span></div>}
+            {edges.length === 0 && <div className="text-[10px] text-muted">No cross-entity flows recorded for this entity.</div>}
+            {edges.map((ed, i) => {
+              const isOutgoing = ed.from === ge.id;
+              const amount = ed.amountInr != null ? ed.amountInr : ed.amountUsd;
+              const amountFmt = ed.amountInr != null ? fmtInr : fmtUsd;
+              const otherId = isOutgoing ? ed.to : ed.from;
+              const otherEntity = (entityGraph.entities || []).find((x) => x.id === otherId);
+              return (
+                <TraceRow key={i}
+                  label={<>{isOutgoing ? <ArrowUpRight size={11} strokeWidth={2} className="inline -mt-0.5 mr-1" /> : <ArrowDownRight size={11} strokeWidth={2} className="inline -mt-0.5 mr-1" />}
+                    {EDGE_FLOW_LABEL[ed.flow] || ed.flow}{otherEntity ? " · " + (isOutgoing ? "to " : "from ") + otherEntity.name : ""}</>}
+                  valueDisp={amount != null ? amountFmt(amount) : "—"}
+                  color={PAL.muted} trace={ed.trace} fmt={amountFmt} />
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function BusinessView({ result, links, onPick }) {
+  if (!result) return <Empty>Load a client to see business entities.</Empty>;
+  const m = result.model, u = result.computed.usTax || {};
+  const ents = m.assets.businessEntities || [];
+  const entityGraph = m.assets.entityGraph || null;
+  const graphOnlyEntities = entityGraph
+    ? entityGraph.entities.filter((ge) => ge.id !== "root" && ge.id !== "root_in" && ge.id !== "root_us" && !ents.some((e) => normEntityNameForUi(e.name) === normEntityNameForUi(ge.name)))
+    : [];
+  if (!ents.length && !graphOnlyEntities.length) {
+    return (
+      <div className="space-y-6">
+        <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Building2 size={16} strokeWidth={2} /></HeadChip>Business &amp; Entities</h2><p className="text-muted text-sm mt-2">Schedule C, K-1, S-corp, C-corp and foreign corporations — with US tax treatment.</p></div>
+        <OwnedEntitiesBanner links={links} onPick={onPick} />
+        <Card icon={<Building2 size={16} strokeWidth={2} />} title="No business entities on file"><Empty>{m.identity.name} has no Schedule C / K-1 / corporate income in Layer 1.</Empty></Card>
+      </div>
     );
-  };
+  }
+  const totalUsd = ents.reduce((s, e) => s + (e.incomeUsd || 0), 0);
+  const usEnts = ents.filter((e) => e.country === "US");
+  const inEnts = ents.filter((e) => e.country === "IN");
+  const cfcCount = ents.filter((e) => e.cfc).length;
+  const seTax = u.seTaxUsd || 0, qbi = u.qbiDeductionUsd || 0;
   return (
     <div className="space-y-6">
       <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Building2 size={16} strokeWidth={2} /></HeadChip>Business &amp; Entities</h2><p className="text-muted text-sm mt-2">Every business/entity from Layer 1 — Schedule C, K-1, S-corp, C-corp and foreign corporations — with its US tax treatment.</p></div>
@@ -1422,8 +1548,13 @@ export function BusinessView({ result, links, onPick }) {
         <StatTile icon={<TrendingDown size={15} strokeWidth={2} />} label="§199A QBI deduction" value={fmtUsd(qbi)} sub="20% pass-through" accent={qbi ? PAL.greenText : PAL.muted} />
         <StatTile icon={<Globe2 size={15} strokeWidth={2} />} label="Foreign corps (CFC)" value={cfcCount} sub="Form 5471 / GILTI" accent={cfcCount ? PAL.filing : PAL.muted} />
       </div>
-      {usEnts.length > 0 && <Card title="🇺🇸 US business & pass-through entities" sub="Schedule C / K-1 / S-corp / C-corp — flows to the 1040 (or 1120 for C-corps)"><div className="space-y-1.5">{usEnts.map(Row)}</div></Card>}
-      {inEnts.length > 0 && <Card title="🇮🇳 Indian business entities" sub="PGBP income / foreign corporations"><div className="space-y-1.5">{inEnts.map(Row)}</div></Card>}
+      {usEnts.length > 0 && <Card title="🇺🇸 US business & pass-through entities" sub="Schedule C / K-1 / S-corp / C-corp — flows to the 1040 (or 1120 for C-corps)"><div className="space-y-1.5">{usEnts.map((e) => <BusinessEntityRow key={e.country + ":" + e.type + ":" + e.name} e={e} entityGraph={entityGraph} />)}</div></Card>}
+      {inEnts.length > 0 && <Card title="🇮🇳 Indian business entities" sub="PGBP income / foreign corporations"><div className="space-y-1.5">{inEnts.map((e) => <BusinessEntityRow key={e.country + ":" + e.type + ":" + e.name} e={e} entityGraph={entityGraph} />)}</div></Card>}
+      {graphOnlyEntities.length > 0 && (
+        <Card icon={<Network size={16} strokeWidth={2} />} title="Other entities on the return" sub="Real flows the entity graph (§6) tracks that don't have their own summary row above yet — e.g. India partner_firms[], a firm the taxpayer is a partner in, not something WISING prepares its own return for">
+          <div className="space-y-1.5">{graphOnlyEntities.map((ge) => <GraphOnlyEntityRow key={ge.id} ge={ge} entityGraph={entityGraph} />)}</div>
+        </Card>
+      )}
       <Card icon={<BookOpen size={16} strokeWidth={2} />} title="How this business income is taxed" sub="Planning-grade — see Filings → Tax Computation for the full numbers">
         <ul className="space-y-1.5 text-[12px] text-body">
           <li><span className="font-bold" style={{ color: PAL.amberText }}>SE tax</span> — Schedule C, farm and general-partnership income pay 15.3% self-employment tax (SS capped at the wage base + Medicare); half is deductible. {seTax > 0 ? "This taxpayer: " + fmtUsd(seTax) + "." : ""}</li>

@@ -127,6 +127,21 @@ function usesRegularBooksInr(b, eligibility) {
   if (scheme === "s44AD") { var dig = num(b.digital_receipts_inr), csh = num(b.cash_receipts_inr); return !(eligibility.eligible44AD && dig + csh <= presumptiveCeilingInr("s44AD", dig, csh)); }
   if (scheme === "s44ADA") { var adaDig = num(b.ada_digital_receipts_inr), adaCsh = num(b.ada_cash_receipts_inr); var adaReceipts = num(b.gross_receipts_inr) || (adaDig + adaCsh); return !(eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh)); }
   if (scheme === "s44AE") return false;
+  // s.44BB (non-resident, mineral-oil services) / s.44BBB (foreign company,
+  // civil construction/turnkey power projects) — both a flat 10% presumptive
+  // on receipts, no eligibility/ceiling test (layer1_india.html's own
+  // schemeOptions only ever offers these two values when the taxpayer is
+  // already NR (s44BB) or a foreign company (s44BBB, is_indian_company ===
+  // false), so there's no separate re-test to replicate here). Previously
+  // completely unhandled by this engine — usesRegularBooksInr defaulted to
+  // `true` for any unrecognized scheme value, so an entry with this scheme
+  // selected was silently computed as Regular Books (gross receipts less
+  // expenses/depreciation/disallowances) instead of the correct 10%
+  // presumptive figure. Gap tracker IN-26 named the wrong field
+  // (s44bbb_receipts_inr, a top-level field with zero real writers anywhere
+  // in layer1_india.html — confirmed by direct grep) as the missing piece;
+  // the real, live per-entry mechanism is presumptive_scheme itself.
+  if (scheme === "s44BB" || scheme === "s44BBB") return false;
   return true;
 }
 function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr, disallowancesInr) {
@@ -141,6 +156,10 @@ function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr, disal
     adaReceipts = num(b.gross_receipts_inr) || (adaDig + adaCsh);
     if (eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh)) return adaReceipts * 0.50;
   } else if (scheme === "s44AE") return null;
+  // s.44BB/s.44BBB: flat 10% of receipts (turnover_inr + cash_receipts_inr —
+  // matches layer1_india.html's own live preview formula exactly, ~L12977),
+  // unconditional (no ceiling test, see usesRegularBooksInr above).
+  else if (scheme === "s44BB" || scheme === "s44BBB") return Math.round((num(b.turnover_inr) + num(b.cash_receipts_inr)) * 0.10);
   var exp = b.expenses || {};
   var pfEsiDeductibleInr = exp.employer_pf_esi_paid_before_due_date === true ? num(exp.employer_pf_esi_contribution_inr) : 0;
   var deductibleBeforeDisallowances = num(exp.rent_for_business_premises_inr) + num(exp.repairs_maintenance_inr) +
@@ -208,8 +227,61 @@ var NODES = {
   bizEntriesAgg: { deps: ["diAgg"], compute: function (d) { return safe(d.diAgg, "business_income.business_entries", []); } },
   bizAssetBlocksAgg: { deps: ["diAgg"], compute: function (d) { return safe(d.diAgg, "business_income.asset_blocks", []); } },
   bizMsmePayablesAgg: { deps: ["diAgg"], compute: function (d) { return safe(d.diAgg, "business_income.msme_payables", []); } },
+  // s.43B(h) MSME disallowance total across the WHOLE taxpayer (every
+  // business_entries[] unit, not just one) — computeMsmeDisallowanceInr
+  // above already nets each unit's overdue invoices into that unit's own
+  // net profit (IN-23), but the amount only ever surfaced as a silently
+  // lower per-entry number, never as its own disclosed figure anywhere. A
+  // preparer reviewing the return has no way to see "₹X was disallowed
+  // under s.43B(h) this year" without re-deriving it by hand from the raw
+  // MSME payables table — this aggregate exists so a dedicated finding
+  // (assets-nodes.js's findingsAllResult override) can surface it directly.
+  msmeDisallowanceTotalAgg: {
+    deps: ["bizMsmePayablesAgg"],
+    compute: function (d) {
+      var totalInr = 0, overdueCount = 0, today = new Date(); today.setHours(0, 0, 0, 0);
+      (d.bizMsmePayablesAgg || []).forEach(function (m) {
+        var amt = num(m.amount_inr);
+        if (!m.invoice_date || amt <= 0) return;
+        var invDate = new Date(m.invoice_date); invDate.setHours(0, 0, 0, 0);
+        if (isNaN(invDate.getTime())) return;
+        var dueDate = new Date(invDate);
+        dueDate.setDate(dueDate.getDate() + (m.has_written_agreement === true ? 45 : 15));
+        var refDate = m.payment_date ? new Date(m.payment_date) : today;
+        refDate.setHours(0, 0, 0, 0);
+        if (refDate > dueDate) { totalInr += amt; overdueCount++; }
+      });
+      return { totalInr: totalInr, overdueCount: overdueCount };
+    }
+  },
   goodsVehiclesAgg: { deps: ["diAgg"], compute: function (d) { return safe(d.diAgg, "business_income.goods_vehicles", []); } },
   partnerFirmsAgg: { deps: ["diAgg"], compute: function (d) { return safe(d.diAgg, "business_income.partner_firms", []); } },
+  s44adLastExitAyRaw: { deps: ["diAgg"], compute: function (d) { return safe(d.diAgg, "business_income.s44AD_last_exit_ay", null); } },
+  // s.44AD(4)'s 5-year re-election lock-in — ported from layer1_india.html's
+  // own validateS44ADEligibility() (~L8217-8236), same regex/date math, so a
+  // hand-authored AY string like "AY 2023-24" parses identically to how the
+  // live form itself already gates the presumptive-scheme dropdown. The
+  // live form's OWN gate only prevents SELECTING s44AD again during lock-in
+  // (a UI-level force-revert) — it doesn't compute the deeper s.44AD(5)
+  // consequence (mandatory tax audit if total income exceeds the basic
+  // exemption limit in any locked-out year), which is genuinely engine-side
+  // depth, not something the UI already covers (gap tracker IN-6's own
+  // "audit-if-opt-out interplay" phrasing).
+  presumptiveLockinAgg: {
+    deps: ["s44adLastExitAyRaw"],
+    compute: function (d) {
+      var lastExitAy = d.s44adLastExitAyRaw;
+      if (!lastExitAy) return { lockInActive: false, yearsRemaining: 0, exitYear: null };
+      var match = String(lastExitAy).match(/(?:AY\s*)?(\d{4})(?:-\d{2,4})?/i);
+      if (!match) return { lockInActive: false, yearsRemaining: 0, exitYear: null };
+      var exitYear = parseInt(match[1], 10);
+      var now = new Date();
+      var currentAyStart = now.getFullYear() - (now.getMonth() < 3 ? 1 : 0);
+      var yearsSinceExit = currentAyStart - exitYear;
+      var lockInActive = yearsSinceExit > 0 && yearsSinceExit < 5;
+      return { lockInActive: lockInActive, yearsRemaining: lockInActive ? (5 - yearsSinceExit) : 0, exitYear: exitYear, currentAyStart: currentAyStart };
+    }
+  },
   fnoIncomeInrAgg: { deps: ["diAgg"], compute: function (d) { return num(safe(d.diAgg, "business_income.non_speculative_income_inr", 0)); } },
   speculativeIncomeInrAgg: { deps: ["diAgg"], compute: function (d) { return num(safe(d.diAgg, "business_income.speculative_income_inr", 0)); } },
   // Closes AGG-1's last recorded knownMissing side-channel (normalize.js
@@ -249,11 +321,12 @@ var NODES = {
 
   // ---- EXACT business.inr, with real WDV depreciation + disallowances ----
   businessComputation: {
-    deps: ["bizEntriesAgg", "presumptiveEligibilityAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg", "goodsVehiclesAgg", "fnoIncomeInrAgg", "partnerFirmsAgg"],
+    deps: ["bizEntriesAgg", "presumptiveEligibilityAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg", "goodsVehiclesAgg", "fnoIncomeInrAgg", "partnerFirmsAgg", "indiaResidencyStatusRawAgg", "diAgg"],
     compute: function (d, ctx) {
       var india = ctx.india;
       var businessInr = 0, businessDepreciationInr = 0;
       var indiaHasRegularBooksEntry = false, indiaHasValidPresumptiveEntry = false;
+      var tonnageTaxInr = 0;
       (d.bizEntriesAgg || []).forEach(function (b, idx) {
         var netProfitInr = b.net_profit_inr || b.net_profit;
         if (netProfitInr === undefined || netProfitInr === null) {
@@ -265,6 +338,11 @@ var NODES = {
           businessDepreciationInr += entryDepreciationInr;
         } else { indiaHasRegularBooksEntry = true; }
         businessInr += num(netProfitInr);
+        // s.115V tonnage tax (shipping companies) — a per-entry field
+        // (updateBusinessEntry writes entry.tonnage_tax_115V_inr, confirmed
+        // by direct grep against layer1_india.html), summed alongside the
+        // entry's other income below, gated the same way s.35AD is.
+        tonnageTaxInr += num(b.tonnage_tax_115V_inr);
       });
       businessInr += computeGoodsVehiclePresumptiveInr(d.goodsVehiclesAgg);
       businessInr += d.fnoIncomeInrAgg;
@@ -274,7 +352,27 @@ var NODES = {
         if (firmIncomeInr !== 0) indiaHasPartnerFirmIncome = true;
         businessInr += firmIncomeInr;
       });
-      return { businessInr: businessInr, businessDepreciationInr: businessDepreciationInr, indiaHasRegularBooksEntry: indiaHasRegularBooksEntry, indiaHasValidPresumptiveEntry: indiaHasValidPresumptiveEntry, indiaHasPartnerFirmIncome: indiaHasPartnerFirmIncome };
+      // s.115V tonnage tax / s.35AD specified-business capex deduction —
+      // both scoped to Indian companies only in layer1_india.html's own UI
+      // ("Special Corporate Business Schemes", its s.35AD field's own
+      // helper text says "For Indian Companies only" verbatim), and further
+      // gated on NOT being an NR-resident foreign company (matching
+      // layer1_india.html's own live preview, ~L13039-13046 — a foreign
+      // company's civil-construction/mineral-oil presumptive income is
+      // s.44BBB/s.44BB above instead). tonnage_tax_115V_inr itself was
+      // previously read from a phantom TOP-LEVEL business_income field
+      // (never written by any live input) instead of the real per-entry
+      // field above; specified_business_s35AD_inr is a real, live top-level
+      // field (updateBizNum) but was never read engine-side at all.
+      var entity = d.presumptiveEligibilityAgg.entityType;
+      var isNrCompany = d.indiaResidencyStatusRawAgg === "NR";
+      var s35adInr = 0;
+      if (entity === "company" && !isNrCompany) {
+        businessInr += tonnageTaxInr;
+        s35adInr = num(safe(d.diAgg, "business_income.specified_business_s35AD_inr", 0));
+        businessInr -= s35adInr;
+      }
+      return { businessInr: businessInr, businessDepreciationInr: businessDepreciationInr, indiaHasRegularBooksEntry: indiaHasRegularBooksEntry, indiaHasValidPresumptiveEntry: indiaHasValidPresumptiveEntry, indiaHasPartnerFirmIncome: indiaHasPartnerFirmIncome, tonnageTaxInr: tonnageTaxInr, s35adDeductionInr: s35adInr };
     }
   },
 

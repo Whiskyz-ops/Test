@@ -177,6 +177,7 @@ NODES.indiaOpt115babRaw = { deps: [], compute: function (d, ctx) { return safe(c
 
 // ---- LIM-2: Form 8938 gauge (computeLimits, computation.js:1466-1476) -----
 var CONST_B1_LIMITS = require("./constants.js").CONST.LIMITS; // SYS-1: shared
+var CONST_B1_INDIA = require("./constants.js").CONST.TAX.INDIA; // SYS-1: shared
 var FORM_8938 = CONST_B1_LIMITS.FORM_8938;
 NODES.form8938GaugeResult = {
   deps: ["feie", "usFilingStatusRaw", "accountsListResult", "hasUsScopeBoundaryFtc"],
@@ -298,7 +299,7 @@ NODES.buildDocumentsResult = {
     "usTaxResult", "headlineTotalIncomeUsdResult", "usFilingStatusRaw", "aggregateUsIncomeResult",
     "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
     "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw",
-    "entityTaxResult", "taxRegime", "businessComputation", "indiaOpt115baaRaw", "indiaOpt115babRaw"],
+    "entityTaxResult", "taxRegime", "businessComputation", "indiaOpt115baaRaw", "indiaOpt115babRaw", "presumptiveLockinAgg"],
   compute: function (d) {
     var res = d.residencyResult;
     var isForm1118 = d.entityFormsResult.usReturnForm === "1120";
@@ -385,7 +386,15 @@ NODES.buildDocumentsResult = {
       // is already treated (whether or not firm's own exclusion is itself
       // fully correct is a separate, pre-existing question, out of scope).
       schedule_al: !d.indiaIsCompany && !d.indiaIsFirm && !d.indiaIsAop && !d.indiaIsTrust && d.totalIncomeInrV3 > 5000000,
-      form_3cb_3cd: d.indiaIsCompany || (t.totalInr > 0 && t.totalInr > (atLeast95PctDigital ? 100000000 : 10000000)),
+      // s.44AD(5): once the s.44AD(4) 5-year presumptive re-election lock-in
+      // is active (presumptiveLockinAgg), a mandatory tax audit applies in
+      // ANY locked-out year the taxpayer's total income exceeds the basic
+      // exemption limit — regardless of turnover, and regardless of whether
+      // this year's business is even presumptive-eligible at all. Genuinely
+      // additive to the existing turnover-threshold/company triggers, not a
+      // replacement (gap tracker IN-6's "audit-if-opt-out interplay").
+      form_3cb_3cd: d.indiaIsCompany || (t.totalInr > 0 && t.totalInr > (atLeast95PctDigital ? 100000000 : 10000000)) ||
+        (d.presumptiveLockinAgg.lockInActive && d.totalIncomeInrV3 > ((d.taxRegime === "OLD" ? CONST_B1_INDIA.SLABS_OLD : CONST_B1_INDIA.SLABS_NEW)[0][0])),
       form_8802: res.dualResident || d.treatyIndiaResidenceRaw !== "none" || d.treatyUsResidenceRaw !== "none",
       form_6251: d.usTaxResult.amtUsd > 0,
       form_8288: !!(d.nraRaw.usRealPropertyDisposed && (d.nraRaw.firptaWithholdingUsd || 0) > 0),

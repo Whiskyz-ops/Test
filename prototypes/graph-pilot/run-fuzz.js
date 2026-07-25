@@ -360,9 +360,17 @@ function generateProfile(rng) {
 // file header has the full writeup. trustDistributedUsd/trustRetainedUsd/
 // trustBracketBreakdown: same section, computed.usTax additions for a US
 // trust — see ustax-full-nodes.js's usEntityTaxResult trust branch.
+// entityGraph (Phase 5, docs/BUSINESS_ENTITY_ARCHITECTURE.md §6, 25 Jul
+// 2026): model.assets.entityGraph is a genuinely new concept (Entity[]/
+// Edge[] graph model) with no engine equivalent at all — unlike the MSME/
+// lock-in findings (KNOWN_EXTRA_FINDING_ID below), which only fire on
+// profiles carrying specific data, this key exists on EVERY profile (even
+// a lone individual produces a one-entity graph), so it needs the blanket
+// per-key exclusion here rather than a narrower allowlist.
 var DAG_ONLY_KEYS = {
   caveat: true, indiaIsAop: true, indiaIsTrust: true,
-  trustDistributedUsd: true, trustRetainedUsd: true, trustBracketBreakdown: true
+  trustDistributedUsd: true, trustRetainedUsd: true, trustBracketBreakdown: true,
+  entityGraph: true
 };
 function close(a, b) { var tol = Math.max(2, Math.abs(b) * 1e-6); return Math.abs(a - b) <= tol; }
 function deepEqual(a, b, p, diffs) {
@@ -418,7 +426,17 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // ustax-full-nodes.js's usEntityStateTaxResult/findingsAllResult override
 // covers a gap the engine's computeUsStateTax explicitly excludes (business
 // entities entirely) — see that file's header for the full writeup.
-var KNOWN_EXTRA_FINDING_ID = /^us_entity_state_tax(_not_modeled)?$/;
+// presumptive_lockin_active_india / msme_disallowance_s43Bh_india (Phase 4,
+// gap tracker IN-6/MSME-disallowance-finding, 25 Jul 2026): same shape —
+// new DAG-only findings (assets-nodes.js's findingsAllResult override), no
+// engine equivalent, since the classic engine is permanently frozen
+// (docs/DAG_MIGRATION_TRACKER.md §J/§L) and these fixes deliberately landed
+// DAG-only. Unlike us_entity_state_tax, these two DO fire on real fixture
+// data (us_resident_indian_income/india_only_ca_client both carry real
+// msme_payables), so — unlike the farm-depreciation and s.44BB/BBB fixes
+// landed the same session, which happened to touch zero existing fixture
+// data — this allowlist entry is load-bearing, not theoretical.
+var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india)$/;
 var KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = [];
 
 // ---- D. entity-agnostic audit allowlist (see file header, section D) -----
