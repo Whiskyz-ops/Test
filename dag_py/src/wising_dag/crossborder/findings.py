@@ -284,6 +284,21 @@ def _holding_period_mismatch_findings(d, ctx):
     return findings
 
 
+def _taxes_paid_us_result(d, ctx):
+    we = safe(ctx.get("us"), "withholding_and_estimated", {})
+    us_withholding = num(safe(we, "federal_withholding_total_usd", 0))
+    us_estimated = sum(num(safe(we, f"estimated_tax_q{n}_{s}_usd", 0)) for n, s in ((1, "apr15"), (2, "jun15"), (3, "sep15"), (4, "jan15")))
+    prior_year_total_tax_usd_raw = safe(we, "prior_year_total_tax_usd", None)
+
+    def m(usd):
+        return {"usd": usd, "inr": usd * fx_rate(ctx)}
+
+    return {
+        "total": m(us_withholding + us_estimated), "withholding": m(us_withholding),
+        "priorYearTotalTaxUsd": None if prior_year_total_tax_usd_raw is None else num(prior_year_total_tax_usd_raw),
+    }
+
+
 NODES = {
     "usFtcFormXbr": NodeDef(deps=("usEntityKind",), compute=lambda d, ctx: "Form 1118" if d["usEntityKind"] == "ccorp" else "Form 1116"),
 
@@ -323,16 +338,20 @@ NODES = {
     ),
 
     # ---- form67_required / AGG-6 (findings-batch5-nodes.js) -----------------
-    "taxesPaidUsResult": NodeDef(
-        deps=(), compute=lambda d, ctx: (lambda we: {
-            "total": {"usd": num(safe(we, "federal_withholding_total_usd", 0)) + sum(num(safe(we, f"estimated_tax_q{n}_{s}_usd", 0)) for n, s in ((1, "apr15"), (2, "jun15"), (3, "sep15"), (4, "jan15")))},
-        })(safe(ctx.get("us"), "withholding_and_estimated", {})),
-        layer1_fields=(
-            "us.withholding_and_estimated.federal_withholding_total_usd",
-            "us.withholding_and_estimated.estimated_tax_q1_apr15_usd", "us.withholding_and_estimated.estimated_tax_q2_jun15_usd",
-            "us.withholding_and_estimated.estimated_tax_q3_sep15_usd", "us.withholding_and_estimated.estimated_tax_q4_jan15_usd",
-        ),
-    ),
+    # `withholding`/`priorYearTotalTaxUsd` alongside the pre-existing `total`
+    # — the real engine's aggregateTaxesPaid returns withholding and
+    # estimated separately; report-batch4-nodes.js's buildWithholdingSummary
+    # (reports/trace.py) needs withholding alone for its W-2-aggregate
+    # fallback row, not the combined `total` this node originally only
+    # exposed. `priorYearTotalTaxUsd` is null (not 0) when never entered —
+    # a real "prior year had zero tax" answer must stay distinguishable from
+    # "the preparer didn't say."
+    "taxesPaidUsResult": NodeDef(deps=(), compute=_taxes_paid_us_result, layer1_fields=(
+        "us.withholding_and_estimated.federal_withholding_total_usd",
+        "us.withholding_and_estimated.estimated_tax_q1_apr15_usd", "us.withholding_and_estimated.estimated_tax_q2_jun15_usd",
+        "us.withholding_and_estimated.estimated_tax_q3_sep15_usd", "us.withholding_and_estimated.estimated_tax_q4_jan15_usd",
+        "us.withholding_and_estimated.prior_year_total_tax_usd",
+    )),
 
     # ---- fbar_limit / AGG-5 (findings-batch5-nodes.js) -----------------------
     "bankAccountsRaw": NodeDef(
