@@ -607,13 +607,123 @@ matches_golden`'s entity-fixture skip, re-added for the same reason —
 `monitoring.health.score` now, where it accidentally matched before by
 sharing the same bug).
 
-**NOT done this phase, deliberately deferred** (see the scope decision
-above): the live `wising_compute_source` 3-way toggle, the async Pyodide
-loader (`monitor-next` doesn't yet have a `py-dag` option at all), the
-3-way `shadow-core.js` extension, an actual browser/Pyodide smoke test, and
-any real shadow-mode production data. The promotion gate (plan §7) remains
-entirely unstarted — it cannot be satisfied by anything built in a single
-sitting, only by real time and real usage once the live wiring exists.
+**NOT done in this first Phase 8 pass, deliberately deferred** (see the
+scope decision above): the live `wising_compute_source` 3-way toggle, the
+async Pyodide loader, the 3-way `shadow-core.js` extension, an actual
+browser/Pyodide smoke test, and any real shadow-mode production data. The
+promotion gate (plan §7) remains entirely unstarted — it cannot be
+satisfied by anything built in a single sitting, only by real time and
+real usage once the live wiring exists.
+
+### Toggle + Pyodide loader (second Phase 8 pass)
+
+Built the pieces deferred above, on explicit instruction to proceed with
+the "build it now, unverified" option (the scope decision's option (b) —
+see that section for why nothing here can be end-to-end tested against a
+real Pyodide runtime in this sandbox).
+
+**The core architectural problem, found before writing any code**:
+`adapter/pyodide_adapter.py`'s own `install()` (Phase 7) assigns to
+`window.WISING.analyze`/`.normalize` — the SAME global the frozen engine's
+own IIFEs (`monitor-next/lib/engine/*.js`) already populate. That's fine
+for `index.html`'s standalone prototype (a single compute source, nothing
+else touches `window.WISING`), but `monitor-next` already has the engine
+living at `window.WISING` AND the JS DAG (imported as plain ES modules,
+`lib/dag-adapter.js`, no `window` footprint of its own) side by side — a
+Python DAG installed the same way would silently clobber the engine's own
+global the instant Pyodide finished booting. Fixed by giving `install()` an
+optional `namespace` parameter (default `"WISING"`, so `index.html`'s own
+future wiring is unaffected) — `monitor-next`'s own loader calls
+`install(namespace="WISING_PY")` instead, landing at a wholly separate
+`window.WISING_PY`.
+
+**Static asset serving, not a wheel-in-the-bundle**: `adapter/
+pyodide_adapter.py` deliberately lives OUTSIDE `dag_py/src/` (so it's
+never accidentally packaged into the wheel — the wheel is pure
+`wising_dag/**`, deployment-target-agnostic per Phase 7's own design). The
+browser loader needs BOTH the wheel (for `micropip.install()`) and this
+adapter's own source text (there being no `import` machinery inside
+Pyodide for a file outside the installed wheel — the loader fetches it and
+`runPythonAsync`s it directly). New `monitor-next/scripts/sync-dag-py.js`
+(wired into `predev`/`prebuild`, same convention as `sync-engine.js`/
+`sync-dag.js`) copies both `assets/wising_dag.whl` and `dag_py/adapter/
+pyodide_adapter.py` into `monitor-next/public/dag-py/`, so Next's static
+export serves them at `/dag-py/wising_dag.whl` and `/dag-py/
+pyodide_adapter.py` — fetchable at runtime, not webpack-bundled (unlike
+`sync-dag.js`'s own `lib/dag/` copy, which IS `import`ed as ES modules).
+
+**`monitor-next/lib/py-dag-loader.js`** (new) — `initPyDag()`, a memoized
+async bootstrap: loads `pyodide.js` from a CDN (`cdn.jsdelivr.net/pyodide/
+v0.26.4/full/` — the one version pin to bump later), `loadPyodide()`,
+`pyodide.loadPackage("micropip")`, `micropip.install()`s the wheel by URL,
+fetches the adapter's source text and `runPythonAsync`s it with
+`install(namespace="WISING_PY")` appended. Memoized so the real boot
+sequence — seconds on a cold first call — runs at MOST once per page load;
+every later caller (a recompute, a Clients-tab refresh, a linked-entity
+lookup) awaits the same in-flight or already-resolved promise.
+`getPyDagLoadState()` exposes `{state, error}` (`"idle"|"loading"|
+"ready"|"error"`) synchronously for UI use without triggering a load.
+
+**`monitor-next/lib/py-dag-adapter.js`** (new) — the async counterpart to
+`dag-adapter.js`: `analyzePyDagSource`/`analyzePyDag`/
+`monitorSnapshotPyDag`/`analyzeProfileByIdPyDag`/`allClientSummariesPyDag`,
+same field contract and same localStorage-backed source resolution
+(`readRaw`/`STORAGE_KEYS`, now exported from `dag-adapter.js` so this file
+reuses them instead of duplicating the lookup), every export returning a
+Promise instead of a bare value. Regime/FX/FEIE what-if overrides are
+patched into `india`/`us` client-side exactly like `analyzeDag()` does,
+since `wising_dag.analyze()` itself has no what-if-patching concept of its
+own — only `router`/`india`/`us`/`monitorAsOf`/`fxRateOverride` cross into
+the Python opts dict.
+
+**`monitor-next/app/page.jsx`**: `engineSource` is now 3-way
+(`"engine"|"dag"|"py-dag"`, cycled by the same compute-source pill, plus
+`?engine=py-dag`). New `pyDagStatus` state
+(`"idle"|"loading"|"ready"|"error"`) drives the pill's own label/color
+while a py-dag call is in flight or has failed. `recompute()`'s existing
+synchronous `dag`/`engine` branches are UNCHANGED; a third branch handles
+`py-dag` by awaiting `monitorSnapshotPyDag(...)` and applying the same
+`setCountries/setMode/.../setResult` update on resolution — the PREVIOUS
+result stays on screen while a py-dag call is in flight rather than
+blanking the page, since a cold Pyodide boot can take real time.
+`refreshClientSummaries()` gained the same async branch for the Clients
+tab. What-if overrides (regime/FX/FEIE) are now enabled for BOTH DAG-family
+sources (`engineSource !== "engine"`, previously `=== "dag"` only) — the
+Python DAG accepts the exact same override shape. The one deliberate
+simplification: `linkedFilings` (the owned-entity Filings-tab roll-up,
+docs/GAP_TRACKER.md section H.11) is a synchronous `useMemo` and returns
+`[]` for `py-dag` rather than a bigger async-effect rework of an
+already-working feature — a secondary convenience, not central to what
+this phase is verifying.
+
+**Verification actually performed**: `cd monitor-next && npx next build`
+compiles cleanly (webpack/SWC + TypeScript checking + static prerender,
+all 4 pages), confirming no syntax/import errors across every new/changed
+file. `node test-adapter.mjs`/`node test-shadow.mjs`/`npx vitest run` all
+run clean — the SAME 42/3 pre-existing failures already present before
+this pass (confirmed by `git stash`-ing every changed file and re-running;
+identical failure set both ways), nothing newly broken by the `dag-
+adapter.js` export additions. `dag_py`'s own suite stays 547/547, and
+`ast.parse()` confirms `adapter/pyodide_adapter.py` is syntactically valid
+Python (this file has no pytest coverage at all — it imports `pyodide`/
+`js`, neither installed in this sandbox — so a bare syntax check is the
+most this environment can verify; it DID catch one real mistake, a
+docstring closed one edit too early, before this note was written).
+
+**NOT verified, same unavoidable limitation as Phase 7's own adapter
+work**: none of `py-dag-loader.js`'s actual Pyodide calls (`loadPyodide()`,
+`micropip.install()`, `runPythonAsync()`) have run against a real runtime
+— this sandbox still has no network route to fetch one. Written to the
+documented Pyodide browser API, not exercised end-to-end. The toggle
+itself is reachable and will render correctly (build-verified); whether a
+live Pyodide boot actually succeeds, how long it takes, and whether
+`micropip.install()` accepts a same-origin relative wheel URL exactly as
+constructed here are all genuinely open questions this pass could not
+close.
+
+**Still NOT done**: the 3-way `shadow-core.js` extension (engine vs
+py-dag, tagged `source_pair`), any real promotion-gate data, and the
+actual cutover (flipping the default source). All remain future work.
 
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 
