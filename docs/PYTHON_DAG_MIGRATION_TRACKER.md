@@ -17,8 +17,8 @@ imply any interim cutover.
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Foundation: resolver, registry, 3 leaf entry nodes, verification pipeline | 🔶 in progress (see below) |
-| 2 | `india/` domain | ⬜ not started |
+| 1 | Foundation: resolver, registry, 3 leaf entry nodes, verification pipeline | ✅ done |
+| 2 | `india/` domain | ✅ done (see below) |
 | 3 | `us/` domain | ⬜ not started |
 | 4 | `crossborder/` domain + fuzz corpus | ⬜ not started |
 | 5 | `findings/` domain-split | ⬜ not started |
@@ -81,3 +81,50 @@ CI lint check banning `pyodide`/`js` imports outside `dag_py/adapter/`
 in Phase 7 when the adapter is built) and `dag_py/pyproject.toml`'s actual
 wheel build (packaging metadata exists; the build step is a Phase 7 item
 since there's nothing worth packaging yet).
+
+## Phase 2 detail (india/ domain, 125 tests green cumulative)
+
+Ported `prototypes/graph-pilot/{aggregateindiaincome,in1-nodes-v3,entitytax,
+india-full,itrform}-nodes.js` to `dag_py/src/wising_dag/india/
+{aggregate_india_income,in1_v3,entity_tax,india_full,itr_form}.py` — the
+full individual/HUF slab computation, company/firm/AOP/trust entity tax,
+capital-gains classification (buy-back, foreign equity, financial holdings,
+commodities, unlisted equity), WDV depreciation, and the ITR-form eligibility
+solver.
+
+- **`india-tax-combined-nodes.js` was deliberately NOT ported.** It builds
+  the exact same v3+entity node merge and the same 3 routing-gate overrides
+  (`isEntityTaxpayer`/`totalTaxInrCombined`/`regimeCombined`) as
+  `india-full-nodes.js`, and in the live JS graph its contribution is always
+  overwritten by `india-full-nodes.js`'s version — traced via
+  `report-batch4-nodes.js`'s own merge-order comment ("batch3 FIRST, batch2's
+  chain SECOND... batch2's lineage carries india-full-nodes.js's IN-GRAPH
+  overrides"). Confirmed redundant for anything reaching the final
+  `analyze()` output, not ported.
+- `core/dates.py` (new, shared infra, not domain logic) — `parse_date()`/
+  `months_between()`/`is_under_180_days_addition_inr()`, ports of the
+  date-window helpers duplicated across the JS aggregate-income file.
+- `core/util.py` gained `format_inr()` — Indian digit grouping (last 3
+  digits, then pairs: `5000000` → `"50,00,000"`). Needed because
+  `itr_form.py`'s disqualifier messages embed formatted rupee amounts and
+  Python's `:,` format produces Western grouping (`"5,000,000"`), which
+  would have silently mismatched golden's `toLocaleString("en-IN")` output
+  — caught by the golden-diff test, not by inspection.
+- `test_india.py`'s ITR-form check replicates a discipline already present
+  in the JS harness itself: `run-itrform.js` treats
+  `computed.indiaItrForm === null` (the frozen engine's own
+  `model.meta.hasIndiaScope` gate, which lives in the report-assembly layer
+  outside `itrform-nodes.js`, not in the ported module) as "reported only,"
+  not a hard mismatch — same carve-out kept here (`us_only_cpa_client`
+  exercises it) rather than inventing a `hasIndiaScope` gate that doesn't
+  exist in the module being ported.
+- Every other check (`indiaIncomeModelResult`, `totalTaxInrCombined`,
+  `regimeCombined`, and the ITR-form result where the engine has an answer
+  to compare against) is asserted exactly, on all 13 fixtures, entity and
+  individual/HUF paths both — matching `india-full-nodes.js`'s own claimed
+  parity scope (no US-side-style TAX-7/TAX-8 carve-out on the India side).
+- Known inherited non-determinism, not introduced by the port: MSME
+  disallowance timing (`s43Bh`) reads wall-clock "today" when a payable's
+  `payment_date` is absent, same as the JS source's own bare `new Date()` —
+  pre-existing JS behavior, ported faithfully rather than silently
+  "fixed" mid-port.
