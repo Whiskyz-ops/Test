@@ -80,18 +80,20 @@ def test_apportionment_result_matches_golden_for_individual_profiles(fixture_id)
 
 
 def test_black_money_act_bma_asset_value_synthetic():
-    """boundaries (accountsBoundary/usSourceTotalUsdBoundary/usSecuritiesBoundary)
-    aren't wired into the full graph yet (Phase 6/7) — pinned with synthetic
-    ctx instead, same discipline as test_us_penalties.py."""
+    """accountsBoundary/usSourceTotalUsdBoundary are genuinely cross-domain
+    boundaries (need bankAccountsRaw/aggregateUsIncomeResult from other
+    domains) — not wired into the full graph yet (Phase 6/7), pinned with
+    synthetic ctx["model"] instead, same discipline as test_us_penalties.py.
+    usSecuritiesBoundary is a real closed leaf now (reads ctx["us"] directly,
+    same as production), so it's supplied via ctx["us"] here, not ctx["model"]."""
     r = black_money_act.build(NodeRegistry()).freeze()
     ctx = {
         "router": {"jurisdiction": "dual", "is_us_citizen": True},
         "india": {"residency_detail": {"final_india_residency_status": "ROR"}, "foreign_assets": {"has_foreign_assets": False}},
-        "us": {},
+        "us": {"financial_holdings": [{"peak_balance_usd": 20000}]},
         "model": {
             "accounts": {"accounts": [{"country": "US", "peak": {"usd": 50000}}]},
             "income": {"us": {"usSourceTotal": {"usd": 10000}}},
-            "assets": {"usSecurities": [{"peak_balance_usd": 20000}]},
         },
     }
     out = r.resolve(["bmaAssetValueUsd", "shouldFire"], ctx).values

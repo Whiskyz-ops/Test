@@ -1,10 +1,18 @@
 """black_money_act_exposure (XB-7) finding. Port of
 prototypes/graph-pilot/xb7-nodes.js.
 
-`accountsBoundary`/`usSourceTotalUsdBoundary`/`usSecuritiesBoundary` are
-EXPLICIT BOUNDARY INPUTS (read `ctx["model"]...`) — closed later once
-filings/assets.py (accounts) and reports/assembly.py exist (Phase 6/7),
-same deferred-boundary discipline used throughout this port.
+`accountsBoundary`/`usSourceTotalUsdBoundary` are EXPLICIT BOUNDARY INPUTS
+(read `ctx["model"]...`) — closed later once filings/assets.py (accounts)
+and reports/assembly.py exist (Phase 6/7), same deferred-boundary discipline
+used throughout this port; their real agg10-nodes.js closures need
+bankAccountsRaw (crossborder/findings.py) / aggregateUsIncomeResult (us
+domain), genuinely cross-domain data this file's own build() doesn't compose.
+
+`usSecuritiesBoundary` is NOT one of those — xb7-nodes.js's own v1-era stub
+read `ctx["model"].assets.usSecurities`, but that's dead build history
+(xb7-nodes.js is never required by the live graph.js chain); agg10-nodes.js's
+real closure (`safe(ctx.us, "financial_holdings", [])`) needs nothing but
+ctx["us"] itself, so it's ported as a real leaf here rather than deferred.
 """
 from __future__ import annotations
 
@@ -46,7 +54,7 @@ NODES = {
 
     "accountsBoundary": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.accounts.accounts", None) or []),
     "usSourceTotalUsdBoundary": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx, "model.income.us.usSourceTotal.usd", None))),
-    "usSecuritiesBoundary": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.assets.usSecurities", None) or []),
+    "usSecuritiesBoundary": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "financial_holdings", []) or [], layer1_fields=("us.financial_holdings",)),
 
     "isIndiaRor": NodeDef(deps=("indiaResidencyStatusRaw",), compute=lambda d, ctx: d["indiaResidencyStatusRaw"] == "ROR"),
     "usHasForeignToIndiaAssets": NodeDef(

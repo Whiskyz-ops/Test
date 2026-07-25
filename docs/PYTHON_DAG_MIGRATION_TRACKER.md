@@ -164,7 +164,7 @@ before ever comparing against the engine (which keeps the same value at
 `usTax.feie.appliedUsd` instead) — `test_us.py` replicates that exact
 strip rather than treating the mismatch as a bug.
 
-## Phase 6 detail (filings/ + reports/, IN PROGRESS — 294 tests green cumulative)
+## Phase 6 detail (filings/ + reports/, IN PROGRESS — 403 tests green cumulative)
 
 **Scoping correction, found before any code was written**: the plan's guessed
 filenames (`documents-nodes.js`, `monitoring-nodes.js`) don't exist. The real
@@ -315,16 +315,82 @@ equivalent" comment in the source. Golden (frozen-engine-generated) never
 carries these ids — filtered out before comparing, same permanent-carve-out
 discipline as `test_reports_trace.py`'s entity-branch divergence.
 
-**Not yet done this phase** (real remaining Phase 6 work, not deferred to
-Phase 7): `filings/assets.py` (`assetsModelResult` + the `findingsAllResult`
-override, ~700 of 972 lines — the entity-ownership graph/per-entity trace
-builder, the single largest remaining file in this port — also the source
-of the 2 extra findings, `msme_disallowance_s43Bh_india`/
-`presumptive_lockin_active_india`, noted earlier as a Phase-5-adjacent gap);
-`reports/trace.py`'s `buildWithholdingSummaryResult` (report-batch4-nodes.js
-— deps-only, one `ctx.model` boundary read to fix at port time, not defer).
-`filings/monitoring.py` and `summaryResult`/`analyzeResult` are correctly
-deferred to Phase 7 (see above), not merely postponed.
+**`filings/assets.py` — done** (403 tests green cumulative, 18 new). Ports
+`assets-nodes.js` in full: `assetsModelResult` (model.assets — Holdings/
+Business tab data), `businessEntitiesResult` (flat per-entity list, reused
+wholesale from already-ported india/aggregate_india_income.py + newly-ported
+us self-employment/farm net-profit math), and the entity-ownership graph
+(`buildEntityGraph`, docs/BUSINESS_ENTITY_ARCHITECTURE.md §6 — genuinely new,
+no engine or prior-DAG equivalent). Also closes the 2-extra-findings gap
+flagged earlier: `findingsAllResult` is OVERRIDDEN via a real
+`NodeRegistry.override(..., reason=...)` call (the base compute is captured
+via `base.get("findingsAllResult")` before overriding, structurally the same
+shape as the JS source's `baseNodes.findingsAllResult.compute(d, ctx)`
+call), adding `msme_disallowance_s43Bh_india`/`presumptive_lockin_active_india`
+on top. `msmeDisallowanceTotalAgg` (new node, taxpayer-wide sum of the same
+s.43B(h) computation `aggregate_india_income.py`'s per-entry helper already
+nets in) reads `ctx["monitorAsOfBoundary"]` instead of bare `datetime.now()`,
+same architecture rule `presumptiveLockinAgg` already follows.
+
+**Two real, pre-existing boundary-node bugs found and fixed while scoping
+`assets.py`'s deps, both predating Phase 6**: `india/findings.py`'s
+`indianBusinessesBoundary` and `crossborder/black_money_act.py`'s
+`usSecuritiesBoundary` were ported (Phase 4/5) from `in1-nodes.js`/
+`xb7-nodes.js`'s own v1-era stub definitions (reading `ctx["model"]...`,
+always `[]`/`None` in this port's real `{router, india, us}` ctx shape) —
+but those two source files are **dead build history**, never required by the
+live `graph.js` chain (confirmed: only standalone `run-in1.js`/`run-batch2.js`
+runners `require()` them). The live definitions are `agg10-nodes.js`'s own
+closures, whose header states outright: *"the four original finding graphs'
+v1-era boundaries ... all 16 closed here against the now-existing in-graph
+equivalents."* Both of these two specifically need nothing outside data
+already available within their own file's existing build chain
+(`indianBusinessesBoundary` only needs `annualSliceAgg`, already reachable
+via `india_full.build()`; `usSecuritiesBoundary` needs nothing but
+`ctx["us"]` directly) — so both are closed for real now rather than deferred.
+Six sibling IN-1 boundary nodes in `india/findings.py`
+(`assessedTaxInrBoundary`, `hasValidPresumptiveEntryBoundary`,
+`hasRegularBooksEntryBoundary`, `hasPartnerFirmIncomeBoundary`,
+`businessInrBoundaryIn1`, `speculativeIncomeInrBoundaryIn1`) had the exact
+same dead-source-file problem and were closed the same way, same commit —
+all six resolve entirely within the india domain's own already-built chain
+(`businessComputation`/`speculativeIncomeInrAgg`/`totalTaxInrCombined`, all
+present by the time `india/findings.py`'s `build()` runs). The remaining
+`*Boundary` nodes in `us1_penalty_2210.py`/`black_money_act.py`
+(`accountsBoundary`/`usSourceTotalUsdBoundary`) are NOT similarly closed —
+those genuinely need cross-domain state (`bankAccountsRaw`,
+`aggregateUsIncomeResult`) unavailable until Phase 7's
+`build_full_registry()`, a real architectural deferral, not an oversight.
+None of the 12 fixtures exercise non-empty `business_entries`/
+`financial_holdings` through these specific paths in a way golden would
+have caught the bug — confirmed safe via the full suite before and after
+(no regressions), same "real bug masked by fixture coverage" pattern Phase 6
+already caught once with `limitsRawExtra`.
+
+**A third real, pre-existing bug found the same way, in `us/aggregate_us_income.py`
+(Phase 3)**: `farming_schedule_f[]` net profit was read via a phantom
+`net_profit_usd` field the live Layer 1 US form never actually writes (only
+`itemized_income{}` line items + `expenses_usd`) — so a real farmer's
+Schedule F profit silently contributed `$0` to business income, Schedule SE
+earnings, AND the QBI base, exactly the bug `aggregateusincome-nodes.js`'s
+own header documents having fixed upstream. Fixed by porting
+`computeFarmGrossIncomeUsd`/`computeFarmNetProfitUsd`/`farmNetProfitUsd`
+alongside the sibling self-employment functions, and renaming
+`selfEmploymentDepreciationPlan` → `usBusinessDepreciationPlan` (matching
+the JS rename) to combine self-employment AND farm assets into one
+taxpayer-wide §179 aggregation pool, keyed `"se{idx}"`/`"farm{idx}"` — real
+law caps/phases out §179 across all of a taxpayer's directly-owned active
+trades/businesses together, not per-array. Zero of the 12 fixtures carry
+`farming_schedule_f` data, so this was silent until traced by hand while
+porting `filings/assets.py`'s farm income trace (which needed the combined
+depreciation plan); full suite green before and after, confirming no
+fixture-visible regression either way.
+
+**Not yet done this phase**: `reports/trace.py`'s `buildWithholdingSummaryResult`
+(report-batch4-nodes.js — deps-only, one `ctx.model` boundary read to fix at
+port time, not defer). `filings/monitoring.py` and `summaryResult`/
+`analyzeResult` are correctly deferred to Phase 7 (see above), not merely
+postponed.
 
 ## Phase 5 detail (findings/ domain-split, 281 tests green cumulative)
 

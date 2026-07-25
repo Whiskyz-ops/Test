@@ -40,6 +40,31 @@ def _self_employment_net_profit_usd(s: dict, depreciation_usd: float) -> float:
     return _compute_self_employment_net_profit_usd(s) - num(depreciation_usd or 0)
 
 
+def _compute_farm_gross_income_usd(f: dict) -> float:
+    inc = safe(f, "itemized_income", {}) or {}
+    gross = (
+        num(inc.get("sales_livestock_produce_raised")) + num(inc.get("sales_livestock_produce_purchased")) +
+        num(inc.get("cooperative_distributions")) + num(inc.get("agricultural_program_payments")) + num(inc.get("ccc_loans")) +
+        num(inc.get("crop_insurance_proceeds")) + num(inc.get("custom_hire_income")) + num(inc.get("other_income"))
+    )
+    if f.get("accounting_method") == "accrual":
+        inv = safe(f, "inventory", {}) or {}
+        gross -= num(inv.get("beginning_inventory")) + num(inv.get("cost_of_purchases")) - num(inv.get("ending_inventory"))
+    return gross
+
+
+def _compute_farm_net_profit_usd(f: dict) -> float:
+    return _compute_farm_gross_income_usd(f) - num(f.get("expenses_usd"))
+
+
+def _farm_net_profit_usd(f: dict, depreciation_usd: float) -> float:
+    if f.get("net_profit_usd") is not None:
+        return num(f["net_profit_usd"])
+    if f.get("gross_income_usd") is not None:
+        return num(f["gross_income_usd"]) - num(f.get("expenses_usd")) - num(depreciation_usd or 0)
+    return _compute_farm_net_profit_usd(f) - num(depreciation_usd or 0)
+
+
 def _asset_recovery_year_n(asset: dict | None, base_year: int) -> int | None:
     if not asset or not asset.get("placed_in_service_date"):
         return None
@@ -139,14 +164,26 @@ def _wages_computation(d, ctx):
     return {"wagesUsd": wages, "w2WithholdingUsd": w2with, "w2Employers": w2_employers, "medicareWagesUsd": medicare_wages, "qualifiedTipsUsd": qualified_tips_usd, "qualifiedOvertimeUsd": qualified_overtime_usd}
 
 
-def _self_employment_depreciation_plan(d, ctx):
-    lst = safe(d["uiAgg"], "self_employment", []) or []
+def _us_business_depreciation_plan(d, ctx):
+    """Combines self-employment AND farming_schedule_f assets into ONE
+    taxpayer-wide s.179 aggregation pool (real law caps/phases out s.179
+    across ALL of a taxpayer's directly-owned active trades/businesses
+    together, not per-array) — keyed "se{idx}"/"farm{idx}" so callers can
+    look up either. K-1/1120 asset rows are deliberately NOT folded in: those
+    entities' reported income already reflects the entity's own depreciation
+    before flow-through, so a second per-asset computation would double-count.
+    """
     businesses = []
-    for idx, s in enumerate(lst):
+    for idx, s in enumerate(safe(d["uiAgg"], "self_employment", []) or []):
         assets = list(s.get("assets") or [])
         for br in s.get("branches") or []:
             assets += br.get("assets") or []
-        businesses.append({"key": idx, "grossReceiptsMinusExpensesUsd": _compute_self_employment_net_profit_usd(s), "assets": assets})
+        businesses.append({"key": f"se{idx}", "grossReceiptsMinusExpensesUsd": _compute_self_employment_net_profit_usd(s), "assets": assets})
+    for idx, f in enumerate(safe(d["uiAgg"], "farming_schedule_f", []) or []):
+        assets = list(f.get("assets") or [])
+        for br in f.get("branches") or []:
+            assets += br.get("assets") or []
+        businesses.append({"key": f"farm{idx}", "grossReceiptsMinusExpensesUsd": _compute_farm_net_profit_usd(f), "assets": assets})
     return _aggregate_asset_depreciation_usd(businesses, d["baseYearUsAgg"])
 
 
@@ -168,7 +205,7 @@ def _k1_passive_totals(d, ctx):
 
 
 def _business_and_se_computation(d, ctx):
-    ui, se_depr_plan = d["uiAgg"], d["selfEmploymentDepreciationPlan"]
+    ui, se_depr_plan = d["uiAgg"], d["usBusinessDepreciationPlan"]
     business_us = num(safe(ui, "business_income_usd", 0))
     for c in safe(ui, "c_corporations_1120", []) or []:
         business_us += num(c.get("taxable_income_usd") or c.get("net_income_usd") or 0)
@@ -177,7 +214,7 @@ def _business_and_se_computation(d, ctx):
 
     foreign_self_employment = 0.0
     for idx, s in enumerate(safe(ui, "self_employment", []) or []):
-        depr_usd = se_depr_plan["byBusiness"].get(idx, {}).get("totalUsd", 0)
+        depr_usd = se_depr_plan["byBusiness"].get(f"se{idx}", {}).get("totalUsd", 0)
         net_usd = _self_employment_net_profit_usd(s, depr_usd)
         if s.get("llc_type") == "foreign_disregarded":
             foreign_self_employment += net_usd
@@ -188,13 +225,21 @@ def _business_and_se_computation(d, ctx):
         business_us += num(s.get("ordinary_income_usd") or s.get("scorp_income_usd") or s.get("ordinary_business_income_usd") or 0) - num(s.get("sec179_deduction_usd") or 0)
     for t in safe(ui, "trusts_estates_k1", []) or []:
         business_us += num(t.get("ordinary_income_usd") or 0) + num(t.get("ordinary_gain_usd") or 0)
+    # farming_schedule_f previously never reached business_us at all — only
+    # a phantom net_profit_usd field (never written by the live form) was
+    # even attempted for Schedule SE. A real farmer's Schedule F profit
+    # silently contributed $0 to both regular tax AND self-employment tax.
+    for idx, f in enumerate(safe(ui, "farming_schedule_f", []) or []):
+        depr_usd = se_depr_plan["byBusiness"].get(f"farm{idx}", {}).get("totalUsd", 0)
+        business_us += _farm_net_profit_usd(f, depr_usd)
 
     se_earnings = 0.0
     for idx, s in enumerate(safe(ui, "self_employment", []) or []):
-        depr_usd = se_depr_plan["byBusiness"].get(idx, {}).get("totalUsd", 0)
+        depr_usd = se_depr_plan["byBusiness"].get(f"se{idx}", {}).get("totalUsd", 0)
         se_earnings += _self_employment_net_profit_usd(s, depr_usd)
-    for s in safe(ui, "farming_schedule_f", []) or []:
-        se_earnings += num(s.get("net_profit_usd") or 0)
+    for idx, f in enumerate(safe(ui, "farming_schedule_f", []) or []):
+        depr_usd = se_depr_plan["byBusiness"].get(f"farm{idx}", {}).get("totalUsd", 0)
+        se_earnings += _farm_net_profit_usd(f, depr_usd)
 
     qbi_income = se_earnings
     sstb = False
@@ -206,7 +251,8 @@ def _business_and_se_computation(d, ctx):
         qbi_income += num(t.get("ordinary_income_usd") or 0)
     for x in (
         list(safe(ui, "self_employment", []) or []) + list(safe(ui, "s_corporations_k1", []) or []) +
-        list(safe(ui, "partnerships_k1", []) or []) + list(safe(ui, "trusts_estates_k1", []) or [])
+        list(safe(ui, "partnerships_k1", []) or []) + list(safe(ui, "trusts_estates_k1", []) or []) +
+        list(safe(ui, "farming_schedule_f", []) or [])
     ):
         if x and (x.get("is_specified_service_trade") is True or x.get("is_sstb") is True or x.get("sstb") is True):
             sstb = True
@@ -327,6 +373,24 @@ _SE_DEPRECIATION_FIELDS = (
     "us.income_us_source.self_employment[].cogs_ending_inventory", "us.income_us_source.self_employment[].gross_receipts_usd",
     "us.income_us_source.self_employment[].returns_and_allowances_usd", "us.income_us_source.self_employment[].other_income_usd",
     "us.income_us_source.self_employment[].expenses_usd",
+    "us.income_us_source.farming_schedule_f[].assets[].placed_in_service_date", "us.income_us_source.farming_schedule_f[].assets[].class",
+    "us.income_us_source.farming_schedule_f[].assets[].cost", "us.income_us_source.farming_schedule_f[].assets[].sec179",
+    "us.income_us_source.farming_schedule_f[].assets[].bonus",
+    "us.income_us_source.farming_schedule_f[].branches[].assets[].placed_in_service_date",
+    "us.income_us_source.farming_schedule_f[].branches[].assets[].class", "us.income_us_source.farming_schedule_f[].branches[].assets[].cost",
+    "us.income_us_source.farming_schedule_f[].branches[].assets[].sec179", "us.income_us_source.farming_schedule_f[].branches[].assets[].bonus",
+    "us.income_us_source.farming_schedule_f[].itemized_income.sales_livestock_produce_raised",
+    "us.income_us_source.farming_schedule_f[].itemized_income.sales_livestock_produce_purchased",
+    "us.income_us_source.farming_schedule_f[].itemized_income.cooperative_distributions",
+    "us.income_us_source.farming_schedule_f[].itemized_income.agricultural_program_payments",
+    "us.income_us_source.farming_schedule_f[].itemized_income.ccc_loans",
+    "us.income_us_source.farming_schedule_f[].itemized_income.crop_insurance_proceeds",
+    "us.income_us_source.farming_schedule_f[].itemized_income.custom_hire_income",
+    "us.income_us_source.farming_schedule_f[].itemized_income.other_income",
+    "us.income_us_source.farming_schedule_f[].accounting_method", "us.income_us_source.farming_schedule_f[].inventory.beginning_inventory",
+    "us.income_us_source.farming_schedule_f[].inventory.cost_of_purchases", "us.income_us_source.farming_schedule_f[].inventory.ending_inventory",
+    "us.income_us_source.farming_schedule_f[].expenses_usd", "us.income_us_source.farming_schedule_f[].net_profit_usd",
+    "us.income_us_source.farming_schedule_f[].gross_income_usd",
 )
 _K1_PASSIVE_FIELDS = tuple(
     f"us.income_us_source.{group}[].{field}"
@@ -352,10 +416,10 @@ def build(base):
         layer1_fields=("us.income_foreign_source.foreign_wages[].wages_usd", "us.income_foreign_source.foreign_wages[].amount_usd", "us.income_foreign_source.foreign_wages[].wages_box1_usd", "us.income_foreign_source.foreign_wages[].wages_tips_compensation_usd"),
     ))
 
-    r.register("selfEmploymentDepreciationPlan", NodeDef(deps=("uiAgg", "baseYearUsAgg"), compute=_self_employment_depreciation_plan, layer1_fields=_SE_DEPRECIATION_FIELDS))
+    r.register("usBusinessDepreciationPlan", NodeDef(deps=("uiAgg", "baseYearUsAgg"), compute=_us_business_depreciation_plan, layer1_fields=_SE_DEPRECIATION_FIELDS))
     r.register("k1PassiveTotals", NodeDef(deps=("uiAgg",), compute=_k1_passive_totals, layer1_fields=_K1_PASSIVE_FIELDS))
     r.register("businessAndSeComputation", NodeDef(
-        deps=("uiAgg", "selfEmploymentDepreciationPlan", "baseYearUsAgg"), compute=_business_and_se_computation,
+        deps=("uiAgg", "usBusinessDepreciationPlan", "baseYearUsAgg"), compute=_business_and_se_computation,
         layer1_fields=(
             "us.income_us_source.business_income_usd",
             "us.income_us_source.c_corporations_1120[].taxable_income_usd", "us.income_us_source.c_corporations_1120[].net_income_usd",

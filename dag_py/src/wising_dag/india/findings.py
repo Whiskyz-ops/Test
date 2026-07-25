@@ -299,13 +299,18 @@ def _promoter_buyback_detail(d, ctx):
 # Port of in1-nodes.js + report-batch5-nodes.js's indiaAdvanceTaxInterestFinding.
 # assessedTaxInrBoundary/hasValidPresumptiveEntryBoundary/hasRegularBooksEntry
 # Boundary/hasPartnerFirmIncomeBoundary/businessInrBoundary/speculativeIncome
-# InrBoundary/indianBusinessesBoundary are EXPLICIT BOUNDARY INPUTS (read
-# ctx["model"]/ctx["computed"]...) — same deferred-boundary discipline as
-# us1_penalty_2210.py/us5_penalty_72t.py/black_money_act.py, closed in
-# Phase 7's analyze() assembly. routerJurisdiction/routerUsSignal/hasIndiaScope
-# are a fresh, self-contained leaf trio (not shared with xborder_full.py's
-# routerJurisdictionXB/hasIndiaScopeXbr) — same standalone-file convention
-# those three US files already established. -----------------------------
+# InrBoundary/indianBusinessesBoundary were in1-nodes.js's own v1-era
+# EXPLICIT BOUNDARY INPUTS (read ctx["model"]/ctx["computed"]...) — but
+# in1-nodes.js is dead build history (never required by the live production
+# graph.js chain; only run-in1.js's standalone runner uses it), and
+# agg10-nodes.js already closed all 6 of these against real in-graph
+# equivalents that live entirely within the india domain (businessComputation/
+# speculativeIncomeInrAgg/totalTaxInrCombined/annualSliceAgg). Closed the
+# same way here, directly, rather than left open — see the NODES dict below.
+# routerJurisdiction/routerUsSignal/hasIndiaScope are a fresh, self-contained
+# leaf trio (not shared with xborder_full.py's routerJurisdictionXB/
+# hasIndiaScopeXbr) — same standalone-file convention those three US files
+# already established. -----------------------------
 def _router_us_signal(ctx) -> bool:
     router = ctx.get("router")
     return (
@@ -426,13 +431,26 @@ NODES = {
     "tcsInrIn1": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "tax_credits.tcs_inr", 0)), layer1_fields=("india.tax_credits.tcs_inr",)),
     "baseYearIn1": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.meta.baseYear", None)),
 
-    "assessedTaxInrBoundary": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx, "computed.indiaTax.totalTaxInr", None))),
-    "hasValidPresumptiveEntryBoundary": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.income.india.indiaHasValidPresumptiveEntry", False) is True),
-    "hasRegularBooksEntryBoundary": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.income.india.indiaHasRegularBooksEntry", False) is True),
-    "hasPartnerFirmIncomeBoundary": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.income.india.indiaHasPartnerFirmIncome", False) is True),
-    "businessInrBoundaryIn1": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx, "model.income.india.business.inr", None))),
-    "speculativeIncomeInrBoundaryIn1": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx, "model.income.india.speculativeIncomeInr", None))),
-    "indianBusinessesBoundary": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.assets.indianBusinesses", None) or []),
+    # These six were originally in1-nodes.js's own v1-era boundary stubs
+    # (reading ctx["model"]/ctx["computed"], which don't exist in this app's
+    # real {router, india, us} ctx shape at all — in1-nodes.js is dead build
+    # history, never required by the live production chain). agg10-nodes.js
+    # closed all of them against the now-existing in-graph equivalents
+    # (its own header: "the four original finding graphs' v1-era boundaries
+    # ... all 16 closed here"); every one of those 6 closures reads only
+    # already-available india-domain nodes (businessComputation/
+    # speculativeIncomeInrAgg/totalTaxInrCombined/annualSliceAgg, all
+    # present by the time this build() runs, since itr_form.build()/
+    # india_full.build() already ran above) — no cross-domain composition
+    # needed, so closed here directly rather than deferred to Phase 7.
+    "assessedTaxInrBoundary": NodeDef(deps=("totalTaxInrCombined",), compute=lambda d, ctx: num(d["totalTaxInrCombined"])),
+    "hasValidPresumptiveEntryBoundary": NodeDef(deps=("businessComputation",), compute=lambda d, ctx: d["businessComputation"]["indiaHasValidPresumptiveEntry"] is True),
+    "hasRegularBooksEntryBoundary": NodeDef(deps=("businessComputation",), compute=lambda d, ctx: d["businessComputation"]["indiaHasRegularBooksEntry"] is True),
+    "hasPartnerFirmIncomeBoundary": NodeDef(deps=("businessComputation",), compute=lambda d, ctx: d["businessComputation"]["indiaHasPartnerFirmIncome"] is True),
+    "businessInrBoundaryIn1": NodeDef(deps=("businessComputation",), compute=lambda d, ctx: num(d["businessComputation"]["businessInr"])),
+    "speculativeIncomeInrBoundaryIn1": NodeDef(deps=("speculativeIncomeInrAgg",), compute=lambda d, ctx: num(d["speculativeIncomeInrAgg"])),
+    # normalize.js L2551: assets.indianBusinesses = annual.domestic_income.business_income.business_entries
+    "indianBusinessesBoundary": NodeDef(deps=("annualSliceAgg",), compute=lambda d, ctx: safe(d["annualSliceAgg"].get("domestic_income") or {}, "business_income.business_entries", [])),
 
     "isResidentIndiaIn1": NodeDef(deps=("indiaResidencyStatusRawV3",), compute=lambda d, ctx: d["indiaResidencyStatusRawV3"] in ("ROR", "RNOR")),
     "ageAtFyEndIn1": NodeDef(deps=("dobRawIn1", "baseYearIn1"), compute=_age_at_fy_end),
