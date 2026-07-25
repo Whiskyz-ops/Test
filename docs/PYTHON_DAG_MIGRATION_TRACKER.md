@@ -22,7 +22,7 @@ imply any interim cutover.
 | 3 | `us/` domain | ✅ done (see below) |
 | 4 | `crossborder/` domain + fuzz corpus | ✅ done (see below) |
 | 5 | `findings/` domain-split | ✅ done (see below) |
-| 6 | `filings/` + `reports/` | ⬜ not started |
+| 6 | `filings/` + `reports/` | 🟡 in progress (see below) |
 | 7 | `analyze()` assembly + Pyodide adapter + wheel | ⬜ not started |
 | 8 | Toggle + shadow mode + cutover (production-touching, gated) | ⬜ not started |
 
@@ -163,6 +163,104 @@ convenience field that `analyze.js`'s own `assembleComputed()` strips
 before ever comparing against the engine (which keeps the same value at
 `usTax.feie.appliedUsd` instead) — `test_us.py` replicates that exact
 strip rather than treating the mismatch as a bug.
+
+## Phase 6 detail (filings/ + reports/, IN PROGRESS — 294 tests green cumulative)
+
+**Scoping correction, found before any code was written**: the plan's guessed
+filenames (`documents-nodes.js`, `monitoring-nodes.js`) don't exist. The real
+JS sources are `report-batch1-nodes.js` (documents/scopeNotes/returnForms/
+ftcReport → `filings/documents.py`) and `report-batch6-nodes.js` (monitoring/
+LIM-7 → `filings/monitoring.py`). Phase 6 is also considerably bigger than
+the plan assumed: `assets-nodes.js` alone is 972 lines (the entity-ownership
+graph + per-entity trace builder), and `report-batch1-nodes.js` is 627.
+
+**A real architectural question, resolved by extending an existing
+pattern**: `monitoring.py`'s `monitorProgressResult`/`residencyMonitorResult`/
+`projectionsMonitorResult`/`calendarMonitorResult` and `reports/assembly.py`'s
+`summaryResult`/`analyzeResult` all read `ctx.model`/`ctx.computed` directly
+in the JS source (via `agg10-nodes.js`'s `withSyntheticCtx()` override
+wrapper) — but this Python port's `ctx` shape is `{router, india, us,
+fxRateOverride?, monitorAsOfBoundary?}`, never `model`/`computed`. Rather
+than invent a new resolution for this, it gets the SAME deferred-boundary-
+node treatment already used pervasively since Phase 3 (`us1_penalty_2210.py`'s
+`usTotalTaxBeforeFtcUsdBoundary`, `black_money_act.py`'s `accountsBoundary`,
+etc.) — closed once `metaResult`/`identityResult`/`residencyModelSliceResult`/
+`headlineResult` (deferred from `core/entry.py` since Phase 1) and the rest
+of the AGG-10 override layer are built in Phase 7's `analyze()` assembly.
+**Not yet built this phase**: `filings/monitoring.py` and `summaryResult`/
+`analyzeResult` themselves — deliberately left for Phase 7, where the
+prerequisite `metaResult`-family nodes actually get built.
+
+**A second real gap, found scoping (not introduced by) Phase 5**:
+`assets-nodes.js` OVERRIDES `findingsAllResult` to push 2 more findings —
+`msme_disallowance_s43Bh_india` and `presumptive_lockin_active_india` — that
+live outside every `findings-batchN-nodes.js` file Phase 5's inventory was
+scoped against (`report-batch5-nodes.js`'s own `FINDING_ADD_ORDER`, 61 ids).
+The true production count is 63, not 61. Tracked here, not yet closed —
+will be ported into `india/findings.py` (or a `filings/assets.py` override,
+matching the JS structure) when `filings/assets.py` is built.
+
+**Built and tested this phase** (`reports/assembly.py`'s `findingsAllResult`,
+`filings/limits.py`, `filings/calendar_amounts.py`,
+`filings/checks_registry.py` — 294 tests green, 13 new):
+- `reports/assembly.py`: `findingsAllResult` — concatenates Phase 5's
+  consolidated `findingsIndiaResult`/`indiaResidencyConsistencyFinding`/
+  `findingsUsResult`/`usResidencyConsistencyFinding`/
+  `findingsCrossborderResult` (5 lists, not the JS source's 12 — Phase 5's
+  domain-split already absorbed the old batch5/batch6/split-pattern
+  findings into those 5), then applies the same `FINDING_ADD_ORDER`
+  stable-sort tie-break + severity/amountUsd sort as
+  `report-batch5-nodes.js`'s own two-pass sort.
+- `filings/limits.py`: `limitsResult` (LIM-2/4/5, all six Monitor gauges:
+  fbar/form8938/lrs/nro_repatriation/feie/trump_account) — turned out to
+  have zero real blocking dependency once actually traced (all inputs
+  already ported in Phase 4/5's crossborder/us modules); deferred from
+  Phase 4 purely for organizational reasons, confirmed. Reused `us/ustax.py`'s
+  `feie_eligibility()` directly instead of re-deriving JS's
+  `feieEligibilityFull()` — already includes `reasons[]`, contrary to a
+  stale note in the Phase 5 tracker section claiming the US-side port
+  needed a sibling for that.
+- `filings/calendar_amounts.py`: `calendarAmountsResult` (CL-2, forward-
+  looking ₹/$ figures for the Compliance Calendar) — cleanest file in this
+  batch, reuses `india/findings.py`'s IN-1 chain and `us/findings.py`'s US1
+  chain verbatim.
+- `filings/checks_registry.py`: `checksRegistryResult` (CL-1, the "checks-run
+  registry" — explicit `passed` records for findings that were evaluated and
+  came back clean) — deps-only port of the ~55-dep node, no new raw leaves.
+
+**Architectural pattern used throughout this phase's 4 modules**: each one's
+`build(base)` registers ONLY its own node(s) and trusts `base` already
+carries every dependency — composing india/findings.py + us/findings.py +
+crossborder/findings.py into ONE shared registry without duplicate-
+registering their common `aggregate_india_income`/`aggregate_us_income` base
+(each of those three files' own `build()` independently re-derives it) is
+explicitly `core.registry.build_full_registry()`'s job, a Phase 7 task per
+the plan's own package layout. Verified instead via synthetic-dep-bag unit
+tests (`tests/test_filings_reports_phase6.py`) that call each node's
+`compute(d, ctx)` directly — same discipline `test_us_penalties.py`
+established in Phase 3 for boundary-stub nodes.
+
+One real bug caught by the new tests: `filings/limits.py`'s FEIE gauge read
+`core.constants.LIMITS["FEIE_MAX_USD"]`, which didn't exist there (only as a
+separate flat name in `us/constants.py`) — added to `core/constants.py`'s
+`LIMITS` dict (duplicated value, not moved, since `us/ustax.py`'s own
+`FEIE_MAX_USD` import site didn't need the surrounding namespace).
+
+**Not yet done this phase** (real remaining Phase 6 work, not deferred to
+Phase 7): `filings/documents.py` (`buildDocumentsResult`, ~140 lines of
+`report-batch1-nodes.js`'s 627 — a 30-entry document catalog run through a
+trigger map; also carries `buildScopeNotesResult`/
+`buildReturnFormDeterminationResult`/`buildFtcReportResult`, folded into
+`reports/trace.py` instead per the plan's own filings-vs-reports split);
+`filings/assets.py` (`assetsModelResult` + the `findingsAllResult` override,
+~700 of 972 lines — the entity-ownership graph/per-entity trace builder,
+the single largest remaining file in this port); `reports/trace.py`
+(`buildTaxComputationIndiaResult`/`UsResult`/`UsStateResult`/
+`WithholdingSummaryResult` — deps-only, one `ctx.model` boundary read to
+fix at port time, not defer); `reports/assembly.py`'s `buildTaxComputationResult`
+(trivial once `trace.py` exists). `filings/monitoring.py` and
+`summaryResult`/`analyzeResult` are correctly deferred to Phase 7 (see
+above), not merely postponed.
 
 ## Phase 5 detail (findings/ domain-split, 281 tests green cumulative)
 
