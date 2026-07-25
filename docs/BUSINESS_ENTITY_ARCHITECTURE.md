@@ -198,6 +198,8 @@ Both §5.1 and §5.2 determine **one return form per taxpayer** — correct for 
 
 ## 6. Entity graph — the architectural layer Part F originally asked for
 
+**Phase 5 shipped (25 Jul 2026)**: the schema below is real, built in `assets-nodes.js`'s `buildEntityGraph` (`model.assets.entityGraph`), DAG-only (`docs/DAG_MIGRATION_TRACKER.md` §M). Genuinely new discovery made while building it, not assumed from the schema: a single taxpayer bundle can legitimately contain TWO distinct root-level entities with different names (e.g. `us_ccorp_indian_sub` — a US C-corp parent and its differently-named Indian subsidiary, both real, both with their own return) — collapsing them into one root, as an early draft did, silently duplicated the subsidiary (once as the root, once again as a `foreign_corp` with an edge pointing at itself). Fixed by detecting a name mismatch between India's and US's own primary-entity names and creating two roots (`root_in`/`root_us`) connected by the real ownership edge, rather than one. Still Phase 5 scope only — the STRUCTURE (entities + edges) is real; edges do NOT yet carry a verified traceable dollar amount independent of what's already on the flow's own Layer 1 entry (that's Phase 6), and no frontend consumes this yet (Phase 8).
+
 Per-entity computation (§3) must be correct **before** this layer means anything — an entity graph consolidating wrong numbers is worse than no graph. Sequenced after §3 for that reason. Applies equally to both jurisdictions — the schema below is not India- or US-shaped, it's a shared abstraction over both.
 
 ```
@@ -249,7 +251,7 @@ Tracked by **Track** (India / US / Both) rather than by letter-suffixing one cou
 | **3** | Both | Domestic-vs-foreign India company rate schedule (115BAB/BAA/BA gated to domestic-incorporated only, real foreign-company 35% schedule, MAT exemption wiring) — the rate-schedule half of §2.1/§3.1 that residency status alone doesn't answer | ✅ Shipped | No |
 | **4** | India | Presumptive lock-in disclosure, MSME-disallowance finding, s.44BBB/35AD/115V (§3.5) | ✅ Shipped (3 of 4 — DAG-only, see `docs/DAG_MIGRATION_TRACKER.md` §L) | No |
 | **4b** | India | Non-corporate AMT (gap tracker IN-5) | Confirmed still blocked, not just deprioritized — see IN-5 | **Yes** — the phase table's original "No" was wrong for this one item specifically; re-investigated 25 Jul 2026 rather than assumed. The one candidate add-back Layer 1 captures (s.35AD) is scoped to company entities only, which are categorically outside s.115JC's (non-corporate AMT) scope — zero real data overlap, not a build candidate even partially |
-| **5** | Both | Entity graph model + extractor in `normalize()` (§6) | Not started | Phases 0-4 (needs correct per-entity numbers and residency first) |
+| **5** | Both | Entity graph model + extractor (§6) | ✅ Shipped — DAG-only, `assets-nodes.js`'s `buildEntityGraph`, not `normalize()` (the classic engine is permanently frozen, `docs/DAG_MIGRATION_TRACKER.md` §J; the "extractor in `normalize()`" phrasing here predates that freeze) | No |
 | **6** | Both | Inter-entity flow edges (K-1, dividends, partner remuneration) wired as traceable edges, not silent sums (§6) | Not started | Phase 5 |
 | **7** | US | GILTI/Subpart-F NCTI quantification (gap tracker XB-14) | Not started | **Yes** — CFC financials (E&P, QBAI, tested income) |
 | **8** | Both | Frontend entity switcher + per-entity Filings/Documents/drill-down (§7) | Not started | Phase 5-6 |

@@ -12903,6 +12903,190 @@
           return byName[k];
         });
       }
+      var INDIA_ENTITY_KIND_MAP = {
+        huf: "in_huf",
+        firm: "in_firm",
+        llp: "in_llp",
+        company: "in_company",
+        aop: "in_aop",
+        trust: "in_trust",
+        local: "in_local",
+        coop: "in_coop",
+        ajp: "in_ajp"
+      };
+      var US_ENTITY_KIND_MAP = { ccorp: "us_ccorp", scorp: "us_scorp", partnership: "us_partnership", trust: "us_trust", llc: "us_llc" };
+      function normEntityName(n) {
+        return String(n || "").toLowerCase().replace(/\s+/g, " ").trim();
+      }
+      function buildEntityGraph(d, ctx) {
+        var us = ctx.us, india = ctx.india;
+        var entities = [], edges = [];
+        var usTaxEntityType = safe(us, "profile.tax_entity_type", "individual");
+        var indiaEntityType = d.indiaEntityTypeRaw;
+        var rootUsKind = US_ENTITY_KIND_MAP[usTaxEntityType] || null;
+        var rootIndiaKind = INDIA_ENTITY_KIND_MAP[indiaEntityType] || null;
+        var indiaName = safe(india, "profile.full_name", null);
+        var usName = safe(us, "profile.full_name", null);
+        var namesMatch = rootIndiaKind && rootUsKind && normEntityName(indiaName) !== "" && normEntityName(indiaName) === normEntityName(usName);
+        var rootIds;
+        if (rootIndiaKind && rootUsKind && !namesMatch) {
+          entities.push({ id: "root_in", kind: rootIndiaKind, jurisdiction: "IN", name: indiaName || "Indian entity", returnForm: null, layer1Ref: null });
+          entities.push({ id: "root_us", kind: rootUsKind, jurisdiction: "US", name: usName || "US entity", returnForm: null, layer1Ref: null });
+          rootIds = ["root_in", "root_us"];
+        } else {
+          var rootKind = rootIndiaKind || rootUsKind || "individual";
+          var rootJurisdiction = rootIndiaKind ? "IN" : rootUsKind ? "US" : "both";
+          var rootName = indiaName || usName || "Taxpayer";
+          entities.push({ id: "root", kind: rootKind, jurisdiction: rootJurisdiction, name: rootName, returnForm: null, layer1Ref: null });
+          rootIds = ["root"];
+        }
+        var primaryRootId = rootIds.indexOf("root_in") >= 0 ? "root_in" : rootIds[0];
+        function findRootIdByName(name) {
+          var n = normEntityName(name);
+          if (!n) return null;
+          for (var i = 0; i < rootIds.length; i++) {
+            if (normEntityName(entities.filter(function(e) {
+              return e.id === rootIds[i];
+            })[0].name) === n) return rootIds[i];
+          }
+          return null;
+        }
+        (d.bizEntriesAgg || []).forEach(function(b, idx) {
+          var kind = INDIA_ENTITY_KIND_MAP[b.entity_type];
+          if (!kind) return;
+          var id = "in_biz_" + idx;
+          var netProfitInr = b.net_profit_inr || b.net_profit;
+          if (netProfitInr === void 0 || netProfitInr === null) {
+            var isRegularBooksForGraph = usesRegularBooksInr(b, d.presumptiveEligibilityAgg);
+            var entryDeprInrForGraph = isRegularBooksForGraph ? aggregateEntryDepreciationInr(idx, d.bizAssetBlocksAgg, india, b) : 0;
+            var entryDisallowInrForGraph = isRegularBooksForGraph ? aggregateEntryDisallowancesInr(idx, b.expenses || {}, d.bizMsmePayablesAgg) : 0;
+            netProfitInr = computeBusinessEntryNetProfitInr(b, d.presumptiveEligibilityAgg, entryDeprInrForGraph, entryDisallowInrForGraph);
+          }
+          netProfitInr = num(netProfitInr);
+          entities.push({
+            id,
+            kind,
+            jurisdiction: "IN",
+            name: b.business_name || b.trade_name || b.name || null,
+            returnForm: null,
+            layer1Ref: { form: "layer1_india", path: "domestic_income.business_income.business_entries[" + idx + "]" },
+            income: { inr: netProfitInr, usd: netProfitInr / fxRate(ctx) }
+          });
+          edges.push({ from: id, to: primaryRootId, ownershipPct: null, flow: "business_income", amountInr: netProfitInr });
+        });
+        (d.partnerFirmsAgg || []).forEach(function(firm, idx) {
+          var id = "in_partner_firm_" + idx;
+          var kind = INDIA_ENTITY_KIND_MAP[firm.entity_type] || "in_firm";
+          entities.push({
+            id,
+            kind,
+            jurisdiction: "IN",
+            name: firm.firm_name || null,
+            returnForm: null,
+            layer1Ref: { form: "layer1_india", path: "domestic_income.business_income.partner_firms[" + idx + "]" }
+          });
+          var remunerationInr = num(firm.remuneration_from_entity_inr) + num(firm.interest_on_capital_from_entity_inr);
+          if (remunerationInr !== 0) edges.push({ from: id, to: primaryRootId, ownershipPct: null, flow: "partner_remuneration", amountInr: remunerationInr });
+          if (num(firm.profit_share_exempt_inr) !== 0) edges.push({ from: id, to: primaryRootId, ownershipPct: null, flow: "exempt_profit_share", amountInr: num(firm.profit_share_exempt_inr) });
+        });
+        var usFlowTargetId = rootIds.indexOf("root_us") >= 0 ? "root_us" : rootIds[0];
+        function pushK1Entities(kind, idPrefix, sourcePath, nameFn, flowLabel, incomeUsdFn) {
+          (safe(us, sourcePath, []) || []).forEach(function(k, idx) {
+            var id = idPrefix + idx;
+            var incomeUsd = incomeUsdFn(k);
+            entities.push({
+              id,
+              kind,
+              jurisdiction: "US",
+              name: nameFn(k),
+              returnForm: null,
+              layer1Ref: { form: "layer1_us", path: sourcePath + "[" + idx + "]" },
+              income: { usd: incomeUsd, inr: incomeUsd * fxRate(ctx) }
+            });
+            edges.push({ from: id, to: usFlowTargetId, ownershipPct: null, flow: flowLabel, amountUsd: incomeUsd });
+          });
+        }
+        pushK1Entities(
+          "us_partnership",
+          "us_k1_partnership_",
+          "income_us_source.partnerships_k1",
+          function(k) {
+            return k.business_name || k.partnership_name || k.name || null;
+          },
+          "k1_passthrough",
+          function(k) {
+            return num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) + num(k.guaranteed_payments_usd || 0) - num(k.sec179_deduction_usd || 0);
+          }
+        );
+        pushK1Entities(
+          "us_scorp",
+          "us_k1_scorp_",
+          "income_us_source.s_corporations_k1",
+          function(k) {
+            return k.business_name || k.corp_name || k.name || null;
+          },
+          "k1_passthrough",
+          function(k) {
+            return num(k.ordinary_income_usd || k.scorp_income_usd || k.ordinary_business_income_usd || 0) - num(k.sec179_deduction_usd || 0);
+          }
+        );
+        pushK1Entities(
+          "us_trust",
+          "us_k1_trust_",
+          "income_us_source.trusts_estates_k1",
+          function(k) {
+            return k.business_name || null;
+          },
+          "k1_passthrough",
+          function(k) {
+            return num(k.ordinary_income_usd || 0) + num(k.ordinary_gain_usd || 0);
+          }
+        );
+        (safe(us, "income_us_source.c_corporations_1120", []) || []).forEach(function(c, idx) {
+          var name = c.corp_name || c.name || null;
+          if (findRootIdByName(name)) return;
+          var id = "us_ccorp_" + idx;
+          var incomeUsd = num(c.taxable_income_usd || c.net_income_usd || 0);
+          entities.push({
+            id,
+            kind: "us_ccorp",
+            jurisdiction: "US",
+            name,
+            returnForm: "Form 1120 (C-Corp, 21% flat)",
+            layer1Ref: { form: "layer1_us", path: "income_us_source.c_corporations_1120[" + idx + "]" },
+            income: { usd: incomeUsd, inr: incomeUsd * fxRate(ctx) }
+          });
+          edges.push({ from: id, to: usFlowTargetId, ownershipPct: null, flow: "dividend", amountUsd: incomeUsd });
+        });
+        (d.usForeignCorpsRaw || []).forEach(function(c, idx) {
+          var corpName = c.corp_name || c.corporation_name || null;
+          var ownershipPct = num(c.ownership_pct != null ? c.ownership_pct : c.ownership_percentage);
+          var giltiUsd = num(c.gilti_income_usd || 0);
+          var matchedRootId = findRootIdByName(corpName);
+          if (matchedRootId) {
+            var otherRootId = rootIds.filter(function(r) {
+              return r !== matchedRootId;
+            })[0];
+            if (otherRootId) edges.push({ from: matchedRootId, to: otherRootId, ownershipPct, flow: "gilti", amountUsd: giltiUsd });
+            return;
+          }
+          var id = "foreign_corp_" + idx;
+          entities.push({
+            id,
+            kind: "foreign_corp",
+            jurisdiction: (c.country != null ? c.country : c.country_of_incorporation) === "IN" ? "IN" : "foreign",
+            name: corpName,
+            returnForm: "Foreign local return (not modeled) + Form 5471 (informational)",
+            layer1Ref: { form: "layer1_us", path: "foreign_entities.foreign_corporations[" + idx + "]" },
+            // income here is the GILTI inclusion only, NOT the CFC's own full
+            // local-country income (not modeled, gap tracker XB-14) — same
+            // "hand-entered estimate" caveat businessEntityResult's own trace uses.
+            income: { usd: giltiUsd, inr: giltiUsd * fxRate(ctx) }
+          });
+          edges.push({ from: id, to: usFlowTargetId, ownershipPct, flow: "gilti", amountUsd: giltiUsd });
+        });
+        return { entities, edges };
+      }
       NODES.assetsModelResult = {
         deps: [
           "indianMutualFundsResult",
@@ -12925,7 +13109,9 @@
           "indiaIsCompany",
           "indiaIsFirm",
           "indiaIsAop",
-          "indiaIsTrust"
+          "indiaIsTrust",
+          "partnerFirmsAgg",
+          "indiaEntityTypeRaw"
         ],
         compute: function(d, ctx) {
           return {
@@ -12944,7 +13130,8 @@
             usSecurities: d.usSecuritiesBoundary,
             usProperties: safe(ctx.us, "real_estate.properties", []) || [],
             usRetirement: safe(ctx.us, "retirement_accounts", {}) || {},
-            businessEntities: businessEntitiesResult(d, ctx)
+            businessEntities: businessEntitiesResult(d, ctx),
+            entityGraph: buildEntityGraph(d, ctx)
           };
         }
       };

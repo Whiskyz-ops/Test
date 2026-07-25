@@ -53,13 +53,40 @@ function deepCheck(label, a, b) {
   return bad(label, "dag=" + JSON.stringify(a) + " prod=" + JSON.stringify(b));
 }
 
+// entityGraph (Phase 5, docs/BUSINESS_ENTITY_ARCHITECTURE.md §6) is
+// genuinely new — no engine equivalent, since this concept didn't exist
+// before the DAG became the sole compute path. Stripped before the deepCheck
+// parity comparison below (which walks the UNION of both sides' keys and
+// would otherwise fail on "DAG has it, prod doesn't" for every profile);
+// checked separately via checkEntityGraph's own structural assertions.
+function checkEntityGraph(id, graphResult) {
+  var entities = graphResult.entities, edges = graphResult.edges;
+  if (!Array.isArray(entities) || !entities.length) { bad(id + " entityGraph.entities", "expected at least the root entity, got " + JSON.stringify(entities)); return; }
+  // Root is either a single "root" or, when the taxpayer bundle genuinely
+  // contains two distinct entities (a US parent + its differently-named
+  // India subsidiary, e.g. us_ccorp_indian_sub), "root_in" + "root_us".
+  if (["root", "root_in"].indexOf(entities[0].id) === -1) { bad(id + " entityGraph.entities[0].id", "expected 'root' or 'root_in', got " + entities[0].id); } else { ok(); }
+  var ids = {};
+  entities.forEach(function (e) {
+    if (ids[e.id]) bad(id + " entityGraph duplicate entity id", e.id); else { ids[e.id] = true; ok(); }
+  });
+  (edges || []).forEach(function (e) {
+    if (!ids[e.from]) bad(id + " entityGraph edge.from references unknown entity", JSON.stringify(e));
+    else if (!ids[e.to]) bad(id + " entityGraph edge.to references unknown entity", JSON.stringify(e));
+    else ok();
+  });
+}
 function checkOne(id, r) {
   var bareCtx = { router: r._router, india: r._india, us: r._us };
   var out = graph.resolve(["assetsModelResult"], bareCtx).values.assetsModelResult;
+  var entityGraph = out.entityGraph;
+  var outForDeepCheck = Object.assign({}, out); delete outForDeepCheck.entityGraph;
   var before = fail;
-  deepCheck(id + " assets", out, r.model.assets);
+  deepCheck(id + " assets", outForDeepCheck, r.model.assets);
+  checkEntityGraph(id, entityGraph);
   console.log(id + (fail === before ? "  all match" : "  FAILURES above")
-    + "  (" + r.model.assets.businessEntities.length + " business entit" + (r.model.assets.businessEntities.length === 1 ? "y" : "ies") + ")");
+    + "  (" + r.model.assets.businessEntities.length + " business entit" + (r.model.assets.businessEntities.length === 1 ? "y" : "ies") +
+    ", " + entityGraph.entities.length + " graph entit" + (entityGraph.entities.length === 1 ? "y" : "ies") + ", " + entityGraph.edges.length + " edge" + (entityGraph.edges.length === 1 ? "" : "s") + ")");
 }
 
 console.log("assets-nodes.js: model.assets — BARE ctx {router, india, us}, no model, no computed. SAMPLE + all " + WISING.PROFILES.length + " profiles.\n");

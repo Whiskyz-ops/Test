@@ -778,3 +778,69 @@ checksregistry.js`/`run-agg10.js` unaffected, differential fuzzer 200
 iterations (0 new divergences after the `KNOWN_EXTRA_FINDING_ID` allowlist
 update), `npm run audit` byte-identical before/after (diffed directly),
 `tests/engine/run.js` 79/79 unaffected (frozen engine correctly untouched).
+
+## N. Phase 5 — entity graph model + extractor (25 Jul 2026)
+
+`docs/BUSINESS_ENTITY_ARCHITECTURE.md` §6's `Entity[]`/`Edge[]` schema,
+genuinely built for the first time — no prior DAG node attempted this, and
+no engine equivalent exists at all (a wholly new concept, unlike §L/§M's
+bug fixes against something the engine already tried to compute). New
+`buildEntityGraph` function in `assets-nodes.js`, wired as `model.assets.
+entityGraph` alongside the pre-existing `businessEntities` flat list (which
+stays as-is — still the Business tab's own data source; entityGraph is
+additive, no existing consumer touched).
+
+**A real bug found and fixed during the build, not after**: an early
+version picked a single "root" entity by preferring India's own
+`profile.entity_type` over US's `tax_entity_type` whenever both were
+non-individual. This is wrong whenever a taxpayer bundle genuinely contains
+TWO distinct real entities with different names — `us_ccorp_indian_sub`
+(Cloudspire Inc, a US C-corp, owning Cloudspire India Pvt Ltd, a different
+legal entity) being the exact real-fixture case that caught it: the single-
+root version picked the India subsidiary as "root," then ALSO created a
+separate `foreign_corp` node for the same subsidiary from the US side's own
+CFC ownership record — the same subsidiary appearing twice, with a GILTI
+edge pointing at itself. Exactly the failure mode §6's own opening line
+warns about ("an entity graph consolidating wrong numbers is worse than no
+graph"), caught here by testing against real fixture data rather than only
+synthetic cases. Fixed: when both sides name a real, non-individual entity
+type AND the names differ, two roots (`root_in`/`root_us`) are created
+instead of one, connected by whatever real ownership record names them
+(`foreign_entities.foreign_corporations[]`, matched by name against the
+existing roots to avoid the duplicate) — genuinely one entity dual-resident
+on both sides (matching names) still correctly collapses to a single root.
+
+**Scope, deliberately**: Entity nodes carry `income` (reusing the exact
+same computations `businessEntitiesResult`/`aggregateBusinessIncome` already
+verify — spot-checked byte-identical against the flat list's own figures
+for the same K-1s) but not `deductions`/`tax` — no per-entity deduction/tax
+attribution exists anywhere in this engine to reuse, and deriving new
+per-entity tax allocation is out of scope for an *extractor*. Edges record
+the flow type and, where cheaply available, the amount already visible on
+that flow's own Layer 1 entry — but do NOT yet carry a NEWLY-verified,
+independently-traceable dollar figure distinct from what's already shown;
+that's Phase 6's own explicit scope ("wired as traceable edges, not silent
+sums"), not done here. No frontend consumes `entityGraph` yet (Phase 8).
+
+**DAG_ONLY_KEYS, not a narrower allowlist**: unlike the Phase 4 findings
+(which only fire on profiles carrying specific data, so a narrow
+`KNOWN_EXTRA_FINDING_ID` regex sufficed), `entityGraph` exists on EVERY
+profile — even a lone individual produces a one-entity graph. Needed the
+blanket per-key exclusion (`run-fuzz.js`'s `DAG_ONLY_KEYS`, AND its sibling
+copy in `monitor-next/lib/shadow-core.js` — the file header's own "keep both
+lists in sync" note, followed literally) rather than a narrower one; without
+it, the fuzzer showed 289/300 "new" divergences that were really this one
+benign, expected difference repeated on nearly every profile.
+
+Verified: `run-assets.js` 867/867 (810 parity + a new `checkEntityGraph`
+structural check per profile: root entity present, no duplicate ids, every
+edge references a real entity — deliberately not diffed against the frozen
+engine, which has no equivalent at all), spot-checked `us_ccorp_indian_sub`/
+`founder_indian_company`/`us_resident_indian_income`/`us_only_cpa_client`
+output directly (two distinct roots where genuinely two entities exist, one
+collapsed root otherwise, K-1 income figures byte-identical to
+`businessEntities`' own), differential fuzzer 300 iterations (0 new
+divergences after the `DAG_ONLY_KEYS` update on both copies), `npm run
+audit` byte-identical before/after, all other DAG runners (`run-
+aggregateindiaincome.js`/`run-aggregateusincome.js`/`run-checksregistry.js`/
+`run-agg10.js`) and `tests/engine/run.js` (frozen engine) unaffected.

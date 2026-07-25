@@ -512,13 +512,238 @@ function businessEntitiesResult(d, ctx) {
   return order.map(function (k) { return byName[k]; });
 }
 
+/* ---- Phase 5: entity graph (docs/BUSINESS_ENTITY_ARCHITECTURE.md §6) -----
+ * Genuinely new — no engine equivalent, and no prior DAG node either.
+ * `businessEntitiesResult` above already produces a flat, by-name-deduped
+ * list for the Business tab's display; this is a DIFFERENT shape built
+ * fresh from the same source arrays (not derived from the flat list, which
+ * merges same-named rows in a way that would incorrectly conflate two
+ * genuinely distinct source items): a proper Entity[]/Edge[] graph, one
+ * node per REAL entity with a stable id, plus edges recording how money
+ * flows between them, instead of everything silently summed into one
+ * number. Root = the return being prepared (the individual, or the
+ * business entity itself when the taxpayer's own return IS an entity
+ * return — Layer 1 US's ccorp/scorp/partnership self-entity, or Layer 1
+ * India's non-individual profile.entity_type). Every OTHER real entity
+ * (India business_entries[]/partner_firms[] with a non-individual
+ * entity_type, US K-1s, US c_corporations_1120[], foreign_corporations[])
+ * gets its own node plus an edge into the root recording the flow type —
+ * §6's own note that partner_firms/K-1s are "an edge INTO the individual,
+ * not a separate computed entity" is followed literally: those get a
+ * lightweight entity (for the edge to point at) but no income/tax block,
+ * since WISING doesn't compute THEIR OWN return, only what flows through.
+ * A sole proprietorship (Sch C/farm, or an India business_entries[] item
+ * with entity_type left at "individual"/unset) is NOT modeled as its own
+ * entity here — legally, it has no separate existence from its owner, so
+ * its income is already just part of the root's own income, same as the
+ * doc's schema implies (no "sole prop" kind in the enum).
+ *
+ * Phase 5 scope only: the entity/edge STRUCTURE. Making edges carry a
+ * verified traceable dollar amount (vs. the amount already shown on the
+ * flow's own Layer 1 entry) is Phase 6 (§6's own phased-build-order split),
+ * not done here. The frontend (an entity switcher, per-entity drill-down)
+ * is Phase 8, later still.
+ *
+ * INDIA_ENTITY_KIND_MAP covers every real profile.entity_type value this
+ * app supports, not just the four the doc's own schema names (huf/firm/
+ * llp/company) — aop/trust/local/coop/ajp are real, selectable values
+ * (entitytax-nodes.js's indiaIsAop/indiaIsTrust, indiaIsFirm's llp/local
+ * grouping) that would otherwise have nowhere to map to. */
+var INDIA_ENTITY_KIND_MAP = {
+  huf: "in_huf", firm: "in_firm", llp: "in_llp", company: "in_company",
+  aop: "in_aop", trust: "in_trust", local: "in_local", coop: "in_coop", ajp: "in_ajp"
+};
+var US_ENTITY_KIND_MAP = { ccorp: "us_ccorp", scorp: "us_scorp", partnership: "us_partnership", trust: "us_trust", llc: "us_llc" };
+
+function normEntityName(n) { return String(n || "").toLowerCase().replace(/\s+/g, " ").trim(); }
+
+function buildEntityGraph(d, ctx) {
+  var us = ctx.us, india = ctx.india;
+  var entities = [], edges = [];
+  var usTaxEntityType = safe(us, "profile.tax_entity_type", "individual");
+  var indiaEntityType = d.indiaEntityTypeRaw;
+  var rootUsKind = US_ENTITY_KIND_MAP[usTaxEntityType] || null;
+  var rootIndiaKind = INDIA_ENTITY_KIND_MAP[indiaEntityType] || null;
+  var indiaName = safe(india, "profile.full_name", null);
+  var usName = safe(us, "profile.full_name", null);
+  var namesMatch = rootIndiaKind && rootUsKind && normEntityName(indiaName) !== "" && normEntityName(indiaName) === normEntityName(usName);
+
+  // Two genuinely distinct real entities can be bundled into ONE taxpayer
+  // analysis (e.g. us_ccorp_indian_sub: "Cloudspire Inc", a US C-corp, and
+  // its wholly-owned "Cloudspire India Pvt Ltd" subsidiary, a different
+  // legal entity with its own different name) — collapsing them into one
+  // root would be actively wrong, not just incomplete (§6's own opening
+  // caution: "an entity graph consolidating wrong numbers is worse than no
+  // graph"). Detected by: both sides have a real non-individual entity
+  // type AND their names differ. When both are non-individual but the
+  // NAMES MATCH (e.g. founder_indian_company-shaped data, one entity
+  // dual-resident on both sides), that's genuinely ONE entity — single root.
+  var rootIds;
+  if (rootIndiaKind && rootUsKind && !namesMatch) {
+    entities.push({ id: "root_in", kind: rootIndiaKind, jurisdiction: "IN", name: indiaName || "Indian entity", returnForm: null, layer1Ref: null });
+    entities.push({ id: "root_us", kind: rootUsKind, jurisdiction: "US", name: usName || "US entity", returnForm: null, layer1Ref: null });
+    rootIds = ["root_in", "root_us"];
+  } else {
+    var rootKind = rootIndiaKind || rootUsKind || "individual";
+    var rootJurisdiction = rootIndiaKind ? "IN" : (rootUsKind ? "US" : "both");
+    var rootName = indiaName || usName || "Taxpayer";
+    entities.push({ id: "root", kind: rootKind, jurisdiction: rootJurisdiction, name: rootName, returnForm: null, layer1Ref: null });
+    rootIds = ["root"];
+  }
+  // Every OTHER entity's edges point at this by default — the India root
+  // when a real india entity type exists (matches this app's own existing
+  // entity-routing precedent, businessEntitiesResult's indiaIsCompanyOrFirm/
+  // computeIndiaEntityTax gating already treating India as the primary
+  // signal), else whichever single root exists.
+  var primaryRootId = rootIds.indexOf("root_in") >= 0 ? "root_in" : rootIds[0];
+  function findRootIdByName(name) {
+    var n = normEntityName(name);
+    if (!n) return null;
+    for (var i = 0; i < rootIds.length; i++) { if (normEntityName(entities.filter(function (e) { return e.id === rootIds[i]; })[0].name) === n) return rootIds[i]; }
+    return null;
+  }
+
+  // India business_entries[] with a real non-individual entity_type — a
+  // firm/LLP/company entry inside the Business module, distinct from the
+  // taxpayer's own primary entity_type above (e.g. an individual who is
+  // also a partner/shareholder in a separate business entity recorded here).
+  (d.bizEntriesAgg || []).forEach(function (b, idx) {
+    var kind = INDIA_ENTITY_KIND_MAP[b.entity_type];
+    if (!kind) return; // unset/individual — sole-prop income, part of root
+    var id = "in_biz_" + idx;
+    var netProfitInr = b.net_profit_inr || b.net_profit;
+    if (netProfitInr === undefined || netProfitInr === null) {
+      var isRegularBooksForGraph = usesRegularBooksInr(b, d.presumptiveEligibilityAgg);
+      var entryDeprInrForGraph = isRegularBooksForGraph ? aggregateEntryDepreciationInr(idx, d.bizAssetBlocksAgg, india, b) : 0;
+      var entryDisallowInrForGraph = isRegularBooksForGraph ? aggregateEntryDisallowancesInr(idx, b.expenses || {}, d.bizMsmePayablesAgg) : 0;
+      netProfitInr = computeBusinessEntryNetProfitInr(b, d.presumptiveEligibilityAgg, entryDeprInrForGraph, entryDisallowInrForGraph);
+    }
+    netProfitInr = num(netProfitInr);
+    entities.push({
+      id: id, kind: kind, jurisdiction: "IN", name: b.business_name || b.trade_name || b.name || null,
+      returnForm: null, layer1Ref: { form: "layer1_india", path: "domestic_income.business_income.business_entries[" + idx + "]" },
+      income: { inr: netProfitInr, usd: netProfitInr / fxRate(ctx) }
+    });
+    edges.push({ from: id, to: primaryRootId, ownershipPct: null, flow: "business_income", amountInr: netProfitInr });
+  });
+
+  // India partner_firms[] — per §6, an edge into the individual, not a
+  // separate computed entity (the firm's own return isn't prepared here).
+  // A lightweight entity is still created so the edge has a real node to
+  // point FROM — no income/tax block, since that firm's own return is out
+  // of scope, matching computeBusinessEntryNetProfitInr's own s.40(b)
+  // "trusted, not re-derived" stance on partner remuneration (§3.3).
+  (d.partnerFirmsAgg || []).forEach(function (firm, idx) {
+    var id = "in_partner_firm_" + idx;
+    var kind = INDIA_ENTITY_KIND_MAP[firm.entity_type] || "in_firm";
+    entities.push({
+      id: id, kind: kind, jurisdiction: "IN", name: firm.firm_name || null,
+      returnForm: null, layer1Ref: { form: "layer1_india", path: "domestic_income.business_income.partner_firms[" + idx + "]" }
+    });
+    var remunerationInr = num(firm.remuneration_from_entity_inr) + num(firm.interest_on_capital_from_entity_inr);
+    if (remunerationInr !== 0) edges.push({ from: id, to: primaryRootId, ownershipPct: null, flow: "partner_remuneration", amountInr: remunerationInr });
+    if (num(firm.profit_share_exempt_inr) !== 0) edges.push({ from: id, to: primaryRootId, ownershipPct: null, flow: "exempt_profit_share", amountInr: num(firm.profit_share_exempt_inr) });
+  });
+
+  // US K-1 types — per §6, "K-1 pass-through -> owner's income" as an
+  // explicit edge. Same "lightweight entity, no own tax block" stance as
+  // partner_firms above: WISING doesn't prepare the partnership/S-corp/
+  // trust's OWN return, only reads what flows through via the K-1. Points
+  // at root_us specifically when the taxpayer bundle has two roots (a K-1
+  // is inherently a US-side flow), else whichever single root exists.
+  var usFlowTargetId = rootIds.indexOf("root_us") >= 0 ? "root_us" : rootIds[0];
+  function pushK1Entities(kind, idPrefix, sourcePath, nameFn, flowLabel, incomeUsdFn) {
+    (safe(us, sourcePath, []) || []).forEach(function (k, idx) {
+      var id = idPrefix + idx;
+      var incomeUsd = incomeUsdFn(k);
+      entities.push({
+        id: id, kind: kind, jurisdiction: "US", name: nameFn(k),
+        returnForm: null, layer1Ref: { form: "layer1_us", path: sourcePath + "[" + idx + "]" },
+        income: { usd: incomeUsd, inr: incomeUsd * fxRate(ctx) }
+      });
+      edges.push({ from: id, to: usFlowTargetId, ownershipPct: null, flow: flowLabel, amountUsd: incomeUsd });
+    });
+  }
+  pushK1Entities("us_partnership", "us_k1_partnership_", "income_us_source.partnerships_k1",
+    function (k) { return k.business_name || k.partnership_name || k.name || null; }, "k1_passthrough",
+    function (k) { return num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) + num(k.guaranteed_payments_usd || 0) - num(k.sec179_deduction_usd || 0); });
+  pushK1Entities("us_scorp", "us_k1_scorp_", "income_us_source.s_corporations_k1",
+    function (k) { return k.business_name || k.corp_name || k.name || null; }, "k1_passthrough",
+    function (k) { return num(k.ordinary_income_usd || k.scorp_income_usd || k.ordinary_business_income_usd || 0) - num(k.sec179_deduction_usd || 0); });
+  pushK1Entities("us_trust", "us_k1_trust_", "income_us_source.trusts_estates_k1",
+    function (k) { return k.business_name || null; }, "k1_passthrough",
+    function (k) { return num(k.ordinary_income_usd || 0) + num(k.ordinary_gain_usd || 0); });
+
+  // US c_corporations_1120[] — entries the taxpayer holds an interest in
+  // (distinct from a ROOT entity's own Form 1120 when tax_entity_type IS
+  // ccorp, already captured as a root above — skipped here by name match,
+  // same guard as the foreign-corp loop below, so the filer's own C-corp
+  // never also shows up as if it were something it merely invested in).
+  // WISING doesn't compute this corporation's OWN federal tax (no
+  // computeUsEntityTax call against it, unlike the root case) — only the
+  // taxable-income figure as entered, so it's a lightweight entity like the
+  // K-1 cases, not a fully-computed one.
+  (safe(us, "income_us_source.c_corporations_1120", []) || []).forEach(function (c, idx) {
+    var name = c.corp_name || c.name || null;
+    if (findRootIdByName(name)) return; // already modeled as a root entity
+    var id = "us_ccorp_" + idx;
+    var incomeUsd = num(c.taxable_income_usd || c.net_income_usd || 0);
+    entities.push({
+      id: id, kind: "us_ccorp", jurisdiction: "US", name: name,
+      returnForm: "Form 1120 (C-Corp, 21% flat)", layer1Ref: { form: "layer1_us", path: "income_us_source.c_corporations_1120[" + idx + "]" },
+      income: { usd: incomeUsd, inr: incomeUsd * fxRate(ctx) }
+    });
+    edges.push({ from: id, to: usFlowTargetId, ownershipPct: null, flow: "dividend", amountUsd: incomeUsd });
+  });
+
+  // US foreign_entities.foreign_corporations[] — CFC ownership. WISING
+  // models the GILTI/Subpart-F INCLUSION only (a hand-entered estimate,
+  // gap tracker XB-14), not the foreign corp's own local-country return.
+  // When this entry's name matches an EXISTING root (the two-roots-in-one-
+  // bundle case above — a US parent's own CFC record naming its own already-
+  // modeled Indian subsidiary), skip creating a duplicate node entirely and
+  // just add the ownership/GILTI edge directly between the two real roots
+  // instead — the bug this whole function was rewritten to fix: without
+  // this guard, the India subsidiary showed up TWICE (once as the root,
+  // once as a "foreign_corp" with an edge pointing at itself).
+  (d.usForeignCorpsRaw || []).forEach(function (c, idx) {
+    var corpName = c.corp_name || c.corporation_name || null;
+    var ownershipPct = num(c.ownership_pct != null ? c.ownership_pct : c.ownership_percentage);
+    var giltiUsd = num(c.gilti_income_usd || 0);
+    var matchedRootId = findRootIdByName(corpName);
+    if (matchedRootId) {
+      var otherRootId = rootIds.filter(function (r) { return r !== matchedRootId; })[0];
+      // Only meaningful when there IS a second, distinct root to connect to
+      // (the two-roots case) — a single-root match would be a self-loop
+      // (a US individual's own CFC record naming their sole India company
+      // root, with no separate US-entity root to draw the edge to) and is
+      // deliberately left unmodeled rather than drawn as a self-reference.
+      if (otherRootId) edges.push({ from: matchedRootId, to: otherRootId, ownershipPct: ownershipPct, flow: "gilti", amountUsd: giltiUsd });
+      return;
+    }
+    var id = "foreign_corp_" + idx;
+    entities.push({
+      id: id, kind: "foreign_corp", jurisdiction: (c.country != null ? c.country : c.country_of_incorporation) === "IN" ? "IN" : "foreign", name: corpName,
+      returnForm: "Foreign local return (not modeled) + Form 5471 (informational)", layer1Ref: { form: "layer1_us", path: "foreign_entities.foreign_corporations[" + idx + "]" },
+      // income here is the GILTI inclusion only, NOT the CFC's own full
+      // local-country income (not modeled, gap tracker XB-14) — same
+      // "hand-entered estimate" caveat businessEntityResult's own trace uses.
+      income: { usd: giltiUsd, inr: giltiUsd * fxRate(ctx) }
+    });
+    edges.push({ from: id, to: usFlowTargetId, ownershipPct: ownershipPct, flow: "gilti", amountUsd: giltiUsd });
+  });
+
+  return { entities: entities, edges: edges };
+}
+
 /* ---- top-level assembly (normalize.js:2541-2714) --------------------------- */
 NODES.assetsModelResult = {
   deps: ["indianMutualFundsResult", "indiaFinancialHoldingsTxRaw", "indianBusinessesBoundary",
     "usForeignCorpsRaw", "usOwns10PctForeignCorpRaw", "usSecuritiesBoundary",
     "epfInrRaw", "ppfInrRaw", "npsInrRaw", "taxableEpfInterestInrAgg", "taxableNpsWithdrawalInrAgg",
     "uiAgg", "usBusinessDepreciationPlan", "bizEntriesAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg",
-    "presumptiveEligibilityAgg", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust"],
+    "presumptiveEligibilityAgg", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust",
+    "partnerFirmsAgg", "indiaEntityTypeRaw"],
   compute: function (d, ctx) {
     return {
       indianMutualFunds: d.indianMutualFundsResult,
@@ -536,7 +761,8 @@ NODES.assetsModelResult = {
       usSecurities: d.usSecuritiesBoundary,
       usProperties: safe(ctx.us, "real_estate.properties", []) || [],
       usRetirement: safe(ctx.us, "retirement_accounts", {}) || {},
-      businessEntities: businessEntitiesResult(d, ctx)
+      businessEntities: businessEntitiesResult(d, ctx),
+      entityGraph: buildEntityGraph(d, ctx)
     };
   }
 };

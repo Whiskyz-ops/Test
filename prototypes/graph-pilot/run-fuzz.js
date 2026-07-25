@@ -360,9 +360,17 @@ function generateProfile(rng) {
 // file header has the full writeup. trustDistributedUsd/trustRetainedUsd/
 // trustBracketBreakdown: same section, computed.usTax additions for a US
 // trust — see ustax-full-nodes.js's usEntityTaxResult trust branch.
+// entityGraph (Phase 5, docs/BUSINESS_ENTITY_ARCHITECTURE.md §6, 25 Jul
+// 2026): model.assets.entityGraph is a genuinely new concept (Entity[]/
+// Edge[] graph model) with no engine equivalent at all — unlike the MSME/
+// lock-in findings (KNOWN_EXTRA_FINDING_ID below), which only fire on
+// profiles carrying specific data, this key exists on EVERY profile (even
+// a lone individual produces a one-entity graph), so it needs the blanket
+// per-key exclusion here rather than a narrower allowlist.
 var DAG_ONLY_KEYS = {
   caveat: true, indiaIsAop: true, indiaIsTrust: true,
-  trustDistributedUsd: true, trustRetainedUsd: true, trustBracketBreakdown: true
+  trustDistributedUsd: true, trustRetainedUsd: true, trustBracketBreakdown: true,
+  entityGraph: true
 };
 function close(a, b) { var tol = Math.max(2, Math.abs(b) * 1e-6); return Math.abs(a - b) <= tol; }
 function deepEqual(a, b, p, diffs) {
