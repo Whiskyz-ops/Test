@@ -105,7 +105,9 @@ def _normalize_dates(obj):
     port's own datetime objects compare against golden's JSON-serialized
     ISO strings by value."""
     if isinstance(obj, datetime):
-        return obj.strftime("%Y-%m-%dT%H:%M:%S.") + f"{obj.microsecond // 1000:03d}Z"
+        # Explicit zero-padded fields, not strftime's platform-dependent %Y
+        # — see dag_py/tools/analyze_cli.py's _json_default for why.
+        return f"{obj.year:04d}-{obj.month:02d}-{obj.day:02d}T{obj.hour:02d}:{obj.minute:02d}:{obj.second:02d}.{obj.microsecond // 1000:03d}Z"
     if isinstance(obj, dict):
         return {k: _normalize_dates(v) for k, v in obj.items()}
     if isinstance(obj, list):
@@ -199,9 +201,19 @@ def test_monitoring_matches_golden(fixture_id):
     if fixture_id not in FIXTURES_TESTED:
         return
     result, golden = _analyze_pinned(fixture_id)
-    # monitoring verified to match golden exactly for both the entity and NRA
-    # fixtures too (unlike headline/summary, nothing here reads
-    # usSourceIncomeUsd) — no carve-out needed.
+    # monitoring verified to match golden exactly for the NRA fixture (unlike
+    # headline/summary, nothing here reads usSourceIncomeUsd) — no carve-out
+    # needed there. The business-entity fixture DOES need one here too,
+    # though: us1ShouldFire's own entity-aware override (us/ustax_full.py,
+    # mirroring agg10-nodes.js's own fix) correctly suppresses
+    # underpayment_2210 for an entity taxpayer — a finding the frozen engine
+    # (golden) still wrongly fires, since it has no equivalent fix. That one
+    # extra/missing finding cascades into health.score the same way it
+    # already does into summary.healthScore (see _is_entity_fixture's other
+    # use above) — found via run-js-dag-vs-py-dag.js's cross-check against
+    # the real JS DAG, which also suppresses it.
+    if _is_entity_fixture(golden):
+        return
     if any(f["id"] in DAG_ONLY_FINDING_IDS for f in result["findings"]):
         return  # health.score ripples from the 2 DAG-only findings above (same carve-out as summary's own counts adjustment, simpler to skip here)
 

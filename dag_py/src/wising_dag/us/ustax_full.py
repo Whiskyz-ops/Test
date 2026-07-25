@@ -311,4 +311,27 @@ def build(base):
         reason=OVERRIDE_REASON,
     )
 
+    # us1ShouldFire (underpayment_2210's own gate, us/us1_penalty_2210.py):
+    # once usTotalTaxBeforeFtcUsdBoundary/usAgiUsdBoundary became entity-
+    # aware, a US entity with a real balance due and no estimated payments
+    # started tripping this gate and firing "underpayment_2210" captioned
+    # Form 2210/§6654 — the INDIVIDUAL underpayment penalty, the wrong form
+    # for an entity (a corporation's own underpayment penalty is Form 2220/
+    # §6655, a different safe-harbor test not modeled here at all). Rather
+    # than fabricate a §6655 computation, suppressed entirely for an entity
+    # taxpayer — same as agg10-nodes.js's own us1ShouldFire override.
+    # Missed in this port until now (found via run-js-dag-vs-py-dag.js's
+    # cross-check against the real JS DAG — us_ccorp_indian_sub had one
+    # extra finding, underpayment_2210, that the JS DAG correctly suppresses).
+    base_us1_should_fire = r.get("us1ShouldFire")
+    r.override(
+        "us1ShouldFire",
+        NodeDef(
+            deps=base_us1_should_fire.deps + ("usTaxResult",),
+            scope_gate=base_us1_should_fire.scope_gate, out_of_scope_value=base_us1_should_fire.out_of_scope_value,
+            compute=lambda d, ctx: False if d["usTaxResult"].get("isEntity") else base_us1_should_fire.compute(d, ctx),
+        ),
+        reason=OVERRIDE_REASON,
+    )
+
     return r

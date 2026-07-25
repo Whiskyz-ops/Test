@@ -25,7 +25,7 @@ imply any interim cutover.
 | 6 | `filings/` + `reports/` | ✅ done (see below) |
 | 7 | `analyze()` assembly + Pyodide adapter + wheel | 🟡 infrastructure done, one known gap flagged (closed below, post-Phase-7) |
 | — | `usTaxResult` entity/NRA/trust routing (`us/ustax_full.py`) — closes the Phase 7 gap | ✅ done (see below) |
-| 8 | Toggle + shadow mode + cutover (production-touching, gated) | ⬜ not started |
+| 8 | Toggle + shadow mode + cutover (production-touching, gated) | 🟡 in progress — JS-DAG-vs-Python-DAG cross-check built and green (see below); live browser wiring + real promotion-gate data not started |
 
 ## Phase 1 detail (18 modules/files, 73 tests green as of this writing)
 
@@ -465,6 +465,155 @@ registries (`us_full.build()`/`cross_basis.build()`) that don't include
 `ustax_full.build()` at all, so `usTaxResult` genuinely isn't routed in
 those isolated registries; only `core.registry.build_full_registry()` (and
 therefore `analyze()`) has the routing.
+
+## Phase 8 detail (toggle + shadow mode + cutover, 🟡 in progress)
+
+**Scope decision, made explicitly before starting**: Pyodide's async
+loading (fetch the runtime, `micropip.install()` the wheel — real
+wall-clock time, unlike the JS DAG's synchronous `graph.resolve()`) means a
+live "py-dag" third option in `monitor-next/app/page.jsx` would require
+converting its recompute paths to be async-aware — a materially bigger,
+riskier change to an already-working production file than "add a third
+case." On top of that, this sandbox still has no network route to fetch a
+real Pyodide runtime (unchanged since Phase 7's own note), so none of that
+browser-side wiring could be end-to-end verified here regardless of how
+carefully it's written — and the real promotion gate (≥500 profiles/≥14
+days of live shadow running, plan §7) can't be satisfied in one sitting no
+matter what. Given a live choice between (a) building the full unverifiable
+browser wiring now, (b) writing only promotion-gate docs, or (c) building a
+testable-today cross-check between the JS DAG and Python DAG first, (c) was
+chosen — it validates the actual computation immediately, decoupled from
+the separate, still-open browser-loading question, and doesn't touch the
+live production `monitor-next` files at all this round.
+
+**`prototypes/graph-pilot/run-js-dag-vs-py-dag.js`** (new, `npm run
+compare:js-vs-py-dag`) — runs `WISING.analyze()` (the real JS DAG,
+`analyze.js` — NOT `monitor-next/lib/dag-adapter.js`'s narrower
+`assembleDag()`/monitor-next-specific `checksRegistry`/`calendarAmounts`
+extras, which `analyze.js`/`analyze.py` don't produce at all) and
+`dag_py`'s own `analyze()` (via a new one-shot CLI, `dag_py/tools/
+analyze_cli.py` — plain CPython, no Pyodide) over the same 53 profiles
+(the 13 hand fixtures + the 40-case fuzz corpus), diffing the full
+top-level output with **zero known-divergence allowlist to start** —
+unlike every other `run-*.js` harness (which all compare against the
+FROZEN ENGINE, a comparison with real, catalogued, permanent divergences),
+the JS DAG and Python DAG are independent ports of the exact same
+source-of-truth and should agree with EACH OTHER exactly. `monitorAsOf` is
+pinned identically on both sides (same discipline as every earlier golden
+test); JS-side `Date` objects are converted to ISO strings before
+comparison so they compare against the Python side's JSON-round-tripped
+(already-string) dates on equal footing.
+
+**First run: 40/53 clean, 12 mismatches + 1 crash — all six were real,
+independently investigated and fixed, not allowlisted away:**
+- **`baseYear`/`baseYearIn1` were NEVER closed** (`us/us5_penalty_72t.py`'s
+  age-at-year-end and `india/findings.py`'s age-at-FY-end boundaries,
+  both distinct ids from the already-closed `baseYearUs`) — stuck reading
+  `ctx["model"]...` (always `None`) forever, silently defaulting to the
+  hardcoded `2025` fallback regardless of the real base year. A genuine,
+  previously-invisible gap from an earlier phase's closure pass (the JS
+  source's own `agg10-nodes.js:316` closes the shared `baseYear` id
+  explicitly; this port's `core/orchestration.py` never did). Produced a
+  wrong age (off by however many years the real base year differs from
+  2025) for §72(t)'s early-withdrawal penalty and India's senior-citizen
+  (age ≥60) advance-tax exemption alike — a real, if narrow, dollar-amount
+  bug for any TY other than 2025, not just a display issue. Fixed by adding
+  both overrides to `core/orchestration.py`, mirroring `baseYearUs`'s own
+  precedent exactly.
+- **`us/aggregate_us_income.py`'s `baseYearUsAgg` crashed outright**
+  (`TypeError: list indices must be integers or slices, not float`) once a
+  fuzzer-mutated `us.metadata.us_calendar_year` landed on a non-integer —
+  `year_n` (a MACRS table index) inherited the fraction. The real JS source
+  has the identical unguarded `num(...) || 2025`, but JS's `table[nonInteger]`
+  silently reads `undefined` (→ `NaN` propagating downstream) where
+  Python's list index raises — same "JS forgiving vs Python strict" bug
+  class this port has hit before, just manifesting as a crash instead of a
+  `KeyError` this time. Fixed with an explicit `int()` cast, same precedent
+  as `apportionmentBaseYearRaw`.
+- **`core/dates.py`'s `parse_date()` couldn't parse a sub-4-digit year**
+  (`"895-12-31"` — both `fromisoformat()` and `strptime("%Y-%m-%d")` reject
+  it), crashing wherever a fuzzer-mutated year landed under 1000 — JS's
+  `new Date()` accepts any year. Fixed by zero-padding a detected 1-3 digit
+  leading year to 4 digits before parsing, rather than crashing (matches
+  this port's own rule that pathological fuzzer input should degrade
+  gracefully, never crash the resolver).
+- **ISO date serialization didn't zero-pad below 4 digits either**
+  (`datetime.strftime("%Y-...")` is platform/glibc-dependent below 4
+  digits — `"895-..."` not `"0895-..."` — while JS's `toISOString()` always
+  zero-pads to 4). Fixed in both places this port serializes a `datetime`
+  to an ISO string (`dag_py/tools/analyze_cli.py`'s `_json_default`,
+  `test_analyze_golden.py`'s `_normalize_dates`) with explicit
+  `f"{year:04d}-..."` formatting instead of relying on `strftime`'s `%Y`.
+- **`reports/trace.py`'s entity C-Corp trace showed "21.0%" instead of
+  "21%"** — the same recurring "JS whole-value Number auto-stringifies
+  without a trailing `.0`" display class this port has hit several times
+  before, this time in a rate label built from a fresh `round(...)/10`
+  computation that hadn't gone through the port's own `_pct_label`-style
+  `:g` formatting. Fixed by formatting through `:g`.
+- **`filings/documents.py`'s `form_8960` (NIIT) required-gate read the
+  wrong constants table** — `core/constants.py`'s `LIMITS` dict never
+  carried an `NIIT_THRESHOLD` key at all (only `us/constants.py`'s own
+  `NIIT_THRESHOLD`, correctly used by `ustax.py`'s real NIIT computation,
+  does), so `LIMITS.get("NIIT_THRESHOLD", {}).get(status, 200000)` silently
+  fell back to `{}` → every filing status got the single/HOH $200,000
+  threshold instead of MFJ's real $250,000 — wrongly requiring Form 8960
+  for an MFJ filer between $200,000–$249,999 with real investment income.
+  Fixed by importing the correct table directly, matching `ustax.py`'s own
+  precedent.
+- **`us1ShouldFire` (the `underpayment_2210` finding's own gate) had no
+  entity-aware override at all** — the real JS source's own
+  `agg10-nodes.js` deliberately suppresses this finding for a US business
+  entity (a corporation's underpayment penalty is Form 2220/§6655, a
+  different, unmodeled safe-harbor test — citing Form 2210/§6654 for an
+  entity is simply the wrong form/statute), but this port never ported
+  that specific override, so the real `us_ccorp_indian_sub` fixture fired
+  an extra, wrongly-captioned finding. This one was ALREADY flagged as a
+  known, deferred gap earlier in this port's own history (noted, not
+  fixed, during the entity/NRA routing work) — closed here with a
+  `us1ShouldFire` override in `us/ustax_full.py`, mirroring the JS source's
+  own fix exactly. Cascades into `summary.healthScore`/
+  `monitoring.health.score` for that one fixture — `test_analyze_golden.py`'s
+  own carve-out list updated accordingly (this fixture's health-score
+  divergence from golden is now correctly EXPECTED, since the frozen
+  engine has no equivalent fix and still fires the finding).
+
+**One real divergence found and left UNFIXED, deliberately** — in the live
+JS DAG, not in this Python port: `apportionmentBaseYearRaw`'s real JS
+source (`agg10-nodes.js`) reads `num(safe(router, "base_tax_year", ...)) ||
+2025` with no `int()` cast, so a fuzzer-mutated non-integer
+`router.base_tax_year` (e.g. `3712.07`, from `run-fuzz.js`'s own
+numeric-jitter mutator) leaks straight into `fyLabel`/`cyPrimary`/`cyNext`
+and any trace text built from them (`"FY 3712.07–13.07"` instead of `"FY
+3712–13"`). This port's own `apportionmentBaseYearRaw`
+(`crossborder/apportionment.py`) already `int()`-casts (a pre-existing
+"no trailing .0" fix, unrelated to this specific bug) and is therefore
+immune — a case where this port is MORE correct than the live JS DAG on an
+input no real profile ever produces (a real tax year is always a whole
+number; only fuzzer mutation reaches this). NOT fixed in
+`prototypes/graph-pilot/*.js`: the plan's own explicit cutover timing
+keeps the JS DAG "the live, unmodified production compute path through the
+entire build" — patching a live production file is a separate, deliberate
+decision this pass didn't make, not a side effect of building the
+cross-check harness. Allowlisted in `run-js-dag-vs-py-dag.js` itself
+(`hasJsFractionalBaseYearBug`), same "investigate, then document" discipline
+as every other `run-*.js` harness's own known-divergence list.
+
+**Result after all fixes: 46/53 exact match, 7/53 known (the one
+fractional-base-year cause above), 0 mismatches, 0 crashes either
+direction.** `cd dag_py && pytest -q` stays at 547/547 green throughout
+(one new `test_analyze_golden.py` carve-out needed: `test_monitoring_
+matches_golden`'s entity-fixture skip, re-added for the same reason —
+`us1ShouldFire`'s fix makes this port correctly diverge from golden's own
+`monitoring.health.score` now, where it accidentally matched before by
+sharing the same bug).
+
+**NOT done this phase, deliberately deferred** (see the scope decision
+above): the live `wising_compute_source` 3-way toggle, the async Pyodide
+loader (`monitor-next` doesn't yet have a `py-dag` option at all), the
+3-way `shadow-core.js` extension, an actual browser/Pyodide smoke test, and
+any real shadow-mode production data. The promotion gate (plan §7) remains
+entirely unstarted — it cannot be satisfied by anything built in a single
+sitting, only by real time and real usage once the live wiring exists.
 
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 

@@ -188,5 +188,16 @@ def build(base):
     # pattern, closed to the real apportionmentResult (crossborder/
     # apportionment.py) now that it's in the registry too.
     r.override("apportionmentResultBoundary", NodeDef(deps=("apportionmentResult",), compute=lambda d, ctx: d["apportionmentResult"]), reason=OVERRIDE_REASON)
+    # us5_penalty_72t.py's "baseYear" (shared id with in1-nodes.js in the JS
+    # source — agg10-nodes.js:316's own comment) and india/findings.py's
+    # "baseYearIn1" were BOTH missed in this file's original closure pass —
+    # left permanently stuck on their ctx["model"]-reading fallback (always
+    # None -> the hardcoded 2025 default), silently wrong for any base year
+    # other than 2025. Found via run-js-dag-vs-py-dag.js's cross-check
+    # against the real JS DAG (a taxpayer age at year-end came out one year
+    # too low for TY2026 data) — closed here the same way baseYearUs already
+    # is, now that metaResult is available.
+    r.override("baseYear", NodeDef(deps=("metaResult",), compute=lambda d, ctx: d["metaResult"]["baseYear"]), reason=OVERRIDE_REASON)
+    r.override("baseYearIn1", NodeDef(deps=("metaResult",), compute=lambda d, ctx: d["metaResult"]["baseYear"]), reason=OVERRIDE_REASON)
 
     return r

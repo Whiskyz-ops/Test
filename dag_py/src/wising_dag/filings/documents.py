@@ -185,6 +185,7 @@ def _build_documents_result(d, ctx):
     form8938 = d["form8938GaugeResult"]
 
     from ..core.constants import LIMITS
+    from ..us.constants import NIIT_THRESHOLD
     lockin = d["presumptiveLockinAgg"]
 
     triggers = {
@@ -199,7 +200,14 @@ def _build_documents_result(d, ctx):
         "form_3520": is_us_person and ((d["ppfInrRaw"] > 0 or d["epfInrRaw"] > 0) or d["foreignGiftsRaw"]["receivedAbove100k"] or d["foreignGiftsRaw"]["isTrustBeneficiary"]),
         "form_3520a": is_us_person and (d["ppfInrRaw"] > 0 or d["epfInrRaw"] > 0),
         "form_1040nr": d["treatyFiles1040nrRaw"],
-        "form_8960": d["headlineTotalIncomeUsdResult"] > (LIMITS.get("NIIT_THRESHOLD", {}).get(d["usFilingStatusRaw"], 200000)) and
+        # NIIT_THRESHOLD lives in us/constants.py (the real source ustax.py's
+        # own NIIT computation also reads), NOT core/constants.py's LIMITS —
+        # that table never carried this key at all, so `LIMITS.get(...)` was
+        # silently falling back to `{}` -> every filing status got the
+        # single/hoh $200,000 threshold, wrongly triggering form_8960 for an
+        # mfj filer between $200,000-$249,999 (found via
+        # run-js-dag-vs-py-dag.js's cross-check against the real JS DAG).
+        "form_8960": d["headlineTotalIncomeUsdResult"] > NIIT_THRESHOLD.get(d["usFilingStatusRaw"], 200000) and
                      (d["aggregateUsIncomeResult"]["interestUs"]["usd"] + d["aggregateUsIncomeResult"]["ordinaryDividendsUs"]["usd"] + d["aggregateUsIncomeResult"]["capitalGainsUs"]["usd"]) > 0,
         "form_8959": d["usTaxResult"]["additionalMedicareUsd"] > 0,
         "form_67": res["india"]["status"] == "ROR" and (d["aggregateUsIncomeResult"]["usSourceTotal"]["usd"] > 0 or d["taxesPaidUsResult"]["total"]["usd"] > 0),

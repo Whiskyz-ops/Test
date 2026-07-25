@@ -346,13 +346,19 @@ def _build_tax_computation_us_entity_result(u):
     # for a C-Corp, 0% pass-through for S-Corp/partnership) — no brackets,
     # no deductions, no NIIT/SE/AMT. The row set mirrors that shape instead
     # of the individual one.
+    # :g, not a bare f-string — JS's `entityRatePct + "%"` auto-strips a
+    # whole value's trailing ".0" (Number-to-string display); Python's f""
+    # doesn't, so a whole-percent rate (e.g. a pure 21% C-Corp with no state
+    # add-back) rendered "21.0%" instead of "21%" (found via
+    # run-js-dag-vs-py-dag.js's cross-check against the real JS DAG).
     entity_rate_pct = round((u["ordinaryTaxUsd"] / u["taxableIncomeUsd"]) * 1000) / 10 if u["taxableIncomeUsd"] > 0 else 0
+    entity_rate_label = f"{entity_rate_pct:g}"
     tax_row = (
         {"label": "Tax (pass-through — no entity-level federal income tax)", "usd": u["ordinaryTaxUsd"],
          "trace": _source(f"{u['filingStatus']} income passes through to the owners' own returns; no entity-level federal income tax is computed here.")}
         if u["passthrough"] else
-        {"label": f"Tax at flat {entity_rate_pct}% (§11 C-Corp rate)", "usd": u["ordinaryTaxUsd"],
-         "trace": _calc("Flat 21% × taxable income (§11 — no brackets for a C-Corp)", [{"label": "Taxable income", "amount": u["taxableIncomeUsd"]}, {"label": "Rate", "display": f"{entity_rate_pct}%"}])}
+        {"label": f"Tax at flat {entity_rate_label}% (§11 C-Corp rate)", "usd": u["ordinaryTaxUsd"],
+         "trace": _calc("Flat 21% × taxable income (§11 — no brackets for a C-Corp)", [{"label": "Taxable income", "amount": u["taxableIncomeUsd"]}, {"label": "Rate", "display": f"{entity_rate_label}%"}])}
     )
     return {
         "title": f"US federal tax — {u['filingStatus']}", "currency": "USD",

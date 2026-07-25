@@ -25,6 +25,7 @@
     "golden:dag-py": "node dag_py/tools/generate_golden.js",
     "fuzz:dag-py-corpus": "node prototypes/graph-pilot/run-fuzz.js --mode=corpus",
     "test:dag-py": "cd dag_py && pytest -q",
+    "compare:js-vs-py-dag": "node prototypes/graph-pilot/run-js-dag-vs-py-dag.js",
     "merge:find-base": "node scripts/merge/find-base-commit.js",
     "merge:apply": "node scripts/merge/three-way-merge.js",
     "audit:fix-regression": "node scripts/audit/fix-regression-check.js"

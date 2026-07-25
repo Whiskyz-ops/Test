@@ -18,13 +18,12 @@ local to that one call (see core/graph.py's own docstring), so concurrent
 also the property that keeps a future server-side `adapter/http_adapter.py`
 cheap: the same frozen registry serves every request.
 
-KNOWN GAP (not closed by this file): `usTaxResult` has no real entity/NRA/
-trust routing yet (`us/ustax.py`'s own header) — every field this module
-assembles that passes through `usTaxResult` (directly, or via `headlineResult`/
-`ftcResult`/the boundary overrides in `core/orchestration.py`) is correct
-for the individual/resident case only. Same carve-out this port has used
-consistently since Phase 3, now visible at the full `analyze()` level too —
-see `docs/PYTHON_DAG_MIGRATION_TRACKER.md`'s Phase 7 section.
+`usTaxResult`'s entity/NRA/trust routing (flagged as the one gap Phase 7
+didn't close) is now built — see `us/ustax_full.py`, composed as the final
+step of `build_full_registry()`. Cross-checked directly against the real
+JS DAG on all 13 fixtures + the 40-case fuzz corpus (`prototypes/graph-
+pilot/run-js-dag-vs-py-dag.js`, `npm run compare:js-vs-py-dag`) — see
+`docs/PYTHON_DAG_MIGRATION_TRACKER.md` for the full writeup.
 """
 from __future__ import annotations
 
