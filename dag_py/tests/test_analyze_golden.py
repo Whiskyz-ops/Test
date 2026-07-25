@@ -8,12 +8,28 @@ the actual object `adapter/pyodide_adapter.py` will call `analyze()` through.
 
 Carve-outs, all already established by name in earlier phases — nothing new
 introduced here, just now visible at the full end-to-end level too:
-  - Entity/NRA `usTaxResult` routing (`us/ustax.py`'s own header, Phase 3
-    scope, not yet built): every field downstream of `usTaxResult` — directly,
-    or via `headlineResult`/`ftcResult`/the boundary overrides in
-    `core/orchestration.py` — is correct for the individual/resident case
-    only. Same `_is_entity_or_nra` fixtures test_us.py/test_crossborder.py/
-    test_reports_trace.py already carve out.
+  - `usTaxResult` entity/NRA/trust routing (`us/ustax_full.py`, closing the
+    gap flagged at the end of Phase 7) IS now built and wired into
+    `build_full_registry()`. Verified against golden: the 1 real NRA
+    fixture (`india_ror_us_income`) matches golden EXACTLY end-to-end —
+    `usTax`/`headline`/`summary`/`reconciliation`/`apportionment`/
+    `monitoring` all diff clean, no carve-out needed for it anymore. The 1
+    real business-entity fixture (`us_ccorp_indian_sub`) has exactly ONE
+    root-cause divergence: `usTaxResult.usSourceIncomeUsd` is the entity's
+    real Schedule M-1 taxable income in this port vs golden's frozen-engine
+    `$0` (a genuine frozen-engine data-modeling gap — an entity's own
+    aggregateUsIncomeResult is always $0, since that node is individual-
+    shaped — documented in `us/ustax_full.py`'s own header and
+    `docs/GAP_TRACKER.md` section H). This single, already-verified delta
+    cascades predictably into `headline.totalIncomeUsd`/
+    `summary.totalIncomeUsd` (both `+4260000` vs golden for this fixture)
+    and `computed.apportionment.usCyTotalUsd`/`usCyToFyPrimaryUsd`/
+    `usCyToFyNextUsd` and `computed.ftc.india.*` (all traced back to the
+    same one cause) — `_is_entity_fixture` below still carves out ONLY this
+    business-entity case from the full-parity assertions; NRA is no longer
+    carved out. See `test_ustax_full.py` for direct, no-carve-out coverage
+    of both fixtures' entity/NRA-specific fields (including the documented
+    delta, pinned so it can't silently drift).
   - DAG-only 7-document superset (`filings/documents.py`'s own permanent
     divergence, Phase 6) — also surfaces inside
     `monitoring.calendar.*[].docIds`, not just `buildDocumentsResult` itself.
@@ -77,10 +93,11 @@ DAG_ONLY_DOCUMENT_IDS = {"form_nj1040", "form_8858", "form_3520a", "form_29b", "
 DAG_ONLY_FINDING_IDS = {"msme_disallowance_s43Bh_india", "presumptive_lockin_active_india"}
 
 
-def _is_entity_or_nra(golden: dict) -> bool:
-    us_kind = golden["model"]["entity"]["usKind"]
-    is_nra = golden["model"]["treaty"]["files1040nr"] and not (golden["model"].get("nra") or {}).get("s6013hElection")
-    return us_kind != "individual" or is_nra
+def _is_entity_fixture(golden: dict) -> bool:
+    """True only for a real business-entity usKind (ccorp/scorp/partnership/
+    trust) — NOT for NRA, which fully matches golden now (see module
+    docstring)."""
+    return golden["model"]["entity"]["usKind"] != "individual"
 
 
 def _normalize_dates(obj):
@@ -146,8 +163,8 @@ def test_headline_matches_golden_for_individual_resident_profiles(fixture_id):
     if fixture_id not in FIXTURES_TESTED:
         return
     result, golden = _analyze_pinned(fixture_id)
-    if _is_entity_or_nra(golden):
-        return
+    if _is_entity_fixture(golden):
+        return  # single documented usSourceIncomeUsd divergence — pinned in test_ustax_full.py instead
     diff = deep_diff(result["computed"]["headline"], golden["computed"]["headline"])
     assert diff is None, f"{fixture_id}: " + " | ".join(diff[:6])
 
@@ -157,8 +174,8 @@ def test_summary_matches_golden(fixture_id):
         return
     result, golden = _analyze_pinned(fixture_id)
     mine, gold = dict(result["summary"]), dict(golden["summary"])
-    if _is_entity_or_nra(golden):
-        return  # usTaxUsd/totalIncomeUsd/indiaTaxUsd/netDoubleTaxUsd all ripple from usTaxResult's individual-only shape
+    if _is_entity_fixture(golden):
+        return  # totalIncomeUsd ripples from the single documented usSourceIncomeUsd divergence — pinned in test_ustax_full.py instead
 
     # DAG-only findings/documents are a permanent, not-yet-closeable
     # divergence from golden — adjust golden's own counts/healthScore up to
@@ -182,8 +199,9 @@ def test_monitoring_matches_golden(fixture_id):
     if fixture_id not in FIXTURES_TESTED:
         return
     result, golden = _analyze_pinned(fixture_id)
-    if _is_entity_or_nra(golden):
-        return  # calendarMonitorResult's entityFormsResult.usReturnForm / residency day-counters route through usTaxResult-adjacent facts
+    # monitoring verified to match golden exactly for both the entity and NRA
+    # fixtures too (unlike headline/summary, nothing here reads
+    # usSourceIncomeUsd) — no carve-out needed.
     if any(f["id"] in DAG_ONLY_FINDING_IDS for f in result["findings"]):
         return  # health.score ripples from the 2 DAG-only findings above (same carve-out as summary's own counts adjustment, simpler to skip here)
 

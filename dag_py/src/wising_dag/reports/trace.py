@@ -286,8 +286,96 @@ def _fx_convert(inr_amount, ctx):
     return inr_amount / fx_rate(ctx)
 
 
+def _build_tax_computation_us_nra_result(u):
+    return {
+        "title": "US federal tax — Form 1040-NR (ECI graduated / FDAP flat)",
+        "currency": "USD",
+        "rows": [
+            {"label": "ECI (wages + net self-employment)", "usd": u["nra"]["eciUsd"],
+             "trace": _source("Effectively Connected Income — US wages + net self-employment earnings, entered on Layer 1 US.")},
+            {"label": "Less itemized deductions (no standard deduction for NRAs)", "usd": -u["deductionUsd"],
+             "trace": _source("NRAs cannot claim the standard deduction (with narrow treaty exceptions) — itemized deductions from Layer 1 US only.")},
+            {"label": "Taxable ECI", "usd": u["taxableIncomeUsd"],
+             "trace": _calc("ECI less itemized deductions", [{"label": "ECI", "amount": u["nra"]["eciUsd"]}, {"label": "Less itemized deductions", "amount": -u["deductionUsd"]}])},
+            {"label": "Tax on ECI (graduated brackets)", "usd": u["nra"]["eciTaxUsd"],
+             "trace": _calc(f"Progressive federal brackets (10%-37%, same ladder as a resident filer) applied to ${round(u['nra']['taxableEciUsd']):,} of taxable ECI", _bracket_parts(u["nra"]["eciBracketBreakdown"], usd))},
+            {"label": "FDAP (interest/dividends/rental, Schedule NEC)", "usd": u["nra"]["fdapUsd"],
+             "trace": _source("Fixed, Determinable, Annual or Periodical income — US-source passive income entered on Layer 1 US, taxed on a gross basis (no deductions).")},
+            {"label": f"Tax on FDAP (flat {round(u['nra']['fdapRate'] * 100)}%, no deductions)", "usd": u["nra"]["fdapTaxUsd"],
+             "trace": _calc("FDAP × flat rate (30% statutory default, or a lower treaty rate if a valid W-8BEN treaty claim is on file)",
+                             [{"label": "FDAP income", "amount": u["nra"]["fdapUsd"]}, {"label": "Rate applied", "display": f"{round(u['nra']['fdapRate'] * 100)}%"}])},
+            {"label": "Additional Medicare tax", "usd": u["additionalMedicareUsd"],
+             "trace": _source("Computed directly on Layer 1 US (Form 8959) and taken as-is — the engine does not recompute it.")},
+            {"label": "Total US tax (pre-FTC)", "usd": u["totalTaxBeforeFtcUsd"], "emphasis": True,
+             "trace": _calc("Tax on ECI + tax on FDAP + Additional Medicare tax",
+                             [{"label": "Tax on ECI", "amount": u["nra"]["eciTaxUsd"]}, {"label": "Tax on FDAP", "amount": u["nra"]["fdapTaxUsd"]}, {"label": "Additional Medicare tax", "amount": u["additionalMedicareUsd"]}])},
+        ],
+        "totalUsd": u["totalTaxBeforeFtcUsd"], "effectiveRate": u["effectiveRate"],
+    }
+
+
+def _build_tax_computation_us_trust_result(u):
+    # DELIBERATE DAG/engine divergence (this port's own header, matching
+    # ustax_full.py's usEntityTaxResult trust branch): a trust splits into a
+    # DISTRIBUTED portion (taxed on the beneficiaries' own returns, not
+    # here) and a RETAINED portion (taxed at the entity level, at real
+    # compressed §1(e) brackets — not the flat/pass-through shape every
+    # other entity kind uses).
+    rows = [{"label": "Total trust/estate income (distributed + retained)", "usd": u["totalIncomeUsd"],
+             "trace": _source("Beneficiaries' share of income (Layer 1 US, Form 1041 K-1 section) plus any income the trust retained — entered on Layer 1 US Business.")}]
+    if u["trustDistributedUsd"] > 0:
+        rows.append({"label": "  — distributed to beneficiaries (not taxed here)", "usd": -u["trustDistributedUsd"],
+                      "trace": _source("Offset by the trust's distribution deduction (§651/§661) — taxed on the beneficiaries' own returns instead, not this entity-level computation.")})
+    rows.append({"label": "Retained (undistributed) income", "usd": u["trustRetainedUsd"],
+                 "trace": _calc("Total trust/estate income less the amount distributed to beneficiaries",
+                                 [{"label": "Total income", "amount": u["totalIncomeUsd"]}, {"label": "Less distributed to beneficiaries", "amount": -u["trustDistributedUsd"]}])})
+    if u["trustRetainedUsd"] > 0:
+        rows.append({"label": "Tax on retained income (§1(e) compressed brackets)", "usd": u["ordinaryTaxUsd"],
+                      "trace": _calc(f"Progressive trust/estate brackets (10%-37%, 37% starting around $15,650 — far more compressed than the individual brackets) applied to ${round(u['trustRetainedUsd']):,} of retained income",
+                                     _bracket_parts(u["trustBracketBreakdown"], usd))})
+    else:
+        rows.append({"label": "Tax on retained income", "usd": 0, "trace": _source("No retained income this year — fully distributed, so no entity-level tax under §1(e).")})
+    rows.append({"label": "Total US tax (pre-FTC)", "usd": u["totalTaxBeforeFtcUsd"], "emphasis": True,
+                 "trace": _calc("Tax on retained income only — no NIIT, SE tax, AMT, or individual credits apply to a trust's own Form 1041", [{"label": "Tax", "amount": u["totalTaxBeforeFtcUsd"]}])})
+    return {"title": f"US federal tax — {u['filingStatus']}", "currency": "USD", "rows": rows, "totalUsd": u["totalTaxBeforeFtcUsd"], "effectiveRate": u["effectiveRate"]}
+
+
+def _build_tax_computation_us_entity_result(u):
+    # usEntityResult() (TAX-7) is a flat-rate result: taxableIncomeUsd (the
+    # Schedule M-1 book-to-tax figure) taxed once at the entity's rate (21%
+    # for a C-Corp, 0% pass-through for S-Corp/partnership) — no brackets,
+    # no deductions, no NIIT/SE/AMT. The row set mirrors that shape instead
+    # of the individual one.
+    entity_rate_pct = round((u["ordinaryTaxUsd"] / u["taxableIncomeUsd"]) * 1000) / 10 if u["taxableIncomeUsd"] > 0 else 0
+    tax_row = (
+        {"label": "Tax (pass-through — no entity-level federal income tax)", "usd": u["ordinaryTaxUsd"],
+         "trace": _source(f"{u['filingStatus']} income passes through to the owners' own returns; no entity-level federal income tax is computed here.")}
+        if u["passthrough"] else
+        {"label": f"Tax at flat {entity_rate_pct}% (§11 C-Corp rate)", "usd": u["ordinaryTaxUsd"],
+         "trace": _calc("Flat 21% × taxable income (§11 — no brackets for a C-Corp)", [{"label": "Taxable income", "amount": u["taxableIncomeUsd"]}, {"label": "Rate", "display": f"{entity_rate_pct}%"}])}
+    )
+    return {
+        "title": f"US federal tax — {u['filingStatus']}", "currency": "USD",
+        "rows": [
+            {"label": "Taxable income (Schedule M-1 book-to-tax reconciliation)", "usd": u["taxableIncomeUsd"],
+             "trace": _source("Book income from the entity's own books, reconciled to US taxable income on Schedule M-1 — entered on Layer 1 US Business.")},
+            tax_row,
+            {"label": "Total US tax (pre-FTC)", "usd": u["totalTaxBeforeFtcUsd"], "emphasis": True,
+             "trace": _calc("Entity-level tax computed above — no NIIT, SE tax, AMT, or individual credits apply to an entity's own return", [{"label": "Tax", "amount": u["totalTaxBeforeFtcUsd"]}])},
+        ],
+        "totalUsd": u["totalTaxBeforeFtcUsd"], "effectiveRate": u["effectiveRate"],
+    }
+
+
 def _build_tax_computation_us_result(d, ctx):
     u = d["usTaxResult"]
+
+    if u.get("isNra"):
+        return _build_tax_computation_us_nra_result(u)
+    if u.get("isEntity") and u.get("trustBracketBreakdown") is not None:
+        return _build_tax_computation_us_trust_result(u)
+    if u.get("isEntity"):
+        return _build_tax_computation_us_entity_result(u)
 
     us_holdings_total_usd = d["aggregateUsIncomeResult"]["total"]["usd"]
     feie_applied_usd = (u.get("feie") or {}).get("appliedUsd") or 0

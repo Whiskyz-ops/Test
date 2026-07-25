@@ -15,26 +15,20 @@ composes: every dep below (`entityResult`, `usTaxResult`, `ftcResult`,
 `buildDocumentsResult`, `monitorResult`, `apportionmentResult`, ...) must
 already be registered.
 
-`usEntityKind`'s real closure is `entityResult["usKind"]` — genuinely
-different from `indianBusinessesBoundary`/`usSecuritiesBoundary` (fixed
-directly in their own domain files, Phase 6): `entityResult` is a
-core/entry.py leaf, but the FULL registry only comes together in this
-module, so the closure lives here, not there. Same for `baseYearUs`
-(`metaResult["baseYear"]`) and the `usTaxResult`/`ftcResult`/
-`aggregateUsIncomeResult`/`bankAccountsRaw`-dependent boundaries below —
-all genuinely need cross-domain state unavailable until every domain is
-composed, unlike the two dead-source-file bugs fixed in Phase 6.
+The `usTaxResult`/`ftcResult`/`aggregateUsIncomeResult`/`bankAccountsRaw`-
+dependent boundaries below all genuinely need cross-domain state
+unavailable until every domain is composed, unlike the two dead-source-file
+bugs fixed in Phase 6 (`indianBusinessesBoundary`/`usSecuritiesBoundary`,
+which needed nothing but their own domain's already-built chain).
 
-KNOWN GAP, not closed here: `usTaxResult` has no real entity/NRA/trust
-routing yet (`us/ustax.py`'s own header — Phase 3 scope) — `isEntity`/
-`isNra` are simply absent from its return dict, not `False`. Every override
-below that reads `usTaxResult` (directly or via `headlineResult`) is
-therefore correct for the individual/resident case only, same carve-out
-`test_us.py`/`test_crossborder.py`/`test_reports_trace.py` already
-established throughout this port. `.get("isEntity")`/`.get("isNra")` are
-used (not `["isEntity"]`) so these overrides degrade gracefully — they'll
-start reading real entity/NRA facts automatically the day `usTaxResult`
-gains that routing, with no further change needed here.
+`usEntityKind`/`baseYearUs` are NOT closed here, on purpose — `us/us_full.py`'s
+own header already promises "closed in ustax_full.py", and that module
+(composed AFTER this one, since it also redefines `usTaxResult` itself into
+an entity/NRA-routing-aware router) is where that promise is kept. Every
+override below that reads `usTaxResult` (directly, or via `headlineResult`)
+automatically becomes entity/NRA-aware once `us/ustax_full.py` runs, with no
+further change needed here — that's the whole point of resolving
+`usTaxResult` by id rather than by branch.
 """
 from __future__ import annotations
 
@@ -108,10 +102,7 @@ def _headline_result(d, ctx):
     # DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H, per
     # agg10-nodes.js's own comment): a US business entity's own income is
     # usTaxResult.totalIncomeUsd (Schedule M-1), not the individual-shaped
-    # aggregateUsIncomeResult.total.usd (which is $0 for an entity). See
-    # this module's own docstring — usTaxResult.isEntity doesn't exist in
-    # this port yet, so `.get("isEntity")` degrades to the individual branch
-    # until that routing is built.
+    # aggregateUsIncomeResult.total.usd (which is $0 for an entity).
     us_total_income_usd = d["usTaxResult"]["totalIncomeUsd"] if d["usTaxResult"].get("isEntity") else d["aggregateUsIncomeResult"]["total"]["usd"]
     return {
         "name": d["identityResult"]["name"], "baseYear": d["metaResult"]["baseYear"], "jurisdiction": d["metaResult"]["jurisdiction"],
@@ -188,8 +179,6 @@ def build(base):
     # sections") — every one of these already exists as a ctx["model"]/
     # ctx["computed"]-reading stub somewhere upstream; redefined here to the
     # real in-graph value now that everything needed is finally composed.
-    r.override("usEntityKind", NodeDef(deps=("entityResult",), compute=lambda d, ctx: d["entityResult"]["usKind"]), reason=OVERRIDE_REASON)
-    r.override("baseYearUs", NodeDef(deps=("metaResult",), compute=lambda d, ctx: d["metaResult"]["baseYear"]), reason=OVERRIDE_REASON)
     r.override("usTotalTaxBeforeFtcUsdBoundary", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: num(d["usTaxResult"]["totalTaxBeforeFtcUsd"])), reason=OVERRIDE_REASON)
     r.override("usAgiUsdBoundary", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: num(d["usTaxResult"]["agiUsd"])), reason=OVERRIDE_REASON)
     r.override("usFtcAllowedUsdBoundary", NodeDef(deps=("ftcResult",), compute=lambda d, ctx: num(d["ftcResult"]["us"]["ftcAllowedUsd"])), reason=OVERRIDE_REASON)

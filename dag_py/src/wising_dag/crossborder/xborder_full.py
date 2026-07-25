@@ -49,7 +49,11 @@ def build(base: NodeRegistry) -> NodeRegistry:
             True if d["routerJurisdictionXB"] in ("single_us", "us_only") else d["routerUsSignalXB"]
         ),
     ), reason=OVERRIDE_REASON)
-    r.override("feieExcludedUsdBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["feieAppliedUsd"] or 0), reason=OVERRIDE_REASON)
+    # .get(), not [...] — entity/NRA usTaxResult branches (us/ustax_full.py)
+    # carry no feieAppliedUsd field at all (§911 FEIE only applies on the
+    # individual path); JS's bare `d.usTaxResult.feieAppliedUsd` reads
+    # undefined there, not a crash.
+    r.override("feieExcludedUsdBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"].get("feieAppliedUsd") or 0), reason=OVERRIDE_REASON)
     r.override("usIsNraBoundaryFtc", NodeDef(
         deps=("usEntityKind", "files1040nr", "s6013hElection"),
         compute=lambda d, ctx: d["usEntityKind"] not in ("ccorp", "scorp", "partnership", "trust") and d["files1040nr"] and not d["s6013hElection"],

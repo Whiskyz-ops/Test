@@ -17,7 +17,10 @@ def _usd_label(n: float) -> str:
 
 def _cross_basis_result(d, ctx):
     rows = []
-    feie_applied = d["usTaxResult"]["feieAppliedUsd"] or 0
+    # .get(), not [...] — entity/NRA usTaxResult branches (us/ustax_full.py)
+    # carry no feieAppliedUsd field at all; JS's bare property read is
+    # forgiving (undefined || 0), Python's [...] is not.
+    feie_applied = d["usTaxResult"].get("feieAppliedUsd") or 0
     us_ww, in_ww = d["residencyResult"]["us"]["worldwide"], d["residencyResult"]["india"]["worldwide"]
     via_foreign_corp = d["viaForeignCorpXbr4"]
     # in1_v3.py's taxRegime already normalizes to uppercase (no engine-style

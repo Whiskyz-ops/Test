@@ -23,7 +23,8 @@ imply any interim cutover.
 | 4 | `crossborder/` domain + fuzz corpus | ✅ done (see below) |
 | 5 | `findings/` domain-split | ✅ done (see below) |
 | 6 | `filings/` + `reports/` | ✅ done (see below) |
-| 7 | `analyze()` assembly + Pyodide adapter + wheel | 🟡 infrastructure done, one known gap remains (see below) |
+| 7 | `analyze()` assembly + Pyodide adapter + wheel | 🟡 infrastructure done, one known gap flagged (closed below, post-Phase-7) |
+| — | `usTaxResult` entity/NRA/trust routing (`us/ustax_full.py`) — closes the Phase 7 gap | ✅ done (see below) |
 | 8 | Toggle + shadow mode + cutover (production-touching, gated) | ⬜ not started |
 
 ## Phase 1 detail (18 modules/files, 73 tests green as of this writing)
@@ -336,6 +337,134 @@ a boundary-wiring task like everything else in this phase. Scoped out
 explicitly rather than attempted partially or claimed done. The 2
 entity/NRA fixtures (of 13) remain correctly carved out at the full
 `analyze()` level, same as every earlier phase.
+
+**This gap is now closed — see the `us/ustax_full.py` section below**,
+built as a dedicated follow-up immediately after Phase 7 rather than folded
+into Phase 8.
+
+## `usTaxResult` entity/NRA/trust routing (`us/ustax_full.py`, 547 tests green cumulative)
+
+Closes the one gap Phase 7 explicitly flagged and scoped out above. Port of
+`prototypes/graph-pilot/ustax-full-nodes.js` (418 lines, previously unread
+in this entire porting effort despite being named in already-written
+docstrings) — TAX-7 (`computeUsEntityTax`), TAX-8 (`computeNraTax`), and
+`computeUsTax`'s own routing logic.
+
+**The routing pattern**: `usTaxResult` is REDEFINED as a router, mirroring
+how `computed.usTax` is whatever branch the JS engine's own `compute()`
+returned. The original individual-path node is re-registered under a new
+id, `usTaxIndividualResult` (captured via `base.get("usTaxResult")` before
+overriding — the same capture-before-override pattern `filings/assets.py`
+already established for its own `findingsAllResult` override). `usTaxResult`
+itself becomes: `usEntityKind` in `{ccorp, scorp, partnership, trust}` →
+`usEntityTaxResult`; `files1040nr && !s6013hElection` → `nraTaxResult`;
+else → `usTaxIndividualResult`. Every existing consumer (FTC boundaries,
+findings, headline, reports) resolves `usTaxResult` by id, so all of them
+automatically become entity/NRA-correct once this routing exists — no
+other file needed to change, by design (confirmed: zero other files
+required logic changes, only two needed a strictness fix — see below).
+
+**`usEntityTaxResult` (TAX-7)**: C-Corp taxed flat 21% on Schedule-M1
+taxable income; S-Corp/Partnership pass-through ($0 entity-level tax);
+Trust splits DISTRIBUTED (taxed on beneficiaries' own returns, not here) vs
+RETAINED (taxed at compressed §1(e) brackets) via a new raw field,
+`trustRetainedIncomeUsdRaw` (`ctx.us.profile.trust_retained_income_usd`) —
+a DAG-only addition closing a real prior gap where a retaining trust was
+silently treated as $0 entity tax. DELIBERATE DAG/engine divergence,
+documented inline and in `docs/GAP_TRACKER.md` section H: an entity's own
+`usSourceIncomeUsd`/`foreignSourceIncomeUsd` are set to the Schedule-M1
+`taxable_usd`/`0` (whole M-1 figure treated as US-source) rather than
+reading the individual-shaped `aggregateUsIncomeResult` aggregate (always
+$0 for a pure entity — a genuine frozen-engine data-modeling gap). Fixing
+this at the source closes India's own s.90 FTC relief silently zeroing out
+for a US business entity, and the FY↔CY apportionment card showing $0 for
+the whole US side.
+
+**`usEntityStateTaxResult` (new)**: US state-level entity tax —
+CA (8.84%)/NY (7.25%)/NJ (9.0%) flat top-bracket C-Corp rates modeled;
+TX/WA explicitly flagged "NOT no-tax — has its own gross-receipts tax, not
+modeled, do NOT assume $0"; S-corp/partnership/trust/every-other-state
+flagged "not modeled" (with a PTET-election caveat for pass-throughs).
+Feeds a `findingsAllResult` override appending `us_entity_state_tax`
+(modeled, warning) or `us_entity_state_tax_not_modeled` (info) findings.
+No real fixture sets `us.profile.state_of_domicile` at all (the 1 real
+C-Corp fixture only sets `incorporation_state`, a different, unused field),
+so this whole node is pinned with synthetic-`d` unit tests instead
+(`test_ustax_full.py`) rather than golden fixtures.
+
+**`nraTaxResult` (TAX-8)**: Form 1040-NR — ECI taxed at graduated brackets
+after itemized deductions (no standard deduction for NRAs, SALT-capped);
+FDAP taxed flat 30% (or a lower W-8BEN treaty rate when `submittedW8ben`
+is true and a treaty claim exists). Reuses `us/ustax.py`'s existing
+`bracket_tax`/`bracket_breakdown`/`compute_salt_cap` directly, not
+re-derived.
+
+**`reports/trace.py`** gained the three missing `buildTaxComputationUsResult`
+branches this port's own file had left as an already-documented carve-out
+(NRA / trust-distributed-vs-retained / flat-entity-rate), in the same
+dispatch order as `report-batch2-nodes.js`'s own known bug fix (SYS-3,
+fuzzer-found): `isNra` → ECI/FDAP structure; `isEntity &&
+trustBracketBreakdown is not None` → trust split; `isEntity` (else) → flat
+entity-rate structure (pass-through label if `passthrough`, else the
+computed flat rate).
+
+**Composition**: `ustax_full.build(r)` runs LAST in
+`build_full_registry()` (after `core/orchestration.py`), since it depends
+on `entityResult`/`metaResult` and re-overrides `usTaxResult`/
+`apportionmentResult`/`findingsAllResult`/`usEntityKind`/`baseYearUs` on
+top of everything already composed. `usEntityKind`/`baseYearUs` ownership
+moved from `core/orchestration.py` (which closed them provisionally in
+Phase 7) to here, fulfilling a promise `us/us_full.py`'s own header had
+already made ("closed in ustax_full.py") before this module existed.
+382 nodes total, zero `DuplicateNodeError`s.
+
+**Three real "JS-forgiving-`undefined`-vs-Python-strict-`KeyError`" bugs
+found and fixed**, all newly reachable only once `usTaxResult` started
+actually routing to entity/NRA shapes that carry no `feieAppliedUsd` field
+at all (§911 FEIE only applies on the individual path) — same recurring
+bug class this port has hit before, fixed the same way (`.get(...) or 0`
+instead of `[...]`), verified against the real JS source at each site:
+`crossborder/xborder_full.py`'s `feieExcludedUsdBoundaryFtc`,
+`crossborder/cross_basis.py`'s `_cross_basis_result`.
+
+**Golden verification, `test_ustax_full.py` (25 new tests)**: the 1 real
+NRA fixture (`india_ror_us_income`) now matches golden EXACTLY
+end-to-end — `usTax`/`headline`/`summary`/`reconciliation`/
+`apportionment`/`monitoring`/`taxComputation.us`/`withholding` all diff
+clean, no carve-out needed at all anymore (previously fully carved out
+since Phase 3). One small, cosmetic-only, DELIBERATE divergence within
+`ftc.india`: `foreignSourceIncomeUsd`/`reliefCapUsd` differ by exactly
+$22,000 (the NRA's US LTCG, which an NRA isn't taxed on at all) because the
+frozen engine's own non-overridden `usSourceTotalUsdBoundaryFtc` boundary
+reads a raw, NRA-unaware aggregate (`ctx.model.income.us.usSourceTotal.usd`)
+while `xborder-full-nodes.js`'s own override (ported unchanged) correctly
+narrows this to `usTaxResult.usSourceIncomeUsd` (ECI+FDAP only for an NRA);
+the bottom-line `reliefAllowedUsd` is identical either way since both cap
+values exceed it. The 1 real C-Corp fixture (`us_ccorp_indian_sub`) has
+exactly the one root-cause divergence Phase 7 already anticipated
+(`usSourceIncomeUsd`), cascading predictably and *only* into
+`headline.totalIncomeUsd`/`summary.totalIncomeUsd`/
+`computed.apportionment.usCy*`/`computed.ftc.india.*` — all pinned exactly
+in `test_ustax_full.py` so the delta can't silently grow or shrink.
+Also confirmed: golden's OWN `taxComputation.us.rows` for this fixture
+contains literal `"$NaN"` strings baked into the trace text — proof the
+frozen engine itself falls through to the individual-branch trace builder
+for an entity taxpayer and reads undefined fields, the same permanent-
+divergence class as the already-established India entity `"₹NaN"` bug
+(`test_reports_trace.py`). This port deliberately builds a clean
+entity-shaped trace instead, and does not reproduce the bug.
+
+`test_analyze_golden.py`'s own carve-outs were narrowed to match: NRA is no
+longer carved out of `headline`/`summary`/`monitoring` (full parity now);
+only the true business-entity case still is, with the reason updated to
+name the single remaining divergence precisely instead of a blanket
+"routing not built yet." `test_us.py`/`test_crossborder.py`/
+`test_reports_trace.py` keep their existing entity/NRA carve-outs
+unchanged and correctly — those three build narrower, domain-only
+registries (`us_full.build()`/`cross_basis.build()`) that don't include
+`ustax_full.build()` at all, so `usTaxResult` genuinely isn't routed in
+those isolated registries; only `core.registry.build_full_registry()` (and
+therefore `analyze()`) has the routing.
 
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 

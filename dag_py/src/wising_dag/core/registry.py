@@ -152,7 +152,7 @@ def build_full_registry() -> NodeRegistry:
     from ..reports import assembly as reports_assembly
     from ..reports import trace as reports_trace
     from ..us import findings as us_findings
-    from ..us import us1_penalty_2210, us5_penalty_72t
+    from ..us import us1_penalty_2210, us5_penalty_72t, ustax_full
     from . import entry, orchestration
 
     r = cross_basis.build(NodeRegistry())
@@ -277,5 +277,12 @@ def build_full_registry() -> NodeRegistry:
     # ---- the final closure layer (identity/meta/residencySlice/headline/
     # summary + the remaining v1-era boundary overrides) ---------------------
     r = orchestration.build(r)
+
+    # ---- us/ustax_full.py: TAX-7/TAX-8 (entity/NRA tax computation) +
+    # usTaxResult's own entity/NRA routing — composed LAST, since it needs
+    # entityResult/metaResult (just closed above) and re-overrides
+    # usTaxResult/apportionmentResult/findingsAllResult/usEntityKind/
+    # baseYearUs on top of everything already in the registry. ---------------
+    r = ustax_full.build(r)
 
     return r.freeze()
