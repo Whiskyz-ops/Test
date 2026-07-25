@@ -1582,8 +1582,8 @@ export function EntitySwitcher({ entityGraph, selectedEntityId, onChange }) {
         title="Scope the Business and Filings tabs to one entity on the return, or see the consolidated view"
         className="appearance-none pl-2.5 pr-7 py-1 text-[12px] font-semibold rounded-lg bg-white/[0.06] border border-line text-body cursor-pointer hover:border-accent/50 transition-colors"
       >
-        <option value="">Consolidated (all entities)</option>
-        {options.map((e) => <option key={e.id} value={e.id}>{e.name || e.id} · {ENTITY_KIND_LABEL[e.kind] || e.kind}</option>)}
+        <option value="" className="bg-[#161616] text-head">Consolidated (all entities)</option>
+        {options.map((e) => <option key={e.id} value={e.id} className="bg-[#161616] text-head">{e.name || e.id} · {ENTITY_KIND_LABEL[e.kind] || e.kind}</option>)}
       </select>
       <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted text-[9px]">▾</span>
     </div>
