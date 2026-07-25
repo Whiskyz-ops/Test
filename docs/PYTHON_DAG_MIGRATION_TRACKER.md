@@ -246,6 +246,40 @@ separate flat name in `us/constants.py`) — added to `core/constants.py`'s
 `LIMITS` dict (duplicated value, not moved, since `us/ustax.py`'s own
 `FEIE_MAX_USD` import site didn't need the surrounding namespace).
 
+**`reports/trace.py` + `reports/assembly.py`'s `buildTaxComputationResult`
+— done** (333 tests green cumulative, 39 new). Ports report-batch2-nodes.js
+(`us`/`usState` sections) and report-batch3-nodes.js (`india` section) —
+the UI trace/display assembly for the Tax Computation panel.
+`buildTaxComputationIndiaResult` ports BOTH the individual/HUF and entity
+branches in full (india/entity_tax.py's `entityTaxResult` already existed
+from Phase 2, so no carve-out was needed there). `buildTaxComputationUsResult`
+ports only the resident/individual branch — the JS source's NRA/entity/trust
+branches read `u.isNra`/`u.nra`/`u.trustBracketBreakdown`/`u.passthrough`,
+fields this port's `usTaxResult` doesn't carry yet (same entity/NRA-routing
+carve-out `test_us.py` already established in Phase 3); since those fields
+are simply absent rather than `False`, the individual branch is the only one
+ever reached, which is exactly the correct behavior for now.
+
+Two real bugs caught by the new golden-diff tests (`test_reports_trace.py`),
+fixed at the source: a missing `₹` prefix (same class of bug Phase 5 already
+caught twice — used `core.util.format_inr()` directly instead of a
+`₹`-prefixed wrapper; fixed with a local `inr()` helper matching every JS
+report-batchN-nodes.js file's own local helper) and a `"2.0"` vs `"2"`
+float-display bug in the Child Tax Credit trace's `numChildren` label (same
+root cause as Phase 5's `"3.0" vs "3"` director-count bug — `round()` at the
+one embed site fixes it).
+
+One DELIBERATE, PERMANENT (not "not yet ported") divergence from golden,
+carved out explicitly in `test_reports_trace.py` rather than silently
+ignored: for an India entity/company taxpayer, the frozen engine (which
+golden is generated from) has an uncorrected bug — it falls through into the
+individual/HUF row builder, which reads several entity-shaped fields as
+`undefined` and interpolates a literal `"₹NaN"` into the trace text. The JS
+DAG's `report-batch3-nodes.js` deliberately built its own entity-specific
+row set instead of reproducing that bug (documented in its own file header)
+— ported here unchanged. This carve-out is permanent, unlike every other
+"deferred to Phase 7" carve-out in this port.
+
 **Not yet done this phase** (real remaining Phase 6 work, not deferred to
 Phase 7): `filings/documents.py` (`buildDocumentsResult`, ~140 lines of
 `report-batch1-nodes.js`'s 627 — a 30-entry document catalog run through a
@@ -254,13 +288,11 @@ trigger map; also carries `buildScopeNotesResult`/
 `reports/trace.py` instead per the plan's own filings-vs-reports split);
 `filings/assets.py` (`assetsModelResult` + the `findingsAllResult` override,
 ~700 of 972 lines — the entity-ownership graph/per-entity trace builder,
-the single largest remaining file in this port); `reports/trace.py`
-(`buildTaxComputationIndiaResult`/`UsResult`/`UsStateResult`/
-`WithholdingSummaryResult` — deps-only, one `ctx.model` boundary read to
-fix at port time, not defer); `reports/assembly.py`'s `buildTaxComputationResult`
-(trivial once `trace.py` exists). `filings/monitoring.py` and
-`summaryResult`/`analyzeResult` are correctly deferred to Phase 7 (see
-above), not merely postponed.
+the single largest remaining file in this port); `reports/trace.py`'s
+`buildWithholdingSummaryResult` (report-batch4-nodes.js — deps-only, one
+`ctx.model` boundary read to fix at port time, not defer). `filings/
+monitoring.py` and `summaryResult`/`analyzeResult` are correctly deferred to
+Phase 7 (see above), not merely postponed.
 
 ## Phase 5 detail (findings/ domain-split, 281 tests green cumulative)
 

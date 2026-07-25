@@ -74,11 +74,19 @@ def _findings_all_result(d, ctx):
     return all_findings
 
 
+def _build_tax_computation_result(d, ctx):
+    return {"india": d["buildTaxComputationIndiaResult"], "us": d["buildTaxComputationUsResult"], "usState": d["buildTaxComputationUsStateResult"]}
+
+
 NODES = {
     "findingsAllResult": NodeDef(
         deps=("findingsIndiaResult", "indiaResidencyConsistencyFinding", "findingsUsResult",
               "usResidencyConsistencyFinding", "findingsCrossborderResult"),
         compute=_findings_all_result,
+    ),
+    "buildTaxComputationResult": NodeDef(
+        deps=("buildTaxComputationIndiaResult", "buildTaxComputationUsResult", "buildTaxComputationUsStateResult"),
+        compute=_build_tax_computation_result,
     ),
 }
 
