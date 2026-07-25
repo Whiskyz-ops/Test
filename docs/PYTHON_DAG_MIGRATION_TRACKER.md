@@ -22,7 +22,7 @@ imply any interim cutover.
 | 3 | `us/` domain | ✅ done (see below) |
 | 4 | `crossborder/` domain + fuzz corpus | ✅ done (see below) |
 | 5 | `findings/` domain-split | ✅ done (see below) |
-| 6 | `filings/` + `reports/` | 🟡 in progress (see below) |
+| 6 | `filings/` + `reports/` | ✅ done (see below) |
 | 7 | `analyze()` assembly + Pyodide adapter + wheel | ⬜ not started |
 | 8 | Toggle + shadow mode + cutover (production-touching, gated) | ⬜ not started |
 
@@ -164,7 +164,7 @@ before ever comparing against the engine (which keeps the same value at
 `usTax.feie.appliedUsd` instead) — `test_us.py` replicates that exact
 strip rather than treating the mismatch as a bug.
 
-## Phase 6 detail (filings/ + reports/, IN PROGRESS — 403 tests green cumulative)
+## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 
 **Scoping correction, found before any code was written**: the plan's guessed
 filenames (`documents-nodes.js`, `monitoring-nodes.js`) don't exist. The real
@@ -386,11 +386,56 @@ porting `filings/assets.py`'s farm income trace (which needed the combined
 depreciation plan); full suite green before and after, confirming no
 fixture-visible regression either way.
 
-**Not yet done this phase**: `reports/trace.py`'s `buildWithholdingSummaryResult`
-(report-batch4-nodes.js — deps-only, one `ctx.model` boundary read to fix at
-port time, not defer). `filings/monitoring.py` and `summaryResult`/
-`analyzeResult` are correctly deferred to Phase 7 (see above), not merely
-postponed.
+**`reports/trace.py`'s `buildWithholdingSummaryResult` — done, Phase 6 complete**
+(429 tests green cumulative, 26 new). Ports `report-batch4-nodes.js` in full:
+the India treaty-gap rows (s.207 dividend/royalty/FTS elections + NRO
+interest, gated `!isEntityTaxpayer` same as the engine), the aggregate
+TDS/TCS/property-TDS rows, the LRS-TCS/VDA-s.194S/lottery-s.194B estimate
+rows, and the US FDAP/FIRPTA/W-2-withholding rows. Two new self-contained
+leaves (`withholdingDetailIndiaRaw`/`withholdingDetailUsRaw`) plus one more
+real `agg10-nodes.js` closure (`vdaSaleConsiderationInrBoundary`, reading
+`capitalGainsComputation` directly) — confirmed via the same require-chain
+tracing as the two boundary fixes above that `agg10-nodes.js`'s version (not
+`report-batch4-nodes.js`'s own local `ctx.model` stub, dead in the live
+graph since `agg10-nodes.js` is required AFTER it and silently wins) is what
+actually reaches production.
+
+**Two more real, pre-existing "additive extension never landed" bugs found
+finishing this node** (both flagged as needed in `report-batch4-nodes.js`'s
+own file header, but the referenced extensions were never actually made to
+the Python port when Phase 3/5 shipped these files):
+- `crossborder/findings.py`'s `taxesPaidUsResult` only ever returned `total`
+  — missing the `withholding`/`priorYearTotalTaxUsd` fields the real
+  `findings-batch5-nodes.js` node carries (needed here for the W-2-aggregate
+  fallback row, which must use withholding alone, not the combined
+  withholding+estimated `total`). Fixed as a real `_taxes_paid_us_result()`
+  function, additive only (`total`'s value is unchanged) — confirmed via the
+  full suite before/after.
+- `us/findings.py`'s `nraFdapDetail` was missing `fdapTaxUsd`/`gapUsd`/
+  `claimedRatePctClamped`/`incomeType` — present in the real
+  `findings-batch4-nodes.js` node but silently dropped when first ported.
+  `crossborder/findings.py` carries its own independent, ALSO-incomplete
+  copy of this node (registered locally inside its own `build()`, not
+  shared with `us/findings.py`'s `NODES` dict) with just enough fields
+  (`gapUsd`) for its own narrow use in the `withholding_documentation_gap`
+  finding — left as-is, a known minor duplication, not a functional gap for
+  that finding's own purposes, out of scope to consolidate right now.
+
+`docs/BUSINESS_ENTITY_ARCHITECTURE.md`'s `usEntityKind` (needed for
+`buildWithholdingSummaryResult`'s NRA-routing recompute) was checked against
+the same "is this actually closable now" question the boundary-node bugs
+above raised — verdict: NO, leave it deferred. Unlike
+`indianBusinessesBoundary`/`usSecuritiesBoundary`, `usEntityKind` isn't a
+dead-source-file mistake — `us/ustax.py`'s own docstring already correctly
+scopes it as a Phase-7 `ustax_full.py` task, paired with `baseYearUs` (which
+genuinely can't close without `metaResult`). Carved out the same way
+`test_us.py`/`test_crossborder.py` already carve out every other
+`usEntityKind`-dependent path.
+
+Phase 6 is now fully done — every file the plan's package layout listed
+under `filings/`/`reports/` except `filings/monitoring.py` and
+`summaryResult`/`analyzeResult`, both correctly deferred to Phase 7 (see
+above), not merely postponed.
 
 ## Phase 5 detail (findings/ domain-split, 281 tests green cumulative)
 

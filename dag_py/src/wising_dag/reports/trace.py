@@ -21,7 +21,7 @@ verified in Phase 2, so there's no carve-out needed here.
 from __future__ import annotations
 
 from ..core.graph import NodeDef
-from ..core.util import format_inr, format_usd as usd
+from ..core.util import format_inr, format_usd as usd, num, safe
 from ..india.in1_v3 import bracket_breakdown
 
 
@@ -459,6 +459,257 @@ def _build_tax_computation_us_state_result(d, ctx):
     }
 
 
+# ---- buildWithholdingSummaryResult (report-batch4-nodes.js) ---------------
+LRS_PURPOSE_LABELS = {
+    "investment": "Investment (Equity/Property)", "education_own_funds": "Overseas Education (Own Funds)",
+    "education_loan": "Overseas Education (Loan-Funded)", "medical": "Medical Treatment Abroad",
+    "travel": "International Travel (Overseas Tour Package)", "gift_donation": "Gift or Donation to Non-Resident",
+}
+LRS_TCS_THRESHOLD_INR = 1000000
+
+
+def _compute_lrs_tcs(lrs_outbound):
+    total = num(safe(lrs_outbound, "total_lrs_remitted_this_fy_inr", 0))
+    purpose = safe(lrs_outbound, "lrs_purpose", None)
+    if not (total > 0) or not purpose:
+        return None
+    tcs_inr, rate_pct_label, note = 0.0, "NIL", None
+    if purpose == "travel":
+        tcs_inr = round(total * 0.02)
+        rate_pct_label = "2% flat"
+        note = "2% flat TCS on overseas tour packages from the first rupee"
+    elif total > LRS_TCS_THRESHOLD_INR:
+        excess = total - LRS_TCS_THRESHOLD_INR
+        if purpose in ("investment", "gift_donation"):
+            tcs_inr = round(excess * 0.20)
+            rate_pct_label = "20% on excess"
+            note = "20% TCS on general/investment LRS exceeding ₹10L"
+        elif purpose in ("education_own_funds", "medical"):
+            tcs_inr = round(excess * 0.02)
+            rate_pct_label = "2% on excess"
+            note = "2% TCS on self-funded education/medical exceeding ₹10L"
+        elif purpose == "education_loan":
+            tcs_inr = 0
+            rate_pct_label = "0%"
+            note = "NIL TCS on education remittance funded via loan"
+    else:
+        note = "Remittance is below the ₹10L base threshold"
+    return {
+        "totalRemittedInr": total, "purpose": purpose, "purposeLabel": LRS_PURPOSE_LABELS.get(purpose, purpose),
+        "tcsInr": tcs_inr, "ratePctLabel": rate_pct_label, "note": note,
+    }
+
+
+def _withholding_detail_india_raw(d, ctx):
+    india = ctx.get("india")
+    tc = safe(india, "tax_credits", {})
+    props = safe(india, "property.properties", []) or []
+    property_tds = [
+        {
+            "propertyType": p.get("property_type") or "Property", "saleDate": p.get("sale_date"),
+            "saleConsiderationInr": num(p.get("sale_consideration")), "tdsInr": num(p.get("buyer_tds_deducted_inr")),
+        }
+        for p in props if num(p.get("buyer_tds_deducted_inr")) > 0
+    ]
+    return {
+        "tdsAggregateInr": num(safe(tc, "tds_already_deducted_inr", 0)) + num(safe(tc, "tds_inr", 0)),
+        "tcsAggregateInr": num(safe(tc, "tcs_inr", 0)),
+        "lrsTcs": _compute_lrs_tcs(safe(india, "lrs_outbound", {})),
+        "propertyTds": property_tds,
+    }
+
+
+def _build_withholding_summary_result(d, ctx):
+    from ..core.fx_util import fx_rate
+
+    india_rows = []
+    india_total_gap_inr = 0.0
+
+    def push_s115a_rows(stream_key, label, citation, stream):
+        nonlocal india_total_gap_inr
+        if not stream:
+            return
+        for idx, e in enumerate(stream.get("elections") or []):
+            docs_ok = e["outcome"] != "denied_no_docs"
+            gap_inr = (e["appliedAmountInr"] * (e["domesticRate"] - e["electedRate"])) if (not docs_ok and e.get("electedRate") is not None and e["electedRate"] < e["domesticRate"]) else 0
+            india_total_gap_inr += gap_inr
+            india_rows.append({
+                "id": f"{stream_key}_election_{idx}", "jurisdiction": "IN", "category": "treaty_gap",
+                "label": label + (f" ({e['article']})" if e.get("article") else ""),
+                "grossInr": e["appliedAmountInr"], "domesticRatePct": e["domesticRate"] * 100,
+                "treatyRatePct": (e["electedRate"] * 100) if e.get("electedRate") is not None else None,
+                "docsOk": docs_ok, "rateAppliedPct": e["rateApplied"] * 100, "taxInr": e["taxInr"], "gapInr": gap_inr,
+                "note": None if docs_ok else "TRC/Form 41 missing — treaty rate denied, domestic rate applied instead",
+                "citation": citation,
+            })
+        if (stream.get("uncapturedInr") or 0) > 1:
+            india_rows.append({
+                "id": f"{stream_key}_unclaimed", "jurisdiction": "IN", "category": "treaty_gap",
+                "label": f"{label} — unclaimed (no treaty election on file)",
+                "grossInr": stream["uncapturedInr"], "domesticRatePct": stream["domesticRate"] * 100, "treatyRatePct": None,
+                "docsOk": None, "rateAppliedPct": stream["domesticRate"] * 100, "taxInr": stream["uncapturedTaxInr"], "gapInr": 0,
+                "note": "Not a documentation gap — no treaty rate was ever claimed for this slice, so there's nothing to deny",
+                "citation": citation,
+            })
+
+    # The s115a / NRO-interest treaty rows read individual-computation stream
+    # nodes that computeIndiaEntityTax omits entirely, so gate on
+    # !isEntityTaxpayer to match the engine — same TAX-7/TAX-8-era boundary
+    # as the s115a adapter gate and the feie finding.
+    if not d["isEntityTaxpayer"]:
+        push_s115a_rows("dividend", "Dividend", "s.207 / s.159", d["s115aDividend"])
+        push_s115a_rows("royalty", "Royalty", "s.207 / s.159", d["s115aRoyalty"])
+        push_s115a_rows("fts", "Fees for Technical Services", "s.207 / s.159", d["s115aFts"])
+
+        if d["nrInterest"]:
+            for idx, e in enumerate(d["nrInterest"].get("elections") or []):
+                docs_ok = e["outcome"] != "denied_no_docs"
+                counterfactual_treaty_tax_inr = (e["appliedAmountInr"] * e["electedRate"]) if e.get("electedRate") is not None else None
+                gap_inr = (e["marginalSlabTaxInr"] - counterfactual_treaty_tax_inr) if (not docs_ok and counterfactual_treaty_tax_inr is not None and counterfactual_treaty_tax_inr < e["marginalSlabTaxInr"]) else 0
+                india_total_gap_inr += gap_inr
+                actual_tax_inr = e["treatyTaxInr"] if (docs_ok and e.get("carvedOut")) else e["marginalSlabTaxInr"]
+                india_rows.append({
+                    "id": f"nrInterest_election_{idx}", "jurisdiction": "IN", "category": "treaty_gap",
+                    "label": "NRO Interest" + (f" ({e['article']})" if e.get("article") else ""),
+                    "grossInr": e["appliedAmountInr"], "domesticRatePct": None,
+                    "treatyRatePct": (e["electedRate"] * 100) if e.get("electedRate") is not None else None,
+                    "docsOk": docs_ok, "rateAppliedPct": (actual_tax_inr / e["appliedAmountInr"] * 100) if e["appliedAmountInr"] > 0 else None,
+                    "taxInr": actual_tax_inr, "gapInr": gap_inr,
+                    "note": None if docs_ok else "TRC/Form 41 missing — treaty carve-out denied, taxed at marginal slab rate instead",
+                    "citation": "Art 11(2)(b), s.159",
+                })
+
+    wd = {"india": d["withholdingDetailIndiaRaw"], "us": d["withholdingDetailUsRaw"]}
+
+    if (wd["india"]["tdsAggregateInr"] or 0) > 1:
+        india_rows.append({
+            "id": "tds_aggregate", "jurisdiction": "IN", "category": "general", "label": "TDS Already Deducted (Aggregate — Form 26AS)",
+            "grossInr": None, "domesticRatePct": None, "treatyRatePct": None, "docsOk": None, "rateAppliedPct": None,
+            "taxInr": wd["india"]["tdsAggregateInr"], "gapInr": 0,
+            "note": "Single aggregate figure — Layer 1 doesn't capture a per-source breakdown of income type or rate for this amount",
+            "citation": "s.199",
+        })
+    is_nr_seller_for_property_tds = d["isNRV3"]
+    for idx, p in enumerate(wd["india"]["propertyTds"] or []):
+        rate_applied_pct = (p["tdsInr"] / p["saleConsiderationInr"] * 100) if p["saleConsiderationInr"] > 0 else None
+        india_rows.append({
+            "id": f"property_tds_{idx}", "jurisdiction": "IN", "category": "general",
+            "label": f"Property Sale TDS — {p['propertyType']}" + (f" ({p['saleDate']})" if p.get("saleDate") else ""),
+            "grossInr": p["saleConsiderationInr"] or None, "domesticRatePct": None, "treatyRatePct": None, "docsOk": None,
+            "rateAppliedPct": rate_applied_pct, "taxInr": p["tdsInr"], "gapInr": 0,
+            "note": "Buyer-withheld on sale proceeds from an NR seller" if is_nr_seller_for_property_tds else "Buyer-withheld on sale proceeds from a resident seller",
+            "citation": "s.195" if is_nr_seller_for_property_tds else "s.194-IA",
+        })
+
+    if (wd["india"]["tcsAggregateInr"] or 0) > 1:
+        india_rows.append({
+            "id": "tcs_aggregate", "jurisdiction": "IN", "category": "general", "label": "TCS Already Collected (Aggregate — Form 26AS)",
+            "grossInr": None, "domesticRatePct": None, "treatyRatePct": None, "docsOk": None, "rateAppliedPct": None,
+            "taxInr": wd["india"]["tcsAggregateInr"], "gapInr": 0,
+            "note": "Tax Collected at Source on outbound payments (not income) — creditable against final tax liability the same as TDS",
+            "citation": "s.206C",
+        })
+
+    estimate_rows = {"india": [], "us": []}
+    if wd["india"]["lrsTcs"]:
+        lrs = wd["india"]["lrsTcs"]
+        estimate_rows["india"].append({
+            "id": "lrs_tcs_estimate", "jurisdiction": "IN", "category": "estimate",
+            "label": f"Expected TCS on LRS Remittance — {lrs['purposeLabel']}",
+            "grossInr": lrs["totalRemittedInr"], "domesticRatePct": None, "treatyRatePct": None, "docsOk": None,
+            "rateAppliedPct": None, "taxInr": lrs["tcsInr"], "gapInr": 0,
+            "note": lrs["note"] + " — cross-check against the TCS aggregate above, not a confirmed collection receipt (excluded from totals)",
+            "citation": "s.206C(1G)",
+        })
+    vda_sale_inr = d["vdaSaleConsiderationInrBoundary"] or 0
+    if vda_sale_inr > 10000:
+        estimate_rows["india"].append({
+            "id": "vda_194s_estimate", "jurisdiction": "IN", "category": "estimate",
+            "label": "Expected TDS on Crypto/VDA Transfers (s.194S)",
+            "grossInr": vda_sale_inr, "domesticRatePct": None, "treatyRatePct": None, "docsOk": None,
+            "rateAppliedPct": 1, "taxInr": round(vda_sale_inr * 0.01), "gapInr": 0,
+            "note": "1% of total transfer consideration (₹10,000 floor for most taxpayers, ₹50,000 for \"specified persons\" under s.44AB — not distinguishable from available data) — not confirmed as actually withheld, may already be inside the aggregate TDS credit above (excluded from totals)",
+            "citation": "s.194S",
+        })
+    winnings_inr = d["specialRate115bbInr"] or 0
+    if winnings_inr > 0:
+        estimate_rows["india"].append({
+            "id": "winnings_tds_estimate", "jurisdiction": "IN", "category": "estimate",
+            "label": "Expected TDS on Lottery/Gaming Winnings (s.194B/194BA)",
+            "grossInr": winnings_inr, "domesticRatePct": None, "treatyRatePct": None, "docsOk": None,
+            "rateAppliedPct": 30, "taxInr": round(winnings_inr * 0.30), "gapInr": 0,
+            "note": "30% flat, no basic exemption (s.194B lottery/betting has a ₹10,000 per-transaction floor; s.194BA online gaming has none — not distinguishable from this annual aggregate) — not confirmed as actually withheld, may already be inside the aggregate TDS credit above (excluded from totals)",
+            "citation": "s.194B / s.194BA",
+        })
+
+    pan_aadhaar_inoperative = d["panAadhaarLinkedRaw"] is False
+
+    us_rows = []
+    us_total_gap_usd = 0.0
+    # Recomputed from raw routing facts, not usTaxResult.isNra — this node
+    # also resolves in isolation (individual-only usTaxResult in this port),
+    # where reading usTaxResult.isNra would silently be wrong for a real NRA
+    # profile (same trap findings-batch4's nra_fdap_flat_rate documents).
+    is_nra = d["usEntityKind"] not in ("ccorp", "scorp", "partnership", "trust") and d["treatyFiles1040nrRaw"] and not d["s6013hElection"]
+    if is_nra and d["nraFdapDetail"]["fdapUsd"] > 0:
+        n = d["nraFdapDetail"]
+        gap_usd = n["gapUsd"]
+        us_total_gap_usd += gap_usd
+        us_rows.append({
+            "id": "fdap", "jurisdiction": "US", "category": "treaty_gap",
+            "label": "FDAP" + (f" ({n['incomeType']})" if n.get("incomeType") else "") + " — Schedule NEC",
+            "grossUsd": n["fdapUsd"], "domesticRatePct": 30, "treatyRatePct": n["claimedRatePctClamped"],
+            "docsOk": n["w8benOnFile"], "rateAppliedPct": n["fdapRate"] * 100, "taxUsd": n["fdapTaxUsd"], "gapUsd": gap_usd,
+            "note": None if n["w8benOnFile"] else "Form W-8BEN missing — treaty rate denied, 30% statutory default withheld instead",
+            "citation": "IRC §1441 / Treas. Reg. §1.1441-6",
+        })
+    firpta_usd = (d["nraRaw"].get("firptaWithholdingUsd") or 0) if d["nraRaw"].get("usRealPropertyDisposed") else 0
+    if firpta_usd > 1:
+        us_rows.append({
+            "id": "firpta", "jurisdiction": "US", "category": "treaty_gap", "label": "FIRPTA — US real property disposition",
+            "grossUsd": None, "domesticRatePct": 15, "treatyRatePct": None, "docsOk": None, "rateAppliedPct": None,
+            "taxUsd": firpta_usd, "gapUsd": 0,
+            "note": "Mandatory withholding on gross proceeds regardless of documentation — not treaty-rate-dependent",
+            "citation": "IRC §1445",
+        })
+
+    w2_employers = d["aggregateUsIncomeResult"].get("w2Employers") or []
+    if w2_employers:
+        for idx, w in enumerate(w2_employers):
+            if not (w.get("federalWithheldUsd", 0) > 1) and not (w.get("wagesUsd", 0) > 1):
+                continue
+            rate_applied_pct = (w["federalWithheldUsd"] / w["wagesUsd"] * 100) if w.get("wagesUsd", 0) > 0 else None
+            us_rows.append({
+                "id": f"w2_{idx}", "jurisdiction": "US", "category": "general",
+                "label": f"W-2 Withholding — {w.get('employerName') or 'Unnamed Employer'}",
+                "grossUsd": w.get("wagesUsd") or None, "domesticRatePct": None, "treatyRatePct": None, "docsOk": None,
+                "rateAppliedPct": rate_applied_pct, "taxUsd": w["federalWithheldUsd"], "gapUsd": 0,
+                "note": (f"+ {usd(w['stateWithheldUsd'])} state tax withheld") if w.get("stateWithheldUsd", 0) > 1 else None,
+                "citation": "IRC §3402 / Form W-2",
+            })
+    elif d["taxesPaidUsResult"]["withholding"]["usd"] > 1:
+        us_rows.append({
+            "id": "w2_aggregate", "jurisdiction": "US", "category": "general", "label": "Federal Withholding (Aggregate — Form W-2)",
+            "grossUsd": None, "domesticRatePct": None, "treatyRatePct": None, "docsOk": None, "rateAppliedPct": None,
+            "taxUsd": d["taxesPaidUsResult"]["withholding"]["usd"], "gapUsd": 0,
+            "note": "Single aggregate figure — no per-employer breakdown on file",
+            "citation": "IRC §3402 / Form W-2",
+        })
+    state_with_usd = d["withholdingDetailUsRaw"]["stateWithholdingUsd"] or 0
+    if state_with_usd > 1 and not w2_employers:
+        us_rows.append({
+            "id": "state_withholding_aggregate", "jurisdiction": "US", "category": "general", "label": "State Withholding (Aggregate — Form W-2 Box 17)",
+            "grossUsd": None, "domesticRatePct": None, "treatyRatePct": None, "docsOk": None, "rateAppliedPct": None,
+            "taxUsd": state_with_usd, "gapUsd": 0, "note": None, "citation": "Form W-2 Box 17",
+        })
+
+    return {
+        "india": {"rows": india_rows, "estimateRows": estimate_rows["india"], "totalGapInr": india_total_gap_inr, "totalGapUsd": india_total_gap_inr / fx_rate(ctx), "panAadhaarInoperative": pan_aadhaar_inoperative},
+        "us": {"rows": us_rows, "estimateRows": estimate_rows["us"], "totalGapUsd": us_total_gap_usd},
+        "totalGapUsd": (india_total_gap_inr / fx_rate(ctx)) + us_total_gap_usd,
+    }
+
+
 NODES = {
     "slabBreakdownV3": NodeDef(deps=("totalNormalInr", "slabs"), compute=lambda d, ctx: bracket_breakdown(d["totalNormalInr"], d["slabs"])),
     "buildTaxComputationIndiaResult": NodeDef(
@@ -480,6 +731,35 @@ NODES = {
     "buildTaxComputationUsStateResult": NodeDef(
         deps=("usStateTaxResult",),
         compute=_build_tax_computation_us_state_result,
+    ),
+    "withholdingDetailIndiaRaw": NodeDef(
+        deps=(), compute=_withholding_detail_india_raw,
+        layer1_fields=(
+            "india.tax_credits.tds_already_deducted_inr", "india.tax_credits.tds_inr", "india.tax_credits.tcs_inr",
+            "india.lrs_outbound.total_lrs_remitted_this_fy_inr", "india.lrs_outbound.lrs_purpose",
+            "india.property.properties[].property_type", "india.property.properties[].sale_date",
+            "india.property.properties[].sale_consideration", "india.property.properties[].buyer_tds_deducted_inr",
+        ),
+    ),
+    "withholdingDetailUsRaw": NodeDef(
+        deps=(), compute=lambda d, ctx: {"stateWithholdingUsd": num(safe(ctx.get("us"), "withholding_and_estimated.state_withholding_total_usd", 0))},
+        layer1_fields=("us.withholding_and_estimated.state_withholding_total_usd",),
+    ),
+    # normalize.js/agg10-nodes.js's real closure — reads capitalGainsComputation
+    # directly, already available within the india domain chain (NOT
+    # report-batch4-nodes.js's own local v1-era `ctx.model...` stub, which is
+    # always overridden by this same-id agg10-nodes.js closure later in the
+    # live require chain — see docs/PYTHON_DAG_MIGRATION_TRACKER.md).
+    "vdaSaleConsiderationInrBoundary": NodeDef(deps=("capitalGainsComputation",), compute=lambda d, ctx: d["capitalGainsComputation"]["vdaSaleConsiderationInr"]),
+    "buildWithholdingSummaryResult": NodeDef(
+        deps=(
+            "s115aDividend", "s115aRoyalty", "s115aFts", "nrInterest", "isNRV3", "isEntityTaxpayer",
+            "withholdingDetailIndiaRaw", "withholdingDetailUsRaw", "vdaSaleConsiderationInrBoundary", "specialRate115bbInr",
+            "panAadhaarLinkedRaw",
+            "treatyFiles1040nrRaw", "s6013hElection", "nraRaw", "nraFdapDetail",
+            "aggregateUsIncomeResult", "taxesPaidUsResult", "usEntityKind",
+        ),
+        compute=_build_withholding_summary_result,
     ),
 }
 

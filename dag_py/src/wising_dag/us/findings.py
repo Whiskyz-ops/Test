@@ -138,6 +138,33 @@ def _gauge(value_usd: float, limit_usd: float) -> dict:
     return {"value": value_usd, "limit": limit_usd, "pct": pct, "status": status}
 
 
+def _nra_fdap_detail(d, ctx):
+    claim = (d["nraRaw"]["treatyRateClaims"] or [None])[0] if d["nraRaw"]["treatyRateClaims"] else None
+    # Two distinct "claimed rate" readings, matching the engine's own two
+    # separate variables of the same name in different scopes: the RAW
+    # Layer 1 value (e.g. 15, for display) vs. the NORMALIZED 0-1 fraction
+    # computeNraTax actually computes with (claim.rate / 100).
+    raw_claimed_rate_pct = claim["rate"] if (claim and claim.get("rate") is not None) else None
+    claimed_rate_fraction = max(0.0, min(1.0, num(claim["rate"]) / 100)) if (claim and claim.get("rate") is not None) else None
+    w8ben_on_file = d["nraRaw"]["submittedW8ben"] is True
+    fdap_rate = claimed_rate_fraction if (w8ben_on_file and claimed_rate_fraction is not None) else 0.30
+    fdap_usd = d["nraFdapIncomeUsdRaw"]
+    gap_usd = fdap_usd * (0.30 - claimed_rate_fraction) if (not w8ben_on_file and claimed_rate_fraction is not None and claimed_rate_fraction < 0.30) else 0
+    return {
+        "fdapUsd": fdap_usd, "fdapRate": fdap_rate, "claimedRate": raw_claimed_rate_pct, "w8benOnFile": w8ben_on_file,
+        "fdapTaxUsd": fdap_usd * fdap_rate, "gapUsd": gap_usd,
+        # Clamped percentage — the ROUTED value buildWithholdingSummary's
+        # treatyRatePct actually reads, DIFFERENT from claimedRate above
+        # (the raw unclamped Layer 1 value the nra_fdap_flat_rate finding's
+        # own detail text reads instead) — both faithful ports of two
+        # genuinely different engine variables with the same name in
+        # different scopes, not a duplicate. An out-of-range claim.rate
+        # (e.g. 395) previously passed through unclamped into treatyRatePct.
+        "claimedRatePctClamped": (claimed_rate_fraction * 100) if claimed_rate_fraction is not None else None,
+        "incomeType": (claim.get("income_type") if claim else None) or None,
+    }
+
+
 def _fmt(n: float) -> str:
     return f"${round(n):,}"
 
@@ -172,15 +199,7 @@ NODES = {
     # ---- 4h. nra_fdap_flat_rate detail (findings-batch4-nodes.js) -----------
     "nraFdapIncomeUsdRaw": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "nra_specific.us_fdap_income_usd", 0)), layer1_fields=("us.nra_specific.us_fdap_income_usd",)),
     "nraEciIncomeUsdRaw": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "nra_specific.us_eci_income_usd", 0)), layer1_fields=("us.nra_specific.us_eci_income_usd",)),
-    "nraFdapDetail": NodeDef(
-        deps=("nraRaw", "nraFdapIncomeUsdRaw"),
-        compute=lambda d, ctx: (lambda claim: {
-            "fdapUsd": d["nraFdapIncomeUsdRaw"],
-            "fdapRate": (0.30 if not (d["nraRaw"]["submittedW8ben"] and claim and claim.get("rate") is not None) else max(0.0, min(1.0, num(claim["rate"]) / 100))),
-            "claimedRate": (claim["rate"] if claim and claim.get("rate") is not None else None),
-            "w8benOnFile": d["nraRaw"]["submittedW8ben"],
-        })((d["nraRaw"]["treatyRateClaims"] or [None])[0] if d["nraRaw"]["treatyRateClaims"] else None),
-    ),
+    "nraFdapDetail": NodeDef(deps=("nraRaw", "nraFdapIncomeUsdRaw"), compute=_nra_fdap_detail),
 
     # ---- AGG-9 / TAX-9 (findings-batch5-nodes.js) -----------------------------
     "equityCompRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "equity_compensation", {}) or {}, layer1_fields=("us.equity_compensation",)),
