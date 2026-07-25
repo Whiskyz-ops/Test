@@ -17,6 +17,16 @@
  * assembles (income/entity/meta/treaty) — the engine's model carries many
  * more internal fields no Monitor component reads, and the adapter never
  * claimed to mirror them (see lib/dag-adapter.js).
+ *
+ * THREE-WAY (docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 8, plan §7):
+ * compareSurface()/diff() themselves needed no change to serve a second
+ * pair — they already take any two analyze()-shaped results, agnostic to
+ * which implementation produced them. Only `signature()` gained an explicit
+ * `sourcePair` parameter (see SOURCE_PAIRS below), so an engine-vs-JS-DAG
+ * divergence and an engine-vs-Python-DAG one never collapse into the same
+ * deduped log entry even if they happen to look identical. lib/shadow.js is
+ * where the two runners (`runShadow`/`runShadowPy`) and the persisted log
+ * actually live.
  * ==========================================================================*/
 
 // The surface shadow mode compares — every path the DAG-backed adapter
@@ -286,10 +296,27 @@ export function compareSurface(engineResult, dagResult) {
   return raw.filter((d) => !pathMatchesKnown(d.path, allowedPaths));
 }
 
+// Distinguishes which two implementations a comparison ran between — plan
+// §7's own "tagged source_pair: engine_vs_py_dag" language. compareSurface()
+// itself needs no change to serve a second pair: it already takes any two
+// analyze()-shaped results, whichever produced them (the JS DAG and the
+// Python DAG are independent ports of the exact same source and share the
+// exact same catalogued divergences from the engine — confirmed directly,
+// prototypes/graph-pilot/run-js-dag-vs-py-dag.js — so every allowlist above
+// applies unchanged to either pair).
+export const SOURCE_PAIRS = {
+  ENGINE_VS_JS_DAG: "engine_vs_js_dag",
+  ENGINE_VS_PY_DAG: "engine_vs_py_dag"
+};
+
 // A stable signature for a set of divergences, so repeated loads of the same
 // profile collapse to one logged event instead of growing the log unbounded.
-export function signature(source, divergences) {
-  return source + "|" + divergences
+// sourcePair is part of the key: an engine-vs-JS-DAG divergence and an
+// otherwise-identical-looking engine-vs-Python-DAG one on the same profile
+// are two distinct findings (different implementations), never collapsed
+// into a single logged entry.
+export function signature(sourcePair, source, divergences) {
+  return sourcePair + "|" + source + "|" + divergences
     .map((d) => d.path + "=" + JSON.stringify(d.engine) + "/" + JSON.stringify(d.dag))
     .sort()
     .join(";");

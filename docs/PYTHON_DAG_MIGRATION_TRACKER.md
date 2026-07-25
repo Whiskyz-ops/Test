@@ -721,9 +721,73 @@ live Pyodide boot actually succeeds, how long it takes, and whether
 constructed here are all genuinely open questions this pass could not
 close.
 
-**Still NOT done**: the 3-way `shadow-core.js` extension (engine vs
-py-dag, tagged `source_pair`), any real promotion-gate data, and the
-actual cutover (flipping the default source). All remain future work.
+**Still NOT done as of that pass**: the 3-way `shadow-core.js` extension
+(engine vs py-dag, tagged `source_pair`), any real promotion-gate data, and
+the actual cutover (flipping the default source).
+
+### Three-way shadow mode (third Phase 8 pass)
+
+Closes the `shadow-core.js` extension deferred above.
+
+**`compareSurface()`/`diff()` needed no change at all** — both already
+take any two `analyze()`-shaped results, agnostic to which implementation
+produced them; the JS DAG and the Python DAG are independent ports of the
+exact same source and share the exact same catalogued divergences from
+the engine (confirmed directly by `run-js-dag-vs-py-dag.js`'s own
+cross-check), so every existing allowlist (`KNOWN_US_ENTITY_PATHS` etc.)
+already applies unchanged to an engine-vs-Python-DAG comparison. The one
+real change: `signature(source, divergences)` became
+`signature(sourcePair, source, divergences)` — a new
+`SOURCE_PAIRS.{ENGINE_VS_JS_DAG,ENGINE_VS_PY_DAG}` constant makes the
+dedup key explicit, so an engine-vs-JS-DAG divergence and an
+otherwise-identical-looking engine-vs-Python-DAG one on the same profile
+are two distinct logged entries, never silently collapsed into one.
+
+**`lib/shadow.js`** gained a second, independent runner: `runShadowPy(source)`
+— async counterpart to the existing `runShadow(source)`, calling
+`analyzePyDagSource()` (Pyodide) instead of `analyzeDag()` (plain JS), same
+error-as-divergence discipline (a thrown side is itself recorded, never
+propagated to crash the primary UI). Both legs write into the SAME
+persisted log (`localStorage`, `wising_shadow_log`) and share one `events`
+array (each entry tagged with its own `sourcePair`), but keep SEPARATE
+`lastRun`/`lastRunPy` slots and separate session run/clean counters —
+the two legs fire at very different cadences (every recompute vs
+opt-in-only), so folding them into one "last run" slot would make the
+primary shadow status flicker between two different meanings depending on
+whichever fired most recently.
+
+**Deliberately NOT wired to fire automatically just because shadow mode is
+on**: unlike the JS-DAG leg (a cheap, synchronous `graph.resolve()` call,
+safe on every recompute), the Python-DAG leg boots Pyodide on a cold first
+call — real wall-clock time, same cost `py-dag-loader.js`'s own header
+already documents. `app/page.jsx` gates it behind a SEPARATE opt-in flag,
+`shadowPyOn` (`?shadowPy=1`, independent of the always-on `shadowOn`),
+deferred off the render path exactly like the JS-DAG leg already is.
+
+**`components/ShadowBadge.jsx`**: the main pill's color/label still drives
+off the JS-DAG leg only (the always-on baseline); a new section in the
+expanded panel shows the Python-DAG leg's own last-run status and
+divergences whenever it's been enabled and has run at least once, and the
+"Logged this session" event list now tags each entry with which pair it
+came from. One real pre-existing bug fixed in passing (found while editing
+this exact render path for the above): the "last: …" line referenced an
+undefined `count` variable — a `ReferenceError` waiting to fire the first
+time a real JS-DAG divergence was ever logged and the panel opened. Fixed
+to read `run.divergenceCount`, the value that was always intended.
+
+**Verification**: `cd monitor-next && npx next build` compiles clean;
+`node test-adapter.mjs`/`node test-shadow.mjs`/`npx vitest run` all show
+the identical pre-existing 42/3 failures already present before this
+change (re-confirmed the same way as the toggle/loader pass — nothing
+newly broken by the `signature()` signature change or the new files).
+`test-shadow.mjs` doesn't call `signature()` directly, so that change was
+safe to make without touching the test file itself.
+
+**Still NOT done**: any real promotion-gate data (requires actual
+production shadow-mode running, which requires the still-unverified live
+Pyodide wiring itself to work first) and the actual cutover (flipping the
+default source). Both remain future work, and neither can be closed by
+anything built in a single sitting.
 
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 

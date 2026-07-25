@@ -14,7 +14,7 @@ import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfil
 import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
 import { monitorSnapshotPyDag, allClientSummariesPyDag } from "@/lib/py-dag-adapter";
 import { entityLinksFor, ownedEntityIds, flattenOwnershipTree } from "@/lib/entity-graph";
-import { runShadow, getShadowLog, clearShadowLog } from "@/lib/shadow";
+import { runShadow, runShadowPy, getShadowLog, clearShadowLog } from "@/lib/shadow";
 import ShadowBadge from "@/components/ShadowBadge";
 import WhatIfBar from "@/components/WhatIfBar";
 
@@ -102,6 +102,18 @@ export default function MonitorPage() {
     typeof window === "undefined" || new URLSearchParams(window.location.search).get("shadow") !== "0");
   const [shadowRun, setShadowRun] = useState(null);
   const [shadowLog, setShadowLog] = useState(null);
+  // Engine-vs-Python-DAG shadow leg (lib/shadow.js's runShadowPy) — OFF by
+  // default, unlike the JS-DAG leg above: booting Pyodide on a cold first
+  // call is not cheap (lib/py-dag-loader.js's own header), so this must
+  // never fire just because shadow mode in general is on. Opt in with
+  // ?shadowPy=1. Same hydration-safe "read the query param in an effect,
+  // not the lazy initializer" pattern as engineSource/presentationMode
+  // above would apply here too, but shadowPyOn is read-only after mount (no
+  // in-app control flips it), so the plain lazy-useState form is fine —
+  // there's no post-mount state divergence to cause a hydration mismatch.
+  const [shadowPyOn] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("shadowPy") === "1");
+  const [shadowRunPy, setShadowRunPy] = useState(null);
 
   // Presentation mode: hides engineering-only chrome (compute-source pill,
   // shadow-diff badge, raw Layer-1 form links) for a client-facing or
@@ -209,13 +221,12 @@ export default function MonitorPage() {
       applySnap(engineSource === "dag" ? monitorSnapshotDag(source, overrides) : monitorSnapshot(source));
     }
 
-    // Kick the shadow comparison off the render path: the primary result is
-    // already committed above, so this deferred tick never delays what the user
-    // sees. runShadow runs BOTH engine and DAG (pinned to one "now") and records
-    // any divergence — see lib/shadow.js. Scoped to engine-vs-JS-DAG only for
-    // now, regardless of engineSource — a py-dag leg is a separate, not-yet-
-    // built extension (docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 8 section),
-    // not silently folded in here.
+    // Kick the shadow comparison(s) off the render path: the primary result
+    // is already committed above, so this deferred tick never delays what
+    // the user sees. runShadow runs engine vs the JS DAG (pinned to one
+    // "now") and records any divergence — see lib/shadow.js. Independent of
+    // engineSource: it always compares the real engine against the JS DAG,
+    // regardless of which one is currently primary.
     if (shadowOn) {
       const defer = typeof window !== "undefined" && window.requestIdleCallback
         ? window.requestIdleCallback : (fn) => setTimeout(fn, 0);
@@ -224,7 +235,22 @@ export default function MonitorPage() {
         if (rec) { setShadowRun(rec); setShadowLog(getShadowLog()); }
       });
     }
-  }, [engineSource, shadowOn, regimeOverride, fxRateOverride, feieOverride]);
+    // Second, independent leg: engine vs the Python DAG (via Pyodide) —
+    // opt-in only (shadowPyOn, ?shadowPy=1), never fired just because
+    // shadowOn is true, since a cold Pyodide boot is not cheap (this
+    // triggers initPyDag() the same as selecting "Python DAG" as the
+    // primary source would). Deferred the same way, on its own tick — it
+    // must never block or race the JS-DAG leg above.
+    if (shadowPyOn) {
+      const defer = typeof window !== "undefined" && window.requestIdleCallback
+        ? window.requestIdleCallback : (fn) => setTimeout(fn, 0);
+      defer(() => {
+        runShadowPy(source).then((rec) => {
+          if (rec) { setShadowRunPy(rec); setShadowLog(getShadowLog()); }
+        });
+      });
+    }
+  }, [engineSource, shadowOn, shadowPyOn, regimeOverride, fxRateOverride, feieOverride]);
 
   // Clients tab routes through the same engineSource as everything else —
   // previously allClientSummaries() (engine-only) ran unconditionally here,
@@ -381,8 +407,9 @@ export default function MonitorPage() {
           {shadowOn && !presentationMode && (
             <ShadowBadge
               run={shadowRun}
+              runPy={shadowPyOn ? shadowRunPy : null}
               log={shadowLog}
-              onClear={() => { const cleared = clearShadowLog(); setShadowLog(cleared); setShadowRun(null); }}
+              onClear={() => { const cleared = clearShadowLog(); setShadowLog(cleared); setShadowRun(null); setShadowRunPy(null); }}
             />
           )}
           <div className="relative">
