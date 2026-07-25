@@ -231,10 +231,11 @@ Edge {
 
 ## 7. Frontend — per-entity views, not just the flat list
 
-Once §6's graph exists:
-- Entity switcher (Consolidated ▾ / each entity by name) scoping every view, not just `BusinessView`.
-- Per-entity Filings/Documents (ITR-5 for the firm, ITR-6 for the company, 5471 for the CFC owner, 1120-S+K-1 for the S-corp) — the real, per-entity version of §5.3.
-- `BusinessView` gains a real drill-down: click an entity row → see its own income/deduction/tax breakdown, not just the summary line it has today.
+**Phase 8, partial (25 Jul 2026)** — one of the three items below shipped, verified live in a real browser (`chromium-cli`-equivalent Playwright driver against `monitor-next`'s dev server, not just a node script); the other two remain genuinely open, not attempted:
+
+- ✅ **`BusinessView` drill-down, shipped**: click "Entity graph detail" on any business/K-1/C-corp row → see that entity's own `id`/`kind`/`jurisdiction`/Layer 1 source path, plus every edge connected to it (Phase 6's traced edges), each independently expandable to its own `calc`/`source` breakdown. Building this surfaced a real, pre-existing gap, fixed in the same pass: India `partner_firms[]` never had its own row in `businessEntities()` at all (only folded into the taxpayer's total business income) — a real, taxable flow (partner remuneration/interest, and the exempt profit share shown for reconciliation) was invisible in this tab entirely, not just untraceable. A new "Other entities on the return" card now shows any `entityGraph` entity that has no matching `businessEntities` row, using the same drill-down UI. Verified live on 3 real profiles: `us_resident_indian_income` (K-1 ordinary + passive-income edges, and the newly-visible partner-firm card), `us_ccorp_indian_sub` (the two-root GILTI case — confirmed the entity shows up exactly once on each side, with one real edge between them, not the duplicate-with-self-loop bug Phase 5 found and fixed).
+- ❌ **Entity switcher scoping every view, NOT built**. This is the largest, least-scoped item in this whole spec — "every view" spans Residency/Reconciliation/Withholding/Holdings/Accounts/Filings/Integrations, most of which mix entity-specific and taxpayer-level facts in ways that don't cleanly reduce to "just entity X's slice" (e.g. residency status is a taxpayer-level concept, not per-entity). Building a real version needs its own design pass, not a guess bolted onto Phase 8's drill-down work — left explicitly open rather than shipping a superficial BusinessView-only filter and calling it "the switcher."
+- ❌ **Per-entity Filings/Documents, NOT built**. `entityGraph`'s own entities mostly carry `returnForm: null` for the ones that would need this most (roots) — the real per-entity return-form data exists elsewhere (`computeIndiaItrForm`, `entityFormsResult`) but isn't yet threaded into `entityGraph` itself, and the Documents/Filings tab's own per-entity breakdown (ITR-5 for a firm, 5471 for a CFC owner, etc.) is a separate UI surface not touched here.
 
 ---
 
@@ -254,7 +255,7 @@ Tracked by **Track** (India / US / Both) rather than by letter-suffixing one cou
 | **5** | Both | Entity graph model + extractor (§6) | ✅ Shipped — DAG-only, `assets-nodes.js`'s `buildEntityGraph`, not `normalize()` (the classic engine is permanently frozen, `docs/DAG_MIGRATION_TRACKER.md` §J; the "extractor in `normalize()`" phrasing here predates that freeze) | No |
 | **6** | Both | Inter-entity flow edges (K-1, dividends, partner remuneration) wired as traceable edges, not silent sums (§6) | ✅ Shipped — DAG-only, see `docs/DAG_MIGRATION_TRACKER.md` §O | No |
 | **7** | US | GILTI/Subpart-F NCTI quantification (gap tracker XB-14) | Not started | **Yes** — CFC financials (E&P, QBAI, tested income) |
-| **8** | Both | Frontend entity switcher + per-entity Filings/Documents/drill-down (§7) | Not started | Phase 5-6 |
+| **8** | Both | Frontend entity switcher + per-entity Filings/Documents/drill-down (§7) | 🟡 Partial (25 Jul 2026) — the drill-down shipped; the switcher and per-entity Filings/Documents did not, see §7 | No |
 
 Phases 0-4 need zero Layer 1 changes — same "buildable now" pattern as the rest of the gap tracker. The one exception, found rather than assumed: Phase 4b (non-corporate AMT) genuinely is blocked on new fields, despite the original table saying otherwise — split out once that was confirmed (25 Jul 2026) rather than left misclassified. Otherwise only Phase 7 is genuinely blocked on new fields. §3.6's exclusions (transfer pricing, US S-corp reasonable-comp/BIG/E&P) are deliberately not in this table — TP is a recorded, disclosure-only decision (§4.3), and the S-corp items need new fields before they're even candidates.
 
