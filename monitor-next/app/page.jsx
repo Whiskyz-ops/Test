@@ -7,7 +7,7 @@ import Header from "@/components/Header";
 import StatMeter from "@/components/StatMeter";
 import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
-import { ConflictsPanel, ChecksRegistryPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard, EntityStructureView, OwnedEntitiesBanner } from "@/components/Views";
+import { ConflictsPanel, ChecksRegistryPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard, EntityStructureView, OwnedEntitiesBanner, EntitySwitcher } from "@/components/Views";
 import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState } from "@/lib/wising";
@@ -41,6 +41,12 @@ export default function MonitorPage() {
   const [activeProfile, setActiveProfile] = useState(null);
   const [clientSummaries, setClientSummaries] = useState([]);
   const [reconHighlight, setReconHighlight] = useState(null);
+  // Phase 8 (§7, entity switcher) — only meaningful within one loaded
+  // client's own entityGraph, so it resets whenever the active profile
+  // changes (below) rather than carrying a stale id from a different
+  // client into the newly-picked one's Business/Filings tabs.
+  const [selectedEntityId, setSelectedEntityId] = useState(null);
+  useEffect(() => { setSelectedEntityId(null); }, [activeProfile]);
   // Clients-tab search — filters the portfolio table by name/story without
   // touching the KPI tiles above it (those stay whole-book totals; see
   // ClientsView's own filtering, which only narrows the rendered rows).
@@ -288,6 +294,9 @@ export default function MonitorPage() {
             {engineReady ? (mode === "live" ? "Live" : "Demo") : "Loading…"}
           </span>
           <button onClick={() => recompute("live")} className="font-semibold text-body hover:text-head transition-colors">↻ Refresh</button>
+          {(view === "business" || view === "filings") && result && result.model && result.model.assets && result.model.assets.entityGraph && (
+            <EntitySwitcher entityGraph={result.model.assets.entityGraph} selectedEntityId={selectedEntityId} onChange={setSelectedEntityId} />
+          )}
           {/* Engineering-only chrome — compute-source pill, shadow-diff badge,
               raw Layer-1 form links — hidden in presentation mode (the header's
               gear button, or ?present=1) for a client-facing or recorded view.
@@ -395,9 +404,9 @@ export default function MonitorPage() {
         {view === "clients" && <ClientsView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} onAddClient={onAddClient} search={clientSearch} />}
         {view === "structure" && <EntityStructureView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
         {view === "holdings" && <HoldingsView result={result} links={activeLinks} onPick={pickFromClients} />}
-        {view === "business" && <BusinessView result={result} links={activeLinks} onPick={pickFromClients} />}
+        {view === "business" && <BusinessView result={result} links={activeLinks} onPick={pickFromClients} selectedEntityId={selectedEntityId} />}
         {view === "residency" && <ResidencyView result={result} />}
-        {view === "filings" && <FilingsView result={result} linkedEntities={linkedFilings} />}
+        {view === "filings" && <FilingsView result={result} linkedEntities={linkedFilings} selectedEntityId={selectedEntityId} />}
         {view === "reconciliation" && (
           <>
             <WhatIfBar

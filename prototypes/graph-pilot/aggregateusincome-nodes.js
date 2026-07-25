@@ -57,6 +57,34 @@ function selfEmploymentNetProfitUsd(s, depreciationUsd) {
   if (explicit !== undefined && explicit !== null) return num(explicit);
   return computeSelfEmploymentNetProfitUsd(s) - num(depreciationUsd || 0);
 }
+/* farming_schedule_f mirrors self-employment's own phantom-field bug:
+ * gross_income_usd/net_profit_usd are never actually written by the live
+ * form (syncFarmState only ever persists the itemized_income{} line-item
+ * breakdown plus expenses_usd — verified by direct grep, zero hits for
+ * `net_profit_usd` anywhere in layer1_us.html), so a real farmer's Schedule
+ * F profit previously computed to $0 for both regular tax (it never even
+ * reached businessUs below) AND Schedule SE. Real gross income is the sum
+ * of itemized_income{}'s line items; accrual-method filers additionally net
+ * the cost-of-purchases/inventory swing the same way self-employment's own
+ * COGS fields do (cash-method, the Layer 1 default, doesn't track this
+ * inventory block at all — hidden unless accounting_method is 'accrual'). */
+function computeFarmGrossIncomeUsd(f) {
+  var inc = safe(f, "itemized_income", {}) || {};
+  var gross = num(inc.sales_livestock_produce_raised) + num(inc.sales_livestock_produce_purchased) +
+    num(inc.cooperative_distributions) + num(inc.agricultural_program_payments) + num(inc.ccc_loans) +
+    num(inc.crop_insurance_proceeds) + num(inc.custom_hire_income) + num(inc.other_income);
+  if (f.accounting_method === "accrual") {
+    var inv = safe(f, "inventory", {}) || {};
+    gross -= (num(inv.beginning_inventory) + num(inv.cost_of_purchases) - num(inv.ending_inventory));
+  }
+  return gross;
+}
+function computeFarmNetProfitUsd(f) { return computeFarmGrossIncomeUsd(f) - num(f.expenses_usd); }
+function farmNetProfitUsd(f, depreciationUsd) {
+  if (f.net_profit_usd !== undefined && f.net_profit_usd !== null) return num(f.net_profit_usd);
+  if (f.gross_income_usd !== undefined && f.gross_income_usd !== null) return num(f.gross_income_usd) - num(f.expenses_usd) - num(depreciationUsd || 0);
+  return computeFarmNetProfitUsd(f) - num(depreciationUsd || 0);
+}
 function assetRecoveryYearN(asset, baseYear) {
   if (!asset || !asset.placed_in_service_date) return null;
   var d = new Date(asset.placed_in_service_date);
@@ -175,14 +203,34 @@ var NODES = {
     compute: function (d) { return (safe(d.fiAgg, "foreign_wages", []) || []).reduce(function (s, w) { return s + num(w.wages_usd || w.amount_usd || w.wages_box1_usd || w.wages_tips_compensation_usd || 0); }, 0); }
   },
 
-  selfEmploymentDepreciationPlan: {
+  // Combines self-employment AND farming_schedule_f assets into ONE
+  // taxpayer-wide §179 aggregation pool (real law caps/phases out §179
+  // across ALL of a taxpayer's directly-owned active trades/businesses
+  // together, not per-array) — keyed "se"+idx / "farm"+idx so callers can
+  // look up either. K-1/1120 asset rows are deliberately NOT folded in:
+  // those entities' reported income already reflects the ENTITY's own
+  // depreciation before flow-through (Box 1 is already net of regular/bonus
+  // depreciation; only §179 is separately stated, as sec179_deduction_usd),
+  // so a second per-asset computation against a K-1 recipient's own copy of
+  // the entity's asset list would double-count. Farm has no such risk — a
+  // directly-owned trade/business with its own real gross-receipts/expenses
+  // derivation (computeFarmNetProfitUsd), not a pass-through entity's
+  // already-net distributive share, so it's treated exactly like self-
+  // employment. Named usBusinessDepreciationPlan (was
+  // selfEmploymentDepreciationPlan before farm was folded in).
+  usBusinessDepreciationPlan: {
     deps: ["uiAgg", "baseYearUsAgg"],
     compute: function (d) {
-      var list = safe(d.uiAgg, "self_employment", []) || [];
-      var businesses = list.map(function (s, idx) {
+      var businesses = [];
+      (safe(d.uiAgg, "self_employment", []) || []).forEach(function (s, idx) {
         var assets = (s.assets || []).slice();
         (s.branches || []).forEach(function (br) { assets = assets.concat(br.assets || []); });
-        return { key: idx, grossReceiptsMinusExpensesUsd: computeSelfEmploymentNetProfitUsd(s), assets: assets };
+        businesses.push({ key: "se" + idx, grossReceiptsMinusExpensesUsd: computeSelfEmploymentNetProfitUsd(s), assets: assets });
+      });
+      (safe(d.uiAgg, "farming_schedule_f", []) || []).forEach(function (f, idx) {
+        var assets = (f.assets || []).slice();
+        (f.branches || []).forEach(function (br) { assets = assets.concat(br.assets || []); });
+        businesses.push({ key: "farm" + idx, grossReceiptsMinusExpensesUsd: computeFarmNetProfitUsd(f), assets: assets });
       });
       return aggregateAssetDepreciationUsd(businesses, d.baseYearUsAgg);
     }
@@ -201,9 +249,9 @@ var NODES = {
   },
 
   businessAndSeComputation: {
-    deps: ["uiAgg", "selfEmploymentDepreciationPlan", "baseYearUsAgg"],
+    deps: ["uiAgg", "usBusinessDepreciationPlan", "baseYearUsAgg"],
     compute: function (d) {
-      var ui = d.uiAgg, seDeprPlan = d.selfEmploymentDepreciationPlan;
+      var ui = d.uiAgg, seDeprPlan = d.usBusinessDepreciationPlan;
       var businessUs = num(safe(ui, "business_income_usd", 0));
       (safe(ui, "c_corporations_1120", []) || []).forEach(function (c) { businessUs += num(c.taxable_income_usd || c.net_income_usd || 0); });
       (safe(ui, "partnerships_k1", []) || []).forEach(function (k) {
@@ -211,25 +259,37 @@ var NODES = {
       });
       var foreignSelfEmployment = 0;
       (safe(ui, "self_employment", []) || []).forEach(function (s, idx) {
-        var deprUsd = seDeprPlan.byBusiness[idx] ? seDeprPlan.byBusiness[idx].totalUsd : 0;
+        var deprUsd = seDeprPlan.byBusiness["se" + idx] ? seDeprPlan.byBusiness["se" + idx].totalUsd : 0;
         var netUsd = selfEmploymentNetProfitUsd(s, deprUsd);
         if (s.llc_type === "foreign_disregarded") foreignSelfEmployment += netUsd; else businessUs += netUsd;
       });
       (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { businessUs += num(s.ordinary_income_usd || s.scorp_income_usd || s.ordinary_business_income_usd || 0) - num(s.sec179_deduction_usd || 0); });
       (safe(ui, "trusts_estates_k1", []) || []).forEach(function (t) { businessUs += num(t.ordinary_income_usd || 0) + num(t.ordinary_gain_usd || 0); });
+      // farming_schedule_f previously never reached businessUs (actual
+      // taxable income) at all — only seEarnings (Schedule SE base) even
+      // attempted to read it, and only via the phantom net_profit_usd
+      // field. A real farmer's Schedule F profit silently contributed $0 to
+      // both regular tax AND self-employment tax.
+      (safe(ui, "farming_schedule_f", []) || []).forEach(function (f, idx) {
+        var deprUsd = seDeprPlan.byBusiness["farm" + idx] ? seDeprPlan.byBusiness["farm" + idx].totalUsd : 0;
+        businessUs += farmNetProfitUsd(f, deprUsd);
+      });
 
       var seEarnings = 0;
       (safe(ui, "self_employment", []) || []).forEach(function (s, idx) {
-        var deprUsd = seDeprPlan.byBusiness[idx] ? seDeprPlan.byBusiness[idx].totalUsd : 0;
+        var deprUsd = seDeprPlan.byBusiness["se" + idx] ? seDeprPlan.byBusiness["se" + idx].totalUsd : 0;
         seEarnings += selfEmploymentNetProfitUsd(s, deprUsd);
       });
-      (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) { seEarnings += num(s.net_profit_usd || 0); });
+      (safe(ui, "farming_schedule_f", []) || []).forEach(function (f, idx) {
+        var deprUsd = seDeprPlan.byBusiness["farm" + idx] ? seDeprPlan.byBusiness["farm" + idx].totalUsd : 0;
+        seEarnings += farmNetProfitUsd(f, deprUsd);
+      });
 
       var qbiIncome = seEarnings, sstb = false;
       (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { qbiIncome += num(s.ordinary_income_usd || s.scorp_income_usd || s.ordinary_business_income_usd || 0) - num(s.sec179_deduction_usd || 0); });
       (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { qbiIncome += num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) - num(k.sec179_deduction_usd || 0); });
       (safe(ui, "trusts_estates_k1", []) || []).forEach(function (t) { qbiIncome += num(t.ordinary_income_usd || 0); });
-      [].concat(safe(ui, "self_employment", []) || [], safe(ui, "s_corporations_k1", []) || [], safe(ui, "partnerships_k1", []) || [], safe(ui, "trusts_estates_k1", []) || [])
+      [].concat(safe(ui, "self_employment", []) || [], safe(ui, "s_corporations_k1", []) || [], safe(ui, "partnerships_k1", []) || [], safe(ui, "trusts_estates_k1", []) || [], safe(ui, "farming_schedule_f", []) || [])
         .forEach(function (x) { if (x && (x.is_specified_service_trade === true || x.is_sstb === true || x.sstb === true)) sstb = true; });
       (safe(ui, "partnerships_k1", []) || []).forEach(function (k) {
         var box14a = k.self_employment_earnings_usd;

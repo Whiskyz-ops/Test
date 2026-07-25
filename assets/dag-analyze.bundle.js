@@ -721,6 +721,113 @@
           }
         ];
         WISING.CONST = CONST;
+        var CLIENT_REGISTRY_KEY = "wising_client_registry";
+        var CLIENT_LINK_TARGETS = ["router.html", "layer1_india.html", "layer1_us.html"];
+        function activeClientIdFromUrl() {
+          try {
+            if (typeof root.location === "undefined" || !root.URLSearchParams) return null;
+            return new root.URLSearchParams(root.location.search).get("client") || null;
+          } catch (e) {
+            return null;
+          }
+        }
+        function clientScopedKey(which, clientId) {
+          return "wising_client_" + clientId + "_" + which.toLowerCase();
+        }
+        function storageKeyFor(which) {
+          var id = activeClientIdFromUrl();
+          return id ? clientScopedKey(which, id) : CONST.STORAGE_KEYS[which];
+        }
+        function listClients() {
+          try {
+            var raw = root.localStorage.getItem(CLIENT_REGISTRY_KEY);
+            return raw ? JSON.parse(raw) : [];
+          } catch (e) {
+            return [];
+          }
+        }
+        function saveClientRegistry(list) {
+          try {
+            root.localStorage.setItem(CLIENT_REGISTRY_KEY, JSON.stringify(list));
+          } catch (e) {
+          }
+        }
+        function createClient() {
+          var id = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+          var list = listClients();
+          list.push({ id, label: "New client", createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+          saveClientRegistry(list);
+          return id;
+        }
+        function removeClient(clientId) {
+          try {
+            root.localStorage.removeItem(clientScopedKey("ROUTER", clientId));
+            root.localStorage.removeItem(clientScopedKey("INDIA", clientId));
+            root.localStorage.removeItem(clientScopedKey("US", clientId));
+          } catch (e) {
+          }
+          saveClientRegistry(listClients().filter(function(c) {
+            return c.id !== clientId;
+          }));
+        }
+        function updateClientLabel(clientId, label) {
+          var list = listClients(), found = false;
+          list.forEach(function(c) {
+            if (c.id === clientId) {
+              c.label = label;
+              found = true;
+            }
+          });
+          if (found) saveClientRegistry(list);
+        }
+        function getClientRawState(clientId) {
+          function read(key) {
+            try {
+              var raw = root.localStorage.getItem(key);
+              return raw ? JSON.parse(raw) : {};
+            } catch (e) {
+              return {};
+            }
+          }
+          return {
+            router: read(clientScopedKey("ROUTER", clientId)),
+            india: read(clientScopedKey("INDIA", clientId)),
+            us: read(clientScopedKey("US", clientId))
+          };
+        }
+        function propagateClientParamInLinks() {
+          var id = activeClientIdFromUrl();
+          if (!id || typeof root.document === "undefined" || !root.document.querySelectorAll) return;
+          var anchors = root.document.querySelectorAll("a[href]");
+          for (var i = 0; i < anchors.length; i++) {
+            var href = anchors[i].getAttribute("href");
+            if (CLIENT_LINK_TARGETS.indexOf(href) !== -1) {
+              anchors[i].setAttribute("href", href + "?client=" + encodeURIComponent(id));
+            }
+          }
+        }
+        function navigateWithClient(targetHtml) {
+          var id = activeClientIdFromUrl();
+          root.location.href = id ? targetHtml + "?client=" + encodeURIComponent(id) : targetHtml;
+        }
+        WISING.ClientRegistry = {
+          activeIdFromUrl: activeClientIdFromUrl,
+          storageKeyFor,
+          list: listClients,
+          create: createClient,
+          remove: removeClient,
+          updateLabel: updateClientLabel,
+          getRawState: getClientRawState,
+          propagateLinks: propagateClientParamInLinks,
+          navigate: navigateWithClient
+        };
+        if (typeof root.document !== "undefined") {
+          if (root.document.readyState === "loading") {
+            root.document.addEventListener("DOMContentLoaded", propagateClientParamInLinks);
+          } else {
+            propagateClientParamInLinks();
+          }
+        }
         if (typeof module !== "undefined" && module.exports) module.exports = { CONST };
       })(typeof window !== "undefined" ? window : globalThis);
     }
@@ -2913,6 +3020,7 @@
           return !(eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh));
         }
         if (scheme === "s44AE") return false;
+        if (scheme === "s44BB" || scheme === "s44BBB") return false;
         return true;
       }
       function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr, disallowancesInr) {
@@ -2927,6 +3035,7 @@
           adaReceipts = num(b.gross_receipts_inr) || adaDig + adaCsh;
           if (eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh)) return adaReceipts * 0.5;
         } else if (scheme === "s44AE") return null;
+        else if (scheme === "s44BB" || scheme === "s44BBB") return Math.round((num(b.turnover_inr) + num(b.cash_receipts_inr)) * 0.1);
         var exp = b.expenses || {};
         var pfEsiDeductibleInr = exp.employer_pf_esi_paid_before_due_date === true ? num(exp.employer_pf_esi_contribution_inr) : 0;
         var deductibleBeforeDisallowances = num(exp.rent_for_business_premises_inr) + num(exp.repairs_maintenance_inr) + num(exp.employee_salary_wages_inr) + num(exp.employee_bonus_commission_inr) + num(exp.interest_on_borrowed_capital_inr) + num(exp.insurance_premium_inr) + num(exp.bad_debts_written_off_inr) + num(exp.other_business_expenses_inr) + num(exp.ca_professional_fees_inr) + pfEsiDeductibleInr;
@@ -3022,12 +3131,72 @@
         bizMsmePayablesAgg: { deps: ["diAgg"], compute: function(d) {
           return safe(d.diAgg, "business_income.msme_payables", []);
         } },
+        // s.43B(h) MSME disallowance total across the WHOLE taxpayer (every
+        // business_entries[] unit, not just one) — computeMsmeDisallowanceInr
+        // above already nets each unit's overdue invoices into that unit's own
+        // net profit (IN-23), but the amount only ever surfaced as a silently
+        // lower per-entry number, never as its own disclosed figure anywhere. A
+        // preparer reviewing the return has no way to see "₹X was disallowed
+        // under s.43B(h) this year" without re-deriving it by hand from the raw
+        // MSME payables table — this aggregate exists so a dedicated finding
+        // (assets-nodes.js's findingsAllResult override) can surface it directly.
+        msmeDisallowanceTotalAgg: {
+          deps: ["bizMsmePayablesAgg"],
+          compute: function(d) {
+            var totalInr = 0, overdueCount = 0, today = /* @__PURE__ */ new Date();
+            today.setHours(0, 0, 0, 0);
+            (d.bizMsmePayablesAgg || []).forEach(function(m) {
+              var amt = num(m.amount_inr);
+              if (!m.invoice_date || amt <= 0) return;
+              var invDate = new Date(m.invoice_date);
+              invDate.setHours(0, 0, 0, 0);
+              if (isNaN(invDate.getTime())) return;
+              var dueDate = new Date(invDate);
+              dueDate.setDate(dueDate.getDate() + (m.has_written_agreement === true ? 45 : 15));
+              var refDate = m.payment_date ? new Date(m.payment_date) : today;
+              refDate.setHours(0, 0, 0, 0);
+              if (refDate > dueDate) {
+                totalInr += amt;
+                overdueCount++;
+              }
+            });
+            return { totalInr, overdueCount };
+          }
+        },
         goodsVehiclesAgg: { deps: ["diAgg"], compute: function(d) {
           return safe(d.diAgg, "business_income.goods_vehicles", []);
         } },
         partnerFirmsAgg: { deps: ["diAgg"], compute: function(d) {
           return safe(d.diAgg, "business_income.partner_firms", []);
         } },
+        s44adLastExitAyRaw: { deps: ["diAgg"], compute: function(d) {
+          return safe(d.diAgg, "business_income.s44AD_last_exit_ay", null);
+        } },
+        // s.44AD(4)'s 5-year re-election lock-in — ported from layer1_india.html's
+        // own validateS44ADEligibility() (~L8217-8236), same regex/date math, so a
+        // hand-authored AY string like "AY 2023-24" parses identically to how the
+        // live form itself already gates the presumptive-scheme dropdown. The
+        // live form's OWN gate only prevents SELECTING s44AD again during lock-in
+        // (a UI-level force-revert) — it doesn't compute the deeper s.44AD(5)
+        // consequence (mandatory tax audit if total income exceeds the basic
+        // exemption limit in any locked-out year), which is genuinely engine-side
+        // depth, not something the UI already covers (gap tracker IN-6's own
+        // "audit-if-opt-out interplay" phrasing).
+        presumptiveLockinAgg: {
+          deps: ["s44adLastExitAyRaw"],
+          compute: function(d) {
+            var lastExitAy = d.s44adLastExitAyRaw;
+            if (!lastExitAy) return { lockInActive: false, yearsRemaining: 0, exitYear: null };
+            var match = String(lastExitAy).match(/(?:AY\s*)?(\d{4})(?:-\d{2,4})?/i);
+            if (!match) return { lockInActive: false, yearsRemaining: 0, exitYear: null };
+            var exitYear = parseInt(match[1], 10);
+            var now = /* @__PURE__ */ new Date();
+            var currentAyStart = now.getFullYear() - (now.getMonth() < 3 ? 1 : 0);
+            var yearsSinceExit = currentAyStart - exitYear;
+            var lockInActive = yearsSinceExit > 0 && yearsSinceExit < 5;
+            return { lockInActive, yearsRemaining: lockInActive ? 5 - yearsSinceExit : 0, exitYear, currentAyStart };
+          }
+        },
         fnoIncomeInrAgg: { deps: ["diAgg"], compute: function(d) {
           return num(safe(d.diAgg, "business_income.non_speculative_income_inr", 0));
         } },
@@ -3072,11 +3241,12 @@
         },
         // ---- EXACT business.inr, with real WDV depreciation + disallowances ----
         businessComputation: {
-          deps: ["bizEntriesAgg", "presumptiveEligibilityAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg", "goodsVehiclesAgg", "fnoIncomeInrAgg", "partnerFirmsAgg"],
+          deps: ["bizEntriesAgg", "presumptiveEligibilityAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg", "goodsVehiclesAgg", "fnoIncomeInrAgg", "partnerFirmsAgg", "indiaResidencyStatusRawAgg", "diAgg"],
           compute: function(d, ctx) {
             var india = ctx.india;
             var businessInr = 0, businessDepreciationInr = 0;
             var indiaHasRegularBooksEntry = false, indiaHasValidPresumptiveEntry = false;
+            var tonnageTaxInr = 0;
             (d.bizEntriesAgg || []).forEach(function(b, idx) {
               var netProfitInr = b.net_profit_inr || b.net_profit;
               if (netProfitInr === void 0 || netProfitInr === null) {
@@ -3091,6 +3261,7 @@
                 indiaHasRegularBooksEntry = true;
               }
               businessInr += num(netProfitInr);
+              tonnageTaxInr += num(b.tonnage_tax_115V_inr);
             });
             businessInr += computeGoodsVehiclePresumptiveInr(d.goodsVehiclesAgg);
             businessInr += d.fnoIncomeInrAgg;
@@ -3100,7 +3271,15 @@
               if (firmIncomeInr !== 0) indiaHasPartnerFirmIncome = true;
               businessInr += firmIncomeInr;
             });
-            return { businessInr, businessDepreciationInr, indiaHasRegularBooksEntry, indiaHasValidPresumptiveEntry, indiaHasPartnerFirmIncome };
+            var entity = d.presumptiveEligibilityAgg.entityType;
+            var isNrCompany = d.indiaResidencyStatusRawAgg === "NR";
+            var s35adInr = 0;
+            if (entity === "company" && !isNrCompany) {
+              businessInr += tonnageTaxInr;
+              s35adInr = num(safe(d.diAgg, "business_income.specified_business_s35AD_inr", 0));
+              businessInr -= s35adInr;
+            }
+            return { businessInr, businessDepreciationInr, indiaHasRegularBooksEntry, indiaHasValidPresumptiveEntry, indiaHasPartnerFirmIncome, tonnageTaxInr, s35adDeductionInr: s35adInr };
           }
         },
         // ---- capital gains: buy-back + foreign equity + financial holdings +
@@ -3312,7 +3491,8 @@
           deps: ["osAgg", "diAgg"],
           compute: function(d) {
             var os = d.osAgg;
-            var giftsAbove50kInr = num(safe(os, "gifts_above_50k_inr", 0));
+            var giftsExempt = !!safe(os, "gifts_exemption_marriage", false) || !!safe(os, "gifts_exemption_relative", false);
+            var giftsAbove50kInr = giftsExempt ? 0 : num(safe(os, "gifts_above_50k_inr", 0));
             var familyPensionGrossInr = num(safe(os, "family_pension_gross_inr", 0));
             var familyPensionNetInr = Math.max(0, familyPensionGrossInr - Math.min(15e3, Math.round(familyPensionGrossInr / 3)));
             return giftsAbove50kInr + familyPensionNetInr + num(safe(os, "spousal_clubbing_s64_inr", 0)) - num(safe(os, "minor_child_exemption_inr", 0)) + num(safe(os, "lic_maturity_inr", 0)) + num(safe(os, "angel_tax_premium_inr", 0)) - num(safe(os, "local_authority_s10_20_inr", 0)) + num(safe(os, "miscellaneous_income_inr", 0)) + num(safe(os, "taxable_epf_interest_inr", 0)) + num(safe(os, "taxable_nps_withdrawal_inr", 0));
@@ -4550,6 +4730,23 @@
         if (explicit !== void 0 && explicit !== null) return num(explicit);
         return computeSelfEmploymentNetProfitUsd(s) - num(depreciationUsd || 0);
       }
+      function computeFarmGrossIncomeUsd(f) {
+        var inc = safe(f, "itemized_income", {}) || {};
+        var gross = num(inc.sales_livestock_produce_raised) + num(inc.sales_livestock_produce_purchased) + num(inc.cooperative_distributions) + num(inc.agricultural_program_payments) + num(inc.ccc_loans) + num(inc.crop_insurance_proceeds) + num(inc.custom_hire_income) + num(inc.other_income);
+        if (f.accounting_method === "accrual") {
+          var inv = safe(f, "inventory", {}) || {};
+          gross -= num(inv.beginning_inventory) + num(inv.cost_of_purchases) - num(inv.ending_inventory);
+        }
+        return gross;
+      }
+      function computeFarmNetProfitUsd(f) {
+        return computeFarmGrossIncomeUsd(f) - num(f.expenses_usd);
+      }
+      function farmNetProfitUsd(f, depreciationUsd) {
+        if (f.net_profit_usd !== void 0 && f.net_profit_usd !== null) return num(f.net_profit_usd);
+        if (f.gross_income_usd !== void 0 && f.gross_income_usd !== null) return num(f.gross_income_usd) - num(f.expenses_usd) - num(depreciationUsd || 0);
+        return computeFarmNetProfitUsd(f) - num(depreciationUsd || 0);
+      }
       function assetRecoveryYearN(asset, baseYear) {
         if (!asset || !asset.placed_in_service_date) return null;
         var d = new Date(asset.placed_in_service_date);
@@ -4687,16 +4884,38 @@
             }, 0);
           }
         },
-        selfEmploymentDepreciationPlan: {
+        // Combines self-employment AND farming_schedule_f assets into ONE
+        // taxpayer-wide §179 aggregation pool (real law caps/phases out §179
+        // across ALL of a taxpayer's directly-owned active trades/businesses
+        // together, not per-array) — keyed "se"+idx / "farm"+idx so callers can
+        // look up either. K-1/1120 asset rows are deliberately NOT folded in:
+        // those entities' reported income already reflects the ENTITY's own
+        // depreciation before flow-through (Box 1 is already net of regular/bonus
+        // depreciation; only §179 is separately stated, as sec179_deduction_usd),
+        // so a second per-asset computation against a K-1 recipient's own copy of
+        // the entity's asset list would double-count. Farm has no such risk — a
+        // directly-owned trade/business with its own real gross-receipts/expenses
+        // derivation (computeFarmNetProfitUsd), not a pass-through entity's
+        // already-net distributive share, so it's treated exactly like self-
+        // employment. Named usBusinessDepreciationPlan (was
+        // selfEmploymentDepreciationPlan before farm was folded in).
+        usBusinessDepreciationPlan: {
           deps: ["uiAgg", "baseYearUsAgg"],
           compute: function(d) {
-            var list = safe(d.uiAgg, "self_employment", []) || [];
-            var businesses = list.map(function(s, idx) {
+            var businesses = [];
+            (safe(d.uiAgg, "self_employment", []) || []).forEach(function(s, idx) {
               var assets = (s.assets || []).slice();
               (s.branches || []).forEach(function(br) {
                 assets = assets.concat(br.assets || []);
               });
-              return { key: idx, grossReceiptsMinusExpensesUsd: computeSelfEmploymentNetProfitUsd(s), assets };
+              businesses.push({ key: "se" + idx, grossReceiptsMinusExpensesUsd: computeSelfEmploymentNetProfitUsd(s), assets });
+            });
+            (safe(d.uiAgg, "farming_schedule_f", []) || []).forEach(function(f, idx) {
+              var assets = (f.assets || []).slice();
+              (f.branches || []).forEach(function(br) {
+                assets = assets.concat(br.assets || []);
+              });
+              businesses.push({ key: "farm" + idx, grossReceiptsMinusExpensesUsd: computeFarmNetProfitUsd(f), assets });
             });
             return aggregateAssetDepreciationUsd(businesses, d.baseYearUsAgg);
           }
@@ -4721,9 +4940,9 @@
           }
         },
         businessAndSeComputation: {
-          deps: ["uiAgg", "selfEmploymentDepreciationPlan", "baseYearUsAgg"],
+          deps: ["uiAgg", "usBusinessDepreciationPlan", "baseYearUsAgg"],
           compute: function(d) {
-            var ui = d.uiAgg, seDeprPlan = d.selfEmploymentDepreciationPlan;
+            var ui = d.uiAgg, seDeprPlan = d.usBusinessDepreciationPlan;
             var businessUs = num(safe(ui, "business_income_usd", 0));
             (safe(ui, "c_corporations_1120", []) || []).forEach(function(c) {
               businessUs += num(c.taxable_income_usd || c.net_income_usd || 0);
@@ -4733,7 +4952,7 @@
             });
             var foreignSelfEmployment = 0;
             (safe(ui, "self_employment", []) || []).forEach(function(s, idx) {
-              var deprUsd = seDeprPlan.byBusiness[idx] ? seDeprPlan.byBusiness[idx].totalUsd : 0;
+              var deprUsd = seDeprPlan.byBusiness["se" + idx] ? seDeprPlan.byBusiness["se" + idx].totalUsd : 0;
               var netUsd = selfEmploymentNetProfitUsd(s, deprUsd);
               if (s.llc_type === "foreign_disregarded") foreignSelfEmployment += netUsd;
               else businessUs += netUsd;
@@ -4744,13 +4963,18 @@
             (safe(ui, "trusts_estates_k1", []) || []).forEach(function(t) {
               businessUs += num(t.ordinary_income_usd || 0) + num(t.ordinary_gain_usd || 0);
             });
+            (safe(ui, "farming_schedule_f", []) || []).forEach(function(f, idx) {
+              var deprUsd = seDeprPlan.byBusiness["farm" + idx] ? seDeprPlan.byBusiness["farm" + idx].totalUsd : 0;
+              businessUs += farmNetProfitUsd(f, deprUsd);
+            });
             var seEarnings = 0;
             (safe(ui, "self_employment", []) || []).forEach(function(s, idx) {
-              var deprUsd = seDeprPlan.byBusiness[idx] ? seDeprPlan.byBusiness[idx].totalUsd : 0;
+              var deprUsd = seDeprPlan.byBusiness["se" + idx] ? seDeprPlan.byBusiness["se" + idx].totalUsd : 0;
               seEarnings += selfEmploymentNetProfitUsd(s, deprUsd);
             });
-            (safe(ui, "farming_schedule_f", []) || []).forEach(function(s) {
-              seEarnings += num(s.net_profit_usd || 0);
+            (safe(ui, "farming_schedule_f", []) || []).forEach(function(f, idx) {
+              var deprUsd = seDeprPlan.byBusiness["farm" + idx] ? seDeprPlan.byBusiness["farm" + idx].totalUsd : 0;
+              seEarnings += farmNetProfitUsd(f, deprUsd);
             });
             var qbiIncome = seEarnings, sstb = false;
             (safe(ui, "s_corporations_k1", []) || []).forEach(function(s) {
@@ -4762,7 +4986,7 @@
             (safe(ui, "trusts_estates_k1", []) || []).forEach(function(t) {
               qbiIncome += num(t.ordinary_income_usd || 0);
             });
-            [].concat(safe(ui, "self_employment", []) || [], safe(ui, "s_corporations_k1", []) || [], safe(ui, "partnerships_k1", []) || [], safe(ui, "trusts_estates_k1", []) || []).forEach(function(x) {
+            [].concat(safe(ui, "self_employment", []) || [], safe(ui, "s_corporations_k1", []) || [], safe(ui, "partnerships_k1", []) || [], safe(ui, "trusts_estates_k1", []) || [], safe(ui, "farming_schedule_f", []) || []).forEach(function(x) {
               if (x && (x.is_specified_service_trade === true || x.is_sstb === true || x.sstb === true)) sstb = true;
             });
             (safe(ui, "partnerships_k1", []) || []).forEach(function(k) {
@@ -5500,8 +5724,12 @@
       };
       NODES.hasUsScopeBoundaryFtc = {
         deps: ["routerJurisdictionXB", "routerUsSignalXB"],
+        // "india_only"/"us_only" are the new Layer 0 router's own jurisdiction
+        // values (docs/DAG_MIGRATION_TRACKER.md — the router.html rebuild),
+        // additive synonyms for "single_india"/"single_us" — the 12 demo profiles
+        // and the fuzzer only ever produce the original strings, unaffected.
         compute: function(d) {
-          return d.routerJurisdictionXB === "single_india" ? false : d.routerJurisdictionXB === "single_us" ? true : d.routerUsSignalXB;
+          return d.routerJurisdictionXB === "single_india" || d.routerJurisdictionXB === "india_only" ? false : d.routerJurisdictionXB === "single_us" || d.routerJurisdictionXB === "us_only" ? true : d.routerUsSignalXB;
         }
       };
       NODES.feieExcludedUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function(d) {
@@ -5930,7 +6158,7 @@
         return d.usEntityKind === "ccorp" ? "Form 1118" : "Form 1116";
       } };
       NODES.hasIndiaScopeXbr = { deps: ["routerJurisdictionXB"], compute: function(d) {
-        return d.routerJurisdictionXB !== "single_us";
+        return d.routerJurisdictionXB !== "single_us" && d.routerJurisdictionXB !== "us_only";
       } };
       NODES.findingsBatch1Result = {
         deps: [
@@ -8128,6 +8356,7 @@
         return safe(ctx.india, "profile.opt_115bab", false) === true;
       } };
       var CONST_B1_LIMITS = require_constants().CONST.LIMITS;
+      var CONST_B1_INDIA = require_constants().CONST.TAX.INDIA;
       var FORM_8938 = CONST_B1_LIMITS.FORM_8938;
       NODES.form8938GaugeResult = {
         deps: ["feie", "usFilingStatusRaw", "accountsListResult", "hasUsScopeBoundaryFtc"],
@@ -8277,7 +8506,8 @@
           "taxRegime",
           "businessComputation",
           "indiaOpt115baaRaw",
-          "indiaOpt115babRaw"
+          "indiaOpt115babRaw",
+          "presumptiveLockinAgg"
         ],
         compute: function(d) {
           var res = d.residencyResult;
@@ -8357,7 +8587,14 @@
             // is already treated (whether or not firm's own exclusion is itself
             // fully correct is a separate, pre-existing question, out of scope).
             schedule_al: !d.indiaIsCompany && !d.indiaIsFirm && !d.indiaIsAop && !d.indiaIsTrust && d.totalIncomeInrV3 > 5e6,
-            form_3cb_3cd: d.indiaIsCompany || t.totalInr > 0 && t.totalInr > (atLeast95PctDigital ? 1e8 : 1e7),
+            // s.44AD(5): once the s.44AD(4) 5-year presumptive re-election lock-in
+            // is active (presumptiveLockinAgg), a mandatory tax audit applies in
+            // ANY locked-out year the taxpayer's total income exceeds the basic
+            // exemption limit — regardless of turnover, and regardless of whether
+            // this year's business is even presumptive-eligible at all. Genuinely
+            // additive to the existing turnover-threshold/company triggers, not a
+            // replacement (gap tracker IN-6's "audit-if-opt-out interplay").
+            form_3cb_3cd: d.indiaIsCompany || t.totalInr > 0 && t.totalInr > (atLeast95PctDigital ? 1e8 : 1e7) || d.presumptiveLockinAgg.lockInActive && d.totalIncomeInrV3 > (d.taxRegime === "OLD" ? CONST_B1_INDIA.SLABS_OLD : CONST_B1_INDIA.SLABS_NEW)[0][0],
             form_8802: res.dualResident || d.treatyIndiaResidenceRaw !== "none" || d.treatyUsResidenceRaw !== "none",
             form_6251: d.usTaxResult.amtUsd > 0,
             form_8288: !!(d.nraRaw.usRealPropertyDisposed && (d.nraRaw.firptaWithholdingUsd || 0) > 0),
@@ -10059,13 +10296,15 @@
             return num(safe(ctx.router, "us_days", 0)) > 0 || safe(ctx.router, "is_us_citizen", false) === true || safe(ctx.router, "has_green_card", false) === true || safe(ctx.router, "has_us_source_income_or_assets", false) === true;
           }
         },
+        // "india_only"/"us_only" are the new Layer 0 router's own jurisdiction
+        // values — additive synonyms for "single_india"/"single_us".
         hasIndiaScope: { deps: ["routerJurisdiction"], compute: function(d) {
-          return d.routerJurisdiction !== "single_us";
+          return d.routerJurisdiction !== "single_us" && d.routerJurisdiction !== "us_only";
         } },
         hasUsScope: {
           deps: ["routerJurisdiction", "routerUsSignal"],
           compute: function(d) {
-            return d.routerJurisdiction === "single_india" ? false : d.routerJurisdiction === "single_us" ? true : d.routerUsSignal;
+            return d.routerJurisdiction === "single_india" || d.routerJurisdiction === "india_only" ? false : d.routerJurisdiction === "single_us" || d.routerJurisdiction === "us_only" ? true : d.routerUsSignal;
           }
         },
         indiaResidencyStatusRaw: { deps: [], compute: function(d, ctx) {
@@ -10166,10 +10405,12 @@
             return num(safe(ctx.router, "us_days", 0)) > 0 || safe(ctx.router, "is_us_citizen", false) === true || safe(ctx.router, "has_green_card", false) === true || safe(ctx.router, "has_us_source_income_or_assets", false) === true;
           }
         },
+        // "india_only"/"us_only" are the new Layer 0 router's own jurisdiction
+        // values — additive synonyms for "single_india"/"single_us".
         hasUsScope: {
           deps: ["routerJurisdiction", "routerUsSignal"],
           compute: function(d) {
-            return d.routerJurisdiction === "single_india" ? false : d.routerJurisdiction === "single_us" ? true : d.routerUsSignal;
+            return d.routerJurisdiction === "single_india" || d.routerJurisdiction === "india_only" ? false : d.routerJurisdiction === "single_us" || d.routerJurisdiction === "us_only" ? true : d.routerUsSignal;
           }
         },
         // ---- Genuinely raw leaves: withholding/estimated figures ----------------
@@ -10295,10 +10536,12 @@
             return num(safe(ctx.router, "us_days", 0)) > 0 || safe(ctx.router, "is_us_citizen", false) === true || safe(ctx.router, "has_green_card", false) === true || safe(ctx.router, "has_us_source_income_or_assets", false) === true;
           }
         },
+        // "india_only"/"us_only" are the new Layer 0 router's own jurisdiction
+        // values — additive synonyms for "single_india"/"single_us".
         hasUsScope: {
           deps: ["routerJurisdiction", "routerUsSignal"],
           compute: function(d) {
-            return d.routerJurisdiction === "single_india" ? false : d.routerJurisdiction === "single_us" ? true : d.routerUsSignal;
+            return d.routerJurisdiction === "single_india" || d.routerJurisdiction === "india_only" ? false : d.routerJurisdiction === "single_us" || d.routerJurisdiction === "us_only" ? true : d.routerUsSignal;
           }
         },
         iraDistUsdRaw: { deps: [], compute: function(d, ctx) {
@@ -10427,16 +10670,19 @@
           return ctx.model.assets.indianBusinesses || [];
         } },
         // ---- Derived nodes: real logic, ported unchanged from conflicts.js ------
+        // "india_only"/"us_only" are the new Layer 0 router's own jurisdiction
+        // values — additive synonyms for "single_india"/"single_us" (the 12 demo
+        // profiles and the fuzzer only ever produce the original strings).
         hasIndiaScope: {
           deps: ["routerJurisdiction"],
           compute: function(d) {
-            return d.routerJurisdiction !== "single_us";
+            return d.routerJurisdiction !== "single_us" && d.routerJurisdiction !== "us_only";
           }
         },
         hasUsScope: {
           deps: ["routerJurisdiction", "routerUsSignal"],
           compute: function(d) {
-            return d.routerJurisdiction === "single_india" ? false : d.routerJurisdiction === "single_us" ? true : d.routerUsSignal;
+            return d.routerJurisdiction === "single_india" || d.routerJurisdiction === "india_only" ? false : d.routerJurisdiction === "single_us" || d.routerJurisdiction === "us_only" ? true : d.routerUsSignal;
           }
         },
         isResidentIndia: {
@@ -12205,6 +12451,58 @@
         });
         return calc("Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less asset depreciation (\xA7179 / 100% bonus, permanent under OBBBA / MACRS \u2014 computed from each asset's own class and placed-in-service date, not Layer 1's own first-year-only preview). Home-office isn't netted yet (Phase 1).", parts);
       }
+      function computeFarmGrossIncomeUsd(f) {
+        var inc = safe(f, "itemized_income", {}) || {};
+        var gross = num(inc.sales_livestock_produce_raised) + num(inc.sales_livestock_produce_purchased) + num(inc.cooperative_distributions) + num(inc.agricultural_program_payments) + num(inc.ccc_loans) + num(inc.crop_insurance_proceeds) + num(inc.custom_hire_income) + num(inc.other_income);
+        if (f.accounting_method === "accrual") {
+          var inv = safe(f, "inventory", {}) || {};
+          gross -= num(inv.beginning_inventory) + num(inv.cost_of_purchases) - num(inv.ending_inventory);
+        }
+        return gross;
+      }
+      function computeFarmNetProfitUsd(f) {
+        return computeFarmGrossIncomeUsd(f) - num(f.expenses_usd);
+      }
+      function farmNetProfitUsd(f, depreciationUsd) {
+        if (f.net_profit_usd !== void 0 && f.net_profit_usd !== null) return num(f.net_profit_usd);
+        if (f.gross_income_usd !== void 0 && f.gross_income_usd !== null) return num(f.gross_income_usd) - num(f.expenses_usd) - num(depreciationUsd || 0);
+        return computeFarmNetProfitUsd(f) - num(depreciationUsd || 0);
+      }
+      function farmIncomeTrace(f, depreciationPlanEntry) {
+        if (f.net_profit_usd !== void 0 && f.net_profit_usd !== null) {
+          return source("Net farm profit entered directly on Layer 1 US for this farm (not derived from Schedule F line items).");
+        }
+        if (f.gross_income_usd !== void 0 && f.gross_income_usd !== null) {
+          return source("Gross farm income entered directly on Layer 1 US for this farm (gross_income_usd), net of expenses_usd and asset depreciation.");
+        }
+        var inc = safe(f, "itemized_income", {}) || {};
+        var parts = [];
+        [
+          ["sales_livestock_produce_raised", "Sales of livestock/produce raised"],
+          ["sales_livestock_produce_purchased", "Sales of livestock/produce bought for resale"],
+          ["cooperative_distributions", "Cooperative distributions"],
+          ["agricultural_program_payments", "Agricultural program payments"],
+          ["ccc_loans", "CCC loans"],
+          ["crop_insurance_proceeds", "Crop insurance proceeds"],
+          ["custom_hire_income", "Custom hire income"],
+          ["other_income", "Other farm income"]
+        ].forEach(function(pair) {
+          if (num(inc[pair[0]]) !== 0) parts.push({ label: pair[1], amount: num(inc[pair[0]]) });
+        });
+        if (f.accounting_method === "accrual") {
+          var inv = safe(f, "inventory", {}) || {};
+          var invAdj = num(inv.beginning_inventory) + num(inv.cost_of_purchases) - num(inv.ending_inventory);
+          if (invAdj !== 0) parts.push({ label: "Less: cost of livestock/items purchased for resale (accrual inventory)", amount: -invAdj });
+        }
+        if (num(f.expenses_usd) !== 0) parts.push({ label: "Less: farm operating expenses", amount: -num(f.expenses_usd) });
+        (depreciationPlanEntry ? depreciationPlanEntry.assets : []).forEach(function(a) {
+          var label = "Asset (" + a.class + ", yr " + a.yearN + ")";
+          if (a.sec179Usd > 0) parts.push({ label: label + " \u2014 \xA7179", amount: -a.sec179Usd });
+          if (a.bonusUsd > 0) parts.push({ label: label + " \u2014 100% bonus depreciation", amount: -a.bonusUsd });
+          if (a.macrsUsd > 0) parts.push({ label: label + " \u2014 MACRS", amount: -a.macrsUsd });
+        });
+        return calc("Schedule F: sum of itemized farm income lines, less accrual inventory adjustment (if applicable), less expenses, less asset depreciation (\xA7179 / 100% bonus / MACRS).", parts);
+      }
       var PRESUMPTIVE_CEILING_CITATION = "s.44AD/44ADA turnover ceilings (Rs.2cr/Rs.3cr and Rs.50L/Rs.75L, the higher figure requiring digital receipts \u226595% of total) verified 2026-07-12, matched to Layer 1 India's own live eligibility check \u2014 re-check each Finance Act cycle.";
       var PRESUMPTIVE_RESIDENCY_CITATION = "s.44AD/44ADA residency and entity-type eligibility (ROR-only; 44AD additionally excludes firms/LLPs/companies/AOPs/trusts/local authorities/co-ops, 44ADA further excludes HUFs) verified 2026-07-12, matched to Layer 1 India's own live eligibility check.";
       function isUnder180DaysAdditionInr(additionDateStr) {
@@ -12297,6 +12595,7 @@
           return !(eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh));
         }
         if (scheme === "s44AE") return false;
+        if (scheme === "s44BB" || scheme === "s44BBB") return false;
         return true;
       }
       function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr, disallowancesInr) {
@@ -12311,6 +12610,7 @@
           adaReceipts = num(b.gross_receipts_inr) || adaDig + adaCsh;
           if (eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh)) return adaReceipts * 0.5;
         } else if (scheme === "s44AE") return null;
+        else if (scheme === "s44BB" || scheme === "s44BBB") return Math.round((num(b.turnover_inr) + num(b.cash_receipts_inr)) * 0.1);
         var exp = b.expenses || {};
         var pfEsiDeductibleInr = exp.employer_pf_esi_paid_before_due_date === true ? num(exp.employer_pf_esi_contribution_inr) : 0;
         var deductibleBeforeDisallowances = num(exp.rent_for_business_premises_inr) + num(exp.repairs_maintenance_inr) + num(exp.employee_salary_wages_inr) + num(exp.employee_bonus_commission_inr) + num(exp.interest_on_borrowed_capital_inr) + num(exp.insurance_premium_inr) + num(exp.bad_debts_written_off_inr) + num(exp.other_business_expenses_inr) + num(exp.ca_professional_fees_inr) + pfEsiDeductibleInr;
@@ -12368,6 +12668,14 @@
           }
         } else if (scheme === "s44AE") {
           return source("s.44AE tonnage-based presumptive income (goods carriages) is computed once from the Goods Vehicles schedule and rolled into the total business income figure above \u2014 it isn't split per vehicle here, so this entry shows \u20B90 on its own.");
+        } else if (scheme === "s44BB" || scheme === "s44BBB") {
+          var bbTurnover = num(b.turnover_inr), bbCash = num(b.cash_receipts_inr);
+          var bbLabel = scheme === "s44BB" ? "s.44BB (non-resident, mineral-oil exploration services)" : "s.44BBB (foreign company, civil construction / turnkey power project)";
+          return calc("Presumptive income under " + bbLabel + ": 10% of gross receipts, no ceiling test.", [
+            { label: "Turnover / gross receipts", amount: bbTurnover },
+            { label: "Cash receipts", amount: bbCash },
+            { label: "Rate", display: "10%" }
+          ]);
         }
         var exp = b.expenses || {};
         var expenseFields = [
@@ -12435,9 +12743,9 @@
             ]) : source("Entity-level taxable income as entered on Layer 1 US (business_income_usd) \u2014 no Schedule M-1 data on file for this entity.")
           });
         }
-        var seDeprPlanForTrace = d.selfEmploymentDepreciationPlan;
+        var seDeprPlanForTrace = d.usBusinessDepreciationPlan;
         (safe(ui, "self_employment", []) || []).forEach(function(s, seIdx) {
-          var seDeprEntry = seDeprPlanForTrace.byBusiness[seIdx];
+          var seDeprEntry = seDeprPlanForTrace.byBusiness["se" + seIdx];
           var seDeprUsd = seDeprEntry ? seDeprEntry.totalUsd : 0;
           list.push({
             country: "US",
@@ -12451,17 +12759,19 @@
             calcTrace: selfEmploymentIncomeTrace(s, seDeprEntry)
           });
         });
-        (safe(ui, "farming_schedule_f", []) || []).forEach(function(s) {
+        (safe(ui, "farming_schedule_f", []) || []).forEach(function(f, farmIdx) {
+          var farmDeprEntry = seDeprPlanForTrace.byBusiness["farm" + farmIdx];
+          var farmDeprUsd = farmDeprEntry ? farmDeprEntry.totalUsd : 0;
           list.push({
             country: "US",
             type: "Farm (Sch F)",
-            name: s.name || "Farm",
-            incomeUsd: num(s.net_profit_usd || 0),
+            name: f.business_name || f.name || "Farm",
+            incomeUsd: farmNetProfitUsd(f, farmDeprUsd),
             se: true,
             qbi: true,
             filesOwnReturn: false,
             returnForm: "Schedule F (Form 1040)",
-            calcTrace: source("Net farm profit as entered directly on Layer 1 US for this farm (net_profit_usd).")
+            calcTrace: farmIncomeTrace(f, farmDeprEntry)
           });
         });
         (safe(ui, "partnerships_k1", []) || []).forEach(function(k) {
@@ -12593,6 +12903,302 @@
           return byName[k];
         });
       }
+      var INDIA_ENTITY_KIND_MAP = {
+        huf: "in_huf",
+        firm: "in_firm",
+        llp: "in_llp",
+        company: "in_company",
+        aop: "in_aop",
+        trust: "in_trust",
+        local: "in_local",
+        coop: "in_coop",
+        ajp: "in_ajp"
+      };
+      var US_ENTITY_KIND_MAP = { ccorp: "us_ccorp", scorp: "us_scorp", partnership: "us_partnership", trust: "us_trust", llc: "us_llc" };
+      function normEntityName(n) {
+        return String(n || "").toLowerCase().replace(/\s+/g, " ").trim();
+      }
+      function buildEntityGraph(d, ctx) {
+        var us = ctx.us, india = ctx.india;
+        var entities = [], edges = [];
+        var usTaxEntityType = safe(us, "profile.tax_entity_type", "individual");
+        var indiaEntityType = d.indiaEntityTypeRaw;
+        var rootUsKind = US_ENTITY_KIND_MAP[usTaxEntityType] || null;
+        var rootIndiaKind = INDIA_ENTITY_KIND_MAP[indiaEntityType] || null;
+        var indiaName = safe(india, "profile.full_name", null);
+        var usName = safe(us, "profile.full_name", null);
+        var namesMatch = rootIndiaKind && rootUsKind && normEntityName(indiaName) !== "" && normEntityName(indiaName) === normEntityName(usName);
+        var rootIds;
+        if (rootIndiaKind && rootUsKind && !namesMatch) {
+          entities.push({ id: "root_in", kind: rootIndiaKind, jurisdiction: "IN", name: indiaName || "Indian entity", returnForm: null, layer1Ref: null });
+          entities.push({ id: "root_us", kind: rootUsKind, jurisdiction: "US", name: usName || "US entity", returnForm: null, layer1Ref: null });
+          rootIds = ["root_in", "root_us"];
+        } else {
+          var rootKind = rootIndiaKind || rootUsKind || "individual";
+          var rootJurisdiction = rootIndiaKind ? "IN" : rootUsKind ? "US" : "both";
+          var rootName = indiaName || usName || "Taxpayer";
+          entities.push({ id: "root", kind: rootKind, jurisdiction: rootJurisdiction, name: rootName, returnForm: null, layer1Ref: null });
+          rootIds = ["root"];
+        }
+        var primaryRootId = rootIds.indexOf("root_in") >= 0 ? "root_in" : rootIds[0];
+        function findRootIdByName(name) {
+          var n = normEntityName(name);
+          if (!n) return null;
+          for (var i = 0; i < rootIds.length; i++) {
+            if (normEntityName(entities.filter(function(e) {
+              return e.id === rootIds[i];
+            })[0].name) === n) return rootIds[i];
+          }
+          return null;
+        }
+        (d.bizEntriesAgg || []).forEach(function(b, idx) {
+          var kind = INDIA_ENTITY_KIND_MAP[b.entity_type];
+          if (!kind) return;
+          var id = "in_biz_" + idx;
+          var isRegularBooksForGraph = usesRegularBooksInr(b, d.presumptiveEligibilityAgg);
+          var entryDeprInrForGraph = isRegularBooksForGraph ? aggregateEntryDepreciationInr(idx, d.bizAssetBlocksAgg, india, b) : 0;
+          var entryDisallowInrForGraph = isRegularBooksForGraph ? aggregateEntryDisallowancesInr(idx, b.expenses || {}, d.bizMsmePayablesAgg) : 0;
+          var netProfitInr = b.net_profit_inr || b.net_profit;
+          if (netProfitInr === void 0 || netProfitInr === null) {
+            netProfitInr = computeBusinessEntryNetProfitInr(b, d.presumptiveEligibilityAgg, entryDeprInrForGraph, entryDisallowInrForGraph);
+          }
+          netProfitInr = num(netProfitInr);
+          entities.push({
+            id,
+            kind,
+            jurisdiction: "IN",
+            name: b.business_name || b.trade_name || b.name || null,
+            returnForm: null,
+            layer1Ref: { form: "layer1_india", path: "domestic_income.business_income.business_entries[" + idx + "]" },
+            income: { inr: netProfitInr, usd: netProfitInr / fxRate(ctx) }
+          });
+          edges.push({
+            from: id,
+            to: primaryRootId,
+            ownershipPct: null,
+            flow: "business_income",
+            amountInr: netProfitInr,
+            trace: businessEntryIncomeTrace(b, d.presumptiveEligibilityAgg, entryDeprInrForGraph, entryDisallowInrForGraph)
+          });
+        });
+        (d.partnerFirmsAgg || []).forEach(function(firm, idx) {
+          var id = "in_partner_firm_" + idx;
+          var kind = INDIA_ENTITY_KIND_MAP[firm.entity_type] || "in_firm";
+          entities.push({
+            id,
+            kind,
+            jurisdiction: "IN",
+            name: firm.firm_name || null,
+            returnForm: null,
+            layer1Ref: { form: "layer1_india", path: "domestic_income.business_income.partner_firms[" + idx + "]" }
+          });
+          var remunerationInr = num(firm.remuneration_from_entity_inr), interestInr = num(firm.interest_on_capital_from_entity_inr);
+          var totalRemunerationInr = remunerationInr + interestInr;
+          if (totalRemunerationInr !== 0) {
+            edges.push({
+              from: id,
+              to: primaryRootId,
+              ownershipPct: null,
+              flow: "partner_remuneration",
+              amountInr: totalRemunerationInr,
+              trace: calc("Taxable PGBP income to the partner (s.40(b)) \u2014 the firm's own s.40(b) cap on what it may pay out is tested at the firm's own return, which this app doesn't prepare, so the entered figure is trusted rather than re-derived (\xA73.3).", [
+                { label: "Remuneration from entity", amount: remunerationInr },
+                { label: "Interest on capital from entity", amount: interestInr }
+              ])
+            });
+          }
+          var exemptShareInr = num(firm.profit_share_exempt_inr);
+          if (exemptShareInr !== 0) {
+            edges.push({
+              from: id,
+              to: primaryRootId,
+              ownershipPct: null,
+              flow: "exempt_profit_share",
+              amountInr: exemptShareInr,
+              trace: source("Genuinely exempt to the partner under s.10(2A) \u2014 already taxed at the firm's own level. Shown for reconciliation only; not added to the partner's taxable income.")
+            });
+          }
+        });
+        var usFlowTargetId = rootIds.indexOf("root_us") >= 0 ? "root_us" : rootIds[0];
+        function k1PassiveIncomeUsdForGraph(k) {
+          return {
+            interestUsd: num(k.interest_income_usd),
+            ordDivUsd: num(k.ordinary_dividends_usd),
+            qualDivUsd: num(k.qualified_dividends_usd),
+            stcgUsd: num(k.stcg_usd),
+            ltcgUsd: num(k.ltcg_usd) + Math.max(0, num(k.net_sec1231_gain_usd || k.sec1231_gain_usd || 0)),
+            rentalUsd: num(k.net_rental_real_estate_usd) + num(k.other_rental_income_usd) + num(k.royalties_usd || k.royalty_income_usd || 0)
+          };
+        }
+        function passiveIncomeTraceParts(passive) {
+          var parts = [];
+          if (passive.interestUsd !== 0) parts.push({ label: "Interest income (K-1 passive box)", amount: passive.interestUsd });
+          if (passive.ordDivUsd !== 0) parts.push({ label: "Ordinary dividends (K-1 passive box)", amount: passive.ordDivUsd });
+          if (passive.stcgUsd !== 0) parts.push({ label: "Short-term capital gain (K-1 passive box)", amount: passive.stcgUsd });
+          if (passive.ltcgUsd !== 0) parts.push({ label: "Long-term capital gain + net s.1231 gain (K-1 passive box)", amount: passive.ltcgUsd });
+          if (passive.rentalUsd !== 0) parts.push({ label: "Rental + royalty income (K-1 passive box)", amount: passive.rentalUsd });
+          return parts;
+        }
+        function pushK1Entities(kind, idPrefix, sourcePath, nameFn, flowLabel, incomeUsdFn, ordinaryTraceParts, formulaNote) {
+          (safe(us, sourcePath, []) || []).forEach(function(k, idx) {
+            var id = idPrefix + idx;
+            var incomeUsd = incomeUsdFn(k);
+            var passive = k1PassiveIncomeUsdForGraph(k);
+            entities.push({
+              id,
+              kind,
+              jurisdiction: "US",
+              name: nameFn(k),
+              returnForm: null,
+              layer1Ref: { form: "layer1_us", path: sourcePath + "[" + idx + "]" },
+              income: { usd: incomeUsd, inr: incomeUsd * fxRate(ctx) },
+              passiveIncomeUsd: passive
+            });
+            edges.push({
+              from: id,
+              to: usFlowTargetId,
+              ownershipPct: null,
+              flow: flowLabel,
+              amountUsd: incomeUsd,
+              trace: calc(formulaNote, ordinaryTraceParts(k))
+            });
+            var passiveTotalUsd = passive.interestUsd + passive.ordDivUsd + passive.stcgUsd + passive.ltcgUsd + passive.rentalUsd;
+            if (passiveTotalUsd !== 0) {
+              edges.push({
+                from: id,
+                to: usFlowTargetId,
+                ownershipPct: null,
+                flow: "k1_passive_income",
+                amountUsd: passiveTotalUsd,
+                trace: calc("This K-1's own interest/dividend/capital-gain/rental/royalty boxes \u2014 folded into the taxpayer's overall totals for those income types elsewhere, but shown here so this specific entity's contribution is traceable rather than anonymous within the combined figure.", passiveIncomeTraceParts(passive))
+              });
+            }
+          });
+        }
+        pushK1Entities(
+          "us_partnership",
+          "us_k1_partnership_",
+          "income_us_source.partnerships_k1",
+          function(k) {
+            return k.business_name || k.partnership_name || k.name || null;
+          },
+          "k1_passthrough",
+          function(k) {
+            return num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) + num(k.guaranteed_payments_usd || 0) - num(k.sec179_deduction_usd || 0);
+          },
+          function(k) {
+            return [
+              { label: "Ordinary business income (Box 1)", amount: num(k.ordinary_business_income_usd || k.ordinary_income_usd || 0) },
+              { label: "Guaranteed payments (Box 4)", amount: num(k.guaranteed_payments_usd || 0) },
+              { label: "Less: s.179 deduction (Box 12)", amount: -num(k.sec179_deduction_usd || 0) }
+            ];
+          },
+          "Ordinary business income (K-1 Box 1) + guaranteed payments (K-1 Box 4) \u2212 s.179 deduction (K-1 Box 12). Guaranteed payments count for SE tax but are excluded from the \xA7199A QBI base."
+        );
+        pushK1Entities(
+          "us_scorp",
+          "us_k1_scorp_",
+          "income_us_source.s_corporations_k1",
+          function(k) {
+            return k.business_name || k.corp_name || k.name || null;
+          },
+          "k1_passthrough",
+          function(k) {
+            return num(k.ordinary_income_usd || k.scorp_income_usd || k.ordinary_business_income_usd || 0) - num(k.sec179_deduction_usd || 0);
+          },
+          function(k) {
+            return [
+              { label: "Ordinary business income (Box 1)", amount: num(k.ordinary_income_usd || k.scorp_income_usd || k.ordinary_business_income_usd || 0) },
+              { label: "Less: s.179 deduction (Box 11)", amount: -num(k.sec179_deduction_usd || 0) }
+            ];
+          },
+          "Ordinary business income (K-1 Box 1, ordinary_income_usd \u2014 the real Layer 1 US field; scorp_income_usd/ordinary_business_income_usd are legacy fallbacks that don't exist on the live form) \u2212 s.179 deduction (Box 11). S-corp distributions aren't subject to SE tax."
+        );
+        pushK1Entities(
+          "us_trust",
+          "us_k1_trust_",
+          "income_us_source.trusts_estates_k1",
+          function(k) {
+            return k.business_name || null;
+          },
+          "k1_passthrough",
+          function(k) {
+            return num(k.ordinary_income_usd || 0) + num(k.ordinary_gain_usd || 0);
+          },
+          function(k) {
+            return [
+              { label: "Ordinary income (Box 1)", amount: num(k.ordinary_income_usd || 0) },
+              { label: "Ordinary gain (Box 8)", amount: num(k.ordinary_gain_usd || 0) }
+            ];
+          },
+          "Ordinary income (K-1 Box 1) + ordinary gain (Box 8 sub-line)."
+        );
+        (safe(us, "income_us_source.c_corporations_1120", []) || []).forEach(function(c, idx) {
+          var name = c.corp_name || c.name || null;
+          if (findRootIdByName(name)) return;
+          var id = "us_ccorp_" + idx;
+          var incomeUsd = num(c.taxable_income_usd || c.net_income_usd || 0);
+          entities.push({
+            id,
+            kind: "us_ccorp",
+            jurisdiction: "US",
+            name,
+            returnForm: "Form 1120 (C-Corp, 21% flat)",
+            layer1Ref: { form: "layer1_us", path: "income_us_source.c_corporations_1120[" + idx + "]" },
+            income: { usd: incomeUsd, inr: incomeUsd * fxRate(ctx) }
+          });
+          edges.push({
+            from: id,
+            to: usFlowTargetId,
+            ownershipPct: null,
+            flow: "dividend",
+            amountUsd: incomeUsd,
+            trace: source("Entity-level taxable income as entered on Layer 1 US for this C-corp (taxable_income_usd, or net_income_usd if that field wasn't used). Taxed at 21% at the entity; not on a personal return until distributed \u2014 shown here as a placeholder for the eventual dividend flow, not an actual distribution WISING has independently confirmed occurred.")
+          });
+        });
+        (d.usForeignCorpsRaw || []).forEach(function(c, idx) {
+          var corpName = c.corp_name || c.corporation_name || null;
+          var ownershipPct = num(c.ownership_pct != null ? c.ownership_pct : c.ownership_percentage);
+          var giltiUsd = num(c.gilti_income_usd || 0);
+          var matchedRootId = findRootIdByName(corpName);
+          if (matchedRootId) {
+            var otherRootId = rootIds.filter(function(r) {
+              return r !== matchedRootId;
+            })[0];
+            if (otherRootId) edges.push({
+              from: matchedRootId,
+              to: otherRootId,
+              ownershipPct,
+              flow: "gilti",
+              amountUsd: giltiUsd,
+              trace: source("GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) \u2014 a hand-entered estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled yet (gap tracker XB-14). Ownership: " + Math.round(ownershipPct) + "%. This edge connects two entities BOTH already modeled as their own root here (a US parent and its differently-named subsidiary), not a newly-created placeholder node.")
+            });
+            return;
+          }
+          var id = "foreign_corp_" + idx;
+          entities.push({
+            id,
+            kind: "foreign_corp",
+            jurisdiction: (c.country != null ? c.country : c.country_of_incorporation) === "IN" ? "IN" : "foreign",
+            name: corpName,
+            returnForm: "Foreign local return (not modeled) + Form 5471 (informational)",
+            layer1Ref: { form: "layer1_us", path: "foreign_entities.foreign_corporations[" + idx + "]" },
+            // income here is the GILTI inclusion only, NOT the CFC's own full
+            // local-country income (not modeled, gap tracker XB-14) — same
+            // "hand-entered estimate" caveat businessEntityResult's own trace uses.
+            income: { usd: giltiUsd, inr: giltiUsd * fxRate(ctx) }
+          });
+          edges.push({
+            from: id,
+            to: usFlowTargetId,
+            ownershipPct,
+            flow: "gilti",
+            amountUsd: giltiUsd,
+            trace: source("GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) \u2014 a hand-entered estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled yet (gap tracker XB-14). Ownership: " + Math.round(ownershipPct) + "%. This is a US inclusion only \u2014 the entity's own foreign-country income tax return is separate and not shown here.")
+          });
+        });
+        return { entities, edges };
+      }
       NODES.assetsModelResult = {
         deps: [
           "indianMutualFundsResult",
@@ -12607,7 +13213,7 @@
           "taxableEpfInterestInrAgg",
           "taxableNpsWithdrawalInrAgg",
           "uiAgg",
-          "selfEmploymentDepreciationPlan",
+          "usBusinessDepreciationPlan",
           "bizEntriesAgg",
           "bizAssetBlocksAgg",
           "bizMsmePayablesAgg",
@@ -12615,7 +13221,9 @@
           "indiaIsCompany",
           "indiaIsFirm",
           "indiaIsAop",
-          "indiaIsTrust"
+          "indiaIsTrust",
+          "partnerFirmsAgg",
+          "indiaEntityTypeRaw"
         ],
         compute: function(d, ctx) {
           return {
@@ -12634,8 +13242,59 @@
             usSecurities: d.usSecuritiesBoundary,
             usProperties: safe(ctx.us, "real_estate.properties", []) || [],
             usRetirement: safe(ctx.us, "retirement_accounts", {}) || {},
-            businessEntities: businessEntitiesResult(d, ctx)
+            businessEntities: businessEntitiesResult(d, ctx),
+            entityGraph: buildEntityGraph(d, ctx)
           };
+        }
+      };
+      function inr(n) {
+        return "\u20B9" + Math.round(n).toLocaleString("en-IN");
+      }
+      var CONST_ASSETS_INDIA = CONST_ASSETS.TAX.INDIA;
+      var msmeSortWeight = { critical: 0, warning: 1, info: 2 };
+      NODES.findingsAllResult = {
+        deps: baseNodes.findingsAllResult.deps.concat(["presumptiveLockinAgg", "totalIncomeInrV3", "taxRegime", "msmeDisallowanceTotalAgg"]),
+        compute: function(d, ctx) {
+          var all = baseNodes.findingsAllResult.compute(d, ctx).slice();
+          var msme = d.msmeDisallowanceTotalAgg;
+          var addedAny = false;
+          if (msme && msme.totalInr > 0) {
+            addedAny = true;
+            all.push({
+              id: "msme_disallowance_s43Bh_india",
+              severity: "warning",
+              category: "income",
+              title: "s.43B(h) MSME disallowance: " + inr(msme.totalInr) + " added back to business income",
+              detail: "This taxpayer has " + msme.overdueCount + " MSME payable" + (msme.overdueCount === 1 ? "" : "s") + " (" + inr(msme.totalInr) + " total) still unpaid beyond the statutory window (15 days, or 45 days with a written agreement) as of today. Under s.43B(h) (Finance Act 2023), that amount is disallowed as a business deduction for this AY and only becomes deductible in the year actually paid \u2014 it has already been added back into the business income figure computed above, not left as a separate manual step.",
+              recommendation: "Confirm these MSME dues before filing \u2014 paying before the return due date does not cure a s.43B(h) disallowance once the statutory window has already lapsed; the deduction shifts to the year of actual payment regardless.",
+              amountUsd: msme.totalInr / fxRate(ctx),
+              refs: ["s.43B(h) (Finance Act 2023, MSME payables)", "MSMED Act 2006 s.15/16"]
+            });
+          }
+          var lockin = d.presumptiveLockinAgg;
+          if (lockin && lockin.lockInActive) {
+            addedAny = true;
+            var basicExemptionInr = (d.taxRegime === "OLD" ? CONST_ASSETS_INDIA.SLABS_OLD : CONST_ASSETS_INDIA.SLABS_NEW)[0][0];
+            var auditApplies = d.totalIncomeInrV3 > basicExemptionInr;
+            var reelectAy = lockin.currentAyStart + lockin.yearsRemaining;
+            all.push({
+              id: "presumptive_lockin_active_india",
+              severity: auditApplies ? "critical" : "warning",
+              category: "document",
+              title: "s.44AD presumptive taxation locked out for " + lockin.yearsRemaining + " more year" + (lockin.yearsRemaining === 1 ? "" : "s") + (auditApplies ? " \u2014 mandatory tax audit applies this year" : ""),
+              detail: "This taxpayer exited s.44AD presumptive taxation in AY " + lockin.exitYear + "-" + String(lockin.exitYear + 1).slice(-2) + ". Under s.44AD(4), the presumptive scheme cannot be re-elected for 5 assessment years from that exit \u2014 re-election is possible starting AY " + reelectAy + "-" + String(reelectAy + 1).slice(-2) + "." + (auditApplies ? " Total income this year (" + inr(d.totalIncomeInrV3) + ") exceeds the basic exemption limit (" + inr(basicExemptionInr) + ") while this lock-out is active \u2014 s.44AD(5) makes a tax audit under s.44AB MANDATORY this year, regardless of turnover or the usual \u20B91cr/\u20B910cr threshold." : " Total income this year (" + inr(d.totalIncomeInrV3) + ") is below the basic exemption limit (" + inr(basicExemptionInr) + "), so s.44AD(5)'s mandatory-audit consequence does not apply THIS year \u2014 but re-check every year the lock-out remains active."),
+              recommendation: auditApplies ? "Arrange a tax audit (Form 3CB/3CD) for this AY \u2014 see Documents to File. Do not rely on the turnover threshold alone; s.44AD(5) overrides it while this lock-out is active." : "No audit required this year on this basis alone, but confirm total income against the basic exemption limit again next year while the lock-out remains active.",
+              amountUsd: auditApplies ? d.totalIncomeInrV3 / fxRate(ctx) : 0,
+              refs: ["s.44AD(4)/(5) (5-year presumptive re-election lock-in and mandatory audit)", "Form 3CB/3CD"]
+            });
+          }
+          if (addedAny) {
+            all.sort(function(a, b) {
+              if (msmeSortWeight[a.severity] !== msmeSortWeight[b.severity]) return msmeSortWeight[a.severity] - msmeSortWeight[b.severity];
+              return b.amountUsd - a.amountUsd;
+            });
+          }
+          return all;
         }
       };
       module.exports = { NODES };

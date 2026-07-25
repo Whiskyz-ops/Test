@@ -4,7 +4,24 @@
  * them for side-effects (in dependency order) and expose typed helpers that
  * map the engine's computed output onto the Monitor's region shape.
  * Client-only (the engine reads window/localStorage at call time).
- * ==========================================================================*/
+ *
+ * profiles.js is deliberately imported from ./dag/ (the live, DAG-synced
+ * mirror of prototypes/graph-pilot/profiles.js), NOT ./engine/ (the
+ * permanently-frozen 23 Jul 2026 snapshot, docs/DAG_MIGRATION_TRACKER.md
+ * §J) — every other file here stays frozen (Engine mode's own compute
+ * logic must not change), but the DEMO PROFILE LIST is fixture data, not
+ * logic, and new/updated demo profiles built on the DAG side (e.g. IN-6's
+ * s44AD_last_exit_ay, IN-26's s.44BBB entry) should reach both Engine and
+ * DAG mode's "Switch client" dropdown, not just the standalone Layer 0/1
+ * HTML pages (which already load prototypes/graph-pilot/profiles.js
+ * directly, per §J). Both files are the identical IIFE shape (same
+ * WISING.PROFILES/.loadProfile/.listProfiles/.activeProfileId API, ported
+ * verbatim when profiles.js moved out of engine/), so this is a clean
+ * drop-in swap, not a behavioral change to how profiles are loaded. Engine
+ * mode processing the newer fixture data through frozen (pre-fix) logic on
+ * those 2 profiles specifically is expected and deliberate — the same
+ * "DAG has it, frozen engine doesn't" divergence this migration has
+ * documented throughout, not a bug. */
 "use client";
 import "./engine/constants.js";
 import "./engine/normalize.js";
@@ -12,7 +29,7 @@ import "./engine/computation.js";
 import "./engine/monitoring.js";
 import "./engine/conflicts.js";
 import "./engine/sample-data.js";
-import "./engine/profiles.js";
+import "./dag/profiles.js";
 
 export function getWISING() {
   return typeof window !== "undefined" ? window.WISING : null;

@@ -2334,7 +2334,9 @@
                 </div>
             </div>
 
-            
+            <div class="flex justify-end mt-4">
+                <button onclick="state.residency_detail.final_india_residency_status === 'NR' ? switchStep('step-dtaa') : (((state.residency_detail.final_india_residency_status === 'ROR' || state.residency_detail.final_india_residency_status === 'RNOR') && document.getElementById('setup-international') && document.getElementById('setup-international').checked) ? switchStep('step-fa') : switchStep('step-bank'))" class="px-6 py-3 bg-brandGold hover:bg-brandGold/80 text-black font-black tracking-widest uppercase text-xs rounded-xl shadow-[0_0_15px_rgba(212,175,55,0.3)] transition-all">Next Step →</button>
+            </div>
         </div>
 
         <!-- STEP 2: DTAA TREATY (Conditional) -->
@@ -2687,7 +2689,7 @@
             </div>
 
             <div class="flex justify-between mt-4">
-                <button onclick="switchStep(state.profile.residency_lock === 'NR' ? 'step-compliance' : (state.profile.residency_lock === 'ROR' ? 'step-fa' : 'step-profile'))" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
+                <button onclick="state.residency_detail.final_india_residency_status === 'NR' ? switchStep('step-compliance') : (((state.residency_detail.final_india_residency_status === 'ROR' || state.residency_detail.final_india_residency_status === 'RNOR') && document.getElementById('setup-international') && document.getElementById('setup-international').checked) ? switchStep('step-fa') : switchStep('step-profile'))" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
                 <button onclick="state.profile.entity_type === 'individual' ? switchStep('step-salary') : switchStep('step-hp')" class="px-6 py-2.5 bg-brandGold text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:brightness-110 transition-all">Next Step</button>
             </div>
         </div>
@@ -3443,7 +3445,7 @@
         </div>
         
 <div class="flex justify-between mt-4">
-                <button onclick="switchStep('step-deductions')" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
+                <button onclick="switchStep('step-hp')" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
                 <button onclick="switchStep('step-cg')" class="px-6 py-2.5 bg-brandGold text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:brightness-110 transition-all">Next Step</button>
             </div>
         
@@ -3742,11 +3744,11 @@
     <input type="text" inputmode="numeric" id="os-gifts" oninput="updateOSField('gifts_above_50k_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono mb-2" placeholder="₹ 0">
     <div id="div-os-gifts-exemptions" class="flex flex-col gap-1 mt-1">
         <label class="flex items-center gap-2 cursor-pointer group">
-            <input type="checkbox" id="os-gifts-marriage" class="form-checkbox bg-transparent border-white/20 text-brandGold rounded focus:ring-brandGold/50 transition-colors w-3 h-3">
+            <input type="checkbox" id="os-gifts-marriage" onchange="state.other_sources.gifts_exemption_marriage = this.checked; evaluateSurchargeBuckets();" class="form-checkbox bg-transparent border-white/20 text-brandGold rounded focus:ring-brandGold/50 transition-colors w-3 h-3">
             <span class="text-[9px] uppercase tracking-wider text-white/40 group-hover:text-white/60 transition-colors">Exempt: Received on occasion of marriage</span>
         </label>
         <label class="flex items-center gap-2 cursor-pointer group">
-            <input type="checkbox" id="os-gifts-relative" class="form-checkbox bg-transparent border-white/20 text-brandGold rounded focus:ring-brandGold/50 transition-colors w-3 h-3">
+            <input type="checkbox" id="os-gifts-relative" onchange="state.other_sources.gifts_exemption_relative = this.checked; evaluateSurchargeBuckets();" class="form-checkbox bg-transparent border-white/20 text-brandGold rounded focus:ring-brandGold/50 transition-colors w-3 h-3">
             <span class="text-[9px] uppercase tracking-wider text-white/40 group-hover:text-white/60 transition-colors">Exempt: Received from specified relative</span>
         </label>
     </div>
@@ -3906,7 +3908,7 @@
             <div class="flex justify-between mt-4">
             <div class="flex justify-between mt-4">
                 <button onclick="switchStep('step-cg')" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
-                <button onclick="switchStep('step-dtaa')" class="px-6 py-2.5 bg-brandGold text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:brightness-110 transition-all">Next Step</button>
+                <button onclick="switchStep(state.profile.tax_regime === 'OLD' ? 'step-deductions' : 'step-credits')" class="px-6 py-2.5 bg-brandGold text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:brightness-110 transition-all">Next Step</button>
             </div>
         </div>
 
@@ -4300,7 +4302,7 @@
             </div>
 
             <div class="flex justify-between mt-4">
-                <button onclick="switchStep('step-income')" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
+                <button onclick="switchStep('step-os')" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
                 <button onclick="switchStep('step-credits')" class="px-6 py-2.5 bg-brandGold text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:brightness-110 transition-all">Next Step</button>
             </div>
         </div>
@@ -4912,6 +4914,8 @@
             interest_on_it_refund_inr: null,
             dividend_inr: null,
             gifts_above_50k_inr: null,
+            gifts_exemption_marriage: false,
+            gifts_exemption_relative: false,
             family_pension_gross_inr: null,
             family_pension_standard_deduction_inr: null,
             winnings_lottery_gaming_inr: null,
@@ -8686,22 +8690,6 @@ const crDiv = document.getElementById('div-company-residency');
         }
     }
 
-    function togglePfEsiPaidField() {
-        const val = state.domestic_income.business_income.expenses.employer_pf_esi_contribution_inr;
-        const div = document.getElementById('div-pf-esi-paid');
-        if (div) {
-            if (val && val > 0) {
-                div.classList.remove('hidden');
-            } else {
-                div.classList.add('hidden');
-                // Reset the checkbox
-                const cb = document.getElementById('biz-pf-esi-paid');
-                if (cb) cb.checked = false;
-                state.domestic_income.business_income.expenses.employer_pf_esi_paid_before_due_date = null;
-            }
-        }
-    }
-
             function updateBizEntityType(val) {
     state.profile.entity_type = val;
     state.domestic_income.business_income.entity_type = val; // keep for backward compat
@@ -9138,16 +9126,6 @@ const crDiv = document.getElementById('div-company-residency');
         if (field === 's44AD_last_exit_ay') {
             validateS44ADEligibility();
         }
-    }
-
-    function updateBizExpense(field, val) {
-        state.domestic_income.business_income.expenses[field] = val === '' ? null : parseINRCurrency(val);
-        evaluateSurchargeBuckets();
-    }
-
-    function updateBizStringExpense(field, val) {
-        state.domestic_income.business_income.expenses[field] = val === '' ? null : val;
-        evaluateSurchargeBuckets();
     }
 
     // s.43B(h) MSME payables table
@@ -12964,76 +12942,25 @@ ${isProf ? '' : `
         // ── BUSINESS / PROFESSION (Head: Profits & Gains of Business/Profession) ─
         let business = 0;
         if (state.domestic_income.business_income.has_business_or_fo_income) {
-            const exp = state.domestic_income.business_income.expenses || {};
-
-            // ── Step 1: Gross deductible expenses (Regular Books) ────────────────
-            // Sum ALL operating expense fields. Statutory disallowances are computed
-            // in Step 2 and subtracted to arrive at netDeductibleExpenses.
-            // Fields NOT included here (handled separately below):
-            //   • has_related_party_payments               → boolean flag only
-            //   • s35D_year_of_commencement / s35DDA_first_year_of_payment → string fields
-            // Preliminary Expenses Amortisation & VRS Amortisation: only 1/5th of the total amount is allowed per year.
-            // s.43B(d) PF/ESI: deductible ONLY if paid before the due date of return filing.
-            const deductibleExpenses =
-                (exp.rent_for_business_premises_inr        || 0) +
-                (exp.repairs_maintenance_inr               || 0) +
-                (exp.employee_salary_wages_inr             || 0) +
-                (exp.employee_bonus_commission_inr         || 0) +
-                (exp.interest_on_borrowed_capital_inr      || 0) +
-                (exp.insurance_premium_inr                 || 0) +
-                (exp.bad_debts_written_off_inr             || 0) +
-                (exp.other_business_expenses_inr           || 0) +
-                (exp.s35_own_revenue_research_inr          || 0) +
-                (exp.s35_own_capital_research_inr          || 0) +
-                (exp.s35_donation_to_approved_body_inr     || 0) +
-                Math.round((exp.s35D_total_preliminary_expenses_inr  || 0) / 5) + // Preliminary Expenses Amortisation: 1/5th p.a.
-                Math.round((exp.s35DDA_vrs_payments_inr              || 0) / 5) + // VRS Amortisation: 1/5th p.a.
-                (exp.stt_paid_inr                          || 0) +  // s.36(1)(xv)
-                (exp.ctt_paid_inr                          || 0) +
-                (exp.brokerage_on_fno_inr                  || 0) +
-                (exp.exchange_charges_inr                  || 0) +
-                (exp.advisory_and_data_subscriptions_inr   || 0) +
-                (exp.internet_proportion_inr               || 0) +
-                (exp.home_office_proportion_inr            || 0) +
-                (exp.margin_interest_inr                   || 0) +
-                (exp.ca_professional_fees_inr              || 0) +
-                // s.43B(d): PF/ESI deductible only if paid before due date for filing return
-                (exp.employer_pf_esi_paid_before_due_date === true ? (exp.employer_pf_esi_contribution_inr || 0) : 0);
-
-            // ── Step 2: Statutory Disallowances — add back from gross expenses ────
-            // Design: The TDS/cash disallowance fields are disclosure fields that capture
-            // amounts ALREADY INCLUDED in the regular expense fields above. We add back
-            // only the disallowed portion; the rest remains deductible.
-
-            // s.40(a)(i): Payments to non-residents without TDS — 100% disallowed
-            const disallow_40a_i  = (exp.payments_to_non_residents_no_tds_inr || 0);
-
-            // s.40(a)(ia): Payments to residents without TDS — 30% disallowed, 70% deductible.
-            // User enters TOTAL such payment; engine adds back only 30%.
-            const disallow_40a_ia = Math.round((exp.payments_to_residents_no_tds_inr || 0) * 0.30);
-
-            // s.40A(3): Cash payments exceeding ₹10,000/₹35,000 per day — 100% disallowed
-            const disallow_40A_3  = (exp.total_cash_payments_exceeding_limit_inr || 0);
-
-            // s.43B(h): MSME overdue payables — full invoice disallowed in accrual AY.
-            // Re-derived from msme_payables (the UI module computes this locally;
-            // the total is not persisted back, so we recompute it here).
-            let disallow_43B_h = 0;
-            const _msmeToday = new Date(); _msmeToday.setHours(0, 0, 0, 0);
-            (state.domestic_income.business_income.msme_payables || []).forEach(inv => {
-                const _rawAmt = inv.amount_inr || 0;
-                if (!inv.invoice_date || _rawAmt <= 0) return;
-                const _invDate = new Date(inv.invoice_date); _invDate.setHours(0, 0, 0, 0);
-                const _prescribedDays = inv.has_written_agreement ? 45 : 15;
-                const _dueDate = new Date(_invDate); _dueDate.setDate(_dueDate.getDate() + _prescribedDays);
-                const _refDate = inv.payment_date ? new Date(inv.payment_date) : _msmeToday;
-                _refDate.setHours(0, 0, 0, 0);
-                if (_refDate > _dueDate) disallow_43B_h += _rawAmt;
-            });
-
-            // Net deductible = gross expenses − total disallowances (cannot be negative)
-            const totalDisallowances = disallow_40a_i + disallow_40a_ia + disallow_40A_3 + disallow_43B_h;
-            const netDeductibleExpenses = Math.max(0, deductibleExpenses - totalDisallowances);
+            // NOTE: this preview intentionally shows Regular Books entries as GROSS
+            // receipts, not net profit. A prior version of this block computed a
+            // "net deductible expenses" figure from state.domestic_income.
+            // business_income.expenses (a top-level object) and its own s.40(a)(i)/
+            // (ia)/s.40A(3)/s.43B(h) disallowances -- removed because nothing in
+            // this form ever wrote to that top-level object (its only writers,
+            // togglePfEsiPaidField/updateBizExpense/updateBizStringExpense, were
+            // never called from any rendered input), so deductibleExpenses was
+            // always 0 and, after Math.max(0, 0 - disallowances), the final
+            // netDeductibleExpenses was always 0 too -- REGARDLESS of the
+            // disallowance figures, including the s.43B(h) one, which was
+            // genuinely computed from real, live msme_payables data but had no
+            // way to ever affect this total once summed through the always-zero
+            // base. The real expense/disallowance computation lives in the
+            // engine (business_entries[idx].expenses, the per-unit structure
+            // updateUnitExpense actually writes to -- see IN-21/22/23/24/25 in
+            // docs/GAP_TRACKER.md); this on-page preview simply doesn't attempt
+            // to replicate it. A real preview would need to sum
+            // business_entries[].expenses across all units/branches to match.
 
             // ── Per-entry income: Presumptive → statutory rate; Regular Books → gross receipts ──
             let regularBooksGross = 0;
@@ -13055,12 +12982,12 @@ ${isProf ? '' : `
                 }
             });
 
-            // Deduct expenses only for Regular Books entries.
-            // Presumptive schemes (44AD / 44ADA / 44AE) do not allow separate expense deduction —
-            // the statutory rate already represents the NET profit.
-            // netDeductibleExpenses = gross expenses − statutory disallowances (s.40a(i)/(ia), s.40A(3), s.43B(h))
+            // Regular Books entries are shown as gross receipts in this preview --
+            // see the note above the presumptive/regular-books loop for why no
+            // expense deduction is attempted here (the real net-profit
+            // computation happens in the engine against business_entries[].expenses).
             if (hasAnyRegularEntry) {
-                business += (regularBooksGross - netDeductibleExpenses); // can be negative (business loss)
+                business += regularBooksGross;
             }
 
             // Presumptive Taxation Scheme (Transporters) goods transport: per-vehicle statutory income
@@ -13126,7 +13053,8 @@ ${isProf ? '' : `
         const bondInt      = state.other_sources.interest_bonds_inr         || 0;
         const itRefundInt  = state.other_sources.interest_on_it_refund_inr  || 0;
         const divInt       = state.other_sources.dividend_inr               || 0;
-        const gifts        = state.other_sources.gifts_above_50k_inr        || 0;
+        const giftsExempt  = !!state.other_sources.gifts_exemption_marriage || !!state.other_sources.gifts_exemption_relative;
+        const gifts        = giftsExempt ? 0 : (state.other_sources.gifts_above_50k_inr || 0);
         const gaming       = state.other_sources.online_gaming_winnings_inr || 0;
         const lotteryWin   = state.other_sources.winnings_lottery_gaming_inr || 0;
         const spousalClub  = state.other_sources.spousal_clubbing_s64_inr   || 0;
@@ -14280,6 +14208,10 @@ ${isProf ? '' : `
                 const el = document.getElementById(id);
                 if (el) el.value = val || '';
             }
+            const giftsMarriage = document.getElementById('os-gifts-marriage');
+            if (giftsMarriage) giftsMarriage.checked = os.gifts_exemption_marriage || false;
+            const giftsRelative = document.getElementById('os-gifts-relative');
+            if (giftsRelative) giftsRelative.checked = os.gifts_exemption_relative || false;
         }
 
         // Deductions Step

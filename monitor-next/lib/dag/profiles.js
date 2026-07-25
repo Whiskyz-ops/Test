@@ -766,8 +766,8 @@
   var P6 = {
     id: "india_only_ca_client",
     label: "India-Only · CA client (no US exposure)",
-    story: "Business POV of a pure-India CA practice: a Bengaluru senior manager with zero US ties at all — Router is explicitly \"India only,\" and the Monitor collapses to a single-country view (no US badge, no US residency card, no DTAA panel) rather than fabricating a dual-jurisdiction picture. Deliberately dense: salary plus two side businesses (a presumptive s.44ADA UX-consulting practice and a regular-books stationery retail shop exercising depreciation, an MSME-payment disallowance, and F&O/speculative ring-fencing), a partner stake in a family LLP, listed-equity STCG/LTCG, an unlisted-company share buyback, a crypto sale taxed flat under s.115BBH, a physical-gold sale plus a Sovereign Gold Bond redeemed exempt at maturity, the full spread of \"other sources\" (family pension, a taxable gift, online-gaming winnings, taxable EPF interest), nine separate Chapter VI-A deductions under the OLD regime, an LRS remittance, a brought-forward capital loss, and a full advance-tax/TDS reconciliation — everything a well-off, purely domestic Indian client actually brings a CA in one filing year.",
-    tags: ["India-only", "single-jurisdiction", "presumptive + regular books", "F&O", "VDA/crypto", "partner-firm", "depreciation", "Chapter VI-A"],
+    story: "Business POV of a pure-India CA practice: a Bengaluru senior manager with zero US ties at all — Router is explicitly \"India only,\" and the Monitor collapses to a single-country view (no US badge, no US residency card, no DTAA panel) rather than fabricating a dual-jurisdiction picture. Deliberately dense: salary plus two side businesses (a presumptive s.44ADA UX-consulting practice and a regular-books stationery retail shop exercising depreciation, an MSME-payment disallowance, and F&O/speculative ring-fencing), a partner stake in a family LLP, listed-equity STCG/LTCG, an unlisted-company share buyback, a crypto sale taxed flat under s.115BBH, a physical-gold sale plus a Sovereign Gold Bond redeemed exempt at maturity, the full spread of \"other sources\" (family pension, a taxable gift, online-gaming winnings, taxable EPF interest), nine separate Chapter VI-A deductions under the OLD regime, an LRS remittance, a brought-forward capital loss, and a full advance-tax/TDS reconciliation — everything a well-off, purely domestic Indian client actually brings a CA in one filing year. Also exited s.44AD 2 years before this filing — still inside the 5-year re-election lock-in (s.44AD(4)/(5)), which forces a mandatory tax audit this year regardless of turnover since total income exceeds the basic exemption limit.",
+    tags: ["India-only", "single-jurisdiction", "presumptive + regular books", "F&O", "VDA/crypto", "partner-firm", "depreciation", "Chapter VI-A", "s44AD lock-in"],
     router: router("Kavya Iyer", { us_days: 0, is_us_citizen: false, has_green_card: false, has_us_source_income_or_assets: false, date_of_birth: "1984-11-20", jurisdiction: "single_india" }),
     india: {
       profile: { full_name: "Kavya Iyer", entity_type: "individual", date_of_birth: "1984-11-20", pan: "AKIPI4567L", tax_regime: "OLD" },
@@ -823,6 +823,16 @@
         house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 360000 }, { annual_value_inr: 180000 }] },
         business_income: {
           has_business_or_fo_income: true,
+          // s.44AD(4)/(5) re-election lock-in (gap tracker IN-6): Kavya
+          // exited s.44AD 2 years before this filing (this app's own
+          // biz-s44ad-exit field, the same one layer1_india.html's
+          // validateS44ADEligibility() already reads to force-revert a
+          // presumptive re-selection during lock-in) — a real, previously
+          // demo-invisible fact, added here so the mandatory-audit
+          // consequence (total income exceeds the basic exemption in a
+          // locked-out year, regardless of turnover) has a real profile to
+          // fire on, not just presumptiveLockinAgg's synthetic test cases.
+          s44AD_last_exit_ay: "AY 2024-25",
           // F&O ordinary profit + a small ring-fenced speculative LOSS (must
           // NOT offset the ordinary business total — same rule Rohan Mehta's
           // profile exercises).
@@ -1165,8 +1175,8 @@
   var B3 = {
     id: "foreign_holdco_poem_india",
     label: "Foreign Holdco · POEM in India",
-    story: "Business POV: a Singapore-incorporated holding company whose real commercial decisions are made from Mumbai. Not incorporated in India, but its Place of Effective Management facts resolve it to an Indian tax resident anyway — entity-level dual residency with no individual-style tie-breaker to resolve it.",
-    tags: ["company", "POEM", "s.6(3)", "entity"],
+    story: "Business POV: a Singapore-incorporated holding company whose real commercial decisions are made from Mumbai. Not incorporated in India, but its Place of Effective Management facts resolve it to an Indian tax resident anyway — entity-level dual residency with no individual-style tie-breaker to resolve it. Also runs a turnkey power-project branch in India, taxed under s.44BBB's foreign-company-only 10% flat presumptive scheme (not Regular Books), plus a s.115V tonnage-tax figure and a s.35AD specified-business capex deduction — the full s.44BBB/35AD/115V computation (gap tracker IN-26) demonstrated on one real profile instead of only in synthetic test cases.",
+    tags: ["company", "POEM", "s.6(3)", "entity", "s44BBB", "s35AD", "s115V tonnage tax"],
     router: router("Meridian Holdings Pte Ltd", { us_days: 0, has_us_source_income_or_assets: false }),
     india: {
       profile: { full_name: "Meridian Holdings Pte Ltd", entity_type: "company", tax_regime: "NEW", turnover_lte_400cr: true, opt_115baa: false },
@@ -1186,9 +1196,32 @@
       // building, 10%) doubles as the seat of the key-management-location
       // fact this profile's POEM finding hinges on. Nets to the same Rs2.2cr
       // the old net_profit_inr shortcut asserted directly.
-      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company", business_entries: [
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: true, entity_type: "company",
+        // s.35AD specified-business capex deduction (gap tracker IN-26) — a
+        // real, live top-level field (layer1_india.html's biz-s35ad input)
+        // that was never read engine-side at all until this fix. Gated on
+        // entity==="company" && not an NR-resident foreign company
+        // (businessComputation's own comment) — this profile satisfies both:
+        // a "company" per profile.entity_type, and India-RESIDENT (ROR, via
+        // POEM) even though foreign-incorporated, so NOT the NR-company case
+        // s.44BB/s.44BBB apply to instead.
+        specified_business_s35AD_inr: 4500000,
+        business_entries: [
         { business_name: "Meridian Holdings Pte Ltd", nature: "investment holding", presumptive_scheme: null, turnover_inr: 30000000,
-          expenses: { employee_salary_wages_inr: 3000000, rent_for_business_premises_inr: 800000, other_business_expenses_inr: 1200000, ca_professional_fees_inr: 300000, insurance_premium_inr: 100000 } }
+          expenses: { employee_salary_wages_inr: 3000000, rent_for_business_premises_inr: 800000, other_business_expenses_inr: 1200000, ca_professional_fees_inr: 300000, insurance_premium_inr: 100000 } },
+        // s.44BBB presumptive scheme (gap tracker IN-26) — flat 10% of
+        // receipts, foreign-companies-only (layer1_india.html's own
+        // schemeOptions only offers this value when entity==="company" &&
+        // is_indian_company===false, exactly this profile's own facts).
+        // Previously computed as Regular Books by mistake (usesRegularBooksInr
+        // defaulted to true for any unrecognized scheme value) — this entry
+        // is the real, live demonstration that the 10%-flat fix actually
+        // fires. tonnage_tax_115V_inr (s.115V, also IN-26) is placed on the
+        // same entry rather than a third one for demo compactness — the
+        // field is summed taxpayer-wide regardless of which entry carries it,
+        // so this doesn't change the math, only which JSON object holds it.
+        { business_name: "Meridian Power Projects (India Branch)", nature: "turnkey power project — civil construction", presumptive_scheme: "s44BBB",
+          turnover_inr: 45000000, cash_receipts_inr: 0, tonnage_tax_115V_inr: 850000 }
       ], asset_blocks: [
         { unit_biz_idx: 0, unit_branch_idx: null, asset_class: "building_commercial", opening_wdv_inr: 20000000, additions_during_year_inr: 0, addition_date: null, sale_consideration_inr: 0, is_new_manufacturing_asset: false },
         { unit_biz_idx: 0, unit_branch_idx: null, asset_class: "plant_machinery_computers", opening_wdv_inr: 1500000, additions_during_year_inr: 0, addition_date: null, sale_consideration_inr: 0, is_new_manufacturing_asset: false }

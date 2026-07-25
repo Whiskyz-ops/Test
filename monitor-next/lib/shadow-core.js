@@ -69,7 +69,13 @@ export const DIRECTIONAL_SURFACE = [];
 // that only ever appear for a trust-kind US taxpayer, so unconditionally
 // skipping the key names is safe for every other profile shape too (they
 // simply never appear on either side).
-const DAG_ONLY_KEYS = new Set(["caveat", "indiaIsAop", "indiaIsTrust", "trustDistributedUsd", "trustRetainedUsd", "trustBracketBreakdown"]);
+// entityGraph (Phase 5, docs/BUSINESS_ENTITY_ARCHITECTURE.md §6, 25 Jul
+// 2026): model.assets.entityGraph is a genuinely new Entity[]/Edge[] graph
+// model with no engine equivalent at all — fires on every profile (even a
+// lone individual produces a one-entity graph), so it needs the same
+// blanket per-key exclusion as the trust-only keys above (kept in sync with
+// prototypes/graph-pilot/run-fuzz.js's own DAG_ONLY_KEYS).
+const DAG_ONLY_KEYS = new Set(["caveat", "indiaIsAop", "indiaIsTrust", "trustDistributedUsd", "trustRetainedUsd", "trustBracketBreakdown", "entityGraph"]);
 
 // Back-compat alias (the full path list).
 export const SHADOW_SURFACE = SYMMETRIC_SURFACE.concat(DIRECTIONAL_SURFACE);

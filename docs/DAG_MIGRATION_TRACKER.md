@@ -664,3 +664,307 @@ correctly wired into everything built in sections I/J:
   new router → Monitor round trip (via the Monitor's own button, not a
   seeded test) shows the new client in the Clients tab alongside all 12
   demo profiles, undisturbed.
+
+## L. First real bug fix landed DAG-only, post-freeze (25 Jul 2026)
+
+Sections I/J closed the freeze structurally — this is the first time it was
+actually exercised for a genuine tax-computation bug fix, not just Layer 0
+plumbing (section K) or parity verification. Worth recording as the
+precedent, since every future engine bug fix now follows this same shape
+rather than touching `archive/engine-frozen/`.
+
+**The bug** (gap tracker US-18, `docs/BUSINESS_ENTITY_ARCHITECTURE.md` §3.4):
+`farming_schedule_f[]`'s `net_profit_usd`/`gross_income_usd` are phantom
+fields — never written by `layer1_us.html`'s own `syncFarmState()` (verified
+by direct grep, zero hits), which only ever persists an `itemized_income{}`
+line-item breakdown plus a real `expenses_usd`. Both
+`aggregateusincome-nodes.js` (ported faithfully from `normalize.js` before
+the freeze) and the frozen `archive/engine-frozen/normalize.js` itself
+inherited the same bug: farm income never reached `businessUs` (actual
+taxable income) at all, and `seEarnings` (the Schedule SE base) only ever
+read the phantom field — a real farmer's Schedule F profit silently
+contributed $0 to both regular tax and self-employment tax, and had no
+depreciation wired either (unlike self-employment, US-29).
+
+**Where the fix landed, and where it deliberately didn't:**
+`prototypes/graph-pilot/aggregateusincome-nodes.js` (the income aggregation)
+and `assets-nodes.js` (the Business-tab trace) both gained real
+`computeFarmGrossIncomeUsd`/`computeFarmNetProfitUsd`/`farmNetProfitUsd`
+functions and a combined `usBusinessDepreciationPlan` (renamed from
+`selfEmploymentDepreciationPlan`, now spanning both self-employment and
+farm assets in one taxpayer-wide §179 pool). `archive/engine-frozen/
+normalize.js` was **not touched** — per its own header banner and this
+tracker's §J policy, never hand-edited again. This means the DAG and the
+frozen engine now deliberately **disagree** on any profile with real
+`farming_schedule_f` data — the same class of intentional, documented
+divergence as section I item 2's doc-count example, not a parity gap to
+close.
+
+**Verification shape this establishes** for future DAG-only fixes: since
+none of the 12 fixtures (SAMPLE + 11 profiles) carry `farming_schedule_f`
+data, the existing profile-based regression harnesses (`run-
+aggregateusincome.js`'s 420 profile assertions, `run-assets.js`'s 810) can't
+exercise the new code path at all and pass unchanged either way — they
+prove no *regression*, not that the fix *works*. A genuinely new synthetic
+section was added to `run-aggregateusincome.js` (5 hand-checked cases: cash-
+method, accrual-method with the cost-of-purchases/inventory swing, one
+§179-elected asset, both backward-compat override shapes), diffed only
+against hand-derived expected numbers — NOT against the frozen engine's
+`model.income.us`, since that engine doesn't have the fix by design. Full
+regression re-verified clean around this: `run-aggregateusincome.js` 426/426,
+`run-assets.js` 810/810, differential fuzzer 200 fresh iterations (0 new
+divergences — confirms the fuzzer's generic field-mutation approach can't
+manufacture `farming_schedule_f` data from fixtures that don't have any, so
+this fix is invisible to it either way), `npm run audit` clean (no
+unexpected DAG-coverage gaps introduced), `tests/engine/run.js` 79/79
+unaffected (the frozen engine, correctly untouched). `assets/dag-analyze.
+bundle.js` rebuilt (`npm run build:dag-bundle`) and `monitor-next/lib/dag/`
+re-synced (`npm run sync:dag`) so both consumers of the DAG pick up the fix.
+
+## M. Phase 4 batch — three more DAG-only fixes, one confirmed still blocked (25 Jul 2026)
+
+Same shape as §L, three more times, plus one item investigated and correctly
+NOT built. All in `aggregateindiaincome-nodes.js`/`assets-nodes.js`/
+`report-batch1-nodes.js` — none touch `archive/engine-frozen/`.
+
+1. **s.44AD(4)/(5) presumptive re-election lock-in** (gap tracker IN-6): a
+   new `presumptiveLockinAgg` node parses `s44AD_last_exit_ay` with the same
+   regex/date math `layer1_india.html`'s own `validateS44ADEligibility()`
+   already uses to force-revert a UI attempt to re-select s.44AD during the
+   lock-in — but the live form never disclosed the lock-in itself, and never
+   computed s.44AD(5)'s real consequence (mandatory tax audit under s.44AB
+   whenever total income exceeds the basic exemption limit in ANY
+   locked-out year, regardless of turnover). New `presumptive_lockin_
+   active_india` finding discloses it; `report-batch1-nodes.js`'s
+   `form_3cb_3cd` trigger extended to force the audit document.
+2. **s.44BB/s.44BBB presumptive schemes + s.35AD/s.115V** (gap tracker
+   IN-26): found IN-26's own prior claim was partly wrong — `s44bbb_
+   receipts_inr` is itself a phantom top-level field (zero writers). The
+   REAL mechanism is a per-entry `presumptive_scheme` value, completely
+   unhandled engine-side (any entry with `s44BB`/`s44BBB` silently fell
+   through to Regular Books). `tonnage_tax_115V_inr` had the same "phantom
+   top-level field, real per-entry field" bug the whole farm fix (§L) was
+   built around — `layer1_india.html`'s OWN preview reads the wrong
+   location too, so this wasn't just an engine gap. `specified_business_
+   s35AD_inr` was real and live but never read engine-side at all. All
+   three now wired into `businessComputation`/`computeBusinessEntryNetProfitInr`.
+3. **MSME s.43B(h) disallowance finding** (gap tracker IN-42, new row): the
+   disallowance amount was already computed into net profit (IN-23) but
+   never surfaced as its own finding. New `msme_disallowance_s43Bh_india`
+   discloses the dollar total + overdue-invoice count directly. This one
+   DOES fire on real fixture data (2 of 11 profiles carry real
+   `msme_payables`) — unlike the other Phase 4 items and §L's farm fix,
+   which happened to touch zero existing fixture data, this one needed a
+   real allowlist entry (`run-fuzz.js`'s `KNOWN_EXTRA_FINDING_ID`, extended
+   to match `presumptive_lockin_active_india`/`msme_disallowance_s43Bh_
+   india` — the exact same mechanism `us_entity_state_tax` already used).
+4. **Non-corporate AMT** (gap tracker IN-5) — investigated, NOT built. The
+   architecture doc's phase table said this phase was "blocked on new
+   fields: No," which was wrong for this one item specifically. The only
+   candidate add-back Layer 1 captures (`specified_business_s35AD_inr`) is
+   scoped to company entities only (`layer1_india.html`'s own UI, "For
+   Indian Companies only") — and s.115JC (non-corporate AMT) by definition
+   only applies to NON-company entities, which have their own separate MAT
+   (s.115JB) instead. Zero real data overlap, confirmed by direct grep
+   rather than assumed, so this stays a genuine "needs field" item — split
+   into its own Phase 4b row in the architecture doc rather than left
+   misclassified alongside the three items that were genuinely buildable.
+
+Verified: `run-aggregateindiaincome.js` 248/248 (241 pre-existing + 7 new
+synthetic s.44BB/BBB/35AD/115V cases), `run-assets.js` 817/817 (810
+pre-existing + 9 new synthetic lock-in cases, MSME finding checked directly
+against 2 real profiles' real data), `run-aggregateusincome.js`/`run-
+checksregistry.js`/`run-agg10.js` unaffected, differential fuzzer 200
+iterations (0 new divergences after the `KNOWN_EXTRA_FINDING_ID` allowlist
+update), `npm run audit` byte-identical before/after (diffed directly),
+`tests/engine/run.js` 79/79 unaffected (frozen engine correctly untouched).
+
+## N. Phase 5 — entity graph model + extractor (25 Jul 2026)
+
+`docs/BUSINESS_ENTITY_ARCHITECTURE.md` §6's `Entity[]`/`Edge[]` schema,
+genuinely built for the first time — no prior DAG node attempted this, and
+no engine equivalent exists at all (a wholly new concept, unlike §L/§M's
+bug fixes against something the engine already tried to compute). New
+`buildEntityGraph` function in `assets-nodes.js`, wired as `model.assets.
+entityGraph` alongside the pre-existing `businessEntities` flat list (which
+stays as-is — still the Business tab's own data source; entityGraph is
+additive, no existing consumer touched).
+
+**A real bug found and fixed during the build, not after**: an early
+version picked a single "root" entity by preferring India's own
+`profile.entity_type` over US's `tax_entity_type` whenever both were
+non-individual. This is wrong whenever a taxpayer bundle genuinely contains
+TWO distinct real entities with different names — `us_ccorp_indian_sub`
+(Cloudspire Inc, a US C-corp, owning Cloudspire India Pvt Ltd, a different
+legal entity) being the exact real-fixture case that caught it: the single-
+root version picked the India subsidiary as "root," then ALSO created a
+separate `foreign_corp` node for the same subsidiary from the US side's own
+CFC ownership record — the same subsidiary appearing twice, with a GILTI
+edge pointing at itself. Exactly the failure mode §6's own opening line
+warns about ("an entity graph consolidating wrong numbers is worse than no
+graph"), caught here by testing against real fixture data rather than only
+synthetic cases. Fixed: when both sides name a real, non-individual entity
+type AND the names differ, two roots (`root_in`/`root_us`) are created
+instead of one, connected by whatever real ownership record names them
+(`foreign_entities.foreign_corporations[]`, matched by name against the
+existing roots to avoid the duplicate) — genuinely one entity dual-resident
+on both sides (matching names) still correctly collapses to a single root.
+
+**Scope, deliberately**: Entity nodes carry `income` (reusing the exact
+same computations `businessEntitiesResult`/`aggregateBusinessIncome` already
+verify — spot-checked byte-identical against the flat list's own figures
+for the same K-1s) but not `deductions`/`tax` — no per-entity deduction/tax
+attribution exists anywhere in this engine to reuse, and deriving new
+per-entity tax allocation is out of scope for an *extractor*. Edges record
+the flow type and, where cheaply available, the amount already visible on
+that flow's own Layer 1 entry — but do NOT yet carry a NEWLY-verified,
+independently-traceable dollar figure distinct from what's already shown;
+that's Phase 6's own explicit scope ("wired as traceable edges, not silent
+sums"), not done here. No frontend consumes `entityGraph` yet (Phase 8).
+
+**DAG_ONLY_KEYS, not a narrower allowlist**: unlike the Phase 4 findings
+(which only fire on profiles carrying specific data, so a narrow
+`KNOWN_EXTRA_FINDING_ID` regex sufficed), `entityGraph` exists on EVERY
+profile — even a lone individual produces a one-entity graph. Needed the
+blanket per-key exclusion (`run-fuzz.js`'s `DAG_ONLY_KEYS`, AND its sibling
+copy in `monitor-next/lib/shadow-core.js` — the file header's own "keep both
+lists in sync" note, followed literally) rather than a narrower one; without
+it, the fuzzer showed 289/300 "new" divergences that were really this one
+benign, expected difference repeated on nearly every profile.
+
+Verified: `run-assets.js` 867/867 (810 parity + a new `checkEntityGraph`
+structural check per profile: root entity present, no duplicate ids, every
+edge references a real entity — deliberately not diffed against the frozen
+engine, which has no equivalent at all), spot-checked `us_ccorp_indian_sub`/
+`founder_indian_company`/`us_resident_indian_income`/`us_only_cpa_client`
+output directly (two distinct roots where genuinely two entities exist, one
+collapsed root otherwise, K-1 income figures byte-identical to
+`businessEntities`' own), differential fuzzer 300 iterations (0 new
+divergences after the `DAG_ONLY_KEYS` update on both copies), `npm run
+audit` byte-identical before/after, all other DAG runners (`run-
+aggregateindiaincome.js`/`run-aggregateusincome.js`/`run-checksregistry.js`/
+`run-agg10.js`) and `tests/engine/run.js` (frozen engine) unaffected.
+
+## O. Phase 6 — traceable inter-entity flow edges (25 Jul 2026)
+
+§6's explicit Phase 6 ask, distinct from Phase 5 (§N): edges shouldn't just
+carry a bare labeled amount — every dollar crossing an entity boundary
+should be traceable back to its source, the same way every OTHER figure in
+this app already gets a `calc`/`source` object (the same convention
+`businessEntityIncomeTrace`/`selfEmploymentIncomeTrace`/etc. already use).
+
+**What was a genuine "silent sum", concretely**: `aggregateusincome-
+nodes.js`'s `k1PassiveIncomeUsd`/`addK1Passive` already correctly sums each
+K-1's interest/dividend/capital-gain/rental/royalty boxes into the
+taxpayer's overall `interestUs`/`ordinaryDividendsUs`/etc. totals — right
+for tax computation, but it means the FINAL number can't say which K-1
+entity contributed which slice. Phase 5's own K-1 edges only carried the
+ORDINARY business income amount, not this passive-box contribution at all.
+
+**Fixed**: every edge in `buildEntityGraph` (assets-nodes.js) now carries a
+`trace` object built the same way the rest of this app's figures are —
+per-entity-type business income (`businessEntryIncomeTrace`, reused
+directly, not re-derived), partner-firm remuneration/exempt-share (new
+`calc`/`source` objects, s.40(b)/s.10(2A) citations), K-1 ordinary income
+(full Box-by-box breakdown), C-corp/GILTI (source objects carrying the same
+caveats `businessEntitiesResult`'s own trace text already uses). K-1's
+passive-box contribution is now a genuinely NEW second edge per K-1 entity
+(`flow: "k1_passive_income"`), decomposing what was previously invisible —
+re-verified fresh from source (`k1PassiveIncomeUsdForGraph`, a byte-for-byte
+copy of `aggregateusincome-nodes.js`'s own `k1PassiveIncomeUsd`, not
+cross-required, matching this whole migration's discipline) and cross-
+checked: the sum of a K-1's decomposed interest/dividend/etc. amounts never
+exceeds the taxpayer's own overall total for that income type — confirms
+the split attributes existing money, doesn't invent or drop any.
+
+**Verification strengthened, not just extended**: `run-assets.js`'s
+`checkEntityGraph` now asserts every edge across all 12 fixtures carries a
+real `trace` (`kind === "calc" || "source"`) — a structural claim Phase 5's
+own tests never made, since Phase 5 didn't promise traceability, only
+structure. 890/890 (up from 867 — the new per-K1 passive edges plus the
+strengthened per-edge trace assertion), differential fuzzer 300 iterations
+(0 new divergences — no `DAG_ONLY_KEYS` change needed this time, since
+`trace`/new edges live entirely inside the already-excluded `entityGraph`
+key), `npm run audit` byte-identical before/after, all other DAG runners
+and `tests/engine/run.js` (frozen engine, correctly untouched) unaffected.
+
+## P. IN-6/IN-26 given real demo-profile coverage; monitor-next's profile list re-pointed to the live DAG fixtures (25 Jul 2026)
+
+Two Phase 4 findings (IN-6 presumptive lock-in, IN-26 s.44BBB/35AD/115V)
+were correct and DAG-tested (`run-assets.js`'s hand-checked synthetic
+cases) but had **zero real demo-profile coverage** — confirmed by grepping
+`profiles.js`/`sample-data.js` for their trigger fields (`s44AD_last_exit_ay`,
+`specified_business_s35AD_inr`, `presumptive_scheme: "s44BBB"`): zero
+matches across all 12 fixtures. Neither could be seen live in the app on
+any "Switch client…" profile — only in an offline test script's output.
+
+**Fixture additions, both real Layer 1 fields** (confirmed against
+`layer1_india.html`'s own live inputs before adding, not invented):
+- `india_only_ca_client`: `s44AD_last_exit_ay: "AY 2024-25"` on
+  `business_income` (top-level, matches `#biz-s44ad-exit`'s own write
+  path) — 2 years into the 5-year lock-in as of 25 Jul 2026, with total
+  income well above the OLD-regime basic exemption, so `presumptive_
+  lockin_active_india` fires and `form_3cb_3cd` (tax audit) is forced true
+  (previously `false` — turnover alone never crossed the audit threshold).
+- `foreign_holdco_poem_india`: a second business entry, "Meridian Power
+  Projects (India Branch)" (`presumptive_scheme: "s44BBB"`, matches the
+  real dropdown option gated to `entity==="company" && is_indian_company
+  === false` — exactly this profile's own facts), plus `specified_
+  business_s35AD_inr: 4500000` and `tonnage_tax_115V_inr: 850000` (both
+  matching real `layer1_india.html` inputs, gated to `entity==="company"
+  && !isNrCompany` — also satisfied, since this profile is ROR via POEM,
+  not NR).
+
+**A real architectural gap found while wiring this up, not assumed**:
+`monitor-next/lib/wising.js` imported `./engine/profiles.js` — the
+**frozen** archive snapshot (§J) — for `WISING.PROFILES`/`.loadProfile()`,
+not `prototypes/graph-pilot/profiles.js` (the live, actively-developed
+source these 2 edits went into). Confirmed structurally: `dag-adapter.js`'s
+own `W.PROFILES` reads are just `window.WISING.PROFILES`, the same global
+`wising.js` populates — so even DAG mode's "Switch client" dropdown was
+silently sourcing its profile LIST from the frozen 23-Jul snapshot, not
+the live fixtures, for both Engine and DAG mode alike. New demo profiles
+built on the DAG side were reaching the standalone Layer 0/1 HTML pages
+(§J already repointed those `<script src>` tags) but never monitor-next's
+own demo mode.
+
+Fixed by swapping just the one import: `./engine/profiles.js` →
+`./dag/profiles.js` (the already-synced live mirror). `sample-data.js`
+and all 4 logic files stay pointed at the frozen archive — `WISING.
+analyze()` itself is untouched, only which `PROFILES` array `WISING.
+loadProfile()`/`.listProfiles()` closes over. Safe because both files are
+the byte-identical IIFE shape (verified: `prototypes/graph-pilot/
+profiles.js` is the literal file `git mv`'d out of `engine/`, same
+`WISING.PROFILES = PROFILES; WISING.loadProfile = loadProfile; ...`
+attachment pattern) — a drop-in data swap, not a behavioral change to how
+profiles load.
+
+**Consequence, expected and verified, not a bug**: Engine mode now
+processes these 2 profiles' new fields through frozen (pre-fix) logic,
+producing genuinely different numbers than DAG mode — the same "DAG has
+it, frozen engine doesn't" divergence this whole migration documents
+throughout. Quantified directly (a differential script loading the live
+profiles.js and running both `WISING.analyze()` and `graph.resolve()`
+against it, since the standard fuzz/audit harnesses all resolve through
+`resolveEngineFile()` → the frozen archive and never see these edits at
+all): on `foreign_holdco_poem_india`, frozen engine computes the new
+entry as $542,169 (turnover treated as Regular Books income, its historical
+bug), vs. DAG's correct $54,217 (10% flat) — and frozen engine's total
+India business income is ₹6,70,00,000 vs. DAG's real ₹2,28,50,000 (s.35AD/
+tonnage tax never reach the frozen computation at all). On `india_only_ca_
+client`, `form_3cb_3cd` flips `false`→`true` DAG-side only, exactly as
+designed. `form_10iea`'s own pre-existing divergence (confirmed unrelated
+by checking untouched `sharma_huf` too) is unaffected by this change.
+
+**Verified**: `run-assets.js` (890/890, unaffected — resolves through the
+frozen archive, never sees these 2 edits), `run-fuzz.js -- --n=200` (0 new
+divergences, same reason), `tests/engine/run.js` (79/79, unaffected), a
+clean production `next build`, and live in a real browser (Playwright
+against `monitor-next`'s dev server): `india_only_ca_client`'s Monitor tab
+shows the new critical finding ("s.44AD presumptive taxation locked out
+for 3 more years — mandatory tax audit applies this year") and Filings
+shows Form 3CB/3CD flip to Required; `foreign_holdco_poem_india`'s
+Business tab shows the new "Meridian Power Projects (India Branch)" entity
+row, and `businessComputation`'s own return value directly confirms
+`tonnageTaxInr: 850000` and `s35adDeductionInr: 4500000` both reached the
+real computation.
