@@ -100,6 +100,55 @@ function selfEmploymentIncomeTrace(s, depreciationPlanEntry) {
   return calc("Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less asset depreciation (§179 / 100% bonus, permanent under OBBBA / MACRS — computed from each asset's own class and placed-in-service date, not Layer 1's own first-year-only preview). Home-office isn't netted yet (Phase 1).", parts);
 }
 
+/* ---- farm trace (aggregateusincome-nodes.js) — mirrors self-employment's
+ * own phantom-field fix: gross_income_usd/net_profit_usd are never written
+ * by the live form; real gross income is the sum of itemized_income{}'s
+ * line items, netted against the accrual inventory swing when applicable. */
+function computeFarmGrossIncomeUsd(f) {
+  var inc = safe(f, "itemized_income", {}) || {};
+  var gross = num(inc.sales_livestock_produce_raised) + num(inc.sales_livestock_produce_purchased) +
+    num(inc.cooperative_distributions) + num(inc.agricultural_program_payments) + num(inc.ccc_loans) +
+    num(inc.crop_insurance_proceeds) + num(inc.custom_hire_income) + num(inc.other_income);
+  if (f.accounting_method === "accrual") {
+    var inv = safe(f, "inventory", {}) || {};
+    gross -= (num(inv.beginning_inventory) + num(inv.cost_of_purchases) - num(inv.ending_inventory));
+  }
+  return gross;
+}
+function computeFarmNetProfitUsd(f) { return computeFarmGrossIncomeUsd(f) - num(f.expenses_usd); }
+function farmNetProfitUsd(f, depreciationUsd) {
+  if (f.net_profit_usd !== undefined && f.net_profit_usd !== null) return num(f.net_profit_usd);
+  if (f.gross_income_usd !== undefined && f.gross_income_usd !== null) return num(f.gross_income_usd) - num(f.expenses_usd) - num(depreciationUsd || 0);
+  return computeFarmNetProfitUsd(f) - num(depreciationUsd || 0);
+}
+function farmIncomeTrace(f, depreciationPlanEntry) {
+  if (f.net_profit_usd !== undefined && f.net_profit_usd !== null) {
+    return source("Net farm profit entered directly on Layer 1 US for this farm (not derived from Schedule F line items).");
+  }
+  if (f.gross_income_usd !== undefined && f.gross_income_usd !== null) {
+    return source("Gross farm income entered directly on Layer 1 US for this farm (gross_income_usd), net of expenses_usd and asset depreciation.");
+  }
+  var inc = safe(f, "itemized_income", {}) || {};
+  var parts = [];
+  [["sales_livestock_produce_raised", "Sales of livestock/produce raised"], ["sales_livestock_produce_purchased", "Sales of livestock/produce bought for resale"],
+   ["cooperative_distributions", "Cooperative distributions"], ["agricultural_program_payments", "Agricultural program payments"],
+   ["ccc_loans", "CCC loans"], ["crop_insurance_proceeds", "Crop insurance proceeds"], ["custom_hire_income", "Custom hire income"], ["other_income", "Other farm income"]
+  ].forEach(function (pair) { if (num(inc[pair[0]]) !== 0) parts.push({ label: pair[1], amount: num(inc[pair[0]]) }); });
+  if (f.accounting_method === "accrual") {
+    var inv = safe(f, "inventory", {}) || {};
+    var invAdj = num(inv.beginning_inventory) + num(inv.cost_of_purchases) - num(inv.ending_inventory);
+    if (invAdj !== 0) parts.push({ label: "Less: cost of livestock/items purchased for resale (accrual inventory)", amount: -invAdj });
+  }
+  if (num(f.expenses_usd) !== 0) parts.push({ label: "Less: farm operating expenses", amount: -num(f.expenses_usd) });
+  (depreciationPlanEntry ? depreciationPlanEntry.assets : []).forEach(function (a) {
+    var label = "Asset (" + a.class + ", yr " + a.yearN + ")";
+    if (a.sec179Usd > 0) parts.push({ label: label + " — §179", amount: -a.sec179Usd });
+    if (a.bonusUsd > 0) parts.push({ label: label + " — 100% bonus depreciation", amount: -a.bonusUsd });
+    if (a.macrsUsd > 0) parts.push({ label: label + " — MACRS", amount: -a.macrsUsd });
+  });
+  return calc("Schedule F: sum of itemized farm income lines, less accrual inventory adjustment (if applicable), less expenses, less asset depreciation (§179 / 100% bonus / MACRS).", parts);
+}
+
 /* ---- India business-entry trace (normalize.js:56-165, 534-623) ------------ */
 var PRESUMPTIVE_CEILING_CITATION = "s.44AD/44ADA turnover ceilings (Rs.2cr/Rs.3cr and Rs.50L/Rs.75L, the higher figure requiring digital receipts ≥95% of total) verified 2026-07-12, matched to Layer 1 India's own live eligibility check — re-check each Finance Act cycle.";
 var PRESUMPTIVE_RESIDENCY_CITATION = "s.44AD/44ADA residency and entity-type eligibility (ROR-only; 44AD additionally excludes firms/LLPs/companies/AOPs/trusts/local authorities/co-ops, 44ADA further excludes HUFs) verified 2026-07-12, matched to Layer 1 India's own live eligibility check.";
@@ -337,9 +386,9 @@ function businessEntitiesResult(d, ctx) {
         : source("Entity-level taxable income as entered on Layer 1 US (business_income_usd) — no Schedule M-1 data on file for this entity.")
     });
   }
-  var seDeprPlanForTrace = d.selfEmploymentDepreciationPlan;
+  var seDeprPlanForTrace = d.usBusinessDepreciationPlan;
   (safe(ui, "self_employment", []) || []).forEach(function (s, seIdx) {
-    var seDeprEntry = seDeprPlanForTrace.byBusiness[seIdx];
+    var seDeprEntry = seDeprPlanForTrace.byBusiness["se" + seIdx];
     var seDeprUsd = seDeprEntry ? seDeprEntry.totalUsd : 0;
     list.push({
       country: "US", type: "Self-employment (Sch C)", name: s.business_name || s.name || "Self-employment",
@@ -348,11 +397,14 @@ function businessEntitiesResult(d, ctx) {
       calcTrace: selfEmploymentIncomeTrace(s, seDeprEntry)
     });
   });
-  (safe(ui, "farming_schedule_f", []) || []).forEach(function (s) {
+  (safe(ui, "farming_schedule_f", []) || []).forEach(function (f, farmIdx) {
+    var farmDeprEntry = seDeprPlanForTrace.byBusiness["farm" + farmIdx];
+    var farmDeprUsd = farmDeprEntry ? farmDeprEntry.totalUsd : 0;
     list.push({
-      country: "US", type: "Farm (Sch F)", name: s.name || "Farm", incomeUsd: num(s.net_profit_usd || 0), se: true, qbi: true,
+      country: "US", type: "Farm (Sch F)", name: f.business_name || f.name || "Farm",
+      incomeUsd: farmNetProfitUsd(f, farmDeprUsd), se: true, qbi: true,
       filesOwnReturn: false, returnForm: "Schedule F (Form 1040)",
-      calcTrace: source("Net farm profit as entered directly on Layer 1 US for this farm (net_profit_usd).")
+      calcTrace: farmIncomeTrace(f, farmDeprEntry)
     });
   });
   (safe(ui, "partnerships_k1", []) || []).forEach(function (k) {
@@ -451,7 +503,7 @@ NODES.assetsModelResult = {
   deps: ["indianMutualFundsResult", "indiaFinancialHoldingsTxRaw", "indianBusinessesBoundary",
     "usForeignCorpsRaw", "usOwns10PctForeignCorpRaw", "usSecuritiesBoundary",
     "epfInrRaw", "ppfInrRaw", "npsInrRaw", "taxableEpfInterestInrAgg", "taxableNpsWithdrawalInrAgg",
-    "uiAgg", "selfEmploymentDepreciationPlan", "bizEntriesAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg",
+    "uiAgg", "usBusinessDepreciationPlan", "bizEntriesAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg",
     "presumptiveEligibilityAgg", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust"],
   compute: function (d, ctx) {
     return {

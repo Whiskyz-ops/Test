@@ -721,6 +721,113 @@
           }
         ];
         WISING.CONST = CONST;
+        var CLIENT_REGISTRY_KEY = "wising_client_registry";
+        var CLIENT_LINK_TARGETS = ["router.html", "layer1_india.html", "layer1_us.html"];
+        function activeClientIdFromUrl() {
+          try {
+            if (typeof root.location === "undefined" || !root.URLSearchParams) return null;
+            return new root.URLSearchParams(root.location.search).get("client") || null;
+          } catch (e) {
+            return null;
+          }
+        }
+        function clientScopedKey(which, clientId) {
+          return "wising_client_" + clientId + "_" + which.toLowerCase();
+        }
+        function storageKeyFor(which) {
+          var id = activeClientIdFromUrl();
+          return id ? clientScopedKey(which, id) : CONST.STORAGE_KEYS[which];
+        }
+        function listClients() {
+          try {
+            var raw = root.localStorage.getItem(CLIENT_REGISTRY_KEY);
+            return raw ? JSON.parse(raw) : [];
+          } catch (e) {
+            return [];
+          }
+        }
+        function saveClientRegistry(list) {
+          try {
+            root.localStorage.setItem(CLIENT_REGISTRY_KEY, JSON.stringify(list));
+          } catch (e) {
+          }
+        }
+        function createClient() {
+          var id = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+          var list = listClients();
+          list.push({ id, label: "New client", createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+          saveClientRegistry(list);
+          return id;
+        }
+        function removeClient(clientId) {
+          try {
+            root.localStorage.removeItem(clientScopedKey("ROUTER", clientId));
+            root.localStorage.removeItem(clientScopedKey("INDIA", clientId));
+            root.localStorage.removeItem(clientScopedKey("US", clientId));
+          } catch (e) {
+          }
+          saveClientRegistry(listClients().filter(function(c) {
+            return c.id !== clientId;
+          }));
+        }
+        function updateClientLabel(clientId, label) {
+          var list = listClients(), found = false;
+          list.forEach(function(c) {
+            if (c.id === clientId) {
+              c.label = label;
+              found = true;
+            }
+          });
+          if (found) saveClientRegistry(list);
+        }
+        function getClientRawState(clientId) {
+          function read(key) {
+            try {
+              var raw = root.localStorage.getItem(key);
+              return raw ? JSON.parse(raw) : {};
+            } catch (e) {
+              return {};
+            }
+          }
+          return {
+            router: read(clientScopedKey("ROUTER", clientId)),
+            india: read(clientScopedKey("INDIA", clientId)),
+            us: read(clientScopedKey("US", clientId))
+          };
+        }
+        function propagateClientParamInLinks() {
+          var id = activeClientIdFromUrl();
+          if (!id || typeof root.document === "undefined" || !root.document.querySelectorAll) return;
+          var anchors = root.document.querySelectorAll("a[href]");
+          for (var i = 0; i < anchors.length; i++) {
+            var href = anchors[i].getAttribute("href");
+            if (CLIENT_LINK_TARGETS.indexOf(href) !== -1) {
+              anchors[i].setAttribute("href", href + "?client=" + encodeURIComponent(id));
+            }
+          }
+        }
+        function navigateWithClient(targetHtml) {
+          var id = activeClientIdFromUrl();
+          root.location.href = id ? targetHtml + "?client=" + encodeURIComponent(id) : targetHtml;
+        }
+        WISING.ClientRegistry = {
+          activeIdFromUrl: activeClientIdFromUrl,
+          storageKeyFor,
+          list: listClients,
+          create: createClient,
+          remove: removeClient,
+          updateLabel: updateClientLabel,
+          getRawState: getClientRawState,
+          propagateLinks: propagateClientParamInLinks,
+          navigate: navigateWithClient
+        };
+        if (typeof root.document !== "undefined") {
+          if (root.document.readyState === "loading") {
+            root.document.addEventListener("DOMContentLoaded", propagateClientParamInLinks);
+          } else {
+            propagateClientParamInLinks();
+          }
+        }
         if (typeof module !== "undefined" && module.exports) module.exports = { CONST };
       })(typeof window !== "undefined" ? window : globalThis);
     }
@@ -3312,7 +3419,8 @@
           deps: ["osAgg", "diAgg"],
           compute: function(d) {
             var os = d.osAgg;
-            var giftsAbove50kInr = num(safe(os, "gifts_above_50k_inr", 0));
+            var giftsExempt = !!safe(os, "gifts_exemption_marriage", false) || !!safe(os, "gifts_exemption_relative", false);
+            var giftsAbove50kInr = giftsExempt ? 0 : num(safe(os, "gifts_above_50k_inr", 0));
             var familyPensionGrossInr = num(safe(os, "family_pension_gross_inr", 0));
             var familyPensionNetInr = Math.max(0, familyPensionGrossInr - Math.min(15e3, Math.round(familyPensionGrossInr / 3)));
             return giftsAbove50kInr + familyPensionNetInr + num(safe(os, "spousal_clubbing_s64_inr", 0)) - num(safe(os, "minor_child_exemption_inr", 0)) + num(safe(os, "lic_maturity_inr", 0)) + num(safe(os, "angel_tax_premium_inr", 0)) - num(safe(os, "local_authority_s10_20_inr", 0)) + num(safe(os, "miscellaneous_income_inr", 0)) + num(safe(os, "taxable_epf_interest_inr", 0)) + num(safe(os, "taxable_nps_withdrawal_inr", 0));
@@ -4550,6 +4658,23 @@
         if (explicit !== void 0 && explicit !== null) return num(explicit);
         return computeSelfEmploymentNetProfitUsd(s) - num(depreciationUsd || 0);
       }
+      function computeFarmGrossIncomeUsd(f) {
+        var inc = safe(f, "itemized_income", {}) || {};
+        var gross = num(inc.sales_livestock_produce_raised) + num(inc.sales_livestock_produce_purchased) + num(inc.cooperative_distributions) + num(inc.agricultural_program_payments) + num(inc.ccc_loans) + num(inc.crop_insurance_proceeds) + num(inc.custom_hire_income) + num(inc.other_income);
+        if (f.accounting_method === "accrual") {
+          var inv = safe(f, "inventory", {}) || {};
+          gross -= num(inv.beginning_inventory) + num(inv.cost_of_purchases) - num(inv.ending_inventory);
+        }
+        return gross;
+      }
+      function computeFarmNetProfitUsd(f) {
+        return computeFarmGrossIncomeUsd(f) - num(f.expenses_usd);
+      }
+      function farmNetProfitUsd(f, depreciationUsd) {
+        if (f.net_profit_usd !== void 0 && f.net_profit_usd !== null) return num(f.net_profit_usd);
+        if (f.gross_income_usd !== void 0 && f.gross_income_usd !== null) return num(f.gross_income_usd) - num(f.expenses_usd) - num(depreciationUsd || 0);
+        return computeFarmNetProfitUsd(f) - num(depreciationUsd || 0);
+      }
       function assetRecoveryYearN(asset, baseYear) {
         if (!asset || !asset.placed_in_service_date) return null;
         var d = new Date(asset.placed_in_service_date);
@@ -4687,16 +4812,38 @@
             }, 0);
           }
         },
-        selfEmploymentDepreciationPlan: {
+        // Combines self-employment AND farming_schedule_f assets into ONE
+        // taxpayer-wide §179 aggregation pool (real law caps/phases out §179
+        // across ALL of a taxpayer's directly-owned active trades/businesses
+        // together, not per-array) — keyed "se"+idx / "farm"+idx so callers can
+        // look up either. K-1/1120 asset rows are deliberately NOT folded in:
+        // those entities' reported income already reflects the ENTITY's own
+        // depreciation before flow-through (Box 1 is already net of regular/bonus
+        // depreciation; only §179 is separately stated, as sec179_deduction_usd),
+        // so a second per-asset computation against a K-1 recipient's own copy of
+        // the entity's asset list would double-count. Farm has no such risk — a
+        // directly-owned trade/business with its own real gross-receipts/expenses
+        // derivation (computeFarmNetProfitUsd), not a pass-through entity's
+        // already-net distributive share, so it's treated exactly like self-
+        // employment. Named usBusinessDepreciationPlan (was
+        // selfEmploymentDepreciationPlan before farm was folded in).
+        usBusinessDepreciationPlan: {
           deps: ["uiAgg", "baseYearUsAgg"],
           compute: function(d) {
-            var list = safe(d.uiAgg, "self_employment", []) || [];
-            var businesses = list.map(function(s, idx) {
+            var businesses = [];
+            (safe(d.uiAgg, "self_employment", []) || []).forEach(function(s, idx) {
               var assets = (s.assets || []).slice();
               (s.branches || []).forEach(function(br) {
                 assets = assets.concat(br.assets || []);
               });
-              return { key: idx, grossReceiptsMinusExpensesUsd: computeSelfEmploymentNetProfitUsd(s), assets };
+              businesses.push({ key: "se" + idx, grossReceiptsMinusExpensesUsd: computeSelfEmploymentNetProfitUsd(s), assets });
+            });
+            (safe(d.uiAgg, "farming_schedule_f", []) || []).forEach(function(f, idx) {
+              var assets = (f.assets || []).slice();
+              (f.branches || []).forEach(function(br) {
+                assets = assets.concat(br.assets || []);
+              });
+              businesses.push({ key: "farm" + idx, grossReceiptsMinusExpensesUsd: computeFarmNetProfitUsd(f), assets });
             });
             return aggregateAssetDepreciationUsd(businesses, d.baseYearUsAgg);
           }
@@ -4721,9 +4868,9 @@
           }
         },
         businessAndSeComputation: {
-          deps: ["uiAgg", "selfEmploymentDepreciationPlan", "baseYearUsAgg"],
+          deps: ["uiAgg", "usBusinessDepreciationPlan", "baseYearUsAgg"],
           compute: function(d) {
-            var ui = d.uiAgg, seDeprPlan = d.selfEmploymentDepreciationPlan;
+            var ui = d.uiAgg, seDeprPlan = d.usBusinessDepreciationPlan;
             var businessUs = num(safe(ui, "business_income_usd", 0));
             (safe(ui, "c_corporations_1120", []) || []).forEach(function(c) {
               businessUs += num(c.taxable_income_usd || c.net_income_usd || 0);
@@ -4733,7 +4880,7 @@
             });
             var foreignSelfEmployment = 0;
             (safe(ui, "self_employment", []) || []).forEach(function(s, idx) {
-              var deprUsd = seDeprPlan.byBusiness[idx] ? seDeprPlan.byBusiness[idx].totalUsd : 0;
+              var deprUsd = seDeprPlan.byBusiness["se" + idx] ? seDeprPlan.byBusiness["se" + idx].totalUsd : 0;
               var netUsd = selfEmploymentNetProfitUsd(s, deprUsd);
               if (s.llc_type === "foreign_disregarded") foreignSelfEmployment += netUsd;
               else businessUs += netUsd;
@@ -4744,13 +4891,18 @@
             (safe(ui, "trusts_estates_k1", []) || []).forEach(function(t) {
               businessUs += num(t.ordinary_income_usd || 0) + num(t.ordinary_gain_usd || 0);
             });
+            (safe(ui, "farming_schedule_f", []) || []).forEach(function(f, idx) {
+              var deprUsd = seDeprPlan.byBusiness["farm" + idx] ? seDeprPlan.byBusiness["farm" + idx].totalUsd : 0;
+              businessUs += farmNetProfitUsd(f, deprUsd);
+            });
             var seEarnings = 0;
             (safe(ui, "self_employment", []) || []).forEach(function(s, idx) {
-              var deprUsd = seDeprPlan.byBusiness[idx] ? seDeprPlan.byBusiness[idx].totalUsd : 0;
+              var deprUsd = seDeprPlan.byBusiness["se" + idx] ? seDeprPlan.byBusiness["se" + idx].totalUsd : 0;
               seEarnings += selfEmploymentNetProfitUsd(s, deprUsd);
             });
-            (safe(ui, "farming_schedule_f", []) || []).forEach(function(s) {
-              seEarnings += num(s.net_profit_usd || 0);
+            (safe(ui, "farming_schedule_f", []) || []).forEach(function(f, idx) {
+              var deprUsd = seDeprPlan.byBusiness["farm" + idx] ? seDeprPlan.byBusiness["farm" + idx].totalUsd : 0;
+              seEarnings += farmNetProfitUsd(f, deprUsd);
             });
             var qbiIncome = seEarnings, sstb = false;
             (safe(ui, "s_corporations_k1", []) || []).forEach(function(s) {
@@ -4762,7 +4914,7 @@
             (safe(ui, "trusts_estates_k1", []) || []).forEach(function(t) {
               qbiIncome += num(t.ordinary_income_usd || 0);
             });
-            [].concat(safe(ui, "self_employment", []) || [], safe(ui, "s_corporations_k1", []) || [], safe(ui, "partnerships_k1", []) || [], safe(ui, "trusts_estates_k1", []) || []).forEach(function(x) {
+            [].concat(safe(ui, "self_employment", []) || [], safe(ui, "s_corporations_k1", []) || [], safe(ui, "partnerships_k1", []) || [], safe(ui, "trusts_estates_k1", []) || [], safe(ui, "farming_schedule_f", []) || []).forEach(function(x) {
               if (x && (x.is_specified_service_trade === true || x.is_sstb === true || x.sstb === true)) sstb = true;
             });
             (safe(ui, "partnerships_k1", []) || []).forEach(function(k) {
@@ -5500,8 +5652,12 @@
       };
       NODES.hasUsScopeBoundaryFtc = {
         deps: ["routerJurisdictionXB", "routerUsSignalXB"],
+        // "india_only"/"us_only" are the new Layer 0 router's own jurisdiction
+        // values (docs/DAG_MIGRATION_TRACKER.md — the router.html rebuild),
+        // additive synonyms for "single_india"/"single_us" — the 12 demo profiles
+        // and the fuzzer only ever produce the original strings, unaffected.
         compute: function(d) {
-          return d.routerJurisdictionXB === "single_india" ? false : d.routerJurisdictionXB === "single_us" ? true : d.routerUsSignalXB;
+          return d.routerJurisdictionXB === "single_india" || d.routerJurisdictionXB === "india_only" ? false : d.routerJurisdictionXB === "single_us" || d.routerJurisdictionXB === "us_only" ? true : d.routerUsSignalXB;
         }
       };
       NODES.feieExcludedUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function(d) {
@@ -5930,7 +6086,7 @@
         return d.usEntityKind === "ccorp" ? "Form 1118" : "Form 1116";
       } };
       NODES.hasIndiaScopeXbr = { deps: ["routerJurisdictionXB"], compute: function(d) {
-        return d.routerJurisdictionXB !== "single_us";
+        return d.routerJurisdictionXB !== "single_us" && d.routerJurisdictionXB !== "us_only";
       } };
       NODES.findingsBatch1Result = {
         deps: [
@@ -10059,13 +10215,15 @@
             return num(safe(ctx.router, "us_days", 0)) > 0 || safe(ctx.router, "is_us_citizen", false) === true || safe(ctx.router, "has_green_card", false) === true || safe(ctx.router, "has_us_source_income_or_assets", false) === true;
           }
         },
+        // "india_only"/"us_only" are the new Layer 0 router's own jurisdiction
+        // values — additive synonyms for "single_india"/"single_us".
         hasIndiaScope: { deps: ["routerJurisdiction"], compute: function(d) {
-          return d.routerJurisdiction !== "single_us";
+          return d.routerJurisdiction !== "single_us" && d.routerJurisdiction !== "us_only";
         } },
         hasUsScope: {
           deps: ["routerJurisdiction", "routerUsSignal"],
           compute: function(d) {
-            return d.routerJurisdiction === "single_india" ? false : d.routerJurisdiction === "single_us" ? true : d.routerUsSignal;
+            return d.routerJurisdiction === "single_india" || d.routerJurisdiction === "india_only" ? false : d.routerJurisdiction === "single_us" || d.routerJurisdiction === "us_only" ? true : d.routerUsSignal;
           }
         },
         indiaResidencyStatusRaw: { deps: [], compute: function(d, ctx) {
@@ -10166,10 +10324,12 @@
             return num(safe(ctx.router, "us_days", 0)) > 0 || safe(ctx.router, "is_us_citizen", false) === true || safe(ctx.router, "has_green_card", false) === true || safe(ctx.router, "has_us_source_income_or_assets", false) === true;
           }
         },
+        // "india_only"/"us_only" are the new Layer 0 router's own jurisdiction
+        // values — additive synonyms for "single_india"/"single_us".
         hasUsScope: {
           deps: ["routerJurisdiction", "routerUsSignal"],
           compute: function(d) {
-            return d.routerJurisdiction === "single_india" ? false : d.routerJurisdiction === "single_us" ? true : d.routerUsSignal;
+            return d.routerJurisdiction === "single_india" || d.routerJurisdiction === "india_only" ? false : d.routerJurisdiction === "single_us" || d.routerJurisdiction === "us_only" ? true : d.routerUsSignal;
           }
         },
         // ---- Genuinely raw leaves: withholding/estimated figures ----------------
@@ -10295,10 +10455,12 @@
             return num(safe(ctx.router, "us_days", 0)) > 0 || safe(ctx.router, "is_us_citizen", false) === true || safe(ctx.router, "has_green_card", false) === true || safe(ctx.router, "has_us_source_income_or_assets", false) === true;
           }
         },
+        // "india_only"/"us_only" are the new Layer 0 router's own jurisdiction
+        // values — additive synonyms for "single_india"/"single_us".
         hasUsScope: {
           deps: ["routerJurisdiction", "routerUsSignal"],
           compute: function(d) {
-            return d.routerJurisdiction === "single_india" ? false : d.routerJurisdiction === "single_us" ? true : d.routerUsSignal;
+            return d.routerJurisdiction === "single_india" || d.routerJurisdiction === "india_only" ? false : d.routerJurisdiction === "single_us" || d.routerJurisdiction === "us_only" ? true : d.routerUsSignal;
           }
         },
         iraDistUsdRaw: { deps: [], compute: function(d, ctx) {
@@ -10427,16 +10589,19 @@
           return ctx.model.assets.indianBusinesses || [];
         } },
         // ---- Derived nodes: real logic, ported unchanged from conflicts.js ------
+        // "india_only"/"us_only" are the new Layer 0 router's own jurisdiction
+        // values — additive synonyms for "single_india"/"single_us" (the 12 demo
+        // profiles and the fuzzer only ever produce the original strings).
         hasIndiaScope: {
           deps: ["routerJurisdiction"],
           compute: function(d) {
-            return d.routerJurisdiction !== "single_us";
+            return d.routerJurisdiction !== "single_us" && d.routerJurisdiction !== "us_only";
           }
         },
         hasUsScope: {
           deps: ["routerJurisdiction", "routerUsSignal"],
           compute: function(d) {
-            return d.routerJurisdiction === "single_india" ? false : d.routerJurisdiction === "single_us" ? true : d.routerUsSignal;
+            return d.routerJurisdiction === "single_india" || d.routerJurisdiction === "india_only" ? false : d.routerJurisdiction === "single_us" || d.routerJurisdiction === "us_only" ? true : d.routerUsSignal;
           }
         },
         isResidentIndia: {
@@ -12205,6 +12370,58 @@
         });
         return calc("Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less asset depreciation (\xA7179 / 100% bonus, permanent under OBBBA / MACRS \u2014 computed from each asset's own class and placed-in-service date, not Layer 1's own first-year-only preview). Home-office isn't netted yet (Phase 1).", parts);
       }
+      function computeFarmGrossIncomeUsd(f) {
+        var inc = safe(f, "itemized_income", {}) || {};
+        var gross = num(inc.sales_livestock_produce_raised) + num(inc.sales_livestock_produce_purchased) + num(inc.cooperative_distributions) + num(inc.agricultural_program_payments) + num(inc.ccc_loans) + num(inc.crop_insurance_proceeds) + num(inc.custom_hire_income) + num(inc.other_income);
+        if (f.accounting_method === "accrual") {
+          var inv = safe(f, "inventory", {}) || {};
+          gross -= num(inv.beginning_inventory) + num(inv.cost_of_purchases) - num(inv.ending_inventory);
+        }
+        return gross;
+      }
+      function computeFarmNetProfitUsd(f) {
+        return computeFarmGrossIncomeUsd(f) - num(f.expenses_usd);
+      }
+      function farmNetProfitUsd(f, depreciationUsd) {
+        if (f.net_profit_usd !== void 0 && f.net_profit_usd !== null) return num(f.net_profit_usd);
+        if (f.gross_income_usd !== void 0 && f.gross_income_usd !== null) return num(f.gross_income_usd) - num(f.expenses_usd) - num(depreciationUsd || 0);
+        return computeFarmNetProfitUsd(f) - num(depreciationUsd || 0);
+      }
+      function farmIncomeTrace(f, depreciationPlanEntry) {
+        if (f.net_profit_usd !== void 0 && f.net_profit_usd !== null) {
+          return source("Net farm profit entered directly on Layer 1 US for this farm (not derived from Schedule F line items).");
+        }
+        if (f.gross_income_usd !== void 0 && f.gross_income_usd !== null) {
+          return source("Gross farm income entered directly on Layer 1 US for this farm (gross_income_usd), net of expenses_usd and asset depreciation.");
+        }
+        var inc = safe(f, "itemized_income", {}) || {};
+        var parts = [];
+        [
+          ["sales_livestock_produce_raised", "Sales of livestock/produce raised"],
+          ["sales_livestock_produce_purchased", "Sales of livestock/produce bought for resale"],
+          ["cooperative_distributions", "Cooperative distributions"],
+          ["agricultural_program_payments", "Agricultural program payments"],
+          ["ccc_loans", "CCC loans"],
+          ["crop_insurance_proceeds", "Crop insurance proceeds"],
+          ["custom_hire_income", "Custom hire income"],
+          ["other_income", "Other farm income"]
+        ].forEach(function(pair) {
+          if (num(inc[pair[0]]) !== 0) parts.push({ label: pair[1], amount: num(inc[pair[0]]) });
+        });
+        if (f.accounting_method === "accrual") {
+          var inv = safe(f, "inventory", {}) || {};
+          var invAdj = num(inv.beginning_inventory) + num(inv.cost_of_purchases) - num(inv.ending_inventory);
+          if (invAdj !== 0) parts.push({ label: "Less: cost of livestock/items purchased for resale (accrual inventory)", amount: -invAdj });
+        }
+        if (num(f.expenses_usd) !== 0) parts.push({ label: "Less: farm operating expenses", amount: -num(f.expenses_usd) });
+        (depreciationPlanEntry ? depreciationPlanEntry.assets : []).forEach(function(a) {
+          var label = "Asset (" + a.class + ", yr " + a.yearN + ")";
+          if (a.sec179Usd > 0) parts.push({ label: label + " \u2014 \xA7179", amount: -a.sec179Usd });
+          if (a.bonusUsd > 0) parts.push({ label: label + " \u2014 100% bonus depreciation", amount: -a.bonusUsd });
+          if (a.macrsUsd > 0) parts.push({ label: label + " \u2014 MACRS", amount: -a.macrsUsd });
+        });
+        return calc("Schedule F: sum of itemized farm income lines, less accrual inventory adjustment (if applicable), less expenses, less asset depreciation (\xA7179 / 100% bonus / MACRS).", parts);
+      }
       var PRESUMPTIVE_CEILING_CITATION = "s.44AD/44ADA turnover ceilings (Rs.2cr/Rs.3cr and Rs.50L/Rs.75L, the higher figure requiring digital receipts \u226595% of total) verified 2026-07-12, matched to Layer 1 India's own live eligibility check \u2014 re-check each Finance Act cycle.";
       var PRESUMPTIVE_RESIDENCY_CITATION = "s.44AD/44ADA residency and entity-type eligibility (ROR-only; 44AD additionally excludes firms/LLPs/companies/AOPs/trusts/local authorities/co-ops, 44ADA further excludes HUFs) verified 2026-07-12, matched to Layer 1 India's own live eligibility check.";
       function isUnder180DaysAdditionInr(additionDateStr) {
@@ -12435,9 +12652,9 @@
             ]) : source("Entity-level taxable income as entered on Layer 1 US (business_income_usd) \u2014 no Schedule M-1 data on file for this entity.")
           });
         }
-        var seDeprPlanForTrace = d.selfEmploymentDepreciationPlan;
+        var seDeprPlanForTrace = d.usBusinessDepreciationPlan;
         (safe(ui, "self_employment", []) || []).forEach(function(s, seIdx) {
-          var seDeprEntry = seDeprPlanForTrace.byBusiness[seIdx];
+          var seDeprEntry = seDeprPlanForTrace.byBusiness["se" + seIdx];
           var seDeprUsd = seDeprEntry ? seDeprEntry.totalUsd : 0;
           list.push({
             country: "US",
@@ -12451,17 +12668,19 @@
             calcTrace: selfEmploymentIncomeTrace(s, seDeprEntry)
           });
         });
-        (safe(ui, "farming_schedule_f", []) || []).forEach(function(s) {
+        (safe(ui, "farming_schedule_f", []) || []).forEach(function(f, farmIdx) {
+          var farmDeprEntry = seDeprPlanForTrace.byBusiness["farm" + farmIdx];
+          var farmDeprUsd = farmDeprEntry ? farmDeprEntry.totalUsd : 0;
           list.push({
             country: "US",
             type: "Farm (Sch F)",
-            name: s.name || "Farm",
-            incomeUsd: num(s.net_profit_usd || 0),
+            name: f.business_name || f.name || "Farm",
+            incomeUsd: farmNetProfitUsd(f, farmDeprUsd),
             se: true,
             qbi: true,
             filesOwnReturn: false,
             returnForm: "Schedule F (Form 1040)",
-            calcTrace: source("Net farm profit as entered directly on Layer 1 US for this farm (net_profit_usd).")
+            calcTrace: farmIncomeTrace(f, farmDeprEntry)
           });
         });
         (safe(ui, "partnerships_k1", []) || []).forEach(function(k) {
@@ -12607,7 +12826,7 @@
           "taxableEpfInterestInrAgg",
           "taxableNpsWithdrawalInrAgg",
           "uiAgg",
-          "selfEmploymentDepreciationPlan",
+          "usBusinessDepreciationPlan",
           "bizEntriesAgg",
           "bizAssetBlocksAgg",
           "bizMsmePayablesAgg",

@@ -664,3 +664,59 @@ correctly wired into everything built in sections I/J:
   new router → Monitor round trip (via the Monitor's own button, not a
   seeded test) shows the new client in the Clients tab alongside all 12
   demo profiles, undisturbed.
+
+## L. First real bug fix landed DAG-only, post-freeze (25 Jul 2026)
+
+Sections I/J closed the freeze structurally — this is the first time it was
+actually exercised for a genuine tax-computation bug fix, not just Layer 0
+plumbing (section K) or parity verification. Worth recording as the
+precedent, since every future engine bug fix now follows this same shape
+rather than touching `archive/engine-frozen/`.
+
+**The bug** (gap tracker US-18, `docs/BUSINESS_ENTITY_ARCHITECTURE.md` §3.4):
+`farming_schedule_f[]`'s `net_profit_usd`/`gross_income_usd` are phantom
+fields — never written by `layer1_us.html`'s own `syncFarmState()` (verified
+by direct grep, zero hits), which only ever persists an `itemized_income{}`
+line-item breakdown plus a real `expenses_usd`. Both
+`aggregateusincome-nodes.js` (ported faithfully from `normalize.js` before
+the freeze) and the frozen `archive/engine-frozen/normalize.js` itself
+inherited the same bug: farm income never reached `businessUs` (actual
+taxable income) at all, and `seEarnings` (the Schedule SE base) only ever
+read the phantom field — a real farmer's Schedule F profit silently
+contributed $0 to both regular tax and self-employment tax, and had no
+depreciation wired either (unlike self-employment, US-29).
+
+**Where the fix landed, and where it deliberately didn't:**
+`prototypes/graph-pilot/aggregateusincome-nodes.js` (the income aggregation)
+and `assets-nodes.js` (the Business-tab trace) both gained real
+`computeFarmGrossIncomeUsd`/`computeFarmNetProfitUsd`/`farmNetProfitUsd`
+functions and a combined `usBusinessDepreciationPlan` (renamed from
+`selfEmploymentDepreciationPlan`, now spanning both self-employment and
+farm assets in one taxpayer-wide §179 pool). `archive/engine-frozen/
+normalize.js` was **not touched** — per its own header banner and this
+tracker's §J policy, never hand-edited again. This means the DAG and the
+frozen engine now deliberately **disagree** on any profile with real
+`farming_schedule_f` data — the same class of intentional, documented
+divergence as section I item 2's doc-count example, not a parity gap to
+close.
+
+**Verification shape this establishes** for future DAG-only fixes: since
+none of the 12 fixtures (SAMPLE + 11 profiles) carry `farming_schedule_f`
+data, the existing profile-based regression harnesses (`run-
+aggregateusincome.js`'s 420 profile assertions, `run-assets.js`'s 810) can't
+exercise the new code path at all and pass unchanged either way — they
+prove no *regression*, not that the fix *works*. A genuinely new synthetic
+section was added to `run-aggregateusincome.js` (5 hand-checked cases: cash-
+method, accrual-method with the cost-of-purchases/inventory swing, one
+§179-elected asset, both backward-compat override shapes), diffed only
+against hand-derived expected numbers — NOT against the frozen engine's
+`model.income.us`, since that engine doesn't have the fix by design. Full
+regression re-verified clean around this: `run-aggregateusincome.js` 426/426,
+`run-assets.js` 810/810, differential fuzzer 200 fresh iterations (0 new
+divergences — confirms the fuzzer's generic field-mutation approach can't
+manufacture `farming_schedule_f` data from fixtures that don't have any, so
+this fix is invisible to it either way), `npm run audit` clean (no
+unexpected DAG-coverage gaps introduced), `tests/engine/run.js` 79/79
+unaffected (the frozen engine, correctly untouched). `assets/dag-analyze.
+bundle.js` rebuilt (`npm run build:dag-bundle`) and `monitor-next/lib/dag/`
+re-synced (`npm run sync:dag`) so both consumers of the DAG pick up the fix.
