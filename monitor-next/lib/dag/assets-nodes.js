@@ -555,6 +555,41 @@ var INDIA_ENTITY_KIND_MAP = {
 };
 var US_ENTITY_KIND_MAP = { ccorp: "us_ccorp", scorp: "us_scorp", partnership: "us_partnership", trust: "us_trust", llc: "us_llc" };
 
+/* Phase 8 (§7, per-entity Filings/Documents): the ITR/Form each entity KIND
+ * itself files — reused as-is by root entities, India business_entries[]/
+ * partner_firms[] graph-only entities, and (via US_K1_KIND_TO_FORM below) US
+ * K-1 entities, so the entity-graph drill-down and businessEntitiesResult's
+ * own flat-list returnForm strings can never disagree. */
+var INDIA_KIND_TO_ITR = {
+  in_huf: "ITR-2/3 (HUF)", in_firm: "ITR-5 (Firm/LLP)", in_llp: "ITR-5 (Firm/LLP)",
+  in_company: "ITR-6 (Company)", in_aop: "ITR-5 (AOP/BOI)", in_trust: "ITR-7 (Trust)",
+  in_local: "ITR-5 (Local authority)", in_coop: "ITR-5 (Co-operative society)", in_ajp: "ITR-7 (AJP)"
+};
+var US_KIND_TO_FORM = {
+  us_ccorp: "Form 1120 (C-Corp, 21% flat)", us_scorp: "Form 1120-S (pass-through)",
+  us_partnership: "Form 1065 (pass-through, informational)", us_trust: "Form 1041 (fiduciary)",
+  us_llc: "Form 1065/1120/Schedule C (LLC — depends on entity classification election, not modeled)"
+};
+// Same strings businessEntitiesResult already uses for these three K-1 kinds
+// (lines above: "Form 1065 (partnership return, informational) → ...", etc.)
+var US_K1_KIND_TO_FORM = {
+  us_partnership: "Form 1065 (partnership return, informational) → Schedule E + Schedule SE (Form 1040)",
+  us_scorp: "Form 1120-S (S-corp return, informational) → Schedule E (Form 1040)",
+  us_trust: "Form 1041 (fiduciary return, informational) → Schedule E (Form 1040)"
+};
+// The single-root case (an ordinary individual, or a root whose OTHER side
+// has no real entity kind on file) — no assertion beyond what's actually
+// modeled here; defers to the existing Filings tab cross-reference already
+// used for India business_entries (line ~481's "see Filings → Return Form").
+function rootReturnForm(indiaKind, usKind) {
+  var indiaForm = indiaKind ? INDIA_KIND_TO_ITR[indiaKind] : null;
+  var usForm = usKind ? US_KIND_TO_FORM[usKind] : null;
+  if (indiaForm && usForm) return indiaForm + " (India) + " + usForm + " (US)";
+  if (indiaForm) return indiaForm + " — see Filings → Return Form for any additional US-side requirement";
+  if (usForm) return usForm + " — see Filings → Return Form for any additional India-side requirement";
+  return "Individual — see Filings → Return Form for the actual ITR/1040 determination";
+}
+
 function normEntityName(n) { return String(n || "").toLowerCase().replace(/\s+/g, " ").trim(); }
 
 function buildEntityGraph(d, ctx) {
@@ -580,14 +615,14 @@ function buildEntityGraph(d, ctx) {
   // dual-resident on both sides), that's genuinely ONE entity — single root.
   var rootIds;
   if (rootIndiaKind && rootUsKind && !namesMatch) {
-    entities.push({ id: "root_in", kind: rootIndiaKind, jurisdiction: "IN", name: indiaName || "Indian entity", returnForm: null, layer1Ref: null });
-    entities.push({ id: "root_us", kind: rootUsKind, jurisdiction: "US", name: usName || "US entity", returnForm: null, layer1Ref: null });
+    entities.push({ id: "root_in", kind: rootIndiaKind, jurisdiction: "IN", name: indiaName || "Indian entity", returnForm: INDIA_KIND_TO_ITR[rootIndiaKind] || null, layer1Ref: null });
+    entities.push({ id: "root_us", kind: rootUsKind, jurisdiction: "US", name: usName || "US entity", returnForm: US_KIND_TO_FORM[rootUsKind] || null, layer1Ref: null });
     rootIds = ["root_in", "root_us"];
   } else {
     var rootKind = rootIndiaKind || rootUsKind || "individual";
     var rootJurisdiction = rootIndiaKind ? "IN" : (rootUsKind ? "US" : "both");
     var rootName = indiaName || usName || "Taxpayer";
-    entities.push({ id: "root", kind: rootKind, jurisdiction: rootJurisdiction, name: rootName, returnForm: null, layer1Ref: null });
+    entities.push({ id: "root", kind: rootKind, jurisdiction: rootJurisdiction, name: rootName, returnForm: rootReturnForm(rootIndiaKind, rootUsKind), layer1Ref: null });
     rootIds = ["root"];
   }
   // Every OTHER entity's edges point at this by default — the India root
@@ -621,7 +656,8 @@ function buildEntityGraph(d, ctx) {
     netProfitInr = num(netProfitInr);
     entities.push({
       id: id, kind: kind, jurisdiction: "IN", name: b.business_name || b.trade_name || b.name || null,
-      returnForm: null, layer1Ref: { form: "layer1_india", path: "domestic_income.business_income.business_entries[" + idx + "]" },
+      returnForm: (INDIA_KIND_TO_ITR[kind] || "") + " (informational — this entity's own return; WISING doesn't prepare it, only folds its net profit through to the taxpayer as modeled here)",
+      layer1Ref: { form: "layer1_india", path: "domestic_income.business_income.business_entries[" + idx + "]" },
       income: { inr: netProfitInr, usd: netProfitInr / fxRate(ctx) }
     });
     // Phase 6 (§6): a real trace, not just a bare amount — reuses the SAME
@@ -645,7 +681,8 @@ function buildEntityGraph(d, ctx) {
     var kind = INDIA_ENTITY_KIND_MAP[firm.entity_type] || "in_firm";
     entities.push({
       id: id, kind: kind, jurisdiction: "IN", name: firm.firm_name || null,
-      returnForm: null, layer1Ref: { form: "layer1_india", path: "domestic_income.business_income.partner_firms[" + idx + "]" }
+      returnForm: (INDIA_KIND_TO_ITR[kind] || "") + " (informational — this firm's own return; WISING doesn't prepare it, only the partner's remuneration/profit share flowing through, per s.3.3 above)",
+      layer1Ref: { form: "layer1_india", path: "domestic_income.business_income.partner_firms[" + idx + "]" }
     });
     var remunerationInr = num(firm.remuneration_from_entity_inr), interestInr = num(firm.interest_on_capital_from_entity_inr);
     var totalRemunerationInr = remunerationInr + interestInr;
@@ -709,7 +746,7 @@ function buildEntityGraph(d, ctx) {
       var passive = k1PassiveIncomeUsdForGraph(k);
       entities.push({
         id: id, kind: kind, jurisdiction: "US", name: nameFn(k),
-        returnForm: null, layer1Ref: { form: "layer1_us", path: sourcePath + "[" + idx + "]" },
+        returnForm: US_K1_KIND_TO_FORM[kind] || null, layer1Ref: { form: "layer1_us", path: sourcePath + "[" + idx + "]" },
         income: { usd: incomeUsd, inr: incomeUsd * fxRate(ctx) }, passiveIncomeUsd: passive
       });
       // Two edges, not one: the ordinary/QBI-eligible business income (the
