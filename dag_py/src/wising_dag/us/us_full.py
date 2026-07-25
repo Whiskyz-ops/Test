@@ -1,16 +1,18 @@
 """Wires aggregate_us_income.py INTO ustax.py's chain — the US mirror of
 india_full.py's wiring. Port of prototypes/graph-pilot/us-full-nodes.js.
 
-Only the `incUs` boundary is closed here. The JS source also wires
-`worldwideUs` to `residencyResult.us.worldwide` (from residency-nodes.js) —
-that node lives in the crossborder/ domain (Phase 4 of this port, not yet
-built), so `worldwideUs` stays a boundary stub for now, exactly as
-in1_v3.py's boundary nodes stayed stubs until india_full.py closed them.
-Documented here rather than silently left unclear: until crossborder/
-residency.py exists and overrides it, `worldwideUs` always resolves False
-(ctx has no "computed" key), so FEIE and worldwide-taxed foreign income
-are not yet reflected in usTaxResult for any profile. This is a known,
-temporary, tracked gap — see docs/PYTHON_DAG_MIGRATION_TRACKER.md.
+Closes both boundaries the JS source closes: `incUs` (to
+aggregateUsIncomeResult) and `worldwideUs` (to
+residencyResult.us.worldwide, from crossborder/residency.py — mirrors the
+JS us-full-nodes.js's own `require("./residency-nodes.js")`; residency.py
+is a legitimate cross-domain dependency here, not a layering violation —
+DTAA tie-break residency is inherently cross-border, and the JS source
+itself pulls it into the US-side wiring file for exactly this reason).
+
+This closes the temporary gap `us_full.py` shipped with in Phase 3
+(worldwideUs stayed a boundary stub because crossborder/residency.py
+didn't exist yet) — see docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 3
+section for that history.
 
 `usEntityKind`/`baseYearUs` (ustax.py's other two boundary stubs) are NOT
 closed here either — per ustax-nodes.js's own header, those come from
@@ -24,15 +26,18 @@ from __future__ import annotations
 
 from ..core.graph import NodeDef
 from ..core.registry import NodeRegistry
+from ..crossborder import residency
 from . import aggregate_us_income, ustax
 
-OVERRIDE_REASON = "us-full-nodes.js wiring: redefined to read the merged income subgraph instead of ctx['model']"
+OVERRIDE_REASON = "us-full-nodes.js wiring: redefined to read the merged income/residency subgraphs instead of ctx['model']/ctx['computed']"
 
 
 def build(base: NodeRegistry) -> NodeRegistry:
     r = base.extend()
     r = aggregate_us_income.build(r)
     r = ustax.build(r)
+    r = residency.build(r)
 
     r.override("incUs", NodeDef(deps=("aggregateUsIncomeResult",), compute=lambda d, ctx: d["aggregateUsIncomeResult"]), reason=OVERRIDE_REASON)
+    r.override("worldwideUs", NodeDef(deps=("residencyResult",), compute=lambda d, ctx: d["residencyResult"]["us"]["worldwide"]), reason=OVERRIDE_REASON)
     return r

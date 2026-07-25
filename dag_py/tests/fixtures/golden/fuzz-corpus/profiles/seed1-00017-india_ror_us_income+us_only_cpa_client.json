@@ -1,0 +1,288 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Anita Desai",
+    "date_of_birth": "1982-11-09",
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 35,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "David Chen",
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 320,
+      "final_india_residency_status": "ROR"
+    },
+    "dtaa": {
+      "tax_residency_country": "IN",
+      "is_us_resident_for_dtaa": false,
+      "dtaa_treaty_residence": "none",
+      "trc_status": true,
+      "form_10f": true
+    },
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": true
+      },
+      "form_10f": {
+        "is_filed": false
+      },
+      "chapter_xiia_elected": false
+    },
+    "bank_accounts": [],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": [
+        {
+          "asset_class": "foreign_equity_unlisted",
+          "asset_name_or_ticker": "NVDA",
+          "acquisition_date": "2025-02-01",
+          "purchase_value": 8000,
+          "purchase_currency": "USD",
+          "sale_date": "2026-08-01",
+          "sale_value": 15000,
+          "sale_currency": "USD",
+          "stt_paid": false,
+          "transfer_expenses": 0,
+          "is_specified_foreign_exchange_asset": false
+        }
+      ]
+    },
+    "foreign_assets": {
+      "has_foreign_assets": true,
+      "assets": [
+        {
+          "country": "US",
+          "type": "brokerage",
+          "value_inr": 6800000
+        },
+        {
+          "country": "US",
+          "type": "real_estate",
+          "value_inr": 12000000
+        },
+        {
+          "country": "US",
+          "type": "real_estate",
+          "value_inr": 12000000
+        }
+      ]
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "house_property": {
+        "has_house_property_income": true,
+        "properties": []
+      },
+      "business_income": {
+        "has_business_or_fo_income": false,
+        "business_entries": []
+      },
+      "capital_gains": {}
+    },
+    "capital_gains": {
+      "ltcg_112a_inr": 300000
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_savings_inr": 60000,
+      "interest_fd_rd_inr": 140000
+    },
+    "deductions": {
+      "s80C": {
+        "epf_employee_inr": 150000
+      },
+      "s80D": {
+        "self_family_premium_inr": 25000
+      }
+    },
+    "lrs_outbound": {},
+    "tax_credits": {
+      "advance_tax_q1_15jun_inr": 200000,
+      "advance_tax_q2_15sep_inr": 200000,
+      "tds_already_deducted_inr": 150000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "transactions": []
+        },
+        "property": {
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    },
+    "carry_forward_losses": {}
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "trust",
+      "full_name": "Anita Desai",
+      "date_of_birth": "1982-11-09",
+      "filing_status": "married_filing_jointly",
+      "ssn_or_itin_type": "itin"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "has_green_card": false,
+      "us_days_current_year": 365,
+      "spt_test_met": true,
+      "final_us_residency_status": "US_CITIZEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "has_real_estate": true,
+      "interest_us_source_usd": 1800,
+      "ordinary_dividends_us_source_usd": 9600,
+      "qualified_dividends_us_source_usd": 7000,
+      "ltcg_us_source_usd": 22000,
+      "rental_income_us_source_usd": 30000
+    },
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "Chase",
+        "account_type": "checking",
+        "country": "US",
+        "peak_balance_usd": 42000
+      }
+    ],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {},
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 41000,
+      "estimated_tax_q1_apr15_usd": 8000,
+      "estimated_tax_q2_jun15_usd": 8000,
+      "estimated_tax_q3_sep15_usd": 8000,
+      "estimated_tax_q4_jan15_usd": 8000
+    },
+    "nra_specific": {
+      "files_form_1040nr": true,
+      "us_eci_income_usd": 30000,
+      "us_fdap_income_usd": 11400,
+      "treaty_rate_claims": [
+        {
+          "income_type": "dividends",
+          "rate": 15
+        },
+        {
+          "income_type": "dividends",
+          "rate": 15
+        }
+      ],
+      "submitted_w8ben": true,
+      "us_real_property_disposed": true,
+      "firpta_withholding_usd": 45000
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    },
+    "amt_inputs": {
+      "private_activity_bond_interest_usd": 3842.83
+    },
+    "state_residency": {
+      "primary_state_of_residence": "CA",
+      "ca_retains_property_or_voter_reg": true
+    }
+  }
+}

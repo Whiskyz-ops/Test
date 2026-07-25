@@ -1,0 +1,316 @@
+{
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "full_name": "David Chen",
+    "date_of_birth": "1979-03-08",
+    "is_us_citizen": true,
+    "has_green_card": true,
+    "us_days": 365,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "David Chen",
+      "entity_type": "local",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 365,
+      "final_india_residency_status": "ROR"
+    },
+    "dtaa": {},
+    "compliance_docs": {},
+    "bank_accounts": [],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "transactions": []
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "house_property": {
+        "has_house_property_income": false,
+        "properties": []
+      },
+      "business_income": {
+        "has_business_or_fo_income": false,
+        "business_entries": []
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_savings_inr": 32000,
+      "interest_fd_rd_inr": 210000,
+      "dividend_inr": 95000,
+      "family_pension_gross_inr": 180000,
+      "gifts_above_50k_inr": 118788.2,
+      "online_gaming_winnings_inr": 40000,
+      "taxable_epf_interest_inr": 74394.57
+    },
+    "deductions": {
+      "s80C": {
+        "epf_employee_inr": 150000,
+        "elss_inr": 50000,
+        "life_insurance_premium_inr": 35000,
+        "tuition_fees_inr": 60000
+      },
+      "s80CCD_1B": {
+        "nps_additional_inr": 50000
+      },
+      "s80D": {
+        "self_family_premium_inr": 28000,
+        "parents_premium_inr": 45000
+      },
+      "s80DDB": {
+        "has_specified_diseases_treatment": true,
+        "medical_expenses_inr": 55000,
+        "patient_category": "senior"
+      },
+      "s80E": {
+        "education_loan_interest_inr": 85000
+      },
+      "s80EEA_EE": {
+        "affordable_home_loan_interest_inr": 140000,
+        "loan_sanction_date": "2020-06-15"
+      },
+      "s80TTA_TTB": {
+        "savings_interest_inr": 32000
+      },
+      "s80ggb_ggc_political_donation_inr": 25000
+    },
+    "carry_forward_losses": {},
+    "lrs_outbound": {},
+    "tax_credits": {},
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "transactions": []
+        },
+        "property": {
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    },
+    "foreign_assets": {
+      "has_foreign_assets": false,
+      "assets": []
+    },
+    "foreign_income": {
+      "has_foreign_income": false
+    },
+    "unlisted_equity": {
+      "has_unlisted_equity_transaction": true,
+      "transactions": [
+        {
+          "company": "Brightlane Foods Pvt Ltd",
+          "holding_pct": 4,
+          "acquisition_date": "2021-03-01",
+          "number_of_shares": 2500,
+          "cost_per_share": 100,
+          "cost_per_share_currency": "INR"
+        }
+      ]
+    },
+    "share_buyback": {
+      "transactions": [
+        {
+          "company_name": "Brightlane Foods Pvt Ltd",
+          "is_listed": false,
+          "is_promoter": false,
+          "buyback_date": "2026-07-10",
+          "original_acquisition_date": "2021-03-01",
+          "consideration_received_inr": 900000,
+          "original_cost_inr": 250000,
+          "capital_gain_or_loss": 654548.6,
+          "gain_classification": "ltcg",
+          "buyback_pre_or_post_oct2024": "capital_gains_era"
+        }
+      ]
+    },
+    "capital_gains": {
+      "ltcg_112a_inr": 210000
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "David Chen",
+      "date_of_birth": "1979-03-08",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 2
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "has_green_card": false,
+      "us_days_current_year": 365,
+      "spt_test_met": true,
+      "final_us_residency_status": "US_CITIZEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {},
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "equity_compensation": {
+      "iso_exercises": [
+        {
+          "shares_exercised": 2000,
+          "fmv_at_exercise_usd": 40,
+          "strike_price_usd": -95.48
+        }
+      ]
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "itemized",
+      "state_and_local_taxes_paid_usd": 45000,
+      "mortgage_interest_paid_usd": 17685.98,
+      "charitable_contributions_cash_usd": 12000,
+      "charitable_contributions_appreciated_usd": 5000,
+      "medical_expenses_usd": 8000,
+      "student_loan_interest_usd": 2500,
+      "child_and_dependent_care_expenses_usd": 9000,
+      "education_credits_aotc_usd": 2500,
+      "education_credits_llc_usd": 0,
+      "dependents_count": 2
+    },
+    "amt_inputs": {
+      "private_activity_bond_interest_usd": 3000
+    },
+    "state_residency": {
+      "primary_state_of_residence": "CA",
+      "ca_retains_property_or_voter_reg": false
+    },
+    "bank_accounts": [],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {
+      "401k_employee_contribution_usd": 23000,
+      "401k_employer_match_usd": 11000,
+      "hsa_contribution_usd": 8300
+    },
+    "financial_holdings": [
+      {
+        "asset_name": "Vanguard — Taxable Brokerage",
+        "account_type": "taxable_brokerage",
+        "peak_balance_usd": 235597.09,
+        "country": "US"
+      },
+      {
+        "asset_name": "Fidelity 401(k)",
+        "account_type": "retirement_brokerage",
+        "peak_balance_usd": 410000,
+        "country": "US"
+      }
+    ],
+    "real_estate": {
+      "has_real_estate_transaction": false,
+      "properties": [
+        {
+          "name": "Rental duplex — Sacramento, CA",
+          "property_type": "Residential rental",
+          "gross_rent_usd": 36000,
+          "expenses_usd": 15000
+        }
+      ]
+    },
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {},
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

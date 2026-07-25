@@ -20,7 +20,7 @@ imply any interim cutover.
 | 1 | Foundation: resolver, registry, 3 leaf entry nodes, verification pipeline | ✅ done |
 | 2 | `india/` domain | ✅ done (see below) |
 | 3 | `us/` domain | ✅ done (see below) |
-| 4 | `crossborder/` domain + fuzz corpus | ⬜ not started |
+| 4 | `crossborder/` domain + fuzz corpus | ✅ done (see below) |
 | 5 | `findings/` domain-split | ⬜ not started |
 | 6 | `filings/` + `reports/` | ⬜ not started |
 | 7 | `analyze()` assembly + Pyodide adapter + wheel | ⬜ not started |
@@ -163,6 +163,77 @@ convenience field that `analyze.js`'s own `assembleComputed()` strips
 before ever comparing against the engine (which keeps the same value at
 `usTax.feie.appliedUsd` instead) — `test_us.py` replicates that exact
 strip rather than treating the mismatch as a bug.
+
+## Phase 4 detail (crossborder/ domain + fuzz corpus, 236 tests green cumulative)
+
+Ported `prototypes/graph-pilot/{residency,ftc,apportionment,doubletax,
+crossbasis,xborder-full,xb7}-nodes.js` to `dag_py/src/wising_dag/
+crossborder/{residency,ftc,apportionment,double_tax,cross_basis,
+xborder_full,black_money_act}.py` — the DTAA Article 4 tie-breaker +
+residency-consistency findings, both FTC directions (§904/Form 1116 and
+India §159), FY-vs-CY apportionment, the per-head doubly-taxed-income
+breakdown, the full cross-basis reconciliation table, and the Black Money
+Act exposure finding.
+
+**This phase closed the Phase 3 `worldwideUs` gap.** `us/us_full.py` now
+merges `crossborder/residency.py` and overrides `worldwideUs` to
+`residencyResult.us.worldwide` for real — mirroring the JS source's own
+`us-full-nodes.js`, which requires `residency-nodes.js` directly (a
+legitimate cross-domain import: DTAA residency is inherently cross-border,
+even though the file it's needed by is nominally "US-side" wiring).
+Verified end-to-end: `usTaxResult.foreignSourceIncomeUsd` now matches
+golden exactly for worldwide-taxed profiles, closing the carve-out
+`test_us.py` had to add in Phase 3.
+
+**`limits.py` (LIM-2/4/5, `limits-nodes.js`) is NOT ported in this
+phase**, correcting the original plan: it `require()`s
+`report-batch6-nodes.js`, whose own dependencies
+(`aggregatePeakUsdResult`, `limitsRawExtra`, `hasIndiaScopeXbr`) live in
+the `filings`/`findings` domains — not built until Phases 5/6. Same
+"defer to where its real dependencies live" correction already applied to
+`core/entry.py` (Phase 1) and `ustax.py`'s entity routing (Phase 3) —
+`limits.py` moves to Phase 6's file list instead of Phase 4's.
+
+Two bugs caught by golden-diff testing, fixed at the source rather than
+worked around:
+- `apportionmentBaseYearRaw` returned a Python `float` (from `num()`),
+  which stringifies as `"2025.0"` inside `fyLabel` (`"FY 2025.0–26.0"` vs
+  golden's `"FY 2025–26"`) — JS `Number` has no such artifact for a whole
+  value. Fixed with an explicit `int()` cast at the one node that builds a
+  string label from it, documented inline as a reusable "watch for this"
+  note for any future year-into-string field.
+- `cross_basis.py`'s `stdDedLabel` used Python's `:,` (Western grouping)
+  for a rupee amount — same class of bug `format_inr()` was built for in
+  Phase 2, fixed the same way. (For the two literal values this label ever
+  takes, 50000/75000, Western and Indian grouping happen to coincide, so
+  this specific case was cosmetic — fixed anyway rather than left as a
+  latent bug waiting for a value where they'd diverge.)
+
+`test_crossborder.py` carve-outs mirror the ones already established in
+`test_us.py`: `ftcResult`/`crossBasisResult`/`mapDoubleTaxedIncomeResult`
+depend on `usTaxResult`, so the 1 US-entity + 1 NRA profile stay
+reported-not-asserted until Phase 7; `apportionmentResult`'s later
+entity-aware override (`ustax-full-nodes.js`) is likewise deferred, so the
+base version ported here is checked only against the 12 individual-usKind
+profiles. `black_money_act.py`'s three boundary stubs
+(`accountsBoundary`/`usSourceTotalUsdBoundary`/`usSecuritiesBoundary`)
+aren't wired into anything yet (their closers live in `filings`/`reports`,
+Phase 6/7) — pinned with synthetic-ctx unit tests instead, same discipline
+as `test_us_penalties.py`.
+
+**Fuzz corpus**: `run-fuzz.js` gained a `--mode=corpus` flag
+(`npm run fuzz:dag-py-corpus`) that reuses the existing seeded
+splice/mutate `generateProfile()` machinery to write profile+golden JSON
+pairs straight to `dag_py/tests/fixtures/golden/fuzz-corpus/{profiles,
+golden}/` — no JS DAG involved, only the frozen engine (already loaded by
+this script) runs per generated profile. Generated an initial **40-case**
+corpus (seed=1, ~4.7MB), deliberately small rather than the plan's
+original 3000: nothing consumes this corpus yet (`test_analyze_golden.py`
+doesn't exist until Phase 7, once `analyze.py` does), and 3000 cases at
+~120KB/pair (mostly the golden side's full `analyze()` output) would be
+~350MB — before there's a consumer to justify committing it. Scaling this
+corpus up is a Phase 7 task, done when `test_analyze_golden.py` is built
+and can actually exercise it.
 
 **Not yet done in Phase 1** (deliberately deferred, not forgotten): a
 CI lint check banning `pyodide`/`js` imports outside `dag_py/adapter/`

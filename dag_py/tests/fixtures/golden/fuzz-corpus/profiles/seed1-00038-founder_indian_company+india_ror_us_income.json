@@ -1,0 +1,393 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Vikram Rao",
+    "date_of_birth": "1986-05-30",
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 340,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Vikram Rao",
+      "entity_type": "individual",
+      "date_of_birth": "1986-05-30",
+      "pan": "AAVPR3456S",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 25,
+      "final_india_residency_status": "NR"
+    },
+    "dtaa": {
+      "tax_residency_country": "US",
+      "is_us_resident_for_dtaa": true,
+      "dtaa_treaty_residence": "US",
+      "trc_status": true,
+      "form_10f": false,
+      "treaty_elections": [
+        {
+          "income_type": "interest",
+          "amount_inr": 200000,
+          "elected_rate": 0.15,
+          "treaty_article": "Art 11(2)(b)"
+        }
+      ]
+    },
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": true
+      },
+      "form_10f": {
+        "is_filed": false
+      }
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "Kotak (Company)",
+        "account_type": "current",
+        "peak_balance_inr": 5400000
+      }
+    ],
+    "property": {
+      "has_indian_property_transaction": false,
+      "properties": []
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": [
+        {
+          "asset_class": "foreign_equity_unlisted",
+          "asset_name_or_ticker": "NVDA",
+          "acquisition_date": "2025-02-01",
+          "purchase_value": 8000,
+          "purchase_currency": "USD",
+          "sale_date": "2026-08-01",
+          "sale_value": 15000,
+          "sale_currency": "USD",
+          "stt_paid": false,
+          "transfer_expenses": 0,
+          "is_specified_foreign_exchange_asset": false
+        }
+      ]
+    },
+    "unlisted_equity": {
+      "has_unlisted_equity_transaction": true,
+      "transactions": [
+        {
+          "company": "Nova Systems Pvt Ltd",
+          "holding_pct": 100,
+          "linked_client_id": "india_pvt_ltd",
+          "acquisition_date": "2019-04-15",
+          "number_of_shares": 10000,
+          "cost_per_share": 0,
+          "cost_per_share_currency": "INR"
+        }
+      ]
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "business_income": {
+        "has_business_or_fo_income": false,
+        "business_entries": []
+      },
+      "capital_gains": {
+        "short_term_15_pct": 100000
+      }
+    },
+    "share_buyback": {
+      "transactions": [
+        {
+          "company_name": "Nova Systems Pvt Ltd",
+          "is_listed": false,
+          "is_promoter": true,
+          "buyback_date": "2026-06-15",
+          "original_acquisition_date": "2018-04-01",
+          "consideration_received_inr": 3500000,
+          "original_cost_inr": 50000,
+          "capital_gain_or_loss": 3450000,
+          "gain_classification": "ltcg",
+          "buyback_pre_or_post_oct2024": "capital_gains_era"
+        },
+        {
+          "company_name": "Nova Systems Pvt Ltd",
+          "is_listed": true,
+          "is_promoter": true,
+          "buyback_date": "2026-06-15",
+          "original_acquisition_date": "2025-01-15",
+          "consideration_received_inr": 1500000,
+          "original_cost_inr": 200000,
+          "capital_gain_or_loss": 1300000,
+          "gain_classification": "stcg_slab",
+          "buyback_pre_or_post_oct2024": "capital_gains_era"
+        }
+      ]
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "dividend_inr": 500000,
+      "interest_fd_rd_inr": 200000
+    },
+    "carry_forward_losses": {
+      "has_brought_forward_losses": true,
+      "stcg_loss_cf": [
+        {
+          "assessment_year": "AY2024-25",
+          "amount_inr": 250000
+        }
+      ]
+    },
+    "deductions": {
+      "s80C": {
+        "epf_employee_inr": 150000
+      },
+      "s80D": {
+        "self_family_premium_inr": 25000
+      }
+    },
+    "lrs_outbound": {},
+    "tax_credits": {
+      "advance_tax_q1_15jun_inr": 600000,
+      "advance_tax_q2_15sep_inr": 700000,
+      "advance_tax_q3_15dec_inr": 700000,
+      "advance_tax_q4_15mar_inr": 500000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {
+            "short_term_15_pct": 25000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "dividend_inr": 125000,
+          "interest_fd_rd_inr": 0
+        },
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "has_financial_transactions": true,
+          "transactions": [
+            {
+              "asset_type": "unlisted_equity",
+              "asset_name": "Nova Systems Pvt Ltd (100%)",
+              "value_inr": 45000000
+            }
+          ]
+        },
+        "unlisted_equity": {
+          "has_unlisted_equity_transaction": true,
+          "transactions": [
+            {
+              "company": "Nova Systems Pvt Ltd",
+              "holding_pct": 100,
+              "linked_client_id": "india_pvt_ltd",
+              "acquisition_date": "2019-04-15",
+              "number_of_shares": 10000,
+              "cost_per_share": 23.98,
+              "cost_per_share_currency": "INR"
+            }
+          ]
+        },
+        "property": {
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {
+            "short_term_15_pct": 0
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": false,
+          "dividend_inr": 125000,
+          "interest_fd_rd_inr": 96934.82
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {
+            "short_term_15_pct": 25000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": false,
+          "dividend_inr": 125000,
+          "interest_fd_rd_inr": 50000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {
+            "short_term_15_pct": 25000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "dividend_inr": 125000,
+          "interest_fd_rd_inr": 50000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    },
+    "capital_gains": {
+      "ltcg_112a_inr": 300000
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Vikram Rao",
+      "date_of_birth": "1986-05-30",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn",
+      "incorporated_in_us": false,
+      "dependents_count": 2,
+      "trump_accounts_opened": true,
+      "trump_accounts_num_children": 2,
+      "trump_accounts_children_born_2025_2028": 0,
+      "trump_accounts_total_contributions_usd": 11000
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": true,
+      "us_days_current_year": 340,
+      "spt_test_met": true,
+      "final_us_residency_status": "RESIDENT_ALIEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Nova Systems USA Inc",
+          "wages_box1_usd": 176350.41,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 31000,
+            "medicare_wages_box5_usd": 165000
+          }
+        }
+      ],
+      "interest_us_source_usd": 3400,
+      "ordinary_dividends_us_source_usd": 5200,
+      "qualified_dividends_us_source_usd": 3600,
+      "ltcg_us_source_usd": 18000
+    },
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "Kotak (Company)",
+        "account_type": "current",
+        "country": "India",
+        "peak_balance_usd": 65060
+      }
+    ],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "owns_10_percent_foreign_corp": true,
+      "foreign_corporations": [
+        {
+          "corporation_name": "Nova Systems Pvt Ltd",
+          "country_of_incorporation": "IN",
+          "ownership_percentage": 100,
+          "tax_year_start": "2026-04-01",
+          "gilti_income_usd": 108433,
+          "subpart_f_income_usd": 0,
+          "section_962_election_active": true,
+          "linked_client_id": "india_pvt_ltd"
+        }
+      ],
+      "pfic_holdings": [],
+      "has_pfics": false
+    },
+    "retirement_accounts": {
+      "401k_employee_contribution_usd": 23000,
+      "401k_employer_match_usd": 8000
+    },
+    "financial_holdings": [
+      {
+        "asset_name": "Fidelity — Taxable Brokerage (US equities)",
+        "account_type": "taxable_brokerage",
+        "peak_balance_usd": 240000,
+        "country": "US"
+      }
+    ],
+    "real_estate": {
+      "has_real_estate_transaction": true,
+      "properties": [
+        {
+          "name": "Primary home — Austin, TX",
+          "property_type": "Residential (own use)",
+          "gross_rent_usd": 0,
+          "expenses_usd": 0
+        }
+      ]
+    },
+    "ftc_inputs": {
+      "claims_ftc": true,
+      "ftc_baskets": [
+        {
+          "country": "IN",
+          "basket_category": "General",
+          "foreign_taxes_usd": 30120
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 22000
+    },
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

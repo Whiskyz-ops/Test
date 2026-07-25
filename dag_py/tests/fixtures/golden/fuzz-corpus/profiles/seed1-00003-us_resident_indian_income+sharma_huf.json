@@ -1,0 +1,744 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 3712.07,
+    "full_name": "Rohan Mehta",
+    "date_of_birth": "1985-03-22",
+    "is_us_citizen": false,
+    "has_green_card": true,
+    "us_days": 900.82,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Rohan Mehta",
+      "entity_type": "individual",
+      "date_of_birth": "1985-03-22",
+      "pan": "AAAPM5678Q",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 20,
+      "final_india_residency_status": "NR"
+    },
+    "dtaa": {
+      "tax_residency_country": "US",
+      "is_us_resident_for_dtaa": true,
+      "dtaa_treaty_residence": "US",
+      "trc_status": false,
+      "form_10f": true,
+      "treaty_elections": [
+        {
+          "income_type": "interest",
+          "amount_inr": 150000,
+          "elected_rate": 0.15,
+          "treaty_article": "Art 11(2)(b)"
+        },
+        {
+          "income_type": "royalty",
+          "amount_inr": 400000,
+          "elected_rate": 0.15,
+          "treaty_article": "Art 12(2)(a)(ii)"
+        }
+      ]
+    },
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": false
+      },
+      "form_10f": {
+        "is_filed": true
+      }
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "Axis (NRE)",
+        "account_type": "nre",
+        "peak_balance_inr": 0
+      }
+    ],
+    "property": {
+      "has_indian_property_transaction": true,
+      "properties": [
+        {
+          "address": "Ancestral home, Jaipur",
+          "property_type": "Residential",
+          "annual_value_inr": 300000,
+          "gross_rent_received_inr": 360000,
+          "municipal_taxes_paid_inr": 9234.45
+        },
+        {
+          "address": "Plot 7, Vasant Vihar, Jaipur",
+          "property_type": "Land (non-agricultural)",
+          "sale_date": "2026-09-15",
+          "sale_consideration": 6800000,
+          "sale_consideration_currency": "INR",
+          "buyer_tan": "JPRS12345K",
+          "buyer_tds_deducted_inr": 0,
+          "buyer_tds_challan_number": "CHLN99182"
+        }
+      ]
+    },
+    "financial_holdings": {
+      "has_financial_transactions": false,
+      "transactions": [
+        {
+          "asset_type": "equity_mutual_fund",
+          "asset_name": "SBI Bluechip Fund",
+          "value_inr": 4200000
+        },
+        {
+          "asset_type": "equity_mutual_fund",
+          "asset_name": "Mirae Asset Large Cap",
+          "value_inr": 0
+        }
+      ]
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "house_property": {
+        "has_house_property_income": true,
+        "properties": [
+          {
+            "annual_value_inr": 840000
+          }
+        ]
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "non_speculative_income_inr": 250000,
+        "fno_turnover_inr": 4000000,
+        "speculative_income_inr": -80000,
+        "speculative_turnover_inr": 900000,
+        "business_entries": [
+          {
+            "business_name": "Mehta Advisory Services",
+            "nature": "consulting",
+            "presumptive_scheme": "s44ADA",
+            "gross_receipts_inr": 1800000,
+            "holding_pct": 5
+          },
+          {
+            "business_name": "Mehta Equipment Rentals",
+            "nature": "equipment rental",
+            "presumptive_scheme": null,
+            "gross_receipts_inr": 2400000,
+            "expenses": {
+              "rent_for_business_premises_inr": 0,
+              "employee_salary_wages_inr": 300000,
+              "other_business_expenses_inr": 120000,
+              "payments_to_residents_no_tds_inr": 100000
+            }
+          }
+        ],
+        "asset_blocks": [
+          {
+            "unit_biz_idx": 1,
+            "unit_branch_idx": null,
+            "asset_class": "plant_machinery_general",
+            "opening_wdv_inr": 2000000,
+            "additions_during_year_inr": 500000,
+            "addition_date": "2026-06-01",
+            "sale_consideration_inr": 0,
+            "is_new_manufacturing_asset": false
+          }
+        ],
+        "msme_payables": [
+          {
+            "unit_biz_idx": 1,
+            "unit_branch_idx": null,
+            "supplier_name": "Precision Tools Co",
+            "amount_inr": 50000,
+            "invoice_date": "2026-01-01",
+            "has_written_agreement": false,
+            "payment_date": null
+          },
+          {
+            "unit_biz_idx": 1,
+            "unit_branch_idx": null,
+            "supplier_name": "Precision Tools Co",
+            "amount_inr": 50000,
+            "invoice_date": "2026-01-01",
+            "has_written_agreement": false,
+            "payment_date": null
+          }
+        ],
+        "partner_firms": [
+          {
+            "firm_name": "Kapoor & Mehta Consulting LLP",
+            "entity_type": "llp",
+            "remuneration_from_entity_inr": 600000,
+            "interest_on_capital_from_entity_inr": 120000,
+            "profit_share_exempt_inr": 900000
+          }
+        ]
+      },
+      "capital_gains": {
+        "short_term_15_pct": 177371.88
+      }
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_fd_rd_inr": 260000,
+      "dividend_inr": 559556.28,
+      "online_gaming_winnings_inr": 180000,
+      "unexplained_income_115BBE_inr": 250000
+    },
+    "deductions": {},
+    "lrs_outbound": {},
+    "tax_credits": {
+      "tds_already_deducted_inr": 430000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 210000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "non_speculative_income_inr": 62500,
+            "fno_turnover_inr": 659846.27,
+            "speculative_income_inr": -20000,
+            "speculative_turnover_inr": 225000,
+            "business_entries": [
+              {
+                "business_name": "Mehta Advisory Services",
+                "nature": "consulting",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 450000,
+                "holding_pct": 5
+              },
+              {
+                "business_name": "Mehta Equipment Rentals",
+                "nature": "equipment rental",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 600000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 45000,
+                  "employee_salary_wages_inr": 75000,
+                  "other_business_expenses_inr": 30000,
+                  "payments_to_residents_no_tds_inr": 60355.68
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 500000,
+                "additions_during_year_inr": 125000,
+                "addition_date": "2026-02-07",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": true
+              },
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 500000,
+                "additions_during_year_inr": 125000,
+                "addition_date": "2026-02-07",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": true
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "supplier_name": "Precision Tools Co",
+                "amount_inr": 12500,
+                "invoice_date": "2026-01-01",
+                "has_written_agreement": false,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Kapoor & Mehta Consulting LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 150000,
+                "interest_on_capital_from_entity_inr": 30000,
+                "profit_share_exempt_inr": 225000
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 45000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 65000,
+          "dividend_inr": 55000,
+          "online_gaming_winnings_inr": 45000,
+          "unexplained_income_115BBE_inr": 202681.79
+        },
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "has_financial_transactions": true,
+          "transactions": [
+            {
+              "asset_type": "equity_mutual_fund",
+              "asset_name": "SBI Bluechip Fund",
+              "value_inr": 4200000
+            },
+            {
+              "asset_type": "equity_mutual_fund",
+              "asset_name": "Mirae Asset Large Cap",
+              "value_inr": 2600000
+            }
+          ]
+        },
+        "property": {
+          "has_indian_property_transaction": true,
+          "properties": [
+            {
+              "address": "Villa 4, Bengaluru",
+              "property_type": "Residential",
+              "annual_value_inr": 840000,
+              "gross_rent_received_inr": 1200000,
+              "municipal_taxes_paid_inr": 60000
+            }
+          ]
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 210000
+              },
+              {
+                "annual_value_inr": 210000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "non_speculative_income_inr": 62500,
+            "fno_turnover_inr": 1000000,
+            "speculative_income_inr": -20000,
+            "speculative_turnover_inr": 225000,
+            "business_entries": [
+              {
+                "business_name": "Mehta Advisory Services",
+                "nature": "consulting",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 450000,
+                "holding_pct": null
+              },
+              {
+                "business_name": "Mehta Equipment Rentals",
+                "nature": "equipment rental",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 600000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 45000,
+                  "employee_salary_wages_inr": 75000,
+                  "other_business_expenses_inr": 30000,
+                  "payments_to_residents_no_tds_inr": 33928.8
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "intangible_assets",
+                "opening_wdv_inr": 500000,
+                "additions_during_year_inr": 125000,
+                "addition_date": "2026-06-01",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "supplier_name": "Precision Tools Co",
+                "amount_inr": 12500,
+                "invoice_date": "2026-01-01",
+                "has_written_agreement": true,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Kapoor & Mehta Consulting LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 150000,
+                "interest_on_capital_from_entity_inr": 30000,
+                "profit_share_exempt_inr": 225000
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 45000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 65000,
+          "dividend_inr": 55000,
+          "online_gaming_winnings_inr": 45000,
+          "unexplained_income_115BBE_inr": 62500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 546479.06
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "non_speculative_income_inr": 62500,
+            "fno_turnover_inr": 1000000,
+            "speculative_income_inr": -20000,
+            "speculative_turnover_inr": 225000,
+            "business_entries": [
+              {
+                "business_name": "Mehta Equipment Rentals",
+                "nature": "equipment rental",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 600000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 45000,
+                  "employee_salary_wages_inr": 75000,
+                  "other_business_expenses_inr": 30000,
+                  "payments_to_residents_no_tds_inr": 25000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 500000,
+                "additions_during_year_inr": 125000,
+                "addition_date": "2026-06-01",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "supplier_name": "Precision Tools Co",
+                "amount_inr": 38212.51,
+                "invoice_date": "2026-01-01",
+                "has_written_agreement": false,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Kapoor & Mehta Consulting LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 150000,
+                "interest_on_capital_from_entity_inr": 30000,
+                "profit_share_exempt_inr": 225000
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 45000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 65000,
+          "dividend_inr": 55000,
+          "online_gaming_winnings_inr": 36380.59,
+          "unexplained_income_115BBE_inr": 62500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 210000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "non_speculative_income_inr": 62500,
+            "fno_turnover_inr": 1000000,
+            "speculative_income_inr": -20000,
+            "speculative_turnover_inr": 225000,
+            "business_entries": [
+              {
+                "business_name": "Mehta Advisory Services",
+                "nature": "consulting",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 450000,
+                "holding_pct": null
+              },
+              {
+                "business_name": "Mehta Equipment Rentals",
+                "nature": "equipment rental",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 600000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 45000,
+                  "employee_salary_wages_inr": 75000,
+                  "other_business_expenses_inr": 59085.33,
+                  "payments_to_residents_no_tds_inr": 25000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 1,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 500000,
+                "additions_during_year_inr": 125000,
+                "addition_date": "2026-06-01",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 1,
+                "unit_branch_idx": null,
+                "supplier_name": "Precision Tools Co",
+                "amount_inr": 12500,
+                "invoice_date": "2026-01-01",
+                "has_written_agreement": true,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Kapoor & Mehta Consulting LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 0,
+                "interest_on_capital_from_entity_inr": 30000,
+                "profit_share_exempt_inr": 225000
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 0
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 65000,
+          "dividend_inr": 55000,
+          "online_gaming_winnings_inr": 50860.54,
+          "unexplained_income_115BBE_inr": 62500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Rohan Mehta",
+      "date_of_birth": "1985-03-22",
+      "filing_status": "married_filing_separately",
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 345,
+      "spt_test_met": true,
+      "final_us_residency_status": "RESIDENT_ALIEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "has_employment_income": false,
+      "wages_w2": [
+        {
+          "employer_name": "Northwind Labs",
+          "wages_box1_usd": 158000,
+          "qualified_tip_income_usd": 2400,
+          "qualified_overtime_premium_usd": 5800,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 30000,
+            "medicare_wages_box5_usd": 158000
+          }
+        }
+      ],
+      "self_employment": [
+        {
+          "business_name": "Mehta Analytics (consulting)",
+          "self_employment_earnings_usd": 62000
+        }
+      ],
+      "partnerships_k1": [
+        {
+          "business_name": "Meridian Consulting Partners LLC",
+          "partner_type": "general",
+          "ordinary_business_income_usd": 18000,
+          "guaranteed_payments_usd": 12000,
+          "self_employment_earnings_usd": 0,
+          "interest_income_usd": 900,
+          "sec179_deduction_usd": 2000
+        }
+      ],
+      "s_corporations_k1": [
+        {
+          "business_name": "Harborline Print Co",
+          "ordinary_income_usd": 9000,
+          "ordinary_dividends_usd": 500,
+          "is_specified_service_trade": false
+        }
+      ],
+      "interest_us_source_usd": 5200,
+      "ordinary_dividends_us_source_usd": 6400,
+      "qualified_dividends_us_source_usd": 4000,
+      "ltcg_us_source_usd": 12000,
+      "rental_income_us_source_usd": 27000
+    },
+    "income_foreign_source": {
+      "foreign_rental_income_usd": 14458,
+      "foreign_dividends_usd": 2651,
+      "foreign_interest_usd": 3133,
+      "foreign_stcg_usd": 2169
+    },
+    "retirement_accounts": {
+      "401k_employee_contribution_usd": 23000,
+      "401k_employer_match_usd": 9500,
+      "roth_ira_contribution_usd": 7000,
+      "hsa_contribution_usd": 4150
+    },
+    "financial_holdings": [
+      {
+        "asset_name": "Fidelity — Taxable Brokerage",
+        "account_type": "taxable_brokerage",
+        "peak_balance_usd": 0,
+        "country": "US"
+      },
+      {
+        "asset_name": "Vanguard — VTSAX / VTI",
+        "account_type": "taxable_brokerage",
+        "peak_balance_usd": 141000,
+        "country": "US"
+      }
+    ],
+    "real_estate": {
+      "has_real_estate_transaction": false,
+      "properties": [
+        {
+          "name": "Rental condo — Jersey City, NJ",
+          "property_type": "Residential rental",
+          "gross_rent_usd": 36000,
+          "expenses_usd": 9000
+        }
+      ]
+    },
+    "state_residency": {
+      "primary_state_of_residence": "NY",
+      "ny_actual_days_present": 240,
+      "ny_permanent_place_of_abode": true
+    },
+    "foreign_earned_income": {
+      "claims_feie": true,
+      "feie_amount_claimed_usd": 14458,
+      "tax_home_country": "United States",
+      "bona_fide_residence": false,
+      "physical_presence": false,
+      "days_in_us_during_test_period": 365
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "SBI (NRO)",
+        "account_type": "nro",
+        "country": "India",
+        "peak_balance_usd": 31325
+      },
+      {
+        "bank_name": "Axis (NRE)",
+        "account_type": "nre",
+        "country": "India",
+        "peak_balance_usd": 22892
+      }
+    ],
+    "fbar_aggregate_peak_usd": 54217,
+    "foreign_entities": {
+      "owns_10_percent_foreign_corp": false,
+      "foreign_corporations": [],
+      "pfic_holdings": [
+        {
+          "asset_name": "SBI Bluechip Fund",
+          "holding_value_usd": 50602
+        },
+        {
+          "asset_name": "Mirae Asset Large Cap",
+          "holding_value_usd": 31325
+        }
+      ],
+      "has_pfics": true
+    },
+    "ftc_inputs": {
+      "claims_ftc": true,
+      "ftc_baskets": [
+        {
+          "country": "IN",
+          "basket_category": "Passive",
+          "foreign_taxes_usd": 5180
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 57801.16
+    },
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

@@ -1,0 +1,821 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 1249.26,
+    "full_name": "Anita Desai",
+    "date_of_birth": "1982-11-09",
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 35,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Anita Desai",
+      "entity_type": "company",
+      "date_of_birth": "1982-11-09",
+      "pan": "AADPD9012R",
+      "tax_regime": "OLD"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 320,
+      "final_india_residency_status": "ROR"
+    },
+    "dtaa": {
+      "tax_residency_country": "IN",
+      "is_us_resident_for_dtaa": false,
+      "dtaa_treaty_residence": "none",
+      "trc_status": true,
+      "form_10f": true
+    },
+    "compliance_docs": {},
+    "bank_accounts": [
+      {
+        "bank_name": "HDFC Bank",
+        "account_type": "savings",
+        "peak_balance_inr": 2800000
+      },
+      {
+        "bank_name": "SBI",
+        "account_type": "current",
+        "peak_balance_inr": 950000
+      }
+    ],
+    "property": {
+      "has_indian_property_transaction": true,
+      "properties": []
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": [
+        {
+          "asset_class": "foreign_equity_unlisted",
+          "asset_name_or_ticker": "NVDA",
+          "acquisition_date": "2025-02-01",
+          "purchase_value": 6140.31,
+          "purchase_currency": "USD",
+          "sale_date": "2026-06-06",
+          "sale_value": 15000,
+          "sale_currency": "USD",
+          "stt_paid": false,
+          "transfer_expenses": 0,
+          "is_specified_foreign_exchange_asset": false
+        }
+      ]
+    },
+    "foreign_assets": {
+      "has_foreign_assets": false,
+      "assets": [
+        {
+          "country": "US",
+          "type": "brokerage",
+          "value_inr": 6800000
+        },
+        {
+          "country": "US",
+          "type": "real_estate",
+          "value_inr": 12000000
+        }
+      ]
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "taxable_salary_inr": 2400000,
+        "employer_nps_contribution_inr": 120000
+      },
+      "house_property": {
+        "has_house_property_income": true,
+        "properties": [
+          {
+            "annual_value_inr": 0
+          },
+          {
+            "annual_value_inr": 180000
+          }
+        ]
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "non_speculative_income_inr": 320000,
+        "fno_turnover_inr": 6500000,
+        "speculative_income_inr": -45000,
+        "speculative_turnover_inr": 500000,
+        "business_entries": [
+          {
+            "business_name": "Kavya Iyer UX Consulting",
+            "nature": "design consultancy",
+            "presumptive_scheme": "s44ADA",
+            "gross_receipts_inr": 2200000,
+            "ada_digital_receipts_inr": 0,
+            "ada_cash_receipts_inr": 200000
+          }
+        ],
+        "asset_blocks": [
+          {
+            "unit_biz_idx": 1,
+            "unit_branch_idx": null,
+            "asset_class": "plant_machinery_general",
+            "opening_wdv_inr": 900000,
+            "additions_during_year_inr": 300000,
+            "addition_date": "2026-05-15",
+            "sale_consideration_inr": 0,
+            "is_new_manufacturing_asset": false
+          }
+        ],
+        "msme_payables": [
+          {
+            "unit_biz_idx": 1,
+            "unit_branch_idx": null,
+            "supplier_name": "Sunrise Packaging Co",
+            "amount_inr": 0,
+            "invoice_date": "2026-02-01",
+            "has_written_agreement": false,
+            "payment_date": null
+          }
+        ],
+        "partner_firms": [
+          {
+            "firm_name": "Iyer & Rao Jewelry Trading LLP",
+            "entity_type": "individual",
+            "remuneration_from_entity_inr": 480000,
+            "interest_on_capital_from_entity_inr": 90000,
+            "profit_share_exempt_inr": 700000
+          }
+        ]
+      },
+      "capital_gains": {
+        "short_term_15_pct": 340000
+      }
+    },
+    "capital_gains": {
+      "ltcg_112a_inr": 300000
+    },
+    "other_sources": {
+      "has_other_sources_income": false,
+      "interest_savings_inr": 60000,
+      "interest_fd_rd_inr": 140000
+    },
+    "deductions": {
+      "s80C": {
+        "epf_employee_inr": 150000
+      },
+      "s80D": {
+        "self_family_premium_inr": 25000
+      }
+    },
+    "lrs_outbound": {
+      "total_lrs_remitted_this_fy_inr": 1500000,
+      "lrs_purpose": "investment"
+    },
+    "tax_credits": {
+      "advance_tax_q1_15jun_inr": 200000,
+      "advance_tax_q2_15sep_inr": 200000,
+      "tds_already_deducted_inr": 150000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false,
+            "taxable_salary_inr": 600000,
+            "employer_nps_contribution_inr": 30000
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 237566.58
+              },
+              {
+                "annual_value_inr": 45000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "non_speculative_income_inr": 80000,
+            "fno_turnover_inr": 1625000,
+            "speculative_income_inr": -11250,
+            "speculative_turnover_inr": 125000,
+            "business_entries": [
+              {
+                "business_name": "Kavya Iyer UX Consulting",
+                "nature": "design consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 550000,
+                "ada_digital_receipts_inr": 500000,
+                "ada_cash_receipts_inr": 50000
+              },
+              {
+                "business_name": "Iyer Stationery Mart",
+                "nature": "retail trading",
+                "presumptive_scheme": null,
+                "turnover_inr": 2125000,
+                "gross_receipts_inr": 2125000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 120000,
+                  "employee_salary_wages_inr": 240000,
+                  "other_business_expenses_inr": 155000,
+                  "insurance_premium_inr": 10000,
+                  "payments_to_residents_no_tds_inr": 37500
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 225000,
+                "additions_during_year_inr": 75000,
+                "addition_date": "2026-05-15",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "supplier_name": "Sunrise Packaging Co",
+                "amount_inr": 16250,
+                "invoice_date": "2026-02-01",
+                "has_written_agreement": false,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Iyer & Rao Jewelry Trading LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 120000,
+                "interest_on_capital_from_entity_inr": 22500,
+                "profit_share_exempt_inr": 419016.7
+              },
+              {
+                "firm_name": "Iyer & Rao Jewelry Trading LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 120000,
+                "interest_on_capital_from_entity_inr": 22500,
+                "profit_share_exempt_inr": 419016.7
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 85000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": false,
+          "interest_savings_inr": 6914.49,
+          "interest_fd_rd_inr": 52500,
+          "dividend_inr": 23750,
+          "family_pension_gross_inr": 45000,
+          "gifts_above_50k_inr": 30000,
+          "online_gaming_winnings_inr": 10000,
+          "taxable_epf_interest_inr": 7000
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 52500
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 300000
+        },
+        "financial_holdings": {
+          "has_financial_transactions": true,
+          "transactions": [
+            {
+              "asset_type": "equity_mutual_fund",
+              "asset_name": "Parag Parikh Flexi Cap",
+              "value_inr": 3200000
+            },
+            {
+              "asset_type": "debt_mutual_fund",
+              "asset_name": "ICICI Pru Corporate Bond Fund",
+              "value_inr": 1400000
+            },
+            {
+              "asset_class": "vda_crypto",
+              "asset_name_or_ticker": "ETH",
+              "quantity": 3,
+              "acquisition_date": "2024-02-10",
+              "purchase_value": 480000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-09-01",
+              "sale_value": 720000,
+              "sale_currency": "INR",
+              "transfer_expenses": 317.22
+            },
+            {
+              "asset_class": "vda_crypto",
+              "asset_name_or_ticker": "ETH",
+              "quantity": 3,
+              "acquisition_date": "2024-02-10",
+              "purchase_value": 480000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-09-01",
+              "sale_value": 720000,
+              "sale_currency": "INR",
+              "transfer_expenses": 317.22
+            }
+          ]
+        },
+        "commodities": {
+          "transactions": [
+            {
+              "asset_class": "physical_gold",
+              "acquisition_date": "2023-11-01",
+              "purchase_value": 320000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-10-15",
+              "sale_value": 410000,
+              "sale_currency": "INR"
+            },
+            {
+              "asset_class": "sovereign_gold_bond_original",
+              "acquisition_date": "2018-11-05",
+              "purchase_value": 150000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-11-05",
+              "sale_value": 260000,
+              "sale_currency": "INR",
+              "is_maturity_redemption": true
+            }
+          ]
+        },
+        "unlisted_equity": {
+          "has_unlisted_equity_transaction": true,
+          "transactions": [
+            {
+              "company": "Brightlane Foods Pvt Ltd",
+              "holding_pct": 4,
+              "acquisition_date": "2021-03-01",
+              "number_of_shares": 2500,
+              "cost_per_share": 64.24,
+              "cost_per_share_currency": "INR"
+            }
+          ]
+        },
+        "property": {
+          "has_indian_property_transaction": true,
+          "properties": [
+            {
+              "address": "Flat 3B, Indiranagar, Bengaluru",
+              "property_type": "Residential",
+              "annual_value_inr": 360000,
+              "gross_rent_received_inr": 480000,
+              "municipal_taxes_paid_inr": 18000
+            },
+            {
+              "address": "2BHK, Mysore",
+              "property_type": "Residential",
+              "annual_value_inr": 180000,
+              "gross_rent_received_inr": 0,
+              "municipal_taxes_paid_inr": 9000
+            }
+          ]
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 600000,
+            "employer_nps_contribution_inr": 30000
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": [
+              {
+                "annual_value_inr": 90000
+              },
+              {
+                "annual_value_inr": 45000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "non_speculative_income_inr": 80000,
+            "fno_turnover_inr": 1625000,
+            "speculative_income_inr": 0,
+            "speculative_turnover_inr": 189069.98,
+            "business_entries": [
+              {
+                "business_name": "Kavya Iyer UX Consulting",
+                "nature": "design consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 550000,
+                "ada_digital_receipts_inr": 500000,
+                "ada_cash_receipts_inr": 50000
+              },
+              {
+                "business_name": "Iyer Stationery Mart",
+                "nature": "retail trading",
+                "presumptive_scheme": null,
+                "turnover_inr": 2125000,
+                "gross_receipts_inr": 2125000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 120000,
+                  "employee_salary_wages_inr": 240000,
+                  "other_business_expenses_inr": 155000,
+                  "insurance_premium_inr": 0,
+                  "payments_to_residents_no_tds_inr": 37500
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 225000,
+                "additions_during_year_inr": 75000,
+                "addition_date": "2026-05-15",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "supplier_name": "Sunrise Packaging Co",
+                "amount_inr": 16250,
+                "invoice_date": "2026-02-01",
+                "has_written_agreement": false,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Iyer & Rao Jewelry Trading LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 40215.84,
+                "interest_on_capital_from_entity_inr": 22500,
+                "profit_share_exempt_inr": 175000
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 0
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 8000,
+          "interest_fd_rd_inr": 52500,
+          "dividend_inr": 23750,
+          "family_pension_gross_inr": 45000,
+          "gifts_above_50k_inr": 30000,
+          "online_gaming_winnings_inr": 10000,
+          "taxable_epf_interest_inr": 7351.36
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 52500
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 300000
+        }
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 600000,
+            "employer_nps_contribution_inr": 30000
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 90000
+              },
+              {
+                "annual_value_inr": 45000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "non_speculative_income_inr": 80000,
+            "fno_turnover_inr": 1625000,
+            "speculative_income_inr": -11250,
+            "speculative_turnover_inr": 252120.06,
+            "business_entries": [
+              {
+                "business_name": "Kavya Iyer UX Consulting",
+                "nature": "design consultancy",
+                "presumptive_scheme": "s44AD",
+                "gross_receipts_inr": 550000,
+                "ada_digital_receipts_inr": 0,
+                "ada_cash_receipts_inr": 50000
+              },
+              {
+                "business_name": "Iyer Stationery Mart",
+                "nature": "retail trading",
+                "presumptive_scheme": null,
+                "turnover_inr": 2125000,
+                "gross_receipts_inr": 2125000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 120000,
+                  "employee_salary_wages_inr": 240000,
+                  "other_business_expenses_inr": 67935.44,
+                  "insurance_premium_inr": 16379.23,
+                  "payments_to_residents_no_tds_inr": 37500
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 225000,
+                "additions_during_year_inr": 38541.53,
+                "addition_date": "2026-05-15",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "supplier_name": "Sunrise Packaging Co",
+                "amount_inr": 16250,
+                "invoice_date": "2026-02-01",
+                "has_written_agreement": false,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Iyer & Rao Jewelry Trading LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 120000,
+                "interest_on_capital_from_entity_inr": 22500,
+                "profit_share_exempt_inr": 175000
+              },
+              {
+                "firm_name": "Iyer & Rao Jewelry Trading LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 120000,
+                "interest_on_capital_from_entity_inr": 22500,
+                "profit_share_exempt_inr": 175000
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 85000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 8000,
+          "interest_fd_rd_inr": 99521.95,
+          "dividend_inr": 23750,
+          "family_pension_gross_inr": 45000,
+          "gifts_above_50k_inr": 0,
+          "online_gaming_winnings_inr": 10000,
+          "taxable_epf_interest_inr": 7000
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 52500
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 300000
+        }
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 600000,
+            "employer_nps_contribution_inr": 30000
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 90000
+              },
+              {
+                "annual_value_inr": 45000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "non_speculative_income_inr": 80000,
+            "fno_turnover_inr": 1625000,
+            "speculative_income_inr": -5178.62,
+            "speculative_turnover_inr": 125000,
+            "business_entries": [
+              {
+                "business_name": "Kavya Iyer UX Consulting",
+                "nature": "design consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 550000,
+                "ada_digital_receipts_inr": 500000,
+                "ada_cash_receipts_inr": 50000
+              },
+              {
+                "business_name": "Iyer Stationery Mart",
+                "nature": "retail trading",
+                "presumptive_scheme": null,
+                "turnover_inr": 2125000,
+                "gross_receipts_inr": 2125000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 120000,
+                  "employee_salary_wages_inr": 240000,
+                  "other_business_expenses_inr": 155000,
+                  "insurance_premium_inr": 10000,
+                  "payments_to_residents_no_tds_inr": 37500
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 1,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 225000,
+                "additions_during_year_inr": 75000,
+                "addition_date": "2026-05-15",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": true
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 1,
+                "unit_branch_idx": null,
+                "supplier_name": "Sunrise Packaging Co",
+                "amount_inr": 16250,
+                "invoice_date": "2026-02-01",
+                "has_written_agreement": false,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Iyer & Rao Jewelry Trading LLP",
+                "entity_type": "local",
+                "remuneration_from_entity_inr": 0,
+                "interest_on_capital_from_entity_inr": 22500,
+                "profit_share_exempt_inr": 175000
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 85000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 8000,
+          "interest_fd_rd_inr": 0,
+          "dividend_inr": 23750,
+          "family_pension_gross_inr": 45000,
+          "gifts_above_50k_inr": 30000,
+          "online_gaming_winnings_inr": 10000,
+          "taxable_epf_interest_inr": 2174.79
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 52500
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 300000
+        }
+      }
+    },
+    "foreign_income": {
+      "has_foreign_income": false
+    },
+    "unlisted_equity": {
+      "has_unlisted_equity_transaction": true,
+      "transactions": [
+        {
+          "company": "Brightlane Foods Pvt Ltd",
+          "holding_pct": 4,
+          "acquisition_date": "2021-03-01",
+          "number_of_shares": 2500,
+          "cost_per_share": 100,
+          "cost_per_share_currency": "INR"
+        }
+      ]
+    },
+    "share_buyback": {
+      "transactions": [
+        {
+          "company_name": "Brightlane Foods Pvt Ltd",
+          "is_listed": false,
+          "is_promoter": false,
+          "buyback_date": "2026-07-10",
+          "original_acquisition_date": "2021-03-01",
+          "consideration_received_inr": 0,
+          "original_cost_inr": 250000,
+          "capital_gain_or_loss": 650000,
+          "gain_classification": "ltcg",
+          "buyback_pre_or_post_oct2024": "capital_gains_era"
+        }
+      ]
+    },
+    "commodities": {
+      "transactions": [
+        {
+          "asset_class": "plant_machinery_books",
+          "acquisition_date": "2023-11-01",
+          "purchase_value": 320000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-10-15",
+          "sale_value": 410000,
+          "sale_currency": "INR"
+        },
+        {
+          "asset_class": "sovereign_gold_bond_original",
+          "acquisition_date": "2018-11-05",
+          "purchase_value": 150000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-11-05",
+          "sale_value": 260000,
+          "sale_currency": "INR",
+          "is_maturity_redemption": false
+        }
+      ]
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "trust",
+      "full_name": "Anita Desai",
+      "date_of_birth": "1982-11-09",
+      "filing_status": "single",
+      "ssn_or_itin_type": "itin"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 0,
+      "spt_test_met": false,
+      "final_us_residency_status": "NON_RESIDENT_ALIEN",
+      "dtaa_treaty_residence": "IN"
+    },
+    "income_us_source": {
+      "has_real_estate": true,
+      "interest_us_source_usd": 1800,
+      "ordinary_dividends_us_source_usd": 9600,
+      "qualified_dividends_us_source_usd": 7000,
+      "ltcg_us_source_usd": 22000,
+      "rental_income_us_source_usd": 0
+    },
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "Chase",
+        "account_type": "checking",
+        "country": "US",
+        "peak_balance_usd": 42000
+      }
+    ],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {},
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 9800
+    },
+    "nra_specific": {
+      "files_form_1040nr": false,
+      "us_eci_income_usd": 70840.35,
+      "us_fdap_income_usd": 11400,
+      "treaty_rate_claims": [
+        {
+          "income_type": "dividends",
+          "rate": 35.57
+        }
+      ],
+      "submitted_w8ben": false,
+      "us_real_property_disposed": true,
+      "firpta_withholding_usd": 45000
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

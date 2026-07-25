@@ -22,6 +22,7 @@
     "fuzz:dag": "node prototypes/graph-pilot/run-fuzz.js",
     "port:dag-py-profiles": "node dag_py/tools/port_profiles.js",
     "golden:dag-py": "node dag_py/tools/generate_golden.js",
+    "fuzz:dag-py-corpus": "node prototypes/graph-pilot/run-fuzz.js --mode=corpus",
     "test:dag-py": "cd dag_py && pytest -q",
     "merge:find-base": "node scripts/merge/find-base-commit.js",
     "merge:apply": "node scripts/merge/three-way-merge.js",

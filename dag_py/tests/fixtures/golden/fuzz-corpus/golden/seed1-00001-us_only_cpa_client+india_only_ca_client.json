@@ -1,0 +1,2640 @@
+{
+  "model": {
+    "meta": {
+      "hasIndia": true,
+      "hasUs": true,
+      "hasRouter": true,
+      "hasIndiaScope": false,
+      "hasUsScope": true,
+      "jurisdiction": "single_us",
+      "baseYear": 2026,
+      "fxRate": 83,
+      "indiaSchemaVersion": "layer1_india_v5_1",
+      "usSchemaVersion": "layer1_us_v1",
+      "indiaQuarterly": true
+    },
+    "periods": {
+      "indiaQuarterlyUsd": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "identity": {
+      "name": "David Chen",
+      "dob": "1979-03-08",
+      "usFilingStatus": "mfj",
+      "indiaEntityType": "local",
+      "panAadhaarLinked": null
+    },
+    "entity": {
+      "indiaKind": "local",
+      "usKind": "individual",
+      "indiaIsCompany": false,
+      "indiaIsFirm": true,
+      "indiaOpt115baa": false,
+      "indiaOpt115bab": false,
+      "indiaOpt115ba": false,
+      "indiaTurnoverLte400cr": false,
+      "indiaMatBookProfitInr": null,
+      "indiaIsSection8": false,
+      "isCompanyDirector": false,
+      "usIsBusiness": false,
+      "usScheduleM1TaxableIncomeUsd": null,
+      "usIncorporatedInUs": null,
+      "usIncorporationState": null,
+      "isBusiness": true,
+      "indiaReturnForm": "ITR-5",
+      "indiaReturnFormIsRecommendation": false,
+      "indiaReturnFormExplanation": null,
+      "usReturnForm": "1040"
+    },
+    "residency": {
+      "india": {
+        "status": "ROR",
+        "daysCurrentYear": 365,
+        "taxRegime": "NEW",
+        "isIndianCompanyFact": null,
+        "indiaWhollyOutsideIndiaFact": null,
+        "daysPreceding4YearsGte365": null,
+        "employmentOrCrewStatus": null,
+        "cameOnVisitPioCitizen": null,
+        "nrYearsLast10Gte9": null,
+        "daysLast7YearsLte729": null,
+        "indiaSourceIncomeAbove15L": null,
+        "liableToTaxElsewhereAsIndianCitizen": false,
+        "dtaaWorldwideCeded": false,
+        "domesticStatusDerived": "RNOR"
+      },
+      "us": {
+        "status": "US_CITIZEN",
+        "isCitizen": true,
+        "hasGreenCard": false,
+        "sptMet": true,
+        "daysCurrentYear": 365
+      }
+    },
+    "stateResidency": {
+      "domicileJan1": null,
+      "domicileDec31": null,
+      "primaryState": "CA",
+      "footprint": [],
+      "movedStates": false,
+      "caSafeHarbor": false,
+      "caRetainsTies": false,
+      "nyDaysPresent": 0,
+      "nyPermanentAbode": false,
+      "ny548DayRule": false
+    },
+    "companyResidency": {
+      "isActiveBusiness": false,
+      "boardMeetingsOutsideIndia": false,
+      "keyManagementLocation": null,
+      "managementDelegatedOutsideIndia": false,
+      "directorsInIndia": 0,
+      "directorsOutsideIndia": 0
+    },
+    "treaty": {
+      "trcStatus": false,
+      "form10fFiled": false,
+      "treatyResidence": "none",
+      "dtaaForcedNr": false,
+      "hasPE": false,
+      "usTreatyResidence": "none",
+      "files1040nr": false,
+      "form8833Implied": false,
+      "chapterXiiaElected": false,
+      "tieBreakHome": null,
+      "tieBreakCvi": null,
+      "tieBreakAbode": null,
+      "tieBreakNationality": null,
+      "treatyElections": []
+    },
+    "equityComp": {
+      "hasUsEquityComp": true,
+      "rsuIncomeUsd": 0,
+      "nsoIncomeUsd": 0,
+      "isoExerciseCount": 1,
+      "esopPerquisiteInr": 0,
+      "esopGrantEvents": []
+    },
+    "nra": {
+      "hasUsPe": false,
+      "submittedW8ben": false,
+      "eciIncomeUsd": 0,
+      "fdapIncomeUsd": 0,
+      "treatyRateClaims": [],
+      "usRealPropertyDisposed": false,
+      "firptaWithholdingUsd": 0,
+      "s6013hElection": false
+    },
+    "indiaForeignAssetsDeclared": false,
+    "indiaForeignIncomeDeclared": false,
+    "carryForwardLosses": {
+      "hasBroughtForwardLosses": null,
+      "businessLossCfCount": 0,
+      "speculativeLossCfCount": 0,
+      "stcgLossCfCount": 0,
+      "ltcgLossCfCount": 0,
+      "housePropertyLossCfCount": 0,
+      "businessLossAvailableInr": 0,
+      "speculativeLossAvailableInr": 0,
+      "stcgLossAvailableInr": 0,
+      "ltcgLossAvailableInr": 0,
+      "housePropertyLossAvailableInr": 0,
+      "unabsorbedDepreciationCf": 0
+    },
+    "foreignGifts": {
+      "receivedAbove100k": false,
+      "isTrustBeneficiary": false,
+      "receivedFromCoveredExpatriate": false
+    },
+    "income": {
+      "india": {
+        "salary": {
+          "inr": 0,
+          "usd": 0
+        },
+        "business": {
+          "usd": 0,
+          "inr": 0
+        },
+        "businessDepreciationInr": 0,
+        "businessFnoIncomeInr": 0,
+        "speculativeIncomeInr": 0,
+        "housePropertyCount": 0,
+        "agriculturalIncomeInr": 0,
+        "indiaHasRegularBooksEntry": false,
+        "indiaHasValidPresumptiveEntry": false,
+        "indiaHasPartnerFirmIncome": false,
+        "houseProperty": {
+          "usd": 0,
+          "inr": 0
+        },
+        "interest": {
+          "inr": 0,
+          "usd": 0
+        },
+        "dividend": {
+          "inr": 0,
+          "usd": 0
+        },
+        "otherSourcesMisc": {
+          "inr": 0,
+          "usd": 0
+        },
+        "stcg": {
+          "inr": 0,
+          "usd": 0
+        },
+        "ltcg": {
+          "inr": 0,
+          "usd": 0
+        },
+        "ltcg197Inr": 654548.6,
+        "capitalGains": {
+          "usd": 7886.127710843373,
+          "inr": 654548.6
+        },
+        "specialRate115bb": {
+          "inr": 0,
+          "usd": 0
+        },
+        "deemedDividendBuyback": {
+          "inr": 0,
+          "usd": 0
+        },
+        "stcgSlabInr": 0,
+        "vdaGainInr": 0,
+        "vdaSaleConsiderationInr": 0,
+        "chapterXiiaInvestmentIncomeInr": 0,
+        "chapterXiiaSfeaHoldingCount": 0,
+        "promoterBuybackLtcgInr": 0,
+        "promoterBuybackStcgInr": 0,
+        "holdingPeriodMismatches": [],
+        "unexplained115bbeInr": 0,
+        "total": {
+          "usd": 7886.127710843373,
+          "inr": 654548.6
+        }
+      },
+      "us": {
+        "wages": {
+          "usd": 0,
+          "inr": 0
+        },
+        "businessUs": {
+          "usd": 0,
+          "inr": 0
+        },
+        "w2Withholding": 0,
+        "w2Employers": [],
+        "medicareWages": 0,
+        "qualifiedTipsUsd": 0,
+        "qualifiedOvertimeUsd": 0,
+        "seEarningsUsd": 0,
+        "qbiIncomeUsd": 0,
+        "qbiIsSSTB": false,
+        "usRetirementIncome": {
+          "usd": 0,
+          "inr": 0
+        },
+        "usRetirementIncomeExclSs": {
+          "usd": 0,
+          "inr": 0
+        },
+        "retirementDistributionsSubjectTo72tUsd": 0,
+        "socialSecurityUs": {
+          "usd": 0,
+          "inr": 0
+        },
+        "taxExemptInterestUs": {
+          "usd": 0,
+          "inr": 0
+        },
+        "interestUs": {
+          "usd": 0,
+          "inr": 0
+        },
+        "ordinaryDividendsUs": {
+          "usd": 0,
+          "inr": 0
+        },
+        "qualifiedDividendsUs": {
+          "usd": 0,
+          "inr": 0
+        },
+        "ltcgUs": {
+          "usd": 0,
+          "inr": 0
+        },
+        "stcgUs": {
+          "usd": 0,
+          "inr": 0
+        },
+        "capitalGainsUs": {
+          "usd": 0,
+          "inr": 0
+        },
+        "rentalUs": {
+          "usd": 0,
+          "inr": 0
+        },
+        "foreignWages": {
+          "usd": 0,
+          "inr": 0
+        },
+        "foreignSelfEmployment": {
+          "usd": 0,
+          "inr": 0
+        },
+        "foreignInterest": {
+          "usd": 0,
+          "inr": 0
+        },
+        "foreignDividends": {
+          "usd": 0,
+          "inr": 0
+        },
+        "foreignRental": {
+          "usd": 0,
+          "inr": 0
+        },
+        "foreignPension": {
+          "usd": 0,
+          "inr": 0
+        },
+        "foreignStcg": {
+          "usd": 0,
+          "inr": 0
+        },
+        "foreignLtcg": {
+          "usd": 0,
+          "inr": 0
+        },
+        "foreignCapitalGains": {
+          "usd": 0,
+          "inr": 0
+        },
+        "retirementEpfInterestUsd": 0,
+        "retirementNpsWithdrawalUsd": 0,
+        "usSourceTotal": {
+          "usd": 0,
+          "inr": 0
+        },
+        "foreignSourceTotal": {
+          "usd": 0,
+          "inr": 0
+        },
+        "total": {
+          "usd": 0,
+          "inr": 0
+        }
+      }
+    },
+    "deductions": {
+      "india": {
+        "s80C": 295000,
+        "s80CCD1B": 50000,
+        "s80CCD2_employer": 0,
+        "s80D": 73000,
+        "s80TTA_TTB": 32000,
+        "s80DD": 0,
+        "s80DDB": 55000,
+        "s80U": 0,
+        "s80E": 85000,
+        "s80EEA_EE": 140000,
+        "s80GGB_GGC": 25000,
+        "s80GG_rentPaidInr": 0
+      },
+      "us": {
+        "mode": "itemized",
+        "salt": 45000,
+        "mortgageInterest": 17685.98,
+        "charitable": 17000,
+        "medical": 8000,
+        "studentLoanInterest": 2500,
+        "isoAmtPrefUsd": 270960.00000000006,
+        "amtPrefs": 273960.00000000006,
+        "careExpenses": 9000,
+        "aotc": 2500,
+        "lifetimeLearning": 0,
+        "dependents": 2,
+        "seHealthInsuranceDeductionUsd": 0,
+        "seRetirementDeductionUsd": 0
+      }
+    },
+    "accounts": {
+      "accounts": [],
+      "aggregatePeak": {
+        "usd": 0,
+        "inr": 0
+      }
+    },
+    "taxesPaid": {
+      "india": {
+        "advance": {
+          "inr": 0,
+          "usd": 0
+        },
+        "advanceByQuarter": {
+          "q1": 0,
+          "q2": 0,
+          "q3": 0,
+          "q4": 0
+        },
+        "tds": {
+          "inr": 0,
+          "usd": 0
+        },
+        "tcs": {
+          "inr": 0,
+          "usd": 0
+        },
+        "total": {
+          "inr": 0,
+          "usd": 0
+        }
+      },
+      "us": {
+        "withholding": {
+          "usd": 0,
+          "inr": 0
+        },
+        "estimated": {
+          "usd": 0,
+          "inr": 0
+        },
+        "estimatedByQuarter": {
+          "q1": 0,
+          "q2": 0,
+          "q3": 0,
+          "q4": 0
+        },
+        "priorYearTotalTaxUsd": null,
+        "total": {
+          "usd": 0,
+          "inr": 0
+        }
+      }
+    },
+    "withholdingDetail": {
+      "india": {
+        "tdsAggregateInr": 0,
+        "tcsAggregateInr": 0,
+        "lrsTcs": null,
+        "propertyTds": []
+      },
+      "us": {
+        "stateWithholdingUsd": 0
+      }
+    },
+    "assets": {
+      "indianMutualFunds": [],
+      "indianSecurities": [],
+      "usPficHoldings": [],
+      "indianBusinesses": [],
+      "usForeignCorps": [],
+      "usOwns10PctForeignCorp": false,
+      "indianProperties": [],
+      "epfInr": 150000,
+      "ppfInr": 0,
+      "npsInr": 0,
+      "taxableEpfInterestInr": 0,
+      "taxableNpsWithdrawalInr": 0,
+      "usSecurities": [
+        {
+          "asset_name": "Vanguard — Taxable Brokerage",
+          "account_type": "taxable_brokerage",
+          "peak_balance_usd": 235597.09,
+          "country": "US"
+        },
+        {
+          "asset_name": "Fidelity 401(k)",
+          "account_type": "retirement_brokerage",
+          "peak_balance_usd": 410000,
+          "country": "US"
+        }
+      ],
+      "usProperties": [
+        {
+          "name": "Rental duplex — Sacramento, CA",
+          "property_type": "Residential rental",
+          "gross_rent_usd": 36000,
+          "expenses_usd": 15000
+        }
+      ],
+      "usRetirement": {
+        "401k_employee_contribution_usd": 23000,
+        "401k_employer_match_usd": 11000,
+        "hsa_contribution_usd": 8300
+      },
+      "businessEntities": []
+    },
+    "limitsRaw": {
+      "lrsRemittedInr": 0,
+      "feieClaimed": false,
+      "feieAmountUsd": 0,
+      "foreignEarnedIncomeUsd": 0,
+      "fbarFormFlag": 0,
+      "form8938Flag": false,
+      "additionalMedicareOwed": 0,
+      "trumpAccountsOpened": false,
+      "trumpAccountsNumChildren": 0,
+      "trumpAccountsSeedEligibleChildren": 0,
+      "trumpAccountsContributionsUsd": 0,
+      "nroCumulativeRepatriatedUsd": 0
+    },
+    "feie": {
+      "claimed": false,
+      "amountClaimedUsd": 0,
+      "foreignEarnedIncomeUsd": 0,
+      "taxHomeCountry": "",
+      "bonaFide": false,
+      "physicalPresence": false,
+      "daysInUsTestPeriod": 0
+    },
+    "_raw": {
+      "router": {
+        "jurisdiction": "single_us",
+        "base_tax_year": 2026,
+        "full_name": "David Chen",
+        "date_of_birth": "1979-03-08",
+        "is_us_citizen": true,
+        "has_green_card": true,
+        "us_days": 365,
+        "has_us_source_income_or_assets": true
+      },
+      "india": {
+        "profile": {
+          "full_name": "David Chen",
+          "entity_type": "local",
+          "tax_regime": "NEW"
+        },
+        "residency_detail": {
+          "days_in_india_current_year": 365,
+          "final_india_residency_status": "ROR"
+        },
+        "dtaa": {},
+        "compliance_docs": {},
+        "bank_accounts": [],
+        "property": {
+          "properties": []
+        },
+        "financial_holdings": {
+          "transactions": []
+        },
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 32000,
+          "interest_fd_rd_inr": 210000,
+          "dividend_inr": 95000,
+          "family_pension_gross_inr": 180000,
+          "gifts_above_50k_inr": 118788.2,
+          "online_gaming_winnings_inr": 40000,
+          "taxable_epf_interest_inr": 74394.57
+        },
+        "deductions": {
+          "s80C": {
+            "epf_employee_inr": 150000,
+            "elss_inr": 50000,
+            "life_insurance_premium_inr": 35000,
+            "tuition_fees_inr": 60000
+          },
+          "s80CCD_1B": {
+            "nps_additional_inr": 50000
+          },
+          "s80D": {
+            "self_family_premium_inr": 28000,
+            "parents_premium_inr": 45000
+          },
+          "s80DDB": {
+            "has_specified_diseases_treatment": true,
+            "medical_expenses_inr": 55000,
+            "patient_category": "senior"
+          },
+          "s80E": {
+            "education_loan_interest_inr": 85000
+          },
+          "s80EEA_EE": {
+            "affordable_home_loan_interest_inr": 140000,
+            "loan_sanction_date": "2020-06-15"
+          },
+          "s80TTA_TTB": {
+            "savings_interest_inr": 32000
+          },
+          "s80ggb_ggc_political_donation_inr": 25000
+        },
+        "carry_forward_losses": {},
+        "lrs_outbound": {},
+        "tax_credits": {},
+        "metadata": {
+          "schema_version": "layer1_india_v5_1",
+          "financial_year": "TY2026-27"
+        },
+        "quarters": {
+          "Q1": {
+            "domestic_income": {
+              "salary": {
+                "has_salary_income": false
+              },
+              "house_property": {
+                "has_house_property_income": false,
+                "properties": []
+              },
+              "business_income": {
+                "has_business_or_fo_income": false,
+                "business_entries": []
+              },
+              "capital_gains": {}
+            },
+            "other_sources": {},
+            "capital_gains": {},
+            "lrs_outbound": {},
+            "financial_holdings": {
+              "transactions": []
+            },
+            "property": {
+              "properties": []
+            }
+          },
+          "Q2": {
+            "domestic_income": {
+              "salary": {
+                "has_salary_income": true
+              },
+              "house_property": {
+                "has_house_property_income": false,
+                "properties": []
+              },
+              "business_income": {
+                "has_business_or_fo_income": false,
+                "business_entries": []
+              },
+              "capital_gains": {}
+            },
+            "other_sources": {},
+            "capital_gains": {},
+            "lrs_outbound": {}
+          },
+          "Q3": {
+            "domestic_income": {
+              "salary": {
+                "has_salary_income": true
+              },
+              "house_property": {
+                "has_house_property_income": false,
+                "properties": []
+              },
+              "business_income": {
+                "has_business_or_fo_income": true,
+                "business_entries": []
+              },
+              "capital_gains": {}
+            },
+            "other_sources": {},
+            "capital_gains": {},
+            "lrs_outbound": {}
+          },
+          "Q4": {
+            "domestic_income": {
+              "salary": {
+                "has_salary_income": true
+              },
+              "house_property": {
+                "has_house_property_income": false,
+                "properties": []
+              },
+              "business_income": {
+                "has_business_or_fo_income": false,
+                "business_entries": []
+              },
+              "capital_gains": {}
+            },
+            "other_sources": {},
+            "capital_gains": {},
+            "lrs_outbound": {}
+          }
+        },
+        "foreign_assets": {
+          "has_foreign_assets": false,
+          "assets": []
+        },
+        "foreign_income": {
+          "has_foreign_income": false
+        },
+        "unlisted_equity": {
+          "has_unlisted_equity_transaction": true,
+          "transactions": [
+            {
+              "company": "Brightlane Foods Pvt Ltd",
+              "holding_pct": 4,
+              "acquisition_date": "2021-03-01",
+              "number_of_shares": 2500,
+              "cost_per_share": 100,
+              "cost_per_share_currency": "INR"
+            }
+          ]
+        },
+        "share_buyback": {
+          "transactions": [
+            {
+              "company_name": "Brightlane Foods Pvt Ltd",
+              "is_listed": false,
+              "is_promoter": false,
+              "buyback_date": "2026-07-10",
+              "original_acquisition_date": "2021-03-01",
+              "consideration_received_inr": 900000,
+              "original_cost_inr": 250000,
+              "capital_gain_or_loss": 654548.6,
+              "gain_classification": "ltcg",
+              "buyback_pre_or_post_oct2024": "capital_gains_era"
+            }
+          ]
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 210000
+        }
+      },
+      "us": {
+        "profile": {
+          "tax_entity_type": "individual",
+          "full_name": "David Chen",
+          "date_of_birth": "1979-03-08",
+          "filing_status": "mfj",
+          "ssn_or_itin_type": "ssn",
+          "dependents_count": 2
+        },
+        "us_residency_detail": {
+          "is_us_citizen": true,
+          "has_green_card": false,
+          "us_days_current_year": 365,
+          "spt_test_met": true,
+          "final_us_residency_status": "US_CITIZEN",
+          "dtaa_treaty_residence": "none"
+        },
+        "income_us_source": {},
+        "income_foreign_source": {},
+        "foreign_earned_income": {
+          "claims_feie": false
+        },
+        "equity_compensation": {
+          "iso_exercises": [
+            {
+              "shares_exercised": 2000,
+              "fmv_at_exercise_usd": 40,
+              "strike_price_usd": -95.48
+            }
+          ]
+        },
+        "itemized_deductions_and_credits": {
+          "use_standard_or_itemized": "itemized",
+          "state_and_local_taxes_paid_usd": 45000,
+          "mortgage_interest_paid_usd": 17685.98,
+          "charitable_contributions_cash_usd": 12000,
+          "charitable_contributions_appreciated_usd": 5000,
+          "medical_expenses_usd": 8000,
+          "student_loan_interest_usd": 2500,
+          "child_and_dependent_care_expenses_usd": 9000,
+          "education_credits_aotc_usd": 2500,
+          "education_credits_llc_usd": 0,
+          "dependents_count": 2
+        },
+        "amt_inputs": {
+          "private_activity_bond_interest_usd": 3000
+        },
+        "state_residency": {
+          "primary_state_of_residence": "CA",
+          "ca_retains_property_or_voter_reg": false
+        },
+        "bank_accounts": [],
+        "fbar_aggregate_peak_usd": 0,
+        "foreign_entities": {
+          "foreign_corporations": [],
+          "pfic_holdings": []
+        },
+        "retirement_accounts": {
+          "401k_employee_contribution_usd": 23000,
+          "401k_employer_match_usd": 11000,
+          "hsa_contribution_usd": 8300
+        },
+        "financial_holdings": [
+          {
+            "asset_name": "Vanguard — Taxable Brokerage",
+            "account_type": "taxable_brokerage",
+            "peak_balance_usd": 235597.09,
+            "country": "US"
+          },
+          {
+            "asset_name": "Fidelity 401(k)",
+            "account_type": "retirement_brokerage",
+            "peak_balance_usd": 410000,
+            "country": "US"
+          }
+        ],
+        "real_estate": {
+          "has_real_estate_transaction": false,
+          "properties": [
+            {
+              "name": "Rental duplex — Sacramento, CA",
+              "property_type": "Residential rental",
+              "gross_rent_usd": 36000,
+              "expenses_usd": 15000
+            }
+          ]
+        },
+        "ftc_inputs": {
+          "claims_ftc": false
+        },
+        "withholding_and_estimated": {},
+        "nra_specific": {
+          "files_form_1040nr": false
+        },
+        "metadata": {
+          "schema_version": "layer1_us_v1",
+          "us_calendar_year": 2026
+        }
+      }
+    }
+  },
+  "computed": {
+    "residency": {
+      "india": {
+        "status": "ROR",
+        "isResident": true,
+        "worldwide": true,
+        "cedesViaTreaty": false
+      },
+      "us": {
+        "status": "US_CITIZEN",
+        "isResident": true,
+        "worldwide": true,
+        "isCitizen": true,
+        "cedesViaTreaty": false
+      },
+      "dualResident": true,
+      "tieBreakWinner": null,
+      "worldwideOverlap": true
+    },
+    "indiaTax": {
+      "regime": "Firm/LLP ITR-5 (30%)",
+      "isEntity": true,
+      "matApplied": false,
+      "grossTotalIncomeInr": 654548.6,
+      "deductionsInr": 0,
+      "totalIncomeInr": 654548.6,
+      "slabTaxInr": 196364.58,
+      "specialTaxInr": 0,
+      "rebateInr": 0,
+      "surchargeInr": 0,
+      "cessInr": 7854.5832,
+      "totalTaxInr": 204219.16319999998,
+      "totalTaxUsd": 2460.4718457831323,
+      "totalIncomeUsd": 7886.127710843373,
+      "effectiveRate": 0.312
+    },
+    "usTax": {
+      "filingStatus": "mfj",
+      "worldwide": true,
+      "totalIncomeUsd": 0,
+      "ordinaryIncomeUsd": 0,
+      "preferentialIncomeUsd": 0,
+      "agiUsd": 0,
+      "deductionUsd": 83085.98,
+      "deductionMode": "itemized",
+      "saltCapUsd": 40400,
+      "socialSecurityDetail": {
+        "grossUsd": 0,
+        "taxableUsd": 0,
+        "taxablePct": 0,
+        "provisionalIncomeUsd": 0,
+        "baseThresholdUsd": 32000,
+        "additionalThresholdUsd": 44000
+      },
+      "seniorDeductionUsd": 0,
+      "seniorDetail": {
+        "age": 47,
+        "isSenior": false,
+        "fullAmountUsd": 6000,
+        "phaseoutThresholdUsd": 150000
+      },
+      "tipsDeductionUsd": 0,
+      "overtimeDeductionUsd": 0,
+      "tipsOvertimeDetail": {
+        "isMfs": false,
+        "qualifiedTipsUsd": 0,
+        "qualifiedOvertimeUsd": 0,
+        "tipsMaxUsd": 25000,
+        "overtimeMaxUsd": 25000,
+        "phaseoutThresholdUsd": 300000,
+        "phaseoutReductionUsd": 0
+      },
+      "taxableIncomeUsd": 0,
+      "ordinaryTaxUsd": 0,
+      "ordinaryTaxableUsd": 0,
+      "ordinaryBracketBreakdown": [],
+      "preferentialTaxUsd": 0,
+      "incomeTaxUsd": 0,
+      "niitUsd": 0,
+      "additionalMedicareUsd": 0,
+      "seTaxUsd": 0,
+      "qbiDeductionUsd": 0,
+      "amtUsd": 45282,
+      "amtDetail": {
+        "amtiUsd": 314360.00000000006,
+        "addbackUsd": 40400,
+        "exemptionFullUsd": 140200,
+        "exemptionUsd": 140200,
+        "amtBaseUsd": 174160.00000000006,
+        "preferentialInBaseUsd": 0,
+        "ordinaryAmtBaseUsd": 174160.00000000006,
+        "tmtOrdUsd": 45281.60000000001,
+        "tmtUsd": 45281.60000000001,
+        "regularTaxUsd": 0
+      },
+      "creditsUsd": 0,
+      "otherCreditsUsd": 0,
+      "ctcDetail": {
+        "numChildren": 2,
+        "maxTotalUsd": 4400,
+        "phaseoutReductionUsd": 0,
+        "availableUsd": 4400,
+        "nonRefundableUsd": 0,
+        "refundableUsd": 0,
+        "earnedIncomeUsd": 0
+      },
+      "totalTaxBeforeFtcUsd": 45282,
+      "foreignSourceIncomeUsd": 0,
+      "usSourceIncomeUsd": 0,
+      "retirementEpfInterestUsd": 0,
+      "retirementNpsWithdrawalUsd": 0,
+      "niitDetail": {
+        "netInvestmentIncomeUsd": 0,
+        "magiUsd": 0,
+        "thresholdUsd": 250000,
+        "excessUsd": 0,
+        "rate": 0.038
+      },
+      "feie": {
+        "claimed": false,
+        "eligible": false,
+        "taxHomeAbroad": false,
+        "testMet": false,
+        "reasons": [],
+        "appliedUsd": 0
+      },
+      "effectiveRate": 0
+    },
+    "stateTax": {
+      "state": "CA",
+      "stateName": "California",
+      "formName": "Form 540",
+      "filingStatus": "mfj",
+      "agiUsd": 0,
+      "standardDeductionUsd": 11412,
+      "dependentExemptionUsd": 0,
+      "taxableIncomeUsd": 0,
+      "bracketTaxUsd": 0,
+      "bracketBreakdown": [],
+      "surchargeUsd": 0,
+      "surchargeLabel": "Mental Health Services Tax (1% over $1,000,000, not doubled for MFJ)",
+      "exemptionCreditUsd": 307,
+      "dependentCreditUsd": 950,
+      "totalTaxUsd": 0,
+      "effectiveRate": 0,
+      "basis": "TY2025 rates (returns filed 2026); full-year resident, worldwide income via federal AGI, no foreign tax credit against state tax."
+    },
+    "indiaItrForm": null,
+    "reconciliation": {
+      "rows": [
+        {
+          "head": "capgains",
+          "label": "Capital gains",
+          "dir": "IN→US",
+          "source": "India",
+          "indiaLawUsd": 7886,
+          "usLawUsd": 7886,
+          "sameBase": true,
+          "estimate": true,
+          "indiaRule": "LTCG 12.5% / STCG slab · Indian holding periods",
+          "usRule": "LTCG 0/15/20% (>1y) / STCG ordinary · USD cost basis",
+          "note": "Same gain; the US recomputes on USD cost basis + acquisition-date FX (Rule 115).",
+          "doublyTaxed": true,
+          "overlapUsd": 7886
+        }
+      ],
+      "overlapUsd": 7886,
+      "feieAppliedUsd": 0,
+      "anyEstimate": true
+    },
+    "apportionment": {
+      "basis": "even-earning assumption (Apr–Dec vs Jan–Mar)",
+      "fyLabel": "FY 2026–27",
+      "cyPrimary": 2026,
+      "cyNext": 2027,
+      "indiaFyTotalUsd": 7886.127710843373,
+      "indiaToCyPrimaryUsd": 5915,
+      "indiaToCyNextUsd": 1972,
+      "primaryShare": 0.75,
+      "nextShare": 0.25,
+      "usCyTotalUsd": 0,
+      "usCyToFyPrimaryUsd": 0,
+      "usCyToFyNextUsd": 0
+    },
+    "taxEstimate": {
+      "india": {
+        "estTaxUsd": 2460.4718457831323,
+        "estTaxInr": 204219.16319999998
+      },
+      "us": {
+        "estTaxUsd": 45282
+      }
+    },
+    "ftc": {
+      "us": {
+        "foreignSourceIncomeUsd": 7886.127710843373,
+        "feieExcludedUsd": 0,
+        "indiaTaxDisallowedUsd": 0,
+        "taxableIncomeUsd": 0,
+        "usIncomeTaxUsd": 0,
+        "indiaTaxPaidUsd": 2460.4718457831323,
+        "limitFraction": 0,
+        "ftcLimitUsd": 0,
+        "ftcAllowedUsd": 0,
+        "carryoverUsd": 2460.4718457831323,
+        "residualDoubleTaxUsd": 2460.4718457831323
+      },
+      "india": {
+        "foreignSourceIncomeUsd": 0,
+        "usTaxOnUsSourceUsd": 0,
+        "reliefCapUsd": 0,
+        "reliefAllowedUsd": 0
+      },
+      "netUnrelievedDoubleTaxUsd": 2460.4718457831323
+    },
+    "doubleTax": {
+      "items": [
+        {
+          "label": "Capital gains",
+          "indiaUsd": 7886.127710843373,
+          "usUsd": 0,
+          "doublyTaxed": true,
+          "note": "STCG/LTCG holding-period and rate definitions differ between IN and US."
+        }
+      ],
+      "totalDoublyTaxedUsd": 7886.127710843373
+    },
+    "limits": [
+      {
+        "id": "fbar",
+        "label": "FBAR (FinCEN 114) aggregate",
+        "value": 0,
+        "limit": 10000,
+        "pct": 0,
+        "status": "ok",
+        "unit": "USD",
+        "note": "Threshold is a cliff: any breach = full reporting of every foreign account."
+      },
+      {
+        "id": "form8938",
+        "label": "Form 8938 (FATCA) any-time",
+        "value": 0,
+        "limit": 150000,
+        "pct": 0,
+        "status": "ok",
+        "unit": "USD",
+        "note": "Threshold shown is the 'any time during year' figure for your status/residence."
+      }
+    ],
+    "headline": {
+      "name": "David Chen",
+      "baseYear": 2026,
+      "jurisdiction": "single_us",
+      "totalIncomeUsd": 7886.127710843373,
+      "indiaTaxUsd": 2460.4718457831323,
+      "usTaxUsd": 45282,
+      "combinedTaxBeforeReliefUsd": 47742.47184578313,
+      "worldwideOverlap": true,
+      "netUnrelievedDoubleTaxUsd": 2460.4718457831323
+    },
+    "__x": 0
+  },
+  "findings": [
+    {
+      "id": "dual_residency",
+      "severity": "critical",
+      "category": "treaty",
+      "title": "Dual tax residency — Article 4 tie-breaker not yet run",
+      "detail": "The taxpayer is resident in BOTH India (ROR) and the US (citizen) for an overlapping period, and the Layer 1 Article 4 tie-breaker has not been completed. Until it is, both countries assert worldwide taxing rights and only partial FTC relief is available.",
+      "recommendation": "Complete the Layer 1 tie-breaker wizard (permanent home → centre of vital interests → habitual abode → nationality). WISING will then flag Form 8833 (US) and the TRC / Form 41 requirement (India) on the filing checklist for the loser side — actually preparing and filing those remains a manual step.",
+      "amountUsd": 7886.127710843373,
+      "refs": [
+        "DTAA Art. 4",
+        "Form 8833",
+        "TRC",
+        "Form 41"
+      ]
+    },
+    {
+      "id": "amt_applies",
+      "severity": "warning",
+      "category": "credit",
+      "title": "US Alternative Minimum Tax applies (+$45,282)",
+      "detail": "This is a US-only tax (IRC §55) — India has no AMT-equivalent regime. The US tentative minimum tax exceeds the regular US tax, so an additional $45,282 is added to the US liability. Common drivers: a large standard-deduction / SALT add-back, private-activity-bond interest, or an ISO exercise.",
+      "recommendation": "WISING computes the parallel AMT (Form 6251) and includes it in the US tax total above. Review ISO exercise timing and the state-tax add-back; AMT paid on deferral items can generate a Minimum Tax Credit (Form 8801) usable in later years.",
+      "amountUsd": 45282,
+      "refs": [
+        "§55",
+        "Form 6251",
+        "Form 8801"
+      ]
+    },
+    {
+      "id": "underpayment_2210",
+      "severity": "warning",
+      "category": "credit",
+      "title": "US estimated-tax underpayment penalty — Form 2210 ($1,817 estimated)",
+      "detail": "Withholding + estimated payments ($0) fall short of both safe harbors: 90% of this year's tax ($40,754) and the prior-year safe harbor (last year's total tax was never entered, so only the current-year harbor could be checked), with a balance due over the $1,000 de-minimis. Estimated penalty (simplified regular method, equal quarterly installments, withholding spread evenly, no cross-quarter netting): $1,817.",
+      "recommendation": "Confirm against the real Form 2210 (it can use the Annualized Income Installment Method for uneven income, which this estimate does not model, and could produce a lower number). Paying the shortfall now stops further accrual.",
+      "amountUsd": 1816.94025,
+      "refs": [
+        "Form 2210",
+        "§6654"
+      ]
+    },
+    {
+      "id": "residency_status_mismatch_india_entity",
+      "severity": "warning",
+      "category": "residency",
+      "title": "India residency status may not match the facts on file (local) — derived RNOR, recorded ROR",
+      "detail": "Re-deriving India's residential-status determination from the same raw facts Layer 1's own wizard uses (day-count, the 4-year lookback, RNOR sub-status conditions, employment/PIO-visit exceptions, s.6(1A) deemed-residency, incorporation/POEM, or control-and-management, depending on entity type) produces RNOR, but the recorded final_india_residency_status is ROR.",
+      "recommendation": "Re-run the Layer 1 India residency wizard, or verify the underlying residency facts were entered consistently — this looks like a wizard or data-entry error.",
+      "amountUsd": 0,
+      "refs": [
+        "s.6"
+      ]
+    },
+    {
+      "id": "state_treaty_not_binding",
+      "severity": "warning",
+      "category": "treaty",
+      "title": "State tax residency is not resolved by the DTAA / federal treaty position (CA)",
+      "detail": "The India-US treaty and the federal residency determination above bind FEDERAL tax only. CA applies its own domicile or statutory-day residency test, independent of the Article 4 tie-breaker or any §911/1040NR position. A taxpayer can be a federal treaty non-resident while remaining a full worldwide-income STATE resident with Indian income fully taxable and little or no state-level foreign tax credit.",
+      "recommendation": "Run the state's own residency test (domicile intent + day count) separately from the federal/treaty analysis. Check whether the state allows any credit for foreign tax paid — several do not. Do not assume the federal treaty position carries over.",
+      "amountUsd": 0,
+      "refs": [
+        "State residency",
+        "CA"
+      ]
+    },
+    {
+      "id": "retirement_mismatch",
+      "severity": "warning",
+      "category": "retirement",
+      "title": "Indian retirement accounts (EPF / PPF / NPS) are taxed differently by the US",
+      "detail": "India treats EPF, PPF and NPS as tax-free (or lightly taxed). The US does not automatically agree: the IRS can tax the interest these accounts earn every year, and may treat PPF like a trust that needs extra forms.",
+      "recommendation": "WISING does NOT determine whether a specific account is a treaty-protected pension under DTAA Art. 20, or whether PPF should be treated as a foreign trust requiring Form 3520/3520-A — those are legal/factual determinations you need to make yourself; Form 3520 only appears on the filing checklist when the separate PPF/EPF-plus-US-residency trigger fires, not because this specific check ran. Confirm the treaty-protection question and trust classification before relying on the totals above.",
+      "amountUsd": 0,
+      "refs": [
+        "DTAA Art. 20",
+        "Form 3520/3520-A",
+        "FBAR"
+      ]
+    },
+    {
+      "id": "cross_basis_summary",
+      "severity": "info",
+      "category": "income",
+      "title": "1 income head(s) taxed under both codes — see reconciliation",
+      "detail": "The same income is taxed in India (its own Act) and the US (the IRC): Capital gains. Overlapping exposure of $7,886 is what the FTC / §159 relief resolves. Some heads are planning-grade estimates pending line-item inputs.",
+      "recommendation": "Open the Cross-Basis Reconciliation on the Filings tab to see each head on both bases, then relieve the overlap via Form 1116 (US) / Form 44 (India).",
+      "amountUsd": 7886,
+      "refs": [
+        "DTAA",
+        "Form 1116",
+        "Form 44"
+      ]
+    },
+    {
+      "id": "iso_3921",
+      "severity": "info",
+      "category": "document",
+      "title": "ISO exercise(s) on file — employer owes you Form 3921",
+      "detail": "1 incentive stock option exercise(s) recorded this year. The employer is required to furnish Form 3921 (one per exercise) by January 31 of the following year, reporting the grant/exercise dates, exercise price, and FMV at exercise — the same figures already driving the AMT preference computed above.",
+      "recommendation": "Confirm Form 3921 was received from the employer for each exercise and that its FMV/exercise-price figures match what's on file here before relying on the AMT number.",
+      "amountUsd": 0,
+      "refs": [
+        "Form 3921",
+        "§6039"
+      ]
+    },
+    {
+      "id": "tax_year_mismatch",
+      "severity": "info",
+      "category": "credit",
+      "title": "Tax-year apportionment: Indian FY ↔ US CY (computed)",
+      "detail": "India taxes Apr–Mar; the US taxes Jan–Dec. WISING splits the Indian FY across US calendar years — $5,915 into CY2026 and $1,972 into CY2027 (even-earning assumption (Apr–Dec vs Jan–Mar)) — and apportions the US calendar year into the Indian FY (9/12 + 3/12).",
+      "recommendation": "See the FY ↔ CY Apportionment panel on the Filings tab for the period-matched figures behind Form 44 (India) and Form 1116 (US). Planning-grade — refine with per-transaction dates at filing.",
+      "amountUsd": 0,
+      "refs": [
+        "Apr 1 – Mar 31 (Tax Year)",
+        "Jan 1 – Dec 31 (Calendar Year)"
+      ]
+    }
+  ],
+  "documents": [
+    {
+      "id": "fincen_114",
+      "jurisdiction": "US",
+      "name": "FinCEN Form 114 (FBAR)",
+      "desc": "Report of Foreign Bank and Financial Accounts.",
+      "why": "Aggregate peak balance across all foreign (Indian) accounts exceeded USD 10,000.",
+      "severity": "critical",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_8938",
+      "jurisdiction": "US",
+      "name": "IRS Form 8938 (FATCA)",
+      "desc": "Statement of Specified Foreign Financial Assets, filed with Form 1040.",
+      "why": "Specified foreign financial assets exceeded the Form 8938 reporting threshold for your filing status/residence.",
+      "severity": "critical",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_1116",
+      "jurisdiction": "US",
+      "name": "IRS Form 1116 (Foreign Tax Credit)",
+      "desc": "Claims credit for income tax paid to India against US tax liability.",
+      "why": "Indian income tax was paid on income that is also taxable in the US.",
+      "severity": "warning",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_2555",
+      "jurisdiction": "US",
+      "name": "IRS Form 2555 (FEIE)",
+      "desc": "Foreign Earned Income Exclusion / foreign housing exclusion.",
+      "why": "FEIE was elected on foreign earned income.",
+      "severity": "info",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_8833",
+      "jurisdiction": "US",
+      "name": "IRS Form 8833 (Treaty-Based Position)",
+      "desc": "Discloses a treaty-based return position (e.g. Article 4 tie-breaker).",
+      "why": "A DTAA tie-breaker or treaty rate is being relied upon to override default US taxation.",
+      "severity": "critical",
+      "required": true,
+      "status": "required"
+    },
+    {
+      "id": "form_8621",
+      "jurisdiction": "US",
+      "name": "IRS Form 8621 (PFIC)",
+      "desc": "Information return for Passive Foreign Investment Companies — one per fund.",
+      "why": "Holdings in Indian mutual funds / ETFs are PFICs and require annual reporting (punitive §1291 regime unless QEF/MTM elected).",
+      "severity": "critical",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_5471",
+      "jurisdiction": "US",
+      "name": "IRS Form 5471 (CFC)",
+      "desc": "Information return for US persons owning ≥10% of a foreign corporation.",
+      "why": "You own ≥10% of an Indian company — potential Subpart F / GILTI inclusion.",
+      "severity": "warning",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_8865",
+      "jurisdiction": "US",
+      "name": "IRS Form 8865",
+      "desc": "Return for US persons with interests in a foreign partnership.",
+      "why": "You hold an interest in an Indian partnership/LLP.",
+      "severity": "warning",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_3520",
+      "jurisdiction": "US",
+      "name": "IRS Form 3520 / 3520-A",
+      "desc": "Reporting of foreign gifts and transactions with foreign trusts.",
+      "why": "Foreign gift > USD 100,000 received, or you are a grantor/beneficiary of a foreign trust (note: Indian PPF/EPF may be treated as trusts).",
+      "severity": "warning",
+      "required": true,
+      "status": "required"
+    },
+    {
+      "id": "form_1040nr",
+      "jurisdiction": "US",
+      "name": "IRS Form 1040-NR",
+      "desc": "Non-resident alien income tax return.",
+      "why": "You are (or elect to be treated as) a US non-resident alien for this year.",
+      "severity": "info",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_8960",
+      "jurisdiction": "US",
+      "name": "IRS Form 8960 (NIIT)",
+      "desc": "Net Investment Income Tax (3.8%).",
+      "why": "MAGI exceeded the NIIT threshold and net investment income is present.",
+      "severity": "info",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_8959",
+      "jurisdiction": "US",
+      "name": "IRS Form 8959 (Additional Medicare Tax)",
+      "desc": "Additional 0.9% Medicare tax on wages/SE income above the filing-status threshold, and reconciles employer over/under-withholding.",
+      "why": "Additional Medicare Tax is owed and is not offset by the Foreign Tax Credit.",
+      "severity": "info",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_540",
+      "jurisdiction": "US",
+      "name": "California Form 540 (Resident Income Tax Return)",
+      "desc": "California state income tax return — computed on worldwide income for a full-year CA resident, including Indian-source income. CA grants no credit for tax paid to a foreign country.",
+      "why": "State-of-residence facts on file point to California, and CA taxes worldwide income independently of the federal treaty position.",
+      "severity": "warning",
+      "required": true,
+      "status": "required"
+    },
+    {
+      "id": "form_it201",
+      "jurisdiction": "US",
+      "name": "New York Form IT-201 (Resident Income Tax Return)",
+      "desc": "New York state income tax return — computed on worldwide income for a full-year NY resident, including Indian-source income. NY grants no credit for tax paid to a foreign country.",
+      "why": "State-of-residence facts on file point to New York, and NY taxes worldwide income independently of the federal treaty position.",
+      "severity": "warning",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_67",
+      "jurisdiction": "IN",
+      "name": "Form 44 (India FTC)",
+      "desc": "Statement of foreign income & foreign tax, filed before the ITR due date.",
+      "why": "Foreign (US) income is being offered to tax in India and FTC u/s 90/91 is claimed. Schedule FSI/TR must accompany the ITR.",
+      "severity": "critical",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "trc",
+      "jurisdiction": "IN",
+      "name": "Tax Residency Certificate (TRC)",
+      "desc": "Issued by the other contracting state (IRS Form 6166 for the US).",
+      "why": "DTAA relief / treaty rate is being claimed — a TRC is mandatory u/s 159(8).",
+      "severity": "critical",
+      "required": true,
+      "status": "required"
+    },
+    {
+      "id": "form_10f",
+      "jurisdiction": "IN",
+      "name": "Form 41",
+      "desc": "Self-declaration accompanying the TRC, filed electronically on the ITR portal.",
+      "why": "Treaty benefit claimed and the TRC does not contain all particulars required u/r 75.",
+      "severity": "warning",
+      "required": true,
+      "status": "required"
+    },
+    {
+      "id": "schedule_fa",
+      "jurisdiction": "IN",
+      "name": "Schedule FA (Foreign Assets)",
+      "desc": "Disclosure of foreign assets/accounts in the Indian ITR.",
+      "why": "You are Resident & Ordinarily Resident (ROR) and hold US bank accounts, securities or other foreign assets.",
+      "severity": "critical",
+      "required": true,
+      "status": "required"
+    },
+    {
+      "id": "schedule_fsi_tr",
+      "jurisdiction": "IN",
+      "name": "Schedule FSI & Schedule TR",
+      "desc": "Foreign Source Income and Tax Relief schedules in the ITR.",
+      "why": "Foreign income is offered to tax and relief u/s 90/91 is claimed.",
+      "severity": "warning",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_15ca_cb",
+      "jurisdiction": "IN",
+      "name": "Form 145 / Form 146 (was 15CA / 15CB)",
+      "desc": "Remittance certificates for foreign outward remittances.",
+      "why": "Outward remittances under LRS / to non-residents were made during the year. Renumbered from Form 15CA/15CB effective 1 Apr 2026 under the Income-tax Rules, 2026 (Rule 220) — the old numbers still apply to remittances made before that date.",
+      "severity": "info",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "schedule_al",
+      "jurisdiction": "IN",
+      "name": "Schedule AL (Assets & Liabilities)",
+      "desc": "Disclosure of assets and liabilities at cost, filed with the ITR.",
+      "why": "Total income exceeds ₹50 lakh — Schedule AL is mandatory at this threshold u/s 139(1) (ITR-2/3/5 filers).",
+      "severity": "warning",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_3cb_3cd",
+      "jurisdiction": "IN",
+      "name": "Form 3CB / 3CD (Tax Audit Report)",
+      "desc": "Chartered Accountant's tax-audit report and statement of particulars, filed before the ITR due date.",
+      "why": "Business turnover exceeds the s.44AB tax-audit threshold (₹1 crore, or ₹10 crore where cash receipts and payments are each ≤5% of the total).",
+      "severity": "critical",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_8802",
+      "jurisdiction": "US",
+      "name": "IRS Form 8802 (Application for US Residency Certification)",
+      "desc": "Application to the IRS for Form 6166 — the US residency certificate India's TRC requirement expects the other contracting state to issue.",
+      "why": "DTAA relief is being claimed on Indian-source income — Form 6166 must be requested via Form 8802 before it can be filed with the Indian TRC/Form 41 paperwork; IRS processing typically takes 4-6+ weeks, so file well ahead of the India due date.",
+      "severity": "warning",
+      "required": true,
+      "status": "required"
+    },
+    {
+      "id": "form_6251",
+      "jurisdiction": "US",
+      "name": "IRS Form 6251 (Alternative Minimum Tax)",
+      "desc": "Computes AMT and reconciles it against regular tax liability.",
+      "why": "AMT preference items (commonly an ISO exercise, or the SALT-cap add-back) push tentative minimum tax above the regular tax for the year.",
+      "severity": "warning",
+      "required": true,
+      "status": "required"
+    },
+    {
+      "id": "form_8288",
+      "jurisdiction": "US",
+      "name": "IRS Form 8288 / 8288-A / 8288-B (FIRPTA Withholding)",
+      "desc": "Withholding certificate and returns for a foreign person's disposition of US real property.",
+      "why": "A US real property interest was disposed of by a foreign person — 15% FIRPTA withholding applies at closing unless a Form 8288-B withholding certificate reduces it.",
+      "severity": "warning",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_3ceb",
+      "jurisdiction": "IN",
+      "name": "Form 3CEB (Transfer Pricing Certification)",
+      "desc": "Chartered Accountant's report on international transactions with associated enterprises, filed before the ITR due date u/s 92E.",
+      "why": "A cross-border related-party ownership relationship is on file — international transactions with that entity must be reported and certified, independent of whether pricing is at arm's length.",
+      "severity": "warning",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_26as_ais_tis",
+      "jurisdiction": "IN",
+      "name": "Form 26AS / AIS / TIS",
+      "desc": "Annual tax-credit statement (26AS) and the Annual/Taxpayer Information Statements — the pre-filled record every ITR should be reconciled against before filing.",
+      "why": "Indian income is on file for this taxpayer — TDS, advance tax and reported high-value transactions should be cross-checked against these statements before the return is filed.",
+      "severity": "info",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_16_16a",
+      "jurisdiction": "IN",
+      "name": "Form 16 / Form 16A (TDS Certificates)",
+      "desc": "Salary (Form 16) and non-salary (Form 16A) TDS certificates issued by each deductor.",
+      "why": "Indian income subject to TDS is on file — hold the certificate from each deductor to reconcile against Form 26AS/AIS and support the credit claimed in the ITR.",
+      "severity": "info",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "lrs_form_a2",
+      "jurisdiction": "IN",
+      "name": "LRS Form A2 (Outward Remittance Declaration)",
+      "desc": "Declaration furnished to the remitting bank for each outward remittance under the Liberalised Remittance Scheme.",
+      "why": "Outward remittances under LRS were made this year — each remittance requires its own Form A2 filed with the bank at the time of transfer, separate from the annual Form 145/146 (was 15CA/15CB) return-time reporting.",
+      "severity": "info",
+      "required": false,
+      "status": "not_triggered"
+    },
+    {
+      "id": "form_4868",
+      "jurisdiction": "US",
+      "name": "IRS Form 4868 (Extension Request)",
+      "desc": "Automatic 6-month extension of time to file (not to pay) the US return.",
+      "why": "Must be filed by the original due date to legally reach the extended deadline already on your Compliance Calendar — the extension does not happen automatically.",
+      "severity": "info",
+      "required": true,
+      "status": "required"
+    }
+  ],
+  "ftcReport": {
+    "direction_us_claims_india": {
+      "title": "US Form 1116 — credit for Indian taxes",
+      "rows": [
+        {
+          "label": "Indian income tax (creditable)",
+          "usd": 2460.4718457831323,
+          "trace": {
+            "kind": "calc",
+            "formula": "Total India tax × creditable fraction (gross Indian income less any FEIE-excluded slice, over gross Indian income)",
+            "parts": [
+              {
+                "label": "Total India tax (from Tax Computation)",
+                "amount": 2460.4718457831323
+              },
+              {
+                "label": "Creditable fraction",
+                "display": "100%"
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Foreign-source income (US view)",
+          "usd": 7886.127710843373,
+          "trace": {
+            "kind": "holdings",
+            "section": "india",
+            "note": null
+          }
+        },
+        {
+          "label": "US taxable income",
+          "usd": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "Same figure as \"Taxable income\" in the Tax Computation card above",
+            "parts": [
+              {
+                "label": "US taxable income",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "US income tax (pre-credit)",
+          "usd": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "Ordinary-rate tax + preferential LTCG/QDI tax only — NIIT, Additional Medicare, SE tax and AMT are excluded, they're not creditable against foreign tax by statute",
+            "parts": [
+              {
+                "label": "Ordinary-rate tax",
+                "amount": 0
+              },
+              {
+                "label": "Preferential LTCG/QDI tax",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "FTC limitation = US tax × foreign/taxable",
+          "usd": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "§904(a): the credit can't exceed US tax on this income times the same proportion foreign-source income bears to total taxable income",
+            "parts": [
+              {
+                "label": "US income tax (pre-credit)",
+                "amount": 0
+              },
+              {
+                "label": "Foreign-source income",
+                "amount": 7886.127710843373
+              },
+              {
+                "label": "US taxable income",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "FTC allowed this year",
+          "usd": 0,
+          "emphasis": true,
+          "trace": {
+            "kind": "calc",
+            "formula": "Lesser of Indian tax paid and the §904 limitation",
+            "parts": [
+              {
+                "label": "Indian income tax (creditable)",
+                "amount": 2460.4718457831323
+              },
+              {
+                "label": "FTC limitation",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Excess credit carried over (§904(c))",
+          "usd": 2460.4718457831323,
+          "trace": {
+            "kind": "calc",
+            "formula": "Indian tax paid in excess of what the §904 limitation allows this year — carries back 1 year / forward 10 years",
+            "parts": [
+              {
+                "label": "Indian income tax (creditable)",
+                "amount": 2460.4718457831323
+              },
+              {
+                "label": "Less FTC allowed this year",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Residual double tax (unrelieved)",
+          "usd": 2460.4718457831323,
+          "warn": true,
+          "trace": {
+            "kind": "calc",
+            "formula": "Same as the excess credit carried over — until it's actually used in a future year this is double taxation the credit hasn't relieved yet",
+            "parts": [
+              {
+                "label": "Excess credit carried over",
+                "amount": 2460.4718457831323
+              }
+            ],
+            "citation": null
+          }
+        }
+      ]
+    },
+    "direction_india_relief": {
+      "title": "India §159 relief — for US taxes on doubly-taxed income",
+      "rows": [
+        {
+          "label": "US-source income (foreign, India view)",
+          "usd": 0,
+          "trace": {
+            "kind": "holdings",
+            "section": "us",
+            "note": "Only counted when the taxpayer is India ROR (worldwide taxation) — zero here because that isn't the case."
+          }
+        },
+        {
+          "label": "US tax on that US-source income",
+          "usd": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "US income tax × (US-source income ÷ total US income) — the slice of US tax attributable to income India also taxes",
+            "parts": [
+              {
+                "label": "US income tax (pre-credit)",
+                "amount": 0
+              },
+              {
+                "label": "US-source income",
+                "amount": 0
+              },
+              {
+                "label": "Total US income",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Indian tax on the doubly-taxed income (cap)",
+          "usd": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "Total India tax × (US-source income ÷ total India-view income) — s.159 relief can never exceed the Indian tax actually attributable to that income",
+            "parts": [
+              {
+                "label": "Total India tax",
+                "amount": 2460.4718457831323
+              },
+              {
+                "label": "US-source income (India view)",
+                "amount": 0
+              },
+              {
+                "label": "Total India-view income",
+                "amount": 7886.127710843373
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "§90 relief allowed",
+          "usd": 0,
+          "emphasis": true,
+          "trace": {
+            "kind": "calc",
+            "formula": "Lesser of the US tax on that income and the Indian-tax cap",
+            "parts": [
+              {
+                "label": "US tax on the doubly-taxed income",
+                "amount": 0
+              },
+              {
+                "label": "Indian tax cap",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        }
+      ]
+    },
+    "headlineNetDoubleTaxUsd": 2460.4718457831323
+  },
+  "taxComputation": {
+    "india": {
+      "title": "India income tax — Firm/LLP ITR-5 (30%)",
+      "currency": "INR",
+      "rows": [
+        {
+          "label": "Gross total income",
+          "inr": 654548.6,
+          "trace": {
+            "kind": "holdings",
+            "section": "india",
+            "note": null
+          }
+        },
+        {
+          "label": "Chapter VI-A deductions",
+          "inr": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "Old regime: s.123 (cap ₹1.5L) + s.124(1B) NPS (cap ₹50k) + s.126 health insurance (cap ₹75k) + employer NPS s.124(2) (uncapped) + s.153 savings interest (cap ₹10k)",
+            "parts": [
+              {
+                "label": "s.123 (capped ₹1.5L)",
+                "amount": 150000
+              },
+              {
+                "label": "s.124(1B) NPS (capped ₹50k)",
+                "amount": 50000
+              },
+              {
+                "label": "s.126 health insurance (capped ₹75k)",
+                "amount": 73000
+              },
+              {
+                "label": "Employer NPS s.124(2)",
+                "amount": 0
+              },
+              {
+                "label": "s.153 savings interest (capped ₹10k)",
+                "amount": 10000
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Total income",
+          "inr": 654548.6,
+          "trace": {
+            "kind": "calc",
+            "formula": "Gross total income less Chapter VI-A deductions",
+            "parts": [
+              {
+                "label": "Gross total income",
+                "amount": 654548.6
+              },
+              {
+                "label": "Less Chapter VI-A deductions",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Tax at slab rates",
+          "inr": 196364.58,
+          "trace": {
+            "kind": "calc",
+            "formula": "Progressive slab-rate tax under the Firm/LLP ITR-5 (30%) regime, applied to ₹NaN of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
+            "parts": [],
+            "citation": null
+          }
+        },
+        {
+          "label": "Tax on special-rate income (196/197/198 gains + 115BBH VDA + 128/194 winnings)",
+          "inr": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "s.196 STCG @ 20% + s.198 LTCG @ 12.5% (listed/STT-paid, net of the ₹1,25,000 exemption) + s.197 LTCG @ 12.5% (unlisted/foreign — no exemption, separate section, does not pool with s.198's threshold) + s.115BBH VDA/crypto @ 30% flat (no set-off, ever) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption (each broken out below)",
+            "parts": [],
+            "citation": null
+          }
+        },
+        {
+          "label": "Less §156 rebate",
+          "inr": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold — lesser of tax at slab rates and the statutory cap",
+            "parts": [
+              {
+                "label": "Statutory rebate cap",
+                "amount": 12500
+              },
+              {
+                "label": "Rebate actually allowed",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Surcharge",
+          "inr": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "Progressive surcharge (10%/15%/25%/37% bands by total income) on tax before cess, with marginal relief so the tax increase never exceeds the income increase over the threshold; capital-gains/dividend-type special-rate income is capped at a 15% surcharge rate",
+            "parts": [
+              {
+                "label": "Surcharge",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Health & education cess (4%)",
+          "inr": 7854.5832,
+          "trace": {
+            "kind": "calc",
+            "formula": "4% of (tax after rebate + surcharge)",
+            "parts": [
+              {
+                "label": "Tax after §156 rebate",
+                "amount": 196364.58
+              },
+              {
+                "label": "Surcharge",
+                "amount": 0
+              },
+              {
+                "label": "Cess rate",
+                "display": "4%"
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Total India tax",
+          "inr": 204219.16319999998,
+          "emphasis": true,
+          "trace": {
+            "kind": "calc",
+            "formula": "Tax at slab rates + tax on special-rate income − §156 rebate + surcharge + cess",
+            "parts": [
+              {
+                "label": "Tax at slab rates",
+                "amount": 196364.58
+              },
+              {
+                "label": "Tax on special-rate income",
+                "amount": 0
+              },
+              {
+                "label": "Less §156 rebate",
+                "amount": 0
+              },
+              {
+                "label": "Surcharge",
+                "amount": 0
+              },
+              {
+                "label": "Cess",
+                "amount": 7854.5832
+              }
+            ],
+            "citation": null
+          }
+        }
+      ],
+      "totalUsd": 2460.4718457831323,
+      "effectiveRate": 0.312
+    },
+    "us": {
+      "title": "US federal income tax (MFJ)",
+      "currency": "USD",
+      "rows": [
+        {
+          "label": "Total income (worldwide)",
+          "usd": 0,
+          "trace": {
+            "kind": "holdings",
+            "section": "us",
+            "note": null
+          }
+        },
+        {
+          "label": "Adjusted gross income",
+          "usd": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "Total income less above-the-line adjustments (student-loan interest, capped at $2,500, + half of self-employment tax)",
+            "parts": [
+              {
+                "label": "Total income",
+                "amount": 0
+              },
+              {
+                "label": "Less adjustments",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Less itemized deduction",
+          "usd": -83085.98,
+          "trace": {
+            "kind": "calc",
+            "formula": "Itemized: SALT (capped at $40,400 — OBBBA's $40,000 cap, phased down 30¢/$1 of AGI over $500,000, floored at the old $10,000) + mortgage interest + charitable + medical expenses over 7.5% of AGI — used because it exceeds (or the taxpayer elected) the standard deduction",
+            "parts": [
+              {
+                "label": "Deduction used",
+                "amount": 83085.98
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Taxable income",
+          "usd": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "AGI less deduction",
+            "parts": [
+              {
+                "label": "AGI",
+                "amount": 0
+              },
+              {
+                "label": "Less deduction",
+                "amount": -83085.98
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Ordinary-rate tax",
+          "usd": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "Progressive federal brackets (10%-37%, filing status MFJ) applied to $0 of ordinary taxable income (taxable income less the LTCG/QDI portion, which is taxed separately below)",
+            "parts": [],
+            "citation": null
+          }
+        },
+        {
+          "label": "Preferential LTCG/QDI tax",
+          "usd": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "0%/15%/20% long-term capital gains brackets, stacked on top of ordinary taxable income",
+            "parts": [
+              {
+                "label": "Preferential LTCG/QDI tax",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Net investment income tax (NIIT, §1411)",
+          "usd": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "Zero — either no net investment income, or MAGI doesn't exceed the filing-status threshold",
+            "parts": [],
+            "citation": null
+          }
+        },
+        {
+          "label": "Additional Medicare tax",
+          "usd": 0,
+          "trace": {
+            "kind": "source",
+            "detail": "Computed directly on Layer 1 US (Form 8959) and taken as-is — the engine does not recompute it.",
+            "citation": null
+          }
+        },
+        {
+          "label": "Alternative Minimum Tax (§55)",
+          "usd": 45282,
+          "trace": {
+            "kind": "calc",
+            "formula": "Tentative minimum tax minus regular tax, when positive (see breakdown below)",
+            "parts": [
+              {
+                "label": "Tentative minimum tax",
+                "amount": 45281.60000000001
+              },
+              {
+                "label": "Less regular tax",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "  — AMTI (taxable income + standard/SALT addback + preference items)",
+          "usd": 314360.00000000006,
+          "trace": {
+            "kind": "calc",
+            "formula": "Taxable income + disallowed-deduction addback (the full standard deduction, or just the SALT slice if itemized) + AMT preference items (e.g. the ISO exercise bargain-element spread, §56(b)(3))",
+            "parts": [
+              {
+                "label": "Taxable income",
+                "amount": 0
+              },
+              {
+                "label": "Addback (standard deduction or SALT)",
+                "amount": 40400
+              },
+              {
+                "label": "AMT preference items",
+                "amount": 273960.00000000006
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "  — less AMT exemption (phased out above threshold)",
+          "usd": -140200,
+          "trace": {
+            "kind": "calc",
+            "formula": "Full statutory exemption reduced 25¢ for every $1 of AMTI above the phase-out threshold",
+            "parts": [
+              {
+                "label": "Full exemption",
+                "amount": 140200
+              },
+              {
+                "label": "AMTI",
+                "amount": 314360.00000000006
+              },
+              {
+                "label": "Exemption after phase-out",
+                "amount": 140200
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "  — AMT base",
+          "usd": 174160.00000000006,
+          "trace": {
+            "kind": "calc",
+            "formula": "AMTI less the (phased-out) exemption",
+            "parts": [
+              {
+                "label": "AMTI",
+                "amount": 314360.00000000006
+              },
+              {
+                "label": "Less exemption",
+                "amount": -140200
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "  — tentative minimum tax (26%/28% ordinary + LTCG/QDI at preferential rates)",
+          "usd": 45281.60000000001,
+          "trace": {
+            "kind": "calc",
+            "formula": "26% (28% above the AMT rate breakpoint) on the ordinary AMT base (AMT base less any LTCG/QDI, which keep their preferential rates) + preferential-rate tax on the LTCG/QDI portion",
+            "parts": [
+              {
+                "label": "Ordinary AMT base",
+                "amount": 174160.00000000006
+              },
+              {
+                "label": "Tax on ordinary AMT base",
+                "amount": 45281.60000000001
+              },
+              {
+                "label": "Preferential-rate tax (LTCG/QDI, same as above)",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "  — less regular tax (AMT owed = excess of TMT over this)",
+          "usd": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "Same as ordinary-rate tax + preferential LTCG/QDI tax shown above",
+            "parts": [
+              {
+                "label": "Ordinary-rate tax",
+                "amount": 0
+              },
+              {
+                "label": "Preferential LTCG/QDI tax",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Less Child Tax Credit (§24)",
+          "usd": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "$2,200/child (TY2025-2028, OBBBA), phased out $50 per $1,000 of AGI over the threshold. The portion that doesn't fit against tax owed is refundable (Additional CTC) up to $1,700/child, capped at 15% of earned income over $2,500. \"Children\" here reuses the same dependents count as the care/AOTC credits above — Layer 1 doesn't separately track qualifying-child ages.",
+            "parts": [
+              {
+                "label": "Number of children (Layer 1 dependents count)",
+                "display": "2"
+              },
+              {
+                "label": "Max CTC before phase-out",
+                "amount": 4400
+              },
+              {
+                "label": "Phase-out reduction",
+                "amount": 0
+              },
+              {
+                "label": "Non-refundable (offsets tax)",
+                "amount": 0
+              },
+              {
+                "label": "Refundable (Additional CTC)",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Total US tax (pre-FTC)",
+          "usd": 45282,
+          "emphasis": true,
+          "trace": {
+            "kind": "calc",
+            "formula": "Income tax (ordinary + preferential) + NIIT + Additional Medicare tax + SE tax + AMT − non-refundable credits",
+            "parts": [
+              {
+                "label": "Income tax (ordinary + preferential)",
+                "amount": 0
+              },
+              {
+                "label": "NIIT",
+                "amount": 0
+              },
+              {
+                "label": "Additional Medicare tax",
+                "amount": 0
+              },
+              {
+                "label": "SE tax",
+                "amount": 0
+              },
+              {
+                "label": "AMT",
+                "amount": 45282
+              },
+              {
+                "label": "Less credits",
+                "amount": 0
+              }
+            ],
+            "citation": null
+          }
+        }
+      ],
+      "totalUsd": 45282,
+      "effectiveRate": 0
+    },
+    "usState": {
+      "title": "California state income tax (Form 540, MFJ)",
+      "currency": "USD",
+      "rows": [
+        {
+          "label": "Federal AGI (starting point)",
+          "usd": 0,
+          "trace": {
+            "kind": "source",
+            "detail": "Same federal AGI computed above — California taxes a full-year resident's worldwide income, so no separate state-source recomputation is done.",
+            "citation": null
+          }
+        },
+        {
+          "label": "Less California standard deduction",
+          "usd": -11412,
+          "trace": {
+            "kind": "source",
+            "detail": "California's own standard deduction for MFJ — separate from, and smaller than, the federal one.",
+            "citation": null
+          }
+        },
+        {
+          "label": "State taxable income",
+          "usd": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "Federal AGI less the state standard deduction",
+            "parts": [
+              {
+                "label": "Federal AGI",
+                "amount": 0
+              },
+              {
+                "label": "Less standard deduction",
+                "amount": -11412
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "label": "Tax at California bracket rates",
+          "usd": 0,
+          "trace": {
+            "kind": "calc",
+            "formula": "Progressive California brackets applied to $0 of state taxable income",
+            "parts": [],
+            "citation": null
+          }
+        },
+        {
+          "label": "Less personal/dependent exemption credit",
+          "usd": -1257,
+          "trace": {
+            "kind": "source",
+            "detail": "California's personal exemption credit ($153 single/MFS/HOH, $307 MFJ) plus $475 per dependent — a credit against tax, not a deduction from income.",
+            "citation": null
+          }
+        },
+        {
+          "label": "Total California tax",
+          "usd": 0,
+          "emphasis": true,
+          "trace": {
+            "kind": "calc",
+            "formula": "Bracket tax − exemption/dependent credits",
+            "parts": [
+              {
+                "label": "Bracket tax",
+                "amount": 0
+              },
+              {
+                "label": "Surcharge",
+                "amount": 0
+              },
+              {
+                "label": "Less credits",
+                "amount": -1257
+              }
+            ],
+            "citation": null
+          }
+        }
+      ],
+      "totalUsd": 0,
+      "effectiveRate": 0,
+      "basis": "TY2025 rates (returns filed 2026); full-year resident, worldwide income via federal AGI, no foreign tax credit against state tax."
+    }
+  },
+  "withholding": {
+    "india": {
+      "rows": [],
+      "estimateRows": [],
+      "totalGapInr": 0,
+      "totalGapUsd": 0,
+      "panAadhaarInoperative": false
+    },
+    "us": {
+      "rows": [],
+      "estimateRows": [],
+      "totalGapUsd": 0
+    },
+    "totalGapUsd": 0
+  },
+  "scopeNotes": [
+    {
+      "id": "scope_payer_tds",
+      "area": "India",
+      "kind": "excluded",
+      "title": "Your obligations as a TDS deductor aren't tracked",
+      "body": "The Withholding page covers tax withheld FROM this taxpayer's income. Duties in the opposite direction — deducting TDS on payments the business makes to vendors, contractors, or professionals — aren't monitored as a compliance obligation in their own right, though the resulting s.40(a) expense disallowance for TDS failures (and s.40A(3) cash-payment / s.43B(h) MSME-overdue disallowances) does flow into business income (Phase 1)."
+    },
+    {
+      "id": "scope_mocked_uploads",
+      "area": "App",
+      "kind": "excluded",
+      "title": "Document-upload extraction is simulated",
+      "body": "Every \"upload to auto-fill\" feature in Layer 1 (Form 26AS, Lower-TDS certificate, bank statements, property documents) is a demo simulation with representative values — not live OCR. Figures sourced from an upload should be treated as manually-entered until real extraction ships."
+    }
+  ],
+  "returnForms": {
+    "india": {
+      "form": "ITR-5",
+      "isRecommendation": false,
+      "matchesFrontend": null,
+      "trace": {
+        "kind": "source",
+        "detail": "No India-side data on file.",
+        "citation": null
+      }
+    },
+    "us": {
+      "form": "1040",
+      "trace": {
+        "kind": "source",
+        "detail": "Resident/citizen individual return — standard Form 1040 (not recorded as an NRA 1040-NR filer).",
+        "citation": "IRS form-per-entity-type/residency-status mapping, verified 2026-07-12."
+      }
+    }
+  },
+  "monitoring": {
+    "asOf": "2026-07-25T04:37:44.605Z",
+    "simulated": false,
+    "baseYear": 2026,
+    "progressUS": 0.5637166960788055,
+    "progressIN": 0.3164639488260582,
+    "residency": [
+      {
+        "kind": "qualitative",
+        "country": "United States",
+        "flag": "🇺🇸",
+        "test": "Place of organization/incorporation — not a presence test",
+        "status": "safe",
+        "isResident": false,
+        "headline": "Non-resident — this entity type has no day-count or presence test",
+        "facts": [
+          "No US business entity (ccorp/scorp/partnership/trust) organized for this taxpayer on Layer 1 US — a foreign entity for US tax purposes with no day-count or presence test to run"
+        ]
+      },
+      {
+        "kind": "qualitative",
+        "country": "India",
+        "flag": "🇮🇳",
+        "test": "Control & management (s.6(2)/s.6(4)) — not day-count",
+        "status": "resident",
+        "isResident": true,
+        "headline": "Tax resident — worldwide income in scope",
+        "facts": [
+          "Control & management location not yet answered on Layer 1 India"
+        ]
+      }
+    ],
+    "projections": [
+      {
+        "id": "fbar",
+        "label": "FBAR (FinCEN 114) aggregate",
+        "current": 0,
+        "limit": 10000,
+        "pct": 0,
+        "projected": 0,
+        "projPct": 0,
+        "note": "Threshold is a cliff: any breach = full reporting of every foreign account.",
+        "status": "ok",
+        "dateLabel": "Within limit at current pace"
+      },
+      {
+        "id": "form8938",
+        "label": "Form 8938 (FATCA) any-time",
+        "current": 0,
+        "limit": 150000,
+        "pct": 0,
+        "projected": 0,
+        "projPct": 0,
+        "note": "Threshold shown is the 'any time during year' figure for your status/residence.",
+        "status": "ok",
+        "dateLabel": "Within limit at current pace"
+      }
+    ],
+    "calendar": {
+      "all": [
+        {
+          "name": "US estimated tax — Q1",
+          "jur": "US",
+          "date": "2026-04-15T00:00:00.000Z",
+          "cat": "Estimated tax",
+          "docIds": [],
+          "daysUntil": -101,
+          "status": "passed",
+          "dateLabel": "Apr 15, 2026"
+        },
+        {
+          "name": "US estimated tax — Q2",
+          "jur": "US",
+          "date": "2026-06-15T00:00:00.000Z",
+          "cat": "Estimated tax",
+          "docIds": [],
+          "daysUntil": -40,
+          "status": "passed",
+          "dateLabel": "Jun 15, 2026"
+        },
+        {
+          "name": "US estimated tax — Q3",
+          "jur": "US",
+          "date": "2026-09-15T00:00:00.000Z",
+          "cat": "Estimated tax",
+          "docIds": [],
+          "daysUntil": 52,
+          "status": "upcoming",
+          "dateLabel": "Sep 15, 2026"
+        },
+        {
+          "name": "US estimated tax — Q4",
+          "jur": "US",
+          "date": "2027-01-15T00:00:00.000Z",
+          "cat": "Estimated tax",
+          "docIds": [],
+          "daysUntil": 174,
+          "status": "upcoming",
+          "dateLabel": "Jan 15, 2027"
+        },
+        {
+          "name": "US Form 1040 + Form 1116 + FBAR",
+          "jur": "US",
+          "date": "2027-04-15T00:00:00.000Z",
+          "cat": "Filing",
+          "docIds": [
+            "fincen_114",
+            "form_8938",
+            "form_1116",
+            "form_2555",
+            "form_8833",
+            "form_8621",
+            "form_5471",
+            "form_8865",
+            "form_3520",
+            "form_1040nr",
+            "form_8960",
+            "form_8959",
+            "form_6251",
+            "form_540",
+            "form_it201"
+          ],
+          "daysUntil": 264,
+          "status": "upcoming",
+          "dateLabel": "Apr 15, 2027"
+        },
+        {
+          "name": "US extended Form 1040 + Form 1116 + FBAR deadline",
+          "jur": "US",
+          "date": "2027-10-15T00:00:00.000Z",
+          "cat": "Extension",
+          "docIds": [
+            "fincen_114",
+            "form_8938",
+            "form_1116",
+            "form_2555",
+            "form_8833",
+            "form_8621",
+            "form_5471",
+            "form_8865",
+            "form_3520",
+            "form_1040nr",
+            "form_8960",
+            "form_8959",
+            "form_6251",
+            "form_540",
+            "form_it201"
+          ],
+          "daysUntil": 447,
+          "status": "upcoming",
+          "dateLabel": "Oct 15, 2027"
+        }
+      ],
+      "upcoming": [
+        {
+          "name": "US estimated tax — Q3",
+          "jur": "US",
+          "date": "2026-09-15T00:00:00.000Z",
+          "cat": "Estimated tax",
+          "docIds": [],
+          "daysUntil": 52,
+          "status": "upcoming",
+          "dateLabel": "Sep 15, 2026"
+        },
+        {
+          "name": "US estimated tax — Q4",
+          "jur": "US",
+          "date": "2027-01-15T00:00:00.000Z",
+          "cat": "Estimated tax",
+          "docIds": [],
+          "daysUntil": 174,
+          "status": "upcoming",
+          "dateLabel": "Jan 15, 2027"
+        },
+        {
+          "name": "US Form 1040 + Form 1116 + FBAR",
+          "jur": "US",
+          "date": "2027-04-15T00:00:00.000Z",
+          "cat": "Filing",
+          "docIds": [
+            "fincen_114",
+            "form_8938",
+            "form_1116",
+            "form_2555",
+            "form_8833",
+            "form_8621",
+            "form_5471",
+            "form_8865",
+            "form_3520",
+            "form_1040nr",
+            "form_8960",
+            "form_8959",
+            "form_6251",
+            "form_540",
+            "form_it201"
+          ],
+          "daysUntil": 264,
+          "status": "upcoming",
+          "dateLabel": "Apr 15, 2027"
+        },
+        {
+          "name": "US extended Form 1040 + Form 1116 + FBAR deadline",
+          "jur": "US",
+          "date": "2027-10-15T00:00:00.000Z",
+          "cat": "Extension",
+          "docIds": [
+            "fincen_114",
+            "form_8938",
+            "form_1116",
+            "form_2555",
+            "form_8833",
+            "form_8621",
+            "form_5471",
+            "form_8865",
+            "form_3520",
+            "form_1040nr",
+            "form_8960",
+            "form_8959",
+            "form_6251",
+            "form_540",
+            "form_it201"
+          ],
+          "daysUntil": 447,
+          "status": "upcoming",
+          "dateLabel": "Oct 15, 2027"
+        }
+      ],
+      "next": {
+        "name": "US estimated tax — Q3",
+        "jur": "US",
+        "date": "2026-09-15T00:00:00.000Z",
+        "cat": "Estimated tax",
+        "docIds": [],
+        "daysUntil": 52,
+        "status": "upcoming",
+        "dateLabel": "Sep 15, 2026"
+      }
+    },
+    "health": {
+      "score": 69,
+      "band": {
+        "label": "Needs attention",
+        "color": "#D4AF37"
+      },
+      "breachedLimits": 0,
+      "willBreach": 0,
+      "overdueFilings": 0
+    },
+    "alerts": [
+      {
+        "sev": "critical",
+        "icon": "⛔",
+        "text": "Dual tax residency — Article 4 tie-breaker not yet run",
+        "meta": "DTAA Art. 4"
+      },
+      {
+        "sev": "info",
+        "icon": "🌐",
+        "text": "India tax residency active"
+      }
+    ]
+  },
+  "summary": {
+    "name": "David Chen",
+    "baseYear": 2026,
+    "jurisdiction": "single_us",
+    "hasIndia": true,
+    "hasUs": true,
+    "indiaQuarterly": true,
+    "indiaStatus": "ROR",
+    "usStatus": "US_CITIZEN",
+    "dualResident": true,
+    "totalIncomeUsd": 7886.127710843373,
+    "indiaTaxUsd": 2460.4718457831323,
+    "usTaxUsd": 45282,
+    "netDoubleTaxUsd": 2460.4718457831323,
+    "counts": {
+      "critical": 1,
+      "warning": 5,
+      "info": 3
+    },
+    "requiredDocs": 9,
+    "healthScore": 69,
+    "nextDeadline": "Sep 15, 2026"
+  }
+}

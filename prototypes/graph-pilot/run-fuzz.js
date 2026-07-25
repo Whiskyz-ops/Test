@@ -716,6 +716,40 @@ if (args.repro) {
   process.exit(r.status === "match" || r.status === "known" ? 0 : 1);
 }
 
+// ---- --mode=corpus: generate a seeded fuzz corpus for the Python DAG port's
+// golden-file tests (dag_py/tests/test_analyze_golden.py, added once
+// analyze.py exists) — reuses this file's own generateProfile()/mulberry32
+// PRNG so the corpus is byte-for-byte reproducible from --seed, but doesn't
+// run the JS DAG at all: only the frozen engine (already loaded above) runs,
+// once per profile, to produce the golden output. Corpus profile+golden
+// pairs are committed to the repo and replayed by pytest with zero Node
+// dependency at test time — see docs/PYTHON_DAG_MIGRATION_TRACKER.md's
+// "golden-file vs live cross-process" decision for why.
+if (args.mode === "corpus") {
+  var corpusRng = mulberry32(SEED);
+  var outDir = path.resolve(args.out || path.join(__dirname, "..", "..", "dag_py", "tests", "fixtures", "golden", "fuzz-corpus"));
+  var profilesOutDir = path.join(outDir, "profiles");
+  var goldenOutDir = path.join(outDir, "golden");
+  fs.mkdirSync(profilesOutDir, { recursive: true });
+  fs.mkdirSync(goldenOutDir, { recursive: true });
+  var corpusCount = 0;
+  for (var ci = 0; ci < N; ci++) {
+    var cgen = generateProfile(corpusRng);
+    var caseId = "seed" + SEED + "-" + String(ci).padStart(5, "0") + "-" + cgen.label.replace(/[^a-zA-Z0-9_+-]/g, "_");
+    var cReal;
+    try {
+      cReal = WISING.analyze({ router: cgen.profile.router, india: cgen.profile.india, us: cgen.profile.us });
+    } catch (e) {
+      continue; // pathological mutated input the engine itself rejects — not a useful corpus case
+    }
+    fs.writeFileSync(path.join(profilesOutDir, caseId + ".json"), JSON.stringify(cgen.profile, null, 2) + "\n");
+    fs.writeFileSync(path.join(goldenOutDir, caseId + ".json"), JSON.stringify(cReal, null, 2) + "\n");
+    corpusCount++;
+  }
+  console.log("Wrote " + corpusCount + " fuzz-corpus profile+golden pairs to " + outDir + " (seed=" + SEED + ", requested N=" + N + ")");
+  process.exit(0);
+}
+
 // ---- main fuzz loop ---------------------------------------------------------
 var rng = mulberry32(SEED);
 var stats = { match: 0, known: 0, mismatch: 0, bothThrew: 0, engineThrewDagDidnt: 0, dagThrewEngineDidnt: 0 };
