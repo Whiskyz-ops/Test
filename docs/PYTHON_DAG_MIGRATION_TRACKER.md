@@ -971,6 +971,97 @@ unverified end-to-end (no network route to fetch one in this sandbox);
 real promotion-gate data (requires that live wiring plus actual production
 shadow-mode running) is unaffected by anything in this pass.
 
+### JS-DAG-drift audit: `businessComputation` missed a mid-port JS addition (sixth Phase 8 pass)
+
+Direct response to the question "is the JS DAG still getting features added
+that the Python port never picked up?" The Python port was NOT built
+against one frozen JS snapshot the way the JS DAG itself was built against
+the frozen engine — `dag_py`'s domain phases were built in a single day
+(2026-07-25) while JS-DAG feature work continued in parallel/interleaved
+commits on the same day. The completeness audits in earlier passes (node-ID
+diffing against `checks-registry-nodes.js`'s registry) would NOT catch this
+class of drift: a node id that exists on both sides, unchanged in name,
+but whose JS-side compute body gained new logic AFTER the Python side had
+already ported it and was never revisited.
+
+**Method**: cross-referenced every `prototypes/graph-pilot/*-nodes.js`
+file's last-commit date against the Python port timestamp of the domain
+that ports it. Only 4 node files have a real-logic commit landing ON OR
+AFTER Python DAG work began (2026-07-25 03:48): `aggregateusincome-nodes.js`
+(03:48, farm depreciation — confirmed already captured, `usBusinessDepreciationPlan`/
+`farmNetProfitUsd` present verbatim in `us/aggregate_us_income.py`),
+`aggregateindiaincome-nodes.js` (04:18 — **see gap below**),
+`report-batch1-nodes.js` (04:18, `form_3cb_3cd`'s presumptive-lock-in
+trigger — confirmed already captured in `filings/documents.py`), and
+`assets-nodes.js` (05:57 and three earlier same-day commits, entity-graph
+`returnForm` threading + edges — confirmed already captured, verified by
+diffing `INDIA_KIND_TO_ITR`/`US_KIND_TO_FORM`/`US_K1_KIND_TO_FORM`, every
+edge `flow` type, and every entity `kind` value between the current JS
+source and `filings/assets.py` byte-for-byte). Every other node file's last
+commit predates 2026-07-25 entirely — zero drift risk for the other ~40
+files regardless of which Python phase ported them.
+
+**The one real gap found**: `aggregateindiaincome-nodes.js`'s
+`businessComputation` (JS commit `3d2a4f0`, "s.44BB/BBB/35AD/115V tonnage
+tax", gap tracker IN-26) landed 16 minutes after Python Phase 2 had already
+ported `india/aggregate_india_income.py`, and that file was never
+revisited for logic since — only the disclosure/finding layer this same
+JS commit added (`presumptiveLockinAgg`, the `msme_disallowance_s43Bh_india`/
+`presumptive_lockin_active_india` findings) got ported, during the later
+Phase 6 `filings/` pass, creating the illusion of full coverage. The actual
+income computation never did: `_uses_regular_books_inr`/
+`_compute_business_entry_net_profit_inr` had no `s44BB`/`s44BBB` branch (a
+non-resident mineral-oil-services / foreign-company civil-construction
+presumptive scheme, flat 10% of receipts, no ceiling test) — any such
+business entry silently fell through to Regular Books instead, exactly the
+bug the JS commit fixed. `_business_computation` also never added s.115V
+tonnage-tax income or subtracted the s.35AD specified-business capex
+deduction (both gated to `entity == "company" and not NR`, matching the
+live form's own "For Indian Companies only" scoping) — both real income
+components with zero prior Python equivalent, not just a rounding-scale
+gap. This is a genuine, previously-undetected computation bug affecting
+the actual tax figure whenever a taxpayer's business entries use these
+fields — not caught earlier because no fixture or fuzz-corpus profile
+happens to set `presumptive_scheme: "s44BB"/"s44BBB"`,
+`tonnage_tax_115V_inr`, or `specified_business_s35AD_inr`.
+
+Fixed by porting the JS diff verbatim: `_uses_regular_books_inr` and
+`_compute_business_entry_net_profit_inr` gained the s44BB/s44BBB branches
+(flat `js_round((turnover_inr + cash_receipts_inr) * 0.10)`, matching the
+JS side's own `Math.round`); `_business_computation` gained a
+`tonnage_tax_inr` accumulator per entry and the `entity == "company" and
+not is_nr_company` gate that adds it to `businessInr` and subtracts
+`specified_business_s35AD_inr`, returning both as new `tonnageTaxInr`/
+`s35adDeductionInr` keys (matching the JS return shape) — added
+`indiaResidencyStatusRawAgg`/`diAgg` to the node's `deps` (both already
+existed as registered nodes) and the three new fields to
+`_BUSINESS_COMPUTATION_FIELDS`. Confirmed via `git grep` that
+`businessComputation` is defined in exactly one JS file (no later override
+recomputes it), so this closes the gap completely, not partially.
+
+Added 2 new manual-cases fixtures exercising the previously-uncovered
+branches: `india_company_tonnage_35ad.json` (resident Indian company, a
+regular-books entry with `tonnage_tax_115V_inr` plus a top-level
+`specified_business_s35AD_inr`) and `india_foreign_nr_s44bbb.json` (an NR
+foreign company with an `s44BBB` presumptive entry, `turnover_inr` +
+`cash_receipts_inr`). Both cross-checked directly against the live JS DAG
+via `run-js-dag-vs-py-dag.js` — **clean match, zero mismatches** — proving
+the port now reproduces the JS-side fix exactly, not just plausibly.
+
+**Verification**: `dag_py` pytest 573/573 green; `run-js-dag-vs-py-dag.js`
+59/59 (52 exact + the 7 already-known JS-fractional-base-year cases, zero
+new mismatches). Wheel rebuilt, monitor-next assets re-synced.
+
+**Methodological takeaway for future passes**: a clean harness run over the
+existing fixture/fuzz-corpus set is proof of parity only for the branches
+that set of profiles actually exercises — it is not proof of completeness.
+This gap survived two prior completeness passes (the node-ID diff and the
+checksRegistry/calendarAmounts wiring pass) precisely because 57/57 clean
+was mistaken for "nothing left to find." The commit-date cross-reference
+method used here (last-JS-touch vs. Python-port-timestamp per node file)
+is cheap enough to re-run before every future promotion-gate check, and is
+the only method that would have caught this class of drift.
+
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 
 **Scoping correction, found before any code was written**: the plan's guessed

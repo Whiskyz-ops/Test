@@ -141,6 +141,14 @@ def _uses_regular_books_inr(b: dict, eligibility: dict) -> bool:
         return not (eligibility["eligible44ADA"] and ada_receipts <= _presumptive_ceiling_inr("s44ADA", ada_dig, ada_csh))
     if scheme == "s44AE":
         return False
+    # s.44BB (non-resident, mineral-oil services) / s.44BBB (foreign
+    # company, civil construction/turnkey power projects) — flat 10%
+    # presumptive, no eligibility/ceiling test (layer1_india.html's own
+    # schemeOptions only ever offers these two values when the taxpayer is
+    # already NR (s44BB) or a foreign company (s44BBB), so no re-test to
+    # replicate here). Previously unhandled, silently fell to Regular Books.
+    if scheme in ("s44BB", "s44BBB"):
+        return False
     return True
 
 
@@ -159,6 +167,9 @@ def _compute_business_entry_net_profit_inr(b: dict, eligibility: dict | None, de
             return ada_receipts * 0.50
     elif scheme == "s44AE":
         return None
+    elif scheme in ("s44BB", "s44BBB"):
+        # Flat 10% of receipts (turnover_inr + cash_receipts_inr), unconditional.
+        return js_round((num(b.get("turnover_inr")) + num(b.get("cash_receipts_inr"))) * 0.10)
     exp = b.get("expenses") or {}
     pf_esi_deductible_inr = num(exp.get("employer_pf_esi_contribution_inr")) if exp.get("employer_pf_esi_paid_before_due_date") is True else 0
     deductible_before_disallowances = (
@@ -265,6 +276,7 @@ def _business_computation(d, ctx):
     business_depreciation_inr = 0.0
     india_has_regular_books_entry = False
     india_has_valid_presumptive_entry = False
+    tonnage_tax_inr = 0.0
     for idx, b in enumerate(d["bizEntriesAgg"] or []):
         net_profit_inr = b.get("net_profit_inr") if b.get("net_profit_inr") is not None else b.get("net_profit")
         if net_profit_inr is None:
@@ -280,6 +292,9 @@ def _business_computation(d, ctx):
         else:
             india_has_regular_books_entry = True
         business_inr += num(net_profit_inr)
+        # s.115V tonnage tax (shipping companies) — a per-entry field, summed
+        # alongside the entry's other income below, gated the same way s.35AD is.
+        tonnage_tax_inr += num(b.get("tonnage_tax_115V_inr"))
     business_inr += _compute_goods_vehicle_presumptive_inr(d["goodsVehiclesAgg"])
     business_inr += d["fnoIncomeInrAgg"]
     india_has_partner_firm_income = False
@@ -288,11 +303,24 @@ def _business_computation(d, ctx):
         if firm_income_inr != 0:
             india_has_partner_firm_income = True
         business_inr += firm_income_inr
+    # s.115V tonnage tax / s.35AD specified-business capex deduction — both
+    # scoped to Indian companies only ("For Indian Companies only" per the
+    # live form), and further gated on NOT being an NR-resident foreign
+    # company (a foreign company's civil-construction/mineral-oil presumptive
+    # income is s.44BBB/s.44BB above instead).
+    entity = d["presumptiveEligibilityAgg"]["entityType"]
+    is_nr_company = d["indiaResidencyStatusRawAgg"] == "NR"
+    s35ad_inr = 0.0
+    if entity == "company" and not is_nr_company:
+        business_inr += tonnage_tax_inr
+        s35ad_inr = num(safe(d["diAgg"], "business_income.specified_business_s35AD_inr", 0))
+        business_inr -= s35ad_inr
     return {
         "businessInr": business_inr, "businessDepreciationInr": business_depreciation_inr,
         "indiaHasRegularBooksEntry": india_has_regular_books_entry,
         "indiaHasValidPresumptiveEntry": india_has_valid_presumptive_entry,
         "indiaHasPartnerFirmIncome": india_has_partner_firm_income,
+        "tonnageTaxInr": tonnage_tax_inr, "s35adDeductionInr": s35ad_inr,
     }
 
 
@@ -657,6 +685,9 @@ _BUSINESS_COMPUTATION_FIELDS = (
     "india.domestic_income.business_income.goods_vehicles[].gvw_tonnes",
     "india.domestic_income.business_income.partner_firms[].remuneration_from_entity_inr",
     "india.domestic_income.business_income.partner_firms[].interest_on_capital_from_entity_inr",
+    "india.domestic_income.business_income.business_entries[].tonnage_tax_115V_inr",
+    "india.domestic_income.business_income.specified_business_s35AD_inr",
+    "india.residency_detail.final_india_residency_status",
 )
 
 _CAPITAL_GAINS_COMPUTATION_FIELDS = (
@@ -751,7 +782,8 @@ NODES = {
     ),
 
     "businessComputation": NodeDef(
-        deps=("bizEntriesAgg", "presumptiveEligibilityAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg", "goodsVehiclesAgg", "fnoIncomeInrAgg", "partnerFirmsAgg"),
+        deps=("bizEntriesAgg", "presumptiveEligibilityAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg", "goodsVehiclesAgg", "fnoIncomeInrAgg", "partnerFirmsAgg",
+              "indiaResidencyStatusRawAgg", "diAgg"),
         compute=_business_computation,
         layer1_fields=_BUSINESS_COMPUTATION_FIELDS,
     ),
