@@ -28,6 +28,16 @@ is required on the way out — Pyodide's default JS conversion for a Python
 `dict` is a JS `Map`, not a plain object, and every existing consumer
 (`dag-adapter.js`, any component doing `result.model.entity...`) expects
 plain-object property access, not `Map.get()`.
+
+`install(..., include_extras=False)`: monitor-next's own loader passes
+`include_extras=True`, so `window.WISING_PY.analyze` calls
+`wising_dag.analyze.analyze_with_extras` (adds `checksRegistry`/
+`calendarAmounts` — the two fields `monitor-next/lib/dag-adapter.js`'s own
+`analyzeDag()` augments the JS DAG's real output with, no engine
+equivalent — see that function's own docstring) instead of the plain
+`analyze()`. `index.html`'s own future wiring keeps the default `False`
+(narrow, byte-for-byte `analyze.js` parity, matching what that page's
+single compute source has always returned).
 """
 from __future__ import annotations
 
@@ -36,6 +46,7 @@ import pyodide.ffi
 
 from wising_dag import analyze as _analyze
 from wising_dag import normalize as _normalize
+from wising_dag.analyze import analyze_with_extras as _analyze_with_extras
 
 
 def _to_py(js_opts):
@@ -50,11 +61,15 @@ def analyze_for_js(js_opts=None):
     return _to_js(_analyze(_to_py(js_opts)))
 
 
+def analyze_with_extras_for_js(js_opts=None):
+    return _to_js(_analyze_with_extras(_to_py(js_opts)))
+
+
 def normalize_for_js(js_opts=None):
     return _to_js(_normalize(_to_py(js_opts)))
 
 
-def install(namespace: str = "WISING") -> None:
+def install(namespace: str = "WISING", include_extras: bool = False) -> None:
     """Call once after the wheel is loaded — assigns
     `window[namespace].analyze`/`window[namespace].normalize`. Idempotent:
     safe to call again (e.g. after a hot-reload during development), and
@@ -62,6 +77,6 @@ def install(namespace: str = "WISING") -> None:
     `window[namespace]` (only `.analyze`/`.normalize` are ever touched)."""
     existing = getattr(js.window, namespace, None)
     target = existing if existing is not None else js.Object.new()
-    target.analyze = analyze_for_js
+    target.analyze = analyze_with_extras_for_js if include_extras else analyze_for_js
     target.normalize = normalize_for_js
     setattr(js.window, namespace, target)

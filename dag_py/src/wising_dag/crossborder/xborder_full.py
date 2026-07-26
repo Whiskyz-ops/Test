@@ -8,9 +8,12 @@ data: India income → India tax (individual OR entity, routed) → US income
 → US federal tax → residency (worldwide flags, derived not read) → FTC
 both directions → netUnrelievedDoubleTaxUsd.
 
-Remaining ctx dependencies after this module (same as the JS source):
-`usEntityKind`/`baseYearUs` (both still read `ctx["model"]` — deferred to
-Phase 7, same as ustax.py's own header documents).
+`usEntityKind`/`baseYearUs` are NOT closed here (both still read
+`ctx["model"]`, unreachable in the real `{router, india, us}` ctx shape) —
+closed instead in `us/ustax_full.py`, composed after this module (it also
+needs `entityResult`/`metaResult`, which only exist once `core/
+orchestration.py` has run). See that file's own header for the real
+closure.
 """
 from __future__ import annotations
 

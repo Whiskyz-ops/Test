@@ -1,10 +1,10 @@
 """computeApportionment — FY-vs-CY tax-year apportionment. Port of
 prototypes/graph-pilot/apportionment-nodes.js.
 
-Later overridden by an entity-aware version in ustax-full-nodes.js
-(deferred to Phase 7, same as core/entry.py's other agg10-derived
-overrides) — this module ports the base, non-entity-aware version, which
-is what the JS composition order actually builds first too.
+Later overridden by an entity-aware version in `us/ustax_full.py`
+(`_apportionment_result_entity_aware`, composed after this module) — this
+file ports the base, non-entity-aware version, which is what the JS
+composition order actually builds first too.
 """
 from __future__ import annotations
 

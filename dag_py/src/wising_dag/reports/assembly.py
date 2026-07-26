@@ -15,17 +15,15 @@ includes its own share of the old batch5/batch6/split-pattern findings (e.g.
 `findingsUsResult` already include their own split-pattern finding). So this
 file's `findingsAllResult` concatenates 5 lists, not 12.
 
-KNOWN GAP (Phase 6, not yet closed): `assets-nodes.js` OVERRIDES the JS
-source's own `findingsAllResult` to push two more findings —
+CLOSED IN PHASE 6: `assets-nodes.js` OVERRIDES the JS source's own
+`findingsAllResult` to push two more findings —
 `msme_disallowance_s43Bh_india` and `presumptive_lockin_active_india` —
-after `filings/assets.py` exists. Phase 5's finding inventory (`test_findings_
-domain_split.py`) was scoped to report-batch5-nodes.js's own
-`FINDING_ADD_ORDER` (61 ids) and does not yet include these 2 — a real
-63-vs-61 gap discovered scoping Phase 6, not a Phase 5 mistake (those 2
-findings live in a file Phase 5 never touched). Tracked in
-docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 6 section; will be closed when
-`filings/assets.py` is built by extending this node the same way
-assets-nodes.js does (`NodeRegistry.override("findingsAllResult", ...)`).
+a real 63-vs-61 gap in Phase 5's finding inventory (`test_findings_
+domain_split.py`, scoped to report-batch5-nodes.js's own `FINDING_ADD_ORDER`,
+61 ids), discovered while scoping Phase 6 (those 2 findings live in a file
+Phase 5 never touched). `filings/assets.py` now overrides `findingsAllResult`
+the same way `assets-nodes.js` does (`NodeRegistry.override(...)`), adding
+both findings — see that file's own header.
 """
 from __future__ import annotations
 

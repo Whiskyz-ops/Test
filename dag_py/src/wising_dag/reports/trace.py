@@ -3,16 +3,20 @@ UI display/trace assembly for the Tax Computation panel. Port of
 prototypes/graph-pilot/report-batch2-nodes.js (`us`/`usState`) and
 report-batch3-nodes.js (`india`).
 
-`buildTaxComputationUsResult` ports only the resident/individual branch —
-the JS source's `isNra`/`isEntity`/`trustBracketBreakdown` branches read
-fields (`u.isNra`, `u.nra`, `u.trustBracketBreakdown`, `u.passthrough`) this
-port's `usTaxResult` (us/ustax.py) doesn't carry yet (entity/NRA routing is
-deferred to Phase 7, same carve-out `test_us.py`/`test_crossborder.py`
-already established). Since those fields are simply absent here (not
-`False`), the individual branch is the only one ever reached — correct
-behavior for the individual/resident profiles this port currently handles
-correctly, silently wrong for the 1 US-entity + 1 NRA fixture until Phase 7,
-same as every other usTaxResult-dependent node in this port.
+`buildTaxComputationUsResult` ports all four branches the JS source's
+`report-batch2-nodes.js` does, in the same dispatch order: `isNra` ->
+`_build_tax_computation_us_nra_result` (Form 1040-NR ECI/FDAP); `isEntity
+&& trustBracketBreakdown is not None` -> `_build_tax_computation_us_trust_
+result` (distributed-vs-retained split); `isEntity` (else) ->
+`_build_tax_computation_us_entity_result` (flat entity-rate structure);
+else -> the resident/individual branch below, unchanged from when this
+file only had that one. Added once `us/ustax_full.py` closed `usTaxResult`'s
+own entity/NRA/trust routing (the `isNra`/`isEntity`/`trustBracketBreakdown`/
+`passthrough` fields this file's dispatch reads didn't exist on `usTaxResult`
+before that) — see that module's own header, and `test_ustax_full.py` for
+the golden-pinned verification (including the frozen engine's own "$NaN"
+trace-text bug for an entity taxpayer, which this port deliberately does
+NOT reproduce).
 
 `buildTaxComputationIndiaResult` ports BOTH branches (individual and
 entity) — india/entity_tax.py's `entityTaxResult` already exists and was

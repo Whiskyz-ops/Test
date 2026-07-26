@@ -2,17 +2,20 @@
 prototypes/graph-pilot/xb7-nodes.js.
 
 `accountsBoundary`/`usSourceTotalUsdBoundary` are EXPLICIT BOUNDARY INPUTS
-(read `ctx["model"]...`) — closed later once filings/assets.py (accounts)
-and reports/assembly.py exist (Phase 6/7), same deferred-boundary discipline
-used throughout this port; their real agg10-nodes.js closures need
-bankAccountsRaw (crossborder/findings.py) / aggregateUsIncomeResult (us
-domain), genuinely cross-domain data this file's own build() doesn't compose.
+in this file's own base version (read `ctx["model"]...`, unreachable in the
+real `{router, india, us}` ctx shape) — closed in `core/orchestration.py`,
+which overrides both to their real agg10-nodes.js-equivalent closures
+(`bankAccountsRaw`, crossborder/findings.py / `aggregateUsIncomeResult`, us
+domain) — genuinely cross-domain data this file's own `build()` doesn't
+compose, so the closure has to live in the final orchestration layer.
 
-`usSecuritiesBoundary` is NOT one of those — xb7-nodes.js's own v1-era stub
-read `ctx["model"].assets.usSecurities`, but that's dead build history
-(xb7-nodes.js is never required by the live graph.js chain); agg10-nodes.js's
-real closure (`safe(ctx.us, "financial_holdings", [])`) needs nothing but
-ctx["us"] itself, so it's ported as a real leaf here rather than deferred.
+`usSecuritiesBoundary` is NOT one of those — `xb7-nodes.js`'s own v1-era
+stub read `ctx["model"].assets.usSecurities`, a dead, never-reachable read
+even though `xb7-nodes.js` itself IS required by the live `analyze.js`
+chain (via `report-batch5-nodes.js`, for `black_money_act_exposure`'s full
+finding-object text); `agg10-nodes.js`'s real closure
+(`safe(ctx.us, "financial_holdings", [])`) needs nothing but `ctx["us"]`
+itself, so it's ported as a real leaf here rather than deferred.
 """
 from __future__ import annotations
 

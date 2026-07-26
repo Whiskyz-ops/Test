@@ -21,13 +21,18 @@
  * subsequent us/ustax_full.py entity/NRA/trust routing work landed.
  *
  * Calls WISING.analyze() directly (analyze.js — the real DAG-package
- * boundary dag_py/'s own analyze.py ports field-for-field), NOT monitor-
- * next's lib/dag-adapter.js / this directory's own run-fuzz.js assembleDag()
- * helper — those two add monitor-next-specific extras (checksRegistry,
- * calendarAmounts) that analyze.js itself (and therefore dag_py/analyze.py)
- * doesn't produce at all, so comparing against analyze.js's own real output
- * is the correct apples-to-apples contract, not a narrower approximation
- * of it.
+ * boundary dag_py/'s own analyze.py ports field-for-field) for the main
+ * comparison surface, PLUS a second, separate resolve() for
+ * checksRegistryResult/calendarAmountsResult (calendar-amounts-nodes.js —
+ * the same monitor-next-only extras lib/dag-adapter.js's own analyzeDag()
+ * adds on top of analyze.js's real output, and dag_py/adapter/
+ * pyodide_adapter.py's analyze_with_extras now adds on the Python side).
+ * Kept as a SEPARATE resolve rather than switching to analyze.js's own
+ * graph, since analyze.js's own NODES (assets-nodes.js) doesn't carry
+ * calendarAmountsResult at all — checks-registry-nodes.js/
+ * calendar-amounts-nodes.js are further down that same require chain, a
+ * strict superset. dag_py/tools/analyze_cli.py always includes these two
+ * extra keys (via analyze_with_extras) for the same reason.
  *
  * Python side runs under plain CPython (dag_py/tools/analyze_cli.py) — NOT
  * Pyodide. No live browser/Pyodide runtime is fetchable in this sandbox
@@ -45,6 +50,12 @@ var spawnSync = require("child_process").spawnSync;
 global.window = global;
 require("./analyze.js");
 var WISING = global.WISING;
+
+// Separate, wider graph just for checksRegistryResult/calendarAmountsResult
+// — see the file header for why this can't reuse analyze.js's own graph.
+var createGraph = require("./graph.js").createGraph;
+var CALENDAR_AMOUNTS_NODES = require("./calendar-amounts-nodes.js").NODES;
+var extrasGraph = createGraph(CALENDAR_AMOUNTS_NODES);
 
 var args = {};
 process.argv.slice(2).forEach(function (a) {
@@ -92,6 +103,10 @@ function datesToIso(node) {
 
 function runJsDag(profile) {
   var out = WISING.analyze({ router: profile.router, india: profile.india, us: profile.us, monitorAsOf: MONITOR_AS_OF });
+  var ctx = { router: profile.router, india: profile.india, us: profile.us, monitorAsOfBoundary: MONITOR_AS_OF };
+  var extras = extrasGraph.resolve(["checksRegistryResult", "calendarAmountsResult"], ctx).values;
+  out.checksRegistry = extras.checksRegistryResult;
+  out.calendarAmounts = extras.calendarAmountsResult;
   return datesToIso(out);
 }
 
@@ -139,7 +154,10 @@ function deepEqual(a, b, p, diffs) {
 
 var TOP_LEVEL_PATHS = [
   "model", "computed", "findings", "documents", "ftcReport", "taxComputation",
-  "withholding", "scopeNotes", "returnForms", "monitoring", "summary"
+  "withholding", "scopeNotes", "returnForms", "monitoring", "summary",
+  // Monitor-next-adapter-only extras (not part of analyze.js's own
+  // contract) — see the file header for why these need a separate graph.
+  "checksRegistry", "calendarAmounts"
 ];
 
 // ---- ONE known, investigated, JS-DAG-only bug, not a Python defect ------

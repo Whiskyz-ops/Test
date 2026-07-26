@@ -300,13 +300,15 @@ def _promoter_buyback_detail(d, ctx):
 # assessedTaxInrBoundary/hasValidPresumptiveEntryBoundary/hasRegularBooksEntry
 # Boundary/hasPartnerFirmIncomeBoundary/businessInrBoundary/speculativeIncome
 # InrBoundary/indianBusinessesBoundary were in1-nodes.js's own v1-era
-# EXPLICIT BOUNDARY INPUTS (read ctx["model"]/ctx["computed"]...) — but
-# in1-nodes.js is dead build history (never required by the live production
-# graph.js chain; only run-in1.js's standalone runner uses it), and
-# agg10-nodes.js already closed all 6 of these against real in-graph
-# equivalents that live entirely within the india domain (businessComputation/
-# speculativeIncomeInrAgg/totalTaxInrCombined/annualSliceAgg). Closed the
-# same way here, directly, rather than left open — see the NODES dict below.
+# EXPLICIT BOUNDARY INPUTS (read ctx["model"]/ctx["computed"]..., unreachable
+# in the real ctx shape) — in1-nodes.js itself IS required by the live
+# production chain (report-batch5-nodes.js requires it directly, for this
+# same finding's full object — see that file's own header), but these 6
+# specific stubs are never read in that reachable form: agg10-nodes.js
+# closes all 6 of them against real in-graph equivalents that live entirely
+# within the india domain (businessComputation/speculativeIncomeInrAgg/
+# totalTaxInrCombined/annualSliceAgg). Closed the same way here, directly,
+# rather than left open — see the NODES dict below.
 # routerJurisdiction/routerUsSignal/hasIndiaScope are a fresh, self-contained
 # leaf trio (not shared with xborder_full.py's routerJurisdictionXB/
 # hasIndiaScopeXbr) — same standalone-file convention those three US files
@@ -433,16 +435,21 @@ NODES = {
 
     # These six were originally in1-nodes.js's own v1-era boundary stubs
     # (reading ctx["model"]/ctx["computed"], which don't exist in this app's
-    # real {router, india, us} ctx shape at all — in1-nodes.js is dead build
-    # history, never required by the live production chain). agg10-nodes.js
-    # closed all of them against the now-existing in-graph equivalents
-    # (its own header: "the four original finding graphs' v1-era boundaries
-    # ... all 16 closed here"); every one of those 6 closures reads only
-    # already-available india-domain nodes (businessComputation/
-    # speculativeIncomeInrAgg/totalTaxInrCombined/annualSliceAgg, all
-    # present by the time this build() runs, since itr_form.build()/
-    # india_full.build() already ran above) — no cross-domain composition
-    # needed, so closed here directly rather than deferred to Phase 7.
+    # real {router, india, us} ctx shape at all). Correction to an earlier
+    # version of this comment: in1-nodes.js is NOT dead build history — it
+    # IS required by the real production chain (report-batch5-nodes.js
+    # requires it directly, to build india_advance_tax_interest's full
+    # finding object from in1-nodes.js's own {shouldFire, raw leaves}; see
+    # that file's own header). What matters here is that agg10-nodes.js
+    # closes all six of these specific boundary stubs against the
+    # now-existing in-graph equivalents (its own header: "the four original
+    # finding graphs' v1-era boundaries ... all 16 closed here"); every one
+    # of those 6 closures reads only already-available india-domain nodes
+    # (businessComputation/speculativeIncomeInrAgg/totalTaxInrCombined/
+    # annualSliceAgg, all present by the time this build() runs, since
+    # itr_form.build()/india_full.build() already ran above) — no
+    # cross-domain composition needed, so closed here directly rather than
+    # needing core/orchestration.py's own later closure pass.
     "assessedTaxInrBoundary": NodeDef(deps=("totalTaxInrCombined",), compute=lambda d, ctx: num(d["totalTaxInrCombined"])),
     "hasValidPresumptiveEntryBoundary": NodeDef(deps=("businessComputation",), compute=lambda d, ctx: d["businessComputation"]["indiaHasValidPresumptiveEntry"] is True),
     "hasRegularBooksEntryBoundary": NodeDef(deps=("businessComputation",), compute=lambda d, ctx: d["businessComputation"]["indiaHasRegularBooksEntry"] is True),

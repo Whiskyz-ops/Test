@@ -789,6 +789,103 @@ Pyodide wiring itself to work first) and the actual cutover (flipping the
 default source). Both remain future work, and neither can be closed by
 anything built in a single sitting.
 
+### Completeness audit + checksRegistry/calendarAmounts wiring (fourth Phase 8 pass)
+
+A full audit of what's pending before the Python DAG could actually
+replace the JS DAG — not a build phase, a verification pass. Diffed the
+JS DAG's most-composed registry (`checks-registry-nodes.js`'s NODES, 385
+node ids) against `build_full_registry()`'s own (382 ids) and traced every
+one of the 28 JS-only ids individually (renamed/domain-suffixed leaves,
+genuinely dead JS-side code the JS source's own comments already flag as
+having no real consumer, or legacy `withSyntheticCtx()` ctx-routing plumbing
+whose final output is identical either way — all confirmed, not just
+assumed, by reading the real require chain: `analyze.js` -> `assets-
+nodes.js` -> `ustax-full-nodes.js` -> `agg10-nodes.js` -> `limits-nodes.js`
+-> `report-batch6-nodes.js` -> `report-batch5-nodes.js` -> `in1-nodes.js`/
+`xb7-nodes.js`/`us1-nodes.js`/`us5-nodes.js`). Found exactly one real,
+actionable gap — closed in this pass — plus a cluster of stale
+self-documentation (also cleaned up here) and two already-known,
+already-documented items (real fixture coverage for the trust-retained-
+income and CA/NY/NJ-state-tax branches; the still-unverified live Pyodide
+runtime) that remain open, unchanged.
+
+**The real gap: `checksRegistry`/`calendarAmounts` were never wired into
+the Python DAG's browser adapter.** `lib/dag-adapter.js`'s own `analyzeDag()`
+does exactly one thing beyond `analyze.js`'s real contract: it separately
+resolves `checksRegistryResult`/`calendarAmountsResult` and stitches them
+onto the output. Both feed live UI — the Checks Registry panel (Monitor +
+Residency tabs) and the Compliance Calendar's forward-looking $ amounts.
+`dag_py` already had both computations (`filings/checks_registry.py`,
+`filings/calendar_amounts.py`) fully built and correct in the registry —
+the gap was purely in the adapter wiring, which only ever called
+`window.WISING_PY.analyze()` (mirroring `analyze.js`'s own narrower
+contract). Selecting "Python DAG" would have silently blanked the Checks
+Registry panel and dropped the calendar's $ amounts.
+
+Closed with a new `wising_dag.analyze.analyze_with_extras(opts)` —
+`analyze(opts)` plus `checksRegistry`/`calendarAmounts`, resolved from the
+same cached registry via a second, small `_registry().resolve([...])` call
+(ctx-building factored out of `_resolve_all` into a shared `_build_ctx`
+helper to avoid duplicating that logic). Deliberately NOT added to
+`analyze()` itself (which stays a faithful, narrow `analyze.js` port) or to
+`__init__.py`'s exports (`wising_dag`'s own public surface stays exactly
+`analyze`/`normalize`, as documented) — reachable only via
+`wising_dag.analyze.analyze_with_extras`, the same way `checksRegistry`/
+`calendarAmounts` are only ever an adapter-layer concern on the JS side too.
+`adapter/pyodide_adapter.py`'s `install()` gained an `include_extras: bool`
+parameter — `False` (default) installs the plain `analyze` (`index.html`'s
+own future wiring keeps byte-for-byte `analyze.js` parity); monitor-next's
+`lib/py-dag-loader.js` now calls `install(namespace="WISING_PY",
+include_extras=True)`, so `window.WISING_PY.analyze` resolves the extras
+automatically — `lib/py-dag-adapter.js` needed no further change at all,
+since `analyzePyDag()` already just returns whatever `window.WISING_PY.
+analyze()` produces.
+
+**Verified against the real JS DAG, not just unit-tested in isolation**:
+`prototypes/graph-pilot/run-js-dag-vs-py-dag.js` gained a second, separate
+JS graph (`calendar-amounts-nodes.js`'s NODES — `analyze.js`'s own graph,
+via `assets-nodes.js`, doesn't carry `calendarAmountsResult` at all) to
+resolve `checksRegistryResult`/`calendarAmountsResult` and merge them into
+the JS-side comparison object; `dag_py/tools/analyze_cli.py` switched from
+`analyze()` to `analyze_with_extras()` so the Python side always includes
+them too. Both keys added to the harness's own `TOP_LEVEL_PATHS`. Result:
+still 53/53 (46 exact + the 7 already-known JS-side fractional-base-year
+cases) — zero new divergences on `checksRegistry`/`calendarAmounts` across
+every real fixture and fuzz-corpus profile. New `dag_py/tests/
+test_analyze_with_extras.py` (26 tests) locks in the CONTRACT itself
+(`analyze_with_extras()` == `analyze()` plus exactly those two keys, each
+matching the underlying node's own value exactly) — the Node harness
+already owns cross-JS-parity, so this file doesn't re-check that.
+
+**Stale self-documentation cleaned up** (found while auditing — all
+described a real gap AT THE TIME they were written, later closed by
+subsequent work, with the original file's own header/comment never
+updated to say so): `crossborder/xborder_full.py`, `crossborder/
+apportionment.py`, `crossborder/black_money_act.py`, `us/us1_penalty_2210.py`,
+`us/us5_penalty_72t.py`, `reports/assembly.py`, `reports/trace.py`. One was
+flat-out factually wrong rather than just stale: `india/findings.py`
+claimed (in two places) that `in1-nodes.js`/`xb7-nodes.js` are "dead build
+history, never required by the live production chain" — tracing the real
+require chain during this audit showed both ARE required (via
+`report-batch5-nodes.js`, for `india_advance_tax_interest`'s and
+`black_money_act_exposure`'s own full finding-object text). The actual
+PORTED VALUES were already verified correct regardless (this port reads
+the same underlying data these two files do, just via differently-named,
+domain-organized nodes) — this was a documentation correction, not a code
+fix.
+
+**Confirmed still open, unchanged by this pass** (already known, not
+newly discovered): no real fixture or fuzz-corpus profile sets
+`state_of_domicile` or a nonzero `trust_retained_income_usd`, so `us/
+ustax_full.py`'s CA/NY/NJ-modeled state-tax branch and the trust
+retained-income bracket computation are verified only by `test_ustax_full.py`'s
+own synthetic unit tests, never cross-checked against the live JS DAG on
+a shared input — same limitation already documented in that module's own
+section above. The live Pyodide runtime itself remains unverified end-to-
+end (no network route to fetch one in this sandbox) — unaffected by
+anything in this pass, since it's a browser-loading question entirely
+separate from the computation this pass touched.
+
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 
 **Scoping correction, found before any code was written**: the plan's guessed

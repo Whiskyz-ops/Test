@@ -110,13 +110,18 @@ def _assemble_computed(out: dict, ctx: dict) -> dict:
     }
 
 
-def _resolve_all(opts: dict) -> tuple[dict, dict]:
+def _build_ctx(opts: dict | None) -> dict:
     opts = opts or {}
     ctx = {"router": opts.get("router"), "india": opts.get("india"), "us": opts.get("us")}
     if opts.get("monitorAsOf") is not None:
         ctx["monitorAsOfBoundary"] = opts["monitorAsOf"]
     if opts.get("fxRateOverride") is not None:
         ctx["fxRateOverride"] = opts["fxRateOverride"]
+    return ctx
+
+
+def _resolve_all(opts: dict) -> tuple[dict, dict]:
+    ctx = _build_ctx(opts)
     out = _registry().resolve(TARGET_IDS, ctx).values
     return out, ctx
 
@@ -147,3 +152,28 @@ def normalize(opts: dict | None = None) -> dict:
     assembly analyze() already does."""
     out, _ctx = _resolve_all(opts)
     return _assemble_model(out)
+
+
+# monitor-next-specific superset — NOT part of this package's own public
+# surface (see __init__.py's "Public surface: analyze, normalize" — kept
+# literally true; this stays reachable only via `wising_dag.analyze.
+# analyze_with_extras`, imported directly by dag_py/adapter/
+# pyodide_adapter.py). Mirrors monitor-next/lib/dag-adapter.js's own
+# analyzeDag(), which resolves checksRegistryResult/calendarAmountsResult
+# ON TOP OF analyze.js's real output — neither field is part of
+# analyze.js's own contract (CL-1/CL-2, DAG-only, no engine equivalent —
+# filings/checks_registry.py's/filings/calendar_amounts.py's own headers),
+# only of monitor-next's adapter layer. Kept out of analyze() itself so
+# that function stays a faithful, narrow analyze.js port; kept out of
+# __init__.py's exports so a plain `from wising_dag import analyze` still
+# gets exactly the real contract, nothing monitor-next-specific bundled in.
+def analyze_with_extras(opts: dict | None = None) -> dict:
+    """analyze(opts), plus `checksRegistry`/`calendarAmounts` — the two
+    monitor-next-only fields dag-adapter.js's own analyzeDag() adds on top
+    of the real analyze.js output."""
+    result = analyze(opts)
+    ctx = _build_ctx(opts)
+    extra = _registry().resolve(["checksRegistryResult", "calendarAmountsResult"], ctx).values
+    result["checksRegistry"] = extra["checksRegistryResult"]
+    result["calendarAmounts"] = extra["calendarAmountsResult"]
+    return result

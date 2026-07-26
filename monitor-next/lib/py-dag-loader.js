@@ -88,7 +88,15 @@ async function bootPyDag() {
   if (!adapterRes.ok) throw new Error("Failed to fetch dag-py/pyodide_adapter.py: " + adapterRes.status);
   const adapterSrc = await adapterRes.text();
 
-  await pyodide.runPythonAsync(adapterSrc + `\ninstall(namespace="${NAMESPACE}")\n`);
+  // include_extras=True: window.WISING_PY.analyze resolves checksRegistry/
+  // calendarAmounts too (analyze_with_extras — see pyodide_adapter.py's own
+  // header), matching lib/dag-adapter.js's own analyzeDag() superset of
+  // analyze.js's real output. Without this, the Checks Registry panel and
+  // the Compliance Calendar's forward-looking $ amounts would silently go
+  // blank under "Python DAG" mode — both features exist in dag_py's own
+  // computation (filings/checks_registry.py, filings/calendar_amounts.py),
+  // this is purely an adapter-wiring switch.
+  await pyodide.runPythonAsync(adapterSrc + `\ninstall(namespace="${NAMESPACE}", include_extras=True)\n`);
 
   if (!window[NAMESPACE] || typeof window[NAMESPACE].analyze !== "function") {
     throw new Error(`Pyodide adapter ran but window.${NAMESPACE}.analyze was not installed`);

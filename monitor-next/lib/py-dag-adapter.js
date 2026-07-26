@@ -1,12 +1,23 @@
 /* ============================================================================
  * Async counterpart to lib/dag-adapter.js — same field-by-field contract
- * (window.WISING.analyze()'s model/computed/findings/... shape), same
- * localStorage-backed "demo"/"live"/{router,india,us} source resolution,
- * but calling into the Python DAG (dag_py/) via Pyodide instead of the JS
- * DAG's own synchronous graph.resolve(). Every export here returns a
- * Promise — the one unavoidable difference lib/py-dag-loader.js's own
- * header explains (Pyodide boot + wheel install take real wall-clock
- * time, unlike a synchronous JS function call).
+ * (window.WISING.analyze()'s model/computed/findings/... shape, PLUS
+ * checksRegistry/calendarAmounts — see below), same localStorage-backed
+ * "demo"/"live"/{router,india,us} source resolution, but calling into the
+ * Python DAG (dag_py/) via Pyodide instead of the JS DAG's own synchronous
+ * graph.resolve(). Every export here returns a Promise — the one
+ * unavoidable difference lib/py-dag-loader.js's own header explains
+ * (Pyodide boot + wheel install take real wall-clock time, unlike a
+ * synchronous JS function call).
+ *
+ * checksRegistry/calendarAmounts (CL-1/CL-2, DAG-only, no engine
+ * equivalent — same as this file's own dag-adapter.js counterpart) come
+ * through automatically: py-dag-loader.js installs `window.WISING_PY.
+ * analyze` with `include_extras=True` (pyodide_adapter.py's own
+ * analyze_with_extras), so `analyzePyDag()` below is a plain pass-through
+ * of whatever that already includes — no separate resolve call needed
+ * here, unlike dag-adapter.js's own analyzeDag() (which builds its model/
+ * computed from a hand-composed graph.resolve() list and has to ask for
+ * checksRegistryResult/calendarAmountsResult explicitly).
  *
  * NOT verified against a real Pyodide runtime — see py-dag-loader.js's own
  * header for why, and treat this file with the same caution.
