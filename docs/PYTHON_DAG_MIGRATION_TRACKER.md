@@ -1062,6 +1062,61 @@ method used here (last-JS-touch vs. Python-port-timestamp per node file)
 is cheap enough to re-run before every future promotion-gate check, and is
 the only method that would have caught this class of drift.
 
+### Seventh Phase 8 pass: re-ran the completeness audit at full depth, no new gaps found
+
+Direct follow-up to the sixth pass's own recommendation — re-ran the same
+audit, wider, immediately after fixing the one gap it found, specifically
+to check whether that gap was a one-off or a sign of a broader pattern.
+
+- **Fresh full node-registry diff** (`checks-registry-nodes.js`'s NODES,
+  385 ids, vs `build_full_registry()`, 382 ids): identical counts and
+  identical 28-JS-only/25-Python-only split as the pre-fix audit — the
+  `businessComputation` fix touched only a compute body, not the node-id
+  shape, so this is the expected result, not a false negative.
+- **Re-verified roughly half the 28 "JS-only" ids by direct code reading**
+  (not by trusting the earlier pass's conclusions): `indiaOpt115baaRaw`/
+  `indiaOpt115babRaw` (renamed without the `Raw` suffix in Python, same
+  `entityResult`/`entity_tax.py` values, confirmed via `documents.py`'s own
+  `form_10ic`/`form_10id` triggers); `entityFormsResult` (a JS-only
+  duplicate of fields `entityResult` already carries — Python correctly
+  never duplicated it, confirmed both compute the identical
+  `indiaReturnForm`/`usReturnForm` derivation); `black_money_act_exposure`,
+  `schedule_fa_inconsistent`, `holding_period_mismatch`,
+  `india_advance_tax_interest`, `underpayment_2210`,
+  `early_withdrawal_penalty_72t` (all present as full finding objects, not
+  just referenced ids); `computedEchoBoundary`/`modelEchoBoundary` (the
+  `withSyntheticCtx()`/synthetic-ctx plumbing already documented as
+  deliberately unported); `hasUsPeRaw`/`form8938RequiredRaw` (confirmed
+  dead by the JS source's OWN comment: "mirrored here only so the audit's
+  ...claim is literally true, not because either side has a real
+  consumer"); `feieDetailed` (a JS-only node that existed solely to work
+  around `usTaxResult.feie` missing a `.reasons[]` field — Python's own
+  `feie_eligibility()` includes `reasons[]` directly, so the workaround
+  node was never needed, already documented in `us/findings.py`'s own
+  header). Every one checked out as accounted for, not missing.
+- **Commit-date cross-reference, widened to include the 6 non-`*-nodes.js`
+  infrastructure files** (`constants.js`, `fx-util.js`, `analyze.js`,
+  `graph.js`, `profiles.js`, `sample-data.js`) on top of all 44 node files
+  already checked in the sixth pass: all 6 predate 2026-07-25 (the day
+  Python DAG work began) except `profiles.js` (`06f69c9`, already
+  confirmed fixture/demo-data-only, no DAG logic) — zero additional drift
+  risk found.
+- **Harness**: `run-js-dag-vs-py-dag.js` re-run clean at 59/59 (52 exact +
+  7 known JS-side cases).
+
+**Conclusion**: as of this pass, there is no known JS DAG functionality —
+reachable from `analyze()`'s own `TARGET_IDS`, not just textually present
+in a `require()`d file — that is missing from the Python port. The
+`businessComputation` gap fixed in the sixth pass was a one-off (a single
+node whose logic changed 16 minutes after its domain was ported and was
+never revisited), not a symptom of a wider unfixed pattern — confirmed by
+directly re-deriving, not re-trusting, the conclusion on a broad sample of
+the remaining diff surface. The residual caveats are unchanged from every
+earlier pass: this is bounded by what the 59-profile fixture/corpus/
+manual-case set actually exercises (a genuinely untested field combination
+could still hide something), and the live Pyodide runtime remains
+unverified end-to-end for reasons unrelated to computation completeness.
+
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 
 **Scoping correction, found before any code was written**: the plan's guessed
