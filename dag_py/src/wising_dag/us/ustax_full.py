@@ -34,7 +34,7 @@ this file's own override above has run.
 from __future__ import annotations
 
 from ..core.graph import NodeDef
-from ..core.util import num, safe
+from ..core.util import js_round, num, safe
 from . import constants as C
 from .ustax import bracket_breakdown, bracket_tax, compute_salt_cap
 
@@ -65,7 +65,7 @@ ENTITY_NO_INCOME_TAX_REAL_REGIME = {
 
 
 def _usd(n: float) -> str:
-    return f"${round(n):,}"
+    return f"${js_round(n):,}"
 
 
 def _us_entity_tax_result(d, ctx):
@@ -156,7 +156,7 @@ def _us_entity_state_tax_result(d, ctx):
     if not rate_info:
         return {**base, "modeled": False, "stateName": None, "reason": f"State-level C-Corp income tax is not modeled for {state_code} — do not assume $0 exposure."}
     taxable_usd = max(0.0, d["usEntityTaxResult"]["taxableIncomeUsd"])
-    total_tax_usd = round(taxable_usd * rate_info["rate"])
+    total_tax_usd = js_round(taxable_usd * rate_info["rate"])
     return {
         **base, "modeled": True, "stateName": rate_info["name"], "rate": rate_info["rate"], "rateLabel": rate_info["label"],
         "taxableIncomeUsd": taxable_usd, "totalTaxUsd": total_tax_usd,
@@ -264,8 +264,8 @@ def _apportionment_result_entity_aware(d, ctx):
     if d["usTaxResult"].get("isEntity"):
         us_cy_total = d["usTaxResult"]["usSourceIncomeUsd"]
         base["usCyTotalUsd"] = us_cy_total
-        base["usCyToFyPrimaryUsd"] = round(us_cy_total * 9 / 12)
-        base["usCyToFyNextUsd"] = round(us_cy_total * 3 / 12)
+        base["usCyToFyPrimaryUsd"] = js_round(us_cy_total * 9 / 12)
+        base["usCyToFyNextUsd"] = js_round(us_cy_total * 3 / 12)
     return base
 
 

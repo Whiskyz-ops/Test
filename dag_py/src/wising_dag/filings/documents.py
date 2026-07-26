@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 
 from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
-from ..core.util import format_inr, format_usd, num, safe
+from ..core.util import format_inr, format_usd, js_round, num, safe
 
 
 def _inr(n: float) -> str:
@@ -355,7 +355,7 @@ def _build_ftc_report_result(d, ctx):
                 {"label": "Indian income tax (creditable)", "usd": ftc["us"]["indiaTaxPaidUsd"],
                  "trace": _calc("Total India tax × creditable fraction (gross Indian income less any FEIE-excluded slice, over gross Indian income)",
                                  [{"label": "Total India tax (from Tax Computation)", "amount": india_total_tax_usd},
-                                  {"label": "Creditable fraction", "display": f"{round((ftc['us']['indiaTaxPaidUsd'] / india_total_tax_usd if india_total_tax_usd > 0 else 1) * 100)}%"}])},
+                                  {"label": "Creditable fraction", "display": f"{js_round((ftc['us']['indiaTaxPaidUsd'] / india_total_tax_usd if india_total_tax_usd > 0 else 1) * 100)}%"}])},
                 {"label": "Foreign-source income (US view)", "usd": ftc["us"]["foreignSourceIncomeUsd"],
                  "trace": _holdings("india", f"Net of the {_usd(ftc['us']['feieExcludedUsd'])} FEIE-excluded wages shown in the row above." if ftc["us"]["feieExcludedUsd"] > 0 else None)},
                 {"label": "US taxable income", "usd": ftc["us"]["taxableIncomeUsd"], "trace": _calc("Same figure as \"Taxable income\" in the Tax Computation card above", [{"label": "US taxable income", "amount": ftc["us"]["taxableIncomeUsd"]}])},

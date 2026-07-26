@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from ..core.dates import parse_date
 from ..core.graph import NodeDef
-from ..core.util import num, safe
+from ..core.util import js_round, num, safe
 from . import constants as C
 
 T = C.US
@@ -153,7 +153,7 @@ def _compute_us_tax_result(d, ctx):
             taxpayer_age = (d["baseYearUs"] or 2025) - dob.year
     is_senior = taxpayer_age is not None and taxpayer_age >= T["SENIOR_DEDUCTION_MIN_AGE"] and status != "mfs"
     senior_phaseout_thr = T["SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD"].get(status, T["SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD"]["single"])
-    senior_deduction_usd = max(0.0, round(T["SENIOR_DEDUCTION_PER_PERSON_USD"] - T["SENIOR_DEDUCTION_PHASEOUT_RATE"] * max(0.0, agi - senior_phaseout_thr))) if is_senior else 0
+    senior_deduction_usd = max(0.0, js_round(T["SENIOR_DEDUCTION_PER_PERSON_USD"] - T["SENIOR_DEDUCTION_PHASEOUT_RATE"] * max(0.0, agi - senior_phaseout_thr))) if is_senior else 0
 
     is_mfs = status == "mfs"
     tips_ot_phaseout_thr = T["TIPS_OVERTIME_PHASEOUT_THRESHOLD_USD"].get(status, T["TIPS_OVERTIME_PHASEOUT_THRESHOLD_USD"]["single"])
@@ -161,9 +161,9 @@ def _compute_us_tax_result(d, ctx):
     tips_ot_phaseout_reduction = math.ceil(max(0.0, agi - tips_ot_phaseout_thr) / 1000) * T["TIPS_OVERTIME_PHASEOUT_PER_1000_USD"]
     qualified_tips_usd = 0 if is_mfs else (inc.get("qualifiedTipsUsd") or 0)
     qualified_overtime_usd = 0 if is_mfs else (inc.get("qualifiedOvertimeUsd") or 0)
-    tips_deduction_usd = 0 if is_mfs else max(0.0, round(min(qualified_tips_usd, T["TIPS_DEDUCTION_MAX_USD"]) - tips_ot_phaseout_reduction))
+    tips_deduction_usd = 0 if is_mfs else max(0.0, js_round(min(qualified_tips_usd, T["TIPS_DEDUCTION_MAX_USD"]) - tips_ot_phaseout_reduction))
     overtime_max_usd = T["OVERTIME_DEDUCTION_MAX_USD"].get(status, T["OVERTIME_DEDUCTION_MAX_USD"]["single"])
-    overtime_deduction_usd = 0 if is_mfs else max(0.0, round(min(qualified_overtime_usd, overtime_max_usd) - tips_ot_phaseout_reduction))
+    overtime_deduction_usd = 0 if is_mfs else max(0.0, js_round(min(qualified_overtime_usd, overtime_max_usd) - tips_ot_phaseout_reduction))
 
     taxable_before_qbi = max(0.0, agi - deduction - senior_deduction_usd - tips_deduction_usd - overtime_deduction_usd)
 
@@ -177,7 +177,7 @@ def _compute_us_tax_result(d, ctx):
         elif taxable_before_qbi > qbi_thr:
             qbi_frac = 1 - (taxable_before_qbi - qbi_thr) / qbi_phase
     qbi_deduction = T["QBI_RATE"] * qbi * qbi_frac
-    qbi_deduction = max(0.0, round(min(qbi_deduction, T["QBI_RATE"] * max(0.0, taxable_before_qbi - preferential_income))))
+    qbi_deduction = max(0.0, js_round(min(qbi_deduction, T["QBI_RATE"] * max(0.0, taxable_before_qbi - preferential_income))))
 
     taxable_income = max(0.0, taxable_before_qbi - qbi_deduction)
     pref_taxable = min(preferential_income, taxable_income)
@@ -212,7 +212,7 @@ def _compute_us_tax_result(d, ctx):
     amt_ord_base = max(0.0, amt_base - pref_taxable)
     amt_brk = T["AMT_RATE_BREAK"] / 2 if status == "mfs" else T["AMT_RATE_BREAK"]
     tmt_ord = amt_ord_base * T["AMT_RATE_LOW"] if amt_ord_base <= amt_brk else amt_brk * T["AMT_RATE_LOW"] + (amt_ord_base - amt_brk) * T["AMT_RATE_HIGH"]
-    amt_owed = max(0.0, round(tmt_ord + preferential_tax - income_tax))
+    amt_owed = max(0.0, js_round(tmt_ord + preferential_tax - income_tax))
 
     magi = agi
     edu_lo, edu_hi = (160000, 180000) if status == "mfj" else (80000, 90000)
@@ -221,19 +221,19 @@ def _compute_us_tax_result(d, ctx):
     child_care_credit = 0.20 * min(ded.get("careExpenses") or 0, care_cap)
     aotc_credit = min(ded.get("aotc") or 0, 2500 * max(1, ded.get("dependents") or 1)) * edu_phase
     llc_credit = min(ded.get("lifetimeLearning") or 0, 2000) * edu_phase
-    other_credits_usd = min(round(child_care_credit + aotc_credit + llc_credit), round(income_tax))
+    other_credits_usd = min(js_round(child_care_credit + aotc_credit + llc_credit), js_round(income_tax))
 
     num_children_for_ctc = ded.get("dependents") or 0
     ctc_phaseout_thr = T["CTC_PHASEOUT_THRESHOLD_USD"].get(status, T["CTC_PHASEOUT_THRESHOLD_USD"]["single"])
     ctc_max_total_usd = T["CTC_PER_CHILD_USD"] * num_children_for_ctc
     ctc_phaseout_reduction_usd = math.ceil(max(0.0, agi - ctc_phaseout_thr) / 1000) * T["CTC_PHASEOUT_PER_1000_USD"]
     ctc_available_usd = max(0.0, ctc_max_total_usd - ctc_phaseout_reduction_usd)
-    remaining_tax_after_other_credits = max(0.0, round(income_tax) - other_credits_usd)
+    remaining_tax_after_other_credits = max(0.0, js_round(income_tax) - other_credits_usd)
     ctc_non_refundable_usd = min(ctc_available_usd, remaining_tax_after_other_credits)
     ctc_unused_usd = ctc_available_usd - ctc_non_refundable_usd
     earned_income_usd = inc["wages"]["usd"] + f_w + f_se + (inc.get("businessUs", {}).get("usd", 0) if inc.get("businessUs") else 0)
     actc_cap_usd = min(T["CTC_REFUNDABLE_MAX_PER_CHILD_USD"] * num_children_for_ctc, T["CTC_REFUNDABLE_RATE"] * max(0.0, earned_income_usd - T["CTC_REFUNDABLE_EARNED_INCOME_FLOOR_USD"]))
-    ctc_refundable_usd = round(max(0.0, min(ctc_unused_usd, actc_cap_usd)))
+    ctc_refundable_usd = js_round(max(0.0, min(ctc_unused_usd, actc_cap_usd)))
     credits_usd = other_credits_usd + ctc_non_refundable_usd + ctc_refundable_usd
 
     total_tax_before_ftc = income_tax + niit + addl_medicare + se_tax + amt_owed - credits_usd

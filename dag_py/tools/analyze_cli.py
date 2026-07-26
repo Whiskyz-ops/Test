@@ -48,10 +48,42 @@ def _json_default(obj):
     raise TypeError(f"not JSON serializable: {type(obj)}")
 
 
+# Python's json.dump writes a bare `Infinity`/`-Infinity` token for a
+# float('inf')/-inf value (e.g. the top bracket's "to" field in
+# TRUST_ESTATE_BRACKETS/US ordinary brackets' own bracket_breakdown) — valid
+# per Python's own json module, but not standard JSON, so Node's JSON.parse
+# rejects it outright. Only ever reached in dag_py's own real output when a
+# bracket breakdown's top ("no upper bound") bracket gets embedded verbatim
+# (found via the trust-retained-income manual-cases profile — no earlier
+# fixture/corpus profile's taxable income ever reached a top bracket in a
+# JSON-serialized field). Purely a test-harness/CLI concern, not a real
+# production issue: the actual browser adapter (pyodide.ffi.to_js) crosses
+# the JS boundary directly, never through a JSON string, so a real
+# float('inf') becomes a real JS Infinity with no round-trip needed at all.
+# Sanitized here to a string sentinel before dump; run-js-dag-vs-py-dag.js's
+# own runPyDag() converts it back after JSON.parse.
+_INFINITY_SENTINEL = "__PY_INFINITY__"
+_NEG_INFINITY_SENTINEL = "__PY_NEG_INFINITY__"
+
+
+def _sanitize_infinities(obj):
+    if isinstance(obj, float):
+        if obj == float("inf"):
+            return _INFINITY_SENTINEL
+        if obj == float("-inf"):
+            return _NEG_INFINITY_SENTINEL
+        return obj
+    if isinstance(obj, dict):
+        return {k: _sanitize_infinities(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_infinities(v) for v in obj]
+    return obj
+
+
 def main() -> None:
     opts = json.loads(sys.stdin.read())
     result = analyze_with_extras(opts)
-    json.dump(result, sys.stdout, default=_json_default)
+    json.dump(_sanitize_infinities(result), sys.stdout, default=_json_default)
 
 
 if __name__ == "__main__":

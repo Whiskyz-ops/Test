@@ -35,7 +35,7 @@ from __future__ import annotations
 from ..core.constants import LIMITS
 from ..core.findings import make_finding
 from ..core.graph import NodeDef
-from ..core.util import format_inr, format_usd, num, safe
+from ..core.util import format_inr, format_usd, js_round, num, safe
 from ..crossborder import residency
 from . import constants as C
 from . import itr_form
@@ -608,7 +608,7 @@ def _findings_india_result(d, ctx):
             f"Promoter additional tax on buy-back gains — {_inr(pb['additionalTaxInr'] + pb['surchargeInr'] + pb['cessInr'])} on top of ordinary capital-gains tax",
             f"As a promoter (s.69(2)(b)) on this buy-back, the ordinary {'12.5% LTCG' if pb['ltcgGainInr'] > 0 else '20% STCG'} "
             f"tax on the gain is not the end of it: an additional tax brings the combined rate to "
-            f"{round(pb['targetRate'] * 100)}% ({'corporate promoter' if pb['isCorporatePromoter'] else 'non-corporate promoter'}"
+            f"{js_round(pb['targetRate'] * 100)}% ({'corporate promoter' if pb['isCorporatePromoter'] else 'non-corporate promoter'}"
             "), and a further 12% surcharge applies on that additional tax specifically — irrespective of total income. "
             f"Additional tax: {_inr(pb['additionalTaxInr'])}; surcharge: {_inr(pb['surchargeInr'])}; cess: {_inr(pb['cessInr'])}.",
             "Confirm promoter status (direct/indirect >10% shareholding, or Companies Act/SEBI promoter designation) is "
@@ -650,7 +650,7 @@ def _findings_india_result(d, ctx):
         for e in treaty_elections:
             if not e or not e.get("income_type"):
                 continue
-            pct = f"{round(e['elected_rate'] * 100)}%" if e.get("elected_rate") is not None else "unset rate"
+            pct = f"{js_round(e['elected_rate'] * 100)}%" if e.get("elected_rate") is not None else "unset rate"
             amt_inr = num(e.get("amount_inr"))
             amt_str = f" on {_inr(amt_inr)}" if amt_inr > 1 else " (no amount entered)"
             if not is_nr_for_s115a:
@@ -676,15 +676,15 @@ def _findings_india_result(d, ctx):
                 type_seen[e["income_type"]] += 1
                 se = (stream.get("elections") or [None])[idx] if stream and idx < len(stream.get("elections") or []) else None
                 domestic = S115A_RATES.get(e["income_type"])
-                compare_dom = f" (vs {round(domestic * 100)}% domestic s.207 rate)" if domestic is not None else ""
+                compare_dom = f" (vs {js_round(domestic * 100)}% domestic s.207 rate)" if domestic is not None else ""
                 if not se:
                     computed_tag = " [not applied]" + compare_dom
                 elif se["outcome"] == "denied_no_docs":
-                    computed_tag = f" [election denied — domestic {round(domestic * 100)}% rate applied instead, TRC/Form 41 missing]"
+                    computed_tag = f" [election denied — domestic {js_round(domestic * 100)}% rate applied instead, TRC/Form 41 missing]"
                 elif se["outcome"] == "elected_rate_applied":
                     computed_tag = f" [elected rate applied to the India tax above{compare_dom}]"
                 else:
-                    computed_tag = f" [domestic {round(domestic * 100)}% rate applied instead — it's more beneficial than the elected rate]"
+                    computed_tag = f" [domestic {js_round(domestic * 100)}% rate applied instead — it's more beneficial than the elected rate]"
             else:
                 computed_tag = " [not applied]"
             article = f" ({e['treaty_article']})" if e.get("treaty_article") else ""
@@ -794,7 +794,7 @@ def _findings_india_result(d, ctx):
             findings.append(make_finding(
                 "lrs_limit", "critical" if status == "breached" else "warning", "limit",
                 "LRS remittance " + ("limit breached" if status == "breached" else "approaching limit"),
-                f"Outbound LRS remittances of {format_usd(lrs_value_usd)} are at {round(pct * 100)}"
+                f"Outbound LRS remittances of {format_usd(lrs_value_usd)} are at {js_round(pct * 100)}"
                 "% of the USD 250,000 RBI annual cap.",
                 ("A breach can attract RBI scrutiny and AD-bank refusal. Verify remittances across all banks (the cap is per-PAN, not per-account) and document the source of funds."
                  if status == "breached" else

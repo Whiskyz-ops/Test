@@ -7,12 +7,12 @@ from __future__ import annotations
 from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
 from ..core.registry import NodeRegistry
-from ..core.util import format_inr, safe
+from ..core.util import format_inr, js_round, safe
 from . import double_tax
 
 
 def _usd_label(n: float) -> str:
-    return f"${round(n):,}"
+    return f"${js_round(n):,}"
 
 
 def _cross_basis_result(d, ctx):
@@ -30,8 +30,8 @@ def _cross_basis_result(d, ctx):
     std_ded_label = f"₹{format_inr(std_ded_inr)}"
 
     def row(o: dict) -> None:
-        o["indiaLawUsd"] = round(o.get("indiaLawUsd") or 0)
-        o["usLawUsd"] = round(o.get("usLawUsd") or 0)
+        o["indiaLawUsd"] = js_round(o.get("indiaLawUsd") or 0)
+        o["usLawUsd"] = js_round(o.get("usLawUsd") or 0)
         o["doublyTaxed"] = o["indiaLawUsd"] > 0 and o["usLawUsd"] > 0
         o["overlapUsd"] = min(o["indiaLawUsd"], o["usLawUsd"]) if o["doublyTaxed"] else 0
         rows.append(o)

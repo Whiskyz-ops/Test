@@ -12,7 +12,7 @@ from __future__ import annotations
 from ..core.dates import is_under_180_days_addition_inr, months_between
 from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
-from ..core.util import num, safe
+from ..core.util import js_round, num, safe
 from . import constants as C
 
 ASSET_CLASS_RATES_INDIA = C.INDIA["ASSET_CLASS_RATES_INDIA"]
@@ -114,7 +114,7 @@ def _compute_msme_disallowance_inr(entry_idx: int, msme_payables: list) -> float
 
 def _aggregate_entry_disallowances_inr(entry_idx: int, exp: dict, msme_payables: list) -> float:
     s40a_i = num(exp.get("payments_to_non_residents_no_tds_inr"))
-    s40a_ia = round(num(exp.get("payments_to_residents_no_tds_inr")) * 0.30)
+    s40a_ia = js_round(num(exp.get("payments_to_residents_no_tds_inr")) * 0.30)
     s40a3 = num(exp.get("total_cash_payments_exceeding_limit_inr")) + num(exp.get("total_cash_payments_exceeding_35k_inr"))
     s43bh = _compute_msme_disallowance_inr(entry_idx, msme_payables)
     return s40a_i + s40a_ia + s40a3 + s43bh
@@ -529,7 +529,7 @@ def _other_sources_misc_computation(d, ctx):
     gifts_exempt = bool(safe(os_, "gifts_exemption_marriage", False)) or bool(safe(os_, "gifts_exemption_relative", False))
     gifts_above_50k_inr = 0 if gifts_exempt else num(safe(os_, "gifts_above_50k_inr", 0))
     family_pension_gross_inr = num(safe(os_, "family_pension_gross_inr", 0))
-    family_pension_net_inr = max(0.0, family_pension_gross_inr - min(15000, round(family_pension_gross_inr / 3)))
+    family_pension_net_inr = max(0.0, family_pension_gross_inr - min(15000, js_round(family_pension_gross_inr / 3)))
     return (
         gifts_above_50k_inr + family_pension_net_inr + num(safe(os_, "spousal_clubbing_s64_inr", 0)) -
         num(safe(os_, "minor_child_exemption_inr", 0)) + num(safe(os_, "lic_maturity_inr", 0)) +

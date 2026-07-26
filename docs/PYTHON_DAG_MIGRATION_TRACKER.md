@@ -25,7 +25,7 @@ imply any interim cutover.
 | 6 | `filings/` + `reports/` | ✅ done (see below) |
 | 7 | `analyze()` assembly + Pyodide adapter + wheel | 🟡 infrastructure done, one known gap flagged (closed below, post-Phase-7) |
 | — | `usTaxResult` entity/NRA/trust routing (`us/ustax_full.py`) — closes the Phase 7 gap | ✅ done (see below) |
-| 8 | Toggle + shadow mode + cutover (production-touching, gated) | 🟡 in progress — JS-DAG-vs-Python-DAG cross-check built and green (see below); live browser wiring + real promotion-gate data not started |
+| 8 | Toggle + shadow mode + cutover (production-touching, gated) | 🟡 in progress — JS-DAG-vs-Python-DAG cross-check built and green, trust-retained/state-tax fixture coverage added + a real cross-language rounding bug fixed (see below); live browser wiring + real promotion-gate data not started |
 
 ## Phase 1 detail (18 modules/files, 73 tests green as of this writing)
 
@@ -885,6 +885,91 @@ section above. The live Pyodide runtime itself remains unverified end-to-
 end (no network route to fetch one in this sandbox) — unaffected by
 anything in this pass, since it's a browser-loading question entirely
 separate from the computation this pass touched.
+
+### Trust-retained/state-tax fixture coverage + a real cross-language rounding bug (fifth Phase 8 pass)
+
+Closed the one item the previous pass left open: added 4 hand-authored
+profiles under `dag_py/tests/fixtures/manual-cases/profiles/` —
+`us_ccorp_ca_state_tax.json`/`us_ccorp_ny_state_tax.json`/
+`us_ccorp_nj_state_tax.json` (clones of `us_ccorp_indian_sub.json` with
+`state_of_domicile` set) and `us_trust_retained_income.json` (a
+`tax_entity_type: "trust"` profile with a nonzero `trust_retained_income_usd`).
+Kept in their own directory, deliberately **not** added to
+`dag_py/tests/fixtures/profiles/` — that directory feeds `conftest.py`'s
+`ALL_FIXTURE_IDS` parametrization, which several test files use to call
+`load_golden(fixture_id)` unconditionally; these 4 synthetic profiles have
+no frozen-engine golden file (there's no golden generator step for
+hand-authored profiles) and would crash those tests. `run-js-dag-vs-py-dag.js`
+gained a `MANUAL_CASES_PROFILES_DIR`, included alongside the fixture/
+fuzz-corpus sets with a `manual:` id prefix, so these 4 cases now run
+through the live JS-DAG-vs-Python-DAG cross-check on every harness run.
+
+This fixture work surfaced two real bugs, only one of which is a genuine
+production defect:
+
+1. **`float('inf')` doesn't round-trip through JSON** — `TRUST_ESTATE_
+   BRACKETS`' top bracket (`[float("inf"), 0.37]`) reached a bracket
+   breakdown embedded in the harness's JSON payload for the first time
+   (no earlier fixture/corpus profile's taxable income ever reached a top
+   bracket in a JSON-serialized field). Python's `json.dump()` writes a
+   bare `Infinity` token, which is valid per Python's own `json` module
+   but not standard JSON — Node's `JSON.parse()` rejected it outright.
+   **Test-harness-only, not a real production issue**: the actual browser
+   adapter crosses the JS boundary via `pyodide.ffi.to_js`, never through
+   a JSON string, so a real `float('inf')` becomes a real JS `Infinity`
+   directly. Fixed by sentinel-string substitution on both sides of the
+   CLI boundary (`_sanitize_infinities`/`_INFINITY_SENTINEL` in
+   `dag_py/tools/analyze_cli.py`, `desanitizeInfinities` in
+   `run-js-dag-vs-py-dag.js`) — harness plumbing, no `wising_dag` source
+   changed for this one.
+
+2. **JS `Math.round()` vs Python `round()` diverge on an exact `.5` tie —
+   a real, previously-undetected bug in the actual computed output.**
+   The trust fixture's bracket tax landed on exactly `14636.5`; the JS DAG's
+   `usd()` helper (`Math.round`, always rounds ties toward `+Infinity`)
+   produced `"$14,637"`, while the Python port's various `round()`-based
+   helpers (Python's builtin, round-half-to-even) produced `"$14,636"`.
+   Never caught before because no prior fixture or fuzz-corpus profile's
+   rounded currency-display value had ever landed exactly on a `.5`
+   boundary. This is not a display-only quirk — several files round an
+   exact `.5` intermediate value (senior/tips/overtime/QBI deductions, AMT
+   owed, non-refundable/refundable credits, apportionment splits, state
+   entity tax) that then feeds forward into further arithmetic, so a wrong
+   tie-break can shift the real numeric output, not just its last-mile
+   formatting.
+
+   Fixed with a new canonical `core/util.py::js_round(n)` —
+   `math.floor(n + 0.5)`, verified directly against Node to reproduce
+   `Math.round`'s exact "always toward +Infinity on .5" behavior for every
+   sign (including the `-0.5` edge case) — and swept every bare `round()`
+   call across the port that ports a JS `Math.round()` call over to
+   `js_round()` instead: `core/util.py` (`format_inr`/`format_usd`, the
+   two shared helpers), plus per-file duplicate `_usd`/`_inr`-style
+   helpers and inline `round()` calls in `crossborder/{findings,
+   cross_basis,apportionment}.py`, `us/{ustax,ustax_full,findings}.py`,
+   `india/{findings,entity_tax,aggregate_india_income}.py`,
+   `filings/{documents,assets,monitoring,limits}.py`, and `reports/
+   trace.py`. Each site was checked against its `Math.round(...)` origin
+   in `prototypes/graph-pilot/*.js` before converting — the one exception
+   left as bare `round()` is `reports/trace.py`'s `_pct_label` (`round(rate
+   * 100, 2)`), which ports `(rate * 100).toFixed(2)`, a genuinely
+   different (2-decimal, not integer) rounding contract, not a
+   `Math.round()` site at all. `crossborder/double_tax.py` and `us/
+   aggregate_us_income.py` were checked and confirmed to have only
+   currency-*conversion* helpers (`_inr_to_usd`), not display-rounding
+   ones — no `Math.round` equivalent to fix there.
+
+**Verification**: full `dag_py` pytest suite green (573/573, no
+regressions from the `js_round` sweep); `run-js-dag-vs-py-dag.js` green at
+57/57 (50 exact matches + the 7 already-known JS-fractional-base-year
+cases, zero new mismatches) — the trust fixture's rounding divergence is
+gone. Wheel rebuilt (`scripts/build-dag-wheel.py`) and monitor-next's
+`public/dag-py/` assets re-synced (`sync-dag-py.js`).
+
+**Still open, unchanged by this pass**: the live Pyodide runtime remains
+unverified end-to-end (no network route to fetch one in this sandbox);
+real promotion-gate data (requires that live wiring plus actual production
+shadow-mode running) is unaffected by anything in this pass.
 
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 

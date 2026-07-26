@@ -2,7 +2,27 @@
 `safe()` helpers duplicated at the top of most *-nodes.js files."""
 from __future__ import annotations
 
+import math
 from typing import Any
+
+
+def js_round(n: float) -> int:
+    """Port of JS `Math.round(n)` — round HALF AWAY FROM ZERO (always
+    towards +Infinity on an exact .5, per MDN), NOT Python's builtin
+    `round()`, which uses round-half-to-even ("banker's rounding"). The two
+    only diverge on an exact .5 boundary (`round(14636.5) == 14636` in
+    Python vs `Math.round(14636.5) == 14637` in JS) — rare for a tax
+    computation's output, but real: found via a hand-authored trust-
+    retained-income fixture (`dag_py/tests/fixtures/manual-cases/`) whose
+    bracket tax landed exactly on .5, previously never hit by any fixture
+    or fuzz-corpus profile. Every currency-display helper in this port
+    (`format_usd`/`format_inr` below, and their many per-file `_usd`/`_inr`
+    duplicates) must round through this, not the bare builtin, to match
+    JS's actual rounding behavior exactly. `math.floor(n + 0.5)` is the
+    textbook "round half up" formula, and it happens to reproduce
+    `Math.round`'s specific "always towards +Infinity on .5" behavior
+    exactly for every sign, verified against Node directly."""
+    return math.floor(n + 0.5)
 
 
 def num(v: Any) -> float:
@@ -20,7 +40,7 @@ def format_inr(n: float) -> str:
     """Port of `Math.round(n).toLocaleString("en-IN")`: Indian digit
     grouping (last 3 digits, then pairs) — e.g. 5000000 -> "50,00,000",
     not the Western "5,000,000" Python's `:,` format would produce."""
-    rounded = round(n)
+    rounded = js_round(n)
     sign = "-" if rounded < 0 else ""
     s = str(abs(int(rounded)))
     if len(s) <= 3:
@@ -40,7 +60,7 @@ def format_usd(n: float) -> str:
     """Port of `"$" + Math.round(n).toLocaleString("en-US")` — Western
     digit grouping (unlike format_inr's Indian grouping), used for every
     USD amount embedded in finding text."""
-    return f"${round(n):,}"
+    return f"${js_round(n):,}"
 
 
 def safe(obj: Any, path: str, default: Any = None) -> Any:

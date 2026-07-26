@@ -3,7 +3,9 @@
  * Differential test: JS DAG (this directory) vs Python DAG (dag_py/),
  * calling WISING.analyze() on both sides over every profile dag_py already
  * has committed (the 13 hand-authored fixtures + the 40-case seeded fuzz
- * corpus) — 53 profiles total, no new generation here.
+ * corpus + a handful of hand-authored "manual-cases" profiles targeting
+ * branches neither of the other two sets happens to exercise — see
+ * MANUAL_CASES_PROFILES_DIR below) — no new generation here.
  *
  * Distinct from every other run-*.js harness in this migration, which all
  * compare the JS DAG against the FROZEN ENGINE (archive/engine-frozen/) —
@@ -74,6 +76,22 @@ var MONITOR_AS_OF = "2026-07-25T12:00:00.000Z";
 var REPO_ROOT = path.join(__dirname, "..", "..");
 var DAG_PY_FIXTURES_DIR = path.join(REPO_ROOT, "dag_py", "tests", "fixtures", "profiles");
 var FUZZ_CORPUS_PROFILES_DIR = path.join(REPO_ROOT, "dag_py", "tests", "fixtures", "golden", "fuzz-corpus", "profiles");
+// Hand-authored (NOT fuzzer-generated) synthetic profiles targeting branches
+// no real fixture or fuzz-corpus profile happens to exercise: a US entity
+// state-of-domicile set to CA/NY/NJ (usEntityStateTaxResult's "modeled"
+// branch — no fuzzer mutation ever introduces this field, since none of
+// the 13 real fixtures set it, and the fuzzer only splices/mutates from
+// those) and a trust with actual nonzero trust_retained_income_usd (the
+// compressed §1(e)-bracket path — the fuzzer DOES occasionally produce a
+// trust-kind profile, but never with retained income for the same reason).
+// Deliberately kept OUT of dag_py/tests/fixtures/profiles/ — that directory
+// feeds conftest.py's ALL_FIXTURE_IDS, which parametrizes every pytest file
+// against frozen-engine golden; these two branches have no engine
+// equivalent at all, so adding them there would need fabricated golden
+// files and break every load_golden() call across the suite for no reason.
+// This harness is the right home: it doesn't need golden, only a
+// {router, india, us} shape to run through both DAGs.
+var MANUAL_CASES_PROFILES_DIR = path.join(REPO_ROOT, "dag_py", "tests", "fixtures", "manual-cases", "profiles");
 var ANALYZE_CLI = path.join(REPO_ROOT, "dag_py", "tools", "analyze_cli.py");
 
 function loadProfilesFromDir(dir, prefix) {
@@ -84,7 +102,9 @@ function loadProfilesFromDir(dir, prefix) {
   });
 }
 
-var CASES = loadProfilesFromDir(DAG_PY_FIXTURES_DIR, "fixture:").concat(loadProfilesFromDir(FUZZ_CORPUS_PROFILES_DIR, "corpus:"));
+var CASES = loadProfilesFromDir(DAG_PY_FIXTURES_DIR, "fixture:")
+  .concat(loadProfilesFromDir(FUZZ_CORPUS_PROFILES_DIR, "corpus:"))
+  .concat(loadProfilesFromDir(MANUAL_CASES_PROFILES_DIR, "manual:"));
 
 // ---- JS side: WISING.analyze() directly, then dates -> ISO strings so they
 // compare against the Python side's JSON-round-tripped (already-string)
@@ -113,11 +133,30 @@ function runJsDag(profile) {
 // ---- Python side: one-shot subprocess per profile (dag_py/tools/
 // analyze_cli.py — plain CPython, no Pyodide). ~70ms/call measured
 // standalone; fine for the ~50-profile set this harness runs over. ---------
+// Reverses analyze_cli.py's own _sanitize_infinities — a bare Infinity/
+// -Infinity token isn't valid JSON, so the Python side sends these two
+// string sentinels instead; converted back to real numbers here so the
+// comparison logic sees genuine Infinity on both sides (the JS DAG's own
+// bracket-breakdown output already has real Infinity, no round-trip).
+var INFINITY_SENTINEL = "__PY_INFINITY__";
+var NEG_INFINITY_SENTINEL = "__PY_NEG_INFINITY__";
+function desanitizeInfinities(node) {
+  if (node === INFINITY_SENTINEL) return Infinity;
+  if (node === NEG_INFINITY_SENTINEL) return -Infinity;
+  if (Array.isArray(node)) return node.map(desanitizeInfinities);
+  if (node && typeof node === "object") {
+    var out = {};
+    Object.keys(node).forEach(function (k) { out[k] = desanitizeInfinities(node[k]); });
+    return out;
+  }
+  return node;
+}
+
 function runPyDag(profile) {
   var input = JSON.stringify({ router: profile.router, india: profile.india, us: profile.us, monitorAsOf: MONITOR_AS_OF });
   var res = spawnSync("python3", [ANALYZE_CLI], { input: input, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
   if (res.status !== 0) throw new Error("analyze_cli.py exited " + res.status + ": " + (res.stderr || "").slice(0, 2000));
-  return JSON.parse(res.stdout);
+  return desanitizeInfinities(JSON.parse(res.stdout));
 }
 
 // ---- deep-equal: same tolerant-numeric/array/object shape as run-fuzz.js's
@@ -217,7 +256,12 @@ function compareOne(caseItem) {
   return { status: "mismatch", detail: real };
 }
 
-console.log("JS DAG vs Python DAG: " + CASES.length + " profiles (13 fixtures + " + (CASES.length - 13) + " fuzz-corpus cases), monitorAsOf=" + MONITOR_AS_OF + "\n");
+console.log(
+  "JS DAG vs Python DAG: " + CASES.length + " profiles (" +
+  CASES.filter(function (c) { return c.id.indexOf("fixture:") === 0; }).length + " fixtures + " +
+  CASES.filter(function (c) { return c.id.indexOf("corpus:") === 0; }).length + " fuzz-corpus cases + " +
+  CASES.filter(function (c) { return c.id.indexOf("manual:") === 0; }).length + " manual cases), monitorAsOf=" + MONITOR_AS_OF + "\n"
+);
 
 var stats = { match: 0, known: 0, mismatch: 0, bothThrew: 0, jsThrewPyDidnt: 0, pyThrewJsDidnt: 0 };
 var failed = [];

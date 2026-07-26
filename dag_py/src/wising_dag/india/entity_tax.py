@@ -17,7 +17,7 @@ the full legal reasoning.
 from __future__ import annotations
 
 from ..core.graph import NodeDef
-from ..core.util import num, safe
+from ..core.util import js_round, num, safe
 from . import constants as C
 
 INDIA_MMR_TOP_SLAB_RATE = 0.30
@@ -55,7 +55,7 @@ def _compute_entity_tax_result(d, ctx):
             pre_cess_f = mat_f if mat_applied_f else normal_f
             cess_f = pre_cess_f * fc["CESS_RATE"]
             regime_f = (
-                f"Foreign Company ITR-6 ({round(rate_f * 100)}%"
+                f"Foreign Company ITR-6 ({js_round(rate_f * 100)}%"
                 + (", MAT" if mat_applied_f else ("" if d["hasIndiaPE"] else ", MAT-exempt (no India PE)"))
                 + ")"
             )
@@ -81,7 +81,7 @@ def _compute_entity_tax_result(d, ctx):
         pre_cess = mat if mat_applied else normal
         cess_c = pre_cess * c["CESS_RATE"]
         regime = (
-            f"Corporate ITR-6 ({round(rate * 100)}%"
+            f"Corporate ITR-6 ({js_round(rate * 100)}%"
             + (" §115BAB" if d["indiaOpt115bab"] else " §200" if d["indiaOpt115baa"] else " §115BA" if d["indiaOpt115ba"] else "")
             + (", MAT" if mat_applied else "")
             + ")"

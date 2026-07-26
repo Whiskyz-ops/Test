@@ -25,7 +25,7 @@ verified in Phase 2, so there's no carve-out needed here.
 from __future__ import annotations
 
 from ..core.graph import NodeDef
-from ..core.util import format_inr, format_usd as usd, num, safe
+from ..core.util import format_inr, format_usd as usd, js_round, num, safe
 from ..india.in1_v3 import bracket_breakdown
 
 
@@ -64,14 +64,14 @@ def _s115a_parts(stream, fmt):
     for e in stream.get("elections") or []:
         art_txt = f" ({e['article']})" if e.get("article") else ""
         if e["outcome"] == "denied_no_docs":
-            label = f"Election{art_txt} on {fmt(e['appliedAmountInr'])} denied — TRC/Form 41 missing, domestic {round(e['domesticRate'] * 100)}% applies instead"
+            label = f"Election{art_txt} on {fmt(e['appliedAmountInr'])} denied — TRC/Form 41 missing, domestic {js_round(e['domesticRate'] * 100)}% applies instead"
         elif e["outcome"] == "elected_rate_applied":
-            label = f"Election{art_txt} on {fmt(e['appliedAmountInr'])} @ {round(e['rateApplied'] * 100)}% treaty rate (beats {round(e['domesticRate'] * 100)}% domestic)"
+            label = f"Election{art_txt} on {fmt(e['appliedAmountInr'])} @ {js_round(e['rateApplied'] * 100)}% treaty rate (beats {js_round(e['domesticRate'] * 100)}% domestic)"
         else:
-            label = f"Election{art_txt} on {fmt(e['appliedAmountInr'])} — domestic {round(e['domesticRate'] * 100)}% still wins over the {round(e['electedRate'] * 100)}% elected rate"
+            label = f"Election{art_txt} on {fmt(e['appliedAmountInr'])} — domestic {js_round(e['domesticRate'] * 100)}% still wins over the {js_round(e['electedRate'] * 100)}% elected rate"
         parts.append({"label": label, "amount": e["taxInr"]})
     if stream.get("uncapturedInr", 0) > 1:
-        parts.append({"label": f"No election covers {fmt(stream['uncapturedInr'])} — taxed @ {round(stream['domesticRate'] * 100)}% domestic default", "amount": stream["uncapturedTaxInr"]})
+        parts.append({"label": f"No election covers {fmt(stream['uncapturedInr'])} — taxed @ {js_round(stream['domesticRate'] * 100)}% domestic default", "amount": stream["uncapturedTaxInr"]})
     return parts
 
 
@@ -82,7 +82,7 @@ def _nr_interest_parts(nr_interest, fmt):
             continue
         art_txt = f" ({e['article']})" if e.get("article") else ""
         parts.append({
-            "label": f"Election{art_txt} on {fmt(e['appliedAmountInr'])} @ {round(e['electedRate'] * 100)}% treaty rate (beats the {fmt(e['marginalSlabTaxInr'])} it would have cost at the marginal slab rate)",
+            "label": f"Election{art_txt} on {fmt(e['appliedAmountInr'])} @ {js_round(e['electedRate'] * 100)}% treaty rate (beats the {fmt(e['marginalSlabTaxInr'])} it would have cost at the marginal slab rate)",
             "amount": e["treatyTaxInr"],
         })
     return parts
@@ -210,7 +210,7 @@ def _build_tax_computation_india_individual(d, ctx):
             s = s115a.get(k)
             if s and s["totalInr"] > 1:
                 s115a_traces.append({
-                    "label": f"  — of which s.207 {k} @ {round(s['effectiveRate'] * 100)}% effective", "inr": s["taxInr"],
+                    "label": f"  — of which s.207 {k} @ {js_round(s['effectiveRate'] * 100)}% effective", "inr": s["taxInr"],
                     "trace": _calc(f"Total {k} income of {inr(s['totalInr'])} under s.207 — each DTAA election (s.159) is taxed at whichever is LOWER of the domestic default or the elected treaty rate, and only when TRC/Form 41 are on file; anything not covered by a valid election falls back to the domestic default",
                                     _s115a_parts(s, inr)),
                 })
@@ -302,12 +302,12 @@ def _build_tax_computation_us_nra_result(u):
             {"label": "Taxable ECI", "usd": u["taxableIncomeUsd"],
              "trace": _calc("ECI less itemized deductions", [{"label": "ECI", "amount": u["nra"]["eciUsd"]}, {"label": "Less itemized deductions", "amount": -u["deductionUsd"]}])},
             {"label": "Tax on ECI (graduated brackets)", "usd": u["nra"]["eciTaxUsd"],
-             "trace": _calc(f"Progressive federal brackets (10%-37%, same ladder as a resident filer) applied to ${round(u['nra']['taxableEciUsd']):,} of taxable ECI", _bracket_parts(u["nra"]["eciBracketBreakdown"], usd))},
+             "trace": _calc(f"Progressive federal brackets (10%-37%, same ladder as a resident filer) applied to ${js_round(u['nra']['taxableEciUsd']):,} of taxable ECI", _bracket_parts(u["nra"]["eciBracketBreakdown"], usd))},
             {"label": "FDAP (interest/dividends/rental, Schedule NEC)", "usd": u["nra"]["fdapUsd"],
              "trace": _source("Fixed, Determinable, Annual or Periodical income — US-source passive income entered on Layer 1 US, taxed on a gross basis (no deductions).")},
-            {"label": f"Tax on FDAP (flat {round(u['nra']['fdapRate'] * 100)}%, no deductions)", "usd": u["nra"]["fdapTaxUsd"],
+            {"label": f"Tax on FDAP (flat {js_round(u['nra']['fdapRate'] * 100)}%, no deductions)", "usd": u["nra"]["fdapTaxUsd"],
              "trace": _calc("FDAP × flat rate (30% statutory default, or a lower treaty rate if a valid W-8BEN treaty claim is on file)",
-                             [{"label": "FDAP income", "amount": u["nra"]["fdapUsd"]}, {"label": "Rate applied", "display": f"{round(u['nra']['fdapRate'] * 100)}%"}])},
+                             [{"label": "FDAP income", "amount": u["nra"]["fdapUsd"]}, {"label": "Rate applied", "display": f"{js_round(u['nra']['fdapRate'] * 100)}%"}])},
             {"label": "Additional Medicare tax", "usd": u["additionalMedicareUsd"],
              "trace": _source("Computed directly on Layer 1 US (Form 8959) and taken as-is — the engine does not recompute it.")},
             {"label": "Total US tax (pre-FTC)", "usd": u["totalTaxBeforeFtcUsd"], "emphasis": True,
@@ -335,7 +335,7 @@ def _build_tax_computation_us_trust_result(u):
                                  [{"label": "Total income", "amount": u["totalIncomeUsd"]}, {"label": "Less distributed to beneficiaries", "amount": -u["trustDistributedUsd"]}])})
     if u["trustRetainedUsd"] > 0:
         rows.append({"label": "Tax on retained income (§1(e) compressed brackets)", "usd": u["ordinaryTaxUsd"],
-                      "trace": _calc(f"Progressive trust/estate brackets (10%-37%, 37% starting around $15,650 — far more compressed than the individual brackets) applied to ${round(u['trustRetainedUsd']):,} of retained income",
+                      "trace": _calc(f"Progressive trust/estate brackets (10%-37%, 37% starting around $15,650 — far more compressed than the individual brackets) applied to ${js_round(u['trustRetainedUsd']):,} of retained income",
                                      _bracket_parts(u["trustBracketBreakdown"], usd))})
     else:
         rows.append({"label": "Tax on retained income", "usd": 0, "trace": _source("No retained income this year — fully distributed, so no entity-level tax under §1(e).")})
@@ -355,7 +355,7 @@ def _build_tax_computation_us_entity_result(u):
     # doesn't, so a whole-percent rate (e.g. a pure 21% C-Corp with no state
     # add-back) rendered "21.0%" instead of "21%" (found via
     # run-js-dag-vs-py-dag.js's cross-check against the real JS DAG).
-    entity_rate_pct = round((u["ordinaryTaxUsd"] / u["taxableIncomeUsd"]) * 1000) / 10 if u["taxableIncomeUsd"] > 0 else 0
+    entity_rate_pct = js_round((u["ordinaryTaxUsd"] / u["taxableIncomeUsd"]) * 1000) / 10 if u["taxableIncomeUsd"] > 0 else 0
     entity_rate_label = f"{entity_rate_pct:g}"
     tax_row = (
         {"label": "Tax (pass-through — no entity-level federal income tax)", "usd": u["ordinaryTaxUsd"],
@@ -424,12 +424,12 @@ def _build_tax_computation_us_result(d, ctx):
     if u["tipsDeductionUsd"] > 0:
         td = u["tipsOvertimeDetail"]
         rows.append({"label": "Less \"no tax on tips\" deduction (OBBBA, 2025-2028)", "usd": -u["tipsDeductionUsd"],
-                      "trace": _calc(f"Lesser of qualified tip income (already included in Box 1 wages above) or the ${round(td['tipsMaxUsd']):,} flat cap, less $100 per $1,000 of AGI over {usd(td['phaseoutThresholdUsd'])}. Not available at all to MFS filers.",
+                      "trace": _calc(f"Lesser of qualified tip income (already included in Box 1 wages above) or the ${js_round(td['tipsMaxUsd']):,} flat cap, less $100 per $1,000 of AGI over {usd(td['phaseoutThresholdUsd'])}. Not available at all to MFS filers.",
                                       [{"label": "Qualified tip income (Box 1 subset)", "amount": td["qualifiedTipsUsd"]}, {"label": "Flat cap", "amount": td["tipsMaxUsd"]}, {"label": "Less phase-out reduction", "amount": -td["phaseoutReductionUsd"]}, {"label": "Tips deduction after phase-out", "amount": u["tipsDeductionUsd"]}])})
     if u["overtimeDeductionUsd"] > 0:
         td = u["tipsOvertimeDetail"]
         rows.append({"label": "Less \"no tax on overtime\" deduction (OBBBA, 2025-2028)", "usd": -u["overtimeDeductionUsd"],
-                      "trace": _calc(f"Lesser of qualified FLSA §7 overtime premium pay (already included in Box 1 wages above) or the ${round(td['overtimeMaxUsd']):,} cap (filing status {u['filingStatus'].upper()}), less $100 per $1,000 of AGI over {usd(td['phaseoutThresholdUsd'])}. Not available at all to MFS filers.",
+                      "trace": _calc(f"Lesser of qualified FLSA §7 overtime premium pay (already included in Box 1 wages above) or the ${js_round(td['overtimeMaxUsd']):,} cap (filing status {u['filingStatus'].upper()}), less $100 per $1,000 of AGI over {usd(td['phaseoutThresholdUsd'])}. Not available at all to MFS filers.",
                                       [{"label": "Qualified overtime premium (Box 1 subset)", "amount": td["qualifiedOvertimeUsd"]}, {"label": "Cap for this filing status", "amount": td["overtimeMaxUsd"]}, {"label": "Less phase-out reduction", "amount": -td["phaseoutReductionUsd"]}, {"label": "Overtime deduction after phase-out", "amount": u["overtimeDeductionUsd"]}])})
     if u["qbiDeductionUsd"] > 0:
         rows.append({"label": "Less §199A QBI deduction", "usd": -u["qbiDeductionUsd"],
@@ -454,7 +454,7 @@ def _build_tax_computation_us_result(d, ctx):
     rows.append({"label": "Taxable income", "usd": u["taxableIncomeUsd"], "trace": _calc(taxable_income_formula, taxable_income_parts)})
 
     rows.append({"label": "Ordinary-rate tax", "usd": u["ordinaryTaxUsd"],
-                 "trace": _calc(f"Progressive federal brackets (10%-37%, filing status {u['filingStatus'].upper()}) applied to ${round(u['ordinaryTaxableUsd']):,} of ordinary taxable income (taxable income less the LTCG/QDI portion, which is taxed separately below)",
+                 "trace": _calc(f"Progressive federal brackets (10%-37%, filing status {u['filingStatus'].upper()}) applied to ${js_round(u['ordinaryTaxableUsd']):,} of ordinary taxable income (taxable income less the LTCG/QDI portion, which is taxed separately below)",
                                  _bracket_parts(u["ordinaryBracketBreakdown"], usd))})
     rows.append({"label": "Preferential LTCG/QDI tax", "usd": u["preferentialTaxUsd"], "trace": _calc("0%/15%/20% long-term capital gains brackets, stacked on top of ordinary taxable income", [{"label": "Preferential LTCG/QDI tax", "amount": u["preferentialTaxUsd"]}])})
     niit_detail = u.get("niitDetail")
@@ -498,7 +498,7 @@ def _build_tax_computation_us_result(d, ctx):
     if ctc_detail and ctc_detail["availableUsd"] > 0:
         rows.append({"label": "Less Child Tax Credit (§24)", "usd": -(ctc_detail["nonRefundableUsd"] + ctc_detail["refundableUsd"]),
                       "trace": _calc("$2,200/child (TY2025-2028, OBBBA), phased out $50 per $1,000 of AGI over the threshold. The portion that doesn't fit against tax owed is refundable (Additional CTC) up to $1,700/child, capped at 15% of earned income over $2,500. \"Children\" here reuses the same dependents count as the care/AOTC credits above — Layer 1 doesn't separately track qualifying-child ages.",
-                                      [{"label": "Number of children (Layer 1 dependents count)", "display": str(round(ctc_detail["numChildren"]))}, {"label": "Max CTC before phase-out", "amount": ctc_detail["maxTotalUsd"]},
+                                      [{"label": "Number of children (Layer 1 dependents count)", "display": str(js_round(ctc_detail["numChildren"]))}, {"label": "Max CTC before phase-out", "amount": ctc_detail["maxTotalUsd"]},
                                        {"label": "Phase-out reduction", "amount": -ctc_detail["phaseoutReductionUsd"]}, {"label": "Non-refundable (offsets tax)", "amount": ctc_detail["nonRefundableUsd"]}, {"label": "Refundable (Additional CTC)", "amount": ctc_detail["refundableUsd"]}])})
 
     rows.append({"label": "Total US tax (pre-FTC)", "usd": u["totalTaxBeforeFtcUsd"], "emphasis": True,
@@ -541,7 +541,7 @@ def _build_tax_computation_us_state_result(d, ctx):
                                  [{"label": "Federal AGI", "amount": st["agiUsd"]}, {"label": "Less standard deduction", "amount": -st["standardDeductionUsd"]}]
                                  + ([{"label": "Less dependent exemption", "amount": -st["dependentExemptionUsd"]}] if st["dependentExemptionUsd"] > 0 else []))})
     rows.append({"label": f"Tax at {st['stateName']} bracket rates", "usd": st["bracketTaxUsd"],
-                 "trace": _calc(f"Progressive {st['stateName']} brackets applied to ${round(st['taxableIncomeUsd']):,} of state taxable income", _bracket_parts(st["bracketBreakdown"], usd))})
+                 "trace": _calc(f"Progressive {st['stateName']} brackets applied to ${js_round(st['taxableIncomeUsd']):,} of state taxable income", _bracket_parts(st["bracketBreakdown"], usd))})
     if st["surchargeUsd"] > 0:
         rows.append({"label": st["surchargeLabel"], "usd": st["surchargeUsd"],
                       "trace": _calc("1% of state taxable income over $1,000,000 — this threshold is NOT doubled for MFJ", [{"label": "State taxable income over $1,000,000", "amount": max(0.0, st["taxableIncomeUsd"] - 1000000)}, {"label": "Surcharge @ 1%", "amount": st["surchargeUsd"]}])})
@@ -573,17 +573,17 @@ def _compute_lrs_tcs(lrs_outbound):
         return None
     tcs_inr, rate_pct_label, note = 0.0, "NIL", None
     if purpose == "travel":
-        tcs_inr = round(total * 0.02)
+        tcs_inr = js_round(total * 0.02)
         rate_pct_label = "2% flat"
         note = "2% flat TCS on overseas tour packages from the first rupee"
     elif total > LRS_TCS_THRESHOLD_INR:
         excess = total - LRS_TCS_THRESHOLD_INR
         if purpose in ("investment", "gift_donation"):
-            tcs_inr = round(excess * 0.20)
+            tcs_inr = js_round(excess * 0.20)
             rate_pct_label = "20% on excess"
             note = "20% TCS on general/investment LRS exceeding ₹10L"
         elif purpose in ("education_own_funds", "medical"):
-            tcs_inr = round(excess * 0.02)
+            tcs_inr = js_round(excess * 0.02)
             rate_pct_label = "2% on excess"
             note = "2% TCS on self-funded education/medical exceeding ₹10L"
         elif purpose == "education_loan":
@@ -725,7 +725,7 @@ def _build_withholding_summary_result(d, ctx):
             "id": "vda_194s_estimate", "jurisdiction": "IN", "category": "estimate",
             "label": "Expected TDS on Crypto/VDA Transfers (s.194S)",
             "grossInr": vda_sale_inr, "domesticRatePct": None, "treatyRatePct": None, "docsOk": None,
-            "rateAppliedPct": 1, "taxInr": round(vda_sale_inr * 0.01), "gapInr": 0,
+            "rateAppliedPct": 1, "taxInr": js_round(vda_sale_inr * 0.01), "gapInr": 0,
             "note": "1% of total transfer consideration (₹10,000 floor for most taxpayers, ₹50,000 for \"specified persons\" under s.44AB — not distinguishable from available data) — not confirmed as actually withheld, may already be inside the aggregate TDS credit above (excluded from totals)",
             "citation": "s.194S",
         })
@@ -735,7 +735,7 @@ def _build_withholding_summary_result(d, ctx):
             "id": "winnings_tds_estimate", "jurisdiction": "IN", "category": "estimate",
             "label": "Expected TDS on Lottery/Gaming Winnings (s.194B/194BA)",
             "grossInr": winnings_inr, "domesticRatePct": None, "treatyRatePct": None, "docsOk": None,
-            "rateAppliedPct": 30, "taxInr": round(winnings_inr * 0.30), "gapInr": 0,
+            "rateAppliedPct": 30, "taxInr": js_round(winnings_inr * 0.30), "gapInr": 0,
             "note": "30% flat, no basic exemption (s.194B lottery/betting has a ₹10,000 per-transaction floor; s.194BA online gaming has none — not distinguishable from this annual aggregate) — not confirmed as actually withheld, may already be inside the aggregate TDS credit above (excluded from totals)",
             "citation": "s.194B / s.194BA",
         })

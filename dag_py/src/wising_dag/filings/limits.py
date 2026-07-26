@@ -16,7 +16,7 @@ from __future__ import annotations
 from ..core.constants import LIMITS
 from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
-from ..core.util import num, safe
+from ..core.util import js_round, num, safe
 from ..us.ustax import feie_eligibility
 
 L = LIMITS
@@ -71,7 +71,7 @@ def _limits_result(d, ctx):
         _gauge(gauges, "trump_account", "Trump Account (§530A) annual contributions", d["limitsRawExtra"]["trumpAccountsContributionsUsd"],
                L["TRUMP_ACCOUNT_ANNUAL_CAP_USD"] * ta_children, "USD",
                f"Cap is {L['TRUMP_ACCOUNT_ANNUAL_CAP_USD']:,}/child/year, combined across all contributors (parents, family, "
-               f"employer) — shown here as the aggregate across {round(ta_children)} child(ren).")
+               f"employer) — shown here as the aggregate across {js_round(ta_children)} child(ren).")
 
     return gauges
 
