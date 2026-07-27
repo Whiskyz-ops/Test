@@ -170,7 +170,11 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
 
     standard = T["STD_DEDUCTION"].get(status, T["STD_DEDUCTION"]["single"])
     salt_cap_usd = compute_salt_cap(agi, status)
-    itemized = min(ded["salt"], salt_cap_usd) + ded["mortgageInterest"] + ded["charitable"] + max(0.0, ded["medical"] - 0.075 * agi)
+    # Federal-disaster casualty loss (§165(h)): deductible only above a
+    # 10%-of-AGI floor, same structural pattern as medical's 7.5% floor --
+    # new here, no engine equivalent. Mirrors ustax-nodes.js exactly.
+    casualty_loss_deductible = max(0.0, (ded.get("casualtyLoss") or 0) - 0.10 * agi)
+    itemized = min(ded["salt"], salt_cap_usd) + ded["mortgageInterest"] + ded["charitable"] + max(0.0, ded["medical"] - 0.075 * agi) + casualty_loss_deductible
     deduction = itemized if ded["mode"] == "itemized" else standard if ded["mode"] == "standard" else max(standard, itemized)
 
     taxpayer_age = None
@@ -251,17 +255,29 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     other_credits_usd = min(js_round(child_care_credit + aotc_credit + llc_credit), js_round(income_tax))
 
     num_children_for_ctc = ded.get("dependents") or 0
+    # SS24(h)(4) Credit for Other Dependents (ODC): $500/dependent, flat,
+    # sharing the SAME combined phase-out with CTC under SS24(h)(3), but with
+    # NO refundable/Additional-CTC component -- new, no engine equivalent.
+    # Mirrors prototypes/graph-pilot/ustax-nodes.js's computeUsTaxCore exactly.
+    num_other_dependents_for_odc = ded.get("otherDependents") or 0
     ctc_phaseout_thr = T["CTC_PHASEOUT_THRESHOLD_USD"].get(status, T["CTC_PHASEOUT_THRESHOLD_USD"]["single"])
-    ctc_max_total_usd = T["CTC_PER_CHILD_USD"] * num_children_for_ctc
+    ctc_max_usd = T["CTC_PER_CHILD_USD"] * num_children_for_ctc
+    odc_max_usd = T["ODC_PER_DEPENDENT_USD"] * num_other_dependents_for_odc
+    combined_max_usd = ctc_max_usd + odc_max_usd
     ctc_phaseout_reduction_usd = math.ceil(max(0.0, agi - ctc_phaseout_thr) / 1000) * T["CTC_PHASEOUT_PER_1000_USD"]
-    ctc_available_usd = max(0.0, ctc_max_total_usd - ctc_phaseout_reduction_usd)
+    combined_available_usd = max(0.0, combined_max_usd - ctc_phaseout_reduction_usd)
+    # Split the post-phaseout combined pool proportionally to isolate the
+    # CTC-only share, since ACTC (refundable) below applies only to CTC,
+    # never ODC.
+    ctc_available_usd = combined_available_usd * (ctc_max_usd / combined_max_usd) if combined_max_usd > 0 else 0.0
     remaining_tax_after_other_credits = max(0.0, js_round(income_tax) - other_credits_usd)
-    ctc_non_refundable_usd = min(ctc_available_usd, remaining_tax_after_other_credits)
-    ctc_unused_usd = ctc_available_usd - ctc_non_refundable_usd
+    combined_non_refundable_usd = min(combined_available_usd, remaining_tax_after_other_credits)
+    ctc_non_refundable_used_usd = combined_non_refundable_usd * (ctc_available_usd / combined_available_usd) if combined_available_usd > 0 else 0.0
+    ctc_unused_usd = ctc_available_usd - ctc_non_refundable_used_usd
     earned_income_usd = inc["wages"]["usd"] + f_w + f_se + (inc.get("businessUs", {}).get("usd", 0) if inc.get("businessUs") else 0)
     actc_cap_usd = min(T["CTC_REFUNDABLE_MAX_PER_CHILD_USD"] * num_children_for_ctc, T["CTC_REFUNDABLE_RATE"] * max(0.0, earned_income_usd - T["CTC_REFUNDABLE_EARNED_INCOME_FLOOR_USD"]))
     ctc_refundable_usd = js_round(max(0.0, min(ctc_unused_usd, actc_cap_usd)))
-    credits_usd = other_credits_usd + ctc_non_refundable_usd + ctc_refundable_usd
+    credits_usd = other_credits_usd + combined_non_refundable_usd + ctc_refundable_usd
 
     total_tax_before_ftc = income_tax + niit + addl_medicare + se_tax + amt_owed - credits_usd
 
@@ -299,9 +315,13 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
             "tmtOrdUsd": tmt_ord, "tmtUsd": tmt_ord + preferential_tax, "regularTaxUsd": income_tax,
         },
         "otherCreditsUsd": other_credits_usd,
+        # maxTotalUsd/nonRefundableUsd are the COMBINED CTC+ODC figures
+        # (matching creditsUsd's real dollar effect); numChildren/
+        # availableUsd/refundableUsd remain CTC-only (ODC has no refundable
+        # component).
         "ctcDetail": {
-            "numChildren": num_children_for_ctc, "maxTotalUsd": ctc_max_total_usd, "phaseoutReductionUsd": ctc_phaseout_reduction_usd,
-            "availableUsd": ctc_available_usd, "nonRefundableUsd": ctc_non_refundable_usd, "refundableUsd": ctc_refundable_usd,
+            "numChildren": num_children_for_ctc, "maxTotalUsd": combined_max_usd, "phaseoutReductionUsd": ctc_phaseout_reduction_usd,
+            "availableUsd": ctc_available_usd, "nonRefundableUsd": combined_non_refundable_usd, "refundableUsd": ctc_refundable_usd,
             "earnedIncomeUsd": earned_income_usd,
         },
         "foreignSourceIncomeUsd": f_w + f_se + f_i + f_d + f_r + f_p + f_stcg + f_ltcg + f_988,
@@ -357,6 +377,7 @@ NODES = {
             "mortgageInterest": num(safe(it, "mortgage_interest_paid_usd", 0)),
             "charitable": num(safe(it, "charitable_contributions_cash_usd", 0)) + num(safe(it, "charitable_contributions_appreciated_usd", 0)),
             "medical": num(safe(it, "medical_expenses_usd", 0)),
+            "casualtyLoss": num(safe(it, "casualty_loss_federal_disaster_usd", 0)),
             "studentLoanInterest": num(safe(it, "student_loan_interest_usd", 0)),
             "isoAmtPrefUsd": sum(
                 num(ex.get("amt_preference_spread_usd")) if ex.get("amt_preference_spread_usd") is not None else max(0.0, (num(ex.get("fmv_at_exercise_usd")) - num(ex.get("strike_price_usd"))) * num(ex.get("shares_exercised")))
@@ -373,7 +394,15 @@ NODES = {
             ),
             "careExpenses": num(safe(it, "child_and_dependent_care_expenses_usd", 0)) or num(safe(it, "dependent_care_expenses_usd", 0)),
             "aotc": num(safe(it, "education_credits_aotc_usd", 0)), "lifetimeLearning": num(safe(it, "education_credits_llc_usd", 0)),
-            "dependents": num(safe(us, "profile.dependents_count", 0)) or num(safe(it, "dependents_count", 0)),
+            # dependents_count/profile.dependents_count are the pre-existing
+            # (fixture-only) field names; child_tax_credit_dependents is the
+            # real layer1_us.html Step 17 field -- never wired before, so
+            # live-form CTC computed to $0 for every real user. Added as a
+            # fallback so existing fixture behavior is unaffected.
+            "dependents": num(safe(us, "profile.dependents_count", 0)) or num(safe(it, "dependents_count", 0)) or num(safe(it, "child_tax_credit_dependents", 0)),
+            # SS24(h)(4) Credit for Other Dependents count -- same gap, brand-new
+            # field (no engine equivalent at all).
+            "otherDependents": num(safe(it, "credit_for_other_dependents", 0)),
             "seHealthInsuranceDeductionUsd": num(safe(us, "income_us_source.se_health_insurance_deduction_usd", 0)),
             "seRetirementDeductionUsd": num(safe(us, "income_us_source.se_retirement_deduction_usd", 0)),
         })(ctx.get("us"), safe(ctx.get("us"), "itemized_deductions_and_credits", {}) or {}),

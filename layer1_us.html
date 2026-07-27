@@ -3419,6 +3419,13 @@
                     </label>
                     <input type="text" inputmode="numeric" id="ded-salt" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'state_and_local_taxes_paid_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2.5 focus:border-brandCyan font-mono">
                 </div>
+                <div>
+                    <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1 flex items-center justify-between">
+                        <span>Student Loan Interest Paid (USD)</span>
+                        <span class="text-[7px] text-white/40">Above-the-line, capped at $2,500</span>
+                    </label>
+                    <input type="text" inputmode="numeric" id="ded-student-loan" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'student_loan_interest_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2.5 focus:border-brandCyan font-mono">
+                </div>
             </div>
 
             <div id="div-itemized-fields" class="grid grid-cols-1 md:grid-cols-3 gap-4 border border-white/5 p-4 rounded-xl">
@@ -19047,6 +19054,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             // Restore Deductions Dom
             if(document.getElementById('ded-mode')) document.getElementById('ded-mode').value = usState.itemized_deductions_and_credits.use_standard_or_itemized || 'auto';
             if(document.getElementById('ded-salt')) document.getElementById('ded-salt').value = usState.itemized_deductions_and_credits.state_and_local_taxes_paid_usd || '';
+            if(document.getElementById('ded-student-loan')) document.getElementById('ded-student-loan').value = usState.itemized_deductions_and_credits.student_loan_interest_usd || '';
             if(document.getElementById('ded-mortgage-interest')) document.getElementById('ded-mortgage-interest').value = usState.itemized_deductions_and_credits.mortgage_interest_paid_usd || '';
             if (usState.itemized_deductions_and_credits.mortgage_acquisition_date) if(document.getElementById('ded-mortgage-date')) document.getElementById('ded-mortgage-date').value = usState.itemized_deductions_and_credits.mortgage_acquisition_date;
             if(document.getElementById('ded-charity-cash')) document.getElementById('ded-charity-cash').value = usState.itemized_deductions_and_credits.charitable_contributions_cash_usd || '';

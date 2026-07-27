@@ -346,6 +346,11 @@
         CTC_REFUNDABLE_MAX_PER_CHILD_USD: 1700,
         CTC_REFUNDABLE_EARNED_INCOME_FLOOR_USD: 2500,
         CTC_REFUNDABLE_RATE: 0.15,
+        // §24(h)(4) Credit for Other Dependents (ODC): $500/dependent, flat
+        // (not inflation-indexed, unchanged since 2018), sharing the SAME
+        // combined phase-out with CTC under §24(h)(3) -- but with NO
+        // refundable/Additional-CTC component at all.
+        ODC_PER_DEPENDENT_USD: 500,
         // ---- OBBBA "senior deduction" (temporary, TY2025-2028) — $6,000 per
         // taxpayer age 65+ by year end (stacks with std/itemized deduction),
         // phased out 6% of MAGI over the threshold. MFS filers are entirely
