@@ -41,6 +41,8 @@ single compute source has always returned).
 """
 from __future__ import annotations
 
+import datetime
+
 import js  # noqa: F401  (imported for its side effect of existing — see install())
 import pyodide.ffi
 
@@ -50,11 +52,41 @@ from wising_dag.analyze import analyze_with_extras as _analyze_with_extras
 
 
 def _to_py(js_opts):
-    return pyodide.ffi.to_py(js_opts) if js_opts is not None else {}
+    # `to_py()` is a METHOD on the JsProxy object itself, not a module-level
+    # `pyodide.ffi.to_py()` function — confirmed against the real, pinned
+    # production runtime (Pyodide v0.26.4) in an actual Chromium browser;
+    # `pyodide.ffi` only exports the reverse conversion (`to_js`) as a
+    # standalone function. See docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 7
+    # browser-verification section.
+    return js_opts.to_py() if js_opts is not None else {}
+
+
+def _default_converter(value, convert, cache):
+    # to_js() has no built-in datetime.datetime -> JS Date conversion — an
+    # unrecognized value like this is left as a live PyProxy, whose default
+    # JS-side stringification calls back into Python's own str(datetime)
+    # ("2025-06-15 00:00:00"), not a usable Date. Confirmed by an actual
+    # Pyodide-in-Chromium run against monitor-next's real Filings/Compliance
+    # Calendar view: `cal[0].date.getTime()` threw `TypeError: ... is not a
+    # function` — every filings/monitoring.py compliance-calendar row is
+    # exactly this shape. See docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 8
+    # browser-verification section.
+    #
+    # Built from the (year, month, day, ...) calendar components, NOT
+    # value.timestamp() — timestamp() treats a naive datetime as local time
+    # in whatever timezone the Pyodide/WASM runtime happens to be configured
+    # for, then bakes that into a UTC instant; js.Date.new(y, m0, d, ...)
+    # instead reproduces the exact "local calendar date, no timezone
+    # conversion at all" semantics the JS DAG's own mdate() uses
+    # (`new Date(y, m-1, day)`), so the two sides can never disagree by a
+    # day depending on which timezone either runtime happens to be in.
+    if isinstance(value, datetime.datetime):
+        return js.Date.new(value.year, value.month - 1, value.day, value.hour, value.minute, value.second, value.microsecond // 1000)
+    return value
 
 
 def _to_js(py_value):
-    return pyodide.ffi.to_js(py_value, dict_converter=js.Object.fromEntries)
+    return pyodide.ffi.to_js(py_value, dict_converter=js.Object.fromEntries, default_converter=_default_converter)
 
 
 def analyze_for_js(js_opts=None):

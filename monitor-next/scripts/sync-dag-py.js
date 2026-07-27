@@ -1,6 +1,6 @@
 /* Copies the two static assets the Python DAG (Pyodide, dag_py/) browser
  * loader needs into public/dag-py/, so Next.js serves them at
- * /dag-py/wising_dag.whl and /dag-py/pyodide_adapter.py — fetchable at
+ * /dag-py/wising_dag-0.0.0-py3-none-any.whl and /dag-py/pyodide_adapter.py — fetchable at
  * runtime by lib/py-dag-loader.js's own micropip.install()/runPythonAsync()
  * calls. Neither file is webpack-bundled (unlike sync-dag.js's lib/dag/
  * copy, imported as ES modules): the wheel is a binary micropip needs a
@@ -19,7 +19,7 @@ const dst = path.join(__dirname, "..", "public", "dag-py");
 fs.mkdirSync(dst, { recursive: true });
 
 const FILES = [
-  { from: path.join(repoRoot, "assets", "wising_dag.whl"), to: path.join(dst, "wising_dag.whl") },
+  { from: path.join(repoRoot, "assets", "wising_dag-0.0.0-py3-none-any.whl"), to: path.join(dst, "wising_dag-0.0.0-py3-none-any.whl") },
   { from: path.join(repoRoot, "dag_py", "adapter", "pyodide_adapter.py"), to: path.join(dst, "pyodide_adapter.py") },
 ];
 
