@@ -1,12 +1,15 @@
 {
   "id": "foreign_holdco_poem_india",
   "label": "Foreign Holdco · POEM in India",
-  "story": "Business POV: a Singapore-incorporated holding company whose real commercial decisions are made from Mumbai. Not incorporated in India, but its Place of Effective Management facts resolve it to an Indian tax resident anyway — entity-level dual residency with no individual-style tie-breaker to resolve it.",
+  "story": "Business POV: a Singapore-incorporated holding company whose real commercial decisions are made from Mumbai. Not incorporated in India, but its Place of Effective Management facts resolve it to an Indian tax resident anyway — entity-level dual residency with no individual-style tie-breaker to resolve it. Also runs a turnkey power-project branch in India, taxed under s.44BBB's foreign-company-only 10% flat presumptive scheme (not Regular Books), plus a s.115V tonnage-tax figure and a s.35AD specified-business capex deduction — the full s.44BBB/35AD/115V computation (gap tracker IN-26) demonstrated on one real profile instead of only in synthetic test cases.",
   "tags": [
     "company",
     "POEM",
     "s.6(3)",
-    "entity"
+    "entity",
+    "s44BBB",
+    "s35AD",
+    "s115V tonnage tax"
   ],
   "router": {
     "jurisdiction": "dual",
@@ -73,6 +76,7 @@
       "business_income": {
         "has_business_or_fo_income": true,
         "entity_type": "company",
+        "specified_business_s35AD_inr": 4500000,
         "business_entries": [
           {
             "business_name": "Meridian Holdings Pte Ltd",
@@ -86,6 +90,14 @@
               "ca_professional_fees_inr": 300000,
               "insurance_premium_inr": 100000
             }
+          },
+          {
+            "business_name": "Meridian Power Projects (India Branch)",
+            "nature": "turnkey power project — civil construction",
+            "presumptive_scheme": "s44BBB",
+            "turnover_inr": 45000000,
+            "cash_receipts_inr": 0,
+            "tonnage_tax_115V_inr": 850000
           }
         ],
         "asset_blocks": [
@@ -135,6 +147,7 @@
           "business_income": {
             "has_business_or_fo_income": true,
             "entity_type": "company",
+            "specified_business_s35AD_inr": 1125000,
             "business_entries": [
               {
                 "business_name": "Meridian Holdings Pte Ltd",
@@ -148,6 +161,14 @@
                   "ca_professional_fees_inr": 75000,
                   "insurance_premium_inr": 25000
                 }
+              },
+              {
+                "business_name": "Meridian Power Projects (India Branch)",
+                "nature": "turnkey power project — civil construction",
+                "presumptive_scheme": "s44BBB",
+                "turnover_inr": 11250000,
+                "cash_receipts_inr": 0,
+                "tonnage_tax_115V_inr": 212500
               }
             ],
             "asset_blocks": [
@@ -194,6 +215,7 @@
           "business_income": {
             "has_business_or_fo_income": true,
             "entity_type": "company",
+            "specified_business_s35AD_inr": 1125000,
             "business_entries": [
               {
                 "business_name": "Meridian Holdings Pte Ltd",
@@ -207,6 +229,14 @@
                   "ca_professional_fees_inr": 75000,
                   "insurance_premium_inr": 25000
                 }
+              },
+              {
+                "business_name": "Meridian Power Projects (India Branch)",
+                "nature": "turnkey power project — civil construction",
+                "presumptive_scheme": "s44BBB",
+                "turnover_inr": 11250000,
+                "cash_receipts_inr": 0,
+                "tonnage_tax_115V_inr": 212500
               }
             ],
             "asset_blocks": [
@@ -246,6 +276,7 @@
           "business_income": {
             "has_business_or_fo_income": true,
             "entity_type": "company",
+            "specified_business_s35AD_inr": 1125000,
             "business_entries": [
               {
                 "business_name": "Meridian Holdings Pte Ltd",
@@ -259,6 +290,14 @@
                   "ca_professional_fees_inr": 75000,
                   "insurance_premium_inr": 25000
                 }
+              },
+              {
+                "business_name": "Meridian Power Projects (India Branch)",
+                "nature": "turnkey power project — civil construction",
+                "presumptive_scheme": "s44BBB",
+                "turnover_inr": 11250000,
+                "cash_receipts_inr": 0,
+                "tonnage_tax_115V_inr": 212500
               }
             ],
             "asset_blocks": [
@@ -298,6 +337,7 @@
           "business_income": {
             "has_business_or_fo_income": true,
             "entity_type": "company",
+            "specified_business_s35AD_inr": 1125000,
             "business_entries": [
               {
                 "business_name": "Meridian Holdings Pte Ltd",
@@ -311,6 +351,14 @@
                   "ca_professional_fees_inr": 75000,
                   "insurance_premium_inr": 25000
                 }
+              },
+              {
+                "business_name": "Meridian Power Projects (India Branch)",
+                "nature": "turnkey power project — civil construction",
+                "presumptive_scheme": "s44BBB",
+                "turnover_inr": 11250000,
+                "cash_receipts_inr": 0,
+                "tonnage_tax_115V_inr": 212500
               }
             ],
             "asset_blocks": [

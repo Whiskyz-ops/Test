@@ -1,0 +1,333 @@
+{
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "full_name": "David Chen",
+    "date_of_birth": "1979-03-08",
+    "is_us_citizen": true,
+    "has_green_card": false,
+    "us_days": 331.51,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "David Chen",
+      "entity_type": "trust",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 0,
+      "final_india_residency_status": "NR"
+    },
+    "dtaa": {},
+    "compliance_docs": {},
+    "bank_accounts": [],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "transactions": []
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "house_property": {
+        "has_house_property_income": false,
+        "properties": []
+      },
+      "business_income": {
+        "has_business_or_fo_income": false,
+        "business_entries": []
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {},
+    "deductions": {},
+    "carry_forward_losses": {},
+    "lrs_outbound": {},
+    "tax_credits": {},
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "transactions": []
+        },
+        "property": {
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "David Chen",
+      "date_of_birth": "1979-03-08",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 2
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "has_green_card": false,
+      "us_days_current_year": 365,
+      "spt_test_met": false,
+      "final_us_residency_status": "US_CITIZEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Meridian Analytics Inc",
+          "wages_box1_usd": 656308.76,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 41000,
+            "medicare_wages_box5_usd": 210000
+          }
+        }
+      ],
+      "self_employment": [
+        {
+          "id": "david-consulting",
+          "business_name": "Chen Data Consulting",
+          "has_se_income": true,
+          "gross_receipts_usd": 95000,
+          "expenses_usd": 18000,
+          "is_specified_service_trade": false,
+          "assets": [
+            {
+              "id": "david-server",
+              "name": "Office server rack",
+              "class": "7-year",
+              "cost": 22000,
+              "sec179": 10000,
+              "bonus": true,
+              "placed_in_service_date": "2026-03-01"
+            },
+            {
+              "id": "david-suv",
+              "name": "Business SUV (>6,000 lb GVWR)",
+              "class": "5-year",
+              "cost": 20000,
+              "sec179": 0,
+              "bonus": false,
+              "placed_in_service_date": "2026-06-15"
+            }
+          ]
+        }
+      ],
+      "partnerships_k1": [
+        {
+          "business_name": "Ridgeline Capital Partners LP",
+          "partner_type": "limited",
+          "ordinary_business_income_usd": 14000,
+          "guaranteed_payments_usd": 0,
+          "self_employment_earnings_usd": 0,
+          "interest_income_usd": 1200,
+          "ordinary_dividends_usd": 800,
+          "sec179_deduction_usd": 0
+        }
+      ],
+      "s_corporations_k1": [
+        {
+          "business_name": "Brightpath Dental PC",
+          "ordinary_income_usd": 22000,
+          "ordinary_dividends_usd": 0,
+          "is_specified_service_trade": true
+        }
+      ],
+      "trusts_estates_k1": [
+        {
+          "business_name": "Chen Family Trust",
+          "trust_type": "simple",
+          "ordinary_income_usd": 6000,
+          "interest_income_usd": 400,
+          "ordinary_dividends_usd": 700,
+          "qualified_dividends_usd": 600,
+          "is_specified_service_trade": false
+        }
+      ],
+      "interest_us_source_usd": 5181.24,
+      "ordinary_dividends_us_source_usd": 8200,
+      "qualified_dividends_us_source_usd": 6100,
+      "ltcg_us_source_usd": 32000,
+      "stcg_us_source_usd": 9000,
+      "rental_income_us_source_usd": 21000,
+      "ira_distributions_usd": 12000,
+      "401k_distributions_usd": 8000,
+      "se_health_insurance_deduction_usd": 9600,
+      "se_retirement_deduction_usd": 15000
+    },
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "equity_compensation": {
+      "iso_exercises": [
+        {
+          "shares_exercised": 2000,
+          "fmv_at_exercise_usd": 40,
+          "strike_price_usd": 15
+        }
+      ]
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "itemized",
+      "state_and_local_taxes_paid_usd": 45000,
+      "mortgage_interest_paid_usd": 24000,
+      "charitable_contributions_cash_usd": 12000,
+      "charitable_contributions_appreciated_usd": 5000,
+      "medical_expenses_usd": 8000,
+      "student_loan_interest_usd": 2500,
+      "child_and_dependent_care_expenses_usd": 9000,
+      "education_credits_aotc_usd": 2500,
+      "education_credits_llc_usd": 0,
+      "dependents_count": 2
+    },
+    "amt_inputs": {
+      "private_activity_bond_interest_usd": 3000
+    },
+    "state_residency": {
+      "primary_state_of_residence": "CA",
+      "ca_retains_property_or_voter_reg": true
+    },
+    "bank_accounts": [],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {
+      "401k_employee_contribution_usd": 23000,
+      "401k_employer_match_usd": 11000,
+      "hsa_contribution_usd": 8300
+    },
+    "financial_holdings": [
+      {
+        "asset_name": "Vanguard — Taxable Brokerage",
+        "account_type": "taxable_brokerage",
+        "peak_balance_usd": 340000,
+        "country": "US"
+      },
+      {
+        "asset_name": "Fidelity 401(k)",
+        "account_type": "retirement_brokerage",
+        "peak_balance_usd": 410000,
+        "country": "US"
+      },
+      {
+        "asset_name": "Vanguard — Taxable Brokerage",
+        "account_type": "taxable_brokerage",
+        "peak_balance_usd": 340000,
+        "country": "US"
+      }
+    ],
+    "real_estate": {
+      "has_real_estate_transaction": true,
+      "properties": [
+        {
+          "name": "Rental duplex — Sacramento, CA",
+          "property_type": "Residential rental",
+          "gross_rent_usd": 36000,
+          "expenses_usd": 15000
+        }
+      ]
+    },
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 41000,
+      "estimated_tax_q1_apr15_usd": 8000,
+      "estimated_tax_q2_jun15_usd": 8000,
+      "estimated_tax_q3_sep15_usd": 8000,
+      "estimated_tax_q4_jan15_usd": 8000
+    },
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

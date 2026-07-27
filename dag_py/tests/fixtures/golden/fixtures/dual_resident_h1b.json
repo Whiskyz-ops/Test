@@ -3484,11 +3484,11 @@
     }
   },
   "monitoring": {
-    "asOf": "2026-07-25T03:45:46.269Z",
+    "asOf": "2026-07-27T02:56:22.264Z",
     "simulated": false,
     "baseYear": 2026,
-    "progressUS": 0.563617542639652,
-    "progressIN": 0.31636479538690476,
+    "progressUS": 0.569017801943427,
+    "progressIN": 0.3217650546906797,
     "residency": [
       {
         "kind": "days",
@@ -3499,11 +3499,11 @@
         "threshold": 183,
         "pct": 1.010928961748634,
         "isResident": true,
-        "projectedFullYear": 328,
-        "pace": 0.8992788135988635,
+        "projectedFullYear": 325,
+        "pace": 0.8907442145700835,
         "status": "resident",
         "headline": "Tax resident — worldwide income in scope",
-        "dateLabel": "Crossed ~Jul 23, 2026"
+        "dateLabel": "Crossed ~Jul 25, 2026"
       },
       {
         "kind": "days",
@@ -3514,11 +3514,11 @@
         "threshold": 182,
         "pct": 1.0054945054945055,
         "isResident": true,
-        "projectedFullYear": 578,
-        "pace": 1.5847839909005619,
+        "projectedFullYear": 569,
+        "pace": 1.5581861849344618,
         "status": "resident",
         "headline": "Resident (source basis) — foreign income not taxed here",
-        "dateLabel": "Crossed ~Jul 24, 2026"
+        "dateLabel": "Crossed ~Jul 26, 2026"
       }
     ],
     "projections": [
@@ -3528,8 +3528,8 @@
         "current": 56626,
         "limit": 10000,
         "pct": 5.6626,
-        "projected": 100468.83873556743,
-        "projPct": 10.046883873556743,
+        "projected": 99515.33995351147,
+        "projPct": 9.951533995351147,
         "note": "Threshold is a cliff: any breach = full reporting of every foreign account.",
         "status": "breached",
         "dateLabel": "Already breached"
@@ -3540,8 +3540,8 @@
         "current": 56626,
         "limit": 150000,
         "pct": 0.37750666666666666,
-        "projected": 100468.83873556743,
-        "projPct": 0.6697922582371162,
+        "projected": 99515.33995351147,
+        "projPct": 0.6634355996900765,
         "note": "Threshold shown is the 'any time during year' figure for your status/residence.",
         "status": "ok",
         "dateLabel": "Within limit at current pace"
@@ -3552,12 +3552,12 @@
         "current": 204819.27710843374,
         "limit": 250000,
         "pct": 0.819277108433735,
-        "projected": 647414.8833720448,
-        "projPct": 2.589659533488179,
+        "projected": 636549.1656803171,
+        "projPct": 2.546196662721268,
         "note": "RBI cap is per individual per financial year; TCS applies above ₹10L.",
         "status": "will_breach",
-        "breachDate": "2026-08-19T13:24:59.122Z",
-        "dateLabel": "Projected to cross ~Aug 19, 2026"
+        "breachDate": "2026-08-21T22:59:58.939Z",
+        "dateLabel": "Projected to cross ~Aug 21, 2026"
       },
       {
         "id": "feie",
@@ -3580,7 +3580,7 @@
           "date": "2026-04-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": -101,
+          "daysUntil": -103,
           "status": "passed",
           "dateLabel": "Apr 15, 2026"
         },
@@ -3590,7 +3590,7 @@
           "date": "2026-06-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": -40,
+          "daysUntil": -42,
           "status": "passed",
           "dateLabel": "Jun 15, 2026"
         },
@@ -3600,7 +3600,7 @@
           "date": "2026-06-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": -40,
+          "daysUntil": -42,
           "status": "passed",
           "dateLabel": "Jun 15, 2026"
         },
@@ -3610,7 +3610,7 @@
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 52,
+          "daysUntil": 50,
           "status": "upcoming",
           "dateLabel": "Sep 15, 2026"
         },
@@ -3620,7 +3620,7 @@
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": 52,
+          "daysUntil": 50,
           "status": "upcoming",
           "dateLabel": "Sep 15, 2026"
         },
@@ -3630,7 +3630,7 @@
           "date": "2026-12-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 143,
+          "daysUntil": 141,
           "status": "upcoming",
           "dateLabel": "Dec 15, 2026"
         },
@@ -3640,7 +3640,7 @@
           "date": "2027-01-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": 174,
+          "daysUntil": 172,
           "status": "upcoming",
           "dateLabel": "Jan 15, 2027"
         },
@@ -3650,7 +3650,7 @@
           "date": "2027-03-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 233,
+          "daysUntil": 231,
           "status": "upcoming",
           "dateLabel": "Mar 15, 2027"
         },
@@ -3676,7 +3676,7 @@
             "form_540",
             "form_it201"
           ],
-          "daysUntil": 264,
+          "daysUntil": 262,
           "status": "upcoming",
           "dateLabel": "Apr 15, 2027"
         },
@@ -3695,7 +3695,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 371,
+          "daysUntil": 369,
           "status": "upcoming",
           "dateLabel": "Jul 31, 2027"
         },
@@ -3721,7 +3721,7 @@
             "form_540",
             "form_it201"
           ],
-          "daysUntil": 447,
+          "daysUntil": 445,
           "status": "upcoming",
           "dateLabel": "Oct 15, 2027"
         },
@@ -3740,7 +3740,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 524,
+          "daysUntil": 522,
           "status": "upcoming",
           "dateLabel": "Dec 31, 2027"
         }
@@ -3752,7 +3752,7 @@
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 52,
+          "daysUntil": 50,
           "status": "upcoming",
           "dateLabel": "Sep 15, 2026"
         },
@@ -3762,7 +3762,7 @@
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": 52,
+          "daysUntil": 50,
           "status": "upcoming",
           "dateLabel": "Sep 15, 2026"
         },
@@ -3772,7 +3772,7 @@
           "date": "2026-12-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 143,
+          "daysUntil": 141,
           "status": "upcoming",
           "dateLabel": "Dec 15, 2026"
         },
@@ -3782,7 +3782,7 @@
           "date": "2027-01-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": 174,
+          "daysUntil": 172,
           "status": "upcoming",
           "dateLabel": "Jan 15, 2027"
         },
@@ -3792,7 +3792,7 @@
           "date": "2027-03-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 233,
+          "daysUntil": 231,
           "status": "upcoming",
           "dateLabel": "Mar 15, 2027"
         },
@@ -3818,7 +3818,7 @@
             "form_540",
             "form_it201"
           ],
-          "daysUntil": 264,
+          "daysUntil": 262,
           "status": "upcoming",
           "dateLabel": "Apr 15, 2027"
         },
@@ -3837,7 +3837,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 371,
+          "daysUntil": 369,
           "status": "upcoming",
           "dateLabel": "Jul 31, 2027"
         },
@@ -3863,7 +3863,7 @@
             "form_540",
             "form_it201"
           ],
-          "daysUntil": 447,
+          "daysUntil": 445,
           "status": "upcoming",
           "dateLabel": "Oct 15, 2027"
         },
@@ -3882,7 +3882,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 524,
+          "daysUntil": 522,
           "status": "upcoming",
           "dateLabel": "Dec 31, 2027"
         }
@@ -3893,7 +3893,7 @@
         "date": "2026-09-15T00:00:00.000Z",
         "cat": "Advance tax",
         "docIds": [],
-        "daysUntil": 52,
+        "daysUntil": 50,
         "status": "upcoming",
         "dateLabel": "Sep 15, 2026"
       }
@@ -3943,19 +3943,19 @@
         "sev": "warning",
         "icon": "📈",
         "text": "LRS outbound remittance on track to breach",
-        "meta": "Projected to cross ~Aug 19, 2026"
+        "meta": "Projected to cross ~Aug 21, 2026"
       },
       {
         "sev": "info",
         "icon": "🌐",
         "text": "United States tax residency active",
-        "meta": "Crossed ~Jul 23, 2026"
+        "meta": "Crossed ~Jul 25, 2026"
       },
       {
         "sev": "info",
         "icon": "🌐",
         "text": "India tax residency active",
-        "meta": "Crossed ~Jul 24, 2026"
+        "meta": "Crossed ~Jul 26, 2026"
       }
     ]
   },

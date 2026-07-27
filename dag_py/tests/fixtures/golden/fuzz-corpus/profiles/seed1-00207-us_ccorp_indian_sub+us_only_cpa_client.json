@@ -1,0 +1,411 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Cloudspire Inc",
+    "date_of_birth": "1988-01-01",
+    "is_us_citizen": true,
+    "has_green_card": true,
+    "us_days": 948.97,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Cloudspire India Pvt Ltd",
+      "entity_type": "company",
+      "tax_regime": "NEW",
+      "turnover_lte_400cr": true,
+      "opt_115baa": true
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 365,
+      "final_india_residency_status": "ROR",
+      "is_poem_in_india": true,
+      "is_indian_company": true
+    },
+    "dtaa": {},
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": true
+      },
+      "form_10f": {
+        "is_filed": true
+      }
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "HSBC (Current)",
+        "account_type": "current",
+        "peak_balance_inr": 30000000
+      }
+    ],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "has_financial_transactions": false,
+      "transactions": []
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "entity_type": "company",
+        "business_entries": [
+          {
+            "business_name": "Cloudspire India Pvt Ltd",
+            "nature": "software",
+            "presumptive_scheme": null,
+            "turnover_inr": 20687821.54,
+            "expenses": {
+              "employee_salary_wages_inr": 35000000,
+              "rent_for_business_premises_inr": 4000000,
+              "other_business_expenses_inr": 12000000,
+              "ca_professional_fees_inr": 700000,
+              "insurance_premium_inr": 300000
+            }
+          }
+        ],
+        "asset_blocks": [
+          {
+            "unit_biz_idx": 0,
+            "unit_branch_idx": null,
+            "asset_class": "plant_machinery_computers",
+            "opening_wdv_inr": 10000000,
+            "additions_during_year_inr": 0,
+            "addition_date": null,
+            "sale_consideration_inr": 0,
+            "is_new_manufacturing_asset": false
+          },
+          {
+            "unit_biz_idx": 0,
+            "unit_branch_idx": null,
+            "asset_class": "building_commercial",
+            "opening_wdv_inr": 85473368.77,
+            "additions_during_year_inr": 0,
+            "addition_date": null,
+            "sale_consideration_inr": 0,
+            "is_new_manufacturing_asset": false
+          }
+        ]
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {},
+    "deductions": {},
+    "lrs_outbound": {},
+    "tax_credits": {},
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "entity_type": "huf",
+            "business_entries": [
+              {
+                "business_name": "Cloudspire India Pvt Ltd",
+                "nature": "software",
+                "presumptive_scheme": null,
+                "turnover_inr": 35000000,
+                "expenses": {
+                  "employee_salary_wages_inr": 8750000,
+                  "rent_for_business_premises_inr": 1000000,
+                  "other_business_expenses_inr": 3000000,
+                  "ca_professional_fees_inr": 175000,
+                  "insurance_premium_inr": 75000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_computers",
+                "opening_wdv_inr": 2500000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              },
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "building_commercial",
+                "opening_wdv_inr": 10000000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "has_financial_transactions": true,
+          "transactions": []
+        },
+        "property": {
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "entity_type": "company",
+            "business_entries": [
+              {
+                "business_name": "Cloudspire India Pvt Ltd",
+                "nature": "software",
+                "presumptive_scheme": null,
+                "turnover_inr": 43496934.35,
+                "expenses": {
+                  "employee_salary_wages_inr": 8750000,
+                  "rent_for_business_premises_inr": 1000000,
+                  "other_business_expenses_inr": 3000000,
+                  "ca_professional_fees_inr": 175000,
+                  "insurance_premium_inr": 75000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_computers",
+                "opening_wdv_inr": 2500000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              },
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "building_commercial",
+                "opening_wdv_inr": 10000000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "entity_type": "company",
+            "business_entries": [
+              {
+                "business_name": "Cloudspire India Pvt Ltd",
+                "nature": "software",
+                "presumptive_scheme": null,
+                "turnover_inr": 35000000,
+                "expenses": {
+                  "employee_salary_wages_inr": 8750000,
+                  "rent_for_business_premises_inr": 1000000,
+                  "other_business_expenses_inr": 3000000,
+                  "ca_professional_fees_inr": 175000,
+                  "insurance_premium_inr": 75000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "ships",
+                "opening_wdv_inr": 2500000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              },
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "building_commercial",
+                "opening_wdv_inr": 10000000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "entity_type": "company",
+            "business_entries": [
+              {
+                "business_name": "Cloudspire India Pvt Ltd",
+                "nature": "software",
+                "presumptive_scheme": null,
+                "turnover_inr": 0,
+                "expenses": {
+                  "employee_salary_wages_inr": 8750000,
+                  "rent_for_business_premises_inr": 2524445.45,
+                  "other_business_expenses_inr": 3000000,
+                  "ca_professional_fees_inr": 256834.18,
+                  "insurance_premium_inr": 75000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_computers",
+                "opening_wdv_inr": 2500000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              },
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "building_commercial",
+                "opening_wdv_inr": 10000000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    },
+    "carry_forward_losses": {}
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "ccorp",
+      "full_name": "Cloudspire Inc",
+      "incorporation_state": "DE",
+      "incorporated_in_us": false,
+      "filing_status": "single"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "has_green_card": false,
+      "us_days_current_year": 365,
+      "spt_test_met": true,
+      "final_us_residency_status": "US_CITIZEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "c_corporations_1120": []
+    },
+    "corporate_financials": {
+      "schedule_m1": {
+        "net_income_per_books": 4000000,
+        "federal_tax_expense": 900000,
+        "meals_disallowed_50": 50000,
+        "foreign_taxes_credited": 0,
+        "tax_exempt_interest": 30000,
+        "tax_depreciation_over_book": 700000
+      }
+    },
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "SVB",
+        "account_type": "current",
+        "country": "US",
+        "peak_balance_usd": 1800000
+      }
+    ],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "owns_10_percent_foreign_corp": true,
+      "foreign_corporations": [
+        {
+          "corporation_name": "Cloudspire India Pvt Ltd",
+          "country_of_incorporation": "IN",
+          "ownership_percentage": 100,
+          "tax_year_start": "2026-04-01",
+          "gilti_income_usd": 963855,
+          "subpart_f_income_usd": 0
+        }
+      ],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {},
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 41000,
+      "estimated_tax_q1_apr15_usd": 8000,
+      "estimated_tax_q2_jun15_usd": 8000,
+      "estimated_tax_q3_sep15_usd": 8000,
+      "estimated_tax_q4_jan15_usd": 8000
+    },
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "itemized",
+      "state_and_local_taxes_paid_usd": 45000,
+      "mortgage_interest_paid_usd": 24000,
+      "charitable_contributions_cash_usd": 12000,
+      "charitable_contributions_appreciated_usd": 5000,
+      "medical_expenses_usd": 8000,
+      "student_loan_interest_usd": 1730.87,
+      "child_and_dependent_care_expenses_usd": 9000,
+      "education_credits_aotc_usd": 2500,
+      "education_credits_llc_usd": 0,
+      "dependents_count": 2
+    }
+  }
+}

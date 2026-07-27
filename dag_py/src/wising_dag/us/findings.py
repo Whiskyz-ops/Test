@@ -32,7 +32,7 @@ from __future__ import annotations
 from ..core.constants import LIMITS
 from ..core.findings import make_finding
 from ..core.graph import NodeDef
-from ..core.util import js_round, num, safe
+from ..core.util import js_num_str, js_round, num, safe
 from ..india.aggregate_india_income import _annual_slice_agg
 from . import constants as C
 from . import us1_penalty_2210, us5_penalty_72t, us_full
@@ -203,15 +203,23 @@ NODES = {
 
     # ---- AGG-9 / TAX-9 (findings-batch5-nodes.js) -----------------------------
     "equityCompRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "equity_compensation", {}) or {}, layer1_fields=("us.equity_compensation",)),
-    "esopEventsRaw": NodeDef(deps=("diAggUs",), compute=lambda d, ctx: safe(d["diAggUs"], "salary.esop_perquisite_events", []) or []),
-    "esopPerquisiteInrRaw": NodeDef(deps=("diAggUs",), compute=lambda d, ctx: num(safe(d["diAggUs"], "salary.esop_perquisite_inr", 0))),
-    # diAggUs: findings-batch5-nodes.js's esop nodes read `d.diAgg`, India's
-    # own domestic-income aggregate (an ESOP granted by an Indian employer,
-    # perquisite valued in INR) — a deliberate cross-read of India's raw
+    # findings-batch5-nodes.js's esop nodes read d.diAgg — India's own
+    # domestic-income aggregate (an ESOP granted by an Indian employer,
+    # perquisite valued in INR), a deliberate cross-read of India's raw
     # income aggregate for a US-domain finding about the SAME equity award,
-    # not a crossborder-result dependency (matches the module docstring's
-    # rule: reading a raw/domain aggregate, not residencyResult/ftcResult/etc).
-    "diAggUs": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "domestic_income", {}) or {}),
+    # not a crossborder-result dependency. Same cross-domain-read situation
+    # as limitsRawExtra's own lrsRemittedInr above: reads the quarterly-
+    # merge-aware `_annual_slice_agg(ctx)` helper directly (pure function,
+    # no registry dependency), not a "diAgg" node — us_full.build() never
+    # pulls in aggregate_india_income.py, so this file's own build() must
+    # stay usable in isolation. A previous version of this leaf read
+    # `ctx["india"]["domestic_income"]` directly, bypassing the quarterly
+    # merge entirely — invisible on every real fixture/small fuzz-corpus
+    # profile (none had `quarters` AND an esop event living only inside a
+    # quarter), only surfaced once the fuzz corpus was scaled up to 300
+    # cases.
+    "esopEventsRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(_annual_slice_agg(ctx), "domestic_income.salary.esop_perquisite_events", []) or []),
+    "esopPerquisiteInrRaw": NodeDef(deps=(), compute=lambda d, ctx: num(safe(_annual_slice_agg(ctx), "domestic_income.salary.esop_perquisite_inr", 0))),
     "equityCompResult": NodeDef(deps=("equityCompRaw", "esopEventsRaw", "esopPerquisiteInrRaw"), compute=_equity_comp_result),
 
     "stateResidencyRaw": NodeDef(
@@ -440,7 +448,7 @@ def _findings_us_result(d, ctx):
         ta_seed_eligible = lr["trumpAccountsSeedEligibleChildren"] or 0
         ta_seed_usd = LIMITS["TRUMP_ACCOUNT_FEDERAL_SEED_USD"]
         seed_note = (
-            f"A ${ta_seed_usd:,} one-time federal seed contribution applies to the {js_round(ta_seed_eligible)} "
+            f"A ${ta_seed_usd:,} one-time federal seed contribution applies to the {js_num_str(ta_seed_eligible)} "
             "child(ren) born 2025-2028 — separate from, and not counted against, the $5,000/year cap."
             if ta_seed_eligible > 0 else
             "No federal seed applies — that one-time $1,000 contribution is only for children born 2025-2028."
@@ -467,7 +475,7 @@ def _findings_us_result(d, ctx):
             findings.append(make_finding(
                 "trump_account_contribution_limit", "warning", "limit",
                 "Trump Account (§530A) contribution cap exceeded",
-                f"Contributions of {_fmt(trump_acct['value'])} across {js_round(ta_children)}"
+                f"Contributions of {_fmt(trump_acct['value'])} across {js_num_str(ta_children)}"
                 " child(ren) exceed the $5,000/child/year cap (combined across all contributors — parents, family, employer all draw "
                 f"from the same limit). {seed_note}",
                 "Excess contributions are not automatically rejected by the custodian in every case — verify the aggregate against "
@@ -528,8 +536,8 @@ def _us_residency_consistency_finding(d, ctx):
             if d["usDaysCurrentYearRaw"] >= 183 and d["usSptMetRaw"] is False:
                 return [make_finding(
                     "residency_status_understated_us", "info", "residency",
-                    f"US Substantial Presence Test may be understated — {d['usDaysCurrentYearRaw']} days present but SPT marked not met",
-                    f"Layer 1 records {d['usDaysCurrentYearRaw']} days of physical presence in the US this year — at or above the "
+                    f"US Substantial Presence Test may be understated — {js_num_str(d['usDaysCurrentYearRaw'])} days present but SPT marked not met",
+                    f"Layer 1 records {js_num_str(d['usDaysCurrentYearRaw'])} days of physical presence in the US this year — at or above the "
                     "183-day figure IRC 7701(b)(3)'s weighted 3-year sum reaches from current-year days alone (full weight, regardless "
                     "of the prior two years) — yet spt_test_met is recorded false. Two narrow exception categories exist, confirmed "
                     "against Layer 1 US's own SPT calculation (layer1_us.html): 'exempt individual' status (F/J/M/Q student/trainee "
@@ -544,8 +552,8 @@ def _us_residency_consistency_finding(d, ctx):
             elif d["usDaysCurrentYearRaw"] < 31 and d["usSptMetRaw"] is True:
                 return [make_finding(
                     "residency_status_overstated_us", "warning", "residency",
-                    f"US Substantial Presence Test may be overstated — only {d['usDaysCurrentYearRaw']} days present but SPT marked met",
-                    f"Layer 1 records only {d['usDaysCurrentYearRaw']} days of physical presence in the US this year, but "
+                    f"US Substantial Presence Test may be overstated — only {js_num_str(d['usDaysCurrentYearRaw'])} days present but SPT marked met",
+                    f"Layer 1 records only {js_num_str(d['usDaysCurrentYearRaw'])} days of physical presence in the US this year, but "
                     "spt_test_met is recorded true. IRC 7701(b)(3)(A) sets an unconditional floor: the SPT cannot be satisfied with "
                     "fewer than 31 days of presence in the current year, regardless of the weighted 3-year total. No known exception "
                     "(exempt-individual status and day-exclusions can only reduce the count, never add days back).",

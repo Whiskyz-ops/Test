@@ -1,0 +1,216 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Lakshmi Pillai",
+    "date_of_birth": "1958-04-15",
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": -228.57,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Lakshmi Pillai",
+      "entity_type": "local",
+      "date_of_birth": "1958-04-15",
+      "pan": "ALPPL1234M",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "is_wholly_outside_india": false,
+      "final_india_residency_status": "ROR"
+    },
+    "dtaa": {
+      "tax_residency_country": "IN",
+      "dtaa_treaty_residence": "none",
+      "trc_status": true,
+      "form_10f": false
+    },
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": false
+      },
+      "form_10f": {
+        "is_filed": false
+      }
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "SBI",
+        "account_type": "current",
+        "peak_balance_inr": 1625504.39
+      },
+      {
+        "bank_name": "SBI",
+        "account_type": "current",
+        "peak_balance_inr": 1625504.39
+      }
+    ],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "has_financial_transactions": false,
+      "transactions": []
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "business_income": {
+        "has_business_or_fo_income": false
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "family_pension_inr": 600000,
+      "interest_fd_rd_inr": 8000
+    },
+    "deductions": {},
+    "lrs_outbound": {},
+    "tax_credits": {
+      "tds_already_deducted_inr": 15000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "family_pension_inr": 182243.62,
+          "interest_fd_rd_inr": 2000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "has_financial_transactions": false,
+          "transactions": []
+        },
+        "property": {
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "family_pension_inr": 150000,
+          "interest_fd_rd_inr": 2000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": false,
+          "family_pension_inr": 150000,
+          "interest_fd_rd_inr": 2000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "family_pension_inr": 150000,
+          "interest_fd_rd_inr": 2000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Sharma HUF",
+      "filing_status": "married_filing_jointly"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "has_green_card": true,
+      "us_days_current_year": 20,
+      "spt_test_met": false,
+      "final_us_residency_status": "RESIDENT_ALIEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "interest_us_source_usd": 200
+    },
+    "income_foreign_source": {
+      "foreign_interest_usd": 96,
+      "foreign_pension_usd": 20934.35
+    },
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "Wells Fargo",
+        "account_type": "savings",
+        "country": "US",
+        "peak_balance_usd": 4000
+      }
+    ],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "owns_foreign_disregarded_entity": false,
+      "pfic_holdings": [],
+      "has_pfics": false
+    },
+    "financial_holdings": [],
+    "retirement_accounts": {},
+    "ftc_inputs": {
+      "claims_ftc": true
+    },
+    "withholding_and_estimated": {},
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "foreign_gifts_and_trusts": {},
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 3618.03
+    }
+  }
+}

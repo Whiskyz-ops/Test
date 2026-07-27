@@ -41,7 +41,7 @@ from ..core.dates import parse_date
 from ..core.findings import make_finding
 from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
-from ..core.util import js_round, num, safe
+from ..core.util import format_inr, js_num_str, js_round, num, safe
 from ..india import findings as india_findings
 from ..us import constants as US_C
 from ..us import findings as us_findings
@@ -58,7 +58,16 @@ def _usd(n: float) -> str:
 
 
 def _inr(n: float) -> str:
-    return f"₹{js_round(n):,}"
+    # NOT f"₹{js_round(n):,}" — Python's `:,` format spec is always Western
+    # (thousands) grouping; the JS source's own local `inr(n)` helper here
+    # is `Math.round(n).toLocaleString("en-IN")`, Indian lakh/crore
+    # grouping. A real, pre-existing bug (predates this session's
+    # js_round sweep, which only touched the rounding call, not this
+    # grouping bug) — invisible on every real fixture/small fuzz-corpus
+    # profile whose `withholding_documentation_gap` finding never fired
+    # with an India-side gap large enough for the two groupings to visibly
+    # differ, only surfaced once the fuzz corpus was scaled up to 300 cases.
+    return f"₹{format_inr(n)}"
 
 
 def _inr_to_usd(v, ctx) -> float:
@@ -427,10 +436,14 @@ def _findings_crossborder_result(d, ctx):
             poem_factors.append(f"key management location: {d['companyKeyManagementLocationRaw']}")
         if d["companyDirectorsInIndiaRaw"] or d["companyDirectorsOutsideIndiaRaw"]:
             # JS's Number(3.0) template-literal-stringifies as "3", not
-            # "3.0" — js_round() to int here to match (both values are always
-            # whole numbers, see companyDirectorsInIndiaRaw/OutsideIndiaRaw's
-            # own num()-based derivation in crossborder/residency.py).
-            poem_factors.append(f"{js_round(d['companyDirectorsInIndiaRaw'])} director(s) in India vs {js_round(d['companyDirectorsOutsideIndiaRaw'])} outside")
+            # "3.0" — but the JS source (findings-nodes.js) has no
+            # Math.round here at all, just raw "+" concatenation, so a
+            # fuzzer-mutated non-integer input (found via the scaled-up
+            # fuzz corpus) legitimately shows its own fractional value on
+            # both sides (e.g. "9.26"), not a rounded one. js_num_str
+            # matches JS's own Number-to-string coercion exactly, unlike
+            # js_round which would silently change the value.
+            poem_factors.append(f"{js_num_str(d['companyDirectorsInIndiaRaw'])} director(s) in India vs {js_num_str(d['companyDirectorsOutsideIndiaRaw'])} outside")
         findings.append(make_finding(
             "entity_dual_residency_poem", "warning", "treaty",
             "Foreign-incorporated company with POEM in India — entity-level dual residency",

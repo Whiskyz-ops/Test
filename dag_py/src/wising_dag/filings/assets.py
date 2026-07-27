@@ -38,7 +38,7 @@ from datetime import datetime, timedelta, timezone
 from ..core.dates import parse_date
 from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
-from ..core.util import format_inr, js_round, num, safe
+from ..core.util import format_inr, js_num_str, js_round, num, safe
 from ..india.constants import INDIA as _CONST_INDIA
 from ..india.aggregate_india_income import (
     _aggregate_entry_depreciation_inr,
@@ -83,7 +83,7 @@ def _self_employment_income_trace(s: dict, depreciation_plan_entry: dict | None)
     if num(s.get("expenses_usd")) > 0:
         parts.append({"label": "Less: business expenses", "amount": -num(s.get("expenses_usd"))})
     for a in (depreciation_plan_entry["assets"] if depreciation_plan_entry else []):
-        label = f"Asset ({a['class']}, yr {js_round(a['yearN'])})"
+        label = f"Asset ({a['class']}, yr {js_num_str(a['yearN'])})"
         if a["sec179Usd"] > 0:
             parts.append({"label": f"{label} — §179", "amount": -a["sec179Usd"]})
         if a["bonusUsd"] > 0:
@@ -126,7 +126,7 @@ def _farm_income_trace(f: dict, depreciation_plan_entry: dict | None):
     if num(f.get("expenses_usd")) != 0:
         parts.append({"label": "Less: farm operating expenses", "amount": -num(f.get("expenses_usd"))})
     for a in (depreciation_plan_entry["assets"] if depreciation_plan_entry else []):
-        label = f"Asset ({a['class']}, yr {js_round(a['yearN'])})"
+        label = f"Asset ({a['class']}, yr {js_num_str(a['yearN'])})"
         if a["sec179Usd"] > 0:
             parts.append({"label": f"{label} — §179", "amount": -a["sec179Usd"]})
         if a["bonusUsd"] > 0:

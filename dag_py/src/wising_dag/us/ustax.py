@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from ..core.dates import parse_date
 from ..core.graph import NodeDef
-from ..core.util import js_round, num, safe
+from ..core.util import js_num_str, js_round, num, safe
 from . import constants as C
 
 T = C.US
@@ -86,7 +86,7 @@ def feie_eligibility(f: dict | None) -> dict:
         if not f.get("physicalPresence") and not f.get("bonaFide"):
             reasons.append("neither the bona-fide-residence nor the physical-presence test is met")
         elif f.get("physicalPresence") and not pp_days_ok:
-            reasons.append(f"{f.get('daysInUsTestPeriod')} US days in the test period — over the ~35-day allowance (330 full days abroad required)")
+            reasons.append(f"{js_num_str(f.get('daysInUsTestPeriod'))} US days in the test period — over the ~35-day allowance (330 full days abroad required)")
         else:
             reasons.append("bona-fide-residence test not met")
     return {

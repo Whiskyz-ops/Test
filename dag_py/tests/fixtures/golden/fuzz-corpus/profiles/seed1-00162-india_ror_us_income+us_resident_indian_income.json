@@ -1,0 +1,530 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 0,
+    "full_name": "Anita Desai",
+    "date_of_birth": "1982-11-09",
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 35,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Anita Desai",
+      "entity_type": "individual",
+      "date_of_birth": "1982-11-09",
+      "pan": "AADPD9012R",
+      "tax_regime": "OLD"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 320,
+      "final_india_residency_status": "ROR"
+    },
+    "dtaa": {
+      "tax_residency_country": "IN",
+      "is_us_resident_for_dtaa": false,
+      "dtaa_treaty_residence": "none",
+      "trc_status": true,
+      "form_10f": true
+    },
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": true
+      },
+      "form_10f": {
+        "is_filed": false
+      },
+      "chapter_xiia_elected": true
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "SBI (NRO)",
+        "account_type": "nro",
+        "peak_balance_inr": 2600000
+      },
+      {
+        "bank_name": "Axis (NRE)",
+        "account_type": "nre",
+        "peak_balance_inr": 1900000
+      },
+      {
+        "bank_name": "SBI (NRO)",
+        "account_type": "nro",
+        "peak_balance_inr": 2600000
+      }
+    ],
+    "property": {
+      "has_indian_property_transaction": false,
+      "properties": []
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": [
+        {
+          "asset_class": "foreign_equity_unlisted",
+          "asset_name_or_ticker": "NVDA",
+          "acquisition_date": "2025-02-01",
+          "purchase_value": 8000,
+          "purchase_currency": "USD",
+          "sale_date": "2026-08-01",
+          "sale_value": 15000,
+          "sale_currency": "USD",
+          "stt_paid": false,
+          "transfer_expenses": 0,
+          "is_specified_foreign_exchange_asset": false
+        },
+        {
+          "asset_class": "foreign_equity_unlisted",
+          "asset_name_or_ticker": "NVDA",
+          "acquisition_date": "2025-02-01",
+          "purchase_value": 8000,
+          "purchase_currency": "USD",
+          "sale_date": "2026-08-01",
+          "sale_value": 15000,
+          "sale_currency": "USD",
+          "stt_paid": false,
+          "transfer_expenses": 0,
+          "is_specified_foreign_exchange_asset": false
+        }
+      ]
+    },
+    "foreign_assets": {
+      "has_foreign_assets": true,
+      "assets": [
+        {
+          "country": "US",
+          "type": "brokerage",
+          "value_inr": 6800000
+        },
+        {
+          "country": "US",
+          "type": "real_estate",
+          "value_inr": 12000000
+        },
+        {
+          "country": "US",
+          "type": "brokerage",
+          "value_inr": 6800000
+        }
+      ]
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "taxable_salary_inr": 3600000
+      },
+      "house_property": {
+        "has_house_property_income": false,
+        "properties": []
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "business_entries": [
+          {
+            "business_name": "Desai Advisory",
+            "nature": "management consulting",
+            "presumptive_scheme": null,
+            "gross_receipts_inr": 700000,
+            "expenses": {
+              "other_business_expenses_inr": 50000,
+              "ca_professional_fees_inr": 15000
+            }
+          }
+        ],
+        "asset_blocks": [
+          {
+            "unit_biz_idx": 0,
+            "unit_branch_idx": null,
+            "asset_class": "plant_machinery_general",
+            "opening_wdv_inr": 354291.76,
+            "additions_during_year_inr": 0,
+            "addition_date": null,
+            "sale_consideration_inr": 0,
+            "is_new_manufacturing_asset": false
+          }
+        ]
+      },
+      "capital_gains": {}
+    },
+    "capital_gains": {
+      "ltcg_112a_inr": 300000
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_savings_inr": 60000,
+      "interest_fd_rd_inr": 140000
+    },
+    "deductions": {
+      "s80C": {
+        "epf_employee_inr": 150000
+      },
+      "s80D": {
+        "self_family_premium_inr": 25000
+      }
+    },
+    "lrs_outbound": {
+      "total_lrs_remitted_this_fy_inr": 1500000,
+      "lrs_purpose": "investment"
+    },
+    "tax_credits": {
+      "advance_tax_q1_15jun_inr": 200000,
+      "advance_tax_q2_15sep_inr": 0,
+      "tds_already_deducted_inr": 150000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 1730213.12
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": [
+              {
+                "business_name": "Desai Advisory",
+                "nature": "management consulting",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 175000,
+                "expenses": {
+                  "other_business_expenses_inr": 12500,
+                  "ca_professional_fees_inr": 3750
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 37500,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              },
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 37500,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 15000,
+          "interest_fd_rd_inr": 35000
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 75000
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 375000,
+          "lrs_purpose": "investment"
+        },
+        "financial_holdings": {
+          "has_financial_transactions": true,
+          "transactions": [
+            {
+              "asset_class": "foreign_equity_unlisted",
+              "asset_name_or_ticker": "NVDA",
+              "acquisition_date": "2025-05-07",
+              "purchase_value": 21552.63,
+              "purchase_currency": "USD",
+              "sale_date": "2026-08-01",
+              "sale_value": 15000,
+              "sale_currency": "USD",
+              "stt_paid": false,
+              "transfer_expenses": 0,
+              "is_specified_foreign_exchange_asset": false
+            }
+          ]
+        },
+        "property": {
+          "has_indian_property_transaction": false,
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 900000
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Desai Advisory",
+                "nature": "management consulting",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 175000,
+                "expenses": {
+                  "other_business_expenses_inr": 12500,
+                  "ca_professional_fees_inr": 3750
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 37500,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": false,
+          "interest_savings_inr": 15000,
+          "interest_fd_rd_inr": 35000
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 0
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 375000,
+          "lrs_purpose": "investment"
+        }
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 900000
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Desai Advisory",
+                "nature": "management consulting",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 175000,
+                "expenses": {
+                  "other_business_expenses_inr": 12500,
+                  "ca_professional_fees_inr": 3750
+                }
+              },
+              {
+                "business_name": "Desai Advisory",
+                "nature": "management consulting",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 175000,
+                "expenses": {
+                  "other_business_expenses_inr": 12500,
+                  "ca_professional_fees_inr": 3750
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 37500,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 15000,
+          "interest_fd_rd_inr": 35000
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 75000
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 375000,
+          "lrs_purpose": "investment"
+        }
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 900000
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Desai Advisory",
+                "nature": "management consulting",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 175000,
+                "expenses": {
+                  "other_business_expenses_inr": 12500,
+                  "ca_professional_fees_inr": 3750
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 37500,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 15000,
+          "interest_fd_rd_inr": 35000
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 75000
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 375000,
+          "lrs_purpose": "investment"
+        }
+      }
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Rohan Mehta",
+      "date_of_birth": "1985-03-22",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 51.83,
+      "spt_test_met": false,
+      "final_us_residency_status": "NON_RESIDENT_ALIEN",
+      "dtaa_treaty_residence": "IN"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Northwind Labs",
+          "wages_box1_usd": 158000,
+          "qualified_tip_income_usd": 2400,
+          "qualified_overtime_premium_usd": 0,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 30000,
+            "medicare_wages_box5_usd": 158000
+          }
+        }
+      ],
+      "self_employment": [
+        {
+          "business_name": "Mehta Analytics (consulting)",
+          "self_employment_earnings_usd": 62000
+        }
+      ],
+      "partnerships_k1": [
+        {
+          "business_name": "Meridian Consulting Partners LLC",
+          "partner_type": "general",
+          "ordinary_business_income_usd": 18000,
+          "guaranteed_payments_usd": 12000,
+          "self_employment_earnings_usd": 30000,
+          "interest_income_usd": 900,
+          "sec179_deduction_usd": 2000
+        }
+      ],
+      "s_corporations_k1": [
+        {
+          "business_name": "Harborline Print Co",
+          "ordinary_income_usd": 9000,
+          "ordinary_dividends_usd": 500,
+          "is_specified_service_trade": false
+        }
+      ],
+      "interest_us_source_usd": 5200,
+      "ordinary_dividends_us_source_usd": 6400,
+      "qualified_dividends_us_source_usd": 6796.43,
+      "ltcg_us_source_usd": 12000,
+      "rental_income_us_source_usd": 27000
+    },
+    "income_foreign_source": {
+      "foreign_rental_income_usd": 14458,
+      "foreign_dividends_usd": 2651,
+      "foreign_interest_usd": 3133,
+      "foreign_stcg_usd": 2169
+    },
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "Chase",
+        "account_type": "checking",
+        "country": "US",
+        "peak_balance_usd": 0
+      }
+    ],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {},
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 9800
+    },
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

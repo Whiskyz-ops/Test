@@ -157,8 +157,8 @@
           "usd": 0
         },
         "business": {
-          "usd": 265060.2409638554,
-          "inr": 22000000
+          "usd": 807228.9156626506,
+          "inr": 67000000
         },
         "businessDepreciationInr": 2600000,
         "businessFnoIncomeInr": 0,
@@ -215,8 +215,8 @@
         "holdingPeriodMismatches": [],
         "unexplained115bbeInr": 0,
         "total": {
-          "usd": 265060.2409638554,
-          "inr": 22000000
+          "usd": 807228.9156626506,
+          "inr": 67000000
         }
       },
       "us": {
@@ -456,6 +456,14 @@
             "ca_professional_fees_inr": 300000,
             "insurance_premium_inr": 100000
           }
+        },
+        {
+          "business_name": "Meridian Power Projects (India Branch)",
+          "nature": "turnkey power project — civil construction",
+          "presumptive_scheme": "s44BBB",
+          "turnover_inr": 45000000,
+          "cash_receipts_inr": 0,
+          "tonnage_tax_115V_inr": 850000
         }
       ],
       "usForeignCorps": [],
@@ -513,6 +521,30 @@
               {
                 "label": "Net profit (this entry)",
                 "amount": 22000000
+              }
+            ],
+            "citation": null
+          }
+        },
+        {
+          "country": "IN",
+          "type": "Business / Profession (PGBP)",
+          "name": "Meridian Power Projects (India Branch)",
+          "incomeUsd": 542168.6746987952,
+          "inr": 45000000,
+          "filesOwnReturn": true,
+          "returnForm": "ITR-6",
+          "calcTrace": {
+            "kind": "calc",
+            "formula": "Regular books: gross receipts/turnover less the itemized deductible expenses on file, less statutory disallowances (s.40A(3)/40(a)/43B(h)) already included in those expenses, less current-year depreciation (s.32 WDV method + s.32(1)(iia) additional depreciation). F&O-specific costs and s.35/35D/35DDA amortization aren't modeled yet (Phase 1 follow-on — see gap tracker IN-22/26), so this is still a floor, not the final figure.",
+            "parts": [
+              {
+                "label": "Gross receipts / turnover",
+                "amount": 45000000
+              },
+              {
+                "label": "Net profit (this entry)",
+                "amount": 45000000
               }
             ],
             "citation": null
@@ -609,6 +641,7 @@
           "business_income": {
             "has_business_or_fo_income": true,
             "entity_type": "company",
+            "specified_business_s35AD_inr": 4500000,
             "business_entries": [
               {
                 "business_name": "Meridian Holdings Pte Ltd",
@@ -622,6 +655,14 @@
                   "ca_professional_fees_inr": 300000,
                   "insurance_premium_inr": 100000
                 }
+              },
+              {
+                "business_name": "Meridian Power Projects (India Branch)",
+                "nature": "turnkey power project — civil construction",
+                "presumptive_scheme": "s44BBB",
+                "turnover_inr": 45000000,
+                "cash_receipts_inr": 0,
+                "tonnage_tax_115V_inr": 850000
               }
             ],
             "asset_blocks": [
@@ -671,6 +712,7 @@
               "business_income": {
                 "has_business_or_fo_income": true,
                 "entity_type": "company",
+                "specified_business_s35AD_inr": 1125000,
                 "business_entries": [
                   {
                     "business_name": "Meridian Holdings Pte Ltd",
@@ -684,6 +726,14 @@
                       "ca_professional_fees_inr": 75000,
                       "insurance_premium_inr": 25000
                     }
+                  },
+                  {
+                    "business_name": "Meridian Power Projects (India Branch)",
+                    "nature": "turnkey power project — civil construction",
+                    "presumptive_scheme": "s44BBB",
+                    "turnover_inr": 11250000,
+                    "cash_receipts_inr": 0,
+                    "tonnage_tax_115V_inr": 212500
                   }
                 ],
                 "asset_blocks": [
@@ -730,6 +780,7 @@
               "business_income": {
                 "has_business_or_fo_income": true,
                 "entity_type": "company",
+                "specified_business_s35AD_inr": 1125000,
                 "business_entries": [
                   {
                     "business_name": "Meridian Holdings Pte Ltd",
@@ -743,6 +794,14 @@
                       "ca_professional_fees_inr": 75000,
                       "insurance_premium_inr": 25000
                     }
+                  },
+                  {
+                    "business_name": "Meridian Power Projects (India Branch)",
+                    "nature": "turnkey power project — civil construction",
+                    "presumptive_scheme": "s44BBB",
+                    "turnover_inr": 11250000,
+                    "cash_receipts_inr": 0,
+                    "tonnage_tax_115V_inr": 212500
                   }
                 ],
                 "asset_blocks": [
@@ -782,6 +841,7 @@
               "business_income": {
                 "has_business_or_fo_income": true,
                 "entity_type": "company",
+                "specified_business_s35AD_inr": 1125000,
                 "business_entries": [
                   {
                     "business_name": "Meridian Holdings Pte Ltd",
@@ -795,6 +855,14 @@
                       "ca_professional_fees_inr": 75000,
                       "insurance_premium_inr": 25000
                     }
+                  },
+                  {
+                    "business_name": "Meridian Power Projects (India Branch)",
+                    "nature": "turnkey power project — civil construction",
+                    "presumptive_scheme": "s44BBB",
+                    "turnover_inr": 11250000,
+                    "cash_receipts_inr": 0,
+                    "tonnage_tax_115V_inr": 212500
                   }
                 ],
                 "asset_blocks": [
@@ -834,6 +902,7 @@
               "business_income": {
                 "has_business_or_fo_income": true,
                 "entity_type": "company",
+                "specified_business_s35AD_inr": 1125000,
                 "business_entries": [
                   {
                     "business_name": "Meridian Holdings Pte Ltd",
@@ -847,6 +916,14 @@
                       "ca_professional_fees_inr": 75000,
                       "insurance_premium_inr": 25000
                     }
+                  },
+                  {
+                    "business_name": "Meridian Power Projects (India Branch)",
+                    "nature": "turnkey power project — civil construction",
+                    "presumptive_scheme": "s44BBB",
+                    "turnover_inr": 11250000,
+                    "cash_receipts_inr": 0,
+                    "tonnage_tax_115V_inr": 212500
                   }
                 ],
                 "asset_blocks": [
@@ -942,18 +1019,18 @@
       "regime": "Foreign Company ITR-6 (35%, MAT-exempt (no India PE))",
       "isEntity": true,
       "matApplied": false,
-      "grossTotalIncomeInr": 22000000,
+      "grossTotalIncomeInr": 67000000,
       "deductionsInr": 0,
-      "totalIncomeInr": 22000000,
-      "slabTaxInr": 7699999.999999999,
+      "totalIncomeInr": 67000000,
+      "slabTaxInr": 23450000,
       "specialTaxInr": 0,
       "rebateInr": 0,
-      "surchargeInr": 154000,
-      "cessInr": 314159.99999999994,
-      "totalTaxInr": 8168159.999999999,
-      "totalTaxUsd": 98411.56626506023,
-      "totalIncomeUsd": 265060.2409638554,
-      "effectiveRate": 0.37127999999999994
+      "surchargeInr": 469000,
+      "cessInr": 956760,
+      "totalTaxInr": 24875760,
+      "totalTaxUsd": 299707.9518072289,
+      "totalIncomeUsd": 807228.9156626506,
+      "effectiveRate": 0.37128
     },
     "usTax": {
       "filingStatus": "single",
@@ -1053,9 +1130,9 @@
       "explanation": "For Corporate Companies (Private Limited, Public Limited, OPCs) not claiming charitable exemptions.",
       "disqualified": true,
       "disqualifiers": [
-        "Total income exceeds ₹50,00,000 (₹2,20,00,000)"
+        "Total income exceeds ₹50,00,000 (₹6,70,00,000)"
       ],
-      "totalIncomeInr": 22000000,
+      "totalIncomeInr": 67000000,
       "directorUnknown": false,
       "frontendForm": null,
       "frontendExplanation": null,
@@ -1072,9 +1149,9 @@
       "fyLabel": "FY 2026–27",
       "cyPrimary": 2026,
       "cyNext": 2027,
-      "indiaFyTotalUsd": 265060.2409638554,
-      "indiaToCyPrimaryUsd": 198795,
-      "indiaToCyNextUsd": 66265,
+      "indiaFyTotalUsd": 807228.9156626506,
+      "indiaToCyPrimaryUsd": 605422,
+      "indiaToCyNextUsd": 201807,
       "primaryShare": 0.75,
       "nextShare": 0.25,
       "usCyTotalUsd": 0,
@@ -1083,8 +1160,8 @@
     },
     "taxEstimate": {
       "india": {
-        "estTaxUsd": 98411.56626506023,
-        "estTaxInr": 8168159.999999999
+        "estTaxUsd": 299707.9518072289,
+        "estTaxInr": 24875760
       },
       "us": {
         "estTaxUsd": 0
@@ -1094,7 +1171,7 @@
       "us": {
         "foreignSourceIncomeUsd": 0,
         "feieExcludedUsd": 0,
-        "indiaTaxDisallowedUsd": 98411.56626506023,
+        "indiaTaxDisallowedUsd": 299707.9518072289,
         "taxableIncomeUsd": 0,
         "usIncomeTaxUsd": 0,
         "indiaTaxPaidUsd": 0,
@@ -1116,7 +1193,7 @@
       "items": [
         {
           "label": "Business / Professional income",
-          "indiaUsd": 265060.2409638554,
+          "indiaUsd": 807228.9156626506,
           "usUsd": 0,
           "doublyTaxed": false,
           "note": "Indian business profits may also flow through GILTI/Subpart F if held via a corp (Form 5471)."
@@ -1140,10 +1217,10 @@
       "name": "Meridian Holdings Pte Ltd",
       "baseYear": 2026,
       "jurisdiction": "single_india",
-      "totalIncomeUsd": 265060.2409638554,
-      "indiaTaxUsd": 98411.56626506023,
+      "totalIncomeUsd": 807228.9156626506,
+      "indiaTaxUsd": 299707.9518072289,
       "usTaxUsd": 0,
-      "combinedTaxBeforeReliefUsd": 98411.56626506023,
+      "combinedTaxBeforeReliefUsd": 299707.9518072289,
       "worldwideOverlap": false,
       "netUnrelievedDoubleTaxUsd": 0
     },
@@ -1154,10 +1231,10 @@
       "id": "india_advance_tax_interest",
       "severity": "warning",
       "category": "credit",
-      "title": "Advance-tax interest exposure — ss.424/425 (₹2,79,975)",
-      "detail": "Advance tax paid (₹52,00,000) falls short of the assessed tax (₹81,68,160) this year. At 1%/month simple interest: ₹2,07,771 under s.424 (shortfall below the 90% floor, 7 months to the audit-case (31 Oct) due date) + ₹72,204 under s.425 (quarter-by-quarter installment shortfalls). Both keep accruing past the due date until actually paid — this is the exposure AS OF the due date, not a final number.",
+      "title": "Advance-tax interest exposure — ss.424/425 (₹18,67,197)",
+      "detail": "Advance tax paid (₹52,00,000) falls short of the assessed tax (₹2,48,75,760) this year. At 1%/month simple interest: ₹13,77,303 under s.424 (shortfall below the 90% floor, 7 months to the audit-case (31 Oct) due date) + ₹4,89,894 under s.425 (quarter-by-quarter installment shortfalls). Both keep accruing past the due date until actually paid — this is the exposure AS OF the due date, not a final number.",
       "recommendation": "Pay the shortfall before filing to stop s.424 interest accruing further; s.425's quarter-by-quarter amount is fixed once the year ends and doesn't grow. If the year isn't over yet, revise the remaining installment(s) upward.",
-      "amountUsd": 3373.195180722891,
+      "amountUsd": 22496.351807228915,
       "refs": [
         "s.424",
         "s.425",
@@ -1507,7 +1584,7 @@
             "parts": [
               {
                 "label": "Total India tax (from Tax Computation)",
-                "amount": 98411.56626506023
+                "amount": 299707.9518072289
               },
               {
                 "label": "Creditable fraction",
@@ -1684,7 +1761,7 @@
             "parts": [
               {
                 "label": "Total India tax",
-                "amount": 98411.56626506023
+                "amount": 299707.9518072289
               },
               {
                 "label": "US-source income (India view)",
@@ -1692,7 +1769,7 @@
               },
               {
                 "label": "Total India-view income",
-                "amount": 265060.2409638554
+                "amount": 807228.9156626506
               }
             ],
             "citation": null
@@ -1729,7 +1806,7 @@
       "rows": [
         {
           "label": "Gross total income",
-          "inr": 22000000,
+          "inr": 67000000,
           "trace": {
             "kind": "holdings",
             "section": "india",
@@ -1769,14 +1846,14 @@
         },
         {
           "label": "Total income",
-          "inr": 22000000,
+          "inr": 67000000,
           "trace": {
             "kind": "calc",
             "formula": "Gross total income less Chapter VI-A deductions",
             "parts": [
               {
                 "label": "Gross total income",
-                "amount": 22000000
+                "amount": 67000000
               },
               {
                 "label": "Less Chapter VI-A deductions",
@@ -1788,7 +1865,7 @@
         },
         {
           "label": "Tax at slab rates",
-          "inr": 7699999.999999999,
+          "inr": 23450000,
           "trace": {
             "kind": "calc",
             "formula": "Progressive slab-rate tax under the Foreign Company ITR-6 (35%, MAT-exempt (no India PE)) regime, applied to ₹NaN of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
@@ -1827,14 +1904,14 @@
         },
         {
           "label": "Surcharge",
-          "inr": 154000,
+          "inr": 469000,
           "trace": {
             "kind": "calc",
             "formula": "Progressive surcharge (10%/15%/25%/37% bands by total income) on tax before cess, with marginal relief so the tax increase never exceeds the income increase over the threshold; capital-gains/dividend-type special-rate income is capped at a 15% surcharge rate",
             "parts": [
               {
                 "label": "Surcharge",
-                "amount": 154000
+                "amount": 469000
               }
             ],
             "citation": null
@@ -1842,18 +1919,18 @@
         },
         {
           "label": "Health & education cess (4%)",
-          "inr": 314159.99999999994,
+          "inr": 956760,
           "trace": {
             "kind": "calc",
             "formula": "4% of (tax after rebate + surcharge)",
             "parts": [
               {
                 "label": "Tax after §156 rebate",
-                "amount": 7699999.999999999
+                "amount": 23450000
               },
               {
                 "label": "Surcharge",
-                "amount": 154000
+                "amount": 469000
               },
               {
                 "label": "Cess rate",
@@ -1865,7 +1942,7 @@
         },
         {
           "label": "Total India tax",
-          "inr": 8168159.999999999,
+          "inr": 24875760,
           "emphasis": true,
           "trace": {
             "kind": "calc",
@@ -1873,7 +1950,7 @@
             "parts": [
               {
                 "label": "Tax at slab rates",
-                "amount": 7699999.999999999
+                "amount": 23450000
               },
               {
                 "label": "Tax on special-rate income",
@@ -1885,19 +1962,19 @@
               },
               {
                 "label": "Surcharge",
-                "amount": 154000
+                "amount": 469000
               },
               {
                 "label": "Cess",
-                "amount": 314159.99999999994
+                "amount": 956760
               }
             ],
             "citation": null
           }
         }
       ],
-      "totalUsd": 98411.56626506023,
-      "effectiveRate": 0.37127999999999994
+      "totalUsd": 299707.9518072289,
+      "effectiveRate": 0.37128
     },
     "us": {
       "title": "US federal income tax (SINGLE)",
@@ -2103,7 +2180,7 @@
       "matchesFrontend": null,
       "trace": {
         "kind": "source",
-        "detail": "For Corporate Companies (Private Limited, Public Limited, OPCs) not claiming charitable exemptions. Reasons: Total income exceeds ₹50,00,000 (₹2,20,00,000). Layer 1 India hasn't produced its own recommendation for this profile (itr_recommendation.form is unset) — this is WISING's own independent computation, run unconditionally, not a hedge pending the frontend.",
+        "detail": "For Corporate Companies (Private Limited, Public Limited, OPCs) not claiming charitable exemptions. Reasons: Total income exceeds ₹50,00,000 (₹6,70,00,000). Layer 1 India hasn't produced its own recommendation for this profile (itr_recommendation.form is unset) — this is WISING's own independent computation, run unconditionally, not a hedge pending the frontend.",
         "citation": "CBDT notified the AY 2026-27 ITR forms 2026-03-30 (corrigendum 2026-04-10). Eligibility rules verified against that notification 2026-07-12 — re-check each filing season, since CBDT re-notifies forms (and sometimes changes eligibility) annually."
       }
     },
@@ -2117,11 +2194,11 @@
     }
   },
   "monitoring": {
-    "asOf": "2026-07-25T03:45:46.293Z",
+    "asOf": "2026-07-27T02:56:22.287Z",
     "simulated": false,
     "baseYear": 2026,
-    "progressUS": 0.5636175434027778,
-    "progressIN": 0.31636479615003055,
+    "progressUS": 0.5690178026747558,
+    "progressIN": 0.32176505542200856,
     "residency": [
       {
         "kind": "qualitative",
@@ -2173,7 +2250,7 @@
           "date": "2026-06-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": -40,
+          "daysUntil": -42,
           "status": "passed",
           "dateLabel": "Jun 15, 2026"
         },
@@ -2183,7 +2260,7 @@
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 52,
+          "daysUntil": 50,
           "status": "upcoming",
           "dateLabel": "Sep 15, 2026"
         },
@@ -2193,7 +2270,7 @@
           "date": "2026-12-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 143,
+          "daysUntil": 141,
           "status": "upcoming",
           "dateLabel": "Dec 15, 2026"
         },
@@ -2203,7 +2280,7 @@
           "date": "2027-03-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 233,
+          "daysUntil": 231,
           "status": "upcoming",
           "dateLabel": "Mar 15, 2027"
         },
@@ -2222,7 +2299,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 463,
+          "daysUntil": 461,
           "status": "upcoming",
           "dateLabel": "Oct 31, 2027"
         },
@@ -2241,7 +2318,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 524,
+          "daysUntil": 522,
           "status": "upcoming",
           "dateLabel": "Dec 31, 2027"
         }
@@ -2253,7 +2330,7 @@
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 52,
+          "daysUntil": 50,
           "status": "upcoming",
           "dateLabel": "Sep 15, 2026"
         },
@@ -2263,7 +2340,7 @@
           "date": "2026-12-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 143,
+          "daysUntil": 141,
           "status": "upcoming",
           "dateLabel": "Dec 15, 2026"
         },
@@ -2273,7 +2350,7 @@
           "date": "2027-03-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 233,
+          "daysUntil": 231,
           "status": "upcoming",
           "dateLabel": "Mar 15, 2027"
         },
@@ -2292,7 +2369,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 463,
+          "daysUntil": 461,
           "status": "upcoming",
           "dateLabel": "Oct 31, 2027"
         },
@@ -2311,7 +2388,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 524,
+          "daysUntil": 522,
           "status": "upcoming",
           "dateLabel": "Dec 31, 2027"
         }
@@ -2322,7 +2399,7 @@
         "date": "2026-09-15T00:00:00.000Z",
         "cat": "Advance tax",
         "docIds": [],
-        "daysUntil": 52,
+        "daysUntil": 50,
         "status": "upcoming",
         "dateLabel": "Sep 15, 2026"
       }
@@ -2355,8 +2432,8 @@
     "indiaStatus": "ROR",
     "usStatus": "NON_RESIDENT_ALIEN",
     "dualResident": false,
-    "totalIncomeUsd": 265060.2409638554,
-    "indiaTaxUsd": 98411.56626506023,
+    "totalIncomeUsd": 807228.9156626506,
+    "indiaTaxUsd": 299707.9518072289,
     "usTaxUsd": 0,
     "netDoubleTaxUsd": 0,
     "counts": {

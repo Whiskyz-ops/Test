@@ -1,0 +1,299 @@
+{
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "full_name": "David Chen",
+    "date_of_birth": "1979-03-08",
+    "is_us_citizen": true,
+    "has_green_card": false,
+    "us_days": 365,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Kavya Iyer",
+      "entity_type": "individual",
+      "date_of_birth": "1984-11-20",
+      "pan": "AKIPI4567L",
+      "tax_regime": "OLD"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 0,
+      "final_india_residency_status": "NR"
+    },
+    "dtaa": {},
+    "compliance_docs": {},
+    "bank_accounts": [],
+    "property": {
+      "has_indian_property_transaction": true,
+      "properties": [
+        {
+          "address": "Flat 3B, Indiranagar, Bengaluru",
+          "property_type": "Residential",
+          "annual_value_inr": 360000,
+          "gross_rent_received_inr": 480000,
+          "municipal_taxes_paid_inr": 18000
+        },
+        {
+          "address": "2BHK, Mysore",
+          "property_type": "Residential",
+          "annual_value_inr": 180000,
+          "gross_rent_received_inr": 240000,
+          "municipal_taxes_paid_inr": 9000
+        }
+      ]
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": [
+        {
+          "asset_type": "equity_mutual_fund",
+          "asset_name": "Parag Parikh Flexi Cap",
+          "value_inr": 3200000
+        },
+        {
+          "asset_type": "debt_mutual_fund",
+          "asset_name": "ICICI Pru Corporate Bond Fund",
+          "value_inr": 1400000
+        },
+        {
+          "asset_class": "building_residential",
+          "asset_name_or_ticker": "ETH",
+          "quantity": 3,
+          "acquisition_date": "2024-02-10",
+          "purchase_value": 0,
+          "purchase_currency": "INR",
+          "sale_date": "2026-09-01",
+          "sale_value": 720000,
+          "sale_currency": "INR",
+          "transfer_expenses": 0
+        }
+      ]
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "house_property": {
+        "has_house_property_income": false,
+        "properties": []
+      },
+      "business_income": {
+        "has_business_or_fo_income": false,
+        "business_entries": []
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {},
+    "deductions": {},
+    "carry_forward_losses": {},
+    "lrs_outbound": {},
+    "tax_credits": {},
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "transactions": []
+        },
+        "property": {
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    },
+    "commodities": {
+      "transactions": [
+        {
+          "asset_class": "building_temporary",
+          "acquisition_date": "2023-11-01",
+          "purchase_value": 320000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-10-15",
+          "sale_value": 895736.07,
+          "sale_currency": "INR"
+        },
+        {
+          "asset_class": "sovereign_gold_bond_original",
+          "acquisition_date": "2018-10-29",
+          "purchase_value": 150000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-11-05",
+          "sale_value": 260000,
+          "sale_currency": "INR",
+          "is_maturity_redemption": false
+        }
+      ]
+    },
+    "capital_gains": {
+      "ltcg_112a_inr": 210000
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "David Chen",
+      "date_of_birth": "1979-03-08",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 5.39
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 0,
+      "spt_test_met": false,
+      "final_us_residency_status": "NON_RESIDENT_ALIEN"
+    },
+    "income_us_source": {},
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "equity_compensation": {
+      "iso_exercises": [
+        {
+          "shares_exercised": 0,
+          "fmv_at_exercise_usd": 40,
+          "strike_price_usd": 15
+        }
+      ]
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "itemized",
+      "state_and_local_taxes_paid_usd": 45000,
+      "mortgage_interest_paid_usd": 24000,
+      "charitable_contributions_cash_usd": 12000,
+      "charitable_contributions_appreciated_usd": 0,
+      "medical_expenses_usd": 8000,
+      "student_loan_interest_usd": 2500,
+      "child_and_dependent_care_expenses_usd": 9000,
+      "education_credits_aotc_usd": 2500,
+      "education_credits_llc_usd": 0,
+      "dependents_count": 2
+    },
+    "amt_inputs": {
+      "private_activity_bond_interest_usd": 3000
+    },
+    "state_residency": {
+      "primary_state_of_residence": "CA",
+      "ca_retains_property_or_voter_reg": true
+    },
+    "bank_accounts": [],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {
+      "401k_employee_contribution_usd": 0,
+      "401k_employer_match_usd": 11000,
+      "hsa_contribution_usd": 8300
+    },
+    "financial_holdings": [
+      {
+        "asset_name": "Fidelity 401(k)",
+        "account_type": "retirement_brokerage",
+        "peak_balance_usd": 0,
+        "country": "US"
+      }
+    ],
+    "real_estate": {
+      "has_real_estate_transaction": true,
+      "properties": [
+        {
+          "name": "Rental duplex — Sacramento, CA",
+          "property_type": "Residential rental",
+          "gross_rent_usd": 36000,
+          "expenses_usd": 15000
+        }
+      ]
+    },
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {},
+    "nra_specific": {
+      "files_form_1040nr": true
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

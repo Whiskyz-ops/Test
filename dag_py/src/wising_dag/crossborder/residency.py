@@ -9,7 +9,7 @@ elsewhere for `WISING.util`-equivalent purposes.
 from __future__ import annotations
 
 from ..core.graph import NodeDef
-from ..core.util import num, safe
+from ..core.util import js_num_str, num, safe
 
 
 def derive_company_poem(cr: dict | None) -> bool:
@@ -199,9 +199,9 @@ def _residency_consistency_findings(d, ctx):
             if d["usDaysCurrentYearRaw"] >= 183 and d["usSptMetRaw"] is False:
                 findings.append({
                     "id": "residency_status_understated_us", "severity": "info", "category": "residency",
-                    "title": f"US Substantial Presence Test may be understated — {d['usDaysCurrentYearRaw']} days present but SPT marked not met",
+                    "title": f"US Substantial Presence Test may be understated — {js_num_str(d['usDaysCurrentYearRaw'])} days present but SPT marked not met",
                     "detail": (
-                        f"Layer 1 records {d['usDaysCurrentYearRaw']} days of physical presence in the US this year — at or above the "
+                        f"Layer 1 records {js_num_str(d['usDaysCurrentYearRaw'])} days of physical presence in the US this year — at or above the "
                         "183-day figure IRC 7701(b)(3)'s weighted 3-year sum reaches from current-year days alone (full weight, regardless "
                         "of the prior two years) — yet spt_test_met is recorded false. Two narrow exception categories exist, confirmed "
                         "against Layer 1 US's own SPT calculation (layer1_us.html): 'exempt individual' status (F/J/M/Q student/trainee "
@@ -216,9 +216,9 @@ def _residency_consistency_findings(d, ctx):
             elif d["usDaysCurrentYearRaw"] < 31 and d["usSptMetRaw"] is True:
                 findings.append({
                     "id": "residency_status_overstated_us", "severity": "warning", "category": "residency",
-                    "title": f"US Substantial Presence Test may be overstated — only {d['usDaysCurrentYearRaw']} days present but SPT marked met",
+                    "title": f"US Substantial Presence Test may be overstated — only {js_num_str(d['usDaysCurrentYearRaw'])} days present but SPT marked met",
                     "detail": (
-                        f"Layer 1 records only {d['usDaysCurrentYearRaw']} days of physical presence in the US this year, but "
+                        f"Layer 1 records only {js_num_str(d['usDaysCurrentYearRaw'])} days of physical presence in the US this year, but "
                         "spt_test_met is recorded true. IRC 7701(b)(3)(A) sets an unconditional floor: the SPT cannot be satisfied with "
                         "fewer than 31 days of presence in the current year, regardless of the weighted 3-year total. No known exception "
                         "(exempt-individual status and day-exclusions can only reduce the count, never add days back)."

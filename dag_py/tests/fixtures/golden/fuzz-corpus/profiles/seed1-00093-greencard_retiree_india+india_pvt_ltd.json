@@ -1,0 +1,268 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Lakshmi Pillai",
+    "date_of_birth": "1958-04-15",
+    "is_us_citizen": false,
+    "has_green_card": true,
+    "us_days": 0,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Lakshmi Pillai",
+      "entity_type": "company",
+      "date_of_birth": "1958-04-15",
+      "pan": "ALPPL1234M",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 300,
+      "final_india_residency_status": "ROR",
+      "nr_years_last_10_gte_9": true,
+      "days_in_india_last_7_years_lte_729": false
+    },
+    "dtaa": {
+      "tax_residency_country": "IN",
+      "dtaa_treaty_residence": "none",
+      "trc_status": false,
+      "form_10f": false
+    },
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": false
+      },
+      "form_10f": {
+        "is_filed": false
+      }
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "SBI",
+        "account_type": "savings",
+        "peak_balance_inr": 850000
+      }
+    ],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "has_financial_transactions": false,
+      "transactions": []
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "entity_type": "company",
+        "business_entries": [
+          {
+            "business_name": "Nova Systems Pvt Ltd",
+            "nature": "software",
+            "presumptive_scheme": null,
+            "turnover_inr": 100000000,
+            "expenses": {
+              "employee_salary_wages_inr": 24000000,
+              "rent_for_business_premises_inr": 0,
+              "other_business_expenses_inr": 0,
+              "ca_professional_fees_inr": 2216143.4,
+              "insurance_premium_inr": 658822.29
+            }
+          },
+          {
+            "business_name": "Nova Systems Pvt Ltd",
+            "nature": "software",
+            "presumptive_scheme": null,
+            "turnover_inr": 100000000,
+            "expenses": {
+              "employee_salary_wages_inr": 24000000,
+              "rent_for_business_premises_inr": 0,
+              "other_business_expenses_inr": 0,
+              "ca_professional_fees_inr": 2216143.4,
+              "insurance_premium_inr": 658822.29
+            }
+          }
+        ],
+        "asset_blocks": [
+          {
+            "unit_biz_idx": 0,
+            "unit_branch_idx": null,
+            "asset_class": "plant_machinery_computers",
+            "opening_wdv_inr": 7000000,
+            "additions_during_year_inr": 0,
+            "addition_date": null,
+            "sale_consideration_inr": 0,
+            "is_new_manufacturing_asset": false
+          },
+          {
+            "unit_biz_idx": 0,
+            "unit_branch_idx": null,
+            "asset_class": "building_commercial",
+            "opening_wdv_inr": 12000000,
+            "additions_during_year_inr": 0,
+            "addition_date": null,
+            "sale_consideration_inr": 0,
+            "is_new_manufacturing_asset": false
+          }
+        ]
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "family_pension_inr": 600000,
+      "interest_fd_rd_inr": 8000
+    },
+    "deductions": {},
+    "lrs_outbound": {},
+    "tax_credits": {
+      "advance_tax_q1_15jun_inr": 3000000,
+      "advance_tax_q2_15sep_inr": 3500000,
+      "advance_tax_q3_15dec_inr": 3500000,
+      "advance_tax_q4_15mar_inr": 3000000,
+      "tds_already_deducted_inr": 400000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "family_pension_inr": 150000,
+          "interest_fd_rd_inr": 3934.74
+        },
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "has_financial_transactions": false,
+          "transactions": []
+        },
+        "property": {
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "family_pension_inr": 150000,
+          "interest_fd_rd_inr": 2000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": false,
+          "family_pension_inr": 150000,
+          "interest_fd_rd_inr": 2000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "family_pension_inr": 0,
+          "interest_fd_rd_inr": 2000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Lakshmi Pillai",
+      "date_of_birth": "1958-04-15",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 20,
+      "spt_test_met": true,
+      "final_us_residency_status": "RESIDENT_ALIEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "interest_us_source_usd": 200
+    },
+    "income_foreign_source": {
+      "foreign_interest_usd": 96,
+      "foreign_pension_usd": 7228
+    },
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "Wells Fargo",
+        "account_type": "savings",
+        "country": "US",
+        "peak_balance_usd": 4000
+      }
+    ],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "pfic_holdings": []
+    },
+    "financial_holdings": [],
+    "retirement_accounts": {},
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {},
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "foreign_gifts_and_trusts": {},
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 0
+    }
+  }
+}

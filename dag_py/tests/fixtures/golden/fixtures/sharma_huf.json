@@ -2392,11 +2392,11 @@
     }
   },
   "monitoring": {
-    "asOf": "2026-07-25T03:45:46.371Z",
+    "asOf": "2026-07-27T02:56:22.400Z",
     "simulated": false,
     "baseYear": 2026,
-    "progressUS": 0.5636175458829366,
-    "progressIN": 0.31636479863018924,
+    "progressUS": 0.5690178062678063,
+    "progressIN": 0.32176505901505903,
     "residency": [
       {
         "kind": "qualitative",
@@ -2446,7 +2446,7 @@
           "date": "2026-06-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": -40,
+          "daysUntil": -42,
           "status": "passed",
           "dateLabel": "Jun 15, 2026"
         },
@@ -2456,7 +2456,7 @@
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 52,
+          "daysUntil": 50,
           "status": "upcoming",
           "dateLabel": "Sep 15, 2026"
         },
@@ -2466,7 +2466,7 @@
           "date": "2026-12-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 143,
+          "daysUntil": 141,
           "status": "upcoming",
           "dateLabel": "Dec 15, 2026"
         },
@@ -2476,7 +2476,7 @@
           "date": "2027-03-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 233,
+          "daysUntil": 231,
           "status": "upcoming",
           "dateLabel": "Mar 15, 2027"
         },
@@ -2495,7 +2495,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 371,
+          "daysUntil": 369,
           "status": "upcoming",
           "dateLabel": "Jul 31, 2027"
         },
@@ -2514,7 +2514,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 524,
+          "daysUntil": 522,
           "status": "upcoming",
           "dateLabel": "Dec 31, 2027"
         }
@@ -2526,7 +2526,7 @@
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 52,
+          "daysUntil": 50,
           "status": "upcoming",
           "dateLabel": "Sep 15, 2026"
         },
@@ -2536,7 +2536,7 @@
           "date": "2026-12-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 143,
+          "daysUntil": 141,
           "status": "upcoming",
           "dateLabel": "Dec 15, 2026"
         },
@@ -2546,7 +2546,7 @@
           "date": "2027-03-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": 233,
+          "daysUntil": 231,
           "status": "upcoming",
           "dateLabel": "Mar 15, 2027"
         },
@@ -2565,7 +2565,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 371,
+          "daysUntil": 369,
           "status": "upcoming",
           "dateLabel": "Jul 31, 2027"
         },
@@ -2584,7 +2584,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 524,
+          "daysUntil": 522,
           "status": "upcoming",
           "dateLabel": "Dec 31, 2027"
         }
@@ -2595,7 +2595,7 @@
         "date": "2026-09-15T00:00:00.000Z",
         "cat": "Advance tax",
         "docIds": [],
-        "daysUntil": 52,
+        "daysUntil": 50,
         "status": "upcoming",
         "dateLabel": "Sep 15, 2026"
       }

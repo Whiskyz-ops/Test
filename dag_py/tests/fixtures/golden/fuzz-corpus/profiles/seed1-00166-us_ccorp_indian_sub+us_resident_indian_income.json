@@ -1,0 +1,648 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Cloudspire Inc",
+    "date_of_birth": "1988-01-01",
+    "is_us_citizen": true,
+    "has_green_card": false,
+    "us_days": 365,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Cloudspire India Pvt Ltd",
+      "entity_type": "company",
+      "tax_regime": "NEW",
+      "turnover_lte_400cr": true,
+      "opt_115baa": false
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 0,
+      "final_india_residency_status": "ROR",
+      "is_poem_in_india": true,
+      "is_indian_company": true
+    },
+    "dtaa": {
+      "dtaa_treaty_residence": "none",
+      "trc_status": false,
+      "has_permanent_establishment_in_india": false
+    },
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": true
+      },
+      "form_10f": {
+        "is_filed": true
+      }
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "HSBC (Current)",
+        "account_type": "current",
+        "peak_balance_inr": 30000000
+      }
+    ],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "has_financial_transactions": false,
+      "transactions": []
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "entity_type": "company",
+        "business_entries": [
+          {
+            "business_name": "Cloudspire India Pvt Ltd",
+            "nature": "software",
+            "presumptive_scheme": null,
+            "turnover_inr": 140000000,
+            "expenses": {
+              "employee_salary_wages_inr": 40134494.54,
+              "rent_for_business_premises_inr": 4000000,
+              "other_business_expenses_inr": 12000000,
+              "ca_professional_fees_inr": 697455.17,
+              "insurance_premium_inr": 300000
+            }
+          }
+        ],
+        "asset_blocks": [
+          {
+            "unit_biz_idx": 0,
+            "unit_branch_idx": null,
+            "asset_class": "plant_machinery_computers",
+            "opening_wdv_inr": 10000000,
+            "additions_during_year_inr": 0,
+            "addition_date": null,
+            "sale_consideration_inr": 0,
+            "is_new_manufacturing_asset": true
+          },
+          {
+            "unit_biz_idx": 0,
+            "unit_branch_idx": null,
+            "asset_class": "building_commercial",
+            "opening_wdv_inr": 40000000,
+            "additions_during_year_inr": 0,
+            "addition_date": null,
+            "sale_consideration_inr": 0,
+            "is_new_manufacturing_asset": false
+          }
+        ]
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {},
+    "deductions": {},
+    "lrs_outbound": {},
+    "tax_credits": {
+      "tds_already_deducted_inr": 430000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 210000
+              },
+              {
+                "annual_value_inr": 210000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "non_speculative_income_inr": 62500,
+            "fno_turnover_inr": 1000000,
+            "speculative_income_inr": -20000,
+            "speculative_turnover_inr": 225000,
+            "business_entries": [
+              {
+                "business_name": "Mehta Advisory Services",
+                "nature": "consulting",
+                "presumptive_scheme": "s44AD",
+                "gross_receipts_inr": 450000,
+                "holding_pct": 5
+              },
+              {
+                "business_name": "Mehta Equipment Rentals",
+                "nature": "equipment rental",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 600000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 139780.06,
+                  "employee_salary_wages_inr": 75000,
+                  "other_business_expenses_inr": 0,
+                  "payments_to_residents_no_tds_inr": 25000
+                }
+              },
+              {
+                "business_name": "Mehta Advisory Services",
+                "nature": "consulting",
+                "presumptive_scheme": "s44AD",
+                "gross_receipts_inr": 450000,
+                "holding_pct": 5
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 1533449.92,
+                "additions_during_year_inr": 125000,
+                "addition_date": "2026-06-01",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": true
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "supplier_name": "Precision Tools Co",
+                "amount_inr": 12500,
+                "invoice_date": "2026-01-01",
+                "has_written_agreement": false,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Kapoor & Mehta Consulting LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 150000,
+                "interest_on_capital_from_entity_inr": 30000,
+                "profit_share_exempt_inr": 225000
+              },
+              {
+                "firm_name": "Kapoor & Mehta Consulting LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 150000,
+                "interest_on_capital_from_entity_inr": 30000,
+                "profit_share_exempt_inr": 225000
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 60071.28
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 65000,
+          "dividend_inr": 55000,
+          "online_gaming_winnings_inr": 80996.62,
+          "unexplained_income_115BBE_inr": 62500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "has_financial_transactions": true,
+          "transactions": [
+            {
+              "asset_type": "equity_mutual_fund",
+              "asset_name": "SBI Bluechip Fund",
+              "value_inr": 4200000
+            },
+            {
+              "asset_type": "equity_mutual_fund",
+              "asset_name": "Mirae Asset Large Cap",
+              "value_inr": 2600000
+            }
+          ]
+        },
+        "property": {
+          "has_indian_property_transaction": true,
+          "properties": [
+            {
+              "address": "Villa 4, Bengaluru",
+              "property_type": "Residential",
+              "annual_value_inr": 840000,
+              "gross_rent_received_inr": 1200000,
+              "municipal_taxes_paid_inr": 190105.35
+            }
+          ]
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 210000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "non_speculative_income_inr": 62500,
+            "fno_turnover_inr": 1000000,
+            "speculative_income_inr": -27926.9,
+            "speculative_turnover_inr": 225000,
+            "business_entries": [
+              {
+                "business_name": "Mehta Advisory Services",
+                "nature": "consulting",
+                "presumptive_scheme": "s44AD",
+                "gross_receipts_inr": 450000,
+                "holding_pct": null
+              },
+              {
+                "business_name": "Mehta Equipment Rentals",
+                "nature": "equipment rental",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 600000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 45000,
+                  "employee_salary_wages_inr": 75000,
+                  "other_business_expenses_inr": 30000,
+                  "payments_to_residents_no_tds_inr": 25000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 500000,
+                "additions_during_year_inr": 125000,
+                "addition_date": "2026-06-01",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "supplier_name": "Precision Tools Co",
+                "amount_inr": 32568.72,
+                "invoice_date": "2026-01-01",
+                "has_written_agreement": false,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Kapoor & Mehta Consulting LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 150000,
+                "interest_on_capital_from_entity_inr": 30000,
+                "profit_share_exempt_inr": 225000
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 45000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": false,
+          "interest_fd_rd_inr": 0,
+          "dividend_inr": 55000,
+          "online_gaming_winnings_inr": 45000,
+          "unexplained_income_115BBE_inr": 62500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 210000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "non_speculative_income_inr": 62500,
+            "fno_turnover_inr": 1000000,
+            "speculative_income_inr": -20000,
+            "speculative_turnover_inr": 0,
+            "business_entries": [
+              {
+                "business_name": "Mehta Advisory Services",
+                "nature": "consulting",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 450000,
+                "holding_pct": null
+              },
+              {
+                "business_name": "Mehta Equipment Rentals",
+                "nature": "equipment rental",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 600000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 45000,
+                  "employee_salary_wages_inr": 75000,
+                  "other_business_expenses_inr": 30000,
+                  "payments_to_residents_no_tds_inr": 0
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 500000,
+                "additions_during_year_inr": 125000,
+                "addition_date": "2026-06-01",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              },
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 500000,
+                "additions_during_year_inr": 125000,
+                "addition_date": "2026-06-01",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "supplier_name": "Precision Tools Co",
+                "amount_inr": 12500,
+                "invoice_date": "2026-01-01",
+                "has_written_agreement": false,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Kapoor & Mehta Consulting LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 150000,
+                "interest_on_capital_from_entity_inr": 30000,
+                "profit_share_exempt_inr": 225000
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 59335.05
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 65000,
+          "dividend_inr": 55000,
+          "online_gaming_winnings_inr": 45000,
+          "unexplained_income_115BBE_inr": 62500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 210000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "non_speculative_income_inr": 62500,
+            "fno_turnover_inr": 1000000,
+            "speculative_income_inr": -20000,
+            "speculative_turnover_inr": 225000,
+            "business_entries": [
+              {
+                "business_name": "Mehta Advisory Services",
+                "nature": "consulting",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 450000,
+                "holding_pct": null
+              },
+              {
+                "business_name": "Mehta Equipment Rentals",
+                "nature": "equipment rental",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 600000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 45000,
+                  "employee_salary_wages_inr": 75000,
+                  "other_business_expenses_inr": 30000,
+                  "payments_to_residents_no_tds_inr": 25000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 1,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 500000,
+                "additions_during_year_inr": 125000,
+                "addition_date": "2026-06-01",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 1,
+                "unit_branch_idx": null,
+                "supplier_name": "Precision Tools Co",
+                "amount_inr": 11451.49,
+                "invoice_date": "2026-01-01",
+                "has_written_agreement": false,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Kapoor & Mehta Consulting LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 150000,
+                "interest_on_capital_from_entity_inr": 30000,
+                "profit_share_exempt_inr": 225000
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 45000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 65000,
+          "dividend_inr": 55000,
+          "online_gaming_winnings_inr": 45000,
+          "unexplained_income_115BBE_inr": 62500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "ccorp",
+      "full_name": "Cloudspire Inc",
+      "incorporation_state": "DE",
+      "incorporated_in_us": true,
+      "filing_status": "single"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 365,
+      "spt_test_met": false,
+      "final_us_residency_status": "DOMESTIC_ENTITY"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Northwind Labs",
+          "wages_box1_usd": 158000,
+          "qualified_tip_income_usd": 2400,
+          "qualified_overtime_premium_usd": 5800,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 30000,
+            "medicare_wages_box5_usd": 158000
+          }
+        }
+      ],
+      "self_employment": [
+        {
+          "business_name": "Mehta Analytics (consulting)",
+          "self_employment_earnings_usd": 65731.92
+        }
+      ],
+      "partnerships_k1": [
+        {
+          "business_name": "Meridian Consulting Partners LLC",
+          "partner_type": "general",
+          "ordinary_business_income_usd": 18000,
+          "guaranteed_payments_usd": 12000,
+          "self_employment_earnings_usd": 30000,
+          "interest_income_usd": 900,
+          "sec179_deduction_usd": 2000
+        }
+      ],
+      "s_corporations_k1": [
+        {
+          "business_name": "Harborline Print Co",
+          "ordinary_income_usd": 24802.88,
+          "ordinary_dividends_usd": 500,
+          "is_specified_service_trade": false
+        }
+      ],
+      "interest_us_source_usd": 0,
+      "ordinary_dividends_us_source_usd": 6400,
+      "qualified_dividends_us_source_usd": 4000,
+      "ltcg_us_source_usd": 12000,
+      "rental_income_us_source_usd": 27000
+    },
+    "corporate_financials": {
+      "schedule_m1": {
+        "net_income_per_books": 4000000,
+        "federal_tax_expense": 900000,
+        "meals_disallowed_50": 50000,
+        "foreign_taxes_credited": 40000,
+        "tax_exempt_interest": 30000,
+        "tax_depreciation_over_book": 0
+      }
+    },
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": true,
+      "feie_amount_claimed_usd": 14458,
+      "tax_home_country": "United States",
+      "bona_fide_residence": false,
+      "physical_presence": false,
+      "days_in_us_during_test_period": 365
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "SVB",
+        "account_type": "current",
+        "country": "US",
+        "peak_balance_usd": 1800000
+      }
+    ],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "owns_10_percent_foreign_corp": true,
+      "foreign_corporations": [
+        {
+          "corporation_name": "Cloudspire India Pvt Ltd",
+          "country_of_incorporation": "IN",
+          "ownership_percentage": 100,
+          "tax_year_start": "2026-04-01",
+          "gilti_income_usd": 963855,
+          "subpart_f_income_usd": 0
+        },
+        {
+          "corporation_name": "Cloudspire India Pvt Ltd",
+          "country_of_incorporation": "IN",
+          "ownership_percentage": 100,
+          "tax_year_start": "2026-04-01",
+          "gilti_income_usd": 963855,
+          "subpart_f_income_usd": 0
+        }
+      ],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {},
+    "ftc_inputs": {
+      "claims_ftc": false,
+      "ftc_baskets": [
+        {
+          "country": "IN",
+          "basket_category": "General",
+          "foreign_taxes_usd": 240964
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "estimated_tax_q1_apr15_usd": 0,
+      "estimated_tax_q2_jun15_usd": 220000
+    },
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

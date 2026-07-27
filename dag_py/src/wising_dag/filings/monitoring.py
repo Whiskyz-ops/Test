@@ -28,7 +28,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from ..core.graph import NodeDef
-from ..core.util import js_round
+from ..core.util import js_num_str, js_round
 
 
 def _monitor_as_of_boundary(d, ctx):
@@ -98,11 +98,11 @@ def _residency_counter(cfg):
         elapsed_needed = (threshold - days) / pace
         res["status"] = "will_flip"
         res["flipDate"] = _add_days(cfg["today"], elapsed_needed)
-        res["headline"] = f"{js_round(threshold - days)} more days → becomes resident"
+        res["headline"] = f"{js_num_str(threshold - days)} more days → becomes resident"
         res["dateLabel"] = f"Projected flip ~{_fmt_date(res['flipDate'])} at current pace"
     else:
         res["status"] = "safe"
-        res["headline"] = f"Non-resident — {js_round(threshold - days)} days of headroom"
+        res["headline"] = f"Non-resident — {js_num_str(threshold - days)} days of headroom"
         res["dateLabel"] = "Not projected to cross this year"
     return res
 
@@ -147,7 +147,7 @@ def _residency_monitor_result(d, ctx):
             if cr.get("keyManagementLocation"):
                 co_facts.append(f"Key management location: {cr['keyManagementLocation']}")
             if cr.get("directorsInIndia") or cr.get("directorsOutsideIndia"):
-                co_facts.append(f"{js_round(cr.get('directorsInIndia') or 0)} director(s) in India, {js_round(cr.get('directorsOutsideIndia') or 0)} outside")
+                co_facts.append(f"{js_num_str(cr.get('directorsInIndia') or 0)} director(s) in India, {js_num_str(cr.get('directorsOutsideIndia') or 0)} outside")
         else:
             co_facts.append("Incorporation status (Indian vs. foreign) not yet answered on Layer 1 India")
         india_entry = _residency_qualitative({
@@ -162,7 +162,7 @@ def _residency_monitor_result(d, ctx):
             "Control & management location not yet answered on Layer 1 India"
         ]
         if india_kind == "huf" and wo is False:
-            non_ind_facts.append(f"Karta's own presence this FY ({js_round(residency_slice['india']['daysCurrentYear'])} days) still determines ROR vs. RNOR sub-status, separately from the HUF's own residency")
+            non_ind_facts.append(f"Karta's own presence this FY ({js_num_str(residency_slice['india']['daysCurrentYear'])} days) still determines ROR vs. RNOR sub-status, separately from the HUF's own residency")
         india_entry = _residency_qualitative({
             "country": "India", "flag": "🇮🇳", "test": "Control & management (s.6(2)/s.6(4)) — not day-count",
             "isResident": residency_result["india"]["isResident"], "worldwide": residency_result["india"]["worldwide"], "facts": non_ind_facts,

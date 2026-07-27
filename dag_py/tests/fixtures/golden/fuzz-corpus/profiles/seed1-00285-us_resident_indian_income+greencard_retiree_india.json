@@ -1,0 +1,339 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Rohan Mehta",
+    "date_of_birth": "1985-03-22",
+    "is_us_citizen": false,
+    "has_green_card": true,
+    "us_days": 365,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Rohan Mehta",
+      "entity_type": "individual",
+      "date_of_birth": "1985-03-22",
+      "pan": "AAAPM5678Q",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 300,
+      "final_india_residency_status": "ROR",
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false
+    },
+    "dtaa": {
+      "tax_residency_country": "US",
+      "is_us_resident_for_dtaa": true,
+      "dtaa_treaty_residence": "US",
+      "trc_status": false,
+      "form_10f": false,
+      "treaty_elections": [
+        {
+          "income_type": "interest",
+          "amount_inr": 150000,
+          "elected_rate": 0,
+          "treaty_article": "Art 11(2)(b)"
+        },
+        {
+          "income_type": "royalty",
+          "amount_inr": 400000,
+          "elected_rate": 0.15,
+          "treaty_article": "Art 12(2)(a)(ii)"
+        }
+      ]
+    },
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": false
+      },
+      "form_10f": {
+        "is_filed": false
+      }
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "SBI (NRO)",
+        "account_type": "nro",
+        "peak_balance_inr": 2600000
+      },
+      {
+        "bank_name": "Axis (NRE)",
+        "account_type": "nre",
+        "peak_balance_inr": 1900000
+      }
+    ],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": [
+        {
+          "asset_type": "equity_mutual_fund",
+          "asset_name": "SBI Bluechip Fund",
+          "value_inr": 4200000
+        },
+        {
+          "asset_type": "equity_mutual_fund",
+          "asset_name": "Mirae Asset Large Cap",
+          "value_inr": 2600000
+        },
+        {
+          "asset_type": "equity_mutual_fund",
+          "asset_name": "Mirae Asset Large Cap",
+          "value_inr": 2600000
+        }
+      ]
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "business_income": {
+        "has_business_or_fo_income": false
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_fd_rd_inr": 260000,
+      "dividend_inr": 220000,
+      "online_gaming_winnings_inr": 437036.68,
+      "unexplained_income_115BBE_inr": 250000
+    },
+    "deductions": {},
+    "lrs_outbound": {},
+    "tax_credits": {
+      "tds_already_deducted_inr": 430000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "family_pension_inr": 150000,
+          "interest_fd_rd_inr": 2000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "has_financial_transactions": false,
+          "transactions": []
+        },
+        "property": {
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "family_pension_inr": 150000,
+          "interest_fd_rd_inr": 2000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "family_pension_inr": 150000,
+          "interest_fd_rd_inr": 2000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "family_pension_inr": 150000,
+          "interest_fd_rd_inr": 2000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Lakshmi Pillai",
+      "date_of_birth": "1958-04-15",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": true,
+      "us_days_current_year": 345,
+      "spt_test_met": true,
+      "final_us_residency_status": "RESIDENT_ALIEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Northwind Labs",
+          "wages_box1_usd": 158000,
+          "qualified_tip_income_usd": 2400,
+          "qualified_overtime_premium_usd": 5800,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 30000,
+            "medicare_wages_box5_usd": 158000
+          }
+        }
+      ],
+      "self_employment": [
+        {
+          "business_name": "Mehta Analytics (consulting)",
+          "self_employment_earnings_usd": 62000
+        }
+      ],
+      "partnerships_k1": [
+        {
+          "business_name": "Meridian Consulting Partners LLC",
+          "partner_type": "general",
+          "ordinary_business_income_usd": 18000,
+          "guaranteed_payments_usd": 12000,
+          "self_employment_earnings_usd": 30000,
+          "interest_income_usd": 900,
+          "sec179_deduction_usd": 2000
+        }
+      ],
+      "s_corporations_k1": [
+        {
+          "business_name": "Harborline Print Co",
+          "ordinary_income_usd": 9000,
+          "ordinary_dividends_usd": 0,
+          "is_specified_service_trade": false
+        },
+        {
+          "business_name": "Harborline Print Co",
+          "ordinary_income_usd": 9000,
+          "ordinary_dividends_usd": 0,
+          "is_specified_service_trade": false
+        }
+      ],
+      "interest_us_source_usd": 15909.28,
+      "ordinary_dividends_us_source_usd": 6400,
+      "qualified_dividends_us_source_usd": 4000,
+      "ltcg_us_source_usd": 12000,
+      "rental_income_us_source_usd": 27000
+    },
+    "income_foreign_source": {
+      "foreign_rental_income_usd": 14458,
+      "foreign_dividends_usd": 2651,
+      "foreign_interest_usd": 3133,
+      "foreign_stcg_usd": 2169
+    },
+    "retirement_accounts": {},
+    "financial_holdings": [
+      {
+        "asset_name": "Fidelity — Taxable Brokerage",
+        "account_type": "taxable_brokerage",
+        "peak_balance_usd": 224000,
+        "country": "US"
+      },
+      {
+        "asset_name": "Vanguard — VTSAX / VTI",
+        "account_type": "taxable_brokerage",
+        "peak_balance_usd": 141000,
+        "country": "US"
+      }
+    ],
+    "real_estate": {
+      "has_real_estate_transaction": true,
+      "properties": [
+        {
+          "name": "Rental condo — Jersey City, NJ",
+          "property_type": "Residential rental",
+          "gross_rent_usd": 0,
+          "expenses_usd": 9000
+        }
+      ]
+    },
+    "state_residency": {
+      "primary_state_of_residence": "NY",
+      "ny_actual_days_present": 240,
+      "ny_permanent_place_of_abode": true
+    },
+    "foreign_earned_income": {
+      "claims_feie": true
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "SBI (NRO)",
+        "account_type": "nro",
+        "country": "India",
+        "peak_balance_usd": 31325
+      },
+      {
+        "bank_name": "Axis (NRE)",
+        "account_type": "nre",
+        "country": "India",
+        "peak_balance_usd": 0
+      }
+    ],
+    "fbar_aggregate_peak_usd": 54217,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "owns_foreign_disregarded_entity": false,
+      "pfic_holdings": [],
+      "has_pfics": true
+    },
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 30413.58
+    },
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

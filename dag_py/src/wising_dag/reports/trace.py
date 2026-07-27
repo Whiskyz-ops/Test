@@ -25,7 +25,7 @@ verified in Phase 2, so there's no carve-out needed here.
 from __future__ import annotations
 
 from ..core.graph import NodeDef
-from ..core.util import format_inr, format_usd as usd, js_round, num, safe
+from ..core.util import format_inr, format_usd as usd, js_num_str, js_round, num, safe
 from ..india.in1_v3 import bracket_breakdown
 
 
@@ -498,7 +498,7 @@ def _build_tax_computation_us_result(d, ctx):
     if ctc_detail and ctc_detail["availableUsd"] > 0:
         rows.append({"label": "Less Child Tax Credit (§24)", "usd": -(ctc_detail["nonRefundableUsd"] + ctc_detail["refundableUsd"]),
                       "trace": _calc("$2,200/child (TY2025-2028, OBBBA), phased out $50 per $1,000 of AGI over the threshold. The portion that doesn't fit against tax owed is refundable (Additional CTC) up to $1,700/child, capped at 15% of earned income over $2,500. \"Children\" here reuses the same dependents count as the care/AOTC credits above — Layer 1 doesn't separately track qualifying-child ages.",
-                                      [{"label": "Number of children (Layer 1 dependents count)", "display": str(js_round(ctc_detail["numChildren"]))}, {"label": "Max CTC before phase-out", "amount": ctc_detail["maxTotalUsd"]},
+                                      [{"label": "Number of children (Layer 1 dependents count)", "display": js_num_str(ctc_detail["numChildren"])}, {"label": "Max CTC before phase-out", "amount": ctc_detail["maxTotalUsd"]},
                                        {"label": "Phase-out reduction", "amount": -ctc_detail["phaseoutReductionUsd"]}, {"label": "Non-refundable (offsets tax)", "amount": ctc_detail["nonRefundableUsd"]}, {"label": "Refundable (Additional CTC)", "amount": ctc_detail["refundableUsd"]}])})
 
     rows.append({"label": "Total US tax (pre-FTC)", "usd": u["totalTaxBeforeFtcUsd"], "emphasis": True,

@@ -2547,7 +2547,7 @@
     }
   },
   "monitoring": {
-    "asOf": "2026-07-25T03:45:46.362Z",
+    "asOf": "2026-07-27T02:56:22.382Z",
     "simulated": true,
     "baseYear": 2025,
     "progressUS": 0.62,
@@ -2643,7 +2643,7 @@
           "date": "2025-04-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": -466,
+          "daysUntil": -468,
           "status": "passed",
           "dateLabel": "Apr 15, 2025"
         },
@@ -2653,7 +2653,7 @@
           "date": "2025-06-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": -405,
+          "daysUntil": -407,
           "status": "passed",
           "dateLabel": "Jun 15, 2025"
         },
@@ -2663,7 +2663,7 @@
           "date": "2025-06-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": -405,
+          "daysUntil": -407,
           "status": "passed",
           "dateLabel": "Jun 15, 2025"
         },
@@ -2673,7 +2673,7 @@
           "date": "2025-09-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": -313,
+          "daysUntil": -315,
           "status": "passed",
           "dateLabel": "Sep 15, 2025"
         },
@@ -2683,7 +2683,7 @@
           "date": "2025-09-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": -313,
+          "daysUntil": -315,
           "status": "passed",
           "dateLabel": "Sep 15, 2025"
         },
@@ -2693,7 +2693,7 @@
           "date": "2025-12-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": -222,
+          "daysUntil": -224,
           "status": "passed",
           "dateLabel": "Dec 15, 2025"
         },
@@ -2703,7 +2703,7 @@
           "date": "2026-01-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": -191,
+          "daysUntil": -193,
           "status": "passed",
           "dateLabel": "Jan 15, 2026"
         },
@@ -2713,7 +2713,7 @@
           "date": "2026-03-15T00:00:00.000Z",
           "cat": "Advance tax",
           "docIds": [],
-          "daysUntil": -132,
+          "daysUntil": -134,
           "status": "passed",
           "dateLabel": "Mar 15, 2026"
         },
@@ -2739,7 +2739,7 @@
             "form_540",
             "form_it201"
           ],
-          "daysUntil": -101,
+          "daysUntil": -103,
           "status": "passed",
           "dateLabel": "Apr 15, 2026"
         },
@@ -2765,7 +2765,7 @@
             "form_540",
             "form_it201"
           ],
-          "daysUntil": 82,
+          "daysUntil": 80,
           "status": "upcoming",
           "dateLabel": "Oct 15, 2026"
         },
@@ -2784,7 +2784,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 128,
+          "daysUntil": 126,
           "status": "upcoming",
           "dateLabel": "Nov 30, 2026"
         },
@@ -2803,7 +2803,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 159,
+          "daysUntil": 157,
           "status": "upcoming",
           "dateLabel": "Dec 31, 2026"
         }
@@ -2831,7 +2831,7 @@
             "form_540",
             "form_it201"
           ],
-          "daysUntil": 82,
+          "daysUntil": 80,
           "status": "upcoming",
           "dateLabel": "Oct 15, 2026"
         },
@@ -2850,7 +2850,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 128,
+          "daysUntil": 126,
           "status": "upcoming",
           "dateLabel": "Nov 30, 2026"
         },
@@ -2869,7 +2869,7 @@
             "form_3cb_3cd",
             "form_3ceb"
           ],
-          "daysUntil": 159,
+          "daysUntil": 157,
           "status": "upcoming",
           "dateLabel": "Dec 31, 2026"
         }
@@ -2896,7 +2896,7 @@
           "form_540",
           "form_it201"
         ],
-        "daysUntil": 82,
+        "daysUntil": 80,
         "status": "upcoming",
         "dateLabel": "Oct 15, 2026"
       }

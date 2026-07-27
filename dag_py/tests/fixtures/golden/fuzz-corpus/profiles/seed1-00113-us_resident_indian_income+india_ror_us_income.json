@@ -1,0 +1,546 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Rohan Mehta",
+    "date_of_birth": "1985-03-22",
+    "is_us_citizen": false,
+    "has_green_card": true,
+    "us_days": 365,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Rohan Mehta",
+      "entity_type": "individual",
+      "date_of_birth": "1985-03-22",
+      "pan": "AAAPM5678Q",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 20,
+      "final_india_residency_status": "NR"
+    },
+    "dtaa": {
+      "tax_residency_country": "US",
+      "is_us_resident_for_dtaa": true,
+      "dtaa_treaty_residence": "US",
+      "trc_status": false,
+      "form_10f": false,
+      "treaty_elections": [
+        {
+          "income_type": "interest",
+          "amount_inr": 150000,
+          "elected_rate": 0.15,
+          "treaty_article": "Art 11(2)(b)"
+        },
+        {
+          "income_type": "royalty",
+          "amount_inr": 400000,
+          "elected_rate": 0.15,
+          "treaty_article": "Art 12(2)(a)(ii)"
+        }
+      ]
+    },
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": true
+      },
+      "form_10f": {
+        "is_filed": true
+      },
+      "chapter_xiia_elected": true
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "HDFC Bank",
+        "account_type": "savings",
+        "peak_balance_inr": 1800000
+      }
+    ],
+    "property": {
+      "has_indian_property_transaction": true,
+      "properties": [
+        {
+          "address": "Villa 4, Bengaluru",
+          "property_type": "Residential",
+          "annual_value_inr": 840000,
+          "gross_rent_received_inr": 1200000,
+          "municipal_taxes_paid_inr": 60000
+        }
+      ]
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": [
+        {
+          "asset_type": "equity_mutual_fund",
+          "asset_name": "SBI Bluechip Fund",
+          "value_inr": 4200000
+        },
+        {
+          "asset_type": "equity_mutual_fund",
+          "asset_name": "Mirae Asset Large Cap",
+          "value_inr": 2600000
+        }
+      ]
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "house_property": {
+        "has_house_property_income": true,
+        "properties": [
+          {
+            "annual_value_inr": 840000
+          }
+        ]
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "non_speculative_income_inr": 250000,
+        "fno_turnover_inr": 4000000,
+        "speculative_income_inr": -80000,
+        "speculative_turnover_inr": 900000,
+        "business_entries": [
+          {
+            "business_name": "Mehta Advisory Services",
+            "nature": "consulting",
+            "presumptive_scheme": "s44AE",
+            "gross_receipts_inr": 1800000,
+            "holding_pct": 5
+          },
+          {
+            "business_name": "Mehta Equipment Rentals",
+            "nature": "equipment rental",
+            "presumptive_scheme": null,
+            "gross_receipts_inr": 2400000,
+            "expenses": {
+              "rent_for_business_premises_inr": 180000,
+              "employee_salary_wages_inr": 300000,
+              "other_business_expenses_inr": 120000,
+              "payments_to_residents_no_tds_inr": 100000
+            }
+          }
+        ],
+        "asset_blocks": [
+          {
+            "unit_biz_idx": 1,
+            "unit_branch_idx": null,
+            "asset_class": "plant_machinery_general",
+            "opening_wdv_inr": 2000000,
+            "additions_during_year_inr": 501087.52,
+            "addition_date": "2026-06-01",
+            "sale_consideration_inr": 0,
+            "is_new_manufacturing_asset": false
+          }
+        ],
+        "msme_payables": [
+          {
+            "unit_biz_idx": 1,
+            "unit_branch_idx": null,
+            "supplier_name": "Precision Tools Co",
+            "amount_inr": 89298.34,
+            "invoice_date": "2026-01-01",
+            "has_written_agreement": false,
+            "payment_date": null
+          },
+          {
+            "unit_biz_idx": 1,
+            "unit_branch_idx": null,
+            "supplier_name": "Precision Tools Co",
+            "amount_inr": 89298.34,
+            "invoice_date": "2026-01-01",
+            "has_written_agreement": false,
+            "payment_date": null
+          }
+        ],
+        "partner_firms": [
+          {
+            "firm_name": "Kapoor & Mehta Consulting LLP",
+            "entity_type": "llp",
+            "remuneration_from_entity_inr": 94252.95,
+            "interest_on_capital_from_entity_inr": 120000,
+            "profit_share_exempt_inr": 900000
+          }
+        ]
+      },
+      "capital_gains": {
+        "short_term_15_pct": 180000
+      }
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_fd_rd_inr": 277133.03,
+      "dividend_inr": 220000,
+      "online_gaming_winnings_inr": 180000,
+      "unexplained_income_115BBE_inr": 250000
+    },
+    "deductions": {},
+    "lrs_outbound": {},
+    "tax_credits": {
+      "tds_already_deducted_inr": 430000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false,
+            "taxable_salary_inr": 900000
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Desai Advisory",
+                "nature": "management consulting",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 0,
+                "expenses": {
+                  "other_business_expenses_inr": 12500,
+                  "ca_professional_fees_inr": 3750
+                }
+              },
+              {
+                "business_name": "Desai Advisory",
+                "nature": "management consulting",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 0,
+                "expenses": {
+                  "other_business_expenses_inr": 12500,
+                  "ca_professional_fees_inr": 3750
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_motor_cars",
+                "opening_wdv_inr": 37500,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 15000,
+          "interest_fd_rd_inr": 35000
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 75000
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 375000,
+          "lrs_purpose": "investment"
+        },
+        "financial_holdings": {
+          "has_financial_transactions": true,
+          "transactions": [
+            {
+              "asset_class": "foreign_equity_unlisted",
+              "asset_name_or_ticker": "NVDA",
+              "acquisition_date": "2025-02-01",
+              "purchase_value": 8000,
+              "purchase_currency": "USD",
+              "sale_date": "2026-08-19",
+              "sale_value": 15000,
+              "sale_currency": "USD",
+              "stt_paid": false,
+              "transfer_expenses": 0,
+              "is_specified_foreign_exchange_asset": false
+            }
+          ]
+        },
+        "property": {
+          "has_indian_property_transaction": false,
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 900000
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Desai Advisory",
+                "nature": "management consulting",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 175000,
+                "expenses": {
+                  "other_business_expenses_inr": 27059.91,
+                  "ca_professional_fees_inr": 3750
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 37500,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 15000,
+          "interest_fd_rd_inr": 35000
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 75000
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 375000,
+          "lrs_purpose": "investment"
+        }
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 900000
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Desai Advisory",
+                "nature": "management consulting",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 175000,
+                "expenses": {
+                  "other_business_expenses_inr": 12500,
+                  "ca_professional_fees_inr": 6751.74
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 37500,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": true
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 15000,
+          "interest_fd_rd_inr": 101583.13
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 75000
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 375000,
+          "lrs_purpose": "investment"
+        }
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 900000
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Desai Advisory",
+                "nature": "management consulting",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 175000,
+                "expenses": {
+                  "other_business_expenses_inr": 12500,
+                  "ca_professional_fees_inr": 3750
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 37500,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 15000,
+          "interest_fd_rd_inr": 35000
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 75000
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 375000,
+          "lrs_purpose": "investment"
+        }
+      }
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Rohan Mehta",
+      "date_of_birth": "1985-03-22",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": true,
+      "us_days_current_year": 345,
+      "spt_test_met": true,
+      "final_us_residency_status": "RESIDENT_ALIEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "has_real_estate": true,
+      "interest_us_source_usd": 1500.58,
+      "ordinary_dividends_us_source_usd": 9600,
+      "qualified_dividends_us_source_usd": 7000,
+      "ltcg_us_source_usd": 22000,
+      "rental_income_us_source_usd": 0
+    },
+    "income_foreign_source": {
+      "foreign_rental_income_usd": 14458,
+      "foreign_dividends_usd": 3202.88,
+      "foreign_interest_usd": 3133,
+      "foreign_stcg_usd": 2169
+    },
+    "retirement_accounts": {},
+    "financial_holdings": [
+      {
+        "asset_name": "Fidelity — Taxable Brokerage",
+        "account_type": "taxable_brokerage",
+        "peak_balance_usd": 170853.73,
+        "country": "US"
+      },
+      {
+        "asset_name": "Vanguard — VTSAX / VTI",
+        "account_type": "taxable_brokerage",
+        "peak_balance_usd": 141000,
+        "country": "US"
+      }
+    ],
+    "real_estate": {
+      "has_real_estate_transaction": false,
+      "properties": [
+        {
+          "name": "Rental condo — Jersey City, NJ",
+          "property_type": "Residential rental",
+          "gross_rent_usd": 36000,
+          "expenses_usd": 9000
+        }
+      ]
+    },
+    "state_residency": {
+      "primary_state_of_residence": "NY",
+      "ny_actual_days_present": 240,
+      "ny_permanent_place_of_abode": true
+    },
+    "foreign_earned_income": {
+      "claims_feie": true,
+      "feie_amount_claimed_usd": 14458,
+      "tax_home_country": "United States",
+      "bona_fide_residence": false,
+      "physical_presence": false,
+      "days_in_us_during_test_period": 365
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "Chase",
+        "account_type": "checking",
+        "country": "US",
+        "peak_balance_usd": 42000
+      }
+    ],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "owns_10_percent_foreign_corp": false,
+      "foreign_corporations": [],
+      "pfic_holdings": [
+        {
+          "asset_name": "SBI Bluechip Fund",
+          "holding_value_usd": 50602
+        },
+        {
+          "asset_name": "Mirae Asset Large Cap",
+          "holding_value_usd": 31325
+        }
+      ],
+      "has_pfics": true
+    },
+    "ftc_inputs": {
+      "claims_ftc": true,
+      "ftc_baskets": [
+        {
+          "country": "IN",
+          "basket_category": "Passive",
+          "foreign_taxes_usd": 5180
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 30000
+    },
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}
