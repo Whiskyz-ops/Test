@@ -1435,6 +1435,88 @@ Playwright/Chromium browser test: `window.WISING_PY.analyze()` succeeds
 end-to-end against both Pyodide v0.26.4 (production-pinned) and the
 npm-latest build.
 
+### Eleventh Phase 8 pass: live-monitor click-through verification — found and fixed a third real bug
+
+Asked to "build the monitor-next live wiring for the Python DAG toggle."
+That wiring already existed — the second Phase 8 pass ("Toggle + Pyodide
+loader", above) had already built `app/page.jsx`'s three-way compute-source
+pill (DAG → Engine → Python DAG → …), `lib/py-dag-adapter.js`'s full async
+counterpart to `dag-adapter.js` (`analyzePyDag`/`monitorSnapshotPyDag`/
+`allClientSummariesPyDag`/`analyzeProfileByIdPyDag`), and
+`lib/py-dag-loader.js`'s `initPyDag()` boot sequence. What had never
+happened — because the tenth pass's adapter fixes didn't exist yet, and
+because this sandbox has no route to the jsdelivr CDN `py-dag-loader.js`
+points at — was actually clicking that pill in a real running instance of
+this app and watching it work.
+
+Closed that gap the same way as the tenth pass: `next dev` serving the
+real, unmodified app, driven by Playwright + local Chromium, with
+`page.route()` intercepting ONLY the jsdelivr CDN URL prefix
+(`https://cdn.jsdelivr.net/pyodide/v0.26.4/full/**`) and serving the same
+locally-downloaded Pyodide v0.26.4 + micropip/packaging files the tenth
+pass used — every line of `page.jsx`/`py-dag-adapter.js`/`py-dag-loader.js`
+ran exactly as committed, un-mocked. (The browser's real `fetch()` enforces
+Subresource Integrity against `pyodide-lock.json`'s recorded package
+hashes — unlike Node's `fetch`, which silently ignores it, the gap that let
+the tenth pass's Node-based checks pass despite the PyPI-vs-Pyodide-vendored
+hash mismatch already on record. Worked around it honestly: patched a
+COPY of the lock file's `sha256` fields to match what's actually being
+served locally, i.e. describing a self-hosted mirror truthfully rather than
+disabling the check.)
+
+Clicking the pill through to "Python DAG" and letting the Clients tab
+resolve produced a fully populated, real portfolio table — 12 clients, real
+combined-tax/FTC-residual/health-score/conflict figures, all computed by
+the actual Python DAG via Pyodide inside the actual React app. But
+clicking into a client's **Filings tab** crashed immediately
+(`TypeError: cal[0].date.getTime is not a function`, inside
+`DeadlineTimeline`) — a third real bug, invisible to every prior check
+(the golden suite compares JSON-shaped values, never touches a live DOM;
+the tenth pass's `analyze()` smoke test only inspected top-level key
+presence, never the Compliance Calendar's own field types):
+
+`pyodide.ffi.to_js()` has no built-in conversion from Python
+`datetime.datetime` to a JS `Date`. Every value `to_js()` doesn't
+recognize (not a dict/list/set/int/str/etc.) is left as a live, unconverted
+PyProxy — whose default JS-side stringification calls back into Python's
+own `str(datetime)` (`"2025-06-15 00:00:00"`), explaining exactly the
+symptom: `typeof` reports `"object"` (a PyProxy is an object), but it's not
+a `Date` instance, so `.getTime()` doesn't exist. Every row
+`filings/monitoring.py`'s compliance calendar produces is exactly this
+shape (`_mdate()` returns a real `datetime.datetime`), so this would have
+broken the Filings tab's Timeline/Calendar/List views and its
+date-subtraction sort (`cal.sort((a,b) => a.date - b.date)`, silently
+producing `NaN`-driven arbitrary ordering even before the explicit crash)
+for every single client, every time, in Python DAG mode.
+
+Fixed by giving `_to_js()` a `default_converter` callback (the sanctioned
+`to_js()` extension point for exactly this situation) that detects
+`datetime.datetime` and constructs a real JS `Date` via
+`js.Date.new(year, month - 1, day, hour, minute, second, microsecond //
+1000)`. Deliberately NOT `value.timestamp()`: that treats a naive datetime
+as local time in whatever timezone the Pyodide/WASM runtime happens to be
+configured for, then bakes the result into a UTC instant — a real
+opportunity for the calendar to land on the wrong day depending on the
+runtime's and the browser's respective timezones. Building the Date
+straight from the (year, month, day, …) calendar components instead
+reproduces the JS DAG's own `mdate()` semantics exactly
+(`new Date(y, m-1, day)` — local calendar components, zero timezone
+conversion), so the two sides can never disagree by a day no matter what
+timezone either runtime is in.
+
+After the fix, the exact same click-through re-run cleanly: Filings tab
+(Return Form, Per-Entity Return Obligations, Compliance Calendar
+Timeline with correctly-dated deadlines, Documents to File),
+Reconciliation, and Withholding all rendered with zero console/page
+errors, under the real toggle, in the real app.
+
+**Verification**: `dag_py` pytest 573/573 green; `monitor-next` `next
+build` clean; `vitest` 5/5; wheel rebuilt, `public/dag-py/` re-synced;
+Playwright/Chromium click-through of the actual compute-source pill (DAG →
+Engine → Python DAG) against a real `next dev` instance, Clients tab and
+Filings/Reconciliation/Withholding tabs all confirmed error-free and
+correctly populated post-fix.
+
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 
 **Scoping correction, found before any code was written**: the plan's guessed

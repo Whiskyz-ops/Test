@@ -19,8 +19,12 @@
  * computed from a hand-composed graph.resolve() list and has to ask for
  * checksRegistryResult/calendarAmountsResult explicitly).
  *
- * NOT verified against a real Pyodide runtime — see py-dag-loader.js's own
- * header for why, and treat this file with the same caution.
+ * Verified end-to-end against a real Pyodide runtime — see
+ * py-dag-loader.js's own header and docs/PYTHON_DAG_MIGRATION_TRACKER.md's
+ * Phase 8 browser-verification sections for how (a real Chromium tab
+ * driving this actual app, with the jsdelivr CDN fetch alone substituted
+ * for a local mirror of the same pinned Pyodide version — every line of
+ * this file and its callers ran unmodified).
  * ==========================================================================*/
 "use client";
 
