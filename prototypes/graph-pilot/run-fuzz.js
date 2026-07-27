@@ -436,7 +436,13 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // msme_payables), so — unlike the farm-depreciation and s.44BB/BBB fixes
 // landed the same session, which happened to touch zero existing fixture
 // data — this allowlist entry is load-bearing, not theoretical.
-var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india)$/;
+// retirement_excess_elective_deferral / retirement_excess_ira_contribution /
+// retirement_rmd_required (Step 11 Layer 1 US field-completeness audit, 27
+// Jul 2026): same shape again — new DAG-only findings (us5-nodes.js/
+// report-batch5-nodes.js) for Layer 1 US's Retirement screen and Step 5's
+// W-2 Box 12 codes, neither of which fed ANY downstream computation before
+// this fix. No engine equivalent exists since the classic engine is frozen.
+var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|retirement_rmd_required)$/;
 var KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = [];
 
 // ---- D. entity-agnostic audit allowlist (see file header, section D) -----

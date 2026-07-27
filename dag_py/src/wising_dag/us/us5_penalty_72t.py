@@ -72,6 +72,67 @@ NODES = {
         deps=("hasUsScope", "earlyDistUsd", "ageAtYearEndUs"), scope_gate="hasUsScope", out_of_scope_value=False,
         compute=lambda d, ctx: d["earlyDistUsd"] > 0 and d["ageAtYearEndUs"] is not None and d["ageAtYearEndUs"] < 59,
     ),
+
+    # ---- IRC §402(g) elective-deferral aggregate excess (Step 11 audit) -----
+    # layer1_us.html's Step 11 ("Retirement Accounts") collects 401(k)/Roth
+    # 401(k)/Solo 401(k) elective-deferral contributions, but none of it was
+    # ever read by any DAG node -- feeding nothing downstream at all. Step 5's
+    # own W-2 Box 12 codes D/E (401(k)/403(b) traditional deferral) and AA/BB
+    # (Roth 401(k)/403(b) deferral) have the exact same problem: collected
+    # per-W-2, never read. Both share the SAME §402(g) annual aggregate limit
+    # across every plan a person contributes to, so they're combined here.
+    # Mirrors prototypes/graph-pilot/us5-nodes.js exactly.
+    "w2Box12ElectiveDeferralsUsd": NodeDef(
+        deps=(), compute=lambda d, ctx: sum(
+            num(b.get("amount_usd")) for w2 in (safe(ctx.get("us"), "income_us_source.wages_w2", []) or [])
+            for b in (w2.get("box_12_benefits") or []) if str(b.get("code") or "").strip().lower() in ("d", "e", "aa", "bb")
+        ),
+        layer1_fields=("us.income_us_source.wages_w2",),
+    ),
+    "retirementAccountsRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "retirement_accounts", {}) or {}, layer1_fields=("us.retirement_accounts",)),
+    "electiveDeferralAggregateUsd": NodeDef(
+        deps=("w2Box12ElectiveDeferralsUsd", "retirementAccountsRaw"),
+        compute=lambda d, ctx: d["w2Box12ElectiveDeferralsUsd"] + num(d["retirementAccountsRaw"].get("401k_employee_contribution_usd")) +
+        num(d["retirementAccountsRaw"].get("roth_401k_contribution_usd")) + num(d["retirementAccountsRaw"].get("solo_401k_contribution_usd")),
+    ),
+    # 2026 figures (IRS Notice 2025-67 / Rev. Proc. 2025-32): base $24,500;
+    # +$8,000 regular catch-up (50-59 and 64+); +$11,250 SECURE 2.0 §109
+    # "super catch-up" (60-63 only, reverting to the regular catch-up at 64).
+    "electiveDeferralLimitUsd": NodeDef(
+        deps=("ageAtYearEndUs",),
+        compute=lambda d, ctx: 24500 if (d["ageAtYearEndUs"] is None or d["ageAtYearEndUs"] < 50) else
+        (35750 if 60 <= d["ageAtYearEndUs"] <= 63 else 32500),
+    ),
+    "electiveDeferralExcessUsd": NodeDef(
+        deps=("hasUsScope", "electiveDeferralAggregateUsd", "electiveDeferralLimitUsd"), scope_gate="hasUsScope", out_of_scope_value=0,
+        compute=lambda d, ctx: max(0, d["electiveDeferralAggregateUsd"] - d["electiveDeferralLimitUsd"]),
+    ),
+
+    # ---- IRC §219(b)(5) traditional + Roth IRA combined-contribution excess -
+    "iraContributionAggregateUsd": NodeDef(
+        deps=("retirementAccountsRaw",),
+        compute=lambda d, ctx: num(d["retirementAccountsRaw"].get("traditional_ira_contribution_usd")) + num(d["retirementAccountsRaw"].get("roth_ira_contribution_usd")),
+    ),
+    # 2026: base $7,500; +$1,100 catch-up (50+, IRS Notice 2025-67).
+    "iraContributionLimitUsd": NodeDef(
+        deps=("ageAtYearEndUs",),
+        compute=lambda d, ctx: 8600 if (d["ageAtYearEndUs"] is not None and d["ageAtYearEndUs"] >= 50) else 7500,
+    ),
+    "iraContributionExcessUsd": NodeDef(
+        deps=("hasUsScope", "iraContributionAggregateUsd", "iraContributionLimitUsd"), scope_gate="hasUsScope", out_of_scope_value=0,
+        compute=lambda d, ctx: max(0, d["iraContributionAggregateUsd"] - d["iraContributionLimitUsd"]),
+    ),
+
+    # ---- SECURE 2.0 RMD determination (Step 11 audit) ------------------------
+    # Determination-only (age test, no fabricated dollar figure) -- no
+    # traditional-account BALANCE field exists anywhere in the product, only
+    # contribution amounts, so no real RMD $ amount can be computed. Matches
+    # the same discipline already applied to the §877A covered-expatriate
+    # exit tax.
+    "rmdRequired": NodeDef(
+        deps=("hasUsScope", "ageAtYearEndUs"), scope_gate="hasUsScope", out_of_scope_value=False,
+        compute=lambda d, ctx: d["ageAtYearEndUs"] is not None and d["ageAtYearEndUs"] >= 73,
+    ),
 }
 
 

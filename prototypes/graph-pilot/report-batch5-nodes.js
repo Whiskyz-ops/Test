@@ -138,6 +138,68 @@ NODES.earlyWithdrawalPenalty72tFinding = {
   }
 };
 
+// ---- retirement_excess_elective_deferral / retirement_excess_ira_
+// contribution / retirement_rmd_required (Step 11 audit, new findings not
+// in the frozen engine -- Layer 1 US's own Retirement screen and Step 5's
+// W-2 Box 12 codes fed NOTHING downstream at all before this. See
+// us5-nodes.js's electiveDeferralExcessUsd/iraContributionExcessUsd/
+// rmdRequired for the underlying computation and 2026 figures.
+NODES.retirementExcessElectiveDeferralFinding = {
+  deps: ["hasUsScope", "electiveDeferralExcessUsd", "electiveDeferralAggregateUsd", "electiveDeferralLimitUsd"],
+  compute: function (d) {
+    if (!d.hasUsScope || d.electiveDeferralExcessUsd <= 0) return [];
+    return [{
+      id: "retirement_excess_elective_deferral", severity: "warning", category: "credit",
+      title: "§402(g) excess elective deferral (" + usd(d.electiveDeferralExcessUsd) + " over the limit)",
+      detail: usd(d.electiveDeferralAggregateUsd) + " of combined 401(k)/403(b)/Solo-401(k) elective deferrals (traditional " +
+        "and Roth, across every plan and every W-2 Box 12 code D/E/AA/BB on file) exceeds the §402(g) annual aggregate limit " +
+        "of " + usd(d.electiveDeferralLimitUsd) + " for this taxpayer's age this year, by " + usd(d.electiveDeferralExcessUsd) + ".",
+      recommendation: "Excess deferrals must be withdrawn (with earnings) by the following April 15 to avoid double taxation — once as " +
+        "a 2026 excess deferral and again as ordinary income when eventually distributed. Confirm whether prior-year W-2 wages " +
+        "exceeded $150,000, which would require any age-60-63 catch-up doses to have gone into a Roth 401(k) specifically " +
+        "(SECURE 2.0's mandatory Roth catch-up) — not modeled here.",
+      amountUsd: d.electiveDeferralExcessUsd, refs: ["§402(g)", "Form 5329"]
+    }];
+  }
+};
+NODES.retirementExcessIraContributionFinding = {
+  deps: ["hasUsScope", "iraContributionExcessUsd", "iraContributionAggregateUsd", "iraContributionLimitUsd", "retirementAccountsRaw"],
+  compute: function (d) {
+    if (!d.hasUsScope || d.iraContributionExcessUsd <= 0) return [];
+    var backdoor = d.retirementAccountsRaw.backdoor_roth_executed === true;
+    return [{
+      id: "retirement_excess_ira_contribution", severity: "warning", category: "credit",
+      title: "§219(b)(5) excess IRA contribution (" + usd(d.iraContributionExcessUsd) + " over the limit)",
+      detail: usd(d.iraContributionAggregateUsd) + " of combined traditional + Roth IRA contributions exceeds the §219(b)(5) " +
+        "annual combined limit of " + usd(d.iraContributionLimitUsd) + " for this taxpayer's age this year, by " +
+        usd(d.iraContributionExcessUsd) + "." + (backdoor ? " A backdoor Roth conversion is on file — confirm the excess isn't " +
+        "simply the nondeductible traditional contribution awaiting conversion (not double-counted as its own excess)." : ""),
+      recommendation: "A 6% excise tax (§4973) applies to the excess each year it remains in the account. Withdraw the excess (with " +
+        "earnings) by the filing deadline (including extensions) to avoid the excise tax, or apply it as next year's contribution " +
+        "if otherwise eligible.",
+      amountUsd: d.iraContributionExcessUsd, refs: ["§219(b)(5)", "§4973", "Form 5329"]
+    }];
+  }
+};
+NODES.retirementRmdRequiredFinding = {
+  deps: ["rmdRequired", "ageAtYearEndUs"],
+  compute: function (d) {
+    if (!d.rmdRequired) return [];
+    return [{
+      id: "retirement_rmd_required", severity: "info", category: "credit",
+      title: "Required Minimum Distribution (RMD) likely required at age " + d.ageAtYearEndUs,
+      detail: "This taxpayer is age " + d.ageAtYearEndUs + " at year-end, at or above the SECURE 2.0 RMD-start age of 73. " +
+        "Layer 1 does not collect traditional IRA/401(k) account BALANCES (only contribution amounts), so the actual RMD " +
+        "dollar amount cannot be computed here — it depends on the prior year-end balance across all traditional accounts " +
+        "and the IRS Uniform Lifetime Table divisor for this age.",
+      recommendation: "Confirm the prior year-end balance of every traditional IRA/401(k)/403(b) account and compute the RMD " +
+        "using the IRS Uniform Lifetime Table before the year-end deadline (April 1 of the year after turning 73 for the " +
+        "first RMD only). A missed or shortfall RMD carries a 25% excise tax (10% if corrected within 2 years) under §4974.",
+      amountUsd: 0, refs: ["§401(a)(9)", "§4974", "Form 5329"]
+    }];
+  }
+};
+
 /* schedule_fa_inconsistent — conflicts.js:1338-1346. */
 NODES.scheduleFaInconsistentFinding = {
   deps: ["scheduleFaInconsistentTrigger"],
@@ -196,7 +258,8 @@ NODES.buildTaxComputationResult = {
  * merged array's own concatenation order doesn't naturally reproduce. */
 var FINDING_ADD_ORDER = ["dual_residency", "dual_residency_resolved", "treaty_docs_missing", "dtaa_treaty_elections",
   "withholding_documentation_gap", "pan_not_linked_aadhaar", "ftc_gap", "ftc_available", "feie_ineligible", "feie_applied",
-  "amt_applies", "india_advance_tax_interest", "underpayment_2210", "early_withdrawal_penalty_72t", "iso_3921", "form_10iea",
+  "amt_applies", "india_advance_tax_interest", "underpayment_2210", "early_withdrawal_penalty_72t",
+  "retirement_excess_elective_deferral", "retirement_excess_ira_contribution", "retirement_rmd_required", "iso_3921", "form_10iea",
   "form_1099da_awareness", "state_income_tax", "niit_medicare_not_creditable", "no_totalization_agreement", "pe_article7",
   "entity_dual_residency_poem", "residency_status_dtaa_conflated_india", "residency_status_mismatch_india_company",
   "residency_status_mismatch_india", "residency_status_mismatch_india_entity", "residency_status_understated_us",
@@ -218,12 +281,14 @@ NODES.findingsAllResult = {
   deps: ["findingsBatch1Result", "findingsBatch2Result", "findingsBatch3Result", "findingsBatch4Result",
     "findingsBatch5Result", "holdingPeriodMismatchFindingsResult", "residencyConsistencyFindings",
     "indiaAdvanceTaxInterestFinding", "underpayment2210Finding", "earlyWithdrawalPenalty72tFinding",
+    "retirementExcessElectiveDeferralFinding", "retirementExcessIraContributionFinding", "retirementRmdRequiredFinding",
     "scheduleFaInconsistentFinding", "blackMoneyActExposureFinding"],
   compute: function (d) {
     var all = [].concat(d.findingsBatch1Result, d.findingsBatch2Result, d.findingsBatch3Result,
       d.findingsBatch4Result, d.findingsBatch5Result, d.holdingPeriodMismatchFindingsResult,
       d.residencyConsistencyFindings, d.indiaAdvanceTaxInterestFinding, d.underpayment2210Finding,
-      d.earlyWithdrawalPenalty72tFinding, d.scheduleFaInconsistentFinding, d.blackMoneyActExposureFinding);
+      d.earlyWithdrawalPenalty72tFinding, d.retirementExcessElectiveDeferralFinding, d.retirementExcessIraContributionFinding,
+      d.retirementRmdRequiredFinding, d.scheduleFaInconsistentFinding, d.blackMoneyActExposureFinding);
     // detectConflicts's own final step (conflicts.js:1546-1551) — not just a
     // convenience, LIM-7's alerts feed (monitor()) depends on findings[]
     // actually being in this order (.filter(critical).slice(0,4)) to pick

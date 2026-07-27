@@ -3225,7 +3225,7 @@
                         </div>
                         <div>
                             <span class="text-[9px] text-white/40">RMD Amount (USD)</span>
-                            <span id="lbl-rmd-amt" class="text-sm font-black text-white font-mono block">$0.00</span>
+                            <span id="lbl-rmd-amt" class="text-sm font-black text-white font-mono block">N/A</span>
                         </div>
                     </div>
                 </div>
@@ -9865,24 +9865,22 @@ div.innerHTML = `
         if (investLbl) investLbl.textContent = formatCurrency(nii);
         if (niitDueLbl) niitDueLbl.textContent = formatCurrency(niitOwed);
 
-        // SECURE Act 2.0 RMD
+        // SECURE Act 2.0 RMD determination-only: Layer 1 collects no
+        // traditional-account BALANCE field anywhere (only contribution
+        // amounts), so no real RMD dollar figure can be computed here — a
+        // flat guess would be actively misleading. rmd_amount_usd is
+        // deliberately not set at all; only the age-based requirement flag.
         let rmdReq = false;
-        let rmdAmt = 0;
         if (usState.profile.date_of_birth) {
             const birthYear = new Date(usState.profile.date_of_birth).getFullYear();
             const ageIn2026 = 2026 - birthYear;
-            if (ageIn2026 >= 73) {
-                rmdReq = true;
-                // standard rough calculation of 4% of total traditional balances
-                rmdAmt = 5000;
-            }
+            if (ageIn2026 >= 73) rmdReq = true;
         }
         usState.retirement_accounts.rmd_required = rmdReq;
-        usState.retirement_accounts.rmd_amount_usd = rmdAmt;
         const rmdReqLbl = document.getElementById('lbl-rmd-req');
         const rmdAmtLbl = document.getElementById('lbl-rmd-amt');
         if (rmdReqLbl) rmdReqLbl.textContent = rmdReq ? "Yes" : "No";
-        if (rmdAmtLbl) rmdAmtLbl.textContent = formatCurrency(rmdAmt);
+        if (rmdAmtLbl) rmdAmtLbl.textContent = rmdReq ? "See preparer" : "N/A";
 
         // 6. NRA ECI & FDAP Mappings
         let eci = 0;
