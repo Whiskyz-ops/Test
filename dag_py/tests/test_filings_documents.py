@@ -70,7 +70,7 @@ def _build_graph():
     for node_id in ("foreignGiftsRaw", "nraRaw", "stateResidencyRaw", "usStateTaxResult", "limitsRawExtra", "equityCompRaw", "esopEventsRaw", "esopPerquisiteInrRaw", "equityCompResult"):
         if node_id not in r:
             r.register(node_id, us_findings.NODES[node_id])
-    for node_id in ("taxesPaidUsResult", "bankAccountsRaw", "aggregatePeakUsdResult", "indiaFinancialHoldingsTxRaw", "ppfInrRaw", "epfInrRaw", "usFtcFormXbr"):
+    for node_id in ("taxesPaidUsResult", "bankAccountsRaw", "aggregatePeakUsdResult", "aggregateLastDayUsdResult", "indiaFinancialHoldingsTxRaw", "ppfInrRaw", "epfInrRaw", "usFtcFormXbr"):
         if node_id not in r:
             r.register(node_id, crossborder_findings.NODES[node_id])
 

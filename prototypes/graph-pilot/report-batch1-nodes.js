@@ -180,16 +180,28 @@ var CONST_B1_LIMITS = require("./constants.js").CONST.LIMITS; // SYS-1: shared
 var CONST_B1_INDIA = require("./constants.js").CONST.TAX.INDIA; // SYS-1: shared
 var FORM_8938 = CONST_B1_LIMITS.FORM_8938;
 NODES.form8938GaugeResult = {
-  deps: ["feie", "usFilingStatusRaw", "accountsListResult", "hasUsScopeBoundaryFtc"],
+  deps: ["feie", "usFilingStatusRaw", "accountsListResult", "aggregateLastDayUsdResult", "hasUsScopeBoundaryFtc"],
   compute: function (d) {
     if (!d.hasUsScopeBoundaryFtc) return null;
     var isMfj = d.usFilingStatusRaw === "mfj";
     var abroad = d.feie.taxHomeAbroad && d.feie.testMet;
     var tbl = FORM_8938[abroad ? (isMfj ? "ABROAD_MFJ" : "ABROAD_SINGLE") : (isMfj ? "US_RESIDENT_MFJ" : "US_RESIDENT_SINGLE")];
-    var valueUsd = d.accountsListResult.aggregatePeak.usd;
-    var pct = tbl.anyTime > 0 ? valueUsd / tbl.anyTime : 0;
+    // Form 8938 is actually TWO independent tests -- highest value at any
+    // time during the year, AND value on the last day of the year -- either
+    // one breaching its own threshold triggers the filing requirement. The
+    // gauge's single (value/limit/pct) shape reports whichever of the two
+    // is proportionally worse, so "breached" still fires correctly if only
+    // ONE of the two is actually over its threshold.
+    var peakUsd = d.accountsListResult.aggregatePeak.usd;
+    var lastDayUsd = d.aggregateLastDayUsdResult.usd;
+    var peakPct = tbl.anyTime > 0 ? peakUsd / tbl.anyTime : 0;
+    var lastDayPct = tbl.lastDay > 0 ? lastDayUsd / tbl.lastDay : 0;
+    var useLastDay = lastDayPct > peakPct;
+    var valueUsd = useLastDay ? lastDayUsd : peakUsd;
+    var limit = useLastDay ? tbl.lastDay : tbl.anyTime;
+    var pct = useLastDay ? lastDayPct : peakPct;
     var status = pct >= 1 ? "breached" : (pct >= 0.8 ? "approaching" : "ok");
-    return { id: "form8938", value: valueUsd, limit: tbl.anyTime, pct: pct, status: status };
+    return { id: "form8938", value: valueUsd, limit: limit, pct: pct, status: status };
   }
 };
 
@@ -336,7 +348,19 @@ NODES.buildDocumentsResult = {
       // marked N/A despite explicitly saying they hold PFICs. Masked in
       // every demo profile because whoever built them always populated
       // both fields together for the same holding.
-      form_8621: (d.indianMutualFundsResult.length > 0 || d.usPficHoldingsRaw.length > 0) && isUsPerson,
+      // Step 8's own "Comprehensive Foreign Assets" screen (addHoldingRow/
+      // syncHoldingsState) runs its own live PFIC income/asset/financial-
+      // institution-exception test and tags each row pfic_classification:
+      // "passive_foreign_investment_company_section_1297" -- a THIRD signal
+      // (usSecuritiesRaw, separate from both indianMutualFundsResult and
+      // usPficHoldingsRaw) that was never read here either. A taxpayer who
+      // adds a foreign ETF or PE/CFC-adjacent holding through this screen's
+      // primary UI path (the "+ Add Holding" button, not a separate India-
+      // side mutual fund entry or the foreign_entities.pfic_holdings card)
+      // saw a live "Reportable (Form 8621)" badge but got no Form 8621 in
+      // their actual computed results.
+      form_8621: (d.indianMutualFundsResult.length > 0 || d.usPficHoldingsRaw.length > 0 ||
+                  d.usSecuritiesRaw.some(function (h) { return h.pfic_classification === "passive_foreign_investment_company_section_1297"; })) && isUsPerson,
       // Was checking d.bizEntriesAgg.length > 0 (India-side domestic
       // business_entries, an unrelated concept) — same engine/conflicts.js
       // bug, fixed the same way: viaForeignCorpXbr4 is the correct CFC-

@@ -44,7 +44,18 @@ def _limits_result(d, ctx):
     tbl_key = ("ABROAD_MFJ" if is_mfj else "ABROAD_SINGLE") if abroad else ("US_RESIDENT_MFJ" if is_mfj else "US_RESIDENT_SINGLE")
     tbl = L["FORM_8938"][tbl_key]
     if scope_has_us:
-        _gauge(gauges, "form8938", "Form 8938 (FATCA) any-time", aggregate_peak_usd, tbl["anyTime"], "USD",
+        # Form 8938 has TWO independent thresholds (last-day-of-year value,
+        # and highest value at any time during the year) -- exceeding EITHER
+        # one triggers the filing requirement. Report whichever is
+        # proportionally worse so the single gauge value/limit/pct/status
+        # correctly reflects "breached" if either test is exceeded.
+        last_day_usd = d["aggregateLastDayUsdResult"]["usd"]
+        peak_pct = (aggregate_peak_usd / tbl["anyTime"]) if tbl["anyTime"] > 0 else 0
+        last_day_pct = (last_day_usd / tbl["lastDay"]) if tbl["lastDay"] > 0 else 0
+        use_last_day = last_day_pct > peak_pct
+        _gauge(gauges, "form8938", "Form 8938 (FATCA) last day of year" if use_last_day else "Form 8938 (FATCA) any-time",
+               last_day_usd if use_last_day else aggregate_peak_usd, tbl["lastDay"] if use_last_day else tbl["anyTime"], "USD",
+               "Threshold shown is the 'last day of tax year' figure for your status/residence." if use_last_day else
                "Threshold shown is the 'any time during year' figure for your status/residence.")
 
     if scope_has_india:
@@ -99,7 +110,7 @@ NODES = {
         layer1_fields=("india.nro_repatriation.cumulative_repatriated_usd_this_fy",),
     ),
     "limitsResult": NodeDef(
-        deps=("hasUsScopeBoundaryFtc", "hasIndiaScopeXbr", "aggregatePeakUsdResult", "usFilingStatusRaw",
+        deps=("hasUsScopeBoundaryFtc", "hasIndiaScopeXbr", "aggregatePeakUsdResult", "aggregateLastDayUsdResult", "usFilingStatusRaw",
               "feieLimitsRaw", "limitsRawExtra", "nroCumulativeRepatriatedUsdRaw"),
         compute=_limits_result,
     ),
