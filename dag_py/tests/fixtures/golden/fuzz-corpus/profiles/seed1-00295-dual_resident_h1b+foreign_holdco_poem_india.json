@@ -1,0 +1,650 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Aarav Sharma",
+    "date_of_birth": "1988-07-15",
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 330,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Aarav Sharma",
+      "entity_type": "individual",
+      "date_of_birth": "1988-07-15",
+      "pan": "ABCPS1234K",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 183,
+      "final_india_residency_status": "ROR"
+    },
+    "dtaa": {
+      "tax_residency_country": "US",
+      "is_us_resident_for_dtaa": true,
+      "dtaa_treaty_residence": "us",
+      "trc_status": true,
+      "has_permanent_establishment_in_india": false,
+      "dtaa_forced_nr": false,
+      "tb_home": "both",
+      "tb_cvi": "us"
+    },
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": true
+      },
+      "form_10f": {
+        "is_filed": true
+      },
+      "chapter_xiia_elected": false
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "HDFC Bank",
+        "account_type": "savings",
+        "peak_balance_inr": 0
+      },
+      {
+        "bank_name": "ICICI Bank",
+        "account_type": "nro",
+        "peak_balance_inr": 1500000
+      }
+    ],
+    "property": {
+      "has_indian_property_transaction": true,
+      "properties": [
+        {
+          "address": "Flat 12B, Pune",
+          "property_type": "Residential",
+          "annual_value_inr": 420000,
+          "gross_rent_received_inr": 600000,
+          "municipal_taxes_paid_inr": 30000
+        }
+      ]
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": [
+        {
+          "asset_type": "equity_mutual_fund",
+          "asset_name": "Axis Bluechip Fund",
+          "value_inr": 2500000
+        },
+        {
+          "asset_type": "debt_mutual_fund",
+          "asset_name": "HDFC Corporate Bond Fund",
+          "value_inr": 1200000
+        },
+        {
+          "asset_class": "foreign_equity_unlisted",
+          "asset_name_or_ticker": "AMZN",
+          "acquisition_date": "2024-11-01",
+          "purchase_value": 10000,
+          "purchase_currency": "USD",
+          "sale_date": "2026-05-01",
+          "sale_value": 18000,
+          "sale_currency": "USD",
+          "stt_paid": false,
+          "transfer_expenses": 0,
+          "is_specified_foreign_exchange_asset": false
+        }
+      ]
+    },
+    "foreign_assets": {
+      "has_foreign_assets": false,
+      "assets": []
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "taxable_salary_inr": 639220.62,
+        "esop_perquisite_events": [
+          {
+            "employer_name": "Infosys Ltd",
+            "grant_date": "2021-06-01",
+            "vesting_or_exercise_date": "2026-06-01",
+            "shares": 400,
+            "fmv_per_share_inr": 5750.33,
+            "exercise_price_per_share_inr": 300,
+            "perquisite_value_inr": 600000
+          }
+        ]
+      },
+      "house_property": {
+        "has_house_property_income": false,
+        "properties": [
+          {
+            "annual_value_inr": 145530.5
+          }
+        ]
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "business_entries": [
+          {
+            "business_name": "Sharma Freelance Dev",
+            "nature": "software consulting",
+            "presumptive_scheme": null,
+            "gross_receipts_inr": 900000,
+            "expenses": {
+              "rent_for_business_premises_inr": 60000,
+              "other_business_expenses_inr": 40000
+            }
+          }
+        ],
+        "asset_blocks": [
+          {
+            "unit_biz_idx": 0,
+            "unit_branch_idx": null,
+            "asset_class": "plant_machinery_computers",
+            "opening_wdv_inr": 80000,
+            "additions_during_year_inr": 0,
+            "addition_date": null,
+            "sale_consideration_inr": 0,
+            "is_new_manufacturing_asset": false
+          }
+        ]
+      },
+      "capital_gains": {
+        "short_term_15_pct": 0
+      }
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_savings_inr": 49985.57,
+      "interest_fd_rd_inr": 120000,
+      "dividend_inr": 90000,
+      "taxable_epf_interest_inr": 45000
+    },
+    "deductions": {
+      "s80C": {
+        "epf_employee_inr": 150000,
+        "ppf_inr": 150000
+      },
+      "s80CCC_80CCD1": {
+        "nps_employee_contribution_inr": 50000
+      }
+    },
+    "carry_forward_losses": {
+      "has_brought_forward_losses": true,
+      "stcg_loss_cf": [
+        {
+          "assessment_year": "AY2024-25",
+          "amount_inr": 180000
+        }
+      ]
+    },
+    "lrs_outbound": {
+      "total_lrs_remitted_this_fy_inr": 17000000
+    },
+    "tax_credits": {
+      "advance_tax_q1_15jun_inr": 400000,
+      "advance_tax_q2_15sep_inr": 661507.43,
+      "advance_tax_q3_15dec_inr": 400000,
+      "advance_tax_q4_15mar_inr": 300000,
+      "tds_already_deducted_inr": 350000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 450000,
+            "esop_perquisite_events": [
+              {
+                "employer_name": "Infosys Ltd",
+                "grant_date": "2021-06-01",
+                "vesting_or_exercise_date": "2026-06-01",
+                "shares": 400,
+                "fmv_per_share_inr": 1800,
+                "exercise_price_per_share_inr": 300,
+                "perquisite_value_inr": 0
+              }
+            ]
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": [
+              {
+                "annual_value_inr": 105000
+              },
+              {
+                "annual_value_inr": 105000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Sharma Freelance Dev",
+                "nature": "software consulting",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 225000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 11370.92,
+                  "other_business_expenses_inr": 10000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_computers",
+                "opening_wdv_inr": 0,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": -430.55,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 62500
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": false,
+          "interest_savings_inr": 10000,
+          "interest_fd_rd_inr": 0,
+          "dividend_inr": 22500,
+          "taxable_epf_interest_inr": 11250
+        },
+        "capital_gains": {},
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 4250000
+        },
+        "financial_holdings": {
+          "has_financial_transactions": true,
+          "transactions": [
+            {
+              "asset_type": "equity_mutual_fund",
+              "asset_name": "Axis Bluechip Fund",
+              "value_inr": 2500000
+            },
+            {
+              "asset_type": "debt_mutual_fund",
+              "asset_name": "HDFC Corporate Bond Fund",
+              "value_inr": 1200000
+            },
+            {
+              "asset_class": "foreign_equity_unlisted",
+              "asset_name_or_ticker": "AMZN",
+              "acquisition_date": "2024-11-01",
+              "purchase_value": 10000,
+              "purchase_currency": "USD",
+              "sale_date": "2026-05-01",
+              "sale_value": 18000,
+              "sale_currency": "USD",
+              "stt_paid": false,
+              "transfer_expenses": 0,
+              "is_specified_foreign_exchange_asset": false
+            },
+            {
+              "asset_type": "debt_mutual_fund",
+              "asset_name": "HDFC Corporate Bond Fund",
+              "value_inr": 1200000
+            }
+          ]
+        },
+        "property": {
+          "has_indian_property_transaction": true,
+          "properties": [
+            {
+              "address": "Flat 12B, Pune",
+              "property_type": "Residential",
+              "annual_value_inr": 420000,
+              "gross_rent_received_inr": 600000,
+              "municipal_taxes_paid_inr": 36691.6
+            }
+          ]
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 0,
+            "esop_perquisite_events": []
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": [
+              {
+                "annual_value_inr": 105000
+              },
+              {
+                "annual_value_inr": 105000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Sharma Freelance Dev",
+                "nature": "software consulting",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 225000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 47531.25,
+                  "other_business_expenses_inr": 10000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_computers",
+                "opening_wdv_inr": 20000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 62500
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 10000,
+          "interest_fd_rd_inr": 54865.24,
+          "dividend_inr": 22500,
+          "taxable_epf_interest_inr": 11250
+        },
+        "capital_gains": {},
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 4250000
+        }
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 450000,
+            "esop_perquisite_events": []
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 176606.75
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Sharma Freelance Dev",
+                "nature": "software consulting",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 225000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 15000,
+                  "other_business_expenses_inr": 10000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_computers",
+                "opening_wdv_inr": 20000,
+                "additions_during_year_inr": -403.88,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 62500
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 10000,
+          "interest_fd_rd_inr": 30000,
+          "dividend_inr": 22500,
+          "taxable_epf_interest_inr": 11250
+        },
+        "capital_gains": {},
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 4250000
+        }
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 450000,
+            "esop_perquisite_events": []
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 105000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": [
+              {
+                "business_name": "Sharma Freelance Dev",
+                "nature": "software consulting",
+                "presumptive_scheme": null,
+                "gross_receipts_inr": 225000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 15000,
+                  "other_business_expenses_inr": 10000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_computers",
+                "opening_wdv_inr": 20000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              },
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_computers",
+                "opening_wdv_inr": 20000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 62500
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": false,
+          "interest_savings_inr": 11192.03,
+          "interest_fd_rd_inr": 30000,
+          "dividend_inr": 22500,
+          "taxable_epf_interest_inr": 11250
+        },
+        "capital_gains": {},
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 4250000
+        }
+      }
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Aarav Sharma",
+      "date_of_birth": "1988-07-15",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 185,
+      "spt_test_met": true,
+      "final_us_residency_status": "RESIDENT_ALIEN",
+      "dtaa_treaty_residence": "us"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Cloudscale Inc (US)",
+          "wages_box1_usd": 200000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 38000,
+            "medicare_wages_box5_usd": 200000
+          }
+        },
+        {
+          "employer_name": "Cloudscale Inc (US)",
+          "wages_box1_usd": 200000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 38000,
+            "medicare_wages_box5_usd": 200000
+          }
+        }
+      ],
+      "interest_us_source_usd": 3200,
+      "ordinary_dividends_us_source_usd": 6200,
+      "qualified_dividends_us_source_usd": 4200,
+      "ltcg_us_source_usd": 14000
+    },
+    "income_foreign_source": {
+      "foreign_wages": [
+        {
+          "employer_name": "Infosys (India, Apr–Aug)",
+          "wages_usd": 21687
+        }
+      ],
+      "foreign_interest_usd": 1928,
+      "foreign_dividends_usd": 1084,
+      "foreign_rental_income_usd": 5060,
+      "foreign_stcg_usd": 3012
+    },
+    "foreign_earned_income": {
+      "claims_feie": false,
+      "foreign_earned_income_usd": 21687,
+      "feie_amount_claimed_usd": 0
+    },
+    "equity_compensation": {
+      "iso_exercises": [
+        {
+          "shares_exercised": 3000,
+          "fmv_at_exercise_usd": 65,
+          "strike_price_usd": 12
+        }
+      ]
+    },
+    "state_residency": {
+      "primary_state_of_residence": "CA",
+      "ca_retains_property_or_voter_reg": true
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "HDFC Bank",
+        "account_type": "savings",
+        "country": "India",
+        "peak_balance_usd": 38554
+      },
+      {
+        "bank_name": "ICICI Bank",
+        "account_type": "nro",
+        "country": "India",
+        "peak_balance_usd": 18072
+      }
+    ],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "owns_10_percent_foreign_corp": false,
+      "foreign_corporations": [],
+      "pfic_holdings": [
+        {
+          "asset_name": "Axis Bluechip Fund",
+          "holding_value_usd": 30120
+        },
+        {
+          "asset_name": "HDFC Corporate Bond Fund",
+          "holding_value_usd": 14458
+        }
+      ],
+      "has_pfics": true
+    },
+    "retirement_accounts": {
+      "401k_employee_contribution_usd": 20500,
+      "401k_employer_match_usd": 9000,
+      "roth_ira_contribution_usd": 7000,
+      "indian_epf_balance_usd": 1807
+    },
+    "financial_holdings": [
+      {
+        "asset_name": "Schwab — Taxable Brokerage (US equities)",
+        "account_type": "taxable_brokerage",
+        "peak_balance_usd": 168000,
+        "country": "US"
+      },
+      {
+        "asset_name": "Fidelity 401(k) — US index funds",
+        "account_type": "retirement_brokerage",
+        "peak_balance_usd": 92000,
+        "country": "US"
+      }
+    ],
+    "real_estate": {
+      "has_real_estate_transaction": false,
+      "properties": []
+    },
+    "ftc_inputs": {
+      "claims_ftc": true,
+      "ftc_baskets": [
+        {
+          "country": "IN",
+          "basket_category": "General",
+          "foreign_taxes_usd": 22289
+        },
+        {
+          "country": "IN",
+          "basket_category": "General",
+          "foreign_taxes_usd": 22289
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 31000
+    },
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

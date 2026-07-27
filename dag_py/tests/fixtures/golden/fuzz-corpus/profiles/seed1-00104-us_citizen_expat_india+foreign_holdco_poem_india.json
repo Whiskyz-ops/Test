@@ -1,0 +1,350 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Grace Thomas",
+    "date_of_birth": "1958-09-12",
+    "is_us_citizen": true,
+    "has_green_card": false,
+    "us_days": 20,
+    "has_us_source_income_or_assets": false
+  },
+  "india": {
+    "profile": {
+      "full_name": "Grace Thomas",
+      "entity_type": "individual",
+      "date_of_birth": "1958-09-12",
+      "pan": "AGTPT7890T",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 330,
+      "final_india_residency_status": "ROR"
+    },
+    "dtaa": {
+      "tax_residency_country": "IN",
+      "dtaa_treaty_residence": "none",
+      "trc_status": false,
+      "form_10f": false
+    },
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": false
+      },
+      "form_10f": {
+        "is_filed": true
+      }
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "HDFC Bank",
+        "account_type": "savings",
+        "peak_balance_inr": 2100000
+      }
+    ],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": [
+        {
+          "asset_type": "equity_mutual_fund",
+          "asset_name": "Parag Parikh Flexi Cap",
+          "value_inr": 1800000
+        }
+      ]
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "business_entries": [
+          {
+            "business_name": "Grace Thomas Consulting",
+            "nature": "technical consultancy",
+            "presumptive_scheme": "s44ADA",
+            "gross_receipts_inr": 5000000,
+            "ada_digital_receipts_inr": 5000000,
+            "ada_cash_receipts_inr": 0
+          }
+        ]
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_fd_rd_inr": 120000,
+      "taxable_nps_withdrawal_inr": 65072.55
+    },
+    "deductions": {
+      "s80C": {
+        "ppf_inr": 150000
+      }
+    },
+    "lrs_outbound": {},
+    "tax_credits": {
+      "tds_already_deducted_inr": 500000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Grace Thomas Consulting",
+                "nature": "technical consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 1250000,
+                "ada_digital_receipts_inr": 1763876.8,
+                "ada_cash_receipts_inr": 0
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 30000,
+          "taxable_nps_withdrawal_inr": 0
+        },
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "has_financial_transactions": true,
+          "transactions": [
+            {
+              "asset_type": "equity_mutual_fund",
+              "asset_name": "Parag Parikh Flexi Cap",
+              "value_inr": 1800000
+            }
+          ]
+        },
+        "property": {
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Grace Thomas Consulting",
+                "nature": "technical consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 1250000,
+                "ada_digital_receipts_inr": 1250000,
+                "ada_cash_receipts_inr": 0
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 30000,
+          "taxable_nps_withdrawal_inr": 7500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Grace Thomas Consulting",
+                "nature": "technical consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 1250000,
+                "ada_digital_receipts_inr": 1345546.04,
+                "ada_cash_receipts_inr": 0
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 30000,
+          "taxable_nps_withdrawal_inr": 7500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Grace Thomas Consulting",
+                "nature": "technical consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 1250000,
+                "ada_digital_receipts_inr": 1250000,
+                "ada_cash_receipts_inr": 0
+              },
+              {
+                "business_name": "Grace Thomas Consulting",
+                "nature": "technical consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 1250000,
+                "ada_digital_receipts_inr": 1250000,
+                "ada_cash_receipts_inr": 0
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 30000,
+          "taxable_nps_withdrawal_inr": 7500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Grace Thomas",
+      "date_of_birth": "1958-09-12",
+      "filing_status": "head_of_household",
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "has_green_card": false,
+      "us_days_current_year": 20,
+      "spt_test_met": true,
+      "final_us_residency_status": "US_CITIZEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "interest_us_source_usd": 2400,
+      "ordinary_dividends_us_source_usd": 5200,
+      "qualified_dividends_us_source_usd": 4100,
+      "ltcg_us_source_usd": 9000,
+      "social_security_benefits_usd": 24000,
+      "self_employment": [
+        {
+          "id": "grace-consulting-in",
+          "business_name": "Grace Thomas Consulting (India)",
+          "llc_type": "foreign_disregarded",
+          "has_se_income": true,
+          "gross_receipts_usd": 60241,
+          "expenses_usd": 0,
+          "is_specified_service_trade": true,
+          "assets": [
+            {
+              "id": "grace-laptop",
+              "name": "Consulting laptop",
+              "class": "5-year",
+              "cost": 2500,
+              "sec179": 0,
+              "bonus": true,
+              "placed_in_service_date": "2026-02-01"
+            }
+          ]
+        }
+      ],
+      "trusts_estates_k1": [
+        {
+          "business_name": "Thomas Family Trust",
+          "trust_type": "simple",
+          "ordinary_income_usd": 4000,
+          "interest_income_usd": 300,
+          "ordinary_dividends_usd": 600,
+          "qualified_dividends_usd": 500,
+          "is_specified_service_trade": false
+        }
+      ]
+    },
+    "income_foreign_source": {
+      "foreign_interest_usd": 1446
+    },
+    "foreign_earned_income": {
+      "claims_feie": false,
+      "foreign_earned_income_usd": 60241,
+      "feie_amount_claimed_usd": 60241,
+      "qualification_test": "bona_fide_residence",
+      "tax_home_country": "India",
+      "bona_fide_residence": true,
+      "bona_fide_residence_start_date": "2022-06-01",
+      "physical_presence": true,
+      "days_in_us_during_test_period": 20
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "HDFC Bank",
+        "account_type": "savings",
+        "country": "India",
+        "peak_balance_usd": 25301
+      }
+    ],
+    "fbar_aggregate_peak_usd": 25301,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "owns_foreign_disregarded_entity": true,
+      "pfic_holdings": [
+        {
+          "asset_name": "Parag Parikh Flexi Cap",
+          "holding_value_usd": 21687
+        }
+      ],
+      "has_pfics": true
+    },
+    "financial_holdings": [
+      {
+        "asset_name": "Vanguard — Taxable Brokerage (US, pre-move)",
+        "account_type": "taxable_brokerage",
+        "peak_balance_usd": 118000,
+        "country": "US"
+      }
+    ],
+    "retirement_accounts": {
+      "indian_epf_balance_usd": 3600
+    },
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 0
+    },
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "foreign_gifts_and_trusts": {
+      "received_foreign_gifts_above_100k": false,
+      "received_gift_from_covered_expatriate": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

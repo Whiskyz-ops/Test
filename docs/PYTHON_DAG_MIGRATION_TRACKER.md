@@ -1217,6 +1217,128 @@ the carve-out already in place is the correct, final treatment of a
 genuine, permanent, doubly-confirmed divergence, not a bug hiding behind
 one.
 
+### Ninth Phase 8 pass: scaled the fuzz corpus 40 → 300 cases, found and fixed 6 real bugs
+
+Direct response to "scale up the fuzz corpus and re-run everything." The
+40-case corpus was deliberately small (Phase 4's own note: "3000 cases
+would be ~350MB — before there's a consumer to justify committing it").
+Re-ran `node prototypes/graph-pilot/run-fuzz.js --mode=corpus --n=300
+--seed=1` (same seed, so the original 40 profiles regenerate byte-
+identical — confirmed via `git status`, only new indices 40-299 appeared
+as untracked). A genuinely useful side discovery: `generate_golden.js`
+(and the corpus generator) reads real wall-clock "now" with no pinned
+`monitorAsOf`, so every regeneration shifts every golden file's date-
+derived fields — confirmed harmless (`test_analyze_golden.py` re-pins its
+own `analyze()` call to whatever `monitoring.asOf` golden embeds, so the
+comparison stays internally consistent regardless of generation time), but
+worth knowing before ever regenerating golden casually.
+
+**Also discovered the fuzz-corpus `golden/` directory is entirely dead
+weight** — grepped the whole `dag_py` tree and confirmed nothing reads it;
+only `run-js-dag-vs-py-dag.js` consumes `fuzz-corpus/profiles/`, comparing
+JS DAG directly against Python DAG, never against the frozen-engine
+`golden/` output sitting alongside it. Reverted the regenerated `golden/`
+files (300 newly-wasted + 40 harmlessly-drifted) before committing, kept
+only `profiles/` (35MB → 8.8MB) — the committed corpus should track what's
+actually used.
+
+**Running the real consumer (`run-js-dag-vs-py-dag.js`) over the scaled-up
+corpus immediately surfaced 36 mismatches + 2 Python crashes** — a 300-case
+corpus finds what a 40-case one can't. All 6 root causes, once isolated,
+were genuine bugs (not new "engine can't do this" divergences — every one
+was a real JS-DAG-vs-Python-DAG disagreement):
+
+1. **A whole new bug class this session hadn't considered: `js_round` vs
+   raw-value stringification, misdiagnosed as the SAME bug earlier in this
+   very session.** JS's `Math.round()` calls (fixed properly, see the
+   `js_round` sweep two passes ago) are genuinely different from plain `+`/
+   template-literal string concatenation of a raw field with NO rounding
+   in the JS source at all — the latter shows the value's own natural
+   string form (fractional or not), and JS additionally drops the trailing
+   `.0` a whole-number float would otherwise print, which Python's f-string
+   interpolation never does. Several sites this port had "fixed" with
+   `js_round()` earlier (director counts, day-count headlines, Trump
+   Account child counts, CTC dependent counts) were actually in this SECOND
+   category — `js_round()` silently changed the VALUE instead of just its
+   string form, invisible until a fuzzer-mutated field (normally always a
+   whole number in real data: a day count, a director count, a dependent
+   count) happened to land on a genuine fraction. Added a new canonical
+   `core/util.py::js_num_str(n)` (handles the `None`→`"null"` case too, see
+   next item) and corrected every misdiagnosed site across `filings/
+   monitoring.py`, `crossborder/residency.py`, `us/findings.py`, `us/
+   ustax.py`, `filings/limits.py`, `crossborder/findings.py`, and `reports/
+   trace.py` — re-verified each one's actual JS source line by line before
+   converting, not pattern-matched by assumption.
+2. **A real crash**: `filings/assets.py`'s asset-depreciation trace label
+   called `js_round(a["yearN"])`, and `yearN` is `None` whenever an asset
+   has no `placed_in_service_date` — `math.floor(None + 0.5)` raises
+   `TypeError`. The JS source has no `Math.round` here either (plain `+`
+   concatenation) and JS's own string coercion of `null` prints the literal
+   `"null"` — confirmed by reading `assetRecoveryYearN`'s own JS source,
+   which explicitly returns `null` (a real, intended value, not an error
+   state). Fixed by extending `js_num_str` to map `None → "null"`.
+3. **A composition-order bug silently selecting the wrong of two duplicate
+   node registrations**: `us/findings.py` registered its own `esopEventsRaw`
+   depending on a since-removed local `diAggUs` node that read
+   `ctx["india"]["domestic_income"]` directly, bypassing the quarterly-
+   merge (`_annual_slice_agg`) every other India-side read goes through.
+   `crossborder/findings.py` separately registered the CORRECT version
+   (depending on the real, merged `diAgg`), but `build_full_registry()`
+   merges `us_findings.NODES` before `crossborder_findings.NODES` with a
+   `if node_id not in r` guard, so the wrong version silently won and the
+   correct one was silently skipped — invisible on every real fixture/small
+   fuzz-corpus profile (none had `quarters` AND an ESOP event living only
+   inside a quarter), a real cross-border finding (`equity_comp_sourcing`)
+   simply never fired when it should have. Root cause fully traced (not
+   guessed): the module's own existing docstring for a NEIGHBORING leaf
+   (`limitsRawExtra`'s `lrsRemittedInr`) already documented the identical
+   cross-domain-read tension and the CORRECT fix pattern — call
+   `_annual_slice_agg(ctx)` directly, a pure function import, not a node
+   dependency (`us_full.build()` never pulls in `aggregate_india_income.py`,
+   so this file's own `build()` must stay usable in isolation, per
+   `test_findings.py`'s own `US_GRAPH = us_findings.build(NodeRegistry())`).
+   Applied that same established pattern here instead of depending on the
+   `diAgg` node directly (which would have broken that isolated-build test).
+4. **A genuine, pre-existing digit-grouping bug, unrelated to anything
+   touched this session before now**: `crossborder/findings.py`'s own local
+   `_inr(n)` helper was `f"₹{js_round(n):,}"` — Python's `:,` format spec
+   is ALWAYS Western (thousands) grouping; the JS source's own local
+   `inr(n)` helper is `Math.round(n).toLocaleString("en-IN")`, Indian lakh/
+   crore grouping. Every OTHER file's own local `_inr` helper (`filings/
+   assets.py`, `filings/documents.py`, `india/findings.py`, `reports/
+   trace.py`) already correctly delegates to `core/util.py`'s real
+   `format_inr()` — this was an isolated, one-off wrong reimplementation in
+   a single file, invisible until the `withholding_documentation_gap`
+   finding fired with an India-side gap large enough for the two groupings
+   to visibly diverge. Fixed to delegate to `format_inr()` like every
+   sibling file already does.
+5. Re-verified every OTHER remaining `js_round` call site in the codebase
+   against its JS source line by line (~65 sites) rather than stopping
+   once the fuzz-found ones were fixed — confirmed all correct (real
+   `Math.round()` in JS: rate percentages, months-held counts, dollar
+   amounts, apportionment splits, entity-tax rate labels), no further
+   hidden misdiagnoses found.
+
+**Verification**: `dag_py` pytest 573/573 green; `run-js-dag-vs-py-dag.js`
+clean at 319/319 (298 exact + 21 known JS-side cases — up from 7 known
+cases at the 40-profile scale, since a bigger corpus surfaces more
+instances of the SAME already-documented JS fractional-base-year bug too,
+not just new real bugs). `monitor-next`: `next build` clean; `test-
+adapter.mjs`/`test-shadow.mjs` at the same pre-existing 42/3 baseline;
+`vitest` 5/5. Wheel rebuilt, monitor-next assets re-synced.
+
+**Methodological note**: this pass is the clearest demonstration yet of the
+seventh pass's own point — a clean harness run is only as strong as the
+data exercising it. 40 fuzz cases plus 13 fixtures plus 6 hand-authored
+manual cases all passed clean and still hid 6 real bugs, 5 of which had
+existed since earlier phases (only the `crossborder/findings.py` digit-
+grouping bug and the `esopEventsRaw` composition-order bug predate this
+session entirely; the `js_round`-vs-`js_num_str` misdiagnoses were
+introduced by this session's OWN earlier rounding sweep, working from a
+correct instinct but an incomplete rule — "port every `round()` to
+`js_round()`" needed the added caveat "unless the JS source has no
+`Math.round` there at all").
+
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 
 **Scoping correction, found before any code was written**: the plan's guessed

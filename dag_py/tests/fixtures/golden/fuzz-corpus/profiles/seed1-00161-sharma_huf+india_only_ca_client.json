@@ -1,0 +1,489 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 5811.9,
+    "full_name": "Sharma HUF",
+    "date_of_birth": "1988-01-01",
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 0,
+    "has_us_source_income_or_assets": false
+  },
+  "india": {
+    "profile": {
+      "full_name": "Kavya Iyer",
+      "entity_type": "individual",
+      "date_of_birth": "1984-11-20",
+      "pan": "AKIPI4567L",
+      "tax_regime": "OLD"
+    },
+    "residency_detail": {
+      "is_wholly_outside_india": false,
+      "final_india_residency_status": "ROR"
+    },
+    "dtaa": {},
+    "compliance_docs": {},
+    "bank_accounts": [
+      {
+        "bank_name": "SBI",
+        "account_type": "current",
+        "peak_balance_inr": 1320612.27
+      }
+    ],
+    "property": {
+      "has_indian_property_transaction": true,
+      "properties": [
+        {
+          "address": "2BHK, Mysore",
+          "property_type": "Residential",
+          "annual_value_inr": 180000,
+          "gross_rent_received_inr": 240000,
+          "municipal_taxes_paid_inr": 9000
+        }
+      ]
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": [
+        {
+          "asset_type": "debt_mutual_fund",
+          "asset_name": "ICICI Pru Corporate Bond Fund",
+          "value_inr": 1400000
+        },
+        {
+          "asset_class": "vda_crypto",
+          "asset_name_or_ticker": "ETH",
+          "quantity": 3,
+          "acquisition_date": "2024-02-10",
+          "purchase_value": 480000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-09-01",
+          "sale_value": 720000,
+          "sale_currency": "INR",
+          "transfer_expenses": 0
+        },
+        {
+          "asset_class": "vda_crypto",
+          "asset_name_or_ticker": "ETH",
+          "quantity": 3,
+          "acquisition_date": "2024-02-10",
+          "purchase_value": 480000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-09-01",
+          "sale_value": 720000,
+          "sale_currency": "INR",
+          "transfer_expenses": 0
+        }
+      ]
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "house_property": {
+        "has_house_property_income": true,
+        "properties": [
+          {
+            "annual_value_inr": 300000
+          }
+        ]
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "business_entries": [
+          {
+            "business_name": "Sharma Kirana Store",
+            "nature": "general trading",
+            "presumptive_scheme": "s44ADA",
+            "gross_receipts_inr": 1200000,
+            "expenses": {
+              "rent_for_business_premises_inr": 100000,
+              "employee_salary_wages_inr": 180000,
+              "other_business_expenses_inr": 60000
+            }
+          }
+        ],
+        "asset_blocks": [
+          {
+            "unit_biz_idx": 0,
+            "unit_branch_idx": null,
+            "asset_class": "plant_machinery_motor_cars",
+            "opening_wdv_inr": 400000,
+            "additions_during_year_inr": 0,
+            "addition_date": null,
+            "sale_consideration_inr": 0,
+            "is_new_manufacturing_asset": false
+          }
+        ]
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_fd_rd_inr": 350000
+    },
+    "deductions": {},
+    "carry_forward_losses": {
+      "has_brought_forward_losses": true,
+      "business_loss_cf": [
+        {
+          "assessment_year": "AY2023-24",
+          "amount_inr": 585835.1
+        }
+      ],
+      "stcg_loss_cf": [
+        {
+          "assessment_year": "AY2024-25",
+          "amount_inr": 200000
+        }
+      ]
+    },
+    "lrs_outbound": {},
+    "tax_credits": {
+      "advance_tax_q1_15jun_inr": 180000,
+      "advance_tax_q2_15sep_inr": 220000,
+      "advance_tax_q3_15dec_inr": 220000,
+      "advance_tax_q4_15mar_inr": 180000,
+      "tds_already_deducted_inr": 310000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 75000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Sharma Kirana Store",
+                "nature": "general trading",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 300000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 25000,
+                  "employee_salary_wages_inr": 113992.66,
+                  "other_business_expenses_inr": 15000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "building_commercial",
+                "opening_wdv_inr": 100000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              },
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "building_commercial",
+                "opening_wdv_inr": 100000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 87500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "has_financial_transactions": true,
+          "transactions": [
+            {
+              "asset_class": "vda_crypto",
+              "asset_name_or_ticker": "BTC",
+              "quantity": 0,
+              "acquisition_date": "2023-06-01",
+              "purchase_value": 900000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-08-01",
+              "sale_value": 1200000,
+              "sale_currency": "INR",
+              "transfer_expenses": 0
+            }
+          ]
+        },
+        "property": {
+          "has_indian_property_transaction": true,
+          "properties": [
+            {
+              "address": "Ancestral home, Jaipur",
+              "property_type": "Residential",
+              "annual_value_inr": 300000,
+              "gross_rent_received_inr": 360000,
+              "municipal_taxes_paid_inr": 0
+            },
+            {
+              "address": "Plot 7, Vasant Vihar, Jaipur",
+              "property_type": "Land (non-agricultural)",
+              "sale_date": "2026-09-15",
+              "sale_consideration": 6800000,
+              "sale_consideration_currency": "INR",
+              "buyer_tan": "JPRS12345K",
+              "buyer_tds_deducted_inr": 68000,
+              "buyer_tds_challan_number": "CHLN99182"
+            }
+          ]
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 75000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Sharma Kirana Store",
+                "nature": "general trading",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 300000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 25000,
+                  "employee_salary_wages_inr": 45000,
+                  "other_business_expenses_inr": 15000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "building_commercial",
+                "opening_wdv_inr": 100000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": false,
+          "interest_fd_rd_inr": 87500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 75000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Sharma Kirana Store",
+                "nature": "general trading",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 300000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 25000,
+                  "employee_salary_wages_inr": 73174.16,
+                  "other_business_expenses_inr": 15000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "building_commercial",
+                "opening_wdv_inr": 100000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": -304.98,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 87500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 75000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Sharma Kirana Store",
+                "nature": "general trading",
+                "presumptive_scheme": "s44AE",
+                "gross_receipts_inr": 300000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 25000,
+                  "employee_salary_wages_inr": 45000,
+                  "other_business_expenses_inr": 15000
+                }
+              },
+              {
+                "business_name": "Sharma Kirana Store",
+                "nature": "general trading",
+                "presumptive_scheme": "s44AE",
+                "gross_receipts_inr": 300000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 25000,
+                  "employee_salary_wages_inr": 45000,
+                  "other_business_expenses_inr": 15000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "building_commercial",
+                "opening_wdv_inr": 100000,
+                "additions_during_year_inr": -231.67,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 87500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    },
+    "unlisted_equity": {
+      "has_unlisted_equity_transaction": true,
+      "transactions": [
+        {
+          "company": "Brightlane Foods Pvt Ltd",
+          "holding_pct": 4,
+          "acquisition_date": "2021-03-01",
+          "number_of_shares": 2500,
+          "cost_per_share": 100,
+          "cost_per_share_currency": "INR"
+        }
+      ]
+    },
+    "commodities": {
+      "transactions": [
+        {
+          "asset_class": "physical_gold",
+          "acquisition_date": "2023-11-01",
+          "purchase_value": 320000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-10-15",
+          "sale_value": 410000,
+          "sale_currency": "INR"
+        },
+        {
+          "asset_class": "sovereign_gold_bond_original",
+          "acquisition_date": "2018-11-05",
+          "purchase_value": 150000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-11-05",
+          "sale_value": 260000,
+          "sale_currency": "INR",
+          "is_maturity_redemption": false
+        }
+      ]
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Sharma HUF",
+      "filing_status": "single"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 0,
+      "spt_test_met": false,
+      "final_us_residency_status": "NON_RESIDENT_ALIEN"
+    },
+    "income_us_source": {},
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "bank_accounts": [],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {},
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {},
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

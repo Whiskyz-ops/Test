@@ -63,6 +63,35 @@ def format_usd(n: float) -> str:
     return f"${js_round(n):,}"
 
 
+def js_num_str(n: float) -> str:
+    """Port of JS's implicit Number-to-string coercion (`n + "some text"`,
+    template-literal interpolation): JS's `Number.prototype.toString()`
+    omits the decimal point entirely for an integer-valued number (`650`,
+    never `650.0`), where Python's `str()`/f-string interpolation of a
+    `float` always includes one. Both languages otherwise produce the same
+    shortest-round-trip decimal digit sequence for a non-integer value
+    (`650.38` in both) — found via a fuzz-corpus profile whose mutated
+    day-count field landed on a genuine fraction, surfacing this port's
+    several `f"{some_float_days_field}"` call sites (day counts, director
+    counts) that had never hit a non-integer value before. Not the same bug
+    class as `js_round`: those sites (`Math.round(...)` in the JS source)
+    need the VALUE rounded; these sites have no `Math.round` in the JS
+    source at all — they must show the raw value's own natural string
+    form, fractional or not, not a rounded one.
+
+    `None` (JS `null`) maps to the literal string `"null"`, not Python's
+    `"None"` — JS's `+`/template-literal string coercion of `null` produces
+    `"null"` (found via a fuzz-corpus profile whose asset had no
+    `placed_in_service_date`, so `assetRecoveryYearN` legitimately returns
+    `null` — a real value, not a crash — and the JS trace label shows
+    "yr null" verbatim)."""
+    if n is None:
+        return "null"
+    if isinstance(n, float) and n.is_integer():
+        return str(int(n))
+    return str(n)
+
+
 def safe(obj: Any, path: str, default: Any = None) -> Any:
     """Port of JS `safe(obj, path, dflt)`: walks a dotted path, returning
     `default` if any level along the way is missing/None."""

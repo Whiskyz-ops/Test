@@ -1,0 +1,485 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Sharma HUF",
+    "date_of_birth": "1988-01-01",
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 0,
+    "has_us_source_income_or_assets": false
+  },
+  "india": {
+    "profile": {
+      "full_name": "Sharma HUF",
+      "entity_type": "huf",
+      "tax_regime": "NEW",
+      "pan_aadhaar_linked": false
+    },
+    "residency_detail": {
+      "is_wholly_outside_india": false,
+      "final_india_residency_status": "ROR"
+    },
+    "dtaa": {
+      "tax_residency_country": "US",
+      "is_us_resident_for_dtaa": true,
+      "dtaa_treaty_residence": "us",
+      "trc_status": true,
+      "has_permanent_establishment_in_india": true,
+      "dtaa_forced_nr": true,
+      "tb_home": "both",
+      "tb_cvi": "us"
+    },
+    "compliance_docs": {},
+    "bank_accounts": [
+      {
+        "bank_name": "SBI",
+        "account_type": "current",
+        "peak_balance_inr": 900000
+      }
+    ],
+    "property": {
+      "has_indian_property_transaction": true,
+      "properties": [
+        {
+          "address": "Ancestral home, Jaipur",
+          "property_type": "Residential",
+          "annual_value_inr": 300000,
+          "gross_rent_received_inr": 360000,
+          "municipal_taxes_paid_inr": 12000
+        },
+        {
+          "address": "Plot 7, Vasant Vihar, Jaipur",
+          "property_type": "Land (non-agricultural)",
+          "sale_date": "2026-09-15",
+          "sale_consideration": 6800000,
+          "sale_consideration_currency": "INR",
+          "buyer_tan": "JPRS12345K",
+          "buyer_tds_deducted_inr": 68000,
+          "buyer_tds_challan_number": "CHLN99182"
+        }
+      ]
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": [
+        {
+          "asset_type": "equity_mutual_fund",
+          "asset_name": "Axis Bluechip Fund",
+          "value_inr": 2500000
+        },
+        {
+          "asset_type": "debt_mutual_fund",
+          "asset_name": "HDFC Corporate Bond Fund",
+          "value_inr": 1200000
+        },
+        {
+          "asset_class": "foreign_equity_unlisted",
+          "asset_name_or_ticker": "AMZN",
+          "acquisition_date": "2024-11-01",
+          "purchase_value": 2630.23,
+          "purchase_currency": "USD",
+          "sale_date": "2026-05-01",
+          "sale_value": 18000,
+          "sale_currency": "USD",
+          "stt_paid": false,
+          "transfer_expenses": 0,
+          "is_specified_foreign_exchange_asset": true
+        }
+      ]
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false,
+        "taxable_salary_inr": 4355366.19,
+        "esop_perquisite_events": [
+          {
+            "employer_name": "Infosys Ltd",
+            "grant_date": "2021-06-01",
+            "vesting_or_exercise_date": "2026-07-29",
+            "shares": 400,
+            "fmv_per_share_inr": 1800,
+            "exercise_price_per_share_inr": 0,
+            "perquisite_value_inr": 600000
+          }
+        ]
+      },
+      "house_property": {
+        "has_house_property_income": true,
+        "properties": [
+          {
+            "annual_value_inr": 780072.72
+          }
+        ]
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "business_entries": [
+          {
+            "business_name": "Sharma Freelance Dev",
+            "nature": "software consulting",
+            "presumptive_scheme": null,
+            "gross_receipts_inr": 126082.28,
+            "expenses": {
+              "rent_for_business_premises_inr": 60000,
+              "other_business_expenses_inr": 40000
+            }
+          }
+        ],
+        "asset_blocks": [
+          {
+            "unit_biz_idx": 0,
+            "unit_branch_idx": null,
+            "asset_class": "plant_machinery_computers",
+            "opening_wdv_inr": 80000,
+            "additions_during_year_inr": 0,
+            "addition_date": null,
+            "sale_consideration_inr": 0,
+            "is_new_manufacturing_asset": true
+          }
+        ]
+      },
+      "capital_gains": {
+        "short_term_15_pct": 250000
+      }
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_savings_inr": 40000,
+      "interest_fd_rd_inr": 120000,
+      "dividend_inr": 90000,
+      "taxable_epf_interest_inr": 45000
+    },
+    "deductions": {},
+    "carry_forward_losses": {
+      "has_brought_forward_losses": false,
+      "stcg_loss_cf": [
+        {
+          "assessment_year": "AY2024-25",
+          "amount_inr": 180000
+        }
+      ]
+    },
+    "lrs_outbound": {
+      "total_lrs_remitted_this_fy_inr": 17000000
+    },
+    "tax_credits": {
+      "tds_already_deducted_inr": 15000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": [
+              {
+                "annual_value_inr": 75000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Sharma Kirana Store",
+                "nature": "general trading",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 300000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 25000,
+                  "employee_salary_wages_inr": 45000,
+                  "other_business_expenses_inr": 0
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "building_commercial",
+                "opening_wdv_inr": 100000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": true
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 87500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "has_financial_transactions": false,
+          "transactions": [
+            {
+              "asset_class": "vda_crypto",
+              "asset_name_or_ticker": "BTC",
+              "quantity": 0,
+              "acquisition_date": "2023-06-01",
+              "purchase_value": 900000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-08-01",
+              "sale_value": 1200000,
+              "sale_currency": "INR",
+              "transfer_expenses": 0
+            },
+            {
+              "asset_class": "vda_crypto",
+              "asset_name_or_ticker": "BTC",
+              "quantity": 0,
+              "acquisition_date": "2023-06-01",
+              "purchase_value": 900000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-08-01",
+              "sale_value": 1200000,
+              "sale_currency": "INR",
+              "transfer_expenses": 0
+            }
+          ]
+        },
+        "property": {
+          "has_indian_property_transaction": true,
+          "properties": [
+            {
+              "address": "Ancestral home, Jaipur",
+              "property_type": "Residential",
+              "annual_value_inr": 300000,
+              "gross_rent_received_inr": 369219.24,
+              "municipal_taxes_paid_inr": 12000
+            },
+            {
+              "address": "Plot 7, Vasant Vihar, Jaipur",
+              "property_type": "Land (non-agricultural)",
+              "sale_date": "2026-09-15",
+              "sale_consideration": 6800000,
+              "sale_consideration_currency": "INR",
+              "buyer_tan": "JPRS12345K",
+              "buyer_tds_deducted_inr": 68000,
+              "buyer_tds_challan_number": "CHLN99182"
+            }
+          ]
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 75000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Sharma Kirana Store",
+                "nature": "general trading",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 573377,
+                "expenses": {
+                  "rent_for_business_premises_inr": 25000,
+                  "employee_salary_wages_inr": 45000,
+                  "other_business_expenses_inr": 15000
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "building_commercial",
+                "opening_wdv_inr": 100000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": true
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 87500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 75000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Sharma Kirana Store",
+                "nature": "general trading",
+                "presumptive_scheme": "s44AD",
+                "gross_receipts_inr": 300000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 25000,
+                  "employee_salary_wages_inr": 0,
+                  "other_business_expenses_inr": 0
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "building_commercial",
+                "opening_wdv_inr": 100000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 433.56,
+                "is_new_manufacturing_asset": false
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 87500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": [
+              {
+                "annual_value_inr": 75000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Sharma Kirana Store",
+                "nature": "general trading",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 483518.16,
+                "expenses": {
+                  "rent_for_business_premises_inr": 25000,
+                  "employee_salary_wages_inr": 45000,
+                  "other_business_expenses_inr": 0
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "building_commercial",
+                "opening_wdv_inr": 100000,
+                "additions_during_year_inr": 0,
+                "addition_date": null,
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": true
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 87500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Aarav Sharma",
+      "date_of_birth": "1988-07-15",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "has_green_card": false,
+      "us_days_current_year": 0,
+      "spt_test_met": false,
+      "final_us_residency_status": "NON_RESIDENT_ALIEN"
+    },
+    "income_us_source": {},
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": false,
+      "foreign_earned_income_usd": 21687,
+      "feie_amount_claimed_usd": 0
+    },
+    "bank_accounts": [],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "owns_10_percent_foreign_corp": false,
+      "foreign_corporations": [],
+      "pfic_holdings": [
+        {
+          "asset_name": "Axis Bluechip Fund",
+          "holding_value_usd": 30120
+        },
+        {
+          "asset_name": "HDFC Corporate Bond Fund",
+          "holding_value_usd": 14458
+        }
+      ],
+      "has_pfics": true
+    },
+    "retirement_accounts": {},
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 31000
+    },
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    },
+    "state_residency": {
+      "primary_state_of_residence": "CA",
+      "ca_retains_property_or_voter_reg": true
+    }
+  }
+}

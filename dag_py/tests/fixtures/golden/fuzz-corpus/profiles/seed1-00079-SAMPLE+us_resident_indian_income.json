@@ -1,0 +1,299 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2025,
+    "full_name": "Aarav Sharma",
+    "date_of_birth": "1988-07-15",
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 330,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Aarav Sharma",
+      "entity_type": "trust",
+      "date_of_birth": "1988-07-15",
+      "pan": "ABCPS1234K",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 20,
+      "final_india_residency_status": "NR"
+    },
+    "dtaa": {
+      "tax_residency_country": "US",
+      "is_us_resident_for_dtaa": true,
+      "dtaa_treaty_residence": "us",
+      "trc_status": true,
+      "has_permanent_establishment_in_india": false,
+      "treaty_elections": [],
+      "dtaa_forced_nr": false
+    },
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": false
+      },
+      "form_10f": {
+        "is_filed": false
+      },
+      "chapter_xiia_elected": false
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "HDFC Bank",
+        "account_type": "savings",
+        "peak_balance_inr": 3200000
+      }
+    ],
+    "property": {
+      "has_indian_property_transaction": true,
+      "properties": [
+        {
+          "address": "Flat 12B, Pune",
+          "property_type": "Residential",
+          "gross_rent_received_inr": 600000,
+          "municipal_taxes_paid_inr": 30000
+        }
+      ]
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": [
+        {
+          "asset_type": "debt_mutual_fund",
+          "asset_name": "HDFC Corporate Bond Fund",
+          "value_inr": 1200000
+        }
+      ]
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "taxable_salary_inr": 4200000,
+        "gross_salary_inr": 4500000
+      },
+      "house_property": {
+        "has_house_property_income": true,
+        "properties": [
+          {
+            "annual_value_inr": 420000,
+            "gross_rent_received_inr": 600000
+          }
+        ]
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "business_entries": [
+          {
+            "trade_name": "Sharma Consulting Pvt Ltd",
+            "net_profit_inr": 1800000
+          }
+        ]
+      },
+      "capital_gains": {
+        "short_term_15_pct": 250000
+      },
+      "other_sources": {
+        "interest_inr": 0
+      }
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_fd_rd_inr": 260000,
+      "dividend_inr": 220000,
+      "online_gaming_winnings_inr": 180000,
+      "unexplained_income_115BBE_inr": 139955.84
+    },
+    "deductions": {
+      "s80C": {
+        "epf_employee_inr": 150000,
+        "ppf_inr": 150000
+      },
+      "s80CCC_80CCD1": {
+        "nps_employee_contribution_inr": 50000
+      }
+    },
+    "lrs_outbound": {
+      "total_lrs_remitted_this_fy_inr": 17000000,
+      "lrs_purpose": "investment"
+    },
+    "tax_credits": {
+      "advance_tax_q1_15jun_inr": 400000,
+      "advance_tax_q2_15sep_inr": 400000,
+      "advance_tax_q3_15dec_inr": 400000,
+      "advance_tax_q4_15mar_inr": 300000,
+      "tds_already_deducted_inr": 350000,
+      "tds_inr": 0,
+      "tcs_inr": 0
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Aarav Sharma",
+      "date_of_birth": "1988-07-15",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": true,
+      "us_days_current_year": 345,
+      "spt_test_met": true,
+      "final_us_residency_status": "RESIDENT_ALIEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "has_employment_income": false,
+      "wages_w2": [
+        {
+          "employer_name": "Northwind Labs",
+          "wages_box1_usd": 158000,
+          "qualified_tip_income_usd": 2400,
+          "qualified_overtime_premium_usd": 5800,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 30000,
+            "medicare_wages_box5_usd": 360941.68
+          }
+        }
+      ],
+      "self_employment": [
+        {
+          "business_name": "Mehta Analytics (consulting)",
+          "self_employment_earnings_usd": 62000
+        }
+      ],
+      "partnerships_k1": [
+        {
+          "business_name": "Meridian Consulting Partners LLC",
+          "partner_type": "general",
+          "ordinary_business_income_usd": 18000,
+          "guaranteed_payments_usd": 12000,
+          "self_employment_earnings_usd": 30000,
+          "interest_income_usd": 900,
+          "sec179_deduction_usd": 2000
+        }
+      ],
+      "s_corporations_k1": [
+        {
+          "business_name": "Harborline Print Co",
+          "ordinary_income_usd": 9000,
+          "ordinary_dividends_usd": 500,
+          "is_specified_service_trade": false
+        }
+      ],
+      "interest_us_source_usd": 5200,
+      "ordinary_dividends_us_source_usd": 6400,
+      "qualified_dividends_us_source_usd": 4000,
+      "ltcg_us_source_usd": 12000,
+      "rental_income_us_source_usd": 27000
+    },
+    "income_foreign_source": {
+      "foreign_wages": [
+        {
+          "employer_name": "India Salary",
+          "wages_usd": 50602
+        }
+      ],
+      "foreign_interest_usd": 3614,
+      "foreign_dividends_usd": 1807,
+      "foreign_rental_income_usd": 5060,
+      "foreign_stcg_usd": 3012,
+      "foreign_ltcg_usd": 0
+    },
+    "foreign_earned_income": {
+      "claims_feie": true,
+      "feie_amount_claimed_usd": 14458,
+      "tax_home_country": "United States",
+      "bona_fide_residence": false,
+      "physical_presence": false,
+      "days_in_us_during_test_period": 365
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "HDFC Bank",
+        "account_type": "savings",
+        "country": "India",
+        "peak_balance_usd": 38554
+      },
+      {
+        "bank_name": "ICICI Bank",
+        "account_type": "nro",
+        "country": "India",
+        "peak_balance_usd": 18072
+      },
+      {
+        "bank_name": "HDFC Bank",
+        "account_type": "savings",
+        "country": "India",
+        "peak_balance_usd": 38554
+      }
+    ],
+    "fbar_aggregate_peak_usd": 54217,
+    "form_8938_required": false,
+    "foreign_entities": {
+      "owns_10_percent_foreign_corp": true,
+      "foreign_corporations": [
+        {
+          "corp_name": "Sharma Consulting Pvt Ltd",
+          "country": "IN",
+          "gilti_income_usd": 21687
+        },
+        {
+          "corp_name": "Sharma Consulting Pvt Ltd",
+          "country": "IN",
+          "gilti_income_usd": 21687
+        }
+      ],
+      "pfic_holdings": [
+        {
+          "asset_name": "Axis Bluechip Fund",
+          "holding_value_usd": 30120
+        },
+        {
+          "asset_name": "HDFC Corporate Bond Fund",
+          "holding_value_usd": 14458
+        }
+      ],
+      "has_pfics": false
+    },
+    "retirement_accounts": {
+      "indian_epf_balance_usd": 1807,
+      "indian_ppf_balance_usd": 1807
+    },
+    "ftc_inputs": {
+      "claims_ftc": true,
+      "ftc_baskets": [
+        {
+          "country": "IN",
+          "basket_category": "Passive",
+          "foreign_taxes_usd": 5180
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 31000,
+      "estimated_tax_q1_apr15_usd": 0,
+      "estimated_tax_q2_jun15_usd": 0,
+      "estimated_tax_q3_sep15_usd": 0,
+      "estimated_tax_q4_jan15_usd": -407.41
+    },
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    },
+    "state_residency": {
+      "primary_state_of_residence": "NY",
+      "ny_actual_days_present": 240,
+      "ny_permanent_place_of_abode": true
+    }
+  }
+}

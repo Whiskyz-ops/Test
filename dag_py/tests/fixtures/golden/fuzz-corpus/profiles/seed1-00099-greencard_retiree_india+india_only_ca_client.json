@@ -1,0 +1,270 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Lakshmi Pillai",
+    "date_of_birth": "1958-04-15",
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 20,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Lakshmi Pillai",
+      "entity_type": "local",
+      "date_of_birth": "1958-04-15",
+      "pan": "ALPPL1234M",
+      "tax_regime": "OLD"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 300,
+      "final_india_residency_status": "ROR",
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false
+    },
+    "dtaa": {
+      "tax_residency_country": "IN",
+      "dtaa_treaty_residence": "none",
+      "trc_status": false,
+      "form_10f": false
+    },
+    "compliance_docs": {},
+    "bank_accounts": [
+      {
+        "bank_name": "SBI",
+        "account_type": "savings",
+        "peak_balance_inr": 850000
+      }
+    ],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": [
+        {
+          "asset_type": "equity_mutual_fund",
+          "asset_name": "Parag Parikh Flexi Cap",
+          "value_inr": 3200000
+        },
+        {
+          "asset_type": "debt_mutual_fund",
+          "asset_name": "ICICI Pru Corporate Bond Fund",
+          "value_inr": 1400000
+        },
+        {
+          "asset_class": "vda_crypto",
+          "asset_name_or_ticker": "ETH",
+          "quantity": 3,
+          "acquisition_date": "2024-02-10",
+          "purchase_value": 480000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-09-01",
+          "sale_value": 720000,
+          "sale_currency": "INR",
+          "transfer_expenses": 0
+        }
+      ]
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "business_income": {
+        "has_business_or_fo_income": false
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "family_pension_inr": 600000,
+      "interest_fd_rd_inr": 8000
+    },
+    "deductions": {
+      "s80C": {
+        "epf_employee_inr": 150000,
+        "elss_inr": 50000,
+        "life_insurance_premium_inr": 0,
+        "tuition_fees_inr": 60000
+      },
+      "s80CCD_1B": {
+        "nps_additional_inr": 17559.94
+      },
+      "s80D": {
+        "self_family_premium_inr": 28000,
+        "parents_premium_inr": 45000
+      },
+      "s80DDB": {
+        "has_specified_diseases_treatment": true,
+        "medical_expenses_inr": 55000,
+        "patient_category": "senior"
+      },
+      "s80E": {
+        "education_loan_interest_inr": 85000
+      },
+      "s80EEA_EE": {
+        "affordable_home_loan_interest_inr": 140000,
+        "loan_sanction_date": "2020-06-15"
+      },
+      "s80TTA_TTB": {
+        "savings_interest_inr": 32000
+      },
+      "s80ggb_ggc_political_donation_inr": 25000
+    },
+    "lrs_outbound": {},
+    "tax_credits": {},
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": false,
+          "family_pension_inr": 150000,
+          "interest_fd_rd_inr": 0
+        },
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "has_financial_transactions": false,
+          "transactions": []
+        },
+        "property": {
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "family_pension_inr": 150000,
+          "interest_fd_rd_inr": 2000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "family_pension_inr": 150000,
+          "interest_fd_rd_inr": 2000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "family_pension_inr": 150000,
+          "interest_fd_rd_inr": 0
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    },
+    "unlisted_equity": {
+      "has_unlisted_equity_transaction": true,
+      "transactions": [
+        {
+          "company": "Brightlane Foods Pvt Ltd",
+          "holding_pct": 4,
+          "acquisition_date": "2021-02-12",
+          "number_of_shares": 2729.94,
+          "cost_per_share": 100,
+          "cost_per_share_currency": "INR"
+        }
+      ]
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Lakshmi Pillai",
+      "date_of_birth": "1958-04-15",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": true,
+      "us_days_current_year": 20,
+      "spt_test_met": false,
+      "final_us_residency_status": "RESIDENT_ALIEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {},
+    "income_foreign_source": {
+      "foreign_interest_usd": 96,
+      "foreign_pension_usd": 7228
+    },
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "Wells Fargo",
+        "account_type": "savings",
+        "country": "US",
+        "peak_balance_usd": 4000
+      }
+    ],
+    "fbar_aggregate_peak_usd": 4000,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "owns_foreign_disregarded_entity": false,
+      "pfic_holdings": [],
+      "has_pfics": true
+    },
+    "financial_holdings": [],
+    "retirement_accounts": {},
+    "ftc_inputs": {
+      "claims_ftc": true
+    },
+    "withholding_and_estimated": {},
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "foreign_gifts_and_trusts": {},
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

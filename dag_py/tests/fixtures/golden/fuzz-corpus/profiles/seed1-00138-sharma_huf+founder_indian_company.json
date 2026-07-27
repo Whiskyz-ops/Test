@@ -1,0 +1,346 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Sharma HUF",
+    "date_of_birth": "1988-01-01",
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 0,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Vikram Rao",
+      "entity_type": "individual",
+      "date_of_birth": "1986-05-30",
+      "pan": "AAVPR3456S",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "is_wholly_outside_india": false,
+      "final_india_residency_status": "ROR"
+    },
+    "dtaa": {},
+    "compliance_docs": {},
+    "bank_accounts": [
+      {
+        "bank_name": "SBI",
+        "account_type": "current",
+        "peak_balance_inr": 900000
+      }
+    ],
+    "property": {
+      "has_indian_property_transaction": false,
+      "properties": [
+        {
+          "address": "Ancestral home, Jaipur",
+          "property_type": "Residential",
+          "annual_value_inr": 300000,
+          "gross_rent_received_inr": 0,
+          "municipal_taxes_paid_inr": 11783.49
+        },
+        {
+          "address": "Plot 7, Vasant Vihar, Jaipur",
+          "property_type": "Land (non-agricultural)",
+          "sale_date": "2026-09-15",
+          "sale_consideration": 6800000,
+          "sale_consideration_currency": "INR",
+          "buyer_tan": "JPRS12345K",
+          "buyer_tds_deducted_inr": 68000,
+          "buyer_tds_challan_number": "CHLN99182"
+        },
+        {
+          "address": "Ancestral home, Jaipur",
+          "property_type": "Residential",
+          "annual_value_inr": 300000,
+          "gross_rent_received_inr": 0,
+          "municipal_taxes_paid_inr": 11783.49
+        }
+      ]
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": [
+        {
+          "asset_class": "vda_crypto",
+          "asset_name_or_ticker": "BTC",
+          "quantity": 0.5,
+          "acquisition_date": "2023-06-01",
+          "purchase_value": 900000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-08-01",
+          "sale_value": 1200000,
+          "sale_currency": "INR",
+          "transfer_expenses": 0
+        }
+      ]
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "house_property": {
+        "has_house_property_income": true,
+        "properties": [
+          {
+            "annual_value_inr": 300000
+          }
+        ]
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "business_entries": [
+          {
+            "business_name": "Sharma Kirana Store",
+            "nature": "general trading",
+            "presumptive_scheme": "s44ADA",
+            "gross_receipts_inr": 1200000,
+            "expenses": {
+              "rent_for_business_premises_inr": 100000,
+              "employee_salary_wages_inr": 180000,
+              "other_business_expenses_inr": 60000
+            }
+          }
+        ],
+        "asset_blocks": [
+          {
+            "unit_biz_idx": 0,
+            "unit_branch_idx": null,
+            "asset_class": "building_commercial",
+            "opening_wdv_inr": 400000,
+            "additions_during_year_inr": 0,
+            "addition_date": null,
+            "sale_consideration_inr": 0,
+            "is_new_manufacturing_asset": false
+          }
+        ]
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {
+      "has_other_sources_income": false,
+      "interest_fd_rd_inr": 350000
+    },
+    "deductions": {},
+    "carry_forward_losses": {
+      "has_brought_forward_losses": true,
+      "business_loss_cf": [
+        {
+          "assessment_year": "AY2023-24",
+          "amount_inr": 500000
+        }
+      ],
+      "stcg_loss_cf": [
+        {
+          "assessment_year": "AY2024-25",
+          "amount_inr": 200000
+        },
+        {
+          "assessment_year": "AY2024-25",
+          "amount_inr": 200000
+        }
+      ]
+    },
+    "lrs_outbound": {},
+    "tax_credits": {
+      "tds_already_deducted_inr": 15000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {
+            "short_term_15_pct": 25000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": false,
+          "dividend_inr": 131458.82,
+          "interest_fd_rd_inr": 50000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "has_financial_transactions": true,
+          "transactions": [
+            {
+              "asset_type": "unlisted_equity",
+              "asset_name": "Nova Systems Pvt Ltd (100%)",
+              "value_inr": 45000000
+            }
+          ]
+        },
+        "unlisted_equity": {
+          "has_unlisted_equity_transaction": false,
+          "transactions": [
+            {
+              "company": "Nova Systems Pvt Ltd",
+              "holding_pct": 100,
+              "linked_client_id": "india_pvt_ltd",
+              "acquisition_date": "2019-04-15",
+              "number_of_shares": 27249.23,
+              "cost_per_share": 10,
+              "cost_per_share_currency": "INR"
+            }
+          ]
+        },
+        "property": {
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {
+            "short_term_15_pct": 25000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "dividend_inr": 125000,
+          "interest_fd_rd_inr": 50000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {
+            "short_term_15_pct": 25000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "dividend_inr": 125000,
+          "interest_fd_rd_inr": 50000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {
+            "short_term_15_pct": 0
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "dividend_inr": 125000,
+          "interest_fd_rd_inr": 50000
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Sharma HUF",
+      "filing_status": "single"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 0,
+      "spt_test_met": false,
+      "final_us_residency_status": "NON_RESIDENT_ALIEN"
+    },
+    "income_us_source": {},
+    "income_foreign_source": {
+      "foreign_dividends_usd": 6024
+    },
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "Kotak (Company)",
+        "account_type": "current",
+        "country": "India",
+        "peak_balance_usd": 0
+      }
+    ],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "owns_10_percent_foreign_corp": true,
+      "foreign_corporations": [
+        {
+          "corporation_name": "Nova Systems Pvt Ltd",
+          "country_of_incorporation": "IN",
+          "ownership_percentage": 100,
+          "tax_year_start": "2026-04-01",
+          "gilti_income_usd": 108433,
+          "subpart_f_income_usd": 0,
+          "section_962_election_active": false,
+          "linked_client_id": "india_pvt_ltd"
+        }
+      ],
+      "pfic_holdings": [],
+      "has_pfics": false
+    },
+    "retirement_accounts": {
+      "401k_employee_contribution_usd": 23000,
+      "401k_employer_match_usd": 8000
+    },
+    "ftc_inputs": {
+      "claims_ftc": true
+    },
+    "withholding_and_estimated": {},
+    "nra_specific": {
+      "files_form_1040nr": true
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    },
+    "real_estate": {
+      "has_real_estate_transaction": true,
+      "properties": [
+        {
+          "name": "Primary home — Austin, TX",
+          "property_type": "Residential (own use)",
+          "gross_rent_usd": 0,
+          "expenses_usd": 0
+        },
+        {
+          "name": "Primary home — Austin, TX",
+          "property_type": "Residential (own use)",
+          "gross_rent_usd": 0,
+          "expenses_usd": 0
+        }
+      ]
+    }
+  }
+}

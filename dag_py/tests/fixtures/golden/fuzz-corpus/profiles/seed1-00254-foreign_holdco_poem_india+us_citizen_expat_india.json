@@ -1,0 +1,272 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Meridian Holdings Pte Ltd",
+    "date_of_birth": "1988-01-01",
+    "is_us_citizen": true,
+    "has_green_card": false,
+    "us_days": 0,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Meridian Holdings Pte Ltd",
+      "entity_type": "company",
+      "tax_regime": "NEW",
+      "turnover_lte_400cr": true,
+      "opt_115baa": false
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 365,
+      "final_india_residency_status": "ROR",
+      "is_indian_company": false
+    },
+    "company_residency": {
+      "is_active_business": true,
+      "board_meetings_primarily_outside_india": true,
+      "key_management_location": "Mumbai, India",
+      "management_delegated_outside_india": false,
+      "directors_in_india_count": 3,
+      "directors_outside_india_count": 2
+    },
+    "dtaa": {
+      "dtaa_treaty_residence": "none",
+      "trc_status": false,
+      "has_permanent_establishment_in_india": false
+    },
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": false
+      },
+      "form_10f": {
+        "is_filed": false
+      }
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "DBS (Current)",
+        "account_type": "current",
+        "peak_balance_inr": 12382687.13
+      }
+    ],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": []
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "business_entries": [
+          {
+            "business_name": "Grace Thomas Consulting",
+            "nature": "technical consultancy",
+            "presumptive_scheme": "s44AD",
+            "gross_receipts_inr": 5000000,
+            "ada_digital_receipts_inr": 13706214.44,
+            "ada_cash_receipts_inr": 0
+          }
+        ]
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {},
+    "deductions": {
+      "s80C": {
+        "ppf_inr": 150000
+      }
+    },
+    "lrs_outbound": {},
+    "tax_credits": {
+      "tds_already_deducted_inr": 130564.61
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Grace Thomas Consulting",
+                "nature": "technical consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 1250000,
+                "ada_digital_receipts_inr": 1250000,
+                "ada_cash_receipts_inr": 0
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 30000,
+          "taxable_nps_withdrawal_inr": 7500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "has_financial_transactions": true,
+          "transactions": [
+            {
+              "asset_type": "equity_mutual_fund",
+              "asset_name": "Parag Parikh Flexi Cap",
+              "value_inr": 1800000
+            }
+          ]
+        },
+        "property": {
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Grace Thomas Consulting",
+                "nature": "technical consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 1037189.94,
+                "ada_digital_receipts_inr": 1250000,
+                "ada_cash_receipts_inr": 0
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 30000,
+          "taxable_nps_withdrawal_inr": 12486.72
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": [
+              {
+                "business_name": "Grace Thomas Consulting",
+                "nature": "technical consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 1250000,
+                "ada_digital_receipts_inr": 1250000,
+                "ada_cash_receipts_inr": 0
+              },
+              {
+                "business_name": "Grace Thomas Consulting",
+                "nature": "technical consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 1250000,
+                "ada_digital_receipts_inr": 1250000,
+                "ada_cash_receipts_inr": 0
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 30000,
+          "taxable_nps_withdrawal_inr": 0
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "business_entries": [
+              {
+                "business_name": "Grace Thomas Consulting",
+                "nature": "technical consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 1250000,
+                "ada_digital_receipts_inr": 1250000,
+                "ada_cash_receipts_inr": 0
+              }
+            ]
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_fd_rd_inr": 30000,
+          "taxable_nps_withdrawal_inr": 7500
+        },
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Grace Thomas",
+      "date_of_birth": "1958-09-12",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": true,
+      "us_days_current_year": 0,
+      "spt_test_met": false,
+      "final_us_residency_status": "NON_RESIDENT_ALIEN"
+    },
+    "income_us_source": {},
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "bank_accounts": [],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {
+      "indian_epf_balance_usd": 3600
+    },
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 0
+    },
+    "nra_specific": {
+      "files_form_1040nr": true
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

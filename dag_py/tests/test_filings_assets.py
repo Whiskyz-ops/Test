@@ -66,7 +66,7 @@ def _build_graph():
 
     r = entry.build(r)
 
-    for node_id in ("foreignGiftsRaw", "nraRaw", "stateResidencyRaw", "usStateTaxResult", "limitsRawExtra", "equityCompRaw", "esopEventsRaw", "esopPerquisiteInrRaw", "diAggUs", "equityCompResult"):
+    for node_id in ("foreignGiftsRaw", "nraRaw", "stateResidencyRaw", "usStateTaxResult", "limitsRawExtra", "equityCompRaw", "esopEventsRaw", "esopPerquisiteInrRaw", "equityCompResult"):
         if node_id not in r:
             r.register(node_id, us_findings.NODES[node_id])
     for node_id in ("taxesPaidUsResult", "bankAccountsRaw", "aggregatePeakUsdResult", "indiaFinancialHoldingsTxRaw", "ppfInrRaw", "epfInrRaw", "npsInrRaw", "taxableEpfInterestInrAgg", "taxableNpsWithdrawalInrAgg", "usFtcFormXbr"):

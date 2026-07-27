@@ -1,0 +1,847 @@
+{
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Aarav Sharma",
+    "date_of_birth": "1988-07-15",
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 330,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Kavya Iyer",
+      "entity_type": "company",
+      "date_of_birth": "1984-11-20",
+      "pan": "AKIPI4567L",
+      "tax_regime": "OLD"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 183,
+      "final_india_residency_status": "ROR"
+    },
+    "dtaa": {
+      "tax_residency_country": "US",
+      "is_us_resident_for_dtaa": true,
+      "dtaa_treaty_residence": "us",
+      "trc_status": true,
+      "has_permanent_establishment_in_india": false,
+      "dtaa_forced_nr": false,
+      "tb_home": "both",
+      "tb_cvi": "us"
+    },
+    "compliance_docs": {},
+    "bank_accounts": [
+      {
+        "bank_name": "HDFC Bank",
+        "account_type": "savings",
+        "peak_balance_inr": 3200000
+      },
+      {
+        "bank_name": "ICICI Bank",
+        "account_type": "nro",
+        "peak_balance_inr": 551646.78
+      }
+    ],
+    "property": {
+      "has_indian_property_transaction": true,
+      "properties": [
+        {
+          "address": "Flat 12B, Pune",
+          "property_type": "Residential",
+          "annual_value_inr": 420000,
+          "gross_rent_received_inr": 600000,
+          "municipal_taxes_paid_inr": 0
+        }
+      ]
+    },
+    "financial_holdings": {
+      "has_financial_transactions": true,
+      "transactions": [
+        {
+          "asset_type": "equity_mutual_fund",
+          "asset_name": "Parag Parikh Flexi Cap",
+          "value_inr": 3200000
+        },
+        {
+          "asset_type": "debt_mutual_fund",
+          "asset_name": "ICICI Pru Corporate Bond Fund",
+          "value_inr": 1400000
+        },
+        {
+          "asset_class": "vda_crypto",
+          "asset_name_or_ticker": "ETH",
+          "quantity": 3,
+          "acquisition_date": "2024-02-10",
+          "purchase_value": 480000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-09-01",
+          "sale_value": 720000,
+          "sale_currency": "INR",
+          "transfer_expenses": 0
+        }
+      ]
+    },
+    "foreign_assets": {
+      "has_foreign_assets": false,
+      "assets": []
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "taxable_salary_inr": 1800000,
+        "esop_perquisite_events": [
+          {
+            "employer_name": "Infosys Ltd",
+            "grant_date": "2021-03-22",
+            "vesting_or_exercise_date": "2026-06-01",
+            "shares": 400,
+            "fmv_per_share_inr": 1800,
+            "exercise_price_per_share_inr": 300,
+            "perquisite_value_inr": 600000
+          }
+        ]
+      },
+      "house_property": {
+        "has_house_property_income": true,
+        "properties": [
+          {
+            "annual_value_inr": 0
+          }
+        ]
+      },
+      "business_income": {
+        "has_business_or_fo_income": false,
+        "business_entries": [
+          {
+            "business_name": "Sharma Freelance Dev",
+            "nature": "software consulting",
+            "presumptive_scheme": null,
+            "gross_receipts_inr": 900000,
+            "expenses": {
+              "rent_for_business_premises_inr": 60000,
+              "other_business_expenses_inr": 40000
+            }
+          }
+        ],
+        "asset_blocks": [
+          {
+            "unit_biz_idx": 0,
+            "unit_branch_idx": null,
+            "asset_class": "plant_machinery_computers",
+            "opening_wdv_inr": 80000,
+            "additions_during_year_inr": 0,
+            "addition_date": null,
+            "sale_consideration_inr": 0,
+            "is_new_manufacturing_asset": false
+          }
+        ]
+      },
+      "capital_gains": {
+        "short_term_15_pct": 250000
+      }
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_savings_inr": 40000,
+      "interest_fd_rd_inr": 120000,
+      "dividend_inr": 90000,
+      "taxable_epf_interest_inr": 45000
+    },
+    "deductions": {
+      "s80C": {
+        "epf_employee_inr": 150000,
+        "ppf_inr": 150000
+      },
+      "s80CCC_80CCD1": {
+        "nps_employee_contribution_inr": 30413.53
+      }
+    },
+    "carry_forward_losses": {
+      "has_brought_forward_losses": true,
+      "stcg_loss_cf": [
+        {
+          "assessment_year": "AY2024-25",
+          "amount_inr": 180000
+        }
+      ]
+    },
+    "lrs_outbound": {
+      "total_lrs_remitted_this_fy_inr": 17000000
+    },
+    "tax_credits": {
+      "advance_tax_q1_15jun_inr": 400000,
+      "advance_tax_q2_15sep_inr": 400000,
+      "advance_tax_q3_15dec_inr": 709816.45,
+      "advance_tax_q4_15mar_inr": 300000,
+      "tds_already_deducted_inr": 350000
+    },
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 600000,
+            "employer_nps_contribution_inr": 30000
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 90000
+              },
+              {
+                "annual_value_inr": 45000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "non_speculative_income_inr": 80000,
+            "fno_turnover_inr": 1625000,
+            "speculative_income_inr": -11250,
+            "speculative_turnover_inr": 125000,
+            "business_entries": [
+              {
+                "business_name": "Iyer Stationery Mart",
+                "nature": "retail trading",
+                "presumptive_scheme": null,
+                "turnover_inr": 2125000,
+                "gross_receipts_inr": 2125000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 120000,
+                  "employee_salary_wages_inr": 240000,
+                  "other_business_expenses_inr": 155000,
+                  "insurance_premium_inr": 10000,
+                  "payments_to_residents_no_tds_inr": 37500
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 225000,
+                "additions_during_year_inr": 75000,
+                "addition_date": "2026-05-15",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "supplier_name": "Sunrise Packaging Co",
+                "amount_inr": 16250,
+                "invoice_date": "2026-02-01",
+                "has_written_agreement": true,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Iyer & Rao Jewelry Trading LLP",
+                "entity_type": "ajp",
+                "remuneration_from_entity_inr": 120000,
+                "interest_on_capital_from_entity_inr": 22500,
+                "profit_share_exempt_inr": 175000
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 85000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": false,
+          "interest_savings_inr": 8000,
+          "interest_fd_rd_inr": 0,
+          "dividend_inr": 23750,
+          "family_pension_gross_inr": 45000,
+          "gifts_above_50k_inr": 30000,
+          "online_gaming_winnings_inr": 10000,
+          "taxable_epf_interest_inr": 7000
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 52500
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 385195.58
+        },
+        "financial_holdings": {
+          "has_financial_transactions": true,
+          "transactions": [
+            {
+              "asset_type": "equity_mutual_fund",
+              "asset_name": "Parag Parikh Flexi Cap",
+              "value_inr": 380351.82
+            },
+            {
+              "asset_type": "debt_mutual_fund",
+              "asset_name": "ICICI Pru Corporate Bond Fund",
+              "value_inr": 1400000
+            },
+            {
+              "asset_class": "vda_crypto",
+              "asset_name_or_ticker": "ETH",
+              "quantity": 258.56,
+              "acquisition_date": "2024-02-10",
+              "purchase_value": 480000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-09-01",
+              "sale_value": 0,
+              "sale_currency": "INR",
+              "transfer_expenses": 0
+            }
+          ]
+        },
+        "commodities": {
+          "transactions": [
+            {
+              "asset_class": "physical_gold",
+              "acquisition_date": "2023-11-01",
+              "purchase_value": 320000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-10-15",
+              "sale_value": 410000,
+              "sale_currency": "INR"
+            },
+            {
+              "asset_class": "sovereign_gold_bond_original",
+              "acquisition_date": "2018-11-05",
+              "purchase_value": 150000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-11-05",
+              "sale_value": 260000,
+              "sale_currency": "INR",
+              "is_maturity_redemption": true
+            }
+          ]
+        },
+        "unlisted_equity": {
+          "has_unlisted_equity_transaction": true,
+          "transactions": [
+            {
+              "company": "Brightlane Foods Pvt Ltd",
+              "holding_pct": 4,
+              "acquisition_date": "2020-12-04",
+              "number_of_shares": 2500,
+              "cost_per_share": 158.61,
+              "cost_per_share_currency": "INR"
+            }
+          ]
+        },
+        "property": {
+          "has_indian_property_transaction": true,
+          "properties": [
+            {
+              "address": "Flat 3B, Indiranagar, Bengaluru",
+              "property_type": "Residential",
+              "annual_value_inr": 0,
+              "gross_rent_received_inr": 480000,
+              "municipal_taxes_paid_inr": 18000
+            },
+            {
+              "address": "2BHK, Mysore",
+              "property_type": "Residential",
+              "annual_value_inr": 180000,
+              "gross_rent_received_inr": 240000,
+              "municipal_taxes_paid_inr": 9000
+            }
+          ]
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false,
+            "taxable_salary_inr": 1191618.81,
+            "employer_nps_contribution_inr": 9593.51
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 90000
+              },
+              {
+                "annual_value_inr": 73116.86
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "non_speculative_income_inr": 80000,
+            "fno_turnover_inr": 1625000,
+            "speculative_income_inr": 0,
+            "speculative_turnover_inr": 125000,
+            "business_entries": [
+              {
+                "business_name": "Kavya Iyer UX Consulting",
+                "nature": "design consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 550000,
+                "ada_digital_receipts_inr": 500000,
+                "ada_cash_receipts_inr": 50000
+              },
+              {
+                "business_name": "Iyer Stationery Mart",
+                "nature": "retail trading",
+                "presumptive_scheme": null,
+                "turnover_inr": 2125000,
+                "gross_receipts_inr": 2125000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 120000,
+                  "employee_salary_wages_inr": 240000,
+                  "other_business_expenses_inr": 155000,
+                  "insurance_premium_inr": 10000,
+                  "payments_to_residents_no_tds_inr": 37500
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 225000,
+                "additions_during_year_inr": 75000,
+                "addition_date": "2026-05-15",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "supplier_name": "Sunrise Packaging Co",
+                "amount_inr": 16250,
+                "invoice_date": "2026-02-01",
+                "has_written_agreement": false,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Iyer & Rao Jewelry Trading LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 120000,
+                "interest_on_capital_from_entity_inr": 22500,
+                "profit_share_exempt_inr": 356598.43
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 85000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 22952.14,
+          "interest_fd_rd_inr": 52500,
+          "dividend_inr": 23750,
+          "family_pension_gross_inr": 45000,
+          "gifts_above_50k_inr": 30000,
+          "online_gaming_winnings_inr": 10000,
+          "taxable_epf_interest_inr": 7000
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 52500
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 300000
+        }
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 600000,
+            "employer_nps_contribution_inr": 30000
+          },
+          "house_property": {
+            "has_house_property_income": true,
+            "properties": [
+              {
+                "annual_value_inr": 90000
+              },
+              {
+                "annual_value_inr": 45000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "non_speculative_income_inr": 0,
+            "fno_turnover_inr": 1625000,
+            "speculative_income_inr": -11250,
+            "speculative_turnover_inr": 125000,
+            "business_entries": [
+              {
+                "business_name": "Kavya Iyer UX Consulting",
+                "nature": "design consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 550000,
+                "ada_digital_receipts_inr": 500000,
+                "ada_cash_receipts_inr": 50000
+              },
+              {
+                "business_name": "Iyer Stationery Mart",
+                "nature": "retail trading",
+                "presumptive_scheme": null,
+                "turnover_inr": 2125000,
+                "gross_receipts_inr": 1436052.16,
+                "expenses": {
+                  "rent_for_business_premises_inr": 120000,
+                  "employee_salary_wages_inr": 362652.46,
+                  "other_business_expenses_inr": 155000,
+                  "insurance_premium_inr": 10000,
+                  "payments_to_residents_no_tds_inr": 0
+                }
+              },
+              {
+                "business_name": "Kavya Iyer UX Consulting",
+                "nature": "design consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 550000,
+                "ada_digital_receipts_inr": 500000,
+                "ada_cash_receipts_inr": 50000
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 225000,
+                "additions_during_year_inr": 75000,
+                "addition_date": "2026-05-15",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": false
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 0,
+                "unit_branch_idx": null,
+                "supplier_name": "Sunrise Packaging Co",
+                "amount_inr": 16250,
+                "invoice_date": "2026-02-01",
+                "has_written_agreement": false,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Iyer & Rao Jewelry Trading LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 120000,
+                "interest_on_capital_from_entity_inr": 22500,
+                "profit_share_exempt_inr": 175000
+              },
+              {
+                "firm_name": "Iyer & Rao Jewelry Trading LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 120000,
+                "interest_on_capital_from_entity_inr": 22500,
+                "profit_share_exempt_inr": 175000
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 85000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 8000,
+          "interest_fd_rd_inr": 52500,
+          "dividend_inr": 23750,
+          "family_pension_gross_inr": 45000,
+          "gifts_above_50k_inr": 30000,
+          "online_gaming_winnings_inr": 10000,
+          "taxable_epf_interest_inr": 0
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 52500
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 300000
+        }
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": true,
+            "taxable_salary_inr": 600000,
+            "employer_nps_contribution_inr": 30000
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": [
+              {
+                "annual_value_inr": 90000
+              },
+              {
+                "annual_value_inr": 45000
+              }
+            ]
+          },
+          "business_income": {
+            "has_business_or_fo_income": true,
+            "non_speculative_income_inr": 80000,
+            "fno_turnover_inr": 1625000,
+            "speculative_income_inr": -11250,
+            "speculative_turnover_inr": 125000,
+            "business_entries": [
+              {
+                "business_name": "Kavya Iyer UX Consulting",
+                "nature": "design consultancy",
+                "presumptive_scheme": "s44ADA",
+                "gross_receipts_inr": 550000,
+                "ada_digital_receipts_inr": 500000,
+                "ada_cash_receipts_inr": 65555.88
+              },
+              {
+                "business_name": "Iyer Stationery Mart",
+                "nature": "retail trading",
+                "presumptive_scheme": null,
+                "turnover_inr": 2125000,
+                "gross_receipts_inr": 2125000,
+                "expenses": {
+                  "rent_for_business_premises_inr": 120000,
+                  "employee_salary_wages_inr": 240000,
+                  "other_business_expenses_inr": 155000,
+                  "insurance_premium_inr": 10000,
+                  "payments_to_residents_no_tds_inr": 37500
+                }
+              }
+            ],
+            "asset_blocks": [
+              {
+                "unit_biz_idx": 1,
+                "unit_branch_idx": null,
+                "asset_class": "plant_machinery_general",
+                "opening_wdv_inr": 225000,
+                "additions_during_year_inr": 75000,
+                "addition_date": "2026-05-15",
+                "sale_consideration_inr": 0,
+                "is_new_manufacturing_asset": true
+              }
+            ],
+            "msme_payables": [
+              {
+                "unit_biz_idx": 370.24,
+                "unit_branch_idx": null,
+                "supplier_name": "Sunrise Packaging Co",
+                "amount_inr": 16250,
+                "invoice_date": "2026-02-01",
+                "has_written_agreement": false,
+                "payment_date": null
+              }
+            ],
+            "partner_firms": [
+              {
+                "firm_name": "Iyer & Rao Jewelry Trading LLP",
+                "entity_type": "llp",
+                "remuneration_from_entity_inr": 120000,
+                "interest_on_capital_from_entity_inr": 22500,
+                "profit_share_exempt_inr": 175000
+              }
+            ]
+          },
+          "capital_gains": {
+            "short_term_15_pct": 85000
+          }
+        },
+        "other_sources": {
+          "has_other_sources_income": true,
+          "interest_savings_inr": 8000,
+          "interest_fd_rd_inr": 52500,
+          "dividend_inr": 23750,
+          "family_pension_gross_inr": 45000,
+          "gifts_above_50k_inr": 30000,
+          "online_gaming_winnings_inr": 10000,
+          "taxable_epf_interest_inr": 7000
+        },
+        "capital_gains": {
+          "ltcg_112a_inr": 52500
+        },
+        "lrs_outbound": {
+          "total_lrs_remitted_this_fy_inr": 300000
+        }
+      }
+    },
+    "unlisted_equity": {
+      "has_unlisted_equity_transaction": true,
+      "transactions": [
+        {
+          "company": "Brightlane Foods Pvt Ltd",
+          "holding_pct": 4,
+          "acquisition_date": "2021-03-01",
+          "number_of_shares": 2500,
+          "cost_per_share": 100,
+          "cost_per_share_currency": "INR"
+        }
+      ]
+    },
+    "commodities": {
+      "transactions": [
+        {
+          "asset_class": "physical_gold",
+          "acquisition_date": "2023-11-01",
+          "purchase_value": 101069.97,
+          "purchase_currency": "INR",
+          "sale_date": "2026-10-15",
+          "sale_value": 410000,
+          "sale_currency": "INR"
+        },
+        {
+          "asset_class": "building_temporary",
+          "acquisition_date": "2018-11-05",
+          "purchase_value": 150000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-11-05",
+          "sale_value": 260000,
+          "sale_currency": "INR",
+          "is_maturity_redemption": false
+        }
+      ]
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "scorp",
+      "full_name": "Aarav Sharma",
+      "date_of_birth": "1988-07-15",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": true,
+      "us_days_current_year": 0,
+      "spt_test_met": true,
+      "final_us_residency_status": "NON_RESIDENT_ALIEN"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Cloudscale Inc (US)",
+          "wages_box1_usd": 200000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 38000,
+            "medicare_wages_box5_usd": 200000
+          }
+        }
+      ],
+      "interest_us_source_usd": 3200,
+      "ordinary_dividends_us_source_usd": 6200,
+      "qualified_dividends_us_source_usd": 4200,
+      "ltcg_us_source_usd": 13750.33
+    },
+    "income_foreign_source": {
+      "foreign_wages": [
+        {
+          "employer_name": "Infosys (India, Apr–Aug)",
+          "wages_usd": 21687
+        }
+      ],
+      "foreign_interest_usd": 5066.47,
+      "foreign_dividends_usd": 1084,
+      "foreign_rental_income_usd": 5060,
+      "foreign_stcg_usd": 3012
+    },
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "equity_compensation": {
+      "iso_exercises": [
+        {
+          "shares_exercised": 3000,
+          "fmv_at_exercise_usd": 65,
+          "strike_price_usd": 3.69
+        }
+      ]
+    },
+    "state_residency": {
+      "primary_state_of_residence": "CA",
+      "ca_retains_property_or_voter_reg": true
+    },
+    "bank_accounts": [
+      {
+        "bank_name": "HDFC Bank",
+        "account_type": "savings",
+        "country": "India",
+        "peak_balance_usd": 38554
+      },
+      {
+        "bank_name": "ICICI Bank",
+        "account_type": "nro",
+        "country": "India",
+        "peak_balance_usd": 18072
+      },
+      {
+        "bank_name": "HDFC Bank",
+        "account_type": "savings",
+        "country": "India",
+        "peak_balance_usd": 38554
+      }
+    ],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "owns_10_percent_foreign_corp": false,
+      "foreign_corporations": [],
+      "pfic_holdings": [
+        {
+          "asset_name": "Axis Bluechip Fund",
+          "holding_value_usd": 30120
+        },
+        {
+          "asset_name": "HDFC Corporate Bond Fund",
+          "holding_value_usd": 14458
+        }
+      ],
+      "has_pfics": true
+    },
+    "retirement_accounts": {},
+    "financial_holdings": [
+      {
+        "asset_name": "Schwab — Taxable Brokerage (US equities)",
+        "account_type": "taxable_brokerage",
+        "peak_balance_usd": 0,
+        "country": "US"
+      },
+      {
+        "asset_name": "Fidelity 401(k) — US index funds",
+        "account_type": "retirement_brokerage",
+        "peak_balance_usd": 92000,
+        "country": "US"
+      }
+    ],
+    "real_estate": {
+      "has_real_estate_transaction": false,
+      "properties": []
+    },
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {},
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

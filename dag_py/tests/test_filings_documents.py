@@ -67,7 +67,7 @@ def _build_graph():
     # too — re-registered directly (their own build()s re-derive us_full/
     # cross_basis internally, which would collide with xborder_full's chain
     # already present in `r`).
-    for node_id in ("foreignGiftsRaw", "nraRaw", "stateResidencyRaw", "usStateTaxResult", "limitsRawExtra", "equityCompRaw", "esopEventsRaw", "esopPerquisiteInrRaw", "diAggUs", "equityCompResult"):
+    for node_id in ("foreignGiftsRaw", "nraRaw", "stateResidencyRaw", "usStateTaxResult", "limitsRawExtra", "equityCompRaw", "esopEventsRaw", "esopPerquisiteInrRaw", "equityCompResult"):
         if node_id not in r:
             r.register(node_id, us_findings.NODES[node_id])
     for node_id in ("taxesPaidUsResult", "bankAccountsRaw", "aggregatePeakUsdResult", "indiaFinancialHoldingsTxRaw", "ppfInrRaw", "epfInrRaw", "usFtcFormXbr"):
