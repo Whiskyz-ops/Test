@@ -5755,7 +5755,18 @@
     function buildSupersetSchema(state) {
         function mergeNode(templateVal, realVal) {
             if (Array.isArray(templateVal)) {
-                if (Array.isArray(realVal) && realVal.length > 0) return realVal;
+                if (Array.isArray(realVal) && realVal.length > 0) {
+                    // Real rows exist - but each row's OWN nested sub-arrays
+                    // (branches/assets/forms_1099/shareholders/state_allocations,
+                    // etc.) can still be empty on a row that was auto-created
+                    // rather than fully filled in (e.g. the primary entity's
+                    // own business row). Recurse each real item against the
+                    // template's one example item so those nested gaps still
+                    // get backfilled instead of silently staying empty.
+                    const itemTemplate = templateVal[0];
+                    if (itemTemplate === undefined) return realVal;
+                    return realVal.map(item => mergeNode(itemTemplate, item));
+                }
                 return templateVal;
             }
             if (templateVal !== null && typeof templateVal === 'object') {
