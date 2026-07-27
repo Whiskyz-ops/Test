@@ -11977,6 +11977,27 @@ div.innerHTML = `
             });
         });
         usState.income_us_source.self_employment = list;
+        // Per-business "SE Health Ins."/"SE Retirement" fields above feed
+        // se_health_insurance_usd/se_retirement_contrib_usd inside each
+        // self_employment[] entry, but the actual Schedule 1 deduction is
+        // computed from a SEPARATE flat field (se_health_insurance_deduction_usd/
+        // se_retirement_deduction_usd, in the "Self-Employed Above-The-Line
+        // Deductions" card) — without this, per-business entries were pure
+        // decoration, silently discarded. Sum across every business into the
+        // flat field the tax computation actually reads; the flat card's own
+        // manual entry still stands if no per-business amounts are on file.
+        const seHealthSum = list.reduce((s, b) => s + (b.se_health_insurance_usd || 0), 0);
+        const seRetSum = list.reduce((s, b) => s + (b.se_retirement_contrib_usd || 0), 0);
+        if (seHealthSum > 0) {
+            usState.income_us_source.se_health_insurance_deduction_usd = seHealthSum;
+            const healthDedEl = document.getElementById('se-ded-health');
+            if (healthDedEl) healthDedEl.value = seHealthSum;
+        }
+        if (seRetSum > 0) {
+            usState.income_us_source.se_retirement_deduction_usd = seRetSum;
+            const retDedEl = document.getElementById('se-ded-ret');
+            if (retDedEl) retDedEl.value = seRetSum;
+        }
         recalculateDerivedFields();
         saveStateAndSync();
     }
