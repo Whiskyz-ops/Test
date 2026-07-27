@@ -485,6 +485,61 @@ var KNOWN_US_TRUST_DIVERGENT_PATHS = [
   "computed.usTax.filingStatus", "computed.usTax.taxableIncomeUsd",
   "computed.ftc.us.taxableIncomeUsd", "ftcReport.direction_us_claims_india"
 ];
+// Step 7 (FEIE) field-completeness audit: foreign_earned_income.
+// foreign_earned_income_usd (Screen 3F's own headline "Total Foreign
+// Earned Income" field) was never folded into model.income.us.foreignWages
+// by EITHER the frozen engine (verified directly in archive/engine-frozen/
+// normalize.js) or the DAG port -- a real, pre-existing product bug, not a
+// porting mistake: a taxpayer who fills in ONLY this field (the far more
+// likely real path) got a $0 FEIE exclusion AND the excess over the FEIE
+// cap silently vanished from taxable income entirely. Fixed in
+// aggregateusincome-nodes.js's foreignWagesUsd (max() against the
+// foreign_wages[] rows total, not +, to avoid double-counting a careful
+// user who filled in both). A deliberate, understood, documented
+// improvement beyond the frozen (buggy) reference — cascades too widely to
+// enumerate leaf-by-leaf (AGI, taxable income, every downstream tax/FTC/
+// finding amount), same principle as KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS
+// above, so treated as a wholesale block for any fuzzed profile combination
+// where this fact pattern (a nonzero FEIE-screen total exceeding the
+// foreign_wages[] rows total) is actually present.
+function feieForeignWagesRowsTotal(us) {
+  var rows = (us && us.income_foreign_source && us.income_foreign_source.foreign_wages) || [];
+  var total = 0;
+  rows.forEach(function (w) { total += Number(w.gross_wages_usd || w.wages_usd || w.amount_usd || w.wages_box1_usd || w.wages_tips_compensation_usd) || 0; });
+  return total;
+}
+function isFeieWagesDivergentProfile(profile) {
+  var us = profile.us || {};
+  var feieUsd = Number(us.foreign_earned_income && us.foreign_earned_income.foreign_earned_income_usd) || 0;
+  return feieUsd > feieForeignWagesRowsTotal(us);
+}
+var KNOWN_FEIE_WAGES_DIVERGENT_PATHS = [
+  "model.income.us", "computed.usTax", "computed.headline", "computed.ftc", "computed.reconciliation",
+  "computed.apportionment", "taxComputation", "ftcReport", "documents", "returnForms", "withholding",
+  "scopeNotes", "summary", "monitoring"
+];
+// SEPARATE, narrower finding from the same Step 7 audit pass, only
+// reachable by the fuzzer's nonsensical cross-profile field merging (never
+// through the real UI, which only shows Screen 3F/FEIE for the individual/
+// sole_prop/farming entity path): limits-nodes.js's Form 8938 "abroad"
+// threshold selection (feieEl.taxHomeAbroad && feieEl.testMet) has no
+// entity-type gate at all, so a non-individual entity (ccorp/scorp/
+// partnership/trust — which can never actually claim FEIE, an
+// individuals-only exclusion) can pick up the higher living-abroad
+// threshold if FEIE-shaped fields happen to be present. Was previously
+// invisible because feieRaw.testMet was ALWAYS false pre-fix (the same dead
+// bona_fide_residence/physical_presence booleans bug), so "abroad" was
+// always false for EVERYONE, entity or not — this bug always existed, my
+// fix just makes testMet correctly true sometimes, which is what surfaces
+// it now. Real, narrow, and belongs to the Limits Dashboard's own audit
+// pass (FBAR/8938/LRS), not this FEIE screen's — tracked, not fixed here.
+function isFeieEntityGateMissingProfile(dag, profile) {
+  var kind = dag.model.entity && dag.model.entity.usKind;
+  var isIndividualPath = !kind || kind === "individual";
+  var claimsFeie = !!(profile.us && profile.us.foreign_earned_income && profile.us.foreign_earned_income.claims_feie);
+  return !isIndividualPath && claimsFeie;
+}
+var KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS = ["documents"];
 var KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS = [
   "model.entity.isBusiness", "model.entity.indiaReturnForm", "model.assets",
   "computed.indiaTax", "computed.ftc", "computed.headline", "computed.reconciliation",
@@ -670,13 +725,17 @@ function compareOne(label, profile, saveOnFail) {
 
   var usEntity = isUsEntityProfile(dag);
   var indiaAopOrTrust = isIndiaAopOrTrustProfile(dag);
+  var feieWagesDivergent = isFeieWagesDivergentProfile(profile);
   var findingsResult = compareFindings(dag.findings, real.findings, usEntity);
   // AOP/Trust: findings content genuinely cascades from the (now correct)
   // India tax amount in ways too varied to enumerate by finding ID (see
   // KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS's comment) — treated wholesale as
   // known rather than diffed ID-by-ID, same principle as taxComputation.us/
   // india being treated as fully-diverging blocks for the entity cases above.
-  (indiaAopOrTrust ? knownDiffs : realDiffs).push.apply(indiaAopOrTrust ? knownDiffs : realDiffs, findingsResult.unknown);
+  // feieWagesDivergent (see KNOWN_FEIE_WAGES_DIVERGENT_PATHS above) cascades
+  // the same way into every $-amount-bearing finding.
+  var findingsExcused = indiaAopOrTrust || feieWagesDivergent;
+  (findingsExcused ? knownDiffs : realDiffs).push.apply(findingsExcused ? knownDiffs : realDiffs, findingsResult.unknown);
   knownDiffs.push.apply(knownDiffs, findingsResult.known);
 
   // CASCADE_ONLY_PATHS — summary.counts/healthScore, monitoring.health/
@@ -711,7 +770,9 @@ function compareOne(label, profile, saveOnFail) {
     .concat(isIndiaEntityProfile(dag) ? KNOWN_INDIA_ENTITY_DIVERGENT_PATHS : [])
     .concat(isNraProfile(dag) ? KNOWN_NRA_DIVERGENT_PATHS : [])
     .concat(indiaAopOrTrust ? KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS : [])
-    .concat(isUsTrustProfile(dag) ? KNOWN_US_TRUST_DIVERGENT_PATHS : []);
+    .concat(isUsTrustProfile(dag) ? KNOWN_US_TRUST_DIVERGENT_PATHS : [])
+    .concat(feieWagesDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
+    .concat(isFeieEntityGateMissingProfile(dag, profile) ? KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS : []);
   if (allowedPaths.length) {
     var stillReal = [];
     realDiffs.forEach(function (diff) {

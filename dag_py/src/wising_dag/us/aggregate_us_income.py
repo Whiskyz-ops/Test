@@ -428,15 +428,31 @@ def build(base):
     r.register("fiAgg", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "income_foreign_source", {})))
 
     r.register("wagesComputation", NodeDef(deps=("uiAgg",), compute=_wages_computation, layer1_fields=_WAGES_FIELDS))
+    # Step 7 (FEIE)'s own headline "Total Foreign Earned Income" field
+    # (#feie-earned-income -> foreign_earned_income.foreign_earned_income_usd)
+    # -- was read NOWHERE except a local UI-preview label, so a user who
+    # filled in ONLY this field (the far more likely real path, since this
+    # screen exists specifically for FEIE) got a $0 exclusion AND the excess
+    # over the FEIE cap silently vanished from taxable income entirely
+    # (compute_us_tax_core's exclusion math is gated on foreignWagesUsd +
+    # foreignSelfEmploymentUsd being > 0, which stayed 0 with nothing in
+    # this field's own array).
+    r.register("feieEarnedIncomeUsdRaw", NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "foreign_earned_income.foreign_earned_income_usd", 0)), layer1_fields=("us.foreign_earned_income.foreign_earned_income_usd",)))
     r.register("foreignWagesUsd", NodeDef(
-        deps=("fiAgg",),
+        deps=("fiAgg", "feieEarnedIncomeUsdRaw"),
         # gross_wages_usd is the field name syncForeignWagesState() (layer1_us.
         # html) actually writes for every foreign-wage row added through the
         # live form -- was missing from the fallback chain entirely, so every
         # foreign wage entry ever made through the live UI silently computed
         # to $0 (only profiles.js's hand-authored fixtures, which use
-        # wages_usd directly, ever exercised a nonzero value here).
-        compute=lambda d, ctx: sum(num(w.get("gross_wages_usd") or w.get("wages_usd") or w.get("amount_usd") or w.get("wages_box1_usd") or w.get("wages_tips_compensation_usd") or 0) for w in (safe(d["fiAgg"], "foreign_wages", []) or [])),
+        # wages_usd directly, ever exercised a nonzero value here). max(),
+        # not +, with feieEarnedIncomeUsdRaw so a user who carefully filled
+        # in both this list and the FEIE screen's field describing the same
+        # real-world salary isn't double-counted.
+        compute=lambda d, ctx: max(
+            sum(num(w.get("gross_wages_usd") or w.get("wages_usd") or w.get("amount_usd") or w.get("wages_box1_usd") or w.get("wages_tips_compensation_usd") or 0) for w in (safe(d["fiAgg"], "foreign_wages", []) or [])),
+            d["feieEarnedIncomeUsdRaw"],
+        ),
         layer1_fields=("us.income_foreign_source.foreign_wages[].gross_wages_usd", "us.income_foreign_source.foreign_wages[].wages_usd", "us.income_foreign_source.foreign_wages[].amount_usd", "us.income_foreign_source.foreign_wages[].wages_box1_usd", "us.income_foreign_source.foreign_wages[].wages_tips_compensation_usd"),
     ))
 

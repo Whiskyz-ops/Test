@@ -198,8 +198,19 @@ var NODES = {
       return { wagesUsd: wages, w2WithholdingUsd: w2with, w2Employers: w2Employers, medicareWagesUsd: medicareWages, qualifiedTipsUsd: qualifiedTipsUsd, qualifiedOvertimeUsd: qualifiedOvertimeUsd };
     }
   },
+  // Step 7 (FEIE)'s own headline "Total Foreign Earned Income" field
+  // (#feie-earned-income -> foreign_earned_income.foreign_earned_income_usd)
+  // -- was read NOWHERE except a local UI-preview label, so a user who
+  // filled in ONLY this field (the far more likely real path, since this
+  // screen exists specifically for FEIE) got a $0 exclusion AND the excess
+  // over the FEIE cap silently vanished from taxable income entirely
+  // (computeUsTaxCore's exclusion math is gated on foreignWagesUsd +
+  // foreignSelfEmploymentUsd being > 0, which stayed 0 with nothing in
+  // this field's own array).
+  feieEarnedIncomeUsdRaw: { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "foreign_earned_income.foreign_earned_income_usd", 0)); } },
+
   foreignWagesUsd: {
-    deps: ["fiAgg"],
+    deps: ["fiAgg", "feieEarnedIncomeUsdRaw"],
     // gross_wages_usd is the field name syncForeignWagesState() (layer1_us.
     // html) actually writes for every foreign-wage row added through the
     // live form -- confirmed by grep, this was previously missing from the
@@ -207,7 +218,14 @@ var NODES = {
     // through the live UI silently computed to $0 (only profiles.js's
     // hand-authored fixtures, which use wages_usd directly, ever exercised
     // a nonzero value here).
-    compute: function (d) { return (safe(d.fiAgg, "foreign_wages", []) || []).reduce(function (s, w) { return s + num(w.gross_wages_usd || w.wages_usd || w.amount_usd || w.wages_box1_usd || w.wages_tips_compensation_usd || 0); }, 0); }
+    compute: function (d) {
+      var wageRowsTotal = (safe(d.fiAgg, "foreign_wages", []) || []).reduce(function (s, w) { return s + num(w.gross_wages_usd || w.wages_usd || w.amount_usd || w.wages_box1_usd || w.wages_tips_compensation_usd || 0); }, 0);
+      // max(), not +, so a user who carefully filled in both this and the
+      // FEIE screen's field describing the same real-world salary isn't
+      // double-counted; a user who only filled in one of the two loses
+      // nothing either way.
+      return Math.max(wageRowsTotal, d.feieEarnedIncomeUsdRaw);
+    }
   },
 
   // Combines self-employment AND farming_schedule_f assets into ONE

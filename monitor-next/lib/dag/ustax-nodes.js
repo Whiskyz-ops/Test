@@ -336,12 +336,20 @@ var NODES = {
   feieRaw: {
     deps: [],
     compute: function (d, ctx) {
+      // qualification_test is the field layer1_us.html's #feie-test <select>
+      // actually writes ("physical_presence" | "bona_fide_residence") --
+      // bona_fide_residence/physical_presence booleans were previously read
+      // instead, which nothing in the live form has ever set, so FEIE
+      // eligibility silently computed false (and the exclusion $0)
+      // regardless of what a user selected. Legacy boolean fields kept as a
+      // fallback for any saved data/fixtures using that shape directly.
+      var qualTest = safe(ctx.us, "foreign_earned_income.qualification_test", null);
       return {
         claimed: safe(ctx.us, "foreign_earned_income.claims_feie", false) === true,
         amountClaimedUsd: num(safe(ctx.us, "foreign_earned_income.feie_amount_claimed_usd", 0)),
         taxHomeCountry: safe(ctx.us, "foreign_earned_income.tax_home_country", ""),
-        bonaFide: safe(ctx.us, "foreign_earned_income.bona_fide_residence", false) === true,
-        physicalPresence: safe(ctx.us, "foreign_earned_income.physical_presence", false) === true,
+        bonaFide: qualTest === "bona_fide_residence" || safe(ctx.us, "foreign_earned_income.bona_fide_residence", false) === true,
+        physicalPresence: qualTest === "physical_presence" || safe(ctx.us, "foreign_earned_income.physical_presence", false) === true,
         daysInUsTestPeriod: num(safe(ctx.us, "foreign_earned_income.days_in_us_during_test_period", 0))
       };
     }

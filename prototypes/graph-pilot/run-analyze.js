@@ -64,8 +64,23 @@ WISING.PROFILES.forEach(function (p) {
   var usKind = r.model.entity ? r.model.entity.usKind : "individual";
   var isUsEntity = ["ccorp", "scorp", "partnership", "trust"].indexOf(usKind) >= 0;
   var isNra = r.model.treaty.files1040nr && r.model.nra && !r.model.nra.s6013hElection;
+  // us_citizen_expat_india's foreign_earned_income.foreign_earned_income_usd
+  // ($60,241, Screen 3F's own headline "Total Foreign Earned Income" field)
+  // was never folded into model.income.us.foreignWages by EITHER the frozen
+  // engine (verified directly in archive/engine-frozen/normalize.js) or the
+  // DAG port -- a real, pre-existing product bug found during the Step 7
+  // (FEIE) field-completeness audit, not a porting mistake: a taxpayer who
+  // fills in ONLY this screen's headline field (the far more likely real
+  // path) got a $0 FEIE exclusion AND the excess over the FEIE cap silently
+  // vanished from taxable income entirely. Fixed in aggregateusincome-
+  // nodes.js's foreignWagesUsd (max() against the wage-rows total, not +,
+  // to avoid double-counting a careful user who filled in both screens) --
+  // a deliberate, understood, documented improvement beyond the frozen
+  // (buggy) reference for this one profile. Same convention as dag_py's
+  // GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES.
+  var isFeieWagesDivergent = p.id === "us_citizen_expat_india";
 
-  console.log(p.id + (isUsEntity ? " (US ENTITY — taxComputation.us/ftcReport not in-graph, reporting only)" : isNra ? " (NRA — taxComputation.us/ftcReport not in-graph, reporting only)" : ""));
+  console.log(p.id + (isUsEntity ? " (US ENTITY — taxComputation.us/ftcReport not in-graph, reporting only)" : isNra ? " (NRA — taxComputation.us/ftcReport not in-graph, reporting only)" : isFeieWagesDivergent ? " (FEIE-wages fix now correctly diverges from the frozen engine's own bug — see comment above)" : ""));
 
   var out = graph.resolve(["analyzeResult"], ctx).values.analyzeResult;
 
@@ -82,8 +97,12 @@ WISING.PROFILES.forEach(function (p) {
     realFindings = realFindings.filter(function (f) { return usTaxDependentIds.indexOf(f.id) === -1; });
     console.log("    (reported, not asserted) ftc_gap/ftc_available/amt_applies would diverge here — usTaxResult only covers the resident/individual path");
   }
-  var findingsDiff = deepEqual(byId(mineFindings), byId(realFindings));
-  check("findings match exactly (by ID, order-independent)", !findingsDiff, findingsDiff && findingsDiff.slice(0, 6).join(" | "));
+  if (isFeieWagesDivergent) {
+    console.log("    (reported, not asserted) findings diverge here — see the FEIE-wages fix comment above");
+  } else {
+    var findingsDiff = deepEqual(byId(mineFindings), byId(realFindings));
+    check("findings match exactly (by ID, order-independent)", !findingsDiff, findingsDiff && findingsDiff.slice(0, 6).join(" | "));
+  }
 
   // DAG-only documents (docs/GAP_TRACKER.md section H.7/H.13, 21-22 Jul
   // 2026): no engine equivalent for any of these — new state tax / new
@@ -96,6 +115,8 @@ WISING.PROFILES.forEach(function (p) {
 
   if (isUsEntity || isNra) {
     console.log("    (reported, not asserted) ftcReport and taxComputation.us would diverge here — usTaxResult only covers the resident/individual path");
+  } else if (isFeieWagesDivergent) {
+    console.log("    (reported, not asserted) ftcReport and taxComputation.us would diverge here — see the FEIE-wages fix comment above");
   } else {
     var ftcDiff = deepEqual(out.ftcReport, r.ftcReport);
     check("ftcReport matches exactly", !ftcDiff, ftcDiff && ftcDiff.slice(0, 4).join(" | "));
