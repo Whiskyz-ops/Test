@@ -95,8 +95,7 @@ def feie_eligibility(f: dict | None) -> dict:
     }
 
 
-def _compute_us_tax_result(d, ctx):
-    inc, ded, status, worldwide, feie = d["incUs"], d["dedUs"], d["usFilingStatusRaw"], d["worldwideUs"], d["feie"]
+def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_owed_boundary, taxpayer_dob_raw, base_year_us):
     brackets = T["BRACKETS"].get(status, T["BRACKETS"]["single"])
 
     f_w = inc["foreignWages"]["usd"] if worldwide else 0
@@ -147,10 +146,10 @@ def _compute_us_tax_result(d, ctx):
     deduction = itemized if ded["mode"] == "itemized" else standard if ded["mode"] == "standard" else max(standard, itemized)
 
     taxpayer_age = None
-    if d["taxpayerDobRaw"]:
-        dob = parse_date(d["taxpayerDobRaw"])
+    if taxpayer_dob_raw:
+        dob = parse_date(taxpayer_dob_raw)
         if dob is not None:
-            taxpayer_age = (d["baseYearUs"] or 2025) - dob.year
+            taxpayer_age = (base_year_us or 2025) - dob.year
     is_senior = taxpayer_age is not None and taxpayer_age >= T["SENIOR_DEDUCTION_MIN_AGE"] and status != "mfs"
     senior_phaseout_thr = T["SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD"].get(status, T["SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD"]["single"])
     senior_deduction_usd = max(0.0, js_round(T["SENIOR_DEDUCTION_PER_PERSON_USD"] - T["SENIOR_DEDUCTION_PHASEOUT_RATE"] * max(0.0, agi - senior_phaseout_thr))) if is_senior else 0
@@ -200,7 +199,7 @@ def _compute_us_tax_result(d, ctx):
     niit_threshold = NIIT_THRESHOLD.get(status, 200000)
     niit = T["NIIT_RATE"] * min(max(0.0, net_investment_income), max(0.0, agi - niit_threshold))
 
-    addl_medicare = d["additionalMedicareOwedBoundary"]
+    addl_medicare = additional_medicare_owed_boundary
 
     used_mode = ded["mode"] if ded["mode"] in ("itemized", "standard") else ("itemized" if itemized > standard else "standard")
     amt_addback = deduction if used_mode == "standard" else min(ded["salt"], salt_cap_usd)
@@ -381,7 +380,10 @@ NODES = {
 
     "usTaxResult": NodeDef(
         deps=("incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs"),
-        compute=_compute_us_tax_result,
+        compute=lambda d, ctx: compute_us_tax_core(
+            d["incUs"], d["dedUs"], d["usFilingStatusRaw"], d["worldwideUs"], d["feie"],
+            d["additionalMedicareOwedBoundary"], d["taxpayerDobRaw"], d["baseYearUs"],
+        ),
     ),
     "totalTaxBeforeFtcUsd": NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["totalTaxBeforeFtcUsd"]),
 }

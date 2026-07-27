@@ -305,7 +305,7 @@ def test_nra_no_standard_deduction():
 
 # ---- usTaxResult router ---------------------------------------------------
 
-def _router(us_kind="individual", files_1040nr=False, s6013h=False):
+def _router(us_kind="individual", files_1040nr=False, s6013h=False, dual_status=None):
     d = {
         "usEntityKind": us_kind,
         "files1040nr": files_1040nr,
@@ -313,6 +313,7 @@ def _router(us_kind="individual", files_1040nr=False, s6013h=False):
         "usEntityTaxResult": "ENTITY_SENTINEL",
         "nraTaxResult": "NRA_SENTINEL",
         "usTaxIndividualResult": "INDIVIDUAL_SENTINEL",
+        "usDualStatusResult": dual_status or {"isDualStatusYear": False},
     }
     return _us_tax_result_router(d, {})
 
@@ -332,3 +333,10 @@ def test_router_6013h_election_keeps_1040nr_filer_on_individual_path():
 
 def test_router_defaults_to_individual_path():
     assert _router() == "INDIVIDUAL_SENTINEL"
+
+
+def test_router_dual_status_year_returns_combined_result():
+    ds = {"isDualStatusYear": True, "combined": {"totalTaxBeforeFtcUsd": 1234}}
+    result = _router(dual_status=ds)
+    assert result["totalTaxBeforeFtcUsd"] == 1234
+    assert result["dualStatusDetail"] is ds

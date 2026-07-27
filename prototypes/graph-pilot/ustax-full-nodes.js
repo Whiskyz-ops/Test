@@ -34,6 +34,7 @@
 var baseNodes = require("./agg10-nodes.js").NODES;
 var CONST = require("./constants.js").CONST;
 var T = CONST.TAX.US;
+var computeUsTaxCore = require("./ustax-nodes.js").computeUsTaxCore;
 
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 function safe(obj, path, dflt) {
@@ -228,6 +229,53 @@ var ENTITY_NO_INCOME_TAX_REAL_REGIME = {
 // note is about, so called out explicitly rather than silently omitted.
 var ENTITY_DE_INCOME_TAX_NOTE = "Delaware has an 8.7% corporate income tax, but only on income apportioned to Delaware — a company incorporated in DE but operating elsewhere typically owes little to no DE corporate INCOME tax (not modeled here — do not assume $0 without confirming DE-source apportionment). Separately, and NOT covered by this note: every Delaware corporation owes Delaware's annual franchise tax regardless of income (Authorized Shares or Assumed Par Value method, $175 minimum) — track this as its own always-due line item.";
 
+/* ---- XB-6: §877A covered-expatriate determination (Rev. Proc. 2025-32,
+ * tax year 2026 figures) -----------------------------------------------------
+ * A Long-Term Resident (green card held 8+ of the last 15 years, IRC
+ * 7701(b)(6)) who surrenders the green card is a "covered expatriate" if
+ * ANY ONE of three tests is met: net worth >= $2,000,000 (fixed, not
+ * inflation-adjusted since 2008); average annual net income tax for the 5
+ * years before expatriation > $211,000 (2025 was $206,000); or failure to
+ * certify 5 years of federal tax compliance on Form 8854. This node only
+ * determines COVERED-EXPATRIATE STATUS — it deliberately does NOT compute
+ * the actual §877A mark-to-market exit tax, since that requires a full
+ * worldwide asset/basis schedule Layer 1 doesn't collect (same judgment as
+ * the Delaware franchise-tax note above: disclose what we can't compute
+ * rather than fabricate a number). */
+var EXPATRIATION_LTR_YEARS_THRESHOLD = 8;
+var EXPATRIATION_NET_WORTH_THRESHOLD_USD = 2000000;
+var EXPATRIATION_AVG_NET_INCOME_TAX_THRESHOLD_USD = 211000; // 2026, Rev. Proc. 2025-32 (2025 was $206,000)
+var EXPATRIATION_MTM_EXCLUSION_USD = 910000; // 2026, Rev. Proc. 2025-32 (2025 was $890,000)
+
+NODES.usGreenCardYearsHeldRaw = { deps: [], compute: function (d, ctx) { return Number(safe(ctx.us, "us_residency_detail.green_card_years_held", 0)) || 0; } };
+NODES.usExpatriationNetWorthRaw = { deps: [], compute: function (d, ctx) { return Number(safe(ctx.us, "us_residency_detail.expatriation_net_worth_usd", 0)) || 0; } };
+NODES.usExpatriationAvgNetIncomeTaxRaw = { deps: [], compute: function (d, ctx) { return Number(safe(ctx.us, "us_residency_detail.expatriation_avg_net_income_tax_usd", 0)) || 0; } };
+NODES.usForm8854CompliantRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "us_residency_detail.form_8854_5yr_compliance_certified", false) === true; } };
+
+NODES.usExpatriationResult = {
+  deps: ["usHasGreenCardRaw", "usGreenCardYearsHeldRaw", "usExpatriationNetWorthRaw", "usExpatriationAvgNetIncomeTaxRaw", "usForm8854CompliantRaw"],
+  compute: function (d, ctx) {
+    var surrenderedDate = safe(ctx.us, "us_residency_detail.i407_surrendered_date", null);
+    var isLtrExpatriating = !!(d.usHasGreenCardRaw && surrenderedDate && d.usGreenCardYearsHeldRaw >= EXPATRIATION_LTR_YEARS_THRESHOLD);
+    if (!isLtrExpatriating) return { isLtrExpatriating: false };
+
+    var reasonsMet = [];
+    var netWorthTest = d.usExpatriationNetWorthRaw >= EXPATRIATION_NET_WORTH_THRESHOLD_USD;
+    if (netWorthTest) reasonsMet.push("net worth of " + usd(d.usExpatriationNetWorthRaw) + " meets the $" + EXPATRIATION_NET_WORTH_THRESHOLD_USD.toLocaleString("en-US") + " threshold");
+    var avgTaxTest = d.usExpatriationAvgNetIncomeTaxRaw > EXPATRIATION_AVG_NET_INCOME_TAX_THRESHOLD_USD;
+    if (avgTaxTest) reasonsMet.push("average annual net income tax of " + usd(d.usExpatriationAvgNetIncomeTaxRaw) + " exceeds the $" + EXPATRIATION_AVG_NET_INCOME_TAX_THRESHOLD_USD.toLocaleString("en-US") + " threshold");
+    var certTest = !d.usForm8854CompliantRaw;
+    if (certTest) reasonsMet.push("Form 8854 5-year tax compliance is not certified");
+
+    return {
+      isLtrExpatriating: true, yearsHeld: d.usGreenCardYearsHeldRaw,
+      isCoveredExpatriate: netWorthTest || avgTaxTest || certTest,
+      netWorthTest: netWorthTest, avgTaxTest: avgTaxTest, certTest: certTest, reasonsMet: reasonsMet,
+      exclusionUsd: EXPATRIATION_MTM_EXCLUSION_USD
+    };
+  }
+};
+
 NODES.usEntityStateOfDomicileRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "profile.state_of_domicile", null); } };
 
 NODES.usEntityStateTaxResult = {
@@ -290,10 +338,61 @@ NODES.usEntityStateTaxResult = {
 // Array.sort is stable, ES2019+) leaves every pre-existing element's
 // relative order untouched — only the new element gets placed.
 NODES.findingsAllResult = {
-  deps: baseNodes.findingsAllResult.deps.concat(["usEntityStateTaxResult"]),
+  deps: baseNodes.findingsAllResult.deps.concat(["usEntityStateTaxResult", "usDualStatusResult", "usExpatriationResult"]),
   compute: function (d, ctx) {
     var all = baseNodes.findingsAllResult.compute(d, ctx).slice();
     var est = d.usEntityStateTaxResult;
+    var ds = d.usDualStatusResult;
+    if (ds && ds.isDualStatusYear) {
+      var periodNote = ds.hasDates
+        ? "Resident from " + (ds.residencyStartDate || "the start of the year") + " through " + (ds.residencyEndDate || "year-end") +
+          " (" + Math.round(ds.residentFraction * 100) + "% of the year)."
+        : "No residency start/end date was on file, so this defaulted to treating the full year as the resident period — enter the actual date for an accurate split.";
+      all.push({
+        id: "us_dual_status_split_year", severity: "warning", category: "residency",
+        title: "Dual-status year — worldwide income taxed only for part of the year, no standard deduction",
+        detail: "This is a dual-status year: nonresident (US-source income only) for part of the year, resident (worldwide income) for the rest. " + periodNote +
+          " Combined tax across both sub-periods: " + usd(ds.combined.totalTaxBeforeFtcUsd) + ". Per IRS Pub 519, a dual-status alien cannot take the " +
+          "standard deduction for either sub-period (itemized only, applied here), and most personal credits (child/dependent care, education credits) are " +
+          "only available for the resident-period portion. Layer 1 collects annual income totals, not date-stamped transactions, so each sub-period's income " +
+          "is apportioned by day-count against the residency start/end date — the same even-earning assumption already used elsewhere in this engine for " +
+          "the India FY/US CY calendar-year split." +
+          (ds.passiveUsSourceDuringNrUsd > 0
+            ? " Note: " + usd(ds.passiveUsSourceDuringNrUsd) + " of US-source interest/dividends/capital gains falls in the nonresident sub-period and is " +
+              "NOT included in the total above — classifying it as FDAP (flat 30%/treaty rate), ECI, or exempt requires trade-or-business/treaty facts this " +
+              "engine doesn't collect for this scenario; confirm its treatment with a preparer."
+            : ""),
+        recommendation: "File a dual-status return (Form 1040 + Form 1040-NR as a statement, or vice versa per Pub 519's ordering rules) reflecting the " +
+          "resident/nonresident split above, and confirm the exact residency start/end date and any uncomputed nonresident-period passive US-source income with a preparer.",
+        amountUsd: ds.combined.totalTaxBeforeFtcUsd, refs: ["Pub 519", "IRC 7701(b)", "Form 1040-NR"]
+      });
+    }
+    var expat = d.usExpatriationResult;
+    if (expat && expat.isLtrExpatriating) {
+      if (expat.isCoveredExpatriate) {
+        all.push({
+          id: "us_covered_expatriate_exit_tax", severity: "critical", category: "residency",
+          title: "§877A covered expatriate — mark-to-market exit tax applies",
+          detail: "As a Long-Term Resident (green card held " + expat.yearsHeld + " of the last 15 years) who surrendered the green card, this taxpayer " +
+            "meets at least one of the three covered-expatriate tests: " + expat.reasonsMet.join("; ") + ". Under §877A, a covered expatriate is treated as " +
+            "having sold all worldwide assets for fair market value the day before expatriation, with gain taxed at capital-gains rates after a " +
+            usd(expat.exclusionUsd) + " exclusion (2026, Rev. Proc. 2025-32).",
+          recommendation: "File Form 8854 and compute the actual mark-to-market gain from a full asset/basis schedule with a preparer — WISING does not " +
+            "collect worldwide asset FMV/basis data and cannot compute the actual exit-tax liability here; this finding only confirms covered-expatriate status applies.",
+          amountUsd: 0, refs: ["§877A", "Form 8854", "Rev. Proc. 2025-32"]
+        });
+      } else {
+        all.push({
+          id: "us_ltr_expatriation_not_covered", severity: "info", category: "residency",
+          title: "Long-Term Resident expatriation — not a covered expatriate",
+          detail: "This taxpayer held a green card for " + expat.yearsHeld + " of the last 15 years and surrendered it, but none of the three §877A " +
+            "covered-expatriate tests appear to be met on the figures entered (net worth, average annual net income tax, Form 8854 certification).",
+          recommendation: "Confirm all three figures are accurate and current as of the expatriation date before relying on this — a covered-expatriate " +
+            "determination has significant consequences if missed.",
+          amountUsd: 0, refs: ["§877A", "Form 8854"]
+        });
+      }
+    }
     if (est) {
       if (est.modeled) {
         all.push({
@@ -367,14 +466,193 @@ NODES.nraTaxResult = {
   }
 };
 
+/* ---- XB-25: dual-status split-year computation ----------------------------
+ * layer1_us.html's evaluateUSResidencyLock() (fixed alongside this build —
+ * see the Step 2 field-completeness audit) now correctly derives
+ * final_us_residency_status = "DUAL_STATUS" plus a real residency_start_date/
+ * residency_end_date for all three real-world triggers: a green-card grant
+ * mid-year, a First-Year-Choice election (§7701(b)(4)), and a plain
+ * SPT-based arrival/departure (the most common case — any new arrival who
+ * meets the SPT purely from this year's physical presence has a residency
+ * starting date of their FIRST day of presence, not Jan 1, per IRC
+ * 7701(b)(2)(A)). Previously the DAG only ever produced a full-year status;
+ * "DUAL_STATUS" fell through to whatever usIsCitizenRaw/usHasGreenCardRaw/
+ * usSptMetRaw happened to say, silently treating a move-year filer as either
+ * a full-year resident (over-inclusive) or full-year nonresident
+ * (under-inclusive) — the exact gap GAP_TRACKER.md tracks as XB-25.
+ *
+ * Methodology (disclosed in the finding text, not silently assumed): Layer 1
+ * collects ANNUAL income totals, not date-stamped transactions, so the two
+ * sub-periods' income is apportioned by day-count against the residency
+ * start/end date — the same "even-earning assumption" already used
+ * elsewhere in this engine for the India FY/US CY calendar-year split.
+ *
+ * Resident-period sub-computation: ALL income (US + foreign), scaled by the
+ * resident-day fraction, taxed via computeUsTaxCore with worldwide=true and
+ * deduction mode forced to itemized (Pub 519: a dual-status alien cannot
+ * take the standard deduction). Personal credits (dependents, child/dep
+ * care, education) apply in FULL here, not pro-rated — real-law eligibility
+ * for these is status-based, not a day-count.
+ *
+ * Nonresident-period sub-computation: only the plainly-ECI-like US-source
+ * categories (wages, US self-employment/business, US rental), scaled by the
+ * nonresident-day fraction, taxed at graduated rates with itemized-only
+ * deductions and personal credits zeroed out (Pub 519: most personal
+ * credits aren't available for the NR portion). Passive US-source income
+ * during the NR sub-period (interest/dividends/capital gains) is
+ * deliberately NOT computed here — correctly classifying it as FDAP
+ * (flat 30%/treaty rate) vs. ECI vs. exempt requires facts (trade-or-
+ * business connection, treaty claims, the 183-day capital-gains rule) that
+ * Layer 1's general income screens don't collect for this scenario — it is
+ * surfaced as a disclosed, uncomputed amount instead of a fabricated
+ * number, the same judgment already applied to Delaware's franchise tax
+ * (GAP_TRACKER.md H.7) and the §877A exit-tax mark-to-market figure below.
+ * NIIT is force-zeroed for the NR sub-period (Treas. Reg. 1.1411-2(a)(2)(i):
+ * NIIT never applies to a nonresident alien) since computeUsTaxCore has no
+ * NRA-awareness flag of its own.
+ * ---------------------------------------------------------------------- */
+NODES.usResidencyStartDateRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "us_residency_detail.residency_start_date", null); } };
+NODES.usResidencyEndDateRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "us_residency_detail.residency_end_date", null); } };
+
+function usdOf(v) { return (v && typeof v.usd === "number") ? v.usd : 0; }
+function isLeapYear(y) { return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0; }
+function daysInYear(y) { return isLeapYear(y) ? 366 : 365; }
+function daysBetweenInclusiveIso(startIso, endIso) {
+  var start = new Date(startIso + "T00:00:00Z"), end = new Date(endIso + "T00:00:00Z");
+  return Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+}
+function scaleResidentInc(inc, frac) {
+  function s(v) { return { usd: usdOf(v) * frac }; }
+  return {
+    wages: s(inc.wages), businessUs: s(inc.businessUs), foreignWages: s(inc.foreignWages), foreignSelfEmployment: s(inc.foreignSelfEmployment),
+    interestUs: s(inc.interestUs), ordinaryDividendsUs: s(inc.ordinaryDividendsUs), qualifiedDividendsUs: s(inc.qualifiedDividendsUs),
+    stcgUs: s(inc.stcgUs), ltcgUs: s(inc.ltcgUs), capitalGainsUs: s(inc.capitalGainsUs), rentalUs: s(inc.rentalUs),
+    foreignInterest: s(inc.foreignInterest), foreignDividends: s(inc.foreignDividends), foreignRental: s(inc.foreignRental),
+    foreignPension: s(inc.foreignPension), foreignStcg: s(inc.foreignStcg), foreignLtcg: s(inc.foreignLtcg),
+    usRetirementIncome: s(inc.usRetirementIncome), usRetirementIncomeExclSs: s(inc.usRetirementIncomeExclSs),
+    socialSecurityUs: s(inc.socialSecurityUs), taxExemptInterestUs: s(inc.taxExemptInterestUs),
+    seEarningsUsd: (inc.seEarningsUsd || 0) * frac, medicareWages: (inc.medicareWages || 0) * frac,
+    qualifiedTipsUsd: (inc.qualifiedTipsUsd || 0) * frac, qualifiedOvertimeUsd: (inc.qualifiedOvertimeUsd || 0) * frac,
+    qbiIncomeUsd: (inc.qbiIncomeUsd || 0) * frac, qbiIsSSTB: inc.qbiIsSSTB,
+    retirementEpfInterestUsd: (inc.retirementEpfInterestUsd || 0) * frac, retirementNpsWithdrawalUsd: (inc.retirementNpsWithdrawalUsd || 0) * frac,
+    usSourceTotal: s(inc.usSourceTotal)
+  };
+}
+function scaleNonresidentInc(inc, frac) {
+  function s(v) { return { usd: usdOf(v) * frac }; }
+  var zero = { usd: 0 };
+  var eciUsd = s(inc.wages).usd + s(inc.businessUs).usd + s(inc.rentalUs).usd;
+  return {
+    wages: s(inc.wages), businessUs: s(inc.businessUs), rentalUs: s(inc.rentalUs),
+    foreignWages: zero, foreignSelfEmployment: zero, interestUs: zero, ordinaryDividendsUs: zero, qualifiedDividendsUs: zero,
+    stcgUs: zero, ltcgUs: zero, capitalGainsUs: zero, foreignInterest: zero, foreignDividends: zero, foreignRental: zero,
+    foreignPension: zero, foreignStcg: zero, foreignLtcg: zero, usRetirementIncome: zero, usRetirementIncomeExclSs: zero,
+    socialSecurityUs: zero, taxExemptInterestUs: zero,
+    seEarningsUsd: (inc.seEarningsUsd || 0) * frac, medicareWages: (inc.medicareWages || 0) * frac,
+    qualifiedTipsUsd: 0, qualifiedOvertimeUsd: 0, qbiIncomeUsd: 0, qbiIsSSTB: false,
+    retirementEpfInterestUsd: 0, retirementNpsWithdrawalUsd: 0,
+    usSourceTotal: { usd: eciUsd }
+  };
+}
+function scaleDedForDualStatus(ded, frac, dropPersonalCredits) {
+  return {
+    mode: "itemized",
+    salt: (ded.salt || 0) * frac, mortgageInterest: (ded.mortgageInterest || 0) * frac, charitable: (ded.charitable || 0) * frac,
+    medical: (ded.medical || 0) * frac, studentLoanInterest: (ded.studentLoanInterest || 0) * frac,
+    isoAmtPrefUsd: (ded.isoAmtPrefUsd || 0) * frac, amtPrefs: (ded.amtPrefs || 0) * frac,
+    careExpenses: dropPersonalCredits ? 0 : ded.careExpenses,
+    aotc: dropPersonalCredits ? 0 : ded.aotc, lifetimeLearning: dropPersonalCredits ? 0 : ded.lifetimeLearning,
+    dependents: dropPersonalCredits ? 0 : ded.dependents,
+    seHealthInsuranceDeductionUsd: (ded.seHealthInsuranceDeductionUsd || 0) * frac,
+    seRetirementDeductionUsd: (ded.seRetirementDeductionUsd || 0) * frac
+  };
+}
+var NO_FEIE = { claimed: false, eligible: false, taxHomeAbroad: false, testMet: false, reasons: [], amountClaimedUsd: 0 };
+
+NODES.usDualStatusInfo = {
+  deps: ["usStatusRaw", "usResidencyStartDateRaw", "usResidencyEndDateRaw", "baseYearUs"],
+  compute: function (d) {
+    if (d.usStatusRaw !== "DUAL_STATUS") return { isDualStatusYear: false };
+    var year = d.baseYearUs || 2026;
+    var startDate = d.usResidencyStartDateRaw, endDate = d.usResidencyEndDateRaw;
+    var hasDates = !!(startDate || endDate);
+    var totalDays = daysInYear(year);
+    var residentDays = totalDays;
+    if (hasDates) {
+      var effStart = startDate || (year + "-01-01"), effEnd = endDate || (year + "-12-31");
+      residentDays = Math.max(0, Math.min(totalDays, daysBetweenInclusiveIso(effStart, effEnd)));
+    }
+    var residentFraction = totalDays > 0 ? residentDays / totalDays : 1;
+    return {
+      isDualStatusYear: true, hasDates: hasDates, residencyStartDate: startDate, residencyEndDate: endDate,
+      residentDays: residentDays, totalDaysInYear: totalDays,
+      residentFraction: residentFraction, nonresidentFraction: 1 - residentFraction
+    };
+  }
+};
+
+NODES.usDualStatusResult = {
+  deps: ["usDualStatusInfo", "incUs", "dedUs", "usFilingStatusRaw", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs"],
+  compute: function (d) {
+    var info = d.usDualStatusInfo;
+    if (!info.isDualStatusYear) return null;
+    var frac = info.residentFraction, nrFrac = info.nonresidentFraction;
+
+    var rp = computeUsTaxCore(
+      scaleResidentInc(d.incUs, frac), scaleDedForDualStatus(d.dedUs, frac, false),
+      d.usFilingStatusRaw, true, d.feie, d.additionalMedicareOwedBoundary, d.taxpayerDobRaw, d.baseYearUs
+    );
+    var nrRaw = computeUsTaxCore(
+      scaleNonresidentInc(d.incUs, nrFrac), scaleDedForDualStatus(d.dedUs, nrFrac, true),
+      d.usFilingStatusRaw, false, NO_FEIE, 0, d.taxpayerDobRaw, d.baseYearUs
+    );
+    var nr = Object.assign({}, nrRaw, { niitUsd: 0, totalTaxBeforeFtcUsd: nrRaw.totalTaxBeforeFtcUsd - nrRaw.niitUsd });
+
+    var passiveUsSourceDuringNrUsd = (usdOf(d.incUs.interestUs) + usdOf(d.incUs.ordinaryDividendsUs) + usdOf(d.incUs.capitalGainsUs)) * nrFrac;
+
+    var combined = {
+      agiUsd: rp.agiUsd + nr.agiUsd, taxableIncomeUsd: rp.taxableIncomeUsd + nr.taxableIncomeUsd,
+      incomeTaxUsd: rp.incomeTaxUsd + nr.incomeTaxUsd, niitUsd: rp.niitUsd + nr.niitUsd,
+      additionalMedicareUsd: rp.additionalMedicareUsd + nr.additionalMedicareUsd, seTaxUsd: rp.seTaxUsd + nr.seTaxUsd,
+      qbiDeductionUsd: rp.qbiDeductionUsd + nr.qbiDeductionUsd, amtUsd: rp.amtUsd + nr.amtUsd,
+      creditsUsd: rp.creditsUsd + nr.creditsUsd, totalTaxBeforeFtcUsd: rp.totalTaxBeforeFtcUsd + nr.totalTaxBeforeFtcUsd,
+      deductionUsd: rp.deductionUsd + nr.deductionUsd, deductionMode: "itemized (dual-status — standard deduction not allowed)",
+      totalIncomeUsd: rp.totalIncomeUsd + nr.totalIncomeUsd, usSourceIncomeUsd: rp.usSourceIncomeUsd + nr.usSourceIncomeUsd,
+      feieAppliedUsd: rp.feieAppliedUsd, worldwide: true,
+      ordinaryTaxUsd: rp.ordinaryTaxUsd + nr.ordinaryTaxUsd, preferentialTaxUsd: rp.preferentialTaxUsd + nr.preferentialTaxUsd,
+      filingStatus: rp.filingStatus, ordinaryIncomeUsd: rp.ordinaryIncomeUsd + nr.ordinaryIncomeUsd,
+      preferentialIncomeUsd: rp.preferentialIncomeUsd + nr.preferentialIncomeUsd, saltCapUsd: rp.saltCapUsd,
+      socialSecurityDetail: rp.socialSecurityDetail,
+      seniorDeductionUsd: rp.seniorDeductionUsd, seniorDetail: rp.seniorDetail,
+      tipsDeductionUsd: rp.tipsDeductionUsd, overtimeDeductionUsd: rp.overtimeDeductionUsd, tipsOvertimeDetail: rp.tipsOvertimeDetail,
+      ordinaryTaxableUsd: rp.ordinaryTaxableUsd + nr.ordinaryTaxableUsd, ordinaryBracketBreakdown: rp.ordinaryBracketBreakdown,
+      amtDetail: rp.amtDetail, otherCreditsUsd: rp.otherCreditsUsd + nr.otherCreditsUsd, ctcDetail: rp.ctcDetail,
+      foreignSourceIncomeUsd: rp.foreignSourceIncomeUsd,
+      retirementEpfInterestUsd: rp.retirementEpfInterestUsd, retirementNpsWithdrawalUsd: rp.retirementNpsWithdrawalUsd,
+      niitDetail: rp.niitDetail, feie: rp.feie,
+      effectiveRate: (rp.totalIncomeUsd + nr.totalIncomeUsd) > 0 ? (rp.totalTaxBeforeFtcUsd + nr.totalTaxBeforeFtcUsd) / (rp.totalIncomeUsd + nr.totalIncomeUsd) : 0
+    };
+
+    return {
+      isDualStatusYear: true, residentFraction: frac, nonresidentFraction: nrFrac,
+      residencyStartDate: info.residencyStartDate, residencyEndDate: info.residencyEndDate, hasDates: info.hasDates,
+      residentPeriod: rp, nonresidentPeriod: nr, passiveUsSourceDuringNrUsd: passiveUsSourceDuringNrUsd,
+      combined: combined
+    };
+  }
+};
+
 /* ---- the routing, exactly where the engine's lives ------------------------ */
 NODES.usTaxIndividualResult = baseNodes.usTaxResult;
 NODES.usTaxResult = {
-  deps: ["usEntityKind", "files1040nr", "s6013hElection", "usEntityTaxResult", "nraTaxResult", "usTaxIndividualResult"],
+  deps: ["usEntityKind", "files1040nr", "s6013hElection", "usEntityTaxResult", "nraTaxResult", "usTaxIndividualResult", "usDualStatusResult"],
   compute: function (d) {
     var ek = d.usEntityKind;
     if (ek === "ccorp" || ek === "scorp" || ek === "partnership" || ek === "trust") return d.usEntityTaxResult;
     if (d.files1040nr && !d.s6013hElection) return d.nraTaxResult;
+    if (d.usDualStatusResult && d.usDualStatusResult.isDualStatusYear) {
+      return Object.assign({}, d.usDualStatusResult.combined, { dualStatusDetail: d.usDualStatusResult });
+    }
     return d.usTaxIndividualResult;
   }
 };

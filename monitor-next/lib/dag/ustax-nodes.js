@@ -107,78 +107,13 @@ function feieEligibility(f) {
   return { claimed: claimed, amountClaimedUsd: f.amountClaimedUsd || 0, taxHomeAbroad: taxHomeAbroad, testMet: bfMet || ppMet, eligible: taxHomeAbroad && (bfMet || ppMet), reasons: reasons };
 }
 
-var NODES = {
-  // ---- raw leaves for feie/filing status/entity gates ----------------------
-  usEntityKind: { deps: [], compute: function (d, ctx) { return ctx.model.entity ? ctx.model.entity.usKind : "individual"; } },
-  files1040nr: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "nra_specific.files_form_1040nr", false) === true; } },
-  s6013hElection: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "nra_specific.s6013h_joint_election", false) === true; } },
-  usFilingStatusRaw: {
-    deps: [],
-    compute: function (d, ctx) {
-      var s = (safe(ctx.us, "profile.filing_status", "single") || "single").toLowerCase();
-      if (s === "married_filing_jointly" || s === "mfj") return "mfj";
-      if (s === "married_filing_separately" || s === "mfs") return "mfs";
-      if (s === "head_of_household" || s === "hoh") return "hoh";
-      return "single";
-    }
-  },
-  worldwideUs: { deps: [], compute: function (d, ctx) { return !!(ctx.computed.residency && ctx.computed.residency.us && ctx.computed.residency.us.worldwide); } },
-  feieRaw: {
-    deps: [],
-    compute: function (d, ctx) {
-      return {
-        claimed: safe(ctx.us, "foreign_earned_income.claims_feie", false) === true,
-        amountClaimedUsd: num(safe(ctx.us, "foreign_earned_income.feie_amount_claimed_usd", 0)),
-        taxHomeCountry: safe(ctx.us, "foreign_earned_income.tax_home_country", ""),
-        bonaFide: safe(ctx.us, "foreign_earned_income.bona_fide_residence", false) === true,
-        physicalPresence: safe(ctx.us, "foreign_earned_income.physical_presence", false) === true,
-        daysInUsTestPeriod: num(safe(ctx.us, "foreign_earned_income.days_in_us_during_test_period", 0))
-      };
-    }
-  },
-  feie: { deps: ["feieRaw"], compute: function (d) { return feieEligibility(d.feieRaw); } },
-
-  // ---- EXPLICIT BOUNDARY: aggregateUsIncome's entire output ----------------
-  incUs: { deps: [], compute: function (d, ctx) { return ctx.model.income.us; } },
-
-  // ---- aggregateUsDeductions, ported exactly --------------------------------
-  dedUs: {
-    deps: [],
-    compute: function (d, ctx) {
-      var us = ctx.us;
-      var it = safe(us, "itemized_deductions_and_credits", {});
-      var isoAmtPrefUsd = 0;
-      (safe(us, "equity_compensation.iso_exercises", []) || []).forEach(function (ex) {
-        isoAmtPrefUsd += num(ex.amt_preference_spread_usd != null ? ex.amt_preference_spread_usd : Math.max(0, (num(ex.fmv_at_exercise_usd) - num(ex.strike_price_usd)) * num(ex.shares_exercised)));
-      });
-      return {
-        mode: safe(it, "use_standard_or_itemized", "auto"),
-        salt: num(safe(it, "state_and_local_taxes_paid_usd", 0)),
-        mortgageInterest: num(safe(it, "mortgage_interest_paid_usd", 0)),
-        charitable: num(safe(it, "charitable_contributions_cash_usd", 0)) + num(safe(it, "charitable_contributions_appreciated_usd", 0)),
-        medical: num(safe(it, "medical_expenses_usd", 0)),
-        studentLoanInterest: num(safe(it, "student_loan_interest_usd", 0)),
-        isoAmtPrefUsd: isoAmtPrefUsd,
-        amtPrefs: num(safe(us, "amt_inputs.private_activity_bond_interest_usd", 0)) + num(safe(it, "private_activity_bond_interest_usd", 0)) +
-          num(safe(it, "amt_preference_spread_usd", 0)) + num(safe(us, "amt.private_activity_bond_interest_usd", 0)) +
-          num(safe(us, "amt.amt_preference_spread_usd", 0)) + num(safe(us, "amt_items_usd", 0)) + isoAmtPrefUsd,
-        careExpenses: num(safe(it, "child_and_dependent_care_expenses_usd", 0)) || num(safe(it, "dependent_care_expenses_usd", 0)),
-        aotc: num(safe(it, "education_credits_aotc_usd", 0)), lifetimeLearning: num(safe(it, "education_credits_llc_usd", 0)),
-        dependents: num(safe(us, "profile.dependents_count", 0)) || num(safe(it, "dependents_count", 0)),
-        seHealthInsuranceDeductionUsd: num(safe(us, "income_us_source.se_health_insurance_deduction_usd", 0)),
-        seRetirementDeductionUsd: num(safe(us, "income_us_source.se_retirement_deduction_usd", 0))
-      };
-    }
-  },
-  additionalMedicareOwedBoundary: { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "withholding_and_estimated.additional_medicare_tax_owed_usd", 0)); } },
-  taxpayerDobRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.router, "date_of_birth", safe(ctx.india, "profile.date_of_birth", safe(ctx.us, "profile.date_of_birth", null))); } },
-  baseYearUs: { deps: [], compute: function (d, ctx) { return ctx.model.meta.baseYear; } },
-
-  // ---- computeUsTax, ported in full (individual/resident path) -------------
-  usTaxResult: {
-    deps: ["incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs"],
-    compute: function (d) {
-      var inc = d.incUs, ded = d.dedUs, status = d.usFilingStatusRaw, worldwide = d.worldwideUs, feie = d.feie;
+/* computeUsTaxCore — extracted verbatim from usTaxResult's compute() below so
+ * dual-status-nodes.js can call it twice (once per residency sub-period) and
+ * combine the two totals, without duplicating this ~200-line computation.
+ * The usTaxResult node below is now a thin wrapper passing its exact same
+ * deps through positionally — behavior for every existing (non-dual-status)
+ * caller is byte-identical to before this extraction. */
+function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareOwedBoundary, taxpayerDobRaw, baseYearUs) {
       var brackets = T.BRACKETS[status] || T.BRACKETS.single;
 
       var fW = worldwide ? inc.foreignWages.usd : 0;
@@ -225,7 +160,7 @@ var NODES = {
       var deduction = ded.mode === "itemized" ? itemized : ded.mode === "standard" ? standard : Math.max(standard, itemized);
 
       var taxpayerAge = null;
-      if (d.taxpayerDobRaw) { var dobYear = new Date(d.taxpayerDobRaw).getFullYear(); if (!isNaN(dobYear)) taxpayerAge = (d.baseYearUs || 2025) - dobYear; }
+      if (taxpayerDobRaw) { var dobYear = new Date(taxpayerDobRaw).getFullYear(); if (!isNaN(dobYear)) taxpayerAge = (baseYearUs || 2025) - dobYear; }
       var isSenior = taxpayerAge !== null && taxpayerAge >= T.SENIOR_DEDUCTION_MIN_AGE && status !== "mfs";
       var seniorPhaseoutThr = T.SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD[status] || T.SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD.single;
       var seniorDeductionUsd = isSenior ? Math.max(0, Math.round(T.SENIOR_DEDUCTION_PER_PERSON_USD - T.SENIOR_DEDUCTION_PHASEOUT_RATE * Math.max(0, agi - seniorPhaseoutThr))) : 0;
@@ -273,7 +208,7 @@ var NODES = {
       var niitThreshold = NIIT_THRESHOLD[status] || 200000;
       var niit = T.NIIT_RATE * Math.min(Math.max(0, netInvestmentIncome), Math.max(0, agi - niitThreshold));
 
-      var addlMedicare = d.additionalMedicareOwedBoundary;
+      var addlMedicare = additionalMedicareOwedBoundary;
 
       var usedMode = (ded.mode === "itemized" || ded.mode === "standard") ? ded.mode : (itemized > standard ? "itemized" : "standard");
       var amtAddback = usedMode === "standard" ? deduction : Math.min(ded.salt, saltCapUsd);
@@ -378,10 +313,85 @@ var NODES = {
         },
         effectiveRate: totalIncome > 0 ? totalTaxBeforeFtc / totalIncome : 0
       };
+}
+
+var NODES = {
+  // ---- raw leaves for feie/filing status/entity gates ----------------------
+  usEntityKind: { deps: [], compute: function (d, ctx) { return ctx.model.entity ? ctx.model.entity.usKind : "individual"; } },
+  files1040nr: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "nra_specific.files_form_1040nr", false) === true; } },
+  s6013hElection: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "nra_specific.s6013h_joint_election", false) === true; } },
+  usFilingStatusRaw: {
+    deps: [],
+    compute: function (d, ctx) {
+      var s = (safe(ctx.us, "profile.filing_status", "single") || "single").toLowerCase();
+      if (s === "married_filing_jointly" || s === "mfj") return "mfj";
+      if (s === "married_filing_separately" || s === "mfs") return "mfs";
+      if (s === "head_of_household" || s === "hoh") return "hoh";
+      return "single";
     }
   },
+  worldwideUs: { deps: [], compute: function (d, ctx) { return !!(ctx.computed.residency && ctx.computed.residency.us && ctx.computed.residency.us.worldwide); } },
+  feieRaw: {
+    deps: [],
+    compute: function (d, ctx) {
+      return {
+        claimed: safe(ctx.us, "foreign_earned_income.claims_feie", false) === true,
+        amountClaimedUsd: num(safe(ctx.us, "foreign_earned_income.feie_amount_claimed_usd", 0)),
+        taxHomeCountry: safe(ctx.us, "foreign_earned_income.tax_home_country", ""),
+        bonaFide: safe(ctx.us, "foreign_earned_income.bona_fide_residence", false) === true,
+        physicalPresence: safe(ctx.us, "foreign_earned_income.physical_presence", false) === true,
+        daysInUsTestPeriod: num(safe(ctx.us, "foreign_earned_income.days_in_us_during_test_period", 0))
+      };
+    }
+  },
+  feie: { deps: ["feieRaw"], compute: function (d) { return feieEligibility(d.feieRaw); } },
 
+  // ---- EXPLICIT BOUNDARY: aggregateUsIncome's entire output ----------------
+  incUs: { deps: [], compute: function (d, ctx) { return ctx.model.income.us; } },
+
+  // ---- aggregateUsDeductions, ported exactly --------------------------------
+  dedUs: {
+    deps: [],
+    compute: function (d, ctx) {
+      var us = ctx.us;
+      var it = safe(us, "itemized_deductions_and_credits", {});
+      var isoAmtPrefUsd = 0;
+      (safe(us, "equity_compensation.iso_exercises", []) || []).forEach(function (ex) {
+        isoAmtPrefUsd += num(ex.amt_preference_spread_usd != null ? ex.amt_preference_spread_usd : Math.max(0, (num(ex.fmv_at_exercise_usd) - num(ex.strike_price_usd)) * num(ex.shares_exercised)));
+      });
+      return {
+        mode: safe(it, "use_standard_or_itemized", "auto"),
+        salt: num(safe(it, "state_and_local_taxes_paid_usd", 0)),
+        mortgageInterest: num(safe(it, "mortgage_interest_paid_usd", 0)),
+        charitable: num(safe(it, "charitable_contributions_cash_usd", 0)) + num(safe(it, "charitable_contributions_appreciated_usd", 0)),
+        medical: num(safe(it, "medical_expenses_usd", 0)),
+        studentLoanInterest: num(safe(it, "student_loan_interest_usd", 0)),
+        isoAmtPrefUsd: isoAmtPrefUsd,
+        amtPrefs: num(safe(us, "amt_inputs.private_activity_bond_interest_usd", 0)) + num(safe(it, "private_activity_bond_interest_usd", 0)) +
+          num(safe(it, "amt_preference_spread_usd", 0)) + num(safe(us, "amt.private_activity_bond_interest_usd", 0)) +
+          num(safe(us, "amt.amt_preference_spread_usd", 0)) + num(safe(us, "amt_items_usd", 0)) + isoAmtPrefUsd,
+        careExpenses: num(safe(it, "child_and_dependent_care_expenses_usd", 0)) || num(safe(it, "dependent_care_expenses_usd", 0)),
+        aotc: num(safe(it, "education_credits_aotc_usd", 0)), lifetimeLearning: num(safe(it, "education_credits_llc_usd", 0)),
+        dependents: num(safe(us, "profile.dependents_count", 0)) || num(safe(it, "dependents_count", 0)),
+        seHealthInsuranceDeductionUsd: num(safe(us, "income_us_source.se_health_insurance_deduction_usd", 0)),
+        seRetirementDeductionUsd: num(safe(us, "income_us_source.se_retirement_deduction_usd", 0))
+      };
+    }
+  },
+  additionalMedicareOwedBoundary: { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "withholding_and_estimated.additional_medicare_tax_owed_usd", 0)); } },
+  taxpayerDobRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.router, "date_of_birth", safe(ctx.india, "profile.date_of_birth", safe(ctx.us, "profile.date_of_birth", null))); } },
+  baseYearUs: { deps: [], compute: function (d, ctx) { return ctx.model.meta.baseYear; } },
+
+  // ---- computeUsTax, ported in full (individual/resident path) -------------
+  // (body extracted to computeUsTaxCore above so dual-status-nodes.js can
+  // call it twice for a split-year return; this node is now a thin wrapper.)
+  usTaxResult: {
+    deps: ["incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs"],
+    compute: function (d) {
+      return computeUsTaxCore(d.incUs, d.dedUs, d.usFilingStatusRaw, d.worldwideUs, d.feie, d.additionalMedicareOwedBoundary, d.taxpayerDobRaw, d.baseYearUs);
+    }
+  },
   totalTaxBeforeFtcUsd: { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.totalTaxBeforeFtcUsd; } }
 };
 
-module.exports = { NODES: NODES };
+module.exports = { NODES: NODES, computeUsTaxCore: computeUsTaxCore, computeSaltCap: computeSaltCap, bracketTax: bracketTax, bracketBreakdown: bracketBreakdown };
