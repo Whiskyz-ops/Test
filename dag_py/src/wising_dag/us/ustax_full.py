@@ -59,9 +59,26 @@ ENTITY_STATE_CCORP_RATES = {
     "NJ": {"rate": 0.09, "name": "New Jersey", "label": "New Jersey's 9% Corporation Business Tax top-bracket rate — excludes the lower 6.5%/7.5% brackets and the temporary 2.5% surtax on income over $1M"},
 }
 ENTITY_NO_INCOME_TAX_REAL_REGIME = {
-    "TX": "Texas has no corporate income tax, but levies its own Franchise (Margin) Tax — a gross-receipts/margin-based tax, structurally different from an income tax. Not modeled here — do not assume $0 state tax exposure.",
-    "WA": "Washington has no corporate income tax, but levies its own Business & Occupation (B&O) Tax — a gross-receipts tax on most business activity, structurally different from an income tax. Not modeled here — do not assume $0 state tax exposure.",
+    "TX": {"name": "Texas", "reason": "Texas has no corporate income tax, but levies its own Franchise (Margin) Tax — a gross-receipts/margin-based tax, structurally different from an income tax. Not modeled here — do not assume $0 state tax exposure."},
+    "WA": {"name": "Washington", "reason": "Washington has no corporate income tax, but levies its own Business & Occupation (B&O) Tax — a gross-receipts tax on most business activity, structurally different from an income tax. Not modeled here — do not assume $0 state tax exposure."},
+    "WY": {"name": "Wyoming", "reason": "Wyoming has no corporate income tax, but requires an annual license/report fee based on in-state assets — structurally different from an income tax and not modeled here. Do not assume $0 state cost."},
 }
+# Delaware is NOT a no-income-tax state (flat 8.7% on DE-apportioned taxable
+# income) -- but the single most common Delaware-incorporated shape here is
+# a company incorporated in DE while operating (and apportioning income)
+# entirely elsewhere, which typically owes $0 DE corporate INCOME tax.
+# Separately, EVERY DE corporation owes DE's annual FRANCHISE TAX regardless
+# of income or apportionment (Authorized Shares Method or Assumed Par Value
+# Capital Method, whichever is lower; $175-$200,000+/year) -- not modeled
+# here (would need authorized/issued share counts and gross assets, fields
+# this form doesn't collect), and easy to mistake for the income tax this
+# note is about, so called out explicitly rather than silently omitted.
+ENTITY_DE_INCOME_TAX_NOTE = (
+    "Delaware has an 8.7% corporate income tax, but only on income apportioned to Delaware — a company incorporated in DE but "
+    "operating elsewhere typically owes little to no DE corporate INCOME tax (not modeled here — do not assume $0 without confirming "
+    "DE-source apportionment). Separately, and NOT covered by this note: every Delaware corporation owes Delaware's annual franchise "
+    "tax regardless of income (Authorized Shares or Assumed Par Value method, $175 minimum) — track this as its own always-due line item."
+)
 
 
 def _usd(n: float) -> str:
@@ -137,7 +154,10 @@ def _us_entity_state_tax_result(d, ctx):
     base = {"state": state_code, "kind": kind}
 
     if state_code in ENTITY_NO_INCOME_TAX_REAL_REGIME:
-        return {**base, "modeled": False, "stateName": "Texas" if state_code == "TX" else "Washington", "reason": ENTITY_NO_INCOME_TAX_REAL_REGIME[state_code]}
+        info = ENTITY_NO_INCOME_TAX_REAL_REGIME[state_code]
+        return {**base, "modeled": False, "stateName": info["name"], "reason": info["reason"]}
+    if state_code == "DE" and kind == "ccorp":
+        return {**base, "modeled": False, "stateName": "Delaware", "reason": ENTITY_DE_INCOME_TAX_NOTE}
     if kind in ("scorp", "partnership"):
         return {
             **base, "modeled": False, "stateName": None,

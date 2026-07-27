@@ -236,13 +236,30 @@ NODES.aggregatePeakUsdResult = {
 // ---- limitsRaw fields not read by any earlier-closed phase ---------------
 NODES.limitsRawExtra = {
   deps: ["annualSliceAgg"], compute: function (d, ctx) {
+    // 26 U.S.C. 530A's $5,000/year cap applies PER CHILD, not as a family
+    // total -- when a per-child breakdown is on file, derive the aggregate
+    // fields from it (for the legacy family-wide gauge/display) AND surface
+    // the single largest child contribution so the finding below can catch
+    // an individual over-contribution that a family-wide total can hide.
+    // Falls back to the old flat fields for data saved before this array
+    // existed.
+    var trumpChildrenRaw = safe(ctx.us, "profile.trump_accounts_children", null);
+    var trumpChildren = Array.isArray(trumpChildrenRaw) ? trumpChildrenRaw : null;
     return {
       lrsRemittedInr: num(safe(d.annualSliceAgg, "lrs_outbound.total_lrs_remitted_this_fy_inr", 0)) ||
                       num(safe(ctx.india, "lrs_outbound.total_lrs_remitted_this_fy_inr", 0)),
       trumpAccountsOpened: safe(ctx.us, "profile.trump_accounts_opened", false) === true,
-      trumpAccountsNumChildren: num(safe(ctx.us, "profile.trump_accounts_num_children", 0)),
-      trumpAccountsSeedEligibleChildren: num(safe(ctx.us, "profile.trump_accounts_children_born_2025_2028", 0)),
-      trumpAccountsContributionsUsd: num(safe(ctx.us, "profile.trump_accounts_total_contributions_usd", 0))
+      trumpAccountsNumChildren: trumpChildren ? trumpChildren.length : num(safe(ctx.us, "profile.trump_accounts_num_children", 0)),
+      trumpAccountsSeedEligibleChildren: trumpChildren
+        ? trumpChildren.filter(function (c) { return c && c.born_2025_2028 === true; }).length
+        : num(safe(ctx.us, "profile.trump_accounts_children_born_2025_2028", 0)),
+      trumpAccountsContributionsUsd: trumpChildren
+        ? trumpChildren.reduce(function (sum, c) { return sum + num(c && c.contribution_usd); }, 0)
+        : num(safe(ctx.us, "profile.trump_accounts_total_contributions_usd", 0)),
+      trumpAccountsMaxChildContributionUsd: trumpChildren
+        ? trumpChildren.reduce(function (max, c) { return Math.max(max, num(c && c.contribution_usd)); }, 0)
+        : null,
+      trumpAccountsHasPerChildData: !!trumpChildren
     };
   }
 };
@@ -361,7 +378,23 @@ NODES.findingsBatch5Result = {
         ? "A $" + taSeedUsd.toLocaleString("en-US") + " one-time federal seed contribution applies to the " + taSeedEligible +
           " child(ren) born 2025-2028 — separate from, and not counted against, the $5,000/year cap."
         : "No federal seed applies — that one-time $1,000 contribution is only for children born 2025-2028.";
-      if (trumpAcct.status === "breached") {
+      // With a real per-child breakdown, check each child's own contribution
+      // against the cap directly -- a family total can stay under N x $5,000
+      // while one specific child's account is individually over the limit
+      // (e.g. two kids, $6,000 total split $5,500/$500: the $6,000 aggregate
+      // is under the $10,000 family-wide check, but the first child alone
+      // already breached their own $5,000 cap).
+      var perChildBreach = lr.trumpAccountsHasPerChildData && lr.trumpAccountsMaxChildContributionUsd > LIM.TRUMP_ACCOUNT_ANNUAL_CAP_USD;
+      if (perChildBreach) {
+        add("trump_account_contribution_limit", "warning", "limit",
+          "Trump Account (§530A) contribution cap exceeded for at least one child",
+          "At least one child's account received " + usd(lr.trumpAccountsMaxChildContributionUsd) + " this year, which on its own " +
+          "exceeds the $5,000/child/year cap (combined across all contributors — parents, family, employer all draw from the same " +
+          "limit), independent of the family-wide total of " + usd(trumpAcct.value) + " across " + taChildren + " child(ren). " + seedNote,
+          "Excess contributions are not automatically rejected by the custodian in every case — verify that specific child's account " +
+          "against all contributors and consider a corrective withdrawal before the account's growth compounds on an over-contribution.",
+          0, ["§530A", "Trump Account"]);
+      } else if (trumpAcct.status === "breached") {
         add("trump_account_contribution_limit", "warning", "limit",
           "Trump Account (§530A) contribution cap exceeded",
           "Contributions of " + usd(trumpAcct.value) + " across " + taChildren +

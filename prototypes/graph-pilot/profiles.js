@@ -591,7 +591,17 @@
       // Two kids — well under the $400k MFJ Child Tax Credit phase-out, so
       // this demonstrates the full $2,200/child CTC (§24, TY2025-2028 OBBBA
       // amount) with no phase-out reduction.
-      profile: { tax_entity_type: "individual", full_name: "Vikram Rao", date_of_birth: "1986-05-30", filing_status: "mfj", ssn_or_itin_type: "ssn", incorporated_in_us: false, dependents_count: 2, trump_accounts_opened: true, trump_accounts_num_children: 2, trump_accounts_children_born_2025_2028: 1, trump_accounts_total_contributions_usd: 11000 },
+      profile: { tax_entity_type: "individual", full_name: "Vikram Rao", date_of_birth: "1986-05-30", filing_status: "mfj", ssn_or_itin_type: "ssn", incorporated_in_us: false, dependents_count: 2, trump_accounts_opened: true,
+        // Deliberately a case the old family-aggregate-only check would miss:
+        // $9,500 combined is under the 2-child $10,000 family cap, but the
+        // first child's own $7,000 individually breaches the $5,000/child
+        // limit -- exercises the per-child breach path, not just the
+        // family-total path.
+        trump_accounts_children: [
+          { contribution_usd: 7000, born_2025_2028: true },
+          { contribution_usd: 2500, born_2025_2028: false }
+        ],
+        trump_accounts_num_children: 2, trump_accounts_children_born_2025_2028: 1, trump_accounts_total_contributions_usd: 9500 },
       us_residency_detail: { is_us_citizen: false, has_green_card: true, us_days_current_year: 340, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "none" },
       income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Nova Systems USA Inc", wages_box1_usd: 165000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 31000, medicare_wages_box5_usd: 165000 } }], interest_us_source_usd: 3400, ordinary_dividends_us_source_usd: 5200, qualified_dividends_us_source_usd: 3600, ltcg_us_source_usd: 18000 },
       income_foreign_source: { foreign_dividends_usd: 6024 },

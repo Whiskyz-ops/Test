@@ -750,19 +750,12 @@
                                 <div class="w-9 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white/30 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brandCyan"></div>
                             </label>
                         </div>
-                        <div id="div-trump-accounts-detail" class="hidden mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div>
-                                <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Children With Accounts</label>
-                                <input type="text" inputmode="numeric" id="prof-trump-num-children" placeholder="0" oninput="updateProfileField('trump_accounts_num_children', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none font-mono">
+                        <div id="div-trump-accounts-detail" class="hidden mt-3 flex flex-col gap-3">
+                            <div class="p-2.5 rounded-lg bg-brandCyan/5 border border-brandCyan/15 text-[9px] text-white/50 leading-relaxed">
+                                The $5,000/year contribution cap applies <strong>per child</strong> (combined across all contributors — parents, family, employer), not as a family-wide total. Enter each child's account separately so an individual over-contribution isn't hidden inside a combined figure. A $1,000 one-time federal seed applies automatically for children born 2025-2028, separate from and not counted against this cap.
                             </div>
-                            <div>
-                                <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Of Which Born 2025-2028<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Eligible for the $1,000 federal seed</span></label>
-                                <input type="text" inputmode="numeric" id="prof-trump-seed-eligible" placeholder="0" oninput="updateProfileField('trump_accounts_children_born_2025_2028', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none font-mono">
-                            </div>
-                            <div>
-                                <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Total Contributions This Year (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Nondeductible; excludes the federal seed</span></label>
-                                <input type="text" inputmode="numeric" id="prof-trump-contributions" placeholder="0" oninput="updateProfileField('trump_accounts_total_contributions_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none font-mono">
-                            </div>
+                            <div id="div-trump-children-list" class="flex flex-col gap-2"></div>
+                            <button type="button" onclick="addTrumpChildRow()" class="self-start px-3 py-1.5 bg-white/10 hover:bg-brandCyan/20 hover:text-brandCyan text-white/60 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all">+ Add Child</button>
                         </div>
                     </div>
                 </div>
@@ -799,12 +792,6 @@
                             <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">State of Domicile</label>
                             <select id="corp-domicile" onchange="updateProfileField('state_of_domicile', this.value)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all">
                                 <option value="">Select State</option>
-                                <option value="DE">Delaware</option>
-                                <option value="NY">New York</option>
-                                <option value="CA">California</option>
-                                <option value="TX">Texas</option>
-                                <option value="WY">Wyoming</option>
-                                <option value="OTHER">Other</option>
                             </select>
                         </div>
                     </div>
@@ -4016,6 +4003,7 @@
             dependents_count: 0,
             spouse_is_us_person: null,
             trump_accounts_opened: false,
+            trump_accounts_children: [],
             trump_accounts_num_children: 0,
             trump_accounts_children_born_2025_2028: 0,
             trump_accounts_total_contributions_usd: 0,
@@ -5319,6 +5307,68 @@
         }
         recalculateDerivedFields();
         saveStateAndSync();
+    }
+
+    // Trump Accounts (§530A): the $5,000/year cap applies PER CHILD, not as a
+    // family-wide total (26 U.S.C. 530A) -- tracked as one row per child
+    // rather than a single combined figure, so an individual child's
+    // over-contribution can't hide inside an aggregate that still looks fine
+    // family-wide (e.g. two kids, $6,000 total split $5,500/$500 -- the
+    // $6,000 aggregate is under 2x$5,000=$10,000, but the first child alone
+    // already breached their own cap).
+    function renderTrumpChildrenList() {
+        const container = document.getElementById('div-trump-children-list');
+        if (!container) return;
+        const list = usState.profile.trump_accounts_children || [];
+        container.innerHTML = list.map((child, i) => `
+            <div class="flex items-center gap-2 p-2.5 bg-black/20 border border-white/5 rounded-xl">
+                <span class="text-[9px] font-black text-white/40 w-14 shrink-0">Child ${i + 1}</span>
+                <div class="flex-1">
+                    <input type="text" inputmode="numeric" value="${child.contribution_usd || ''}" placeholder="Contribution this year (USD)" oninput="updateTrumpChildField(${i}, 'contribution_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none font-mono">
+                </div>
+                <label class="flex items-center gap-1.5 shrink-0 cursor-pointer" title="Born 2025-2028 -- eligible for the $1,000 federal seed">
+                    <input type="checkbox" ${child.born_2025_2028 ? 'checked' : ''} onchange="updateTrumpChildField(${i}, 'born_2025_2028', this.checked)" class="rounded bg-[#121212] border-white/20 text-brandCyan focus:ring-0">
+                    <span class="text-[8px] text-brandCyan/70 uppercase tracking-wider">Born<br>'25-'28</span>
+                </label>
+                <button type="button" onclick="removeTrumpChildRow(${i})" class="text-brandRed/40 hover:text-brandRed font-bold px-1 shrink-0">✕</button>
+            </div>
+        `).join('');
+    }
+
+    function addTrumpChildRow() {
+        if (!usState.profile.trump_accounts_children) usState.profile.trump_accounts_children = [];
+        usState.profile.trump_accounts_children.push({ contribution_usd: 0, born_2025_2028: false });
+        syncTrumpChildrenDerived();
+        renderTrumpChildrenList();
+        saveStateAndSync();
+    }
+
+    function removeTrumpChildRow(idx) {
+        if (!usState.profile.trump_accounts_children) return;
+        usState.profile.trump_accounts_children.splice(idx, 1);
+        syncTrumpChildrenDerived();
+        renderTrumpChildrenList();
+        saveStateAndSync();
+    }
+
+    function updateTrumpChildField(idx, field, val) {
+        if (!usState.profile.trump_accounts_children || !usState.profile.trump_accounts_children[idx]) return;
+        usState.profile.trump_accounts_children[idx][field] = val;
+        syncTrumpChildrenDerived();
+        recalculateDerivedFields();
+        saveStateAndSync();
+    }
+
+    // Keeps the legacy aggregate fields (num_children/children_born_2025_2028/
+    // total_contributions_usd) derived from the per-child array so any other
+    // code still reading them (e.g. a saved profile loaded before this array
+    // existed) sees consistent totals; the DAG's precise per-child breach
+    // check reads the array directly instead of these aggregates.
+    function syncTrumpChildrenDerived() {
+        const list = usState.profile.trump_accounts_children || [];
+        usState.profile.trump_accounts_num_children = list.length;
+        usState.profile.trump_accounts_children_born_2025_2028 = list.filter(c => c.born_2025_2028).length;
+        usState.profile.trump_accounts_total_contributions_usd = list.reduce((sum, c) => sum + (c.contribution_usd || 0), 0);
     }
 
     function updateResidencyField(field, val) {
@@ -18591,9 +18641,23 @@ div.innerHTML = `
             if(document.getElementById('prof-spouse-us')) document.getElementById('prof-spouse-us').checked = usState.profile.spouse_is_us_person || false;
             document.getElementById('prof-trump-accounts') && (document.getElementById('prof-trump-accounts').checked = usState.profile.trump_accounts_opened || false);
             document.getElementById('div-trump-accounts-detail') && document.getElementById('div-trump-accounts-detail').classList.toggle('hidden', !usState.profile.trump_accounts_opened);
-            document.getElementById('prof-trump-num-children') && (document.getElementById('prof-trump-num-children').value = usState.profile.trump_accounts_num_children || 0);
-            document.getElementById('prof-trump-seed-eligible') && (document.getElementById('prof-trump-seed-eligible').value = usState.profile.trump_accounts_children_born_2025_2028 || 0);
-            document.getElementById('prof-trump-contributions') && (document.getElementById('prof-trump-contributions').value = usState.profile.trump_accounts_total_contributions_usd || 0);
+            // Migrate a pre-per-child save (a single combined total + counts,
+            // no way to tell which child actually holds how much) into one
+            // row so existing data isn't dropped -- this collapses back to
+            // the same imprecision that row was created to fix, but only
+            // until the user splits it out; new saves always have real rows.
+            if ((!usState.profile.trump_accounts_children || usState.profile.trump_accounts_children.length === 0) && (usState.profile.trump_accounts_num_children || usState.profile.trump_accounts_total_contributions_usd)) {
+                const legacyCount = usState.profile.trump_accounts_num_children || 1;
+                const legacySeedEligible = usState.profile.trump_accounts_children_born_2025_2028 || 0;
+                const legacyTotal = usState.profile.trump_accounts_total_contributions_usd || 0;
+                usState.profile.trump_accounts_children = Array.from({ length: legacyCount }, (_, i) => ({
+                    contribution_usd: i === 0 ? legacyTotal : 0,
+                    born_2025_2028: i < legacySeedEligible
+                }));
+            }
+            if (!usState.profile.trump_accounts_children) usState.profile.trump_accounts_children = [];
+            renderTrumpChildrenList();
+            syncTrumpChildrenDerived();
             
             // Restore Entity Type & LLC Election
             const entityTypeEl = document.getElementById('prof-entity-type');
