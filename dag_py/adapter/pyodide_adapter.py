@@ -50,7 +50,13 @@ from wising_dag.analyze import analyze_with_extras as _analyze_with_extras
 
 
 def _to_py(js_opts):
-    return pyodide.ffi.to_py(js_opts) if js_opts is not None else {}
+    # `to_py()` is a METHOD on the JsProxy object itself, not a module-level
+    # `pyodide.ffi.to_py()` function — confirmed against the real, pinned
+    # production runtime (Pyodide v0.26.4) in an actual Chromium browser;
+    # `pyodide.ffi` only exports the reverse conversion (`to_js`) as a
+    # standalone function. See docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 7
+    # browser-verification section.
+    return js_opts.to_py() if js_opts is not None else {}
 
 
 def _to_js(py_value):

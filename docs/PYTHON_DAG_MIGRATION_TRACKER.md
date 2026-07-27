@@ -1339,6 +1339,102 @@ correct instinct but an incomplete rule — "port every `round()` to
 `js_round()`" needed the added caveat "unless the JS source has no
 `Math.round` there at all").
 
+### Tenth Phase 8 pass: real Pyodide-in-Chromium browser verification — found and fixed 2 real bugs
+
+Every prior verification pass ran through plain CPython or a Node
+subprocess: real, but never the actual `window.WISING_PY.analyze()` call
+path executing inside `pyodide.ffi`/WASM. This sandbox has no network route
+to the jsdelivr CDN `py-dag-loader.js`'s own `PYODIDE_CDN_BASE` points at,
+which had been the standing blocker to closing that gap — until it turned
+out the sandbox's outbound proxy allowlists `registry.npmjs.org`/`pypi.org`/
+`files.pythonhosted.org` directly. That's enough to get every asset the
+adapter pipeline needs onto local disk without the CDN: `npm install
+pyodide@0.26.4` (the exact version `py-dag-loader.js` pins) bundles the full
+WASM runtime; `pip download micropip==0.6.0`/`packaging==23.2` (the exact
+versions that Pyodide build's own `pyodide-lock.json` names) get the two
+packages `pyodide.loadPackage("micropip")` would otherwise fetch from the
+CDN at runtime. (The downloaded wheels' sha256 don't match the lockfile's
+own recorded hash — Pyodide vendors a repackaged build even at the same
+version number — so the test loads them by direct path rather than through
+the name-based, hash-checked registry lookup; a real, separate caveat from
+the two bugs below, and orthogonal to this repo's own code.)
+
+Built a Playwright + the pre-installed Chromium binary
+(`/opt/pw-browsers/chromium`) test that serves these local assets plus the
+real `assets/wising_dag.whl` and the real, unmodified
+`dag_py/adapter/pyodide_adapter.py` from a throwaway local HTTP server, and
+replays `py-dag-loader.js`'s exact `bootPyDag()` sequence line-for-line
+(`loadPyodide` → `loadPackage`/`pyimport("micropip")` → `micropip.install()`
+→ `fetch` + `runPythonAsync()` the adapter source → `install(namespace=
+"WISING_PY", include_extras=True)` → call `window.WISING_PY.analyze()`) —
+not a simplified reimplementation, the actual production file. This
+immediately surfaced two real bugs neither the golden suite, the fuzz
+corpus, nor the differential harness could ever have caught, because none
+of them execute a single line of `adapter/pyodide_adapter.py` — that file
+is unreachable from plain `pytest` by design (it's the one file allowed to
+import `pyodide`/`js`), so it had never actually been run until this pass:
+
+1. **The wheel's filename wasn't parseable by `micropip.install(url)`**.
+   `scripts/build-dag-wheel.py` deliberately renamed the real build output
+   (`wising_dag-0.1.0-py3-none-any.whl`) down to a bare `wising_dag.whl` for
+   a "stable path, versioned contents" convention (mirroring how
+   `assets/dag-analyze.bundle.js` never changes name across rebuilds). But
+   `micropip.install(url)` parses name/version/tags straight out of the
+   URL's basename (`packaging.utils.parse_wheel_filename`) before it ever
+   reads the file's contents — a bare basename has none of the required
+   dash-separated segments, so it raised `InvalidWheelFilename` immediately,
+   before a single byte of the wheel was fetched. This would have broken
+   the Python DAG's load the very first time anyone tried it in a real
+   browser. Fixed by keeping the "stable filename" property but making that
+   fixed string a *valid*, PEP 427-conformant wheel name with a permanently
+   pinned placeholder version segment, independent of
+   `dag_py/pyproject.toml`'s real version:
+   `assets/wising_dag-0.0.0-py3-none-any.whl`. Updated the three consumers
+   of the old literal filename (`scripts/build-dag-wheel.py`,
+   `monitor-next/lib/py-dag-loader.js`, `monitor-next/scripts/sync-dag-py.js`).
+2. **`adapter/pyodide_adapter.py`'s `_to_py()` called a module function that
+   doesn't exist**: `pyodide.ffi.to_py(js_opts)`. Confirmed by direct
+   inspection of the real `pyodide.ffi` module (`dir(pyodide.ffi)`) against
+   both the npm-latest Pyodide build and the actual pinned production
+   version (v0.26.4): the module exports `to_js` as a standalone function
+   (Python → JS), but the reverse conversion is a *method* on the JsProxy
+   object itself — `js_opts.to_py()` — never a `pyodide.ffi.to_py()`
+   function. Every call to `window.WISING_PY.analyze(opts)` would have
+   thrown `AttributeError` immediately, before any business logic ran.
+   Fixed `_to_py` to call the method directly.
+
+After both fixes, the full production pipeline ran clean end-to-end in the
+real Chromium tab, on the exact pinned v0.26.4 runtime (genuine Python
+3.12.1 in WASM, not a mock): `window.WISING_PY.analyze(sampleOpts)` returned
+all 13 expected top-level keys (`findings`, `documents`, `ftcReport`,
+`taxComputation`, `withholding`, `scopeNotes`, `returnForms`, `monitoring`,
+`summary`, `model`, `computed`, plus `checksRegistry`/`calendarAmounts` from
+`include_extras=True`), with plausible values in `summary` for the sample
+profile used. Also re-ran with the current npm-latest Pyodide build
+(v314.0.3, Python 3.14.2 — a much newer, differently-versioned runtime than
+production pins) as a second, independent confirmation that neither fix is
+an artifact of one specific Pyodide build.
+
+**What this does and doesn't close**: this closes the "has anyone ever
+actually run `window.WISING_PY.analyze()` inside a real Pyodide runtime in
+an actual browser tab" question — yes, now confirmed, against the exact
+production-pinned version, and it found real bugs that no other layer of
+this project's verification could reach. It does NOT itself verify the
+jsdelivr CDN fetch `PYODIDE_CDN_BASE` performs over the real internet (this
+sandbox still has no route to that specific host) — only the mechanism
+downstream of that fetch. It also does not touch `monitor-next`'s own async
+wiring for a *live* (non-shadow) Python DAG path, or `index.html`'s zero
+wiring — both remain untouched, per the standing instruction that neither
+gets wired in until conversion is 100% complete and confidence is total.
+
+**Verification**: `dag_py` pytest 573/573 green (unaffected — nothing under
+`pytest`'s reach imports `pyodide_adapter.py`, confirming these two bugs
+really were invisible to the entire existing suite). Wheel rebuilt under
+its new conformant filename; `monitor-next/public/dag-py/` re-synced.
+Playwright/Chromium browser test: `window.WISING_PY.analyze()` succeeds
+end-to-end against both Pyodide v0.26.4 (production-pinned) and the
+npm-latest build.
+
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 
 **Scoping correction, found before any code was written**: the plan's guessed

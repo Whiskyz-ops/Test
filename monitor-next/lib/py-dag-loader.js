@@ -13,15 +13,21 @@
  * concurrent/later caller awaits the SAME in-flight (or already-resolved)
  * promise rather than re-triggering it.
  *
- * NOT verified against a real Pyodide runtime — this sandbox has no network
- * route to fetch one (confirmed repeatedly throughout this port's own
- * migration tracker, Phase 7 onward). Written to the documented Pyodide
- * browser-loader API (`loadPyodide()`, `pyodide.loadPackage()`,
- * `pyodide.pyimport("micropip")`, `micropip.install()`,
- * `pyodide.runPythonAsync()`), but that is not the same as having actually
- * exercised it end-to-end in a browser. Treat this file with the same
- * caution `docs/PYTHON_DAG_MIGRATION_TRACKER.md`'s Phase 7 section already
- * flags for `adapter/pyodide_adapter.py` itself.
+ * Verified against the real, pinned production runtime (Pyodide v0.26.4,
+ * genuine Python 3.12.1 in WASM) in an actual Chromium tab — this exact
+ * sequence (loadPyodide -> loadPackage(micropip) -> micropip.install(wheel)
+ * -> fetch+runPythonAsync(adapter) -> window[NAMESPACE].analyze) was
+ * replayed with locally-hosted copies of the Pyodide runtime, micropip, and
+ * the wheel (this sandbox has no network route to the jsdelivr CDN this
+ * file's own PYODIDE_CDN_BASE points at, so the CDN *fetch* itself is
+ * untested — only the mechanism/code path is). That run caught two real
+ * bugs, both now fixed: the wheel filename had to be a PEP 427-conformant
+ * name for micropip.install(url) to parse it (see
+ * scripts/build-dag-wheel.py), and adapter/pyodide_adapter.py's `_to_py`
+ * was calling a nonexistent `pyodide.ffi.to_py()` module function instead
+ * of the real `<JsProxy>.to_py()` method. See
+ * docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 7 browser-verification
+ * section for the full writeup.
  *
  * PYODIDE_VERSION is the one thing to bump if a newer runtime is wanted —
  * everything else (script URL, indexURL for loadPyodide's own package
@@ -82,7 +88,15 @@ async function bootPyDag() {
 
   await pyodide.loadPackage("micropip");
   const micropip = pyodide.pyimport("micropip");
-  await micropip.install(assetUrl("dag-py/wising_dag.whl"));
+  // Filename must be a PEP 427-conformant wheel name (name-version-tags.whl):
+  // micropip.install(url) parses those straight out of the URL's basename
+  // (packaging.utils.parse_wheel_filename) before it ever reads the file's
+  // contents, and raises InvalidWheelFilename on a bare "wising_dag.whl" —
+  // confirmed by an actual Pyodide-in-Chromium run (see
+  // docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 7 browser-verification
+  // section). scripts/build-dag-wheel.py pins this exact filename forever,
+  // independent of dag_py/pyproject.toml's real version.
+  await micropip.install(assetUrl("dag-py/wising_dag-0.0.0-py3-none-any.whl"));
 
   const adapterRes = await fetch(assetUrl("dag-py/pyodide_adapter.py"));
   if (!adapterRes.ok) throw new Error("Failed to fetch dag-py/pyodide_adapter.py: " + adapterRes.status);
