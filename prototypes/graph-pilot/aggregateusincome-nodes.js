@@ -200,7 +200,14 @@ var NODES = {
   },
   foreignWagesUsd: {
     deps: ["fiAgg"],
-    compute: function (d) { return (safe(d.fiAgg, "foreign_wages", []) || []).reduce(function (s, w) { return s + num(w.wages_usd || w.amount_usd || w.wages_box1_usd || w.wages_tips_compensation_usd || 0); }, 0); }
+    // gross_wages_usd is the field name syncForeignWagesState() (layer1_us.
+    // html) actually writes for every foreign-wage row added through the
+    // live form -- confirmed by grep, this was previously missing from the
+    // fallback chain entirely, so every foreign wage entry ever made
+    // through the live UI silently computed to $0 (only profiles.js's
+    // hand-authored fixtures, which use wages_usd directly, ever exercised
+    // a nonzero value here).
+    compute: function (d) { return (safe(d.fiAgg, "foreign_wages", []) || []).reduce(function (s, w) { return s + num(w.gross_wages_usd || w.wages_usd || w.amount_usd || w.wages_box1_usd || w.wages_tips_compensation_usd || 0); }, 0); }
   },
 
   // Combines self-employment AND farming_schedule_f assets into ONE
