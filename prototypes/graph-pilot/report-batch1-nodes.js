@@ -167,6 +167,17 @@ NODES.usSecuritiesRaw = { deps: [], compute: function (d, ctx) { return safe(ctx
 NODES.usOwnsForeignDisregardedEntityRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_entities.owns_foreign_disregarded_entity", false) === true; } };
 NODES.usSelfEmploymentRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "income_us_source.self_employment", []) || []; } };
 
+// ---- form_8865 (Foreign Partnerships) — layer1_us.html's Step 9 screen
+// ("Screen 3K — Foreign Entities") has its own dedicated "I own 10% or more
+// of a foreign partnership" accordion (addPartRow()/syncPartState(),
+// foreign_entities.foreign_partnerships[], each row carrying its own real
+// Form 8865 Category 1-4 selector) -- form_8865 below was hardcoded false
+// with a comment claiming "no field anywhere represents owning an interest
+// in a foreign partnership," which was true when that comment was written
+// but the live UI has since grown exactly this section. Read here so a
+// taxpayer who fills in this accordion actually gets Form 8865 flagged.
+NODES.usForeignPartnershipsRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_entities.foreign_partnerships", []) || []; } };
+
 // ---- form_10ic / form_10id — the company-side regime-election forms,
 // mirroring form_10iea's individual/HUF equivalent. Same raw flags
 // entitytax-nodes.js/agg10-nodes.js already read for the entity-tax rate
@@ -307,7 +318,7 @@ var DOCUMENTS_CATALOG = [
 NODES.buildDocumentsResult = {
   deps: ["residencyResult", "accountsListResult", "form8938GaugeResult", "taxesPaidIndiaResult", "entityFormsResult",
     "feieRaw", "treatyUsResidenceRaw", "treatyFiles1040nrRaw", "treatyIndiaResidenceRaw",
-    "indianMutualFundsResult", "usPficHoldingsRaw", "usSecuritiesRaw", "usOwnsForeignDisregardedEntityRaw", "usSelfEmploymentRaw", "bizEntriesAgg", "ppfInrRaw", "epfInrRaw", "foreignGiftsRaw",
+    "indianMutualFundsResult", "usPficHoldingsRaw", "usSecuritiesRaw", "usOwnsForeignDisregardedEntityRaw", "usSelfEmploymentRaw", "usForeignPartnershipsRaw", "bizEntriesAgg", "ppfInrRaw", "epfInrRaw", "foreignGiftsRaw",
     "usTaxResult", "headlineTotalIncomeUsdResult", "usFilingStatusRaw", "aggregateUsIncomeResult",
     "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
     "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw",
@@ -367,10 +378,7 @@ NODES.buildDocumentsResult = {
       // ownership signal (form_3ceb below already uses it). Broadened to
       // isUsPerson (any domestic entity, not just C-corp).
       form_5471: d.viaForeignCorpXbr4 && isUsPerson,
-      // Form 8865 hardcoded false: not a wiring bug, a genuine unmodeled-
-      // feature gap — no field anywhere represents "owns an interest in a
-      // FOREIGN partnership" (docs/GAP_TRACKER.md, 22 Jul 2026 full audit).
-      form_8865: false,
+      form_8865: d.usForeignPartnershipsRaw.length > 0 && isUsPerson,
       // Was OR'ing receivedAbove100k/isTrustBeneficiary in unconditionally —
       // Form 3520 (IRC §6039F) is US-persons-only; gated the whole trigger
       // behind isUsPerson instead of just the ppfInr/epfInr clause.

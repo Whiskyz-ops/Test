@@ -207,7 +207,7 @@ def _build_documents_result(d, ctx):
         "form_8621": (len(d["indianMutualFundsResult"]) > 0 or len(d["usPficHoldingsRaw"]) > 0 or
                       any(h.get("pfic_classification") == "passive_foreign_investment_company_section_1297" for h in d["usSecuritiesRaw"])) and is_us_person,
         "form_5471": d["viaForeignCorpXbr4"] and is_us_person,
-        "form_8865": False,
+        "form_8865": len(d["usForeignPartnershipsRaw"]) > 0 and is_us_person,
         "form_3520": is_us_person and ((d["ppfInrRaw"] > 0 or d["epfInrRaw"] > 0) or d["foreignGiftsRaw"]["receivedAbove100k"] or d["foreignGiftsRaw"]["isTrustBeneficiary"]),
         "form_3520a": is_us_person and (d["ppfInrRaw"] > 0 or d["epfInrRaw"] > 0),
         "form_1040nr": d["treatyFiles1040nrRaw"],
@@ -425,6 +425,12 @@ NODES = {
     "usSecuritiesRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "financial_holdings", []) or [], layer1_fields=("us.financial_holdings",)),
     "usOwnsForeignDisregardedEntityRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_entities.owns_foreign_disregarded_entity", False) is True, layer1_fields=("us.foreign_entities.owns_foreign_disregarded_entity",)),
     "usSelfEmploymentRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "income_us_source.self_employment", []) or [], layer1_fields=("us.income_us_source.self_employment",)),
+    # layer1_us.html's Step 9 screen has its own dedicated "I own 10% or more
+    # of a foreign partnership" accordion (foreign_entities.
+    # foreign_partnerships[], each row carrying a real Form 8865 Category
+    # 1-4 selector) -- form_8865 was hardcoded False on the claim that no
+    # field represented this at all, which the live UI has since grown.
+    "usForeignPartnershipsRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_entities.foreign_partnerships", []) or [], layer1_fields=("us.foreign_entities.foreign_partnerships",)),
     "form8938GaugeResult": NodeDef(deps=("feie", "usFilingStatusRaw", "accountsListResult", "aggregateLastDayUsdResult", "hasUsScopeBoundaryFtc"), compute=_form8938_gauge_result),
     "headlineTotalIncomeUsdResult": NodeDef(
         deps=("totalIndiaIncomeInr", "aggregateUsIncomeResult"),
@@ -433,7 +439,7 @@ NODES = {
     "buildDocumentsResult": NodeDef(
         deps=("residencyResult", "accountsListResult", "form8938GaugeResult", "taxesPaidIndiaResult", "entityResult",
               "feieRaw", "treatyUsResidenceRaw", "treatyFiles1040nrRaw", "treatyIndiaResidenceRaw",
-              "indianMutualFundsResult", "usPficHoldingsRaw", "usSecuritiesRaw", "usOwnsForeignDisregardedEntityRaw", "usSelfEmploymentRaw", "bizEntriesAgg", "ppfInrRaw", "epfInrRaw", "foreignGiftsRaw",
+              "indianMutualFundsResult", "usPficHoldingsRaw", "usSecuritiesRaw", "usOwnsForeignDisregardedEntityRaw", "usSelfEmploymentRaw", "usForeignPartnershipsRaw", "bizEntriesAgg", "ppfInrRaw", "epfInrRaw", "foreignGiftsRaw",
               "usTaxResult", "headlineTotalIncomeUsdResult", "usFilingStatusRaw", "aggregateUsIncomeResult",
               "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
               "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw",
