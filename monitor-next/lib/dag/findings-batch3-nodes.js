@@ -83,6 +83,16 @@ NODES.foreignGiftsRaw = {
 };
 NODES.stateResidencyRaw = {
   deps: [], compute: function (d, ctx) {
+    // nyDaysPresent/nyPermanentAbode: layer1_us.html's live statutory-
+    // residency tracker (renderStatutoryCheckers()/updateFootprintDetails())
+    // stores these under the generic per-state state_residency.
+    // footprint_details[code].{days,ppa} object (shared by NY/NJ/CT/MA/etc.,
+    // not a NY-only field) -- NOT the flat ny_actual_days_present/
+    // ny_permanent_place_of_abode field names this node used to read, which
+    // nothing in the live form has ever written (confirmed by grep against
+    // layer1_us.html). Reading the real field so this finding can actually
+    // fire for a live user, not just a hand-authored profiles.js fixture.
+    var nyDetails = safe(ctx.us, "state_residency.footprint_details.NY", {}) || {};
     return {
       domicileJan1: safe(ctx.us, "state_residency.jan_1_domicile_state", null),
       domicileDec31: safe(ctx.us, "state_residency.dec_31_domicile_state", null),
@@ -91,8 +101,8 @@ NODES.stateResidencyRaw = {
       movedStates: safe(ctx.us, "state_residency.moved_states_this_year", false) === true,
       caSafeHarbor: safe(ctx.us, "state_residency.ca_safe_harbor_employment_contract", false) === true,
       caRetainsTies: safe(ctx.us, "state_residency.ca_retains_property_or_voter_reg", false) === true,
-      nyDaysPresent: num(safe(ctx.us, "state_residency.ny_actual_days_present", 0)),
-      nyPermanentAbode: safe(ctx.us, "state_residency.ny_permanent_place_of_abode", false) === true,
+      nyDaysPresent: num(nyDetails.days) || num(safe(ctx.us, "state_residency.ny_actual_days_present", 0)),
+      nyPermanentAbode: nyDetails.ppa === true || safe(ctx.us, "state_residency.ny_permanent_place_of_abode", false) === true,
       ny548DayRule: safe(ctx.us, "state_residency.ny_548_day_rule", false) === true
     };
   }
