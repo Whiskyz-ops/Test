@@ -244,6 +244,10 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     amt_brk = T["AMT_RATE_BREAK"] / 2 if status == "mfs" else T["AMT_RATE_BREAK"]
     tmt_ord = amt_ord_base * T["AMT_RATE_LOW"] if amt_ord_base <= amt_brk else amt_brk * T["AMT_RATE_LOW"] + (amt_ord_base - amt_brk) * T["AMT_RATE_HIGH"]
     amt_owed = max(0.0, js_round(tmt_ord + preferential_tax - income_tax))
+    # §53 Minimum Tax Credit: only available in a year NOT subject to AMT
+    # (i.e. regular tax exceeds this year's tentative minimum tax), capped
+    # at the prior-year carryforward on file. Mirrors ustax-nodes.js exactly.
+    mtc_allowed_usd = min(ded.get("mtcCarryforwardUsd") or 0, max(0.0, income_tax - (tmt_ord + preferential_tax)))
 
     magi = agi
     edu_lo, edu_hi = (160000, 180000) if status == "mfj" else (80000, 90000)
@@ -277,7 +281,7 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     earned_income_usd = inc["wages"]["usd"] + f_w + f_se + (inc.get("businessUs", {}).get("usd", 0) if inc.get("businessUs") else 0)
     actc_cap_usd = min(T["CTC_REFUNDABLE_MAX_PER_CHILD_USD"] * num_children_for_ctc, T["CTC_REFUNDABLE_RATE"] * max(0.0, earned_income_usd - T["CTC_REFUNDABLE_EARNED_INCOME_FLOOR_USD"]))
     ctc_refundable_usd = js_round(max(0.0, min(ctc_unused_usd, actc_cap_usd)))
-    credits_usd = other_credits_usd + combined_non_refundable_usd + ctc_refundable_usd
+    credits_usd = other_credits_usd + combined_non_refundable_usd + ctc_refundable_usd + mtc_allowed_usd
 
     total_tax_before_ftc = income_tax + niit + addl_medicare + se_tax + amt_owed - credits_usd
 
@@ -383,6 +387,8 @@ NODES = {
                 num(ex.get("amt_preference_spread_usd")) if ex.get("amt_preference_spread_usd") is not None else max(0.0, (num(ex.get("fmv_at_exercise_usd")) - num(ex.get("strike_price_usd"))) * num(ex.get("shares_exercised")))
                 for ex in (safe(us, "equity_compensation.iso_exercises", []) or [])
             ),
+            # §53 Minimum Tax Credit carryforward -- fed nothing before this.
+            "mtcCarryforwardUsd": num(safe(us, "amt_inputs.minimum_tax_credit_carryforward_usd", 0)),
             "amtPrefs": (
                 num(safe(us, "amt_inputs.private_activity_bond_interest_usd", 0)) + num(safe(it, "private_activity_bond_interest_usd", 0)) +
                 num(safe(it, "amt_preference_spread_usd", 0)) + num(safe(us, "amt.private_activity_bond_interest_usd", 0)) +

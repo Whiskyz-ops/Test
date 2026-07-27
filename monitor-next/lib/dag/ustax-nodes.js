@@ -234,6 +234,10 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var amtBrk = status === "mfs" ? T.AMT_RATE_BREAK / 2 : T.AMT_RATE_BREAK;
       var tmtOrd = amtOrdBase <= amtBrk ? amtOrdBase * T.AMT_RATE_LOW : amtBrk * T.AMT_RATE_LOW + (amtOrdBase - amtBrk) * T.AMT_RATE_HIGH;
       var amtOwed = Math.max(0, Math.round(tmtOrd + preferentialTax - incomeTax));
+      // §53 Minimum Tax Credit: only available in a year NOT subject to AMT
+      // (i.e. regular tax exceeds this year's tentative minimum tax),
+      // capped at the prior-year carryforward on file.
+      var mtcAllowedUsd = Math.min(ded.mtcCarryforwardUsd || 0, Math.max(0, incomeTax - (tmtOrd + preferentialTax)));
 
       var magi = agi;
       var eduLo = status === "mfj" ? 160000 : 80000, eduHi = status === "mfj" ? 180000 : 90000;
@@ -268,7 +272,7 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var earnedIncomeUsd = inc.wages.usd + fW + fSE + (inc.businessUs ? inc.businessUs.usd : 0);
       var actcCapUsd = Math.min(T.CTC_REFUNDABLE_MAX_PER_CHILD_USD * numChildrenForCtc, T.CTC_REFUNDABLE_RATE * Math.max(0, earnedIncomeUsd - T.CTC_REFUNDABLE_EARNED_INCOME_FLOOR_USD));
       var ctcRefundableUsd = Math.round(Math.max(0, Math.min(ctcUnusedUsd, actcCapUsd)));
-      var creditsUsd = otherCreditsUsd + combinedNonRefundableUsd + ctcRefundableUsd;
+      var creditsUsd = otherCreditsUsd + combinedNonRefundableUsd + ctcRefundableUsd + mtcAllowedUsd;
 
       var totalTaxBeforeFtc = incomeTax + niit + addlMedicare + seTax + amtOwed - creditsUsd;
 
@@ -406,6 +410,13 @@ var NODES = {
         casualtyLoss: num(safe(it, "casualty_loss_federal_disaster_usd", 0)),
         studentLoanInterest: num(safe(it, "student_loan_interest_usd", 0)),
         isoAmtPrefUsd: isoAmtPrefUsd,
+        // §53 Minimum Tax Credit carryforward -- a PRIOR-year AMT payment
+        // (typically from timing/deferral preferences like ISO exercise
+        // spread) becomes a credit against REGULAR tax in a later year, to
+        // the extent regular tax exceeds that year's tentative minimum tax.
+        // The live UI's "Minimum Tax Credit Carryforward" input fed nothing
+        // at all before this -- new, no engine equivalent.
+        mtcCarryforwardUsd: num(safe(us, "amt_inputs.minimum_tax_credit_carryforward_usd", 0)),
         amtPrefs: num(safe(us, "amt_inputs.private_activity_bond_interest_usd", 0)) + num(safe(it, "private_activity_bond_interest_usd", 0)) +
           num(safe(it, "amt_preference_spread_usd", 0)) + num(safe(us, "amt.private_activity_bond_interest_usd", 0)) +
           num(safe(us, "amt.amt_preference_spread_usd", 0)) + num(safe(us, "amt_items_usd", 0)) + isoAmtPrefUsd,
