@@ -3344,8 +3344,17 @@
                 <p class="text-xs text-white/40 mt-1">Report gifts received from foreign donors or foreign trust activities.</p>
             </div>
 
-            <!-- Trust Activity & Covered Expat -->
-
+            <!-- Foreign Trust Details (Form 3520 Parts II/III) -->
+            <div class="p-5 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-4">
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold text-white/90 uppercase tracking-widest">Foreign Trust Activity (Owner or Beneficiary)</span>
+                        <span class="text-[9px] text-white/30">Identify each foreign trust you're a grantor/owner of, or received a distribution from, this year.</span>
+                    </div>
+                    <button onclick="addTrustDetailRow()" id="btn-add-trust-detail" class="px-2 py-0.5 bg-white/10 rounded text-[9px] uppercase tracking-wider text-white/60 hover:text-brandCyan transition-all">+ Add Trust</button>
+                </div>
+                <div id="div-trust-detail-list" class="grid grid-cols-1 gap-4"></div>
+            </div>
 
             <!-- Gifts Check & List -->
             <div class="p-5 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-4">
@@ -5611,7 +5620,18 @@
                         }
                 ],
                 "is_us_beneficiary_of_foreign_trust": false,
-                "foreign_trust_details": [],
+                "foreign_trust_details": [
+                        {
+                                "trust_name": null,
+                                "trust_country": null,
+                                "trust_ein_or_ref_number": null,
+                                "relationship_to_trust": null,
+                                "distribution_date": null,
+                                "distribution_amount_usd": 0,
+                                "is_foreign_grantor_trust": false,
+                                "received_3520a_statement": false
+                        }
+                ],
                 "received_gift_from_covered_expatriate": false
         },
         "itemized_deductions_and_credits": {
@@ -19307,6 +19327,128 @@ div.innerHTML = `
         saveStateAndSync();
     }
 
+    function addTrustDetailRow(data = null) {
+        const rowId = 'ftd-' + Date.now() + Math.random().toString(36).substring(2, 5);
+        const list = document.getElementById('div-trust-detail-list');
+        if (!list) return;
+
+        const div = document.createElement('div');
+        div.id = rowId;
+        div.className = "ftd-card p-3 bg-black/40 border border-white/10 rounded-xl relative flex flex-col gap-2 shadow-md mb-2 group";
+        div.innerHTML = `
+            <button onclick="removeTrustDetailRow('${rowId}')" class="absolute top-2 right-2 text-brandRed/40 hover:text-brandRed font-bold font-sans p-1 z-10 transition-colors">✕</button>
+            <div class="ftd-accordion flex flex-col gap-1">
+              <details class="border border-white/8 rounded-xl" open>
+                <summary class="flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-white/5 rounded-xl transition-colors list-none" onclick="toggleAccordion('${rowId}-ftd', '${rowId}-ftd-chev')">
+                  <span class="text-[9px] font-black uppercase tracking-widest text-brandCyan flex items-center gap-2">
+                    🏛️ <span>Foreign Trust Details</span>
+                  </span>
+                  <svg id="${rowId}-ftd-chev" class="w-3.5 h-3.5 text-white/30 transition-transform duration-300 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div id="${rowId}-ftd" class="px-3 pb-3 pt-2 flex flex-col gap-3 border-t border-white/5 transition-all duration-300">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pr-6">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Trust Name</label>
+                            <input type="text" class="ftd-name w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" placeholder="e.g. Sharma Family Trust" oninput="syncTrustDetailState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Trust Country</label>
+                            <input type="text" class="ftd-country w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" placeholder="e.g. India" oninput="syncTrustDetailState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Trust EIN / Reference Number</label>
+                            <input type="text" class="ftd-ein w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="if no EIN, use a reference number" oninput="syncTrustDetailState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Your Relationship</label>
+                            <select class="ftd-relationship w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" onchange="syncTrustDetailState()">
+                                <option value="beneficiary">Beneficiary</option>
+                                <option value="grantor_owner">Grantor/Owner</option>
+                                <option value="transferor">Transferor</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="text-[8px] font-bold text-white/50 uppercase border-b border-white/5 pb-1 mt-1">Distribution Received This Year (Form 3520 Part III)</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pr-6">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Distribution Date (leave blank if none)</label>
+                            <input type="date" class="ftd-dist-date w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" onchange="syncTrustDetailState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Distribution Amount (USD)</label>
+                            <input type="text" inputmode="numeric" class="ftd-dist-amt w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncTrustDetailState()">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pr-6 mt-3 p-3 bg-brandCyan/5 border border-brandCyan/10 rounded-lg">
+                        <label class="flex items-center gap-2 text-[9px] font-bold text-white/70 cursor-pointer">
+                            <input type="checkbox" class="ftd-grantor rounded bg-[#121212] border-white/20 text-brandCyan focus:ring-0" onchange="syncTrustDetailState()">
+                            <span>Foreign Grantor Trust?</span>
+                            <span class="relative tooltip-trigger inline-block">
+                                <span class="text-brandCyan text-[10px] cursor-help">(i)</span>
+                                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden tooltip-content w-56 bg-[#0a0a0a] border border-brandCyan/40 text-white/90 text-[10px] p-2.5 rounded-lg shadow-xl z-[100] font-normal normal-case tracking-normal whitespace-normal pointer-events-none">The trust's income is taxed to its foreign owner, not this distribution's beneficiary - changes how the distribution is characterized.</div>
+                            </span>
+                        </label>
+                        <label class="flex items-center gap-2 text-[9px] font-bold text-white/70 cursor-pointer">
+                            <input type="checkbox" class="ftd-3520a-stmt rounded bg-[#121212] border-white/20 text-brandCyan focus:ring-0" onchange="syncTrustDetailState()">
+                            <span>Received Form 3520-A Beneficiary/Owner Statement?</span>
+                            <span class="relative tooltip-trigger inline-block">
+                                <span class="text-brandCyan text-[10px] cursor-help">(i)</span>
+                                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden tooltip-content w-56 bg-[#0a0a0a] border border-brandCyan/40 text-white/90 text-[10px] p-2.5 rounded-lg shadow-xl z-[100] font-normal normal-case tracking-normal whitespace-normal pointer-events-none">Without it, you may need to attach a substitute Form 3520-A yourself and could be subject to the default (throwback) method.</div>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+              </details>
+            </div>
+        `;
+        list.appendChild(div);
+
+        if (data) {
+            if (div.querySelector('.ftd-name')) div.querySelector('.ftd-name').value = data.trust_name || '';
+            if (div.querySelector('.ftd-country')) div.querySelector('.ftd-country').value = data.trust_country || '';
+            if (div.querySelector('.ftd-ein')) div.querySelector('.ftd-ein').value = data.trust_ein_or_ref_number || '';
+            if (div.querySelector('.ftd-relationship') && data.relationship_to_trust) div.querySelector('.ftd-relationship').value = data.relationship_to_trust;
+            if (div.querySelector('.ftd-dist-date')) div.querySelector('.ftd-dist-date').value = data.distribution_date || '';
+            if (div.querySelector('.ftd-dist-amt')) div.querySelector('.ftd-dist-amt').value = data.distribution_amount_usd || '';
+            if (div.querySelector('.ftd-grantor')) div.querySelector('.ftd-grantor').checked = data.is_foreign_grantor_trust === true;
+            if (div.querySelector('.ftd-3520a-stmt')) div.querySelector('.ftd-3520a-stmt').checked = data.received_3520a_statement === true;
+        }
+        syncTrustDetailState();
+    }
+
+    function removeTrustDetailRow(id) {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+        syncTrustDetailState();
+    }
+
+    function syncTrustDetailState() {
+        const list = [];
+        document.querySelectorAll('.ftd-card').forEach(div => {
+            list.push({
+                trust_name: div.querySelector('.ftd-name').value || null,
+                trust_country: div.querySelector('.ftd-country').value || null,
+                trust_ein_or_ref_number: div.querySelector('.ftd-ein').value || null,
+                relationship_to_trust: div.querySelector('.ftd-relationship').value,
+                distribution_date: div.querySelector('.ftd-dist-date').value || null,
+                distribution_amount_usd: parseFormattedNumber(div.querySelector('.ftd-dist-amt').value) || null,
+                is_foreign_grantor_trust: div.querySelector('.ftd-grantor').checked,
+                received_3520a_statement: div.querySelector('.ftd-3520a-stmt').checked
+            });
+        });
+        usState.foreign_gifts_and_trusts.foreign_trust_details = list;
+        // Roll up: OR'd with foreign_gifts' own trust-ben flag (syncGiftState's
+        // own source of truth) so whichever sync function runs last never
+        // clobbers a true set by the other - keeps the existing Form 3520
+        // warning (which reads is_us_beneficiary_of_foreign_trust) accurate
+        // even if the taxpayer only logged one of the two row types.
+        const hasDistribution = list.some(t => t.distribution_date || (t.distribution_amount_usd || 0) > 0);
+        const gifts = usState.foreign_gifts_and_trusts.foreign_gifts || [];
+        usState.foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust = hasDistribution || gifts.some(g => g.is_beneficiary_of_foreign_trust);
+        recalculateDerivedFields();
+        saveStateAndSync();
+    }
+
     function addGiftRow(data = null) {
         const rowId = 'gift-' + Date.now() + Math.random().toString(36).substring(2, 5);
         const list = document.getElementById('div-gift-list');
@@ -19427,8 +19569,13 @@ div.innerHTML = `
         // (findings-batch3-nodes.js: isTrustBeneficiary / receivedFromCoveredExpatriate,
         // feeding form_3520/form_3520a and 2 checks-registry entries) -- true
         // if ANY gift row carries the flag, since either one real occurrence
-        // is enough to trigger the underlying disclosure/finding.
-        usState.foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust = list.some(g => g.is_beneficiary_of_foreign_trust);
+        // is enough to trigger the underlying disclosure/finding. Also OR in
+        // foreign_trust_details' own distributions (syncTrustDetailState's
+        // own source of truth) so whichever function runs last never
+        // clobbers a true set by the other.
+        const trustDetails = usState.foreign_gifts_and_trusts.foreign_trust_details || [];
+        const hasDistributionInTrustDetails = trustDetails.some(t => t.distribution_date || (t.distribution_amount_usd || 0) > 0);
+        usState.foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust = list.some(g => g.is_beneficiary_of_foreign_trust) || hasDistributionInTrustDetails;
         usState.foreign_gifts_and_trusts.received_gift_from_covered_expatriate = list.some(g => g.is_gift_from_covered_expatriate);
         recalculateDerivedFields();
         saveStateAndSync();
@@ -19998,6 +20145,7 @@ div.innerHTML = `
             document.getElementById('div-corp-list').innerHTML = '';
             document.getElementById('div-part-list').innerHTML = '';
             document.getElementById('div-gift-list').innerHTML = '';
+            document.getElementById('div-trust-detail-list').innerHTML = '';
             document.getElementById('div-ftc-list').innerHTML = '';
 
             initFromLocalStorage();
@@ -20200,7 +20348,7 @@ div.innerHTML = `
                 );
                 const hasForeignEntities = !!(savedState.foreign_entities && (savedState.foreign_entities.owns_10_percent_foreign_corp || savedState.foreign_entities.has_pfics));
                 const hasForeignFeie = !!(savedState.foreign_earned_income && savedState.foreign_earned_income.claims_feie);
-                const hasForeignGifts = !!(savedState.foreign_gifts_and_trusts && (savedState.foreign_gifts_and_trusts.received_foreign_gifts_above_100k || savedState.foreign_gifts_and_trusts.received_gift_from_covered_expatriate));
+                const hasForeignGifts = !!(savedState.foreign_gifts_and_trusts && (savedState.foreign_gifts_and_trusts.received_foreign_gifts_above_100k || savedState.foreign_gifts_and_trusts.received_gift_from_covered_expatriate || savedState.foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust || (savedState.foreign_gifts_and_trusts.foreign_trust_details && savedState.foreign_gifts_and_trusts.foreign_trust_details.length)));
                 const hasPassiveIntDiv = (iu.interest_us_source_usd || 0) > 0 || (iu.ordinary_dividends_us_source_usd || 0) > 0;
                 const hasPassiveCapGains = (iu.ltcg_us_source_usd || 0) > 0;
                 const derived = {
@@ -20330,6 +20478,7 @@ div.innerHTML = `
                 usState.foreign_gifts_and_trusts.received_foreign_gifts_above_100k = savedState.foreign_gifts_and_trusts.received_foreign_gifts_above_100k;
                 usState.foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust = savedState.foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust;
                 usState.foreign_gifts_and_trusts.received_gift_from_covered_expatriate = savedState.foreign_gifts_and_trusts.received_gift_from_covered_expatriate;
+                usState.foreign_gifts_and_trusts.foreign_trust_details = savedState.foreign_gifts_and_trusts.foreign_trust_details || [];
             }
             if (savedState.itemized_deductions_and_credits) {
                 Object.assign(usState.itemized_deductions_and_credits, savedState.itemized_deductions_and_credits);
@@ -20652,6 +20801,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             document.getElementById('div-corp-list').innerHTML = '';
             document.getElementById('div-part-list').innerHTML = '';
             document.getElementById('div-gift-list').innerHTML = '';
+            document.getElementById('div-trust-detail-list').innerHTML = '';
             document.getElementById('div-ftc-list').innerHTML = '';
 
             // Recover dynamic lists
@@ -20676,6 +20826,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             if (usState.foreign_entities && usState.foreign_entities.foreign_corporations) usState.foreign_entities.foreign_corporations.forEach(x => addCorpRow(x));
             if (usState.foreign_entities && usState.foreign_entities.foreign_partnerships) usState.foreign_entities.foreign_partnerships.forEach(x => addPartRow(x));
             if (usState.foreign_gifts_and_trusts && usState.foreign_gifts_and_trusts.foreign_gifts) usState.foreign_gifts_and_trusts.foreign_gifts.forEach(x => addGiftRow(x));
+            if (usState.foreign_gifts_and_trusts && usState.foreign_gifts_and_trusts.foreign_trust_details) usState.foreign_gifts_and_trusts.foreign_trust_details.forEach(x => addTrustDetailRow(x));
             if (usState.ftc_inputs && usState.ftc_inputs.ftc_baskets) usState.ftc_inputs.ftc_baskets.forEach(x => addFtcBasketRow(x));
 
             // Migration: Move corp physical/economic nexus states to new path to prevent data loss
