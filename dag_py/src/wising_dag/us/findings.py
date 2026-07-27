@@ -466,7 +466,7 @@ def _findings_us_result(d, ctx):
                 "Trump Account (§530A) contribution cap exceeded for at least one child",
                 f"At least one child's account received {_fmt(lr['trumpAccountsMaxChildContributionUsd'])} this year, which on its own "
                 "exceeds the $5,000/child/year cap (combined across all contributors — parents, family, employer all draw from the same "
-                f"limit), independent of the family-wide total of {_fmt(trump_acct['value'])} across {js_round(ta_children)} child(ren). {seed_note}",
+                f"limit), independent of the family-wide total of {_fmt(trump_acct['value'])} across {js_num_str(ta_children)} child(ren). {seed_note}",
                 "Excess contributions are not automatically rejected by the custodian in every case — verify that specific child's account "
                 "against all contributors and consider a corrective withdrawal before the account's growth compounds on an over-contribution.",
                 0, ["§530A", "Trump Account"],
