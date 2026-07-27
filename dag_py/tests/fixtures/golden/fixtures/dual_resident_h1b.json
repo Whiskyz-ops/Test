@@ -363,6 +363,10 @@
         "foreignSection988GainLoss": {
           "usd": 0,
           "inr": 0
+        },
+        "otherOrdinaryIncomeUs": {
+          "usd": 0,
+          "inr": 0
         }
       }
     },

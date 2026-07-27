@@ -462,7 +462,13 @@ var KNOWN_INDIA_ENTITY_DIVERGENT_PATHS = ["taxComputation.india"];
 // all -- a structural key-presence difference, not a value bug. None of
 // the fuzz corpus's profiles populate section_988_gains_losses, so this
 // never cascades into an actual dollar difference anywhere downstream.
-var KNOWN_ALWAYS_DIVERGENT_PATHS = ["model.income.us.foreignSection988GainLoss"];
+// model.income.us.otherOrdinaryIncomeUs (Step 15 field-completeness audit, 27
+// Jul 2026): same shape -- unemployment comp/alimony received/direct
+// Schedule E royalties/cancellation of debt/misc other income, a brand-new
+// ordinary-income bucket (aggregateusincome-nodes.js's directIncomeComputation)
+// the frozen engine has no concept of. None of the fuzz corpus's profiles
+// populate these 5 fields, so this never cascades into a dollar difference.
+var KNOWN_ALWAYS_DIVERGENT_PATHS = ["model.income.us.foreignSection988GainLoss", "model.income.us.otherOrdinaryIncomeUs"];
 var KNOWN_NRA_DIVERGENT_PATHS = ["computed.ftc.india", "ftcReport.direction_india_relief"];
 // ---- H.6: India AOP/BOI and Trust/NGO/Political Party (docs/GAP_TRACKER.md
 // section H.6, 21 Jul 2026) — a WIDER divergence than the company/firm case

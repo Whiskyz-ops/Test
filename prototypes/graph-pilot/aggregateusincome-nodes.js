@@ -342,6 +342,19 @@ var NODES = {
     deps: ["uiAgg", "fiAgg", "k1PassiveTotals"],
     compute: function (d) {
       var ui = d.uiAgg, fi = d.fiAgg, k1 = d.k1PassiveTotals;
+      // "Other Income (Schedule 1 & 1099-G/SSA)" card (layer1_us.html's Step
+      // 15) -- 6 of its 8 fields (all but the state-refund box and the
+      // HSA/MSA-distribution box) previously had no id/oninput/onchange at
+      // all, pure static HTML; same class of bug as the Capital Gains
+      // "Manual Entry" tab. State refunds need the SS111 tax-benefit-rule
+      // test (was last year's SALT deduction actually itemized AND did it
+      // produce a tax benefit?) that this model has no prior-year data to
+      // apply, and HSA/MSA distributions are only taxable to the extent NOT
+      // used for qualified medical expenses -- a split this model doesn't
+      // track -- so both remain deliberately unwired rather than guessed at.
+      var otherOrdinaryIncomeUsUsd = num(safe(ui, "unemployment_compensation_usd", 0)) +
+        num(safe(ui, "alimony_received_usd", 0)) + num(safe(ui, "royalties_direct_us_source_usd", 0)) +
+        num(safe(ui, "cancellation_of_debt_usd", 0)) + num(safe(ui, "misc_other_income_usd", 0));
       return {
         taxExemptInterestUsUsd: num(safe(ui, "interest_us_exempt_usd", 0)),
         interestUsUsd: num(safe(ui, "interest_us_source_usd", 0)) + k1.interestUsd,
@@ -349,7 +362,11 @@ var NODES = {
         qualifiedDividendsUsUsd: num(safe(ui, "qualified_dividends_us_source_usd", 0)) + k1.qualDivUsd,
         ltcgUsUsd: num(safe(ui, "ltcg_us_source_usd", 0)) + k1.ltcgUsd,
         stcgUsUsd: num(safe(ui, "stcg_us_source_usd", 0)) + k1.stcgUsd,
-        rentalUsUsd: num(safe(ui, "rental_income_us_source_usd", 0)) + k1.rentalUsd,
+        // Rental expenses (layer1_us.html's own "Total Rental Expenses"
+        // field) previously had no id/handler either -- gross rent was
+        // always taxed in full with zero expense deduction possible.
+        rentalUsUsd: Math.max(0, num(safe(ui, "rental_income_us_source_usd", 0)) - num(safe(ui, "rental_expenses_us_source_usd", 0))) + k1.rentalUsd,
+        otherOrdinaryIncomeUsUsd: otherOrdinaryIncomeUsUsd,
         foreignInterestUsd: num(safe(fi, "foreign_interest_usd", 0)),
         foreignDividendsUsd: num(safe(fi, "foreign_dividends_usd", 0)),
         foreignRentalUsd: num(safe(fi, "foreign_rental_income_usd", 0)),
@@ -408,7 +425,7 @@ var NODES = {
       var foreignInterest = di.foreignInterestUsd + epf.taxableEpfInterestUsd;
       var foreignPension = di.foreignPensionUsd + epf.taxableNpsWithdrawalUsd;
 
-      var usSourceTotal = w.wagesUsd + biz.businessUsUsd + di.interestUsUsd + di.ordinaryDividendsUsUsd + di.ltcgUsUsd + di.stcgUsUsd + di.rentalUsUsd + ret.usRetirementIncomeExclSsUsd + ret.socialSecurityUsUsd;
+      var usSourceTotal = w.wagesUsd + biz.businessUsUsd + di.interestUsUsd + di.ordinaryDividendsUsUsd + di.ltcgUsUsd + di.stcgUsUsd + di.rentalUsUsd + ret.usRetirementIncomeExclSsUsd + ret.socialSecurityUsUsd + di.otherOrdinaryIncomeUsUsd;
       var foreignSourceTotal = d.foreignWagesUsd + biz.foreignSelfEmploymentUsd + foreignInterest + di.foreignDividendsUsd + di.foreignRentalUsd + foreignPension + di.foreignStcgUsd + di.foreignLtcgUsd + di.section988GainLossUsd;
 
       return {
@@ -422,6 +439,7 @@ var NODES = {
         taxExemptInterestUs: m(di.taxExemptInterestUsUsd, ctx),
         interestUs: m(di.interestUsUsd, ctx), ordinaryDividendsUs: m(di.ordinaryDividendsUsUsd, ctx), qualifiedDividendsUs: m(di.qualifiedDividendsUsUsd, ctx),
         ltcgUs: m(di.ltcgUsUsd, ctx), stcgUs: m(di.stcgUsUsd, ctx), capitalGainsUs: m(di.ltcgUsUsd + di.stcgUsUsd, ctx), rentalUs: m(di.rentalUsUsd, ctx),
+        otherOrdinaryIncomeUs: m(di.otherOrdinaryIncomeUsUsd, ctx),
         foreignWages: m(d.foreignWagesUsd, ctx), foreignSelfEmployment: m(biz.foreignSelfEmploymentUsd, ctx),
         foreignInterest: m(foreignInterest, ctx), foreignDividends: m(di.foreignDividendsUsd, ctx),
         foreignRental: m(di.foreignRentalUsd, ctx), foreignPension: m(foreignPension, ctx),

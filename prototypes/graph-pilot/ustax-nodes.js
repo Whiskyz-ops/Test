@@ -134,8 +134,14 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var f988 = worldwide && inc.foreignSection988GainLoss ? inc.foreignSection988GainLoss.usd : 0;
 
       var nonQualDivUs = Math.max(0, inc.ordinaryDividendsUs.usd - inc.qualifiedDividendsUs.usd);
+      // otherOrdinaryIncomeUs (unemployment comp/alimony received/direct
+      // Schedule E royalties/cancellation of debt/misc other income, Step 15
+      // Layer 1 US audit, 27 Jul 2026): new DAG-only ordinary-income bucket,
+      // no engine equivalent -- these 5 Layer 1 US fields fed nothing at all
+      // before this (see aggregateusincome-nodes.js's directIncomeComputation).
+      var otherOrdinaryUs = (inc.otherOrdinaryIncomeUs && inc.otherOrdinaryIncomeUs.usd) || 0;
       var ordinaryIncomeExclSs = inc.wages.usd + fW + fSE + (inc.businessUs ? inc.businessUs.usd : 0) + inc.interestUs.usd + fI +
-        nonQualDivUs + fD + inc.stcgUs.usd + fStcg + inc.rentalUs.usd + fR + fP + f988 +
+        nonQualDivUs + fD + inc.stcgUs.usd + fStcg + inc.rentalUs.usd + fR + fP + f988 + otherOrdinaryUs +
         (inc.usRetirementIncomeExclSs ? inc.usRetirementIncomeExclSs.usd : (inc.usRetirementIncome ? inc.usRetirementIncome.usd : 0));
       var preferentialIncome = inc.ltcgUs.usd + fLtcg + inc.qualifiedDividendsUs.usd;
 

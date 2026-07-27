@@ -277,6 +277,19 @@ def _retirement_computation(d, ctx):
 
 def _direct_income_computation(d, ctx):
     ui, fi, k1 = d["uiAgg"], d["fiAgg"], d["k1PassiveTotals"]
+    # "Other Income (Schedule 1 & 1099-G/SSA)" card (Step 15 Layer 1 US
+    # audit, 27 Jul 2026) -- 6 of its 8 fields had no id/oninput/onchange at
+    # all in the live form, pure static HTML. State refunds (SS111 tax-
+    # benefit-rule test needs prior-year itemization data this model doesn't
+    # track) and HSA/MSA distributions (only taxable to the extent NOT used
+    # for qualified medical expenses, a split this model doesn't track)
+    # remain deliberately unwired. Mirrors prototypes/graph-pilot/
+    # aggregateusincome-nodes.js exactly.
+    other_ordinary_income_us_usd = (
+        num(safe(ui, "unemployment_compensation_usd", 0)) + num(safe(ui, "alimony_received_usd", 0)) +
+        num(safe(ui, "royalties_direct_us_source_usd", 0)) + num(safe(ui, "cancellation_of_debt_usd", 0)) +
+        num(safe(ui, "misc_other_income_usd", 0))
+    )
     return {
         "taxExemptInterestUsUsd": num(safe(ui, "interest_us_exempt_usd", 0)),
         "interestUsUsd": num(safe(ui, "interest_us_source_usd", 0)) + k1["interestUsd"],
@@ -284,7 +297,10 @@ def _direct_income_computation(d, ctx):
         "qualifiedDividendsUsUsd": num(safe(ui, "qualified_dividends_us_source_usd", 0)) + k1["qualDivUsd"],
         "ltcgUsUsd": num(safe(ui, "ltcg_us_source_usd", 0)) + k1["ltcgUsd"],
         "stcgUsUsd": num(safe(ui, "stcg_us_source_usd", 0)) + k1["stcgUsd"],
-        "rentalUsUsd": num(safe(ui, "rental_income_us_source_usd", 0)) + k1["rentalUsd"],
+        # Rental expenses previously had no id/handler either -- gross rent
+        # was always taxed in full with zero expense deduction possible.
+        "rentalUsUsd": max(0.0, num(safe(ui, "rental_income_us_source_usd", 0)) - num(safe(ui, "rental_expenses_us_source_usd", 0))) + k1["rentalUsd"],
+        "otherOrdinaryIncomeUsUsd": other_ordinary_income_us_usd,
         "foreignInterestUsd": num(safe(fi, "foreign_interest_usd", 0)),
         "foreignDividendsUsd": num(safe(fi, "foreign_dividends_usd", 0)),
         "foreignRentalUsd": num(safe(fi, "foreign_rental_income_usd", 0)),
@@ -331,7 +347,7 @@ def _aggregate_us_income_result(d, ctx):
     foreign_interest = di["foreignInterestUsd"] + epf["taxableEpfInterestUsd"]
     foreign_pension = di["foreignPensionUsd"] + epf["taxableNpsWithdrawalUsd"]
 
-    us_source_total = w["wagesUsd"] + biz["businessUsUsd"] + di["interestUsUsd"] + di["ordinaryDividendsUsUsd"] + di["ltcgUsUsd"] + di["stcgUsUsd"] + di["rentalUsUsd"] + ret["usRetirementIncomeExclSsUsd"] + ret["socialSecurityUsUsd"]
+    us_source_total = w["wagesUsd"] + biz["businessUsUsd"] + di["interestUsUsd"] + di["ordinaryDividendsUsUsd"] + di["ltcgUsUsd"] + di["stcgUsUsd"] + di["rentalUsUsd"] + ret["usRetirementIncomeExclSsUsd"] + ret["socialSecurityUsUsd"] + di["otherOrdinaryIncomeUsUsd"]
     foreign_source_total = d["foreignWagesUsd"] + biz["foreignSelfEmploymentUsd"] + foreign_interest + di["foreignDividendsUsd"] + di["foreignRentalUsd"] + foreign_pension + di["foreignStcgUsd"] + di["foreignLtcgUsd"] + di["section988GainLossUsd"]
 
     return {
@@ -345,6 +361,7 @@ def _aggregate_us_income_result(d, ctx):
         "taxExemptInterestUs": _m(di["taxExemptInterestUsUsd"], ctx),
         "interestUs": _m(di["interestUsUsd"], ctx), "ordinaryDividendsUs": _m(di["ordinaryDividendsUsUsd"], ctx), "qualifiedDividendsUs": _m(di["qualifiedDividendsUsUsd"], ctx),
         "ltcgUs": _m(di["ltcgUsUsd"], ctx), "stcgUs": _m(di["stcgUsUsd"], ctx), "capitalGainsUs": _m(di["ltcgUsUsd"] + di["stcgUsUsd"], ctx), "rentalUs": _m(di["rentalUsUsd"], ctx),
+        "otherOrdinaryIncomeUs": _m(di["otherOrdinaryIncomeUsUsd"], ctx),
         "foreignWages": _m(d["foreignWagesUsd"], ctx), "foreignSelfEmployment": _m(biz["foreignSelfEmploymentUsd"], ctx),
         "foreignInterest": _m(foreign_interest, ctx), "foreignDividends": _m(di["foreignDividendsUsd"], ctx),
         "foreignRental": _m(di["foreignRentalUsd"], ctx), "foreignPension": _m(foreign_pension, ctx),

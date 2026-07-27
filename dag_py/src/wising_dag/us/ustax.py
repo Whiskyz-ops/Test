@@ -138,9 +138,15 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     f_988 = (inc["foreignSection988GainLoss"]["usd"] if inc.get("foreignSection988GainLoss") else 0) if worldwide else 0
 
     non_qual_div_us = max(0.0, inc["ordinaryDividendsUs"]["usd"] - inc["qualifiedDividendsUs"]["usd"])
+    # otherOrdinaryIncomeUs (unemployment comp/alimony received/direct
+    # Schedule E royalties/cancellation of debt/misc other income, Step 15
+    # Layer 1 US audit, 27 Jul 2026): new DAG-only ordinary-income bucket, no
+    # engine equivalent. Mirrors prototypes/graph-pilot/ustax-nodes.js's
+    # computeUsTaxCore exactly.
+    other_ordinary_us = (inc.get("otherOrdinaryIncomeUs") or {}).get("usd", 0) or 0
     ordinary_income_excl_ss = (
         inc["wages"]["usd"] + f_w + f_se + (inc.get("businessUs", {}).get("usd", 0) if inc.get("businessUs") else 0) + inc["interestUs"]["usd"] + f_i +
-        non_qual_div_us + f_d + inc["stcgUs"]["usd"] + f_stcg + inc["rentalUs"]["usd"] + f_r + f_p + f_988 +
+        non_qual_div_us + f_d + inc["stcgUs"]["usd"] + f_stcg + inc["rentalUs"]["usd"] + f_r + f_p + f_988 + other_ordinary_us +
         (inc["usRetirementIncomeExclSs"]["usd"] if inc.get("usRetirementIncomeExclSs") else (inc.get("usRetirementIncome", {}).get("usd", 0) if inc.get("usRetirementIncome") else 0))
     )
     preferential_income = inc["ltcgUs"]["usd"] + f_ltcg + inc["qualifiedDividendsUs"]["usd"]

@@ -2159,7 +2159,7 @@
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Total Rental Expenses (USD)</label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-rental-expenses" placeholder="0" oninput="updateStateField('income_us_source', 'rental_expenses_us_source_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                 </div>
             </div>
@@ -2172,36 +2172,36 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">State / Local Tax Refunds (1099-G)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 2 of Form 1099-G</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">State / Local Tax Refunds (1099-G)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 2 of Form 1099-G — taxable only under the SS111 tax-benefit rule (itemized last year AND got a tax benefit); not modeled, recordkeeping only</span></label>
+                        <input type="text" inputmode="numeric" id="inc-us-state-refund" placeholder="0" oninput="updateStateField('income_us_source', 'state_local_tax_refund_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Unemployment Compensation (1099-G)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1 of Form 1099-G</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-unemployment" placeholder="0" oninput="updateStateField('income_us_source', 'unemployment_compensation_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Social Security Benefits (SSA-1099)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 5 of Form SSA-1099</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-social-security" placeholder="0" oninput="updateStateField('income_us_source', 'social_security_benefits_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Alimony Received<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Only for divorces finalized before 2019</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-alimony" placeholder="0" oninput="updateStateField('income_us_source', 'alimony_received_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Royalties (Schedule E)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 2 of Form 1099-MISC</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-royalties" placeholder="0" oninput="updateStateField('income_us_source', 'royalties_direct_us_source_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Cancellation of Debt (1099-C)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 2 of Form 1099-C</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-cod" placeholder="0" oninput="updateStateField('income_us_source', 'cancellation_of_debt_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
-                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">HSA/MSA Distributions (1099-SA)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1 of Form 1099-SA</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">HSA/MSA Distributions (1099-SA)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1 of Form 1099-SA — taxable only for the portion NOT used for qualified medical expenses; not modeled, recordkeeping only</span></label>
+                        <input type="text" inputmode="numeric" id="inc-us-hsa-dist" placeholder="0" oninput="updateStateField('income_us_source', 'hsa_msa_distributions_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Misc Income (Gambling, Prizes) (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Form W-2G or other untaxed awards</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-misc-other" placeholder="0" oninput="updateStateField('income_us_source', 'misc_other_income_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                 </div>
             </div>
@@ -18734,6 +18734,15 @@ div.innerHTML = `
                 usState.income_us_source.stcg_us_source_usd = savedState.income_us_source.stcg_us_source_usd;
                 usState.income_us_source.ltcg_us_source_usd = savedState.income_us_source.ltcg_us_source_usd;
                 usState.income_us_source.rental_income_us_source_usd = savedState.income_us_source.rental_income_us_source_usd;
+                usState.income_us_source.rental_expenses_us_source_usd = savedState.income_us_source.rental_expenses_us_source_usd;
+                usState.income_us_source.state_local_tax_refund_usd = savedState.income_us_source.state_local_tax_refund_usd;
+                usState.income_us_source.unemployment_compensation_usd = savedState.income_us_source.unemployment_compensation_usd;
+                usState.income_us_source.social_security_benefits_usd = savedState.income_us_source.social_security_benefits_usd;
+                usState.income_us_source.alimony_received_usd = savedState.income_us_source.alimony_received_usd;
+                usState.income_us_source.royalties_direct_us_source_usd = savedState.income_us_source.royalties_direct_us_source_usd;
+                usState.income_us_source.cancellation_of_debt_usd = savedState.income_us_source.cancellation_of_debt_usd;
+                usState.income_us_source.hsa_msa_distributions_usd = savedState.income_us_source.hsa_msa_distributions_usd;
+                usState.income_us_source.misc_other_income_usd = savedState.income_us_source.misc_other_income_usd;
             }
             if (savedState.income_foreign_source) {
                 Object.assign(usState.income_foreign_source, savedState.income_foreign_source);
@@ -18952,6 +18961,15 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             const ltcgEl = document.getElementById('inc-us-ltcg');
             if (ltcgEl) ltcgEl.value = usState.income_us_source.ltcg_us_source_usd || '';
             if(document.getElementById('inc-us-rental')) document.getElementById('inc-us-rental').value = usState.income_us_source.rental_income_us_source_usd || '';
+            if(document.getElementById('inc-us-rental-expenses')) document.getElementById('inc-us-rental-expenses').value = usState.income_us_source.rental_expenses_us_source_usd || '';
+            if(document.getElementById('inc-us-state-refund')) document.getElementById('inc-us-state-refund').value = usState.income_us_source.state_local_tax_refund_usd || '';
+            if(document.getElementById('inc-us-unemployment')) document.getElementById('inc-us-unemployment').value = usState.income_us_source.unemployment_compensation_usd || '';
+            if(document.getElementById('inc-us-social-security')) document.getElementById('inc-us-social-security').value = usState.income_us_source.social_security_benefits_usd || '';
+            if(document.getElementById('inc-us-alimony')) document.getElementById('inc-us-alimony').value = usState.income_us_source.alimony_received_usd || '';
+            if(document.getElementById('inc-us-royalties')) document.getElementById('inc-us-royalties').value = usState.income_us_source.royalties_direct_us_source_usd || '';
+            if(document.getElementById('inc-us-cod')) document.getElementById('inc-us-cod').value = usState.income_us_source.cancellation_of_debt_usd || '';
+            if(document.getElementById('inc-us-hsa-dist')) document.getElementById('inc-us-hsa-dist').value = usState.income_us_source.hsa_msa_distributions_usd || '';
+            if(document.getElementById('inc-us-misc-other')) document.getElementById('inc-us-misc-other').value = usState.income_us_source.misc_other_income_usd || '';
             
             // SE deductions inputs
             const healthDedEl = document.getElementById('se-ded-health');
