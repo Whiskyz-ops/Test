@@ -1780,8 +1780,8 @@
                         <input type="password" placeholder="••••••••" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all font-mono">
                     </div>
                     <div>
-                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">US Bank Interest (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1 of Form 1099-INT</span></label>
-                        <input type="text" inputmode="numeric" id="bank-sync-us-interest" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">US Bank Interest (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1 of Form 1099-INT — same figure as the "Banks &amp; Brokerages" box on the Passive Income screen</span></label>
+                        <input type="text" inputmode="numeric" id="bank-sync-us-interest" placeholder="0" oninput="const t=document.getElementById('inc-us-interest'); if(t) t.value=this.value; syncUsInterestTotal();" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                 </div>
             </div>
@@ -7064,6 +7064,8 @@ div.innerHTML = `
         usState.income_us_source.interest_us_oid_usd = oid;
         usState.income_us_source.interest_us_private_usd = priv;
         usState.income_us_source.interest_us_source_usd = bank + treasury + oid + priv;
+        const bankSyncMirror = document.getElementById('bank-sync-us-interest');
+        if (bankSyncMirror && document.activeElement !== bankSyncMirror) bankSyncMirror.value = bank || '';
         recalculateDerivedFields();
         saveStateAndSync();
     }
@@ -18831,6 +18833,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
                 // document.getElementById('div-se-container').classList.add('hidden');
             }
             if(document.getElementById('inc-us-interest')) document.getElementById('inc-us-interest').value = usState.income_us_source.interest_us_bank_usd || '';
+            if(document.getElementById('bank-sync-us-interest')) document.getElementById('bank-sync-us-interest').value = usState.income_us_source.interest_us_bank_usd || '';
             if(document.getElementById('inc-us-interest-treasury')) document.getElementById('inc-us-interest-treasury').value = usState.income_us_source.interest_us_treasury_usd || '';
             if(document.getElementById('inc-us-interest-oid')) document.getElementById('inc-us-interest-oid').value = usState.income_us_source.interest_us_oid_usd || '';
             if(document.getElementById('inc-us-interest-private')) document.getElementById('inc-us-interest-private').value = usState.income_us_source.interest_us_private_usd || '';
