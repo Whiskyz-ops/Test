@@ -157,6 +157,7 @@ def test_findings_all_result_override_adds_msme_finding():
         "hasUsScope": False, "electiveDeferralExcessUsd": 0, "electiveDeferralAggregateUsd": 0, "electiveDeferralLimitUsd": 24500,
         "iraContributionExcessUsd": 0, "iraContributionAggregateUsd": 0, "iraContributionLimitUsd": 7500,
         "retirementAccountsRaw": {}, "rmdRequired": False, "ageAtYearEndUs": None,
+        "equityCompRaw": {},
     }
     out = assets._findings_all_result_override(d, ctx, lambda d, ctx: [_finding("pan_not_linked_aadhaar")])
     ids = [f["id"] for f in out]
@@ -173,6 +174,7 @@ def test_findings_all_result_override_adds_lockin_finding_with_mandatory_audit()
         "hasUsScope": False, "electiveDeferralExcessUsd": 0, "electiveDeferralAggregateUsd": 0, "electiveDeferralLimitUsd": 24500,
         "iraContributionExcessUsd": 0, "iraContributionAggregateUsd": 0, "iraContributionLimitUsd": 7500,
         "retirementAccountsRaw": {}, "rmdRequired": False, "ageAtYearEndUs": None,
+        "equityCompRaw": {},
     }
     out = assets._findings_all_result_override(d, ctx, lambda d, ctx: [])
     lockin_finding = next(f for f in out if f["id"] == "presumptive_lockin_active_india")
@@ -189,6 +191,7 @@ def test_findings_all_result_override_noop_when_nothing_triggers():
         "hasUsScope": False, "electiveDeferralExcessUsd": 0, "electiveDeferralAggregateUsd": 0, "electiveDeferralLimitUsd": 24500,
         "iraContributionExcessUsd": 0, "iraContributionAggregateUsd": 0, "iraContributionLimitUsd": 7500,
         "retirementAccountsRaw": {}, "rmdRequired": False, "ageAtYearEndUs": None,
+        "equityCompRaw": {},
     }
     base = [_finding("pan_not_linked_aadhaar")]
     out = assets._findings_all_result_override(d, ctx, lambda d, ctx: base)

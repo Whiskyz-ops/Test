@@ -886,6 +886,35 @@ def _findings_all_result_override(d, ctx, base_compute):
             "amountUsd": 0, "refs": ["§401(a)(9)", "§4974", "Form 5329"],
         })
 
+    # -- s83b_election_not_filed_timely (Step 16 Layer 1 US field-
+    # completeness audit, 27 Jul 2026 -- new DAG-only finding, no engine
+    # equivalent). layer1_us.html's "Founder Section 83(b) elections" card
+    # collects filed_within_30_days per election but it was never read
+    # anywhere -- a missed SS83(b) election means every future vesting date
+    # is taxed as ordinary income on the FULL FMV at that vest, not the
+    # one-time, usually near-zero, grant-date spread.
+    unvested_awards = [a for a in (d["equityCompRaw"].get("unvested_restricted_stock_awards") or []) if a and a.get("filed_within_30_days") is False]
+    if unvested_awards:
+        added_any = True
+        names = ", ".join(a.get("company_name") or "unnamed company" for a in unvested_awards)
+        all_findings.append({
+            "id": "s83b_election_not_filed_timely", "severity": "critical", "category": "income",
+            "title": f"{len(unvested_awards)} §83(b) election{'' if len(unvested_awards) == 1 else 's'} NOT filed within the 30-day deadline",
+            "detail": (
+                f"For {names}, the §83(b) election is recorded as NOT filed within the mandatory 30-day window from the "
+                "grant date. §83(b)(2) makes this deadline absolute — there is no extension, no reasonable-cause exception, "
+                "and no way to file late. Without a timely election, the grant-date spread is never locked in; instead, the "
+                "FULL fair market value of each tranche is taxed as ordinary income on its OWN vesting date, capturing all "
+                "appreciation between grant and vest as compensation income rather than future capital gain."
+            ),
+            "recommendation": (
+                "If the 30-day window has already closed, the election cannot be filed late — confirm this is accurate "
+                "before assuming an error, and model the ordinary-income exposure at each future vesting date instead of "
+                "relying on the grant-date spread."
+            ),
+            "amountUsd": 0, "refs": ["§83(b)", "Treas. Reg. §1.83-2"],
+        })
+
     if added_any:
         all_findings.sort(key=lambda f: (_MSME_SORT_WEIGHT[f["severity"]], -f["amountUsd"]))
     return all_findings
@@ -940,9 +969,9 @@ def build(base):
             deps=base_findings_all.deps + ("presumptiveLockinAgg", "totalIncomeInrV3", "taxRegime", "msmeDisallowanceTotalAgg",
                                             "hasUsScope", "electiveDeferralExcessUsd", "electiveDeferralAggregateUsd", "electiveDeferralLimitUsd",
                                             "iraContributionExcessUsd", "iraContributionAggregateUsd", "iraContributionLimitUsd",
-                                            "retirementAccountsRaw", "rmdRequired", "ageAtYearEndUs"),
+                                            "retirementAccountsRaw", "rmdRequired", "ageAtYearEndUs", "equityCompRaw"),
             compute=lambda d, ctx: _findings_all_result_override(d, ctx, base_findings_all.compute),
         ),
-        reason="assets-nodes.js: adds msme_disallowance_s43Bh_india / presumptive_lockin_active_india / retirement_excess_elective_deferral / retirement_excess_ira_contribution / retirement_rmd_required findings on top of report-batch5-nodes.js's own findingsAllResult",
+        reason="assets-nodes.js: adds msme_disallowance_s43Bh_india / presumptive_lockin_active_india / retirement_excess_elective_deferral / retirement_excess_ira_contribution / retirement_rmd_required / s83b_election_not_filed_timely findings on top of report-batch5-nodes.js's own findingsAllResult",
     )
     return r
