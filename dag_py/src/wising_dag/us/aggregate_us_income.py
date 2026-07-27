@@ -405,7 +405,19 @@ _K1_PASSIVE_FIELDS = tuple(
 
 def build(base):
     r = base.extend()
-    r.register("baseYearUsAgg", NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "metadata.us_calendar_year", 2025)) or 2025, layer1_fields=("us.metadata.us_calendar_year",)))
+    # int(), not float — a real calendar year used as a list index
+    # (_compute_asset_depreciation_usd's MACRS table lookup) and in string
+    # labels; the JS source's own bare `num(...) || 2025` (aggregateusincome-
+    # nodes.js) has the same untyped-float shape, but JS's `table[nonInteger]`
+    # silently reads `undefined` (-> NaN propagating downstream) where
+    # Python's `table[year_n - 1]` raises TypeError on a float index — same
+    # "JS forgiving vs Python strict" class this port has hit before, just
+    # manifesting as a crash instead of a KeyError this time. A fractional
+    # year is nonsensical for a real profile in either case (only reachable
+    # via fuzzer numeric-jitter mutation of us.metadata.us_calendar_year) —
+    # fixed at the source with an explicit int cast, same precedent as
+    # crossborder/apportionment.py's apportionmentBaseYearRaw.
+    r.register("baseYearUsAgg", NodeDef(deps=(), compute=lambda d, ctx: int(num(safe(ctx.get("us"), "metadata.us_calendar_year", 2025)) or 2025), layer1_fields=("us.metadata.us_calendar_year",)))
     r.register("uiAgg", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "income_us_source", {})))
     r.register("fiAgg", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "income_foreign_source", {})))
 

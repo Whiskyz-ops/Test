@@ -23,8 +23,9 @@ imply any interim cutover.
 | 4 | `crossborder/` domain + fuzz corpus | ✅ done (see below) |
 | 5 | `findings/` domain-split | ✅ done (see below) |
 | 6 | `filings/` + `reports/` | ✅ done (see below) |
-| 7 | `analyze()` assembly + Pyodide adapter + wheel | ⬜ not started |
-| 8 | Toggle + shadow mode + cutover (production-touching, gated) | ⬜ not started |
+| 7 | `analyze()` assembly + Pyodide adapter + wheel | 🟡 infrastructure done, one known gap flagged (closed below, post-Phase-7) |
+| — | `usTaxResult` entity/NRA/trust routing (`us/ustax_full.py`) — closes the Phase 7 gap | ✅ done (see below) |
+| 8 | Toggle + shadow mode + cutover (production-touching, gated) | 🟡 in progress — JS-DAG-vs-Python-DAG cross-check built and green, trust-retained/state-tax fixture coverage added + a real cross-language rounding bug fixed (see below); live browser wiring + real promotion-gate data not started |
 
 ## Phase 1 detail (18 modules/files, 73 tests green as of this writing)
 
@@ -163,6 +164,958 @@ convenience field that `analyze.js`'s own `assembleComputed()` strips
 before ever comparing against the engine (which keeps the same value at
 `usTax.feie.appliedUsd` instead) — `test_us.py` replicates that exact
 strip rather than treating the mismatch as a bug.
+
+## Phase 7 detail (analyze() assembly + Pyodide adapter + wheel, 🟡 infrastructure done — 522 tests green cumulative)
+
+**`core/registry.py`'s `build_full_registry()` — the single composition
+point every domain's `build(base)` docstring promised, built.** The hard
+part: `india_findings.build()`/`us_findings.build()`/`crossborder_findings.
+build()` each independently call their OWN prerequisite chain internally
+(`cross_basis.build()` → `xborder_full` → `india_full`/`us_full` → ...) —
+calling more than one of those `build()`s on the same registry re-derives
+the shared base and hits `DuplicateNodeError`. Solved the way every
+composed-registry test file (`test_filings_documents.py`/
+`test_filings_assets.py`/`test_reports_trace.py`) already worked around
+this for testing purposes, generalized into the one real production path:
+call the shared base chain (`cross_basis.build()`) ONCE, then layer in each
+domain findings module's own additional nodes directly from its `NODES`
+dict (skipping the redundant base-rebuild), in dependency order — itr_form
+extras → `core/entry.py` → india findings → us1_penalty_2210/us5_penalty_72t
++ us findings → black_money_act + s115a*DetailedXbr/nraFdapDetail (guarded —
+see below) + crossborder findings → `crossborder/apportionment.py` extras →
+`reports/assembly.py` → `reports/trace.py` → `filings/limits.py` →
+`filings/calendar_amounts.py` → `filings/checks_registry.py` →
+`filings/documents.py` → `filings/assets.py` → `filings/monitoring.py`
+(new, see below) → `core/orchestration.py` (new, see below). Verified with
+zero `DuplicateNodeError`s on the first complete run — 367 nodes before the
+final closure layer, 376 after.
+
+One real de-duplication decision this composition forced: `us/findings.py`'s
+own `nraRaw`/`nraFdapIncomeUsdRaw`/`nraFdapDetail` and
+`crossborder/findings.py`'s OWN separate copies of the same three ids are
+NOT identical (the us/findings.py copies are the complete, fixed versions —
+see the `nraFdapDetail` bug fix in Phase 6 — the crossborder copies are an
+older, narrower duplicate nobody has since touched). `build_full_registry()`
+registers `us_findings.NODES` first, then skips crossborder's own
+(otherwise-unconditional) re-registration of those same three ids if
+already present — the complete versions win, without needing to touch
+`crossborder/findings.py`'s own file at all (its own standalone build/tests
+are unaffected, since standalone it never has us_findings' copies present
+first).
+
+**`filings/monitoring.py` — new, ports `report-batch6-nodes.js`'s LIM-7
+monitor layer in full**: `monitorAsOfBoundary` (the explicit "now" boundary
+— same architecture rule every other real-wall-clock read in this port
+follows), `monitorProgressResult`, `residencyMonitorResult` (day-counters +
+predicted "flip" dates for individuals, qualitative fact lists for entities),
+`projectionsMonitorResult` (threshold-breach projections off `limitsResult`),
+`calendarMonitorResult` (the compliance calendar, entity-aware US filing
+dates + India audit-case/presumptive-only s.425 handling, reusing
+`india/findings.py`'s already-ported `inIsAuditCase`/`inPurelyPresumptive`
+verbatim), `healthAlertsMonitorResult` (score + capped alerts feed), and
+`monitorResult`. Unlike the JS source's own `withSyntheticCtx()` technique
+(wrap one function body to run against two different ctx shapes — a
+JS-only trick with no Python equivalent worth building), every node here
+reads its real in-graph deps directly (`entityResult`/`metaResult`/
+`residencyModelSliceResult`/`companyResidencyResult`/`residencyResult`/
+`limitsResult`/`findingsAllResult`) — there's only ever one ctx shape in
+this port.
+
+**`core/orchestration.py` — new, the final closure layer, port of
+agg10-nodes.js's `identityResult`/`metaResult`/`residencyModelSliceResult`/
+`headlineResult`/`summaryResult` plus its remaining "v1-era boundaries
+closed here" overrides**: `usEntityKind` (→ `entityResult["usKind"]`),
+`baseYearUs` (→ `metaResult["baseYear"]`), `usTotalTaxBeforeFtcUsdBoundary`/
+`usAgiUsdBoundary` (→ `usTaxResult`), `usFtcAllowedUsdBoundary` (→
+`ftcResult`), `usSourceTotalUsdBoundary` (→ `aggregateUsIncomeResult`),
+`accountsBoundary` (→ `bankAccountsRaw`), and one more found while wiring
+this module up that wasn't in agg10-nodes.js's own list at all —
+`apportionmentResultBoundary` (crossborder/findings.py's `tax_year_mismatch`
+finding boundary, closed to the real `apportionmentResult`,
+crossborder/apportionment.py — apportionment.py itself was never wired into
+any earlier phase's registry composition, only unit-tested standalone).
+Deliberately the LAST module composed — every dep needs the full registry
+already assembled.
+
+**`analyze.py` — new, the `analyze(opts) -> dict` / `normalize(opts) -> dict`
+pure-function boundary**, port of `analyze.js`. Builds `ctx` from `opts`
+exactly as `resolveAll()` does, resolves the same `TARGET_IDS` list against
+a module-level, built-once `build_full_registry()` (safe to share across
+calls — `NodeRegistry.resolve()`'s `cache`/`in_stack` are always per-call
+locals, the property that also keeps a future `adapter/http_adapter.py`
+cheap), and assembles the result field-for-field matching `analyze.js`'s
+own `assembleModel`/`assembleComputed` plus its `analyzeResult` node's
+remaining keys (`findings`/`documents`/`ftcReport`/`taxComputation`/
+`withholding`/`scopeNotes`/`returnForms`/`monitoring`/`summary`).
+
+**End-to-end golden verification (`tests/test_analyze_golden.py`, 91 new
+tests) — the first test in this port to resolve against the REAL, single,
+fully-composed production registry**, not an isolated hand-composed one.
+`model.identity`/`model.meta`/`model.residency` match golden EXACTLY across
+all 13 fixtures, zero carve-outs needed. `summary`/`monitoring` match once
+adjusted for carve-outs already established by name in earlier phases —
+nothing new: the entity/NRA `usTaxResult` carve-out (Phase 3), the DAG-only
+7-document superset (Phase 6, now also visible inside
+`monitoring.calendar.*[].docIds`), and the DAG-only 2 extra findings (Phase
+6, `filings/assets.py`) — see the test file's own module docstring for the
+full accounting, including the exact `healthScore`/`counts` arithmetic
+adjustment each carve-out implies.
+
+**Three real bugs found and fixed while building this verification** (all
+newly surfaced by this being the first test to exercise these exact paths
+end-to-end — none were reachable from any earlier phase's narrower,
+hand-composed test registries):
+- `filings/limits.py`'s trump_account gauge note had a stray `$` before
+  `TRUMP_ACCOUNT_ANNUAL_CAP_USD` — the JS source's own
+  `.toLocaleString("en-US")` never had a currency symbol; nothing before
+  this test's `monitoring` comparison exercised that specific gauge's note
+  text against golden.
+- `filings/monitoring.py` itself shipped with four `"X.0"` vs `"X"`
+  float-display bugs (days-of-headroom/days-until-flip counts, India-vs-
+  outside director counts, HUF karta's own-presence day count) — the same
+  recurring float-vs-int display class this port has hit and fixed several
+  times before (`num()` always returns float; JS `Number` auto-stringifies
+  a whole-valued float without the trailing `.0`) — fixed with `round()` at
+  each embed site, same pattern as every earlier instance.
+- `filings/monitoring.py`'s `healthAlertsMonitorResult` also crashed
+  outright (`KeyError: 'dateLabel'`) for every entity-taxpayer fixture: the
+  JS source reads `r.dateLabel` on a "qualitative" residency entry (entity
+  taxpayers never get a `dateLabel` field at all, only "days"-kind entries
+  do), which is `undefined` in JS — not a crash. Fixed with `.get()`
+  instead of `[...]` at that one read site, reproducing JS's forgiving
+  missing-property read rather than Python's strict `KeyError`.
+
+**`adapter/pyodide_adapter.py` — new**, the one file allowed to import
+`pyodide`/`js`: wraps `analyze()`/`normalize()` via `pyodide.ffi.to_py`/
+`to_js(..., dict_converter=js.Object.fromEntries)` (plain JS objects, not
+`Map`s — every existing consumer does `result.model.entity...` property
+access) and an idempotent `install()` that assigns
+`window.WISING.analyze`/`window.WISING.normalize` — the exact call shape
+`index.html`/`monitor-next/lib/dag-adapter.js` already use against the JS
+DAG's own `window.WISING.analyze`, so switching the loading mechanism at
+Phase 8 cutover won't require touching either consumer. A new guard test
+(`tests/test_no_browser_imports.py`, AST-based, 2 tests) enforces the plan's
+"nothing under `wising_dag/**` imports pyodide/js/touches window/
+localStorage" rule automatically, rather than relying on review discipline —
+confirmed clean on the existing codebase before adding the rule.
+
+**Wheel packaging — new**: `scripts/build-dag-wheel.py` (`npm run
+build:dag-wheel`) builds `dag_py/` via `pip wheel --no-deps` into
+`assets/wising_dag.whl` — the same pipeline slot `scripts/build-dag-bundle.js`
+(esbuild) occupies for the JS DAG's own bundle. Verified: builds a
+`py3-none-any` pure-Python wheel, confirmed to contain every module
+including `analyze.py`/`filings/assets.py`/`core/orchestration.py` by
+inspecting the built archive directly.
+
+**NOT verified this phase, explicitly flagged rather than silently
+skipped**: an actual browser load of the wheel via Pyodide
+(`micropip.install()` → `pyodide_adapter.install()` → confirm
+`window.WISING.analyze` works from real JS) — the plan's own "Verification"
+section calls for this manual/headless-browser smoke test. Not attempted:
+this sandboxed environment has no vendored Pyodide runtime and no network
+route to fetch one (`https://cdn.jsdelivr.net/pyodide/...` returns 403
+through the environment's proxy) — downloading and committing a multi-MB
+WASM runtime speculatively wasn't judged worthwhile either. The Python-side
+adapter code is written to the documented Pyodide FFI conventions but is
+unverified against a real Pyodide runtime. This is a real open item, not
+a formality — flagging it explicitly rather than claiming a smoke test that
+didn't happen.
+
+**THE ONE REAL GAP this phase does NOT close, and was never going to in one
+sitting**: `us/ustax.py`'s `usTaxResult` still has no entity/NRA/trust
+routing at all (`isEntity`/`isNra` are simply absent from its return dict,
+not `False`) — the plan's own Phase 7 description calls for "closing...
+the entity/NRA/worldwide-income routing gaps carried as carve-outs
+throughout usTaxResult-dependent code," and that is genuinely NOT done.
+Every override in `core/orchestration.py` that reads `usTaxResult` uses
+`.get("isEntity")`/similar defensive reads specifically so they'll pick up
+real entity/NRA facts automatically the day that routing exists, with no
+further change needed here — but building `computeUsEntityTax`/
+`computeUsNraTax`/trust-tax-computation routing itself is a genuinely large,
+separate body of work (on the order of Phase 3's own US-domain build), not
+a boundary-wiring task like everything else in this phase. Scoped out
+explicitly rather than attempted partially or claimed done. The 2
+entity/NRA fixtures (of 13) remain correctly carved out at the full
+`analyze()` level, same as every earlier phase.
+
+**This gap is now closed — see the `us/ustax_full.py` section below**,
+built as a dedicated follow-up immediately after Phase 7 rather than folded
+into Phase 8.
+
+## `usTaxResult` entity/NRA/trust routing (`us/ustax_full.py`, 547 tests green cumulative)
+
+Closes the one gap Phase 7 explicitly flagged and scoped out above. Port of
+`prototypes/graph-pilot/ustax-full-nodes.js` (418 lines, previously unread
+in this entire porting effort despite being named in already-written
+docstrings) — TAX-7 (`computeUsEntityTax`), TAX-8 (`computeNraTax`), and
+`computeUsTax`'s own routing logic.
+
+**The routing pattern**: `usTaxResult` is REDEFINED as a router, mirroring
+how `computed.usTax` is whatever branch the JS engine's own `compute()`
+returned. The original individual-path node is re-registered under a new
+id, `usTaxIndividualResult` (captured via `base.get("usTaxResult")` before
+overriding — the same capture-before-override pattern `filings/assets.py`
+already established for its own `findingsAllResult` override). `usTaxResult`
+itself becomes: `usEntityKind` in `{ccorp, scorp, partnership, trust}` →
+`usEntityTaxResult`; `files1040nr && !s6013hElection` → `nraTaxResult`;
+else → `usTaxIndividualResult`. Every existing consumer (FTC boundaries,
+findings, headline, reports) resolves `usTaxResult` by id, so all of them
+automatically become entity/NRA-correct once this routing exists — no
+other file needed to change, by design (confirmed: zero other files
+required logic changes, only two needed a strictness fix — see below).
+
+**`usEntityTaxResult` (TAX-7)**: C-Corp taxed flat 21% on Schedule-M1
+taxable income; S-Corp/Partnership pass-through ($0 entity-level tax);
+Trust splits DISTRIBUTED (taxed on beneficiaries' own returns, not here) vs
+RETAINED (taxed at compressed §1(e) brackets) via a new raw field,
+`trustRetainedIncomeUsdRaw` (`ctx.us.profile.trust_retained_income_usd`) —
+a DAG-only addition closing a real prior gap where a retaining trust was
+silently treated as $0 entity tax. DELIBERATE DAG/engine divergence,
+documented inline and in `docs/GAP_TRACKER.md` section H: an entity's own
+`usSourceIncomeUsd`/`foreignSourceIncomeUsd` are set to the Schedule-M1
+`taxable_usd`/`0` (whole M-1 figure treated as US-source) rather than
+reading the individual-shaped `aggregateUsIncomeResult` aggregate (always
+$0 for a pure entity — a genuine frozen-engine data-modeling gap). Fixing
+this at the source closes India's own s.90 FTC relief silently zeroing out
+for a US business entity, and the FY↔CY apportionment card showing $0 for
+the whole US side.
+
+**`usEntityStateTaxResult` (new)**: US state-level entity tax —
+CA (8.84%)/NY (7.25%)/NJ (9.0%) flat top-bracket C-Corp rates modeled;
+TX/WA explicitly flagged "NOT no-tax — has its own gross-receipts tax, not
+modeled, do NOT assume $0"; S-corp/partnership/trust/every-other-state
+flagged "not modeled" (with a PTET-election caveat for pass-throughs).
+Feeds a `findingsAllResult` override appending `us_entity_state_tax`
+(modeled, warning) or `us_entity_state_tax_not_modeled` (info) findings.
+No real fixture sets `us.profile.state_of_domicile` at all (the 1 real
+C-Corp fixture only sets `incorporation_state`, a different, unused field),
+so this whole node is pinned with synthetic-`d` unit tests instead
+(`test_ustax_full.py`) rather than golden fixtures.
+
+**`nraTaxResult` (TAX-8)**: Form 1040-NR — ECI taxed at graduated brackets
+after itemized deductions (no standard deduction for NRAs, SALT-capped);
+FDAP taxed flat 30% (or a lower W-8BEN treaty rate when `submittedW8ben`
+is true and a treaty claim exists). Reuses `us/ustax.py`'s existing
+`bracket_tax`/`bracket_breakdown`/`compute_salt_cap` directly, not
+re-derived.
+
+**`reports/trace.py`** gained the three missing `buildTaxComputationUsResult`
+branches this port's own file had left as an already-documented carve-out
+(NRA / trust-distributed-vs-retained / flat-entity-rate), in the same
+dispatch order as `report-batch2-nodes.js`'s own known bug fix (SYS-3,
+fuzzer-found): `isNra` → ECI/FDAP structure; `isEntity &&
+trustBracketBreakdown is not None` → trust split; `isEntity` (else) → flat
+entity-rate structure (pass-through label if `passthrough`, else the
+computed flat rate).
+
+**Composition**: `ustax_full.build(r)` runs LAST in
+`build_full_registry()` (after `core/orchestration.py`), since it depends
+on `entityResult`/`metaResult` and re-overrides `usTaxResult`/
+`apportionmentResult`/`findingsAllResult`/`usEntityKind`/`baseYearUs` on
+top of everything already composed. `usEntityKind`/`baseYearUs` ownership
+moved from `core/orchestration.py` (which closed them provisionally in
+Phase 7) to here, fulfilling a promise `us/us_full.py`'s own header had
+already made ("closed in ustax_full.py") before this module existed.
+382 nodes total, zero `DuplicateNodeError`s.
+
+**Three real "JS-forgiving-`undefined`-vs-Python-strict-`KeyError`" bugs
+found and fixed**, all newly reachable only once `usTaxResult` started
+actually routing to entity/NRA shapes that carry no `feieAppliedUsd` field
+at all (§911 FEIE only applies on the individual path) — same recurring
+bug class this port has hit before, fixed the same way (`.get(...) or 0`
+instead of `[...]`), verified against the real JS source at each site:
+`crossborder/xborder_full.py`'s `feieExcludedUsdBoundaryFtc`,
+`crossborder/cross_basis.py`'s `_cross_basis_result`.
+
+**Golden verification, `test_ustax_full.py` (25 new tests)**: the 1 real
+NRA fixture (`india_ror_us_income`) now matches golden EXACTLY
+end-to-end — `usTax`/`headline`/`summary`/`reconciliation`/
+`apportionment`/`monitoring`/`taxComputation.us`/`withholding` all diff
+clean, no carve-out needed at all anymore (previously fully carved out
+since Phase 3). One small, cosmetic-only, DELIBERATE divergence within
+`ftc.india`: `foreignSourceIncomeUsd`/`reliefCapUsd` differ by exactly
+$22,000 (the NRA's US LTCG, which an NRA isn't taxed on at all) because the
+frozen engine's own non-overridden `usSourceTotalUsdBoundaryFtc` boundary
+reads a raw, NRA-unaware aggregate (`ctx.model.income.us.usSourceTotal.usd`)
+while `xborder-full-nodes.js`'s own override (ported unchanged) correctly
+narrows this to `usTaxResult.usSourceIncomeUsd` (ECI+FDAP only for an NRA);
+the bottom-line `reliefAllowedUsd` is identical either way since both cap
+values exceed it. The 1 real C-Corp fixture (`us_ccorp_indian_sub`) has
+exactly the one root-cause divergence Phase 7 already anticipated
+(`usSourceIncomeUsd`), cascading predictably and *only* into
+`headline.totalIncomeUsd`/`summary.totalIncomeUsd`/
+`computed.apportionment.usCy*`/`computed.ftc.india.*` — all pinned exactly
+in `test_ustax_full.py` so the delta can't silently grow or shrink.
+Also confirmed: golden's OWN `taxComputation.us.rows` for this fixture
+contains literal `"$NaN"` strings baked into the trace text — proof the
+frozen engine itself falls through to the individual-branch trace builder
+for an entity taxpayer and reads undefined fields, the same permanent-
+divergence class as the already-established India entity `"₹NaN"` bug
+(`test_reports_trace.py`). This port deliberately builds a clean
+entity-shaped trace instead, and does not reproduce the bug.
+
+`test_analyze_golden.py`'s own carve-outs were narrowed to match: NRA is no
+longer carved out of `headline`/`summary`/`monitoring` (full parity now);
+only the true business-entity case still is, with the reason updated to
+name the single remaining divergence precisely instead of a blanket
+"routing not built yet." `test_us.py`/`test_crossborder.py`/
+`test_reports_trace.py` keep their existing entity/NRA carve-outs
+unchanged and correctly — those three build narrower, domain-only
+registries (`us_full.build()`/`cross_basis.build()`) that don't include
+`ustax_full.build()` at all, so `usTaxResult` genuinely isn't routed in
+those isolated registries; only `core.registry.build_full_registry()` (and
+therefore `analyze()`) has the routing.
+
+## Phase 8 detail (toggle + shadow mode + cutover, 🟡 in progress)
+
+**Scope decision, made explicitly before starting**: Pyodide's async
+loading (fetch the runtime, `micropip.install()` the wheel — real
+wall-clock time, unlike the JS DAG's synchronous `graph.resolve()`) means a
+live "py-dag" third option in `monitor-next/app/page.jsx` would require
+converting its recompute paths to be async-aware — a materially bigger,
+riskier change to an already-working production file than "add a third
+case." On top of that, this sandbox still has no network route to fetch a
+real Pyodide runtime (unchanged since Phase 7's own note), so none of that
+browser-side wiring could be end-to-end verified here regardless of how
+carefully it's written — and the real promotion gate (≥500 profiles/≥14
+days of live shadow running, plan §7) can't be satisfied in one sitting no
+matter what. Given a live choice between (a) building the full unverifiable
+browser wiring now, (b) writing only promotion-gate docs, or (c) building a
+testable-today cross-check between the JS DAG and Python DAG first, (c) was
+chosen — it validates the actual computation immediately, decoupled from
+the separate, still-open browser-loading question, and doesn't touch the
+live production `monitor-next` files at all this round.
+
+**`prototypes/graph-pilot/run-js-dag-vs-py-dag.js`** (new, `npm run
+compare:js-vs-py-dag`) — runs `WISING.analyze()` (the real JS DAG,
+`analyze.js` — NOT `monitor-next/lib/dag-adapter.js`'s narrower
+`assembleDag()`/monitor-next-specific `checksRegistry`/`calendarAmounts`
+extras, which `analyze.js`/`analyze.py` don't produce at all) and
+`dag_py`'s own `analyze()` (via a new one-shot CLI, `dag_py/tools/
+analyze_cli.py` — plain CPython, no Pyodide) over the same 53 profiles
+(the 13 hand fixtures + the 40-case fuzz corpus), diffing the full
+top-level output with **zero known-divergence allowlist to start** —
+unlike every other `run-*.js` harness (which all compare against the
+FROZEN ENGINE, a comparison with real, catalogued, permanent divergences),
+the JS DAG and Python DAG are independent ports of the exact same
+source-of-truth and should agree with EACH OTHER exactly. `monitorAsOf` is
+pinned identically on both sides (same discipline as every earlier golden
+test); JS-side `Date` objects are converted to ISO strings before
+comparison so they compare against the Python side's JSON-round-tripped
+(already-string) dates on equal footing.
+
+**First run: 40/53 clean, 12 mismatches + 1 crash — all six were real,
+independently investigated and fixed, not allowlisted away:**
+- **`baseYear`/`baseYearIn1` were NEVER closed** (`us/us5_penalty_72t.py`'s
+  age-at-year-end and `india/findings.py`'s age-at-FY-end boundaries,
+  both distinct ids from the already-closed `baseYearUs`) — stuck reading
+  `ctx["model"]...` (always `None`) forever, silently defaulting to the
+  hardcoded `2025` fallback regardless of the real base year. A genuine,
+  previously-invisible gap from an earlier phase's closure pass (the JS
+  source's own `agg10-nodes.js:316` closes the shared `baseYear` id
+  explicitly; this port's `core/orchestration.py` never did). Produced a
+  wrong age (off by however many years the real base year differs from
+  2025) for §72(t)'s early-withdrawal penalty and India's senior-citizen
+  (age ≥60) advance-tax exemption alike — a real, if narrow, dollar-amount
+  bug for any TY other than 2025, not just a display issue. Fixed by adding
+  both overrides to `core/orchestration.py`, mirroring `baseYearUs`'s own
+  precedent exactly.
+- **`us/aggregate_us_income.py`'s `baseYearUsAgg` crashed outright**
+  (`TypeError: list indices must be integers or slices, not float`) once a
+  fuzzer-mutated `us.metadata.us_calendar_year` landed on a non-integer —
+  `year_n` (a MACRS table index) inherited the fraction. The real JS source
+  has the identical unguarded `num(...) || 2025`, but JS's `table[nonInteger]`
+  silently reads `undefined` (→ `NaN` propagating downstream) where
+  Python's list index raises — same "JS forgiving vs Python strict" bug
+  class this port has hit before, just manifesting as a crash instead of a
+  `KeyError` this time. Fixed with an explicit `int()` cast, same precedent
+  as `apportionmentBaseYearRaw`.
+- **`core/dates.py`'s `parse_date()` couldn't parse a sub-4-digit year**
+  (`"895-12-31"` — both `fromisoformat()` and `strptime("%Y-%m-%d")` reject
+  it), crashing wherever a fuzzer-mutated year landed under 1000 — JS's
+  `new Date()` accepts any year. Fixed by zero-padding a detected 1-3 digit
+  leading year to 4 digits before parsing, rather than crashing (matches
+  this port's own rule that pathological fuzzer input should degrade
+  gracefully, never crash the resolver).
+- **ISO date serialization didn't zero-pad below 4 digits either**
+  (`datetime.strftime("%Y-...")` is platform/glibc-dependent below 4
+  digits — `"895-..."` not `"0895-..."` — while JS's `toISOString()` always
+  zero-pads to 4). Fixed in both places this port serializes a `datetime`
+  to an ISO string (`dag_py/tools/analyze_cli.py`'s `_json_default`,
+  `test_analyze_golden.py`'s `_normalize_dates`) with explicit
+  `f"{year:04d}-..."` formatting instead of relying on `strftime`'s `%Y`.
+- **`reports/trace.py`'s entity C-Corp trace showed "21.0%" instead of
+  "21%"** — the same recurring "JS whole-value Number auto-stringifies
+  without a trailing `.0`" display class this port has hit several times
+  before, this time in a rate label built from a fresh `round(...)/10`
+  computation that hadn't gone through the port's own `_pct_label`-style
+  `:g` formatting. Fixed by formatting through `:g`.
+- **`filings/documents.py`'s `form_8960` (NIIT) required-gate read the
+  wrong constants table** — `core/constants.py`'s `LIMITS` dict never
+  carried an `NIIT_THRESHOLD` key at all (only `us/constants.py`'s own
+  `NIIT_THRESHOLD`, correctly used by `ustax.py`'s real NIIT computation,
+  does), so `LIMITS.get("NIIT_THRESHOLD", {}).get(status, 200000)` silently
+  fell back to `{}` → every filing status got the single/HOH $200,000
+  threshold instead of MFJ's real $250,000 — wrongly requiring Form 8960
+  for an MFJ filer between $200,000–$249,999 with real investment income.
+  Fixed by importing the correct table directly, matching `ustax.py`'s own
+  precedent.
+- **`us1ShouldFire` (the `underpayment_2210` finding's own gate) had no
+  entity-aware override at all** — the real JS source's own
+  `agg10-nodes.js` deliberately suppresses this finding for a US business
+  entity (a corporation's underpayment penalty is Form 2220/§6655, a
+  different, unmodeled safe-harbor test — citing Form 2210/§6654 for an
+  entity is simply the wrong form/statute), but this port never ported
+  that specific override, so the real `us_ccorp_indian_sub` fixture fired
+  an extra, wrongly-captioned finding. This one was ALREADY flagged as a
+  known, deferred gap earlier in this port's own history (noted, not
+  fixed, during the entity/NRA routing work) — closed here with a
+  `us1ShouldFire` override in `us/ustax_full.py`, mirroring the JS source's
+  own fix exactly. Cascades into `summary.healthScore`/
+  `monitoring.health.score` for that one fixture — `test_analyze_golden.py`'s
+  own carve-out list updated accordingly (this fixture's health-score
+  divergence from golden is now correctly EXPECTED, since the frozen
+  engine has no equivalent fix and still fires the finding).
+
+**One real divergence found and left UNFIXED, deliberately** — in the live
+JS DAG, not in this Python port: `apportionmentBaseYearRaw`'s real JS
+source (`agg10-nodes.js`) reads `num(safe(router, "base_tax_year", ...)) ||
+2025` with no `int()` cast, so a fuzzer-mutated non-integer
+`router.base_tax_year` (e.g. `3712.07`, from `run-fuzz.js`'s own
+numeric-jitter mutator) leaks straight into `fyLabel`/`cyPrimary`/`cyNext`
+and any trace text built from them (`"FY 3712.07–13.07"` instead of `"FY
+3712–13"`). This port's own `apportionmentBaseYearRaw`
+(`crossborder/apportionment.py`) already `int()`-casts (a pre-existing
+"no trailing .0" fix, unrelated to this specific bug) and is therefore
+immune — a case where this port is MORE correct than the live JS DAG on an
+input no real profile ever produces (a real tax year is always a whole
+number; only fuzzer mutation reaches this). NOT fixed in
+`prototypes/graph-pilot/*.js`: the plan's own explicit cutover timing
+keeps the JS DAG "the live, unmodified production compute path through the
+entire build" — patching a live production file is a separate, deliberate
+decision this pass didn't make, not a side effect of building the
+cross-check harness. Allowlisted in `run-js-dag-vs-py-dag.js` itself
+(`hasJsFractionalBaseYearBug`), same "investigate, then document" discipline
+as every other `run-*.js` harness's own known-divergence list.
+
+**Result after all fixes: 46/53 exact match, 7/53 known (the one
+fractional-base-year cause above), 0 mismatches, 0 crashes either
+direction.** `cd dag_py && pytest -q` stays at 547/547 green throughout
+(one new `test_analyze_golden.py` carve-out needed: `test_monitoring_
+matches_golden`'s entity-fixture skip, re-added for the same reason —
+`us1ShouldFire`'s fix makes this port correctly diverge from golden's own
+`monitoring.health.score` now, where it accidentally matched before by
+sharing the same bug).
+
+**NOT done in this first Phase 8 pass, deliberately deferred** (see the
+scope decision above): the live `wising_compute_source` 3-way toggle, the
+async Pyodide loader, the 3-way `shadow-core.js` extension, an actual
+browser/Pyodide smoke test, and any real shadow-mode production data. The
+promotion gate (plan §7) remains entirely unstarted — it cannot be
+satisfied by anything built in a single sitting, only by real time and
+real usage once the live wiring exists.
+
+### Toggle + Pyodide loader (second Phase 8 pass)
+
+Built the pieces deferred above, on explicit instruction to proceed with
+the "build it now, unverified" option (the scope decision's option (b) —
+see that section for why nothing here can be end-to-end tested against a
+real Pyodide runtime in this sandbox).
+
+**The core architectural problem, found before writing any code**:
+`adapter/pyodide_adapter.py`'s own `install()` (Phase 7) assigns to
+`window.WISING.analyze`/`.normalize` — the SAME global the frozen engine's
+own IIFEs (`monitor-next/lib/engine/*.js`) already populate. That's fine
+for `index.html`'s standalone prototype (a single compute source, nothing
+else touches `window.WISING`), but `monitor-next` already has the engine
+living at `window.WISING` AND the JS DAG (imported as plain ES modules,
+`lib/dag-adapter.js`, no `window` footprint of its own) side by side — a
+Python DAG installed the same way would silently clobber the engine's own
+global the instant Pyodide finished booting. Fixed by giving `install()` an
+optional `namespace` parameter (default `"WISING"`, so `index.html`'s own
+future wiring is unaffected) — `monitor-next`'s own loader calls
+`install(namespace="WISING_PY")` instead, landing at a wholly separate
+`window.WISING_PY`.
+
+**Static asset serving, not a wheel-in-the-bundle**: `adapter/
+pyodide_adapter.py` deliberately lives OUTSIDE `dag_py/src/` (so it's
+never accidentally packaged into the wheel — the wheel is pure
+`wising_dag/**`, deployment-target-agnostic per Phase 7's own design). The
+browser loader needs BOTH the wheel (for `micropip.install()`) and this
+adapter's own source text (there being no `import` machinery inside
+Pyodide for a file outside the installed wheel — the loader fetches it and
+`runPythonAsync`s it directly). New `monitor-next/scripts/sync-dag-py.js`
+(wired into `predev`/`prebuild`, same convention as `sync-engine.js`/
+`sync-dag.js`) copies both `assets/wising_dag.whl` and `dag_py/adapter/
+pyodide_adapter.py` into `monitor-next/public/dag-py/`, so Next's static
+export serves them at `/dag-py/wising_dag.whl` and `/dag-py/
+pyodide_adapter.py` — fetchable at runtime, not webpack-bundled (unlike
+`sync-dag.js`'s own `lib/dag/` copy, which IS `import`ed as ES modules).
+
+**`monitor-next/lib/py-dag-loader.js`** (new) — `initPyDag()`, a memoized
+async bootstrap: loads `pyodide.js` from a CDN (`cdn.jsdelivr.net/pyodide/
+v0.26.4/full/` — the one version pin to bump later), `loadPyodide()`,
+`pyodide.loadPackage("micropip")`, `micropip.install()`s the wheel by URL,
+fetches the adapter's source text and `runPythonAsync`s it with
+`install(namespace="WISING_PY")` appended. Memoized so the real boot
+sequence — seconds on a cold first call — runs at MOST once per page load;
+every later caller (a recompute, a Clients-tab refresh, a linked-entity
+lookup) awaits the same in-flight or already-resolved promise.
+`getPyDagLoadState()` exposes `{state, error}` (`"idle"|"loading"|
+"ready"|"error"`) synchronously for UI use without triggering a load.
+
+**`monitor-next/lib/py-dag-adapter.js`** (new) — the async counterpart to
+`dag-adapter.js`: `analyzePyDagSource`/`analyzePyDag`/
+`monitorSnapshotPyDag`/`analyzeProfileByIdPyDag`/`allClientSummariesPyDag`,
+same field contract and same localStorage-backed source resolution
+(`readRaw`/`STORAGE_KEYS`, now exported from `dag-adapter.js` so this file
+reuses them instead of duplicating the lookup), every export returning a
+Promise instead of a bare value. Regime/FX/FEIE what-if overrides are
+patched into `india`/`us` client-side exactly like `analyzeDag()` does,
+since `wising_dag.analyze()` itself has no what-if-patching concept of its
+own — only `router`/`india`/`us`/`monitorAsOf`/`fxRateOverride` cross into
+the Python opts dict.
+
+**`monitor-next/app/page.jsx`**: `engineSource` is now 3-way
+(`"engine"|"dag"|"py-dag"`, cycled by the same compute-source pill, plus
+`?engine=py-dag`). New `pyDagStatus` state
+(`"idle"|"loading"|"ready"|"error"`) drives the pill's own label/color
+while a py-dag call is in flight or has failed. `recompute()`'s existing
+synchronous `dag`/`engine` branches are UNCHANGED; a third branch handles
+`py-dag` by awaiting `monitorSnapshotPyDag(...)` and applying the same
+`setCountries/setMode/.../setResult` update on resolution — the PREVIOUS
+result stays on screen while a py-dag call is in flight rather than
+blanking the page, since a cold Pyodide boot can take real time.
+`refreshClientSummaries()` gained the same async branch for the Clients
+tab. What-if overrides (regime/FX/FEIE) are now enabled for BOTH DAG-family
+sources (`engineSource !== "engine"`, previously `=== "dag"` only) — the
+Python DAG accepts the exact same override shape. The one deliberate
+simplification: `linkedFilings` (the owned-entity Filings-tab roll-up,
+docs/GAP_TRACKER.md section H.11) is a synchronous `useMemo` and returns
+`[]` for `py-dag` rather than a bigger async-effect rework of an
+already-working feature — a secondary convenience, not central to what
+this phase is verifying.
+
+**Verification actually performed**: `cd monitor-next && npx next build`
+compiles cleanly (webpack/SWC + TypeScript checking + static prerender,
+all 4 pages), confirming no syntax/import errors across every new/changed
+file. `node test-adapter.mjs`/`node test-shadow.mjs`/`npx vitest run` all
+run clean — the SAME 42/3 pre-existing failures already present before
+this pass (confirmed by `git stash`-ing every changed file and re-running;
+identical failure set both ways), nothing newly broken by the `dag-
+adapter.js` export additions. `dag_py`'s own suite stays 547/547, and
+`ast.parse()` confirms `adapter/pyodide_adapter.py` is syntactically valid
+Python (this file has no pytest coverage at all — it imports `pyodide`/
+`js`, neither installed in this sandbox — so a bare syntax check is the
+most this environment can verify; it DID catch one real mistake, a
+docstring closed one edit too early, before this note was written).
+
+**NOT verified, same unavoidable limitation as Phase 7's own adapter
+work**: none of `py-dag-loader.js`'s actual Pyodide calls (`loadPyodide()`,
+`micropip.install()`, `runPythonAsync()`) have run against a real runtime
+— this sandbox still has no network route to fetch one. Written to the
+documented Pyodide browser API, not exercised end-to-end. The toggle
+itself is reachable and will render correctly (build-verified); whether a
+live Pyodide boot actually succeeds, how long it takes, and whether
+`micropip.install()` accepts a same-origin relative wheel URL exactly as
+constructed here are all genuinely open questions this pass could not
+close.
+
+**Still NOT done as of that pass**: the 3-way `shadow-core.js` extension
+(engine vs py-dag, tagged `source_pair`), any real promotion-gate data, and
+the actual cutover (flipping the default source).
+
+### Three-way shadow mode (third Phase 8 pass)
+
+Closes the `shadow-core.js` extension deferred above.
+
+**`compareSurface()`/`diff()` needed no change at all** — both already
+take any two `analyze()`-shaped results, agnostic to which implementation
+produced them; the JS DAG and the Python DAG are independent ports of the
+exact same source and share the exact same catalogued divergences from
+the engine (confirmed directly by `run-js-dag-vs-py-dag.js`'s own
+cross-check), so every existing allowlist (`KNOWN_US_ENTITY_PATHS` etc.)
+already applies unchanged to an engine-vs-Python-DAG comparison. The one
+real change: `signature(source, divergences)` became
+`signature(sourcePair, source, divergences)` — a new
+`SOURCE_PAIRS.{ENGINE_VS_JS_DAG,ENGINE_VS_PY_DAG}` constant makes the
+dedup key explicit, so an engine-vs-JS-DAG divergence and an
+otherwise-identical-looking engine-vs-Python-DAG one on the same profile
+are two distinct logged entries, never silently collapsed into one.
+
+**`lib/shadow.js`** gained a second, independent runner: `runShadowPy(source)`
+— async counterpart to the existing `runShadow(source)`, calling
+`analyzePyDagSource()` (Pyodide) instead of `analyzeDag()` (plain JS), same
+error-as-divergence discipline (a thrown side is itself recorded, never
+propagated to crash the primary UI). Both legs write into the SAME
+persisted log (`localStorage`, `wising_shadow_log`) and share one `events`
+array (each entry tagged with its own `sourcePair`), but keep SEPARATE
+`lastRun`/`lastRunPy` slots and separate session run/clean counters —
+the two legs fire at very different cadences (every recompute vs
+opt-in-only), so folding them into one "last run" slot would make the
+primary shadow status flicker between two different meanings depending on
+whichever fired most recently.
+
+**Deliberately NOT wired to fire automatically just because shadow mode is
+on**: unlike the JS-DAG leg (a cheap, synchronous `graph.resolve()` call,
+safe on every recompute), the Python-DAG leg boots Pyodide on a cold first
+call — real wall-clock time, same cost `py-dag-loader.js`'s own header
+already documents. `app/page.jsx` gates it behind a SEPARATE opt-in flag,
+`shadowPyOn` (`?shadowPy=1`, independent of the always-on `shadowOn`),
+deferred off the render path exactly like the JS-DAG leg already is.
+
+**`components/ShadowBadge.jsx`**: the main pill's color/label still drives
+off the JS-DAG leg only (the always-on baseline); a new section in the
+expanded panel shows the Python-DAG leg's own last-run status and
+divergences whenever it's been enabled and has run at least once, and the
+"Logged this session" event list now tags each entry with which pair it
+came from. One real pre-existing bug fixed in passing (found while editing
+this exact render path for the above): the "last: …" line referenced an
+undefined `count` variable — a `ReferenceError` waiting to fire the first
+time a real JS-DAG divergence was ever logged and the panel opened. Fixed
+to read `run.divergenceCount`, the value that was always intended.
+
+**Verification**: `cd monitor-next && npx next build` compiles clean;
+`node test-adapter.mjs`/`node test-shadow.mjs`/`npx vitest run` all show
+the identical pre-existing 42/3 failures already present before this
+change (re-confirmed the same way as the toggle/loader pass — nothing
+newly broken by the `signature()` signature change or the new files).
+`test-shadow.mjs` doesn't call `signature()` directly, so that change was
+safe to make without touching the test file itself.
+
+**Still NOT done**: any real promotion-gate data (requires actual
+production shadow-mode running, which requires the still-unverified live
+Pyodide wiring itself to work first) and the actual cutover (flipping the
+default source). Both remain future work, and neither can be closed by
+anything built in a single sitting.
+
+### Completeness audit + checksRegistry/calendarAmounts wiring (fourth Phase 8 pass)
+
+A full audit of what's pending before the Python DAG could actually
+replace the JS DAG — not a build phase, a verification pass. Diffed the
+JS DAG's most-composed registry (`checks-registry-nodes.js`'s NODES, 385
+node ids) against `build_full_registry()`'s own (382 ids) and traced every
+one of the 28 JS-only ids individually (renamed/domain-suffixed leaves,
+genuinely dead JS-side code the JS source's own comments already flag as
+having no real consumer, or legacy `withSyntheticCtx()` ctx-routing plumbing
+whose final output is identical either way — all confirmed, not just
+assumed, by reading the real require chain: `analyze.js` -> `assets-
+nodes.js` -> `ustax-full-nodes.js` -> `agg10-nodes.js` -> `limits-nodes.js`
+-> `report-batch6-nodes.js` -> `report-batch5-nodes.js` -> `in1-nodes.js`/
+`xb7-nodes.js`/`us1-nodes.js`/`us5-nodes.js`). Found exactly one real,
+actionable gap — closed in this pass — plus a cluster of stale
+self-documentation (also cleaned up here) and two already-known,
+already-documented items (real fixture coverage for the trust-retained-
+income and CA/NY/NJ-state-tax branches; the still-unverified live Pyodide
+runtime) that remain open, unchanged.
+
+**The real gap: `checksRegistry`/`calendarAmounts` were never wired into
+the Python DAG's browser adapter.** `lib/dag-adapter.js`'s own `analyzeDag()`
+does exactly one thing beyond `analyze.js`'s real contract: it separately
+resolves `checksRegistryResult`/`calendarAmountsResult` and stitches them
+onto the output. Both feed live UI — the Checks Registry panel (Monitor +
+Residency tabs) and the Compliance Calendar's forward-looking $ amounts.
+`dag_py` already had both computations (`filings/checks_registry.py`,
+`filings/calendar_amounts.py`) fully built and correct in the registry —
+the gap was purely in the adapter wiring, which only ever called
+`window.WISING_PY.analyze()` (mirroring `analyze.js`'s own narrower
+contract). Selecting "Python DAG" would have silently blanked the Checks
+Registry panel and dropped the calendar's $ amounts.
+
+Closed with a new `wising_dag.analyze.analyze_with_extras(opts)` —
+`analyze(opts)` plus `checksRegistry`/`calendarAmounts`, resolved from the
+same cached registry via a second, small `_registry().resolve([...])` call
+(ctx-building factored out of `_resolve_all` into a shared `_build_ctx`
+helper to avoid duplicating that logic). Deliberately NOT added to
+`analyze()` itself (which stays a faithful, narrow `analyze.js` port) or to
+`__init__.py`'s exports (`wising_dag`'s own public surface stays exactly
+`analyze`/`normalize`, as documented) — reachable only via
+`wising_dag.analyze.analyze_with_extras`, the same way `checksRegistry`/
+`calendarAmounts` are only ever an adapter-layer concern on the JS side too.
+`adapter/pyodide_adapter.py`'s `install()` gained an `include_extras: bool`
+parameter — `False` (default) installs the plain `analyze` (`index.html`'s
+own future wiring keeps byte-for-byte `analyze.js` parity); monitor-next's
+`lib/py-dag-loader.js` now calls `install(namespace="WISING_PY",
+include_extras=True)`, so `window.WISING_PY.analyze` resolves the extras
+automatically — `lib/py-dag-adapter.js` needed no further change at all,
+since `analyzePyDag()` already just returns whatever `window.WISING_PY.
+analyze()` produces.
+
+**Verified against the real JS DAG, not just unit-tested in isolation**:
+`prototypes/graph-pilot/run-js-dag-vs-py-dag.js` gained a second, separate
+JS graph (`calendar-amounts-nodes.js`'s NODES — `analyze.js`'s own graph,
+via `assets-nodes.js`, doesn't carry `calendarAmountsResult` at all) to
+resolve `checksRegistryResult`/`calendarAmountsResult` and merge them into
+the JS-side comparison object; `dag_py/tools/analyze_cli.py` switched from
+`analyze()` to `analyze_with_extras()` so the Python side always includes
+them too. Both keys added to the harness's own `TOP_LEVEL_PATHS`. Result:
+still 53/53 (46 exact + the 7 already-known JS-side fractional-base-year
+cases) — zero new divergences on `checksRegistry`/`calendarAmounts` across
+every real fixture and fuzz-corpus profile. New `dag_py/tests/
+test_analyze_with_extras.py` (26 tests) locks in the CONTRACT itself
+(`analyze_with_extras()` == `analyze()` plus exactly those two keys, each
+matching the underlying node's own value exactly) — the Node harness
+already owns cross-JS-parity, so this file doesn't re-check that.
+
+**Stale self-documentation cleaned up** (found while auditing — all
+described a real gap AT THE TIME they were written, later closed by
+subsequent work, with the original file's own header/comment never
+updated to say so): `crossborder/xborder_full.py`, `crossborder/
+apportionment.py`, `crossborder/black_money_act.py`, `us/us1_penalty_2210.py`,
+`us/us5_penalty_72t.py`, `reports/assembly.py`, `reports/trace.py`. One was
+flat-out factually wrong rather than just stale: `india/findings.py`
+claimed (in two places) that `in1-nodes.js`/`xb7-nodes.js` are "dead build
+history, never required by the live production chain" — tracing the real
+require chain during this audit showed both ARE required (via
+`report-batch5-nodes.js`, for `india_advance_tax_interest`'s and
+`black_money_act_exposure`'s own full finding-object text). The actual
+PORTED VALUES were already verified correct regardless (this port reads
+the same underlying data these two files do, just via differently-named,
+domain-organized nodes) — this was a documentation correction, not a code
+fix.
+
+**Confirmed still open, unchanged by this pass** (already known, not
+newly discovered): no real fixture or fuzz-corpus profile sets
+`state_of_domicile` or a nonzero `trust_retained_income_usd`, so `us/
+ustax_full.py`'s CA/NY/NJ-modeled state-tax branch and the trust
+retained-income bracket computation are verified only by `test_ustax_full.py`'s
+own synthetic unit tests, never cross-checked against the live JS DAG on
+a shared input — same limitation already documented in that module's own
+section above. The live Pyodide runtime itself remains unverified end-to-
+end (no network route to fetch one in this sandbox) — unaffected by
+anything in this pass, since it's a browser-loading question entirely
+separate from the computation this pass touched.
+
+### Trust-retained/state-tax fixture coverage + a real cross-language rounding bug (fifth Phase 8 pass)
+
+Closed the one item the previous pass left open: added 4 hand-authored
+profiles under `dag_py/tests/fixtures/manual-cases/profiles/` —
+`us_ccorp_ca_state_tax.json`/`us_ccorp_ny_state_tax.json`/
+`us_ccorp_nj_state_tax.json` (clones of `us_ccorp_indian_sub.json` with
+`state_of_domicile` set) and `us_trust_retained_income.json` (a
+`tax_entity_type: "trust"` profile with a nonzero `trust_retained_income_usd`).
+Kept in their own directory, deliberately **not** added to
+`dag_py/tests/fixtures/profiles/` — that directory feeds `conftest.py`'s
+`ALL_FIXTURE_IDS` parametrization, which several test files use to call
+`load_golden(fixture_id)` unconditionally; these 4 synthetic profiles have
+no frozen-engine golden file (there's no golden generator step for
+hand-authored profiles) and would crash those tests. `run-js-dag-vs-py-dag.js`
+gained a `MANUAL_CASES_PROFILES_DIR`, included alongside the fixture/
+fuzz-corpus sets with a `manual:` id prefix, so these 4 cases now run
+through the live JS-DAG-vs-Python-DAG cross-check on every harness run.
+
+This fixture work surfaced two real bugs, only one of which is a genuine
+production defect:
+
+1. **`float('inf')` doesn't round-trip through JSON** — `TRUST_ESTATE_
+   BRACKETS`' top bracket (`[float("inf"), 0.37]`) reached a bracket
+   breakdown embedded in the harness's JSON payload for the first time
+   (no earlier fixture/corpus profile's taxable income ever reached a top
+   bracket in a JSON-serialized field). Python's `json.dump()` writes a
+   bare `Infinity` token, which is valid per Python's own `json` module
+   but not standard JSON — Node's `JSON.parse()` rejected it outright.
+   **Test-harness-only, not a real production issue**: the actual browser
+   adapter crosses the JS boundary via `pyodide.ffi.to_js`, never through
+   a JSON string, so a real `float('inf')` becomes a real JS `Infinity`
+   directly. Fixed by sentinel-string substitution on both sides of the
+   CLI boundary (`_sanitize_infinities`/`_INFINITY_SENTINEL` in
+   `dag_py/tools/analyze_cli.py`, `desanitizeInfinities` in
+   `run-js-dag-vs-py-dag.js`) — harness plumbing, no `wising_dag` source
+   changed for this one.
+
+2. **JS `Math.round()` vs Python `round()` diverge on an exact `.5` tie —
+   a real, previously-undetected bug in the actual computed output.**
+   The trust fixture's bracket tax landed on exactly `14636.5`; the JS DAG's
+   `usd()` helper (`Math.round`, always rounds ties toward `+Infinity`)
+   produced `"$14,637"`, while the Python port's various `round()`-based
+   helpers (Python's builtin, round-half-to-even) produced `"$14,636"`.
+   Never caught before because no prior fixture or fuzz-corpus profile's
+   rounded currency-display value had ever landed exactly on a `.5`
+   boundary. This is not a display-only quirk — several files round an
+   exact `.5` intermediate value (senior/tips/overtime/QBI deductions, AMT
+   owed, non-refundable/refundable credits, apportionment splits, state
+   entity tax) that then feeds forward into further arithmetic, so a wrong
+   tie-break can shift the real numeric output, not just its last-mile
+   formatting.
+
+   Fixed with a new canonical `core/util.py::js_round(n)` —
+   `math.floor(n + 0.5)`, verified directly against Node to reproduce
+   `Math.round`'s exact "always toward +Infinity on .5" behavior for every
+   sign (including the `-0.5` edge case) — and swept every bare `round()`
+   call across the port that ports a JS `Math.round()` call over to
+   `js_round()` instead: `core/util.py` (`format_inr`/`format_usd`, the
+   two shared helpers), plus per-file duplicate `_usd`/`_inr`-style
+   helpers and inline `round()` calls in `crossborder/{findings,
+   cross_basis,apportionment}.py`, `us/{ustax,ustax_full,findings}.py`,
+   `india/{findings,entity_tax,aggregate_india_income}.py`,
+   `filings/{documents,assets,monitoring,limits}.py`, and `reports/
+   trace.py`. Each site was checked against its `Math.round(...)` origin
+   in `prototypes/graph-pilot/*.js` before converting — the one exception
+   left as bare `round()` is `reports/trace.py`'s `_pct_label` (`round(rate
+   * 100, 2)`), which ports `(rate * 100).toFixed(2)`, a genuinely
+   different (2-decimal, not integer) rounding contract, not a
+   `Math.round()` site at all. `crossborder/double_tax.py` and `us/
+   aggregate_us_income.py` were checked and confirmed to have only
+   currency-*conversion* helpers (`_inr_to_usd`), not display-rounding
+   ones — no `Math.round` equivalent to fix there.
+
+**Verification**: full `dag_py` pytest suite green (573/573, no
+regressions from the `js_round` sweep); `run-js-dag-vs-py-dag.js` green at
+57/57 (50 exact matches + the 7 already-known JS-fractional-base-year
+cases, zero new mismatches) — the trust fixture's rounding divergence is
+gone. Wheel rebuilt (`scripts/build-dag-wheel.py`) and monitor-next's
+`public/dag-py/` assets re-synced (`sync-dag-py.js`).
+
+**Still open, unchanged by this pass**: the live Pyodide runtime remains
+unverified end-to-end (no network route to fetch one in this sandbox);
+real promotion-gate data (requires that live wiring plus actual production
+shadow-mode running) is unaffected by anything in this pass.
+
+### JS-DAG-drift audit: `businessComputation` missed a mid-port JS addition (sixth Phase 8 pass)
+
+Direct response to the question "is the JS DAG still getting features added
+that the Python port never picked up?" The Python port was NOT built
+against one frozen JS snapshot the way the JS DAG itself was built against
+the frozen engine — `dag_py`'s domain phases were built in a single day
+(2026-07-25) while JS-DAG feature work continued in parallel/interleaved
+commits on the same day. The completeness audits in earlier passes (node-ID
+diffing against `checks-registry-nodes.js`'s registry) would NOT catch this
+class of drift: a node id that exists on both sides, unchanged in name,
+but whose JS-side compute body gained new logic AFTER the Python side had
+already ported it and was never revisited.
+
+**Method**: cross-referenced every `prototypes/graph-pilot/*-nodes.js`
+file's last-commit date against the Python port timestamp of the domain
+that ports it. Only 4 node files have a real-logic commit landing ON OR
+AFTER Python DAG work began (2026-07-25 03:48): `aggregateusincome-nodes.js`
+(03:48, farm depreciation — confirmed already captured, `usBusinessDepreciationPlan`/
+`farmNetProfitUsd` present verbatim in `us/aggregate_us_income.py`),
+`aggregateindiaincome-nodes.js` (04:18 — **see gap below**),
+`report-batch1-nodes.js` (04:18, `form_3cb_3cd`'s presumptive-lock-in
+trigger — confirmed already captured in `filings/documents.py`), and
+`assets-nodes.js` (05:57 and three earlier same-day commits, entity-graph
+`returnForm` threading + edges — confirmed already captured, verified by
+diffing `INDIA_KIND_TO_ITR`/`US_KIND_TO_FORM`/`US_K1_KIND_TO_FORM`, every
+edge `flow` type, and every entity `kind` value between the current JS
+source and `filings/assets.py` byte-for-byte). Every other node file's last
+commit predates 2026-07-25 entirely — zero drift risk for the other ~40
+files regardless of which Python phase ported them.
+
+**The one real gap found**: `aggregateindiaincome-nodes.js`'s
+`businessComputation` (JS commit `3d2a4f0`, "s.44BB/BBB/35AD/115V tonnage
+tax", gap tracker IN-26) landed 16 minutes after Python Phase 2 had already
+ported `india/aggregate_india_income.py`, and that file was never
+revisited for logic since — only the disclosure/finding layer this same
+JS commit added (`presumptiveLockinAgg`, the `msme_disallowance_s43Bh_india`/
+`presumptive_lockin_active_india` findings) got ported, during the later
+Phase 6 `filings/` pass, creating the illusion of full coverage. The actual
+income computation never did: `_uses_regular_books_inr`/
+`_compute_business_entry_net_profit_inr` had no `s44BB`/`s44BBB` branch (a
+non-resident mineral-oil-services / foreign-company civil-construction
+presumptive scheme, flat 10% of receipts, no ceiling test) — any such
+business entry silently fell through to Regular Books instead, exactly the
+bug the JS commit fixed. `_business_computation` also never added s.115V
+tonnage-tax income or subtracted the s.35AD specified-business capex
+deduction (both gated to `entity == "company" and not NR`, matching the
+live form's own "For Indian Companies only" scoping) — both real income
+components with zero prior Python equivalent, not just a rounding-scale
+gap. This is a genuine, previously-undetected computation bug affecting
+the actual tax figure whenever a taxpayer's business entries use these
+fields — not caught earlier because no fixture or fuzz-corpus profile
+happens to set `presumptive_scheme: "s44BB"/"s44BBB"`,
+`tonnage_tax_115V_inr`, or `specified_business_s35AD_inr`.
+
+Fixed by porting the JS diff verbatim: `_uses_regular_books_inr` and
+`_compute_business_entry_net_profit_inr` gained the s44BB/s44BBB branches
+(flat `js_round((turnover_inr + cash_receipts_inr) * 0.10)`, matching the
+JS side's own `Math.round`); `_business_computation` gained a
+`tonnage_tax_inr` accumulator per entry and the `entity == "company" and
+not is_nr_company` gate that adds it to `businessInr` and subtracts
+`specified_business_s35AD_inr`, returning both as new `tonnageTaxInr`/
+`s35adDeductionInr` keys (matching the JS return shape) — added
+`indiaResidencyStatusRawAgg`/`diAgg` to the node's `deps` (both already
+existed as registered nodes) and the three new fields to
+`_BUSINESS_COMPUTATION_FIELDS`. Confirmed via `git grep` that
+`businessComputation` is defined in exactly one JS file (no later override
+recomputes it), so this closes the gap completely, not partially.
+
+Added 2 new manual-cases fixtures exercising the previously-uncovered
+branches: `india_company_tonnage_35ad.json` (resident Indian company, a
+regular-books entry with `tonnage_tax_115V_inr` plus a top-level
+`specified_business_s35AD_inr`) and `india_foreign_nr_s44bbb.json` (an NR
+foreign company with an `s44BBB` presumptive entry, `turnover_inr` +
+`cash_receipts_inr`). Both cross-checked directly against the live JS DAG
+via `run-js-dag-vs-py-dag.js` — **clean match, zero mismatches** — proving
+the port now reproduces the JS-side fix exactly, not just plausibly.
+
+**Verification**: `dag_py` pytest 573/573 green; `run-js-dag-vs-py-dag.js`
+59/59 (52 exact + the 7 already-known JS-fractional-base-year cases, zero
+new mismatches). Wheel rebuilt, monitor-next assets re-synced.
+
+**Methodological takeaway for future passes**: a clean harness run over the
+existing fixture/fuzz-corpus set is proof of parity only for the branches
+that set of profiles actually exercises — it is not proof of completeness.
+This gap survived two prior completeness passes (the node-ID diff and the
+checksRegistry/calendarAmounts wiring pass) precisely because 57/57 clean
+was mistaken for "nothing left to find." The commit-date cross-reference
+method used here (last-JS-touch vs. Python-port-timestamp per node file)
+is cheap enough to re-run before every future promotion-gate check, and is
+the only method that would have caught this class of drift.
+
+### Seventh Phase 8 pass: re-ran the completeness audit at full depth, no new gaps found
+
+Direct follow-up to the sixth pass's own recommendation — re-ran the same
+audit, wider, immediately after fixing the one gap it found, specifically
+to check whether that gap was a one-off or a sign of a broader pattern.
+
+- **Fresh full node-registry diff** (`checks-registry-nodes.js`'s NODES,
+  385 ids, vs `build_full_registry()`, 382 ids): identical counts and
+  identical 28-JS-only/25-Python-only split as the pre-fix audit — the
+  `businessComputation` fix touched only a compute body, not the node-id
+  shape, so this is the expected result, not a false negative.
+- **Re-verified roughly half the 28 "JS-only" ids by direct code reading**
+  (not by trusting the earlier pass's conclusions): `indiaOpt115baaRaw`/
+  `indiaOpt115babRaw` (renamed without the `Raw` suffix in Python, same
+  `entityResult`/`entity_tax.py` values, confirmed via `documents.py`'s own
+  `form_10ic`/`form_10id` triggers); `entityFormsResult` (a JS-only
+  duplicate of fields `entityResult` already carries — Python correctly
+  never duplicated it, confirmed both compute the identical
+  `indiaReturnForm`/`usReturnForm` derivation); `black_money_act_exposure`,
+  `schedule_fa_inconsistent`, `holding_period_mismatch`,
+  `india_advance_tax_interest`, `underpayment_2210`,
+  `early_withdrawal_penalty_72t` (all present as full finding objects, not
+  just referenced ids); `computedEchoBoundary`/`modelEchoBoundary` (the
+  `withSyntheticCtx()`/synthetic-ctx plumbing already documented as
+  deliberately unported); `hasUsPeRaw`/`form8938RequiredRaw` (confirmed
+  dead by the JS source's OWN comment: "mirrored here only so the audit's
+  ...claim is literally true, not because either side has a real
+  consumer"); `feieDetailed` (a JS-only node that existed solely to work
+  around `usTaxResult.feie` missing a `.reasons[]` field — Python's own
+  `feie_eligibility()` includes `reasons[]` directly, so the workaround
+  node was never needed, already documented in `us/findings.py`'s own
+  header). Every one checked out as accounted for, not missing.
+- **Commit-date cross-reference, widened to include the 6 non-`*-nodes.js`
+  infrastructure files** (`constants.js`, `fx-util.js`, `analyze.js`,
+  `graph.js`, `profiles.js`, `sample-data.js`) on top of all 44 node files
+  already checked in the sixth pass: all 6 predate 2026-07-25 (the day
+  Python DAG work began) except `profiles.js` (`06f69c9`, already
+  confirmed fixture/demo-data-only, no DAG logic) — zero additional drift
+  risk found.
+- **Harness**: `run-js-dag-vs-py-dag.js` re-run clean at 59/59 (52 exact +
+  7 known JS-side cases).
+
+**Conclusion**: as of this pass, there is no known JS DAG functionality —
+reachable from `analyze()`'s own `TARGET_IDS`, not just textually present
+in a `require()`d file — that is missing from the Python port. The
+`businessComputation` gap fixed in the sixth pass was a one-off (a single
+node whose logic changed 16 minutes after its domain was ported and was
+never revisited), not a symptom of a wider unfixed pattern — confirmed by
+directly re-deriving, not re-trusting, the conclusion on a broad sample of
+the remaining diff surface. The residual caveats are unchanged from every
+earlier pass: this is bounded by what the 59-profile fixture/corpus/
+manual-case set actually exercises (a genuinely untested field combination
+could still hide something), and the live Pyodide runtime remains
+unverified end-to-end for reasons unrelated to computation completeness.
 
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 

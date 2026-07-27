@@ -35,7 +35,7 @@ from __future__ import annotations
 from ..core.constants import LIMITS
 from ..core.findings import make_finding
 from ..core.graph import NodeDef
-from ..core.util import format_inr, format_usd, num, safe
+from ..core.util import format_inr, format_usd, js_round, num, safe
 from ..crossborder import residency
 from . import constants as C
 from . import itr_form
@@ -300,13 +300,15 @@ def _promoter_buyback_detail(d, ctx):
 # assessedTaxInrBoundary/hasValidPresumptiveEntryBoundary/hasRegularBooksEntry
 # Boundary/hasPartnerFirmIncomeBoundary/businessInrBoundary/speculativeIncome
 # InrBoundary/indianBusinessesBoundary were in1-nodes.js's own v1-era
-# EXPLICIT BOUNDARY INPUTS (read ctx["model"]/ctx["computed"]...) — but
-# in1-nodes.js is dead build history (never required by the live production
-# graph.js chain; only run-in1.js's standalone runner uses it), and
-# agg10-nodes.js already closed all 6 of these against real in-graph
-# equivalents that live entirely within the india domain (businessComputation/
-# speculativeIncomeInrAgg/totalTaxInrCombined/annualSliceAgg). Closed the
-# same way here, directly, rather than left open — see the NODES dict below.
+# EXPLICIT BOUNDARY INPUTS (read ctx["model"]/ctx["computed"]..., unreachable
+# in the real ctx shape) — in1-nodes.js itself IS required by the live
+# production chain (report-batch5-nodes.js requires it directly, for this
+# same finding's full object — see that file's own header), but these 6
+# specific stubs are never read in that reachable form: agg10-nodes.js
+# closes all 6 of them against real in-graph equivalents that live entirely
+# within the india domain (businessComputation/speculativeIncomeInrAgg/
+# totalTaxInrCombined/annualSliceAgg). Closed the same way here, directly,
+# rather than left open — see the NODES dict below.
 # routerJurisdiction/routerUsSignal/hasIndiaScope are a fresh, self-contained
 # leaf trio (not shared with xborder_full.py's routerJurisdictionXB/
 # hasIndiaScopeXbr) — same standalone-file convention those three US files
@@ -433,16 +435,21 @@ NODES = {
 
     # These six were originally in1-nodes.js's own v1-era boundary stubs
     # (reading ctx["model"]/ctx["computed"], which don't exist in this app's
-    # real {router, india, us} ctx shape at all — in1-nodes.js is dead build
-    # history, never required by the live production chain). agg10-nodes.js
-    # closed all of them against the now-existing in-graph equivalents
-    # (its own header: "the four original finding graphs' v1-era boundaries
-    # ... all 16 closed here"); every one of those 6 closures reads only
-    # already-available india-domain nodes (businessComputation/
-    # speculativeIncomeInrAgg/totalTaxInrCombined/annualSliceAgg, all
-    # present by the time this build() runs, since itr_form.build()/
-    # india_full.build() already ran above) — no cross-domain composition
-    # needed, so closed here directly rather than deferred to Phase 7.
+    # real {router, india, us} ctx shape at all). Correction to an earlier
+    # version of this comment: in1-nodes.js is NOT dead build history — it
+    # IS required by the real production chain (report-batch5-nodes.js
+    # requires it directly, to build india_advance_tax_interest's full
+    # finding object from in1-nodes.js's own {shouldFire, raw leaves}; see
+    # that file's own header). What matters here is that agg10-nodes.js
+    # closes all six of these specific boundary stubs against the
+    # now-existing in-graph equivalents (its own header: "the four original
+    # finding graphs' v1-era boundaries ... all 16 closed here"); every one
+    # of those 6 closures reads only already-available india-domain nodes
+    # (businessComputation/speculativeIncomeInrAgg/totalTaxInrCombined/
+    # annualSliceAgg, all present by the time this build() runs, since
+    # itr_form.build()/india_full.build() already ran above) — no
+    # cross-domain composition needed, so closed here directly rather than
+    # needing core/orchestration.py's own later closure pass.
     "assessedTaxInrBoundary": NodeDef(deps=("totalTaxInrCombined",), compute=lambda d, ctx: num(d["totalTaxInrCombined"])),
     "hasValidPresumptiveEntryBoundary": NodeDef(deps=("businessComputation",), compute=lambda d, ctx: d["businessComputation"]["indiaHasValidPresumptiveEntry"] is True),
     "hasRegularBooksEntryBoundary": NodeDef(deps=("businessComputation",), compute=lambda d, ctx: d["businessComputation"]["indiaHasRegularBooksEntry"] is True),
@@ -601,7 +608,7 @@ def _findings_india_result(d, ctx):
             f"Promoter additional tax on buy-back gains — {_inr(pb['additionalTaxInr'] + pb['surchargeInr'] + pb['cessInr'])} on top of ordinary capital-gains tax",
             f"As a promoter (s.69(2)(b)) on this buy-back, the ordinary {'12.5% LTCG' if pb['ltcgGainInr'] > 0 else '20% STCG'} "
             f"tax on the gain is not the end of it: an additional tax brings the combined rate to "
-            f"{round(pb['targetRate'] * 100)}% ({'corporate promoter' if pb['isCorporatePromoter'] else 'non-corporate promoter'}"
+            f"{js_round(pb['targetRate'] * 100)}% ({'corporate promoter' if pb['isCorporatePromoter'] else 'non-corporate promoter'}"
             "), and a further 12% surcharge applies on that additional tax specifically — irrespective of total income. "
             f"Additional tax: {_inr(pb['additionalTaxInr'])}; surcharge: {_inr(pb['surchargeInr'])}; cess: {_inr(pb['cessInr'])}.",
             "Confirm promoter status (direct/indirect >10% shareholding, or Companies Act/SEBI promoter designation) is "
@@ -643,7 +650,7 @@ def _findings_india_result(d, ctx):
         for e in treaty_elections:
             if not e or not e.get("income_type"):
                 continue
-            pct = f"{round(e['elected_rate'] * 100)}%" if e.get("elected_rate") is not None else "unset rate"
+            pct = f"{js_round(e['elected_rate'] * 100)}%" if e.get("elected_rate") is not None else "unset rate"
             amt_inr = num(e.get("amount_inr"))
             amt_str = f" on {_inr(amt_inr)}" if amt_inr > 1 else " (no amount entered)"
             if not is_nr_for_s115a:
@@ -669,15 +676,15 @@ def _findings_india_result(d, ctx):
                 type_seen[e["income_type"]] += 1
                 se = (stream.get("elections") or [None])[idx] if stream and idx < len(stream.get("elections") or []) else None
                 domestic = S115A_RATES.get(e["income_type"])
-                compare_dom = f" (vs {round(domestic * 100)}% domestic s.207 rate)" if domestic is not None else ""
+                compare_dom = f" (vs {js_round(domestic * 100)}% domestic s.207 rate)" if domestic is not None else ""
                 if not se:
                     computed_tag = " [not applied]" + compare_dom
                 elif se["outcome"] == "denied_no_docs":
-                    computed_tag = f" [election denied — domestic {round(domestic * 100)}% rate applied instead, TRC/Form 41 missing]"
+                    computed_tag = f" [election denied — domestic {js_round(domestic * 100)}% rate applied instead, TRC/Form 41 missing]"
                 elif se["outcome"] == "elected_rate_applied":
                     computed_tag = f" [elected rate applied to the India tax above{compare_dom}]"
                 else:
-                    computed_tag = f" [domestic {round(domestic * 100)}% rate applied instead — it's more beneficial than the elected rate]"
+                    computed_tag = f" [domestic {js_round(domestic * 100)}% rate applied instead — it's more beneficial than the elected rate]"
             else:
                 computed_tag = " [not applied]"
             article = f" ({e['treaty_article']})" if e.get("treaty_article") else ""
@@ -787,7 +794,7 @@ def _findings_india_result(d, ctx):
             findings.append(make_finding(
                 "lrs_limit", "critical" if status == "breached" else "warning", "limit",
                 "LRS remittance " + ("limit breached" if status == "breached" else "approaching limit"),
-                f"Outbound LRS remittances of {format_usd(lrs_value_usd)} are at {round(pct * 100)}"
+                f"Outbound LRS remittances of {format_usd(lrs_value_usd)} are at {js_round(pct * 100)}"
                 "% of the USD 250,000 RBI annual cap.",
                 ("A breach can attract RBI scrutiny and AD-bank refusal. Verify remittances across all banks (the cap is per-PAN, not per-account) and document the source of funds."
                  if status == "breached" else

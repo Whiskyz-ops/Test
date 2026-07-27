@@ -39,7 +39,10 @@ import { fxRate } from "./dag/fx-util.js";
 
 const graph = createGraph(NODES);
 
-const STORAGE_KEYS = {
+// Exported (not just module-local) so lib/py-dag-adapter.js — the Python
+// DAG's own analyzeDag()-equivalent — can read the exact same localStorage
+// keys the exact same way, rather than duplicating this lookup.
+export const STORAGE_KEYS = {
   ROUTER: "wising_router_state",
   INDIA: "wising_layer1_india_state",
   US: "wising_us_state"
@@ -48,7 +51,7 @@ const STORAGE_KEYS = {
 // Mirrors normalize.js's loadRawStates: opts override wins, else localStorage,
 // else {} — the one boundary the DAG doesn't derive (AGG-10's documented
 // exception; loadRawStates is I/O, not computation, so it has no graph node).
-function readRaw(key, override) {
+export function readRaw(key, override) {
   if (override !== undefined) return override;
   try {
     const raw = typeof window !== "undefined" && window.localStorage && window.localStorage.getItem(key);

@@ -4,8 +4,20 @@ files. Not a general-purpose date library; only what the tax computations
 actually need."""
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any
+
+# A leading 1-3 digit year (e.g. "895-12-31") — JS's `new Date()` accepts
+# any year, but Python's fromisoformat()/strptime("%Y") both reject
+# anything short of 4 digits. Only reachable via a fuzzer-mutated
+# base_tax_year/date field (found via run-js-dag-vs-py-dag.js's cross-check
+# against the real JS DAG); no real profile ever has a sub-1000 year. Fixed
+# by zero-padding to 4 digits before parsing, rather than crashing —
+# matches JS's own leniency, and this port's own established rule that a
+# fuzzer's pathological input should degrade gracefully, never crash the
+# resolver.
+_SHORT_YEAR = re.compile(r"^(\d{1,3})-(\d{2}-\d{2})")
 
 
 def parse_date(s: Any) -> datetime | None:
@@ -16,6 +28,9 @@ def parse_date(s: Any) -> datetime | None:
     text = s.strip()
     if text.endswith("Z"):
         text = text[:-1] + "+00:00"
+    m = _SHORT_YEAR.match(text)
+    if m:
+        text = m.group(1).zfill(4) + "-" + m.group(2) + text[m.end():]
     try:
         return datetime.fromisoformat(text)
     except ValueError:

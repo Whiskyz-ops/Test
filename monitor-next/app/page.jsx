@@ -12,8 +12,9 @@ import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState } from "@/lib/wising";
 import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
+import { monitorSnapshotPyDag, allClientSummariesPyDag } from "@/lib/py-dag-adapter";
 import { entityLinksFor, ownedEntityIds, flattenOwnershipTree } from "@/lib/entity-graph";
-import { runShadow, getShadowLog, clearShadowLog } from "@/lib/shadow";
+import { runShadow, runShadowPy, getShadowLog, clearShadowLog } from "@/lib/shadow";
 import ShadowBadge from "@/components/ShadowBadge";
 import WhatIfBar from "@/components/WhatIfBar";
 
@@ -51,14 +52,23 @@ export default function MonitorPage() {
   // touching the KPI tiles above it (those stay whole-book totals; see
   // ClientsView's own filtering, which only narrows the rendered rows).
   const [clientSearch, setClientSearch] = useState("");
-  // DAG-vs-engine comparison toggle (docs/DAG_MIGRATION_TRACKER.md, 40/40
-  // rows ported, run-fuzz.js clean at CI scale with a 2-item allowlist —
-  // both text-wording-only, no known value/logic divergence) — DAG is now
-  // the default compute source; ?engine=engine or the header pill falls
-  // back to the original hand-written engine live, same countries/result
-  // shape either way (monitorSnapshotDag mirrors monitorSnapshot exactly —
-  // see lib/dag-adapter.js). The pill stays so a fallback is always one
-  // click away, not a code change.
+  // Compute-source toggle (docs/DAG_MIGRATION_TRACKER.md, 40/40 rows
+  // ported, run-fuzz.js clean at CI scale with a 2-item allowlist — both
+  // text-wording-only, no known value/logic divergence) — DAG (the JS
+  // implementation) is the default compute source; ?engine=engine or the
+  // header pill falls back to the original hand-written engine live, same
+  // countries/result shape either way (monitorSnapshotDag mirrors
+  // monitorSnapshot exactly — see lib/dag-adapter.js). The pill stays so a
+  // fallback is always one click away, not a code change.
+  //
+  // "py-dag" (docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 8) is a THIRD,
+  // experimental option: the same computation, ported to Python, run via
+  // Pyodide (lib/py-dag-adapter.js). Deliberately NOT the default and not
+  // gated on any promotion criteria yet — this is infrastructure to make
+  // the option reachable and observable, not a claim that it's promoted or
+  // production-ready. Unlike "dag"/"engine" (synchronous), selecting
+  // "py-dag" kicks off an async Pyodide boot the first time — see
+  // pyDagStatus below.
   //
   // Always initialize to "dag", matching the server's render exactly (no
   // window there either) — see the ?engine=dag hydration-mismatch bug this
@@ -72,8 +82,16 @@ export default function MonitorPage() {
   // since recompute is a useCallback keyed on engineSource.
   const [engineSource, setEngineSource] = useState("dag");
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("engine") === "engine") setEngineSource("engine");
+    const v = new URLSearchParams(window.location.search).get("engine");
+    if (v === "engine" || v === "py-dag") setEngineSource(v);
   }, []);
+  // "idle" (never selected) | "loading" (Pyodide booting/computing) |
+  // "ready" (window.WISING_PY.analyze exists and at least one call
+  // succeeded) | "error" (boot or the last call failed). Purely a UI
+  // status indicator — recompute() below is the only thing that sets it,
+  // driven by py-dag-adapter.js's own Promise resolution/rejection, not by
+  // polling py-dag-loader.js's internal state.
+  const [pyDagStatus, setPyDagStatus] = useState("idle");
   // Shadow mode: on every recompute, run the OTHER compute path silently and
   // deep-compare the whole product surface (lib/shadow.js). On by default;
   // ?shadow=0 disables it (e.g. to isolate primary-path perf). Runs
@@ -84,6 +102,18 @@ export default function MonitorPage() {
     typeof window === "undefined" || new URLSearchParams(window.location.search).get("shadow") !== "0");
   const [shadowRun, setShadowRun] = useState(null);
   const [shadowLog, setShadowLog] = useState(null);
+  // Engine-vs-Python-DAG shadow leg (lib/shadow.js's runShadowPy) — OFF by
+  // default, unlike the JS-DAG leg above: booting Pyodide on a cold first
+  // call is not cheap (lib/py-dag-loader.js's own header), so this must
+  // never fire just because shadow mode in general is on. Opt in with
+  // ?shadowPy=1. Same hydration-safe "read the query param in an effect,
+  // not the lazy initializer" pattern as engineSource/presentationMode
+  // above would apply here too, but shadowPyOn is read-only after mount (no
+  // in-app control flips it), so the plain lazy-useState form is fine —
+  // there's no post-mount state divergence to cause a hydration mismatch.
+  const [shadowPyOn] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("shadowPy") === "1");
+  const [shadowRunPy, setShadowRunPy] = useState(null);
 
   // Presentation mode: hides engineering-only chrome (compute-source pill,
   // shadow-diff badge, raw Layer-1 form links) for a client-facing or
@@ -155,22 +185,48 @@ export default function MonitorPage() {
       const wantLive = preferred === "live" || (preferred == null && hasLiveLayer1());
       source = wantLive && hasLiveLayer1() ? "live" : "demo";
     }
-    const overrides = engineSource === "dag" ? {
+    // Both DAG-family sources (the JS one and the Python/Pyodide one) take
+    // the same what-if overrides; only the plain engine has no such
+    // plumbing (WhatIfBar.jsx's own header comment).
+    const overrides = engineSource !== "engine" ? {
       regimeOverride: regimeOverride === null ? undefined : regimeOverride,
       fxRateOverride: fxRateOverride === null ? undefined : fxRateOverride,
       feieOverride: feieOverride === null ? undefined : feieOverride
     } : undefined;
-    const snap = engineSource === "dag" ? monitorSnapshotDag(source, overrides) : monitorSnapshot(source);
-    if (snap && snap.countries && snap.countries.length) {
-      setCountries(snap.countries); setMode(pinnedId ? "live" : source); setEngineReady(true); setResult(snap.result);
-      if (snap.clientName) setClientName(snap.clientName);
-      if (snap.baseYear) setBaseYear(snap.baseYear);
-      setActiveProfile(pinnedId || activeProfileId());
+
+    const applySnap = (snap) => {
+      if (snap && snap.countries && snap.countries.length) {
+        setCountries(snap.countries); setMode(pinnedId ? "live" : source); setEngineReady(true); setResult(snap.result);
+        if (snap.clientName) setClientName(snap.clientName);
+        if (snap.baseYear) setBaseYear(snap.baseYear);
+        setActiveProfile(pinnedId || activeProfileId());
+      }
+    };
+
+    if (engineSource === "py-dag") {
+      // Async, unlike the two branches below — Pyodide's boot + wheel
+      // install take real wall-clock time on a cold first call (lib/
+      // py-dag-loader.js's own header). The PREVIOUS result (whatever was
+      // on screen already) stays visible while this resolves, rather than
+      // blanking the page — pyDagStatus is what tells the compute-source
+      // pill a load is in flight.
+      setPyDagStatus((s) => (s === "ready" ? "ready" : "loading"));
+      monitorSnapshotPyDag(source, overrides)
+        .then((snap) => { setPyDagStatus("ready"); applySnap(snap); })
+        .catch((err) => {
+          setPyDagStatus("error");
+          if (typeof console !== "undefined") console.error("[py-dag] analyze() failed:", err);
+        });
+    } else {
+      applySnap(engineSource === "dag" ? monitorSnapshotDag(source, overrides) : monitorSnapshot(source));
     }
-    // Kick the shadow comparison off the render path: the primary result is
-    // already committed above, so this deferred tick never delays what the user
-    // sees. runShadow runs BOTH engine and DAG (pinned to one "now") and records
-    // any divergence — see lib/shadow.js.
+
+    // Kick the shadow comparison(s) off the render path: the primary result
+    // is already committed above, so this deferred tick never delays what
+    // the user sees. runShadow runs engine vs the JS DAG (pinned to one
+    // "now") and records any divergence — see lib/shadow.js. Independent of
+    // engineSource: it always compares the real engine against the JS DAG,
+    // regardless of which one is currently primary.
     if (shadowOn) {
       const defer = typeof window !== "undefined" && window.requestIdleCallback
         ? window.requestIdleCallback : (fn) => setTimeout(fn, 0);
@@ -179,7 +235,22 @@ export default function MonitorPage() {
         if (rec) { setShadowRun(rec); setShadowLog(getShadowLog()); }
       });
     }
-  }, [engineSource, shadowOn, regimeOverride, fxRateOverride, feieOverride]);
+    // Second, independent leg: engine vs the Python DAG (via Pyodide) —
+    // opt-in only (shadowPyOn, ?shadowPy=1), never fired just because
+    // shadowOn is true, since a cold Pyodide boot is not cheap (this
+    // triggers initPyDag() the same as selecting "Python DAG" as the
+    // primary source would). Deferred the same way, on its own tick — it
+    // must never block or race the JS-DAG leg above.
+    if (shadowPyOn) {
+      const defer = typeof window !== "undefined" && window.requestIdleCallback
+        ? window.requestIdleCallback : (fn) => setTimeout(fn, 0);
+      defer(() => {
+        runShadowPy(source).then((rec) => {
+          if (rec) { setShadowRunPy(rec); setShadowLog(getShadowLog()); }
+        });
+      });
+    }
+  }, [engineSource, shadowOn, shadowPyOn, regimeOverride, fxRateOverride, feieOverride]);
 
   // Clients tab routes through the same engineSource as everything else —
   // previously allClientSummaries() (engine-only) ran unconditionally here,
@@ -188,6 +259,10 @@ export default function MonitorPage() {
   // in the deps directly (not just transitively via recompute), since
   // clientSummaries isn't recompute's job to refresh.
   const refreshClientSummaries = useCallback(() => {
+    if (engineSource === "py-dag") {
+      allClientSummariesPyDag().then(setClientSummaries).catch(() => setClientSummaries([]));
+      return;
+    }
     setClientSummaries(engineSource === "dag" ? allClientSummariesDag() : allClientSummaries());
   }, [engineSource]);
   useEffect(() => {
@@ -264,6 +339,13 @@ export default function MonitorPage() {
   // Clients-tab summaries — each entity's own on-file baseline).
   const linkedFilings = useMemo(() => {
     if (!activeLinks || !activeLinks.owns.length) return [];
+    // py-dag-adapter.js's own analyzeProfileByIdPyDag is async (Pyodide);
+    // this roll-up is a synchronous useMemo, and linked-entity Filings data
+    // is a secondary convenience, not core to what Phase 8 is verifying —
+    // left empty for "py-dag" this pass rather than a bigger useMemo-to-
+    // async-effect rework of an already-working feature. Falls back the
+    // same way for a plain analyzeProfileById() miss.
+    if (engineSource === "py-dag") return [];
     return activeLinks.owns.map((l) => {
       const r = engineSource === "dag" ? analyzeProfileByIdDag(l.ownedId) : analyzeProfileById(l.ownedId);
       return r ? { id: l.ownedId, label: (l.summary && l.summary.label) || l.ownedId, relationship: l.relationship, result: r } : null;
@@ -303,21 +385,31 @@ export default function MonitorPage() {
               None of this affects what's computed, only what's shown. */}
           {!presentationMode && (
             <button
-              onClick={() => setEngineSource((s) => (s === "dag" ? "engine" : "dag"))}
-              title="Compute source: the hand-written engine (engine/*.js) or the verified dependency-graph replacement (prototypes/graph-pilot — docs/DAG_MIGRATION_TRACKER.md, 40/40 rows ported). Same result shape either way."
+              onClick={() => setEngineSource((s) => (s === "dag" ? "engine" : s === "engine" ? "py-dag" : "dag"))}
+              title="Compute source: the hand-written engine (engine/*.js), the verified JS dependency-graph replacement (prototypes/graph-pilot — docs/DAG_MIGRATION_TRACKER.md, 40/40 rows ported), or the Python port of that same graph running via Pyodide (dag_py/ — docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 8, experimental, not yet promoted). Same result shape across all three."
               className="font-semibold px-2 py-0.5 rounded-full border transition-colors"
-              style={engineSource === "dag"
-                ? { color: PAL.greenText, borderColor: PAL.positive + "55", background: PAL.positive + "18" }
-                : { color: PAL.muted, borderColor: "currentColor", opacity: 0.6 }}
+              style={
+                engineSource === "dag" ? { color: PAL.greenText, borderColor: PAL.positive + "55", background: PAL.positive + "18" }
+                : engineSource === "py-dag" ? (
+                    pyDagStatus === "error" ? { color: "#f87171", borderColor: "#f8717155", background: "#f8717118" }
+                    : { color: "#60a5fa", borderColor: "#60a5fa55", background: "#60a5fa18" }
+                  )
+                : { color: PAL.muted, borderColor: "currentColor", opacity: 0.6 }
+              }
             >
-              ⚙ {engineSource === "dag" ? "DAG" : "Engine"}
+              ⚙ {
+                engineSource === "dag" ? "DAG"
+                : engineSource === "py-dag" ? "Python DAG" + (pyDagStatus === "loading" ? " (loading…)" : pyDagStatus === "error" ? " (failed)" : "")
+                : "Engine"
+              }
             </button>
           )}
           {shadowOn && !presentationMode && (
             <ShadowBadge
               run={shadowRun}
+              runPy={shadowPyOn ? shadowRunPy : null}
               log={shadowLog}
-              onClear={() => { const cleared = clearShadowLog(); setShadowLog(cleared); setShadowRun(null); }}
+              onClear={() => { const cleared = clearShadowLog(); setShadowLog(cleared); setShadowRun(null); setShadowRunPy(null); }}
             />
           )}
           <div className="relative">
@@ -418,7 +510,7 @@ export default function MonitorPage() {
               onFeieChange={setFeieOverride}
               active={whatIfActive}
               onReset={onWhatIfReset}
-              disabled={engineSource !== "dag"}
+              disabled={engineSource === "engine"}
             />
             <ReconciliationView result={result} highlight={reconHighlight} onHighlightDone={() => setReconHighlight(null)} onJump={goToRecon} />
           </>

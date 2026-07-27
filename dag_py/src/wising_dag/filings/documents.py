@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 
 from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
-from ..core.util import format_inr, format_usd, num, safe
+from ..core.util import format_inr, format_usd, js_round, num, safe
 
 
 def _inr(n: float) -> str:
@@ -185,6 +185,7 @@ def _build_documents_result(d, ctx):
     form8938 = d["form8938GaugeResult"]
 
     from ..core.constants import LIMITS
+    from ..us.constants import NIIT_THRESHOLD
     lockin = d["presumptiveLockinAgg"]
 
     triggers = {
@@ -199,7 +200,14 @@ def _build_documents_result(d, ctx):
         "form_3520": is_us_person and ((d["ppfInrRaw"] > 0 or d["epfInrRaw"] > 0) or d["foreignGiftsRaw"]["receivedAbove100k"] or d["foreignGiftsRaw"]["isTrustBeneficiary"]),
         "form_3520a": is_us_person and (d["ppfInrRaw"] > 0 or d["epfInrRaw"] > 0),
         "form_1040nr": d["treatyFiles1040nrRaw"],
-        "form_8960": d["headlineTotalIncomeUsdResult"] > (LIMITS.get("NIIT_THRESHOLD", {}).get(d["usFilingStatusRaw"], 200000)) and
+        # NIIT_THRESHOLD lives in us/constants.py (the real source ustax.py's
+        # own NIIT computation also reads), NOT core/constants.py's LIMITS —
+        # that table never carried this key at all, so `LIMITS.get(...)` was
+        # silently falling back to `{}` -> every filing status got the
+        # single/hoh $200,000 threshold, wrongly triggering form_8960 for an
+        # mfj filer between $200,000-$249,999 (found via
+        # run-js-dag-vs-py-dag.js's cross-check against the real JS DAG).
+        "form_8960": d["headlineTotalIncomeUsdResult"] > NIIT_THRESHOLD.get(d["usFilingStatusRaw"], 200000) and
                      (d["aggregateUsIncomeResult"]["interestUs"]["usd"] + d["aggregateUsIncomeResult"]["ordinaryDividendsUs"]["usd"] + d["aggregateUsIncomeResult"]["capitalGainsUs"]["usd"]) > 0,
         "form_8959": d["usTaxResult"]["additionalMedicareUsd"] > 0,
         "form_67": res["india"]["status"] == "ROR" and (d["aggregateUsIncomeResult"]["usSourceTotal"]["usd"] > 0 or d["taxesPaidUsResult"]["total"]["usd"] > 0),
@@ -347,7 +355,7 @@ def _build_ftc_report_result(d, ctx):
                 {"label": "Indian income tax (creditable)", "usd": ftc["us"]["indiaTaxPaidUsd"],
                  "trace": _calc("Total India tax × creditable fraction (gross Indian income less any FEIE-excluded slice, over gross Indian income)",
                                  [{"label": "Total India tax (from Tax Computation)", "amount": india_total_tax_usd},
-                                  {"label": "Creditable fraction", "display": f"{round((ftc['us']['indiaTaxPaidUsd'] / india_total_tax_usd if india_total_tax_usd > 0 else 1) * 100)}%"}])},
+                                  {"label": "Creditable fraction", "display": f"{js_round((ftc['us']['indiaTaxPaidUsd'] / india_total_tax_usd if india_total_tax_usd > 0 else 1) * 100)}%"}])},
                 {"label": "Foreign-source income (US view)", "usd": ftc["us"]["foreignSourceIncomeUsd"],
                  "trace": _holdings("india", f"Net of the {_usd(ftc['us']['feieExcludedUsd'])} FEIE-excluded wages shown in the row above." if ftc["us"]["feieExcludedUsd"] > 0 else None)},
                 {"label": "US taxable income", "usd": ftc["us"]["taxableIncomeUsd"], "trace": _calc("Same figure as \"Taxable income\" in the Tax Computation card above", [{"label": "US taxable income", "amount": ftc["us"]["taxableIncomeUsd"]}])},

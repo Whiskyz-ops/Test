@@ -32,7 +32,7 @@ from __future__ import annotations
 from ..core.constants import LIMITS
 from ..core.findings import make_finding
 from ..core.graph import NodeDef
-from ..core.util import num, safe
+from ..core.util import js_round, num, safe
 from ..india.aggregate_india_income import _annual_slice_agg
 from . import constants as C
 from . import us1_penalty_2210, us5_penalty_72t, us_full
@@ -117,7 +117,7 @@ def _us_state_tax_result(d, ctx):
         surcharge_usd = (taxable_income_usd - st["SURCHARGE_THRESHOLD_USD"]) * st["SURCHARGE_RATE"]
     exemption_credit_usd = (st.get("EXEMPTION_CREDIT_USD") or {}).get(status, 0)
     dependent_credit_usd = (st.get("DEPENDENT_CREDIT_USD") or 0) * dependents
-    total_tax_usd = max(0.0, round(bracket_tax_usd + surcharge_usd - exemption_credit_usd - dependent_credit_usd))
+    total_tax_usd = max(0.0, js_round(bracket_tax_usd + surcharge_usd - exemption_credit_usd - dependent_credit_usd))
     return {
         "state": state_code, "stateName": st["NAME"], "formName": st["FORM_NAME"], "filingStatus": status,
         "noIncomeTax": False,
@@ -166,7 +166,7 @@ def _nra_fdap_detail(d, ctx):
 
 
 def _fmt(n: float) -> str:
-    return f"${round(n):,}"
+    return f"${js_round(n):,}"
 
 
 NODES = {
@@ -361,7 +361,7 @@ def _findings_us_result(d, ctx):
         nra_detail = d["nraFdapDetail"]
         findings.append(make_finding(
             "nra_fdap_flat_rate", "info", "credit",
-            "1040-NR: FDAP taxed flat" + (f" ({round(nra_detail['fdapRate'] * 100)}%)" if is_routed_to_nra_for_fdap else "") + ", ECI at graduated rates",
+            "1040-NR: FDAP taxed flat" + (f" ({js_round(nra_detail['fdapRate'] * 100)}%)" if is_routed_to_nra_for_fdap else "") + ", ECI at graduated rates",
             f"{_fmt(nra_detail['fdapUsd'])} of FDAP income (interest/dividends/rents not effectively connected with a US trade or "
             "business) is taxed flat" + (f" at the claimed {nra_detail['claimedRate']}% treaty rate" if nra_detail["claimedRate"] else " at the 30% statutory rate (no treaty rate on file)")
             + f" with no deductions (Schedule NEC), separate from {_fmt(d['nraEciIncomeUsdRaw'])} of ECI taxed at graduated brackets"
@@ -415,7 +415,7 @@ def _findings_us_result(d, ctx):
         ta_seed_eligible = lr["trumpAccountsSeedEligibleChildren"] or 0
         ta_seed_usd = LIMITS["TRUMP_ACCOUNT_FEDERAL_SEED_USD"]
         seed_note = (
-            f"A ${ta_seed_usd:,} one-time federal seed contribution applies to the {round(ta_seed_eligible)} "
+            f"A ${ta_seed_usd:,} one-time federal seed contribution applies to the {js_round(ta_seed_eligible)} "
             "child(ren) born 2025-2028 — separate from, and not counted against, the $5,000/year cap."
             if ta_seed_eligible > 0 else
             "No federal seed applies — that one-time $1,000 contribution is only for children born 2025-2028."
@@ -424,7 +424,7 @@ def _findings_us_result(d, ctx):
             findings.append(make_finding(
                 "trump_account_contribution_limit", "warning", "limit",
                 "Trump Account (§530A) contribution cap exceeded",
-                f"Contributions of {_fmt(trump_acct['value'])} across {round(ta_children)}"
+                f"Contributions of {_fmt(trump_acct['value'])} across {js_round(ta_children)}"
                 " child(ren) exceed the $5,000/child/year cap (combined across all contributors — parents, family, employer all draw "
                 f"from the same limit). {seed_note}",
                 "Excess contributions are not automatically rejected by the custodian in every case — verify the aggregate against "
@@ -451,7 +451,7 @@ def _findings_us_result(d, ctx):
             f"US estimated-tax underpayment penalty — Form 2210 ({_fmt(penalty_usd)} estimated)",
             f"Withholding + estimated payments ({_fmt(d['usPaidTotalUsd'])}) fall short of both safe harbors: 90% of this year's "
             f"tax ({_fmt(d['usCurrentHarborUsd'])}) and "
-            + (f"{round(d['usPriorHarborPct'] * 100)}% of last year's tax ({_fmt(d['usPriorHarborUsd'])})" if d["usPriorHarborUsd"] is not None else "the prior-year safe harbor (last year's total tax was never entered, so only the current-year harbor could be checked)")
+            + (f"{js_round(d['usPriorHarborPct'] * 100)}% of last year's tax ({_fmt(d['usPriorHarborUsd'])})" if d["usPriorHarborUsd"] is not None else "the prior-year safe harbor (last year's total tax was never entered, so only the current-year harbor could be checked)")
             + f", with a balance due over the $1,000 de-minimis. Estimated penalty (simplified regular method, equal quarterly "
             f"installments, withholding spread evenly, no cross-quarter netting): {_fmt(penalty_usd)}.",
             "Confirm against the real Form 2210 (it can use the Annualized Income Installment Method for uneven income, which "

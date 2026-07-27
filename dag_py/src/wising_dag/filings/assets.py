@@ -38,7 +38,7 @@ from datetime import datetime, timedelta, timezone
 from ..core.dates import parse_date
 from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
-from ..core.util import format_inr, num, safe
+from ..core.util import format_inr, js_round, num, safe
 from ..india.constants import INDIA as _CONST_INDIA
 from ..india.aggregate_india_income import (
     _aggregate_entry_depreciation_inr,
@@ -83,7 +83,7 @@ def _self_employment_income_trace(s: dict, depreciation_plan_entry: dict | None)
     if num(s.get("expenses_usd")) > 0:
         parts.append({"label": "Less: business expenses", "amount": -num(s.get("expenses_usd"))})
     for a in (depreciation_plan_entry["assets"] if depreciation_plan_entry else []):
-        label = f"Asset ({a['class']}, yr {round(a['yearN'])})"
+        label = f"Asset ({a['class']}, yr {js_round(a['yearN'])})"
         if a["sec179Usd"] > 0:
             parts.append({"label": f"{label} — §179", "amount": -a["sec179Usd"]})
         if a["bonusUsd"] > 0:
@@ -126,7 +126,7 @@ def _farm_income_trace(f: dict, depreciation_plan_entry: dict | None):
     if num(f.get("expenses_usd")) != 0:
         parts.append({"label": "Less: farm operating expenses", "amount": -num(f.get("expenses_usd"))})
     for a in (depreciation_plan_entry["assets"] if depreciation_plan_entry else []):
-        label = f"Asset ({a['class']}, yr {round(a['yearN'])})"
+        label = f"Asset ({a['class']}, yr {js_round(a['yearN'])})"
         if a["sec179Usd"] > 0:
             parts.append({"label": f"{label} — §179", "amount": -a["sec179Usd"]})
         if a["bonusUsd"] > 0:
@@ -411,7 +411,7 @@ def _business_entities_result(d, ctx):
             "calcTrace": _source(
                 f"GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) — a hand-entered "
                 f"estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled "
-                f"yet (see gap tracker). Ownership: {round(ownership_pct)}%. This is a US inclusion only — the "
+                f"yet (see gap tracker). Ownership: {js_round(ownership_pct)}%. This is a US inclusion only — the "
                 f"entity's own foreign-country income tax return is separate and not shown here."
             ),
         })
@@ -675,7 +675,7 @@ def _build_entity_graph(d, ctx):
                     "trace": _source(
                         f"GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) — a hand-entered "
                         f"estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't "
-                        f"modeled yet (gap tracker XB-14). Ownership: {round(ownership_pct)}%. This edge connects "
+                        f"modeled yet (gap tracker XB-14). Ownership: {js_round(ownership_pct)}%. This edge connects "
                         f"two entities BOTH already modeled as their own root here (a US parent and its "
                         f"differently-named subsidiary), not a newly-created placeholder node."
                     ),
@@ -692,7 +692,7 @@ def _build_entity_graph(d, ctx):
             "trace": _source(
                 f"GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) — a hand-entered "
                 f"estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled "
-                f"yet (gap tracker XB-14). Ownership: {round(ownership_pct)}%. This is a US inclusion only — the "
+                f"yet (gap tracker XB-14). Ownership: {js_round(ownership_pct)}%. This is a US inclusion only — the "
                 f"entity's own foreign-country income tax return is separate and not shown here."
             ),
         })

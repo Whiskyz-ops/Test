@@ -3,10 +3,9 @@ Port of prototypes/graph-pilot/us1-nodes.js.
 
 `usTotalTaxBeforeFtcUsdBoundary`/`usAgiUsdBoundary`/`usFtcAllowedUsdBoundary`
 are EXPLICIT BOUNDARY INPUTS (read `ctx["computed"]...`, which doesn't
-exist in the real ctx shape) — closed later once usTaxResult/ftcResult are
-wired into the final graph (the Python equivalent of agg10-nodes.js's
-`assessedTaxInrBoundary`-style overrides, deferred to Phase 7's analyze()
-assembly, same as core/entry.py's own header documents for the India side).
+exist in the real ctx shape) — closed in `core/orchestration.py`, which
+overrides all three to the real `usTaxResult`/`ftcResult` values now that
+both are in the registry.
 """
 from __future__ import annotations
 

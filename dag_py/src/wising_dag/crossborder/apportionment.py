@@ -1,17 +1,17 @@
 """computeApportionment — FY-vs-CY tax-year apportionment. Port of
 prototypes/graph-pilot/apportionment-nodes.js.
 
-Later overridden by an entity-aware version in ustax-full-nodes.js
-(deferred to Phase 7, same as core/entry.py's other agg10-derived
-overrides) — this module ports the base, non-entity-aware version, which
-is what the JS composition order actually builds first too.
+Later overridden by an entity-aware version in `us/ustax_full.py`
+(`_apportionment_result_entity_aware`, composed after this module) — this
+file ports the base, non-entity-aware version, which is what the JS
+composition order actually builds first too.
 """
 from __future__ import annotations
 
 from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
 from ..core.registry import NodeRegistry
-from ..core.util import num, safe
+from ..core.util import js_round, num, safe
 from ..india import aggregate_india_income
 from ..us import aggregate_us_income
 
@@ -54,12 +54,12 @@ def _apportionment_result(d, ctx):
         "fyLabel": f"FY {base_year}–{str(base_year + 1)[2:]}",
         "cyPrimary": base_year, "cyNext": base_year + 1,
         "indiaFyTotalUsd": india_fy_total,
-        "indiaToCyPrimaryUsd": round(india_fy_total * primary_share),
-        "indiaToCyNextUsd": round(india_fy_total * next_share),
+        "indiaToCyPrimaryUsd": js_round(india_fy_total * primary_share),
+        "indiaToCyNextUsd": js_round(india_fy_total * next_share),
         "primaryShare": primary_share, "nextShare": next_share,
         "usCyTotalUsd": us_cy_total,
-        "usCyToFyPrimaryUsd": round(us_cy_total * 9 / 12),
-        "usCyToFyNextUsd": round(us_cy_total * 3 / 12),
+        "usCyToFyPrimaryUsd": js_round(us_cy_total * 9 / 12),
+        "usCyToFyNextUsd": js_round(us_cy_total * 3 / 12),
     }
 
 

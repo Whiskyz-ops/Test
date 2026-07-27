@@ -2,9 +2,13 @@
 distribution penalty. Port of prototypes/graph-pilot/us5-nodes.js.
 
 `baseYear` is an EXPLICIT BOUNDARY INPUT (reads `ctx["model"]...`) —
-closed later once metaResult is wired into the final graph, same
-deferred-boundary discipline as us1_penalty_2210.py's ctx["computed"]
-reads.
+closed in `core/orchestration.py`, which overrides it to the real
+`metaResult["baseYear"]`. This one was missed in that file's original
+closure pass (a distinct id from `baseYearUs`, which WAS closed there from
+the start) — found and fixed via `run-js-dag-vs-py-dag.js`'s cross-check
+against the real JS DAG (a taxpayer's age at year-end came out one year
+too low for any base year other than 2025, the node's own hardcoded
+fallback).
 """
 from __future__ import annotations
 
