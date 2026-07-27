@@ -2797,6 +2797,15 @@
                     <div id="div-rsu-list" class="grid grid-cols-1 gap-4"></div>
                 </div>
 
+                <!-- ESPP Purchases -->
+                <div class="p-5 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-4">
+                    <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                        <span class="text-xs font-bold text-brandCyan">Employee Stock Purchase Plan (ESPP) Purchases</span>
+                        <button onclick="addEsppRow()" class="px-2 py-0.5 bg-white/10 rounded text-[9px] uppercase tracking-wider text-white/60 hover:text-brandCyan transition-all">+ Add purchase</button>
+                    </div>
+                    <div id="div-espp-list" class="grid grid-cols-1 gap-4"></div>
+                </div>
+
                 <!-- Section 83b -->
                 <div class="p-5 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-4">
                     <div class="flex justify-between items-center border-b border-white/5 pb-2">
@@ -5424,7 +5433,22 @@
                                 "gross_income_usd": 0
                         }
                 ],
-                "espp_purchases": [],
+                "espp_purchases": [
+                        {
+                                "company_name": null,
+                                "offering_date": null,
+                                "purchase_date": null,
+                                "fmv_at_offering_usd": 0,
+                                "fmv_at_purchase_usd": 0,
+                                "purchase_price_usd": 0,
+                                "shares_purchased": 0,
+                                "sale_date": null,
+                                "sale_price_usd": 0,
+                                "disposition_type": null,
+                                "ordinary_income_usd": 0,
+                                "capital_gain_loss_usd": 0
+                        }
+                ],
                 "unvested_restricted_stock_awards": [
                         {
                                 "company_name": null,
@@ -17943,6 +17967,178 @@ div.innerHTML = `
         saveStateAndSync();
     }
 
+    function addEsppRow(data = null) {
+        const rowId = 'espp-' + Date.now() + Math.random().toString(36).substring(2, 5);
+        const list = document.getElementById('div-espp-list');
+        if (!list) return;
+
+        const div = document.createElement('div');
+        div.id = rowId;
+        div.className = "espp-card p-3 bg-black/40 border border-white/10 rounded-xl relative flex flex-col gap-2 shadow-md mb-2 group";
+        div.innerHTML = `
+            <button onclick="removeEsppRow('${rowId}')" class="absolute top-2 right-2 text-brandRed/40 hover:text-brandRed font-bold font-sans p-1 z-10 transition-colors">✕</button>
+            <div class="espp-accordion flex flex-col gap-1">
+              <details class="group border border-white/8 rounded-xl" open>
+                <summary class="flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-white/5 rounded-xl transition-colors list-none" onclick="toggleAccordion('${rowId}-espp', '${rowId}-espp-chev')">
+                  <span class="text-[9px] font-black uppercase tracking-widest text-brandCyan flex items-center gap-2">
+                    📈 <span>ESPP Purchase Details</span>
+                  </span>
+                  <svg id="${rowId}-espp-chev" class="w-3.5 h-3.5 text-white/30 transition-transform duration-300 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div id="${rowId}-espp" class="px-3 pb-3 pt-2 flex flex-col gap-3 border-t border-white/5 transition-all duration-300">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pr-6">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Company Name</label>
+                            <input type="text" class="espp-comp w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" placeholder="e.g. Salesforce" oninput="syncEsppState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Offering (Grant) Date</label>
+                            <input type="date" class="espp-offering w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" onchange="syncEsppState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Purchase Date</label>
+                            <input type="date" class="espp-purchase w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" onchange="syncEsppState()">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 pr-6">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">FMV at Offering (USD/sh)</label>
+                            <input type="text" inputmode="numeric" class="espp-fmv-offering w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncEsppState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">FMV at Purchase (USD/sh)</label>
+                            <input type="text" inputmode="numeric" class="espp-fmv-purchase w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncEsppState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Purchase Price Paid (USD/sh)</label>
+                            <input type="text" inputmode="numeric" class="espp-price w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncEsppState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Shares Purchased</label>
+                            <input type="text" inputmode="numeric" class="espp-shares w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncEsppState()">
+                        </div>
+                    </div>
+                    <div class="text-[8px] font-bold text-white/50 uppercase border-b border-white/5 pb-1 mt-1">If Sold This Year</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pr-6">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Sale Date (leave blank if still held)</label>
+                            <input type="date" class="espp-sale-date w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" onchange="syncEsppState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Sale Price (USD/sh)</label>
+                            <input type="text" inputmode="numeric" class="espp-sale-price w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncEsppState()">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pr-6">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-brandCyan mb-1">Disposition</label>
+                            <input type="text" class="espp-disposition w-full bg-white/5 border border-white/5 rounded-lg text-xs text-white/50 px-3 py-1.5" placeholder="Held" disabled>
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-brandCyan mb-1">Ordinary Income (W-2 Portion)</label>
+                            <input type="text" inputmode="numeric" class="espp-income w-full bg-white/5 border border-white/5 rounded-lg text-xs text-white/50 px-3 py-1.5 font-mono" placeholder="0" disabled>
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-brandCyan mb-1">Capital Gain/Loss</label>
+                            <input type="text" inputmode="numeric" class="espp-capgain w-full bg-white/5 border border-white/5 rounded-lg text-xs text-white/50 px-3 py-1.5 font-mono" placeholder="0" disabled>
+                        </div>
+                    </div>
+                </div>
+              </details>
+            </div>
+        `;
+        list.appendChild(div);
+
+        if (data) {
+            if (div.querySelector('.espp-comp')) div.querySelector('.espp-comp').value = data.company_name || '';
+            if (div.querySelector('.espp-offering')) div.querySelector('.espp-offering').value = data.offering_date || '';
+            if (div.querySelector('.espp-purchase')) div.querySelector('.espp-purchase').value = data.purchase_date || '';
+            if (div.querySelector('.espp-fmv-offering')) div.querySelector('.espp-fmv-offering').value = data.fmv_at_offering_usd || '';
+            if (div.querySelector('.espp-fmv-purchase')) div.querySelector('.espp-fmv-purchase').value = data.fmv_at_purchase_usd || '';
+            if (div.querySelector('.espp-price')) div.querySelector('.espp-price').value = data.purchase_price_usd || '';
+            if (div.querySelector('.espp-shares')) div.querySelector('.espp-shares').value = data.shares_purchased || '';
+            if (div.querySelector('.espp-sale-date')) div.querySelector('.espp-sale-date').value = data.sale_date || '';
+            if (div.querySelector('.espp-sale-price')) div.querySelector('.espp-sale-price').value = data.sale_price_usd || '';
+        }
+        syncEsppState();
+    }
+
+    function removeEsppRow(id) {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+        syncEsppState();
+    }
+
+    // ESPP disposition mechanics (IRC §423 qualified plans):
+    // - Qualifying disposition (held >=2yr from offering date AND >=1yr from
+    //   purchase date): ordinary income = lesser of (actual gain) or (FMV at
+    //   offering date - purchase price); remainder is long-term capital gain.
+    // - Disqualifying disposition (sold before either holding period is met):
+    //   ordinary income = lesser of (actual gain) or (FMV at purchase date -
+    //   purchase price) - the same "capped at actual gain" rule also covers
+    //   the case where the stock dropped after purchase, so a sale at a loss
+    //   never produces phantom ordinary income.
+    // - Not yet sold: nothing recognized this year.
+    function syncEsppState() {
+        const list = [];
+        document.querySelectorAll('.espp-card').forEach(div => {
+            const offeringDate = div.querySelector('.espp-offering').value;
+            const purchaseDate = div.querySelector('.espp-purchase').value;
+            const saleDate = div.querySelector('.espp-sale-date').value;
+            const fmvOffering = parseFormattedNumber(div.querySelector('.espp-fmv-offering').value) || 0;
+            const fmvPurchase = parseFormattedNumber(div.querySelector('.espp-fmv-purchase').value) || 0;
+            const purchasePrice = parseFormattedNumber(div.querySelector('.espp-price').value) || 0;
+            const shares = parseFormattedNumber(div.querySelector('.espp-shares').value) || 0;
+            const salePrice = parseFormattedNumber(div.querySelector('.espp-sale-price').value) || 0;
+
+            let dispositionType = 'held';
+            let ordinaryIncomePerShare = 0;
+            let capGainPerShare = 0;
+
+            if (saleDate) {
+                const actualGainPerShare = salePrice - purchasePrice;
+                let isQualifying = false;
+                if (offeringDate && purchaseDate) {
+                    const twoYearsFromOffering = new Date(offeringDate);
+                    twoYearsFromOffering.setFullYear(twoYearsFromOffering.getFullYear() + 2);
+                    const oneYearFromPurchase = new Date(purchaseDate);
+                    oneYearFromPurchase.setFullYear(oneYearFromPurchase.getFullYear() + 1);
+                    const saleDateObj = new Date(saleDate);
+                    isQualifying = saleDateObj >= twoYearsFromOffering && saleDateObj >= oneYearFromPurchase;
+                }
+                dispositionType = isQualifying ? 'qualifying' : 'disqualifying';
+                const ordinaryIncomeCapPerShare = isQualifying ? (fmvOffering - purchasePrice) : (fmvPurchase - purchasePrice);
+                ordinaryIncomePerShare = Math.max(0, Math.min(actualGainPerShare, ordinaryIncomeCapPerShare));
+                capGainPerShare = actualGainPerShare - ordinaryIncomePerShare;
+            }
+
+            const ordinaryIncome = ordinaryIncomePerShare * shares;
+            const capGain = capGainPerShare * shares;
+            const dispositionLabel = { held: 'Held', qualifying: 'Qualifying', disqualifying: 'Disqualifying' }[dispositionType];
+            if (div.querySelector('.espp-disposition')) div.querySelector('.espp-disposition').value = dispositionLabel;
+            if (div.querySelector('.espp-income')) div.querySelector('.espp-income').value = ordinaryIncome.toFixed(2);
+            if (div.querySelector('.espp-capgain')) div.querySelector('.espp-capgain').value = capGain.toFixed(2);
+
+            list.push({
+                company_name: div.querySelector('.espp-comp').value || null,
+                offering_date: offeringDate || null,
+                purchase_date: purchaseDate || null,
+                fmv_at_offering_usd: parseFormattedNumber(div.querySelector('.espp-fmv-offering').value) || null,
+                fmv_at_purchase_usd: parseFormattedNumber(div.querySelector('.espp-fmv-purchase').value) || null,
+                purchase_price_usd: parseFormattedNumber(div.querySelector('.espp-price').value) || null,
+                shares_purchased: parseFormattedNumber(div.querySelector('.espp-shares').value) || null,
+                sale_date: saleDate || null,
+                sale_price_usd: parseFormattedNumber(div.querySelector('.espp-sale-price').value) || null,
+                disposition_type: dispositionType,
+                ordinary_income_usd: ordinaryIncome,
+                capital_gain_loss_usd: capGain
+            });
+        });
+        usState.equity_compensation.espp_purchases = list;
+        recalculateDerivedFields();
+        saveStateAndSync();
+    }
+
     function addS83bRow(data = null) {
         const rowId = 's83b-' + Date.now() + Math.random().toString(36).substring(2, 5);
         const list = document.getElementById('div-s83b-list');
@@ -19794,6 +19990,7 @@ div.innerHTML = `
             document.getElementById('div-iso-list').innerHTML = '';
             document.getElementById('div-nso-list').innerHTML = '';
             document.getElementById('div-rsu-list').innerHTML = '';
+            document.getElementById('div-espp-list').innerHTML = '';
             document.getElementById('div-s83b-list').innerHTML = '';
             document.getElementById('div-bank-list').innerHTML = '';
             document.getElementById('div-holding-list').innerHTML = '';
@@ -20023,7 +20220,8 @@ div.innerHTML = `
                     setupRetirement: !!(savedState.retirement_accounts && Object.keys(savedState.retirement_accounts).some((k) => (savedState.retirement_accounts[k] || 0) > 0)),
                     setupEquity: !!(savedState.equity_compensation && (
                         (savedState.equity_compensation.iso_exercises && savedState.equity_compensation.iso_exercises.length) ||
-                        (savedState.equity_compensation.rsu_vestings && savedState.equity_compensation.rsu_vestings.length)
+                        (savedState.equity_compensation.rsu_vestings && savedState.equity_compensation.rsu_vestings.length) ||
+                        (savedState.equity_compensation.espp_purchases && savedState.equity_compensation.espp_purchases.length)
                     ))
                 };
                 const updateCardUI = (id, checked) => {
@@ -20161,6 +20359,7 @@ div.innerHTML = `
             if (savedState.equity_compensation && savedState.equity_compensation.iso_exercises) usState.equity_compensation.iso_exercises = savedState.equity_compensation.iso_exercises;
             if (savedState.equity_compensation && savedState.equity_compensation.nso_exercises) usState.equity_compensation.nso_exercises = savedState.equity_compensation.nso_exercises;
             if (savedState.equity_compensation && savedState.equity_compensation.rsu_vestings) usState.equity_compensation.rsu_vestings = savedState.equity_compensation.rsu_vestings;
+            if (savedState.equity_compensation && savedState.equity_compensation.espp_purchases) usState.equity_compensation.espp_purchases = savedState.equity_compensation.espp_purchases;
             if (savedState.equity_compensation && savedState.equity_compensation.unvested_restricted_stock_awards) usState.equity_compensation.unvested_restricted_stock_awards = savedState.equity_compensation.unvested_restricted_stock_awards;
             if (savedState.real_estate && savedState.real_estate.properties) usState.real_estate.properties = savedState.real_estate.properties;
             if (savedState.foreign_entities && savedState.foreign_entities.pfic_holdings) usState.foreign_entities.pfic_holdings = savedState.foreign_entities.pfic_holdings;
@@ -20445,6 +20644,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             document.getElementById('div-iso-list').innerHTML = '';
             document.getElementById('div-nso-list').innerHTML = '';
             document.getElementById('div-rsu-list').innerHTML = '';
+            document.getElementById('div-espp-list').innerHTML = '';
             document.getElementById('div-s83b-list').innerHTML = '';
             document.getElementById('div-bank-list').innerHTML = '';
             document.getElementById('div-holding-list').innerHTML = '';
@@ -20468,6 +20668,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             if (usState.equity_compensation && usState.equity_compensation.iso_exercises) usState.equity_compensation.iso_exercises.forEach(x => addIsoRow(x));
             if (usState.equity_compensation && usState.equity_compensation.nso_exercises) usState.equity_compensation.nso_exercises.forEach(x => addNsoRow(x));
             if (usState.equity_compensation && usState.equity_compensation.rsu_vestings) usState.equity_compensation.rsu_vestings.forEach(x => addRsuRow(x));
+            if (usState.equity_compensation && usState.equity_compensation.espp_purchases) usState.equity_compensation.espp_purchases.forEach(x => addEsppRow(x));
             if (usState.equity_compensation && usState.equity_compensation.unvested_restricted_stock_awards) usState.equity_compensation.unvested_restricted_stock_awards.forEach(x => addS83bRow(x));
             if (usState.bank_accounts) usState.bank_accounts.forEach(x => addBankRow(x));
             if (usState.foreign_entities && usState.foreign_entities.pfic_holdings) usState.foreign_entities.pfic_holdings.forEach(x => addHoldingRow(x));
