@@ -449,6 +449,14 @@ var KNOWN_US_ENTITY_DIVERGENT_PATHS = [
   "ftcReport.direction_india_relief"
 ];
 var KNOWN_INDIA_ENTITY_DIVERGENT_PATHS = ["taxComputation.india"];
+// Unconditional, applies to every profile: model.income.us.
+// foreignSection988GainLoss is a brand-new field (IRC 988(a)(1)
+// foreign-currency ordinary gain/loss, wired in during the Step 6
+// field-completeness audit) the frozen legacy engine has no concept of at
+// all -- a structural key-presence difference, not a value bug. None of
+// the fuzz corpus's profiles populate section_988_gains_losses, so this
+// never cascades into an actual dollar difference anywhere downstream.
+var KNOWN_ALWAYS_DIVERGENT_PATHS = ["model.income.us.foreignSection988GainLoss"];
 var KNOWN_NRA_DIVERGENT_PATHS = ["computed.ftc.india", "ftcReport.direction_india_relief"];
 // ---- H.6: India AOP/BOI and Trust/NGO/Political Party (docs/GAP_TRACKER.md
 // section H.6, 21 Jul 2026) — a WIDER divergence than the company/firm case
@@ -698,6 +706,7 @@ function compareOne(label, profile, saveOnFail) {
   // strictly on the profile's actual taxpayer shape (never on label or any
   // other signal).
   var allowedPaths = []
+    .concat(KNOWN_ALWAYS_DIVERGENT_PATHS)
     .concat(usEntity ? KNOWN_US_ENTITY_DIVERGENT_PATHS : [])
     .concat(isIndiaEntityProfile(dag) ? KNOWN_INDIA_ENTITY_DIVERGENT_PATHS : [])
     .concat(isNraProfile(dag) ? KNOWN_NRA_DIVERGENT_PATHS : [])

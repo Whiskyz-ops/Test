@@ -114,11 +114,13 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     f_p = inc["foreignPension"]["usd"] if worldwide else 0
     f_stcg = inc["foreignStcg"]["usd"] if worldwide else 0
     f_ltcg = inc["foreignLtcg"]["usd"] if worldwide else 0
+    # IRC 988(a)(1): foreign-currency gain/loss is ORDINARY (not capital).
+    f_988 = (inc["foreignSection988GainLoss"]["usd"] if inc.get("foreignSection988GainLoss") else 0) if worldwide else 0
 
     non_qual_div_us = max(0.0, inc["ordinaryDividendsUs"]["usd"] - inc["qualifiedDividendsUs"]["usd"])
     ordinary_income_excl_ss = (
         inc["wages"]["usd"] + f_w + f_se + (inc.get("businessUs", {}).get("usd", 0) if inc.get("businessUs") else 0) + inc["interestUs"]["usd"] + f_i +
-        non_qual_div_us + f_d + inc["stcgUs"]["usd"] + f_stcg + inc["rentalUs"]["usd"] + f_r + f_p +
+        non_qual_div_us + f_d + inc["stcgUs"]["usd"] + f_stcg + inc["rentalUs"]["usd"] + f_r + f_p + f_988 +
         (inc["usRetirementIncomeExclSs"]["usd"] if inc.get("usRetirementIncomeExclSs") else (inc.get("usRetirementIncome", {}).get("usd", 0) if inc.get("usRetirementIncome") else 0))
     )
     preferential_income = inc["ltcgUs"]["usd"] + f_ltcg + inc["qualifiedDividendsUs"]["usd"]
@@ -276,7 +278,7 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
             "availableUsd": ctc_available_usd, "nonRefundableUsd": ctc_non_refundable_usd, "refundableUsd": ctc_refundable_usd,
             "earnedIncomeUsd": earned_income_usd,
         },
-        "foreignSourceIncomeUsd": f_w + f_se + f_i + f_d + f_r + f_p + f_stcg + f_ltcg,
+        "foreignSourceIncomeUsd": f_w + f_se + f_i + f_d + f_r + f_p + f_stcg + f_ltcg + f_988,
         "retirementEpfInterestUsd": (inc.get("retirementEpfInterestUsd") or 0) if worldwide else 0,
         "retirementNpsWithdrawalUsd": (inc.get("retirementNpsWithdrawalUsd") or 0) if worldwide else 0,
         "niitDetail": {

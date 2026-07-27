@@ -330,6 +330,10 @@
         "total": {
           "usd": 296,
           "inr": 24568
+        },
+        "foreignSection988GainLoss": {
+          "usd": 0,
+          "inr": 0
         }
       }
     },
@@ -875,7 +879,7 @@
     "stateTax": null,
     "indiaItrForm": {
       "form": "ITR-1 (SAHAJ)",
-      "explanation": "For Resident Salaried Individuals with total income up to ₹50 Lakhs (Salary, up to 2 house properties, basic other sources). Restrictions: no foreign assets/income, no capital gains beyond the s.198-only allowance, no directorships.",
+      "explanation": "For Resident Salaried Individuals with total income up to \u20b950 Lakhs (Salary, up to 2 house properties, basic other sources). Restrictions: no foreign assets/income, no capital gains beyond the s.198-only allowance, no directorships.",
       "disqualified": false,
       "disqualifiers": [],
       "totalIncomeInr": 8000,
@@ -889,26 +893,26 @@
         {
           "head": "interest",
           "label": "Interest",
-          "dir": "IN→US",
+          "dir": "IN\u2192US",
           "source": "India",
           "indiaLawUsd": 96,
           "usLawUsd": 96,
           "sameBase": true,
-          "indiaRule": "Slab ≤ 30%",
-          "usRule": "Ordinary ≤ 37% (passive FTC basket)",
+          "indiaRule": "Slab \u2264 30%",
+          "usRule": "Ordinary \u2264 37% (passive FTC basket)",
           "doublyTaxed": true,
           "overlapUsd": 96
         },
         {
           "head": "us_interest",
           "label": "US Interest",
-          "dir": "US→IN",
+          "dir": "US\u2192IN",
           "source": "US",
           "indiaLawUsd": 200,
           "usLawUsd": 200,
           "sameBase": true,
-          "indiaRule": "Slab ≤ 30%",
-          "usRule": "Ordinary ≤ 37%",
+          "indiaRule": "Slab \u2264 30%",
+          "usRule": "Ordinary \u2264 37%",
           "doublyTaxed": true,
           "overlapUsd": 200
         }
@@ -918,8 +922,8 @@
       "anyEstimate": false
     },
     "apportionment": {
-      "basis": "even-earning assumption (Apr–Dec vs Jan–Mar)",
-      "fyLabel": "FY 2026–27",
+      "basis": "even-earning assumption (Apr\u2013Dec vs Jan\u2013Mar)",
+      "fyLabel": "FY 2026\u201327",
       "cyPrimary": 2026,
       "cyNext": 2027,
       "indiaFyTotalUsd": 96.3855421686747,
@@ -1003,7 +1007,7 @@
         "pct": 0,
         "status": "ok",
         "unit": "USD",
-        "note": "RBI cap is per individual per financial year; TCS applies above ₹10L."
+        "note": "RBI cap is per individual per financial year; TCS applies above \u20b910L."
       }
     ],
     "headline": {
@@ -1024,9 +1028,9 @@
       "id": "dual_residency",
       "severity": "critical",
       "category": "treaty",
-      "title": "Dual tax residency — Article 4 tie-breaker not yet run",
+      "title": "Dual tax residency \u2014 Article 4 tie-breaker not yet run",
       "detail": "The taxpayer is resident in BOTH India (ROR) and the US (green card) for an overlapping period, and the Layer 1 Article 4 tie-breaker has not been completed. Until it is, both countries assert worldwide taxing rights and only partial FTC relief is available.",
-      "recommendation": "Complete the Layer 1 tie-breaker wizard (permanent home → centre of vital interests → habitual abode → nationality). WISING will then flag Form 8833 (US) and the TRC / Form 41 requirement (India) on the filing checklist for the loser side — actually preparing and filing those remains a manual step.",
+      "recommendation": "Complete the Layer 1 tie-breaker wizard (permanent home \u2192 centre of vital interests \u2192 habitual abode \u2192 nationality). WISING will then flag Form 8833 (US) and the TRC / Form 41 requirement (India) on the filing checklist for the loser side \u2014 actually preparing and filing those remains a manual step.",
       "amountUsd": 96.3855421686747,
       "refs": [
         "DTAA Art. 4",
@@ -1039,8 +1043,8 @@
       "id": "cross_basis_summary",
       "severity": "info",
       "category": "income",
-      "title": "2 income head(s) taxed under both codes — see reconciliation",
-      "detail": "The same income is taxed in India (its own Act) and the US (the IRC): Interest, US Interest. Overlapping exposure of $296 is what the FTC / §159 relief resolves.",
+      "title": "2 income head(s) taxed under both codes \u2014 see reconciliation",
+      "detail": "The same income is taxed in India (its own Act) and the US (the IRC): Interest, US Interest. Overlapping exposure of $296 is what the FTC / \u00a7159 relief resolves.",
       "recommendation": "Open the Cross-Basis Reconciliation on the Filings tab to see each head on both bases, then relieve the overlap via Form 1116 (US) / Form 44 (India).",
       "amountUsd": 296,
       "refs": [
@@ -1053,9 +1057,9 @@
       "id": "form67_required",
       "severity": "info",
       "category": "document",
-      "title": "Form 44 — required for the Indian FTC claim",
+      "title": "Form 44 \u2014 required for the Indian FTC claim",
       "detail": "Foreign income / foreign tax is present, so India requires Form 44 (with Schedule FSI and TR) on or before the ITR due date to allow FTC u/s 90/91.",
-      "recommendation": "WISING flags Form 44 (with Schedule FSI/TR) as required on the filing checklist, using the FSI/TR figures already computed above — actually preparing and e-filing it on the income-tax portal ahead of the ITR due date is still a manual step.",
+      "recommendation": "WISING flags Form 44 (with Schedule FSI/TR) as required on the filing checklist, using the FSI/TR figures already computed above \u2014 actually preparing and e-filing it on the income-tax portal ahead of the ITR due date is still a manual step.",
       "amountUsd": 0,
       "refs": [
         "Form 44",
@@ -1068,13 +1072,13 @@
       "id": "tax_year_mismatch",
       "severity": "info",
       "category": "credit",
-      "title": "Tax-year apportionment: Indian FY ↔ US CY (computed)",
-      "detail": "India taxes Apr–Mar; the US taxes Jan–Dec. WISING splits the Indian FY across US calendar years — $72 into CY2026 and $24 into CY2027 (even-earning assumption (Apr–Dec vs Jan–Mar)) — and apportions the US calendar year into the Indian FY (9/12 + 3/12).",
-      "recommendation": "See the FY ↔ CY Apportionment panel on the Filings tab for the period-matched figures behind Form 44 (India) and Form 1116 (US). Planning-grade — refine with per-transaction dates at filing.",
+      "title": "Tax-year apportionment: Indian FY \u2194 US CY (computed)",
+      "detail": "India taxes Apr\u2013Mar; the US taxes Jan\u2013Dec. WISING splits the Indian FY across US calendar years \u2014 $72 into CY2026 and $24 into CY2027 (even-earning assumption (Apr\u2013Dec vs Jan\u2013Mar)) \u2014 and apportions the US calendar year into the Indian FY (9/12 + 3/12).",
+      "recommendation": "See the FY \u2194 CY Apportionment panel on the Filings tab for the period-matched figures behind Form 44 (India) and Form 1116 (US). Planning-grade \u2014 refine with per-transaction dates at filing.",
       "amountUsd": 0,
       "refs": [
-        "Apr 1 – Mar 31 (Tax Year)",
-        "Jan 1 – Dec 31 (Calendar Year)"
+        "Apr 1 \u2013 Mar 31 (Tax Year)",
+        "Jan 1 \u2013 Dec 31 (Calendar Year)"
       ]
     },
     {
@@ -1146,8 +1150,8 @@
       "id": "form_8621",
       "jurisdiction": "US",
       "name": "IRS Form 8621 (PFIC)",
-      "desc": "Information return for Passive Foreign Investment Companies — one per fund.",
-      "why": "Holdings in Indian mutual funds / ETFs are PFICs and require annual reporting (punitive §1291 regime unless QEF/MTM elected).",
+      "desc": "Information return for Passive Foreign Investment Companies \u2014 one per fund.",
+      "why": "Holdings in Indian mutual funds / ETFs are PFICs and require annual reporting (punitive \u00a71291 regime unless QEF/MTM elected).",
       "severity": "critical",
       "required": false,
       "status": "not_triggered"
@@ -1156,8 +1160,8 @@
       "id": "form_5471",
       "jurisdiction": "US",
       "name": "IRS Form 5471 (CFC)",
-      "desc": "Information return for US persons owning ≥10% of a foreign corporation.",
-      "why": "You own ≥10% of an Indian company — potential Subpart F / GILTI inclusion.",
+      "desc": "Information return for US persons owning \u226510% of a foreign corporation.",
+      "why": "You own \u226510% of an Indian company \u2014 potential Subpart F / GILTI inclusion.",
       "severity": "warning",
       "required": false,
       "status": "not_triggered"
@@ -1216,7 +1220,7 @@
       "id": "form_540",
       "jurisdiction": "US",
       "name": "California Form 540 (Resident Income Tax Return)",
-      "desc": "California state income tax return — computed on worldwide income for a full-year CA resident, including Indian-source income. CA grants no credit for tax paid to a foreign country.",
+      "desc": "California state income tax return \u2014 computed on worldwide income for a full-year CA resident, including Indian-source income. CA grants no credit for tax paid to a foreign country.",
       "why": "State-of-residence facts on file point to California, and CA taxes worldwide income independently of the federal treaty position.",
       "severity": "warning",
       "required": false,
@@ -1226,7 +1230,7 @@
       "id": "form_it201",
       "jurisdiction": "US",
       "name": "New York Form IT-201 (Resident Income Tax Return)",
-      "desc": "New York state income tax return — computed on worldwide income for a full-year NY resident, including Indian-source income. NY grants no credit for tax paid to a foreign country.",
+      "desc": "New York state income tax return \u2014 computed on worldwide income for a full-year NY resident, including Indian-source income. NY grants no credit for tax paid to a foreign country.",
       "why": "State-of-residence facts on file point to New York, and NY taxes worldwide income independently of the federal treaty position.",
       "severity": "warning",
       "required": false,
@@ -1247,7 +1251,7 @@
       "jurisdiction": "IN",
       "name": "Tax Residency Certificate (TRC)",
       "desc": "Issued by the other contracting state (IRS Form 6166 for the US).",
-      "why": "DTAA relief / treaty rate is being claimed — a TRC is mandatory u/s 159(8).",
+      "why": "DTAA relief / treaty rate is being claimed \u2014 a TRC is mandatory u/s 159(8).",
       "severity": "critical",
       "required": true,
       "status": "required"
@@ -1287,7 +1291,7 @@
       "jurisdiction": "IN",
       "name": "Form 145 / Form 146 (was 15CA / 15CB)",
       "desc": "Remittance certificates for foreign outward remittances.",
-      "why": "Outward remittances under LRS / to non-residents were made during the year. Renumbered from Form 15CA/15CB effective 1 Apr 2026 under the Income-tax Rules, 2026 (Rule 220) — the old numbers still apply to remittances made before that date.",
+      "why": "Outward remittances under LRS / to non-residents were made during the year. Renumbered from Form 15CA/15CB effective 1 Apr 2026 under the Income-tax Rules, 2026 (Rule 220) \u2014 the old numbers still apply to remittances made before that date.",
       "severity": "info",
       "required": false,
       "status": "not_triggered"
@@ -1297,7 +1301,7 @@
       "jurisdiction": "IN",
       "name": "Schedule AL (Assets & Liabilities)",
       "desc": "Disclosure of assets and liabilities at cost, filed with the ITR.",
-      "why": "Total income exceeds ₹50 lakh — Schedule AL is mandatory at this threshold u/s 139(1) (ITR-2/3/5 filers).",
+      "why": "Total income exceeds \u20b950 lakh \u2014 Schedule AL is mandatory at this threshold u/s 139(1) (ITR-2/3/5 filers).",
       "severity": "warning",
       "required": false,
       "status": "not_triggered"
@@ -1307,7 +1311,7 @@
       "jurisdiction": "IN",
       "name": "Form 3CB / 3CD (Tax Audit Report)",
       "desc": "Chartered Accountant's tax-audit report and statement of particulars, filed before the ITR due date.",
-      "why": "Business turnover exceeds the s.44AB tax-audit threshold (₹1 crore, or ₹10 crore where cash receipts and payments are each ≤5% of the total).",
+      "why": "Business turnover exceeds the s.44AB tax-audit threshold (\u20b91 crore, or \u20b910 crore where cash receipts and payments are each \u22645% of the total).",
       "severity": "critical",
       "required": false,
       "status": "not_triggered"
@@ -1316,8 +1320,8 @@
       "id": "form_8802",
       "jurisdiction": "US",
       "name": "IRS Form 8802 (Application for US Residency Certification)",
-      "desc": "Application to the IRS for Form 6166 — the US residency certificate India's TRC requirement expects the other contracting state to issue.",
-      "why": "DTAA relief is being claimed on Indian-source income — Form 6166 must be requested via Form 8802 before it can be filed with the Indian TRC/Form 41 paperwork; IRS processing typically takes 4-6+ weeks, so file well ahead of the India due date.",
+      "desc": "Application to the IRS for Form 6166 \u2014 the US residency certificate India's TRC requirement expects the other contracting state to issue.",
+      "why": "DTAA relief is being claimed on Indian-source income \u2014 Form 6166 must be requested via Form 8802 before it can be filed with the Indian TRC/Form 41 paperwork; IRS processing typically takes 4-6+ weeks, so file well ahead of the India due date.",
       "severity": "warning",
       "required": true,
       "status": "required"
@@ -1337,7 +1341,7 @@
       "jurisdiction": "US",
       "name": "IRS Form 8288 / 8288-A / 8288-B (FIRPTA Withholding)",
       "desc": "Withholding certificate and returns for a foreign person's disposition of US real property.",
-      "why": "A US real property interest was disposed of by a foreign person — 15% FIRPTA withholding applies at closing unless a Form 8288-B withholding certificate reduces it.",
+      "why": "A US real property interest was disposed of by a foreign person \u2014 15% FIRPTA withholding applies at closing unless a Form 8288-B withholding certificate reduces it.",
       "severity": "warning",
       "required": false,
       "status": "not_triggered"
@@ -1347,7 +1351,7 @@
       "jurisdiction": "IN",
       "name": "Form 3CEB (Transfer Pricing Certification)",
       "desc": "Chartered Accountant's report on international transactions with associated enterprises, filed before the ITR due date u/s 92E.",
-      "why": "A cross-border related-party ownership relationship is on file — international transactions with that entity must be reported and certified, independent of whether pricing is at arm's length.",
+      "why": "A cross-border related-party ownership relationship is on file \u2014 international transactions with that entity must be reported and certified, independent of whether pricing is at arm's length.",
       "severity": "warning",
       "required": false,
       "status": "not_triggered"
@@ -1356,8 +1360,8 @@
       "id": "form_26as_ais_tis",
       "jurisdiction": "IN",
       "name": "Form 26AS / AIS / TIS",
-      "desc": "Annual tax-credit statement (26AS) and the Annual/Taxpayer Information Statements — the pre-filled record every ITR should be reconciled against before filing.",
-      "why": "Indian income is on file for this taxpayer — TDS, advance tax and reported high-value transactions should be cross-checked against these statements before the return is filed.",
+      "desc": "Annual tax-credit statement (26AS) and the Annual/Taxpayer Information Statements \u2014 the pre-filled record every ITR should be reconciled against before filing.",
+      "why": "Indian income is on file for this taxpayer \u2014 TDS, advance tax and reported high-value transactions should be cross-checked against these statements before the return is filed.",
       "severity": "info",
       "required": true,
       "status": "required"
@@ -1367,7 +1371,7 @@
       "jurisdiction": "IN",
       "name": "Form 16 / Form 16A (TDS Certificates)",
       "desc": "Salary (Form 16) and non-salary (Form 16A) TDS certificates issued by each deductor.",
-      "why": "Indian income subject to TDS is on file — hold the certificate from each deductor to reconcile against Form 26AS/AIS and support the credit claimed in the ITR.",
+      "why": "Indian income subject to TDS is on file \u2014 hold the certificate from each deductor to reconcile against Form 26AS/AIS and support the credit claimed in the ITR.",
       "severity": "info",
       "required": true,
       "status": "required"
@@ -1377,7 +1381,7 @@
       "jurisdiction": "IN",
       "name": "LRS Form A2 (Outward Remittance Declaration)",
       "desc": "Declaration furnished to the remitting bank for each outward remittance under the Liberalised Remittance Scheme.",
-      "why": "Outward remittances under LRS were made this year — each remittance requires its own Form A2 filed with the bank at the time of transfer, separate from the annual Form 145/146 (was 15CA/15CB) return-time reporting.",
+      "why": "Outward remittances under LRS were made this year \u2014 each remittance requires its own Form A2 filed with the bank at the time of transfer, separate from the annual Form 145/146 (was 15CA/15CB) return-time reporting.",
       "severity": "info",
       "required": false,
       "status": "not_triggered"
@@ -1387,7 +1391,7 @@
       "jurisdiction": "US",
       "name": "IRS Form 4868 (Extension Request)",
       "desc": "Automatic 6-month extension of time to file (not to pay) the US return.",
-      "why": "Must be filed by the original due date to legally reach the extended deadline already on your Compliance Calendar — the extension does not happen automatically.",
+      "why": "Must be filed by the original due date to legally reach the extended deadline already on your Compliance Calendar \u2014 the extension does not happen automatically.",
       "severity": "info",
       "required": true,
       "status": "required"
@@ -1395,14 +1399,14 @@
   ],
   "ftcReport": {
     "direction_us_claims_india": {
-      "title": "US Form 1116 — credit for Indian taxes",
+      "title": "US Form 1116 \u2014 credit for Indian taxes",
       "rows": [
         {
           "label": "Indian income tax (creditable)",
           "usd": 0,
           "trace": {
             "kind": "calc",
-            "formula": "Total India tax × creditable fraction (gross Indian income less any FEIE-excluded slice, over gross Indian income)",
+            "formula": "Total India tax \u00d7 creditable fraction (gross Indian income less any FEIE-excluded slice, over gross Indian income)",
             "parts": [
               {
                 "label": "Total India tax (from Tax Computation)",
@@ -1445,7 +1449,7 @@
           "usd": 0,
           "trace": {
             "kind": "calc",
-            "formula": "Ordinary-rate tax + preferential LTCG/QDI tax only — NIIT, Additional Medicare, SE tax and AMT are excluded, they're not creditable against foreign tax by statute",
+            "formula": "Ordinary-rate tax + preferential LTCG/QDI tax only \u2014 NIIT, Additional Medicare, SE tax and AMT are excluded, they're not creditable against foreign tax by statute",
             "parts": [
               {
                 "label": "Ordinary-rate tax",
@@ -1460,11 +1464,11 @@
           }
         },
         {
-          "label": "FTC limitation = US tax × foreign/taxable",
+          "label": "FTC limitation = US tax \u00d7 foreign/taxable",
           "usd": 0,
           "trace": {
             "kind": "calc",
-            "formula": "§904(a): the credit can't exceed US tax on this income times the same proportion foreign-source income bears to total taxable income",
+            "formula": "\u00a7904(a): the credit can't exceed US tax on this income times the same proportion foreign-source income bears to total taxable income",
             "parts": [
               {
                 "label": "US income tax (pre-credit)",
@@ -1488,7 +1492,7 @@
           "emphasis": true,
           "trace": {
             "kind": "calc",
-            "formula": "Lesser of Indian tax paid and the §904 limitation",
+            "formula": "Lesser of Indian tax paid and the \u00a7904 limitation",
             "parts": [
               {
                 "label": "Indian income tax (creditable)",
@@ -1503,11 +1507,11 @@
           }
         },
         {
-          "label": "Excess credit carried over (§904(c))",
+          "label": "Excess credit carried over (\u00a7904(c))",
           "usd": 0,
           "trace": {
             "kind": "calc",
-            "formula": "Indian tax paid in excess of what the §904 limitation allows this year — carries back 1 year / forward 10 years",
+            "formula": "Indian tax paid in excess of what the \u00a7904 limitation allows this year \u2014 carries back 1 year / forward 10 years",
             "parts": [
               {
                 "label": "Indian income tax (creditable)",
@@ -1527,7 +1531,7 @@
           "warn": true,
           "trace": {
             "kind": "calc",
-            "formula": "Same as the excess credit carried over — until it's actually used in a future year this is double taxation the credit hasn't relieved yet",
+            "formula": "Same as the excess credit carried over \u2014 until it's actually used in a future year this is double taxation the credit hasn't relieved yet",
             "parts": [
               {
                 "label": "Excess credit carried over",
@@ -1540,7 +1544,7 @@
       ]
     },
     "direction_india_relief": {
-      "title": "India §159 relief — for US taxes on doubly-taxed income",
+      "title": "India \u00a7159 relief \u2014 for US taxes on doubly-taxed income",
       "rows": [
         {
           "label": "US-source income (foreign, India view)",
@@ -1556,7 +1560,7 @@
           "usd": 0,
           "trace": {
             "kind": "calc",
-            "formula": "US income tax × (US-source income ÷ total US income) — the slice of US tax attributable to income India also taxes",
+            "formula": "US income tax \u00d7 (US-source income \u00f7 total US income) \u2014 the slice of US tax attributable to income India also taxes",
             "parts": [
               {
                 "label": "US income tax (pre-credit)",
@@ -1579,7 +1583,7 @@
           "usd": 0,
           "trace": {
             "kind": "calc",
-            "formula": "Total India tax × (US-source income ÷ total India-view income) — s.159 relief can never exceed the Indian tax actually attributable to that income",
+            "formula": "Total India tax \u00d7 (US-source income \u00f7 total India-view income) \u2014 s.159 relief can never exceed the Indian tax actually attributable to that income",
             "parts": [
               {
                 "label": "Total India tax",
@@ -1598,7 +1602,7 @@
           }
         },
         {
-          "label": "§90 relief allowed",
+          "label": "\u00a790 relief allowed",
           "usd": 0,
           "emphasis": true,
           "trace": {
@@ -1640,7 +1644,7 @@
           "inr": 0,
           "trace": {
             "kind": "calc",
-            "formula": "New regime allows only the employer's NPS contribution under s.124(2) — s.123/126/124(1B)/153 etc. are not available",
+            "formula": "New regime allows only the employer's NPS contribution under s.124(2) \u2014 s.123/126/124(1B)/153 etc. are not available",
             "parts": [
               {
                 "label": "Employer NPS contribution (s.124(2))",
@@ -1674,10 +1678,10 @@
           "inr": 0,
           "trace": {
             "kind": "calc",
-            "formula": "Progressive slab-rate tax under the NEW regime, applied to ₹8,000 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
+            "formula": "Progressive slab-rate tax under the NEW regime, applied to \u20b98,000 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
             "parts": [
               {
-                "label": "0% on ₹0–₹4,00,000",
+                "label": "0% on \u20b90\u2013\u20b94,00,000",
                 "amount": 0
               }
             ],
@@ -1689,17 +1693,17 @@
           "inr": 0,
           "trace": {
             "kind": "calc",
-            "formula": "s.196 STCG @ 20% + s.198 LTCG @ 12.5% (listed/STT-paid, net of the ₹1,25,000 exemption) + s.197 LTCG @ 12.5% (unlisted/foreign — no exemption, separate section, does not pool with s.198's threshold) + s.115BBH VDA/crypto @ 30% flat (no set-off, ever) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption (each broken out below)",
+            "formula": "s.196 STCG @ 20% + s.198 LTCG @ 12.5% (listed/STT-paid, net of the \u20b91,25,000 exemption) + s.197 LTCG @ 12.5% (unlisted/foreign \u2014 no exemption, separate section, does not pool with s.198's threshold) + s.115BBH VDA/crypto @ 30% flat (no set-off, ever) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption (each broken out below)",
             "parts": [],
             "citation": null
           }
         },
         {
-          "label": "Less §156 rebate",
+          "label": "Less \u00a7156 rebate",
           "inr": 0,
           "trace": {
             "kind": "calc",
-            "formula": "Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold — lesser of tax at slab rates and the statutory cap",
+            "formula": "Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold \u2014 lesser of tax at slab rates and the statutory cap",
             "parts": [
               {
                 "label": "Statutory rebate cap",
@@ -1736,7 +1740,7 @@
             "formula": "4% of (tax after rebate + surcharge)",
             "parts": [
               {
-                "label": "Tax after §156 rebate",
+                "label": "Tax after \u00a7156 rebate",
                 "amount": 0
               },
               {
@@ -1757,7 +1761,7 @@
           "emphasis": true,
           "trace": {
             "kind": "calc",
-            "formula": "Tax at slab rates + tax on special-rate income − §156 rebate + surcharge + cess",
+            "formula": "Tax at slab rates + tax on special-rate income \u2212 \u00a7156 rebate + surcharge + cess",
             "parts": [
               {
                 "label": "Tax at slab rates",
@@ -1768,7 +1772,7 @@
                 "amount": 0
               },
               {
-                "label": "Less §156 rebate",
+                "label": "Less \u00a7156 rebate",
                 "amount": 0
               },
               {
@@ -1824,7 +1828,7 @@
           "usd": -16100,
           "trace": {
             "kind": "calc",
-            "formula": "Standard deduction for filing status SINGLE — used because it exceeds (or the taxpayer elected) itemizing",
+            "formula": "Standard deduction for filing status SINGLE \u2014 used because it exceeds (or the taxpayer elected) itemizing",
             "parts": [
               {
                 "label": "Deduction used",
@@ -1835,11 +1839,11 @@
           }
         },
         {
-          "label": "Less senior deduction (OBBBA §70103, age 65+)",
+          "label": "Less senior deduction (OBBBA \u00a770103, age 65+)",
           "usd": -6000,
           "trace": {
             "kind": "calc",
-            "formula": "$6,000 for a taxpayer age 65+ by year end (TY2025-2028, temporary), on top of the standard/itemized deduction either way, phased out 6¢/$1 of AGI over $75,000. Only the primary taxpayer's age is known — Layer 1 collects no spouse DOB, so a second $6,000 for an also-65+ spouse isn't modeled.",
+            "formula": "$6,000 for a taxpayer age 65+ by year end (TY2025-2028, temporary), on top of the standard/itemized deduction either way, phased out 6\u00a2/$1 of AGI over $75,000. Only the primary taxpayer's age is known \u2014 Layer 1 collects no spouse DOB, so a second $6,000 for an also-65+ spouse isn't modeled.",
             "parts": [
               {
                 "label": "Taxpayer age",
@@ -1906,11 +1910,11 @@
           }
         },
         {
-          "label": "Net investment income tax (NIIT, §1411)",
+          "label": "Net investment income tax (NIIT, \u00a71411)",
           "usd": 0,
           "trace": {
             "kind": "calc",
-            "formula": "Zero — either no net investment income, or MAGI doesn't exceed the filing-status threshold",
+            "formula": "Zero \u2014 either no net investment income, or MAGI doesn't exceed the filing-status threshold",
             "parts": [],
             "citation": null
           }
@@ -1920,7 +1924,7 @@
           "usd": 0,
           "trace": {
             "kind": "source",
-            "detail": "Computed directly on Layer 1 US (Form 8959) and taken as-is — the engine does not recompute it.",
+            "detail": "Computed directly on Layer 1 US (Form 8959) and taken as-is \u2014 the engine does not recompute it.",
             "citation": null
           }
         },
@@ -1930,7 +1934,7 @@
           "emphasis": true,
           "trace": {
             "kind": "calc",
-            "formula": "Income tax (ordinary + preferential) + NIIT + Additional Medicare tax + SE tax + AMT − non-refundable credits",
+            "formula": "Income tax (ordinary + preferential) + NIIT + Additional Medicare tax + SE tax + AMT \u2212 non-refundable credits",
             "parts": [
               {
                 "label": "Income tax (ordinary + preferential)",
@@ -1987,7 +1991,7 @@
       "area": "India",
       "kind": "excluded",
       "title": "GAAR is not evaluated",
-      "body": "India's General Anti-Avoidance Rule can recharacterize arrangements that lack commercial substance — a facts-and-circumstances judgment no rules engine can safely make. WISING flags mechanical conflicts only; whether an arrangement invites GAAR scrutiny remains a professional call."
+      "body": "India's General Anti-Avoidance Rule can recharacterize arrangements that lack commercial substance \u2014 a facts-and-circumstances judgment no rules engine can safely make. WISING flags mechanical conflicts only; whether an arrangement invites GAAR scrutiny remains a professional call."
     },
     {
       "id": "scope_clubbing",
@@ -2001,21 +2005,21 @@
       "area": "Cross-border",
       "kind": "excluded",
       "title": "FATCA Chapter 4 withholding is institution-side",
-      "body": "The 30% FATCA withholding regime (IRC §§1471-1474) applies to payments to non-compliant foreign financial institutions — banks' problem, not yours directly. Where it touches an individual is the US-person self-certification banks request, which is tracked with your documents."
+      "body": "The 30% FATCA withholding regime (IRC \u00a7\u00a71471-1474) applies to payments to non-compliant foreign financial institutions \u2014 banks' problem, not yours directly. Where it touches an individual is the US-person self-certification banks request, which is tracked with your documents."
     },
     {
       "id": "scope_mocked_uploads",
       "area": "App",
       "kind": "excluded",
       "title": "Document-upload extraction is simulated",
-      "body": "Every \"upload to auto-fill\" feature in Layer 1 (Form 26AS, Lower-TDS certificate, bank statements, property documents) is a demo simulation with representative values — not live OCR. Figures sourced from an upload should be treated as manually-entered until real extraction ships."
+      "body": "Every \"upload to auto-fill\" feature in Layer 1 (Form 26AS, Lower-TDS certificate, bank statements, property documents) is a demo simulation with representative values \u2014 not live OCR. Figures sourced from an upload should be treated as manually-entered until real extraction ships."
     },
     {
       "id": "scope_mli",
       "area": "Cross-border",
       "kind": "assurance",
       "title": "MLI does not affect the India-US treaty",
-      "body": "The US never signed the OECD Multilateral Instrument, so the India-US DTAA text is untouched by it — unlike India's treaties with the UK, Netherlands, or Singapore. Verified; nothing to apply."
+      "body": "The US never signed the OECD Multilateral Instrument, so the India-US DTAA text is untouched by it \u2014 unlike India's treaties with the UK, Netherlands, or Singapore. Verified; nothing to apply."
     },
     {
       "id": "scope_dtaa_current",
@@ -2032,15 +2036,15 @@
       "matchesFrontend": null,
       "trace": {
         "kind": "source",
-        "detail": "For Resident Salaried Individuals with total income up to ₹50 Lakhs (Salary, up to 2 house properties, basic other sources). Restrictions: no foreign assets/income, no capital gains beyond the s.198-only allowance, no directorships. Layer 1 India hasn't produced its own recommendation for this profile (itr_recommendation.form is unset) — this is WISING's own independent computation, run unconditionally, not a hedge pending the frontend.",
-        "citation": "CBDT notified the AY 2026-27 ITR forms 2026-03-30 (corrigendum 2026-04-10). Eligibility rules verified against that notification 2026-07-12 — re-check each filing season, since CBDT re-notifies forms (and sometimes changes eligibility) annually."
+        "detail": "For Resident Salaried Individuals with total income up to \u20b950 Lakhs (Salary, up to 2 house properties, basic other sources). Restrictions: no foreign assets/income, no capital gains beyond the s.198-only allowance, no directorships. Layer 1 India hasn't produced its own recommendation for this profile (itr_recommendation.form is unset) \u2014 this is WISING's own independent computation, run unconditionally, not a hedge pending the frontend.",
+        "citation": "CBDT notified the AY 2026-27 ITR forms 2026-03-30 (corrigendum 2026-04-10). Eligibility rules verified against that notification 2026-07-12 \u2014 re-check each filing season, since CBDT re-notifies forms (and sometimes changes eligibility) annually."
       }
     },
     "us": {
       "form": "1040",
       "trace": {
         "kind": "source",
-        "detail": "Resident/citizen individual return — standard Form 1040 (not recorded as an NRA 1040-NR filer).",
+        "detail": "Resident/citizen individual return \u2014 standard Form 1040 (not recorded as an NRA 1040-NR filer).",
         "citation": "IRS form-per-entity-type/residency-status mapping, verified 2026-07-12."
       }
     }
@@ -2055,8 +2059,8 @@
       {
         "kind": "days",
         "country": "United States",
-        "flag": "🇺🇸",
-        "test": "Substantial Presence (≥183 weighted)",
+        "flag": "\ud83c\uddfa\ud83c\uddf8",
+        "test": "Substantial Presence (\u2265183 weighted)",
         "days": 20,
         "threshold": 183,
         "pct": 0.1092896174863388,
@@ -2064,14 +2068,14 @@
         "projectedFullYear": 35,
         "pace": 0.09629667160864645,
         "status": "resident",
-        "headline": "Tax resident — worldwide income in scope",
+        "headline": "Tax resident \u2014 worldwide income in scope",
         "dateLabel": "Crossed ~Jan 1, 2027"
       },
       {
         "kind": "days",
         "country": "India",
-        "flag": "🇮🇳",
-        "test": "≥182 days in the FY",
+        "flag": "\ud83c\uddee\ud83c\uddf3",
+        "test": "\u2265182 days in the FY",
         "days": 300,
         "threshold": 182,
         "pct": 1.5,
@@ -2079,7 +2083,7 @@
         "projectedFullYear": 932,
         "pace": 2.554403570752993,
         "status": "resident",
-        "headline": "Tax resident — worldwide income in scope",
+        "headline": "Tax resident \u2014 worldwide income in scope",
         "dateLabel": "Crossed ~Jun 11, 2026"
       }
     ],
@@ -2116,7 +2120,7 @@
         "pct": 0,
         "projected": 0,
         "projPct": 0,
-        "note": "RBI cap is per individual per financial year; TCS applies above ₹10L.",
+        "note": "RBI cap is per individual per financial year; TCS applies above \u20b910L.",
         "status": "ok",
         "dateLabel": "Within limit at current pace"
       }
@@ -2124,7 +2128,7 @@
     "calendar": {
       "all": [
         {
-          "name": "US estimated tax — Q1",
+          "name": "US estimated tax \u2014 Q1",
           "jur": "US",
           "date": "2026-04-15T00:00:00.000Z",
           "cat": "Estimated tax",
@@ -2134,7 +2138,7 @@
           "dateLabel": "Apr 15, 2026"
         },
         {
-          "name": "India advance tax — Q1 (15%)",
+          "name": "India advance tax \u2014 Q1 (15%)",
           "jur": "IN",
           "date": "2026-06-15T00:00:00.000Z",
           "cat": "Advance tax",
@@ -2144,7 +2148,7 @@
           "dateLabel": "Jun 15, 2026"
         },
         {
-          "name": "US estimated tax — Q2",
+          "name": "US estimated tax \u2014 Q2",
           "jur": "US",
           "date": "2026-06-15T00:00:00.000Z",
           "cat": "Estimated tax",
@@ -2154,7 +2158,7 @@
           "dateLabel": "Jun 15, 2026"
         },
         {
-          "name": "India advance tax — Q2 (45%)",
+          "name": "India advance tax \u2014 Q2 (45%)",
           "jur": "IN",
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Advance tax",
@@ -2164,7 +2168,7 @@
           "dateLabel": "Sep 15, 2026"
         },
         {
-          "name": "US estimated tax — Q3",
+          "name": "US estimated tax \u2014 Q3",
           "jur": "US",
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Estimated tax",
@@ -2174,7 +2178,7 @@
           "dateLabel": "Sep 15, 2026"
         },
         {
-          "name": "India advance tax — Q3 (75%)",
+          "name": "India advance tax \u2014 Q3 (75%)",
           "jur": "IN",
           "date": "2026-12-15T00:00:00.000Z",
           "cat": "Advance tax",
@@ -2184,7 +2188,7 @@
           "dateLabel": "Dec 15, 2026"
         },
         {
-          "name": "US estimated tax — Q4",
+          "name": "US estimated tax \u2014 Q4",
           "jur": "US",
           "date": "2027-01-15T00:00:00.000Z",
           "cat": "Estimated tax",
@@ -2194,7 +2198,7 @@
           "dateLabel": "Jan 15, 2027"
         },
         {
-          "name": "India advance tax — Q4 (100%)",
+          "name": "India advance tax \u2014 Q4 (100%)",
           "jur": "IN",
           "date": "2027-03-15T00:00:00.000Z",
           "cat": "Advance tax",
@@ -2296,7 +2300,7 @@
       ],
       "upcoming": [
         {
-          "name": "India advance tax — Q2 (45%)",
+          "name": "India advance tax \u2014 Q2 (45%)",
           "jur": "IN",
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Advance tax",
@@ -2306,7 +2310,7 @@
           "dateLabel": "Sep 15, 2026"
         },
         {
-          "name": "US estimated tax — Q3",
+          "name": "US estimated tax \u2014 Q3",
           "jur": "US",
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Estimated tax",
@@ -2316,7 +2320,7 @@
           "dateLabel": "Sep 15, 2026"
         },
         {
-          "name": "India advance tax — Q3 (75%)",
+          "name": "India advance tax \u2014 Q3 (75%)",
           "jur": "IN",
           "date": "2026-12-15T00:00:00.000Z",
           "cat": "Advance tax",
@@ -2326,7 +2330,7 @@
           "dateLabel": "Dec 15, 2026"
         },
         {
-          "name": "US estimated tax — Q4",
+          "name": "US estimated tax \u2014 Q4",
           "jur": "US",
           "date": "2027-01-15T00:00:00.000Z",
           "cat": "Estimated tax",
@@ -2336,7 +2340,7 @@
           "dateLabel": "Jan 15, 2027"
         },
         {
-          "name": "India advance tax — Q4 (100%)",
+          "name": "India advance tax \u2014 Q4 (100%)",
           "jur": "IN",
           "date": "2027-03-15T00:00:00.000Z",
           "cat": "Advance tax",
@@ -2437,7 +2441,7 @@
         }
       ],
       "next": {
-        "name": "India advance tax — Q2 (45%)",
+        "name": "India advance tax \u2014 Q2 (45%)",
         "jur": "IN",
         "date": "2026-09-15T00:00:00.000Z",
         "cat": "Advance tax",
@@ -2460,19 +2464,19 @@
     "alerts": [
       {
         "sev": "critical",
-        "icon": "⛔",
-        "text": "Dual tax residency — Article 4 tie-breaker not yet run",
+        "icon": "\u26d4",
+        "text": "Dual tax residency \u2014 Article 4 tie-breaker not yet run",
         "meta": "DTAA Art. 4"
       },
       {
         "sev": "info",
-        "icon": "🌐",
+        "icon": "\ud83c\udf10",
         "text": "United States tax residency active",
         "meta": "Crossed ~Jan 1, 2027"
       },
       {
         "sev": "info",
-        "icon": "🌐",
+        "icon": "\ud83c\udf10",
         "text": "India tax residency active",
         "meta": "Crossed ~Jun 11, 2026"
       }

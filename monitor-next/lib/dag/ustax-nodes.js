@@ -130,10 +130,12 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var fI = worldwide ? inc.foreignInterest.usd : 0, fD = worldwide ? inc.foreignDividends.usd : 0;
       var fR = worldwide ? inc.foreignRental.usd : 0, fP = worldwide ? inc.foreignPension.usd : 0;
       var fStcg = worldwide ? inc.foreignStcg.usd : 0, fLtcg = worldwide ? inc.foreignLtcg.usd : 0;
+      // IRC 988(a)(1): foreign-currency gain/loss is ORDINARY (not capital).
+      var f988 = worldwide && inc.foreignSection988GainLoss ? inc.foreignSection988GainLoss.usd : 0;
 
       var nonQualDivUs = Math.max(0, inc.ordinaryDividendsUs.usd - inc.qualifiedDividendsUs.usd);
       var ordinaryIncomeExclSs = inc.wages.usd + fW + fSE + (inc.businessUs ? inc.businessUs.usd : 0) + inc.interestUs.usd + fI +
-        nonQualDivUs + fD + inc.stcgUs.usd + fStcg + inc.rentalUs.usd + fR + fP +
+        nonQualDivUs + fD + inc.stcgUs.usd + fStcg + inc.rentalUs.usd + fR + fP + f988 +
         (inc.usRetirementIncomeExclSs ? inc.usRetirementIncomeExclSs.usd : (inc.usRetirementIncome ? inc.usRetirementIncome.usd : 0));
       var preferentialIncome = inc.ltcgUs.usd + fLtcg + inc.qualifiedDividendsUs.usd;
 
@@ -299,7 +301,7 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
           availableUsd: ctcAvailableUsd, nonRefundableUsd: ctcNonRefundableUsd, refundableUsd: ctcRefundableUsd,
           earnedIncomeUsd: earnedIncomeUsd
         },
-        foreignSourceIncomeUsd: fW + fSE + fI + fD + fR + fP + fStcg + fLtcg,
+        foreignSourceIncomeUsd: fW + fSE + fI + fD + fR + fP + fStcg + fLtcg + f988,
         retirementEpfInterestUsd: worldwide ? (inc.retirementEpfInterestUsd || 0) : 0,
         retirementNpsWithdrawalUsd: worldwide ? (inc.retirementNpsWithdrawalUsd || 0) : 0,
         niitDetail: {

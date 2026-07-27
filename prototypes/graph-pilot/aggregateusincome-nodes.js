@@ -337,7 +337,13 @@ var NODES = {
         foreignRentalUsd: num(safe(fi, "foreign_rental_income_usd", 0)),
         foreignPensionUsd: num(safe(fi, "foreign_pension_income_usd", 0)),
         foreignStcgUsd: num(safe(fi, "foreign_stcg_usd", 0)),
-        foreignLtcgUsd: num(safe(fi, "foreign_ltcg_usd", 0))
+        foreignLtcgUsd: num(safe(fi, "foreign_ltcg_usd", 0)),
+        // IRC 988(a)(1): foreign-currency gain/loss is ORDINARY (not
+        // capital), reported on layer1_us.html's "Section 988 Currency
+        // Gains & Losses" list (syncSec988State()) but never previously
+        // read anywhere -- every row a user added there had zero effect on
+        // their computed tax. Can be negative (a net loss).
+        section988GainLossUsd: (safe(fi, "section_988_gains_losses", []) || []).reduce(function (s, t) { return s + num(t.realized_gain_loss_usd); }, 0)
       };
     }
   },
@@ -385,7 +391,7 @@ var NODES = {
       var foreignPension = di.foreignPensionUsd + epf.taxableNpsWithdrawalUsd;
 
       var usSourceTotal = w.wagesUsd + biz.businessUsUsd + di.interestUsUsd + di.ordinaryDividendsUsUsd + di.ltcgUsUsd + di.stcgUsUsd + di.rentalUsUsd + ret.usRetirementIncomeExclSsUsd + ret.socialSecurityUsUsd;
-      var foreignSourceTotal = d.foreignWagesUsd + biz.foreignSelfEmploymentUsd + foreignInterest + di.foreignDividendsUsd + di.foreignRentalUsd + foreignPension + di.foreignStcgUsd + di.foreignLtcgUsd;
+      var foreignSourceTotal = d.foreignWagesUsd + biz.foreignSelfEmploymentUsd + foreignInterest + di.foreignDividendsUsd + di.foreignRentalUsd + foreignPension + di.foreignStcgUsd + di.foreignLtcgUsd + di.section988GainLossUsd;
 
       return {
         wages: m(w.wagesUsd, ctx), businessUs: m(biz.businessUsUsd, ctx), w2Withholding: w.w2WithholdingUsd, w2Employers: w.w2Employers, medicareWages: w.medicareWagesUsd,
@@ -403,6 +409,7 @@ var NODES = {
         foreignRental: m(di.foreignRentalUsd, ctx), foreignPension: m(foreignPension, ctx),
         foreignStcg: m(di.foreignStcgUsd, ctx), foreignLtcg: m(di.foreignLtcgUsd, ctx),
         foreignCapitalGains: m(di.foreignStcgUsd + di.foreignLtcgUsd, ctx),
+        foreignSection988GainLoss: m(di.section988GainLossUsd, ctx),
         retirementEpfInterestUsd: epf.taxableEpfInterestUsd, retirementNpsWithdrawalUsd: epf.taxableNpsWithdrawalUsd,
         usSourceTotal: m(usSourceTotal, ctx), foreignSourceTotal: m(foreignSourceTotal, ctx),
         total: m(usSourceTotal + foreignSourceTotal, ctx)

@@ -337,6 +337,10 @@
         "total": {
           "usd": 384500,
           "inr": 31913500
+        },
+        "foreignSection988GainLoss": {
+          "usd": 0,
+          "inr": 0
         }
       }
     },
@@ -452,7 +456,7 @@
       "taxableNpsWithdrawalInr": 0,
       "usSecurities": [
         {
-          "asset_name": "Vanguard — Taxable Brokerage",
+          "asset_name": "Vanguard \u2014 Taxable Brokerage",
           "account_type": "taxable_brokerage",
           "peak_balance_usd": 340000,
           "country": "US"
@@ -466,7 +470,7 @@
       ],
       "usProperties": [
         {
-          "name": "Rental duplex — Sacramento, CA",
+          "name": "Rental duplex \u2014 Sacramento, CA",
           "property_type": "Residential rental",
           "gross_rent_usd": 36000,
           "expenses_usd": 15000
@@ -489,7 +493,7 @@
           "returnForm": "Schedule C + Schedule SE (Form 1040)",
           "calcTrace": {
             "kind": "calc",
-            "formula": "Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less asset depreciation (§179 / 100% bonus, permanent under OBBBA / MACRS — computed from each asset's own class and placed-in-service date, not Layer 1's own first-year-only preview). Home-office isn't netted yet (Phase 1).",
+            "formula": "Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less asset depreciation (\u00a7179 / 100% bonus, permanent under OBBBA / MACRS \u2014 computed from each asset's own class and placed-in-service date, not Layer 1's own first-year-only preview). Home-office isn't netted yet (Phase 1).",
             "parts": [
               {
                 "label": "Gross receipts",
@@ -500,15 +504,15 @@
                 "amount": -18000
               },
               {
-                "label": "Asset (7-year, yr 1) — §179",
+                "label": "Asset (7-year, yr 1) \u2014 \u00a7179",
                 "amount": -10000
               },
               {
-                "label": "Asset (7-year, yr 1) — 100% bonus depreciation",
+                "label": "Asset (7-year, yr 1) \u2014 100% bonus depreciation",
                 "amount": -12000
               },
               {
-                "label": "Asset (5-year, yr 1) — 100% bonus depreciation",
+                "label": "Asset (5-year, yr 1) \u2014 100% bonus depreciation",
                 "amount": -20000
               }
             ],
@@ -523,10 +527,10 @@
           "se": true,
           "qbi": true,
           "filesOwnReturn": false,
-          "returnForm": "Form 1065 (partnership return, informational) → Schedule E + Schedule SE (Form 1040)",
+          "returnForm": "Form 1065 (partnership return, informational) \u2192 Schedule E + Schedule SE (Form 1040)",
           "calcTrace": {
             "kind": "calc",
-            "formula": "Ordinary business income (K-1 Box 1) + guaranteed payments (K-1 Box 4) − s.179 deduction (K-1 Box 12). Guaranteed payments count for SE tax but are excluded from the §199A QBI base. Interest/dividend/capital-gain/rental/royalty boxes on this K-1, if any, are folded into this taxpayer's general investment-income totals, not shown per-entity here.",
+            "formula": "Ordinary business income (K-1 Box 1) + guaranteed payments (K-1 Box 4) \u2212 s.179 deduction (K-1 Box 12). Guaranteed payments count for SE tax but are excluded from the \u00a7199A QBI base. Interest/dividend/capital-gain/rental/royalty boxes on this K-1, if any, are folded into this taxpayer's general investment-income totals, not shown per-entity here.",
             "parts": [
               {
                 "label": "Ordinary business income (Box 1)",
@@ -552,10 +556,10 @@
           "se": false,
           "qbi": true,
           "filesOwnReturn": false,
-          "returnForm": "Form 1120-S (S-corp return, informational) → Schedule E (Form 1040)",
+          "returnForm": "Form 1120-S (S-corp return, informational) \u2192 Schedule E (Form 1040)",
           "calcTrace": {
             "kind": "calc",
-            "formula": "Ordinary business income (K-1 Box 1, ordinary_income_usd — the real Layer 1 US field; scorp_income_usd/ordinary_business_income_usd are legacy fallbacks that don't exist on the live form) − s.179 deduction (Box 11). S-corp distributions aren't subject to SE tax.",
+            "formula": "Ordinary business income (K-1 Box 1, ordinary_income_usd \u2014 the real Layer 1 US field; scorp_income_usd/ordinary_business_income_usd are legacy fallbacks that don't exist on the live form) \u2212 s.179 deduction (Box 11). S-corp distributions aren't subject to SE tax.",
             "parts": [
               {
                 "label": "Ordinary business income (Box 1)",
@@ -577,7 +581,7 @@
           "se": false,
           "qbi": true,
           "filesOwnReturn": false,
-          "returnForm": "Form 1041 (fiduciary return, informational) → Schedule E (Form 1040)",
+          "returnForm": "Form 1041 (fiduciary return, informational) \u2192 Schedule E (Form 1040)",
           "calcTrace": {
             "kind": "calc",
             "formula": "Ordinary income (K-1 Box 1) + ordinary gain (Box 8 sub-line). Interest/dividend/capital-gain/rental/royalty boxes on this K-1, if any, are folded into this taxpayer's general investment-income totals, not shown per-entity here.",
@@ -904,7 +908,7 @@
         },
         "financial_holdings": [
           {
-            "asset_name": "Vanguard — Taxable Brokerage",
+            "asset_name": "Vanguard \u2014 Taxable Brokerage",
             "account_type": "taxable_brokerage",
             "peak_balance_usd": 340000,
             "country": "US"
@@ -920,7 +924,7 @@
           "has_real_estate_transaction": true,
           "properties": [
             {
-              "name": "Rental duplex — Sacramento, CA",
+              "name": "Rental duplex \u2014 Sacramento, CA",
               "property_type": "Residential rental",
               "gross_rent_usd": 36000,
               "expenses_usd": 15000
@@ -1251,8 +1255,8 @@
       "anyEstimate": false
     },
     "apportionment": {
-      "basis": "even-earning assumption (Apr–Dec vs Jan–Mar)",
-      "fyLabel": "FY 2026–27",
+      "basis": "even-earning assumption (Apr\u2013Dec vs Jan\u2013Mar)",
+      "fyLabel": "FY 2026\u201327",
       "cyPrimary": 2026,
       "cyNext": 2027,
       "indiaFyTotalUsd": 0,
@@ -1340,8 +1344,8 @@
       "severity": "warning",
       "category": "credit",
       "title": "California state income tax: $23,754 (Form 540)",
-      "detail": "California taxes a full-year resident's WORLDWIDE income, including Indian-source income already reported on the federal and Indian returns — computed here as $345,519 of state taxable income (federal AGI $356,931 less the California standard deduction) at California's own bracket rates, less $1,257 of personal/dependent credits. Neither the Foreign Tax Credit computed above nor any DTAA relief applies here — California is not a party to the India-US treaty and grants no credit for tax paid to a foreign country at all.",
-      "recommendation": "File Form 540 alongside the federal return. This is a full-year-resident, TY2025-rates estimate — it does not split state-source income for a part-year or nonresident allocation, does not model California's own AGI addition/subtraction adjustments beyond the standard deduction, and (for California) does not include the local-jurisdiction SDI/VPDI payroll tax. Treat as directional, not filing-ready.",
+      "detail": "California taxes a full-year resident's WORLDWIDE income, including Indian-source income already reported on the federal and Indian returns \u2014 computed here as $345,519 of state taxable income (federal AGI $356,931 less the California standard deduction) at California's own bracket rates, less $1,257 of personal/dependent credits. Neither the Foreign Tax Credit computed above nor any DTAA relief applies here \u2014 California is not a party to the India-US treaty and grants no credit for tax paid to a foreign country at all.",
+      "recommendation": "File Form 540 alongside the federal return. This is a full-year-resident, TY2025-rates estimate \u2014 it does not split state-source income for a part-year or nonresident allocation, does not model California's own AGI addition/subtraction adjustments beyond the standard deduction, and (for California) does not include the local-jurisdiction SDI/VPDI payroll tax. Treat as directional, not filing-ready.",
       "amountUsd": 23754,
       "refs": [
         "Form 540",
@@ -1353,11 +1357,11 @@
       "severity": "warning",
       "category": "credit",
       "title": "US Alternative Minimum Tax applies (+$7,065)",
-      "detail": "This is a US-only tax (IRC §55) — India has no AMT-equivalent regime. The US tentative minimum tax exceeds the regular US tax, so an additional $7,065 is added to the US liability. Common drivers: a large standard-deduction / SALT add-back, private-activity-bond interest, or an ISO exercise.",
+      "detail": "This is a US-only tax (IRC \u00a755) \u2014 India has no AMT-equivalent regime. The US tentative minimum tax exceeds the regular US tax, so an additional $7,065 is added to the US liability. Common drivers: a large standard-deduction / SALT add-back, private-activity-bond interest, or an ISO exercise.",
       "recommendation": "WISING computes the parallel AMT (Form 6251) and includes it in the US tax total above. Review ISO exercise timing and the state-tax add-back; AMT paid on deferral items can generate a Minimum Tax Credit (Form 8801) usable in later years.",
       "amountUsd": 7065,
       "refs": [
-        "§55",
+        "\u00a755",
         "Form 6251",
         "Form 8801"
       ]
@@ -1366,12 +1370,12 @@
       "id": "early_withdrawal_penalty_72t",
       "severity": "warning",
       "category": "credit",
-      "title": "§72(t) 10% early-withdrawal penalty on IRA/401(k) distributions ($2,000)",
-      "detail": "$20,000 of IRA/401(k) distributions are on file for a taxpayer age 47 at year-end — under the 59½ threshold. Absent a statutory exception, §72(t) adds a flat 10% additional tax ($2,000) on top of ordinary income tax already computed on this same income.",
-      "recommendation": "Confirm whether a real exception applies (death, disability, SEPP under §72(t)(2)(A)(iv), first $10,000 for a first-time home purchase, higher education, medical expenses over 7.5% of AGI, qualified birth/adoption up to $5,000) — none of these are captured by Layer 1 today, so this assumes the full 10% applies until confirmed otherwise.",
+      "title": "\u00a772(t) 10% early-withdrawal penalty on IRA/401(k) distributions ($2,000)",
+      "detail": "$20,000 of IRA/401(k) distributions are on file for a taxpayer age 47 at year-end \u2014 under the 59\u00bd threshold. Absent a statutory exception, \u00a772(t) adds a flat 10% additional tax ($2,000) on top of ordinary income tax already computed on this same income.",
+      "recommendation": "Confirm whether a real exception applies (death, disability, SEPP under \u00a772(t)(2)(A)(iv), first $10,000 for a first-time home purchase, higher education, medical expenses over 7.5% of AGI, qualified birth/adoption up to $5,000) \u2014 none of these are captured by Layer 1 today, so this assumes the full 10% applies until confirmed otherwise.",
       "amountUsd": 2000,
       "refs": [
-        "§72(t)",
+        "\u00a772(t)",
         "Form 5329"
       ]
     },
@@ -1379,13 +1383,13 @@
       "id": "iso_3921",
       "severity": "info",
       "category": "document",
-      "title": "ISO exercise(s) on file — employer owes you Form 3921",
-      "detail": "1 incentive stock option exercise(s) recorded this year. The employer is required to furnish Form 3921 (one per exercise) by January 31 of the following year, reporting the grant/exercise dates, exercise price, and FMV at exercise — the same figures already driving the AMT preference computed above.",
+      "title": "ISO exercise(s) on file \u2014 employer owes you Form 3921",
+      "detail": "1 incentive stock option exercise(s) recorded this year. The employer is required to furnish Form 3921 (one per exercise) by January 31 of the following year, reporting the grant/exercise dates, exercise price, and FMV at exercise \u2014 the same figures already driving the AMT preference computed above.",
       "recommendation": "Confirm Form 3921 was received from the employer for each exercise and that its FMV/exercise-price figures match what's on file here before relying on the AMT number.",
       "amountUsd": 0,
       "refs": [
         "Form 3921",
-        "§6039"
+        "\u00a76039"
       ]
     }
   ],
@@ -1444,8 +1448,8 @@
       "id": "form_8621",
       "jurisdiction": "US",
       "name": "IRS Form 8621 (PFIC)",
-      "desc": "Information return for Passive Foreign Investment Companies — one per fund.",
-      "why": "Holdings in Indian mutual funds / ETFs are PFICs and require annual reporting (punitive §1291 regime unless QEF/MTM elected).",
+      "desc": "Information return for Passive Foreign Investment Companies \u2014 one per fund.",
+      "why": "Holdings in Indian mutual funds / ETFs are PFICs and require annual reporting (punitive \u00a71291 regime unless QEF/MTM elected).",
       "severity": "critical",
       "required": false,
       "status": "not_triggered"
@@ -1454,8 +1458,8 @@
       "id": "form_5471",
       "jurisdiction": "US",
       "name": "IRS Form 5471 (CFC)",
-      "desc": "Information return for US persons owning ≥10% of a foreign corporation.",
-      "why": "You own ≥10% of an Indian company — potential Subpart F / GILTI inclusion.",
+      "desc": "Information return for US persons owning \u226510% of a foreign corporation.",
+      "why": "You own \u226510% of an Indian company \u2014 potential Subpart F / GILTI inclusion.",
       "severity": "warning",
       "required": false,
       "status": "not_triggered"
@@ -1514,7 +1518,7 @@
       "id": "form_540",
       "jurisdiction": "US",
       "name": "California Form 540 (Resident Income Tax Return)",
-      "desc": "California state income tax return — computed on worldwide income for a full-year CA resident, including Indian-source income. CA grants no credit for tax paid to a foreign country.",
+      "desc": "California state income tax return \u2014 computed on worldwide income for a full-year CA resident, including Indian-source income. CA grants no credit for tax paid to a foreign country.",
       "why": "State-of-residence facts on file point to California, and CA taxes worldwide income independently of the federal treaty position.",
       "severity": "warning",
       "required": true,
@@ -1524,7 +1528,7 @@
       "id": "form_it201",
       "jurisdiction": "US",
       "name": "New York Form IT-201 (Resident Income Tax Return)",
-      "desc": "New York state income tax return — computed on worldwide income for a full-year NY resident, including Indian-source income. NY grants no credit for tax paid to a foreign country.",
+      "desc": "New York state income tax return \u2014 computed on worldwide income for a full-year NY resident, including Indian-source income. NY grants no credit for tax paid to a foreign country.",
       "why": "State-of-residence facts on file point to New York, and NY taxes worldwide income independently of the federal treaty position.",
       "severity": "warning",
       "required": false,
@@ -1545,7 +1549,7 @@
       "jurisdiction": "IN",
       "name": "Tax Residency Certificate (TRC)",
       "desc": "Issued by the other contracting state (IRS Form 6166 for the US).",
-      "why": "DTAA relief / treaty rate is being claimed — a TRC is mandatory u/s 159(8).",
+      "why": "DTAA relief / treaty rate is being claimed \u2014 a TRC is mandatory u/s 159(8).",
       "severity": "critical",
       "required": false,
       "status": "not_triggered"
@@ -1585,7 +1589,7 @@
       "jurisdiction": "IN",
       "name": "Form 145 / Form 146 (was 15CA / 15CB)",
       "desc": "Remittance certificates for foreign outward remittances.",
-      "why": "Outward remittances under LRS / to non-residents were made during the year. Renumbered from Form 15CA/15CB effective 1 Apr 2026 under the Income-tax Rules, 2026 (Rule 220) — the old numbers still apply to remittances made before that date.",
+      "why": "Outward remittances under LRS / to non-residents were made during the year. Renumbered from Form 15CA/15CB effective 1 Apr 2026 under the Income-tax Rules, 2026 (Rule 220) \u2014 the old numbers still apply to remittances made before that date.",
       "severity": "info",
       "required": false,
       "status": "not_triggered"
@@ -1595,7 +1599,7 @@
       "jurisdiction": "IN",
       "name": "Schedule AL (Assets & Liabilities)",
       "desc": "Disclosure of assets and liabilities at cost, filed with the ITR.",
-      "why": "Total income exceeds ₹50 lakh — Schedule AL is mandatory at this threshold u/s 139(1) (ITR-2/3/5 filers).",
+      "why": "Total income exceeds \u20b950 lakh \u2014 Schedule AL is mandatory at this threshold u/s 139(1) (ITR-2/3/5 filers).",
       "severity": "warning",
       "required": false,
       "status": "not_triggered"
@@ -1605,7 +1609,7 @@
       "jurisdiction": "IN",
       "name": "Form 3CB / 3CD (Tax Audit Report)",
       "desc": "Chartered Accountant's tax-audit report and statement of particulars, filed before the ITR due date.",
-      "why": "Business turnover exceeds the s.44AB tax-audit threshold (₹1 crore, or ₹10 crore where cash receipts and payments are each ≤5% of the total).",
+      "why": "Business turnover exceeds the s.44AB tax-audit threshold (\u20b91 crore, or \u20b910 crore where cash receipts and payments are each \u22645% of the total).",
       "severity": "critical",
       "required": false,
       "status": "not_triggered"
@@ -1614,8 +1618,8 @@
       "id": "form_8802",
       "jurisdiction": "US",
       "name": "IRS Form 8802 (Application for US Residency Certification)",
-      "desc": "Application to the IRS for Form 6166 — the US residency certificate India's TRC requirement expects the other contracting state to issue.",
-      "why": "DTAA relief is being claimed on Indian-source income — Form 6166 must be requested via Form 8802 before it can be filed with the Indian TRC/Form 41 paperwork; IRS processing typically takes 4-6+ weeks, so file well ahead of the India due date.",
+      "desc": "Application to the IRS for Form 6166 \u2014 the US residency certificate India's TRC requirement expects the other contracting state to issue.",
+      "why": "DTAA relief is being claimed on Indian-source income \u2014 Form 6166 must be requested via Form 8802 before it can be filed with the Indian TRC/Form 41 paperwork; IRS processing typically takes 4-6+ weeks, so file well ahead of the India due date.",
       "severity": "warning",
       "required": false,
       "status": "not_triggered"
@@ -1635,7 +1639,7 @@
       "jurisdiction": "US",
       "name": "IRS Form 8288 / 8288-A / 8288-B (FIRPTA Withholding)",
       "desc": "Withholding certificate and returns for a foreign person's disposition of US real property.",
-      "why": "A US real property interest was disposed of by a foreign person — 15% FIRPTA withholding applies at closing unless a Form 8288-B withholding certificate reduces it.",
+      "why": "A US real property interest was disposed of by a foreign person \u2014 15% FIRPTA withholding applies at closing unless a Form 8288-B withholding certificate reduces it.",
       "severity": "warning",
       "required": false,
       "status": "not_triggered"
@@ -1645,7 +1649,7 @@
       "jurisdiction": "IN",
       "name": "Form 3CEB (Transfer Pricing Certification)",
       "desc": "Chartered Accountant's report on international transactions with associated enterprises, filed before the ITR due date u/s 92E.",
-      "why": "A cross-border related-party ownership relationship is on file — international transactions with that entity must be reported and certified, independent of whether pricing is at arm's length.",
+      "why": "A cross-border related-party ownership relationship is on file \u2014 international transactions with that entity must be reported and certified, independent of whether pricing is at arm's length.",
       "severity": "warning",
       "required": false,
       "status": "not_triggered"
@@ -1654,8 +1658,8 @@
       "id": "form_26as_ais_tis",
       "jurisdiction": "IN",
       "name": "Form 26AS / AIS / TIS",
-      "desc": "Annual tax-credit statement (26AS) and the Annual/Taxpayer Information Statements — the pre-filled record every ITR should be reconciled against before filing.",
-      "why": "Indian income is on file for this taxpayer — TDS, advance tax and reported high-value transactions should be cross-checked against these statements before the return is filed.",
+      "desc": "Annual tax-credit statement (26AS) and the Annual/Taxpayer Information Statements \u2014 the pre-filled record every ITR should be reconciled against before filing.",
+      "why": "Indian income is on file for this taxpayer \u2014 TDS, advance tax and reported high-value transactions should be cross-checked against these statements before the return is filed.",
       "severity": "info",
       "required": false,
       "status": "not_triggered"
@@ -1665,7 +1669,7 @@
       "jurisdiction": "IN",
       "name": "Form 16 / Form 16A (TDS Certificates)",
       "desc": "Salary (Form 16) and non-salary (Form 16A) TDS certificates issued by each deductor.",
-      "why": "Indian income subject to TDS is on file — hold the certificate from each deductor to reconcile against Form 26AS/AIS and support the credit claimed in the ITR.",
+      "why": "Indian income subject to TDS is on file \u2014 hold the certificate from each deductor to reconcile against Form 26AS/AIS and support the credit claimed in the ITR.",
       "severity": "info",
       "required": false,
       "status": "not_triggered"
@@ -1675,7 +1679,7 @@
       "jurisdiction": "IN",
       "name": "LRS Form A2 (Outward Remittance Declaration)",
       "desc": "Declaration furnished to the remitting bank for each outward remittance under the Liberalised Remittance Scheme.",
-      "why": "Outward remittances under LRS were made this year — each remittance requires its own Form A2 filed with the bank at the time of transfer, separate from the annual Form 145/146 (was 15CA/15CB) return-time reporting.",
+      "why": "Outward remittances under LRS were made this year \u2014 each remittance requires its own Form A2 filed with the bank at the time of transfer, separate from the annual Form 145/146 (was 15CA/15CB) return-time reporting.",
       "severity": "info",
       "required": false,
       "status": "not_triggered"
@@ -1685,7 +1689,7 @@
       "jurisdiction": "US",
       "name": "IRS Form 4868 (Extension Request)",
       "desc": "Automatic 6-month extension of time to file (not to pay) the US return.",
-      "why": "Must be filed by the original due date to legally reach the extended deadline already on your Compliance Calendar — the extension does not happen automatically.",
+      "why": "Must be filed by the original due date to legally reach the extended deadline already on your Compliance Calendar \u2014 the extension does not happen automatically.",
       "severity": "info",
       "required": true,
       "status": "required"
@@ -1693,14 +1697,14 @@
   ],
   "ftcReport": {
     "direction_us_claims_india": {
-      "title": "US Form 1116 — credit for Indian taxes",
+      "title": "US Form 1116 \u2014 credit for Indian taxes",
       "rows": [
         {
           "label": "Indian income tax (creditable)",
           "usd": 0,
           "trace": {
             "kind": "calc",
-            "formula": "Total India tax × creditable fraction (gross Indian income less any FEIE-excluded slice, over gross Indian income)",
+            "formula": "Total India tax \u00d7 creditable fraction (gross Indian income less any FEIE-excluded slice, over gross Indian income)",
             "parts": [
               {
                 "label": "Total India tax (from Tax Computation)",
@@ -1743,7 +1747,7 @@
           "usd": 44144.5177,
           "trace": {
             "kind": "calc",
-            "formula": "Ordinary-rate tax + preferential LTCG/QDI tax only — NIIT, Additional Medicare, SE tax and AMT are excluded, they're not creditable against foreign tax by statute",
+            "formula": "Ordinary-rate tax + preferential LTCG/QDI tax only \u2014 NIIT, Additional Medicare, SE tax and AMT are excluded, they're not creditable against foreign tax by statute",
             "parts": [
               {
                 "label": "Ordinary-rate tax",
@@ -1758,11 +1762,11 @@
           }
         },
         {
-          "label": "FTC limitation = US tax × foreign/taxable",
+          "label": "FTC limitation = US tax \u00d7 foreign/taxable",
           "usd": 0,
           "trace": {
             "kind": "calc",
-            "formula": "§904(a): the credit can't exceed US tax on this income times the same proportion foreign-source income bears to total taxable income",
+            "formula": "\u00a7904(a): the credit can't exceed US tax on this income times the same proportion foreign-source income bears to total taxable income",
             "parts": [
               {
                 "label": "US income tax (pre-credit)",
@@ -1786,7 +1790,7 @@
           "emphasis": true,
           "trace": {
             "kind": "calc",
-            "formula": "Lesser of Indian tax paid and the §904 limitation",
+            "formula": "Lesser of Indian tax paid and the \u00a7904 limitation",
             "parts": [
               {
                 "label": "Indian income tax (creditable)",
@@ -1801,11 +1805,11 @@
           }
         },
         {
-          "label": "Excess credit carried over (§904(c))",
+          "label": "Excess credit carried over (\u00a7904(c))",
           "usd": 0,
           "trace": {
             "kind": "calc",
-            "formula": "Indian tax paid in excess of what the §904 limitation allows this year — carries back 1 year / forward 10 years",
+            "formula": "Indian tax paid in excess of what the \u00a7904 limitation allows this year \u2014 carries back 1 year / forward 10 years",
             "parts": [
               {
                 "label": "Indian income tax (creditable)",
@@ -1825,7 +1829,7 @@
           "warn": true,
           "trace": {
             "kind": "calc",
-            "formula": "Same as the excess credit carried over — until it's actually used in a future year this is double taxation the credit hasn't relieved yet",
+            "formula": "Same as the excess credit carried over \u2014 until it's actually used in a future year this is double taxation the credit hasn't relieved yet",
             "parts": [
               {
                 "label": "Excess credit carried over",
@@ -1838,7 +1842,7 @@
       ]
     },
     "direction_india_relief": {
-      "title": "India §159 relief — for US taxes on doubly-taxed income",
+      "title": "India \u00a7159 relief \u2014 for US taxes on doubly-taxed income",
       "rows": [
         {
           "label": "US-source income (foreign, India view)",
@@ -1846,7 +1850,7 @@
           "trace": {
             "kind": "holdings",
             "section": "us",
-            "note": "Only counted when the taxpayer is India ROR (worldwide taxation) — zero here because that isn't the case."
+            "note": "Only counted when the taxpayer is India ROR (worldwide taxation) \u2014 zero here because that isn't the case."
           }
         },
         {
@@ -1854,7 +1858,7 @@
           "usd": 44144.5177,
           "trace": {
             "kind": "calc",
-            "formula": "US income tax × (US-source income ÷ total US income) — the slice of US tax attributable to income India also taxes",
+            "formula": "US income tax \u00d7 (US-source income \u00f7 total US income) \u2014 the slice of US tax attributable to income India also taxes",
             "parts": [
               {
                 "label": "US income tax (pre-credit)",
@@ -1877,7 +1881,7 @@
           "usd": 0,
           "trace": {
             "kind": "calc",
-            "formula": "Total India tax × (US-source income ÷ total India-view income) — s.159 relief can never exceed the Indian tax actually attributable to that income",
+            "formula": "Total India tax \u00d7 (US-source income \u00f7 total India-view income) \u2014 s.159 relief can never exceed the Indian tax actually attributable to that income",
             "parts": [
               {
                 "label": "Total India tax",
@@ -1896,7 +1900,7 @@
           }
         },
         {
-          "label": "§90 relief allowed",
+          "label": "\u00a790 relief allowed",
           "usd": 0,
           "emphasis": true,
           "trace": {
@@ -1938,7 +1942,7 @@
           "inr": 0,
           "trace": {
             "kind": "calc",
-            "formula": "New regime allows only the employer's NPS contribution under s.124(2) — s.123/126/124(1B)/153 etc. are not available",
+            "formula": "New regime allows only the employer's NPS contribution under s.124(2) \u2014 s.123/126/124(1B)/153 etc. are not available",
             "parts": [
               {
                 "label": "Employer NPS contribution (s.124(2))",
@@ -1972,7 +1976,7 @@
           "inr": 0,
           "trace": {
             "kind": "calc",
-            "formula": "Progressive slab-rate tax under the NEW regime, applied to ₹0 of normal-rate income (salary, house property, business, other sources — including ordinary NRO interest, which is slab-rate income by default; only a DTAA-beneficial slice is carved out separately below, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
+            "formula": "Progressive slab-rate tax under the NEW regime, applied to \u20b90 of normal-rate income (salary, house property, business, other sources \u2014 including ordinary NRO interest, which is slab-rate income by default; only a DTAA-beneficial slice is carved out separately below, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
             "parts": [],
             "citation": null
           }
@@ -1982,17 +1986,17 @@
           "inr": 0,
           "trace": {
             "kind": "calc",
-            "formula": "s.196 STCG @ 20% + s.198 LTCG @ 12.5% (listed/STT-paid, net of the ₹1,25,000 exemption) + s.197 LTCG @ 12.5% (unlisted/foreign — no exemption, separate section, does not pool with s.198's threshold) + s.115BBH VDA/crypto @ 30% flat (no set-off, ever) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption + s.207 dividend/royalty/FTS at their own rates (each broken out below)",
+            "formula": "s.196 STCG @ 20% + s.198 LTCG @ 12.5% (listed/STT-paid, net of the \u20b91,25,000 exemption) + s.197 LTCG @ 12.5% (unlisted/foreign \u2014 no exemption, separate section, does not pool with s.198's threshold) + s.115BBH VDA/crypto @ 30% flat (no set-off, ever) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption + s.207 dividend/royalty/FTS at their own rates (each broken out below)",
             "parts": [],
             "citation": null
           }
         },
         {
-          "label": "Less §156 rebate",
+          "label": "Less \u00a7156 rebate",
           "inr": 0,
           "trace": {
             "kind": "calc",
-            "formula": "Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold — lesser of tax at slab rates and the statutory cap",
+            "formula": "Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold \u2014 lesser of tax at slab rates and the statutory cap",
             "parts": [
               {
                 "label": "Statutory rebate cap",
@@ -2029,7 +2033,7 @@
             "formula": "4% of (tax after rebate + surcharge)",
             "parts": [
               {
-                "label": "Tax after §156 rebate",
+                "label": "Tax after \u00a7156 rebate",
                 "amount": 0
               },
               {
@@ -2050,7 +2054,7 @@
           "emphasis": true,
           "trace": {
             "kind": "calc",
-            "formula": "Tax at slab rates + tax on special-rate income − §156 rebate + surcharge + cess",
+            "formula": "Tax at slab rates + tax on special-rate income \u2212 \u00a7156 rebate + surcharge + cess",
             "parts": [
               {
                 "label": "Tax at slab rates",
@@ -2061,7 +2065,7 @@
                 "amount": 0
               },
               {
-                "label": "Less §156 rebate",
+                "label": "Less \u00a7156 rebate",
                 "amount": 0
               },
               {
@@ -2117,7 +2121,7 @@
           "usd": -81400,
           "trace": {
             "kind": "calc",
-            "formula": "Itemized: SALT (capped at $40,400 — OBBBA's $40,000 cap, phased down 30¢/$1 of AGI over $500,000, floored at the old $10,000) + mortgage interest + charitable + medical expenses over 7.5% of AGI — used because it exceeds (or the taxpayer elected) the standard deduction",
+            "formula": "Itemized: SALT (capped at $40,400 \u2014 OBBBA's $40,000 cap, phased down 30\u00a2/$1 of AGI over $500,000, floored at the old $10,000) + mortgage interest + charitable + medical expenses over 7.5% of AGI \u2014 used because it exceeds (or the taxpayer elected) the standard deduction",
             "parts": [
               {
                 "label": "Deduction used",
@@ -2128,7 +2132,7 @@
           }
         },
         {
-          "label": "Less §199A QBI deduction",
+          "label": "Less \u00a7199A QBI deduction",
           "usd": -15400,
           "trace": {
             "kind": "calc",
@@ -2147,7 +2151,7 @@
           "usd": 260131.32374999998,
           "trace": {
             "kind": "calc",
-            "formula": "AGI less deduction less §199A QBI deduction",
+            "formula": "AGI less deduction less \u00a7199A QBI deduction",
             "parts": [
               {
                 "label": "AGI",
@@ -2173,19 +2177,19 @@
             "formula": "Progressive federal brackets (10%-37%, filing status MFJ) applied to $221,431 of ordinary taxable income (taxable income less the LTCG/QDI portion, which is taxed separately below)",
             "parts": [
               {
-                "label": "10% on $0–$24,800",
+                "label": "10% on $0\u2013$24,800",
                 "amount": 2480
               },
               {
-                "label": "12% on $24,800–$100,800",
+                "label": "12% on $24,800\u2013$100,800",
                 "amount": 9120
               },
               {
-                "label": "22% on $100,800–$211,400",
+                "label": "22% on $100,800\u2013$211,400",
                 "amount": 24332
               },
               {
-                "label": "24% on $211,400–$403,550",
+                "label": "24% on $211,400\u2013$403,550",
                 "amount": 2407.5176999999953
               }
             ],
@@ -2208,11 +2212,11 @@
           }
         },
         {
-          "label": "Net investment income tax (NIIT, §1411)",
+          "label": "Net investment income tax (NIIT, \u00a71411)",
           "usd": 2945,
           "trace": {
             "kind": "calc",
-            "formula": "3.8% × NIIT base (see breakdown below)",
+            "formula": "3.8% \u00d7 NIIT base (see breakdown below)",
             "parts": [
               {
                 "label": "NIIT base",
@@ -2227,16 +2231,16 @@
           }
         },
         {
-          "label": "  — net investment income (interest/div/cap gains/rental)",
+          "label": "  \u2014 net investment income (interest/div/cap gains/rental)",
           "usd": 77500,
           "trace": {
             "kind": "source",
-            "detail": "Interest + dividends + capital gains + rental income (foreign-source included when worldwide taxation applies) — from the income already itemized on Layer 1 India/US.",
+            "detail": "Interest + dividends + capital gains + rental income (foreign-source included when worldwide taxation applies) \u2014 from the income already itemized on Layer 1 India/US.",
             "citation": null
           }
         },
         {
-          "label": "  — MAGI",
+          "label": "  \u2014 MAGI",
           "usd": 356931.32375,
           "trace": {
             "kind": "calc",
@@ -2251,20 +2255,20 @@
           }
         },
         {
-          "label": "  — less filing-status threshold",
+          "label": "  \u2014 less filing-status threshold",
           "usd": -250000,
           "trace": {
             "kind": "source",
-            "detail": "Statutory NIIT threshold by filing status (§1411(b)) — $200,000 single/HoH, $250,000 MFJ, $125,000 MFS. Not indexed for inflation.",
+            "detail": "Statutory NIIT threshold by filing status (\u00a71411(b)) \u2014 $200,000 single/HoH, $250,000 MFJ, $125,000 MFS. Not indexed for inflation.",
             "citation": null
           }
         },
         {
-          "label": "  — NIIT base (lesser of NII and MAGI-over-threshold) @ 3.8%",
+          "label": "  \u2014 NIIT base (lesser of NII and MAGI-over-threshold) @ 3.8%",
           "usd": 77500,
           "trace": {
             "kind": "calc",
-            "formula": "Lesser of net investment income and (MAGI − threshold)",
+            "formula": "Lesser of net investment income and (MAGI \u2212 threshold)",
             "parts": [
               {
                 "label": "Net investment income",
@@ -2283,7 +2287,7 @@
           "usd": 0,
           "trace": {
             "kind": "source",
-            "detail": "Computed directly on Layer 1 US (Form 8959) and taken as-is — the engine does not recompute it.",
+            "detail": "Computed directly on Layer 1 US (Form 8959) and taken as-is \u2014 the engine does not recompute it.",
             "citation": null
           }
         },
@@ -2292,7 +2296,7 @@
           "usd": 937.3525000000001,
           "trace": {
             "kind": "calc",
-            "formula": "92.35% of net SE earnings × (12.4% Social Security, capped by the wage base less W-2 SS wages already taxed, + 2.9% Medicare, uncapped); half of this is an above-the-line deduction",
+            "formula": "92.35% of net SE earnings \u00d7 (12.4% Social Security, capped by the wage base less W-2 SS wages already taxed, + 2.9% Medicare, uncapped); half of this is an above-the-line deduction",
             "parts": [
               {
                 "label": "Self-employment tax",
@@ -2303,7 +2307,7 @@
           }
         },
         {
-          "label": "Alternative Minimum Tax (§55)",
+          "label": "Alternative Minimum Tax (\u00a755)",
           "usd": 7065,
           "trace": {
             "kind": "calc",
@@ -2322,11 +2326,11 @@
           }
         },
         {
-          "label": "  — AMTI (taxable income + standard/SALT addback + preference items)",
+          "label": "  \u2014 AMTI (taxable income + standard/SALT addback + preference items)",
           "usd": 353531.32375,
           "trace": {
             "kind": "calc",
-            "formula": "Taxable income + disallowed-deduction addback (the full standard deduction, or just the SALT slice if itemized) + AMT preference items (e.g. the ISO exercise bargain-element spread, §56(b)(3))",
+            "formula": "Taxable income + disallowed-deduction addback (the full standard deduction, or just the SALT slice if itemized) + AMT preference items (e.g. the ISO exercise bargain-element spread, \u00a756(b)(3))",
             "parts": [
               {
                 "label": "Taxable income",
@@ -2345,11 +2349,11 @@
           }
         },
         {
-          "label": "  — less AMT exemption (phased out above threshold)",
+          "label": "  \u2014 less AMT exemption (phased out above threshold)",
           "usd": -140200,
           "trace": {
             "kind": "calc",
-            "formula": "Full statutory exemption reduced 25¢ for every $1 of AMTI above the phase-out threshold",
+            "formula": "Full statutory exemption reduced 25\u00a2 for every $1 of AMTI above the phase-out threshold",
             "parts": [
               {
                 "label": "Full exemption",
@@ -2368,7 +2372,7 @@
           }
         },
         {
-          "label": "  — AMT base",
+          "label": "  \u2014 AMT base",
           "usd": 213331.32374999998,
           "trace": {
             "kind": "calc",
@@ -2387,7 +2391,7 @@
           }
         },
         {
-          "label": "  — tentative minimum tax (26%/28% ordinary + LTCG/QDI at preferential rates)",
+          "label": "  \u2014 tentative minimum tax (26%/28% ordinary + LTCG/QDI at preferential rates)",
           "usd": 51209.144174999994,
           "trace": {
             "kind": "calc",
@@ -2410,7 +2414,7 @@
           }
         },
         {
-          "label": "  — less regular tax (AMT owed = excess of TMT over this)",
+          "label": "  \u2014 less regular tax (AMT owed = excess of TMT over this)",
           "usd": -44144.5177,
           "trace": {
             "kind": "calc",
@@ -2433,7 +2437,7 @@
           "usd": -1200,
           "trace": {
             "kind": "calc",
-            "formula": "Child/dependent care credit (20% of qualifying expenses, capped) + American Opportunity + Lifetime Learning education credits (both phased out by MAGI) — capped at the tax otherwise due",
+            "formula": "Child/dependent care credit (20% of qualifying expenses, capped) + American Opportunity + Lifetime Learning education credits (both phased out by MAGI) \u2014 capped at the tax otherwise due",
             "parts": [
               {
                 "label": "Credits",
@@ -2444,11 +2448,11 @@
           }
         },
         {
-          "label": "Less Child Tax Credit (§24)",
+          "label": "Less Child Tax Credit (\u00a724)",
           "usd": -4400,
           "trace": {
             "kind": "calc",
-            "formula": "$2,200/child (TY2025-2028, OBBBA), phased out $50 per $1,000 of AGI over the threshold. The portion that doesn't fit against tax owed is refundable (Additional CTC) up to $1,700/child, capped at 15% of earned income over $2,500. \"Children\" here reuses the same dependents count as the care/AOTC credits above — Layer 1 doesn't separately track qualifying-child ages.",
+            "formula": "$2,200/child (TY2025-2028, OBBBA), phased out $50 per $1,000 of AGI over the threshold. The portion that doesn't fit against tax owed is refundable (Additional CTC) up to $1,700/child, capped at 15% of earned income over $2,500. \"Children\" here reuses the same dependents count as the care/AOTC credits above \u2014 Layer 1 doesn't separately track qualifying-child ages.",
             "parts": [
               {
                 "label": "Number of children (Layer 1 dependents count)",
@@ -2480,7 +2484,7 @@
           "emphasis": true,
           "trace": {
             "kind": "calc",
-            "formula": "Income tax (ordinary + preferential) + NIIT + Additional Medicare tax + SE tax + AMT − non-refundable credits",
+            "formula": "Income tax (ordinary + preferential) + NIIT + Additional Medicare tax + SE tax + AMT \u2212 non-refundable credits",
             "parts": [
               {
                 "label": "Income tax (ordinary + preferential)",
@@ -2523,7 +2527,7 @@
           "usd": 356931.32375,
           "trace": {
             "kind": "source",
-            "detail": "Same federal AGI computed above — California taxes a full-year resident's worldwide income, so no separate state-source recomputation is done.",
+            "detail": "Same federal AGI computed above \u2014 California taxes a full-year resident's worldwide income, so no separate state-source recomputation is done.",
             "citation": null
           }
         },
@@ -2532,7 +2536,7 @@
           "usd": -11412,
           "trace": {
             "kind": "source",
-            "detail": "California's own standard deduction for MFJ — separate from, and smaller than, the federal one.",
+            "detail": "California's own standard deduction for MFJ \u2014 separate from, and smaller than, the federal one.",
             "citation": null
           }
         },
@@ -2563,27 +2567,27 @@
             "formula": "Progressive California brackets applied to $345,519 of state taxable income",
             "parts": [
               {
-                "label": "1% on $0–$22,158",
+                "label": "1% on $0\u2013$22,158",
                 "amount": 221.58
               },
               {
-                "label": "2% on $22,158–$52,528",
+                "label": "2% on $22,158\u2013$52,528",
                 "amount": 607.4
               },
               {
-                "label": "4% on $52,528–$82,904",
+                "label": "4% on $52,528\u2013$82,904",
                 "amount": 1215.04
               },
               {
-                "label": "6% on $82,904–$115,084",
+                "label": "6% on $82,904\u2013$115,084",
                 "amount": 1930.8
               },
               {
-                "label": "8% on $115,084–$145,448",
+                "label": "8% on $115,084\u2013$145,448",
                 "amount": 2429.12
               },
               {
-                "label": "9.3% on $145,448–$742,958",
+                "label": "9.3% on $145,448\u2013$742,958",
                 "amount": 18606.633108749997
               }
             ],
@@ -2595,7 +2599,7 @@
           "usd": -1257,
           "trace": {
             "kind": "source",
-            "detail": "California's personal exemption credit ($153 single/MFS/HOH, $307 MFJ) plus $475 per dependent — a credit against tax, not a deduction from income.",
+            "detail": "California's personal exemption credit ($153 single/MFS/HOH, $307 MFJ) plus $475 per dependent \u2014 a credit against tax, not a deduction from income.",
             "citation": null
           }
         },
@@ -2605,7 +2609,7 @@
           "emphasis": true,
           "trace": {
             "kind": "calc",
-            "formula": "Bracket tax − exemption/dependent credits",
+            "formula": "Bracket tax \u2212 exemption/dependent credits",
             "parts": [
               {
                 "label": "Bracket tax",
@@ -2643,7 +2647,7 @@
           "id": "w2_0",
           "jurisdiction": "US",
           "category": "general",
-          "label": "W-2 Withholding — Meridian Analytics Inc",
+          "label": "W-2 Withholding \u2014 Meridian Analytics Inc",
           "grossUsd": 210000,
           "domesticRatePct": null,
           "treatyRatePct": null,
@@ -2652,7 +2656,7 @@
           "taxUsd": 41000,
           "gapUsd": 0,
           "note": null,
-          "citation": "IRC §3402 / Form W-2"
+          "citation": "IRC \u00a73402 / Form W-2"
         }
       ],
       "estimateRows": [],
@@ -2673,7 +2677,7 @@
       "area": "App",
       "kind": "excluded",
       "title": "Document-upload extraction is simulated",
-      "body": "Every \"upload to auto-fill\" feature in Layer 1 (Form 26AS, Lower-TDS certificate, bank statements, property documents) is a demo simulation with representative values — not live OCR. Figures sourced from an upload should be treated as manually-entered until real extraction ships."
+      "body": "Every \"upload to auto-fill\" feature in Layer 1 (Form 26AS, Lower-TDS certificate, bank statements, property documents) is a demo simulation with representative values \u2014 not live OCR. Figures sourced from an upload should be treated as manually-entered until real extraction ships."
     }
   ],
   "returnForms": {
@@ -2691,7 +2695,7 @@
       "form": "1040",
       "trace": {
         "kind": "source",
-        "detail": "Resident/citizen individual return — standard Form 1040 (not recorded as an NRA 1040-NR filer).",
+        "detail": "Resident/citizen individual return \u2014 standard Form 1040 (not recorded as an NRA 1040-NR filer).",
         "citation": "IRS form-per-entity-type/residency-status mapping, verified 2026-07-12."
       }
     }
@@ -2706,8 +2710,8 @@
       {
         "kind": "days",
         "country": "United States",
-        "flag": "🇺🇸",
-        "test": "Substantial Presence (≥183 weighted)",
+        "flag": "\ud83c\uddfa\ud83c\uddf8",
+        "test": "Substantial Presence (\u2265183 weighted)",
         "days": 365,
         "threshold": 183,
         "pct": 1.5,
@@ -2715,14 +2719,14 @@
         "projectedFullYear": 641,
         "pace": 1.7574142390827108,
         "status": "resident",
-        "headline": "Tax resident — worldwide income in scope",
+        "headline": "Tax resident \u2014 worldwide income in scope",
         "dateLabel": "Crossed ~Apr 15, 2026"
       },
       {
         "kind": "days",
         "country": "India",
-        "flag": "🇮🇳",
-        "test": "≥182 days in the FY",
+        "flag": "\ud83c\uddee\ud83c\uddf3",
+        "test": "\u2265182 days in the FY",
         "days": 0,
         "threshold": 182,
         "pct": 0,
@@ -2730,7 +2734,7 @@
         "projectedFullYear": 0,
         "pace": 0,
         "status": "safe",
-        "headline": "Non-resident — 182 days of headroom",
+        "headline": "Non-resident \u2014 182 days of headroom",
         "dateLabel": "Not projected to cross this year"
       }
     ],
@@ -2763,7 +2767,7 @@
     "calendar": {
       "all": [
         {
-          "name": "US estimated tax — Q1",
+          "name": "US estimated tax \u2014 Q1",
           "jur": "US",
           "date": "2026-04-15T00:00:00.000Z",
           "cat": "Estimated tax",
@@ -2773,7 +2777,7 @@
           "dateLabel": "Apr 15, 2026"
         },
         {
-          "name": "US estimated tax — Q2",
+          "name": "US estimated tax \u2014 Q2",
           "jur": "US",
           "date": "2026-06-15T00:00:00.000Z",
           "cat": "Estimated tax",
@@ -2783,7 +2787,7 @@
           "dateLabel": "Jun 15, 2026"
         },
         {
-          "name": "US estimated tax — Q3",
+          "name": "US estimated tax \u2014 Q3",
           "jur": "US",
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Estimated tax",
@@ -2793,7 +2797,7 @@
           "dateLabel": "Sep 15, 2026"
         },
         {
-          "name": "US estimated tax — Q4",
+          "name": "US estimated tax \u2014 Q4",
           "jur": "US",
           "date": "2027-01-15T00:00:00.000Z",
           "cat": "Estimated tax",
@@ -2857,7 +2861,7 @@
       ],
       "upcoming": [
         {
-          "name": "US estimated tax — Q3",
+          "name": "US estimated tax \u2014 Q3",
           "jur": "US",
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Estimated tax",
@@ -2867,7 +2871,7 @@
           "dateLabel": "Sep 15, 2026"
         },
         {
-          "name": "US estimated tax — Q4",
+          "name": "US estimated tax \u2014 Q4",
           "jur": "US",
           "date": "2027-01-15T00:00:00.000Z",
           "cat": "Estimated tax",
@@ -2930,7 +2934,7 @@
         }
       ],
       "next": {
-        "name": "US estimated tax — Q3",
+        "name": "US estimated tax \u2014 Q3",
         "jur": "US",
         "date": "2026-09-15T00:00:00.000Z",
         "cat": "Estimated tax",
@@ -2953,7 +2957,7 @@
     "alerts": [
       {
         "sev": "info",
-        "icon": "🌐",
+        "icon": "\ud83c\udf10",
         "text": "United States tax residency active",
         "meta": "Crossed ~Apr 15, 2026"
       }

@@ -291,6 +291,11 @@ def _direct_income_computation(d, ctx):
         "foreignPensionUsd": num(safe(fi, "foreign_pension_income_usd", 0)),
         "foreignStcgUsd": num(safe(fi, "foreign_stcg_usd", 0)),
         "foreignLtcgUsd": num(safe(fi, "foreign_ltcg_usd", 0)),
+        # IRC 988(a)(1): foreign-currency gain/loss is ORDINARY (not
+        # capital), reported on layer1_us.html's "Section 988 Currency
+        # Gains & Losses" list (syncSec988State()) but never previously
+        # read anywhere. Can be negative (a net loss).
+        "section988GainLossUsd": sum(num(t.get("realized_gain_loss_usd")) for t in (safe(fi, "section_988_gains_losses", []) or [])),
     }
 
 
@@ -327,7 +332,7 @@ def _aggregate_us_income_result(d, ctx):
     foreign_pension = di["foreignPensionUsd"] + epf["taxableNpsWithdrawalUsd"]
 
     us_source_total = w["wagesUsd"] + biz["businessUsUsd"] + di["interestUsUsd"] + di["ordinaryDividendsUsUsd"] + di["ltcgUsUsd"] + di["stcgUsUsd"] + di["rentalUsUsd"] + ret["usRetirementIncomeExclSsUsd"] + ret["socialSecurityUsUsd"]
-    foreign_source_total = d["foreignWagesUsd"] + biz["foreignSelfEmploymentUsd"] + foreign_interest + di["foreignDividendsUsd"] + di["foreignRentalUsd"] + foreign_pension + di["foreignStcgUsd"] + di["foreignLtcgUsd"]
+    foreign_source_total = d["foreignWagesUsd"] + biz["foreignSelfEmploymentUsd"] + foreign_interest + di["foreignDividendsUsd"] + di["foreignRentalUsd"] + foreign_pension + di["foreignStcgUsd"] + di["foreignLtcgUsd"] + di["section988GainLossUsd"]
 
     return {
         "wages": _m(w["wagesUsd"], ctx), "businessUs": _m(biz["businessUsUsd"], ctx), "w2Withholding": w["w2WithholdingUsd"], "w2Employers": w["w2Employers"], "medicareWages": w["medicareWagesUsd"],
@@ -345,6 +350,7 @@ def _aggregate_us_income_result(d, ctx):
         "foreignRental": _m(di["foreignRentalUsd"], ctx), "foreignPension": _m(foreign_pension, ctx),
         "foreignStcg": _m(di["foreignStcgUsd"], ctx), "foreignLtcg": _m(di["foreignLtcgUsd"], ctx),
         "foreignCapitalGains": _m(di["foreignStcgUsd"] + di["foreignLtcgUsd"], ctx),
+        "foreignSection988GainLoss": _m(di["section988GainLossUsd"], ctx),
         "retirementEpfInterestUsd": epf["taxableEpfInterestUsd"], "retirementNpsWithdrawalUsd": epf["taxableNpsWithdrawalUsd"],
         "usSourceTotal": _m(us_source_total, ctx), "foreignSourceTotal": _m(foreign_source_total, ctx),
         "total": _m(us_source_total + foreign_source_total, ctx),
