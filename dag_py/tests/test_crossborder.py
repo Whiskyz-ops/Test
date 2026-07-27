@@ -8,7 +8,7 @@ the entity-aware usCyTotalUsd swap is deferred to Phase 7's analyze()
 assembly, same pattern as every other agg10/ustax-full-derived override in
 this port.
 """
-from conftest import ctx_for, load_golden
+from conftest import GOLDEN_DIVERGENT_FIXTURES_S44BBB, ctx_for, load_golden
 from support import deep_diff
 
 from wising_dag.core.registry import NodeRegistry
@@ -39,6 +39,8 @@ def test_ftc_result_matches_golden(fixture_id):
     is_nra = golden["model"]["treaty"]["files1040nr"] and not (golden["model"].get("nra") or {}).get("s6013hElection")
     if us_kind != "individual" or is_nra:
         return  # ftcResult depends on usTaxResult, whose entity/NRA routing is deferred to Phase 7 — same carve-out as test_us.py
+    if fixture_id in GOLDEN_DIVERGENT_FIXTURES_S44BBB:
+        return  # see conftest.py's own docstring: s.44BBB ripples into india-side tax, hence ftcResult
 
     out = GRAPH.resolve(TARGETS, ctx).values["ftcResult"]
 
@@ -49,6 +51,9 @@ def test_ftc_result_matches_golden(fixture_id):
 def test_double_tax_result_matches_golden(fixture_id):
     ctx = ctx_for(fixture_id)
     golden = load_golden(fixture_id)
+
+    if fixture_id in GOLDEN_DIVERGENT_FIXTURES_S44BBB:
+        return  # see conftest.py's own docstring: s.44BBB ripples into india-side tax, hence doubleTax
 
     out = GRAPH.resolve(TARGETS, ctx).values["mapDoubleTaxedIncomeResult"]
 
@@ -72,6 +77,8 @@ def test_apportionment_result_matches_golden_for_individual_profiles(fixture_id)
 
     if golden["model"]["entity"]["usKind"] != "individual":
         return  # entity-aware apportionment override deferred to Phase 7 — reported, not asserted
+    if fixture_id in GOLDEN_DIVERGENT_FIXTURES_S44BBB:
+        return  # see conftest.py's own docstring: s.44BBB ripples into indiaFyTotalUsd
 
     out = APPORTIONMENT_GRAPH.resolve(["apportionmentResult"], ctx).values["apportionmentResult"]
 

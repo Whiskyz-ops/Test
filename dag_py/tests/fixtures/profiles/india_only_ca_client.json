@@ -1,7 +1,7 @@
 {
   "id": "india_only_ca_client",
   "label": "India-Only · CA client (no US exposure)",
-  "story": "Business POV of a pure-India CA practice: a Bengaluru senior manager with zero US ties at all — Router is explicitly \"India only,\" and the Monitor collapses to a single-country view (no US badge, no US residency card, no DTAA panel) rather than fabricating a dual-jurisdiction picture. Deliberately dense: salary plus two side businesses (a presumptive s.44ADA UX-consulting practice and a regular-books stationery retail shop exercising depreciation, an MSME-payment disallowance, and F&O/speculative ring-fencing), a partner stake in a family LLP, listed-equity STCG/LTCG, an unlisted-company share buyback, a crypto sale taxed flat under s.115BBH, a physical-gold sale plus a Sovereign Gold Bond redeemed exempt at maturity, the full spread of \"other sources\" (family pension, a taxable gift, online-gaming winnings, taxable EPF interest), nine separate Chapter VI-A deductions under the OLD regime, an LRS remittance, a brought-forward capital loss, and a full advance-tax/TDS reconciliation — everything a well-off, purely domestic Indian client actually brings a CA in one filing year.",
+  "story": "Business POV of a pure-India CA practice: a Bengaluru senior manager with zero US ties at all — Router is explicitly \"India only,\" and the Monitor collapses to a single-country view (no US badge, no US residency card, no DTAA panel) rather than fabricating a dual-jurisdiction picture. Deliberately dense: salary plus two side businesses (a presumptive s.44ADA UX-consulting practice and a regular-books stationery retail shop exercising depreciation, an MSME-payment disallowance, and F&O/speculative ring-fencing), a partner stake in a family LLP, listed-equity STCG/LTCG, an unlisted-company share buyback, a crypto sale taxed flat under s.115BBH, a physical-gold sale plus a Sovereign Gold Bond redeemed exempt at maturity, the full spread of \"other sources\" (family pension, a taxable gift, online-gaming winnings, taxable EPF interest), nine separate Chapter VI-A deductions under the OLD regime, an LRS remittance, a brought-forward capital loss, and a full advance-tax/TDS reconciliation — everything a well-off, purely domestic Indian client actually brings a CA in one filing year. Also exited s.44AD 2 years before this filing — still inside the 5-year re-election lock-in (s.44AD(4)/(5)), which forces a mandatory tax audit this year regardless of turnover since total income exceeds the basic exemption limit.",
   "tags": [
     "India-only",
     "single-jurisdiction",
@@ -10,7 +10,8 @@
     "VDA/crypto",
     "partner-firm",
     "depreciation",
-    "Chapter VI-A"
+    "Chapter VI-A",
+    "s44AD lock-in"
   ],
   "router": {
     "jurisdiction": "single_india",
@@ -172,6 +173,7 @@
       },
       "business_income": {
         "has_business_or_fo_income": true,
+        "s44AD_last_exit_ay": "AY 2024-25",
         "non_speculative_income_inr": 320000,
         "fno_turnover_inr": 6500000,
         "speculative_income_inr": -45000,
@@ -325,6 +327,7 @@
           },
           "business_income": {
             "has_business_or_fo_income": true,
+            "s44AD_last_exit_ay": "AY 2024-25",
             "non_speculative_income_inr": 80000,
             "fno_turnover_inr": 1625000,
             "speculative_income_inr": -11250,
@@ -509,6 +512,7 @@
           },
           "business_income": {
             "has_business_or_fo_income": true,
+            "s44AD_last_exit_ay": "AY 2024-25",
             "non_speculative_income_inr": 80000,
             "fno_turnover_inr": 1625000,
             "speculative_income_inr": -11250,
@@ -611,6 +615,7 @@
           },
           "business_income": {
             "has_business_or_fo_income": true,
+            "s44AD_last_exit_ay": "AY 2024-25",
             "non_speculative_income_inr": 80000,
             "fno_turnover_inr": 1625000,
             "speculative_income_inr": -11250,
@@ -713,6 +718,7 @@
           },
           "business_income": {
             "has_business_or_fo_income": true,
+            "s44AD_last_exit_ay": "AY 2024-25",
             "non_speculative_income_inr": 80000,
             "fno_turnover_inr": 1625000,
             "speculative_income_inr": -11250,

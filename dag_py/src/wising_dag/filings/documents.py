@@ -407,7 +407,7 @@ NODES = {
         ),
     ),
     "taxesPaidIndiaResult": NodeDef(deps=("taxCreditsIndiaRaw",), compute=_taxes_paid_india_result),
-    "s44adLastExitAyRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "presumptive_scheme.s44ad_last_exit_ay", None), layer1_fields=("india.presumptive_scheme.s44ad_last_exit_ay",)),
+    "s44adLastExitAyRaw": NodeDef(deps=("diAgg",), compute=lambda d, ctx: safe(d["diAgg"], "business_income.s44AD_last_exit_ay", None), layer1_fields=("india.domestic_income.business_income.s44AD_last_exit_ay",)),
     "presumptiveLockinAgg": NodeDef(deps=("s44adLastExitAyRaw",), compute=_presumptive_lockin_agg),
     "indianMutualFundsResult": NodeDef(deps=("indiaFinancialHoldingsTxRaw",), compute=lambda d, ctx: [t for t in d["indiaFinancialHoldingsTxRaw"] if t.get("asset_type") and "mutual_fund" in str(t["asset_type"]).lower()]),
     "usPficHoldingsRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_entities.pfic_holdings", []) or [], layer1_fields=("us.foreign_entities.pfic_holdings",)),

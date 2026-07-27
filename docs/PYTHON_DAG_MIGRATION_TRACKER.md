@@ -1117,6 +1117,86 @@ manual-case set actually exercises (a genuinely untested field combination
 could still hide something), and the live Pyodide runtime remains
 unverified end-to-end for reasons unrelated to computation completeness.
 
+### Eighth Phase 8 pass: fixed the `profiles.js` fixture staleness properly — found a real bug doing it
+
+The seventh pass's own dismissal of `profiles.js` ("already confirmed
+fixture/demo-data-only, no DAG logic") was too quick. `profiles.js` gained
+real field additions post-port (`06f69c9`, 07:50 on 2026-07-25, after
+Python's fixture port at 04:02): `foreign_holdco_poem_india` gained the
+s.44BBB/tonnage/s.35AD business entry exercised by the sixth pass's own
+manual-cases fixtures, and `india_only_ca_client` gained
+`business_income.s44AD_last_exit_ay` (the s.44AD(4) lock-in field) — but
+`dag_py`'s own committed copies of these two fixtures were never refreshed
+from the live source, so they were silently testing stale data.
+
+**Refreshed properly this time**, not reverted: `node dag_py/tools/
+port_profiles.js` (re-dumps `profiles.js` to the committed fixture JSON —
+exactly the tool's own documented "rerun when profiles.js changes"
+purpose) followed by `node dag_py/tools/generate_golden.js` (regenerates
+the frozen-engine golden output the refreshed fixtures need). Confirmed
+`generate_golden.js`'s wall-clock-dependent regeneration (no pinned
+`monitorAsOf`, unlike the JS harness's own `MONITOR_AS_OF` constant) is
+harmless despite touching all 13 golden files' date-derived fields on
+every run — `test_analyze_golden.py` re-pins its own `analyze()` call to
+whatever `monitoring.asOf` golden embeds, so the comparison stays
+internally consistent regardless of real-world regeneration time.
+
+**This surfaced a real, previously-undetected bug, not just a golden
+divergence.** `run-js-dag-vs-py-dag.js` on the refreshed `fixture:
+india_only_ca_client` case showed an actual JS-DAG-vs-Python-DAG mismatch
+(findings count 7 vs 6, `presumptive_lockin_active_india` missing,
+`monitoring.health.score` 72 vs 88) — not the "frozen engine doesn't
+understand a DAG-only feature" class of divergence the s.44BBB gap was,
+but a live disagreement between the two DAGs on the exact same feature.
+Root cause: `filings/documents.py`'s `s44adLastExitAyRaw` node read
+`ctx.india.presumptive_scheme.s44ad_last_exit_ay` (a path that has never
+existed in any real profile — a fabricated field path, not a rename),
+while the JS source (`aggregateindiaincome-nodes.js`) reads
+`diAgg.business_income.s44AD_last_exit_ay`. Every fixture/corpus profile
+until now happened to have this field unset, so `safe(...)` always
+returned `None` on both sides and the divergence stayed invisible — this
+specific fixture staleness fix is what finally exercised it. Fixed by
+correcting the path and `deps` to match the JS source exactly (`deps=
+("diAgg",)`, reading `diAgg["business_income"]["s44AD_last_exit_ay"]`).
+
+**Both real gaps this session (the s.44BBB `businessComputation` bug and
+this `s44adLastExitAyRaw` path bug) were found via the exact same
+mechanism**: real-world fixture/demo data that changed after a domain was
+ported, re-exercising a code path no synthetic fuzz-corpus profile ever
+happened to hit. This reinforces the seventh pass's own methodological
+point from the opposite angle — it's not just "did the JS source change,"
+it's "did the DATA actually driving the comparison change too," and both
+matter independently.
+
+**Golden-comparison fallout, handled with proper carve-outs, not skips**:
+regenerating golden re-exposed the s.44BBB fixture's already-known,
+already-documented divergence (`foreign_holdco_poem_india`'s india income
+is now correctly ~₹22.85M in the Python port vs golden's stale ~₹67M,
+since the frozen engine still has zero concept of s.44BBB and silently
+mis-treats that entry as ungated Regular Books) across 12 golden-
+comparison tests in 6 files (`test_analyze_golden.py`,
+`test_crossborder.py`, `test_filings_assets.py`,
+`test_filings_documents.py`, `test_findings.py`, `test_india.py`). Added
+one shared `conftest.py` constant, `GOLDEN_DIVERGENT_FIXTURES_S44BBB`
+(documented with the full root-cause explanation once, in one place), and
+a per-test early-return carve-out in each of the 12 functions — the same
+discipline `_is_entity_fixture`/`_is_entity_or_nra` already use elsewhere
+in this suite for other permanent divergences, not a new pattern invented
+for this. `india_only_ca_client`'s own new divergence (`form_3cb_3cd` now
+correctly `required: true` once the lock-in bug above was fixed, vs
+golden's stale `false`) got the more surgical treatment instead — a
+single-document patch inside `test_build_documents_result_matches_golden`
+rather than a whole-test skip, since every other document on that fixture
+still needed to stay fully verified.
+
+**Verification**: `dag_py` pytest 573/573 green; `run-js-dag-vs-py-dag.js`
+59/59 clean (52 exact + 7 known JS-side cases — the `india_only_ca_client`
+mismatch this pass found is gone). `monitor-next`: `next build` clean;
+`test-adapter.mjs`/`test-shadow.mjs` at the same pre-existing 42/3 baseline
+(no new failures — both remaining divergences are frozen-engine-vs-DAG,
+same class already tracked, unrelated to this pass); `vitest` 5/5. Wheel
+rebuilt, monitor-next assets re-synced.
+
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 
 **Scoping correction, found before any code was written**: the plan's guessed

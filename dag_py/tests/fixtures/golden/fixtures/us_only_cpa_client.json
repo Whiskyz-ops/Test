@@ -2697,11 +2697,11 @@
     }
   },
   "monitoring": {
-    "asOf": "2026-07-25T03:45:46.402Z",
+    "asOf": "2026-07-27T02:56:22.489Z",
     "simulated": false,
     "baseYear": 2026,
-    "progressUS": 0.5636175468686406,
-    "progressIN": 0.31636479961589337,
+    "progressUS": 0.5690178090977309,
+    "progressIN": 0.3217650618449837,
     "residency": [
       {
         "kind": "days",
@@ -2712,11 +2712,11 @@
         "threshold": 183,
         "pct": 1.5,
         "isResident": true,
-        "projectedFullYear": 648,
-        "pace": 1.774252781085016,
+        "projectedFullYear": 641,
+        "pace": 1.7574142390827108,
         "status": "resident",
         "headline": "Tax resident — worldwide income in scope",
-        "dateLabel": "Crossed ~Apr 14, 2026"
+        "dateLabel": "Crossed ~Apr 15, 2026"
       },
       {
         "kind": "days",
@@ -2768,7 +2768,7 @@
           "date": "2026-04-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": -101,
+          "daysUntil": -103,
           "status": "passed",
           "dateLabel": "Apr 15, 2026"
         },
@@ -2778,7 +2778,7 @@
           "date": "2026-06-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": -40,
+          "daysUntil": -42,
           "status": "passed",
           "dateLabel": "Jun 15, 2026"
         },
@@ -2788,7 +2788,7 @@
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": 52,
+          "daysUntil": 50,
           "status": "upcoming",
           "dateLabel": "Sep 15, 2026"
         },
@@ -2798,7 +2798,7 @@
           "date": "2027-01-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": 174,
+          "daysUntil": 172,
           "status": "upcoming",
           "dateLabel": "Jan 15, 2027"
         },
@@ -2824,7 +2824,7 @@
             "form_540",
             "form_it201"
           ],
-          "daysUntil": 264,
+          "daysUntil": 262,
           "status": "upcoming",
           "dateLabel": "Apr 15, 2027"
         },
@@ -2850,7 +2850,7 @@
             "form_540",
             "form_it201"
           ],
-          "daysUntil": 447,
+          "daysUntil": 445,
           "status": "upcoming",
           "dateLabel": "Oct 15, 2027"
         }
@@ -2862,7 +2862,7 @@
           "date": "2026-09-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": 52,
+          "daysUntil": 50,
           "status": "upcoming",
           "dateLabel": "Sep 15, 2026"
         },
@@ -2872,7 +2872,7 @@
           "date": "2027-01-15T00:00:00.000Z",
           "cat": "Estimated tax",
           "docIds": [],
-          "daysUntil": 174,
+          "daysUntil": 172,
           "status": "upcoming",
           "dateLabel": "Jan 15, 2027"
         },
@@ -2898,7 +2898,7 @@
             "form_540",
             "form_it201"
           ],
-          "daysUntil": 264,
+          "daysUntil": 262,
           "status": "upcoming",
           "dateLabel": "Apr 15, 2027"
         },
@@ -2924,7 +2924,7 @@
             "form_540",
             "form_it201"
           ],
-          "daysUntil": 447,
+          "daysUntil": 445,
           "status": "upcoming",
           "dateLabel": "Oct 15, 2027"
         }
@@ -2935,7 +2935,7 @@
         "date": "2026-09-15T00:00:00.000Z",
         "cat": "Estimated tax",
         "docIds": [],
-        "daysUntil": 52,
+        "daysUntil": 50,
         "status": "upcoming",
         "dateLabel": "Sep 15, 2026"
       }
@@ -2955,7 +2955,7 @@
         "sev": "info",
         "icon": "🌐",
         "text": "United States tax residency active",
-        "meta": "Crossed ~Apr 14, 2026"
+        "meta": "Crossed ~Apr 15, 2026"
       }
     ]
   },
