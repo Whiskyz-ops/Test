@@ -1908,24 +1908,24 @@
                                 <span class="text-[10px] font-black uppercase tracking-widest text-brandCyan border-b border-white/10 pb-2">Short-Term (Held < 1 Yr)</span>
                                 <div>
                                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Total Proceeds (Sales Price)</label>
-                                    <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                                    <input type="text" inputmode="numeric" id="cg-manual-st-proceeds" placeholder="0" oninput="syncCgManualState()" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                                 </div>
                                 <div>
                                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Total Cost Basis</label>
-                                    <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                                    <input type="text" inputmode="numeric" id="cg-manual-st-basis" placeholder="0" oninput="syncCgManualState()" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                                 </div>
                             </div>
-                            
+
                             <!-- Long Term -->
                             <div class="p-4 bg-white/5 border border-white/5 rounded-xl flex flex-col gap-3">
                                 <span class="text-[10px] font-black uppercase tracking-widest text-brandCyan border-b border-white/10 pb-2">Long-Term (Held > 1 Yr)</span>
                                 <div>
                                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Total Proceeds (Sales Price)</label>
-                                    <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                                    <input type="text" inputmode="numeric" id="cg-manual-lt-proceeds" placeholder="0" oninput="syncCgManualState()" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                                 </div>
                                 <div>
                                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Total Cost Basis</label>
-                                    <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                                    <input type="text" inputmode="numeric" id="cg-manual-lt-basis" placeholder="0" oninput="syncCgManualState()" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                                 </div>
                             </div>
                         </div>
@@ -4554,7 +4554,28 @@
         recalculateDerivedFields();
         saveStateAndSync();
     }
-    
+
+    // "Manual Entry" tab (Capital Gains screen) -- these 4 fields previously
+    // had no id/oninput/onchange at all (pure static HTML), so a user could
+    // type numbers here and nothing would happen: no state write, no tax
+    // impact. Wired here the same way every other capital-gains category on
+    // this screen already works, feeding stcg_us_source_usd/ltcg_us_source_usd
+    // via recalculateCapitalGainsAggregate() (see recalculateDerivedFields()).
+    function syncCgManualState() {
+        const stProceeds = parseFormattedNumber(document.getElementById('cg-manual-st-proceeds')?.value) || 0;
+        const stBasis = parseFormattedNumber(document.getElementById('cg-manual-st-basis')?.value) || 0;
+        const ltProceeds = parseFormattedNumber(document.getElementById('cg-manual-lt-proceeds')?.value) || 0;
+        const ltBasis = parseFormattedNumber(document.getElementById('cg-manual-lt-basis')?.value) || 0;
+        usState.income_us_source.cg_manual_st_proceeds_usd = stProceeds;
+        usState.income_us_source.cg_manual_st_basis_usd = stBasis;
+        usState.income_us_source.cg_manual_lt_proceeds_usd = ltProceeds;
+        usState.income_us_source.cg_manual_lt_basis_usd = ltBasis;
+        usState.income_us_source.cg_manual_stcg_usd = stProceeds - stBasis;
+        usState.income_us_source.cg_manual_ltcg_usd = ltProceeds - ltBasis;
+        recalculateDerivedFields();
+        saveStateAndSync();
+    }
+
     function syncTreatyRates() {
         const list = [];
         document.querySelectorAll('#treaty-rates-tbody tr').forEach(tr => {
@@ -9651,7 +9672,67 @@ div.innerHTML = `
         return Math.max(0, agi);
     }
 
+    // Aggregates every itemized capital-gains source on this form (dedicated
+    // Real Estate step, and the Capital Gains screen's own real estate/
+    // collectibles/QSBS/crypto transaction lists + Manual Entry tab) into the
+    // flat stcg_us_source_usd/ltcg_us_source_usd fields the tax computation
+    // actually reads. Before this, every one of those itemized lists had a
+    // working sync function that persisted real data nobody ever read
+    // downstream, while stcg_us_source_usd/ltcg_us_source_usd themselves had
+    // no live input path in the DOM at all.
+    //
+    // Real estate: prefers the dedicated Real Estate step's properties[]
+    // (has real SS121/SS1031 treatment already applied) over the Capital
+    // Gains screen's own simpler real_estate_transactions[] duplicate, to
+    // avoid double-counting the same sale through two parallel UI paths --
+    // only falls back to the duplicate if the dedicated step has no entries.
+    // Collectibles (28% special rate) and QSBS (SS1202 exclusion, up to
+    // $10M/10x-basis) are aggregated as ordinary LTCG -- a documented
+    // simplification (conservative for QSBS, since it omits an exclusion the
+    // taxpayer is entitled to; not necessarily conservative for collectibles,
+    // since 28% can exceed the taxpayer's ordinary LTCG rate) pending a real
+    // special-rate computation.
+    function recalculateCapitalGainsAggregate() {
+        function isLongTerm(acqStr, soldStr) {
+            if (!acqStr || !soldStr) return false;
+            const acq = new Date(acqStr), sold = new Date(soldStr);
+            if (isNaN(acq) || isNaN(sold)) return false;
+            return (sold - acq) > (365 * 24 * 60 * 60 * 1000);
+        }
+        const reProps = (usState.real_estate && usState.real_estate.properties) || [];
+        const reTx = usState.income_us_source.real_estate_transactions || [];
+        const reSource = reProps.length > 0 ? reProps : reTx;
+        const collectibles = usState.income_us_source.collectibles_transactions || [];
+        const qsbs = usState.income_us_source.qsbs_transactions || [];
+        const crypto = usState.income_us_source.crypto_transactions || [];
+        const manualStcg = usState.income_us_source.cg_manual_stcg_usd || 0;
+        const manualLtcg = usState.income_us_source.cg_manual_ltcg_usd || 0;
+
+        const hasAnySource = reSource.length > 0 || collectibles.length > 0 || qsbs.length > 0 ||
+            crypto.length > 0 || manualStcg !== 0 || manualLtcg !== 0;
+        if (!hasAnySource) return; // nothing itemized on file -- leave any pre-existing value untouched
+
+        let stcg = manualStcg, ltcg = manualLtcg;
+        reSource.forEach(t => {
+            const g = t.realized_gain_loss_usd || 0;
+            if (isLongTerm(t.acquisition_date, t.sale_date)) ltcg += g; else stcg += g;
+        });
+        collectibles.forEach(t => {
+            const g = t.realized_gain_loss_usd || 0;
+            if (isLongTerm(t.acquisition_date, t.sale_date)) ltcg += g; else stcg += g;
+        });
+        qsbs.forEach(t => { ltcg += t.realized_gain_loss_usd || 0; }); // SS1202 requires a 5yr+ hold -- always LT
+        crypto.forEach(t => {
+            const g = t.realized_gain_loss_usd || 0;
+            if (isLongTerm(t.acquisition_date, t.sale_date)) ltcg += g; else stcg += g;
+        });
+
+        usState.income_us_source.stcg_us_source_usd = stcg;
+        usState.income_us_source.ltcg_us_source_usd = ltcg;
+    }
+
     function recalculateDerivedFields() {
+        recalculateCapitalGainsAggregate();
         const agi = calculateEstimatedAgi();
         const biz = calculateBusinessIncomes();
         const filingStatus = usState.profile.filing_status;
@@ -18635,6 +18716,13 @@ div.innerHTML = `
                 usState.income_us_source.se_health_insurance_deduction_usd = savedState.income_us_source.se_health_insurance_deduction_usd || null;
                 usState.income_us_source.se_retirement_deduction_usd = savedState.income_us_source.se_retirement_deduction_usd || null;
 
+                usState.income_us_source.cg_manual_st_proceeds_usd = savedState.income_us_source.cg_manual_st_proceeds_usd || null;
+                usState.income_us_source.cg_manual_st_basis_usd = savedState.income_us_source.cg_manual_st_basis_usd || null;
+                usState.income_us_source.cg_manual_lt_proceeds_usd = savedState.income_us_source.cg_manual_lt_proceeds_usd || null;
+                usState.income_us_source.cg_manual_lt_basis_usd = savedState.income_us_source.cg_manual_lt_basis_usd || null;
+                usState.income_us_source.cg_manual_stcg_usd = savedState.income_us_source.cg_manual_stcg_usd || null;
+                usState.income_us_source.cg_manual_ltcg_usd = savedState.income_us_source.cg_manual_ltcg_usd || null;
+
                 usState.income_us_source.interest_us_source_usd = savedState.income_us_source.interest_us_source_usd;
                 usState.income_us_source.interest_us_bank_usd = savedState.income_us_source.interest_us_bank_usd;
                 usState.income_us_source.interest_us_treasury_usd = savedState.income_us_source.interest_us_treasury_usd;
@@ -18870,6 +18958,16 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             if (healthDedEl) healthDedEl.value = usState.income_us_source.se_health_insurance_deduction_usd || '';
             const retDedEl = document.getElementById('se-ded-ret');
             if (retDedEl) retDedEl.value = usState.income_us_source.se_retirement_deduction_usd || '';
+
+            // Capital Gains "Manual Entry" tab inputs
+            const cgStPEl = document.getElementById('cg-manual-st-proceeds');
+            if (cgStPEl) cgStPEl.value = usState.income_us_source.cg_manual_st_proceeds_usd || '';
+            const cgStBEl = document.getElementById('cg-manual-st-basis');
+            if (cgStBEl) cgStBEl.value = usState.income_us_source.cg_manual_st_basis_usd || '';
+            const cgLtPEl = document.getElementById('cg-manual-lt-proceeds');
+            if (cgLtPEl) cgLtPEl.value = usState.income_us_source.cg_manual_lt_proceeds_usd || '';
+            const cgLtBEl = document.getElementById('cg-manual-lt-basis');
+            if (cgLtBEl) cgLtBEl.value = usState.income_us_source.cg_manual_lt_basis_usd || '';
 
             // Restore Foreign Income Dom
             if(document.getElementById('inc-for-interest')) document.getElementById('inc-for-interest').value = usState.income_foreign_source.foreign_interest_usd || '';
