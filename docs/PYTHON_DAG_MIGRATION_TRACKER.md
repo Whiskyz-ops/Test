@@ -1197,6 +1197,26 @@ mismatch this pass found is gone). `monitor-next`: `next build` clean;
 same class already tracked, unrelated to this pass); `vitest` 5/5. Wheel
 rebuilt, monitor-next assets re-synced.
 
+**`foreign_holdco_poem_india`'s own carve-out double-checked with the same
+rigor, not just asserted** — explicitly requested, since the
+`india_only_ca_client` carve-out had turned out to mask a real bug on
+first glance. Ran the exact same profile through all three engines
+directly: JS DAG (`analyze.js`) and the Python port both compute
+₹22,850,000 india business income — an EXACT match, unlike
+`india_only_ca_client` where the two DAGs disagreed with each other and
+that disagreement was the bug. The frozen engine alone computes
+₹67,000,000. This is independently confirmed by `docs/
+DAG_MIGRATION_TRACKER.md`'s own §P (written on the JS side when s.44BBB
+was first added, entirely predating this session's work): "frozen engine's
+total India business income is ₹6,70,00,000 vs. DAG's real ₹2,28,50,000
+(s.35AD/tonnage tax never reach the frozen computation at all)" — the
+identical split, confirmed from the opposite direction. Unlike the frozen
+engine (never edited again, by explicit standing project design — s.44BBB
+predates it and always will), there is no fix available or needed here:
+the carve-out already in place is the correct, final treatment of a
+genuine, permanent, doubly-confirmed divergence, not a bug hiding behind
+one.
+
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 
 **Scoping correction, found before any code was written**: the plan's guessed
