@@ -1517,6 +1517,72 @@ Engine → Python DAG) against a real `next dev` instance, Clients tab and
 Filings/Reconciliation/Withholding tabs all confirmed error-free and
 correctly populated post-fix.
 
+### Twelfth Phase 8 pass: `index.html`'s own Python DAG toggle (the last un-wired consumer)
+
+Explicit user go-ahead to close the last gap from the "100% complete"
+checklist: `index.html` (the repo-root standalone demo/landing page — NOT
+`monitor-next/out/index.html`, which is the Next.js Monitor app's own
+static export) had zero Python DAG wiring. Unlike `monitor-next`, this page
+is tiny and has exactly one compute source live at a time (no shadow mode,
+no tabs) — its whole "Layer 2" footprint is a `<script src="assets/dag-
+analyze.bundle.js">` tag followed by one inline `W.analyze(...)` call that
+renders four stat cards.
+
+Added a small "⚙ JS DAG" pill next to the snapshot card's heading, opt-in
+only — **default behavior is completely unchanged**: the page still
+computes synchronously via the JS DAG bundle exactly as before, nothing
+Python-related runs until the pill is clicked. Refactored the old IIFE into
+a named `renderSnapshot()` so it can be re-invoked after a source switch,
+and captured `window.WISING.analyze`/`.normalize` (the JS-DAG-backed
+functions) into local variables before the Python DAG ever installs
+anything, so toggling back restores them exactly.
+
+Clicking the pill mirrors `monitor-next/lib/py-dag-loader.js`'s
+already-verified boot sequence (`loadPyodide` → `loadPackage("micropip")`
+→ `micropip.install(wheel)` → fetch + `runPythonAsync(adapter)`) almost
+verbatim, as inline `<script type="module">` (this page has no bundler),
+fetching `assets/wising_dag-0.0.0-py3-none-any.whl` and
+`dag_py/adapter/pyodide_adapter.py` directly by relative path — both
+already reachable from the repo root under `npm run serve`'s static
+server. One deliberate difference from `monitor-next`'s loader:
+`install()` is called with its **default** namespace (`"WISING"`, not
+`"WISING_PY"`) — `pyodide_adapter.py`'s own header comment already
+anticipated exactly this page for exactly that default, since `install()`
+mutates the existing `window.WISING` object in place rather than replacing
+it, so this page's one `W.analyze(...)` call site (inside
+`renderSnapshot()`) never needs to know or care which source is currently
+live; only the toggle handler needs to know, to restore the two captured
+JS-DAG functions when switching back. `include_extras` stays at its
+default `False` too — this page only ever reads `result.summary`, never
+`checksRegistry`/`calendarAmounts`.
+
+Verified with the same rigor as the tenth/eleventh passes, not just
+"the code looks right": `npm run serve` (the real static server this page
+actually ships behind) + Playwright/Chromium + the same CDN-interception
+technique (jsdelivr unreachable from this sandbox; local mirror of the
+same pinned Pyodide v0.26.4 substituted at the network layer only, zero
+lines of the page's own code touched by the test). Clicked the real pill
+in a real loaded page: JS DAG's initial snapshot, the Python-DAG-computed
+snapshot after toggling, and the JS-DAG snapshot again after toggling back
+were byte-identical on every field (`ROR / RESIDENT ALIEN`, `3` critical
+conflicts, `$8,944` residual double tax, `21` filings required) — a live,
+in-browser confirmation of exactly the cross-engine parity this whole
+port exists to guarantee, on the one remaining page that had never been
+touched. Zero bugs found this time (unlike passes ten/eleven) — the
+already-fixed wheel-naming/`to_py`/datetime-conversion bugs were the ones
+this exact code path would have hit too, and all three were already fixed
+upstream in `pyodide_adapter.py`/`scripts/build-dag-wheel.py`, shared by
+every consumer.
+
+**Verification**: `dag_py` pytest 573/573 green (unaffected — this change
+touches only `index.html`, nothing under `dag_py/`). Playwright/Chromium
+click-through against the real `npm run serve` static server: default
+JS DAG snapshot, Python DAG snapshot post-toggle, and reverted JS DAG
+snapshot all identical, zero errors attributable to this change (one
+pre-existing, unrelated console error from the page's own Google-Fonts
+CDN `@import`, blocked in this sandbox exactly like every other CDN
+fetch — present before this change too).
+
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 
 **Scoping correction, found before any code was written**: the plan's guessed

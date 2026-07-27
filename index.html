@@ -86,7 +86,12 @@ cd monitor-next &amp;&amp; npm install &amp;&amp; npm run dev   <span class="tex
 <!-- Live snapshot -->
 <section class="max-w-5xl mx-auto px-5 py-8">
   <div class="glass rounded-2xl p-6">
-    <h3 class="font-display font-bold text-lg mb-4">Demo taxpayer snapshot (live from the engine)</h3>
+    <div class="flex items-center justify-between gap-3 mb-4">
+      <h3 class="font-display font-bold text-lg">Demo taxpayer snapshot (live from the engine)</h3>
+      <button id="compute-source-toggle" type="button"
+        title="Compute source: the verified JS dependency-graph engine (prototypes/graph-pilot), or its Python port (dag_py/) running client-side via Pyodide — experimental, opt-in only, never the default. Same result shape either way."
+        class="shrink-0 font-mono text-[10px] px-2 py-1 rounded-full border border-white/15 text-white/60 hover:text-white hover:border-white/30 transition-colors"></button>
+    </div>
     <div id="snapshot" class="grid grid-cols-2 lg:grid-cols-4 gap-4 text-center">
       <div class="text-white/40 text-sm col-span-4">Computing…</div>
     </div>
@@ -99,24 +104,128 @@ cd monitor-next &amp;&amp; npm install &amp;&amp; npm run dev   <span class="tex
 </footer>
 
 <script src="assets/dag-analyze.bundle.js"></script>
-<script>
+<script type="module">
   var W = window.WISING;
   function fmtUsd(n){ return "$" + Math.round(n||0).toLocaleString("en-US"); }
-  (function () {
+  function card(label, value, color) {
+    return '<div class="rounded-xl bg-white/4 p-4"><div class="text-[10px] uppercase tracking-widest text-white/40 mb-1">' + label +
+      '</div><div class="font-display font-extrabold text-xl" style="color:' + (color||'#fff') + '">' + value + '</div></div>';
+  }
+  function renderSnapshot() {
     var hasLive = false;
     try { hasLive = !!(localStorage.getItem(W.CONST.STORAGE_KEYS.INDIA) || localStorage.getItem(W.CONST.STORAGE_KEYS.US)); } catch(e){}
     var r = hasLive ? W.analyze({}) : W.analyze({ router:W.SAMPLE.router, india:W.SAMPLE.india, us:W.SAMPLE.us });
     var s = r.summary;
-    function card(label, value, color) {
-      return '<div class="rounded-xl bg-white/4 p-4"><div class="text-[10px] uppercase tracking-widest text-white/40 mb-1">' + label +
-        '</div><div class="font-display font-extrabold text-xl" style="color:' + (color||'#fff') + '">' + value + '</div></div>';
-    }
     document.getElementById("snapshot").innerHTML =
       card("Residency", (s.indiaStatus||"—") + " / " + (s.usStatus ? s.usStatus.replace(/_/g," ") : "—"), s.dualResident ? "#ef4444" : "#10B981") +
       card("Critical conflicts", s.counts.critical, s.counts.critical ? "#ef4444" : "#10B981") +
       card("Residual double tax", fmtUsd(s.netDoubleTaxUsd), s.netDoubleTaxUsd > 0 ? "#ef4444" : "#10B981") +
       card("Filings required", s.requiredDocs, "#06B6D4");
-  })();
+  }
+  renderSnapshot();
+
+  /* ============================================================================
+   * Python DAG (dag_py/, via Pyodide) — a THIRD compute source, opt-in only via
+   * the "⚙ JS DAG" pill above. Default stays the JS DAG (unchanged behavior);
+   * nothing here runs until the user explicitly clicks the toggle.
+   *
+   * Mirrors monitor-next/lib/py-dag-loader.js's own boot sequence exactly
+   * (loadPyodide -> loadPackage(micropip) -> micropip.install(wheel) ->
+   * fetch+runPythonAsync(adapter) -> window.WISING.analyze) — see
+   * docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 7/8 browser-verification
+   * sections for the 3 real bugs that verifying this exact sequence in an
+   * actual Chromium tab found and fixed (wheel filename, pyodide.ffi.to_py,
+   * datetime -> JS Date). This page reuses that already-verified sequence
+   * rather than re-deriving it.
+   *
+   * Unlike monitor-next's own loader (which installs under the separate
+   * window.WISING_PY namespace, since that app runs the JS DAG and the
+   * Python DAG side by side for shadow-mode comparison), this page installs
+   * under the SAME "WISING" namespace the JS DAG already used —
+   * dag_py/adapter/pyodide_adapter.py's own install() defaults to that
+   * exact namespace for exactly this page (see its header comment). This
+   * page only ever has one compute source active at a time, so install()
+   * overwriting window.WISING.analyze/.normalize in place is exactly what's
+   * wanted: renderSnapshot()'s one `W.analyze(...)` call site above never
+   * has to know which source is live. Toggling back to "JS DAG" restores
+   * the two functions captured below, before Python's install() ever ran.
+   * include_extras is left at its default False: this page only reads
+   * r.summary, never checksRegistry/calendarAmounts.
+   * ==========================================================================*/
+  var jsDagAnalyze = W.analyze;
+  var jsDagNormalize = W.normalize;
+
+  var PYODIDE_VERSION = "v0.26.4";
+  var PYODIDE_CDN_BASE = "https://cdn.jsdelivr.net/pyodide/" + PYODIDE_VERSION + "/full/";
+  var pyDagState = "idle"; // idle | loading | ready | error
+  var pyDagPromise = null;
+
+  function loadScriptOnce(src) {
+    return new Promise(function (resolve, reject) {
+      var script = document.createElement("script");
+      script.src = src;
+      script.onload = function () { resolve(); };
+      script.onerror = function () { reject(new Error("Failed to load script: " + src)); };
+      document.head.appendChild(script);
+    });
+  }
+
+  async function bootPyDag() {
+    await loadScriptOnce(PYODIDE_CDN_BASE + "pyodide.js");
+    if (typeof window.loadPyodide !== "function") throw new Error("pyodide.js loaded but window.loadPyodide is not a function");
+    var pyodide = await window.loadPyodide({ indexURL: PYODIDE_CDN_BASE });
+
+    await pyodide.loadPackage("micropip");
+    var micropip = pyodide.pyimport("micropip");
+    // Same PEP 427-conformant, permanently-fixed filename
+    // scripts/build-dag-wheel.py always writes — see that script's own
+    // comment for why micropip.install(url) requires this.
+    await micropip.install(new URL("assets/wising_dag-0.0.0-py3-none-any.whl", document.baseURI).href);
+
+    var adapterRes = await fetch(new URL("dag_py/adapter/pyodide_adapter.py", document.baseURI).href);
+    if (!adapterRes.ok) throw new Error("Failed to fetch dag_py/adapter/pyodide_adapter.py: " + adapterRes.status);
+    var adapterSrc = await adapterRes.text();
+
+    await pyodide.runPythonAsync(adapterSrc + '\ninstall(namespace="WISING")\n');
+    if (!window.WISING || typeof window.WISING.analyze !== "function") {
+      throw new Error("Pyodide adapter ran but window.WISING.analyze was not installed");
+    }
+    return pyodide;
+  }
+
+  function initPyDag() {
+    if (pyDagPromise) return pyDagPromise;
+    pyDagState = "loading";
+    pyDagPromise = bootPyDag().then(function (pyodide) { pyDagState = "ready"; return pyodide; })
+      .catch(function (err) {
+        pyDagState = "error";
+        pyDagPromise = null; // a later retry (re-clicking the toggle) attempts a fresh boot
+        throw err;
+      });
+    return pyDagPromise;
+  }
+
+  var toggleBtn = document.getElementById("compute-source-toggle");
+  var usingPyDag = false;
+  function updateToggleLabel() {
+    toggleBtn.textContent = "⚙ " + (!usingPyDag ? "JS DAG"
+      : "Python DAG" + (pyDagState === "loading" ? " (loading…)" : pyDagState === "error" ? " (failed)" : ""));
+  }
+  toggleBtn.addEventListener("click", function () {
+    if (!usingPyDag) {
+      usingPyDag = true;
+      updateToggleLabel();
+      initPyDag().then(function () { updateToggleLabel(); renderSnapshot(); })
+        .catch(function (err) { updateToggleLabel(); if (typeof console !== "undefined") console.error("[py-dag] boot failed:", err); });
+    } else {
+      usingPyDag = false;
+      W.analyze = jsDagAnalyze;
+      W.normalize = jsDagNormalize;
+      updateToggleLabel();
+      renderSnapshot();
+    }
+  });
+  updateToggleLabel();
 </script>
 </body>
 </html>
