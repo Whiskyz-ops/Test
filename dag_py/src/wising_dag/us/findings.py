@@ -165,6 +165,38 @@ def _nra_fdap_detail(d, ctx):
     }
 
 
+def _nra_derived_eci_fdap_result(d, ctx):
+    """Independent re-derivation of the ECI/FDAP split from
+    aggregateUsIncomeResult (which folds in K-1/C-corp/partnership
+    passthrough items, unlike the live form's own derivation), cross-checked
+    against nraEciIncomeUsdRaw/nraFdapIncomeUsdRaw — layer1_us.html's OWN
+    client-side derivation (updateNraFields(), ~line 11507), which sums only
+    W-2 wages + self-employment for ECI and direct interest/dividends/rental
+    for FDAP. The two genuinely diverge whenever K-1 passive income, C-corp/
+    partnership business income, or direct-source royalties are present —
+    none of those reach the live form's own figure. This node does NOT
+    override nraEciIncomeUsdRaw/nraFdapIncomeUsdRaw (those still drive the
+    actual tax computed in ustax_full.py's _nra_tax_result) — it only powers
+    the nra_eci_fdap_classification_check finding below.
+
+    Rental income is bucketed as FDAP here (the §871(a) statutory default,
+    absent a §871(d) net-basis election this engine has no field for) —
+    matching layer1_us.html's own classification, but NOT the different ECI
+    definition ustax_full.py's own _scale_nonresident_inc (dual-status-year
+    path) uses, which folds rental into ECI. That's a pre-existing
+    inconsistency between two NRA-adjacent code paths — noted here rather
+    than silently reconciled, since fixing it would change the dual-status
+    combined tax figure, a different surface than this finding.
+    """
+    agg = d["aggregateUsIncomeResult"]
+    derived_eci_usd = agg["wages"]["usd"] + agg["businessUs"]["usd"]
+    derived_fdap_usd = agg["interestUs"]["usd"] + agg["ordinaryDividendsUs"]["usd"] + agg["rentalUs"]["usd"] + d["royaltiesDirectUsSourceUsdRaw"]
+    return {
+        "derivedEciUsd": derived_eci_usd, "derivedFdapUsd": derived_fdap_usd,
+        "derivedTotalUsd": derived_eci_usd + derived_fdap_usd,
+    }
+
+
 def _fmt(n: float) -> str:
     return f"${js_round(n):,}"
 
@@ -200,6 +232,8 @@ NODES = {
     "nraFdapIncomeUsdRaw": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "nra_specific.us_fdap_income_usd", 0)), layer1_fields=("us.nra_specific.us_fdap_income_usd",)),
     "nraEciIncomeUsdRaw": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "nra_specific.us_eci_income_usd", 0)), layer1_fields=("us.nra_specific.us_eci_income_usd",)),
     "nraFdapDetail": NodeDef(deps=("nraRaw", "nraFdapIncomeUsdRaw"), compute=_nra_fdap_detail),
+    "royaltiesDirectUsSourceUsdRaw": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "income_us_source.royalties_direct_us_source_usd", 0)), layer1_fields=("us.income_us_source.royalties_direct_us_source_usd",)),
+    "nraDerivedEciFdapResult": NodeDef(deps=("aggregateUsIncomeResult", "royaltiesDirectUsSourceUsdRaw"), compute=_nra_derived_eci_fdap_result),
 
     # ---- AGG-9 / TAX-9 (findings-batch5-nodes.js) -----------------------------
     "equityCompRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "equity_compensation", {}) or {}, layer1_fields=("us.equity_compensation",)),

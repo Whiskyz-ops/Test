@@ -34,6 +34,7 @@ this file's own override above has run.
 from __future__ import annotations
 
 from ..core.dates import parse_date
+from ..core.findings import make_finding
 from ..core.graph import NodeDef
 from ..core.util import js_num_str, js_round, num, safe
 from . import constants as C
@@ -299,8 +300,116 @@ def _findings_all_result_override(d, ctx, base_compute):
                 ),
                 "amountUsd": 0, "refs": [est.get("stateName") or est["state"]],
             })
-        all_findings.sort(key=lambda f: (_SEVERITY_WEIGHT[f["severity"]], -f["amountUsd"]))
+
+    # DAG-only additions (no JS-source equivalent — deliberately kept OUT of
+    # us/findings.py's ALL_FINDING_IDS, which test_findings_domain_split.py
+    # pins to the exact 61-id JS-ported catalog; appended here via the same
+    # findingsAllResult-override mechanism this function already uses for
+    # us_dual_status_split_year/us_entity_state_tax above, matching the
+    # precedent filings/assets.py set for its own Phase 6 findings —
+    # msme_disallowance_s43Bh_india/presumptive_lockin_active_india — per
+    # this file's own module docstring).
+    is_nra = d["usEntityKind"] not in ("ccorp", "scorp", "partnership", "trust") and d["treatyFiles1040nrRaw"] and not d["s6013hElection"]
+    if is_nra:
+        # NRA ECI/FDAP classification cross-check: layer1_us.html's own
+        # client-side derivation (updateNraFields()) — which is what
+        # nraEciIncomeUsdRaw/nraFdapIncomeUsdRaw actually carry into the tax
+        # computed above — only sums W-2 wages + self-employment for ECI and
+        # direct interest/dividends/rental for FDAP. Re-derived here from the
+        # fuller aggregateUsIncomeResult (K-1 passthrough, C-corp business
+        # income, direct-source royalties) purely as a sanity check; does NOT
+        # change the tax already computed.
+        derived = d["nraDerivedEciFdapResult"]
+        declared_eci_usd, declared_fdap_usd = d["nraEciIncomeUsdRaw"] or 0, d["nraFdapIncomeUsdRaw"] or 0
+        declared_total_usd = declared_eci_usd + declared_fdap_usd
+        delta_usd = derived["derivedTotalUsd"] - declared_total_usd
+        materiality_usd = max(100.0, 0.01 * derived["derivedTotalUsd"])
+        if abs(delta_usd) > materiality_usd:
+            eci_delta_usd = derived["derivedEciUsd"] - declared_eci_usd
+            fdap_delta_usd = derived["derivedFdapUsd"] - declared_fdap_usd
+            all_findings.append(make_finding(
+                "nra_eci_fdap_classification_check", "warning", "credit",
+                f"NRA ECI/FDAP split may be incomplete — {_usd(abs(delta_usd))} {'not yet classified' if delta_usd > 0 else 'over-counted'} vs. a full income re-derivation",
+                f"Layer 1's own ECI/FDAP classification totals {_usd(declared_total_usd)} ({_usd(declared_eci_usd)} ECI + {_usd(declared_fdap_usd)} FDAP), computed there "
+                "from W-2 wages + self-employment (ECI) and direct interest/dividends/rental (FDAP) only. Re-deriving from the fuller income aggregation used elsewhere in "
+                f"this engine (which additionally folds in K-1 partnership/S-corp/trust passthrough income, C-corp business income, and direct-source royalties) gives "
+                f"{_usd(derived['derivedTotalUsd'])} ({_usd(derived['derivedEciUsd'])} ECI + {_usd(derived['derivedFdapUsd'])} FDAP) — a difference of {_usd(eci_delta_usd)} "
+                f"in ECI and {_usd(fdap_delta_usd)} in FDAP. The tax computed above still uses Layer 1's own figures, not this re-derivation.",
+                "Reconcile the two totals with a preparer before relying on the NRA tax computed above — check especially for K-1s, C-corp/partnership income, or "
+                "direct-source royalties that Layer 1's own ECI/FDAP screen may not be picking up.",
+                abs(delta_usd), ["Form 1040-NR", "Schedule NEC", "FDAP", "ECI"],
+            ))
+
+        # India-US DTAA FDAP treaty-rate sanity check against
+        # constants.py's INDIA_US_TREATY_FDAP_RATES.
+        for treaty_claim in (d["nraRaw"]["treatyRateClaims"] or []):
+            if not treaty_claim or treaty_claim.get("rate") is None:
+                continue
+            income_type = treaty_claim.get("income_type")
+            table_entry = C.INDIA_US_TREATY_FDAP_RATES.get(income_type) if income_type else None
+            if not table_entry:
+                continue
+            claimed_rate_frac = max(0.0, min(1.0, num(treaty_claim["rate"]) / 100))
+            if any(abs(claimed_rate_frac - r) <= C.TREATY_RATE_TOLERANCE for r in table_entry["rates"]):
+                continue
+            valid_rates_pct = " / ".join(f"{js_round(r * 100)}%" for r in table_entry["rates"])
+            all_findings.append(make_finding(
+                "treaty_rate_not_recognized", "warning", "treaty",
+                f"Claimed treaty rate ({js_round(claimed_rate_frac * 100)}%) doesn't match a recognized India-US DTAA rate for {income_type}",
+                f"A {js_round(claimed_rate_frac * 100)}% rate is claimed for {income_type} income, but {table_entry['article']} of the India-US DTAA only provides for "
+                f"{valid_rates_pct} ({table_entry['note']}). This doesn't automatically mean the claim is wrong — it may reflect a sub-category this engine doesn't "
+                "distinguish — but a rate outside the treaty's own range will not be honored by the IRS as claimed.",
+                f"Confirm the {income_type} claim against {table_entry['article']} of the treaty (and the current IRS Publication 901) with a preparer before relying "
+                "on the FDAP tax computed above.",
+                0, [table_entry["article"], "Form W-8BEN", "Pub. 901"],
+            ))
+
+        # DTAA Art. 21(2) — Indian student/business-apprentice standard
+        # deduction, computed in _nra_tax_result above.
+        nra_detail = d["usTaxResult"].get("nra") or {}
+        if nra_detail.get("article212Eligible"):
+            uses_standard = nra_detail["standardDeductionUsd"] >= nra_detail["itemizedDeductionUsd"]
+            benefit_usd = max(0.0, nra_detail["standardDeductionUsd"] - nra_detail["itemizedDeductionUsd"])
+            all_findings.append(make_finding(
+                "nra_article_21_2_standard_deduction", "info", "credit",
+                f"Art. 21(2) applied — {'standard' if uses_standard else 'itemized'} deduction used on ECI",
+                f"As an Indian student/business apprentice on an F-1 visa, Article 21(2) of the India-US DTAA lets this taxpayer use the same deductions a US "
+                f"resident could — including the {_usd(nra_detail['standardDeductionUsd'])} standard deduction — instead of the itemized-only rule that otherwise "
+                f"applies to NRAs. Itemized deductions here total {_usd(nra_detail['itemizedDeductionUsd'])}, so the "
+                + ("standard deduction was used" if uses_standard else "itemized deductions were used since they exceed the standard deduction")
+                + (f", saving {_usd(benefit_usd)} of ECI from tax versus the itemized-only default." if benefit_usd > 0 else "."),
+                "File Form 8833 to disclose the treaty-based return position (Article 21(2)) alongside Form 1040-NR.",
+                benefit_usd, ["Art. 21(2)", "Form 8833", "Form 1040-NR"],
+            ))
+        elif nra_detail.get("article212AmbiguousJ1"):
+            all_findings.append(make_finding(
+                "nra_j1_article_21_2_review", "info", "credit",
+                "J-1 visa on file — confirm whether Art. 21(2)'s standard-deduction treaty benefit applies",
+                "This taxpayer's visa is recorded as J-1, which covers several sub-categories (students, business apprentices, trainees, scholars, professors, "
+                "and research scholars). Article 21(2) of the India-US DTAA — which allows the standard deduction instead of the usual NRA itemized-only rule — "
+                "applies only to students and business apprentices, not to scholars/professors/researchers (who fall under Article 22 instead, a different, "
+                "time-limited exemption). This engine has not assumed eligibility and has computed tax on an itemized-only basis.",
+                "Confirm the specific J-1 sub-category with the taxpayer; if student or business apprentice, Article 21(2) may allow the standard deduction "
+                "(Form 8833 disclosure required) and could reduce the ECI tax computed above.",
+                0, ["Art. 21(2)", "Art. 22", "Form 8833"],
+            ))
+
+    all_findings.sort(key=lambda f: (_SEVERITY_WEIGHT[f["severity"]], -f["amountUsd"]))
     return all_findings
+
+
+# US-India DTAA Art. 21(2): a student or business apprentice who is (or
+# immediately before visiting the US was) a resident of India may compute
+# US tax using the same deductions available to a US citizen/resident,
+# including the standard deduction — the one carve-out from the general
+# "NRAs get itemized deductions only" rule (IRC 873(b)). layer1_us.html's
+# "US Visa / Immigration Status" field (#prof-visa-type) distinguishes F-1
+# (unambiguously "Student") from J-1 ("Exchange Visitor", which also covers
+# scholars/professors/researchers/trainees under Article 22, NOT eligible
+# under Article 21(2)) — so only F-1 is auto-applied; J-1 is surfaced as a
+# finding for the preparer to confirm the sub-category rather than guessed.
+_ARTICLE_21_2_AUTO_VISA = "f1"
+_ARTICLE_21_2_AMBIGUOUS_VISA = "j1"
 
 
 def _nra_tax_result(d, ctx):
@@ -316,8 +425,22 @@ def _nra_tax_result(d, ctx):
     w8ben_on_file = d["nraRaw"]["submittedW8ben"] is True
     fdap_rate = claimed_rate if (w8ben_on_file and claimed_rate is not None) else 0.30
 
-    itemized = min(ded["salt"], compute_salt_cap(eci_usd, status)) + ded["mortgageInterest"] + ded["charitable"] + max(0.0, ded["medical"] - 0.075 * eci_usd)
-    taxable_eci_usd = max(0.0, eci_usd - itemized)
+    itemized_usd = min(ded["salt"], compute_salt_cap(eci_usd, status)) + ded["mortgageInterest"] + ded["charitable"] + max(0.0, ded["medical"] - 0.075 * eci_usd)
+    visa_type = d["usVisaTypeRaw"]
+    article212_eligible = visa_type == _ARTICLE_21_2_AUTO_VISA
+    article212_ambiguous_j1 = visa_type == _ARTICLE_21_2_AMBIGUOUS_VISA
+    std_deduction_usd = T["STD_DEDUCTION"].get(status, T["STD_DEDUCTION"]["single"])
+    if article212_eligible:
+        deduction_usd = max(itemized_usd, std_deduction_usd)
+        deduction_mode = (
+            f"standard (Art. 21(2) — Indian student/business apprentice, {_usd(std_deduction_usd)})" if deduction_usd == std_deduction_usd
+            else "itemized (Art. 21(2) — Indian student/business apprentice; itemized exceeds the standard deduction)"
+        )
+    else:
+        deduction_usd = itemized_usd
+        deduction_mode = "itemized (NRA — no standard deduction)"
+
+    taxable_eci_usd = max(0.0, eci_usd - deduction_usd)
     eci_tax_usd = bracket_tax(taxable_eci_usd, brackets)
     eci_bracket_breakdown = bracket_breakdown(taxable_eci_usd, brackets)
     fdap_tax_usd = fdap_usd * fdap_rate
@@ -327,7 +450,7 @@ def _nra_tax_result(d, ctx):
     return {
         "filingStatus": status, "worldwide": False, "isNra": True,
         "totalIncomeUsd": eci_usd + fdap_usd,
-        "agiUsd": eci_usd, "deductionUsd": itemized, "deductionMode": "itemized (NRA — no standard deduction)",
+        "agiUsd": eci_usd, "deductionUsd": deduction_usd, "deductionMode": deduction_mode,
         "taxableIncomeUsd": taxable_eci_usd,
         "ordinaryTaxUsd": eci_tax_usd, "preferentialTaxUsd": 0, "incomeTaxUsd": eci_tax_usd + fdap_tax_usd,
         "niitUsd": 0, "additionalMedicareUsd": addl_medicare, "seTaxUsd": 0, "qbiDeductionUsd": 0, "amtUsd": 0, "creditsUsd": 0,
@@ -338,6 +461,8 @@ def _nra_tax_result(d, ctx):
             "eciUsd": eci_usd, "fdapUsd": fdap_usd, "fdapRate": fdap_rate, "eciTaxUsd": eci_tax_usd, "fdapTaxUsd": fdap_tax_usd,
             "taxableEciUsd": taxable_eci_usd, "eciBracketBreakdown": eci_bracket_breakdown,
             "claimedRate": claimed_rate, "w8benOnFile": w8ben_on_file, "incomeType": (claim.get("income_type") if claim else None) or None,
+            "itemizedDeductionUsd": itemized_usd, "standardDeductionUsd": std_deduction_usd,
+            "article212Eligible": article212_eligible, "article212AmbiguousJ1": article212_ambiguous_j1, "visaType": visa_type,
         },
         "feie": {"claimed": False, "eligible": False, "taxHomeAbroad": False, "testMet": False, "reasons": [], "appliedUsd": 0},
         "effectiveRate": (total_tax / (eci_usd + fdap_usd)) if (eci_usd + fdap_usd) > 0 else 0,
@@ -558,7 +683,7 @@ def build(base):
     r.register("usEntityStateOfDomicileRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "profile.state_of_domicile", None), layer1_fields=("us.profile.state_of_domicile",)))
     r.register("usEntityStateTaxResult", NodeDef(deps=("usEntityKind", "usEntityStateOfDomicileRaw", "usEntityTaxResult"), compute=_us_entity_state_tax_result))
     r.register("nraTaxResult", NodeDef(
-        deps=("nraRaw", "nraFdapIncomeUsdRaw", "nraEciIncomeUsdRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary"),
+        deps=("nraRaw", "nraFdapIncomeUsdRaw", "nraEciIncomeUsdRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary", "usVisaTypeRaw"),
         compute=_nra_tax_result,
     ))
 
@@ -582,7 +707,14 @@ def build(base):
     base_findings_all = r.get("findingsAllResult")
     r.override(
         "findingsAllResult",
-        NodeDef(deps=base_findings_all.deps + ("usEntityStateTaxResult", "usDualStatusResult", "usExpatriationResult"), compute=lambda d, ctx: _findings_all_result_override(d, ctx, base_findings_all.compute)),
+        NodeDef(
+            deps=base_findings_all.deps + (
+                "usEntityStateTaxResult", "usDualStatusResult", "usExpatriationResult",
+                "usEntityKind", "treatyFiles1040nrRaw", "s6013hElection", "usTaxResult",
+                "nraDerivedEciFdapResult", "nraEciIncomeUsdRaw", "nraFdapIncomeUsdRaw", "nraRaw",
+            ),
+            compute=lambda d, ctx: _findings_all_result_override(d, ctx, base_findings_all.compute),
+        ),
         reason=OVERRIDE_REASON,
     )
 
