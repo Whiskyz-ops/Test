@@ -189,15 +189,37 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
 
       var taxableBeforeQbi = Math.max(0, agi - deduction - seniorDeductionUsd - tipsDeductionUsd - overtimeDeductionUsd);
 
+      // §199A W-2 wage / UBIA limitation (task #42 follow-up). K-1 Box 20
+      // qbi_wages_usd/qbi_ubia_usd (partnerships_k1/s_corporations_k1) and
+      // self-employment/farm wages_paid_usd were all collected by Layer 1 US
+      // but never read anywhere -- QBI was flat 20% with only the SSTB
+      // phase-out modeled, no wage/UBIA limit at all for a real (non-SSTB)
+      // business above the threshold. Algorithm (wage-limit formula +
+      // linear phase-in) ported from layer1_us.html's own local preview
+      // calculation (the one place it was already correctly implemented,
+      // just never wired past that one screen's own display) -- but using
+      // THIS file's own T.QBI_THRESHOLD/T.QBI_PHASEIN (2026 OBBBA figures:
+      // $75k/$150k phase-in range), not the raw form's stale pre-OBBBA
+      // $50k/$100k preview constants.
       var qbi = inc.qbiIncomeUsd || 0;
+      var qbiWages = inc.qbiWagesUsd || 0;
+      var qbiUbia = inc.qbiUbiaUsd || 0;
       var qbiThr = T.QBI_THRESHOLD[status] || T.QBI_THRESHOLD.single;
       var qbiPhase = T.QBI_PHASEIN[status] || T.QBI_PHASEIN.single;
-      var qbiFrac = 1;
-      if (inc.qbiIsSSTB) {
-        if (taxableBeforeQbi >= qbiThr + qbiPhase) qbiFrac = 0;
-        else if (taxableBeforeQbi > qbiThr) qbiFrac = 1 - (taxableBeforeQbi - qbiThr) / qbiPhase;
+      var qbiThrFraction = taxableBeforeQbi <= qbiThr ? 0 : taxableBeforeQbi >= qbiThr + qbiPhase ? 1 : (taxableBeforeQbi - qbiThr) / qbiPhase;
+      var qbiFrac = inc.qbiIsSSTB ? (1 - qbiThrFraction) : 1;
+      var activeQbi = qbi * qbiFrac;
+      var tentativeQbiDeduction = T.QBI_RATE * activeQbi;
+      var qbiDeduction;
+      if (taxableBeforeQbi <= qbiThr) {
+        qbiDeduction = tentativeQbiDeduction; // full deduction, no wage/UBIA limit below the threshold
+      } else {
+        var activeQbiWages = qbiWages * qbiFrac, activeQbiUbia = qbiUbia * qbiFrac;
+        var qbiWageLimit = Math.max(0.50 * activeQbiWages, 0.25 * activeQbiWages + 0.025 * activeQbiUbia);
+        qbiDeduction = taxableBeforeQbi >= qbiThr + qbiPhase
+          ? Math.min(tentativeQbiDeduction, qbiWageLimit)
+          : tentativeQbiDeduction - Math.max(0, tentativeQbiDeduction - qbiWageLimit) * qbiThrFraction;
       }
-      var qbiDeduction = T.QBI_RATE * qbi * qbiFrac;
       qbiDeduction = Math.max(0, Math.round(Math.min(qbiDeduction, T.QBI_RATE * Math.max(0, taxableBeforeQbi - preferentialIncome))));
 
       var taxableIncome = Math.max(0, taxableBeforeQbi - qbiDeduction);

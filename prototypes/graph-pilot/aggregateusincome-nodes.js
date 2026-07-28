@@ -347,7 +347,25 @@ var NODES = {
         seEarnings += num(box14a);
       });
 
-      return { businessUsUsd: businessUs, foreignSelfEmploymentUsd: foreignSelfEmployment, seEarningsUsd: seEarnings, qbiIncomeUsd: Math.max(0, qbiIncome), qbiIsSSTB: sstb };
+      // §199A W-2 wage / UBIA limitation base (task #42 follow-up): K-1 Box
+      // 20 qbi_wages_usd/qbi_ubia_usd (partnerships_k1/s_corporations_k1)
+      // and self-employment/farm wages_paid_usd, collected but never read
+      // before this. trusts_estates_k1 has no qbi_wages_usd/qbi_ubia_usd
+      // fields on Layer 1 at all (matches layer1_us.html's own reference
+      // preview calculation, which passes a literal 0 for trust K-1 wages/
+      // UBIA) -- not modeled, not a gap introduced here. Self-employment/
+      // farm likewise have no UBIA field (only wages_paid_usd) -- mirrors
+      // the same reference calculation exactly.
+      var qbiWages = 0, qbiUbia = 0;
+      (safe(ui, "self_employment", []) || []).forEach(function (s) { qbiWages += num(s.wages_paid_usd); });
+      (safe(ui, "farming_schedule_f", []) || []).forEach(function (f) { qbiWages += num(f.wages_paid_usd); });
+      (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { qbiWages += num(k.qbi_wages_usd); qbiUbia += num(k.qbi_ubia_usd); });
+      (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { qbiWages += num(s.qbi_wages_usd); qbiUbia += num(s.qbi_ubia_usd); });
+
+      return {
+        businessUsUsd: businessUs, foreignSelfEmploymentUsd: foreignSelfEmployment, seEarningsUsd: seEarnings,
+        qbiIncomeUsd: Math.max(0, qbiIncome), qbiIsSSTB: sstb, qbiWagesUsd: qbiWages, qbiUbiaUsd: qbiUbia
+      };
     }
   },
 
@@ -457,6 +475,7 @@ var NODES = {
         wages: m(w.wagesUsd, ctx), businessUs: m(biz.businessUsUsd, ctx), w2Withholding: w.w2WithholdingUsd, w2Employers: w.w2Employers, medicareWages: w.medicareWagesUsd,
         qualifiedTipsUsd: w.qualifiedTipsUsd, qualifiedOvertimeUsd: w.qualifiedOvertimeUsd,
         seEarningsUsd: biz.seEarningsUsd, qbiIncomeUsd: biz.qbiIncomeUsd, qbiIsSSTB: biz.qbiIsSSTB,
+        qbiWagesUsd: biz.qbiWagesUsd, qbiUbiaUsd: biz.qbiUbiaUsd,
         usRetirementIncome: m(ret.usRetirementIncomeExclSsUsd + ret.socialSecurityUsUsd, ctx),
         usRetirementIncomeExclSs: m(ret.usRetirementIncomeExclSsUsd, ctx),
         retirementDistributionsSubjectTo72tUsd: ret.retirementDistributionsSubjectTo72tUsd,

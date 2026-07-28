@@ -370,7 +370,9 @@
         "otherOrdinaryIncomeUs": {
           "usd": 0,
           "inr": 0
-        }
+        },
+        "qbiWagesUsd": 0,
+        "qbiUbiaUsd": 0
       }
     },
     "deductions": {

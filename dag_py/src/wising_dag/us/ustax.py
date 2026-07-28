@@ -198,16 +198,38 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
 
     taxable_before_qbi = max(0.0, agi - deduction - senior_deduction_usd - tips_deduction_usd - overtime_deduction_usd)
 
+    # §199A W-2 wage / UBIA limitation (task #42 follow-up). K-1 Box 20
+    # qbi_wages_usd/qbi_ubia_usd and self-employment/farm wages_paid_usd
+    # were collected but never read -- QBI was flat 20% with only the SSTB
+    # phase-out modeled, no wage/UBIA limit for a real (non-SSTB) business
+    # above the threshold. Algorithm ported from layer1_us.html's own local
+    # preview calculation, but using this module's own T["QBI_THRESHOLD"]/
+    # T["QBI_PHASEIN"] (2026 OBBBA figures), not the raw form's stale
+    # pre-OBBBA preview constants. Mirrors prototypes/graph-pilot/ustax-nodes.js exactly.
     qbi = inc.get("qbiIncomeUsd") or 0
+    qbi_wages = inc.get("qbiWagesUsd") or 0
+    qbi_ubia = inc.get("qbiUbiaUsd") or 0
     qbi_thr = T["QBI_THRESHOLD"].get(status, T["QBI_THRESHOLD"]["single"])
     qbi_phase = T["QBI_PHASEIN"].get(status, T["QBI_PHASEIN"]["single"])
-    qbi_frac = 1.0
-    if inc.get("qbiIsSSTB"):
+    if taxable_before_qbi <= qbi_thr:
+        qbi_thr_fraction = 0.0
+    elif taxable_before_qbi >= qbi_thr + qbi_phase:
+        qbi_thr_fraction = 1.0
+    else:
+        qbi_thr_fraction = (taxable_before_qbi - qbi_thr) / qbi_phase
+    qbi_frac = (1 - qbi_thr_fraction) if inc.get("qbiIsSSTB") else 1.0
+    active_qbi = qbi * qbi_frac
+    tentative_qbi_deduction = T["QBI_RATE"] * active_qbi
+    if taxable_before_qbi <= qbi_thr:
+        qbi_deduction = tentative_qbi_deduction  # full deduction, no wage/UBIA limit below the threshold
+    else:
+        active_qbi_wages = qbi_wages * qbi_frac
+        active_qbi_ubia = qbi_ubia * qbi_frac
+        qbi_wage_limit = max(0.50 * active_qbi_wages, 0.25 * active_qbi_wages + 0.025 * active_qbi_ubia)
         if taxable_before_qbi >= qbi_thr + qbi_phase:
-            qbi_frac = 0.0
-        elif taxable_before_qbi > qbi_thr:
-            qbi_frac = 1 - (taxable_before_qbi - qbi_thr) / qbi_phase
-    qbi_deduction = T["QBI_RATE"] * qbi * qbi_frac
+            qbi_deduction = min(tentative_qbi_deduction, qbi_wage_limit)
+        else:
+            qbi_deduction = tentative_qbi_deduction - max(0.0, tentative_qbi_deduction - qbi_wage_limit) * qbi_thr_fraction
     qbi_deduction = max(0.0, js_round(min(qbi_deduction, T["QBI_RATE"] * max(0.0, taxable_before_qbi - preferential_income))))
 
     taxable_income = max(0.0, taxable_before_qbi - qbi_deduction)

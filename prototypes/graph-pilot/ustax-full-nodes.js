@@ -535,6 +535,7 @@ function scaleResidentInc(inc, frac) {
     seEarningsUsd: (inc.seEarningsUsd || 0) * frac, medicareWages: (inc.medicareWages || 0) * frac,
     qualifiedTipsUsd: (inc.qualifiedTipsUsd || 0) * frac, qualifiedOvertimeUsd: (inc.qualifiedOvertimeUsd || 0) * frac,
     qbiIncomeUsd: (inc.qbiIncomeUsd || 0) * frac, qbiIsSSTB: inc.qbiIsSSTB,
+    qbiWagesUsd: (inc.qbiWagesUsd || 0) * frac, qbiUbiaUsd: (inc.qbiUbiaUsd || 0) * frac,
     retirementEpfInterestUsd: (inc.retirementEpfInterestUsd || 0) * frac, retirementNpsWithdrawalUsd: (inc.retirementNpsWithdrawalUsd || 0) * frac,
     usSourceTotal: s(inc.usSourceTotal)
   };
@@ -550,7 +551,7 @@ function scaleNonresidentInc(inc, frac) {
     foreignPension: zero, foreignStcg: zero, foreignLtcg: zero, foreignSection988GainLoss: zero, usRetirementIncome: zero, usRetirementIncomeExclSs: zero,
     socialSecurityUs: zero, taxExemptInterestUs: zero,
     seEarningsUsd: (inc.seEarningsUsd || 0) * frac, medicareWages: (inc.medicareWages || 0) * frac,
-    qualifiedTipsUsd: 0, qualifiedOvertimeUsd: 0, qbiIncomeUsd: 0, qbiIsSSTB: false,
+    qualifiedTipsUsd: 0, qualifiedOvertimeUsd: 0, qbiIncomeUsd: 0, qbiIsSSTB: false, qbiWagesUsd: 0, qbiUbiaUsd: 0,
     retirementEpfInterestUsd: 0, retirementNpsWithdrawalUsd: 0,
     usSourceTotal: { usd: eciUsd }
   };

@@ -288,7 +288,30 @@ def _business_and_se_computation(d, ctx):
             box14a = num(k.get("guaranteed_payments_usd") or 0) + (num(k.get("ordinary_business_income_usd") or k.get("ordinary_income_usd") or 0) if k.get("partner_type") == "general" else 0)
         se_earnings += num(box14a)
 
-    return {"businessUsUsd": business_us, "foreignSelfEmploymentUsd": foreign_self_employment, "seEarningsUsd": se_earnings, "qbiIncomeUsd": max(0.0, qbi_income), "qbiIsSSTB": sstb}
+    # §199A W-2 wage / UBIA limitation base (task #42 follow-up): K-1 Box 20
+    # qbi_wages_usd/qbi_ubia_usd (partnerships_k1/s_corporations_k1) and
+    # self-employment/farm wages_paid_usd, collected but never read before
+    # this. trusts_estates_k1 has no qbi_wages_usd/qbi_ubia_usd fields on
+    # Layer 1 at all (matches layer1_us.html's own reference preview calc,
+    # which passes a literal 0 for trust K-1 wages/UBIA) -- not a gap
+    # introduced here. Self-employment/farm likewise have no UBIA field.
+    qbi_wages = 0.0
+    qbi_ubia = 0.0
+    for s in safe(ui, "self_employment", []) or []:
+        qbi_wages += num(s.get("wages_paid_usd"))
+    for f in safe(ui, "farming_schedule_f", []) or []:
+        qbi_wages += num(f.get("wages_paid_usd"))
+    for k in safe(ui, "partnerships_k1", []) or []:
+        qbi_wages += num(k.get("qbi_wages_usd"))
+        qbi_ubia += num(k.get("qbi_ubia_usd"))
+    for s in safe(ui, "s_corporations_k1", []) or []:
+        qbi_wages += num(s.get("qbi_wages_usd"))
+        qbi_ubia += num(s.get("qbi_ubia_usd"))
+
+    return {
+        "businessUsUsd": business_us, "foreignSelfEmploymentUsd": foreign_self_employment, "seEarningsUsd": se_earnings,
+        "qbiIncomeUsd": max(0.0, qbi_income), "qbiIsSSTB": sstb, "qbiWagesUsd": qbi_wages, "qbiUbiaUsd": qbi_ubia,
+    }
 
 
 def _retirement_computation(d, ctx):
@@ -379,6 +402,7 @@ def _aggregate_us_income_result(d, ctx):
         "wages": _m(w["wagesUsd"], ctx), "businessUs": _m(biz["businessUsUsd"], ctx), "w2Withholding": w["w2WithholdingUsd"], "w2Employers": w["w2Employers"], "medicareWages": w["medicareWagesUsd"],
         "qualifiedTipsUsd": w["qualifiedTipsUsd"], "qualifiedOvertimeUsd": w["qualifiedOvertimeUsd"],
         "seEarningsUsd": biz["seEarningsUsd"], "qbiIncomeUsd": biz["qbiIncomeUsd"], "qbiIsSSTB": biz["qbiIsSSTB"],
+        "qbiWagesUsd": biz["qbiWagesUsd"], "qbiUbiaUsd": biz["qbiUbiaUsd"],
         "usRetirementIncome": _m(ret["usRetirementIncomeExclSsUsd"] + ret["socialSecurityUsUsd"], ctx),
         "usRetirementIncomeExclSs": _m(ret["usRetirementIncomeExclSsUsd"], ctx),
         "retirementDistributionsSubjectTo72tUsd": ret["retirementDistributionsSubjectTo72tUsd"],
@@ -519,6 +543,9 @@ def build(base):
             "us.income_us_source.s_corporations_k1[].is_specified_service_trade", "us.income_us_source.s_corporations_k1[].is_sstb", "us.income_us_source.s_corporations_k1[].sstb",
             "us.income_us_source.partnerships_k1[].is_specified_service_trade", "us.income_us_source.partnerships_k1[].is_sstb", "us.income_us_source.partnerships_k1[].sstb",
             "us.income_us_source.trusts_estates_k1[].is_specified_service_trade", "us.income_us_source.trusts_estates_k1[].is_sstb", "us.income_us_source.trusts_estates_k1[].sstb",
+            "us.income_us_source.self_employment[].wages_paid_usd", "us.income_us_source.farming_schedule_f[].wages_paid_usd",
+            "us.income_us_source.partnerships_k1[].qbi_wages_usd", "us.income_us_source.partnerships_k1[].qbi_ubia_usd",
+            "us.income_us_source.s_corporations_k1[].qbi_wages_usd", "us.income_us_source.s_corporations_k1[].qbi_ubia_usd",
         ) + _SE_DEPRECIATION_FIELDS,
     ))
     r.register("retirementComputation", NodeDef(

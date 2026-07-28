@@ -378,6 +378,7 @@ def _scale_resident_inc(inc, frac):
         "seEarningsUsd": (inc.get("seEarningsUsd") or 0) * frac, "medicareWages": (inc.get("medicareWages") or 0) * frac,
         "qualifiedTipsUsd": (inc.get("qualifiedTipsUsd") or 0) * frac, "qualifiedOvertimeUsd": (inc.get("qualifiedOvertimeUsd") or 0) * frac,
         "qbiIncomeUsd": (inc.get("qbiIncomeUsd") or 0) * frac, "qbiIsSSTB": inc.get("qbiIsSSTB"),
+        "qbiWagesUsd": (inc.get("qbiWagesUsd") or 0) * frac, "qbiUbiaUsd": (inc.get("qbiUbiaUsd") or 0) * frac,
         "retirementEpfInterestUsd": (inc.get("retirementEpfInterestUsd") or 0) * frac, "retirementNpsWithdrawalUsd": (inc.get("retirementNpsWithdrawalUsd") or 0) * frac,
         "usSourceTotal": s(inc["usSourceTotal"]),
     }
@@ -396,7 +397,7 @@ def _scale_nonresident_inc(inc, frac):
         "foreignPension": zero, "foreignStcg": zero, "foreignLtcg": zero, "foreignSection988GainLoss": zero, "usRetirementIncome": zero, "usRetirementIncomeExclSs": zero,
         "socialSecurityUs": zero, "taxExemptInterestUs": zero,
         "seEarningsUsd": (inc.get("seEarningsUsd") or 0) * frac, "medicareWages": (inc.get("medicareWages") or 0) * frac,
-        "qualifiedTipsUsd": 0, "qualifiedOvertimeUsd": 0, "qbiIncomeUsd": 0, "qbiIsSSTB": False,
+        "qualifiedTipsUsd": 0, "qualifiedOvertimeUsd": 0, "qbiIncomeUsd": 0, "qbiIsSSTB": False, "qbiWagesUsd": 0, "qbiUbiaUsd": 0,
         "retirementEpfInterestUsd": 0, "retirementNpsWithdrawalUsd": 0,
         "usSourceTotal": {"usd": eci_usd},
     }
