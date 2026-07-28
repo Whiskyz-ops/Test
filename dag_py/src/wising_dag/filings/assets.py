@@ -867,6 +867,30 @@ def _findings_all_result_override(d, ctx, base_compute):
             "amountUsd": d["iraContributionExcessUsd"], "refs": ["§219(b)(5)", "§4973", "Form 5329"],
         })
 
+    # -- hsa_excess_contribution (task #40 follow-up, closing the HSA gap
+    # the §402(g) block above deliberately deferred). Mirrors report-batch5-
+    # nodes.js's hsaExcessContributionFinding.
+    if d["hasUsScope"] and d["hsaContributionExcessUsd"] > 0:
+        added_any = True
+        coverage = "family" if d["hsaCoverageType"] == "family" else "self-only"
+        all_findings.append({
+            "id": "hsa_excess_contribution", "severity": "warning", "category": "credit",
+            "title": f"§223 excess HSA contribution ({_fmt(d['hsaContributionExcessUsd'])} over the limit)",
+            "detail": (
+                f"{_fmt(d['hsaContributionAggregateUsd'])} of combined HSA contributions (individual/payroll after-tax plus "
+                "employer/cafeteria-plan amounts under W-2 Box 12 code W) exceeds the §223(b) annual limit of "
+                f"{_fmt(d['hsaContributionLimitUsd'])} for this taxpayer's {coverage} HDHP coverage and age this year, by "
+                f"{_fmt(d['hsaContributionExcessUsd'])}."
+            ),
+            "recommendation": (
+                "Excess HSA contributions are subject to a 6% excise tax (§4973) each year they remain in the account, "
+                "and are also included in gross income unless withdrawn (with earnings) by the filing deadline including "
+                "extensions. Confirm whether the coverage-type change happened mid-year (a common cause of an apparent "
+                "excess that a last-month-rule or testing-period calculation would actually cure) — not modeled here."
+            ),
+            "amountUsd": d["hsaContributionExcessUsd"], "refs": ["§223(b)", "§4973", "Form 5329", "Form 8889"],
+        })
+
     if d["rmdRequired"]:
         added_any = True
         all_findings.append({
@@ -969,9 +993,10 @@ def build(base):
             deps=base_findings_all.deps + ("presumptiveLockinAgg", "totalIncomeInrV3", "taxRegime", "msmeDisallowanceTotalAgg",
                                             "hasUsScope", "electiveDeferralExcessUsd", "electiveDeferralAggregateUsd", "electiveDeferralLimitUsd",
                                             "iraContributionExcessUsd", "iraContributionAggregateUsd", "iraContributionLimitUsd",
+                                            "hsaContributionExcessUsd", "hsaContributionAggregateUsd", "hsaContributionLimitUsd", "hsaCoverageType",
                                             "retirementAccountsRaw", "rmdRequired", "ageAtYearEndUs", "equityCompRaw"),
             compute=lambda d, ctx: _findings_all_result_override(d, ctx, base_findings_all.compute),
         ),
-        reason="assets-nodes.js: adds msme_disallowance_s43Bh_india / presumptive_lockin_active_india / retirement_excess_elective_deferral / retirement_excess_ira_contribution / retirement_rmd_required / s83b_election_not_filed_timely findings on top of report-batch5-nodes.js's own findingsAllResult",
+        reason="assets-nodes.js: adds msme_disallowance_s43Bh_india / presumptive_lockin_active_india / retirement_excess_elective_deferral / retirement_excess_ira_contribution / hsa_excess_contribution / retirement_rmd_required / s83b_election_not_filed_timely findings on top of report-batch5-nodes.js's own findingsAllResult",
     )
     return r

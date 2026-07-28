@@ -3189,6 +3189,14 @@
                         <input type="text" inputmode="numeric" id="ret-hsa" placeholder="0" oninput="updateStateField('retirement_accounts', 'hsa_contribution_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono font-mono">
                     </div>
                     <div>
+                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">HDHP Coverage Type (§223 HSA limit)</label>
+                        <select id="ret-hsa-coverage" onchange="updateStateField('retirement_accounts', 'hsa_coverage_type', this.value || null)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan focus:ring-0 focus:outline-none">
+                            <option value="">Select...</option>
+                            <option value="self_only">Self-only</option>
+                            <option value="family">Family</option>
+                        </select>
+                    </div>
+                    <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Solo 401(k) (USD)</label>
                         <input type="text" inputmode="numeric" id="ret-solo-401k" placeholder="0" oninput="updateStateField('retirement_accounts', 'solo_401k_contribution_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
@@ -4253,6 +4261,7 @@
             "401k_employer_match_usd": null,
             roth_401k_contribution_usd: null,
             hsa_contribution_usd: null,
+            hsa_coverage_type: null,
             solo_401k_contribution_usd: null,
             sep_ira_contribution_usd: null,
             rmd_required: false,
@@ -5622,6 +5631,7 @@
                 "401k_employer_match_usd": null,
                 "roth_401k_contribution_usd": null,
                 "hsa_contribution_usd": null,
+                "hsa_coverage_type": null,
                 "solo_401k_contribution_usd": null,
                 "sep_ira_contribution_usd": null,
                 "rmd_required": false,
@@ -20157,6 +20167,7 @@ div.innerHTML = `
             "401k_employer_match_usd": null,
             roth_401k_contribution_usd: null,
             hsa_contribution_usd: null,
+            hsa_coverage_type: null,
             solo_401k_contribution_usd: null,
             sep_ira_contribution_usd: null,
             indian_epf_balance_usd: null,
@@ -20996,6 +21007,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             if(document.getElementById('ret-401k-match')) document.getElementById('ret-401k-match').value = usState.retirement_accounts["401k_employer_match_usd"] || '';
             if(document.getElementById('ret-roth-401k')) document.getElementById('ret-roth-401k').value = usState.retirement_accounts.roth_401k_contribution_usd || '';
             if(document.getElementById('ret-hsa')) document.getElementById('ret-hsa').value = usState.retirement_accounts.hsa_contribution_usd || '';
+            if(document.getElementById('ret-hsa-coverage')) document.getElementById('ret-hsa-coverage').value = usState.retirement_accounts.hsa_coverage_type || '';
             if(document.getElementById('ret-solo-401k')) document.getElementById('ret-solo-401k').value = usState.retirement_accounts.solo_401k_contribution_usd || '';
             if(document.getElementById('ret-sep-ira')) document.getElementById('ret-sep-ira').value = usState.retirement_accounts.sep_ira_contribution_usd || '';
             if(document.getElementById('ret-in-epf')) document.getElementById('ret-in-epf').value = usState.retirement_accounts.indian_epf_balance_usd || '';

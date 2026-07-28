@@ -446,7 +446,7 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // audit, 27 Jul 2026): same shape again -- unvested_restricted_stock_
 // awards[].filed_within_30_days fed nothing at all before this. No engine
 // equivalent since the classic engine is frozen.
-var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|retirement_rmd_required|s83b_election_not_filed_timely)$/;
+var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely)$/;
 var KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = [];
 
 // ---- D. entity-agnostic audit allowlist (see file header, section D) -----
