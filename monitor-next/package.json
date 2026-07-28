@@ -19,8 +19,10 @@
   "dependencies": {
     "@fontsource/cormorant-garamond": "^5.2.11",
     "@fontsource/manrope": "^5.2.8",
+    "@vercel/analytics": "^2.0.1",
     "lucide-react": "^1.23.0",
     "next": "14.2.33",
+    "prop-types": "^15.8.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-simple-maps": "3.0.0",
