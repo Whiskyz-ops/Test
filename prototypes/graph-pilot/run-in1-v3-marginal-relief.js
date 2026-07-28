@@ -51,13 +51,11 @@ console.log("Case 1: rebate must not fire when total income (incl. special-rate)
   var slabTaxInr = NODES.slabTaxInr.compute({ totalNormalInr: 1100000, slabs: T.SLABS_NEW });
   check("slabTaxInr at totalNormalInr=Rs.11,00,000 (sanity check)", slabTaxInr, 50000);
 
-  var rebateInrV3 = NODES.rebateInrV3.compute({
-    isIndividualV3: true, isNRV3: false, totalNormalInr: 1100000, isNew: true, slabTaxInr: slabTaxInr
-  });
   // Real total income (with Rs.50L of LTCG on top) is Rs.61,00,000 -- far
-  // above the Rs.12L cap. Correct rebate = 0. The current node reads only
-  // totalNormalInr and wrongly grants the full rebate regardless of the
-  // taxpayer's real total income.
+  // above the Rs.12L cap. Correct rebate = 0.
+  var rebateInrV3 = NODES.rebateInrV3.compute({
+    isIndividualV3: true, isNRV3: false, totalIncomeInrV3: 6100000, isNew: true, slabTaxInr: slabTaxInr
+  });
   check("rebateInrV3 should be 0 (real total income Rs.61,00,000 >> Rs.12,00,000 cap)", rebateInrV3, 0);
 })();
 console.log("");
@@ -69,14 +67,14 @@ console.log("Case 2: crossing Rs.12,00,000 by Re.1 must not create a Rs.60,000 c
   var slabTaxAt = NODES.slabTaxInr.compute({ totalNormalInr: 1200000, slabs: T.SLABS_NEW });
   check("slabTaxInr at exactly Rs.12,00,000 (sanity check)", slabTaxAt, 60000);
   var rebateAt = NODES.rebateInrV3.compute({
-    isIndividualV3: true, isNRV3: false, totalNormalInr: 1200000, isNew: true, slabTaxInr: slabTaxAt
+    isIndividualV3: true, isNRV3: false, totalIncomeInrV3: 1200000, isNew: true, slabTaxInr: slabTaxAt
   });
   var taxAfterAt = NODES.taxAfterRebateInr.compute({ slabTaxInr: slabTaxAt, rebateInrV3: rebateAt, specialTaxInrV3: 0 });
   check("tax at exactly Rs.12,00,000 should be ~Rs.0", taxAfterAt, 0);
 
   var slabTaxOver = NODES.slabTaxInr.compute({ totalNormalInr: 1200001, slabs: T.SLABS_NEW });
   var rebateOver = NODES.rebateInrV3.compute({
-    isIndividualV3: true, isNRV3: false, totalNormalInr: 1200001, isNew: true, slabTaxInr: slabTaxOver
+    isIndividualV3: true, isNRV3: false, totalIncomeInrV3: 1200001, isNew: true, slabTaxInr: slabTaxOver
   });
   var taxAfterOver = NODES.taxAfterRebateInr.compute({ slabTaxInr: slabTaxOver, rebateInrV3: rebateOver, specialTaxInrV3: 0 });
   // Marginal relief: net tax should equal the excess over the threshold
