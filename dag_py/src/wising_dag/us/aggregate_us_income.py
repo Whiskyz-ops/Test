@@ -27,10 +27,35 @@ def _m(usd: float, ctx) -> dict:
     return {"usd": usd, "inr": usd * fx_rate(ctx)}
 
 
+# ---- Home-office (simplified §280A method) / vehicle-mileage (standard
+# mileage rate) deduction, self-employment + Schedule F. Task #41 follow-up
+# -- both fields are already collected by layer1_us.html (and already
+# summed from each business's branches[] by the live form's own JS) but
+# never fed any real tax computation before this. Mirrors
+# prototypes/graph-pilot/aggregateusincome-nodes.js exactly, including the
+# 0.68/mile rate (matches the raw form's own §179-income-limit preview
+# calculation, reused for internal consistency).
+US_STANDARD_MILEAGE_RATE_USD = 0.68
+US_HOME_OFFICE_RATE_USD_PER_SQFT = 5
+US_HOME_OFFICE_MAX_SQFT = 300
+
+
+def _vehicle_deduction_usd(x: dict) -> float:
+    return num(x.get("vehicle_miles")) * US_STANDARD_MILEAGE_RATE_USD
+
+
+def _home_office_deduction_usd(x: dict) -> float:
+    return min(num(x.get("home_office_sqft")), US_HOME_OFFICE_MAX_SQFT) * US_HOME_OFFICE_RATE_USD_PER_SQFT
+
+
+def _vehicle_and_home_office_deduction_usd(x: dict) -> float:
+    return _vehicle_deduction_usd(x) + _home_office_deduction_usd(x)
+
+
 def _compute_self_employment_net_profit_usd(s: dict) -> float:
     cogs = num(s.get("cogs_beginning_inventory")) + num(s.get("cogs_purchases")) + num(s.get("cogs_labor")) + num(s.get("cogs_materials")) - num(s.get("cogs_ending_inventory"))
     gross_profit = num(s.get("gross_receipts_usd")) - num(s.get("returns_and_allowances_usd")) - cogs
-    return gross_profit + num(s.get("other_income_usd")) - num(s.get("expenses_usd"))
+    return gross_profit + num(s.get("other_income_usd")) - num(s.get("expenses_usd")) - _vehicle_and_home_office_deduction_usd(s)
 
 
 def _self_employment_net_profit_usd(s: dict, depreciation_usd: float) -> float:
@@ -54,14 +79,14 @@ def _compute_farm_gross_income_usd(f: dict) -> float:
 
 
 def _compute_farm_net_profit_usd(f: dict) -> float:
-    return _compute_farm_gross_income_usd(f) - num(f.get("expenses_usd"))
+    return _compute_farm_gross_income_usd(f) - num(f.get("expenses_usd")) - _vehicle_and_home_office_deduction_usd(f)
 
 
 def _farm_net_profit_usd(f: dict, depreciation_usd: float) -> float:
     if f.get("net_profit_usd") is not None:
         return num(f["net_profit_usd"])
     if f.get("gross_income_usd") is not None:
-        return num(f["gross_income_usd"]) - num(f.get("expenses_usd")) - num(depreciation_usd or 0)
+        return num(f["gross_income_usd"]) - num(f.get("expenses_usd")) - _vehicle_and_home_office_deduction_usd(f) - num(depreciation_usd or 0)
     return _compute_farm_net_profit_usd(f) - num(depreciation_usd or 0)
 
 
@@ -396,6 +421,7 @@ _SE_DEPRECIATION_FIELDS = (
     "us.income_us_source.self_employment[].cogs_ending_inventory", "us.income_us_source.self_employment[].gross_receipts_usd",
     "us.income_us_source.self_employment[].returns_and_allowances_usd", "us.income_us_source.self_employment[].other_income_usd",
     "us.income_us_source.self_employment[].expenses_usd",
+    "us.income_us_source.self_employment[].vehicle_miles", "us.income_us_source.self_employment[].home_office_sqft",
     "us.income_us_source.farming_schedule_f[].assets[].placed_in_service_date", "us.income_us_source.farming_schedule_f[].assets[].class",
     "us.income_us_source.farming_schedule_f[].assets[].cost", "us.income_us_source.farming_schedule_f[].assets[].sec179",
     "us.income_us_source.farming_schedule_f[].assets[].bonus",
@@ -414,6 +440,7 @@ _SE_DEPRECIATION_FIELDS = (
     "us.income_us_source.farming_schedule_f[].inventory.cost_of_purchases", "us.income_us_source.farming_schedule_f[].inventory.ending_inventory",
     "us.income_us_source.farming_schedule_f[].expenses_usd", "us.income_us_source.farming_schedule_f[].net_profit_usd",
     "us.income_us_source.farming_schedule_f[].gross_income_usd",
+    "us.income_us_source.farming_schedule_f[].vehicle_miles", "us.income_us_source.farming_schedule_f[].home_office_sqft",
 )
 _K1_PASSIVE_FIELDS = tuple(
     f"us.income_us_source.{group}[].{field}"

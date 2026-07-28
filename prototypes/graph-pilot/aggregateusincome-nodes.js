@@ -47,10 +47,35 @@ var US_BONUS_DEPRECIATION_RATE = CONST_AGGUS.TAX.US_BONUS_DEPRECIATION_RATE;
 var US_MACRS_HALF_YEAR = CONST_AGGUS.TAX.US_MACRS_HALF_YEAR;
 var US_MACRS_STRAIGHT_LINE_ANNUAL = CONST_AGGUS.TAX.US_MACRS_STRAIGHT_LINE_ANNUAL;
 
+// ---- Home-office (simplified §280A method) / vehicle-mileage (standard
+// mileage rate) deduction, self-employment + Schedule F -----------------
+// Both fields (top-level self_employment[]/farming_schedule_f[]
+// vehicle_miles/home_office_sqft) are already collected by layer1_us.html
+// and already summed up from each business's branches[] by the live
+// form's own syncSeState()/syncFarmState() — but neither ever fed any real
+// tax computation: the form's own local "Active Business Income Before
+// Section 179" preview (used only for that one screen's own §179 income-
+// limit display) computed vehDed/hoDed the same way below, but that
+// computation never propagated into expenses_usd or any exported field
+// the DAG reads, so businessUs/seEarnings/QBI were all silently short by
+// the full deduction amount for any real filer using either method.
+// Standard mileage rate (2026, matches the rate the raw form's own
+// preview calculation already hardcodes — reused for internal consistency
+// rather than sourcing a second, possibly-divergent figure).
+var US_STANDARD_MILEAGE_RATE_USD = 0.68;
+// IRS simplified home-office method (§280A safe harbor, Rev. Proc.
+// 2013-13): flat $5/sqft, capped at 300 sqft ($1,500 max) — real,
+// unchanging law, not a per-year figure.
+var US_HOME_OFFICE_RATE_USD_PER_SQFT = 5;
+var US_HOME_OFFICE_MAX_SQFT = 300;
+function vehicleDeductionUsd(x) { return num(x.vehicle_miles) * US_STANDARD_MILEAGE_RATE_USD; }
+function homeOfficeDeductionUsd(x) { return Math.min(num(x.home_office_sqft), US_HOME_OFFICE_MAX_SQFT) * US_HOME_OFFICE_RATE_USD_PER_SQFT; }
+function vehicleAndHomeOfficeDeductionUsd(x) { return vehicleDeductionUsd(x) + homeOfficeDeductionUsd(x); }
+
 function computeSelfEmploymentNetProfitUsd(s) {
   var cogs = num(s.cogs_beginning_inventory) + num(s.cogs_purchases) + num(s.cogs_labor) + num(s.cogs_materials) - num(s.cogs_ending_inventory);
   var grossProfit = num(s.gross_receipts_usd) - num(s.returns_and_allowances_usd) - cogs;
-  return grossProfit + num(s.other_income_usd) - num(s.expenses_usd);
+  return grossProfit + num(s.other_income_usd) - num(s.expenses_usd) - vehicleAndHomeOfficeDeductionUsd(s);
 }
 function selfEmploymentNetProfitUsd(s, depreciationUsd) {
   var explicit = s.self_employment_earnings_usd != null ? s.self_employment_earnings_usd : s.net_profit_usd;
@@ -79,10 +104,10 @@ function computeFarmGrossIncomeUsd(f) {
   }
   return gross;
 }
-function computeFarmNetProfitUsd(f) { return computeFarmGrossIncomeUsd(f) - num(f.expenses_usd); }
+function computeFarmNetProfitUsd(f) { return computeFarmGrossIncomeUsd(f) - num(f.expenses_usd) - vehicleAndHomeOfficeDeductionUsd(f); }
 function farmNetProfitUsd(f, depreciationUsd) {
   if (f.net_profit_usd !== undefined && f.net_profit_usd !== null) return num(f.net_profit_usd);
-  if (f.gross_income_usd !== undefined && f.gross_income_usd !== null) return num(f.gross_income_usd) - num(f.expenses_usd) - num(depreciationUsd || 0);
+  if (f.gross_income_usd !== undefined && f.gross_income_usd !== null) return num(f.gross_income_usd) - num(f.expenses_usd) - vehicleAndHomeOfficeDeductionUsd(f) - num(depreciationUsd || 0);
   return computeFarmNetProfitUsd(f) - num(depreciationUsd || 0);
 }
 function assetRecoveryYearN(asset, baseYear) {
@@ -454,4 +479,23 @@ var NODES = {
   }
 };
 
-module.exports = { NODES: NODES };
+module.exports = {
+  NODES: NODES,
+  // SYS-1-style shared export: assets-nodes.js's businessEntitiesResult
+  // used to hand-copy these exact functions rather than requiring them —
+  // the copy silently missed the vehicle-mileage/home-office deduction
+  // added here (task #41) until a differential-harness run against a
+  // manual case caught the resulting JS-internal mismatch (businessUs vs
+  // businessEntities disagreeing on the same self-employment entry).
+  // Reusing the single definition removes that drift risk entirely,
+  // matching the precedent already established for CONST.TAX.US_SEC179_*/
+  // US_BONUS_*/US_MACRS_* above.
+  computeSelfEmploymentNetProfitUsd: computeSelfEmploymentNetProfitUsd,
+  selfEmploymentNetProfitUsd: selfEmploymentNetProfitUsd,
+  computeFarmGrossIncomeUsd: computeFarmGrossIncomeUsd,
+  computeFarmNetProfitUsd: computeFarmNetProfitUsd,
+  farmNetProfitUsd: farmNetProfitUsd,
+  vehicleDeductionUsd: vehicleDeductionUsd,
+  homeOfficeDeductionUsd: homeOfficeDeductionUsd,
+  vehicleAndHomeOfficeDeductionUsd: vehicleAndHomeOfficeDeductionUsd
+};

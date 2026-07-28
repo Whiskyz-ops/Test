@@ -51,7 +51,9 @@ from ..us.aggregate_us_income import (
     _compute_farm_net_profit_usd,
     _compute_self_employment_net_profit_usd,
     _farm_net_profit_usd,
+    _home_office_deduction_usd,
     _self_employment_net_profit_usd,
+    _vehicle_deduction_usd,
 )
 
 
@@ -86,6 +88,11 @@ def _self_employment_income_trace(s: dict, depreciation_plan_entry: dict | None)
         parts.append({"label": "Plus: other business income", "amount": num(s.get("other_income_usd"))})
     if num(s.get("expenses_usd")) > 0:
         parts.append({"label": "Less: business expenses", "amount": -num(s.get("expenses_usd"))})
+    se_veh_ded, se_ho_ded = _vehicle_deduction_usd(s), _home_office_deduction_usd(s)
+    if se_veh_ded > 0:
+        parts.append({"label": f"Less: vehicle mileage deduction ({js_num_str(num(s.get('vehicle_miles')))} mi × $0.68)", "amount": -se_veh_ded})
+    if se_ho_ded > 0:
+        parts.append({"label": f"Less: home-office deduction (§280A simplified method, {js_num_str(min(num(s.get('home_office_sqft')), 300))} sqft × $5)", "amount": -se_ho_ded})
     for a in (depreciation_plan_entry["assets"] if depreciation_plan_entry else []):
         label = f"Asset ({a['class']}, yr {js_num_str(a['yearN'])})"
         if a["sec179Usd"] > 0:
@@ -95,9 +102,9 @@ def _self_employment_income_trace(s: dict, depreciation_plan_entry: dict | None)
         if a["macrsUsd"] > 0:
             parts.append({"label": f"{label} — MACRS", "amount": -a["macrsUsd"]})
     return _calc(
-        "Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less asset depreciation "
-        "(§179 / 100% bonus, permanent under OBBBA / MACRS — computed from each asset's own class and "
-        "placed-in-service date, not Layer 1's own first-year-only preview). Home-office isn't netted yet (Phase 1).",
+        "Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less vehicle-mileage/"
+        "home-office deductions, less asset depreciation (§179 / 100% bonus, permanent under OBBBA / MACRS — "
+        "computed from each asset's own class and placed-in-service date, not Layer 1's own first-year-only preview).",
         parts,
     )
 
@@ -129,6 +136,11 @@ def _farm_income_trace(f: dict, depreciation_plan_entry: dict | None):
             parts.append({"label": "Less: cost of livestock/items purchased for resale (accrual inventory)", "amount": -inv_adj})
     if num(f.get("expenses_usd")) != 0:
         parts.append({"label": "Less: farm operating expenses", "amount": -num(f.get("expenses_usd"))})
+    farm_veh_ded, farm_ho_ded = _vehicle_deduction_usd(f), _home_office_deduction_usd(f)
+    if farm_veh_ded > 0:
+        parts.append({"label": f"Less: vehicle mileage deduction ({js_num_str(num(f.get('vehicle_miles')))} mi × $0.68)", "amount": -farm_veh_ded})
+    if farm_ho_ded > 0:
+        parts.append({"label": f"Less: home-office deduction (§280A simplified method, {js_num_str(min(num(f.get('home_office_sqft')), 300))} sqft × $5)", "amount": -farm_ho_ded})
     for a in (depreciation_plan_entry["assets"] if depreciation_plan_entry else []):
         label = f"Asset ({a['class']}, yr {js_num_str(a['yearN'])})"
         if a["sec179Usd"] > 0:
@@ -139,7 +151,7 @@ def _farm_income_trace(f: dict, depreciation_plan_entry: dict | None):
             parts.append({"label": f"{label} — MACRS", "amount": -a["macrsUsd"]})
     return _calc(
         "Schedule F: sum of itemized farm income lines, less accrual inventory adjustment (if applicable), "
-        "less expenses, less asset depreciation (§179 / 100% bonus / MACRS).",
+        "less expenses, less vehicle-mileage/home-office deductions, less asset depreciation (§179 / 100% bonus / MACRS).",
         parts,
     )
 

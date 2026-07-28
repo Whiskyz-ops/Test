@@ -53,6 +53,22 @@ GOLDEN_DIVERGENT_FIXTURES_S44BBB = {"foreign_holdco_poem_india"}
 # in its fixture, so that particular fix is a no-op for golden purposes).
 GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES = {"us_citizen_expat_india"}
 
+# Task #41 (home-office/vehicle-mileage deduction): businessEntities[]'s
+# self-employment/farm calcTrace.formula string used to end "...placed-
+# in-service date, not Layer 1's own first-year-only preview). Home-office
+# isn't netted yet (Phase 1)." — now that the deduction is actually wired
+# (both deductions were collected by layer1_us.html all along but never
+# fed any tax computation, in either language), that caveat is false, so
+# the sentence was dropped and a "less vehicle-mileage/home-office
+# deductions" clause added instead. The frozen engine's own hardcoded copy
+# of this sentence is unchanged (permanently frozen, never gets this fix),
+# so golden's text is permanently stale for any fixture whose
+# businessEntities[] reaches this non-explicit-override trace branch —
+# these are the two (of 13) that do. Dollar amounts are unaffected here
+# (neither fixture sets vehicle_miles/home_office_sqft) — this is a pure
+# trace-text divergence, not an income divergence.
+GOLDEN_DIVERGENT_FIXTURES_HOME_OFFICE_VEHICLE_TRACE_TEXT = {"us_citizen_expat_india", "us_only_cpa_client"}
+
 
 def load_profile(fixture_id: str) -> dict:
     return json.loads((PROFILES_DIR / f"{fixture_id}.json").read_text())

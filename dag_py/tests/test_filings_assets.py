@@ -18,7 +18,7 @@ precondition) — a trivial stub is registered here purely to satisfy that
 structural precondition; the override's real behavior is verified separately
 below via a synthetic-dep-bag test, not through this registry.
 """
-from conftest import GOLDEN_DIVERGENT_FIXTURES_S44BBB, ctx_for, load_golden
+from conftest import GOLDEN_DIVERGENT_FIXTURES_HOME_OFFICE_VEHICLE_TRACE_TEXT, GOLDEN_DIVERGENT_FIXTURES_S44BBB, ctx_for, load_golden
 from support import deep_diff
 
 from wising_dag.core import entry
@@ -110,6 +110,15 @@ def test_assets_model_result_matches_golden(fixture_id):
 
     out = GRAPH.resolve(["assetsModelResult"], ctx).values["assetsModelResult"]
     golden_assets = dict(golden["model"]["assets"])
+    if fixture_id in GOLDEN_DIVERGENT_FIXTURES_HOME_OFFICE_VEHICLE_TRACE_TEXT:
+        # see conftest.py's own docstring: golden's businessEntities[] calcTrace.formula
+        # text is permanently stale (frozen engine never gets the home-office/vehicle
+        # fix) — strip that one field from both sides rather than skipping the whole
+        # fixture, since the actual income figures for this fixture are unaffected.
+        for entities in (out.get("businessEntities") or [], golden_assets.get("businessEntities") or []):
+            for e in entities:
+                if e.get("calcTrace", {}).get("kind") == "calc":
+                    e["calcTrace"].pop("formula", None)
     # entityGraph is genuinely new (docs/BUSINESS_ENTITY_ARCHITECTURE.md §6) —
     # no engine equivalent, so golden (generated from the frozen engine) never
     # carries it (always null). Permanent divergence, not a coverage gap —
