@@ -20407,14 +20407,22 @@ div.innerHTML = `
                     const indiaState = JSON.parse(indiaStateStr);
                     
                     // 1. Hydrate FBAR / Bank Accounts
+                    // Field names here MUST match what addBankRow()/syncBanksState()
+                    // actually read (account_number_last_four, not account_number;
+                    // no "currency" field exists at all - peak_balance_usd is
+                    // already the converted figure). Getting this wrong doesn't
+                    // just mis-render the card: the DOM-reconstruction step a few
+                    // hundred lines below re-derives usState.bank_accounts straight
+                    // from the (now-blank, since nothing matched) card inputs,
+                    // silently discarding this hydrated data before the user ever
+                    // sees it.
                     if (indiaState.bank_accounts && indiaState.bank_accounts.length > 0) {
                         usState.bank_accounts = indiaState.bank_accounts.map(b => ({
                             account_type: b.account_type || 'savings',
                             bank_name: b.bank_name || 'Indian Bank',
-                            account_number: b.account_number || '',
+                            account_number_last_four: (b.account_number || '').slice(-4) || null,
                             country: 'India',
                             peak_balance_usd: Math.round((b.peak_balance_inr || 0) / 83.0),
-                            currency: 'INR',
                             _hydratedFromIndia: true
                         }));
                     }
@@ -20455,46 +20463,78 @@ div.innerHTML = `
                         if (totalForeignTaxPaidInr > 0) {
                             usState.ftc_inputs.claims_ftc = true;
                             usState.ftc_inputs.ftc_baskets = usState.ftc_inputs.ftc_baskets || [];
+                            // Field names must match addFtcBasketRow()/syncFtcBasketsState()
+                            // (foreign_country/basket_type/gross_foreign_income_usd/
+                            // foreign_taxes_paid_usd) - same DOM-reconstruction data-loss
+                            // risk as bank_accounts above.
                             usState.ftc_inputs.ftc_baskets.push({
-                                country: 'IN',
-                                basket_category: 'General',
-                                foreign_taxes_usd: totalForeignTaxPaidInr / 83.0,
-                                foreign_income_usd: 0,
+                                foreign_country: 'IN',
+                                basket_type: 'passive',
+                                gross_foreign_income_usd: 0,
+                                foreign_taxes_paid_usd: totalForeignTaxPaidInr / 83.0,
                                 _hydratedFromIndia: true
                             });
                         }
                     }
 
                     // 5. Hydrate Indian Real Estate -> US Foreign Real Estate
+                    // real_estate.properties[] is a buy/hold/sell transaction record
+                    // (property_description/transaction_type/acquisition_date/
+                    // sale_date/cost_basis_usd/sale_price_usd/...) - it has no
+                    // per-property annual-rental-income or expense fields, and
+                    // neither does the manual-entry UI (addPropertyRow), so this
+                    // isn't a hydration-specific gap. Use the fields that DO exist
+                    // (property_description/transaction_type - "holding" since
+                    // these are ongoing Indian rentals, not sales) so the property
+                    // identity survives the DOM-reconstruction step below instead
+                    // of being silently dropped, and roll the actual rental income
+                    // dollar figure into the real, already-wired aggregate field
+                    // (income_foreign_source.foreign_rental_income_usd) instead of
+                    // inventing a field this section has never had.
                     if (indiaState.property && indiaState.property.properties && indiaState.property.properties.length > 0) {
                         usState.real_estate = usState.real_estate || {};
                         usState.real_estate.has_real_estate_transaction = true;
                         usState.real_estate.properties = usState.real_estate.properties || [];
+                        let totalForeignRentalIncomeUsd = 0;
                         indiaState.property.properties.forEach(p => {
                             usState.real_estate.properties.push({
-                                name: p.address || "Indian Property",
-                                property_type: p.property_type || "Residential",
-                                gross_rent_usd: (p.gross_rent_received_inr || 0) / 83.0,
-                                expenses_usd: (p.municipal_taxes_paid_inr || 0) / 83.0,
+                                property_description: p.address || "Indian Property",
+                                transaction_type: 'holding',
                                 _hydratedFromIndia: true
                             });
+                            totalForeignRentalIncomeUsd += (p.gross_rent_received_inr || 0) / 83.0;
                         });
+                        if (totalForeignRentalIncomeUsd > 0) {
+                            usState.income_foreign_source.foreign_rental_income_usd =
+                                (usState.income_foreign_source.foreign_rental_income_usd || 0) + totalForeignRentalIncomeUsd;
+                        }
                     }
                     // 6. Hydrate Indian Business -> US Foreign Entities (Form 5471 / 8865)
+                    // foreign_corporations[] is an ownership/compliance-flag record
+                    // (corporation_name/country_of_incorporation/ownership_percentage/
+                    // nature_of_income/elections/...) with no per-corporation income
+                    // dollar field - same as real_estate.properties above, this is a
+                    // pre-existing schema limitation the manual-entry UI shares (there's
+                    // no GILTI/Subpart-F dollar input there either), not something
+                    // hydration should invent a field for. Fix is scoped to what the
+                    // schema actually has a home for: the field names below MUST match
+                    // addCorpRow()/syncCorpState() (corporation_name/country_of_incorporation/
+                    // sec962_election_planned) or this entity's identity gets silently
+                    // dropped by the DOM-reconstruction step below, same failure mode as
+                    // bank_accounts/ftc_baskets.
                     if (indiaState.domestic_income && indiaState.domestic_income.business_income && indiaState.domestic_income.business_income.business_entries) {
                         const entries = indiaState.domestic_income.business_income.business_entries;
                         if (entries.length > 0) {
                             usState.foreign_entities = usState.foreign_entities || {};
                             usState.foreign_entities.owns_10_percent_foreign_corp = true;
                             usState.foreign_entities.foreign_corporations = usState.foreign_entities.foreign_corporations || [];
-                            
+
                             entries.forEach(b => {
                                 usState.foreign_entities.foreign_corporations.push({
-                                    corp_name: b.trade_name || "Indian Business Entity",
-                                    country: "IN",
-                                    subpart_f_income_usd: 0,
-                                    gilti_income_usd: (b.net_profit_inr || 0) / 83.0,
-                                    section_962_election_active: false,
+                                    corporation_name: b.trade_name || "Indian Business Entity",
+                                    country_of_incorporation: "IN",
+                                    nature_of_income: "active",
+                                    sec962_election_planned: false,
                                     _hydratedFromIndia: true
                                 });
                             });
@@ -21071,7 +21111,15 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             if (usState.equity_compensation && usState.equity_compensation.espp_purchases) usState.equity_compensation.espp_purchases.forEach(x => addEsppRow(x));
             if (usState.equity_compensation && usState.equity_compensation.unvested_restricted_stock_awards) usState.equity_compensation.unvested_restricted_stock_awards.forEach(x => addS83bRow(x));
             if (usState.bank_accounts) usState.bank_accounts.forEach(x => addBankRow(x));
-            if (usState.foreign_entities && usState.foreign_entities.pfic_holdings) usState.foreign_entities.pfic_holdings.forEach(x => addHoldingRow(x));
+            // NOTE: pfic_holdings has no manual-entry UI/add-row function of its
+            // own (it's populated exclusively by the India hydration engine
+            // above) - it used to incorrectly call addHoldingRow() here, the
+            // FINANCIAL HOLDINGS add-row function, which created spurious
+            // mis-shaped "Financial Holdings" cards (pfic_holdings' own field
+            // names like holding_value_usd don't match anything addHoldingRow
+            // reads) and, via that function's own internal resync, risked
+            // corrupting the user's real financial_holdings array. No DOM
+            // reconstruction is needed here at all.
             if (usState.real_estate && usState.real_estate.properties) usState.real_estate.properties.forEach(x => addPropertyRow(x));
             if (usState.foreign_entities && usState.foreign_entities.foreign_corporations) usState.foreign_entities.foreign_corporations.forEach(x => addCorpRow(x));
             if (usState.foreign_entities && usState.foreign_entities.foreign_partnerships) usState.foreign_entities.foreign_partnerships.forEach(x => addPartRow(x));
