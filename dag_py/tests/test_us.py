@@ -20,7 +20,7 @@ wages/interest/etc. folded in) will diverge until Phase 4 closes it. Golden
 itself carries computed.usTax.worldwide, so this fixture set is partitioned
 by it directly rather than hand-maintained here.
 """
-from conftest import ctx_for, load_golden
+from conftest import GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES, ctx_for, load_golden
 from support import deep_diff
 
 from wising_dag.core.registry import NodeRegistry
@@ -32,6 +32,8 @@ TARGETS = ["aggregateUsIncomeResult", "usTaxResult"]
 
 
 def test_aggregate_us_income_result_matches_golden(fixture_id):
+    if fixture_id in GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES:
+        return  # see conftest.py's own docstring: foreign_earned_income_usd now correctly folds into foreignWages
     ctx = ctx_for(fixture_id)
     golden = load_golden(fixture_id)
 

@@ -120,7 +120,7 @@ NODES.form8938RequiredRaw = {
 };
 
 NODES.limitsResult = {
-  deps: ["hasUsScopeBoundaryFtc", "hasIndiaScopeXbr", "aggregatePeakUsdResult", "usFilingStatusRaw",
+  deps: ["hasUsScopeBoundaryFtc", "hasIndiaScopeXbr", "aggregatePeakUsdResult", "aggregateLastDayUsdResult", "usFilingStatusRaw",
     "feieLimitsRaw", "limitsRawExtra", "nroCumulativeRepatriatedUsdRaw"],
   compute: function (d, ctx) {
     var gauges = [];
@@ -142,8 +142,18 @@ NODES.limitsResult = {
     var abroad = feieEl.taxHomeAbroad && feieEl.testMet;
     var tbl = L.FORM_8938[abroad ? (isMfj ? "ABROAD_MFJ" : "ABROAD_SINGLE") : (isMfj ? "US_RESIDENT_MFJ" : "US_RESIDENT_SINGLE")];
     if (scopeHasUs) {
-      gauge("form8938", "Form 8938 (FATCA) any-time", aggregatePeakUsd, tbl.anyTime, "USD",
-        "Threshold shown is the 'any time during year' figure for your status/residence.");
+      // Form 8938 has TWO independent thresholds (last-day-of-year value, and
+      // highest value at any time during the year) -- exceeding EITHER one
+      // triggers the filing requirement. Report whichever is proportionally
+      // worse so a single gauge value/limit/pct/status correctly reflects
+      // "breached" if either test is exceeded.
+      var lastDayUsd = d.aggregateLastDayUsdResult.usd;
+      var peakPct = tbl.anyTime > 0 ? aggregatePeakUsd / tbl.anyTime : 0;
+      var lastDayPct = tbl.lastDay > 0 ? lastDayUsd / tbl.lastDay : 0;
+      var useLastDay = lastDayPct > peakPct;
+      gauge("form8938", useLastDay ? "Form 8938 (FATCA) last day of year" : "Form 8938 (FATCA) any-time",
+        useLastDay ? lastDayUsd : aggregatePeakUsd, useLastDay ? tbl.lastDay : tbl.anyTime, "USD",
+        useLastDay ? "Threshold shown is the 'last day of tax year' figure for your status/residence." : "Threshold shown is the 'any time during year' figure for your status/residence.");
     }
     if (scopeHasIndia) {
       gauge("lrs", "LRS outbound remittance", d.limitsRawExtra.lrsRemittedInr / fxRate(ctx), L.LRS_ANNUAL_USD, "USD",

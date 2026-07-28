@@ -47,7 +47,7 @@ def test_finding_add_order_index_falls_back_for_dynamic_holding_period_ids():
 def _limits_dep_bag(**overrides):
     d = {
         "hasUsScopeBoundaryFtc": True, "hasIndiaScopeXbr": True,
-        "aggregatePeakUsdResult": {"usd": 5000}, "usFilingStatusRaw": "single",
+        "aggregatePeakUsdResult": {"usd": 5000}, "aggregateLastDayUsdResult": {"usd": 0}, "usFilingStatusRaw": "single",
         "feieLimitsRaw": {"claimed": False, "amountClaimedUsd": 0, "foreignEarnedIncomeUsd": 0, "taxHomeCountry": "", "bonaFide": False, "physicalPresence": False, "daysInUsTestPeriod": 0},
         "limitsRawExtra": {"lrsRemittedInr": 0, "trumpAccountsOpened": False, "trumpAccountsNumChildren": 0, "trumpAccountsSeedEligibleChildren": 0, "trumpAccountsContributionsUsd": 0},
         "nroCumulativeRepatriatedUsdRaw": 0,

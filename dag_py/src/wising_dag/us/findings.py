@@ -231,8 +231,15 @@ NODES = {
             "movedStates": safe(ctx.get("us"), "state_residency.moved_states_this_year", False) is True,
             "caSafeHarbor": safe(ctx.get("us"), "state_residency.ca_safe_harbor_employment_contract", False) is True,
             "caRetainsTies": safe(ctx.get("us"), "state_residency.ca_retains_property_or_voter_reg", False) is True,
-            "nyDaysPresent": num(safe(ctx.get("us"), "state_residency.ny_actual_days_present", 0)),
-            "nyPermanentAbode": safe(ctx.get("us"), "state_residency.ny_permanent_place_of_abode", False) is True,
+            # layer1_us.html's live statutory-residency tracker
+            # (renderStatutoryCheckers()/updateFootprintDetails()) stores
+            # these under the generic per-state state_residency.
+            # footprint_details[code].{days,ppa} object (shared by NY/NJ/CT/
+            # MA/etc.) -- NOT the flat ny_actual_days_present/
+            # ny_permanent_place_of_abode field names this used to read,
+            # which nothing in the live form has ever written.
+            "nyDaysPresent": num(safe(ctx.get("us"), "state_residency.footprint_details.NY.days", 0)) or num(safe(ctx.get("us"), "state_residency.ny_actual_days_present", 0)),
+            "nyPermanentAbode": safe(ctx.get("us"), "state_residency.footprint_details.NY.ppa", False) is True or safe(ctx.get("us"), "state_residency.ny_permanent_place_of_abode", False) is True,
             "ny548DayRule": safe(ctx.get("us"), "state_residency.ny_548_day_rule", False) is True,
         },
         layer1_fields=(

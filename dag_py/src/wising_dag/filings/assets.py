@@ -59,6 +59,10 @@ def _inr(n: float) -> str:
     return f"₹{format_inr(n)}"
 
 
+def _fmt(n: float) -> str:
+    return f"${js_round(n):,}"
+
+
 def _calc(formula, parts=None, citation=None):
     return {"kind": "calc", "formula": formula, "parts": parts or [], "citation": citation}
 
@@ -815,6 +819,102 @@ def _findings_all_result_override(d, ctx, base_compute):
             "refs": ["s.44AD(4)/(5) (5-year presumptive re-election lock-in and mandatory audit)", "Form 3CB/3CD"],
         })
 
+    # -- retirement_excess_elective_deferral / retirement_excess_ira_
+    # contribution / retirement_rmd_required (Step 11 Layer 1 US field-
+    # completeness audit, 27 Jul 2026 — new DAG-only findings, no engine
+    # equivalent since Layer 1 US's Retirement screen and Step 5's W-2 Box
+    # 12 codes fed NOTHING downstream before this). Mirrors report-batch5-
+    # nodes.js's retirementExcessElectiveDeferralFinding/
+    # retirementExcessIraContributionFinding/retirementRmdRequiredFinding.
+    if d["hasUsScope"] and d["electiveDeferralExcessUsd"] > 0:
+        added_any = True
+        all_findings.append({
+            "id": "retirement_excess_elective_deferral", "severity": "warning", "category": "credit",
+            "title": f"§402(g) excess elective deferral ({_fmt(d['electiveDeferralExcessUsd'])} over the limit)",
+            "detail": (
+                f"{_fmt(d['electiveDeferralAggregateUsd'])} of combined 401(k)/403(b)/Solo-401(k) elective deferrals (traditional "
+                "and Roth, across every plan and every W-2 Box 12 code D/E/AA/BB on file) exceeds the §402(g) annual aggregate limit "
+                f"of {_fmt(d['electiveDeferralLimitUsd'])} for this taxpayer's age this year, by {_fmt(d['electiveDeferralExcessUsd'])}."
+            ),
+            "recommendation": (
+                "Excess deferrals must be withdrawn (with earnings) by the following April 15 to avoid double taxation — once as "
+                "a 2026 excess deferral and again as ordinary income when eventually distributed. Confirm whether prior-year W-2 wages "
+                "exceeded $150,000, which would require any age-60-63 catch-up doses to have gone into a Roth 401(k) specifically "
+                "(SECURE 2.0's mandatory Roth catch-up) — not modeled here."
+            ),
+            "amountUsd": d["electiveDeferralExcessUsd"], "refs": ["§402(g)", "Form 5329"],
+        })
+
+    if d["hasUsScope"] and d["iraContributionExcessUsd"] > 0:
+        added_any = True
+        backdoor = d["retirementAccountsRaw"].get("backdoor_roth_executed") is True
+        all_findings.append({
+            "id": "retirement_excess_ira_contribution", "severity": "warning", "category": "credit",
+            "title": f"§219(b)(5) excess IRA contribution ({_fmt(d['iraContributionExcessUsd'])} over the limit)",
+            "detail": (
+                f"{_fmt(d['iraContributionAggregateUsd'])} of combined traditional + Roth IRA contributions exceeds the §219(b)(5) "
+                f"annual combined limit of {_fmt(d['iraContributionLimitUsd'])} for this taxpayer's age this year, by "
+                f"{_fmt(d['iraContributionExcessUsd'])}." + (
+                    " A backdoor Roth conversion is on file — confirm the excess isn't simply the nondeductible traditional "
+                    "contribution awaiting conversion (not double-counted as its own excess)." if backdoor else ""
+                )
+            ),
+            "recommendation": (
+                "A 6% excise tax (§4973) applies to the excess each year it remains in the account. Withdraw the excess (with "
+                "earnings) by the filing deadline (including extensions) to avoid the excise tax, or apply it as next year's "
+                "contribution if otherwise eligible."
+            ),
+            "amountUsd": d["iraContributionExcessUsd"], "refs": ["§219(b)(5)", "§4973", "Form 5329"],
+        })
+
+    if d["rmdRequired"]:
+        added_any = True
+        all_findings.append({
+            "id": "retirement_rmd_required", "severity": "info", "category": "credit",
+            "title": f"Required Minimum Distribution (RMD) likely required at age {d['ageAtYearEndUs']}",
+            "detail": (
+                f"This taxpayer is age {d['ageAtYearEndUs']} at year-end, at or above the SECURE 2.0 RMD-start age of 73. "
+                "Layer 1 does not collect traditional IRA/401(k) account BALANCES (only contribution amounts), so the actual RMD "
+                "dollar amount cannot be computed here — it depends on the prior year-end balance across all traditional accounts "
+                "and the IRS Uniform Lifetime Table divisor for this age."
+            ),
+            "recommendation": (
+                "Confirm the prior year-end balance of every traditional IRA/401(k)/403(b) account and compute the RMD "
+                "using the IRS Uniform Lifetime Table before the year-end deadline (April 1 of the year after turning 73 for the "
+                "first RMD only). A missed or shortfall RMD carries a 25% excise tax (10% if corrected within 2 years) under §4974."
+            ),
+            "amountUsd": 0, "refs": ["§401(a)(9)", "§4974", "Form 5329"],
+        })
+
+    # -- s83b_election_not_filed_timely (Step 16 Layer 1 US field-
+    # completeness audit, 27 Jul 2026 -- new DAG-only finding, no engine
+    # equivalent). layer1_us.html's "Founder Section 83(b) elections" card
+    # collects filed_within_30_days per election but it was never read
+    # anywhere -- a missed SS83(b) election means every future vesting date
+    # is taxed as ordinary income on the FULL FMV at that vest, not the
+    # one-time, usually near-zero, grant-date spread.
+    unvested_awards = [a for a in (d["equityCompRaw"].get("unvested_restricted_stock_awards") or []) if a and a.get("filed_within_30_days") is False]
+    if unvested_awards:
+        added_any = True
+        names = ", ".join(a.get("company_name") or "unnamed company" for a in unvested_awards)
+        all_findings.append({
+            "id": "s83b_election_not_filed_timely", "severity": "critical", "category": "income",
+            "title": f"{len(unvested_awards)} §83(b) election{'' if len(unvested_awards) == 1 else 's'} NOT filed within the 30-day deadline",
+            "detail": (
+                f"For {names}, the §83(b) election is recorded as NOT filed within the mandatory 30-day window from the "
+                "grant date. §83(b)(2) makes this deadline absolute — there is no extension, no reasonable-cause exception, "
+                "and no way to file late. Without a timely election, the grant-date spread is never locked in; instead, the "
+                "FULL fair market value of each tranche is taxed as ordinary income on its OWN vesting date, capturing all "
+                "appreciation between grant and vest as compensation income rather than future capital gain."
+            ),
+            "recommendation": (
+                "If the 30-day window has already closed, the election cannot be filed late — confirm this is accurate "
+                "before assuming an error, and model the ordinary-income exposure at each future vesting date instead of "
+                "relying on the grant-date spread."
+            ),
+            "amountUsd": 0, "refs": ["§83(b)", "Treas. Reg. §1.83-2"],
+        })
+
     if added_any:
         all_findings.sort(key=lambda f: (_MSME_SORT_WEIGHT[f["severity"]], -f["amountUsd"]))
     return all_findings
@@ -866,9 +966,12 @@ def build(base):
     r.override(
         "findingsAllResult",
         NodeDef(
-            deps=base_findings_all.deps + ("presumptiveLockinAgg", "totalIncomeInrV3", "taxRegime", "msmeDisallowanceTotalAgg"),
+            deps=base_findings_all.deps + ("presumptiveLockinAgg", "totalIncomeInrV3", "taxRegime", "msmeDisallowanceTotalAgg",
+                                            "hasUsScope", "electiveDeferralExcessUsd", "electiveDeferralAggregateUsd", "electiveDeferralLimitUsd",
+                                            "iraContributionExcessUsd", "iraContributionAggregateUsd", "iraContributionLimitUsd",
+                                            "retirementAccountsRaw", "rmdRequired", "ageAtYearEndUs", "equityCompRaw"),
             compute=lambda d, ctx: _findings_all_result_override(d, ctx, base_findings_all.compute),
         ),
-        reason="assets-nodes.js: adds msme_disallowance_s43Bh_india / presumptive_lockin_active_india findings on top of report-batch5-nodes.js's own findingsAllResult",
+        reason="assets-nodes.js: adds msme_disallowance_s43Bh_india / presumptive_lockin_active_india / retirement_excess_elective_deferral / retirement_excess_ira_contribution / retirement_rmd_required / s83b_election_not_filed_timely findings on top of report-batch5-nodes.js's own findingsAllResult",
     )
     return r

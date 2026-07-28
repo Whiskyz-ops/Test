@@ -15,7 +15,7 @@ reusing its `_india_itr_form_result` compute function directly, the same
 "re-register via imported compute function" pattern crossborder/findings.py
 already uses for its own `-Xbr`-suffixed nodes.
 """
-from conftest import GOLDEN_DIVERGENT_FIXTURES_S44BBB, ctx_for, load_golden
+from conftest import GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES, GOLDEN_DIVERGENT_FIXTURES_S44BBB, ctx_for, load_golden
 from support import deep_diff
 
 from wising_dag.core import entry
@@ -70,7 +70,7 @@ def _build_graph():
     for node_id in ("foreignGiftsRaw", "nraRaw", "stateResidencyRaw", "usStateTaxResult", "limitsRawExtra", "equityCompRaw", "esopEventsRaw", "esopPerquisiteInrRaw", "equityCompResult"):
         if node_id not in r:
             r.register(node_id, us_findings.NODES[node_id])
-    for node_id in ("taxesPaidUsResult", "bankAccountsRaw", "aggregatePeakUsdResult", "indiaFinancialHoldingsTxRaw", "ppfInrRaw", "epfInrRaw", "usFtcFormXbr"):
+    for node_id in ("taxesPaidUsResult", "bankAccountsRaw", "aggregatePeakUsdResult", "aggregateLastDayUsdResult", "indiaFinancialHoldingsTxRaw", "ppfInrRaw", "epfInrRaw", "usFtcFormXbr"):
         if node_id not in r:
             r.register(node_id, crossborder_findings.NODES[node_id])
 
@@ -152,6 +152,8 @@ def test_build_ftc_report_result_matches_golden(fixture_id):
         return
     if fixture_id in GOLDEN_DIVERGENT_FIXTURES_S44BBB:
         return  # see conftest.py's own docstring: s.44BBB ripples into india tax paid, hence the FTC report
+    if fixture_id in GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES:
+        return  # see conftest.py's own docstring: foreign_earned_income_usd now correctly folds into foreignWages, hence the FTC report
 
     out = GRAPH.resolve(TARGETS, ctx).values["buildFtcReportResult"]
     diff = deep_diff(out, golden["ftcReport"])

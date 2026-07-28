@@ -95,8 +95,27 @@ def feie_eligibility(f: dict | None) -> dict:
     }
 
 
-def _compute_us_tax_result(d, ctx):
-    inc, ded, status, worldwide, feie = d["incUs"], d["dedUs"], d["usFilingStatusRaw"], d["worldwideUs"], d["feie"]
+def _feie_raw(d, ctx):
+    # qualification_test is the field layer1_us.html's #feie-test <select>
+    # actually writes ("physical_presence" | "bona_fide_residence") --
+    # bona_fide_residence/physical_presence booleans were previously read
+    # instead, which nothing in the live form has ever set, so FEIE
+    # eligibility silently computed false (and the exclusion $0) regardless
+    # of what a user selected. Legacy boolean fields kept as a fallback for
+    # any saved data/fixtures using that shape directly.
+    us = ctx.get("us")
+    qual_test = safe(us, "foreign_earned_income.qualification_test", None)
+    return {
+        "claimed": safe(us, "foreign_earned_income.claims_feie", False) is True,
+        "amountClaimedUsd": num(safe(us, "foreign_earned_income.feie_amount_claimed_usd", 0)),
+        "taxHomeCountry": safe(us, "foreign_earned_income.tax_home_country", ""),
+        "bonaFide": qual_test == "bona_fide_residence" or safe(us, "foreign_earned_income.bona_fide_residence", False) is True,
+        "physicalPresence": qual_test == "physical_presence" or safe(us, "foreign_earned_income.physical_presence", False) is True,
+        "daysInUsTestPeriod": num(safe(us, "foreign_earned_income.days_in_us_during_test_period", 0)),
+    }
+
+
+def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_owed_boundary, taxpayer_dob_raw, base_year_us):
     brackets = T["BRACKETS"].get(status, T["BRACKETS"]["single"])
 
     f_w = inc["foreignWages"]["usd"] if worldwide else 0
@@ -115,11 +134,19 @@ def _compute_us_tax_result(d, ctx):
     f_p = inc["foreignPension"]["usd"] if worldwide else 0
     f_stcg = inc["foreignStcg"]["usd"] if worldwide else 0
     f_ltcg = inc["foreignLtcg"]["usd"] if worldwide else 0
+    # IRC 988(a)(1): foreign-currency gain/loss is ORDINARY (not capital).
+    f_988 = (inc["foreignSection988GainLoss"]["usd"] if inc.get("foreignSection988GainLoss") else 0) if worldwide else 0
 
     non_qual_div_us = max(0.0, inc["ordinaryDividendsUs"]["usd"] - inc["qualifiedDividendsUs"]["usd"])
+    # otherOrdinaryIncomeUs (unemployment comp/alimony received/direct
+    # Schedule E royalties/cancellation of debt/misc other income, Step 15
+    # Layer 1 US audit, 27 Jul 2026): new DAG-only ordinary-income bucket, no
+    # engine equivalent. Mirrors prototypes/graph-pilot/ustax-nodes.js's
+    # computeUsTaxCore exactly.
+    other_ordinary_us = (inc.get("otherOrdinaryIncomeUs") or {}).get("usd", 0) or 0
     ordinary_income_excl_ss = (
         inc["wages"]["usd"] + f_w + f_se + (inc.get("businessUs", {}).get("usd", 0) if inc.get("businessUs") else 0) + inc["interestUs"]["usd"] + f_i +
-        non_qual_div_us + f_d + inc["stcgUs"]["usd"] + f_stcg + inc["rentalUs"]["usd"] + f_r + f_p +
+        non_qual_div_us + f_d + inc["stcgUs"]["usd"] + f_stcg + inc["rentalUs"]["usd"] + f_r + f_p + f_988 + other_ordinary_us +
         (inc["usRetirementIncomeExclSs"]["usd"] if inc.get("usRetirementIncomeExclSs") else (inc.get("usRetirementIncome", {}).get("usd", 0) if inc.get("usRetirementIncome") else 0))
     )
     preferential_income = inc["ltcgUs"]["usd"] + f_ltcg + inc["qualifiedDividendsUs"]["usd"]
@@ -143,14 +170,18 @@ def _compute_us_tax_result(d, ctx):
 
     standard = T["STD_DEDUCTION"].get(status, T["STD_DEDUCTION"]["single"])
     salt_cap_usd = compute_salt_cap(agi, status)
-    itemized = min(ded["salt"], salt_cap_usd) + ded["mortgageInterest"] + ded["charitable"] + max(0.0, ded["medical"] - 0.075 * agi)
+    # Federal-disaster casualty loss (§165(h)): deductible only above a
+    # 10%-of-AGI floor, same structural pattern as medical's 7.5% floor --
+    # new here, no engine equivalent. Mirrors ustax-nodes.js exactly.
+    casualty_loss_deductible = max(0.0, (ded.get("casualtyLoss") or 0) - 0.10 * agi)
+    itemized = min(ded["salt"], salt_cap_usd) + ded["mortgageInterest"] + ded["charitable"] + max(0.0, ded["medical"] - 0.075 * agi) + casualty_loss_deductible
     deduction = itemized if ded["mode"] == "itemized" else standard if ded["mode"] == "standard" else max(standard, itemized)
 
     taxpayer_age = None
-    if d["taxpayerDobRaw"]:
-        dob = parse_date(d["taxpayerDobRaw"])
+    if taxpayer_dob_raw:
+        dob = parse_date(taxpayer_dob_raw)
         if dob is not None:
-            taxpayer_age = (d["baseYearUs"] or 2025) - dob.year
+            taxpayer_age = (base_year_us or 2025) - dob.year
     is_senior = taxpayer_age is not None and taxpayer_age >= T["SENIOR_DEDUCTION_MIN_AGE"] and status != "mfs"
     senior_phaseout_thr = T["SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD"].get(status, T["SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD"]["single"])
     senior_deduction_usd = max(0.0, js_round(T["SENIOR_DEDUCTION_PER_PERSON_USD"] - T["SENIOR_DEDUCTION_PHASEOUT_RATE"] * max(0.0, agi - senior_phaseout_thr))) if is_senior else 0
@@ -200,7 +231,7 @@ def _compute_us_tax_result(d, ctx):
     niit_threshold = NIIT_THRESHOLD.get(status, 200000)
     niit = T["NIIT_RATE"] * min(max(0.0, net_investment_income), max(0.0, agi - niit_threshold))
 
-    addl_medicare = d["additionalMedicareOwedBoundary"]
+    addl_medicare = additional_medicare_owed_boundary
 
     used_mode = ded["mode"] if ded["mode"] in ("itemized", "standard") else ("itemized" if itemized > standard else "standard")
     amt_addback = deduction if used_mode == "standard" else min(ded["salt"], salt_cap_usd)
@@ -213,6 +244,10 @@ def _compute_us_tax_result(d, ctx):
     amt_brk = T["AMT_RATE_BREAK"] / 2 if status == "mfs" else T["AMT_RATE_BREAK"]
     tmt_ord = amt_ord_base * T["AMT_RATE_LOW"] if amt_ord_base <= amt_brk else amt_brk * T["AMT_RATE_LOW"] + (amt_ord_base - amt_brk) * T["AMT_RATE_HIGH"]
     amt_owed = max(0.0, js_round(tmt_ord + preferential_tax - income_tax))
+    # §53 Minimum Tax Credit: only available in a year NOT subject to AMT
+    # (i.e. regular tax exceeds this year's tentative minimum tax), capped
+    # at the prior-year carryforward on file. Mirrors ustax-nodes.js exactly.
+    mtc_allowed_usd = min(ded.get("mtcCarryforwardUsd") or 0, max(0.0, income_tax - (tmt_ord + preferential_tax)))
 
     magi = agi
     edu_lo, edu_hi = (160000, 180000) if status == "mfj" else (80000, 90000)
@@ -224,17 +259,29 @@ def _compute_us_tax_result(d, ctx):
     other_credits_usd = min(js_round(child_care_credit + aotc_credit + llc_credit), js_round(income_tax))
 
     num_children_for_ctc = ded.get("dependents") or 0
+    # SS24(h)(4) Credit for Other Dependents (ODC): $500/dependent, flat,
+    # sharing the SAME combined phase-out with CTC under SS24(h)(3), but with
+    # NO refundable/Additional-CTC component -- new, no engine equivalent.
+    # Mirrors prototypes/graph-pilot/ustax-nodes.js's computeUsTaxCore exactly.
+    num_other_dependents_for_odc = ded.get("otherDependents") or 0
     ctc_phaseout_thr = T["CTC_PHASEOUT_THRESHOLD_USD"].get(status, T["CTC_PHASEOUT_THRESHOLD_USD"]["single"])
-    ctc_max_total_usd = T["CTC_PER_CHILD_USD"] * num_children_for_ctc
+    ctc_max_usd = T["CTC_PER_CHILD_USD"] * num_children_for_ctc
+    odc_max_usd = T["ODC_PER_DEPENDENT_USD"] * num_other_dependents_for_odc
+    combined_max_usd = ctc_max_usd + odc_max_usd
     ctc_phaseout_reduction_usd = math.ceil(max(0.0, agi - ctc_phaseout_thr) / 1000) * T["CTC_PHASEOUT_PER_1000_USD"]
-    ctc_available_usd = max(0.0, ctc_max_total_usd - ctc_phaseout_reduction_usd)
+    combined_available_usd = max(0.0, combined_max_usd - ctc_phaseout_reduction_usd)
+    # Split the post-phaseout combined pool proportionally to isolate the
+    # CTC-only share, since ACTC (refundable) below applies only to CTC,
+    # never ODC.
+    ctc_available_usd = combined_available_usd * (ctc_max_usd / combined_max_usd) if combined_max_usd > 0 else 0.0
     remaining_tax_after_other_credits = max(0.0, js_round(income_tax) - other_credits_usd)
-    ctc_non_refundable_usd = min(ctc_available_usd, remaining_tax_after_other_credits)
-    ctc_unused_usd = ctc_available_usd - ctc_non_refundable_usd
+    combined_non_refundable_usd = min(combined_available_usd, remaining_tax_after_other_credits)
+    ctc_non_refundable_used_usd = combined_non_refundable_usd * (ctc_available_usd / combined_available_usd) if combined_available_usd > 0 else 0.0
+    ctc_unused_usd = ctc_available_usd - ctc_non_refundable_used_usd
     earned_income_usd = inc["wages"]["usd"] + f_w + f_se + (inc.get("businessUs", {}).get("usd", 0) if inc.get("businessUs") else 0)
     actc_cap_usd = min(T["CTC_REFUNDABLE_MAX_PER_CHILD_USD"] * num_children_for_ctc, T["CTC_REFUNDABLE_RATE"] * max(0.0, earned_income_usd - T["CTC_REFUNDABLE_EARNED_INCOME_FLOOR_USD"]))
     ctc_refundable_usd = js_round(max(0.0, min(ctc_unused_usd, actc_cap_usd)))
-    credits_usd = other_credits_usd + ctc_non_refundable_usd + ctc_refundable_usd
+    credits_usd = other_credits_usd + combined_non_refundable_usd + ctc_refundable_usd + mtc_allowed_usd
 
     total_tax_before_ftc = income_tax + niit + addl_medicare + se_tax + amt_owed - credits_usd
 
@@ -272,12 +319,16 @@ def _compute_us_tax_result(d, ctx):
             "tmtOrdUsd": tmt_ord, "tmtUsd": tmt_ord + preferential_tax, "regularTaxUsd": income_tax,
         },
         "otherCreditsUsd": other_credits_usd,
+        # maxTotalUsd/nonRefundableUsd are the COMBINED CTC+ODC figures
+        # (matching creditsUsd's real dollar effect); numChildren/
+        # availableUsd/refundableUsd remain CTC-only (ODC has no refundable
+        # component).
         "ctcDetail": {
-            "numChildren": num_children_for_ctc, "maxTotalUsd": ctc_max_total_usd, "phaseoutReductionUsd": ctc_phaseout_reduction_usd,
-            "availableUsd": ctc_available_usd, "nonRefundableUsd": ctc_non_refundable_usd, "refundableUsd": ctc_refundable_usd,
+            "numChildren": num_children_for_ctc, "maxTotalUsd": combined_max_usd, "phaseoutReductionUsd": ctc_phaseout_reduction_usd,
+            "availableUsd": ctc_available_usd, "nonRefundableUsd": combined_non_refundable_usd, "refundableUsd": ctc_refundable_usd,
             "earnedIncomeUsd": earned_income_usd,
         },
-        "foreignSourceIncomeUsd": f_w + f_se + f_i + f_d + f_r + f_p + f_stcg + f_ltcg,
+        "foreignSourceIncomeUsd": f_w + f_se + f_i + f_d + f_r + f_p + f_stcg + f_ltcg + f_988,
         "retirementEpfInterestUsd": (inc.get("retirementEpfInterestUsd") or 0) if worldwide else 0,
         "retirementNpsWithdrawalUsd": (inc.get("retirementNpsWithdrawalUsd") or 0) if worldwide else 0,
         "niitDetail": {
@@ -310,17 +361,11 @@ NODES = {
     "worldwideUs": NodeDef(deps=(), compute=lambda d, ctx: bool(safe(ctx, "computed.residency.us.worldwide", False))),
     "feieRaw": NodeDef(
         deps=(),
-        compute=lambda d, ctx: {
-            "claimed": safe(ctx.get("us"), "foreign_earned_income.claims_feie", False) is True,
-            "amountClaimedUsd": num(safe(ctx.get("us"), "foreign_earned_income.feie_amount_claimed_usd", 0)),
-            "taxHomeCountry": safe(ctx.get("us"), "foreign_earned_income.tax_home_country", ""),
-            "bonaFide": safe(ctx.get("us"), "foreign_earned_income.bona_fide_residence", False) is True,
-            "physicalPresence": safe(ctx.get("us"), "foreign_earned_income.physical_presence", False) is True,
-            "daysInUsTestPeriod": num(safe(ctx.get("us"), "foreign_earned_income.days_in_us_during_test_period", 0)),
-        },
+        compute=_feie_raw,
         layer1_fields=(
             "us.foreign_earned_income.claims_feie", "us.foreign_earned_income.feie_amount_claimed_usd",
-            "us.foreign_earned_income.tax_home_country", "us.foreign_earned_income.bona_fide_residence",
+            "us.foreign_earned_income.tax_home_country", "us.foreign_earned_income.qualification_test",
+            "us.foreign_earned_income.bona_fide_residence",
             "us.foreign_earned_income.physical_presence", "us.foreign_earned_income.days_in_us_during_test_period",
         ),
     ),
@@ -336,11 +381,14 @@ NODES = {
             "mortgageInterest": num(safe(it, "mortgage_interest_paid_usd", 0)),
             "charitable": num(safe(it, "charitable_contributions_cash_usd", 0)) + num(safe(it, "charitable_contributions_appreciated_usd", 0)),
             "medical": num(safe(it, "medical_expenses_usd", 0)),
+            "casualtyLoss": num(safe(it, "casualty_loss_federal_disaster_usd", 0)),
             "studentLoanInterest": num(safe(it, "student_loan_interest_usd", 0)),
             "isoAmtPrefUsd": sum(
                 num(ex.get("amt_preference_spread_usd")) if ex.get("amt_preference_spread_usd") is not None else max(0.0, (num(ex.get("fmv_at_exercise_usd")) - num(ex.get("strike_price_usd"))) * num(ex.get("shares_exercised")))
                 for ex in (safe(us, "equity_compensation.iso_exercises", []) or [])
             ),
+            # §53 Minimum Tax Credit carryforward -- fed nothing before this.
+            "mtcCarryforwardUsd": num(safe(us, "amt_inputs.minimum_tax_credit_carryforward_usd", 0)),
             "amtPrefs": (
                 num(safe(us, "amt_inputs.private_activity_bond_interest_usd", 0)) + num(safe(it, "private_activity_bond_interest_usd", 0)) +
                 num(safe(it, "amt_preference_spread_usd", 0)) + num(safe(us, "amt.private_activity_bond_interest_usd", 0)) +
@@ -352,7 +400,15 @@ NODES = {
             ),
             "careExpenses": num(safe(it, "child_and_dependent_care_expenses_usd", 0)) or num(safe(it, "dependent_care_expenses_usd", 0)),
             "aotc": num(safe(it, "education_credits_aotc_usd", 0)), "lifetimeLearning": num(safe(it, "education_credits_llc_usd", 0)),
-            "dependents": num(safe(us, "profile.dependents_count", 0)) or num(safe(it, "dependents_count", 0)),
+            # dependents_count/profile.dependents_count are the pre-existing
+            # (fixture-only) field names; child_tax_credit_dependents is the
+            # real layer1_us.html Step 17 field -- never wired before, so
+            # live-form CTC computed to $0 for every real user. Added as a
+            # fallback so existing fixture behavior is unaffected.
+            "dependents": num(safe(us, "profile.dependents_count", 0)) or num(safe(it, "dependents_count", 0)) or num(safe(it, "child_tax_credit_dependents", 0)),
+            # SS24(h)(4) Credit for Other Dependents count -- same gap, brand-new
+            # field (no engine equivalent at all).
+            "otherDependents": num(safe(it, "credit_for_other_dependents", 0)),
             "seHealthInsuranceDeductionUsd": num(safe(us, "income_us_source.se_health_insurance_deduction_usd", 0)),
             "seRetirementDeductionUsd": num(safe(us, "income_us_source.se_retirement_deduction_usd", 0)),
         })(ctx.get("us"), safe(ctx.get("us"), "itemized_deductions_and_credits", {}) or {}),
@@ -381,7 +437,10 @@ NODES = {
 
     "usTaxResult": NodeDef(
         deps=("incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs"),
-        compute=_compute_us_tax_result,
+        compute=lambda d, ctx: compute_us_tax_core(
+            d["incUs"], d["dedUs"], d["usFilingStatusRaw"], d["worldwideUs"], d["feie"],
+            d["additionalMedicareOwedBoundary"], d["taxpayerDobRaw"], d["baseYearUs"],
+        ),
     ),
     "totalTaxBeforeFtcUsd": NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["totalTaxBeforeFtcUsd"]),
 }

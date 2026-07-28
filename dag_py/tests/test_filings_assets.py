@@ -154,6 +154,10 @@ def test_findings_all_result_override_adds_msme_finding():
         "msmeDisallowanceTotalAgg": {"totalInr": 100000, "overdueCount": 1},
         "presumptiveLockinAgg": {"lockInActive": False, "yearsRemaining": 0, "exitYear": None},
         "totalIncomeInrV3": 0, "taxRegime": "NEW",
+        "hasUsScope": False, "electiveDeferralExcessUsd": 0, "electiveDeferralAggregateUsd": 0, "electiveDeferralLimitUsd": 24500,
+        "iraContributionExcessUsd": 0, "iraContributionAggregateUsd": 0, "iraContributionLimitUsd": 7500,
+        "retirementAccountsRaw": {}, "rmdRequired": False, "ageAtYearEndUs": None,
+        "equityCompRaw": {},
     }
     out = assets._findings_all_result_override(d, ctx, lambda d, ctx: [_finding("pan_not_linked_aadhaar")])
     ids = [f["id"] for f in out]
@@ -167,6 +171,10 @@ def test_findings_all_result_override_adds_lockin_finding_with_mandatory_audit()
         "msmeDisallowanceTotalAgg": {"totalInr": 0, "overdueCount": 0},
         "presumptiveLockinAgg": {"lockInActive": True, "yearsRemaining": 2, "exitYear": 2023, "currentAyStart": 2026},
         "totalIncomeInrV3": 800000, "taxRegime": "NEW",
+        "hasUsScope": False, "electiveDeferralExcessUsd": 0, "electiveDeferralAggregateUsd": 0, "electiveDeferralLimitUsd": 24500,
+        "iraContributionExcessUsd": 0, "iraContributionAggregateUsd": 0, "iraContributionLimitUsd": 7500,
+        "retirementAccountsRaw": {}, "rmdRequired": False, "ageAtYearEndUs": None,
+        "equityCompRaw": {},
     }
     out = assets._findings_all_result_override(d, ctx, lambda d, ctx: [])
     lockin_finding = next(f for f in out if f["id"] == "presumptive_lockin_active_india")
@@ -180,6 +188,10 @@ def test_findings_all_result_override_noop_when_nothing_triggers():
         "msmeDisallowanceTotalAgg": {"totalInr": 0, "overdueCount": 0},
         "presumptiveLockinAgg": {"lockInActive": False, "yearsRemaining": 0, "exitYear": None},
         "totalIncomeInrV3": 0, "taxRegime": "NEW",
+        "hasUsScope": False, "electiveDeferralExcessUsd": 0, "electiveDeferralAggregateUsd": 0, "electiveDeferralLimitUsd": 24500,
+        "iraContributionExcessUsd": 0, "iraContributionAggregateUsd": 0, "iraContributionLimitUsd": 7500,
+        "retirementAccountsRaw": {}, "rmdRequired": False, "ageAtYearEndUs": None,
+        "equityCompRaw": {},
     }
     base = [_finding("pan_not_linked_aadhaar")]
     out = assets._findings_all_result_override(d, ctx, lambda d, ctx: base)

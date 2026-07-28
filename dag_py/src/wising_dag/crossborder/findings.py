@@ -333,8 +333,15 @@ NODES = {
             "movedStates": safe(ctx.get("us"), "state_residency.moved_states_this_year", False) is True,
             "caSafeHarbor": safe(ctx.get("us"), "state_residency.ca_safe_harbor_employment_contract", False) is True,
             "caRetainsTies": safe(ctx.get("us"), "state_residency.ca_retains_property_or_voter_reg", False) is True,
-            "nyDaysPresent": num(safe(ctx.get("us"), "state_residency.ny_actual_days_present", 0)),
-            "nyPermanentAbode": safe(ctx.get("us"), "state_residency.ny_permanent_place_of_abode", False) is True,
+            # layer1_us.html's live statutory-residency tracker
+            # (renderStatutoryCheckers()/updateFootprintDetails()) stores
+            # these under the generic per-state state_residency.
+            # footprint_details[code].{days,ppa} object (shared by NY/NJ/CT/
+            # MA/etc.) -- NOT the flat ny_actual_days_present/
+            # ny_permanent_place_of_abode field names this used to read,
+            # which nothing in the live form has ever written.
+            "nyDaysPresent": num(safe(ctx.get("us"), "state_residency.footprint_details.NY.days", 0)) or num(safe(ctx.get("us"), "state_residency.ny_actual_days_present", 0)),
+            "nyPermanentAbode": safe(ctx.get("us"), "state_residency.footprint_details.NY.ppa", False) is True or safe(ctx.get("us"), "state_residency.ny_permanent_place_of_abode", False) is True,
             "ny548DayRule": safe(ctx.get("us"), "state_residency.ny_548_day_rule", False) is True,
         },
         layer1_fields=(
@@ -367,8 +374,15 @@ NODES = {
         deps=(), compute=lambda d, ctx: {
             "india": safe(ctx.get("india"), "bank_accounts", []) or [], "us": safe(ctx.get("us"), "bank_accounts", []) or [],
             "usFormFbar": num(safe(ctx.get("us"), "fbar_aggregate_peak_usd", 0)),
+            # layer1_us.html's Step 8 screen covers both bank_accounts AND
+            # this financial_holdings list (securities, life insurance,
+            # etc.) in one screen; the live UI's own recalc folds both into
+            # fbar_aggregate_peak_usd, gated on is_fbar_reportable !== false
+            # per row. Read here so aggregateLastDayUsdResult (no equivalent
+            # persisted override field) can mirror that same scope.
+            "usFinancialHoldings": safe(ctx.get("us"), "financial_holdings", []) or [],
         },
-        layer1_fields=("india.bank_accounts", "us.bank_accounts", "us.fbar_aggregate_peak_usd"),
+        layer1_fields=("india.bank_accounts", "us.bank_accounts", "us.fbar_aggregate_peak_usd", "us.financial_holdings"),
     ),
     "aggregatePeakUsdResult": NodeDef(
         deps=("bankAccountsRaw", "hasUsScopeBoundaryFtc"),
@@ -378,6 +392,26 @@ NODES = {
             {"usd": sum((b.get("peak_balance_inr") or 0) / fx_rate(ctx) for b in india_accts) if len(india_accts) >= len(us_accts) else
                     sum((b["peak_balance_usd"] if b.get("peak_balance_usd") is not None else (b.get("peak_balance_inr") or 0) / fx_rate(ctx)) for b in us_accts)}
         ))(d["bankAccountsRaw"]["india"], d["bankAccountsRaw"]["us"], d["bankAccountsRaw"]["usFormFbar"]),
+    ),
+    # Form 8938's reporting threshold is actually TWO independent tests —
+    # value on the LAST DAY of the tax year, and the HIGHEST value at any
+    # time during the year (LIMITS["FORM_8938"]'s lastDay/anyTime keys) —
+    # exceeding EITHER one triggers the filing requirement. layer1_us.html's
+    # Step 8 ("Foreign Banks/FBAR") collects last_day_balance_usd on every
+    # account row specifically for this, but nothing ever read it: only the
+    # peak/anyTime test was ever checked. India's own bank_accounts[] has no
+    # last-day-balance concept (out of scope), so this reflects only what
+    # Layer 1 US itself collects. Mirrors findings-batch5-nodes.js's
+    # aggregateLastDayUsdResult exactly.
+    "aggregateLastDayUsdResult": NodeDef(
+        deps=("bankAccountsRaw", "hasUsScopeBoundaryFtc"),
+        compute=lambda d, ctx: (
+            {"usd": 0, "inr": 0} if not d["hasUsScopeBoundaryFtc"] else
+            (lambda total: {"usd": total, "inr": total * fx_rate(ctx)})(
+                sum((b.get("last_day_balance_usd") or 0) for b in d["bankAccountsRaw"]["us"]) +
+                sum((h.get("last_day_balance_usd") or 0) for h in d["bankAccountsRaw"]["usFinancialHoldings"] if h.get("is_fbar_reportable") is not False)
+            )
+        ),
     ),
 
     # ---- equity_comp_sourcing (mirrors us/findings.py's equityCompResult

@@ -217,7 +217,21 @@ NODES.taxesPaidUsResult = {
 // ---- AGG-5: aggregateAccounts, ported in full (normalize.js:1997-2014) ---
 NODES.bankAccountsRaw = {
   deps: [], compute: function (d, ctx) {
-    return { india: safe(ctx.india, "bank_accounts", []) || [], us: safe(ctx.us, "bank_accounts", []) || [], usFormFbar: num(safe(ctx.us, "fbar_aggregate_peak_usd", 0)) };
+    return {
+      india: safe(ctx.india, "bank_accounts", []) || [], us: safe(ctx.us, "bank_accounts", []) || [], usFormFbar: num(safe(ctx.us, "fbar_aggregate_peak_usd", 0)),
+      // layer1_us.html's Step 8 screen ("Comprehensive Foreign Assets (FBAR
+      // & 8938)") is ONE screen covering both bank_accounts AND this
+      // financial_holdings list (securities, life insurance, etc., via
+      // addHoldingRow()/syncHoldingsState()) -- the live UI's own recalc
+      // folds both into fbar_aggregate_peak_usd (fbarSum, line ~9707-9716),
+      // gated on is_fbar_reportable !== false per row (default true for
+      // legacy entries). Read here so the last-day-of-year aggregate below
+      // (which has no equivalent persisted override field -- the live UI
+      // never saves its own fatcaLastDaySum anywhere) can mirror that same
+      // scope; no double-count risk since aggregatePeakUsdResult's own
+      // usFormFbar override replaces (not adds to) its from-scratch peak.
+      usFinancialHoldings: safe(ctx.us, "financial_holdings", []) || []
+    };
   }
 };
 NODES.aggregatePeakUsdResult = {
@@ -230,6 +244,34 @@ NODES.aggregatePeakUsdResult = {
     if (formFbar > 0) return moneyFromUsd(formFbar, ctx);
     if (!d.hasUsScopeBoundaryFtc) return zeroMoney();
     return accounts.reduce(function (acc, a) { return addMoney(acc, a.peak); }, zeroMoney());
+  }
+};
+// Form 8938's reporting threshold is actually TWO independent tests — value
+// on the LAST DAY of the tax year, and the HIGHEST value at any time during
+// the year (CONST.LIMITS.FORM_8938's lastDay/anyTime keys) — exceeding
+// EITHER one triggers the filing requirement. layer1_us.html's Step 8
+// ("Foreign Banks/FBAR") collects last_day_balance_usd on every account
+// row specifically for this, but nothing ever read it: only the peak/
+// anyTime test was ever checked (form8938GaugeResult below, and limits-
+// nodes.js's parallel gauge), so a taxpayer whose balance never spiked but
+// ended the year between the lastDay and anyTime thresholds was incorrectly
+// told Form 8938 wasn't required. India's own bank_accounts[] has no
+// last-day-balance concept at all (out of this Layer 1 US audit's scope),
+// so this can only reflect what Layer 1 US itself collects.
+NODES.aggregateLastDayUsdResult = {
+  deps: ["bankAccountsRaw", "hasUsScopeBoundaryFtc"],
+  compute: function (d, ctx) {
+    if (!d.hasUsScopeBoundaryFtc) return zeroMoney();
+    var usDisclosed = d.bankAccountsRaw.us.map(function (b) { return { lastDay: moneyFromUsd(b.last_day_balance_usd || 0, ctx) }; });
+    // financial_holdings (securities/other assets, same Step 8 screen as
+    // bank_accounts) feed the live UI's own fatcaLastDaySum the same way
+    // bank accounts do, gated on is_fbar_reportable !== false — mirrored
+    // here since there is no persisted override field for the last-day
+    // aggregate the way fbar_aggregate_peak_usd overrides the peak one.
+    var holdings = d.bankAccountsRaw.usFinancialHoldings
+      .filter(function (h) { return h.is_fbar_reportable !== false; })
+      .map(function (h) { return { lastDay: moneyFromUsd(h.last_day_balance_usd || 0, ctx) }; });
+    return usDisclosed.concat(holdings).reduce(function (acc, a) { return addMoney(acc, a.lastDay); }, zeroMoney());
   }
 };
 

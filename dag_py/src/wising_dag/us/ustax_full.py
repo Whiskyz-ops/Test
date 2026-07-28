@@ -33,10 +33,11 @@ this file's own override above has run.
 """
 from __future__ import annotations
 
+from ..core.dates import parse_date
 from ..core.graph import NodeDef
-from ..core.util import js_round, num, safe
+from ..core.util import js_num_str, js_round, num, safe
 from . import constants as C
-from .ustax import bracket_breakdown, bracket_tax, compute_salt_cap
+from .ustax import bracket_breakdown, bracket_tax, compute_salt_cap, compute_us_tax_core
 
 T = C.US
 
@@ -79,6 +80,23 @@ ENTITY_DE_INCOME_TAX_NOTE = (
     "DE-source apportionment). Separately, and NOT covered by this note: every Delaware corporation owes Delaware's annual franchise "
     "tax regardless of income (Authorized Shares or Assumed Par Value method, $175 minimum) — track this as its own always-due line item."
 )
+
+
+# XB-6: §877A covered-expatriate determination (Rev. Proc. 2025-32, tax year
+# 2026 figures). A Long-Term Resident (green card held 8+ of the last 15
+# years, IRC 7701(b)(6)) who surrenders the green card is a "covered
+# expatriate" if ANY ONE of three tests is met: net worth >= $2,000,000
+# (fixed, not inflation-adjusted since 2008); average annual net income tax
+# for the 5 years before expatriation > $211,000 (2025 was $206,000); or
+# failure to certify 5 years of federal tax compliance on Form 8854. This
+# only determines covered-expatriate STATUS — it deliberately does not
+# compute the actual §877A mark-to-market exit tax, which needs a full
+# worldwide asset/basis schedule Layer 1 doesn't collect (same judgment as
+# the Delaware franchise-tax note above).
+EXPATRIATION_LTR_YEARS_THRESHOLD = 8
+EXPATRIATION_NET_WORTH_THRESHOLD_USD = 2000000
+EXPATRIATION_AVG_NET_INCOME_TAX_THRESHOLD_USD = 211000  # 2026, Rev. Proc. 2025-32 (2025 was $206,000)
+EXPATRIATION_MTM_EXCLUSION_USD = 910000  # 2026, Rev. Proc. 2025-32 (2025 was $890,000)
 
 
 def _usd(n: float) -> str:
@@ -190,6 +208,71 @@ _SEVERITY_WEIGHT = {"critical": 0, "warning": 1, "info": 2}
 def _findings_all_result_override(d, ctx, base_compute):
     all_findings = list(base_compute(d, ctx))
     est = d["usEntityStateTaxResult"]
+    ds = d["usDualStatusResult"]
+    if ds and ds["isDualStatusYear"]:
+        if ds["hasDates"]:
+            period_note = (
+                f"Resident from {ds['residencyStartDate'] or 'the start of the year'} through {ds['residencyEndDate'] or 'year-end'} "
+                f"({round(ds['residentFraction'] * 100)}% of the year)."
+            )
+        else:
+            period_note = "No residency start/end date was on file, so this defaulted to treating the full year as the resident period — enter the actual date for an accurate split."
+        passive_note = ""
+        if ds["passiveUsSourceDuringNrUsd"] > 0:
+            passive_note = (
+                f" Note: {_usd(ds['passiveUsSourceDuringNrUsd'])} of US-source interest/dividends/capital gains falls in the nonresident sub-period and is "
+                "NOT included in the total above — classifying it as FDAP (flat 30%/treaty rate), ECI, or exempt requires trade-or-business/treaty facts this "
+                "engine doesn't collect for this scenario; confirm its treatment with a preparer."
+            )
+        all_findings.append({
+            "id": "us_dual_status_split_year", "severity": "warning", "category": "residency",
+            "title": "Dual-status year — worldwide income taxed only for part of the year, no standard deduction",
+            "detail": (
+                f"This is a dual-status year: nonresident (US-source income only) for part of the year, resident (worldwide income) for the rest. {period_note} "
+                f"Combined tax across both sub-periods: {_usd(ds['combined']['totalTaxBeforeFtcUsd'])}. Per IRS Pub 519, a dual-status alien cannot take the "
+                "standard deduction for either sub-period (itemized only, applied here), and most personal credits (child/dependent care, education credits) are "
+                "only available for the resident-period portion. Layer 1 collects annual income totals, not date-stamped transactions, so each sub-period's income "
+                "is apportioned by day-count against the residency start/end date — the same even-earning assumption already used elsewhere in this engine for "
+                f"the India FY/US CY calendar-year split.{passive_note}"
+            ),
+            "recommendation": (
+                "File a dual-status return (Form 1040 + Form 1040-NR as a statement, or vice versa per Pub 519's ordering rules) reflecting the "
+                "resident/nonresident split above, and confirm the exact residency start/end date and any uncomputed nonresident-period passive US-source income with a preparer."
+            ),
+            "amountUsd": ds["combined"]["totalTaxBeforeFtcUsd"], "refs": ["Pub 519", "IRC 7701(b)", "Form 1040-NR"],
+        })
+    expat = d["usExpatriationResult"]
+    if expat and expat["isLtrExpatriating"]:
+        if expat["isCoveredExpatriate"]:
+            all_findings.append({
+                "id": "us_covered_expatriate_exit_tax", "severity": "critical", "category": "residency",
+                "title": "§877A covered expatriate — mark-to-market exit tax applies",
+                "detail": (
+                    f"As a Long-Term Resident (green card held {js_num_str(expat['yearsHeld'])} of the last 15 years) who surrendered the green card, this taxpayer "
+                    f"meets at least one of the three covered-expatriate tests: {'; '.join(expat['reasonsMet'])}. Under §877A, a covered expatriate is treated as "
+                    f"having sold all worldwide assets for fair market value the day before expatriation, with gain taxed at capital-gains rates after a "
+                    f"{_usd(expat['exclusionUsd'])} exclusion (2026, Rev. Proc. 2025-32)."
+                ),
+                "recommendation": (
+                    "File Form 8854 and compute the actual mark-to-market gain from a full asset/basis schedule with a preparer — WISING does not "
+                    "collect worldwide asset FMV/basis data and cannot compute the actual exit-tax liability here; this finding only confirms covered-expatriate status applies."
+                ),
+                "amountUsd": 0, "refs": ["§877A", "Form 8854", "Rev. Proc. 2025-32"],
+            })
+        else:
+            all_findings.append({
+                "id": "us_ltr_expatriation_not_covered", "severity": "info", "category": "residency",
+                "title": "Long-Term Resident expatriation — not a covered expatriate",
+                "detail": (
+                    f"This taxpayer held a green card for {js_num_str(expat['yearsHeld'])} of the last 15 years and surrendered it, but none of the three §877A "
+                    "covered-expatriate tests appear to be met on the figures entered (net worth, average annual net income tax, Form 8854 certification)."
+                ),
+                "recommendation": (
+                    "Confirm all three figures are accurate and current as of the expatriation date before relying on this — a covered-expatriate "
+                    "determination has significant consequences if missed."
+                ),
+                "amountUsd": 0, "refs": ["§877A", "Form 8854"],
+            })
     if est:
         if est["modeled"]:
             all_findings.append({
@@ -261,12 +344,186 @@ def _nra_tax_result(d, ctx):
     }
 
 
+def _usd_of(v):
+    return v["usd"] if (v and isinstance(v.get("usd"), (int, float))) else 0
+
+
+def _is_leap_year(y):
+    return (y % 4 == 0 and y % 100 != 0) or y % 400 == 0
+
+
+def _days_in_year(y):
+    return 366 if _is_leap_year(y) else 365
+
+
+def _days_between_inclusive_iso(start_iso, end_iso):
+    start = parse_date(start_iso)
+    end = parse_date(end_iso)
+    return (end - start).days + 1
+
+
+def _scale_resident_inc(inc, frac):
+    def s(v):
+        return {"usd": _usd_of(v) * frac}
+
+    return {
+        "wages": s(inc["wages"]), "businessUs": s(inc.get("businessUs")), "foreignWages": s(inc["foreignWages"]), "foreignSelfEmployment": s(inc["foreignSelfEmployment"]),
+        "interestUs": s(inc["interestUs"]), "ordinaryDividendsUs": s(inc["ordinaryDividendsUs"]), "qualifiedDividendsUs": s(inc["qualifiedDividendsUs"]),
+        "stcgUs": s(inc["stcgUs"]), "ltcgUs": s(inc["ltcgUs"]), "capitalGainsUs": s(inc["capitalGainsUs"]), "rentalUs": s(inc["rentalUs"]),
+        "foreignInterest": s(inc["foreignInterest"]), "foreignDividends": s(inc["foreignDividends"]), "foreignRental": s(inc["foreignRental"]),
+        "foreignPension": s(inc["foreignPension"]), "foreignStcg": s(inc["foreignStcg"]), "foreignLtcg": s(inc["foreignLtcg"]),
+        "foreignSection988GainLoss": s(inc.get("foreignSection988GainLoss")),
+        "usRetirementIncome": s(inc.get("usRetirementIncome")), "usRetirementIncomeExclSs": s(inc.get("usRetirementIncomeExclSs")),
+        "socialSecurityUs": s(inc.get("socialSecurityUs")), "taxExemptInterestUs": s(inc.get("taxExemptInterestUs")),
+        "seEarningsUsd": (inc.get("seEarningsUsd") or 0) * frac, "medicareWages": (inc.get("medicareWages") or 0) * frac,
+        "qualifiedTipsUsd": (inc.get("qualifiedTipsUsd") or 0) * frac, "qualifiedOvertimeUsd": (inc.get("qualifiedOvertimeUsd") or 0) * frac,
+        "qbiIncomeUsd": (inc.get("qbiIncomeUsd") or 0) * frac, "qbiIsSSTB": inc.get("qbiIsSSTB"),
+        "retirementEpfInterestUsd": (inc.get("retirementEpfInterestUsd") or 0) * frac, "retirementNpsWithdrawalUsd": (inc.get("retirementNpsWithdrawalUsd") or 0) * frac,
+        "usSourceTotal": s(inc["usSourceTotal"]),
+    }
+
+
+def _scale_nonresident_inc(inc, frac):
+    def s(v):
+        return {"usd": _usd_of(v) * frac}
+
+    zero = {"usd": 0}
+    eci_usd = s(inc["wages"])["usd"] + s(inc.get("businessUs"))["usd"] + s(inc["rentalUs"])["usd"]
+    return {
+        "wages": s(inc["wages"]), "businessUs": s(inc.get("businessUs")), "rentalUs": s(inc["rentalUs"]),
+        "foreignWages": zero, "foreignSelfEmployment": zero, "interestUs": zero, "ordinaryDividendsUs": zero, "qualifiedDividendsUs": zero,
+        "stcgUs": zero, "ltcgUs": zero, "capitalGainsUs": zero, "foreignInterest": zero, "foreignDividends": zero, "foreignRental": zero,
+        "foreignPension": zero, "foreignStcg": zero, "foreignLtcg": zero, "foreignSection988GainLoss": zero, "usRetirementIncome": zero, "usRetirementIncomeExclSs": zero,
+        "socialSecurityUs": zero, "taxExemptInterestUs": zero,
+        "seEarningsUsd": (inc.get("seEarningsUsd") or 0) * frac, "medicareWages": (inc.get("medicareWages") or 0) * frac,
+        "qualifiedTipsUsd": 0, "qualifiedOvertimeUsd": 0, "qbiIncomeUsd": 0, "qbiIsSSTB": False,
+        "retirementEpfInterestUsd": 0, "retirementNpsWithdrawalUsd": 0,
+        "usSourceTotal": {"usd": eci_usd},
+    }
+
+
+def _scale_ded_for_dual_status(ded, frac, drop_personal_credits):
+    return {
+        "mode": "itemized",
+        "salt": (ded.get("salt") or 0) * frac, "mortgageInterest": (ded.get("mortgageInterest") or 0) * frac, "charitable": (ded.get("charitable") or 0) * frac,
+        "medical": (ded.get("medical") or 0) * frac, "studentLoanInterest": (ded.get("studentLoanInterest") or 0) * frac,
+        "isoAmtPrefUsd": (ded.get("isoAmtPrefUsd") or 0) * frac, "amtPrefs": (ded.get("amtPrefs") or 0) * frac,
+        "careExpenses": 0 if drop_personal_credits else ded.get("careExpenses"),
+        "aotc": 0 if drop_personal_credits else ded.get("aotc"), "lifetimeLearning": 0 if drop_personal_credits else ded.get("lifetimeLearning"),
+        "dependents": 0 if drop_personal_credits else ded.get("dependents"),
+        "seHealthInsuranceDeductionUsd": (ded.get("seHealthInsuranceDeductionUsd") or 0) * frac,
+        "seRetirementDeductionUsd": (ded.get("seRetirementDeductionUsd") or 0) * frac,
+    }
+
+
+_NO_FEIE = {"claimed": False, "eligible": False, "taxHomeAbroad": False, "testMet": False, "reasons": [], "amountClaimedUsd": 0}
+
+
+def _us_dual_status_info(d, ctx):
+    if d["usStatusRaw"] != "DUAL_STATUS":
+        return {"isDualStatusYear": False}
+    year = d["baseYearUs"] or 2026
+    start_date, end_date = d["usResidencyStartDateRaw"], d["usResidencyEndDateRaw"]
+    has_dates = bool(start_date or end_date)
+    total_days = _days_in_year(year)
+    resident_days = total_days
+    if has_dates:
+        eff_start = start_date or f"{year}-01-01"
+        eff_end = end_date or f"{year}-12-31"
+        resident_days = max(0, min(total_days, _days_between_inclusive_iso(eff_start, eff_end)))
+    resident_fraction = (resident_days / total_days) if total_days > 0 else 1
+    return {
+        "isDualStatusYear": True, "hasDates": has_dates, "residencyStartDate": start_date, "residencyEndDate": end_date,
+        "residentDays": resident_days, "totalDaysInYear": total_days,
+        "residentFraction": resident_fraction, "nonresidentFraction": 1 - resident_fraction,
+    }
+
+
+def _us_dual_status_result(d, ctx):
+    info = d["usDualStatusInfo"]
+    if not info["isDualStatusYear"]:
+        return None
+    frac, nr_frac = info["residentFraction"], info["nonresidentFraction"]
+
+    rp = compute_us_tax_core(
+        _scale_resident_inc(d["incUs"], frac), _scale_ded_for_dual_status(d["dedUs"], frac, False),
+        d["usFilingStatusRaw"], True, d["feie"], d["additionalMedicareOwedBoundary"], d["taxpayerDobRaw"], d["baseYearUs"],
+    )
+    nr_raw = compute_us_tax_core(
+        _scale_nonresident_inc(d["incUs"], nr_frac), _scale_ded_for_dual_status(d["dedUs"], nr_frac, True),
+        d["usFilingStatusRaw"], False, _NO_FEIE, 0, d["taxpayerDobRaw"], d["baseYearUs"],
+    )
+    # NIIT never applies to a nonresident alien (Treas. Reg. 1.1411-2(a)(2)(i)) --
+    # compute_us_tax_core has no NRA-awareness flag, so override post-hoc.
+    nr = {**nr_raw, "niitUsd": 0, "totalTaxBeforeFtcUsd": nr_raw["totalTaxBeforeFtcUsd"] - nr_raw["niitUsd"]}
+
+    passive_us_source_during_nr_usd = (_usd_of(d["incUs"]["interestUs"]) + _usd_of(d["incUs"]["ordinaryDividendsUs"]) + _usd_of(d["incUs"]["capitalGainsUs"])) * nr_frac
+
+    combined = {
+        "agiUsd": rp["agiUsd"] + nr["agiUsd"], "taxableIncomeUsd": rp["taxableIncomeUsd"] + nr["taxableIncomeUsd"],
+        "incomeTaxUsd": rp["incomeTaxUsd"] + nr["incomeTaxUsd"], "niitUsd": rp["niitUsd"] + nr["niitUsd"],
+        "additionalMedicareUsd": rp["additionalMedicareUsd"] + nr["additionalMedicareUsd"], "seTaxUsd": rp["seTaxUsd"] + nr["seTaxUsd"],
+        "qbiDeductionUsd": rp["qbiDeductionUsd"] + nr["qbiDeductionUsd"], "amtUsd": rp["amtUsd"] + nr["amtUsd"],
+        "creditsUsd": rp["creditsUsd"] + nr["creditsUsd"], "totalTaxBeforeFtcUsd": rp["totalTaxBeforeFtcUsd"] + nr["totalTaxBeforeFtcUsd"],
+        "deductionUsd": rp["deductionUsd"] + nr["deductionUsd"], "deductionMode": "itemized (dual-status — standard deduction not allowed)",
+        "totalIncomeUsd": rp["totalIncomeUsd"] + nr["totalIncomeUsd"], "usSourceIncomeUsd": rp["usSourceIncomeUsd"] + nr["usSourceIncomeUsd"],
+        "feieAppliedUsd": rp["feieAppliedUsd"], "worldwide": True,
+        "ordinaryTaxUsd": rp["ordinaryTaxUsd"] + nr["ordinaryTaxUsd"], "preferentialTaxUsd": rp["preferentialTaxUsd"] + nr["preferentialTaxUsd"],
+        "filingStatus": rp["filingStatus"], "ordinaryIncomeUsd": rp["ordinaryIncomeUsd"] + nr["ordinaryIncomeUsd"],
+        "preferentialIncomeUsd": rp["preferentialIncomeUsd"] + nr["preferentialIncomeUsd"], "saltCapUsd": rp["saltCapUsd"],
+        "socialSecurityDetail": rp["socialSecurityDetail"],
+        "seniorDeductionUsd": rp["seniorDeductionUsd"], "seniorDetail": rp["seniorDetail"],
+        "tipsDeductionUsd": rp["tipsDeductionUsd"], "overtimeDeductionUsd": rp["overtimeDeductionUsd"], "tipsOvertimeDetail": rp["tipsOvertimeDetail"],
+        "ordinaryTaxableUsd": rp["ordinaryTaxableUsd"] + nr["ordinaryTaxableUsd"], "ordinaryBracketBreakdown": rp["ordinaryBracketBreakdown"],
+        "amtDetail": rp["amtDetail"], "otherCreditsUsd": rp["otherCreditsUsd"] + nr["otherCreditsUsd"], "ctcDetail": rp["ctcDetail"],
+        "foreignSourceIncomeUsd": rp["foreignSourceIncomeUsd"],
+        "retirementEpfInterestUsd": rp["retirementEpfInterestUsd"], "retirementNpsWithdrawalUsd": rp["retirementNpsWithdrawalUsd"],
+        "niitDetail": rp["niitDetail"], "feie": rp["feie"],
+        "effectiveRate": ((rp["totalTaxBeforeFtcUsd"] + nr["totalTaxBeforeFtcUsd"]) / (rp["totalIncomeUsd"] + nr["totalIncomeUsd"])) if (rp["totalIncomeUsd"] + nr["totalIncomeUsd"]) > 0 else 0,
+    }
+
+    return {
+        "isDualStatusYear": True, "residentFraction": frac, "nonresidentFraction": nr_frac,
+        "residencyStartDate": info["residencyStartDate"], "residencyEndDate": info["residencyEndDate"], "hasDates": info["hasDates"],
+        "residentPeriod": rp, "nonresidentPeriod": nr, "passiveUsSourceDuringNrUsd": passive_us_source_during_nr_usd,
+        "combined": combined,
+    }
+
+
+def _us_expatriation_result(d, ctx):
+    surrendered_date = safe(ctx.get("us"), "us_residency_detail.i407_surrendered_date", None)
+    is_ltr_expatriating = bool(d["usHasGreenCardRaw"] and surrendered_date and d["usGreenCardYearsHeldRaw"] >= EXPATRIATION_LTR_YEARS_THRESHOLD)
+    if not is_ltr_expatriating:
+        return {"isLtrExpatriating": False}
+
+    reasons_met = []
+    net_worth_test = d["usExpatriationNetWorthRaw"] >= EXPATRIATION_NET_WORTH_THRESHOLD_USD
+    if net_worth_test:
+        reasons_met.append(f"net worth of {_usd(d['usExpatriationNetWorthRaw'])} meets the ${EXPATRIATION_NET_WORTH_THRESHOLD_USD:,} threshold")
+    avg_tax_test = d["usExpatriationAvgNetIncomeTaxRaw"] > EXPATRIATION_AVG_NET_INCOME_TAX_THRESHOLD_USD
+    if avg_tax_test:
+        reasons_met.append(f"average annual net income tax of {_usd(d['usExpatriationAvgNetIncomeTaxRaw'])} exceeds the ${EXPATRIATION_AVG_NET_INCOME_TAX_THRESHOLD_USD:,} threshold")
+    cert_test = not d["usForm8854CompliantRaw"]
+    if cert_test:
+        reasons_met.append("Form 8854 5-year tax compliance is not certified")
+
+    return {
+        "isLtrExpatriating": True, "yearsHeld": d["usGreenCardYearsHeldRaw"],
+        "isCoveredExpatriate": net_worth_test or avg_tax_test or cert_test,
+        "netWorthTest": net_worth_test, "avgTaxTest": avg_tax_test, "certTest": cert_test, "reasonsMet": reasons_met,
+        "exclusionUsd": EXPATRIATION_MTM_EXCLUSION_USD,
+    }
+
+
 def _us_tax_result_router(d, ctx):
     ek = d["usEntityKind"]
     if ek in ("ccorp", "scorp", "partnership", "trust"):
         return d["usEntityTaxResult"]
     if d["files1040nr"] and not d["s6013hElection"]:
         return d["nraTaxResult"]
+    ds = d["usDualStatusResult"]
+    if ds and ds["isDualStatusYear"]:
+        return {**ds["combined"], "dualStatusDetail": ds}
     return d["usTaxIndividualResult"]
 
 
@@ -304,10 +561,27 @@ def build(base):
         compute=_nra_tax_result,
     ))
 
+    r.register("usResidencyStartDateRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "us_residency_detail.residency_start_date", None), layer1_fields=("us.us_residency_detail.residency_start_date",)))
+    r.register("usResidencyEndDateRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "us_residency_detail.residency_end_date", None), layer1_fields=("us.us_residency_detail.residency_end_date",)))
+    r.register("usDualStatusInfo", NodeDef(deps=("usStatusRaw", "usResidencyStartDateRaw", "usResidencyEndDateRaw", "baseYearUs"), compute=_us_dual_status_info))
+    r.register("usDualStatusResult", NodeDef(
+        deps=("usDualStatusInfo", "incUs", "dedUs", "usFilingStatusRaw", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs"),
+        compute=_us_dual_status_result,
+    ))
+
+    r.register("usGreenCardYearsHeldRaw", NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "us_residency_detail.green_card_years_held", 0)), layer1_fields=("us.us_residency_detail.green_card_years_held",)))
+    r.register("usExpatriationNetWorthRaw", NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "us_residency_detail.expatriation_net_worth_usd", 0)), layer1_fields=("us.us_residency_detail.expatriation_net_worth_usd",)))
+    r.register("usExpatriationAvgNetIncomeTaxRaw", NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "us_residency_detail.expatriation_avg_net_income_tax_usd", 0)), layer1_fields=("us.us_residency_detail.expatriation_avg_net_income_tax_usd",)))
+    r.register("usForm8854CompliantRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "us_residency_detail.form_8854_5yr_compliance_certified", False) is True, layer1_fields=("us.us_residency_detail.form_8854_5yr_compliance_certified",)))
+    r.register("usExpatriationResult", NodeDef(
+        deps=("usHasGreenCardRaw", "usGreenCardYearsHeldRaw", "usExpatriationNetWorthRaw", "usExpatriationAvgNetIncomeTaxRaw", "usForm8854CompliantRaw"),
+        compute=_us_expatriation_result,
+    ))
+
     base_findings_all = r.get("findingsAllResult")
     r.override(
         "findingsAllResult",
-        NodeDef(deps=base_findings_all.deps + ("usEntityStateTaxResult",), compute=lambda d, ctx: _findings_all_result_override(d, ctx, base_findings_all.compute)),
+        NodeDef(deps=base_findings_all.deps + ("usEntityStateTaxResult", "usDualStatusResult", "usExpatriationResult"), compute=lambda d, ctx: _findings_all_result_override(d, ctx, base_findings_all.compute)),
         reason=OVERRIDE_REASON,
     )
 
@@ -318,7 +592,7 @@ def build(base):
     r.register("usTaxIndividualResult", base_us_tax_result)
     r.override(
         "usTaxResult",
-        NodeDef(deps=("usEntityKind", "files1040nr", "s6013hElection", "usEntityTaxResult", "nraTaxResult", "usTaxIndividualResult"), compute=_us_tax_result_router),
+        NodeDef(deps=("usEntityKind", "files1040nr", "s6013hElection", "usEntityTaxResult", "nraTaxResult", "usTaxIndividualResult", "usDualStatusResult"), compute=_us_tax_result_router),
         reason=OVERRIDE_REASON,
     )
 

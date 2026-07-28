@@ -1170,11 +1170,41 @@
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Form I-407 Surrender Date (If Expatriated)</label>
-                        <input type="date" id="res-gc-surrender" onchange="updateResidencyField('i407_surrendered_date', this.value)" class="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all">
+                        <input type="date" id="res-gc-surrender" onchange="updateResidencyField('i407_surrendered_date', this.value); toggleExitTaxTests();" class="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-brandRed mb-1.5">Years Holding GC in last 15 yrs (Exit Tax)</label>
-                        <input type="text" inputmode="numeric" id="res-gc-years" min="0" max="15" placeholder="e.g. 8" oninput="updateResidencyField('green_card_years_held', parseInt(this.value) || 0)" class="w-full bg-brandRed/5 border border-brandRed/30 rounded-xl text-xs text-white px-4 py-3 focus:border-brandRed focus:ring-0 focus:outline-none transition-all font-mono">
+                        <input type="text" inputmode="numeric" id="res-gc-years" min="0" max="15" placeholder="e.g. 8" oninput="updateResidencyField('green_card_years_held', parseInt(this.value) || 0); toggleExitTaxTests();" class="w-full bg-brandRed/5 border border-brandRed/30 rounded-xl text-xs text-white px-4 py-3 focus:border-brandRed focus:ring-0 focus:outline-none transition-all font-mono">
+                    </div>
+                </div>
+
+                <!-- §877A Covered Expatriate Tests (Long-Term Resident surrendering the GC) -->
+                <div id="div-exit-tax-tests" class="hidden p-4 bg-brandRed/5 border border-brandRed/20 rounded-2xl flex flex-col gap-3">
+                    <div>
+                        <span class="text-[10px] font-black uppercase tracking-widest text-brandRed">§877A Covered Expatriate Tests</span>
+                        <p class="text-[9px] text-white/50 mt-1 leading-relaxed">A Long-Term Resident (green card held 8+ of the last 15 years) who surrenders it is a "covered expatriate" — subject to §877A mark-to-market exit tax — if ANY ONE of the three tests below is met.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Net Worth on Expatriation Date (USD)</label>
+                            <input type="text" inputmode="numeric" id="res-expat-net-worth" placeholder="e.g. 2500000" oninput="updateResidencyField('expatriation_net_worth_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandRed focus:ring-0 focus:outline-none transition-all font-mono">
+                            <span class="text-[8px] text-white/30 block mt-1">Test 1: covered expatriate if ≥ $2,000,000 (fixed, not inflation-adjusted).</span>
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Avg. Annual Net Income Tax, Last 5 Years (USD)</label>
+                            <input type="text" inputmode="numeric" id="res-expat-avg-tax" placeholder="e.g. 150000" oninput="updateResidencyField('expatriation_avg_net_income_tax_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandRed focus:ring-0 focus:outline-none transition-all font-mono">
+                            <span class="text-[8px] text-white/30 block mt-1">Test 2: covered expatriate if &gt; $211,000 (2026, inflation-adjusted under Rev. Proc. 2025-32).</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between p-3 bg-black/20 border border-white/5 rounded-xl">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-bold text-white/80">Form 8854: Can you certify 5 years of federal tax compliance?</span>
+                            <span class="text-[8px] text-white/30">Test 3: failure to certify (or leaving this unchecked) makes you a covered expatriate regardless of net worth or tax liability.</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer shrink-0 ml-4">
+                            <input type="checkbox" id="res-expat-8854-cert" onchange="updateResidencyField('form_8854_5yr_compliance_certified', this.checked)" class="sr-only peer">
+                            <div class="w-9 h-5 bg-white/20 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brandCyan"></div>
+                        </label>
                     </div>
                 </div>
 
@@ -1333,8 +1363,8 @@
                         <div class="flex flex-col gap-2 p-3 bg-black/20 border border-white/5 rounded-xl">
                             <div class="flex items-center justify-between">
                                 <div class="flex flex-col">
-                                    <span class="text-[10px] font-bold text-white/80">First-Year Resident Election</span>
-                                    <span class="text-[8px] text-white/30">Arrived mid-year? Elect to be treated as a U.S. tax resident for the full year instead of just part of it.</span>
+                                    <span class="text-[10px] font-bold text-white/80">First-Year Choice Election (§7701(b)(4))</span>
+                                    <span class="text-[8px] text-white/30">Arrived mid-year and don't meet the SPT yet? Elect to pull your residency start date forward to this year — you remain a dual-status alien (nonresident before, resident from that date), not a full-year resident.</span>
                                 </div>
                                 <label class="relative inline-flex items-center cursor-pointer shrink-0 ml-3">
                                     <input type="checkbox" id="res-first-yr" onchange="onFirstYearElectionChange(this.checked)" class="sr-only peer">
@@ -1366,7 +1396,7 @@
                             <div class="flex flex-col gap-1">
                                 <span class="text-xs font-black text-blue-400 uppercase tracking-widest font-display">First-Year Election Active — Key Consequences</span>
                                 <span class="text-xs text-white/70 leading-relaxed">
-                                    By turning this on, you are choosing to be taxed as a U.S. resident from the date you first arrived this year. This is a formal IRS election with significant implications.
+                                    By turning this on, you remain a <strong>dual-status alien</strong> for this year — nonresident (US-source income only) before your entry date, resident (worldwide income) from that date onward. This is a formal IRS election with significant implications, including losing the standard deduction for the year.
                                 </span>
                             </div>
                         </div>
@@ -1375,7 +1405,7 @@
                             <div class="p-4 bg-white/5 border border-white/5 rounded-xl flex flex-col gap-2">
                                 <span class="text-[10px] font-black uppercase tracking-wider text-brandCyan">What This Election Does</span>
                                 <p class="text-[10px] text-white/50 leading-relaxed">
-                                    Normally, if you arrive mid-year, you are a Non-Resident Alien for the days before your arrival. This election lets you choose to be treated as a <strong>full-year Resident Alien</strong>, which means your worldwide income from your entry date is taxable in the U.S. It is commonly used to allow a couple to file jointly (MFJ) in their first year.
+                                    Without this election, an arrival that doesn't meet the SPT until next year is a Non-Resident Alien for all of this year. This election pulls your residency starting date forward to the first day of the qualifying 31-day period — you become a <strong>dual-status alien</strong>: Non-Resident Alien (US-source income only) before that date, Resident Alien (worldwide income) from that date through Dec 31. It does NOT make you a full-year resident — for that, a married couple needs the separate §6013(g)/(h) election below.
                                 </p>
                             </div>
                             <div class="p-4 bg-white/5 border border-white/5 rounded-xl flex flex-col gap-2">
@@ -1750,8 +1780,8 @@
                         <input type="password" placeholder="••••••••" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all font-mono">
                     </div>
                     <div>
-                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">US Bank Interest (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1 of Form 1099-INT</span></label>
-                        <input type="text" inputmode="numeric" id="bank-sync-us-interest" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">US Bank Interest (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1 of Form 1099-INT — same figure as the "Banks &amp; Brokerages" box on the Passive Income screen</span></label>
+                        <input type="text" inputmode="numeric" id="bank-sync-us-interest" placeholder="0" oninput="const t=document.getElementById('inc-us-interest'); if(t) t.value=this.value; syncUsInterestTotal();" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                 </div>
             </div>
@@ -1878,24 +1908,24 @@
                                 <span class="text-[10px] font-black uppercase tracking-widest text-brandCyan border-b border-white/10 pb-2">Short-Term (Held < 1 Yr)</span>
                                 <div>
                                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Total Proceeds (Sales Price)</label>
-                                    <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                                    <input type="text" inputmode="numeric" id="cg-manual-st-proceeds" placeholder="0" oninput="syncCgManualState()" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                                 </div>
                                 <div>
                                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Total Cost Basis</label>
-                                    <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                                    <input type="text" inputmode="numeric" id="cg-manual-st-basis" placeholder="0" oninput="syncCgManualState()" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                                 </div>
                             </div>
-                            
+
                             <!-- Long Term -->
                             <div class="p-4 bg-white/5 border border-white/5 rounded-xl flex flex-col gap-3">
                                 <span class="text-[10px] font-black uppercase tracking-widest text-brandCyan border-b border-white/10 pb-2">Long-Term (Held > 1 Yr)</span>
                                 <div>
                                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Total Proceeds (Sales Price)</label>
-                                    <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                                    <input type="text" inputmode="numeric" id="cg-manual-lt-proceeds" placeholder="0" oninput="syncCgManualState()" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                                 </div>
                                 <div>
                                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Total Cost Basis</label>
-                                    <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                                    <input type="text" inputmode="numeric" id="cg-manual-lt-basis" placeholder="0" oninput="syncCgManualState()" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                                 </div>
                             </div>
                         </div>
@@ -2133,7 +2163,7 @@
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Total Rental Expenses (USD)</label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-rental-expenses" placeholder="0" oninput="updateStateField('income_us_source', 'rental_expenses_us_source_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                 </div>
             </div>
@@ -2146,36 +2176,36 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">State / Local Tax Refunds (1099-G)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 2 of Form 1099-G</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">State / Local Tax Refunds (1099-G)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 2 of Form 1099-G — taxable only under the SS111 tax-benefit rule (itemized last year AND got a tax benefit); not modeled, recordkeeping only</span></label>
+                        <input type="text" inputmode="numeric" id="inc-us-state-refund" placeholder="0" oninput="updateStateField('income_us_source', 'state_local_tax_refund_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Unemployment Compensation (1099-G)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1 of Form 1099-G</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-unemployment" placeholder="0" oninput="updateStateField('income_us_source', 'unemployment_compensation_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Social Security Benefits (SSA-1099)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 5 of Form SSA-1099</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-social-security" placeholder="0" oninput="updateStateField('income_us_source', 'social_security_benefits_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Alimony Received<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Only for divorces finalized before 2019</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-alimony" placeholder="0" oninput="updateStateField('income_us_source', 'alimony_received_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Royalties (Schedule E)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 2 of Form 1099-MISC</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-royalties" placeholder="0" oninput="updateStateField('income_us_source', 'royalties_direct_us_source_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Cancellation of Debt (1099-C)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 2 of Form 1099-C</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-cod" placeholder="0" oninput="updateStateField('income_us_source', 'cancellation_of_debt_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
-                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">HSA/MSA Distributions (1099-SA)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1 of Form 1099-SA</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">HSA/MSA Distributions (1099-SA)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1 of Form 1099-SA — taxable only for the portion NOT used for qualified medical expenses; not modeled, recordkeeping only</span></label>
+                        <input type="text" inputmode="numeric" id="inc-us-hsa-dist" placeholder="0" oninput="updateStateField('income_us_source', 'hsa_msa_distributions_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Misc Income (Gambling, Prizes) (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Form W-2G or other untaxed awards</span></label>
-                        <input type="text" inputmode="numeric" placeholder="0" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="inc-us-misc-other" placeholder="0" oninput="updateStateField('income_us_source', 'misc_other_income_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                 </div>
             </div>
@@ -3208,7 +3238,7 @@
                         </div>
                         <div>
                             <span class="text-[9px] text-white/40">RMD Amount (USD)</span>
-                            <span id="lbl-rmd-amt" class="text-sm font-black text-white font-mono block">$0.00</span>
+                            <span id="lbl-rmd-amt" class="text-sm font-black text-white font-mono block">N/A</span>
                         </div>
                     </div>
                 </div>
@@ -3410,6 +3440,13 @@
                         <span class="text-[7px] text-brandCyan bg-brandCyan/10 border border-brandCyan/20 px-1 rounded font-normal uppercase">OBBBA $40,400 Cap</span>
                     </label>
                     <input type="text" inputmode="numeric" id="ded-salt" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'state_and_local_taxes_paid_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2.5 focus:border-brandCyan font-mono">
+                </div>
+                <div>
+                    <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1 flex items-center justify-between">
+                        <span>Student Loan Interest Paid (USD)</span>
+                        <span class="text-[7px] text-white/40">Above-the-line, capped at $2,500</span>
+                    </label>
+                    <input type="text" inputmode="numeric" id="ded-student-loan" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'student_loan_interest_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2.5 focus:border-brandCyan font-mono">
                 </div>
             </div>
 
@@ -4070,6 +4107,10 @@
             has_green_card: false,
             green_card_grant_date: null,
             i407_surrendered_date: null,
+            green_card_years_held: 0,
+            expatriation_net_worth_usd: 0,
+            expatriation_avg_net_income_tax_usd: 0,
+            form_8854_5yr_compliance_certified: false,
             us_days_current_year: 0,
             us_days_minus_1_year: 0,
             us_days_minus_2_years: 0,
@@ -6013,7 +6054,28 @@
         recalculateDerivedFields();
         saveStateAndSync();
     }
-    
+
+    // "Manual Entry" tab (Capital Gains screen) -- these 4 fields previously
+    // had no id/oninput/onchange at all (pure static HTML), so a user could
+    // type numbers here and nothing would happen: no state write, no tax
+    // impact. Wired here the same way every other capital-gains category on
+    // this screen already works, feeding stcg_us_source_usd/ltcg_us_source_usd
+    // via recalculateCapitalGainsAggregate() (see recalculateDerivedFields()).
+    function syncCgManualState() {
+        const stProceeds = parseFormattedNumber(document.getElementById('cg-manual-st-proceeds')?.value) || 0;
+        const stBasis = parseFormattedNumber(document.getElementById('cg-manual-st-basis')?.value) || 0;
+        const ltProceeds = parseFormattedNumber(document.getElementById('cg-manual-lt-proceeds')?.value) || 0;
+        const ltBasis = parseFormattedNumber(document.getElementById('cg-manual-lt-basis')?.value) || 0;
+        usState.income_us_source.cg_manual_st_proceeds_usd = stProceeds;
+        usState.income_us_source.cg_manual_st_basis_usd = stBasis;
+        usState.income_us_source.cg_manual_lt_proceeds_usd = ltProceeds;
+        usState.income_us_source.cg_manual_lt_basis_usd = ltBasis;
+        usState.income_us_source.cg_manual_stcg_usd = stProceeds - stBasis;
+        usState.income_us_source.cg_manual_ltcg_usd = ltProceeds - ltBasis;
+        recalculateDerivedFields();
+        saveStateAndSync();
+    }
+
     function syncTreatyRates() {
         const list = [];
         document.querySelectorAll('#treaty-rates-tbody tr').forEach(tr => {
@@ -7490,6 +7552,15 @@
                 datesDiv.classList.add('hidden');
             }
         }
+        toggleExitTaxTests();
+    }
+
+    function toggleExitTaxTests() {
+        const div = document.getElementById('div-exit-tax-tests');
+        if (!div) return;
+        const details = usState.us_residency_detail;
+        const isLtrExpatriating = !!(details.has_green_card && details.i407_surrendered_date && (details.green_card_years_held || 0) >= 8);
+        div.classList.toggle('hidden', !isLtrExpatriating);
     }
 
     // Toggle helper functions
@@ -8514,6 +8585,8 @@ div.innerHTML = `
         usState.income_us_source.interest_us_oid_usd = oid;
         usState.income_us_source.interest_us_private_usd = priv;
         usState.income_us_source.interest_us_source_usd = bank + treasury + oid + priv;
+        const bankSyncMirror = document.getElementById('bank-sync-us-interest');
+        if (bankSyncMirror && document.activeElement !== bankSyncMirror) bankSyncMirror.value = bank || '';
         recalculateDerivedFields();
         saveStateAndSync();
     }
@@ -9319,7 +9392,16 @@ div.innerHTML = `
         } else if (details.has_green_card && !details.i407_surrendered_date) {
             lock = "RESIDENT_ALIEN";
         } else if (details.spt_test_met && !details.closer_connection_claim) {
-            lock = "RESIDENT_ALIEN";
+            // Meeting the SPT locks a full-year Resident Alien UNLESS this is
+            // actually the arrival or departure year (IRC 7701(b)(2)(A): the
+            // residency starting date for a plain SPT-based residency is the
+            // FIRST day of physical presence that year, not Jan 1, when the
+            // taxpayer wasn't already a continuing resident). A green-card
+            // holder's or First-Year-Choice elector's dual status is already
+            // captured by their own dedicated fields below; the plain arrival/
+            // departure date fields are for the remaining, most common case:
+            // someone who meets SPT purely from this year's physical presence.
+            lock = (details.dual_status_arrival_date || details.dual_status_departure_date) ? "DUAL_STATUS" : "RESIDENT_ALIEN";
         } else if (details.first_year_choice_election || (details.has_green_card && details.i407_surrendered_date)) {
             lock = "DUAL_STATUS";
         }
@@ -9333,13 +9415,17 @@ div.innerHTML = `
             details.residency_start_date = "2026-01-01";
             details.residency_end_date = "2026-12-31";
         } else if (lock === "DUAL_STATUS") {
-            if (details.has_green_card) {
-                if (details.green_card_grant_date) {
-                    details.residency_start_date = details.green_card_grant_date;
-                }
-                if (details.i407_surrendered_date) {
-                    details.residency_end_date = details.i407_surrendered_date;
-                }
+            if (details.has_green_card && details.green_card_grant_date) {
+                details.residency_start_date = details.green_card_grant_date;
+            } else if (details.first_year_choice_election && details.first_year_choice_entry_date) {
+                details.residency_start_date = details.first_year_choice_entry_date;
+            } else if (details.dual_status_arrival_date) {
+                details.residency_start_date = details.dual_status_arrival_date;
+            }
+            if (details.has_green_card && details.i407_surrendered_date) {
+                details.residency_end_date = details.i407_surrendered_date;
+            } else if (details.dual_status_departure_date) {
+                details.residency_end_date = details.dual_status_departure_date;
             }
         }
 
@@ -11086,7 +11172,67 @@ div.innerHTML = `
         return Math.max(0, agi);
     }
 
+    // Aggregates every itemized capital-gains source on this form (dedicated
+    // Real Estate step, and the Capital Gains screen's own real estate/
+    // collectibles/QSBS/crypto transaction lists + Manual Entry tab) into the
+    // flat stcg_us_source_usd/ltcg_us_source_usd fields the tax computation
+    // actually reads. Before this, every one of those itemized lists had a
+    // working sync function that persisted real data nobody ever read
+    // downstream, while stcg_us_source_usd/ltcg_us_source_usd themselves had
+    // no live input path in the DOM at all.
+    //
+    // Real estate: prefers the dedicated Real Estate step's properties[]
+    // (has real SS121/SS1031 treatment already applied) over the Capital
+    // Gains screen's own simpler real_estate_transactions[] duplicate, to
+    // avoid double-counting the same sale through two parallel UI paths --
+    // only falls back to the duplicate if the dedicated step has no entries.
+    // Collectibles (28% special rate) and QSBS (SS1202 exclusion, up to
+    // $10M/10x-basis) are aggregated as ordinary LTCG -- a documented
+    // simplification (conservative for QSBS, since it omits an exclusion the
+    // taxpayer is entitled to; not necessarily conservative for collectibles,
+    // since 28% can exceed the taxpayer's ordinary LTCG rate) pending a real
+    // special-rate computation.
+    function recalculateCapitalGainsAggregate() {
+        function isLongTerm(acqStr, soldStr) {
+            if (!acqStr || !soldStr) return false;
+            const acq = new Date(acqStr), sold = new Date(soldStr);
+            if (isNaN(acq) || isNaN(sold)) return false;
+            return (sold - acq) > (365 * 24 * 60 * 60 * 1000);
+        }
+        const reProps = (usState.real_estate && usState.real_estate.properties) || [];
+        const reTx = usState.income_us_source.real_estate_transactions || [];
+        const reSource = reProps.length > 0 ? reProps : reTx;
+        const collectibles = usState.income_us_source.collectibles_transactions || [];
+        const qsbs = usState.income_us_source.qsbs_transactions || [];
+        const crypto = usState.income_us_source.crypto_transactions || [];
+        const manualStcg = usState.income_us_source.cg_manual_stcg_usd || 0;
+        const manualLtcg = usState.income_us_source.cg_manual_ltcg_usd || 0;
+
+        const hasAnySource = reSource.length > 0 || collectibles.length > 0 || qsbs.length > 0 ||
+            crypto.length > 0 || manualStcg !== 0 || manualLtcg !== 0;
+        if (!hasAnySource) return; // nothing itemized on file -- leave any pre-existing value untouched
+
+        let stcg = manualStcg, ltcg = manualLtcg;
+        reSource.forEach(t => {
+            const g = t.realized_gain_loss_usd || 0;
+            if (isLongTerm(t.acquisition_date, t.sale_date)) ltcg += g; else stcg += g;
+        });
+        collectibles.forEach(t => {
+            const g = t.realized_gain_loss_usd || 0;
+            if (isLongTerm(t.acquisition_date, t.sale_date)) ltcg += g; else stcg += g;
+        });
+        qsbs.forEach(t => { ltcg += t.realized_gain_loss_usd || 0; }); // SS1202 requires a 5yr+ hold -- always LT
+        crypto.forEach(t => {
+            const g = t.realized_gain_loss_usd || 0;
+            if (isLongTerm(t.acquisition_date, t.sale_date)) ltcg += g; else stcg += g;
+        });
+
+        usState.income_us_source.stcg_us_source_usd = stcg;
+        usState.income_us_source.ltcg_us_source_usd = ltcg;
+    }
+
     function recalculateDerivedFields() {
+        recalculateCapitalGainsAggregate();
         const agi = calculateEstimatedAgi();
         const biz = calculateBusinessIncomes();
         const filingStatus = usState.profile.filing_status;
@@ -11300,24 +11446,22 @@ div.innerHTML = `
         if (investLbl) investLbl.textContent = formatCurrency(nii);
         if (niitDueLbl) niitDueLbl.textContent = formatCurrency(niitOwed);
 
-        // SECURE Act 2.0 RMD
+        // SECURE Act 2.0 RMD determination-only: Layer 1 collects no
+        // traditional-account BALANCE field anywhere (only contribution
+        // amounts), so no real RMD dollar figure can be computed here — a
+        // flat guess would be actively misleading. rmd_amount_usd is
+        // deliberately not set at all; only the age-based requirement flag.
         let rmdReq = false;
-        let rmdAmt = 0;
         if (usState.profile.date_of_birth) {
             const birthYear = new Date(usState.profile.date_of_birth).getFullYear();
             const ageIn2026 = 2026 - birthYear;
-            if (ageIn2026 >= 73) {
-                rmdReq = true;
-                // standard rough calculation of 4% of total traditional balances
-                rmdAmt = 5000;
-            }
+            if (ageIn2026 >= 73) rmdReq = true;
         }
         usState.retirement_accounts.rmd_required = rmdReq;
-        usState.retirement_accounts.rmd_amount_usd = rmdAmt;
         const rmdReqLbl = document.getElementById('lbl-rmd-req');
         const rmdAmtLbl = document.getElementById('lbl-rmd-amt');
         if (rmdReqLbl) rmdReqLbl.textContent = rmdReq ? "Yes" : "No";
-        if (rmdAmtLbl) rmdAmtLbl.textContent = formatCurrency(rmdAmt);
+        if (rmdAmtLbl) rmdAmtLbl.textContent = rmdReq ? "See preparer" : "N/A";
 
         // 6. NRA ECI & FDAP Mappings
         let eci = 0;
@@ -13456,6 +13600,27 @@ div.innerHTML = `
             });
         });
         usState.income_us_source.self_employment = list;
+        // Per-business "SE Health Ins."/"SE Retirement" fields above feed
+        // se_health_insurance_usd/se_retirement_contrib_usd inside each
+        // self_employment[] entry, but the actual Schedule 1 deduction is
+        // computed from a SEPARATE flat field (se_health_insurance_deduction_usd/
+        // se_retirement_deduction_usd, in the "Self-Employed Above-The-Line
+        // Deductions" card) — without this, per-business entries were pure
+        // decoration, silently discarded. Sum across every business into the
+        // flat field the tax computation actually reads; the flat card's own
+        // manual entry still stands if no per-business amounts are on file.
+        const seHealthSum = list.reduce((s, b) => s + (b.se_health_insurance_usd || 0), 0);
+        const seRetSum = list.reduce((s, b) => s + (b.se_retirement_contrib_usd || 0), 0);
+        if (seHealthSum > 0) {
+            usState.income_us_source.se_health_insurance_deduction_usd = seHealthSum;
+            const healthDedEl = document.getElementById('se-ded-health');
+            if (healthDedEl) healthDedEl.value = seHealthSum;
+        }
+        if (seRetSum > 0) {
+            usState.income_us_source.se_retirement_deduction_usd = seRetSum;
+            const retDedEl = document.getElementById('se-ded-ret');
+            if (retDedEl) retDedEl.value = seRetSum;
+        }
         recalculateDerivedFields();
         saveStateAndSync();
     }
@@ -20453,6 +20618,13 @@ div.innerHTML = `
                 usState.income_us_source.se_health_insurance_deduction_usd = savedState.income_us_source.se_health_insurance_deduction_usd || null;
                 usState.income_us_source.se_retirement_deduction_usd = savedState.income_us_source.se_retirement_deduction_usd || null;
 
+                usState.income_us_source.cg_manual_st_proceeds_usd = savedState.income_us_source.cg_manual_st_proceeds_usd || null;
+                usState.income_us_source.cg_manual_st_basis_usd = savedState.income_us_source.cg_manual_st_basis_usd || null;
+                usState.income_us_source.cg_manual_lt_proceeds_usd = savedState.income_us_source.cg_manual_lt_proceeds_usd || null;
+                usState.income_us_source.cg_manual_lt_basis_usd = savedState.income_us_source.cg_manual_lt_basis_usd || null;
+                usState.income_us_source.cg_manual_stcg_usd = savedState.income_us_source.cg_manual_stcg_usd || null;
+                usState.income_us_source.cg_manual_ltcg_usd = savedState.income_us_source.cg_manual_ltcg_usd || null;
+
                 usState.income_us_source.interest_us_source_usd = savedState.income_us_source.interest_us_source_usd;
                 usState.income_us_source.interest_us_bank_usd = savedState.income_us_source.interest_us_bank_usd;
                 usState.income_us_source.interest_us_treasury_usd = savedState.income_us_source.interest_us_treasury_usd;
@@ -20464,6 +20636,15 @@ div.innerHTML = `
                 usState.income_us_source.stcg_us_source_usd = savedState.income_us_source.stcg_us_source_usd;
                 usState.income_us_source.ltcg_us_source_usd = savedState.income_us_source.ltcg_us_source_usd;
                 usState.income_us_source.rental_income_us_source_usd = savedState.income_us_source.rental_income_us_source_usd;
+                usState.income_us_source.rental_expenses_us_source_usd = savedState.income_us_source.rental_expenses_us_source_usd;
+                usState.income_us_source.state_local_tax_refund_usd = savedState.income_us_source.state_local_tax_refund_usd;
+                usState.income_us_source.unemployment_compensation_usd = savedState.income_us_source.unemployment_compensation_usd;
+                usState.income_us_source.social_security_benefits_usd = savedState.income_us_source.social_security_benefits_usd;
+                usState.income_us_source.alimony_received_usd = savedState.income_us_source.alimony_received_usd;
+                usState.income_us_source.royalties_direct_us_source_usd = savedState.income_us_source.royalties_direct_us_source_usd;
+                usState.income_us_source.cancellation_of_debt_usd = savedState.income_us_source.cancellation_of_debt_usd;
+                usState.income_us_source.hsa_msa_distributions_usd = savedState.income_us_source.hsa_msa_distributions_usd;
+                usState.income_us_source.misc_other_income_usd = savedState.income_us_source.misc_other_income_usd;
             }
             if (savedState.income_foreign_source) {
                 Object.assign(usState.income_foreign_source, savedState.income_foreign_source);
@@ -20585,6 +20766,12 @@ div.innerHTML = `
             if(document.getElementById('res-green-card')) document.getElementById('res-green-card').checked = usState.us_residency_detail.has_green_card;
             if (usState.us_residency_detail.green_card_grant_date) if(document.getElementById('res-gc-grant')) document.getElementById('res-gc-grant').value = usState.us_residency_detail.green_card_grant_date;
             if (usState.us_residency_detail.i407_surrendered_date) if(document.getElementById('res-gc-surrender')) document.getElementById('res-gc-surrender').value = usState.us_residency_detail.i407_surrendered_date;
+            if(document.getElementById('res-gc-years')) document.getElementById('res-gc-years').value = usState.us_residency_detail.green_card_years_held || '';
+            if(document.getElementById('res-dual-arrival')) document.getElementById('res-dual-arrival').value = usState.us_residency_detail.dual_status_arrival_date || '';
+            if(document.getElementById('res-dual-departure')) document.getElementById('res-dual-departure').value = usState.us_residency_detail.dual_status_departure_date || '';
+            if(document.getElementById('res-expat-net-worth')) document.getElementById('res-expat-net-worth').value = usState.us_residency_detail.expatriation_net_worth_usd || '';
+            if(document.getElementById('res-expat-avg-tax')) document.getElementById('res-expat-avg-tax').value = usState.us_residency_detail.expatriation_avg_net_income_tax_usd || '';
+            if(document.getElementById('res-expat-8854-cert')) document.getElementById('res-expat-8854-cert').checked = usState.us_residency_detail.form_8854_5yr_compliance_certified === true;
             if(document.getElementById('days-exc-cy')) if(document.getElementById('days-exc-cy')) document.getElementById('days-exc-cy').value = usState.us_residency_detail.us_days_excluded_current || '';
             if(document.getElementById('days-exc-py1')) if(document.getElementById('days-exc-py1')) document.getElementById('days-exc-py1').value = usState.us_residency_detail.us_days_excluded_minus_1 || '';
             if(document.getElementById('days-exc-py2')) if(document.getElementById('days-exc-py2')) document.getElementById('days-exc-py2').value = usState.us_residency_detail.us_days_excluded_minus_2 || '';
@@ -20666,6 +20853,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
                 // document.getElementById('div-se-container').classList.add('hidden');
             }
             if(document.getElementById('inc-us-interest')) document.getElementById('inc-us-interest').value = usState.income_us_source.interest_us_bank_usd || '';
+            if(document.getElementById('bank-sync-us-interest')) document.getElementById('bank-sync-us-interest').value = usState.income_us_source.interest_us_bank_usd || '';
             if(document.getElementById('inc-us-interest-treasury')) document.getElementById('inc-us-interest-treasury').value = usState.income_us_source.interest_us_treasury_usd || '';
             if(document.getElementById('inc-us-interest-oid')) document.getElementById('inc-us-interest-oid').value = usState.income_us_source.interest_us_oid_usd || '';
             if(document.getElementById('inc-us-interest-private')) document.getElementById('inc-us-interest-private').value = usState.income_us_source.interest_us_private_usd || '';
@@ -20677,12 +20865,31 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             const ltcgEl = document.getElementById('inc-us-ltcg');
             if (ltcgEl) ltcgEl.value = usState.income_us_source.ltcg_us_source_usd || '';
             if(document.getElementById('inc-us-rental')) document.getElementById('inc-us-rental').value = usState.income_us_source.rental_income_us_source_usd || '';
+            if(document.getElementById('inc-us-rental-expenses')) document.getElementById('inc-us-rental-expenses').value = usState.income_us_source.rental_expenses_us_source_usd || '';
+            if(document.getElementById('inc-us-state-refund')) document.getElementById('inc-us-state-refund').value = usState.income_us_source.state_local_tax_refund_usd || '';
+            if(document.getElementById('inc-us-unemployment')) document.getElementById('inc-us-unemployment').value = usState.income_us_source.unemployment_compensation_usd || '';
+            if(document.getElementById('inc-us-social-security')) document.getElementById('inc-us-social-security').value = usState.income_us_source.social_security_benefits_usd || '';
+            if(document.getElementById('inc-us-alimony')) document.getElementById('inc-us-alimony').value = usState.income_us_source.alimony_received_usd || '';
+            if(document.getElementById('inc-us-royalties')) document.getElementById('inc-us-royalties').value = usState.income_us_source.royalties_direct_us_source_usd || '';
+            if(document.getElementById('inc-us-cod')) document.getElementById('inc-us-cod').value = usState.income_us_source.cancellation_of_debt_usd || '';
+            if(document.getElementById('inc-us-hsa-dist')) document.getElementById('inc-us-hsa-dist').value = usState.income_us_source.hsa_msa_distributions_usd || '';
+            if(document.getElementById('inc-us-misc-other')) document.getElementById('inc-us-misc-other').value = usState.income_us_source.misc_other_income_usd || '';
             
             // SE deductions inputs
             const healthDedEl = document.getElementById('se-ded-health');
             if (healthDedEl) healthDedEl.value = usState.income_us_source.se_health_insurance_deduction_usd || '';
             const retDedEl = document.getElementById('se-ded-ret');
             if (retDedEl) retDedEl.value = usState.income_us_source.se_retirement_deduction_usd || '';
+
+            // Capital Gains "Manual Entry" tab inputs
+            const cgStPEl = document.getElementById('cg-manual-st-proceeds');
+            if (cgStPEl) cgStPEl.value = usState.income_us_source.cg_manual_st_proceeds_usd || '';
+            const cgStBEl = document.getElementById('cg-manual-st-basis');
+            if (cgStBEl) cgStBEl.value = usState.income_us_source.cg_manual_st_basis_usd || '';
+            const cgLtPEl = document.getElementById('cg-manual-lt-proceeds');
+            if (cgLtPEl) cgLtPEl.value = usState.income_us_source.cg_manual_lt_proceeds_usd || '';
+            const cgLtBEl = document.getElementById('cg-manual-lt-basis');
+            if (cgLtBEl) cgLtBEl.value = usState.income_us_source.cg_manual_lt_basis_usd || '';
 
             // Restore Foreign Income Dom
             if(document.getElementById('inc-for-interest')) document.getElementById('inc-for-interest').value = usState.income_foreign_source.foreign_interest_usd || '';
@@ -20744,6 +20951,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             // Restore Deductions Dom
             if(document.getElementById('ded-mode')) document.getElementById('ded-mode').value = usState.itemized_deductions_and_credits.use_standard_or_itemized || 'auto';
             if(document.getElementById('ded-salt')) document.getElementById('ded-salt').value = usState.itemized_deductions_and_credits.state_and_local_taxes_paid_usd || '';
+            if(document.getElementById('ded-student-loan')) document.getElementById('ded-student-loan').value = usState.itemized_deductions_and_credits.student_loan_interest_usd || '';
             if(document.getElementById('ded-mortgage-interest')) document.getElementById('ded-mortgage-interest').value = usState.itemized_deductions_and_credits.mortgage_interest_paid_usd || '';
             if (usState.itemized_deductions_and_credits.mortgage_acquisition_date) if(document.getElementById('ded-mortgage-date')) document.getElementById('ded-mortgage-date').value = usState.itemized_deductions_and_credits.mortgage_acquisition_date;
             if(document.getElementById('ded-charity-cash')) document.getElementById('ded-charity-cash').value = usState.itemized_deductions_and_credits.charitable_contributions_cash_usd || '';

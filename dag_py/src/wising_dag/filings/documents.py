@@ -127,10 +127,20 @@ def _form8938_gauge_result(d, ctx):
     is_mfj = d["usFilingStatusRaw"] == "mfj"
     abroad = d["feie"]["taxHomeAbroad"] and d["feie"]["testMet"]
     tbl = LIMITS["FORM_8938"][("ABROAD_MFJ" if is_mfj else "ABROAD_SINGLE") if abroad else ("US_RESIDENT_MFJ" if is_mfj else "US_RESIDENT_SINGLE")]
-    value_usd = d["accountsListResult"]["aggregatePeak"]["usd"]
-    pct = (value_usd / tbl["anyTime"]) if tbl["anyTime"] > 0 else 0
+    # Form 8938 has TWO independent thresholds (last-day-of-year value, and
+    # highest value at any time during the year) -- exceeding EITHER one
+    # triggers the filing requirement. Report whichever is proportionally
+    # worse. Mirrors report-batch1-nodes.js's form8938GaugeResult exactly.
+    peak_usd = d["accountsListResult"]["aggregatePeak"]["usd"]
+    last_day_usd = d["aggregateLastDayUsdResult"]["usd"]
+    peak_pct = (peak_usd / tbl["anyTime"]) if tbl["anyTime"] > 0 else 0
+    last_day_pct = (last_day_usd / tbl["lastDay"]) if tbl["lastDay"] > 0 else 0
+    use_last_day = last_day_pct > peak_pct
+    value_usd = last_day_usd if use_last_day else peak_usd
+    limit = tbl["lastDay"] if use_last_day else tbl["anyTime"]
+    pct = last_day_pct if use_last_day else peak_pct
     status = "breached" if pct >= 1 else ("approaching" if pct >= 0.8 else "ok")
-    return {"id": "form8938", "value": value_usd, "limit": tbl["anyTime"], "pct": pct, "status": status}
+    return {"id": "form8938", "value": value_usd, "limit": limit, "pct": pct, "status": status}
 
 
 DOCUMENTS_CATALOG = [
@@ -194,9 +204,10 @@ def _build_documents_result(d, ctx):
         "form_1116": d["taxesPaidIndiaResult"]["total"]["usd"] > 0 and (res["us"]["isResident"] or is_form_1118),
         "form_2555": d["feieRaw"]["claimed"],
         "form_8833": res["dualResident"] or d["treatyUsResidenceRaw"] != "none" or (d["nraRaw"] and len(d["nraRaw"].get("treatyRateClaims") or []) > 0),
-        "form_8621": (len(d["indianMutualFundsResult"]) > 0 or len(d["usPficHoldingsRaw"]) > 0) and is_us_person,
+        "form_8621": (len(d["indianMutualFundsResult"]) > 0 or len(d["usPficHoldingsRaw"]) > 0 or
+                      any(h.get("pfic_classification") == "passive_foreign_investment_company_section_1297" for h in d["usSecuritiesRaw"])) and is_us_person,
         "form_5471": d["viaForeignCorpXbr4"] and is_us_person,
-        "form_8865": False,
+        "form_8865": len(d["usForeignPartnershipsRaw"]) > 0 and is_us_person,
         "form_3520": is_us_person and ((d["ppfInrRaw"] > 0 or d["epfInrRaw"] > 0) or d["foreignGiftsRaw"]["receivedAbove100k"] or d["foreignGiftsRaw"]["isTrustBeneficiary"]),
         "form_3520a": is_us_person and (d["ppfInrRaw"] > 0 or d["epfInrRaw"] > 0),
         "form_1040nr": d["treatyFiles1040nrRaw"],
@@ -414,7 +425,13 @@ NODES = {
     "usSecuritiesRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "financial_holdings", []) or [], layer1_fields=("us.financial_holdings",)),
     "usOwnsForeignDisregardedEntityRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_entities.owns_foreign_disregarded_entity", False) is True, layer1_fields=("us.foreign_entities.owns_foreign_disregarded_entity",)),
     "usSelfEmploymentRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "income_us_source.self_employment", []) or [], layer1_fields=("us.income_us_source.self_employment",)),
-    "form8938GaugeResult": NodeDef(deps=("feie", "usFilingStatusRaw", "accountsListResult", "hasUsScopeBoundaryFtc"), compute=_form8938_gauge_result),
+    # layer1_us.html's Step 9 screen has its own dedicated "I own 10% or more
+    # of a foreign partnership" accordion (foreign_entities.
+    # foreign_partnerships[], each row carrying a real Form 8865 Category
+    # 1-4 selector) -- form_8865 was hardcoded False on the claim that no
+    # field represented this at all, which the live UI has since grown.
+    "usForeignPartnershipsRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_entities.foreign_partnerships", []) or [], layer1_fields=("us.foreign_entities.foreign_partnerships",)),
+    "form8938GaugeResult": NodeDef(deps=("feie", "usFilingStatusRaw", "accountsListResult", "aggregateLastDayUsdResult", "hasUsScopeBoundaryFtc"), compute=_form8938_gauge_result),
     "headlineTotalIncomeUsdResult": NodeDef(
         deps=("totalIndiaIncomeInr", "aggregateUsIncomeResult"),
         compute=lambda d, ctx: d["totalIndiaIncomeInr"] / fx_rate(ctx) + d["aggregateUsIncomeResult"]["total"]["usd"],
@@ -422,7 +439,7 @@ NODES = {
     "buildDocumentsResult": NodeDef(
         deps=("residencyResult", "accountsListResult", "form8938GaugeResult", "taxesPaidIndiaResult", "entityResult",
               "feieRaw", "treatyUsResidenceRaw", "treatyFiles1040nrRaw", "treatyIndiaResidenceRaw",
-              "indianMutualFundsResult", "usPficHoldingsRaw", "usSecuritiesRaw", "usOwnsForeignDisregardedEntityRaw", "usSelfEmploymentRaw", "bizEntriesAgg", "ppfInrRaw", "epfInrRaw", "foreignGiftsRaw",
+              "indianMutualFundsResult", "usPficHoldingsRaw", "usSecuritiesRaw", "usOwnsForeignDisregardedEntityRaw", "usSelfEmploymentRaw", "usForeignPartnershipsRaw", "bizEntriesAgg", "ppfInrRaw", "epfInrRaw", "foreignGiftsRaw",
               "usTaxResult", "headlineTotalIncomeUsdResult", "usFilingStatusRaw", "aggregateUsIncomeResult",
               "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
               "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw",

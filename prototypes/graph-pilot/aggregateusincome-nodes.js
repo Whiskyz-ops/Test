@@ -198,9 +198,34 @@ var NODES = {
       return { wagesUsd: wages, w2WithholdingUsd: w2with, w2Employers: w2Employers, medicareWagesUsd: medicareWages, qualifiedTipsUsd: qualifiedTipsUsd, qualifiedOvertimeUsd: qualifiedOvertimeUsd };
     }
   },
+  // Step 7 (FEIE)'s own headline "Total Foreign Earned Income" field
+  // (#feie-earned-income -> foreign_earned_income.foreign_earned_income_usd)
+  // -- was read NOWHERE except a local UI-preview label, so a user who
+  // filled in ONLY this field (the far more likely real path, since this
+  // screen exists specifically for FEIE) got a $0 exclusion AND the excess
+  // over the FEIE cap silently vanished from taxable income entirely
+  // (computeUsTaxCore's exclusion math is gated on foreignWagesUsd +
+  // foreignSelfEmploymentUsd being > 0, which stayed 0 with nothing in
+  // this field's own array).
+  feieEarnedIncomeUsdRaw: { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "foreign_earned_income.foreign_earned_income_usd", 0)); } },
+
   foreignWagesUsd: {
-    deps: ["fiAgg"],
-    compute: function (d) { return (safe(d.fiAgg, "foreign_wages", []) || []).reduce(function (s, w) { return s + num(w.wages_usd || w.amount_usd || w.wages_box1_usd || w.wages_tips_compensation_usd || 0); }, 0); }
+    deps: ["fiAgg", "feieEarnedIncomeUsdRaw"],
+    // gross_wages_usd is the field name syncForeignWagesState() (layer1_us.
+    // html) actually writes for every foreign-wage row added through the
+    // live form -- confirmed by grep, this was previously missing from the
+    // fallback chain entirely, so every foreign wage entry ever made
+    // through the live UI silently computed to $0 (only profiles.js's
+    // hand-authored fixtures, which use wages_usd directly, ever exercised
+    // a nonzero value here).
+    compute: function (d) {
+      var wageRowsTotal = (safe(d.fiAgg, "foreign_wages", []) || []).reduce(function (s, w) { return s + num(w.gross_wages_usd || w.wages_usd || w.amount_usd || w.wages_box1_usd || w.wages_tips_compensation_usd || 0); }, 0);
+      // max(), not +, so a user who carefully filled in both this and the
+      // FEIE screen's field describing the same real-world salary isn't
+      // double-counted; a user who only filled in one of the two loses
+      // nothing either way.
+      return Math.max(wageRowsTotal, d.feieEarnedIncomeUsdRaw);
+    }
   },
 
   // Combines self-employment AND farming_schedule_f assets into ONE
@@ -317,6 +342,19 @@ var NODES = {
     deps: ["uiAgg", "fiAgg", "k1PassiveTotals"],
     compute: function (d) {
       var ui = d.uiAgg, fi = d.fiAgg, k1 = d.k1PassiveTotals;
+      // "Other Income (Schedule 1 & 1099-G/SSA)" card (layer1_us.html's Step
+      // 15) -- 6 of its 8 fields (all but the state-refund box and the
+      // HSA/MSA-distribution box) previously had no id/oninput/onchange at
+      // all, pure static HTML; same class of bug as the Capital Gains
+      // "Manual Entry" tab. State refunds need the SS111 tax-benefit-rule
+      // test (was last year's SALT deduction actually itemized AND did it
+      // produce a tax benefit?) that this model has no prior-year data to
+      // apply, and HSA/MSA distributions are only taxable to the extent NOT
+      // used for qualified medical expenses -- a split this model doesn't
+      // track -- so both remain deliberately unwired rather than guessed at.
+      var otherOrdinaryIncomeUsUsd = num(safe(ui, "unemployment_compensation_usd", 0)) +
+        num(safe(ui, "alimony_received_usd", 0)) + num(safe(ui, "royalties_direct_us_source_usd", 0)) +
+        num(safe(ui, "cancellation_of_debt_usd", 0)) + num(safe(ui, "misc_other_income_usd", 0));
       return {
         taxExemptInterestUsUsd: num(safe(ui, "interest_us_exempt_usd", 0)),
         interestUsUsd: num(safe(ui, "interest_us_source_usd", 0)) + k1.interestUsd,
@@ -324,13 +362,23 @@ var NODES = {
         qualifiedDividendsUsUsd: num(safe(ui, "qualified_dividends_us_source_usd", 0)) + k1.qualDivUsd,
         ltcgUsUsd: num(safe(ui, "ltcg_us_source_usd", 0)) + k1.ltcgUsd,
         stcgUsUsd: num(safe(ui, "stcg_us_source_usd", 0)) + k1.stcgUsd,
-        rentalUsUsd: num(safe(ui, "rental_income_us_source_usd", 0)) + k1.rentalUsd,
+        // Rental expenses (layer1_us.html's own "Total Rental Expenses"
+        // field) previously had no id/handler either -- gross rent was
+        // always taxed in full with zero expense deduction possible.
+        rentalUsUsd: Math.max(0, num(safe(ui, "rental_income_us_source_usd", 0)) - num(safe(ui, "rental_expenses_us_source_usd", 0))) + k1.rentalUsd,
+        otherOrdinaryIncomeUsUsd: otherOrdinaryIncomeUsUsd,
         foreignInterestUsd: num(safe(fi, "foreign_interest_usd", 0)),
         foreignDividendsUsd: num(safe(fi, "foreign_dividends_usd", 0)),
         foreignRentalUsd: num(safe(fi, "foreign_rental_income_usd", 0)),
         foreignPensionUsd: num(safe(fi, "foreign_pension_income_usd", 0)),
         foreignStcgUsd: num(safe(fi, "foreign_stcg_usd", 0)),
-        foreignLtcgUsd: num(safe(fi, "foreign_ltcg_usd", 0))
+        foreignLtcgUsd: num(safe(fi, "foreign_ltcg_usd", 0)),
+        // IRC 988(a)(1): foreign-currency gain/loss is ORDINARY (not
+        // capital), reported on layer1_us.html's "Section 988 Currency
+        // Gains & Losses" list (syncSec988State()) but never previously
+        // read anywhere -- every row a user added there had zero effect on
+        // their computed tax. Can be negative (a net loss).
+        section988GainLossUsd: (safe(fi, "section_988_gains_losses", []) || []).reduce(function (s, t) { return s + num(t.realized_gain_loss_usd); }, 0)
       };
     }
   },
@@ -377,8 +425,8 @@ var NODES = {
       var foreignInterest = di.foreignInterestUsd + epf.taxableEpfInterestUsd;
       var foreignPension = di.foreignPensionUsd + epf.taxableNpsWithdrawalUsd;
 
-      var usSourceTotal = w.wagesUsd + biz.businessUsUsd + di.interestUsUsd + di.ordinaryDividendsUsUsd + di.ltcgUsUsd + di.stcgUsUsd + di.rentalUsUsd + ret.usRetirementIncomeExclSsUsd + ret.socialSecurityUsUsd;
-      var foreignSourceTotal = d.foreignWagesUsd + biz.foreignSelfEmploymentUsd + foreignInterest + di.foreignDividendsUsd + di.foreignRentalUsd + foreignPension + di.foreignStcgUsd + di.foreignLtcgUsd;
+      var usSourceTotal = w.wagesUsd + biz.businessUsUsd + di.interestUsUsd + di.ordinaryDividendsUsUsd + di.ltcgUsUsd + di.stcgUsUsd + di.rentalUsUsd + ret.usRetirementIncomeExclSsUsd + ret.socialSecurityUsUsd + di.otherOrdinaryIncomeUsUsd;
+      var foreignSourceTotal = d.foreignWagesUsd + biz.foreignSelfEmploymentUsd + foreignInterest + di.foreignDividendsUsd + di.foreignRentalUsd + foreignPension + di.foreignStcgUsd + di.foreignLtcgUsd + di.section988GainLossUsd;
 
       return {
         wages: m(w.wagesUsd, ctx), businessUs: m(biz.businessUsUsd, ctx), w2Withholding: w.w2WithholdingUsd, w2Employers: w.w2Employers, medicareWages: w.medicareWagesUsd,
@@ -391,11 +439,13 @@ var NODES = {
         taxExemptInterestUs: m(di.taxExemptInterestUsUsd, ctx),
         interestUs: m(di.interestUsUsd, ctx), ordinaryDividendsUs: m(di.ordinaryDividendsUsUsd, ctx), qualifiedDividendsUs: m(di.qualifiedDividendsUsUsd, ctx),
         ltcgUs: m(di.ltcgUsUsd, ctx), stcgUs: m(di.stcgUsUsd, ctx), capitalGainsUs: m(di.ltcgUsUsd + di.stcgUsUsd, ctx), rentalUs: m(di.rentalUsUsd, ctx),
+        otherOrdinaryIncomeUs: m(di.otherOrdinaryIncomeUsUsd, ctx),
         foreignWages: m(d.foreignWagesUsd, ctx), foreignSelfEmployment: m(biz.foreignSelfEmploymentUsd, ctx),
         foreignInterest: m(foreignInterest, ctx), foreignDividends: m(di.foreignDividendsUsd, ctx),
         foreignRental: m(di.foreignRentalUsd, ctx), foreignPension: m(foreignPension, ctx),
         foreignStcg: m(di.foreignStcgUsd, ctx), foreignLtcg: m(di.foreignLtcgUsd, ctx),
         foreignCapitalGains: m(di.foreignStcgUsd + di.foreignLtcgUsd, ctx),
+        foreignSection988GainLoss: m(di.section988GainLossUsd, ctx),
         retirementEpfInterestUsd: epf.taxableEpfInterestUsd, retirementNpsWithdrawalUsd: epf.taxableNpsWithdrawalUsd,
         usSourceTotal: m(usSourceTotal, ctx), foreignSourceTotal: m(foreignSourceTotal, ctx),
         total: m(usSourceTotal + foreignSourceTotal, ctx)

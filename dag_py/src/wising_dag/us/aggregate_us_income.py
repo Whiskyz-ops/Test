@@ -277,6 +277,19 @@ def _retirement_computation(d, ctx):
 
 def _direct_income_computation(d, ctx):
     ui, fi, k1 = d["uiAgg"], d["fiAgg"], d["k1PassiveTotals"]
+    # "Other Income (Schedule 1 & 1099-G/SSA)" card (Step 15 Layer 1 US
+    # audit, 27 Jul 2026) -- 6 of its 8 fields had no id/oninput/onchange at
+    # all in the live form, pure static HTML. State refunds (SS111 tax-
+    # benefit-rule test needs prior-year itemization data this model doesn't
+    # track) and HSA/MSA distributions (only taxable to the extent NOT used
+    # for qualified medical expenses, a split this model doesn't track)
+    # remain deliberately unwired. Mirrors prototypes/graph-pilot/
+    # aggregateusincome-nodes.js exactly.
+    other_ordinary_income_us_usd = (
+        num(safe(ui, "unemployment_compensation_usd", 0)) + num(safe(ui, "alimony_received_usd", 0)) +
+        num(safe(ui, "royalties_direct_us_source_usd", 0)) + num(safe(ui, "cancellation_of_debt_usd", 0)) +
+        num(safe(ui, "misc_other_income_usd", 0))
+    )
     return {
         "taxExemptInterestUsUsd": num(safe(ui, "interest_us_exempt_usd", 0)),
         "interestUsUsd": num(safe(ui, "interest_us_source_usd", 0)) + k1["interestUsd"],
@@ -284,13 +297,21 @@ def _direct_income_computation(d, ctx):
         "qualifiedDividendsUsUsd": num(safe(ui, "qualified_dividends_us_source_usd", 0)) + k1["qualDivUsd"],
         "ltcgUsUsd": num(safe(ui, "ltcg_us_source_usd", 0)) + k1["ltcgUsd"],
         "stcgUsUsd": num(safe(ui, "stcg_us_source_usd", 0)) + k1["stcgUsd"],
-        "rentalUsUsd": num(safe(ui, "rental_income_us_source_usd", 0)) + k1["rentalUsd"],
+        # Rental expenses previously had no id/handler either -- gross rent
+        # was always taxed in full with zero expense deduction possible.
+        "rentalUsUsd": max(0.0, num(safe(ui, "rental_income_us_source_usd", 0)) - num(safe(ui, "rental_expenses_us_source_usd", 0))) + k1["rentalUsd"],
+        "otherOrdinaryIncomeUsUsd": other_ordinary_income_us_usd,
         "foreignInterestUsd": num(safe(fi, "foreign_interest_usd", 0)),
         "foreignDividendsUsd": num(safe(fi, "foreign_dividends_usd", 0)),
         "foreignRentalUsd": num(safe(fi, "foreign_rental_income_usd", 0)),
         "foreignPensionUsd": num(safe(fi, "foreign_pension_income_usd", 0)),
         "foreignStcgUsd": num(safe(fi, "foreign_stcg_usd", 0)),
         "foreignLtcgUsd": num(safe(fi, "foreign_ltcg_usd", 0)),
+        # IRC 988(a)(1): foreign-currency gain/loss is ORDINARY (not
+        # capital), reported on layer1_us.html's "Section 988 Currency
+        # Gains & Losses" list (syncSec988State()) but never previously
+        # read anywhere. Can be negative (a net loss).
+        "section988GainLossUsd": sum(num(t.get("realized_gain_loss_usd")) for t in (safe(fi, "section_988_gains_losses", []) or [])),
     }
 
 
@@ -326,8 +347,8 @@ def _aggregate_us_income_result(d, ctx):
     foreign_interest = di["foreignInterestUsd"] + epf["taxableEpfInterestUsd"]
     foreign_pension = di["foreignPensionUsd"] + epf["taxableNpsWithdrawalUsd"]
 
-    us_source_total = w["wagesUsd"] + biz["businessUsUsd"] + di["interestUsUsd"] + di["ordinaryDividendsUsUsd"] + di["ltcgUsUsd"] + di["stcgUsUsd"] + di["rentalUsUsd"] + ret["usRetirementIncomeExclSsUsd"] + ret["socialSecurityUsUsd"]
-    foreign_source_total = d["foreignWagesUsd"] + biz["foreignSelfEmploymentUsd"] + foreign_interest + di["foreignDividendsUsd"] + di["foreignRentalUsd"] + foreign_pension + di["foreignStcgUsd"] + di["foreignLtcgUsd"]
+    us_source_total = w["wagesUsd"] + biz["businessUsUsd"] + di["interestUsUsd"] + di["ordinaryDividendsUsUsd"] + di["ltcgUsUsd"] + di["stcgUsUsd"] + di["rentalUsUsd"] + ret["usRetirementIncomeExclSsUsd"] + ret["socialSecurityUsUsd"] + di["otherOrdinaryIncomeUsUsd"]
+    foreign_source_total = d["foreignWagesUsd"] + biz["foreignSelfEmploymentUsd"] + foreign_interest + di["foreignDividendsUsd"] + di["foreignRentalUsd"] + foreign_pension + di["foreignStcgUsd"] + di["foreignLtcgUsd"] + di["section988GainLossUsd"]
 
     return {
         "wages": _m(w["wagesUsd"], ctx), "businessUs": _m(biz["businessUsUsd"], ctx), "w2Withholding": w["w2WithholdingUsd"], "w2Employers": w["w2Employers"], "medicareWages": w["medicareWagesUsd"],
@@ -340,11 +361,13 @@ def _aggregate_us_income_result(d, ctx):
         "taxExemptInterestUs": _m(di["taxExemptInterestUsUsd"], ctx),
         "interestUs": _m(di["interestUsUsd"], ctx), "ordinaryDividendsUs": _m(di["ordinaryDividendsUsUsd"], ctx), "qualifiedDividendsUs": _m(di["qualifiedDividendsUsUsd"], ctx),
         "ltcgUs": _m(di["ltcgUsUsd"], ctx), "stcgUs": _m(di["stcgUsUsd"], ctx), "capitalGainsUs": _m(di["ltcgUsUsd"] + di["stcgUsUsd"], ctx), "rentalUs": _m(di["rentalUsUsd"], ctx),
+        "otherOrdinaryIncomeUs": _m(di["otherOrdinaryIncomeUsUsd"], ctx),
         "foreignWages": _m(d["foreignWagesUsd"], ctx), "foreignSelfEmployment": _m(biz["foreignSelfEmploymentUsd"], ctx),
         "foreignInterest": _m(foreign_interest, ctx), "foreignDividends": _m(di["foreignDividendsUsd"], ctx),
         "foreignRental": _m(di["foreignRentalUsd"], ctx), "foreignPension": _m(foreign_pension, ctx),
         "foreignStcg": _m(di["foreignStcgUsd"], ctx), "foreignLtcg": _m(di["foreignLtcgUsd"], ctx),
         "foreignCapitalGains": _m(di["foreignStcgUsd"] + di["foreignLtcgUsd"], ctx),
+        "foreignSection988GainLoss": _m(di["section988GainLossUsd"], ctx),
         "retirementEpfInterestUsd": epf["taxableEpfInterestUsd"], "retirementNpsWithdrawalUsd": epf["taxableNpsWithdrawalUsd"],
         "usSourceTotal": _m(us_source_total, ctx), "foreignSourceTotal": _m(foreign_source_total, ctx),
         "total": _m(us_source_total + foreign_source_total, ctx),
@@ -422,10 +445,32 @@ def build(base):
     r.register("fiAgg", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "income_foreign_source", {})))
 
     r.register("wagesComputation", NodeDef(deps=("uiAgg",), compute=_wages_computation, layer1_fields=_WAGES_FIELDS))
+    # Step 7 (FEIE)'s own headline "Total Foreign Earned Income" field
+    # (#feie-earned-income -> foreign_earned_income.foreign_earned_income_usd)
+    # -- was read NOWHERE except a local UI-preview label, so a user who
+    # filled in ONLY this field (the far more likely real path, since this
+    # screen exists specifically for FEIE) got a $0 exclusion AND the excess
+    # over the FEIE cap silently vanished from taxable income entirely
+    # (compute_us_tax_core's exclusion math is gated on foreignWagesUsd +
+    # foreignSelfEmploymentUsd being > 0, which stayed 0 with nothing in
+    # this field's own array).
+    r.register("feieEarnedIncomeUsdRaw", NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "foreign_earned_income.foreign_earned_income_usd", 0)), layer1_fields=("us.foreign_earned_income.foreign_earned_income_usd",)))
     r.register("foreignWagesUsd", NodeDef(
-        deps=("fiAgg",),
-        compute=lambda d, ctx: sum(num(w.get("wages_usd") or w.get("amount_usd") or w.get("wages_box1_usd") or w.get("wages_tips_compensation_usd") or 0) for w in (safe(d["fiAgg"], "foreign_wages", []) or [])),
-        layer1_fields=("us.income_foreign_source.foreign_wages[].wages_usd", "us.income_foreign_source.foreign_wages[].amount_usd", "us.income_foreign_source.foreign_wages[].wages_box1_usd", "us.income_foreign_source.foreign_wages[].wages_tips_compensation_usd"),
+        deps=("fiAgg", "feieEarnedIncomeUsdRaw"),
+        # gross_wages_usd is the field name syncForeignWagesState() (layer1_us.
+        # html) actually writes for every foreign-wage row added through the
+        # live form -- was missing from the fallback chain entirely, so every
+        # foreign wage entry ever made through the live UI silently computed
+        # to $0 (only profiles.js's hand-authored fixtures, which use
+        # wages_usd directly, ever exercised a nonzero value here). max(),
+        # not +, with feieEarnedIncomeUsdRaw so a user who carefully filled
+        # in both this list and the FEIE screen's field describing the same
+        # real-world salary isn't double-counted.
+        compute=lambda d, ctx: max(
+            sum(num(w.get("gross_wages_usd") or w.get("wages_usd") or w.get("amount_usd") or w.get("wages_box1_usd") or w.get("wages_tips_compensation_usd") or 0) for w in (safe(d["fiAgg"], "foreign_wages", []) or [])),
+            d["feieEarnedIncomeUsdRaw"],
+        ),
+        layer1_fields=("us.income_foreign_source.foreign_wages[].gross_wages_usd", "us.income_foreign_source.foreign_wages[].wages_usd", "us.income_foreign_source.foreign_wages[].amount_usd", "us.income_foreign_source.foreign_wages[].wages_box1_usd", "us.income_foreign_source.foreign_wages[].wages_tips_compensation_usd"),
     ))
 
     r.register("usBusinessDepreciationPlan", NodeDef(deps=("uiAgg", "baseYearUsAgg"), compute=_us_business_depreciation_plan, layer1_fields=_SE_DEPRECIATION_FIELDS))
