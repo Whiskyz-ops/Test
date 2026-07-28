@@ -1854,7 +1854,7 @@
                             <option value="true">Yes, Transactions Exist</option>
                         </select>
                     </div>
-                    <button id="btn-add-cg" class="px-3 py-1 bg-white/10 hover:bg-brandCyan/20 hover:text-brandCyan rounded text-[9px] font-black uppercase tracking-widest transition-all hidden">+ Add CG Entry</button>
+                    <button id="btn-add-cg" onclick="addUSCapGainsRow('cg')" class="px-3 py-1 bg-white/10 hover:bg-brandCyan/20 hover:text-brandCyan rounded text-[9px] font-black uppercase tracking-widest transition-all hidden">+ Add CG Entry</button>
                 </div>
                 
                 <div id="div-cg-section" class="hidden flex-col gap-4 mt-2">
@@ -1928,6 +1928,10 @@
                                     <input type="text" inputmode="numeric" id="cg-manual-lt-basis" placeholder="0" oninput="syncCgManualState()" class="w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                                 </div>
                             </div>
+                        </div>
+                        <div class="border-t border-white/5 pt-3 mt-1">
+                            <span class="text-[9px] font-black uppercase tracking-widest text-white/40 block mb-2">Individual Sale Transactions</span>
+                            <div id="div-cg-list" class="grid grid-cols-1 gap-4"></div>
                         </div>
                     </div>
                 </div>
@@ -2823,6 +2827,15 @@
                     <div id="div-rsu-list" class="grid grid-cols-1 gap-4"></div>
                 </div>
 
+                <!-- ESPP Purchases -->
+                <div class="p-5 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-4">
+                    <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                        <span class="text-xs font-bold text-brandCyan">Employee Stock Purchase Plan (ESPP) Purchases</span>
+                        <button onclick="addEsppRow()" class="px-2 py-0.5 bg-white/10 rounded text-[9px] uppercase tracking-wider text-white/60 hover:text-brandCyan transition-all">+ Add purchase</button>
+                    </div>
+                    <div id="div-espp-list" class="grid grid-cols-1 gap-4"></div>
+                </div>
+
                 <!-- Section 83b -->
                 <div class="p-5 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-4">
                     <div class="flex justify-between items-center border-b border-white/5 pb-2">
@@ -3341,7 +3354,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-[10px] uppercase tracking-wider text-white/50 mb-1">Total Intercompany Payments to Foreign Owner</label>
-                                <input type="number" id="f5472-payments" class="w-full bg-black/40 border border-white/10 rounded p-2 text-white text-sm" placeholder="e.g. 50000">
+                                <input type="number" id="f5472-payments" class="w-full bg-black/40 border border-white/10 rounded p-2 text-white text-sm" placeholder="e.g. 50000" onchange="updateStateField('corporate_international', 'form_5472_related_parties', this.value ? [{ amount_usd: parseFloat(this.value) || 0 }] : [])">
                             </div>
                         </div>
                     </div>
@@ -3361,8 +3374,17 @@
                 <p class="text-xs text-white/40 mt-1">Report gifts received from foreign donors or foreign trust activities.</p>
             </div>
 
-            <!-- Trust Activity & Covered Expat -->
-
+            <!-- Foreign Trust Details (Form 3520 Parts II/III) -->
+            <div class="p-5 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-4">
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold text-white/90 uppercase tracking-widest">Foreign Trust Activity (Owner or Beneficiary)</span>
+                        <span class="text-[9px] text-white/30">Identify each foreign trust you're a grantor/owner of, or received a distribution from, this year.</span>
+                    </div>
+                    <button onclick="addTrustDetailRow()" id="btn-add-trust-detail" class="px-2 py-0.5 bg-white/10 rounded text-[9px] uppercase tracking-wider text-white/60 hover:text-brandCyan transition-all">+ Add Trust</button>
+                </div>
+                <div id="div-trust-detail-list" class="grid grid-cols-1 gap-4"></div>
+            </div>
 
             <!-- Gifts Check & List -->
             <div class="p-5 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-4">
@@ -4336,6 +4358,1479 @@
         }
     };
 
+    // Auto-generated canonical superset schema: every field the US Layer 1
+    // form can produce across ALL tax entity types (individual, partnership,
+    // s-corp, c-corp, trust) and every optional module, each present exactly
+    // once with a blank/zero/false default (or a real code-default enum
+    // where the app itself always defaults a field that way, e.g.
+    // asset.class = "5-year"). Used by buildSupersetSchema() below so
+    // "Generate Output" always emits a structurally consistent JSON shape
+    // regardless of which sections this particular user has actually filled
+    // in - see Screen 3S. Regenerate by rerunning the fill scripts under
+    // scratchpad/us-l1-fill and build_template.py if the form's schema changes.
+    const SUPERSET_SCHEMA_TEMPLATE = {
+        "profile": {
+                "tax_entity_type": "individual",
+                "llc_tax_election": "individual",
+                "incorporation_state": null,
+                "incorporated_in_us": null,
+                "full_name": null,
+                "date_of_birth": null,
+                "filing_status": "single",
+                "ssn_or_itin": null,
+                "ssn_or_itin_type": "none",
+                "dependents_count": 0,
+                "spouse_is_us_person": false,
+                "trump_accounts_opened": false,
+                "trump_accounts_children": [
+                        {
+                                "contribution_usd": 0,
+                                "born_2025_2028": false
+                        }
+                ],
+                "trump_accounts_num_children": 0,
+                "trump_accounts_children_born_2025_2028": 0,
+                "trump_accounts_total_contributions_usd": 0,
+                "trust_retained_income_usd": 0,
+                "form_8332_active": false,
+                "visa_type": null,
+                "entity_name": null,
+                "ein": null,
+                "date_of_incorporation": null,
+                "state_of_domicile": null,
+                "naics_code": null,
+                "is_foreign_corporation": false,
+                "is_foreign_owned_25_pct": false
+        },
+        "corporate_profile": {
+                "entity_name": null,
+                "ein": null,
+                "date_of_incorporation": null,
+                "state_of_domicile": null,
+                "naics_code": null,
+                "fiscal_year_end": "12-31",
+                "is_foreign_owned_25_pct": false,
+                "is_foreign_corporation": false
+        },
+        "corporate_international": {
+                "fdii_eligible_income": null,
+                "ncti_tested_income": null,
+                "form_5472_related_parties": [
+                        {
+                                "amount_usd": 0
+                        }
+                ]
+        },
+        "corporate_financials": {
+                "schedule_l": {
+                        "assets_beginning": 0,
+                        "assets_ending": 0,
+                        "liabilities_beginning": 0,
+                        "liabilities_ending": 0,
+                        "equity_beginning": 0,
+                        "equity_ending": 0
+                },
+                "schedule_m1": {
+                        "net_income_per_books": 0,
+                        "federal_tax_expense": 0,
+                        "meals_disallowed_50": 0,
+                        "tax_depreciation_over_book": 0,
+                        "taxable_income": 0,
+                        "tax_exempt_interest": 0,
+                        "foreign_taxes_credited": 0,
+                        "interest_expense_limitation": 0,
+                        "other_additions": 0,
+                        "other_subtractions": 0
+                },
+                "schedule_m2": {
+                        "retained_earnings_beginning": 0,
+                        "distributions_dividends_paid": 0,
+                        "retained_earnings_ending": 0
+                }
+        },
+        "us_residency_detail": {
+                "is_us_citizen": false,
+                "has_green_card": false,
+                "green_card_grant_date": null,
+                "i407_surrendered_date": null,
+                "green_card_years_held": 0,
+                "expatriation_net_worth_usd": 0,
+                "expatriation_avg_net_income_tax_usd": 0,
+                "form_8854_5yr_compliance_certified": false,
+                "us_days_current_year": 0,
+                "us_days_minus_1_year": 0,
+                "us_days_minus_2_years": 0,
+                "exempt_individual_status": "none",
+                "exempt_first_year": null,
+                "exempt_prior_years_count": 0,
+                "exempt_student_closer_conn_exception": false,
+                "exempt_scholar_lookback_exception": false,
+                "closer_connection_claim": null,
+                "first_year_choice_election": false,
+                "first_year_choice_entry_date": null,
+                "s6013g_joint_election": false,
+                "spt_day_count_weighted": 0,
+                "spt_test_met": false,
+                "final_us_residency_status": "NON_RESIDENT_ALIEN",
+                "dtaa_treaty_residence": "none",
+                "residency_start_date": null,
+                "residency_end_date": null,
+                "us_days_excluded_current": 0,
+                "us_days_excluded_minus_1": 0,
+                "us_days_excluded_minus_2": 0,
+                "us_days_excluded_reason": null
+        },
+        "corp_state_nexus": {
+                "physical_states": [],
+                "economic_states": [],
+                "needs_apportionment": false,
+                "apportionment_factors": {},
+                "has_remote_workers": false
+        },
+        "state_residency": {
+                "jan_1_domicile_state": "",
+                "dec_31_domicile_state": "",
+                "total_states_footprint": [],
+                "primary_state_of_residence": "",
+                "moved_states_this_year": false,
+                "previous_state": "",
+                "move_date": null,
+                "state_days_in_current_state": null,
+                "dependents_school_state": "",
+                "primary_bank_and_medical_nexus_state": "",
+                "vehicles_registered_state": "",
+                "active_duty_military_or_spouse": false,
+                "military_home_state_of_record": "",
+                "military_duty_station_state": "",
+                "ca_planning_departure": false,
+                "ca_retains_property_or_voter_reg": false,
+                "footprint_details": {},
+                "has_remote_worker": false,
+                "remote_worker_employer_state": null,
+                "sticky_exceptions": {}
+        },
+        "income_us_source": {
+                "has_employment_income": false,
+                "has_capital_gains": false,
+                "has_crypto": false,
+                "stocks_needs_wash_sale_reconciliation": false,
+                "crypto_needs_wash_sale": false,
+                "has_sec_1256": false,
+                "has_qof_rollover": false,
+                "has_qsbs": false,
+                "has_real_estate": false,
+                "has_1031_exchange": false,
+                "has_installment_sale": false,
+                "has_collectibles": false,
+                "has_capital_loss_carryovers": false,
+                "st_loss_carryover_usd": null,
+                "lt_loss_carryover_usd": null,
+                "self_employment": [
+                        {
+                                "id": null,
+                                "business_name": null,
+                                "branches": [
+                                        {
+                                                "id": null,
+                                                "branch_name": null,
+                                                "state": null,
+                                                "gross_receipts_usd": 0,
+                                                "itemized_expenses": {
+                                                        "advertising": 0,
+                                                        "contract_labor": 0,
+                                                        "insurance": 0,
+                                                        "legal_professional": 0,
+                                                        "business_meals": 0,
+                                                        "office_expenses": 0,
+                                                        "rent_lease": 0,
+                                                        "repairs_maintenance": 0,
+                                                        "supplies": 0,
+                                                        "taxes_licenses": 0,
+                                                        "travel": 0,
+                                                        "utilities": 0,
+                                                        "other_expenses": 0
+                                                },
+                                                "home_office": {
+                                                        "office_sqft": 0,
+                                                        "total_home_sqft": 0
+                                                },
+                                                "vehicle_expenses": {
+                                                        "biz_miles": 0,
+                                                        "commuting_miles": 0,
+                                                        "other_personal_miles": 0,
+                                                        "available_personal_off_duty": false,
+                                                        "written_evidence": false
+                                                },
+                                                "assets": []
+                                        }
+                                ],
+                                "naics_code": null,
+                                "industry_category": null,
+                                "has_se_income": false,
+                                "gross_receipts_usd": 0,
+                                "returns_and_allowances_usd": 0,
+                                "other_income_usd": 0,
+                                "expenses_usd": 0,
+                                "itemized_expenses": {
+                                        "advertising": 0,
+                                        "contract_labor": 0,
+                                        "insurance": 0,
+                                        "legal_professional": 0,
+                                        "business_meals": 0,
+                                        "office_expenses": 0,
+                                        "rent_lease": 0,
+                                        "repairs_maintenance": 0,
+                                        "supplies": 0,
+                                        "utilities": 0,
+                                        "taxes_and_licenses": 0,
+                                        "travel": 0,
+                                        "commissions": 0,
+                                        "other": 0
+                                },
+                                "is_specified_service_trade": false,
+                                "qbi_eligible": false,
+                                "statutory_w2_link_id": null,
+                                "accounting_method": "cash",
+                                "llc_type": "sole_prop",
+                                "tax_election": "disregarded",
+                                "wages_paid_usd": 0,
+                                "se_health_insurance_usd": 0,
+                                "se_retirement_contrib_usd": 0,
+                                "vehicle_miles": 0,
+                                "commuting_miles": 0,
+                                "other_personal_miles": 0,
+                                "vehicle_available_personal_use": false,
+                                "has_written_evidence": false,
+                                "home_office_sqft": 0,
+                                "total_home_sqft": 0,
+                                "cogs_method": "cost",
+                                "cogs_beginning_inventory": 0,
+                                "cogs_purchases": 0,
+                                "cogs_labor": 0,
+                                "cogs_materials": 0,
+                                "cogs_ending_inventory": 0,
+                                "forms_1099": [
+                                        {
+                                                "form": null,
+                                                "filed": false
+                                        }
+                                ],
+                                "state_allocations": [
+                                        {
+                                                "state": null,
+                                                "gross_receipts_usd": 0
+                                        }
+                                ],
+                                "assets": [
+                                        {
+                                                "id": null,
+                                                "name": null,
+                                                "class": null,
+                                                "cost": 0,
+                                                "sec179": 0,
+                                                "bonus": false,
+                                                "placed_in_service_date": null
+                                        }
+                                ]
+                        }
+                ],
+                "partnerships_k1": [
+                        {
+                                "id": null,
+                                "business_name": null,
+                                "ein": null,
+                                "naics_code": null,
+                                "industry_category": null,
+                                "has_part_income": false,
+                                "branches": [
+                                        {
+                                                "id": null,
+                                                "branch_name": null,
+                                                "state": null,
+                                                "gross_revenue": null,
+                                                "returns_allowances": null,
+                                                "cogs_itemized": null,
+                                                "misc_income": null,
+                                                "exp_wages": null,
+                                                "exp_labor": null,
+                                                "exp_rent": null,
+                                                "exp_repairs": null,
+                                                "exp_bad_debts": null,
+                                                "exp_taxes": null,
+                                                "exp_interest_paid": null,
+                                                "exp_charity": null,
+                                                "exp_adv": null,
+                                                "exp_benefits": null,
+                                                "exp_pension": null,
+                                                "exp_depletion": null,
+                                                "exp_legal": null,
+                                                "exp_utilities": null,
+                                                "exp_insurance": null,
+                                                "exp_travel_meals": null,
+                                                "exp_office_supplies": null,
+                                                "exp_other": null,
+                                                "ordinary_income_usd": null,
+                                                "net_rental_real_estate_usd": null,
+                                                "other_rental_income_usd": null,
+                                                "guaranteed_payments_usd": null,
+                                                "interest_income_usd": null,
+                                                "ordinary_dividends_usd": null,
+                                                "qualified_dividends_usd": null,
+                                                "royalties_usd": null,
+                                                "stcg_usd": null,
+                                                "ltcg_usd": null,
+                                                "collectibles_gain_usd": null,
+                                                "unrecaptured_1250_gain_usd": null,
+                                                "net_sec1231_gain_usd": null,
+                                                "other_income_usd": null,
+                                                "sec179_deduction_usd": null,
+                                                "charitable_contributions_usd": null,
+                                                "investment_interest_usd": null,
+                                                "self_employment_earnings_usd": null,
+                                                "credits_usd": null,
+                                                "foreign_transactions_usd": null,
+                                                "amt_items_usd": null,
+                                                "tax_exempt_income_usd": null,
+                                                "nondeductible_expenses_usd": null,
+                                                "distributions_usd": null,
+                                                "qbi_eligible": false,
+                                                "is_specified_service_trade": false,
+                                                "active_rental_participant": false,
+                                                "qbi_wages_usd": null,
+                                                "qbi_ubia_usd": null,
+                                                "assets": []
+                                        }
+                                ],
+                                "gross_revenue": 0,
+                                "returns_allowances": 0,
+                                "cogs_itemized": 0,
+                                "misc_income": 0,
+                                "exp_wages": 0,
+                                "exp_labor": 0,
+                                "exp_rent": 0,
+                                "exp_repairs": 0,
+                                "exp_bad_debts": 0,
+                                "exp_taxes": 0,
+                                "exp_interest_paid": 0,
+                                "exp_charity": null,
+                                "exp_adv": 0,
+                                "exp_benefits": 0,
+                                "exp_pension": 0,
+                                "exp_depletion": null,
+                                "exp_legal": 0,
+                                "exp_utilities": 0,
+                                "exp_insurance": 0,
+                                "exp_travel_meals": 0,
+                                "exp_office_supplies": 0,
+                                "exp_other": 0,
+                                "partner_type": "limited",
+                                "material_participation": "active",
+                                "tax_basis_usd": 0,
+                                "at_risk_basis_usd": 0,
+                                "ordinary_income_usd": 0,
+                                "net_rental_real_estate_usd": 0,
+                                "other_rental_income_usd": 0,
+                                "guaranteed_payments_usd": 0,
+                                "interest_income_usd": 0,
+                                "ordinary_dividends_usd": 0,
+                                "qualified_dividends_usd": 0,
+                                "royalties_usd": 0,
+                                "stcg_usd": 0,
+                                "ltcg_usd": 0,
+                                "collectibles_gain_usd": 0,
+                                "unrecaptured_1250_gain_usd": 0,
+                                "net_sec1231_gain_usd": 0,
+                                "other_income_usd": 0,
+                                "sec179_deduction_usd": 0,
+                                "charitable_contributions_usd": 0,
+                                "investment_interest_usd": 0,
+                                "self_employment_earnings_usd": 0,
+                                "credits_usd": 0,
+                                "foreign_transactions_usd": null,
+                                "amt_items_usd": 0,
+                                "tax_exempt_income_usd": 0,
+                                "nondeductible_expenses_usd": 0,
+                                "distributions_usd": 0,
+                                "qbi_eligible": false,
+                                "is_specified_service_trade": false,
+                                "active_rental_participant": false,
+                                "qbi_wages_usd": 0,
+                                "qbi_ubia_usd": 0,
+                                "partner_ein": null,
+                                "partnership_ein": null,
+                                "general_partner": false,
+                                "profit_percentage_beg": 0,
+                                "profit_percentage_end": 0,
+                                "loss_percentage_beg": 0,
+                                "loss_percentage_end": 0,
+                                "capital_percentage_beg": 0,
+                                "capital_percentage_end": 0,
+                                "partner_share_nonrecourse_usd": 0,
+                                "partner_share_qualified_nonrecourse_usd": 0,
+                                "partner_share_recourse_usd": 0,
+                                "partners": [
+                                        {
+                                                "id": null,
+                                                "name": null,
+                                                "tin": null,
+                                                "type": null,
+                                                "entity_type": null,
+                                                "profit_beg": 0,
+                                                "profit_end": 0,
+                                                "loss_beg": 0,
+                                                "loss_end": 0,
+                                                "capital_beg": 0,
+                                                "capital_end": 0,
+                                                "nonrecourse": 0,
+                                                "qual_nonrecourse": 0,
+                                                "recourse": 0,
+                                                "is_taxpayer": false
+                                        }
+                                ],
+                                "forms_1099": [
+                                        {
+                                                "form": null,
+                                                "filed": false
+                                        }
+                                ],
+                                "state_allocations": [
+                                        {
+                                                "state": null,
+                                                "gross_receipts_usd": 0
+                                        }
+                                ],
+                                "assets": [
+                                        {
+                                                "id": null,
+                                                "name": null,
+                                                "class": null,
+                                                "cost": 0,
+                                                "sec179": 0,
+                                                "bonus": false,
+                                                "placed_in_service_date": null
+                                        }
+                                ]
+                        }
+                ],
+                "s_corporations_k1": [
+                        {
+                                "id": null,
+                                "business_name": null,
+                                "ein": null,
+                                "naics_code": null,
+                                "industry_category": null,
+                                "has_scorp_income": false,
+                                "gross_revenue": 0,
+                                "returns_allowances": 0,
+                                "cogs_itemized": 0,
+                                "misc_income": 0,
+                                "exp_wages": 0,
+                                "exp_officer": 0,
+                                "exp_labor": 0,
+                                "exp_rent": 0,
+                                "exp_repairs": 0,
+                                "exp_bad_debts": 0,
+                                "exp_taxes": 0,
+                                "exp_interest_paid": 0,
+                                "exp_charity": null,
+                                "exp_adv": 0,
+                                "exp_benefits": 0,
+                                "exp_pension": 0,
+                                "exp_depletion": null,
+                                "exp_legal": 0,
+                                "exp_utilities": 0,
+                                "exp_insurance": 0,
+                                "exp_travel_meals": 0,
+                                "exp_office_supplies": 0,
+                                "exp_other": 0,
+                                "ownership_percent": 0,
+                                "material_participation": "active",
+                                "tax_basis_usd": 0,
+                                "at_risk_basis_usd": 0,
+                                "ordinary_income_usd": 0,
+                                "net_rental_real_estate_usd": null,
+                                "other_rental_income_usd": null,
+                                "interest_income_usd": 0,
+                                "ordinary_dividends_usd": 0,
+                                "qualified_dividends_usd": 0,
+                                "royalties_usd": 0,
+                                "stcg_usd": 0,
+                                "ltcg_usd": 0,
+                                "collectibles_gain_usd": 0,
+                                "unrecaptured_1250_gain_usd": 0,
+                                "sec1231_gain_usd": 0,
+                                "other_income_usd": null,
+                                "sec179_deduction_usd": 0,
+                                "charitable_contributions_usd": 0,
+                                "investment_interest_usd": 0,
+                                "credits_usd": 0,
+                                "foreign_transactions_usd": null,
+                                "amt_items_usd": 0,
+                                "tax_exempt_income_usd": 0,
+                                "nondeductible_expenses_usd": 0,
+                                "distributions_usd": 0,
+                                "qbi_eligible": false,
+                                "is_specified_service_trade": false,
+                                "active_rental_participant": false,
+                                "qbi_wages_usd": 0,
+                                "qbi_ubia_usd": 0,
+                                "shareholders": [
+                                        {
+                                                "id": null,
+                                                "name": null,
+                                                "tin": null,
+                                                "percent": 0,
+                                                "is_taxpayer": false
+                                        }
+                                ],
+                                "forms_1099": [
+                                        {
+                                                "form": null,
+                                                "filed": false
+                                        }
+                                ],
+                                "branches": [
+                                        {
+                                                "id": null,
+                                                "branch_name": null,
+                                                "state": null,
+                                                "gross_revenue": null,
+                                                "returns_allowances": null,
+                                                "cogs_itemized": null,
+                                                "misc_income": null,
+                                                "exp_wages": null,
+                                                "exp_officer": null,
+                                                "exp_labor": null,
+                                                "exp_rent": null,
+                                                "exp_repairs": null,
+                                                "exp_bad_debts": null,
+                                                "exp_taxes": null,
+                                                "exp_interest_paid": null,
+                                                "exp_charity": null,
+                                                "exp_adv": null,
+                                                "exp_benefits": null,
+                                                "exp_pension": null,
+                                                "exp_depletion": null,
+                                                "exp_legal": null,
+                                                "exp_utilities": null,
+                                                "exp_insurance": null,
+                                                "exp_travel_meals": null,
+                                                "exp_office_supplies": null,
+                                                "exp_other": null,
+                                                "ordinary_income_usd": null,
+                                                "net_rental_real_estate_usd": null,
+                                                "other_rental_income_usd": null,
+                                                "interest_income_usd": null,
+                                                "ordinary_dividends_usd": null,
+                                                "qualified_dividends_usd": null,
+                                                "royalties_usd": null,
+                                                "stcg_usd": null,
+                                                "ltcg_usd": null,
+                                                "collectibles_gain_usd": null,
+                                                "unrecaptured_1250_gain_usd": null,
+                                                "sec1231_gain_usd": null,
+                                                "other_income_usd": null,
+                                                "sec179_deduction_usd": null,
+                                                "charitable_contributions_usd": null,
+                                                "investment_interest_usd": null,
+                                                "credits_usd": null,
+                                                "foreign_transactions_usd": null,
+                                                "amt_items_usd": null,
+                                                "tax_exempt_income_usd": null,
+                                                "nondeductible_expenses_usd": null,
+                                                "distributions_usd": null,
+                                                "qbi_eligible": false,
+                                                "is_specified_service_trade": false,
+                                                "active_rental_participant": false,
+                                                "qbi_wages_usd": null,
+                                                "qbi_ubia_usd": null,
+                                                "assets": []
+                                        }
+                                ],
+                                "assets": [
+                                        {
+                                                "id": null,
+                                                "name": null,
+                                                "class": null,
+                                                "cost": 0,
+                                                "sec179": 0,
+                                                "bonus": false,
+                                                "placed_in_service_date": null
+                                        }
+                                ],
+                                "state_allocations": [
+                                        {
+                                                "state": null,
+                                                "gross_receipts_usd": 0
+                                        }
+                                ]
+                        }
+                ],
+                "c_corporations_1120": [
+                        {
+                                "id": null,
+                                "business_name": null,
+                                "ein": null,
+                                "industry_category": null,
+                                "has_ccorp": false,
+                                "gross_revenue": 0,
+                                "returns_allowances": 0,
+                                "cogs_itemized": 0,
+                                "misc_income": 0,
+                                "exp_wages": 0,
+                                "exp_officer": 0,
+                                "exp_labor": 0,
+                                "exp_rent": 0,
+                                "exp_repairs": 0,
+                                "exp_bad_debts": 0,
+                                "exp_taxes": 0,
+                                "exp_interest_paid": 0,
+                                "exp_charity": 0,
+                                "exp_adv": 0,
+                                "exp_benefits": 0,
+                                "exp_pension": 0,
+                                "exp_depletion": null,
+                                "exp_legal": 0,
+                                "exp_utilities": 0,
+                                "exp_insurance": 0,
+                                "exp_travel_meals": 0,
+                                "exp_office_supplies": 0,
+                                "exp_other": 0,
+                                "gross_receipts_usd": 0,
+                                "returns_and_allowances_usd": 0,
+                                "cogs_usd": 0,
+                                "misc_income_usd": 0,
+                                "interest_income_usd": 0,
+                                "dividend_income_usd": 0,
+                                "royalty_income_usd": 0,
+                                "rental_income_usd": 0,
+                                "capital_gains_usd": 0,
+                                "asset_sales_usd": 0,
+                                "operating_expenses_usd": 0,
+                                "wages_usd": 0,
+                                "officer_compensation_usd": 0,
+                                "repairs_maintenance_usd": 0,
+                                "bad_debts_usd": 0,
+                                "rent_lease_usd": 0,
+                                "taxes_licenses_usd": 0,
+                                "advertising_usd": 0,
+                                "employee_benefit_programs_usd": 0,
+                                "pension_profit_sharing_usd": 0,
+                                "depletion_usd": null,
+                                "charitable_donations_usd": 0,
+                                "interest_paid_usd": 0,
+                                "nol_carryover_usd": null,
+                                "calculated_corporate_tax_usd": 0,
+                                "dividends_paid_usd": 0,
+                                "dividend_type": "qualified",
+                                "is_qsbs": false,
+                                "forms_1099": [
+                                        {
+                                                "form": null,
+                                                "filed": false
+                                        }
+                                ],
+                                "branches": [
+                                        {
+                                                "id": null,
+                                                "branch_name": null,
+                                                "state": null,
+                                                "gross_revenue": null,
+                                                "returns_allowances": null,
+                                                "cogs_itemized": null,
+                                                "misc_income": null,
+                                                "exp_wages": null,
+                                                "exp_officer": null,
+                                                "exp_labor": null,
+                                                "exp_rent": null,
+                                                "exp_repairs": null,
+                                                "exp_bad_debts": null,
+                                                "exp_taxes": null,
+                                                "exp_interest_paid": null,
+                                                "exp_charity": null,
+                                                "exp_adv": null,
+                                                "exp_benefits": null,
+                                                "exp_pension": null,
+                                                "exp_depletion": null,
+                                                "exp_legal": null,
+                                                "exp_utilities": null,
+                                                "exp_insurance": null,
+                                                "exp_travel_meals": null,
+                                                "exp_office_supplies": null,
+                                                "exp_other": null,
+                                                "gross_receipts_usd": null,
+                                                "returns_and_allowances_usd": null,
+                                                "cogs_usd": null,
+                                                "misc_income_usd": null,
+                                                "interest_income_usd": null,
+                                                "dividend_income_usd": null,
+                                                "rental_income_usd": null,
+                                                "royalty_income_usd": null,
+                                                "capital_gains_usd": null,
+                                                "asset_sales_usd": null,
+                                                "operating_expenses_usd": null,
+                                                "wages_usd": null,
+                                                "officer_compensation_usd": null,
+                                                "repairs_maintenance_usd": null,
+                                                "bad_debts_usd": null,
+                                                "rent_lease_usd": null,
+                                                "taxes_licenses_usd": null,
+                                                "advertising_usd": null,
+                                                "employee_benefit_programs_usd": null,
+                                                "pension_profit_sharing_usd": null,
+                                                "depletion_usd": null,
+                                                "charitable_donations_usd": null,
+                                                "interest_paid_usd": null,
+                                                "nol_carryover_usd": null,
+                                                "assets": []
+                                        }
+                                ],
+                                "assets": [
+                                        {
+                                                "id": null,
+                                                "name": null,
+                                                "class": null,
+                                                "cost": 0,
+                                                "sec179": 0,
+                                                "bonus": false,
+                                                "placed_in_service_date": null
+                                        }
+                                ],
+                                "shareholders": [
+                                        {
+                                                "id": null,
+                                                "name": null,
+                                                "tin": null,
+                                                "percent": 0
+                                        }
+                                ],
+                                "state_allocations": [
+                                        {
+                                                "state": null,
+                                                "gross_receipts_usd": 0
+                                        }
+                                ]
+                        }
+                ],
+                "farming_schedule_f": [
+                        {
+                                "id": null,
+                                "business_name": null,
+                                "ein": null,
+                                "naics_code": null,
+                                "has_farm_income": false,
+                                "expenses_usd": 0,
+                                "itemized_income": {
+                                        "sales_livestock_produce_raised": 0,
+                                        "sales_livestock_produce_purchased": 0,
+                                        "cooperative_distributions": 0,
+                                        "agricultural_program_payments": 0,
+                                        "ccc_loans": 0,
+                                        "crop_insurance_proceeds": 0,
+                                        "custom_hire_income": 0,
+                                        "other_income": 0
+                                },
+                                "itemized_expenses": {
+                                        "chemicals": 0,
+                                        "conservation": 0,
+                                        "custom_hire": 0,
+                                        "employee_benefits": 0,
+                                        "feed": 0,
+                                        "fertilizers": 0,
+                                        "freight": 0,
+                                        "gas_fuel_oil": 0,
+                                        "insurance": 0,
+                                        "interest_mortgage": 0,
+                                        "interest_other": 0,
+                                        "labor_hired": 0,
+                                        "pension": 0,
+                                        "rent_machinery": 0,
+                                        "rent_other": 0,
+                                        "repairs": 0,
+                                        "seeds": 0,
+                                        "storage": 0,
+                                        "supplies": 0,
+                                        "taxes": 0,
+                                        "utilities": 0,
+                                        "veterinary": 0,
+                                        "other": 0
+                                },
+                                "qbi_eligible": false,
+                                "accounting_method": "cash",
+                                "inventory": {
+                                        "beginning_inventory": 0,
+                                        "cost_of_purchases": 0,
+                                        "ending_inventory": 0
+                                },
+                                "wages_paid_usd": 0,
+                                "vehicle_miles": 0,
+                                "commuting_miles": 0,
+                                "other_personal_miles": 0,
+                                "vehicle_available_personal_use": false,
+                                "has_written_evidence": false,
+                                "home_office_sqft": 0,
+                                "total_home_sqft": 0,
+                                "forms_1099": [
+                                        {
+                                                "form": null,
+                                                "filed": false
+                                        }
+                                ],
+                                "state_allocations": [
+                                        {
+                                                "state": null,
+                                                "gross_receipts_usd": 0
+                                        }
+                                ],
+                                "assets": [
+                                        {
+                                                "id": null,
+                                                "name": null,
+                                                "class": null,
+                                                "cost": 0,
+                                                "sec179": 0,
+                                                "bonus": false,
+                                                "placed_in_service_date": null
+                                        }
+                                ],
+                                "branches": [
+                                        {
+                                                "id": null,
+                                                "branch_name": null,
+                                                "state": null,
+                                                "gross_receipts_usd": 0,
+                                                "itemized_expenses": {
+                                                        "advertising": 0,
+                                                        "contract_labor": 0,
+                                                        "insurance": 0,
+                                                        "legal_professional": 0,
+                                                        "business_meals": 0,
+                                                        "office_expenses": 0,
+                                                        "rent_lease": 0,
+                                                        "repairs_maintenance": 0,
+                                                        "supplies": 0,
+                                                        "taxes_licenses": 0,
+                                                        "travel": 0,
+                                                        "utilities": 0,
+                                                        "other_expenses": 0
+                                                },
+                                                "home_office": {
+                                                        "office_sqft": 0,
+                                                        "total_home_sqft": 0
+                                                },
+                                                "vehicle_expenses": {
+                                                        "biz_miles": 0,
+                                                        "commuting_miles": 0,
+                                                        "other_personal_miles": 0,
+                                                        "available_personal_off_duty": false,
+                                                        "written_evidence": false
+                                                },
+                                                "assets": []
+                                        }
+                                ]
+                        }
+                ],
+                "trusts_estates_k1": [
+                        {
+                                "id": null,
+                                "business_name": null,
+                                "ein": null,
+                                "industry_category": null,
+                                "trust_type": "simple",
+                                "fiduciary_fees": 0,
+                                "professional_fees": 0,
+                                "admin_expenses": 0,
+                                "has_trust_income": false,
+                                "gross_revenue": null,
+                                "returns_allowances": null,
+                                "cogs_itemized": null,
+                                "misc_income": null,
+                                "exp_wages": null,
+                                "exp_officer": null,
+                                "exp_labor": null,
+                                "exp_rent": 0,
+                                "exp_repairs": 0,
+                                "exp_bad_debts": null,
+                                "exp_taxes": 0,
+                                "exp_interest_paid": 0,
+                                "exp_charity": 0,
+                                "exp_adv": null,
+                                "exp_benefits": null,
+                                "exp_pension": null,
+                                "exp_depletion": null,
+                                "exp_legal": 0,
+                                "exp_utilities": 0,
+                                "exp_insurance": 0,
+                                "exp_travel_meals": 0,
+                                "exp_office_supplies": 0,
+                                "exp_other": 0,
+                                "ordinary_income_usd": 0,
+                                "material_participation": "active",
+                                "qbi_eligible": false,
+                                "interest_income_usd": 0,
+                                "ordinary_dividends_usd": 0,
+                                "qualified_dividends_usd": 0,
+                                "stcg_usd": 0,
+                                "ltcg_usd": 0,
+                                "other_rental_income_usd": 0,
+                                "royalty_income_usd": 0,
+                                "ordinary_gain_usd": 0,
+                                "is_specified_service_trade": false,
+                                "active_rental_participant": false,
+                                "net_rental_real_estate_usd": 0,
+                                "depreciation_allocation_usd": null,
+                                "state_allocations": [
+                                        {
+                                                "state": null,
+                                                "gross_receipts_usd": 0
+                                        }
+                                ],
+                                "beneficiaries": [
+                                        {
+                                                "id": null,
+                                                "name": null,
+                                                "tin": null,
+                                                "percent": 0,
+                                                "is_taxpayer": false
+                                        }
+                                ],
+                                "assets": [
+                                        {
+                                                "id": null,
+                                                "name": null,
+                                                "class": null,
+                                                "cost": 0,
+                                                "sec179": 0,
+                                                "bonus": false,
+                                                "placed_in_service_date": null
+                                        }
+                                ]
+                        }
+                ],
+                "se_health_insurance_deduction_usd": null,
+                "se_retirement_deduction_usd": null,
+                "interest_us_bank_usd": null,
+                "interest_us_treasury_usd": null,
+                "interest_us_oid_usd": null,
+                "interest_us_private_usd": null,
+                "interest_us_exempt_usd": null,
+                "interest_us_source_usd": null,
+                "ordinary_dividends_us_source_usd": null,
+                "qualified_dividends_us_source_usd": null,
+                "stcg_us_source_usd": null,
+                "ltcg_us_source_usd": null,
+                "rental_income_us_source_usd": null,
+                "royalty_income_us_source_usd": null,
+                "k1_passthrough_income_usd": null,
+                "ira_distributions_usd": null,
+                "401k_distributions_usd": null,
+                "social_security_benefits_usd": null,
+                "crypto_transactions": [
+                        {
+                                "asset_name": null,
+                                "acquisition_date": null,
+                                "sale_date": null,
+                                "acquisition_cost_usd": 0,
+                                "sale_proceeds_usd": 0,
+                                "realized_gain_loss_usd": 0
+                        }
+                ],
+                "has_business_income": false,
+                "wages_w2": [
+                        {
+                                "id": null,
+                                "employer_name": null,
+                                "employer_street": null,
+                                "employer_city": null,
+                                "employer_state": null,
+                                "employer_zip": null,
+                                "wages_box1_usd": 0,
+                                "qualified_tip_income_usd": 0,
+                                "qualified_overtime_premium_usd": 0,
+                                "tax_details_collapsed_by_default": {
+                                        "employer_ein": null,
+                                        "federal_tax_withheld_usd": 0,
+                                        "ss_wages_box3_usd": 0,
+                                        "ss_tax_withheld_usd": 0,
+                                        "medicare_wages_box5_usd": 0,
+                                        "medicare_tax_withheld_usd": 0,
+                                        "ss_tips_box7_usd": 0,
+                                        "allocated_tips_box8_usd": 0,
+                                        "dependent_care_benefits_box10_usd": 0,
+                                        "nonqualified_plans_box11_usd": 0
+                                },
+                                "has_state_taxes": false,
+                                "state_and_local_taxes": [
+                                        {
+                                                "state_code_box15": null,
+                                                "state_wages_box16_usd": 0,
+                                                "state_tax_withheld_box17_usd": 0,
+                                                "local_wages_box18_usd": 0,
+                                                "local_tax_withheld_box19_usd": 0,
+                                                "locality_name_box20": null
+                                        }
+                                ],
+                                "has_special_box12_benefits": false,
+                                "box_12_benefits": [
+                                        {
+                                                "code": null,
+                                                "amount_usd": 0
+                                        }
+                                ],
+                                "box_14_other": [
+                                        {
+                                                "code": null,
+                                                "amount_usd": 0
+                                        }
+                                ],
+                                "is_statutory_employee": false,
+                                "has_retirement_plan": false,
+                                "has_third_party_sick_pay": false
+                        }
+                ],
+                "cg_transactions": [
+                        {
+                                "asset_name": null,
+                                "acquisition_date": null,
+                                "sale_date": null,
+                                "cost_basis_usd": 0,
+                                "sale_proceeds_usd": 0,
+                                "realized_gain_loss_usd": 0
+                        }
+                ],
+                "qsbs_transactions": [
+                        {
+                                "asset_name": null,
+                                "acquisition_date": null,
+                                "sale_date": null,
+                                "cost_basis_usd": 0,
+                                "sale_proceeds_usd": 0,
+                                "realized_gain_loss_usd": 0
+                        }
+                ],
+                "real_estate_transactions": [
+                        {
+                                "asset_name": null,
+                                "acquisition_date": null,
+                                "sale_date": null,
+                                "cost_basis_usd": 0,
+                                "sale_proceeds_usd": 0,
+                                "realized_gain_loss_usd": 0
+                        }
+                ],
+                "collectibles_transactions": [
+                        {
+                                "asset_name": null,
+                                "acquisition_date": null,
+                                "sale_date": null,
+                                "cost_basis_usd": 0,
+                                "sale_proceeds_usd": 0,
+                                "realized_gain_loss_usd": 0
+                        }
+                ]
+        },
+        "income_foreign_source": {
+                "foreign_wages": [
+                        {
+                                "country": null,
+                                "employer_name": null,
+                                "gross_wages_usd": 0,
+                                "foreign_tax_paid_usd": 0
+                        }
+                ],
+                "foreign_interest_usd": null,
+                "foreign_dividends_usd": null,
+                "foreign_stcg_usd": null,
+                "foreign_ltcg_usd": null,
+                "foreign_rental_income_usd": null,
+                "foreign_pension_income_usd": null,
+                "section_988_gains_losses": [
+                        {
+                                "description": null,
+                                "transaction_date": null,
+                                "base_currency": null,
+                                "realized_gain_loss_usd": 0
+                        }
+                ]
+        },
+        "equity_compensation": {
+                "has_equity_comp": false,
+                "iso_exercises": [
+                        {
+                                "company_name": null,
+                                "grant_date": null,
+                                "exercise_date": null,
+                                "strike_price_usd": 0,
+                                "fmv_at_exercise_usd": 0,
+                                "shares_exercised": 0,
+                                "amt_preference_spread_usd": 0
+                        }
+                ],
+                "nso_exercises": [
+                        {
+                                "company_name": null,
+                                "exercise_date": null,
+                                "shares_exercised": 0,
+                                "strike_price_usd": 0,
+                                "fmv_at_exercise_usd": 0,
+                                "ordinary_income_recognized_usd": 0
+                        }
+                ],
+                "rsu_vestings": [
+                        {
+                                "company_name": null,
+                                "vest_date": null,
+                                "shares_vested": 0,
+                                "fmv_at_vest_usd": 0,
+                                "shares_withheld_for_taxes": 0,
+                                "gross_income_usd": 0
+                        }
+                ],
+                "espp_purchases": [
+                        {
+                                "company_name": null,
+                                "offering_date": null,
+                                "purchase_date": null,
+                                "fmv_at_offering_usd": 0,
+                                "fmv_at_purchase_usd": 0,
+                                "purchase_price_usd": 0,
+                                "shares_purchased": 0,
+                                "sale_date": null,
+                                "sale_price_usd": 0,
+                                "disposition_type": null,
+                                "ordinary_income_usd": 0,
+                                "capital_gain_loss_usd": 0
+                        }
+                ],
+                "unvested_restricted_stock_awards": [
+                        {
+                                "company_name": null,
+                                "grant_date": null,
+                                "number_of_shares": 0,
+                                "fmv_at_grant_usd": 0,
+                                "purchase_price_usd": 0,
+                                "filing_deadline_date": null,
+                                "filed_within_30_days": false
+                        }
+                ]
+        },
+        "foreign_earned_income": {
+                "claims_feie": false,
+                "qualification_test": "physical_presence",
+                "tax_home_country": "",
+                "physical_presence_start_date": null,
+                "physical_presence_end_date": null,
+                "days_in_us_during_test_period": 0,
+                "us_business_days": 0,
+                "bona_fide_residence_start_date": null,
+                "foreign_earned_income_usd": null,
+                "feie_amount_claimed_usd": 0,
+                "foreign_housing_expenses_usd": null,
+                "housing_exclusion_base_usd": 21264,
+                "housing_exclusion_cap_usd": 39870,
+                "foreign_housing_exclusion_usd": 0,
+                "employer_type": null,
+                "us_abode": false,
+                "revoked_past_5_years": false,
+                "bona_fide_visa_type": null
+        },
+        "bank_accounts": [
+                {
+                        "bank_name": null,
+                        "account_number_last_four": null,
+                        "account_type": "savings",
+                        "country": null,
+                        "peak_balance_usd": 0,
+                        "last_day_balance_usd": 0,
+                        "ownership_type": null,
+                        "joint_owner_count": 0,
+                        "is_joint_owner_spouse": false,
+                        "institution_address_street": null,
+                        "institution_address_city": null,
+                        "institution_address_zip": null,
+                        "opened_during_year": false,
+                        "closed_during_year": false
+                }
+        ],
+        "fbar_aggregate_peak_usd": 0,
+        "form_8938_required": false,
+        "financial_holdings": [
+                {
+                        "broker_or_institution": null,
+                        "asset_name": null,
+                        "asset_class": "indian_mutual_fund",
+                        "is_fbar_reportable": false,
+                        "peak_balance_usd": 0,
+                        "last_day_balance_usd": 0,
+                        "pfic_classification": "exempt",
+                        "pfic_election": null,
+                        "pfic_income_test": false,
+                        "pfic_asset_test": false,
+                        "pfic_finance_except": false,
+                        "ownership_percentage": 0,
+                        "ownership_type": null,
+                        "joint_owner_count": null,
+                        "is_joint_owner_spouse": false,
+                        "institution_address_street": null,
+                        "institution_address_city": null,
+                        "institution_address_zip": null,
+                        "income_generated_usd": 0,
+                        "income_type": "none",
+                        "opened_during_year": false,
+                        "closed_during_year": false
+                }
+        ],
+        "real_estate": {
+                "has_real_estate_transaction": false,
+                "properties": [
+                        {
+                                "property_description": null,
+                                "transaction_type": "holding",
+                                "acquisition_date": null,
+                                "sale_date": null,
+                                "cost_basis_usd": 0,
+                                "sale_price_usd": 0,
+                                "realized_gain_loss_usd": 0,
+                                "s121_exclusion_claimed": false,
+                                "s1031_like_kind_exchange": false
+                        }
+                ]
+        },
+        "retirement_accounts": {
+                "traditional_ira_contribution_usd": null,
+                "roth_ira_contribution_usd": null,
+                "backdoor_roth_executed": false,
+                "401k_employee_contribution_usd": null,
+                "401k_employer_match_usd": null,
+                "roth_401k_contribution_usd": null,
+                "hsa_contribution_usd": null,
+                "solo_401k_contribution_usd": null,
+                "sep_ira_contribution_usd": null,
+                "rmd_required": false,
+                "rmd_amount_usd": 0,
+                "indian_epf_balance_usd": null,
+                "indian_ppf_balance_usd": null,
+                "indian_nps_balance_usd": null
+        },
+        "foreign_entities": {
+                "owns_10_percent_foreign_corp": false,
+                "foreign_corporations": [
+                        {
+                                "linked_client_id": null,
+                                "corporation_name": null,
+                                "country_of_incorporation": null,
+                                "ownership_percentage": 0,
+                                "tax_year_start": null,
+                                "transition_to_ncti_post_2026": false,
+                                "cfc_status": null,
+                                "nature_of_income": "active",
+                                "local_tax_regime": "standard",
+                                "dividends_planned": false,
+                                "sec962_election_planned": false,
+                                "has_constructive_ownership": false,
+                                "has_capital_transfers": false,
+                                "has_related_party_transactions": false
+                        }
+                ],
+                "owns_10_percent_foreign_partnership": false,
+                "foreign_partnerships": [
+                        {
+                                "partnership_name": null,
+                                "country_of_operations": null,
+                                "ownership_percentage": 0,
+                                "form_8865_category": "category_4",
+                                "local_entity_type": "llp",
+                                "check_the_box_election": false,
+                                "has_constructive_ownership": false,
+                                "has_capital_transfers": false,
+                                "has_related_party_transactions": false
+                        }
+                ],
+                "owns_foreign_disregarded_entity": false,
+                "foreign_de_details": []
+        },
+        "foreign_gifts_and_trusts": {
+                "received_foreign_gifts_above_100k": false,
+                "foreign_gifts": [
+                        {
+                                "donor_relationship_details": null,
+                                "donor_country": null,
+                                "gift_date": null,
+                                "donor_entity_type": null,
+                                "related_group": null,
+                                "gift_value_usd": 0,
+                                "is_beneficiary_of_foreign_trust": false,
+                                "is_gift_from_covered_expatriate": false
+                        }
+                ],
+                "is_us_beneficiary_of_foreign_trust": false,
+                "foreign_trust_details": [
+                        {
+                                "trust_name": null,
+                                "trust_country": null,
+                                "trust_ein_or_ref_number": null,
+                                "relationship_to_trust": null,
+                                "distribution_date": null,
+                                "distribution_amount_usd": 0,
+                                "is_foreign_grantor_trust": false,
+                                "received_3520a_statement": false
+                        }
+                ],
+                "received_gift_from_covered_expatriate": false
+        },
+        "itemized_deductions_and_credits": {
+                "use_standard_or_itemized": "auto",
+                "state_and_local_taxes_paid_usd": null,
+                "mortgage_interest_paid_usd": null,
+                "mortgage_acquisition_date": null,
+                "charitable_contributions_cash_usd": null,
+                "charitable_contributions_appreciated_usd": null,
+                "medical_expenses_usd": null,
+                "casualty_loss_federal_disaster_usd": null,
+                "hsa_contributions_usd": null,
+                "student_loan_interest_usd": null,
+                "educator_expenses_usd": null,
+                "child_tax_credit_dependents": null,
+                "credit_for_other_dependents": null,
+                "child_and_dependent_care_expenses_usd": null,
+                "education_credits_aotc_usd": null,
+                "education_credits_llc_usd": null,
+                "saver_credit_eligible": false,
+                "funded_529_plan": false,
+                "529_contributions_usd": null,
+                "529_state_deduction_state": "",
+                "qbi_deduction_eligible": false,
+                "qbi_deduction_usd": 0
+        },
+        "amt_inputs": {
+                "iso_preference_total_usd": 0,
+                "salt_addback_usd": 0,
+                "private_activity_bond_interest_usd": null,
+                "amt_exemption_usd": 85000,
+                "amti_usd": 0,
+                "tentative_minimum_tax_usd": 0,
+                "amt_due_usd": 0,
+                "minimum_tax_credit_carryforward_usd": null
+        },
+        "niit_inputs": {
+                "modified_agi_usd": 0,
+                "niit_threshold_usd": 200000,
+                "net_investment_income_usd": 0,
+                "niit_due_usd": 0
+        },
+        "ftc_inputs": {
+                "claims_ftc": false,
+                "claims_ftc_simplified_under_300": false,
+                "elect_accrued_method": false,
+                "prior_year_carryovers_usd": 0,
+                "ftc_baskets": [
+                        {
+                                "foreign_country": null,
+                                "basket_type": null,
+                                "gross_foreign_income_usd": 0,
+                                "foreign_taxes_paid_usd": 0,
+                                "includes_indian_surcharge_and_cess": false
+                        }
+                ]
+        },
+        "withholding_and_estimated": {
+                "federal_withholding_total_usd": 0,
+                "state_withholding_total_usd": 0,
+                "estimated_tax_q1_apr15_usd": null,
+                "estimated_tax_q2_jun15_usd": null,
+                "estimated_tax_q3_sep15_usd": null,
+                "estimated_tax_q4_jan15_usd": null,
+                "prior_year_total_tax_usd": null,
+                "additional_medicare_tax_owed_usd": 0
+        },
+        "nra_specific": {
+                "files_form_1040nr": false,
+                "s6013h_joint_election": false,
+                "w8ben_aggregate_status": "none",
+                "form_w7_itin_application_filed": false,
+                "us_eci_income_usd": 0,
+                "us_fdap_income_usd": 0,
+                "treaty_rate_claims": [
+                        {
+                                "income_type": null,
+                                "elected_rate": null,
+                                "treaty_article": null
+                        }
+                ],
+                "us_real_property_disposed": false,
+                "firpta_withholding_usd": null,
+                "is_lrs_investor": false,
+                "has_us_pe": false,
+                "submitted_w8ben": false
+        },
+        "metadata": {
+                "us_calendar_year": 2026,
+                "request_id": "c8a5beb3-4da1-416c-8708-5caaeda17d21",
+                "source": "onboarding",
+                "input_completeness": "provisional",
+                "schema_version": "layer1_us_v1",
+                "obbba_threshold_table_version": "rev_proc_2025_32",
+                "created_at": "2026-07-28T03:41:28.818Z",
+                "last_updated_at": "2026-07-28T03:41:28.916Z",
+                "intake_completed": false,
+                "intake_setup": {
+                        "setupW2": false,
+                        "setupBiz": false,
+                        "setupPassive": false,
+                        "setupProp": false,
+                        "setupEntities": false,
+                        "setupForeign": false,
+                        "setupRetirement": false,
+                        "setupEquity": false
+                }
+        },
+        "config": {
+                "base_year": 2026
+        }
+};
+
+    // Deep-merges the live usState onto SUPERSET_SCHEMA_TEMPLATE so every
+    // export always carries the full field set - real values win wherever
+    // this taxpayer actually filled something in; any section/array they
+    // never touched (a different entity type's fields, a business type
+    // they never added, etc.) falls back to the template's blank row
+    // instead of being silently absent. Non-destructive: never mutates
+    // usState itself.
+    function buildSupersetSchema(state) {
+        function mergeNode(templateVal, realVal) {
+            if (Array.isArray(templateVal)) {
+                if (Array.isArray(realVal) && realVal.length > 0) {
+                    // Real rows exist - but each row's OWN nested sub-arrays
+                    // (branches/assets/forms_1099/shareholders/state_allocations,
+                    // etc.) can still be empty on a row that was auto-created
+                    // rather than fully filled in (e.g. the primary entity's
+                    // own business row). Recurse each real item against the
+                    // template's one example item so those nested gaps still
+                    // get backfilled instead of silently staying empty.
+                    const itemTemplate = templateVal[0];
+                    if (itemTemplate === undefined) return realVal;
+                    return realVal.map(item => mergeNode(itemTemplate, item));
+                }
+                return templateVal;
+            }
+            if (templateVal !== null && typeof templateVal === 'object') {
+                const real = (realVal !== null && typeof realVal === 'object' && !Array.isArray(realVal)) ? realVal : {};
+                const out = {};
+                for (const key in templateVal) {
+                    out[key] = mergeNode(templateVal[key], real[key]);
+                }
+                // Carry over any real field the template doesn't know about yet,
+                // so newer schema additions are never silently dropped.
+                for (const key in real) {
+                    if (!(key in out)) out[key] = real[key];
+                }
+                return out;
+            }
+            return realVal !== undefined ? realVal : templateVal;
+        }
+        return mergeNode(SUPERSET_SCHEMA_TEMPLATE, state);
+    }
+
     let activeStep = 'step-onboarding';
 
     // List of all step ids
@@ -4465,6 +5960,7 @@
         if (!list) return;
         
         let labels = {
+            cg: { name: "Asset / Security Name", nameHolder: "e.g. AAPL" },
             qsbs: { name: "Company Name", nameHolder: "e.g. Acme Corp" },
             real_estate: { name: "Property Address", nameHolder: "e.g. 123 Main St" },
             collectibles: { name: "Asset Description", nameHolder: "e.g. Vintage Watch" }
@@ -10975,24 +12471,36 @@ div.innerHTML = `
                     <div class="px-3 pb-3 pt-2 border-t border-white/5 flex flex-col gap-3">
                         <div class="text-[8px] font-bold text-white/50 uppercase border-b border-white/5 pb-1">Branch Itemized Expenses</div>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 font-sans">
-                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Advertising</label><input type="text" class="branch-exp-adv w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
-                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Contract Labor</label><input type="text" class="branch-exp-contract w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
-                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Insurance</label><input type="text" class="branch-exp-ins w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
-                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Legal/Pro</label><input type="text" class="branch-exp-legal w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Advertising</label><input type="text" class="branch-exp-advertising w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Contract Labor</label><input type="text" class="branch-exp-contractlabor w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Insurance</label><input type="text" class="branch-exp-insurance w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Legal/Pro</label><input type="text" class="branch-exp-legalprof w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
                             <div><label class="block text-[8px] font-bold text-amber-400 uppercase mb-1">Meals (50%)</label><input type="text" class="branch-exp-meals w-full bg-[#121212] border border-amber-400/30 rounded-lg text-xs text-amber-400 px-2 py-1 focus:border-amber-400 font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
-                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Rent/Lease</label><input type="text" class="branch-exp-rent w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
-                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Repairs</label><input type="text" class="branch-exp-repair w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Office Expenses</label><input type="text" class="branch-exp-officeexpenses w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Rent/Lease</label><input type="text" class="branch-exp-rentlease w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Repairs</label><input type="text" class="branch-exp-repairs w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
                             <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Supplies</label><input type="text" class="branch-exp-supplies w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
-                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Utilities</label><input type="text" class="branch-exp-util w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
-                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Other</label><input type="text" class="branch-exp-other w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Taxes &amp; Licenses</label><input type="text" class="branch-exp-taxeslicenses w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Travel</label><input type="text" class="branch-exp-travel w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Utilities</label><input type="text" class="branch-exp-utilities w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Other</label><input type="text" class="branch-exp-otherexpenses w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
                         </div>
 
-                        <div class="text-[8px] font-bold text-white/50 uppercase border-b border-white/5 pb-1 mt-2">Branch Home Office &amp; Vehicle</div>
-                                <div class="flex flex-col gap-1 mt-1">
-                                    <label class="flex items-center gap-2 text-[8px] font-bold text-white/60 uppercase cursor-pointer"><input type="checkbox" class="branch-veh-avail rounded bg-[#121212] border-white/20 text-brandCyan" onchange="syncBranchState('${type}')"> Available for personal use off-duty?</label>
-                                    <label class="flex items-center gap-2 text-[8px] font-bold text-white/60 uppercase cursor-pointer"><input type="checkbox" class="branch-veh-evidence rounded bg-[#121212] border-white/20 text-brandCyan" onchange="syncBranchState('${type}')"> Have written evidence?</label>
-                                </div>
-                            </div>
+                        <div class="text-[8px] font-bold text-white/50 uppercase border-b border-white/5 pb-1 mt-2">Branch Home Office</div>
+                        <div class="grid grid-cols-2 gap-3 font-sans">
+                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Office Sq-Footage</label><input type="text" inputmode="numeric" class="branch-ho-sqft w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                            <div><label class="block text-[8px] font-bold text-amber-400 uppercase mb-1">Total Home Sq-Footage</label><input type="text" inputmode="numeric" class="branch-ho-total-sqft w-full bg-[#121212] border border-amber-400/30 rounded-lg text-xs text-amber-400 px-2 py-1 focus:border-amber-400 font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                        </div>
+
+                        <div class="text-[8px] font-bold text-white/50 uppercase border-b border-white/5 pb-1 mt-2">Branch Vehicle</div>
+                        <div class="grid grid-cols-3 gap-3 font-sans">
+                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Biz Miles</label><input type="text" inputmode="numeric" class="branch-veh-biz w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Commuting</label><input type="text" inputmode="numeric" class="branch-veh-commute w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                            <div><label class="block text-[8px] font-bold text-white/40 uppercase mb-1">Other Personal</label><input type="text" inputmode="numeric" class="branch-veh-other w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-brandCyan font-mono" placeholder="0" oninput="syncBranchState('${type}')"></div>
+                        </div>
+                        <div class="flex flex-col gap-1 mt-1">
+                            <label class="flex items-center gap-2 text-[8px] font-bold text-white/60 uppercase cursor-pointer"><input type="checkbox" class="branch-veh-avail rounded bg-[#121212] border-white/20 text-brandCyan" onchange="syncBranchState('${type}')"> Available for personal use off-duty?</label>
+                            <label class="flex items-center gap-2 text-[8px] font-bold text-white/60 uppercase cursor-pointer"><input type="checkbox" class="branch-veh-evidence rounded bg-[#121212] border-white/20 text-brandCyan" onchange="syncBranchState('${type}')"> Have written evidence?</label>
                         </div>
                     </div>
                 </details>
@@ -11144,8 +12652,16 @@ div.innerHTML = `
             } else {
                 if (div.querySelector('.branch-gross')) div.querySelector('.branch-gross').value = branchData.gross_receipts_usd !== undefined ? branchData.gross_receipts_usd : '';
                 if (branchData.itemized_expenses) {
+                    // itemized_expenses' own keys (contract_labor,
+                    // legal_professional, business_meals, ...) don't all
+                    // match the branch-exp-* class names 1:1 — three are
+                    // abbreviated (legalprof, meals, repairs) rather than
+                    // just underscore-stripped, matching the same
+                    // abbreviations syncSeState()/syncFarmState() read.
+                    const classOverrides = { legal_professional: 'legalprof', business_meals: 'meals', repairs_maintenance: 'repairs' };
                     for (const exp in branchData.itemized_expenses) {
-                        const targetInput = div.querySelector(`.branch-exp-${exp}`);
+                        const cls = classOverrides[exp] || exp.replace(/_/g, '');
+                        const targetInput = div.querySelector(`.branch-exp-${cls}`);
                         if (targetInput) targetInput.value = branchData.itemized_expenses[exp] !== null ? branchData.itemized_expenses[exp] : '';
                     }
                 }
@@ -11692,6 +13208,21 @@ div.innerHTML = `
                 </div>
             </details>
 
+            <!-- ACCORDION 4b: State Sales Allocation -->
+            <details class="group border border-white/8 rounded-xl mb-1">
+                <summary class="flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-white/5 rounded-xl transition-colors list-none">
+                    <span class="text-[9px] font-black uppercase tracking-widest text-brandCyan flex items-center gap-2">&#x1f5fa;&#xfe0f; State Sales Allocation</span>
+                    <svg class="w-3.5 h-3.5 text-white/30 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="px-3 pb-3 pt-2 border-t border-white/5 flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[9px] font-black uppercase tracking-widest text-white/40">Gross Receipts by State (Apportionment)</span>
+                        <button type="button" onclick="addStateSaleRow('${rowId}', 'se')" class="px-2.5 py-1 bg-brandCyan/10 hover:bg-brandCyan/20 text-brandCyan border border-brandCyan/30 rounded text-[8px] font-black uppercase tracking-widest transition-all">+ Add State Sale</button>
+                    </div>
+                    <div class="state-sales-list-${rowId} flex flex-col gap-2"></div>
+                </div>
+            </details>
+
             <!-- ACCORDION 5: Compliance & Deductions -->
             <details class="group border border-white/8 rounded-xl mb-1">
                 <summary class="flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-white/5 rounded-xl transition-colors list-none">
@@ -11935,6 +13466,13 @@ div.innerHTML = `
             }
 
             const stateAllocations = [];
+            div.querySelectorAll('.state-sale-row').forEach(row => {
+                stateAllocations.push({
+                    state: row.querySelector('.state-code').value || '',
+                    gross_receipts_usd: parseFormattedNumber(row.querySelector('.state-gross-receipts').value) || 0
+                });
+            });
+
             const branches = [];
             wrapper.querySelectorAll('.us-branch-card').forEach(brDiv => {
                 const brAssets = [];
@@ -12349,6 +13887,13 @@ div.innerHTML = `
                 <div class="px-3 pb-3 pt-2 border-t border-white/5 flex flex-col gap-3">
                     <div class="p-2 rounded-lg bg-brandCyan/5 border border-brandCyan/15 text-[10px] text-white/60 leading-relaxed">&#x1f4a1; Farms with $600+ payments to contractors must file Form 1099-NEC. Excess farm losses may trigger at-risk and passive activity rules.</div>
                     <div class="farm-1099-panel-host border-t border-white/5 pt-3"></div>
+                    <div class="border-t border-white/5 pt-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[9px] font-black uppercase tracking-widest text-brandCyan">Gross Receipts by State (Apportionment)</span>
+                            <button type="button" onclick="addStateSaleRow('${rowId}', 'farm')" class="px-2.5 py-1 bg-brandCyan/10 hover:bg-brandCyan/20 text-brandCyan border border-brandCyan/30 rounded text-[8px] font-black uppercase tracking-widest transition-all">+ Add State Sale</button>
+                        </div>
+                        <div class="state-sales-list-${rowId} flex flex-col gap-2"></div>
+                    </div>
                 </div>
             </details>
         `;
@@ -12494,6 +14039,13 @@ div.innerHTML = `
             }
 
             const stateAllocations = [];
+            div.querySelectorAll('.state-sale-row').forEach(row => {
+                stateAllocations.push({
+                    state: row.querySelector('.state-code').value || '',
+                    gross_receipts_usd: parseFormattedNumber(row.querySelector('.state-gross-receipts').value) || 0
+                });
+            });
+
             const branches = [];
             wrapper.querySelectorAll('.us-branch-card').forEach(brDiv => {
                 const brAssets = [];
@@ -13815,6 +15367,13 @@ div.innerHTML = `
                         <div class="flex items-center justify-between mb-2"><span class="text-[9px] font-black uppercase tracking-widest text-brandCyan">1099 Forms Attached to this S-Corp</span></div>
                         <div class="scorp-1099-panel-host"></div>
                     </div>
+                    <div class="border-t border-white/5 pt-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[9px] font-black uppercase tracking-widest text-brandCyan">Gross Receipts by State (Apportionment)</span>
+                            <button type="button" onclick="addStateSaleRow('${rowId}', 'scorp')" class="px-2.5 py-1 bg-brandCyan/10 hover:bg-brandCyan/20 text-brandCyan border border-brandCyan/30 rounded text-[8px] font-black uppercase tracking-widest transition-all">+ Add State Sale</button>
+                        </div>
+                        <div class="state-sales-list-${rowId} flex flex-col gap-2"></div>
+                    </div>
                 </div>
             </details>
         `;
@@ -13865,6 +15424,13 @@ div.innerHTML = `
             } else {
                 addScorpShareholderRow(rowId);
             }
+
+            // Populate head-office assets
+            const assetContainer = div.querySelector(`.asset-list-${rowId}`);
+            const assets = data.assets || [];
+            assets.forEach(asset => {
+                createAssetRowDOM(assetContainer, rowId, 'scorp', asset);
+            });
             const sBox1 = div.querySelector('.scorp-box1'); if (sBox1) sBox1.value = data.ordinary_income_usd || '';
             const sBox2 = div.querySelector('.scorp-box2'); if (sBox2) sBox2.value = data.net_rental_real_estate_usd || '';
             const sBox3 = div.querySelector('.scorp-box3'); if (sBox3) sBox3.value = data.other_rental_income_usd || '';
@@ -13986,6 +15552,25 @@ div.innerHTML = `
         const list = [];
         const toggleChecked = document.getElementById('scorp-k1-has-toggle')?.checked || false;
         document.querySelectorAll('.scorp-k1-card').forEach(div => {
+            // Head-office's own depreciable assets — scoped to div (the
+            // card itself), not the wrapper, so this naturally excludes
+            // branch-nested assets (branches are sibling elements in the
+            // wrapper, not descendants of div). Mirrors syncSeState()/
+            // syncFarmState()/syncCcorpState()/syncTrustK1State()'s own
+            // head-office asset reads.
+            const assets = [];
+            div.querySelectorAll('.asset-row').forEach(row => {
+                assets.push({
+                    id: row.dataset.assetId,
+                    name: row.querySelector('.asset-name').value || '',
+                    class: row.querySelector('.asset-class').value || '5-year',
+                    cost: parseFormattedNumber(row.querySelector('.asset-cost').value) || 0,
+                    sec179: parseFormattedNumber(row.querySelector('.asset-sec179').value) || 0,
+                    bonus: row.querySelector('.asset-bonus').checked,
+                    placed_in_service_date: row.querySelector('.asset-date').value || ''
+                });
+            });
+
             // Collect branches from the sibling branches container (in wrapper)
             const branches = [];
             const wrapper = document.getElementById('scorp-k1-wrapper-' + div.id);
@@ -14176,6 +15761,7 @@ div.innerHTML = `
                 shareholders: shareholders,
                 forms_1099: sync1099Forms('scorp', div),
                 branches: branches,
+                assets: assets,
                 state_allocations: stateAllocations
             });
             const addedObj = list[list.length - 1];
@@ -14491,6 +16077,15 @@ div.innerHTML = `
                                 <!-- Populated by render1099Panel() -->
                             </div>
                         </div>
+
+                        <!-- State Sales Allocation -->
+                        <div class="mt-3 border-t border-white/5 pt-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[9px] font-black uppercase tracking-widest text-brandCyan">Gross Receipts by State (Apportionment)</span>
+                                <button type="button" onclick="addStateSaleRow('${rowId}', 'ccorp')" class="px-2.5 py-1 bg-brandCyan/10 hover:bg-brandCyan/20 text-brandCyan border border-brandCyan/30 rounded text-[8px] font-black uppercase tracking-widest transition-all">+ Add State Sale</button>
+                            </div>
+                            <div class="state-sales-list-${rowId} flex flex-col gap-2"></div>
+                        </div>
                     </div>
                 </details>
             </div>
@@ -14568,6 +16163,12 @@ div.innerHTML = `
             const shareholders = data.shareholders || [];
             shareholders.forEach(sh => {
                 addCcorpShareholderRow(rowId, sh);
+            });
+
+            // Populate State Allocations
+            const stateAllocations = data.state_allocations || [];
+            stateAllocations.forEach(stateAlloc => {
+                addStateSaleRow(rowId, 'ccorp', stateAlloc);
             });
             // Taxable recalc relies on syncCcorpState call below
 
@@ -14887,6 +16488,14 @@ div.innerHTML = `
             const corpTax = taxable * 0.21;
             div.querySelector('.ccorp-tax-display').textContent = formatCurrency(corpTax);
 
+            const stateAllocations = [];
+            div.querySelectorAll('.state-sale-row').forEach(row => {
+                stateAllocations.push({
+                    state: row.querySelector('.state-code').value || '',
+                    gross_receipts_usd: parseFormattedNumber(row.querySelector('.state-gross-receipts').value) || 0
+                });
+            });
+
             list.push({
                 id: div.id,
                 business_name: div.querySelector('.ccorp-name').value || null,
@@ -14947,7 +16556,8 @@ div.innerHTML = `
                 forms_1099: sync1099Forms('ccorp', div),
                 branches: branches,
                 assets: assets,
-                shareholders: shareholders
+                shareholders: shareholders,
+                state_allocations: stateAllocations
             });
             const addedObj = list[list.length - 1];
             updateUsConsolidatedSummary(div.id, 'ccorp', addedObj, branches, 100.0);
@@ -15502,20 +17112,6 @@ div.innerHTML = `
         };
     }
 
-    function toggleW2Advanced(rowId) {
-        const card = document.getElementById(rowId);
-        if (!card) return;
-        const details = card.querySelector('.w2-advanced-details');
-        const icon = card.querySelector('.w2-adv-toggle-icon');
-        if (details.classList.contains('hidden')) {
-            details.classList.remove('hidden');
-            icon.textContent = '▼';
-        } else {
-            details.classList.add('hidden');
-            icon.textContent = '▸';
-        }
-    }
-
     function toggleW2StateTaxes(rowId) {
         const card = document.getElementById(rowId);
         if (!card) return;
@@ -15667,7 +17263,7 @@ div.innerHTML = `
             row.querySelector('.w2-box14-amount').value = benefitData.amount_usd || '';
         }
         syncW2sState();
-        syncW2Badges(rowId);
+        syncW2Badges(w2CardId);
     }
 
     function removeW2Box14Row(btn) {
@@ -16566,6 +18162,178 @@ div.innerHTML = `
             });
         });
         usState.equity_compensation.rsu_vestings = list;
+        recalculateDerivedFields();
+        saveStateAndSync();
+    }
+
+    function addEsppRow(data = null) {
+        const rowId = 'espp-' + Date.now() + Math.random().toString(36).substring(2, 5);
+        const list = document.getElementById('div-espp-list');
+        if (!list) return;
+
+        const div = document.createElement('div');
+        div.id = rowId;
+        div.className = "espp-card p-3 bg-black/40 border border-white/10 rounded-xl relative flex flex-col gap-2 shadow-md mb-2 group";
+        div.innerHTML = `
+            <button onclick="removeEsppRow('${rowId}')" class="absolute top-2 right-2 text-brandRed/40 hover:text-brandRed font-bold font-sans p-1 z-10 transition-colors">✕</button>
+            <div class="espp-accordion flex flex-col gap-1">
+              <details class="group border border-white/8 rounded-xl" open>
+                <summary class="flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-white/5 rounded-xl transition-colors list-none" onclick="toggleAccordion('${rowId}-espp', '${rowId}-espp-chev')">
+                  <span class="text-[9px] font-black uppercase tracking-widest text-brandCyan flex items-center gap-2">
+                    📈 <span>ESPP Purchase Details</span>
+                  </span>
+                  <svg id="${rowId}-espp-chev" class="w-3.5 h-3.5 text-white/30 transition-transform duration-300 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div id="${rowId}-espp" class="px-3 pb-3 pt-2 flex flex-col gap-3 border-t border-white/5 transition-all duration-300">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pr-6">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Company Name</label>
+                            <input type="text" class="espp-comp w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" placeholder="e.g. Salesforce" oninput="syncEsppState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Offering (Grant) Date</label>
+                            <input type="date" class="espp-offering w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" onchange="syncEsppState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Purchase Date</label>
+                            <input type="date" class="espp-purchase w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" onchange="syncEsppState()">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 pr-6">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">FMV at Offering (USD/sh)</label>
+                            <input type="text" inputmode="numeric" class="espp-fmv-offering w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncEsppState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">FMV at Purchase (USD/sh)</label>
+                            <input type="text" inputmode="numeric" class="espp-fmv-purchase w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncEsppState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Purchase Price Paid (USD/sh)</label>
+                            <input type="text" inputmode="numeric" class="espp-price w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncEsppState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Shares Purchased</label>
+                            <input type="text" inputmode="numeric" class="espp-shares w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncEsppState()">
+                        </div>
+                    </div>
+                    <div class="text-[8px] font-bold text-white/50 uppercase border-b border-white/5 pb-1 mt-1">If Sold This Year</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pr-6">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Sale Date (leave blank if still held)</label>
+                            <input type="date" class="espp-sale-date w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" onchange="syncEsppState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Sale Price (USD/sh)</label>
+                            <input type="text" inputmode="numeric" class="espp-sale-price w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncEsppState()">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pr-6">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-brandCyan mb-1">Disposition</label>
+                            <input type="text" class="espp-disposition w-full bg-white/5 border border-white/5 rounded-lg text-xs text-white/50 px-3 py-1.5" placeholder="Held" disabled>
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-brandCyan mb-1">Ordinary Income (W-2 Portion)</label>
+                            <input type="text" inputmode="numeric" class="espp-income w-full bg-white/5 border border-white/5 rounded-lg text-xs text-white/50 px-3 py-1.5 font-mono" placeholder="0" disabled>
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-brandCyan mb-1">Capital Gain/Loss</label>
+                            <input type="text" inputmode="numeric" class="espp-capgain w-full bg-white/5 border border-white/5 rounded-lg text-xs text-white/50 px-3 py-1.5 font-mono" placeholder="0" disabled>
+                        </div>
+                    </div>
+                </div>
+              </details>
+            </div>
+        `;
+        list.appendChild(div);
+
+        if (data) {
+            if (div.querySelector('.espp-comp')) div.querySelector('.espp-comp').value = data.company_name || '';
+            if (div.querySelector('.espp-offering')) div.querySelector('.espp-offering').value = data.offering_date || '';
+            if (div.querySelector('.espp-purchase')) div.querySelector('.espp-purchase').value = data.purchase_date || '';
+            if (div.querySelector('.espp-fmv-offering')) div.querySelector('.espp-fmv-offering').value = data.fmv_at_offering_usd || '';
+            if (div.querySelector('.espp-fmv-purchase')) div.querySelector('.espp-fmv-purchase').value = data.fmv_at_purchase_usd || '';
+            if (div.querySelector('.espp-price')) div.querySelector('.espp-price').value = data.purchase_price_usd || '';
+            if (div.querySelector('.espp-shares')) div.querySelector('.espp-shares').value = data.shares_purchased || '';
+            if (div.querySelector('.espp-sale-date')) div.querySelector('.espp-sale-date').value = data.sale_date || '';
+            if (div.querySelector('.espp-sale-price')) div.querySelector('.espp-sale-price').value = data.sale_price_usd || '';
+        }
+        syncEsppState();
+    }
+
+    function removeEsppRow(id) {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+        syncEsppState();
+    }
+
+    // ESPP disposition mechanics (IRC §423 qualified plans):
+    // - Qualifying disposition (held >=2yr from offering date AND >=1yr from
+    //   purchase date): ordinary income = lesser of (actual gain) or (FMV at
+    //   offering date - purchase price); remainder is long-term capital gain.
+    // - Disqualifying disposition (sold before either holding period is met):
+    //   ordinary income = lesser of (actual gain) or (FMV at purchase date -
+    //   purchase price) - the same "capped at actual gain" rule also covers
+    //   the case where the stock dropped after purchase, so a sale at a loss
+    //   never produces phantom ordinary income.
+    // - Not yet sold: nothing recognized this year.
+    function syncEsppState() {
+        const list = [];
+        document.querySelectorAll('.espp-card').forEach(div => {
+            const offeringDate = div.querySelector('.espp-offering').value;
+            const purchaseDate = div.querySelector('.espp-purchase').value;
+            const saleDate = div.querySelector('.espp-sale-date').value;
+            const fmvOffering = parseFormattedNumber(div.querySelector('.espp-fmv-offering').value) || 0;
+            const fmvPurchase = parseFormattedNumber(div.querySelector('.espp-fmv-purchase').value) || 0;
+            const purchasePrice = parseFormattedNumber(div.querySelector('.espp-price').value) || 0;
+            const shares = parseFormattedNumber(div.querySelector('.espp-shares').value) || 0;
+            const salePrice = parseFormattedNumber(div.querySelector('.espp-sale-price').value) || 0;
+
+            let dispositionType = 'held';
+            let ordinaryIncomePerShare = 0;
+            let capGainPerShare = 0;
+
+            if (saleDate) {
+                const actualGainPerShare = salePrice - purchasePrice;
+                let isQualifying = false;
+                if (offeringDate && purchaseDate) {
+                    const twoYearsFromOffering = new Date(offeringDate);
+                    twoYearsFromOffering.setFullYear(twoYearsFromOffering.getFullYear() + 2);
+                    const oneYearFromPurchase = new Date(purchaseDate);
+                    oneYearFromPurchase.setFullYear(oneYearFromPurchase.getFullYear() + 1);
+                    const saleDateObj = new Date(saleDate);
+                    isQualifying = saleDateObj >= twoYearsFromOffering && saleDateObj >= oneYearFromPurchase;
+                }
+                dispositionType = isQualifying ? 'qualifying' : 'disqualifying';
+                const ordinaryIncomeCapPerShare = isQualifying ? (fmvOffering - purchasePrice) : (fmvPurchase - purchasePrice);
+                ordinaryIncomePerShare = Math.max(0, Math.min(actualGainPerShare, ordinaryIncomeCapPerShare));
+                capGainPerShare = actualGainPerShare - ordinaryIncomePerShare;
+            }
+
+            const ordinaryIncome = ordinaryIncomePerShare * shares;
+            const capGain = capGainPerShare * shares;
+            const dispositionLabel = { held: 'Held', qualifying: 'Qualifying', disqualifying: 'Disqualifying' }[dispositionType];
+            if (div.querySelector('.espp-disposition')) div.querySelector('.espp-disposition').value = dispositionLabel;
+            if (div.querySelector('.espp-income')) div.querySelector('.espp-income').value = ordinaryIncome.toFixed(2);
+            if (div.querySelector('.espp-capgain')) div.querySelector('.espp-capgain').value = capGain.toFixed(2);
+
+            list.push({
+                company_name: div.querySelector('.espp-comp').value || null,
+                offering_date: offeringDate || null,
+                purchase_date: purchaseDate || null,
+                fmv_at_offering_usd: parseFormattedNumber(div.querySelector('.espp-fmv-offering').value) || null,
+                fmv_at_purchase_usd: parseFormattedNumber(div.querySelector('.espp-fmv-purchase').value) || null,
+                purchase_price_usd: parseFormattedNumber(div.querySelector('.espp-price').value) || null,
+                shares_purchased: parseFormattedNumber(div.querySelector('.espp-shares').value) || null,
+                sale_date: saleDate || null,
+                sale_price_usd: parseFormattedNumber(div.querySelector('.espp-sale-price').value) || null,
+                disposition_type: dispositionType,
+                ordinary_income_usd: ordinaryIncome,
+                capital_gain_loss_usd: capGain
+            });
+        });
+        usState.equity_compensation.espp_purchases = list;
         recalculateDerivedFields();
         saveStateAndSync();
     }
@@ -17738,6 +19506,128 @@ div.innerHTML = `
         saveStateAndSync();
     }
 
+    function addTrustDetailRow(data = null) {
+        const rowId = 'ftd-' + Date.now() + Math.random().toString(36).substring(2, 5);
+        const list = document.getElementById('div-trust-detail-list');
+        if (!list) return;
+
+        const div = document.createElement('div');
+        div.id = rowId;
+        div.className = "ftd-card p-3 bg-black/40 border border-white/10 rounded-xl relative flex flex-col gap-2 shadow-md mb-2 group";
+        div.innerHTML = `
+            <button onclick="removeTrustDetailRow('${rowId}')" class="absolute top-2 right-2 text-brandRed/40 hover:text-brandRed font-bold font-sans p-1 z-10 transition-colors">✕</button>
+            <div class="ftd-accordion flex flex-col gap-1">
+              <details class="border border-white/8 rounded-xl" open>
+                <summary class="flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-white/5 rounded-xl transition-colors list-none" onclick="toggleAccordion('${rowId}-ftd', '${rowId}-ftd-chev')">
+                  <span class="text-[9px] font-black uppercase tracking-widest text-brandCyan flex items-center gap-2">
+                    🏛️ <span>Foreign Trust Details</span>
+                  </span>
+                  <svg id="${rowId}-ftd-chev" class="w-3.5 h-3.5 text-white/30 transition-transform duration-300 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div id="${rowId}-ftd" class="px-3 pb-3 pt-2 flex flex-col gap-3 border-t border-white/5 transition-all duration-300">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pr-6">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Trust Name</label>
+                            <input type="text" class="ftd-name w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" placeholder="e.g. Sharma Family Trust" oninput="syncTrustDetailState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Trust Country</label>
+                            <input type="text" class="ftd-country w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" placeholder="e.g. India" oninput="syncTrustDetailState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Trust EIN / Reference Number</label>
+                            <input type="text" class="ftd-ein w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="if no EIN, use a reference number" oninput="syncTrustDetailState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Your Relationship</label>
+                            <select class="ftd-relationship w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" onchange="syncTrustDetailState()">
+                                <option value="beneficiary">Beneficiary</option>
+                                <option value="grantor_owner">Grantor/Owner</option>
+                                <option value="transferor">Transferor</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="text-[8px] font-bold text-white/50 uppercase border-b border-white/5 pb-1 mt-1">Distribution Received This Year (Form 3520 Part III)</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pr-6">
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Distribution Date (leave blank if none)</label>
+                            <input type="date" class="ftd-dist-date w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" onchange="syncTrustDetailState()">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Distribution Amount (USD)</label>
+                            <input type="text" inputmode="numeric" class="ftd-dist-amt w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncTrustDetailState()">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pr-6 mt-3 p-3 bg-brandCyan/5 border border-brandCyan/10 rounded-lg">
+                        <label class="flex items-center gap-2 text-[9px] font-bold text-white/70 cursor-pointer">
+                            <input type="checkbox" class="ftd-grantor rounded bg-[#121212] border-white/20 text-brandCyan focus:ring-0" onchange="syncTrustDetailState()">
+                            <span>Foreign Grantor Trust?</span>
+                            <span class="relative tooltip-trigger inline-block">
+                                <span class="text-brandCyan text-[10px] cursor-help">(i)</span>
+                                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden tooltip-content w-56 bg-[#0a0a0a] border border-brandCyan/40 text-white/90 text-[10px] p-2.5 rounded-lg shadow-xl z-[100] font-normal normal-case tracking-normal whitespace-normal pointer-events-none">The trust's income is taxed to its foreign owner, not this distribution's beneficiary - changes how the distribution is characterized.</div>
+                            </span>
+                        </label>
+                        <label class="flex items-center gap-2 text-[9px] font-bold text-white/70 cursor-pointer">
+                            <input type="checkbox" class="ftd-3520a-stmt rounded bg-[#121212] border-white/20 text-brandCyan focus:ring-0" onchange="syncTrustDetailState()">
+                            <span>Received Form 3520-A Beneficiary/Owner Statement?</span>
+                            <span class="relative tooltip-trigger inline-block">
+                                <span class="text-brandCyan text-[10px] cursor-help">(i)</span>
+                                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden tooltip-content w-56 bg-[#0a0a0a] border border-brandCyan/40 text-white/90 text-[10px] p-2.5 rounded-lg shadow-xl z-[100] font-normal normal-case tracking-normal whitespace-normal pointer-events-none">Without it, you may need to attach a substitute Form 3520-A yourself and could be subject to the default (throwback) method.</div>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+              </details>
+            </div>
+        `;
+        list.appendChild(div);
+
+        if (data) {
+            if (div.querySelector('.ftd-name')) div.querySelector('.ftd-name').value = data.trust_name || '';
+            if (div.querySelector('.ftd-country')) div.querySelector('.ftd-country').value = data.trust_country || '';
+            if (div.querySelector('.ftd-ein')) div.querySelector('.ftd-ein').value = data.trust_ein_or_ref_number || '';
+            if (div.querySelector('.ftd-relationship') && data.relationship_to_trust) div.querySelector('.ftd-relationship').value = data.relationship_to_trust;
+            if (div.querySelector('.ftd-dist-date')) div.querySelector('.ftd-dist-date').value = data.distribution_date || '';
+            if (div.querySelector('.ftd-dist-amt')) div.querySelector('.ftd-dist-amt').value = data.distribution_amount_usd || '';
+            if (div.querySelector('.ftd-grantor')) div.querySelector('.ftd-grantor').checked = data.is_foreign_grantor_trust === true;
+            if (div.querySelector('.ftd-3520a-stmt')) div.querySelector('.ftd-3520a-stmt').checked = data.received_3520a_statement === true;
+        }
+        syncTrustDetailState();
+    }
+
+    function removeTrustDetailRow(id) {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+        syncTrustDetailState();
+    }
+
+    function syncTrustDetailState() {
+        const list = [];
+        document.querySelectorAll('.ftd-card').forEach(div => {
+            list.push({
+                trust_name: div.querySelector('.ftd-name').value || null,
+                trust_country: div.querySelector('.ftd-country').value || null,
+                trust_ein_or_ref_number: div.querySelector('.ftd-ein').value || null,
+                relationship_to_trust: div.querySelector('.ftd-relationship').value,
+                distribution_date: div.querySelector('.ftd-dist-date').value || null,
+                distribution_amount_usd: parseFormattedNumber(div.querySelector('.ftd-dist-amt').value) || null,
+                is_foreign_grantor_trust: div.querySelector('.ftd-grantor').checked,
+                received_3520a_statement: div.querySelector('.ftd-3520a-stmt').checked
+            });
+        });
+        usState.foreign_gifts_and_trusts.foreign_trust_details = list;
+        // Roll up: OR'd with foreign_gifts' own trust-ben flag (syncGiftState's
+        // own source of truth) so whichever sync function runs last never
+        // clobbers a true set by the other - keeps the existing Form 3520
+        // warning (which reads is_us_beneficiary_of_foreign_trust) accurate
+        // even if the taxpayer only logged one of the two row types.
+        const hasDistribution = list.some(t => t.distribution_date || (t.distribution_amount_usd || 0) > 0);
+        const gifts = usState.foreign_gifts_and_trusts.foreign_gifts || [];
+        usState.foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust = hasDistribution || gifts.some(g => g.is_beneficiary_of_foreign_trust);
+        recalculateDerivedFields();
+        saveStateAndSync();
+    }
+
     function addGiftRow(data = null) {
         const rowId = 'gift-' + Date.now() + Math.random().toString(36).substring(2, 5);
         const list = document.getElementById('div-gift-list');
@@ -17858,8 +19748,13 @@ div.innerHTML = `
         // (findings-batch3-nodes.js: isTrustBeneficiary / receivedFromCoveredExpatriate,
         // feeding form_3520/form_3520a and 2 checks-registry entries) -- true
         // if ANY gift row carries the flag, since either one real occurrence
-        // is enough to trigger the underlying disclosure/finding.
-        usState.foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust = list.some(g => g.is_beneficiary_of_foreign_trust);
+        // is enough to trigger the underlying disclosure/finding. Also OR in
+        // foreign_trust_details' own distributions (syncTrustDetailState's
+        // own source of truth) so whichever function runs last never
+        // clobbers a true set by the other.
+        const trustDetails = usState.foreign_gifts_and_trusts.foreign_trust_details || [];
+        const hasDistributionInTrustDetails = trustDetails.some(t => t.distribution_date || (t.distribution_amount_usd || 0) > 0);
+        usState.foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust = list.some(g => g.is_beneficiary_of_foreign_trust) || hasDistributionInTrustDetails;
         usState.foreign_gifts_and_trusts.received_gift_from_covered_expatriate = list.some(g => g.is_gift_from_covered_expatriate);
         recalculateDerivedFields();
         saveStateAndSync();
@@ -18092,7 +19987,7 @@ div.innerHTML = `
             
             const schemaBox = document.getElementById('schema-json-output');
             if (schemaBox) {
-                schemaBox.textContent = JSON.stringify(usState, null, 2);
+                schemaBox.textContent = JSON.stringify(buildSupersetSchema(usState), null, 2);
             }
         } catch (e) {
             console.error("Error in saveStateAndSync: ", e);
@@ -18421,6 +20316,7 @@ div.innerHTML = `
             document.getElementById('div-iso-list').innerHTML = '';
             document.getElementById('div-nso-list').innerHTML = '';
             document.getElementById('div-rsu-list').innerHTML = '';
+            document.getElementById('div-espp-list').innerHTML = '';
             document.getElementById('div-s83b-list').innerHTML = '';
             document.getElementById('div-bank-list').innerHTML = '';
             document.getElementById('div-holding-list').innerHTML = '';
@@ -18428,6 +20324,7 @@ div.innerHTML = `
             document.getElementById('div-corp-list').innerHTML = '';
             document.getElementById('div-part-list').innerHTML = '';
             document.getElementById('div-gift-list').innerHTML = '';
+            document.getElementById('div-trust-detail-list').innerHTML = '';
             document.getElementById('div-ftc-list').innerHTML = '';
 
             initFromLocalStorage();
@@ -18630,7 +20527,7 @@ div.innerHTML = `
                 );
                 const hasForeignEntities = !!(savedState.foreign_entities && (savedState.foreign_entities.owns_10_percent_foreign_corp || savedState.foreign_entities.has_pfics));
                 const hasForeignFeie = !!(savedState.foreign_earned_income && savedState.foreign_earned_income.claims_feie);
-                const hasForeignGifts = !!(savedState.foreign_gifts_and_trusts && (savedState.foreign_gifts_and_trusts.received_foreign_gifts_above_100k || savedState.foreign_gifts_and_trusts.received_gift_from_covered_expatriate));
+                const hasForeignGifts = !!(savedState.foreign_gifts_and_trusts && (savedState.foreign_gifts_and_trusts.received_foreign_gifts_above_100k || savedState.foreign_gifts_and_trusts.received_gift_from_covered_expatriate || savedState.foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust || (savedState.foreign_gifts_and_trusts.foreign_trust_details && savedState.foreign_gifts_and_trusts.foreign_trust_details.length)));
                 const hasPassiveIntDiv = (iu.interest_us_source_usd || 0) > 0 || (iu.ordinary_dividends_us_source_usd || 0) > 0;
                 const hasPassiveCapGains = (iu.ltcg_us_source_usd || 0) > 0;
                 const derived = {
@@ -18650,7 +20547,8 @@ div.innerHTML = `
                     setupRetirement: !!(savedState.retirement_accounts && Object.keys(savedState.retirement_accounts).some((k) => (savedState.retirement_accounts[k] || 0) > 0)),
                     setupEquity: !!(savedState.equity_compensation && (
                         (savedState.equity_compensation.iso_exercises && savedState.equity_compensation.iso_exercises.length) ||
-                        (savedState.equity_compensation.rsu_vestings && savedState.equity_compensation.rsu_vestings.length)
+                        (savedState.equity_compensation.rsu_vestings && savedState.equity_compensation.rsu_vestings.length) ||
+                        (savedState.equity_compensation.espp_purchases && savedState.equity_compensation.espp_purchases.length)
                     ))
                 };
                 const updateCardUI = (id, checked) => {
@@ -18775,6 +20673,7 @@ div.innerHTML = `
                 usState.foreign_gifts_and_trusts.received_foreign_gifts_above_100k = savedState.foreign_gifts_and_trusts.received_foreign_gifts_above_100k;
                 usState.foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust = savedState.foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust;
                 usState.foreign_gifts_and_trusts.received_gift_from_covered_expatriate = savedState.foreign_gifts_and_trusts.received_gift_from_covered_expatriate;
+                usState.foreign_gifts_and_trusts.foreign_trust_details = savedState.foreign_gifts_and_trusts.foreign_trust_details || [];
             }
             if (savedState.itemized_deductions_and_credits) {
                 Object.assign(usState.itemized_deductions_and_credits, savedState.itemized_deductions_and_credits);
@@ -18804,6 +20703,7 @@ div.innerHTML = `
             if (savedState.equity_compensation && savedState.equity_compensation.iso_exercises) usState.equity_compensation.iso_exercises = savedState.equity_compensation.iso_exercises;
             if (savedState.equity_compensation && savedState.equity_compensation.nso_exercises) usState.equity_compensation.nso_exercises = savedState.equity_compensation.nso_exercises;
             if (savedState.equity_compensation && savedState.equity_compensation.rsu_vestings) usState.equity_compensation.rsu_vestings = savedState.equity_compensation.rsu_vestings;
+            if (savedState.equity_compensation && savedState.equity_compensation.espp_purchases) usState.equity_compensation.espp_purchases = savedState.equity_compensation.espp_purchases;
             if (savedState.equity_compensation && savedState.equity_compensation.unvested_restricted_stock_awards) usState.equity_compensation.unvested_restricted_stock_awards = savedState.equity_compensation.unvested_restricted_stock_awards;
             if (savedState.real_estate && savedState.real_estate.properties) usState.real_estate.properties = savedState.real_estate.properties;
             if (savedState.foreign_entities && savedState.foreign_entities.pfic_holdings) usState.foreign_entities.pfic_holdings = savedState.foreign_entities.pfic_holdings;
@@ -19115,6 +21015,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             document.getElementById('div-iso-list').innerHTML = '';
             document.getElementById('div-nso-list').innerHTML = '';
             document.getElementById('div-rsu-list').innerHTML = '';
+            document.getElementById('div-espp-list').innerHTML = '';
             document.getElementById('div-s83b-list').innerHTML = '';
             document.getElementById('div-bank-list').innerHTML = '';
             document.getElementById('div-holding-list').innerHTML = '';
@@ -19122,6 +21023,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             document.getElementById('div-corp-list').innerHTML = '';
             document.getElementById('div-part-list').innerHTML = '';
             document.getElementById('div-gift-list').innerHTML = '';
+            document.getElementById('div-trust-detail-list').innerHTML = '';
             document.getElementById('div-ftc-list').innerHTML = '';
 
             // Recover dynamic lists
@@ -19138,6 +21040,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             if (usState.equity_compensation && usState.equity_compensation.iso_exercises) usState.equity_compensation.iso_exercises.forEach(x => addIsoRow(x));
             if (usState.equity_compensation && usState.equity_compensation.nso_exercises) usState.equity_compensation.nso_exercises.forEach(x => addNsoRow(x));
             if (usState.equity_compensation && usState.equity_compensation.rsu_vestings) usState.equity_compensation.rsu_vestings.forEach(x => addRsuRow(x));
+            if (usState.equity_compensation && usState.equity_compensation.espp_purchases) usState.equity_compensation.espp_purchases.forEach(x => addEsppRow(x));
             if (usState.equity_compensation && usState.equity_compensation.unvested_restricted_stock_awards) usState.equity_compensation.unvested_restricted_stock_awards.forEach(x => addS83bRow(x));
             if (usState.bank_accounts) usState.bank_accounts.forEach(x => addBankRow(x));
             if (usState.foreign_entities && usState.foreign_entities.pfic_holdings) usState.foreign_entities.pfic_holdings.forEach(x => addHoldingRow(x));
@@ -19145,6 +21048,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             if (usState.foreign_entities && usState.foreign_entities.foreign_corporations) usState.foreign_entities.foreign_corporations.forEach(x => addCorpRow(x));
             if (usState.foreign_entities && usState.foreign_entities.foreign_partnerships) usState.foreign_entities.foreign_partnerships.forEach(x => addPartRow(x));
             if (usState.foreign_gifts_and_trusts && usState.foreign_gifts_and_trusts.foreign_gifts) usState.foreign_gifts_and_trusts.foreign_gifts.forEach(x => addGiftRow(x));
+            if (usState.foreign_gifts_and_trusts && usState.foreign_gifts_and_trusts.foreign_trust_details) usState.foreign_gifts_and_trusts.foreign_trust_details.forEach(x => addTrustDetailRow(x));
             if (usState.ftc_inputs && usState.ftc_inputs.ftc_baskets) usState.ftc_inputs.ftc_baskets.forEach(x => addFtcBasketRow(x));
 
             // Migration: Move corp physical/economic nexus states to new path to prevent data loss
