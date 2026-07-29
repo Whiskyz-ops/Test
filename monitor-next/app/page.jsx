@@ -21,6 +21,17 @@ import WhatIfBar from "@/components/WhatIfBar";
 const WorldMap = dynamic(() => import("@/components/WorldMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading world map…</div> });
 const UsStatesMap = dynamic(() => import("@/components/UsStatesMap"), { ssr: false, loading: () => <div className="h-[360px] flex items-center justify-center text-white/30 text-sm">Loading US map…</div> });
 
+// Fraction of real sessions that sample-enable the engine⇔Python-DAG shadow
+// leg by default (docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 8 promotion
+// gate — ≥500 profiles/≥14 days of live shadow running — needs real usage
+// data, which can't accrue while this leg only fires behind a manual
+// ?shadowPy=1). Not 1.0: a cold Pyodide boot is real wall-clock/bandwidth
+// cost (lib/py-dag-loader.js's own header) that shouldn't land on every
+// single visitor without a deliberate choice — start modest, raise once the
+// telemetry (lib/shadow.js's track() calls) shows it's not degrading real
+// sessions. ?shadowPy=1/?shadowPy=0 still force it on/off explicitly.
+const SHADOW_PY_SAMPLE_RATE = 0.15;
+
 function scopeToCountries(countries, scope) {
   if (scope === "India") return countries.filter((c) => c.id === "IN");
   if (scope === "Asia") return countries.filter((c) => c.continent === "Asia");
@@ -102,17 +113,28 @@ export default function MonitorPage() {
     typeof window === "undefined" || new URLSearchParams(window.location.search).get("shadow") !== "0");
   const [shadowRun, setShadowRun] = useState(null);
   const [shadowLog, setShadowLog] = useState(null);
-  // Engine-vs-Python-DAG shadow leg (lib/shadow.js's runShadowPy) — OFF by
-  // default, unlike the JS-DAG leg above: booting Pyodide on a cold first
-  // call is not cheap (lib/py-dag-loader.js's own header), so this must
-  // never fire just because shadow mode in general is on. Opt in with
-  // ?shadowPy=1. Same hydration-safe "read the query param in an effect,
-  // not the lazy initializer" pattern as engineSource/presentationMode
-  // above would apply here too, but shadowPyOn is read-only after mount (no
-  // in-app control flips it), so the plain lazy-useState form is fine —
-  // there's no post-mount state divergence to cause a hydration mismatch.
-  const [shadowPyOn] = useState(() =>
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("shadowPy") === "1");
+  // Engine-vs-Python-DAG shadow leg (lib/shadow.js's runShadowPy) — SAMPLED
+  // on by default (SHADOW_PY_SAMPLE_RATE), not blanket-on, unlike the JS-DAG
+  // leg above: booting Pyodide on a cold first call is not cheap (lib/py-
+  // dag-loader.js's own header), so this doesn't fire for every visitor
+  // without a deliberate rollout choice. ?shadowPy=1/?shadowPy=0 explicitly
+  // force it on/off, taking priority over the sample draw — unchanged
+  // override behavior for anyone testing/demoing this deliberately. Same
+  // hydration-safe "read the query param in an effect, not the lazy
+  // initializer" pattern as engineSource/presentationMode above would apply
+  // here too, but shadowPyOn is read-only after mount (no in-app control
+  // flips it), so the plain lazy-useState form is fine — there's no
+  // post-mount state divergence to cause a hydration mismatch. The sample
+  // draw itself (Math.random()) only ever runs client-side (guarded by the
+  // typeof window check), so the server's render always sees `false`,
+  // exactly like the pre-sampling opt-in-only version did.
+  const [shadowPyOn] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const q = new URLSearchParams(window.location.search).get("shadowPy");
+    if (q === "1") return true;
+    if (q === "0") return false;
+    return Math.random() < SHADOW_PY_SAMPLE_RATE;
+  });
   const [shadowRunPy, setShadowRunPy] = useState(null);
 
   // Presentation mode: hides engineering-only chrome (compute-source pill,
@@ -236,11 +258,12 @@ export default function MonitorPage() {
       });
     }
     // Second, independent leg: engine vs the Python DAG (via Pyodide) —
-    // opt-in only (shadowPyOn, ?shadowPy=1), never fired just because
-    // shadowOn is true, since a cold Pyodide boot is not cheap (this
-    // triggers initPyDag() the same as selecting "Python DAG" as the
-    // primary source would). Deferred the same way, on its own tick — it
-    // must never block or race the JS-DAG leg above.
+    // gated on shadowPyOn (sampled by default, SHADOW_PY_SAMPLE_RATE, or
+    // ?shadowPy=1/0 to force), never fired just because shadowOn is true,
+    // since a cold Pyodide boot is not cheap (this triggers initPyDag() the
+    // same as selecting "Python DAG" as the primary source would). Deferred
+    // the same way, on its own tick — it must never block or race the
+    // JS-DAG leg above.
     if (shadowPyOn) {
       const defer = typeof window !== "undefined" && window.requestIdleCallback
         ? window.requestIdleCallback : (fn) => setTimeout(fn, 0);

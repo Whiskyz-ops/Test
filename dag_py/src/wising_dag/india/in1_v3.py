@@ -304,6 +304,16 @@ def _deductions_inr_v3(d, ctx):
     )
 
 
+def _rebate_87a_v3(d, ctx):
+    if not d["isIndividualV3"] or d["isNRV3"]:
+        return 0.0
+    rebate = T["REBATE_87A_NEW"] if d["isNew"] else T["REBATE_87A_OLD"]
+    if d["totalIncomeInrV3"] <= rebate["incomeCap"]:
+        return min(d["slabTaxInr"], rebate["maxRebate"])
+    excess = d["totalIncomeInrV3"] - rebate["incomeCap"]
+    return max(0.0, d["slabTaxInr"] - excess)
+
+
 def _promoter_buyback_extra_tax_inr(d, ctx):
     is_corporate_promoter = d["indiaEntityTypeRawV3"] == "company"
     promoter_target_rate = T["PROMOTER_BUYBACK_TARGET_RATE_CORPORATE"] if is_corporate_promoter else T["PROMOTER_BUYBACK_TARGET_RATE_NON_CORPORATE"]
@@ -511,13 +521,18 @@ NODES = {
     ),
 
     "isIndividualV3": NodeDef(deps=("indiaEntityTypeRawV3",), compute=lambda d, ctx: d["indiaEntityTypeRawV3"] == "individual"),
+    # Eligibility is tested against totalIncomeInrV3 (every head, incl.
+    # special-rate income like LTCG/STCG), not totalNormalInr (slab income
+    # only) -- a taxpayer with modest slab income but large LTCG must not
+    # qualify for the rebate just because their slab-only income is under the
+    # cap. Once real total income exceeds the cap, Finance Act 2025 marginal
+    # relief applies: the rebate caps net slab tax at exactly the excess over
+    # the threshold (never letting a Re.1 crossing create a full-tax cliff),
+    # but only while doing so actually benefits the taxpayer (slabTaxInr >
+    # excess) -- see prototypes/graph-pilot/run-in1-v3-marginal-relief.js.
     "rebateInrV3": NodeDef(
-        deps=("isIndividualV3", "isNRV3", "totalNormalInr", "isNew", "slabTaxInr"),
-        compute=lambda d, ctx: (
-            min(d["slabTaxInr"], (T["REBATE_87A_NEW"] if d["isNew"] else T["REBATE_87A_OLD"])["maxRebate"])
-            if (d["isIndividualV3"] and not d["isNRV3"] and d["totalNormalInr"] <= (T["REBATE_87A_NEW"] if d["isNew"] else T["REBATE_87A_OLD"])["incomeCap"])
-            else 0
-        ),
+        deps=("isIndividualV3", "isNRV3", "totalIncomeInrV3", "isNew", "slabTaxInr"),
+        compute=_rebate_87a_v3,
     ),
     "taxAfterRebateInr": NodeDef(deps=("slabTaxInr", "rebateInrV3", "specialTaxInrV3"), compute=lambda d, ctx: max(0.0, d["slabTaxInr"] - d["rebateInrV3"]) + d["specialTaxInrV3"]),
     "surchargeInrV3": NodeDef(

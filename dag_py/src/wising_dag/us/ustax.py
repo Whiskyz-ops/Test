@@ -397,6 +397,11 @@ NODES = {
     "usEntityKind": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.entity.usKind", None) or "individual"),
     "files1040nr": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "nra_specific.files_form_1040nr", False) is True, layer1_fields=("us.nra_specific.files_form_1040nr",)),
     "s6013hElection": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "nra_specific.s6013h_joint_election", False) is True, layer1_fields=("us.nra_specific.s6013h_joint_election",)),
+    # US-India DTAA Art. 21(2) student/business-apprentice standard-deduction
+    # exception (ustax_full.py's _nra_tax_result) — layer1_us.html's own
+    # "US Visa / Immigration Status" dropdown (#prof-visa-type) already
+    # collects this, but nothing in the engine read it before now.
+    "usVisaTypeRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "profile.visa_type", None), layer1_fields=("us.profile.visa_type",)),
     "usFilingStatusRaw": NodeDef(
         deps=(),
         compute=lambda d, ctx: (lambda s: (
