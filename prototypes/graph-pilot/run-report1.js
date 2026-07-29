@@ -63,7 +63,7 @@ WISING.PROFILES.forEach(function (p) {
   // 2026): no engine equivalent for any of these — see
   // findings-batch5-nodes.js's usStateTaxResult and report-batch1-nodes.js's
   // DOCUMENTS_CATALOG comments.
-  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance"];
+  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880"];
   var docsForDiff = out.buildDocumentsResult.filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) === -1; });
   var docDiff = deepEqual(docsForDiff, r.documents);
   check("documents matches exactly (" + r.documents.length + " entries, " + r.documents.filter(function (x) { return x.required; }).length + " required)", !docDiff, docDiff && docDiff.slice(0, 3).join(" | "));
