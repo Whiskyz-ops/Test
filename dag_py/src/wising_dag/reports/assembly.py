@@ -45,6 +45,11 @@ FINDING_ADD_ORDER = [
     "nra_w8ben_missing", "firpta", "form67_required", "tax_year_mismatch", "fx_basis", "state_treaty_not_binding", "pfic",
     "cfc", "cfc_below_threshold", "transfer_pricing", "retirement_mismatch", "deemed_dividend_buyback_mismatch",
     "promoter_buyback_additional_tax", "holding_period_mismatch_", "schedule_fa_inconsistent", "black_money_act_exposure",
+    # itin_application_required (task #47): given an explicit, shared
+    # position here identical to report-batch5-nodes.js's own — see that
+    # file's comment for why (a real fuzz-corpus tie-break mismatch against
+    # fbar_limit, both severity:"critical"/amountUsd:0).
+    "itin_application_required",
     "india_itr_form_mismatch", "foreign_gift_3520", "covered_expat_gift_tax", "lrs_limit", "fbar_limit",
     "trump_account_contribution_limit", "equity_comp_sourcing", "cross_basis_summary",
 ]

@@ -222,11 +222,25 @@ NODES = {
             "submittedW8ben": safe(ctx.get("us"), "nra_specific.submitted_w8ben", False) is True,
             "usRealPropertyDisposed": safe(ctx.get("us"), "nra_specific.us_real_property_disposed", False) is True,
             "firptaWithholdingUsd": num(safe(ctx.get("us"), "nra_specific.firpta_withholding_usd", 0)),
+            # task #47 (ITIN-filing gate): layer1_us.html's own "Form W-7 ITIN
+            # Application Filed?" checkbox (Step 9's NRA screen, "nra-w7") was
+            # collected but never read by anything downstream.
+            "w7ItinApplicationFiled": safe(ctx.get("us"), "nra_specific.form_w7_itin_application_filed", False) is True,
         },
         layer1_fields=(
             "us.nra_specific.treaty_rate_claims", "us.nra_specific.submitted_w8ben",
             "us.nra_specific.us_real_property_disposed", "us.nra_specific.firpta_withholding_usd",
+            "us.nra_specific.form_w7_itin_application_filed",
         ),
+    ),
+    # ---- ssnOrItinTypeRaw (task #47, ITIN-filing gate): layer1_us.html's
+    # "Taxpayer ID Type" selector (Step 2's "prof-id-type" -- profile.
+    # ssn_or_itin_type, one of "none"/"ssn"/"itin"/"atin") was collected but
+    # never read by anything downstream either. Default "none" matches the
+    # live form's own initial state.
+    "ssnOrItinTypeRaw": NodeDef(
+        deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "profile.ssn_or_itin_type", "none"),
+        layer1_fields=("us.profile.ssn_or_itin_type",),
     ),
     "foreignGiftsRaw": NodeDef(
         deps=(), compute=lambda d, ctx: {
@@ -408,6 +422,37 @@ def _findings_us_result(d, ctx):
         ))
 
     # -- 4j. FIRPTA (findings-batch3-nodes.js, conflicts.js:1049-1060) --------
+    # -- itin_application_required (task #47, ITIN-filing gate -- new DAG-only
+    # finding, no engine equivalent). layer1_us.html's "Taxpayer ID Type"
+    # selector (profile.ssn_or_itin_type) and the NRA screen's Form W-7
+    # checkbox (nra_specific.form_w7_itin_application_filed) were both
+    # collected but never read anywhere. Mirrors report-batch5-nodes.js's
+    # itinApplicationRequiredFinding, placed here in the BASE finding set
+    # (not filings/assets.py's override) to match the JS source's own
+    # placement in report-batch5-nodes.js (the base findingsAllResult, not
+    # assets-nodes.js's override) -- load-bearing, not just tidiness: the
+    # override's own final sort only re-applies (severity, amountUsd), not
+    # the full FINDING_ADD_ORDER tie-break, so a finding appended there
+    # sorts inconsistently against a same-severity/same-amount base finding
+    # like fbar_limit (real fuzz-corpus case: seed1-00264). ssn_or_itin_type
+    # is individual-taxpayer-only (a US entity return files under an EIN,
+    # not an SSN/ITIN), so gated on usEntityKind == "individual" the same
+    # way the JS source is.
+    if d["hasUsScope"] and d["usEntityKind"] == "individual" and d["ssnOrItinTypeRaw"] == "none" and not nra["w7ItinApplicationFiled"]:
+        findings.append(make_finding(
+            "itin_application_required", "critical", "document",
+            "No SSN, ITIN, or ATIN on file — a US return cannot be filed without one",
+            "The Taxpayer ID Type on file is \"None,\" and no Form W-7 ITIN application is recorded as filed. Every "
+            "person listed on a Form 1040 or 1040-NR — the primary taxpayer, a spouse electing to be treated as a US "
+            "resident under §6013(g)/(h), and any dependent claimed for the Child Tax Credit — must have a valid SSN "
+            "or ITIN (IRC §6109). A dependent with an ITIN instead of an SSN still qualifies for the $500 Credit for "
+            "Other Dependents, but is downgraded out of the $2,000 Child Tax Credit.",
+            "If eligible for an SSN, apply through the SSA. Otherwise file Form W-7 to apply for an ITIN — it can be "
+            "submitted together with the tax return itself, but the return cannot actually be filed until an SSN or "
+            "ITIN is on file (or, for a pending adoption, an ATIN via Form W-7A).",
+            0, ["§6109", "Form W-7", "§24(h)(4)"],
+        ))
+
     if nra["usRealPropertyDisposed"]:
         findings.append(make_finding(
             "firpta", "warning", "document",
@@ -647,7 +692,8 @@ NODES["findingsUsResult"] = NodeDef(
           "treatyFiles1040nrRaw", "s6013hElection", "nraFdapDetail", "nraEciIncomeUsdRaw", "usEntityKind",
           "equityCompResult", "usStateTaxResult", "limitsRawExtra",
           "us1ShouldFire", "us2210PenaltyUsd", "usPaidTotalUsd", "usCurrentHarborUsd", "usPriorHarborUsd", "usPriorHarborPct",
-          "us5ShouldFire", "penalty72tUsd", "earlyDistUsd", "ageAtYearEndUs"),
+          "us5ShouldFire", "penalty72tUsd", "earlyDistUsd", "ageAtYearEndUs",
+          "hasUsScope", "ssnOrItinTypeRaw"),
     compute=_findings_us_result,
 )
 NODES["usResidencyConsistencyFinding"] = NodeDef(

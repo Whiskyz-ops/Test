@@ -194,6 +194,7 @@ DOCUMENTS_CATALOG = [
     {"id": "form_16_16a", "jurisdiction": "IN", "name": "Form 16 / Form 16A (TDS Certificates)", "desc": "Salary (Form 16) and non-salary (Form 16A) TDS certificates issued by each deductor.", "why": "Indian income subject to TDS is on file — hold the certificate from each deductor to reconcile against Form 26AS/AIS and support the credit claimed in the ITR.", "severity": "info"},
     {"id": "lrs_form_a2", "jurisdiction": "IN", "name": "LRS Form A2 (Outward Remittance Declaration)", "desc": "Declaration furnished to the remitting bank for each outward remittance under the Liberalised Remittance Scheme.", "why": "Outward remittances under LRS were made this year — each remittance requires its own Form A2 filed with the bank at the time of transfer, separate from the annual Form 145/146 (was 15CA/15CB) return-time reporting.", "severity": "info"},
     {"id": "form_4868", "jurisdiction": "US", "name": "IRS Form 4868 (Extension Request)", "desc": "Automatic 6-month extension of time to file (not to pay) the US return.", "why": "Must be filed by the original due date to legally reach the extended deadline already on your Compliance Calendar — the extension does not happen automatically.", "severity": "info"},
+    {"id": "form_w7", "jurisdiction": "US", "name": "IRS Form W-7 (ITIN Application)", "desc": "Application for an IRS Individual Taxpayer Identification Number, for anyone listed on a US return who isn't eligible for an SSN.", "why": "No SSN, ITIN, or ATIN is on file for this taxpayer and no Form W-7 application is recorded as already filed — one is required before a 1040/1040-NR listing this person can actually be filed (IRC §6109).", "severity": "info"},
 ]
 
 
@@ -256,6 +257,7 @@ def _build_documents_result(d, ctx):
         "form_16_16a": d["hasIndiaScopeXbr"],
         "lrs_form_a2": d["limitsRawExtra"]["lrsRemittedInr"] > 0,
         "form_4868": d["hasUsScopeBoundaryFtc"],
+        "form_w7": d["hasUsScope"] and d["usEntityKind"] == "individual" and d["ssnOrItinTypeRaw"] == "none" and not d["nraRaw"]["w7ItinApplicationFiled"],
         "form_540": bool(d["usStateTaxResult"]) and d["usStateTaxResult"]["state"] == "CA",
         "form_it201": bool(d["usStateTaxResult"]) and d["usStateTaxResult"]["state"] == "NY",
         "form_nj1040": bool(d["usStateTaxResult"]) and d["usStateTaxResult"]["state"] == "NJ",
@@ -463,7 +465,8 @@ NODES = {
               "usTaxResult", "headlineTotalIncomeUsdResult", "usFilingStatusRaw", "aggregateUsIncomeResult",
               "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
               "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw",
-              "entityTaxResult", "taxRegime", "businessComputation", "presumptiveLockinAgg", "slabs", "usCorpScheduleLRaw"),
+              "entityTaxResult", "taxRegime", "businessComputation", "presumptiveLockinAgg", "slabs", "usCorpScheduleLRaw",
+              "hasUsScope", "ssnOrItinTypeRaw", "usEntityKind"),
         compute=_build_documents_result,
     ),
     "buildScopeNotesResult": NodeDef(

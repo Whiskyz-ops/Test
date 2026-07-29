@@ -465,7 +465,11 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // audit, 27 Jul 2026): same shape again -- unvested_restricted_stock_
 // awards[].filed_within_30_days fed nothing at all before this. No engine
 // equivalent since the classic engine is frozen.
-var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely|nra_eci_fdap_classification_check|treaty_rate_not_recognized)$/;
+// itin_application_required (task #47, ITIN-filing gate): same shape again --
+// profile.ssn_or_itin_type/nra_specific.form_w7_itin_application_filed fed
+// nothing at all before this. No engine equivalent since the classic engine
+// is frozen and never modeled ITIN gating.
+var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely|itin_application_required|nra_eci_fdap_classification_check|treaty_rate_not_recognized)$/;
 // cfc (Phase 7, XB-14, GILTI/NCTI quantification): the finding's detail/
 // recommendation/refs text now differs unconditionally from the frozen
 // engine's static text whenever it fires — real computed inclusion numbers
@@ -772,7 +776,7 @@ function assembleDag(profile, monitorAsOfBoundary) {
   // calendar's bundled docIds, same category as checksRegistry above.
   // Shallow-copy the calendar rows (not a full JSON clone, which would turn
   // Date objects into strings elsewhere in this same tree).
-  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880"];
+  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880", "form_w7"];
   var droppedRequiredCount = (out.analyzeResult.documents || []).filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) !== -1 && x.required; }).length;
   var documents = (out.analyzeResult.documents || []).filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) === -1; });
   var stripNj1040 = function (row) {

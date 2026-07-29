@@ -67,7 +67,7 @@ def _build_graph():
     # too — re-registered directly (their own build()s re-derive us_full/
     # cross_basis internally, which would collide with xborder_full's chain
     # already present in `r`).
-    for node_id in ("foreignGiftsRaw", "nraRaw", "stateResidencyRaw", "usStateTaxResult", "limitsRawExtra", "equityCompRaw", "esopEventsRaw", "esopPerquisiteInrRaw", "equityCompResult"):
+    for node_id in ("foreignGiftsRaw", "nraRaw", "stateResidencyRaw", "usStateTaxResult", "limitsRawExtra", "equityCompRaw", "esopEventsRaw", "esopPerquisiteInrRaw", "equityCompResult", "ssnOrItinTypeRaw"):
         if node_id not in r:
             r.register(node_id, us_findings.NODES[node_id])
     for node_id in ("taxesPaidUsResult", "bankAccountsRaw", "aggregatePeakUsdResult", "aggregateLastDayUsdResult", "indiaFinancialHoldingsTxRaw", "ppfInrRaw", "epfInrRaw", "usFtcFormXbr"):
@@ -96,7 +96,7 @@ def _is_entity_or_nra(golden: dict) -> bool:
 # engine) never carries these ids — filtered out before comparing, a
 # permanent divergence like the entity-branch one in test_reports_trace.py,
 # not a "not yet ported" gap.
-DAG_ONLY_DOCUMENT_IDS = {"form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880"}
+DAG_ONLY_DOCUMENT_IDS = {"form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880", "form_w7"}
 
 
 def test_build_documents_result_matches_golden(fixture_id):

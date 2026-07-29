@@ -113,10 +113,25 @@ NODES.nraRaw = {
       treatyRateClaims: safe(ctx.us, "nra_specific.treaty_rate_claims", []) || [],
       submittedW8ben: safe(ctx.us, "nra_specific.submitted_w8ben", false) === true,
       usRealPropertyDisposed: safe(ctx.us, "nra_specific.us_real_property_disposed", false) === true,
-      firptaWithholdingUsd: num(safe(ctx.us, "nra_specific.firpta_withholding_usd", 0))
+      firptaWithholdingUsd: num(safe(ctx.us, "nra_specific.firpta_withholding_usd", 0)),
+      // task #47 (ITIN-filing gate): layer1_us.html's own "Form W-7 ITIN
+      // Application Filed?" checkbox (Step 9's NRA screen, "nra-w7") was
+      // collected but never read by anything downstream.
+      w7ItinApplicationFiled: safe(ctx.us, "nra_specific.form_w7_itin_application_filed", false) === true
     };
   }
 };
+
+// ---- ssnOrItinTypeRaw (task #47, ITIN-filing gate): layer1_us.html's
+// "Taxpayer ID Type" selector (Step 2's "prof-id-type" -- profile.
+// ssn_or_itin_type, one of "none"/"ssn"/"itin"/"atin") was collected but
+// never read by anything downstream either. Default "none" matches the live
+// form's own initial state (a brand-new user who hasn't touched this field
+// yet genuinely has no ID type selected -- that IS the correct thing to
+// warn about, not a false positive; every one of the 11 real profiles.js
+// fixtures sets this explicitly to "ssn" or "itin", so the default never
+// masks a real profile's actual selection).
+NODES.ssnOrItinTypeRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "profile.ssn_or_itin_type", "none"); } };
 
 // ---- AGG-1 side-channel exposures (mirrors unexplained115bbeInrAgg) -------
 NODES.taxableEpfInterestInrAgg = { deps: ["osAgg"], compute: function (d) { return num(safe(d.osAgg, "taxable_epf_interest_inr", 0)); } };

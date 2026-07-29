@@ -56,6 +56,16 @@ US_TAX_RESULT_DEPENDENT_IDS = {
     "underpayment_2210", "early_withdrawal_penalty_72t",
     "niit_medicare_not_creditable", "no_totalization_agreement",
     "ftc_gap", "ftc_available",
+    # itin_application_required (task #47) depends on usEntityKind, which
+    # this reduced US_GRAPH resolves via ustax.py's own definition (reads
+    # ctx["model"]["entity"]["usKind"]) -- always None/"individual" under
+    # ctx_for()'s {router, india, us} shape (no "model" key), same gap
+    # already documented for early_withdrawal_penalty_72t's baseYearUs
+    # above. A real entity fixture (e.g. us_ccorp_indian_sub) therefore
+    # reads as "individual" here and can wrongly fire the finding even
+    # though the live product (ustax_full.py's real usEntityKind override)
+    # correctly excludes it.
+    "itin_application_required",
 }
 
 # early_withdrawal_penalty_72t's own age computation depends on baseYearUs,

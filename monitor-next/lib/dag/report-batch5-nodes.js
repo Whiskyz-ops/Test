@@ -257,6 +257,41 @@ NODES.s83bElectionNotFiledTimelyFinding = {
   }
 };
 
+// ---- itin_application_required (task #47, ITIN-filing gate — new DAG-only
+// finding, no engine equivalent). Both raw signals this reads (ssnOrItinTypeRaw,
+// nraRaw.w7ItinApplicationFiled) were collected by layer1_us.html but never
+// read by anything downstream: a filer with "None" selected as their
+// Taxpayer ID Type got no warning that they cannot actually file a 1040/
+// 1040-NR without either an SSN or an ITIN — every person listed on the
+// return needs one (IRC §6109; Form W-7 instructions) — the primary
+// taxpayer, a spouse electing §6013(g)/(h) treatment, and any dependent
+// claimed for the Child Tax Credit alike (a dependent with an ITIN instead
+// of an SSN is downgraded from the $2,000 CTC to the $500 ODC under TCJA/
+// the PATH Act, per ustax-nodes.js's own existing §24(h)(4) comment).
+NODES.itinApplicationRequiredFinding = {
+  deps: ["hasUsScope", "usEntityKind", "ssnOrItinTypeRaw", "nraRaw"],
+  compute: function (d) {
+    // ssn_or_itin_type is an individual-taxpayer-only field (layer1_us.html's
+    // Step 2 profile screen) -- a US entity return (1120/1120-S/1065/1041)
+    // files under an EIN, not an SSN/ITIN, so the field's "none" default
+    // must NOT be read as a gap for those profiles.
+    if (!d.hasUsScope || d.usEntityKind !== "individual" || d.ssnOrItinTypeRaw !== "none" || d.nraRaw.w7ItinApplicationFiled) return [];
+    return [{
+      id: "itin_application_required", severity: "critical", category: "document",
+      title: "No SSN, ITIN, or ATIN on file — a US return cannot be filed without one",
+      detail: "The Taxpayer ID Type on file is \"None,\" and no Form W-7 ITIN application is recorded as filed. Every person " +
+        "listed on a Form 1040 or 1040-NR — the primary taxpayer, a spouse electing to be treated as a US resident under " +
+        "§6013(g)/(h), and any dependent claimed for the Child Tax Credit — must have a valid SSN or ITIN (IRC §6109). A " +
+        "dependent with an ITIN instead of an SSN still qualifies for the $500 Credit for Other Dependents, but is " +
+        "downgraded out of the $2,000 Child Tax Credit.",
+      recommendation: "If eligible for an SSN, apply through the SSA. Otherwise file Form W-7 to apply for an ITIN — it can be " +
+        "submitted together with the tax return itself, but the return cannot actually be filed until an SSN or ITIN is on " +
+        "file (or, for a pending adoption, an ATIN via Form W-7A).",
+      amountUsd: 0, refs: ["§6109", "Form W-7", "§24(h)(4)"]
+    }];
+  }
+};
+
 /* schedule_fa_inconsistent — conflicts.js:1338-1346. */
 NODES.scheduleFaInconsistentFinding = {
   deps: ["scheduleFaInconsistentTrigger"],
@@ -326,6 +361,17 @@ var FINDING_ADD_ORDER = ["dual_residency", "dual_residency_resolved", "treaty_do
   "nra_w8ben_missing", "firpta", "form67_required", "tax_year_mismatch", "fx_basis", "state_treaty_not_binding", "pfic",
   "cfc", "cfc_below_threshold", "transfer_pricing", "retirement_mismatch", "deemed_dividend_buyback_mismatch",
   "promoter_buyback_additional_tax", "holding_period_mismatch_", "schedule_fa_inconsistent", "black_money_act_exposure",
+  // itin_application_required (task #47): not part of the real, frozen
+  // detectConflicts add() order (no engine equivalent at all — see the
+  // finding's own comment) but given an EXPLICIT, shared position here
+  // anyway (matching JS and Python identically) rather than falling
+  // through to the dynamic "holding_period_mismatch_" tie-break bucket
+  // like s83b_election_not_filed_timely does -- a real fuzz-corpus case
+  // (seed1-00147) ties it against fbar_limit (both severity:"critical",
+  // amountUsd:0), and without a shared explicit position the two languages'
+  // differing pre-sort concatenation order broke tie-break parity between
+  // them (run-js-dag-vs-py-dag.js).
+  "itin_application_required",
   "india_itr_form_mismatch", "foreign_gift_3520", "covered_expat_gift_tax", "lrs_limit", "fbar_limit",
   "trump_account_contribution_limit", "equity_comp_sourcing", "cross_basis_summary"];
 function findingAddOrderIndex(id) {
@@ -339,13 +385,13 @@ NODES.findingsAllResult = {
     "findingsBatch5Result", "holdingPeriodMismatchFindingsResult", "residencyConsistencyFindings",
     "indiaAdvanceTaxInterestFinding", "underpayment2210Finding", "earlyWithdrawalPenalty72tFinding",
     "retirementExcessElectiveDeferralFinding", "retirementExcessIraContributionFinding", "hsaExcessContributionFinding", "retirementRmdRequiredFinding",
-    "s83bElectionNotFiledTimelyFinding", "scheduleFaInconsistentFinding", "blackMoneyActExposureFinding"],
+    "s83bElectionNotFiledTimelyFinding", "itinApplicationRequiredFinding", "scheduleFaInconsistentFinding", "blackMoneyActExposureFinding"],
   compute: function (d) {
     var all = [].concat(d.findingsBatch1Result, d.findingsBatch2Result, d.findingsBatch3Result,
       d.findingsBatch4Result, d.findingsBatch5Result, d.holdingPeriodMismatchFindingsResult,
       d.residencyConsistencyFindings, d.indiaAdvanceTaxInterestFinding, d.underpayment2210Finding,
       d.earlyWithdrawalPenalty72tFinding, d.retirementExcessElectiveDeferralFinding, d.retirementExcessIraContributionFinding,
-      d.hsaExcessContributionFinding, d.retirementRmdRequiredFinding, d.s83bElectionNotFiledTimelyFinding, d.scheduleFaInconsistentFinding, d.blackMoneyActExposureFinding);
+      d.hsaExcessContributionFinding, d.retirementRmdRequiredFinding, d.s83bElectionNotFiledTimelyFinding, d.itinApplicationRequiredFinding, d.scheduleFaInconsistentFinding, d.blackMoneyActExposureFinding);
     // detectConflicts's own final step (conflicts.js:1546-1551) — not just a
     // convenience, LIM-7's alerts feed (monitor()) depends on findings[]
     // actually being in this order (.filter(critical).slice(0,4)) to pick

@@ -1,0 +1,126 @@
+{
+  "id": "us_itin_gate_required",
+  "label": "ITIN-filing gate firing case (manual case)",
+  "story": "Manual regression case for task #47 (ITIN-filing gate): single individual filer with real US-source wages (hasUsScope true) but no SSN/ITIN/ATIN on file (profile.ssn_or_itin_type left unset -- reads as \"none\", matching layer1_us.html's own default state) and no Form W-7 ITIN application recorded as filed. Fires itin_application_required (severity: critical) and the form_w7 document trigger. None of the 13 golden fixtures or the fuzz corpus ever produce ssn_or_itin_type === \"none\" on an individual with hasUsScope true (every real profiles.js fixture explicitly sets ssn/itin, and the fuzzer never randomizes this field), so this targets a branch nothing else reaches.",
+  "tags": [
+    "ITIN",
+    "Form W-7",
+    "§6109",
+    "manual case"
+  ],
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "full_name": "Marco Ibarra",
+    "date_of_birth": "1990-02-11",
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 200,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Marco Ibarra",
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 0,
+      "final_india_residency_status": "NR"
+    },
+    "dtaa": {},
+    "compliance_docs": {},
+    "bank_accounts": [],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "transactions": []
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "house_property": {
+        "has_house_property_income": false,
+        "properties": []
+      },
+      "business_income": {
+        "has_business_or_fo_income": false,
+        "business_entries": []
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {},
+    "deductions": {},
+    "carry_forward_losses": {},
+    "lrs_outbound": {},
+    "tax_credits": {},
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Marco Ibarra",
+      "date_of_birth": "1990-02-11",
+      "filing_status": "single",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 200,
+      "spt_test_met": true,
+      "final_us_residency_status": "RESIDENT_ALIEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Cascade Retail Co",
+          "wages_box1_usd": 35000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 2000,
+            "medicare_wages_box5_usd": 35000
+          }
+        }
+      ]
+    },
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "bank_accounts": [],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {},
+    "financial_holdings": [],
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 2000
+    },
+    "nra_specific": {
+      "files_form_1040nr": false,
+      "form_w7_itin_application_filed": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}
