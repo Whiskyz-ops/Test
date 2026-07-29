@@ -343,7 +343,22 @@
         "qbiUbiaUsd": 0,
         "collectiblesLtcgUsd": 0,
         "qsbsExcludedGainUsd": 0,
-        "qsbsTaxableGainUsd": 0
+        "qsbsTaxableGainUsd": 0,
+        "cfcNonElectedInclusionUs": {
+          "usd": 0.0,
+          "inr": 0.0
+        },
+        "cfcElectedPool": {
+          "nctiUsd": 0.0,
+          "subpartFUsd": 0.0,
+          "sec250DeductionUsd": 0.0,
+          "taxableBaseUsd": 0.0,
+          "grossTaxUsd": 0.0,
+          "foreignTaxPaidUsd": 0.0,
+          "creditableFtcUsd": 0.0,
+          "netTaxUsd": 0.0
+        },
+        "cfcPerEntityTrace": []
       }
     },
     "deductions": {
@@ -893,6 +908,20 @@
         "rate": 0.5,
         "eligibleContributionUsd": 0.0,
         "agiUsd": 296.0
+      },
+      "gilti962TaxUsd": 0.0,
+      "cfcDetail": {
+        "nonElectedInclusionUsd": 0.0,
+        "electedPool": {
+          "nctiUsd": 0.0,
+          "subpartFUsd": 0.0,
+          "sec250DeductionUsd": 0.0,
+          "taxableBaseUsd": 0.0,
+          "grossTaxUsd": 0.0,
+          "foreignTaxPaidUsd": 0.0,
+          "creditableFtcUsd": 0.0,
+          "netTaxUsd": 0.0
+        }
       }
     },
     "stateTax": null,

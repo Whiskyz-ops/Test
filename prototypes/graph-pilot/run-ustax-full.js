@@ -82,6 +82,21 @@ function runCase(id, router, india, us) {
     // for a trust now carries a retained-vs-distributed qualifier the
     // engine's static string never had.
     var TRUST_ONLY_KEYS = { trustDistributedUsd: true, trustRetainedUsd: true, trustBracketBreakdown: true };
+    // New DAG-only top-level fields, no frozen-engine equivalent — asserted
+    // present instead of deep-compared. gilti962TaxUsd/cfcDetail: Phase 7
+    // XB-14 (GILTI/NCTI, this session). qsbsTaxableGainUsd/qsbsExcludedGainUsd/
+    // collectiblesTaxUsd/collectiblesGainUsd: concurrent session's capital-
+    // gains special-rates work (§1202 QSBS / §1(h)(4) collectibles).
+    var NEW_FIELD_KEYS = { gilti962TaxUsd: true, cfcDetail: true, qsbsTaxableGainUsd: true, qsbsExcludedGainUsd: true, collectiblesTaxUsd: true, collectiblesGainUsd: true };
+    var NRA_NEW_FIELD_KEYS = { standardDeductionUsd: true, itemizedDeductionUsd: true, article212Eligible: true, article212AmbiguousJ1: true };
+    function assertNewFieldsPresent(prefix, obj, keys) {
+      Object.keys(keys).forEach(function (k) {
+        if (!(k in obj)) return; // not every profile/branch produces every new field
+        var v = obj[k];
+        if (typeof v === "number" ? !isNaN(v) : v !== undefined) ok(prefix + "." + k + " (new field — no engine equivalent)");
+        else bad(prefix + "." + k + " (new field — no engine equivalent)", "graph=" + JSON.stringify(v));
+      });
+    }
     if (real.isEntity) {
       if (out.usSourceIncomeUsd === out.totalIncomeUsd) ok("usTax(full).usSourceIncomeUsd (DELIBERATE divergence — see comment above)");
       else bad("usTax(full).usSourceIncomeUsd (DELIBERATE divergence — see comment above)", "graph=" + out.usSourceIncomeUsd + " expected=" + out.totalIncomeUsd);
@@ -90,16 +105,32 @@ function runCase(id, router, india, us) {
       } else {
         deepCheck("usTax(full).filingStatus", out.filingStatus, real.filingStatus);
       }
-      Object.keys(out).forEach(function (k) { if (k !== "usSourceIncomeUsd" && k !== "filingStatus" && !TRUST_ONLY_KEYS[k]) deepCheck("usTax(full)." + k, out[k], real[k]); });
+      assertNewFieldsPresent("usTax(full)", out, NEW_FIELD_KEYS);
+      Object.keys(out).forEach(function (k) { if (k !== "usSourceIncomeUsd" && k !== "filingStatus" && !TRUST_ONLY_KEYS[k] && !NEW_FIELD_KEYS[k]) deepCheck("usTax(full)." + k, out[k], real[k]); });
     } else {
-      deepCheck("usTax(full)", out, real);
+      assertNewFieldsPresent("usTax(full)", out, NEW_FIELD_KEYS);
+      if (out.nra) assertNewFieldsPresent("usTax(full).nra", out.nra, NRA_NEW_FIELD_KEYS);
+      var outStripped = Object.assign({}, out);
+      Object.keys(NEW_FIELD_KEYS).forEach(function (k) { delete outStripped[k]; });
+      if (outStripped.nra) {
+        outStripped.nra = Object.assign({}, outStripped.nra);
+        Object.keys(NRA_NEW_FIELD_KEYS).forEach(function (k) { delete outStripped.nra[k]; });
+      }
+      deepCheck("usTax(full)", outStripped, real);
     }
   } else {
     // Individual path emits a documented subset — compare every field it has.
     // feieAppliedUsd is the DAG's flat alias of the engine's feie.appliedUsd
     // (added for the FTC wiring) — translate rather than expect a mirror.
+    // gilti962TaxUsd/cfcDetail/qsbs*/collectibles*: new DAG-only fields, no
+    // frozen-engine equivalent — asserted directly instead of deep-compared.
+    var NEW_FIELD_KEYS_IND = { gilti962TaxUsd: true, cfcDetail: true, qsbsTaxableGainUsd: true, qsbsExcludedGainUsd: true, collectiblesTaxUsd: true, collectiblesGainUsd: true };
     Object.keys(out).forEach(function (k) {
       if (k === "feieAppliedUsd") return deepCheck("usTax.feieAppliedUsd(alias)", out[k], (real.feie && real.feie.appliedUsd) || 0);
+      if (NEW_FIELD_KEYS_IND[k]) {
+        if (typeof out[k] === "number" ? !isNaN(out[k]) : out[k] !== undefined) return ok("usTax." + k + " (new field — no engine equivalent)");
+        return bad("usTax." + k + " (new field — no engine equivalent)", "graph=" + JSON.stringify(out[k]));
+      }
       deepCheck("usTax." + k, out[k], real[k]);
     });
   }

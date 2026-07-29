@@ -669,7 +669,15 @@ function scaleResidentInc(inc, frac) {
     collectiblesLtcgUsd: (inc.collectiblesLtcgUsd || 0) * frac,
     qsbsExcludedGainUsd: (inc.qsbsExcludedGainUsd || 0) * frac, qsbsTaxableGainUsd: (inc.qsbsTaxableGainUsd || 0) * frac,
     retirementEpfInterestUsd: (inc.retirementEpfInterestUsd || 0) * frac, retirementNpsWithdrawalUsd: (inc.retirementNpsWithdrawalUsd || 0) * frac,
-    usSourceTotal: s(inc.usSourceTotal)
+    usSourceTotal: s(inc.usSourceTotal),
+    // Phase 7 (XB-14): the full CFC-year inclusion is applied entirely to
+    // the resident sub-period, NOT day-count apportioned like the income
+    // items above — a CFC's own tax year is a discrete inclusion event
+    // (virtually always closing within the resident period in a real
+    // dual-status case), not a continuously-accruing amount. Documented
+    // simplification, same disclosure style as passiveUsSourceDuringNrUsd.
+    cfcNonElectedInclusionUs: { usd: usdOf(inc.cfcNonElectedInclusionUs) },
+    cfcElectedPool: inc.cfcElectedPool || null
   };
 }
 function scaleNonresidentInc(inc, frac) {
@@ -686,7 +694,8 @@ function scaleNonresidentInc(inc, frac) {
     qualifiedTipsUsd: 0, qualifiedOvertimeUsd: 0, qbiIncomeUsd: 0, qbiIsSSTB: false, qbiWagesUsd: 0, qbiUbiaUsd: 0,
     collectiblesLtcgUsd: 0, qsbsExcludedGainUsd: 0, qsbsTaxableGainUsd: 0,
     retirementEpfInterestUsd: 0, retirementNpsWithdrawalUsd: 0,
-    usSourceTotal: { usd: eciUsd }
+    usSourceTotal: { usd: eciUsd },
+    cfcNonElectedInclusionUs: zero, cfcElectedPool: null
   };
 }
 function scaleDedForDualStatus(ded, frac, dropPersonalCredits) {

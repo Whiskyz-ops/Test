@@ -464,13 +464,97 @@ def _epf_nps_cross_border(d, ctx):
     }
 
 
+def _compute_cfc_inclusion(corps: list) -> dict:
+    """Phase 7 (XB-14) — GILTI/NCTI + Subpart F quantification. Port of
+    aggregateusincome-nodes.js's computeCfcInclusion.
+
+    Documented simplifications (also surfaced in the "cfc" finding text,
+    crossborder/findings.py):
+     - No QBAI collection — correct per OBBBA TY2026 (10% exclusion eliminated).
+     - No PTEP distribution-year tracking.
+     - CFC-status threshold stays the pre-existing single-owner >50% test
+       (independently re-derived from ownership_percentage here, not trusted
+       off a possibly-stale persisted cfc_status) — a known simplification of
+       the real aggregate US-shareholder test, not fixed here.
+     - Subpart F capped at each CFC's own entered E&P — simplification of full
+       §952(c) mechanics (qualified deficits, CFC chains, etc. not modeled).
+     - No state-tax conformity modeling for GILTI/NCTI.
+     - No §954(b)(4) high-tax exclusion election modeled.
+     - §962-elected inclusion not run through NIIT (Reg. §1.1411-10(c) would
+       generally include it absent an election out) — same simplification
+       already applied to otherOrdinaryIncomeUs.
+     - §962 election modeled per-CFC, matching real law (each CFC may elect
+       separately) — read off each foreign_corporations[] entry independently.
+    """
+    non_elected = {"testedIncome": 0.0, "testedLoss": 0.0, "subpartF": 0.0}
+    elected = {"testedIncome": 0.0, "testedLoss": 0.0, "subpartF": 0.0, "foreignTaxPaid": 0.0}
+    per_cfc_trace = []
+    for c in (corps or []):
+        own_pct = num(c.get("ownership_percentage"))
+        is_cfc = own_pct > 50
+        if not is_cfc:
+            continue  # sub-CFC-threshold holdings: no §951/951A inclusion (existing cfc_below_threshold finding)
+        frac = max(0.0, min(1.0, own_pct / 100))
+        tested_income_usd = max(0.0, num(c.get("tested_income_usd"))) * frac
+        tested_loss_usd = max(0.0, num(c.get("tested_loss_usd"))) * frac
+        ep_usd = max(0.0, num(c.get("ep_usd"))) * frac
+        subpart_f_raw_usd = max(0.0, num(c.get("subpart_f_income_usd"))) * frac
+        subpart_f_usd = min(subpart_f_raw_usd, ep_usd)  # §952(c) E&P cap
+        elect = c.get("sec962_election_planned") is True
+        bucket = elected if elect else non_elected
+        bucket["testedIncome"] += tested_income_usd
+        bucket["testedLoss"] += tested_loss_usd
+        bucket["subpartF"] += subpart_f_usd
+        if elect:
+            elected["foreignTaxPaid"] += max(0.0, num(c.get("foreign_tax_paid_usd"))) * frac
+        per_cfc_trace.append({
+            "name": c.get("corporation_name") or None, "ownershipPct": own_pct, "sec962Elected": elect,
+            "testedIncomeUsd": tested_income_usd, "testedLossUsd": tested_loss_usd, "subpartFIncludedUsd": subpart_f_usd,
+            "subpartFCappedByEp": subpart_f_raw_usd > ep_usd,
+        })
+
+    # True §951A(c)(2) aggregate: summed across ALL non-elected (resp.
+    # elected) CFCs BEFORE the $0 floor — never floored per-CFC then summed,
+    # which would produce a materially different (wrong) answer whenever one
+    # CFC has a loss and another has income.
+    non_elected_ncti_usd = max(0.0, non_elected["testedIncome"] - non_elected["testedLoss"])
+    elected_ncti_usd = max(0.0, elected["testedIncome"] - elected["testedLoss"])
+
+    non_elected_ordinary_inclusion_usd = non_elected_ncti_usd + non_elected["subpartF"]
+
+    T = C.US
+    sec250_deduction_usd = T["NCTI_SECTION_250_RATE"] * elected_ncti_usd  # NCTI portion only, never Subpart F
+    sec962_taxable_base_usd = max(0.0, elected_ncti_usd - sec250_deduction_usd) + elected["subpartF"]
+    sec962_gross_tax_usd = T["C_CORP_RATE"] * sec962_taxable_base_usd
+    sec962_creditable_ftc_usd = min(sec962_gross_tax_usd, T["NCTI_DEEMED_PAID_FTC_RATE"] * elected["foreignTaxPaid"])
+    sec962_net_tax_usd = max(0.0, sec962_gross_tax_usd - sec962_creditable_ftc_usd)
+
+    return {
+        "hasAnyCfc": len(per_cfc_trace) > 0,
+        "nonElectedOrdinaryInclusionUsd": non_elected_ordinary_inclusion_usd,
+        "nonElectedNctiUsd": non_elected_ncti_usd, "nonElectedSubpartFUsd": non_elected["subpartF"],
+        "electedPool": {
+            "nctiUsd": elected_ncti_usd, "subpartFUsd": elected["subpartF"],
+            "sec250DeductionUsd": sec250_deduction_usd, "taxableBaseUsd": sec962_taxable_base_usd,
+            "grossTaxUsd": sec962_gross_tax_usd, "foreignTaxPaidUsd": elected["foreignTaxPaid"],
+            "creditableFtcUsd": sec962_creditable_ftc_usd, "netTaxUsd": sec962_net_tax_usd,
+        },
+        "perCfcTrace": per_cfc_trace,
+    }
+
+
 def _aggregate_us_income_result(d, ctx):
     w, biz, ret, di, epf = d["wagesComputation"], d["businessAndSeComputation"], d["retirementComputation"], d["directIncomeComputation"], d["epfNpsCrossBorder"]
+    cfc = d["cfcInclusionResult"]
     foreign_interest = di["foreignInterestUsd"] + epf["taxableEpfInterestUsd"]
     foreign_pension = di["foreignPensionUsd"] + epf["taxableNpsWithdrawalUsd"]
 
     us_source_total = w["wagesUsd"] + biz["businessUsUsd"] + di["interestUsUsd"] + di["ordinaryDividendsUsUsd"] + di["ltcgUsUsd"] + di["stcgUsUsd"] + di["rentalUsUsd"] + ret["usRetirementIncomeExclSsUsd"] + ret["socialSecurityUsUsd"] + di["otherOrdinaryIncomeUsUsd"]
-    foreign_source_total = d["foreignWagesUsd"] + biz["foreignSelfEmploymentUsd"] + foreign_interest + di["foreignDividendsUsd"] + di["foreignRentalUsd"] + foreign_pension + di["foreignStcgUsd"] + di["foreignLtcgUsd"] + di["section988GainLossUsd"]
+    # The elected pool's pre-tax NCTI/Subpart F is intentionally NOT added
+    # here — it flows through cfcElectedPool into compute_us_tax_core's own
+    # flat-tax add-on instead, mirroring how AMT/NIIT amounts don't appear
+    # in this aggregate either.
+    foreign_source_total = d["foreignWagesUsd"] + biz["foreignSelfEmploymentUsd"] + foreign_interest + di["foreignDividendsUsd"] + di["foreignRentalUsd"] + foreign_pension + di["foreignStcgUsd"] + di["foreignLtcgUsd"] + di["section988GainLossUsd"] + cfc["nonElectedOrdinaryInclusionUsd"]
 
     return {
         "wages": _m(w["wagesUsd"], ctx), "businessUs": _m(biz["businessUsUsd"], ctx), "w2Withholding": w["w2WithholdingUsd"], "w2Employers": w["w2Employers"], "medicareWages": w["medicareWagesUsd"],
@@ -492,6 +576,9 @@ def _aggregate_us_income_result(d, ctx):
         "foreignStcg": _m(di["foreignStcgUsd"], ctx), "foreignLtcg": _m(di["foreignLtcgUsd"], ctx),
         "foreignCapitalGains": _m(di["foreignStcgUsd"] + di["foreignLtcgUsd"], ctx),
         "foreignSection988GainLoss": _m(di["section988GainLossUsd"], ctx),
+        "cfcNonElectedInclusionUs": _m(cfc["nonElectedOrdinaryInclusionUsd"], ctx),
+        "cfcElectedPool": cfc["electedPool"],       # raw numbers, not money-converted — consumed directly by compute_us_tax_core
+        "cfcPerEntityTrace": cfc["perCfcTrace"],    # for the findings/entity-graph consumers
         "retirementEpfInterestUsd": epf["taxableEpfInterestUsd"], "retirementNpsWithdrawalUsd": epf["taxableNpsWithdrawalUsd"],
         "usSourceTotal": _m(us_source_total, ctx), "foreignSourceTotal": _m(foreign_source_total, ctx),
         "total": _m(us_source_total + foreign_source_total, ctx),
@@ -649,8 +736,29 @@ def build(base):
         layer1_fields=("india.other_sources.taxable_epf_interest_inr", "india.other_sources.taxable_nps_withdrawal_inr"),
     ))
 
+    # Phase 7 (XB-14): duplicated from crossborder/cross_basis.py's own
+    # usForeignCorpsRaw (deps=(), harmless redefinition — Python's NodeRegistry
+    # composes everything into one registry via register()/override(), unlike
+    # the JS require-chain ordering constraint this duplication works around
+    # on that side; kept here anyway for the same single-source-of-truth
+    # reason, since these functions are literal line-for-line mirrors of the JS).
+    r.register("usForeignCorpsRawForIncome", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_entities.foreign_corporations", []) or []))
+    r.register("cfcInclusionResult", NodeDef(
+        deps=("usForeignCorpsRawForIncome",), compute=lambda d, ctx: _compute_cfc_inclusion(d["usForeignCorpsRawForIncome"]),
+        layer1_fields=(
+            "us.foreign_entities.foreign_corporations[].ownership_percentage",
+            "us.foreign_entities.foreign_corporations[].tested_income_usd",
+            "us.foreign_entities.foreign_corporations[].tested_loss_usd",
+            "us.foreign_entities.foreign_corporations[].subpart_f_income_usd",
+            "us.foreign_entities.foreign_corporations[].ep_usd",
+            "us.foreign_entities.foreign_corporations[].foreign_tax_paid_usd",
+            "us.foreign_entities.foreign_corporations[].sec962_election_planned",
+            "us.foreign_entities.foreign_corporations[].corporation_name",
+        ),
+    ))
+
     r.register("aggregateUsIncomeResult", NodeDef(
-        deps=("wagesComputation", "foreignWagesUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder"),
+        deps=("wagesComputation", "foreignWagesUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult"),
         compute=_aggregate_us_income_result,
     ))
     return r

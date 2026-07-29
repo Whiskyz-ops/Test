@@ -375,7 +375,32 @@
         "qbiUbiaUsd": 0,
         "collectiblesLtcgUsd": 0,
         "qsbsExcludedGainUsd": 0,
-        "qsbsTaxableGainUsd": 0
+        "qsbsTaxableGainUsd": 0,
+        "cfcNonElectedInclusionUs": {
+          "usd": 0.0,
+          "inr": 0.0
+        },
+        "cfcElectedPool": {
+          "nctiUsd": 0.0,
+          "subpartFUsd": 0.0,
+          "sec250DeductionUsd": 0.0,
+          "taxableBaseUsd": 0.0,
+          "grossTaxUsd": 0.0,
+          "foreignTaxPaidUsd": 0.0,
+          "creditableFtcUsd": 0.0,
+          "netTaxUsd": 0.0
+        },
+        "cfcPerEntityTrace": [
+          {
+            "name": "Nova Systems Pvt Ltd",
+            "ownershipPct": 100.0,
+            "sec962Elected": false,
+            "testedIncomeUsd": 0.0,
+            "testedLossUsd": 0.0,
+            "subpartFIncludedUsd": 0.0,
+            "subpartFCappedByEp": false
+          }
+        ]
       }
     },
     "deductions": {
@@ -540,15 +565,15 @@
           "country": "IN",
           "type": "Foreign corporation (CFC)",
           "name": "Nova Systems Pvt Ltd",
-          "incomeUsd": 108433,
+          "incomeUsd": 0.0,
           "cfc": true,
-          "gilti": 108433,
+          "gilti": 0.0,
           "ownershipPct": 100,
           "filesOwnReturn": true,
-          "returnForm": "Foreign local return (not modeled) + Form 5471 (informational, US) + GILTI on Schedule 1 (Form 1040)",
+          "returnForm": "Foreign local return (not modeled) + Form 5471 (informational, US) + NCTI/GILTI + Subpart F on Schedule 1 (Form 1040)",
           "calcTrace": {
             "kind": "source",
-            "detail": "GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) \u2014 a hand-entered estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled yet (see gap tracker). Ownership: 100%. This is a US inclusion only \u2014 the entity's own foreign-country income tax return is separate and not shown here.",
+            "detail": "NCTI + Subpart F inclusion computed from this CFC's entered tested income/loss, Subpart F income and E&P (\u00a7951/\u00a7951A), pro-rated by ownership: 100%. See the CFC/NCTI finding for the full \u00a7250 deduction / \u00a7962 tax / FTC breakdown. Documented simplifications: no QBAI (correctly eliminated OBBBA TY2026), no PTEP tracking, no state conformity modeled.",
             "citation": null
           }
         }
@@ -1255,6 +1280,20 @@
         "rate": 0.0,
         "eligibleContributionUsd": 2000,
         "agiUsd": 197624.0
+      },
+      "gilti962TaxUsd": 0.0,
+      "cfcDetail": {
+        "nonElectedInclusionUsd": 0.0,
+        "electedPool": {
+          "nctiUsd": 0.0,
+          "subpartFUsd": 0.0,
+          "sec250DeductionUsd": 0.0,
+          "taxableBaseUsd": 0.0,
+          "grossTaxUsd": 0.0,
+          "foreignTaxPaidUsd": 0.0,
+          "creditableFtcUsd": 0.0,
+          "netTaxUsd": 0.0
+        }
       }
     },
     "stateTax": null,
@@ -1508,12 +1547,12 @@
       "severity": "warning",
       "category": "entity",
       "title": "Controlled Foreign Corporation \u2014 Form 5471 required (GILTI/Subpart F not yet quantified)",
-      "detail": "Layer 1 records the US person owning \u226510% of a foreign corporation, so Form 5471 applies and GILTI / Subpart F can accelerate US tax on undistributed Indian profits before any dividend is paid. WISING flags the exposure from the ownership data but does NOT yet compute a GILTI/Subpart F inclusion amount \u2014 that requires the entity's tested income, E&P and qualified business asset investment (QBAI), which Layer 1 doesn't collect today.",
-      "recommendation": "File Form 5471 regardless. To quantify GILTI/Subpart F (and evaluate the \u00a7962 election against India's MAT/credit), collect the Indian company's tested income, E&P and QBAI \u2014 until then, treat this as a required-filing flag, not a computed liability.",
+      "detail": "Layer 1 records the US person owning \u226510% of a foreign corporation, so Form 5471 applies and GILTI / Subpart F can accelerate US tax on undistributed Indian profits before any dividend is paid. Ownership is on file but no tested income/loss, Subpart F income, or E&P has been entered yet for this entity, so no inclusion amount is computed.",
+      "recommendation": "File Form 5471 regardless. Enter the CFC's tested income/loss, Subpart F income and E&P on the Foreign Entities screen to quantify the GILTI/NCTI and Subpart F inclusion (and evaluate the \u00a7962 election).",
       "amountUsd": 0,
       "refs": [
         "Form 5471",
-        "GILTI \u00a7951A",
+        "GILTI/NCTI \u00a7951A",
         "Subpart F",
         "\u00a7962 election"
       ]

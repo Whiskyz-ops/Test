@@ -98,11 +98,18 @@ NODES.crossBasisResult = {
       }
       if (businessUsd > 0) {
         if (viaForeignCorp) {
+          // Phase 7 (XB-14): real gross inclusion (pre-§250 deduction, pre-
+          // §962 tax) from aggregateUsIncomeResult, replacing the previous
+          // hardcoded usLawUsd: 0 placeholder.
+          var cfcUsLawUsd = (us.cfcNonElectedInclusionUs ? us.cfcNonElectedInclusionUs.usd : 0) +
+            (us.cfcElectedPool ? (us.cfcElectedPool.nctiUsd + us.cfcElectedPool.subpartFUsd) : 0);
           row({ head: "business", label: "Business / Professional", dir: "IN→US", source: "India",
-            indiaLawUsd: businessUsd, usLawUsd: 0,
+            indiaLawUsd: businessUsd, usLawUsd: cfcUsLawUsd,
             indiaRule: "PGBP net · Indian depreciation",
-            usRule: "Held via Indian company → not personal income; taxed via CFC/GILTI (Form 5471)",
-            note: "See the Form 5471 finding." });
+            usRule: cfcUsLawUsd > 0
+              ? "NCTI + Subpart F inclusion under §951/§951A (computed from tested income/loss + Subpart F, pro-rated by ownership%)"
+              : "Held via Indian company → not personal income; taxed via CFC/GILTI (Form 5471)",
+            note: "See the CFC/NCTI finding for the §250 deduction / §962 tax / FTC breakdown." });
         } else {
           row({ head: "business", label: "Business / Professional", dir: "IN→US", source: "India",
             indiaLawUsd: businessUsd, usLawUsd: businessUsd, estimate: true,

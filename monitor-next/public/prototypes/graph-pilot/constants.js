@@ -277,6 +277,55 @@
           mfs:    { br0: 49450, br15: 306850 },
           hoh:    { br0: 66200, br15: 579600 }
         },
+        // ---- §1(h)(4) collectibles gain: LTCG only, capped at 28% (never
+        // gets 0/15/20% treatment) ----
+        COLLECTIBLES_RATE: 0.28,
+        // ---- §1202 QSBS exclusion. OBBBA (H.R.1, signed 4 Jul 2025)
+        // replaced the old 5-year-cliff/100%-exclusion/$10M-cap regime with
+        // a tiered 3/4/5-year 50%/75%/100% exclusion and a $15M cap, but
+        // ONLY for stock acquired on or after 5 Jul 2025 (the day after
+        // enactment) -- stock acquired earlier keeps the old cliff rule
+        // (assuming acquisition after 27 Sep 2010, the last date the
+        // exclusion was less than 100% under prior law -- realistic for any
+        // stock still held into TY2026). Exclusion cap is always the
+        // GREATER of the flat dollar cap or 10x the taxpayer's adjusted
+        // basis in the stock (§1202(b)(1)(A)/(B)).
+        QSBS_OBBBA_EFFECTIVE_DATE: "2025-07-05",
+        QSBS_PRE_OBBBA_CAP_USD: 10000000,
+        QSBS_OBBBA_CAP_USD: 15000000,
+        QSBS_OBBBA_TIERS: [{ years: 5, pct: 1.00 }, { years: 4, pct: 0.75 }, { years: 3, pct: 0.50 }],
+        // DAG-only addition (no equivalent in the frozen engine or in
+        // layer1_us.html beyond the "dividends"/"interest"/"royalties"
+        // dropdown at #treaty-rates-tbody): India-US Income Tax Treaty
+        // (1989) withholding-rate ceilings for the three FDAP categories
+        // the Layer 1 "Treaty Tax Rates" table collects, keyed by the same
+        // income_type strings that dropdown writes. Used only to sanity-
+        // check a preparer's claimed rate against a real treaty rate (the
+        // treaty_rate_not_recognized finding) -- does NOT pick a sub-rate
+        // automatically, since which one applies depends on facts this
+        // form doesn't collect (e.g. whether the recipient is a corporate
+        // shareholder owning >=10% of voting stock, whether interest is
+        // from a bank/financial-institution loan, or whether a royalty is
+        // for equipment use vs. a copyright/patent/trademark). Sourced
+        // from IRS Publication 901 / the Treasury Technical Explanation of
+        // the treaty -- like every other statutory figure in this file,
+        // NOT a substitute for confirming against the current treaty
+        // text/Pub. 901 before relying on it in production.
+        INDIA_US_TREATY_FDAP_RATES: {
+          dividends: {
+            rates: [0.25, 0.15], article: "Art. 10",
+            note: "25% general portfolio rate; 15% if the recipient is a company owning ≥ 10% of the paying company's voting stock"
+          },
+          interest: {
+            rates: [0.15, 0.10], article: "Art. 11",
+            note: "15% general; 10% on interest from loans made by banks or similar financial institutions carrying on a genuine banking business"
+          },
+          royalties: {
+            rates: [0.15, 0.10], article: "Art. 12",
+            note: "15% for copyrights, patents, trademarks, designs/models/plans, and trade secrets; 10% for the use of industrial, commercial, or scientific equipment"
+          }
+        },
+        TREATY_RATE_TOLERANCE: 0.001,
         // SALT cap under OBBBA: raised from a flat $10,000 (TCJA) to $40,000
         // ($20,000 MFS) for TY2025, then indexed +1%/year 2026-2029 —
         // TY2026 is $40,400 ($20,200 MFS), phased DOWN 30 cents per dollar of
@@ -290,6 +339,12 @@
         NIIT_RATE: 0.038,
         ADDL_MEDICARE_RATE: 0.009,
         C_CORP_RATE: 0.21,
+        // ---- NCTI (renamed from GILTI, OBBBA TY2026) ----
+        NCTI_SECTION_250_RATE: 0.40,        // was 0.50 pre-OBBBA; only available to a §962 elector (or a C-corp, out of scope here)
+        NCTI_DEEMED_PAID_FTC_RATE: 0.90,    // was 0.80 pre-OBBBA; only available to a §962 elector
+        // NOTE: the QBAI 10% net deemed tangible income return exclusion is
+        // ELIMINATED for TY2026+ (OBBBA) — no constant needed; NCTI =
+        // aggregate tested income minus aggregate tested loss, floored at 0.
         // ---- Social Security benefit taxability (s.86) ----
         // "Provisional income" (a.k.a. combined income) test: base/
         // additional thresholds, UNLIKE nearly every other figure in this

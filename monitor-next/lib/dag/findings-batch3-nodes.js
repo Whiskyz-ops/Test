@@ -163,7 +163,7 @@ NODES.findingsBatch3Result = {
     "usTaxResult", "salaryInr", "ftcResult", "hasPERaw",
     "epfInrRaw", "ppfInrRaw", "npsInrRaw", "taxableEpfInterestInrAgg", "taxableNpsWithdrawalInrAgg",
     "promoterBuybackDetail", "foreignGiftsRaw", "stateResidencyRaw",
-    "treatyIndiaResidenceRaw", "treatyUsResidenceRaw", "treatyDtaaForcedNrRaw", "nraRaw"],
+    "treatyIndiaResidenceRaw", "treatyUsResidenceRaw", "treatyDtaaForcedNrRaw", "nraRaw", "cfcInclusionResult"],
   compute: function (d, ctx) {
     var findings = [];
     function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {
@@ -256,18 +256,36 @@ NODES.findingsBatch3Result = {
         0, ["Form 8621", "§1291", "QEF / MTM"]);
     }
 
-    // -- 9. CFC / FORM 5471 (conflicts.js:1151-1172) -------------------------
+    // -- 9. CFC / FORM 5471 (conflicts.js:1151-1172; XB-14 quantification) --
     var bizCount = d.bizEntriesAgg.length;
     if (d.viaForeignCorpXbr4 && res.us.isResident) {
-      add("cfc", "warning", "entity",
-        "Controlled Foreign Corporation — Form 5471 required (GILTI/Subpart F not yet quantified)",
-        "Layer 1 records the US person owning ≥10% of a foreign corporation" + (bizCount > 0 ? " (Indian company on file)" : "") +
-        ", so Form 5471 applies and GILTI / Subpart F can accelerate US tax on undistributed Indian profits before any dividend is paid. " +
-        "WISING flags the exposure from the ownership data but does NOT yet compute a GILTI/Subpart F inclusion amount — that requires the " +
-        "entity's tested income, E&P and qualified business asset investment (QBAI), which Layer 1 doesn't collect today.",
-        "File Form 5471 regardless. To quantify GILTI/Subpart F (and evaluate the §962 election against India's MAT/credit), collect the " +
-        "Indian company's tested income, E&P and QBAI — until then, treat this as a required-filing flag, not a computed liability.",
-        0, ["Form 5471", "GILTI §951A", "Subpart F", "§962 election"]);
+      var cfc = d.cfcInclusionResult;
+      // Only report computed numbers once real financial data has actually
+      // been entered for at least one CFC — ownership alone (hasAnyCfc)
+      // isn't enough, since every field defaults to 0 and would otherwise
+      // print a "$0 inclusion" title indistinguishable from "not entered".
+      var cfcHasFinancials = cfc.nonElectedOrdinaryInclusionUsd > 0 || cfc.electedPool.nctiUsd > 0 || cfc.electedPool.subpartFUsd > 0;
+      if (cfc.hasAnyCfc && cfcHasFinancials) {
+        var nonElectedTotal = cfc.nonElectedOrdinaryInclusionUsd;
+        var electedTotal = cfc.electedPool.netTaxUsd;
+        add("cfc", "warning", "entity",
+          "Controlled Foreign Corporation — NCTI/Subpart F inclusion: " + usd(nonElectedTotal + electedTotal) +
+          (nonElectedTotal > 0 && (cfc.electedPool.nctiUsd + cfc.electedPool.subpartFUsd) > 0 ? " (mixed elected/non-elected)" : ""),
+          "Form 5471 applies. " +
+          (nonElectedTotal > 0 ? "Without a §962 election: " + usd(nonElectedTotal) + " of NCTI + Subpart F is included in full as ordinary income (no §250 deduction, no indirect FTC available). " : "") +
+          ((cfc.electedPool.nctiUsd + cfc.electedPool.subpartFUsd) > 0 ? "With a §962 election: " + usd(cfc.electedPool.taxableBaseUsd) + " taxable base (after the 40% §250 deduction on the NCTI portion — OBBBA TY2026, Subpart F never gets §250) at a flat 21% rate, less a " + usd(cfc.electedPool.creditableFtcUsd) + " deemed-paid FTC (90% of foreign tax paid — OBBBA TY2026), net tax " + usd(cfc.electedPool.netTaxUsd) + ". " : "") +
+          "Documented simplifications: QBAI is not collected (OBBBA TY2026 eliminated the 10% QBAI return exclusion, so it isn't needed for the core inclusion); no PTEP/E&P distribution-year tracking; Subpart F capped at each CFC's own entered E&P; no high-tax exclusion election modeled; ownership-based CFC-status test is a simplified single->50%-owner test, not the real aggregate US-shareholder test; state conformity to GILTI/NCTI (many states decouple) not modeled.",
+          "File Form 5471 regardless. Confirm each CFC's actual tested income/loss, Subpart F income, E&P and foreign tax paid with the entity's own books before relying on this for filing — these are preparer-entered estimates, not independently verified.",
+          nonElectedTotal + electedTotal, ["Form 5471", "GILTI/NCTI §951A", "Subpart F", "§962 election", "§250 deduction"]);
+      } else {
+        add("cfc", "warning", "entity",
+          "Controlled Foreign Corporation — Form 5471 required (GILTI/Subpart F not yet quantified)",
+          "Layer 1 records the US person owning ≥10% of a foreign corporation" + (bizCount > 0 ? " (Indian company on file)" : "") +
+          ", so Form 5471 applies and GILTI / Subpart F can accelerate US tax on undistributed Indian profits before any dividend is paid. " +
+          "Ownership is on file but no tested income/loss, Subpart F income, or E&P has been entered yet for this entity, so no inclusion amount is computed.",
+          "File Form 5471 regardless. Enter the CFC's tested income/loss, Subpart F income and E&P on the Foreign Entities screen to quantify the GILTI/NCTI and Subpart F inclusion (and evaluate the §962 election).",
+          0, ["Form 5471", "GILTI/NCTI §951A", "Subpart F", "§962 election"]);
+      }
     } else if (bizCount > 0 && res.us.isResident) {
       add("cfc_below_threshold", "info", "entity",
         "Indian company held below the 10% CFC threshold",

@@ -345,7 +345,22 @@
         "qbiUbiaUsd": 0,
         "collectiblesLtcgUsd": 0,
         "qsbsExcludedGainUsd": 0,
-        "qsbsTaxableGainUsd": 0
+        "qsbsTaxableGainUsd": 0,
+        "cfcNonElectedInclusionUs": {
+          "usd": 0.0,
+          "inr": 0.0
+        },
+        "cfcElectedPool": {
+          "nctiUsd": 0.0,
+          "subpartFUsd": 0.0,
+          "sec250DeductionUsd": 0.0,
+          "taxableBaseUsd": 0.0,
+          "grossTaxUsd": 0.0,
+          "foreignTaxPaidUsd": 0.0,
+          "creditableFtcUsd": 0.0,
+          "netTaxUsd": 0.0
+        },
+        "cfcPerEntityTrace": []
       }
     },
     "deductions": {
@@ -554,7 +569,7 @@
             "citation": null
           },
           "cfc": true,
-          "gilti": 21687,
+          "gilti": 21687.0,
           "ownershipPct": 0
         }
       ]
@@ -1092,6 +1107,20 @@
         "rate": 0.0,
         "eligibleContributionUsd": 0.0,
         "agiUsd": 245395.0
+      },
+      "gilti962TaxUsd": 0.0,
+      "cfcDetail": {
+        "nonElectedInclusionUsd": 0.0,
+        "electedPool": {
+          "nctiUsd": 0.0,
+          "subpartFUsd": 0.0,
+          "sec250DeductionUsd": 0.0,
+          "taxableBaseUsd": 0.0,
+          "grossTaxUsd": 0.0,
+          "foreignTaxPaidUsd": 0.0,
+          "creditableFtcUsd": 0.0,
+          "netTaxUsd": 0.0
+        }
       }
     },
     "stateTax": null,
@@ -1132,7 +1161,7 @@
           "usLawUsd": 0,
           "indiaRule": "PGBP net \u00b7 Indian depreciation",
           "usRule": "Held via Indian company \u2192 not personal income; taxed via CFC/GILTI (Form 5471)",
-          "note": "See the Form 5471 finding.",
+          "note": "See the CFC/NCTI finding for the \u00a7250 deduction / \u00a7962 tax / FTC breakdown.",
           "doublyTaxed": false,
           "overlapUsd": 0
         },
@@ -1415,12 +1444,12 @@
       "severity": "warning",
       "category": "entity",
       "title": "Controlled Foreign Corporation \u2014 Form 5471 required (GILTI/Subpart F not yet quantified)",
-      "detail": "Layer 1 records the US person owning \u226510% of a foreign corporation (Indian company on file), so Form 5471 applies and GILTI / Subpart F can accelerate US tax on undistributed Indian profits before any dividend is paid. WISING flags the exposure from the ownership data but does NOT yet compute a GILTI/Subpart F inclusion amount \u2014 that requires the entity's tested income, E&P and qualified business asset investment (QBAI), which Layer 1 doesn't collect today.",
-      "recommendation": "File Form 5471 regardless. To quantify GILTI/Subpart F (and evaluate the \u00a7962 election against India's MAT/credit), collect the Indian company's tested income, E&P and QBAI \u2014 until then, treat this as a required-filing flag, not a computed liability.",
+      "detail": "Layer 1 records the US person owning \u226510% of a foreign corporation (Indian company on file), so Form 5471 applies and GILTI / Subpart F can accelerate US tax on undistributed Indian profits before any dividend is paid. Ownership is on file but no tested income/loss, Subpart F income, or E&P has been entered yet for this entity, so no inclusion amount is computed.",
+      "recommendation": "File Form 5471 regardless. Enter the CFC's tested income/loss, Subpart F income and E&P on the Foreign Entities screen to quantify the GILTI/NCTI and Subpart F inclusion (and evaluate the \u00a7962 election).",
       "amountUsd": 0,
       "refs": [
         "Form 5471",
-        "GILTI \u00a7951A",
+        "GILTI/NCTI \u00a7951A",
         "Subpart F",
         "\u00a7962 election"
       ]
