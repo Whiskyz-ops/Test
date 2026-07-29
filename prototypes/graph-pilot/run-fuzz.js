@@ -501,6 +501,31 @@ var KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS = [
   // limitation calc and the combined-tax headline too.
   "computed.ftc.us", "computed.ftc.india", "computed.ftc.netUnrelievedDoubleTaxUsd",
   "computed.headline.combinedTaxBeforeReliefUsd", "computed.headline.usTaxUsd", "computed.headline.netUnrelievedDoubleTaxUsd",
+  // Same cascade as isFeieWagesDivergent's KNOWN_FEIE_WAGES_DIVERGENT_PATHS
+  // above: a different QBI-driven usTax/AMT/FTC number reaches the display
+  // layer (report rows, the FTC narrative report) and the $-amount-bearing
+  // findings (amt_applies, underpayment_2210), not just computed.*.
+  "taxComputation.us", "ftcReport", "summary.usTaxUsd", "summary.netDoubleTaxUsd",
+];
+// §25B Saver's Credit (task #44 follow-up): saversCreditUsd/saversCreditDetail
+// themselves are excused unconditionally via DAG_ONLY_KEYS above (the frozen
+// engine never implements Form 8880 at all), but a NONZERO credit also
+// changes otherCreditsUsd/creditsUsd — which feed totalTaxBeforeFtcUsd and
+// everything downstream of it (same "parallel flat-tax-adjacent input"
+// cascade as the QBI wage/UBIA limit above) — that cascade was never
+// allowlisted, so it showed up as ~17 NEW unknown fuzz mismatches once
+// profiles with real retirement contributions + low-enough AGI got fuzzed
+// together (discovered while re-verifying the QBI carve-out above).
+function isSaversCreditDivergent(dag) {
+  var usTax = dag.computed.usTax;
+  return !!(usTax && !usTax.isEntity && !usTax.isNra && usTax.saversCreditUsd > 0);
+}
+var KNOWN_SAVERS_CREDIT_DIVERGENT_PATHS = [
+  "computed.usTax.otherCreditsUsd", "computed.usTax.creditsUsd", "computed.usTax.ctcDetail",
+  "computed.usTax.totalTaxBeforeFtcUsd",
+  "computed.ftc.us", "computed.ftc.netUnrelievedDoubleTaxUsd",
+  "computed.headline.usTaxUsd", "computed.headline.combinedTaxBeforeReliefUsd", "computed.headline.netUnrelievedDoubleTaxUsd",
+  "taxComputation.us", "ftcReport", "summary.usTaxUsd", "summary.netDoubleTaxUsd",
 ];
 var KNOWN_US_ENTITY_DIVERGENT_PATHS = [
   "computed.headline.totalIncomeUsd", "computed.ftc.india", "taxComputation.us", "summary.totalIncomeUsd",
@@ -813,15 +838,19 @@ function compareOne(label, profile, saveOnFail) {
   var usEntity = isUsEntityProfile(dag);
   var indiaAopOrTrust = isIndiaAopOrTrustProfile(dag);
   var feieWagesDivergent = isFeieWagesDivergentProfile(profile);
+  var qbiWageLimitDivergent = isQbiWageLimitDivergent(dag);
+  var saversCreditDivergent = isSaversCreditDivergent(dag);
   var findingsResult = compareFindings(dag.findings, real.findings, usEntity);
   // AOP/Trust: findings content genuinely cascades from the (now correct)
   // India tax amount in ways too varied to enumerate by finding ID (see
   // KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS's comment) — treated wholesale as
   // known rather than diffed ID-by-ID, same principle as taxComputation.us/
   // india being treated as fully-diverging blocks for the entity cases above.
-  // feieWagesDivergent (see KNOWN_FEIE_WAGES_DIVERGENT_PATHS above) cascades
-  // the same way into every $-amount-bearing finding.
-  var findingsExcused = indiaAopOrTrust || feieWagesDivergent;
+  // feieWagesDivergent (see KNOWN_FEIE_WAGES_DIVERGENT_PATHS above) and
+  // qbiWageLimitDivergent (see KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS above)
+  // cascade the same way into every $-amount-bearing finding (amt_applies,
+  // underpayment_2210, etc).
+  var findingsExcused = indiaAopOrTrust || feieWagesDivergent || qbiWageLimitDivergent || saversCreditDivergent;
   (findingsExcused ? knownDiffs : realDiffs).push.apply(findingsExcused ? knownDiffs : realDiffs, findingsResult.unknown);
   knownDiffs.push.apply(knownDiffs, findingsResult.known);
 
@@ -860,7 +889,8 @@ function compareOne(label, profile, saveOnFail) {
     .concat(isUsTrustProfile(dag) ? KNOWN_US_TRUST_DIVERGENT_PATHS : [])
     .concat(feieWagesDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(isFeieEntityGateMissingProfile(dag, profile) ? KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS : [])
-    .concat(isQbiWageLimitDivergent(dag) ? KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS : []);
+    .concat(isQbiWageLimitDivergent(dag) ? KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS : [])
+    .concat(saversCreditDivergent ? KNOWN_SAVERS_CREDIT_DIVERGENT_PATHS : []);
   if (allowedPaths.length) {
     var stillReal = [];
     realDiffs.forEach(function (diff) {

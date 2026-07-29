@@ -87,7 +87,7 @@ function runCase(id, router, india, us) {
     // XB-14 (GILTI/NCTI, this session). qsbsTaxableGainUsd/qsbsExcludedGainUsd/
     // collectiblesTaxUsd/collectiblesGainUsd: concurrent session's capital-
     // gains special-rates work (§1202 QSBS / §1(h)(4) collectibles).
-    var NEW_FIELD_KEYS = { gilti962TaxUsd: true, cfcDetail: true, qsbsTaxableGainUsd: true, qsbsExcludedGainUsd: true, collectiblesTaxUsd: true, collectiblesGainUsd: true };
+    var NEW_FIELD_KEYS = { gilti962TaxUsd: true, cfcDetail: true, qsbsTaxableGainUsd: true, qsbsExcludedGainUsd: true, collectiblesTaxUsd: true, collectiblesGainUsd: true, saversCreditUsd: true, saversCreditDetail: true };
     var NRA_NEW_FIELD_KEYS = { standardDeductionUsd: true, itemizedDeductionUsd: true, article212Eligible: true, article212AmbiguousJ1: true };
     function assertNewFieldsPresent(prefix, obj, keys) {
       Object.keys(keys).forEach(function (k) {
@@ -124,7 +124,7 @@ function runCase(id, router, india, us) {
     // (added for the FTC wiring) — translate rather than expect a mirror.
     // gilti962TaxUsd/cfcDetail/qsbs*/collectibles*: new DAG-only fields, no
     // frozen-engine equivalent — asserted directly instead of deep-compared.
-    var NEW_FIELD_KEYS_IND = { gilti962TaxUsd: true, cfcDetail: true, qsbsTaxableGainUsd: true, qsbsExcludedGainUsd: true, collectiblesTaxUsd: true, collectiblesGainUsd: true };
+    var NEW_FIELD_KEYS_IND = { gilti962TaxUsd: true, cfcDetail: true, qsbsTaxableGainUsd: true, qsbsExcludedGainUsd: true, collectiblesTaxUsd: true, collectiblesGainUsd: true, saversCreditUsd: true, saversCreditDetail: true };
     Object.keys(out).forEach(function (k) {
       if (k === "feieAppliedUsd") return deepCheck("usTax.feieAppliedUsd(alias)", out[k], (real.feie && real.feie.appliedUsd) || 0);
       if (NEW_FIELD_KEYS_IND[k]) {
