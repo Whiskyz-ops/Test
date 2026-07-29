@@ -33,6 +33,11 @@ US = {
     "NIIT_RATE": 0.038,
     "ADDL_MEDICARE_RATE": 0.009,
     "C_CORP_RATE": 0.21,
+    # ---- NCTI (renamed from GILTI, OBBBA TY2026) ----
+    "NCTI_SECTION_250_RATE": 0.40,        # was 0.50 pre-OBBBA; only available to a §962 elector (or a C-corp, out of scope here)
+    "NCTI_DEEMED_PAID_FTC_RATE": 0.90,    # was 0.80 pre-OBBBA; only available to a §962 elector
+    # QBAI 10% exclusion eliminated TY2026+ (OBBBA) — no constant needed;
+    # NCTI = aggregate tested income minus aggregate tested loss, floored at 0.
     "SS_PROVISIONAL_INCOME_BASE_USD": {"single": 25000, "mfj": 32000, "mfs": 0, "hoh": 25000},
     "SS_PROVISIONAL_INCOME_ADDITIONAL_USD": {"single": 34000, "mfj": 44000, "mfs": 0, "hoh": 34000},
     "SS_TAXABLE_TIER1_RATE": 0.5,

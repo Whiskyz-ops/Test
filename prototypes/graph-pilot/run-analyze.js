@@ -92,6 +92,20 @@ WISING.PROFILES.forEach(function (p) {
   // the US-entity/NRA path — reported, not asserted, for those 2 profiles.
   var usTaxDependentIds = ["ftc_gap", "ftc_available", "amt_applies"];
   var mineFindings = out.findings, realFindings = r.findings;
+  // XB-14 (GILTI/NCTI quantification): the "cfc" finding's detail/
+  // recommendation text now differs unconditionally from the frozen
+  // engine's static text whenever it fires — real computed inclusion
+  // numbers once tested income/loss/Subpart F/E&P data is entered for a
+  // CFC, and improved wording/refs (GILTI/NCTI vs. the old GILTI-only
+  // language) even at $0 when only ownership is on file. Stripped from
+  // both sides before the deepEqual, same shape as the usTaxDependentIds
+  // carve-out below.
+  var isCfcTextDivergent = mineFindings.some(function (f) { return f.id === "cfc"; }) || realFindings.some(function (f) { return f.id === "cfc"; });
+  if (isCfcTextDivergent) {
+    mineFindings = mineFindings.filter(function (f) { return f.id !== "cfc"; });
+    realFindings = realFindings.filter(function (f) { return f.id !== "cfc"; });
+    console.log("    (reported, not asserted) \"cfc\" finding text diverges here — XB-14 GILTI/NCTI quantification, see comment above");
+  }
   if (isUsEntity || isNra) {
     mineFindings = mineFindings.filter(function (f) { return usTaxDependentIds.indexOf(f.id) === -1; });
     realFindings = realFindings.filter(function (f) { return usTaxDependentIds.indexOf(f.id) === -1; });

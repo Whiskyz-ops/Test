@@ -628,7 +628,13 @@
       // Form 5471 metadata, not read anywhere in normalize.js/
       // computation.js, so this has no effect on GILTI or any other
       // computed figure.
-      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corporation_name: "Nova Systems Pvt Ltd", country_of_incorporation: "IN", ownership_percentage: 100, tax_year_start: "2026-04-01", gilti_income_usd: 108433, subpart_f_income_usd: 0, section_962_election_active: false, linked_client_id: "india_pvt_ltd" }], pfic_holdings: [], has_pfics: false },
+      // Phase 7 (XB-14): real CFC financials replace the old hand-entered
+      // gilti_income_usd placeholder — tested_income_usd carries the same
+      // $108,433 figure forward so this fixture's computed NCTI inclusion
+      // lines up with its own documented history. No §962 election (the
+      // non-elected, full-ordinary-inclusion path) — Cloudspire below
+      // exercises the elected path instead.
+      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corporation_name: "Nova Systems Pvt Ltd", country_of_incorporation: "IN", ownership_percentage: 100, tax_year_start: "2026-04-01", tested_income_usd: 108433, tested_loss_usd: 0, subpart_f_income_usd: 0, ep_usd: 200000, foreign_tax_paid_usd: 0, sec962_election_planned: false, linked_client_id: "india_pvt_ltd" }], pfic_holdings: [], has_pfics: false },
       retirement_accounts: { "401k_employee_contribution_usd": 23000, "401k_employer_match_usd": 8000 },
       financial_holdings: [{ asset_name: "Fidelity — Taxable Brokerage (US equities)", account_type: "taxable_brokerage", peak_balance_usd: 240000, country: "US" }],
       real_estate: { has_real_estate_transaction: true, properties: [{ name: "Primary home — Austin, TX", property_type: "Residential (own use)", gross_rent_usd: 0, expenses_usd: 0 }] },
@@ -1167,7 +1173,12 @@
       // etc.) — this only fixes what's visible in the form.
       // tax_year_start added same session too, same rationale as
       // founder_indian_company's own entry above.
-      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corporation_name: "Cloudspire India Pvt Ltd", country_of_incorporation: "IN", ownership_percentage: 100, tax_year_start: "2026-04-01", gilti_income_usd: 963855, subpart_f_income_usd: 0 }], pfic_holdings: [] },
+      // Phase 7 (XB-14): real CFC financials, §962 election ON — exercises
+      // the elected (§250 deduction / flat 21% / deemed-paid FTC) path,
+      // complementing Nova Systems' non-elected path above. foreign_tax_paid_usd
+      // reuses the same $240,964 figure already asserted via ftc_inputs
+      // below (this fixture's own "thematically tied" foreign-tax figure).
+      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corporation_name: "Cloudspire India Pvt Ltd", country_of_incorporation: "IN", ownership_percentage: 100, tax_year_start: "2026-04-01", tested_income_usd: 963855, tested_loss_usd: 0, subpart_f_income_usd: 0, ep_usd: 1200000, foreign_tax_paid_usd: 240964, sec962_election_planned: true }], pfic_holdings: [] },
       retirement_accounts: {},
       ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "General", foreign_taxes_usd: 240964 }] },
       withholding_and_estimated: { estimated_tax_q1_apr15_usd: 200000, estimated_tax_q2_jun15_usd: 220000 },

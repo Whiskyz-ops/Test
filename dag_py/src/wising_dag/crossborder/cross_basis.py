@@ -55,12 +55,19 @@ def _cross_basis_result(d, ctx):
             })
         if business_usd > 0:
             if via_foreign_corp:
+                # Phase 7 (XB-14): real gross inclusion (pre-§250 deduction,
+                # pre-§962 tax) from aggregateUsIncomeResult, replacing the
+                # previous hardcoded usLawUsd: 0 placeholder. Mirrors
+                # crossbasis-nodes.js exactly.
+                cfc_us_law_usd = (us["cfcNonElectedInclusionUs"]["usd"] if us.get("cfcNonElectedInclusionUs") else 0) + \
+                    ((us["cfcElectedPool"]["nctiUsd"] + us["cfcElectedPool"]["subpartFUsd"]) if us.get("cfcElectedPool") else 0)
                 row({
                     "head": "business", "label": "Business / Professional", "dir": "IN→US", "source": "India",
-                    "indiaLawUsd": business_usd, "usLawUsd": 0,
+                    "indiaLawUsd": business_usd, "usLawUsd": cfc_us_law_usd,
                     "indiaRule": "PGBP net · Indian depreciation",
-                    "usRule": "Held via Indian company → not personal income; taxed via CFC/GILTI (Form 5471)",
-                    "note": "See the Form 5471 finding.",
+                    "usRule": ("NCTI + Subpart F inclusion under §951/§951A (computed from tested income/loss + Subpart F, pro-rated by ownership%)"
+                               if cfc_us_law_usd > 0 else "Held via Indian company → not personal income; taxed via CFC/GILTI (Form 5471)"),
+                    "note": "See the CFC/NCTI finding for the §250 deduction / §962 tax / FTC breakdown.",
                 })
             else:
                 row({

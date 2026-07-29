@@ -132,6 +132,12 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var fStcg = worldwide ? inc.foreignStcg.usd : 0, fLtcg = worldwide ? inc.foreignLtcg.usd : 0;
       // IRC 988(a)(1): foreign-currency gain/loss is ORDINARY (not capital).
       var f988 = worldwide && inc.foreignSection988GainLoss ? inc.foreignSection988GainLoss.usd : 0;
+      // Phase 7 (XB-14): non-elected NCTI + Subpart F inclusion — §951A only
+      // applies to US persons, same worldwide gate as every other foreign-
+      // income variable above. No §250 deduction / indirect FTC without a
+      // §962 election (that path is a separate flat add-on tax below, NOT
+      // folded into ordinary brackets here).
+      var fCfc = worldwide && inc.cfcNonElectedInclusionUs ? inc.cfcNonElectedInclusionUs.usd : 0;
 
       var nonQualDivUs = Math.max(0, inc.ordinaryDividendsUs.usd - inc.qualifiedDividendsUs.usd);
       // otherOrdinaryIncomeUs (unemployment comp/alimony received/direct
@@ -141,7 +147,7 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       // before this (see aggregateusincome-nodes.js's directIncomeComputation).
       var otherOrdinaryUs = (inc.otherOrdinaryIncomeUs && inc.otherOrdinaryIncomeUs.usd) || 0;
       var ordinaryIncomeExclSs = inc.wages.usd + fW + fSE + (inc.businessUs ? inc.businessUs.usd : 0) + inc.interestUs.usd + fI +
-        nonQualDivUs + fD + inc.stcgUs.usd + fStcg + inc.rentalUs.usd + fR + fP + f988 + otherOrdinaryUs +
+        nonQualDivUs + fD + inc.stcgUs.usd + fStcg + inc.rentalUs.usd + fR + fP + f988 + otherOrdinaryUs + fCfc +
         (inc.usRetirementIncomeExclSs ? inc.usRetirementIncomeExclSs.usd : (inc.usRetirementIncome ? inc.usRetirementIncome.usd : 0));
       var preferentialIncome = inc.ltcgUs.usd + fLtcg + inc.qualifiedDividendsUs.usd;
 
@@ -239,6 +245,15 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       // capped at the prior-year carryforward on file.
       var mtcAllowedUsd = Math.min(ded.mtcCarryforwardUsd || 0, Math.max(0, incomeTax - (tmtOrd + preferentialTax)));
 
+      // Phase 7 (XB-14): §962-elected NCTI/Subpart F tax — a parallel flat-
+      // rate tax added outside the normal bracket system, same shape as
+      // AMT (amtOwed above) and NIIT (niit below). netTaxUsd already nets
+      // the 40% §250 deduction (OBBBA TY2026), the flat 21% corporate rate,
+      // and the 90% deemed-paid FTC (aggregateusincome-nodes.js's
+      // computeCfcInclusion) — nothing further to compute here.
+      var cfcElected = inc.cfcElectedPool || null;
+      var gilti962TaxUsd = worldwide && cfcElected ? cfcElected.netTaxUsd : 0;
+
       var magi = agi;
       var eduLo = status === "mfj" ? 160000 : 80000, eduHi = status === "mfj" ? 180000 : 90000;
       var eduPhase = magi <= eduLo ? 1 : (magi >= eduHi ? 0 : 1 - (magi - eduLo) / (eduHi - eduLo));
@@ -274,7 +289,7 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var ctcRefundableUsd = Math.round(Math.max(0, Math.min(ctcUnusedUsd, actcCapUsd)));
       var creditsUsd = otherCreditsUsd + combinedNonRefundableUsd + ctcRefundableUsd + mtcAllowedUsd;
 
-      var totalTaxBeforeFtc = incomeTax + niit + addlMedicare + seTax + amtOwed - creditsUsd;
+      var totalTaxBeforeFtc = incomeTax + niit + addlMedicare + seTax + amtOwed + gilti962TaxUsd - creditsUsd;
 
       return {
         agiUsd: agi, taxableIncomeUsd: taxableIncome, incomeTaxUsd: incomeTax, niitUsd: niit,
@@ -333,7 +348,9 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
           availableUsd: ctcAvailableUsd, nonRefundableUsd: combinedNonRefundableUsd, refundableUsd: ctcRefundableUsd,
           earnedIncomeUsd: earnedIncomeUsd
         },
-        foreignSourceIncomeUsd: fW + fSE + fI + fD + fR + fP + fStcg + fLtcg + f988,
+        foreignSourceIncomeUsd: fW + fSE + fI + fD + fR + fP + fStcg + fLtcg + f988 + fCfc,
+        gilti962TaxUsd: gilti962TaxUsd,
+        cfcDetail: { nonElectedInclusionUsd: fCfc, electedPool: cfcElected },
         retirementEpfInterestUsd: worldwide ? (inc.retirementEpfInterestUsd || 0) : 0,
         retirementNpsWithdrawalUsd: worldwide ? (inc.retirementNpsWithdrawalUsd || 0) : 0,
         niitDetail: {

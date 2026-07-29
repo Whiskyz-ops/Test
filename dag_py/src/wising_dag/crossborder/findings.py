@@ -641,20 +641,49 @@ def _findings_crossborder_result(d, ctx):
             0, ["Form 8621", "§1291", "QEF / MTM"],
         ))
 
-    # -- 9. CFC / FORM 5471 (findings-batch3-nodes.js, conflicts.js:1151-1172) --
+    # -- 9. CFC / FORM 5471 (findings-batch3-nodes.js, conflicts.js:1151-1172; XB-14 quantification) --
     biz_count = len(d["bizEntriesAgg"])
     if d["viaForeignCorpXbr4"] and d["residencyResult"]["us"]["isResident"]:
-        findings.append(make_finding(
-            "cfc", "warning", "entity",
-            "Controlled Foreign Corporation — Form 5471 required (GILTI/Subpart F not yet quantified)",
-            "Layer 1 records the US person owning ≥10% of a foreign corporation" + (" (Indian company on file)" if biz_count > 0 else "")
-            + ", so Form 5471 applies and GILTI / Subpart F can accelerate US tax on undistributed Indian profits before any dividend is paid. "
-            "WISING flags the exposure from the ownership data but does NOT yet compute a GILTI/Subpart F inclusion amount — that requires the "
-            "entity's tested income, E&P and qualified business asset investment (QBAI), which Layer 1 doesn't collect today.",
-            "File Form 5471 regardless. To quantify GILTI/Subpart F (and evaluate the §962 election against India's MAT/credit), collect the "
-            "Indian company's tested income, E&P and QBAI — until then, treat this as a required-filing flag, not a computed liability.",
-            0, ["Form 5471", "GILTI §951A", "Subpart F", "§962 election"],
-        ))
+        cfc = d["cfcInclusionResult"]
+        # Only report computed numbers once real financial data has actually
+        # been entered for at least one CFC — ownership alone (hasAnyCfc)
+        # isn't enough, since every field defaults to 0 and would otherwise
+        # print a "$0 inclusion" title indistinguishable from "not entered".
+        # Mirrors findings-batch3-nodes.js exactly.
+        cfc_has_financials = cfc["nonElectedOrdinaryInclusionUsd"] > 0 or cfc["electedPool"]["nctiUsd"] > 0 or cfc["electedPool"]["subpartFUsd"] > 0
+        if cfc["hasAnyCfc"] and cfc_has_financials:
+            non_elected_total = cfc["nonElectedOrdinaryInclusionUsd"]
+            elected_total = cfc["electedPool"]["netTaxUsd"]
+            detail = "Form 5471 applies. "
+            if non_elected_total > 0:
+                detail += f"Without a §962 election: {_usd(non_elected_total)} of NCTI + Subpart F is included in full as ordinary income (no §250 deduction, no indirect FTC available). "
+            if (cfc["electedPool"]["nctiUsd"] + cfc["electedPool"]["subpartFUsd"]) > 0:
+                detail += (f"With a §962 election: {_usd(cfc['electedPool']['taxableBaseUsd'])} taxable base (after the 40% §250 deduction on the NCTI portion — OBBBA TY2026, "
+                           f"Subpart F never gets §250) at a flat 21% rate, less a {_usd(cfc['electedPool']['creditableFtcUsd'])} deemed-paid FTC (90% of foreign tax paid — OBBBA TY2026), "
+                           f"net tax {_usd(cfc['electedPool']['netTaxUsd'])}. ")
+            detail += ("Documented simplifications: QBAI is not collected (OBBBA TY2026 eliminated the 10% QBAI return exclusion, so it isn't needed for the core inclusion); "
+                       "no PTEP/E&P distribution-year tracking; Subpart F capped at each CFC's own entered E&P; no high-tax exclusion election modeled; ownership-based CFC-status "
+                       "test is a simplified single->50%-owner test, not the real aggregate US-shareholder test; state conformity to GILTI/NCTI (many states decouple) not modeled.")
+            title = f"Controlled Foreign Corporation — NCTI/Subpart F inclusion: {_usd(non_elected_total + elected_total)}"
+            if non_elected_total > 0 and (cfc["electedPool"]["nctiUsd"] + cfc["electedPool"]["subpartFUsd"]) > 0:
+                title += " (mixed elected/non-elected)"
+            findings.append(make_finding(
+                "cfc", "warning", "entity", title, detail,
+                "File Form 5471 regardless. Confirm each CFC's actual tested income/loss, Subpart F income, E&P and foreign tax paid with the entity's own books before "
+                "relying on this for filing — these are preparer-entered estimates, not independently verified.",
+                non_elected_total + elected_total, ["Form 5471", "GILTI/NCTI §951A", "Subpart F", "§962 election", "§250 deduction"],
+            ))
+        else:
+            findings.append(make_finding(
+                "cfc", "warning", "entity",
+                "Controlled Foreign Corporation — Form 5471 required (GILTI/Subpart F not yet quantified)",
+                "Layer 1 records the US person owning ≥10% of a foreign corporation" + (" (Indian company on file)" if biz_count > 0 else "")
+                + ", so Form 5471 applies and GILTI / Subpart F can accelerate US tax on undistributed Indian profits before any dividend is paid. "
+                "Ownership is on file but no tested income/loss, Subpart F income, or E&P has been entered yet for this entity, so no inclusion amount is computed.",
+                "File Form 5471 regardless. Enter the CFC's tested income/loss, Subpart F income and E&P on the Foreign Entities screen to quantify the GILTI/NCTI "
+                "and Subpart F inclusion (and evaluate the §962 election).",
+                0, ["Form 5471", "GILTI/NCTI §951A", "Subpart F", "§962 election"],
+            ))
     elif biz_count > 0 and d["residencyResult"]["us"]["isResident"]:
         findings.append(make_finding(
             "cfc_below_threshold", "info", "entity",
@@ -906,7 +935,7 @@ NODES["findingsCrossborderResult"] = NodeDef(
           "crossBasisResult", "specialRate115bbInr",
           "capitalGainsComputation", "apportionmentResultBoundary",
           "stateResidencyRawXbr", "treatyDtaaForcedNrRaw",
-          "indiaFinancialHoldingsTxRaw", "viaForeignCorpXbr4", "bizEntriesAgg",
+          "indiaFinancialHoldingsTxRaw", "viaForeignCorpXbr4", "bizEntriesAgg", "cfcInclusionResult",
           "usTaxResult", "salaryInr", "businessComputation",
           "epfInrRaw", "ppfInrRaw", "npsInrRaw", "taxableEpfInterestInrAgg", "taxableNpsWithdrawalInrAgg",
           "treatyElectionsRaw", "treatyTrcStatus", "treatyForm10fFiled", "treatyFiles1040nrRaw",

@@ -488,15 +488,31 @@ function businessEntitiesResult(d, ctx) {
     });
   });
 
+  // Phase 7 (XB-14): prefer the real computed per-CFC trace (tested income -
+  // tested loss + Subpart F included) over the legacy hand-entered
+  // gilti_income_usd estimate, matched by corp name. gilti_income_usd stays
+  // as a fallback only for old saved data with no computed trace at all —
+  // never written by the current UI (layer1_us.html's Foreign Corporation
+  // card now collects tested_income_usd/tested_loss_usd/subpart_f_income_usd
+  // directly instead).
+  var cfcTraceByName = {};
+  (safe(d.cfcInclusionResult, "perCfcTrace", []) || []).forEach(function (t) {
+    if (t.name) cfcTraceByName[String(t.name).toLowerCase().trim()] = t;
+  });
   (d.usForeignCorpsRaw || []).forEach(function (c) {
     var country = c.country != null ? c.country : c.country_of_incorporation;
     var corpName = c.corp_name || c.corporation_name;
     var ownershipPct = num(c.ownership_pct != null ? c.ownership_pct : c.ownership_percentage);
+    var trace = corpName ? cfcTraceByName[String(corpName).toLowerCase().trim()] : null;
+    var computedInclusionUsd = trace ? (trace.testedIncomeUsd - trace.testedLossUsd + trace.subpartFIncludedUsd) : null;
+    var giltiUsd = computedInclusionUsd != null ? computedInclusionUsd : num(c.gilti_income_usd || 0);
     list.push({
       country: country === "IN" ? "IN" : "US", type: "Foreign corporation (CFC)", name: corpName || "Foreign corporation",
-      incomeUsd: num(c.gilti_income_usd || 0), cfc: true, gilti: num(c.gilti_income_usd || 0), ownershipPct: ownershipPct,
-      filesOwnReturn: true, returnForm: "Foreign local return (not modeled) + Form 5471 (informational, US) + GILTI on Schedule 1 (Form 1040)",
-      calcTrace: source("GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) — a hand-entered estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled yet (see gap tracker). Ownership: " + Math.round(ownershipPct) + "%. This is a US inclusion only — the entity's own foreign-country income tax return is separate and not shown here.")
+      incomeUsd: giltiUsd, cfc: true, gilti: giltiUsd, ownershipPct: ownershipPct,
+      filesOwnReturn: true, returnForm: "Foreign local return (not modeled) + Form 5471 (informational, US) + NCTI/GILTI + Subpart F on Schedule 1 (Form 1040)",
+      calcTrace: source(computedInclusionUsd != null
+        ? "NCTI + Subpart F inclusion computed from this CFC's entered tested income/loss, Subpart F income and E&P (§951/§951A), pro-rated by ownership: " + Math.round(ownershipPct) + "%. See the CFC/NCTI finding for the full §250 deduction / §962 tax / FTC breakdown. Documented simplifications: no QBAI (correctly eliminated OBBBA TY2026), no PTEP tracking, no state conformity modeled."
+        : "GILTI inclusion as entered on Layer 1 US for this CFC (legacy gilti_income_usd field) — a hand-entered estimate carried over from old saved data. Ownership: " + Math.round(ownershipPct) + "%. This is a US inclusion only — the entity's own foreign-country income tax return is separate and not shown here.")
     });
   });
 
@@ -828,10 +844,21 @@ function buildEntityGraph(d, ctx) {
   // instead — the bug this whole function was rewritten to fix: without
   // this guard, the India subsidiary showed up TWICE (once as the root,
   // once as a "foreign_corp" with an edge pointing at itself).
+  // Phase 7 (XB-14): same computed-trace-over-legacy-estimate preference as
+  // businessEntitiesResult above.
+  var entityGraphCfcTraceByName = {};
+  (safe(d.cfcInclusionResult, "perCfcTrace", []) || []).forEach(function (t) {
+    if (t.name) entityGraphCfcTraceByName[String(t.name).toLowerCase().trim()] = t;
+  });
   (d.usForeignCorpsRaw || []).forEach(function (c, idx) {
     var corpName = c.corp_name || c.corporation_name || null;
     var ownershipPct = num(c.ownership_pct != null ? c.ownership_pct : c.ownership_percentage);
-    var giltiUsd = num(c.gilti_income_usd || 0);
+    var egTrace = corpName ? entityGraphCfcTraceByName[String(corpName).toLowerCase().trim()] : null;
+    var egComputedUsd = egTrace ? (egTrace.testedIncomeUsd - egTrace.testedLossUsd + egTrace.subpartFIncludedUsd) : null;
+    var giltiUsd = egComputedUsd != null ? egComputedUsd : num(c.gilti_income_usd || 0);
+    var giltiTraceText = egComputedUsd != null
+      ? "NCTI + Subpart F inclusion computed from this CFC's entered tested income/loss, Subpart F income and E&P (§951/§951A). See the CFC/NCTI finding for the full §250 deduction / §962 tax / FTC breakdown."
+      : "GILTI inclusion as entered on Layer 1 US for this CFC (legacy gilti_income_usd field) — a hand-entered estimate carried over from old saved data.";
     var matchedRootId = findRootIdByName(corpName);
     if (matchedRootId) {
       var otherRootId = rootIds.filter(function (r) { return r !== matchedRootId; })[0];
@@ -842,7 +869,7 @@ function buildEntityGraph(d, ctx) {
       // deliberately left unmodeled rather than drawn as a self-reference.
       if (otherRootId) edges.push({
         from: matchedRootId, to: otherRootId, ownershipPct: ownershipPct, flow: "gilti", amountUsd: giltiUsd,
-        trace: source("GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) — a hand-entered estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled yet (gap tracker XB-14). Ownership: " + Math.round(ownershipPct) + "%. This edge connects two entities BOTH already modeled as their own root here (a US parent and its differently-named subsidiary), not a newly-created placeholder node.")
+        trace: source(giltiTraceText + " Ownership: " + Math.round(ownershipPct) + "%. This edge connects two entities BOTH already modeled as their own root here (a US parent and its differently-named subsidiary), not a newly-created placeholder node.")
       });
       return;
     }
@@ -850,14 +877,14 @@ function buildEntityGraph(d, ctx) {
     entities.push({
       id: id, kind: "foreign_corp", jurisdiction: (c.country != null ? c.country : c.country_of_incorporation) === "IN" ? "IN" : "foreign", name: corpName,
       returnForm: "Foreign local return (not modeled) + Form 5471 (informational)", layer1Ref: { form: "layer1_us", path: "foreign_entities.foreign_corporations[" + idx + "]" },
-      // income here is the GILTI inclusion only, NOT the CFC's own full
-      // local-country income (not modeled, gap tracker XB-14) — same
-      // "hand-entered estimate" caveat businessEntityResult's own trace uses.
+      // income here is the NCTI/Subpart F inclusion only, NOT the CFC's own
+      // full local-country income (not modeled) — same caveat
+      // businessEntityResult's own trace uses.
       income: { usd: giltiUsd, inr: giltiUsd * fxRate(ctx) }
     });
     edges.push({
       from: id, to: usFlowTargetId, ownershipPct: ownershipPct, flow: "gilti", amountUsd: giltiUsd,
-      trace: source("GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) — a hand-entered estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled yet (gap tracker XB-14). Ownership: " + Math.round(ownershipPct) + "%. This is a US inclusion only — the entity's own foreign-country income tax return is separate and not shown here.")
+      trace: source(giltiTraceText + " Ownership: " + Math.round(ownershipPct) + "%. This is a US inclusion only — the entity's own foreign-country income tax return is separate and not shown here.")
     });
   });
 
@@ -871,7 +898,7 @@ NODES.assetsModelResult = {
     "epfInrRaw", "ppfInrRaw", "npsInrRaw", "taxableEpfInterestInrAgg", "taxableNpsWithdrawalInrAgg",
     "uiAgg", "usBusinessDepreciationPlan", "bizEntriesAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg",
     "presumptiveEligibilityAgg", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust",
-    "partnerFirmsAgg", "indiaEntityTypeRaw"],
+    "partnerFirmsAgg", "indiaEntityTypeRaw", "cfcInclusionResult"],
   compute: function (d, ctx) {
     return {
       indianMutualFunds: d.indianMutualFundsResult,

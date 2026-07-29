@@ -290,6 +290,12 @@
         NIIT_RATE: 0.038,
         ADDL_MEDICARE_RATE: 0.009,
         C_CORP_RATE: 0.21,
+        // ---- NCTI (renamed from GILTI, OBBBA TY2026) ----
+        NCTI_SECTION_250_RATE: 0.40,        // was 0.50 pre-OBBBA; only available to a §962 elector (or a C-corp, out of scope here)
+        NCTI_DEEMED_PAID_FTC_RATE: 0.90,    // was 0.80 pre-OBBBA; only available to a §962 elector
+        // NOTE: the QBAI 10% net deemed tangible income return exclusion is
+        // ELIMINATED for TY2026+ (OBBBA) — no constant needed; NCTI =
+        // aggregate tested income minus aggregate tested loss, floored at 0.
         // ---- Social Security benefit taxability (s.86) ----
         // "Provisional income" (a.k.a. combined income) test: base/
         // additional thresholds, UNLIKE nearly every other figure in this

@@ -136,6 +136,12 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     f_ltcg = inc["foreignLtcg"]["usd"] if worldwide else 0
     # IRC 988(a)(1): foreign-currency gain/loss is ORDINARY (not capital).
     f_988 = (inc["foreignSection988GainLoss"]["usd"] if inc.get("foreignSection988GainLoss") else 0) if worldwide else 0
+    # Phase 7 (XB-14): non-elected NCTI + Subpart F inclusion — §951A only
+    # applies to US persons, same worldwide gate as every other foreign-
+    # income variable above. No §250 deduction / indirect FTC without a
+    # §962 election (that path is a separate flat add-on tax below, NOT
+    # folded into ordinary brackets here). Mirrors ustax-nodes.js exactly.
+    f_cfc = (inc["cfcNonElectedInclusionUs"]["usd"] if inc.get("cfcNonElectedInclusionUs") else 0) if worldwide else 0
 
     non_qual_div_us = max(0.0, inc["ordinaryDividendsUs"]["usd"] - inc["qualifiedDividendsUs"]["usd"])
     # otherOrdinaryIncomeUs (unemployment comp/alimony received/direct
@@ -146,7 +152,7 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     other_ordinary_us = (inc.get("otherOrdinaryIncomeUs") or {}).get("usd", 0) or 0
     ordinary_income_excl_ss = (
         inc["wages"]["usd"] + f_w + f_se + (inc.get("businessUs", {}).get("usd", 0) if inc.get("businessUs") else 0) + inc["interestUs"]["usd"] + f_i +
-        non_qual_div_us + f_d + inc["stcgUs"]["usd"] + f_stcg + inc["rentalUs"]["usd"] + f_r + f_p + f_988 + other_ordinary_us +
+        non_qual_div_us + f_d + inc["stcgUs"]["usd"] + f_stcg + inc["rentalUs"]["usd"] + f_r + f_p + f_988 + other_ordinary_us + f_cfc +
         (inc["usRetirementIncomeExclSs"]["usd"] if inc.get("usRetirementIncomeExclSs") else (inc.get("usRetirementIncome", {}).get("usd", 0) if inc.get("usRetirementIncome") else 0))
     )
     preferential_income = inc["ltcgUs"]["usd"] + f_ltcg + inc["qualifiedDividendsUs"]["usd"]
@@ -249,6 +255,16 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     # at the prior-year carryforward on file. Mirrors ustax-nodes.js exactly.
     mtc_allowed_usd = min(ded.get("mtcCarryforwardUsd") or 0, max(0.0, income_tax - (tmt_ord + preferential_tax)))
 
+    # Phase 7 (XB-14): §962-elected NCTI/Subpart F tax — a parallel flat-
+    # rate tax added outside the normal bracket system, same shape as AMT
+    # (amt_owed above) and NIIT (niit below). netTaxUsd already nets the
+    # 40% §250 deduction (OBBBA TY2026), the flat 21% corporate rate, and
+    # the 90% deemed-paid FTC (aggregate_us_income.py's
+    # _compute_cfc_inclusion) — nothing further to compute here. Mirrors
+    # ustax-nodes.js exactly.
+    cfc_elected = inc.get("cfcElectedPool") or None
+    gilti962_tax_usd = (cfc_elected["netTaxUsd"] if (worldwide and cfc_elected) else 0)
+
     magi = agi
     edu_lo, edu_hi = (160000, 180000) if status == "mfj" else (80000, 90000)
     edu_phase = 1.0 if magi <= edu_lo else (0.0 if magi >= edu_hi else 1 - (magi - edu_lo) / (edu_hi - edu_lo))
@@ -283,7 +299,7 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     ctc_refundable_usd = js_round(max(0.0, min(ctc_unused_usd, actc_cap_usd)))
     credits_usd = other_credits_usd + combined_non_refundable_usd + ctc_refundable_usd + mtc_allowed_usd
 
-    total_tax_before_ftc = income_tax + niit + addl_medicare + se_tax + amt_owed - credits_usd
+    total_tax_before_ftc = income_tax + niit + addl_medicare + se_tax + amt_owed + gilti962_tax_usd - credits_usd
 
     return {
         "agiUsd": agi, "taxableIncomeUsd": taxable_income, "incomeTaxUsd": income_tax, "niitUsd": niit,
@@ -328,7 +344,9 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
             "availableUsd": ctc_available_usd, "nonRefundableUsd": combined_non_refundable_usd, "refundableUsd": ctc_refundable_usd,
             "earnedIncomeUsd": earned_income_usd,
         },
-        "foreignSourceIncomeUsd": f_w + f_se + f_i + f_d + f_r + f_p + f_stcg + f_ltcg + f_988,
+        "foreignSourceIncomeUsd": f_w + f_se + f_i + f_d + f_r + f_p + f_stcg + f_ltcg + f_988 + f_cfc,
+        "gilti962TaxUsd": gilti962_tax_usd,
+        "cfcDetail": {"nonElectedInclusionUsd": f_cfc, "electedPool": cfc_elected},
         "retirementEpfInterestUsd": (inc.get("retirementEpfInterestUsd") or 0) if worldwide else 0,
         "retirementNpsWithdrawalUsd": (inc.get("retirementNpsWithdrawalUsd") or 0) if worldwide else 0,
         "niitDetail": {

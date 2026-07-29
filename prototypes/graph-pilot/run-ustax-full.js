@@ -98,8 +98,16 @@ function runCase(id, router, india, us) {
     // Individual path emits a documented subset — compare every field it has.
     // feieAppliedUsd is the DAG's flat alias of the engine's feie.appliedUsd
     // (added for the FTC wiring) — translate rather than expect a mirror.
+    // gilti962TaxUsd/cfcDetail (Phase 7, XB-14, GILTI/NCTI quantification):
+    // new DAG-only fields, no frozen-engine equivalent (the engine never
+    // quantified GILTI/Subpart F at all) — asserted directly instead of
+    // deep-compared against `real`.
     Object.keys(out).forEach(function (k) {
       if (k === "feieAppliedUsd") return deepCheck("usTax.feieAppliedUsd(alias)", out[k], (real.feie && real.feie.appliedUsd) || 0);
+      if (k === "gilti962TaxUsd" || k === "cfcDetail") {
+        if (typeof out[k] === "number" ? !isNaN(out[k]) : out[k] !== undefined) return ok("usTax." + k + " (new field, Phase 7 XB-14 — no engine equivalent)");
+        return bad("usTax." + k + " (new field, Phase 7 XB-14 — no engine equivalent)", "graph=" + JSON.stringify(out[k]));
+      }
       deepCheck("usTax." + k, out[k], real[k]);
     });
   }

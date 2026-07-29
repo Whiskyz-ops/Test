@@ -404,20 +404,40 @@ def _business_entities_result(d, ctx):
             "calcTrace": _business_entry_income_trace(b, biz_eligibility, entry_depr_inr, entry_disallow_inr),
         })
 
+    # Phase 7 (XB-14): prefer the real computed per-CFC trace (tested income -
+    # tested loss + Subpart F included) over the legacy hand-entered
+    # gilti_income_usd estimate, matched by corp name. gilti_income_usd stays
+    # as a fallback only for old saved data with no computed trace at all —
+    # never written by the current UI. Mirrors assets-nodes.js exactly.
+    cfc_trace_by_name: dict = {}
+    for t in safe(d.get("cfcInclusionResult"), "perCfcTrace", []) or []:
+        if t.get("name"):
+            cfc_trace_by_name[str(t["name"]).lower().strip()] = t
     for c in d["usForeignCorpsRaw"] or []:
         country = c.get("country") if c.get("country") is not None else c.get("country_of_incorporation")
         corp_name = c.get("corp_name") or c.get("corporation_name")
         ownership_pct = num(c.get("ownership_pct") if c.get("ownership_pct") is not None else c.get("ownership_percentage"))
+        trace = cfc_trace_by_name.get(str(corp_name).lower().strip()) if corp_name else None
+        computed_inclusion_usd = (trace["testedIncomeUsd"] - trace["testedLossUsd"] + trace["subpartFIncludedUsd"]) if trace else None
+        gilti_usd = computed_inclusion_usd if computed_inclusion_usd is not None else num(c.get("gilti_income_usd") or 0)
+        if computed_inclusion_usd is not None:
+            calc_trace_detail = (
+                f"NCTI + Subpart F inclusion computed from this CFC's entered tested income/loss, Subpart F income and E&P "
+                f"(§951/§951A), pro-rated by ownership: {js_round(ownership_pct)}%. See the CFC/NCTI finding for the full "
+                f"§250 deduction / §962 tax / FTC breakdown. Documented simplifications: no QBAI (correctly eliminated OBBBA "
+                f"TY2026), no PTEP tracking, no state conformity modeled."
+            )
+        else:
+            calc_trace_detail = (
+                f"GILTI inclusion as entered on Layer 1 US for this CFC (legacy gilti_income_usd field) — a hand-entered "
+                f"estimate carried over from old saved data. Ownership: {js_round(ownership_pct)}%. This is a US inclusion "
+                f"only — the entity's own foreign-country income tax return is separate and not shown here."
+            )
         lst.append({
             "country": "IN" if country == "IN" else "US", "type": "Foreign corporation (CFC)", "name": corp_name or "Foreign corporation",
-            "incomeUsd": num(c.get("gilti_income_usd") or 0), "cfc": True, "gilti": num(c.get("gilti_income_usd") or 0), "ownershipPct": ownership_pct,
-            "filesOwnReturn": True, "returnForm": "Foreign local return (not modeled) + Form 5471 (informational, US) + GILTI on Schedule 1 (Form 1040)",
-            "calcTrace": _source(
-                f"GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) — a hand-entered "
-                f"estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled "
-                f"yet (see gap tracker). Ownership: {js_round(ownership_pct)}%. This is a US inclusion only — the "
-                f"entity's own foreign-country income tax return is separate and not shown here."
-            ),
+            "incomeUsd": gilti_usd, "cfc": True, "gilti": gilti_usd, "ownershipPct": ownership_pct,
+            "filesOwnReturn": True, "returnForm": "Foreign local return (not modeled) + Form 5471 (informational, US) + NCTI/GILTI + Subpart F on Schedule 1 (Form 1040)",
+            "calcTrace": _source(calc_trace_detail),
         })
 
     by_name: dict = {}
@@ -666,10 +686,28 @@ def _build_entity_graph(d, ctx):
             ),
         })
 
+    # Phase 7 (XB-14): same computed-trace-over-legacy-estimate preference as
+    # _business_entities_result above. Mirrors assets-nodes.js exactly.
+    entity_graph_cfc_trace_by_name: dict = {}
+    for t in safe(d.get("cfcInclusionResult"), "perCfcTrace", []) or []:
+        if t.get("name"):
+            entity_graph_cfc_trace_by_name[str(t["name"]).lower().strip()] = t
     for idx, c in enumerate(d["usForeignCorpsRaw"] or []):
         corp_name = c.get("corp_name") or c.get("corporation_name")
         ownership_pct = num(c.get("ownership_pct") if c.get("ownership_pct") is not None else c.get("ownership_percentage"))
-        gilti_usd = num(c.get("gilti_income_usd") or 0)
+        eg_trace = entity_graph_cfc_trace_by_name.get(str(corp_name).lower().strip()) if corp_name else None
+        eg_computed_usd = (eg_trace["testedIncomeUsd"] - eg_trace["testedLossUsd"] + eg_trace["subpartFIncludedUsd"]) if eg_trace else None
+        gilti_usd = eg_computed_usd if eg_computed_usd is not None else num(c.get("gilti_income_usd") or 0)
+        if eg_computed_usd is not None:
+            gilti_trace_text = (
+                "NCTI + Subpart F inclusion computed from this CFC's entered tested income/loss, Subpart F income and "
+                "E&P (§951/§951A). See the CFC/NCTI finding for the full §250 deduction / §962 tax / FTC breakdown."
+            )
+        else:
+            gilti_trace_text = (
+                "GILTI inclusion as entered on Layer 1 US for this CFC (legacy gilti_income_usd field) — a hand-entered "
+                "estimate carried over from old saved data."
+            )
         matched_root_id = find_root_id_by_name(corp_name)
         if matched_root_id:
             other_root_id = next((r for r in root_ids if r != matched_root_id), None)
@@ -677,11 +715,9 @@ def _build_entity_graph(d, ctx):
                 edges.append({
                     "from": matched_root_id, "to": other_root_id, "ownershipPct": ownership_pct, "flow": "gilti", "amountUsd": gilti_usd,
                     "trace": _source(
-                        f"GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) — a hand-entered "
-                        f"estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't "
-                        f"modeled yet (gap tracker XB-14). Ownership: {js_round(ownership_pct)}%. This edge connects "
-                        f"two entities BOTH already modeled as their own root here (a US parent and its "
-                        f"differently-named subsidiary), not a newly-created placeholder node."
+                        f"{gilti_trace_text} Ownership: {js_round(ownership_pct)}%. This edge connects two entities BOTH "
+                        f"already modeled as their own root here (a US parent and its differently-named subsidiary), not "
+                        f"a newly-created placeholder node."
                     ),
                 })
             continue
@@ -694,10 +730,8 @@ def _build_entity_graph(d, ctx):
         edges.append({
             "from": entity_id, "to": us_flow_target_id, "ownershipPct": ownership_pct, "flow": "gilti", "amountUsd": gilti_usd,
             "trace": _source(
-                f"GILTI inclusion as entered on Layer 1 US for this CFC (gilti_income_usd) — a hand-entered "
-                f"estimate, since full GILTI/QBAI/tested-income computation from the CFC's own books isn't modeled "
-                f"yet (gap tracker XB-14). Ownership: {js_round(ownership_pct)}%. This is a US inclusion only — the "
-                f"entity's own foreign-country income tax return is separate and not shown here."
+                f"{gilti_trace_text} Ownership: {js_round(ownership_pct)}%. This is a US inclusion only — the entity's "
+                f"own foreign-country income tax return is separate and not shown here."
             ),
         })
 
@@ -937,7 +971,7 @@ NODES = {
             "epfInrRaw", "ppfInrRaw", "npsInrRaw", "taxableEpfInterestInrAgg", "taxableNpsWithdrawalInrAgg",
             "uiAgg", "usBusinessDepreciationPlan", "bizEntriesAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg",
             "presumptiveEligibilityAgg", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust",
-            "partnerFirmsAgg", "indiaEntityTypeRaw",
+            "partnerFirmsAgg", "indiaEntityTypeRaw", "cfcInclusionResult",
         ),
         compute=_assets_model_result,
     ),

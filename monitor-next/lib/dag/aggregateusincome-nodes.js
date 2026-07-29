@@ -168,7 +168,97 @@ function k1PassiveIncomeUsd(k) {
 // the DAG reads .inr here, so this is purely additive.
 function m(usd, ctx) { return { usd: usd, inr: usd * fxRate(ctx) }; } // rate overridable via ctx.fxRateOverride — see fx-util.js
 
+var CONST_CFC = require("./constants.js").CONST;
+var T_CFC = CONST_CFC.TAX.US;
+
+/* Phase 7 (XB-14) — GILTI/NCTI + Subpart F quantification. computeCfcInclusion
+ * is a duplicated-down copy of the raw foreign-corporations leaf (see
+ * usForeignCorpsRawForIncome below) so aggregateUsIncomeResult, assembled in
+ * THIS bottom-layer file, can depend on it without a circular require on
+ * crossbasis-nodes.js (which sits above this file in both run-analyze.js's
+ * and run-fuzz.js's require chains, and holds its own independent copy of
+ * usForeignCorpsRaw for crossBasisResult's own purposes).
+ *
+ * Documented simplifications (also surfaced in the "cfc" finding text,
+ * findings-batch3-nodes.js):
+ *  - No QBAI collection — correct per OBBBA TY2026 (10% exclusion eliminated).
+ *  - No PTEP distribution-year tracking.
+ *  - CFC-status threshold stays the pre-existing single-owner >50% test
+ *    (independently re-derived from ownership_percentage here, not trusted
+ *    off a possibly-stale persisted cfc_status) — a known simplification of
+ *    the real aggregate US-shareholder test, not fixed here.
+ *  - Subpart F capped at each CFC's own entered E&P — simplification of full
+ *    §952(c) mechanics (qualified deficits, CFC chains, etc. not modeled).
+ *  - No state-tax conformity modeling for GILTI/NCTI.
+ *  - No §954(b)(4) high-tax exclusion election modeled.
+ *  - §962-elected inclusion not run through NIIT (Reg. §1.1411-10(c) would
+ *    generally include it absent an election out) — same simplification
+ *    already applied to otherOrdinaryIncomeUs.
+ *  - §962 election modeled per-CFC, matching real law (each CFC may elect
+ *    separately) — read off each foreign_corporations[] entry independently.
+ */
+function computeCfcInclusion(corps) {
+  var nonElected = { testedIncome: 0, testedLoss: 0, subpartF: 0 };
+  var elected = { testedIncome: 0, testedLoss: 0, subpartF: 0, foreignTaxPaid: 0 };
+  var perCfcTrace = [];
+  (corps || []).forEach(function (c) {
+    var ownPct = num(c.ownership_percentage);
+    var isCfc = ownPct > 50;
+    if (!isCfc) return; // sub-CFC-threshold holdings: no §951/951A inclusion (existing cfc_below_threshold finding)
+    var frac = Math.max(0, Math.min(1, ownPct / 100));
+    var testedIncomeUsd = Math.max(0, num(c.tested_income_usd)) * frac;
+    var testedLossUsd = Math.max(0, num(c.tested_loss_usd)) * frac;
+    var epUsd = Math.max(0, num(c.ep_usd)) * frac;
+    var subpartFRawUsd = Math.max(0, num(c.subpart_f_income_usd)) * frac;
+    var subpartFUsd = Math.min(subpartFRawUsd, epUsd); // §952(c) E&P cap
+    var elect = c.sec962_election_planned === true;
+    var bucket = elect ? elected : nonElected;
+    bucket.testedIncome += testedIncomeUsd;
+    bucket.testedLoss += testedLossUsd;
+    bucket.subpartF += subpartFUsd;
+    if (elect) elected.foreignTaxPaid += Math.max(0, num(c.foreign_tax_paid_usd)) * frac;
+    perCfcTrace.push({
+      name: c.corporation_name || null, ownershipPct: ownPct, sec962Elected: elect,
+      testedIncomeUsd: testedIncomeUsd, testedLossUsd: testedLossUsd, subpartFIncludedUsd: subpartFUsd,
+      subpartFCappedByEp: subpartFRawUsd > epUsd
+    });
+  });
+
+  // True §951A(c)(2) aggregate: summed across ALL non-elected (resp.
+  // elected) CFCs BEFORE the $0 floor — never floored per-CFC then summed,
+  // which would produce a materially different (wrong) answer whenever one
+  // CFC has a loss and another has income.
+  var nonElectedNctiUsd = Math.max(0, nonElected.testedIncome - nonElected.testedLoss);
+  var electedNctiUsd = Math.max(0, elected.testedIncome - elected.testedLoss);
+
+  var nonElectedOrdinaryInclusionUsd = nonElectedNctiUsd + nonElected.subpartF;
+
+  var sec250DeductionUsd = T_CFC.NCTI_SECTION_250_RATE * electedNctiUsd; // NCTI portion only, never Subpart F
+  var sec962TaxableBaseUsd = Math.max(0, electedNctiUsd - sec250DeductionUsd) + elected.subpartF;
+  var sec962GrossTaxUsd = T_CFC.C_CORP_RATE * sec962TaxableBaseUsd;
+  var sec962CreditableFtcUsd = Math.min(sec962GrossTaxUsd, T_CFC.NCTI_DEEMED_PAID_FTC_RATE * elected.foreignTaxPaid);
+  var sec962NetTaxUsd = Math.max(0, sec962GrossTaxUsd - sec962CreditableFtcUsd);
+
+  return {
+    hasAnyCfc: perCfcTrace.length > 0,
+    nonElectedOrdinaryInclusionUsd: nonElectedOrdinaryInclusionUsd,
+    nonElectedNctiUsd: nonElectedNctiUsd, nonElectedSubpartFUsd: nonElected.subpartF,
+    electedPool: {
+      nctiUsd: electedNctiUsd, subpartFUsd: elected.subpartF,
+      sec250DeductionUsd: sec250DeductionUsd, taxableBaseUsd: sec962TaxableBaseUsd,
+      grossTaxUsd: sec962GrossTaxUsd, foreignTaxPaidUsd: elected.foreignTaxPaid,
+      creditableFtcUsd: sec962CreditableFtcUsd, netTaxUsd: sec962NetTaxUsd
+    },
+    perCfcTrace: perCfcTrace
+  };
+}
+
 var NODES = {
+  // Duplicated from crossbasis-nodes.js's usForeignCorpsRaw (deps:[] raw
+  // leaf, harmless redefinition — see chain-topology note above).
+  usForeignCorpsRawForIncome: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_entities.foreign_corporations", []) || []; } },
+  cfcInclusionResult: { deps: ["usForeignCorpsRawForIncome"], compute: function (d) { return computeCfcInclusion(d.usForeignCorpsRawForIncome); } },
+
   baseYearUsAgg: { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "metadata.us_calendar_year", 2025)) || 2025; } },
 
   uiAgg: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "income_us_source", {}); } },
@@ -419,14 +509,19 @@ var NODES = {
 
   // ---- final assembly, matching aggregateUsIncome's own return object ----
   aggregateUsIncomeResult: {
-    deps: ["wagesComputation", "foreignWagesUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder"],
+    deps: ["wagesComputation", "foreignWagesUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult"],
     compute: function (d, ctx) {
       var w = d.wagesComputation, biz = d.businessAndSeComputation, ret = d.retirementComputation, di = d.directIncomeComputation, epf = d.epfNpsCrossBorder;
+      var cfc = d.cfcInclusionResult;
       var foreignInterest = di.foreignInterestUsd + epf.taxableEpfInterestUsd;
       var foreignPension = di.foreignPensionUsd + epf.taxableNpsWithdrawalUsd;
 
       var usSourceTotal = w.wagesUsd + biz.businessUsUsd + di.interestUsUsd + di.ordinaryDividendsUsUsd + di.ltcgUsUsd + di.stcgUsUsd + di.rentalUsUsd + ret.usRetirementIncomeExclSsUsd + ret.socialSecurityUsUsd + di.otherOrdinaryIncomeUsUsd;
-      var foreignSourceTotal = d.foreignWagesUsd + biz.foreignSelfEmploymentUsd + foreignInterest + di.foreignDividendsUsd + di.foreignRentalUsd + foreignPension + di.foreignStcgUsd + di.foreignLtcgUsd + di.section988GainLossUsd;
+      // The elected pool's pre-tax NCTI/Subpart F is intentionally NOT added
+      // here — it flows through cfcElectedPool into computeUsTaxCore's own
+      // flat-tax add-on instead, mirroring how AMT/NIIT amounts don't appear
+      // in this aggregate either.
+      var foreignSourceTotal = d.foreignWagesUsd + biz.foreignSelfEmploymentUsd + foreignInterest + di.foreignDividendsUsd + di.foreignRentalUsd + foreignPension + di.foreignStcgUsd + di.foreignLtcgUsd + di.section988GainLossUsd + cfc.nonElectedOrdinaryInclusionUsd;
 
       return {
         wages: m(w.wagesUsd, ctx), businessUs: m(biz.businessUsUsd, ctx), w2Withholding: w.w2WithholdingUsd, w2Employers: w.w2Employers, medicareWages: w.medicareWagesUsd,
@@ -446,6 +541,9 @@ var NODES = {
         foreignStcg: m(di.foreignStcgUsd, ctx), foreignLtcg: m(di.foreignLtcgUsd, ctx),
         foreignCapitalGains: m(di.foreignStcgUsd + di.foreignLtcgUsd, ctx),
         foreignSection988GainLoss: m(di.section988GainLossUsd, ctx),
+        cfcNonElectedInclusionUs: m(cfc.nonElectedOrdinaryInclusionUsd, ctx),
+        cfcElectedPool: cfc.electedPool,       // raw numbers, not money-converted — consumed directly by computeUsTaxCore
+        cfcPerEntityTrace: cfc.perCfcTrace,    // for the findings/entity-graph consumers
         retirementEpfInterestUsd: epf.taxableEpfInterestUsd, retirementNpsWithdrawalUsd: epf.taxableNpsWithdrawalUsd,
         usSourceTotal: m(usSourceTotal, ctx), foreignSourceTotal: m(foreignSourceTotal, ctx),
         total: m(usSourceTotal + foreignSourceTotal, ctx)

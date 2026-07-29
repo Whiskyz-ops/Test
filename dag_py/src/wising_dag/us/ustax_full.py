@@ -380,6 +380,15 @@ def _scale_resident_inc(inc, frac):
         "qbiIncomeUsd": (inc.get("qbiIncomeUsd") or 0) * frac, "qbiIsSSTB": inc.get("qbiIsSSTB"),
         "retirementEpfInterestUsd": (inc.get("retirementEpfInterestUsd") or 0) * frac, "retirementNpsWithdrawalUsd": (inc.get("retirementNpsWithdrawalUsd") or 0) * frac,
         "usSourceTotal": s(inc["usSourceTotal"]),
+        # Phase 7 (XB-14): the full CFC-year inclusion is applied entirely to
+        # the resident sub-period, NOT day-count apportioned like the income
+        # items above — a CFC's own tax year is a discrete inclusion event
+        # (virtually always closing within the resident period in a real
+        # dual-status case), not a continuously-accruing amount. Documented
+        # simplification, same disclosure style as passiveUsSourceDuringNrUsd.
+        # Mirrors ustax-full-nodes.js exactly.
+        "cfcNonElectedInclusionUs": {"usd": _usd_of(inc.get("cfcNonElectedInclusionUs"))},
+        "cfcElectedPool": inc.get("cfcElectedPool") or None,
     }
 
 
@@ -399,6 +408,7 @@ def _scale_nonresident_inc(inc, frac):
         "qualifiedTipsUsd": 0, "qualifiedOvertimeUsd": 0, "qbiIncomeUsd": 0, "qbiIsSSTB": False,
         "retirementEpfInterestUsd": 0, "retirementNpsWithdrawalUsd": 0,
         "usSourceTotal": {"usd": eci_usd},
+        "cfcNonElectedInclusionUs": zero, "cfcElectedPool": None,
     }
 
 

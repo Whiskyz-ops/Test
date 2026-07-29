@@ -17467,7 +17467,7 @@ div.innerHTML = `
                             <label class="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-brandRed/70 mb-1">Nature of Income 
                                 <span class="relative tooltip-trigger inline-block">
                                     <span class="text-brandCyan text-[10px] cursor-help">(i)</span>
-                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden tooltip-content w-48 bg-[#0a0a0a] border border-brandCyan/40 text-white/90 text-[10px] p-2.5 rounded-lg shadow-xl z-[100] font-normal normal-case tracking-normal whitespace-normal pointer-events-none">GILTI is taxed at up to 10.5% currently, while Subpart F is taxed at ordinary rates up to 37%.</div>
+                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden tooltip-content w-48 bg-[#0a0a0a] border border-brandCyan/40 text-white/90 text-[10px] p-2.5 rounded-lg shadow-xl z-[100] font-normal normal-case tracking-normal whitespace-normal pointer-events-none">OBBBA TY2026: without a §962 election, GILTI/NCTI is included in full at your ordinary graduated rates (up to 37%), same as Subpart F — no deduction. With a §962 election, GILTI/NCTI is taxed at an effective 21% × 60% = 12.6% (after the 40% §250 deduction) before FTC; Subpart F never gets the §250 deduction, election or not.</div>
                                 </span>
                             </label>
                             <select class="crp-income w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" onchange="syncCorpState()">
@@ -17501,14 +17501,63 @@ div.innerHTML = `
                             </label>
                         </div>
                     </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pr-6 mt-3">
+                        <div>
+                            <label class="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Tested Income (USD)
+                                <span class="relative tooltip-trigger inline-block">
+                                    <span class="text-brandCyan text-[10px] cursor-help">(i)</span>
+                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden tooltip-content w-48 bg-[#0a0a0a] border border-brandCyan/40 text-white/90 text-[10px] p-2.5 rounded-lg shadow-xl z-[100] font-normal normal-case tracking-normal whitespace-normal pointer-events-none">This entity's own tested income for the year (§951A(c)(2)). OBBBA TY2026 eliminated the 10% QBAI return exclusion, so enter the full tested income figure — no deemed-tangible-return subtraction needed.</div>
+                                </span>
+                            </label>
+                            <input type="text" inputmode="numeric" class="crp-tested-income w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncCorpState()">
+                        </div>
+                        <div>
+                            <label class="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Tested Loss (USD)
+                                <span class="relative tooltip-trigger inline-block">
+                                    <span class="text-brandCyan text-[10px] cursor-help">(i)</span>
+                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden tooltip-content w-48 bg-[#0a0a0a] border border-brandCyan/40 text-white/90 text-[10px] p-2.5 rounded-lg shadow-xl z-[100] font-normal normal-case tracking-normal whitespace-normal pointer-events-none">Enter as a positive number. Netted against tested income across ALL your CFCs before the $0 floor applies — a true aggregate, not per-entity.</div>
+                                </span>
+                            </label>
+                            <input type="text" inputmode="numeric" class="crp-tested-loss w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncCorpState()">
+                        </div>
+                        <div>
+                            <label class="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Subpart F Income (USD)
+                                <span class="relative tooltip-trigger inline-block">
+                                    <span class="text-brandCyan text-[10px] cursor-help">(i)</span>
+                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden tooltip-content w-48 bg-[#0a0a0a] border border-brandCyan/40 text-white/90 text-[10px] p-2.5 rounded-lg shadow-xl z-[100] font-normal normal-case tracking-normal whitespace-normal pointer-events-none">Passive/tainted income (foreign personal holding company income, etc.) — always fully includible, capped at this entity's own E&P, and NEVER eligible for the §250 deduction even with a §962 election.</div>
+                                </span>
+                            </label>
+                            <input type="text" inputmode="numeric" class="crp-subpartf w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncCorpState()">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pr-6 mt-3">
+                        <div>
+                            <label class="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Earnings &amp; Profits (E&amp;P, USD)
+                                <span class="relative tooltip-trigger inline-block">
+                                    <span class="text-brandCyan text-[10px] cursor-help">(i)</span>
+                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden tooltip-content w-48 bg-[#0a0a0a] border border-brandCyan/40 text-white/90 text-[10px] p-2.5 rounded-lg shadow-xl z-[100] font-normal normal-case tracking-normal whitespace-normal pointer-events-none">Caps the Subpart F inclusion above — Subpart F can never exceed this entity's own current E&amp;P (§952(c)).</div>
+                                </span>
+                            </label>
+                            <input type="text" inputmode="numeric" class="crp-ep w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncCorpState()">
+                        </div>
+                        <div class="crp-962-fields hidden">
+                            <label class="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Foreign Corporate Tax Paid (USD)
+                                <span class="relative tooltip-trigger inline-block">
+                                    <span class="text-brandCyan text-[10px] cursor-help">(i)</span>
+                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden tooltip-content w-48 bg-[#0a0a0a] border border-brandCyan/40 text-white/90 text-[10px] p-2.5 rounded-lg shadow-xl z-[100] font-normal normal-case tracking-normal whitespace-normal pointer-events-none">Only relevant with a §962 election — 90% of this becomes a creditable deemed-paid FTC against the flat 21% §962 tax (OBBBA TY2026 — up from 80%).</div>
+                                </span>
+                            </label>
+                            <input type="text" inputmode="numeric" class="crp-foreign-tax w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncCorpState()">
+                        </div>
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pr-6 mt-3 p-3 bg-brandCyan/5 border border-brandCyan/10 rounded-lg">
                         <div class="flex flex-col gap-2">
                             <label class="flex items-center gap-2 text-[9px] font-bold text-white/70 cursor-pointer">
-                                <input type="checkbox" class="crp-sec962 rounded bg-[#121212] border-white/20 text-brandCyan focus:ring-0" onchange="syncCorpState()">
+                                <input type="checkbox" class="crp-sec962 rounded bg-[#121212] border-white/20 text-brandCyan focus:ring-0" onchange="this.closest('.corp-card').querySelector('.crp-962-fields').classList.toggle('hidden', !this.checked); syncCorpState();">
                                 <span>Section 962 Election Planned?</span> 
                                 <span class="relative tooltip-trigger inline-block">
                                     <span class="text-brandCyan text-[10px] cursor-help">(i)</span>
-                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden tooltip-content w-48 bg-[#0a0a0a] border border-brandCyan/40 text-white/90 text-[10px] p-2.5 rounded-lg shadow-xl z-[100] font-normal normal-case tracking-normal whitespace-normal pointer-events-none">Electing Section 962 allows an individual to be taxed on GILTI/Subpart F at corporate rates (21%) and claim an 80% indirect Foreign Tax Credit for taxes the Indian company paid.</div>
+                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden tooltip-content w-48 bg-[#0a0a0a] border border-brandCyan/40 text-white/90 text-[10px] p-2.5 rounded-lg shadow-xl z-[100] font-normal normal-case tracking-normal whitespace-normal pointer-events-none">Electing Section 962 allows an individual to be taxed on GILTI/NCTI and Subpart F at corporate rates (21%) and claim a 90% deemed-paid indirect Foreign Tax Credit for taxes the Indian company paid on the inclusion (OBBBA TY2026 — up from 80%). Also unlocks the 40% §250 deduction on the NCTI/GILTI portion (OBBBA TY2026 — down from 50%); the §250 deduction never applies to the Subpart F portion, election or not.</div>
                                 </span>
                             </label>
                             <label class="flex items-center gap-2 text-[9px] font-bold text-white/70 cursor-pointer">
@@ -17559,6 +17608,13 @@ div.innerHTML = `
             if (div.querySelector('.crp-family')) div.querySelector('.crp-family').checked = data.has_constructive_ownership === true;
             if (div.querySelector('.crp-transfers')) div.querySelector('.crp-transfers').checked = data.has_capital_transfers === true;
             if (div.querySelector('.crp-related')) div.querySelector('.crp-related').checked = data.has_related_party_transactions === true;
+            if (div.querySelector('.crp-tested-income')) div.querySelector('.crp-tested-income').value = data.tested_income_usd || '';
+            if (div.querySelector('.crp-tested-loss')) div.querySelector('.crp-tested-loss').value = data.tested_loss_usd || '';
+            if (div.querySelector('.crp-subpartf')) div.querySelector('.crp-subpartf').value = data.subpart_f_income_usd || '';
+            if (div.querySelector('.crp-ep')) div.querySelector('.crp-ep').value = data.ep_usd || '';
+            if (div.querySelector('.crp-foreign-tax')) div.querySelector('.crp-foreign-tax').value = data.foreign_tax_paid_usd || '';
+            var f962 = div.querySelector('.crp-962-fields');
+            if (f962) f962.classList.toggle('hidden', data.sec962_election_planned !== true);
         }
         syncCorpState();
     }
@@ -17590,7 +17646,12 @@ div.innerHTML = `
                 sec962_election_planned: div.querySelector('.crp-sec962')?.checked || false,
                 has_constructive_ownership: div.querySelector('.crp-family')?.checked || false,
                 has_capital_transfers: div.querySelector('.crp-transfers')?.checked || false,
-                has_related_party_transactions: div.querySelector('.crp-related')?.checked || false
+                has_related_party_transactions: div.querySelector('.crp-related')?.checked || false,
+                tested_income_usd: parseFormattedNumber(div.querySelector('.crp-tested-income')?.value) || 0,
+                tested_loss_usd: parseFormattedNumber(div.querySelector('.crp-tested-loss')?.value) || 0,
+                subpart_f_income_usd: parseFormattedNumber(div.querySelector('.crp-subpartf')?.value) || 0,
+                ep_usd: parseFormattedNumber(div.querySelector('.crp-ep')?.value) || 0,
+                foreign_tax_paid_usd: parseFormattedNumber(div.querySelector('.crp-foreign-tax')?.value) || 0
             });
         });
         usState.foreign_entities.foreign_corporations = list;
@@ -18556,20 +18617,35 @@ div.innerHTML = `
                         });
                     }
                     // 6. Hydrate Indian Business -> US Foreign Entities (Form 5471 / 8865)
-                    if (indiaState.domestic_income && indiaState.domestic_income.business_income && indiaState.domestic_income.business_income.business_entries) {
+                    // Only an incorporated entity (India entity_type 'company') can be a CFC at all —
+                    // sole proprietorships/firms/HUFs reported under business_entries are not eligible.
+                    if (indiaState.profile && indiaState.profile.entity_type === 'company' &&
+                        indiaState.domestic_income && indiaState.domestic_income.business_income && indiaState.domestic_income.business_income.business_entries) {
                         const entries = indiaState.domestic_income.business_income.business_entries;
                         if (entries.length > 0) {
                             usState.foreign_entities = usState.foreign_entities || {};
                             usState.foreign_entities.owns_10_percent_foreign_corp = true;
                             usState.foreign_entities.foreign_corporations = usState.foreign_entities.foreign_corporations || [];
-                            
+
                             entries.forEach(b => {
                                 usState.foreign_entities.foreign_corporations.push({
-                                    corp_name: b.trade_name || "Indian Business Entity",
-                                    country: "IN",
+                                    corporation_name: b.trade_name || b.business_name || "Indian Business Entity",
+                                    country_of_incorporation: "IN",
+                                    // Assumes wholly owned by this individual — the common sole-promoter/
+                                    // founder case this bridge targets; a real minority-shareholder
+                                    // scenario should be corrected manually by the preparer.
+                                    ownership_percentage: 100,
                                     subpart_f_income_usd: 0,
-                                    gilti_income_usd: (b.net_profit_inr || 0) / 83.0,
-                                    section_962_election_active: false,
+                                    // net_profit_inr is a reasonable proxy for "this entity's tested
+                                    // income" (same proxy the old, inert push already used) — not a
+                                    // real §951A tested-income computation, since India's PGBP net
+                                    // profit isn't the same base as US tested income (different
+                                    // depreciation regime, different add-backs).
+                                    tested_income_usd: Math.max(0, (b.net_profit_inr || 0) / 83.0),
+                                    tested_loss_usd: 0,
+                                    ep_usd: 0,
+                                    foreign_tax_paid_usd: 0,
+                                    sec962_election_planned: false,
                                     _hydratedFromIndia: true
                                 });
                             });

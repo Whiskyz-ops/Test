@@ -447,7 +447,14 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // awards[].filed_within_30_days fed nothing at all before this. No engine
 // equivalent since the classic engine is frozen.
 var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|retirement_rmd_required|s83b_election_not_filed_timely)$/;
-var KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = [];
+// cfc (Phase 7, XB-14, GILTI/NCTI quantification): the finding's detail/
+// recommendation/refs text now differs unconditionally from the frozen
+// engine's static text whenever it fires — real computed inclusion numbers
+// once CFC financial data (tested income/loss, Subpart F, E&P) is entered,
+// and improved wording/refs even at $0 when only ownership is on file. No
+// engine equivalent since the classic engine is frozen and never modeled
+// GILTI/Subpart F quantification at all.
+var KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = ["cfc"];
 
 // ---- D. entity-agnostic audit allowlist (see file header, section D) -----
 function isUsEntityProfile(dag) { return ["ccorp", "scorp", "partnership", "trust"].indexOf(dag.model.entity && dag.model.entity.usKind) >= 0; }
@@ -472,7 +479,19 @@ var KNOWN_INDIA_ENTITY_DIVERGENT_PATHS = ["taxComputation.india"];
 // ordinary-income bucket (aggregateusincome-nodes.js's directIncomeComputation)
 // the frozen engine has no concept of. None of the fuzz corpus's profiles
 // populate these 5 fields, so this never cascades into a dollar difference.
-var KNOWN_ALWAYS_DIVERGENT_PATHS = ["model.income.us.foreignSection988GainLoss", "model.income.us.otherOrdinaryIncomeUs"];
+// Phase 7 (XB-14, GILTI/NCTI quantification): five brand-new fields/paths
+// the frozen legacy engine has no concept of at all (it never quantified
+// GILTI/Subpart F — only carried a hand-entered gilti_income_usd display
+// placeholder). model.assets.businessEntities' gilti/returnForm/calcTrace
+// now prefer the real computed per-CFC trace over that legacy placeholder
+// (a deliberate, documented improvement — see assets-nodes.js), and
+// computed.reconciliation.rows' CFC business row note/usRule text changed
+// unconditionally once a CFC fires (crossbasis-nodes.js). None of these
+// cascade into any OTHER field's dollar value for a fuzz-generated profile.
+var KNOWN_ALWAYS_DIVERGENT_PATHS = ["model.income.us.foreignSection988GainLoss", "model.income.us.otherOrdinaryIncomeUs",
+  "model.income.us.cfcNonElectedInclusionUs", "model.income.us.cfcElectedPool", "model.income.us.cfcPerEntityTrace",
+  "computed.usTax.gilti962TaxUsd", "computed.usTax.cfcDetail",
+  "model.assets.businessEntities", "computed.reconciliation.rows"];
 var KNOWN_NRA_DIVERGENT_PATHS = ["computed.ftc.india", "ftcReport.direction_india_relief"];
 // ---- H.6: India AOP/BOI and Trust/NGO/Political Party (docs/GAP_TRACKER.md
 // section H.6, 21 Jul 2026) — a WIDER divergence than the company/firm case
