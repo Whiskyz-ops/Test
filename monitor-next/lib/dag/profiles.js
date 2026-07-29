@@ -356,7 +356,13 @@
     us: {
       profile: { tax_entity_type: "individual", full_name: "Rohan Mehta", date_of_birth: "1985-03-22", filing_status: "mfj", ssn_or_itin_type: "ssn" },
       us_residency_detail: { is_us_citizen: false, has_green_card: true, us_days_current_year: 345, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "none" },
-      income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Northwind Labs", wages_box1_usd: 158000, qualified_tip_income_usd: 2400, qualified_overtime_premium_usd: 5800, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 30000, medicare_wages_box5_usd: 158000 } }], self_employment: [{ business_name: "Mehta Analytics (consulting)", self_employment_earnings_usd: 62000 }],
+      income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Northwind Labs", wages_box1_usd: 158000, qualified_tip_income_usd: 2400, qualified_overtime_premium_usd: 5800, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 30000, medicare_wages_box5_usd: 158000 } }],
+        // Deliberately no wages_paid_usd here — Mehta Analytics is a genuine
+        // solo consulting practice (no employees), so above the §199A
+        // threshold its wage/UBIA limit is correctly $0. Real, common outcome
+        // for a sole practitioner, not a data gap — the two K-1s above/below
+        // carry real wage/UBIA shares to exercise the non-zero-limit path too.
+        self_employment: [{ business_name: "Mehta Analytics (consulting)", self_employment_earnings_usd: 62000 }],
         // A general-partner stake in a small consulting partnership — Box 4
         // guaranteed payments (previously dropped from income entirely) plus
         // Box 1 ordinary income; Box 14A (self_employment_earnings_usd) is the
@@ -367,7 +373,10 @@
         // Box 5 interest allocation and a Box 12 s.179 deduction, exercising
         // the K-1 passive-income-box and s.179 fixes on the SAME K-1 that
         // already exercises Box 1/4/14A.
-        partnerships_k1: [{ business_name: "Meridian Consulting Partners LLC", partner_type: "general", ordinary_business_income_usd: 18000, guaranteed_payments_usd: 12000, self_employment_earnings_usd: 30000, interest_income_usd: 900, sec179_deduction_usd: 2000 }],
+        // qbi_wages_usd/qbi_ubia_usd (Box 20 codes) added same session as the
+        // §199A wage/UBIA limitation itself (task #42) — his allocated share
+        // of the partnership's own W-2 wages/UBIA, not the entity's totals.
+        partnerships_k1: [{ business_name: "Meridian Consulting Partners LLC", partner_type: "general", ordinary_business_income_usd: 18000, guaranteed_payments_usd: 12000, self_employment_earnings_usd: 30000, interest_income_usd: 900, sec179_deduction_usd: 2000, qbi_wages_usd: 22000, qbi_ubia_usd: 8000 }],
         // A passive minority stake in a friend's S-corp — Box 1 ordinary
         // income under ordinary_income_usd, the REAL Layer 1 US field name
         // (scorp_income_usd/ordinary_business_income_usd exist nowhere on
@@ -375,7 +384,9 @@
         // regardless of what was entered — the single highest-value gap
         // found in the ccorp/scorp/partnership/trust form audit). No
         // material participation, so correctly excluded from SE tax.
-        s_corporations_k1: [{ business_name: "Harborline Print Co", ordinary_income_usd: 9000, ordinary_dividends_usd: 500, is_specified_service_trade: false }],
+        // A printing business genuinely carries real equipment (UBIA) and
+        // staff wages even at a minority passive stake — his allocated share.
+        s_corporations_k1: [{ business_name: "Harborline Print Co", ordinary_income_usd: 9000, ordinary_dividends_usd: 500, is_specified_service_trade: false, qbi_wages_usd: 14000, qbi_ubia_usd: 45000 }],
         interest_us_source_usd: 5200, ordinary_dividends_us_source_usd: 6400, qualified_dividends_us_source_usd: 4000, ltcg_us_source_usd: 12000, rental_income_us_source_usd: 27000 },
       income_foreign_source: { foreign_rental_income_usd: 14458, foreign_dividends_usd: 2651, foreign_interest_usd: 3133, foreign_stcg_usd: 2169 },
       retirement_accounts: { "401k_employee_contribution_usd": 23000, "401k_employer_match_usd": 9500, roth_ira_contribution_usd: 7000, hsa_contribution_usd: 4150 },
@@ -978,6 +989,11 @@
         // exercising both paths in one Schedule C, sized to still leave a
         // real positive net-SE-income figure (Schedule SE tax, QBI) rather
         // than depreciating the whole practice's profit away to $0.
+        // Deliberately no wages_paid_usd — Chen Data Consulting is David's own
+        // solo Schedule C practice (no employees; he can't pay himself W-2
+        // wages from his own sole proprietorship), so above the §199A
+        // threshold its wage/UBIA limit is correctly $0 — a real, common
+        // outcome for a sole practitioner, not a data gap.
         self_employment: [
           { id: "david-consulting", business_name: "Chen Data Consulting", has_se_income: true, gross_receipts_usd: 95000, expenses_usd: 18000, is_specified_service_trade: false,
             assets: [
@@ -986,12 +1002,18 @@
             ] }
         ],
         // Limited partner (no material participation) — ordinary income only,
-        // no guaranteed payments, no SE tax base.
-        partnerships_k1: [{ business_name: "Ridgeline Capital Partners LP", partner_type: "limited", ordinary_business_income_usd: 14000, guaranteed_payments_usd: 0, self_employment_earnings_usd: 0, interest_income_usd: 1200, ordinary_dividends_usd: 800, sec179_deduction_usd: 0 }],
+        // no guaranteed payments, no SE tax base. qbi_wages_usd/qbi_ubia_usd
+        // are his allocated share of the fund's own Box 20 wages/UBIA (task
+        // #42) — modest, matching a financial-services LP's light payroll
+        // and low depreciable-property footprint relative to its income.
+        partnerships_k1: [{ business_name: "Ridgeline Capital Partners LP", partner_type: "limited", ordinary_business_income_usd: 14000, guaranteed_payments_usd: 0, self_employment_earnings_usd: 0, interest_income_usd: 1200, ordinary_dividends_usd: 800, sec179_deduction_usd: 0, qbi_wages_usd: 9000, qbi_ubia_usd: 3000 }],
         // A specified-service-trade S-corp (health field) — exercises the
         // QBI SSTB phase-out the non-SSTB K-1s in this same profile don't
-        // trigger.
-        s_corporations_k1: [{ business_name: "Brightpath Dental PC", ordinary_income_usd: 22000, ordinary_dividends_usd: 0, is_specified_service_trade: true }],
+        // trigger. Real wage/UBIA share included for realism (a dental
+        // practice genuinely has staff and equipment), though SSTB status
+        // means QBI itself phases to $0 above the full threshold regardless
+        // of the wage/UBIA figures.
+        s_corporations_k1: [{ business_name: "Brightpath Dental PC", ordinary_income_usd: 22000, ordinary_dividends_usd: 0, is_specified_service_trade: true, qbi_wages_usd: 18000, qbi_ubia_usd: 60000 }],
         trusts_estates_k1: [{ business_name: "Chen Family Trust", trust_type: "simple", ordinary_income_usd: 6000, interest_income_usd: 400, ordinary_dividends_usd: 700, qualified_dividends_usd: 600, is_specified_service_trade: false }],
         interest_us_source_usd: 4200, ordinary_dividends_us_source_usd: 8200, qualified_dividends_us_source_usd: 6100,
         ltcg_us_source_usd: 32000, stcg_us_source_usd: 9000,
