@@ -94,13 +94,27 @@ NODES = {
             "amountClaimedUsd": num(safe(ctx.get("us"), "foreign_earned_income.feie_amount_claimed_usd", 0)),
             "foreignEarnedIncomeUsd": num(safe(ctx.get("us"), "foreign_earned_income.foreign_earned_income_usd", 0)),
             "taxHomeCountry": safe(ctx.get("us"), "foreign_earned_income.tax_home_country", ""),
-            "bonaFide": safe(ctx.get("us"), "foreign_earned_income.bona_fide_residence", False) is True,
+            # Same 3-key shape as us/ustax.py's _feie_raw (docs/GAP_TRACKER.md,
+            # 29 Jul 2026) -- this node feeds the SAME shared feie_eligibility()
+            # function, so it must match that function's current input contract.
+            # Was still supplying the old single "bonaFide" key after
+            # feie_eligibility() was fixed to require bonaFideSelected/
+            # bonaFideStartDateSet/bonaFideLegacyConfirmed instead, which made
+            # this Limits Dashboard FEIE gauge silently always compute NOT
+            # eligible for every taxpayer -- a real regression, not a
+            # deliberately-scoped-out gap (unlike the JS side's separate
+            # limits-nodes.js duplicate, which has its own independent
+            # feieEligibilityFull() and was intentionally left alone).
+            "bonaFideSelected": safe(ctx.get("us"), "foreign_earned_income.qualification_test", None) == "bona_fide_residence",
+            "bonaFideStartDateSet": bool(safe(ctx.get("us"), "foreign_earned_income.bona_fide_residence_start_date", None)),
+            "bonaFideLegacyConfirmed": safe(ctx.get("us"), "foreign_earned_income.bona_fide_residence", False) is True,
             "physicalPresence": safe(ctx.get("us"), "foreign_earned_income.physical_presence", False) is True,
             "daysInUsTestPeriod": num(safe(ctx.get("us"), "foreign_earned_income.days_in_us_during_test_period", 0)),
         },
         layer1_fields=(
             "us.foreign_earned_income.claims_feie", "us.foreign_earned_income.feie_amount_claimed_usd",
             "us.foreign_earned_income.foreign_earned_income_usd", "us.foreign_earned_income.tax_home_country",
+            "us.foreign_earned_income.qualification_test", "us.foreign_earned_income.bona_fide_residence_start_date",
             "us.foreign_earned_income.bona_fide_residence", "us.foreign_earned_income.physical_presence",
             "us.foreign_earned_income.days_in_us_during_test_period",
         ),

@@ -91,18 +91,32 @@ function feieEligibility(f) {
   var taxHomeAbroad = home !== "" && home !== "us" && home !== "usa" && home !== "united states" && home !== "united states of america";
   var ppDaysOk = (f.daysInUsTestPeriod || 0) <= 35;
   var ppMet = !!f.physicalPresence && ppDaysOk;
-  var bfMet = !!f.bonaFide;
+  // Real bug, found during the entity-filings-audit fuzz cleanup (docs/
+  // GAP_TRACKER.md, 29 Jul 2026): bonaFideSelected alone used to BE bfMet —
+  // merely picking "Bona Fide Residence" from the #feie-test dropdown
+  // granted the exclusion with zero validation, unlike physicalPresence's
+  // ppDaysOk check two lines up. A minimal, conservative proxy (not a full
+  // uninterrupted-full-tax-year check, which nothing in this schema can
+  // validate): the NEW dropdown-selection path additionally requires
+  // bonaFideStartDateSet. The LEGACY explicit boolean (bonaFideLegacyConfirmed)
+  // bypasses that check and is trusted directly, unchanged from before this
+  // fix — it represents "already confirmed true" from old saved data, not a
+  // fresh selection to validate (same reasoning the file's own header comment
+  // already gives for keeping it as a fallback at all).
+  var bfMet = !!f.bonaFideLegacyConfirmed || (!!f.bonaFideSelected && !!f.bonaFideStartDateSet);
   // reasons ported too (engine L767-775) — the result's feie block carries
   // them; previously dropped here because computeUsTax's own math never
   // reads them, which left feie.reasons undefined vs the engine's [].
   var reasons = [];
   if (claimed && !taxHomeAbroad) reasons.push(home === "" ? "no foreign tax home entered" : "tax home is in the US");
   if (claimed && !bfMet && !ppMet) {
-    reasons.push(!f.physicalPresence && !f.bonaFide
+    reasons.push(!f.physicalPresence && !f.bonaFideSelected
       ? "neither the bona-fide-residence nor the physical-presence test is met"
       : (f.physicalPresence && !ppDaysOk
         ? (f.daysInUsTestPeriod + " US days in the test period — over the ~35-day allowance (330 full days abroad required)")
-        : "bona-fide-residence test not met"));
+        : (f.bonaFideSelected && !f.bonaFideStartDateSet
+          ? "bona-fide-residence test selected but no residence start date on file"
+          : "bona-fide-residence test not met")));
   }
   return { claimed: claimed, amountClaimedUsd: f.amountClaimedUsd || 0, taxHomeAbroad: taxHomeAbroad, testMet: bfMet || ppMet, eligible: taxHomeAbroad && (bfMet || ppMet), reasons: reasons };
 }
@@ -472,7 +486,16 @@ var NODES = {
         claimed: safe(ctx.us, "foreign_earned_income.claims_feie", false) === true,
         amountClaimedUsd: num(safe(ctx.us, "foreign_earned_income.feie_amount_claimed_usd", 0)),
         taxHomeCountry: safe(ctx.us, "foreign_earned_income.tax_home_country", ""),
-        bonaFide: qualTest === "bona_fide_residence" || safe(ctx.us, "foreign_earned_income.bona_fide_residence", false) === true,
+        // bonaFideSelected: "did the user pick this test from the #feie-test
+        // dropdown" -- NOT by itself "did they pass it." See
+        // feieEligibility()'s bfMet, which additionally requires
+        // bonaFideStartDateSet before granting the NEW (dropdown-based)
+        // path. bonaFideLegacyConfirmed is kept separate and bypasses that
+        // check entirely -- an explicit true on old saved data/fixtures is
+        // trusted as-is, same as before this fix.
+        bonaFideSelected: qualTest === "bona_fide_residence",
+        bonaFideStartDateSet: !!safe(ctx.us, "foreign_earned_income.bona_fide_residence_start_date", null),
+        bonaFideLegacyConfirmed: safe(ctx.us, "foreign_earned_income.bona_fide_residence", false) === true,
         physicalPresence: qualTest === "physical_presence" || safe(ctx.us, "foreign_earned_income.physical_presence", false) === true,
         daysInUsTestPeriod: num(safe(ctx.us, "foreign_earned_income.days_in_us_during_test_period", 0))
       };

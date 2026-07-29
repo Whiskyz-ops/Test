@@ -600,6 +600,35 @@ var KNOWN_ALWAYS_DIVERGENT_PATHS = ["model.income.us.foreignSection988GainLoss",
   // improvement can genuinely move that final number, cascading a real
   // (not buggy) dollar difference into this finding whenever it fires.
   "findings[underpayment_2210]"];
+// model.assets.businessEntities[].calcTrace.formula (item R, home-office/
+// vehicle-mileage deduction, docs/GAP_TRACKER.md, 27 Jul 2026): the DAG's
+// Schedule C trace sentence (assets-nodes.js) was rewritten to describe the
+// now-netted deduction; the frozen engine's trace sentence (normalize.js) is
+// permanently frozen with its old "Home-office isn't netted yet (Phase 1)"
+// wording. Both are hardcoded, UNCONDITIONAL literals — this diverges for
+// every Schedule C business entity regardless of whether any mileage/home-
+// office data is actually on file. Handled as a value-level normalization
+// (below, called from compareOne) rather than a KNOWN_ALWAYS_DIVERGENT_PATHS
+// prefix, since a prefix broad enough to catch every array index of
+// businessEntities[] would also excuse a REAL numeric bug anywhere else in
+// that array — and model.assets.businessEntities is ALREADY a full-object
+// exclusion above (Phase 7/GILTI), so this couldn't reuse that entry anyway.
+var OLD_SCHED_C_TRACE = "Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less asset depreciation (§179 / 100% bonus, permanent under OBBBA / MACRS — computed from each asset's own class and placed-in-service date, not Layer 1's own first-year-only preview). Home-office isn't netted yet (Phase 1).";
+var NEW_SCHED_C_TRACE = "Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less vehicle-mileage/home-office deductions, less asset depreciation (§179 / 100% bonus, permanent under OBBBA / MACRS — computed from each asset's own class and placed-in-service date, not Layer 1's own first-year-only preview).";
+function normalizeKnownScheduleCTraceDivergence(real, dag) {
+  var re = real && real.model && real.model.assets && real.model.assets.businessEntities;
+  var de = dag && dag.model && dag.model.assets && dag.model.assets.businessEntities;
+  if (!Array.isArray(re) || !Array.isArray(de)) return;
+  var n = Math.min(re.length, de.length);
+  for (var i = 0; i < n; i++) {
+    var rf = re[i] && re[i].calcTrace && re[i].calcTrace.formula;
+    var df = de[i] && de[i].calcTrace && de[i].calcTrace.formula;
+    if (rf === OLD_SCHED_C_TRACE && df === NEW_SCHED_C_TRACE) {
+      re[i].calcTrace.formula = "(Schedule C trace text — see docs/GAP_TRACKER.md item R for the known engine/DAG wording difference)";
+      de[i].calcTrace.formula = re[i].calcTrace.formula;
+    }
+  }
+}
 var KNOWN_NRA_DIVERGENT_PATHS = ["computed.ftc.india", "ftcReport.direction_india_relief"];
 // ---- H.6: India AOP/BOI and Trust/NGO/Political Party (docs/GAP_TRACKER.md
 // section H.6, 21 Jul 2026) — a WIDER divergence than the company/firm case
@@ -658,8 +687,88 @@ function isFeieWagesDivergentProfile(profile) {
 }
 var KNOWN_FEIE_WAGES_DIVERGENT_PATHS = [
   "model.income.us", "computed.usTax", "computed.headline", "computed.ftc", "computed.reconciliation",
-  "computed.apportionment", "taxComputation", "ftcReport", "documents", "returnForms", "withholding",
-  "scopeNotes", "summary", "monitoring"
+  "computed.apportionment", "computed.limits", "taxComputation", "ftcReport", "documents", "returnForms",
+  "withholding", "scopeNotes", "summary", "monitoring"
+];
+// FEIE bona-fide-residence eligibility (docs/GAP_TRACKER.md, 29 Jul 2026):
+// the frozen engine grants the test ONLY off the legacy bona_fide_residence
+// boolean, which nothing in the live UI has ever set (same root cause as
+// isFeieWagesDivergentProfile's own header comment) -- so it denies FEIE for
+// essentially every real bona-fide-residence claimant. The DAG's fix grants
+// it off qualification_test==="bona_fide_residence" PLUS a real residence
+// start date on file (a conservative, but real, proxy), which correctly
+// diverges from the engine's always-deny behavior whenever a taxpayer
+// selected this test, has a start date, but the never-populated legacy
+// boolean happens to be false/absent.
+function isFeieBonaFideProxyDivergentProfile(profile) {
+  var f = (profile.us && profile.us.foreign_earned_income) || {};
+  return f.claims_feie === true && f.qualification_test === "bona_fide_residence" &&
+    !!f.bona_fide_residence_start_date && f.bona_fide_residence !== true;
+}
+// §199A QBI wage/UBIA limitation (item S, docs/GAP_TRACKER.md, 27 Jul 2026):
+// the frozen engine computes QBI as a flat 20% with only the SSTB phase-out
+// (no wage/UBIA limit at all); the DAG (ustax-nodes.js) additionally caps
+// the deduction at max(50%*wages, 25%*wages+2.5%*UBIA) once taxable income
+// clears T.QBI_THRESHOLD (constants.js: $201,750 single/mfs/hoh, $403,500
+// mfj). None of the 12 real fixtures carry K-1 QBI wage/UBIA data (item S's
+// own note), so a fuzzed profile with real QBI income above the threshold
+// almost always has qbiWages=qbiUbia=0 on file -- the wage/UBIA limit binds
+// at (near) $0, unconditionally reducing the DAG's deduction versus the
+// engine's flat calc. Gated on the ENGINE's own already-computed
+// qbiDeductionUsd/taxableIncomeUsd (available at comparison time, unlike
+// the FEIE predicate above which only sees the raw profile) rather than
+// re-deriving taxableBeforeQbi/filing-status-specific threshold logic here
+// -- that would duplicate ustax-nodes.js's own algorithm, the exact
+// SYS-1-class risk this codebase's own conventions warn against. Uses the
+// LOWEST QBI_THRESHOLD across filing statuses as a deliberately
+// conservative floor (a real MFJ profile between $201,750-$403,500 that
+// doesn't actually diverge is harmlessly over-excused, not under-excused --
+// same tradeoff KNOWN_FEIE_WAGES_DIVERGENT_PATHS/KNOWN_US_ENTITY_DIVERGENT_
+// PATHS above already make).
+function isQbiWageUbiaLimitDivergentProfile(real) {
+  var t = real && real.computed && real.computed.usTax;
+  if (!t) return false;
+  var qbiThresholdFloor = 201750;
+  // taxableIncomeUsd is POST-deduction; the real gate (taxableBeforeQbi, in
+  // ustax-nodes.js) is taxableIncomeUsd + qbiDeductionUsd added back -- using
+  // the post-deduction figure alone let a real case slip through (post
+  // $178,685 < threshold, but pre-deduction ~$212,037 > threshold).
+  var taxableBeforeQbi = (t.taxableIncomeUsd || 0) + (t.qbiDeductionUsd || 0);
+  return (t.qbiDeductionUsd || 0) > 0 && taxableBeforeQbi > qbiThresholdFloor;
+}
+var KNOWN_QBI_WAGE_UBIA_DIVERGENT_PATHS = [
+  "computed.usTax", "computed.headline", "computed.ftc", "computed.reconciliation",
+  "computed.apportionment", "computed.indiaTax", "computed.limits", "taxComputation",
+  "ftcReport", "documents", "returnForms", "withholding", "scopeNotes", "summary", "monitoring"
+];
+// India §87A rebate marginal relief (in1_v3.py/in1-nodes-v3.js, fixed 29 Jul
+// 2026): rebateInrV3 used to test eligibility against totalNormalInr (slab
+// income only) with no marginal relief at the cliff; fixed to test against
+// totalIncomeInrV3 (every head, incl. special-rate income) with real
+// marginal relief. The frozen engine (permanently archived) still has the
+// old bug, so any INDIVIDUAL taxpayer (rebateInrV3 is gated on
+// isIndividualV3 -- never fires for HUF/company/firm/AOP/trust/NR at all)
+// whose OLD-formula rebate would have differed from the fixed one now
+// legitimately diverges from the engine. Recomputed EXACTLY from the DAG's
+// own already-computed intermediates (totalNormalInr/slabTaxInr, exposed via
+// RESOLVE_LIST/_debug* fields above) rather than an income-band
+// approximation -- an income-band proxy either missed real cases (bug #1 has
+// no upper bound: the OLD logic grants the FULL rebate whenever
+// totalNormalInr alone stays under the cap, however large totalIncomeInrV3
+// climbs above it, confirmed by direct reproduction at Rs.74,70,185) or, if
+// widened enough to catch those, risked masking an unrelated future
+// India-tax bug for individuals broadly.
+function isIndiaRebateMarginalReliefDivergentProfile(dag) {
+  if (!dag._debugIsIndividualV3 || dag._debugIsNRV3) return false;
+  var cap = dag._debugIsNew ? CONST.TAX.INDIA.REBATE_87A_NEW : CONST.TAX.INDIA.REBATE_87A_OLD;
+  var totalNormalInr = dag._debugTotalNormalInr || 0;
+  var slabTaxInr = dag._debugSlabTaxInr || 0;
+  var oldRebate = totalNormalInr <= cap.incomeCap ? Math.min(slabTaxInr, cap.maxRebate) : 0;
+  return Math.abs(oldRebate - (dag._debugRebateInrV3 || 0)) > 1;
+}
+var KNOWN_INDIA_REBATE_MARGINAL_RELIEF_DIVERGENT_PATHS = [
+  "computed.indiaTax", "computed.ftc", "computed.headline", "taxComputation.india", "findings",
+  "summary", "monitoring", "ftcReport"
 ];
 // SEPARATE, narrower finding from the same Step 7 audit pass, only
 // reachable by the fuzzer's nonsensical cross-profile field merging (never
@@ -749,7 +858,14 @@ var RESOLVE_LIST = [
   "totalTaxInrCombined", "regimeCombined", "isEntityTaxpayer", "usTaxResult", "residencyResult",
   "ftcResult", "crossBasisResult", "limitsResult", "headlineResult",
   "apportionmentResult", "s115aDividend", "s115aRoyalty", "s115aFts", "isNRV3",
-  "analyzeResult", "checksRegistryResult"
+  "analyzeResult", "checksRegistryResult",
+  // Harness-internal only (not part of the real product surface, not
+  // compared against the engine anywhere) — lets
+  // isIndiaRebateMarginalReliefDivergentProfile below recompute the OLD
+  // (pre-fix) rebate formula from the same already-computed intermediates
+  // the DAG itself used, rather than approximating "near the threshold" off
+  // a proxy income figure.
+  "totalIncomeInrV3", "totalNormalInr", "slabTaxInr", "rebateInrV3", "isNew", "isIndividualV3", "isNRV3"
 ];
 function assembleDag(profile, monitorAsOfBoundary) {
   var ctx = { router: profile.router, india: profile.india, us: profile.us, monitorAsOfBoundary: monitorAsOfBoundary };
@@ -791,7 +907,11 @@ function assembleDag(profile, monitorAsOfBoundary) {
   var summary = (droppedRequiredCount > 0 && out.analyzeResult.summary && typeof out.analyzeResult.summary.requiredDocs === "number")
     ? Object.assign({}, out.analyzeResult.summary, { requiredDocs: out.analyzeResult.summary.requiredDocs - droppedRequiredCount })
     : out.analyzeResult.summary;
-  return Object.assign({}, out.analyzeResult, { documents: documents, monitoring: monitoring, summary: summary, model: model, computed: computed, checksRegistry: out.checksRegistryResult });
+  return Object.assign({}, out.analyzeResult, {
+    documents: documents, monitoring: monitoring, summary: summary, model: model, computed: computed, checksRegistry: out.checksRegistryResult,
+    _debugTotalIncomeInrV3: out.totalIncomeInrV3, _debugTotalNormalInr: out.totalNormalInr, _debugSlabTaxInr: out.slabTaxInr,
+    _debugRebateInrV3: out.rebateInrV3, _debugIsNew: out.isNew, _debugIsIndividualV3: out.isIndividualV3, _debugIsNRV3: out.isNRV3
+  });
 }
 
 function compareOne(label, profile, saveOnFail) {
@@ -805,6 +925,8 @@ function compareOne(label, profile, saveOnFail) {
   if (realThrew && dagThrew) return { status: "both-threw", detail: realThrew.message + " | " + dagThrew.message };
   if (realThrew && !dagThrew) return { status: "engine-threw-dag-didnt", detail: realThrew.message };
   if (!realThrew && dagThrew) return { status: "dag-threw-engine-didnt", detail: dagThrew.message + "\n" + dagThrew.stack };
+
+  normalizeKnownScheduleCTraceDivergence(real, dag);
 
   var realDiffs = [], knownDiffs = [];
 
@@ -871,17 +993,22 @@ function compareOne(label, profile, saveOnFail) {
   var feieWagesDivergent = isFeieWagesDivergentProfile(profile);
   var qbiWageLimitDivergent = isQbiWageLimitDivergent(dag);
   var saversCreditDivergent = isSaversCreditDivergent(dag);
+  var feieBonaFideProxyDivergent = isFeieBonaFideProxyDivergentProfile(profile);
+  var qbiWageUbiaDivergent = isQbiWageUbiaLimitDivergentProfile(real);
+  var indiaRebateDivergent = isIndiaRebateMarginalReliefDivergentProfile(dag);
   var findingsResult = compareFindings(dag.findings, real.findings, usEntity);
   // AOP/Trust: findings content genuinely cascades from the (now correct)
   // India tax amount in ways too varied to enumerate by finding ID (see
   // KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS's comment) — treated wholesale as
   // known rather than diffed ID-by-ID, same principle as taxComputation.us/
   // india being treated as fully-diverging blocks for the entity cases above.
-  // feieWagesDivergent (see KNOWN_FEIE_WAGES_DIVERGENT_PATHS above) and
-  // qbiWageLimitDivergent (see KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS above)
-  // cascade the same way into every $-amount-bearing finding (amt_applies,
-  // underpayment_2210, etc).
-  var findingsExcused = indiaAopOrTrust || feieWagesDivergent || qbiWageLimitDivergent || saversCreditDivergent;
+  // feieWagesDivergent/feieBonaFideProxyDivergent (see KNOWN_FEIE_WAGES_
+  // DIVERGENT_PATHS above), qbiWageLimitDivergent/qbiWageUbiaDivergent (see
+  // KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS above), saversCreditDivergent, and
+  // indiaRebateDivergent all cascade the same way into every $-amount-bearing
+  // finding (amt_applies, underpayment_2210, etc).
+  var findingsExcused = indiaAopOrTrust || feieWagesDivergent || feieBonaFideProxyDivergent ||
+    qbiWageLimitDivergent || qbiWageUbiaDivergent || saversCreditDivergent || indiaRebateDivergent;
   (findingsExcused ? knownDiffs : realDiffs).push.apply(findingsExcused ? knownDiffs : realDiffs, findingsResult.unknown);
   knownDiffs.push.apply(knownDiffs, findingsResult.known);
 
@@ -919,9 +1046,12 @@ function compareOne(label, profile, saveOnFail) {
     .concat(indiaAopOrTrust ? KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS : [])
     .concat(isUsTrustProfile(dag) ? KNOWN_US_TRUST_DIVERGENT_PATHS : [])
     .concat(feieWagesDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
+    .concat(feieBonaFideProxyDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(isFeieEntityGateMissingProfile(dag, profile) ? KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS : [])
     .concat(isQbiWageLimitDivergent(dag) ? KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS : [])
-    .concat(saversCreditDivergent ? KNOWN_SAVERS_CREDIT_DIVERGENT_PATHS : []);
+    .concat(qbiWageUbiaDivergent ? KNOWN_QBI_WAGE_UBIA_DIVERGENT_PATHS : [])
+    .concat(saversCreditDivergent ? KNOWN_SAVERS_CREDIT_DIVERGENT_PATHS : [])
+    .concat(indiaRebateDivergent ? KNOWN_INDIA_REBATE_MARGINAL_RELIEF_DIVERGENT_PATHS : []);
   if (allowedPaths.length) {
     var stillReal = [];
     realDiffs.forEach(function (diff) {

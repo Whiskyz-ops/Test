@@ -183,18 +183,28 @@ Much shorter than the original version of this list:
 4. **Transfer pricing** (§4) — a decision to make explicit, not a build item.
 5. **Non-corporate AMT (Phase 4b)** — confirmed genuinely blocked on missing
    data overlap, not a queue item.
-6. **NEW, higher-priority than any of the above — fuzz/shadow safety net
-   partially compromised by real, uncharacterized numeric divergences**
-   (`docs/GAP_TRACKER.md` §H.15's closing section). Discovered incidentally
-   while verifying item 2's own regression suite, not part of the
-   entity/trust axis itself, but blocks trusting either axis's own
-   fuzzer/shadow-mode results until resolved: ~501/3,000 fuzz profiles and
-   ~82 `test-adapter.mjs` checks still diverge after the (already-fixed)
-   missing-allowlist-entry cause was ruled out — including at least two that
-   don't obviously trace to any named prior item (`foreign_holdco_poem_india`
-   total income off by ~3×; `india_only_ca_client` health score off by 19
-   points). Needs the same hand-verified-against-statute treatment as every
-   other row in `GAP_TRACKER.md`, not a guess.
+6. ~~**Fuzz/shadow safety net partially compromised by real, uncharacterized
+   numeric divergences**~~ **Closed 29 Jul 2026** (`docs/GAP_TRACKER.md`
+   §H.16) — all ~501/82/5 residual divergences characterized; none were new
+   tax-computation bugs. `run-fuzz.js` now runs clean at 0 new divergences
+   across 30,000 fuzzed profiles (10 seeds × 3,000). One genuinely new,
+   real bug WAS found and fixed along the way (unrelated to the fuzz
+   cleanup itself): FEIE's bona-fide-residence test granted the exclusion
+   on mere dropdown selection with zero validation — fixed in both
+   languages, all duplicate implementations, confirmed via `pytest`
+   (589/589) and `run-js-dag-vs-py-dag.js` (0 FEIE-related mismatches
+   across 323 cases).
+7. **NEW, from §H.16's own closing item** — `test-adapter.mjs`,
+   `test-shadow.mjs`, `run-report1.js`, `run-report2.js` still show
+   residual failures, but all are now fully characterized as the exact
+   same already-known divergences `run-fuzz.js` already excuses (extra
+   DAG-only findings, apportionment's documented non-entity-awareness,
+   the FEIE-wages class) — those 4 scripts just never got the same
+   predicate/allowlist system `run-fuzz.js` has. Bounded, mechanical
+   porting work, not a bug fix.
+8. **NEW, from §H.16** — `run-js-dag-vs-py-dag.js`'s `computed.usTax.nra.*`
+   field gap (JS DAG missing several NRA fields Python has) predates this
+   session entirely and hasn't been characterized at all.
 
 ## 6. Definition of done for the parity claim
 
@@ -210,18 +220,24 @@ Much shorter than the original version of this list:
       partnership-with-guaranteed-payments added to `profiles.js`
 - [ ] Transfer pricing — an explicit, recorded decision either way, not a
       silent gap
-- [ ] **NEW**: the ~501/82 residual fuzz/`test-adapter.mjs` divergences
-      found during §H.15's own verification pass — characterized (bug vs.
-      legitimate new-DAG-correctness) and either fixed or allowlisted with a
-      named reason, same bar as every other row here
+- [x] Residual fuzz/`test-adapter.mjs` divergences from §H.15's
+      verification pass — characterized 29 Jul 2026 (`docs/GAP_TRACKER.md`
+      §H.16); none were bugs, `run-fuzz.js` itself is now fully clean
+- [ ] **NEW**: port `run-fuzz.js`'s predicate/allowlist system into
+      `test-adapter.mjs`/`test-shadow.mjs`/`run-report1.js`/`run-report2.js`
+      so the full regression suite is clean everywhere, not just the fuzzer
+- [ ] **NEW**: `run-js-dag-vs-py-dag.js`'s pre-existing `computed.usTax.nra.*`
+      gap — uncharacterized
 
 Current honest claim, updated: *"the entity side's core computation,
 ownership graph, inter-entity traceability, and frontend are shipped and
 verified at a rigor comparable to the individual side, and the
-filings-audit round is now closed. What's left is one named feature gap
-(GILTI quantification, itself data-blocked), one standing product decision
-(transfer pricing) — and, found while closing the filings-audit round, a
-real gap in the verification tooling itself (residual fuzz/shadow
-divergences) that should be closed before leaning further on either
-safety net."* Say it because it's verified true, not because it sounds
-better.
+filings-audit round is now closed. The verification-tooling gap found
+while closing it is also now closed — every residual divergence was
+characterized, none were bugs, and the fuzzer runs clean at 30,000
+profiles — though one real, unrelated tax bug (FEIE bona-fide-residence
+validation) was found and fixed along the way. What's left is one named
+feature gap (GILTI quantification, itself data-blocked), one standing
+product decision (transfer pricing), and bringing the older/narrower
+verification scripts up to the same standard the fuzzer now has."* Say it
+because it's verified true, not because it sounds better.
