@@ -107,7 +107,7 @@ WISING.PROFILES.forEach(function (p) {
   // DAG-only documents (docs/GAP_TRACKER.md section H.7/H.13, 21-22 Jul
   // 2026): no engine equivalent for any of these — new state tax / new
   // catalog entries added after the frozen-engine cutoff.
-  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id"];
+  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance"];
   var droppedRequiredCount = out.documents.filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) !== -1 && x.required; }).length;
   var docsForDiff = out.documents.filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) === -1; });
   var docsDiff = deepEqual(docsForDiff, r.documents);
