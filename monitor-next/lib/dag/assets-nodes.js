@@ -69,17 +69,22 @@ function source(detail, citation) { return { kind: "source", detail: detail, cit
 var CONST_ASSETS = require("./constants.js").CONST;
 var ASSET_CLASS_RATES_INDIA = CONST_ASSETS.TAX.INDIA.ASSET_CLASS_RATES_INDIA;
 
-/* ---- self-employment trace (normalize.js:1414-1447) ----------------------- */
-function computeSelfEmploymentNetProfitUsd(s) {
-  var cogs = num(s.cogs_beginning_inventory) + num(s.cogs_purchases) + num(s.cogs_labor) + num(s.cogs_materials) - num(s.cogs_ending_inventory);
-  var grossProfit = num(s.gross_receipts_usd) - num(s.returns_and_allowances_usd) - cogs;
-  return grossProfit + num(s.other_income_usd) - num(s.expenses_usd);
-}
-function selfEmploymentNetProfitUsd(s, depreciationUsd) {
-  var explicit = s.self_employment_earnings_usd != null ? s.self_employment_earnings_usd : s.net_profit_usd;
-  if (explicit !== undefined && explicit !== null) return num(explicit);
-  return computeSelfEmploymentNetProfitUsd(s) - num(depreciationUsd || 0);
-}
+/* ---- self-employment trace (normalize.js:1414-1447) -----------------------
+ * computeSelfEmploymentNetProfitUsd/selfEmploymentNetProfitUsd/
+ * computeFarmGrossIncomeUsd/computeFarmNetProfitUsd/farmNetProfitUsd/
+ * vehicleDeductionUsd/homeOfficeDeductionUsd are shared imports from
+ * aggregateusincome-nodes.js (task #41) — this file used to hand-copy all
+ * five, and the copy silently missed the vehicle-mileage/home-office
+ * deduction until a differential-harness manual case caught businessUs
+ * and businessEntities disagreeing on the same self-employment entry. */
+var AGG_US_INCOME = require("./aggregateusincome-nodes.js");
+var computeSelfEmploymentNetProfitUsd = AGG_US_INCOME.computeSelfEmploymentNetProfitUsd;
+var selfEmploymentNetProfitUsd = AGG_US_INCOME.selfEmploymentNetProfitUsd;
+var computeFarmGrossIncomeUsd = AGG_US_INCOME.computeFarmGrossIncomeUsd;
+var computeFarmNetProfitUsd = AGG_US_INCOME.computeFarmNetProfitUsd;
+var farmNetProfitUsd = AGG_US_INCOME.farmNetProfitUsd;
+var vehicleDeductionUsd = AGG_US_INCOME.vehicleDeductionUsd;
+var homeOfficeDeductionUsd = AGG_US_INCOME.homeOfficeDeductionUsd;
 function selfEmploymentIncomeTrace(s, depreciationPlanEntry) {
   var explicit = s.self_employment_earnings_usd != null ? s.self_employment_earnings_usd : s.net_profit_usd;
   if (explicit !== undefined && explicit !== null) {
@@ -91,36 +96,18 @@ function selfEmploymentIncomeTrace(s, depreciationPlanEntry) {
   if (cogs > 0) parts.push({ label: "Less: cost of goods sold", amount: -cogs });
   if (num(s.other_income_usd) > 0) parts.push({ label: "Plus: other business income", amount: num(s.other_income_usd) });
   if (num(s.expenses_usd) > 0) parts.push({ label: "Less: business expenses", amount: -num(s.expenses_usd) });
+  var seVehDed = vehicleDeductionUsd(s), seHoDed = homeOfficeDeductionUsd(s);
+  if (seVehDed > 0) parts.push({ label: "Less: vehicle mileage deduction (" + num(s.vehicle_miles) + " mi × $0.68)", amount: -seVehDed });
+  if (seHoDed > 0) parts.push({ label: "Less: home-office deduction (§280A simplified method, " + Math.min(num(s.home_office_sqft), 300) + " sqft × $5)", amount: -seHoDed });
   (depreciationPlanEntry ? depreciationPlanEntry.assets : []).forEach(function (a) {
     var label = "Asset (" + a.class + ", yr " + a.yearN + ")";
     if (a.sec179Usd > 0) parts.push({ label: label + " — §179", amount: -a.sec179Usd });
     if (a.bonusUsd > 0) parts.push({ label: label + " — 100% bonus depreciation", amount: -a.bonusUsd });
     if (a.macrsUsd > 0) parts.push({ label: label + " — MACRS", amount: -a.macrsUsd });
   });
-  return calc("Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less asset depreciation (§179 / 100% bonus, permanent under OBBBA / MACRS — computed from each asset's own class and placed-in-service date, not Layer 1's own first-year-only preview). Home-office isn't netted yet (Phase 1).", parts);
+  return calc("Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less vehicle-mileage/home-office deductions, less asset depreciation (§179 / 100% bonus, permanent under OBBBA / MACRS — computed from each asset's own class and placed-in-service date, not Layer 1's own first-year-only preview).", parts);
 }
 
-/* ---- farm trace (aggregateusincome-nodes.js) — mirrors self-employment's
- * own phantom-field fix: gross_income_usd/net_profit_usd are never written
- * by the live form; real gross income is the sum of itemized_income{}'s
- * line items, netted against the accrual inventory swing when applicable. */
-function computeFarmGrossIncomeUsd(f) {
-  var inc = safe(f, "itemized_income", {}) || {};
-  var gross = num(inc.sales_livestock_produce_raised) + num(inc.sales_livestock_produce_purchased) +
-    num(inc.cooperative_distributions) + num(inc.agricultural_program_payments) + num(inc.ccc_loans) +
-    num(inc.crop_insurance_proceeds) + num(inc.custom_hire_income) + num(inc.other_income);
-  if (f.accounting_method === "accrual") {
-    var inv = safe(f, "inventory", {}) || {};
-    gross -= (num(inv.beginning_inventory) + num(inv.cost_of_purchases) - num(inv.ending_inventory));
-  }
-  return gross;
-}
-function computeFarmNetProfitUsd(f) { return computeFarmGrossIncomeUsd(f) - num(f.expenses_usd); }
-function farmNetProfitUsd(f, depreciationUsd) {
-  if (f.net_profit_usd !== undefined && f.net_profit_usd !== null) return num(f.net_profit_usd);
-  if (f.gross_income_usd !== undefined && f.gross_income_usd !== null) return num(f.gross_income_usd) - num(f.expenses_usd) - num(depreciationUsd || 0);
-  return computeFarmNetProfitUsd(f) - num(depreciationUsd || 0);
-}
 function farmIncomeTrace(f, depreciationPlanEntry) {
   if (f.net_profit_usd !== undefined && f.net_profit_usd !== null) {
     return source("Net farm profit entered directly on Layer 1 US for this farm (not derived from Schedule F line items).");
@@ -140,13 +127,16 @@ function farmIncomeTrace(f, depreciationPlanEntry) {
     if (invAdj !== 0) parts.push({ label: "Less: cost of livestock/items purchased for resale (accrual inventory)", amount: -invAdj });
   }
   if (num(f.expenses_usd) !== 0) parts.push({ label: "Less: farm operating expenses", amount: -num(f.expenses_usd) });
+  var farmVehDed = vehicleDeductionUsd(f), farmHoDed = homeOfficeDeductionUsd(f);
+  if (farmVehDed > 0) parts.push({ label: "Less: vehicle mileage deduction (" + num(f.vehicle_miles) + " mi × $0.68)", amount: -farmVehDed });
+  if (farmHoDed > 0) parts.push({ label: "Less: home-office deduction (§280A simplified method, " + Math.min(num(f.home_office_sqft), 300) + " sqft × $5)", amount: -farmHoDed });
   (depreciationPlanEntry ? depreciationPlanEntry.assets : []).forEach(function (a) {
     var label = "Asset (" + a.class + ", yr " + a.yearN + ")";
     if (a.sec179Usd > 0) parts.push({ label: label + " — §179", amount: -a.sec179Usd });
     if (a.bonusUsd > 0) parts.push({ label: label + " — 100% bonus depreciation", amount: -a.bonusUsd });
     if (a.macrsUsd > 0) parts.push({ label: label + " — MACRS", amount: -a.macrsUsd });
   });
-  return calc("Schedule F: sum of itemized farm income lines, less accrual inventory adjustment (if applicable), less expenses, less asset depreciation (§179 / 100% bonus / MACRS).", parts);
+  return calc("Schedule F: sum of itemized farm income lines, less accrual inventory adjustment (if applicable), less expenses, less vehicle-mileage/home-office deductions, less asset depreciation (§179 / 100% bonus / MACRS).", parts);
 }
 
 /* ---- India business-entry trace (normalize.js:56-165, 534-623) ------------ */

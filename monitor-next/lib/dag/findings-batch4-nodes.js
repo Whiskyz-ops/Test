@@ -375,6 +375,39 @@ NODES.nraFdapDetail = {
   }
 };
 
+NODES.royaltiesDirectUsSourceUsdRaw = { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "income_us_source.royalties_direct_us_source_usd", 0)); } };
+// Independent re-derivation of the ECI/FDAP split from
+// aggregateUsIncomeResult (which folds in K-1/C-corp/partnership
+// passthrough items, unlike the live form's own derivation), cross-checked
+// against nraEciIncomeUsdRaw/nraFdapIncomeUsdRaw -- layer1_us.html's OWN
+// client-side derivation (updateNraFields(), ~line 11507), which sums only
+// W-2 wages + self-employment for ECI and direct interest/dividends/rental
+// for FDAP. The two genuinely diverge whenever K-1 passive income, C-corp/
+// partnership business income, or direct-source royalties are present --
+// none of those reach the live form's own figure. This node does NOT
+// override nraEciIncomeUsdRaw/nraFdapIncomeUsdRaw (those still drive the
+// actual tax computed in ustax-full-nodes.js's computeNraTax) -- it only
+// powers the nra_eci_fdap_classification_check finding below.
+//
+// Rental income is bucketed as FDAP here (the SS871(a) statutory default,
+// absent a SS871(d) net-basis election this engine has no field for) --
+// matching layer1_us.html's own classification, but NOT the different ECI
+// definition ustax-full-nodes.js's own scaleNonresidentInc (dual-status-year
+// path) uses, which folds rental into ECI. A pre-existing inconsistency
+// between two NRA-adjacent code paths -- noted here rather than silently
+// reconciled, since fixing it would change the dual-status combined tax
+// figure, a different surface than this finding. Mirrors dag_py/src/
+// wising_dag/us/findings.py's _nra_derived_eci_fdap_result exactly.
+NODES.nraDerivedEciFdapResult = {
+  deps: ["aggregateUsIncomeResult", "royaltiesDirectUsSourceUsdRaw"],
+  compute: function (d) {
+    var agg = d.aggregateUsIncomeResult;
+    var derivedEciUsd = agg.wages.usd + agg.businessUs.usd;
+    var derivedFdapUsd = agg.interestUs.usd + agg.ordinaryDividendsUs.usd + agg.rentalUs.usd + d.royaltiesDirectUsSourceUsdRaw;
+    return { derivedEciUsd: derivedEciUsd, derivedFdapUsd: derivedFdapUsd, derivedTotalUsd: derivedEciUsd + derivedFdapUsd };
+  }
+};
+
 // ---- findings, ported in full ----------------------------------------------
 NODES.findingsBatch4Result = {
   deps: ["treatyElectionsRaw", "treatyIndiaResidenceRaw", "treatyUsResidenceRaw", "treatyDtaaForcedNrRaw", "treatyFiles1040nrRaw",

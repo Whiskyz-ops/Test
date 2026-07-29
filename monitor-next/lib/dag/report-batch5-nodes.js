@@ -181,6 +181,29 @@ NODES.retirementExcessIraContributionFinding = {
     }];
   }
 };
+// ---- hsa_excess_contribution (task #40 follow-up, closing the HSA gap
+// the §402(g) block above deliberately deferred). See us5-nodes.js's
+// hsaContributionExcessUsd/hsaContributionAggregateUsd/hsaContributionLimitUsd
+// for the underlying computation and 2026 figures.
+NODES.hsaExcessContributionFinding = {
+  deps: ["hasUsScope", "hsaContributionExcessUsd", "hsaContributionAggregateUsd", "hsaContributionLimitUsd", "hsaCoverageType"],
+  compute: function (d) {
+    if (!d.hasUsScope || d.hsaContributionExcessUsd <= 0) return [];
+    return [{
+      id: "hsa_excess_contribution", severity: "warning", category: "credit",
+      title: "§223 excess HSA contribution (" + usd(d.hsaContributionExcessUsd) + " over the limit)",
+      detail: usd(d.hsaContributionAggregateUsd) + " of combined HSA contributions (individual/payroll after-tax plus " +
+        "employer/cafeteria-plan amounts under W-2 Box 12 code W) exceeds the §223(b) annual limit of " +
+        usd(d.hsaContributionLimitUsd) + " for this taxpayer's " + (d.hsaCoverageType === "family" ? "family" : "self-only") +
+        " HDHP coverage and age this year, by " + usd(d.hsaContributionExcessUsd) + ".",
+      recommendation: "Excess HSA contributions are subject to a 6% excise tax (§4973) each year they remain in the account, " +
+        "and are also included in gross income unless withdrawn (with earnings) by the filing deadline including extensions. " +
+        "Confirm whether the coverage-type change happened mid-year (a common cause of an apparent excess that a last-month-" +
+        "rule or testing-period calculation would actually cure) — not modeled here.",
+      amountUsd: d.hsaContributionExcessUsd, refs: ["§223(b)", "§4973", "Form 5329", "Form 8889"]
+    }];
+  }
+};
 NODES.retirementRmdRequiredFinding = {
   deps: ["rmdRequired", "ageAtYearEndUs"],
   compute: function (d) {
@@ -293,7 +316,7 @@ NODES.buildTaxComputationResult = {
 var FINDING_ADD_ORDER = ["dual_residency", "dual_residency_resolved", "treaty_docs_missing", "dtaa_treaty_elections",
   "withholding_documentation_gap", "pan_not_linked_aadhaar", "ftc_gap", "ftc_available", "feie_ineligible", "feie_applied",
   "amt_applies", "india_advance_tax_interest", "underpayment_2210", "early_withdrawal_penalty_72t",
-  "retirement_excess_elective_deferral", "retirement_excess_ira_contribution", "retirement_rmd_required", "iso_3921", "form_10iea",
+  "retirement_excess_elective_deferral", "retirement_excess_ira_contribution", "hsa_excess_contribution", "retirement_rmd_required", "iso_3921", "form_10iea",
   "form_1099da_awareness", "state_income_tax", "niit_medicare_not_creditable", "no_totalization_agreement", "pe_article7",
   "entity_dual_residency_poem", "residency_status_dtaa_conflated_india", "residency_status_mismatch_india_company",
   "residency_status_mismatch_india", "residency_status_mismatch_india_entity", "residency_status_understated_us",
@@ -315,14 +338,14 @@ NODES.findingsAllResult = {
   deps: ["findingsBatch1Result", "findingsBatch2Result", "findingsBatch3Result", "findingsBatch4Result",
     "findingsBatch5Result", "holdingPeriodMismatchFindingsResult", "residencyConsistencyFindings",
     "indiaAdvanceTaxInterestFinding", "underpayment2210Finding", "earlyWithdrawalPenalty72tFinding",
-    "retirementExcessElectiveDeferralFinding", "retirementExcessIraContributionFinding", "retirementRmdRequiredFinding",
+    "retirementExcessElectiveDeferralFinding", "retirementExcessIraContributionFinding", "hsaExcessContributionFinding", "retirementRmdRequiredFinding",
     "s83bElectionNotFiledTimelyFinding", "scheduleFaInconsistentFinding", "blackMoneyActExposureFinding"],
   compute: function (d) {
     var all = [].concat(d.findingsBatch1Result, d.findingsBatch2Result, d.findingsBatch3Result,
       d.findingsBatch4Result, d.findingsBatch5Result, d.holdingPeriodMismatchFindingsResult,
       d.residencyConsistencyFindings, d.indiaAdvanceTaxInterestFinding, d.underpayment2210Finding,
       d.earlyWithdrawalPenalty72tFinding, d.retirementExcessElectiveDeferralFinding, d.retirementExcessIraContributionFinding,
-      d.retirementRmdRequiredFinding, d.s83bElectionNotFiledTimelyFinding, d.scheduleFaInconsistentFinding, d.blackMoneyActExposureFinding);
+      d.hsaExcessContributionFinding, d.retirementRmdRequiredFinding, d.s83bElectionNotFiledTimelyFinding, d.scheduleFaInconsistentFinding, d.blackMoneyActExposureFinding);
     // detectConflicts's own final step (conflicts.js:1546-1551) — not just a
     // convenience, LIM-7's alerts feed (monitor()) depends on findings[]
     // actually being in this order (.filter(critical).slice(0,4)) to pick

@@ -25,11 +25,14 @@
 var incomeNodes = require("./aggregateusincome-nodes.js").NODES;
 var taxNodes = require("./ustax-nodes.js").NODES;
 var residencyNodes = require("./residency-nodes.js").NODES;
+// us5-nodes.js: taxNodes' usTaxResult depends on electiveDeferralAggregateUsd/
+// iraContributionAggregateUsd (§25B Saver's Credit, task #44 follow-up).
+var us5Nodes = require("./us5-nodes.js").NODES;
 
 var OVERRIDDEN_BOUNDARY_IDS = ["incUs", "worldwideUs"];
 
 var NODES = {};
-[incomeNodes, taxNodes, residencyNodes].forEach(function (src) {
+[incomeNodes, taxNodes, residencyNodes, us5Nodes].forEach(function (src) {
   Object.keys(src).forEach(function (k) {
     if (NODES[k] && OVERRIDDEN_BOUNDARY_IDS.indexOf(k) === -1) {
       throw new Error("Unexpected node name collision on merge: '" + k + "' — resolve before combining.");

@@ -68,6 +68,17 @@ US = {
     "CTC_REFUNDABLE_EARNED_INCOME_FLOOR_USD": 2500,
     "CTC_REFUNDABLE_RATE": 0.15,
     "ODC_PER_DEPENDENT_USD": 500,
+    # §25B Retirement Savings Contributions Credit ("Saver's Credit") — TY2026
+    # (IRS Notice 2025-67 / Rev. Proc. 2025-32). Contribution cap ($2,000/
+    # person) is a flat statutory amount, not inflation-indexed. Mirrors
+    # prototypes/graph-pilot/constants.js's TAX.US.SAVERS_CREDIT_* exactly.
+    "SAVERS_CREDIT_AGI_BRACKETS": {
+        "single": {"br50": 24250, "br20": 26250, "br10": 40250},
+        "mfs": {"br50": 24250, "br20": 26250, "br10": 40250},
+        "hoh": {"br50": 36375, "br20": 39375, "br10": 60375},
+        "mfj": {"br50": 48500, "br20": 52500, "br10": 80500},
+    },
+    "SAVERS_CREDIT_CONTRIBUTION_CAP_USD": 2000,
     "SENIOR_DEDUCTION_MIN_AGE": 65,
     "SENIOR_DEDUCTION_PER_PERSON_USD": 6000,
     "SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD": {"single": 75000, "mfj": 150000, "hoh": 75000},

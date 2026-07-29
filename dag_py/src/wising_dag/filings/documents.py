@@ -156,6 +156,10 @@ DOCUMENTS_CATALOG = [
     {"id": "form_1040nr", "jurisdiction": "US", "name": "IRS Form 1040-NR", "desc": "Non-resident alien income tax return.", "why": "You are (or elect to be treated as) a US non-resident alien for this year.", "severity": "info"},
     {"id": "form_8960", "jurisdiction": "US", "name": "IRS Form 8960 (NIIT)", "desc": "Net Investment Income Tax (3.8%).", "why": "MAGI exceeded the NIIT threshold and net investment income is present.", "severity": "info"},
     {"id": "form_8959", "jurisdiction": "US", "name": "IRS Form 8959 (Additional Medicare Tax)", "desc": "Additional 0.9% Medicare tax on wages/SE income above the filing-status threshold, and reconciles employer over/under-withholding.", "why": "Additional Medicare Tax is owed and is not offset by the Foreign Tax Credit.", "severity": "info"},
+    # DELIBERATE DAG/engine divergence, same pattern as form_8960/form_8959
+    # above (task #44 follow-up) — the engine has no §25B Saver's Credit
+    # computation at all, so it never had a Form 8880 trigger to model.
+    {"id": "form_8880", "jurisdiction": "US", "name": "IRS Form 8880 (Saver's Credit)", "desc": "Retirement Savings Contributions Credit — a nonrefundable credit for elective deferrals and IRA contributions by lower/moderate-income filers.", "why": "AGI and eligible retirement contributions on file qualify for a nonzero Saver's Credit under §25B.", "severity": "info"},
     {"id": "form_540", "jurisdiction": "US", "name": "California Form 540 (Resident Income Tax Return)", "desc": "California state income tax return — computed on worldwide income for a full-year CA resident, including Indian-source income. CA grants no credit for tax paid to a foreign country.", "why": "State-of-residence facts on file point to California, and CA taxes worldwide income independently of the federal treaty position.", "severity": "warning"},
     {"id": "form_it201", "jurisdiction": "US", "name": "New York Form IT-201 (Resident Income Tax Return)", "desc": "New York state income tax return — computed on worldwide income for a full-year NY resident, including Indian-source income. NY grants no credit for tax paid to a foreign country.", "why": "State-of-residence facts on file point to New York, and NY taxes worldwide income independently of the federal treaty position.", "severity": "warning"},
     {"id": "form_nj1040", "jurisdiction": "US", "name": "New Jersey Form NJ-1040 (Resident Income Tax Return)", "desc": "New Jersey state income tax return — computed on worldwide income for a full-year NJ resident, including Indian-source income. NJ grants no credit for tax paid to a foreign country.", "why": "State-of-residence facts on file point to New Jersey, and NJ taxes worldwide income independently of the federal treaty position.", "severity": "warning"},
@@ -230,6 +234,7 @@ def _build_documents_result(d, ctx):
         "form_8960": d["headlineTotalIncomeUsdResult"] > NIIT_THRESHOLD.get(d["usFilingStatusRaw"], 200000) and
                      (d["aggregateUsIncomeResult"]["interestUs"]["usd"] + d["aggregateUsIncomeResult"]["ordinaryDividendsUs"]["usd"] + d["aggregateUsIncomeResult"]["capitalGainsUs"]["usd"]) > 0,
         "form_8959": d["usTaxResult"]["additionalMedicareUsd"] > 0,
+        "form_8880": (d["usTaxResult"].get("saversCreditUsd") or 0) > 0,
         "form_67": res["india"]["status"] == "ROR" and (d["aggregateUsIncomeResult"]["usSourceTotal"]["usd"] > 0 or d["taxesPaidUsResult"]["total"]["usd"] > 0),
         "trc": res["dualResident"] or d["treatyIndiaResidenceRaw"] != "none" or d["treatyUsResidenceRaw"] != "none",
         "form_10f": res["dualResident"] or d["treatyIndiaResidenceRaw"] != "none",

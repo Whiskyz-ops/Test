@@ -1,0 +1,212 @@
+{
+  "id": "us_savers_credit",
+  "label": "Saver's Credit firing case (manual case)",
+  "story": "Manual regression case for task #44 (§25B Retirement Savings Contributions Credit / Saver's Credit): single filer, $20,000 W-2 wages, $2,000 traditional IRA contribution, standard deduction — AGI ($20,000) falls in the 2026 single-filer 50% bracket (<= $24,250), full $2,000 eligible contribution credited at 50% = $1,000. None of the 13 golden fixtures exercise a nonzero Saver's Credit (all either have no retirement contributions on file or AGI too high for any bracket), so this targets a branch no fixture/fuzz-corpus profile reaches.",
+  "tags": [
+    "Saver's Credit",
+    "§25B",
+    "Form 8880",
+    "manual case"
+  ],
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "full_name": "Priya Natarajan",
+    "date_of_birth": "1994-05-14",
+    "is_us_citizen": true,
+    "has_green_card": false,
+    "us_days": 365,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Priya Natarajan",
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 0,
+      "final_india_residency_status": "NR"
+    },
+    "dtaa": {},
+    "compliance_docs": {},
+    "bank_accounts": [],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "transactions": []
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "house_property": {
+        "has_house_property_income": false,
+        "properties": []
+      },
+      "business_income": {
+        "has_business_or_fo_income": false,
+        "business_entries": []
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {},
+    "deductions": {},
+    "carry_forward_losses": {},
+    "lrs_outbound": {},
+    "tax_credits": {},
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "transactions": []
+        },
+        "property": {
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Priya Natarajan",
+      "date_of_birth": "1994-05-14",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "has_green_card": false,
+      "us_days_current_year": 365,
+      "spt_test_met": true,
+      "final_us_residency_status": "US_CITIZEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Cascade Retail Co",
+          "wages_box1_usd": 20000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 900,
+            "medicare_wages_box5_usd": 20000
+          }
+        }
+      ]
+    },
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "bank_accounts": [],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {
+      "traditional_ira_contribution_usd": 2000
+    },
+    "financial_holdings": [],
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 900
+    },
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

@@ -1086,7 +1086,13 @@
       "collectiblesGainUsd": 0,
       "collectiblesTaxUsd": 0,
       "qsbsExcludedGainUsd": 0,
-      "qsbsTaxableGainUsd": 0
+      "qsbsTaxableGainUsd": 0,
+      "saversCreditUsd": 0,
+      "saversCreditDetail": {
+        "rate": 0.0,
+        "eligibleContributionUsd": 0.0,
+        "agiUsd": 245395.0
+      }
     },
     "stateTax": null,
     "indiaItrForm": {

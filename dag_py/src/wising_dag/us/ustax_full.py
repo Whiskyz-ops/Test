@@ -117,6 +117,7 @@ def _us_entity_tax_result(d, ctx):
             "incomeTaxUsd": tax, "niitUsd": 0, "additionalMedicareUsd": 0,
             "seTaxUsd": 0, "qbiDeductionUsd": 0, "amtUsd": 0, "creditsUsd": 0,
         "collectiblesGainUsd": 0, "collectiblesTaxUsd": 0, "qsbsExcludedGainUsd": 0, "qsbsTaxableGainUsd": 0,
+        "saversCreditUsd": 0,
             "totalTaxBeforeFtcUsd": tax,
             # DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H
             # — "entity-agnostic audit"): an entity's own income is Schedule
@@ -456,6 +457,7 @@ def _nra_tax_result(d, ctx):
         "ordinaryTaxUsd": eci_tax_usd, "preferentialTaxUsd": 0, "incomeTaxUsd": eci_tax_usd + fdap_tax_usd,
         "niitUsd": 0, "additionalMedicareUsd": addl_medicare, "seTaxUsd": 0, "qbiDeductionUsd": 0, "amtUsd": 0, "creditsUsd": 0,
         "collectiblesGainUsd": 0, "collectiblesTaxUsd": 0, "qsbsExcludedGainUsd": 0, "qsbsTaxableGainUsd": 0,
+        "saversCreditUsd": 0,
         "totalTaxBeforeFtcUsd": total_tax,
         "foreignSourceIncomeUsd": 0,
         "usSourceIncomeUsd": eci_usd + fdap_usd,

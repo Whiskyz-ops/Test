@@ -47,10 +47,35 @@ var US_BONUS_DEPRECIATION_RATE = CONST_AGGUS.TAX.US_BONUS_DEPRECIATION_RATE;
 var US_MACRS_HALF_YEAR = CONST_AGGUS.TAX.US_MACRS_HALF_YEAR;
 var US_MACRS_STRAIGHT_LINE_ANNUAL = CONST_AGGUS.TAX.US_MACRS_STRAIGHT_LINE_ANNUAL;
 
+// ---- Home-office (simplified §280A method) / vehicle-mileage (standard
+// mileage rate) deduction, self-employment + Schedule F -----------------
+// Both fields (top-level self_employment[]/farming_schedule_f[]
+// vehicle_miles/home_office_sqft) are already collected by layer1_us.html
+// and already summed up from each business's branches[] by the live
+// form's own syncSeState()/syncFarmState() — but neither ever fed any real
+// tax computation: the form's own local "Active Business Income Before
+// Section 179" preview (used only for that one screen's own §179 income-
+// limit display) computed vehDed/hoDed the same way below, but that
+// computation never propagated into expenses_usd or any exported field
+// the DAG reads, so businessUs/seEarnings/QBI were all silently short by
+// the full deduction amount for any real filer using either method.
+// Standard mileage rate (2026, matches the rate the raw form's own
+// preview calculation already hardcodes — reused for internal consistency
+// rather than sourcing a second, possibly-divergent figure).
+var US_STANDARD_MILEAGE_RATE_USD = 0.68;
+// IRS simplified home-office method (§280A safe harbor, Rev. Proc.
+// 2013-13): flat $5/sqft, capped at 300 sqft ($1,500 max) — real,
+// unchanging law, not a per-year figure.
+var US_HOME_OFFICE_RATE_USD_PER_SQFT = 5;
+var US_HOME_OFFICE_MAX_SQFT = 300;
+function vehicleDeductionUsd(x) { return num(x.vehicle_miles) * US_STANDARD_MILEAGE_RATE_USD; }
+function homeOfficeDeductionUsd(x) { return Math.min(num(x.home_office_sqft), US_HOME_OFFICE_MAX_SQFT) * US_HOME_OFFICE_RATE_USD_PER_SQFT; }
+function vehicleAndHomeOfficeDeductionUsd(x) { return vehicleDeductionUsd(x) + homeOfficeDeductionUsd(x); }
+
 function computeSelfEmploymentNetProfitUsd(s) {
   var cogs = num(s.cogs_beginning_inventory) + num(s.cogs_purchases) + num(s.cogs_labor) + num(s.cogs_materials) - num(s.cogs_ending_inventory);
   var grossProfit = num(s.gross_receipts_usd) - num(s.returns_and_allowances_usd) - cogs;
-  return grossProfit + num(s.other_income_usd) - num(s.expenses_usd);
+  return grossProfit + num(s.other_income_usd) - num(s.expenses_usd) - vehicleAndHomeOfficeDeductionUsd(s);
 }
 function selfEmploymentNetProfitUsd(s, depreciationUsd) {
   var explicit = s.self_employment_earnings_usd != null ? s.self_employment_earnings_usd : s.net_profit_usd;
@@ -79,11 +104,75 @@ function computeFarmGrossIncomeUsd(f) {
   }
   return gross;
 }
-function computeFarmNetProfitUsd(f) { return computeFarmGrossIncomeUsd(f) - num(f.expenses_usd); }
+function computeFarmNetProfitUsd(f) { return computeFarmGrossIncomeUsd(f) - num(f.expenses_usd) - vehicleAndHomeOfficeDeductionUsd(f); }
 function farmNetProfitUsd(f, depreciationUsd) {
   if (f.net_profit_usd !== undefined && f.net_profit_usd !== null) return num(f.net_profit_usd);
-  if (f.gross_income_usd !== undefined && f.gross_income_usd !== null) return num(f.gross_income_usd) - num(f.expenses_usd) - num(depreciationUsd || 0);
+  if (f.gross_income_usd !== undefined && f.gross_income_usd !== null) return num(f.gross_income_usd) - num(f.expenses_usd) - vehicleAndHomeOfficeDeductionUsd(f) - num(depreciationUsd || 0);
   return computeFarmNetProfitUsd(f) - num(depreciationUsd || 0);
+}
+// ---- Capital-gains special character: §1(h)(4) collectibles (28%-capped
+// rate) and §1202 QSBS exclusion (task #43 follow-up). Both were
+// deliberately deferred alongside the Step 13/14 capital-gains wiring:
+// "Collectibles (28% special rate) and QSBS (§1202 exclusion, up to
+// $10M/10x-basis) are aggregated as ordinary LTCG — a documented
+// simplification... pending a real special-rate computation" (the raw
+// form's own recalculateCapitalGainsAggregate() comment, layer1_us.html).
+// That function folds both into the flat ltcg_us_source_usd field before
+// it's ever saved, so this DAG reads collectibles_transactions[]/
+// qsbs_transactions[] directly (the same arrays the raw form's own
+// aggregation reads) to recover the character the flat field lost.
+//
+// §1250 unrecaptured-depreciation recapture (the third item in the same
+// deferred list) is NOT built here: it needs the seller's ACCUMULATED
+// DEPRECIATION on the specific property sold, and neither
+// real_estate.properties[] nor real_estate_transactions[] collects that
+// anywhere on Layer 1 — confirmed by direct grep, not assumed. Computing
+// it would mean inventing a number Layer 1 never asked for, the same
+// discipline this codebase already applies to GILTI/Subpart-F (flagged,
+// not guessed) — tracked as a genuine gap (missing data), not built.
+function isLongTermUsCg(acqStr, soldStr) {
+  if (!acqStr || !soldStr) return false;
+  var acq = new Date(acqStr), sold = new Date(soldStr);
+  if (isNaN(acq) || isNaN(sold)) return false;
+  return (sold - acq) > (365 * 24 * 60 * 60 * 1000);
+}
+function holdingYearsUsCg(acqStr, soldStr) {
+  var acq = new Date(acqStr), sold = new Date(soldStr);
+  if (isNaN(acq) || isNaN(sold)) return 0;
+  return (sold - acq) / (365.25 * 24 * 60 * 60 * 1000);
+}
+function collectiblesAggregate(ui) {
+  var ltcg = 0;
+  (safe(ui, "collectibles_transactions", []) || []).forEach(function (t) {
+    // Short-term collectibles gain has no special rate at all (ordinary
+    // STCG, same as any other short-term asset) — already correctly
+    // included in the flat stcg_us_source_usd field, nothing to pull out.
+    if (isLongTermUsCg(t.acquisition_date, t.sale_date)) ltcg += num(t.realized_gain_loss_usd);
+  });
+  return ltcg;
+}
+function qsbsAggregate(ui, qsbsConst) {
+  var totalGain = 0, excludedGain = 0;
+  (safe(ui, "qsbs_transactions", []) || []).forEach(function (t) {
+    var gain = num(t.realized_gain_loss_usd);
+    totalGain += gain;
+    if (gain <= 0) return; // losses: no exclusion mechanics, flow through as ordinary LTCG (already in the flat field)
+    var years = holdingYearsUsCg(t.acquisition_date, t.sale_date);
+    var acqDate = new Date(t.acquisition_date);
+    var isObbba = !isNaN(acqDate.getTime()) && acqDate >= new Date(qsbsConst.QSBS_OBBBA_EFFECTIVE_DATE);
+    var pct = 0;
+    if (isObbba) {
+      qsbsConst.QSBS_OBBBA_TIERS.forEach(function (tier) { if (years >= tier.years && pct < tier.pct) pct = tier.pct; });
+    } else if (years >= 5) {
+      pct = 1.0; // pre-OBBBA cliff: 100% if held 5+ years (assumes stock acquired after 27 Sep 2010)
+    }
+    if (pct <= 0) return;
+    var basis = num(t.cost_basis_usd);
+    var cap = Math.max(isObbba ? qsbsConst.QSBS_OBBBA_CAP_USD : qsbsConst.QSBS_PRE_OBBBA_CAP_USD, basis * 10);
+    excludedGain += Math.min(gain, cap) * pct;
+  });
+  excludedGain = Math.min(excludedGain, Math.max(0, totalGain));
+  return { totalGainUsd: totalGain, excludedGainUsd: excludedGain, taxableGainUsd: totalGain - excludedGain };
 }
 function assetRecoveryYearN(asset, baseYear) {
   if (!asset || !asset.placed_in_service_date) return null;
@@ -322,7 +411,25 @@ var NODES = {
         seEarnings += num(box14a);
       });
 
-      return { businessUsUsd: businessUs, foreignSelfEmploymentUsd: foreignSelfEmployment, seEarningsUsd: seEarnings, qbiIncomeUsd: Math.max(0, qbiIncome), qbiIsSSTB: sstb };
+      // §199A W-2 wage / UBIA limitation base (task #42 follow-up): K-1 Box
+      // 20 qbi_wages_usd/qbi_ubia_usd (partnerships_k1/s_corporations_k1)
+      // and self-employment/farm wages_paid_usd, collected but never read
+      // before this. trusts_estates_k1 has no qbi_wages_usd/qbi_ubia_usd
+      // fields on Layer 1 at all (matches layer1_us.html's own reference
+      // preview calculation, which passes a literal 0 for trust K-1 wages/
+      // UBIA) -- not modeled, not a gap introduced here. Self-employment/
+      // farm likewise have no UBIA field (only wages_paid_usd) -- mirrors
+      // the same reference calculation exactly.
+      var qbiWages = 0, qbiUbia = 0;
+      (safe(ui, "self_employment", []) || []).forEach(function (s) { qbiWages += num(s.wages_paid_usd); });
+      (safe(ui, "farming_schedule_f", []) || []).forEach(function (f) { qbiWages += num(f.wages_paid_usd); });
+      (safe(ui, "partnerships_k1", []) || []).forEach(function (k) { qbiWages += num(k.qbi_wages_usd); qbiUbia += num(k.qbi_ubia_usd); });
+      (safe(ui, "s_corporations_k1", []) || []).forEach(function (s) { qbiWages += num(s.qbi_wages_usd); qbiUbia += num(s.qbi_ubia_usd); });
+
+      return {
+        businessUsUsd: businessUs, foreignSelfEmploymentUsd: foreignSelfEmployment, seEarningsUsd: seEarnings,
+        qbiIncomeUsd: Math.max(0, qbiIncome), qbiIsSSTB: sstb, qbiWagesUsd: qbiWages, qbiUbiaUsd: qbiUbia
+      };
     }
   },
 
@@ -355,12 +462,30 @@ var NODES = {
       var otherOrdinaryIncomeUsUsd = num(safe(ui, "unemployment_compensation_usd", 0)) +
         num(safe(ui, "alimony_received_usd", 0)) + num(safe(ui, "royalties_direct_us_source_usd", 0)) +
         num(safe(ui, "cancellation_of_debt_usd", 0)) + num(safe(ui, "misc_other_income_usd", 0));
+      // Capital-gains special character (task #43 follow-up): the flat
+      // ltcg_us_source_usd field already includes collectibles + QSBS gain
+      // (folded in by the raw form's own recalculateCapitalGainsAggregate()
+      // before it's ever saved) — pulled back out here so each gets its own
+      // real §1(h)(4)/§1202 treatment instead of plain 0/15/20% LTCG. The
+      // QSBS-EXCLUDED portion is removed entirely (never taxed anywhere);
+      // the QSBS-TAXABLE remainder stays in ltcgUsUsd as ordinary LTCG
+      // (correct for the common post-2010/OBBBA 100%-exclusion-tier case —
+      // the pre-2010 50%-exclusion regime's own 28%-rate treatment on its
+      // non-excluded half isn't modeled, an honest simplification given how
+      // unlikely a 2026 return is to involve stock that old).
+      var collectiblesLtcgUsd = collectiblesAggregate(ui);
+      var qsbs = qsbsAggregate(ui, CONST_AGGUS.TAX.US);
+      var ltcgFlatUsd = num(safe(ui, "ltcg_us_source_usd", 0));
+      var ltcgAdjustedUsd = ltcgFlatUsd - collectiblesLtcgUsd - qsbs.excludedGainUsd;
       return {
         taxExemptInterestUsUsd: num(safe(ui, "interest_us_exempt_usd", 0)),
         interestUsUsd: num(safe(ui, "interest_us_source_usd", 0)) + k1.interestUsd,
         ordinaryDividendsUsUsd: num(safe(ui, "ordinary_dividends_us_source_usd", 0)) + k1.ordDivUsd,
         qualifiedDividendsUsUsd: num(safe(ui, "qualified_dividends_us_source_usd", 0)) + k1.qualDivUsd,
-        ltcgUsUsd: num(safe(ui, "ltcg_us_source_usd", 0)) + k1.ltcgUsd,
+        ltcgUsUsd: ltcgAdjustedUsd + k1.ltcgUsd,
+        collectiblesLtcgUsd: collectiblesLtcgUsd,
+        qsbsExcludedGainUsd: qsbs.excludedGainUsd,
+        qsbsTaxableGainUsd: qsbs.taxableGainUsd,
         stcgUsUsd: num(safe(ui, "stcg_us_source_usd", 0)) + k1.stcgUsd,
         // Rental expenses (layer1_us.html's own "Total Rental Expenses"
         // field) previously had no id/handler either -- gross rent was
@@ -432,6 +557,7 @@ var NODES = {
         wages: m(w.wagesUsd, ctx), businessUs: m(biz.businessUsUsd, ctx), w2Withholding: w.w2WithholdingUsd, w2Employers: w.w2Employers, medicareWages: w.medicareWagesUsd,
         qualifiedTipsUsd: w.qualifiedTipsUsd, qualifiedOvertimeUsd: w.qualifiedOvertimeUsd,
         seEarningsUsd: biz.seEarningsUsd, qbiIncomeUsd: biz.qbiIncomeUsd, qbiIsSSTB: biz.qbiIsSSTB,
+        qbiWagesUsd: biz.qbiWagesUsd, qbiUbiaUsd: biz.qbiUbiaUsd,
         usRetirementIncome: m(ret.usRetirementIncomeExclSsUsd + ret.socialSecurityUsUsd, ctx),
         usRetirementIncomeExclSs: m(ret.usRetirementIncomeExclSsUsd, ctx),
         retirementDistributionsSubjectTo72tUsd: ret.retirementDistributionsSubjectTo72tUsd,
@@ -439,6 +565,7 @@ var NODES = {
         taxExemptInterestUs: m(di.taxExemptInterestUsUsd, ctx),
         interestUs: m(di.interestUsUsd, ctx), ordinaryDividendsUs: m(di.ordinaryDividendsUsUsd, ctx), qualifiedDividendsUs: m(di.qualifiedDividendsUsUsd, ctx),
         ltcgUs: m(di.ltcgUsUsd, ctx), stcgUs: m(di.stcgUsUsd, ctx), capitalGainsUs: m(di.ltcgUsUsd + di.stcgUsUsd, ctx), rentalUs: m(di.rentalUsUsd, ctx),
+        collectiblesLtcgUsd: di.collectiblesLtcgUsd, qsbsExcludedGainUsd: di.qsbsExcludedGainUsd, qsbsTaxableGainUsd: di.qsbsTaxableGainUsd,
         otherOrdinaryIncomeUs: m(di.otherOrdinaryIncomeUsUsd, ctx),
         foreignWages: m(d.foreignWagesUsd, ctx), foreignSelfEmployment: m(biz.foreignSelfEmploymentUsd, ctx),
         foreignInterest: m(foreignInterest, ctx), foreignDividends: m(di.foreignDividendsUsd, ctx),
@@ -454,4 +581,23 @@ var NODES = {
   }
 };
 
-module.exports = { NODES: NODES };
+module.exports = {
+  NODES: NODES,
+  // SYS-1-style shared export: assets-nodes.js's businessEntitiesResult
+  // used to hand-copy these exact functions rather than requiring them —
+  // the copy silently missed the vehicle-mileage/home-office deduction
+  // added here (task #41) until a differential-harness run against a
+  // manual case caught the resulting JS-internal mismatch (businessUs vs
+  // businessEntities disagreeing on the same self-employment entry).
+  // Reusing the single definition removes that drift risk entirely,
+  // matching the precedent already established for CONST.TAX.US_SEC179_*/
+  // US_BONUS_*/US_MACRS_* above.
+  computeSelfEmploymentNetProfitUsd: computeSelfEmploymentNetProfitUsd,
+  selfEmploymentNetProfitUsd: selfEmploymentNetProfitUsd,
+  computeFarmGrossIncomeUsd: computeFarmGrossIncomeUsd,
+  computeFarmNetProfitUsd: computeFarmNetProfitUsd,
+  farmNetProfitUsd: farmNetProfitUsd,
+  vehicleDeductionUsd: vehicleDeductionUsd,
+  homeOfficeDeductionUsd: homeOfficeDeductionUsd,
+  vehicleAndHomeOfficeDeductionUsd: vehicleAndHomeOfficeDeductionUsd
+};

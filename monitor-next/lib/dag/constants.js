@@ -277,6 +277,55 @@
           mfs:    { br0: 49450, br15: 306850 },
           hoh:    { br0: 66200, br15: 579600 }
         },
+        // ---- §1(h)(4) collectibles gain: LTCG only, capped at 28% (never
+        // gets 0/15/20% treatment) ----
+        COLLECTIBLES_RATE: 0.28,
+        // ---- §1202 QSBS exclusion. OBBBA (H.R.1, signed 4 Jul 2025)
+        // replaced the old 5-year-cliff/100%-exclusion/$10M-cap regime with
+        // a tiered 3/4/5-year 50%/75%/100% exclusion and a $15M cap, but
+        // ONLY for stock acquired on or after 5 Jul 2025 (the day after
+        // enactment) -- stock acquired earlier keeps the old cliff rule
+        // (assuming acquisition after 27 Sep 2010, the last date the
+        // exclusion was less than 100% under prior law -- realistic for any
+        // stock still held into TY2026). Exclusion cap is always the
+        // GREATER of the flat dollar cap or 10x the taxpayer's adjusted
+        // basis in the stock (§1202(b)(1)(A)/(B)).
+        QSBS_OBBBA_EFFECTIVE_DATE: "2025-07-05",
+        QSBS_PRE_OBBBA_CAP_USD: 10000000,
+        QSBS_OBBBA_CAP_USD: 15000000,
+        QSBS_OBBBA_TIERS: [{ years: 5, pct: 1.00 }, { years: 4, pct: 0.75 }, { years: 3, pct: 0.50 }],
+        // DAG-only addition (no equivalent in the frozen engine or in
+        // layer1_us.html beyond the "dividends"/"interest"/"royalties"
+        // dropdown at #treaty-rates-tbody): India-US Income Tax Treaty
+        // (1989) withholding-rate ceilings for the three FDAP categories
+        // the Layer 1 "Treaty Tax Rates" table collects, keyed by the same
+        // income_type strings that dropdown writes. Used only to sanity-
+        // check a preparer's claimed rate against a real treaty rate (the
+        // treaty_rate_not_recognized finding) -- does NOT pick a sub-rate
+        // automatically, since which one applies depends on facts this
+        // form doesn't collect (e.g. whether the recipient is a corporate
+        // shareholder owning >=10% of voting stock, whether interest is
+        // from a bank/financial-institution loan, or whether a royalty is
+        // for equipment use vs. a copyright/patent/trademark). Sourced
+        // from IRS Publication 901 / the Treasury Technical Explanation of
+        // the treaty -- like every other statutory figure in this file,
+        // NOT a substitute for confirming against the current treaty
+        // text/Pub. 901 before relying on it in production.
+        INDIA_US_TREATY_FDAP_RATES: {
+          dividends: {
+            rates: [0.25, 0.15], article: "Art. 10",
+            note: "25% general portfolio rate; 15% if the recipient is a company owning ≥ 10% of the paying company's voting stock"
+          },
+          interest: {
+            rates: [0.15, 0.10], article: "Art. 11",
+            note: "15% general; 10% on interest from loans made by banks or similar financial institutions carrying on a genuine banking business"
+          },
+          royalties: {
+            rates: [0.15, 0.10], article: "Art. 12",
+            note: "15% for copyrights, patents, trademarks, designs/models/plans, and trade secrets; 10% for the use of industrial, commercial, or scientific equipment"
+          }
+        },
+        TREATY_RATE_TOLERANCE: 0.001,
         // SALT cap under OBBBA: raised from a flat $10,000 (TCJA) to $40,000
         // ($20,000 MFS) for TY2025, then indexed +1%/year 2026-2029 —
         // TY2026 is $40,400 ($20,200 MFS), phased DOWN 30 cents per dollar of
@@ -351,6 +400,24 @@
         // combined phase-out with CTC under §24(h)(3) -- but with NO
         // refundable/Additional-CTC component at all.
         ODC_PER_DEPENDENT_USD: 500,
+        // ---- §25B Retirement Savings Contributions Credit ("Saver's
+        // Credit") — nonrefundable credit for elective deferrals (401(k)/
+        // 403(b)/governmental 457(b)/SIMPLE) and traditional/Roth IRA
+        // contributions by lower/moderate-income filers. AGI brackets are
+        // inflation-indexed annually; TY2026 figures below (IRS Notice
+        // 2025-67 / Rev. Proc. 2025-32) verified: MFJ is exactly 2× single/
+        // mfs at every breakpoint, HoH exactly 1.5× single/mfs (rounded) —
+        // the same fixed ratio pattern this table has held every year since
+        // its 2001 enactment. Contribution cap ($2,000/person) is a flat
+        // statutory dollar amount, NOT inflation-indexed (unchanged since
+        // EGTRRA 2001) — unlike every bracket above it in this file.
+        SAVERS_CREDIT_AGI_BRACKETS: {
+          single: { br50: 24250, br20: 26250, br10: 40250 },
+          mfs: { br50: 24250, br20: 26250, br10: 40250 },
+          hoh: { br50: 36375, br20: 39375, br10: 60375 },
+          mfj: { br50: 48500, br20: 52500, br10: 80500 }
+        },
+        SAVERS_CREDIT_CONTRIBUTION_CAP_USD: 2000,
         // ---- OBBBA "senior deduction" (temporary, TY2025-2028) — $6,000 per
         // taxpayer age 65+ by year end (stacks with std/itemized deduction),
         // phased out 6% of MAGI over the threshold. MFS filers are entirely

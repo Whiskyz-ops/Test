@@ -119,6 +119,7 @@ NODES.usEntityTaxResult = {
         incomeTaxUsd: tax, niitUsd: 0, additionalMedicareUsd: 0,
         seTaxUsd: 0, qbiDeductionUsd: 0, amtUsd: 0, creditsUsd: 0,
         collectiblesGainUsd: 0, collectiblesTaxUsd: 0, qsbsExcludedGainUsd: 0, qsbsTaxableGainUsd: 0,
+        saversCreditUsd: 0,
         totalTaxBeforeFtcUsd: tax,
         // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H —
         // "entity-agnostic audit", 21 Jul 2026): the engine reads
@@ -581,6 +582,7 @@ NODES.nraTaxResult = {
       ordinaryTaxUsd: eciTaxUsd, preferentialTaxUsd: 0, incomeTaxUsd: eciTaxUsd + fdapTaxUsd,
       niitUsd: 0, additionalMedicareUsd: addlMedicare, seTaxUsd: 0, qbiDeductionUsd: 0, amtUsd: 0, creditsUsd: 0,
         collectiblesGainUsd: 0, collectiblesTaxUsd: 0, qsbsExcludedGainUsd: 0, qsbsTaxableGainUsd: 0,
+        saversCreditUsd: 0,
       totalTaxBeforeFtcUsd: totalTax,
       foreignSourceIncomeUsd: 0,
       usSourceIncomeUsd: eciUsd + fdapUsd,
