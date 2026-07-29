@@ -468,6 +468,35 @@ var KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = ["cfc"];
 function isUsEntityProfile(dag) { return ["ccorp", "scorp", "partnership", "trust"].indexOf(dag.model.entity && dag.model.entity.usKind) >= 0; }
 function isIndiaEntityProfile(dag) { return !!(dag.model.entity && (dag.model.entity.indiaIsCompany || dag.model.entity.indiaIsFirm)); }
 function isNraProfile(dag) { return !!(dag.computed.usTax && dag.computed.usTax.isNra === true); }
+// §199A W-2 wage/UBIA limitation (task #42): a PERMANENT, structural
+// divergence from the frozen engine, which never implements this limit at
+// all (flat 20% QBI deduction, no wage/UBIA cap, ever — archive/engine-
+// frozen/ is never hand-edited again, so this can't be closed by adding
+// fixture data). Fires whenever real QBI income exists AND taxable income
+// (reconstructed pre-QBI-deduction, since the DAG doesn't expose that
+// intermediate directly) crosses the §199A threshold — same shape as
+// isFeieWagesDivergent below, but computed from the resolved DAG output
+// since fuzzed profiles have no stable "known affected ID" to hardcode.
+function isQbiWageLimitDivergent(dag) {
+  var inc = dag.model.income && dag.model.income.us, usTax = dag.computed.usTax;
+  if (!inc || !usTax || usTax.isEntity || usTax.isNra) return false;
+  if (!(inc.qbiIncomeUsd > 0)) return false;
+  var thr = CONST.TAX.US.QBI_THRESHOLD[usTax.filingStatus] || CONST.TAX.US.QBI_THRESHOLD.single;
+  var taxableBeforeQbi = (usTax.taxableIncomeUsd || 0) + (usTax.qbiDeductionUsd || 0);
+  return taxableBeforeQbi > thr;
+}
+var KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS = [
+  "computed.usTax.qbiDeductionUsd", "computed.usTax.taxableIncomeUsd", "computed.usTax.incomeTaxUsd",
+  "computed.usTax.totalTaxBeforeFtcUsd", "computed.usTax.ordinaryTaxUsd", "computed.usTax.preferentialTaxUsd",
+  "computed.usTax.ordinaryTaxableUsd", "computed.usTax.ordinaryBracketBreakdown", "computed.usTax.amtDetail",
+  "computed.usTax.amtUsd", "computed.usTax.creditsUsd", "computed.usTax.ctcDetail",
+  // ftcResult/headlineResult both read usTaxResult.taxableIncomeUsd/
+  // totalTaxBeforeFtcUsd directly (ftc-nodes.js's usTaxableIncomeUsdBoundaryFtc),
+  // so a different QBI deduction cascades all the way through the FTC
+  // limitation calc and the combined-tax headline too.
+  "computed.ftc.us", "computed.ftc.india", "computed.ftc.netUnrelievedDoubleTaxUsd",
+  "computed.headline.combinedTaxBeforeReliefUsd", "computed.headline.usTaxUsd", "computed.headline.netUnrelievedDoubleTaxUsd",
+];
 var KNOWN_US_ENTITY_DIVERGENT_PATHS = [
   "computed.headline.totalIncomeUsd", "computed.ftc.india", "taxComputation.us", "summary.totalIncomeUsd",
   "computed.usTax.foreignSourceIncomeUsd", "computed.usTax.usSourceIncomeUsd", "computed.apportionment",
@@ -825,7 +854,8 @@ function compareOne(label, profile, saveOnFail) {
     .concat(indiaAopOrTrust ? KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS : [])
     .concat(isUsTrustProfile(dag) ? KNOWN_US_TRUST_DIVERGENT_PATHS : [])
     .concat(feieWagesDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
-    .concat(isFeieEntityGateMissingProfile(dag, profile) ? KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS : []);
+    .concat(isFeieEntityGateMissingProfile(dag, profile) ? KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS : [])
+    .concat(isQbiWageLimitDivergent(dag) ? KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS : []);
   if (allowedPaths.length) {
     var stillReal = [];
     realDiffs.forEach(function (diff) {
