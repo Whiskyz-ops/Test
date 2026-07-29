@@ -1796,6 +1796,12 @@
       "collectiblesTaxUsd": 0,
       "qsbsExcludedGainUsd": 0,
       "qsbsTaxableGainUsd": 0,
+      "saversCreditUsd": 0,
+      "saversCreditDetail": {
+        "rate": 0.0,
+        "eligibleContributionUsd": 2000,
+        "agiUsd": 328536.051
+      },
       "gilti962TaxUsd": 0.0,
       "cfcDetail": {
         "nonElectedInclusionUsd": 0.0,

@@ -73,6 +73,17 @@ US = {
     "CTC_REFUNDABLE_EARNED_INCOME_FLOOR_USD": 2500,
     "CTC_REFUNDABLE_RATE": 0.15,
     "ODC_PER_DEPENDENT_USD": 500,
+    # §25B Retirement Savings Contributions Credit ("Saver's Credit") — TY2026
+    # (IRS Notice 2025-67 / Rev. Proc. 2025-32). Contribution cap ($2,000/
+    # person) is a flat statutory amount, not inflation-indexed. Mirrors
+    # prototypes/graph-pilot/constants.js's TAX.US.SAVERS_CREDIT_* exactly.
+    "SAVERS_CREDIT_AGI_BRACKETS": {
+        "single": {"br50": 24250, "br20": 26250, "br10": 40250},
+        "mfs": {"br50": 24250, "br20": 26250, "br10": 40250},
+        "hoh": {"br50": 36375, "br20": 39375, "br10": 60375},
+        "mfj": {"br50": 48500, "br20": 52500, "br10": 80500},
+    },
+    "SAVERS_CREDIT_CONTRIBUTION_CAP_USD": 2000,
     "SENIOR_DEDUCTION_MIN_AGE": 65,
     "SENIOR_DEDUCTION_PER_PERSON_USD": 6000,
     "SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD": {"single": 75000, "mfj": 150000, "hoh": 75000},
@@ -117,6 +128,12 @@ US_STATES = {
         },
         "STD_DEDUCTION": {"single": 8000, "mfj": 16050},
         "DEPENDENT_EXEMPTION_USD": 1000,
+        # 529 state tax deduction (task #45 follow-up), NY Tax Law
+        # §612(c)(32): contributions to NY's OWN 529 College Savings Program
+        # only -- $5,000 single/$10,000 MFJ per year, no income cap. CA has
+        # NO key here at all (deliberate absence) -- ScholarShare 529 carries
+        # no state income tax deduction whatsoever. Mirrors constants.js exactly.
+        "FIVE29_DEDUCTION_MAX_USD": {"single": 5000, "mfj": 10000},
     },
 }
 
@@ -137,6 +154,12 @@ US_STATES_NJ_NY_SHAPE_EXT = {
         "STD_DEDUCTION_LABEL": "personal exemption",
         "DEPENDENT_EXEMPTION_USD": 1500,
         "DEPENDENT_EXEMPTION_LABEL": "NJ dependent exemption ($1,500/dependent)",
+        # 529 state tax deduction (task #45 follow-up), NJ College
+        # Affordability Act (effective TY2022): up to $10,000/year for
+        # NJBEST contributions -- a FLAT cap regardless of filing status,
+        # gated on NJ gross income <= $200,000. Mirrors constants.js exactly.
+        "FIVE29_DEDUCTION_MAX_USD": {"single": 10000, "mfj": 10000},
+        "FIVE29_DEDUCTION_INCOME_CAP_USD": 200000,
     },
 }
 NO_INDIVIDUAL_INCOME_TAX_STATES = {"AK": 1, "FL": 1, "NV": 1, "SD": 1, "TN": 1, "TX": 1, "WA": 1, "WY": 1}

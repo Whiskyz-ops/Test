@@ -27,7 +27,10 @@ const { allClientSummaries } = await import("./lib/wising.js");
 const DAG_ONLY_KEYS = new Set([
   "caveat", "indiaIsAop", "indiaIsTrust", "trustDistributedUsd", "trustRetainedUsd",
   "trustBracketBreakdown", "entityGraph", "qbiWagesUsd", "qbiUbiaUsd",
-  "foreignSection988GainLoss", "otherOrdinaryIncomeUs"
+  "foreignSection988GainLoss", "otherOrdinaryIncomeUs",
+  // §25B Saver's Credit (task #44 follow-up) — added proactively (kept in
+  // sync with shadow-core.js's own DAG_ONLY_KEYS).
+  "saversCreditUsd", "saversCreditDetail"
 ]);
 
 let fails = 0, checks = 0;
@@ -80,7 +83,7 @@ function checkResult(id, dag, real) {
   // UN-stripped documents list (report-batch5-nodes.js) — adjusted by the
   // same amount so this known, deliberate divergence doesn't rely on
   // deepCheck's +/-2 numeric tolerance to go unnoticed.
-  const DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance"];
+  const DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880"];
   const droppedRequiredCount = dag.documents.filter((x) => DAG_ONLY_DOC_IDS.includes(x.id) && x.required).length;
   const dagDocs = dag.documents.filter((x) => !DAG_ONLY_DOC_IDS.includes(x.id));
   const dagSummary = droppedRequiredCount > 0 && dag.summary && typeof dag.summary.requiredDocs === "number"

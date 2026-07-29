@@ -115,7 +115,7 @@ def _feie_raw(d, ctx):
     }
 
 
-def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_owed_boundary, taxpayer_dob_raw, base_year_us):
+def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_owed_boundary, taxpayer_dob_raw, base_year_us, savers_credit_contribution_usd=0):
     brackets = T["BRACKETS"].get(status, T["BRACKETS"]["single"])
 
     f_w = inc["foreignWages"]["usd"] if worldwide else 0
@@ -316,7 +316,21 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     child_care_credit = 0.20 * min(ded.get("careExpenses") or 0, care_cap)
     aotc_credit = min(ded.get("aotc") or 0, 2500 * max(1, ded.get("dependents") or 1)) * edu_phase
     llc_credit = min(ded.get("lifetimeLearning") or 0, 2000) * edu_phase
-    other_credits_usd = min(js_round(child_care_credit + aotc_credit + llc_credit), js_round(income_tax))
+    # §25B Retirement Savings Contributions Credit ("Saver's Credit", task
+    # #44 follow-up): reuses us5_penalty_72t.py's own
+    # electiveDeferralAggregateUsd + iraContributionAggregateUsd (already
+    # correctly excludes SEP-IRA/employer contributions per §402(g)/
+    # §219(b)(5), the same eligible-contribution set §25B(d)(1) defines).
+    # NOT netted against testing-period retirement distributions
+    # (§25B(d)(2)) or the full-time-student/dependent/under-18
+    # disqualifications (§25B(g)) -- no Layer 1 field represents any of
+    # these -- named imprecision, not a guess. Mirrors
+    # prototypes/graph-pilot/ustax-nodes.js's computeUsTaxCore exactly.
+    sc_brackets = T["SAVERS_CREDIT_AGI_BRACKETS"].get(status, T["SAVERS_CREDIT_AGI_BRACKETS"]["single"])
+    savers_credit_rate = 0.50 if agi <= sc_brackets["br50"] else 0.20 if agi <= sc_brackets["br20"] else 0.10 if agi <= sc_brackets["br10"] else 0.0
+    savers_credit_eligible_contribution_usd = min(max(0.0, savers_credit_contribution_usd or 0), T["SAVERS_CREDIT_CONTRIBUTION_CAP_USD"])
+    savers_credit_usd = js_round(savers_credit_rate * savers_credit_eligible_contribution_usd)
+    other_credits_usd = min(js_round(child_care_credit + aotc_credit + llc_credit + savers_credit_usd), js_round(income_tax))
 
     num_children_for_ctc = ded.get("dependents") or 0
     # SS24(h)(4) Credit for Other Dependents (ODC): $500/dependent, flat,
@@ -384,6 +398,8 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
             "tmtOrdUsd": tmt_ord, "tmtUsd": tmt_ord + preferential_tax + collectibles_tax, "regularTaxUsd": income_tax,
         },
         "otherCreditsUsd": other_credits_usd,
+        "saversCreditUsd": savers_credit_usd,
+        "saversCreditDetail": {"rate": savers_credit_rate, "eligibleContributionUsd": savers_credit_eligible_contribution_usd, "agiUsd": agi},
         # maxTotalUsd/nonRefundableUsd are the COMBINED CTC+ODC figures
         # (matching creditsUsd's real dollar effect); numChildren/
         # availableUsd/refundableUsd remain CTC-only (ODC has no refundable
@@ -483,6 +499,13 @@ NODES = {
             "otherDependents": num(safe(it, "credit_for_other_dependents", 0)),
             "seHealthInsuranceDeductionUsd": num(safe(us, "income_us_source.se_health_insurance_deduction_usd", 0)),
             "seRetirementDeductionUsd": num(safe(us, "income_us_source.se_retirement_deduction_usd", 0)),
+            # 529 state tax deduction (task #45 follow-up): dead fields until
+            # now -- collected and saved by layer1_us.html but never read by
+            # any compute node in either DAG. Mirrors ustax-nodes.js's dedUs
+            # exactly.
+            "funded529Plan": safe(it, "funded_529_plan", False) is True,
+            "five29ContributionsUsd": num(safe(it, "529_contributions_usd", 0)),
+            "five29StateDeductionState": safe(it, "529_state_deduction_state", ""),
         })(ctx.get("us"), safe(ctx.get("us"), "itemized_deductions_and_credits", {}) or {}),
         layer1_fields=(
             "us.itemized_deductions_and_credits.use_standard_or_itemized", "us.itemized_deductions_and_credits.state_and_local_taxes_paid_usd",
@@ -498,6 +521,8 @@ NODES = {
             "us.itemized_deductions_and_credits.education_credits_aotc_usd", "us.itemized_deductions_and_credits.education_credits_llc_usd",
             "us.profile.dependents_count", "us.itemized_deductions_and_credits.dependents_count",
             "us.income_us_source.se_health_insurance_deduction_usd", "us.income_us_source.se_retirement_deduction_usd",
+            "us.itemized_deductions_and_credits.funded_529_plan", "us.itemized_deductions_and_credits.529_contributions_usd",
+            "us.itemized_deductions_and_credits.529_state_deduction_state",
         ),
     ),
     "additionalMedicareOwedBoundary": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "withholding_and_estimated.additional_medicare_tax_owed_usd", 0)), layer1_fields=("us.withholding_and_estimated.additional_medicare_tax_owed_usd",)),
@@ -508,10 +533,11 @@ NODES = {
     "baseYearUs": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.meta.baseYear", None)),
 
     "usTaxResult": NodeDef(
-        deps=("incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs"),
+        deps=("incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs", "electiveDeferralAggregateUsd", "iraContributionAggregateUsd"),
         compute=lambda d, ctx: compute_us_tax_core(
             d["incUs"], d["dedUs"], d["usFilingStatusRaw"], d["worldwideUs"], d["feie"],
             d["additionalMedicareOwedBoundary"], d["taxpayerDobRaw"], d["baseYearUs"],
+            d["electiveDeferralAggregateUsd"] + d["iraContributionAggregateUsd"],
         ),
     ),
     "totalTaxBeforeFtcUsd": NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["totalTaxBeforeFtcUsd"]),

@@ -136,7 +136,15 @@ var US_STATES_NJ_NY_SHAPE_EXT = {
     STD_DEDUCTION: { single: 1000, mfj: 2000 },
     STD_DEDUCTION_LABEL: "personal exemption",
     DEPENDENT_EXEMPTION_USD: 1500,
-    DEPENDENT_EXEMPTION_LABEL: "NJ dependent exemption ($1,500/dependent)"
+    DEPENDENT_EXEMPTION_LABEL: "NJ dependent exemption ($1,500/dependent)",
+    // 529 state tax deduction (task #45 follow-up), NJ College Affordability
+    // Act (effective TY2022): up to $10,000/year for contributions to
+    // NJBEST (NJ's own 529 plan) -- a FLAT cap regardless of filing status
+    // (unlike NY's status-split cap), gated on NJ gross income <= $200,000.
+    // Verified via web search, cross-checked against two independent
+    // sources.
+    FIVE29_DEDUCTION_MAX_USD: { single: 10000, mfj: 10000 },
+    FIVE29_DEDUCTION_INCOME_CAP_USD: 200000
   }
 };
 var NO_INDIVIDUAL_INCOME_TAX_STATES = { AK: 1, FL: 1, NV: 1, SD: 1, TN: 1, TX: 1, WA: 1, WY: 1 };
@@ -157,7 +165,7 @@ NODES.usStateTaxResult = {
     if (NO_INDIVIDUAL_INCOME_TAX_STATES[stateCode]) {
       return {
         state: stateCode, stateName: STATE_NAMES[stateCode] || stateCode, formName: null, filingStatus: d.usFilingStatusRaw === "mfj" ? "mfj" : "single",
-        noIncomeTax: true, agiUsd: d.usTaxResult.agiUsd, standardDeductionUsd: 0, dependentExemptionUsd: 0,
+        noIncomeTax: true, agiUsd: d.usTaxResult.agiUsd, standardDeductionUsd: 0, dependentExemptionUsd: 0, five29DeductionUsd: 0,
         taxableIncomeUsd: 0, bracketTaxUsd: 0, bracketBreakdown: [], surchargeUsd: 0, surchargeLabel: null,
         exemptionCreditUsd: 0, dependentCreditUsd: 0, totalTaxUsd: 0, effectiveRate: 0,
         basis: (STATE_NAMES[stateCode] || stateCode) + " has no individual income tax."
@@ -170,7 +178,18 @@ NODES.usStateTaxResult = {
     var standardDeductionUsd = T.STD_DEDUCTION[status];
     var dependents = d.dedUs.dependents || 0;
     var dependentExemptionUsd = (T.DEPENDENT_EXEMPTION_USD || 0) * dependents;
-    var taxableIncomeUsd = Math.max(0, d.usTaxResult.agiUsd - standardDeductionUsd - dependentExemptionUsd);
+    // 529 state tax deduction (task #45 follow-up): only the RESIDENT
+    // state's own plan qualifies (NY/NJ both restrict the deduction to
+    // contributions to their own 529 program, not another state's) --
+    // compared against the state the taxpayer actually funded, not assumed
+    // to match residency. NJ additionally gates on a gross-income cap (CA
+    // has no FIVE29_DEDUCTION_MAX_USD key at all -- no deduction exists).
+    var five29StateMatches = d.dedUs.funded529Plan && d.dedUs.five29StateDeductionState &&
+      String(d.dedUs.five29StateDeductionState).toUpperCase() === stateCode;
+    var five29IncomeOk = T.FIVE29_DEDUCTION_INCOME_CAP_USD == null || d.usTaxResult.agiUsd <= T.FIVE29_DEDUCTION_INCOME_CAP_USD;
+    var five29CapUsd = T.FIVE29_DEDUCTION_MAX_USD ? (T.FIVE29_DEDUCTION_MAX_USD[status] || T.FIVE29_DEDUCTION_MAX_USD.single) : 0;
+    var five29DeductionUsd = (five29StateMatches && five29IncomeOk) ? Math.min(d.dedUs.five29ContributionsUsd || 0, five29CapUsd) : 0;
+    var taxableIncomeUsd = Math.max(0, d.usTaxResult.agiUsd - standardDeductionUsd - dependentExemptionUsd - five29DeductionUsd);
     var bracketTaxUsd = bracketTax(taxableIncomeUsd, brackets);
     var bracketBreakdownRows = bracketBreakdown(taxableIncomeUsd, brackets);
     var surchargeUsd = 0;
@@ -186,6 +205,7 @@ NODES.usStateTaxResult = {
       agiUsd: d.usTaxResult.agiUsd, standardDeductionUsd: standardDeductionUsd, dependentExemptionUsd: dependentExemptionUsd,
       standardDeductionLabel: T.STD_DEDUCTION_LABEL || "standard deduction",
       dependentExemptionLabel: T.DEPENDENT_EXEMPTION_LABEL || (T.NAME + " dependent exemption"),
+      five29DeductionUsd: five29DeductionUsd,
       taxableIncomeUsd: taxableIncomeUsd, bracketTaxUsd: bracketTaxUsd, bracketBreakdown: bracketBreakdownRows,
       surchargeUsd: surchargeUsd, surchargeLabel: T.SURCHARGE_LABEL || null,
       exemptionCreditUsd: exemptionCreditUsd, dependentCreditUsd: dependentCreditUsd,

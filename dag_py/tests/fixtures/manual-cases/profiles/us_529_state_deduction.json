@@ -1,0 +1,215 @@
+{
+  "id": "us_529_state_deduction",
+  "label": "529 state tax deduction, capped (manual case)",
+  "story": "Manual regression case for task #45 (529 plan state tax deduction): NY resident, single filer, $6,000 contributed to NY's own 529 College Savings Program against NY's $5,000 single-filer cap (NY Tax Law §612(c)(32)) — deduction correctly caps at $5,000, not the full $6,000 contributed. Also exercises the state-match gate (funded_529_plan/529_state_deduction_state='NY' must match the resident state) and the cap-vs-status lookup. No golden fixture or fuzz-corpus profile sets any of the three 529 fields (funded_529_plan/529_contributions_usd/529_state_deduction_state were dead fields until this task), so this targets a branch nothing else reaches.",
+  "tags": [
+    "529",
+    "state tax",
+    "NY",
+    "manual case"
+  ],
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "full_name": "Jordan Lee",
+    "date_of_birth": "1988-09-22",
+    "is_us_citizen": true,
+    "has_green_card": false,
+    "us_days": 365,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Jordan Lee",
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 0,
+      "final_india_residency_status": "NR"
+    },
+    "dtaa": {},
+    "compliance_docs": {},
+    "bank_accounts": [],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "transactions": []
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "house_property": {
+        "has_house_property_income": false,
+        "properties": []
+      },
+      "business_income": {
+        "has_business_or_fo_income": false,
+        "business_entries": []
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {},
+    "deductions": {},
+    "carry_forward_losses": {},
+    "lrs_outbound": {},
+    "tax_credits": {},
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    },
+    "quarters": {
+      "Q1": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {},
+        "financial_holdings": {
+          "transactions": []
+        },
+        "property": {
+          "properties": []
+        }
+      },
+      "Q2": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q3": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      },
+      "Q4": {
+        "domestic_income": {
+          "salary": {
+            "has_salary_income": false
+          },
+          "house_property": {
+            "has_house_property_income": false,
+            "properties": []
+          },
+          "business_income": {
+            "has_business_or_fo_income": false,
+            "business_entries": []
+          },
+          "capital_gains": {}
+        },
+        "other_sources": {},
+        "capital_gains": {},
+        "lrs_outbound": {}
+      }
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Jordan Lee",
+      "date_of_birth": "1988-09-22",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "has_green_card": false,
+      "us_days_current_year": 365,
+      "spt_test_met": true,
+      "final_us_residency_status": "US_CITIZEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Hudson Bay Consulting",
+          "wages_box1_usd": 140000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 24000,
+            "medicare_wages_box5_usd": 140000
+          }
+        }
+      ]
+    },
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard",
+      "funded_529_plan": true,
+      "529_contributions_usd": 6000,
+      "529_state_deduction_state": "NY"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "NY",
+      "jan_1_domicile_state": "NY",
+      "dec_31_domicile_state": "NY"
+    },
+    "bank_accounts": [],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {},
+    "financial_holdings": [],
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 24000
+    },
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

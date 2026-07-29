@@ -378,7 +378,12 @@ function generateProfile(rng) {
 var DAG_ONLY_KEYS = {
   caveat: true, indiaIsAop: true, indiaIsTrust: true,
   trustDistributedUsd: true, trustRetainedUsd: true, trustBracketBreakdown: true,
-  entityGraph: true, qbiWagesUsd: true, qbiUbiaUsd: true
+  entityGraph: true, qbiWagesUsd: true, qbiUbiaUsd: true,
+  // §25B Saver's Credit (task #44 follow-up): new structural field on
+  // computed.usTax with no engine equivalent — added proactively here
+  // (unlike qbiWagesUsd/qbiUbiaUsd above, which missed this file on first
+  // ship) so this fuzz harness doesn't regress further.
+  saversCreditUsd: true, saversCreditDetail: true
 };
 function close(a, b) { var tol = Math.max(2, Math.abs(b) * 1e-6); return Math.abs(a - b) <= tol; }
 function deepEqual(a, b, p, diffs) {
@@ -711,7 +716,7 @@ function assembleDag(profile, monitorAsOfBoundary) {
   // calendar's bundled docIds, same category as checksRegistry above.
   // Shallow-copy the calendar rows (not a full JSON clone, which would turn
   // Date objects into strings elsewhere in this same tree).
-  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance"];
+  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880"];
   var droppedRequiredCount = (out.analyzeResult.documents || []).filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) !== -1 && x.required; }).length;
   var documents = (out.analyzeResult.documents || []).filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) === -1; });
   var stripNj1040 = function (row) {

@@ -27,7 +27,7 @@ from __future__ import annotations
 from ..core.graph import NodeDef
 from ..core.registry import NodeRegistry
 from ..crossborder import residency
-from . import aggregate_us_income, ustax
+from . import aggregate_us_income, us5_penalty_72t, ustax
 
 OVERRIDE_REASON = "us-full-nodes.js wiring: redefined to read the merged income/residency subgraphs instead of ctx['model']/ctx['computed']"
 
@@ -37,6 +37,9 @@ def build(base: NodeRegistry) -> NodeRegistry:
     r = aggregate_us_income.build(r)
     r = ustax.build(r)
     r = residency.build(r)
+    # usTaxResult depends on electiveDeferralAggregateUsd/
+    # iraContributionAggregateUsd (§25B Saver's Credit, task #44 follow-up).
+    r = us5_penalty_72t.build(r)
 
     r.override("incUs", NodeDef(deps=("aggregateUsIncomeResult",), compute=lambda d, ctx: d["aggregateUsIncomeResult"]), reason=OVERRIDE_REASON)
     r.override("worldwideUs", NodeDef(deps=("residencyResult",), compute=lambda d, ctx: d["residencyResult"]["us"]["worldwide"]), reason=OVERRIDE_REASON)

@@ -18,7 +18,11 @@ var resolveEngineFile = require("../../scripts/engine-frozen.js").resolveEngineF
 });
 var WISING = global.WISING;
 var createGraph = require("./graph.js").createGraph;
-var NODES = require("./ustax-nodes.js").NODES;
+// usTaxResult depends on us5-nodes.js's electiveDeferralAggregateUsd/
+// iraContributionAggregateUsd (§25B Saver's Credit, task #44) -- merged in
+// here, same as ustax-nodes.js's own real production composition already
+// does via report-batch5-nodes.js's require chain.
+var NODES = Object.assign({}, require("./us5-nodes.js").NODES, require("./ustax-nodes.js").NODES);
 var graph = createGraph(NODES);
 
 var pass = 0, fail = 0;

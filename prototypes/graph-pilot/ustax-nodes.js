@@ -113,7 +113,7 @@ function feieEligibility(f) {
  * The usTaxResult node below is now a thin wrapper passing its exact same
  * deps through positionally — behavior for every existing (non-dual-status)
  * caller is byte-identical to before this extraction. */
-function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareOwedBoundary, taxpayerDobRaw, baseYearUs) {
+function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareOwedBoundary, taxpayerDobRaw, baseYearUs, saversCreditContributionUsd) {
       var brackets = T.BRACKETS[status] || T.BRACKETS.single;
 
       var fW = worldwide ? inc.foreignWages.usd : 0;
@@ -309,7 +309,25 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var childCareCredit = 0.20 * Math.min(ded.careExpenses || 0, careCap);
       var aotcCredit = Math.min(ded.aotc || 0, 2500 * Math.max(1, ded.dependents || 1)) * eduPhase;
       var llcCredit = Math.min(ded.lifetimeLearning || 0, 2000) * eduPhase;
-      var otherCreditsUsd = Math.min(Math.round(childCareCredit + aotcCredit + llcCredit), Math.round(incomeTax));
+      // §25B Retirement Savings Contributions Credit ("Saver's Credit",
+      // task #44 follow-up): reuses us5-nodes.js's own
+      // electiveDeferralAggregateUsd + iraContributionAggregateUsd (already
+      // correctly excludes SEP-IRA/employer contributions per §402(g)/
+      // §219(b)(5), the same eligible-contribution set §25B(d)(1) defines).
+      // NOT netted against testing-period retirement distributions
+      // (§25B(d)(2), the 2-years-back-through-return-due-date lookback) —
+      // Layer 1 collects retirement CONTRIBUTIONS only, no distributions in
+      // a form mapped to that window — a named imprecision, not a guess.
+      // Also not modeled: the full-time-student / claimed-as-a-dependent /
+      // under-18 disqualifications (§25B(g)) — no Layer 1 field represents
+      // any of the three, so every filer is scored as eligible on the AGI
+      // test alone, same "single available signal" honesty as the
+      // schedule_m1_m2 receipts-prong gap.
+      var scBrackets = T.SAVERS_CREDIT_AGI_BRACKETS[status] || T.SAVERS_CREDIT_AGI_BRACKETS.single;
+      var saversCreditRate = agi <= scBrackets.br50 ? 0.50 : agi <= scBrackets.br20 ? 0.20 : agi <= scBrackets.br10 ? 0.10 : 0;
+      var saversCreditEligibleContributionUsd = Math.min(Math.max(0, saversCreditContributionUsd || 0), T.SAVERS_CREDIT_CONTRIBUTION_CAP_USD);
+      var saversCreditUsd = Math.round(saversCreditRate * saversCreditEligibleContributionUsd);
+      var otherCreditsUsd = Math.min(Math.round(childCareCredit + aotcCredit + llcCredit + saversCreditUsd), Math.round(incomeTax));
 
       var numChildrenForCtc = ded.dependents || 0;
       // §24(h)(4) Credit for Other Dependents (ODC, e.g. adult dependents,
@@ -393,6 +411,8 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
           tmtOrdUsd: tmtOrd, tmtUsd: tmtOrd + preferentialTax + collectiblesTax, regularTaxUsd: incomeTax
         },
         otherCreditsUsd: otherCreditsUsd,
+        saversCreditUsd: saversCreditUsd,
+        saversCreditDetail: { rate: saversCreditRate, eligibleContributionUsd: saversCreditEligibleContributionUsd, agiUsd: agi },
         // maxTotalUsd/nonRefundableUsd are the COMBINED CTC+ODC figures
         // (matching creditsUsd's real dollar effect) -- label still says
         // just "Child Tax Credit" for brevity; numChildren/availableUsd/
@@ -506,7 +526,18 @@ var NODES = {
         // same gap, brand-new field (no engine equivalent at all).
         otherDependents: num(safe(it, "credit_for_other_dependents", 0)),
         seHealthInsuranceDeductionUsd: num(safe(us, "income_us_source.se_health_insurance_deduction_usd", 0)),
-        seRetirementDeductionUsd: num(safe(us, "income_us_source.se_retirement_deduction_usd", 0))
+        seRetirementDeductionUsd: num(safe(us, "income_us_source.se_retirement_deduction_usd", 0)),
+        // 529 state tax deduction (task #45 follow-up): funded_529_plan/
+        // 529_contributions_usd/529_state_deduction_state (layer1_us.html's
+        // "Credits & 529 Contributions" block) were collected and saved but
+        // never read by any compute node in either DAG -- dead fields until
+        // now. Federal law gives 529 contributions NO deduction at all
+        // (only tax-free growth); it's a STATE-only benefit, applied in
+        // findings-batch5-nodes.js's usStateTaxResult where the resident
+        // state is already resolved.
+        funded529Plan: safe(it, "funded_529_plan", false) === true,
+        five29ContributionsUsd: num(safe(it, "529_contributions_usd", 0)),
+        five29StateDeductionState: safe(it, "529_state_deduction_state", "")
       };
     }
   },
@@ -518,9 +549,9 @@ var NODES = {
   // (body extracted to computeUsTaxCore above so dual-status-nodes.js can
   // call it twice for a split-year return; this node is now a thin wrapper.)
   usTaxResult: {
-    deps: ["incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs"],
+    deps: ["incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs", "electiveDeferralAggregateUsd", "iraContributionAggregateUsd"],
     compute: function (d) {
-      return computeUsTaxCore(d.incUs, d.dedUs, d.usFilingStatusRaw, d.worldwideUs, d.feie, d.additionalMedicareOwedBoundary, d.taxpayerDobRaw, d.baseYearUs);
+      return computeUsTaxCore(d.incUs, d.dedUs, d.usFilingStatusRaw, d.worldwideUs, d.feie, d.additionalMedicareOwedBoundary, d.taxpayerDobRaw, d.baseYearUs, d.electiveDeferralAggregateUsd + d.iraContributionAggregateUsd);
     }
   },
   totalTaxBeforeFtcUsd: { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.totalTaxBeforeFtcUsd; } }
