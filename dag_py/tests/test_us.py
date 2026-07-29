@@ -39,7 +39,10 @@ def test_aggregate_us_income_result_matches_golden(fixture_id):
 
     out = GRAPH.resolve(TARGETS, ctx).values
 
-    diff = deep_diff(out["aggregateUsIncomeResult"], golden["model"]["income"]["us"])
+    # foreignWagesTaxPaidUsd (task #46, multi-country/multi-basket FTC): new
+    # DAG-only field, no frozen-engine equivalent.
+    out_income = {k: v for k, v in out["aggregateUsIncomeResult"].items() if k != "foreignWagesTaxPaidUsd"}
+    diff = deep_diff(out_income, golden["model"]["income"]["us"])
     assert diff is None, f"{fixture_id}: " + " | ".join(diff[:8])
 
 

@@ -1,0 +1,142 @@
+{
+  "id": "us_ftc_basket_multicountry",
+  "label": "FTC §904 basket split + multi-country (manual case)",
+  "story": "Manual regression case for task #46 (multi-country/multi-basket FTC): a US citizen with India-source salary (general basket) and India-source interest/dividends (passive basket), taxed by India, PLUS a UK bank interest holding with its own UK tax withheld entered via the new 'Other Foreign Tax Credits' section (passive basket, second country). Exercises: (1) the §904 passive/general basket split of India-source income via indiaIncomeModelResult.passive/.general, (2) a second country's foreign tax folded into the same passive basket alongside India's, (3) the previously-dead foreign_wages[].foreign_tax_paid_usd (general basket, third source). No golden fixture or fuzz-corpus profile sets any of these fields.",
+  "tags": [
+    "FTC",
+    "§904",
+    "multi-country",
+    "basket",
+    "manual case"
+  ],
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Rohan Mehta",
+    "date_of_birth": "1982-11-03",
+    "is_us_citizen": true,
+    "has_green_card": false,
+    "us_days": 365,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Rohan Mehta",
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 200,
+      "final_india_residency_status": "ROR"
+    },
+    "dtaa": {},
+    "compliance_docs": {},
+    "bank_accounts": [],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "transactions": []
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "gross_salary_inr": 3000000
+      },
+      "house_property": {
+        "has_house_property_income": false,
+        "properties": []
+      },
+      "business_income": {
+        "has_business_or_fo_income": false,
+        "business_entries": []
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {
+      "interest_fd_rd_inr": 4000000,
+      "dividend_inr": 1000000
+    },
+    "deductions": {},
+    "carry_forward_losses": {},
+    "lrs_outbound": {},
+    "tax_credits": {},
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Rohan Mehta",
+      "date_of_birth": "1982-11-03",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "has_green_card": false,
+      "us_days_current_year": 365,
+      "spt_test_met": true,
+      "final_us_residency_status": "US_CITIZEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "has_employment_income": false
+    },
+    "income_foreign_source": {
+      "foreign_wages": [
+        {
+          "country": "IN",
+          "employer_name": "Mehta Consulting India Pvt Ltd",
+          "gross_wages_usd": 36000,
+          "foreign_tax_paid_usd": 0
+        }
+      ],
+      "foreign_interest_usd": 48000,
+      "foreign_dividends_usd": 12000
+    },
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "foreign_tax_credit_other": {
+      "entries": [
+        {
+          "country": "GB",
+          "basket": "passive",
+          "foreign_source_income_usd": 8000,
+          "foreign_tax_paid_usd": 1600
+        }
+      ]
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "bank_accounts": [],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {},
+    "financial_holdings": [],
+    "ftc_inputs": {
+      "claims_ftc": true
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 0
+    },
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

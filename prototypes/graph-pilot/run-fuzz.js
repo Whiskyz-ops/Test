@@ -383,7 +383,13 @@ var DAG_ONLY_KEYS = {
   // computed.usTax with no engine equivalent — added proactively here
   // (unlike qbiWagesUsd/qbiUbiaUsd above, which missed this file on first
   // ship) so this fuzz harness doesn't regress further.
-  saversCreditUsd: true, saversCreditDetail: true
+  saversCreditUsd: true, saversCreditDetail: true,
+  // §904 basket split + multi-country FTC (task #46 follow-up): new
+  // structural fields with no frozen-engine equivalent (the engine has no
+  // basket concept and no second-country FTC input at all) — present on
+  // EVERY profile (not conditional), same blanket-exclusion class as
+  // entityGraph above.
+  passive: true, general: true, foreignWagesTaxPaidUsd: true, baskets: true, otherCountries: true
 };
 function close(a, b) { var tol = Math.max(2, Math.abs(b) * 1e-6); return Math.abs(a - b) <= tol; }
 function deepEqual(a, b, p, diffs) {
@@ -514,7 +520,32 @@ var KNOWN_ALWAYS_DIVERGENT_PATHS = ["model.income.us.foreignSection988GainLoss",
   // concurrent session's NRA Article 21(2)/ECI-FDAP classification work —
   // new DAG-only computed.usTax.nra.* fields, no frozen-engine equivalent.
   "computed.usTax.nra.standardDeductionUsd", "computed.usTax.nra.itemizedDeductionUsd",
-  "computed.usTax.nra.article212Eligible", "computed.usTax.nra.article212AmbiguousJ1"];
+  "computed.usTax.nra.article212Eligible", "computed.usTax.nra.article212AmbiguousJ1",
+  // §904 basket split + multi-country FTC (task #46, docs/GAP_TRACKER.md
+  // section W): a genuine, intentional divergence from the frozen engine's
+  // undifferentiated FTC formula. Basket separation usually tightens the
+  // credit relative to the combined formula, but not always (each basket
+  // independently caps at min(1, basketIncome/usTaxableUsd), so two
+  // baskets that EACH independently exceed usTaxableUsd can sum to more
+  // combined limit room than the single combined pool's one shared cap —
+  // see run-ftc-correctness.js's own hand-computed basket case). Layered
+  // on top, FEIE/§911 now correctly excludes only the general basket
+  // (foreign EARNED income only), not proportionally against passive
+  // income too the way the single-basket formula approximated it — a
+  // second, independent source of divergence. Neither effect has a
+  // predictable sign relative to the frozen engine, so computed.ftc.us's
+  // whole subtree (and its cascades into headline/summary/findings) can't
+  // be asserted against the frozen engine at all anymore -- verified
+  // correct instead via run-ftc-correctness.js's hand-computed cases.
+  "computed.ftc.us", "computed.ftc.netUnrelievedDoubleTaxUsd",
+  "computed.headline.netUnrelievedDoubleTaxUsd", "computed.headline.combinedTaxBeforeReliefUsd",
+  "summary.netDoubleTaxUsd",
+  "findings[ftc_gap]", "findings[ftc_available]", "ftcReport.direction_us_claims_india", "ftcReport.headlineNetDoubleTaxUsd",
+  // Form 2210 underpayment penalty's "90% of this year's tax" safe-harbor
+  // test reads the FINAL (post-FTC) tax liability -- a real FTC basket
+  // improvement can genuinely move that final number, cascading a real
+  // (not buggy) dollar difference into this finding whenever it fires.
+  "findings[underpayment_2210]"];
 var KNOWN_NRA_DIVERGENT_PATHS = ["computed.ftc.india", "ftcReport.direction_india_relief"];
 // ---- H.6: India AOP/BOI and Trust/NGO/Political Party (docs/GAP_TRACKER.md
 // section H.6, 21 Jul 2026) — a WIDER divergence than the company/firm case

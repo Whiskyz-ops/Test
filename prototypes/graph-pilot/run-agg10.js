@@ -40,7 +40,12 @@ var graph = createGraph(NODES);
 // 21 Jul 2026): the engine's model.entity never carries these at all
 // (undefined on that side, always a real boolean false/true on the DAG
 // side) — entitytax-nodes.js's file header has the full writeup.
-var DAG_ONLY_KEYS = { indiaIsAop: true, indiaIsTrust: true };
+// passive/general/baskets/otherCountries (task #46, multi-country/multi-
+// basket FTC): §904 basket split has no frozen-engine equivalent at all
+// (indiaIncomeModelResult.passive/.general, ftcResult.us/india.baskets,
+// ftcResult.us.otherCountries) — same "DAG-only, no engine concept"
+// pattern as indiaIsAop/indiaIsTrust below.
+var DAG_ONLY_KEYS = { indiaIsAop: true, indiaIsTrust: true, passive: true, general: true, baskets: true, otherCountries: true };
 
 var pass = 0, fail = 0;
 function ok(label) { pass++; }

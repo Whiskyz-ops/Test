@@ -22,6 +22,7 @@ from ..core.graph import NodeDef
 from ..core.registry import NodeRegistry
 from ..core.util import num, safe
 from ..india import india_full
+from ..india.aggregate_india_income import india_income_basket_split
 from ..us import us_full
 from . import ftc
 
@@ -73,6 +74,27 @@ def build(base: NodeRegistry) -> NodeRegistry:
     ), reason=OVERRIDE_REASON)
     r.override("indiaWorldwideBoundaryFtc", NodeDef(deps=("residencyResult",), compute=lambda d, ctx: bool(d["residencyResult"]["india"]["worldwide"])), reason=OVERRIDE_REASON)
     r.override("usSourceTotalUsdBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["usSourceIncomeUsd"]), reason=OVERRIDE_REASON)
+
+    # §904 basket split (task #46) — in-graph version of ftc.py's own
+    # boundary, reading indiaIncomeModelResult (already in this composition
+    # via india_full.build above) directly instead of ctx["model"]["income"]["india"].
+    r.override("indiaPassiveIncomeUsdBoundaryFtc", NodeDef(deps=("indiaIncomeModelResult",), compute=lambda d, ctx: india_income_basket_split(d["indiaIncomeModelResult"])["passiveInr"] / fx_rate(ctx)), reason=OVERRIDE_REASON)
+    r.override("indiaGeneralIncomeUsdBoundaryFtc", NodeDef(deps=("indiaIncomeModelResult",), compute=lambda d, ctx: india_income_basket_split(d["indiaIncomeModelResult"])["generalInr"] / fx_rate(ctx)), reason=OVERRIDE_REASON)
+    r.override("usPassiveIncomeUsdBoundaryFtc", NodeDef(
+        deps=("aggregateUsIncomeResult",),
+        compute=lambda d, ctx: (
+            d["aggregateUsIncomeResult"]["interestUs"]["usd"] + d["aggregateUsIncomeResult"]["ordinaryDividendsUs"]["usd"] +
+            d["aggregateUsIncomeResult"]["ltcgUs"]["usd"] + d["aggregateUsIncomeResult"]["stcgUs"]["usd"] + d["aggregateUsIncomeResult"]["rentalUs"]["usd"]
+        ),
+    ), reason=OVERRIDE_REASON)
+    r.override("usGeneralIncomeUsdBoundaryFtc", NodeDef(
+        deps=("aggregateUsIncomeResult",),
+        compute=lambda d, ctx: (
+            d["aggregateUsIncomeResult"]["wages"]["usd"] + d["aggregateUsIncomeResult"]["businessUs"]["usd"] +
+            d["aggregateUsIncomeResult"]["usRetirementIncome"]["usd"] + d["aggregateUsIncomeResult"]["otherOrdinaryIncomeUs"]["usd"]
+        ),
+    ), reason=OVERRIDE_REASON)
+    r.override("foreignWagesTaxPaidUsdBoundaryFtc", NodeDef(deps=("aggregateUsIncomeResult",), compute=lambda d, ctx: d["aggregateUsIncomeResult"].get("foreignWagesTaxPaidUsd") or 0), reason=OVERRIDE_REASON)
 
     # Companion to hasUsScopeBoundaryFtc above — port of findings-nodes.js's
     # hasIndiaScopeXbr, added here (not in crossborder/findings.py) because

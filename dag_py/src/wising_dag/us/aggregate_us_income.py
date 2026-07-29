@@ -570,7 +570,7 @@ def _aggregate_us_income_result(d, ctx):
         "ltcgUs": _m(di["ltcgUsUsd"], ctx), "stcgUs": _m(di["stcgUsUsd"], ctx), "capitalGainsUs": _m(di["ltcgUsUsd"] + di["stcgUsUsd"], ctx), "rentalUs": _m(di["rentalUsUsd"], ctx),
         "collectiblesLtcgUsd": di["collectiblesLtcgUsd"], "qsbsExcludedGainUsd": di["qsbsExcludedGainUsd"], "qsbsTaxableGainUsd": di["qsbsTaxableGainUsd"],
         "otherOrdinaryIncomeUs": _m(di["otherOrdinaryIncomeUsUsd"], ctx),
-        "foreignWages": _m(d["foreignWagesUsd"], ctx), "foreignSelfEmployment": _m(biz["foreignSelfEmploymentUsd"], ctx),
+        "foreignWages": _m(d["foreignWagesUsd"], ctx), "foreignWagesTaxPaidUsd": d["foreignWagesTaxPaidUsd"], "foreignSelfEmployment": _m(biz["foreignSelfEmploymentUsd"], ctx),
         "foreignInterest": _m(foreign_interest, ctx), "foreignDividends": _m(di["foreignDividendsUsd"], ctx),
         "foreignRental": _m(di["foreignRentalUsd"], ctx), "foreignPension": _m(foreign_pension, ctx),
         "foreignStcg": _m(di["foreignStcgUsd"], ctx), "foreignLtcg": _m(di["foreignLtcgUsd"], ctx),
@@ -685,6 +685,17 @@ def build(base):
         ),
         layer1_fields=("us.income_foreign_source.foreign_wages[].gross_wages_usd", "us.income_foreign_source.foreign_wages[].wages_usd", "us.income_foreign_source.foreign_wages[].amount_usd", "us.income_foreign_source.foreign_wages[].wages_box1_usd", "us.income_foreign_source.foreign_wages[].wages_tips_compensation_usd"),
     ))
+    # Each foreign_wages[] row already carries its own foreign_tax_paid_usd
+    # (task #46 follow-up, multi-country/multi-basket FTC) -- always been
+    # written by syncForeignWagesState() (layer1_us.html), never read.
+    # General-category (wages are always active/compensation income under
+    # §904(d)) -- summed across every country/row, since Form 1116 combines
+    # all countries within one basket onto a single limitation.
+    r.register("foreignWagesTaxPaidUsd", NodeDef(
+        deps=("fiAgg",),
+        compute=lambda d, ctx: sum(num(w.get("foreign_tax_paid_usd") or 0) for w in (safe(d["fiAgg"], "foreign_wages", []) or [])),
+        layer1_fields=("us.income_foreign_source.foreign_wages[].foreign_tax_paid_usd",),
+    ))
 
     r.register("usBusinessDepreciationPlan", NodeDef(deps=("uiAgg", "baseYearUsAgg"), compute=_us_business_depreciation_plan, layer1_fields=_SE_DEPRECIATION_FIELDS))
     r.register("k1PassiveTotals", NodeDef(deps=("uiAgg",), compute=_k1_passive_totals, layer1_fields=_K1_PASSIVE_FIELDS))
@@ -758,7 +769,7 @@ def build(base):
     ))
 
     r.register("aggregateUsIncomeResult", NodeDef(
-        deps=("wagesComputation", "foreignWagesUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult"),
+        deps=("wagesComputation", "foreignWagesUsd", "foreignWagesTaxPaidUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult"),
         compute=_aggregate_us_income_result,
     ))
     return r

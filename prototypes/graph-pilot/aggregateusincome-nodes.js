@@ -406,6 +406,21 @@ var NODES = {
       return Math.max(wageRowsTotal, d.feieEarnedIncomeUsdRaw);
     }
   },
+  // Each foreign_wages[] row already carries its own foreign_tax_paid_usd
+  // (task #46 follow-up, multi-country/multi-basket FTC) -- syncForeignWagesState()
+  // (layer1_us.html) has always written it, but nothing has ever read it: a
+  // real per-country, per-row foreign-tax-paid figure that silently vanished
+  // for every foreign wage-earner, the same class of gap foreignWagesUsd
+  // itself closed for the wages side of this exact array. General-category
+  // (wages are always active/compensation income under §904(d)) -- summed
+  // across every country/row, since Form 1116 combines all countries within
+  // one basket onto a single limitation.
+  foreignWagesTaxPaidUsd: {
+    deps: ["fiAgg"],
+    compute: function (d) {
+      return (safe(d.fiAgg, "foreign_wages", []) || []).reduce(function (s, w) { return s + num(w.foreign_tax_paid_usd || 0); }, 0);
+    }
+  },
 
   // Combines self-employment AND farming_schedule_f assets into ONE
   // taxpayer-wide §179 aggregation pool (real law caps/phases out §179
@@ -634,7 +649,7 @@ var NODES = {
 
   // ---- final assembly, matching aggregateUsIncome's own return object ----
   aggregateUsIncomeResult: {
-    deps: ["wagesComputation", "foreignWagesUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult"],
+    deps: ["wagesComputation", "foreignWagesUsd", "foreignWagesTaxPaidUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult"],
     compute: function (d, ctx) {
       var w = d.wagesComputation, biz = d.businessAndSeComputation, ret = d.retirementComputation, di = d.directIncomeComputation, epf = d.epfNpsCrossBorder;
       var cfc = d.cfcInclusionResult;
@@ -662,7 +677,7 @@ var NODES = {
         ltcgUs: m(di.ltcgUsUsd, ctx), stcgUs: m(di.stcgUsUsd, ctx), capitalGainsUs: m(di.ltcgUsUsd + di.stcgUsUsd, ctx), rentalUs: m(di.rentalUsUsd, ctx),
         collectiblesLtcgUsd: di.collectiblesLtcgUsd, qsbsExcludedGainUsd: di.qsbsExcludedGainUsd, qsbsTaxableGainUsd: di.qsbsTaxableGainUsd,
         otherOrdinaryIncomeUs: m(di.otherOrdinaryIncomeUsUsd, ctx),
-        foreignWages: m(d.foreignWagesUsd, ctx), foreignSelfEmployment: m(biz.foreignSelfEmploymentUsd, ctx),
+        foreignWages: m(d.foreignWagesUsd, ctx), foreignWagesTaxPaidUsd: d.foreignWagesTaxPaidUsd, foreignSelfEmployment: m(biz.foreignSelfEmploymentUsd, ctx),
         foreignInterest: m(foreignInterest, ctx), foreignDividends: m(di.foreignDividendsUsd, ctx),
         foreignRental: m(di.foreignRentalUsd, ctx), foreignPension: m(foreignPension, ctx),
         foreignStcg: m(di.foreignStcgUsd, ctx), foreignLtcg: m(di.foreignLtcgUsd, ctx),

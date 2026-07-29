@@ -611,7 +611,7 @@ def _india_income_model_result(d, ctx):
         cg["chapterXiiaInvestmentIncomeInr"] + d["otherSourcesMiscComputation"]
     )
 
-    return {
+    result = {
         "salary": m(salary_inr), "business": m(bc["businessInr"]), "businessDepreciationInr": bc["businessDepreciationInr"],
         "businessFnoIncomeInr": d["fnoIncomeInrAgg"], "speculativeIncomeInr": d["speculativeIncomeInrAgg"],
         "housePropertyCount": len(hp_props), "agriculturalIncomeInr": agricultural_income_inr,
@@ -634,6 +634,36 @@ def _india_income_model_result(d, ctx):
         "unexplained115bbeInr": unexplained_115bbe_inr,
         "total": m(total),
     }
+    basket = india_income_basket_split(result)
+    result["passive"] = m(basket["passiveInr"])
+    result["general"] = m(basket["generalInr"])
+    return result
+
+
+# §904 basket split (task #46 follow-up, multi-country/multi-basket FTC):
+# §904(d)(2)(B) passive category is dividends/interest/rents/annuities and
+# net gains from disposition of property producing such income (i.e. most
+# portfolio capital gains); GENERAL/active category is compensation for
+# services (salary) and active trade/business income. otherSourcesMisc
+# (family pension/gifts/misc/taxable EPF-NPS) is bucketed general -- mostly
+# compensation- or benefit-like in character, a documented simplification
+# rather than a per-item character analysis this engine can't do with the
+# data collected. EXACT partition of `total` (every term appears in exactly
+# one bucket, none dropped, none duplicated) -- passiveInr + generalInr ===
+# m["total"]["inr"] by construction, verified via the identical term list.
+#
+# Takes the ALREADY-ASSEMBLED indiaIncomeModelResult shape (not raw internal
+# derivation variables) so ftc.py's own standalone verification (against the
+# real frozen engine's model.income.india, which shares this exact shape by
+# construction) can call this SAME function -- single source of truth,
+# mirrors aggregateindiaincome-nodes.js's own indiaIncomeBasketSplit exactly.
+def india_income_basket_split(m):
+    passive_inr = (
+        m["houseProperty"]["inr"] + m["interest"]["inr"] + m["dividend"]["inr"] + m["capitalGains"]["inr"] +
+        m["specialRate115bb"]["inr"] + m["deemedDividendBuyback"]["inr"] + m["stcgSlabInr"] + m["vdaGainInr"] + m["chapterXiiaInvestmentIncomeInr"]
+    )
+    general_inr = m["salary"]["inr"] + m["business"]["inr"] + m["otherSourcesMisc"]["inr"]
+    return {"passiveInr": passive_inr, "generalInr": general_inr}
 
 
 # ---- field-level Layer 1 provenance for the two dense compute-heavy nodes.

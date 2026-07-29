@@ -620,7 +620,7 @@ var NODES = {
         specialRate115bbInr + cg.deemedDividendInr + cg.stcgSlabInr + cg.ltcg197Inr + cg.vdaGainInr +
         cg.chapterXiiaInvestmentIncomeInr + d.otherSourcesMiscComputation;
 
-      return {
+      var result = {
         salary: m(salaryInr), business: m(bc.businessInr), businessDepreciationInr: bc.businessDepreciationInr,
         businessFnoIncomeInr: d.fnoIncomeInrAgg, speculativeIncomeInr: d.speculativeIncomeInrAgg,
         housePropertyCount: hpProps.length, agriculturalIncomeInr: agriculturalIncomeInr,
@@ -643,8 +643,40 @@ var NODES = {
         unexplained115bbeInr: unexplained115bbeInr,
         total: m(total)
       };
+      var basket = indiaIncomeBasketSplit(result);
+      result.passive = m(basket.passiveInr);
+      result.general = m(basket.generalInr);
+      return result;
     }
   }
 };
 
-module.exports = { NODES: NODES };
+// §904 basket split (task #46 follow-up, multi-country/multi-basket FTC):
+// §904(d)(2)(B) passive category is dividends/interest/rents/annuities and
+// net gains from disposition of property producing such income (i.e. most
+// portfolio capital gains); GENERAL/active category is compensation for
+// services (salary) and active trade/business income. otherSourcesMisc
+// (family pension/gifts/misc/taxable EPF-NPS) is bucketed general -- mostly
+// compensation- or benefit-like in character, a documented simplification
+// rather than a per-item character analysis this engine can't do with the
+// data collected. EXACT partition of `total` (every term appears in exactly
+// one bucket, none dropped, none duplicated) -- passiveInr + generalInr ===
+// m.total.inr by construction, verified via the identical term list.
+//
+// Takes the ALREADY-ASSEMBLED indiaIncomeModelResult shape (not raw
+// internal derivation variables) so ftc-nodes.js's standalone test
+// (run-ftc.js, which constructs its ctx from the real frozen engine's own
+// WISING.analyze() output, not this DAG's) can call this SAME function on
+// the frozen engine's model.income.india too -- both shapes are identical
+// by construction (indiaIncomeModelResult is itself a verified port of the
+// frozen engine's own model.income.india), so this one function is the
+// single source of truth for both call sites, not a duplicate formula that
+// could drift.
+function indiaIncomeBasketSplit(m) {
+  var passiveInr = m.houseProperty.inr + m.interest.inr + m.dividend.inr + m.capitalGains.inr +
+    m.specialRate115bb.inr + m.deemedDividendBuyback.inr + m.stcgSlabInr + m.vdaGainInr + m.chapterXiiaInvestmentIncomeInr;
+  var generalInr = m.salary.inr + m.business.inr + m.otherSourcesMisc.inr;
+  return { passiveInr: passiveInr, generalInr: generalInr };
+}
+
+module.exports = { NODES: NODES, indiaIncomeBasketSplit: indiaIncomeBasketSplit };

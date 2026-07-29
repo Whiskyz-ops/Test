@@ -406,6 +406,24 @@
         // combined phase-out with CTC under §24(h)(3) -- but with NO
         // refundable/Additional-CTC component at all.
         ODC_PER_DEPENDENT_USD: 500,
+        // ---- §25B Retirement Savings Contributions Credit ("Saver's
+        // Credit") — nonrefundable credit for elective deferrals (401(k)/
+        // 403(b)/governmental 457(b)/SIMPLE) and traditional/Roth IRA
+        // contributions by lower/moderate-income filers. AGI brackets are
+        // inflation-indexed annually; TY2026 figures below (IRS Notice
+        // 2025-67 / Rev. Proc. 2025-32) verified: MFJ is exactly 2× single/
+        // mfs at every breakpoint, HoH exactly 1.5× single/mfs (rounded) —
+        // the same fixed ratio pattern this table has held every year since
+        // its 2001 enactment. Contribution cap ($2,000/person) is a flat
+        // statutory dollar amount, NOT inflation-indexed (unchanged since
+        // EGTRRA 2001) — unlike every bracket above it in this file.
+        SAVERS_CREDIT_AGI_BRACKETS: {
+          single: { br50: 24250, br20: 26250, br10: 40250 },
+          mfs: { br50: 24250, br20: 26250, br10: 40250 },
+          hoh: { br50: 36375, br20: 39375, br10: 60375 },
+          mfj: { br50: 48500, br20: 52500, br10: 80500 }
+        },
+        SAVERS_CREDIT_CONTRIBUTION_CAP_USD: 2000,
         // ---- OBBBA "senior deduction" (temporary, TY2025-2028) — $6,000 per
         // taxpayer age 65+ by year end (stacks with std/itemized deduction),
         // phased out 6% of MAGI over the threshold. MFS filers are entirely
@@ -472,7 +490,14 @@
           // NY dropped a personal exemption for filer/spouse decades ago;
           // only the $1,000/dependent exemption survives, taken against
           // income (not a credit, unlike CA's).
-          DEPENDENT_EXEMPTION_USD: 1000
+          DEPENDENT_EXEMPTION_USD: 1000,
+          // 529 state tax deduction (task #45 follow-up), NY Tax Law
+          // §612(c)(32): contributions to NY's OWN 529 College Savings
+          // Program only (not another state's plan) — $5,000 single/$10,000
+          // MFJ per year, no income cap. CA has NO key here at all (deliberate
+          // absence, not an oversight) — CA's ScholarShare 529 carries no
+          // state income tax deduction whatsoever.
+          FIVE29_DEDUCTION_MAX_USD: { single: 5000, mfj: 10000 }
         }
       },
       // ---- entity (business) corporate rates ----

@@ -43,7 +43,13 @@ var OVERRIDDEN_BOUNDARY_IDS = [
   "feieExcludedUsdBoundaryFtc", "usIsNraBoundaryFtc", "hasUsScopeBoundaryFtc",
   "indiaIncomeTotalUsdBoundaryFtc", "usTaxableIncomeUsdBoundaryFtc", "usIncomeTaxUsdBoundaryFtc",
   "usTotalIncomeUsdBoundaryFtc", "usSourceIncomeUsdBoundaryFtc", "indiaTotalTaxUsdBoundaryFtc",
-  "indiaTotalIncomeUsdBoundaryFtc", "indiaWorldwideBoundaryFtc", "usSourceTotalUsdBoundaryFtc"
+  "indiaTotalIncomeUsdBoundaryFtc", "indiaWorldwideBoundaryFtc", "usSourceTotalUsdBoundaryFtc",
+  // task #46 (multi-country/multi-basket FTC) additions — ftc-nodes.js's own
+  // versions read ctx.model.income.*, which this composition closes (see
+  // file header: "ctx.model.income: NONE" after this file) -- redefined to
+  // the real in-graph nodes below, same treatment as every boundary above.
+  "indiaPassiveIncomeUsdBoundaryFtc", "indiaGeneralIncomeUsdBoundaryFtc",
+  "usPassiveIncomeUsdBoundaryFtc", "usGeneralIncomeUsdBoundaryFtc", "foreignWagesTaxPaidUsdBoundaryFtc"
 ];
 
 var NODES = {};
@@ -111,6 +117,27 @@ NODES.indiaTotalIncomeUsdBoundaryFtc = {
   compute: function (d, ctx) { return (d.isEntityTaxpayer ? d.entityTaxableInrBoundary : d.totalIncomeInrV3) / fxRate(ctx); }
 };
 NODES.indiaWorldwideBoundaryFtc = { deps: ["residencyResult"], compute: function (d) { return !!d.residencyResult.india.worldwide; } };
+// §904 basket split (task #46) — in-graph version of ftc-nodes.js's own
+// boundary, reading indiaIncomeModelResult (already in this composition via
+// india-full-nodes.js) directly instead of ctx.model.income.india.
+var indiaIncomeBasketSplit = require("./aggregateindiaincome-nodes.js").indiaIncomeBasketSplit;
+NODES.indiaPassiveIncomeUsdBoundaryFtc = { deps: ["indiaIncomeModelResult"], compute: function (d, ctx) { return indiaIncomeBasketSplit(d.indiaIncomeModelResult).passiveInr / fxRate(ctx); } };
+NODES.indiaGeneralIncomeUsdBoundaryFtc = { deps: ["indiaIncomeModelResult"], compute: function (d, ctx) { return indiaIncomeBasketSplit(d.indiaIncomeModelResult).generalInr / fxRate(ctx); } };
+NODES.usPassiveIncomeUsdBoundaryFtc = {
+  deps: ["aggregateUsIncomeResult"],
+  compute: function (d) {
+    var u = d.aggregateUsIncomeResult;
+    return u.interestUs.usd + u.ordinaryDividendsUs.usd + u.ltcgUs.usd + u.stcgUs.usd + u.rentalUs.usd;
+  }
+};
+NODES.usGeneralIncomeUsdBoundaryFtc = {
+  deps: ["aggregateUsIncomeResult"],
+  compute: function (d) {
+    var u = d.aggregateUsIncomeResult;
+    return u.wages.usd + u.businessUs.usd + u.usRetirementIncome.usd + u.otherOrdinaryIncomeUs.usd;
+  }
+};
+NODES.foreignWagesTaxPaidUsdBoundaryFtc = { deps: ["aggregateUsIncomeResult"], compute: function (d) { return d.aggregateUsIncomeResult.foreignWagesTaxPaidUsd || 0; } };
 // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H, 21 Jul
 // 2026): was aggregateUsIncomeResult.usSourceTotal.usd directly — the
 // individual-shaped aggregate, $0 for a US entity taxpayer, which zeroed

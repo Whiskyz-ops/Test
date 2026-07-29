@@ -46,7 +46,17 @@ def test_ftc_result_matches_golden(fixture_id):
 
     out = GRAPH.resolve(TARGETS, ctx).values["ftcResult"]
 
-    diff = deep_diff(out, golden["computed"]["ftc"])
+    # baskets/otherCountries (task #46, multi-country/multi-basket FTC): new
+    # DAG-only fields with no frozen-engine equivalent (the engine has no
+    # §904 basket concept at all) -- stripped before comparing, same
+    # pattern as every other permanent DAG-only divergence in this codebase.
+    # The remaining top-level fields are still asserted byte-for-byte: none
+    # of the 13 golden fixtures actually exercise a case where basket
+    # separation changes the combined figure (verified empirically).
+    out_us = {k: v for k, v in out["us"].items() if k not in ("baskets", "otherCountries")}
+    out_india = {k: v for k, v in out["india"].items() if k != "baskets"}
+    out_stripped = {**out, "us": out_us, "india": out_india}
+    diff = deep_diff(out_stripped, golden["computed"]["ftc"])
     assert diff is None, f"{fixture_id}: " + " | ".join(diff[:8])
 
 

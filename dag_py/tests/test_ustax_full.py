@@ -96,7 +96,10 @@ def test_nra_fixture_matches_golden_end_to_end():
     # bottom-line relief matches exactly; foreignSourceIncomeUsd/reliefCapUsd
     # are display-only intermediates that legitimately diverge — see
     # test_ftc_india_direction_nra_foreign_source_income_divergence below.
-    diff = deep_diff(result["computed"]["ftc"]["us"], golden["computed"]["ftc"]["us"])
+    # baskets/otherCountries (task #46, multi-country/multi-basket FTC): new
+    # DAG-only fields, no frozen-engine equivalent.
+    mine_ftc_us = {k: v for k, v in result["computed"]["ftc"]["us"].items() if k not in ("baskets", "otherCountries")}
+    diff = deep_diff(mine_ftc_us, golden["computed"]["ftc"]["us"])
     assert diff is None, "computed.ftc.us: " + " | ".join(diff[:8])
     assert result["computed"]["ftc"]["india"]["reliefAllowedUsd"] == golden["computed"]["ftc"]["india"]["reliefAllowedUsd"]
     assert result["computed"]["ftc"]["india"]["usTaxOnUsSourceUsd"] == golden["computed"]["ftc"]["india"]["usTaxOnUsSourceUsd"]

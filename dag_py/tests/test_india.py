@@ -27,7 +27,11 @@ def test_india_income_model_matches_golden(fixture_id):
 
     out = GRAPH.resolve(TARGETS, ctx).values
 
-    diff = deep_diff(out["indiaIncomeModelResult"], golden["model"]["income"]["india"])
+    # DELIBERATE DAG/engine divergence (task #46, multi-country/multi-basket
+    # FTC): .passive/.general are new §904 basket-split fields with no
+    # frozen-engine equivalent (the engine has no basket concept at all).
+    out_income = {k: v for k, v in out["indiaIncomeModelResult"].items() if k not in ("passive", "general")}
+    diff = deep_diff(out_income, golden["model"]["income"]["india"])
     assert diff is None, f"{fixture_id}: " + " | ".join(diff[:8])
 
 

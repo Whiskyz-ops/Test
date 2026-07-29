@@ -54,12 +54,21 @@ function deepCheck(label, a, b) {
 
 console.log("indiaIncomeModelResult vs real model.income.india — deep, all " + WISING.PROFILES.length + " profiles\n");
 
+// DELIBERATE DAG/engine divergence (task #46, multi-country/multi-basket
+// FTC): .passive/.general are new §904 basket-split fields with no frozen-
+// engine equivalent (the engine has no basket concept at all) — same
+// "DAG-only, filtered before comparing" pattern as every other permanent
+// divergence in this codebase.
+var DAG_ONLY_KEYS = { passive: true, general: true };
+
 WISING.PROFILES.forEach(function (p) {
   var r = WISING.analyze({ router: p.router, india: p.india, us: p.us });
   var ctx = { router: p.router, india: p.india, us: p.us };
   var out = graph.resolve(["indiaIncomeModelResult"], ctx).values.indiaIncomeModelResult;
+  var outFiltered = {};
+  Object.keys(out).forEach(function (k) { if (!DAG_ONLY_KEYS[k]) outFiltered[k] = out[k]; });
   var before = fail;
-  deepCheck("indiaIncome", out, r.model.income.india);
+  deepCheck("indiaIncome", outFiltered, r.model.income.india);
   console.log(p.id + "  " + (fail === before ? "all fields match" : "FAILURES above"));
 });
 

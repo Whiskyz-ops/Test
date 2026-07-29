@@ -2775,6 +2775,16 @@
                 <div id="div-sec988-list" class="grid grid-cols-1 gap-4"></div>
             </div>
 
+            <!-- Other-Country Foreign Tax Credits (multi-country FTC, beyond India/foreign-wages above) -->
+            <div class="p-5 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-4">
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span class="text-xs font-black uppercase tracking-widest text-brandCyan">Other Foreign Tax Credits (Additional Countries)</span>
+                    <button onclick="addOtherCountryFtcRow()" class="px-3 py-1 bg-white/10 hover:bg-brandCyan/20 hover:text-brandCyan rounded text-[9px] font-black uppercase tracking-widest transition-all">+ Add country</button>
+                </div>
+                <p class="acc-tip mb-1">💡 The foreign-income fields above are assumed India-source. If you also have foreign-source income/tax from a THIRD country, make sure that income is ALSO reflected above (or in Foreign Wages) so it's taxed — this section only feeds the Foreign Tax Credit LIMITATION, it doesn't add income to your return, the same way Form 1116 itself works. <span class="nerd-text text-brandPurple bg-brandPurple/10 px-1 py-0.5 rounded ml-2">§904(d) baskets: Passive (interest/dividends/rents/capital gains) vs General (wages/business/pension). This engine only computes India's own tax — foreign tax paid to any OTHER country must be entered directly, not computed.</span></p>
+                <div id="div-othercountryftc-list" class="grid grid-cols-1 gap-4"></div>
+            </div>
+
             <div class="flex justify-between mt-4">
                 <button onclick="switchStep('step-business')" class="px-4 py-2.5 bg-white/5 text-white/60 font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border border-white/5">← Back</button>
                 <button onclick="switchStep('step-equity')" class="px-6 py-2.5 bg-brandCyan text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:brightness-110 transition-all">Next Step</button>
@@ -4220,6 +4230,9 @@
             foreign_rental_income_usd: null,
             foreign_pension_income_usd: null,
             section_988_gains_losses: []
+        },
+        foreign_tax_credit_other: {
+            entries: []
         },
         equity_compensation: {
             has_equity_comp: false,
@@ -17919,6 +17932,71 @@ div.innerHTML = `
         saveStateAndSync();
     }
 
+    function addOtherCountryFtcRow(data = null) {
+        const rowId = 'ocftc-' + Date.now() + Math.random().toString(36).substring(2, 5);
+        const list = document.getElementById('div-othercountryftc-list');
+        if (!list) return;
+
+        const div = document.createElement('div');
+        div.id = rowId;
+        div.className = "othercountryftc-card p-3 bg-black/40 border border-white/10 rounded-xl relative flex flex-col gap-2 shadow-md mb-2 group";
+        div.innerHTML = `
+            <button onclick="removeOtherCountryFtcRow('${rowId}')" class="absolute top-2 right-2 text-brandRed/40 hover:text-brandRed font-bold font-sans p-1 z-10 transition-colors">✕</button>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pr-6">
+                <div>
+                    <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Country (ISO)</label>
+                    <input type="text" class="ocftc-country w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" placeholder="e.g. GB" oninput="syncOtherCountryFtcState()">
+                </div>
+                <div>
+                    <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">§904 Basket</label>
+                    <select class="ocftc-basket w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0" onchange="syncOtherCountryFtcState()">
+                        <option value="general">General (wages/business/pension)</option>
+                        <option value="passive">Passive (interest/dividends/rents/cap gains)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Foreign-Source Income (USD)</label>
+                    <input type="text" inputmode="numeric" class="ocftc-income w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncOtherCountryFtcState()">
+                </div>
+                <div>
+                    <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Foreign Tax Paid (USD)</label>
+                    <input type="text" inputmode="numeric" class="ocftc-taxpaid w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncOtherCountryFtcState()">
+                </div>
+            </div>
+        `;
+        list.appendChild(div);
+
+        if (data) {
+            if (div.querySelector('.ocftc-country')) div.querySelector('.ocftc-country').value = data.country || '';
+            if (div.querySelector('.ocftc-basket')) div.querySelector('.ocftc-basket').value = data.basket || 'general';
+            if (div.querySelector('.ocftc-income')) div.querySelector('.ocftc-income').value = data.foreign_source_income_usd || '';
+            if (div.querySelector('.ocftc-taxpaid')) div.querySelector('.ocftc-taxpaid').value = data.foreign_tax_paid_usd || '';
+        }
+        syncOtherCountryFtcState();
+    }
+
+    function removeOtherCountryFtcRow(id) {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+        syncOtherCountryFtcState();
+    }
+
+    function syncOtherCountryFtcState() {
+        const list = [];
+        document.querySelectorAll('.othercountryftc-card').forEach(div => {
+            list.push({
+                country: div.querySelector('.ocftc-country').value || null,
+                basket: div.querySelector('.ocftc-basket').value || 'general',
+                foreign_source_income_usd: parseFormattedNumber(div.querySelector('.ocftc-income').value) || null,
+                foreign_tax_paid_usd: parseFormattedNumber(div.querySelector('.ocftc-taxpaid').value) || null
+            });
+        });
+        if (!usState.foreign_tax_credit_other) usState.foreign_tax_credit_other = {};
+        usState.foreign_tax_credit_other.entries = list;
+        recalculateDerivedFields();
+        saveStateAndSync();
+    }
+
     function addIsoRow(data = null) {
         const rowId = 'iso-' + Date.now() + Math.random().toString(36).substring(2, 5);
         const list = document.getElementById('div-iso-list');
@@ -20190,6 +20268,9 @@ div.innerHTML = `
             foreign_pension_income_usd: null,
             section_988_gains_losses: []
         };
+        usState.foreign_tax_credit_other = {
+            entries: []
+        };
         usState.equity_compensation = {
             has_equity_comp: false,
             iso_exercises: [],
@@ -21187,6 +21268,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             if (usState.income_us_source && usState.income_us_source.crypto_transactions) usState.income_us_source.crypto_transactions.forEach(x => addCryptoRow(x));
             if (usState.income_foreign_source && usState.income_foreign_source.foreign_wages) usState.income_foreign_source.foreign_wages.forEach(x => addForeignWagesRow(x));
             if (usState.income_foreign_source && usState.income_foreign_source.section_988_gains_losses) usState.income_foreign_source.section_988_gains_losses.forEach(x => addSec988Row(x));
+            if (usState.foreign_tax_credit_other && usState.foreign_tax_credit_other.entries) usState.foreign_tax_credit_other.entries.forEach(x => addOtherCountryFtcRow(x));
             if (usState.equity_compensation && usState.equity_compensation.iso_exercises) usState.equity_compensation.iso_exercises.forEach(x => addIsoRow(x));
             if (usState.equity_compensation && usState.equity_compensation.nso_exercises) usState.equity_compensation.nso_exercises.forEach(x => addNsoRow(x));
             if (usState.equity_compensation && usState.equity_compensation.rsu_vestings) usState.equity_compensation.rsu_vestings.forEach(x => addRsuRow(x));
