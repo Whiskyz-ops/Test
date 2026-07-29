@@ -135,7 +135,15 @@ def test_ccorp_fixture_us_source_income_is_the_one_documented_divergence():
     mine = result["computed"]["usTax"]
     gold = golden["computed"]["usTax"]
 
-    diff = deep_diff({k: v for k, v in mine.items() if k != "usSourceIncomeUsd"}, {k: v for k, v in gold.items() if k != "usSourceIncomeUsd"})
+    # cfcNetTaxUsd (entity-routing fix, conftest.py's own
+    # GOLDEN_DIVERGENT_FIXTURES_CFC_ENTITY_ROUTING docstring): brand-new
+    # field on the ccorp/trust entity-tax result, no frozen-engine
+    # equivalent at all (same class as gilti962TaxUsd/cfcDetail on the
+    # individual path, already excluded elsewhere) — computes to 0.0 for
+    # this fixture regardless (its profile JSON predates Phase 7's real CFC
+    # financial fields), but the KEY itself is new either way.
+    excl = {"usSourceIncomeUsd", "cfcNetTaxUsd"}
+    diff = deep_diff({k: v for k, v in mine.items() if k not in excl}, {k: v for k, v in gold.items() if k not in excl})
     assert diff is None, "usTax (excl. usSourceIncomeUsd): " + " | ".join(diff[:8])
 
     assert gold["usSourceIncomeUsd"] == 0  # the frozen-engine data-modeling gap this port deliberately doesn't reproduce

@@ -1195,12 +1195,20 @@
       // etc.) — this only fixes what's visible in the form.
       // tax_year_start added same session too, same rationale as
       // founder_indian_company's own entry above.
-      // Phase 7 (XB-14): real CFC financials, §962 election ON — exercises
-      // the elected (§250 deduction / flat 21% / deemed-paid FTC) path,
-      // complementing Nova Systems' non-elected path above. foreign_tax_paid_usd
+      // Phase 7 (XB-14): real CFC financials — exercises the corporate-style
+      // (§250 deduction / flat 21% / deemed-paid FTC) path, complementing
+      // Nova Systems' non-elected individual path above. foreign_tax_paid_usd
       // reuses the same $240,964 figure already asserted via ftc_inputs
       // below (this fixture's own "thematically tied" foreign-tax figure).
-      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corporation_name: "Cloudspire India Pvt Ltd", country_of_incorporation: "IN", ownership_percentage: 100, tax_year_start: "2026-04-01", tested_income_usd: 963855, tested_loss_usd: 0, subpart_f_income_usd: 0, ep_usd: 1200000, foreign_tax_paid_usd: 240964, sec962_election_planned: true }], pfic_holdings: [] },
+      // sec962_election_planned is FALSE, not a typo: §962 lets a
+      // NON-corporate US shareholder elect corporate-style treatment; a real
+      // domestic C-corp (this profile's own tax_entity_type) gets that same
+      // §250/flat-21%/deemed-paid-FTC treatment automatically under §951A,
+      // with no election available or needed — aggregateusincome-nodes.js's
+      // computeCfcInclusion force-routes every CFC into the corporate pool
+      // for a ccorp shareholder regardless of this flag (the entity-routing
+      // fix this profile is used to verify).
+      foreign_entities: { owns_10_percent_foreign_corp: true, foreign_corporations: [{ corporation_name: "Cloudspire India Pvt Ltd", country_of_incorporation: "IN", ownership_percentage: 100, tax_year_start: "2026-04-01", tested_income_usd: 963855, tested_loss_usd: 0, subpart_f_income_usd: 0, ep_usd: 1200000, foreign_tax_paid_usd: 240964, sec962_election_planned: false }], pfic_holdings: [] },
       retirement_accounts: {},
       ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "General", foreign_taxes_usd: 240964 }] },
       withholding_and_estimated: { estimated_tax_q1_apr15_usd: 200000, estimated_tax_q2_jun15_usd: 220000 },

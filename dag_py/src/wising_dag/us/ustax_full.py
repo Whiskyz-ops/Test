@@ -104,10 +104,24 @@ def _usd(n: float) -> str:
     return f"${js_round(n):,}"
 
 
+# ENTITY-ROUTING FIX (29 Jul 2026, ported from the equivalent JS fix): the
+# comment inside us_entity_result below previously implied GILTI/CFC
+# inclusion is never part of an entity's own return — true for an
+# S-corp/partnership (passes through to the OWNERS' own returns), but NOT
+# true for a C-corp or a trust that is itself the CFC's direct US
+# shareholder: §951A inclusion is real gross income to THAT shareholder,
+# taxed on its own return. aggregate_us_income.py's cfcInclusionResult now
+# force-routes every CFC into the corporate-style §250/FTC pool for a ccorp
+# shareholder (no §962 election needed/available for a real corporation);
+# wired into the ccorp and trust branches below via cfc_net_tax_usd.
+# S-corp/partnership are intentionally left untouched: a real pass-through
+# owes no federal entity-level tax on its CFC inclusion either way.
 def _us_entity_tax_result(d, ctx):
     kind = d["usEntityKind"]
     m1_taxable = d["entityResult"]["usScheduleM1TaxableIncomeUsd"]
     taxable = m1_taxable if m1_taxable is not None else d["aggregateUsIncomeResult"]["total"]["usd"]
+    cfc = d["aggregateUsIncomeResult"].get("cfcElectedPool")
+    cfc_net_tax_usd = cfc["netTaxUsd"] if cfc else 0
 
     def us_entity_result(taxable_usd, tax, label, passthrough):
         return {
@@ -135,8 +149,16 @@ def _us_entity_tax_result(d, ctx):
         }
 
     if kind == "ccorp":
-        tax = taxable * T["C_CORP_RATE"]
-        return us_entity_result(taxable, tax, "C-Corp (1120, 21%)", False)
+        # A domestic C-corp's own §951A inclusion is taxed with the entity's
+        # own income as a separate add-on line (cfcElectedPool already
+        # applied its own 40% §250 deduction / flat-21% / deemed-paid-FTC
+        # math) — same "flat add-on, not blended into the bracket base"
+        # pattern compute_us_tax_core uses for an individual's §962-elected
+        # gilti_962_tax_usd.
+        tax = taxable * T["C_CORP_RATE"] + cfc_net_tax_usd
+        r_ccorp = us_entity_result(taxable, tax, "C-Corp (1120, 21%)" + (" + CFC (§951A/NCTI) inclusion" if cfc_net_tax_usd > 0 else ""), False)
+        r_ccorp["cfcNetTaxUsd"] = cfc_net_tax_usd
+        return r_ccorp
     if kind == "trust":
         # "taxable" (from aggregateUsIncomeResult, since Schedule M-1 isn't
         # collected for a trust) is effectively the SUM of "Beneficiaries'
@@ -148,16 +170,28 @@ def _us_entity_tax_result(d, ctx):
         # economic total (distributed + retained) — cross-border FTC/
         # apportionment consumers want "how much did this entity earn," not
         # "how much is taxed at its level."
-        retained_usd = d["trustRetainedIncomeUsdRaw"]
+        #
+        # CFC inclusion: a trust holding CFC stock directly IS itself a
+        # §951A "United States shareholder" (unlike an S-corp/partnership).
+        # No field splits a GILTI/Subpart F inclusion into distributed-vs-
+        # retained the way the trust's other income is split, so — stated
+        # simplification, same "explicit boundary, not guessed" discipline
+        # as elsewhere — the non-elected inclusion is assumed RETAINED
+        # (added to retained_usd before the §1(e) bracket tax). A §962
+        # election (per-CFC, same as an individual) adds its own flat
+        # add-on tax, same pattern as the ccorp branch above.
+        cfc_non_elected_usd = (d["aggregateUsIncomeResult"].get("cfcNonElectedInclusionUs") or {}).get("usd", 0)
+        retained_usd = d["trustRetainedIncomeUsdRaw"] + cfc_non_elected_usd
         distributed_usd = taxable
         total_trust_income_usd = distributed_usd + retained_usd
-        trust_tax = bracket_tax(retained_usd, TRUST_ESTATE_BRACKETS)
+        trust_tax = bracket_tax(retained_usd, TRUST_ESTATE_BRACKETS) + cfc_net_tax_usd
         r = us_entity_result(
             total_trust_income_usd, trust_tax,
             "Trust/Estate (1041)" + (" — retained income at compressed §1(e) rates" if retained_usd > 0 else " · pass-through (fully distributed)"),
             retained_usd <= 0,
         )
         r["taxableIncomeUsd"] = retained_usd
+        r["cfcNetTaxUsd"] = cfc_net_tax_usd
         r["trustDistributedUsd"] = distributed_usd
         r["trustRetainedUsd"] = retained_usd
         r["trustBracketBreakdown"] = bracket_breakdown(retained_usd, TRUST_ESTATE_BRACKETS)

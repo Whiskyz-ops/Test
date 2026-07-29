@@ -105,12 +105,37 @@ NODES.nraRaw = {
 NODES.trustRetainedIncomeUsdRaw = { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "profile.trust_retained_income_usd", 0)); } };
 
 /* ---- TAX-7: computeUsEntityTax ------------------------------------------- */
+// ENTITY-ROUTING FIX (29 Jul 2026, post-Phase-7/XB-14 review): the comment
+// three lines below this one (inside usEntityResult) previously stated that
+// GILTI/CFC inclusion is "a distinct, separately-tracked... inclusion on
+// model.assets.businessEntities, not part of this entity's own return" —
+// true for an S-corp/partnership (the inclusion passes through to the
+// OWNERS' own returns, never taxed at the entity level), but NOT true for a
+// C-corp or a trust that is itself the CFC's direct US shareholder: §951A
+// inclusion is real gross income to THAT shareholder, taxed on ITS OWN
+// return. Before this fix, cfcInclusionResult (aggregateusincome-nodes.js,
+// Phase 7/XB-14) computed real dollar figures but this function never read
+// them for any entity kind — so a C-corp's or trust's actual computed CFC
+// tax silently never reached usEntityTaxResult.taxableIncomeUsd/tax,
+// regardless of how much GILTI/NCTI/Subpart F was on file. Fixed below for
+// ccorp (§951A inclusion is automatic and taxed with the entity's own M-1
+// income at the flat 21% corporate rate via cfcElectedPool, which
+// aggregateusincome-nodes.js now force-routes through the corporate-style
+// §250/FTC pool for any ccorp shareholder) and trust (adds the CFC
+// inclusion to the trust's own recognized income, taxed alongside its other
+// retained income — see the trust branch below for the stated assumption).
+// S-corp/partnership are intentionally left untouched: a real pass-through
+// entity owes no federal entity-level tax on its CFC inclusion either way —
+// it flows to the partners'/shareholders' own 1040s, which this model
+// doesn't allocate — so $0 here remains correct, not a gap this fix closes.
 NODES.usEntityTaxResult = {
   deps: ["usEntityKind", "entityResult", "aggregateUsIncomeResult", "trustRetainedIncomeUsdRaw"],
   compute: function (d) {
     var kind = d.usEntityKind;
     var m1Taxable = d.entityResult.usScheduleM1TaxableIncomeUsd;
     var taxable = m1Taxable != null ? m1Taxable : d.aggregateUsIncomeResult.total.usd;
+    var cfc = d.aggregateUsIncomeResult.cfcElectedPool || null;
+    var cfcNetTaxUsd = cfc ? cfc.netTaxUsd : 0;
     function usEntityResult(taxableUsd, tax, label, passthrough) {
       return {
         filingStatus: label, isEntity: true, passthrough: passthrough, worldwide: true,
@@ -134,9 +159,11 @@ NODES.usEntityTaxResult = {
         // reads the same field), and the FY<->CY apportionment card shows
         // $0 for the whole US side. Fixed here at the source: this engine
         // model has no data splitting an entity's OWN M-1 income into
-        // US-source vs foreign-source pieces (that's a distinct, separately-
-        // tracked GILTI/CFC inclusion on model.assets.businessEntities, not
-        // part of this entity's own return) — worldwide:true already three
+        // US-source vs foreign-source pieces (a separate concern from
+        // whether a GILTI/CFC inclusion is ALSO taxed on this same return —
+        // for a ccorp/trust it now is, see cfcNetTaxUsd above; this field is
+        // specifically about the M-1 figure's own sourcing, not about
+        // whether CFC tax appears on the return at all) — worldwide:true already three
         // lines up encodes the same "tax the whole M-1 figure, no further
         // split" assumption this model already makes for entity taxpayers,
         // so treating the full taxableUsd as US-source (zero foreign-source)
@@ -147,8 +174,18 @@ NODES.usEntityTaxResult = {
       };
     }
     if (kind === "ccorp") {
-      var tax = taxable * T.C_CORP_RATE;
-      return usEntityResult(taxable, tax, "C-Corp (1120, 21%)", false);
+      // A domestic C-corp's own §951A inclusion (aggregateusincome-nodes.js
+      // force-routes every CFC into cfcElectedPool for a ccorp shareholder,
+      // since real corporations don't need a §962 election) is taxed with
+      // the entity's own income, not folded into the 21%-of-M1 base itself
+      // (the pool already applied its own 40% §250 deduction / flat-21% /
+      // deemed-paid-FTC math) — added as a separate line, same "flat add-on,
+      // not blended into the bracket base" pattern computeUsTaxCore uses for
+      // an individual's §962-elected gilti962TaxUsd.
+      var tax = taxable * T.C_CORP_RATE + cfcNetTaxUsd;
+      var rCcorp = usEntityResult(taxable, tax, "C-Corp (1120, 21%)" + (cfcNetTaxUsd > 0 ? " + CFC (§951A/NCTI) inclusion" : ""), false);
+      rCcorp.cfcNetTaxUsd = cfcNetTaxUsd;
+      return rCcorp;
     }
     if (kind === "trust") {
       // "taxable" here (from aggregateUsIncomeResult, since Schedule M-1
@@ -163,14 +200,29 @@ NODES.usEntityTaxResult = {
       // report the FULL economic total (distributed + retained) — the
       // cross-border FTC/apportionment consumers of this result want "how
       // much did this entity earn," not "how much is taxed at its level."
-      var retainedUsd = d.trustRetainedIncomeUsdRaw;
+      //
+      // CFC inclusion (a trust holding CFC stock directly, unlike an
+      // S-corp/partnership, IS itself a §951A "United States shareholder"):
+      // Layer 1 has no field splitting a GILTI/Subpart F inclusion into a
+      // distributed-vs-retained share the way it does for the trust's other
+      // income, so — stated simplification, same "explicit boundary, not
+      // guessed" discipline as everywhere else in this file — the
+      // non-elected inclusion is assumed RETAINED (added to retainedUsd
+      // before the §1(e) bracket tax) rather than assumed distributed to a
+      // beneficiary's own 1040, since a non-grantor trust holding CFC stock
+      // as its own investment is the more common real-world shape. A §962
+      // election (per-CFC, same as an individual) adds its own flat add-on
+      // tax, same pattern as the ccorp branch above.
+      var cfcNonElectedUsd = (d.aggregateUsIncomeResult.cfcNonElectedInclusionUs && d.aggregateUsIncomeResult.cfcNonElectedInclusionUs.usd) || 0;
+      var retainedUsd = d.trustRetainedIncomeUsdRaw + cfcNonElectedUsd;
       var distributedUsd = taxable;
       var totalTrustIncomeUsd = distributedUsd + retainedUsd;
-      var trustTax = bracketTax(retainedUsd, TRUST_ESTATE_BRACKETS);
+      var trustTax = bracketTax(retainedUsd, TRUST_ESTATE_BRACKETS) + cfcNetTaxUsd;
       var r = usEntityResult(totalTrustIncomeUsd, trustTax, "Trust/Estate (1041)" + (retainedUsd > 0 ? " — retained income at compressed §1(e) rates" : " · pass-through (fully distributed)"), retainedUsd <= 0);
       r.taxableIncomeUsd = retainedUsd;
       r.trustDistributedUsd = distributedUsd;
       r.trustRetainedUsd = retainedUsd;
+      r.cfcNetTaxUsd = cfcNetTaxUsd;
       r.trustBracketBreakdown = bracketBreakdown(retainedUsd, TRUST_ESTATE_BRACKETS);
       return r;
     }

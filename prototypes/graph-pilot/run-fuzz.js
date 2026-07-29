@@ -483,7 +483,18 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // entry only covers the "DAG has it extra" direction; the "engine has it,
 // DAG doesn't" direction is handled explicitly in the branch below since it
 // needs to keep both reasons distinct.
-var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely|nra_eci_fdap_classification_check|treaty_rate_not_recognized|ftc_gap|ftc_available|niit_medicare_not_creditable|underpayment_2210)$/;
+// cfc / cfc_below_threshold (entity-routing fix, 29 Jul 2026, post-Phase-7
+// review): the finding's own gate previously read only res.us.isResident
+// (individual citizen/green-card/SPT tests), so it could never fire for a
+// US domestic entity (ccorp/scorp/partnership/trust) directly owning CFC
+// stock — the exact same class of bug report-batch1-nodes.js's isUsPerson
+// already fixed for the Form 5471 DOCUMENT trigger, just never mirrored
+// into this finding. Now widened the same way (individual OR domestic
+// entity). The frozen engine's copy has the old individual-only gate and
+// stays that way permanently, so any fuzz-generated entity profile that
+// owns ≥10% of a foreign corporation now genuinely diverges — DAG correctly
+// fires, engine categorically cannot.
+var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely|nra_eci_fdap_classification_check|treaty_rate_not_recognized|ftc_gap|ftc_available|niit_medicare_not_creditable|underpayment_2210|cfc|cfc_below_threshold)$/;
 // cfc (Phase 7, XB-14, GILTI/NCTI quantification): the finding's detail/
 // recommendation/refs text now differs unconditionally from the frozen
 // engine's static text whenever it fires — real computed inclusion numbers
@@ -586,6 +597,14 @@ var KNOWN_INDIA_ENTITY_DIVERGENT_PATHS = ["taxComputation.india"];
 var KNOWN_ALWAYS_DIVERGENT_PATHS = ["model.income.us.foreignSection988GainLoss", "model.income.us.otherOrdinaryIncomeUs",
   "model.income.us.cfcNonElectedInclusionUs", "model.income.us.cfcElectedPool", "model.income.us.cfcPerEntityTrace",
   "computed.usTax.gilti962TaxUsd", "computed.usTax.cfcDetail",
+  // Entity-routing fix (29 Jul 2026): computed.usTax.cfcNetTaxUsd is a
+  // brand-new field on the ccorp/trust entity-tax result (ustax-full-
+  // nodes.js's usEntityTaxResult) — the frozen engine's computeUsEntityTax
+  // never references CFC inclusion at all, so this key is always absent
+  // there, same "no frozen-engine equivalent" class as gilti962TaxUsd/
+  // cfcDetail two lines up (that pair covers the INDIVIDUAL path's flat
+  // add-on; this covers the ENTITY path's).
+  "computed.usTax.cfcNetTaxUsd",
   "model.assets.businessEntities", "computed.reconciliation.rows",
   "model.income.us.collectiblesLtcgUsd", "model.income.us.qsbsExcludedGainUsd", "model.income.us.qsbsTaxableGainUsd",
   "computed.usTax.collectiblesGainUsd", "computed.usTax.collectiblesTaxUsd", "computed.usTax.qsbsExcludedGainUsd", "computed.usTax.qsbsTaxableGainUsd",

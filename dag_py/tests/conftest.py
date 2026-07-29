@@ -69,6 +69,26 @@ GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES = {"us_citizen_expat_india"}
 # trace-text divergence, not an income divergence.
 GOLDEN_DIVERGENT_FIXTURES_HOME_OFFICE_VEHICLE_TRACE_TEXT = {"us_citizen_expat_india", "us_only_cpa_client"}
 
+# Entity-routing fix (29 Jul 2026): a domestic C-corp shareholder of a CFC
+# needs no §962 election — real corporations get §951A inclusion, the §250
+# deduction and the §960 deemed-paid FTC automatically — so
+# aggregate_us_income.py's computeCfcInclusion now force-routes every CFC
+# into the corporate-style pool for a ccorp shareholder regardless of each
+# CFC's own (legally inapplicable for a real corporation) sec962_election_
+# planned flag. us_ccorp_indian_sub.json's one CFC entry has that flag
+# unset (correctly, since it's meaningless for a C-corp), so golden's
+# cfcPerEntityTrace[0].sec962Elected is False — a real, permanent
+# reclassification for THIS fixture's trace, not a bug (the underlying
+# dollar amounts are unaffected here: this fixture's profile JSON predates
+# Phase 7's real tested_income_usd/ep_usd/foreign_tax_paid_usd fields
+# entirely — still only carries the legacy gilti_income_usd display
+# placeholder — so both sides compute $0 CFC inclusion either way; only the
+# routing classification differs). computed.usTax.cfcNetTaxUsd is a
+# brand-new field on the ccorp/trust entity-tax result with no frozen-
+# engine equivalent at all (same "no golden key" class as gilti962TaxUsd/
+# cfcDetail on the individual path, already excluded elsewhere).
+GOLDEN_DIVERGENT_FIXTURES_CFC_ENTITY_ROUTING = {"us_ccorp_indian_sub"}
+
 
 def load_profile(fixture_id: str) -> dict:
     return json.loads((PROFILES_DIR / f"{fixture_id}.json").read_text())

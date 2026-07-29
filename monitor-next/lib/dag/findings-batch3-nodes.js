@@ -163,7 +163,8 @@ NODES.findingsBatch3Result = {
     "usTaxResult", "salaryInr", "ftcResult", "hasPERaw",
     "epfInrRaw", "ppfInrRaw", "npsInrRaw", "taxableEpfInterestInrAgg", "taxableNpsWithdrawalInrAgg",
     "promoterBuybackDetail", "foreignGiftsRaw", "stateResidencyRaw",
-    "treatyIndiaResidenceRaw", "treatyUsResidenceRaw", "treatyDtaaForcedNrRaw", "nraRaw", "cfcInclusionResult"],
+    "treatyIndiaResidenceRaw", "treatyUsResidenceRaw", "treatyDtaaForcedNrRaw", "nraRaw", "cfcInclusionResult",
+    "usEntityKind"],
   compute: function (d, ctx) {
     var findings = [];
     function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {
@@ -258,7 +259,18 @@ NODES.findingsBatch3Result = {
 
     // -- 9. CFC / FORM 5471 (conflicts.js:1151-1172; XB-14 quantification) --
     var bizCount = d.bizEntriesAgg.length;
-    if (d.viaForeignCorpXbr4 && res.us.isResident) {
+    // ENTITY-ROUTING FIX (29 Jul 2026): "US person" for CFC purposes isn't
+    // just the individual-residency test (res.us.isResident) — a domestic
+    // C-corp/S-corp/partnership/trust can independently own CFC stock with
+    // its own §951/951A/Form-5471 obligation, same pattern already
+    // established for the Form 5471/8621/etc. DOCUMENT triggers in
+    // report-batch1-nodes.js's isUsPerson (that fix predates this one; this
+    // finding's own gate was never updated to match it, so it could never
+    // fire for any entity taxpayer even after XB-14 shipped real dollar
+    // figures for exactly that case).
+    var isUsPersonForCfc = res.us.isResident || ["ccorp", "scorp", "partnership", "trust"].indexOf(d.usEntityKind) >= 0;
+    var isPassthroughEntity = ["scorp", "partnership"].indexOf(d.usEntityKind) >= 0;
+    if (d.viaForeignCorpXbr4 && isUsPersonForCfc) {
       var cfc = d.cfcInclusionResult;
       // Only report computed numbers once real financial data has actually
       // been entered for at least one CFC — ownership alone (hasAnyCfc)
@@ -272,11 +284,15 @@ NODES.findingsBatch3Result = {
           "Controlled Foreign Corporation — NCTI/Subpart F inclusion: " + usd(nonElectedTotal + electedTotal) +
           (nonElectedTotal > 0 && (cfc.electedPool.nctiUsd + cfc.electedPool.subpartFUsd) > 0 ? " (mixed elected/non-elected)" : ""),
           "Form 5471 applies. " +
-          (nonElectedTotal > 0 ? "Without a §962 election: " + usd(nonElectedTotal) + " of NCTI + Subpart F is included in full as ordinary income (no §250 deduction, no indirect FTC available). " : "") +
-          ((cfc.electedPool.nctiUsd + cfc.electedPool.subpartFUsd) > 0 ? "With a §962 election: " + usd(cfc.electedPool.taxableBaseUsd) + " taxable base (after the 40% §250 deduction on the NCTI portion — OBBBA TY2026, Subpart F never gets §250) at a flat 21% rate, less a " + usd(cfc.electedPool.creditableFtcUsd) + " deemed-paid FTC (90% of foreign tax paid — OBBBA TY2026), net tax " + usd(cfc.electedPool.netTaxUsd) + ". " : "") +
+          (isPassthroughEntity
+            ? "This is a pass-through entity: the inclusion is not taxed here — it flows through to the partners'/shareholders' own returns (each tested for their own §951A US-shareholder status and, if eligible, their own §962 election), which WISING does not yet allocate at the owner level. The figures below are the entity's total inclusion before that allocation. "
+            : (d.usEntityKind === "ccorp"
+              ? "A domestic C-corporation needs no §962 election — §951A inclusion is automatic and is taxed with this return's own income (see the Tax Computation panel): the 40% §250 deduction (OBBBA TY2026, NCTI portion only) and 90% deemed-paid FTC apply without election. "
+              : (nonElectedTotal > 0 ? "Without a §962 election: " + usd(nonElectedTotal) + " of NCTI + Subpart F is included in full as ordinary income (no §250 deduction, no indirect FTC available). " : ""))) +
+          ((cfc.electedPool.nctiUsd + cfc.electedPool.subpartFUsd) > 0 && !isPassthroughEntity && d.usEntityKind !== "ccorp" ? "With a §962 election: " + usd(cfc.electedPool.taxableBaseUsd) + " taxable base (after the 40% §250 deduction on the NCTI portion — OBBBA TY2026, Subpart F never gets §250) at a flat 21% rate, less a " + usd(cfc.electedPool.creditableFtcUsd) + " deemed-paid FTC (90% of foreign tax paid — OBBBA TY2026), net tax " + usd(cfc.electedPool.netTaxUsd) + ". " : "") +
           "Documented simplifications: QBAI is not collected (OBBBA TY2026 eliminated the 10% QBAI return exclusion, so it isn't needed for the core inclusion); no PTEP/E&P distribution-year tracking; Subpart F capped at each CFC's own entered E&P; no high-tax exclusion election modeled; ownership-based CFC-status test is a simplified single->50%-owner test, not the real aggregate US-shareholder test; state conformity to GILTI/NCTI (many states decouple) not modeled.",
           "File Form 5471 regardless. Confirm each CFC's actual tested income/loss, Subpart F income, E&P and foreign tax paid with the entity's own books before relying on this for filing — these are preparer-entered estimates, not independently verified.",
-          nonElectedTotal + electedTotal, ["Form 5471", "GILTI/NCTI §951A", "Subpart F", "§962 election", "§250 deduction"]);
+          isPassthroughEntity ? 0 : nonElectedTotal + electedTotal, ["Form 5471", "GILTI/NCTI §951A", "Subpart F", "§962 election", "§250 deduction"]);
       } else {
         add("cfc", "warning", "entity",
           "Controlled Foreign Corporation — Form 5471 required (GILTI/Subpart F not yet quantified)",
@@ -286,7 +302,7 @@ NODES.findingsBatch3Result = {
           "File Form 5471 regardless. Enter the CFC's tested income/loss, Subpart F income and E&P on the Foreign Entities screen to quantify the GILTI/NCTI and Subpart F inclusion (and evaluate the §962 election).",
           0, ["Form 5471", "GILTI/NCTI §951A", "Subpart F", "§962 election"]);
       }
-    } else if (bizCount > 0 && res.us.isResident) {
+    } else if (bizCount > 0 && isUsPersonForCfc) {
       add("cfc_below_threshold", "info", "entity",
         "Indian company held below the 10% CFC threshold",
         bizCount + " Indian business interest(s) on file, but Layer 1 shows US ownership below 10% — so Form 5471 Category 5 / GILTI do not apply this year.",
