@@ -96,7 +96,7 @@ def _us_state_tax_result(d, ctx):
         return {
             "state": state_code, "stateName": C.STATE_NAMES.get(state_code, state_code), "formName": None,
             "filingStatus": "mfj" if d["usFilingStatusRaw"] == "mfj" else "single",
-            "noIncomeTax": True, "agiUsd": d["usTaxResult"]["agiUsd"], "standardDeductionUsd": 0, "dependentExemptionUsd": 0,
+            "noIncomeTax": True, "agiUsd": d["usTaxResult"]["agiUsd"], "standardDeductionUsd": 0, "dependentExemptionUsd": 0, "five29DeductionUsd": 0,
             "taxableIncomeUsd": 0, "bracketTaxUsd": 0, "bracketBreakdown": [], "surchargeUsd": 0, "surchargeLabel": None,
             "exemptionCreditUsd": 0, "dependentCreditUsd": 0, "totalTaxUsd": 0, "effectiveRate": 0,
             "basis": f"{C.STATE_NAMES.get(state_code, state_code)} has no individual income tax.",
@@ -109,7 +109,19 @@ def _us_state_tax_result(d, ctx):
     standard_deduction_usd = st["STD_DEDUCTION"][status]
     dependents = d["dedUs"].get("dependents") or 0
     dependent_exemption_usd = (st.get("DEPENDENT_EXEMPTION_USD") or 0) * dependents
-    taxable_income_usd = max(0.0, d["usTaxResult"]["agiUsd"] - standard_deduction_usd - dependent_exemption_usd)
+    # 529 state tax deduction (task #45 follow-up): only the RESIDENT
+    # state's own plan qualifies -- compared against the state the taxpayer
+    # actually funded, not assumed to match residency. NJ additionally
+    # gates on a gross-income cap (CA has no FIVE29_DEDUCTION_MAX_USD key
+    # at all -- no deduction exists). Mirrors findings-batch5-nodes.js exactly.
+    five29_state_matches = bool(d["dedUs"].get("funded529Plan")) and d["dedUs"].get("five29StateDeductionState") and \
+        str(d["dedUs"]["five29StateDeductionState"]).upper() == state_code
+    five29_income_cap = st.get("FIVE29_DEDUCTION_INCOME_CAP_USD")
+    five29_income_ok = five29_income_cap is None or d["usTaxResult"]["agiUsd"] <= five29_income_cap
+    five29_cap_table = st.get("FIVE29_DEDUCTION_MAX_USD")
+    five29_cap_usd = (five29_cap_table.get(status, five29_cap_table.get("single")) if five29_cap_table else 0) or 0
+    five29_deduction_usd = min(d["dedUs"].get("five29ContributionsUsd") or 0, five29_cap_usd) if (five29_state_matches and five29_income_ok) else 0.0
+    taxable_income_usd = max(0.0, d["usTaxResult"]["agiUsd"] - standard_deduction_usd - dependent_exemption_usd - five29_deduction_usd)
     bracket_tax_usd = _bracket_tax(taxable_income_usd, brackets)
     bracket_breakdown_rows = _bracket_breakdown(taxable_income_usd, brackets)
     surcharge_usd = 0.0
@@ -124,6 +136,7 @@ def _us_state_tax_result(d, ctx):
         "agiUsd": d["usTaxResult"]["agiUsd"], "standardDeductionUsd": standard_deduction_usd, "dependentExemptionUsd": dependent_exemption_usd,
         "standardDeductionLabel": st.get("STD_DEDUCTION_LABEL") or "standard deduction",
         "dependentExemptionLabel": st.get("DEPENDENT_EXEMPTION_LABEL") or (st["NAME"] + " dependent exemption"),
+        "five29DeductionUsd": five29_deduction_usd,
         "taxableIncomeUsd": taxable_income_usd, "bracketTaxUsd": bracket_tax_usd, "bracketBreakdown": bracket_breakdown_rows,
         "surchargeUsd": surcharge_usd, "surchargeLabel": st.get("SURCHARGE_LABEL"),
         "exemptionCreditUsd": exemption_credit_usd, "dependentCreditUsd": dependent_credit_usd,

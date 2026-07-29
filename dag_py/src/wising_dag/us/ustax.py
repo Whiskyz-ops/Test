@@ -499,6 +499,13 @@ NODES = {
             "otherDependents": num(safe(it, "credit_for_other_dependents", 0)),
             "seHealthInsuranceDeductionUsd": num(safe(us, "income_us_source.se_health_insurance_deduction_usd", 0)),
             "seRetirementDeductionUsd": num(safe(us, "income_us_source.se_retirement_deduction_usd", 0)),
+            # 529 state tax deduction (task #45 follow-up): dead fields until
+            # now -- collected and saved by layer1_us.html but never read by
+            # any compute node in either DAG. Mirrors ustax-nodes.js's dedUs
+            # exactly.
+            "funded529Plan": safe(it, "funded_529_plan", False) is True,
+            "five29ContributionsUsd": num(safe(it, "529_contributions_usd", 0)),
+            "five29StateDeductionState": safe(it, "529_state_deduction_state", ""),
         })(ctx.get("us"), safe(ctx.get("us"), "itemized_deductions_and_credits", {}) or {}),
         layer1_fields=(
             "us.itemized_deductions_and_credits.use_standard_or_itemized", "us.itemized_deductions_and_credits.state_and_local_taxes_paid_usd",
@@ -514,6 +521,8 @@ NODES = {
             "us.itemized_deductions_and_credits.education_credits_aotc_usd", "us.itemized_deductions_and_credits.education_credits_llc_usd",
             "us.profile.dependents_count", "us.itemized_deductions_and_credits.dependents_count",
             "us.income_us_source.se_health_insurance_deduction_usd", "us.income_us_source.se_retirement_deduction_usd",
+            "us.itemized_deductions_and_credits.funded_529_plan", "us.itemized_deductions_and_credits.529_contributions_usd",
+            "us.itemized_deductions_and_credits.529_state_deduction_state",
         ),
     ),
     "additionalMedicareOwedBoundary": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "withholding_and_estimated.additional_medicare_tax_owed_usd", 0)), layer1_fields=("us.withholding_and_estimated.additional_medicare_tax_owed_usd",)),

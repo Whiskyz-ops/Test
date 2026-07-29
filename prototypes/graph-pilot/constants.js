@@ -490,7 +490,14 @@
           // NY dropped a personal exemption for filer/spouse decades ago;
           // only the $1,000/dependent exemption survives, taken against
           // income (not a credit, unlike CA's).
-          DEPENDENT_EXEMPTION_USD: 1000
+          DEPENDENT_EXEMPTION_USD: 1000,
+          // 529 state tax deduction (task #45 follow-up), NY Tax Law
+          // §612(c)(32): contributions to NY's OWN 529 College Savings
+          // Program only (not another state's plan) — $5,000 single/$10,000
+          // MFJ per year, no income cap. CA has NO key here at all (deliberate
+          // absence, not an oversight) — CA's ScholarShare 529 carries no
+          // state income tax deduction whatsoever.
+          FIVE29_DEDUCTION_MAX_USD: { single: 5000, mfj: 10000 }
         }
       },
       // ---- entity (business) corporate rates ----

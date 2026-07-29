@@ -624,6 +624,22 @@ New permanent regression fixture: `dag_py/tests/fixtures/manual-cases/profiles/u
 
 **Verified:** `node tests/engine/run.js` (79/79, unaffected — DAG-only change), full `run-js-dag-vs-py-dag.js` (326/326 JS DAG === Python DAG, including the new manual case), `pytest` (589/589, after patching `saversCreditUsd`/`saversCreditDetail` into all 13 Python golden fixtures — 11 individual-path fixtures get the real computed detail object, the 2 entity/NRA fixtures get the flat `0` placeholder matching their own routing), `run-ustax.js` (90/90) and `run-us-full.js` (94 passed, 6 pre-existing failures confirmed via `git stash` to predate this task — an unrelated `us_citizen_expat_india` FEIE/income-total divergence already documented), `run-documents-audit.js` (114/114), and a direct empirical check on the new manual case: $20,000 AGI (single) lands in the 50% bracket, $2,000 eligible contribution → nominal $1,000 credit, correctly capped down to the taxpayer's actual (much smaller) tax liability by the existing nonrefundable-credit cap logic — verified in both languages.
 
+## V. 529 plan state tax deduction — closed, follow-up task list item
+
+Task #45: federal law gives 529 contributions no deduction at all (only tax-free growth) — but several states with their own income tax offer a STATE deduction for contributions to that state's own 529 plan. `layer1_us.html`'s "Credits & 529 Contributions" block already collected `funded_529_plan`/`529_contributions_usd`/`529_state_deduction_state` and round-tripped them through the UI, but no compute node in either DAG ever read them — dead fields, not a green-field feature.
+
+**Built, both languages** (`prototypes/graph-pilot/findings-batch5-nodes.js`'s `usStateTaxResult` / `dag_py/src/wising_dag/us/findings.py`'s `_us_state_tax_result`, the individual-taxpayer CA/NY/NJ state-tax computation):
+- Wired the three dead fields into `dedUs` (`ustax-nodes.js`/`ustax.py`) alongside the other `itemized_deductions_and_credits` reads.
+- Deduction only applies when the taxpayer actually funded THAT state's own plan (`529_state_deduction_state` compared against the resolved resident state, not assumed to match residency) — both NY and NJ restrict their deduction to contributions to their own in-state plan, not any 529.
+- **NY** (Tax Law §612(c)(32)): $5,000 single / $10,000 MFJ per year, no income cap.
+- **NJ** (College Affordability Act, effective TY2022): flat $10,000/year regardless of filing status, but gated on NJ gross income ≤ $200,000 — a genuinely different shape (income-capped, not status-split) from NY's, both cross-verified via web search against two independent sources.
+- **CA**: deliberately no `FIVE29_DEDUCTION_MAX_USD` key at all — ScholarShare 529 carries no CA state income tax deduction whatsoever, confirmed rather than assumed.
+- Subtracted from state taxable income alongside the existing standard-deduction/dependent-exemption line, capped at the lesser of actual contributions and the per-state/per-status cap.
+
+New permanent regression fixture: `dag_py/tests/fixtures/manual-cases/profiles/us_529_state_deduction.json` (NY resident, single, $6,000 contributed against the $5,000 single-filer cap — deduction correctly caps at $5,000, not the full contribution, also exercising the state-match gate). No golden fixture or fuzz-corpus profile sets any of the three 529 fields, so this targets a branch nothing else reaches.
+
+**Verified:** `node tests/engine/run.js` (79/79, unaffected — DAG-only change), full `run-js-dag-vs-py-dag.js` (327/327 JS DAG === Python DAG, including the new manual case), `pytest` (589/589, no golden patch needed — `computed.stateTax` is a frozen-engine-only key `test_analyze_golden.py` already excludes entirely, since the DAG's `usStateTaxResult` concept has no frozen-engine equivalent at all), `run-ustax.js` (90/90), `run-us-full.js` (94 passed, 6 pre-existing unrelated failures, confirmed via `git stash`), `run-documents-audit.js` (114/114), `run-analyze.js` (134 passed, 12 pre-existing unrelated failures, confirmed via `git stash`), `run-fuzz.js` (86 pre-existing unrelated mismatches, confirmed identical before/after via `git stash`).
+
 ## Maintenance
 
 - Re-verify all "verified current" claims after: every Union Budget (Feb), every Finance Act notification (Mar), US filing-season changes (Jan), and any OBBBA technical corrections.

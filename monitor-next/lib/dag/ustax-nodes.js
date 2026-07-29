@@ -526,7 +526,18 @@ var NODES = {
         // same gap, brand-new field (no engine equivalent at all).
         otherDependents: num(safe(it, "credit_for_other_dependents", 0)),
         seHealthInsuranceDeductionUsd: num(safe(us, "income_us_source.se_health_insurance_deduction_usd", 0)),
-        seRetirementDeductionUsd: num(safe(us, "income_us_source.se_retirement_deduction_usd", 0))
+        seRetirementDeductionUsd: num(safe(us, "income_us_source.se_retirement_deduction_usd", 0)),
+        // 529 state tax deduction (task #45 follow-up): funded_529_plan/
+        // 529_contributions_usd/529_state_deduction_state (layer1_us.html's
+        // "Credits & 529 Contributions" block) were collected and saved but
+        // never read by any compute node in either DAG -- dead fields until
+        // now. Federal law gives 529 contributions NO deduction at all
+        // (only tax-free growth); it's a STATE-only benefit, applied in
+        // findings-batch5-nodes.js's usStateTaxResult where the resident
+        // state is already resolved.
+        funded529Plan: safe(it, "funded_529_plan", false) === true,
+        five29ContributionsUsd: num(safe(it, "529_contributions_usd", 0)),
+        five29StateDeductionState: safe(it, "529_state_deduction_state", "")
       };
     }
   },

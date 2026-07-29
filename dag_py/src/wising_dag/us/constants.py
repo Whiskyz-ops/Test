@@ -128,6 +128,12 @@ US_STATES = {
         },
         "STD_DEDUCTION": {"single": 8000, "mfj": 16050},
         "DEPENDENT_EXEMPTION_USD": 1000,
+        # 529 state tax deduction (task #45 follow-up), NY Tax Law
+        # §612(c)(32): contributions to NY's OWN 529 College Savings Program
+        # only -- $5,000 single/$10,000 MFJ per year, no income cap. CA has
+        # NO key here at all (deliberate absence) -- ScholarShare 529 carries
+        # no state income tax deduction whatsoever. Mirrors constants.js exactly.
+        "FIVE29_DEDUCTION_MAX_USD": {"single": 5000, "mfj": 10000},
     },
 }
 
@@ -148,6 +154,12 @@ US_STATES_NJ_NY_SHAPE_EXT = {
         "STD_DEDUCTION_LABEL": "personal exemption",
         "DEPENDENT_EXEMPTION_USD": 1500,
         "DEPENDENT_EXEMPTION_LABEL": "NJ dependent exemption ($1,500/dependent)",
+        # 529 state tax deduction (task #45 follow-up), NJ College
+        # Affordability Act (effective TY2022): up to $10,000/year for
+        # NJBEST contributions -- a FLAT cap regardless of filing status,
+        # gated on NJ gross income <= $200,000. Mirrors constants.js exactly.
+        "FIVE29_DEDUCTION_MAX_USD": {"single": 10000, "mfj": 10000},
+        "FIVE29_DEDUCTION_INCOME_CAP_USD": 200000,
     },
 }
 NO_INDIVIDUAL_INCOME_TAX_STATES = {"AK": 1, "FL": 1, "NV": 1, "SD": 1, "TN": 1, "TX": 1, "WA": 1, "WY": 1}
