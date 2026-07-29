@@ -172,14 +172,29 @@ Much shorter than the original version of this list:
    also a real trust gap, since it doesn't exist yet. Blocked on new Layer 1
    fields (CFC financials: E&P, QBAI, tested income) — a data-collection
    project before it's an engine project.
-2. **Entity-specific filings audit round** (§3.6) — a known, repeatable
-   process, no blockers, just not yet run as its own batch.
+2. ~~**Entity-specific filings audit round** (§3.6)~~ **Run 29 Jul 2026**
+   (`docs/GAP_TRACKER.md` §H.15) — Form 1120/Form 5471/Form 8865 confirmed
+   already correct; Schedule L/M-1/M-2 and K-1 issuance were genuinely
+   missing and are now added (13 new synthetic checks, 114 cumulative in
+   `run-documents-audit.js`).
 3. **Entity profile diversity** (§3.2) — real but lower-priority now that
    the fuzzer runs at 3,000 iterations; would still sharpen the hand-authored
    harness checks specifically.
 4. **Transfer pricing** (§4) — a decision to make explicit, not a build item.
 5. **Non-corporate AMT (Phase 4b)** — confirmed genuinely blocked on missing
    data overlap, not a queue item.
+6. **NEW, higher-priority than any of the above — fuzz/shadow safety net
+   partially compromised by real, uncharacterized numeric divergences**
+   (`docs/GAP_TRACKER.md` §H.15's closing section). Discovered incidentally
+   while verifying item 2's own regression suite, not part of the
+   entity/trust axis itself, but blocks trusting either axis's own
+   fuzzer/shadow-mode results until resolved: ~501/3,000 fuzz profiles and
+   ~82 `test-adapter.mjs` checks still diverge after the (already-fixed)
+   missing-allowlist-entry cause was ruled out — including at least two that
+   don't obviously trace to any named prior item (`foreign_holdco_poem_india`
+   total income off by ~3×; `india_only_ca_client` health score off by 19
+   points). Needs the same hand-verified-against-statute treatment as every
+   other row in `GAP_TRACKER.md`, not a guess.
 
 ## 6. Definition of done for the parity claim
 
@@ -189,17 +204,24 @@ Much shorter than the original version of this list:
       `audit:dag`-mapped, field-coverage audit run on the new fields
 - [ ] Phase 4b (non-corporate AMT) — stays blocked barring a real data change;
       not actionable today
-- [ ] Entity-specific filings audit round — run, findings fixed
+- [x] Entity-specific filings audit round — run 29 Jul 2026, findings fixed
+      (`docs/GAP_TRACKER.md` §H.15)
 - [ ] Entity profile set expanded — LLP, HUF business, trust, S-corp,
       partnership-with-guaranteed-payments added to `profiles.js`
 - [ ] Transfer pricing — an explicit, recorded decision either way, not a
       silent gap
+- [ ] **NEW**: the ~501/82 residual fuzz/`test-adapter.mjs` divergences
+      found during §H.15's own verification pass — characterized (bug vs.
+      legitimate new-DAG-correctness) and either fixed or allowlisted with a
+      named reason, same bar as every other row here
 
 Current honest claim, updated: *"the entity side's core computation,
 ownership graph, inter-entity traceability, and frontend are shipped and
-verified at a rigor comparable to the individual side. What's left is one
-named feature gap (GILTI quantification, itself data-blocked), one
-standing product decision (transfer pricing), and one audit round
-(entity-specific filings) that's routine, not exploratory."* That's a much
-stronger sentence than this document's first version supported — say it
-because it's now verified true, not because it sounds better.
+verified at a rigor comparable to the individual side, and the
+filings-audit round is now closed. What's left is one named feature gap
+(GILTI quantification, itself data-blocked), one standing product decision
+(transfer pricing) — and, found while closing the filings-audit round, a
+real gap in the verification tooling itself (residual fuzz/shadow
+divergences) that should be closed before leaning further on either
+safety net."* Say it because it's verified true, not because it sounds
+better.

@@ -11,10 +11,24 @@ const { analyzeDag, allClientSummariesDag } = await import("./lib/dag-adapter.js
 const { allClientSummaries } = await import("./lib/wising.js");
 
 // DAG-only keys with no engine equivalent — same convention as
-// shadow-core.js's DAG_ONLY_KEYS. indiaIsAop/indiaIsTrust (docs/
-// GAP_TRACKER.md section H.6, 21 Jul 2026): the engine's model.entity never
-// carries these — entitytax-nodes.js's file header has the full writeup.
-const DAG_ONLY_KEYS = new Set(["indiaIsAop", "indiaIsTrust"]);
+// shadow-core.js's DAG_ONLY_KEYS (kept in sync with it; this list had
+// drifted behind shadow-core.js's — caveat/trustDistributedUsd/
+// trustRetainedUsd/trustBracketBreakdown/entityGraph/qbiWagesUsd/
+// qbiUbiaUsd were all already DAG-only structural fields with no engine
+// equivalent, just never added here — discovered incidentally during the
+// entity-filings-audit round, see docs/GAP_TRACKER.md). indiaIsAop/
+// indiaIsTrust (docs/GAP_TRACKER.md section H.6, 21 Jul 2026): the engine's
+// model.entity never carries these — entitytax-nodes.js's file header has
+// the full writeup. foreignSection988GainLoss/otherOrdinaryIncomeUs: same
+// "structural, engine has no concept of it, never cascades into a dollar
+// difference" reasoning as run-fuzz.js's own KNOWN_ALWAYS_DIVERGENT_PATHS
+// entry for these two fields — applied here via the key-name mechanism
+// this file already uses instead of a path-based list.
+const DAG_ONLY_KEYS = new Set([
+  "caveat", "indiaIsAop", "indiaIsTrust", "trustDistributedUsd", "trustRetainedUsd",
+  "trustBracketBreakdown", "entityGraph", "qbiWagesUsd", "qbiUbiaUsd",
+  "foreignSection988GainLoss", "otherOrdinaryIncomeUs"
+]);
 
 let fails = 0, checks = 0;
 function ok() { checks++; }
@@ -66,7 +80,7 @@ function checkResult(id, dag, real) {
   // UN-stripped documents list (report-batch5-nodes.js) — adjusted by the
   // same amount so this known, deliberate divergence doesn't rely on
   // deepCheck's +/-2 numeric tolerance to go unnoticed.
-  const DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id"];
+  const DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance"];
   const droppedRequiredCount = dag.documents.filter((x) => DAG_ONLY_DOC_IDS.includes(x.id) && x.required).length;
   const dagDocs = dag.documents.filter((x) => !DAG_ONLY_DOC_IDS.includes(x.id));
   const dagSummary = droppedRequiredCount > 0 && dag.summary && typeof dag.summary.requiredDocs === "number"

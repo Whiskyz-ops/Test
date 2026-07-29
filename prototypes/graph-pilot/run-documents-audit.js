@@ -710,4 +710,136 @@ console.log("\n=== Batch G: company-side regime-election forms (Form 10-IC / For
 })();
 
 console.log(pass + " passed, " + fail + " failed (Batch A + B + C + D + E + F + G cumulative, " + cases + " total cases)");
+
+console.log("\n=== Batch H: entity-return filing obligations (Entity Trust Parity Plan §3.6) ===");
+// docs/ENTITY_TRUST_PARITY_PLAN.md §3.6/§5.2: "Form 1120 itself, Schedule
+// M-1/M-2, K-1 issuance obligations, Form 5471/8865" had never had their own
+// audit round. Form 1120's own Return Form logic was already reviewed
+// (Batch E) and confirmed correct; Form 5471/8865 were already reviewed
+// (Batch A) and already broadened past individual-only ownership to any
+// domestic entity (isUsPerson). What was missing: Schedule L/M-1/M-2 (the
+// entity's own balance-sheet + book-tax reconciliation, distinct from the
+// return-form selection) and K-1 issuance to owners — two brand-new
+// documents, DAG-only per the standing frozen-engine policy.
+//
+// A synthetic "partnership"/"scorp"/"trust" clone is built here by cloning
+// the CCORP (us_ccorp_indian_sub) base profile and overriding
+// us.profile.tax_entity_type — the same field agg10-nodes.js's entityResult
+// reads (usT === "scorp"/"partnership"/"trust"), so this exercises real
+// entity-kind routing rather than a hand-built fake.
+function dagOnlyDocCheckReturn(label, docId, expected, router, india, us) {
+  cases++;
+  var r = WISING.analyze({ router: router, india: india, us: us });
+  var engineVal = docStatus(r.documents, docId);
+  var dagVal = dagDocStatus(router, india, us, r.model, docId);
+  var ok = engineVal === undefined && dagVal === expected;
+  if (ok) { pass++; console.log("  ok - " + label); }
+  else { fail++; console.log("  FAIL - " + label + " (expected engine=undefined dag=" + expected + "; got engine=" + engineVal + " dag=" + dagVal + ")"); }
+  return ok;
+}
+
+// ---- schedule_m1_m2 (Form 1120/1120-S/1065 Schedules L/M-1/M-2) ----
+(function () {
+  // CCORP's base profile has no corporate_financials.schedule_l at all —
+  // total assets defaults to $0, well under either threshold.
+  dagOnlyDocCheckReturn("Schedule L/M-1/M-2: C-corp with no balance-sheet data on file -> N/A", "schedule_m1_m2", false, CCORP.router, CCORP.india, CCORP.us);
+})();
+(function () {
+  var india = clone(CCORP.india), us = clone(CCORP.us);
+  us.corporate_financials = us.corporate_financials || {};
+  us.corporate_financials.schedule_l = { assets_beginning: 0, assets_ending: 5000000 };
+  dagOnlyDocCheckReturn("Schedule L/M-1/M-2: C-corp, $5,000,000 total assets -> Required", "schedule_m1_m2", true, CCORP.router, india, us);
+})();
+(function () {
+  // Corporation exemption is "under $250,000" — exactly at the threshold no
+  // longer qualifies (same "exceeds/reaches" precision as Batch A's FBAR
+  // $10,000 boundary test).
+  var india = clone(CCORP.india), us = clone(CCORP.us);
+  us.corporate_financials = us.corporate_financials || {};
+  us.corporate_financials.schedule_l = { assets_beginning: 0, assets_ending: 250000 };
+  dagOnlyDocCheckReturn("Schedule L/M-1/M-2: C-corp, exactly $250,000 total assets -> Required", "schedule_m1_m2", true, CCORP.router, india, us);
+})();
+(function () {
+  // Partnership exemption threshold is $1,000,000, not $250,000 — $500,000
+  // of assets is over the corporate threshold but under the partnership
+  // one, proving the two thresholds aren't conflated.
+  var india = clone(CCORP.india), us = clone(CCORP.us);
+  us.profile.tax_entity_type = "partnership";
+  us.corporate_financials = us.corporate_financials || {};
+  us.corporate_financials.schedule_l = { assets_beginning: 0, assets_ending: 500000 };
+  dagOnlyDocCheckReturn("Schedule L/M-1/M-2: partnership, $500,000 assets (over the $250k corp threshold, under the $1M partnership one) -> N/A", "schedule_m1_m2", false, CCORP.router, india, us);
+})();
+(function () {
+  var india = clone(CCORP.india), us = clone(CCORP.us);
+  us.profile.tax_entity_type = "partnership";
+  us.corporate_financials = us.corporate_financials || {};
+  us.corporate_financials.schedule_l = { assets_beginning: 0, assets_ending: 1500000 };
+  dagOnlyDocCheckReturn("Schedule L/M-1/M-2: partnership, $1,500,000 assets -> Required", "schedule_m1_m2", true, CCORP.router, india, us);
+})();
+(function () {
+  var india = clone(CCORP.india), us = clone(CCORP.us);
+  us.profile.tax_entity_type = "scorp";
+  us.corporate_financials = us.corporate_financials || {};
+  us.corporate_financials.schedule_l = { assets_beginning: 0, assets_ending: 300000 };
+  dagOnlyDocCheckReturn("Schedule L/M-1/M-2: S-corp, $300,000 assets -> Required", "schedule_m1_m2", true, CCORP.router, india, us);
+})();
+(function () {
+  // Form 1041 (trust/estate) isn't one of the three return forms this
+  // schedule attaches to at all, regardless of assets on file.
+  var india = clone(CCORP.india), us = clone(CCORP.us);
+  us.profile.tax_entity_type = "trust";
+  us.corporate_financials = us.corporate_financials || {};
+  us.corporate_financials.schedule_l = { assets_beginning: 0, assets_ending: 5000000 };
+  dagOnlyDocCheckReturn("Schedule L/M-1/M-2: trust (Form 1041), even with $5,000,000 of assets on file -> N/A (wrong form entirely)", "schedule_m1_m2", false, CCORP.router, india, us);
+})();
+(function () {
+  dagOnlyDocCheckReturn("Schedule L/M-1/M-2: individual (RESIDENT base profile) -> N/A (not an entity return at all)", "schedule_m1_m2", false, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+})();
+
+// ---- k1_issuance (Schedule K-1 issuance to owners) ----
+(function () {
+  var india = clone(CCORP.india), us = clone(CCORP.us);
+  us.profile.tax_entity_type = "partnership";
+  dagOnlyDocCheckReturn("K-1 issuance: partnership -> Required (no small-entity exemption, unlike Schedule M-1/M-2)", "k1_issuance", true, CCORP.router, india, us);
+})();
+(function () {
+  var india = clone(CCORP.india), us = clone(CCORP.us);
+  us.profile.tax_entity_type = "scorp";
+  dagOnlyDocCheckReturn("K-1 issuance: S-corp -> Required", "k1_issuance", true, CCORP.router, india, us);
+})();
+(function () {
+  // C-corps distribute to shareholders via Form 1099-DIV, not Schedule K-1 —
+  // K-1 is a pass-through-entity concept only.
+  dagOnlyDocCheckReturn("K-1 issuance: C-corp (CCORP base profile) -> N/A (uses 1099-DIV, not K-1)", "k1_issuance", false, CCORP.router, CCORP.india, CCORP.us);
+})();
+(function () {
+  dagOnlyDocCheckReturn("K-1 issuance: individual (RESIDENT base profile) -> N/A", "k1_issuance", false, RESIDENT.router, RESIDENT.india, RESIDENT.us);
+})();
+(function () {
+  // The trust-with-a-real-distribution branch (Form 1041 K-1s go only to
+  // beneficiaries who actually received a distribution, via
+  // usTaxResult.trustDistributedUsd) can't be exercised through this file's
+  // own graph.resolve(["buildDocumentsResult"], ...) — report-batch1-nodes.js
+  // is a standalone subgraph that pulls in ustax-nodes.js's plain
+  // individual-only usTaxResult, not ustax-full-nodes.js's entity-routed one
+  // (that only gets merged in via assets-nodes.js -> checks-registry-nodes.js
+  // -> calendar-amounts-nodes.js, the actual graph the production app uses,
+  // per monitor-next/lib/dag-adapter.js). A pre-existing scope limitation of
+  // this test file, not something introduced by this batch — verified
+  // instead directly against the real production graph below, the same one
+  // dag-adapter.js actually resolves against.
+  var prodNodes = require("./calendar-amounts-nodes.js").NODES;
+  var prodGraph = createGraph(prodNodes);
+  var india = clone(RESIDENT.india), us = clone(RESIDENT.us);
+  us.profile.tax_entity_type = "trust";
+  var r = WISING.analyze({ router: RESIDENT.router, india: india, us: us });
+  var ctx = { router: RESIDENT.router, india: india, us: us, model: { entity: r.model.entity, meta: r.model.meta } };
+  var out = prodGraph.resolve(["buildDocumentsResult"], ctx).values.buildDocumentsResult;
+  var required = !!(out.filter(function (x) { return x.id === "k1_issuance"; })[0] || {}).required;
+  cases++;
+  if (required) { pass++; console.log("  ok - K-1 issuance: trust (Form 1041) with real distributed income on file -> Required (verified against the full production graph)"); }
+  else { fail++; console.log("  FAIL - K-1 issuance: trust with real distributed income -> expected Required, got N/A (full production graph)"); }
+})();
+
+console.log(pass + " passed, " + fail + " failed (Batch A + B + C + D + E + F + G + H cumulative, " + cases + " total cases)");
 process.exit(fail > 0 ? 1 : 0);

@@ -367,10 +367,18 @@ function generateProfile(rng) {
 // profiles carrying specific data, this key exists on EVERY profile (even
 // a lone individual produces a one-entity graph), so it needs the blanket
 // per-key exclusion here rather than a narrower allowlist.
+// qbiWagesUsd/qbiUbiaUsd (docs/GAP_TRACKER.md item S, §199A QBI wage/UBIA
+// limitation): new structural fields on model.income.us with no engine
+// equivalent (the frozen engine never derives a wage/UBIA limitation at
+// all) — that item's own "Verified" section only re-ran run-js-dag-vs-py-dag.js
+// and pytest, missing this file (and shadow-core.js/test-adapter.mjs),
+// so every one of the ~3,000 fuzzed profiles here was a false "NEW
+// divergence" on these two keys alone until this entry was added
+// (discovered incidentally during the entity-filings-audit round).
 var DAG_ONLY_KEYS = {
   caveat: true, indiaIsAop: true, indiaIsTrust: true,
   trustDistributedUsd: true, trustRetainedUsd: true, trustBracketBreakdown: true,
-  entityGraph: true
+  entityGraph: true, qbiWagesUsd: true, qbiUbiaUsd: true
 };
 function close(a, b) { var tol = Math.max(2, Math.abs(b) * 1e-6); return Math.abs(a - b) <= tol; }
 function deepEqual(a, b, p, diffs) {
@@ -645,7 +653,7 @@ function assembleDag(profile, monitorAsOfBoundary) {
   // calendar's bundled docIds, same category as checksRegistry above.
   // Shallow-copy the calendar rows (not a full JSON clone, which would turn
   // Date objects into strings elsewhere in this same tree).
-  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id"];
+  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance"];
   var droppedRequiredCount = (out.analyzeResult.documents || []).filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) !== -1 && x.required; }).length;
   var documents = (out.analyzeResult.documents || []).filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) === -1; });
   var stripNj1040 = function (row) {
