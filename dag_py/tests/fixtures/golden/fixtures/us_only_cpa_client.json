@@ -347,7 +347,10 @@
           "inr": 0
         },
         "qbiWagesUsd": 0,
-        "qbiUbiaUsd": 0
+        "qbiUbiaUsd": 0,
+        "collectiblesLtcgUsd": 0,
+        "qsbsExcludedGainUsd": 0,
+        "qsbsTaxableGainUsd": 0
       }
     },
     "deductions": {
@@ -1189,7 +1192,11 @@
         "reasons": [],
         "appliedUsd": 0
       },
-      "effectiveRate": 0.12871747776332898
+      "effectiveRate": 0.12871747776332898,
+      "collectiblesGainUsd": 0,
+      "collectiblesTaxUsd": 0,
+      "qsbsExcludedGainUsd": 0,
+      "qsbsTaxableGainUsd": 0
     },
     "stateTax": {
       "state": "CA",

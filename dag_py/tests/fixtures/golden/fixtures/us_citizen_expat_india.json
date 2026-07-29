@@ -340,7 +340,10 @@
           "inr": 0
         },
         "qbiWagesUsd": 0,
-        "qbiUbiaUsd": 0
+        "qbiUbiaUsd": 0,
+        "collectiblesLtcgUsd": 0,
+        "qsbsExcludedGainUsd": 0,
+        "qsbsTaxableGainUsd": 0
       }
     },
     "deductions": {
@@ -1159,7 +1162,11 @@
         "reasons": [],
         "appliedUsd": 57741
       },
-      "effectiveRate": 0.282119265095969
+      "effectiveRate": 0.282119265095969,
+      "collectiblesGainUsd": 0,
+      "collectiblesTaxUsd": 0,
+      "qsbsExcludedGainUsd": 0,
+      "qsbsTaxableGainUsd": 0
     },
     "stateTax": null,
     "indiaItrForm": {

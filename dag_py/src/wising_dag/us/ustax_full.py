@@ -115,6 +115,7 @@ def _us_entity_tax_result(d, ctx):
             "taxableIncomeUsd": taxable_usd, "ordinaryTaxUsd": tax, "preferentialTaxUsd": 0,
             "incomeTaxUsd": tax, "niitUsd": 0, "additionalMedicareUsd": 0,
             "seTaxUsd": 0, "qbiDeductionUsd": 0, "amtUsd": 0, "creditsUsd": 0,
+        "collectiblesGainUsd": 0, "collectiblesTaxUsd": 0, "qsbsExcludedGainUsd": 0, "qsbsTaxableGainUsd": 0,
             "totalTaxBeforeFtcUsd": tax,
             # DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H
             # — "entity-agnostic audit"): an entity's own income is Schedule
@@ -331,6 +332,7 @@ def _nra_tax_result(d, ctx):
         "taxableIncomeUsd": taxable_eci_usd,
         "ordinaryTaxUsd": eci_tax_usd, "preferentialTaxUsd": 0, "incomeTaxUsd": eci_tax_usd + fdap_tax_usd,
         "niitUsd": 0, "additionalMedicareUsd": addl_medicare, "seTaxUsd": 0, "qbiDeductionUsd": 0, "amtUsd": 0, "creditsUsd": 0,
+        "collectiblesGainUsd": 0, "collectiblesTaxUsd": 0, "qsbsExcludedGainUsd": 0, "qsbsTaxableGainUsd": 0,
         "totalTaxBeforeFtcUsd": total_tax,
         "foreignSourceIncomeUsd": 0,
         "usSourceIncomeUsd": eci_usd + fdap_usd,
@@ -379,6 +381,8 @@ def _scale_resident_inc(inc, frac):
         "qualifiedTipsUsd": (inc.get("qualifiedTipsUsd") or 0) * frac, "qualifiedOvertimeUsd": (inc.get("qualifiedOvertimeUsd") or 0) * frac,
         "qbiIncomeUsd": (inc.get("qbiIncomeUsd") or 0) * frac, "qbiIsSSTB": inc.get("qbiIsSSTB"),
         "qbiWagesUsd": (inc.get("qbiWagesUsd") or 0) * frac, "qbiUbiaUsd": (inc.get("qbiUbiaUsd") or 0) * frac,
+        "collectiblesLtcgUsd": (inc.get("collectiblesLtcgUsd") or 0) * frac,
+        "qsbsExcludedGainUsd": (inc.get("qsbsExcludedGainUsd") or 0) * frac, "qsbsTaxableGainUsd": (inc.get("qsbsTaxableGainUsd") or 0) * frac,
         "retirementEpfInterestUsd": (inc.get("retirementEpfInterestUsd") or 0) * frac, "retirementNpsWithdrawalUsd": (inc.get("retirementNpsWithdrawalUsd") or 0) * frac,
         "usSourceTotal": s(inc["usSourceTotal"]),
     }
@@ -398,6 +402,7 @@ def _scale_nonresident_inc(inc, frac):
         "socialSecurityUs": zero, "taxExemptInterestUs": zero,
         "seEarningsUsd": (inc.get("seEarningsUsd") or 0) * frac, "medicareWages": (inc.get("medicareWages") or 0) * frac,
         "qualifiedTipsUsd": 0, "qualifiedOvertimeUsd": 0, "qbiIncomeUsd": 0, "qbiIsSSTB": False, "qbiWagesUsd": 0, "qbiUbiaUsd": 0,
+        "collectiblesLtcgUsd": 0, "qsbsExcludedGainUsd": 0, "qsbsTaxableGainUsd": 0,
         "retirementEpfInterestUsd": 0, "retirementNpsWithdrawalUsd": 0,
         "usSourceTotal": {"usd": eci_usd},
     }

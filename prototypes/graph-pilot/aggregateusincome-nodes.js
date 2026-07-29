@@ -110,6 +110,70 @@ function farmNetProfitUsd(f, depreciationUsd) {
   if (f.gross_income_usd !== undefined && f.gross_income_usd !== null) return num(f.gross_income_usd) - num(f.expenses_usd) - vehicleAndHomeOfficeDeductionUsd(f) - num(depreciationUsd || 0);
   return computeFarmNetProfitUsd(f) - num(depreciationUsd || 0);
 }
+// ---- Capital-gains special character: §1(h)(4) collectibles (28%-capped
+// rate) and §1202 QSBS exclusion (task #43 follow-up). Both were
+// deliberately deferred alongside the Step 13/14 capital-gains wiring:
+// "Collectibles (28% special rate) and QSBS (§1202 exclusion, up to
+// $10M/10x-basis) are aggregated as ordinary LTCG — a documented
+// simplification... pending a real special-rate computation" (the raw
+// form's own recalculateCapitalGainsAggregate() comment, layer1_us.html).
+// That function folds both into the flat ltcg_us_source_usd field before
+// it's ever saved, so this DAG reads collectibles_transactions[]/
+// qsbs_transactions[] directly (the same arrays the raw form's own
+// aggregation reads) to recover the character the flat field lost.
+//
+// §1250 unrecaptured-depreciation recapture (the third item in the same
+// deferred list) is NOT built here: it needs the seller's ACCUMULATED
+// DEPRECIATION on the specific property sold, and neither
+// real_estate.properties[] nor real_estate_transactions[] collects that
+// anywhere on Layer 1 — confirmed by direct grep, not assumed. Computing
+// it would mean inventing a number Layer 1 never asked for, the same
+// discipline this codebase already applies to GILTI/Subpart-F (flagged,
+// not guessed) — tracked as a genuine gap (missing data), not built.
+function isLongTermUsCg(acqStr, soldStr) {
+  if (!acqStr || !soldStr) return false;
+  var acq = new Date(acqStr), sold = new Date(soldStr);
+  if (isNaN(acq) || isNaN(sold)) return false;
+  return (sold - acq) > (365 * 24 * 60 * 60 * 1000);
+}
+function holdingYearsUsCg(acqStr, soldStr) {
+  var acq = new Date(acqStr), sold = new Date(soldStr);
+  if (isNaN(acq) || isNaN(sold)) return 0;
+  return (sold - acq) / (365.25 * 24 * 60 * 60 * 1000);
+}
+function collectiblesAggregate(ui) {
+  var ltcg = 0;
+  (safe(ui, "collectibles_transactions", []) || []).forEach(function (t) {
+    // Short-term collectibles gain has no special rate at all (ordinary
+    // STCG, same as any other short-term asset) — already correctly
+    // included in the flat stcg_us_source_usd field, nothing to pull out.
+    if (isLongTermUsCg(t.acquisition_date, t.sale_date)) ltcg += num(t.realized_gain_loss_usd);
+  });
+  return ltcg;
+}
+function qsbsAggregate(ui, qsbsConst) {
+  var totalGain = 0, excludedGain = 0;
+  (safe(ui, "qsbs_transactions", []) || []).forEach(function (t) {
+    var gain = num(t.realized_gain_loss_usd);
+    totalGain += gain;
+    if (gain <= 0) return; // losses: no exclusion mechanics, flow through as ordinary LTCG (already in the flat field)
+    var years = holdingYearsUsCg(t.acquisition_date, t.sale_date);
+    var acqDate = new Date(t.acquisition_date);
+    var isObbba = !isNaN(acqDate.getTime()) && acqDate >= new Date(qsbsConst.QSBS_OBBBA_EFFECTIVE_DATE);
+    var pct = 0;
+    if (isObbba) {
+      qsbsConst.QSBS_OBBBA_TIERS.forEach(function (tier) { if (years >= tier.years && pct < tier.pct) pct = tier.pct; });
+    } else if (years >= 5) {
+      pct = 1.0; // pre-OBBBA cliff: 100% if held 5+ years (assumes stock acquired after 27 Sep 2010)
+    }
+    if (pct <= 0) return;
+    var basis = num(t.cost_basis_usd);
+    var cap = Math.max(isObbba ? qsbsConst.QSBS_OBBBA_CAP_USD : qsbsConst.QSBS_PRE_OBBBA_CAP_USD, basis * 10);
+    excludedGain += Math.min(gain, cap) * pct;
+  });
+  excludedGain = Math.min(excludedGain, Math.max(0, totalGain));
+  return { totalGainUsd: totalGain, excludedGainUsd: excludedGain, taxableGainUsd: totalGain - excludedGain };
+}
 function assetRecoveryYearN(asset, baseYear) {
   if (!asset || !asset.placed_in_service_date) return null;
   var d = new Date(asset.placed_in_service_date);
@@ -398,12 +462,30 @@ var NODES = {
       var otherOrdinaryIncomeUsUsd = num(safe(ui, "unemployment_compensation_usd", 0)) +
         num(safe(ui, "alimony_received_usd", 0)) + num(safe(ui, "royalties_direct_us_source_usd", 0)) +
         num(safe(ui, "cancellation_of_debt_usd", 0)) + num(safe(ui, "misc_other_income_usd", 0));
+      // Capital-gains special character (task #43 follow-up): the flat
+      // ltcg_us_source_usd field already includes collectibles + QSBS gain
+      // (folded in by the raw form's own recalculateCapitalGainsAggregate()
+      // before it's ever saved) — pulled back out here so each gets its own
+      // real §1(h)(4)/§1202 treatment instead of plain 0/15/20% LTCG. The
+      // QSBS-EXCLUDED portion is removed entirely (never taxed anywhere);
+      // the QSBS-TAXABLE remainder stays in ltcgUsUsd as ordinary LTCG
+      // (correct for the common post-2010/OBBBA 100%-exclusion-tier case —
+      // the pre-2010 50%-exclusion regime's own 28%-rate treatment on its
+      // non-excluded half isn't modeled, an honest simplification given how
+      // unlikely a 2026 return is to involve stock that old).
+      var collectiblesLtcgUsd = collectiblesAggregate(ui);
+      var qsbs = qsbsAggregate(ui, CONST_AGGUS.TAX.US);
+      var ltcgFlatUsd = num(safe(ui, "ltcg_us_source_usd", 0));
+      var ltcgAdjustedUsd = ltcgFlatUsd - collectiblesLtcgUsd - qsbs.excludedGainUsd;
       return {
         taxExemptInterestUsUsd: num(safe(ui, "interest_us_exempt_usd", 0)),
         interestUsUsd: num(safe(ui, "interest_us_source_usd", 0)) + k1.interestUsd,
         ordinaryDividendsUsUsd: num(safe(ui, "ordinary_dividends_us_source_usd", 0)) + k1.ordDivUsd,
         qualifiedDividendsUsUsd: num(safe(ui, "qualified_dividends_us_source_usd", 0)) + k1.qualDivUsd,
-        ltcgUsUsd: num(safe(ui, "ltcg_us_source_usd", 0)) + k1.ltcgUsd,
+        ltcgUsUsd: ltcgAdjustedUsd + k1.ltcgUsd,
+        collectiblesLtcgUsd: collectiblesLtcgUsd,
+        qsbsExcludedGainUsd: qsbs.excludedGainUsd,
+        qsbsTaxableGainUsd: qsbs.taxableGainUsd,
         stcgUsUsd: num(safe(ui, "stcg_us_source_usd", 0)) + k1.stcgUsd,
         // Rental expenses (layer1_us.html's own "Total Rental Expenses"
         // field) previously had no id/handler either -- gross rent was
@@ -483,6 +565,7 @@ var NODES = {
         taxExemptInterestUs: m(di.taxExemptInterestUsUsd, ctx),
         interestUs: m(di.interestUsUsd, ctx), ordinaryDividendsUs: m(di.ordinaryDividendsUsUsd, ctx), qualifiedDividendsUs: m(di.qualifiedDividendsUsUsd, ctx),
         ltcgUs: m(di.ltcgUsUsd, ctx), stcgUs: m(di.stcgUsUsd, ctx), capitalGainsUs: m(di.ltcgUsUsd + di.stcgUsUsd, ctx), rentalUs: m(di.rentalUsUsd, ctx),
+        collectiblesLtcgUsd: di.collectiblesLtcgUsd, qsbsExcludedGainUsd: di.qsbsExcludedGainUsd, qsbsTaxableGainUsd: di.qsbsTaxableGainUsd,
         otherOrdinaryIncomeUs: m(di.otherOrdinaryIncomeUsUsd, ctx),
         foreignWages: m(d.foreignWagesUsd, ctx), foreignSelfEmployment: m(biz.foreignSelfEmploymentUsd, ctx),
         foreignInterest: m(foreignInterest, ctx), foreignDividends: m(di.foreignDividendsUsd, ctx),

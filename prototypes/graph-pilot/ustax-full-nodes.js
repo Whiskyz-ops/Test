@@ -118,6 +118,7 @@ NODES.usEntityTaxResult = {
         taxableIncomeUsd: taxableUsd, ordinaryTaxUsd: tax, preferentialTaxUsd: 0,
         incomeTaxUsd: tax, niitUsd: 0, additionalMedicareUsd: 0,
         seTaxUsd: 0, qbiDeductionUsd: 0, amtUsd: 0, creditsUsd: 0,
+        collectiblesGainUsd: 0, collectiblesTaxUsd: 0, qsbsExcludedGainUsd: 0, qsbsTaxableGainUsd: 0,
         totalTaxBeforeFtcUsd: tax,
         // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H —
         // "entity-agnostic audit", 21 Jul 2026): the engine reads
@@ -455,6 +456,7 @@ NODES.nraTaxResult = {
       taxableIncomeUsd: taxableEciUsd,
       ordinaryTaxUsd: eciTaxUsd, preferentialTaxUsd: 0, incomeTaxUsd: eciTaxUsd + fdapTaxUsd,
       niitUsd: 0, additionalMedicareUsd: addlMedicare, seTaxUsd: 0, qbiDeductionUsd: 0, amtUsd: 0, creditsUsd: 0,
+        collectiblesGainUsd: 0, collectiblesTaxUsd: 0, qsbsExcludedGainUsd: 0, qsbsTaxableGainUsd: 0,
       totalTaxBeforeFtcUsd: totalTax,
       foreignSourceIncomeUsd: 0,
       usSourceIncomeUsd: eciUsd + fdapUsd,
@@ -536,6 +538,8 @@ function scaleResidentInc(inc, frac) {
     qualifiedTipsUsd: (inc.qualifiedTipsUsd || 0) * frac, qualifiedOvertimeUsd: (inc.qualifiedOvertimeUsd || 0) * frac,
     qbiIncomeUsd: (inc.qbiIncomeUsd || 0) * frac, qbiIsSSTB: inc.qbiIsSSTB,
     qbiWagesUsd: (inc.qbiWagesUsd || 0) * frac, qbiUbiaUsd: (inc.qbiUbiaUsd || 0) * frac,
+    collectiblesLtcgUsd: (inc.collectiblesLtcgUsd || 0) * frac,
+    qsbsExcludedGainUsd: (inc.qsbsExcludedGainUsd || 0) * frac, qsbsTaxableGainUsd: (inc.qsbsTaxableGainUsd || 0) * frac,
     retirementEpfInterestUsd: (inc.retirementEpfInterestUsd || 0) * frac, retirementNpsWithdrawalUsd: (inc.retirementNpsWithdrawalUsd || 0) * frac,
     usSourceTotal: s(inc.usSourceTotal)
   };
@@ -552,6 +556,7 @@ function scaleNonresidentInc(inc, frac) {
     socialSecurityUs: zero, taxExemptInterestUs: zero,
     seEarningsUsd: (inc.seEarningsUsd || 0) * frac, medicareWages: (inc.medicareWages || 0) * frac,
     qualifiedTipsUsd: 0, qualifiedOvertimeUsd: 0, qbiIncomeUsd: 0, qbiIsSSTB: false, qbiWagesUsd: 0, qbiUbiaUsd: 0,
+    collectiblesLtcgUsd: 0, qsbsExcludedGainUsd: 0, qsbsTaxableGainUsd: 0,
     retirementEpfInterestUsd: 0, retirementNpsWithdrawalUsd: 0,
     usSourceTotal: { usd: eciUsd }
   };

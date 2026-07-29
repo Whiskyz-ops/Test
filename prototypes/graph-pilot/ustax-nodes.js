@@ -143,7 +143,12 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var ordinaryIncomeExclSs = inc.wages.usd + fW + fSE + (inc.businessUs ? inc.businessUs.usd : 0) + inc.interestUs.usd + fI +
         nonQualDivUs + fD + inc.stcgUs.usd + fStcg + inc.rentalUs.usd + fR + fP + f988 + otherOrdinaryUs +
         (inc.usRetirementIncomeExclSs ? inc.usRetirementIncomeExclSs.usd : (inc.usRetirementIncome ? inc.usRetirementIncome.usd : 0));
-      var preferentialIncome = inc.ltcgUs.usd + fLtcg + inc.qualifiedDividendsUs.usd;
+      // §1(h)(4) collectibles gain (task #43 follow-up): a real LTCG
+      // sub-category capped at 28% instead of the normal 0/15/20% brackets.
+      // Kept as its own slice, not folded into regularPreferentialIncome.
+      var collectiblesGainUsd = Math.max(0, inc.collectiblesLtcgUsd || 0);
+      var regularPreferentialIncome = inc.ltcgUs.usd + fLtcg + inc.qualifiedDividendsUs.usd;
+      var preferentialIncome = regularPreferentialIncome + collectiblesGainUsd;
 
       var grossSsUsd = (inc.socialSecurityUs && inc.socialSecurityUs.usd) || 0;
       var taxExemptInterestUsd = (inc.taxExemptInterestUs && inc.taxExemptInterestUs.usd) || 0;
@@ -223,8 +228,16 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       qbiDeduction = Math.max(0, Math.round(Math.min(qbiDeduction, T.QBI_RATE * Math.max(0, taxableBeforeQbi - preferentialIncome))));
 
       var taxableIncome = Math.max(0, taxableBeforeQbi - qbiDeduction);
-      var prefTaxable = Math.min(preferentialIncome, taxableIncome);
-      var ordTaxable = taxableIncome - prefTaxable;
+      var totalPrefTaxable = Math.min(preferentialIncome, taxableIncome);
+      var ordTaxable = taxableIncome - totalPrefTaxable;
+      // Regular 0/15/20% LTCG/QDI gets priority within the combined
+      // preferential room; §1(h)(4) collectibles gain stacks on top and is
+      // the first crowded out if taxable income doesn't cover the full
+      // preferential total — approximates the real Schedule D Tax
+      // Worksheet's actual ordering (planning-grade, not a byte-for-byte
+      // worksheet replica, matching this product's own stated philosophy).
+      var prefTaxable = Math.min(regularPreferentialIncome, totalPrefTaxable);
+      var collectiblesTaxable = totalPrefTaxable - prefTaxable;
 
       var ordinaryTax = bracketTax(ordTaxable, brackets);
       var ordinaryBracketBreakdown = bracketBreakdown(ordTaxable, brackets);
@@ -237,9 +250,17 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var amt20 = remAfter0 - amt15;
       var preferentialTax = amt15 * 0.15 + amt20 * 0.20;
 
-      var incomeTax = ordinaryTax + preferentialTax;
+      // Collectibles gain: taxed at the LESSER of a flat 28% or the
+      // taxpayer's own ordinary-bracket rate on that slice (§1(h)(1)(A)(i)/
+      // (4) — "28% rate gain" is a CAP, not a flat add-on; below the 28%
+      // ordinary bracket, the taxpayer's own lower rate applies instead).
+      var collectiblesStackStart = ordTaxable + prefTaxable;
+      var collectiblesTaxIfOrdinary = bracketTax(collectiblesStackStart + collectiblesTaxable, brackets) - bracketTax(collectiblesStackStart, brackets);
+      var collectiblesTax = Math.min(collectiblesTaxIfOrdinary, T.COLLECTIBLES_RATE * collectiblesTaxable);
 
-      var netInvestmentIncome = inc.interestUs.usd + fI + inc.ordinaryDividendsUs.usd + fD + inc.capitalGainsUs.usd + fStcg + fLtcg + inc.rentalUs.usd + fR;
+      var incomeTax = ordinaryTax + preferentialTax + collectiblesTax;
+
+      var netInvestmentIncome = inc.interestUs.usd + fI + inc.ordinaryDividendsUs.usd + fD + inc.capitalGainsUs.usd + collectiblesGainUsd + fStcg + fLtcg + inc.rentalUs.usd + fR;
       var niitThreshold = NIIT_THRESHOLD[status] || 200000;
       var niit = T.NIIT_RATE * Math.min(Math.max(0, netInvestmentIncome), Math.max(0, agi - niitThreshold));
 
@@ -252,14 +273,19 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var amtPhase = T.AMT_PHASEOUT[status] || T.AMT_PHASEOUT.single;
       var amtExemption = Math.max(0, amtExFull - T.AMT_PHASEOUT_RATE * Math.max(0, amtiUsd - amtPhase));
       var amtBase = Math.max(0, amtiUsd - amtExemption);
-      var amtOrdBase = Math.max(0, amtBase - prefTaxable);
+      // Collectibles gain keeps its capital-gain-rate character under AMT
+      // too (§55(b)(3) — the "net capital gain" carveout from the AMT
+      // ordinary-rate base explicitly includes 28%-rate gain), so it's
+      // excluded from amtOrdBase and its own tax added back the same way
+      // preferentialTax already is.
+      var amtOrdBase = Math.max(0, amtBase - prefTaxable - collectiblesTaxable);
       var amtBrk = status === "mfs" ? T.AMT_RATE_BREAK / 2 : T.AMT_RATE_BREAK;
       var tmtOrd = amtOrdBase <= amtBrk ? amtOrdBase * T.AMT_RATE_LOW : amtBrk * T.AMT_RATE_LOW + (amtOrdBase - amtBrk) * T.AMT_RATE_HIGH;
-      var amtOwed = Math.max(0, Math.round(tmtOrd + preferentialTax - incomeTax));
+      var amtOwed = Math.max(0, Math.round(tmtOrd + preferentialTax + collectiblesTax - incomeTax));
       // §53 Minimum Tax Credit: only available in a year NOT subject to AMT
       // (i.e. regular tax exceeds this year's tentative minimum tax),
       // capped at the prior-year carryforward on file.
-      var mtcAllowedUsd = Math.min(ded.mtcCarryforwardUsd || 0, Math.max(0, incomeTax - (tmtOrd + preferentialTax)));
+      var mtcAllowedUsd = Math.min(ded.mtcCarryforwardUsd || 0, Math.max(0, incomeTax - (tmtOrd + preferentialTax + collectiblesTax)));
 
       var magi = agi;
       var eduLo = status === "mfj" ? 160000 : 80000, eduHi = status === "mfj" ? 180000 : 90000;
@@ -316,6 +342,12 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
         // didn't expose separately until now; incomeTaxUsd above remains
         // their sum, unchanged.
         ordinaryTaxUsd: ordinaryTax, preferentialTaxUsd: preferentialTax,
+        // §1(h)(4) collectibles gain (task #43 follow-up): incomeTaxUsd
+        // above already includes collectiblesTaxUsd (incomeTax = ordinaryTax
+        // + preferentialTax + collectiblesTax); exposed separately for trace
+        // transparency, same discipline as ordinaryTaxUsd/preferentialTaxUsd.
+        collectiblesGainUsd: collectiblesTaxable, collectiblesTaxUsd: collectiblesTax,
+        qsbsExcludedGainUsd: inc.qsbsExcludedGainUsd || 0, qsbsTaxableGainUsd: inc.qsbsTaxableGainUsd || 0,
         // Added for CFL-7 (buildTaxComputation) — every one of these is
         // already computed above as a local variable; this just exposes
         // them, matching the real computeUsTax's own return shape exactly
@@ -342,8 +374,8 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
         ordinaryTaxableUsd: ordTaxable, ordinaryBracketBreakdown: ordinaryBracketBreakdown,
         amtDetail: {
           amtiUsd: amtiUsd, addbackUsd: amtAddback, exemptionFullUsd: amtExFull, exemptionUsd: amtExemption,
-          amtBaseUsd: amtBase, preferentialInBaseUsd: prefTaxable, ordinaryAmtBaseUsd: amtOrdBase,
-          tmtOrdUsd: tmtOrd, tmtUsd: tmtOrd + preferentialTax, regularTaxUsd: incomeTax
+          amtBaseUsd: amtBase, preferentialInBaseUsd: prefTaxable + collectiblesTaxable, ordinaryAmtBaseUsd: amtOrdBase,
+          tmtOrdUsd: tmtOrd, tmtUsd: tmtOrd + preferentialTax + collectiblesTax, regularTaxUsd: incomeTax
         },
         otherCreditsUsd: otherCreditsUsd,
         // maxTotalUsd/nonRefundableUsd are the COMBINED CTC+ODC figures

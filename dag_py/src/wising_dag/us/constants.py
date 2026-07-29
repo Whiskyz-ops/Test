@@ -26,6 +26,17 @@ US = {
         "mfs": {"br0": 49450, "br15": 306850},
         "hoh": {"br0": 66200, "br15": 579600},
     },
+    # ---- §1(h)(4) collectibles gain: LTCG only, capped at 28% ----
+    "COLLECTIBLES_RATE": 0.28,
+    # ---- §1202 QSBS exclusion. OBBBA tiered 3/4/5-year 50%/75%/100%
+    # exclusion + $15M cap applies only to stock acquired on/after 5 Jul
+    # 2025; earlier stock keeps the old 5-year-cliff/100%/$10M regime
+    # (assumes acquisition after 27 Sep 2010). Mirrors
+    # prototypes/graph-pilot/constants.js exactly.
+    "QSBS_OBBBA_EFFECTIVE_DATE": "2025-07-05",
+    "QSBS_PRE_OBBBA_CAP_USD": 10000000,
+    "QSBS_OBBBA_CAP_USD": 15000000,
+    "QSBS_OBBBA_TIERS": [{"years": 5, "pct": 1.00}, {"years": 4, "pct": 0.75}, {"years": 3, "pct": 0.50}],
     "SALT_CAP_BASE_USD": {"single": 40400, "mfj": 40400, "mfs": 20200, "hoh": 40400},
     "SALT_CAP_PHASEOUT_THRESHOLD_USD": {"single": 505000, "mfj": 505000, "mfs": 252500, "hoh": 505000},
     "SALT_CAP_PHASEOUT_RATE": 0.30,
