@@ -27,10 +27,35 @@ def _m(usd: float, ctx) -> dict:
     return {"usd": usd, "inr": usd * fx_rate(ctx)}
 
 
+# ---- Home-office (simplified §280A method) / vehicle-mileage (standard
+# mileage rate) deduction, self-employment + Schedule F. Task #41 follow-up
+# -- both fields are already collected by layer1_us.html (and already
+# summed from each business's branches[] by the live form's own JS) but
+# never fed any real tax computation before this. Mirrors
+# prototypes/graph-pilot/aggregateusincome-nodes.js exactly, including the
+# 0.68/mile rate (matches the raw form's own §179-income-limit preview
+# calculation, reused for internal consistency).
+US_STANDARD_MILEAGE_RATE_USD = 0.68
+US_HOME_OFFICE_RATE_USD_PER_SQFT = 5
+US_HOME_OFFICE_MAX_SQFT = 300
+
+
+def _vehicle_deduction_usd(x: dict) -> float:
+    return num(x.get("vehicle_miles")) * US_STANDARD_MILEAGE_RATE_USD
+
+
+def _home_office_deduction_usd(x: dict) -> float:
+    return min(num(x.get("home_office_sqft")), US_HOME_OFFICE_MAX_SQFT) * US_HOME_OFFICE_RATE_USD_PER_SQFT
+
+
+def _vehicle_and_home_office_deduction_usd(x: dict) -> float:
+    return _vehicle_deduction_usd(x) + _home_office_deduction_usd(x)
+
+
 def _compute_self_employment_net_profit_usd(s: dict) -> float:
     cogs = num(s.get("cogs_beginning_inventory")) + num(s.get("cogs_purchases")) + num(s.get("cogs_labor")) + num(s.get("cogs_materials")) - num(s.get("cogs_ending_inventory"))
     gross_profit = num(s.get("gross_receipts_usd")) - num(s.get("returns_and_allowances_usd")) - cogs
-    return gross_profit + num(s.get("other_income_usd")) - num(s.get("expenses_usd"))
+    return gross_profit + num(s.get("other_income_usd")) - num(s.get("expenses_usd")) - _vehicle_and_home_office_deduction_usd(s)
 
 
 def _self_employment_net_profit_usd(s: dict, depreciation_usd: float) -> float:
@@ -54,14 +79,14 @@ def _compute_farm_gross_income_usd(f: dict) -> float:
 
 
 def _compute_farm_net_profit_usd(f: dict) -> float:
-    return _compute_farm_gross_income_usd(f) - num(f.get("expenses_usd"))
+    return _compute_farm_gross_income_usd(f) - num(f.get("expenses_usd")) - _vehicle_and_home_office_deduction_usd(f)
 
 
 def _farm_net_profit_usd(f: dict, depreciation_usd: float) -> float:
     if f.get("net_profit_usd") is not None:
         return num(f["net_profit_usd"])
     if f.get("gross_income_usd") is not None:
-        return num(f["gross_income_usd"]) - num(f.get("expenses_usd")) - num(depreciation_usd or 0)
+        return num(f["gross_income_usd"]) - num(f.get("expenses_usd")) - _vehicle_and_home_office_deduction_usd(f) - num(depreciation_usd or 0)
     return _compute_farm_net_profit_usd(f) - num(depreciation_usd or 0)
 
 
@@ -263,7 +288,30 @@ def _business_and_se_computation(d, ctx):
             box14a = num(k.get("guaranteed_payments_usd") or 0) + (num(k.get("ordinary_business_income_usd") or k.get("ordinary_income_usd") or 0) if k.get("partner_type") == "general" else 0)
         se_earnings += num(box14a)
 
-    return {"businessUsUsd": business_us, "foreignSelfEmploymentUsd": foreign_self_employment, "seEarningsUsd": se_earnings, "qbiIncomeUsd": max(0.0, qbi_income), "qbiIsSSTB": sstb}
+    # §199A W-2 wage / UBIA limitation base (task #42 follow-up): K-1 Box 20
+    # qbi_wages_usd/qbi_ubia_usd (partnerships_k1/s_corporations_k1) and
+    # self-employment/farm wages_paid_usd, collected but never read before
+    # this. trusts_estates_k1 has no qbi_wages_usd/qbi_ubia_usd fields on
+    # Layer 1 at all (matches layer1_us.html's own reference preview calc,
+    # which passes a literal 0 for trust K-1 wages/UBIA) -- not a gap
+    # introduced here. Self-employment/farm likewise have no UBIA field.
+    qbi_wages = 0.0
+    qbi_ubia = 0.0
+    for s in safe(ui, "self_employment", []) or []:
+        qbi_wages += num(s.get("wages_paid_usd"))
+    for f in safe(ui, "farming_schedule_f", []) or []:
+        qbi_wages += num(f.get("wages_paid_usd"))
+    for k in safe(ui, "partnerships_k1", []) or []:
+        qbi_wages += num(k.get("qbi_wages_usd"))
+        qbi_ubia += num(k.get("qbi_ubia_usd"))
+    for s in safe(ui, "s_corporations_k1", []) or []:
+        qbi_wages += num(s.get("qbi_wages_usd"))
+        qbi_ubia += num(s.get("qbi_ubia_usd"))
+
+    return {
+        "businessUsUsd": business_us, "foreignSelfEmploymentUsd": foreign_self_employment, "seEarningsUsd": se_earnings,
+        "qbiIncomeUsd": max(0.0, qbi_income), "qbiIsSSTB": sstb, "qbiWagesUsd": qbi_wages, "qbiUbiaUsd": qbi_ubia,
+    }
 
 
 def _retirement_computation(d, ctx):
@@ -273,6 +321,67 @@ def _retirement_computation(d, ctx):
     pension_usd = num(safe(ui, "pension_income_usd", 0))
     social_security_gross_usd = num(safe(ui, "social_security_benefits_usd", 0))
     return {"usRetirementIncomeExclSsUsd": ira_dist_usd + dist_401k_usd + pension_usd, "socialSecurityUsUsd": social_security_gross_usd, "retirementDistributionsSubjectTo72tUsd": ira_dist_usd + dist_401k_usd}
+
+
+# ---- Capital-gains special character: §1(h)(4) collectibles (28%-capped
+# rate) and §1202 QSBS exclusion (task #43 follow-up). Mirrors
+# prototypes/graph-pilot/aggregateusincome-nodes.js exactly, including the
+# same §1250 unrecaptured-depreciation-recapture omission: no Layer 1
+# field collects accumulated depreciation on a sold property, confirmed
+# by direct grep, not assumed -- computing it would mean inventing a
+# number Layer 1 never asked for, same discipline already applied to
+# GILTI/Subpart-F.
+def _is_long_term_us_cg(acq_str, sold_str) -> bool:
+    acq, sold = parse_date(acq_str), parse_date(sold_str)
+    if acq is None or sold is None:
+        return False
+    return (sold - acq).days > 365
+
+
+def _holding_years_us_cg(acq_str, sold_str) -> float:
+    acq, sold = parse_date(acq_str), parse_date(sold_str)
+    if acq is None or sold is None:
+        return 0.0
+    return (sold - acq).days / 365.25
+
+
+def _collectibles_aggregate(ui: dict) -> float:
+    ltcg = 0.0
+    for t in safe(ui, "collectibles_transactions", []) or []:
+        # Short-term collectibles gain has no special rate at all (ordinary
+        # STCG) -- already correctly included in the flat stcg_us_source_usd
+        # field, nothing to pull out.
+        if _is_long_term_us_cg(t.get("acquisition_date"), t.get("sale_date")):
+            ltcg += num(t.get("realized_gain_loss_usd"))
+    return ltcg
+
+
+def _qsbs_aggregate(ui: dict, qsbs_const: dict) -> dict:
+    total_gain = 0.0
+    excluded_gain = 0.0
+    for t in safe(ui, "qsbs_transactions", []) or []:
+        gain = num(t.get("realized_gain_loss_usd"))
+        total_gain += gain
+        if gain <= 0:
+            continue  # losses: no exclusion mechanics, flow through as ordinary LTCG (already in the flat field)
+        years = _holding_years_us_cg(t.get("acquisition_date"), t.get("sale_date"))
+        acq_date = parse_date(t.get("acquisition_date"))
+        obbba_effective = parse_date(qsbs_const["QSBS_OBBBA_EFFECTIVE_DATE"])
+        is_obbba = acq_date is not None and acq_date >= obbba_effective
+        pct = 0.0
+        if is_obbba:
+            for tier in qsbs_const["QSBS_OBBBA_TIERS"]:
+                if years >= tier["years"] and pct < tier["pct"]:
+                    pct = tier["pct"]
+        elif years >= 5:
+            pct = 1.0  # pre-OBBBA cliff: 100% if held 5+ years (assumes stock acquired after 27 Sep 2010)
+        if pct <= 0:
+            continue
+        basis = num(t.get("cost_basis_usd"))
+        cap = max(qsbs_const["QSBS_OBBBA_CAP_USD"] if is_obbba else qsbs_const["QSBS_PRE_OBBBA_CAP_USD"], basis * 10)
+        excluded_gain += min(gain, cap) * pct
+    excluded_gain = min(excluded_gain, max(0.0, total_gain))
+    return {"totalGainUsd": total_gain, "excludedGainUsd": excluded_gain, "taxableGainUsd": total_gain - excluded_gain}
 
 
 def _direct_income_computation(d, ctx):
@@ -290,12 +399,25 @@ def _direct_income_computation(d, ctx):
         num(safe(ui, "royalties_direct_us_source_usd", 0)) + num(safe(ui, "cancellation_of_debt_usd", 0)) +
         num(safe(ui, "misc_other_income_usd", 0))
     )
+    # Capital-gains special character (task #43 follow-up): the flat
+    # ltcg_us_source_usd field already includes collectibles + QSBS gain
+    # (folded in by the raw form's own recalculateCapitalGainsAggregate()
+    # before it's ever saved) -- pulled back out here so each gets its own
+    # real §1(h)(4)/§1202 treatment. The QSBS-EXCLUDED portion is removed
+    # entirely; the QSBS-TAXABLE remainder stays as ordinary LTCG.
+    collectibles_ltcg_usd = _collectibles_aggregate(ui)
+    qsbs = _qsbs_aggregate(ui, C.US)
+    ltcg_flat_usd = num(safe(ui, "ltcg_us_source_usd", 0))
+    ltcg_adjusted_usd = ltcg_flat_usd - collectibles_ltcg_usd - qsbs["excludedGainUsd"]
     return {
         "taxExemptInterestUsUsd": num(safe(ui, "interest_us_exempt_usd", 0)),
         "interestUsUsd": num(safe(ui, "interest_us_source_usd", 0)) + k1["interestUsd"],
         "ordinaryDividendsUsUsd": num(safe(ui, "ordinary_dividends_us_source_usd", 0)) + k1["ordDivUsd"],
         "qualifiedDividendsUsUsd": num(safe(ui, "qualified_dividends_us_source_usd", 0)) + k1["qualDivUsd"],
-        "ltcgUsUsd": num(safe(ui, "ltcg_us_source_usd", 0)) + k1["ltcgUsd"],
+        "ltcgUsUsd": ltcg_adjusted_usd + k1["ltcgUsd"],
+        "collectiblesLtcgUsd": collectibles_ltcg_usd,
+        "qsbsExcludedGainUsd": qsbs["excludedGainUsd"],
+        "qsbsTaxableGainUsd": qsbs["taxableGainUsd"],
         "stcgUsUsd": num(safe(ui, "stcg_us_source_usd", 0)) + k1["stcgUsd"],
         # Rental expenses previously had no id/handler either -- gross rent
         # was always taxed in full with zero expense deduction possible.
@@ -438,6 +560,7 @@ def _aggregate_us_income_result(d, ctx):
         "wages": _m(w["wagesUsd"], ctx), "businessUs": _m(biz["businessUsUsd"], ctx), "w2Withholding": w["w2WithholdingUsd"], "w2Employers": w["w2Employers"], "medicareWages": w["medicareWagesUsd"],
         "qualifiedTipsUsd": w["qualifiedTipsUsd"], "qualifiedOvertimeUsd": w["qualifiedOvertimeUsd"],
         "seEarningsUsd": biz["seEarningsUsd"], "qbiIncomeUsd": biz["qbiIncomeUsd"], "qbiIsSSTB": biz["qbiIsSSTB"],
+        "qbiWagesUsd": biz["qbiWagesUsd"], "qbiUbiaUsd": biz["qbiUbiaUsd"],
         "usRetirementIncome": _m(ret["usRetirementIncomeExclSsUsd"] + ret["socialSecurityUsUsd"], ctx),
         "usRetirementIncomeExclSs": _m(ret["usRetirementIncomeExclSsUsd"], ctx),
         "retirementDistributionsSubjectTo72tUsd": ret["retirementDistributionsSubjectTo72tUsd"],
@@ -445,6 +568,7 @@ def _aggregate_us_income_result(d, ctx):
         "taxExemptInterestUs": _m(di["taxExemptInterestUsUsd"], ctx),
         "interestUs": _m(di["interestUsUsd"], ctx), "ordinaryDividendsUs": _m(di["ordinaryDividendsUsUsd"], ctx), "qualifiedDividendsUs": _m(di["qualifiedDividendsUsUsd"], ctx),
         "ltcgUs": _m(di["ltcgUsUsd"], ctx), "stcgUs": _m(di["stcgUsUsd"], ctx), "capitalGainsUs": _m(di["ltcgUsUsd"] + di["stcgUsUsd"], ctx), "rentalUs": _m(di["rentalUsUsd"], ctx),
+        "collectiblesLtcgUsd": di["collectiblesLtcgUsd"], "qsbsExcludedGainUsd": di["qsbsExcludedGainUsd"], "qsbsTaxableGainUsd": di["qsbsTaxableGainUsd"],
         "otherOrdinaryIncomeUs": _m(di["otherOrdinaryIncomeUsUsd"], ctx),
         "foreignWages": _m(d["foreignWagesUsd"], ctx), "foreignSelfEmployment": _m(biz["foreignSelfEmploymentUsd"], ctx),
         "foreignInterest": _m(foreign_interest, ctx), "foreignDividends": _m(di["foreignDividendsUsd"], ctx),
@@ -483,6 +607,7 @@ _SE_DEPRECIATION_FIELDS = (
     "us.income_us_source.self_employment[].cogs_ending_inventory", "us.income_us_source.self_employment[].gross_receipts_usd",
     "us.income_us_source.self_employment[].returns_and_allowances_usd", "us.income_us_source.self_employment[].other_income_usd",
     "us.income_us_source.self_employment[].expenses_usd",
+    "us.income_us_source.self_employment[].vehicle_miles", "us.income_us_source.self_employment[].home_office_sqft",
     "us.income_us_source.farming_schedule_f[].assets[].placed_in_service_date", "us.income_us_source.farming_schedule_f[].assets[].class",
     "us.income_us_source.farming_schedule_f[].assets[].cost", "us.income_us_source.farming_schedule_f[].assets[].sec179",
     "us.income_us_source.farming_schedule_f[].assets[].bonus",
@@ -501,6 +626,7 @@ _SE_DEPRECIATION_FIELDS = (
     "us.income_us_source.farming_schedule_f[].inventory.cost_of_purchases", "us.income_us_source.farming_schedule_f[].inventory.ending_inventory",
     "us.income_us_source.farming_schedule_f[].expenses_usd", "us.income_us_source.farming_schedule_f[].net_profit_usd",
     "us.income_us_source.farming_schedule_f[].gross_income_usd",
+    "us.income_us_source.farming_schedule_f[].vehicle_miles", "us.income_us_source.farming_schedule_f[].home_office_sqft",
 )
 _K1_PASSIVE_FIELDS = tuple(
     f"us.income_us_source.{group}[].{field}"
@@ -579,6 +705,9 @@ def build(base):
             "us.income_us_source.s_corporations_k1[].is_specified_service_trade", "us.income_us_source.s_corporations_k1[].is_sstb", "us.income_us_source.s_corporations_k1[].sstb",
             "us.income_us_source.partnerships_k1[].is_specified_service_trade", "us.income_us_source.partnerships_k1[].is_sstb", "us.income_us_source.partnerships_k1[].sstb",
             "us.income_us_source.trusts_estates_k1[].is_specified_service_trade", "us.income_us_source.trusts_estates_k1[].is_sstb", "us.income_us_source.trusts_estates_k1[].sstb",
+            "us.income_us_source.self_employment[].wages_paid_usd", "us.income_us_source.farming_schedule_f[].wages_paid_usd",
+            "us.income_us_source.partnerships_k1[].qbi_wages_usd", "us.income_us_source.partnerships_k1[].qbi_ubia_usd",
+            "us.income_us_source.s_corporations_k1[].qbi_wages_usd", "us.income_us_source.s_corporations_k1[].qbi_ubia_usd",
         ) + _SE_DEPRECIATION_FIELDS,
     ))
     r.register("retirementComputation", NodeDef(
@@ -594,6 +723,10 @@ def build(base):
             "us.income_foreign_source.foreign_interest_usd", "us.income_foreign_source.foreign_dividends_usd",
             "us.income_foreign_source.foreign_rental_income_usd", "us.income_foreign_source.foreign_pension_income_usd",
             "us.income_foreign_source.foreign_stcg_usd", "us.income_foreign_source.foreign_ltcg_usd",
+            "us.income_us_source.collectibles_transactions[].acquisition_date", "us.income_us_source.collectibles_transactions[].sale_date",
+            "us.income_us_source.collectibles_transactions[].realized_gain_loss_usd",
+            "us.income_us_source.qsbs_transactions[].acquisition_date", "us.income_us_source.qsbs_transactions[].sale_date",
+            "us.income_us_source.qsbs_transactions[].cost_basis_usd", "us.income_us_source.qsbs_transactions[].realized_gain_loss_usd",
         ) + _K1_PASSIVE_FIELDS,
     ))
 

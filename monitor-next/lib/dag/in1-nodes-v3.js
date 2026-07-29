@@ -467,11 +467,23 @@ var NODES = {
   },
 
   isIndividualV3: { deps: ["indiaEntityTypeRawV3"], compute: function (d) { return d.indiaEntityTypeRawV3 === "individual"; } },
+  // Eligibility is tested against totalIncomeInrV3 (every head, incl.
+  // special-rate income like LTCG/STCG), not totalNormalInr (slab income
+  // only) -- a taxpayer with modest slab income but large LTCG must not
+  // qualify for the rebate just because their slab-only income is under the
+  // cap. Once real total income exceeds the cap, Finance Act 2025 marginal
+  // relief applies: the rebate caps net slab tax at exactly the excess over
+  // the threshold (never letting a Re.1 crossing create a full-tax cliff),
+  // but only while doing so actually benefits the taxpayer (slabTaxInr >
+  // excess) -- see prototypes/graph-pilot/run-in1-v3-marginal-relief.js.
   rebateInrV3: {
-    deps: ["isIndividualV3", "isNRV3", "totalNormalInr", "isNew", "slabTaxInr"],
+    deps: ["isIndividualV3", "isNRV3", "totalIncomeInrV3", "isNew", "slabTaxInr"],
     compute: function (d) {
+      if (!d.isIndividualV3 || d.isNRV3) return 0;
       var rebate = d.isNew ? T.REBATE_87A_NEW : T.REBATE_87A_OLD;
-      return (d.isIndividualV3 && !d.isNRV3 && d.totalNormalInr <= rebate.incomeCap) ? Math.min(d.slabTaxInr, rebate.maxRebate) : 0;
+      if (d.totalIncomeInrV3 <= rebate.incomeCap) return Math.min(d.slabTaxInr, rebate.maxRebate);
+      var excess = d.totalIncomeInrV3 - rebate.incomeCap;
+      return Math.max(0, d.slabTaxInr - excess);
     }
   },
   taxAfterRebateInr: { deps: ["slabTaxInr", "rebateInrV3", "specialTaxInrV3"], compute: function (d) { return Math.max(0, d.slabTaxInr - d.rebateInrV3) + d.specialTaxInrV3; } },

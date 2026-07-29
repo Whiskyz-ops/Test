@@ -36,6 +36,7 @@ from support import deep_diff
 from wising_dag import analyze
 from wising_dag.core.registry import build_full_registry
 from wising_dag.us.ustax_full import (
+    _findings_all_result_override,
     _nra_tax_result,
     _us_entity_state_tax_result,
     _us_entity_tax_result,
@@ -54,11 +55,37 @@ def _analyze_pinned(fixture_id):
 
 # ---- golden-pinned: NRA fixture, full parity, no carve-out --------------
 
+# Art. 21(2) student/business-apprentice standard-deduction support
+# (ustax_full.py's _nra_tax_result) added 4 new keys under usTax.nra that
+# predate this fixture's golden snapshot — a genuine output-shape addition,
+# not a divergence in any EXISTING figure (every pre-existing field below
+# still matches golden exactly). Stripped here before the strict diff, same
+# carve-out discipline as conftest.py's GOLDEN_DIVERGENT_FIXTURES_* sets,
+# and asserted directly afterward instead.
+_NRA_ART212_NEW_FIELDS = ("article212Eligible", "article212AmbiguousJ1", "itemizedDeductionUsd", "standardDeductionUsd")
+
+
+def _strip_nra_art212_fields(us_tax: dict) -> dict:
+    stripped = dict(us_tax)
+    if isinstance(stripped.get("nra"), dict):
+        stripped["nra"] = {k: v for k, v in stripped["nra"].items() if k not in _NRA_ART212_NEW_FIELDS}
+    return stripped
+
+
 def test_nra_fixture_matches_golden_end_to_end():
     result, golden = _analyze_pinned("india_ror_us_income")
     for path in ("usTax", "headline", "reconciliation", "apportionment"):
-        diff = deep_diff(result["computed"][path], golden["computed"][path])
+        mine = _strip_nra_art212_fields(result["computed"][path]) if path == "usTax" else result["computed"][path]
+        diff = deep_diff(mine, golden["computed"][path])
         assert diff is None, f"computed.{path}: " + " | ".join(diff[:8])
+
+    # This fixture's visa isn't F-1/J-1 (a US resident with India-source
+    # income, not a student), so Art. 21(2) shouldn't auto-apply or flag as
+    # ambiguous — confirms the 4 stripped-above fields are absent/False for
+    # the right reason here, not just uncompared.
+    nra = result["computed"]["usTax"]["nra"]
+    assert nra["article212Eligible"] is False
+    assert nra["article212AmbiguousJ1"] is False
     diff = deep_diff(result["summary"], golden["summary"])
     assert diff is None, "summary: " + " | ".join(diff[:8])
     diff = deep_diff(result["taxComputation"]["us"], golden["taxComputation"]["us"])
@@ -266,7 +293,7 @@ def test_state_tax_scorp_partnership_trust_not_modeled():
 
 # ---- nraTaxResult: FDAP treaty-rate reduction with W-8BEN on file --------
 
-def _nra(eci=30000.0, fdap=10000.0, claims=None, w8ben=False, filing_status="single"):
+def _nra(eci=30000.0, fdap=10000.0, claims=None, w8ben=False, filing_status="single", visa_type=None):
     d = {
         "usFilingStatusRaw": filing_status,
         "dedUs": {"salt": 0, "mortgageInterest": 0, "charitable": 0, "medical": 0},
@@ -274,6 +301,7 @@ def _nra(eci=30000.0, fdap=10000.0, claims=None, w8ben=False, filing_status="sin
         "nraFdapIncomeUsdRaw": fdap,
         "nraRaw": {"treatyRateClaims": claims or [], "submittedW8ben": w8ben},
         "additionalMedicareOwedBoundary": 0,
+        "usVisaTypeRaw": visa_type,
     }
     return _nra_tax_result(d, {})
 
@@ -290,6 +318,45 @@ def test_nra_fdap_uses_treaty_rate_when_w8ben_on_file():
     assert r["nra"]["fdapTaxUsd"] == 1500.0
     assert r["nra"]["w8benOnFile"] is True
     assert r["nra"]["claimedRate"] == 0.15
+
+
+# ---- nraTaxResult: DTAA Art. 21(2) student/business-apprentice standard
+# deduction --------------------------------------------------------------
+
+def test_nra_f1_visa_gets_standard_deduction_when_larger_than_itemized():
+    r = _nra(eci=30000.0, visa_type="f1")
+    assert r["nra"]["article212Eligible"] is True
+    assert r["deductionUsd"] == 16100  # single standard deduction, TY2026
+    assert r["deductionMode"].startswith("standard (Art. 21(2)")
+    assert r["taxableIncomeUsd"] == 30000.0 - 16100
+
+
+def test_nra_f1_visa_keeps_itemized_when_larger_than_standard():
+    d = {
+        "usFilingStatusRaw": "single",
+        "dedUs": {"salt": 0, "mortgageInterest": 20000, "charitable": 5000, "medical": 0},
+        "nraEciIncomeUsdRaw": 60000.0, "nraFdapIncomeUsdRaw": 0,
+        "nraRaw": {"treatyRateClaims": [], "submittedW8ben": False},
+        "additionalMedicareOwedBoundary": 0, "usVisaTypeRaw": "f1",
+    }
+    r = _nra_tax_result(d, {})
+    assert r["nra"]["article212Eligible"] is True
+    assert r["deductionUsd"] == 25000  # itemized (mortgage + charitable) exceeds the $16,100 standard deduction
+    assert r["deductionMode"].startswith("itemized (Art. 21(2)")
+
+
+def test_nra_non_f1_j1_visa_stays_itemized_only():
+    r = _nra(eci=30000.0, visa_type="h1b")
+    assert r["nra"]["article212Eligible"] is False
+    assert r["nra"]["article212AmbiguousJ1"] is False
+    assert r["deductionMode"] == "itemized (NRA — no standard deduction)"
+
+
+def test_nra_j1_visa_flagged_ambiguous_not_auto_applied():
+    r = _nra(eci=30000.0, visa_type="j1")
+    assert r["nra"]["article212Eligible"] is False
+    assert r["nra"]["article212AmbiguousJ1"] is True
+    assert r["deductionMode"] == "itemized (NRA — no standard deduction)"
 
 
 def test_nra_treaty_claim_ignored_without_w8ben_on_file():
@@ -340,3 +407,98 @@ def test_router_dual_status_year_returns_combined_result():
     result = _router(dual_status=ds)
     assert result["totalTaxBeforeFtcUsd"] == 1234
     assert result["dualStatusDetail"] is ds
+
+
+# ---- findingsAllResult override: DAG-only NRA additions ------------------
+# (nra_eci_fdap_classification_check / treaty_rate_not_recognized /
+# nra_article_21_2_standard_deduction / nra_j1_article_21_2_review — see
+# ustax_full.py's own "DAG-only additions" comment for why these live here
+# instead of us/findings.py's ALL_FINDING_IDS)
+
+def _override_d(**overrides):
+    d = {
+        "usEntityStateTaxResult": None, "usDualStatusResult": None, "usExpatriationResult": None,
+        "usEntityKind": "individual", "treatyFiles1040nrRaw": True, "s6013hElection": False,
+        "usTaxResult": {"nra": {"article212Eligible": False, "article212AmbiguousJ1": False}},
+        "nraDerivedEciFdapResult": {"derivedEciUsd": 0.0, "derivedFdapUsd": 0.0, "derivedTotalUsd": 0.0},
+        "nraEciIncomeUsdRaw": 0, "nraFdapIncomeUsdRaw": 0,
+        "nraRaw": {"treatyRateClaims": []},
+    }
+    d.update(overrides)
+    return d
+
+
+def _override_finding_ids(d):
+    return {f["id"] for f in _findings_all_result_override(d, {}, lambda dd, ctx: [])}
+
+
+def test_nra_classification_check_fires_on_material_gap():
+    ids = _override_finding_ids(_override_d(
+        nraDerivedEciFdapResult={"derivedEciUsd": 50000.0, "derivedFdapUsd": 20000.0, "derivedTotalUsd": 70000.0},
+        nraEciIncomeUsdRaw=30000, nraFdapIncomeUsdRaw=10000,
+    ))
+    assert "nra_eci_fdap_classification_check" in ids
+
+
+def test_nra_classification_check_silent_when_totals_match():
+    ids = _override_finding_ids(_override_d(
+        nraDerivedEciFdapResult={"derivedEciUsd": 30000.0, "derivedFdapUsd": 10000.0, "derivedTotalUsd": 40000.0},
+        nraEciIncomeUsdRaw=30000, nraFdapIncomeUsdRaw=10000,
+    ))
+    assert "nra_eci_fdap_classification_check" not in ids
+
+
+def test_nra_classification_check_not_fired_when_not_nra():
+    ids = _override_finding_ids(_override_d(
+        treatyFiles1040nrRaw=False,
+        nraDerivedEciFdapResult={"derivedEciUsd": 50000.0, "derivedFdapUsd": 20000.0, "derivedTotalUsd": 70000.0},
+    ))
+    assert "nra_eci_fdap_classification_check" not in ids
+
+
+def test_nra_classification_check_not_fired_for_entity():
+    ids = _override_finding_ids(_override_d(
+        usEntityKind="ccorp",
+        nraDerivedEciFdapResult={"derivedEciUsd": 50000.0, "derivedFdapUsd": 20000.0, "derivedTotalUsd": 70000.0},
+    ))
+    assert "nra_eci_fdap_classification_check" not in ids
+
+
+def test_treaty_rate_not_recognized_fires_on_unrecognized_rate():
+    ids = _override_finding_ids(_override_d(nraRaw={"treatyRateClaims": [{"rate": 20, "income_type": "dividends"}]}))
+    assert "treaty_rate_not_recognized" in ids
+
+
+def test_treaty_rate_not_recognized_silent_on_recognized_general_rate():
+    ids = _override_finding_ids(_override_d(nraRaw={"treatyRateClaims": [{"rate": 25, "income_type": "dividends"}]}))
+    assert "treaty_rate_not_recognized" not in ids
+
+
+def test_treaty_rate_not_recognized_silent_on_recognized_reduced_rate():
+    ids = _override_finding_ids(_override_d(nraRaw={"treatyRateClaims": [{"rate": 10, "income_type": "interest"}]}))
+    assert "treaty_rate_not_recognized" not in ids
+
+
+def test_treaty_rate_check_skips_unknown_income_type():
+    ids = _override_finding_ids(_override_d(nraRaw={"treatyRateClaims": [{"rate": 99, "income_type": "pension"}]}))
+    assert "treaty_rate_not_recognized" not in ids
+
+
+def test_article_21_2_finding_for_eligible_f1():
+    ids = _override_finding_ids(_override_d(usTaxResult={
+        "nra": {"article212Eligible": True, "article212AmbiguousJ1": False, "standardDeductionUsd": 16100, "itemizedDeductionUsd": 0},
+    }))
+    assert "nra_article_21_2_standard_deduction" in ids
+    assert "nra_j1_article_21_2_review" not in ids
+
+
+def test_article_21_2_review_finding_for_ambiguous_j1():
+    ids = _override_finding_ids(_override_d(usTaxResult={"nra": {"article212Eligible": False, "article212AmbiguousJ1": True}}))
+    assert "nra_j1_article_21_2_review" in ids
+    assert "nra_article_21_2_standard_deduction" not in ids
+
+
+def test_article_21_2_no_finding_for_ordinary_nra():
+    ids = _override_finding_ids(_override_d())
+    assert "nra_article_21_2_standard_deduction" not in ids
+    assert "nra_j1_article_21_2_review" not in ids

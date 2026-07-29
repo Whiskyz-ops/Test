@@ -123,6 +123,38 @@ NODES = {
         compute=lambda d, ctx: max(0, d["iraContributionAggregateUsd"] - d["iraContributionLimitUsd"]),
     ),
 
+    # ---- IRC §223 HSA aggregate contribution excess --------------------------
+    # Deferred at Step 11 audit time (needs a coverage-type field the live UI
+    # didn't collect yet). layer1_us.html's Step 11 now collects
+    # retirement_accounts.hsa_coverage_type ("self_only"/"family") alongside
+    # the pre-existing hsa_contribution_usd; combined with W-2 Box 12 code W
+    # (employer/cafeteria-plan HSA contributions) for the aggregate §223(b)
+    # total. Mirrors prototypes/graph-pilot/us5-nodes.js exactly.
+    "w2Box12HsaUsd": NodeDef(
+        deps=(), compute=lambda d, ctx: sum(
+            num(b.get("amount_usd")) for w2 in (safe(ctx.get("us"), "income_us_source.wages_w2", []) or [])
+            for b in (w2.get("box_12_benefits") or []) if str(b.get("code") or "").strip().lower() == "w"
+        ),
+        layer1_fields=("us.income_us_source.wages_w2",),
+    ),
+    "hsaContributionAggregateUsd": NodeDef(
+        deps=("w2Box12HsaUsd", "retirementAccountsRaw"),
+        compute=lambda d, ctx: d["w2Box12HsaUsd"] + num(d["retirementAccountsRaw"].get("hsa_contribution_usd")),
+    ),
+    "hsaCoverageType": NodeDef(deps=("retirementAccountsRaw",), compute=lambda d, ctx: d["retirementAccountsRaw"].get("hsa_coverage_type") or None),
+    # 2026 figures (IRS Rev. Proc. 2025-19): self-only $4,400; family $8,750;
+    # +$1,000 catch-up (55+, flat -- no age-banded "super catch-up" tier).
+    "hsaContributionLimitUsd": NodeDef(
+        deps=("hsaCoverageType", "ageAtYearEndUs"),
+        compute=lambda d, ctx: None if not d["hsaCoverageType"] else (
+            (8750 if d["hsaCoverageType"] == "family" else 4400) + (1000 if (d["ageAtYearEndUs"] is not None and d["ageAtYearEndUs"] >= 55) else 0)
+        ),
+    ),
+    "hsaContributionExcessUsd": NodeDef(
+        deps=("hasUsScope", "hsaContributionAggregateUsd", "hsaContributionLimitUsd"), scope_gate="hasUsScope", out_of_scope_value=0,
+        compute=lambda d, ctx: 0 if d["hsaContributionLimitUsd"] is None else max(0, d["hsaContributionAggregateUsd"] - d["hsaContributionLimitUsd"]),
+    ),
+
     # ---- SECURE 2.0 RMD determination (Step 11 audit) ------------------------
     # Determination-only (age test, no fabricated dollar figure) -- no
     # traditional-account BALANCE field exists anywhere in the product, only

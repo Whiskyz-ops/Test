@@ -167,6 +167,16 @@ NODES.usSecuritiesRaw = { deps: [], compute: function (d, ctx) { return safe(ctx
 NODES.usOwnsForeignDisregardedEntityRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_entities.owns_foreign_disregarded_entity", false) === true; } };
 NODES.usSelfEmploymentRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "income_us_source.self_employment", []) || []; } };
 
+// ---- schedule_m1_m2 (Form 1120/1120-S/1065 Schedules L/M-1/M-2) —
+// layer1_us.html's "Corporate Financials" screen collects the entity's own
+// balance-sheet figures (usState.corporate_financials.schedule_l:
+// assets_beginning/assets_ending) — schedule_m1's sibling fields are already
+// read elsewhere (agg10-nodes.js/assets-nodes.js, for book-tax income
+// reconciliation), but schedule_l itself was never read by anything before
+// this leaf (docs/GAP_TRACKER.md entity-filings-audit round). Added as its
+// own leaf so buildDocumentsResult can depend on it directly.
+NODES.usCorpScheduleLRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "corporate_financials.schedule_l", {}) || {}; } };
+
 // ---- form_8865 (Foreign Partnerships) — layer1_us.html's Step 9 screen
 // ("Screen 3K — Foreign Entities") has its own dedicated "I own 10% or more
 // of a foreign partnership" accordion (addPartRow()/syncPartState(),
@@ -297,6 +307,35 @@ var DOCUMENTS_CATALOG = [
   // file already) but neither was ever promoted to a Filings-tab document.
   { id: "form_10ic", jurisdiction: "IN", name: "Form 10-IC (s.115BAA Election)", desc: "Declaration to opt into the 22% concessional corporate tax rate under s.115BAA.", why: "The company has elected the s.115BAA concessional rate on file — this election requires a filed Form 10-IC (on or before the return due date), not just the rate applied silently.", severity: "info" },
   { id: "form_10id", jurisdiction: "IN", name: "Form 10-ID (s.115BAB Election)", desc: "Declaration to opt into the 15% concessional rate for new manufacturing companies under s.115BAB.", why: "The company has elected the s.115BAB new-manufacturing concessional rate on file — this election requires a filed Form 10-ID, distinct from (and mutually exclusive with) Form 10-IC.", severity: "info" },
+  // DELIBERATE DAG/engine divergence, same pattern as form_8858/form_29b
+  // above — docs/GAP_TRACKER.md entity-filings-audit round (Entity Trust
+  // Parity Plan §3.6): "Form 1120 itself, Schedule M-1/M-2, K-1 issuance"
+  // had never had their own audit round. Form 1120's own Return Form logic
+  // was already reviewed (Batch E) and is correct, but Schedules L/M-1/M-2
+  // and K-1 issuance are two SEPARATE filing obligations that attach to that
+  // return and had no Documents-tab entry at all. Reg./instructions test:
+  // Form 1120/1120-S — Schedule L (balance sheet)/M-1/M-2 not required if
+  // total receipts AND total assets at year end are each under $250,000
+  // (Form 1120 Sch. K Q13 / Form 1120-S Sch. B Q10); Form 1065 — same
+  // exemption at $250,000 receipts / $1,000,000 assets (Sch. B Q4). Layer 1
+  // collects the entity's own total-assets figure (corporate_financials.
+  // schedule_l) but has no distinct entity-level TOTAL RECEIPTS field (only
+  // per-branch self-employment gross_receipts_usd, an unrelated individual
+  // concept) — so only the total-assets prong is checked here, same
+  // single-available-signal honesty as the FIRPTA/Form 8865 entity-level
+  // gaps: a company under the assets threshold that nonetheless has
+  // $250k+ of receipts would show N/A here, a named imprecision, not a
+  // guess.
+  { id: "schedule_m1_m2", jurisdiction: "US", name: "Form 1120/1120-S/1065 Schedules L, M-1 & M-2", desc: "Balance sheet (Schedule L) and book-to-tax income reconciliation (Schedule M-1) and retained-earnings reconciliation (Schedule M-2), filed with the entity's own return.", why: "The entity's own return is Form 1120, 1120-S, or 1065, and total assets on file meet or exceed the small-entity exemption threshold ($250,000 for a corporation, $1,000,000 for a partnership) — below that, these schedules can be skipped.", severity: "warning" },
+  // Same pattern — K-1 issuance to owners is a distinct obligation from the
+  // Schedule L/M-1/M-2 book-tax reconciliation above, and unlike it has NO
+  // small-entity exemption: any partnership or S-corp that files at all must
+  // issue a Schedule K-1 to every partner/shareholder for their distributive
+  // share (IRC §6031(b)/§6037(b)); a trust/estate (Form 1041) issues K-1s
+  // only to beneficiaries who actually received a distribution this year
+  // (usTaxResult.trustDistributedUsd, the same figure the trust branch of
+  // usEntityResult already computes for the retained-vs-distributed split).
+  { id: "k1_issuance", jurisdiction: "US", name: "Schedule K-1 Issuance to Owners", desc: "Each partner's/shareholder's/beneficiary's distributive share of income, deductions and credits — issued alongside the entity's own return, not filed separately.", why: "The entity's own return is Form 1065 or 1120-S (K-1 issuance to every partner/shareholder is mandatory whenever that return is filed, with no small-entity exemption), or Form 1041 with a distribution actually made to a beneficiary this year.", severity: "critical" },
   { id: "form_67", jurisdiction: "IN", name: "Form 44 (India FTC)", desc: "Statement of foreign income & foreign tax, filed before the ITR due date.", why: "Foreign (US) income is being offered to tax in India and FTC u/s 90/91 is claimed. Schedule FSI/TR must accompany the ITR.", severity: "critical" },
   { id: "trc", jurisdiction: "IN", name: "Tax Residency Certificate (TRC)", desc: "Issued by the other contracting state (IRS Form 6166 for the US).", why: "DTAA relief / treaty rate is being claimed — a TRC is mandatory u/s 159(8).", severity: "critical" },
   { id: "form_10f", jurisdiction: "IN", name: "Form 41", desc: "Self-declaration accompanying the TRC, filed electronically on the ITR portal.", why: "Treaty benefit claimed and the TRC does not contain all particulars required u/r 75.", severity: "warning" },
@@ -322,7 +361,7 @@ NODES.buildDocumentsResult = {
     "usTaxResult", "headlineTotalIncomeUsdResult", "usFilingStatusRaw", "aggregateUsIncomeResult",
     "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
     "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw",
-    "entityTaxResult", "taxRegime", "businessComputation", "indiaOpt115baaRaw", "indiaOpt115babRaw", "presumptiveLockinAgg"],
+    "entityTaxResult", "taxRegime", "businessComputation", "indiaOpt115baaRaw", "indiaOpt115babRaw", "presumptiveLockinAgg", "usCorpScheduleLRaw"],
   compute: function (d) {
     var res = d.residencyResult;
     var isForm1118 = d.entityFormsResult.usReturnForm === "1120";
@@ -454,7 +493,20 @@ NODES.buildDocumentsResult = {
       // Company-side equivalents of form_10iea — mutually exclusive
       // elections, each with its own form.
       form_10ic: d.indiaIsCompany && d.indiaOpt115baaRaw,
-      form_10id: d.indiaIsCompany && d.indiaOpt115babRaw
+      form_10id: d.indiaIsCompany && d.indiaOpt115babRaw,
+      // Only the total-assets prong of the real small-entity exemption test —
+      // see the DOCUMENTS_CATALOG entry above for the honest receipts-prong
+      // gap. $1M threshold for a partnership (Form 1065 Sch. B Q4), $250k for
+      // a corporation (Form 1120 Sch. K Q13 / Form 1120-S Sch. B Q10).
+      schedule_m1_m2: ["1120", "1120-S", "1065"].indexOf(d.entityFormsResult.usReturnForm) !== -1 &&
+        Math.max(d.usCorpScheduleLRaw.assets_ending || 0, d.usCorpScheduleLRaw.assets_beginning || 0) >=
+        (d.entityFormsResult.usReturnForm === "1065" ? 1000000 : 250000),
+      // No small-entity exemption, unlike schedule_m1_m2 above — K-1
+      // issuance is mandatory whenever the return itself is a partnership or
+      // S-corp return; a trust/estate issues K-1s only when it actually
+      // distributed to a beneficiary this year.
+      k1_issuance: d.entityFormsResult.usReturnForm === "1065" || d.entityFormsResult.usReturnForm === "1120-S" ||
+        (d.entityFormsResult.usReturnForm === "1041" && (d.usTaxResult.trustDistributedUsd || 0) > 0)
     };
 
     return DOCUMENTS_CATALOG.map(function (doc) {

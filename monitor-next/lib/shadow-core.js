@@ -85,7 +85,21 @@ export const DIRECTIONAL_SURFACE = [];
 // lone individual produces a one-entity graph), so it needs the same
 // blanket per-key exclusion as the trust-only keys above (kept in sync with
 // prototypes/graph-pilot/run-fuzz.js's own DAG_ONLY_KEYS).
-const DAG_ONLY_KEYS = new Set(["caveat", "indiaIsAop", "indiaIsTrust", "trustDistributedUsd", "trustRetainedUsd", "trustBracketBreakdown", "entityGraph"]);
+// qbiWagesUsd/qbiUbiaUsd (docs/GAP_TRACKER.md item S, §199A QBI wage/UBIA
+// limitation): new model.income.us structural fields with no engine
+// equivalent — that item's own verification pass missed this file, so
+// real users on any profile would have seen a live "shadow mismatch"
+// badge for these two keys alone (discovered incidentally during the
+// entity-filings-audit round). foreignSection988GainLoss/
+// otherOrdinaryIncomeUs: same "structural, engine has no concept of it,
+// never cascades into a dollar difference" reasoning as run-fuzz.js's own
+// KNOWN_ALWAYS_DIVERGENT_PATHS entry for these two fields, applied here via
+// the key-name mechanism this file already uses instead of a path list.
+const DAG_ONLY_KEYS = new Set([
+  "caveat", "indiaIsAop", "indiaIsTrust", "trustDistributedUsd", "trustRetainedUsd",
+  "trustBracketBreakdown", "entityGraph", "qbiWagesUsd", "qbiUbiaUsd",
+  "foreignSection988GainLoss", "otherOrdinaryIncomeUs"
+]);
 
 // Back-compat alias (the full path list).
 export const SHADOW_SURFACE = SYMMETRIC_SURFACE.concat(DIRECTIONAL_SURFACE);
@@ -253,7 +267,7 @@ export function compareSurface(engineResult, dagResult) {
   // (section H.13, 22 Jul 2026): new DAG-only documents, no engine
   // equivalent for either — stripped from both the documents list and the
   // calendar's bundled docIds, same convention as run-fuzz.js's assembleDag().
-  const DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id"];
+  const DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance"];
   if (Array.isArray(dag && dag.documents)) {
     const droppedRequiredCount = dag.documents.filter((x) => DAG_ONLY_DOC_IDS.includes(x.id) && x.required).length;
     dag = { ...dag, documents: dag.documents.filter((x) => !DAG_ONLY_DOC_IDS.includes(x.id)) };

@@ -367,10 +367,18 @@ function generateProfile(rng) {
 // profiles carrying specific data, this key exists on EVERY profile (even
 // a lone individual produces a one-entity graph), so it needs the blanket
 // per-key exclusion here rather than a narrower allowlist.
+// qbiWagesUsd/qbiUbiaUsd (docs/GAP_TRACKER.md item S, §199A QBI wage/UBIA
+// limitation): new structural fields on model.income.us with no engine
+// equivalent (the frozen engine never derives a wage/UBIA limitation at
+// all) — that item's own "Verified" section only re-ran run-js-dag-vs-py-dag.js
+// and pytest, missing this file (and shadow-core.js/test-adapter.mjs),
+// so every one of the ~3,000 fuzzed profiles here was a false "NEW
+// divergence" on these two keys alone until this entry was added
+// (discovered incidentally during the entity-filings-audit round).
 var DAG_ONLY_KEYS = {
   caveat: true, indiaIsAop: true, indiaIsTrust: true,
   trustDistributedUsd: true, trustRetainedUsd: true, trustBracketBreakdown: true,
-  entityGraph: true
+  entityGraph: true, qbiWagesUsd: true, qbiUbiaUsd: true
 };
 function close(a, b) { var tol = Math.max(2, Math.abs(b) * 1e-6); return Math.abs(a - b) <= tol; }
 function deepEqual(a, b, p, diffs) {
@@ -446,7 +454,7 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // audit, 27 Jul 2026): same shape again -- unvested_restricted_stock_
 // awards[].filed_within_30_days fed nothing at all before this. No engine
 // equivalent since the classic engine is frozen.
-var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|retirement_rmd_required|s83b_election_not_filed_timely)$/;
+var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely|nra_eci_fdap_classification_check|treaty_rate_not_recognized)$/;
 // cfc (Phase 7, XB-14, GILTI/NCTI quantification): the finding's detail/
 // recommendation/refs text now differs unconditionally from the frozen
 // engine's static text whenever it fires — real computed inclusion numbers
@@ -488,10 +496,20 @@ var KNOWN_INDIA_ENTITY_DIVERGENT_PATHS = ["taxComputation.india"];
 // computed.reconciliation.rows' CFC business row note/usRule text changed
 // unconditionally once a CFC fires (crossbasis-nodes.js). None of these
 // cascade into any OTHER field's dollar value for a fuzz-generated profile.
+// model.income.us.collectiblesLtcgUsd / computed.usTax.collectiblesGainUsd /
+// collectiblesTaxUsd / qsbsExcludedGainUsd / qsbsTaxableGainUsd: concurrent
+// session's capital-gains special-rates work (§1(h)(4) 28% collectibles,
+// §1202 QSBS exclusion) — new DAG-only fields, no frozen-engine equivalent.
 var KNOWN_ALWAYS_DIVERGENT_PATHS = ["model.income.us.foreignSection988GainLoss", "model.income.us.otherOrdinaryIncomeUs",
   "model.income.us.cfcNonElectedInclusionUs", "model.income.us.cfcElectedPool", "model.income.us.cfcPerEntityTrace",
   "computed.usTax.gilti962TaxUsd", "computed.usTax.cfcDetail",
-  "model.assets.businessEntities", "computed.reconciliation.rows"];
+  "model.assets.businessEntities", "computed.reconciliation.rows",
+  "model.income.us.collectiblesLtcgUsd", "model.income.us.qsbsExcludedGainUsd", "model.income.us.qsbsTaxableGainUsd",
+  "computed.usTax.collectiblesGainUsd", "computed.usTax.collectiblesTaxUsd", "computed.usTax.qsbsExcludedGainUsd", "computed.usTax.qsbsTaxableGainUsd",
+  // concurrent session's NRA Article 21(2)/ECI-FDAP classification work —
+  // new DAG-only computed.usTax.nra.* fields, no frozen-engine equivalent.
+  "computed.usTax.nra.standardDeductionUsd", "computed.usTax.nra.itemizedDeductionUsd",
+  "computed.usTax.nra.article212Eligible", "computed.usTax.nra.article212AmbiguousJ1"];
 var KNOWN_NRA_DIVERGENT_PATHS = ["computed.ftc.india", "ftcReport.direction_india_relief"];
 // ---- H.6: India AOP/BOI and Trust/NGO/Political Party (docs/GAP_TRACKER.md
 // section H.6, 21 Jul 2026) — a WIDER divergence than the company/firm case
@@ -664,7 +682,7 @@ function assembleDag(profile, monitorAsOfBoundary) {
   // calendar's bundled docIds, same category as checksRegistry above.
   // Shallow-copy the calendar rows (not a full JSON clone, which would turn
   // Date objects into strings elsewhere in this same tree).
-  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id"];
+  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance"];
   var droppedRequiredCount = (out.analyzeResult.documents || []).filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) !== -1 && x.required; }).length;
   var documents = (out.analyzeResult.documents || []).filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) === -1; });
   var stripNj1040 = function (row) {

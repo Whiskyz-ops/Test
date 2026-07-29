@@ -40,6 +40,7 @@ import { getWISING } from "./wising.js";
 import { analyzeDag } from "./dag-adapter.js";
 import { analyzePyDagSource } from "./py-dag-adapter.js";
 import { compareSurface, signature, SOURCE_PAIRS } from "./shadow-core.js";
+import { track } from "@vercel/analytics";
 
 const LOG_KEY = "wising_shadow_log";
 const MAX_EVENTS = 100;
@@ -125,6 +126,27 @@ function buildDivergences(eng, engErr, other, otherErr) {
   return compareSurface(eng, other);
 }
 
+// Central telemetry (docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 8
+// promotion gate — ≥500 profiles / ≥14 days of live shadow running):
+// getShadowLog()'s own {runs, clean, runsPy, cleanPy} are per-browser
+// (module memory + localStorage), never aggregated across real users, so
+// the gate could never actually be MEASURED no matter how long shadow mode
+// ran. This sends one small, non-taxpayer event per comparison to Vercel
+// Web Analytics's custom-events API (queryable via Vercel's own dashboard
+// or API once enabled) — counts and a clean/dirty boolean only, NEVER
+// rec.divergences (diff strings can embed real computed figures, e.g.
+// "$.computed.usTax.agiUsd: 50000 != 49000" — exactly the kind of thing
+// that must not leave the browser). track() itself already no-ops safely
+// if Web Analytics isn't enabled/injected (window.va is undefined) or the
+// call is off-Vercel entirely (e.g. the offline file:// build) — wrapped in
+// try/catch anyway, matching this file's own "a shadow-mode failure must
+// never affect the primary UI" rule.
+function reportTelemetry(sourcePair, rec) {
+  try {
+    track("shadow_compare", { sourcePair, source: rec.source, ok: rec.ok, divergenceCount: rec.divergenceCount });
+  } catch (e) {}
+}
+
 function recordEvent(sourcePair, rec) {
   const p = readPersisted();
   const slot = sourcePair === SOURCE_PAIRS.ENGINE_VS_PY_DAG ? "lastRunPy" : "lastRun";
@@ -136,6 +158,7 @@ function recordEvent(sourcePair, rec) {
     p.events = events.slice(0, MAX_EVENTS);
   }
   savePersisted(p);
+  reportTelemetry(sourcePair, rec);
 }
 
 /* Run one shadow comparison: engine vs the JS DAG. Returns the event record

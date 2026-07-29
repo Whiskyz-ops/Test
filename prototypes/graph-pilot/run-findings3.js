@@ -58,6 +58,11 @@ WISING.PROFILES.forEach(function (p) {
   out.forEach(function (f) {
     var rf = real.filter(function (x) { return x.id === f.id; })[0];
     if (!rf) return;
+    // cfc (Phase 7, XB-14, GILTI/NCTI quantification): detail/recommendation/
+    // refs now differ unconditionally from the frozen engine's static text
+    // whenever this finding fires — reported, not asserted, same shape as
+    // run-analyze.js's isCfcTextDivergent carve-out.
+    if (f.id === "cfc") { console.log("    (reported, not asserted) cfc finding text diverges — XB-14 GILTI/NCTI quantification"); return; }
     check(f.id + " matches exactly (all fields)", findingsEqual(f, rf), "graph=" + JSON.stringify(f) + " prod=" + JSON.stringify(rf));
   });
   console.log("");

@@ -89,13 +89,14 @@ def _is_entity_or_nra(golden: dict) -> bool:
 
 
 # The JS DAG deliberately extends the frozen engine's 30-entry document
-# catalog with 7 new document types the engine never modeled at all
+# catalog with 9 new document types the engine never modeled at all
 # (report-batch1-nodes.js's own "DELIBERATE DAG/engine divergence" comments —
 # form_nj1040, form_8858, form_3520a, form_29b, form_10iea, form_10ic,
-# form_10id). Golden (generated from the frozen engine) never carries these
-# ids — filtered out before comparing, a permanent divergence like the
-# entity-branch one in test_reports_trace.py, not a "not yet ported" gap.
-DAG_ONLY_DOCUMENT_IDS = {"form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id"}
+# form_10id, schedule_m1_m2, k1_issuance). Golden (generated from the frozen
+# engine) never carries these ids — filtered out before comparing, a
+# permanent divergence like the entity-branch one in test_reports_trace.py,
+# not a "not yet ported" gap.
+DAG_ONLY_DOCUMENT_IDS = {"form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance"}
 
 
 def test_build_documents_result_matches_golden(fixture_id):

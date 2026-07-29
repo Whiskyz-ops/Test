@@ -165,6 +165,15 @@ DOCUMENTS_CATALOG = [
     {"id": "form_10iea", "jurisdiction": "IN", "name": "Form 10-IEA (Old Regime Election)", "desc": "Declaration to opt out of the default new tax regime (s.115BAC) — or to switch back — required for an individual/HUF with business/professional income.", "why": "The old tax regime is elected on file, and business/professional income is present — this combination requires a filed Form 10-IEA, not just a checkbox on the ITR.", "severity": "info"},
     {"id": "form_10ic", "jurisdiction": "IN", "name": "Form 10-IC (s.115BAA Election)", "desc": "Declaration to opt into the 22% concessional corporate tax rate under s.115BAA.", "why": "The company has elected the s.115BAA concessional rate on file — this election requires a filed Form 10-IC (on or before the return due date), not just the rate applied silently.", "severity": "info"},
     {"id": "form_10id", "jurisdiction": "IN", "name": "Form 10-ID (s.115BAB Election)", "desc": "Declaration to opt into the 15% concessional rate for new manufacturing companies under s.115BAB.", "why": "The company has elected the s.115BAB new-manufacturing concessional rate on file — this election requires a filed Form 10-ID, distinct from (and mutually exclusive with) Form 10-IC.", "severity": "info"},
+    # DELIBERATE DAG/engine divergence, same pattern as form_8858/form_29b
+    # above — docs/GAP_TRACKER.md entity-filings-audit round (Entity Trust
+    # Parity Plan §3.6). Only the total-assets prong of the real
+    # small-entity exemption test is checked (Layer 1 has no distinct
+    # entity-level total-receipts field). Port of report-batch1-nodes.js.
+    {"id": "schedule_m1_m2", "jurisdiction": "US", "name": "Form 1120/1120-S/1065 Schedules L, M-1 & M-2", "desc": "Balance sheet (Schedule L) and book-to-tax income reconciliation (Schedule M-1) and retained-earnings reconciliation (Schedule M-2), filed with the entity's own return.", "why": "The entity's own return is Form 1120, 1120-S, or 1065, and total assets on file meet or exceed the small-entity exemption threshold ($250,000 for a corporation, $1,000,000 for a partnership) — below that, these schedules can be skipped.", "severity": "warning"},
+    # K-1 issuance is a distinct obligation with NO small-entity exemption —
+    # see the JS source for the full citation (IRC §6031(b)/§6037(b)).
+    {"id": "k1_issuance", "jurisdiction": "US", "name": "Schedule K-1 Issuance to Owners", "desc": "Each partner's/shareholder's/beneficiary's distributive share of income, deductions and credits — issued alongside the entity's own return, not filed separately.", "why": "The entity's own return is Form 1065 or 1120-S (K-1 issuance to every partner/shareholder is mandatory whenever that return is filed, with no small-entity exemption), or Form 1041 with a distribution actually made to a beneficiary this year.", "severity": "critical"},
     {"id": "form_67", "jurisdiction": "IN", "name": "Form 44 (India FTC)", "desc": "Statement of foreign income & foreign tax, filed before the ITR due date.", "why": "Foreign (US) income is being offered to tax in India and FTC u/s 90/91 is claimed. Schedule FSI/TR must accompany the ITR.", "severity": "critical"},
     {"id": "trc", "jurisdiction": "IN", "name": "Tax Residency Certificate (TRC)", "desc": "Issued by the other contracting state (IRS Form 6166 for the US).", "why": "DTAA relief / treaty rate is being claimed — a TRC is mandatory u/s 159(8).", "severity": "critical"},
     {"id": "form_10f", "jurisdiction": "IN", "name": "Form 41", "desc": "Self-declaration accompanying the TRC, filed electronically on the ITR portal.", "why": "Treaty benefit claimed and the TRC does not contain all particulars required u/r 75.", "severity": "warning"},
@@ -250,6 +259,11 @@ def _build_documents_result(d, ctx):
         "form_10iea": d["taxRegime"] == "OLD" and not d["indiaIsCompany"] and not d["indiaIsFirm"] and not d["indiaIsAop"] and not d["indiaIsTrust"] and (d["businessComputation"]["businessInr"] or 0) > 0,
         "form_10ic": d["indiaIsCompany"] and entity["indiaOpt115baa"],
         "form_10id": d["indiaIsCompany"] and entity["indiaOpt115bab"],
+        "schedule_m1_m2": entity["usReturnForm"] in ("1120", "1120-S", "1065") and
+                           max(d["usCorpScheduleLRaw"].get("assets_ending") or 0, d["usCorpScheduleLRaw"].get("assets_beginning") or 0) >=
+                           (1000000 if entity["usReturnForm"] == "1065" else 250000),
+        "k1_issuance": entity["usReturnForm"] in ("1065", "1120-S") or
+                       (entity["usReturnForm"] == "1041" and (d["usTaxResult"].get("trustDistributedUsd") or 0) > 0),
     }
 
     out = []
@@ -431,6 +445,7 @@ NODES = {
     # 1-4 selector) -- form_8865 was hardcoded False on the claim that no
     # field represented this at all, which the live UI has since grown.
     "usForeignPartnershipsRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_entities.foreign_partnerships", []) or [], layer1_fields=("us.foreign_entities.foreign_partnerships",)),
+    "usCorpScheduleLRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "corporate_financials.schedule_l", {}) or {}, layer1_fields=("us.corporate_financials.schedule_l",)),
     "form8938GaugeResult": NodeDef(deps=("feie", "usFilingStatusRaw", "accountsListResult", "aggregateLastDayUsdResult", "hasUsScopeBoundaryFtc"), compute=_form8938_gauge_result),
     "headlineTotalIncomeUsdResult": NodeDef(
         deps=("totalIndiaIncomeInr", "aggregateUsIncomeResult"),
@@ -443,7 +458,7 @@ NODES = {
               "usTaxResult", "headlineTotalIncomeUsdResult", "usFilingStatusRaw", "aggregateUsIncomeResult",
               "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
               "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw",
-              "entityTaxResult", "taxRegime", "businessComputation", "presumptiveLockinAgg", "slabs"),
+              "entityTaxResult", "taxRegime", "businessComputation", "presumptiveLockinAgg", "slabs", "usCorpScheduleLRaw"),
         compute=_build_documents_result,
     ),
     "buildScopeNotesResult": NodeDef(

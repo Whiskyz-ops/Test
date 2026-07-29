@@ -25,7 +25,7 @@ imply any interim cutover.
 | 6 | `filings/` + `reports/` | ✅ done (see below) |
 | 7 | `analyze()` assembly + Pyodide adapter + wheel | 🟡 infrastructure done, one known gap flagged (closed below, post-Phase-7) |
 | — | `usTaxResult` entity/NRA/trust routing (`us/ustax_full.py`) — closes the Phase 7 gap | ✅ done (see below) |
-| 8 | Toggle + shadow mode + cutover (production-touching, gated) | 🟡 in progress — JS-DAG-vs-Python-DAG cross-check built and green, trust-retained/state-tax fixture coverage added + a real cross-language rounding bug fixed (see below); live browser wiring + real promotion-gate data not started |
+| 8 | Toggle + shadow mode + cutover (production-touching, gated) | 🟡 in progress — toggle/loader/three-way shadow mode built and browser-verified (real Chromium + Playwright, 3 bugs found and fixed); Python shadow leg now sampled on by default + reports to Vercel Web Analytics (13th pass, below) so the gate is measurable — but Web Analytics isn't enabled on the project yet (verified via API), so no real promotion-gate data exists; cutover not started |
 
 ## Phase 1 detail (18 modules/files, 73 tests green as of this writing)
 
@@ -1582,6 +1582,95 @@ snapshot all identical, zero errors attributable to this change (one
 pre-existing, unrelated console error from the page's own Google-Fonts
 CDN `@import`, blocked in this sandbox exactly like every other CDN
 fetch — present before this change too).
+
+### Thirteenth Phase 8 pass: made the promotion gate actually measurable
+
+Every prior pass built and verified the MECHANISM (toggle, loader, three-way
+shadow mode, a real Chromium click-through). None of it makes the ≥500-
+profiles/≥14-days promotion gate satisfiable, for a reason none of the prior
+passes addressed: `lib/shadow.js`'s persisted log
+(`localStorage["wising_shadow_log"]`) is per-browser, with zero network
+calls anywhere in that file. Even with every leg firing on every real
+session forever, there would be no way to ever ANSWER "have we seen ≥500
+profiles cleanly" across the real user base — that data never leaves each
+visitor's own machine. Compounding it, `shadowPyOn` (the Python-DAG shadow
+leg) was opt-in-only (`?shadowPy=1`), so in practice almost no real session
+was even generating local data to begin with.
+
+Two changes, both scoped to not touch the primary compute path at all:
+
+1. **`shadowPyOn` sampled on by default** (`app/page.jsx`,
+   `SHADOW_PY_SAMPLE_RATE = 0.15`) instead of pure opt-in. `?shadowPy=1`/
+   `?shadowPy=0` still force it on/off explicitly (unchanged override
+   behavior for deliberate testing/demo use) — the sample draw only decides
+   the default for everyone else. Not 1.0: a cold Pyodide boot is real
+   wall-clock/bandwidth cost (`lib/py-dag-loader.js`'s own header) that
+   shouldn't land on every single visitor without the telemetry below first
+   confirming it isn't degrading real sessions. Same hydration-safe
+   lazy-`useState` pattern the pre-existing opt-in check already used
+   (`Math.random()` only ever evaluated client-side, guarded by the same
+   `typeof window` check, so the server's render is unaffected).
+2. **`lib/shadow.js`'s `recordEvent()`** (the single choke point both legs
+   already funnel through before persisting to `localStorage`) now also
+   sends one small event to Vercel Web Analytics custom events
+   (`@vercel/analytics`'s `track("shadow_compare", {sourcePair, source, ok,
+   divergenceCount})`) — counts and a clean/dirty boolean ONLY, never
+   `rec.divergences`: a diff string can embed real computed taxpayer
+   figures (e.g. `"$.computed.usTax.agiUsd: 50000 != 49000"`), exactly the
+   kind of thing that must never leave the browser. Wrapped in try/catch,
+   matching this file's own "a shadow-mode failure must never affect the
+   primary UI" rule; `track()` itself already no-ops safely if Web
+   Analytics isn't enabled/injected. `<Analytics />` (`@vercel/analytics/
+   next`) mounted in `app/layout.jsx`'s root layout, unconditionally — its
+   own script is a no-op off Vercel (the offline `file://` build, `npm run
+   serve`), so this doesn't affect the non-Vercel paths this repo also
+   ships.
+
+**Verified via the Vercel API this round (not assumed): Web Analytics is
+NOT currently enabled on the linked project** (`team_zyQ3J5AAnce3CojiV1k69pNu`
+/ "Wising" team, project `test`) — `get_web_analytics` returns `404 Web
+Analytics not found`. This pass only wires the CLIENT side (the `track()`
+calls, the `<Analytics />` mount, the sampling); it deliberately does NOT
+and CANNOT flip Web Analytics on for the project — that's a dashboard
+setting (possibly plan-gated) for whoever owns the Vercel team, out of
+reach of anything available in this environment. Once it is enabled, the
+same `get_web_analytics` API (`by: ["eventName","eventData/ok"]` etc.) can
+answer the promotion-gate question directly instead of relying on any one
+visitor's own `localStorage`.
+
+**Deliberately unchanged**: `engineSource`'s own default (`"dag"`, the JS
+DAG) — this pass is entirely about making the GATE measurable, not about
+the actual cutover, which per this tracker's own standing rule only happens
+once that gate is cleared with real data.
+
+**Verification**: `dag_py` pytest 589/589 green (unaffected — no `dag_py/`
+files touched this pass). `cd monitor-next && npx next build` compiles
+clean (webpack/SWC + TypeScript + static prerender, all 4 pages) — caught
+and fixed one unrelated pre-existing dependency gap in passing: installing
+`@vercel/analytics` with `--legacy-peer-deps` (needed only because
+`@vercel/analytics`'s own optional SvelteKit peer conflicted with an
+unrelated `vite` version already resolved in this sandbox) silently dropped
+`prop-types` — a real, already-required peer dependency of
+`react-simple-maps` (`components/UsStatesMap.jsx`) that had been correctly
+resolved before, unrelated to anything in this pass — from the lockfile,
+breaking the build with `Module not found: Can't resolve 'prop-types'`.
+Fixed by installing it back explicitly alongside `@vercel/analytics` in the
+same command, restoring the lockfile to carry both. `npx vitest run` 5/5
+green. `node test-adapter.mjs`/`node test-shadow.mjs` show the same
+computation-value divergences already present before this pass (confirmed
+by diffing this pass's changed files against every file either script
+touches — `lib/dag-adapter.js`, `lib/wising.js`, `lib/engine/*`,
+`lib/shadow-core.js`, `lib/py-dag-adapter.js`, `prototypes/graph-pilot/**`,
+`dag_py/**` — all untouched); this pass adds a telemetry side-effect to an
+already-passing comparison path, not a change to the comparison logic
+itself.
+
+**Still NOT done**: enabling Web Analytics on the Vercel project (requires
+dashboard access this environment doesn't have), any real promotion-gate
+data (can't accrue until the above is enabled AND real traffic runs against
+it), the actual cutover, and re-triaging the pre-existing `test-adapter.mjs`/
+`test-shadow.mjs` baseline divergences (unrelated to Phase 8, unrelated to
+this pass, not attempted here).
 
 ## Phase 6 detail (filings/ + reports/, ✅ DONE — 429 tests green cumulative)
 

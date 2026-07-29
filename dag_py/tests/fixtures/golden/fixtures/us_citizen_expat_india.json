@@ -339,6 +339,11 @@
           "usd": 0,
           "inr": 0
         },
+        "qbiWagesUsd": 0,
+        "qbiUbiaUsd": 0,
+        "collectiblesLtcgUsd": 0,
+        "qsbsExcludedGainUsd": 0,
+        "qsbsTaxableGainUsd": 0,
         "cfcNonElectedInclusionUs": {
           "usd": 0.0,
           "inr": 0.0
@@ -1173,6 +1178,10 @@
         "appliedUsd": 57741
       },
       "effectiveRate": 0.282119265095969,
+      "collectiblesGainUsd": 0,
+      "collectiblesTaxUsd": 0,
+      "qsbsExcludedGainUsd": 0,
+      "qsbsTaxableGainUsd": 0,
       "gilti962TaxUsd": 0.0,
       "cfcDetail": {
         "nonElectedInclusionUsd": 0.0,

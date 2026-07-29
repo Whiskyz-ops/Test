@@ -141,6 +141,52 @@ var NODES = {
     compute: function (d) { return Math.max(0, d.iraContributionAggregateUsd - d.iraContributionLimitUsd); }
   },
 
+  // ---- IRC §223 HSA aggregate contribution excess --------------------------
+  // Deferred at Step 11 audit time ("needs a coverage-type field the live UI
+  // doesn't collect yet, tracked separately rather than guessed at here" --
+  // see the §402(g) block above). layer1_us.html's Step 11 now collects
+  // retirement_accounts.hsa_coverage_type ("self_only"/"family") alongside
+  // the pre-existing hsa_contribution_usd (individual/payroll-after-tax
+  // contributions); combined with W-2 Box 12 code W (employer/pre-tax
+  // cafeteria-plan HSA contributions -- same generic box_12_benefits[] array
+  // the §402(g) block above already reads codes d/e/aa/bb from) for the
+  // aggregate IRC §223(b) contribution total. A missing coverage type is
+  // treated as unknown, not silently defaulted to either limit -- the
+  // excess is only computed once the taxpayer has actually selected one.
+  w2Box12HsaUsd: {
+    deps: [],
+    compute: function (d, ctx) {
+      var rows = safe(ctx.us, "income_us_source.wages_w2", []) || [];
+      return rows.reduce(function (sum, w2) {
+        var box12 = w2.box_12_benefits || [];
+        return sum + box12.reduce(function (s, b) {
+          return String(b.code || "").trim().toLowerCase() === "w" ? s + num(b.amount_usd) : s;
+        }, 0);
+      }, 0);
+    }
+  },
+  hsaContributionAggregateUsd: {
+    deps: ["w2Box12HsaUsd", "retirementAccountsRaw"],
+    compute: function (d) { return d.w2Box12HsaUsd + num(d.retirementAccountsRaw.hsa_contribution_usd); }
+  },
+  hsaCoverageType: { deps: ["retirementAccountsRaw"], compute: function (d) { return d.retirementAccountsRaw.hsa_coverage_type || null; } },
+  // 2026 figures (IRS Rev. Proc. 2025-19): self-only $4,400; family $8,750;
+  // +$1,000 catch-up (55+, flat -- IRC §223(b)(3) has no age-banded "super
+  // catch-up" tier the way §402(g)/SECURE 2.0 §109 do for 401(k)).
+  hsaContributionLimitUsd: {
+    deps: ["hsaCoverageType", "ageAtYearEndUs"],
+    compute: function (d) {
+      if (!d.hsaCoverageType) return null;
+      var base = d.hsaCoverageType === "family" ? 8750 : 4400;
+      return base + ((d.ageAtYearEndUs != null && d.ageAtYearEndUs >= 55) ? 1000 : 0);
+    }
+  },
+  hsaContributionExcessUsd: {
+    deps: ["hasUsScope", "hsaContributionAggregateUsd", "hsaContributionLimitUsd"],
+    scopeGate: "hasUsScope", outOfScopeValue: 0,
+    compute: function (d) { return d.hsaContributionLimitUsd == null ? 0 : Math.max(0, d.hsaContributionAggregateUsd - d.hsaContributionLimitUsd); }
+  },
+
   // ---- SECURE 2.0 RMD determination (Step 11 audit) ------------------------
   // layer1_us.html's own "SECURE Act 2.0 RMD Calculator" card computes a
   // fabricated $5,000 flat RMD amount for ANY taxpayer age >= 73 (its own

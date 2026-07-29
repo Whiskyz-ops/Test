@@ -74,7 +74,7 @@ WISING.PROFILES.forEach(function (p) {
   // filing deadline's docIds — no engine equivalent for either. Shallow-copy
   // just the calendar rows (not a full JSON clone, which would turn Date
   // objects into strings and break deepEqual's Date handling).
-  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id"];
+  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance"];
   var outForDiff = Object.assign({}, out, {
     calendar: Object.assign({}, out.calendar, {
       all: out.calendar.all.map(function (row) { return Array.isArray(row.docIds) ? Object.assign({}, row, { docIds: row.docIds.filter(function (id) { return DAG_ONLY_DOC_IDS.indexOf(id) === -1; }) }) : row; }),

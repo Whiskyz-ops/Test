@@ -155,7 +155,12 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
         non_qual_div_us + f_d + inc["stcgUs"]["usd"] + f_stcg + inc["rentalUs"]["usd"] + f_r + f_p + f_988 + other_ordinary_us + f_cfc +
         (inc["usRetirementIncomeExclSs"]["usd"] if inc.get("usRetirementIncomeExclSs") else (inc.get("usRetirementIncome", {}).get("usd", 0) if inc.get("usRetirementIncome") else 0))
     )
-    preferential_income = inc["ltcgUs"]["usd"] + f_ltcg + inc["qualifiedDividendsUs"]["usd"]
+    # §1(h)(4) collectibles gain (task #43 follow-up): a real LTCG
+    # sub-category capped at 28% instead of the normal 0/15/20% brackets.
+    # Kept as its own slice, not folded into regular_preferential_income.
+    collectibles_gain_usd = max(0.0, inc.get("collectiblesLtcgUsd") or 0)
+    regular_preferential_income = inc["ltcgUs"]["usd"] + f_ltcg + inc["qualifiedDividendsUs"]["usd"]
+    preferential_income = regular_preferential_income + collectibles_gain_usd
 
     gross_ss_usd = (inc.get("socialSecurityUs") or {}).get("usd", 0) or 0
     tax_exempt_interest_usd = (inc.get("taxExemptInterestUs") or {}).get("usd", 0) or 0
@@ -204,21 +209,51 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
 
     taxable_before_qbi = max(0.0, agi - deduction - senior_deduction_usd - tips_deduction_usd - overtime_deduction_usd)
 
+    # §199A W-2 wage / UBIA limitation (task #42 follow-up). K-1 Box 20
+    # qbi_wages_usd/qbi_ubia_usd and self-employment/farm wages_paid_usd
+    # were collected but never read -- QBI was flat 20% with only the SSTB
+    # phase-out modeled, no wage/UBIA limit for a real (non-SSTB) business
+    # above the threshold. Algorithm ported from layer1_us.html's own local
+    # preview calculation, but using this module's own T["QBI_THRESHOLD"]/
+    # T["QBI_PHASEIN"] (2026 OBBBA figures), not the raw form's stale
+    # pre-OBBBA preview constants. Mirrors prototypes/graph-pilot/ustax-nodes.js exactly.
     qbi = inc.get("qbiIncomeUsd") or 0
+    qbi_wages = inc.get("qbiWagesUsd") or 0
+    qbi_ubia = inc.get("qbiUbiaUsd") or 0
     qbi_thr = T["QBI_THRESHOLD"].get(status, T["QBI_THRESHOLD"]["single"])
     qbi_phase = T["QBI_PHASEIN"].get(status, T["QBI_PHASEIN"]["single"])
-    qbi_frac = 1.0
-    if inc.get("qbiIsSSTB"):
+    if taxable_before_qbi <= qbi_thr:
+        qbi_thr_fraction = 0.0
+    elif taxable_before_qbi >= qbi_thr + qbi_phase:
+        qbi_thr_fraction = 1.0
+    else:
+        qbi_thr_fraction = (taxable_before_qbi - qbi_thr) / qbi_phase
+    qbi_frac = (1 - qbi_thr_fraction) if inc.get("qbiIsSSTB") else 1.0
+    active_qbi = qbi * qbi_frac
+    tentative_qbi_deduction = T["QBI_RATE"] * active_qbi
+    if taxable_before_qbi <= qbi_thr:
+        qbi_deduction = tentative_qbi_deduction  # full deduction, no wage/UBIA limit below the threshold
+    else:
+        active_qbi_wages = qbi_wages * qbi_frac
+        active_qbi_ubia = qbi_ubia * qbi_frac
+        qbi_wage_limit = max(0.50 * active_qbi_wages, 0.25 * active_qbi_wages + 0.025 * active_qbi_ubia)
         if taxable_before_qbi >= qbi_thr + qbi_phase:
-            qbi_frac = 0.0
-        elif taxable_before_qbi > qbi_thr:
-            qbi_frac = 1 - (taxable_before_qbi - qbi_thr) / qbi_phase
-    qbi_deduction = T["QBI_RATE"] * qbi * qbi_frac
+            qbi_deduction = min(tentative_qbi_deduction, qbi_wage_limit)
+        else:
+            qbi_deduction = tentative_qbi_deduction - max(0.0, tentative_qbi_deduction - qbi_wage_limit) * qbi_thr_fraction
     qbi_deduction = max(0.0, js_round(min(qbi_deduction, T["QBI_RATE"] * max(0.0, taxable_before_qbi - preferential_income))))
 
     taxable_income = max(0.0, taxable_before_qbi - qbi_deduction)
-    pref_taxable = min(preferential_income, taxable_income)
-    ord_taxable = taxable_income - pref_taxable
+    total_pref_taxable = min(preferential_income, taxable_income)
+    ord_taxable = taxable_income - total_pref_taxable
+    # Regular 0/15/20% LTCG/QDI gets priority within the combined
+    # preferential room; §1(h)(4) collectibles gain stacks on top and is
+    # the first crowded out if taxable income doesn't cover the full
+    # preferential total -- approximates the real Schedule D Tax
+    # Worksheet's actual ordering (planning-grade, not a byte-for-byte
+    # worksheet replica). Mirrors ustax-nodes.js exactly.
+    pref_taxable = min(regular_preferential_income, total_pref_taxable)
+    collectibles_taxable = total_pref_taxable - pref_taxable
 
     ordinary_tax = bracket_tax(ord_taxable, brackets)
     ordinary_bracket_breakdown = bracket_breakdown(ord_taxable, brackets)
@@ -231,9 +266,16 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     amt20 = rem_after0 - amt15
     preferential_tax = amt15 * 0.15 + amt20 * 0.20
 
-    income_tax = ordinary_tax + preferential_tax
+    # Collectibles gain: taxed at the LESSER of a flat 28% or the
+    # taxpayer's own ordinary-bracket rate on that slice (§1(h)(1)(A)(i)/
+    # (4) -- a CAP, not a flat add-on).
+    collectibles_stack_start = ord_taxable + pref_taxable
+    collectibles_tax_if_ordinary = bracket_tax(collectibles_stack_start + collectibles_taxable, brackets) - bracket_tax(collectibles_stack_start, brackets)
+    collectibles_tax = min(collectibles_tax_if_ordinary, T["COLLECTIBLES_RATE"] * collectibles_taxable)
 
-    net_investment_income = inc["interestUs"]["usd"] + f_i + inc["ordinaryDividendsUs"]["usd"] + f_d + inc["capitalGainsUs"]["usd"] + f_stcg + f_ltcg + inc["rentalUs"]["usd"] + f_r
+    income_tax = ordinary_tax + preferential_tax + collectibles_tax
+
+    net_investment_income = inc["interestUs"]["usd"] + f_i + inc["ordinaryDividendsUs"]["usd"] + f_d + inc["capitalGainsUs"]["usd"] + collectibles_gain_usd + f_stcg + f_ltcg + inc["rentalUs"]["usd"] + f_r
     niit_threshold = NIIT_THRESHOLD.get(status, 200000)
     niit = T["NIIT_RATE"] * min(max(0.0, net_investment_income), max(0.0, agi - niit_threshold))
 
@@ -246,14 +288,16 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     amt_phase = T["AMT_PHASEOUT"].get(status, T["AMT_PHASEOUT"]["single"])
     amt_exemption = max(0.0, amt_ex_full - T["AMT_PHASEOUT_RATE"] * max(0.0, amti_usd - amt_phase))
     amt_base = max(0.0, amti_usd - amt_exemption)
-    amt_ord_base = max(0.0, amt_base - pref_taxable)
+    # Collectibles gain keeps its capital-gain-rate character under AMT too
+    # (§55(b)(3)), so it's excluded from amt_ord_base like pref_taxable.
+    amt_ord_base = max(0.0, amt_base - pref_taxable - collectibles_taxable)
     amt_brk = T["AMT_RATE_BREAK"] / 2 if status == "mfs" else T["AMT_RATE_BREAK"]
     tmt_ord = amt_ord_base * T["AMT_RATE_LOW"] if amt_ord_base <= amt_brk else amt_brk * T["AMT_RATE_LOW"] + (amt_ord_base - amt_brk) * T["AMT_RATE_HIGH"]
-    amt_owed = max(0.0, js_round(tmt_ord + preferential_tax - income_tax))
+    amt_owed = max(0.0, js_round(tmt_ord + preferential_tax + collectibles_tax - income_tax))
     # §53 Minimum Tax Credit: only available in a year NOT subject to AMT
     # (i.e. regular tax exceeds this year's tentative minimum tax), capped
     # at the prior-year carryforward on file. Mirrors ustax-nodes.js exactly.
-    mtc_allowed_usd = min(ded.get("mtcCarryforwardUsd") or 0, max(0.0, income_tax - (tmt_ord + preferential_tax)))
+    mtc_allowed_usd = min(ded.get("mtcCarryforwardUsd") or 0, max(0.0, income_tax - (tmt_ord + preferential_tax + collectibles_tax)))
 
     # Phase 7 (XB-14): §962-elected NCTI/Subpart F tax — a parallel flat-
     # rate tax added outside the normal bracket system, same shape as AMT
@@ -309,6 +353,11 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
         "totalIncomeUsd": total_income, "usSourceIncomeUsd": inc["usSourceTotal"]["usd"],
         "feieAppliedUsd": feie_applied_usd, "worldwide": worldwide,
         "ordinaryTaxUsd": ordinary_tax, "preferentialTaxUsd": preferential_tax,
+        # §1(h)(4) collectibles gain (task #43 follow-up): income_tax above
+        # already includes collectibles_tax; exposed separately for trace
+        # transparency, same discipline as ordinaryTaxUsd/preferentialTaxUsd.
+        "collectiblesGainUsd": collectibles_taxable, "collectiblesTaxUsd": collectibles_tax,
+        "qsbsExcludedGainUsd": inc.get("qsbsExcludedGainUsd") or 0, "qsbsTaxableGainUsd": inc.get("qsbsTaxableGainUsd") or 0,
         "filingStatus": status,
         "ordinaryIncomeUsd": ordinary_income, "preferentialIncomeUsd": preferential_income,
         "saltCapUsd": salt_cap_usd,
@@ -331,8 +380,8 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
         "ordinaryTaxableUsd": ord_taxable, "ordinaryBracketBreakdown": ordinary_bracket_breakdown,
         "amtDetail": {
             "amtiUsd": amti_usd, "addbackUsd": amt_addback, "exemptionFullUsd": amt_ex_full, "exemptionUsd": amt_exemption,
-            "amtBaseUsd": amt_base, "preferentialInBaseUsd": pref_taxable, "ordinaryAmtBaseUsd": amt_ord_base,
-            "tmtOrdUsd": tmt_ord, "tmtUsd": tmt_ord + preferential_tax, "regularTaxUsd": income_tax,
+            "amtBaseUsd": amt_base, "preferentialInBaseUsd": pref_taxable + collectibles_taxable, "ordinaryAmtBaseUsd": amt_ord_base,
+            "tmtOrdUsd": tmt_ord, "tmtUsd": tmt_ord + preferential_tax + collectibles_tax, "regularTaxUsd": income_tax,
         },
         "otherCreditsUsd": other_credits_usd,
         # maxTotalUsd/nonRefundableUsd are the COMBINED CTC+ODC figures
@@ -366,6 +415,11 @@ NODES = {
     "usEntityKind": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.entity.usKind", None) or "individual"),
     "files1040nr": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "nra_specific.files_form_1040nr", False) is True, layer1_fields=("us.nra_specific.files_form_1040nr",)),
     "s6013hElection": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "nra_specific.s6013h_joint_election", False) is True, layer1_fields=("us.nra_specific.s6013h_joint_election",)),
+    # US-India DTAA Art. 21(2) student/business-apprentice standard-deduction
+    # exception (ustax_full.py's _nra_tax_result) — layer1_us.html's own
+    # "US Visa / Immigration Status" dropdown (#prof-visa-type) already
+    # collects this, but nothing in the engine read it before now.
+    "usVisaTypeRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "profile.visa_type", None), layer1_fields=("us.profile.visa_type",)),
     "usFilingStatusRaw": NodeDef(
         deps=(),
         compute=lambda d, ctx: (lambda s: (
