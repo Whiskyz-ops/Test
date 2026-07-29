@@ -408,6 +408,7 @@ var NODES = {
   usEntityKind: { deps: [], compute: function (d, ctx) { return ctx.model.entity ? ctx.model.entity.usKind : "individual"; } },
   files1040nr: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "nra_specific.files_form_1040nr", false) === true; } },
   s6013hElection: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "nra_specific.s6013h_joint_election", false) === true; } },
+  usVisaTypeRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "profile.visa_type", null); } },
   usFilingStatusRaw: {
     deps: [],
     compute: function (d, ctx) {

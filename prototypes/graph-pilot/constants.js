@@ -294,6 +294,38 @@
         QSBS_PRE_OBBBA_CAP_USD: 10000000,
         QSBS_OBBBA_CAP_USD: 15000000,
         QSBS_OBBBA_TIERS: [{ years: 5, pct: 1.00 }, { years: 4, pct: 0.75 }, { years: 3, pct: 0.50 }],
+        // DAG-only addition (no equivalent in the frozen engine or in
+        // layer1_us.html beyond the "dividends"/"interest"/"royalties"
+        // dropdown at #treaty-rates-tbody): India-US Income Tax Treaty
+        // (1989) withholding-rate ceilings for the three FDAP categories
+        // the Layer 1 "Treaty Tax Rates" table collects, keyed by the same
+        // income_type strings that dropdown writes. Used only to sanity-
+        // check a preparer's claimed rate against a real treaty rate (the
+        // treaty_rate_not_recognized finding) -- does NOT pick a sub-rate
+        // automatically, since which one applies depends on facts this
+        // form doesn't collect (e.g. whether the recipient is a corporate
+        // shareholder owning >=10% of voting stock, whether interest is
+        // from a bank/financial-institution loan, or whether a royalty is
+        // for equipment use vs. a copyright/patent/trademark). Sourced
+        // from IRS Publication 901 / the Treasury Technical Explanation of
+        // the treaty -- like every other statutory figure in this file,
+        // NOT a substitute for confirming against the current treaty
+        // text/Pub. 901 before relying on it in production.
+        INDIA_US_TREATY_FDAP_RATES: {
+          dividends: {
+            rates: [0.25, 0.15], article: "Art. 10",
+            note: "25% general portfolio rate; 15% if the recipient is a company owning ≥ 10% of the paying company's voting stock"
+          },
+          interest: {
+            rates: [0.15, 0.10], article: "Art. 11",
+            note: "15% general; 10% on interest from loans made by banks or similar financial institutions carrying on a genuine banking business"
+          },
+          royalties: {
+            rates: [0.15, 0.10], article: "Art. 12",
+            note: "15% for copyrights, patents, trademarks, designs/models/plans, and trade secrets; 10% for the use of industrial, commercial, or scientific equipment"
+          }
+        },
+        TREATY_RATE_TOLERANCE: 0.001,
         // SALT cap under OBBBA: raised from a flat $10,000 (TCJA) to $40,000
         // ($20,000 MFS) for TY2025, then indexed +1%/year 2026-2029 —
         // TY2026 is $40,400 ($20,200 MFS), phased DOWN 30 cents per dollar of

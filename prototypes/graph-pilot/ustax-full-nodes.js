@@ -339,7 +339,9 @@ NODES.usEntityStateTaxResult = {
 // Array.sort is stable, ES2019+) leaves every pre-existing element's
 // relative order untouched — only the new element gets placed.
 NODES.findingsAllResult = {
-  deps: baseNodes.findingsAllResult.deps.concat(["usEntityStateTaxResult", "usDualStatusResult", "usExpatriationResult"]),
+  deps: baseNodes.findingsAllResult.deps.concat(["usEntityStateTaxResult", "usDualStatusResult", "usExpatriationResult",
+    "usEntityKind", "treatyFiles1040nrRaw", "s6013hElection", "usTaxResult",
+    "nraDerivedEciFdapResult", "nraEciIncomeUsdRaw", "nraFdapIncomeUsdRaw", "nraRaw"]),
   compute: function (d, ctx) {
     var all = baseNodes.findingsAllResult.compute(d, ctx).slice();
     var est = d.usEntityStateTaxResult;
@@ -414,19 +416,126 @@ NODES.findingsAllResult = {
           amountUsd: 0, refs: [est.stateName || est.state]
         });
       }
-      var weight = { critical: 0, warning: 1, info: 2 };
-      all.sort(function (a, b) {
-        if (weight[a.severity] !== weight[b.severity]) return weight[a.severity] - weight[b.severity];
-        return b.amountUsd - a.amountUsd;
-      });
     }
+
+    // DAG-only additions (no JS-source equivalent to port FROM — these were
+    // built Python-first by a concurrent session; ported back here to
+    // restore JS/Python parity, task #43 follow-up). Deliberately kept OUT
+    // of any frozen finding-ID inventory list, same precedent as
+    // retirement_excess_elective_deferral etc.
+    var isNra = d.usEntityKind !== "ccorp" && d.usEntityKind !== "scorp" && d.usEntityKind !== "partnership" && d.usEntityKind !== "trust" &&
+      d.treatyFiles1040nrRaw && !d.s6013hElection;
+    if (isNra) {
+      // NRA ECI/FDAP classification cross-check: layer1_us.html's own
+      // client-side derivation (updateNraFields()) -- what
+      // nraEciIncomeUsdRaw/nraFdapIncomeUsdRaw actually carry into the tax
+      // computed above -- only sums W-2 wages + self-employment for ECI and
+      // direct interest/dividends/rental for FDAP. Re-derived here from the
+      // fuller aggregateUsIncomeResult (K-1 passthrough, C-corp business
+      // income, direct-source royalties) purely as a sanity check; does NOT
+      // change the tax already computed.
+      var derived = d.nraDerivedEciFdapResult;
+      var declaredEciUsd = d.nraEciIncomeUsdRaw || 0, declaredFdapUsd = d.nraFdapIncomeUsdRaw || 0;
+      var declaredTotalUsd = declaredEciUsd + declaredFdapUsd;
+      var deltaUsd = derived.derivedTotalUsd - declaredTotalUsd;
+      var materialityUsd = Math.max(100, 0.01 * derived.derivedTotalUsd);
+      if (Math.abs(deltaUsd) > materialityUsd) {
+        var eciDeltaUsd = derived.derivedEciUsd - declaredEciUsd;
+        var fdapDeltaUsd = derived.derivedFdapUsd - declaredFdapUsd;
+        all.push({
+          id: "nra_eci_fdap_classification_check", severity: "warning", category: "credit",
+          title: "NRA ECI/FDAP split may be incomplete — " + usd(Math.abs(deltaUsd)) + (deltaUsd > 0 ? " not yet classified" : " over-counted") + " vs. a full income re-derivation",
+          detail: "Layer 1's own ECI/FDAP classification totals " + usd(declaredTotalUsd) + " (" + usd(declaredEciUsd) + " ECI + " + usd(declaredFdapUsd) + " FDAP), computed there " +
+            "from W-2 wages + self-employment (ECI) and direct interest/dividends/rental (FDAP) only. Re-deriving from the fuller income aggregation used elsewhere in " +
+            "this engine (which additionally folds in K-1 partnership/S-corp/trust passthrough income, C-corp business income, and direct-source royalties) gives " +
+            usd(derived.derivedTotalUsd) + " (" + usd(derived.derivedEciUsd) + " ECI + " + usd(derived.derivedFdapUsd) + " FDAP) — a difference of " + usd(eciDeltaUsd) +
+            " in ECI and " + usd(fdapDeltaUsd) + " in FDAP. The tax computed above still uses Layer 1's own figures, not this re-derivation.",
+          recommendation: "Reconcile the two totals with a preparer before relying on the NRA tax computed above — check especially for K-1s, C-corp/partnership income, or " +
+            "direct-source royalties that Layer 1's own ECI/FDAP screen may not be picking up.",
+          amountUsd: Math.abs(deltaUsd), refs: ["Form 1040-NR", "Schedule NEC", "FDAP", "ECI"]
+        });
+      }
+
+      // India-US DTAA FDAP treaty-rate sanity check against
+      // constants.js's INDIA_US_TREATY_FDAP_RATES.
+      (d.nraRaw.treatyRateClaims || []).forEach(function (treatyClaim) {
+        if (!treatyClaim || treatyClaim.rate == null) return;
+        var incomeType = treatyClaim.income_type;
+        var tableEntry = incomeType ? T.INDIA_US_TREATY_FDAP_RATES[incomeType] : null;
+        if (!tableEntry) return;
+        var claimedRateFrac = Math.max(0, Math.min(1, Number(treatyClaim.rate) / 100));
+        if (tableEntry.rates.some(function (r) { return Math.abs(claimedRateFrac - r) <= T.TREATY_RATE_TOLERANCE; })) return;
+        var validRatesPct = tableEntry.rates.map(function (r) { return Math.round(r * 100) + "%"; }).join(" / ");
+        all.push({
+          id: "treaty_rate_not_recognized", severity: "warning", category: "treaty",
+          title: "Claimed treaty rate (" + Math.round(claimedRateFrac * 100) + "%) doesn't match a recognized India-US DTAA rate for " + incomeType,
+          detail: "A " + Math.round(claimedRateFrac * 100) + "% rate is claimed for " + incomeType + " income, but " + tableEntry.article + " of the India-US DTAA only provides for " +
+            validRatesPct + " (" + tableEntry.note + "). This doesn't automatically mean the claim is wrong — it may reflect a sub-category this engine doesn't " +
+            "distinguish — but a rate outside the treaty's own range will not be honored by the IRS as claimed.",
+          recommendation: "Confirm the " + incomeType + " claim against " + tableEntry.article + " of the treaty (and the current IRS Publication 901) with a preparer before relying " +
+            "on the FDAP tax computed above.",
+          amountUsd: 0, refs: [tableEntry.article, "Form W-8BEN", "Pub. 901"]
+        });
+      });
+
+      // DTAA Art. 21(2) — Indian student/business-apprentice standard
+      // deduction, computed in NODES.nraTaxResult above.
+      var nraDetail = (d.usTaxResult && d.usTaxResult.nra) || {};
+      if (nraDetail.article212Eligible) {
+        var usesStandard = nraDetail.standardDeductionUsd >= nraDetail.itemizedDeductionUsd;
+        var benefitUsd = Math.max(0, nraDetail.standardDeductionUsd - nraDetail.itemizedDeductionUsd);
+        all.push({
+          id: "nra_article_21_2_standard_deduction", severity: "info", category: "credit",
+          title: "Art. 21(2) applied — " + (usesStandard ? "standard" : "itemized") + " deduction used on ECI",
+          detail: "As an Indian student/business apprentice on an F-1 visa, Article 21(2) of the India-US DTAA lets this taxpayer use the same deductions a US " +
+            "resident could — including the " + usd(nraDetail.standardDeductionUsd) + " standard deduction — instead of the itemized-only rule that otherwise " +
+            "applies to NRAs. Itemized deductions here total " + usd(nraDetail.itemizedDeductionUsd) + ", so the " +
+            (usesStandard ? "standard deduction was used" : "itemized deductions were used since they exceed the standard deduction") +
+            (benefitUsd > 0 ? ", saving " + usd(benefitUsd) + " of ECI from tax versus the itemized-only default." : "."),
+          recommendation: "File Form 8833 to disclose the treaty-based return position (Article 21(2)) alongside Form 1040-NR.",
+          amountUsd: benefitUsd, refs: ["Art. 21(2)", "Form 8833", "Form 1040-NR"]
+        });
+      } else if (nraDetail.article212AmbiguousJ1) {
+        all.push({
+          id: "nra_j1_article_21_2_review", severity: "info", category: "credit",
+          title: "J-1 visa on file — confirm whether Art. 21(2)'s standard-deduction treaty benefit applies",
+          detail: "This taxpayer's visa is recorded as J-1, which covers several sub-categories (students, business apprentices, trainees, scholars, professors, " +
+            "and research scholars). Article 21(2) of the India-US DTAA — which allows the standard deduction instead of the usual NRA itemized-only rule — " +
+            "applies only to students and business apprentices, not to scholars/professors/researchers (who fall under Article 22 instead, a different, " +
+            "time-limited exemption). This engine has not assumed eligibility and has computed tax on an itemized-only basis.",
+          recommendation: "Confirm the specific J-1 sub-category with the taxpayer; if student or business apprentice, Article 21(2) may allow the standard deduction " +
+            "(Form 8833 disclosure required) and could reduce the ECI tax computed above.",
+          amountUsd: 0, refs: ["Art. 21(2)", "Art. 22", "Form 8833"]
+        });
+      }
+    }
+
+    var weight = { critical: 0, warning: 1, info: 2 };
+    all.sort(function (a, b) {
+      if (weight[a.severity] !== weight[b.severity]) return weight[a.severity] - weight[b.severity];
+      return b.amountUsd - a.amountUsd;
+    });
     return all;
   }
 };
 
-/* ---- TAX-8: computeNraTax ------------------------------------------------- */
+/* ---- TAX-8: computeNraTax ---------------------------------------------------
+ * US-India DTAA Art. 21(2): a student or business apprentice who is (or
+ * immediately before visiting the US was) a resident of India may compute US
+ * tax using the same deductions available to a US citizen/resident,
+ * including the standard deduction -- the one carve-out from the general
+ * "NRAs get itemized deductions only" rule (IRC 873(b)). layer1_us.html's
+ * "US Visa / Immigration Status" field (#prof-visa-type) distinguishes F-1
+ * (unambiguously "Student") from J-1 ("Exchange Visitor", which also covers
+ * scholars/professors/researchers/trainees under Article 22, NOT eligible
+ * under Article 21(2)) -- so only F-1 is auto-applied; J-1 is surfaced as a
+ * finding for the preparer to confirm the sub-category rather than guessed.
+ * Mirrors dag_py/src/wising_dag/us/ustax_full.py's _nra_tax_result exactly. */
+var ARTICLE_21_2_AUTO_VISA = "f1";
+var ARTICLE_21_2_AMBIGUOUS_VISA = "j1";
+
 NODES.nraTaxResult = {
-  deps: ["nraRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary"],
+  deps: ["nraRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary", "usVisaTypeRaw"],
   compute: function (d) {
     var nra = d.nraRaw;
     var status = d.usFilingStatusRaw === "mfj" ? "mfj" : "single";
@@ -440,9 +549,24 @@ NODES.nraTaxResult = {
     var w8benOnFile = nra.submittedW8ben === true;
     var fdapRate = (w8benOnFile && claimedRate != null) ? claimedRate : 0.30;
 
-    var itemized = Math.min(ded.salt, computeSaltCap(eciUsd, status)) + ded.mortgageInterest + ded.charitable +
+    var itemizedUsd = Math.min(ded.salt, computeSaltCap(eciUsd, status)) + ded.mortgageInterest + ded.charitable +
                    Math.max(0, ded.medical - 0.075 * eciUsd);
-    var taxableEciUsd = Math.max(0, eciUsd - itemized);
+    var visaType = d.usVisaTypeRaw;
+    var article212Eligible = visaType === ARTICLE_21_2_AUTO_VISA;
+    var article212AmbiguousJ1 = visaType === ARTICLE_21_2_AMBIGUOUS_VISA;
+    var stdDeductionUsd = T.STD_DEDUCTION[status] || T.STD_DEDUCTION.single;
+    var deductionUsd, deductionMode;
+    if (article212Eligible) {
+      deductionUsd = Math.max(itemizedUsd, stdDeductionUsd);
+      deductionMode = deductionUsd === stdDeductionUsd
+        ? "standard (Art. 21(2) — Indian student/business apprentice, " + usd(stdDeductionUsd) + ")"
+        : "itemized (Art. 21(2) — Indian student/business apprentice; itemized exceeds the standard deduction)";
+    } else {
+      deductionUsd = itemizedUsd;
+      deductionMode = "itemized (NRA — no standard deduction)";
+    }
+
+    var taxableEciUsd = Math.max(0, eciUsd - deductionUsd);
     var eciTaxUsd = bracketTax(taxableEciUsd, brackets);
     var eciBracketBreakdown = bracketBreakdown(taxableEciUsd, brackets);
     var fdapTaxUsd = fdapUsd * fdapRate;
@@ -452,7 +576,7 @@ NODES.nraTaxResult = {
     return {
       filingStatus: status, worldwide: false, isNra: true,
       totalIncomeUsd: eciUsd + fdapUsd,
-      agiUsd: eciUsd, deductionUsd: itemized, deductionMode: "itemized (NRA — no standard deduction)",
+      agiUsd: eciUsd, deductionUsd: deductionUsd, deductionMode: deductionMode,
       taxableIncomeUsd: taxableEciUsd,
       ordinaryTaxUsd: eciTaxUsd, preferentialTaxUsd: 0, incomeTaxUsd: eciTaxUsd + fdapTaxUsd,
       niitUsd: 0, additionalMedicareUsd: addlMedicare, seTaxUsd: 0, qbiDeductionUsd: 0, amtUsd: 0, creditsUsd: 0,
@@ -461,7 +585,9 @@ NODES.nraTaxResult = {
       foreignSourceIncomeUsd: 0,
       usSourceIncomeUsd: eciUsd + fdapUsd,
       nra: { eciUsd: eciUsd, fdapUsd: fdapUsd, fdapRate: fdapRate, eciTaxUsd: eciTaxUsd, fdapTaxUsd: fdapTaxUsd, taxableEciUsd: taxableEciUsd, eciBracketBreakdown: eciBracketBreakdown,
-        claimedRate: claimedRate, w8benOnFile: w8benOnFile, incomeType: (claim && claim.income_type) || null },
+        claimedRate: claimedRate, w8benOnFile: w8benOnFile, incomeType: (claim && claim.income_type) || null,
+        itemizedDeductionUsd: itemizedUsd, standardDeductionUsd: stdDeductionUsd,
+        article212Eligible: article212Eligible, article212AmbiguousJ1: article212AmbiguousJ1, visaType: visaType },
       feie: { claimed: false, eligible: false, taxHomeAbroad: false, testMet: false, reasons: [], appliedUsd: 0 },
       effectiveRate: (eciUsd + fdapUsd) > 0 ? totalTax / (eciUsd + fdapUsd) : 0
     };
