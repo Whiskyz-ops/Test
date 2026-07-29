@@ -465,7 +465,25 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // audit, 27 Jul 2026): same shape again -- unvested_restricted_stock_
 // awards[].filed_within_30_days fed nothing at all before this. No engine
 // equivalent since the classic engine is frozen.
-var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely|nra_eci_fdap_classification_check|treaty_rate_not_recognized)$/;
+// ftc_gap/ftc_available/niit_medicare_not_creditable/underpayment_2210
+// (task #46, §904 basket split — see KNOWN_ALWAYS_DIVERGENT_PATHS's
+// "computed.ftc.us" comment): that comment's own
+// "findings[ftc_gap]"/"findings[ftc_available]"/"findings[underpayment_2210]"
+// entries only excuse a CONTENT diff on a finding present on both sides
+// (compareFindings' `else` branch below) -- they never covered the
+// presence/absence case (a finding appearing/disappearing entirely, in
+// EITHER direction), which is decided here instead. Same underlying
+// divergence, unconditional either way per that comment ("neither effect
+// has a predictable sign relative to the frozen engine");
+// niit_medicare_not_creditable's own trigger condition
+// (findings-batch3-nodes.js) reads d.ftcResult.us.indiaTaxPaidUsd directly,
+// so it inherits the same cascade even though task #46's own comment never
+// named it. underpayment_2210 also has a SEPARATE, narrower, one-directional
+// exception below (US entity, unrelated to the FTC basket split) -- this
+// entry only covers the "DAG has it extra" direction; the "engine has it,
+// DAG doesn't" direction is handled explicitly in the branch below since it
+// needs to keep both reasons distinct.
+var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely|nra_eci_fdap_classification_check|treaty_rate_not_recognized|ftc_gap|ftc_available|niit_medicare_not_creditable|underpayment_2210)$/;
 // cfc (Phase 7, XB-14, GILTI/NCTI quantification): the finding's detail/
 // recommendation/refs text now differs unconditionally from the frozen
 // engine's static text whenever it fires — real computed inclusion numbers
@@ -826,14 +844,20 @@ function compareFindings(dagFindings, realFindings, isUsEntity) {
     if (inDag && !inReal) {
       (KNOWN_EXTRA_FINDING_ID.test(id) ? known : unknown).push("findings: DAG has extra \"" + id + "\", engine doesn't");
     } else if (!inDag && inReal) {
-      // Never allowlisted, with exactly ONE catalogued exception (section D
-      // above): underpayment_2210 for a US entity, deliberately suppressed
-      // in agg10-nodes.js's us1ShouldFire override because the engine cites
-      // the wrong form/statute (Form 2210/§6654, an individual-only regime)
-      // for an entity. Every other DAG-drops-a-finding case is still always
-      // real — no observed case besides this one has ever been legitimate.
+      // Two catalogued exceptions: underpayment_2210 for a US entity
+      // (deliberately suppressed in agg10-nodes.js's us1ShouldFire override
+      // because the engine cites the wrong form/statute -- Form 2210/§6654,
+      // an individual-only regime -- for an entity), and the §904 basket
+      // split (task #46) which can move the FTC-dependent findings
+      // (ftc_gap/ftc_available/underpayment_2210) in EITHER direction --
+      // same divergence as the "DAG has extra" branch above and
+      // KNOWN_ALWAYS_DIVERGENT_PATHS's "computed.ftc.us" comment, just the
+      // opposite presence/absence direction. Every other DAG-drops-a-finding
+      // case is still always real.
       if (id === "underpayment_2210" && isUsEntity) {
         known.push("findings: engine has \"underpayment_2210\", DAG doesn't (US entity — Form 2210/§6654 doesn't apply; see agg10-nodes.js's us1ShouldFire override, GAP_TRACKER.md section H)");
+      } else if (id === "underpayment_2210" || id === "ftc_gap" || id === "ftc_available" || id === "niit_medicare_not_creditable") {
+        known.push("findings: engine has \"" + id + "\", DAG doesn't (§904 basket-split/FTC work, task #46 — see KNOWN_ALWAYS_DIVERGENT_PATHS's \"computed.ftc.us\" comment)");
       } else {
         unknown.push("findings: engine has \"" + id + "\", DAG doesn't");
       }

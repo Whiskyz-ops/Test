@@ -224,10 +224,16 @@ Much shorter than the original version of this list:
       verification pass — characterized 29 Jul 2026 (`docs/GAP_TRACKER.md`
       §H.16); none were bugs, `run-fuzz.js` itself is now fully clean
 - [ ] **NEW**: port `run-fuzz.js`'s predicate/allowlist system into
-      `test-adapter.mjs`/`test-shadow.mjs`/`run-report1.js`/`run-report2.js`
-      so the full regression suite is clean everywhere, not just the fuzzer
+      `test-adapter.mjs`/`test-shadow.mjs`/`run-report1.js`/`run-report2.js`/
+      `run-monitor.js` so the full regression suite is clean everywhere, not
+      just the fuzzer (`run-monitor.js` added 29 Jul 2026, §H.17 — same gap,
+      confirmed to have zero cascade-allowlist mechanism at all)
 - [ ] **NEW**: `run-js-dag-vs-py-dag.js`'s pre-existing `computed.usTax.nra.*`
       gap — uncharacterized
+- [x] Two harness-parity gaps left by a concurrent session's task #46 merge
+      (`run-report1.js` missing `form_8880`; `run-fuzz.js`'s FTC-basket
+      presence/absence findings wiring) — closed 29 Jul 2026
+      (`docs/GAP_TRACKER.md` §H.17)
 
 Current honest claim, updated: *"the entity side's core computation,
 ownership graph, inter-entity traceability, and frontend are shipped and
