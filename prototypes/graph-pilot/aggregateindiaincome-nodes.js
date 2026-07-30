@@ -222,6 +222,71 @@ var NODES = {
     }
   },
   diAgg: { deps: ["annualSliceAgg"], compute: function (d) { return d.annualSliceAgg.domestic_income || {}; } },
+
+  // ---- salary income: gross + perquisites, less standard deduction and the
+  // exemptions/deductions Layer 1 collects (HRA 10(13A), LTA 10(5),
+  // conveyance/tour/daily allowance 10(14), PWD transport allowance 10(14)/
+  // Rule 2BB(1)(g), professional tax 16(iii)). Previously the engine only
+  // ever read salary.taxable_salary_inr (which real users never set — only
+  // the demo/simulation path does) or fell back to raw gross_salary_inr with
+  // ZERO exemptions applied, silently overstating salary income for every
+  // real filer. HRA/LTA/professional-tax are OLD-regime-only per s.115BAC(2);
+  // standard deduction and the Rule 2BB reimbursement-type allowances apply
+  // in both regimes. ---------------------------------------------------------
+  salaryIncomeComputation: {
+    deps: ["diAgg"],
+    compute: function (d, ctx) {
+      var sal = safe(d.diAgg, "salary", {});
+      var explicitTaxableInr = safe(sal, "taxable_salary_inr", null);
+      if (explicitTaxableInr !== null) return { taxableSalaryInr: num(explicitTaxableInr), overridden: true };
+
+      var india = ctx.india;
+      var isNewRegime = (safe(india, "profile.tax_regime", "NEW") || "NEW").toUpperCase() !== "OLD";
+      var C = CONST_AGGIN.TAX.INDIA;
+
+      var grossSalaryInr = num(safe(sal, "gross_salary_inr", 0)) + num(safe(sal, "perquisites_inr", 0)) +
+        num(safe(sal, "esop_perquisite_inr", 0)) + num(safe(sal, "prior_employer_salary_inr", 0));
+
+      var stdDeductionInr = isNewRegime ? C.STD_DEDUCTION_SALARY_NEW_INR : C.STD_DEDUCTION_SALARY_OLD_INR;
+
+      function reimbursementExemptInr(node) {
+        return Math.min(num(safe(node, "allowance_received_inr", 0)), num(safe(node, "actual_expenditure_inr", 0)));
+      }
+      var conveyanceExemptInr = reimbursementExemptInr(safe(sal, "conveyance_allowance", {}));
+      var tourExemptInr = reimbursementExemptInr(safe(sal, "tour_travel_allowance", {}));
+      var dailyExemptInr = reimbursementExemptInr(safe(sal, "daily_allowance", {}));
+
+      var pwd = safe(sal, "pwd_transport_allowance", {});
+      var pwdExemptInr = safe(pwd, "is_eligible_pwd", false) === true
+        ? Math.min(num(safe(pwd, "allowance_received_inr", 0)), C.PWD_TRANSPORT_ALLOWANCE_ANNUAL_INR)
+        : 0;
+
+      var hraExemptInr = 0, ltaExemptInr = 0, professionalTaxDeductionInr = 0;
+      if (!isNewRegime) {
+        var hraReceivedInr = num(safe(sal, "hra_received_inr", 0));
+        if (hraReceivedInr > 0) {
+          var basicDaInr = num(safe(sal, "basic_da_inr", 0));
+          var rentMinus10PctInr = Math.max(0, num(safe(sal, "rent_paid_inr", 0)) - 0.10 * basicDaInr);
+          var metroLimitInr = (safe(sal, "is_metro_city", false) === true ? 0.5 : 0.4) * basicDaInr;
+          hraExemptInr = Math.max(0, Math.min(hraReceivedInr, rentMinus10PctInr, metroLimitInr));
+        }
+        // lta_claimed_inr is already the exempt amount per Form 16 Part B's own "allowances exempt u/s 10" line.
+        ltaExemptInr = Math.max(0, num(safe(sal, "lta_claimed_inr", 0)));
+        professionalTaxDeductionInr = Math.min(num(safe(sal, "professional_tax_inr", 0)), C.PROFESSIONAL_TAX_MAX_ANNUAL_INR);
+      }
+
+      var totalExemptionsInr = stdDeductionInr + conveyanceExemptInr + tourExemptInr + dailyExemptInr +
+        pwdExemptInr + hraExemptInr + ltaExemptInr + professionalTaxDeductionInr;
+
+      return {
+        taxableSalaryInr: Math.max(0, grossSalaryInr - totalExemptionsInr), overridden: false,
+        grossSalaryInr: grossSalaryInr, stdDeductionInr: stdDeductionInr,
+        hraExemptInr: hraExemptInr, ltaExemptInr: ltaExemptInr, conveyanceExemptInr: conveyanceExemptInr,
+        tourExemptInr: tourExemptInr, dailyExemptInr: dailyExemptInr, pwdExemptInr: pwdExemptInr,
+        professionalTaxDeductionInr: professionalTaxDeductionInr
+      };
+    }
+  },
   osAgg: { deps: ["annualSliceAgg"], compute: function (d) { return d.annualSliceAgg.other_sources || {}; } },
   cgAgg: { deps: ["annualSliceAgg"], compute: function (d) { return d.annualSliceAgg.capital_gains || {}; } },
   bizEntriesAgg: { deps: ["diAgg"], compute: function (d) { return safe(d.diAgg, "business_income.business_entries", []); } },
@@ -573,11 +638,11 @@ var NODES = {
 
   // ---- final total, matching aggregateIndiaIncome's own formula exactly ---
   totalIndiaIncomeInr: {
-    deps: ["businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "diAgg", "osAgg"],
+    deps: ["businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "diAgg", "osAgg", "salaryIncomeComputation"],
     compute: function (d, ctx) {
       var india = ctx.india;
       var di = d.diAgg;
-      var salaryInr = num(safe(di, "salary.taxable_salary_inr", null)) || num(safe(di, "salary.gross_salary_inr", 0));
+      var salaryInr = d.salaryIncomeComputation.taxableSalaryInr;
       var hpProps = safe(di, "house_property.properties", []) || [];
       var housePropertyInr = hpProps.reduce(function (s, p) { return s + num(p.annual_value_inr || p.gross_annual_value_inr || p.net_income_inr || p.gross_rent_received_inr || 0); }, 0);
       var os = d.osAgg;
@@ -601,12 +666,12 @@ var NODES = {
    * model.income.india in run-aggregateindiaincome.js. */
   indiaIncomeModelResult: {
     deps: ["businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "diAgg", "osAgg",
-      "fnoIncomeInrAgg", "speculativeIncomeInrAgg"],
+      "fnoIncomeInrAgg", "speculativeIncomeInrAgg", "salaryIncomeComputation"],
     compute: function (d, ctx) {
       function m(inr) { return { inr: inr, usd: inr / fxRate(ctx) }; }
 
       var di = d.diAgg, os = d.osAgg;
-      var salaryInr = num(safe(di, "salary.taxable_salary_inr", null)) || num(safe(di, "salary.gross_salary_inr", 0));
+      var salaryInr = d.salaryIncomeComputation.taxableSalaryInr;
       var hpProps = safe(di, "house_property.properties", []) || [];
       var housePropertyInr = hpProps.reduce(function (s, p) { return s + num(p.annual_value_inr || p.gross_annual_value_inr || p.net_income_inr || p.gross_rent_received_inr || 0); }, 0);
       var interestInr = num(safe(os, "interest_savings_inr", 0)) + num(safe(os, "interest_fd_rd_inr", 0)) + num(safe(os, "interest_bonds_inr", 0)) + num(safe(os, "interest_on_it_refund_inr", 0)) + num(safe(di, "other_sources.interest_inr", 0));
@@ -641,6 +706,7 @@ var NODES = {
         promoterBuybackStcgInr: cg.promoterBuybackStcgInr,
         holdingPeriodMismatches: cg.holdingPeriodMismatches,
         unexplained115bbeInr: unexplained115bbeInr,
+        salaryDetail: d.salaryIncomeComputation,
         total: m(total)
       };
       var basket = indiaIncomeBasketSplit(result);

@@ -836,6 +836,32 @@ var KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS = [
   "summary.indiaTaxUsd", "summary.netDoubleTaxUsd", "summary.healthScore", "summary.counts",
   "documents", "scopeNotes", "returnForms"
 ];
+// India salary exemptions (funding-audit follow-up): the engine's
+// normalize.js only ever reads salary.taxable_salary_inr (which no real form
+// input ever sets — only the demo/simulation injector does) or falls back to
+// raw gross_salary_inr with ZERO exemptions applied. aggregateindiaincome-
+// nodes.js's new salaryIncomeComputation instead applies the real s.16(ia)
+// standard deduction (both regimes), s.10(14)/Rule 2BB reimbursement-type
+// allowances (both regimes), and the OLD-regime-only s.10(13A) HRA / s.10(5)
+// LTA / s.16(iii) professional-tax items s.115BAC(2) disallows under the new
+// regime. Real AMOUNT fix, same blast radius as the AOP/Trust fix above.
+function isIndiaSalaryExemptionProfile(dag) {
+  var sd = dag.model.income && dag.model.income.india && dag.model.income.india.salaryDetail;
+  if (!sd) return false;
+  // Also covers an edge case the fix incidentally closes: the OLD fallback
+  // was `taxable_salary_inr || gross_salary_inr`, which treated an explicit
+  // 0 as falsy and silently substituted gross salary instead of honoring a
+  // real filed value of zero. The new code's `!== null` check respects an
+  // explicit 0 (overridden:true, taxableSalaryInr:0) — a second, narrower
+  // real amount fix, same cascade shape as the exemption fix above.
+  return sd.overridden === false || sd.taxableSalaryInr === 0;
+}
+var KNOWN_INDIA_SALARY_EXEMPTION_DIVERGENT_PATHS = [
+  "model.income.india", "computed.indiaTax", "computed.ftc", "computed.headline", "computed.reconciliation",
+  "computed.apportionment", "taxComputation.india", "ftcReport", "withholding", "monitoring",
+  "summary.indiaTaxUsd", "summary.totalIncomeUsd", "summary.netDoubleTaxUsd", "summary.healthScore", "summary.counts",
+  "documents", "scopeNotes", "returnForms"
+];
 function pathMatchesAny(p, prefixes) {
   return prefixes.some(function (prefix) { return p === prefix || p.indexOf(prefix + ".") === 0 || p.indexOf(prefix + "[") === 0; });
 }
@@ -1039,6 +1065,7 @@ function compareOne(label, profile, saveOnFail) {
   var feieBonaFideProxyDivergent = isFeieBonaFideProxyDivergentProfile(profile);
   var qbiWageUbiaDivergent = isQbiWageUbiaLimitDivergentProfile(real);
   var indiaRebateDivergent = isIndiaRebateMarginalReliefDivergentProfile(dag);
+  var indiaSalaryExemption = isIndiaSalaryExemptionProfile(dag);
   var findingsResult = compareFindings(dag.findings, real.findings, usEntity);
   // AOP/Trust: findings content genuinely cascades from the (now correct)
   // India tax amount in ways too varied to enumerate by finding ID (see
@@ -1051,7 +1078,8 @@ function compareOne(label, profile, saveOnFail) {
   // indiaRebateDivergent all cascade the same way into every $-amount-bearing
   // finding (amt_applies, underpayment_2210, etc).
   var findingsExcused = indiaAopOrTrust || feieWagesDivergent || feieBonaFideProxyDivergent ||
-    qbiWageLimitDivergent || qbiWageUbiaDivergent || saversCreditDivergent || indiaRebateDivergent;
+    qbiWageLimitDivergent || qbiWageUbiaDivergent || saversCreditDivergent || indiaRebateDivergent ||
+    indiaSalaryExemption;
   (findingsExcused ? knownDiffs : realDiffs).push.apply(findingsExcused ? knownDiffs : realDiffs, findingsResult.unknown);
   knownDiffs.push.apply(knownDiffs, findingsResult.known);
 
@@ -1094,7 +1122,12 @@ function compareOne(label, profile, saveOnFail) {
     .concat(isQbiWageLimitDivergent(dag) ? KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS : [])
     .concat(qbiWageUbiaDivergent ? KNOWN_QBI_WAGE_UBIA_DIVERGENT_PATHS : [])
     .concat(saversCreditDivergent ? KNOWN_SAVERS_CREDIT_DIVERGENT_PATHS : [])
-    .concat(indiaRebateDivergent ? KNOWN_INDIA_REBATE_MARGINAL_RELIEF_DIVERGENT_PATHS : []);
+    .concat(indiaRebateDivergent ? KNOWN_INDIA_REBATE_MARGINAL_RELIEF_DIVERGENT_PATHS : [])
+    .concat(indiaSalaryExemption ? KNOWN_INDIA_SALARY_EXEMPTION_DIVERGENT_PATHS : [])
+    // salaryDetail is a pure introspection field (like checksRegistry) with
+    // no engine equivalent at all — present on EVERY profile regardless of
+    // whether the override fired, so it's always known, not gated above.
+    .concat(["model.income.india.salaryDetail"]);
   if (allowedPaths.length) {
     var stillReal = [];
     realDiffs.forEach(function (diff) {
