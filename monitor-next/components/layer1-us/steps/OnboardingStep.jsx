@@ -191,46 +191,13 @@ export default function OnboardingStep() {
 
       {/* ── Individual-only quick profile fields (layer1_us.html:671-773) ── */}
       {isIndividual ? (
-        <div className="flex flex-col gap-4">
-          <div>
-            <label className={label}>Filing Status</label>
-            <select className={selectCls} value={usState.profile.filing_status}
-              onChange={(e) => setField("profile.filing_status", e.target.value)}>
-              <option value="single">Single</option>
-              <option value="mfj">Married Filing Jointly (MFJ)</option>
-              <option value="mfs">Married Filing Separately (MFS)</option>
-              <option value="hoh">Head of Household (HOH)</option>
-              <option value="qss">Qualifying Surviving Spouse (QSS)</option>
-            </select>
-            <span className="text-[9px] text-muted mt-1 block">Full NRA filing-status restrictions & residency-driven validation live in the Profile & Residency step.</span>
-          </div>
-
-          <div>
-            <label className={label}>Taxpayer ID Type</label>
-            <select className={selectCls} value={usState.profile.ssn_or_itin_type}
-              onChange={(e) => setField("profile.ssn_or_itin_type", e.target.value)}>
-              <option value="none">None (Requires ITIN Form W-7 / ATIN Form W-7A)</option>
-              <option value="ssn">SSN (Social Security Number)</option>
-              <option value="itin">ITIN (Individual Taxpayer ID)</option>
-              <option value="atin">ATIN (Adoption Taxpayer ID)</option>
-            </select>
-          </div>
-
-          {usState.profile.ssn_or_itin_type !== "none" && (
-            <div>
-              <label className={label}>SSN, ITIN or ATIN Number</label>
-              <input type="text" className={input + " font-mono"} placeholder="000-00-0000"
-                value={usState.profile.ssn_or_itin || ""}
-                onChange={(e) => setField("profile.ssn_or_itin", e.target.value)} />
-            </div>
-          )}
-
-          <div>
-            <label className={label}>Dependents Count</label>
-            <input type="text" inputMode="numeric" className={input + " font-mono"} placeholder="0"
-              value={usState.profile.dependents_count ?? 0}
-              onChange={(e) => setField("profile.dependents_count", parseInt(e.target.value, 10) || 0)} />
-          </div>
+        // Filing status, taxpayer-ID, dependents & Trump-account fields
+        // (layer1_us.html:673-772) are rendered in the Profile & Residency
+        // step (ProfileStep.jsx) per this port's step assignment — kept out
+        // of this panel to avoid a duplicate editable copy of the same
+        // schema fields across two components.
+        <div className={nestedCard + " text-[10px] text-muted"}>
+          Filing status, Taxpayer ID, dependents, and Trump Accounts (§530A) are configured in the next step — <span className="text-body font-semibold">Profile &amp; Residency</span>.
         </div>
       ) : (
         // ── Corporate profile fields (layer1_us.html:775-819) ──

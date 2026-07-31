@@ -1,7 +1,7 @@
 "use client";
 
 import { useUsLayer1Store } from "@/lib/layer1-us/store";
-import { Card, SectionLabel, Field, NumberInput, TextInput, DateInput, Select, ToggleRow, Checkbox } from "./_ui";
+import { Card, Field, NumberInput, TextInput, DateInput, Select, ToggleRow } from "./_ui";
 
 // Source: layer1_us.html panel-step-deductions (~line 3440) + updateStateField/
 // toggleDeductionsFields/toggle529Fields handlers. All fields below map 1:1 to
