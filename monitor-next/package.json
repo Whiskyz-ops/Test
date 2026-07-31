@@ -20,6 +20,7 @@
     "@fontsource/cormorant-garamond": "^5.2.11",
     "@fontsource/manrope": "^5.2.8",
     "@vercel/analytics": "^2.0.1",
+    "@xstate/react": "^6.1.0",
     "lucide-react": "^1.23.0",
     "next": "14.2.33",
     "prop-types": "^15.8.1",
@@ -27,7 +28,9 @@
     "react-dom": "18.3.1",
     "react-simple-maps": "3.0.0",
     "us-atlas": "3.0.1",
-    "world-atlas": "2.0.2"
+    "world-atlas": "2.0.2",
+    "xstate": "^5.32.5",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",

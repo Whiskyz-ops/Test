@@ -27,6 +27,10 @@ module.exports = {
         // WISING signature: emerald (#34d399) + blue (#60a5fa)
         accent: "#34d399",
         accent2: "#60a5fa",
+        // Alias used by the layer1-us wizard components (matches `accent`);
+        // added so `border-brandGreen/50` etc. resolve instead of silently
+        // no-op'ing under Tailwind's JIT scanner.
+        brandGreen: "#34d399",
         accentSoft: "rgba(52,211,153,0.12)",
         panel: "#161616",       // featured panel (emerald-lit dark, not light)
         panelink: "#ffffff",
