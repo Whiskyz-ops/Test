@@ -141,6 +141,27 @@ var NODES = {
   feieExcludedUsdBoundaryFtc: { deps: [], compute: function (d, ctx) { var u = ctx.computed.usTax; return (u.feie && u.feie.appliedUsd) || 0; } },
   usIsNraBoundaryFtc: { deps: [], compute: function (d, ctx) { return !!ctx.computed.usTax.isNra; } },
   hasUsScopeBoundaryFtc: { deps: [], compute: function (d, ctx) { return ctx.model.meta.hasUsScope !== false; } },
+  // FTC Direction-1 gating fix (run-ftc-correctness.js): a taxpayer can cede
+  // US worldwide taxation via TREATY POSITION ALONE (residency-nodes.js's
+  // usCedes: treatyUsResidenceRaw === "india", with no 1040-NR filing at
+  // all), in which case usIsNraBoundaryFtc stays false but computeUsTaxCore
+  // has already excluded India-source income from the US taxable base
+  // (every foreign-income term there is gated on the same worldwide flag).
+  // Without this boundary, ftcUsDirection had no way to know that happened
+  // and still treated the full India income as "foreign-source income
+  // relative to a US base that contains it" — crediting Indian tax against
+  // US tax that was never levied on that income at all.
+  //
+  // Reads computed.usTax.worldwide (the already entity/NRA-routing-aware
+  // field every usTax result shape carries — computation.js:1057/1241/1280,
+  // ustax-nodes.js:385, ustax-full-nodes.js:141/630/817), NOT
+  // computed.residency.us.worldwide directly: that field is an INDIVIDUAL-
+  // only concept (citizen/green-card/SPT tests), always false for a real
+  // business entity — reading it here would have wrongly zeroed Direction-1
+  // for every entity taxpayer (an entity's own usTax result already
+  // declares worldwide:true, by the same "tax the whole M-1 figure, no
+  // further split" assumption ustax-full-nodes.js's own header documents).
+  usWorldwideBoundaryFtc: { deps: [], compute: function (d, ctx) { return !!ctx.computed.usTax.worldwide; } },
   indiaIncomeTotalUsdBoundaryFtc: { deps: [], compute: function (d, ctx) { return ctx.model.income.india.total.usd; } },
   // §904 basket split of India-source income (task #46) — derived via the
   // shared indiaIncomeBasketSplit() (see require() above), so
@@ -189,12 +210,16 @@ var NODES = {
   // ---- Direction 1: US Form 1116 — credit for Indian (+ other-country)
   // taxes, split by §904 basket -------------------------------------------
   ftcUsDirection: {
-    deps: ["feieExcludedUsdBoundaryFtc", "usIsNraBoundaryFtc", "hasUsScopeBoundaryFtc",
+    deps: ["feieExcludedUsdBoundaryFtc", "usIsNraBoundaryFtc", "hasUsScopeBoundaryFtc", "usWorldwideBoundaryFtc",
       "indiaPassiveIncomeUsdBoundaryFtc", "indiaGeneralIncomeUsdBoundaryFtc", "indiaIncomeTotalUsdBoundaryFtc",
       "usTaxableIncomeUsdBoundaryFtc", "usIncomeTaxUsdBoundaryFtc", "indiaTotalTaxUsdBoundaryFtc",
       "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw"],
     compute: function (d) {
-      var zeroed = d.usIsNraBoundaryFtc || !d.hasUsScopeBoundaryFtc;
+      // usIsNraBoundaryFtc / !hasUsScopeBoundaryFtc: the pre-existing zeroing
+      // conditions (XB-24). !usWorldwideBoundaryFtc: the fix above — ceded
+      // worldwide taxation via treaty position alone also has to zero this,
+      // not just an actual 1040-NR filing.
+      var zeroed = d.usIsNraBoundaryFtc || !d.hasUsScopeBoundaryFtc || !d.usWorldwideBoundaryFtc;
       var feieExcludedUsd = d.feieExcludedUsdBoundaryFtc; // FEIE only ever excludes earned (general-category) income
       var usTaxableUsd = d.usTaxableIncomeUsdBoundaryFtc;
       var usIncomeTaxUsd = d.usIncomeTaxUsdBoundaryFtc;
