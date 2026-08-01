@@ -29,6 +29,26 @@ import { useUsLayer1Store } from "@/lib/layer1-us/store";
 // cross-step aggregate. Whichever step/effect owns real_estate and crypto
 // will stomp these same two scalar fields when it recalculates; there is
 // no cross-step aggregation layer in this React port yet.
+//
+// *** CROSS-STEP CONFLICT (found while building this file, not resolved
+// here — this component was NOT told to expect it) ***: as of this
+// writing, components/layer1-us/steps/IncomeUsStep.jsx ALSO renders
+// has_capital_gains / stcg_us_source_usd / ltcg_us_source_usd as
+// directly-editable fields, plus has_sec_1256 / has_qsbs / has_collectibles
+// / stocks_needs_wash_sale_reconciliation / crypto_needs_wash_sale /
+// has_qof_rollover / has_1031_exchange / has_installment_sale /
+// has_capital_loss_carryovers / st_loss_carryover_usd /
+// lt_loss_carryover_usd — the SAME fields this step's "Flags, Elections &
+// Carryovers" card owns below. Two mounted step components now write the
+// same usState paths. Worse: this step's useEffect above unconditionally
+// overwrites stcg_us_source_usd/ltcg_us_source_usd with the sum of
+// capital_gains_transactions (even 0 when that array is empty) every time
+// step-capgains mounts/re-renders, silently clobbering whatever a user
+// typed directly into IncomeUsStep's version of the same two fields. This
+// needs a decision (pick one step as sole owner, or drop the auto-write
+// here in favor of a manual "recalculate" button) before shipping both
+// steps together — flagging rather than unilaterally deleting scope from
+// either file.
 
 // isLongTerm(): ported per task spec as a 12-months-and-a-day / 366-day
 // class boundary (add one calendar year to the acquisition date, sold

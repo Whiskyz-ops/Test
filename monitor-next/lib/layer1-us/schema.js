@@ -147,6 +147,14 @@ export function createDefaultUsState() {
       c_corporations_1120: [],
       farming_schedule_f: [],
       trusts_estates_k1: [],
+      // Added post-port (not present in layer1_us.html's usState literal):
+      // IncomeUsStep.jsx's W-2 repeatable and CapGainsStep.jsx's manual
+      // capital-gains line items both need a home; the original vanilla-JS
+      // wizard writes these via full-DOM-rescrape sync functions instead of
+      // a schema-declared array, so there was nothing to port verbatim.
+      // Flagged as a known gap in the migration report.
+      w2_wages: [],
+      capital_gains_transactions: [],
       se_health_insurance_deduction_usd: null,
       se_retirement_deduction_usd: null,
       interest_us_bank_usd: null,

@@ -53,7 +53,7 @@ function MasterToggle({ checked, onChange, label = "Enabled" }) {
   );
 }
 
-function LabeledNumber({ label, hint, value, onChange, placeholder = "0" }) {
+function LabeledNumber({ label, hint, value, onChange, placeholder = "0", readOnly = false }) {
   return (
     <div>
       <label className="block text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">
@@ -66,9 +66,13 @@ function LabeledNumber({ label, hint, value, onChange, placeholder = "0" }) {
         type="text"
         inputMode="numeric"
         value={value === null || value === undefined ? "" : value}
-        onChange={(e) => onChange(num(e.target.value))}
+        onChange={readOnly ? undefined : (e) => onChange(num(e.target.value))}
+        readOnly={readOnly}
         placeholder={placeholder}
-        className="w-full rounded-lg bg-white/[0.03] border border-line px-3 py-2 text-sm text-head font-mono focus:outline-none focus:border-brandGreen/50"
+        className={
+          "w-full rounded-lg border border-line px-3 py-2 text-sm text-head font-mono focus:outline-none " +
+          (readOnly ? "bg-white/[0.01] text-muted cursor-not-allowed" : "bg-white/[0.03] focus:border-brandGreen/50")
+        }
       />
     </div>
   );
@@ -453,15 +457,24 @@ export default function IncomeUsStep() {
       </Card>
 
       {/* Capital Gains & flags */}
+      {/* Ownership fix (integration pass): CapGainsStep.jsx is the live
+          computed source of truth for has_capital_gains/stcg_us_source_usd/
+          ltcg_us_source_usd (it derives them from the manual transaction
+          list via a useEffect, mirroring the original's
+          recalculateCapitalGainsAggregate()). This card used to also own a
+          MasterToggle + editable STCG/LTCG numbers, which raced with that
+          effect and got silently overwritten on every CapGainsStep mount.
+          Now read-only here; the elections/flags below (wash sale, 1256,
+          QSBS, etc.) still live in income_us_source and stay editable. */}
       <Card
         title="Capital Gains & Investment Flags"
-        headerRight={<MasterToggle checked={income.has_capital_gains} onChange={(v) => set("has_capital_gains", v)} />}
+        sub="STCG/LTCG totals are computed on the Capital Gains screen from your transaction list."
       >
         {income.has_capital_gains ? (
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <LabeledNumber label="Short-Term Capital Gains (Net)" hint="Assets held ≤ 1 year" value={income.stcg_us_source_usd} onChange={(v) => set("stcg_us_source_usd", v)} />
-              <LabeledNumber label="Long-Term Capital Gains (Net)" hint="Assets held > 1 year" value={income.ltcg_us_source_usd} onChange={(v) => set("ltcg_us_source_usd", v)} />
+              <LabeledNumber label="Short-Term Capital Gains (Net)" hint="Read-only — set on the Capital Gains screen" value={income.stcg_us_source_usd} onChange={() => {}} readOnly />
+              <LabeledNumber label="Long-Term Capital Gains (Net)" hint="Read-only — set on the Capital Gains screen" value={income.ltcg_us_source_usd} onChange={() => {}} readOnly />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <CheckRow checked={income.stocks_needs_wash_sale_reconciliation} onChange={(v) => set("stocks_needs_wash_sale_reconciliation", v)} label="Needs Wash Sale Reconciliation" sublabel="Broker 1099-B wash-sale adjustments require manual review" />
