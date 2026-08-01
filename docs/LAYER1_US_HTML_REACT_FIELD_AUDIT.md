@@ -213,3 +213,14 @@ synced copy), and the OR-bug fix for §6013(g)/(h) MFJ unlocking.
    steps.
 3. Task #12 (replace `layer1_us.html` with the React port) stays blocked
    until the user confirms satisfaction against this list.
+
+## Fix progress
+
+- **[FIXED]** Tier 0 #11 (onboarding setup-gate flags never hydrated from
+  real data on reload). `derive.js` gained `deriveSetupFlags()` (ported from
+  `layer1_us.html:20738-20828`); `store.js`'s `useOnboardingSetup` gained a
+  `hydrateFromUsState()` action wired into `replaceAll` and, via a
+  post-mount `useEffect` in `page.jsx`, into initial load. Verified live in
+  headless Chromium: real underlying data reopens gated phases on reload,
+  blank state still hides them, manual toggles and persona prefill both
+  still work, zero hydration/console errors.
