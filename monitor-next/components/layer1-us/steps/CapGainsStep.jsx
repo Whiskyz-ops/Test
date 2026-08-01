@@ -1,34 +1,39 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useUsLayer1Store } from "@/lib/layer1-us/store";
 
 // React port of layer1_us.html:1832-2107 ("Screen 3C-2 — Capital Gains &
 // Crypto"). Source functions ported: addUSCapGainsRow('cg', ...) /
-// syncUSCapGainsState('cg') for the manual entry list, plus the
-// isLongTerm() split from recalculateCapitalGainsAggregate()
-// (layer1_us.html:11250).
+// syncUSCapGainsState('cg') for the itemized entry list, syncCgManualState()
+// (layer1_us.html:6118-6131) for the separate 4-field "Manual Entry" totals
+// tab, and the isLongTerm() split from recalculateCapitalGainsAggregate()
+// (layer1_us.html:11249-11286).
 //
-// SCHEMA GAP: schema.js's income_us_source has stcg_us_source_usd /
-// ltcg_us_source_usd scalar totals but no line-item array for manual
-// capital-gains entries (the vanilla source wrote these to
-// `usState.income_us_source.cg_transactions`, a key schema.js never
-// declared). This component adds+owns a new array at
-// `income_us_source.capital_gains_transactions` for that purpose. Flagging
-// per the task brief — this path is not in createDefaultUsState() and
-// callers reading usState should treat it as possibly undefined.
+// NAMING FIX (real HTML-export comparison): this component previously wrote
+// the itemized list to a self-invented `income_us_source.
+// capital_gains_transactions` path. schema.js now declares the source's real
+// path, `income_us_source.cg_transactions` — corrected below.
 //
-// ALSO NOTE: the original's recalculateCapitalGainsAggregate() rolls
-// manual entries, real_estate, collectibles, QSBS, and crypto ALL into the
-// same stcg_us_source_usd/ltcg_us_source_usd scalars. Those other source
-// arrays (real_estate.properties, income_us_source.crypto_transactions,
-// and the never-schema'd qsbs/collectibles transaction lists) belong to
-// other steps. This component can only see its own
-// capital_gains_transactions array, so the totals it writes here reflect
-// manual entries ONLY — a real simplification vs. the original's
-// cross-step aggregate. Whichever step/effect owns real_estate and crypto
-// will stomp these same two scalar fields when it recalculates; there is
-// no cross-step aggregation layer in this React port yet.
+// BEHAVIOR FIX (real HTML-export comparison, confirms the "no cross-step
+// capital-gains aggregation" audit finding): reading
+// recalculateCapitalGainsAggregate() line by line shows it does NOT sum
+// cg_transactions (the itemized list below) at all — it only rolls up
+// real_estate.properties/real_estate_transactions, collectibles_transactions,
+// qsbs_transactions, crypto_transactions, and the cg_manual_stcg_usd/
+// cg_manual_ltcg_usd scalars. Those manual scalars are themselves NOT derived
+// from cg_transactions either — they come from 4 separate flat total inputs
+// on the source's "Manual Entry" tab (cg-manual-st-proceeds/st-basis/
+// lt-proceeds/lt-basis). This component previously summed the itemized list
+// straight into stcg_us_source_usd/ltcg_us_source_usd, which doesn't match
+// the source's actual aggregation semantics at all. Fixed: the itemized list
+// is now display/export-only (matching the source, where it's genuinely not
+// part of the tax aggregate), and a real "Manual Entry Totals" block feeds
+// cg_manual_*_usd, mirroring syncCgManualState() exactly. The full aggregate
+// (adding real_estate/collectibles/qsbs/crypto on top of the manual totals)
+// still doesn't exist as a cross-step layer in this React port — this
+// component can only write the manual-entry portion of it, same limitation
+// as before, now at least computing that portion correctly.
 //
 // *** CROSS-STEP CONFLICT — RESOLVED (verification pass) ***: this comment
 // previously described IncomeUsStep.jsx ALSO rendering has_capital_gains /
@@ -200,27 +205,35 @@ const FLAG_FIELDS = [
 export default function CapGainsStep() {
   const { usState, setField, addRow, removeRow, updateRow } = useUsLayer1Store();
   const src = usState.income_us_source;
-  const transactions = src.capital_gains_transactions || [];
+  const transactions = src.cg_transactions || [];
 
-  const totals = useMemo(() => {
-    let stcg = 0;
-    let ltcg = 0;
-    for (const t of transactions) {
-      const gain = (parseNum(t.sale_proceeds_usd) || 0) - (parseNum(t.cost_basis_usd) || 0);
-      if (isLongTerm(t.acquisition_date, t.sale_date)) ltcg += gain;
-      else stcg += gain;
-    }
-    return { stcg, ltcg };
-  }, [transactions]);
+  // Manual Entry Totals tab (layer1_us.html's cg-manual-st-proceeds/
+  // st-basis/lt-proceeds/lt-basis inputs) — syncCgManualState()
+  // (layer1_us.html:6118-6131), the ONLY manual-entry source
+  // recalculateCapitalGainsAggregate() actually reads. Derived stcg/ltcg are
+  // computed live rather than stored separately-then-read, but written back
+  // to cg_manual_stcg_usd/cg_manual_ltcg_usd on every change exactly like
+  // the source does.
+  const manualStcg = (parseNum(src.cg_manual_st_proceeds_usd) || 0) - (parseNum(src.cg_manual_st_basis_usd) || 0);
+  const manualLtcg = (parseNum(src.cg_manual_lt_proceeds_usd) || 0) - (parseNum(src.cg_manual_lt_basis_usd) || 0);
 
-  // Live aggregate write-back, mirroring recalculateCapitalGainsAggregate()
-  // for the manual-entry slice only (see file-header note on the schema
-  // gap / cross-step aggregation caveat).
   useEffect(() => {
-    if (src.stcg_us_source_usd !== totals.stcg) setField("income_us_source.stcg_us_source_usd", totals.stcg);
-    if (src.ltcg_us_source_usd !== totals.ltcg) setField("income_us_source.ltcg_us_source_usd", totals.ltcg);
+    if (src.cg_manual_stcg_usd !== manualStcg) setField("income_us_source.cg_manual_stcg_usd", manualStcg);
+    if (src.cg_manual_ltcg_usd !== manualLtcg) setField("income_us_source.cg_manual_ltcg_usd", manualLtcg);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totals.stcg, totals.ltcg]);
+  }, [manualStcg, manualLtcg]);
+
+  // Live aggregate write-back. Matches recalculateCapitalGainsAggregate()'s
+  // manual-entry term (`stcg = manualStcg; ltcg = manualLtcg;`) only — the
+  // real_estate/collectibles/qsbs/crypto terms it also sums belong to other
+  // steps and there is no cross-step aggregation layer yet (see file-header
+  // note). cg_transactions (the itemized list below) is correctly NOT
+  // summed here, matching the source.
+  useEffect(() => {
+    if (src.stcg_us_source_usd !== manualStcg) setField("income_us_source.stcg_us_source_usd", manualStcg);
+    if (src.ltcg_us_source_usd !== manualLtcg) setField("income_us_source.ltcg_us_source_usd", manualLtcg);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manualStcg, manualLtcg]);
 
   const hasCapGains = !!src.has_capital_gains;
 
@@ -267,10 +280,10 @@ export default function CapGainsStep() {
           </div>
           <div className="flex items-center gap-4 text-[11px] font-mono">
             <span className="text-muted">
-              STCG: <span className="text-head">{fmtUsd(totals.stcg)}</span>
+              STCG: <span className="text-head">{fmtUsd(manualStcg)}</span>
             </span>
             <span className="text-muted">
-              LTCG: <span className="text-head">{fmtUsd(totals.ltcg)}</span>
+              LTCG: <span className="text-head">{fmtUsd(manualLtcg)}</span>
             </span>
           </div>
         </div>
@@ -291,15 +304,15 @@ export default function CapGainsStep() {
                   key={i}
                   row={row}
                   index={i}
-                  onChange={(idx, patch) => updateRow("income_us_source.capital_gains_transactions", idx, patch)}
-                  onRemove={(idx) => removeRow("income_us_source.capital_gains_transactions", idx)}
+                  onChange={(idx, patch) => updateRow("income_us_source.cg_transactions", idx, patch)}
+                  onRemove={(idx) => removeRow("income_us_source.cg_transactions", idx)}
                 />
               ))}
             </div>
             <button
               type="button"
               onClick={() =>
-                addRow("income_us_source.capital_gains_transactions", {
+                addRow("income_us_source.cg_transactions", {
                   asset_name: "",
                   acquisition_date: null,
                   sale_date: null,
@@ -312,6 +325,65 @@ export default function CapGainsStep() {
             >
               + Add CG Entry
             </button>
+          </div>
+        )}
+
+        {hasCapGains && (
+          <div className="flex flex-col gap-3 pt-3 border-t border-line">
+            <span className="text-[11px] uppercase tracking-wide text-muted font-semibold">
+              Manual Entry Totals (aggregate ST/LT proceeds &amp; basis)
+            </span>
+            <p className="text-[10px] text-muted -mt-2">
+              Ported from the source&apos;s separate &quot;Manual Entry&quot; tab — flat totals, not tied to the
+              itemized transactions above. This is the figure that actually feeds your Schedule D short/long-term
+              capital gain totals.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className={label}>Short-Term Proceeds (USD)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  className={input}
+                  placeholder="0"
+                  value={src.cg_manual_st_proceeds_usd ?? ""}
+                  onChange={(e) => setField("income_us_source.cg_manual_st_proceeds_usd", parseNum(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className={label}>Short-Term Basis (USD)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  className={input}
+                  placeholder="0"
+                  value={src.cg_manual_st_basis_usd ?? ""}
+                  onChange={(e) => setField("income_us_source.cg_manual_st_basis_usd", parseNum(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className={label}>Long-Term Proceeds (USD)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  className={input}
+                  placeholder="0"
+                  value={src.cg_manual_lt_proceeds_usd ?? ""}
+                  onChange={(e) => setField("income_us_source.cg_manual_lt_proceeds_usd", parseNum(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className={label}>Long-Term Basis (USD)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  className={input}
+                  placeholder="0"
+                  value={src.cg_manual_lt_basis_usd ?? ""}
+                  onChange={(e) => setField("income_us_source.cg_manual_lt_basis_usd", parseNum(e.target.value))}
+                />
+              </div>
+            </div>
           </div>
         )}
       </div>

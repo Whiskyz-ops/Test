@@ -34,6 +34,11 @@ export function createDefaultUsState() {
       // which collects it but doesn't feed it into any CTC computation
       // either. Added for field-parity with the real onboarding screen.
       form_8332_active: false,
+      // Bug fix (real HTML-export comparison): missing entirely.
+      // layer1_us.html:704 (`prof-hoh-override` select) lets a taxpayer
+      // override their computed filing-status eligibility to force/deny
+      // Head of Household treatment.
+      hoh_marital_override: null,
       // Bug fix: was missing entirely from this schema and from
       // ProfileStep.jsx's UI, even though lib/dag/ustax-nodes.js's
       // usVisaTypeRaw node reads "profile.visa_type" to drive Article 21(2)
@@ -52,6 +57,21 @@ export function createDefaultUsState() {
       // as a second owner (the exact "two paths, one field" bug class found
       // repeatedly elsewhere in this port).
       state_of_domicile: null,
+      // Bug fix (real HTML-export comparison): a real buildSupersetSchema()
+      // export confirms the source's own usState literal duplicates these 6
+      // corporate identity fields onto BOTH `profile` and `corporate_profile`
+      // independently (both objects carry entity_name/ein/
+      // date_of_incorporation/naics_code/is_foreign_owned_25_pct/
+      // is_foreign_corporation). No DAG node reads the profile.* copies —
+      // restored here purely for shape-parity with the source, same
+      // dead-field-kept-for-fidelity treatment as corporate_profile.
+      // state_of_domicile below.
+      entity_name: null,
+      ein: null,
+      date_of_incorporation: null,
+      naics_code: null,
+      is_foreign_corporation: false,
+      is_foreign_owned_25_pct: false,
       trump_accounts_opened: false,
       trump_accounts_children: [],
       trump_accounts_num_children: 0,
@@ -67,6 +87,14 @@ export function createDefaultUsState() {
       fiscal_year_end: "12-31",
       is_foreign_owned_25_pct: false,
       is_foreign_corporation: false,
+      // Bug fix: previously dropped entirely when state_of_domicile was
+      // consolidated onto profile.state_of_domicile (the sole DAG-read
+      // path — dag_py's ustax_full.py:734, ustax-full-nodes.js:333). A real
+      // HTML export shows the source itself keeps BOTH copies (both null by
+      // default) — restored for field-parity. Stays dead/back-compat here
+      // exactly as in the source: nothing should write to it as a second
+      // source of truth.
+      state_of_domicile: null,
     },
     corporate_international: {
       fdii_eligible_income: null,
@@ -88,6 +116,15 @@ export function createDefaultUsState() {
         meals_disallowed_50: 0,
         tax_depreciation_over_book: 0,
         taxable_income: 0,
+        // Bug fix (real HTML-export comparison): schema.js previously had
+        // only 5 of the 9 Schedule M-1 (Reconciliation of Income) fields the
+        // source declares (layer1_us.html's usState literal + a real
+        // buildSupersetSchema() export both confirm all 9).
+        tax_exempt_interest: 0,
+        other_additions: 0,
+        other_subtractions: 0,
+        interest_expense_limitation: 0,
+        foreign_taxes_credited: 0,
       },
       schedule_m2: {
         retained_earnings_beginning: 0,
@@ -122,6 +159,18 @@ export function createDefaultUsState() {
       dtaa_treaty_residence: "none",
       residency_start_date: null,
       residency_end_date: null,
+      // Bug fix (real HTML-export comparison): missing entirely — the
+      // dual-status year's arrival/departure dates (used alongside
+      // final_us_residency_status === "DUAL_STATUS") and the SPT
+      // day-exclusion detail fields (exempt-individual/medical-condition
+      // excluded days per lookback year, plus the reason code) that
+      // spt_day_count_weighted's calculation depends on.
+      dual_status_arrival_date: null,
+      dual_status_departure_date: null,
+      us_days_excluded_current: 0,
+      us_days_excluded_minus_1: 0,
+      us_days_excluded_minus_2: 0,
+      us_days_excluded_reason: null,
     },
     corp_state_nexus: {
       physical_states: [],
@@ -149,6 +198,19 @@ export function createDefaultUsState() {
       military_duty_station_state: "",
       ca_planning_departure: false,
       ca_retains_property_or_voter_reg: false,
+      // Bug fix (real HTML-export comparison): missing entirely — New
+      // York's own state-specific statutory-residency test fields (the
+      // 548-day rule for nonresidents working abroad, actual days
+      // physically present, and whether a permanent place of abode is
+      // maintained), plus two generic tracking objects the source keeps
+      // (footprint_details keyed by state for the multi-state day-count
+      // detail behind total_states_footprint, and sticky_exceptions for
+      // per-state "sticky residency" rule overrides).
+      ny_548_day_rule: false,
+      ny_actual_days_present: null,
+      ny_permanent_place_of_abode: false,
+      footprint_details: {},
+      sticky_exceptions: {},
     },
     income_us_source: {
       has_employment_income: false,
@@ -173,10 +235,10 @@ export function createDefaultUsState() {
       farming_schedule_f: [],
       trusts_estates_k1: [],
       // Added post-port (not present in layer1_us.html's usState literal):
-      // IncomeUsStep.jsx's W-2 repeatable and CapGainsStep.jsx's manual
-      // capital-gains line items both need a home; the original vanilla-JS
-      // wizard writes these via full-DOM-rescrape sync functions instead of
-      // a schema-declared array, so there was nothing to port verbatim.
+      // IncomeUsStep.jsx's W-2 repeatable line items need a home; the
+      // original vanilla-JS wizard writes these via full-DOM-rescrape sync
+      // functions instead of a schema-declared array, so there was nothing
+      // to port verbatim.
       //
       // NAMING FIX (verification pass): this array MUST be named `wages_w2`,
       // not `w2_wages`. Confirmed against both DAG consumers, which hardcode
@@ -193,7 +255,6 @@ export function createDefaultUsState() {
       // this resolves the "naming decision" flagged in the migration gap
       // report (item 1) definitively rather than leaving it open.
       wages_w2: [],
-      capital_gains_transactions: [],
       se_health_insurance_deduction_usd: null,
       se_retirement_deduction_usd: null,
       interest_us_bank_usd: null,
@@ -225,6 +286,49 @@ export function createDefaultUsState() {
       "401k_distributions_usd": null,
       social_security_benefits_usd: null,
       crypto_transactions: [],
+      // Bug fix (real HTML-export comparison): a dozen scalar income lines
+      // and 4 line-item arrays were missing entirely — has_business_income
+      // is the Schedule C/self-employment gate flag (parallel to
+      // has_employment_income above); rental_expenses_us_source_usd pairs
+      // with rental_income_us_source_usd; state_local_tax_refund_usd,
+      // unemployment_compensation_usd, alimony_received_usd,
+      // cancellation_of_debt_usd, hsa_msa_distributions_usd, and
+      // misc_other_income_usd are "Other Income" (Schedule 1) lines with no
+      // prior home anywhere in this schema; qsbs_transactions,
+      // collectibles_transactions, and real_estate_transactions are
+      // per-category capital-transaction arrays distinct from the generic
+      // crypto_transactions/capital_gains_transactions arrays already here
+      // (same acquisition_date/asset_name/cost_basis_usd/sale_date/
+      // sale_proceeds_usd/realized_gain_loss_usd row shape).
+      has_business_income: false,
+      rental_expenses_us_source_usd: null,
+      state_local_tax_refund_usd: null,
+      unemployment_compensation_usd: null,
+      alimony_received_usd: null,
+      cancellation_of_debt_usd: null,
+      hsa_msa_distributions_usd: null,
+      misc_other_income_usd: null,
+      qsbs_transactions: [],
+      collectibles_transactions: [],
+      real_estate_transactions: [],
+      // NAMING FIX (real HTML-export comparison): CapGainsStep.jsx had
+      // already self-flagged this as a schema gap (see its own file-header
+      // comment) — the vanilla source's manual capital-gains line-item
+      // array is `income_us_source.cg_transactions`, and its aggregated
+      // proceeds/basis/gain totals are the 6 `cg_manual_*` scalars below
+      // (layer1_us.html:5417,5457-5462, recalculateCapitalGainsAggregate()
+      // @ 6123-6128). This schema previously declared a same-purpose but
+      // differently-named `capital_gains_transactions` array instead, which
+      // no DAG node or cross-step aggregator reads — renamed/added to match
+      // the source exactly. CapGainsStep.jsx must be updated to read/write
+      // these paths instead of capital_gains_transactions.
+      cg_transactions: [],
+      cg_manual_st_proceeds_usd: null,
+      cg_manual_st_basis_usd: null,
+      cg_manual_lt_proceeds_usd: null,
+      cg_manual_lt_basis_usd: null,
+      cg_manual_stcg_usd: null,
+      cg_manual_ltcg_usd: null,
     },
     income_foreign_source: {
       foreign_wages: [],
@@ -262,6 +366,21 @@ export function createDefaultUsState() {
       housing_exclusion_base_usd: 21264,
       housing_exclusion_cap_usd: 39870,
       foreign_housing_exclusion_usd: 0,
+      // Bug fix (real HTML-export comparison): missing entirely —
+      // physical_presence/bona_fide_residence are the two qualification-test
+      // met/not-met boolean flags qualification_test's radio choice actually
+      // drives (as distinct from the two *_start_date fields above, which
+      // just record the elected test's window); bona_fide_visa_type and
+      // employer_type feed FEIE eligibility narrowing; us_abode is the
+      // "abode in the US" disqualifier the source checks independently of
+      // the day-count tests; revoked_past_5_years is the FEIE-revocation
+      // lookback the source gates re-election eligibility on.
+      physical_presence: false,
+      bona_fide_residence: false,
+      bona_fide_visa_type: null,
+      employer_type: null,
+      us_abode: false,
+      revoked_past_5_years: false,
     },
     bank_accounts: [],
     fbar_aggregate_peak_usd: 0,
@@ -295,6 +414,16 @@ export function createDefaultUsState() {
       foreign_partnerships: [],
       owns_foreign_disregarded_entity: false,
       foreign_de_details: [],
+      // Bug fix (real HTML-export comparison): missing entirely —
+      // has_pfics gates the PFIC (Passive Foreign Investment Company,
+      // Form 8621) sub-flow, and pfic_holdings is its line-item array. A
+      // real export shows rows carry asset_name/holding_value_usd/
+      // pfic_election/qef_election_active plus a `_hydratedFromIndia` flag
+      // (India Layer 1 prefill marker for holdings ported across from the
+      // India intake — leave that flag alone if/when this array is wired
+      // up; it is read by the India/US handoff, not by any US DAG node).
+      has_pfics: false,
+      pfic_holdings: [],
     },
     foreign_gifts_and_trusts: {
       received_foreign_gifts_above_100k: false,
@@ -371,6 +500,13 @@ export function createDefaultUsState() {
       us_real_property_disposed: false,
       firpta_withholding_usd: null,
       is_lrs_investor: false,
+      // Bug fix (real HTML-export comparison, confirms NRA audit finding):
+      // has_us_pe (effectively-connected-income depends on whether a US
+      // permanent establishment exists under an applicable treaty) and
+      // submitted_w8ben (whether the W-8BEN backing w8ben_aggregate_status
+      // was actually filed, vs. just claimed) were missing entirely.
+      has_us_pe: false,
+      submitted_w8ben: false,
     },
     metadata: {
       us_calendar_year: 2026,
@@ -385,6 +521,36 @@ export function createDefaultUsState() {
       created_at: new Date().toISOString(),
       last_updated_at: new Date().toISOString(),
       intake_completed: false,
+      // Bug fix (real HTML-export comparison): missing entirely. The source
+      // persists a SNAPSHOT of the 7 top-level onboarding setup checkboxes
+      // here on every setup-flag change (layer1_us.html:6244-6249,
+      // updateSidebarVisibility()) purely so a page reload can restore
+      // which phases were unlocked without re-deriving from anything else.
+      // Field names intentionally do NOT match useOnboardingSetup's live
+      // `setupPassiveAny`/`setupForeignAny` — the source's own snapshot
+      // object shortens them to `setupPassive`/`setupForeign`
+      // (layer1_us.html:6246). setupEntities is hardcoded false in the
+      // source (line 6229 — vestigial, no matching UI control), kept here
+      // for shape-parity only. NOTE: store.js does not yet write this
+      // snapshot on setup-flag changes or read it back on hydrate — schema
+      // shape only, the restore-on-reload behavior itself is a follow-up.
+      intake_setup: {
+        setupW2: false,
+        setupBiz: false,
+        setupPassive: false,
+        setupProp: false,
+        setupEntities: false,
+        setupForeign: false,
+        setupRetirement: false,
+        setupEquity: false,
+      },
+    },
+    // Bug fix (real HTML-export comparison): missing entirely — a top-level
+    // section (layer1_us.html's usState literal) carrying the tax year the
+    // whole intake's threshold tables/brackets are pinned to, distinct from
+    // metadata.us_calendar_year (which tracks the intake year itself).
+    config: {
+      base_year: 2026,
     },
   };
 }
