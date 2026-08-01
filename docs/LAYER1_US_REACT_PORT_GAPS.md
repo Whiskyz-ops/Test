@@ -2,22 +2,27 @@
 
 **Status: structurally complete, field-logic-verified, chrome/structure
 corrected, NOT output-parity-tested.** Built to a 3-day, full-scope
-timeline, then put through two real correction passes after real problems
-were reported: (1) a field-logic verification pass (2026-08-01) that found
-and fixed 21 concrete bugs across every one of the 22 steps, several
-silently discarding or corrupting user-entered tax data; (2) a
+timeline, then put through three real correction passes after real
+problems were reported: (1) a field-logic verification pass (2026-08-01)
+that found and fixed 21 concrete bugs across every one of the 22 steps,
+several silently discarding or corrupting user-entered tax data; (2) a
 chrome/structure pass (same day) after a second report that the visible
 layout — phase grouping, a persistent right-hand status panel, the
 onboarding/profile field boundary, the India/US workspace switcher — didn't
-match the real `layer1_us.html` at all. Root cause of (2): the sidebar/
-right-panel/header markup was never actually read when those pieces were
-first built; only the JS gating logic (`isStepLocked`/`switchStep`) was
-read, which encodes *whether* a step is reachable but not the surrounding
-UI shell. Both passes are described below. What's still missing before this
-could replace `layer1_us.html` as the real thing is described in the last
-section — do not point `monitor-next/lib/dag-adapter.js` or any DAG compute
-path at this
-until that's done.
+match the real `layer1_us.html` at all; (3) a visibility pass (same day)
+after a third report that gated phases/steps should be fully hidden until
+relevant, not just shown-but-locked, plus a request to make sure this was
+properly driven through the shared live-state layer rather than duplicated
+UI-local state. Root cause of (2) and half of (3): the sidebar/right-panel/
+header markup, and the nested setup-card sub-checkboxes' visibility rules,
+were never actually read when those pieces were first built — only the JS
+gating logic (`isStepLocked`/`switchStep`) was read, which encodes
+*whether* a step is reachable but not the surrounding UI shell or which
+steps even appear. All three passes are described below. What's still
+missing before this could replace `layer1_us.html` as the real thing is
+described in the last section — do not point
+`monitor-next/lib/dag-adapter.js` or any DAG compute path at this until
+that's done.
 
 ## The verification pass
 
@@ -201,6 +206,65 @@ stays correct rather than resetting or going stale; all 20 currently-
 unlockable numbered steps (2 — Foreign Income, FEIE — remain correctly
 locked under the default NRA profile) click through with zero navigation
 errors and zero new console errors.
+
+## The visibility pass
+
+`updateSidebarVisibility()` (`layer1_us.html:6225-6316`) does two
+independent things this port had conflated into one (a lock badge) until
+this pass:
+
+1. **`toggleGroup()`** (`layer1_us.html:6251-6285`) sets
+   `group.style.display = 'none'/'flex'` on 7 of the 11 sidebar phase
+   groups — Employment/International/Retirement/Business Ops/Real Estate/
+   Investments/Equity are **not rendered at all** until their onboarding
+   setup card is checked (Setup/Core Profile/Data Integration/Wrap-up have
+   no such gate — always visible, since they're essential regardless of
+   scope). The earlier chrome pass had every phase always visible,
+   collapsed-but-present, with steps inside individually shown-locked
+   (🔒 badge) instead of hidden — wrong on both counts.
+2. **`toggleBtn()`** (`layer1_us.html:6287-6314`) separately hides/shows 6
+   specific step buttons *within* the International and Investments phase
+   groups off their own nested sub-checkboxes (e.g. "Foreign Bank Accounts
+   or Financial Assets" under the International card gates the
+   `step-banks` button specifically) — a second, finer-grained visibility
+   layer the earlier passes never wired up at all, because the 6 nested
+   checkboxes were local `useState` inside `OnboardingStep.jsx`, invisible
+   to the sidebar or anywhere else.
+
+**Fixes**, all routed through the same live-state pattern the XState
+guards already use (per the user's explicit request to keep this properly
+bound, not a parallel copy):
+- The 6 nested checkboxes moved from `OnboardingStep.jsx` local `useState`
+  into the shared `useOnboardingSetup` store (`store.js`) — the same store
+  the 7 top-level setup flags already live in.
+- `machine.js` gained `isPhaseVisible(gateFlag, ctx)` and
+  `isStepButtonVisible(stepId, ctx)`, both reading from the same
+  `getLockContext()` that `isStepLocked()`'s guards already call — no
+  second copy of this state exists anywhere.
+- `schema.js`'s `PHASES` entries gained a `gateFlag` (the setup-flag key
+  that controls that phase's visibility, or `null` for the 4 always-visible
+  phases).
+- `Layer1UsSidebar.jsx` now filters both phases (by `gateFlag`) and
+  individual step buttons (by `isStepButtonVisible`) before rendering —
+  locked-but-visible (🔒 badge) and not-yet-relevant (not rendered) are now
+  distinct states, matching the source.
+- `step-feie`'s visibility is more than its own checkbox — ported
+  faithfully as `setupForeignFeie && isUsTaxpayer && isLivingAbroad` (the
+  last two only checked once a primary state of residence is recorded,
+  matching the source's own `if (primaryState) {...} else {...}`).
+
+Verified live in a real browser: default view shows only the 4 always-
+visible phases; checking "Employment" reveals Phase 3 with its step;
+checking "International" reveals the Phase 4 *header* with only "Foreign
+Income" visible underneath (the other 4 steps in that phase all correctly
+absent until their own nested checkbox is checked); checking the nested
+"Foreign Bank Accounts or Financial Assets" box then reveals the FBAR/FATCA
+step specifically; with every setup card and nested checkbox checked, all
+11 phases and 20 of 21 numbered steps are visible, with Foreign Income and
+FEIE still correctly shown-but-🔒-locked (not hidden) since the default
+NRA residency status doesn't qualify for either — confirming the
+visibility layer and the lock layer are independent and both correct at
+once, and that revealing a step is not the same as unlocking it.
 
 ## Remaining known gaps (large, deliberate, still deferred)
 

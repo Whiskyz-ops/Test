@@ -1,24 +1,48 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PHASES, STEP_LABELS, STEP_NUMBERS } from "@/lib/layer1-us/schema";
-import { isStepLocked } from "@/lib/layer1-us/machine";
+import { isStepLocked, isPhaseVisible, isStepButtonVisible } from "@/lib/layer1-us/machine";
 import WisingLogo from "@/components/WisingLogo";
 
-// BUG FIX (chrome/structure verification pass): the previous version was a
-// flat, ungrouped list with invented labels/ordering that didn't match the
-// source at all. Real structure ported from layer1_us.html:417-622
-// ("LEFT SIDEBAR: STEP PROGRESS") — 11 collapsible "Compliance Steps"
-// phase groups (toggleSidebarGroup(), layer1_us.html:425 etc.), each
-// containing its real numbered step buttons (updateSidebarBadges()'s
-// 🔒/ACTIVE badge pattern, layer1_us.html:6532-6549), plus an unnumbered
-// "Generate Output" CTA at the very end of the last phase
-// (layer1_us.html:615-617).
+// Ported from layer1_us.html:417-622 ("LEFT SIDEBAR: STEP PROGRESS") — 11
+// collapsible "Compliance Steps" phase groups, each containing its real
+// numbered step buttons, plus an unnumbered "Generate Output" CTA at the
+// end of the last phase.
+//
+// BUG FIX (visibility pass): an earlier version showed every phase always,
+// just with a 🔒 badge when locked. The source instead hides whole phase
+// groups (`display:none`, layer1_us.html:6251-6285) until their setup card
+// is checked, and hides individual step buttons within the International/
+// Investments groups until their own nested checkbox is checked
+// (layer1_us.html:6287-6314) — "locked" (can't click) and "not yet
+// relevant" (don't even show) are two different things in the source. Both
+// visibility functions read the SAME live store state isStepLocked already
+// reads (lib/layer1-us/machine.js's getLockContext()), not a separate copy.
 export default function Layer1UsSidebar({ activeStep, machineContext, onNavigate }) {
   const [openPhases, setOpenPhases] = useState(() => {
     const init = {};
     for (const phase of PHASES) init[phase.id] = phase.defaultOpen;
     return init;
   });
+
+  // Auto-expand a phase the instant it becomes visible (toggleGroup()'s
+  // "Auto-expand accordion so cards are visible", layer1_us.html:6256-6263)
+  // — otherwise a gated phase that was collapsed before its steps existed
+  // could reappear collapsed once unlocked.
+  useEffect(() => {
+    setOpenPhases((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const phase of PHASES) {
+        if (isPhaseVisible(phase.gateFlag, machineContext) && !prev[phase.id]) {
+          next[phase.id] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(machineContext?.setup)]);
 
   const togglePhase = (id) => setOpenPhases((s) => ({ ...s, [id]: !s[id] }));
 
@@ -37,6 +61,15 @@ export default function Layer1UsSidebar({ activeStep, machineContext, onNavigate
 
       <nav className="flex flex-col px-3 pb-4">
         {PHASES.map((phase) => {
+          if (!isPhaseVisible(phase.gateFlag, machineContext)) return null;
+          // Deliberately NOT hiding the phase when visibleSteps is empty —
+          // toggleGroup() (layer1_us.html:6251-6285) reveals the phase
+          // HEADER purely off the top-level setup flag; individual step
+          // buttons inside (Investments' two children are both individually
+          // gated) can still be legitimately zero until a nested checkbox
+          // is picked. That's "category unlocked, now pick what applies,"
+          // not "nothing to show."
+          const visibleSteps = phase.steps.filter((id) => isStepButtonVisible(id, machineContext));
           const open = openPhases[phase.id];
           return (
             <div key={phase.id} className="flex flex-col mb-2">
@@ -53,7 +86,7 @@ export default function Layer1UsSidebar({ activeStep, machineContext, onNavigate
               </button>
               {open && (
                 <div className="flex flex-col space-y-1">
-                  {phase.steps.map((id) => (
+                  {visibleSteps.map((id) => (
                     <StepButton
                       key={id}
                       id={id}

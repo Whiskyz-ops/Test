@@ -147,5 +147,18 @@ export const useOnboardingSetup = create((set) => ({
   setupEquity: false,
   setupPassiveAny: false,
   setupForeignAny: false,
+  // Nested sub-checkboxes under the "International" and "Investments"
+  // setup cards (layer1_us.html:844-968). BUG FIX: these used to be local
+  // useState inside OnboardingStep.jsx only — invisible to the sidebar and
+  // to machine.js, so the per-step visibility rules ported from
+  // updateSidebarVisibility()'s toggleBtn() calls (layer1_us.html:6287-6314)
+  // had no real state to read. Lifted into this shared store so they're
+  // reachable the same way the 7 top-level flags already are.
+  setupForeignAssets: false,
+  setupForeignFeie: false,
+  setupForeignEntities: false,
+  setupForeignGifts: false,
+  setupPassiveIntDiv: false,
+  setupPassiveCapGains: false,
   setFlag: (key, value) => set({ [key]: value }),
 }));

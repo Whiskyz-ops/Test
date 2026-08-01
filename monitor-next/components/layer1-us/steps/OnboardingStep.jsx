@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useUsLayer1Store, useOnboardingSetup } from "@/lib/layer1-us/store";
 
 // ── styling helpers (matches the dark-theme Tailwind conventions used
@@ -117,19 +117,22 @@ export default function OnboardingStep() {
   const {
     setupW2, setupBiz, setupProp, setupRetirement, setupEquity,
     setupPassiveAny, setupForeignAny, setFlag,
+    setupForeignAssets: foreignAssets, setupForeignFeie: foreignFeie,
+    setupForeignEntities: foreignEntities, setupForeignGifts: foreignGifts,
+    setupPassiveIntDiv: passiveIntDiv, setupPassiveCapGains: passiveCapGains,
   } = setup;
-
-  // The nested checkboxes under the "International" and "Investments" cards
-  // aren't part of the 7-flag onboarding-setup store slice (they roll up
-  // into setupForeignAny / setupPassiveAny), so they live as local UI state
-  // here — same treatment the original gives them (DOM-only, never
-  // persisted to usState or localStorage).
-  const [foreignAssets, setForeignAssets] = useState(false);
-  const [foreignFeie, setForeignFeie] = useState(false);
-  const [foreignEntities, setForeignEntities] = useState(false);
-  const [foreignGifts, setForeignGifts] = useState(false);
-  const [passiveIntDiv, setPassiveIntDiv] = useState(false);
-  const [passiveCapGains, setPassiveCapGains] = useState(false);
+  // BUG FIX: these 6 nested flags used to be local useState, invisible
+  // outside this component — the sidebar's per-step visibility (which
+  // steps show inside the "International"/"Investments" phase groups,
+  // layer1_us.html:6309-6314's toggleBtn calls) and machine.js's guards
+  // need to read them too, so they now live in the same shared
+  // useOnboardingSetup store as the 7 top-level flags (see store.js).
+  const setForeignAssets = (v) => setFlag("setupForeignAssets", v);
+  const setForeignFeie = (v) => setFlag("setupForeignFeie", v);
+  const setForeignEntities = (v) => setFlag("setupForeignEntities", v);
+  const setForeignGifts = (v) => setFlag("setupForeignGifts", v);
+  const setPassiveIntDiv = (v) => setFlag("setupPassiveIntDiv", v);
+  const setPassiveCapGains = (v) => setFlag("setupPassiveCapGains", v);
 
   const entityType = usState.profile.tax_entity_type || "individual";
   const llcElection = usState.profile.llc_tax_election || "individual";

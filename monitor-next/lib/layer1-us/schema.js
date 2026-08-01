@@ -424,32 +424,47 @@ export const STEP_IDS = [
 ];
 
 // PHASES mirrors layer1_us.html's 11 collapsible `nav-group-*` sidebar
-// sections exactly (id, label, and member step ids, in source order).
-// Phase 0/1/2/10 render expanded by default in the source (no `style=
-// "display:none"` on the group, `max-h-[1000px] opacity-100` on the
-// accordion content); Phases 3-9 render collapsed by default (`display:
-// none` on the group itself, `max-h-0 opacity-0` on the content) —
-// preserved here via `defaultOpen`.
+// sections exactly (id, label, member step ids, in source order).
+//
+// `gateFlag`: BUG FIX (visibility pass) — layer1_us.html doesn't just
+// grey out or collapse the 7 setup-card-gated phase groups, it hides the
+// entire group (`group.style.display = 'none'`, toggleGroup() @
+// layer1_us.html:6251-6285) until the matching onboarding setup card is
+// checked, then force-expands it. Phase 0/1/2/10 have no such gate — they
+// have no `style="display:none"` and no toggleGroup() call at all, because
+// they're essential regardless of what the taxpayer's scope selections
+// are. `gateFlag: null` marks those. machine.js's isPhaseVisible(gateFlag,
+// ctx) reads ctx.setup[gateFlag] live off the same store isStepLocked
+// already reads — single source of truth, not a second copy.
+//
+// `defaultOpen`: whether the phase renders expanded the first time it's
+// visible (Phase 0/1/2/10 always were; gated phases auto-expand the
+// instant they become visible per toggleGroup()'s "Auto-expand accordion
+// so cards are visible" — approximated here by defaulting every phase's
+// open state to true, since a hidden phase's collapse state is moot until
+// shown, and once shown it should read as expanded on first appearance).
 export const PHASES = [
-  { id: "setup", label: "Phase 0: Setup", steps: ["step-onboarding"], defaultOpen: true },
-  { id: "core", label: "Phase 1: Core Profile", steps: ["step-profile", "step-state"], defaultOpen: true },
-  { id: "data", label: "Phase 2: Data Integration", steps: ["step-bank-sync"], defaultOpen: true },
-  { id: "employment", label: "Phase 3: Employment", steps: ["step-income-us"], defaultOpen: false },
+  { id: "setup", label: "Phase 0: Setup", steps: ["step-onboarding"], gateFlag: null, defaultOpen: true },
+  { id: "core", label: "Phase 1: Core Profile", steps: ["step-profile", "step-state"], gateFlag: null, defaultOpen: true },
+  { id: "data", label: "Phase 2: Data Integration", steps: ["step-bank-sync"], gateFlag: null, defaultOpen: true },
+  { id: "employment", label: "Phase 3: Employment", steps: ["step-income-us"], gateFlag: "setupW2", defaultOpen: true },
   {
     id: "international",
     label: "Phase 4: International",
     steps: ["step-income-foreign", "step-feie", "step-banks", "step-entities", "step-gifts"],
-    defaultOpen: false,
+    gateFlag: "setupForeignAny",
+    defaultOpen: true,
   },
-  { id: "retirement", label: "Phase 5: Retirement", steps: ["step-retirement"], defaultOpen: false },
-  { id: "business", label: "Phase 6: Business Ops & K-1s", steps: ["step-business"], defaultOpen: false },
-  { id: "realestate", label: "Phase 7: Real Estate", steps: ["step-real-estate"], defaultOpen: false },
-  { id: "investments", label: "Phase 8: Investments", steps: ["step-capgains", "step-passive"], defaultOpen: false },
-  { id: "equity", label: "Phase 9: Equity & Cap Table", steps: ["step-equity"], defaultOpen: false },
+  { id: "retirement", label: "Phase 5: Retirement", steps: ["step-retirement"], gateFlag: "setupRetirement", defaultOpen: true },
+  { id: "business", label: "Phase 6: Business Ops & K-1s", steps: ["step-business"], gateFlag: "setupBiz", defaultOpen: true },
+  { id: "realestate", label: "Phase 7: Real Estate", steps: ["step-real-estate"], gateFlag: "setupProp", defaultOpen: true },
+  { id: "investments", label: "Phase 8: Investments", steps: ["step-capgains", "step-passive"], gateFlag: "setupPassiveAny", defaultOpen: true },
+  { id: "equity", label: "Phase 9: Equity & Cap Table", steps: ["step-equity"], gateFlag: "setupEquity", defaultOpen: true },
   {
     id: "wrapup",
     label: "Phase 10: Wrap-up & Taxes",
     steps: ["step-deductions", "step-amt-niit", "step-ftc", "step-withholding", "step-nra", "step-output"],
+    gateFlag: null,
     defaultOpen: true,
   },
 ];

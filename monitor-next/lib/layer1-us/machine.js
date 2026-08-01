@@ -86,6 +86,7 @@ export function getLockContext() {
     llcElection: usState.profile.llc_tax_election,
     residencyStatus: usState.us_residency_detail.final_us_residency_status,
     hasGreenCard: usState.us_residency_detail.has_green_card,
+    primaryStateOfResidence: usState.state_residency.primary_state_of_residence,
     setup: {
       setupW2: setup.setupW2,
       setupBiz: setup.setupBiz,
@@ -94,6 +95,15 @@ export function getLockContext() {
       setupEquity: setup.setupEquity,
       setupPassiveAny: setup.setupPassiveAny,
       setupForeignAny: setup.setupForeignAny,
+      // Nested sub-checkboxes (layer1_us.html:844-968) — control individual
+      // step-button visibility within the "International"/"Investments"
+      // phase groups, see isStepButtonVisible() below.
+      setupForeignAssets: setup.setupForeignAssets,
+      setupForeignFeie: setup.setupForeignFeie,
+      setupForeignEntities: setup.setupForeignEntities,
+      setupForeignGifts: setup.setupForeignGifts,
+      setupPassiveIntDiv: setup.setupPassiveIntDiv,
+      setupPassiveCapGains: setup.setupPassiveCapGains,
     },
   };
 }
@@ -102,6 +112,55 @@ export function getLockContext() {
 // right now" without the two-step getLockContext()+isStepLocked() dance.
 export function isStepLockedNow(stepName) {
   return isStepLocked(getLockContext(), stepName);
+}
+
+// ── Phase/step VISIBILITY (distinct from LOCKING above). Ported from
+// updateSidebarVisibility() (layer1_us.html:6225-6316): isStepLocked()
+// governs whether a reachable-looking button can actually be clicked;
+// these two functions govern whether the button/phase-group is even
+// rendered in the sidebar at all. The source hides whole phase groups via
+// `group.style.display = 'none'` (toggleGroup, layer1_us.html:6251-6276)
+// and hides individual step buttons within a group via
+// `btn.classList.add('hidden')` (toggleBtn, layer1_us.html:6287-6296) — an
+// earlier pass of this port only had the lock layer, so every phase/step
+// was always visible (just greyed out with a lock icon when locked)
+// instead of not appearing at all until relevant.
+
+// isPhaseVisible(gateFlag, ctx): a phase with no gateFlag (Setup, Core
+// Profile, Data Integration, Wrap-up & Taxes — layer1_us.html's
+// nav-group-setup/core/data/wrapup have no `style="display:none"` and no
+// toggleGroup() call at all) is always visible. A gated phase
+// (Employment/International/Retirement/Business/RealEstate/Investments/
+// Equity) is visible only once its setup card is checked.
+export function isPhaseVisible(gateFlag, ctx) {
+  if (!gateFlag) return true;
+  return !!ctx.setup?.[gateFlag];
+}
+
+// isStepButtonVisible(stepId, ctx): only 6 of the 21 numbered steps have
+// their own nested visibility gate beyond their phase's — the rest are
+// visible whenever their phase is. Ported from the toggleBtn() call list
+// (layer1_us.html:6298-6314).
+export function isStepButtonVisible(stepId, ctx) {
+  const setup = ctx.setup || {};
+  if (stepId === "step-feie") {
+    // allowFeie (layer1_us.html:6298-6308): the nested "Lived or worked
+    // outside the US" checkbox alone, further narrowed to US taxpayers
+    // living abroad ONCE a primary state of residence has been recorded —
+    // before that's known, the checkbox alone is enough (source's own
+    // `if (primaryState) {...} else { allowFeie = setupForeignFEIE }`).
+    if (!setup.setupForeignFeie) return false;
+    if (!ctx.primaryStateOfResidence) return true;
+    const isUsTaxpayer = ["US_CITIZEN", "RESIDENT_ALIEN"].includes(ctx.residencyStatus);
+    const isLivingAbroad = ctx.primaryStateOfResidence === "OTHER";
+    return isUsTaxpayer && isLivingAbroad;
+  }
+  if (stepId === "step-banks") return !!setup.setupForeignAssets;
+  if (stepId === "step-entities") return !!setup.setupForeignEntities;
+  if (stepId === "step-gifts") return !!setup.setupForeignGifts;
+  if (stepId === "step-passive") return !!setup.setupPassiveIntDiv;
+  if (stepId === "step-capgains") return !!setup.setupPassiveCapGains;
+  return true;
 }
 
 export const wizardMachine = createMachine(
