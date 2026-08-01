@@ -224,3 +224,66 @@ synced copy), and the OR-bug fix for §6013(g)/(h) MFJ unlocking.
   headless Chromium: real underlying data reopens gated phases on reload,
   blank state still hides them, manual toggles and persona prefill both
   still work, zero hydration/console errors.
+
+- **[FIXED — independently confirmed via a real HTML export]** Tier 0 #2
+  (capital-gains total computation inverted) and #3 (Schedule M-1 drops 5 of
+  9 fields). A user-supplied real `buildSupersetSchema()` JSON export from
+  the live `layer1_us.html` wizard was diffed field-by-field against
+  `schema.js`, independently landing on the same two bugs this audit already
+  had on file, plus a broader top-level schema gap (60 missing scalar/
+  section fields — see below) this method surfaced that static reading
+  hadn't caught yet.
+  - `schema.js`: added `income_us_source.cg_transactions` (the source's real
+    itemized-list path — previously invented as `capital_gains_transactions`,
+    a name no DAG node or the source itself uses) and all 6
+    `cg_manual_st/lt_proceeds/basis_usd` + `cg_manual_stcg/ltcg_usd` fields;
+    added Schedule M-1's missing `tax_exempt_interest`/`other_additions`/
+    `other_subtractions`/`interest_expense_limitation`/`foreign_taxes_credited`.
+  - `CapGainsStep.jsx`: added the missing "Manual Entry Totals" 4-input block
+    (ST/LT proceeds & basis) matching the source's `syncCgManualState()`
+    exactly, and switched `stcg_us_source_usd`/`ltcg_us_source_usd` to derive
+    from those manual totals instead of summing the itemized transaction
+    list — matching `recalculateCapitalGainsAggregate()`'s real logic (which
+    never reads the itemized list at all). The itemized list is now correctly
+    display/export-only, same as the source. Full cross-step aggregation
+    (folding in real_estate/collectibles/qsbs/crypto on top) still doesn't
+    exist as a layer — same limitation noted elsewhere in this doc.
+  - **Additional schema-only fixes from the export diff, not previously on
+    this list**: `profile`/`corporate_profile` both restored to carry their
+    full duplicated identity-field set (`entity_name`/`ein`/
+    `date_of_incorporation`/`naics_code`/`is_foreign_owned_25_pct`/
+    `is_foreign_corporation`/`state_of_domicile`, matching the source's own
+    duplication — a prior pass had over-consolidated `state_of_domicile` off
+    `corporate_profile` entirely); added `profile.hoh_marital_override`;
+    added new top-level `config: { base_year }`; added `metadata.intake_setup`
+    (a persisted snapshot of the 7 setup flags the source writes on every
+    gate change — schema shape only, `store.js` doesn't populate/restore it
+    yet); added `foreign_entities.has_pfics`/`pfic_holdings[]` schema shape
+    (Tier 0 #9 above already flags this array isn't *written* anywhere yet —
+    this just gives it a declared default); added
+    `foreign_earned_income.physical_presence`/`bona_fide_residence`/
+    `bona_fide_visa_type`/`employer_type`/`us_abode`/`revoked_past_5_years`
+    (Tier 1's FeieStep gap already flagged these as missing from the UI —
+    this adds the schema shape); added `nra_specific.has_us_pe`/
+    `submitted_w8ben` (Tier 0 #5 and the NRA Tier 1 item already flag these
+    as unwired — schema shape now exists for both); added
+    `state_residency.ny_548_day_rule`/`ny_actual_days_present`/
+    `ny_permanent_place_of_abode`/`footprint_details`/`sticky_exceptions`
+    (Tier 0 #7's `footprint_details.NY.*` gap — schema shape now declared,
+    UI/DAG-node wiring still open); added `us_residency_detail`'s
+    `dual_status_arrival_date`/`dual_status_departure_date`/
+    `us_days_excluded_current/minus_1/minus_2`/`us_days_excluded_reason`
+    (Tier 1's "dual-status arrival/departure date fields missing" — schema
+    shape now exists, UI still open).
+  - Confirmed 2 apparent gaps from the export diff were false positives (the
+    export just omitted them, not a React port gap):
+    `retirement_accounts.hsa_coverage_type` and
+    `foreign_tax_credit_other.entries` both exist correctly in `schema.js`
+    already and are declared identically in `layer1_us.html`'s own usState
+    literal.
+  - The array-*row-shape* gap (K-1 rosters, self-employment/business branch
+    structures, Section 179 asset tables, per-form-1099 tracking — Tier 0 #1
+    and the Tier 1 BusinessStep items) is untouched by this pass. The export
+    diff shows it's the single largest remaining gap by field count, far
+    larger than everything above combined — it corroborates Tier 0 #1 at
+    much higher resolution rather than adding a new finding.
