@@ -45,34 +45,44 @@ export default function DeductionsStep() {
         </div>
       </Card>
 
-      <Card title="Itemized Deduction Detail" sub="Only used if Schedule A itemizing beats the standard deduction.">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Field label="Mortgage Interest (USD)" hint="Capped at $750K acquisition debt">
-            <NumberInput value={d.mortgage_interest_paid_usd} onChange={set("mortgage_interest_paid_usd")} />
-          </Field>
-          <Field label="Mortgage Acquisition Date">
-            <DateInput value={d.mortgage_acquisition_date} onChange={set("mortgage_acquisition_date")} />
-          </Field>
-          <Field label="Charitable Contributions — Cash (USD)">
-            <NumberInput value={d.charitable_contributions_cash_usd} onChange={set("charitable_contributions_cash_usd")} />
-          </Field>
-          <Field label="Charitable Contributions — Appreciated Assets (USD)">
-            <NumberInput
-              value={d.charitable_contributions_appreciated_usd}
-              onChange={set("charitable_contributions_appreciated_usd")}
-            />
-          </Field>
-          <Field label="Unreimbursed Medical Expenses (USD)">
-            <NumberInput value={d.medical_expenses_usd} onChange={set("medical_expenses_usd")} />
-          </Field>
-          <Field label="Federal Disaster Casualty Loss (USD)">
-            <NumberInput value={d.casualty_loss_federal_disaster_usd} onChange={set("casualty_loss_federal_disaster_usd")} />
-          </Field>
-          <Field label="HSA Contributions (USD)">
-            <NumberInput value={d.hsa_contributions_usd} onChange={set("hsa_contributions_usd")} />
-          </Field>
-        </div>
-      </Card>
+      {/* BUG FIX: ground truth's toggleDeductionsFields() (layer1_us.html
+          ~9207) hides #div-itemized-fields when use_standard_or_itemized
+          === 'standard' (shown for 'auto' and 'itemized'). The port
+          previously rendered this card unconditionally, which let users fill
+          in Schedule A fields even after explicitly picking "Standard
+          Deduction Only" — harmless to computation (the amounts are still
+          stored correctly under itemized_deductions_and_credits either way)
+          but confusing/misleading UI that the source deliberately avoids. */}
+      {d.use_standard_or_itemized !== "standard" && (
+        <Card title="Itemized Deduction Detail" sub="Only used if Schedule A itemizing beats the standard deduction.">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Field label="Mortgage Interest (USD)" hint="Capped at $750K acquisition debt">
+              <NumberInput value={d.mortgage_interest_paid_usd} onChange={set("mortgage_interest_paid_usd")} />
+            </Field>
+            <Field label="Mortgage Acquisition Date">
+              <DateInput value={d.mortgage_acquisition_date} onChange={set("mortgage_acquisition_date")} />
+            </Field>
+            <Field label="Charitable Contributions — Cash (USD)">
+              <NumberInput value={d.charitable_contributions_cash_usd} onChange={set("charitable_contributions_cash_usd")} />
+            </Field>
+            <Field label="Charitable Contributions — Appreciated Assets (USD)">
+              <NumberInput
+                value={d.charitable_contributions_appreciated_usd}
+                onChange={set("charitable_contributions_appreciated_usd")}
+              />
+            </Field>
+            <Field label="Unreimbursed Medical Expenses (USD)">
+              <NumberInput value={d.medical_expenses_usd} onChange={set("medical_expenses_usd")} />
+            </Field>
+            <Field label="Federal Disaster Casualty Loss (USD)">
+              <NumberInput value={d.casualty_loss_federal_disaster_usd} onChange={set("casualty_loss_federal_disaster_usd")} />
+            </Field>
+            <Field label="HSA Contributions (USD)">
+              <NumberInput value={d.hsa_contributions_usd} onChange={set("hsa_contributions_usd")} />
+            </Field>
+          </div>
+        </Card>
+      )}
 
       <Card title="Credits & 529 Contributions">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

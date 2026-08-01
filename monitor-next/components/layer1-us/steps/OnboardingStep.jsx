@@ -226,8 +226,8 @@ export default function OnboardingStep() {
             <div>
               <label className={label}>State of Domicile</label>
               <input type="text" className={input} placeholder="e.g. Delaware"
-                value={usState.corporate_profile.state_of_domicile || ""}
-                onChange={(e) => setField("corporate_profile.state_of_domicile", e.target.value)} />
+                value={usState.profile.state_of_domicile || ""}
+                onChange={(e) => setField("profile.state_of_domicile", e.target.value)} />
             </div>
           </div>
           <div>

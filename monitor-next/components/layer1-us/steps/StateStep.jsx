@@ -7,12 +7,24 @@ import { Card, Field, NumberInput, DateInput, StateSelect, ToggleRow, Checkbox, 
 // Source: layer1_us.html panel-step-state (~line 1431) + addFootprintState()
 // (~8143), addCorpFootprintState / syncApportionmentState (~8850). Two
 // wrappers in the original are toggled by entity type
-// (wrapper-individual-state-nexus vs wrapper-corporate-state-nexus) — here
-// both render, gated the same way isStepLocked's isCorpOrPartnership check
-// does, off usState.profile directly (no machine.js dependency needed).
+// (wrapper-individual-state-nexus vs wrapper-corporate-state-nexus).
+//
+// BUG FIX: the two wrappers are mutually exclusive in the source
+// (updateTaxEntityLogic, layer1_us.html:7059-7116 — `indStateNexus.style
+// .display = isIndividual ? 'flex' : 'none'` and the corp wrapper gets the
+// opposite), and `isIndividual` there is
+// `['individual','sole_prop','farming'].includes(type)` — i.e. everything
+// EXCEPT 'individual' (the only one of those three actually reachable from
+// the entity-type dropdown, OnboardingStep.jsx:168-173) gets the corporate
+// wrapper, INCLUDING 'trust' (Fiduciary Trust/Estate, Form 1041). This file
+// previously (a) rendered both wrappers stacked together instead of
+// exclusively, showing irrelevant personal-residency/military-spouse/CA-
+// exit-planning questions to corp/partnership/trust filers, and (b) omitted
+// "trust" from the corp-nexus entity list entirely, so a Trust/Estate filer
+// got the wrong (individual) wrapper outright. Both fixed here.
 function isCorpOrPartnershipEntity(profile) {
   const effective = profile.tax_entity_type === "llc" ? profile.llc_tax_election : profile.tax_entity_type;
-  return ["ccorp", "scorp", "partnership"].includes(effective);
+  return effective !== "individual";
 }
 
 function Chip({ children, onRemove }) {
@@ -80,6 +92,7 @@ export default function StateStep() {
         </p>
       </div>
 
+      {!isCorp && (
       <Card title="Year-Start & Year-End Permanent Home">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Where were you living on January 1?">
@@ -108,8 +121,38 @@ export default function StateStep() {
             </Chip>
           ))}
         </div>
-      </Card>
 
+        {/* Remote Worker Trap (layer1_us.html:1460-1479 / checkConvenienceRule
+            @ 8580) — was missing entirely from this port (no schema fields,
+            no UI). Convenience-of-the-employer states per source: NY, PA,
+            DE, NE, NJ (ground truth's alert copy; the derived-status
+            renderer at layer1_us.html:8540 additionally includes CT). */}
+        <div className="mt-2 p-4 bg-red-500/5 border border-red-500/20 rounded-xl flex flex-col gap-3">
+          <ToggleRow
+            label="Remote Worker Trap"
+            sub="Are you working remotely for a company based in a state other than your home state?"
+            checked={sr.has_remote_worker}
+            onChange={setSr("has_remote_worker")}
+          />
+          {sr.has_remote_worker && (
+            <div className="flex flex-col gap-2 border-t border-red-500/10 pt-3">
+              <Field label="State where your employer is based">
+                <StateSelect value={sr.remote_worker_employer_state} onChange={setSr("remote_worker_employer_state")} />
+              </Field>
+              {["NY", "PA", "DE", "NE", "NJ", "CT"].includes(sr.remote_worker_employer_state) && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-[10px] text-red-300 leading-relaxed">
+                  ⚠️ <strong>"Convenience of the Employer" Warning:</strong> This state (NY, PA, DE, NE, NJ, or CT)
+                  taxes 100% of remote workers' wages unless you can prove your remote work is an absolute necessity
+                  for the employer, not just for your convenience.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
+      )}
+
+      {!isCorp && (
       <Card>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Primary State of Residence" hint="Your true, permanent home on Dec 31">
@@ -162,7 +205,9 @@ export default function StateStep() {
           </div>
         )}
       </Card>
+      )}
 
+      {!isCorp && (
       <Card>
         <ToggleRow
           label="Active-duty military member or military spouse?"
@@ -181,7 +226,9 @@ export default function StateStep() {
           </div>
         )}
       </Card>
+      )}
 
+      {!isCorp && (
       <Card title="California FTB — Domicile & Exit Planning" sub="California aggressively audits departing residents.">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col gap-2 p-3 bg-white/[0.02] border border-line rounded-xl">
@@ -202,6 +249,7 @@ export default function StateStep() {
           </div>
         </div>
       </Card>
+      )}
 
       {isCorp && (
         <Card title="Corporate / Entity State Nexus" sub="Domicile inherited from Profile; physical, economic, and apportionment factors below.">

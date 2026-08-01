@@ -10,14 +10,15 @@ import { useUsLayer1Store } from "../../../lib/layer1-us/store";
 // per the task brief they're consolidated onto this one screen instead of
 // re-split across three.
 //
-// SCHEMA GAP (flagged again at the bottom of this file and in the final
-// report): layer1_us.html's `syncW2sState()` (layer1_us.html:17622-17692)
-// writes W-2 rows to `usState.income_us_source.wages_w2`, but
-// `schema.js`'s `createDefaultUsState()` has no such array anywhere under
-// `income_us_source`. This component reads/writes
-// `income_us_source.w2_wages` (array) as instructed — note the deliberate
-// name difference from the original `wages_w2` — schema.js needs this field
-// added before any DAG/compute path can see W-2 data from this screen.
+// NAMING BUG FIXED (verification pass): this component previously read/
+// wrote `income_us_source.w2_wages`, a name that collides with nothing the
+// DAG expects. Both DAG engines hardcode `income_us_source.wages_w2[]`
+// (dag_py/src/wising_dag/us/aggregate_us_income.py:174,605-612 and
+// us5_penalty_72t.py:87,90,135,138; monitor-next/lib/dag/us5-nodes.js:87,159
+// and aggregateusincome-nodes.js:398) — every W-2 a user entered under the
+// old name was silently invisible to tax computation (wages, withholding,
+// everything derived from W-2 data). Renamed to `wages_w2` to match
+// schema.js and both DAG engines exactly.
 
 const num = (raw) => {
   if (raw === "" || raw === null || raw === undefined) return null;
@@ -207,7 +208,7 @@ function newCryptoRow() {
 
 function W2RowEditor({ index, row }) {
   const { updateRow } = useUsLayer1Store();
-  const path = "income_us_source.w2_wages";
+  const path = "income_us_source.wages_w2";
 
   const patch = (p) => updateRow(path, index, p);
   const patchTax = (p) =>
@@ -406,7 +407,29 @@ export default function IncomeUsStep() {
   const income = usState.income_us_source;
   const set = (field, value) => setField(`income_us_source.${field}`, value);
 
-  const w2Rows = income.w2_wages || [];
+  // BUG FIX (verification pass): this card duplicates PassiveStep's
+  // Schedule B interest fields (see the file-header note — three screens,
+  // IncomeUsStep/PassiveStep/BankSyncStep, all write income_us_bank_usd
+  // et al. into the same income_us_source object). PassiveStep already
+  // recomputes interest_us_source_usd on every sub-field edit, mirroring
+  // the source's syncUsInterestTotal() (layer1_us.html:8632-8646). This
+  // card's plain `set()` calls did not, so interest_us_source_usd (which
+  // feeds AGI/AMTI/NIIT) went stale for anyone who entered interest here
+  // instead of on the Passive Income screen. setInterestComponent()
+  // restores the same auto-sum the other two screens now share; the
+  // separate "Total (Override)" field below still lets a user hand-enter
+  // a different total on purpose.
+  function setInterestComponent(field, value) {
+    const next = { ...income, [field]: value };
+    const bank = next.interest_us_bank_usd || 0;
+    const treasury = next.interest_us_treasury_usd || 0;
+    const oid = next.interest_us_oid_usd || 0;
+    const priv = next.interest_us_private_usd || 0;
+    set(field, value);
+    setField("income_us_source.interest_us_source_usd", bank + treasury + oid + priv);
+  }
+
+  const w2Rows = income.wages_w2 || [];
   const cryptoRows = income.crypto_transactions || [];
 
   return (
@@ -435,7 +458,7 @@ export default function IncomeUsStep() {
                 ))}
               </div>
             )}
-            <AddButton onClick={() => addRow("income_us_source.w2_wages", newW2Row())}>+ Add W-2</AddButton>
+            <AddButton onClick={() => addRow("income_us_source.wages_w2", newW2Row())}>+ Add W-2</AddButton>
           </div>
         ) : (
           <p className="text-sm text-muted">Toggle on if you have wage/salary employment income.</p>
@@ -445,10 +468,10 @@ export default function IncomeUsStep() {
       {/* Interest & Dividends */}
       <Card title="Interest & Dividends (Schedule B)">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <LabeledNumber label="Interest — Banks & Brokerages" hint="Box 1 of Form 1099-INT" value={income.interest_us_bank_usd} onChange={(v) => set("interest_us_bank_usd", v)} />
-          <LabeledNumber label="Interest — US Treasuries" hint="Box 3 (exempt from state tax)" value={income.interest_us_treasury_usd} onChange={(v) => set("interest_us_treasury_usd", v)} />
-          <LabeledNumber label="Interest — Private / OID" hint="Box 1 or Form 1099-OID" value={income.interest_us_oid_usd} onChange={(v) => set("interest_us_oid_usd", v)} />
-          <LabeledNumber label="Interest — Private / Seller Fin." hint="Private loan / P2P interest" value={income.interest_us_private_usd} onChange={(v) => set("interest_us_private_usd", v)} />
+          <LabeledNumber label="Interest — Banks & Brokerages" hint="Box 1 of Form 1099-INT" value={income.interest_us_bank_usd} onChange={(v) => setInterestComponent("interest_us_bank_usd", v)} />
+          <LabeledNumber label="Interest — US Treasuries" hint="Box 3 (exempt from state tax)" value={income.interest_us_treasury_usd} onChange={(v) => setInterestComponent("interest_us_treasury_usd", v)} />
+          <LabeledNumber label="Interest — Private / OID" hint="Box 1 or Form 1099-OID" value={income.interest_us_oid_usd} onChange={(v) => setInterestComponent("interest_us_oid_usd", v)} />
+          <LabeledNumber label="Interest — Private / Seller Fin." hint="Private loan / P2P interest" value={income.interest_us_private_usd} onChange={(v) => setInterestComponent("interest_us_private_usd", v)} />
           <LabeledNumber label="Tax-Exempt Interest" hint="Box 8 of 1099-INT — municipal bonds, recordkeeping only" value={income.interest_us_exempt_usd} onChange={(v) => set("interest_us_exempt_usd", v)} />
           <LabeledNumber label="Total US-Source Interest (Override)" hint="Aggregate override; leave blank to auto-sum the above" value={income.interest_us_source_usd} onChange={(v) => set("interest_us_source_usd", v)} />
           <LabeledNumber label="US Ordinary Dividends" hint="Box 1a of Form 1099-DIV" value={income.ordinary_dividends_us_source_usd} onChange={(v) => set("ordinary_dividends_us_source_usd", v)} />
@@ -532,7 +555,15 @@ export default function IncomeUsStep() {
       <Card title="Rental, Royalty & Pass-Through Income">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <LabeledNumber label="Gross US Rental Earnings" hint="Schedule E" value={income.rental_income_us_source_usd} onChange={(v) => set("rental_income_us_source_usd", v)} />
-          <LabeledNumber label="Royalty Income" hint="Schedule E, US-source" value={income.royalty_income_us_source_usd} onChange={(v) => set("royalty_income_us_source_usd", v)} />
+          {/* BUG FIX (verification pass): was writing royalty_income_us_source_usd,
+              a field neither DAG engine reads (dag_py's aggregate_us_income.py:399
+              and monitor-next/lib/dag/aggregateusincome-nodes.js:605 both read
+              royalties_direct_us_source_usd instead — the original layer1_us.html
+              itself never reconciled these two names; its usState literal declares
+              one, its DOM handler at layer1_us.html:2196 writes the other). Any
+              royalty amount typed here was silently invisible to AGI/tax
+              computation. Repointed to the field the DAG actually reads. */}
+          <LabeledNumber label="Royalty Income" hint="Schedule E, US-source" value={income.royalties_direct_us_source_usd} onChange={(v) => set("royalties_direct_us_source_usd", v)} />
           <LabeledNumber label="K-1 Pass-Through Income" hint="Aggregate from partnerships/S-corps" value={income.k1_passthrough_income_usd} onChange={(v) => set("k1_passthrough_income_usd", v)} />
         </div>
       </Card>
@@ -557,8 +588,6 @@ export default function IncomeUsStep() {
   );
 }
 
-// SCHEMA GAP: `income_us_source.w2_wages` (array) is used above but is not
-// declared in schema.js's createDefaultUsState(). Add it there (default: [])
-// so hydration/merge logic (store.js's loadFromStorage) and any downstream
-// DAG node reading `income_us_source` picks it up. See file header comment
-// for the original vanilla-JS field name this replaces (`wages_w2`).
+// (Former SCHEMA GAP note removed — `income_us_source.wages_w2` is now
+// declared in schema.js's createDefaultUsState() under its correct,
+// DAG-matching name. See file header comment.)

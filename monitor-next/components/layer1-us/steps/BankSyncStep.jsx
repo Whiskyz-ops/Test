@@ -18,6 +18,18 @@ import { Card, SectionLabel, Field, TextInput, NumberInput, Select } from "./_ui
 // Routing/account numbers are refund-routing logistics only — no dag_py
 // node reads them anywhere — so they're kept as local, non-persisted
 // component state rather than added to the shared schema.
+//
+// BUG FIX (verification pass): the source's oninput on #bank-sync-us-interest
+// (layer1_us.html:1784) mirrors the typed value into #inc-us-interest AND
+// calls syncUsInterestTotal(), which recomputes
+// income_us_source.interest_us_source_usd from all 4 interest sub-fields
+// (layer1_us.html:8632-8646) — that total feeds AGI/AMTI/NIIT per the
+// source's own comment there. The initial port here only set
+// interest_us_bank_usd and left interest_us_source_usd stale whenever a
+// user entered interest on this screen instead of the Passive Income
+// screen. setBankInterest() below restores that recompute so the total is
+// correct regardless of which of the three screens
+// (PassiveStep/IncomeUsStep/BankSyncStep) the user edits it from.
 export default function BankSyncStep() {
   const usState = useUsLayer1Store((s) => s.usState);
   const setField = useUsLayer1Store((s) => s.setField);
@@ -26,6 +38,16 @@ export default function BankSyncStep() {
   const [acctType, setAcctType] = useState("checking");
   const [routing, setRouting] = useState("");
   const [acctNumber, setAcctNumber] = useState("");
+
+  function setBankInterest(value) {
+    const inc = usState.income_us_source;
+    const bank = value || 0;
+    const treasury = inc.interest_us_treasury_usd || 0;
+    const oid = inc.interest_us_oid_usd || 0;
+    const priv = inc.interest_us_private_usd || 0;
+    setField("income_us_source.interest_us_bank_usd", value);
+    setField("income_us_source.interest_us_source_usd", bank + treasury + oid + priv);
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -108,7 +130,7 @@ export default function BankSyncStep() {
           >
             <NumberInput
               value={usState.income_us_source.interest_us_bank_usd}
-              onChange={(v) => setField("income_us_source.interest_us_bank_usd", v)}
+              onChange={setBankInterest}
             />
           </Field>
         </div>

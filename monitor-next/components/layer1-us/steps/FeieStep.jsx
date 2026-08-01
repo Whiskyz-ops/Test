@@ -38,6 +38,25 @@ export default function FeieStep() {
     f.housing_exclusion_cap_usd,
   ]);
 
+  // BUG FIX: layer1_us.html's updateResidencyField() (~line 6983) hard-wires
+  // foreign_earned_income.days_in_us_during_test_period to always mirror
+  // us_residency_detail.us_days_current_year — the #feie-phys-usdays input
+  // itself is `readonly`/`pointer-events-none` (line 3002), i.e. this is a
+  // derived field, never something the user types into directly on this
+  // step. The port previously rendered it as a free-form NumberInput with no
+  // link back to the residency step, letting a user's manually-typed value
+  // silently diverge from the actual day count computed on Profile &
+  // Residency. Mirrored here (best-effort: only while this step is mounted,
+  // since the React port renders one active step at a time instead of the
+  // vanilla app's single-page/hidden-panels model — see FLAGGED note below).
+  const usDaysCurrentYear = usState.us_residency_detail?.us_days_current_year || 0;
+  useEffect(() => {
+    if (usDaysCurrentYear !== f.days_in_us_during_test_period) {
+      setField("foreign_earned_income.days_in_us_during_test_period", usDaysCurrentYear);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usDaysCurrentYear]);
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -85,29 +104,28 @@ export default function FeieStep() {
               <Field label="Physical Presence Test End Date">
                 <DateInput value={f.physical_presence_end_date} onChange={set("physical_presence_end_date")} />
               </Field>
-              <Field label="Days in US During Test Period" hint="max 35 allowed">
-                <NumberInput
-                  value={f.days_in_us_during_test_period}
-                  onChange={set("days_in_us_during_test_period")}
-                />
+              <Field label="Days in US During Test Period" hint="max 35 allowed — read-only, sourced from Residency step">
+                <div className="rounded-lg bg-white/[0.02] border border-line px-3 py-2 text-sm text-muted font-mono opacity-70 cursor-not-allowed">
+                  {f.days_in_us_during_test_period ?? 0}
+                </div>
               </Field>
               <Field label="US Business Days" hint="Income earned on these days is US-sourced, disqualified from FEIE">
                 <NumberInput value={f.us_business_days} onChange={set("us_business_days")} />
               </Field>
             </div>
           ) : (
+            // BUG FIX: ground truth's div-feie-bonafide-details (layer1_us.html
+            // ~3023-3041) only shows the start date (+ a bona_fide_visa_type
+            // field that isn't part of schema.js's committed shape, so it's
+            // intentionally not ported). It does NOT show
+            // days_in_us_during_test_period / us_business_days — those belong
+            // to the physical-presence test only. The previous version
+            // duplicated the physical-presence fields here, which erased the
+            // one real distinction the two qualification tests have in this
+            // form.
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-line pt-4">
-              <Field label="Bona Fide Residence Start Date">
+              <Field label="Bona Fide Residence Start Date" hint="Full tax year residency required">
                 <DateInput value={f.bona_fide_residence_start_date} onChange={set("bona_fide_residence_start_date")} />
-              </Field>
-              <Field label="Days in US During Test Period">
-                <NumberInput
-                  value={f.days_in_us_during_test_period}
-                  onChange={set("days_in_us_during_test_period")}
-                />
-              </Field>
-              <Field label="US Business Days">
-                <NumberInput value={f.us_business_days} onChange={set("us_business_days")} />
               </Field>
             </div>
           )}

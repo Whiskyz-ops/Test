@@ -239,6 +239,17 @@ export default function ProfileStep() {
   // invoked from every updateResidencyField/updateProfileField call in the
   // original). Runs whenever any input it reads changes, and only writes
   // fields that actually changed value to avoid a render loop. ──
+  // Bug fix: `details.closer_connection_claim` was missing from this
+  // dependency list even though evaluateResidencyLock() reads it and the
+  // lock formula branches on it (`spt_test_met && !closer_connection_claim`
+  // — Form 8840 Closer Connection is exactly what keeps an SPT-meeting
+  // taxpayer a Non-Resident Alien instead of Resident Alien). Without it,
+  // toggling the "Closer Connection Claim?" switch never re-ran the lock
+  // recompute, so final_us_residency_status (and everything gated on it via
+  // machine.js's isStepLocked) stayed silently stale — matching the
+  // original, which calls evaluateUSResidencyLock() on every single
+  // updateResidencyField() call, including this field
+  // (layer1_us.html:6983-7009, onchange @ layer1_us.html:1322).
   const computed = useMemo(() => evaluateResidencyLock(usState), [
     profile.tax_entity_type, profile.llc_tax_election, profile.incorporated_in_us,
     details.is_us_citizen, details.has_green_card, details.i407_surrendered_date,
@@ -246,6 +257,7 @@ export default function ProfileStep() {
     details.us_days_minus_2_years, details.exempt_individual_status, details.exempt_prior_years_count,
     details.exempt_student_closer_conn_exception, details.exempt_scholar_lookback_exception,
     details.dtaa_treaty_residence, details.first_year_choice_election, details.first_year_choice_entry_date,
+    details.closer_connection_claim,
     usState.metadata?.us_calendar_year,
   ]);
 
@@ -261,6 +273,24 @@ export default function ProfileStep() {
     for (const [k, v] of Object.entries(patch)) {
       if (details[k] !== v) setField(`us_residency_detail.${k}`, v);
     }
+
+    // Bug fix: applyNraFilingStatusGating() (layer1_us.html:9607-9663) is
+    // invoked from evaluateUSResidencyLock() on every recompute, and doesn't
+    // just block *new* invalid selections — it force-reverts an
+    // *already-set* filing_status of mfj/hoh/qss back to "single" the moment
+    // the lock recomputes to NON_RESIDENT_ALIEN without an MFJ unlock (e.g.
+    // a US Citizen who was MFJ drops below SPT after editing days, or
+    // unchecks "US Citizen"). ProfileStep's handleFilingStatusChange only
+    // gated the onChange path, so a filing_status that became invalid as a
+    // *side effect* of some other field changing was never corrected —
+    // replicated here.
+    if (computed.final_us_residency_status === "NON_RESIDENT_ALIEN") {
+      const mfjUnlocked =
+        details.s6013g_joint_election === true || usState.nra_specific?.s6013h_joint_election === true;
+      const invalidForNra = ["hoh", "qss"].includes(profile.filing_status) ||
+        (profile.filing_status === "mfj" && !mfjUnlocked);
+      if (invalidForNra) setField("profile.filing_status", "single");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [computed]);
 
@@ -268,10 +298,16 @@ export default function ProfileStep() {
   const lockStyle = LOCK_STYLES[lock] || LOCK_STYLES.NON_RESIDENT_ALIEN;
   const isNra = lock === "NON_RESIDENT_ALIEN";
 
-  // ── NRA filing-status gating (onFilingStatusChange @ layer1_us.html:6652) ──
+  // ── NRA filing-status gating (onFilingStatusChange @ layer1_us.html:6652,
+  // applyNraFilingStatusGating @ layer1_us.html:9607-9663). Bug fix: this
+  // used to check ONLY details.s6013g_joint_election, dropping the original's
+  // `election6013g || election6013h` OR — a taxpayer who unlocked MFJ via the
+  // §6013(h) election (nra_specific.s6013h_joint_election, set in NraStep)
+  // instead of §6013(g) was incorrectly still blocked from selecting MFJ here. ──
   function handleFilingStatusChange(newVal) {
     if (isNra) {
-      const mfjUnlocked = details.s6013g_joint_election === true;
+      const mfjUnlocked =
+        details.s6013g_joint_election === true || usState.nra_specific?.s6013h_joint_election === true;
       const forbidden = newVal === "hoh" || newVal === "qss" || (newVal === "mfj" && !mfjUnlocked);
       if (forbidden) return; // reject — leave select at its current value
     }
@@ -417,6 +453,27 @@ export default function ProfileStep() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* ── US Visa / Immigration Status (layer1_us.html:1128-1141). Bug
+              fix: this control and profile.visa_type were entirely absent
+              from the port, even though lib/dag/ustax-nodes.js's
+              usVisaTypeRaw node reads it to drive Article 21(2) treaty
+              eligibility for F-1/J-1 NRAs in nraTaxResult. ── */}
+          <div className={nestedCard}>
+            <label className={label}>US Visa / Immigration Status</label>
+            <select className={selectCls} value={profile.visa_type || "none"}
+              onChange={(e) => setField("profile.visa_type", e.target.value)}>
+              <option value="none">None / US Citizen / Permanent Resident</option>
+              <option value="h1b">H-1B / H-4 (Specialty Occupation)</option>
+              <option value="l1">L-1 / L-2 (Intracompany Transferee)</option>
+              <option value="f1">F-1 / F-2 (Student)</option>
+              <option value="j1">J-1 / J-2 (Exchange Visitor)</option>
+              <option value="o1">O-1 / O-2 (Extraordinary Ability)</option>
+              <option value="tn">TN / TD (NAFTA Professional)</option>
+              <option value="b1b2">B-1 / B-2 (Business/Tourism Visitor)</option>
+              <option value="other">Other Non-Immigrant Visa</option>
+            </select>
           </div>
 
           {/* ── Citizenship / green card (layer1_us.html:1126-1179) ── */}

@@ -28,6 +28,24 @@ export function createDefaultUsState() {
       ssn_or_itin_type: "none",
       dependents_count: 0,
       spouse_is_us_person: null,
+      // Bug fix: was missing entirely from this schema and from
+      // ProfileStep.jsx's UI, even though lib/dag/ustax-nodes.js's
+      // usVisaTypeRaw node reads "profile.visa_type" to drive Article 21(2)
+      // treaty-benefit eligibility (F-1/J-1) in nraTaxResult. Ported from
+      // layer1_us.html:1130-1140 (`prof-visa-type` select, default option
+      // value "none").
+      visa_type: "none",
+      // Bug fix (verification pass): dag_py's ustax_full.py:734 and
+      // lib/dag/ustax-full-nodes.js:333 both read "profile.state_of_domicile"
+      // as the sole authoritative source for usEntityStateOfDomicileRaw (the
+      // state-tax nexus determination for entity filers). The React port had
+      // 3 write sites all targeting corporate_profile.state_of_domicile
+      // instead — a path no DAG node reads — so this value never reached
+      // state-tax computation for any corporate filer. Consolidated to this
+      // single path; corporate_profile's copy removed below rather than kept
+      // as a second owner (the exact "two paths, one field" bug class found
+      // repeatedly elsewhere in this port).
+      state_of_domicile: null,
       trump_accounts_opened: false,
       trump_accounts_children: [],
       trump_accounts_num_children: 0,
@@ -39,7 +57,6 @@ export function createDefaultUsState() {
       entity_name: null,
       ein: null,
       date_of_incorporation: null,
-      state_of_domicile: null,
       naics_code: null,
       fiscal_year_end: "12-31",
       is_foreign_owned_25_pct: false,
@@ -119,6 +136,8 @@ export function createDefaultUsState() {
       dependents_school_state: "",
       primary_bank_and_medical_nexus_state: "",
       vehicles_registered_state: "",
+      has_remote_worker: false,
+      remote_worker_employer_state: "",
       active_duty_military_or_spouse: false,
       military_home_state_of_record: "",
       military_duty_station_state: "",
@@ -152,8 +171,22 @@ export function createDefaultUsState() {
       // capital-gains line items both need a home; the original vanilla-JS
       // wizard writes these via full-DOM-rescrape sync functions instead of
       // a schema-declared array, so there was nothing to port verbatim.
-      // Flagged as a known gap in the migration report.
-      w2_wages: [],
+      //
+      // NAMING FIX (verification pass): this array MUST be named `wages_w2`,
+      // not `w2_wages`. Confirmed against both DAG consumers, which hardcode
+      // the dotted path `income_us_source.wages_w2[]` and read sub-fields
+      // like `wages_box1_usd`/`tax_details_collapsed_by_default.*` off it:
+      //   - dag_py/src/wising_dag/us/aggregate_us_income.py:174,605-612
+      //   - dag_py/src/wising_dag/us/us5_penalty_72t.py:87,90,135,138
+      //   - monitor-next/lib/dag/us5-nodes.js:87,159
+      //   - monitor-next/lib/dag/aggregateusincome-nodes.js:398
+      // The array was previously named `w2_wages` here and in
+      // IncomeUsStep.jsx, which meant every W-2 a user entered was silently
+      // invisible to both DAG engines (wages, withholding, everything W-2
+      // derives) — the worst class of bug for a tax intake tool. Renamed;
+      // this resolves the "naming decision" flagged in the migration gap
+      // report (item 1) definitively rather than leaving it open.
+      wages_w2: [],
       capital_gains_transactions: [],
       se_health_insurance_deduction_usd: null,
       se_retirement_deduction_usd: null,
@@ -169,6 +202,18 @@ export function createDefaultUsState() {
       ltcg_us_source_usd: null,
       rental_income_us_source_usd: null,
       royalty_income_us_source_usd: null,
+      // Added post-port: the DAG's actual royalty reader
+      // (aggregate_us_income.py:399, aggregateusincome-nodes.js:605,
+      // findings.py:248) reads `royalties_direct_us_source_usd`, NOT
+      // `royalty_income_us_source_usd` above. Both names exist because the
+      // *original* layer1_us.html itself never reconciled them (its usState
+      // literal declares royalty_income_us_source_usd, but its DOM handler
+      // at layer1_us.html:2196 writes royalties_direct_us_source_usd — see
+      // PassiveStep.jsx's file-header note, which found this independently).
+      // royalty_income_us_source_usd is kept here for back-compat with
+      // anything already reading it, but it is DEAD as far as the DAG is
+      // concerned; IncomeUsStep.jsx now writes the field the DAG reads.
+      royalties_direct_us_source_usd: null,
       k1_passthrough_income_usd: null,
       ira_distributions_usd: null,
       "401k_distributions_usd": null,

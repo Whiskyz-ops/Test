@@ -30,25 +30,22 @@ import { useUsLayer1Store } from "@/lib/layer1-us/store";
 // will stomp these same two scalar fields when it recalculates; there is
 // no cross-step aggregation layer in this React port yet.
 //
-// *** CROSS-STEP CONFLICT (found while building this file, not resolved
-// here — this component was NOT told to expect it) ***: as of this
-// writing, components/layer1-us/steps/IncomeUsStep.jsx ALSO renders
-// has_capital_gains / stcg_us_source_usd / ltcg_us_source_usd as
-// directly-editable fields, plus has_sec_1256 / has_qsbs / has_collectibles
-// / stocks_needs_wash_sale_reconciliation / crypto_needs_wash_sale /
-// has_qof_rollover / has_1031_exchange / has_installment_sale /
-// has_capital_loss_carryovers / st_loss_carryover_usd /
-// lt_loss_carryover_usd — the SAME fields this step's "Flags, Elections &
-// Carryovers" card owns below. Two mounted step components now write the
-// same usState paths. Worse: this step's useEffect above unconditionally
-// overwrites stcg_us_source_usd/ltcg_us_source_usd with the sum of
-// capital_gains_transactions (even 0 when that array is empty) every time
-// step-capgains mounts/re-renders, silently clobbering whatever a user
-// typed directly into IncomeUsStep's version of the same two fields. This
-// needs a decision (pick one step as sole owner, or drop the auto-write
-// here in favor of a manual "recalculate" button) before shipping both
-// steps together — flagging rather than unilaterally deleting scope from
-// either file.
+// *** CROSS-STEP CONFLICT — RESOLVED (verification pass) ***: this comment
+// previously described IncomeUsStep.jsx ALSO rendering has_capital_gains /
+// stcg_us_source_usd / ltcg_us_source_usd as directly-editable fields,
+// racing this step's useEffect below. Verified current: IncomeUsStep.jsx's
+// "Capital Gains & Investment Flags" card now renders those two totals
+// read-only (`readOnly` + no-op onChange, sourced from this step's
+// live-computed value) and does not set has_capital_gains anywhere — this
+// step's <select> below is the sole writer. The has_sec_1256 / has_qsbs /
+// has_collectibles / stocks_needs_wash_sale_reconciliation /
+// crypto_needs_wash_sale / has_qof_rollover / has_1031_exchange /
+// has_installment_sale / has_capital_loss_carryovers / st_loss_carryover_usd
+// / lt_loss_carryover_usd flags ARE still duplicated on IncomeUsStep's same
+// card (both components render editable controls for them) — that's
+// harmless today since both write straight through to the same store path
+// with no derived/computed value to race, but it's redundant UI surface
+// worth consolidating onto one step.
 
 // isLongTerm(): ported per task spec as a 12-months-and-a-day / 366-day
 // class boundary (add one calendar year to the acquisition date, sold
@@ -88,6 +85,24 @@ const nestedCard = "bg-white/[0.02] border border-line rounded-xl p-3";
 function CapGainRow({ row, index, onChange, onRemove }) {
   const lt = isLongTerm(row.acquisition_date, row.sale_date);
   const gain = (parseNum(row.sale_proceeds_usd) || 0) - (parseNum(row.cost_basis_usd) || 0);
+  // BUG FIX (verification pass): `gain` above was computed for on-screen
+  // display only and never written back to the row via `onChange`/
+  // `updateRow`, unlike the original's syncUSCapGainsState()
+  // (layer1_us.html:6093-6106), which always persists
+  // `realized_gain_loss_usd` onto each transaction. The aggregate
+  // stcg_us_source_usd/ltcg_us_source_usd totals were still correct (the
+  // parent recomputes them straight from proceeds - cost_basis), but the
+  // per-row field itself silently never reached the store/localStorage —
+  // undefined forever, even after a save/reload, and invisible to anything
+  // (e.g. the Review & Export step's JSON dump) that reads the transaction
+  // list itself rather than the aggregate. wrappedOnChange persists it on
+  // every field edit, same as the sibling CryptoRowEditor in
+  // IncomeUsStep.jsx already does correctly.
+  const wrappedOnChange = (idx, patch) => {
+    const next = { ...row, ...patch };
+    const nextGain = (parseNum(next.sale_proceeds_usd) || 0) - (parseNum(next.cost_basis_usd) || 0);
+    onChange(idx, { ...patch, realized_gain_loss_usd: nextGain });
+  };
   return (
     <div className={nestedCard + " flex flex-col gap-3 relative"}>
       <button
@@ -116,7 +131,7 @@ function CapGainRow({ row, index, onChange, onRemove }) {
             className={input}
             placeholder="e.g. AAPL"
             value={row.asset_name || ""}
-            onChange={(e) => onChange(index, { asset_name: e.target.value })}
+            onChange={(e) => wrappedOnChange(index, { asset_name: e.target.value })}
           />
         </div>
         <div>
@@ -125,7 +140,7 @@ function CapGainRow({ row, index, onChange, onRemove }) {
             type="date"
             className={input}
             value={row.acquisition_date || ""}
-            onChange={(e) => onChange(index, { acquisition_date: e.target.value })}
+            onChange={(e) => wrappedOnChange(index, { acquisition_date: e.target.value })}
           />
         </div>
         <div>
@@ -134,7 +149,7 @@ function CapGainRow({ row, index, onChange, onRemove }) {
             type="date"
             className={input}
             value={row.sale_date || ""}
-            onChange={(e) => onChange(index, { sale_date: e.target.value })}
+            onChange={(e) => wrappedOnChange(index, { sale_date: e.target.value })}
           />
         </div>
       </div>
@@ -147,7 +162,7 @@ function CapGainRow({ row, index, onChange, onRemove }) {
             className={input}
             placeholder="0"
             value={row.cost_basis_usd ?? ""}
-            onChange={(e) => onChange(index, { cost_basis_usd: parseNum(e.target.value) })}
+            onChange={(e) => wrappedOnChange(index, { cost_basis_usd: parseNum(e.target.value) })}
           />
         </div>
         <div>
@@ -158,7 +173,7 @@ function CapGainRow({ row, index, onChange, onRemove }) {
             className={input}
             placeholder="0"
             value={row.sale_proceeds_usd ?? ""}
-            onChange={(e) => onChange(index, { sale_proceeds_usd: parseNum(e.target.value) })}
+            onChange={(e) => wrappedOnChange(index, { sale_proceeds_usd: parseNum(e.target.value) })}
           />
         </div>
         <div>
@@ -290,6 +305,7 @@ export default function CapGainsStep() {
                   sale_date: null,
                   cost_basis_usd: null,
                   sale_proceeds_usd: null,
+                  realized_gain_loss_usd: 0,
                 })
               }
               className="self-start px-3 py-1.5 bg-white/[0.05] hover:bg-brandGreen/20 hover:text-brandGreen rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border border-line"

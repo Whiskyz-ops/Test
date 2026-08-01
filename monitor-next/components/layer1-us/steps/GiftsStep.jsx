@@ -227,8 +227,6 @@ export default function GiftsStep() {
     return hasDistribution || gifts.some((g) => g.is_beneficiary_of_foreign_trust);
   }, [gifts, trustDetails]);
 
-  const hasCoveredExpatGift = gifts.some((g) => g.is_gift_from_covered_expatriate);
-
   function syncDerivedFlags(nextGifts, nextTrustDetails) {
     const hasDistribution = nextTrustDetails.some((t) => t.distribution_date || (t.distribution_amount_usd || 0) > 0);
     const nextIsBeneficiary = hasDistribution || nextGifts.some((g) => g.is_beneficiary_of_foreign_trust);
@@ -487,12 +485,6 @@ export default function GiftsStep() {
         ) : null}
       </div>
 
-      {hasCoveredExpatGift ? (
-        <p className="text-[10px] text-muted">
-          received_gift_from_covered_expatriate is set from the per-row flags above (auto-derived, matches the
-          source's roll-up behavior).
-        </p>
-      ) : null}
     </div>
   );
 }

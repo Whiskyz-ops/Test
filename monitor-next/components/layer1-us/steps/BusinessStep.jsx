@@ -11,12 +11,28 @@
 // calculateBusinessIncomes (~10114, 1072 lines — see the SIMPLIFIED note
 // below).
 //
-// FAITHFULLY PORTED:
-//   - Entity-type-driven section gating (the CORE branch of
-//     updateBusinessStepLogic, layer1_us.html:7307-7455): which subsection
-//     is shown/primary is driven by usState.profile.tax_entity_type
-//     (resolved through llc_tax_election when the type is 'llc'), exactly
-//     as the original's `type` variable is computed.
+// FAITHFULLY PORTED (post-hardening-pass — see "BUG FOUND & FIXED" comments
+// inline at CorporateProfileBlock/ScheduleLM1M2Block and the `tabs` builder
+// in the default export for what was wrong before this pass and how it was
+// corrected):
+//   - Entity-type-driven PRIMARY-section selection (the CORE branch of
+//     updateBusinessStepLogic, layer1_us.html:7307-7455): usState.profile
+//     .tax_entity_type (resolved through llc_tax_election when the type is
+//     'llc') decides which one subsection is forced open / labeled "PRIMARY
+//     ENTITY OPERATIONS", exactly as the original's `type` variable does —
+//     but, matching the source, ALL SIX sections (Schedule C, Schedule F,
+//     Partnership/S-Corp/C-Corp/Trust) stay visible and independently usable
+//     for every entity type. (Earlier in this port's life the tabs were
+//     branch-gated on effectiveType and hid every non-primary section —
+//     that was a real bug, not a simplification; fixed in this pass.)
+//   - corporate_profile (EIN/entity name/domicile/NAICS/foreign-owned flags)
+//     is reachable for every non-individual entity type, INCLUDING trust,
+//     matching updateProfileVisibility()'s corpProfileFields gating
+//     (layer1_us.html:7059-7071). Schedule L/M-1/M-2 is reachable only for
+//     the isCorpOrPartnership types (ccorp/scorp/partnership — trust
+//     excluded, matching toggleCorporateFinancials(), layer1_us.html:7185-
+//     7205, since Form 1041 doesn't file Schedule L/M-1/M-2). Previously
+//     BOTH were reachable for 'ccorp' only.
 //   - The full field surface for Schedule C (self-employment), Schedule F
 //     (farm), Partnership/S-Corp/Trust K-1 boxes, and C-Corp entity
 //     financials, keyed off the original's CSS class names (se-*, part-*,
@@ -26,27 +42,46 @@
 //     a Schedule C business (createAssetRowDOM), and partners nested inside
 //     a Partnership K-1 (addPartPartnerRow) — plus the same shareholder/
 //     beneficiary nested-repeatable pattern reused for S-Corp, C-Corp, and
-//     Trust rows.
+//     Trust rows. Verified end-to-end: nested add/edit/remove mutates the
+//     PARENT row's array via the store's updateRow(path, index, patch)
+//     (immutable shallow-merge), never a sibling top-level array.
+//   - corporate_international (FDII/NCTI/Form 5472) is NOT owned here —
+//     removed in this pass. It doesn't appear anywhere in
+//     panel-step-business (layer1_us.html:2220-2718); the real UI is on
+//     panel-step-entities, already ported faithfully by EntitiesStep.jsx.
+//     This file previously duplicated that array
+//     (corporate_international.form_5472_related_parties) with an
+//     INCOMPATIBLE row shape from EntitiesStep.jsx's — a live instance of
+//     the cross-step field-ownership collision class of bug flagged as a
+//     recurring risk in docs/LAYER1_US_REACT_PORT_GAPS.md item 2.
 //
 // SIMPLIFIED / DEFERRED (see computeSimplifiedTotals below and the
-// "Deferred" footer rendered at the bottom of this step):
+// "Deferred" footer rendered at the bottom of this step) — genuine
+// large-scope deferrals, left as-is per this pass's scope:
 //   - calculateBusinessIncomes() (1072 lines) is NOT ported in full. This
 //     file computes a SIMPLIFIED top-line net-income figure per entity type
 //     (gross receipts minus itemized expenses / COGS, allocated by the
 //     taxpayer's K-1 ownership %) — it does NOT implement basis limitation
 //     (§704(d)/§465 at-risk), passive-activity-loss (Form 8582) limits, QBI
 //     wage/UBIA phase-outs, AMT preference flow-through, or branch
-//     consolidation logic the original performs.
+//     consolidation logic the original performs. Checked that it isn't
+//     summing the wrong fields (e.g. gross receipts instead of net, or
+//     double-counting a K-1/entity total): each entity type's total is
+//     revenue minus itemized expenses/COGS (or an explicit Box 1 override),
+//     multiplied by the taxpayer's ownership ratio; C-Corp entity-level
+//     income and trust-retained income are correctly excluded from the
+//     pass-through sum and called out separately in the banner as
+//     "not passed through."
 //   - updateBusinessStepLogic()'s CSS flexbox re-ordering/relabeling
-//     cosmetics are simplified to a single header string swap + a "Primary
-//     Entity" badge, rather than literally re-ordering DOM nodes.
+//     cosmetics are simplified to a tab UI (entity-type's own section
+//     brought to the front) rather than literally re-ordering DOM nodes —
+//     but, per the fix above, no section is hidden by entity type either
+//     way, matching the source.
 //   - addUsBranchRow (~715 lines — US branches of a foreign-parented
 //     business, nested under Schedule C / Partnership / S-Corp rows) is NOT
 //     ported. Deferred entirely; noted inline where it would have appeared.
 //   - The ~25-option NAICS/SSTB industry-category dropdown is collapsed to
 //     a short representative list + free-text fallback.
-//   - Form 5472 related-party list (corporate_international) is a simple
-//     flat repeatable, not the original's fuller related-party form.
 
 import { useMemo, useState } from "react";
 import { useUsLayer1Store } from "@/lib/layer1-us/store";
@@ -617,10 +652,6 @@ function makeTrustRow() {
     sstb: false,
     beneficiaries: [],
   };
-}
-
-function makeRelatedParty() {
-  return { id: uid("rp5472"), name: "", country: "", relationship: "", ownership_percent: "" };
 }
 
 /* ============================ shared bits ============================== */
@@ -1554,10 +1585,34 @@ function CcorpEntitiesBlock() {
   );
 }
 
-function CcorpProfileBlock() {
+// BUG FOUND & FIXED: this was previously named CcorpProfileBlock and was
+// only reachable from a "ccorp"-only tab. Ground truth
+// (layer1_us.html:7185-7205, toggleCorporateFinancials()) gates the
+// equivalent `wrapper-corporate-financials` block on
+// `isCorpOrPartnership = ['ccorp','scorp','partnership'].includes(type)` —
+// i.e. it is shared by all three entity types, not C-Corp-specific. A
+// taxpayer whose entity type is 'scorp' or 'partnership' previously had NO
+// way to enter corporate_profile (EIN/entity name/domicile/NAICS) or
+// Schedule L/M-1/M-2 anywhere in this app. Renamed + regated below (see the
+// `tabs` builder in the default export) so all three isCorpOrPartnership
+// types can reach it. `CcorpEntitiesBlock` (the repeatable list of *other*
+// C-Corp entities under income_us_source.c_corporations_1120) has been
+// pulled out into its own tab, since the ground truth's #container-ccorp is
+// never hidden by entity type either (see the tabs-visibility bug fixed in
+// the default export below).
+// Split from a single CorporateFinancialsBlock so the two pieces can be
+// gated independently: ground truth shows wrapper-corporate-profile-fields
+// (entity name/EIN/NAICS/domicile/foreign flags) for ANY non-individual
+// entity type INCLUDING trust (updateProfileVisibility(), layer1_us.html:
+// 7059-7071 — `corpProfileFields.style.display = isIndividual ? 'none' :
+// 'flex'`, and isIndividual excludes trust), whereas
+// wrapper-corporate-financials (Schedule L/M-1/M-2) is gated on
+// isCorpOrPartnership specifically (ccorp/scorp/partnership only — Form 1041
+// trusts don't file Schedule L/M-1/M-2), per toggleCorporateFinancials()
+// (layer1_us.html:7185-7205).
+function CorporateProfileBlock() {
   const { usState, setField } = useUsLayer1Store();
   const cp = usState.corporate_profile;
-  const cf = usState.corporate_financials;
   const set = (path, v) => setField(path, v);
 
   return (
@@ -1568,7 +1623,7 @@ function CcorpProfileBlock() {
           <TextField label="EIN" value={cp.ein} mono placeholder="12-3456789" onChange={(v) => set("corporate_profile.ein", v)} />
           <TextField label="NAICS Code" value={cp.naics_code} mono maxLength={6} onChange={(v) => set("corporate_profile.naics_code", v)} />
           <DateField label="Date of Incorporation" value={cp.date_of_incorporation} onChange={(v) => set("corporate_profile.date_of_incorporation", v)} />
-          <TextField label="State of Domicile" value={cp.state_of_domicile} placeholder="DE" onChange={(v) => set("corporate_profile.state_of_domicile", v)} />
+          <TextField label="State of Domicile" value={usState.profile.state_of_domicile} placeholder="DE" onChange={(v) => set("profile.state_of_domicile", v)} />
           <TextField label="Fiscal Year End" value={cp.fiscal_year_end} placeholder="12-31" onChange={(v) => set("corporate_profile.fiscal_year_end", v)} />
         </div>
         <div className="grid grid-cols-2 gap-3 pt-1">
@@ -1576,7 +1631,17 @@ function CcorpProfileBlock() {
           <CheckField label="Foreign Corporation" value={cp.is_foreign_corporation} onChange={(v) => set("corporate_profile.is_foreign_corporation", v)} />
         </div>
       </RowCard>
+    </div>
+  );
+}
 
+function ScheduleLM1M2Block() {
+  const { usState, setField } = useUsLayer1Store();
+  const cf = usState.corporate_financials;
+  const set = (path, v) => setField(path, v);
+
+  return (
+    <div className="flex flex-col gap-4">
       <RowCard title="Schedule L — Balance Sheet" onRemove={undefined}>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <MoneyField label="Total Assets (Beginning)" value={cf.schedule_l.assets_beginning} onChange={(v) => set("corporate_financials.schedule_l.assets_beginning", v)} />
@@ -1607,66 +1672,31 @@ function CcorpProfileBlock() {
           <MoneyField label="Retained Earnings (Ending)" value={cf.schedule_m2.retained_earnings_ending} onChange={(v) => set("corporate_financials.schedule_m2.retained_earnings_ending", v)} />
         </div>
       </RowCard>
-
-      <CcorpEntitiesBlock />
     </div>
   );
 }
 
-function CorporateInternationalBlock() {
-  const { usState, setField, addRow, removeRow, updateRow } = useUsLayer1Store();
-  const ci = usState.corporate_international;
-  const path = "corporate_international.form_5472_related_parties";
-  const rows = ci.form_5472_related_parties || [];
-
-  return (
-    <div className="flex flex-col gap-4">
-      <RowCard title="CFC-Adjacent International Fields" onRemove={undefined}>
-        <div className="text-[11px] text-muted -mt-1">
-          FDII/GILTI-successor (NCTI) inputs for a majority-owned or foreign-owned domestic corporation.
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <MoneyField
-            label="FDII-Eligible Income (Foreign-Derived Deduction Eligible Income)"
-            value={ci.fdii_eligible_income}
-            onChange={(v) => setField("corporate_international.fdii_eligible_income", v)}
-          />
-          <MoneyField
-            label="NCTI Tested Income (post-OBBBA GILTI successor)"
-            value={ci.ncti_tested_income}
-            onChange={(v) => setField("corporate_international.ncti_tested_income", v)}
-          />
-        </div>
-      </RowCard>
-
-      <RowCard title="Form 5472 — 25%-Foreign-Owned Related Parties" onRemove={undefined}>
-        <div className="flex justify-end -mt-1">
-          <AddBtn onClick={() => addRow(path, makeRelatedParty())}>+ Add Related Party</AddBtn>
-        </div>
-        {rows.length === 0 && <Empty>No related parties added.</Empty>}
-        {rows.map((r, i) => (
-          <div key={r.id} className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-end bg-white/[0.02] border border-line rounded-xl p-3">
-            <div className="md:col-span-4">
-              <TextField label="Related Party Name" value={r.name} onChange={(v) => updateRow(path, i, { name: v })} />
-            </div>
-            <div className="md:col-span-3">
-              <TextField label="Country" value={r.country} onChange={(v) => updateRow(path, i, { country: v })} />
-            </div>
-            <div className="md:col-span-3">
-              <TextField label="Relationship" value={r.relationship} placeholder="e.g. Parent, Sub" onChange={(v) => updateRow(path, i, { relationship: v })} />
-            </div>
-            <div className="md:col-span-1">
-              <MoneyField label="Own %" value={r.ownership_percent} onChange={(v) => updateRow(path, i, { ownership_percent: v })} />
-            </div>
-            <div className="md:col-span-1 flex justify-end">
-              <RemoveBtn onClick={() => removeRow(path, i)} />
-            </div>
-          </div>
-        ))}
-      </RowCard>
-    </div>
-  );
-}
+// BUG FOUND & FIXED: this step previously also rendered a
+// "CorporateInternationalBlock" (FDII/NCTI scalars + a Form-5472
+// related-parties repeatable) inside the C-Corp tab. Two problems, both
+// confirmed against the source:
+//   1. None of that content exists anywhere in panel-step-business
+//      (layer1_us.html:2220-2718) — the real FDII/NCTI/Form-5472 UI lives in
+//      panel-step-business's sibling panel-step-entities (layer1_us.html:
+//      3273-3388, the "wrapper-form-5472" accordion), which EntitiesStep.jsx
+//      already ports faithfully.
+//   2. Both this (now-removed) block and EntitiesStep.jsx wrote to the exact
+//      same array path, `corporate_international.form_5472_related_parties`,
+//      with two *incompatible* row shapes — this file's
+//      `{id, name, country, relationship, ownership_percent}` vs.
+//      EntitiesStep's `{related_party_name, country, relationship_type,
+//      transaction_type, amount_usd}` (no `id` at all, which this file used
+//      as the React list `key`). Rows added on one step rendered as blank
+//      fields (and a missing/undefined key) on the other — the exact
+//      "two steps racing to own the same usState path" class of bug flagged
+//      as a recurring risk in docs/LAYER1_US_REACT_PORT_GAPS.md item 2.
+// Fix: deleted this step's copy entirely; EntitiesStep.jsx is the sole owner,
+// matching where the source actually places this content.
 
 /* ============================== Trust ===================================== */
 
@@ -1901,40 +1931,93 @@ export default function BusinessStep() {
 
   // Core branch ported from updateBusinessStepLogic() (layer1_us.html:7307):
   // resolve the effective entity type through the LLC election, then decide
-  // which subsections are relevant. The original's CSS flexbox re-ordering/
-  // relabeling cosmetics are intentionally NOT replicated 1:1 — this uses a
-  // header swap + tabbed sections instead (see file header "SIMPLIFIED").
+  // which subsection is PRIMARY (forced open / labeled as the entity's own
+  // operations). The original's CSS flexbox re-ordering/relabeling cosmetics
+  // are intentionally NOT replicated 1:1 — this uses a header swap + tabbed
+  // sections instead (see file header "SIMPLIFIED").
   const selectedType = usState.profile.tax_entity_type || "individual";
   const effectiveType = selectedType === "llc" ? usState.profile.llc_tax_election || "individual" : selectedType;
   const isCorpOrPartnership = ["ccorp", "scorp", "partnership"].includes(effectiveType);
 
   const totals = useMemo(() => computeSimplifiedTotals(usState), [usState]);
 
+  // BUG FOUND & FIXED: this previously branched on effectiveType and
+  // returned ONLY that entity's tab (e.g. effectiveType === "ccorp" showed
+  // just the C-Corp + "intl" tabs — no Schedule C, no Farm, no Partnership/
+  // S-Corp/Trust K-1s at all). That doesn't match the source: per
+  // updateBusinessStepLogic() (layer1_us.html:7307-7455), `type` only picks
+  // which container is forced open, locked, and labeled "PRIMARY ENTITY
+  // OPERATIONS" (style.order = 1) — every container
+  // (#container-sole-prop/farming/partnership/scorp/ccorp/trust) is reset to
+  // `style.order = 10` and stays fully visible and independently toggleable
+  // regardless of tax_entity_type ("Visibility is now controlled purely by
+  // the Business Nature Checklist" per the comment at layer1_us.html:7313).
+  // The bug meant e.g. a partnership owner who ALSO has Schedule C
+  // consulting income, or receives an S-Corp K-1, had literally no UI path
+  // to enter that income — not a numeric simplification, a missing data-entry
+  // surface. Fixed by always building all 6 section tabs and only moving the
+  // entity-type's own section to the front / marking it primary, matching
+  // the source's "one primary, rest still present" behavior.
   const tabs = useMemo(() => {
-    if (effectiveType === "ccorp") {
-      return [
-        { key: "ccorp", label: "C-Corp Entity", render: () => <CcorpProfileBlock /> },
-        { key: "intl", label: "Corporate International (CFC-Adjacent)", render: () => <CorporateInternationalBlock /> },
-      ];
-    }
-    if (effectiveType === "partnership") {
-      return [{ key: "partnership", label: "Partnership Operations & Partners", render: () => <PartnershipSection primary /> }];
-    }
-    if (effectiveType === "scorp") {
-      return [{ key: "scorp", label: "S-Corp Operations & Shareholders", render: () => <ScorpSection primary /> }];
-    }
-    if (effectiveType === "trust") {
-      return [{ key: "trust", label: "Trust Income & Beneficiaries", render: () => <TrustSection primary /> }];
-    }
-    // individual / llc-disregarded default
-    return [
+    const list = [
       { key: "se", label: "Self-Employment (Sch C)", render: () => <SelfEmploymentSection /> },
       { key: "farm", label: "Farming (Sch F)", render: () => <FarmSection /> },
-      { key: "part", label: "Partnership K-1s", render: () => <PartnershipSection primary={false} /> },
-      { key: "scorp", label: "S-Corp K-1s", render: () => <ScorpSection primary={false} /> },
-      { key: "trust", label: "Trust/Estate K-1s", render: () => <TrustSection primary={false} /> },
+      {
+        key: "part",
+        label: effectiveType === "partnership" ? "Partnership — Primary Entity" : "Partnership K-1s",
+        render: () => <PartnershipSection primary={effectiveType === "partnership"} />,
+      },
+      {
+        key: "scorp",
+        label: effectiveType === "scorp" ? "S-Corp — Primary Entity" : "S-Corp K-1s",
+        render: () => <ScorpSection primary={effectiveType === "scorp"} />,
+      },
+      {
+        key: "ccorp",
+        label: effectiveType === "ccorp" ? "C-Corp — Primary Entity" : "C-Corporations",
+        render: () => <CcorpEntitiesBlock />,
+      },
+      {
+        key: "trust",
+        label: effectiveType === "trust" ? "Trust — Primary Entity" : "Trust/Estate K-1s",
+        render: () => <TrustSection primary={effectiveType === "trust"} />,
+      },
     ];
-  }, [effectiveType]);
+    // corporate_profile (EIN, entity name, domicile, NAICS, foreign flags) —
+    // gated on effectiveType !== "individual", matching
+    // updateProfileVisibility()'s `corpProfileFields` gating (layer1_us.html
+    // :7059-7071), which shows it for ccorp/scorp/partnership/trust alike.
+    if (effectiveType !== "individual") {
+      list.unshift({
+        key: "corpprofile",
+        label: "Corporate / Entity Profile",
+        render: () => <CorporateProfileBlock />,
+      });
+    }
+    // Schedule L/M-1/M-2 — gated on isCorpOrPartnership specifically
+    // (ccorp/scorp/partnership only, not trust — Form 1041 doesn't file
+    // Schedule L/M-1/M-2), matching toggleCorporateFinancials()
+    // (layer1_us.html:7185-7205). Previously reachable for effectiveType
+    // === "ccorp" only.
+    if (isCorpOrPartnership) {
+      list.unshift({
+        key: "corpfin",
+        label: "Schedule L / M-1 / M-2 (Corporate Financials)",
+        render: () => <ScheduleLM1M2Block />,
+      });
+    }
+    // Bring the entity's own primary section to the front, mirroring the
+    // source forcing the primary container (containers.ccorp/scorp/
+    // partnership — the repeatable entity-operations block, e.g.
+    // #container-ccorp which drives addCcorpRow()/c_corporations_1120, NOT
+    // the separate Schedule L/M-1/M-2 block) to style.order = 1.
+    const primaryKey = { ccorp: "ccorp", scorp: "scorp", partnership: "part", trust: "trust" }[effectiveType];
+    if (primaryKey) {
+      const idx = list.findIndex((t) => t.key === primaryKey);
+      if (idx > 0) list.unshift(list.splice(idx, 1)[0]);
+    }
+    return list;
+  }, [effectiveType, isCorpOrPartnership]);
 
   const currentKey = activeTab && tabs.some((t) => t.key === activeTab) ? activeTab : tabs[0]?.key;
   const current = tabs.find((t) => t.key === currentKey);
@@ -1991,7 +2074,9 @@ export default function BusinessStep() {
         rows, ~715 lines) is not ported; the full basis/at-risk/passive-loss/QBI-limitation logic inside
         calculateBusinessIncomes() (1072 lines) is replaced with the simplified top-line total above; the
         ~25-option NAICS/SSTB dropdown is collapsed to a short list; and updateBusinessStepLogic()'s DOM
-        flexbox re-ordering is replaced with tabs rather than replicated literally.
+        flexbox re-ordering is replaced with a tab UI (every section stays visible/usable for every entity
+        type, matching the source — only which tab opens first and is labeled "primary" changes) rather than
+        literal DOM node re-ordering. FDII/NCTI/Form 5472 fields live on the Foreign Entities step, not here.
       </div>
     </div>
   );

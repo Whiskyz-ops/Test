@@ -405,6 +405,58 @@ export default function EquityStep() {
     onRemove: (idx) => removeRow(path, idx),
   });
 
+  // BUGFIX: the vanilla wizard's syncIsoState()/syncNsoState()/syncRsuState()/
+  // syncEsppState() (layer1_us.html:18075-18455) write the live-computed field
+  // (amt_preference_spread_usd / ordinary_income_recognized_usd /
+  // gross_income_usd / disposition_type+ordinary_income_usd+capital_gain_loss_usd)
+  // back into each row object in usState, not just onto the on-screen label.
+  // This port originally only computed those values for display inside
+  // IsoRow/NsoRow/RsuRow/EsppRow and never wrote them back — so every
+  // consumer that reads the persisted field directly without a fallback
+  // (e.g. AmtNiitStep.jsx's recalcAmt(), which sums
+  // `ex.amt_preference_spread_usd || 0` with no recompute fallback) silently
+  // saw $0 no matter how large the real ISO/NSO/RSU/ESPP spread was. Fixed
+  // by computing the derived field(s) on the merged row and folding them
+  // into the patch before it's persisted, mirroring the vanilla sync*State()
+  // functions exactly.
+  const mkComputed = (path, computeExtra) => ({
+    onChange: (idx, patch) => {
+      const arr = eq[path.split(".").pop()] || [];
+      const merged = { ...arr[idx], ...patch };
+      updateRow(path, idx, { ...patch, ...computeExtra(merged) });
+    },
+    onRemove: (idx) => removeRow(path, idx),
+  });
+
+  const isoHandlers = mkComputed("equity_compensation.iso_exercises", (row) => {
+    const strike = parseNum(row.strike_price_usd) || 0;
+    const fmv = parseNum(row.fmv_at_exercise_usd) || 0;
+    const shares = parseNum(row.shares_exercised) || 0;
+    return { amt_preference_spread_usd: Math.max(0, (fmv - strike) * shares) };
+  });
+
+  const nsoHandlers = mkComputed("equity_compensation.nso_exercises", (row) => {
+    const strike = parseNum(row.strike_price_usd) || 0;
+    const fmv = parseNum(row.fmv_at_exercise_usd) || 0;
+    const shares = parseNum(row.shares_exercised) || 0;
+    return { ordinary_income_recognized_usd: Math.max(0, (fmv - strike) * shares) };
+  });
+
+  const rsuHandlers = mkComputed("equity_compensation.rsu_vestings", (row) => {
+    const fmv = parseNum(row.fmv_at_vest_usd) || 0;
+    const shares = parseNum(row.shares_vested) || 0;
+    return { gross_income_usd: fmv * shares };
+  });
+
+  const esppHandlers = mkComputed("equity_compensation.espp_purchases", (row) => {
+    const { dispositionType, ordinaryIncome, capGain } = computeEspp(row);
+    return {
+      disposition_type: dispositionType,
+      ordinary_income_usd: ordinaryIncome,
+      capital_gain_loss_usd: capGain,
+    };
+  });
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -447,11 +499,12 @@ export default function EquityStep() {
                 strike_price_usd: null,
                 fmv_at_exercise_usd: null,
                 shares_exercised: null,
+                amt_preference_spread_usd: 0,
               })
             }
           >
             {iso.map((row, i) => (
-              <IsoRow key={i} row={row} index={i} {...mk("equity_compensation.iso_exercises")} />
+              <IsoRow key={i} row={row} index={i} {...isoHandlers} />
             ))}
           </RowSection>
 
@@ -466,11 +519,12 @@ export default function EquityStep() {
                 shares_exercised: null,
                 strike_price_usd: null,
                 fmv_at_exercise_usd: null,
+                ordinary_income_recognized_usd: 0,
               })
             }
           >
             {nso.map((row, i) => (
-              <NsoRow key={i} row={row} index={i} {...mk("equity_compensation.nso_exercises")} />
+              <NsoRow key={i} row={row} index={i} {...nsoHandlers} />
             ))}
           </RowSection>
 
@@ -485,11 +539,12 @@ export default function EquityStep() {
                 shares_vested: null,
                 fmv_at_vest_usd: null,
                 shares_withheld_for_taxes: null,
+                gross_income_usd: 0,
               })
             }
           >
             {rsu.map((row, i) => (
-              <RsuRow key={i} row={row} index={i} {...mk("equity_compensation.rsu_vestings")} />
+              <RsuRow key={i} row={row} index={i} {...rsuHandlers} />
             ))}
           </RowSection>
 
@@ -508,11 +563,14 @@ export default function EquityStep() {
                 shares_purchased: null,
                 sale_date: null,
                 sale_price_usd: null,
+                disposition_type: "held",
+                ordinary_income_usd: 0,
+                capital_gain_loss_usd: 0,
               })
             }
           >
             {espp.map((row, i) => (
-              <EsppRow key={i} row={row} index={i} {...mk("equity_compensation.espp_purchases")} />
+              <EsppRow key={i} row={row} index={i} {...esppHandlers} />
             ))}
           </RowSection>
 

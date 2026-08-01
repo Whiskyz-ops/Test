@@ -459,7 +459,22 @@ export default function BanksStep() {
           <span className="text-[11px] uppercase tracking-wide text-muted font-semibold">
             Other Financial Assets (FATCA/PFIC)
           </span>
-          <AddButton onClick={() => addRow("financial_holdings", newHoldingRow())}>+ Add Holding</AddButton>
+          <AddButton
+            onClick={() => {
+              // Bug fix: the vanilla source's addHoldingRow() immediately
+              // calls syncHoldingsState() after appending a row
+              // (layer1_us.html:19066), so a freshly-added row's PFIC/FBAR
+              // badges are correct from the start (default asset_class
+              // "indian_mutual_fund" is PFIC-reportable). Without running
+              // computeHoldingDerived() here too, a new row rendered with
+              // its untouched defaults showed "Exempt" for both badges
+              // until the user edited any field — wrong from creation.
+              const base = newHoldingRow();
+              addRow("financial_holdings", { ...base, ...computeHoldingDerived(base) });
+            }}
+          >
+            + Add Holding
+          </AddButton>
         </div>
         {holdings.length === 0 ? (
           <p className="text-xs text-muted">No other financial holdings added yet.</p>
