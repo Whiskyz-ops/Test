@@ -788,19 +788,29 @@ NODES.usDualStatusInfo = {
 };
 
 NODES.usDualStatusResult = {
-  deps: ["usDualStatusInfo", "incUs", "dedUs", "usFilingStatusRaw", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs"],
+  deps: ["usDualStatusInfo", "incUs", "dedUs", "usFilingStatusRaw", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs",
+    "electiveDeferralAggregateUsd", "iraContributionAggregateUsd"],
   compute: function (d) {
     var info = d.usDualStatusInfo;
     if (!info.isDualStatusYear) return null;
     var frac = info.residentFraction, nrFrac = info.nonresidentFraction;
+    // Saver's Credit (§25B) is a personal, nonrefundable credit — same
+    // resident-period-only treatment as careExpenses/aotc/lifetimeLearning/
+    // dependents just above (scaleDedForDualStatus's dropPersonalCredits).
+    // Full-year contribution amount applied entirely to the resident
+    // sub-period call, 0 to the nonresident one — this was previously
+    // omitted from BOTH computeUsTaxCore calls entirely (neither passed a
+    // 9th argument at all), which silently dropped the Saver's Credit to
+    // $0 for every dual-status-year filer regardless of real contributions.
+    var saversCreditContributionUsd = d.electiveDeferralAggregateUsd + d.iraContributionAggregateUsd;
 
     var rp = computeUsTaxCore(
       scaleResidentInc(d.incUs, frac), scaleDedForDualStatus(d.dedUs, frac, false),
-      d.usFilingStatusRaw, true, d.feie, d.additionalMedicareOwedBoundary, d.taxpayerDobRaw, d.baseYearUs
+      d.usFilingStatusRaw, true, d.feie, d.additionalMedicareOwedBoundary, d.taxpayerDobRaw, d.baseYearUs, saversCreditContributionUsd
     );
     var nrRaw = computeUsTaxCore(
       scaleNonresidentInc(d.incUs, nrFrac), scaleDedForDualStatus(d.dedUs, nrFrac, true),
-      d.usFilingStatusRaw, false, NO_FEIE, 0, d.taxpayerDobRaw, d.baseYearUs
+      d.usFilingStatusRaw, false, NO_FEIE, 0, d.taxpayerDobRaw, d.baseYearUs, 0
     );
     var nr = Object.assign({}, nrRaw, { niitUsd: 0, totalTaxBeforeFtcUsd: nrRaw.totalTaxBeforeFtcUsd - nrRaw.niitUsd });
 
@@ -823,6 +833,11 @@ NODES.usDualStatusResult = {
       tipsDeductionUsd: rp.tipsDeductionUsd, overtimeDeductionUsd: rp.overtimeDeductionUsd, tipsOvertimeDetail: rp.tipsOvertimeDetail,
       ordinaryTaxableUsd: rp.ordinaryTaxableUsd + nr.ordinaryTaxableUsd, ordinaryBracketBreakdown: rp.ordinaryBracketBreakdown,
       amtDetail: rp.amtDetail, otherCreditsUsd: rp.otherCreditsUsd + nr.otherCreditsUsd, ctcDetail: rp.ctcDetail,
+      // Saver's Credit is resident-period-only (see the dropPersonalCredits
+      // comment above) — nr.saversCreditUsd is always 0, so the sum is just
+      // rp's own figure, kept as an explicit sum for the same reason
+      // otherCreditsUsd above is a sum rather than a bare rp reference.
+      saversCreditUsd: (rp.saversCreditUsd || 0) + (nr.saversCreditUsd || 0), saversCreditDetail: rp.saversCreditDetail,
       foreignSourceIncomeUsd: rp.foreignSourceIncomeUsd,
       retirementEpfInterestUsd: rp.retirementEpfInterestUsd, retirementNpsWithdrawalUsd: rp.retirementNpsWithdrawalUsd,
       niitDetail: rp.niitDetail, feie: rp.feie,

@@ -621,14 +621,24 @@ def _us_dual_status_result(d, ctx):
     if not info["isDualStatusYear"]:
         return None
     frac, nr_frac = info["residentFraction"], info["nonresidentFraction"]
+    # Saver's Credit (§25B) is a personal, nonrefundable credit — same
+    # resident-period-only treatment as care_expenses/aotc/lifetime_learning/
+    # dependents in _scale_ded_for_dual_status's drop_personal_credits.
+    # Full-year contribution amount applied entirely to the resident
+    # sub-period call, 0 to the nonresident one — this was previously
+    # omitted from BOTH compute_us_tax_core calls entirely, which silently
+    # dropped the Saver's Credit to $0 for every dual-status-year filer
+    # regardless of real contributions.
+    savers_credit_contribution_usd = d["electiveDeferralAggregateUsd"] + d["iraContributionAggregateUsd"]
 
     rp = compute_us_tax_core(
         _scale_resident_inc(d["incUs"], frac), _scale_ded_for_dual_status(d["dedUs"], frac, False),
         d["usFilingStatusRaw"], True, d["feie"], d["additionalMedicareOwedBoundary"], d["taxpayerDobRaw"], d["baseYearUs"],
+        savers_credit_contribution_usd,
     )
     nr_raw = compute_us_tax_core(
         _scale_nonresident_inc(d["incUs"], nr_frac), _scale_ded_for_dual_status(d["dedUs"], nr_frac, True),
-        d["usFilingStatusRaw"], False, _NO_FEIE, 0, d["taxpayerDobRaw"], d["baseYearUs"],
+        d["usFilingStatusRaw"], False, _NO_FEIE, 0, d["taxpayerDobRaw"], d["baseYearUs"], 0,
     )
     # NIIT never applies to a nonresident alien (Treas. Reg. 1.1411-2(a)(2)(i)) --
     # compute_us_tax_core has no NRA-awareness flag, so override post-hoc.
@@ -653,6 +663,10 @@ def _us_dual_status_result(d, ctx):
         "tipsDeductionUsd": rp["tipsDeductionUsd"], "overtimeDeductionUsd": rp["overtimeDeductionUsd"], "tipsOvertimeDetail": rp["tipsOvertimeDetail"],
         "ordinaryTaxableUsd": rp["ordinaryTaxableUsd"] + nr["ordinaryTaxableUsd"], "ordinaryBracketBreakdown": rp["ordinaryBracketBreakdown"],
         "amtDetail": rp["amtDetail"], "otherCreditsUsd": rp["otherCreditsUsd"] + nr["otherCreditsUsd"], "ctcDetail": rp["ctcDetail"],
+        # Saver's Credit is resident-period-only (see the drop_personal_
+        # credits comment above) -- nr's is always 0, kept as an explicit
+        # sum for the same reason otherCreditsUsd above is a sum.
+        "saversCreditUsd": (rp.get("saversCreditUsd") or 0) + (nr.get("saversCreditUsd") or 0), "saversCreditDetail": rp.get("saversCreditDetail"),
         "foreignSourceIncomeUsd": rp["foreignSourceIncomeUsd"],
         "retirementEpfInterestUsd": rp["retirementEpfInterestUsd"], "retirementNpsWithdrawalUsd": rp["retirementNpsWithdrawalUsd"],
         "niitDetail": rp["niitDetail"], "feie": rp["feie"],
@@ -742,7 +756,8 @@ def build(base):
     r.register("usResidencyEndDateRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "us_residency_detail.residency_end_date", None), layer1_fields=("us.us_residency_detail.residency_end_date",)))
     r.register("usDualStatusInfo", NodeDef(deps=("usStatusRaw", "usResidencyStartDateRaw", "usResidencyEndDateRaw", "baseYearUs"), compute=_us_dual_status_info))
     r.register("usDualStatusResult", NodeDef(
-        deps=("usDualStatusInfo", "incUs", "dedUs", "usFilingStatusRaw", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs"),
+        deps=("usDualStatusInfo", "incUs", "dedUs", "usFilingStatusRaw", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs",
+              "electiveDeferralAggregateUsd", "iraContributionAggregateUsd"),
         compute=_us_dual_status_result,
     ))
 
