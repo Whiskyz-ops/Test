@@ -30,7 +30,13 @@ def test_india_income_model_matches_golden(fixture_id):
     # DELIBERATE DAG/engine divergence (task #46, multi-country/multi-basket
     # FTC): .passive/.general are new §904 basket-split fields with no
     # frozen-engine equivalent (the engine has no basket concept at all).
-    out_income = {k: v for k, v in out["indiaIncomeModelResult"].items() if k not in ("passive", "general")}
+    # salaryDetail (India salary exemptions fix): a new structural trace
+    # field with no frozen-engine equivalent at all -- for these 13
+    # fixtures specifically it's a pure structural addition, not a real
+    # amount divergence (every fixture's taxableSalaryInr computes to the
+    # same figure golden's own .salary already reflects, confirmed by this
+    # test still asserting .salary unconditionally below).
+    out_income = {k: v for k, v in out["indiaIncomeModelResult"].items() if k not in ("passive", "general", "salaryDetail")}
     diff = deep_diff(out_income, golden["model"]["income"]["india"])
     assert diff is None, f"{fixture_id}: " + " | ".join(diff[:8])
 
