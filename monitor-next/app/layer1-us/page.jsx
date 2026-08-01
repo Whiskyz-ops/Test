@@ -1,5 +1,5 @@
 "use client";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useMachine } from "@xstate/react";
 import { wizardMachine, isStepLocked, getLockContext } from "@/lib/layer1-us/machine";
 import { STEP_IDS, STEP_LABELS } from "@/lib/layer1-us/schema";
@@ -67,9 +67,22 @@ export default function Layer1UsWizardPage() {
   // getLockContext() below always fresh — it reads getState() live rather
   // than a value threaded through props/context that could lag. See
   // lib/layer1-us/machine.js's ARCHITECTURE FIX note.
-  useUsLayer1Store((s) => s.usState);
+  const usState = useUsLayer1Store((s) => s.usState);
   useOnboardingSetup();
   const [state, send] = useMachine(wizardMachine);
+
+  // BUG FIX (hydration pass): re-derive the onboarding setup-gate flags from
+  // whatever usState the store started with (a freshly-loaded saved
+  // session, or a persona/profile prefill) once, after mount. Deliberately
+  // NOT done at store.js's module scope — see that file's note on why doing
+  // it before React's first client render caused a hydration mismatch
+  // against the server's always-default render.
+  useEffect(() => {
+    useOnboardingSetup.getState().hydrateFromUsState(usState);
+    // Intentionally run once on mount only — replaceAll() (persona
+    // prefill/reset) re-hydrates on its own for subsequent bulk replaces.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const activeStep = state.context.activeStep;
   const ActiveComponent = STEP_COMPONENTS[activeStep] || OnboardingStep;

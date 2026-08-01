@@ -207,6 +207,82 @@ export function applyDerivations(usState) {
   };
 }
 
+// ── deriveSetupFlags() — ported from layer1_us.html:20738-20828 (a
+// behavioral-diff fix dated 25 Jul 2026 in the source itself, whose own
+// comment says it was confirmed via a real profile diff that omitting this
+// "silently dropped a trust K-1's $4,900 from AGI/AMTI/NIIT" because the
+// gating flag never derived true for data that didn't arrive via wizard
+// clicks). The 7 top-level + 6 nested "setup" checkboxes gate which sidebar
+// phases/steps are even visible (isPhaseVisible/isStepButtonVisible in
+// machine.js) — they're pure UI-gating state, not tax data, so they live in
+// useOnboardingSetup, not usState. But if they're only ever set by a user's
+// own clicks, any usState arriving another way (a saved session reloaded
+// fresh, a persona/profile prefill) leaves real data sitting behind a
+// hidden, still-locked phase. This derives every flag from the actual
+// underlying data so the gate reopens itself; callers OR this with
+// whatever's already set (see useOnboardingSetup's hydrateFromUsState) so
+// an explicit manual check on an otherwise-empty section still holds.
+export function deriveSetupFlags(usState) {
+  const iu = usState.income_us_source || {};
+  const hasForeignAssets = !!(
+    (usState.bank_accounts || []).some((b) => b.country && b.country !== "US" && b.country !== "United States") ||
+    (usState.fbar_aggregate_peak_usd || 0) > 0
+  );
+  // Source also ORs in `foreign_entities.has_pfics`, a field this schema
+  // doesn't have at all — PFIC data lives on financial_holdings[] instead
+  // (see BanksStep.jsx), already covered by hasForeignAssets above for the
+  // FBAR/FATCA gate that data actually feeds. Adapted to the two real
+  // foreign-entity-ownership fields this schema has instead.
+  const fe = usState.foreign_entities || {};
+  const hasForeignEntities = !!(
+    fe.owns_10_percent_foreign_corp ||
+    fe.owns_10_percent_foreign_partnership ||
+    (fe.foreign_corporations && fe.foreign_corporations.length) ||
+    (fe.foreign_partnerships && fe.foreign_partnerships.length)
+  );
+  const hasForeignFeie = !!(usState.foreign_earned_income && usState.foreign_earned_income.claims_feie);
+  const fgt = usState.foreign_gifts_and_trusts || {};
+  const hasForeignGifts = !!(
+    fgt.received_foreign_gifts_above_100k ||
+    fgt.received_gift_from_covered_expatriate ||
+    fgt.is_us_beneficiary_of_foreign_trust ||
+    (fgt.foreign_trust_details && fgt.foreign_trust_details.length)
+  );
+  const hasPassiveIntDiv = (iu.interest_us_source_usd || 0) > 0 || (iu.ordinary_dividends_us_source_usd || 0) > 0;
+  const hasPassiveCapGains = (iu.ltcg_us_source_usd || 0) > 0;
+
+  return {
+    setupW2: !!(iu.has_employment_income || (iu.wages_w2 && iu.wages_w2.length > 0)),
+    setupBiz: !!(
+      (iu.self_employment && iu.self_employment.length) ||
+      (iu.partnerships_k1 && iu.partnerships_k1.length) ||
+      (iu.s_corporations_k1 && iu.s_corporations_k1.length) ||
+      (iu.c_corporations_1120 && iu.c_corporations_1120.length) ||
+      (iu.farming_schedule_f && iu.farming_schedule_f.length) ||
+      (iu.trusts_estates_k1 && iu.trusts_estates_k1.length)
+    ),
+    setupPassiveAny: hasPassiveIntDiv || hasPassiveCapGains,
+    setupProp: !!(usState.real_estate && usState.real_estate.has_real_estate_transaction),
+    setupForeignAny: hasForeignAssets || hasForeignEntities || hasForeignFeie || hasForeignGifts,
+    setupRetirement: !!(
+      usState.retirement_accounts &&
+      Object.keys(usState.retirement_accounts).some((k) => (usState.retirement_accounts[k] || 0) > 0)
+    ),
+    setupEquity: !!(
+      usState.equity_compensation &&
+      ((usState.equity_compensation.iso_exercises && usState.equity_compensation.iso_exercises.length) ||
+        (usState.equity_compensation.rsu_vestings && usState.equity_compensation.rsu_vestings.length) ||
+        (usState.equity_compensation.espp_purchases && usState.equity_compensation.espp_purchases.length))
+    ),
+    setupForeignAssets: hasForeignAssets,
+    setupForeignFeie: hasForeignFeie,
+    setupForeignEntities: hasForeignEntities,
+    setupForeignGifts: hasForeignGifts,
+    setupPassiveIntDiv: hasPassiveIntDiv,
+    setupPassiveCapGains: hasPassiveCapGains,
+  };
+}
+
 // ── calculateComplexity() — ported from layer1_us.html:6343-6368. Purely
 // cosmetic (drives the 5-segment "Estimated Complexity" meter on
 // Onboarding), no tax logic depends on it. The original counts 11 distinct

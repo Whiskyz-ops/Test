@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { createDefaultUsState } from "./schema";
-import { applyDerivations } from "./derive";
+import { applyDerivations, deriveSetupFlags } from "./derive";
 
 // Mirrors prototypes/graph-pilot/constants.js's ClientRegistry.storageKeyFor
 // ('US') exactly: plain "wising_us_state" normally, or
@@ -91,6 +91,62 @@ function finalize(usState) {
   return derived;
 }
 
+// Onboarding "setup" checkboxes: in the original file these are read
+// straight off the DOM (document.getElementById('setup-w2')?.checked) and
+// were never part of usState — they're pure wizard-gating UI state, not
+// tax data, so they deliberately don't live in the schema/localStorage
+// blob feeding the DAG engine either.
+//
+// ARCHITECTURE FIX: an earlier pass mirrored this into the XState machine's
+// context via a useEffect keyed on a manually-maintained dependency array —
+// a real staleness risk (miss one field in the array and the guard silently
+// uses an outdated value). machine.js's guards now call
+// useOnboardingSetup.getState() directly (zustand's vanilla API works
+// outside React, so this needs no hook/effect/subscription) — there is no
+// copy to keep in sync anymore.
+//
+// Declared before useUsLayer1Store (which hydrates it on init/replaceAll
+// below) since JS module evaluation order requires it to exist first.
+export const useOnboardingSetup = create((set, get) => ({
+  setupW2: false,
+  setupBiz: false,
+  setupProp: false,
+  setupRetirement: false,
+  setupEquity: false,
+  setupPassiveAny: false,
+  setupForeignAny: false,
+  // Nested sub-checkboxes under the "International" and "Investments"
+  // setup cards (layer1_us.html:844-968). BUG FIX: these used to be local
+  // useState inside OnboardingStep.jsx only — invisible to the sidebar and
+  // to machine.js, so the per-step visibility rules ported from
+  // updateSidebarVisibility()'s toggleBtn() calls (layer1_us.html:6287-6314)
+  // had no real state to read. Lifted into this shared store so they're
+  // reachable the same way the 7 top-level flags already are.
+  setupForeignAssets: false,
+  setupForeignFeie: false,
+  setupForeignEntities: false,
+  setupForeignGifts: false,
+  setupPassiveIntDiv: false,
+  setupPassiveCapGains: false,
+  setFlag: (key, value) => set({ [key]: value }),
+  // BUG FIX (hydration pass): ported from layer1_us.html:20738-20828 — see
+  // deriveSetupFlags()'s own comment in derive.js for the real-data-loss
+  // incident that fix addressed in the source. Called from
+  // useUsLayer1Store's init and replaceAll (persona prefill, saved-session
+  // reload) so a phase/step whose underlying data is already present never
+  // stays hidden/locked just because no wizard click set its flag. ORs with
+  // whatever's already set here so an explicit manual check on an
+  // otherwise-empty section still holds, matching the source's
+  // `derived.setupX || s.setupX === true` merge.
+  hydrateFromUsState: (usState) =>
+    set((s) => {
+      const derived = deriveSetupFlags(usState);
+      const next = {};
+      for (const k of Object.keys(derived)) next[k] = s[k] || derived[k];
+      return next;
+    }),
+}));
+
 export const useUsLayer1Store = create((set, get) => ({
   usState: typeof window === "undefined" ? createDefaultUsState() : loadFromStorage(),
 
@@ -122,43 +178,30 @@ export const useUsLayer1Store = create((set, get) => ({
     }),
 
   // ---- bulk replace (hydration / reset) --------------------------------
-  replaceAll: (usState) => set(() => ({ usState: finalize(usState) })),
+  replaceAll: (usState) =>
+    set(() => {
+      const next = finalize(usState);
+      useOnboardingSetup.getState().hydrateFromUsState(next);
+      return { usState: next };
+    }),
   reset: () => set(() => ({ usState: finalize(createDefaultUsState()) })),
 }));
 
-// Onboarding "setup" checkboxes: in the original file these are read
-// straight off the DOM (document.getElementById('setup-w2')?.checked) and
-// were never part of usState — they're pure wizard-gating UI state, not
-// tax data, so they deliberately don't live in the schema/localStorage
-// blob feeding the DAG engine either.
-//
-// ARCHITECTURE FIX: an earlier pass mirrored this into the XState machine's
-// context via a useEffect keyed on a manually-maintained dependency array —
-// a real staleness risk (miss one field in the array and the guard silently
-// uses an outdated value). machine.js's guards now call
-// useOnboardingSetup.getState() directly (zustand's vanilla API works
-// outside React, so this needs no hook/effect/subscription) — there is no
-// copy to keep in sync anymore.
-export const useOnboardingSetup = create((set) => ({
-  setupW2: false,
-  setupBiz: false,
-  setupProp: false,
-  setupRetirement: false,
-  setupEquity: false,
-  setupPassiveAny: false,
-  setupForeignAny: false,
-  // Nested sub-checkboxes under the "International" and "Investments"
-  // setup cards (layer1_us.html:844-968). BUG FIX: these used to be local
-  // useState inside OnboardingStep.jsx only — invisible to the sidebar and
-  // to machine.js, so the per-step visibility rules ported from
-  // updateSidebarVisibility()'s toggleBtn() calls (layer1_us.html:6287-6314)
-  // had no real state to read. Lifted into this shared store so they're
-  // reachable the same way the 7 top-level flags already are.
-  setupForeignAssets: false,
-  setupForeignFeie: false,
-  setupForeignEntities: false,
-  setupForeignGifts: false,
-  setupPassiveIntDiv: false,
-  setupPassiveCapGains: false,
-  setFlag: (key, value) => set({ [key]: value }),
-}));
+// NOTE: hydrateFromUsState() is deliberately NOT called here at module
+// scope. usState's own loadFromStorage() above runs synchronously at import
+// time and gets away with it because nothing in the wizard's initial paint
+// varies *structurally* off typical stored field values (form controls'
+// `value` mismatches are patched silently by React). Sidebar phase
+// visibility is different — it conditionally renders whole subtrees
+// (isPhaseVisible -> `return null`), so if useOnboardingSetup's flags were
+// already hydrated by the time React does its first client render, that
+// render would disagree with the server's (which always sees
+// `typeof window === "undefined"` and gets the all-false/default state) —
+// a hard hydration-mismatch error, confirmed by hitting exactly that error
+// when this call lived here during development. The wizard page instead
+// calls hydrateFromUsState() once from a useEffect after mount (see
+// app/layer1-us/page.jsx), so the first client render still matches SSR,
+// and the gate reopens in a normal post-hydration re-render immediately
+// after — the same one-paint-later flash the original vanilla-JS wizard
+// has anyway, since initFromLocalStorage() there also only runs after
+// DOMContentLoaded, not before first paint.
