@@ -28,6 +28,12 @@ export function createDefaultUsState() {
       ssn_or_itin_type: "none",
       dependents_count: 0,
       spouse_is_us_person: null,
+      // Added (chrome/structure verification pass): layer1_us.html:737,
+      // "Sharing dependents with an ex-spouse?" (Form 8332 release/claim).
+      // No dag_py/JS-DAG node reads this yet — same status as the original,
+      // which collects it but doesn't feed it into any CTC computation
+      // either. Added for field-parity with the real onboarding screen.
+      form_8332_active: false,
       // Bug fix: was missing entirely from this schema and from
       // ProfileStep.jsx's UI, even though lib/dag/ustax-nodes.js's
       // usVisaTypeRaw node reads "profile.visa_type" to drive Article 21(2)
@@ -383,55 +389,123 @@ export function createDefaultUsState() {
   };
 }
 
-// The 22 real wizard steps (layer1_us.html's `stepIds`, layer1_us.html:5888,
-// minus the vestigial 'step-k1' entry that has no matching panel/button
-// anywhere in the source file — dropped here as dead-reference cleanup).
+// BUG FIX (chrome/structure verification pass): this list previously used
+// an invented flat order with the wrong step-3 label/position. The real
+// order, numbering, and grouping come directly from layer1_us.html's
+// sidebar markup (layer1_us.html:423-620, the `nav-group-*` /
+// `phase-accordion-content` blocks) — read verbatim, not reconstructed
+// from switchStep()/isStepLocked() alone (those only encode *whether* a
+// step is reachable, not where it sits in the visible list). 'step-k1' is
+// still dropped — it's a dead reference with no matching panel/button
+// anywhere in the source.
 export const STEP_IDS = [
   "step-onboarding",
   "step-profile",
+  "step-state",
+  "step-bank-sync",
   "step-income-us",
   "step-income-foreign",
-  "step-business",
-  "step-capgains",
-  "step-real-estate",
-  "step-passive",
-  "step-retirement",
-  "step-equity",
-  "step-deductions",
   "step-feie",
-  "step-ftc",
-  "step-amt-niit",
-  "step-nra",
-  "step-state",
+  "step-banks",
   "step-entities",
   "step-gifts",
+  "step-retirement",
+  "step-business",
+  "step-real-estate",
+  "step-capgains",
+  "step-passive",
+  "step-equity",
+  "step-deductions",
+  "step-amt-niit",
+  "step-ftc",
   "step-withholding",
-  "step-banks",
-  "step-bank-sync",
+  "step-nra",
   "step-output",
 ];
 
+// PHASES mirrors layer1_us.html's 11 collapsible `nav-group-*` sidebar
+// sections exactly (id, label, and member step ids, in source order).
+// Phase 0/1/2/10 render expanded by default in the source (no `style=
+// "display:none"` on the group, `max-h-[1000px] opacity-100` on the
+// accordion content); Phases 3-9 render collapsed by default (`display:
+// none` on the group itself, `max-h-0 opacity-0` on the content) —
+// preserved here via `defaultOpen`.
+export const PHASES = [
+  { id: "setup", label: "Phase 0: Setup", steps: ["step-onboarding"], defaultOpen: true },
+  { id: "core", label: "Phase 1: Core Profile", steps: ["step-profile", "step-state"], defaultOpen: true },
+  { id: "data", label: "Phase 2: Data Integration", steps: ["step-bank-sync"], defaultOpen: true },
+  { id: "employment", label: "Phase 3: Employment", steps: ["step-income-us"], defaultOpen: false },
+  {
+    id: "international",
+    label: "Phase 4: International",
+    steps: ["step-income-foreign", "step-feie", "step-banks", "step-entities", "step-gifts"],
+    defaultOpen: false,
+  },
+  { id: "retirement", label: "Phase 5: Retirement", steps: ["step-retirement"], defaultOpen: false },
+  { id: "business", label: "Phase 6: Business Ops & K-1s", steps: ["step-business"], defaultOpen: false },
+  { id: "realestate", label: "Phase 7: Real Estate", steps: ["step-real-estate"], defaultOpen: false },
+  { id: "investments", label: "Phase 8: Investments", steps: ["step-capgains", "step-passive"], defaultOpen: false },
+  { id: "equity", label: "Phase 9: Equity & Cap Table", steps: ["step-equity"], defaultOpen: false },
+  {
+    id: "wrapup",
+    label: "Phase 10: Wrap-up & Taxes",
+    steps: ["step-deductions", "step-amt-niit", "step-ftc", "step-withholding", "step-nra", "step-output"],
+    defaultOpen: true,
+  },
+];
+
+// STEP_NUMBERS mirrors the source's literal numbering (layer1_us.html:431
+// "1. Financial Life Snapshot" ... :612 "21. Form 1040-NR Adjustments").
+// step-output is deliberately unnumbered in the source too — it renders as
+// a plain "Generate Output" CTA button, not a numbered nav item
+// (layer1_us.html:615-617).
+export const STEP_NUMBERS = {
+  "step-onboarding": 1,
+  "step-profile": 2,
+  "step-state": 3,
+  "step-bank-sync": 4,
+  "step-income-us": 5,
+  "step-income-foreign": 6,
+  "step-feie": 7,
+  "step-banks": 8,
+  "step-entities": 9,
+  "step-gifts": 10,
+  "step-retirement": 11,
+  "step-business": 12,
+  "step-real-estate": 13,
+  "step-capgains": 14,
+  "step-passive": 15,
+  "step-equity": 16,
+  "step-deductions": 17,
+  "step-amt-niit": 18,
+  "step-ftc": 19,
+  "step-withholding": 20,
+  "step-nra": 21,
+};
+
 export const STEP_LABELS = {
-  "step-onboarding": "Onboarding",
-  "step-profile": "Profile & Residency",
-  "step-income-us": "US-Source Income",
-  "step-income-foreign": "Foreign-Source Income",
-  "step-business": "Business & Entities Income",
-  "step-capgains": "Capital Gains",
-  "step-real-estate": "Real Estate",
-  "step-passive": "Passive Income",
-  "step-retirement": "Retirement Accounts",
-  "step-equity": "Equity Compensation",
-  "step-deductions": "Deductions & Credits",
-  "step-feie": "Foreign Earned Income Exclusion",
-  "step-ftc": "Foreign Tax Credit",
-  "step-amt-niit": "AMT & NIIT",
-  "step-nra": "NRA / 1040-NR",
-  "step-state": "State Residency & Tax",
+  "step-onboarding": "Financial Life Snapshot",
+  "step-profile": "Residency",
+  "step-state": "State Nexus",
+  "step-bank-sync": "Bank Sync & Statements",
+  "step-income-us": "Employment Income",
+  "step-income-foreign": "Foreign Income",
+  "step-feie": "FEIE (Form 2555)",
+  "step-banks": "Foreign Assets (FBAR/FATCA)",
   "step-entities": "Foreign Entities",
   "step-gifts": "Foreign Gifts & Trusts",
-  "step-withholding": "Withholding & Estimated Tax",
-  "step-banks": "Foreign Bank Accounts (FBAR)",
-  "step-bank-sync": "Bank Sync",
-  "step-output": "Review & Export",
+  "step-retirement": "Retirement Accounts",
+  "step-business": "Business Ops & K-1s",
+  "step-real-estate": "Real Estate",
+  "step-capgains": "Capital Gains & Crypto",
+  "step-passive": "Passive & Other",
+  "step-equity": "Equity & Cap Table",
+  "step-deductions": "Deductions & Credits",
+  "step-amt-niit": "AMT & NIIT",
+  "step-ftc": "Foreign Tax Credit",
+  "step-withholding": "Withholding & Estimates",
+  "step-nra": "Form 1040-NR Adjustments",
+  // Unnumbered in the source too — renders as a standalone "Generate
+  // Output" CTA button (layer1_us.html:615-617), not a numbered nav item.
+  "step-output": "Generate Output",
 };

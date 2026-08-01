@@ -1,4 +1,5 @@
 import { createMachine, assign } from "xstate";
+import { useUsLayer1Store, useOnboardingSetup } from "./store";
 
 // Ported from layer1_us.html's isStepLocked() (layer1_us.html:6473-6530) and
 // switchStep() (layer1_us.html:6434-6463). The original wizard is NOT a
@@ -10,10 +11,19 @@ import { createMachine, assign } from "xstate";
 // function, and drops the vestigial 'step-k1' branch (dead reference in the
 // source — no matching panel/button exists anywhere in layer1_us.html).
 //
-// Deliberately NOT modeling all ~900 form fields inside this machine's
-// context — that's the store's (lib/layer1-us/store.js) job. This machine
-// only tracks the small slice isStepLocked() actually reads: entity type,
-// the 7 onboarding setup flags, and residency status/green-card.
+// ARCHITECTURE FIX: an earlier pass kept a COPY of entityType/residencyStatus
+// /setup flags inside the machine's own context, refreshed via a
+// page.jsx useEffect keyed on a hand-maintained dependency array —
+// SYNC_CONTEXT below. That's a real staleness/lag risk: miss one field in
+// the array, or let a render land between a store mutation and the sync
+// effect firing, and isStepLocked() silently evaluates against a
+// stale value. Since zustand stores expose a vanilla getState() that works
+// outside React (no hook, no subscription needed), guards now call
+// getLockContext() to read BOTH stores fresh at the exact moment a GOTO is
+// evaluated — there is no copy to fall out of sync. usState.us_residency_
+// detail.final_us_residency_status is itself always current too, because
+// store.js now runs applyDerivations() (lib/layer1-us/derive.js) after
+// every single mutation, not just while ProfileStep happens to be mounted.
 
 export function isStepLocked(ctx, stepName) {
   const lock = ctx.residencyStatus || "UNKNOWN";
@@ -65,35 +75,50 @@ export function isStepLocked(ctx, stepName) {
   return false;
 }
 
-const defaultSetup = {
-  setupW2: false,
-  setupBiz: false,
-  setupProp: false,
-  setupRetirement: false,
-  setupEquity: false,
-  setupPassiveAny: false,
-  setupForeignAny: false,
-};
+// Reads both stores' CURRENT state (not a synced copy) and normalizes it
+// into the shape isStepLocked() expects. Call this fresh anywhere a lock
+// decision is needed — guards, the sidebar's lock badges, etc.
+export function getLockContext() {
+  const usState = useUsLayer1Store.getState().usState;
+  const setup = useOnboardingSetup.getState();
+  return {
+    entityType: usState.profile.tax_entity_type,
+    llcElection: usState.profile.llc_tax_election,
+    residencyStatus: usState.us_residency_detail.final_us_residency_status,
+    hasGreenCard: usState.us_residency_detail.has_green_card,
+    setup: {
+      setupW2: setup.setupW2,
+      setupBiz: setup.setupBiz,
+      setupProp: setup.setupProp,
+      setupRetirement: setup.setupRetirement,
+      setupEquity: setup.setupEquity,
+      setupPassiveAny: setup.setupPassiveAny,
+      setupForeignAny: setup.setupForeignAny,
+    },
+  };
+}
+
+// Convenience wrapper most call sites actually want: "is this step locked
+// right now" without the two-step getLockContext()+isStepLocked() dance.
+export function isStepLockedNow(stepName) {
+  return isStepLocked(getLockContext(), stepName);
+}
 
 export const wizardMachine = createMachine(
   {
     id: "layer1UsWizard",
     context: {
+      // Only genuinely machine-owned state lives here — which step is
+      // active, and whether the onboarding confirmation has fired. Entity
+      // type/residency/setup flags are NOT duplicated into context; guards
+      // read them live via getLockContext() instead (see above).
       activeStep: "step-onboarding",
-      entityType: "individual",
-      llcElection: "individual",
-      residencyStatus: "NON_RESIDENT_ALIEN",
-      hasGreenCard: false,
       intakeCompleted: false,
-      setup: { ...defaultSetup },
     },
     on: {
       GOTO: {
         guard: "canEnterStep",
         actions: "assignActiveStep",
-      },
-      SYNC_CONTEXT: {
-        actions: "mergeSyncedContext",
       },
       CONFIRM_INTAKE: {
         // Mirrors confirmIntakeAndProceed() (layer1_us.html:6465-6470):
@@ -104,18 +129,13 @@ export const wizardMachine = createMachine(
   },
   {
     guards: {
-      canEnterStep: ({ context, event }) =>
-        event.step === "step-onboarding" || !isStepLocked(context, event.step),
+      canEnterStep: ({ event }) =>
+        event.step === "step-onboarding" || !isStepLocked(getLockContext(), event.step),
     },
     actions: {
       assignActiveStep: assign({
-        activeStep: ({ context, event }) => event.step,
+        activeStep: ({ event }) => event.step,
       }),
-      mergeSyncedContext: assign(({ context, event }) => ({
-        ...context,
-        ...event.patch,
-        setup: { ...context.setup, ...(event.patch?.setup || {}) },
-      })),
       markIntakeCompleted: assign({ intakeCompleted: true }),
       assignStepState: assign({ activeStep: "step-state" }),
     },

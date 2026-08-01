@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { createDefaultUsState } from "./schema";
+import { applyDerivations } from "./derive";
 
 // Mirrors prototypes/graph-pilot/constants.js's ClientRegistry.storageKeyFor
 // ('US') exactly: plain "wising_us_state" normally, or
@@ -38,7 +39,7 @@ function loadFromStorage() {
             ? parsed[key]
             : defaults[key];
     }
-    return merged;
+    return applyDerivations(merged);
   } catch {
     return createDefaultUsState();
   }
@@ -72,17 +73,31 @@ function setAtPath(obj, path, value) {
   return next;
 }
 
+// ARCHITECTURE: every mutator below runs applyDerivations() on the result
+// before persisting/returning — this is the fix for derived fields (most
+// importantly us_residency_detail.final_us_residency_status) only being
+// correct while one particular step's component happened to be mounted.
+// The original layer1_us.html calls evaluateUSResidencyLock() from every
+// relevant field handler regardless of which panel is visible
+// (recalculateDerivedFields()-style "always runs"); doing it here, once, in
+// the one place every field write already passes through, reproduces that
+// exactly — and means the XState machine's guards (machine.js) and any
+// component (RightPanel, sidebar lock badges, etc.) can read
+// usState.us_residency_detail.final_us_residency_status directly at any
+// time and get a value that's never more than one mutation stale.
+function finalize(usState) {
+  const derived = applyDerivations(usState);
+  persist(derived);
+  return derived;
+}
+
 export const useUsLayer1Store = create((set, get) => ({
   usState: typeof window === "undefined" ? createDefaultUsState() : loadFromStorage(),
 
   // ---- scalar field access -------------------------------------------
   // setField("profile.filing_status", "mfj")
   setField: (path, value) =>
-    set((s) => {
-      const usState = setAtPath(s.usState, path, value);
-      persist(usState);
-      return { usState };
-    }),
+    set((s) => ({ usState: finalize(setAtPath(s.usState, path, value)) })),
   getField: (path) => getAtPath(get().usState, path),
 
   // ---- repeatable-row array helpers -----------------------------------
@@ -90,51 +105,40 @@ export const useUsLayer1Store = create((set, get) => ({
   addRow: (path, row) =>
     set((s) => {
       const arr = getAtPath(s.usState, path) || [];
-      const usState = setAtPath(s.usState, path, [...arr, row]);
-      persist(usState);
-      return { usState };
+      return { usState: finalize(setAtPath(s.usState, path, [...arr, row])) };
     }),
   removeRow: (path, index) =>
     set((s) => {
       const arr = getAtPath(s.usState, path) || [];
-      const usState = setAtPath(
-        s.usState,
-        path,
-        arr.filter((_, i) => i !== index)
-      );
-      persist(usState);
-      return { usState };
+      return {
+        usState: finalize(setAtPath(s.usState, path, arr.filter((_, i) => i !== index))),
+      };
     }),
   updateRow: (path, index, patch) =>
     set((s) => {
       const arr = getAtPath(s.usState, path) || [];
       const nextArr = arr.map((row, i) => (i === index ? { ...row, ...patch } : row));
-      const usState = setAtPath(s.usState, path, nextArr);
-      persist(usState);
-      return { usState };
+      return { usState: finalize(setAtPath(s.usState, path, nextArr)) };
     }),
 
   // ---- bulk replace (hydration / reset) --------------------------------
-  replaceAll: (usState) =>
-    set(() => {
-      persist(usState);
-      return { usState };
-    }),
-  reset: () =>
-    set(() => {
-      const usState = createDefaultUsState();
-      persist(usState);
-      return { usState };
-    }),
+  replaceAll: (usState) => set(() => ({ usState: finalize(usState) })),
+  reset: () => set(() => ({ usState: finalize(createDefaultUsState()) })),
 }));
 
 // Onboarding "setup" checkboxes: in the original file these are read
 // straight off the DOM (document.getElementById('setup-w2')?.checked) and
 // were never part of usState — they're pure wizard-gating UI state, not
 // tax data, so they deliberately don't live in the schema/localStorage
-// blob feeding the DAG engine either. Kept as a tiny separate store slice
-// for the same reason, and mirrored into the XState machine's context via
-// SYNC_CONTEXT (see components/layer1-us usage).
+// blob feeding the DAG engine either.
+//
+// ARCHITECTURE FIX: an earlier pass mirrored this into the XState machine's
+// context via a useEffect keyed on a manually-maintained dependency array —
+// a real staleness risk (miss one field in the array and the guard silently
+// uses an outdated value). machine.js's guards now call
+// useOnboardingSetup.getState() directly (zustand's vanilla API works
+// outside React, so this needs no hook/effect/subscription) — there is no
+// copy to keep in sync anymore.
 export const useOnboardingSetup = create((set) => ({
   setupW2: false,
   setupBiz: false,

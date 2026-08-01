@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useUsLayer1Store } from "@/lib/layer1-us/store";
+import { evaluateResidencyLock } from "@/lib/layer1-us/derive";
 
 // ── styling helpers (matches dark-theme Tailwind conventions — see
 // components/Views.jsx) ─────────────────────────────────────────────────────
@@ -34,150 +35,11 @@ function ToggleRow({ title, sub, checked, onChange, disabled }) {
   );
 }
 
-// ── evaluateUSResidencyLock() — ported from layer1_us.html:9256-9544. This
-// pure version drops all direct DOM manipulation (sidebar badge/SPT card
-// text is rendered declaratively below instead) and two fields the port's
-// canonical schema (lib/layer1-us/schema.js) doesn't carry:
-//   - us_days_excluded_current/minus_1/minus_2 + us_days_excluded_reason
-//     (layer1_us.html:9298-9300) — the "days that don't count" offset inputs.
-//   - dual_status_arrival_date / dual_status_departure_date
-//     (layer1_us.html:9458, 9476-9482) — the plain (non-green-card,
-//     non-first-year-election) dual-status date pair.
-// Both are noted inline below with `simplified from` comments rather than
-// silently dropped.
-function evaluateResidencyLock(usState) {
-  const profile = usState.profile;
-  const details = usState.us_residency_detail;
 
-  const selectedType = profile.tax_entity_type || "individual";
-  const entityType = selectedType === "llc" ? profile.llc_tax_election || "individual" : selectedType;
-  const isCorpEntity = !["individual", "sole_prop", "farming"].includes(entityType);
-
-  // ── Corporate entity short-circuit (layer1_us.html:9259-9292) ──
-  if (isCorpEntity) {
-    const isDomestic = profile.incorporated_in_us === true;
-    return {
-      final_us_residency_status: isDomestic ? "DOMESTIC_ENTITY" : "FOREIGN_ENTITY",
-      spt_day_count_weighted: details.spt_day_count_weighted,
-      spt_test_met: details.spt_test_met,
-      residency_start_date: null,
-      residency_end_date: null,
-      closer_connection_claim: details.closer_connection_claim,
-      isExemptCurrentYear: false,
-      exemptReason: "",
-      cyDaysCount: 0,
-      py1DaysCount: 0,
-      py2DaysCount: 0,
-    };
-  }
-
-  const py1Factor = 1 / 3;
-  const py2Factor = 1 / 6;
-
-  // simplified from layer1_us.html:9298-9300 — excluded-days offset fields
-  // aren't in the canonical schema; weighted count uses raw day counts only.
-  let cyDays = Math.max(0, details.us_days_current_year || 0);
-  let py1Days = Math.max(0, details.us_days_minus_1_year || 0);
-  let py2Days = Math.max(0, details.us_days_minus_2_years || 0);
-
-  let isExemptCurrentYear = false;
-  let exemptReason = "";
-  const priorYears = details.exempt_prior_years_count || 0;
-
-  if (details.exempt_individual_status === "f_student") {
-    if (priorYears >= 5) {
-      isExemptCurrentYear = !!details.exempt_student_closer_conn_exception;
-      exemptReason = isExemptCurrentYear
-        ? "Student tax-exemption extended beyond 5 years (Form 8843 Closer Connection claimed)"
-        : `Student tax-exemption expired (5-year limit exceeded: ${priorYears} prior years; requires Closer Connection claim below)`;
-    } else {
-      isExemptCurrentYear = true;
-      exemptReason = `Student tax-exemption active (Year ${priorYears + 1} of 5-year limit)`;
-    }
-  } else if (details.exempt_individual_status === "j_scholar") {
-    if (priorYears >= 2) {
-      isExemptCurrentYear = !!details.exempt_scholar_lookback_exception;
-      exemptReason = isExemptCurrentYear
-        ? "Scholar tax-exemption extended beyond 2 years (lookback rules exception active)"
-        : `Scholar tax-exemption expired (2-year limit exceeded: ${priorYears} prior years; requires lookback exception below)`;
-    } else {
-      isExemptCurrentYear = true;
-      exemptReason = `Scholar tax-exemption active (Year ${priorYears + 1} of 2-year limit)`;
-    }
-  } else if (details.exempt_individual_status === "g_diplomat") {
-    isExemptCurrentYear = true;
-    exemptReason = "Government/Diplomat tax-exemption active (indefinite limit)";
-  } else if (details.exempt_individual_status === "professional_athlete") {
-    isExemptCurrentYear = true;
-    exemptReason = "Professional Athlete tax-exemption active (sports event days excluded)";
-  }
-
-  const cyDaysCount = cyDays;
-  const py1DaysCount = py1Days;
-  const py2DaysCount = py2Days;
-
-  if (isExemptCurrentYear) {
-    cyDays = 0;
-    py1Days = 0;
-    py2Days = 0;
-  }
-
-  const weighted = cyDays + py1Days * py1Factor + py2Days * py2Factor;
-  const spt_day_count_weighted = Math.round(weighted * 100) / 100;
-  const spt_test_met = (details.us_days_current_year || 0) >= 31 && weighted >= 183;
-
-  const closer_connection_claim =
-    spt_test_met && (details.us_days_current_year || 0) < 183 ? details.closer_connection_claim || false : null;
-
-  let lock = "NON_RESIDENT_ALIEN";
-  if (details.is_us_citizen) {
-    lock = "US_CITIZEN";
-  } else if (details.dtaa_treaty_residence === "india") {
-    lock = "NON_RESIDENT_ALIEN";
-  } else if (details.has_green_card && !details.i407_surrendered_date) {
-    lock = "RESIDENT_ALIEN";
-  } else if (spt_test_met && !closer_connection_claim) {
-    // simplified from layer1_us.html:9448-9458 — original branches to
-    // DUAL_STATUS here if dual_status_arrival_date/departure_date is set
-    // (plain-SPT arrival/departure, not the green-card/first-year-election
-    // cases below). Those two fields aren't in the canonical schema, so a
-    // plain SPT pass always resolves to full-year RESIDENT_ALIEN here.
-    lock = "RESIDENT_ALIEN";
-  } else if (details.first_year_choice_election || (details.has_green_card && details.i407_surrendered_date)) {
-    lock = "DUAL_STATUS";
-  }
-
-  const calendarYear = usState.metadata?.us_calendar_year || new Date().getFullYear();
-  let residency_start_date = null;
-  let residency_end_date = null;
-  if (lock === "US_CITIZEN" || lock === "RESIDENT_ALIEN") {
-    residency_start_date = `${calendarYear}-01-01`;
-    residency_end_date = `${calendarYear}-12-31`;
-  } else if (lock === "DUAL_STATUS") {
-    if (details.has_green_card && details.green_card_grant_date) {
-      residency_start_date = details.green_card_grant_date;
-    } else if (details.first_year_choice_election && details.first_year_choice_entry_date) {
-      residency_start_date = details.first_year_choice_entry_date;
-    }
-    if (details.has_green_card && details.i407_surrendered_date) {
-      residency_end_date = details.i407_surrendered_date;
-    }
-  }
-
-  return {
-    final_us_residency_status: lock,
-    spt_day_count_weighted,
-    spt_test_met,
-    residency_start_date,
-    residency_end_date,
-    closer_connection_claim,
-    isExemptCurrentYear,
-    exemptReason,
-    cyDaysCount,
-    py1DaysCount,
-    py2DaysCount,
-  };
-}
+// evaluateResidencyLock() now lives in lib/layer1-us/derive.js and is
+// imported above — store.js's applyDerivations() already calls it after
+// every mutation, so us_residency_detail.final_us_residency_status is
+// always fresh here without this component needing its own copy.
 
 const LOCK_STYLES = {
   US_CITIZEN: { chip: "bg-brandGreen/10 border-brandGreen/30 text-brandGreen", title: "US Citizen (Worldwide Taxation)" },
@@ -235,64 +97,15 @@ export default function ProfileStep() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tieBreaker.winner]);
 
-  // ── Live residency-lock recompute (layer1_us.html:evaluateUSResidencyLock,
-  // invoked from every updateResidencyField/updateProfileField call in the
-  // original). Runs whenever any input it reads changes, and only writes
-  // fields that actually changed value to avoid a render loop. ──
-  // Bug fix: `details.closer_connection_claim` was missing from this
-  // dependency list even though evaluateResidencyLock() reads it and the
-  // lock formula branches on it (`spt_test_met && !closer_connection_claim`
-  // — Form 8840 Closer Connection is exactly what keeps an SPT-meeting
-  // taxpayer a Non-Resident Alien instead of Resident Alien). Without it,
-  // toggling the "Closer Connection Claim?" switch never re-ran the lock
-  // recompute, so final_us_residency_status (and everything gated on it via
-  // machine.js's isStepLocked) stayed silently stale — matching the
-  // original, which calls evaluateUSResidencyLock() on every single
-  // updateResidencyField() call, including this field
-  // (layer1_us.html:6983-7009, onchange @ layer1_us.html:1322).
-  const computed = useMemo(() => evaluateResidencyLock(usState), [
-    profile.tax_entity_type, profile.llc_tax_election, profile.incorporated_in_us,
-    details.is_us_citizen, details.has_green_card, details.i407_surrendered_date,
-    details.green_card_grant_date, details.us_days_current_year, details.us_days_minus_1_year,
-    details.us_days_minus_2_years, details.exempt_individual_status, details.exempt_prior_years_count,
-    details.exempt_student_closer_conn_exception, details.exempt_scholar_lookback_exception,
-    details.dtaa_treaty_residence, details.first_year_choice_election, details.first_year_choice_entry_date,
-    details.closer_connection_claim,
-    usState.metadata?.us_calendar_year,
-  ]);
-
-  useEffect(() => {
-    const patch = {
-      final_us_residency_status: computed.final_us_residency_status,
-      spt_day_count_weighted: computed.spt_day_count_weighted,
-      spt_test_met: computed.spt_test_met,
-      residency_start_date: computed.residency_start_date,
-      residency_end_date: computed.residency_end_date,
-      closer_connection_claim: computed.closer_connection_claim,
-    };
-    for (const [k, v] of Object.entries(patch)) {
-      if (details[k] !== v) setField(`us_residency_detail.${k}`, v);
-    }
-
-    // Bug fix: applyNraFilingStatusGating() (layer1_us.html:9607-9663) is
-    // invoked from evaluateUSResidencyLock() on every recompute, and doesn't
-    // just block *new* invalid selections — it force-reverts an
-    // *already-set* filing_status of mfj/hoh/qss back to "single" the moment
-    // the lock recomputes to NON_RESIDENT_ALIEN without an MFJ unlock (e.g.
-    // a US Citizen who was MFJ drops below SPT after editing days, or
-    // unchecks "US Citizen"). ProfileStep's handleFilingStatusChange only
-    // gated the onChange path, so a filing_status that became invalid as a
-    // *side effect* of some other field changing was never corrected —
-    // replicated here.
-    if (computed.final_us_residency_status === "NON_RESIDENT_ALIEN") {
-      const mfjUnlocked =
-        details.s6013g_joint_election === true || usState.nra_specific?.s6013h_joint_election === true;
-      const invalidForNra = ["hoh", "qss"].includes(profile.filing_status) ||
-        (profile.filing_status === "mfj" && !mfjUnlocked);
-      if (invalidForNra) setField("profile.filing_status", "single");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [computed]);
+  // Residency-lock recompute + the NRA filing-status auto-revert both moved
+  // to lib/layer1-us/derive.js's applyDerivations(), called centrally by
+  // store.js after every mutation (see the ARCHITECTURE FIX note there).
+  // us_residency_detail.final_us_residency_status is therefore always
+  // current here — no local recompute-and-write-back needed, which also
+  // removes the risk this component's own dependency array could miss a
+  // field the derivation actually reads (exactly what happened before:
+  // `closer_connection_claim` was missing here and silently went stale).
+  const computed = useMemo(() => evaluateResidencyLock(usState), [usState]);
 
   const lock = details.final_us_residency_status || "NON_RESIDENT_ALIEN";
   const lockStyle = LOCK_STYLES[lock] || LOCK_STYLES.NON_RESIDENT_ALIEN;
@@ -304,44 +117,11 @@ export default function ProfileStep() {
   // `election6013g || election6013h` OR — a taxpayer who unlocked MFJ via the
   // §6013(h) election (nra_specific.s6013h_joint_election, set in NraStep)
   // instead of §6013(g) was incorrectly still blocked from selecting MFJ here. ──
-  function handleFilingStatusChange(newVal) {
-    if (isNra) {
-      const mfjUnlocked =
-        details.s6013g_joint_election === true || usState.nra_specific?.s6013h_joint_election === true;
-      const forbidden = newVal === "hoh" || newVal === "qss" || (newVal === "mfj" && !mfjUnlocked);
-      if (forbidden) return; // reject — leave select at its current value
-    }
-    setField("profile.filing_status", newVal);
-  }
-
-  // spouse-is-us-person gating (applySpouseUsPersonGating @ layer1_us.html:9545)
-  const spouseGateEnabled = ["mfj", "mfs", "hoh"].includes(profile.filing_status) || isNra;
-
   // §877A covered-expatriate test visibility (toggleExitTaxTests @ layer1_us.html:7612)
   const showExitTaxTests = !!(details.has_green_card && details.i407_surrendered_date && (details.green_card_years_held || 0) >= 8);
 
   // closer-connection-claim eligibility (evaluateUSResidencyLock @ layer1_us.html:9356)
   const closerConnEligible = computed.spt_test_met && (details.us_days_current_year || 0) < 183;
-
-  function addTrumpChild() {
-    addRow("profile.trump_accounts_children", { contribution_usd: 0, born_2025_2028: false });
-  }
-  function removeTrumpChild(i) {
-    removeRow("profile.trump_accounts_children", i);
-    syncTrumpDerived(profile.trump_accounts_children.filter((_, idx) => idx !== i));
-  }
-  function updateTrumpChild(i, patch) {
-    updateRow("profile.trump_accounts_children", i, patch);
-    const next = profile.trump_accounts_children.map((c, idx) => (idx === i ? { ...c, ...patch } : c));
-    syncTrumpDerived(next);
-  }
-  // Keeps the legacy aggregate fields derived from the per-child array
-  // (syncTrumpChildrenDerived @ layer1_us.html:6976).
-  function syncTrumpDerived(list) {
-    setField("profile.trump_accounts_num_children", list.length);
-    setField("profile.trump_accounts_children_born_2025_2028", list.filter((c) => c.born_2025_2028).length);
-    setField("profile.trump_accounts_total_contributions_usd", list.reduce((sum, c) => sum + (c.contribution_usd || 0), 0));
-  }
 
   return (
     <div className={card + " flex flex-col gap-6"}>
@@ -359,101 +139,12 @@ export default function ProfileStep() {
 
       {isIndividual ? (
         <>
-          {/* ── Filing status / SSN / dependents (layer1_us.html:673-772) ── */}
-          <div className="flex flex-col gap-4">
-            <div>
-              <label className={label}>Filing Status</label>
-              <select className={selectCls} value={profile.filing_status}
-                onChange={(e) => handleFilingStatusChange(e.target.value)}>
-                <option value="single">Single</option>
-                <option value="mfj">Married Filing Jointly (MFJ)</option>
-                <option value="mfs">Married Filing Separately (MFS)</option>
-                <option value="hoh">Head of Household (HOH)</option>
-                <option value="qss">Qualifying Surviving Spouse (QSS)</option>
-              </select>
-              {isNra && (
-                <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2.5">
-                  <span className="text-amber-400 text-sm mt-0.5 shrink-0">⚠️</span>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest">NRA Filing Restriction Active</span>
-                    <span className="text-[9px] text-amber-200/70 leading-relaxed">
-                      As a <strong>Non-Resident Alien</strong>, you may only file as <strong>Single</strong> or <strong>MFS</strong>. Filing Jointly (MFJ) requires the §6013(g) election below. HOH &amp; QSS are unavailable to NRAs.
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className={label}>Taxpayer ID Type</label>
-              <select className={selectCls} value={profile.ssn_or_itin_type}
-                onChange={(e) => setField("profile.ssn_or_itin_type", e.target.value)}>
-                <option value="none">None (Requires ITIN Form W-7 / ATIN Form W-7A)</option>
-                <option value="ssn">SSN (Social Security Number)</option>
-                <option value="itin">ITIN (Individual Taxpayer ID)</option>
-                <option value="atin">ATIN (Adoption Taxpayer ID)</option>
-              </select>
-            </div>
-            {profile.ssn_or_itin_type !== "none" && (
-              <div>
-                <label className={label}>SSN, ITIN or ATIN Number</label>
-                <input type="text" className={input + " font-mono"} placeholder="000-00-0000"
-                  value={profile.ssn_or_itin || ""} onChange={(e) => setField("profile.ssn_or_itin", e.target.value)} />
-              </div>
-            )}
-            <div>
-              <label className={label}>Dependents Count</label>
-              <input type="text" inputMode="numeric" className={input + " font-mono"} placeholder="0"
-                value={profile.dependents_count ?? 0}
-                onChange={(e) => setField("profile.dependents_count", parseInt(e.target.value, 10) || 0)} />
-            </div>
-
-            {spouseGateEnabled && (
-              <ToggleRow title="Spouse is a US Person?" sub="Determines election eligibility for joint filing."
-                checked={!!profile.spouse_is_us_person} onChange={(v) => setField("profile.spouse_is_us_person", v)} />
-            )}
-
-            {/* ── Trump Accounts (§530A) repeatable child rows (addTrumpChildRow @ layer1_us.html:6947) ── */}
-            <div className={nestedCard + " flex flex-col gap-3 border-brandGreen/20"}>
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-head">Trump Accounts (§530A) Opened?</span>
-                  <span className="text-[9px] text-brandGreen/70">Did you establish Family Tax Accounts for any dependents?</span>
-                </div>
-                <Toggle checked={!!profile.trump_accounts_opened}
-                  onChange={(v) => setField("profile.trump_accounts_opened", v)} />
-              </div>
-              {profile.trump_accounts_opened && (
-                <div className="flex flex-col gap-3 mt-1">
-                  <div className="p-2.5 rounded-lg bg-brandGreen/5 border border-brandGreen/15 text-[9px] text-muted leading-relaxed">
-                    The $5,000/year contribution cap applies <strong>per child</strong> (combined across all contributors), not as a family-wide total. Enter each child&apos;s account separately. A $1,000 one-time federal seed applies automatically for children born 2025-2028, separate from this cap.
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {(profile.trump_accounts_children || []).map((child, i) => (
-                      <div key={i} className="flex items-center gap-2 p-2.5 bg-black/20 border border-line rounded-xl">
-                        <span className="text-[9px] font-black text-muted w-14 shrink-0">Child {i + 1}</span>
-                        <input type="text" inputMode="numeric" placeholder="Contribution this year (USD)"
-                          className={input + " font-mono py-1.5"}
-                          value={child.contribution_usd || ""}
-                          onChange={(e) => updateTrumpChild(i, { contribution_usd: parseInt(e.target.value.replace(/\D/g, ""), 10) || 0 })} />
-                        <label className="flex items-center gap-1.5 shrink-0 cursor-pointer" title="Born 2025-2028 — eligible for the $1,000 federal seed">
-                          <input type="checkbox" checked={!!child.born_2025_2028}
-                            onChange={(e) => updateTrumpChild(i, { born_2025_2028: e.target.checked })}
-                            className="rounded bg-black/50 border-white/20 text-brandGreen focus:ring-0" />
-                          <span className="text-[8px] text-brandGreen/70 uppercase tracking-wider">Born<br />&apos;25-&apos;28</span>
-                        </label>
-                        <button type="button" onClick={() => removeTrumpChild(i)} className="text-red-400/50 hover:text-red-400 font-bold px-1 shrink-0">✕</button>
-                      </div>
-                    ))}
-                  </div>
-                  <button type="button" onClick={addTrumpChild}
-                    className="self-start px-3 py-1.5 bg-white/5 hover:bg-brandGreen/20 hover:text-brandGreen text-muted text-[9px] font-black uppercase tracking-widest rounded-xl transition-all">
-                    + Add Child
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Filing status / Taxpayer ID / dependents / spouse-is-US-person /
+              Trump Accounts (layer1_us.html:673-772) moved to
+              OnboardingStep.jsx — the real source has them on the
+              "Financial Life Snapshot" (Onboarding) screen, not here. An
+              earlier pass put them on this step instead; corrected during
+              the chrome/structure verification pass. */}
 
           {/* ── US Visa / Immigration Status (layer1_us.html:1128-1141). Bug
               fix: this control and profile.visa_type were entirely absent

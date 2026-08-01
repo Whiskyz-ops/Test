@@ -1,13 +1,22 @@
 # US Layer 1 → React + XState port — status & known gaps
 
-**Status: structurally complete, field-logic-verified, NOT output-parity-tested.**
-Built to a 3-day, full-scope timeline, then put through a real verification
-pass (2026-08-01) after real problems were reported. That pass found and
-fixed **21 concrete bugs** across every one of the 22 steps — several of
-which were silently discarding or corrupting user-entered tax data, not just
-cosmetic gaps. What's still missing before this could replace
-`layer1_us.html` as the real thing is described in the last section — do not
-point `monitor-next/lib/dag-adapter.js` or any DAG compute path at this
+**Status: structurally complete, field-logic-verified, chrome/structure
+corrected, NOT output-parity-tested.** Built to a 3-day, full-scope
+timeline, then put through two real correction passes after real problems
+were reported: (1) a field-logic verification pass (2026-08-01) that found
+and fixed 21 concrete bugs across every one of the 22 steps, several
+silently discarding or corrupting user-entered tax data; (2) a
+chrome/structure pass (same day) after a second report that the visible
+layout — phase grouping, a persistent right-hand status panel, the
+onboarding/profile field boundary, the India/US workspace switcher — didn't
+match the real `layer1_us.html` at all. Root cause of (2): the sidebar/
+right-panel/header markup was never actually read when those pieces were
+first built; only the JS gating logic (`isStepLocked`/`switchStep`) was
+read, which encodes *whether* a step is reachable but not the surrounding
+UI shell. Both passes are described below. What's still missing before this
+could replace `layer1_us.html` as the real thing is described in the last
+section — do not point `monitor-next/lib/dag-adapter.js` or any DAG compute
+path at this
 until that's done.
 
 ## The verification pass
@@ -119,6 +128,79 @@ verified correct with no changes needed. Store immutability
 (`addRow`/`removeRow`/`updateRow`/`setField`) was checked across every step
 for index-shift and shared-reference mutation bugs — none found; all row
 CRUD is genuinely immutable.
+
+## The chrome/structure correction pass
+
+A second report ("the React version doesn't match the HTML — phases,
+layout, a persistent panel, a missing India/US toggle") led to actually
+reading `layer1_us.html`'s sidebar/header/right-panel markup line by line
+for the first time, rather than trusting the earlier field-content
+verification pass's summaries (which were about *step content*, not the
+surrounding shell). Real, confirmed discrepancies and fixes:
+
+- **Step order/labels/grouping were invented, not ported.** The real
+  sidebar (`layer1_us.html:417-622`) groups all 22 steps into 11
+  collapsible "PHASE 0"–"PHASE 10" sections with specific numbering (1.
+  Financial Life Snapshot … 21. Form 1040-NR Adjustments, plus an
+  unnumbered "Generate Output" CTA) and a real step order — e.g. "State
+  Nexus" is step 3, immediately after Residency, not step 15 in a flat
+  list. `schema.js`'s `STEP_IDS`/`STEP_LABELS` were rebuilt verbatim from
+  the source, and a new `PHASES`/`STEP_NUMBERS` export added.
+  `Layer1UsSidebar.jsx` was rebuilt as a real collapsible-accordion
+  component matching this structure, including which phases render
+  open/closed by default.
+- **A persistent right-hand panel didn't exist at all.** The source has a
+  fixed `<aside>` (`layer1_us.html:3962-4024`) sitting alongside the wizard
+  content — not nested in any one step — showing "Try an Example Profile"
+  (4 persona-prefill buttons), a live "Your Current Residency Status"
+  certificate, and a "Derived Metrics Analyzer". New `RightPanel.jsx`,
+  mounted as a sibling of the step content in `page.jsx` so it's visible on
+  every step. Persona prefill is a simplified port (seeds only the
+  profile/residency fields each persona is named for, not full per-persona
+  income/asset data — flagged in the component itself).
+- **The India L1 / US L1 workspace switcher was completely missing.** New
+  `Layer1UsHeader.jsx`, porting the pill toggle from `layer1_us.html:389-391`
+  (links to the static `layer1_india.html`/`router.html`, same as the
+  source — no React port of the India form exists yet to route to
+  client-side).
+- **Onboarding/Profile field boundary was wrong.** The "Financial Life
+  Snapshot" (Onboarding) screen in the source
+  (`layer1_us.html:628-821`) contains filing status, taxpayer ID/SSN,
+  dependents, Form 8332, Trump Accounts, spouse-is-US-person, AND the
+  corporate profile fields (entity name/EIN/incorporation date/NAICS/
+  foreign-ownership flags) — all before the setup scope cards. An earlier
+  pass had moved all of this to the Profile step instead, leaving Profile
+  correctly scoped to residency-determination content
+  (`layer1_us.html:983-1430`: identity upload, dual-residency/Article-4
+  tie-breaker wizard, corporate residency determination, visa
+  type/citizenship/green-card/SPT/exit-tax). Moved back to match.
+
+**Architecture fix bundled into this pass** (the user's own suspicion,
+confirmed correct): derived values like
+`us_residency_detail.final_us_residency_status` were only recomputed inside
+`ProfileStep.jsx`'s own `useEffect`, so they went stale the instant that
+step unmounted — which is exactly why a persistent right panel reading that
+value couldn't have worked correctly even once built, and why the XState
+guards reading a `SYNC_CONTEXT`-relayed copy of it were only as trustworthy
+as that one component's mount state and a hand-maintained `useEffect`
+dependency array. Fixed by centralizing derivation:
+`lib/layer1-us/derive.js` now holds `evaluateResidencyLock()` as a pure
+function, called by `store.js`'s `applyDerivations()` after **every**
+mutation (not just from Profile), so the derived value is always at most
+one mutation stale regardless of which step is active. `machine.js`'s
+guards no longer hold a synced copy of context at all — they call
+`getLockContext()` to read both zustand stores' live state (`getState()`,
+which works outside React, no subscription needed) at the exact moment a
+navigation is evaluated. There is no longer a second copy of this state to
+fall out of sync.
+
+Verified live in a real browser: persona prefill correctly derives and
+displays "RA" for the green-card persona; navigating away to an unrelated
+step (State Nexus) and back confirms the right panel's status display
+stays correct rather than resetting or going stale; all 20 currently-
+unlockable numbered steps (2 — Foreign Income, FEIE — remain correctly
+locked under the default NRA profile) click through with zero navigation
+errors and zero new console errors.
 
 ## Remaining known gaps (large, deliberate, still deferred)
 

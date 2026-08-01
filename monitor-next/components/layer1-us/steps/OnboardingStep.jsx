@@ -94,9 +94,26 @@ function NestedCheck({ checked, onChange, text }) {
   );
 }
 
+function ToggleRow({ title, sub, checked, onChange }) {
+  return (
+    <div className={nestedCard + " flex items-center justify-between"}>
+      <div className="flex flex-col pr-3">
+        <span className="text-xs font-bold text-head">{title}</span>
+        {sub && <span className="text-[9px] text-muted mt-0.5">{sub}</span>}
+      </div>
+      <Toggle checked={checked} onChange={onChange} />
+    </div>
+  );
+}
+
 export default function OnboardingStep() {
-  const { usState, setField } = useUsLayer1Store();
+  const { usState, setField, addRow, removeRow, updateRow } = useUsLayer1Store();
   const setup = useOnboardingSetup();
+  const profile = usState.profile;
+  // Residency status is always fresh here regardless of step order — see
+  // lib/layer1-us/derive.js's applyDerivations(), called by store.js after
+  // every mutation.
+  const isNra = usState.us_residency_detail.final_us_residency_status === "NON_RESIDENT_ALIEN";
   const {
     setupW2, setupBiz, setupProp, setupRetirement, setupEquity,
     setupPassiveAny, setupForeignAny, setFlag,
@@ -127,6 +144,44 @@ export default function OnboardingStep() {
       ]),
     [setupW2, setupBiz, setupProp, setupRetirement, setupEquity, passiveIntDiv, passiveCapGains, foreignAssets, foreignFeie, foreignEntities, foreignGifts]
   );
+
+  // ── Filing status / SSN / dependents / Trump Accounts handlers (moved
+  // from ProfileStep.jsx during the chrome/structure verification pass —
+  // this content is on the Onboarding "Financial Life Snapshot" screen in
+  // the real source, layer1_us.html:673-772, not on the Residency step). ──
+  function handleFilingStatusChange(newVal) {
+    if (isNra) {
+      const mfjUnlocked =
+        usState.us_residency_detail.s6013g_joint_election === true ||
+        usState.nra_specific?.s6013h_joint_election === true;
+      const forbidden = newVal === "hoh" || newVal === "qss" || (newVal === "mfj" && !mfjUnlocked);
+      if (forbidden) return; // reject — leave select at its current value
+    }
+    setField("profile.filing_status", newVal);
+  }
+
+  // spouse-is-us-person gating (applySpouseUsPersonGating @ layer1_us.html:9545)
+  const spouseGateEnabled = ["mfj", "mfs", "hoh"].includes(profile.filing_status) || isNra;
+
+  function addTrumpChild() {
+    addRow("profile.trump_accounts_children", { contribution_usd: 0, born_2025_2028: false });
+  }
+  function removeTrumpChild(i) {
+    removeRow("profile.trump_accounts_children", i);
+    syncTrumpDerived(profile.trump_accounts_children.filter((_, idx) => idx !== i));
+  }
+  function updateTrumpChild(i, patch) {
+    updateRow("profile.trump_accounts_children", i, patch);
+    const next = profile.trump_accounts_children.map((c, idx) => (idx === i ? { ...c, ...patch } : c));
+    syncTrumpDerived(next);
+  }
+  // Keeps the legacy aggregate fields derived from the per-child array
+  // (syncTrumpChildrenDerived @ layer1_us.html:6976).
+  function syncTrumpDerived(list) {
+    setField("profile.trump_accounts_num_children", list.length);
+    setField("profile.trump_accounts_children_born_2025_2028", list.filter((c) => c.born_2025_2028).length);
+    setField("profile.trump_accounts_total_contributions_usd", list.reduce((sum, c) => sum + (c.contribution_usd || 0), 0));
+  }
 
   function toggleForeign(next) {
     setFlag("setupForeignAny", next);
@@ -191,13 +246,104 @@ export default function OnboardingStep() {
 
       {/* ── Individual-only quick profile fields (layer1_us.html:671-773) ── */}
       {isIndividual ? (
-        // Filing status, taxpayer-ID, dependents & Trump-account fields
-        // (layer1_us.html:673-772) are rendered in the Profile & Residency
-        // step (ProfileStep.jsx) per this port's step assignment — kept out
-        // of this panel to avoid a duplicate editable copy of the same
-        // schema fields across two components.
-        <div className={nestedCard + " text-[10px] text-muted"}>
-          Filing status, Taxpayer ID, dependents, and Trump Accounts (§530A) are configured in the next step — <span className="text-body font-semibold">Profile &amp; Residency</span>.
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className={label}>Filing Status</label>
+            <select className={selectCls} value={profile.filing_status}
+              onChange={(e) => handleFilingStatusChange(e.target.value)}>
+              <option value="single">Single</option>
+              <option value="mfj">Married Filing Jointly (MFJ)</option>
+              <option value="mfs">Married Filing Separately (MFS)</option>
+              <option value="hoh">Head of Household (HOH)</option>
+              <option value="qss">Qualifying Surviving Spouse (QSS)</option>
+            </select>
+            {isNra && (
+              <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2.5">
+                <span className="text-amber-400 text-sm mt-0.5 shrink-0">⚠️</span>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest">NRA Filing Restriction Active</span>
+                  <span className="text-[9px] text-amber-200/70 leading-relaxed">
+                    As a <strong>Non-Resident Alien</strong>, you may only file as <strong>Single</strong> or <strong>MFS</strong>. Filing Jointly (MFJ) requires a special IRS election to treat your spouse as a US resident for tax purposes. HOH &amp; QSS are unavailable to NRAs.
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className={label}>Taxpayer ID Type</label>
+            <select className={selectCls} value={profile.ssn_or_itin_type}
+              onChange={(e) => setField("profile.ssn_or_itin_type", e.target.value)}>
+              <option value="none">None (Requires ITIN Form W-7 / ATIN Form W-7A)</option>
+              <option value="ssn">SSN (Social Security Number)</option>
+              <option value="itin">ITIN (Individual Taxpayer ID)</option>
+              <option value="atin">ATIN (Adoption Taxpayer ID)</option>
+            </select>
+          </div>
+          {profile.ssn_or_itin_type !== "none" && (
+            <div>
+              <label className={label}>SSN, ITIN or ATIN Number</label>
+              <input type="text" className={input + " font-mono"} placeholder="000-00-0000"
+                value={profile.ssn_or_itin || ""} onChange={(e) => setField("profile.ssn_or_itin", e.target.value)} />
+            </div>
+          )}
+          <div>
+            <label className={label}>Dependents Count</label>
+            <input type="text" inputMode="numeric" className={input + " font-mono"} placeholder="0"
+              value={profile.dependents_count ?? 0}
+              onChange={(e) => setField("profile.dependents_count", parseInt(e.target.value, 10) || 0)} />
+
+            <ToggleRow title="Sharing dependents with an ex-spouse?"
+              sub="Are you releasing or claiming a child tax benefit using a formal agreement (like Form 8332)?"
+              checked={!!profile.form_8332_active}
+              onChange={(v) => setField("profile.form_8332_active", v)} />
+          </div>
+
+          {spouseGateEnabled && (
+            <ToggleRow title="Spouse is a US Person?" sub="Determines election eligibility for joint filing."
+              checked={!!profile.spouse_is_us_person} onChange={(v) => setField("profile.spouse_is_us_person", v)} />
+          )}
+
+          {/* ── Trump Accounts (§530A) repeatable child rows (addTrumpChildRow @ layer1_us.html:6947) ── */}
+          <div className={nestedCard + " flex flex-col gap-3 border-brandGreen/20"}>
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-head">Trump Accounts (§530A) Opened?</span>
+                <span className="text-[9px] text-brandGreen/70">Did you establish Family Tax Accounts for any dependents?</span>
+              </div>
+              <Toggle checked={!!profile.trump_accounts_opened}
+                onChange={(v) => setField("profile.trump_accounts_opened", v)} />
+            </div>
+            {profile.trump_accounts_opened && (
+              <div className="flex flex-col gap-3 mt-1">
+                <div className="p-2.5 rounded-lg bg-brandGreen/5 border border-brandGreen/15 text-[9px] text-muted leading-relaxed">
+                  The $5,000/year contribution cap applies <strong>per child</strong> (combined across all contributors), not as a family-wide total. Enter each child&apos;s account separately. A $1,000 one-time federal seed applies automatically for children born 2025-2028, separate from this cap.
+                </div>
+                <div className="flex flex-col gap-2">
+                  {(profile.trump_accounts_children || []).map((child, i) => (
+                    <div key={i} className="flex items-center gap-2 p-2.5 bg-black/20 border border-line rounded-xl">
+                      <span className="text-[9px] font-black text-muted w-14 shrink-0">Child {i + 1}</span>
+                      <input type="text" inputMode="numeric" placeholder="Contribution this year (USD)"
+                        className={input + " font-mono py-1.5"}
+                        value={child.contribution_usd || ""}
+                        onChange={(e) => updateTrumpChild(i, { contribution_usd: parseInt(e.target.value.replace(/\D/g, ""), 10) || 0 })} />
+                      <label className="flex items-center gap-1.5 shrink-0 cursor-pointer" title="Born 2025-2028 — eligible for the $1,000 federal seed">
+                        <input type="checkbox" checked={!!child.born_2025_2028}
+                          onChange={(e) => updateTrumpChild(i, { born_2025_2028: e.target.checked })}
+                          className="rounded bg-black/50 border-white/20 text-brandGreen focus:ring-0" />
+                        <span className="text-[8px] text-brandGreen/70 uppercase tracking-wider">Born<br />&apos;25-&apos;28</span>
+                      </label>
+                      <button type="button" onClick={() => removeTrumpChild(i)} className="text-red-400/50 hover:text-red-400 font-bold px-1 shrink-0">✕</button>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={addTrumpChild}
+                  className="self-start px-3 py-1.5 bg-white/5 hover:bg-brandGreen/20 hover:text-brandGreen text-muted text-[9px] font-black uppercase tracking-widest rounded-xl transition-all">
+                  + Add Child
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         // ── Corporate profile fields (layer1_us.html:775-819) ──

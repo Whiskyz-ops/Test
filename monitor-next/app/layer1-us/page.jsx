@@ -1,10 +1,12 @@
 "use client";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useMachine } from "@xstate/react";
-import { wizardMachine, isStepLocked } from "@/lib/layer1-us/machine";
+import { wizardMachine, isStepLocked, getLockContext } from "@/lib/layer1-us/machine";
 import { STEP_IDS, STEP_LABELS } from "@/lib/layer1-us/schema";
 import { useUsLayer1Store, useOnboardingSetup } from "@/lib/layer1-us/store";
+import Layer1UsHeader from "@/components/layer1-us/Layer1UsHeader";
 import Layer1UsSidebar from "@/components/layer1-us/Layer1UsSidebar";
+import RightPanel from "@/components/layer1-us/RightPanel";
 
 import OnboardingStep from "@/components/layer1-us/steps/OnboardingStep";
 import ProfileStep from "@/components/layer1-us/steps/ProfileStep";
@@ -60,53 +62,22 @@ const STEP_COMPONENTS = {
 };
 
 export default function Layer1UsWizardPage() {
-  const usState = useUsLayer1Store((s) => s.usState);
-  const setup = useOnboardingSetup();
+  // Subscribing to these keeps this component (and everything below it)
+  // re-rendering whenever the store changes, which is what keeps
+  // getLockContext() below always fresh — it reads getState() live rather
+  // than a value threaded through props/context that could lag. See
+  // lib/layer1-us/machine.js's ARCHITECTURE FIX note.
+  useUsLayer1Store((s) => s.usState);
+  useOnboardingSetup();
   const [state, send] = useMachine(wizardMachine);
-
-  // Keep the XState machine's small gating-relevant context slice in sync
-  // with the real form state, mirroring what isStepLocked() (originally a
-  // DOM-reading function, layer1_us.html:6473-6530) needs on every change.
-  useEffect(() => {
-    send({
-      type: "SYNC_CONTEXT",
-      patch: {
-        entityType: usState.profile.tax_entity_type,
-        llcElection: usState.profile.llc_tax_election,
-        residencyStatus: usState.us_residency_detail.final_us_residency_status,
-        hasGreenCard: usState.us_residency_detail.has_green_card,
-        setup: {
-          setupW2: setup.setupW2,
-          setupBiz: setup.setupBiz,
-          setupProp: setup.setupProp,
-          setupRetirement: setup.setupRetirement,
-          setupEquity: setup.setupEquity,
-          setupPassiveAny: setup.setupPassiveAny,
-          setupForeignAny: setup.setupForeignAny,
-        },
-      },
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    usState.profile.tax_entity_type,
-    usState.profile.llc_tax_election,
-    usState.us_residency_detail.final_us_residency_status,
-    usState.us_residency_detail.has_green_card,
-    setup.setupW2,
-    setup.setupBiz,
-    setup.setupProp,
-    setup.setupRetirement,
-    setup.setupEquity,
-    setup.setupPassiveAny,
-    setup.setupForeignAny,
-  ]);
 
   const activeStep = state.context.activeStep;
   const ActiveComponent = STEP_COMPONENTS[activeStep] || OnboardingStep;
+  const lockContext = getLockContext();
 
   const { prevStep, nextStep } = useMemo(() => {
     const idx = STEP_IDS.indexOf(activeStep);
-    const reachable = (i) => STEP_IDS[i] && !isStepLocked(state.context, STEP_IDS[i]);
+    const reachable = (i) => STEP_IDS[i] && !isStepLocked(lockContext, STEP_IDS[i]);
     let prev = null;
     for (let i = idx - 1; i >= 0; i--) {
       if (reachable(i)) {
@@ -122,64 +93,72 @@ export default function Layer1UsWizardPage() {
       }
     }
     return { prevStep: prev, nextStep: next };
-  }, [activeStep, state.context]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStep, lockContext]);
 
   return (
-    <div className="flex bg-ink min-h-screen">
-      <Layer1UsSidebar
-        activeStep={activeStep}
-        machineContext={state.context}
-        onNavigate={(step) => send({ type: "GOTO", step })}
-      />
-      <main className="flex-1 max-w-5xl mx-auto px-6 lg:px-10 py-10 flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <div className="text-[10px] uppercase tracking-widest text-muted font-semibold">
-            US Layer 1 &middot; {STEP_LABELS[activeStep]}
-          </div>
-          <div className="text-[10px] text-muted/60 font-mono">
-            {STEP_IDS.indexOf(activeStep) + 1} / {STEP_IDS.length}
-          </div>
-        </div>
+    <div className="flex flex-col min-h-screen bg-ink">
+      <Layer1UsHeader />
+      <div className="flex flex-1">
+        <Layer1UsSidebar
+          activeStep={activeStep}
+          machineContext={lockContext}
+          onNavigate={(step) => send({ type: "GOTO", step })}
+        />
+        <main className="flex-1 max-w-[1440px] mx-auto px-6 lg:px-10 py-10 flex flex-col lg:flex-row gap-8">
+          <div className="flex-1 flex flex-col gap-6 min-w-0">
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] uppercase tracking-widest text-muted font-semibold">
+                US Layer 1 &middot; {STEP_LABELS[activeStep]}
+              </div>
+              <div className="text-[10px] text-muted/60 font-mono">
+                {STEP_IDS.indexOf(activeStep) + 1} / {STEP_IDS.length}
+              </div>
+            </div>
 
-        <ActiveComponent />
+            <ActiveComponent />
 
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-line">
-          <button
-            type="button"
-            disabled={!prevStep}
-            onClick={() => prevStep && send({ type: "GOTO", step: prevStep })}
-            className={
-              "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all " +
-              (prevStep ? "text-body hover:text-head hover:bg-white/[0.06]" : "text-white/15 cursor-not-allowed")
-            }
-          >
-            ← Back
-          </button>
-          {activeStep === "step-onboarding" ? (
-            <button
-              type="button"
-              onClick={() => send({ type: "CONFIRM_INTAKE" })}
-              className="px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-wide text-[#04120f]"
-              style={{ background: "linear-gradient(135deg,#34d399 0%,#60a5fa 100%)" }}
-            >
-              Start Intake →
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled={!nextStep}
-              onClick={() => nextStep && send({ type: "GOTO", step: nextStep })}
-              className={
-                "px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-wide transition-all " +
-                (nextStep ? "text-[#04120f]" : "text-white/15 cursor-not-allowed bg-white/5")
-              }
-              style={nextStep ? { background: "linear-gradient(135deg,#34d399 0%,#60a5fa 100%)" } : undefined}
-            >
-              Continue →
-            </button>
-          )}
-        </div>
-      </main>
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-line">
+              <button
+                type="button"
+                disabled={!prevStep}
+                onClick={() => prevStep && send({ type: "GOTO", step: prevStep })}
+                className={
+                  "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all " +
+                  (prevStep ? "text-body hover:text-head hover:bg-white/[0.06]" : "text-white/15 cursor-not-allowed")
+                }
+              >
+                ← Back
+              </button>
+              {activeStep === "step-onboarding" ? (
+                <button
+                  type="button"
+                  onClick={() => send({ type: "CONFIRM_INTAKE" })}
+                  className="px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-wide text-[#04120f]"
+                  style={{ background: "linear-gradient(135deg,#34d399 0%,#60a5fa 100%)" }}
+                >
+                  Start Intake →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!nextStep}
+                  onClick={() => nextStep && send({ type: "GOTO", step: nextStep })}
+                  className={
+                    "px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-wide transition-all " +
+                    (nextStep ? "text-[#04120f]" : "text-white/15 cursor-not-allowed bg-white/5")
+                  }
+                  style={nextStep ? { background: "linear-gradient(135deg,#34d399 0%,#60a5fa 100%)" } : undefined}
+                >
+                  Continue →
+                </button>
+              )}
+            </div>
+          </div>
+
+          <RightPanel />
+        </main>
+      </div>
     </div>
   );
 }
