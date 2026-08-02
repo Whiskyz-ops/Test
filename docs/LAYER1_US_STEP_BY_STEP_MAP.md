@@ -330,11 +330,22 @@ source field-for-field. Only 2 real gaps found:
   JS DAG directly (confirmed by re-reading `BusinessStep.jsx` — no more
   `k1_boxes` writes, flat fields throughout). Was the most severe finding
   in the whole port.
-- `[VERIFIED — still open]` A fabricated, always-editable "Taxable Income
-  (Computed)" field on Schedule M-1 (`BusinessStep.jsx:1692`, shifted
-  again by the field-path-collision fix's own header comment but still
-  present, still unchanged in behavior) has no source counterpart and is
-  read by no DAG code.
+- `[FIXED]` A fabricated, always-editable "Taxable Income (Computed)"
+  field on Schedule M-1 had no source counterpart (confirmed by reading
+  `layer1_us.html:2334-2382` end to end — the panel has 9 real inputs and
+  no such field, and the source's own client JS never writes
+  `schedule_m1.taxable_income` anywhere either, dead schema there too)
+  and was read by no DAG code. Separately, 5 of those 9 real source
+  inputs (`tax_exempt_interest`, `foreign_taxes_credited`,
+  `interest_expense_limitation`, `other_additions`,
+  `other_subtractions`) already existed in `schema.js` but had zero UI —
+  and `dag_py`'s `entry.py:62-67` / `agg10-nodes.js:118-119` confirm all
+  5 ARE real DAG inputs, used server-side to compute the actual taxable-
+  income figure (`usScheduleM1TaxableIncomeUsd`) from exactly this
+  formula. Fixed: added the 5 missing real inputs, and replaced the
+  fabricated editable field with a read-only display computed live via
+  the same formula the DAG uses. Verified live in headless Chromium: all
+  5 new fields plus the read-only computed total render correctly.
 - `[FIXED since the audit — reclassified]` §199A QBI/UBIA capture fields
   ARE now present, at least on K-1 rows — `qbi_wages_usd`/`qbi_ubia_usd`
   `MoneyField`s confirmed on both `partnerships_k1` and `s_corporations_k1`
@@ -371,14 +382,22 @@ source field-for-field. Only 2 real gaps found:
   field on each individual self-employment/K-1/C-corp row
   (`layer1_us.html:13263,13936,14623,15416,16128,16900` — present for
   every entity type in the source), still missing here.
-- `[VERIFIED — still open]` The "$250k receipts" gate
-  (`layer1_us.html:2263-2266`, "Did the entity have Total Receipts and
-  Total Assets LESS than $250,000?") is a SEPARATE gate from the
-  entity-type gating the header comment says was fixed — this is a
-  receipts-threshold gate deciding whether Schedule L/M-1/M-2 should be
-  skipped by default even for an in-scope entity type. No hits for
-  `250,000`/`250000` in `BusinessStep.jsx` — still shown unconditionally
-  once entity-type gating allows it.
+- `[FIXED]` The "$250k receipts" gate (`toggleCorporateFinancials()`,
+  `layer1_us.html:7197-7217` — `#corp-receipts-threshold`, "Did the
+  entity have Total Receipts and Total Assets LESS than $250,000?") is a
+  SEPARATE gate from the entity-type gating: a receipts-threshold
+  question deciding whether Schedule L/M-1/M-2 should be skipped by
+  default even for an in-scope entity type, defaulting to "Yes... Exempt
+  from L & M-1". Confirmed the select's value is never persisted to
+  `usState` in the source either (no `updateStateField` call — read
+  straight off the DOM), so it's ported as local ephemeral React state,
+  same pattern as FEIE's Self-Employed/Certificate-of-Coverage
+  checkboxes. `BusinessStep.jsx` previously showed Schedule L/M-1/M-2
+  unconditionally once entity-type gating allowed it — no receipts
+  question at all. Fixed: added the question (defaulting to "yes",
+  matching the source), with Schedule L/M-1/M-2 now gated on the answer.
+  Verified live in headless Chromium on a seeded C-Corp: hidden by
+  default, appears only after selecting "No (Over $250k)".
 - `[VERIFIED — still open]` "Business Compliance & Tax Analyzer" summary
   panel (`layer1_us.html:2608-2610`) confirmed still absent — zero hits
   for that string in `BusinessStep.jsx`.
@@ -758,7 +777,7 @@ source field-for-field. Only 2 real gaps found:
 | 5 | Employment Income | **Solid, no open issues** (W-2 row shape essentially complete; self-employment/farming live on Business Ops instead) |
 | 6 | Capital Gains & Crypto | **Fixed** (aggregate inversion); sub-module arrays still schema-only |
 | 7 | Passive & Other | **Solid, no open issues** (one minor decorative-upload gap) |
-| 8 | Business Ops & K-1s | K-1 → $0 bug **fixed**; QBI/UBIA + home-office/vehicle also fixed since the audit; 1099 panel, state_allocations, $250k gate, Analyzer panel still open |
+| 8 | Business Ops & K-1s | K-1 → $0 bug, fabricated M-1 field + 5 missing real M-1 inputs, $250k receipts gate all **fixed**; QBI/UBIA + home-office/vehicle also fixed since the audit; 1099 panel, state_allocations, Analyzer panel still open |
 | 9 | Foreign Income | Solid, one misplaced-card issue |
 | 10 | Equity & Cap Table | **Solid, no open issues** |
 | 11 | FEIE | Housing-constant bug **fixed**; 3 conflict-warning banners **fixed** (not live-verified — see note); 4 missing fields, 2 dates shown that source hides still open |

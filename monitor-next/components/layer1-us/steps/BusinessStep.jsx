@@ -146,6 +146,16 @@ function MoneyField({ label, value, onChange, placeholder = "0", highlight }) {
   );
 }
 
+function ReadOnlyMoneyField({ label, value, hint }) {
+  return (
+    <div>
+      <label className={labelCls}>{label}</label>
+      <div className={cx(inputCls, "font-mono opacity-70 cursor-not-allowed")}>{fmtUsd(value)}</div>
+      {hint && <p className="text-[9px] text-white/30 mt-1 leading-relaxed">{hint}</p>}
+    </div>
+  );
+}
+
 function DateField({ label, value, onChange }) {
   return (
     <div>
@@ -1663,13 +1673,57 @@ function CorporateProfileBlock() {
   );
 }
 
+// BUG FIX (found by the step-by-step map audit): Schedule M-1 previously
+// rendered a fabricated, freely-editable "Taxable Income (Computed)" field
+// (`schedule_m1.taxable_income`) with zero source counterpart — confirmed
+// by reading layer1_us.html:2334-2382 end to end, the panel has 9 real
+// inputs and no such field, and the source's own client JS never writes
+// `schedule_m1.taxable_income` anywhere either (dead schema there too).
+// Meanwhile 5 of those 9 real source inputs (tax_exempt_interest,
+// foreign_taxes_credited, interest_expense_limitation, other_additions,
+// other_subtractions) already existed in schema.js but had no UI here at
+// all — and dag_py's entry.py:62-67 / agg10-nodes.js:118-119 confirm all 5
+// ARE real DAG inputs, used to compute the actual taxable-income figure
+// (`usScheduleM1TaxableIncomeUsd`) server-side from exactly this formula.
+// Fixed: added the 5 missing real inputs, and replaced the fabricated
+// editable field with a read-only display computed live via the same
+// formula the DAG uses — genuinely derived now instead of a fictitious
+// number a user could type over.
+//
+// BUG FIX ($250k receipts gate, found by the step-by-step map audit): the
+// source only shows this whole block when the user has answered "No, over
+// $250k" to a separate threshold question (`toggleCorporateFinancials()`,
+// layer1_us.html:7197-7217 — `#corp-receipts-threshold`, default option
+// "Yes... Exempt from L & M-1"). That select's value is never persisted to
+// usState (no `updateStateField` call anywhere on it — confirmed by
+// re-reading the source, it's read straight off the DOM), so it's ported
+// here as local, ephemeral React state, matching the source's own
+// architecture — same pattern as FEIE's Self-Employed/Certificate-of-
+// Coverage checkboxes. This block previously rendered Schedule L/M-1/M-2
+// unconditionally once entity-type gating allowed it, with no receipts
+// question at all.
 function ScheduleLM1M2Block() {
   const { usState, setField } = useUsLayer1Store();
   const cf = usState.corporate_financials;
   const set = (path, v) => setField(path, v);
+  const [receiptsUnder250k, setReceiptsUnder250k] = useState("yes");
 
   return (
     <div className="flex flex-col gap-4">
+      <RowCard title="Corporate Threshold Check" onRemove={undefined}>
+        <SelectField
+          label="Did the entity have Total Receipts and Total Assets LESS than $250,000 for the tax year?"
+          value={receiptsUnder250k}
+          onChange={setReceiptsUnder250k}
+          options={[
+            { value: "yes", label: "Yes (Under $250k — Exempt from L & M-1)" },
+            { value: "no", label: "No (Over $250k — Must file L & M-1)" },
+          ]}
+        />
+      </RowCard>
+
+      {receiptsUnder250k === "no" && (
+      <>
       <RowCard title="Schedule L — Balance Sheet" onRemove={undefined}>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <MoneyField label="Total Assets (Beginning)" value={cf.schedule_l.assets_beginning} onChange={(v) => set("corporate_financials.schedule_l.assets_beginning", v)} />
@@ -1687,9 +1741,28 @@ function ScheduleLM1M2Block() {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <MoneyField label="Net Income per Books" value={cf.schedule_m1.net_income_per_books} onChange={(v) => set("corporate_financials.schedule_m1.net_income_per_books", v)} />
           <MoneyField label="Federal Tax Expense" value={cf.schedule_m1.federal_tax_expense} onChange={(v) => set("corporate_financials.schedule_m1.federal_tax_expense", v)} />
-          <MoneyField label="Meals Disallowed (50%)" value={cf.schedule_m1.meals_disallowed_50} onChange={(v) => set("corporate_financials.schedule_m1.meals_disallowed_50", v)} />
+          <MoneyField label="Tax-Exempt Interest" value={cf.schedule_m1.tax_exempt_interest} onChange={(v) => set("corporate_financials.schedule_m1.tax_exempt_interest", v)} />
           <MoneyField label="Tax Depreciation over Book" value={cf.schedule_m1.tax_depreciation_over_book} onChange={(v) => set("corporate_financials.schedule_m1.tax_depreciation_over_book", v)} />
-          <MoneyField label="Taxable Income (Computed)" value={cf.schedule_m1.taxable_income} onChange={(v) => set("corporate_financials.schedule_m1.taxable_income", v)} />
+          <MoneyField label="Meals & Ent. Disallowed (50%)" value={cf.schedule_m1.meals_disallowed_50} onChange={(v) => set("corporate_financials.schedule_m1.meals_disallowed_50", v)} />
+          <MoneyField label="Foreign Taxes Deducted" value={cf.schedule_m1.foreign_taxes_credited} onChange={(v) => set("corporate_financials.schedule_m1.foreign_taxes_credited", v)} />
+          <MoneyField label="§163(j) Interest Exp. Limitation" value={cf.schedule_m1.interest_expense_limitation} onChange={(v) => set("corporate_financials.schedule_m1.interest_expense_limitation", v)} />
+          <MoneyField label="Other Additions" value={cf.schedule_m1.other_additions} onChange={(v) => set("corporate_financials.schedule_m1.other_additions", v)} />
+          <MoneyField label="Other Subtractions" value={cf.schedule_m1.other_subtractions} onChange={(v) => set("corporate_financials.schedule_m1.other_subtractions", v)} />
+          <ReadOnlyMoneyField
+            label="Taxable Income (Computed)"
+            hint="Derived — matches the DAG's own Schedule M-1 reconciliation formula, not a form input in the source"
+            value={
+              n(cf.schedule_m1.net_income_per_books) +
+              n(cf.schedule_m1.federal_tax_expense) +
+              n(cf.schedule_m1.meals_disallowed_50) +
+              n(cf.schedule_m1.foreign_taxes_credited) +
+              n(cf.schedule_m1.interest_expense_limitation) +
+              n(cf.schedule_m1.other_additions) -
+              n(cf.schedule_m1.tax_exempt_interest) -
+              n(cf.schedule_m1.tax_depreciation_over_book) -
+              n(cf.schedule_m1.other_subtractions)
+            }
+          />
         </div>
       </RowCard>
 
@@ -1700,6 +1773,8 @@ function ScheduleLM1M2Block() {
           <MoneyField label="Retained Earnings (Ending)" value={cf.schedule_m2.retained_earnings_ending} onChange={(v) => set("corporate_financials.schedule_m2.retained_earnings_ending", v)} />
         </div>
       </RowCard>
+      </>
+      )}
     </div>
   );
 }
