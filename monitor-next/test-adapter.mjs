@@ -33,6 +33,39 @@ const DAG_ONLY_KEYS = new Set([
   "saversCreditUsd", "saversCreditDetail"
 ]);
 
+// findings ids: ID-SET reconciliation, not a positional array compare —
+// dag.findings.map(f => f.id) vs real.findings.map(f => f.id) used to go
+// straight through deepCheck's generic array branch (length, then
+// element-by-element BY POSITION). A single known DAG-only extra finding
+// (itin_application_required, lrs_investment_tcs, s83b_election_not_filed_
+// timely, hsa_excess_contribution, ...) shifts every ID after it out of
+// position, so ANY one of them firing failed the WHOLE array, not just
+// that one entry. The only carve-out that existed was a usEntity-gated
+// strip of exactly two IDs. Replaced with the same ID-KEYED reconciliation
+// prototypes/graph-pilot/run-fuzz.js's own compareFindings() uses (keep
+// all three copies -- here, shadow-core.js, run-fuzz.js -- in sync).
+const KNOWN_EXTRA_FINDING_IDS = new Set([
+  "us_entity_state_tax", "us_entity_state_tax_not_modeled",
+  "presumptive_lockin_active_india", "msme_disallowance_s43Bh_india",
+  "retirement_excess_elective_deferral", "retirement_excess_ira_contribution",
+  "hsa_excess_contribution", "retirement_rmd_required", "s83b_election_not_filed_timely",
+  "itin_application_required", "lrs_investment_tcs",
+  "nra_eci_fdap_classification_check", "treaty_rate_not_recognized",
+  "ftc_gap", "ftc_available", "niit_medicare_not_creditable", "underpayment_2210",
+  "cfc", "cfc_below_threshold"
+]);
+function reconciledFindingIds(dagIds, realIds, isUsEntity) {
+  const dagSet = new Set(dagIds), realSet = new Set(realIds);
+  const keepDag = dagIds.filter((id) => realSet.has(id) || !KNOWN_EXTRA_FINDING_IDS.has(id));
+  const keepReal = realIds.filter((id) => {
+    if (dagSet.has(id)) return true;
+    const isEntitySuppressed = id === "underpayment_2210" && isUsEntity;
+    const isBasketSplit = id === "underpayment_2210" || id === "ftc_gap" || id === "ftc_available" || id === "niit_medicare_not_creditable";
+    return !isEntitySuppressed && !isBasketSplit;
+  });
+  return { dag: keepDag.sort(), real: keepReal.sort() };
+}
+
 let fails = 0, checks = 0;
 function ok() { checks++; }
 function bad(label, a, b) { checks++; fails++; console.log("FAIL " + label + "  dag=" + JSON.stringify(a) + " real=" + JSON.stringify(b)); }
@@ -89,15 +122,14 @@ function checkResult(id, dag, real) {
   const dagSummary = droppedRequiredCount > 0 && dag.summary && typeof dag.summary.requiredDocs === "number"
     ? { ...dag.summary, requiredDocs: dag.summary.requiredDocs - droppedRequiredCount }
     : dag.summary;
+  const reconciled = reconciledFindingIds(dag.findings.map(f => f.id), real.findings.map(f => f.id), usEntity);
   if (usEntity) {
-    console.log("    (DELIBERATE divergence, section D — see run-fuzz.js) summary.totalIncomeUsd/healthScore, findings ids (underpayment_2210), computed.usTax.usSourceIncomeUsd/foreignSourceIncomeUsd, computed.headline.totalIncomeUsd, computed.apportionment, monitoring.health.score");
+    console.log("    (DELIBERATE divergence, section D — see run-fuzz.js) summary.totalIncomeUsd/healthScore, computed.usTax.usSourceIncomeUsd/foreignSourceIncomeUsd, computed.headline.totalIncomeUsd, computed.apportionment, monitoring.health.score");
     deepCheck(id + " summary (minus totalIncomeUsd/healthScore)", { ...dagSummary, totalIncomeUsd: 0, healthScore: 0 }, { ...real.summary, totalIncomeUsd: 0, healthScore: 0 });
-    const stripEntityOnlyIds = (id) => id !== "underpayment_2210" && id !== "us_entity_state_tax" && id !== "us_entity_state_tax_not_modeled";
-    deepCheck(id + " findings ids (minus underpayment_2210/us_entity_state_tax)", dag.findings.map(f => f.id).filter(stripEntityOnlyIds), real.findings.map(f => f.id).filter(stripEntityOnlyIds));
   } else {
     deepCheck(id + " summary", dagSummary, real.summary);
-    deepCheck(id + " findings ids", dag.findings.map(f => f.id), real.findings.map(f => f.id));
   }
+  deepCheck(id + " findings ids (reconciled)", reconciled.dag, reconciled.real);
   deepCheck(id + " model.entity", dag.model.entity, real.model.entity);
   deepCheck(id + " model.meta", dag.model.meta, real.model.meta);
   deepCheck(id + " model.treaty", dag.model.treaty, real.model.treaty);

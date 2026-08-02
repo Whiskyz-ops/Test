@@ -47,8 +47,14 @@
 // (totalTaxInr/totalTaxUsd/regime/s115a + a synthetic isEntity the engine has
 // no equivalent for), so it's covered by explicit engine-mirrored scalar paths
 // below rather than a whole-object compare.
+//
+// "findings" is NOT in this list — it gets its own ID-keyed reconciliation
+// (diffFindings(), below DAG_ONLY_KEYS) instead of the generic positional
+// array diff every other symmetric path goes through, since finding order
+// isn't a meaningful signal and a single known extra/missing ID would
+// otherwise cascade into spurious mismatches for every finding after it.
 export const SYMMETRIC_SURFACE = [
-  "findings", "documents", "ftcReport", "taxComputation", "withholding",
+  "documents", "ftcReport", "taxComputation", "withholding",
   "scopeNotes", "returnForms", "monitoring", "summary",
   "model.income.india", "model.income.us", "model.entity", "model.meta", "model.treaty", "model.assets",
   "computed.usTax", "computed.residency", "computed.ftc", "computed.limits",
@@ -103,6 +109,61 @@ const DAG_ONLY_KEYS = new Set([
   // sync with prototypes/graph-pilot/run-fuzz.js's own DAG_ONLY_KEYS).
   "saversCreditUsd", "saversCreditDetail"
 ]);
+
+// ---- findings: ID-set reconciliation, not a positional array diff --------
+// "findings" used to sit in SYMMETRIC_SURFACE and go through diff()'s
+// generic positional array comparison — which compares by INDEX, so one
+// extra/missing finding anywhere but the very end shifts every subsequent
+// finding out of alignment, cascading into a wall of spurious per-field
+// mismatches for findings that actually agree. The only fix in place was a
+// narrow, usEntity-gated pre-filter for exactly two IDs (underpayment_2210/
+// us_entity_state_tax*) — every OTHER DAG-only finding (itin_application_
+// required, lrs_investment_tcs, s83b_election_not_filed_timely,
+// hsa_excess_contribution, and the rest) hit the same cascade unfiltered.
+// Replaced with the same ID-KEYED reconciliation prototypes/graph-pilot/
+// run-fuzz.js's own compareFindings() already uses (the two must be kept in
+// sync) — findings are looked up and compared BY ID, immune to ordering
+// differences between the two engines' own finding-add sequences, not just
+// to presence/absence.
+const KNOWN_EXTRA_FINDING_IDS = new Set([
+  "us_entity_state_tax", "us_entity_state_tax_not_modeled",
+  "presumptive_lockin_active_india", "msme_disallowance_s43Bh_india",
+  "retirement_excess_elective_deferral", "retirement_excess_ira_contribution",
+  "hsa_excess_contribution", "retirement_rmd_required", "s83b_election_not_filed_timely",
+  "itin_application_required", "lrs_investment_tcs",
+  "nra_eci_fdap_classification_check", "treaty_rate_not_recognized",
+  "ftc_gap", "ftc_available", "niit_medicare_not_creditable", "underpayment_2210",
+  "cfc", "cfc_below_threshold"
+]);
+// cfc (Phase 7, XB-14, GILTI/NCTI quantification): content (not presence)
+// diverges unconditionally whenever it fires on both sides — same
+// KNOWN_CONTENT_DIVERGENCE_FINDING_IDS run-fuzz.js carries.
+const KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = new Set(["cfc"]);
+
+function diffFindings(engFindings, dagFindings, isUsEntity, out) {
+  const eng = Array.isArray(engFindings) ? engFindings : [];
+  const dag = Array.isArray(dagFindings) ? dagFindings : [];
+  const engById = new Map(eng.map((f) => [f.id, f]));
+  const dagById = new Map(dag.map((f) => [f.id, f]));
+  const allIds = new Set([...engById.keys(), ...dagById.keys()]);
+  [...allIds].sort().forEach((id) => {
+    const inDag = dagById.has(id), inEng = engById.has(id);
+    if (inDag && !inEng) {
+      if (!KNOWN_EXTRA_FINDING_IDS.has(id)) out.push({ path: `findings[${id}]`, engine: "<missing>", dag: "<present>" });
+    } else if (!inDag && inEng) {
+      // Two catalogued exceptions, same as run-fuzz.js's own compareFindings:
+      // underpayment_2210 for a US entity (agg10-nodes.js's us1ShouldFire
+      // override — the engine cites the wrong form/statute for an entity),
+      // and the §904 basket split (task #46) which can move the FTC-
+      // dependent findings in EITHER direction.
+      const isEntitySuppressed = id === "underpayment_2210" && isUsEntity;
+      const isBasketSplit = id === "underpayment_2210" || id === "ftc_gap" || id === "ftc_available" || id === "niit_medicare_not_creditable";
+      if (!isEntitySuppressed && !isBasketSplit) out.push({ path: `findings[${id}]`, engine: "<present>", dag: "<missing>" });
+    } else if (inDag && inEng && !KNOWN_CONTENT_DIVERGENCE_FINDING_IDS.has(id)) {
+      diff(`findings[${id}]`, engById.get(id), dagById.get(id), out, false);
+    }
+  });
+}
 
 // Back-compat alias (the full path list).
 export const SHADOW_SURFACE = SYMMETRIC_SURFACE.concat(DIRECTIONAL_SURFACE);
@@ -251,20 +312,7 @@ export function compareSurface(engineResult, dagResult) {
   const indiaAopOrTrust = !!(dagEntity && (dagEntity.indiaIsAop || dagEntity.indiaIsTrust));
   const nra = !!(engineResult && engineResult.computed && engineResult.computed.usTax && engineResult.computed.usTax.isNra === true);
 
-  // findings: a US entity drops underpayment_2210 (agg10-nodes.js's
-  // us1ShouldFire override, section D) — array-index-diff every OTHER
-  // finding after that position if left in place, so it's filtered out of
-  // both sides before diffing rather than caught by the path-prefix
-  // allowlist below (which can't repair an index shift).
   let eng = engineResult, dag = dagResult;
-  if (usEntity && Array.isArray(engineResult && engineResult.findings) && Array.isArray(dagResult && dagResult.findings)) {
-    // us_entity_state_tax(_not_modeled) (docs/GAP_TRACKER.md section H.7,
-    // Phase 2, 21 Jul 2026): new DAG-only finding, no engine equivalent —
-    // same filter-before-diff treatment as underpayment_2210 above.
-    const dropEntityOnlyIds = (f) => f.id !== "underpayment_2210" && f.id !== "us_entity_state_tax" && f.id !== "us_entity_state_tax_not_modeled";
-    eng = { ...engineResult, findings: engineResult.findings.filter(dropEntityOnlyIds) };
-    dag = { ...dagResult, findings: dagResult.findings.filter(dropEntityOnlyIds) };
-  }
 
   // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026) and form_8858
   // (section H.13, 22 Jul 2026): new DAG-only documents, no engine
@@ -300,6 +348,7 @@ export function compareSurface(engineResult, dagResult) {
   }
 
   const raw = [];
+  diffFindings(eng.findings, dag.findings, usEntity, raw);
   for (const p of SYMMETRIC_SURFACE) diff(p, getPath(eng, p), getPath(dag, p), raw, false);
   for (const p of DIRECTIONAL_SURFACE) diff(p, getPath(eng, p), getPath(dag, p), raw, true);
 
