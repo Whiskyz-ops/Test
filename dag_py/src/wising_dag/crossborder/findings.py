@@ -1017,14 +1017,18 @@ def build(base):
         ),
     ))
     r.register("nraFdapIncomeUsdRaw", NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "nra_specific.us_fdap_income_usd", 0)), layer1_fields=("us.nra_specific.us_fdap_income_usd",)))
+    # Field is elected_rate, not rate — layer1_us.html's syncTreatyRates()/
+    # addTreatyRateRow() only ever write elected_rate on each
+    # treaty_rate_claims[] entry (confirmed by grep, "rate" never appears as
+    # a key there); see us/findings.py's _nra_fdap_detail() for the full note.
     r.register("nraFdapDetail", NodeDef(
         deps=("nraRaw", "nraFdapIncomeUsdRaw"),
         compute=lambda d, ctx: (lambda claim: {
             "fdapUsd": d["nraFdapIncomeUsdRaw"],
-            "fdapRate": (0.30 if not (d["nraRaw"]["submittedW8ben"] and claim and claim.get("rate") is not None) else max(0.0, min(1.0, num(claim["rate"]) / 100))),
-            "claimedRate": (claim["rate"] if claim and claim.get("rate") is not None else None),
+            "fdapRate": (0.30 if not (d["nraRaw"]["submittedW8ben"] and claim and claim.get("elected_rate") is not None) else max(0.0, min(1.0, num(claim["elected_rate"]) / 100))),
+            "claimedRate": (claim["elected_rate"] if claim and claim.get("elected_rate") is not None else None),
             "w8benOnFile": d["nraRaw"]["submittedW8ben"],
-            "gapUsd": (d["nraFdapIncomeUsdRaw"] * (0.30 - max(0.0, min(1.0, num(claim["rate"]) / 100))) if (claim and claim.get("rate") is not None and not d["nraRaw"]["submittedW8ben"] and max(0.0, min(1.0, num(claim["rate"]) / 100)) < 0.30) else 0),
+            "gapUsd": (d["nraFdapIncomeUsdRaw"] * (0.30 - max(0.0, min(1.0, num(claim["elected_rate"]) / 100))) if (claim and claim.get("elected_rate") is not None and not d["nraRaw"]["submittedW8ben"] and max(0.0, min(1.0, num(claim["elected_rate"]) / 100)) < 0.30) else 0),
         })((d["nraRaw"]["treatyRateClaims"] or [None])[0] if d["nraRaw"]["treatyRateClaims"] else None),
     ))
 

@@ -446,7 +446,7 @@
       "treaty_rate_claims": [
         {
           "income_type": "dividends",
-          "rate": 15
+          "elected_rate": 15
         }
       ],
       "submitted_w8ben": false,

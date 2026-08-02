@@ -377,15 +377,16 @@ def _findings_all_result_override(d, ctx, base_compute):
             ))
 
         # India-US DTAA FDAP treaty-rate sanity check against
-        # constants.py's INDIA_US_TREATY_FDAP_RATES.
+        # constants.py's INDIA_US_TREATY_FDAP_RATES. Field is elected_rate,
+        # not rate — see findings.py's _nra_fdap_detail() comment for why.
         for treaty_claim in (d["nraRaw"]["treatyRateClaims"] or []):
-            if not treaty_claim or treaty_claim.get("rate") is None:
+            if not treaty_claim or treaty_claim.get("elected_rate") is None:
                 continue
             income_type = treaty_claim.get("income_type")
             table_entry = C.INDIA_US_TREATY_FDAP_RATES.get(income_type) if income_type else None
             if not table_entry:
                 continue
-            claimed_rate_frac = max(0.0, min(1.0, num(treaty_claim["rate"]) / 100))
+            claimed_rate_frac = max(0.0, min(1.0, num(treaty_claim["elected_rate"]) / 100))
             if any(abs(claimed_rate_frac - r) <= C.TREATY_RATE_TOLERANCE for r in table_entry["rates"]):
                 continue
             valid_rates_pct = " / ".join(f"{js_round(r * 100)}%" for r in table_entry["rates"])
@@ -457,7 +458,7 @@ def _nra_tax_result(d, ctx):
     fdap_usd = d["nraFdapIncomeUsdRaw"] or 0
     claims = d["nraRaw"]["treatyRateClaims"] or []
     claim = claims[0] if claims else None
-    claimed_rate = max(0.0, min(1.0, num(claim["rate"]) / 100)) if (claim and claim.get("rate") is not None) else None
+    claimed_rate = max(0.0, min(1.0, num(claim["elected_rate"]) / 100)) if (claim and claim.get("elected_rate") is not None) else None
     w8ben_on_file = d["nraRaw"]["submittedW8ben"] is True
     fdap_rate = claimed_rate if (w8ben_on_file and claimed_rate is not None) else 0.30
 

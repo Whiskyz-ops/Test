@@ -149,6 +149,41 @@ function runCase(id, router, india, us) {
         outStripped.nra = Object.assign({}, outStripped.nra);
         Object.keys(NRA_NEW_FIELD_KEYS).forEach(function (k) { delete outStripped.nra[k]; });
       }
+      // DELIBERATE divergence: treaty-rate elected_rate field-name bug fix
+      // (findings-batch4-nodes.js's nraFdapDetail comment). The frozen
+      // reference engine reads claim.rate — a field layer1_us.html's own
+      // syncTreatyRates() never writes (only elected_rate) — so any profile
+      // with a treaty_rate_claims[] entry now correctly diverges on
+      // nra.claimedRate (frozen sees null, graph sees the real elected
+      // rate). When W-8BEN is also on file, that correct rate additionally
+      // changes nra.fdapRate/fdapTaxUsd and cascades into
+      // incomeTaxUsd/totalTaxBeforeFtcUsd/effectiveRate — confirmed against
+      // a fixture-isolated direct comparison, not assumed. Verified this
+      // carve-out doesn't hide anything else: when w8benOnFile is false
+      // (the common case, including the base india_ror_us_income profile),
+      // only claimedRate itself diverges — fdapRate/fdapTaxUsd/tax totals
+      // still match the frozen engine exactly, and remain deep-compared
+      // below.
+      if (outStripped.nra && outStripped.nra.claimedRate !== real.nra.claimedRate) {
+        ok("usTax(full).nra.claimedRate (DELIBERATE divergence — elected_rate field-name fix)");
+        var nraHadClaim = outStripped.nra.claimedRate != null;
+        outStripped.nra = Object.assign({}, outStripped.nra);
+        delete outStripped.nra.claimedRate;
+        real = Object.assign({}, real, { nra: Object.assign({}, real.nra) });
+        delete real.nra.claimedRate;
+        if (nraHadClaim && outStripped.nra.w8benOnFile) {
+          ["fdapRate", "fdapTaxUsd"].forEach(function (k) {
+            ok("usTax(full).nra." + k + " (DELIBERATE divergence — elected_rate field-name fix)");
+            delete outStripped.nra[k];
+            delete real.nra[k];
+          });
+          ["incomeTaxUsd", "totalTaxBeforeFtcUsd", "effectiveRate"].forEach(function (k) {
+            ok("usTax(full)." + k + " (DELIBERATE divergence — elected_rate field-name fix)");
+            delete outStripped[k];
+            delete real[k];
+          });
+        }
+      }
       deepCheck("usTax(full)", outStripped, real);
     }
   } else {
@@ -187,13 +222,13 @@ var ccorp = WISING.PROFILES.filter(function (p) { return p.id === "us_ccorp_indi
 var nraBase = WISING.PROFILES.filter(function (p) { return p.id === "india_ror_us_income"; })[0];
 var us1 = JSON.parse(JSON.stringify(nraBase.us));
 us1.nra_specific = Object.assign({}, us1.nra_specific, {
-  submitted_w8ben: false, treaty_rate_claims: [{ income_type: "dividend", rate: 15 }]
+  submitted_w8ben: false, treaty_rate_claims: [{ income_type: "dividend", elected_rate: 15 }]
 });
 runCase("synthetic_nra_no_w8ben (claimed 15% -> statutory 30%)", nraBase.router, nraBase.india, us1);
 
 var us2 = JSON.parse(JSON.stringify(nraBase.us));
 us2.nra_specific = Object.assign({}, us2.nra_specific, {
-  submitted_w8ben: true, treaty_rate_claims: [{ income_type: "dividend", rate: 15 }]
+  submitted_w8ben: true, treaty_rate_claims: [{ income_type: "dividend", elected_rate: 15 }]
 });
 runCase("synthetic_nra_w8ben_treaty15", nraBase.router, nraBase.india, us2);
 

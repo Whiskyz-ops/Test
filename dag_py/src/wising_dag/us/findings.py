@@ -153,12 +153,21 @@ def _gauge(value_usd: float, limit_usd: float) -> dict:
 
 def _nra_fdap_detail(d, ctx):
     claim = (d["nraRaw"]["treatyRateClaims"] or [None])[0] if d["nraRaw"]["treatyRateClaims"] else None
+    # BUG FIX: layer1_us.html's own syncTreatyRates() (~line 6133-6151) and
+    # addTreatyRateRow() (~6154) both only ever write/read `elected_rate` on
+    # each treaty_rate_claims[] entry — confirmed by grep, "rate" never
+    # appears as a key anywhere in the source's treaty-claim handling. This
+    # engine (and the JS DAG mirror) read `rate` instead, a field name the
+    # live form never writes, so a claimed treaty rate never reached the tax
+    # computation — the 30% FDAP fallback fired unconditionally regardless
+    # of what a user entered. Not a React-port bug: both UIs write the same
+    # field the source does; the field-name mismatch was in this engine.
     # Two distinct "claimed rate" readings, matching the engine's own two
     # separate variables of the same name in different scopes: the RAW
     # Layer 1 value (e.g. 15, for display) vs. the NORMALIZED 0-1 fraction
-    # computeNraTax actually computes with (claim.rate / 100).
-    raw_claimed_rate_pct = claim["rate"] if (claim and claim.get("rate") is not None) else None
-    claimed_rate_fraction = max(0.0, min(1.0, num(claim["rate"]) / 100)) if (claim and claim.get("rate") is not None) else None
+    # computeNraTax actually computes with (claim.elected_rate / 100).
+    raw_claimed_rate_pct = claim["elected_rate"] if (claim and claim.get("elected_rate") is not None) else None
+    claimed_rate_fraction = max(0.0, min(1.0, num(claim["elected_rate"]) / 100)) if (claim and claim.get("elected_rate") is not None) else None
     w8ben_on_file = d["nraRaw"]["submittedW8ben"] is True
     fdap_rate = claimed_rate_fraction if (w8ben_on_file and claimed_rate_fraction is not None) else 0.30
     fdap_usd = d["nraFdapIncomeUsdRaw"]
@@ -517,15 +526,28 @@ def _findings_us_result(d, ctx):
     is_routed_to_nra_for_fdap = d["usEntityKind"] not in ("ccorp", "scorp", "partnership", "trust") and d["treatyFiles1040nrRaw"] and not d["s6013hElection"]
     if d["treatyFiles1040nrRaw"] and not d["s6013hElection"] and d["nraFdapDetail"]["fdapUsd"] > 0:
         nra_detail = d["nraFdapDetail"]
+        # BUG FIX: was gated on claimedRate alone — the raw display value of
+        # a treaty claim, set whenever a claim exists REGARDLESS of whether
+        # W-8BEN is on file (nraFdapDetail's own two-variable split, see its
+        # comment). fdapRate itself already correctly falls back to 30%
+        # without w8benOnFile, but this text didn't check the same
+        # condition, so a taxpayer with a claim on file but no W-8BEN saw
+        # "taxed flat at the claimed X% treaty rate" even though they were
+        # actually taxed at the 30% statutory rate — the exact inaccuracy
+        # this finding exists to catch. Caught by run-ustax-full.js's
+        # elected_rate field-name fix exposing the mismatch for the first
+        # time (previously masked since the same wrong field name broke
+        # both the rate lookup and this text identically).
+        rate_actually_honored = nra_detail["claimedRate"] and nra_detail["w8benOnFile"]
         findings.append(make_finding(
             "nra_fdap_flat_rate", "info", "credit",
             "1040-NR: FDAP taxed flat" + (f" ({js_round(nra_detail['fdapRate'] * 100)}%)" if is_routed_to_nra_for_fdap else "") + ", ECI at graduated rates",
             f"{_fmt(nra_detail['fdapUsd'])} of FDAP income (interest/dividends/rents not effectively connected with a US trade or "
-            "business) is taxed flat" + (f" at the claimed {nra_detail['claimedRate']}% treaty rate" if nra_detail["claimedRate"] else " at the 30% statutory rate (no treaty rate on file)")
+            "business) is taxed flat" + (f" at the claimed {nra_detail['claimedRate']}% treaty rate" if rate_actually_honored else " at the 30% statutory rate (no treaty rate on file)")
             + f" with no deductions (Schedule NEC), separate from {_fmt(d['nraEciIncomeUsdRaw'])} of ECI taxed at graduated brackets"
             " with itemized deductions only (NRAs generally can't claim the standard deduction).",
             "Confirm the treaty rate claimed on Form W-8BEN/1040-NR matches the rate used here"
-            + ("" if nra_detail["claimedRate"] else " — no treaty rate is on file, so the default 30% was applied; check whether Article 11/12 of the DTAA reduces it") + ".",
+            + ("" if rate_actually_honored else " — no treaty rate is on file, so the default 30% was applied; check whether Article 11/12 of the DTAA reduces it") + ".",
             0, ["Form 1040-NR", "Schedule NEC", "FDAP", "ECI"],
         ))
 

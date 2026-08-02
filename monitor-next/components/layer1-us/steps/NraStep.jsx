@@ -9,25 +9,29 @@ import { Card, Field, NumberInput, TextInput, Select, ToggleRow, RemoveButton, A
 // "NON_RESIDENT_ALIEN" (see machine.js isStepLocked) — page-level wiring
 // handles that gate, this component renders unconditionally.
 //
-// BUG FIX (field-path collision, found by the step-by-step map audit):
-// this component previously rendered a 4-option "W-8BEN Aggregate Status"
-// select bound to `w8ben_aggregate_status` — a field that only exists in
-// the source's default-value literal with no matching UI control anywhere
-// in layer1_us.html (confirmed dead there too). The source's REAL,
-// wired control is a "Submitted Form W-8BEN?" checkbox
-// (layer1_us.html:3857, #nra-w8ben) writing the boolean
-// `nra_specific.submitted_w8ben` — the field both dag_py and the JS DAG
-// actually read for `w8benOnFile`. Swapped below to match the source
-// exactly. The source's "US Permanent Establishment (PE)?" checkbox
-// (layer1_us.html:3850, #nra-pe -> nra_specific.has_us_pe) was also
-// entirely missing from this file — added below.
+// BUG FIX (Tier 0 #5, W-8BEN field mismatch): the source wires a REAL
+// "Submitted Form W-8BEN?" checkbox (layer1_us.html:3842-3848, #nra-w8ben)
+// writing the boolean `nra_specific.submitted_w8ben`, which both DAG
+// engines read directly. This component used to render a 4-option "W-8BEN
+// Aggregate Status" select bound to `w8ben_aggregate_status`, a field that
+// only ever existed in the source's default-value literal with no matching
+// UI control anywhere in layer1_us.html (confirmed dead there too) — so
+// `w8benOnFile` was always false regardless of what was entered, and a
+// `nra_w8ben_missing` critical finding fired even when the real facts said
+// otherwise. Replaced with the real checkbox below; also added the source's
+// "US Permanent Establishment (PE)?" checkbox (layer1_us.html:3835-3841,
+// #nra-pe -> nra_specific.has_us_pe), which had no UI here at all.
 //
-// BUG FIX (treaty-rate field mismatch): `treaty_rate_claims[]` rows
-// previously wrote `elected_rate`; dag_py's ustax_full.py:382,388,460 and
-// findings.py:160-161 all read the flat key `rate`. Every user-entered
-// treaty claim was invisible to the FDAP-rate computation, so the flat
-// 30% fallback fired regardless of what was entered. Renamed to `rate`
-// to match both DAG engines.
+// Tier 0 #4 (treaty-rate claims always falling back to 30%): a concurrent
+// pass at this file initially "fixed" it by renaming this component's field
+// from elected_rate to rate, to match what both DAG engines (wrongly) read.
+// Direct grep of the actual source confirms layer1_us.html's own
+// syncTreatyRates()/addTreatyRateRow() (~6133-6170) only ever write/read
+// elected_rate — "rate" never appears as a key there. So this component
+// was already correct; the bug was in the DAG engines (dag_py's
+// us/findings.py + us/ustax_full.py + crossborder/findings.py, and
+// prototypes/graph-pilot's equivalents), which read a field the live form
+// never writes — fixed there, field name restored to elected_rate here.
 const TREATY_INCOME_TYPES = [
   { value: "dividends", label: "Dividends (Art. 10)" },
   { value: "interest", label: "Interest (Art. 11)" },
@@ -35,7 +39,7 @@ const TREATY_INCOME_TYPES = [
 ];
 
 function emptyTreatyRow() {
-  return { income_type: "", rate: "", treaty_article: "" };
+  return { income_type: "", elected_rate: "", treaty_article: "" };
 }
 
 export default function NraStep() {
@@ -132,11 +136,20 @@ export default function NraStep() {
                   placeholder="Select..."
                 />
               </Field>
-              <Field label="Elected Rate">
-                <TextInput
-                  value={row.rate}
-                  onChange={(v) => updateRow("nra_specific.treaty_rate_claims", i, { rate: v })}
-                  placeholder="e.g. 15%"
+              <Field label="Elected Rate (%)">
+                {/* BUG FIX: was a free-text field (source's own "e.g. 15%"
+                    placeholder invited typing the literal % sign) — both
+                    dag_py's num() and the JS DAG's Number() silently turn a
+                    non-numeric string like "15%" into 0, so a real user
+                    following the placeholder's own example would have
+                    submitted a treaty claim that computed to nothing.
+                    NumberInput strips non-digit characters, matching how
+                    every other percentage/currency field in this port is
+                    bound. */}
+                <NumberInput
+                  value={row.elected_rate}
+                  onChange={(v) => updateRow("nra_specific.treaty_rate_claims", i, { elected_rate: v })}
+                  placeholder="e.g. 15"
                 />
               </Field>
               <Field label="Treaty Article">

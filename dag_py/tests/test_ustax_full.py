@@ -342,7 +342,7 @@ def test_nra_fdap_defaults_to_flat_30_percent_without_w8ben():
 
 
 def test_nra_fdap_uses_treaty_rate_when_w8ben_on_file():
-    r = _nra(fdap=10000.0, claims=[{"rate": 15, "income_type": "dividends"}], w8ben=True)
+    r = _nra(fdap=10000.0, claims=[{"elected_rate": 15, "income_type": "dividends"}], w8ben=True)
     assert r["nra"]["fdapRate"] == 0.15
     assert r["nra"]["fdapTaxUsd"] == 1500.0
     assert r["nra"]["w8benOnFile"] is True
@@ -389,7 +389,7 @@ def test_nra_j1_visa_flagged_ambiguous_not_auto_applied():
 
 
 def test_nra_treaty_claim_ignored_without_w8ben_on_file():
-    r = _nra(fdap=10000.0, claims=[{"rate": 15, "income_type": "dividends"}], w8ben=False)
+    r = _nra(fdap=10000.0, claims=[{"elected_rate": 15, "income_type": "dividends"}], w8ben=False)
     assert r["nra"]["fdapRate"] == 0.30  # claim present but not honored — no W-8BEN on file
 
 
@@ -494,22 +494,22 @@ def test_nra_classification_check_not_fired_for_entity():
 
 
 def test_treaty_rate_not_recognized_fires_on_unrecognized_rate():
-    ids = _override_finding_ids(_override_d(nraRaw={"treatyRateClaims": [{"rate": 20, "income_type": "dividends"}]}))
+    ids = _override_finding_ids(_override_d(nraRaw={"treatyRateClaims": [{"elected_rate": 20, "income_type": "dividends"}]}))
     assert "treaty_rate_not_recognized" in ids
 
 
 def test_treaty_rate_not_recognized_silent_on_recognized_general_rate():
-    ids = _override_finding_ids(_override_d(nraRaw={"treatyRateClaims": [{"rate": 25, "income_type": "dividends"}]}))
+    ids = _override_finding_ids(_override_d(nraRaw={"treatyRateClaims": [{"elected_rate": 25, "income_type": "dividends"}]}))
     assert "treaty_rate_not_recognized" not in ids
 
 
 def test_treaty_rate_not_recognized_silent_on_recognized_reduced_rate():
-    ids = _override_finding_ids(_override_d(nraRaw={"treatyRateClaims": [{"rate": 10, "income_type": "interest"}]}))
+    ids = _override_finding_ids(_override_d(nraRaw={"treatyRateClaims": [{"elected_rate": 10, "income_type": "interest"}]}))
     assert "treaty_rate_not_recognized" not in ids
 
 
 def test_treaty_rate_check_skips_unknown_income_type():
-    ids = _override_finding_ids(_override_d(nraRaw={"treatyRateClaims": [{"rate": 99, "income_type": "pension"}]}))
+    ids = _override_finding_ids(_override_d(nraRaw={"treatyRateClaims": [{"elected_rate": 99, "income_type": "pension"}]}))
     assert "treaty_rate_not_recognized" not in ids
 
 

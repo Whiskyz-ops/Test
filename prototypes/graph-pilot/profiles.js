@@ -487,7 +487,7 @@
       // plus a US real-property disposition subject to FIRPTA withholding.
       nra_specific: {
         files_form_1040nr: true, us_eci_income_usd: 30000, us_fdap_income_usd: 11400,
-        treaty_rate_claims: [{ income_type: "dividends", rate: 15 }], submitted_w8ben: false,
+        treaty_rate_claims: [{ income_type: "dividends", elected_rate: 15 }], submitted_w8ben: false,
         us_real_property_disposed: true, firpta_withholding_usd: 45000
       },
       metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }

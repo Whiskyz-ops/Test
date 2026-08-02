@@ -492,7 +492,6 @@ export function createDefaultUsState() {
     nra_specific: {
       files_form_1040nr: false,
       s6013h_joint_election: false,
-      w8ben_aggregate_status: "none",
       form_w7_itin_application_filed: false,
       spouse_ssn_or_itin_type: "none",
       us_eci_income_usd: 0,
@@ -504,8 +503,11 @@ export function createDefaultUsState() {
       // Bug fix (real HTML-export comparison, confirms NRA audit finding):
       // has_us_pe (effectively-connected-income depends on whether a US
       // permanent establishment exists under an applicable treaty) and
-      // submitted_w8ben (whether the W-8BEN backing w8ben_aggregate_status
-      // was actually filed, vs. just claimed) were missing entirely.
+      // submitted_w8ben (the real, DAG-read W-8BEN-on-file flag) were
+      // missing entirely. w8ben_aggregate_status (a status enum this
+      // schema previously declared) was removed — it never had a matching
+      // control in the source HTML (confirmed dead there too) and nothing
+      // downstream, in either DAG engine, ever read it.
       has_us_pe: false,
       submitted_w8ben: false,
     },
