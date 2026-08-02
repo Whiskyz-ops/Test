@@ -389,7 +389,14 @@ var DAG_ONLY_KEYS = {
   // basket concept and no second-country FTC input at all) — present on
   // EVERY profile (not conditional), same blanket-exclusion class as
   // entityGraph above.
-  passive: true, general: true, foreignWagesTaxPaidUsd: true, baskets: true, otherCountries: true
+  passive: true, general: true, foreignWagesTaxPaidUsd: true, baskets: true, otherCountries: true,
+  // §911(c) FEIE housing exclusion (FEIE legal-correctness review,
+  // docs/FEIE_LEGAL_CORRECTNESS_REVIEW.md): new structural fields on
+  // computed.usTax with no frozen-engine equivalent (the engine only ever
+  // modeled the earned-income exclusion itself, never the separate housing
+  // exclusion) — present on EVERY profile (not conditional, always at
+  // least 0), same blanket-exclusion class as passive/general above.
+  feieHousingAppliedUsd: true, housingAppliedUsd: true
 };
 function close(a, b) { var tol = Math.max(2, Math.abs(b) * 1e-6); return Math.abs(a - b) <= tol; }
 function deepEqual(a, b, p, diffs) {
@@ -746,6 +753,23 @@ function isFeieBonaFideProxyDivergentProfile(profile) {
   return f.claims_feie === true && f.qualification_test === "bona_fide_residence" &&
     !!f.bona_fide_residence_start_date && f.bona_fide_residence !== true;
 }
+// §911(c) FEIE housing exclusion (FEIE legal-correctness review, docs/
+// FEIE_LEGAL_CORRECTNESS_REVIEW.md, concurrent-session merge): the frozen
+// engine never modeled the housing cost exclusion at all -- only the DAG's
+// ustax-nodes.js computes feieHousingAppliedUsd, netting it out of
+// fW/fSE (computeUsTaxCore) the same way the main FEIE exclusion already
+// does, whenever housing_expenses_usd exceeds the (prorated) housing base.
+// Unconditionally cascades into ordinary/AMT/credits/bracket-breakdown
+// figures downstream, same shape as feieWagesDivergent/
+// feieBonaFideProxyDivergent above -- gated on the DAG's own already-
+// computed feieHousingAppliedUsd (the exact, precise "did this exclusion
+// actually apply and change the numbers" signal) rather than re-deriving
+// the housing base/cap/qualifying-days math here, same SYS-1-class
+// avoidance as isQbiWageUbiaLimitDivergentProfile's own comment explains.
+function isFeieHousingDivergentProfile(dag) {
+  var t = dag && dag.computed && dag.computed.usTax;
+  return !!t && (t.feieHousingAppliedUsd || 0) > 0;
+}
 // §199A QBI wage/UBIA limitation (item S, docs/GAP_TRACKER.md, 27 Jul 2026):
 // the frozen engine computes QBI as a flat 20% with only the SSTB phase-out
 // (no wage/UBIA limit at all); the DAG (ustax-nodes.js) additionally caps
@@ -1067,6 +1091,7 @@ function compareOne(label, profile, saveOnFail) {
   var qbiWageLimitDivergent = isQbiWageLimitDivergent(dag);
   var saversCreditDivergent = isSaversCreditDivergent(dag);
   var feieBonaFideProxyDivergent = isFeieBonaFideProxyDivergentProfile(profile);
+  var feieHousingDivergent = isFeieHousingDivergentProfile(dag);
   var qbiWageUbiaDivergent = isQbiWageUbiaLimitDivergentProfile(real);
   var indiaRebateDivergent = isIndiaRebateMarginalReliefDivergentProfile(dag);
   var indiaSalaryExemption = isIndiaSalaryExemptionProfile(dag);
@@ -1081,7 +1106,7 @@ function compareOne(label, profile, saveOnFail) {
   // KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS above), saversCreditDivergent, and
   // indiaRebateDivergent all cascade the same way into every $-amount-bearing
   // finding (amt_applies, underpayment_2210, etc).
-  var findingsExcused = indiaAopOrTrust || feieWagesDivergent || feieBonaFideProxyDivergent ||
+  var findingsExcused = indiaAopOrTrust || feieWagesDivergent || feieBonaFideProxyDivergent || feieHousingDivergent ||
     qbiWageLimitDivergent || qbiWageUbiaDivergent || saversCreditDivergent || indiaRebateDivergent ||
     indiaSalaryExemption;
   (findingsExcused ? knownDiffs : realDiffs).push.apply(findingsExcused ? knownDiffs : realDiffs, findingsResult.unknown);
@@ -1122,6 +1147,7 @@ function compareOne(label, profile, saveOnFail) {
     .concat(isUsTrustProfile(dag) ? KNOWN_US_TRUST_DIVERGENT_PATHS : [])
     .concat(feieWagesDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(feieBonaFideProxyDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
+    .concat(feieHousingDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(isFeieEntityGateMissingProfile(dag, profile) ? KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS : [])
     .concat(isQbiWageLimitDivergent(dag) ? KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS : [])
     .concat(qbiWageUbiaDivergent ? KNOWN_QBI_WAGE_UBIA_DIVERGENT_PATHS : [])
