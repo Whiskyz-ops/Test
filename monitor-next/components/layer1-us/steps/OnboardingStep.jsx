@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useUsLayer1Store, useOnboardingSetup } from "@/lib/layer1-us/store";
 
 // ── styling helpers (matches the dark-theme Tailwind conventions used
@@ -185,6 +185,26 @@ export default function OnboardingStep() {
     setField("profile.trump_accounts_children_born_2025_2028", list.filter((c) => c.born_2025_2028).length);
     setField("profile.trump_accounts_total_contributions_usd", list.reduce((sum, c) => sum + (c.contribution_usd || 0), 0));
   }
+
+  // BUG FIX (found by the step-by-step map audit): updateTaxEntityLogic()
+  // (layer1_us.html:7098-7114) force-unchecks setup-w2/setup-retirement/
+  // setup-foreign-feie whenever the entity type stops being individual/
+  // sole_prop/farming — a corp/partnership/trust filer switching entity
+  // type away from individual mid-session previously left these 3 flags
+  // stale/true here, which could leave individual-only phases visible in
+  // the sidebar for a filer who's no longer an individual. This only
+  // resets the CHECKBOX flags, matching the source exactly — it does not
+  // touch any underlying W-2/retirement/FEIE data already entered, and
+  // hydrateFromUsState()'s OR-merge (store.js) will still bring a flag
+  // back to true on the next mutation if real data independently
+  // justifies it, same as the source's own re-derivation behavior.
+  useEffect(() => {
+    if (isIndividual) return;
+    if (setupW2) setFlag("setupW2", false);
+    if (setupRetirement) setFlag("setupRetirement", false);
+    if (foreignFeie) setFlag("setupForeignFeie", false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isIndividual]);
 
   function toggleForeign(next) {
     setFlag("setupForeignAny", next);

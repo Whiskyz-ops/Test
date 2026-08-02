@@ -804,10 +804,21 @@ source field-for-field. Only 2 real gaps found:
   those were left as-is (already correct). Verified live in headless
   Chromium: default badge now reads "NON RESIDENT ALIEN"; a seeded
   green-card holder shows "RESIDENT ALIEN".
-- `[FROM AUDIT]` Entity-type switch away from "individual" doesn't
-  force-reset `setupW2`/`setupRetirement`/`setupForeignFeie` — stale
-  flags can leave individual-only phases visible for a corp/partnership
-  filer.
+- `[FIXED]` Entity-type switch away from individual/sole_prop/farming
+  didn't force-reset `setupW2`/`setupRetirement`/`setupForeignFeie` —
+  confirmed via direct reading that `updateTaxEntityLogic()`
+  (`layer1_us.html:7098-7114`) force-unchecks all 3 the moment
+  `isIndividual` goes false, leaving any underlying data untouched (only
+  the checkbox/flag). Stale flags could leave individual-only phases
+  visible in the sidebar for a filer who's no longer an individual.
+  Fixed: added a `useEffect` in `OnboardingStep.jsx` that resets the 3
+  flags to `false` when `isIndividual` becomes false, matching the
+  source exactly (`hydrateFromUsState()`'s OR-merge still brings a flag
+  back to `true` on the next mutation if real underlying data
+  independently justifies it, same as the source's own re-derivation).
+  Verified live in headless Chromium: checked "Employment" (setupW2)
+  makes the Employment Income step appear; switching entity type to
+  C-Corp makes it disappear again.
 - `[FIXED]` The NRA step button wasn't hidden for corp/partnership/trust
   filers like the source does. Confirmed via direct reading:
   `updateTaxEntityLogic()` (`layer1_us.html:7071-7138`) — a different
