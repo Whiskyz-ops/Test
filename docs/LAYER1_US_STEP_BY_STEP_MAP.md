@@ -289,29 +289,63 @@ source field-for-field. Only 2 real gaps found:
   JS DAG directly (confirmed by re-reading `BusinessStep.jsx` — no more
   `k1_boxes` writes, flat fields throughout). Was the most severe finding
   in the whole port.
-- `[VERIFIED]` A fabricated, always-editable "Taxable Income (Computed)"
-  field on Schedule M-1 (`BusinessStep.jsx:1664`) has no source
+- `[VERIFIED — still open]` A fabricated, always-editable "Taxable Income
+  (Computed)" field on Schedule M-1 (`BusinessStep.jsx:1674`, moved a few
+  lines since the K-1 fix landed but still present) has no source
   counterpart and is read by no DAG code.
-- `[FROM AUDIT]` "1099 Filing Obligations" panel (wired into 5 entity
-  types in the source) entirely absent.
-- `[FROM AUDIT]` "Gross Receipts by State"/economic-nexus apportionment
-  (6 entity types) entirely absent.
-- `[FROM AUDIT]` §199A QBI/UBIA capture fields at the entity level absent.
-- `[FROM AUDIT]` The "$250k receipts" gate that should hide Schedule
-  L/M-1/M-2 by default is missing — shown unconditionally instead.
-- `[FROM AUDIT]` Most of the "Business Compliance & Tax Analyzer" summary
-  panel (5 of 6 metrics, all 5 loss-limitation flags) is missing.
-- `[FROM AUDIT]` Schedule C's home-office/vehicle-expense section is
-  missing (Farm's equivalent *was* ported).
-- `[FROM AUDIT]` `addUsBranchRow` (foreign-parented US branches) not
-  ported.
-- `[FROM AUDIT]` NAICS/SSTB dropdown has 11 options vs. the source's 25.
+- `[FIXED since the audit — reclassified]` §199A QBI/UBIA capture fields
+  ARE now present, at least on K-1 rows — `qbi_wages_usd`/`qbi_ubia_usd`
+  `MoneyField`s confirmed on both `partnerships_k1` and `s_corporations_k1`
+  row editors (`BusinessStep.jsx:1255-1256,1455-1456`), landed alongside
+  the K-1 box-mapping fix. Not verified at the top-level Schedule C/entity
+  level, only on K-1 rows — worth a follow-up check.
+- `[FIXED since the audit — reclassified]` Schedule C's home-office/
+  vehicle-expense fields ARE now present (`BusinessStep.jsx:962-973`,
+  "Additional Deductions" accordion — `vehicle_miles`/`home_office_sqft`).
+  Simplified vs. the source's richer model (source has a nested
+  `vehicle_expenses{}` with 5 sub-fields — biz/commuting/personal miles +
+  written-evidence flag — and a `home_office{}` with both office and
+  total home sqft; React has 2 flat fields), but no longer absent as the
+  audit claimed.
+- `[VERIFIED — still open]` The component's own header comment
+  (`BusinessStep.jsx:1-85`) is unusually thorough and self-flags 3 genuine
+  deferrals directly: `calculateBusinessIncomes()`'s basis/§465-at-risk/
+  passive-activity-loss/QBI-phase-out/AMT-flowthrough logic is
+  deliberately simplified to a top-line net-income figure;
+  `addUsBranchRow` (foreign-parented US branches) is deliberately not
+  ported; the NAICS/SSTB dropdown is deliberately collapsed from the
+  source's real 25 options (16 non-SSTB + 9 SSTB, confirmed by counting
+  `layer1_us.html:13091-13118`'s actual `<option>` tags) to a shorter
+  list + free-text fallback.
+- `[VERIFIED — still open]` "1099 Filing Obligations" panel (source has
+  it at `layer1_us.html:14612`/`16117`, wired into multiple entity types)
+  confirmed still entirely absent — zero hits for `1099`/`forms_1099` in
+  `BusinessStep.jsx`.
+- `[VERIFIED — still open]` The "Gross Receipts by State (Apportionment)"
+  panel confirmed still entirely absent at the row level — zero hits for
+  `state_allocations` in `BusinessStep.jsx`. Note this is distinct from
+  `corp_state_nexus`'s apportionment matrix on StateStep (§3 above, which
+  IS implemented) — this is a separate, per-row `state_allocations[]`
+  field on each individual self-employment/K-1/C-corp row
+  (`layer1_us.html:13263,13936,14623,15416,16128,16900` — present for
+  every entity type in the source), still missing here.
+- `[VERIFIED — still open]` The "$250k receipts" gate
+  (`layer1_us.html:2263-2266`, "Did the entity have Total Receipts and
+  Total Assets LESS than $250,000?") is a SEPARATE gate from the
+  entity-type gating the header comment says was fixed — this is a
+  receipts-threshold gate deciding whether Schedule L/M-1/M-2 should be
+  skipped by default even for an in-scope entity type. No hits for
+  `250,000`/`250000` in `BusinessStep.jsx` — still shown unconditionally
+  once entity-type gating allows it.
+- `[VERIFIED — still open]` "Business Compliance & Tax Analyzer" summary
+  panel (`layer1_us.html:2608-2610`) confirmed still absent — zero hits
+  for that string in `BusinessStep.jsx`.
 - Row-shape gap (not in the Tier list, visible directly from the real
   JSON export): source K-1/self-employment/C-corp rows also carry
-  `assets[]` (§179 tables), `branches[]` (multi-location), `state_
-  allocations[]`, `forms_1099[]`, and full `partners[]`/`shareholders[]`/
-  `beneficiaries[]` rosters — none of this row-level detail exists in
-  React yet, independent of the box-nesting fix above.
+  `assets[]` (§179 tables), `branches[]` (multi-location), `forms_1099[]`,
+  and full `partners[]`/`shareholders[]`/`beneficiaries[]` rosters — none
+  of this row-level detail exists in React yet, independent of the
+  box-nesting fix above.
 
 ## 9. Foreign Income — `layer1_us.html:2719-2794` → `IncomeForeignStep.jsx`
 
@@ -543,7 +577,7 @@ source field-for-field. Only 2 real gaps found:
 | 5 | Employment Income | **Solid, no open issues** (W-2 row shape essentially complete; self-employment/farming live on Business Ops instead) |
 | 6 | Capital Gains & Crypto | **Fixed** (aggregate inversion); sub-module arrays still schema-only |
 | 7 | Passive & Other | **Solid, no open issues** (one minor decorative-upload gap) |
-| 8 | Business Ops & K-1s | K-1 → $0 bug **fixed**; large Tier 1 gap remains (1099 panel, apportionment, QBI/UBIA, row-shape depth) |
+| 8 | Business Ops & K-1s | K-1 → $0 bug **fixed**; QBI/UBIA + home-office/vehicle also fixed since the audit; 1099 panel, state_allocations, $250k gate, Analyzer panel still open |
 | 9 | Foreign Income | Solid, one misplaced-card issue |
 | 10 | Equity & Cap Table | **Solid, no open issues** |
 | 11 | FEIE | Open issues (editable constants, 5 missing fields, 3 missing banners, 2 dates shown that source hides) |
