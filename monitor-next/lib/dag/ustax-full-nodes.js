@@ -77,6 +77,25 @@ Object.keys(baseNodes).forEach(function (k) { NODES[k] = baseNodes[k]; });
 var TRUST_ESTATE_BRACKETS = [[3150, 0.10], [11450, 0.24], [15650, 0.35], [Infinity, 0.37]];
 
 /* ---- model.nra mirror (normalize.js L2470-2479), raw ---------------------- */
+// SYS-1-class gotcha, found while wiring the §6013(h) spouse-ITIN field:
+// this file's own NODES is built by copying agg10-nodes.js's entire chain
+// (which already includes findings-batch3-nodes.js's OWN, differently-
+// shaped nraRaw) into `baseNodes` above, then OVERWRITING nraRaw with this
+// separate definition -- silently dropping w7ItinApplicationFiled (task
+// #47) from every consumer that resolves through THIS file's chain
+// (checks-registry-nodes.js -> assets-nodes.js -> here -- i.e. the REAL
+// production analyze() pipeline and run-fuzz.js, NOT run-report1.js/
+// run-analyze.js, which resolve report-batch5-nodes.js directly and never
+// hit this override at all). Went undetected because `undefined` and
+// `false` are indistinguishable to `!d.nraRaw.w7ItinApplicationFiled` --
+// harmless for the pre-existing primary-only gate, but would have silently
+// broken the new spouse-ITIN gate below the same way. Fixed by making this
+// copy the superset of both files' fields (this file's own
+// hasUsPe/eciIncomeUsd/fdapIncomeUsd, needed for TAX-7/TAX-8 NRA tax
+// routing, plus findings-batch3-nodes.js's w7ItinApplicationFiled/
+// spouseSsnOrItinType, needed for the findings layer) rather than trying
+// to eliminate the duplicate node id, which would be a much larger
+// refactor of the merge chain itself.
 NODES.nraRaw = {
   deps: [],
   compute: function (d, ctx) {
@@ -89,7 +108,9 @@ NODES.nraRaw = {
       treatyRateClaims: safe(us, "nra_specific.treaty_rate_claims", []) || [],
       usRealPropertyDisposed: safe(us, "nra_specific.us_real_property_disposed", false) === true,
       firptaWithholdingUsd: num(safe(us, "nra_specific.firpta_withholding_usd", 0)),
-      s6013hElection: safe(us, "nra_specific.s6013h_joint_election", false) === true
+      s6013hElection: safe(us, "nra_specific.s6013h_joint_election", false) === true,
+      w7ItinApplicationFiled: safe(us, "nra_specific.form_w7_itin_application_filed", false) === true,
+      spouseSsnOrItinType: safe(us, "nra_specific.spouse_ssn_or_itin_type", "none")
     };
   }
 };

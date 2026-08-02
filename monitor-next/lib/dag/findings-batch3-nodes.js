@@ -117,7 +117,18 @@ NODES.nraRaw = {
       // task #47 (ITIN-filing gate): layer1_us.html's own "Form W-7 ITIN
       // Application Filed?" checkbox (Step 9's NRA screen, "nra-w7") was
       // collected but never read by anything downstream.
-      w7ItinApplicationFiled: safe(ctx.us, "nra_specific.form_w7_itin_application_filed", false) === true
+      w7ItinApplicationFiled: safe(ctx.us, "nra_specific.form_w7_itin_application_filed", false) === true,
+      // task #47 stretch goal (ITIN gate, §6013(h) spouse case): electing
+      // joint treatment under §6013(h) lists the NRA's spouse on the return
+      // too -- IRC §6109 requires their own SSN/ITIN, same as the primary
+      // taxpayer, but s6013hElection was live with no companion "does the
+      // spouse have an ITIN" field until layer1_us.html's own "Spouse's
+      // Taxpayer ID Type" selector (Step 9's NRA screen, "nra-spouse-id-type")
+      // was added. Colocated here (not a separate leaf) since nraRaw already
+      // carries every other NRA-screen raw signal report-batch1-nodes.js
+      // needs standalone (form_8288's usRealPropertyDisposed, etc.).
+      s6013hElection: safe(ctx.us, "nra_specific.s6013h_joint_election", false) === true,
+      spouseSsnOrItinType: safe(ctx.us, "nra_specific.spouse_ssn_or_itin_type", "none")
     };
   }
 };

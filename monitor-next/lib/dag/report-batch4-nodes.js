@@ -52,7 +52,25 @@ Object.keys(reportBatch2Nodes).forEach(function (k) { NODES[k] = reportBatch2Nod
 
 /* ---- LRS TCS (AGG-8, computeLrsTcs, normalize.js:2062-2104), ported in
  * full — genuinely small and self-contained once actually read, same as
- * every other "separate subsystem" this whole effort has found isn't. */
+ * every other "separate subsystem" this whole effort has found isn't.
+ *
+ * Rate/threshold fact-check (task #48 follow-up, flagged by earlier research
+ * as possibly stale — confirmed via independent web search against multiple
+ * sources, Aug 2026): every figure below is CURRENT for TY2026-27, this
+ * codebase's own target year, under s.206C(1G):
+ *   - ₹10L base threshold: Finance Act 2025 raised it from the original
+ *     ₹7L, effective 1 Apr 2025 (still in force).
+ *   - Overseas tour packages: flat 2% from the first rupee, no threshold —
+ *     Budget 2026 collapsed the prior 5%/20% split (5% up to ₹7L, 20% above)
+ *     into one flat 2% rate, effective 1 Apr 2026.
+ *   - Self-funded education / medical treatment: 2% on the excess over
+ *     ₹10L — Budget 2026 cut this from 5%, effective 1 Apr 2026.
+ *   - Investment / gift-or-donation ("other purposes"): unchanged, 20% on
+ *     the excess over ₹10L.
+ *   - Education funded via a loan from a specified financial institution:
+ *     unchanged, NIL (0%) regardless of amount.
+ * Superseded any earlier 0.5%/5%/₹7L recollection — those are the
+ * pre-Finance-Act-2025/pre-Budget-2026 figures. */
 var LRS_PURPOSE_LABELS = {
   investment: "Investment (Equity/Property)", education_own_funds: "Overseas Education (Own Funds)",
   education_loan: "Overseas Education (Loan-Funded)", medical: "Medical Treatment Abroad",
