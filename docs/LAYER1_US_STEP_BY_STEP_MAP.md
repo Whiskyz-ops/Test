@@ -23,6 +23,24 @@ This is a reorganization of `LAYER1_US_HTML_REACT_FIELD_AUDIT.md`'s Tier
 reconciliation pass, not a replacement for it — see that doc for the full
 Tier 3 (cosmetic) list and per-agent detail.
 
+**Re-verification note (2026-08-02):** `layer1_us.html` is under active,
+concurrent maintenance by other sessions on this shared branch — it is
+NOT a frozen file. A full re-check against the current HEAD found the
+static panel markup this map is built on (`panel-step-*` div positions,
+and every specific field/control cited inside a panel) completely
+stable — zero drift — but several deeper JS-function line citations had
+shifted by small amounts (7-24 lines) from insertions elsewhere in the
+`<script>` block, and one function (`updateProfileVisibility`) was
+renamed to `updateEntitiesStepLogic` with identical logic. All citations
+below have been corrected to match the current file as of this
+re-verification pass. On the React side: every step file this map marks
+"solid, no open issues" was checked against its git history and
+confirmed untouched since its original audit (either by me or predating
+this map entirely) — the only exceptions are `NraStep.jsx`/`schema.js`,
+which gained a new, genuinely-additional `spouse_ssn_or_itin_type` field
+(noted under §21) from a concurrent commit, and the 3 files I fixed
+myself (`OnboardingStep.jsx`/`BusinessStep.jsx`/`EntitiesStep.jsx`).
+
 ---
 
 ## 1. Onboarding — `layer1_us.html:628-982` → `OnboardingStep.jsx`
@@ -146,14 +164,14 @@ source field-for-field. Only 2 real gaps found:
   (`corp-state-domicile-readonly`) are all confirmed missing from
   `StateStep.jsx` — none render anywhere in the file.
 - `[VERIFIED]` The CA card (`div-ca-fields`) is gated in the source —
-  `toggleStateSpecificFields()` (`layer1_us.html:8611-8620`) only shows it
+  `toggleStateSpecificFields()` (`layer1_us.html:8623-8633`) only shows it
   when `primary_state_of_residence === 'CA'` or `previous_state === 'CA'`.
   React's `StateStep.jsx:231` renders it unconditionally for every
   individual filer (`{!isCorp && (...)`).
 - `[VERIFIED — bigger than previously documented]` What the existing audit
   called "statutory-residency day tracker for footprint states" is
   actually a whole sub-engine (`div-footprint-statutory-questions`,
-  `updateStickyException()` @ `layer1_us.html:8407-8428`,
+  `updateStickyException()` @ `layer1_us.html:8419-8442`,
   `getStateResidencyInfo()`, `renderStateExceptions()`): per-footprint
   "sticky domicile" states (NY/NJ/CT) get inline follow-up
   questions — a foreign-assignment checkbox, a days-in-state input, and a
@@ -167,7 +185,7 @@ source field-for-field. Only 2 real gaps found:
   confirmed still zero UI) are missing.
 - `[VERIFIED — corrects the existing audit]` There is no `div-ny-fields`
   element anywhere in the source's static markup — `toggleStateSpecificFields()`
-  references `document.getElementById('div-ny-fields')` (line 8617) but no
+  references `document.getElementById('div-ny-fields')` (line 8629) but no
   such element exists, so it always resolves to `null` and silently no-ops.
   This is a dead reference in the source itself (same class as the
   already-known dead `step-k1` reference) — porting a literal "NY fields
@@ -175,14 +193,19 @@ source field-for-field. Only 2 real gaps found:
   the sticky-exceptions sub-engine above, which lives inside the generic
   per-footprint-state area, not a dedicated NY div.
 - `[VERIFIED — root cause identified]` Apportionment matrix drops the
-  entity's domicile state: source's `syncApportionmentState()`
-  (`layer1_us.html:8886-8889`) builds its state list as `physical_states ∪
-  economic_states ∪ {profile.state_of_domicile}` — unconditionally
-  including the domicile state read from `profile.state_of_domicile`.
-  `StateStep.jsx:83`'s `apportionmentStates` only unions
-  `physical_states`/`economic_states`, never reading
-  `usState.profile.state_of_domicile` at all.
-- `[NEW FINDING]` `onPrimaryStateChange()` (`layer1_us.html:8660-8666`)
+  entity's domicile state: source's `renderCorporateApportionmentMatrix()`
+  (`layer1_us.html:8884-8891` — this logic lives in the matrix-rendering
+  function, not `syncApportionmentState()`, which only handles a single
+  per-state input update; corrected attribution) builds its state list as
+  `physical_states ∪ economic_states ∪ {profile.state_of_domicile}` —
+  unconditionally including the domicile state read from
+  `profile.state_of_domicile`. A second function,
+  `renderCorporateNexusStatus()` (`layer1_us.html:8941-8945`), reads the
+  same field to populate the "State of Formation" readonly display (see
+  §3's missing-UI-blocks item above). `StateStep.jsx:83`'s
+  `apportionmentStates` only unions `physical_states`/`economic_states`,
+  never reading `usState.profile.state_of_domicile` at all.
+- `[NEW FINDING]` `onPrimaryStateChange()` (`layer1_us.html:8672-8678`)
   auto-sets `dec_31_domicile_state` to match `primary_state_of_residence`
   the first time it's set (if Dec 31 domicile is still empty).
   `StateStep.jsx`'s `setSr("primary_state_of_residence")` handler is a
@@ -294,9 +317,10 @@ source field-for-field. Only 2 real gaps found:
   `k1_boxes` writes, flat fields throughout). Was the most severe finding
   in the whole port.
 - `[VERIFIED — still open]` A fabricated, always-editable "Taxable Income
-  (Computed)" field on Schedule M-1 (`BusinessStep.jsx:1674`, moved a few
-  lines since the K-1 fix landed but still present) has no source
-  counterpart and is read by no DAG code.
+  (Computed)" field on Schedule M-1 (`BusinessStep.jsx:1692`, shifted
+  again by the field-path-collision fix's own header comment but still
+  present, still unchanged in behavior) has no source counterpart and is
+  read by no DAG code.
 - `[FIXED since the audit — reclassified]` §199A QBI/UBIA capture fields
   ARE now present, at least on K-1 rows — `qbi_wages_usd`/`qbi_ubia_usd`
   `MoneyField`s confirmed on both `partnerships_k1` and `s_corporations_k1`
@@ -405,7 +429,7 @@ source field-for-field. Only 2 real gaps found:
 - `[NEW FINDING — React shows a field the source keeps permanently
   hidden]` `physical_presence_start_date`/`physical_presence_end_date`
   inputs are `class="hidden"` in the source's static markup
-  (`layer1_us.html:2992,2996`) with nothing anywhere that ever removes
+  (`layer1_us.html:2994,2998`) with nothing anywhere that ever removes
   that class — confirmed by grepping every other reference to
   `feie-phys-start`/`feie-phys-end` (only 2 more hits, both just
   populate the hidden input's `.value` on load, never toggle visibility).
@@ -443,7 +467,7 @@ source field-for-field. Only 2 real gaps found:
 
 - `[VERIFIED — worse than previously documented]` Source derives
   `rmd_required` purely from age (birth year ≥73 in the base year,
-  `layer1_us.html:11508-11514`) and **deliberately never sets a dollar
+  `layer1_us.html:11501-11507`) and **deliberately never sets a dollar
   figure at all** (renders a static "See preparer" label — its own
   comment explains why: no account-balance field exists anywhere to
   compute a real number from). React invented both a manual
@@ -461,19 +485,23 @@ source field-for-field. Only 2 real gaps found:
 - `[FROM AUDIT, "confirmed solid"]` CFC/GILTI row shape checked as
   correct in the original pass — not personally re-verified.
 - `[VERIFIED]` Entity-type-dependent label switching confirmed hardcoded:
-  source's `updateProfileVisibility()` (`layer1_us.html:7054-7068`)
-  swaps all 3 accordion labels ("I own..." → "The Entity owns...") when
-  `tax_entity_type`/`llc_tax_election` resolves to ccorp/scorp/
-  partnership; `EntitiesStep.jsx:252,413,520` hardcode the individual
-  phrasing always.
+  source's `updateEntitiesStepLogic()` (`layer1_us.html:7044-7069` —
+  renamed from `updateProfileVisibility()` at some point after this was
+  first audited; identical logic, confirmed by re-reading the current
+  function body) swaps all 3 accordion labels ("I own..." → "The Entity
+  owns...") when `tax_entity_type`/`llc_tax_election` resolves to
+  ccorp/scorp/partnership; `EntitiesStep.jsx:252,413,520` hardcode the
+  individual phrasing always.
 - `[VERIFIED]` "Linked Client Profile" picker on foreign-corp rows
   confirmed absent — no hits for `linked_client_id` anywhere in
   `EntitiesStep.jsx`.
 - `[FIXED]` The Form 5472 (Inbound) section's visibility gate was wrong
   on two independent levels. (1) In the source, the whole section is
-  only ever shown for C-Corps specifically (`layer1_us.html:7058`, `if
-  (type === 'ccorp' && wrapper5472) { wrapper5472.style.display =
-  'block'; }` — not scorp/partnership, just ccorp) — `EntitiesStep.jsx`'s
+  only ever shown for C-Corps specifically (`layer1_us.html:7058`, inside
+  `updateEntitiesStepLogic()` — line number unchanged from when this was
+  fixed, re-confirmed current: `if (type === 'ccorp' && wrapper5472) {
+  wrapper5472.style.display = 'block'; }` — not scorp/partnership, just
+  ccorp) — `EntitiesStep.jsx`'s
   old `is5472` wasn't entity-type-gated at all. (2) What it was gated on
   instead — `corporate_profile.is_foreign_owned_25_pct` — was the wrong
   storage path (same bug as §1's Onboarding fix). Fixed: the section is
@@ -541,7 +569,7 @@ source field-for-field. Only 2 real gaps found:
   computation, so the flat 30% fallback fires regardless of what's
   entered.
 - `[VERIFIED — sharper than previously documented]` The source's real
-  "Submitted Form W-8BEN?" control (`layer1_us.html:3842-3848`, `#nra-w8ben`
+  "Submitted Form W-8BEN?" control (`layer1_us.html:3857`, `#nra-w8ben`
   checkbox) writes the boolean `submitted_w8ben` — confirmed present and
   wired in the source. React has no `submitted_w8ben` UI anywhere; instead
   it renders an entirely different 4-option "W-8BEN Aggregate Status"
@@ -557,15 +585,24 @@ source field-for-field. Only 2 real gaps found:
   comment is stale/wrong on that point.
 - `[VERIFIED]` `nra_specific.has_us_pe` confirmed zero UI — the source's
   "US Permanent Establishment (PE)?" checkbox
-  (`layer1_us.html:3835-3841`, `#nra-pe`) has no React counterpart at all.
+  (`layer1_us.html:3850`, `#nra-pe`) has no React counterpart at all.
 - `[VERIFIED]` §6013(h) MFJ-unlock badge
-  (`layer1_us.html:3809-3811`, `#nra-6013h-unlock-badge`, "✓ §6013(h)
+  (`layer1_us.html:3808-3810`, `#nra-6013h-unlock-badge`, "✓ §6013(h)
   Active — MFJ Unlocked"), the Form 8833 treaty-disclosure notice
-  (`layer1_us.html:3814-3820`, shown when tie-broken to India under
+  (`layer1_us.html:3825-3831`, shown when tie-broken to India under
   Article 4), and the "Upload Indian TRC" dropzone
-  (`layer1_us.html:3827-3832`, decorative — matches Bank Sync/Passive's
+  (`layer1_us.html:3838-3843`, decorative — matches Bank Sync/Passive's
   non-functional upload pattern) are all confirmed missing from
   `NraStep.jsx`.
+- `[NEW — landed via a concurrent commit, already correctly ported]` The
+  source gained a "Spouse's Taxpayer ID Type" select right after the
+  §6013(h) badge (`layer1_us.html:3812-3819`, `#nra-spouse-id-type` →
+  `nra_specific.spouse_ssn_or_itin_type`, 4 options matching the primary
+  taxpayer's own ID-type select) — this is what pushed the badge/PE/
+  W-8BEN citations above down by ~10-15 lines. `NraStep.jsx` already has
+  a matching `spouse_ssn_or_itin_type` field with the same 4 options
+  (confirmed present) — this one arrived and was ported together by the
+  other session's work, not a gap.
 
 ## 22. Generate Output — `layer1_us.html:3936-3958` → `OutputStep.jsx`
 
