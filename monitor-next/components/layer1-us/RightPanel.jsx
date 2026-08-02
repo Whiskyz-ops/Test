@@ -117,8 +117,18 @@ export default function RightPanel() {
     replaceAll(next);
   }
 
+  // BUG FIX (Tier 0 #10): this used to label amt_inputs.amti_usd
+  // (Alternative Minimum Taxable Income — AGI minus deductions plus AMT
+  // preference addbacks, see AmtNiitStep.jsx's own `amti` derivation) as
+  // "Estimated AGI." Those are two different, usually quite different,
+  // numbers — not a stale-value issue, a permanently wrong one. There is
+  // no derived AGI field anywhere in schema.js; niit_inputs.
+  // modified_agi_usd (manually entered, deliberately left editable per
+  // AmtNiitStep.jsx's own comment — confirmed zero DAG consumers either
+  // way) is the closest real approximation available, so that's what's
+  // shown here now, labeled for what it actually is.
   const metrics = [
-    { label: "Estimated AGI", value: usState.amt_inputs.amti_usd },
+    { label: "Est. AGI / MAGI (manual entry)", value: usState.niit_inputs.modified_agi_usd },
     { label: "AMT Tentative", value: usState.amt_inputs.tentative_minimum_tax_usd },
     { label: "NIIT Due (3.8%)", value: usState.niit_inputs.niit_due_usd },
     { label: "FBAR Peak Balance", value: usState.fbar_aggregate_peak_usd },

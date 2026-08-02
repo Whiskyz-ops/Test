@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useUsLayer1Store } from "@/lib/layer1-us/store";
 import { Card, Field, NumberInput, TextInput, Select, ToggleRow, RemoveButton, AddButton, fmtUsd } from "./_ui";
 
@@ -32,6 +33,23 @@ import { Card, Field, NumberInput, TextInput, Select, ToggleRow, RemoveButton, A
 // us/findings.py + us/ustax_full.py + crossborder/findings.py, and
 // prototypes/graph-pilot's equivalents), which read a field the live form
 // never writes — fixed there, field name restored to elected_rate here.
+//
+// BUG FIX (editable-instead-of-derived-readonly, Tier 0 #13): us_eci_
+// income_usd/us_fdap_income_usd are read-only `<strong>` labels in the
+// source (layer1_us.html:3908,3913, lbl-nra-eci/lbl-nra-fdap), derived by
+// updateNraFields() (~11513-11540) every time recalculateDerivedFields()
+// runs — never form inputs. This component previously rendered both as
+// freely-editable NumberInputs. Fixed: derived live via useEffect, same
+// pattern as WithholdingStep.jsx's federal/state withholding fix. ECI =
+// sum of W-2 Box 1 wages + each has_se_income self-employment row's
+// (gross_receipts_usd - expenses_usd), floored at 0 unless the row has a
+// statutory_w2_link_id (source: se.statutory_w2_link_id lets a negative
+// SE loss offset ECI directly — neither has_se_income nor
+// statutory_w2_link_id exist on this schema's self_employment[] rows yet,
+// a Tier 1 gap noted here rather than silently guessed, so every row is
+// treated as reporting SE income with no W-2 link, matching the common
+// case). FDAP = interest_us_source_usd + ordinary_dividends_us_source_usd
+// + rental_income_us_source_usd.
 const TREATY_INCOME_TYPES = [
   { value: "dividends", label: "Dividends (Art. 10)" },
   { value: "interest", label: "Interest (Art. 11)" },
@@ -45,7 +63,28 @@ function emptyTreatyRow() {
 export default function NraStep() {
   const { usState, setField, addRow, removeRow, updateRow } = useUsLayer1Store();
   const nra = usState.nra_specific;
+  const iu = usState.income_us_source;
   const set = (key) => (val) => setField(`nra_specific.${key}`, val);
+
+  let eci = 0;
+  (iu.wages_w2 || []).forEach((w) => {
+    eci += w.wages_box1_usd || 0;
+  });
+  (iu.self_employment || []).forEach((se) => {
+    const seNet = (se.gross_receipts_usd || 0) - (se.expenses_usd || 0);
+    eci += se.statutory_w2_link_id ? seNet : Math.max(0, seNet);
+  });
+  const fdap = (iu.interest_us_source_usd || 0) + (iu.ordinary_dividends_us_source_usd || 0) + (iu.rental_income_us_source_usd || 0);
+
+  useEffect(() => {
+    if (eci !== nra.us_eci_income_usd) {
+      setField("nra_specific.us_eci_income_usd", eci);
+    }
+    if (fdap !== nra.us_fdap_income_usd) {
+      setField("nra_specific.us_fdap_income_usd", fdap);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eci, fdap]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -109,12 +148,16 @@ export default function NraStep() {
             checked={nra.submitted_w8ben}
             onChange={set("submitted_w8ben")}
           />
-          <Field label="Effectively Connected Income — ECI (USD)" hint="Graduated rates; US W-2 wages + US business">
-            <NumberInput value={nra.us_eci_income_usd} onChange={set("us_eci_income_usd")} />
-          </Field>
-          <Field label="FDAP Income (USD)" hint="Flat 30% or treaty rate, reported on Form 1042-S">
-            <NumberInput value={nra.us_fdap_income_usd} onChange={set("us_fdap_income_usd")} />
-          </Field>
+          <ReadOnlyStat
+            label="Effectively Connected Income — ECI (USD)"
+            hint="Derived — W-2 Box 1 wages + self-employment net"
+            value={fmtUsd(nra.us_eci_income_usd)}
+          />
+          <ReadOnlyStat
+            label="FDAP Income (USD)"
+            hint="Derived — US-source interest + ordinary dividends + rental"
+            value={fmtUsd(nra.us_fdap_income_usd)}
+          />
         </div>
       </Card>
 
@@ -196,5 +239,15 @@ export default function NraStep() {
         </span>
       </div>
     </div>
+  );
+}
+
+function ReadOnlyStat({ label, hint, value }) {
+  return (
+    <Field label={label} hint={hint}>
+      <div className="rounded-lg bg-white/[0.02] border border-line px-3 py-2 text-sm text-head font-mono opacity-80 cursor-not-allowed">
+        {value}
+      </div>
+    </Field>
   );
 }

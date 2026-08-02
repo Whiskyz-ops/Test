@@ -663,15 +663,37 @@ source field-for-field. Only 2 real gaps found:
 
 ## 21. Form 1040-NR Adjustments — `layer1_us.html:3772-3935` → `NraStep.jsx`
 
-- `[FIXED]` React wrote `elected_rate` (was: `NraStep.jsx:24,108-109`) on
-  `treaty_rate_claims[]` rows; `dag_py`'s `ustax_full.py:382,388,460` and
-  `findings.py:160` all read the flat key `rate`. Every user-entered
-  treaty claim was invisible to the FDAP-rate computation, so the flat
-  30% fallback fired regardless of what was entered. Fixed: row field
-  renamed to `rate` in both `emptyTreatyRow()` and the row editor.
-  Verified live in headless Chromium: added a treaty row, typed "15%"
-  into the rate field, confirmed `nra_specific.treaty_rate_claims[0].rate
-  === "15%"` in the persisted store.
+- `[FIXED — correction to an earlier pass's diagnosis]` `NraStep.jsx`
+  wrote `elected_rate` on `treaty_rate_claims[]` rows; both DAG engines
+  (`dag_py`'s `ustax_full.py:382,388,460` + `findings.py:160-161` +
+  `crossborder/findings.py`, and `prototypes/graph-pilot`'s equivalents)
+  read the flat key `rate` instead — so every user-entered treaty claim
+  was invisible to the FDAP-rate computation, and the flat 30% fallback
+  fired regardless of what was entered. **An earlier pass at this item
+  fixed it by renaming React's field from `elected_rate` to `rate`,
+  matching the DAG's expectation without checking the actual source.**
+  Direct grep of `layer1_us.html`'s own `syncTreatyRates()`/
+  `addTreatyRateRow()` (~6133-6170) confirms `elected_rate` is the ONLY
+  field name the live form ever writes or reads there — `rate` never
+  appears as a key in that code path. So `NraStep.jsx` was correct all
+  along; the bug was entirely in the DAG engines. Re-fixed the correct
+  way: field name restored to `elected_rate` in `NraStep.jsx`, and both
+  DAG engines corrected to read `elected_rate` instead of `rate`
+  (`dag_py`'s three files + `prototypes/graph-pilot`'s
+  `ustax-full-nodes.js`/`findings-batch4-nodes.js`). Also fixed a related
+  bug this exposed: `nra_fdap_flat_rate`'s finding text said "taxed at
+  the claimed X% rate" whenever a claim existed, without checking
+  `w8benOnFile` — so it could describe a rate that was never actually
+  honored. The "Elected Rate" input was also switched from free text to
+  a `NumberInput` (the source's own "e.g. 15%" placeholder invited typing
+  a literal `%` sign, which both engines' `num()`/`Number()` silently
+  turn into 0). Verified: `dag_py` pytest 591/591; both JS harnesses back
+  to their pre-existing baseline failure counts with documented
+  deliberate-divergence carve-outs for the one frozen fixture whose
+  treaty claim still uses the old field name; `run-js-dag-vs-py-dag.js`
+  shows 0 new mismatches across all 331 corpus profiles; live end-to-end
+  test (Playwright UI → store → `dag_py` compute) confirms a claimed rate
+  is now correctly honored when W-8BEN is on file.
 - `[FIXED]` The source's real "Submitted Form W-8BEN?" control
   (`layer1_us.html:3857`, `#nra-w8ben` checkbox) writes the boolean
   `submitted_w8ben` — confirmed present and wired in the source. React
