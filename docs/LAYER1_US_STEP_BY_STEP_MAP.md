@@ -559,22 +559,46 @@ source field-for-field. Only 2 real gaps found:
 
 ## 22. Generate Output — `layer1_us.html:3936-3958` → `OutputStep.jsx`
 
-- `[FROM AUDIT]` "Proceed to India Module" cross-jurisdiction routing
-  button/gate entirely missing.
+- `[VERIFIED]` `copySchema()`/`downloadSchema()` correctly ported.
+- `[VERIFIED — deeper than a missing button]` The "Proceed to India
+  Module" button's visibility gate (`layer1_us.html:20515-20528`,
+  `initFromLocalStorage()`) reads `routerState.primary_jurisdiction ===
+  'cross_border'` off a *separate* localStorage blob
+  (`window.WISING.ClientRegistry.storageKeyFor('ROUTER')`) written by a
+  sibling "Layer 0" jurisdiction-router module entirely outside this
+  app's own `usState`. This confirms the gap is architectural, not just
+  a missing button — porting it needs this React app to read a
+  cross-module storage key nothing here currently touches. Same function
+  also confirms where `config.base_year` (added to `schema.js` last
+  pass) actually comes from: the router state, not user input on this
+  screen.
+- `[VERIFIED — minor]` The decorative "Complete Wizard & lock" button
+  (`layer1_us.html:3966`, just an `alert()` in the source too) isn't
+  ported either — low priority, matches other missing decorative
+  affordances.
 
 ---
 
 ## Cross-cutting / chrome (not tied to one step)
 
-- `[FROM AUDIT]` `RightPanel.jsx`'s "Estimated AGI" tile actually
-  displays `amt_inputs.amti_usd` (AMTI, not AGI) — there's no real AGI
-  field in the schema at all. Permanently mislabeled, not just stale.
-- `[FROM AUDIT]` Hamburger jurisdiction dropdown, "The Vault" button,
-  "Tax Nerd Mode" toggle, the functional tax-year banner, responsive
-  mobile stacking, and the gamification widget are all missing from the
-  header/shell.
-- `[FROM AUDIT]` Right panel's residency-status badge shows abbreviations
-  ("RA"/"NRA"/"DUAL") where the source shows full words.
+- `[VERIFIED — still open]` `RightPanel.jsx:121` still labels
+  `amt_inputs.amti_usd` (AMTI, not AGI) as "Estimated AGI" — no real AGI
+  field exists anywhere in `schema.js`. Permanently mislabeled, not just
+  stale.
+- `[VERIFIED — still open]` Hamburger jurisdiction dropdown, "The Vault"
+  button, and "Tax Nerd Mode" toggle confirmed still missing — zero hits
+  for any of those strings in `Layer1UsHeader.jsx`.
+- `[VERIFIED — still open, extra detail]` The tax-year banner is more
+  than decorative in the source: `initFromLocalStorage()`
+  (`layer1_us.html:20515-20539`) populates it with the base tax year read
+  from the cross-module router state (see Generate Output §22 above) plus
+  the derived US tax year range and filing-season year — same
+  cross-module-storage dependency as the "Proceed to India Module"
+  button, so porting this properly needs the same architectural piece.
+- `[VERIFIED — still open]` Right panel's residency-status badge
+  (`RightPanel.jsx:28-30`) still shows abbreviations ("RA"/"NRA"/"DUAL")
+  where the source shows full words — confirmed directly, not inherited
+  from the prior claim.
 - `[FROM AUDIT]` Entity-type switch away from "individual" doesn't
   force-reset `setupW2`/`setupRetirement`/`setupForeignFeie` — stale
   flags can leave individual-only phases visible for a corp/partnership
@@ -613,4 +637,4 @@ source field-for-field. Only 2 real gaps found:
 | 19 | Foreign Tax Credit | Open issue (misplaced card, mirrors step 9) |
 | 20 | Withholding & Estimates | Open issue (4 fields editable) |
 | 21 | Form 1040-NR | Open issues (treaty rate mismatch, real W-8BEN checkbox swapped for a source-dead select, has_us_pe/6013(h) badge/8833 notice/TRC upload all missing) |
-| 22 | Generate Output | Open issue (missing India routing) |
+| 22 | Generate Output | Open issue (India routing needs a cross-module storage read, architectural not cosmetic) |
