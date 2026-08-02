@@ -456,10 +456,32 @@ source field-for-field. Only 2 real gaps found:
   specific array stays silently empty.
 - `[FROM AUDIT, "confirmed solid"]` CFC/GILTI row shape checked as
   correct in the original pass — not personally re-verified.
-- `[FROM AUDIT]` Entity-type-dependent label switching ("I own..." vs.
-  "The Entity owns...") hardcoded to individual phrasing.
-- `[FROM AUDIT]` "Linked Client Profile" picker on foreign-corp rows
-  absent.
+- `[VERIFIED]` Entity-type-dependent label switching confirmed hardcoded:
+  source's `updateProfileVisibility()` (`layer1_us.html:7054-7068`)
+  swaps all 3 accordion labels ("I own..." → "The Entity owns...") when
+  `tax_entity_type`/`llc_tax_election` resolves to ccorp/scorp/
+  partnership; `EntitiesStep.jsx:252,413,520` hardcode the individual
+  phrasing always.
+- `[VERIFIED]` "Linked Client Profile" picker on foreign-corp rows
+  confirmed absent — no hits for `linked_client_id` anywhere in
+  `EntitiesStep.jsx`.
+- `[VERIFIED — NEW FINDING, two bugs stacked]` The Form 5472 (Inbound)
+  section's visibility gate is wrong on two independent levels. (1) In
+  the source, the whole section is only ever shown for C-Corps
+  specifically (`layer1_us.html:7058`, `if (type === 'ccorp' &&
+  wrapper5472) { wrapper5472.style.display = 'block'; }` — not
+  scorp/partnership, just ccorp) — `EntitiesStep.jsx:228`'s `is5472`
+  isn't entity-type-gated at all. (2) What it's gated on instead —
+  `usState.corporate_profile?.is_foreign_owned_25_pct` — is the wrong
+  storage path per the Onboarding audit's finding (§1 above): the
+  source's real `is_foreign_owned_25_pct` checkbox
+  (`layer1_us.html:812`) writes to `profile.is_foreign_owned_25_pct` via
+  `updateProfileField`, not `corporate_profile.*`. So even ignoring the
+  entity-type mismatch, this gate reads a field nothing in the source
+  ever actually populates. (The row UI itself, once visible, is
+  reasonable — actually richer than the source's single flat "Total
+  Intercompany Payments" number input, since it captures per-party
+  country/amount detail.)
 
 ## 16. Foreign Gifts & Trusts — `layer1_us.html:3389-3439` → `GiftsStep.jsx`
 
@@ -584,7 +606,7 @@ source field-for-field. Only 2 real gaps found:
 | 12 | Foreign Assets | Solid derivation logic; one PFIC-default bug |
 | 13 | Real Estate | **Solid, no open issues** |
 | 14 | Retirement | Open issue (fabricated RMD dollar field) |
-| 15 | Foreign Entities | Open issue (PFIC array never written) + Tier 1 items |
+| 15 | Foreign Entities | Open issues (PFIC array never written; Form 5472 gate wrong on 2 stacked levels incl. the same field-path bug as Onboarding; label switching; Linked Client picker) |
 | 16 | Foreign Gifts & Trusts | **Solid, no open issues** |
 | 17 | Deductions & Credits | Open issues (inert QBI toggle, 2 decoy fields) |
 | 18 | AMT & NIIT | Open issue (MAGI editable) |
