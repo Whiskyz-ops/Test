@@ -320,15 +320,21 @@ NODES.feieDetailed = {
     var taxHomeAbroad = d.feie.taxHomeAbroad;
     var ppDaysOk = (f.daysInUsTestPeriod || 0) <= 35;
     var ppMet = !!f.physicalPresence && ppDaysOk;
-    var bfMet = !!f.bonaFide;
+    // Same fix as ustax-nodes.js's feieEligibility() (docs/GAP_TRACKER.md, 29
+    // Jul 2026) -- bonaFideSelected alone is "picked this test," not "passed
+    // it"; also requires bonaFideStartDateSet. bonaFideLegacyConfirmed
+    // (explicit true on old saved data) bypasses that check, unchanged.
+    var bfMet = !!f.bonaFideLegacyConfirmed || (!!f.bonaFideSelected && !!f.bonaFideStartDateSet);
     var reasons = [];
     if (d.feie.claimed && !taxHomeAbroad) reasons.push(home === "" ? "no foreign tax home entered" : "tax home is in the US");
     if (d.feie.claimed && !bfMet && !ppMet) {
-      reasons.push(!f.physicalPresence && !f.bonaFide
+      reasons.push(!f.physicalPresence && !f.bonaFideSelected
         ? "neither the bona-fide-residence nor the physical-presence test is met"
         : (f.physicalPresence && !ppDaysOk
           ? (f.daysInUsTestPeriod + " US days in the test period — over the ~35-day allowance (330 full days abroad required)")
-          : "bona-fide-residence test not met"));
+          : (f.bonaFideSelected && !f.bonaFideStartDateSet
+            ? "bona-fide-residence test selected but no residence start date on file"
+            : "bona-fide-residence test not met")));
     }
     return {
       claimed: d.feie.claimed, amountClaimedUsd: d.feie.amountClaimedUsd, taxHomeAbroad: taxHomeAbroad,

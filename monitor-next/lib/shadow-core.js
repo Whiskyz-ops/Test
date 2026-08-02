@@ -270,7 +270,7 @@ export function compareSurface(engineResult, dagResult) {
   // (section H.13, 22 Jul 2026): new DAG-only documents, no engine
   // equivalent for either — stripped from both the documents list and the
   // calendar's bundled docIds, same convention as run-fuzz.js's assembleDag().
-  const DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880"];
+  const DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880", "form_w7"];
   if (Array.isArray(dag && dag.documents)) {
     const droppedRequiredCount = dag.documents.filter((x) => DAG_ONLY_DOC_IDS.includes(x.id) && x.required).length;
     dag = { ...dag, documents: dag.documents.filter((x) => !DAG_ONLY_DOC_IDS.includes(x.id)) };

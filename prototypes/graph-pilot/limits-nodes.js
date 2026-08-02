@@ -54,15 +54,30 @@ function feieEligibilityFull(f) {
                       home !== "united states" && home !== "united states of america";
   var ppDaysOk = (f.daysInUsTestPeriod || 0) <= 35;
   var ppMet = !!f.physicalPresence && ppDaysOk;
-  var bfMet = !!f.bonaFide;
+  // Same fix as ustax-nodes.js's feieEligibility() (docs/GAP_TRACKER.md, 29
+  // Jul 2026) -- bonaFideSelected alone is "picked this test," not "passed
+  // it"; also requires bonaFideStartDateSet. bonaFideLegacyConfirmed
+  // (explicit true on old saved data) bypasses that check, unchanged. This
+  // Limits Dashboard copy was previously left un-fixed, tracked separately
+  // as LIM's own gap (see this file's header comment) -- but that tracked
+  // gap was specifically about the ORIGINAL dead-fields bug (qualTest never
+  // read at all here); now that ustax-nodes.js's shared eligibility concept
+  // has a real bonaFideStartDateSet validation, leaving this copy on the
+  // old logic would make this gauge disagree with computed.usTax.feie
+  // itself for the same taxpayer, and disagree with the Python DAG's
+  // filings/limits.py (fixed in the same pass) -- closed here too rather
+  // than compounding the gap.
+  var bfMet = !!f.bonaFideLegacyConfirmed || (!!f.bonaFideSelected && !!f.bonaFideStartDateSet);
   var reasons = [];
   if (claimed && !taxHomeAbroad) reasons.push(home === "" ? "no foreign tax home entered" : "tax home is in the US");
   if (claimed && !bfMet && !ppMet) {
-    reasons.push(!f.physicalPresence && !f.bonaFide
+    reasons.push(!f.physicalPresence && !f.bonaFideSelected
       ? "neither the bona-fide-residence nor the physical-presence test is met"
       : (f.physicalPresence && !ppDaysOk
         ? (f.daysInUsTestPeriod + " US days in the test period — over the ~35-day allowance (330 full days abroad required)")
-        : "bona-fide-residence test not met"));
+        : (f.bonaFideSelected && !f.bonaFideStartDateSet
+          ? "bona-fide-residence test selected but no residence start date on file"
+          : "bona-fide-residence test not met")));
   }
   return {
     claimed: claimed,
@@ -82,13 +97,16 @@ NODES.feieLimitsRaw = {
   deps: [],
   compute: function (d, ctx) {
     var us = ctx.us;
+    var qualTest = safe(us, "foreign_earned_income.qualification_test", null);
     return {
       claimed: safe(us, "foreign_earned_income.claims_feie", false) === true,
       amountClaimedUsd: num(safe(us, "foreign_earned_income.feie_amount_claimed_usd", 0)),
       foreignEarnedIncomeUsd: num(safe(us, "foreign_earned_income.foreign_earned_income_usd", 0)),
       taxHomeCountry: safe(us, "foreign_earned_income.tax_home_country", ""),
-      bonaFide: safe(us, "foreign_earned_income.bona_fide_residence", false) === true,
-      physicalPresence: safe(us, "foreign_earned_income.physical_presence", false) === true,
+      bonaFideSelected: qualTest === "bona_fide_residence",
+      bonaFideStartDateSet: !!safe(us, "foreign_earned_income.bona_fide_residence_start_date", null),
+      bonaFideLegacyConfirmed: safe(us, "foreign_earned_income.bona_fide_residence", false) === true,
+      physicalPresence: qualTest === "physical_presence" || safe(us, "foreign_earned_income.physical_presence", false) === true,
       daysInUsTestPeriod: num(safe(us, "foreign_earned_income.days_in_us_during_test_period", 0))
     };
   }

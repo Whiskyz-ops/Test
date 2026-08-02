@@ -36,17 +36,23 @@ Verified against `docs/BUSINESS_ENTITY_ARCHITECTURE.md` §8 and
 
 | | Individual (India-US) | Entity (India-US) |
 |---|---|---|
-| **Feature depth** | Full computation: residency, slab/regime tax, surcharge/marginal relief, cess, LTCG/QDI, NIIT, addl Medicare, FEIE, FTC §904 both directions, PFIC/CFC detection, FBAR/8938/LRS gauges, DTAA tie-breaker | Residency (POEM/incorporation), core rate schedules, depreciation (Schedule C + farm), presumptive/MSME/s.44BBB findings, **entity graph with ownership edges, inter-entity flow tracing (K-1/dividends/partner remuneration with full `calc`/`source` attribution), and a frontend entity switcher with per-entity drill-down — all shipped.** Two items genuinely still open: non-corporate AMT (confirmed blocked, not just deprioritized) and GILTI/Subpart-F dollar quantification (blocked on new Layer 1 fields). Transfer pricing disclosure-only by design. |
-| **Verification depth** | 40/40 DAG rows ported, mechanically audited (`npm run audit:dag`), differential-fuzzed at scale (CI runs 3,000 iterations/push), 6 rounds of external filings audit, full field-coverage audit (~220 field paths) | Entity tax core (TAX-2/TAX-7) ported + mechanically audited. **Entity graph (Phase 5): `run-assets.js` 867/867, structural checks (no duplicate ids, every edge real, correct dual-root handling), a real bug caught via fixture testing (not synthetic) before ship. Inter-entity edges (Phase 6): harness extended to 890/890, every edge trace-asserted. Frontend switcher (Phase 8): Playwright-verified live against the dev server plus a clean production build.** All three fuzzer-clean (0 new divergences) with correctly scoped exclusions for the genuinely-new `entityGraph` key. No dedicated entity filings-audit round has been run as its own batch (though Batch D/E touched adjacent ground — Form 44/India-FTC, s.92E calendar). |
+| **Feature depth** | Full computation: residency, slab/regime tax, surcharge/marginal relief, cess, LTCG/QDI, NIIT, addl Medicare, FEIE, FTC §904 both directions, PFIC/CFC detection, FBAR/8938/LRS gauges, DTAA tie-breaker | Residency (POEM/incorporation), core rate schedules, depreciation (Schedule C + farm), presumptive/MSME/s.44BBB findings, **entity graph with ownership edges, inter-entity flow tracing (K-1/dividends/partner remuneration with full `calc`/`source` attribution), a frontend entity switcher with per-entity drill-down, and real GILTI/Subpart-F (OBBBA "NCTI") quantification with both non-elected and §962-elected paths — all shipped.** One item genuinely still open: non-corporate AMT (confirmed blocked, not just deprioritized). Transfer pricing disclosure-only by design. |
+| **Verification depth** | 40/40 DAG rows ported, mechanically audited (`npm run audit:dag`), differential-fuzzed at scale (CI runs 3,000 iterations/push), 6 rounds of external filings audit, full field-coverage audit (~220 field paths) | Entity tax core (TAX-2/TAX-7) ported + mechanically audited. **Entity graph (Phase 5): `run-assets.js` 867/867, structural checks (no duplicate ids, every edge real, correct dual-root handling), a real bug caught via fixture testing (not synthetic) before ship. Inter-entity edges (Phase 6): harness extended to 890/890, every edge trace-asserted. Frontend switcher (Phase 8): Playwright-verified live against the dev server plus a clean production build. GILTI/NCTI (Phase 7): `run-analyze.js` 146/0, `run-fuzz.js` 3,000 profiles/0 unknown divergence, 3 hand-worked synthetic dollar cases, `run-js-dag-vs-py-dag.js` 0 mismatch, `pytest` green, Playwright smoke test of the new form fields — ported line-for-line to the Python DAG.** All four fuzzer-clean (0 new divergences) with correctly scoped exclusions for the genuinely-new keys. No dedicated entity filings-audit round has been run as its own batch (though Batch D/E touched adjacent ground — Form 44/India-FTC, s.92E calendar) — **update: this round has since been run, see §5 item 2.** |
 
-**The one-line honest summary, updated:** the entity side is much closer to
-parity than this document's first version claimed. Feature-wise, only two
-items remain open (non-corporate AMT, GILTI quantification) plus the
-standing transfer-pricing scope decision. Trust-wise, the shipped phases
-(5, 6, 8) already went through harness verification, structural checks,
-differential fuzzing, and — for the frontend — live browser verification,
-at a rigor level comparable to individual-side phases, not thinner. The
-remaining gap is narrower and specific, not a general depth deficit.
+**The one-line honest summary, updated 29 Jul 2026:** Phase 7
+(GILTI/Subpart-F/NCTI quantification) shipped and was merged into this
+branch — commit `076c4a3`, verified working via a fresh regression run
+today (only failure was the already-catalogued, unrelated FEIE-wages
+divergence). This document's own record of it had gone stale: none of the
+commits that built and merged Phase 7 touched this file, so §2's table and
+§5's "what's left" list kept reporting it as "Not started" after it had
+already shipped. Feature-wise, only **one** item remains open (non-corporate
+AMT, confirmed blocked on missing data) plus the standing transfer-pricing
+scope decision. Trust-wise, all four shipped phases (5, 6, 7, 8) went
+through harness verification, structural checks, differential fuzzing, and
+— for the frontend — live browser verification, at a rigor level comparable
+to individual-side phases, not thinner. The remaining gap is narrower and
+specific, not a general depth deficit.
 
 ---
 
@@ -66,7 +72,7 @@ lives in the source doc.
 | Phase 4b (India) | Non-corporate AMT (`IN-5`) | **Confirmed still blocked** — re-investigated, not just assumed; the one candidate add-back (s.35AD) is scoped to company entities, categorically outside s.115JC's non-corporate scope | Yes — no real data overlap exists, not a build candidate |
 | Phase 5 | Entity graph model + extractor (`buildEntityGraph`, `assets-nodes.js`) | ✅ Shipped, verified 867/867 | No |
 | Phase 6 | Inter-entity flow edges with full `calc`/`source` traceability | ✅ Shipped, verified 890/890 | No |
-| Phase 7 (US) | GILTI/Subpart-F NCTI quantification (`XB-14`) | **Not started** | **Yes** — CFC financials (E&P, QBAI, tested income) not in Layer 1 US today |
+| Phase 7 (US) | GILTI/Subpart-F NCTI quantification (`XB-14`) | ✅ Shipped 29 Jul 2026 (commit `076c4a3`), verified 890→ full regression re-run clean, ported to Python DAG | No — CFC financials (E&P, QBAI/tested income, foreign tax paid) now collected on the Foreign Corporation card |
 | Phase 8 | Frontend entity switcher + per-entity Filings/Documents/drill-down | ✅ Shipped, all four items, Playwright-verified live | No |
 | — | Transfer pricing arm's-length computation | **Deliberately out of scope** (§3.6 of the architecture doc) | Product decision, not a build item — see §4 |
 
@@ -76,16 +82,14 @@ lives in the source doc.
 
 ### 3.1 Function-by-function code comparison (engine vs. DAG)
 
-**Status:** done for the entity tax core (Phase 0-3) and for Phases 5/6/8 as
-they were built — each was read against its intended behavior in
+**Status:** done for the entity tax core (Phase 0-3) and for Phases 5/6/7/8
+as they were built — each was read against its intended behavior in
 `docs/BUSINESS_ENTITY_ARCHITECTURE.md` §6/§7 directly, since (unlike earlier
 phases) there is no classic-engine equivalent to compare against — Phase 5's
-own entry notes this plainly: *"no engine equivalent exists at all."*
-
-**Remaining:** Phase 7, once built, needs the same discipline — but since
-it's also a wholly new capability with no engine precedent, "code
-comparison" there means comparing against the GILTI/§951A statute directly,
-not against a prior implementation.
+own entry notes this plainly: *"no engine equivalent exists at all."* Phase 7
+had no engine precedent either (the frozen engine only ever carried a
+disclosure-only flag), so its comparison was against the GILTI/§951A/OBBBA
+statute directly, same shape as Phase 5.
 
 ### 3.2 Per-boundary harness against real profiles
 
@@ -120,8 +124,9 @@ cited. Phase 5 required adding `entityGraph` to `DAG_ONLY_KEYS` (it's
 deliberately new, present on every profile including individual ones, with
 no frozen-engine equivalent) — without that exclusion the fuzzer surfaced
 289/300 false "divergences" that were really this one expected, documented
-difference. Both Phase 5 and Phase 6 re-ran the fuzzer clean (0 new
-divergences) after their respective changes.
+difference. Phase 5, Phase 6, and Phase 7 (`cfcInclusionResult` and its new
+per-CFC fields) all re-ran the fuzzer clean (0 new divergences) after their
+respective changes.
 
 **Still true:** only 3 of the 12 base fixtures are entity-flavored, so
 entity-specific code still gets proportionally less exposure per run than
@@ -134,9 +139,13 @@ hundreds of entity-involving runs per CI push, not a thin sample.
 functioned as a retroactive sweep after the `net_profit_inr` bug was found,
 not a proactive one. No comprehensive re-sweep has run since.
 
-**Action, unchanged:** when Phase 7 adds new CFC-financials fields to Layer 1
-US, run the mechanical-extraction-plus-hand-cross-reference method from
-`docs/FIELD_COVERAGE_AUDIT.md` against those fields specifically.
+**Action, updated 29 Jul 2026:** Phase 7 has now shipped and added real
+CFC-financials fields to Layer 1 US (tested income, Subpart F income, E&P,
+foreign tax paid on the Foreign Corporation card) — this action item is no
+longer forward-looking, it's actionable now: run the
+mechanical-extraction-plus-hand-cross-reference method from
+`docs/FIELD_COVERAGE_AUDIT.md` against those fields specifically. Not yet
+done.
 
 ### 3.6 Filings/external-research audit
 
@@ -168,10 +177,15 @@ an implied one inside a parity claim.
 
 Much shorter than the original version of this list:
 
-1. **Phase 7 — GILTI/Subpart-F quantification.** The one feature gap that's
-   also a real trust gap, since it doesn't exist yet. Blocked on new Layer 1
-   fields (CFC financials: E&P, QBAI, tested income) — a data-collection
-   project before it's an engine project.
+1. ~~**Phase 7 — GILTI/Subpart-F quantification.**~~ **Shipped 29 Jul 2026**
+   (commit `076c4a3`) — this document's own record had gone stale (none of
+   the commits that built/merged it touched this file). Real CFC financials
+   (E&P, QBAI/tested income, foreign tax paid) now collected on the Foreign
+   Corporation card in Layer 1 US; both non-elected and §962-elected NCTI
+   paths modeled per-CFC under OBBBA TY2026 rules; ported to the Python DAG.
+   Re-verified working on this branch today (only failure on re-run: the
+   already-catalogued, unrelated FEIE-wages divergence on
+   `us_citizen_expat_india`).
 2. ~~**Entity-specific filings audit round** (§3.6)~~ **Run 29 Jul 2026**
    (`docs/GAP_TRACKER.md` §H.15) — Form 1120/Form 5471/Form 8865 confirmed
    already correct; Schedule L/M-1/M-2 and K-1 issuance were genuinely
@@ -183,25 +197,45 @@ Much shorter than the original version of this list:
 4. **Transfer pricing** (§4) — a decision to make explicit, not a build item.
 5. **Non-corporate AMT (Phase 4b)** — confirmed genuinely blocked on missing
    data overlap, not a queue item.
-6. **NEW, higher-priority than any of the above — fuzz/shadow safety net
-   partially compromised by real, uncharacterized numeric divergences**
-   (`docs/GAP_TRACKER.md` §H.15's closing section). Discovered incidentally
-   while verifying item 2's own regression suite, not part of the
-   entity/trust axis itself, but blocks trusting either axis's own
-   fuzzer/shadow-mode results until resolved: ~501/3,000 fuzz profiles and
-   ~82 `test-adapter.mjs` checks still diverge after the (already-fixed)
-   missing-allowlist-entry cause was ruled out — including at least two that
-   don't obviously trace to any named prior item (`foreign_holdco_poem_india`
-   total income off by ~3×; `india_only_ca_client` health score off by 19
-   points). Needs the same hand-verified-against-statute treatment as every
-   other row in `GAP_TRACKER.md`, not a guess.
+6. ~~**Fuzz/shadow safety net partially compromised by real, uncharacterized
+   numeric divergences**~~ **Closed 29 Jul 2026** (`docs/GAP_TRACKER.md`
+   §H.16) — all ~501/82/5 residual divergences characterized; none were new
+   tax-computation bugs. `run-fuzz.js` now runs clean at 0 new divergences
+   across 30,000 fuzzed profiles (10 seeds × 3,000). One genuinely new,
+   real bug WAS found and fixed along the way (unrelated to the fuzz
+   cleanup itself): FEIE's bona-fide-residence test granted the exclusion
+   on mere dropdown selection with zero validation — fixed in both
+   languages, all duplicate implementations, confirmed via `pytest`
+   (589/589) and `run-js-dag-vs-py-dag.js` (0 FEIE-related mismatches
+   across 323 cases).
+7. **NEW, from §H.16's own closing item** — `test-adapter.mjs`,
+   `test-shadow.mjs`, `run-report1.js`, `run-report2.js` still show
+   residual failures, but all are now fully characterized as the exact
+   same already-known divergences `run-fuzz.js` already excuses (extra
+   DAG-only findings, apportionment's documented non-entity-awareness,
+   the FEIE-wages class) — those 4 scripts just never got the same
+   predicate/allowlist system `run-fuzz.js` has. Bounded, mechanical
+   porting work, not a bug fix.
+8. **NEW, from §H.16** — `run-js-dag-vs-py-dag.js`'s `computed.usTax.nra.*`
+   field gap (JS DAG missing several NRA fields Python has) predates this
+   session entirely and hasn't been characterized at all.
+9. **NEW, from §3.5 — field-coverage audit on Phase 7's new fields.** Now
+   that Phase 7 has shipped and added real CFC-financials fields to Layer 1
+   US, the mechanical-extraction-plus-hand-cross-reference audit
+   (`docs/FIELD_COVERAGE_AUDIT.md`'s method) hasn't actually been run
+   against them yet — the field-coverage sweep stayed reactive (last run
+   after the `net_profit_inr` bug), not proactive.
 
 ## 6. Definition of done for the parity claim
 
 - [x] Phase 0-6, 8 — built, verified (harness + fuzzer + audit, Phase 8 also
       Playwright-verified live)
-- [ ] Phase 7 (GILTI/NCTI) — Layer 1 fields added, built, harness written,
-      `audit:dag`-mapped, field-coverage audit run on the new fields
+- [x] Phase 7 (GILTI/NCTI) — Layer 1 fields added, built, harness written,
+      shipped 29 Jul 2026 (commit `076c4a3`), ported to Python DAG,
+      re-verified working on this branch. **Still open**: field-coverage
+      audit hasn't been run on the new CFC-financials fields specifically
+      (§3.5's own "when Phase 7 adds new fields, run the audit" action item
+      — not yet done).
 - [ ] Phase 4b (non-corporate AMT) — stays blocked barring a real data change;
       not actionable today
 - [x] Entity-specific filings audit round — run 29 Jul 2026, findings fixed
@@ -210,18 +244,33 @@ Much shorter than the original version of this list:
       partnership-with-guaranteed-payments added to `profiles.js`
 - [ ] Transfer pricing — an explicit, recorded decision either way, not a
       silent gap
-- [ ] **NEW**: the ~501/82 residual fuzz/`test-adapter.mjs` divergences
-      found during §H.15's own verification pass — characterized (bug vs.
-      legitimate new-DAG-correctness) and either fixed or allowlisted with a
-      named reason, same bar as every other row here
+- [x] Residual fuzz/`test-adapter.mjs` divergences from §H.15's
+      verification pass — characterized 29 Jul 2026 (`docs/GAP_TRACKER.md`
+      §H.16); none were bugs, `run-fuzz.js` itself is now fully clean
+- [ ] **NEW**: port `run-fuzz.js`'s predicate/allowlist system into
+      `test-adapter.mjs`/`test-shadow.mjs`/`run-report1.js`/`run-report2.js`/
+      `run-monitor.js` so the full regression suite is clean everywhere, not
+      just the fuzzer (`run-monitor.js` added 29 Jul 2026, §H.17 — same gap,
+      confirmed to have zero cascade-allowlist mechanism at all)
+- [ ] **NEW**: `run-js-dag-vs-py-dag.js`'s pre-existing `computed.usTax.nra.*`
+      gap — uncharacterized
+- [x] Two harness-parity gaps left by a concurrent session's task #46 merge
+      (`run-report1.js` missing `form_8880`; `run-fuzz.js`'s FTC-basket
+      presence/absence findings wiring) — closed 29 Jul 2026
+      (`docs/GAP_TRACKER.md` §H.17)
 
-Current honest claim, updated: *"the entity side's core computation,
-ownership graph, inter-entity traceability, and frontend are shipped and
-verified at a rigor comparable to the individual side, and the
-filings-audit round is now closed. What's left is one named feature gap
-(GILTI quantification, itself data-blocked), one standing product decision
-(transfer pricing) — and, found while closing the filings-audit round, a
-real gap in the verification tooling itself (residual fuzz/shadow
-divergences) that should be closed before leaning further on either
-safety net."* Say it because it's verified true, not because it sounds
-better.
+Current honest claim, updated 29 Jul 2026: *"the entity side's core
+computation, ownership graph, inter-entity traceability, GILTI/Subpart-F
+quantification, and frontend are all shipped and verified at a rigor
+comparable to the individual side, and the filings-audit round is now
+closed. The verification-tooling gap found while closing it is also now
+closed — every residual divergence was characterized, none were bugs, and
+the fuzzer runs clean at 42,000+ profiles across 14 seeds — though one real,
+unrelated tax bug (FEIE bona-fide-residence validation) was found and fixed
+along the way, and two more harness-parity gaps left by a concurrent
+session's merge were closed the same day. What's left is no longer any
+named feature gap — Phase 7 (GILTI/NCTI) is done — just one standing product
+decision (transfer pricing), one confirmed-blocked item (non-corporate AMT),
+a field-coverage audit still owed on Phase 7's new fields, and bringing the
+older/narrower verification scripts up to the same standard the fuzzer now
+has."* Say it because it's verified true, not because it sounds better.

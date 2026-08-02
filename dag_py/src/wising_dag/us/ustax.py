@@ -78,15 +78,24 @@ def feie_eligibility(f: dict | None) -> dict:
     tax_home_abroad = home != "" and home not in ("us", "usa", "united states", "united states of america")
     pp_days_ok = (f.get("daysInUsTestPeriod") or 0) <= 35
     pp_met = bool(f.get("physicalPresence")) and pp_days_ok
-    bf_met = bool(f.get("bonaFide"))
+    # Real bug, found during the entity-filings-audit fuzz cleanup (docs/
+    # GAP_TRACKER.md, 29 Jul 2026): bonaFideSelected alone used to BE bf_met --
+    # merely picking the bona-fide-residence test granted the exclusion with
+    # zero validation, unlike pp_met's pp_days_ok check above. The NEW
+    # dropdown-selection path additionally requires bonaFideStartDateSet;
+    # bonaFideLegacyConfirmed (explicit True on old saved data) bypasses that
+    # check and is trusted directly, unchanged from before this fix.
+    bf_met = bool(f.get("bonaFideLegacyConfirmed")) or (bool(f.get("bonaFideSelected")) and bool(f.get("bonaFideStartDateSet")))
     reasons = []
     if claimed and not tax_home_abroad:
         reasons.append("no foreign tax home entered" if home == "" else "tax home is in the US")
     if claimed and not bf_met and not pp_met:
-        if not f.get("physicalPresence") and not f.get("bonaFide"):
+        if not f.get("physicalPresence") and not f.get("bonaFideSelected"):
             reasons.append("neither the bona-fide-residence nor the physical-presence test is met")
         elif f.get("physicalPresence") and not pp_days_ok:
             reasons.append(f"{js_num_str(f.get('daysInUsTestPeriod'))} US days in the test period — over the ~35-day allowance (330 full days abroad required)")
+        elif f.get("bonaFideSelected") and not f.get("bonaFideStartDateSet"):
+            reasons.append("bona-fide-residence test selected but no residence start date on file")
         else:
             reasons.append("bona-fide-residence test not met")
     return {
@@ -109,7 +118,15 @@ def _feie_raw(d, ctx):
         "claimed": safe(us, "foreign_earned_income.claims_feie", False) is True,
         "amountClaimedUsd": num(safe(us, "foreign_earned_income.feie_amount_claimed_usd", 0)),
         "taxHomeCountry": safe(us, "foreign_earned_income.tax_home_country", ""),
-        "bonaFide": qual_test == "bona_fide_residence" or safe(us, "foreign_earned_income.bona_fide_residence", False) is True,
+        # bonaFideSelected: "did the user pick this test from the dropdown"
+        # -- NOT by itself "did they pass it." See feie_eligibility()'s
+        # bf_met, which additionally requires bonaFideStartDateSet for this
+        # path. bonaFideLegacyConfirmed is kept separate and bypasses that
+        # check entirely -- an explicit True on old saved data is trusted
+        # as-is, same as before this fix.
+        "bonaFideSelected": qual_test == "bona_fide_residence",
+        "bonaFideStartDateSet": bool(safe(us, "foreign_earned_income.bona_fide_residence_start_date", None)),
+        "bonaFideLegacyConfirmed": safe(us, "foreign_earned_income.bona_fide_residence", False) is True,
         "physicalPresence": qual_test == "physical_presence" or safe(us, "foreign_earned_income.physical_presence", False) is True,
         "daysInUsTestPeriod": num(safe(us, "foreign_earned_income.days_in_us_during_test_period", 0)),
     }
