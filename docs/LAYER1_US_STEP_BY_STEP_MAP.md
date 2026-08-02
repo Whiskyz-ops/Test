@@ -87,9 +87,21 @@ Tier 3 (cosmetic) list and per-agent detail.
 
 ## 4. Bank Sync & Statements — `layer1_us.html:1711-1790` → `BankSyncStep.jsx`
 
-- `[NOT YET AUDITED]`. Note: this file was observed mid-session to have
-  been modified outside this conversation's own edits; not investigated
-  further per earlier instruction.
+- `[VERIFIED — solid, no open issues]` The Plaid "Link Bank Account" button
+  and the statement-upload dropzone are correctly non-functional UI
+  theater in React, matching the source exactly (`openPlaidSimulator` is
+  a modal mock with no real integration in the source too; the upload
+  dropzone is a plain `alert()` there as well). Bank Name/Account
+  Type/Routing/Account Number are correctly local-only, non-persisted
+  state — the source's own inputs for these have no `id`/`oninput` at
+  all, so they never reach `usState` there either. The one field that
+  does write real tax data, "US Bank Interest," correctly mirrors into
+  `income_us_source.interest_us_bank_usd` and recomputes
+  `interest_us_source_usd` from all 4 interest sub-fields exactly like
+  the source's `syncUsInterestTotal()` — and since React reads live
+  shared-store state instead of doing the source's manual two-way DOM
+  mirroring, it's actually more robust against staleness than the
+  original.
 
 ## 5. Employment Income — `layer1_us.html:1791-1831` → `IncomeUsStep.jsx`
 
@@ -121,7 +133,24 @@ Tier 3 (cosmetic) list and per-agent detail.
 
 ## 7. Passive & Other — `layer1_us.html:2108-2219` → `PassiveStep.jsx`
 
-- `[NOT YET AUDITED]`.
+- `[VERIFIED — solid, all 16 fields present and correctly wired]` Every
+  field in the source panel is covered: 4 interest sub-fields (with
+  `syncUsInterestTotal()`'s roll-up into `interest_us_source_usd` ported
+  verbatim), tax-exempt interest, ordinary/qualified dividends, rental
+  income + expenses, and all 8 "Other Income" Schedule 1 lines (state/
+  local refund, unemployment, Social Security, alimony, royalties,
+  cancellation of debt, HSA/MSA distributions, misc other). Confirmed
+  against both DAG engines
+  (`dag_py/src/wising_dag/us/aggregate_us_income.py:398-400,424`,
+  `monitor-next/lib/dag/aggregateusincome-nodes.js:604-606,635`) that all
+  7 fields the component's own comment previously flagged as "schema
+  gaps" are read under these exact names — that comment was stale (those
+  7 fields were added to `schema.js` in the JSON-export reconciliation
+  pass) and has been corrected in the file.
+- `[VERIFIED — minor, Tier-3-equivalent gap]` The source's 3 "Upload
+  1099s / P&L / Year-Round Statements" buttons (decorative
+  `triggerBizUpload()` modal, same non-functional category as Bank
+  Sync's Plaid/upload UI) aren't ported. No state impact either way.
 
 ## 8. Business Ops & K-1s — `layer1_us.html:2220-2718` → `BusinessStep.jsx`
 
@@ -325,10 +354,10 @@ Tier 3 (cosmetic) list and per-agent detail.
 | 1 | Onboarding | Open issues (schema-only fields, navigation, disconnected confirm path) |
 | 2 | Residency | Open issues (dual-status/excluded-days collected but unused) |
 | 3 | State Nexus | Open issues (large — missing UI blocks, one missing schema field) |
-| 4 | Bank Sync | **Not yet audited** |
+| 4 | Bank Sync | **Solid, no open issues** |
 | 5 | Employment Income | Mostly solid; row-shape depth not yet audited |
 | 6 | Capital Gains & Crypto | **Fixed** (aggregate inversion); sub-module arrays still schema-only |
-| 7 | Passive & Other | **Not yet audited** |
+| 7 | Passive & Other | **Solid, no open issues** (one minor decorative-upload gap) |
 | 8 | Business Ops & K-1s | **Most severe open issue in the port** (K-1 → $0) + large Tier 1 gap |
 | 9 | Foreign Income | Solid, one misplaced-card issue |
 | 10 | Equity & Cap Table | **Solid, no open issues** |

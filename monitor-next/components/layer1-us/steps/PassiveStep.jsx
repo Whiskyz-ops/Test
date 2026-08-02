@@ -16,27 +16,30 @@ import { useUsLayer1Store } from "@/lib/layer1-us/store";
 // 1:1, including syncUsInterestTotal()'s roll-up of the four interest
 // sub-fields into `interest_us_source_usd`.
 //
-// SCHEMA GAP: several fields this panel writes are NOT pre-declared in
-// schema.js's income_us_source block (only interest_us_bank_usd,
-// interest_us_treasury_usd, interest_us_oid_usd, interest_us_private_usd,
-// interest_us_exempt_usd, interest_us_source_usd, ordinary/qualified
-// dividends, rental_income_us_source_usd, and social_security_benefits_usd
-// are declared). The following are written under the exact dotted paths
-// the vanilla source uses, but are gaps against schema.js:
-//   - income_us_source.rental_expenses_us_source_usd
-//   - income_us_source.state_local_tax_refund_usd
-//   - income_us_source.unemployment_compensation_usd
-//   - income_us_source.alimony_received_usd
-//   - income_us_source.royalties_direct_us_source_usd (schema.js separately
-//     declares `royalty_income_us_source_usd`, a different key — the source
-//     file itself never reconciled these two names; ported as-is)
-//   - income_us_source.cancellation_of_debt_usd
-//   - income_us_source.hsa_msa_distributions_usd
-//   - income_us_source.misc_other_income_usd
-// The store's setField/getAtPath work fine against undeclared keys (they
-// just won't pre-exist until first write), so this is functional, not
-// broken — flagged per the task's instructions as a gap to reconcile in
-// schema.js later.
+// SCHEMA: all fields this panel writes are now declared in schema.js's
+// income_us_source block (rental_expenses_us_source_usd/
+// state_local_tax_refund_usd/unemployment_compensation_usd/
+// alimony_received_usd/cancellation_of_debt_usd/hsa_msa_distributions_usd/
+// misc_other_income_usd were added in the real-HTML-export reconciliation
+// pass — this file's own comment previously listed them as schema gaps,
+// which is now stale). Confirmed all 7 (plus royalties_direct_us_source_usd
+// below) are read by both DAG engines under these exact names
+// (dag_py/src/wising_dag/us/aggregate_us_income.py:398-400,424,
+// monitor-next/lib/dag/aggregateusincome-nodes.js:604-606,635). Two fields
+// this panel writes (state_local_tax_refund_usd, hsa_msa_distributions_usd)
+// are correctly NOT read by either DAG — matching the source's own
+// "not modeled, recordkeeping only" comments on those two inputs.
+//
+// royalties_direct_us_source_usd: schema.js separately declares a dead
+// `royalty_income_us_source_usd` key too — the source file itself never
+// reconciled these two names; ported as-is, this panel writes the one the
+// DAG actually reads.
+//
+// GAP (Tier-3-equivalent, not a data bug): the source's 3 "Upload 1099s /
+// P&L / Year-Round Statements" buttons (layer1_us.html:2119,2157,2175,
+// triggerBizUpload()) open a simulated AI-OCR modal — decorative, same as
+// BankSyncStep's Plaid/upload UI, no real backend even in the source. Not
+// ported here; low-priority since it writes no state either way.
 
 const inputCls =
   "w-full rounded-lg bg-white/[0.03] border border-line px-3 py-2 text-sm text-head focus:outline-none focus:border-brandGreen/50";
