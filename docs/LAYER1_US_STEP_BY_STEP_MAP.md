@@ -30,21 +30,69 @@ Tier 3 (cosmetic) list and per-agent detail.
 - `[FIXED]` Setup-gate flags (setupW2/setupBiz/etc.) never hydrated from
   real data on reload — `derive.js` gained `deriveSetupFlags()`,
   `store.js`'s `useOnboardingSetup` gained `hydrateFromUsState()`.
-- `[FROM AUDIT]` "Initialize Matrix" button doesn't navigate anywhere.
-- `[FROM AUDIT]` A whole HOH/QSS filing-status diagnostic sub-feature is
-  absent.
-- `[FROM AUDIT]` Identity/Corporate-Formation upload dropzone missing.
+- `[VERIFIED — MAJOR, NEW FINDING]` All 7 corporate-identity fields
+  (`entity_name`/`ein`/`date_of_incorporation`/`state_of_domicile`/
+  `naics_code`/`is_foreign_corporation`/`is_foreign_owned_25_pct`) have
+  exactly ONE real data-entry point in the entire source —
+  `layer1_us.html:775-819`, the "wrapper-corporate-profile-fields" block
+  on this exact Onboarding screen — and every one of its 7 inputs is wired
+  through `updateProfileField(field, val)`
+  (`layer1_us.html`'s definition: `usState.profile[field] = val`), i.e.
+  **all 7 write to `profile.*`, not `corporate_profile.*`**. Confirmed by
+  grepping the entire file for `corp-entity-name`/`corp-ein`/`corp-naics`/
+  etc. — this is the only occurrence, no second corporate-identity block
+  exists anywhere else in the source (the visually-similar `.scorp-ein`/
+  `.ccorp-ein`/`.scorp-naics` hits elsewhere are unrelated per-row fields
+  on individual K-1/C-corp entries inside `income_us_source.*_k1[]`, not
+  this top-level section). `corporate_profile` as a schema section is
+  **entirely dead in the source** — nothing ever writes to it.
+  `OnboardingStep.jsx:356-406` gets 6 of these 7 fields wrong, writing to
+  `corporate_profile.*` (only `state_of_domicile` correctly targets
+  `profile.state_of_domicile`, `:376-379`). Worse: `BusinessStep.jsx`
+  has a second, **entirely fabricated** corporate-identity block
+  (`BusinessStep.jsx:1622-1631`, no HTML counterpart anywhere) that ALSO
+  writes the same 6 fields to `corporate_profile.*` — internally
+  consistent with `OnboardingStep.jsx`'s bug, but doubly wrong against
+  the source, and presents a confusing duplicate data-entry surface with
+  no source basis for the second copy. No live DAG node currently reads
+  either `profile.*` or `corporate_profile.*` for these 6 fields
+  (confirmed via grep — genuinely dead computation-wise today), so this
+  has no live tax-output impact, but it is a real fidelity bug: whatever
+  a user types never lands where the source would put it.
+- `[VERIFIED — NEW FINDING, explains the "two disconnected code paths"
+  claim precisely]` There are **two different "confirm and proceed"
+  buttons rendered simultaneously** for this step. `OnboardingStep.jsx`
+  itself renders "Initialize Matrix" (matching the source's button
+  label/position, `:468-478`) but its `onClick` only calls
+  `setField("metadata.intake_completed", true)` — no navigation.
+  Separately, `page.jsx:146-154` renders its own step-specific footer
+  button labeled "Start Intake →" that correctly dispatches
+  `CONFIRM_INTAKE` to the XState machine, which both sets
+  `intakeCompleted` AND navigates (`machine.js:182-186`). So the working
+  path exists, just not on the button that visually matches the source —
+  a user is shown two buttons, one of which (the one styled/positioned
+  like the source's) silently does nothing but flip a flag.
+- `[VERIFIED]` A whole HOH/QSS filing-status diagnostic sub-feature is
+  confirmed absent: the generic "Filing Status Conflict" banner
+  (`layer1_us.html:692-698`, `#filing-diagnostic-warning`, dynamically
+  populated) and the "Special Rules for Married Persons" HOH-override
+  sub-selector (`:700-712`, `#hoh-edge-cases`/`prof-hoh-override`, 3
+  options + a dynamic explanation box) have no React counterpart —
+  matches `profile.hoh_marital_override` (added to schema.js last pass)
+  having zero UI, confirmed again here.
+- `[VERIFIED]` Identity/Corporate-Formation upload dropzone
+  (`layer1_us.html:989-992` area, label swaps between "Upload Identity
+  Document"/"Upload Corporate Formation Document" based on entity type)
+  confirmed missing — not decorative-only in the source this time (worth
+  double-checking on a future pass whether it's wired to anything beyond
+  the label swap, but the dropzone itself is absent from React either
+  way).
 - `[FROM AUDIT]` §6013(g) election box and NRA option-disabling/relabeling
   are unconditional/static instead of gated — gives actively wrong
   messaging once MFJ is unlocked via election.
-- `[FROM AUDIT]` "Confirm intake & proceed" is split into two disconnected
-  code paths (one persists state but doesn't navigate, one navigates but
-  doesn't persist completion) — source is one function doing both.
 - `[VERIFIED]` `metadata.intake_setup` (added to schema.js last pass) has
   zero reader/writer anywhere in `store.js` or `OnboardingStep.jsx` —
   schema shape only.
-- `[VERIFIED]` `profile.hoh_marital_override` (added to schema.js last
-  pass) has no UI control anywhere.
 
 ## 2. Residency — `layer1_us.html:983-1430` → `ProfileStep.jsx`
 
@@ -454,7 +502,7 @@ Tier 3 (cosmetic) list and per-agent detail.
 
 | # | Step | Status |
 |---|---|---|
-| 1 | Onboarding | Open issues (schema-only fields, navigation, disconnected confirm path) |
+| 1 | Onboarding | Open issues (7-field corporate-identity path bug incl. a fabricated duplicate block on BusinessStep, dead "Initialize Matrix" button, HOH/QSS sub-feature, upload dropzone) |
 | 2 | Residency | Open issues (dual-status/excluded-days collected but unused) |
 | 3 | State Nexus | Open issues (large — whole sticky-domicile sub-engine, CA gating, 5 missing UI blocks, apportionment domicile-state bug) |
 | 4 | Bank Sync | **Solid, no open issues** |
