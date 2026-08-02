@@ -163,8 +163,25 @@ export default function OnboardingStep() {
     setField("profile.filing_status", newVal);
   }
 
-  // spouse-is-us-person gating (applySpouseUsPersonGating @ layer1_us.html:9545)
+  // spouse-is-us-person gating (applySpouseUsPersonGating @ layer1_us.html:9538-9569)
   const spouseGateEnabled = ["mfj", "mfs", "hoh"].includes(profile.filing_status) || isNra;
+
+  // BUG FIX (found by the step-by-step map audit): applySpouseUsPersonGating()
+  // does more than hide the field when disabled — it also (a) resets
+  // spouse_is_us_person to null when the gate closes (layer1_us.html:9551-9553),
+  // so a stale true/false value doesn't silently persist after switching e.g.
+  // back to "single" filing status, and (b) defaults it from null to false
+  // the moment the gate opens (layer1_us.html:9555-9557), so the toggle never
+  // renders in an indeterminate state once visible. Neither side effect was
+  // ported — this file only conditionally rendered the toggle.
+  useEffect(() => {
+    if (!spouseGateEnabled) {
+      if (profile.spouse_is_us_person !== null) setField("profile.spouse_is_us_person", null);
+    } else if (profile.spouse_is_us_person === null) {
+      setField("profile.spouse_is_us_person", false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spouseGateEnabled]);
 
   function addTrumpChild() {
     addRow("profile.trump_accounts_children", { contribution_usd: 0, born_2025_2028: false });

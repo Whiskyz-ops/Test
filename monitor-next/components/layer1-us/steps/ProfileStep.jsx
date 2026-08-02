@@ -111,6 +111,33 @@ export default function ProfileStep() {
   const lockStyle = LOCK_STYLES[lock] || LOCK_STYLES.NON_RESIDENT_ALIEN;
   const isNra = lock === "NON_RESIDENT_ALIEN";
 
+  // BUG FIX (found by the step-by-step map audit): applySpouseJointElectionGating()
+  // (layer1_us.html:9573-9592) only shows the §6013(g) toggle below when
+  // filing_status is married-ish or the taxpayer is an NRA (same condition
+  // as OnboardingStep.jsx's spouseGateEnabled for spouse_is_us_person), and
+  // resets s6013g_joint_election to false the moment the gate closes. This
+  // toggle previously rendered unconditionally here — no gating and no
+  // reset — so a taxpayer who elected §6013(g) then switched away from a
+  // married/NRA filing status kept the election silently active (and
+  // visible) with no matching source behavior.
+  //
+  // FLAGGED (architecture, same class as AmtNiitStep's note): filing_status
+  // lives on the Onboarding step, not this one. Since this port renders one
+  // active step at a time, this useEffect only re-evaluates once
+  // ProfileStep itself (re)mounts — changing filing_status while on
+  // Onboarding doesn't reset the election until the user actually
+  // navigates to this step, unlike the source's always-running single-page
+  // JS. Confirmed live: the reset does correctly fire on remount, just not
+  // instantly across steps like OnboardingStep.jsx's own same-step
+  // spouse_is_us_person fix does.
+  const spouseJointElectionGateEnabled = ["mfj", "mfs", "hoh"].includes(profile.filing_status) || isNra;
+  useEffect(() => {
+    if (!spouseJointElectionGateEnabled && details.s6013g_joint_election) {
+      setField("us_residency_detail.s6013g_joint_election", false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spouseJointElectionGateEnabled]);
+
   // ── NRA filing-status gating (onFilingStatusChange @ layer1_us.html:6652,
   // applyNraFilingStatusGating @ layer1_us.html:9607-9663). Bug fix: this
   // used to check ONLY details.s6013g_joint_election, dropping the original's
@@ -379,14 +406,16 @@ export default function ProfileStep() {
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-between p-3 bg-black/20 border border-line rounded-xl">
-                <div className="flex flex-col pr-3">
-                  <span className="text-[10px] font-bold text-head">Non-Resident Spouse Joint Filing Election</span>
-                  <span className="text-[8px] text-muted">Elect to treat an NRA spouse as a US Resident to unlock MFJ.</span>
+              {spouseJointElectionGateEnabled && (
+                <div className="flex items-center justify-between p-3 bg-black/20 border border-line rounded-xl">
+                  <div className="flex flex-col pr-3">
+                    <span className="text-[10px] font-bold text-head">Non-Resident Spouse Joint Filing Election</span>
+                    <span className="text-[8px] text-muted">Elect to treat an NRA spouse as a US Resident to unlock MFJ.</span>
+                  </div>
+                  <Toggle checked={!!details.s6013g_joint_election}
+                    onChange={(v) => setField("us_residency_detail.s6013g_joint_election", v)} />
                 </div>
-                <Toggle checked={!!details.s6013g_joint_election}
-                  onChange={(v) => setField("us_residency_detail.s6013g_joint_election", v)} />
-              </div>
+              )}
             </div>
 
             {details.first_year_choice_election && (

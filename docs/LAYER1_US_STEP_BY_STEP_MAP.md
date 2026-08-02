@@ -834,10 +834,36 @@ source field-for-field. Only 2 real gaps found:
   exactly. Verified live in headless Chromium: the NRA step is visible
   by default (individual) and disappears immediately after switching
   entity type to C-Corp.
-- `[FROM AUDIT]` `applySpouseUsPersonGating`/
-  `applySpouseJointElectionGating`'s reset-on-hide side effects aren't
-  ported — values persist silently after their gating condition becomes
-  false again.
+- `[FIXED]` `applySpouseUsPersonGating`/`applySpouseJointElectionGating`'s
+  reset-on-hide side effects weren't ported — values persisted silently
+  after their gating condition became false again. Worse than the audit
+  documented for the second one: `applySpouseJointElectionGating()`
+  (`layer1_us.html:9573-9592`) also GATES VISIBILITY of the §6013(g)
+  toggle (only shown when filing_status is married-ish or the taxpayer
+  is NRA) — `ProfileStep.jsx` rendered it unconditionally, no gating at
+  all, not just a missing reset. Fixed both:
+  - `applySpouseUsPersonGating()` (`layer1_us.html:9538-9569`): added a
+    `useEffect` in `OnboardingStep.jsx` that resets
+    `spouse_is_us_person` to `null` when the gate closes and defaults it
+    from `null` to `false` the moment the gate opens, matching the
+    source exactly. Verified live in headless Chromium: switching filing
+    status away from married-ish (as a US citizen, so NRA's OR-condition
+    doesn't keep the gate open) resets the field to `null` and hides the
+    toggle, immediately — filing_status and this toggle are both on the
+    same Onboarding step, so the effect fires the instant the gate
+    closes.
+  - `applySpouseJointElectionGating()`: added the missing visibility
+    gate plus a matching `useEffect` reset to `ProfileStep.jsx`. Verified
+    live: the toggle only shows when the gate condition holds, and the
+    election resets to `false` once the gate closes. FLAGGED (same
+    architecture class as `AmtNiitStep.jsx`'s note): `filing_status`
+    lives on the Onboarding step, not this one, and since this port
+    renders one active step at a time, the reset only re-evaluates once
+    `ProfileStep` itself (re)mounts — changing filing_status while on
+    Onboarding doesn't reset the election until the user actually
+    navigates to Residency, unlike the source's always-running
+    single-page JS. Confirmed live this still resolves correctly on
+    remount, just not instantly across steps.
 
 ---
 
