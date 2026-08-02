@@ -753,22 +753,43 @@ function isFeieBonaFideProxyDivergentProfile(profile) {
   return f.claims_feie === true && f.qualification_test === "bona_fide_residence" &&
     !!f.bona_fide_residence_start_date && f.bona_fide_residence !== true;
 }
-// §911(c) FEIE housing exclusion (FEIE legal-correctness review, docs/
-// FEIE_LEGAL_CORRECTNESS_REVIEW.md, concurrent-session merge): the frozen
-// engine never modeled the housing cost exclusion at all -- only the DAG's
-// ustax-nodes.js computes feieHousingAppliedUsd, netting it out of
-// fW/fSE (computeUsTaxCore) the same way the main FEIE exclusion already
-// does, whenever housing_expenses_usd exceeds the (prorated) housing base.
-// Unconditionally cascades into ordinary/AMT/credits/bracket-breakdown
-// figures downstream, same shape as feieWagesDivergent/
-// feieBonaFideProxyDivergent above -- gated on the DAG's own already-
-// computed feieHousingAppliedUsd (the exact, precise "did this exclusion
-// actually apply and change the numbers" signal) rather than re-deriving
-// the housing base/cap/qualifying-days math here, same SYS-1-class
+// §911(d)(6) FEIE "stacking rule" + Schedule 8812 categorical ACTC bar
+// (FEIE legal-correctness review, docs/FEIE_LEGAL_CORRECTNESS_REVIEW.md,
+// concurrent-session merge, commit 8255a57) -- the ACTUAL cause of the
+// residual GAP_TRACKER.md H.18 divergence, root-caused after H.18's own
+// first-pass fix (allowlisting feieHousingAppliedUsd/housingAppliedUsd,
+// still correct and kept) turned out NOT to close it: those 5/3000
+// mismatches all have feieHousingAppliedUsd === 0, so housing/proration was
+// never the actual cause -- feie.appliedUsd itself matches the frozen
+// engine exactly in every failing case (confirmed by direct reproduction),
+// yet incomeTaxUsd/ordinaryTaxUsd/ordinaryBracketBreakdown/creditsUsd
+// still diverge. Two SEPARATE, real, deliberate correctness fixes landed
+// in the same commit, both gated on the SAME condition (feieAppliedUsd +
+// feieHousingAppliedUsd > 0, i.e. the FEIE exclusion actually applied):
+//   1. The Foreign Earned Income Tax Worksheet "stacking rule" (§911(d)(6)):
+//      remaining (non-excluded) ordinary income must still be taxed at the
+//      marginal rate it would have hit had the exclusion never happened --
+//      the DAG now computes bracketTax(ordTaxable + excluded) -
+//      bracketTax(excluded) instead of the frozen engine's flat
+//      bracketTax(ordTaxable), which understates tax whenever there's any
+//      other ordinary taxable income to stack against.
+//   2. The categorical ACTC bar (Schedule 8812 instructions: "You cannot
+//      claim the additional child tax credit if you file Form 2555") --
+//      the DAG now zeroes ctcRefundableUsd outright whenever feieAppliedUsd
+//      > 0, where the frozen engine only ever proportionally shrank it via
+//      post-exclusion earned income.
+// Gated on the DAG's own already-computed feieAppliedUsd (the exact,
+// precise "did the exclusion actually apply" signal both fixes share)
+// rather than re-deriving ordTaxable/stacking math here, same SYS-1-class
 // avoidance as isQbiWageUbiaLimitDivergentProfile's own comment explains.
-function isFeieHousingDivergentProfile(dag) {
+// Deliberately broader than "only when there's other ordinary income to
+// stack against" (the narrower, strictly-correct trigger) -- same
+// over-excuse-rather-than-under-excuse tradeoff KNOWN_FEIE_WAGES_
+// DIVERGENT_PATHS's own comment already makes for a materially identical
+// reason.
+function isFeieStackingRuleDivergentProfile(dag) {
   var t = dag && dag.computed && dag.computed.usTax;
-  return !!t && (t.feieHousingAppliedUsd || 0) > 0;
+  return !!t && ((t.feie && t.feie.appliedUsd) || 0) + (t.feieHousingAppliedUsd || 0) > 0;
 }
 // §199A QBI wage/UBIA limitation (item S, docs/GAP_TRACKER.md, 27 Jul 2026):
 // the frozen engine computes QBI as a flat 20% with only the SSTB phase-out
@@ -1091,7 +1112,7 @@ function compareOne(label, profile, saveOnFail) {
   var qbiWageLimitDivergent = isQbiWageLimitDivergent(dag);
   var saversCreditDivergent = isSaversCreditDivergent(dag);
   var feieBonaFideProxyDivergent = isFeieBonaFideProxyDivergentProfile(profile);
-  var feieHousingDivergent = isFeieHousingDivergentProfile(dag);
+  var feieStackingRuleDivergent = isFeieStackingRuleDivergentProfile(dag);
   var qbiWageUbiaDivergent = isQbiWageUbiaLimitDivergentProfile(real);
   var indiaRebateDivergent = isIndiaRebateMarginalReliefDivergentProfile(dag);
   var indiaSalaryExemption = isIndiaSalaryExemptionProfile(dag);
@@ -1106,7 +1127,7 @@ function compareOne(label, profile, saveOnFail) {
   // KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS above), saversCreditDivergent, and
   // indiaRebateDivergent all cascade the same way into every $-amount-bearing
   // finding (amt_applies, underpayment_2210, etc).
-  var findingsExcused = indiaAopOrTrust || feieWagesDivergent || feieBonaFideProxyDivergent || feieHousingDivergent ||
+  var findingsExcused = indiaAopOrTrust || feieWagesDivergent || feieBonaFideProxyDivergent || feieStackingRuleDivergent ||
     qbiWageLimitDivergent || qbiWageUbiaDivergent || saversCreditDivergent || indiaRebateDivergent ||
     indiaSalaryExemption;
   (findingsExcused ? knownDiffs : realDiffs).push.apply(findingsExcused ? knownDiffs : realDiffs, findingsResult.unknown);
@@ -1147,7 +1168,7 @@ function compareOne(label, profile, saveOnFail) {
     .concat(isUsTrustProfile(dag) ? KNOWN_US_TRUST_DIVERGENT_PATHS : [])
     .concat(feieWagesDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(feieBonaFideProxyDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
-    .concat(feieHousingDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
+    .concat(feieStackingRuleDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(isFeieEntityGateMissingProfile(dag, profile) ? KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS : [])
     .concat(isQbiWageLimitDivergent(dag) ? KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS : [])
     .concat(qbiWageUbiaDivergent ? KNOWN_QBI_WAGE_UBIA_DIVERGENT_PATHS : [])
