@@ -75,6 +75,17 @@ def test_us_tax_result_matches_golden_for_in_scope_profiles(fixture_id):
     # comment) — analyze.js's own assembleComputed() strips it before ever
     # comparing against the engine's computed.usTax (which keeps the value at
     # usTax.feie.appliedUsd instead, already asserted below via the feie dict).
-    us_tax_for_diff = {k: v for k, v in out["usTaxResult"].items() if k != "feieAppliedUsd"}
+    #
+    # feieHousingAppliedUsd / feie.housingAppliedUsd (FEIE legal-correctness
+    # pass, docs/FEIE_LEGAL_CORRECTNESS_REVIEW.md): the S911(c) foreign
+    # housing cost exclusion, genuinely new -- the frozen reference engine
+    # never implemented it at all (confirmed by grep: FEIE_MAX_USD is its
+    # only FEIE constant, no housing anything), so golden has no equivalent
+    # key on either path. Same "DAG-only, no engine equivalent" carve-out
+    # class as feieAppliedUsd above, not a divergence from a real frozen
+    # value.
+    us_tax_for_diff = {k: v for k, v in out["usTaxResult"].items() if k not in ("feieAppliedUsd", "feieHousingAppliedUsd")}
+    if "feie" in us_tax_for_diff:
+        us_tax_for_diff = {**us_tax_for_diff, "feie": {k: v for k, v in us_tax_for_diff["feie"].items() if k != "housingAppliedUsd"}}
     diff = deep_diff(us_tax_for_diff, golden["computed"]["usTax"])
     assert diff is None, f"{fixture_id}: " + " | ".join(diff[:8])

@@ -67,6 +67,39 @@ function runCase(id, router, india, us) {
   var real = r.computed.usTax;
   var before = fail;
 
+  // feieHousingAppliedUsd / feie.housingAppliedUsd (FEIE legal-correctness
+  // pass, docs/FEIE_LEGAL_CORRECTNESS_REVIEW.md): the §911(c) foreign
+  // housing cost exclusion, genuinely new — the frozen reference engine
+  // never implemented it at all (grepped archive/engine-frozen/computation.js:
+  // FEIE_MAX_USD is its only FEIE constant), so it has no equivalent key on
+  // either the individual or entity/NRA path. Asserted present (not
+  // equal) here, then stripped from a shallow copy of `out` BEFORE any
+  // deep-compare below runs — same discipline as NEW_FIELD_KEYS/
+  // NEW_FIELD_KEYS_IND, just centralized here since this one field is
+  // nested inside `feie{}`, which both paths deep-compare wholesale.
+  (function assertFeieHousingNewFields() {
+    // Same "not every profile/branch produces every new field" skip as
+    // assertNewFieldsPresent() above — only assert when the key is
+    // actually present, don't manufacture a failure for a branch that
+    // legitimately never emits it at all.
+    if ("feieHousingAppliedUsd" in out) {
+      var top = out.feieHousingAppliedUsd;
+      if (typeof top === "number" ? !isNaN(top) : top !== undefined) ok("usTax.feieHousingAppliedUsd (new field — no engine equivalent)");
+      else bad("usTax.feieHousingAppliedUsd (new field — no engine equivalent)", "graph=" + JSON.stringify(top));
+    }
+    if (out.feie && "housingAppliedUsd" in out.feie) {
+      var nested = out.feie.housingAppliedUsd;
+      if (typeof nested === "number" ? !isNaN(nested) : nested !== undefined) ok("usTax.feie.housingAppliedUsd (new field — no engine equivalent)");
+      else bad("usTax.feie.housingAppliedUsd (new field — no engine equivalent)", "graph=" + JSON.stringify(nested));
+    }
+  })();
+  out = Object.assign({}, out);
+  delete out.feieHousingAppliedUsd;
+  if (out.feie) {
+    out.feie = Object.assign({}, out.feie);
+    delete out.feie.housingAppliedUsd;
+  }
+
   if (real.isEntity || real.isNra) {
     // Exact-shape ports: compare the ENTIRE engine result object — EXCEPT
     // usSourceIncomeUsd for an entity, a DELIBERATE DAG/engine divergence
