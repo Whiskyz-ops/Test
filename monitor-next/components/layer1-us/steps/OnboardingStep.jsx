@@ -350,27 +350,37 @@ export default function OnboardingStep() {
         </div>
       ) : (
         // ── Corporate profile fields (layer1_us.html:775-819) ──
+        // BUG FIX (field-path collision, found by the step-by-step map
+        // audit): the source wires every one of these 7 inputs through
+        // updateProfileField(field, val), i.e. `usState.profile[field] =
+        // val` (layer1_us.html:775-819 + the function's own definition) —
+        // ALL 7 write to `profile.*`, not `corporate_profile.*`.
+        // `corporate_profile` as a schema section is entirely dead in the
+        // source; nothing ever writes to it. This component previously got
+        // 6 of 7 fields wrong (only state_of_domicile correctly targeted
+        // `profile.state_of_domicile`) — corrected below to match the
+        // source's actual field paths exactly.
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className={label}>Entity Name</label>
               <input type="text" className={input} placeholder="Acme Corp"
-                value={usState.corporate_profile.entity_name || ""}
-                onChange={(e) => setField("corporate_profile.entity_name", e.target.value)} />
+                value={usState.profile.entity_name || ""}
+                onChange={(e) => setField("profile.entity_name", e.target.value)} />
             </div>
             <div>
               <label className={label}>EIN (Employer ID)</label>
               <input type="text" className={input + " font-mono"} placeholder="XX-XXXXXXX"
-                value={usState.corporate_profile.ein || ""}
-                onChange={(e) => setField("corporate_profile.ein", e.target.value)} />
+                value={usState.profile.ein || ""}
+                onChange={(e) => setField("profile.ein", e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className={label}>Date of Incorporation</label>
               <input type="date" className={input}
-                value={usState.corporate_profile.date_of_incorporation || ""}
-                onChange={(e) => setField("corporate_profile.date_of_incorporation", e.target.value)} />
+                value={usState.profile.date_of_incorporation || ""}
+                onChange={(e) => setField("profile.date_of_incorporation", e.target.value)} />
             </div>
             <div>
               <label className={label}>State of Domicile</label>
@@ -382,14 +392,14 @@ export default function OnboardingStep() {
           <div>
             <label className={label}>NAICS Code</label>
             <input type="text" className={input + " font-mono"} placeholder="e.g. 541511 (Custom Computer Programming)"
-              value={usState.corporate_profile.naics_code || ""}
-              onChange={(e) => setField("corporate_profile.naics_code", e.target.value)} />
+              value={usState.profile.naics_code || ""}
+              onChange={(e) => setField("profile.naics_code", e.target.value)} />
           </div>
           <div className={nestedCard + " flex flex-col gap-3 border-brandGreen/20"}>
             <label className="flex items-start gap-3 cursor-pointer">
               <input type="checkbox" className="mt-1 shrink-0 bg-white/[0.03] border-line rounded text-brandGreen focus:ring-brandGreen"
-                checked={!!usState.corporate_profile.is_foreign_corporation}
-                onChange={(e) => setField("corporate_profile.is_foreign_corporation", e.target.checked)} />
+                checked={!!usState.profile.is_foreign_corporation}
+                onChange={(e) => setField("profile.is_foreign_corporation", e.target.checked)} />
               <div className="flex flex-col">
                 <span className="text-xs font-bold text-head">Is this a Foreign Corporation?</span>
                 <span className="text-[10px] text-muted">Check this if the entity is incorporated outside the US and is filing Form 1120-F.</span>
@@ -397,8 +407,8 @@ export default function OnboardingStep() {
             </label>
             <label className="flex items-start gap-3 cursor-pointer">
               <input type="checkbox" className="mt-1 shrink-0 bg-white/[0.03] border-line rounded text-brandGreen focus:ring-brandGreen"
-                checked={!!usState.corporate_profile.is_foreign_owned_25_pct}
-                onChange={(e) => setField("corporate_profile.is_foreign_owned_25_pct", e.target.checked)} />
+                checked={!!usState.profile.is_foreign_owned_25_pct}
+                onChange={(e) => setField("profile.is_foreign_owned_25_pct", e.target.checked)} />
               <div className="flex flex-col">
                 <span className="text-xs font-bold text-head">Is this entity 25% or more owned by a foreign person?</span>
                 <span className="text-[10px] text-muted">Required for Form 5472 compliance (Inbound Foreign Ownership).</span>

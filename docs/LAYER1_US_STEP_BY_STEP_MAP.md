@@ -30,7 +30,7 @@ Tier 3 (cosmetic) list and per-agent detail.
 - `[FIXED]` Setup-gate flags (setupW2/setupBiz/etc.) never hydrated from
   real data on reload — `derive.js` gained `deriveSetupFlags()`,
   `store.js`'s `useOnboardingSetup` gained `hydrateFromUsState()`.
-- `[VERIFIED — MAJOR, NEW FINDING]` All 7 corporate-identity fields
+- `[FIXED]` All 7 corporate-identity fields
   (`entity_name`/`ein`/`date_of_incorporation`/`state_of_domicile`/
   `naics_code`/`is_foreign_corporation`/`is_foreign_owned_25_pct`) have
   exactly ONE real data-entry point in the entire source —
@@ -46,19 +46,23 @@ Tier 3 (cosmetic) list and per-agent detail.
   on individual K-1/C-corp entries inside `income_us_source.*_k1[]`, not
   this top-level section). `corporate_profile` as a schema section is
   **entirely dead in the source** — nothing ever writes to it.
-  `OnboardingStep.jsx:356-406` gets 6 of these 7 fields wrong, writing to
-  `corporate_profile.*` (only `state_of_domicile` correctly targets
-  `profile.state_of_domicile`, `:376-379`). Worse: `BusinessStep.jsx`
-  has a second, **entirely fabricated** corporate-identity block
-  (`BusinessStep.jsx:1622-1631`, no HTML counterpart anywhere) that ALSO
-  writes the same 6 fields to `corporate_profile.*` — internally
-  consistent with `OnboardingStep.jsx`'s bug, but doubly wrong against
-  the source, and presents a confusing duplicate data-entry surface with
-  no source basis for the second copy. No live DAG node currently reads
-  either `profile.*` or `corporate_profile.*` for these 6 fields
-  (confirmed via grep — genuinely dead computation-wise today), so this
-  has no live tax-output impact, but it is a real fidelity bug: whatever
-  a user types never lands where the source would put it.
+  `OnboardingStep.jsx:356-406` got 6 of these 7 fields wrong, writing to
+  `corporate_profile.*` (only `state_of_domicile` correctly targeted
+  `profile.state_of_domicile`). `BusinessStep.jsx` also had a second,
+  entirely fabricated corporate-identity block (`CorporateProfileBlock`,
+  no HTML counterpart anywhere) that ALSO wrote the same 6 fields to
+  `corporate_profile.*`. **Fixed in both files**: all 6 fields now read/
+  write `profile.*` in `OnboardingStep.jsx` and in `BusinessStep.jsx`'s
+  `CorporateProfileBlock` (the duplicate UI surface itself was left in
+  place — that's a separate redundancy concern from the field-path bug —
+  but it now edits the same real field Onboarding does instead of a
+  second, wrong location). Verified live in headless Chromium: filling
+  Entity Name/EIN on Onboarding and checking "≥25% foreign-owned" now
+  write to `profile.entity_name`/`profile.ein`/
+  `profile.is_foreign_owned_25_pct`, with `corporate_profile`'s copies of
+  all three staying `null`/`false`. No live DAG node reads either path
+  for these 6 fields, so this had no live tax-output impact — it was a
+  data-fidelity bug, not a miscalculation.
 - `[VERIFIED — NEW FINDING, explains the "two disconnected code paths"
   claim precisely]` There are **two different "confirm and proceed"
   buttons rendered simultaneously** for this step. `OnboardingStep.jsx`
@@ -465,23 +469,29 @@ source field-for-field. Only 2 real gaps found:
 - `[VERIFIED]` "Linked Client Profile" picker on foreign-corp rows
   confirmed absent — no hits for `linked_client_id` anywhere in
   `EntitiesStep.jsx`.
-- `[VERIFIED — NEW FINDING, two bugs stacked]` The Form 5472 (Inbound)
-  section's visibility gate is wrong on two independent levels. (1) In
-  the source, the whole section is only ever shown for C-Corps
-  specifically (`layer1_us.html:7058`, `if (type === 'ccorp' &&
-  wrapper5472) { wrapper5472.style.display = 'block'; }` — not
-  scorp/partnership, just ccorp) — `EntitiesStep.jsx:228`'s `is5472`
-  isn't entity-type-gated at all. (2) What it's gated on instead —
-  `usState.corporate_profile?.is_foreign_owned_25_pct` — is the wrong
-  storage path per the Onboarding audit's finding (§1 above): the
-  source's real `is_foreign_owned_25_pct` checkbox
-  (`layer1_us.html:812`) writes to `profile.is_foreign_owned_25_pct` via
-  `updateProfileField`, not `corporate_profile.*`. So even ignoring the
-  entity-type mismatch, this gate reads a field nothing in the source
-  ever actually populates. (The row UI itself, once visible, is
-  reasonable — actually richer than the source's single flat "Total
-  Intercompany Payments" number input, since it captures per-party
-  country/amount detail.)
+- `[FIXED]` The Form 5472 (Inbound) section's visibility gate was wrong
+  on two independent levels. (1) In the source, the whole section is
+  only ever shown for C-Corps specifically (`layer1_us.html:7058`, `if
+  (type === 'ccorp' && wrapper5472) { wrapper5472.style.display =
+  'block'; }` — not scorp/partnership, just ccorp) — `EntitiesStep.jsx`'s
+  old `is5472` wasn't entity-type-gated at all. (2) What it was gated on
+  instead — `corporate_profile.is_foreign_owned_25_pct` — was the wrong
+  storage path (same bug as §1's Onboarding fix). Fixed: the section is
+  now wrapped in an entity-type check (`resolvedEntityType === "ccorp"`,
+  resolved through the LLC election the same way as elsewhere in this
+  port) matching the source exactly, and its own accordion open/close is
+  local `useState` instead of a schema-field toggle — matching the
+  source's inner `form5472-toggle`, which the source itself never wires
+  to any `updateStateField` call (confirmed by reading it: `onchange`
+  only calls `toggleForm5472Section(this.checked)`, no state write —
+  it's ephemeral open/close UI, not a persisted flag, in the source
+  too). Verified live in headless Chromium: the section shows for a
+  C-Corp with the foreign-owned checkbox set, and stays hidden for an
+  S-Corp with the same checkbox set — confirming the gate is genuinely
+  entity-type-driven now, not just always-on. The row UI itself, once
+  visible, is reasonable — actually richer than the source's single flat
+  "Total Intercompany Payments" number input, since it captures
+  per-party country/amount detail.
 
 ## 16. Foreign Gifts & Trusts — `layer1_us.html:3389-3439` → `GiftsStep.jsx`
 
@@ -616,7 +626,7 @@ source field-for-field. Only 2 real gaps found:
 
 | # | Step | Status |
 |---|---|---|
-| 1 | Onboarding | Open issues (7-field corporate-identity path bug incl. a fabricated duplicate block on BusinessStep, dead "Initialize Matrix" button, HOH/QSS sub-feature, upload dropzone) |
+| 1 | Onboarding | Corporate-identity field-path bug **fixed** (both Onboarding and BusinessStep); dead "Initialize Matrix" button, HOH/QSS sub-feature, upload dropzone still open |
 | 2 | Residency | Much more complete than documented — only dual-status dates + excluded-days UI missing (both prominent, always-visible in source) |
 | 3 | State Nexus | Open issues (large — whole sticky-domicile sub-engine, CA gating, 5 missing UI blocks, apportionment domicile-state bug) |
 | 4 | Bank Sync | **Solid, no open issues** |
@@ -630,7 +640,7 @@ source field-for-field. Only 2 real gaps found:
 | 12 | Foreign Assets | Solid derivation logic; one PFIC-default bug |
 | 13 | Real Estate | **Solid, no open issues** |
 | 14 | Retirement | Open issue (fabricated RMD dollar field) |
-| 15 | Foreign Entities | Open issues (PFIC array never written; Form 5472 gate wrong on 2 stacked levels incl. the same field-path bug as Onboarding; label switching; Linked Client picker) |
+| 15 | Foreign Entities | Form 5472 gate **fixed** (both stacked bugs); PFIC array never written, label switching, Linked Client picker still open |
 | 16 | Foreign Gifts & Trusts | **Solid, no open issues** |
 | 17 | Deductions & Credits | Open issues (inert QBI toggle, 2 decoy fields) |
 | 18 | AMT & NIIT | Open issue (MAGI editable) |
