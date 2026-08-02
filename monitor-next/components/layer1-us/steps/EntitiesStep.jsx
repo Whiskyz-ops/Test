@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useUsLayer1Store } from "@/lib/layer1-us/store";
 
 // React port of layer1_us.html panel-step-entities (layer1_us.html:3273-3388),
@@ -30,10 +31,26 @@ import { useUsLayer1Store } from "@/lib/layer1-us/store";
 // `corporate_international.form_5472_related_parties` as a synthetic
 // one-item array (`[{amount_usd}]`) — not an actual repeatable UI, even
 // though the field name is plural. Built here as a real repeatable list
-// with reasonable per-row fields, gated on `corporate_profile
-// .is_foreign_owned_25_pct` per the task spec (the source's own toggle for
-// this section is UI-only and never writes that flag — wired here to the
-// canonical schema field instead).
+// with reasonable per-row fields.
+//
+// BUG FIX (field-path collision + wrong gate, found by the step-by-step
+// map audit): this block previously gated its visibility on
+// `corporate_profile.is_foreign_owned_25_pct` — wrong on two counts.
+// (1) The source's real `is_foreign_owned_25_pct` checkbox
+// (layer1_us.html:812, on Onboarding) writes `profile.
+// is_foreign_owned_25_pct`, not `corporate_profile.*` (see
+// OnboardingStep.jsx's matching fix). (2) More fundamentally, the source
+// doesn't gate this section on that flag's value at all —
+// `updateProfileVisibility()` (layer1_us.html:7054-7068) shows the whole
+// `wrapper-form-5472` container purely based on entity type: `if (type ===
+// 'ccorp' && wrapper5472) { wrapper5472.style.display = 'block'; }` —
+// C-Corp only, not any corp/partnership. The section's own inner checkbox
+// (`form5472-toggle`) only expands/collapses the accordion
+// (`onchange="toggleForm5472Section(this.checked)"` — no
+// `updateStateField` call at all); it's ephemeral open/close UI state, not
+// a persisted flag. Fixed below: the whole block is now gated on entity
+// type matching the source, and its accordion state is local `useState`
+// (ephemeral, matching the source) instead of a schema-field toggle.
 
 const inputCls =
   "w-full rounded-lg bg-white/[0.03] border border-line px-3 py-2 text-sm text-head focus:outline-none focus:border-brandGreen/50";
@@ -225,7 +242,15 @@ export default function EntitiesStep() {
   const corps = fe.foreign_corporations || [];
   const parts = fe.foreign_partnerships || [];
   const des = fe.foreign_de_details || [];
-  const is5472 = !!usState.corporate_profile?.is_foreign_owned_25_pct;
+  // Matches updateProfileVisibility()'s `type === 'ccorp'` check
+  // (layer1_us.html:7058) exactly — C-Corp only, not any
+  // corp/partnership, and resolved through the LLC election the same way
+  // as everywhere else this pattern appears.
+  const profile = usState.profile;
+  const resolvedEntityType =
+    profile.tax_entity_type === "llc" ? profile.llc_tax_election || "individual" : profile.tax_entity_type;
+  const show5472Section = resolvedEntityType === "ccorp";
+  const [is5472Open, setIs5472Open] = useState(false);
   const parties5472 = usState.corporate_international?.form_5472_related_parties || [];
 
   function patchCorp(idx, patch) {
@@ -588,12 +613,13 @@ export default function EntitiesStep() {
         )}
       </SectionCard>
 
+      {show5472Section && (
       <SectionCard
         icon="🏢"
         title="The Company is 25% or more foreign-owned"
         formLabel="Form 5472 (Inbound)"
-        enabled={is5472}
-        onToggle={(v) => setField("corporate_profile.is_foreign_owned_25_pct", v)}
+        enabled={is5472Open}
+        onToggle={setIs5472Open}
       >
         <p className="text-xs text-muted">
           Foreign-owned US corporations must report intercompany transactions with their foreign owners.
@@ -678,6 +704,7 @@ export default function EntitiesStep() {
           ))
         )}
       </SectionCard>
+      )}
     </div>
   );
 }

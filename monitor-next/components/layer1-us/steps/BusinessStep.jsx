@@ -1620,25 +1620,43 @@ function CcorpEntitiesBlock() {
 // isCorpOrPartnership specifically (ccorp/scorp/partnership only — Form 1041
 // trusts don't file Schedule L/M-1/M-2), per toggleCorporateFinancials()
 // (layer1_us.html:7185-7205).
+// BUG FIX (field-path collision, found by the step-by-step map audit):
+// entity_name/ein/naics_code/date_of_incorporation/is_foreign_owned_25_pct/
+// is_foreign_corporation previously wrote to `corporate_profile.*` here.
+// The source's ONLY real data-entry point for these 7 fields is
+// wrapper-corporate-profile-fields on the Onboarding screen
+// (layer1_us.html:775-819), and every one of its inputs goes through
+// updateProfileField(field, val) -> `usState.profile[field] = val`. There
+// is no second corporate-identity block anywhere in panel-step-business
+// (layer1_us.html:2220-2718) — confirmed by grepping the whole source file
+// for corp-entity-name/corp-ein/corp-naics/etc., all single hits, all on
+// Onboarding. `corporate_profile` as a schema section is dead in the
+// source; nothing there ever writes to it. Repointed to `profile.*` so
+// this block (wherever it's reachable from in the tab UI) edits the same
+// real field OnboardingStep.jsx does, instead of a second, wrong location
+// neither the source nor any DAG node reads. `fiscal_year_end` has no
+// source counterpart at all (schema-only, kept on corporate_profile as-is
+// since there's nowhere else for it to go).
 function CorporateProfileBlock() {
   const { usState, setField } = useUsLayer1Store();
   const cp = usState.corporate_profile;
+  const profile = usState.profile;
   const set = (path, v) => setField(path, v);
 
   return (
     <div className="flex flex-col gap-4">
       <RowCard title="Corporate Profile" onRemove={undefined}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <TextField label="Entity Name" value={cp.entity_name} onChange={(v) => set("corporate_profile.entity_name", v)} />
-          <TextField label="EIN" value={cp.ein} mono placeholder="12-3456789" onChange={(v) => set("corporate_profile.ein", v)} />
-          <TextField label="NAICS Code" value={cp.naics_code} mono maxLength={6} onChange={(v) => set("corporate_profile.naics_code", v)} />
-          <DateField label="Date of Incorporation" value={cp.date_of_incorporation} onChange={(v) => set("corporate_profile.date_of_incorporation", v)} />
-          <TextField label="State of Domicile" value={usState.profile.state_of_domicile} placeholder="DE" onChange={(v) => set("profile.state_of_domicile", v)} />
+          <TextField label="Entity Name" value={profile.entity_name} onChange={(v) => set("profile.entity_name", v)} />
+          <TextField label="EIN" value={profile.ein} mono placeholder="12-3456789" onChange={(v) => set("profile.ein", v)} />
+          <TextField label="NAICS Code" value={profile.naics_code} mono maxLength={6} onChange={(v) => set("profile.naics_code", v)} />
+          <DateField label="Date of Incorporation" value={profile.date_of_incorporation} onChange={(v) => set("profile.date_of_incorporation", v)} />
+          <TextField label="State of Domicile" value={profile.state_of_domicile} placeholder="DE" onChange={(v) => set("profile.state_of_domicile", v)} />
           <TextField label="Fiscal Year End" value={cp.fiscal_year_end} placeholder="12-31" onChange={(v) => set("corporate_profile.fiscal_year_end", v)} />
         </div>
         <div className="grid grid-cols-2 gap-3 pt-1">
-          <CheckField label="≥25% Foreign-Owned" value={cp.is_foreign_owned_25_pct} onChange={(v) => set("corporate_profile.is_foreign_owned_25_pct", v)} />
-          <CheckField label="Foreign Corporation" value={cp.is_foreign_corporation} onChange={(v) => set("corporate_profile.is_foreign_corporation", v)} />
+          <CheckField label="≥25% Foreign-Owned" value={profile.is_foreign_owned_25_pct} onChange={(v) => set("profile.is_foreign_owned_25_pct", v)} />
+          <CheckField label="Foreign Corporation" value={profile.is_foreign_corporation} onChange={(v) => set("profile.is_foreign_corporation", v)} />
         </div>
       </RowCard>
     </div>
