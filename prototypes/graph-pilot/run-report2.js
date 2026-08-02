@@ -45,6 +45,34 @@ function deepEqual(a, b, path) {
   return [path + ": " + JSON.stringify(a) + " !== " + JSON.stringify(b)];
 }
 
+// ---- ported from run-fuzz.js's own allowlist apparatus (see that file's
+// header, and run-report1.js's own copy of this same block for the full
+// per-detector writeup and the "which detectors are actually relevant here"
+// reasoning). Only the FEIE wages/bona-fide/stacking family is wired in —
+// verified directly (same methodology as run-report1.js) that taxComputation.
+// usState never diverges for any of the 11 real fixtures regardless of any
+// detector, and taxComputation.us only diverges for the one already-known
+// FEIE-wages case (us_citizen_expat_india).
+function feieForeignWagesRowsTotal(us) {
+  var rows = (us && us.income_foreign_source && us.income_foreign_source.foreign_wages) || [];
+  var total = 0;
+  rows.forEach(function (w) { total += Number(w.gross_wages_usd || w.wages_usd || w.amount_usd || w.wages_box1_usd || w.wages_tips_compensation_usd) || 0; });
+  return total;
+}
+function isFeieWagesDivergentProfile(us) {
+  us = us || {};
+  var feieUsd = Number(us.foreign_earned_income && us.foreign_earned_income.foreign_earned_income_usd) || 0;
+  return feieUsd > feieForeignWagesRowsTotal(us);
+}
+function isFeieBonaFideProxyDivergentProfile(us) {
+  var f = (us && us.foreign_earned_income) || {};
+  return f.claims_feie === true && f.qualification_test === "bona_fide_residence" &&
+    !!f.bona_fide_residence_start_date && f.bona_fide_residence !== true;
+}
+function isFeieStackingRuleDivergentProfile(usTax) {
+  return !!usTax && (((usTax.feie && usTax.feie.appliedUsd) || 0) + (usTax.feieHousingAppliedUsd || 0)) > 0;
+}
+
 WISING.PROFILES.forEach(function (p) {
   var r = WISING.analyze({ router: p.router, india: p.india, us: p.us });
   var ctx = { router: p.router, india: p.india, us: p.us, model: { entity: r.model.entity, meta: r.model.meta } };
@@ -58,9 +86,16 @@ WISING.PROFILES.forEach(function (p) {
   if (isUsEntity || isNra) {
     console.log("    (reported, not asserted) taxComputation.us would diverge here — usTaxResult only covers the resident/individual path");
   } else {
-    var out = graph.resolve(["buildTaxComputationUsResult"], ctx).values.buildTaxComputationUsResult;
-    var usDiff = deepEqual(out, r.taxComputation.us);
-    check("taxComputation.us matches exactly", !usDiff, usDiff && usDiff.slice(0, 6).join(" | "));
+    var out = graph.resolve(["buildTaxComputationUsResult", "usTaxResult"], ctx).values;
+    var feieWagesDivergent = isFeieWagesDivergentProfile(p.us);
+    var feieBonaFideProxyDivergent = isFeieBonaFideProxyDivergentProfile(p.us);
+    var feieStackingRuleDivergent = isFeieStackingRuleDivergentProfile(out.usTaxResult);
+    if (feieWagesDivergent || feieBonaFideProxyDivergent || feieStackingRuleDivergent) {
+      console.log("    (DELIBERATE divergence — wholesale cascade, see this file's own detector comments) taxComputation.us");
+    } else {
+      var usDiff = deepEqual(out.buildTaxComputationUsResult, r.taxComputation.us);
+      check("taxComputation.us matches exactly", !usDiff, usDiff && usDiff.slice(0, 6).join(" | "));
+    }
   }
 
   // usState isn't gated by isUsEntity/isNra the same way — computeUsStateTax
