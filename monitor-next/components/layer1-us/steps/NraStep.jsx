@@ -9,11 +9,23 @@ import { Card, Field, NumberInput, TextInput, Select, ToggleRow, RemoveButton, A
 // "NON_RESIDENT_ALIEN" (see machine.js isStepLocked) — page-level wiring
 // handles that gate, this component renders unconditionally.
 //
-// Note: the source HTML wires a `submitted_w8ben` checkbox that is NOT part
-// of the canonical schema (schema.js has `w8ben_aggregate_status` instead,
-// a status enum never wired to a control in the original file — likely a
-// stale/in-progress field). Rendered here as a best-guess select so the
-// schema field has a working control, per the porting brief.
+// FIELD-MISMATCH BUG (confirmed via the step-by-step map audit): the source
+// wires a REAL "Submitted Form W-8BEN?" checkbox (layer1_us.html:3842-3848,
+// #nra-w8ben) writing the boolean `nra_specific.submitted_w8ben` — added to
+// schema.js in the JSON-export reconciliation pass, so it IS part of the
+// canonical schema now. This component instead renders a 4-option
+// "W-8BEN Aggregate Status" select bound to `w8ben_aggregate_status`, a
+// field that only exists in the source's default-value literal with no
+// matching UI control anywhere in layer1_us.html (confirmed dead there
+// too). Net effect: the real, wired source control (`submitted_w8ben`) has
+// no UI here at all, and dag_py/js-dag both read `submitted_w8ben`
+// directly, so `w8benOnFile` is always false regardless of what's entered
+// in the select below. Not yet fixed — flagged for the next pass rather
+// than fixed inline here to avoid touching this step mid-audit.
+//
+// The source ALSO wires a "US Permanent Establishment (PE)?" checkbox
+// (layer1_us.html:3835-3841, #nra-pe -> nra_specific.has_us_pe) that has no
+// UI in this file at all.
 const TREATY_INCOME_TYPES = [
   { value: "dividends", label: "Dividends (Art. 10)" },
   { value: "interest", label: "Interest (Art. 11)" },

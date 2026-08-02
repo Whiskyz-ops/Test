@@ -392,12 +392,32 @@ Tier 3 (cosmetic) list and per-agent detail.
   `rate`. Every user-entered treaty claim is invisible to the FDAP-rate
   computation, so the flat 30% fallback fires regardless of what's
   entered.
-- `[FROM AUDIT]` `w8ben_aggregate_status` (enum) vs. `submitted_w8ben`
-  (boolean, DAG-read) mismatch — `w8benOnFile` always `False`.
-- `[VERIFIED]` `nra_specific.has_us_pe` (added to schema.js last pass)
-  has zero UI — no hits in `NraStep.jsx`.
-- `[FROM AUDIT]` §6013(h) MFJ-unlock badge, Form 8833 treaty-disclosure
-  notice, and an Indian TRC upload zone all missing.
+- `[VERIFIED — sharper than previously documented]` The source's real
+  "Submitted Form W-8BEN?" control (`layer1_us.html:3842-3848`, `#nra-w8ben`
+  checkbox) writes the boolean `submitted_w8ben` — confirmed present and
+  wired in the source. React has no `submitted_w8ben` UI anywhere; instead
+  it renders an entirely different 4-option "W-8BEN Aggregate Status"
+  select bound to `w8ben_aggregate_status`. That field IS real in the
+  source's schema literal but — confirmed by grepping the whole file —
+  has **no matching UI element anywhere in `layer1_us.html`**, dead in the
+  source too. So this isn't "wrong enum vs. boolean," it's "React swapped
+  a real, wired source control for a different, source-dead one." The
+  component's own header comment already knew half of this (that
+  `w8ben_aggregate_status` is unwired in the source) but incorrectly
+  states `submitted_w8ben` "is NOT part of the canonical schema" — it is
+  (`schema.js`'s `nra_specific.submitted_w8ben`, added last pass) — the
+  comment is stale/wrong on that point.
+- `[VERIFIED]` `nra_specific.has_us_pe` confirmed zero UI — the source's
+  "US Permanent Establishment (PE)?" checkbox
+  (`layer1_us.html:3835-3841`, `#nra-pe`) has no React counterpart at all.
+- `[VERIFIED]` §6013(h) MFJ-unlock badge
+  (`layer1_us.html:3809-3811`, `#nra-6013h-unlock-badge`, "✓ §6013(h)
+  Active — MFJ Unlocked"), the Form 8833 treaty-disclosure notice
+  (`layer1_us.html:3814-3820`, shown when tie-broken to India under
+  Article 4), and the "Upload Indian TRC" dropzone
+  (`layer1_us.html:3827-3832`, decorative — matches Bank Sync/Passive's
+  non-functional upload pattern) are all confirmed missing from
+  `NraStep.jsx`.
 
 ## 22. Generate Output — `layer1_us.html:3936-3958` → `OutputStep.jsx`
 
@@ -454,5 +474,5 @@ Tier 3 (cosmetic) list and per-agent detail.
 | 18 | AMT & NIIT | Open issue (MAGI editable) |
 | 19 | Foreign Tax Credit | Open issue (misplaced card, mirrors step 9) |
 | 20 | Withholding & Estimates | Open issue (4 fields editable) |
-| 21 | Form 1040-NR | Open issues (treaty rate mismatch, W-8BEN mismatch, missing UI) |
+| 21 | Form 1040-NR | Open issues (treaty rate mismatch, real W-8BEN checkbox swapped for a source-dead select, has_us_pe/6013(h) badge/8833 notice/TRC upload all missing) |
 | 22 | Generate Output | Open issue (missing India routing) |
