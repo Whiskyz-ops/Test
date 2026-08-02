@@ -23,11 +23,22 @@ const LOCK_STYLES = {
   FOREIGN_ENTITY: { chip: "text-accent2", title: "Foreign Entity (Non-US incorporated)" },
 };
 
+// BUG FIX (found by the step-by-step map audit): this badge previously
+// showed abbreviations ("RA"/"NRA"/"DUAL") for the individual-filer lock
+// values. The source's real behavior (layer1_us.html:9483-9488) is
+// `sidebarLock.textContent = lock.replace(/_/g, ' ')` — a mechanical
+// underscore-to-space swap on the raw enum value, i.e. "RESIDENT ALIEN" /
+// "NON RESIDENT ALIEN" / "DUAL STATUS" / "US CITIZEN", never a shortened
+// abbreviation. The entity-filer lock values (DOMESTIC_ENTITY/
+// FOREIGN_ENTITY) are the one genuine exception — the source's separate
+// corp-entity branch (layer1_us.html:9266) hardcodes just "DOMESTIC"/
+// "FOREIGN" there, not the full replace() output — so those 2 stay as
+// they were (already correct).
 const LOCK_SHORT = {
   US_CITIZEN: "US CITIZEN",
-  RESIDENT_ALIEN: "RA",
-  DUAL_STATUS: "DUAL",
-  NON_RESIDENT_ALIEN: "NRA",
+  RESIDENT_ALIEN: "RESIDENT ALIEN",
+  DUAL_STATUS: "DUAL STATUS",
+  NON_RESIDENT_ALIEN: "NON RESIDENT ALIEN",
   DOMESTIC_ENTITY: "DOMESTIC",
   FOREIGN_ENTITY: "FOREIGN",
 };

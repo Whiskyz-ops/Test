@@ -773,10 +773,13 @@ source field-for-field. Only 2 real gaps found:
 
 ## Cross-cutting / chrome (not tied to one step)
 
-- `[VERIFIED — still open]` `RightPanel.jsx:121` still labels
-  `amt_inputs.amti_usd` (AMTI, not AGI) as "Estimated AGI" — no real AGI
-  field exists anywhere in `schema.js`. Permanently mislabeled, not just
-  stale.
+- `[FIXED — landed via a concurrent commit]` `RightPanel.jsx` used to
+  label `amt_inputs.amti_usd` (AMTI, not AGI) as "Estimated AGI" — no
+  real AGI field exists anywhere in `schema.js`. A concurrent session
+  fixed this alongside the NRA ECI/FDAP editability bug: now correctly
+  shown as "Est. AGI / MAGI (manual entry)" reading
+  `niit_inputs.modified_agi_usd` instead — confirmed present in the
+  current file (`RightPanel.jsx:120-131`).
 - `[VERIFIED — still open]` Hamburger jurisdiction dropdown, "The Vault"
   button, and "Tax Nerd Mode" toggle confirmed still missing — zero hits
   for any of those strings in `Layer1UsHeader.jsx`.
@@ -787,10 +790,20 @@ source field-for-field. Only 2 real gaps found:
   the derived US tax year range and filing-season year — same
   cross-module-storage dependency as the "Proceed to India Module"
   button, so porting this properly needs the same architectural piece.
-- `[VERIFIED — still open]` Right panel's residency-status badge
-  (`RightPanel.jsx:28-30`) still shows abbreviations ("RA"/"NRA"/"DUAL")
-  where the source shows full words — confirmed directly, not inherited
-  from the prior claim.
+- `[FIXED]` Right panel's residency-status badge (`RightPanel.jsx`'s
+  `LOCK_SHORT` map) showed abbreviations ("RA"/"NRA"/"DUAL") for the
+  individual-filer lock values. The source's real behavior
+  (`layer1_us.html:9483-9488`) is `sidebarLock.textContent = lock.replace
+  (/_/g, ' ')` — a mechanical underscore-to-space swap on the raw enum,
+  never a shortened abbreviation. Fixed: `RESIDENT_ALIEN`/`DUAL_STATUS`/
+  `NON_RESIDENT_ALIEN` now map to "RESIDENT ALIEN"/"DUAL STATUS"/"NON
+  RESIDENT ALIEN"; `US_CITIZEN` was already correct. The 2 entity-filer
+  values (`DOMESTIC_ENTITY`/`FOREIGN_ENTITY`) are a genuine exception —
+  the source's separate corp-entity branch (`layer1_us.html:9266`)
+  hardcodes just "DOMESTIC"/"FOREIGN", not the full replace() text — so
+  those were left as-is (already correct). Verified live in headless
+  Chromium: default badge now reads "NON RESIDENT ALIEN"; a seeded
+  green-card holder shows "RESIDENT ALIEN".
 - `[FROM AUDIT]` Entity-type switch away from "individual" doesn't
   force-reset `setupW2`/`setupRetirement`/`setupForeignFeie` — stale
   flags can leave individual-only phases visible for a corp/partnership
