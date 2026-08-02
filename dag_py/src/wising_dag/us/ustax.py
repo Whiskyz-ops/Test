@@ -10,6 +10,8 @@ same pattern.
 """
 from __future__ import annotations
 
+from datetime import datetime
+
 from ..core.dates import parse_date
 from ..core.graph import NodeDef
 from ..core.util import js_num_str, js_round, num, safe
@@ -17,7 +19,50 @@ from . import constants as C
 
 T = C.US
 FEIE_MAX_USD = C.FEIE_MAX_USD
+FEIE_HOUSING_BASE_USD = C.FEIE_HOUSING_BASE_USD
+FEIE_HOUSING_CAP_USD = C.FEIE_HOUSING_CAP_USD
 NIIT_THRESHOLD = C.NIIT_THRESHOLD
+
+
+def _is_leap_year(year: int) -> bool:
+    return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+
+
+def _feie_qualifying_days_in_tax_year(qualification_test, start_str, end_str, base_year):
+    """IRC S911(b)(2)(D): the FEIE (and S911(c) housing) max is prorated by
+    (qualifying days within the tax year / days in the tax year) for a
+    taxpayer who only qualifies for part of the year -- e.g. moved abroad
+    mid-year, or whose 12-month physical-presence test period only
+    partially overlaps the tax year. Returns None when there isn't enough
+    date data to compute this; the caller then falls back to the full,
+    unprorated max rather than penalizing an incomplete form.
+    """
+    if not base_year:
+        return None
+    year_start = datetime(base_year, 1, 1)
+    year_end = datetime(base_year, 12, 31)
+
+    def _naive(dt):
+        return dt.replace(tzinfo=None) if dt is not None else None
+
+    start = _naive(parse_date(start_str))
+    if qualification_test == "physical_presence":
+        end = _naive(parse_date(end_str))
+        if not start or not end or end < start:
+            return None
+        overlap_start = max(start, year_start)
+        overlap_end = min(end, year_end)
+        if overlap_end < overlap_start:
+            return 0
+        return (overlap_end - overlap_start).days + 1
+    if qualification_test == "bona_fide_residence":
+        if not start:
+            return None
+        if start > year_end:
+            return 0
+        overlap_start = max(start, year_start)
+        return (year_end - overlap_start).days + 1
+    return None
 
 
 def bracket_tax(amount: float, slabs: list) -> float:
@@ -101,6 +146,15 @@ def feie_eligibility(f: dict | None) -> dict:
     return {
         "claimed": claimed, "amountClaimedUsd": f.get("amountClaimedUsd") or 0, "taxHomeAbroad": tax_home_abroad,
         "testMet": bf_met or pp_met, "eligible": tax_home_abroad and (bf_met or pp_met), "reasons": reasons,
+        # Which test actually qualified (not just which was picked in the
+        # dropdown) -- drives which date range compute_us_tax_core() uses to
+        # prorate the exclusion cap for a partial-year qualifier (S911(b)
+        # (2)(D)). Physical presence takes priority if somehow both are met.
+        "qualificationTest": "physical_presence" if pp_met else ("bona_fide_residence" if bf_met else None),
+        "physicalPresenceStartDate": f.get("physicalPresenceStartDate"),
+        "physicalPresenceEndDate": f.get("physicalPresenceEndDate"),
+        "bonaFideResidenceStartDate": f.get("bonaFideResidenceStartDate"),
+        "housingExpensesUsd": f.get("housingExpensesUsd") or 0,
     }
 
 
@@ -129,6 +183,11 @@ def _feie_raw(d, ctx):
         "bonaFideLegacyConfirmed": safe(us, "foreign_earned_income.bona_fide_residence", False) is True,
         "physicalPresence": qual_test == "physical_presence" or safe(us, "foreign_earned_income.physical_presence", False) is True,
         "daysInUsTestPeriod": num(safe(us, "foreign_earned_income.days_in_us_during_test_period", 0)),
+        # Proration (S911(b)(2)(D)) / housing exclusion (S911(c)) inputs.
+        "physicalPresenceStartDate": safe(us, "foreign_earned_income.physical_presence_start_date", None),
+        "physicalPresenceEndDate": safe(us, "foreign_earned_income.physical_presence_end_date", None),
+        "bonaFideResidenceStartDate": safe(us, "foreign_earned_income.bona_fide_residence_start_date", None),
+        "housingExpensesUsd": num(safe(us, "foreign_earned_income.foreign_housing_expenses_usd", 0)),
     }
 
 
@@ -138,13 +197,59 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     f_w = inc["foreignWages"]["usd"] if worldwide else 0
     f_se = inc["foreignSelfEmployment"]["usd"] if worldwide else 0
     feie_applied_usd = 0.0
+    feie_housing_applied_usd = 0.0
     if worldwide and feie["claimed"] and feie["eligible"] and (f_w + f_se) > 0:
         feie_earned_base_usd = f_w + f_se
+
+        # IRC S911(b)(2)(D): prorate the max exclusion by qualifying days in
+        # the tax year -- was previously a flat FEIE_MAX_USD for every
+        # claimant regardless of how much of the year they actually
+        # qualified for (e.g. moved abroad mid-year).
+        qual_test = feie.get("qualificationTest")
+        if qual_test == "physical_presence":
+            qualifying_days = _feie_qualifying_days_in_tax_year(
+                qual_test, feie.get("physicalPresenceStartDate"), feie.get("physicalPresenceEndDate"), base_year_us)
+        elif qual_test == "bona_fide_residence":
+            qualifying_days = _feie_qualifying_days_in_tax_year(
+                qual_test, feie.get("bonaFideResidenceStartDate"), None, base_year_us)
+        else:
+            qualifying_days = None
+        days_in_tax_year = 366 if _is_leap_year(base_year_us or 2025) else 365
+        prorated_max_usd = (
+            FEIE_MAX_USD if qualifying_days is None
+            else FEIE_MAX_USD * (min(qualifying_days, days_in_tax_year) / days_in_tax_year)
+        )
+
         feie_base = feie["amountClaimedUsd"] if feie["amountClaimedUsd"] > 0 else feie_earned_base_usd
-        feie_applied_usd = min(feie_earned_base_usd, feie_base, FEIE_MAX_USD)
+        feie_applied_usd = min(feie_earned_base_usd, feie_base, prorated_max_usd)
         feie_applied_to_wages_usd = min(f_w, feie_applied_usd)
         f_w = f_w - feie_applied_to_wages_usd
         f_se = f_se - (feie_applied_usd - feie_applied_to_wages_usd)
+
+        # IRC S911(c): foreign housing cost exclusion. Collected and shown
+        # on screen by both intake UIs but never previously reached either
+        # compute engine (grepped both dag_py and the JS DAG -- zero reads
+        # of foreign_housing_exclusion_usd anywhere). Recomputed here from
+        # the raw housing-expense input against this port's OWN fixed base/
+        # cap constants, NOT the usState.foreign_earned_income
+        # .housing_exclusion_base_usd/cap_usd fields -- those are meant to
+        # be fixed IRS figures (React incorrectly exposes them as user-
+        # editable; see docs/LAYER1_US_HTML_REACT_FIELD_AUDIT.md), so a
+        # tampered/overridden value must never reach tax computation.
+        # Base/cap are prorated by the same qualifying-day ratio as the
+        # main exclusion (S911(c)(1)(B) computes the base amount on a daily
+        # basis over the qualifying period, same mechanic as (b)(2)(D)).
+        housing_ratio = prorated_max_usd / FEIE_MAX_USD
+        housing_base_usd = FEIE_HOUSING_BASE_USD * housing_ratio
+        housing_cap_usd = FEIE_HOUSING_CAP_USD * housing_ratio
+        housing_expenses_usd = feie.get("housingExpensesUsd") or 0
+        housing_uncapped_usd = max(0.0, housing_expenses_usd - housing_base_usd)
+        housing_room_usd = max(0.0, housing_cap_usd - housing_base_usd)
+        remaining_earned_usd = max(0.0, feie_earned_base_usd - feie_applied_usd)
+        feie_housing_applied_usd = min(housing_uncapped_usd, housing_room_usd, remaining_earned_usd)
+        feie_housing_applied_to_wages_usd = min(f_w, feie_housing_applied_usd)
+        f_w = f_w - feie_housing_applied_to_wages_usd
+        f_se = f_se - (feie_housing_applied_usd - feie_housing_applied_to_wages_usd)
     f_i = inc["foreignInterest"]["usd"] if worldwide else 0
     f_d = inc["foreignDividends"]["usd"] if worldwide else 0
     f_r = inc["foreignRental"]["usd"] if worldwide else 0
@@ -272,11 +377,33 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     pref_taxable = min(regular_preferential_income, total_pref_taxable)
     collectibles_taxable = total_pref_taxable - pref_taxable
 
-    ordinary_tax = bracket_tax(ord_taxable, brackets)
-    ordinary_bracket_breakdown = bracket_breakdown(ord_taxable, brackets)
+    # IRC §911(d)(6) / the Foreign Earned Income Tax Worksheet (Form 1040
+    # instructions, line 16 -- "stacking rule"): once foreign earned income
+    # and/or housing costs are excluded, the taxpayer's REMAINING
+    # (non-excluded) income must still be taxed at the marginal rate it
+    # would have faced had the exclusion never applied. Mechanically: add
+    # the excluded amount back for rate-determination only, compute tax on
+    # the stacked total, then subtract the tax attributable to the excluded
+    # amount alone (computed independently, from zero, using the same
+    # ordinary-bracket method -- FEIE only ever excludes ordinary earned
+    # income, never capital-gains-preferential income, so that piece is
+    # always a plain bracket_tax() call). Previously the excluded amount
+    # was simply subtracted from wages/SE earnings before any bracket math
+    # ran, so remaining ordinary AND preferential income was taxed as if
+    # the exclusion never existed at all -- silently understating tax for
+    # any FEIE claimant with other taxable income. No effect when nothing
+    # was excluded (feie_total_excluded_usd == 0, the common case, since
+    # stack_start == ord_taxable then).
+    feie_total_excluded_usd = feie_applied_usd + feie_housing_applied_usd
+    stack_start = ord_taxable + feie_total_excluded_usd
+
+    ordinary_tax_on_stacked = bracket_tax(stack_start, brackets)
+    ordinary_tax_on_excluded_alone = bracket_tax(feie_total_excluded_usd, brackets) if feie_total_excluded_usd > 0 else 0.0
+    ordinary_tax = ordinary_tax_on_stacked - ordinary_tax_on_excluded_alone
+    ordinary_bracket_breakdown = bracket_breakdown(stack_start, brackets)
 
     lb = T["LTCG_BRACKETS"].get(status, T["LTCG_BRACKETS"]["single"])
-    start = ord_taxable
+    start = stack_start
     amt0 = max(0.0, min(lb["br0"] - start, pref_taxable))
     rem_after0 = pref_taxable - amt0
     amt15 = max(0.0, min(lb["br15"] - max(start, lb["br0"]), rem_after0))
@@ -285,8 +412,9 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
 
     # Collectibles gain: taxed at the LESSER of a flat 28% or the
     # taxpayer's own ordinary-bracket rate on that slice (§1(h)(1)(A)(i)/
-    # (4) -- a CAP, not a flat add-on).
-    collectibles_stack_start = ord_taxable + pref_taxable
+    # (4) -- a CAP, not a flat add-on). Stacked on the same rate-preserving
+    # base as ordinary/preferential income above.
+    collectibles_stack_start = start + pref_taxable
     collectibles_tax_if_ordinary = bracket_tax(collectibles_stack_start + collectibles_taxable, brackets) - bracket_tax(collectibles_stack_start, brackets)
     collectibles_tax = min(collectibles_tax_if_ordinary, T["COLLECTIBLES_RATE"] * collectibles_taxable)
 
@@ -371,7 +499,20 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     ctc_unused_usd = ctc_available_usd - ctc_non_refundable_used_usd
     earned_income_usd = inc["wages"]["usd"] + f_w + f_se + (inc.get("businessUs", {}).get("usd", 0) if inc.get("businessUs") else 0)
     actc_cap_usd = min(T["CTC_REFUNDABLE_MAX_PER_CHILD_USD"] * num_children_for_ctc, T["CTC_REFUNDABLE_RATE"] * max(0.0, earned_income_usd - T["CTC_REFUNDABLE_EARNED_INCOME_FLOOR_USD"]))
-    ctc_refundable_usd = js_round(max(0.0, min(ctc_unused_usd, actc_cap_usd)))
+    # Schedule 8812 instructions ("You cannot claim the additional child tax
+    # credit if you file Form 2555"): a taxpayer who actually claims and
+    # applies the FEIE is CATEGORICALLY barred from the refundable ACTC --
+    # not proportionally reduced. Previously this only shrank via
+    # earned_income_usd already being net of the FEIE-excluded wages/SE
+    # earnings above, so a filer with enough non-excluded earned income left
+    # over still got a nonzero refundable credit -- contradicting
+    # layer1_us.html's own on-screen "Claiming FEIE legally disqualifies you
+    # from claiming the refundable portion of the Child Tax Credit" warning.
+    # Gated on feie_applied_usd (not just feie["claimed"]) so merely
+    # checking the claims_feie box with nothing to exclude doesn't trigger
+    # the bar for no reason.
+    files_form_2555 = feie_applied_usd > 0
+    ctc_refundable_usd = 0.0 if files_form_2555 else js_round(max(0.0, min(ctc_unused_usd, actc_cap_usd)))
     credits_usd = other_credits_usd + combined_non_refundable_usd + ctc_refundable_usd + mtc_allowed_usd
 
     total_tax_before_ftc = income_tax + niit + addl_medicare + se_tax + amt_owed + gilti962_tax_usd - credits_usd
@@ -382,7 +523,7 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
         "creditsUsd": credits_usd, "totalTaxBeforeFtcUsd": total_tax_before_ftc,
         "deductionUsd": deduction, "deductionMode": used_mode,
         "totalIncomeUsd": total_income, "usSourceIncomeUsd": inc["usSourceTotal"]["usd"],
-        "feieAppliedUsd": feie_applied_usd, "worldwide": worldwide,
+        "feieAppliedUsd": feie_applied_usd, "feieHousingAppliedUsd": feie_housing_applied_usd, "worldwide": worldwide,
         "ordinaryTaxUsd": ordinary_tax, "preferentialTaxUsd": preferential_tax,
         # §1(h)(4) collectibles gain (task #43 follow-up): income_tax above
         # already includes collectibles_tax; exposed separately for trace
@@ -439,6 +580,7 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
         "feie": {
             "claimed": feie["claimed"], "eligible": feie["eligible"], "taxHomeAbroad": feie["taxHomeAbroad"],
             "testMet": feie["testMet"], "reasons": feie["reasons"], "appliedUsd": feie_applied_usd,
+            "housingAppliedUsd": feie_housing_applied_usd,
         },
         "effectiveRate": (total_tax_before_ftc / total_income) if total_income > 0 else 0,
     }
@@ -472,6 +614,8 @@ NODES = {
             "us.foreign_earned_income.tax_home_country", "us.foreign_earned_income.qualification_test",
             "us.foreign_earned_income.bona_fide_residence",
             "us.foreign_earned_income.physical_presence", "us.foreign_earned_income.days_in_us_during_test_period",
+            "us.foreign_earned_income.physical_presence_start_date", "us.foreign_earned_income.physical_presence_end_date",
+            "us.foreign_earned_income.bona_fide_residence_start_date", "us.foreign_earned_income.foreign_housing_expenses_usd",
         ),
     ),
     "feie": NodeDef(deps=("feieRaw",), compute=lambda d, ctx: feie_eligibility(d["feieRaw"])),

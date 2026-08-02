@@ -1,5 +1,17 @@
 # FEIE (§911 / Form 2555) legal-correctness review — `layer1_us.html` + both DAG engines
 
+**[FIXED]** All 4 defects below plus the dead-code cleanup are fixed —
+`dag_py/src/wising_dag/us/ustax.py` + `prototypes/graph-pilot/ustax-nodes.js`
+(mirrored, verified byte-identical via `run-js-dag-vs-py-dag.js`, 329/329
+profiles matching) + `layer1_us.html`'s dead `calculateFeieExclusion()`
+removed. Full suite green: `dag_py` pytest 591/591, all three JS reference
+harnesses show zero new divergences beyond the one already-FEIE-claiming
+fixture (whose numbers correctly updated and cross-check exactly against
+Python). One disclosed, intentionally out-of-scope follow-up:
+`crossborder/findings.py` has a second, narrower clone of the pre-fix FEIE
+logic (used only for a PFIC/FTC marginal-rate estimate, not the headline
+tax number) — not touched, to keep this change's blast radius contained.
+
 Scope: not a port-parity check (HTML vs React) — this asks whether the FEIE
 *mechanics themselves* are correct against current law, in the source HTML,
 the Python DAG (`dag_py`), and the JS DAG (`monitor-next/lib/dag/`), since

@@ -2948,7 +2948,7 @@
                     <div class="col-span-1 md:col-span-2">
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5 flex items-center justify-between">Total Foreign Earned Income <span class="text-[8px] bg-brandCyan/20 text-brandCyan px-1 rounded">Live API 🌐</span></label>
                         <div class="flex gap-2">
-                            <select id="feie-earned-income-curr" class="w-[20%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-2 py-3 focus:border-brandCyan font-mono" onchange="autoConvertField('feie-earned-income-curr', 'feie-earned-income-foreign', 'feie-earned-income', false, 'foreign_earned_income', 'foreign_earned_income_usd', 'calculateFeieExclusion')">
+                            <select id="feie-earned-income-curr" class="w-[20%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-2 py-3 focus:border-brandCyan font-mono" onchange="autoConvertField('feie-earned-income-curr', 'feie-earned-income-foreign', 'feie-earned-income', false, 'foreign_earned_income', 'foreign_earned_income_usd')">
                                 <option value="USD">USD</option>
                                 <option value="INR">INR</option>
                                 <option value="EUR">EUR</option>
@@ -2957,10 +2957,10 @@
                                 <option value="SGD">SGD</option>
                                 <option value="AED">AED</option>
                             </select>
-                            <input type="text" inputmode="numeric" id="feie-earned-income-foreign" placeholder="Foreign Amt" oninput="autoConvertField('feie-earned-income-curr', 'feie-earned-income-foreign', 'feie-earned-income', false, 'foreign_earned_income', 'foreign_earned_income_usd', 'calculateFeieExclusion')" class="w-[40%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-3 focus:border-brandCyan font-mono">
+                            <input type="text" inputmode="numeric" id="feie-earned-income-foreign" placeholder="Foreign Amt" oninput="autoConvertField('feie-earned-income-curr', 'feie-earned-income-foreign', 'feie-earned-income', false, 'foreign_earned_income', 'foreign_earned_income_usd')" class="w-[40%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-3 focus:border-brandCyan font-mono">
                             <div class="relative w-[40%]">
                                 <span class="absolute left-3 top-3.5 text-xs text-brandCyan/40 font-mono">$</span>
-                                <input type="text" inputmode="numeric" id="feie-earned-income" placeholder="USD" oninput="updateStateField('foreign_earned_income', 'foreign_earned_income_usd', parseFloat(this.value) || 0); calculateFeieExclusion();" class="w-full bg-brandCyan/5 border border-brandCyan/20 rounded-xl text-xs text-brandCyan px-2 pl-6 py-3 focus:border-brandCyan font-mono shadow-[0_0_10px_rgba(6,182,212,0.1)]">
+                                <input type="text" inputmode="numeric" id="feie-earned-income" placeholder="USD" oninput="updateStateField('foreign_earned_income', 'foreign_earned_income_usd', parseFloat(this.value) || 0);" class="w-full bg-brandCyan/5 border border-brandCyan/20 rounded-xl text-xs text-brandCyan px-2 pl-6 py-3 focus:border-brandCyan font-mono shadow-[0_0_10px_rgba(6,182,212,0.1)]">
                             </div>
                         </div>
                     </div>
@@ -3044,7 +3044,7 @@
                     <div class="col-span-1 md:col-span-2">
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5 flex items-center justify-between">Foreign Housing Expenses <span class="text-[8px] bg-brandCyan/20 text-brandCyan px-1 rounded">Live API 🌐</span></label>
                         <div class="flex gap-2">
-                            <select id="feie-housing-curr" class="w-[20%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-2 py-3 focus:border-brandCyan font-mono" onchange="autoConvertField('feie-housing-curr', 'feie-housing-foreign', 'feie-housing', false, 'foreign_earned_income', 'foreign_housing_expenses_usd', 'calculateFeieExclusion')">
+                            <select id="feie-housing-curr" class="w-[20%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-2 py-3 focus:border-brandCyan font-mono" onchange="autoConvertField('feie-housing-curr', 'feie-housing-foreign', 'feie-housing', false, 'foreign_earned_income', 'foreign_housing_expenses_usd')">
                                 <option value="USD">USD</option>
                                 <option value="INR">INR</option>
                                 <option value="EUR">EUR</option>
@@ -3053,10 +3053,10 @@
                                 <option value="SGD">SGD</option>
                                 <option value="AED">AED</option>
                             </select>
-                            <input type="text" inputmode="numeric" id="feie-housing-foreign" placeholder="Foreign Amt" oninput="autoConvertField('feie-housing-curr', 'feie-housing-foreign', 'feie-housing', false, 'foreign_earned_income', 'foreign_housing_expenses_usd', 'calculateFeieExclusion')" class="w-[40%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-3 focus:border-brandCyan font-mono">
+                            <input type="text" inputmode="numeric" id="feie-housing-foreign" placeholder="Foreign Amt" oninput="autoConvertField('feie-housing-curr', 'feie-housing-foreign', 'feie-housing', false, 'foreign_earned_income', 'foreign_housing_expenses_usd')" class="w-[40%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-3 focus:border-brandCyan font-mono">
                             <div class="relative w-[40%]">
                                 <span class="absolute left-3 top-3.5 text-xs text-brandCyan/40 font-mono">$</span>
-                                <input type="text" inputmode="numeric" id="feie-housing" placeholder="USD" oninput="updateStateField('foreign_earned_income', 'foreign_housing_expenses_usd', parseFloat(this.value) || 0); calculateFeieExclusion();" class="w-full bg-brandCyan/5 border border-brandCyan/20 rounded-xl text-xs text-brandCyan px-2 pl-6 py-3 focus:border-brandCyan font-mono shadow-[0_0_10px_rgba(6,182,212,0.1)]">
+                                <input type="text" inputmode="numeric" id="feie-housing" placeholder="USD" oninput="updateStateField('foreign_earned_income', 'foreign_housing_expenses_usd', parseFloat(this.value) || 0);" class="w-full bg-brandCyan/5 border border-brandCyan/20 rounded-xl text-xs text-brandCyan px-2 pl-6 py-3 focus:border-brandCyan font-mono shadow-[0_0_10px_rgba(6,182,212,0.1)]">
                             </div>
                         </div>
                     </div>
@@ -9078,25 +9078,6 @@ div.innerHTML = `
         if (seWarn) {
             if (isFeie && isSelfEmp && !hasCoc) seWarn.classList.remove('hidden');
             else seWarn.classList.add('hidden');
-        }
-    }
-
-    function calculateFeieExclusion() {
-        const earned = usState.foreign_earned_income.foreign_earned_income_usd || 0;
-        const housing = usState.foreign_earned_income.foreign_housing_expenses_usd || 0;
-        
-        // 2024/2025 FEIE max limit is roughly $126,500. We use a simple Math.min for the UI.
-        const feieMax = 132900;
-        const feieExcl = Math.min(earned, feieMax);
-        
-        const lblFeie = document.getElementById('lbl-feie-excl');
-        if (lblFeie) {
-            lblFeie.innerText = '$' + feieExcl.toLocaleString();
-        }
-        
-        const lblHouse = document.getElementById('lbl-feie-house');
-        if (lblHouse) {
-            lblHouse.innerText = '$' + housing.toLocaleString();
         }
     }
 

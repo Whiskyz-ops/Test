@@ -10,6 +10,14 @@ from __future__ import annotations
 INF = float("inf")
 
 FEIE_MAX_USD = 132900
+# IRC S911(c)(1)(B): base housing amount is 16% of FEIE_MAX_USD; the
+# (nationwide-default, non-locality-adjusted) housing cost cap is the 2026
+# published limitation. Not in archive/engine-frozen/constants.js -- the
+# frozen reference never implemented the housing exclusion at all (verified
+# by grep; FEIE_MAX_USD is its only FEIE constant), so these are new, not a
+# port. Confirmed against Rev. Proc. 2025-32 (2026 inflation adjustments).
+FEIE_HOUSING_BASE_USD = 21264
+FEIE_HOUSING_CAP_USD = 39870
 NIIT_THRESHOLD = {"single": 200000, "mfj": 250000, "mfs": 125000, "hoh": 200000}
 
 US = {
