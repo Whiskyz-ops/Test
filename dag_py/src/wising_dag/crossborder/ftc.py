@@ -69,7 +69,16 @@ def _india_inr_to_usd(ctx, inr_amount):
 
 
 def _ftc_us_direction(d, ctx):
-    zeroed = d["usIsNraBoundaryFtc"] or not d["hasUsScopeBoundaryFtc"]
+    # usIsNraBoundaryFtc / not hasUsScopeBoundaryFtc: the pre-existing
+    # zeroing conditions (XB-24). not usWorldwideBoundaryFtc: a taxpayer can
+    # cede US worldwide taxation via TREATY POSITION ALONE (no 1040-NR
+    # filing at all), in which case usIsNraBoundaryFtc stays False but
+    # compute_us_tax_core has already excluded India-source income from the
+    # US taxable base. Without this, Direction 1 had no way to know that
+    # happened and still credited Indian tax against US tax that was never
+    # levied on that income at all — see run-ftc-correctness.js (ported to
+    # Python's own equivalent hand-computed test).
+    zeroed = d["usIsNraBoundaryFtc"] or not d["hasUsScopeBoundaryFtc"] or not d["usWorldwideBoundaryFtc"]
     feie_excluded_usd = d["feieExcludedUsdBoundaryFtc"]  # FEIE only ever excludes earned (general-category) income
     us_taxable_usd = d["usTaxableIncomeUsdBoundaryFtc"]
     us_income_tax_usd = d["usIncomeTaxUsdBoundaryFtc"]
@@ -184,6 +193,14 @@ NODES = {
     "indiaTotalTaxUsdBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "computed.indiaTax.totalTaxUsd", None)),
     "indiaTotalIncomeUsdBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "computed.indiaTax.totalIncomeUsd", None)),
     "indiaWorldwideBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: bool(safe(ctx, "computed.residency.india.worldwide", False))),
+    # Reads computed.usTax.worldwide (the already entity/NRA-routing-aware
+    # field every usTax result shape carries), NOT
+    # computed.residency.us.worldwide directly — that field is an
+    # INDIVIDUAL-only concept (citizen/green-card/SPT tests), always False
+    # for a real business entity; reading it here would wrongly zero
+    # Direction 1 for every entity taxpayer (an entity's own usTax result
+    # already declares worldwide=True).
+    "usWorldwideBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: bool(safe(ctx, "computed.usTax.worldwide", False))),
     "usSourceTotalUsdBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.income.us.usSourceTotal.usd", None)),
     # §904 basket split of US-source income (India direction, task #46) —
     # reused for the India §159 relief calc's own basket separation.
@@ -205,7 +222,7 @@ NODES = {
     "otherCountryFtcEntriesRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_tax_credit_other.entries", []) or []),
 
     "ftcUsDirection": NodeDef(
-        deps=("feieExcludedUsdBoundaryFtc", "usIsNraBoundaryFtc", "hasUsScopeBoundaryFtc",
+        deps=("feieExcludedUsdBoundaryFtc", "usIsNraBoundaryFtc", "hasUsScopeBoundaryFtc", "usWorldwideBoundaryFtc",
               "indiaPassiveIncomeUsdBoundaryFtc", "indiaGeneralIncomeUsdBoundaryFtc", "indiaIncomeTotalUsdBoundaryFtc",
               "usTaxableIncomeUsdBoundaryFtc", "usIncomeTaxUsdBoundaryFtc", "indiaTotalTaxUsdBoundaryFtc",
               "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw"),

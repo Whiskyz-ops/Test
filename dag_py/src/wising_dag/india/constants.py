@@ -19,6 +19,10 @@ INDIA = {
     ],
     "STD_DEDUCTION_SALARY_NEW_INR": 75000,
     "STD_DEDUCTION_SALARY_OLD_INR": 50000,
+    # s.10(14)/Rule 2BB(1)(g) — PWD transport allowance, exempt in BOTH regimes (not blocked by s.115BAC(2)).
+    "PWD_TRANSPORT_ALLOWANCE_ANNUAL_INR": 38400,
+    # s.16(iii) professional tax deduction — OLD regime only; Article 276 constitutional cap.
+    "PROFESSIONAL_TAX_MAX_ANNUAL_INR": 2500,
     "REBATE_87A_NEW": {"incomeCap": 1200000, "maxRebate": 60000},
     "REBATE_87A_OLD": {"incomeCap": 500000, "maxRebate": 12500},
     "DEDUCTION_CAPS_OLD": {"s80C": 150000, "s80CCD1B": 50000, "s80D_self": 25000, "s80D_parents_senior": 50000},

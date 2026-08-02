@@ -642,8 +642,16 @@ def _findings_crossborder_result(d, ctx):
         ))
 
     # -- 9. CFC / FORM 5471 (findings-batch3-nodes.js, conflicts.js:1151-1172; XB-14 quantification) --
+    # ENTITY-ROUTING FIX (29 Jul 2026, ported from the equivalent JS fix):
+    # "US person" for CFC purposes isn't just the individual-residency test
+    # (residencyResult.us.isResident) — a domestic C-corp/S-corp/partnership/
+    # trust can independently own CFC stock with its own §951/951A/Form-5471
+    # obligation, same pattern already established for the Form 5471/8621/
+    # etc. DOCUMENT triggers (filings/documents.py's is_us_person).
     biz_count = len(d["bizEntriesAgg"])
-    if d["viaForeignCorpXbr4"] and d["residencyResult"]["us"]["isResident"]:
+    is_us_person_for_cfc = d["residencyResult"]["us"]["isResident"] or d["usEntityKind"] in ("ccorp", "scorp", "partnership", "trust")
+    is_passthrough_entity = d["usEntityKind"] in ("scorp", "partnership")
+    if d["viaForeignCorpXbr4"] and is_us_person_for_cfc:
         cfc = d["cfcInclusionResult"]
         # Only report computed numbers once real financial data has actually
         # been entered for at least one CFC — ownership alone (hasAnyCfc)
@@ -655,9 +663,17 @@ def _findings_crossborder_result(d, ctx):
             non_elected_total = cfc["nonElectedOrdinaryInclusionUsd"]
             elected_total = cfc["electedPool"]["netTaxUsd"]
             detail = "Form 5471 applies. "
-            if non_elected_total > 0:
+            if is_passthrough_entity:
+                detail += ("This is a pass-through entity: the inclusion is not taxed here — it flows through to the partners'/shareholders' own returns "
+                           "(each tested for their own §951A US-shareholder status and, if eligible, their own §962 election), which WISING does not yet "
+                           "allocate at the owner level. The figures below are the entity's total inclusion before that allocation. ")
+            elif d["usEntityKind"] == "ccorp":
+                detail += ("A domestic C-corporation needs no §962 election — §951A inclusion is automatic and is taxed with this return's own income "
+                           "(see the Tax Computation panel): the 40% §250 deduction (OBBBA TY2026, NCTI portion only) and 90% deemed-paid FTC apply "
+                           "without election. ")
+            elif non_elected_total > 0:
                 detail += f"Without a §962 election: {_usd(non_elected_total)} of NCTI + Subpart F is included in full as ordinary income (no §250 deduction, no indirect FTC available). "
-            if (cfc["electedPool"]["nctiUsd"] + cfc["electedPool"]["subpartFUsd"]) > 0:
+            if (cfc["electedPool"]["nctiUsd"] + cfc["electedPool"]["subpartFUsd"]) > 0 and not is_passthrough_entity and d["usEntityKind"] != "ccorp":
                 detail += (f"With a §962 election: {_usd(cfc['electedPool']['taxableBaseUsd'])} taxable base (after the 40% §250 deduction on the NCTI portion — OBBBA TY2026, "
                            f"Subpart F never gets §250) at a flat 21% rate, less a {_usd(cfc['electedPool']['creditableFtcUsd'])} deemed-paid FTC (90% of foreign tax paid — OBBBA TY2026), "
                            f"net tax {_usd(cfc['electedPool']['netTaxUsd'])}. ")
@@ -671,7 +687,7 @@ def _findings_crossborder_result(d, ctx):
                 "cfc", "warning", "entity", title, detail,
                 "File Form 5471 regardless. Confirm each CFC's actual tested income/loss, Subpart F income, E&P and foreign tax paid with the entity's own books before "
                 "relying on this for filing — these are preparer-entered estimates, not independently verified.",
-                non_elected_total + elected_total, ["Form 5471", "GILTI/NCTI §951A", "Subpart F", "§962 election", "§250 deduction"],
+                0 if is_passthrough_entity else non_elected_total + elected_total, ["Form 5471", "GILTI/NCTI §951A", "Subpart F", "§962 election", "§250 deduction"],
             ))
         else:
             findings.append(make_finding(
@@ -684,7 +700,7 @@ def _findings_crossborder_result(d, ctx):
                 "and Subpart F inclusion (and evaluate the §962 election).",
                 0, ["Form 5471", "GILTI/NCTI §951A", "Subpart F", "§962 election"],
             ))
-    elif biz_count > 0 and d["residencyResult"]["us"]["isResident"]:
+    elif biz_count > 0 and is_us_person_for_cfc:
         findings.append(make_finding(
             "cfc_below_threshold", "info", "entity",
             "Indian company held below the 10% CFC threshold",

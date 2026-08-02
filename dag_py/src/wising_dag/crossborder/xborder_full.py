@@ -73,6 +73,11 @@ def build(base: NodeRegistry) -> NodeRegistry:
         compute=lambda d, ctx: (d["entityTaxableInrBoundary"] if d["isEntityTaxpayer"] else d["totalIncomeInrV3"]) / fx_rate(ctx),
     ), reason=OVERRIDE_REASON)
     r.override("indiaWorldwideBoundaryFtc", NodeDef(deps=("residencyResult",), compute=lambda d, ctx: bool(d["residencyResult"]["india"]["worldwide"])), reason=OVERRIDE_REASON)
+    # Reads usTaxResult.worldwide, not residencyResult.us.worldwide (see
+    # ftc.py's own comment on this boundary) — usTaxResult is already the
+    # routed, entity/NRA-aware result, so this stays correct for every
+    # taxpayer shape without re-deriving entity/NRA routing a second time.
+    r.override("usWorldwideBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: bool(d["usTaxResult"].get("worldwide"))), reason=OVERRIDE_REASON)
     r.override("usSourceTotalUsdBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["usSourceIncomeUsd"]), reason=OVERRIDE_REASON)
 
     # §904 basket split (task #46) — in-graph version of ftc.py's own

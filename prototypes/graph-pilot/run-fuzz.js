@@ -487,7 +487,18 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // entry only covers the "DAG has it extra" direction; the "engine has it,
 // DAG doesn't" direction is handled explicitly in the branch below since it
 // needs to keep both reasons distinct.
-var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely|itin_application_required|nra_eci_fdap_classification_check|treaty_rate_not_recognized|ftc_gap|ftc_available|niit_medicare_not_creditable|underpayment_2210)$/;
+// cfc / cfc_below_threshold (entity-routing fix, 29 Jul 2026, post-Phase-7
+// review): the finding's own gate previously read only res.us.isResident
+// (individual citizen/green-card/SPT tests), so it could never fire for a
+// US domestic entity (ccorp/scorp/partnership/trust) directly owning CFC
+// stock — the exact same class of bug report-batch1-nodes.js's isUsPerson
+// already fixed for the Form 5471 DOCUMENT trigger, just never mirrored
+// into this finding. Now widened the same way (individual OR domestic
+// entity). The frozen engine's copy has the old individual-only gate and
+// stays that way permanently, so any fuzz-generated entity profile that
+// owns ≥10% of a foreign corporation now genuinely diverges — DAG correctly
+// fires, engine categorically cannot.
+var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely|itin_application_required|nra_eci_fdap_classification_check|treaty_rate_not_recognized|ftc_gap|ftc_available|niit_medicare_not_creditable|underpayment_2210|cfc|cfc_below_threshold)$/;
 // cfc (Phase 7, XB-14, GILTI/NCTI quantification): the finding's detail/
 // recommendation/refs text now differs unconditionally from the frozen
 // engine's static text whenever it fires — real computed inclusion numbers
@@ -590,6 +601,14 @@ var KNOWN_INDIA_ENTITY_DIVERGENT_PATHS = ["taxComputation.india"];
 var KNOWN_ALWAYS_DIVERGENT_PATHS = ["model.income.us.foreignSection988GainLoss", "model.income.us.otherOrdinaryIncomeUs",
   "model.income.us.cfcNonElectedInclusionUs", "model.income.us.cfcElectedPool", "model.income.us.cfcPerEntityTrace",
   "computed.usTax.gilti962TaxUsd", "computed.usTax.cfcDetail",
+  // Entity-routing fix (29 Jul 2026): computed.usTax.cfcNetTaxUsd is a
+  // brand-new field on the ccorp/trust entity-tax result (ustax-full-
+  // nodes.js's usEntityTaxResult) — the frozen engine's computeUsEntityTax
+  // never references CFC inclusion at all, so this key is always absent
+  // there, same "no frozen-engine equivalent" class as gilti962TaxUsd/
+  // cfcDetail two lines up (that pair covers the INDIVIDUAL path's flat
+  // add-on; this covers the ENTITY path's).
+  "computed.usTax.cfcNetTaxUsd",
   "model.assets.businessEntities", "computed.reconciliation.rows",
   "model.income.us.collectiblesLtcgUsd", "model.income.us.qsbsExcludedGainUsd", "model.income.us.qsbsTaxableGainUsd",
   "computed.usTax.collectiblesGainUsd", "computed.usTax.collectiblesTaxUsd", "computed.usTax.qsbsExcludedGainUsd", "computed.usTax.qsbsTaxableGainUsd",
@@ -821,6 +840,32 @@ var KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS = [
   "summary.indiaTaxUsd", "summary.netDoubleTaxUsd", "summary.healthScore", "summary.counts",
   "documents", "scopeNotes", "returnForms"
 ];
+// India salary exemptions (funding-audit follow-up): the engine's
+// normalize.js only ever reads salary.taxable_salary_inr (which no real form
+// input ever sets — only the demo/simulation injector does) or falls back to
+// raw gross_salary_inr with ZERO exemptions applied. aggregateindiaincome-
+// nodes.js's new salaryIncomeComputation instead applies the real s.16(ia)
+// standard deduction (both regimes), s.10(14)/Rule 2BB reimbursement-type
+// allowances (both regimes), and the OLD-regime-only s.10(13A) HRA / s.10(5)
+// LTA / s.16(iii) professional-tax items s.115BAC(2) disallows under the new
+// regime. Real AMOUNT fix, same blast radius as the AOP/Trust fix above.
+function isIndiaSalaryExemptionProfile(dag) {
+  var sd = dag.model.income && dag.model.income.india && dag.model.income.india.salaryDetail;
+  if (!sd) return false;
+  // Also covers an edge case the fix incidentally closes: the OLD fallback
+  // was `taxable_salary_inr || gross_salary_inr`, which treated an explicit
+  // 0 as falsy and silently substituted gross salary instead of honoring a
+  // real filed value of zero. The new code's `!== null` check respects an
+  // explicit 0 (overridden:true, taxableSalaryInr:0) — a second, narrower
+  // real amount fix, same cascade shape as the exemption fix above.
+  return sd.overridden === false || sd.taxableSalaryInr === 0;
+}
+var KNOWN_INDIA_SALARY_EXEMPTION_DIVERGENT_PATHS = [
+  "model.income.india", "computed.indiaTax", "computed.ftc", "computed.headline", "computed.reconciliation",
+  "computed.apportionment", "taxComputation.india", "ftcReport", "withholding", "monitoring",
+  "summary.indiaTaxUsd", "summary.totalIncomeUsd", "summary.netDoubleTaxUsd", "summary.healthScore", "summary.counts",
+  "documents", "scopeNotes", "returnForms"
+];
 function pathMatchesAny(p, prefixes) {
   return prefixes.some(function (prefix) { return p === prefix || p.indexOf(prefix + ".") === 0 || p.indexOf(prefix + "[") === 0; });
 }
@@ -1024,6 +1069,7 @@ function compareOne(label, profile, saveOnFail) {
   var feieBonaFideProxyDivergent = isFeieBonaFideProxyDivergentProfile(profile);
   var qbiWageUbiaDivergent = isQbiWageUbiaLimitDivergentProfile(real);
   var indiaRebateDivergent = isIndiaRebateMarginalReliefDivergentProfile(dag);
+  var indiaSalaryExemption = isIndiaSalaryExemptionProfile(dag);
   var findingsResult = compareFindings(dag.findings, real.findings, usEntity);
   // AOP/Trust: findings content genuinely cascades from the (now correct)
   // India tax amount in ways too varied to enumerate by finding ID (see
@@ -1036,7 +1082,8 @@ function compareOne(label, profile, saveOnFail) {
   // indiaRebateDivergent all cascade the same way into every $-amount-bearing
   // finding (amt_applies, underpayment_2210, etc).
   var findingsExcused = indiaAopOrTrust || feieWagesDivergent || feieBonaFideProxyDivergent ||
-    qbiWageLimitDivergent || qbiWageUbiaDivergent || saversCreditDivergent || indiaRebateDivergent;
+    qbiWageLimitDivergent || qbiWageUbiaDivergent || saversCreditDivergent || indiaRebateDivergent ||
+    indiaSalaryExemption;
   (findingsExcused ? knownDiffs : realDiffs).push.apply(findingsExcused ? knownDiffs : realDiffs, findingsResult.unknown);
   knownDiffs.push.apply(knownDiffs, findingsResult.known);
 
@@ -1079,7 +1126,12 @@ function compareOne(label, profile, saveOnFail) {
     .concat(isQbiWageLimitDivergent(dag) ? KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS : [])
     .concat(qbiWageUbiaDivergent ? KNOWN_QBI_WAGE_UBIA_DIVERGENT_PATHS : [])
     .concat(saversCreditDivergent ? KNOWN_SAVERS_CREDIT_DIVERGENT_PATHS : [])
-    .concat(indiaRebateDivergent ? KNOWN_INDIA_REBATE_MARGINAL_RELIEF_DIVERGENT_PATHS : []);
+    .concat(indiaRebateDivergent ? KNOWN_INDIA_REBATE_MARGINAL_RELIEF_DIVERGENT_PATHS : [])
+    .concat(indiaSalaryExemption ? KNOWN_INDIA_SALARY_EXEMPTION_DIVERGENT_PATHS : [])
+    // salaryDetail is a pure introspection field (like checksRegistry) with
+    // no engine equivalent at all — present on EVERY profile regardless of
+    // whether the override fired, so it's always known, not gated above.
+    .concat(["model.income.india.salaryDetail"]);
   if (allowedPaths.length) {
     var stillReal = [];
     realDiffs.forEach(function (diff) {

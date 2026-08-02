@@ -1,17 +1,15 @@
 "use strict";
 /* ============================================================================
  * Correctness test for ftc-nodes.js's Direction-1 (US Form 1116) FTC gating
- * bug — hand-computed against the actual statutory mechanism, NOT against
- * the frozen engine's own output. run-ftc.js only checks DAG output against
+ * — hand-computed against the actual statutory mechanism, NOT against the
+ * frozen engine's own output. run-ftc.js only checks DAG output against
  * "real"/production (the frozen engine) — a parity check that passes even
  * when both sides share the same bug.
  *
- * BUG (confirmed live, ftc-nodes.js:53-54):
- *   var zeroed = d.usIsNraBoundaryFtc || !d.hasUsScopeBoundaryFtc;
- *   var foreignSrcGrossUsd = zeroed ? 0 : d.indiaIncomeTotalUsdBoundaryFtc;
- * `zeroed` only looks at whether the taxpayer actually filed 1040-NR
- * (usIsNraBoundaryFtc) or has no US scope at all. It does NOT look at
- * `ctx.computed.residency.us.worldwide` / `usCedes`.
+ * BUG, FIXED (29 Jul 2026): `zeroed` (ftc-nodes.js's ftcUsDirection) used to
+ * read only usIsNraBoundaryFtc / !hasUsScopeBoundaryFtc — whether the
+ * taxpayer actually filed 1040-NR, or has no US scope at all. It did NOT
+ * look at `ctx.computed.residency.us.worldwide` / `usCedes`.
  *
  * But residency-nodes.js:211 proves these are genuinely different facts:
  *   var usCedes = (d.treatyUsResidenceRaw === "india" || d.treatyFiles1040nrRaw === true) && !d.usIsCitizenRaw;
@@ -20,18 +18,20 @@
  * files1040nr (and therefore usIsNraBoundaryFtc) stays false — they never
  * filed as an NRA. Wherever computeUsTax/usTaxIndividualResult reads
  * residency.us.worldwide, it will have ALREADY excluded India-source income
- * from the US taxable base for that person. ftcUsDirection has no way to
- * know that happened — it only checks usIsNraBoundaryFtc — so it still
- * treats the full India income as "foreign-source income relative to a US
- * base that contains it," when the US base has already excluded it
- * entirely. That lets Indian tax get credited against US tax that was
- * never levied on that income at all.
+ * from the US taxable base for that person. ftcUsDirection had no way to
+ * know that happened — it only checked usIsNraBoundaryFtc — so it still
+ * treated the full India income as "foreign-source income relative to a US
+ * base that contains it," when the US base had already excluded it
+ * entirely. That let Indian tax get credited against US tax that was never
+ * levied on that income at all.
+ *
+ * Fix: a new usWorldwideBoundaryFtc boundary (mirroring the pre-existing
+ * indiaWorldwideBoundaryFtc), added as a third OR'd condition in `zeroed`.
  *
  * Case below: a taxpayer whose US taxable base has already excluded their
  * $50,000 of India-source income (representing the usCedes=true path
- * above), who never filed 1040-NR. Correct FTC allowed should be $0 --
- * there is no US tax left on that income to credit against. Current code
- * allows $9,000.
+ * above), who never filed 1040-NR. Correct FTC allowed is $0 -- there is
+ * no US tax left on that income to credit against.
  *
  * Two OTHER confirmed-live bugs in this same file are deliberately NOT
  * given a numeric assertion here, because they are missing-feature /
@@ -115,6 +115,7 @@ console.log("\nCase: §904 basket separation (task #46) — hand-verified, both 
     feieExcludedUsdBoundaryFtc: 0,
     usIsNraBoundaryFtc: false,
     hasUsScopeBoundaryFtc: true,
+    usWorldwideBoundaryFtc: true,   // ordinary worldwide-taxed case -- this test is about basket separation, not the gating fix above
     indiaIncomeTotalUsdBoundaryFtc: 70000,
     indiaPassiveIncomeUsdBoundaryFtc: 60000,
     indiaGeneralIncomeUsdBoundaryFtc: 10000,
@@ -133,9 +134,8 @@ console.log("\nCase: §904 basket separation (task #46) — hand-verified, both 
 console.log("\n" + pass + " passed, " + fail + " failed");
 if (fail > 0) {
   console.log(
-    "\n(FAIL above is EXPECTED right now -- ftcUsDirection needs to gate on\n" +
-    "residency.us.worldwide (or an equivalent usCedes flag), not just\n" +
-    "usIsNraBoundaryFtc. This is the Phase 1 fix target for this file.\n" +
+    "\n(A failure here is a real regression -- the Direction-1 gating bug\n" +
+    "(ftcUsDirection zeroing on usWorldwideBoundaryFtc) was fixed 29 Jul 2026.\n" +
     "The no-AMT-FTC and gross/net-basis-mismatch bugs in the same file are\n" +
     "documented above but deliberately not asserted here -- they need a\n" +
     "design decision, not just a corrected constant.)"

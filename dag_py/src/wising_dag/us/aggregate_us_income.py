@@ -464,7 +464,14 @@ def _epf_nps_cross_border(d, ctx):
     }
 
 
-def _compute_cfc_inclusion(corps: list) -> dict:
+def _us_entity_kind_for_cfc(ctx) -> str:
+    t = safe(ctx.get("us"), "profile.tax_entity_type", "individual")
+    if t == "llc":
+        t = safe(ctx.get("us"), "profile.llc_tax_election", "individual")
+    return t
+
+
+def _compute_cfc_inclusion(corps: list, is_corporate_shareholder: bool = False) -> dict:
     """Phase 7 (XB-14) — GILTI/NCTI + Subpart F quantification. Port of
     aggregateusincome-nodes.js's computeCfcInclusion.
 
@@ -485,6 +492,15 @@ def _compute_cfc_inclusion(corps: list) -> dict:
        already applied to otherOrdinaryIncomeUs.
      - §962 election modeled per-CFC, matching real law (each CFC may elect
        separately) — read off each foreign_corporations[] entry independently.
+
+    ENTITY-ROUTING FIX (29 Jul 2026, ported from the equivalent JS fix):
+    §962 is only available to NON-corporate US shareholders (individuals,
+    trusts) electing to be taxed as if they were a domestic corporation for
+    this inclusion. A REAL domestic C-corporation shareholder needs no
+    election at all — it gets direct §951A inclusion, the §250 deduction,
+    and the §960 indirect/deemed-paid FTC automatically. is_corporate_
+    shareholder forces every CFC into the corporate-style pool for a real
+    C-corp, regardless of each CFC's own (legally inapplicable) election flag.
     """
     non_elected = {"testedIncome": 0.0, "testedLoss": 0.0, "subpartF": 0.0}
     elected = {"testedIncome": 0.0, "testedLoss": 0.0, "subpartF": 0.0, "foreignTaxPaid": 0.0}
@@ -500,7 +516,7 @@ def _compute_cfc_inclusion(corps: list) -> dict:
         ep_usd = max(0.0, num(c.get("ep_usd"))) * frac
         subpart_f_raw_usd = max(0.0, num(c.get("subpart_f_income_usd"))) * frac
         subpart_f_usd = min(subpart_f_raw_usd, ep_usd)  # §952(c) E&P cap
-        elect = c.get("sec962_election_planned") is True
+        elect = is_corporate_shareholder or c.get("sec962_election_planned") is True
         bucket = elected if elect else non_elected
         bucket["testedIncome"] += tested_income_usd
         bucket["testedLoss"] += tested_loss_usd
@@ -754,8 +770,19 @@ def build(base):
     # on that side; kept here anyway for the same single-source-of-truth
     # reason, since these functions are literal line-for-line mirrors of the JS).
     r.register("usForeignCorpsRawForIncome", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_entities.foreign_corporations", []) or []))
+    # Duplicated from us/ustax.py's usEntityKind (its own LLC-election
+    # normalization: tax_entity_type, with "llc" resolved through
+    # llc_tax_election) rather than depending on the "usEntityKind" node id
+    # itself — this module is a LOWER layer several narrower compositions
+    # build on top of (crossborder/apportionment.py's own test registry does
+    # NOT register usEntityKind at all, and previously threw UnknownNode
+    # resolving apportionmentResult once cfcInclusionResult took a hard dep
+    # on it), so cfcInclusionResult can't require a node id only the fuller
+    # entity-routing chain (us/ustax_full.py) registers.
+    r.register("usEntityKindForCfc", NodeDef(deps=(), compute=lambda d, ctx: _us_entity_kind_for_cfc(ctx)))
     r.register("cfcInclusionResult", NodeDef(
-        deps=("usForeignCorpsRawForIncome",), compute=lambda d, ctx: _compute_cfc_inclusion(d["usForeignCorpsRawForIncome"]),
+        deps=("usForeignCorpsRawForIncome", "usEntityKindForCfc"),
+        compute=lambda d, ctx: _compute_cfc_inclusion(d["usForeignCorpsRawForIncome"], d["usEntityKindForCfc"] == "ccorp"),
         layer1_fields=(
             "us.foreign_entities.foreign_corporations[].ownership_percentage",
             "us.foreign_entities.foreign_corporations[].tested_income_usd",

@@ -20,7 +20,7 @@ wages/interest/etc. folded in) will diverge until Phase 4 closes it. Golden
 itself carries computed.usTax.worldwide, so this fixture set is partitioned
 by it directly rather than hand-maintained here.
 """
-from conftest import GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES, ctx_for, load_golden
+from conftest import GOLDEN_DIVERGENT_FIXTURES_CFC_ENTITY_ROUTING, GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES, ctx_for, load_golden
 from support import deep_diff
 
 from wising_dag.core.registry import NodeRegistry
@@ -41,8 +41,18 @@ def test_aggregate_us_income_result_matches_golden(fixture_id):
 
     # foreignWagesTaxPaidUsd (task #46, multi-country/multi-basket FTC): new
     # DAG-only field, no frozen-engine equivalent.
-    out_income = {k: v for k, v in out["aggregateUsIncomeResult"].items() if k != "foreignWagesTaxPaidUsd"}
-    diff = deep_diff(out_income, golden["model"]["income"]["us"])
+    exclude = {"foreignWagesTaxPaidUsd"}
+    # cfcPerEntityTrace (entity-routing fix, conftest.py's own docstring):
+    # sec962Elected reclassifies to True for a real C-corp shareholder,
+    # regardless of the raw flag — a real, permanent divergence for this one
+    # fixture's trace, not a bug. Stripped from BOTH sides (present on golden
+    # too), not just excluded from out_income, since deep_diff treats a key
+    # missing on one side as a real mismatch against the other side's value.
+    if fixture_id in GOLDEN_DIVERGENT_FIXTURES_CFC_ENTITY_ROUTING:
+        exclude.add("cfcPerEntityTrace")
+    out_income = {k: v for k, v in out["aggregateUsIncomeResult"].items() if k not in exclude}
+    golden_income = {k: v for k, v in golden["model"]["income"]["us"].items() if k not in exclude}
+    diff = deep_diff(out_income, golden_income)
     assert diff is None, f"{fixture_id}: " + " | ".join(diff[:8])
 
 

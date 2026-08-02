@@ -104,10 +104,24 @@ def _usd(n: float) -> str:
     return f"${js_round(n):,}"
 
 
+# ENTITY-ROUTING FIX (29 Jul 2026, ported from the equivalent JS fix): the
+# comment inside us_entity_result below previously implied GILTI/CFC
+# inclusion is never part of an entity's own return — true for an
+# S-corp/partnership (passes through to the OWNERS' own returns), but NOT
+# true for a C-corp or a trust that is itself the CFC's direct US
+# shareholder: §951A inclusion is real gross income to THAT shareholder,
+# taxed on its own return. aggregate_us_income.py's cfcInclusionResult now
+# force-routes every CFC into the corporate-style §250/FTC pool for a ccorp
+# shareholder (no §962 election needed/available for a real corporation);
+# wired into the ccorp and trust branches below via cfc_net_tax_usd.
+# S-corp/partnership are intentionally left untouched: a real pass-through
+# owes no federal entity-level tax on its CFC inclusion either way.
 def _us_entity_tax_result(d, ctx):
     kind = d["usEntityKind"]
     m1_taxable = d["entityResult"]["usScheduleM1TaxableIncomeUsd"]
     taxable = m1_taxable if m1_taxable is not None else d["aggregateUsIncomeResult"]["total"]["usd"]
+    cfc = d["aggregateUsIncomeResult"].get("cfcElectedPool")
+    cfc_net_tax_usd = cfc["netTaxUsd"] if cfc else 0
 
     def us_entity_result(taxable_usd, tax, label, passthrough):
         return {
@@ -135,8 +149,16 @@ def _us_entity_tax_result(d, ctx):
         }
 
     if kind == "ccorp":
-        tax = taxable * T["C_CORP_RATE"]
-        return us_entity_result(taxable, tax, "C-Corp (1120, 21%)", False)
+        # A domestic C-corp's own §951A inclusion is taxed with the entity's
+        # own income as a separate add-on line (cfcElectedPool already
+        # applied its own 40% §250 deduction / flat-21% / deemed-paid-FTC
+        # math) — same "flat add-on, not blended into the bracket base"
+        # pattern compute_us_tax_core uses for an individual's §962-elected
+        # gilti_962_tax_usd.
+        tax = taxable * T["C_CORP_RATE"] + cfc_net_tax_usd
+        r_ccorp = us_entity_result(taxable, tax, "C-Corp (1120, 21%)" + (" + CFC (§951A/NCTI) inclusion" if cfc_net_tax_usd > 0 else ""), False)
+        r_ccorp["cfcNetTaxUsd"] = cfc_net_tax_usd
+        return r_ccorp
     if kind == "trust":
         # "taxable" (from aggregateUsIncomeResult, since Schedule M-1 isn't
         # collected for a trust) is effectively the SUM of "Beneficiaries'
@@ -148,16 +170,28 @@ def _us_entity_tax_result(d, ctx):
         # economic total (distributed + retained) — cross-border FTC/
         # apportionment consumers want "how much did this entity earn," not
         # "how much is taxed at its level."
-        retained_usd = d["trustRetainedIncomeUsdRaw"]
+        #
+        # CFC inclusion: a trust holding CFC stock directly IS itself a
+        # §951A "United States shareholder" (unlike an S-corp/partnership).
+        # No field splits a GILTI/Subpart F inclusion into distributed-vs-
+        # retained the way the trust's other income is split, so — stated
+        # simplification, same "explicit boundary, not guessed" discipline
+        # as elsewhere — the non-elected inclusion is assumed RETAINED
+        # (added to retained_usd before the §1(e) bracket tax). A §962
+        # election (per-CFC, same as an individual) adds its own flat
+        # add-on tax, same pattern as the ccorp branch above.
+        cfc_non_elected_usd = (d["aggregateUsIncomeResult"].get("cfcNonElectedInclusionUs") or {}).get("usd", 0)
+        retained_usd = d["trustRetainedIncomeUsdRaw"] + cfc_non_elected_usd
         distributed_usd = taxable
         total_trust_income_usd = distributed_usd + retained_usd
-        trust_tax = bracket_tax(retained_usd, TRUST_ESTATE_BRACKETS)
+        trust_tax = bracket_tax(retained_usd, TRUST_ESTATE_BRACKETS) + cfc_net_tax_usd
         r = us_entity_result(
             total_trust_income_usd, trust_tax,
             "Trust/Estate (1041)" + (" — retained income at compressed §1(e) rates" if retained_usd > 0 else " · pass-through (fully distributed)"),
             retained_usd <= 0,
         )
         r["taxableIncomeUsd"] = retained_usd
+        r["cfcNetTaxUsd"] = cfc_net_tax_usd
         r["trustDistributedUsd"] = distributed_usd
         r["trustRetainedUsd"] = retained_usd
         r["trustBracketBreakdown"] = bracket_breakdown(retained_usd, TRUST_ESTATE_BRACKETS)
@@ -587,14 +621,24 @@ def _us_dual_status_result(d, ctx):
     if not info["isDualStatusYear"]:
         return None
     frac, nr_frac = info["residentFraction"], info["nonresidentFraction"]
+    # Saver's Credit (§25B) is a personal, nonrefundable credit — same
+    # resident-period-only treatment as care_expenses/aotc/lifetime_learning/
+    # dependents in _scale_ded_for_dual_status's drop_personal_credits.
+    # Full-year contribution amount applied entirely to the resident
+    # sub-period call, 0 to the nonresident one — this was previously
+    # omitted from BOTH compute_us_tax_core calls entirely, which silently
+    # dropped the Saver's Credit to $0 for every dual-status-year filer
+    # regardless of real contributions.
+    savers_credit_contribution_usd = d["electiveDeferralAggregateUsd"] + d["iraContributionAggregateUsd"]
 
     rp = compute_us_tax_core(
         _scale_resident_inc(d["incUs"], frac), _scale_ded_for_dual_status(d["dedUs"], frac, False),
         d["usFilingStatusRaw"], True, d["feie"], d["additionalMedicareOwedBoundary"], d["taxpayerDobRaw"], d["baseYearUs"],
+        savers_credit_contribution_usd,
     )
     nr_raw = compute_us_tax_core(
         _scale_nonresident_inc(d["incUs"], nr_frac), _scale_ded_for_dual_status(d["dedUs"], nr_frac, True),
-        d["usFilingStatusRaw"], False, _NO_FEIE, 0, d["taxpayerDobRaw"], d["baseYearUs"],
+        d["usFilingStatusRaw"], False, _NO_FEIE, 0, d["taxpayerDobRaw"], d["baseYearUs"], 0,
     )
     # NIIT never applies to a nonresident alien (Treas. Reg. 1.1411-2(a)(2)(i)) --
     # compute_us_tax_core has no NRA-awareness flag, so override post-hoc.
@@ -619,6 +663,10 @@ def _us_dual_status_result(d, ctx):
         "tipsDeductionUsd": rp["tipsDeductionUsd"], "overtimeDeductionUsd": rp["overtimeDeductionUsd"], "tipsOvertimeDetail": rp["tipsOvertimeDetail"],
         "ordinaryTaxableUsd": rp["ordinaryTaxableUsd"] + nr["ordinaryTaxableUsd"], "ordinaryBracketBreakdown": rp["ordinaryBracketBreakdown"],
         "amtDetail": rp["amtDetail"], "otherCreditsUsd": rp["otherCreditsUsd"] + nr["otherCreditsUsd"], "ctcDetail": rp["ctcDetail"],
+        # Saver's Credit is resident-period-only (see the drop_personal_
+        # credits comment above) -- nr's is always 0, kept as an explicit
+        # sum for the same reason otherCreditsUsd above is a sum.
+        "saversCreditUsd": (rp.get("saversCreditUsd") or 0) + (nr.get("saversCreditUsd") or 0), "saversCreditDetail": rp.get("saversCreditDetail"),
         "foreignSourceIncomeUsd": rp["foreignSourceIncomeUsd"],
         "retirementEpfInterestUsd": rp["retirementEpfInterestUsd"], "retirementNpsWithdrawalUsd": rp["retirementNpsWithdrawalUsd"],
         "niitDetail": rp["niitDetail"], "feie": rp["feie"],
@@ -708,7 +756,8 @@ def build(base):
     r.register("usResidencyEndDateRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "us_residency_detail.residency_end_date", None), layer1_fields=("us.us_residency_detail.residency_end_date",)))
     r.register("usDualStatusInfo", NodeDef(deps=("usStatusRaw", "usResidencyStartDateRaw", "usResidencyEndDateRaw", "baseYearUs"), compute=_us_dual_status_info))
     r.register("usDualStatusResult", NodeDef(
-        deps=("usDualStatusInfo", "incUs", "dedUs", "usFilingStatusRaw", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs"),
+        deps=("usDualStatusInfo", "incUs", "dedUs", "usFilingStatusRaw", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs",
+              "electiveDeferralAggregateUsd", "iraContributionAggregateUsd"),
         compute=_us_dual_status_result,
     ))
 

@@ -567,8 +567,72 @@ def _other_sources_misc_computation(d, ctx):
     )
 
 
-def _di_income_bases(di: dict, os_: dict):
-    salary_inr = num(safe(di, "salary.taxable_salary_inr", None)) or num(safe(di, "salary.gross_salary_inr", 0))
+# Salary income: gross + perquisites, less standard deduction and the
+# exemptions/deductions Layer 1 collects (HRA 10(13A), LTA 10(5),
+# conveyance/tour/daily allowance 10(14), PWD transport allowance 10(14)/
+# Rule 2BB(1)(g), professional tax 16(iii)). Previously the engine only ever
+# read salary.taxable_salary_inr (which real users never set — only the
+# demo/simulation path does) or fell back to raw gross_salary_inr with ZERO
+# exemptions applied, silently overstating salary income for every real
+# filer. HRA/LTA/professional-tax are OLD-regime-only per s.115BAC(2);
+# standard deduction and the Rule 2BB reimbursement-type allowances apply in
+# both regimes. Port of aggregateindiaincome-nodes.js's salaryIncomeComputation.
+def _salary_income_computation(d, ctx):
+    sal = safe(d["diAgg"], "salary", {})
+    explicit_taxable_inr = safe(sal, "taxable_salary_inr", None)
+    if explicit_taxable_inr is not None:
+        return {"taxableSalaryInr": num(explicit_taxable_inr), "overridden": True}
+
+    india = ctx.get("india")
+    is_new_regime = (safe(india, "profile.tax_regime", "NEW") or "NEW").upper() != "OLD"
+
+    gross_salary_inr = (
+        num(safe(sal, "gross_salary_inr", 0)) + num(safe(sal, "perquisites_inr", 0)) +
+        num(safe(sal, "esop_perquisite_inr", 0)) + num(safe(sal, "prior_employer_salary_inr", 0))
+    )
+
+    std_deduction_inr = C.INDIA["STD_DEDUCTION_SALARY_NEW_INR"] if is_new_regime else C.INDIA["STD_DEDUCTION_SALARY_OLD_INR"]
+
+    def reimbursement_exempt_inr(node):
+        return min(num(safe(node, "allowance_received_inr", 0)), num(safe(node, "actual_expenditure_inr", 0)))
+
+    conveyance_exempt_inr = reimbursement_exempt_inr(safe(sal, "conveyance_allowance", {}))
+    tour_exempt_inr = reimbursement_exempt_inr(safe(sal, "tour_travel_allowance", {}))
+    daily_exempt_inr = reimbursement_exempt_inr(safe(sal, "daily_allowance", {}))
+
+    pwd = safe(sal, "pwd_transport_allowance", {})
+    pwd_exempt_inr = (
+        min(num(safe(pwd, "allowance_received_inr", 0)), C.INDIA["PWD_TRANSPORT_ALLOWANCE_ANNUAL_INR"])
+        if safe(pwd, "is_eligible_pwd", False) is True else 0
+    )
+
+    hra_exempt_inr = lta_exempt_inr = professional_tax_deduction_inr = 0
+    if not is_new_regime:
+        hra_received_inr = num(safe(sal, "hra_received_inr", 0))
+        if hra_received_inr > 0:
+            basic_da_inr = num(safe(sal, "basic_da_inr", 0))
+            rent_minus_10pct_inr = max(0.0, num(safe(sal, "rent_paid_inr", 0)) - 0.10 * basic_da_inr)
+            metro_limit_inr = (0.5 if safe(sal, "is_metro_city", False) is True else 0.4) * basic_da_inr
+            hra_exempt_inr = max(0.0, min(hra_received_inr, rent_minus_10pct_inr, metro_limit_inr))
+        # lta_claimed_inr is already the exempt amount per Form 16 Part B's own "allowances exempt u/s 10" line.
+        lta_exempt_inr = max(0.0, num(safe(sal, "lta_claimed_inr", 0)))
+        professional_tax_deduction_inr = min(num(safe(sal, "professional_tax_inr", 0)), C.INDIA["PROFESSIONAL_TAX_MAX_ANNUAL_INR"])
+
+    total_exemptions_inr = (
+        std_deduction_inr + conveyance_exempt_inr + tour_exempt_inr + daily_exempt_inr +
+        pwd_exempt_inr + hra_exempt_inr + lta_exempt_inr + professional_tax_deduction_inr
+    )
+
+    return {
+        "taxableSalaryInr": max(0.0, gross_salary_inr - total_exemptions_inr), "overridden": False,
+        "grossSalaryInr": gross_salary_inr, "stdDeductionInr": std_deduction_inr,
+        "hraExemptInr": hra_exempt_inr, "ltaExemptInr": lta_exempt_inr, "conveyanceExemptInr": conveyance_exempt_inr,
+        "tourExemptInr": tour_exempt_inr, "dailyExemptInr": daily_exempt_inr, "pwdExemptInr": pwd_exempt_inr,
+        "professionalTaxDeductionInr": professional_tax_deduction_inr,
+    }
+
+
+def _di_income_bases(di: dict, os_: dict, salary_inr: float):
     hp_props = safe(di, "house_property.properties", []) or []
     house_property_inr = sum(
         num(p.get("annual_value_inr") or p.get("gross_annual_value_inr") or p.get("net_income_inr") or p.get("gross_rent_received_inr") or 0)
@@ -586,7 +650,8 @@ def _di_income_bases(di: dict, os_: dict):
 
 def _total_india_income_inr(d, ctx):
     di = d["diAgg"]
-    salary_inr, _hp_props, house_property_inr, interest_inr, dividend_inr, special_rate_115bb_inr = _di_income_bases(di, d["osAgg"])
+    salary_inr = d["salaryIncomeComputation"]["taxableSalaryInr"]
+    salary_inr, _hp_props, house_property_inr, interest_inr, dividend_inr, special_rate_115bb_inr = _di_income_bases(di, d["osAgg"], salary_inr)
     bc, cg = d["businessComputation"], d["capitalGainsComputation"]
     return (
         salary_inr + bc["businessInr"] + house_property_inr + interest_inr + dividend_inr + cg["stcgInr"] + cg["ltcgInr"] +
@@ -600,7 +665,8 @@ def _india_income_model_result(d, ctx):
         return {"inr": inr, "usd": inr / fx_rate(ctx)}
 
     di, os_ = d["diAgg"], d["osAgg"]
-    salary_inr, hp_props, house_property_inr, interest_inr, dividend_inr, special_rate_115bb_inr = _di_income_bases(di, os_)
+    salary_inr = d["salaryIncomeComputation"]["taxableSalaryInr"]
+    salary_inr, hp_props, house_property_inr, interest_inr, dividend_inr, special_rate_115bb_inr = _di_income_bases(di, os_, salary_inr)
     agricultural_income_inr = num(safe(di, "agricultural_income_inr", 0))
     unexplained_115bbe_inr = num(safe(os_, "unexplained_income_115BBE_inr", 0))
 
@@ -632,6 +698,7 @@ def _india_income_model_result(d, ctx):
         "promoterBuybackStcgInr": cg["promoterBuybackStcgInr"],
         "holdingPeriodMismatches": cg["holdingPeriodMismatches"],
         "unexplained115bbeInr": unexplained_115bbe_inr,
+        "salaryDetail": d["salaryIncomeComputation"],
         "total": m(total),
     }
     basket = india_income_basket_split(result)
@@ -793,6 +860,21 @@ NODES = {
     # provenance lives on the nodes below that pull a named field out.
     "annualSliceAgg": NodeDef(deps=(), compute=lambda d, ctx: _annual_slice_agg(ctx)),
     "diAgg": NodeDef(deps=("annualSliceAgg",), compute=lambda d, ctx: d["annualSliceAgg"].get("domestic_income") or {}),
+    "salaryIncomeComputation": NodeDef(
+        deps=("diAgg",), compute=_salary_income_computation,
+        layer1_fields=(
+            "india.domestic_income.salary.taxable_salary_inr", "india.domestic_income.salary.gross_salary_inr",
+            "india.domestic_income.salary.perquisites_inr", "india.domestic_income.salary.esop_perquisite_inr",
+            "india.domestic_income.salary.prior_employer_salary_inr", "india.profile.tax_regime",
+            "india.domestic_income.salary.conveyance_allowance.allowance_received_inr", "india.domestic_income.salary.conveyance_allowance.actual_expenditure_inr",
+            "india.domestic_income.salary.tour_travel_allowance.allowance_received_inr", "india.domestic_income.salary.tour_travel_allowance.actual_expenditure_inr",
+            "india.domestic_income.salary.daily_allowance.allowance_received_inr", "india.domestic_income.salary.daily_allowance.actual_expenditure_inr",
+            "india.domestic_income.salary.pwd_transport_allowance.is_eligible_pwd", "india.domestic_income.salary.pwd_transport_allowance.allowance_received_inr",
+            "india.domestic_income.salary.hra_received_inr", "india.domestic_income.salary.basic_da_inr",
+            "india.domestic_income.salary.rent_paid_inr", "india.domestic_income.salary.is_metro_city",
+            "india.domestic_income.salary.lta_claimed_inr", "india.domestic_income.salary.professional_tax_inr",
+        ),
+    ),
     "osAgg": NodeDef(deps=("annualSliceAgg",), compute=lambda d, ctx: d["annualSliceAgg"].get("other_sources") or {}),
     "cgAgg": NodeDef(deps=("annualSliceAgg",), compute=lambda d, ctx: d["annualSliceAgg"].get("capital_gains") or {}),
     "bizEntriesAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: safe(d["diAgg"], "business_income.business_entries", []), layer1_fields=("india.domestic_income.business_income.business_entries",)),
@@ -824,12 +906,12 @@ NODES = {
     ),
     "otherSourcesMiscComputation": NodeDef(deps=("osAgg", "diAgg"), compute=_other_sources_misc_computation, layer1_fields=_OTHER_SOURCES_MISC_FIELDS),
     "totalIndiaIncomeInr": NodeDef(
-        deps=("businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "diAgg", "osAgg"),
+        deps=("businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "diAgg", "osAgg", "salaryIncomeComputation"),
         compute=_total_india_income_inr,
         layer1_fields=_INCOME_BASES_FIELDS,
     ),
     "indiaIncomeModelResult": NodeDef(
-        deps=("businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "diAgg", "osAgg", "fnoIncomeInrAgg", "speculativeIncomeInrAgg"),
+        deps=("businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "diAgg", "osAgg", "fnoIncomeInrAgg", "speculativeIncomeInrAgg", "salaryIncomeComputation"),
         compute=_india_income_model_result,
         layer1_fields=_INCOME_BASES_FIELDS + ("india.domestic_income.agricultural_income_inr", "india.other_sources.unexplained_income_115BBE_inr"),
     ),

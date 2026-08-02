@@ -285,8 +285,25 @@ var T_CFC = CONST_CFC.TAX.US;
  *    already applied to otherOrdinaryIncomeUs.
  *  - §962 election modeled per-CFC, matching real law (each CFC may elect
  *    separately) — read off each foreign_corporations[] entry independently.
+ *
+ * ENTITY-ROUTING FIX (found during a post-Phase-7 review, 29 Jul 2026):
+ * §962 is only available to NON-corporate US shareholders (individuals,
+ * trusts) electing to be taxed as if they were a domestic corporation for
+ * this inclusion. A REAL domestic C-corporation shareholder needs no
+ * election at all — it gets direct §951A inclusion, the §250 deduction, and
+ * the §960 indirect/deemed-paid FTC automatically, by virtue of actually
+ * being a corporation. Before this fix, computeCfcInclusion routed every CFC
+ * purely on its own per-CFC sec962_election_planned flag, so a genuine
+ * C-corp shareholder whose Layer 1 data (correctly) left that flag unset
+ * fell into the "non-elected" bucket — full ordinary-income inclusion, no
+ * §250 deduction, no FTC — which isn't how corporate GILTI/NCTI actually
+ * works, and (see usEntityTaxResult in ustax-full-nodes.js) that bucket's
+ * dollar figure wasn't even wired into the entity's own tax liability at
+ * all, so the practical effect was $0 either way. isCorporateShareholder
+ * forces every CFC into the corporate-style pool for a real C-corp,
+ * regardless of each CFC's own (legally inapplicable) election flag.
  */
-function computeCfcInclusion(corps) {
+function computeCfcInclusion(corps, isCorporateShareholder) {
   var nonElected = { testedIncome: 0, testedLoss: 0, subpartF: 0 };
   var elected = { testedIncome: 0, testedLoss: 0, subpartF: 0, foreignTaxPaid: 0 };
   var perCfcTrace = [];
@@ -300,7 +317,7 @@ function computeCfcInclusion(corps) {
     var epUsd = Math.max(0, num(c.ep_usd)) * frac;
     var subpartFRawUsd = Math.max(0, num(c.subpart_f_income_usd)) * frac;
     var subpartFUsd = Math.min(subpartFRawUsd, epUsd); // §952(c) E&P cap
-    var elect = c.sec962_election_planned === true;
+    var elect = isCorporateShareholder || c.sec962_election_planned === true;
     var bucket = elect ? elected : nonElected;
     bucket.testedIncome += testedIncomeUsd;
     bucket.testedLoss += testedLossUsd;
@@ -346,7 +363,27 @@ var NODES = {
   // Duplicated from crossbasis-nodes.js's usForeignCorpsRaw (deps:[] raw
   // leaf, harmless redefinition — see chain-topology note above).
   usForeignCorpsRawForIncome: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_entities.foreign_corporations", []) || []; } },
-  cfcInclusionResult: { deps: ["usForeignCorpsRawForIncome"], compute: function (d) { return computeCfcInclusion(d.usForeignCorpsRawForIncome); } },
+  // Duplicated from agg10-nodes.js's usEntityKind (its own LLC-election
+  // normalization: tax_entity_type, with "llc" resolved through
+  // llc_tax_election) rather than depending on the "usEntityKind" node id
+  // itself — this file (and its cfcInclusionResult below) is a LOWER layer
+  // that many narrower compositions build on top of (apportionment-nodes.js
+  // being the one that actually surfaced this; its Python port's own
+  // narrower test registries don't pull in agg10-nodes.js's entity-routing
+  // layer at all), so cfcInclusionResult can't take on a hard dependency on
+  // a node id only the fuller entity-routing chain registers.
+  usEntityKindForCfc: {
+    deps: [],
+    compute: function (d, ctx) {
+      var usT = safe(ctx.us, "profile.tax_entity_type", "individual");
+      if (usT === "llc") usT = safe(ctx.us, "profile.llc_tax_election", "individual");
+      return usT;
+    }
+  },
+  cfcInclusionResult: {
+    deps: ["usForeignCorpsRawForIncome", "usEntityKindForCfc"],
+    compute: function (d) { return computeCfcInclusion(d.usForeignCorpsRawForIncome, d.usEntityKindForCfc === "ccorp"); }
+  },
 
   baseYearUsAgg: { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "metadata.us_calendar_year", 2025)) || 2025; } },
 

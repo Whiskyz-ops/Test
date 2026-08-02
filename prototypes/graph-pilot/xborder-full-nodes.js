@@ -43,7 +43,7 @@ var OVERRIDDEN_BOUNDARY_IDS = [
   "feieExcludedUsdBoundaryFtc", "usIsNraBoundaryFtc", "hasUsScopeBoundaryFtc",
   "indiaIncomeTotalUsdBoundaryFtc", "usTaxableIncomeUsdBoundaryFtc", "usIncomeTaxUsdBoundaryFtc",
   "usTotalIncomeUsdBoundaryFtc", "usSourceIncomeUsdBoundaryFtc", "indiaTotalTaxUsdBoundaryFtc",
-  "indiaTotalIncomeUsdBoundaryFtc", "indiaWorldwideBoundaryFtc", "usSourceTotalUsdBoundaryFtc",
+  "indiaTotalIncomeUsdBoundaryFtc", "indiaWorldwideBoundaryFtc", "usWorldwideBoundaryFtc", "usSourceTotalUsdBoundaryFtc",
   // task #46 (multi-country/multi-basket FTC) additions — ftc-nodes.js's own
   // versions read ctx.model.income.*, which this composition closes (see
   // file header: "ctx.model.income: NONE" after this file) -- redefined to
@@ -117,6 +117,12 @@ NODES.indiaTotalIncomeUsdBoundaryFtc = {
   compute: function (d, ctx) { return (d.isEntityTaxpayer ? d.entityTaxableInrBoundary : d.totalIncomeInrV3) / fxRate(ctx); }
 };
 NODES.indiaWorldwideBoundaryFtc = { deps: ["residencyResult"], compute: function (d) { return !!d.residencyResult.india.worldwide; } };
+// Reads usTaxResult.worldwide, not residencyResult.us.worldwide (see
+// ftc-nodes.js's own comment on this boundary) — usTaxResult is already the
+// routed, entity/NRA-aware result (usTaxResult itself is redefined as the
+// router further down this same file), so this stays correct for every
+// taxpayer shape without re-deriving entity/NRA routing a second time here.
+NODES.usWorldwideBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return !!d.usTaxResult.worldwide; } };
 // §904 basket split (task #46) — in-graph version of ftc-nodes.js's own
 // boundary, reading indiaIncomeModelResult (already in this composition via
 // india-full-nodes.js) directly instead of ctx.model.income.india.
