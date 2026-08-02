@@ -188,6 +188,25 @@ NODES.usCorpScheduleLRaw = { deps: [], compute: function (d, ctx) { return safe(
 // taxpayer who fills in this accordion actually gets Form 8865 flagged.
 NODES.usForeignPartnershipsRaw = { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_entities.foreign_partnerships", []) || []; } };
 
+// ---- form_27d (task #48, LRS-investor flag): report-batch4-nodes.js's
+// computeLrsTcs() (AGG-8, already ported) isn't reachable from here —
+// report-batch1-nodes.js sits BEFORE report-batch4-nodes.js in the merge
+// chain, and run-report1.js resolves this file's own NODES completely
+// standalone — so this trigger re-derives just the purpose + above-
+// threshold check it needs from the same raw india.lrs_outbound field
+// computeLrsTcs itself reads, rather than duplicating that file's full TCS
+// dollar computation (which stays this codebase's single copy).
+// LRS_TCS_THRESHOLD_INR_B1 mirrors report-batch4-nodes.js's own
+// LRS_TCS_THRESHOLD_INR constant — the ₹10L s.206C(1G) base threshold below
+// which an investment/gift-donation LRS remittance owes no TCS at all.
+var LRS_TCS_THRESHOLD_INR_B1 = 1000000;
+NODES.lrsOutboundRaw = {
+  deps: [], compute: function (d, ctx) {
+    var lo = safe(ctx.india, "lrs_outbound", {}) || {};
+    return { totalRemittedInr: num(lo.total_lrs_remitted_this_fy_inr), purpose: lo.lrs_purpose || null };
+  }
+};
+
 // ---- form_10ic / form_10id — the company-side regime-election forms,
 // mirroring form_10iea's individual/HUF equivalent. Same raw flags
 // entitytax-nodes.js/agg10-nodes.js already read for the entity-tax rate
@@ -363,7 +382,15 @@ var DOCUMENTS_CATALOG = [
   // this is a required document, not itself a finding of wrongdoing —
   // itinApplicationRequiredFinding (report-batch5-nodes.js) is the loud,
   // severity: "critical" warning that filing is actually BLOCKED without it.
-  { id: "form_w7", jurisdiction: "US", name: "IRS Form W-7 (ITIN Application)", desc: "Application for an IRS Individual Taxpayer Identification Number, for anyone listed on a US return who isn't eligible for an SSN.", why: "No SSN, ITIN, or ATIN is on file for this taxpayer and no Form W-7 application is recorded as already filed — one is required before a 1040/1040-NR listing this person can actually be filed (IRC §6109).", severity: "info" }
+  { id: "form_w7", jurisdiction: "US", name: "IRS Form W-7 (ITIN Application)", desc: "Application for an IRS Individual Taxpayer Identification Number, for anyone listed on a US return who isn't eligible for an SSN.", why: "No SSN, ITIN, or ATIN is on file for this taxpayer and no Form W-7 application is recorded as already filed — one is required before a 1040/1040-NR listing this person can actually be filed (IRC §6109).", severity: "info" },
+  // DELIBERATE DAG/engine divergence, same pattern as form_w7 above (task
+  // #48, LRS-investor flag) — the engine's computeLrsTcs was already ported
+  // (report-batch4-nodes.js, AGG-8) but never promoted to a Filings-tab
+  // document, only a Withholding-tab summary row. Form 27D is the TCS
+  // certificate the AUTHORIZED DEALER (bank) issues to the remitter — the
+  // remitter's own counterpart to Form 16A, needed to actually claim the
+  // TCS as a credit in the ITR.
+  { id: "form_27d", jurisdiction: "IN", name: "Form 27D (TCS Certificate)", desc: "Certificate issued by the Authorized Dealer/bank for Tax Collected at Source on an outward LRS remittance.", why: "An LRS remittance for investment or gift/donation purposes exceeded the ₹10L base threshold — s.206C(1G) TCS was collected on the excess, and Form 27D is needed to claim it as a credit in the ITR.", severity: "info" }
 ];
 
 NODES.buildDocumentsResult = {
@@ -374,7 +401,7 @@ NODES.buildDocumentsResult = {
     "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
     "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw",
     "entityTaxResult", "taxRegime", "businessComputation", "indiaOpt115baaRaw", "indiaOpt115babRaw", "presumptiveLockinAgg", "usCorpScheduleLRaw",
-    "hasUsScope", "ssnOrItinTypeRaw", "usEntityKind"],
+    "hasUsScope", "ssnOrItinTypeRaw", "usEntityKind", "lrsOutboundRaw"],
   compute: function (d) {
     var res = d.residencyResult;
     var isForm1118 = d.entityFormsResult.usReturnForm === "1120";
@@ -489,6 +516,8 @@ NODES.buildDocumentsResult = {
       lrs_form_a2: d.limitsRawExtra.lrsRemittedInr > 0,
       form_4868: d.hasUsScopeBoundaryFtc,
       form_w7: d.hasUsScope && d.usEntityKind === "individual" && d.ssnOrItinTypeRaw === "none" && !d.nraRaw.w7ItinApplicationFiled,
+      form_27d: (d.lrsOutboundRaw.purpose === "investment" || d.lrsOutboundRaw.purpose === "gift_donation") &&
+                d.lrsOutboundRaw.totalRemittedInr > LRS_TCS_THRESHOLD_INR_B1,
       form_540: !!d.usStateTaxResult && d.usStateTaxResult.state === "CA",
       form_it201: !!d.usStateTaxResult && d.usStateTaxResult.state === "NY",
       form_nj1040: !!d.usStateTaxResult && d.usStateTaxResult.state === "NJ",

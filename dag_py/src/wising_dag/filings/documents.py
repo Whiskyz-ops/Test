@@ -143,6 +143,10 @@ def _form8938_gauge_result(d, ctx):
     return {"id": "form8938", "value": value_usd, "limit": limit, "pct": pct, "status": status}
 
 
+# Mirrors reports/trace.py's own LRS_TCS_THRESHOLD_INR -- see lrsOutboundRaw
+# below for why this file keeps its own copy rather than importing it.
+_LRS_TCS_THRESHOLD_INR = 1000000
+
 DOCUMENTS_CATALOG = [
     {"id": "fincen_114", "jurisdiction": "US", "name": "FinCEN Form 114 (FBAR)", "desc": "Report of Foreign Bank and Financial Accounts.", "why": "Aggregate peak balance across all foreign (Indian) accounts exceeded USD 10,000.", "severity": "critical"},
     {"id": "form_8938", "jurisdiction": "US", "name": "IRS Form 8938 (FATCA)", "desc": "Statement of Specified Foreign Financial Assets, filed with Form 1040.", "why": "Specified foreign financial assets exceeded the Form 8938 reporting threshold for your filing status/residence.", "severity": "critical"},
@@ -195,6 +199,14 @@ DOCUMENTS_CATALOG = [
     {"id": "lrs_form_a2", "jurisdiction": "IN", "name": "LRS Form A2 (Outward Remittance Declaration)", "desc": "Declaration furnished to the remitting bank for each outward remittance under the Liberalised Remittance Scheme.", "why": "Outward remittances under LRS were made this year — each remittance requires its own Form A2 filed with the bank at the time of transfer, separate from the annual Form 145/146 (was 15CA/15CB) return-time reporting.", "severity": "info"},
     {"id": "form_4868", "jurisdiction": "US", "name": "IRS Form 4868 (Extension Request)", "desc": "Automatic 6-month extension of time to file (not to pay) the US return.", "why": "Must be filed by the original due date to legally reach the extended deadline already on your Compliance Calendar — the extension does not happen automatically.", "severity": "info"},
     {"id": "form_w7", "jurisdiction": "US", "name": "IRS Form W-7 (ITIN Application)", "desc": "Application for an IRS Individual Taxpayer Identification Number, for anyone listed on a US return who isn't eligible for an SSN.", "why": "No SSN, ITIN, or ATIN is on file for this taxpayer and no Form W-7 application is recorded as already filed — one is required before a 1040/1040-NR listing this person can actually be filed (IRC §6109).", "severity": "info"},
+    # DELIBERATE DAG/engine divergence, same pattern as form_w7 above (task
+    # #48, LRS-investor flag) -- computeLrsTcs (reports/trace.py, AGG-8) was
+    # already ported but never promoted to a Filings-tab document, only a
+    # Withholding-tab summary row. Form 27D is the TCS certificate the
+    # Authorized Dealer/bank issues to the remitter -- the remitter's own
+    # counterpart to Form 16A, needed to actually claim the TCS as a credit
+    # in the ITR.
+    {"id": "form_27d", "jurisdiction": "IN", "name": "Form 27D (TCS Certificate)", "desc": "Certificate issued by the Authorized Dealer/bank for Tax Collected at Source on an outward LRS remittance.", "why": "An LRS remittance for investment or gift/donation purposes exceeded the ₹10L base threshold — s.206C(1G) TCS was collected on the excess, and Form 27D is needed to claim it as a credit in the ITR.", "severity": "info"},
 ]
 
 
@@ -258,6 +270,7 @@ def _build_documents_result(d, ctx):
         "lrs_form_a2": d["limitsRawExtra"]["lrsRemittedInr"] > 0,
         "form_4868": d["hasUsScopeBoundaryFtc"],
         "form_w7": d["hasUsScope"] and d["usEntityKind"] == "individual" and d["ssnOrItinTypeRaw"] == "none" and not d["nraRaw"]["w7ItinApplicationFiled"],
+        "form_27d": d["lrsOutboundRaw"]["purpose"] in ("investment", "gift_donation") and d["lrsOutboundRaw"]["totalRemittedInr"] > _LRS_TCS_THRESHOLD_INR,
         "form_540": bool(d["usStateTaxResult"]) and d["usStateTaxResult"]["state"] == "CA",
         "form_it201": bool(d["usStateTaxResult"]) and d["usStateTaxResult"]["state"] == "NY",
         "form_nj1040": bool(d["usStateTaxResult"]) and d["usStateTaxResult"]["state"] == "NJ",
@@ -453,6 +466,27 @@ NODES = {
     # field represented this at all, which the live UI has since grown.
     "usForeignPartnershipsRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_entities.foreign_partnerships", []) or [], layer1_fields=("us.foreign_entities.foreign_partnerships",)),
     "usCorpScheduleLRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "corporate_financials.schedule_l", {}) or {}, layer1_fields=("us.corporate_financials.schedule_l",)),
+    # form_27d (task #48, LRS-investor flag): reports/trace.py's
+    # `_compute_lrs_tcs` (AGG-8, already ported) isn't reachable from here --
+    # this module is a standalone, "trust-the-caller" file (see this file's
+    # own docstring) built and tested WITHOUT reports/trace.py present (see
+    # test_filings_documents.py's own composed registry). So this trigger
+    # re-derives just the purpose + above-threshold check it needs from the
+    # same raw india.lrs_outbound field `_compute_lrs_tcs` itself reads,
+    # rather than duplicating that file's full TCS dollar computation (which
+    # stays this codebase's single copy). LRS_TCS_THRESHOLD_INR mirrors
+    # reports/trace.py's own constant of the same name -- ₹10L, the
+    # s.206C(1G) base threshold below which an investment/gift-donation LRS
+    # remittance owes no TCS at all. Same duplication reports-batch1-
+    # nodes.js's own `lrsOutboundRaw` accepts on the JS side, for the same
+    # standalone-graph reason.
+    "lrsOutboundRaw": NodeDef(
+        deps=(), compute=lambda d, ctx: {
+            "totalRemittedInr": num(safe(ctx.get("india"), "lrs_outbound.total_lrs_remitted_this_fy_inr", 0)),
+            "purpose": safe(ctx.get("india"), "lrs_outbound.lrs_purpose", None),
+        },
+        layer1_fields=("india.lrs_outbound.total_lrs_remitted_this_fy_inr", "india.lrs_outbound.lrs_purpose"),
+    ),
     "form8938GaugeResult": NodeDef(deps=("feie", "usFilingStatusRaw", "accountsListResult", "aggregateLastDayUsdResult", "hasUsScopeBoundaryFtc"), compute=_form8938_gauge_result),
     "headlineTotalIncomeUsdResult": NodeDef(
         deps=("totalIndiaIncomeInr", "aggregateUsIncomeResult"),
@@ -466,7 +500,7 @@ NODES = {
               "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
               "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw",
               "entityTaxResult", "taxRegime", "businessComputation", "presumptiveLockinAgg", "slabs", "usCorpScheduleLRaw",
-              "hasUsScope", "ssnOrItinTypeRaw", "usEntityKind"),
+              "hasUsScope", "ssnOrItinTypeRaw", "usEntityKind", "lrsOutboundRaw"),
         compute=_build_documents_result,
     ),
     "buildScopeNotesResult": NodeDef(

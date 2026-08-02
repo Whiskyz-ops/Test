@@ -9,6 +9,15 @@ usTax/headline/summary/reconciliation/apportionment/monitoring/
 taxComputation.us/withholding all diff clean. Verified here so it can't
 silently regress.
 
+One exception, in summary.requiredDocs only: this fixture has form_10iea
+(DAG-only, no engine equivalent -- old regime + PGBP income) and, as of
+task #48 (LRS-investor flag), form_27d (DAG-only -- an on-file LRS
+investment remittance above ₹10L) both required, 2 more than golden's own
+count. support.py's own numeric _close() tolerance (±1) already silently
+absorbed the single form_10iea gap before form_27d existed; the 2-doc
+total needs an explicit adjustment below rather than relying on that
+tolerance a second time.
+
 Golden-pinned, WITH the one documented divergence: the 1 real business-
 entity fixture (us_ccorp_indian_sub, C-Corp) has exactly one root-cause
 delta — usTaxResult.usSourceIncomeUsd is this port's real Schedule M-1
@@ -86,7 +95,16 @@ def test_nra_fixture_matches_golden_end_to_end():
     nra = result["computed"]["usTax"]["nra"]
     assert nra["article212Eligible"] is False
     assert nra["article212AmbiguousJ1"] is False
-    diff = deep_diff(result["summary"], golden["summary"])
+    # form_10iea (pre-existing, absorbed by support.py's ±1 numeric
+    # tolerance until now) + form_27d (task #48) are both DAG-only required
+    # docs golden's frozen engine has no concept of -- see this file's own
+    # header. Adjust golden's requiredDocs up to compare on equal footing,
+    # same discipline as test_analyze_golden.py's own DAG_ONLY_DOCUMENT_IDS
+    # adjustment.
+    _dag_only_required_docs = sum(1 for d in result["documents"] if d["id"] in ("form_10iea", "form_27d") and d.get("required"))
+    golden_summary = dict(golden["summary"])
+    golden_summary["requiredDocs"] += _dag_only_required_docs
+    diff = deep_diff(result["summary"], golden_summary)
     assert diff is None, "summary: " + " | ".join(diff[:8])
     diff = deep_diff(result["taxComputation"]["us"], golden["taxComputation"]["us"])
     assert diff is None, "taxComputation.us: " + " | ".join(diff[:8])

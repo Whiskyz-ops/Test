@@ -862,8 +862,65 @@ NODES = {
 }
 
 
+def _findings_all_result_with_lrs_tcs(d, ctx, base_compute):
+    """Override, port of report-batch5-nodes.js's `lrsInvestmentTcsFinding`
+    (task #48, LRS-investor flag -- new DAG-only finding, no engine
+    equivalent). `_compute_lrs_tcs()`/`withholdingDetailIndiaRaw` above were
+    previously report-only, feeding only the Withholding tab's summary row
+    -- a taxpayer remitting funds abroad under the LRS specifically to
+    invest (or as a gift/donation, the same 20%-above-₹10L bracket under
+    s.206C(1G)) got no loud signal at all. Scoped to purpose
+    "investment"/"gift_donation" only, matching the JS source and
+    filings/documents.py's own `form_27d` trigger above.
+
+    Registered here (not filings/assets.py's own override chain) because
+    this file already carries `withholdingDetailIndiaRaw` -- same "closest
+    file that already has the data" placement `_findings_all_result_
+    override` there documents for its own additions.
+    """
+    from ..core.fx_util import fx_rate
+
+    all_findings = list(base_compute(d, ctx))
+    lrs = d["withholdingDetailIndiaRaw"]["lrsTcs"]
+    if lrs and lrs["tcsInr"] > 0 and lrs["purpose"] in ("investment", "gift_donation"):
+        all_findings.append({
+            "id": "lrs_investment_tcs", "severity": "info", "category": "credit",
+            "title": f"TCS collected on LRS {'investment' if lrs['purpose'] == 'investment' else 'gift/donation'} remittance ({inr(lrs['tcsInr'])})",
+            "detail": (
+                f"{inr(lrs['totalRemittedInr'])} remitted abroad this year under the Liberalised Remittance Scheme for "
+                f"{lrs['purposeLabel'].lower()}. s.206C(1G) collects Tax Collected at Source at {lrs['ratePctLabel']} "
+                f"({lrs['note']}), totalling {inr(lrs['tcsInr'])}."
+            ),
+            "recommendation": (
+                "TCS collected here is available as a credit against the final India tax liability (or refundable if "
+                "it exceeds it) — reconcile the amount against Form 26AS/AIS before filing. An LRS remittance for "
+                "investment purposes often means a new foreign asset is now on file — confirm whether it also "
+                "triggers its own Schedule FA, FBAR, or Form 8621 (PFIC) disclosure, each a separate requirement "
+                "from this TCS credit."
+            ),
+            "amountUsd": lrs["tcsInr"] / fx_rate(ctx), "refs": ["s.206C(1G)", "LRS"],
+        })
+    return all_findings
+
+
 def build(base):
     r = base.extend()
     for node_id, node in NODES.items():
         r.register(node_id, node)
+
+    # Guarded like registry.py's own "if X not in r" conditionals --
+    # test_reports_trace.py builds a narrower registry (itr_form + us_full
+    # only) that never registers reports/assembly.py's findingsAllResult at
+    # all, so there's nothing to override there; the real production chain
+    # (core/registry.py's build_full_registry) always has it by this point.
+    base_findings_all = r.get("findingsAllResult")
+    if base_findings_all is not None:
+        r.override(
+            "findingsAllResult",
+            NodeDef(
+                deps=base_findings_all.deps + ("withholdingDetailIndiaRaw",),
+                compute=lambda d, ctx: _findings_all_result_with_lrs_tcs(d, ctx, base_findings_all.compute),
+            ),
+            reason="report-batch5-nodes.js: adds lrs_investment_tcs finding (task #48, LRS-investor flag) on top of reports/assembly.py's own findingsAllResult",
+        )
     return r

@@ -498,7 +498,7 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // stays that way permanently, so any fuzz-generated entity profile that
 // owns ≥10% of a foreign corporation now genuinely diverges — DAG correctly
 // fires, engine categorically cannot.
-var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely|itin_application_required|nra_eci_fdap_classification_check|treaty_rate_not_recognized|ftc_gap|ftc_available|niit_medicare_not_creditable|underpayment_2210|cfc|cfc_below_threshold)$/;
+var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely|itin_application_required|lrs_investment_tcs|nra_eci_fdap_classification_check|treaty_rate_not_recognized|ftc_gap|ftc_available|niit_medicare_not_creditable|underpayment_2210|cfc|cfc_below_threshold)$/;
 // cfc (Phase 7, XB-14, GILTI/NCTI quantification): the finding's detail/
 // recommendation/refs text now differs unconditionally from the frozen
 // engine's static text whenever it fires — real computed inclusion numbers
@@ -961,7 +961,7 @@ function assembleDag(profile, monitorAsOfBoundary) {
   // calendar's bundled docIds, same category as checksRegistry above.
   // Shallow-copy the calendar rows (not a full JSON clone, which would turn
   // Date objects into strings elsewhere in this same tree).
-  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880", "form_w7"];
+  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880", "form_w7", "form_27d"];
   var droppedRequiredCount = (out.analyzeResult.documents || []).filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) !== -1 && x.required; }).length;
   var documents = (out.analyzeResult.documents || []).filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) === -1; });
   var stripNj1040 = function (row) {

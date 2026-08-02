@@ -1,0 +1,111 @@
+{
+  "id": "us_lrs_gift_donation_tcs",
+  "label": "LRS gift/donation remittance above ₹10L (manual case)",
+  "story": "Manual regression case for task #48 (LRS-investor flag): India-only individual resident who remitted ₹18,00,000 abroad under the Liberalised Remittance Scheme for a gift/donation to a non-resident relative. Fires lrs_investment_tcs (s.206C(1G) TCS on the ₹8,00,000 excess over the ₹10L base threshold, at 20%) and the form_27d document trigger. Independently exercises the \"gift_donation\" branch of computeLrsTcs's purpose dispatch -- the only other real/fuzz profile that ever reaches this code path (india_ror_us_income) only ever exercises the \"investment\" branch, so \"gift_donation\" was otherwise untested by any golden fixture or fuzz-corpus profile.",
+  "tags": [
+    "LRS",
+    "TCS",
+    "s.206C(1G)",
+    "Form 27D",
+    "manual case"
+  ],
+  "router": {
+    "jurisdiction": "single_india",
+    "base_tax_year": 2026,
+    "full_name": "Priya Nair",
+    "date_of_birth": "1979-06-14",
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 0,
+    "has_us_source_income_or_assets": false
+  },
+  "india": {
+    "profile": {
+      "full_name": "Priya Nair",
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 300,
+      "final_india_residency_status": "ROR"
+    },
+    "dtaa": {},
+    "compliance_docs": {},
+    "bank_accounts": [],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "transactions": []
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "employers": [
+          {
+            "employer_name": "Meridian Consulting Pvt Ltd",
+            "gross_salary_inr": 2400000
+          }
+        ]
+      },
+      "house_property": {
+        "has_house_property_income": false,
+        "properties": []
+      },
+      "business_income": {
+        "has_business_or_fo_income": false,
+        "business_entries": []
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {},
+    "deductions": {},
+    "carry_forward_losses": {},
+    "lrs_outbound": {
+      "total_lrs_remitted_this_fy_inr": 1800000,
+      "lrs_purpose": "gift_donation"
+    },
+    "tax_credits": {},
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Priya Nair",
+      "filing_status": "single"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 0,
+      "spt_test_met": false,
+      "final_us_residency_status": "NON_RESIDENT_ALIEN"
+    },
+    "income_us_source": {},
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "bank_accounts": [],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {},
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {},
+    "nra_specific": {
+      "files_form_1040nr": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

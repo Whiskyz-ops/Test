@@ -96,7 +96,7 @@ def _is_entity_or_nra(golden: dict) -> bool:
 # engine) never carries these ids — filtered out before comparing, a
 # permanent divergence like the entity-branch one in test_reports_trace.py,
 # not a "not yet ported" gap.
-DAG_ONLY_DOCUMENT_IDS = {"form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880", "form_w7"}
+DAG_ONLY_DOCUMENT_IDS = {"form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880", "form_w7", "form_27d"}
 
 
 def test_build_documents_result_matches_golden(fixture_id):

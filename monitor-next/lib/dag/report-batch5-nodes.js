@@ -334,6 +334,41 @@ NODES.blackMoneyActExposureFinding = {
   }
 };
 
+// ---- lrs_investment_tcs (task #48, LRS-investor flag — new DAG-only
+// finding, no engine equivalent). computeLrsTcs() (report-batch4-nodes.js,
+// AGG-8, already ported and verified) was previously report-only, feeding
+// nothing but the Withholding tab's summary row -- a taxpayer remitting
+// funds abroad under the LRS specifically to invest (or as a gift/
+// donation, the same 20%-above-₹10L bracket under s.206C(1G)) got no loud
+// signal at all, even though this is the LRS schedule's highest TCS rate
+// and a real hint that the taxpayer now holds a foreign asset that may
+// need its own Schedule FA/FBAR/Form 8621 follow-up (each already its own
+// separate, independently-triggered signal elsewhere in this codebase --
+// not inferred FROM this finding, just flagged for the filer to check).
+// Scoped to purpose "investment"/"gift_donation" only (not every purpose
+// computeLrsTcs prices, e.g. travel/education/medical) -- those carry no
+// comparable "may now hold a reportable foreign asset" implication.
+NODES.lrsInvestmentTcsFinding = {
+  deps: ["withholdingDetailIndiaRaw"],
+  compute: function (d, ctx) {
+    var lrs = d.withholdingDetailIndiaRaw.lrsTcs;
+    if (!lrs || !(lrs.tcsInr > 0) || (lrs.purpose !== "investment" && lrs.purpose !== "gift_donation")) return [];
+    return [{
+      id: "lrs_investment_tcs", severity: "info", category: "credit",
+      title: "TCS collected on LRS " + (lrs.purpose === "investment" ? "investment" : "gift/donation") +
+        " remittance (" + inr(lrs.tcsInr) + ")",
+      detail: inr(lrs.totalRemittedInr) + " remitted abroad this year under the Liberalised Remittance Scheme for " +
+        lrs.purposeLabel.toLowerCase() + ". s.206C(1G) collects Tax Collected at Source at " + lrs.ratePctLabel +
+        " (" + lrs.note + "), totalling " + inr(lrs.tcsInr) + ".",
+      recommendation: "TCS collected here is available as a credit against the final India tax liability (or refundable if it " +
+        "exceeds it) — reconcile the amount against Form 26AS/AIS before filing. An LRS remittance for investment purposes " +
+        "often means a new foreign asset is now on file — confirm whether it also triggers its own Schedule FA, FBAR, or " +
+        "Form 8621 (PFIC) disclosure, each a separate requirement from this TCS credit.",
+      amountUsd: inrToUsd(lrs.tcsInr, ctx), refs: ["s.206C(1G)", "LRS"]
+    }];
+  }
+};
+
 NODES.buildTaxComputationResult = {
   deps: ["buildTaxComputationIndiaResult", "buildTaxComputationUsResult", "buildTaxComputationUsStateResult"],
   compute: function (d) {
@@ -385,13 +420,13 @@ NODES.findingsAllResult = {
     "findingsBatch5Result", "holdingPeriodMismatchFindingsResult", "residencyConsistencyFindings",
     "indiaAdvanceTaxInterestFinding", "underpayment2210Finding", "earlyWithdrawalPenalty72tFinding",
     "retirementExcessElectiveDeferralFinding", "retirementExcessIraContributionFinding", "hsaExcessContributionFinding", "retirementRmdRequiredFinding",
-    "s83bElectionNotFiledTimelyFinding", "itinApplicationRequiredFinding", "scheduleFaInconsistentFinding", "blackMoneyActExposureFinding"],
+    "s83bElectionNotFiledTimelyFinding", "itinApplicationRequiredFinding", "lrsInvestmentTcsFinding", "scheduleFaInconsistentFinding", "blackMoneyActExposureFinding"],
   compute: function (d) {
     var all = [].concat(d.findingsBatch1Result, d.findingsBatch2Result, d.findingsBatch3Result,
       d.findingsBatch4Result, d.findingsBatch5Result, d.holdingPeriodMismatchFindingsResult,
       d.residencyConsistencyFindings, d.indiaAdvanceTaxInterestFinding, d.underpayment2210Finding,
       d.earlyWithdrawalPenalty72tFinding, d.retirementExcessElectiveDeferralFinding, d.retirementExcessIraContributionFinding,
-      d.hsaExcessContributionFinding, d.retirementRmdRequiredFinding, d.s83bElectionNotFiledTimelyFinding, d.itinApplicationRequiredFinding, d.scheduleFaInconsistentFinding, d.blackMoneyActExposureFinding);
+      d.hsaExcessContributionFinding, d.retirementRmdRequiredFinding, d.s83bElectionNotFiledTimelyFinding, d.itinApplicationRequiredFinding, d.lrsInvestmentTcsFinding, d.scheduleFaInconsistentFinding, d.blackMoneyActExposureFinding);
     // detectConflicts's own final step (conflicts.js:1546-1551) — not just a
     // convenience, LIM-7's alerts feed (monitor()) depends on findings[]
     // actually being in this order (.filter(critical).slice(0,4)) to pick

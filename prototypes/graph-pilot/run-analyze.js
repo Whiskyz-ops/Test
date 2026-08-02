@@ -111,6 +111,15 @@ WISING.PROFILES.forEach(function (p) {
     realFindings = realFindings.filter(function (f) { return usTaxDependentIds.indexOf(f.id) === -1; });
     console.log("    (reported, not asserted) ftc_gap/ftc_available/amt_applies would diverge here — usTaxResult only covers the resident/individual path");
   }
+  // lrs_investment_tcs (task #48, LRS-investor flag): new DAG-only finding,
+  // no engine equivalent — the engine's computeLrsTcs was never promoted to
+  // a finding at all. Fires for real on india_ror_us_income (an on-file LRS
+  // investment remittance above ₹10L), same "strip before compare" pattern
+  // as the "cfc" text-divergence carve-out above.
+  if (mineFindings.some(function (f) { return f.id === "lrs_investment_tcs"; })) {
+    mineFindings = mineFindings.filter(function (f) { return f.id !== "lrs_investment_tcs"; });
+    console.log("    (reported, not asserted) \"lrs_investment_tcs\" is DAG-only — no engine equivalent, see report-batch5-nodes.js");
+  }
   if (isFeieWagesDivergent) {
     console.log("    (reported, not asserted) findings diverge here — see the FEIE-wages fix comment above");
   } else {
@@ -121,7 +130,7 @@ WISING.PROFILES.forEach(function (p) {
   // DAG-only documents (docs/GAP_TRACKER.md section H.7/H.13, 21-22 Jul
   // 2026): no engine equivalent for any of these — new state tax / new
   // catalog entries added after the frozen-engine cutoff.
-  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880", "form_w7"];
+  var DAG_ONLY_DOC_IDS = ["form_nj1040", "form_8858", "form_3520a", "form_29b", "form_10iea", "form_10ic", "form_10id", "schedule_m1_m2", "k1_issuance", "form_8880", "form_w7", "form_27d"];
   var droppedRequiredCount = out.documents.filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) !== -1 && x.required; }).length;
   var docsForDiff = out.documents.filter(function (x) { return DAG_ONLY_DOC_IDS.indexOf(x.id) === -1; });
   var docsDiff = deepEqual(docsForDiff, r.documents);
