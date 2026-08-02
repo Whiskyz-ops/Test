@@ -247,14 +247,16 @@ Tier 3 (cosmetic) list and per-agent detail.
 
 ## 8. Business Ops & K-1s — `layer1_us.html:2220-2718` → `BusinessStep.jsx`
 
-- `[VERIFIED — MOST SEVERE FINDING IN THE PORT]` K-1 rows
-  (`partnerships_k1`/`s_corporations_k1`/`trusts_estates_k1`) store data
-  nested under `row.k1_boxes.box1_ordinary_income` etc.; both
-  `dag_py/src/wising_dag/us/aggregate_us_income.py` and the JS DAG read
-  flat top-level fields (`ordinary_income_usd`, `guaranteed_payments_usd`,
-  `sec179_deduction_usd`, `qbi_wages_usd`, etc.) directly off each row.
-  Different structure *and* different field names. **Every dollar of
-  partnership/S-corp/trust K-1 income silently computes to $0.**
+- `[FIXED]` K-1 rows (`partnerships_k1`/`s_corporations_k1`/
+  `trusts_estates_k1`/`c_corporations_1120`/farming) previously stored
+  data nested under `row.k1_boxes.box1_ordinary_income` etc. while both
+  DAG engines read flat top-level fields — every dollar of partnership/
+  S-corp/trust K-1 income silently computed to $0. Fixed for all 5 row
+  types: rows now use flat `ordinary_income_usd`/`guaranteed_payments_usd`/
+  etc. matching `dag_py/src/wising_dag/us/aggregate_us_income.py` and the
+  JS DAG directly (confirmed by re-reading `BusinessStep.jsx` — no more
+  `k1_boxes` writes, flat fields throughout). Was the most severe finding
+  in the whole port.
 - `[VERIFIED]` A fabricated, always-editable "Taxable Income (Computed)"
   field on Schedule M-1 (`BusinessStep.jsx:1664`) has no source
   counterpart and is read by no DAG code.
@@ -509,7 +511,7 @@ Tier 3 (cosmetic) list and per-agent detail.
 | 5 | Employment Income | Mostly solid; row-shape depth not yet audited |
 | 6 | Capital Gains & Crypto | **Fixed** (aggregate inversion); sub-module arrays still schema-only |
 | 7 | Passive & Other | **Solid, no open issues** (one minor decorative-upload gap) |
-| 8 | Business Ops & K-1s | **Most severe open issue in the port** (K-1 → $0) + large Tier 1 gap |
+| 8 | Business Ops & K-1s | K-1 → $0 bug **fixed**; large Tier 1 gap remains (1099 panel, apportionment, QBI/UBIA, row-shape depth) |
 | 9 | Foreign Income | Solid, one misplaced-card issue |
 | 10 | Equity & Cap Table | **Solid, no open issues** |
 | 11 | FEIE | Open issues (editable constants, 5 missing fields, 3 missing banners, 2 dates shown that source hides) |
