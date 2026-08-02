@@ -135,11 +135,15 @@ export default function FeieStep() {
             <Field label="Foreign Housing Expenses (USD)">
               <NumberInput value={f.foreign_housing_expenses_usd} onChange={set("foreign_housing_expenses_usd")} />
             </Field>
-            <Field label="Housing Exclusion Base (USD)" hint="IRS base amount, overridable">
-              <NumberInput value={f.housing_exclusion_base_usd} onChange={set("housing_exclusion_base_usd")} />
+            <Field label="Housing Exclusion Base (USD)" hint="Fixed IRS statutory amount — not a form input in the source">
+              <div className="rounded-lg bg-white/[0.02] border border-line px-3 py-2 text-sm text-muted font-mono opacity-70 cursor-not-allowed">
+                {(f.housing_exclusion_base_usd ?? 0).toLocaleString()}
+              </div>
             </Field>
-            <Field label="Housing Exclusion Cap (USD)" hint="IRS location cap, overridable">
-              <NumberInput value={f.housing_exclusion_cap_usd} onChange={set("housing_exclusion_cap_usd")} />
+            <Field label="Housing Exclusion Cap (USD)" hint="Fixed IRS statutory amount — not a form input in the source">
+              <div className="rounded-lg bg-white/[0.02] border border-line px-3 py-2 text-sm text-muted font-mono opacity-70 cursor-not-allowed">
+                {(f.housing_exclusion_cap_usd ?? 0).toLocaleString()}
+              </div>
             </Field>
           </div>
 

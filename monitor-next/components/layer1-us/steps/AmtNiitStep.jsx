@@ -23,14 +23,21 @@ import { Card, Field, NumberInput, fmtUsd } from "./_ui";
 // trust. Fixed here: those fields are read-only displays that recompute
 // live via useEffect, matching the "always derived" behavior of the source.
 //
-// FLAGGED, not fixed: `niit_inputs.modified_agi_usd` (MAGI) is the one
-// exception — in the vanilla app it's populated by calculateEstimatedAgi(),
-// a large cross-step function (~11186) that sums income/deduction fields
-// from a dozen other steps. That function isn't ported, and this step's
-// scope doesn't include the other steps' data plumbing needed to compute a
-// real AGI here. Left as a directly-editable input (as before) rather than
-// silently defaulting/overwriting it — matches the task's fallback
-// instruction ("at minimum leave it editable, don't silently overwrite").
+// FLAGGED, staying editable deliberately: `niit_inputs.modified_agi_usd`
+// (MAGI) is the one exception — in the vanilla app it's populated by
+// calculateEstimatedAgi(), a large cross-step function (~11186) that sums
+// income/deduction fields from a dozen other steps. That function isn't
+// ported, and this step's scope doesn't include the other steps' data
+// plumbing needed to compute a real AGI here. Confirmed via the
+// step-by-step map audit that this is lower-stakes than it looks: grepping
+// both dag_py and the JS DAG for `modified_agi_usd` returns zero hits —
+// neither engine reads this schema field at all, so whatever sits here
+// (editable or derived) has zero effect on the actual computed tax output.
+// Forcing it read-only without a real derivation source would just make it
+// permanently stuck at $0, which is worse than the current approximate
+// editable value. Left as a directly-editable input rather than silently
+// defaulting/overwriting it — matches the task's fallback instruction
+// ("at minimum leave it editable, don't silently overwrite").
 //
 // FLAGGED, not fixed (architecture): the React port renders one active step
 // component at a time (see app/layer1-us/page.jsx's STEP_COMPONENTS switch),
