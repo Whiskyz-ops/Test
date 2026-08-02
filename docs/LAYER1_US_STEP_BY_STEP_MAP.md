@@ -417,21 +417,31 @@ source field-for-field. Only 2 real gaps found:
   ported," but that's now stale: the field was added to `schema.js` in
   the JSON-export reconciliation pass. It's a genuine gap now, not an
   intentional exclusion.
-- `[VERIFIED — precise logic, smaller fix than it looks]` All 3
-  conflict-warning banners (`checkFeieConflicts()`,
-  `layer1_us.html:8xxx`) are missing, but 2 of the 3 conditions need no
-  new schema fields at all:
-  - CTC warning: shown whenever `claims_feie` is true. Trivial to add.
+- `[FIXED]` All 3 conflict-warning banners (`checkFeieConflicts()`,
+  `layer1_us.html:9067-9094`) were missing. Fixed, matching the source's
+  exact conditions:
+  - CTC warning: shown whenever `claims_feie` is true.
   - High-tax-jurisdiction FTC tip: shown when `claims_feie` is true AND
-    `tax_home_country` is one of a hardcoded list (`GB/CA/AU/DE/FR/JP/IN`)
-    — both already-tracked fields, no new state needed.
+    `tax_home_country` (uppercased) is one of `GB/CA/AU/DE/FR/JP/IN` —
+    both already-tracked schema fields, no new state needed.
   - SE-tax trap: shown when `claims_feie` AND a "Self-Employed
     Freelancer?" checkbox AND NOT a "Certificate of Coverage?" checkbox.
     Confirmed by reading the source directly: **neither checkbox writes
     to any schema field** (`layer1_us.html:2914,2920` — `onchange`
     handlers only call `checkFeieConflicts()`, no `updateStateField`
     call). These are ephemeral, page-local UI state in the source too —
-    porting them needs local React state, not new schema fields.
+    ported as local `useState` in `FeieStep.jsx`, not new schema fields,
+    matching the source's own architecture exactly.
+  All 3 banners plus both checkboxes added to `FeieStep.jsx` with wording
+  matched verbatim to `layer1_us.html:2886-2908`. Compiled cleanly via
+  esbuild (14.5kb). Not independently confirmed live in browser this pass
+  — the step's own wizard-gating preconditions (residency status +
+  primary state of residence + W-2/business setup, all required together
+  per `machine.js`'s `isStepButtonVisible`/`isStepLocked` for
+  `step-feie`) proved hard to satisfy via seeded state in the time
+  available, and that gating is pre-existing architecture unrelated to
+  this fix. Confidence instead comes from direct condition-for-condition
+  parity with `checkFeieConflicts()`'s source logic.
 - `[NEW FINDING — React shows a field the source keeps permanently
   hidden]` `physical_presence_start_date`/`physical_presence_end_date`
   inputs are `class="hidden"` in the source's static markup
@@ -550,15 +560,26 @@ source field-for-field. Only 2 real gaps found:
 
 ## 17. Deductions & Credits — `layer1_us.html:3440-3556` → `DeductionsStep.jsx`
 
-- `[VERIFIED — still open]` `qbi_deduction_eligible`/`qbi_deduction_usd`
-  toggle+field pair is completely inert — real QBI is computed entirely
-  inside the unported `calculateBusinessIncomes()` logic and never reads
-  this field. A preparer can type a number that visibly sits on screen
-  and affects nothing.
-- `[VERIFIED — still open]` "Educator Expenses" (`educator_expenses_usd`)
-  and a decoy "HSA Contributions" (`hsa_contributions_usd`) field bind to
-  schema keys the source never exposes to a user at all — the real HSA
-  field is the correctly-wired one on the Retirement step.
+- `[FIXED]` `qbi_deduction_eligible`/`qbi_deduction_usd` toggle+field pair
+  was completely inert — confirmed via a fresh DAG grep that QBI is
+  computed entirely independently inside `dag_py`'s `ustax.py:355-368`
+  from actual K-1/business income (output under a different key,
+  `qbiDeductionUsd`) and never reads this input field at all, in either
+  DAG engine. A preparer could type a number that visibly sat on screen
+  and affected nothing. Fixed: removed (not "made read-only," since there
+  is no real value to derive and display — the source has no UI for this
+  at all, confirmed by re-reading `layer1_us.html:3440-3554` end to end).
+- `[FIXED]` "Educator Expenses" (`educator_expenses_usd`) and a decoy
+  "HSA Contributions" (`hsa_contributions_usd`) field bound to schema
+  keys the source never exposes to a user at all — confirmed by
+  full-panel re-read, neither string appears anywhere in
+  `layer1_us.html`'s actual markup, only in the schema-default JS
+  literal. The real, correctly-wired HSA field is
+  `retirement_accounts.hsa_contribution_usd` (singular) on the
+  Retirement step. Fixed: both removed from `DeductionsStep.jsx`.
+  Verified live in headless Chromium: none of "Educator Expenses",
+  "QBI", or "HSA" appear anywhere on the rendered step, zero console
+  errors.
 
 ## 18. AMT & NIIT — `layer1_us.html:3557-3633` → `AmtNiitStep.jsx`
 
@@ -726,13 +747,13 @@ source field-for-field. Only 2 real gaps found:
 | 8 | Business Ops & K-1s | K-1 → $0 bug **fixed**; QBI/UBIA + home-office/vehicle also fixed since the audit; 1099 panel, state_allocations, $250k gate, Analyzer panel still open |
 | 9 | Foreign Income | Solid, one misplaced-card issue |
 | 10 | Equity & Cap Table | **Solid, no open issues** |
-| 11 | FEIE | Housing-constant editable-vs-readonly bug **fixed**; 5 missing fields, 3 missing banners, 2 dates shown that source hides still open |
+| 11 | FEIE | Housing-constant bug **fixed**; 3 conflict-warning banners **fixed** (not live-verified — see note); 4 missing fields, 2 dates shown that source hides still open |
 | 12 | Foreign Assets | Solid derivation logic; one PFIC-default bug |
 | 13 | Real Estate | **Solid, no open issues** |
 | 14 | Retirement | RMD fabricated-dollar-field / non-derived-checkbox bug **fixed** |
 | 15 | Foreign Entities | Form 5472 gate **fixed** (both stacked bugs); PFIC array never written, label switching, Linked Client picker still open |
 | 16 | Foreign Gifts & Trusts | **Solid, no open issues** |
-| 17 | Deductions & Credits | Open issues (inert QBI toggle, 2 decoy fields) |
+| 17 | Deductions & Credits | Inert QBI toggle + 2 decoy fields **fixed** (removed) |
 | 18 | AMT & NIIT | MAGI left editable deliberately — confirmed zero DAG consumers, not a bug |
 | 19 | Foreign Tax Credit | Open issue (misplaced card, mirrors step 9) |
 | 20 | Withholding & Estimates | 3 editable-vs-derived fields **fixed**; firpta_withholding_usd grouping corrected (was never a bug) |
