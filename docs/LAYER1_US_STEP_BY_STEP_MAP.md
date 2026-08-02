@@ -30,55 +30,168 @@ Tier 3 (cosmetic) list and per-agent detail.
 - `[FIXED]` Setup-gate flags (setupW2/setupBiz/etc.) never hydrated from
   real data on reload — `derive.js` gained `deriveSetupFlags()`,
   `store.js`'s `useOnboardingSetup` gained `hydrateFromUsState()`.
-- `[FROM AUDIT]` "Initialize Matrix" button doesn't navigate anywhere.
-- `[FROM AUDIT]` A whole HOH/QSS filing-status diagnostic sub-feature is
-  absent.
-- `[FROM AUDIT]` Identity/Corporate-Formation upload dropzone missing.
+- `[VERIFIED — MAJOR, NEW FINDING]` All 7 corporate-identity fields
+  (`entity_name`/`ein`/`date_of_incorporation`/`state_of_domicile`/
+  `naics_code`/`is_foreign_corporation`/`is_foreign_owned_25_pct`) have
+  exactly ONE real data-entry point in the entire source —
+  `layer1_us.html:775-819`, the "wrapper-corporate-profile-fields" block
+  on this exact Onboarding screen — and every one of its 7 inputs is wired
+  through `updateProfileField(field, val)`
+  (`layer1_us.html`'s definition: `usState.profile[field] = val`), i.e.
+  **all 7 write to `profile.*`, not `corporate_profile.*`**. Confirmed by
+  grepping the entire file for `corp-entity-name`/`corp-ein`/`corp-naics`/
+  etc. — this is the only occurrence, no second corporate-identity block
+  exists anywhere else in the source (the visually-similar `.scorp-ein`/
+  `.ccorp-ein`/`.scorp-naics` hits elsewhere are unrelated per-row fields
+  on individual K-1/C-corp entries inside `income_us_source.*_k1[]`, not
+  this top-level section). `corporate_profile` as a schema section is
+  **entirely dead in the source** — nothing ever writes to it.
+  `OnboardingStep.jsx:356-406` gets 6 of these 7 fields wrong, writing to
+  `corporate_profile.*` (only `state_of_domicile` correctly targets
+  `profile.state_of_domicile`, `:376-379`). Worse: `BusinessStep.jsx`
+  has a second, **entirely fabricated** corporate-identity block
+  (`BusinessStep.jsx:1622-1631`, no HTML counterpart anywhere) that ALSO
+  writes the same 6 fields to `corporate_profile.*` — internally
+  consistent with `OnboardingStep.jsx`'s bug, but doubly wrong against
+  the source, and presents a confusing duplicate data-entry surface with
+  no source basis for the second copy. No live DAG node currently reads
+  either `profile.*` or `corporate_profile.*` for these 6 fields
+  (confirmed via grep — genuinely dead computation-wise today), so this
+  has no live tax-output impact, but it is a real fidelity bug: whatever
+  a user types never lands where the source would put it.
+- `[VERIFIED — NEW FINDING, explains the "two disconnected code paths"
+  claim precisely]` There are **two different "confirm and proceed"
+  buttons rendered simultaneously** for this step. `OnboardingStep.jsx`
+  itself renders "Initialize Matrix" (matching the source's button
+  label/position, `:468-478`) but its `onClick` only calls
+  `setField("metadata.intake_completed", true)` — no navigation.
+  Separately, `page.jsx:146-154` renders its own step-specific footer
+  button labeled "Start Intake →" that correctly dispatches
+  `CONFIRM_INTAKE` to the XState machine, which both sets
+  `intakeCompleted` AND navigates (`machine.js:182-186`). So the working
+  path exists, just not on the button that visually matches the source —
+  a user is shown two buttons, one of which (the one styled/positioned
+  like the source's) silently does nothing but flip a flag.
+- `[VERIFIED]` A whole HOH/QSS filing-status diagnostic sub-feature is
+  confirmed absent: the generic "Filing Status Conflict" banner
+  (`layer1_us.html:692-698`, `#filing-diagnostic-warning`, dynamically
+  populated) and the "Special Rules for Married Persons" HOH-override
+  sub-selector (`:700-712`, `#hoh-edge-cases`/`prof-hoh-override`, 3
+  options + a dynamic explanation box) have no React counterpart —
+  matches `profile.hoh_marital_override` (added to schema.js last pass)
+  having zero UI, confirmed again here.
+- `[VERIFIED]` Identity/Corporate-Formation upload dropzone
+  (`layer1_us.html:989-992` area, label swaps between "Upload Identity
+  Document"/"Upload Corporate Formation Document" based on entity type)
+  confirmed missing — not decorative-only in the source this time (worth
+  double-checking on a future pass whether it's wired to anything beyond
+  the label swap, but the dropzone itself is absent from React either
+  way).
 - `[FROM AUDIT]` §6013(g) election box and NRA option-disabling/relabeling
   are unconditional/static instead of gated — gives actively wrong
   messaging once MFJ is unlocked via election.
-- `[FROM AUDIT]` "Confirm intake & proceed" is split into two disconnected
-  code paths (one persists state but doesn't navigate, one navigates but
-  doesn't persist completion) — source is one function doing both.
 - `[VERIFIED]` `metadata.intake_setup` (added to schema.js last pass) has
   zero reader/writer anywhere in `store.js` or `OnboardingStep.jsx` —
   schema shape only.
-- `[VERIFIED]` `profile.hoh_marital_override` (added to schema.js last
-  pass) has no UI control anywhere.
 
 ## 2. Residency — `layer1_us.html:983-1430` → `ProfileStep.jsx`
 
-- `[FROM AUDIT]` Dual-status arrival/departure date fields missing from UI.
-- `[FROM AUDIT]` SPT "excluded days" fields missing from UI (acknowledged
-  in `derive.js`'s own comments).
-- `[VERIFIED]` Even though `dual_status_arrival_date`/
-  `dual_status_departure_date`/`us_days_excluded_*` now exist in
-  `schema.js` (added last pass), `evaluateResidencyLock()` in `derive.js`
-  still doesn't read them — its own inline comments are now stale (say
-  the fields "aren't in the canonical schema"). Practical effect:
-  `DUAL_STATUS` is only reachable via green-card-surrender or
-  first-year-choice, never via the plain SPT pass-through path the source
-  supports.
-- `[FROM AUDIT]` No Back/Next bar on this step at all.
+Overall much more complete than previously documented — full read confirms
+the visa-status select, citizenship/green-card block, entire §877A
+covered-expatriate test block, the whole SPT stay tracker (including the
+live-computed formula/status card), exempt-individual sub-flow (student/
+scholar overrides), first-year-choice election, §6013(g) election, and the
+Article 4 DTAA tie-breaker wizard (4 sequential tests, correctly
+progressive-reveal) are ALL present and correctly wired, matching the
+source field-for-field. Only 2 real gaps found:
+- `[VERIFIED]` `dual_status_arrival_date`/`dual_status_departure_date`
+  (`layer1_us.html:1211-1223`, "Dual-Status Mechanics" — always-visible,
+  not gated behind anything) have zero UI. These are the ONE thing keeping
+  `evaluateResidencyLock()` from ever resolving to `DUAL_STATUS` via the
+  plain SPT pass-through path (it's only reachable today via green-card
+  surrender or first-year-choice) — `derive.js`'s own comments
+  acknowledging this gap are stale now that the fields exist in
+  `schema.js` (added last pass).
+- `[VERIFIED]` The 4 "Excluded Days" inputs + exception-reason select
+  (`layer1_us.html:1244-1267`, inside the SPT tracker card, also
+  always-visible) writing `us_days_excluded_current/minus_1/minus_2/
+  reason` have zero UI — same status.
+- `[VERIFIED — minor]` The decorative "Upload Identity Document" dropzone
+  (`layer1_us.html:989-994`, non-functional in the source too) isn't
+  ported — same low-priority category as Bank Sync/Passive's missing
+  upload buttons.
+- `[CORRECTED — the existing audit's claim was wrong]` "No Back/Next bar
+  on this step at all" isn't accurate: `page.jsx:134-166` renders a
+  shared Back/Next footer under every step's `<ActiveComponent />`,
+  ProfileStep included — confirmed by reading `page.jsx` directly during
+  the Onboarding audit. What's actually different from the source is
+  structural, not missing: the source puts Back/Next buttons inside each
+  panel individually, React centralizes them into one shared footer
+  component instead. Not a gap.
 
 ## 3. State Nexus — `layer1_us.html:1431-1710` → `StateStep.jsx`
 
-- `[FROM AUDIT]` Community Property alert, statutory-residency day
-  tracker for footprint states, "Derived State Residency Statuses"
-  summary card, CA-specific warning-alert text, military guidance box,
-  and a corp "State of Formation" readonly field are all missing.
-- `[FROM AUDIT]` CA section is shown to every filer instead of gated by
-  state.
-- `[FROM AUDIT]` Apportionment matrix silently drops the entity's
-  domicile state from the gross-receipts list.
-- `[VERIFIED]` `state_residency`'s 3 new NY fields
-  (`ny_548_day_rule`/`ny_actual_days_present`/`ny_permanent_place_of_abode`)
-  and `footprint_details`/`sticky_exceptions` (added to schema.js last
-  pass) have zero UI anywhere — confirmed no hits in any step component.
-- `[FROM AUDIT]` `dag_py` also expects
-  `state_residency.ca_safe_harbor_employment_contract`, which doesn't
-  exist in `schema.js` at all (not added in the last schema pass either —
-  a genuine remaining schema gap, not just a UI gap).
+- `[VERIFIED]` Community Property alert (`alert-community-property`),
+  "Derived State Residency Statuses" summary card
+  (`card-state-status-summary`/`renderStateResidencyStatus()`), the CA
+  section's dynamic warning alerts (`alert-ca-depart`/`alert-ca-retain` —
+  React has the two checkboxes but not the conditional guidance text they
+  reveal), the military "MSRRA Tax Protection Active" guidance box
+  (`div-mil-guidance`, with its DD 2058/Form DE-4/IT-2104-MS specifics),
+  and the corp "State of Formation" readonly field
+  (`corp-state-domicile-readonly`) are all confirmed missing from
+  `StateStep.jsx` — none render anywhere in the file.
+- `[VERIFIED]` The CA card (`div-ca-fields`) is gated in the source —
+  `toggleStateSpecificFields()` (`layer1_us.html:8611-8620`) only shows it
+  when `primary_state_of_residence === 'CA'` or `previous_state === 'CA'`.
+  React's `StateStep.jsx:231` renders it unconditionally for every
+  individual filer (`{!isCorp && (...)`).
+- `[VERIFIED — bigger than previously documented]` What the existing audit
+  called "statutory-residency day tracker for footprint states" is
+  actually a whole sub-engine (`div-footprint-statutory-questions`,
+  `updateStickyException()` @ `layer1_us.html:8407-8428`,
+  `getStateResidencyInfo()`, `renderStateExceptions()`): per-footprint
+  "sticky domicile" states (NY/NJ/CT) get inline follow-up
+  questions — a foreign-assignment checkbox, a days-in-state input, and a
+  live pass/fail safe-harbor alert (e.g. NY's 548-day foreign-assignment
+  rule, ≤90 days in-state) — writing into
+  `state_residency.sticky_exceptions.<STATE>.*` and mirroring into the
+  flat `ny_548_day_rule` field the DAG reads. None of it exists in
+  `StateStep.jsx` — this is the actual UI `ny_548_day_rule`/
+  `ny_actual_days_present`/`ny_permanent_place_of_abode`/
+  `footprint_details`/`sticky_exceptions` (added to `schema.js` last pass,
+  confirmed still zero UI) are missing.
+- `[VERIFIED — corrects the existing audit]` There is no `div-ny-fields`
+  element anywhere in the source's static markup — `toggleStateSpecificFields()`
+  references `document.getElementById('div-ny-fields')` (line 8617) but no
+  such element exists, so it always resolves to `null` and silently no-ops.
+  This is a dead reference in the source itself (same class as the
+  already-known dead `step-k1` reference) — porting a literal "NY fields
+  block" would be porting a bug, not a feature. The real NY-specific UI is
+  the sticky-exceptions sub-engine above, which lives inside the generic
+  per-footprint-state area, not a dedicated NY div.
+- `[VERIFIED — root cause identified]` Apportionment matrix drops the
+  entity's domicile state: source's `syncApportionmentState()`
+  (`layer1_us.html:8886-8889`) builds its state list as `physical_states ∪
+  economic_states ∪ {profile.state_of_domicile}` — unconditionally
+  including the domicile state read from `profile.state_of_domicile`.
+  `StateStep.jsx:83`'s `apportionmentStates` only unions
+  `physical_states`/`economic_states`, never reading
+  `usState.profile.state_of_domicile` at all.
+- `[NEW FINDING]` `onPrimaryStateChange()` (`layer1_us.html:8660-8666`)
+  auto-sets `dec_31_domicile_state` to match `primary_state_of_residence`
+  the first time it's set (if Dec 31 domicile is still empty).
+  `StateStep.jsx`'s `setSr("primary_state_of_residence")` handler is a
+  plain `setField` call with no such side effect — a user who fills
+  Primary State first never gets Dec 31 Domicile auto-populated.
+- `[VERIFIED — reclassified]` `dag_py`/JS-DAG read
+  `state_residency.ca_safe_harbor_employment_contract`
+  (`dag_py/src/wising_dag/us/findings.py:293`,
+  `crossborder/findings.py:334`, `findings-batch3-nodes.js:102`), but this
+  field doesn't exist in `layer1_us.html`'s own usState literal either —
+  confirmed via direct grep, zero hits in the source. This is a DAG-side
+  field with no producer in *either* implementation, not a React-port
+  regression against the HTML.
 - `[FROM AUDIT]` A dead typo in the source itself (`step-prop` instead of
   `step-real-estate` in one lock check) means the *live* HTML app never
   actually locks Real Estate for corp/partnership filers; React uses the
@@ -154,14 +267,16 @@ Tier 3 (cosmetic) list and per-agent detail.
 
 ## 8. Business Ops & K-1s — `layer1_us.html:2220-2718` → `BusinessStep.jsx`
 
-- `[VERIFIED — MOST SEVERE FINDING IN THE PORT]` K-1 rows
-  (`partnerships_k1`/`s_corporations_k1`/`trusts_estates_k1`) store data
-  nested under `row.k1_boxes.box1_ordinary_income` etc.; both
-  `dag_py/src/wising_dag/us/aggregate_us_income.py` and the JS DAG read
-  flat top-level fields (`ordinary_income_usd`, `guaranteed_payments_usd`,
-  `sec179_deduction_usd`, `qbi_wages_usd`, etc.) directly off each row.
-  Different structure *and* different field names. **Every dollar of
-  partnership/S-corp/trust K-1 income silently computes to $0.**
+- `[FIXED]` K-1 rows (`partnerships_k1`/`s_corporations_k1`/
+  `trusts_estates_k1`/`c_corporations_1120`/farming) previously stored
+  data nested under `row.k1_boxes.box1_ordinary_income` etc. while both
+  DAG engines read flat top-level fields — every dollar of partnership/
+  S-corp/trust K-1 income silently computed to $0. Fixed for all 5 row
+  types: rows now use flat `ordinary_income_usd`/`guaranteed_payments_usd`/
+  etc. matching `dag_py/src/wising_dag/us/aggregate_us_income.py` and the
+  JS DAG directly (confirmed by re-reading `BusinessStep.jsx` — no more
+  `k1_boxes` writes, flat fields throughout). Was the most severe finding
+  in the whole port.
 - `[VERIFIED]` A fabricated, always-editable "Taxable Income (Computed)"
   field on Schedule M-1 (`BusinessStep.jsx:1664`) has no source
   counterpart and is read by no DAG code.
@@ -211,12 +326,50 @@ Tier 3 (cosmetic) list and per-agent detail.
   `housing_exclusion_cap_usd` are fixed IRS statutory constants in the
   source, never a form input — still rendered as live `NumberInput`s in
   React (`FeieStep.jsx:138,141`).
-- `[VERIFIED]` `employer_type`, `us_abode`, `bona_fide_visa_type`,
-  `revoked_past_5_years` (added to schema.js last pass) confirmed zero UI
-  — no hits anywhere in `FeieStep.jsx`.
-- `[FROM AUDIT]` Self-employment/COC checkboxes and all three
-  conflict-warning banners (CTC conflict, high-tax-jurisdiction FTC tip,
-  SE-tax trap) missing.
+- `[VERIFIED]` `employer_type` (4-option select: foreign entity/US
+  company/foreign affiliate/US gov), `us_abode`, `revoked_past_5_years`
+  confirmed zero UI in `FeieStep.jsx`.
+- `[VERIFIED — corrects the existing file's own comment]`
+  `bona_fide_visa_type` (`layer1_us.html:3030-3031`, "Foreign Visa /
+  Residence Status" text input on the bona-fide-residence detail block)
+  is also missing — `FeieStep.jsx:117-119`'s own comment claims it "isn't
+  part of schema.js's committed shape, so it's intentionally not
+  ported," but that's now stale: the field was added to `schema.js` in
+  the JSON-export reconciliation pass. It's a genuine gap now, not an
+  intentional exclusion.
+- `[VERIFIED — precise logic, smaller fix than it looks]` All 3
+  conflict-warning banners (`checkFeieConflicts()`,
+  `layer1_us.html:8xxx`) are missing, but 2 of the 3 conditions need no
+  new schema fields at all:
+  - CTC warning: shown whenever `claims_feie` is true. Trivial to add.
+  - High-tax-jurisdiction FTC tip: shown when `claims_feie` is true AND
+    `tax_home_country` is one of a hardcoded list (`GB/CA/AU/DE/FR/JP/IN`)
+    — both already-tracked fields, no new state needed.
+  - SE-tax trap: shown when `claims_feie` AND a "Self-Employed
+    Freelancer?" checkbox AND NOT a "Certificate of Coverage?" checkbox.
+    Confirmed by reading the source directly: **neither checkbox writes
+    to any schema field** (`layer1_us.html:2914,2920` — `onchange`
+    handlers only call `checkFeieConflicts()`, no `updateStateField`
+    call). These are ephemeral, page-local UI state in the source too —
+    porting them needs local React state, not new schema fields.
+- `[NEW FINDING — React shows a field the source keeps permanently
+  hidden]` `physical_presence_start_date`/`physical_presence_end_date`
+  inputs are `class="hidden"` in the source's static markup
+  (`layer1_us.html:2992,2996`) with nothing anywhere that ever removes
+  that class — confirmed by grepping every other reference to
+  `feie-phys-start`/`feie-phys-end` (only 2 more hits, both just
+  populate the hidden input's `.value` on load, never toggle visibility).
+  These 2 fields are genuinely unreachable UI in the live source wizard.
+  `FeieStep.jsx:101-106` renders them as live, visible, editable
+  `DateInput`s. Not harmful, arguably an improvement (the source's `#feie-
+  phys-usdays`/day-tracker bar suggest these dates were meant to drive a
+  35-day test-period tracker that never got wired up) — but it is a real
+  fidelity deviation from what the source actually shows a user.
+- `[FROM AUDIT]` "Upload Travel Log"/"Upload Residence Docs" decorative
+  buttons and the Live-API currency-converter widgets (foreign-currency
+  amount + auto-convert to USD, on both the earned-income and housing
+  fields) are missing — both are non-functional/decorative in the source
+  too (Tier-3-equivalent, no state impact).
 
 ## 12. Foreign Assets (FBAR/FATCA) — `layer1_us.html:3080-3128` → `BanksStep.jsx`
 
@@ -309,12 +462,32 @@ Tier 3 (cosmetic) list and per-agent detail.
   `rate`. Every user-entered treaty claim is invisible to the FDAP-rate
   computation, so the flat 30% fallback fires regardless of what's
   entered.
-- `[FROM AUDIT]` `w8ben_aggregate_status` (enum) vs. `submitted_w8ben`
-  (boolean, DAG-read) mismatch — `w8benOnFile` always `False`.
-- `[VERIFIED]` `nra_specific.has_us_pe` (added to schema.js last pass)
-  has zero UI — no hits in `NraStep.jsx`.
-- `[FROM AUDIT]` §6013(h) MFJ-unlock badge, Form 8833 treaty-disclosure
-  notice, and an Indian TRC upload zone all missing.
+- `[VERIFIED — sharper than previously documented]` The source's real
+  "Submitted Form W-8BEN?" control (`layer1_us.html:3842-3848`, `#nra-w8ben`
+  checkbox) writes the boolean `submitted_w8ben` — confirmed present and
+  wired in the source. React has no `submitted_w8ben` UI anywhere; instead
+  it renders an entirely different 4-option "W-8BEN Aggregate Status"
+  select bound to `w8ben_aggregate_status`. That field IS real in the
+  source's schema literal but — confirmed by grepping the whole file —
+  has **no matching UI element anywhere in `layer1_us.html`**, dead in the
+  source too. So this isn't "wrong enum vs. boolean," it's "React swapped
+  a real, wired source control for a different, source-dead one." The
+  component's own header comment already knew half of this (that
+  `w8ben_aggregate_status` is unwired in the source) but incorrectly
+  states `submitted_w8ben` "is NOT part of the canonical schema" — it is
+  (`schema.js`'s `nra_specific.submitted_w8ben`, added last pass) — the
+  comment is stale/wrong on that point.
+- `[VERIFIED]` `nra_specific.has_us_pe` confirmed zero UI — the source's
+  "US Permanent Establishment (PE)?" checkbox
+  (`layer1_us.html:3835-3841`, `#nra-pe`) has no React counterpart at all.
+- `[VERIFIED]` §6013(h) MFJ-unlock badge
+  (`layer1_us.html:3809-3811`, `#nra-6013h-unlock-badge`, "✓ §6013(h)
+  Active — MFJ Unlocked"), the Form 8833 treaty-disclosure notice
+  (`layer1_us.html:3814-3820`, shown when tie-broken to India under
+  Article 4), and the "Upload Indian TRC" dropzone
+  (`layer1_us.html:3827-3832`, decorative — matches Bank Sync/Passive's
+  non-functional upload pattern) are all confirmed missing from
+  `NraStep.jsx`.
 
 ## 22. Generate Output — `layer1_us.html:3936-3958` → `OutputStep.jsx`
 
@@ -351,17 +524,17 @@ Tier 3 (cosmetic) list and per-agent detail.
 
 | # | Step | Status |
 |---|---|---|
-| 1 | Onboarding | Open issues (schema-only fields, navigation, disconnected confirm path) |
-| 2 | Residency | Open issues (dual-status/excluded-days collected but unused) |
-| 3 | State Nexus | Open issues (large — missing UI blocks, one missing schema field) |
+| 1 | Onboarding | Open issues (7-field corporate-identity path bug incl. a fabricated duplicate block on BusinessStep, dead "Initialize Matrix" button, HOH/QSS sub-feature, upload dropzone) |
+| 2 | Residency | Much more complete than documented — only dual-status dates + excluded-days UI missing (both prominent, always-visible in source) |
+| 3 | State Nexus | Open issues (large — whole sticky-domicile sub-engine, CA gating, 5 missing UI blocks, apportionment domicile-state bug) |
 | 4 | Bank Sync | **Solid, no open issues** |
 | 5 | Employment Income | Mostly solid; row-shape depth not yet audited |
 | 6 | Capital Gains & Crypto | **Fixed** (aggregate inversion); sub-module arrays still schema-only |
 | 7 | Passive & Other | **Solid, no open issues** (one minor decorative-upload gap) |
-| 8 | Business Ops & K-1s | **Most severe open issue in the port** (K-1 → $0) + large Tier 1 gap |
+| 8 | Business Ops & K-1s | K-1 → $0 bug **fixed**; large Tier 1 gap remains (1099 panel, apportionment, QBI/UBIA, row-shape depth) |
 | 9 | Foreign Income | Solid, one misplaced-card issue |
 | 10 | Equity & Cap Table | **Solid, no open issues** |
-| 11 | FEIE | Open issues (editable constants, 4 missing fields, 3 missing banners) |
+| 11 | FEIE | Open issues (editable constants, 5 missing fields, 3 missing banners, 2 dates shown that source hides) |
 | 12 | Foreign Assets | Solid derivation logic; one PFIC-default bug |
 | 13 | Real Estate | **Solid, no open issues** |
 | 14 | Retirement | Open issue (fabricated RMD dollar field) |
@@ -371,5 +544,5 @@ Tier 3 (cosmetic) list and per-agent detail.
 | 18 | AMT & NIIT | Open issue (MAGI editable) |
 | 19 | Foreign Tax Credit | Open issue (misplaced card, mirrors step 9) |
 | 20 | Withholding & Estimates | Open issue (4 fields editable) |
-| 21 | Form 1040-NR | Open issues (treaty rate mismatch, W-8BEN mismatch, missing UI) |
+| 21 | Form 1040-NR | Open issues (treaty rate mismatch, real W-8BEN checkbox swapped for a source-dead select, has_us_pe/6013(h) badge/8833 notice/TRC upload all missing) |
 | 22 | Generate Output | Open issue (missing India routing) |

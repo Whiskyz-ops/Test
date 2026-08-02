@@ -316,6 +316,21 @@ function makeAsset() {
   };
 }
 
+// BUG FIX (Tier 0 #1, self-employment/Schedule C): the row shape below used
+// to nest COGS/expenses under row.cogs{}/row.expenses{} with several field
+// names that don't match what either DAG engine reads at all
+// (aggregate_us_income.py:55-58 reads cogs_beginning_inventory/
+// cogs_purchases/cogs_labor/cogs_materials/cogs_ending_inventory,
+// gross_receipts_usd, returns_and_allowances_usd, other_income_usd, and
+// expenses_usd — all FLAT top-level scalars) — meaning every Schedule C
+// business's net profit silently computed as $0 no matter what the user
+// entered. Field names/shape now match layer1_us.html:13569-13658's
+// syncSeState() exactly (the ground truth for what the live form actually
+// persists), including the two above-the-line-deduction feeder fields
+// (se_health_insurance_usd/se_retirement_contrib_usd) that derive.js's
+// applyBusinessIncomeDerivations() sums into income_us_source's flat
+// se_health_insurance_deduction_usd/se_retirement_deduction_usd — the
+// fields ustax.py:661-662 actually reads.
 function makeSeRow() {
   return {
     id: uid("se"),
@@ -326,37 +341,40 @@ function makeSeRow() {
     llc_type: "sole_prop",
     tax_election: "disregarded",
     qbi_eligible: false,
-    sstb: false,
+    is_specified_service_trade: false,
     gross_receipts_usd: "",
-    returns_allowances_usd: "",
+    returns_and_allowances_usd: "",
     other_income_usd: "",
-    cogs: {
-      method: "cost",
-      beginning_inventory: "",
-      purchases: "",
-      cost_of_labor: "",
-      materials_supplies: "",
-      ending_inventory: "",
-    },
-    expenses: {
+    // expenses_usd is DERIVED (summed from itemized_expenses below) by
+    // derive.js on every mutation — never set directly by a field handler.
+    expenses_usd: 0,
+    itemized_expenses: {
       advertising: "",
       contract_labor: "",
       insurance: "",
       legal_professional: "",
-      meals_50pct: "",
-      office: "",
-      rent: "",
-      repairs: "",
+      business_meals: "",
+      office_expenses: "",
+      rent_lease: "",
+      repairs_maintenance: "",
       supplies: "",
       utilities: "",
-      taxes_licenses: "",
+      taxes_and_licenses: "",
       travel: "",
       commissions: "",
       other: "",
-      se_health_insurance: "",
-      se_retirement: "",
-      wages_paid: "",
     },
+    wages_paid_usd: "",
+    se_health_insurance_usd: "",
+    se_retirement_contrib_usd: "",
+    cogs_method: "cost",
+    cogs_beginning_inventory: "",
+    cogs_purchases: "",
+    cogs_labor: "",
+    cogs_materials: "",
+    cogs_ending_inventory: "",
+    vehicle_miles: "",
+    home_office_sqft: "",
     // addUsBranchRow (US branches of a foreign-parented business) deferred
     // entirely — see file header.
     assets: [],
@@ -366,36 +384,43 @@ function makeSeRow() {
 function makeFarmRow() {
   return {
     id: uid("farm"),
-    farm_name: "",
+    // BUG FIX (Tier 0 #1, farm/Schedule F): mirrors the Schedule C fix above
+    // — field names/shape now match layer1_us.html:14178-14214's
+    // syncFarmState() exactly. aggregate_us_income.py:68-78 reads
+    // itemized_income{} (NOT income{}) with these specific box names, and
+    // inventory{} (NOT beginning/purchases/ending) only when
+    // accounting_method === 'accrual'; expenses_usd is derived (summed from
+    // itemized_expenses) by derive.js, same as Schedule C.
+    business_name: "",
     ein: "",
     naics_code: "",
     accounting_method: "cash",
-    wages_paid: "",
+    wages_paid_usd: "",
     qbi_eligible: false,
-    inventory: { beginning: "", purchases: "", ending: "" },
-    income: {
-      raised: "",
-      purchased: "",
+    expenses_usd: 0,
+    itemized_income: {
+      sales_livestock_produce_raised: "",
+      sales_livestock_produce_purchased: "",
       cooperative_distributions: "",
-      agricultural_payments: "",
+      agricultural_program_payments: "",
       ccc_loans: "",
-      crop_insurance: "",
-      custom_hire: "",
-      other: "",
+      crop_insurance_proceeds: "",
+      custom_hire_income: "",
+      other_income: "",
     },
-    expenses: {
+    itemized_expenses: {
       chemicals: "",
       conservation: "",
       custom_hire: "",
       employee_benefits: "",
       feed: "",
-      fertilizer: "",
+      fertilizers: "",
       freight: "",
-      gasoline_fuel: "",
+      gas_fuel_oil: "",
       insurance: "",
       interest_mortgage: "",
       interest_other: "",
-      labor: "",
+      labor_hired: "",
       pension: "",
       rent_machinery: "",
       rent_other: "",
@@ -408,6 +433,7 @@ function makeFarmRow() {
       veterinary: "",
       other: "",
     },
+    inventory: { beginning_inventory: "", cost_of_purchases: "", ending_inventory: "" },
     home_office_sqft: "",
     vehicle_miles: "",
   };
@@ -433,63 +459,61 @@ function makePartner() {
   };
 }
 
+// BUG FIX (Tier 0 #1, partnership K-1): the row shape used to nest every
+// K-1 box under row.k1_boxes.boxN_* AND fabricate a row.revenue{}/
+// row.expenses{} pair (gross receipts/COGS/itemized operating expenses) that
+// doesn't exist anywhere in the real form's data model at all — confirmed
+// against layer1_us.html:14226-14249's normalizePartK1Item() ground truth,
+// which has no revenue/expenses fields whatsoever. A K-1 recipient reports
+// what's printed on the boxes of the K-1 THEY received; the partnership's
+// own revenue/COGS/expenses are that entity's business, not data the
+// taxpayer's K-1 carries — so those two nested groups were pure fiction that
+// (a) fed the "Box 1" display through a wrong fallback-compute path and (b)
+// were never read by either DAG engine no matter what a user entered.
+// Every box is now a flat top-level field with real IRS box names, matching
+// aggregate_us_income.py:162-168/223-306's actual reads.
 function makePartnershipRow() {
   return {
     id: uid("part-k1"),
-    partnership_name: "",
+    business_name: "",
     ein: "",
     naics_code: "",
     industry_category: "",
     partner_type: "limited",
     material_participation: "active",
+    active_rental_participant: false,
     tax_basis_usd: "",
     at_risk_basis_usd: "",
-    revenue: { gross_receipts: "", returns_allowances: "", cogs: "", misc_income: "" },
-    k1_boxes: {
-      box1_ordinary_income: "",
-      box2_net_rental_re: "",
-      box3_other_rental: "",
-      box4_guaranteed_payments: "",
-      box5_interest: "",
-      box6a_ordinary_dividends: "",
-      box6b_qualified_dividends: "",
-      box7_royalties: "",
-      box8_stcg: "",
-      box9a_ltcg: "",
-      box9b_collectibles: "",
-      box9c_unrecap_1250: "",
-      box10_sec1231: "",
-      box11_other_income: "",
-      box12_sec179: "",
-      box13a_charitable: "",
-      box13h_investment_interest: "",
-      box14_se_earnings: "",
-      box15_credits: "",
-      box16_foreign: "",
-      box17_amt: "",
-      box18a_tax_exempt: "",
-      box18c_nondeductible: "",
-      box19_distributions: "",
-    },
-    expenses: {
-      contract_labor: "",
-      legal_professional: "",
-      utilities: "",
-      insurance: "",
-      travel_meals: "",
-      office_supplies: "",
-      other: "",
-      wages: "",
-      rent: "",
-      repairs: "",
-      bad_debts: "",
-      taxes_licenses: "",
-      interest_paid: "",
-      advertising: "",
-      employee_benefits: "",
-      pension: "",
-      depletion: "",
-    },
+    // Box 1-11 (income/gains)
+    ordinary_income_usd: "",
+    net_rental_real_estate_usd: "",
+    other_rental_income_usd: "",
+    guaranteed_payments_usd: "",
+    interest_income_usd: "",
+    ordinary_dividends_usd: "",
+    qualified_dividends_usd: "",
+    royalties_usd: "",
+    stcg_usd: "",
+    ltcg_usd: "",
+    collectibles_gain_usd: "",
+    unrecaptured_1250_gain_usd: "",
+    net_sec1231_gain_usd: "",
+    other_income_usd: "",
+    // Box 12-19 (deductions/credits/other reporting)
+    sec179_deduction_usd: "",
+    charitable_contributions_usd: "",
+    investment_interest_usd: "",
+    self_employment_earnings_usd: "",
+    credits_usd: "",
+    foreign_transactions_usd: "",
+    amt_items_usd: "",
+    tax_exempt_income_usd: "",
+    nondeductible_expenses_usd: "",
+    distributions_usd: "",
+    qbi_eligible: false,
+    is_specified_service_trade: false,
+    qbi_wages_usd: "",
+    qbi_ubia_usd: "",
     // addUsBranchRow deferred — see file header.
     partners: [],
   };
@@ -499,61 +523,58 @@ function makeShareholder() {
   return { id: uid("sh"), name: "", tin: "", percent: "", is_taxpayer: false };
 }
 
+// BUG FIX (Tier 0 #1, S-corp K-1): same fix pattern as partnership above.
+// Field names now match layer1_us.html:15729-15790's syncScorpK1State()
+// ground truth exactly. Note box 9 (net Section 1231 gain) is
+// `sec1231_gain_usd`, NOT `net_sec1231_gain_usd` — different from
+// partnership's box 10 name — matching aggregate_us_income.py:166's own
+// fallback chain (`net_sec1231_gain_usd if not None else sec1231_gain_usd`)
+// and the real 1120-S K-1 box numbering. The source also collects legacy
+// gross_revenue/exp_* fields per row, but getCalculatedOrdinaryIncome()
+// (layer1_us.html:7774-7792) only ever falls back to them when a state
+// entry with ordinary_income_usd can't be found at all — with the Box 1
+// field always present here, ordinary_income_usd is always directly
+// entered, so those legacy fields are vestigial and intentionally not
+// carried over (never read by either DAG engine).
 function makeScorpRow() {
   return {
     id: uid("scorp-k1"),
-    corp_name: "",
+    business_name: "",
     ein: "",
     naics_code: "",
     industry_category: "",
     material_participation: "active",
+    active_rental_participant: false,
     tax_basis_usd: "",
     at_risk_basis_usd: "",
-    revenue: { gross_receipts: "", returns_allowances: "", cogs: "", misc_income: "" },
-    k1_boxes: {
-      box1_ordinary_income: "",
-      box2_net_rental_re: "",
-      box3_other_rental: "",
-      box4_interest: "",
-      box5a_ordinary_dividends: "",
-      box5b_qualified_dividends: "",
-      box6_royalties: "",
-      box7_stcg: "",
-      box8a_ltcg: "",
-      box8b_collectibles: "",
-      box8c_unrecap_1250: "",
-      box9_sec1231: "",
-      box10_other_income: "",
-      box11_sec179: "",
-      box12a_charitable: "",
-      box12h_other_deductions: "",
-      box13_credits: "",
-      box14_foreign: "",
-      box15_amt: "",
-      box16a_tax_exempt: "",
-      box16c_nondeductible: "",
-      box16d_distributions: "",
-    },
-    expenses: {
-      contract_labor: "",
-      legal_professional: "",
-      utilities: "",
-      insurance: "",
-      travel_meals: "",
-      office_supplies: "",
-      other: "",
-      wages: "",
-      officer_comp: "",
-      rent: "",
-      repairs: "",
-      bad_debts: "",
-      taxes_licenses: "",
-      interest_paid: "",
-      advertising: "",
-      employee_benefits: "",
-      pension: "",
-      depletion: "",
-    },
+    // Box 1-10 (income/gains)
+    ordinary_income_usd: "",
+    net_rental_real_estate_usd: "",
+    other_rental_income_usd: "",
+    interest_income_usd: "",
+    ordinary_dividends_usd: "",
+    qualified_dividends_usd: "",
+    royalties_usd: "",
+    stcg_usd: "",
+    ltcg_usd: "",
+    collectibles_gain_usd: "",
+    unrecaptured_1250_gain_usd: "",
+    sec1231_gain_usd: "",
+    other_income_usd: "",
+    // Box 11-16 (deductions/credits/other reporting)
+    sec179_deduction_usd: "",
+    charitable_contributions_usd: "",
+    investment_interest_usd: "",
+    credits_usd: "",
+    foreign_transactions_usd: "",
+    amt_items_usd: "",
+    tax_exempt_income_usd: "",
+    nondeductible_expenses_usd: "",
+    distributions_usd: "",
+    qbi_eligible: false,
+    is_specified_service_trade: false,
+    qbi_wages_usd: "",
+    qbi_ubia_usd: "",
     assets: [],
     shareholders: [],
   };
@@ -608,49 +629,56 @@ function makeBeneficiary() {
   return { id: uid("bene"), name: "", tin: "", percent: "", is_taxpayer: false };
 }
 
+// BUG FIX (Tier 0 #1, trust/estate K-1): same fix pattern as
+// partnership/S-corp above — field names now match
+// layer1_us.html:17053-17102's syncTrustK1State() ground truth exactly. Two
+// trust-specific quirks vs. the other two K-1 types (both confirmed against
+// aggregate_us_income.py:162-168/252/276):
+//   - Box 7 (royalty income) is `royalty_income_usd`, NOT `royalties_usd`
+//     like partnership/S-corp — the DAG's own fallback chain
+//     (`royalties_usd if not None else royalty_income_usd`) exists
+//     specifically because trust rows use this different name.
+//   - Trust has no guaranteed_payments_usd, sec179_deduction_usd, or
+//     qbi_wages_usd/qbi_ubia_usd fields at all — confirmed absent from both
+//     the source form and aggregate_us_income.py's own comment ("trusts_
+//     estates_k1 has no qbi_wages_usd/qbi_ubia_usd fields on Layer 1 at
+//     all").
+// The old row.sstb field is renamed is_specified_service_trade (matching
+// the SSTB fallback-chain field the DAG actually checks first, and every
+// other entity type's field name); the old .fees{}/.k1_boxes{}/.expenses{}
+// nesting (with fabricated box-number-mismatched keys — e.g. box8_stcg was
+// bound to the actual box 8 ordinary-gain field, not STCG) is flattened to
+// match ground truth. gross_revenue/exp_* are collected by the source but
+// never feed ordinary_income_usd (always direct Box 1 entry, same
+// reasoning as S-corp's makeScorpRow() comment) — intentionally not
+// carried over.
 function makeTrustRow() {
   return {
     id: uid("trust-k1"),
-    trust_name: "",
+    business_name: "",
     ein: "",
     industry_category: "",
     trust_type: "complex",
-    fees: { fiduciary: "", professional: "", admin: "" },
-    k1_boxes: {
-      box1_interest: "",
-      box3_other_rental: "",
-      box5_ordinary_dividends: "",
-      box6a_other_income: "",
-      box6b_qualified_dividends: "",
-      box7_royalty: "",
-      box8_stcg: "",
-      box9a_ltcg: "",
-      box9_ord_gain: "",
-    },
-    expenses: {
-      wages: "",
-      contract_labor: "",
-      rent: "",
-      repairs: "",
-      bad_debts: "",
-      taxes: "",
-      interest_paid: "",
-      charity: "",
-      advertising: "",
-      employee_benefits: "",
-      pension: "",
-      depletion: "",
-      legal_professional: "",
-      utilities: "",
-      insurance: "",
-      travel_meals: "",
-      office_supplies: "",
-      other: "",
-    },
+    fiduciary_fees: "",
+    professional_fees: "",
+    admin_expenses: "",
+    ordinary_income_usd: "",
     material_participation: "passive",
     qbi_eligible: false,
-    sstb: false,
+    interest_income_usd: "",
+    ordinary_dividends_usd: "",
+    qualified_dividends_usd: "",
+    stcg_usd: "",
+    ltcg_usd: "",
+    other_rental_income_usd: "",
+    royalty_income_usd: "",
+    ordinary_gain_usd: "",
+    is_specified_service_trade: false,
+    active_rental_participant: false,
+    net_rental_real_estate_usd: "",
+    depreciation_allocation_usd: "",
     beneficiaries: [],
+    assets: [],
   };
 }
 
@@ -786,39 +814,43 @@ function MoneyGrid({ group, values, onPatch, cols = "md:grid-cols-4" }) {
 
 /* ============================ Schedule C =============================== */
 
+// Matches derive.js's SE_ITEMIZED_EXPENSE_KEYS (the fields DAG-visible
+// expenses_usd is actually summed from) plus the labels for display.
 const SE_EXPENSE_FIELDS = [
   ["advertising", "Advertising"],
   ["contract_labor", "Contract Labor"],
   ["insurance", "Insurance (Non-Health)"],
   ["legal_professional", "Legal / Professional"],
-  ["meals_50pct", "Business Meals (50%)"],
-  ["office", "Office Expenses"],
-  ["rent", "Rent / Lease"],
-  ["repairs", "Repairs & Maint."],
+  ["business_meals", "Business Meals (50%)"],
+  ["office_expenses", "Office Expenses"],
+  ["rent_lease", "Rent / Lease"],
+  ["repairs_maintenance", "Repairs & Maint."],
   ["supplies", "Supplies"],
   ["utilities", "Utilities"],
-  ["taxes_licenses", "Taxes & Licenses"],
+  ["taxes_and_licenses", "Taxes & Licenses"],
   ["travel", "Travel (No Meals)"],
   ["commissions", "Commissions"],
   ["other", "Other Misc. Expenses"],
-  ["se_health_insurance", "SE Health Ins."],
-  ["se_retirement", "SE Retirement"],
-  ["wages_paid", "W-2 Wages Paid"],
 ];
 
 function seExpenseTotal(row) {
-  return SE_EXPENSE_FIELDS.reduce((s, [k]) => s + n(row.expenses?.[k]), 0);
+  return SE_EXPENSE_FIELDS.reduce((s, [k]) => s + n(row.itemized_expenses?.[k]), 0);
 }
 function seCogsNet(row) {
-  const c = row.cogs || {};
-  return n(c.beginning_inventory) + n(c.purchases) + n(c.cost_of_labor) + n(c.materials_supplies) - n(c.ending_inventory);
+  return (
+    n(row.cogs_beginning_inventory) +
+    n(row.cogs_purchases) +
+    n(row.cogs_labor) +
+    n(row.cogs_materials) -
+    n(row.cogs_ending_inventory)
+  );
 }
 function seNetProfit(row) {
   return (
     n(row.gross_receipts_usd) -
-    n(row.returns_allowances_usd) +
+    n(row.returns_and_allowances_usd) +
     n(row.other_income_usd) -
-    Math.max(seCogsNet(row), 0) -
+    seCogsNet(row) -
     seExpenseTotal(row)
   );
 }
@@ -895,7 +927,7 @@ function SelfEmploymentSection() {
                 />
                 <div className="flex flex-col gap-2 justify-center">
                   <CheckField label="QBI Eligible?" value={row.qbi_eligible} onChange={(v) => patch({ qbi_eligible: v })} />
-                  <CheckField label="SSTB?" value={row.sstb} onChange={(v) => patch({ sstb: v })} />
+                  <CheckField label="SSTB?" value={row.is_specified_service_trade} onChange={(v) => patch({ is_specified_service_trade: v })} />
                 </div>
               </div>
             </Acc>
@@ -903,27 +935,41 @@ function SelfEmploymentSection() {
             <Acc title="💰 Revenue & Gross Receipts">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <MoneyField label="Gross Receipts (USD)" value={row.gross_receipts_usd} highlight onChange={(v) => patch({ gross_receipts_usd: v })} />
-                <MoneyField label="Returns & Allowances (USD)" value={row.returns_allowances_usd} onChange={(v) => patch({ returns_allowances_usd: v })} />
+                <MoneyField label="Returns & Allowances (USD)" value={row.returns_and_allowances_usd} onChange={(v) => patch({ returns_and_allowances_usd: v })} />
                 <MoneyField label="Other Income (USD)" value={row.other_income_usd} highlight onChange={(v) => patch({ other_income_usd: v })} />
               </div>
               <SectionLabel>Cost of Goods Sold (Part III)</SectionLabel>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <SelectField
                   label="Inventory Method"
-                  value={row.cogs.method}
+                  value={row.cogs_method}
                   options={[{ value: "cost", label: "Cost" }, { value: "lower_of_cost_or_market", label: "Lower of Cost or Market" }, { value: "other", label: "Other" }]}
-                  onChange={(v) => patchGroup("cogs", { method: v })}
+                  onChange={(v) => patch({ cogs_method: v })}
                 />
-                <MoneyField label="Beginning Inventory" value={row.cogs.beginning_inventory} onChange={(v) => patchGroup("cogs", { beginning_inventory: v })} />
-                <MoneyField label="Purchases" value={row.cogs.purchases} onChange={(v) => patchGroup("cogs", { purchases: v })} />
-                <MoneyField label="Cost of Labor" value={row.cogs.cost_of_labor} onChange={(v) => patchGroup("cogs", { cost_of_labor: v })} />
-                <MoneyField label="Materials & Supplies" value={row.cogs.materials_supplies} onChange={(v) => patchGroup("cogs", { materials_supplies: v })} />
-                <MoneyField label="Ending Inventory" value={row.cogs.ending_inventory} onChange={(v) => patchGroup("cogs", { ending_inventory: v })} />
+                <MoneyField label="Beginning Inventory" value={row.cogs_beginning_inventory} onChange={(v) => patch({ cogs_beginning_inventory: v })} />
+                <MoneyField label="Purchases" value={row.cogs_purchases} onChange={(v) => patch({ cogs_purchases: v })} />
+                <MoneyField label="Cost of Labor" value={row.cogs_labor} onChange={(v) => patch({ cogs_labor: v })} />
+                <MoneyField label="Materials & Supplies" value={row.cogs_materials} onChange={(v) => patch({ cogs_materials: v })} />
+                <MoneyField label="Ending Inventory" value={row.cogs_ending_inventory} onChange={(v) => patch({ cogs_ending_inventory: v })} />
               </div>
             </Acc>
 
             <Acc title="💳 Expenses (Schedule C Part II)">
-              <MoneyGrid group={SE_EXPENSE_FIELDS} values={row.expenses} onPatch={(p) => patchGroup("expenses", p)} />
+              <MoneyGrid group={SE_EXPENSE_FIELDS} values={row.itemized_expenses} onPatch={(p) => patchGroup("itemized_expenses", p)} />
+              <div className="text-[11px] text-muted mt-2">Total Expenses: {fmtUsd(row.expenses_usd)}</div>
+            </Acc>
+
+            <Acc title="🚗 Additional Deductions">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <MoneyField label="W-2 Wages Paid" value={row.wages_paid_usd} onChange={(v) => patch({ wages_paid_usd: v })} />
+                <MoneyField label="SE Health Insurance" value={row.se_health_insurance_usd} onChange={(v) => patch({ se_health_insurance_usd: v })} />
+                <MoneyField label="SE Retirement Contribution" value={row.se_retirement_contrib_usd} onChange={(v) => patch({ se_retirement_contrib_usd: v })} />
+                <MoneyField label="Business Vehicle Miles" value={row.vehicle_miles} onChange={(v) => patch({ vehicle_miles: v })} />
+                <MoneyField label="Home Office (sq ft, max 300)" value={row.home_office_sqft} onChange={(v) => patch({ home_office_sqft: v })} />
+              </div>
+              <div className="text-[11px] text-muted mt-2">
+                SE Health Insurance / Retirement feed the flat above-the-line deduction fields on the Income (US) step (summed across every business here).
+              </div>
             </Acc>
 
             <Acc title="🏗 Capital Assets & Depreciation">
@@ -943,15 +989,18 @@ function SelfEmploymentSection() {
 
 /* ============================ Schedule F ================================ */
 
+// Field names match aggregate_us_income.py:69-77's itemized_income{} reads
+// exactly (the DAG-critical set); expense field names match derive.js's
+// FARM_ITEMIZED_EXPENSE_KEYS (what expenses_usd is actually summed from).
 const FARM_INCOME_FIELDS = [
-  ["raised", "Sale of Livestock/Produce Raised"],
-  ["purchased", "Sale of Items Bought for Resale"],
+  ["sales_livestock_produce_raised", "Sale of Livestock/Produce Raised"],
+  ["sales_livestock_produce_purchased", "Sale of Items Bought for Resale"],
   ["cooperative_distributions", "Cooperative Distributions"],
-  ["agricultural_payments", "Agricultural Program Payments"],
+  ["agricultural_program_payments", "Agricultural Program Payments"],
   ["ccc_loans", "CCC Loans"],
-  ["crop_insurance", "Crop Insurance Proceeds"],
-  ["custom_hire", "Custom Hire Income"],
-  ["other", "Other Income"],
+  ["crop_insurance_proceeds", "Crop Insurance Proceeds"],
+  ["custom_hire_income", "Custom Hire Income"],
+  ["other_income", "Other Income"],
 ];
 const FARM_EXPENSE_FIELDS = [
   ["chemicals", "Chemicals"],
@@ -959,13 +1008,13 @@ const FARM_EXPENSE_FIELDS = [
   ["custom_hire", "Custom Hire (Paid)"],
   ["employee_benefits", "Employee Benefit Programs"],
   ["feed", "Feed"],
-  ["fertilizer", "Fertilizers & Lime"],
+  ["fertilizers", "Fertilizers & Lime"],
   ["freight", "Freight & Trucking"],
-  ["gasoline_fuel", "Gasoline / Fuel / Oil"],
+  ["gas_fuel_oil", "Gasoline / Fuel / Oil"],
   ["insurance", "Insurance (Other than Health)"],
   ["interest_mortgage", "Interest — Mortgage"],
   ["interest_other", "Interest — Other"],
-  ["labor", "Labor Hired"],
+  ["labor_hired", "Labor Hired"],
   ["pension", "Pension & Profit-Sharing"],
   ["rent_machinery", "Rent — Machinery"],
   ["rent_other", "Rent — Other"],
@@ -979,14 +1028,20 @@ const FARM_EXPENSE_FIELDS = [
   ["other", "Other Expenses"],
 ];
 
-function farmIncomeTotal(row) {
-  return FARM_INCOME_FIELDS.reduce((s, [k]) => s + n(row.income?.[k]), 0);
+function farmGrossIncome(row) {
+  const inc = row.itemized_income || {};
+  let gross = FARM_INCOME_FIELDS.reduce((s, [k]) => s + n(inc[k]), 0);
+  if (row.accounting_method === "accrual") {
+    const inv = row.inventory || {};
+    gross -= n(inv.beginning_inventory) + n(inv.cost_of_purchases) - n(inv.ending_inventory);
+  }
+  return gross;
 }
 function farmExpenseTotal(row) {
-  return FARM_EXPENSE_FIELDS.reduce((s, [k]) => s + n(row.expenses?.[k]), 0) + n(row.wages_paid);
+  return FARM_EXPENSE_FIELDS.reduce((s, [k]) => s + n(row.itemized_expenses?.[k]), 0);
 }
 function farmNetProfit(row) {
-  return farmIncomeTotal(row) - farmExpenseTotal(row);
+  return farmGrossIncome(row) - farmExpenseTotal(row) - n(row.vehicle_miles) * 0.68 - Math.min(n(row.home_office_sqft), 300) * 5;
 }
 
 function FarmSection() {
@@ -1010,14 +1065,14 @@ function FarmSection() {
         return (
           <RowCard
             key={row.id}
-            title={row.farm_name || "Untitled Farm"}
+            title={row.business_name || "Untitled Farm"}
             badge={`Net ${fmtUsd(farmNetProfit(row))}`}
             onRemove={() => removeRow(path, i)}
           >
             <Acc title="🚜 Setup & Profile" defaultOpen>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className="md:col-span-2">
-                  <TextField label="Farm Name" value={row.farm_name} onChange={(v) => patch({ farm_name: v })} />
+                  <TextField label="Farm Name" value={row.business_name} onChange={(v) => patch({ business_name: v })} />
                 </div>
                 <TextField label="EIN" value={row.ein} mono placeholder="12-3456789" onChange={(v) => patch({ ein: v })} />
                 <TextField label="NAICS Code" value={row.naics_code} mono maxLength={6} onChange={(v) => patch({ naics_code: v })} />
@@ -1029,25 +1084,30 @@ function FarmSection() {
                   options={[{ value: "cash", label: "Cash Method" }, { value: "accrual", label: "Accrual Method" }]}
                   onChange={(v) => patch({ accounting_method: v })}
                 />
-                <MoneyField label="Wages Paid" value={row.wages_paid} onChange={(v) => patch({ wages_paid: v })} />
+                <MoneyField label="Wages Paid" value={row.wages_paid_usd} onChange={(v) => patch({ wages_paid_usd: v })} />
                 <div className="flex items-end pb-2.5">
                   <CheckField label="QBI Eligible?" value={row.qbi_eligible} onChange={(v) => patch({ qbi_eligible: v })} />
                 </div>
               </div>
-              <SectionLabel>Inventory (Accrual Method)</SectionLabel>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <MoneyField label="Beginning Inventory" value={row.inventory.beginning} onChange={(v) => patchGroup("inventory", { beginning: v })} />
-                <MoneyField label="Purchases" value={row.inventory.purchases} onChange={(v) => patchGroup("inventory", { purchases: v })} />
-                <MoneyField label="Ending Inventory" value={row.inventory.ending} onChange={(v) => patchGroup("inventory", { ending: v })} />
-              </div>
+              {row.accounting_method === "accrual" && (
+                <>
+                  <SectionLabel>Inventory (Accrual Method)</SectionLabel>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <MoneyField label="Beginning Inventory" value={row.inventory.beginning_inventory} onChange={(v) => patchGroup("inventory", { beginning_inventory: v })} />
+                    <MoneyField label="Cost of Purchases" value={row.inventory.cost_of_purchases} onChange={(v) => patchGroup("inventory", { cost_of_purchases: v })} />
+                    <MoneyField label="Ending Inventory" value={row.inventory.ending_inventory} onChange={(v) => patchGroup("inventory", { ending_inventory: v })} />
+                  </div>
+                </>
+              )}
             </Acc>
 
             <Acc title="💰 Farm Income (Schedule F Part I)">
-              <MoneyGrid group={FARM_INCOME_FIELDS} values={row.income} onPatch={(p) => patchGroup("income", p)} cols="md:grid-cols-4" />
+              <MoneyGrid group={FARM_INCOME_FIELDS} values={row.itemized_income} onPatch={(p) => patchGroup("itemized_income", p)} cols="md:grid-cols-4" />
             </Acc>
 
             <Acc title="💳 Farm Expenses (Schedule F Part II)">
-              <MoneyGrid group={FARM_EXPENSE_FIELDS} values={row.expenses} onPatch={(p) => patchGroup("expenses", p)} cols="md:grid-cols-4" />
+              <MoneyGrid group={FARM_EXPENSE_FIELDS} values={row.itemized_expenses} onPatch={(p) => patchGroup("itemized_expenses", p)} cols="md:grid-cols-4" />
+              <div className="text-[11px] text-muted mt-2">Total Expenses: {fmtUsd(row.expenses_usd)}</div>
             </Acc>
 
             <Acc title="🚙 Vehicle & Home Office">
@@ -1065,66 +1125,42 @@ function FarmSection() {
 
 /* ========================= Partnership K-1 =============================== */
 
+// Real IRS Schedule K-1 (Form 1065) box names — matches
+// aggregate_us_income.py:162-168/223-306's actual field reads exactly.
 const PART_K1_BOXES_CORE = [
-  ["box2_net_rental_re", "Net Rental RE (Box 2)"],
-  ["box3_other_rental", "Other Rental (Box 3)"],
-  ["box4_guaranteed_payments", "Guaranteed Pay (Box 4)"],
-  ["box5_interest", "Bank Interest (Box 5)"],
-  ["box6a_ordinary_dividends", "Ordinary Divs (Box 6a)"],
-  ["box6b_qualified_dividends", "Qualified Divs (Box 6b)"],
-  ["box7_royalties", "Royalty Income (Box 7)"],
-  ["box8_stcg", "STCG (Box 8)"],
-  ["box9a_ltcg", "LTCG (Box 9a)"],
-  ["box9b_collectibles", "Collectibles (Box 9b)"],
-  ["box9c_unrecap_1250", "Depr RE (Box 9c)"],
-  ["box10_sec1231", "Business Assets (Box 10)"],
-  ["box11_other_income", "Other Income (Box 11)"],
-  ["box16_foreign", "Foreign Income (Box 16)"],
+  ["net_rental_real_estate_usd", "Net Rental RE (Box 2)"],
+  ["other_rental_income_usd", "Other Rental (Box 3)"],
+  ["guaranteed_payments_usd", "Guaranteed Pay (Box 4)"],
+  ["interest_income_usd", "Bank Interest (Box 5)"],
+  ["ordinary_dividends_usd", "Ordinary Divs (Box 6a)"],
+  ["qualified_dividends_usd", "Qualified Divs (Box 6b)"],
+  ["royalties_usd", "Royalty Income (Box 7)"],
+  ["stcg_usd", "STCG (Box 8)"],
+  ["ltcg_usd", "LTCG (Box 9a)"],
+  ["collectibles_gain_usd", "Collectibles (Box 9b)"],
+  ["unrecaptured_1250_gain_usd", "Depr RE (Box 9c)"],
+  ["net_sec1231_gain_usd", "Business Assets (Box 10)"],
+  ["other_income_usd", "Other Income (Box 11)"],
+  ["foreign_transactions_usd", "Foreign Income (Box 16)"],
 ];
 const PART_K1_BOXES_DEDUCT = [
-  ["box12_sec179", "Sec 179 (Box 12)"],
-  ["box13a_charitable", "Charitable (Box 13a)"],
-  ["box13h_investment_interest", "Investment Interest (Box 13h)"],
-  ["box14_se_earnings", "SE Earnings (Box 14)"],
-  ["box15_credits", "Tax Credits (Box 15)"],
-  ["box17_amt", "AMT Adj (Box 17)"],
-  ["box18a_tax_exempt", "Tax-Free Income (Box 18a)"],
-  ["box18c_nondeductible", "Non-Deductibles (Box 18c)"],
-  ["box19_distributions", "Cash Distributed (Box 19)"],
-];
-const PART_EXPENSE_FIELDS = [
-  ["contract_labor", "Contract Labor"],
-  ["legal_professional", "Legal & Professional"],
-  ["utilities", "Utilities"],
-  ["insurance", "Insurance"],
-  ["travel_meals", "Travel & Meals"],
-  ["office_supplies", "Office & Supplies"],
-  ["wages", "Salaries & Wages"],
-  ["rent", "Rent / Lease"],
-  ["repairs", "Repairs & Maintenance"],
-  ["bad_debts", "Bad Debts"],
-  ["taxes_licenses", "Taxes & Licenses"],
-  ["interest_paid", "Interest Paid"],
-  ["advertising", "Advertising"],
-  ["employee_benefits", "Employee Benefits"],
-  ["pension", "Pension & Profit-Sharing"],
-  ["depletion", "Resource Depletion"],
-  ["other", "Other Expenses"],
+  ["sec179_deduction_usd", "Sec 179 (Box 12)"],
+  ["charitable_contributions_usd", "Charitable (Box 13a)"],
+  ["investment_interest_usd", "Investment Interest (Box 13h)"],
+  ["self_employment_earnings_usd", "SE Earnings (Box 14)"],
+  ["credits_usd", "Tax Credits (Box 15)"],
+  ["amt_items_usd", "AMT Adj (Box 17)"],
+  ["tax_exempt_income_usd", "Tax-Free Income (Box 18a)"],
+  ["nondeductible_expenses_usd", "Non-Deductibles (Box 18c)"],
+  ["distributions_usd", "Cash Distributed (Box 19)"],
 ];
 
-function partExpenseTotal(row) {
-  return PART_EXPENSE_FIELDS.reduce((s, [k]) => s + n(row.expenses?.[k]), 0);
-}
-function partCoreProfit(row) {
-  const r = row.revenue || {};
-  return n(r.gross_receipts) - n(r.returns_allowances) - n(r.cogs) + n(r.misc_income) - partExpenseTotal(row);
-}
-// Box 1 (ordinary income) if entered directly overrides the computed
-// core-operations profit, mirroring calculatePartCoreProfit()'s
-// display-precedence in the original.
+// Box 1 (ordinary business income) is the DAG-critical figure —
+// aggregate_us_income.py reads it directly (with an ordinary_business_income_usd
+// alias this port doesn't use), no revenue-minus-expenses fallback compute:
+// K-1 recipients report the box as printed, they don't derive it themselves.
 function partOrdinaryIncome(row) {
-  const box1 = row.k1_boxes?.box1_ordinary_income;
-  return box1 !== "" && box1 !== null && box1 !== undefined ? n(box1) : partCoreProfit(row);
+  return n(row.ordinary_income_usd);
 }
 // Taxpayer's allocation ratio — mirrors calculateBusinessIncomes()'s
 // getTaxpayerAllocationRatio() (defaults to 100% with no partners entered).
@@ -1161,20 +1197,19 @@ function PartnershipSection({ primary }) {
       {rows.length === 0 && <Empty>No partnerships added.</Empty>}
       {rows.map((row, i) => {
         const patch = (p) => updateRow(path, i, p);
-        const patchGroup = (group, p) => updateRow(path, i, { [group]: { ...row[group], ...p } });
         const ratio = taxpayerShareRatio(row.partners);
         const allocated = partOrdinaryIncome(row) * ratio;
         return (
           <RowCard
             key={row.id}
-            title={row.partnership_name || "Untitled Partnership"}
+            title={row.business_name || "Untitled Partnership"}
             badge={primary ? "Primary Entity" : `Your Share ${fmtUsd(allocated)}`}
             onRemove={() => removeRow(path, i)}
           >
             <Acc title="🏢 Setup & Profile" defaultOpen>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className="md:col-span-2">
-                  <TextField label="Partnership Name" value={row.partnership_name} placeholder="e.g. Apex Partners GP" onChange={(v) => patch({ partnership_name: v })} />
+                  <TextField label="Partnership Name" value={row.business_name} placeholder="e.g. Apex Partners GP" onChange={(v) => patch({ business_name: v })} />
                 </div>
                 <TextField label="EIN" value={row.ein} mono placeholder="12-3456789" onChange={(v) => patch({ ein: v })} />
                 <TextField label="NAICS Code" value={row.naics_code} mono maxLength={6} onChange={(v) => patch({ naics_code: v })} />
@@ -1196,31 +1231,30 @@ function PartnershipSection({ primary }) {
                 <MoneyField label="Tax Basis (USD)" value={row.tax_basis_usd} onChange={(v) => patch({ tax_basis_usd: v })} />
                 <MoneyField label="At-Risk Basis (USD)" value={row.at_risk_basis_usd} onChange={(v) => patch({ at_risk_basis_usd: v })} />
               </div>
-            </Acc>
-
-            <Acc title="💰 Revenue & Income (K-1 Boxes)">
-              <SectionLabel>Core Business Operations</SectionLabel>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <MoneyField label="Gross Receipts / Sales" value={row.revenue.gross_receipts} onChange={(v) => patchGroup("revenue", { gross_receipts: v })} />
-                <MoneyField label="Returns & Allowances" value={row.revenue.returns_allowances} onChange={(v) => patchGroup("revenue", { returns_allowances: v })} />
-                <MoneyField label="Cost of Goods Sold" value={row.revenue.cogs} onChange={(v) => patchGroup("revenue", { cogs: v })} />
-                <MoneyField label="Misc / Other Income" value={row.revenue.misc_income} onChange={(v) => patchGroup("revenue", { misc_income: v })} />
+              <div className="flex flex-col gap-2">
+                <CheckField label="QBI Eligible?" value={row.qbi_eligible} onChange={(v) => patch({ qbi_eligible: v })} />
+                <CheckField label="SSTB?" value={row.is_specified_service_trade} onChange={(v) => patch({ is_specified_service_trade: v })} />
+                <CheckField label="Active Rental Participant?" value={row.active_rental_participant} onChange={(v) => patch({ active_rental_participant: v })} />
               </div>
-              <MoneyField
-                label="Ordinary Business Income (Box 1) — leave blank to auto-compute from operations above"
-                value={row.k1_boxes.box1_ordinary_income}
-                highlight
-                onChange={(v) => patchGroup("k1_boxes", { box1_ordinary_income: v })}
-              />
-              <SectionLabel>Investments & Asset Sales</SectionLabel>
-              <MoneyGrid group={PART_K1_BOXES_CORE} values={row.k1_boxes} onPatch={(p) => patchGroup("k1_boxes", p)} cols="md:grid-cols-4" />
             </Acc>
 
-            <Acc title="💳 Expenses & Deductions (Form 1065)">
-              <SectionLabel>Operating Expenses</SectionLabel>
-              <MoneyGrid group={PART_EXPENSE_FIELDS} values={row.expenses} onPatch={(p) => patchGroup("expenses", p)} cols="md:grid-cols-4" />
-              <SectionLabel>K-1 Deduction / Credit Boxes</SectionLabel>
-              <MoneyGrid group={PART_K1_BOXES_DEDUCT} values={row.k1_boxes} onPatch={(p) => patchGroup("k1_boxes", p)} cols="md:grid-cols-4" />
+            <Acc title="💰 K-1 Income Boxes (as reported on your K-1)">
+              <MoneyField
+                label="Ordinary Business Income / Loss (Box 1)"
+                value={row.ordinary_income_usd}
+                highlight
+                onChange={(v) => patch({ ordinary_income_usd: v })}
+              />
+              <MoneyGrid group={PART_K1_BOXES_CORE} values={row} onPatch={patch} cols="md:grid-cols-4" />
+            </Acc>
+
+            <Acc title="💳 K-1 Deduction / Credit Boxes">
+              <MoneyGrid group={PART_K1_BOXES_DEDUCT} values={row} onPatch={patch} cols="md:grid-cols-4" />
+              <SectionLabel>§199A QBI Wage/UBIA Limitation (Box 20)</SectionLabel>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <MoneyField label="QBI W-2 Wages" value={row.qbi_wages_usd} onChange={(v) => patch({ qbi_wages_usd: v })} />
+                <MoneyField label="QBI Unadjusted Basis (UBIA)" value={row.qbi_ubia_usd} onChange={(v) => patch({ qbi_ubia_usd: v })} />
+              </div>
             </Acc>
 
             <Acc title="👥 Partners">
@@ -1312,62 +1346,38 @@ function PartnershipSection({ primary }) {
 
 /* =========================== S-Corp K-1 =================================== */
 
+// Real IRS Schedule K-1 (Form 1120-S) box names — matches
+// aggregate_us_income.py:162-168/250-309's actual field reads exactly. Box 9
+// is sec1231_gain_usd (not net_sec1231_gain_usd, unlike partnership's box
+// 10) — see makeScorpRow()'s comment.
 const SCORP_K1_BOXES_CORE = [
-  ["box2_net_rental_re", "Net Rental RE (Box 2)"],
-  ["box3_other_rental", "Other Rental (Box 3)"],
-  ["box4_interest", "Interest Income (Box 4)"],
-  ["box5a_ordinary_dividends", "Ordinary Divs (Box 5a)"],
-  ["box5b_qualified_dividends", "Qualified Divs (Box 5b)"],
-  ["box6_royalties", "Royalties (Box 6)"],
-  ["box7_stcg", "STCG (Box 7)"],
-  ["box8a_ltcg", "LTCG (Box 8a)"],
-  ["box8b_collectibles", "Collectibles (Box 8b)"],
-  ["box8c_unrecap_1250", "Unrecap §1250 Gain (Box 8c)"],
-  ["box9_sec1231", "Net §1231 Gain (Box 9)"],
-  ["box10_other_income", "Other Income (Box 10)"],
-  ["box14_foreign", "Foreign Transactions (Box 14)"],
+  ["net_rental_real_estate_usd", "Net Rental RE (Box 2)"],
+  ["other_rental_income_usd", "Other Rental (Box 3)"],
+  ["interest_income_usd", "Interest Income (Box 4)"],
+  ["ordinary_dividends_usd", "Ordinary Divs (Box 5a)"],
+  ["qualified_dividends_usd", "Qualified Divs (Box 5b)"],
+  ["royalties_usd", "Royalties (Box 6)"],
+  ["stcg_usd", "STCG (Box 7)"],
+  ["ltcg_usd", "LTCG (Box 8a)"],
+  ["collectibles_gain_usd", "Collectibles (Box 8b)"],
+  ["unrecaptured_1250_gain_usd", "Unrecap §1250 Gain (Box 8c)"],
+  ["sec1231_gain_usd", "Net §1231 Gain (Box 9)"],
+  ["other_income_usd", "Other Income (Box 10)"],
+  ["foreign_transactions_usd", "Foreign Transactions (Box 14)"],
 ];
 const SCORP_K1_BOXES_DEDUCT = [
-  ["box11_sec179", "Sec 179 (Box 11)"],
-  ["box12a_charitable", "Charitable (Box 12a)"],
-  ["box12h_other_deductions", "Other Deductions (Box 12h)"],
-  ["box13_credits", "Credits (Box 13)"],
-  ["box15_amt", "AMT Items (Box 15)"],
-  ["box16a_tax_exempt", "Tax-Exempt Interest (Box 16a)"],
-  ["box16c_nondeductible", "Nondeductible Expenses (Box 16c)"],
-  ["box16d_distributions", "Distributions (Box 16d)"],
-];
-const SCORP_EXPENSE_FIELDS = [
-  ["contract_labor", "Contract Labor"],
-  ["legal_professional", "Legal & Professional"],
-  ["utilities", "Utilities"],
-  ["insurance", "Insurance"],
-  ["travel_meals", "Travel & Meals"],
-  ["office_supplies", "Office & Supplies"],
-  ["wages", "Salaries & Wages"],
-  ["officer_comp", "Officer Compensation"],
-  ["rent", "Rent / Lease"],
-  ["repairs", "Repairs & Maintenance"],
-  ["bad_debts", "Bad Debts"],
-  ["taxes_licenses", "Taxes & Licenses"],
-  ["interest_paid", "Interest Paid"],
-  ["advertising", "Advertising"],
-  ["employee_benefits", "Employee Benefits"],
-  ["pension", "Pension & Profit-Sharing"],
-  ["depletion", "Resource Depletion"],
-  ["other", "Other Expenses"],
+  ["sec179_deduction_usd", "Sec 179 (Box 11)"],
+  ["charitable_contributions_usd", "Charitable (Box 12a)"],
+  ["investment_interest_usd", "Other Deductions (Box 12h)"],
+  ["credits_usd", "Credits (Box 13)"],
+  ["amt_items_usd", "AMT Items (Box 15)"],
+  ["tax_exempt_income_usd", "Tax-Exempt Interest (Box 16a)"],
+  ["nondeductible_expenses_usd", "Nondeductible Expenses (Box 16c)"],
+  ["distributions_usd", "Distributions (Box 16d)"],
 ];
 
-function scorpExpenseTotal(row) {
-  return SCORP_EXPENSE_FIELDS.reduce((s, [k]) => s + n(row.expenses?.[k]), 0);
-}
-function scorpCoreProfit(row) {
-  const r = row.revenue || {};
-  return n(r.gross_receipts) - n(r.returns_allowances) - n(r.cogs) + n(r.misc_income) - scorpExpenseTotal(row);
-}
 function scorpOrdinaryIncome(row) {
-  const box1 = row.k1_boxes?.box1_ordinary_income;
-  return box1 !== "" && box1 !== null && box1 !== undefined ? n(box1) : scorpCoreProfit(row);
+  return n(row.ordinary_income_usd);
 }
 
 function ScorpSection({ primary }) {
@@ -1393,20 +1403,19 @@ function ScorpSection({ primary }) {
       {rows.length === 0 && <Empty>No S-corporations added.</Empty>}
       {rows.map((row, i) => {
         const patch = (p) => updateRow(path, i, p);
-        const patchGroup = (group, p) => updateRow(path, i, { [group]: { ...row[group], ...p } });
         const ratio = taxpayerShareRatio(row.shareholders);
         const allocated = scorpOrdinaryIncome(row) * ratio;
         return (
           <RowCard
             key={row.id}
-            title={row.corp_name || "Untitled S-Corporation"}
+            title={row.business_name || "Untitled S-Corporation"}
             badge={primary ? "Primary Entity" : `Your Share ${fmtUsd(allocated)}`}
             onRemove={() => removeRow(path, i)}
           >
             <Acc title="🏢 Setup & Profile" defaultOpen>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className="md:col-span-2">
-                  <TextField label="S-Corp Name" value={row.corp_name} onChange={(v) => patch({ corp_name: v })} />
+                  <TextField label="S-Corp Name" value={row.business_name} onChange={(v) => patch({ business_name: v })} />
                 </div>
                 <TextField label="EIN" value={row.ein} mono placeholder="12-3456789" onChange={(v) => patch({ ein: v })} />
                 <TextField label="NAICS Code" value={row.naics_code} mono maxLength={6} onChange={(v) => patch({ naics_code: v })} />
@@ -1422,29 +1431,30 @@ function ScorpSection({ primary }) {
                 <MoneyField label="Tax Basis (USD)" value={row.tax_basis_usd} onChange={(v) => patch({ tax_basis_usd: v })} />
                 <MoneyField label="At-Risk Basis (USD)" value={row.at_risk_basis_usd} onChange={(v) => patch({ at_risk_basis_usd: v })} />
               </div>
-            </Acc>
-
-            <Acc title="💰 Revenue & Income (K-1 Boxes)">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <MoneyField label="Gross Receipts / Sales" value={row.revenue.gross_receipts} onChange={(v) => patchGroup("revenue", { gross_receipts: v })} />
-                <MoneyField label="Returns & Allowances" value={row.revenue.returns_allowances} onChange={(v) => patchGroup("revenue", { returns_allowances: v })} />
-                <MoneyField label="Cost of Goods Sold" value={row.revenue.cogs} onChange={(v) => patchGroup("revenue", { cogs: v })} />
-                <MoneyField label="Misc / Other Income" value={row.revenue.misc_income} onChange={(v) => patchGroup("revenue", { misc_income: v })} />
+              <div className="flex flex-col gap-2">
+                <CheckField label="QBI Eligible?" value={row.qbi_eligible} onChange={(v) => patch({ qbi_eligible: v })} />
+                <CheckField label="SSTB?" value={row.is_specified_service_trade} onChange={(v) => patch({ is_specified_service_trade: v })} />
+                <CheckField label="Active Rental Participant?" value={row.active_rental_participant} onChange={(v) => patch({ active_rental_participant: v })} />
               </div>
-              <MoneyField
-                label="Ordinary Business Income (Box 1) — leave blank to auto-compute from operations above"
-                value={row.k1_boxes.box1_ordinary_income}
-                highlight
-                onChange={(v) => patchGroup("k1_boxes", { box1_ordinary_income: v })}
-              />
-              <MoneyGrid group={SCORP_K1_BOXES_CORE} values={row.k1_boxes} onPatch={(p) => patchGroup("k1_boxes", p)} cols="md:grid-cols-4" />
             </Acc>
 
-            <Acc title="💳 Expenses & Deductions (Form 1120-S)">
-              <SectionLabel>Operating Expenses</SectionLabel>
-              <MoneyGrid group={SCORP_EXPENSE_FIELDS} values={row.expenses} onPatch={(p) => patchGroup("expenses", p)} cols="md:grid-cols-4" />
-              <SectionLabel>K-1 Deduction / Credit Boxes</SectionLabel>
-              <MoneyGrid group={SCORP_K1_BOXES_DEDUCT} values={row.k1_boxes} onPatch={(p) => patchGroup("k1_boxes", p)} cols="md:grid-cols-4" />
+            <Acc title="💰 K-1 Income Boxes (as reported on your K-1)">
+              <MoneyField
+                label="Ordinary Business Income / Loss (Box 1)"
+                value={row.ordinary_income_usd}
+                highlight
+                onChange={(v) => patch({ ordinary_income_usd: v })}
+              />
+              <MoneyGrid group={SCORP_K1_BOXES_CORE} values={row} onPatch={patch} cols="md:grid-cols-4" />
+            </Acc>
+
+            <Acc title="💳 K-1 Deduction / Credit Boxes">
+              <MoneyGrid group={SCORP_K1_BOXES_DEDUCT} values={row} onPatch={patch} cols="md:grid-cols-4" />
+              <SectionLabel>§199A QBI Wage/UBIA Limitation (Box 17)</SectionLabel>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <MoneyField label="QBI W-2 Wages" value={row.qbi_wages_usd} onChange={(v) => patch({ qbi_wages_usd: v })} />
+                <MoneyField label="QBI Unadjusted Basis (UBIA)" value={row.qbi_ubia_usd} onChange={(v) => patch({ qbi_ubia_usd: v })} />
+              </div>
             </Acc>
 
             <Acc title="🏗 Capital Assets & Depreciation">
@@ -1700,48 +1710,29 @@ function ScheduleLM1M2Block() {
 
 /* ============================== Trust ===================================== */
 
+// Field names match layer1_us.html:17053-17102's syncTrustK1State() ground
+// truth exactly — royalty_income_usd (not royalties_usd) is Box 7, matching
+// aggregate_us_income.py:167's fallback chain. Box 1 (ordinary income) is
+// its own highlighted field below, not in this grid.
 const TRUST_K1_BOXES = [
-  ["box1_interest", "Interest Income (Box 1)"],
-  ["box3_other_rental", "Other Rental (Box 3)"],
-  ["box5_ordinary_dividends", "Ordinary Divs (Box 5)"],
-  ["box6a_other_income", "Other Income (Box 6a)"],
-  ["box6b_qualified_dividends", "Qualified Divs (Box 6b)"],
-  ["box7_royalty", "Royalties (Box 7)"],
-  ["box8_stcg", "STCG (Box 8)"],
-  ["box9a_ltcg", "LTCG (Box 9a)"],
-  ["box9_ord_gain", "Ordinary Gain (Box 9)"],
-];
-const TRUST_EXPENSE_FIELDS = [
-  ["wages", "Wages"],
-  ["contract_labor", "Contract Labor"],
-  ["rent", "Rent / Lease"],
-  ["repairs", "Repairs"],
-  ["bad_debts", "Bad Debts"],
-  ["taxes", "Taxes"],
-  ["interest_paid", "Interest Paid"],
-  ["charity", "Charitable Contributions"],
-  ["advertising", "Advertising"],
-  ["employee_benefits", "Employee Benefits"],
-  ["pension", "Pension & Profit-Sharing"],
-  ["depletion", "Resource Depletion"],
-  ["legal_professional", "Legal & Professional"],
-  ["utilities", "Utilities"],
-  ["insurance", "Insurance"],
-  ["travel_meals", "Travel & Meals"],
-  ["office_supplies", "Office & Supplies"],
-  ["other", "Other Expenses"],
+  ["other_rental_income_usd", "Other Rental Income (Box 3)"],
+  ["interest_income_usd", "Interest Income (Box 5)"],
+  ["ordinary_dividends_usd", "Ordinary Divs (Box 6a)"],
+  ["qualified_dividends_usd", "Qualified Divs (Box 6b)"],
+  ["net_rental_real_estate_usd", "Net Rental Real Estate (Box 7)"],
+  ["stcg_usd", "Net STCG (Box 8)"],
+  ["ordinary_gain_usd", "Ordinary Gain (Box 8)"],
+  ["royalty_income_usd", "Royalty Income (Box 9)"],
+  ["ltcg_usd", "Net LTCG"],
+  ["depreciation_allocation_usd", "Depreciation Allocation (Box 9a)"],
 ];
 
-function trustK1Total(row) {
-  const b = row.k1_boxes || {};
-  return TRUST_K1_BOXES.reduce((s, [k]) => s + n(b[k]), 0);
-}
-function trustExpenseTotal(row) {
-  const f = row.fees || {};
-  return TRUST_EXPENSE_FIELDS.reduce((s, [k]) => s + n(row.expenses?.[k]), 0) + n(f.fiduciary) + n(f.professional) + n(f.admin);
-}
+// aggregate_us_income.py:252 reads ordinary_income_usd + ordinary_gain_usd
+// directly for the pass-through business-income total — no expense-total
+// subtraction exists for trust K-1 rows (unlike SE/farm), matching the
+// source: a K-1 recipient reports the already-net distributable amount.
 function trustNetIncome(row) {
-  return trustK1Total(row) - trustExpenseTotal(row);
+  return n(row.ordinary_income_usd) + n(row.ordinary_gain_usd);
 }
 
 function TrustSection({ primary }) {
@@ -1781,18 +1772,17 @@ function TrustSection({ primary }) {
       {rows.length === 0 && <Empty>No trusts/estates added.</Empty>}
       {rows.map((row, i) => {
         const patch = (p) => updateRow(path, i, p);
-        const patchGroup = (group, p) => updateRow(path, i, { [group]: { ...row[group], ...p } });
         return (
           <RowCard
             key={row.id}
-            title={row.trust_name || "Untitled Trust/Estate"}
+            title={row.business_name || "Untitled Trust/Estate"}
             badge={`Net ${fmtUsd(trustNetIncome(row))}`}
             onRemove={() => removeRow(path, i)}
           >
             <Acc title="🏢 Setup & Profile" defaultOpen>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className="md:col-span-2">
-                  <TextField label="Trust / Estate Name" value={row.trust_name} onChange={(v) => patch({ trust_name: v })} />
+                  <TextField label="Trust / Estate Name" value={row.business_name} onChange={(v) => patch({ business_name: v })} />
                 </div>
                 <TextField label="EIN" value={row.ein} mono placeholder="12-3456789" onChange={(v) => patch({ ein: v })} />
                 <SelectField
@@ -1804,9 +1794,9 @@ function TrustSection({ primary }) {
               </div>
               <SelectField label="Business Type" value={row.industry_category} options={INDUSTRY_OPTIONS} onChange={(v) => patch({ industry_category: v })} />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <MoneyField label="Fiduciary Fees" value={row.fees.fiduciary} onChange={(v) => patchGroup("fees", { fiduciary: v })} />
-                <MoneyField label="Professional Fees" value={row.fees.professional} onChange={(v) => patchGroup("fees", { professional: v })} />
-                <MoneyField label="Admin Expenses" value={row.fees.admin} onChange={(v) => patchGroup("fees", { admin: v })} />
+                <MoneyField label="Fiduciary Fees" value={row.fiduciary_fees} onChange={(v) => patch({ fiduciary_fees: v })} />
+                <MoneyField label="Professional Fees" value={row.professional_fees} onChange={(v) => patch({ professional_fees: v })} />
+                <MoneyField label="Admin Expenses" value={row.admin_expenses} onChange={(v) => patch({ admin_expenses: v })} />
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <SelectField
@@ -1819,17 +1809,31 @@ function TrustSection({ primary }) {
                   <CheckField label="QBI Eligible?" value={row.qbi_eligible} onChange={(v) => patch({ qbi_eligible: v })} />
                 </div>
                 <div className="flex items-end pb-2.5">
-                  <CheckField label="SSTB?" value={row.sstb} onChange={(v) => patch({ sstb: v })} />
+                  <CheckField label="SSTB?" value={row.is_specified_service_trade} onChange={(v) => patch({ is_specified_service_trade: v })} />
+                </div>
+                <div className="flex items-end pb-2.5">
+                  <CheckField label="Active Rental Participant?" value={row.active_rental_participant} onChange={(v) => patch({ active_rental_participant: v })} />
                 </div>
               </div>
             </Acc>
 
             <Acc title="💰 Income (K-1 Boxes)">
-              <MoneyGrid group={TRUST_K1_BOXES} values={row.k1_boxes} onPatch={(p) => patchGroup("k1_boxes", p)} cols="md:grid-cols-3" />
+              <MoneyField
+                label="Ordinary Business Income (Box 1)"
+                value={row.ordinary_income_usd}
+                highlight
+                onChange={(v) => patch({ ordinary_income_usd: v })}
+              />
+              <MoneyGrid group={TRUST_K1_BOXES} values={row} onPatch={patch} cols="md:grid-cols-3" />
             </Acc>
 
-            <Acc title="💳 Expenses (Form 1041)">
-              <MoneyGrid group={TRUST_EXPENSE_FIELDS} values={row.expenses} onPatch={(p) => patchGroup("expenses", p)} cols="md:grid-cols-4" />
+            <Acc title="🏗 Capital Assets & Depreciation">
+              <AssetsBlock
+                assets={row.assets}
+                onAdd={() => patch({ assets: [...(row.assets || []), makeAsset()] })}
+                onRemove={(ai) => patch({ assets: row.assets.filter((_, idx) => idx !== ai) })}
+                onChange={(ai, p) => patch({ assets: row.assets.map((a, idx) => (idx === ai ? { ...a, ...p } : a)) })}
+              />
             </Acc>
 
             <Acc title="👥 Beneficiaries">
@@ -1873,10 +1877,10 @@ function computeSimplifiedTotals(usState) {
     (s, r) => s + scorpOrdinaryIncome(r) * taxpayerShareRatio(r.shareholders),
     0
   );
-  const trustNet = (src.trusts_estates_k1 || []).reduce((s, r) => {
-    const total = trustK1Total(r) - trustExpenseTotal(r);
-    return s + total * taxpayerShareRatio(r.beneficiaries);
-  }, 0);
+  const trustNet = (src.trusts_estates_k1 || []).reduce(
+    (s, r) => s + trustNetIncome(r) * taxpayerShareRatio(r.beneficiaries),
+    0
+  );
   const trustRetained = n(usState.profile.trust_retained_income_usd);
 
   const ccorpEntityNet = (src.c_corporations_1120 || []).reduce((s, r) => s + ccorpTaxableIncome(r), 0);

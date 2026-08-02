@@ -198,12 +198,126 @@ export function applyDerivations(usState) {
   const nextFilingStatus = applyNraFilingStatusGating(usState, lockResult);
   const filingStatusChanged = nextFilingStatus !== usState.profile.filing_status;
 
-  if (!detailsChanged && !filingStatusChanged) return usState;
+  let next = usState;
+  if (detailsChanged || filingStatusChanged) {
+    next = {
+      ...usState,
+      us_residency_detail: detailsChanged ? { ...details, ...detailsPatch } : details,
+      profile: filingStatusChanged ? { ...usState.profile, filing_status: nextFilingStatus } : usState.profile,
+    };
+  }
+
+  return applyBusinessIncomeDerivations(next);
+}
+
+// ── Self-employment (Schedule C) derived aggregates — ported from
+// layer1_us.html:13569-13658's syncSeState(). Two things the live form
+// recomputes on every keystroke that a naive controlled-input binding would
+// otherwise lose entirely:
+//   1. expenses_usd — the flat scalar aggregate_us_income.py's
+//      _compute_self_employment_net_profit_usd() actually reads (line 58) —
+//      is a SUM of itemized_expenses{}, never something a user fills in
+//      directly.
+//   2. The "Self-Employed Above-The-Line Deductions" card's flat
+//      se_health_insurance_deduction_usd/se_retirement_deduction_usd fields
+//      (what ustax.py:661-662 actually reads for the Schedule 1 deduction)
+//      are fed by summing every business row's own se_health_insurance_usd/
+//      se_retirement_contrib_usd; the flat card's own manual entry only
+//      stands if no business reports either amount — matching the source's
+//      own comment at layer1_us.html:13638-13646 ("without this, per-business
+//      entries were pure decoration, silently discarded").
+const SE_ITEMIZED_EXPENSE_KEYS = [
+  "advertising",
+  "contract_labor",
+  "insurance",
+  "legal_professional",
+  "business_meals",
+  "office_expenses",
+  "rent_lease",
+  "repairs_maintenance",
+  "supplies",
+  "utilities",
+  "taxes_and_licenses",
+  "travel",
+  "commissions",
+  "other",
+];
+
+// ── Farm (Schedule F) — ported from layer1_us.html:14148-14195's
+// syncFarmState(): expenses_usd is likewise a flat sum of itemized_expenses{}
+// (aggregate_us_income.py:82's _compute_farm_net_profit_usd reads it the same
+// way SE's does). No above-the-line-deduction feeder equivalent exists for
+// farm rows in the source.
+const FARM_ITEMIZED_EXPENSE_KEYS = [
+  "chemicals",
+  "conservation",
+  "custom_hire",
+  "employee_benefits",
+  "feed",
+  "fertilizers",
+  "freight",
+  "gas_fuel_oil",
+  "insurance",
+  "interest_mortgage",
+  "interest_other",
+  "labor_hired",
+  "pension",
+  "rent_machinery",
+  "rent_other",
+  "repairs",
+  "seeds",
+  "storage",
+  "supplies",
+  "taxes",
+  "utilities",
+  "veterinary",
+  "other",
+];
+
+function deriveItemizedExpenseRows(rows, keys) {
+  let changed = false;
+  const next = rows.map((row) => {
+    const itemized = row.itemized_expenses || {};
+    const sum = keys.reduce((s, k) => s + (Number(itemized[k]) || 0), 0);
+    if ((Number(row.expenses_usd) || 0) === sum) return row;
+    changed = true;
+    return { ...row, expenses_usd: sum };
+  });
+  return { rows: next, changed };
+}
+
+function applyBusinessIncomeDerivations(usState) {
+  const iu = usState.income_us_source || {};
+  const seRows = iu.self_employment || [];
+  const farmRows = iu.farming_schedule_f || [];
+  if (seRows.length === 0 && farmRows.length === 0) return usState;
+
+  const { rows: nextSeRows, changed: seRowsChanged } = deriveItemizedExpenseRows(seRows, SE_ITEMIZED_EXPENSE_KEYS);
+  const { rows: nextFarmRows, changed: farmRowsChanged } = deriveItemizedExpenseRows(farmRows, FARM_ITEMIZED_EXPENSE_KEYS);
+
+  const healthSum = nextSeRows.reduce((s, r) => s + (Number(r.se_health_insurance_usd) || 0), 0);
+  const retSum = nextSeRows.reduce((s, r) => s + (Number(r.se_retirement_contrib_usd) || 0), 0);
+
+  const nextHealthDed = healthSum > 0 ? healthSum : iu.se_health_insurance_deduction_usd;
+  const nextRetDed = retSum > 0 ? retSum : iu.se_retirement_deduction_usd;
+
+  const iuChanged =
+    seRowsChanged ||
+    farmRowsChanged ||
+    nextHealthDed !== iu.se_health_insurance_deduction_usd ||
+    nextRetDed !== iu.se_retirement_deduction_usd;
+
+  if (!iuChanged) return usState;
 
   return {
     ...usState,
-    us_residency_detail: detailsChanged ? { ...details, ...detailsPatch } : details,
-    profile: filingStatusChanged ? { ...usState.profile, filing_status: nextFilingStatus } : usState.profile,
+    income_us_source: {
+      ...iu,
+      self_employment: nextSeRows,
+      farming_schedule_f: nextFarmRows,
+      se_health_insurance_deduction_usd: nextHealthDed,
+      se_retirement_deduction_usd: nextRetDed,
+    },
   };
 }
 

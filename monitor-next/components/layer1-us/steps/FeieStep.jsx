@@ -116,8 +116,9 @@ export default function FeieStep() {
           ) : (
             // BUG FIX: ground truth's div-feie-bonafide-details (layer1_us.html
             // ~3023-3041) only shows the start date (+ a bona_fide_visa_type
-            // field that isn't part of schema.js's committed shape, so it's
-            // intentionally not ported). It does NOT show
+            // text field, layer1_us.html:3030-3031 — added to schema.js in the
+            // JSON-export reconciliation pass but still not rendered here; a
+            // real gap, not an intentional exclusion). It does NOT show
             // days_in_us_during_test_period / us_business_days — those belong
             // to the physical-presence test only. The previous version
             // duplicated the physical-presence fields here, which erased the

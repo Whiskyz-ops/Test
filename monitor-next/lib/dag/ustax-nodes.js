@@ -48,7 +48,42 @@ function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 var CONST = require("./constants.js").CONST;
 var T = CONST.TAX.US;
 var FEIE_MAX_USD = CONST.LIMITS.FEIE_MAX_USD;
+var FEIE_HOUSING_BASE_USD = CONST.LIMITS.FEIE_HOUSING_BASE_USD;
+var FEIE_HOUSING_CAP_USD = CONST.LIMITS.FEIE_HOUSING_CAP_USD;
 var NIIT_THRESHOLD = CONST.LIMITS.NIIT_THRESHOLD;
+
+function isLeapYear(year) { return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0); }
+
+// IRC §911(b)(2)(D): the FEIE (and §911(c) housing) max is prorated by
+// (qualifying days within the tax year / days in the tax year) for a
+// taxpayer who only qualifies for part of the year — e.g. moved abroad
+// mid-year, or whose 12-month physical-presence test period only
+// partially overlaps the tax year. Returns null when there isn't enough
+// date data to compute this; the caller then falls back to the full,
+// unprorated max rather than penalizing an incomplete form. Mirrors
+// dag_py's us/ustax.py _feie_qualifying_days_in_tax_year() exactly.
+function feieQualifyingDaysInTaxYear(qualificationTest, startStr, endStr, baseYear) {
+  if (!baseYear) return null;
+  var yearStart = new Date(Date.UTC(baseYear, 0, 1));
+  var yearEnd = new Date(Date.UTC(baseYear, 11, 31));
+  function parseD(s) { if (!s) return null; var d = new Date(s); return isNaN(d.getTime()) ? null : d; }
+  var start = parseD(startStr);
+  if (qualificationTest === "physical_presence") {
+    var end = parseD(endStr);
+    if (!start || !end || end < start) return null;
+    var overlapStart = start > yearStart ? start : yearStart;
+    var overlapEnd = end < yearEnd ? end : yearEnd;
+    if (overlapEnd < overlapStart) return 0;
+    return Math.round((overlapEnd - overlapStart) / 86400000) + 1;
+  }
+  if (qualificationTest === "bona_fide_residence") {
+    if (!start) return null;
+    if (start > yearEnd) return 0;
+    var overlapStart2 = start > yearStart ? start : yearStart;
+    return Math.round((yearEnd - overlapStart2) / 86400000) + 1;
+  }
+  return null;
+}
 
 function bracketTax(amount, slabs) {
   var t = Math.max(0, amount), tax = 0, prev = 0;
@@ -118,7 +153,20 @@ function feieEligibility(f) {
           ? "bona-fide-residence test selected but no residence start date on file"
           : "bona-fide-residence test not met")));
   }
-  return { claimed: claimed, amountClaimedUsd: f.amountClaimedUsd || 0, taxHomeAbroad: taxHomeAbroad, testMet: bfMet || ppMet, eligible: taxHomeAbroad && (bfMet || ppMet), reasons: reasons };
+  return {
+    claimed: claimed, amountClaimedUsd: f.amountClaimedUsd || 0, taxHomeAbroad: taxHomeAbroad,
+    testMet: bfMet || ppMet, eligible: taxHomeAbroad && (bfMet || ppMet), reasons: reasons,
+    // Which test actually qualified — drives which date range
+    // computeUsTaxCore() uses to prorate the exclusion cap for a
+    // partial-year qualifier (§911(b)(2)(D)). Physical presence takes
+    // priority if somehow both are met. Mirrors dag_py's
+    // feie_eligibility() exactly.
+    qualificationTest: ppMet ? "physical_presence" : (bfMet ? "bona_fide_residence" : null),
+    physicalPresenceStartDate: f.physicalPresenceStartDate,
+    physicalPresenceEndDate: f.physicalPresenceEndDate,
+    bonaFideResidenceStartDate: f.bonaFideResidenceStartDate,
+    housingExpensesUsd: f.housingExpensesUsd || 0,
+  };
 }
 
 /* computeUsTaxCore — extracted verbatim from usTaxResult's compute() below so
@@ -133,13 +181,48 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var fW = worldwide ? inc.foreignWages.usd : 0;
       var fSE = worldwide ? inc.foreignSelfEmployment.usd : 0;
       var feieAppliedUsd = 0;
+      var feieHousingAppliedUsd = 0;
       if (worldwide && feie.claimed && feie.eligible && (fW + fSE) > 0) {
         var feieEarnedBaseUsd = fW + fSE;
+
+        // IRC §911(b)(2)(D): prorate the max exclusion by qualifying days in
+        // the tax year — was previously a flat FEIE_MAX_USD for every
+        // claimant regardless of how much of the year they actually
+        // qualified for (e.g. moved abroad mid-year). Mirrors dag_py's
+        // us/ustax.py compute_us_tax_core() exactly.
+        var qualifyingDays = feie.qualificationTest === "physical_presence"
+          ? feieQualifyingDaysInTaxYear("physical_presence", feie.physicalPresenceStartDate, feie.physicalPresenceEndDate, baseYearUs)
+          : (feie.qualificationTest === "bona_fide_residence"
+            ? feieQualifyingDaysInTaxYear("bona_fide_residence", feie.bonaFideResidenceStartDate, null, baseYearUs)
+            : null);
+        var daysInTaxYear = isLeapYear(baseYearUs || 2025) ? 366 : 365;
+        var proratedMaxUsd = qualifyingDays === null ? FEIE_MAX_USD : FEIE_MAX_USD * (Math.min(qualifyingDays, daysInTaxYear) / daysInTaxYear);
+
         var feieBase = feie.amountClaimedUsd > 0 ? feie.amountClaimedUsd : feieEarnedBaseUsd;
-        feieAppliedUsd = Math.min(feieEarnedBaseUsd, feieBase, FEIE_MAX_USD);
+        feieAppliedUsd = Math.min(feieEarnedBaseUsd, feieBase, proratedMaxUsd);
         var feieAppliedToWagesUsd = Math.min(fW, feieAppliedUsd);
         fW = fW - feieAppliedToWagesUsd;
         fSE = fSE - (feieAppliedUsd - feieAppliedToWagesUsd);
+
+        // IRC §911(c): foreign housing cost exclusion. Collected and shown
+        // on screen by layer1_us.html but never previously reached this
+        // engine at all. Recomputed here from the raw housing-expense
+        // input against this engine's OWN fixed base/cap constants, NOT
+        // the usState.foreign_earned_income.housing_exclusion_base_usd/
+        // cap_usd fields — those are meant to be fixed IRS figures (React
+        // incorrectly exposes them as user-editable). Base/cap prorated by
+        // the same qualifying-day ratio as the main exclusion above.
+        var housingRatio = proratedMaxUsd / FEIE_MAX_USD;
+        var housingBaseUsd = FEIE_HOUSING_BASE_USD * housingRatio;
+        var housingCapUsd = FEIE_HOUSING_CAP_USD * housingRatio;
+        var housingExpensesUsd = feie.housingExpensesUsd || 0;
+        var housingUncappedUsd = Math.max(0, housingExpensesUsd - housingBaseUsd);
+        var housingRoomUsd = Math.max(0, housingCapUsd - housingBaseUsd);
+        var remainingEarnedUsd = Math.max(0, feieEarnedBaseUsd - feieAppliedUsd);
+        feieHousingAppliedUsd = Math.min(housingUncappedUsd, housingRoomUsd, remainingEarnedUsd);
+        var feieHousingAppliedToWagesUsd = Math.min(fW, feieHousingAppliedUsd);
+        fW = fW - feieHousingAppliedToWagesUsd;
+        fSE = fSE - (feieHousingAppliedUsd - feieHousingAppliedToWagesUsd);
       }
       var fI = worldwide ? inc.foreignInterest.usd : 0, fD = worldwide ? inc.foreignDividends.usd : 0;
       var fR = worldwide ? inc.foreignRental.usd : 0, fP = worldwide ? inc.foreignPension.usd : 0;
@@ -259,11 +342,33 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var prefTaxable = Math.min(regularPreferentialIncome, totalPrefTaxable);
       var collectiblesTaxable = totalPrefTaxable - prefTaxable;
 
-      var ordinaryTax = bracketTax(ordTaxable, brackets);
-      var ordinaryBracketBreakdown = bracketBreakdown(ordTaxable, brackets);
+      // IRC §911(d)(6) / the Foreign Earned Income Tax Worksheet (Form 1040
+      // instructions, line 16 — "stacking rule"): once foreign earned
+      // income and/or housing costs are excluded, the taxpayer's REMAINING
+      // (non-excluded) income must still be taxed at the marginal rate it
+      // would have faced had the exclusion never applied. Mechanically:
+      // add the excluded amount back for rate-determination only, compute
+      // tax on the stacked total, then subtract the tax attributable to
+      // the excluded amount alone (computed independently, from zero,
+      // using the same ordinary-bracket method — FEIE only ever excludes
+      // ordinary earned income, never capital-gains-preferential income).
+      // Previously the excluded amount was simply subtracted from wages/SE
+      // earnings before any bracket math ran, so remaining ordinary AND
+      // preferential income was taxed as if the exclusion never existed at
+      // all — silently understating tax for any FEIE claimant with other
+      // taxable income. No effect when nothing was excluded
+      // (feieTotalExcludedUsd === 0, the common case, since stackStart ===
+      // ordTaxable then). Mirrors dag_py's us/ustax.py exactly.
+      var feieTotalExcludedUsd = feieAppliedUsd + feieHousingAppliedUsd;
+      var stackStart = ordTaxable + feieTotalExcludedUsd;
+
+      var ordinaryTaxOnStacked = bracketTax(stackStart, brackets);
+      var ordinaryTaxOnExcludedAlone = feieTotalExcludedUsd > 0 ? bracketTax(feieTotalExcludedUsd, brackets) : 0;
+      var ordinaryTax = ordinaryTaxOnStacked - ordinaryTaxOnExcludedAlone;
+      var ordinaryBracketBreakdown = bracketBreakdown(stackStart, brackets);
 
       var lb = T.LTCG_BRACKETS[status] || T.LTCG_BRACKETS.single;
-      var start = ordTaxable;
+      var start = stackStart;
       var amt0 = Math.max(0, Math.min(lb.br0 - start, prefTaxable));
       var remAfter0 = prefTaxable - amt0;
       var amt15 = Math.max(0, Math.min(lb.br15 - Math.max(start, lb.br0), remAfter0));
@@ -274,7 +379,9 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       // taxpayer's own ordinary-bracket rate on that slice (§1(h)(1)(A)(i)/
       // (4) — "28% rate gain" is a CAP, not a flat add-on; below the 28%
       // ordinary bracket, the taxpayer's own lower rate applies instead).
-      var collectiblesStackStart = ordTaxable + prefTaxable;
+      // Stacked on the same rate-preserving base as ordinary/preferential
+      // income above.
+      var collectiblesStackStart = start + prefTaxable;
       var collectiblesTaxIfOrdinary = bracketTax(collectiblesStackStart + collectiblesTaxable, brackets) - bracketTax(collectiblesStackStart, brackets);
       var collectiblesTax = Math.min(collectiblesTaxIfOrdinary, T.COLLECTIBLES_RATE * collectiblesTaxable);
 
@@ -366,7 +473,20 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var ctcUnusedUsd = ctcAvailableUsd - ctcNonRefundableUsedUsd;
       var earnedIncomeUsd = inc.wages.usd + fW + fSE + (inc.businessUs ? inc.businessUs.usd : 0);
       var actcCapUsd = Math.min(T.CTC_REFUNDABLE_MAX_PER_CHILD_USD * numChildrenForCtc, T.CTC_REFUNDABLE_RATE * Math.max(0, earnedIncomeUsd - T.CTC_REFUNDABLE_EARNED_INCOME_FLOOR_USD));
-      var ctcRefundableUsd = Math.round(Math.max(0, Math.min(ctcUnusedUsd, actcCapUsd)));
+      // Schedule 8812 instructions ("You cannot claim the additional child
+      // tax credit if you file Form 2555"): a taxpayer who actually claims
+      // and applies the FEIE is CATEGORICALLY barred from the refundable
+      // ACTC — not proportionally reduced. Previously this only shrank via
+      // earnedIncomeUsd already being net of the FEIE-excluded wages/SE
+      // earnings above, so a filer with enough non-excluded earned income
+      // left over still got a nonzero refundable credit — contradicting
+      // layer1_us.html's own on-screen "Claiming FEIE legally disqualifies
+      // you from claiming the refundable portion of the Child Tax Credit"
+      // warning. Gated on feieAppliedUsd (not just feie.claimed) so merely
+      // checking the claims_feie box with nothing to exclude doesn't
+      // trigger the bar for no reason. Mirrors dag_py's us/ustax.py exactly.
+      var filesForm2555 = feieAppliedUsd > 0;
+      var ctcRefundableUsd = filesForm2555 ? 0 : Math.round(Math.max(0, Math.min(ctcUnusedUsd, actcCapUsd)));
       var creditsUsd = otherCreditsUsd + combinedNonRefundableUsd + ctcRefundableUsd + mtcAllowedUsd;
 
       var totalTaxBeforeFtc = incomeTax + niit + addlMedicare + seTax + amtOwed + gilti962TaxUsd - creditsUsd;
@@ -382,7 +502,7 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
         // .usd, engine L1101), the FEIE amount actually applied (engine's
         // usTax.feie.appliedUsd, flat here), and the worldwide flag.
         totalIncomeUsd: totalIncome, usSourceIncomeUsd: inc.usSourceTotal.usd,
-        feieAppliedUsd: feieAppliedUsd, worldwide: worldwide,
+        feieAppliedUsd: feieAppliedUsd, feieHousingAppliedUsd: feieHousingAppliedUsd, worldwide: worldwide,
         // Added for CFL-7 (buildFtcReport's trace detail) — the ordinary/
         // preferential split computeUsTax's own result carries (engine
         // L289: incomeTax = ordinaryTax + preferentialTax) but this node
@@ -448,7 +568,8 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
         },
         feie: {
           claimed: feie.claimed, eligible: feie.eligible, taxHomeAbroad: feie.taxHomeAbroad,
-          testMet: feie.testMet, reasons: feie.reasons, appliedUsd: feieAppliedUsd
+          testMet: feie.testMet, reasons: feie.reasons, appliedUsd: feieAppliedUsd,
+          housingAppliedUsd: feieHousingAppliedUsd
         },
         effectiveRate: totalIncome > 0 ? totalTaxBeforeFtc / totalIncome : 0
       };
@@ -497,7 +618,12 @@ var NODES = {
         bonaFideStartDateSet: !!safe(ctx.us, "foreign_earned_income.bona_fide_residence_start_date", null),
         bonaFideLegacyConfirmed: safe(ctx.us, "foreign_earned_income.bona_fide_residence", false) === true,
         physicalPresence: qualTest === "physical_presence" || safe(ctx.us, "foreign_earned_income.physical_presence", false) === true,
-        daysInUsTestPeriod: num(safe(ctx.us, "foreign_earned_income.days_in_us_during_test_period", 0))
+        daysInUsTestPeriod: num(safe(ctx.us, "foreign_earned_income.days_in_us_during_test_period", 0)),
+        // Proration (§911(b)(2)(D)) / housing exclusion (§911(c)) inputs.
+        physicalPresenceStartDate: safe(ctx.us, "foreign_earned_income.physical_presence_start_date", null),
+        physicalPresenceEndDate: safe(ctx.us, "foreign_earned_income.physical_presence_end_date", null),
+        bonaFideResidenceStartDate: safe(ctx.us, "foreign_earned_income.bona_fide_residence_start_date", null),
+        housingExpensesUsd: num(safe(ctx.us, "foreign_earned_income.foreign_housing_expenses_usd", 0))
       };
     }
   },
