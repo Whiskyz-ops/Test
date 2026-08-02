@@ -96,18 +96,38 @@ Tier 3 (cosmetic) list and per-agent detail.
 
 ## 2. Residency — `layer1_us.html:983-1430` → `ProfileStep.jsx`
 
-- `[FROM AUDIT]` Dual-status arrival/departure date fields missing from UI.
-- `[FROM AUDIT]` SPT "excluded days" fields missing from UI (acknowledged
-  in `derive.js`'s own comments).
-- `[VERIFIED]` Even though `dual_status_arrival_date`/
-  `dual_status_departure_date`/`us_days_excluded_*` now exist in
-  `schema.js` (added last pass), `evaluateResidencyLock()` in `derive.js`
-  still doesn't read them — its own inline comments are now stale (say
-  the fields "aren't in the canonical schema"). Practical effect:
-  `DUAL_STATUS` is only reachable via green-card-surrender or
-  first-year-choice, never via the plain SPT pass-through path the source
-  supports.
-- `[FROM AUDIT]` No Back/Next bar on this step at all.
+Overall much more complete than previously documented — full read confirms
+the visa-status select, citizenship/green-card block, entire §877A
+covered-expatriate test block, the whole SPT stay tracker (including the
+live-computed formula/status card), exempt-individual sub-flow (student/
+scholar overrides), first-year-choice election, §6013(g) election, and the
+Article 4 DTAA tie-breaker wizard (4 sequential tests, correctly
+progressive-reveal) are ALL present and correctly wired, matching the
+source field-for-field. Only 2 real gaps found:
+- `[VERIFIED]` `dual_status_arrival_date`/`dual_status_departure_date`
+  (`layer1_us.html:1211-1223`, "Dual-Status Mechanics" — always-visible,
+  not gated behind anything) have zero UI. These are the ONE thing keeping
+  `evaluateResidencyLock()` from ever resolving to `DUAL_STATUS` via the
+  plain SPT pass-through path (it's only reachable today via green-card
+  surrender or first-year-choice) — `derive.js`'s own comments
+  acknowledging this gap are stale now that the fields exist in
+  `schema.js` (added last pass).
+- `[VERIFIED]` The 4 "Excluded Days" inputs + exception-reason select
+  (`layer1_us.html:1244-1267`, inside the SPT tracker card, also
+  always-visible) writing `us_days_excluded_current/minus_1/minus_2/
+  reason` have zero UI — same status.
+- `[VERIFIED — minor]` The decorative "Upload Identity Document" dropzone
+  (`layer1_us.html:989-994`, non-functional in the source too) isn't
+  ported — same low-priority category as Bank Sync/Passive's missing
+  upload buttons.
+- `[CORRECTED — the existing audit's claim was wrong]` "No Back/Next bar
+  on this step at all" isn't accurate: `page.jsx:134-166` renders a
+  shared Back/Next footer under every step's `<ActiveComponent />`,
+  ProfileStep included — confirmed by reading `page.jsx` directly during
+  the Onboarding audit. What's actually different from the source is
+  structural, not missing: the source puts Back/Next buttons inside each
+  panel individually, React centralizes them into one shared footer
+  component instead. Not a gap.
 
 ## 3. State Nexus — `layer1_us.html:1431-1710` → `StateStep.jsx`
 
@@ -505,7 +525,7 @@ Tier 3 (cosmetic) list and per-agent detail.
 | # | Step | Status |
 |---|---|---|
 | 1 | Onboarding | Open issues (7-field corporate-identity path bug incl. a fabricated duplicate block on BusinessStep, dead "Initialize Matrix" button, HOH/QSS sub-feature, upload dropzone) |
-| 2 | Residency | Open issues (dual-status/excluded-days collected but unused) |
+| 2 | Residency | Much more complete than documented — only dual-status dates + excluded-days UI missing (both prominent, always-visible in source) |
 | 3 | State Nexus | Open issues (large — whole sticky-domicile sub-engine, CA gating, 5 missing UI blocks, apportionment domicile-state bug) |
 | 4 | Bank Sync | **Solid, no open issues** |
 | 5 | Employment Income | Mostly solid; row-shape depth not yet audited |
