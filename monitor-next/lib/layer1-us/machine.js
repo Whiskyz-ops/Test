@@ -180,9 +180,9 @@ export const wizardMachine = createMachine(
         actions: "assignActiveStep",
       },
       CONFIRM_INTAKE: {
-        // Mirrors confirmIntakeAndProceed() (layer1_us.html:6465-6470):
+        // Mirrors confirmIntakeAndProceed() (layer1_us.html:6477-6482):
         // unconditionally allowed, always lands on step-state.
-        actions: ["markIntakeCompleted", "assignStepState"],
+        actions: ["markIntakeCompleted", "setIntakeCompletedField", "assignStepState"],
       },
     },
   },
@@ -196,6 +196,15 @@ export const wizardMachine = createMachine(
         activeStep: ({ event }) => event.step,
       }),
       markIntakeCompleted: assign({ intakeCompleted: true }),
+      // BUG FIX: confirmIntakeAndProceed() (layer1_us.html:6477-6482) sets
+      // usState.metadata.intake_completed = true as its FIRST line, before
+      // navigating — this machine's own `intakeCompleted` context flag
+      // (above) is a separate, XState-internal value that never wrote back
+      // to the shared usState/schema field, so `metadata.intake_completed`
+      // stayed permanently false regardless of how far a user got.
+      setIntakeCompletedField: () => {
+        useUsLayer1Store.getState().setField("metadata.intake_completed", true);
+      },
       assignStepState: assign({ activeStep: "step-state" }),
     },
   }

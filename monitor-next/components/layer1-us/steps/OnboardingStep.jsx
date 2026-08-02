@@ -475,17 +475,24 @@ export default function OnboardingStep() {
         </div>
       </div>
 
-      <div className="flex justify-end mt-2 pt-6 border-t border-line">
-        <button
-          onClick={() => setField("metadata.intake_completed", true)}
-          className="px-8 py-3 bg-brandGreen text-black font-black uppercase text-xs tracking-[0.2em] rounded-xl hover:brightness-110 transition-all duration-300 flex items-center gap-3"
-        >
-          Initialize Matrix
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-          </svg>
-        </button>
-      </div>
+      {/* BUG FIX (found by the step-by-step map audit): the source has
+          exactly ONE intake-confirm control for this screen — "Initialize
+          Matrix" (layer1_us.html:973-977), which calls
+          confirmIntakeAndProceed() (layer1_us.html:6477-6482): sets
+          usState.metadata.intake_completed = true, then navigates to the
+          Residency step. This file previously rendered its own inline copy
+          of that button here, but its onClick only set the flag — no
+          navigation — while page.jsx's step-onboarding-only footer button
+          ("Start Intake →") already dispatches CONFIRM_INTAKE and
+          correctly navigates, making it the real, working equivalent (the
+          source's other steps all use this same "action button in the
+          generic footer" pattern too — Onboarding's inline button was the
+          odd one out, not a second real control). A user was shown two
+          buttons for one action, one of which silently did nothing. Fixed
+          by removing the dead duplicate here; machine.js's CONFIRM_INTAKE
+          handler was also fixed separately to actually write
+          metadata.intake_completed (it previously only updated an
+          XState-internal context flag, never the real schema field). */}
     </div>
   );
 }

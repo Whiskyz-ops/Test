@@ -81,19 +81,29 @@ myself (`OnboardingStep.jsx`/`BusinessStep.jsx`/`EntitiesStep.jsx`).
   all three staying `null`/`false`. No live DAG node reads either path
   for these 6 fields, so this had no live tax-output impact — it was a
   data-fidelity bug, not a miscalculation.
-- `[VERIFIED — NEW FINDING, explains the "two disconnected code paths"
-  claim precisely]` There are **two different "confirm and proceed"
-  buttons rendered simultaneously** for this step. `OnboardingStep.jsx`
-  itself renders "Initialize Matrix" (matching the source's button
-  label/position, `:468-478`) but its `onClick` only calls
+- `[FIXED]` There were **two different "confirm and proceed" buttons
+  rendered simultaneously** for this step. `OnboardingStep.jsx` itself
+  rendered "Initialize Matrix" (matching the source's button label,
+  `layer1_us.html:973-977`) but its `onClick` only called
   `setField("metadata.intake_completed", true)` — no navigation.
-  Separately, `page.jsx:146-154` renders its own step-specific footer
-  button labeled "Start Intake →" that correctly dispatches
-  `CONFIRM_INTAKE` to the XState machine, which both sets
-  `intakeCompleted` AND navigates (`machine.js:182-186`). So the working
-  path exists, just not on the button that visually matches the source —
-  a user is shown two buttons, one of which (the one styled/positioned
-  like the source's) silently does nothing but flip a flag.
+  Separately, `page.jsx`'s step-specific footer button labeled "Start
+  Intake →" correctly dispatched `CONFIRM_INTAKE` to the XState machine
+  and navigated, but its action handler only set the XState-internal
+  `intakeCompleted` context flag, never the real
+  `usState.metadata.intake_completed` schema field the source's
+  `confirmIntakeAndProceed()` (`layer1_us.html:6477-6482`) sets as its
+  first line. So neither button fully matched the source: one navigated
+  without persisting the flag, the other persisted a flag that went
+  nowhere real and didn't navigate. Confirmed the source itself has only
+  ONE such button for this screen (not two) — every other step's
+  generic "Next Step" footer button is exactly where `page.jsx`'s
+  footer already lives, so Onboarding's inline duplicate was the odd one
+  out, not a second real control. Fixed: removed the dead duplicate
+  button from `OnboardingStep.jsx`; `machine.js`'s `CONFIRM_INTAKE`
+  handler now also writes `metadata.intake_completed` via the store.
+  Verified live in headless Chromium: clicking "Start Intake →"
+  navigates to the Residency step AND persists
+  `metadata.intake_completed: true`.
 - `[VERIFIED]` A whole HOH/QSS filing-status diagnostic sub-feature is
   confirmed absent: the generic "Filing Status Conflict" banner
   (`layer1_us.html:692-698`, `#filing-diagnostic-warning`, dynamically
@@ -798,7 +808,7 @@ source field-for-field. Only 2 real gaps found:
 
 | # | Step | Status |
 |---|---|---|
-| 1 | Onboarding | Corporate-identity field-path bug **fixed** (both Onboarding and BusinessStep); dead "Initialize Matrix" button, HOH/QSS sub-feature, upload dropzone still open |
+| 1 | Onboarding | Corporate-identity field-path bug (both Onboarding and BusinessStep) and dead "Initialize Matrix" button/unpersisted intake flag both **fixed**; HOH/QSS sub-feature, upload dropzone still open |
 | 2 | Residency | Much more complete than documented — only dual-status dates + excluded-days UI missing (both prominent, always-visible in source) |
 | 3 | State Nexus | CA gating, dec-31-domicile auto-set, apportionment domicile-state bug (+ State of Formation display) all **fixed**; sticky-domicile sub-engine and 4 remaining missing UI blocks still open |
 | 4 | Bank Sync | **Solid, no open issues** |
