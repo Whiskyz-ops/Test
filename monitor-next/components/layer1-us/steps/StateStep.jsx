@@ -22,6 +22,27 @@ import { Card, Field, NumberInput, DateInput, StateSelect, ToggleRow, Checkbox, 
 // exit-planning questions to corp/partnership/trust filers, and (b) omitted
 // "trust" from the corp-nexus entity list entirely, so a Trust/Estate filer
 // got the wrong (individual) wrapper outright. Both fixed here.
+//
+// BUG FIX (3 more, found by the step-by-step map audit, all re-verified
+// against current source line numbers):
+// 1. CA card gating: toggleStateSpecificFields() (layer1_us.html:8623-8633)
+//    only shows `div-ca-fields` when `primary_state_of_residence === 'CA'`
+//    OR `previous_state === 'CA'` — this file rendered the CA card
+//    unconditionally for every individual filer. Now gated.
+// 2. onPrimaryStateChange() (layer1_us.html:8672-8680) auto-sets
+//    `dec_31_domicile_state` to match `primary_state_of_residence` the
+//    first time it's set, if Dec 31 domicile is still empty. The Primary
+//    State select previously called a plain setField with no such side
+//    effect.
+// 3. renderCorporateApportionmentMatrix() (layer1_us.html:8884-8901) and
+//    renderCorporateNexusStatus() (layer1_us.html:8941-8950) both build
+//    their nexus-state set as `{profile.state_of_domicile} ∪
+//    physical_states ∪ economic_states` and the latter also displays the
+//    domicile state read-only ("State of Formation"). This file's
+//    `apportionmentStates` only unioned physical/economic, dropping the
+//    entity's own domicile state from both the apportionment matrix and
+//    (until now) any on-screen display at all. Fixed: domicile state is
+//    now included in the union and shown as a read-only field.
 function isCorpOrPartnershipEntity(profile) {
   const effective = profile.tax_entity_type === "llc" ? profile.llc_tax_election : profile.tax_entity_type;
   return effective !== "individual";
@@ -80,8 +101,17 @@ export default function StateStep() {
     if (idx >= 0) removeRow("corp_state_nexus.economic_states", idx);
   }
 
-  const apportionmentStates = Array.from(new Set([...(cn.physical_states || []), ...(cn.economic_states || [])]));
+  const apportionmentStates = Array.from(
+    new Set([...(usState.profile.state_of_domicile ? [usState.profile.state_of_domicile] : []), ...(cn.physical_states || []), ...(cn.economic_states || [])])
+  );
   const apportionmentTotal = Object.values(cn.apportionment_factors || {}).reduce((s, v) => s + (Number(v) || 0), 0);
+
+  function setPrimaryState(val) {
+    setSr("primary_state_of_residence")(val);
+    if (!sr.dec_31_domicile_state) setSr("dec_31_domicile_state")(val);
+  }
+
+  const showCaCard = sr.primary_state_of_residence === "CA" || sr.previous_state === "CA";
 
   return (
     <div className="flex flex-col gap-4">
@@ -156,7 +186,7 @@ export default function StateStep() {
       <Card>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Primary State of Residence" hint="Your true, permanent home on Dec 31">
-            <StateSelect value={sr.primary_state_of_residence} onChange={setSr("primary_state_of_residence")} />
+            <StateSelect value={sr.primary_state_of_residence} onChange={setPrimaryState} />
           </Field>
           <ToggleRow
             label="Did you move to a different state this year?"
@@ -228,7 +258,7 @@ export default function StateStep() {
       </Card>
       )}
 
-      {!isCorp && (
+      {!isCorp && showCaCard && (
       <Card title="California FTB — Domicile & Exit Planning" sub="California aggressively audits departing residents.">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col gap-2 p-3 bg-white/[0.02] border border-line rounded-xl">
@@ -253,6 +283,12 @@ export default function StateStep() {
 
       {isCorp && (
         <Card title="Corporate / Entity State Nexus" sub="Domicile inherited from Profile; physical, economic, and apportionment factors below.">
+          <Field label="State of Formation" hint="Read-only — set on the Onboarding step's corporate identity fields">
+            <div className="rounded-lg bg-white/[0.02] border border-line px-3 py-2 text-sm text-muted font-mono opacity-70 cursor-not-allowed">
+              {usState.profile.state_of_domicile || "Not specified"}
+            </div>
+          </Field>
+
           <div className="flex flex-col gap-2">
             <Field label="Physical Presence Nexus" hint="Offices, inventory, W-2 employees (incl. remote)">
               <div className="flex gap-2">

@@ -153,21 +153,25 @@ source field-for-field. Only 2 real gaps found:
 
 ## 3. State Nexus — `layer1_us.html:1431-1710` → `StateStep.jsx`
 
-- `[VERIFIED]` Community Property alert (`alert-community-property`),
-  "Derived State Residency Statuses" summary card
-  (`card-state-status-summary`/`renderStateResidencyStatus()`), the CA
-  section's dynamic warning alerts (`alert-ca-depart`/`alert-ca-retain` —
-  React has the two checkboxes but not the conditional guidance text they
-  reveal), the military "MSRRA Tax Protection Active" guidance box
-  (`div-mil-guidance`, with its DD 2058/Form DE-4/IT-2104-MS specifics),
-  and the corp "State of Formation" readonly field
-  (`corp-state-domicile-readonly`) are all confirmed missing from
-  `StateStep.jsx` — none render anywhere in the file.
-- `[VERIFIED]` The CA card (`div-ca-fields`) is gated in the source —
+- `[VERIFIED — 1 of 5 fixed]` Community Property alert
+  (`alert-community-property`), "Derived State Residency Statuses"
+  summary card (`card-state-status-summary`/`renderStateResidencyStatus()`),
+  the CA section's dynamic warning alerts (`alert-ca-depart`/
+  `alert-ca-retain` — React has the two checkboxes but not the
+  conditional guidance text they reveal), and the military "MSRRA Tax
+  Protection Active" guidance box (`div-mil-guidance`, with its DD
+  2058/Form DE-4/IT-2104-MS specifics) remain missing from
+  `StateStep.jsx`. The corp "State of Formation" readonly field
+  (`corp-state-domicile-readonly`) is `[FIXED]` — see the apportionment
+  item below, added together since both read the same
+  `profile.state_of_domicile` field.
+- `[FIXED]` The CA card (`div-ca-fields`) is gated in the source —
   `toggleStateSpecificFields()` (`layer1_us.html:8623-8633`) only shows it
   when `primary_state_of_residence === 'CA'` or `previous_state === 'CA'`.
-  React's `StateStep.jsx:231` renders it unconditionally for every
-  individual filer (`{!isCorp && (...)`).
+  React's `StateStep.jsx` previously rendered it unconditionally for
+  every individual filer. Fixed: gated on the same condition. Verified
+  live in headless Chromium: hidden by default, appears the moment
+  Primary State of Residence is set to CA.
 - `[VERIFIED — bigger than previously documented]` What the existing audit
   called "statutory-residency day tracker for footprint states" is
   actually a whole sub-engine (`div-footprint-statutory-questions`,
@@ -192,25 +196,35 @@ source field-for-field. Only 2 real gaps found:
   block" would be porting a bug, not a feature. The real NY-specific UI is
   the sticky-exceptions sub-engine above, which lives inside the generic
   per-footprint-state area, not a dedicated NY div.
-- `[VERIFIED — root cause identified]` Apportionment matrix drops the
-  entity's domicile state: source's `renderCorporateApportionmentMatrix()`
-  (`layer1_us.html:8884-8891` — this logic lives in the matrix-rendering
-  function, not `syncApportionmentState()`, which only handles a single
-  per-state input update; corrected attribution) builds its state list as
-  `physical_states ∪ economic_states ∪ {profile.state_of_domicile}` —
-  unconditionally including the domicile state read from
-  `profile.state_of_domicile`. A second function,
-  `renderCorporateNexusStatus()` (`layer1_us.html:8941-8945`), reads the
-  same field to populate the "State of Formation" readonly display (see
-  §3's missing-UI-blocks item above). `StateStep.jsx:83`'s
-  `apportionmentStates` only unions `physical_states`/`economic_states`,
-  never reading `usState.profile.state_of_domicile` at all.
-- `[NEW FINDING]` `onPrimaryStateChange()` (`layer1_us.html:8672-8678`)
-  auto-sets `dec_31_domicile_state` to match `primary_state_of_residence`
-  the first time it's set (if Dec 31 domicile is still empty).
-  `StateStep.jsx`'s `setSr("primary_state_of_residence")` handler is a
-  plain `setField` call with no such side effect — a user who fills
-  Primary State first never gets Dec 31 Domicile auto-populated.
+- `[FIXED]` Apportionment matrix dropped the entity's domicile state:
+  source's `renderCorporateApportionmentMatrix()`
+  (`layer1_us.html:8884-8901`, re-confirmed current) builds its state
+  list as `{profile.state_of_domicile} ∪ physical_states ∪
+  economic_states`. A second function, `renderCorporateNexusStatus()`
+  (`layer1_us.html:8941-8950`), reads the same field to populate the
+  "State of Formation" readonly display. `StateStep.jsx`'s
+  `apportionmentStates` previously only unioned `physical_states`/
+  `economic_states`, never reading `usState.profile.state_of_domicile`
+  at all, and there was no on-screen "State of Formation" display
+  either. Fixed: domicile state now included in the union, plus a new
+  read-only "State of Formation" field at the top of the Corporate /
+  Entity State Nexus card. Verified live in headless Chromium with a
+  seeded `profile.state_of_domicile = 'DE'` on a C-Corp: "STATE OF
+  FORMATION ... DE" renders correctly. (The apportionment-list-inclusion
+  half of this fix uses the identical `state_of_domicile` value/code
+  path already confirmed rendering correctly — not independently
+  re-verified live due to an unrelated toggle-click flakiness in the
+  test harness, not a code issue.)
+- `[FIXED]` `onPrimaryStateChange()` (`layer1_us.html:8672-8680`,
+  re-confirmed current) auto-sets `dec_31_domicile_state` to match
+  `primary_state_of_residence` the first time it's set (if Dec 31
+  domicile is still empty). `StateStep.jsx`'s `setSr
+  ("primary_state_of_residence")` handler was a plain `setField` call
+  with no such side effect. Fixed: a `setPrimaryState()` wrapper now
+  also sets `dec_31_domicile_state` when it's still empty. Verified live
+  in headless Chromium: selecting CA as Primary State of Residence with
+  an empty Dec 31 Domicile auto-populated `dec_31_domicile_state: 'CA'`
+  in the persisted store.
 - `[VERIFIED — reclassified]` `dag_py`/JS-DAG read
   `state_residency.ca_safe_harbor_employment_contract`
   (`dag_py/src/wising_dag/us/findings.py:293`,
@@ -739,7 +753,7 @@ source field-for-field. Only 2 real gaps found:
 |---|---|---|
 | 1 | Onboarding | Corporate-identity field-path bug **fixed** (both Onboarding and BusinessStep); dead "Initialize Matrix" button, HOH/QSS sub-feature, upload dropzone still open |
 | 2 | Residency | Much more complete than documented — only dual-status dates + excluded-days UI missing (both prominent, always-visible in source) |
-| 3 | State Nexus | Open issues (large — whole sticky-domicile sub-engine, CA gating, 5 missing UI blocks, apportionment domicile-state bug) |
+| 3 | State Nexus | CA gating, dec-31-domicile auto-set, apportionment domicile-state bug (+ State of Formation display) all **fixed**; sticky-domicile sub-engine and 4 remaining missing UI blocks still open |
 | 4 | Bank Sync | **Solid, no open issues** |
 | 5 | Employment Income | **Solid, no open issues** (W-2 row shape essentially complete; self-employment/farming live on Business Ops instead) |
 | 6 | Capital Gains & Crypto | **Fixed** (aggregate inversion); sub-module arrays still schema-only |
