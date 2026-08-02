@@ -218,13 +218,25 @@ source field-for-field. Only 2 real gaps found:
 
 ## 5. Employment Income — `layer1_us.html:1791-1831` → `IncomeUsStep.jsx`
 
-- `[FROM AUDIT]` `wages_w2` naming bug (was `w2_wages`, invisible to both
-  DAG engines) — fixed in an earlier pass, not re-verified this session.
-- Self-employment/farming full itemized-expense, vehicle-expense, and
-  home-office field coverage: `[NOT YET AUDITED]` at the row-shape level
-  (see step-business below for the sibling K-1 arrays, which *are*
-  verified broken — self-employment/farming likely share some of the same
-  row-shape gaps but this hasn't been directly checked here).
+- `[VERIFIED]` The source panel is genuinely tiny (just 40 lines) — only a
+  master toggle + dynamic W-2 list + 2 decorative upload buttons.
+  Self-employment/farming/K-1 arrays are NOT on this step at all —
+  confirmed they live entirely on `panel-step-business`
+  (`layer1_us.html:2220-2718`), so that row-shape audit belongs under
+  Business Ops (§8) below, not here.
+- `[VERIFIED]` `wages_w2` naming fix confirmed still correct.
+- `[VERIFIED — essentially complete]` Re-checked the full W-2 row shape
+  field-by-field against the real JSON export: employer name/address (4
+  fields), wages + qualified tip/overtime, the full federal/FICA box
+  breakdown (11 fields incl. EIN/control number), statutory-employee/
+  retirement-plan/sick-pay flags, state-and-local-taxes[] (6 fields/row),
+  and box_12_benefits[]/box_14_other[] (2 fields/row each) are ALL
+  present and correctly wired in `IncomeUsStep.jsx`. This is one of the
+  most complete row-shape ports in the app — no gaps found.
+- `[VERIFIED — minor]` The 2 decorative "Upload Latest Paystub"/"Upload
+  Official W-2" buttons (`layer1_us.html:1812-1819`, `triggerW2Upload()`)
+  aren't ported — same low-priority category as other missing decorative
+  upload affordances elsewhere in the app.
 - Several capital-gains flag checkboxes (`has_sec_1256`, `has_qsbs`, etc.)
   are rendered on both this step and `CapGainsStep.jsx` — redundant but
   harmless per earlier verification pass.
@@ -277,29 +289,63 @@ source field-for-field. Only 2 real gaps found:
   JS DAG directly (confirmed by re-reading `BusinessStep.jsx` — no more
   `k1_boxes` writes, flat fields throughout). Was the most severe finding
   in the whole port.
-- `[VERIFIED]` A fabricated, always-editable "Taxable Income (Computed)"
-  field on Schedule M-1 (`BusinessStep.jsx:1664`) has no source
+- `[VERIFIED — still open]` A fabricated, always-editable "Taxable Income
+  (Computed)" field on Schedule M-1 (`BusinessStep.jsx:1674`, moved a few
+  lines since the K-1 fix landed but still present) has no source
   counterpart and is read by no DAG code.
-- `[FROM AUDIT]` "1099 Filing Obligations" panel (wired into 5 entity
-  types in the source) entirely absent.
-- `[FROM AUDIT]` "Gross Receipts by State"/economic-nexus apportionment
-  (6 entity types) entirely absent.
-- `[FROM AUDIT]` §199A QBI/UBIA capture fields at the entity level absent.
-- `[FROM AUDIT]` The "$250k receipts" gate that should hide Schedule
-  L/M-1/M-2 by default is missing — shown unconditionally instead.
-- `[FROM AUDIT]` Most of the "Business Compliance & Tax Analyzer" summary
-  panel (5 of 6 metrics, all 5 loss-limitation flags) is missing.
-- `[FROM AUDIT]` Schedule C's home-office/vehicle-expense section is
-  missing (Farm's equivalent *was* ported).
-- `[FROM AUDIT]` `addUsBranchRow` (foreign-parented US branches) not
-  ported.
-- `[FROM AUDIT]` NAICS/SSTB dropdown has 11 options vs. the source's 25.
+- `[FIXED since the audit — reclassified]` §199A QBI/UBIA capture fields
+  ARE now present, at least on K-1 rows — `qbi_wages_usd`/`qbi_ubia_usd`
+  `MoneyField`s confirmed on both `partnerships_k1` and `s_corporations_k1`
+  row editors (`BusinessStep.jsx:1255-1256,1455-1456`), landed alongside
+  the K-1 box-mapping fix. Not verified at the top-level Schedule C/entity
+  level, only on K-1 rows — worth a follow-up check.
+- `[FIXED since the audit — reclassified]` Schedule C's home-office/
+  vehicle-expense fields ARE now present (`BusinessStep.jsx:962-973`,
+  "Additional Deductions" accordion — `vehicle_miles`/`home_office_sqft`).
+  Simplified vs. the source's richer model (source has a nested
+  `vehicle_expenses{}` with 5 sub-fields — biz/commuting/personal miles +
+  written-evidence flag — and a `home_office{}` with both office and
+  total home sqft; React has 2 flat fields), but no longer absent as the
+  audit claimed.
+- `[VERIFIED — still open]` The component's own header comment
+  (`BusinessStep.jsx:1-85`) is unusually thorough and self-flags 3 genuine
+  deferrals directly: `calculateBusinessIncomes()`'s basis/§465-at-risk/
+  passive-activity-loss/QBI-phase-out/AMT-flowthrough logic is
+  deliberately simplified to a top-line net-income figure;
+  `addUsBranchRow` (foreign-parented US branches) is deliberately not
+  ported; the NAICS/SSTB dropdown is deliberately collapsed from the
+  source's real 25 options (16 non-SSTB + 9 SSTB, confirmed by counting
+  `layer1_us.html:13091-13118`'s actual `<option>` tags) to a shorter
+  list + free-text fallback.
+- `[VERIFIED — still open]` "1099 Filing Obligations" panel (source has
+  it at `layer1_us.html:14612`/`16117`, wired into multiple entity types)
+  confirmed still entirely absent — zero hits for `1099`/`forms_1099` in
+  `BusinessStep.jsx`.
+- `[VERIFIED — still open]` The "Gross Receipts by State (Apportionment)"
+  panel confirmed still entirely absent at the row level — zero hits for
+  `state_allocations` in `BusinessStep.jsx`. Note this is distinct from
+  `corp_state_nexus`'s apportionment matrix on StateStep (§3 above, which
+  IS implemented) — this is a separate, per-row `state_allocations[]`
+  field on each individual self-employment/K-1/C-corp row
+  (`layer1_us.html:13263,13936,14623,15416,16128,16900` — present for
+  every entity type in the source), still missing here.
+- `[VERIFIED — still open]` The "$250k receipts" gate
+  (`layer1_us.html:2263-2266`, "Did the entity have Total Receipts and
+  Total Assets LESS than $250,000?") is a SEPARATE gate from the
+  entity-type gating the header comment says was fixed — this is a
+  receipts-threshold gate deciding whether Schedule L/M-1/M-2 should be
+  skipped by default even for an in-scope entity type. No hits for
+  `250,000`/`250000` in `BusinessStep.jsx` — still shown unconditionally
+  once entity-type gating allows it.
+- `[VERIFIED — still open]` "Business Compliance & Tax Analyzer" summary
+  panel (`layer1_us.html:2608-2610`) confirmed still absent — zero hits
+  for that string in `BusinessStep.jsx`.
 - Row-shape gap (not in the Tier list, visible directly from the real
   JSON export): source K-1/self-employment/C-corp rows also carry
-  `assets[]` (§179 tables), `branches[]` (multi-location), `state_
-  allocations[]`, `forms_1099[]`, and full `partners[]`/`shareholders[]`/
-  `beneficiaries[]` rosters — none of this row-level detail exists in
-  React yet, independent of the box-nesting fix above.
+  `assets[]` (§179 tables), `branches[]` (multi-location), `forms_1099[]`,
+  and full `partners[]`/`shareholders[]`/`beneficiaries[]` rosters — none
+  of this row-level detail exists in React yet, independent of the
+  box-nesting fix above.
 
 ## 9. Foreign Income — `layer1_us.html:2719-2794` → `IncomeForeignStep.jsx`
 
@@ -410,10 +456,32 @@ source field-for-field. Only 2 real gaps found:
   specific array stays silently empty.
 - `[FROM AUDIT, "confirmed solid"]` CFC/GILTI row shape checked as
   correct in the original pass — not personally re-verified.
-- `[FROM AUDIT]` Entity-type-dependent label switching ("I own..." vs.
-  "The Entity owns...") hardcoded to individual phrasing.
-- `[FROM AUDIT]` "Linked Client Profile" picker on foreign-corp rows
-  absent.
+- `[VERIFIED]` Entity-type-dependent label switching confirmed hardcoded:
+  source's `updateProfileVisibility()` (`layer1_us.html:7054-7068`)
+  swaps all 3 accordion labels ("I own..." → "The Entity owns...") when
+  `tax_entity_type`/`llc_tax_election` resolves to ccorp/scorp/
+  partnership; `EntitiesStep.jsx:252,413,520` hardcode the individual
+  phrasing always.
+- `[VERIFIED]` "Linked Client Profile" picker on foreign-corp rows
+  confirmed absent — no hits for `linked_client_id` anywhere in
+  `EntitiesStep.jsx`.
+- `[VERIFIED — NEW FINDING, two bugs stacked]` The Form 5472 (Inbound)
+  section's visibility gate is wrong on two independent levels. (1) In
+  the source, the whole section is only ever shown for C-Corps
+  specifically (`layer1_us.html:7058`, `if (type === 'ccorp' &&
+  wrapper5472) { wrapper5472.style.display = 'block'; }` — not
+  scorp/partnership, just ccorp) — `EntitiesStep.jsx:228`'s `is5472`
+  isn't entity-type-gated at all. (2) What it's gated on instead —
+  `usState.corporate_profile?.is_foreign_owned_25_pct` — is the wrong
+  storage path per the Onboarding audit's finding (§1 above): the
+  source's real `is_foreign_owned_25_pct` checkbox
+  (`layer1_us.html:812`) writes to `profile.is_foreign_owned_25_pct` via
+  `updateProfileField`, not `corporate_profile.*`. So even ignoring the
+  entity-type mismatch, this gate reads a field nothing in the source
+  ever actually populates. (The row UI itself, once visible, is
+  reasonable — actually richer than the source's single flat "Total
+  Intercompany Payments" number input, since it captures per-party
+  country/amount detail.)
 
 ## 16. Foreign Gifts & Trusts — `layer1_us.html:3389-3439` → `GiftsStep.jsx`
 
@@ -491,22 +559,46 @@ source field-for-field. Only 2 real gaps found:
 
 ## 22. Generate Output — `layer1_us.html:3936-3958` → `OutputStep.jsx`
 
-- `[FROM AUDIT]` "Proceed to India Module" cross-jurisdiction routing
-  button/gate entirely missing.
+- `[VERIFIED]` `copySchema()`/`downloadSchema()` correctly ported.
+- `[VERIFIED — deeper than a missing button]` The "Proceed to India
+  Module" button's visibility gate (`layer1_us.html:20515-20528`,
+  `initFromLocalStorage()`) reads `routerState.primary_jurisdiction ===
+  'cross_border'` off a *separate* localStorage blob
+  (`window.WISING.ClientRegistry.storageKeyFor('ROUTER')`) written by a
+  sibling "Layer 0" jurisdiction-router module entirely outside this
+  app's own `usState`. This confirms the gap is architectural, not just
+  a missing button — porting it needs this React app to read a
+  cross-module storage key nothing here currently touches. Same function
+  also confirms where `config.base_year` (added to `schema.js` last
+  pass) actually comes from: the router state, not user input on this
+  screen.
+- `[VERIFIED — minor]` The decorative "Complete Wizard & lock" button
+  (`layer1_us.html:3966`, just an `alert()` in the source too) isn't
+  ported either — low priority, matches other missing decorative
+  affordances.
 
 ---
 
 ## Cross-cutting / chrome (not tied to one step)
 
-- `[FROM AUDIT]` `RightPanel.jsx`'s "Estimated AGI" tile actually
-  displays `amt_inputs.amti_usd` (AMTI, not AGI) — there's no real AGI
-  field in the schema at all. Permanently mislabeled, not just stale.
-- `[FROM AUDIT]` Hamburger jurisdiction dropdown, "The Vault" button,
-  "Tax Nerd Mode" toggle, the functional tax-year banner, responsive
-  mobile stacking, and the gamification widget are all missing from the
-  header/shell.
-- `[FROM AUDIT]` Right panel's residency-status badge shows abbreviations
-  ("RA"/"NRA"/"DUAL") where the source shows full words.
+- `[VERIFIED — still open]` `RightPanel.jsx:121` still labels
+  `amt_inputs.amti_usd` (AMTI, not AGI) as "Estimated AGI" — no real AGI
+  field exists anywhere in `schema.js`. Permanently mislabeled, not just
+  stale.
+- `[VERIFIED — still open]` Hamburger jurisdiction dropdown, "The Vault"
+  button, and "Tax Nerd Mode" toggle confirmed still missing — zero hits
+  for any of those strings in `Layer1UsHeader.jsx`.
+- `[VERIFIED — still open, extra detail]` The tax-year banner is more
+  than decorative in the source: `initFromLocalStorage()`
+  (`layer1_us.html:20515-20539`) populates it with the base tax year read
+  from the cross-module router state (see Generate Output §22 above) plus
+  the derived US tax year range and filing-season year — same
+  cross-module-storage dependency as the "Proceed to India Module"
+  button, so porting this properly needs the same architectural piece.
+- `[VERIFIED — still open]` Right panel's residency-status badge
+  (`RightPanel.jsx:28-30`) still shows abbreviations ("RA"/"NRA"/"DUAL")
+  where the source shows full words — confirmed directly, not inherited
+  from the prior claim.
 - `[FROM AUDIT]` Entity-type switch away from "individual" doesn't
   force-reset `setupW2`/`setupRetirement`/`setupForeignFeie` — stale
   flags can leave individual-only phases visible for a corp/partnership
@@ -528,21 +620,21 @@ source field-for-field. Only 2 real gaps found:
 | 2 | Residency | Much more complete than documented — only dual-status dates + excluded-days UI missing (both prominent, always-visible in source) |
 | 3 | State Nexus | Open issues (large — whole sticky-domicile sub-engine, CA gating, 5 missing UI blocks, apportionment domicile-state bug) |
 | 4 | Bank Sync | **Solid, no open issues** |
-| 5 | Employment Income | Mostly solid; row-shape depth not yet audited |
+| 5 | Employment Income | **Solid, no open issues** (W-2 row shape essentially complete; self-employment/farming live on Business Ops instead) |
 | 6 | Capital Gains & Crypto | **Fixed** (aggregate inversion); sub-module arrays still schema-only |
 | 7 | Passive & Other | **Solid, no open issues** (one minor decorative-upload gap) |
-| 8 | Business Ops & K-1s | K-1 → $0 bug **fixed**; large Tier 1 gap remains (1099 panel, apportionment, QBI/UBIA, row-shape depth) |
+| 8 | Business Ops & K-1s | K-1 → $0 bug **fixed**; QBI/UBIA + home-office/vehicle also fixed since the audit; 1099 panel, state_allocations, $250k gate, Analyzer panel still open |
 | 9 | Foreign Income | Solid, one misplaced-card issue |
 | 10 | Equity & Cap Table | **Solid, no open issues** |
 | 11 | FEIE | Open issues (editable constants, 5 missing fields, 3 missing banners, 2 dates shown that source hides) |
 | 12 | Foreign Assets | Solid derivation logic; one PFIC-default bug |
 | 13 | Real Estate | **Solid, no open issues** |
 | 14 | Retirement | Open issue (fabricated RMD dollar field) |
-| 15 | Foreign Entities | Open issue (PFIC array never written) + Tier 1 items |
+| 15 | Foreign Entities | Open issues (PFIC array never written; Form 5472 gate wrong on 2 stacked levels incl. the same field-path bug as Onboarding; label switching; Linked Client picker) |
 | 16 | Foreign Gifts & Trusts | **Solid, no open issues** |
 | 17 | Deductions & Credits | Open issues (inert QBI toggle, 2 decoy fields) |
 | 18 | AMT & NIIT | Open issue (MAGI editable) |
 | 19 | Foreign Tax Credit | Open issue (misplaced card, mirrors step 9) |
 | 20 | Withholding & Estimates | Open issue (4 fields editable) |
 | 21 | Form 1040-NR | Open issues (treaty rate mismatch, real W-8BEN checkbox swapped for a source-dead select, has_us_pe/6013(h) badge/8833 notice/TRC upload all missing) |
-| 22 | Generate Output | Open issue (missing India routing) |
+| 22 | Generate Output | Open issue (India routing needs a cross-module storage read, architectural not cosmetic) |
