@@ -9,23 +9,25 @@ import { Card, Field, NumberInput, TextInput, Select, ToggleRow, RemoveButton, A
 // "NON_RESIDENT_ALIEN" (see machine.js isStepLocked) — page-level wiring
 // handles that gate, this component renders unconditionally.
 //
-// FIELD-MISMATCH BUG (confirmed via the step-by-step map audit): the source
-// wires a REAL "Submitted Form W-8BEN?" checkbox (layer1_us.html:3842-3848,
-// #nra-w8ben) writing the boolean `nra_specific.submitted_w8ben` — added to
-// schema.js in the JSON-export reconciliation pass, so it IS part of the
-// canonical schema now. This component instead renders a 4-option
-// "W-8BEN Aggregate Status" select bound to `w8ben_aggregate_status`, a
-// field that only exists in the source's default-value literal with no
-// matching UI control anywhere in layer1_us.html (confirmed dead there
-// too). Net effect: the real, wired source control (`submitted_w8ben`) has
-// no UI here at all, and dag_py/js-dag both read `submitted_w8ben`
-// directly, so `w8benOnFile` is always false regardless of what's entered
-// in the select below. Not yet fixed — flagged for the next pass rather
-// than fixed inline here to avoid touching this step mid-audit.
+// BUG FIX (field-path collision, found by the step-by-step map audit):
+// this component previously rendered a 4-option "W-8BEN Aggregate Status"
+// select bound to `w8ben_aggregate_status` — a field that only exists in
+// the source's default-value literal with no matching UI control anywhere
+// in layer1_us.html (confirmed dead there too). The source's REAL,
+// wired control is a "Submitted Form W-8BEN?" checkbox
+// (layer1_us.html:3857, #nra-w8ben) writing the boolean
+// `nra_specific.submitted_w8ben` — the field both dag_py and the JS DAG
+// actually read for `w8benOnFile`. Swapped below to match the source
+// exactly. The source's "US Permanent Establishment (PE)?" checkbox
+// (layer1_us.html:3850, #nra-pe -> nra_specific.has_us_pe) was also
+// entirely missing from this file — added below.
 //
-// The source ALSO wires a "US Permanent Establishment (PE)?" checkbox
-// (layer1_us.html:3835-3841, #nra-pe -> nra_specific.has_us_pe) that has no
-// UI in this file at all.
+// BUG FIX (treaty-rate field mismatch): `treaty_rate_claims[]` rows
+// previously wrote `elected_rate`; dag_py's ustax_full.py:382,388,460 and
+// findings.py:160-161 all read the flat key `rate`. Every user-entered
+// treaty claim was invisible to the FDAP-rate computation, so the flat
+// 30% fallback fired regardless of what was entered. Renamed to `rate`
+// to match both DAG engines.
 const TREATY_INCOME_TYPES = [
   { value: "dividends", label: "Dividends (Art. 10)" },
   { value: "interest", label: "Interest (Art. 11)" },
@@ -33,7 +35,7 @@ const TREATY_INCOME_TYPES = [
 ];
 
 function emptyTreatyRow() {
-  return { income_type: "", elected_rate: "", treaty_article: "" };
+  return { income_type: "", rate: "", treaty_article: "" };
 }
 
 export default function NraStep() {
@@ -91,18 +93,18 @@ export default function NraStep() {
 
       <Card>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="W-8BEN Aggregate Status">
-            <Select
-              value={nra.w8ben_aggregate_status}
-              onChange={set("w8ben_aggregate_status")}
-              options={[
-                { value: "none", label: "None filed" },
-                { value: "submitted", label: "Submitted to all payers" },
-                { value: "partial", label: "Submitted to some payers" },
-                { value: "expired", label: "Expired — needs renewal" },
-              ]}
-            />
-          </Field>
+          <ToggleRow
+            label="US Permanent Establishment (PE)?"
+            sub="Fixed place of business in the US."
+            checked={nra.has_us_pe}
+            onChange={set("has_us_pe")}
+          />
+          <ToggleRow
+            label="Submitted Form W-8BEN?"
+            sub="Claimed treaty rates to US brokers."
+            checked={nra.submitted_w8ben}
+            onChange={set("submitted_w8ben")}
+          />
           <Field label="Effectively Connected Income — ECI (USD)" hint="Graduated rates; US W-2 wages + US business">
             <NumberInput value={nra.us_eci_income_usd} onChange={set("us_eci_income_usd")} />
           </Field>
@@ -132,8 +134,8 @@ export default function NraStep() {
               </Field>
               <Field label="Elected Rate">
                 <TextInput
-                  value={row.elected_rate}
-                  onChange={(v) => updateRow("nra_specific.treaty_rate_claims", i, { elected_rate: v })}
+                  value={row.rate}
+                  onChange={(v) => updateRow("nra_specific.treaty_rate_claims", i, { rate: v })}
                   placeholder="e.g. 15%"
                 />
               </Field>

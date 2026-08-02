@@ -3,9 +3,26 @@
 import { useUsLayer1Store } from "@/lib/layer1-us/store";
 import { Card, Field, NumberInput, TextInput, DateInput, Select, ToggleRow } from "./_ui";
 
-// Source: layer1_us.html panel-step-deductions (~line 3440) + updateStateField/
+// Source: layer1_us.html panel-step-deductions (~line 3440-3554) + updateStateField/
 // toggleDeductionsFields/toggle529Fields handlers. All fields below map 1:1 to
 // usState.itemized_deductions_and_credits in lib/layer1-us/schema.js.
+//
+// BUG FIX (dead/decoy fields removed, found by the step-by-step map audit):
+// three fields previously rendered here have zero matching UI anywhere in
+// the source's panel-step-deductions markup (confirmed by reading
+// layer1_us.html:3440-3554 in full — no `educator`, no `qbi`, and the
+// panel's only HSA control lives on the Retirement step, not here) AND
+// zero consumers in either DAG engine (dag_py, lib/dag — confirmed by
+// grep: `educator_expenses_usd`/`hsa_contributions_usd`/`qbi_deduction_usd`/
+// `qbi_deduction_eligible` never appear as a read anywhere; QBI is computed
+// independently from K-1/business income in dag_py's ustax.py:355-368,
+// output under a different key (`qbiDeductionUsd`), never fed by this
+// input). Letting a user fill these in was actively misleading — the
+// values visibly sit on screen and affect nothing. Removed:
+//   - Educator Expenses (USD)
+//   - HSA Contributions (USD) in Itemized Deduction Detail (the real,
+//     correctly-wired HSA field lives on RetirementStep.jsx)
+//   - QBI Deduction Eligible? toggle + QBI Deduction (USD) override field
 export default function DeductionsStep() {
   const { usState, setField } = useUsLayer1Store();
   const d = usState.itemized_deductions_and_credits;
@@ -38,9 +55,6 @@ export default function DeductionsStep() {
           </Field>
           <Field label="Student Loan Interest Paid (USD)" hint="Above-the-line, capped at $2,500">
             <NumberInput value={d.student_loan_interest_usd} onChange={set("student_loan_interest_usd")} />
-          </Field>
-          <Field label="Educator Expenses (USD)">
-            <NumberInput value={d.educator_expenses_usd} onChange={set("educator_expenses_usd")} />
           </Field>
         </div>
       </Card>
@@ -76,9 +90,6 @@ export default function DeductionsStep() {
             </Field>
             <Field label="Federal Disaster Casualty Loss (USD)">
               <NumberInput value={d.casualty_loss_federal_disaster_usd} onChange={set("casualty_loss_federal_disaster_usd")} />
-            </Field>
-            <Field label="HSA Contributions (USD)">
-              <NumberInput value={d.hsa_contributions_usd} onChange={set("hsa_contributions_usd")} />
             </Field>
           </div>
         </Card>
@@ -132,20 +143,6 @@ export default function DeductionsStep() {
                 />
               </Field>
             </>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-line pt-4">
-          <ToggleRow
-            label="QBI Deduction Eligible?"
-            sub="§199A pass-through income deduction"
-            checked={d.qbi_deduction_eligible}
-            onChange={set("qbi_deduction_eligible")}
-          />
-          {d.qbi_deduction_eligible && (
-            <Field label="QBI Deduction (USD)" hint="Normally derived from business income — override here if known">
-              <NumberInput value={d.qbi_deduction_usd} onChange={set("qbi_deduction_usd")} />
-            </Field>
           )}
         </div>
       </Card>

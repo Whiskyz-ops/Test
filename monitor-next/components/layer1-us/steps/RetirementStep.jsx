@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useUsLayer1Store } from "../../../lib/layer1-us/store";
 
 // Ported from layer1_us.html's `panel-step-retirement`
@@ -7,13 +8,21 @@ import { useUsLayer1Store } from "../../../lib/layer1-us/store";
 // `usState.retirement_accounts`, which already exists in full in schema.js
 // — no schema gap here (unlike IncomeUsStep's W-2 array).
 //
-// SIMPLIFIED: the original panel's "SECURE Act 2.0 RMD Calculator" summary
-// card (layer1_us.html:3248-3264, `#lbl-rmd-req` / `#lbl-rmd-amt`) is an
-// auto-derived read-only display fed by a recalculation pass elsewhere in
-// the vanilla-JS file (age vs. RMD start age, prior-year-end account
-// balance, IRS Uniform Lifetime Table divisor) that isn't reachable from
-// this component in isolation. This port keeps `rmd_required` /
-// `rmd_amount_usd` as plain editable fields instead of a derived display.
+// BUG FIX (editable-instead-of-derived-readonly, found by the step-by-step
+// map audit): the original panel's "SECURE Act 2.0 RMD Calculator" summary
+// card (layer1_us.html:3248-3264, `#lbl-rmd-req` / `#lbl-rmd-amt`) is a
+// read-only derived display, computed at layer1_us.html:11496-11507 purely
+// from `profile.date_of_birth` (age >= 73 this year). The source
+// deliberately never computes a dollar RMD amount — Layer 1 collects no
+// traditional-account BALANCE field anywhere (only contribution amounts),
+// so a real RMD figure can't be derived; the label always shows literal
+// "See preparer" / "N/A" text, never a number. This port previously
+// rendered both as freely-editable fields (a checkbox + a NumberInput),
+// letting a user type over what should be a computed-only age test and
+// invent an RMD dollar amount with no basis. Fixed: `rmd_required` is
+// derived live via useEffect from date_of_birth and shown read-only;
+// `rmd_amount_usd` is never rendered as an input at all — just the same
+// static "See preparer" / "N/A" text the source shows.
 
 const num = (raw) => {
   if (raw === "" || raw === null || raw === undefined) return null;
@@ -121,6 +130,13 @@ export default function RetirementStep() {
   const ret = usState.retirement_accounts;
   const set = (field, value) => setField(`retirement_accounts.${field}`, value);
 
+  const dob = usState.profile.date_of_birth;
+  const rmdRequired = dob ? new Date().getFullYear() - new Date(dob).getFullYear() >= 73 : false;
+  useEffect(() => {
+    if (rmdRequired !== ret.rmd_required) set("rmd_required", rmdRequired);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rmdRequired]);
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -187,11 +203,29 @@ export default function RetirementStep() {
 
       {/* RMD */}
       <Card title="Required Minimum Distributions (RMD)">
-        <div className="flex flex-col gap-3">
-          <CheckRow checked={ret.rmd_required} onChange={(v) => set("rmd_required", v)} label="RMD Required This Year?" sublabel="SECURE 2.0 Act — required beginning age depends on birth year" />
-          {ret.rmd_required ? (
-            <LabeledNumber label="RMD Amount (USD)" value={ret.rmd_amount_usd} onChange={(v) => set("rmd_amount_usd", v)} />
-          ) : null}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">
+              RMD Required This Year?
+              <span className="block text-[10px] normal-case tracking-normal text-muted/70 font-normal mt-0.5">
+                Derived — SECURE 2.0 Act, age 73+ as of this year, based on date of birth
+              </span>
+            </label>
+            <div className="rounded-lg bg-white/[0.02] border border-line px-3 py-2 text-sm text-head font-mono opacity-80 cursor-not-allowed">
+              {rmdRequired ? "Yes" : "No"}
+            </div>
+          </div>
+          <div>
+            <label className="block text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">
+              RMD Amount (USD)
+              <span className="block text-[10px] normal-case tracking-normal text-muted/70 font-normal mt-0.5">
+                Never computed here — no account-balance field exists in this intake
+              </span>
+            </label>
+            <div className="rounded-lg bg-white/[0.02] border border-line px-3 py-2 text-sm text-head font-mono opacity-80 cursor-not-allowed">
+              {rmdRequired ? "See preparer" : "N/A"}
+            </div>
+          </div>
         </div>
       </Card>
 
