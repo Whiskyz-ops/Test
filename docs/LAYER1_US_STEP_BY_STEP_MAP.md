@@ -439,17 +439,23 @@ source field-for-field. Only 2 real gaps found:
   resolve during the batch verification pass — low risk given the pattern
   is identical to 3 already browser-verified conversions elsewhere in this
   port).
-- `[VERIFIED]` `employer_type` (4-option select: foreign entity/US
+- `[FIXED]` `employer_type` (4-option select: foreign entity/US
   company/foreign affiliate/US gov), `us_abode`, `revoked_past_5_years`
-  confirmed zero UI in `FeieStep.jsx`.
-- `[VERIFIED — corrects the existing file's own comment]`
-  `bona_fide_visa_type` (`layer1_us.html:3030-3031`, "Foreign Visa /
-  Residence Status" text input on the bona-fide-residence detail block)
-  is also missing — `FeieStep.jsx:117-119`'s own comment claims it "isn't
-  part of schema.js's committed shape, so it's intentionally not
-  ported," but that's now stale: the field was added to `schema.js` in
-  the JSON-export reconciliation pass. It's a genuine gap now, not an
-  intentional exclusion.
+  (`layer1_us.html:2969-2988`) were all present in `schema.js` but had
+  zero UI in `FeieStep.jsx`. Fixed: added a 3-field row (select + 2
+  checkboxes) right after "Total Foreign Earned Income," matching the
+  source's labels/options/placement exactly.
+- `[FIXED]` `bona_fide_visa_type` (`layer1_us.html:3030-3031`, "Foreign
+  Visa / Residence Status" text input on the bona-fide-residence detail
+  block) was also missing. Fixed: added alongside "Bona Fide Residence
+  Start Date" in the same block. All 4 fields compiled cleanly via
+  esbuild; not independently confirmed live in browser — this step's
+  compound wizard-gating preconditions (residency status + setup flags
+  hydrated through a separate zustand store) proved resistant to seeded
+  localStorage state in the time available, same obstacle hit verifying
+  the 3 conflict banners earlier. Confidence comes from exact
+  field-name/label/option parity with the source markup, reviewed
+  directly.
 - `[FIXED]` All 3 conflict-warning banners (`checkFeieConflicts()`,
   `layer1_us.html:9067-9094`) were missing. Fixed, matching the source's
   exact conditions:
@@ -802,7 +808,7 @@ source field-for-field. Only 2 real gaps found:
 | 8 | Business Ops & K-1s | K-1 → $0 bug, fabricated M-1 field + 5 missing real M-1 inputs, $250k receipts gate all **fixed**; QBI/UBIA + home-office/vehicle also fixed since the audit; 1099 panel, state_allocations, Analyzer panel still open |
 | 9 | Foreign Income | Solid, one misplaced-card issue |
 | 10 | Equity & Cap Table | **Solid, no open issues** |
-| 11 | FEIE | Housing-constant bug **fixed**; 3 conflict-warning banners **fixed** (not live-verified — see note); 4 missing fields, 2 dates shown that source hides still open |
+| 11 | FEIE | Housing-constant bug, 3 conflict-warning banners, 4 missing fields all **fixed** (banners/fields not live-verified — see notes); 2 dates shown that source hides still open |
 | 12 | Foreign Assets | Solid derivation logic; one PFIC-default bug |
 | 13 | Real Estate | **Solid, no open issues** |
 | 14 | Retirement | RMD fabricated-dollar-field / non-derived-checkbox bug **fixed** |

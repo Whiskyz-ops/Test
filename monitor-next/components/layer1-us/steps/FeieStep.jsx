@@ -172,6 +172,47 @@ export default function FeieStep() {
             </Field>
           </div>
 
+          {/* BUG FIX: 3 fields (employer_type, us_abode,
+              revoked_past_5_years) confirmed present in schema.js but had
+              zero UI here (layer1_us.html:2969-2988: "Employer Type"
+              select, "Maintained an Abode in the US?" and "Revoked FEIE
+              in past 5 years?" checkboxes — all 3 feed FEIE eligibility
+              narrowing/revocation checks). Added below, matching source
+              labels and options exactly. */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-line pt-4">
+            <Field label="Employer Type">
+              <Select
+                value={f.employer_type}
+                onChange={set("employer_type")}
+                options={[
+                  { value: "foreign_entity", label: "Foreign Entity" },
+                  { value: "us_company", label: "U.S. Company" },
+                  { value: "foreign_affiliate", label: "Foreign Affiliate of U.S. Company" },
+                  { value: "us_gov", label: "U.S. Government / Military" },
+                ]}
+                placeholder="Select Employer Type..."
+              />
+            </Field>
+            <label className="flex items-center gap-2 cursor-pointer self-end pb-2">
+              <input
+                type="checkbox"
+                checked={!!f.us_abode}
+                onChange={(e) => set("us_abode")(e.target.checked)}
+                className="rounded bg-white/[0.03] border-line text-brandGreen focus:ring-brandGreen"
+              />
+              <span className="text-[10px] text-muted">Maintained an Abode in the US?</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer self-end pb-2">
+              <input
+                type="checkbox"
+                checked={!!f.revoked_past_5_years}
+                onChange={(e) => set("revoked_past_5_years")(e.target.checked)}
+                className="rounded bg-white/[0.03] border-line text-brandGreen focus:ring-brandGreen"
+              />
+              <span className="text-[10px] text-muted">Revoked FEIE in past 5 years?</span>
+            </label>
+          </div>
+
           {f.qualification_test === "physical_presence" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-line pt-4">
               <Field label="Physical Presence Test Start Date">
@@ -191,18 +232,24 @@ export default function FeieStep() {
             </div>
           ) : (
             // BUG FIX: ground truth's div-feie-bonafide-details (layer1_us.html
-            // ~3023-3041) only shows the start date (+ a bona_fide_visa_type
-            // text field, layer1_us.html:3030-3031 — added to schema.js in the
-            // JSON-export reconciliation pass but still not rendered here; a
-            // real gap, not an intentional exclusion). It does NOT show
-            // days_in_us_during_test_period / us_business_days — those belong
-            // to the physical-presence test only. The previous version
-            // duplicated the physical-presence fields here, which erased the
-            // one real distinction the two qualification tests have in this
-            // form.
+            // 3023-3033) shows the start date AND a "Foreign Visa / Residence
+            // Status" text field (bona_fide_visa_type, layer1_us.html:3030-3031)
+            // — the field existed in schema.js but was never rendered here.
+            // Added below. It does NOT show days_in_us_during_test_period /
+            // us_business_days — those belong to the physical-presence test
+            // only. The previous version duplicated the physical-presence
+            // fields here, which erased the one real distinction the two
+            // qualification tests have in this form.
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-line pt-4">
               <Field label="Bona Fide Residence Start Date" hint="Full tax year residency required">
                 <DateInput value={f.bona_fide_residence_start_date} onChange={set("bona_fide_residence_start_date")} />
+              </Field>
+              <Field label="Foreign Visa / Residence Status">
+                <TextInput
+                  value={f.bona_fide_visa_type}
+                  onChange={set("bona_fide_visa_type")}
+                  placeholder="e.g. Work Permit, Permanent Resident"
+                />
               </Field>
             </div>
           )}
