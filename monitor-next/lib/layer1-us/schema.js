@@ -494,6 +494,7 @@ export function createDefaultUsState() {
       s6013h_joint_election: false,
       w8ben_aggregate_status: "none",
       form_w7_itin_application_filed: false,
+      spouse_ssn_or_itin_type: "none",
       us_eci_income_usd: 0,
       us_fdap_income_usd: 0,
       treaty_rate_claims: [],

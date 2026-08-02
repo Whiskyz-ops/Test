@@ -60,6 +60,21 @@ export default function NraStep() {
           checked={nra.s6013h_joint_election}
           onChange={set("s6013h_joint_election")}
         />
+        {/* Electing joint treatment lists the spouse on the return too — IRC
+            §6109 requires their own SSN/ITIN, same as the primary taxpayer's
+            own ID. Source: layer1_us.html's "nra-spouse-id-type" select. */}
+        <Field label="Spouse's Taxpayer ID Type">
+          <Select
+            value={nra.spouse_ssn_or_itin_type}
+            onChange={set("spouse_ssn_or_itin_type")}
+            options={[
+              { value: "none", label: "None (Requires ITIN Form W-7)" },
+              { value: "ssn", label: "SSN (Social Security Number)" },
+              { value: "itin", label: "ITIN (Individual Taxpayer ID)" },
+              { value: "atin", label: "ATIN (Adoption Taxpayer ID)" },
+            ]}
+          />
+        </Field>
       </Card>
 
       <Card>

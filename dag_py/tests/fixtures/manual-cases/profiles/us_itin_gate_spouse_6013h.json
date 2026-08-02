@@ -1,0 +1,130 @@
+{
+  "id": "us_itin_gate_spouse_6013h",
+  "label": "ITIN-filing gate firing case — §6013(h) electing spouse (manual case)",
+  "story": "Manual regression case for task #47's own follow-up stretch goal (§6013(h) spouse-ITIN gate): a single primary filer WITH a valid SSN on file (isolating this from us_itin_gate_required.json's primary-only case) who elects §6013(h) joint treatment with a spouse who has no SSN/ITIN/ATIN on file, and no Form W-7 application recorded as filed. Fires itin_application_required (severity: critical, spouse-only wording) and the form_w7 document trigger, purely off the spouse's missing ID — the primary taxpayer's own ssn_or_itin_type is 'ssn', so this exercises a branch us_itin_gate_required.json's own primary-missing case cannot reach. No golden fixture or fuzz-corpus profile ever sets s6013h_joint_election true with spouse_ssn_or_itin_type left at 'none' (the field didn't exist before this task), so nothing else in either regression suite reaches this path.",
+  "tags": [
+    "ITIN",
+    "Form W-7",
+    "§6109",
+    "§6013(h)",
+    "manual case"
+  ],
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "full_name": "Elena Roswell",
+    "date_of_birth": "1985-01-01",
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 200,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "full_name": "Elena Roswell",
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 0,
+      "final_india_residency_status": "NR"
+    },
+    "dtaa": {},
+    "compliance_docs": {},
+    "bank_accounts": [],
+    "property": {
+      "properties": []
+    },
+    "financial_holdings": {
+      "transactions": []
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "house_property": {
+        "has_house_property_income": false,
+        "properties": []
+      },
+      "business_income": {
+        "has_business_or_fo_income": false,
+        "business_entries": []
+      },
+      "capital_gains": {}
+    },
+    "other_sources": {},
+    "deductions": {},
+    "carry_forward_losses": {},
+    "lrs_outbound": {},
+    "tax_credits": {},
+    "metadata": {
+      "schema_version": "layer1_india_v5_1",
+      "financial_year": "TY2026-27"
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "full_name": "Elena Roswell",
+      "date_of_birth": "1985-01-01",
+      "filing_status": "married_filing_jointly",
+      "dependents_count": 0,
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 200,
+      "spt_test_met": true,
+      "final_us_residency_status": "RESIDENT_ALIEN",
+      "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Cascade Retail Co",
+          "wages_box1_usd": 40000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 3000,
+            "medicare_wages_box5_usd": 40000
+          }
+        }
+      ]
+    },
+    "income_foreign_source": {},
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "bank_accounts": [],
+    "fbar_aggregate_peak_usd": 0,
+    "foreign_entities": {
+      "foreign_corporations": [],
+      "pfic_holdings": []
+    },
+    "retirement_accounts": {},
+    "financial_holdings": [],
+    "ftc_inputs": {
+      "claims_ftc": false
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 3000
+    },
+    "nra_specific": {
+      "files_form_1040nr": false,
+      "s6013h_joint_election": true,
+      "spouse_ssn_or_itin_type": "none",
+      "form_w7_itin_application_filed": false
+    },
+    "metadata": {
+      "schema_version": "layer1_us_v1",
+      "us_calendar_year": 2026
+    }
+  }
+}

@@ -275,11 +275,26 @@ NODES.itinApplicationRequiredFinding = {
     // Step 2 profile screen) -- a US entity return (1120/1120-S/1065/1041)
     // files under an EIN, not an SSN/ITIN, so the field's "none" default
     // must NOT be read as a gap for those profiles.
-    if (!d.hasUsScope || d.usEntityKind !== "individual" || d.ssnOrItinTypeRaw !== "none" || d.nraRaw.w7ItinApplicationFiled) return [];
+    if (!d.hasUsScope || d.usEntityKind !== "individual") return [];
+    var primaryMissing = d.ssnOrItinTypeRaw === "none";
+    // task #47 stretch goal: §6013(h) elects the NRA's spouse into being
+    // listed on the return too -- IRC §6109 requires their own SSN/ITIN, not
+    // just the primary taxpayer's.
+    var spouseMissing = d.nraRaw.s6013hElection && d.nraRaw.spouseSsnOrItinType === "none";
+    // Both cases share the SAME Form W-7 signal (only one checkbox on file,
+    // not a per-person tracker) -- an honest single-available-signal
+    // imprecision, same discipline this codebase already applies to e.g.
+    // the FIRPTA/Form 8865 entity-level gaps: a real W-7 filed for the
+    // OTHER person on the return would silently suppress this finding too,
+    // not modeled here since no per-person W-7 field exists to read.
+    if ((!primaryMissing && !spouseMissing) || d.nraRaw.w7ItinApplicationFiled) return [];
+    var who = primaryMissing && spouseMissing ? "The primary taxpayer, and the spouse electing joint treatment under §6013(h),"
+      : primaryMissing ? "The primary taxpayer"
+      : "The spouse electing joint treatment under §6013(h)";
     return [{
       id: "itin_application_required", severity: "critical", category: "document",
       title: "No SSN, ITIN, or ATIN on file — a US return cannot be filed without one",
-      detail: "The Taxpayer ID Type on file is \"None,\" and no Form W-7 ITIN application is recorded as filed. Every person " +
+      detail: who + " has no SSN, ITIN, or ATIN on file, and no Form W-7 ITIN application is recorded as filed. Every person " +
         "listed on a Form 1040 or 1040-NR — the primary taxpayer, a spouse electing to be treated as a US resident under " +
         "§6013(g)/(h), and any dependent claimed for the Child Tax Credit — must have a valid SSN or ITIN (IRC §6109). A " +
         "dependent with an ITIN instead of an SSN still qualifies for the $500 Credit for Other Dependents, but is " +

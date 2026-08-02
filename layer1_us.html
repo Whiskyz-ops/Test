@@ -3809,6 +3809,16 @@
                 <div id="nra-6013h-unlock-badge" class="hidden px-3 py-2 bg-amber-400/10 border border-amber-400/30 rounded-xl text-[9px] font-black text-amber-300 uppercase tracking-widest text-center">
                     ✓ §6013(h) Active — MFJ Unlocked
                 </div>
+                <!-- Spouse Taxpayer ID (electing joint treatment lists the spouse on the return too — IRC §6109 requires an SSN/ITIN for every person listed, same as the primary taxpayer's own ID above) -->
+                <div>
+                    <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Spouse's Taxpayer ID Type</label>
+                    <select id="nra-spouse-id-type" onchange="updateStateField('nra_specific', 'spouse_ssn_or_itin_type', this.value);" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all">
+                        <option value="none">None (Requires ITIN Form W-7)</option>
+                        <option value="ssn">SSN (Social Security Number)</option>
+                        <option value="itin">ITIN (Individual Taxpayer ID)</option>
+                        <option value="atin">ATIN (Adoption Taxpayer ID)</option>
+                    </select>
+                </div>
             </div>
 
             <!-- Form 8833 Treaty Disclosure Card (Shown if Tie-Break to India is active) -->
@@ -4360,6 +4370,7 @@
             s6013h_joint_election: false,           // §6013(h): NRA married to US citizen — elects joint return; unlocks MFJ
             w8ben_aggregate_status: "none",
             form_w7_itin_application_filed: false,
+            spouse_ssn_or_itin_type: "none",        // §6013(h) lists the spouse on the return too — IRC §6109 requires their own SSN/ITIN
             us_eci_income_usd: 0,
             us_fdap_income_usd: 0,
             treaty_rate_claims: [],
@@ -5799,6 +5810,7 @@
                 "s6013h_joint_election": false,
                 "w8ben_aggregate_status": "none",
                 "form_w7_itin_application_filed": false,
+                "spouse_ssn_or_itin_type": "none",
                 "us_eci_income_usd": 0,
                 "us_fdap_income_usd": 0,
                 "treaty_rate_claims": [
@@ -21202,6 +21214,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             // Restore NRA Dom
             if(document.getElementById('nra-files-1040nr')) document.getElementById('nra-files-1040nr').checked = usState.nra_specific.files_form_1040nr || false;
             if(document.getElementById('nra-w7')) document.getElementById('nra-w7').checked = usState.nra_specific.form_w7_itin_application_filed || false;
+            if(document.getElementById('nra-spouse-id-type')) document.getElementById('nra-spouse-id-type').value = usState.nra_specific.spouse_ssn_or_itin_type || 'none';
             if(document.getElementById('nra-has-firpta')) document.getElementById('nra-has-firpta').checked = usState.nra_specific.us_real_property_disposed || false;
             if(document.getElementById('nra-firpta-amt')) document.getElementById('nra-firpta-amt').value = usState.nra_specific.firpta_withholding_usd || '';
             if(document.getElementById('nra-lrs')) document.getElementById('nra-lrs').checked = usState.nra_specific.is_lrs_investor || false;

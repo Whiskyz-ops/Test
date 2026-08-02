@@ -226,11 +226,19 @@ NODES = {
             # Application Filed?" checkbox (Step 9's NRA screen, "nra-w7") was
             # collected but never read by anything downstream.
             "w7ItinApplicationFiled": safe(ctx.get("us"), "nra_specific.form_w7_itin_application_filed", False) is True,
+            # task #47 stretch goal (ITIN gate, §6013(h) spouse case): electing
+            # joint treatment under §6013(h) lists the NRA's spouse on the
+            # return too -- IRC §6109 requires their own SSN/ITIN, not just
+            # the primary taxpayer's. layer1_us.html's own "Spouse's Taxpayer
+            # ID Type" selector (Step 9's NRA screen, "nra-spouse-id-type").
+            "s6013hElection": safe(ctx.get("us"), "nra_specific.s6013h_joint_election", False) is True,
+            "spouseSsnOrItinType": safe(ctx.get("us"), "nra_specific.spouse_ssn_or_itin_type", "none"),
         },
         layer1_fields=(
             "us.nra_specific.treaty_rate_claims", "us.nra_specific.submitted_w8ben",
             "us.nra_specific.us_real_property_disposed", "us.nra_specific.firpta_withholding_usd",
-            "us.nra_specific.form_w7_itin_application_filed",
+            "us.nra_specific.form_w7_itin_application_filed", "us.nra_specific.s6013h_joint_election",
+            "us.nra_specific.spouse_ssn_or_itin_type",
         ),
     ),
     # ---- ssnOrItinTypeRaw (task #47, ITIN-filing gate): layer1_us.html's
@@ -438,20 +446,38 @@ def _findings_us_result(d, ctx):
     # is individual-taxpayer-only (a US entity return files under an EIN,
     # not an SSN/ITIN), so gated on usEntityKind == "individual" the same
     # way the JS source is.
-    if d["hasUsScope"] and d["usEntityKind"] == "individual" and d["ssnOrItinTypeRaw"] == "none" and not nra["w7ItinApplicationFiled"]:
-        findings.append(make_finding(
-            "itin_application_required", "critical", "document",
-            "No SSN, ITIN, or ATIN on file — a US return cannot be filed without one",
-            "The Taxpayer ID Type on file is \"None,\" and no Form W-7 ITIN application is recorded as filed. Every "
-            "person listed on a Form 1040 or 1040-NR — the primary taxpayer, a spouse electing to be treated as a US "
-            "resident under §6013(g)/(h), and any dependent claimed for the Child Tax Credit — must have a valid SSN "
-            "or ITIN (IRC §6109). A dependent with an ITIN instead of an SSN still qualifies for the $500 Credit for "
-            "Other Dependents, but is downgraded out of the $2,000 Child Tax Credit.",
-            "If eligible for an SSN, apply through the SSA. Otherwise file Form W-7 to apply for an ITIN — it can be "
-            "submitted together with the tax return itself, but the return cannot actually be filed until an SSN or "
-            "ITIN is on file (or, for a pending adoption, an ATIN via Form W-7A).",
-            0, ["§6109", "Form W-7", "§24(h)(4)"],
-        ))
+    # task #47 stretch goal (§6013(h) spouse case): electing joint treatment
+    # lists the NRA's spouse on the return too -- IRC §6109 requires their
+    # own SSN/ITIN, not just the primary taxpayer's. Both cases share the
+    # SAME Form W-7 signal (only one checkbox on file, not a per-person
+    # tracker) -- an honest single-available-signal imprecision, same
+    # discipline this codebase already applies to e.g. the FIRPTA/Form 8865
+    # entity-level gaps: a real W-7 filed for the OTHER person on the return
+    # would silently suppress this finding too, not modeled here since no
+    # per-person W-7 field exists to read.
+    if d["hasUsScope"] and d["usEntityKind"] == "individual" and not nra["w7ItinApplicationFiled"]:
+        primary_missing = d["ssnOrItinTypeRaw"] == "none"
+        spouse_missing = nra["s6013hElection"] and nra["spouseSsnOrItinType"] == "none"
+        if primary_missing or spouse_missing:
+            if primary_missing and spouse_missing:
+                who = "The primary taxpayer, and the spouse electing joint treatment under §6013(h),"
+            elif primary_missing:
+                who = "The primary taxpayer"
+            else:
+                who = "The spouse electing joint treatment under §6013(h)"
+            findings.append(make_finding(
+                "itin_application_required", "critical", "document",
+                "No SSN, ITIN, or ATIN on file — a US return cannot be filed without one",
+                f"{who} has no SSN, ITIN, or ATIN on file, and no Form W-7 ITIN application is recorded as filed. Every "
+                "person listed on a Form 1040 or 1040-NR — the primary taxpayer, a spouse electing to be treated as a US "
+                "resident under §6013(g)/(h), and any dependent claimed for the Child Tax Credit — must have a valid SSN "
+                "or ITIN (IRC §6109). A dependent with an ITIN instead of an SSN still qualifies for the $500 Credit for "
+                "Other Dependents, but is downgraded out of the $2,000 Child Tax Credit.",
+                "If eligible for an SSN, apply through the SSA. Otherwise file Form W-7 to apply for an ITIN — it can be "
+                "submitted together with the tax return itself, but the return cannot actually be filed until an SSN or "
+                "ITIN is on file (or, for a pending adoption, an ATIN via Form W-7A).",
+                0, ["§6109", "Form W-7", "§24(h)(4)"],
+            ))
 
     if nra["usRealPropertyDisposed"]:
         findings.append(make_finding(

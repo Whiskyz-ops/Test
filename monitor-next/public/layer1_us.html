@@ -2948,7 +2948,7 @@
                     <div class="col-span-1 md:col-span-2">
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5 flex items-center justify-between">Total Foreign Earned Income <span class="text-[8px] bg-brandCyan/20 text-brandCyan px-1 rounded">Live API 🌐</span></label>
                         <div class="flex gap-2">
-                            <select id="feie-earned-income-curr" class="w-[20%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-2 py-3 focus:border-brandCyan font-mono" onchange="autoConvertField('feie-earned-income-curr', 'feie-earned-income-foreign', 'feie-earned-income', false, 'foreign_earned_income', 'foreign_earned_income_usd', 'calculateFeieExclusion')">
+                            <select id="feie-earned-income-curr" class="w-[20%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-2 py-3 focus:border-brandCyan font-mono" onchange="autoConvertField('feie-earned-income-curr', 'feie-earned-income-foreign', 'feie-earned-income', false, 'foreign_earned_income', 'foreign_earned_income_usd')">
                                 <option value="USD">USD</option>
                                 <option value="INR">INR</option>
                                 <option value="EUR">EUR</option>
@@ -2957,10 +2957,10 @@
                                 <option value="SGD">SGD</option>
                                 <option value="AED">AED</option>
                             </select>
-                            <input type="text" inputmode="numeric" id="feie-earned-income-foreign" placeholder="Foreign Amt" oninput="autoConvertField('feie-earned-income-curr', 'feie-earned-income-foreign', 'feie-earned-income', false, 'foreign_earned_income', 'foreign_earned_income_usd', 'calculateFeieExclusion')" class="w-[40%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-3 focus:border-brandCyan font-mono">
+                            <input type="text" inputmode="numeric" id="feie-earned-income-foreign" placeholder="Foreign Amt" oninput="autoConvertField('feie-earned-income-curr', 'feie-earned-income-foreign', 'feie-earned-income', false, 'foreign_earned_income', 'foreign_earned_income_usd')" class="w-[40%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-3 focus:border-brandCyan font-mono">
                             <div class="relative w-[40%]">
                                 <span class="absolute left-3 top-3.5 text-xs text-brandCyan/40 font-mono">$</span>
-                                <input type="text" inputmode="numeric" id="feie-earned-income" placeholder="USD" oninput="updateStateField('foreign_earned_income', 'foreign_earned_income_usd', parseFloat(this.value) || 0); calculateFeieExclusion();" class="w-full bg-brandCyan/5 border border-brandCyan/20 rounded-xl text-xs text-brandCyan px-2 pl-6 py-3 focus:border-brandCyan font-mono shadow-[0_0_10px_rgba(6,182,212,0.1)]">
+                                <input type="text" inputmode="numeric" id="feie-earned-income" placeholder="USD" oninput="updateStateField('foreign_earned_income', 'foreign_earned_income_usd', parseFloat(this.value) || 0);" class="w-full bg-brandCyan/5 border border-brandCyan/20 rounded-xl text-xs text-brandCyan px-2 pl-6 py-3 focus:border-brandCyan font-mono shadow-[0_0_10px_rgba(6,182,212,0.1)]">
                             </div>
                         </div>
                     </div>
@@ -3044,7 +3044,7 @@
                     <div class="col-span-1 md:col-span-2">
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5 flex items-center justify-between">Foreign Housing Expenses <span class="text-[8px] bg-brandCyan/20 text-brandCyan px-1 rounded">Live API 🌐</span></label>
                         <div class="flex gap-2">
-                            <select id="feie-housing-curr" class="w-[20%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-2 py-3 focus:border-brandCyan font-mono" onchange="autoConvertField('feie-housing-curr', 'feie-housing-foreign', 'feie-housing', false, 'foreign_earned_income', 'foreign_housing_expenses_usd', 'calculateFeieExclusion')">
+                            <select id="feie-housing-curr" class="w-[20%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-2 py-3 focus:border-brandCyan font-mono" onchange="autoConvertField('feie-housing-curr', 'feie-housing-foreign', 'feie-housing', false, 'foreign_earned_income', 'foreign_housing_expenses_usd')">
                                 <option value="USD">USD</option>
                                 <option value="INR">INR</option>
                                 <option value="EUR">EUR</option>
@@ -3053,10 +3053,10 @@
                                 <option value="SGD">SGD</option>
                                 <option value="AED">AED</option>
                             </select>
-                            <input type="text" inputmode="numeric" id="feie-housing-foreign" placeholder="Foreign Amt" oninput="autoConvertField('feie-housing-curr', 'feie-housing-foreign', 'feie-housing', false, 'foreign_earned_income', 'foreign_housing_expenses_usd', 'calculateFeieExclusion')" class="w-[40%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-3 focus:border-brandCyan font-mono">
+                            <input type="text" inputmode="numeric" id="feie-housing-foreign" placeholder="Foreign Amt" oninput="autoConvertField('feie-housing-curr', 'feie-housing-foreign', 'feie-housing', false, 'foreign_earned_income', 'foreign_housing_expenses_usd')" class="w-[40%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-3 focus:border-brandCyan font-mono">
                             <div class="relative w-[40%]">
                                 <span class="absolute left-3 top-3.5 text-xs text-brandCyan/40 font-mono">$</span>
-                                <input type="text" inputmode="numeric" id="feie-housing" placeholder="USD" oninput="updateStateField('foreign_earned_income', 'foreign_housing_expenses_usd', parseFloat(this.value) || 0); calculateFeieExclusion();" class="w-full bg-brandCyan/5 border border-brandCyan/20 rounded-xl text-xs text-brandCyan px-2 pl-6 py-3 focus:border-brandCyan font-mono shadow-[0_0_10px_rgba(6,182,212,0.1)]">
+                                <input type="text" inputmode="numeric" id="feie-housing" placeholder="USD" oninput="updateStateField('foreign_earned_income', 'foreign_housing_expenses_usd', parseFloat(this.value) || 0);" class="w-full bg-brandCyan/5 border border-brandCyan/20 rounded-xl text-xs text-brandCyan px-2 pl-6 py-3 focus:border-brandCyan font-mono shadow-[0_0_10px_rgba(6,182,212,0.1)]">
                             </div>
                         </div>
                     </div>
@@ -3809,6 +3809,16 @@
                 <div id="nra-6013h-unlock-badge" class="hidden px-3 py-2 bg-amber-400/10 border border-amber-400/30 rounded-xl text-[9px] font-black text-amber-300 uppercase tracking-widest text-center">
                     ✓ §6013(h) Active — MFJ Unlocked
                 </div>
+                <!-- Spouse Taxpayer ID (electing joint treatment lists the spouse on the return too — IRC §6109 requires an SSN/ITIN for every person listed, same as the primary taxpayer's own ID above) -->
+                <div>
+                    <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Spouse's Taxpayer ID Type</label>
+                    <select id="nra-spouse-id-type" onchange="updateStateField('nra_specific', 'spouse_ssn_or_itin_type', this.value);" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all">
+                        <option value="none">None (Requires ITIN Form W-7)</option>
+                        <option value="ssn">SSN (Social Security Number)</option>
+                        <option value="itin">ITIN (Individual Taxpayer ID)</option>
+                        <option value="atin">ATIN (Adoption Taxpayer ID)</option>
+                    </select>
+                </div>
             </div>
 
             <!-- Form 8833 Treaty Disclosure Card (Shown if Tie-Break to India is active) -->
@@ -4360,6 +4370,7 @@
             s6013h_joint_election: false,           // §6013(h): NRA married to US citizen — elects joint return; unlocks MFJ
             w8ben_aggregate_status: "none",
             form_w7_itin_application_filed: false,
+            spouse_ssn_or_itin_type: "none",        // §6013(h) lists the spouse on the return too — IRC §6109 requires their own SSN/ITIN
             us_eci_income_usd: 0,
             us_fdap_income_usd: 0,
             treaty_rate_claims: [],
@@ -5799,6 +5810,7 @@
                 "s6013h_joint_election": false,
                 "w8ben_aggregate_status": "none",
                 "form_w7_itin_application_filed": false,
+                "spouse_ssn_or_itin_type": "none",
                 "us_eci_income_usd": 0,
                 "us_fdap_income_usd": 0,
                 "treaty_rate_claims": [
@@ -9078,25 +9090,6 @@ div.innerHTML = `
         if (seWarn) {
             if (isFeie && isSelfEmp && !hasCoc) seWarn.classList.remove('hidden');
             else seWarn.classList.add('hidden');
-        }
-    }
-
-    function calculateFeieExclusion() {
-        const earned = usState.foreign_earned_income.foreign_earned_income_usd || 0;
-        const housing = usState.foreign_earned_income.foreign_housing_expenses_usd || 0;
-        
-        // 2024/2025 FEIE max limit is roughly $126,500. We use a simple Math.min for the UI.
-        const feieMax = 132900;
-        const feieExcl = Math.min(earned, feieMax);
-        
-        const lblFeie = document.getElementById('lbl-feie-excl');
-        if (lblFeie) {
-            lblFeie.innerText = '$' + feieExcl.toLocaleString();
-        }
-        
-        const lblHouse = document.getElementById('lbl-feie-house');
-        if (lblHouse) {
-            lblHouse.innerText = '$' + housing.toLocaleString();
         }
     }
 
@@ -21221,6 +21214,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             // Restore NRA Dom
             if(document.getElementById('nra-files-1040nr')) document.getElementById('nra-files-1040nr').checked = usState.nra_specific.files_form_1040nr || false;
             if(document.getElementById('nra-w7')) document.getElementById('nra-w7').checked = usState.nra_specific.form_w7_itin_application_filed || false;
+            if(document.getElementById('nra-spouse-id-type')) document.getElementById('nra-spouse-id-type').value = usState.nra_specific.spouse_ssn_or_itin_type || 'none';
             if(document.getElementById('nra-has-firpta')) document.getElementById('nra-has-firpta').checked = usState.nra_specific.us_real_property_disposed || false;
             if(document.getElementById('nra-firpta-amt')) document.getElementById('nra-firpta-amt').value = usState.nra_specific.firpta_withholding_usd || '';
             if(document.getElementById('nra-lrs')) document.getElementById('nra-lrs').checked = usState.nra_specific.is_lrs_investor || false;

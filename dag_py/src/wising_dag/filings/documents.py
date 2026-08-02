@@ -269,7 +269,9 @@ def _build_documents_result(d, ctx):
         "form_16_16a": d["hasIndiaScopeXbr"],
         "lrs_form_a2": d["limitsRawExtra"]["lrsRemittedInr"] > 0,
         "form_4868": d["hasUsScopeBoundaryFtc"],
-        "form_w7": d["hasUsScope"] and d["usEntityKind"] == "individual" and d["ssnOrItinTypeRaw"] == "none" and not d["nraRaw"]["w7ItinApplicationFiled"],
+        "form_w7": d["hasUsScope"] and d["usEntityKind"] == "individual" and not d["nraRaw"]["w7ItinApplicationFiled"] and (
+            d["ssnOrItinTypeRaw"] == "none" or (d["nraRaw"]["s6013hElection"] and d["nraRaw"]["spouseSsnOrItinType"] == "none")
+        ),
         "form_27d": d["lrsOutboundRaw"]["purpose"] in ("investment", "gift_donation") and d["lrsOutboundRaw"]["totalRemittedInr"] > _LRS_TCS_THRESHOLD_INR,
         "form_540": bool(d["usStateTaxResult"]) and d["usStateTaxResult"]["state"] == "CA",
         "form_it201": bool(d["usStateTaxResult"]) and d["usStateTaxResult"]["state"] == "NY",

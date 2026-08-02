@@ -515,7 +515,8 @@ NODES.buildDocumentsResult = {
       form_16_16a: d.hasIndiaScopeXbr,
       lrs_form_a2: d.limitsRawExtra.lrsRemittedInr > 0,
       form_4868: d.hasUsScopeBoundaryFtc,
-      form_w7: d.hasUsScope && d.usEntityKind === "individual" && d.ssnOrItinTypeRaw === "none" && !d.nraRaw.w7ItinApplicationFiled,
+      form_w7: d.hasUsScope && d.usEntityKind === "individual" && !d.nraRaw.w7ItinApplicationFiled &&
+               (d.ssnOrItinTypeRaw === "none" || (d.nraRaw.s6013hElection && d.nraRaw.spouseSsnOrItinType === "none")),
       form_27d: (d.lrsOutboundRaw.purpose === "investment" || d.lrsOutboundRaw.purpose === "gift_donation") &&
                 d.lrsOutboundRaw.totalRemittedInr > LRS_TCS_THRESHOLD_INR_B1,
       form_540: !!d.usStateTaxResult && d.usStateTaxResult.state === "CA",
