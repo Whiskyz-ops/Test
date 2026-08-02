@@ -558,6 +558,14 @@ def _build_tax_computation_us_state_result(d, ctx):
 
 
 # ---- buildWithholdingSummaryResult (report-batch4-nodes.js) ---------------
+# Rate/threshold fact-check (task #48 follow-up, flagged by earlier research
+# as possibly stale -- confirmed via independent web search against multiple
+# sources, Aug 2026): every figure below is CURRENT for TY2026-27, this
+# codebase's own target year, under s.206C(1G) -- see report-batch4-nodes.js's
+# own copy of this comment for the full breakdown (₹10L threshold, Finance
+# Act 2025; 2% flat tour packages / 2% education-medical above ₹10L, both
+# Budget 2026; 20% investment/gift unchanged; 0% loan-funded education
+# unchanged). Superseded any earlier 0.5%/5%/₹7L recollection.
 LRS_PURPOSE_LABELS = {
     "investment": "Investment (Equity/Property)", "education_own_funds": "Overseas Education (Own Funds)",
     "education_loan": "Overseas Education (Loan-Funded)", "medical": "Medical Treatment Abroad",

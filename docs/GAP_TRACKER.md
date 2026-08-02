@@ -754,6 +754,15 @@ New permanent regression fixture: `dag_py/tests/fixtures/manual-cases/profiles/u
 
 **Verified:** `node tests/engine/run.js` (79/79, unaffected — DAG-only change), full `run-js-dag-vs-py-dag.js` (330/330 JS DAG === Python DAG, including the new manual case, 21 known pre-existing divergences unchanged), `pytest` (591/591), `run-analyze.js` (146/146, needed a new `lrs_investment_tcs`-is-DAG-only carve-out — `india_ror_us_income` fires it for real), `run-report1.js` (45 passed, 1 pre-existing unrelated failure — `us_citizen_expat_india`'s already-documented FEIE-cascade `ftcReport` divergence, confirmed via `git worktree` to predate this task), `run-fuzz.js` (0 new divergences in 3000 iterations — `lrs_investment_tcs` added to `KNOWN_EXTRA_FINDING_ID`, `form_27d` added to `DAG_ONLY_DOC_IDS`).
 
+**Rate/threshold fact-check, closed out (2 Aug 2026):** the research that scoped this task flagged a possible factual discrepancy in `computeLrsTcs`'s own existing rate table — its own recollection of 0.5%/5% rates and a ₹7L threshold, against the codebase's coded 2%/20%/₹10L. Independently verified via web search against multiple sources (financial press coverage of Finance Act 2025 and Budget 2026, cross-checked across independent outlets — not a single source): **the codebase's existing figures are correct, not stale, for TY2026-27** (this codebase's own target year):
+- ₹10L base threshold: Finance Act 2025 raised it from ₹7L, effective 1 Apr 2025.
+- Overseas tour packages: flat 2% from the first rupee, no threshold — Budget 2026 collapsed the prior 5%/20% split into one flat 2%, effective 1 Apr 2026.
+- Self-funded education / medical: 2% on the excess over ₹10L — Budget 2026 cut this from 5%, effective 1 Apr 2026.
+- Investment / gift-or-donation: unchanged, 20% on the excess over ₹10L.
+- Education funded via a specified-institution loan: unchanged, NIL (0%) regardless of amount.
+
+The research's own recollected 0.5%/5%/₹7L figures are the PRE-Finance-Act-2025/pre-Budget-2026 numbers — accurate for their own time, just superseded before this codebase's target tax year. No code change was needed (every figure in `computeLrsTcs`/`_compute_lrs_tcs` already matched); added a citation comment to both language's copies of the function recording this fact-check and its sources, so a future session doesn't re-flag the same question from a stale recollection of its own. **Verified unaffected:** `node tests/engine/run.js` (79/79), `pytest` (591/591) — comment-only change.
+
 ## Maintenance
 
 - Re-verify all "verified current" claims after: every Union Budget (Feb), every Finance Act notification (Mar), US filing-season changes (Jan), and any OBBBA technical corrections.
