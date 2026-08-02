@@ -106,7 +106,15 @@ export function analyzeDag(opts) {
     "totalTaxInrCombined", "regimeCombined", "isEntityTaxpayer", "usTaxResult", "residencyResult",
     "ftcResult", "crossBasisResult", "limitsResult", "headlineResult",
     "apportionmentResult", "s115aDividend", "s115aRoyalty", "s115aFts", "isNRV3",
-    "analyzeResult", "checksRegistryResult", "calendarAmountsResult"
+    "analyzeResult", "checksRegistryResult", "calendarAmountsResult",
+    // Not part of the real product surface, not returned to any Monitor
+    // component — lets shadow-core.js's isIndiaRebateMarginalReliefDivergent
+    // Profile recompute the OLD (pre-fix) §87A rebate formula from the same
+    // already-computed intermediates the DAG itself used, rather than
+    // approximating "near the threshold" off a proxy income figure. Same
+    // RESOLVE_LIST addition prototypes/graph-pilot/run-fuzz.js's own
+    // assembleDag() already makes for its own (test-only) harness.
+    "totalIncomeInrV3", "totalNormalInr", "slabTaxInr", "rebateInrV3", "isNew", "isIndividualV3"
   ], ctx).values;
 
   // The same shape r.model/r.computed carries from WISING.analyze() —
@@ -160,7 +168,13 @@ export function analyzeDag(opts) {
   // calendarAmounts: CL-2, same DAG-only precedent — the forward-looking
   // ₹/$ figure per advance-tax/estimated-tax calendar row.
   return Object.assign({}, out.analyzeResult, {
-    model, computed, checksRegistry: out.checksRegistryResult, calendarAmounts: out.calendarAmountsResult
+    model, computed, checksRegistry: out.checksRegistryResult, calendarAmounts: out.calendarAmountsResult,
+    // Harness-internal only — see the RESOLVE_LIST comment above. Never read
+    // by any Monitor component; shadow-core.js/test-adapter.mjs are the only
+    // consumers, and only for isIndiaRebateMarginalReliefDivergentProfile.
+    _debugTotalIncomeInrV3: out.totalIncomeInrV3, _debugTotalNormalInr: out.totalNormalInr,
+    _debugSlabTaxInr: out.slabTaxInr, _debugRebateInrV3: out.rebateInrV3,
+    _debugIsNew: out.isNew, _debugIsIndividualV3: out.isIndividualV3, _debugIsNRV3: out.isNRV3
   });
 }
 

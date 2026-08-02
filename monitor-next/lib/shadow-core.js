@@ -101,13 +101,40 @@ export const DIRECTIONAL_SURFACE = [];
 // never cascades into a dollar difference" reasoning as run-fuzz.js's own
 // KNOWN_ALWAYS_DIVERGENT_PATHS entry for these two fields, applied here via
 // the key-name mechanism this file already uses instead of a path list.
+//
+// The block below (passive/general/foreignWagesTaxPaidUsd/baskets/
+// otherCountries/feieHousingAppliedUsd/housingAppliedUsd) mirrors
+// run-fuzz.js's OWN DAG_ONLY_KEYS object verbatim — those seven names were
+// already proven safe there across ~70k fuzzed profiles, but had never been
+// carried over here, so every real profile touching the §904 basket-split
+// FTC work (task #46) or FEIE housing exclusion showed a live "shadow
+// mismatch" badge for fields that are genuinely just DAG-only structural
+// additions, not divergences. gilti962TaxUsd/cfcDetail/cfcNetTaxUsd/
+// cfcNonElectedInclusionUs/cfcElectedPool/cfcPerEntityTrace (Phase 7, XB-14,
+// GILTI/NCTI quantification) and collectiblesGainUsd/collectiblesTaxUsd/
+// collectiblesLtcgUsd/qsbsExcludedGainUsd/qsbsTaxableGainUsd (capital-gains
+// special rates) are NOT in run-fuzz.js's own DAG_ONLY_KEYS (that file uses
+// its path-list mechanism for them instead), but each name is confirmed
+// unique to its one feature area in this codebase (grepped), so blanket
+// key-name exclusion is safe here too — consistent with this file's own
+// established convention of preferring key-name exclusion over a path list
+// wherever the name is unambiguous.
 const DAG_ONLY_KEYS = new Set([
   "caveat", "indiaIsAop", "indiaIsTrust", "trustDistributedUsd", "trustRetainedUsd",
   "trustBracketBreakdown", "entityGraph", "qbiWagesUsd", "qbiUbiaUsd",
   "foreignSection988GainLoss", "otherOrdinaryIncomeUs",
   // §25B Saver's Credit (task #44 follow-up) — added proactively (kept in
   // sync with prototypes/graph-pilot/run-fuzz.js's own DAG_ONLY_KEYS).
-  "saversCreditUsd", "saversCreditDetail"
+  "saversCreditUsd", "saversCreditDetail",
+  // Mirrors run-fuzz.js's own DAG_ONLY_KEYS — see comment above.
+  "passive", "general", "foreignWagesTaxPaidUsd", "baskets", "otherCountries",
+  "feieHousingAppliedUsd", "housingAppliedUsd",
+  // Phase 7 GILTI/NCTI quantification — no frozen-engine equivalent at all.
+  "gilti962TaxUsd", "cfcDetail", "cfcNetTaxUsd", "cfcNonElectedInclusionUs",
+  "cfcElectedPool", "cfcPerEntityTrace",
+  // Capital-gains special rates (§1(h)(4) 28% collectibles, §1202 QSBS).
+  "collectiblesGainUsd", "collectiblesTaxUsd", "collectiblesLtcgUsd",
+  "qsbsExcludedGainUsd", "qsbsTaxableGainUsd"
 ]);
 
 // ---- findings: ID-set reconciliation, not a positional array diff --------
@@ -140,16 +167,26 @@ const KNOWN_EXTRA_FINDING_IDS = new Set([
 // KNOWN_CONTENT_DIVERGENCE_FINDING_IDS run-fuzz.js carries.
 const KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = new Set(["cfc"]);
 
+// Returns true iff at least one of the catalogued ID-level exceptions
+// (extra/missing DAG-only ID, entity-suppressed/basket-split missing ID, or
+// a KNOWN_CONTENT_DIVERGENCE_FINDING_IDS content mismatch) actually fired in
+// THIS comparison — the exact "findingsResult.known.length > 0" signal
+// run-fuzz.js's own compareOne gates CASCADE_ONLY_PATHS on below. Separate
+// from (and narrower than) the wholesale detector-driven findingsExcused
+// flag compareSurface applies on top — mirrors run-fuzz.js's own two-tier
+// distinction exactly (see that file's own compareOne).
 function diffFindings(engFindings, dagFindings, isUsEntity, out) {
   const eng = Array.isArray(engFindings) ? engFindings : [];
   const dag = Array.isArray(dagFindings) ? dagFindings : [];
   const engById = new Map(eng.map((f) => [f.id, f]));
   const dagById = new Map(dag.map((f) => [f.id, f]));
   const allIds = new Set([...engById.keys(), ...dagById.keys()]);
+  let hadKnownIssue = false;
   [...allIds].sort().forEach((id) => {
     const inDag = dagById.has(id), inEng = engById.has(id);
     if (inDag && !inEng) {
-      if (!KNOWN_EXTRA_FINDING_IDS.has(id)) out.push({ path: `findings[${id}]`, engine: "<missing>", dag: "<present>" });
+      if (KNOWN_EXTRA_FINDING_IDS.has(id)) hadKnownIssue = true;
+      else out.push({ path: `findings[${id}]`, engine: "<missing>", dag: "<present>" });
     } else if (!inDag && inEng) {
       // Two catalogued exceptions, same as run-fuzz.js's own compareFindings:
       // underpayment_2210 for a US entity (agg10-nodes.js's us1ShouldFire
@@ -158,11 +195,14 @@ function diffFindings(engFindings, dagFindings, isUsEntity, out) {
       // dependent findings in EITHER direction.
       const isEntitySuppressed = id === "underpayment_2210" && isUsEntity;
       const isBasketSplit = id === "underpayment_2210" || id === "ftc_gap" || id === "ftc_available" || id === "niit_medicare_not_creditable";
-      if (!isEntitySuppressed && !isBasketSplit) out.push({ path: `findings[${id}]`, engine: "<present>", dag: "<missing>" });
-    } else if (inDag && inEng && !KNOWN_CONTENT_DIVERGENCE_FINDING_IDS.has(id)) {
-      diff(`findings[${id}]`, engById.get(id), dagById.get(id), out, false);
+      if (isEntitySuppressed || isBasketSplit) hadKnownIssue = true;
+      else out.push({ path: `findings[${id}]`, engine: "<present>", dag: "<missing>" });
+    } else if (inDag && inEng) {
+      if (KNOWN_CONTENT_DIVERGENCE_FINDING_IDS.has(id)) hadKnownIssue = true;
+      else diff(`findings[${id}]`, engById.get(id), dagById.get(id), out, false);
     }
   });
+  return hadKnownIssue;
 }
 
 // Back-compat alias (the full path list).
@@ -219,6 +259,326 @@ const KNOWN_US_TRUST_PATHS = [
   "computed.usTax.filingStatus", "computed.usTax.taxableIncomeUsd",
   "computed.ftc.us.taxableIncomeUsd", "ftcReport.direction_us_claims_india"
 ];
+
+// ---- unconditional (applies to every profile, regardless of shape) ------
+// Mirrors run-fuzz.js's own KNOWN_ALWAYS_DIVERGENT_PATHS — see that file's
+// header for the full per-entry writeup (GILTI/CFC quantification the
+// frozen engine never modeled at all, capital-gains special rates, NRA
+// Article 21(2) fields, the §904 basket-split FTC work). Kept as a
+// path-prefix list (not blanket DAG_ONLY_KEYS entries) for the entries whose
+// leaf name isn't safely unique codebase-wide (nra.standardDeductionUsd/
+// itemizedDeductionUsd/article212Eligible/article212AmbiguousJ1 collide with
+// unrelated same-named fields elsewhere — findings-batch5-nodes.js's
+// "no income tax" finding and the state-tax report rows both also carry a
+// standardDeductionUsd, confirmed by grep — so excluding that NAME
+// everywhere would mask a real divergence in either of those, not just the
+// NRA path).
+const KNOWN_ALWAYS_DIVERGENT_PATHS = [
+  "computed.usTax.nra.standardDeductionUsd", "computed.usTax.nra.itemizedDeductionUsd",
+  "computed.usTax.nra.article212Eligible", "computed.usTax.nra.article212AmbiguousJ1",
+  "model.assets.businessEntities", "computed.reconciliation.rows",
+  "computed.ftc.us", "computed.ftc.netUnrelievedDoubleTaxUsd",
+  "computed.headline.netUnrelievedDoubleTaxUsd", "computed.headline.combinedTaxBeforeReliefUsd",
+  "summary.netDoubleTaxUsd", "findings[ftc_gap]", "findings[ftc_available]", "findings[underpayment_2210]",
+  "ftcReport.direction_us_claims_india", "ftcReport.headlineNetDoubleTaxUsd",
+  // Pure introspection field (like checksRegistry) with no engine equivalent
+  // at all — present on EVERY profile regardless of whether an override
+  // fired, so it's always known, not gated on any detector below.
+  "model.income.india.salaryDetail"
+];
+
+// India §44BB/§44BBB foreign-company presumptive-income scheme (gap tracker
+// IN-26, docs/GAP_TRACKER.md, fully shipped 25 Jul 2026): the frozen engine
+// silently computed a s.44BB/s.44BBB business entry as Regular Books instead
+// of the correct flat 10%-of-receipts presumptive figure — a real amount fix
+// whose cascade (India tax total, headline, apportionment, FTC) is too wide
+// to enumerate leaf-by-leaf, same shape as the AOP/Trust and salary-
+// exemption fixes above. NOT part of run-fuzz.js's own allowlist apparatus
+// (the fuzzer's random profile generator never emits a presumptive_scheme:
+// "s44BB"/"s44BBB" business entry), so it wasn't caught by that file's own
+// ~70k-iteration run — surfaced here instead by running this same allowlist
+// discipline against the real fixtures test-adapter.mjs/test-shadow.mjs
+// cover, specifically foreign_holdco_poem_india. Detected off the DAG's own
+// businessEntities calcTrace text (the one structural signal already exposed
+// on the compared surface — see assets-nodes.js's own s.44BB/44BBB trace
+// branch) rather than the raw profile, so this needs no extra profile
+// plumbing the way the FEIE detectors below do.
+function isIndiaPresumptiveForeignSchemeProfile(dag) {
+  const entities = dag && dag.model && dag.model.assets && dag.model.assets.businessEntities;
+  if (!Array.isArray(entities)) return false;
+  return entities.some((e) => {
+    const f = e && e.calcTrace && e.calcTrace.formula;
+    return typeof f === "string" && f.indexOf("Presumptive income under s.44BB") === 0;
+  });
+}
+const KNOWN_INDIA_PRESUMPTIVE_FOREIGN_SCHEME_PATHS = [
+  "model.income.india", "computed.indiaTax", "computed.ftc", "computed.headline",
+  "computed.reconciliation", "computed.apportionment", "taxComputation.india",
+  "ftcReport", "withholding", "monitoring",
+  "summary.indiaTaxUsd", "summary.totalIncomeUsd", "summary.netDoubleTaxUsd",
+  "summary.healthScore", "summary.counts", "documents", "scopeNotes", "returnForms"
+];
+
+// Static values mirrored from prototypes/graph-pilot/constants.js's
+// CONST.TAX.US.QBI_THRESHOLD / CONST.TAX.INDIA.REBATE_87A_NEW/OLD — this
+// file has no import of the engine's constants module (it stays pure/
+// framework-agnostic so it can run unchanged in the browser), so these are
+// duplicated verbatim rather than imported. Keep in sync if either changes.
+const CONST_QBI_THRESHOLD = { single: 201750, mfj: 403500, mfs: 201750, hoh: 201750 };
+const CONST_REBATE_87A_NEW = { incomeCap: 1200000, maxRebate: 60000 };
+const CONST_REBATE_87A_OLD = { incomeCap: 500000, maxRebate: 12500 };
+
+// §199A QBI wage/UBIA limitation (task #42): a PERMANENT, structural
+// divergence — the frozen engine never implements the wage/UBIA cap at all.
+// Same detector shape as run-fuzz.js's own isQbiWageLimitDivergent, reading
+// the DAG's own already-computed usTax rather than re-deriving the
+// threshold test (SYS-1-class avoidance, per that file's own comment).
+function isQbiWageLimitDivergent(dag) {
+  const inc = dag.model.income && dag.model.income.us, usTax = dag.computed.usTax;
+  if (!inc || !usTax || usTax.isEntity || usTax.isNra) return false;
+  if (!(inc.qbiIncomeUsd > 0)) return false;
+  const status = usTax.filingStatus;
+  const thr = (CONST_QBI_THRESHOLD[status] !== undefined ? CONST_QBI_THRESHOLD[status] : CONST_QBI_THRESHOLD.single);
+  const taxableBeforeQbi = (usTax.taxableIncomeUsd || 0) + (usTax.qbiDeductionUsd || 0);
+  return taxableBeforeQbi > thr;
+}
+const KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS = [
+  "computed.usTax.qbiDeductionUsd", "computed.usTax.taxableIncomeUsd", "computed.usTax.incomeTaxUsd",
+  "computed.usTax.totalTaxBeforeFtcUsd", "computed.usTax.ordinaryTaxUsd", "computed.usTax.preferentialTaxUsd",
+  "computed.usTax.ordinaryTaxableUsd", "computed.usTax.ordinaryBracketBreakdown", "computed.usTax.amtDetail",
+  "computed.usTax.amtUsd", "computed.usTax.creditsUsd", "computed.usTax.ctcDetail",
+  "computed.ftc.us", "computed.ftc.india", "computed.ftc.netUnrelievedDoubleTaxUsd",
+  "computed.headline.combinedTaxBeforeReliefUsd", "computed.headline.usTaxUsd", "computed.headline.netUnrelievedDoubleTaxUsd",
+  "taxComputation.us", "ftcReport", "summary.usTaxUsd", "summary.netDoubleTaxUsd"
+];
+// §25B Saver's Credit (task #44 follow-up): a nonzero credit changes
+// otherCreditsUsd/creditsUsd, which cascade downstream — same shape as the
+// QBI wage/UBIA limit above.
+function isSaversCreditDivergent(dag) {
+  const usTax = dag.computed.usTax;
+  return !!(usTax && !usTax.isEntity && !usTax.isNra && usTax.saversCreditUsd > 0);
+}
+const KNOWN_SAVERS_CREDIT_DIVERGENT_PATHS = [
+  "computed.usTax.otherCreditsUsd", "computed.usTax.creditsUsd", "computed.usTax.ctcDetail",
+  "computed.usTax.totalTaxBeforeFtcUsd",
+  "computed.ftc.us", "computed.ftc.netUnrelievedDoubleTaxUsd",
+  "computed.headline.usTaxUsd", "computed.headline.combinedTaxBeforeReliefUsd", "computed.headline.netUnrelievedDoubleTaxUsd",
+  "taxComputation.us", "ftcReport", "summary.usTaxUsd", "summary.netDoubleTaxUsd"
+];
+
+// Step 7 (FEIE) field-completeness audit: foreign_earned_income.
+// foreign_earned_income_usd was never folded into model.income.us.
+// foreignWages by either the frozen engine OR the DAG until aggregateus
+// income-nodes.js's fix (max() against the foreign_wages[] rows total) — a
+// deliberate, documented improvement beyond the frozen (buggy) reference.
+// These three need the RAW profile (foreign_earned_income_usd/foreign_wages
+// rows aren't retained anywhere in the assembled analyze()-shaped result),
+// so compareSurface threads its own third `profile` argument down to these
+// — see that function's own comment for why.
+function feieForeignWagesRowsTotal(us) {
+  const rows = (us && us.income_foreign_source && us.income_foreign_source.foreign_wages) || [];
+  let total = 0;
+  rows.forEach((w) => { total += Number(w.gross_wages_usd || w.wages_usd || w.amount_usd || w.wages_box1_usd || w.wages_tips_compensation_usd) || 0; });
+  return total;
+}
+function isFeieWagesDivergentProfile(profile) {
+  if (!profile) return false;
+  const us = profile.us || {};
+  const feieUsd = Number(us.foreign_earned_income && us.foreign_earned_income.foreign_earned_income_usd) || 0;
+  return feieUsd > feieForeignWagesRowsTotal(us);
+}
+const KNOWN_FEIE_WAGES_DIVERGENT_PATHS = [
+  "model.income.us", "computed.usTax", "computed.headline", "computed.ftc", "computed.reconciliation",
+  "computed.apportionment", "computed.limits", "taxComputation", "ftcReport", "documents", "returnForms",
+  "withholding", "scopeNotes", "summary", "monitoring"
+];
+// FEIE bona-fide-residence eligibility (docs/GAP_TRACKER.md, 29 Jul 2026):
+// the frozen engine grants the test ONLY off a legacy boolean nothing in the
+// live UI has ever set, denying FEIE for essentially every real bona-fide-
+// residence claimant. Reuses KNOWN_FEIE_WAGES_DIVERGENT_PATHS — same
+// wholesale-block cascade shape.
+function isFeieBonaFideProxyDivergentProfile(profile) {
+  if (!profile) return false;
+  const f = (profile.us && profile.us.foreign_earned_income) || {};
+  return f.claims_feie === true && f.qualification_test === "bona_fide_residence" &&
+    !!f.bona_fide_residence_start_date && f.bona_fide_residence !== true;
+}
+// §911(d)(6) FEIE "stacking rule" + Schedule 8812 categorical ACTC bar
+// (FEIE legal-correctness review, commit 8255a57): gated on the DAG's own
+// already-computed feieAppliedUsd — the exact "did the exclusion actually
+// apply" signal both fixes share. Also reuses KNOWN_FEIE_WAGES_DIVERGENT_
+// PATHS. Unlike the two detectors above, this one only needs the DAG result
+// (feieAppliedUsd/feieHousingAppliedUsd are both DAG_ONLY_KEYS-excluded
+// leaves already surfaced on computed.usTax.feie/computed.usTax).
+function isFeieStackingRuleDivergentProfile(dag) {
+  const t = dag && dag.computed && dag.computed.usTax;
+  return !!t && (((t.feie && t.feie.appliedUsd) || 0) + (t.feieHousingAppliedUsd || 0)) > 0;
+}
+// §199A QBI wage/UBIA limitation (item S) — a SECOND, narrower detector than
+// isQbiWageLimitDivergent above: gated on the ENGINE's own already-computed
+// qbiDeductionUsd/taxableIncomeUsd (a fuzzed-profile-shape proxy run-fuzz.js
+// itself uses, since none of the 12 real fixtures carry K-1 QBI wage/UBIA
+// data — item S's own note). Deliberately conservative (lowest QBI_THRESHOLD
+// across filing statuses) — same over-excuse-rather-than-under-excuse
+// tradeoff KNOWN_FEIE_WAGES_DIVERGENT_PATHS already makes.
+function isQbiWageUbiaLimitDivergentProfile(real) {
+  const t = real && real.computed && real.computed.usTax;
+  if (!t) return false;
+  const qbiThresholdFloor = 201750;
+  const taxableBeforeQbi = (t.taxableIncomeUsd || 0) + (t.qbiDeductionUsd || 0);
+  return (t.qbiDeductionUsd || 0) > 0 && taxableBeforeQbi > qbiThresholdFloor;
+}
+const KNOWN_QBI_WAGE_UBIA_DIVERGENT_PATHS = [
+  "computed.usTax", "computed.headline", "computed.ftc", "computed.reconciliation",
+  "computed.apportionment", "computed.indiaTax", "computed.limits", "taxComputation",
+  "ftcReport", "documents", "returnForms", "withholding", "scopeNotes", "summary", "monitoring"
+];
+// India §87A rebate marginal relief (in1_v3.py/in1-nodes-v3.js, fixed 29 Jul
+// 2026): rebateInrV3 used to test eligibility against totalNormalInr (slab
+// income only) with no marginal relief at the cliff; fixed to test against
+// totalIncomeInrV3 with real marginal relief. Recomputed EXACTLY from the
+// DAG's own already-computed intermediates (_debug* fields — see
+// dag-adapter.js's own RESOLVE_LIST addition) rather than an income-band
+// approximation, same reasoning as run-fuzz.js's own comment on this
+// detector.
+function isIndiaRebateMarginalReliefDivergentProfile(dag) {
+  if (!dag || !dag._debugIsIndividualV3 || dag._debugIsNRV3) return false;
+  const cap = dag._debugIsNew ? CONST_REBATE_87A_NEW : CONST_REBATE_87A_OLD;
+  const totalNormalInr = dag._debugTotalNormalInr || 0;
+  const slabTaxInr = dag._debugSlabTaxInr || 0;
+  const oldRebate = totalNormalInr <= cap.incomeCap ? Math.min(slabTaxInr, cap.maxRebate) : 0;
+  return Math.abs(oldRebate - (dag._debugRebateInrV3 || 0)) > 1;
+}
+const KNOWN_INDIA_REBATE_MARGINAL_RELIEF_DIVERGENT_PATHS = [
+  "computed.indiaTax", "computed.ftc", "computed.headline", "taxComputation.india", "findings",
+  "summary", "monitoring", "ftcReport"
+];
+// limits-nodes.js's Form 8938 "abroad" threshold selection has no entity-
+// type gate — a non-individual entity that happens to carry FEIE-shaped
+// fields can pick up the higher living-abroad threshold. Narrow, only
+// reachable via the fuzzer's cross-profile field merging in practice, kept
+// here anyway for parity with run-fuzz.js.
+function isFeieEntityGateMissingProfile(dag, profile) {
+  const kind = dag.model.entity && dag.model.entity.usKind;
+  const isIndividualPath = !kind || kind === "individual";
+  const claimsFeie = !!(profile && profile.us && profile.us.foreign_earned_income && profile.us.foreign_earned_income.claims_feie);
+  return !isIndividualPath && claimsFeie;
+}
+const KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS = ["documents"];
+// India salary exemptions (funding-audit follow-up): the engine's
+// normalize.js only ever reads salary.taxable_salary_inr or falls back to
+// raw gross_salary_inr with ZERO exemptions; aggregateindiaincome-nodes.js's
+// salaryIncomeComputation applies the real s.16(ia)/s.10(14)/s.10(13A) etc.
+// exemptions — a real amount fix, same blast radius as the AOP/Trust fix.
+function isIndiaSalaryExemptionProfile(dag) {
+  const sd = dag.model.income && dag.model.income.india && dag.model.income.india.salaryDetail;
+  if (!sd) return false;
+  return sd.overridden === false || sd.taxableSalaryInr === 0;
+}
+const KNOWN_INDIA_SALARY_EXEMPTION_DIVERGENT_PATHS = [
+  "model.income.india", "computed.indiaTax", "computed.ftc", "computed.headline", "computed.reconciliation",
+  "computed.apportionment", "taxComputation.india", "ftcReport", "withholding", "monitoring",
+  "summary.indiaTaxUsd", "summary.totalIncomeUsd", "summary.netDoubleTaxUsd", "summary.healthScore", "summary.counts",
+  "documents", "scopeNotes", "returnForms"
+];
+
+// GILTI/Subpart F inclusion reaching an INDIVIDUAL CFC-owner's own taxable
+// income (Phase 7, XB-14) — NOT part of run-fuzz.js's own allowlist
+// apparatus (its random fuzzer profiles essentially never generate a ≥10%-
+// owned foreign-corp individual with real CFC financial data in the exact
+// shape that cascades this way), surfaced instead by running this same
+// discipline against the real fixtures, specifically founder_indian_company
+// ("US resident owning an Indian Pvt Ltd... triggers GILTI/Subpart-F").
+// KNOWN_ALWAYS_DIVERGENT_PATHS above already excuses the CFC detail leaves
+// themselves (gilti962TaxUsd/cfcDetail/cfcNetTaxUsd — all DAG_ONLY_KEYS now
+// — plus cfcNonElectedInclusionUs/cfcElectedPool/cfcPerEntityTrace), but for
+// an individual (not an entity) that inclusion also folds directly into
+// ordinary taxable income (agiUsd/incomeTaxUsd/totalTaxBeforeFtcUsd itself
+// differs, confirmed by direct reproduction — the frozen engine never
+// modeled GILTI/Subpart F quantification for ANY taxpayer shape), so the
+// cascade needs the same wholesale-block treatment as the FEIE-wages family.
+function isCfcInclusionDivergentProfile(dag) {
+  const inc = dag && dag.model && dag.model.income && dag.model.income.us;
+  if (!inc) return false;
+  const nonElected = (inc.cfcNonElectedInclusionUs && inc.cfcNonElectedInclusionUs.usd) || 0;
+  const elected = inc.cfcElectedPool || {};
+  const electedAmt = (elected.taxableBaseUsd || 0) + (elected.subpartFUsd || 0);
+  return nonElected > 0 || electedAmt > 0;
+}
+const KNOWN_CFC_INCLUSION_DIVERGENT_PATHS = [
+  "model.income.us", "computed.usTax", "computed.headline", "computed.ftc", "computed.reconciliation",
+  "computed.apportionment", "computed.limits", "taxComputation", "ftcReport", "documents", "returnForms",
+  "withholding", "scopeNotes", "summary", "monitoring"
+];
+
+// India s.44AD(4) presumptive lock-in mandatory tax-audit trigger (gap
+// tracker IN-6, "lock-in depth", fully shipped 25 Jul 2026): when a
+// taxpayer is locked out of re-electing s.44AD after a prior exit,
+// report-batch1-nodes.js's form_3cb_3cd (tax-audit) trigger forces the
+// document regardless of the usual ₹1cr/₹10cr turnover threshold — the
+// frozen engine has no concept of the lock-in at all. Same "real fixture-
+// only, not in run-fuzz.js's own corpus" class as the two detectors above —
+// surfaced by india_only_ca_client, docs/GAP_TRACKER.md's own "next
+// follow-up" note names this exact gap. Detected off the DAG's own
+// presumptive_lockin_active_india finding (a KNOWN_EXTRA_FINDING_IDS
+// member already) rather than re-deriving the s44AD_last_exit_ay date math
+// here — same SYS-1-class avoidance as the other detectors in this file.
+function isIndiaPresumptiveLockinActiveProfile(dag) {
+  const findings = dag && dag.findings;
+  return Array.isArray(findings) && findings.some((f) => f.id === "presumptive_lockin_active_india");
+}
+const KNOWN_INDIA_PRESUMPTIVE_LOCKIN_DIVERGENT_PATHS = ["documents", "summary.requiredDocs", "monitoring.calendar"];
+
+// Fields that are MECHANICALLY DERIVED from findings[] (severity counts,
+// health score, the alerts feed) — only excusable as "known" when the SAME
+// comparison also has a catalogued findings-level ID exception (the
+// underpayment_2210/ftc_gap/ftc_available/niit_medicare_not_creditable/
+// KNOWN_CONTENT_DIVERGENCE_FINDING_IDS cases in diffFindings below); if one
+// of these differs with NO accompanying catalogued findings issue, that's
+// new and real. Mirrors run-fuzz.js's own CASCADE_ONLY_PATHS exactly —
+// deliberately NOT gated on the wholesale detector-driven excuses above
+// (feieWagesDivergent etc.), only on the narrower ID-level exceptions, same
+// as that file.
+const CASCADE_ONLY_PATHS = ["summary.healthScore", "summary.counts", "monitoring.health", "monitoring.alerts"];
+
+// Schedule C trace text divergence (docs/GAP_TRACKER.md item R, home-office/
+// vehicle-mileage deduction, 27 Jul 2026): both hardcoded, UNCONDITIONAL
+// literals that diverge for every Schedule C business entity regardless of
+// whether any mileage/home-office data is on file. Handled as a value-level
+// normalization (mutating shallow copies before diffing) rather than folded
+// into KNOWN_ALWAYS_DIVERGENT_PATHS's "model.assets.businessEntities" entry
+// above — that entry already happens to cover it wholesale today, but this
+// stays as a narrower, independent normalization for parity with
+// run-fuzz.js (whose own comment explains why: a prefix broad enough to
+// catch every array index would also excuse a REAL numeric bug anywhere
+// else in that array, and at the time this fix landed no such wholesale
+// exclusion existed yet).
+const OLD_SCHED_C_TRACE = "Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less asset depreciation (§179 / 100% bonus, permanent under OBBBA / MACRS — computed from each asset's own class and placed-in-service date, not Layer 1's own first-year-only preview). Home-office isn't netted yet (Phase 1).";
+const NEW_SCHED_C_TRACE = "Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less vehicle-mileage/home-office deductions, less asset depreciation (§179 / 100% bonus, permanent under OBBBA / MACRS — computed from each asset's own class and placed-in-service date, not Layer 1's own first-year-only preview).";
+function normalizeKnownScheduleCTraceDivergence(eng, dag) {
+  const re = eng && eng.model && eng.model.assets && eng.model.assets.businessEntities;
+  const de = dag && dag.model && dag.model.assets && dag.model.assets.businessEntities;
+  if (!Array.isArray(re) || !Array.isArray(de)) return { eng, dag };
+  const n = Math.min(re.length, de.length);
+  const newRe = re.slice(), newDe = de.slice();
+  let changed = false;
+  for (let i = 0; i < n; i++) {
+    const rf = re[i] && re[i].calcTrace && re[i].calcTrace.formula;
+    const df = de[i] && de[i].calcTrace && de[i].calcTrace.formula;
+    if (rf === OLD_SCHED_C_TRACE && df === NEW_SCHED_C_TRACE) {
+      changed = true;
+      const norm = "(Schedule C trace text — see docs/GAP_TRACKER.md item R for the known engine/DAG wording difference)";
+      newRe[i] = { ...re[i], calcTrace: { ...re[i].calcTrace, formula: norm } };
+      newDe[i] = { ...de[i], calcTrace: { ...de[i].calcTrace, formula: norm } };
+    }
+  }
+  if (!changed) return { eng, dag };
+  return {
+    eng: { ...eng, model: { ...eng.model, assets: { ...eng.model.assets, businessEntities: newRe } } },
+    dag: { ...dag, model: { ...dag.model, assets: { ...dag.model.assets, businessEntities: newDe } } }
+  };
+}
+
 function pathMatchesKnown(path, prefixes) {
   return prefixes.some((prefix) => path === prefix || path.startsWith(prefix + ".") || path.startsWith(prefix + "["));
 }
@@ -292,8 +652,20 @@ export function diff(path, eng, dag, out, directional) {
 
 /* Compare the two analyze()-shaped results: symmetric over the product-surface
  * outputs, directional over the assembled model/computed. Returns [] when they
- * agree (within float tolerance). */
-export function compareSurface(engineResult, dagResult) {
+ * agree (within float tolerance).
+ *
+ * `profile` (optional, third arg): the raw {router,india,us} the two results
+ * were computed FROM — needed only by the FEIE detectors below (isFeieWages
+ * DivergentProfile/isFeieBonaFideProxyDivergentProfile/isFeieEntityGate
+ * MissingProfile), which key off raw user-input fields
+ * (foreign_earned_income.foreign_earned_income_usd, income_foreign_source.
+ * foreign_wages[] rows, claims_feie) that aren't retained anywhere in the
+ * assembled analyze()-shaped result itself. Callers that don't have the
+ * profile handy (or are comparing two already-assembled results with no
+ * profile in scope) can omit it — those three detectors just never fire,
+ * same as before this parameter existed, at the cost of not excusing that
+ * one specific cascade for such a caller. */
+export function compareSurface(engineResult, dagResult, profile) {
   const entity = engineResult && engineResult.model && engineResult.model.entity;
   const usEntity = !!(entity && ["ccorp", "scorp", "partnership", "trust"].includes(entity.usKind));
   const usTrust = !!(entity && entity.usKind === "trust");
@@ -347,17 +719,79 @@ export function compareSurface(engineResult, dagResult) {
     };
   }
 
-  const raw = [];
-  diffFindings(eng.findings, dag.findings, usEntity, raw);
+  // Schedule C trace text (item R) — value-level normalization, applied to
+  // shallow copies before any diffing starts (mostly redundant with
+  // KNOWN_ALWAYS_DIVERGENT_PATHS's own "model.assets.businessEntities" whole-
+  // array exclusion below, kept anyway for parity with run-fuzz.js — see
+  // that function's own comment).
+  ({ eng, dag } = normalizeKnownScheduleCTraceDivergence(eng, dag));
+
+  let raw = [];
+  const findingsDiffs = [];
+  const hadKnownFindingsIssue = diffFindings(eng.findings, dag.findings, usEntity, findingsDiffs);
   for (const p of SYMMETRIC_SURFACE) diff(p, getPath(eng, p), getPath(dag, p), raw, false);
   for (const p of DIRECTIONAL_SURFACE) diff(p, getPath(eng, p), getPath(dag, p), raw, true);
 
+  // Conditional divergence detectors (section D + the wholesale-cascade
+  // family below it) — mirrors run-fuzz.js's own compareOne wiring exactly.
+  const qbiWageLimitDivergent = isQbiWageLimitDivergent(dag);
+  const saversCreditDivergent = isSaversCreditDivergent(dag);
+  const feieWagesDivergent = isFeieWagesDivergentProfile(profile);
+  const feieBonaFideProxyDivergent = isFeieBonaFideProxyDivergentProfile(profile);
+  const feieStackingRuleDivergent = isFeieStackingRuleDivergentProfile(dag);
+  const feieEntityGateMissing = isFeieEntityGateMissingProfile(dag, profile);
+  const qbiWageUbiaDivergent = isQbiWageUbiaLimitDivergentProfile(eng);
+  const indiaRebateDivergent = isIndiaRebateMarginalReliefDivergentProfile(dag);
+  const indiaSalaryExemption = isIndiaSalaryExemptionProfile(dag);
+  const indiaPresumptiveForeignScheme = isIndiaPresumptiveForeignSchemeProfile(dag);
+  const cfcInclusionDivergent = isCfcInclusionDivergentProfile(dag);
+  const indiaPresumptiveLockinActive = isIndiaPresumptiveLockinActiveProfile(dag);
+
+  // Findings-level diffs cascade from the same wholesale-shaped fixes as the
+  // rest of the product surface (a different QBI/FEIE/rebate/salary amount
+  // changes which $-amount-bearing findings fire) — reclassify wholesale,
+  // exactly like run-fuzz.js's own findingsExcused gate.
+  const findingsExcused = indiaAopOrTrust || feieWagesDivergent || feieBonaFideProxyDivergent || feieStackingRuleDivergent ||
+    qbiWageLimitDivergent || qbiWageUbiaDivergent || saversCreditDivergent || indiaRebateDivergent ||
+    indiaSalaryExemption || indiaPresumptiveForeignScheme || cfcInclusionDivergent || indiaPresumptiveLockinActive;
+  if (!findingsExcused) raw.push(...findingsDiffs);
+
+  // CASCADE_ONLY_PATHS — summary.counts/healthScore, monitoring.health/
+  // alerts — excusable only alongside a catalogued findings-level ID
+  // exception in THIS same comparison (hadKnownFindingsIssue), never on the
+  // wholesale findingsExcused flag alone. These sub-paths already got swept
+  // up (unconditionally) by SYMMETRIC_SURFACE's own wholesale "summary"/
+  // "monitoring" compare above — strip that unconditional copy back out and
+  // re-diff them through the SAME gate run-fuzz.js's own CASCADE_ONLY_PATHS
+  // uses, so a genuinely new cascade divergence still surfaces but a
+  // findings-driven one doesn't (run-fuzz.js never has this double-diffing
+  // problem in the first place: its own field list only ever names the
+  // NON-cascade summary/monitoring sub-fields individually, never the whole
+  // objects).
+  raw = raw.filter((d) => !pathMatchesKnown(d.path, CASCADE_ONLY_PATHS));
+  if (!hadKnownFindingsIssue) {
+    for (const p of CASCADE_ONLY_PATHS) diff(p, getPath(eng, p), getPath(dag, p), raw, false);
+  }
+
   const allowedPaths = []
+    .concat(KNOWN_ALWAYS_DIVERGENT_PATHS)
     .concat(usEntity ? KNOWN_US_ENTITY_PATHS : [])
     .concat(usTrust ? KNOWN_US_TRUST_PATHS : [])
     .concat(indiaEntity ? KNOWN_INDIA_ENTITY_PATHS : [])
     .concat(indiaAopOrTrust ? KNOWN_INDIA_AOP_TRUST_PATHS : [])
-    .concat(nra ? KNOWN_NRA_PATHS : []);
+    .concat(nra ? KNOWN_NRA_PATHS : [])
+    .concat(feieWagesDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
+    .concat(feieBonaFideProxyDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
+    .concat(feieStackingRuleDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
+    .concat(feieEntityGateMissing ? KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS : [])
+    .concat(qbiWageLimitDivergent ? KNOWN_QBI_WAGE_LIMIT_DIVERGENT_PATHS : [])
+    .concat(qbiWageUbiaDivergent ? KNOWN_QBI_WAGE_UBIA_DIVERGENT_PATHS : [])
+    .concat(saversCreditDivergent ? KNOWN_SAVERS_CREDIT_DIVERGENT_PATHS : [])
+    .concat(indiaRebateDivergent ? KNOWN_INDIA_REBATE_MARGINAL_RELIEF_DIVERGENT_PATHS : [])
+    .concat(indiaSalaryExemption ? KNOWN_INDIA_SALARY_EXEMPTION_DIVERGENT_PATHS : [])
+    .concat(indiaPresumptiveForeignScheme ? KNOWN_INDIA_PRESUMPTIVE_FOREIGN_SCHEME_PATHS : [])
+    .concat(cfcInclusionDivergent ? KNOWN_CFC_INCLUSION_DIVERGENT_PATHS : [])
+    .concat(indiaPresumptiveLockinActive ? KNOWN_INDIA_PRESUMPTIVE_LOCKIN_DIVERGENT_PATHS : []);
   if (!allowedPaths.length) return raw;
   return raw.filter((d) => !pathMatchesKnown(d.path, allowedPaths));
 }

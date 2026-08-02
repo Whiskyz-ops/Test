@@ -37,7 +37,7 @@
 "use client";
 
 import { getWISING } from "./wising.js";
-import { analyzeDag } from "./dag-adapter.js";
+import { analyzeDag, readRaw, STORAGE_KEYS } from "./dag-adapter.js";
 import { analyzePyDagSource } from "./py-dag-adapter.js";
 import { compareSurface, signature, SOURCE_PAIRS } from "./shadow-core.js";
 import { track } from "@vercel/analytics";
@@ -110,12 +110,32 @@ function engineOpts(source, W) {
   return {};
 }
 
+// The RAW {router,india,us} the comparison actually ran against — fed to
+// compareSurface()'s third arg (shadow-core.js's own comment explains why:
+// the FEIE detectors need raw user-input fields no assembled analyze()
+// result retains). Distinct from engineOpts() above: "live" mode passes an
+// EMPTY opts object to the engine/DAG (both read localStorage internally at
+// call time via the same keys), so this reads those same keys directly
+// rather than returning {} the way engineOpts does.
+function rawProfile(source, W, opts) {
+  if (source === "demo") return { router: W.SAMPLE.router, india: W.SAMPLE.india, us: W.SAMPLE.us };
+  if (source === "live") {
+    return {
+      router: readRaw(STORAGE_KEYS.ROUTER, opts.router),
+      india: readRaw(STORAGE_KEYS.INDIA, opts.india),
+      us: readRaw(STORAGE_KEYS.US, opts.us)
+    };
+  }
+  if (source && typeof source === "object") return source;
+  return {};
+}
+
 // Shared "did the two sides throw / diverge, build the record" logic —
 // both legs feed it the same shape ({ eng, engErr, other, otherErr, t0, t1,
 // t2 }), only the timing-field NAMES in the returned record differ
 // (engineMs/dagMs — an established, already-consumed shape ShadowBadge.jsx
 // reads — vs engineMs/pyDagMs for the new leg).
-function buildDivergences(eng, engErr, other, otherErr) {
+function buildDivergences(eng, engErr, other, otherErr, opts) {
   if (engErr || otherErr) {
     return [{
       path: "<throw>",
@@ -123,7 +143,7 @@ function buildDivergences(eng, engErr, other, otherErr) {
       dag: otherErr ? "THREW: " + otherErr.message : "ok"
     }];
   }
-  return compareSurface(eng, other);
+  return compareSurface(eng, other, opts);
 }
 
 // Central telemetry (docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 8
@@ -182,7 +202,7 @@ export function runShadow(source) {
   catch (e) { dagErr = e; }
   const t2 = now();
 
-  const divergences = buildDivergences(eng, engErr, dag, dagErr);
+  const divergences = buildDivergences(eng, engErr, dag, dagErr, rawProfile(source, W, opts));
   const rec = {
     ts: asOfTs, source: sourceLabel(source), sourcePair: SOURCE_PAIRS.ENGINE_VS_JS_DAG,
     ok: divergences.length === 0, divergences: divergences.slice(0, 40), divergenceCount: divergences.length,
@@ -224,7 +244,7 @@ export async function runShadowPy(source) {
   catch (e) { pyErr = e; }
   const t2 = now();
 
-  const divergences = buildDivergences(eng, engErr, py, pyErr);
+  const divergences = buildDivergences(eng, engErr, py, pyErr, rawProfile(source, W, opts));
   const rec = {
     ts: asOfTs, source: sourceLabel(source), sourcePair: SOURCE_PAIRS.ENGINE_VS_PY_DAG,
     ok: divergences.length === 0, divergences: divergences.slice(0, 40), divergenceCount: divergences.length,

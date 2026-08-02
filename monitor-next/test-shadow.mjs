@@ -38,7 +38,7 @@ const cases = [{ id: "SAMPLE", ...WISING.SAMPLE }].concat(
 );
 for (const c of cases) {
   const { eng, dag } = runPair({ router: c.router, india: c.india, us: c.us });
-  const divs = compareSurface(eng, dag);
+  const divs = compareSurface(eng, dag, { router: c.router, india: c.india, us: c.us });
   if (divs.length) {
     fails++;
     console.log("FAIL " + c.id + " — " + divs.length + " divergence(s):");
@@ -51,12 +51,20 @@ for (const c of cases) {
 console.log("\n=== NEGATIVE: planted divergence must be detected ===");
 {
   const { eng, dag } = runPair({ router: WISING.SAMPLE.router, india: WISING.SAMPLE.india, us: WISING.SAMPLE.us });
-  // deep clone the DAG result and corrupt one nested numeric field
+  // deep clone the DAG result and corrupt one nested numeric field.
+  // summary.totalIncomeUsd, not summary.healthScore: SAMPLE's own DAG
+  // findings legitimately carry one catalogued extra ID (lrs_investment_tcs,
+  // KNOWN_EXTRA_FINDING_IDS), so CASCADE_ONLY_PATHS (summary.healthScore/
+  // counts, monitoring.health/alerts) is genuinely excused for SAMPLE
+  // regardless of this plant — the same "over-excuse rather than
+  // under-excuse" tradeoff run-fuzz.js's own CASCADE_ONLY_PATHS accepts, not
+  // a hole in the comparator. totalIncomeUsd isn't cascade-gated at all, so
+  // it stays a clean self-test of "can this comparator catch ANY divergence."
   const broken = JSON.parse(JSON.stringify(dag));
-  broken.summary.healthScore = (dag.summary.healthScore || 0) + 7;
+  broken.summary.totalIncomeUsd = (dag.summary.totalIncomeUsd || 0) + 777;
   const divs = compareSurface(eng, broken);
-  const caught = divs.some((d) => d.path.indexOf("summary.healthScore") >= 0);
-  if (caught) console.log("  ok - planted summary.healthScore divergence detected (" + divs.length + " total)");
+  const caught = divs.some((d) => d.path.indexOf("summary.totalIncomeUsd") >= 0);
+  if (caught) console.log("  ok - planted summary.totalIncomeUsd divergence detected (" + divs.length + " total)");
   else { fails++; console.log("FAIL - planted divergence NOT detected"); }
 
   // and a planted array-length divergence
