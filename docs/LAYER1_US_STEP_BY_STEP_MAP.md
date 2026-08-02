@@ -218,13 +218,25 @@ source field-for-field. Only 2 real gaps found:
 
 ## 5. Employment Income — `layer1_us.html:1791-1831` → `IncomeUsStep.jsx`
 
-- `[FROM AUDIT]` `wages_w2` naming bug (was `w2_wages`, invisible to both
-  DAG engines) — fixed in an earlier pass, not re-verified this session.
-- Self-employment/farming full itemized-expense, vehicle-expense, and
-  home-office field coverage: `[NOT YET AUDITED]` at the row-shape level
-  (see step-business below for the sibling K-1 arrays, which *are*
-  verified broken — self-employment/farming likely share some of the same
-  row-shape gaps but this hasn't been directly checked here).
+- `[VERIFIED]` The source panel is genuinely tiny (just 40 lines) — only a
+  master toggle + dynamic W-2 list + 2 decorative upload buttons.
+  Self-employment/farming/K-1 arrays are NOT on this step at all —
+  confirmed they live entirely on `panel-step-business`
+  (`layer1_us.html:2220-2718`), so that row-shape audit belongs under
+  Business Ops (§8) below, not here.
+- `[VERIFIED]` `wages_w2` naming fix confirmed still correct.
+- `[VERIFIED — essentially complete]` Re-checked the full W-2 row shape
+  field-by-field against the real JSON export: employer name/address (4
+  fields), wages + qualified tip/overtime, the full federal/FICA box
+  breakdown (11 fields incl. EIN/control number), statutory-employee/
+  retirement-plan/sick-pay flags, state-and-local-taxes[] (6 fields/row),
+  and box_12_benefits[]/box_14_other[] (2 fields/row each) are ALL
+  present and correctly wired in `IncomeUsStep.jsx`. This is one of the
+  most complete row-shape ports in the app — no gaps found.
+- `[VERIFIED — minor]` The 2 decorative "Upload Latest Paystub"/"Upload
+  Official W-2" buttons (`layer1_us.html:1812-1819`, `triggerW2Upload()`)
+  aren't ported — same low-priority category as other missing decorative
+  upload affordances elsewhere in the app.
 - Several capital-gains flag checkboxes (`has_sec_1256`, `has_qsbs`, etc.)
   are rendered on both this step and `CapGainsStep.jsx` — redundant but
   harmless per earlier verification pass.
@@ -528,7 +540,7 @@ source field-for-field. Only 2 real gaps found:
 | 2 | Residency | Much more complete than documented — only dual-status dates + excluded-days UI missing (both prominent, always-visible in source) |
 | 3 | State Nexus | Open issues (large — whole sticky-domicile sub-engine, CA gating, 5 missing UI blocks, apportionment domicile-state bug) |
 | 4 | Bank Sync | **Solid, no open issues** |
-| 5 | Employment Income | Mostly solid; row-shape depth not yet audited |
+| 5 | Employment Income | **Solid, no open issues** (W-2 row shape essentially complete; self-employment/farming live on Business Ops instead) |
 | 6 | Capital Gains & Crypto | **Fixed** (aggregate inversion); sub-module arrays still schema-only |
 | 7 | Passive & Other | **Solid, no open issues** (one minor decorative-upload gap) |
 | 8 | Business Ops & K-1s | K-1 → $0 bug **fixed**; large Tier 1 gap remains (1099 panel, apportionment, QBI/UBIA, row-shape depth) |
