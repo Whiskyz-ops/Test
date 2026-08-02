@@ -287,3 +287,65 @@ synced copy), and the OR-bug fix for §6013(g)/(h) MFJ unlocking.
     diff shows it's the single largest remaining gap by field count, far
     larger than everything above combined — it corroborates Tier 0 #1 at
     much higher resolution rather than adding a new finding.
+
+- **[FIXED]** Tier 0 #1 (K-1/business income invisible to both DAG engines),
+  full scope — self-employment, farm, partnership K-1, S-corp K-1, and
+  trust/estate K-1 (all 5 business-income row types `BusinessStep.jsx`
+  owns). Ground truth for every field name/shape was read directly from
+  `layer1_us.html`'s actual sync functions (`syncSeState()` ~13569,
+  `syncFarmState()` ~14148, `syncPartK1State()`/`normalizePartK1Item()`
+  ~14226, `syncScorpK1State()`/`normalizeScorpK1Item()` ~15112/15729,
+  `syncTrustK1State()`/`normalizeTrustK1Item()` ~16608/17053) and
+  cross-checked against `aggregate_us_income.py`'s actual reads — not
+  inferred from either side alone.
+  - **Self-employment**: `makeSeRow()`/`SelfEmploymentSection()` rewritten to
+    flat top-level `gross_receipts_usd`/`returns_and_allowances_usd`/
+    `other_income_usd`/`cogs_beginning_inventory`/`cogs_purchases`/
+    `cogs_labor`/`cogs_materials`/`cogs_ending_inventory`/`wages_paid_usd`/
+    `se_health_insurance_usd`/`se_retirement_contrib_usd`/`vehicle_miles`/
+    `home_office_sqft`/`is_specified_service_trade`, plus a derived
+    `expenses_usd` (summed from `itemized_expenses{}`).
+  - **Farm**: `makeFarmRow()`/`FarmSection()` rewritten to
+    `itemized_income{}` (not `income{}`) and `inventory{}` with
+    DAG-matching key names, flat `wages_paid_usd`, derived `expenses_usd`.
+  - **Partnership/S-corp/trust K-1**: the fabricated `row.revenue{}`/
+    `row.expenses{}` pair — confirmed to not exist anywhere in the real
+    form's data model, since a K-1 recipient reports box values printed on
+    the K-1 they received, not the underlying entity's own revenue/COGS —
+    removed entirely; every K-1 box is now a flat top-level field with real
+    IRS box names (`ordinary_income_usd`, `guaranteed_payments_usd`,
+    `sec179_deduction_usd`, `interest_income_usd`, `stcg_usd`/`ltcg_usd`,
+    `qbi_wages_usd`/`qbi_ubia_usd`, etc.), matching
+    `aggregate_us_income.py`'s exact field reads including its two
+    per-entity fallback-chain quirks (S-corp box 9 is `sec1231_gain_usd`,
+    not `net_sec1231_gain_usd`; trust box 7 royalty is `royalty_income_usd`,
+    not `royalties_usd`).
+  - **New derivation layer**: `derive.js` gained
+    `applyBusinessIncomeDerivations()` (self-employment/farm `expenses_usd`
+    summed from `itemized_expenses{}` on every mutation, plus the
+    self-employment above-the-line health-insurance/retirement-deduction
+    sum-into-`income_us_source.se_health_insurance_deduction_usd`/
+    `se_retirement_deduction_usd` pattern ported from
+    `layer1_us.html:13638-13658`'s own documented past bug-fix comment) —
+    wired into `applyDerivations()` so it runs on every store mutation,
+    matching the existing residency-lock derivation's "always runs"
+    architecture rather than being computed ad hoc in a component.
+  - **Verified live** (Playwright + `dag_py`): each of the 5 row types
+    filled independently and cross-checked against a hand calculation run
+    through `aggregate_us_income.py`'s real functions
+    (self-employment $93,232 net profit; farm $42,114; partnership $24,000
+    business-income contribution + QBI wages/UBIA; S-corp $29,500; trust
+    $10,500) — all matched exactly. A combined test with all 5 types filled
+    in one session showed the DAG's `businessUsUsd` correctly summing to
+    $105,000 (previously would have been ~$0 for at least 4 of the 5
+    types) and a full `compute_us_tax_core` pass completing without error.
+    `dag_py` pytest 591/591 still green (no DAG-engine code touched this
+    pass — React-port-only fix).
+  - Intentionally deferred (documented in code comments, not silently
+    dropped): `addUsBranchRow` (US branches nested under these rows, ~715
+    lines in the source); S-corp/trust's legacy `gross_revenue`/`exp_*`
+    fields, confirmed vestigial since `ordinary_income_usd` is always
+    directly entered via the Box 1 field in both the source and this port;
+    partnership/S-corp K-1's `partner_ein`/`partnership_ein`/liabilities/
+    profit-loss-percentage fields (not DAG-critical, redundant with the
+    existing `partners[]`/`shareholders[]` sub-roster).

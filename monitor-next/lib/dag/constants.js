@@ -92,6 +92,14 @@
       // $130,000 for TY2025).
       FEIE_MAX_USD: 132900,
 
+      // IRC §911(c)(1)(B) foreign housing cost exclusion: base amount is
+      // 16% of FEIE_MAX_USD; cap is the 2026 published (nationwide-default,
+      // non-locality-adjusted) housing cost limitation. Mirrors dag_py's
+      // us/constants.py FEIE_HOUSING_BASE_USD/FEIE_HOUSING_CAP_USD exactly —
+      // these must never drift apart. Confirmed against Rev. Proc. 2025-32.
+      FEIE_HOUSING_BASE_USD: 21264,
+      FEIE_HOUSING_CAP_USD: 39870,
+
       // Net Investment Income Tax (3.8%) MAGI thresholds — fixed by statute
       // since 2013, NOT indexed for inflation (confirmed unchanged by OBBBA).
       NIIT_THRESHOLD: { single: 200000, mfj: 250000, mfs: 125000, hoh: 200000 },
