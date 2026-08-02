@@ -531,13 +531,14 @@ NODES.findingsAllResult = {
       }
 
       // India-US DTAA FDAP treaty-rate sanity check against
-      // constants.js's INDIA_US_TREATY_FDAP_RATES.
+      // constants.js's INDIA_US_TREATY_FDAP_RATES. Field is elected_rate,
+      // not rate — see findings-batch4-nodes.js's nraFdapDetail comment.
       (d.nraRaw.treatyRateClaims || []).forEach(function (treatyClaim) {
-        if (!treatyClaim || treatyClaim.rate == null) return;
+        if (!treatyClaim || treatyClaim.elected_rate == null) return;
         var incomeType = treatyClaim.income_type;
         var tableEntry = incomeType ? T.INDIA_US_TREATY_FDAP_RATES[incomeType] : null;
         if (!tableEntry) return;
-        var claimedRateFrac = Math.max(0, Math.min(1, Number(treatyClaim.rate) / 100));
+        var claimedRateFrac = Math.max(0, Math.min(1, Number(treatyClaim.elected_rate) / 100));
         if (tableEntry.rates.some(function (r) { return Math.abs(claimedRateFrac - r) <= T.TREATY_RATE_TOLERANCE; })) return;
         var validRatesPct = tableEntry.rates.map(function (r) { return Math.round(r * 100) + "%"; }).join(" / ");
         all.push({
@@ -619,7 +620,7 @@ NODES.nraTaxResult = {
     var eciUsd = nra.eciIncomeUsd || 0;
     var fdapUsd = nra.fdapIncomeUsd || 0;
     var claim = (nra.treatyRateClaims || [])[0];
-    var claimedRate = (claim && claim.rate != null) ? Math.max(0, Math.min(1, Number(claim.rate) / 100)) : null;
+    var claimedRate = (claim && claim.elected_rate != null) ? Math.max(0, Math.min(1, Number(claim.elected_rate) / 100)) : null;
     var w8benOnFile = nra.submittedW8ben === true;
     var fdapRate = (w8benOnFile && claimedRate != null) ? claimedRate : 0.30;
 

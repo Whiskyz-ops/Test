@@ -352,13 +352,22 @@ NODES.nraFdapDetail = {
   deps: ["nraRaw", "nraFdapIncomeUsdRaw"],
   compute: function (d) {
     var claim = (d.nraRaw.treatyRateClaims || [])[0];
+    // BUG FIX: the frozen reference engine (computation.js/conflicts.js)
+    // used `claim.rate`, but layer1_us.html's own syncTreatyRates()/
+    // addTreatyRateRow() (~line 6133-6170) only ever write/read
+    // `elected_rate` on each treaty_rate_claims[] entry — confirmed by
+    // grep, "rate" never appears as a key there. The live form's field
+    // name drifted from the frozen reference at some point without this
+    // engine following, so a claimed treaty rate never reached the tax
+    // computation (30% FDAP fallback fired unconditionally). Mirrored
+    // identically in dag_py's us/findings.py.
     // Two distinct "claimed rate" readings, matching the engine's own two
     // separate variables of the same name in different scopes: the RAW
     // Layer 1 value (e.g. 15, for display — conflicts.js's own claimedRate)
     // vs. the NORMALIZED 0-1 fraction computeNraTax actually computes with
-    // (computation.js:1205, claim.rate / 100).
-    var rawClaimedRatePct = (claim && claim.rate != null) ? claim.rate : null;
-    var claimedRateFraction = (claim && claim.rate != null) ? Math.max(0, Math.min(1, Number(claim.rate) / 100)) : null;
+    // (computation.js:1205, claim.elected_rate / 100).
+    var rawClaimedRatePct = (claim && claim.elected_rate != null) ? claim.elected_rate : null;
+    var claimedRateFraction = (claim && claim.elected_rate != null) ? Math.max(0, Math.min(1, Number(claim.elected_rate) / 100)) : null;
     var w8benOnFile = d.nraRaw.submittedW8ben === true;
     var fdapRate = (w8benOnFile && claimedRateFraction != null) ? claimedRateFraction : 0.30;
     var fdapUsd = d.nraFdapIncomeUsdRaw;
@@ -611,14 +620,23 @@ NODES.findingsBatch4Result = {
     var isRoutedToNraForFdap = ["ccorp", "scorp", "partnership", "trust"].indexOf(d.usEntityKind) < 0 && d.treatyFiles1040nrRaw && !d.s6013hElection;
     if (d.treatyFiles1040nrRaw && !d.s6013hElection && d.nraFdapDetail.fdapUsd > 0) {
       var nraDetail = d.nraFdapDetail;
+      // BUG FIX: was gated on claimedRate alone — the raw display value of
+      // a treaty claim, set whenever a claim exists REGARDLESS of whether
+      // W-8BEN is on file. fdapRate itself already correctly falls back to
+      // 30% without w8benOnFile, but this text didn't check the same
+      // condition, so a taxpayer with a claim on file but no W-8BEN saw
+      // "taxed flat at the claimed X% treaty rate" even though they were
+      // actually taxed at 30% — the exact inaccuracy this finding exists to
+      // catch. Mirrored in dag_py's findings.py.
+      var rateActuallyHonored = nraDetail.claimedRate && nraDetail.w8benOnFile;
       add("nra_fdap_flat_rate", "info", "credit",
         "1040-NR: FDAP taxed flat" + (isRoutedToNraForFdap ? " (" + Math.round(nraDetail.fdapRate * 100) + "%)" : "") + ", ECI at graduated rates",
         usd(nraDetail.fdapUsd) + " of FDAP income (interest/dividends/rents not effectively connected with a US trade or " +
-        "business) is taxed flat" + (nraDetail.claimedRate ? " at the claimed " + nraDetail.claimedRate + "% treaty rate" : " at the 30% statutory rate (no treaty rate on file)") +
+        "business) is taxed flat" + (rateActuallyHonored ? " at the claimed " + nraDetail.claimedRate + "% treaty rate" : " at the 30% statutory rate (no treaty rate on file)") +
         " with no deductions (Schedule NEC), separate from " + usd(d.nraEciIncomeUsdRaw) + " of ECI taxed at graduated brackets" +
         " with itemized deductions only (NRAs generally can't claim the standard deduction).",
         "Confirm the treaty rate claimed on Form W-8BEN/1040-NR matches the rate used here" +
-        (nraDetail.claimedRate ? "" : " — no treaty rate is on file, so the default 30% was applied; check whether Article 11/12 of the DTAA reduces it") + ".",
+        (rateActuallyHonored ? "" : " — no treaty rate is on file, so the default 30% was applied; check whether Article 11/12 of the DTAA reduces it") + ".",
         0, ["Form 1040-NR", "Schedule NEC", "FDAP", "ECI"]);
     }
 
