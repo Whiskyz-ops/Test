@@ -63,22 +63,67 @@ Tier 3 (cosmetic) list and per-agent detail.
 
 ## 3. State Nexus — `layer1_us.html:1431-1710` → `StateStep.jsx`
 
-- `[FROM AUDIT]` Community Property alert, statutory-residency day
-  tracker for footprint states, "Derived State Residency Statuses"
-  summary card, CA-specific warning-alert text, military guidance box,
-  and a corp "State of Formation" readonly field are all missing.
-- `[FROM AUDIT]` CA section is shown to every filer instead of gated by
-  state.
-- `[FROM AUDIT]` Apportionment matrix silently drops the entity's
-  domicile state from the gross-receipts list.
-- `[VERIFIED]` `state_residency`'s 3 new NY fields
-  (`ny_548_day_rule`/`ny_actual_days_present`/`ny_permanent_place_of_abode`)
-  and `footprint_details`/`sticky_exceptions` (added to schema.js last
-  pass) have zero UI anywhere — confirmed no hits in any step component.
-- `[FROM AUDIT]` `dag_py` also expects
-  `state_residency.ca_safe_harbor_employment_contract`, which doesn't
-  exist in `schema.js` at all (not added in the last schema pass either —
-  a genuine remaining schema gap, not just a UI gap).
+- `[VERIFIED]` Community Property alert (`alert-community-property`),
+  "Derived State Residency Statuses" summary card
+  (`card-state-status-summary`/`renderStateResidencyStatus()`), the CA
+  section's dynamic warning alerts (`alert-ca-depart`/`alert-ca-retain` —
+  React has the two checkboxes but not the conditional guidance text they
+  reveal), the military "MSRRA Tax Protection Active" guidance box
+  (`div-mil-guidance`, with its DD 2058/Form DE-4/IT-2104-MS specifics),
+  and the corp "State of Formation" readonly field
+  (`corp-state-domicile-readonly`) are all confirmed missing from
+  `StateStep.jsx` — none render anywhere in the file.
+- `[VERIFIED]` The CA card (`div-ca-fields`) is gated in the source —
+  `toggleStateSpecificFields()` (`layer1_us.html:8611-8620`) only shows it
+  when `primary_state_of_residence === 'CA'` or `previous_state === 'CA'`.
+  React's `StateStep.jsx:231` renders it unconditionally for every
+  individual filer (`{!isCorp && (...)`).
+- `[VERIFIED — bigger than previously documented]` What the existing audit
+  called "statutory-residency day tracker for footprint states" is
+  actually a whole sub-engine (`div-footprint-statutory-questions`,
+  `updateStickyException()` @ `layer1_us.html:8407-8428`,
+  `getStateResidencyInfo()`, `renderStateExceptions()`): per-footprint
+  "sticky domicile" states (NY/NJ/CT) get inline follow-up
+  questions — a foreign-assignment checkbox, a days-in-state input, and a
+  live pass/fail safe-harbor alert (e.g. NY's 548-day foreign-assignment
+  rule, ≤90 days in-state) — writing into
+  `state_residency.sticky_exceptions.<STATE>.*` and mirroring into the
+  flat `ny_548_day_rule` field the DAG reads. None of it exists in
+  `StateStep.jsx` — this is the actual UI `ny_548_day_rule`/
+  `ny_actual_days_present`/`ny_permanent_place_of_abode`/
+  `footprint_details`/`sticky_exceptions` (added to `schema.js` last pass,
+  confirmed still zero UI) are missing.
+- `[VERIFIED — corrects the existing audit]` There is no `div-ny-fields`
+  element anywhere in the source's static markup — `toggleStateSpecificFields()`
+  references `document.getElementById('div-ny-fields')` (line 8617) but no
+  such element exists, so it always resolves to `null` and silently no-ops.
+  This is a dead reference in the source itself (same class as the
+  already-known dead `step-k1` reference) — porting a literal "NY fields
+  block" would be porting a bug, not a feature. The real NY-specific UI is
+  the sticky-exceptions sub-engine above, which lives inside the generic
+  per-footprint-state area, not a dedicated NY div.
+- `[VERIFIED — root cause identified]` Apportionment matrix drops the
+  entity's domicile state: source's `syncApportionmentState()`
+  (`layer1_us.html:8886-8889`) builds its state list as `physical_states ∪
+  economic_states ∪ {profile.state_of_domicile}` — unconditionally
+  including the domicile state read from `profile.state_of_domicile`.
+  `StateStep.jsx:83`'s `apportionmentStates` only unions
+  `physical_states`/`economic_states`, never reading
+  `usState.profile.state_of_domicile` at all.
+- `[NEW FINDING]` `onPrimaryStateChange()` (`layer1_us.html:8660-8666`)
+  auto-sets `dec_31_domicile_state` to match `primary_state_of_residence`
+  the first time it's set (if Dec 31 domicile is still empty).
+  `StateStep.jsx`'s `setSr("primary_state_of_residence")` handler is a
+  plain `setField` call with no such side effect — a user who fills
+  Primary State first never gets Dec 31 Domicile auto-populated.
+- `[VERIFIED — reclassified]` `dag_py`/JS-DAG read
+  `state_residency.ca_safe_harbor_employment_contract`
+  (`dag_py/src/wising_dag/us/findings.py:293`,
+  `crossborder/findings.py:334`, `findings-batch3-nodes.js:102`), but this
+  field doesn't exist in `layer1_us.html`'s own usState literal either —
+  confirmed via direct grep, zero hits in the source. This is a DAG-side
+  field with no producer in *either* implementation, not a React-port
+  regression against the HTML.
 - `[FROM AUDIT]` A dead typo in the source itself (`step-prop` instead of
   `step-real-estate` in one lock check) means the *live* HTML app never
   actually locks Real Estate for corp/partnership filers; React uses the
@@ -211,12 +256,50 @@ Tier 3 (cosmetic) list and per-agent detail.
   `housing_exclusion_cap_usd` are fixed IRS statutory constants in the
   source, never a form input — still rendered as live `NumberInput`s in
   React (`FeieStep.jsx:138,141`).
-- `[VERIFIED]` `employer_type`, `us_abode`, `bona_fide_visa_type`,
-  `revoked_past_5_years` (added to schema.js last pass) confirmed zero UI
-  — no hits anywhere in `FeieStep.jsx`.
-- `[FROM AUDIT]` Self-employment/COC checkboxes and all three
-  conflict-warning banners (CTC conflict, high-tax-jurisdiction FTC tip,
-  SE-tax trap) missing.
+- `[VERIFIED]` `employer_type` (4-option select: foreign entity/US
+  company/foreign affiliate/US gov), `us_abode`, `revoked_past_5_years`
+  confirmed zero UI in `FeieStep.jsx`.
+- `[VERIFIED — corrects the existing file's own comment]`
+  `bona_fide_visa_type` (`layer1_us.html:3030-3031`, "Foreign Visa /
+  Residence Status" text input on the bona-fide-residence detail block)
+  is also missing — `FeieStep.jsx:117-119`'s own comment claims it "isn't
+  part of schema.js's committed shape, so it's intentionally not
+  ported," but that's now stale: the field was added to `schema.js` in
+  the JSON-export reconciliation pass. It's a genuine gap now, not an
+  intentional exclusion.
+- `[VERIFIED — precise logic, smaller fix than it looks]` All 3
+  conflict-warning banners (`checkFeieConflicts()`,
+  `layer1_us.html:8xxx`) are missing, but 2 of the 3 conditions need no
+  new schema fields at all:
+  - CTC warning: shown whenever `claims_feie` is true. Trivial to add.
+  - High-tax-jurisdiction FTC tip: shown when `claims_feie` is true AND
+    `tax_home_country` is one of a hardcoded list (`GB/CA/AU/DE/FR/JP/IN`)
+    — both already-tracked fields, no new state needed.
+  - SE-tax trap: shown when `claims_feie` AND a "Self-Employed
+    Freelancer?" checkbox AND NOT a "Certificate of Coverage?" checkbox.
+    Confirmed by reading the source directly: **neither checkbox writes
+    to any schema field** (`layer1_us.html:2914,2920` — `onchange`
+    handlers only call `checkFeieConflicts()`, no `updateStateField`
+    call). These are ephemeral, page-local UI state in the source too —
+    porting them needs local React state, not new schema fields.
+- `[NEW FINDING — React shows a field the source keeps permanently
+  hidden]` `physical_presence_start_date`/`physical_presence_end_date`
+  inputs are `class="hidden"` in the source's static markup
+  (`layer1_us.html:2992,2996`) with nothing anywhere that ever removes
+  that class — confirmed by grepping every other reference to
+  `feie-phys-start`/`feie-phys-end` (only 2 more hits, both just
+  populate the hidden input's `.value` on load, never toggle visibility).
+  These 2 fields are genuinely unreachable UI in the live source wizard.
+  `FeieStep.jsx:101-106` renders them as live, visible, editable
+  `DateInput`s. Not harmful, arguably an improvement (the source's `#feie-
+  phys-usdays`/day-tracker bar suggest these dates were meant to drive a
+  35-day test-period tracker that never got wired up) — but it is a real
+  fidelity deviation from what the source actually shows a user.
+- `[FROM AUDIT]` "Upload Travel Log"/"Upload Residence Docs" decorative
+  buttons and the Live-API currency-converter widgets (foreign-currency
+  amount + auto-convert to USD, on both the earned-income and housing
+  fields) are missing — both are non-functional/decorative in the source
+  too (Tier-3-equivalent, no state impact).
 
 ## 12. Foreign Assets (FBAR/FATCA) — `layer1_us.html:3080-3128` → `BanksStep.jsx`
 
@@ -353,7 +436,7 @@ Tier 3 (cosmetic) list and per-agent detail.
 |---|---|---|
 | 1 | Onboarding | Open issues (schema-only fields, navigation, disconnected confirm path) |
 | 2 | Residency | Open issues (dual-status/excluded-days collected but unused) |
-| 3 | State Nexus | Open issues (large — missing UI blocks, one missing schema field) |
+| 3 | State Nexus | Open issues (large — whole sticky-domicile sub-engine, CA gating, 5 missing UI blocks, apportionment domicile-state bug) |
 | 4 | Bank Sync | **Solid, no open issues** |
 | 5 | Employment Income | Mostly solid; row-shape depth not yet audited |
 | 6 | Capital Gains & Crypto | **Fixed** (aggregate inversion); sub-module arrays still schema-only |
@@ -361,7 +444,7 @@ Tier 3 (cosmetic) list and per-agent detail.
 | 8 | Business Ops & K-1s | **Most severe open issue in the port** (K-1 → $0) + large Tier 1 gap |
 | 9 | Foreign Income | Solid, one misplaced-card issue |
 | 10 | Equity & Cap Table | **Solid, no open issues** |
-| 11 | FEIE | Open issues (editable constants, 4 missing fields, 3 missing banners) |
+| 11 | FEIE | Open issues (editable constants, 5 missing fields, 3 missing banners, 2 dates shown that source hides) |
 | 12 | Foreign Assets | Solid derivation logic; one PFIC-default bug |
 | 13 | Real Estate | **Solid, no open issues** |
 | 14 | Retirement | Open issue (fabricated RMD dollar field) |
