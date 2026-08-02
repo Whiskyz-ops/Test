@@ -160,6 +160,21 @@ export function isStepButtonVisible(stepId, ctx) {
   if (stepId === "step-gifts") return !!setup.setupForeignGifts;
   if (stepId === "step-passive") return !!setup.setupPassiveIntDiv;
   if (stepId === "step-capgains") return !!setup.setupPassiveCapGains;
+  // BUG FIX (found by the step-by-step map audit): a DIFFERENT function,
+  // updateTaxEntityLogic() (layer1_us.html:7071-7138 — not the toggleBtn()
+  // list this docstring otherwise cites), hides the NRA sidebar button
+  // entirely for corp/partnership/trust filers: `btnNra.style.display =
+  // isIndividual ? 'flex' : 'none'` (layer1_us.html:7138), where
+  // `isIndividual = ['individual','sole_prop','farming'].includes(type)`
+  // (layer1_us.html:7086) — this is NOT the same as isStepLocked's own
+  // NRA-status lock check just above, it's a second, independent
+  // entity-type-driven visibility gate. Previously missing here, so the
+  // NRA button stayed visible (though usually locked) for every entity
+  // type. Fixed to match exactly.
+  if (stepId === "step-nra") {
+    const effective = ctx.entityType === "llc" ? ctx.llcElection || "individual" : ctx.entityType || "individual";
+    return ["individual", "sole_prop", "farming"].includes(effective);
+  }
   return true;
 }
 

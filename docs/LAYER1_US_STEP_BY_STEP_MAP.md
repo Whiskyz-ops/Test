@@ -808,8 +808,21 @@ source field-for-field. Only 2 real gaps found:
   force-reset `setupW2`/`setupRetirement`/`setupForeignFeie` — stale
   flags can leave individual-only phases visible for a corp/partnership
   filer.
-- `[FROM AUDIT]` The NRA step button isn't hidden for corp/partnership/
-  trust filers like the source does.
+- `[FIXED]` The NRA step button wasn't hidden for corp/partnership/trust
+  filers like the source does. Confirmed via direct reading:
+  `updateTaxEntityLogic()` (`layer1_us.html:7071-7138`) — a different
+  function from the `toggleBtn()` list `isStepButtonVisible`'s docstring
+  otherwise cites — hides the NRA sidebar button entirely
+  (`btnNra.style.display = isIndividual ? 'flex' : 'none'`,
+  `layer1_us.html:7138`) for every entity type except
+  `['individual','sole_prop','farming']`. This is a second, independent
+  gate from `isStepLocked`'s own NRA-status lock check — the button was
+  previously always rendered (just usually locked) for every entity
+  type. Fixed: added a `step-nra` case to `machine.js`'s
+  `isStepButtonVisible()` matching the source's `isIndividual` check
+  exactly. Verified live in headless Chromium: the NRA step is visible
+  by default (individual) and disappears immediately after switching
+  entity type to C-Corp.
 - `[FROM AUDIT]` `applySpouseUsPersonGating`/
   `applySpouseJointElectionGating`'s reset-on-hide side effects aren't
   ported — values persist silently after their gating condition becomes
