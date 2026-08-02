@@ -18,6 +18,19 @@ await import("./lib/engine/computation.js");
 await import("./lib/engine/monitoring.js");
 await import("./lib/engine/conflicts.js");
 await import("./lib/engine/sample-data.js");
+// Sets WISING.PROFILES to the frozen 23 Jul 2026 snapshot — but this gets
+// OVERWRITTEN below (not a bug): importing dag-adapter.js transitively pulls
+// in lib/wising.js (for countriesFromEngine), whose own header comment
+// explains it deliberately imports profiles.js from ./dag/ (the live,
+// DAG-synced copy) instead of ./engine/, so the demo profile list stays
+// current for both Engine and DAG mode. Both profiles.js copies assign
+// WISING.PROFILES as a module-load side effect on the same global — since
+// this file's own import order (engine/profiles.js, then dag-adapter.js)
+// matches lib/wising.js's real production order exactly, WISING.PROFILES
+// below is the SAME array the live app actually uses, on both the eng/dag
+// sides of every comparison — verified empirically (only one further write
+// happens; shadow-core.js itself adds none, it's pure with no window/DAG
+// imports at all) — see docs/GAP_TRACKER.md section Z's own writeup.
 await import("./lib/engine/profiles.js");
 const WISING = globalThis.WISING;
 const { analyzeDag } = await import("./lib/dag-adapter.js");
