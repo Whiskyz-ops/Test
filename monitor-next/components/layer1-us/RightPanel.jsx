@@ -1,7 +1,6 @@
 "use client";
 import { useUsLayer1Store } from "@/lib/layer1-us/store";
 import { evaluateResidencyLock } from "@/lib/layer1-us/derive";
-import { createDefaultUsState } from "@/lib/layer1-us/schema";
 
 // Ported from layer1_us.html:3962-4024 ("RIGHT FIXED PANEL: RESIDENCY
 // CERTIFICATION & SUMMARY STATUS"). This <aside> sits as a sibling of the
@@ -13,6 +12,12 @@ import { createDefaultUsState } from "@/lib/layer1-us/schema";
 // applyDerivations() after every mutation — see lib/layer1-us/derive.js),
 // so it's correctly live regardless of which step is active, matching the
 // source.
+//
+// DELIBERATE DEVIATION (explicit product request): the "Try an Example
+// Profile" persona-prefill panel (mirrored layer1_us.html:20175+'s
+// prefillPersona()) was removed at the user's request — not a fidelity
+// bug, an intentional product decision to drop the demo/example-profile
+// affordance from this panel.
 
 const LOCK_STYLES = {
   US_CITIZEN: { chip: "text-brandGreen", title: "US Citizen (Worldwide Taxation)" },
@@ -43,55 +48,9 @@ const LOCK_SHORT = {
   FOREIGN_ENTITY: "FOREIGN",
 };
 
-// Simplified persona prefills — mirrors layer1_us.html:20175+'s
-// prefillPersona(), which resets and repopulates a much larger surface
-// (income, addresses, employer data, etc. per persona). This port only
-// seeds the profile/residency-determination fields each persona is named
-// for, since that's what this panel exists to demonstrate (pick a persona,
-// watch the derived status/lock change) — full per-persona income/asset
-// data is not replicated. Flagged, not silently partial.
-const PERSONAS = {
-  "citizen-expat": {
-    label: "🇺🇸 Citizen Expat (FEIE & Foreign Earned)",
-    patch: (s) => {
-      s.profile.filing_status = "single";
-      s.us_residency_detail.is_us_citizen = true;
-      s.foreign_earned_income.claims_feie = true;
-      s.foreign_earned_income.tax_home_country = "India";
-      s.foreign_earned_income.foreign_earned_income_usd = 95000;
-    },
-  },
-  "resident-alien-gc": {
-    label: "💳 Resident Alien (Green Card Holder)",
-    patch: (s) => {
-      s.profile.filing_status = "single";
-      s.us_residency_detail.has_green_card = true;
-      s.us_residency_detail.green_card_grant_date = "2019-03-01";
-    },
-  },
-  "resident-alien-spt": {
-    label: "📈 Resident Alien (SPT Met & Wages)",
-    patch: (s) => {
-      s.profile.filing_status = "single";
-      s.us_residency_detail.us_days_current_year = 220;
-      s.us_residency_detail.us_days_minus_1_year = 200;
-      s.us_residency_detail.us_days_minus_2_years = 180;
-    },
-  },
-  "non-resident-alien": {
-    label: "🌎 Non-Resident Alien (NRA with ECI)",
-    patch: (s) => {
-      s.profile.filing_status = "single";
-      s.us_residency_detail.us_days_current_year = 60;
-      s.nra_specific.files_form_1040nr = true;
-      s.nra_specific.us_eci_income_usd = 40000;
-    },
-  },
-};
 
 export default function RightPanel() {
   const usState = useUsLayer1Store((s) => s.usState);
-  const replaceAll = useUsLayer1Store((s) => s.replaceAll);
   const details = usState.us_residency_detail;
 
   const lock = details.final_us_residency_status || "NON_RESIDENT_ALIEN";
@@ -120,14 +79,6 @@ export default function RightPanel() {
         ? "Worldwide income for the resident portion of the year; US-source only for the nonresident portion."
         : "US-Source Income Only (ECI/FDAP split).";
 
-  function applyPersona(key) {
-    const persona = PERSONAS[key];
-    if (!persona) return;
-    const next = createDefaultUsState();
-    persona.patch(next);
-    replaceAll(next);
-  }
-
   // BUG FIX (Tier 0 #10): this used to label amt_inputs.amti_usd
   // (Alternative Minimum Taxable Income — AGI minus deductions plus AMT
   // preference addbacks, see AmtNiitStep.jsx's own `amti` derivation) as
@@ -148,21 +99,6 @@ export default function RightPanel() {
 
   return (
     <aside className="w-full lg:w-80 shrink-0 flex flex-col gap-6">
-      <div className="rounded-2xl bg-surface border border-line p-5 flex flex-col gap-3">
-        <span className="text-[10px] font-black uppercase tracking-widest text-muted">Try an Example Profile</span>
-        <div className="grid grid-cols-1 gap-2">
-          {Object.entries(PERSONAS).map(([key, p]) => (
-            <button
-              key={key}
-              onClick={() => applyPersona(key)}
-              className="text-left px-3 py-2 rounded-xl bg-white/5 hover:bg-brandGreen/10 hover:text-brandGreen border border-white/5 transition-all text-xs font-semibold text-body"
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <div className="rounded-2xl bg-surface border border-line p-5 flex flex-col gap-4">
         <span className="text-[10px] font-black uppercase tracking-widest text-muted">Your Current Residency Status</span>
         <div className="flex flex-col items-center justify-center p-6 bg-accent2/5 border border-accent2/20 rounded-2xl text-center">

@@ -34,6 +34,22 @@ body {
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); background-clip: padding-box; }
 
+/* BUG FIX: native <select> dropdowns (the OS/browser-rendered option list,
+   not the closed control — that part was already dark-themed via Tailwind
+   classes) rendered with a stark white background, since browsers default
+   form-control chrome to light mode unless told otherwise. The source
+   (layer1_us.html:112-119) already handles this with `color-scheme: dark`
+   on selects plus explicit dark option colors — ported verbatim, and
+   applied app-wide since every page here already uses this same dark
+   theme end to end. */
+select {
+  color-scheme: dark;
+}
+select option {
+  background-color: #121212;
+  color: #ffffff;
+}
+
 /* Layer 1 US "Tax Nerd Mode" — layer1_us.html:121-134. Extra IRC-citation
    spans are hidden by default and revealed by toggling this body class
    (Layer1UsHeader.jsx's toggleTaxNerdMode), matching the source exactly. */

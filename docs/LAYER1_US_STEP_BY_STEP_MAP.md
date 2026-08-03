@@ -793,6 +793,25 @@ source field-for-field. Only 2 real gaps found:
 
 ## Cross-cutting / chrome (not tied to one step)
 
+- `[FIXED — new finding, reported directly by the user]` Every native
+  `<select>`'s open dropdown list rendered with a stark white
+  background/light text, clashing badly with the rest of the app's dark
+  theme (browsers default form-control chrome to light mode unless told
+  otherwise). The source already handles this
+  (`layer1_us.html:112-119`): `select { color-scheme: dark; } select
+  option { background-color: #121212; color: #ffffff; }` — never ported
+  to `globals.css`. Fixed: added the identical rule, applied app-wide
+  (every page here already shares this same dark theme end to end).
+  Verified live in headless Chromium: `getComputedStyle(select).
+  colorScheme` now reports `"dark"`, and a screenshot of the opened
+  dropdown confirms a dark background matching the rest of the UI.
+- `[DELIBERATE DEVIATION — explicit product request]` The "Try an
+  Example Profile" persona-prefill panel on `RightPanel.jsx` (mirrored
+  `layer1_us.html:20175+`'s `prefillPersona()`) was removed at the
+  user's request. Not a fidelity bug — an intentional product decision
+  to drop the demo/example-profile affordance. `PERSONAS`/
+  `applyPersona()`/the now-unused `createDefaultUsState` import were
+  removed along with it.
 - `[FIXED — landed via a concurrent commit]` `RightPanel.jsx` used to
   label `amt_inputs.amti_usd` (AMTI, not AGI) as "Estimated AGI" — no
   real AGI field exists anywhere in `schema.js`. A concurrent session
