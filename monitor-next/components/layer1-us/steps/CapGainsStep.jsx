@@ -128,6 +128,13 @@ function CapGainRow({ row, index, onChange, onRemove }) {
           {lt ? "Long-Term" : "Short-Term"}
         </span>
       </div>
+      <p className="text-[10px] text-muted">
+        💡 Pro Tip: Holding an asset (including crypto) for over a year unlocks lower long-term capital gains tax
+        rates!
+        <span className="nerd-text">
+          See IRC Sec. 1(h) for preferential rates on assets held &gt; 1 year (typically 0%, 15%, or 20% plus NIIT).
+        </span>
+      </p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-6">
         <div>
           <label className={label}>Asset / Security Description</label>

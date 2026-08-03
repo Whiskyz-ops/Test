@@ -90,6 +90,14 @@ export default function FtcStep() {
             title="FTC Baskets (§904 limit system)"
             right={<AddButton label="+ Add Basket" onClick={() => addRow("ftc_inputs.ftc_baskets", emptyBasket())} />}
           >
+            <p className="text-[10px] text-muted -mt-1 mb-2">
+              💡 Foreign taxes paid can often be credited against your US tax liability (Form 1116) to prevent double
+              taxation!
+              <span className="nerd-text">
+                Under IRC Sec. 904, the credit is limited to the US tax on foreign source income. Baskets must be
+                segregated.
+              </span>
+            </p>
             {(!ftc.ftc_baskets || ftc.ftc_baskets.length === 0) && (
               <div className="text-xs text-muted text-center py-4">No FTC baskets added yet.</div>
             )}
@@ -147,6 +155,17 @@ export default function FtcStep() {
               />
             }
           >
+            <p className="text-[10px] text-muted -mt-1 mb-2">
+              💡 The foreign-income fields above are assumed India-source. If you also have foreign-source
+              income/tax from a THIRD country, make sure that income is ALSO reflected above (or in Foreign Wages) so
+              it's taxed — this section only feeds the Foreign Tax Credit LIMITATION, it doesn't add income to your
+              return, the same way Form 1116 itself works.
+              <span className="nerd-text">
+                §904(d) baskets: Passive (interest/dividends/rents/capital gains) vs General (wages/business/pension).
+                This engine only computes India's own tax — foreign tax paid to any OTHER country must be entered
+                directly, not computed.
+              </span>
+            </p>
             {other.length === 0 && <div className="text-xs text-muted text-center py-4">No entries added yet.</div>}
             <div className="flex flex-col gap-3">
               {other.map((row, i) => (

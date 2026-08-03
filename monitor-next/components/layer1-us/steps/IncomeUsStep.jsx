@@ -340,6 +340,12 @@ function W2RowEditor({ index, row }) {
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <span className="text-[10px] text-muted">Box 12 — single/double letter code (A-HH) and amount.</span>
+              <p className="text-[10px] text-muted -mt-1">
+                💡 Keep an eye out for Box 12 — codes like D, E, or W can instantly unlock tax savings!
+                <span className="nerd-text">
+                  Codes D/E indicate Sec. 402(g) elective deferrals. Code W represents Sec. 223 HSA contributions.
+                </span>
+              </p>
               {box12.map((br, i) => (
                 <div key={i} className="relative grid grid-cols-1 md:grid-cols-2 gap-2 items-end bg-black/20 p-3 rounded-lg border border-line">
                   <RemoveButton onClick={() => removeBox12Row(i)} title="Remove Box 12 row" />

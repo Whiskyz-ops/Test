@@ -780,9 +780,48 @@ source field-for-field. Only 2 real gaps found:
   shown as "Est. AGI / MAGI (manual entry)" reading
   `niit_inputs.modified_agi_usd` instead — confirmed present in the
   current file (`RightPanel.jsx:120-131`).
-- `[VERIFIED — still open]` Hamburger jurisdiction dropdown, "The Vault"
-  button, and "Tax Nerd Mode" toggle confirmed still missing — zero hits
-  for any of those strings in `Layer1UsHeader.jsx`.
+- `[FIXED]` Hamburger jurisdiction dropdown, "The Vault" button, and "Tax
+  Nerd Mode" toggle were confirmed missing (zero hits for any of those
+  strings in `Layer1UsHeader.jsx`). All three ported:
+  - Hamburger (`layer1_us.html:361-376`): a `nav-trigger-zone`-equivalent
+    button now opens a dropdown with Jurisdiction Router, a Vault link
+    (same stubbed `alert()` copy as the source — the source's own Vault
+    button is *also* just an alert(), no real feature behind either
+    instance, ported verbatim rather than invented as a working feature),
+    a separator, and India/US L1 links. The previously-invented standalone
+    "Jurisdiction Router" header link (which the source doesn't have
+    outside the hamburger) was removed as part of this fix.
+  - "The Vault" header button (`layer1_us.html:383-387`): same stub
+    `alert()`, ported as a `hidden md:flex` button matching the source's
+    breakpoint behavior.
+  - Tax Nerd Mode toggle (`layer1_us.html:394-401`, logic at
+    `:22875-22890`): `Layer1UsHeader.jsx` now toggles a `tax-nerd-active`
+    class on `document.body`; `globals.css` gained the `.nerd-text`/
+    `body.tax-nerd-active .nerd-text` CSS pair matching the source's own
+    (`layer1_us.html:121-134`, `#fb7185` pink recolored to a violet
+    `#a78bfa` since the source's own `text-brandPink`/`brandPurple`
+    Tailwind classes are never defined in its own `tailwind.config` either
+    — confirmed by reading the source's actual config block
+    (`layer1_us.html:15-33`), so matching those class *names* verbatim
+    would have reproduced a bug in the original rather than its visible
+    intent). Content-level scope, checked all 7 source `nerd-text`
+    citations individually: 2 (`ForeignWageRow`'s "Working abroad" tip and
+    `Sec988Row`'s tip, both in `IncomeForeignStep.jsx`) were already
+    ported as a single always-visible merged sentence (citation folded
+    into the base tip, not toggle-gated) — left untouched, a reasonable
+    pre-existing simplification, not a regression from this fix. The
+    other 5 had no tip paragraph in React at all; added with real
+    toggle-gated `nerd-text` spans: Box 12 codes tip (`IncomeUsStep.jsx`),
+    a generic capital-gains holding-period tip (`CapGainsStep.jsx` —
+    applied to every transaction row, not crypto-only, since the source's
+    separate crypto sub-module isn't ported and this port's one
+    `CapGainRow` already handles crypto sales too), and both FTC tips
+    (`FtcStep.jsx`'s "FTC Baskets" and "Other-Country FTC Entries" cards).
+    Verified live in headless Chromium: toggling the switch adds/removes
+    `tax-nerd-active` on `<body>`; all 3 newly-added spans (Box 12, FTC
+    baskets, other-country FTC) are hidden by default and appear with the
+    correct citation text the instant the toggle is flipped, screenshotted
+    at each state.
 - `[VERIFIED — still open, extra detail]` The tax-year banner is more
   than decorative in the source: `initFromLocalStorage()`
   (`layer1_us.html:20515-20539`) populates it with the base tax year read
