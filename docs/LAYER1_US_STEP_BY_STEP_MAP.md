@@ -516,12 +516,21 @@ source field-for-field. Only 2 real gaps found:
   (summing `bank_accounts`/`financial_holdings` peak/last-day balances
   against the MFJ/single thresholds) is correctly implemented, matching
   source logic line-for-line. No issue.
-- `[VERIFIED — still open]` New `financial_holdings[]` PFIC rows persist
-  `pfic_election: null` on creation (`BanksStep.jsx:149`) while the
-  select's displayed value falls back to `"1291"`
-  (`BanksStep.jsx:568`) — a display-only fallback, not a real default. Any
-  export/DAG path reading the field directly sees a missing election on
-  every untouched row.
+- `[FIXED]` `financial_holdings[]` PFIC rows persisted `pfic_election:
+  null` permanently while the select's displayed value fell back to
+  `"1291"` — a display-only fallback never written back to the row.
+  Source's `syncHoldingsState()` (`layer1_us.html:19128`) sets
+  `pfic_election: isPfic && select ? select.value : null` — the
+  `<select>`'s DOM value naturally defaults to its first option ("1291")
+  the instant the PFIC election block becomes visible, with no user
+  interaction required, and resets to `null` if the row stops being
+  PFIC-eligible. Fixed: `computeHoldingDerived()` (already run on every
+  row mutation/creation) now returns `pfic_election: isPfic ? row.
+  pfic_election || "1291" : null`, matching both directions. Verified
+  live in headless Chromium: a new default row (asset class defaults to
+  the PFIC-eligible "Indian Mutual Fund") persists `pfic_election:
+  "1291"` immediately; switching its asset class to a non-PFIC option
+  resets it to `null`.
 
 ## 13. Real Estate — `layer1_us.html:3129-3162` → `RealEstateStep.jsx`
 
@@ -921,7 +930,7 @@ source field-for-field. Only 2 real gaps found:
 | 9 | Foreign Income | Solid, one misplaced-card issue |
 | 10 | Equity & Cap Table | **Solid, no open issues** |
 | 11 | FEIE | Housing-constant bug, 3 conflict-warning banners, 4 missing fields all **fixed** (banners/fields not live-verified — see notes); 2 dates shown that source hides still open |
-| 12 | Foreign Assets | Solid derivation logic; one PFIC-default bug |
+| 12 | Foreign Assets | PFIC-default bug **fixed**; solid derivation logic otherwise |
 | 13 | Real Estate | **Solid, no open issues** |
 | 14 | Retirement | RMD fabricated-dollar-field / non-derived-checkbox bug **fixed** |
 | 15 | Foreign Entities | Form 5472 gate **fixed** (both stacked bugs); PFIC array never written, label switching, Linked Client picker still open |

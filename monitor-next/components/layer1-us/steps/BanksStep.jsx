@@ -175,6 +175,19 @@ const NON_FBAR_CLASSES = [
 ];
 
 // Ported from syncHoldingsState()'s entity analyzer (layer1_us.html:19075-19154).
+//
+// BUG FIX (found by the step-by-step map audit): source's syncHoldingsState()
+// (layer1_us.html:19128) sets `pfic_election: isPfic && select ? select.value
+// : null` — the <select>'s DOM `.value` naturally defaults to its first
+// `<option>` ("1291") the instant the PFIC election block becomes visible
+// (isPfic true), with no user interaction required. React's row creation
+// previously left `pfic_election: null` permanently while only the
+// *displayed* value fell back to "1291" (a display-only fallback never
+// written back to the row) — any export/DAG path reading the field
+// directly saw a missing election on every untouched PFIC row. Fixed:
+// default it to "1291" the moment isPfic is true and no election is set
+// yet, and — matching the source's `: null` branch just as exactly —
+// reset it back to null if the row's asset class stops being PFIC-eligible.
 function computeHoldingDerived(row) {
   const cls = row.asset_class;
   let isPfic = false;
@@ -189,6 +202,7 @@ function computeHoldingDerived(row) {
   return {
     is_fbar_reportable: isFbarReportable,
     pfic_classification: isPfic ? "passive_foreign_investment_company_section_1297" : "standard_foreign_equity",
+    pfic_election: isPfic ? row.pfic_election || "1291" : null,
   };
 }
 
