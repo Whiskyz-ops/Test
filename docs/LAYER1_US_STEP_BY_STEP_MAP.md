@@ -422,12 +422,21 @@ source field-for-field. Only 2 real gaps found:
 
 - `[FROM AUDIT, "confirmed solid"]` No new issues found in the original
   11-agent pass. Not personally re-verified beyond the item below.
-- `[VERIFIED — still open]` The "Other Foreign Tax Credits (Additional
-  Countries)" card belongs here per source markup
-  (`layer1_us.html:2719` `panel-step-income-foreign` wraps it,
-  confirmed by direct line-range check) but is still rendered on
-  `FtcStep.jsx` instead — `IncomeForeignStep.jsx` only has a comment
-  acknowledging the misplacement, no actual UI.
+- `[FIXED]` The "Other Foreign Tax Credits (Additional Countries)" card
+  (`foreign_tax_credit_other.entries`, `addOtherCountryFtcRow()`
+  `layer1_us.html:17928-17991`) belongs on this step — confirmed by
+  reading straight through `layer1_us.html:2778-2795`: it's the last
+  card inside `panel-step-income-foreign`, closing right before "STEP 5:
+  EQUITY COMPENSATION" starts, well before `panel-step-ftc` begins at
+  `:3634`. It was rendered on `FtcStep.jsx` instead — `IncomeForeignStep.jsx`
+  only had a comment acknowledging the misplacement. Fixed: moved the
+  card (row shape, §904-basket options, and the same tip copy including
+  its toggle-gated `nerd-text` citation) to `IncomeForeignStep.jsx`;
+  removed from `FtcStep.jsx`. Verified live in headless Chromium: the
+  card renders on Foreign Income with a seeded entry's data intact
+  (`country: "GB"` round-trips through the moved inputs), and no longer
+  appears on the Foreign Tax Credit step, which still correctly renders
+  its own separate "FTC Baskets" card.
 
 ## 10. Equity & Cap Table — `layer1_us.html:2795-2865` → `EquityStep.jsx`
 
@@ -657,9 +666,11 @@ source field-for-field. Only 2 real gaps found:
 
 ## 19. Foreign Tax Credit — `layer1_us.html:3634-3696` → `FtcStep.jsx`
 
-- `[VERIFIED — still open]` Renders the "Other-Country FTC Entries" card
-  that belongs on step 9 (Foreign Income) per source markup — see item
-  under step 9 above for the full citation.
+- `[FIXED]` Was rendering the "Other-Country FTC Entries" card that
+  belongs on step 9 (Foreign Income) per source markup — moved there,
+  see the full citation/fix note under step 9 above. `FtcStep.jsx` now
+  correctly owns only its one real repeatable array,
+  `ftc_inputs.ftc_baskets` (the §904-basket table).
 
 ## 20. Withholding & Estimates — `layer1_us.html:3697-3771` → `WithholdingStep.jsx`
 
@@ -927,7 +938,7 @@ source field-for-field. Only 2 real gaps found:
 | 6 | Capital Gains & Crypto | **Fixed** (aggregate inversion); sub-module arrays still schema-only |
 | 7 | Passive & Other | **Solid, no open issues** (one minor decorative-upload gap) |
 | 8 | Business Ops & K-1s | K-1 → $0 bug, fabricated M-1 field + 5 missing real M-1 inputs, $250k receipts gate all **fixed**; QBI/UBIA + home-office/vehicle also fixed since the audit; 1099 panel, state_allocations, Analyzer panel still open |
-| 9 | Foreign Income | Solid, one misplaced-card issue |
+| 9 | Foreign Income | Misplaced-card issue **fixed** (now correctly owns the Other-Country FTC card) |
 | 10 | Equity & Cap Table | **Solid, no open issues** |
 | 11 | FEIE | Housing-constant bug, 3 conflict-warning banners, 4 missing fields all **fixed** (banners/fields not live-verified — see notes); 2 dates shown that source hides still open |
 | 12 | Foreign Assets | PFIC-default bug **fixed**; solid derivation logic otherwise |
@@ -937,7 +948,7 @@ source field-for-field. Only 2 real gaps found:
 | 16 | Foreign Gifts & Trusts | **Solid, no open issues** |
 | 17 | Deductions & Credits | Inert QBI toggle + 2 decoy fields **fixed** (removed) |
 | 18 | AMT & NIIT | MAGI left editable deliberately — confirmed zero DAG consumers, not a bug |
-| 19 | Foreign Tax Credit | Open issue (misplaced card, mirrors step 9) |
+| 19 | Foreign Tax Credit | Misplaced-card issue **fixed** (duplicate Other-Country FTC card removed) |
 | 20 | Withholding & Estimates | 3 editable-vs-derived fields **fixed**; firpta_withholding_usd grouping corrected (was never a bug) |
 | 21 | Form 1040-NR | Treaty-rate field rename, W-8BEN swap, has_us_pe addition **fixed**; 6013(h) badge/8833 notice/TRC upload still missing |
 | 22 | Generate Output | Open issue (India routing needs a cross-module storage read, architectural not cosmetic) |

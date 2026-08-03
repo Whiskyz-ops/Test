@@ -4,19 +4,23 @@ import { useUsLayer1Store } from "@/lib/layer1-us/store";
 import { Card, Field, NumberInput, TextInput, Select, ToggleRow, Checkbox, RemoveButton, AddButton } from "./_ui";
 
 // Source: layer1_us.html panel-step-ftc (~line 3634), addFtcBasketRow()
-// (~19940), addOtherCountryFtcRow() (~17935). Two repeatable arrays:
-// ftc_inputs.ftc_baskets (per-country/basket-type §904 buckets) and
-// foreign_tax_credit_other.entries (the "other country" FTC deep-dive rows).
+// (~19940). One repeatable array here: ftc_inputs.ftc_baskets
+// (per-country/basket-type §904 buckets).
+//
+// BUG FIX (found by the step-by-step map audit): this step previously also
+// rendered "Other-Country FTC Entries" (foreign_tax_credit_other.entries,
+// addOtherCountryFtcRow() ~17935), but that card actually belongs on the
+// Foreign Income step — confirmed by reading straight through
+// layer1_us.html:2778-2795: it's the last card inside panel-step-income-
+// foreign, closing right before "STEP 5: EQUITY COMPENSATION" starts, well
+// before panel-step-ftc begins at :3634. Moved to IncomeForeignStep.jsx to
+// match the source; removed here to avoid two components writing the same
+// array.
 const BASKET_TYPES = [
   { value: "passive", label: "Passive Category Income" },
   { value: "general", label: "General Category Income" },
   { value: "section_901j", label: "Section 901(j) Income" },
   { value: "treaty_resourced", label: "Treaty Resourced Income" },
-];
-
-const OTHER_BASKETS = [
-  { value: "general", label: "General (wages/business/pension)" },
-  { value: "passive", label: "Passive (interest/dividends/rents/cap gains)" },
 ];
 
 function emptyBasket() {
@@ -29,14 +33,9 @@ function emptyBasket() {
   };
 }
 
-function emptyOtherEntry() {
-  return { country: "", basket: "general", foreign_source_income_usd: null, foreign_tax_paid_usd: null };
-}
-
 export default function FtcStep() {
   const { usState, setField, addRow, removeRow, updateRow } = useUsLayer1Store();
   const ftc = usState.ftc_inputs;
-  const other = usState.foreign_tax_credit_other?.entries || [];
   const set = (key) => (val) => setField(`ftc_inputs.${key}`, val);
 
   return (
@@ -140,67 +139,6 @@ export default function FtcStep() {
                     onChange={(v) => updateRow("ftc_inputs.ftc_baskets", i, { includes_indian_surcharge_and_cess: v })}
                     label="Includes Indian Surcharge and 4% Health/Education Cess?"
                   />
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card
-            title="Other-Country FTC Entries"
-            sub="Multi-country FTC deep-dive — separate from the §904-basket table above."
-            right={
-              <AddButton
-                label="+ Add Entry"
-                onClick={() => addRow("foreign_tax_credit_other.entries", emptyOtherEntry())}
-              />
-            }
-          >
-            <p className="text-[10px] text-muted -mt-1 mb-2">
-              💡 The foreign-income fields above are assumed India-source. If you also have foreign-source
-              income/tax from a THIRD country, make sure that income is ALSO reflected above (or in Foreign Wages) so
-              it's taxed — this section only feeds the Foreign Tax Credit LIMITATION, it doesn't add income to your
-              return, the same way Form 1116 itself works.
-              <span className="nerd-text">
-                §904(d) baskets: Passive (interest/dividends/rents/capital gains) vs General (wages/business/pension).
-                This engine only computes India's own tax — foreign tax paid to any OTHER country must be entered
-                directly, not computed.
-              </span>
-            </p>
-            {other.length === 0 && <div className="text-xs text-muted text-center py-4">No entries added yet.</div>}
-            <div className="flex flex-col gap-3">
-              {other.map((row, i) => (
-                <div key={i} className="p-3 bg-white/[0.02] border border-line rounded-xl relative">
-                  <div className="absolute top-2 right-2">
-                    <RemoveButton onClick={() => removeRow("foreign_tax_credit_other.entries", i)} />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pr-16">
-                    <Field label="Country (ISO)">
-                      <TextInput
-                        value={row.country}
-                        onChange={(v) => updateRow("foreign_tax_credit_other.entries", i, { country: v.toUpperCase() })}
-                        placeholder="e.g. GB"
-                      />
-                    </Field>
-                    <Field label="§904 Basket">
-                      <Select
-                        value={row.basket}
-                        onChange={(v) => updateRow("foreign_tax_credit_other.entries", i, { basket: v })}
-                        options={OTHER_BASKETS}
-                      />
-                    </Field>
-                    <Field label="Foreign-Source Income (USD)">
-                      <NumberInput
-                        value={row.foreign_source_income_usd}
-                        onChange={(v) => updateRow("foreign_tax_credit_other.entries", i, { foreign_source_income_usd: v })}
-                      />
-                    </Field>
-                    <Field label="Foreign Tax Paid (USD)">
-                      <NumberInput
-                        value={row.foreign_tax_paid_usd}
-                        onChange={(v) => updateRow("foreign_tax_credit_other.entries", i, { foreign_tax_paid_usd: v })}
-                      />
-                    </Field>
-                  </div>
                 </div>
               ))}
             </div>

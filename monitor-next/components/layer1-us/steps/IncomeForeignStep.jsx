@@ -5,15 +5,21 @@ import { useUsLayer1Store } from "@/lib/layer1-us/store";
 // React port of layer1_us.html:2719-2792 ("Screen 3D — Foreign-Source
 // Income"). Ported: the six income_foreign_source scalars, the
 // addForeignWagesRow()/syncForeignWagesState() repeatable list
-// (income_foreign_source.foreign_wages), and the
+// (income_foreign_source.foreign_wages), the
 // addSec988Row()/syncSec988State() repeatable list
-// (income_foreign_source.section_988_gains_losses).
+// (income_foreign_source.section_988_gains_losses), and the
+// addOtherCountryFtcRow()/syncOtherCountryFtcState() repeatable list
+// (foreign_tax_credit_other.entries).
 //
-// NOT rendered here: the "Other Foreign Tax Credits (Additional
-// Countries)" card (addOtherCountryFtcRow -> foreign_tax_credit_other.entries)
-// that shares this same source panel — per the task brief that's owned by
-// the FTC-step agent, skipped here to avoid two components writing the
-// same array.
+// BUG FIX (found by the step-by-step map audit): the "Other Foreign Tax
+// Credits (Additional Countries)" card (layer1_us.html:2778-2786) closes
+// out this exact panel — confirmed by reading straight through to
+// layer1_us.html:2792-2795, where panel-step-income-foreign's closing
+// </div> is immediately followed by "STEP 5: EQUITY COMPENSATION", not a
+// new FTC panel. It was previously rendered on FtcStep.jsx instead (a
+// different, later step, panel-step-ftc at layer1_us.html:3634) — this
+// file only had a comment acknowledging the misplacement. Moved here to
+// match the source; removed from FtcStep.jsx.
 
 function parseNum(v) {
   if (v === "" || v === null || v === undefined) return null;
@@ -165,11 +171,73 @@ function Sec988Row({ row, index, onChange, onRemove }) {
   );
 }
 
+const OTHER_FTC_BASKETS = [
+  { value: "general", label: "General (wages/business/pension)" },
+  { value: "passive", label: "Passive (interest/dividends/rents/cap gains)" },
+];
+
+function OtherCountryFtcRow({ row, index, onChange, onRemove }) {
+  return (
+    <div className={nestedCard + " relative"}>
+      <RemoveButton onClick={() => onRemove(index)} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pr-6">
+        <div>
+          <label className={label}>Country (ISO)</label>
+          <input
+            type="text"
+            className={input}
+            placeholder="e.g. GB"
+            value={row.country || ""}
+            onChange={(e) => onChange(index, { country: e.target.value.toUpperCase() })}
+          />
+        </div>
+        <div>
+          <label className={label}>§904 Basket</label>
+          <select
+            className={input}
+            value={row.basket || "general"}
+            onChange={(e) => onChange(index, { basket: e.target.value })}
+          >
+            {OTHER_FTC_BASKETS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={label}>Foreign-Source Income (USD)</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            className={input}
+            placeholder="0"
+            value={row.foreign_source_income_usd ?? ""}
+            onChange={(e) => onChange(index, { foreign_source_income_usd: parseNum(e.target.value) })}
+          />
+        </div>
+        <div>
+          <label className={label}>Foreign Tax Paid (USD)</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            className={input}
+            placeholder="0"
+            value={row.foreign_tax_paid_usd ?? ""}
+            onChange={(e) => onChange(index, { foreign_tax_paid_usd: parseNum(e.target.value) })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function IncomeForeignStep() {
   const { usState, setField, addRow, removeRow, updateRow } = useUsLayer1Store();
   const fs = usState.income_foreign_source;
   const wages = fs.foreign_wages || [];
   const sec988 = fs.section_988_gains_losses || [];
+  const otherFtc = usState.foreign_tax_credit_other?.entries || [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -271,6 +339,54 @@ export default function IncomeForeignStep() {
               index={i}
               onChange={(idx, patch) => updateRow("income_foreign_source.section_988_gains_losses", idx, patch)}
               onRemove={(idx) => removeRow("income_foreign_source.section_988_gains_losses", idx)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Other-Country FTC entries */}
+      <div className={card + " flex flex-col gap-4"}>
+        <div className="flex items-center justify-between border-b border-line pb-2">
+          <span className={sectionLabel}>Other Foreign Tax Credits (Additional Countries)</span>
+          <button
+            type="button"
+            onClick={() =>
+              addRow("foreign_tax_credit_other.entries", {
+                country: "",
+                basket: "general",
+                foreign_source_income_usd: null,
+                foreign_tax_paid_usd: null,
+              })
+            }
+            className="px-3 py-1.5 bg-white/[0.05] hover:bg-brandGreen/20 hover:text-brandGreen rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border border-line"
+          >
+            + Add country
+          </button>
+        </div>
+        <p className="text-[10px] text-muted -mt-1">
+          The foreign-income fields above are assumed India-source. If you also have foreign-source income/tax from a
+          THIRD country, make sure that income is ALSO reflected above (or in Foreign Wages) so it&apos;s taxed —
+          this section only feeds the Foreign Tax Credit LIMITATION, it doesn&apos;t add income to your return, the
+          same way Form 1116 itself works.
+          <span className="nerd-text">
+            §904(d) baskets: Passive (interest/dividends/rents/capital gains) vs General (wages/business/pension).
+            This engine only computes India&apos;s own tax — foreign tax paid to any OTHER country must be entered
+            directly, not computed.
+          </span>
+        </p>
+        {otherFtc.length === 0 && (
+          <div className="text-center text-muted text-xs py-6 border border-dashed border-line rounded-xl">
+            No entries added yet.
+          </div>
+        )}
+        <div className="flex flex-col gap-3">
+          {otherFtc.map((row, i) => (
+            <OtherCountryFtcRow
+              key={i}
+              row={row}
+              index={i}
+              onChange={(idx, patch) => updateRow("foreign_tax_credit_other.entries", idx, patch)}
+              onRemove={(idx) => removeRow("foreign_tax_credit_other.entries", idx)}
             />
           ))}
         </div>
