@@ -652,8 +652,31 @@ var KNOWN_DAG_ONLY = {
   // NJ individual state-tax brackets (single/mfj) + dependent exemption —
   // GAP_TRACKER.md H.7, "Business-entity Phase 2: US state income tax"
   "findings-batch5-nodes.js": [20000, 0.014, 35000, 0.0175, 0.035, 0.05525, 0.0637, 0.0897, 0.1075, 70000, 0.0245, 1500],
-  // US trust IRC S.1(e) brackets (H.6) + entity CA/NY/NJ corporate rates (H.7)
-  "ustax-full-nodes.js": [3150, 11450, 15650, 0.0884, 0.0725, 0.09]
+  // US trust IRC S.1(e) brackets (H.6) + entity CA/NY/NJ corporate rates (H.7);
+  // §877A covered-expatriate thresholds (2026, Rev. Proc. 2025-32 — XB-6);
+  // isLeapYear/daysInYear day-count helpers for the dual-status split-year
+  // computation (XB-25) — the frozen engine has no dual-status day-count math.
+  "ustax-full-nodes.js": [3150, 11450, 15650, 0.0884, 0.0725, 0.09, 211000, 910000, 400, 366],
+  // Task #41 (self-employment home-office/vehicle-mileage deduction): 2026
+  // standard mileage rate (0.68/mi) and §280A simplified-method home-office
+  // cap (300 sqft) — the frozen engine never modeled either deduction.
+  "aggregateusincome-nodes.js": [0.68, 300, 365.25],
+  // Same task #41 constant (300 sqft cap), reused in this file's own
+  // Schedule C trace-text formula.
+  "assets-nodes.js": [300],
+  // Step 11 audit (retirement §402(g) elective-deferral + §219(b)(5) IRA
+  // combined-contribution excess) and task #40 (§223(b) HSA excess
+  // contribution) — 2026 IRS limits (Notice 2025-67, Rev. Proc. 2025-19).
+  // The frozen engine never modeled any of these three excess-contribution
+  // checks at all.
+  "us5-nodes.js": [24500, 35750, 32500, 8600, 8750, 4400],
+  // FEIE legal-correctness fixes (§911(d)(6) stacking rule, commit 8255a57):
+  // isLeapYear's Gregorian-calendar constant (400) and the leap-year day
+  // count (366) for the FEIE proration day-count math. Task #42 (§199A QBI
+  // wage/UBIA limitation): the 2.5% UBIA rate in IRC §199A(b)(2)(B)(ii)'s
+  // wage/UBIA limit formula (0.25*wages + 0.025*UBIA) — the frozen engine
+  // has no wage/UBIA cap at all.
+  "ustax-nodes.js": [400, 366, 0.025]
 };
 function isKnownDagOnly(f, v) { return (KNOWN_DAG_ONLY[f] || []).indexOf(v) !== -1; }
 

@@ -482,6 +482,52 @@ const KNOWN_INDIA_SALARY_EXEMPTION_DIVERGENT_PATHS = [
   "documents", "scopeNotes", "returnForms"
 ];
 
+// NRA treaty-rate elected_rate field-name fix (findings-batch4-nodes.js's
+// nraFdapDetail comment, commit f8de46d): the frozen engine reads
+// claim.rate — a field layer1_us.html's own syncTreatyRates()/
+// addTreatyRateRow() never actually writes (only elected_rate, confirmed by
+// grep of the source) — so the DAG's own fix (reading elected_rate) now
+// correctly sees a claimed treaty rate the frozen engine categorically
+// cannot recognize on ANY profile whose treaty_rate_claims[] entry only
+// carries elected_rate. Same class as run-ustax-full.js's/run-findings4.js's
+// own GOLDEN_DIVERGENT_FIXTURES_ELECTED_RATE carve-out (those two harnesses
+// feed the FROZEN fixture data to both sides, so the divergence there runs
+// the OPPOSITE direction — DAG sees nothing, since the frozen india_ror_
+// us_income fixture still uses the legacy `rate` key; archive/engine-
+// frozen/profiles.js is permanently frozen, never touched by that fix).
+// This file instead sees the DAG's OWN (already-corrected) profiles.js
+// fixture fed to BOTH sides (the WISING.PROFILES double-registration this
+// file's own import order reproduces — see the comment on shadow.js's own
+// rawProfile()), so the frozen engine's claim.rate lookup finds nothing at
+// all on that object, and the divergence runs THIS direction instead: DAG
+// sees the claim, engine doesn't. A permanent, single-fixture (india_ror_
+// us_income, the only real profile with a treaty_rate_claims[] entry)
+// divergence — real live-form data always writes elected_rate, so this
+// never reaches a real user. Detected off the RAW profile (like
+// isFeieWagesDivergentProfile above), not the computed result — the
+// engine's own nra_fdap_flat_rate FINDING text (conflicts.js) reads
+// claim.rate independently of computeUsTax's own nra object, so a case
+// where NRA routing doesn't populate computed.usTax.nra at all on the
+// engine side (confirmed by direct reproduction of a saved run-fuzz.js
+// failure) can still show this divergence in the finding text alone — the
+// computed-result signal alone missed that case, matching run-fuzz.js's own
+// isNraTreatyRateFieldRenameDivergentProfile (kept in sync with it).
+// NOTE the polarity here is the OPPOSITE of run-fuzz.js's own
+// isNraTreatyRateFieldRenameDivergentProfile: this file sees the DAG's
+// OWN (already-corrected) profiles.js fixture on both sides (elected_rate
+// only, no legacy rate key at all — see the WISING.PROFILES double-
+// registration comment above), so the trigger condition is "elected_rate
+// is set" (the DAG can read it, the frozen engine's claim.rate lookup
+// can't), not "rate is set with no elected_rate" the way run-fuzz.js's own
+// (frozen-fixture-on-both-sides) copy checks.
+function isNraTreatyRateFieldRenameDivergent(profile) {
+  const claim = ((profile && profile.us && profile.us.nra_specific && profile.us.nra_specific.treaty_rate_claims) || [])[0];
+  return !!(claim && claim.elected_rate != null && claim.rate == null);
+}
+const KNOWN_NRA_TREATY_RATE_FIELD_RENAME_PATHS = [
+  "computed.usTax.nra.claimedRate", "withholding.us", "withholding.totalGapUsd"
+];
+
 // GILTI/Subpart F inclusion reaching an INDIVIDUAL CFC-owner's own taxable
 // income (Phase 7, XB-14) — NOT part of run-fuzz.js's own allowlist
 // apparatus (its random fuzzer profiles essentially never generate a ≥10%-
@@ -746,6 +792,7 @@ export function compareSurface(engineResult, dagResult, profile) {
   const indiaPresumptiveForeignScheme = isIndiaPresumptiveForeignSchemeProfile(dag);
   const cfcInclusionDivergent = isCfcInclusionDivergentProfile(dag);
   const indiaPresumptiveLockinActive = isIndiaPresumptiveLockinActiveProfile(dag);
+  const nraTreatyRateFieldRenameDivergent = isNraTreatyRateFieldRenameDivergent(profile);
 
   // Findings-level diffs cascade from the same wholesale-shaped fixes as the
   // rest of the product surface (a different QBI/FEIE/rebate/salary amount
@@ -753,7 +800,8 @@ export function compareSurface(engineResult, dagResult, profile) {
   // exactly like run-fuzz.js's own findingsExcused gate.
   const findingsExcused = indiaAopOrTrust || feieWagesDivergent || feieBonaFideProxyDivergent || feieStackingRuleDivergent ||
     qbiWageLimitDivergent || qbiWageUbiaDivergent || saversCreditDivergent || indiaRebateDivergent ||
-    indiaSalaryExemption || indiaPresumptiveForeignScheme || cfcInclusionDivergent || indiaPresumptiveLockinActive;
+    indiaSalaryExemption || indiaPresumptiveForeignScheme || cfcInclusionDivergent || indiaPresumptiveLockinActive ||
+    nraTreatyRateFieldRenameDivergent;
   if (!findingsExcused) raw.push(...findingsDiffs);
 
   // CASCADE_ONLY_PATHS — summary.counts/healthScore, monitoring.health/
@@ -791,7 +839,8 @@ export function compareSurface(engineResult, dagResult, profile) {
     .concat(indiaSalaryExemption ? KNOWN_INDIA_SALARY_EXEMPTION_DIVERGENT_PATHS : [])
     .concat(indiaPresumptiveForeignScheme ? KNOWN_INDIA_PRESUMPTIVE_FOREIGN_SCHEME_PATHS : [])
     .concat(cfcInclusionDivergent ? KNOWN_CFC_INCLUSION_DIVERGENT_PATHS : [])
-    .concat(indiaPresumptiveLockinActive ? KNOWN_INDIA_PRESUMPTIVE_LOCKIN_DIVERGENT_PATHS : []);
+    .concat(indiaPresumptiveLockinActive ? KNOWN_INDIA_PRESUMPTIVE_LOCKIN_DIVERGENT_PATHS : [])
+    .concat(nraTreatyRateFieldRenameDivergent ? KNOWN_NRA_TREATY_RATE_FIELD_RENAME_PATHS : []);
   if (!allowedPaths.length) return raw;
   return raw.filter((d) => !pathMatchesKnown(d.path, allowedPaths));
 }

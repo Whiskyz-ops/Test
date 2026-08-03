@@ -878,6 +878,53 @@ function isFeieEntityGateMissingProfile(dag, profile) {
   return !isIndividualPath && claimsFeie;
 }
 var KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS = ["documents"];
+// NRA treaty-rate elected_rate field-name fix (findings-batch4-nodes.js's
+// nraFdapDetail comment, commit f8de46d): the frozen engine reads
+// claim.rate, a field layer1_us.html's own syncTreatyRates()/
+// addTreatyRateRow() never actually writes (only elected_rate) -- so this
+// fuzzer's own india_ror_us_income base fixture (archive/engine-frozen/
+// profiles.js, permanently frozen, still has the legacy `rate: 15` key)
+// now diverges on any mutant that inherits its nra_specific.treaty_rate_
+// claims[] entry: the DAG correctly finds nothing (elected_rate is absent
+// on this object), the frozen engine still finds `rate: 15` (self-
+// consistent with its own frozen fixture) -- same root cause, OPPOSITE
+// direction from the concurrent fix's own GOLDEN_DIVERGENT_FIXTURES_
+// ELECTED_RATE carve-out in run-ustax-full.js/run-findings4.js (those two
+// harnesses see the identical frozen fixture on both sides too, but assert
+// a narrower field subset that happens to only ever show the DAG-missing-
+// it direction). That commit's own verification never ran this fuzzer, so
+// this divergence was never allowlisted here until now. When w8benOnFile
+// is also true (a fuzzer cross-merge from a different source profile),
+// the correctly-recognized-on-the-engine-side rate additionally changes
+// fdapTaxUsd/incomeTaxUsd/totalTaxBeforeFtcUsd and cascades into headline/
+// taxComputation/withholding -- confirmed by direct reproduction, not
+// assumed (real live-form data never hits this: it only ever writes
+// elected_rate, never the legacy `rate` key). Detected off the RAW profile
+// (like isFeieWagesDivergentProfile above), not the computed result: the
+// engine's own nra_fdap_flat_rate FINDING text (conflicts.js) reads
+// claim.rate independently of computeUsTax's own nra object, so a fuzzer
+// merge that drops NRA routing from computeUsTax entirely (computed.usTax.
+// nra absent on both sides) can still show this exact divergence in the
+// FINDING text alone -- the computed-result signal alone missed those
+// cases (found by direct reproduction of a saved fuzz failure whose
+// mismatch was findings-only with no computed.usTax.nra difference at all).
+function isNraTreatyRateFieldRenameDivergentProfile(profile) {
+  var claim = ((profile.us && profile.us.nra_specific && profile.us.nra_specific.treaty_rate_claims) || [])[0];
+  return !!(claim && claim.rate != null && claim.elected_rate == null);
+}
+var KNOWN_NRA_TREATY_RATE_FIELD_RENAME_PATHS = [
+  "computed.usTax.nra", "computed.usTax.incomeTaxUsd", "computed.usTax.totalTaxBeforeFtcUsd",
+  "computed.headline.usTaxUsd", "computed.headline.combinedTaxBeforeReliefUsd",
+  "withholding.us", "withholding.totalGapUsd", "taxComputation.us", "summary.usTaxUsd",
+  // Same CASCADE_ONLY_PATHS fields (mechanically derived from findings[]) as
+  // every other finding-driven wholesale detector — included directly here
+  // rather than relying on CASCADE_ONLY_PATHS's own findingsResult.known
+  // gate, since the withholding_documentation_gap presence mismatch this
+  // detector excuses lands in findingsResult.unknown (wholesale-reclassified
+  // via findingsExcused below), not the narrower ID-catalogued "known"
+  // bucket CASCADE_ONLY_PATHS itself checks.
+  "summary.healthScore", "summary.counts", "monitoring.health", "monitoring.alerts"
+];
 var KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS = [
   "model.entity.isBusiness", "model.entity.indiaReturnForm", "model.assets",
   "computed.indiaTax", "computed.ftc", "computed.headline", "computed.reconciliation",
@@ -1116,6 +1163,7 @@ function compareOne(label, profile, saveOnFail) {
   var qbiWageUbiaDivergent = isQbiWageUbiaLimitDivergentProfile(real);
   var indiaRebateDivergent = isIndiaRebateMarginalReliefDivergentProfile(dag);
   var indiaSalaryExemption = isIndiaSalaryExemptionProfile(dag);
+  var nraTreatyRateFieldRenameDivergent = isNraTreatyRateFieldRenameDivergentProfile(profile);
   var findingsResult = compareFindings(dag.findings, real.findings, usEntity);
   // AOP/Trust: findings content genuinely cascades from the (now correct)
   // India tax amount in ways too varied to enumerate by finding ID (see
@@ -1129,7 +1177,7 @@ function compareOne(label, profile, saveOnFail) {
   // finding (amt_applies, underpayment_2210, etc).
   var findingsExcused = indiaAopOrTrust || feieWagesDivergent || feieBonaFideProxyDivergent || feieStackingRuleDivergent ||
     qbiWageLimitDivergent || qbiWageUbiaDivergent || saversCreditDivergent || indiaRebateDivergent ||
-    indiaSalaryExemption;
+    indiaSalaryExemption || nraTreatyRateFieldRenameDivergent;
   (findingsExcused ? knownDiffs : realDiffs).push.apply(findingsExcused ? knownDiffs : realDiffs, findingsResult.unknown);
   knownDiffs.push.apply(knownDiffs, findingsResult.known);
 
@@ -1175,6 +1223,7 @@ function compareOne(label, profile, saveOnFail) {
     .concat(saversCreditDivergent ? KNOWN_SAVERS_CREDIT_DIVERGENT_PATHS : [])
     .concat(indiaRebateDivergent ? KNOWN_INDIA_REBATE_MARGINAL_RELIEF_DIVERGENT_PATHS : [])
     .concat(indiaSalaryExemption ? KNOWN_INDIA_SALARY_EXEMPTION_DIVERGENT_PATHS : [])
+    .concat(nraTreatyRateFieldRenameDivergent ? KNOWN_NRA_TREATY_RATE_FIELD_RENAME_PATHS : [])
     // salaryDetail is a pure introspection field (like checksRegistry) with
     // no engine equivalent at all — present on EVERY profile regardless of
     // whether the override fired, so it's always known, not gated above.

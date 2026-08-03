@@ -97,12 +97,17 @@ const KNOWN_EXTRA_FINDING_IDS = new Set([
 // their own CASCADE_ONLY_PATHS (summary.healthScore/counts, monitoring.
 // health/alerts — mechanically derived from findings[], only excusable
 // alongside a known findings-level issue) on. Ported here the same way.
-function reconciledFindingIds(dagIds, realIds, isUsEntity) {
+// `extraKnownExtraIds` (optional): additional IDs to treat as known-extra
+// for THIS call only, on top of the global KNOWN_EXTRA_FINDING_IDS — used
+// for narrow, single-profile-scoped exceptions (e.g. withholding_
+// documentation_gap for india_ror_us_income's NRA treaty-rate field-name
+// divergence) that shouldn't be excused blanket-wide for every profile.
+function reconciledFindingIds(dagIds, realIds, isUsEntity, extraKnownExtraIds) {
   const dagSet = new Set(dagIds), realSet = new Set(realIds);
   let hadKnownIssue = false;
   const keepDag = dagIds.filter((id) => {
     if (realSet.has(id)) return true;
-    if (KNOWN_EXTRA_FINDING_IDS.has(id)) { hadKnownIssue = true; return false; }
+    if (KNOWN_EXTRA_FINDING_IDS.has(id) || (extraKnownExtraIds && extraKnownExtraIds.has(id))) { hadKnownIssue = true; return false; }
     return true;
   });
   const keepReal = realIds.filter((id) => {
@@ -269,6 +274,22 @@ function isIndiaPresumptiveLockinActiveProfile(dag) {
   const findings = dag && dag.findings;
   return Array.isArray(findings) && findings.some((f) => f.id === "presumptive_lockin_active_india");
 }
+// NRA treaty-rate elected_rate field-name fix (commit f8de46d) — see
+// shadow-core.js's own copy of this detector for the full writeup. A
+// permanent, single-fixture (india_ror_us_income) divergence: the frozen
+// engine reads claim.rate, a field the live form never writes (only
+// elected_rate) — real live-form data never hits this. Detected off the RAW
+// profile, not the computed result — the engine's own nra_fdap_flat_rate
+// FINDING text (conflicts.js) reads claim.rate independently of
+// computeUsTax's own nra object, so a case where NRA routing doesn't
+// populate computed.usTax.nra at all on the engine side can still show
+// this divergence in the finding text alone (confirmed by a saved
+// run-fuzz.js failure) — the computed-result signal alone missed that
+// case. Matches shadow-core.js's own copy (kept in sync with it).
+function isNraTreatyRateFieldRenameDivergent(profile) {
+  const claim = ((profile && profile.us && profile.us.nra_specific && profile.us.nra_specific.treaty_rate_claims) || [])[0];
+  return !!(claim && claim.elected_rate != null && claim.rate == null);
+}
 
 // Every field the exhaustive grep survey (lib/wising.js, lib/logic.js,
 // components/*, app/*) actually reads off an analyze() result — not a
@@ -298,6 +319,7 @@ function checkResult(id, dag, real, profile) {
   const indiaPresumptiveForeignScheme = isIndiaPresumptiveForeignSchemeProfile(dag);
   const cfcInclusionDivergent = isCfcInclusionDivergentProfile(dag);
   const indiaPresumptiveLockinActive = isIndiaPresumptiveLockinActiveProfile(dag);
+  const nraTreatyRateFieldRenameDivergent = isNraTreatyRateFieldRenameDivergent(profile);
 
   // Wholesale-block detectors (same shape as KNOWN_FEIE_WAGES_DIVERGENT_
   // PATHS/KNOWN_QBI_WAGE_UBIA_DIVERGENT_PATHS/KNOWN_CFC_INCLUSION_DIVERGENT_
@@ -327,6 +349,7 @@ function checkResult(id, dag, real, profile) {
   }
   if (feieEntityGateMissing) excused.add("documents");
   if (indiaPresumptiveLockinActive) { excused.add("documents"); excused.add("summary.requiredDocs"); excused.add("monitoring.calendar.all"); }
+  if (nraTreatyRateFieldRenameDivergent) excused.add("withholding");
 
   // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026) and form_8858
   // (section H.13, 22 Jul 2026): new DAG-only documents, no engine
@@ -342,7 +365,8 @@ function checkResult(id, dag, real, profile) {
   const dagSummary = droppedRequiredCount > 0 && dag.summary && typeof dag.summary.requiredDocs === "number"
     ? { ...dag.summary, requiredDocs: dag.summary.requiredDocs - droppedRequiredCount }
     : dag.summary;
-  const reconciled = reconciledFindingIds(dag.findings.map(f => f.id), real.findings.map(f => f.id), usEntity);
+  const reconciled = reconciledFindingIds(dag.findings.map(f => f.id), real.findings.map(f => f.id), usEntity,
+    nraTreatyRateFieldRenameDivergent ? new Set(["withholding_documentation_gap"]) : null);
   // CASCADE_ONLY_PATHS (run-fuzz.js/shadow-core.js): healthScore/counts are
   // mechanically derived from findings[], excusable only alongside a
   // catalogued findings-level ID exception in THIS same comparison.
@@ -405,8 +429,15 @@ function checkResult(id, dag, real, profile) {
   } else {
     console.log("    (DELIBERATE divergence — wholesale cascade, see detector comments above) computed.indiaTax");
   }
-  const dagUsTaxNorm = omitNraNewFields(dag.computed.usTax);
-  const realUsTaxNorm = omitNraNewFields(real.computed.usTax);
+  let dagUsTaxNorm = omitNraNewFields(dag.computed.usTax);
+  let realUsTaxNorm = omitNraNewFields(real.computed.usTax);
+  if (nraTreatyRateFieldRenameDivergent) {
+    console.log("    (DELIBERATE divergence — see isNraTreatyRateFieldRenameDivergent's own comment) computed.usTax.nra.claimedRate");
+    const { claimedRate: _dcr, ...dagNraRest } = dagUsTaxNorm.nra || {};
+    const { claimedRate: _rcr, ...realNraRest } = realUsTaxNorm.nra || {};
+    dagUsTaxNorm = { ...dagUsTaxNorm, nra: dagNraRest };
+    realUsTaxNorm = { ...realUsTaxNorm, nra: realNraRest };
+  }
   if (excused.has("computed.usTax")) {
     console.log("    (DELIBERATE divergence — wholesale cascade, see detector comments above) computed.usTax");
   } else if (usEntity) {
@@ -493,7 +524,11 @@ console.log("\n=== Clients tab: allClientSummariesDag() vs allClientSummaries() 
     if (isUsEntity(r) || isFeieWagesDivergentProfile({ router: p.router, india: p.india, us: p.us }) ||
       isCfcInclusionDivergentProfile(d) || isIndiaPresumptiveForeignSchemeProfile(d)) {
       wholesaleIds.add(p.id);
-    } else if (isIndiaPresumptiveLockinActiveProfile(d)) {
+      // healthScore/critical/warning/requiredDocs only — verified directly
+      // (totalIncomeUsd/netDoubleTaxUsd/combinedTaxUsd already match for
+      // india_ror_us_income; only the extra withholding_documentation_gap
+      // finding and its requiredDocs/health cascade differ).
+    } else if (isIndiaPresumptiveLockinActiveProfile(d) || isNraTreatyRateFieldRenameDivergent({ router: p.router, india: p.india, us: p.us })) {
       lockinOnlyIds.add(p.id);
     }
   });

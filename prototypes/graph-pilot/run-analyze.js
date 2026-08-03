@@ -79,8 +79,24 @@ WISING.PROFILES.forEach(function (p) {
   // (buggy) reference for this one profile. Same convention as dag_py's
   // GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES.
   var isFeieWagesDivergent = p.id === "us_citizen_expat_india";
+  // NRA treaty-rate elected_rate field-name fix (findings-batch4-nodes.js's
+  // nraFdapDetail comment, commit f8de46d): the frozen engine reads
+  // claim.rate, a field layer1_us.html's own syncTreatyRates()/
+  // addTreatyRateRow() never actually writes (only elected_rate) — so the
+  // one real fixture with a treaty_rate_claims[] entry (india_ror_us_income,
+  // archive/engine-frozen/profiles.js, permanently frozen, still has the
+  // legacy `rate: 15` key) now diverges: the DAG correctly finds nothing
+  // (elected_rate is absent on that object), the frozen engine still finds
+  // `rate: 15` (self-consistent with its own frozen fixture). Real live-form
+  // data never hits this (it only ever writes elected_rate). Same class as
+  // run-ustax-full.js's/run-findings4.js's own GOLDEN_DIVERGENT_FIXTURES_
+  // ELECTED_RATE carve-out and run-fuzz.js's own isNraTreatyRateFieldRename
+  // DivergentProfile — that commit's own verification never ran this
+  // harness, so this divergence was never allowlisted here until now.
+  var claimForRename = ((p.us && p.us.nra_specific && p.us.nra_specific.treaty_rate_claims) || [])[0];
+  var isNraTreatyRateFieldRenameDivergent = !!(claimForRename && claimForRename.rate != null && claimForRename.elected_rate == null);
 
-  console.log(p.id + (isUsEntity ? " (US ENTITY — taxComputation.us/ftcReport not in-graph, reporting only)" : isNra ? " (NRA — taxComputation.us/ftcReport not in-graph, reporting only)" : isFeieWagesDivergent ? " (FEIE-wages fix now correctly diverges from the frozen engine's own bug — see comment above)" : ""));
+  console.log(p.id + (isUsEntity ? " (US ENTITY — taxComputation.us/ftcReport not in-graph, reporting only)" : isNra ? " (NRA — taxComputation.us/ftcReport not in-graph, reporting only)" : isFeieWagesDivergent ? " (FEIE-wages fix now correctly diverges from the frozen engine's own bug — see comment above)" : isNraTreatyRateFieldRenameDivergent ? " (NRA treaty-rate elected_rate field-name fix now correctly diverges from the frozen engine's own bug — see comment above)" : ""));
 
   var out = graph.resolve(["analyzeResult"], ctx).values.analyzeResult;
 
@@ -119,6 +135,11 @@ WISING.PROFILES.forEach(function (p) {
   if (mineFindings.some(function (f) { return f.id === "lrs_investment_tcs"; })) {
     mineFindings = mineFindings.filter(function (f) { return f.id !== "lrs_investment_tcs"; });
     console.log("    (reported, not asserted) \"lrs_investment_tcs\" is DAG-only — no engine equivalent, see report-batch5-nodes.js");
+  }
+  if (isNraTreatyRateFieldRenameDivergent) {
+    mineFindings = mineFindings.filter(function (f) { return f.id !== "nra_fdap_flat_rate"; });
+    realFindings = realFindings.filter(function (f) { return f.id !== "nra_fdap_flat_rate" && f.id !== "withholding_documentation_gap"; });
+    console.log("    (reported, not asserted) \"nra_fdap_flat_rate\" content / \"withholding_documentation_gap\" presence diverge here — see the NRA treaty-rate fix comment above");
   }
   if (isFeieWagesDivergent) {
     console.log("    (reported, not asserted) findings diverge here — see the FEIE-wages fix comment above");
@@ -161,8 +182,12 @@ WISING.PROFILES.forEach(function (p) {
   var usStateDiff = deepEqual(out.taxComputation.usState, r.taxComputation.usState);
   check("taxComputation.usState matches exactly", !usStateDiff, usStateDiff && usStateDiff.slice(0, 4).join(" | "));
 
-  var whDiff = deepEqual(out.withholding, r.withholding);
-  check("withholding matches exactly", !whDiff, whDiff && whDiff.slice(0, 4).join(" | "));
+  if (isNraTreatyRateFieldRenameDivergent) {
+    console.log("    (reported, not asserted) withholding diverges here — see the NRA treaty-rate fix comment above");
+  } else {
+    var whDiff = deepEqual(out.withholding, r.withholding);
+    check("withholding matches exactly", !whDiff, whDiff && whDiff.slice(0, 4).join(" | "));
+  }
 
   var scopeDiff = deepEqual(out.scopeNotes, r.scopeNotes);
   check("scopeNotes match exactly", !scopeDiff, scopeDiff && scopeDiff.slice(0, 4).join(" | "));
