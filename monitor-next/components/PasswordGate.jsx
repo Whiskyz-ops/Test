@@ -65,27 +65,42 @@ export default function PasswordGate({ children }) {
     <div className="min-h-screen w-full flex items-center justify-center bg-canvas px-4">
       <form
         onSubmit={handleSubmit}
+        autoComplete="off"
         className="w-full max-w-sm rounded-2xl bg-surface border border-line shadow-card p-6 flex flex-col gap-4"
       >
         <div className="flex flex-col gap-1">
           <span className="text-[10px] font-black uppercase tracking-widest text-muted">Restricted Access</span>
-          <h1 className="text-lg font-display font-bold text-head">Enter Password</h1>
+          <h1 className="text-lg font-display font-bold text-head">Enter Access Code</h1>
         </div>
+        {/* BUG FIX: type="password" put this field in Chrome's password-
+            manager / Safe Browsing credential-reuse pipeline, which fired
+            its "you just entered your password on a deceptive site"
+            warning — Chrome flags any type="password" input on an
+            unbranded domain it has no trust history with (this is a
+            vercel.app preview URL), independent of whether the value
+            typed is actually sensitive. This field was never a personal
+            account credential (it's a shared access code), so it doesn't
+            belong in that pipeline at all — switching off type="password"
+            (plus autoComplete="off" and a non-password `name`) removes it
+            from Chrome's credential-reuse heuristics entirely. */}
         <input
-          type="password"
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          name="site-access-code"
           autoFocus
           value={value}
           onChange={(e) => {
             setValue(e.target.value);
             if (error) setError(false);
           }}
-          placeholder="Password"
+          placeholder="Access code"
           className={
             "w-full rounded-lg bg-white/[0.03] border px-3 py-2.5 text-sm text-head font-mono focus:outline-none " +
             (error ? "border-red-500/60 focus:border-red-500" : "border-line focus:border-brandGreen/50")
           }
         />
-        {error && <p className="text-xs text-red-400">Incorrect password. Try again.</p>}
+        {error && <p className="text-xs text-red-400">Incorrect access code. Try again.</p>}
         <button
           type="submit"
           className="w-full rounded-lg bg-brandGreen text-black font-black uppercase text-xs tracking-widest py-2.5 hover:brightness-110 transition-all"
