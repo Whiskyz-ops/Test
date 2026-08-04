@@ -16,6 +16,7 @@ import "./globals.css";
 // wires the client; someone with dashboard access still needs to turn the
 // feature on before any events are actually collected.
 import { Analytics } from "@vercel/analytics/next";
+import PasswordGate from "@/components/PasswordGate";
 
 export const metadata = {
   title: "WISING — Monitor",
@@ -26,7 +27,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        {children}
+        <PasswordGate>{children}</PasswordGate>
         <Analytics />
       </body>
     </html>
