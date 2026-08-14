@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
 // build-time static-export pass AND at runtime), not just whether it's
 // visible in the DOM. Unauthenticated, the exported HTML for every route
 // contains only this gate's markup.
-const SITE_PASSWORD = "30112000";
+const SITE_PASSWORD = "20003011";
 const STORAGE_KEY = "wising_site_unlocked";
 
 export default function PasswordGate({ children }) {
@@ -72,19 +72,17 @@ export default function PasswordGate({ children }) {
           <span className="text-[10px] font-black uppercase tracking-widest text-muted">Restricted Access</span>
           <h1 className="text-lg font-display font-bold text-head">Enter Access Code</h1>
         </div>
-        {/* BUG FIX: type="password" put this field in Chrome's password-
-            manager / Safe Browsing credential-reuse pipeline, which fired
-            its "you just entered your password on a deceptive site"
-            warning — Chrome flags any type="password" input on an
-            unbranded domain it has no trust history with (this is a
-            vercel.app preview URL), independent of whether the value
-            typed is actually sensitive. This field was never a personal
-            account credential (it's a shared access code), so it doesn't
-            belong in that pipeline at all — switching off type="password"
-            (plus autoComplete="off" and a non-password `name`) removes it
-            from Chrome's credential-reuse heuristics entirely. */}
+        {/* Masked on purpose (type="password"), per explicit request — note
+            this reintroduces the tradeoff the earlier BUG FIX comment on
+            this file used to warn about: Chrome's Safe Browsing treats any
+            type="password" input on an unbranded/no-trust-history domain
+            (a vercel.app preview URL) as a potential credential-phishing
+            pattern and may show a "you just entered your password on a
+            deceptive site" warning, regardless of whether the value is a
+            real account credential. autoComplete="off" and a non-password
+            `name` are kept to reduce (not eliminate) that risk. */}
         <input
-          type="text"
+          type="password"
           inputMode="numeric"
           autoComplete="off"
           name="site-access-code"
