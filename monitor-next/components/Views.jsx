@@ -15,6 +15,42 @@ const SEV_TEXT = { critical: PAL.redText, warning: PAL.amberText, info: PAL.blue
 const GREEN = PAL.positive;
 const fmtInr = (n) => "₹" + Math.round(n || 0).toLocaleString("en-IN");
 
+// Reconciliation's India "Salary — taxable" row with its gross → taxable
+// breakdown tucked away: hovering previews it, clicking (or Enter/Space)
+// pins it open — click is what makes it reachable on touch screens, which
+// have no hover. Collapsed by default so the card reads like every other
+// head; the chevron (handed to `children` as a render prop, so it sits
+// inline after the row's own label) is the cue that there's more here.
+function SalaryBreakdownRow({ gross, deductions, children }) {
+  const [pinned, setPinned] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const open = pinned || hovered;
+  return (
+    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      <div role="button" tabIndex={0} aria-expanded={open} title="Show how gross salary becomes taxable salary"
+        onClick={() => setPinned((v) => !v)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPinned((v) => !v); } }}
+        className="cursor-pointer">
+        {children(<ChevronRight size={12} className={"inline ml-1 -mt-0.5 text-muted transition-transform " + (open ? "rotate-90" : "")} />)}
+      </div>
+      {open && (
+        <div className="pb-1 border-b border-line/60">
+          <div className="flex justify-between py-1 text-[11px] text-muted">
+            <span>Salary (gross, per Layer 1)</span>
+            <span className="font-mono">{fmtInr(gross)}</span>
+          </div>
+          {deductions.map(([label, v]) => (
+            <div key={label} className="flex justify-between py-1 pl-3 text-[11px] text-muted">
+              <span>− {label}</span>
+              <span className="font-mono">−{fmtInr(v)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Soft rounded card with an optional icon-chip header (the reference language).
 const Card = ({ title, sub, children, right, icon }) => (
   <section className="rounded-[26px] bg-surface border border-line shadow-card p-5">
@@ -1062,20 +1098,6 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
     ["Disability transport allowance exemption", sd.pwdExemptInr]
   ].filter(([, v]) => v > 0) : [];
   const showSalaryBreakdown = salaryDeductions.length > 0 && sd.grossSalaryInr > 0;
-  const SalaryBreakdown = () => (
-    <>
-      <div className="flex justify-between py-1.5 text-[12px]">
-        <span className="text-body">Salary (gross, per Layer 1)</span>
-        <span className="font-mono text-muted">{fmtInr(sd.grossSalaryInr)}</span>
-      </div>
-      {salaryDeductions.map(([label, v]) => (
-        <div key={label} className="flex justify-between py-1 pl-3 text-[11px] text-muted">
-          <span>− {label}</span>
-          <span className="font-mono">−{fmtInr(v)}</span>
-        </div>
-      ))}
-    </>
-  );
 
   const usRows = buildRows([
     ["Wages (W-2)", inc.us.wages], ["Business / Self-employment", inc.us.businessUs], ["Interest", inc.us.interestUs],
@@ -1102,7 +1124,7 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
           <div id="recon-india-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "india" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "india" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
             <Card title="🇮🇳 India income — by head" sub="From Layer 1 India (₹, with USD equivalent)">
               {indiaRows.length ? indiaRows.map((r, i) => (r.label === "Salary" && showSalaryBreakdown
-                ? <div key={i}><SalaryBreakdown /><IncomeRow label="Salary — taxable" mv={r.mv} additive={r.additive} inr /></div>
+                ? <SalaryBreakdownRow key={i} gross={sd.grossSalaryInr} deductions={salaryDeductions}>{(chevron) => <IncomeRow label={<>Salary — taxable{chevron}</>} mv={r.mv} additive={r.additive} inr />}</SalaryBreakdownRow>
                 : <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} inr />)) : <Empty>No India income on file.</Empty>}
               {indiaRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtInr(indiaTotalInr)} <span className="text-muted">≈ {fmtUsd(indiaTotalUsd)}</span></span></div>}
             </Card>
