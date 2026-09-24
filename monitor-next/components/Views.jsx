@@ -1044,6 +1044,38 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
     ["Fees for technical services (s.115A, non-resident)", s115a && s115a.fts ? moneyInr(s115a.fts.totalInr) : null]
   ]);
   const indiaTotalInr = rowsTotal(indiaRows, "inr"), indiaTotalUsd = rowsTotal(indiaRows, "usd");
+  // The Salary row is income under the head "Salaries" — i.e. AFTER the
+  // s.16 standard deduction and s.10 exemptions (salaryIncomeComputation's
+  // taxableSalaryInr), which is what feeds total income. Layer 1 shows the
+  // GROSS figure, so without this breakdown the two never visibly match.
+  // Skipped when the preparer typed taxable_salary_inr directly
+  // (overridden: no gross to reconcile from) or nothing was deducted.
+  const sd = inc.india.salaryDetail;
+  const salaryDeductions = sd && !sd.overridden ? [
+    ["Standard deduction (s.16(ia))", sd.stdDeductionInr],
+    ["HRA exemption (s.10(13A))", sd.hraExemptInr],
+    ["LTA exemption (s.10(5))", sd.ltaExemptInr],
+    ["Professional tax (s.16(iii))", sd.professionalTaxDeductionInr],
+    ["Conveyance allowance exemption", sd.conveyanceExemptInr],
+    ["Tour / travel allowance exemption", sd.tourExemptInr],
+    ["Daily allowance exemption", sd.dailyExemptInr],
+    ["Disability transport allowance exemption", sd.pwdExemptInr]
+  ].filter(([, v]) => v > 0) : [];
+  const showSalaryBreakdown = salaryDeductions.length > 0 && sd.grossSalaryInr > 0;
+  const SalaryBreakdown = () => (
+    <>
+      <div className="flex justify-between py-1.5 text-[12px]">
+        <span className="text-body">Salary (gross, per Layer 1)</span>
+        <span className="font-mono text-muted">{fmtInr(sd.grossSalaryInr)}</span>
+      </div>
+      {salaryDeductions.map(([label, v]) => (
+        <div key={label} className="flex justify-between py-1 pl-3 text-[11px] text-muted">
+          <span>− {label}</span>
+          <span className="font-mono">−{fmtInr(v)}</span>
+        </div>
+      ))}
+    </>
+  );
 
   const usRows = buildRows([
     ["Wages (W-2)", inc.us.wages], ["Business / Self-employment", inc.us.businessUs], ["Interest", inc.us.interestUs],
@@ -1069,7 +1101,9 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
         {hasIndiaScope && (
           <div id="recon-india-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "india" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "india" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
             <Card title="🇮🇳 India income — by head" sub="From Layer 1 India (₹, with USD equivalent)">
-              {indiaRows.length ? indiaRows.map((r, i) => <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} inr />) : <Empty>No India income on file.</Empty>}
+              {indiaRows.length ? indiaRows.map((r, i) => (r.label === "Salary" && showSalaryBreakdown
+                ? <div key={i}><SalaryBreakdown /><IncomeRow label="Salary — taxable" mv={r.mv} additive={r.additive} inr /></div>
+                : <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} inr />)) : <Empty>No India income on file.</Empty>}
               {indiaRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtInr(indiaTotalInr)} <span className="text-muted">≈ {fmtUsd(indiaTotalUsd)}</span></span></div>}
             </Card>
           </div>
