@@ -4578,7 +4578,7 @@
                 <div class="flex items-center justify-center p-4 bg-brandGold/10 border border-brandGold/20 rounded-2xl mt-2 text-center flex-col gap-3">
                     <span class="text-xs text-white font-bold">🎉 Profile Setup Successful!</span>
                     <span class="text-[10px] text-white/60 max-w-lg">Your tax profile is complete and your residency status has been determined. You can now proceed to the main Wealth Dashboard.</span>
-                    <a href="index.html" class="px-6 py-3 bg-brandGold text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:brightness-110 transition-all mt-1">Open Wealth Dashboard</a>
+                    <a href="index.html?view=monitor" onclick="var c = window.WISING && window.WISING.ClientRegistry && window.WISING.ClientRegistry.activeIdFromUrl(); if (c) this.href = 'index.html?view=monitor&amp;client=' + encodeURIComponent(c);" class="px-6 py-3 bg-brandGold text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:brightness-110 transition-all mt-1">Open Wealth Dashboard</a>
                 </div>
             </div>
 

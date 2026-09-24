@@ -10,7 +10,7 @@ import DetailTable from "@/components/DetailTable";
 import { ConflictsPanel, ChecksRegistryPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard, EntityStructureView, OwnedEntitiesBanner, EntitySwitcher } from "@/components/Views";
 import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
-import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState } from "@/lib/wising";
+import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState, isRegistryClientId } from "@/lib/wising";
 import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
 import { monitorSnapshotPyDag, allClientSummariesPyDag } from "@/lib/py-dag-adapter";
 import { entityLinksFor, ownedEntityIds, flattenOwnershipTree } from "@/lib/entity-graph";
@@ -288,6 +288,18 @@ export default function MonitorPage() {
     }
     setClientSummaries(engineSource === "dag" ? allClientSummariesDag() : allClientSummaries());
   }, [engineSource]);
+  // Deep link from Layer 1's "Open Wealth Dashboard" button:
+  // index.html?view=monitor[&client=<registry id>]. Read in an effect (same
+  // hydration reasoning as ?engine= above). Declared BEFORE the mount effect
+  // below so the pin is already set when its recompute(null) runs — that
+  // call reads pinnedClientRef, so it shows this client, not demo/live.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const c = params.get("client");
+    if (c && isRegistryClientId(c)) pinnedClientRef.current = c;
+    const v = params.get("view");
+    if (v === "monitor") setView("monitor");
+  }, []);
   useEffect(() => {
     setProfiles(listProfiles());
     refreshClientSummaries();
