@@ -1464,12 +1464,17 @@
     var p = getProfile(id);
     if (!p) return false;
     try {
-      // Clean slate: wipe ALL wising_* keys first so no field from a previously
-      // loaded profile (or a manually-edited Layer 1 form) can bleed through.
+      // Clean slate: wipe the wising_* Layer 0/1 keys first so no field from a
+      // previously loaded profile (or a manually-edited Layer 1 form) can bleed
+      // through. NOT the site-gate unlock flag (wiping it re-prompted for the
+      // access code on the next page load) nor the "+ Add Client" registry and
+      // its per-client namespaced keys (wiping those deleted every client).
       try {
         for (var i = root.localStorage.length - 1; i >= 0; i--) {
           var k = root.localStorage.key(i);
-          if (k && k.indexOf("wising_") === 0) root.localStorage.removeItem(k);
+          if (!k || k.indexOf("wising_") !== 0) continue;
+          if (k === "wising_site_unlocked" || k === "wising_client_registry" || k.indexOf("wising_client_") === 0) continue;
+          root.localStorage.removeItem(k);
         }
       } catch (e) {}
       root.localStorage.setItem(KEYS.ROUTER, JSON.stringify(p.router));
