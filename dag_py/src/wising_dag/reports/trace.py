@@ -184,7 +184,7 @@ def _build_tax_computation_india_individual(d, ctx):
     if us_in_total_inr > 0:
         india_gross_rows = india_gross_rows + [{
             "label": "  — of which US income from Layer 1 US (India taxes a resident on worldwide income)", "inr": us_in_total_inr,
-            "trace": _calc("US-source income from Layer 1 US under Indian rules: wages as salary, business as PGBP, interest/dividends/US pension/other at slab, rent after the 30% s.24(a) deduction, short-term gains at slab, long-term gains at 12.5% (s.112). US Social Security is excluded (DTAA Art. 20(2)). Relief for the US tax on it is the s.90 credit below.",
+            "trace": _calc("US-source income from Layer 1 US under Indian rules: wages as salary, business as PGBP, interest/dividends/US pension/other at slab, rent after the 30% s.24(a) deduction, short-term gains at slab, long-term gains at 12.5% (s.112). US Social Security is excluded (DTAA Art. 20(2)). Relief for the US tax on it is the s.90 credit below. Planning estimate: US calendar-year amounts stand in for India's April–March year, and gains use the US cost basis rather than the rupee cost at purchase.",
                            [{"label": "Wages (salary)", "amount": us_in["salaryInr"]}, {"label": "Business (PGBP)", "amount": us_in["businessInr"]},
                             {"label": "Rent (after 30% deduction)", "amount": us_in["housePropertyInr"]}, {"label": "Interest, dividends, pension, other", "amount": us_in["otherNormalInr"]},
                             {"label": "Short-term gains (slab)", "amount": us_in["stcgSlabInr"]}, {"label": "Long-term gains (12.5%)", "amount": us_in["ltcg197Inr"]}]),

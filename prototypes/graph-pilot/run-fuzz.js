@@ -815,6 +815,15 @@ function isUsIncomeIntoIndiaProfile(dag) {
   if ((e.indiaKind || "individual") !== "individual" || (e.usKind || "individual") !== "individual") return false;
   return Object.keys(u).some(function (k) { return u[k] > 0; });
 }
+// India tax on salary net of the s.16 standard deduction / s.10 exemptions
+// (assets-nodes.js's salaryInr override): the frozen engine taxed raw
+// taxable_salary_inr || gross_salary_inr. Differs only when salary was
+// entered as gross (no explicit taxable_salary_inr) — every fixture uses the
+// explicit figure, so this only matters for fuzz mutations that drop it.
+function isIndiaSalaryNetDivergentProfile(dag) {
+  var sd = dag.model && dag.model.income && dag.model.income.india && dag.model.income.india.salaryDetail;
+  return !!sd && !sd.overridden && sd.grossSalaryInr > 0;
+}
 var KNOWN_US_INCOME_INTO_INDIA_DIVERGENT_PATHS = KNOWN_FEIE_WAGES_DIVERGENT_PATHS.concat(["computed.indiaTax", "findings"]);
 // Plus findings: unlike the FEIE-field case, re-sourcing moves income INTO
 // US wages, which findings read directly -- cross_basis_summary's overlap
@@ -1304,6 +1313,7 @@ function compareOne(label, profile, saveOnFail) {
     .concat(isIndiaSalaryResourcedProfile(profile) ? KNOWN_WORK_LOCATION_SOURCING_DIVERGENT_PATHS : [])
     .concat(isIndiaIncomeFillProfile(dag) ? KNOWN_WORK_LOCATION_SOURCING_DIVERGENT_PATHS : [])
     .concat(isUsIncomeIntoIndiaProfile(dag) ? KNOWN_US_INCOME_INTO_INDIA_DIVERGENT_PATHS : [])
+    .concat(isIndiaSalaryNetDivergentProfile(dag) ? KNOWN_US_INCOME_INTO_INDIA_DIVERGENT_PATHS : [])
     .concat(feieBonaFideProxyDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(feieStackingRuleDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(isFeieEntityGateMissingProfile(dag, profile) ? KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS : [])

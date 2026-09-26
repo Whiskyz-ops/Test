@@ -494,6 +494,9 @@ NODES = {
     # One income list, India direction: None unless filings/assets.py hands
     # over Layer 1 US's own US-source income for an ROR (see in1-nodes-v3.js).
     "usIncomeForIndiaBoundary": NodeDef(deps=(), compute=lambda d, ctx: None),
+    # Unused salary deduction for US wages — see in1-nodes-v3.js. 0 unless
+    # filings/assets.py overrides it.
+    "salaryExemptionLeftoverInr": NodeDef(deps=(), compute=lambda d, ctx: 0),
     "usIncomeForIndiaInr": NodeDef(deps=("usIncomeForIndiaBoundary",), compute=_us_income_for_india_inr),
     "lossSetOffV3": NodeDef(
         deps=("usIncomeForIndiaInr", "businessInrBoundaryV3", "businessDepreciationInrBoundary", "cflBusinessInr", "cflSpeculativeInr", "cflStcgInr", "cflLtcgInr",
@@ -503,7 +506,7 @@ NODES = {
         compute=_loss_set_off_v3,
     ),
 
-    "normalSlabInr": NodeDef(deps=("salaryInr", "lossSetOffV3", "usIncomeForIndiaInr"), compute=lambda d, ctx: d["salaryInr"] + d["usIncomeForIndiaInr"]["salaryInr"] + d["lossSetOffV3"]["businessInr"] + d["lossSetOffV3"]["housePropertyInr"] + d["lossSetOffV3"]["otherNormalInr"] + d["lossSetOffV3"]["stcgSlabInr"] + d["lossSetOffV3"]["speculativeInr"]),
+    "normalSlabInr": NodeDef(deps=("salaryInr", "lossSetOffV3", "usIncomeForIndiaInr", "salaryExemptionLeftoverInr"), compute=lambda d, ctx: d["salaryInr"] + max(0, d["usIncomeForIndiaInr"]["salaryInr"] - d["salaryExemptionLeftoverInr"]) + d["lossSetOffV3"]["businessInr"] + d["lossSetOffV3"]["housePropertyInr"] + d["lossSetOffV3"]["otherNormalInr"] + d["lossSetOffV3"]["stcgSlabInr"] + d["lossSetOffV3"]["speculativeInr"]),
 
     "deductionsInrV3": NodeDef(
         deps=("isNew", "dedS80CCD2Employer", "dedS80C", "dedS80CCD1B", "dedS80D", "dedS80TTA_TTB", "dedS80DD", "dedS80DDB",

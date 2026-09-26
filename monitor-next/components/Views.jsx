@@ -1144,7 +1144,7 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
         )}
         {hasUsScope && (
           <div id="recon-us-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "us" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "us" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
-            <Card title="🇺🇸 US income — by head" sub={Object.keys(fromIndia).length ? "From Layer 1 US (USD); foreign heads left empty there are filled from Layer 1 India" : "From Layer 1 US (USD)"}>
+            <Card title="🇺🇸 US income — by head" sub={Object.keys(fromIndia).length ? "From Layer 1 US (USD); foreign heads left empty there are filled from Layer 1 India (India's April–March figures under Indian rules — a planning estimate)" : "From Layer 1 US (USD)"}>
               {usRows.length ? usRows.map((r, i) => <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} />) : <Empty>No US income on file.</Empty>}
               {usRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtUsd(usTotalUsd)}</span></div>}
             </Card>

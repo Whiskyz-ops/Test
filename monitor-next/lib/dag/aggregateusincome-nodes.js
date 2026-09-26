@@ -669,6 +669,10 @@ var NODES = {
         // field) previously had no id/handler either -- gross rent was
         // always taxed in full with zero expense deduction possible.
         rentalUsUsd: Math.max(0, num(safe(ui, "rental_income_us_source_usd", 0)) - num(safe(ui, "rental_expenses_us_source_usd", 0))) + k1.rentalUsd,
+        // Gross rent (before US expenses/depreciation) — India's house-property
+        // head starts from gross rent and allows a flat 30% instead of actual
+        // expenses (usOwnSourceForIndia). K-1 rent is only available net.
+        rentalGrossUsUsd: num(safe(ui, "rental_income_us_source_usd", 0)) + k1.rentalUsd,
         otherOrdinaryIncomeUsUsd: otherOrdinaryIncomeUsUsd,
         foreignInterestUsd: num(safe(fi, "foreign_interest_usd", 0)),
         foreignDividendsUsd: num(safe(fi, "foreign_dividends_usd", 0)),
@@ -837,7 +841,7 @@ var NODES = {
         // 20(2) taxes it only in the US.
         usOwnSourceForIndia: {
           wagesUsd: w.wagesUsd + d.foreignWagesSourcing.usSourceUsd, businessUsd: biz.businessUsUsd,
-          interestUsd: di.interestUsUsd, dividendsUsd: di.ordinaryDividendsUsUsd, rentalUsd: di.rentalUsUsd,
+          interestUsd: di.interestUsUsd, dividendsUsd: di.ordinaryDividendsUsUsd, rentalUsd: di.rentalGrossUsUsd,
           stcgUsd: di.stcgUsUsd, ltcgUsd: di.ltcgUsUsd, retirementUsd: ret.usRetirementIncomeExclSsUsd, otherUsd: di.otherOrdinaryIncomeUsUsd
         },
         foreignInterest: m(foreignInterest, ctx), foreignDividends: m(di.foreignDividendsUsd, ctx),

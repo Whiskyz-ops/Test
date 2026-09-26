@@ -999,6 +999,25 @@ NODES.findingsAllResult = {
 // point here). Anyone else — NRA, entity, India-only — gets null, i.e. no
 // change. Royalty / technical fees come from s.115A (NR only), which isn't
 // part of the India income model.
+// ---- India tax: salary net of the s.16 standard deduction / s.10 exemptions
+// in1-nodes-v3.js's own salaryInr reads raw taxable_salary_inr ||
+// gross_salary_inr — no standard deduction, and perquisites/ESOP/prior
+// employer ignored — while the income card (salaryIncomeComputation) shows
+// the net figure, so India's tax was charged on more than the card showed.
+// Overridden here, at the top-level composition, because in1-nodes-v3.js is
+// re-merged further up the chain (india-tax-combined-nodes.js).
+NODES.salaryInr = { deps: ["salaryIncomeComputation"], compute: function (d) { return d.salaryIncomeComputation.taxableSalaryInr; } };
+NODES.salaryExemptionLeftoverInr = {
+  deps: ["salaryIncomeComputation"],
+  compute: function (d) {
+    var s = d.salaryIncomeComputation;
+    if (s.overridden) return 0;
+    var exemptionsInr = s.stdDeductionInr + s.conveyanceExemptInr + s.tourExemptInr + s.dailyExemptInr + s.pwdExemptInr +
+      s.hraExemptInr + s.ltaExemptInr + s.professionalTaxDeductionInr;
+    return Math.max(0, exemptionsInr - s.grossSalaryInr);
+  }
+};
+
 // India direction: Layer 1 US's own US-source income, in INR, for an
 // individual on both forms whom India taxes on worldwide income (ROR and
 // not ceded to the US by treaty — residencyResult.india.worldwide). See

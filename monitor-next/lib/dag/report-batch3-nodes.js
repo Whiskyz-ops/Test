@@ -245,7 +245,7 @@ NODES.buildTaxComputationIndiaResult = {
     if (usInTotalInr > 0) {
       indiaGrossRows = indiaGrossRows.concat([
         { label: "  — of which US income from Layer 1 US (India taxes a resident on worldwide income)", inr: usInTotalInr,
-          trace: calc("US-source income from Layer 1 US under Indian rules: wages as salary, business as PGBP, interest/dividends/US pension/other at slab, rent after the 30% s.24(a) deduction, short-term gains at slab, long-term gains at 12.5% (s.112). US Social Security is excluded (DTAA Art. 20(2)). Relief for the US tax on it is the s.90 credit below.", [
+          trace: calc("US-source income from Layer 1 US under Indian rules: wages as salary, business as PGBP, interest/dividends/US pension/other at slab, rent after the 30% s.24(a) deduction, short-term gains at slab, long-term gains at 12.5% (s.112). US Social Security is excluded (DTAA Art. 20(2)). Relief for the US tax on it is the s.90 credit below. Planning estimate: US calendar-year amounts stand in for India's April–March year, and gains use the US cost basis rather than the rupee cost at purchase.", [
             { label: "Wages (salary)", amount: usIn.salaryInr },
             { label: "Business (PGBP)", amount: usIn.businessInr },
             { label: "Rent (after 30% deduction)", amount: usIn.housePropertyInr },

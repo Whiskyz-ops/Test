@@ -422,6 +422,8 @@ def _direct_income_computation(d, ctx):
         # Rental expenses previously had no id/handler either -- gross rent
         # was always taxed in full with zero expense deduction possible.
         "rentalUsUsd": max(0.0, num(safe(ui, "rental_income_us_source_usd", 0)) - num(safe(ui, "rental_expenses_us_source_usd", 0))) + k1["rentalUsd"],
+        # Gross rent for India's house-property head (see aggregateusincome-nodes.js).
+        "rentalGrossUsUsd": num(safe(ui, "rental_income_us_source_usd", 0)) + k1["rentalUsd"],
         "otherOrdinaryIncomeUsUsd": other_ordinary_income_us_usd,
         "foreignInterestUsd": num(safe(fi, "foreign_interest_usd", 0)),
         "foreignDividendsUsd": num(safe(fi, "foreign_dividends_usd", 0)),
@@ -694,7 +696,7 @@ def _aggregate_us_income_result(d, ctx):
         # excludes India salary re-sourced to the US and Social Security.
         "usOwnSourceForIndia": {
             "wagesUsd": w["wagesUsd"] + d["foreignWagesSourcing"]["usSourceUsd"], "businessUsd": biz["businessUsUsd"],
-            "interestUsd": di["interestUsUsd"], "dividendsUsd": di["ordinaryDividendsUsUsd"], "rentalUsd": di["rentalUsUsd"],
+            "interestUsd": di["interestUsUsd"], "dividendsUsd": di["ordinaryDividendsUsUsd"], "rentalUsd": di["rentalGrossUsUsd"],
             "stcgUsd": di["stcgUsUsd"], "ltcgUsd": di["ltcgUsUsd"], "retirementUsd": ret["usRetirementIncomeExclSsUsd"], "otherUsd": di["otherOrdinaryIncomeUsUsd"],
         },
         "foreignInterest": _m(foreign_interest, ctx), "foreignDividends": _m(di["foreignDividendsUsd"], ctx),

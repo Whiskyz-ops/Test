@@ -408,6 +408,10 @@ var NODES = {
   // floored at 0 (no cross-border loss set-off). Relief for the US tax on
   // it is the existing s.90 calc (ftc-nodes.js's ftcIndiaDirection).
   usIncomeForIndiaBoundary: { deps: [], compute: function () { return null; } },
+  // Salary standard deduction / exemptions not used up by Layer 1 India's own
+  // salary — India gives one s.16 deduction across ALL salary, so what's left
+  // applies to US wages. 0 unless assets-nodes.js wires it.
+  salaryExemptionLeftoverInr: { deps: [], compute: function () { return 0; } },
   usIncomeForIndiaInr: {
     deps: ["usIncomeForIndiaBoundary"],
     compute: function (d) {
@@ -448,7 +452,7 @@ var NODES = {
     }
   },
 
-  normalSlabInr: { deps: ["salaryInr", "lossSetOffV3", "usIncomeForIndiaInr"], compute: function (d) { return d.salaryInr + d.usIncomeForIndiaInr.salaryInr + d.lossSetOffV3.businessInr + d.lossSetOffV3.housePropertyInr + d.lossSetOffV3.otherNormalInr + d.lossSetOffV3.stcgSlabInr + d.lossSetOffV3.speculativeInr; } },
+  normalSlabInr: { deps: ["salaryInr", "lossSetOffV3", "usIncomeForIndiaInr", "salaryExemptionLeftoverInr"], compute: function (d) { return d.salaryInr + Math.max(0, d.usIncomeForIndiaInr.salaryInr - d.salaryExemptionLeftoverInr) + d.lossSetOffV3.businessInr + d.lossSetOffV3.housePropertyInr + d.lossSetOffV3.otherNormalInr + d.lossSetOffV3.stcgSlabInr + d.lossSetOffV3.speculativeInr; } },
 
   deductionsInrV3: {
     deps: ["isNew", "dedS80CCD2Employer", "dedS80C", "dedS80CCD1B", "dedS80D", "dedS80TTA_TTB", "dedS80DD", "dedS80DDB",

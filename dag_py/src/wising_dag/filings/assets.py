@@ -1054,12 +1054,27 @@ def build(base):
         NodeDef(deps=("indiaIncomeModelResult", "residencyResult", "s115aRoyalty", "s115aFts"), compute=_india_income_for_us),
         reason="assets-nodes.js: one income list — Layer 1 India income into US worldwide income (fill gaps only)",
     )
+    # India tax: salary net of the s.16 standard deduction / s.10 exemptions
+    # (see assets-nodes.js) — in1_v3.py's own salaryInr reads raw gross.
+    r.override("salaryInr", NodeDef(deps=("salaryIncomeComputation",), compute=lambda d, ctx: d["salaryIncomeComputation"]["taxableSalaryInr"]),
+               reason="assets-nodes.js: India tax on salary net of the standard deduction/exemptions, matching the income card")
+    r.override("salaryExemptionLeftoverInr", NodeDef(deps=("salaryIncomeComputation",), compute=_salary_exemption_leftover_inr),
+               reason="assets-nodes.js: unused salary deduction applied to US wages India taxes an ROR on")
     r.override(
         "usIncomeForIndiaBoundary",
         NodeDef(deps=("aggregateUsIncomeResult", "residencyResult"), compute=_us_income_for_india),
         reason="assets-nodes.js: one income list, India direction — Layer 1 US income into India's worldwide taxation of an ROR",
     )
     return r
+
+
+def _salary_exemption_leftover_inr(d, ctx):
+    s = d["salaryIncomeComputation"]
+    if s.get("overridden"):
+        return 0
+    exemptions_inr = (s["stdDeductionInr"] + s["conveyanceExemptInr"] + s["tourExemptInr"] + s["dailyExemptInr"] + s["pwdExemptInr"] +
+                      s["hraExemptInr"] + s["ltaExemptInr"] + s["professionalTaxDeductionInr"])
+    return max(0, exemptions_inr - s["grossSalaryInr"])
 
 
 def _us_income_for_india(d, ctx):
