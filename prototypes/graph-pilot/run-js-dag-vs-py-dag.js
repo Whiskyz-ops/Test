@@ -123,7 +123,8 @@ function datesToIso(node) {
 
 function runJsDag(profile) {
   var out = WISING.analyze({ router: profile.router, india: profile.india, us: profile.us, monitorAsOf: MONITOR_AS_OF });
-  var ctx = { router: profile.router, india: profile.india, us: profile.us, monitorAsOfBoundary: MONITOR_AS_OF };
+  // Same Layer 1 India switch enforcement as analyze.js / dag_py's _build_ctx.
+  var ctx = { router: profile.router, india: require("./india-switches.js").applyIndiaIncomeSwitches(profile.india), us: profile.us, monitorAsOfBoundary: MONITOR_AS_OF };
   var extras = extrasGraph.resolve(["checksRegistryResult", "calendarAmountsResult"], ctx).values;
   out.checksRegistry = extras.checksRegistryResult;
   out.calendarAmounts = extras.calendarAmountsResult;

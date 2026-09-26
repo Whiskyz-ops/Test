@@ -28,6 +28,7 @@ pilot/run-js-dag-vs-py-dag.js`, `npm run compare:js-vs-py-dag`) — see
 from __future__ import annotations
 
 from .core.fx_util import fx_rate
+from .core.india_switches import apply_india_income_switches
 from .core.registry import build_full_registry
 
 _REGISTRY = None
@@ -112,7 +113,8 @@ def _assemble_computed(out: dict, ctx: dict) -> dict:
 
 def _build_ctx(opts: dict | None) -> dict:
     opts = opts or {}
-    ctx = {"router": opts.get("router"), "india": opts.get("india"), "us": opts.get("us")}
+    # Layer 1 India's switched-off income heads carry no amounts (core/india_switches.py).
+    ctx = {"router": opts.get("router"), "india": apply_india_income_switches(opts.get("india")), "us": opts.get("us")}
     if opts.get("monitorAsOf") is not None:
         ctx["monitorAsOfBoundary"] = opts["monitorAsOf"]
     if opts.get("fxRateOverride") is not None:

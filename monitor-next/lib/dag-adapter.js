@@ -36,6 +36,7 @@ import { createGraph } from "./dag/graph.js";
 import { NODES } from "./dag/calendar-amounts-nodes.js";
 import { countriesFromEngine } from "./wising.js";
 import { fxRate } from "./dag/fx-util.js";
+import { applyIndiaIncomeSwitches } from "./dag/india-switches.js";
 
 const graph = createGraph(NODES);
 
@@ -86,7 +87,8 @@ export function analyzeDag(opts) {
   if (opts.feieOverride !== undefined) {
     us = Object.assign({}, us, { foreign_earned_income: Object.assign({}, us && us.foreign_earned_income, { claims_feie: opts.feieOverride }) });
   }
-  const ctx = { router, india, us };
+  // Layer 1 India's switched-off income heads carry no amounts (dag/india-switches.js).
+  const ctx = { router, india: applyIndiaIncomeSwitches(india), us };
   // Shadow mode pins the same "now" on both engine and DAG so monitoring's
   // date-derived fields (asOf, calendar daysUntil, projection breach dates)
   // compare fairly instead of drifting by the few ms between the two calls.

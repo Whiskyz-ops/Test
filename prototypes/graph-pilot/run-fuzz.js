@@ -824,6 +824,14 @@ function isIndiaSalaryNetDivergentProfile(dag) {
   var sd = dag.model && dag.model.income && dag.model.income.india && dag.model.income.india.salaryDetail;
   return !!sd && !sd.overridden && sd.grossSalaryInr > 0;
 }
+// Layer 1 India income switches enforced before the graph runs (india-
+// switches.js): a head switched OFF carries no amounts; the frozen engine
+// taxed whatever amounts were stored. The fuzzer's boolean flips hit this
+// constantly (has_salary_income etc. flipped false, amounts left behind).
+var applyIndiaIncomeSwitchesForFuzz = require("./india-switches.js").applyIndiaIncomeSwitches;
+function isIndiaSwitchedOffAmountsProfile(profile) {
+  return JSON.stringify(applyIndiaIncomeSwitchesForFuzz(profile.india)) !== JSON.stringify(profile.india);
+}
 var KNOWN_US_INCOME_INTO_INDIA_DIVERGENT_PATHS = KNOWN_FEIE_WAGES_DIVERGENT_PATHS.concat(["computed.indiaTax", "findings"]);
 // Plus findings: unlike the FEIE-field case, re-sourcing moves income INTO
 // US wages, which findings read directly -- cross_basis_summary's overlap
@@ -1314,6 +1322,7 @@ function compareOne(label, profile, saveOnFail) {
     .concat(isIndiaIncomeFillProfile(dag) ? KNOWN_WORK_LOCATION_SOURCING_DIVERGENT_PATHS : [])
     .concat(isUsIncomeIntoIndiaProfile(dag) ? KNOWN_US_INCOME_INTO_INDIA_DIVERGENT_PATHS : [])
     .concat(isIndiaSalaryNetDivergentProfile(dag) ? KNOWN_US_INCOME_INTO_INDIA_DIVERGENT_PATHS : [])
+    .concat(isIndiaSwitchedOffAmountsProfile(profile) ? KNOWN_US_INCOME_INTO_INDIA_DIVERGENT_PATHS.concat(["model.income.india", "model.assets", "computed.residency"]) : [])
     .concat(feieBonaFideProxyDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(feieStackingRuleDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(isFeieEntityGateMissingProfile(dag, profile) ? KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS : [])

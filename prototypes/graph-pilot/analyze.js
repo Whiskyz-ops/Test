@@ -57,6 +57,7 @@
   var fxRate = require("./fx-util.js").fxRate;
   var residencyUtil = require("./residency-nodes.js");
   var NODES = require("./assets-nodes.js").NODES;
+  var applyIndiaIncomeSwitches = require("./india-switches.js").applyIndiaIncomeSwitches;
   var graph = createGraph(NODES);
 
   var TARGET_IDS = [
@@ -133,7 +134,8 @@
 
   function resolveAll(opts) {
     opts = opts || {};
-    var ctx = { router: opts.router, india: opts.india, us: opts.us };
+    // Layer 1 India's switched-off income heads carry no amounts (india-switches.js).
+    var ctx = { router: opts.router, india: applyIndiaIncomeSwitches(opts.india), us: opts.us };
     if (opts.monitorAsOf !== undefined) ctx.monitorAsOfBoundary = opts.monitorAsOf;
     if (opts.fxRateOverride !== undefined) ctx.fxRateOverride = opts.fxRateOverride;
     return { out: graph.resolve(TARGET_IDS, ctx).values, ctx: ctx };
