@@ -986,4 +986,31 @@ NODES.findingsAllResult = {
   }
 };
 
+// ---- one income list: Layer 1 India income into US worldwide income --------
+// Overrides aggregateusincome-nodes.js's indiaIncomeForUsBoundary (null in
+// any graph without the India nodes) here, at the top-level composition,
+// AFTER every sub-module merge: apportionment-nodes.js re-merges the raw
+// US-income nodes, so an override any lower down would be merged back over
+// (or collide). checks-registry-nodes.js / calendar-amounts-nodes.js copy
+// this NODES as-is, so analyze.js and monitor-next both get it.
+// Hands Layer 1 India's income to the US side (foreignIncomeFromIndia) only
+// for an individual on both forms whom the US taxes on worldwide income
+// (residencyResult.us.worldwide — the individual-only concept, which is the
+// point here). Anyone else — NRA, entity, India-only — gets null, i.e. no
+// change. Royalty / technical fees come from s.115A (NR only), which isn't
+// part of the India income model.
+NODES.indiaIncomeForUsBoundary = {
+  deps: ["indiaIncomeModelResult", "residencyResult", "s115aRoyalty", "s115aFts"],
+  compute: function (d, ctx) {
+    var indiaKind = safe(ctx.india, "profile.entity_type", "individual") || "individual";
+    var usKind = safe(ctx.us, "profile.tax_entity_type", "individual") || "individual";
+    if (indiaKind !== "individual" || usKind !== "individual") return null;
+    if (!(d.residencyResult && d.residencyResult.us && d.residencyResult.us.worldwide)) return null;
+    return {
+      income: d.indiaIncomeModelResult,
+      royaltyInr: d.s115aRoyalty ? d.s115aRoyalty.totalInr || 0 : 0,
+      ftsInr: d.s115aFts ? d.s115aFts.totalInr || 0 : 0
+    };
+  }
+};
 module.exports = { NODES: NODES };

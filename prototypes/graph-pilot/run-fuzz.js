@@ -400,7 +400,10 @@ var DAG_ONLY_KEYS = {
   // Salary work-location sourcing (aggregateindiaincome-nodes.js's
   // salaryWorkLocation → ftc-nodes.js): new structural fields on
   // model.income.india and computed.ftc.us, present on every profile.
-  salaryWorkLocation: true, salaryOutsideIndiaInr: true, usWorkSalaryUsd: true, indiaTaxOnUsWorkSalaryUsd: true
+  salaryWorkLocation: true, salaryOutsideIndiaInr: true, usWorkSalaryUsd: true, indiaTaxOnUsWorkSalaryUsd: true,
+  // One income list (aggregateusincome-nodes.js's foreignIncomeFromIndia):
+  // new structural fields on model.income.us, present on every profile.
+  foreignOtherIncome: true, seEarningsFromIndiaUsd: true, foreignFromIndia: true
 };
 function close(a, b) { var tol = Math.max(2, Math.abs(b) * 1e-6); return Math.abs(a - b) <= tol; }
 function deepEqual(a, b, p, diffs) {
@@ -788,6 +791,17 @@ function isIndiaSalaryResourcedProfile(profile) {
   if (indiaDays === 0 || (usDays !== null && usDays >= 365)) return true;
   if ((indiaDays !== null && indiaDays >= 365) || usDays === 0) return false;
   return slices.some(function (s) { return s.work_performed_outside_india === true && (Number(s.workdays_outside_india) || 0) > 0; });
+}
+// One income list (aggregateusincome-nodes.js's foreignIncomeFromIndia): for
+// an individual the US taxes on worldwide income, each Indian income type
+// left empty in Layer 1 US's foreign section is filled from Layer 1 India —
+// the frozen engine only ever read Layer 1 US. Keyed off the DAG's own
+// record of what it filled (model.income.us.foreignFromIndia), since the
+// fill rule (entity kind, US worldwide status, per-head emptiness) is the
+// DAG's to decide; same wholesale block as work-location sourcing.
+function isIndiaIncomeFillProfile(dag) {
+  var f = dag.model && dag.model.income && dag.model.income.us && dag.model.income.us.foreignFromIndia;
+  return !!f && Object.keys(f).length > 0;
 }
 // Plus findings: unlike the FEIE-field case, re-sourcing moves income INTO
 // US wages, which findings read directly -- cross_basis_summary's overlap
@@ -1275,6 +1289,7 @@ function compareOne(label, profile, saveOnFail) {
     .concat(feieWagesDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(isWorkLocationSourcingDivergentProfile(profile) ? KNOWN_WORK_LOCATION_SOURCING_DIVERGENT_PATHS : [])
     .concat(isIndiaSalaryResourcedProfile(profile) ? KNOWN_WORK_LOCATION_SOURCING_DIVERGENT_PATHS : [])
+    .concat(isIndiaIncomeFillProfile(dag) ? KNOWN_WORK_LOCATION_SOURCING_DIVERGENT_PATHS : [])
     .concat(feieBonaFideProxyDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(feieStackingRuleDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(isFeieEntityGateMissingProfile(dag, profile) ? KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS : [])

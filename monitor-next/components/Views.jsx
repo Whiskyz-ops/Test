@@ -1099,19 +1099,31 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
   ].filter(([, v]) => v > 0) : [];
   const showSalaryBreakdown = salaryDeductions.length > 0 && sd.grossSalaryInr > 0;
 
+  // One income list: heads Layer 1 US left empty are filled from Layer 1
+  // India (model.income.us.foreignFromIndia says which) — labelled so the
+  // preparer can see where each figure came from.
+  const fromIndia = inc.us.foreignFromIndia || {};
+  const fi = (label, key) => label + (fromIndia[key] ? " · from Layer 1 India" : "");
+  const wagesUsSourceUsd = (inc.us.foreignWagesUsSource && inc.us.foreignWagesUsSource.usd) || 0;
   const usRows = buildRows([
-    ["Wages (W-2)", inc.us.wages], ["Business / Self-employment", inc.us.businessUs], ["Interest", inc.us.interestUs],
+    [wagesUsSourceUsd > 0 ? "Wages (W-2, incl. foreign-employer pay for US-performed work)" : "Wages (W-2)", inc.us.wages],
+    ["Business / Self-employment", inc.us.businessUs], ["Interest", inc.us.interestUs],
     ["Dividends — ordinary", inc.us.ordinaryDividendsUs], ["  — of which qualified", inc.us.qualifiedDividendsUs, false],
     ["Rental", inc.us.rentalUs], ["Retirement (401k/IRA/SS)", inc.us.usRetirementIncome],
-    ["Short-term gains", inc.us.stcgUs], ["Long-term gains", inc.us.ltcgUs]
+    ["Short-term gains", inc.us.stcgUs], ["Long-term gains", inc.us.ltcgUs],
+    ["Other income (unemployment, alimony, misc.)", inc.us.otherOrdinaryIncomeUs]
   ].concat(worldwide ? [
-    ["Foreign wages (India salary)", inc.us.foreignWages],
-    ["Foreign interest (incl. India retirement a/c interest)", inc.us.foreignInterest],
-    ["Foreign dividends", inc.us.foreignDividends],
-    ["Foreign rental", inc.us.foreignRental],
+    [fi("Foreign wages (India salary)", "wages"), inc.us.foreignWages],
+    [fi("Foreign self-employment (India business)", "selfEmployment"), inc.us.foreignSelfEmployment],
+    [fi("Foreign interest (incl. India retirement a/c interest)", "interest"), inc.us.foreignInterest],
+    [fi("Foreign dividends", "dividends"), inc.us.foreignDividends],
+    [fi("Foreign rental", "rental"), inc.us.foreignRental],
     ["Foreign pension (incl. India retirement a/c withdrawals)", inc.us.foreignPension],
-    ["Foreign short-term gains", inc.us.foreignStcg],
-    ["Foreign long-term gains", inc.us.foreignLtcg]
+    [fi("Foreign short-term gains", "stcg"), inc.us.foreignStcg],
+    [fi("Foreign long-term gains", "ltcg"), inc.us.foreignLtcg],
+    [fi("Foreign other income (winnings, royalty, misc.)", "other"), inc.us.foreignOtherIncome],
+    ["Foreign currency gain (§988)", inc.us.foreignSection988GainLoss],
+    ["CFC inclusion (GILTI / Subpart F)", inc.us.cfcNonElectedInclusionUs]
   ] : []));
   const usTotalUsd = rowsTotal(usRows, "usd");
 
@@ -1132,7 +1144,7 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
         )}
         {hasUsScope && (
           <div id="recon-us-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "us" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "us" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
-            <Card title="🇺🇸 US income — by head" sub="From Layer 1 US (USD)">
+            <Card title="🇺🇸 US income — by head" sub={Object.keys(fromIndia).length ? "From Layer 1 US (USD); foreign heads left empty there are filled from Layer 1 India" : "From Layer 1 US (USD)"}>
               {usRows.length ? usRows.map((r, i) => <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} />) : <Empty>No US income on file.</Empty>}
               {usRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtUsd(usTotalUsd)}</span></div>}
             </Card>

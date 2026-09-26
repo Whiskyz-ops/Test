@@ -134,6 +134,7 @@ def _compute_us_tax_core(d, extra_ltcg_usd: float, extra_stcg_usd: float) -> flo
     ordinary_income_excl_ss = (
         inc["wages"]["usd"] + f_w + f_se + (inc.get("businessUs", {}).get("usd", 0) if inc.get("businessUs") else 0) + inc["interestUs"]["usd"] + f_i +
         non_qual_div_us + f_d + inc["stcgUs"]["usd"] + f_stcg + inc["rentalUs"]["usd"] + f_r + f_p +
+        ((inc["foreignOtherIncome"]["usd"] if inc.get("foreignOtherIncome") else 0) if worldwide else 0) +
         (inc["usRetirementIncomeExclSs"]["usd"] if inc.get("usRetirementIncomeExclSs") else (inc.get("usRetirementIncome", {}).get("usd", 0) if inc.get("usRetirementIncome") else 0))
     )
     preferential_income = inc["ltcgUs"]["usd"] + f_ltcg + inc["qualifiedDividendsUs"]["usd"]
@@ -146,7 +147,9 @@ def _compute_us_tax_core(d, extra_ltcg_usd: float, extra_stcg_usd: float) -> flo
     ordinary_income = ordinary_income_excl_ss + taxable_ss_usd
     total_income = ordinary_income + preferential_income
 
-    se_net = (inc.get("seEarningsUsd") or 0) * T["SE_NET_FACTOR"]
+    # + Layer 1 India business income filled in as foreign self-employment
+    # (seEarningsFromIndiaUsd) — worldwide-taxed filers only. Mirrors JS.
+    se_net = ((inc.get("seEarningsUsd") or 0) + ((inc.get("seEarningsFromIndiaUsd") or 0) if worldwide else 0)) * T["SE_NET_FACTOR"]
     ss_wages_already = inc.get("medicareWages") or inc["wages"]["usd"] or 0
     ss_base_remaining = max(0.0, T["SS_WAGE_BASE_USD"] - ss_wages_already)
     se_tax = (T["SE_RATE_SS"] * min(se_net, ss_base_remaining) + T["SE_RATE_MEDICARE"] * se_net) if se_net > 0 else 0

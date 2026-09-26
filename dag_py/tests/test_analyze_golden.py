@@ -78,7 +78,7 @@ nothing earlier exercised these exact code paths against golden):
 """
 from datetime import datetime
 
-from conftest import GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES, GOLDEN_DIVERGENT_FIXTURES_S44BBB, ctx_for, load_golden
+from conftest import GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES, GOLDEN_DIVERGENT_FIXTURES_INDIA_INCOME_FILL, GOLDEN_DIVERGENT_FIXTURES_S44BBB, ctx_for, load_golden
 from support import deep_diff
 
 from wising_dag import analyze
@@ -169,6 +169,8 @@ def test_headline_matches_golden_for_individual_resident_profiles(fixture_id):
         return  # single documented usSourceIncomeUsd divergence — pinned in test_ustax_full.py instead
     if fixture_id in GOLDEN_DIVERGENT_FIXTURES_S44BBB:
         return  # see conftest.py's own docstring: s.44BBB ripples into india-side totalIncomeUsd
+    if fixture_id in GOLDEN_DIVERGENT_FIXTURES_INDIA_INCOME_FILL:
+        return  # see conftest.py: Indian income now fills empty Layer 1 US foreign heads
     if fixture_id in GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES:
         return  # see conftest.py's own docstring: foreign_earned_income_usd now correctly folds into foreignWages
     diff = deep_diff(result["computed"]["headline"], golden["computed"]["headline"])
@@ -184,6 +186,8 @@ def test_summary_matches_golden(fixture_id):
         return  # totalIncomeUsd ripples from the single documented usSourceIncomeUsd divergence — pinned in test_ustax_full.py instead
     if fixture_id in GOLDEN_DIVERGENT_FIXTURES_S44BBB:
         return  # see conftest.py's own docstring: s.44BBB ripples into india-side totalIncomeUsd
+    if fixture_id in GOLDEN_DIVERGENT_FIXTURES_INDIA_INCOME_FILL:
+        return  # see conftest.py: Indian income now fills empty Layer 1 US foreign heads
     if fixture_id in GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES:
         return  # see conftest.py's own docstring: foreign_earned_income_usd now correctly folds into foreignWages
 
@@ -224,6 +228,8 @@ def test_monitoring_matches_golden(fixture_id):
         return
     if any(f["id"] in DAG_ONLY_FINDING_IDS for f in result["findings"]):
         return  # health.score ripples from the 2 DAG-only findings above (same carve-out as summary's own counts adjustment, simpler to skip here)
+    if fixture_id in GOLDEN_DIVERGENT_FIXTURES_INDIA_INCOME_FILL:
+        return  # see conftest.py: Indian income now fills empty Layer 1 US foreign heads
     if fixture_id in GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES:
         # us_citizen_expat_india's pre-existing taxableIncomeUsd/usIncomeTaxUsd
         # divergence (see conftest.py's own docstring) now cascades into a

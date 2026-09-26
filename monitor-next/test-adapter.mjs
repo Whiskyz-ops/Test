@@ -62,6 +62,9 @@ const DAG_ONLY_KEYS = new Set([
   // India salary work-location sourcing (aggregateindiaincome-nodes.js's
   // salaryWorkLocation → ftc-nodes.js) — DAG-only fields.
   "salaryWorkLocation", "salaryOutsideIndiaInr", "usWorkSalaryUsd", "indiaTaxOnUsWorkSalaryUsd",
+  // One income list (aggregateusincome-nodes.js's foreignIncomeFromIndia) —
+  // DAG-only fields.
+  "foreignOtherIncome", "seEarningsFromIndiaUsd", "foreignFromIndia",
   // §25B Saver's Credit (task #44 follow-up) — added proactively (kept in
   // sync with shadow-core.js's own DAG_ONLY_KEYS).
   "saversCreditUsd", "saversCreditDetail",
@@ -222,6 +225,20 @@ function isFeieStackingRuleDivergentProfile(dag) {
   const t = dag && dag.computed && dag.computed.usTax;
   return !!t && (((t.feie && t.feie.appliedUsd) || 0) + (t.feieHousingAppliedUsd || 0)) > 0;
 }
+// One income list (aggregateusincome-nodes.js's foreignIncomeFromIndia, see
+// run-fuzz.js's isIndiaIncomeFillProfile): Indian income left empty in
+// Layer 1 US's foreign section is filled from Layer 1 India for a worldwide-
+// taxed individual — the frozen engine only reads Layer 1 US. Wholesale US
+// cascade, plus the findings that extra income legitimately triggers.
+function isIndiaIncomeFillProfile(dag) {
+  const f = dag && dag.model && dag.model.income && dag.model.income.us && dag.model.income.us.foreignFromIndia;
+  return !!f && Object.keys(f).length > 0;
+}
+// Findings the filled-in Indian income can newly trigger: SE tax on Indian
+// business income with no India–US totalization agreement, NIIT on the
+// extra investment income, and the rest of the US-income-driven set.
+const INDIA_INCOME_FILL_FINDING_IDS = new Set(["no_totalization_agreement", "niit_medicare_not_creditable", "salary_us_work_india_tax",
+  "amt_applies", "state_income_tax", "cross_basis_summary", "ftc_gap", "ftc_available", "underpayment_2210"]);
 function isFeieEntityGateMissingProfile(dag, profile) {
   const kind = dag.model.entity && dag.model.entity.usKind;
   const isIndividualPath = !kind || kind === "individual";
@@ -331,8 +348,9 @@ function checkResult(id, dag, real, profile) {
   // PATHS/KNOWN_QBI_WAGE_UBIA_DIVERGENT_PATHS/KNOWN_CFC_INCLUSION_DIVERGENT_
   // PATHS in run-fuzz.js/shadow-core.js): a real, wide amount fix whose
   // cascade is too varied to enumerate leaf-by-leaf.
+  const indiaIncomeFill = isIndiaIncomeFillProfile(dag);
   const usWholesaleDivergent = feieWagesDivergent || feieBonaFideProxyDivergent || feieStackingRuleDivergent ||
-    qbiWageUbiaDivergent || cfcInclusionDivergent;
+    qbiWageUbiaDivergent || cfcInclusionDivergent || indiaIncomeFill;
   const indiaWholesaleDivergent = indiaSalaryExemption || indiaPresumptiveForeignScheme;
   const excused = new Set();
   if (usWholesaleDivergent) {
@@ -393,7 +411,15 @@ function checkResult(id, dag, real, profile) {
     if (cascadeExcused) console.log("    (DELIBERATE divergence — cascade-only, see reconciledFindingIds's own comment) summary.healthScore/counts");
     deepCheck(id + " summary", dagSummaryC, realSummaryC);
   }
-  deepCheck(id + " findings ids (reconciled)", reconciled.dag, reconciled.real);
+  if (indiaIncomeFill) {
+    // Extra DAG findings from the filled-in Indian income are expected; a
+    // finding the DAG LOSES is still a failure.
+    const extra = reconciled.dag.filter((x) => INDIA_INCOME_FILL_FINDING_IDS.has(x) && !reconciled.real.includes(x));
+    if (extra.length) console.log("    (DELIBERATE divergence — one income list, see isIndiaIncomeFillProfile) findings +" + extra.join("/"));
+    deepCheck(id + " findings ids (reconciled)", reconciled.dag.filter((x) => !extra.includes(x)), reconciled.real);
+  } else {
+    deepCheck(id + " findings ids (reconciled)", reconciled.dag, reconciled.real);
+  }
   deepCheck(id + " model.entity", dag.model.entity, real.model.entity);
   deepCheck(id + " model.meta", dag.model.meta, real.model.meta);
   deepCheck(id + " model.treaty", dag.model.treaty, real.model.treaty);
@@ -528,7 +554,7 @@ console.log("\n=== Clients tab: allClientSummariesDag() vs allClientSummaries() 
     const r = WISING.analyze({ router: p.router, india: p.india, us: p.us });
     const d = analyzeDag({ router: p.router, india: p.india, us: p.us });
     if (isUsEntity(r) || isFeieWagesDivergentProfile({ router: p.router, india: p.india, us: p.us }) ||
-      isCfcInclusionDivergentProfile(d) || isIndiaPresumptiveForeignSchemeProfile(d)) {
+      isCfcInclusionDivergentProfile(d) || isIndiaPresumptiveForeignSchemeProfile(d) || isIndiaIncomeFillProfile(d)) {
       wholesaleIds.add(p.id);
       // healthScore/critical/warning/requiredDocs only — verified directly
       // (totalIncomeUsd/netDoubleTaxUsd/combinedTaxUsd already match for

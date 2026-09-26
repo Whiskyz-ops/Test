@@ -47,6 +47,11 @@ def test_aggregate_us_income_result_matches_golden(fixture_id):
     # engine equivalent. No fixture fills workdays or has 0/365+ US days with
     # foreign wages, so every other field still matches golden exactly.
     exclude |= {"foreignWagesUsSource", "foreignWagesSourcing"}
+    # foreignOtherIncome / seEarningsFromIndiaUsd / foreignFromIndia (one
+    # income list): new DAG-only fields. This test resolves the US-only
+    # graph, where indiaIncomeForUsBoundary stays None, so every value is
+    # still the frozen engine's.
+    exclude |= {"foreignOtherIncome", "seEarningsFromIndiaUsd", "foreignFromIndia"}
     # cfcPerEntityTrace (entity-routing fix, conftest.py's own docstring):
     # sec962Elected reclassifies to True for a real C-corp shareholder,
     # regardless of the raw flag — a real, permanent divergence for this one

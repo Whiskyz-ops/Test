@@ -52,6 +52,17 @@ GOLDEN_DIVERGENT_FIXTURES_S44BBB = {"foreign_holdco_poem_india"}
 # us_citizen_expat_india, sets both the live and dead fields consistently
 # in its fixture, so that particular fix is a no-op for golden purposes).
 GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES = {"us_citizen_expat_india"}
+# One income list (us/aggregate_us_income.py's foreignIncomeFromIndia, 26 Sep
+# 2026): for an individual the US taxes on worldwide income, each Indian
+# income type left empty in Layer 1 US's foreign-source section is now filled
+# from Layer 1 India ("fill gaps only") -- the frozen engine only ever read
+# Layer 1 US, so Indian income entered on the India side alone never reached
+# US worldwide income. A deliberate, documented change for these four
+# fixtures' US income and everything downstream (headline/summary/
+# monitoring); us_citizen_expat_india changes too but is already carved out
+# above. JS DAG === Python DAG still holds for all of them
+# (compare:js-vs-py-dag).
+GOLDEN_DIVERGENT_FIXTURES_INDIA_INCOME_FILL = {"sample", "dual_resident_h1b", "us_resident_indian_income", "founder_indian_company"}
 
 # Task #41 (home-office/vehicle-mileage deduction): businessEntities[]'s
 # self-employment/farm calcTrace.formula string used to end "...placed-

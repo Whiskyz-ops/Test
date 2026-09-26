@@ -591,12 +591,73 @@ def _foreign_wages_sourcing(d, ctx):
     return {"usSourceUsd": us_source, "foreignSourceUsd": foreign_source, "rows": rows}
 
 
+def _foreign_income_from_india(d, ctx):
+    """One income list — mirrors aggregateusincome-nodes.js's
+    foreignIncomeFromIndia exactly: per income type, a Layer 1 US
+    foreign-source figure wins; where it's empty, Layer 1 India's figure is
+    used, converted to USD ("fill gaps only"). indiaIncomeForUsBoundary is
+    None outside the top-level composition (filings/assets.py overrides it)."""
+    out = {"wagesForeignUsd": 0, "wagesUsSourceUsd": 0, "selfEmploymentUsd": 0, "interestUsd": 0, "dividendsUsd": 0, "rentalUsd": 0,
+           "stcgUsd": 0, "ltcgUsd": 0, "otherUsd": 0, "filled": {}}
+    src = d["indiaIncomeForUsBoundary"]
+    if not src:
+        return out
+    ii, di = src["income"], d["directIncomeComputation"]
+
+    def usd(inr):
+        return _inr_to_usd(inr, ctx)
+
+    def inr_of(key):
+        v = ii.get(key)
+        return num(v.get("inr")) if isinstance(v, dict) else 0
+
+    # Salary: gross, split by Layer 1 India's work location (US-performed
+    # part => US-source wages). Skipped when Layer 1 US has foreign wage rows
+    # or an FEIE-screen total.
+    sd = ii.get("salaryDetail") or {}
+    gross_salary_inr = inr_of("salary") if sd.get("overridden") else num(sd.get("grossSalaryInr"))
+    us_has_wages = d["foreignWagesSourcing"]["foreignSourceUsd"] + d["foreignWagesSourcing"]["usSourceUsd"] > 0 or d["feieEarnedIncomeUsdRaw"] > 0
+    if not us_has_wages and gross_salary_inr > 0:
+        f = ii["salaryWorkLocation"]["indiaWorkFraction"] if ii.get("salaryWorkLocation") else 1
+        out["wagesForeignUsd"] = usd(gross_salary_inr * f)
+        out["wagesUsSourceUsd"] = usd(gross_salary_inr * (1 - f))
+        out["filled"]["wages"] = True
+
+    def fill(key, flag, us_has, inr):
+        if not us_has and inr > 0:
+            out[key] = usd(inr)
+            out["filled"][flag] = True
+
+    fill("selfEmploymentUsd", "selfEmployment", d["businessAndSeComputation"]["foreignSelfEmploymentUsd"] > 0, inr_of("business"))
+    fill("interestUsd", "interest", di["foreignInterestUsd"] > 0, inr_of("interest"))
+    fill("dividendsUsd", "dividends", di["foreignDividendsUsd"] > 0, inr_of("dividend") + inr_of("deemedDividendBuyback"))
+    fill("rentalUsd", "rental", di["foreignRentalUsd"] > 0, inr_of("houseProperty"))
+    fill("stcgUsd", "stcg", di["foreignStcgUsd"] > 0, inr_of("stcg") + num(ii.get("stcgSlabInr")) + num(ii.get("vdaGainInr")))
+    fill("ltcgUsd", "ltcg", di["foreignLtcgUsd"] > 0, inr_of("ltcg") + num(ii.get("ltcg197Inr")))
+    # No Layer 1 US counterpart: winnings, misc. other sources, Chapter XII-A
+    # investment income, s.115A royalty / technical fees.
+    fill("otherUsd", "other", False, inr_of("specialRate115bb") + inr_of("otherSourcesMisc") +
+         num(ii.get("chapterXiiaInvestmentIncomeInr")) + num(src.get("royaltyInr")) + num(src.get("ftsInr")))
+    return out
+
+
 def _aggregate_us_income_result(d, ctx):
-    w, biz, ret, di, epf = d["wagesComputation"], d["businessAndSeComputation"], d["retirementComputation"], d["directIncomeComputation"], d["epfNpsCrossBorder"]
-    cfc = d["cfcInclusionResult"]
-    # US-source part of foreign-employer wages (foreignWagesSourcing) is
-    # ordinary US wages: same total income, just not foreign-source.
-    fw_us_source = d["foreignWagesSourcing"]["usSourceUsd"]
+    w, biz, ret, epf = d["wagesComputation"], d["businessAndSeComputation"], d["retirementComputation"], d["epfNpsCrossBorder"]
+    cfc, fi = d["cfcInclusionResult"], d["foreignIncomeFromIndia"]
+    # Layer 1 India fills folded into the same per-head figures every
+    # consumer already reads (see aggregateusincome-nodes.js).
+    di0 = d["directIncomeComputation"]
+    di = dict(di0)
+    di["foreignInterestUsd"] = di0["foreignInterestUsd"] + fi["interestUsd"]
+    di["foreignDividendsUsd"] = di0["foreignDividendsUsd"] + fi["dividendsUsd"]
+    di["foreignRentalUsd"] = di0["foreignRentalUsd"] + fi["rentalUsd"]
+    di["foreignStcgUsd"] = di0["foreignStcgUsd"] + fi["stcgUsd"]
+    di["foreignLtcgUsd"] = di0["foreignLtcgUsd"] + fi["ltcgUsd"]
+    foreign_wages_total = d["foreignWagesUsd"] + fi["wagesForeignUsd"]
+    foreign_self_employment = biz["foreignSelfEmploymentUsd"] + fi["selfEmploymentUsd"]
+    # US-source part of foreign-employer wages (foreignWagesSourcing, and
+    # India salary for US-performed work) is ordinary US wages.
+    fw_us_source = d["foreignWagesSourcing"]["usSourceUsd"] + fi["wagesUsSourceUsd"]
     wages_usd = w["wagesUsd"] + fw_us_source
     foreign_interest = di["foreignInterestUsd"] + epf["taxableEpfInterestUsd"]
     foreign_pension = di["foreignPensionUsd"] + epf["taxableNpsWithdrawalUsd"]
@@ -606,7 +667,7 @@ def _aggregate_us_income_result(d, ctx):
     # here — it flows through cfcElectedPool into compute_us_tax_core's own
     # flat-tax add-on instead, mirroring how AMT/NIIT amounts don't appear
     # in this aggregate either.
-    foreign_source_total = d["foreignWagesUsd"] + biz["foreignSelfEmploymentUsd"] + foreign_interest + di["foreignDividendsUsd"] + di["foreignRentalUsd"] + foreign_pension + di["foreignStcgUsd"] + di["foreignLtcgUsd"] + di["section988GainLossUsd"] + cfc["nonElectedOrdinaryInclusionUsd"]
+    foreign_source_total = foreign_wages_total + foreign_self_employment + foreign_interest + di["foreignDividendsUsd"] + di["foreignRentalUsd"] + foreign_pension + di["foreignStcgUsd"] + di["foreignLtcgUsd"] + di["section988GainLossUsd"] + cfc["nonElectedOrdinaryInclusionUsd"] + fi["otherUsd"]
 
     return {
         "wages": _m(wages_usd, ctx), "businessUs": _m(biz["businessUsUsd"], ctx), "w2Withholding": w["w2WithholdingUsd"], "w2Employers": w["w2Employers"], "medicareWages": w["medicareWagesUsd"],
@@ -622,8 +683,12 @@ def _aggregate_us_income_result(d, ctx):
         "ltcgUs": _m(di["ltcgUsUsd"], ctx), "stcgUs": _m(di["stcgUsUsd"], ctx), "capitalGainsUs": _m(di["ltcgUsUsd"] + di["stcgUsUsd"], ctx), "rentalUs": _m(di["rentalUsUsd"], ctx),
         "collectiblesLtcgUsd": di["collectiblesLtcgUsd"], "qsbsExcludedGainUsd": di["qsbsExcludedGainUsd"], "qsbsTaxableGainUsd": di["qsbsTaxableGainUsd"],
         "otherOrdinaryIncomeUs": _m(di["otherOrdinaryIncomeUsUsd"], ctx),
-        "foreignWages": _m(d["foreignWagesUsd"], ctx), "foreignWagesTaxPaidUsd": d["foreignWagesTaxPaidUsd"],
-        "foreignWagesUsSource": _m(fw_us_source, ctx), "foreignWagesSourcing": d["foreignWagesSourcing"]["rows"], "foreignSelfEmployment": _m(biz["foreignSelfEmploymentUsd"], ctx),
+        "foreignWages": _m(foreign_wages_total, ctx), "foreignWagesTaxPaidUsd": d["foreignWagesTaxPaidUsd"],
+        "foreignWagesUsSource": _m(fw_us_source, ctx), "foreignWagesSourcing": d["foreignWagesSourcing"]["rows"], "foreignSelfEmployment": _m(foreign_self_employment, ctx),
+        # One income list (see aggregateusincome-nodes.js).
+        "foreignOtherIncome": _m(fi["otherUsd"], ctx),
+        "seEarningsFromIndiaUsd": fi["selfEmploymentUsd"],
+        "foreignFromIndia": fi["filled"],
         "foreignInterest": _m(foreign_interest, ctx), "foreignDividends": _m(di["foreignDividendsUsd"], ctx),
         "foreignRental": _m(di["foreignRentalUsd"], ctx), "foreignPension": _m(foreign_pension, ctx),
         "foreignStcg": _m(di["foreignStcgUsd"], ctx), "foreignLtcg": _m(di["foreignLtcgUsd"], ctx),
@@ -836,8 +901,15 @@ def build(base):
         ),
     ))
 
+    # One income list: None here; filings/assets.py overrides it at the
+    # top-level composition with the in-graph India income model.
+    r.register("indiaIncomeForUsBoundary", NodeDef(deps=(), compute=lambda d, ctx: None))
+    r.register("foreignIncomeFromIndia", NodeDef(
+        deps=("indiaIncomeForUsBoundary", "foreignWagesSourcing", "feieEarnedIncomeUsdRaw", "businessAndSeComputation", "directIncomeComputation"),
+        compute=_foreign_income_from_india,
+    ))
     r.register("aggregateUsIncomeResult", NodeDef(
-        deps=("wagesComputation", "foreignWagesUsd", "foreignWagesTaxPaidUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult", "foreignWagesSourcing"),
+        deps=("wagesComputation", "foreignWagesUsd", "foreignWagesTaxPaidUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult", "foreignWagesSourcing", "foreignIncomeFromIndia"),
         compute=_aggregate_us_income_result,
     ))
     return r

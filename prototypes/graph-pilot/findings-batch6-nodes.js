@@ -106,6 +106,7 @@ function computeUsTaxCore(d, extraLtcgUsd, extraStcgUsd) {
   var nonQualDivUs = Math.max(0, inc.ordinaryDividendsUs.usd - inc.qualifiedDividendsUs.usd);
   var ordinaryIncomeExclSs = inc.wages.usd + fW + fSE + (inc.businessUs ? inc.businessUs.usd : 0) + inc.interestUs.usd + fI +
     nonQualDivUs + fD + inc.stcgUs.usd + fStcg + inc.rentalUs.usd + fR + fP +
+    (worldwide && inc.foreignOtherIncome ? inc.foreignOtherIncome.usd : 0) +
     (inc.usRetirementIncomeExclSs ? inc.usRetirementIncomeExclSs.usd : (inc.usRetirementIncome ? inc.usRetirementIncome.usd : 0));
   var preferentialIncome = inc.ltcgUs.usd + fLtcg + inc.qualifiedDividendsUs.usd;
 
@@ -116,7 +117,10 @@ function computeUsTaxCore(d, extraLtcgUsd, extraStcgUsd) {
   var ordinaryIncome = ordinaryIncomeExclSs + taxableSsUsd;
   var totalIncome = ordinaryIncome + preferentialIncome;
 
-  var seNet = (inc.seEarningsUsd || 0) * T.SE_NET_FACTOR;
+  // + Layer 1 India business income filled in as foreign self-employment
+  // (aggregateusincome-nodes.js's seEarningsFromIndiaUsd) — only for a
+  // worldwide-taxed filer; no India–US totalization agreement, so no relief.
+  var seNet = ((inc.seEarningsUsd || 0) + (worldwide ? (inc.seEarningsFromIndiaUsd || 0) : 0)) * T.SE_NET_FACTOR;
   var ssWagesAlready = inc.medicareWages || inc.wages.usd || 0;
   var ssBaseRemaining = Math.max(0, T.SS_WAGE_BASE_USD - ssWagesAlready);
   var seTax = seNet > 0 ? (T.SE_RATE_SS * Math.min(seNet, ssBaseRemaining) + T.SE_RATE_MEDICARE * seNet) : 0;

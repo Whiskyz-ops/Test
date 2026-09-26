@@ -720,15 +720,80 @@ var NODES = {
     }
   },
 
+  // ---- one income list: Indian income filled in from Layer 1 India --------
+  // Layer 1 US asks for foreign income separately, so Indian income entered
+  // only in Layer 1 India never reached US worldwide income. Rule ("fill gaps
+  // only", chosen 26 Sep 2026): per income type, a figure entered in Layer 1
+  // US's foreign-source section wins (the preparer may already have put it
+  // on a US basis); where that type is empty, Layer 1 India's figure is used,
+  // converted to USD. Nothing is counted twice.
+  //
+  // indiaIncomeForUsBoundary is null in a US-only graph (no Layer 1 India
+  // nodes); xborder-full-nodes.js overrides it to hand over the in-graph
+  // India income model — only for an individual whom the US taxes on
+  // worldwide income, so nothing changes for NRAs, entities or US-only
+  // clients.
+  indiaIncomeForUsBoundary: { deps: [], compute: function () { return null; } },
+  foreignIncomeFromIndia: {
+    deps: ["indiaIncomeForUsBoundary", "foreignWagesSourcing", "feieEarnedIncomeUsdRaw", "businessAndSeComputation", "directIncomeComputation"],
+    compute: function (d, ctx) {
+      var out = { wagesForeignUsd: 0, wagesUsSourceUsd: 0, selfEmploymentUsd: 0, interestUsd: 0, dividendsUsd: 0, rentalUsd: 0,
+        stcgUsd: 0, ltcgUsd: 0, otherUsd: 0, filled: {} };
+      var src = d.indiaIncomeForUsBoundary;
+      if (!src) return out;
+      var ii = src.income, di = d.directIncomeComputation;
+      function usd(inr) { return inrToUsd(inr, ctx); }
+
+      // Salary: gross (the US has no standard deduction on wages), split by
+      // Layer 1 India's work location — the part earned while working in the
+      // US is US-source wages, the rest foreign wages. Skipped when Layer 1
+      // US already has foreign wage rows or an FEIE-screen total.
+      var sd = ii.salaryDetail || {};
+      var grossSalaryInr = sd.overridden ? num(ii.salary && ii.salary.inr) : num(sd.grossSalaryInr);
+      var usHasWages = d.foreignWagesSourcing.foreignSourceUsd + d.foreignWagesSourcing.usSourceUsd > 0 || d.feieEarnedIncomeUsdRaw > 0;
+      if (!usHasWages && grossSalaryInr > 0) {
+        var f = ii.salaryWorkLocation ? ii.salaryWorkLocation.indiaWorkFraction : 1;
+        out.wagesForeignUsd = usd(grossSalaryInr * f);
+        out.wagesUsSourceUsd = usd(grossSalaryInr * (1 - f));
+        out.filled.wages = true;
+      }
+      function fill(key, flag, usHas, inr) { if (!usHas && inr > 0) { out[key] = usd(inr); out.filled[flag] = true; } }
+      fill("selfEmploymentUsd", "selfEmployment", d.businessAndSeComputation.foreignSelfEmploymentUsd > 0, num(ii.business && ii.business.inr));
+      fill("interestUsd", "interest", di.foreignInterestUsd > 0, num(ii.interest && ii.interest.inr));
+      fill("dividendsUsd", "dividends", di.foreignDividendsUsd > 0, num(ii.dividend && ii.dividend.inr) + num(ii.deemedDividendBuyback && ii.deemedDividendBuyback.inr));
+      fill("rentalUsd", "rental", di.foreignRentalUsd > 0, num(ii.houseProperty && ii.houseProperty.inr));
+      fill("stcgUsd", "stcg", di.foreignStcgUsd > 0, num(ii.stcg && ii.stcg.inr) + num(ii.stcgSlabInr) + num(ii.vdaGainInr));
+      fill("ltcgUsd", "ltcg", di.foreignLtcgUsd > 0, num(ii.ltcg && ii.ltcg.inr) + num(ii.ltcg197Inr));
+      // No Layer 1 US counterpart at all: winnings, misc. other sources,
+      // Chapter XII-A investment income, s.115A royalty / technical fees.
+      fill("otherUsd", "other", false, num(ii.specialRate115bb && ii.specialRate115bb.inr) + num(ii.otherSourcesMisc && ii.otherSourcesMisc.inr) +
+        num(ii.chapterXiiaInvestmentIncomeInr) + num(src.royaltyInr) + num(src.ftsInr));
+      return out;
+    }
+  },
+
   // ---- final assembly, matching aggregateUsIncome's own return object ----
   aggregateUsIncomeResult: {
-    deps: ["wagesComputation", "foreignWagesUsd", "foreignWagesTaxPaidUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult", "foreignWagesSourcing"],
+    deps: ["wagesComputation", "foreignWagesUsd", "foreignWagesTaxPaidUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult", "foreignWagesSourcing", "foreignIncomeFromIndia"],
     compute: function (d, ctx) {
-      var w = d.wagesComputation, biz = d.businessAndSeComputation, ret = d.retirementComputation, di = d.directIncomeComputation, epf = d.epfNpsCrossBorder;
-      var cfc = d.cfcInclusionResult;
-      // US-source part of foreign-employer wages (foreignWagesSourcing) is
-      // ordinary US wages: same total income, just not foreign-source.
-      var fwUsSourceUsd = d.foreignWagesSourcing.usSourceUsd;
+      var w = d.wagesComputation, biz = d.businessAndSeComputation, ret = d.retirementComputation, epf = d.epfNpsCrossBorder;
+      var cfc = d.cfcInclusionResult, fi = d.foreignIncomeFromIndia;
+      // Layer 1 India fills (foreignIncomeFromIndia) are folded into the
+      // same per-head figures every consumer below already reads, so no
+      // downstream formula has to know where a number came from.
+      var di0 = d.directIncomeComputation, di = {};
+      Object.keys(di0).forEach(function (k) { di[k] = di0[k]; });
+      di.foreignInterestUsd = di0.foreignInterestUsd + fi.interestUsd;
+      di.foreignDividendsUsd = di0.foreignDividendsUsd + fi.dividendsUsd;
+      di.foreignRentalUsd = di0.foreignRentalUsd + fi.rentalUsd;
+      di.foreignStcgUsd = di0.foreignStcgUsd + fi.stcgUsd;
+      di.foreignLtcgUsd = di0.foreignLtcgUsd + fi.ltcgUsd;
+      var foreignWagesTotalUsd = d.foreignWagesUsd + fi.wagesForeignUsd;
+      var foreignSelfEmploymentUsd = biz.foreignSelfEmploymentUsd + fi.selfEmploymentUsd;
+      // US-source part of foreign-employer wages (foreignWagesSourcing, and
+      // India salary for US-performed work) is ordinary US wages: same total
+      // income, just not foreign-source.
+      var fwUsSourceUsd = d.foreignWagesSourcing.usSourceUsd + fi.wagesUsSourceUsd;
       var wagesUsd = w.wagesUsd + fwUsSourceUsd;
       var foreignInterest = di.foreignInterestUsd + epf.taxableEpfInterestUsd;
       var foreignPension = di.foreignPensionUsd + epf.taxableNpsWithdrawalUsd;
@@ -738,7 +803,7 @@ var NODES = {
       // here — it flows through cfcElectedPool into computeUsTaxCore's own
       // flat-tax add-on instead, mirroring how AMT/NIIT amounts don't appear
       // in this aggregate either.
-      var foreignSourceTotal = d.foreignWagesUsd + biz.foreignSelfEmploymentUsd + foreignInterest + di.foreignDividendsUsd + di.foreignRentalUsd + foreignPension + di.foreignStcgUsd + di.foreignLtcgUsd + di.section988GainLossUsd + cfc.nonElectedOrdinaryInclusionUsd;
+      var foreignSourceTotal = foreignWagesTotalUsd + foreignSelfEmploymentUsd + foreignInterest + di.foreignDividendsUsd + di.foreignRentalUsd + foreignPension + di.foreignStcgUsd + di.foreignLtcgUsd + di.section988GainLossUsd + cfc.nonElectedOrdinaryInclusionUsd + fi.otherUsd;
 
       return {
         wages: m(wagesUsd, ctx), businessUs: m(biz.businessUsUsd, ctx), w2Withholding: w.w2WithholdingUsd, w2Employers: w.w2Employers, medicareWages: w.medicareWagesUsd,
@@ -754,8 +819,17 @@ var NODES = {
         ltcgUs: m(di.ltcgUsUsd, ctx), stcgUs: m(di.stcgUsUsd, ctx), capitalGainsUs: m(di.ltcgUsUsd + di.stcgUsUsd, ctx), rentalUs: m(di.rentalUsUsd, ctx),
         collectiblesLtcgUsd: di.collectiblesLtcgUsd, qsbsExcludedGainUsd: di.qsbsExcludedGainUsd, qsbsTaxableGainUsd: di.qsbsTaxableGainUsd,
         otherOrdinaryIncomeUs: m(di.otherOrdinaryIncomeUsUsd, ctx),
-        foreignWages: m(d.foreignWagesUsd, ctx), foreignWagesTaxPaidUsd: d.foreignWagesTaxPaidUsd,
-        foreignWagesUsSource: m(fwUsSourceUsd, ctx), foreignWagesSourcing: d.foreignWagesSourcing.rows, foreignSelfEmployment: m(biz.foreignSelfEmploymentUsd, ctx),
+        foreignWages: m(foreignWagesTotalUsd, ctx), foreignWagesTaxPaidUsd: d.foreignWagesTaxPaidUsd,
+        foreignWagesUsSource: m(fwUsSourceUsd, ctx), foreignWagesSourcing: d.foreignWagesSourcing.rows, foreignSelfEmployment: m(foreignSelfEmploymentUsd, ctx),
+        // Ordinary foreign income with no Layer 1 US field (winnings, misc.,
+        // royalty/fees) — only ever filled from Layer 1 India.
+        foreignOtherIncome: m(fi.otherUsd, ctx),
+        // Layer 1 India business income filled in as foreign self-employment:
+        // Schedule SE base, kept apart from seEarningsUsd so it only counts
+        // for a worldwide-taxed filer (computeUsTaxCore gates it).
+        seEarningsFromIndiaUsd: fi.selfEmploymentUsd,
+        // Which heads were filled from Layer 1 India (for the UI).
+        foreignFromIndia: fi.filled,
         foreignInterest: m(foreignInterest, ctx), foreignDividends: m(di.foreignDividendsUsd, ctx),
         foreignRental: m(di.foreignRentalUsd, ctx), foreignPension: m(foreignPension, ctx),
         foreignStcg: m(di.foreignStcgUsd, ctx), foreignLtcg: m(di.foreignLtcgUsd, ctx),

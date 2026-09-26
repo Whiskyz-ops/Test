@@ -235,6 +235,9 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       // §962 election (that path is a separate flat add-on tax below, NOT
       // folded into ordinary brackets here).
       var fCfc = worldwide && inc.cfcNonElectedInclusionUs ? inc.cfcNonElectedInclusionUs.usd : 0;
+      // Foreign ordinary income with no Layer 1 US field (winnings, misc.,
+      // royalty/fees) — filled from Layer 1 India (foreignIncomeFromIndia).
+      var fOther = worldwide && inc.foreignOtherIncome ? inc.foreignOtherIncome.usd : 0;
 
       var nonQualDivUs = Math.max(0, inc.ordinaryDividendsUs.usd - inc.qualifiedDividendsUs.usd);
       // otherOrdinaryIncomeUs (unemployment comp/alimony received/direct
@@ -244,7 +247,7 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       // before this (see aggregateusincome-nodes.js's directIncomeComputation).
       var otherOrdinaryUs = (inc.otherOrdinaryIncomeUs && inc.otherOrdinaryIncomeUs.usd) || 0;
       var ordinaryIncomeExclSs = inc.wages.usd + fW + fSE + (inc.businessUs ? inc.businessUs.usd : 0) + inc.interestUs.usd + fI +
-        nonQualDivUs + fD + inc.stcgUs.usd + fStcg + inc.rentalUs.usd + fR + fP + f988 + otherOrdinaryUs + fCfc +
+        nonQualDivUs + fD + inc.stcgUs.usd + fStcg + inc.rentalUs.usd + fR + fP + f988 + otherOrdinaryUs + fCfc + fOther +
         (inc.usRetirementIncomeExclSs ? inc.usRetirementIncomeExclSs.usd : (inc.usRetirementIncome ? inc.usRetirementIncome.usd : 0));
       // §1(h)(4) collectibles gain (task #43 follow-up): a real LTCG
       // sub-category capped at 28% instead of the normal 0/15/20% brackets.
@@ -260,7 +263,10 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var ordinaryIncome = ordinaryIncomeExclSs + taxableSsUsd;
       var totalIncome = ordinaryIncome + preferentialIncome;
 
-      var seNet = (inc.seEarningsUsd || 0) * T.SE_NET_FACTOR;
+      // + Layer 1 India business income filled in as foreign self-employment
+      // (aggregateusincome-nodes.js's seEarningsFromIndiaUsd) — only for a
+      // worldwide-taxed filer; no India–US totalization agreement, so no relief.
+      var seNet = ((inc.seEarningsUsd || 0) + (worldwide ? (inc.seEarningsFromIndiaUsd || 0) : 0)) * T.SE_NET_FACTOR;
       var ssWagesAlready = inc.medicareWages || inc.wages.usd || 0;
       var ssBaseRemaining = Math.max(0, T.SS_WAGE_BASE_USD - ssWagesAlready);
       var seTax = seNet > 0 ? (T.SE_RATE_SS * Math.min(seNet, ssBaseRemaining) + T.SE_RATE_MEDICARE * seNet) : 0;

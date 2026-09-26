@@ -1045,4 +1045,28 @@ def build(base):
         ),
         reason="assets-nodes.js: adds msme_disallowance_s43Bh_india / presumptive_lockin_active_india / retirement_excess_elective_deferral / retirement_excess_ira_contribution / hsa_excess_contribution / retirement_rmd_required / s83b_election_not_filed_timely findings on top of report-batch5-nodes.js's own findingsAllResult",
     )
+    # One income list: hand Layer 1 India's income to the US side
+    # (us/aggregate_us_income.py's foreignIncomeFromIndia) — at the top-level
+    # composition, same as assets-nodes.js. Only for an individual on both
+    # forms whom the US taxes on worldwide income; anyone else => None.
+    r.override(
+        "indiaIncomeForUsBoundary",
+        NodeDef(deps=("indiaIncomeModelResult", "residencyResult", "s115aRoyalty", "s115aFts"), compute=_india_income_for_us),
+        reason="assets-nodes.js: one income list — Layer 1 India income into US worldwide income (fill gaps only)",
+    )
     return r
+
+
+def _india_income_for_us(d, ctx):
+    india_kind = safe(ctx.get("india"), "profile.entity_type", "individual") or "individual"
+    us_kind = safe(ctx.get("us"), "profile.tax_entity_type", "individual") or "individual"
+    if india_kind != "individual" or us_kind != "individual":
+        return None
+    res = d["residencyResult"]
+    if not (res and res.get("us") and res["us"].get("worldwide")):
+        return None
+    return {
+        "income": d["indiaIncomeModelResult"],
+        "royaltyInr": (d["s115aRoyalty"].get("totalInr") or 0) if d["s115aRoyalty"] else 0,
+        "ftsInr": (d["s115aFts"].get("totalInr") or 0) if d["s115aFts"] else 0,
+    }
