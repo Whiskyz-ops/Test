@@ -64,7 +64,7 @@ const DAG_ONLY_KEYS = new Set([
   "salaryWorkLocation", "salaryOutsideIndiaInr", "usWorkSalaryUsd", "indiaTaxOnUsWorkSalaryUsd",
   // One income list (aggregateusincome-nodes.js's foreignIncomeFromIndia) —
   // DAG-only fields.
-  "foreignOtherIncome", "seEarningsFromIndiaUsd", "foreignFromIndia",
+  "foreignOtherIncome", "seEarningsFromIndiaUsd", "foreignFromIndia", "usOwnSourceForIndia",
   // §25B Saver's Credit (task #44 follow-up) — added proactively (kept in
   // sync with shadow-core.js's own DAG_ONLY_KEYS).
   "saversCreditUsd", "saversCreditDetail",
@@ -234,11 +234,25 @@ function isIndiaIncomeFillProfile(dag) {
   const f = dag && dag.model && dag.model.income && dag.model.income.us && dag.model.income.us.foreignFromIndia;
   return !!f && Object.keys(f).length > 0;
 }
+// One income list, India direction (in1-nodes-v3.js's usIncomeForIndiaInr,
+// see run-fuzz.js's isUsIncomeIntoIndiaProfile): an ROR's own US-source
+// income now enters India's tax — India-side wholesale cascade (India tax,
+// headline, summary, ITR-form reasoning, Schedule AL above ₹50L, advance-tax
+// interest), plus the findings that higher India tax legitimately triggers.
+function isUsIncomeIntoIndiaProfile(dag) {
+  const e = dag && dag.model && dag.model.entity, res = dag && dag.computed && dag.computed.residency;
+  const u = dag && dag.model && dag.model.income && dag.model.income.us && dag.model.income.us.usOwnSourceForIndia;
+  if (!e || !res || !u || !(res.india && res.india.worldwide)) return false;
+  if ((e.indiaKind || "individual") !== "individual" || (e.usKind || "individual") !== "individual") return false;
+  return Object.keys(u).some((k) => u[k] > 0);
+}
 // Findings the filled-in Indian income can newly trigger: SE tax on Indian
 // business income with no India–US totalization agreement, NIIT on the
 // extra investment income, and the rest of the US-income-driven set.
 const INDIA_INCOME_FILL_FINDING_IDS = new Set(["no_totalization_agreement", "niit_medicare_not_creditable", "salary_us_work_india_tax",
-  "amt_applies", "state_income_tax", "cross_basis_summary", "ftc_gap", "ftc_available", "underpayment_2210"]);
+  "amt_applies", "state_income_tax", "cross_basis_summary", "ftc_gap", "ftc_available", "underpayment_2210",
+  // India direction (higher India tax on an ROR's US income):
+  "india_advance_tax_interest", "form67_required"]);
 function isFeieEntityGateMissingProfile(dag, profile) {
   const kind = dag.model.entity && dag.model.entity.usKind;
   const isIndividualPath = !kind || kind === "individual";
@@ -351,7 +365,8 @@ function checkResult(id, dag, real, profile) {
   const indiaIncomeFill = isIndiaIncomeFillProfile(dag);
   const usWholesaleDivergent = feieWagesDivergent || feieBonaFideProxyDivergent || feieStackingRuleDivergent ||
     qbiWageUbiaDivergent || cfcInclusionDivergent || indiaIncomeFill;
-  const indiaWholesaleDivergent = indiaSalaryExemption || indiaPresumptiveForeignScheme;
+  const usIncomeIntoIndia = isUsIncomeIntoIndiaProfile(dag);
+  const indiaWholesaleDivergent = indiaSalaryExemption || indiaPresumptiveForeignScheme || usIncomeIntoIndia;
   const excused = new Set();
   if (usWholesaleDivergent) {
     ["summary", "model.income.us", "computed.usTax", "computed.headline", "computed.ftc",
@@ -411,7 +426,7 @@ function checkResult(id, dag, real, profile) {
     if (cascadeExcused) console.log("    (DELIBERATE divergence — cascade-only, see reconciledFindingIds's own comment) summary.healthScore/counts");
     deepCheck(id + " summary", dagSummaryC, realSummaryC);
   }
-  if (indiaIncomeFill) {
+  if (indiaIncomeFill || usIncomeIntoIndia) {
     // Extra DAG findings from the filled-in Indian income are expected; a
     // finding the DAG LOSES is still a failure.
     const extra = reconciled.dag.filter((x) => INDIA_INCOME_FILL_FINDING_IDS.has(x) && !reconciled.real.includes(x));
@@ -549,12 +564,13 @@ console.log("\n=== Clients tab: allClientSummariesDag() vs allClientSummaries() 
   // cascade detectors checkResult uses (FEIE wages/CFC-inclusion/India
   // presumptive-foreign-scheme all move the $-amount summary fields;
   // presumptive lock-in only moves healthScore/requiredDocs, via documents).
-  const wholesaleIds = new Set(), lockinOnlyIds = new Set();
+  const wholesaleIds = new Set(), lockinOnlyIds = new Set(), usIntoIndiaIds = new Set();
   WISING.PROFILES.forEach((p) => {
     const r = WISING.analyze({ router: p.router, india: p.india, us: p.us });
     const d = analyzeDag({ router: p.router, india: p.india, us: p.us });
+    if (isUsIncomeIntoIndiaProfile(d)) usIntoIndiaIds.add(p.id);
     if (isUsEntity(r) || isFeieWagesDivergentProfile({ router: p.router, india: p.india, us: p.us }) ||
-      isCfcInclusionDivergentProfile(d) || isIndiaPresumptiveForeignSchemeProfile(d) || isIndiaIncomeFillProfile(d)) {
+      isCfcInclusionDivergentProfile(d) || isIndiaPresumptiveForeignSchemeProfile(d) || isIndiaIncomeFillProfile(d) || isUsIncomeIntoIndiaProfile(d)) {
       wholesaleIds.add(p.id);
       // healthScore/critical/warning/requiredDocs only — verified directly
       // (totalIncomeUsd/netDoubleTaxUsd/combinedTaxUsd already match for
@@ -567,7 +583,9 @@ console.log("\n=== Clients tab: allClientSummariesDag() vs allClientSummaries() 
   realSummaries.forEach((real, i) => {
     const dag = dagSummaries[i];
     const skip = wholesaleIds.has(real.id)
-      ? new Set(["healthScore", "critical", "warning", "totalIncomeUsd", "netDoubleTaxUsd", "combinedTaxUsd"])
+      // requiredDocs too for the India direction: India total income above
+      // ₹50L makes Schedule AL (and Form 67) required.
+      ? new Set(["healthScore", "critical", "warning", "totalIncomeUsd", "netDoubleTaxUsd", "combinedTaxUsd"].concat(usIntoIndiaIds.has(real.id) ? ["requiredDocs"] : []))
       : lockinOnlyIds.has(real.id) ? new Set(["healthScore", "critical", "warning", "requiredDocs"]) : new Set();
     if (skip.size) console.log("    (DELIBERATE divergence, section D / wholesale cascade — see run-fuzz.js / checkResult's detector comments) clientSummaries[" + i + "]." + real.id + "." + [...skip].join("/"));
     ["id", "healthScore", "critical", "warning", "indiaStatus", "usStatus", "dualResident",

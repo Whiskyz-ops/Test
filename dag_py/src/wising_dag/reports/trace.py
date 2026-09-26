@@ -177,6 +177,19 @@ def _build_tax_computation_india_individual(d, ctx):
     else:
         india_gross_rows = [{"label": "Gross total income", "inr": gross_total_income_inr, "trace": _holdings("india", india_holdings_note)}]
 
+    # One income list, India direction: US income India taxes an ROR on —
+    # shown only when present. Mirrors report-batch3-nodes.js.
+    us_in = d["usIncomeForIndiaInr"]
+    us_in_total_inr = us_in["salaryInr"] + us_in["businessInr"] + us_in["housePropertyInr"] + us_in["otherNormalInr"] + us_in["stcgSlabInr"] + us_in["ltcg197Inr"]
+    if us_in_total_inr > 0:
+        india_gross_rows = india_gross_rows + [{
+            "label": "  — of which US income from Layer 1 US (India taxes a resident on worldwide income)", "inr": us_in_total_inr,
+            "trace": _calc("US-source income from Layer 1 US under Indian rules: wages as salary, business as PGBP, interest/dividends/US pension/other at slab, rent after the 30% s.24(a) deduction, short-term gains at slab, long-term gains at 12.5% (s.112). US Social Security is excluded (DTAA Art. 20(2)). Relief for the US tax on it is the s.90 credit below.",
+                           [{"label": "Wages (salary)", "amount": us_in["salaryInr"]}, {"label": "Business (PGBP)", "amount": us_in["businessInr"]},
+                            {"label": "Rent (after 30% deduction)", "amount": us_in["housePropertyInr"]}, {"label": "Interest, dividends, pension, other", "amount": us_in["otherNormalInr"]},
+                            {"label": "Short-term gains (slab)", "amount": us_in["stcgSlabInr"]}, {"label": "Long-term gains (12.5%)", "amount": us_in["ltcg197Inr"]}]),
+        }]
+
     india_loss_carry_row = []
     if lso and lso["totalUnusedInr"] > 1:
         india_loss_carry_row = [{
@@ -820,7 +833,7 @@ NODES = {
     "slabBreakdownV3": NodeDef(deps=("totalNormalInr", "slabs"), compute=lambda d, ctx: bracket_breakdown(d["totalNormalInr"], d["slabs"])),
     "buildTaxComputationIndiaResult": NodeDef(
         deps=("isEntityTaxpayer", "entityTaxResult", "entityTaxableInrBoundary",
-              "regimeCombined", "totalNormalInr", "normalSlabInr", "lossSetOffV3", "cflBusinessInr",
+              "regimeCombined", "totalNormalInr", "normalSlabInr", "lossSetOffV3", "usIncomeForIndiaInr", "cflBusinessInr",
               "cflHousePropertyInr", "cflStcgInr", "cflLtcgInr", "cflUnabsorbedDepreciationInr",
               "ltcgInrBoundary", "ltcgTaxableInr", "deductionsInrV3",
               "dedS80C", "dedS80CCD1B", "dedS80D", "dedS80CCD2Employer", "dedS80TTA_TTB",

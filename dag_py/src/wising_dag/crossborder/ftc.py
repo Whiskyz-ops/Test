@@ -88,7 +88,12 @@ def _ftc_us_direction(d, ctx):
     # ftcIndiaDirection below) -- indiaPassiveIncomeUsdBoundaryFtc +
     # indiaGeneralIncomeUsdBoundaryFtc === this exactly, by construction.
     india_income_total_usd = d["indiaIncomeTotalUsdBoundaryFtc"]
-    india_total_tax_usd = d["indiaTotalTaxUsdBoundaryFtc"]
+    # Only India's tax on India-source income is creditable here — see
+    # ftc-nodes.js (US income India taxes an ROR on is India's s.90 matter).
+    us_income_in_india_usd = d.get("usIncomeInIndiaUsdBoundaryFtc") or 0
+    india_tax_total_income_usd = d.get("indiaTotalIncomeUsdBoundaryFtc") or 0
+    india_tax_on_us_income_usd = d["indiaTotalTaxUsdBoundaryFtc"] * min(1, us_income_in_india_usd / india_tax_total_income_usd) if india_tax_total_income_usd > 0 else 0
+    india_total_tax_usd = d["indiaTotalTaxUsdBoundaryFtc"] - india_tax_on_us_income_usd
     # India's own tax allocated to each basket by relative income share —
     # the same proportional-allocation technique the original single-basket
     # formula already used for the FEIE creditableFraction split.
@@ -231,6 +236,9 @@ NODES = {
     "foreignWagesTaxPaidUsdBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.income.us.foreignWagesTaxPaidUsd", 0) or 0),
     # India salary earned for work outside India (salaryWorkLocation) — see
     # ftc-nodes.js's indiaSalaryOutsideIndiaUsdBoundaryFtc.
+    # US income India taxes an ROR on (see ftc-nodes.js) — 0 unless
+    # crossborder/xborder_full.py overrides it.
+    "usIncomeInIndiaUsdBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: 0),
     "indiaSalaryOutsideIndiaUsdBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: _india_inr_to_usd(ctx, num(safe(ctx, "model.income.india.salaryOutsideIndiaInr", 0)))),
     "otherCountryFtcEntriesRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_tax_credit_other.entries", []) or []),
 
@@ -238,7 +246,8 @@ NODES = {
         deps=("feieExcludedUsdBoundaryFtc", "usIsNraBoundaryFtc", "hasUsScopeBoundaryFtc", "usWorldwideBoundaryFtc",
               "indiaPassiveIncomeUsdBoundaryFtc", "indiaGeneralIncomeUsdBoundaryFtc", "indiaIncomeTotalUsdBoundaryFtc",
               "usTaxableIncomeUsdBoundaryFtc", "usIncomeTaxUsdBoundaryFtc", "indiaTotalTaxUsdBoundaryFtc",
-              "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw", "indiaSalaryOutsideIndiaUsdBoundaryFtc"),
+              "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw", "indiaSalaryOutsideIndiaUsdBoundaryFtc",
+              "usIncomeInIndiaUsdBoundaryFtc", "indiaTotalIncomeUsdBoundaryFtc"),
         compute=_ftc_us_direction,
     ),
     "ftcIndiaDirection": NodeDef(

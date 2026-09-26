@@ -131,7 +131,7 @@ const DAG_ONLY_KEYS = new Set([
   "salaryWorkLocation", "salaryOutsideIndiaInr", "usWorkSalaryUsd", "indiaTaxOnUsWorkSalaryUsd",
   // One income list (aggregateusincome-nodes.js's foreignIncomeFromIndia) —
   // DAG-only fields.
-  "foreignOtherIncome", "seEarningsFromIndiaUsd", "foreignFromIndia",
+  "foreignOtherIncome", "seEarningsFromIndiaUsd", "foreignFromIndia", "usOwnSourceForIndia",
   // §25B Saver's Credit (task #44 follow-up) — added proactively (kept in
   // sync with prototypes/graph-pilot/run-fuzz.js's own DAG_ONLY_KEYS).
   "saversCreditUsd", "saversCreditDetail",

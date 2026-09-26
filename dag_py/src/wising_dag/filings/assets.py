@@ -1054,7 +1054,28 @@ def build(base):
         NodeDef(deps=("indiaIncomeModelResult", "residencyResult", "s115aRoyalty", "s115aFts"), compute=_india_income_for_us),
         reason="assets-nodes.js: one income list — Layer 1 India income into US worldwide income (fill gaps only)",
     )
+    r.override(
+        "usIncomeForIndiaBoundary",
+        NodeDef(deps=("aggregateUsIncomeResult", "residencyResult"), compute=_us_income_for_india),
+        reason="assets-nodes.js: one income list, India direction — Layer 1 US income into India's worldwide taxation of an ROR",
+    )
     return r
+
+
+def _us_income_for_india(d, ctx):
+    """India direction — mirrors assets-nodes.js's usIncomeForIndiaBoundary."""
+    india_kind = safe(ctx.get("india"), "profile.entity_type", "individual") or "individual"
+    us_kind = safe(ctx.get("us"), "profile.tax_entity_type", "individual") or "individual"
+    if india_kind != "individual" or us_kind != "individual":
+        return None
+    res = d["residencyResult"]
+    if not (res and res.get("india") and res["india"].get("worldwide")):
+        return None
+    u, fx = d["aggregateUsIncomeResult"]["usOwnSourceForIndia"], fx_rate(ctx)
+    return {
+        "wagesInr": u["wagesUsd"] * fx, "businessInr": u["businessUsd"] * fx, "interestInr": u["interestUsd"] * fx, "dividendsInr": u["dividendsUsd"] * fx,
+        "rentalInr": u["rentalUsd"] * fx, "stcgInr": u["stcgUsd"] * fx, "ltcgInr": u["ltcgUsd"] * fx, "retirementInr": u["retirementUsd"] * fx, "otherInr": u["otherUsd"] * fx,
+    }
 
 
 def _india_income_for_us(d, ctx):

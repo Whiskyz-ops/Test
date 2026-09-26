@@ -96,7 +96,7 @@ NODES.slabBreakdownV3 = {
 NODES.buildTaxComputationIndiaResult = {
   deps: [
     "isEntityTaxpayer", "entityTaxResult", "entityTaxableInrBoundary",
-    "regimeCombined", "taxRegime", "totalNormalInr", "normalSlabInr", "lossSetOffV3", "cflBusinessInr",
+    "regimeCombined", "taxRegime", "totalNormalInr", "normalSlabInr", "lossSetOffV3", "usIncomeForIndiaInr", "cflBusinessInr",
     "cflHousePropertyInr", "cflStcgInr", "cflLtcgInr", "cflUnabsorbedDepreciationInr",
     "ltcgInrBoundary", "ltcgTaxableInr", "deductionsInrV3",
     "dedS80C", "dedS80CCD1B", "dedS80D", "dedS80CCD2Employer", "dedS80TTA_TTB",
@@ -237,6 +237,24 @@ NODES.buildTaxComputationIndiaResult = {
       { label: "Gross total income", inr: i.grossTotalIncomeInr,
         trace: holdings("india", indiaHoldingsNote) }
     ];
+    // One income list, India direction: the US income India now taxes an
+    // ROR on (in1-nodes-v3.js's usIncomeForIndiaInr) — shown only when
+    // present, so every other client's card is unchanged.
+    var usIn = d.usIncomeForIndiaInr;
+    var usInTotalInr = usIn.salaryInr + usIn.businessInr + usIn.housePropertyInr + usIn.otherNormalInr + usIn.stcgSlabInr + usIn.ltcg197Inr;
+    if (usInTotalInr > 0) {
+      indiaGrossRows = indiaGrossRows.concat([
+        { label: "  — of which US income from Layer 1 US (India taxes a resident on worldwide income)", inr: usInTotalInr,
+          trace: calc("US-source income from Layer 1 US under Indian rules: wages as salary, business as PGBP, interest/dividends/US pension/other at slab, rent after the 30% s.24(a) deduction, short-term gains at slab, long-term gains at 12.5% (s.112). US Social Security is excluded (DTAA Art. 20(2)). Relief for the US tax on it is the s.90 credit below.", [
+            { label: "Wages (salary)", amount: usIn.salaryInr },
+            { label: "Business (PGBP)", amount: usIn.businessInr },
+            { label: "Rent (after 30% deduction)", amount: usIn.housePropertyInr },
+            { label: "Interest, dividends, pension, other", amount: usIn.otherNormalInr },
+            { label: "Short-term gains (slab)", amount: usIn.stcgSlabInr },
+            { label: "Long-term gains (12.5%)", amount: usIn.ltcg197Inr }
+          ]) }
+      ]);
+    }
     var indiaLossCarryRow = (lso && lso.totalUnusedInr > 1) ? [
       { label: "Losses carried forward to future years (could not be set off this year)", inr: lso.totalUnusedInr,
         trace: calc("Brought-forward losses left over after set-off — different loss categories can only offset specific income heads (s.112/110/111/33(11)), so a category with no matching income this year carries forward untouched (8 years for most heads, no limit for unabsorbed depreciation)", [

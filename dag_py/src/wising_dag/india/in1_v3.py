@@ -267,6 +267,21 @@ def _house_property_inr(hp_props) -> float:
     )
 
 
+def _us_income_for_india_inr(d, ctx):
+    """One income list, India direction — mirrors in1-nodes-v3.js's
+    usIncomeForIndiaInr exactly (Indian-rule buckets for US income of an ROR)."""
+    u = d["usIncomeForIndiaBoundary"] or {}
+
+    def pos(k):
+        return max(0.0, num(u.get(k)))
+    return {
+        "salaryInr": pos("wagesInr"), "businessInr": pos("businessInr"),
+        "housePropertyInr": pos("rentalInr") * 0.7,
+        "otherNormalInr": pos("interestInr") + pos("dividendsInr") + pos("retirementInr") + pos("otherInr"),
+        "stcgSlabInr": pos("stcgInr"), "ltcg197Inr": pos("ltcgInr"),
+    }
+
+
 def _loss_set_off_v3(d, ctx):
     business_inr_raw = d["businessInrBoundaryV3"]
     unabsorbed_dep_this_year_inr = min(d["businessDepreciationInrBoundary"], -business_inr_raw) if business_inr_raw < 0 else 0
@@ -277,14 +292,15 @@ def _loss_set_off_v3(d, ctx):
         "unabsorbedDepreciationCf": d["cflUnabsorbedDepreciationInr"] + unabsorbed_dep_this_year_inr,
     }
     nr_interest_slab_eligible_inr = d["nrInterest"]["slabEligibleInr"] if d["nrInterest"] else 0
+    us = d["usIncomeForIndiaInr"]
     return compute_loss_set_off(cfl_for_set_off, {
-        "businessInr": max(0.0, business_inr_raw),
-        "housePropertyInr": d["housePropertyInr"],
+        "businessInr": max(0.0, business_inr_raw) + us["businessInr"],
+        "housePropertyInr": d["housePropertyInr"] + us["housePropertyInr"],
         "otherNormalInr": d["deemedDividendBuybackInrBoundary"] + d["otherSourcesMiscInrBoundary"] + (
             nr_interest_slab_eligible_inr if d["isNRV3"] else d["interestInr"] + d["dividendInr"]
-        ),
-        "stcgInr": d["stcgInrBoundary"], "stcgSlabInr": d["stcgSlabInrBoundary"], "ltcgGrossInr": d["ltcgInrBoundary"],
-        "ltcg197Inr": d["ltcg197InrBoundary"], "speculativeInr": max(0.0, d["speculativeIncomeInrBoundaryV3"]),
+        ) + us["otherNormalInr"],
+        "stcgInr": d["stcgInrBoundary"], "stcgSlabInr": d["stcgSlabInrBoundary"] + us["stcgSlabInr"], "ltcgGrossInr": d["ltcgInrBoundary"],
+        "ltcg197Inr": d["ltcg197InrBoundary"] + us["ltcg197Inr"], "speculativeInr": max(0.0, d["speculativeIncomeInrBoundaryV3"]),
     })
 
 
@@ -475,15 +491,19 @@ NODES = {
         compute=lambda d, ctx: compute_s115a_stream({"trcStatus": d["treatyTrcStatus"], "form10fFiled": d["treatyForm10fFiled"], "treatyElections": d["treatyElectionsRaw"]}, "fts", None) if d["isNRV3"] else None,
     ),
 
+    # One income list, India direction: None unless filings/assets.py hands
+    # over Layer 1 US's own US-source income for an ROR (see in1-nodes-v3.js).
+    "usIncomeForIndiaBoundary": NodeDef(deps=(), compute=lambda d, ctx: None),
+    "usIncomeForIndiaInr": NodeDef(deps=("usIncomeForIndiaBoundary",), compute=_us_income_for_india_inr),
     "lossSetOffV3": NodeDef(
-        deps=("businessInrBoundaryV3", "businessDepreciationInrBoundary", "cflBusinessInr", "cflSpeculativeInr", "cflStcgInr", "cflLtcgInr",
+        deps=("usIncomeForIndiaInr", "businessInrBoundaryV3", "businessDepreciationInrBoundary", "cflBusinessInr", "cflSpeculativeInr", "cflStcgInr", "cflLtcgInr",
               "cflHousePropertyInr", "cflUnabsorbedDepreciationInr", "housePropertyInr", "isNRV3", "nrInterest",
               "deemedDividendBuybackInrBoundary", "otherSourcesMiscInrBoundary", "interestInr", "dividendInr",
               "stcgInrBoundary", "stcgSlabInrBoundary", "ltcgInrBoundary", "ltcg197InrBoundary", "speculativeIncomeInrBoundaryV3"),
         compute=_loss_set_off_v3,
     ),
 
-    "normalSlabInr": NodeDef(deps=("salaryInr", "lossSetOffV3"), compute=lambda d, ctx: d["salaryInr"] + d["lossSetOffV3"]["businessInr"] + d["lossSetOffV3"]["housePropertyInr"] + d["lossSetOffV3"]["otherNormalInr"] + d["lossSetOffV3"]["stcgSlabInr"] + d["lossSetOffV3"]["speculativeInr"]),
+    "normalSlabInr": NodeDef(deps=("salaryInr", "lossSetOffV3", "usIncomeForIndiaInr"), compute=lambda d, ctx: d["salaryInr"] + d["usIncomeForIndiaInr"]["salaryInr"] + d["lossSetOffV3"]["businessInr"] + d["lossSetOffV3"]["housePropertyInr"] + d["lossSetOffV3"]["otherNormalInr"] + d["lossSetOffV3"]["stcgSlabInr"] + d["lossSetOffV3"]["speculativeInr"]),
 
     "deductionsInrV3": NodeDef(
         deps=("isNew", "dedS80CCD2Employer", "dedS80C", "dedS80CCD1B", "dedS80D", "dedS80TTA_TTB", "dedS80DD", "dedS80DDB",

@@ -83,7 +83,10 @@ def _strip_nra_art212_fields(us_tax: dict) -> dict:
 
 def test_nra_fixture_matches_golden_end_to_end():
     result, golden = _analyze_pinned("india_ror_us_income")
-    for path in ("usTax", "headline", "reconciliation", "apportionment"):
+    # headline: this fixture is an India ROR, so its US income now enters
+    # India's tax (conftest.py's GOLDEN_DIVERGENT_FIXTURES_US_INCOME_INTO_INDIA)
+    # — headline.indiaTaxUsd / combinedTaxBeforeReliefUsd move by design.
+    for path in ("usTax", "reconciliation", "apportionment"):
         mine = _strip_nra_art212_fields(result["computed"][path]) if path == "usTax" else result["computed"][path]
         diff = deep_diff(mine, golden["computed"][path])
         assert diff is None, f"computed.{path}: " + " | ".join(diff[:8])
@@ -104,7 +107,8 @@ def test_nra_fixture_matches_golden_end_to_end():
     _dag_only_required_docs = sum(1 for d in result["documents"] if d["id"] in ("form_10iea", "form_27d") and d.get("required"))
     golden_summary = dict(golden["summary"])
     golden_summary["requiredDocs"] += _dag_only_required_docs
-    diff = deep_diff(result["summary"], golden_summary)
+    # summary.indiaTaxUsd: same India-direction change as headline above.
+    diff = deep_diff({k: v for k, v in result["summary"].items() if k != "indiaTaxUsd"}, {k: v for k, v in golden_summary.items() if k != "indiaTaxUsd"})
     assert diff is None, "summary: " + " | ".join(diff[:8])
     diff = deep_diff(result["taxComputation"]["us"], golden["taxComputation"]["us"])
     assert diff is None, "taxComputation.us: " + " | ".join(diff[:8])
@@ -118,8 +122,10 @@ def test_nra_fixture_matches_golden_end_to_end():
     # DAG-only fields, no frozen-engine equivalent.
     # usWorkSalaryUsd / indiaTaxOnUsWorkSalaryUsd: salary work-location
     # sourcing, new DAG-only fields.
-    mine_ftc_us = {k: v for k, v in result["computed"]["ftc"]["us"].items() if k not in ("baskets", "otherCountries", "usWorkSalaryUsd", "indiaTaxOnUsWorkSalaryUsd")}
-    diff = deep_diff(mine_ftc_us, golden["computed"]["ftc"]["us"])
+    # indiaTaxDisallowedUsd: for this NRA it's the whole India tax, which the
+    # India-direction change moves (see headline above).
+    mine_ftc_us = {k: v for k, v in result["computed"]["ftc"]["us"].items() if k not in ("baskets", "otherCountries", "usWorkSalaryUsd", "indiaTaxOnUsWorkSalaryUsd", "indiaTaxDisallowedUsd")}
+    diff = deep_diff(mine_ftc_us, {k: v for k, v in golden["computed"]["ftc"]["us"].items() if k != "indiaTaxDisallowedUsd"})
     assert diff is None, "computed.ftc.us: " + " | ".join(diff[:8])
     assert result["computed"]["ftc"]["india"]["reliefAllowedUsd"] == golden["computed"]["ftc"]["india"]["reliefAllowedUsd"]
     assert result["computed"]["ftc"]["india"]["usTaxOnUsSourceUsd"] == golden["computed"]["ftc"]["india"]["usTaxOnUsSourceUsd"]

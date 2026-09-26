@@ -166,6 +166,26 @@ console.log("\nCase: India salary for US-performed work is US-source (IRC 861(a)
   check("carryoverUsd should be $6,000", out.carryoverUsd, 6000, 1);
 })();
 
+console.log("\nCase: Indian tax on an ROR's US income is not creditable for the US — hand-verified");
+(function () {
+  // India's tax base $150,000 = $100,000 India-source (all general) + $50,000
+  // US income India taxes an ROR on; India tax $45,000. US taxable $200,000,
+  // US tax $40,000. India tax on the US income = 45,000 x 50/150 = $15,000
+  // (India's s.90 matter), so the US credit sees $30,000 of Indian tax:
+  // limit = 40,000 x 100/200 = $20,000, allowed $20,000, carryover $10,000.
+  // (Before the fix: $45,000 counted, carryover $25,000.)
+  var out = NODES.ftcUsDirection.compute({
+    feieExcludedUsdBoundaryFtc: 0, usIsNraBoundaryFtc: false, hasUsScopeBoundaryFtc: true, usWorldwideBoundaryFtc: true,
+    indiaIncomeTotalUsdBoundaryFtc: 100000, indiaPassiveIncomeUsdBoundaryFtc: 0, indiaGeneralIncomeUsdBoundaryFtc: 100000,
+    usTaxableIncomeUsdBoundaryFtc: 200000, usIncomeTaxUsdBoundaryFtc: 40000, indiaTotalTaxUsdBoundaryFtc: 45000,
+    foreignWagesTaxPaidUsdBoundaryFtc: 0, indiaSalaryOutsideIndiaUsdBoundaryFtc: 0, otherCountryFtcEntriesRaw: [],
+    usIncomeInIndiaUsdBoundaryFtc: 50000, indiaTotalIncomeUsdBoundaryFtc: 150000
+  });
+  check("indiaTaxPaidUsd should be $30,000 (India-source share only)", out.indiaTaxPaidUsd, 30000, 1);
+  check("ftcAllowedUsd should be $20,000", out.ftcAllowedUsd, 20000, 1);
+  check("carryoverUsd should be $10,000 (was $25,000 before the fix)", out.carryoverUsd, 10000, 1);
+})();
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 if (fail > 0) {
   console.log(

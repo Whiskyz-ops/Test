@@ -51,7 +51,7 @@ def test_aggregate_us_income_result_matches_golden(fixture_id):
     # income list): new DAG-only fields. This test resolves the US-only
     # graph, where indiaIncomeForUsBoundary stays None, so every value is
     # still the frozen engine's.
-    exclude |= {"foreignOtherIncome", "seEarningsFromIndiaUsd", "foreignFromIndia"}
+    exclude |= {"foreignOtherIncome", "seEarningsFromIndiaUsd", "foreignFromIndia", "usOwnSourceForIndia"}
     # cfcPerEntityTrace (entity-routing fix, conftest.py's own docstring):
     # sec962Elected reclassifies to True for a real C-corp shareholder,
     # regardless of the raw flag — a real, permanent divergence for this one

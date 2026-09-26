@@ -395,8 +395,35 @@ var NODES = {
     compute: function (d) { return d.isNRV3 ? computeS115aStream({ trcStatus: d.treatyTrcStatus, form10fFiled: d.treatyForm10fFiled, treatyElections: d.treatyElectionsRaw }, "fts", null) : null; }
   },
 
+  // ---- one income list, India direction: US income for an ROR ------------
+  // India taxes a resident (ROR) on worldwide income, but Layer 1 India has
+  // no US-income fields, so US income entered in Layer 1 US never reached
+  // India's tax. usIncomeForIndiaBoundary is null unless assets-nodes.js
+  // hands over Layer 1 US's own US-source income (in INR) for an individual
+  // India taxes worldwide. Indian rules: wages => salary; business => PGBP;
+  // interest / dividends / US pension / other => other sources (slab);
+  // rent => house property after the 30% s.24(a) standard deduction;
+  // short-term gains => slab (not STT-paid Indian equity, so no s.111A);
+  // long-term gains => s.112 at 12.5% (the ltcg197 bucket). Each head
+  // floored at 0 (no cross-border loss set-off). Relief for the US tax on
+  // it is the existing s.90 calc (ftc-nodes.js's ftcIndiaDirection).
+  usIncomeForIndiaBoundary: { deps: [], compute: function () { return null; } },
+  usIncomeForIndiaInr: {
+    deps: ["usIncomeForIndiaBoundary"],
+    compute: function (d) {
+      var u = d.usIncomeForIndiaBoundary || {};
+      function pos(k) { return Math.max(0, num(u[k])); }
+      return {
+        salaryInr: pos("wagesInr"), businessInr: pos("businessInr"),
+        housePropertyInr: pos("rentalInr") * 0.7,
+        otherNormalInr: pos("interestInr") + pos("dividendsInr") + pos("retirementInr") + pos("otherInr"),
+        stcgSlabInr: pos("stcgInr"), ltcg197Inr: pos("ltcgInr")
+      };
+    }
+  },
+
   lossSetOffV3: {
-    deps: ["businessInrBoundaryV3", "businessDepreciationInrBoundary", "cflBusinessInr", "cflSpeculativeInr", "cflStcgInr", "cflLtcgInr",
+    deps: ["usIncomeForIndiaInr", "businessInrBoundaryV3", "businessDepreciationInrBoundary", "cflBusinessInr", "cflSpeculativeInr", "cflStcgInr", "cflLtcgInr",
       "cflHousePropertyInr", "cflUnabsorbedDepreciationInr", "housePropertyInr", "isNRV3", "nrInterest",
       "deemedDividendBuybackInrBoundary", "otherSourcesMiscInrBoundary", "interestInr", "dividendInr",
       "stcgInrBoundary", "stcgSlabInrBoundary", "ltcgInrBoundary", "ltcg197InrBoundary", "speculativeIncomeInrBoundaryV3"],
@@ -410,17 +437,18 @@ var NODES = {
         unabsorbedDepreciationCf: d.cflUnabsorbedDepreciationInr + unabsorbedDepThisYearInr
       };
       var nrInterestSlabEligibleInr = d.nrInterest ? d.nrInterest.slabEligibleInr : 0;
+      var us = d.usIncomeForIndiaInr;
       return computeLossSetOff(cflForSetOff, {
-        businessInr: Math.max(0, businessInrRaw),
-        housePropertyInr: d.housePropertyInr,
-        otherNormalInr: d.deemedDividendBuybackInrBoundary + d.otherSourcesMiscInrBoundary + (d.isNRV3 ? nrInterestSlabEligibleInr : d.interestInr + d.dividendInr),
-        stcgInr: d.stcgInrBoundary, stcgSlabInr: d.stcgSlabInrBoundary, ltcgGrossInr: d.ltcgInrBoundary, ltcg197Inr: d.ltcg197InrBoundary,
+        businessInr: Math.max(0, businessInrRaw) + us.businessInr,
+        housePropertyInr: d.housePropertyInr + us.housePropertyInr,
+        otherNormalInr: d.deemedDividendBuybackInrBoundary + d.otherSourcesMiscInrBoundary + (d.isNRV3 ? nrInterestSlabEligibleInr : d.interestInr + d.dividendInr) + us.otherNormalInr,
+        stcgInr: d.stcgInrBoundary, stcgSlabInr: d.stcgSlabInrBoundary + us.stcgSlabInr, ltcgGrossInr: d.ltcgInrBoundary, ltcg197Inr: d.ltcg197InrBoundary + us.ltcg197Inr,
         speculativeInr: Math.max(0, d.speculativeIncomeInrBoundaryV3)
       });
     }
   },
 
-  normalSlabInr: { deps: ["salaryInr", "lossSetOffV3"], compute: function (d) { return d.salaryInr + d.lossSetOffV3.businessInr + d.lossSetOffV3.housePropertyInr + d.lossSetOffV3.otherNormalInr + d.lossSetOffV3.stcgSlabInr + d.lossSetOffV3.speculativeInr; } },
+  normalSlabInr: { deps: ["salaryInr", "lossSetOffV3", "usIncomeForIndiaInr"], compute: function (d) { return d.salaryInr + d.usIncomeForIndiaInr.salaryInr + d.lossSetOffV3.businessInr + d.lossSetOffV3.housePropertyInr + d.lossSetOffV3.otherNormalInr + d.lossSetOffV3.stcgSlabInr + d.lossSetOffV3.speculativeInr; } },
 
   deductionsInrV3: {
     deps: ["isNew", "dedS80CCD2Employer", "dedS80C", "dedS80CCD1B", "dedS80D", "dedS80TTA_TTB", "dedS80DD", "dedS80DDB",

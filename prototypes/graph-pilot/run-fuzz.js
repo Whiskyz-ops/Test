@@ -403,7 +403,7 @@ var DAG_ONLY_KEYS = {
   salaryWorkLocation: true, salaryOutsideIndiaInr: true, usWorkSalaryUsd: true, indiaTaxOnUsWorkSalaryUsd: true,
   // One income list (aggregateusincome-nodes.js's foreignIncomeFromIndia):
   // new structural fields on model.income.us, present on every profile.
-  foreignOtherIncome: true, seEarningsFromIndiaUsd: true, foreignFromIndia: true
+  foreignOtherIncome: true, seEarningsFromIndiaUsd: true, foreignFromIndia: true, usOwnSourceForIndia: true
 };
 function close(a, b) { var tol = Math.max(2, Math.abs(b) * 1e-6); return Math.abs(a - b) <= tol; }
 function deepEqual(a, b, p, diffs) {
@@ -803,6 +803,19 @@ function isIndiaIncomeFillProfile(dag) {
   var f = dag.model && dag.model.income && dag.model.income.us && dag.model.income.us.foreignFromIndia;
   return !!f && Object.keys(f).length > 0;
 }
+// One income list, India direction (in1-nodes-v3.js's usIncomeForIndiaInr):
+// for an individual India taxes on worldwide income (ROR, not ceded), Layer
+// 1 US's own US-source income now enters India's tax — the frozen engine
+// never taxed it in India. Same gate as assets-nodes.js's
+// usIncomeForIndiaBoundary, read off the DAG's own output.
+function isUsIncomeIntoIndiaProfile(dag) {
+  var e = dag.model && dag.model.entity, res = dag.computed && dag.computed.residency;
+  var u = dag.model && dag.model.income && dag.model.income.us && dag.model.income.us.usOwnSourceForIndia;
+  if (!e || !res || !u || !(res.india && res.india.worldwide)) return false;
+  if ((e.indiaKind || "individual") !== "individual" || (e.usKind || "individual") !== "individual") return false;
+  return Object.keys(u).some(function (k) { return u[k] > 0; });
+}
+var KNOWN_US_INCOME_INTO_INDIA_DIVERGENT_PATHS = KNOWN_FEIE_WAGES_DIVERGENT_PATHS.concat(["computed.indiaTax", "findings"]);
 // Plus findings: unlike the FEIE-field case, re-sourcing moves income INTO
 // US wages, which findings read directly -- cross_basis_summary's overlap
 // amount (seed 7), and, because US-source wages can't be FEIE-excluded,
@@ -1290,6 +1303,7 @@ function compareOne(label, profile, saveOnFail) {
     .concat(isWorkLocationSourcingDivergentProfile(profile) ? KNOWN_WORK_LOCATION_SOURCING_DIVERGENT_PATHS : [])
     .concat(isIndiaSalaryResourcedProfile(profile) ? KNOWN_WORK_LOCATION_SOURCING_DIVERGENT_PATHS : [])
     .concat(isIndiaIncomeFillProfile(dag) ? KNOWN_WORK_LOCATION_SOURCING_DIVERGENT_PATHS : [])
+    .concat(isUsIncomeIntoIndiaProfile(dag) ? KNOWN_US_INCOME_INTO_INDIA_DIVERGENT_PATHS : [])
     .concat(feieBonaFideProxyDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(feieStackingRuleDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(isFeieEntityGateMissingProfile(dag, profile) ? KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS : [])

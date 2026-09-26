@@ -212,6 +212,11 @@ var NODES = {
   // as US-source (IRC 861(a)(3)) and it can't sit in the Form 1116 general
   // basket. safe()-guarded: DAG-only field, absent on the frozen engine's
   // model.income.india that run-ftc.js builds ctx from directly.
+  // US income India now taxes an ROR on (in1-nodes-v3.js's
+  // usIncomeForIndiaInr), in USD — 0 unless xborder-full-nodes.js wires it.
+  // The Indian tax on it is relieved by India (s.90, ftcIndiaDirection), so
+  // ftcUsDirection must not treat it as creditable "Indian tax" for the US.
+  usIncomeInIndiaUsdBoundaryFtc: { deps: [], compute: function () { return 0; } },
   indiaSalaryOutsideIndiaUsdBoundaryFtc: { deps: [], compute: function (d, ctx) { return indiaInrToUsd(ctx, num(safe(ctx.model.income.india, "salaryOutsideIndiaInr", 0))); } },
   otherCountryFtcEntriesRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_tax_credit_other.entries", []) || []; } },
 
@@ -221,7 +226,8 @@ var NODES = {
     deps: ["feieExcludedUsdBoundaryFtc", "usIsNraBoundaryFtc", "hasUsScopeBoundaryFtc", "usWorldwideBoundaryFtc",
       "indiaPassiveIncomeUsdBoundaryFtc", "indiaGeneralIncomeUsdBoundaryFtc", "indiaIncomeTotalUsdBoundaryFtc",
       "usTaxableIncomeUsdBoundaryFtc", "usIncomeTaxUsdBoundaryFtc", "indiaTotalTaxUsdBoundaryFtc",
-      "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw", "indiaSalaryOutsideIndiaUsdBoundaryFtc"],
+      "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw", "indiaSalaryOutsideIndiaUsdBoundaryFtc",
+      "usIncomeInIndiaUsdBoundaryFtc", "indiaTotalIncomeUsdBoundaryFtc"],
     compute: function (d) {
       // usIsNraBoundaryFtc / !hasUsScopeBoundaryFtc: the pre-existing zeroing
       // conditions (XB-24). !usWorldwideBoundaryFtc: the fix above — ceded
@@ -237,7 +243,13 @@ var NODES = {
       // ftcIndiaDirection below) -- indiaPassiveIncomeUsdBoundaryFtc +
       // indiaGeneralIncomeUsdBoundaryFtc === this exactly, by construction.
       var indiaIncomeTotalUsd = d.indiaIncomeTotalUsdBoundaryFtc;
-      var indiaTotalTaxUsd = d.indiaTotalTaxUsdBoundaryFtc;
+      // Only India's tax on India-source income is creditable here: the
+      // share falling on US income India taxes an ROR on is India's own s.90
+      // relief matter (ftcIndiaDirection). 0 when no US income is in India's
+      // tax, i.e. unchanged for everyone else.
+      var usIncomeInIndiaUsd = d.usIncomeInIndiaUsdBoundaryFtc || 0, indiaTaxTotalIncomeUsd = d.indiaTotalIncomeUsdBoundaryFtc || 0;
+      var indiaTaxOnUsIncomeUsd = indiaTaxTotalIncomeUsd > 0 ? d.indiaTotalTaxUsdBoundaryFtc * Math.min(1, usIncomeInIndiaUsd / indiaTaxTotalIncomeUsd) : 0;
+      var indiaTotalTaxUsd = d.indiaTotalTaxUsdBoundaryFtc - indiaTaxOnUsIncomeUsd;
       // India's own tax allocated to each basket by relative income share —
       // the same proportional-allocation technique the original single-
       // basket formula already used for the FEIE creditableFraction split.

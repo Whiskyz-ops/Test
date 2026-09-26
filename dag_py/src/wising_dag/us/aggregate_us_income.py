@@ -689,6 +689,14 @@ def _aggregate_us_income_result(d, ctx):
         "foreignOtherIncome": _m(fi["otherUsd"], ctx),
         "seEarningsFromIndiaUsd": fi["selfEmploymentUsd"],
         "foreignFromIndia": fi["filled"],
+        # US-source income from Layer 1 US itself, for India's worldwide
+        # taxation of an ROR (filings/assets.py's usIncomeForIndiaBoundary) —
+        # excludes India salary re-sourced to the US and Social Security.
+        "usOwnSourceForIndia": {
+            "wagesUsd": w["wagesUsd"] + d["foreignWagesSourcing"]["usSourceUsd"], "businessUsd": biz["businessUsUsd"],
+            "interestUsd": di["interestUsUsd"], "dividendsUsd": di["ordinaryDividendsUsUsd"], "rentalUsd": di["rentalUsUsd"],
+            "stcgUsd": di["stcgUsUsd"], "ltcgUsd": di["ltcgUsUsd"], "retirementUsd": ret["usRetirementIncomeExclSsUsd"], "otherUsd": di["otherOrdinaryIncomeUsUsd"],
+        },
         "foreignInterest": _m(foreign_interest, ctx), "foreignDividends": _m(di["foreignDividendsUsd"], ctx),
         "foreignRental": _m(di["foreignRentalUsd"], ctx), "foreignPension": _m(foreign_pension, ctx),
         "foreignStcg": _m(di["foreignStcgUsd"], ctx), "foreignLtcg": _m(di["foreignLtcgUsd"], ctx),

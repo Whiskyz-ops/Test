@@ -63,6 +63,13 @@ GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES = {"us_citizen_expat_india"}
 # above. JS DAG === Python DAG still holds for all of them
 # (compare:js-vs-py-dag).
 GOLDEN_DIVERGENT_FIXTURES_INDIA_INCOME_FILL = {"sample", "dual_resident_h1b", "us_resident_indian_income", "founder_indian_company"}
+# One income list, India direction (in1_v3.py's usIncomeForIndiaInr, 26 Sep
+# 2026): India taxes a resident (ROR) on worldwide income, so Layer 1 US's own
+# US-source income now enters India's total income under Indian rules — the
+# frozen engine never taxed it in India at all (while its s.90 relief calc
+# already assumed it had). Moves India tax and everything downstream
+# (headline/summary) for this ROR fixture only; JS DAG === Python DAG holds.
+GOLDEN_DIVERGENT_FIXTURES_US_INCOME_INTO_INDIA = {"india_ror_us_income"}
 
 # Task #41 (home-office/vehicle-mileage deduction): businessEntities[]'s
 # self-employment/farm calcTrace.formula string used to end "...placed-

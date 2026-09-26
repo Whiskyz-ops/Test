@@ -115,3 +115,21 @@ def test_ftc_us_direction_excludes_india_salary_for_us_performed_work():
     assert _close(out["ftcLimitUsd"], 12000)
     assert _close(out["ftcAllowedUsd"], 12000)
     assert _close(out["carryoverUsd"], 6000)
+
+
+def test_ftc_us_direction_excludes_india_tax_on_ror_us_income():
+    # India's tax base $150,000 = $100,000 India-source + $50,000 US income
+    # India taxes an ROR on; India tax $45,000 -> $15,000 of it falls on the
+    # US income (India's s.90 matter), so the US credit sees $30,000. Limit
+    # 40,000 x 100/200 = $20,000; allowed $20,000; carryover $10,000.
+    # Mirrored in run-ftc-correctness.js.
+    out = _ftc_us_direction({
+        "feieExcludedUsdBoundaryFtc": 0, "usIsNraBoundaryFtc": False, "hasUsScopeBoundaryFtc": True, "usWorldwideBoundaryFtc": True,
+        "indiaIncomeTotalUsdBoundaryFtc": 100000, "indiaPassiveIncomeUsdBoundaryFtc": 0, "indiaGeneralIncomeUsdBoundaryFtc": 100000,
+        "usTaxableIncomeUsdBoundaryFtc": 200000, "usIncomeTaxUsdBoundaryFtc": 40000, "indiaTotalTaxUsdBoundaryFtc": 45000,
+        "foreignWagesTaxPaidUsdBoundaryFtc": 0, "indiaSalaryOutsideIndiaUsdBoundaryFtc": 0, "otherCountryFtcEntriesRaw": [],
+        "usIncomeInIndiaUsdBoundaryFtc": 50000, "indiaTotalIncomeUsdBoundaryFtc": 150000,
+    }, None)
+    assert _close(out["indiaTaxPaidUsd"], 30000)
+    assert _close(out["ftcAllowedUsd"], 20000)
+    assert _close(out["carryoverUsd"], 10000)

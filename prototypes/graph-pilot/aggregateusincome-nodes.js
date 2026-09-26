@@ -830,6 +830,16 @@ var NODES = {
         seEarningsFromIndiaUsd: fi.selfEmploymentUsd,
         // Which heads were filled from Layer 1 India (for the UI).
         foreignFromIndia: fi.filled,
+        // US-source income from Layer 1 US itself, for India's worldwide
+        // taxation of an ROR (assets-nodes.js's usIncomeForIndiaBoundary).
+        // Excludes fi.wagesUsSourceUsd — that's Layer 1 India salary, already
+        // in India's own salary head. Social Security is left out: DTAA Art.
+        // 20(2) taxes it only in the US.
+        usOwnSourceForIndia: {
+          wagesUsd: w.wagesUsd + d.foreignWagesSourcing.usSourceUsd, businessUsd: biz.businessUsUsd,
+          interestUsd: di.interestUsUsd, dividendsUsd: di.ordinaryDividendsUsUsd, rentalUsd: di.rentalUsUsd,
+          stcgUsd: di.stcgUsUsd, ltcgUsd: di.ltcgUsUsd, retirementUsd: ret.usRetirementIncomeExclSsUsd, otherUsd: di.otherOrdinaryIncomeUsUsd
+        },
         foreignInterest: m(foreignInterest, ctx), foreignDividends: m(di.foreignDividendsUsd, ctx),
         foreignRental: m(di.foreignRentalUsd, ctx), foreignPension: m(foreignPension, ctx),
         foreignStcg: m(di.foreignStcgUsd, ctx), foreignLtcg: m(di.foreignLtcgUsd, ctx),

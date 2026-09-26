@@ -52,7 +52,9 @@ var OVERRIDDEN_BOUNDARY_IDS = [
   "usPassiveIncomeUsdBoundaryFtc", "usGeneralIncomeUsdBoundaryFtc", "foreignWagesTaxPaidUsdBoundaryFtc",
   // Salary work-location sourcing (US-performed India salary out of the
   // Form 1116 general basket) — same treatment.
-  "indiaSalaryOutsideIndiaUsdBoundaryFtc"
+  "indiaSalaryOutsideIndiaUsdBoundaryFtc",
+  // One income list, India direction: US income India taxes an ROR on.
+  "usIncomeInIndiaUsdBoundaryFtc"
 ];
 
 var NODES = {};
@@ -147,6 +149,13 @@ NODES.usGeneralIncomeUsdBoundaryFtc = {
   }
 };
 NODES.foreignWagesTaxPaidUsdBoundaryFtc = { deps: ["aggregateUsIncomeResult"], compute: function (d) { return d.aggregateUsIncomeResult.foreignWagesTaxPaidUsd || 0; } };
+NODES.usIncomeInIndiaUsdBoundaryFtc = {
+  deps: ["usIncomeForIndiaInr"],
+  compute: function (d, ctx) {
+    var u = d.usIncomeForIndiaInr;
+    return (u.salaryInr + u.businessInr + u.housePropertyInr + u.otherNormalInr + u.stcgSlabInr + u.ltcg197Inr) / fxRate(ctx);
+  }
+};
 NODES.indiaSalaryOutsideIndiaUsdBoundaryFtc = { deps: ["indiaIncomeModelResult"], compute: function (d, ctx) { return (d.indiaIncomeModelResult.salaryOutsideIndiaInr || 0) / fxRate(ctx); } };
 // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H, 21 Jul
 // 2026): was aggregateUsIncomeResult.usSourceTotal.usd directly — the

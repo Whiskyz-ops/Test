@@ -999,6 +999,24 @@ NODES.findingsAllResult = {
 // point here). Anyone else — NRA, entity, India-only — gets null, i.e. no
 // change. Royalty / technical fees come from s.115A (NR only), which isn't
 // part of the India income model.
+// India direction: Layer 1 US's own US-source income, in INR, for an
+// individual on both forms whom India taxes on worldwide income (ROR and
+// not ceded to the US by treaty — residencyResult.india.worldwide). See
+// in1-nodes-v3.js's usIncomeForIndiaInr for how each head is taxed.
+NODES.usIncomeForIndiaBoundary = {
+  deps: ["aggregateUsIncomeResult", "residencyResult"],
+  compute: function (d, ctx) {
+    var indiaKind = safe(ctx.india, "profile.entity_type", "individual") || "individual";
+    var usKind = safe(ctx.us, "profile.tax_entity_type", "individual") || "individual";
+    if (indiaKind !== "individual" || usKind !== "individual") return null;
+    if (!(d.residencyResult && d.residencyResult.india && d.residencyResult.india.worldwide)) return null;
+    var u = d.aggregateUsIncomeResult.usOwnSourceForIndia, fx = fxRate(ctx);
+    return {
+      wagesInr: u.wagesUsd * fx, businessInr: u.businessUsd * fx, interestInr: u.interestUsd * fx, dividendsInr: u.dividendsUsd * fx,
+      rentalInr: u.rentalUsd * fx, stcgInr: u.stcgUsd * fx, ltcgInr: u.ltcgUsd * fx, retirementInr: u.retirementUsd * fx, otherInr: u.otherUsd * fx
+    };
+  }
+};
 NODES.indiaIncomeForUsBoundary = {
   deps: ["indiaIncomeModelResult", "residencyResult", "s115aRoyalty", "s115aFts"],
   compute: function (d, ctx) {
