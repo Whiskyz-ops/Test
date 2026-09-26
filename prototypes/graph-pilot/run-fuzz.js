@@ -396,7 +396,11 @@ var DAG_ONLY_KEYS = {
   // modeled the earned-income exclusion itself, never the separate housing
   // exclusion) — present on EVERY profile (not conditional, always at
   // least 0), same blanket-exclusion class as passive/general above.
-  feieHousingAppliedUsd: true, housingAppliedUsd: true
+  feieHousingAppliedUsd: true, housingAppliedUsd: true,
+  // Salary work-location sourcing (aggregateindiaincome-nodes.js's
+  // salaryWorkLocation → ftc-nodes.js): new structural fields on
+  // model.income.india and computed.ftc.us, present on every profile.
+  salaryWorkLocation: true, salaryOutsideIndiaInr: true, usWorkSalaryUsd: true, indiaTaxOnUsWorkSalaryUsd: true
 };
 function close(a, b) { var tol = Math.max(2, Math.abs(b) * 1e-6); return Math.abs(a - b) <= tol; }
 function deepEqual(a, b, p, diffs) {
@@ -762,6 +766,28 @@ function isWorkLocationSourcingDivergentProfile(profile) {
     if (gross <= 0 || usDays <= 0) return false;
     return usDays >= 365 || (Number(w.workdays_in_us) || 0) > 0;
   });
+}
+// India salary work-location sourcing (aggregateindiaincome-nodes.js's
+// salaryWorkLocation): the frozen engine keeps every India salary rupee in
+// the Form 1116 general basket; the DAG takes out the part earned for work
+// outside India (0 India days, 365+ Router US days, or the Layer 1 workday
+// split), which lowers the FTC limit and moves the Indian tax on it out of
+// the creditable pool. Only for profiles where salary is actually re-sourced.
+function isIndiaSalaryResourcedProfile(profile) {
+  var india = profile.india || {}, router = profile.router || {};
+  var slices = india.quarters
+    ? ["Q1", "Q2", "Q3", "Q4"].map(function (q) { return india.quarters[q] && india.quarters[q].domestic_income && india.quarters[q].domestic_income.salary; }).filter(Boolean)
+    : [india.domestic_income && india.domestic_income.salary].filter(Boolean);
+  var hasSalary = slices.some(function (s) {
+    return (Number(s.gross_salary_inr) || 0) + (Number(s.perquisites_inr) || 0) + (Number(s.esop_perquisite_inr) || 0) + (Number(s.prior_employer_salary_inr) || 0) + (Number(s.taxable_salary_inr) || 0) > 0;
+  });
+  if (!hasSalary) return false;
+  var rd = india.residency_detail || {};
+  var indiaDays = rd.days_in_india_current_year === null || rd.days_in_india_current_year === undefined || rd.days_in_india_current_year === "" ? null : Number(rd.days_in_india_current_year) || 0;
+  var usDays = router.us_days === null || router.us_days === undefined || router.us_days === "" ? null : Number(router.us_days) || 0;
+  if (indiaDays === 0 || (usDays !== null && usDays >= 365)) return true;
+  if ((indiaDays !== null && indiaDays >= 365) || usDays === 0) return false;
+  return slices.some(function (s) { return s.work_performed_outside_india === true && (Number(s.workdays_outside_india) || 0) > 0; });
 }
 // Plus findings: unlike the FEIE-field case, re-sourcing moves income INTO
 // US wages, which findings read directly -- cross_basis_summary's overlap
@@ -1248,6 +1274,7 @@ function compareOne(label, profile, saveOnFail) {
     .concat(isUsTrustProfile(dag) ? KNOWN_US_TRUST_DIVERGENT_PATHS : [])
     .concat(feieWagesDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(isWorkLocationSourcingDivergentProfile(profile) ? KNOWN_WORK_LOCATION_SOURCING_DIVERGENT_PATHS : [])
+    .concat(isIndiaSalaryResourcedProfile(profile) ? KNOWN_WORK_LOCATION_SOURCING_DIVERGENT_PATHS : [])
     .concat(feieBonaFideProxyDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(feieStackingRuleDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(isFeieEntityGateMissingProfile(dag, profile) ? KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS : [])

@@ -49,7 +49,10 @@ var OVERRIDDEN_BOUNDARY_IDS = [
   // file header: "ctx.model.income: NONE" after this file) -- redefined to
   // the real in-graph nodes below, same treatment as every boundary above.
   "indiaPassiveIncomeUsdBoundaryFtc", "indiaGeneralIncomeUsdBoundaryFtc",
-  "usPassiveIncomeUsdBoundaryFtc", "usGeneralIncomeUsdBoundaryFtc", "foreignWagesTaxPaidUsdBoundaryFtc"
+  "usPassiveIncomeUsdBoundaryFtc", "usGeneralIncomeUsdBoundaryFtc", "foreignWagesTaxPaidUsdBoundaryFtc",
+  // Salary work-location sourcing (US-performed India salary out of the
+  // Form 1116 general basket) — same treatment.
+  "indiaSalaryOutsideIndiaUsdBoundaryFtc"
 ];
 
 var NODES = {};
@@ -144,6 +147,7 @@ NODES.usGeneralIncomeUsdBoundaryFtc = {
   }
 };
 NODES.foreignWagesTaxPaidUsdBoundaryFtc = { deps: ["aggregateUsIncomeResult"], compute: function (d) { return d.aggregateUsIncomeResult.foreignWagesTaxPaidUsd || 0; } };
+NODES.indiaSalaryOutsideIndiaUsdBoundaryFtc = { deps: ["indiaIncomeModelResult"], compute: function (d, ctx) { return (d.indiaIncomeModelResult.salaryOutsideIndiaInr || 0) / fxRate(ctx); } };
 // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H, 21 Jul
 // 2026): was aggregateUsIncomeResult.usSourceTotal.usd directly — the
 // individual-shaped aggregate, $0 for a US entity taxpayer, which zeroed

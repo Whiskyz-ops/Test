@@ -36,7 +36,9 @@ def test_india_income_model_matches_golden(fixture_id):
     # amount divergence (every fixture's taxableSalaryInr computes to the
     # same figure golden's own .salary already reflects, confirmed by this
     # test still asserting .salary unconditionally below).
-    out_income = {k: v for k, v in out["indiaIncomeModelResult"].items() if k not in ("passive", "general", "salaryDetail")}
+    # salaryWorkLocation / salaryOutsideIndiaInr (salary work-location
+    # sourcing): new DAG-only fields, no frozen-engine equivalent.
+    out_income = {k: v for k, v in out["indiaIncomeModelResult"].items() if k not in ("passive", "general", "salaryDetail", "salaryWorkLocation", "salaryOutsideIndiaInr")}
     diff = deep_diff(out_income, golden["model"]["income"]["india"])
     assert diff is None, f"{fixture_id}: " + " | ".join(diff[:8])
 

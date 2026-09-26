@@ -81,6 +81,7 @@ console.log("Case: US taxable base already excludes India-source income (usCedes
     usIncomeTaxUsdBoundaryFtc: 18000,        // US tax on that already-reduced $100,000 base
     indiaTotalTaxUsdBoundaryFtc: 15000,       // India tax paid on the $50,000, in USD
     foreignWagesTaxPaidUsdBoundaryFtc: 0,
+    indiaSalaryOutsideIndiaUsdBoundaryFtc: 0,
     otherCountryFtcEntriesRaw: []
   });
   console.log("  (for reference) current usLimitFraction=" + out.limitFraction + ", ftcLimitUsd=" + out.ftcLimitUsd);
@@ -123,12 +124,46 @@ console.log("\nCase: §904 basket separation (task #46) — hand-verified, both 
     usIncomeTaxUsdBoundaryFtc: 8000,
     indiaTotalTaxUsdBoundaryFtc: 21000,
     foreignWagesTaxPaidUsdBoundaryFtc: 0,
+    indiaSalaryOutsideIndiaUsdBoundaryFtc: 0,
     otherCountryFtcEntriesRaw: []
   });
   check("baskets.passive.ftcAllowedUsd should be $8,000 (fully absorbs its own $8,000 US-tax cap)", out.baskets.passive.ftcAllowedUsd, 8000, 1);
   check("baskets.general.ftcAllowedUsd should be $1,600 (limited by its own 20% income-share cap)", out.baskets.general.ftcAllowedUsd, 1600, 1);
   check("combined ftcAllowedUsd should be $9,600 (sum of the two baskets, MORE than the old combined formula's $8,000)", out.ftcAllowedUsd, 9600, 1);
   check("combined carryoverUsd should be $11,400", out.carryoverUsd, 11400, 1);
+})();
+
+console.log("\nCase: India salary for US-performed work is US-source (IRC 861(a)(3)) — hand-verified");
+(function () {
+  // India income $100,000, all salary (general basket); India tax $30,000.
+  // usTaxableUsd=$200,000, usIncomeTaxUsd=$40,000. $40,000 of the salary was
+  // earned for work performed in the US (salaryWorkLocation): out of the
+  // general basket, and India's tax on it (30,000 x 40% = $12,000) is not
+  // creditable — a DTAA Art. 16 India refund claim instead. General src =
+  // $60,000 -> limitFraction 0.3 -> ftcLimit $12,000; creditable tax
+  // $18,000 -> allowed $12,000, carryover $6,000. (Without sourcing: limit
+  // $20,000, allowed $20,000.) Mirrored in dag_py's test_ftc_correctness.py.
+  var out = NODES.ftcUsDirection.compute({
+    feieExcludedUsdBoundaryFtc: 0,
+    usIsNraBoundaryFtc: false,
+    hasUsScopeBoundaryFtc: true,
+    usWorldwideBoundaryFtc: true,
+    indiaIncomeTotalUsdBoundaryFtc: 100000,
+    indiaPassiveIncomeUsdBoundaryFtc: 0,
+    indiaGeneralIncomeUsdBoundaryFtc: 100000,
+    usTaxableIncomeUsdBoundaryFtc: 200000,
+    usIncomeTaxUsdBoundaryFtc: 40000,
+    indiaTotalTaxUsdBoundaryFtc: 30000,
+    foreignWagesTaxPaidUsdBoundaryFtc: 0,
+    indiaSalaryOutsideIndiaUsdBoundaryFtc: 40000,
+    otherCountryFtcEntriesRaw: []
+  });
+  check("usWorkSalaryUsd should be $40,000", out.usWorkSalaryUsd, 40000, 1);
+  check("indiaTaxOnUsWorkSalaryUsd should be $12,000 (not creditable; India refund claim)", out.indiaTaxOnUsWorkSalaryUsd, 12000, 1);
+  check("general basket foreign-source income should be $60,000", out.baskets.general.foreignSourceIncomeUsd, 60000, 1);
+  check("ftcLimitUsd should be $12,000", out.ftcLimitUsd, 12000, 1);
+  check("ftcAllowedUsd should be $12,000 (was $20,000 before sourcing)", out.ftcAllowedUsd, 12000, 1);
+  check("carryoverUsd should be $6,000", out.carryoverUsd, 6000, 1);
 })();
 
 console.log("\n" + pass + " passed, " + fail + " failed");

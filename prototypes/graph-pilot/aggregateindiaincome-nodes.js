@@ -287,6 +287,49 @@ var NODES = {
       };
     }
   },
+  // ---- salary work location (sourcing). Salary is sourced to where the
+  // work was physically done (India s.9(1)(ii); US IRC 861(a)(3)), so the
+  // share earned for work outside India is NOT India-source from the US
+  // side's point of view (ftc-nodes.js takes it out of the Form 1116 general
+  // basket). Per slice (each quarter, or the top-level salary when there are
+  // no quarters) so an answered quarter can't re-source an unanswered one:
+  // 0 days in India, or 365+ US days on the Router => all outside India;
+  // 365+ days in India, or 0 US days => all in India; otherwise the Layer 1
+  // workday split when work_performed_outside_india is true, else all in
+  // India (the pre-split behavior). indiaWorkFraction weights each slice by
+  // its gross salary (gross + perquisites + ESOP + prior employer, the same
+  // terms salaryIncomeComputation sums).
+  salaryWorkLocation: {
+    deps: [],
+    compute: function (d, ctx) {
+      var india = ctx.india;
+      var indiaDaysRaw = safe(india, "residency_detail.days_in_india_current_year", null);
+      var usDaysRaw = safe(ctx.router, "us_days", null);
+      var indiaDays = indiaDaysRaw === null || indiaDaysRaw === "" ? null : num(indiaDaysRaw);
+      var usDays = usDaysRaw === null || usDaysRaw === "" ? null : num(usDaysRaw);
+      var auto = null;
+      if (indiaDays === 0 || (usDays !== null && usDays >= 365)) auto = { share: 0, basis: "auto_outside_india" };
+      else if ((indiaDays !== null && indiaDays >= 365) || usDays === 0) auto = { share: 1, basis: "auto_in_india" };
+      var quarters = safe(india, "quarters", null);
+      var slices = quarters
+        ? ["Q1", "Q2", "Q3", "Q4"].map(function (q) { return safe(quarters, q + ".domestic_income.salary", null); }).filter(Boolean)
+        : [safe(india, "domestic_income.salary", {})];
+      var grossInr = 0, indiaWorkGrossInr = 0, answered = false;
+      slices.forEach(function (sal) {
+        var g = num(sal.gross_salary_inr) + num(sal.perquisites_inr) + num(sal.esop_perquisite_inr) + num(sal.prior_employer_salary_inr);
+        var share = 1;
+        if (auto) share = auto.share;
+        else if (sal.work_performed_outside_india === true && num(sal.workdays_in_india) + num(sal.workdays_outside_india) > 0) {
+          share = num(sal.workdays_in_india) / (num(sal.workdays_in_india) + num(sal.workdays_outside_india));
+          answered = true;
+        }
+        grossInr += g;
+        indiaWorkGrossInr += g * share;
+      });
+      var fraction = grossInr > 0 ? indiaWorkGrossInr / grossInr : (auto ? auto.share : 1);
+      return { indiaWorkFraction: fraction, basis: auto ? auto.basis : (answered ? "workdays" : "unanswered") };
+    }
+  },
   osAgg: { deps: ["annualSliceAgg"], compute: function (d) { return d.annualSliceAgg.other_sources || {}; } },
   cgAgg: { deps: ["annualSliceAgg"], compute: function (d) { return d.annualSliceAgg.capital_gains || {}; } },
   bizEntriesAgg: { deps: ["diAgg"], compute: function (d) { return safe(d.diAgg, "business_income.business_entries", []); } },
@@ -666,7 +709,7 @@ var NODES = {
    * model.income.india in run-aggregateindiaincome.js. */
   indiaIncomeModelResult: {
     deps: ["businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "diAgg", "osAgg",
-      "fnoIncomeInrAgg", "speculativeIncomeInrAgg", "salaryIncomeComputation"],
+      "fnoIncomeInrAgg", "speculativeIncomeInrAgg", "salaryIncomeComputation", "salaryWorkLocation"],
     compute: function (d, ctx) {
       function m(inr) { return { inr: inr, usd: inr / fxRate(ctx) }; }
 
@@ -707,6 +750,11 @@ var NODES = {
         holdingPeriodMismatches: cg.holdingPeriodMismatches,
         unexplained115bbeInr: unexplained115bbeInr,
         salaryDetail: d.salaryIncomeComputation,
+        // Taxable salary earned for work performed outside India (see
+        // salaryWorkLocation) — foreign-source to India, US-source to a US
+        // resident when the work was done in the US.
+        salaryWorkLocation: d.salaryWorkLocation,
+        salaryOutsideIndiaInr: salaryInr * (1 - d.salaryWorkLocation.indiaWorkFraction),
         total: m(total)
       };
       var basket = indiaIncomeBasketSplit(result);

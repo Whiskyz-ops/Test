@@ -205,6 +205,14 @@ var NODES = {
   // directly by country/basket since this engine only computes India's own
   // tax (no second country's tax law is modeled).
   foreignWagesTaxPaidUsdBoundaryFtc: { deps: [], compute: function (d, ctx) { return ctx.model.income.us.foreignWagesTaxPaidUsd || 0; } },
+  // India salary earned for work performed outside India (aggregateindia-
+  // income-nodes.js's salaryWorkLocation). For a US resident — the only case
+  // where Direction 1 isn't zeroed — that work is taken to have been done in
+  // the US (the only other country this engine models), so the US treats it
+  // as US-source (IRC 861(a)(3)) and it can't sit in the Form 1116 general
+  // basket. safe()-guarded: DAG-only field, absent on the frozen engine's
+  // model.income.india that run-ftc.js builds ctx from directly.
+  indiaSalaryOutsideIndiaUsdBoundaryFtc: { deps: [], compute: function (d, ctx) { return indiaInrToUsd(ctx, num(safe(ctx.model.income.india, "salaryOutsideIndiaInr", 0))); } },
   otherCountryFtcEntriesRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_tax_credit_other.entries", []) || []; } },
 
   // ---- Direction 1: US Form 1116 — credit for Indian (+ other-country)
@@ -213,7 +221,7 @@ var NODES = {
     deps: ["feieExcludedUsdBoundaryFtc", "usIsNraBoundaryFtc", "hasUsScopeBoundaryFtc", "usWorldwideBoundaryFtc",
       "indiaPassiveIncomeUsdBoundaryFtc", "indiaGeneralIncomeUsdBoundaryFtc", "indiaIncomeTotalUsdBoundaryFtc",
       "usTaxableIncomeUsdBoundaryFtc", "usIncomeTaxUsdBoundaryFtc", "indiaTotalTaxUsdBoundaryFtc",
-      "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw"],
+      "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw", "indiaSalaryOutsideIndiaUsdBoundaryFtc"],
     compute: function (d) {
       // usIsNraBoundaryFtc / !hasUsScopeBoundaryFtc: the pre-existing zeroing
       // conditions (XB-24). !usWorldwideBoundaryFtc: the fix above — ceded
@@ -235,14 +243,20 @@ var NODES = {
       // basket formula already used for the FEIE creditableFraction split.
       var indiaTaxOnPassiveUsd = indiaIncomeTotalUsd > 0 ? indiaTotalTaxUsd * (d.indiaPassiveIncomeUsdBoundaryFtc / indiaIncomeTotalUsd) : 0;
       var indiaTaxOnGeneralUsd = indiaIncomeTotalUsd > 0 ? indiaTotalTaxUsd * (d.indiaGeneralIncomeUsdBoundaryFtc / indiaIncomeTotalUsd) : 0;
+      // Salary for work done in the US is US-source: out of the general
+      // basket, and the Indian tax on it (same proportional allocation) is
+      // not a creditable foreign tax — it's a DTAA Art. 16 refund claim in
+      // India instead, surfaced as indiaTaxOnUsWorkSalaryUsd.
+      var usWorkSalaryUsd = Math.min(d.indiaSalaryOutsideIndiaUsdBoundaryFtc, d.indiaGeneralIncomeUsdBoundaryFtc);
+      var indiaTaxOnUsWorkSalaryUsd = indiaIncomeTotalUsd > 0 ? indiaTotalTaxUsd * (usWorkSalaryUsd / indiaIncomeTotalUsd) : 0;
 
       var otherPassive = sumOtherCountries(d.otherCountryFtcEntriesRaw, "passive");
       var otherGeneral = sumOtherCountries(d.otherCountryFtcEntriesRaw, "general");
 
       var passiveSrcGrossUsd = d.indiaPassiveIncomeUsdBoundaryFtc + otherPassive.incomeUsd;
-      var generalSrcGrossUsd = d.indiaGeneralIncomeUsdBoundaryFtc + otherGeneral.incomeUsd;
+      var generalSrcGrossUsd = d.indiaGeneralIncomeUsdBoundaryFtc - usWorkSalaryUsd + otherGeneral.incomeUsd;
       var passiveTaxPaidGrossUsd = indiaTaxOnPassiveUsd + otherPassive.taxPaidUsd;
-      var generalTaxPaidGrossUsd = indiaTaxOnGeneralUsd + otherGeneral.taxPaidUsd + d.foreignWagesTaxPaidUsdBoundaryFtc;
+      var generalTaxPaidGrossUsd = indiaTaxOnGeneralUsd - indiaTaxOnUsWorkSalaryUsd + otherGeneral.taxPaidUsd + d.foreignWagesTaxPaidUsdBoundaryFtc;
 
       var passive = computeUsBasket(passiveSrcGrossUsd, 0, passiveTaxPaidGrossUsd, usTaxableUsd, usIncomeTaxUsd, zeroed);
       var general = computeUsBasket(generalSrcGrossUsd, feieExcludedUsd, generalTaxPaidGrossUsd, usTaxableUsd, usIncomeTaxUsd, zeroed);
@@ -266,7 +280,12 @@ var NODES = {
         carryoverUsd: passive.carryoverUsd + general.carryoverUsd,
         residualDoubleTaxUsd: passive.carryoverUsd + general.carryoverUsd,
         baskets: { passive: passive, general: general },
-        otherCountries: d.otherCountryFtcEntriesRaw
+        otherCountries: d.otherCountryFtcEntriesRaw,
+        // India salary for US-performed work, and the Indian tax on it —
+        // excluded from the credit above (not foreign-source); recoverable,
+        // if at all, as an India refund under DTAA Art. 16, not here.
+        usWorkSalaryUsd: zeroed ? 0 : usWorkSalaryUsd,
+        indiaTaxOnUsWorkSalaryUsd: zeroed ? 0 : indiaTaxOnUsWorkSalaryUsd
       };
     }
   },

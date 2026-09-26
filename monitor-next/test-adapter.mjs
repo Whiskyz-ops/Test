@@ -59,6 +59,9 @@ const DAG_ONLY_KEYS = new Set([
   // Work-location sourcing of foreign_wages[] rows (IRC 861(a)(3),
   // aggregateusincome-nodes.js's foreignWagesSourcing) — DAG-only fields.
   "foreignWagesUsSource", "foreignWagesSourcing",
+  // India salary work-location sourcing (aggregateindiaincome-nodes.js's
+  // salaryWorkLocation → ftc-nodes.js) — DAG-only fields.
+  "salaryWorkLocation", "salaryOutsideIndiaInr", "usWorkSalaryUsd", "indiaTaxOnUsWorkSalaryUsd",
   // §25B Saver's Credit (task #44 follow-up) — added proactively (kept in
   // sync with shadow-core.js's own DAG_ONLY_KEYS).
   "saversCreditUsd", "saversCreditDetail",

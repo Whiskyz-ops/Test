@@ -660,6 +660,45 @@ def _total_india_income_inr(d, ctx):
     )
 
 
+def _salary_work_location(d, ctx):
+    """Salary work location (sourcing) -- mirrors aggregateindiaincome-nodes.js's
+    salaryWorkLocation exactly: per slice (each quarter, or the top-level
+    salary when there are no quarters); 0 days in India or 365+ Router US days
+    => all outside India; 365+ days in India or 0 US days => all in India;
+    otherwise the Layer 1 workday split when work_performed_outside_india is
+    True, else all in India. Weighted by each slice's gross salary."""
+    india = ctx.get("india")
+    india_days_raw = safe(india, "residency_detail.days_in_india_current_year", None)
+    us_days_raw = safe(ctx.get("router"), "us_days", None)
+    india_days = None if india_days_raw is None or india_days_raw == "" else num(india_days_raw)
+    us_days = None if us_days_raw is None or us_days_raw == "" else num(us_days_raw)
+    auto = None
+    if india_days == 0 or (us_days is not None and us_days >= 365):
+        auto = (0, "auto_outside_india")
+    elif (india_days is not None and india_days >= 365) or us_days == 0:
+        auto = (1, "auto_in_india")
+    quarters = safe(india, "quarters", None)
+    if quarters:
+        slices = [x for x in (safe(quarters, q + ".domestic_income.salary", None) for q in ("Q1", "Q2", "Q3", "Q4")) if x]
+    else:
+        slices = [safe(india, "domestic_income.salary", {}) or {}]
+    gross_inr = 0
+    india_work_gross_inr = 0
+    answered = False
+    for sal in slices:
+        g = num(sal.get("gross_salary_inr")) + num(sal.get("perquisites_inr")) + num(sal.get("esop_perquisite_inr")) + num(sal.get("prior_employer_salary_inr"))
+        share = 1
+        if auto:
+            share = auto[0]
+        elif sal.get("work_performed_outside_india") is True and num(sal.get("workdays_in_india")) + num(sal.get("workdays_outside_india")) > 0:
+            share = num(sal.get("workdays_in_india")) / (num(sal.get("workdays_in_india")) + num(sal.get("workdays_outside_india")))
+            answered = True
+        gross_inr += g
+        india_work_gross_inr += g * share
+    fraction = india_work_gross_inr / gross_inr if gross_inr > 0 else (auto[0] if auto else 1)
+    return {"indiaWorkFraction": fraction, "basis": auto[1] if auto else ("workdays" if answered else "unanswered")}
+
+
 def _india_income_model_result(d, ctx):
     def m(inr):
         return {"inr": inr, "usd": inr / fx_rate(ctx)}
@@ -699,6 +738,10 @@ def _india_income_model_result(d, ctx):
         "holdingPeriodMismatches": cg["holdingPeriodMismatches"],
         "unexplained115bbeInr": unexplained_115bbe_inr,
         "salaryDetail": d["salaryIncomeComputation"],
+        # Taxable salary earned for work performed outside India (see
+        # _salary_work_location).
+        "salaryWorkLocation": d["salaryWorkLocation"],
+        "salaryOutsideIndiaInr": salary_inr * (1 - d["salaryWorkLocation"]["indiaWorkFraction"]),
         "total": m(total),
     }
     basket = india_income_basket_split(result)
@@ -910,8 +953,15 @@ NODES = {
         compute=_total_india_income_inr,
         layer1_fields=_INCOME_BASES_FIELDS,
     ),
+    "salaryWorkLocation": NodeDef(
+        deps=(), compute=_salary_work_location,
+        layer1_fields=(
+            "india.domestic_income.salary.work_performed_outside_india", "india.domestic_income.salary.workdays_in_india",
+            "india.domestic_income.salary.workdays_outside_india", "india.residency_detail.days_in_india_current_year", "router.us_days",
+        ),
+    ),
     "indiaIncomeModelResult": NodeDef(
-        deps=("businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "diAgg", "osAgg", "fnoIncomeInrAgg", "speculativeIncomeInrAgg", "salaryIncomeComputation"),
+        deps=("businessComputation", "capitalGainsComputation", "otherSourcesMiscComputation", "diAgg", "osAgg", "fnoIncomeInrAgg", "speculativeIncomeInrAgg", "salaryIncomeComputation", "salaryWorkLocation"),
         compute=_india_income_model_result,
         layer1_fields=_INCOME_BASES_FIELDS + ("india.domestic_income.agricultural_income_inr", "india.other_sources.unexplained_income_115BBE_inr"),
     ),

@@ -116,7 +116,9 @@ def test_nra_fixture_matches_golden_end_to_end():
     # test_ftc_india_direction_nra_foreign_source_income_divergence below.
     # baskets/otherCountries (task #46, multi-country/multi-basket FTC): new
     # DAG-only fields, no frozen-engine equivalent.
-    mine_ftc_us = {k: v for k, v in result["computed"]["ftc"]["us"].items() if k not in ("baskets", "otherCountries")}
+    # usWorkSalaryUsd / indiaTaxOnUsWorkSalaryUsd: salary work-location
+    # sourcing, new DAG-only fields.
+    mine_ftc_us = {k: v for k, v in result["computed"]["ftc"]["us"].items() if k not in ("baskets", "otherCountries", "usWorkSalaryUsd", "indiaTaxOnUsWorkSalaryUsd")}
     diff = deep_diff(mine_ftc_us, golden["computed"]["ftc"]["us"])
     assert diff is None, "computed.ftc.us: " + " | ".join(diff[:8])
     assert result["computed"]["ftc"]["india"]["reliefAllowedUsd"] == golden["computed"]["ftc"]["india"]["reliefAllowedUsd"]

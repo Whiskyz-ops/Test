@@ -94,14 +94,19 @@ def _ftc_us_direction(d, ctx):
     # formula already used for the FEIE creditableFraction split.
     india_tax_on_passive_usd = india_total_tax_usd * (d["indiaPassiveIncomeUsdBoundaryFtc"] / india_income_total_usd) if india_income_total_usd > 0 else 0
     india_tax_on_general_usd = india_total_tax_usd * (d["indiaGeneralIncomeUsdBoundaryFtc"] / india_income_total_usd) if india_income_total_usd > 0 else 0
+    # Salary for work done in the US is US-source: out of the general basket,
+    # and the Indian tax on it is a DTAA Art. 16 India refund claim, not a
+    # creditable foreign tax. Mirrors ftc-nodes.js.
+    us_work_salary_usd = min(d["indiaSalaryOutsideIndiaUsdBoundaryFtc"], d["indiaGeneralIncomeUsdBoundaryFtc"])
+    india_tax_on_us_work_salary_usd = india_total_tax_usd * (us_work_salary_usd / india_income_total_usd) if india_income_total_usd > 0 else 0
 
     other_passive = _sum_other_countries(d["otherCountryFtcEntriesRaw"], "passive")
     other_general = _sum_other_countries(d["otherCountryFtcEntriesRaw"], "general")
 
     passive_src_gross_usd = d["indiaPassiveIncomeUsdBoundaryFtc"] + other_passive["incomeUsd"]
-    general_src_gross_usd = d["indiaGeneralIncomeUsdBoundaryFtc"] + other_general["incomeUsd"]
+    general_src_gross_usd = d["indiaGeneralIncomeUsdBoundaryFtc"] - us_work_salary_usd + other_general["incomeUsd"]
     passive_tax_paid_gross_usd = india_tax_on_passive_usd + other_passive["taxPaidUsd"]
-    general_tax_paid_gross_usd = india_tax_on_general_usd + other_general["taxPaidUsd"] + d["foreignWagesTaxPaidUsdBoundaryFtc"]
+    general_tax_paid_gross_usd = india_tax_on_general_usd - india_tax_on_us_work_salary_usd + other_general["taxPaidUsd"] + d["foreignWagesTaxPaidUsdBoundaryFtc"]
 
     passive = _compute_us_basket(passive_src_gross_usd, 0, passive_tax_paid_gross_usd, us_taxable_usd, us_income_tax_usd, zeroed)
     general = _compute_us_basket(general_src_gross_usd, feie_excluded_usd, general_tax_paid_gross_usd, us_taxable_usd, us_income_tax_usd, zeroed)
@@ -127,6 +132,10 @@ def _ftc_us_direction(d, ctx):
         "residualDoubleTaxUsd": passive["carryoverUsd"] + general["carryoverUsd"],
         "baskets": {"passive": passive, "general": general},
         "otherCountries": d["otherCountryFtcEntriesRaw"],
+        # India salary for US-performed work, and the Indian tax on it —
+        # excluded from the credit above; an India DTAA Art. 16 refund claim.
+        "usWorkSalaryUsd": 0 if zeroed else us_work_salary_usd,
+        "indiaTaxOnUsWorkSalaryUsd": 0 if zeroed else india_tax_on_us_work_salary_usd,
     }
 
 
@@ -219,13 +228,16 @@ NODES = {
     # Credits" section, entered directly by country/basket since this
     # engine only computes India's own tax.
     "foreignWagesTaxPaidUsdBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.income.us.foreignWagesTaxPaidUsd", 0) or 0),
+    # India salary earned for work outside India (salaryWorkLocation) — see
+    # ftc-nodes.js's indiaSalaryOutsideIndiaUsdBoundaryFtc.
+    "indiaSalaryOutsideIndiaUsdBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: _india_inr_to_usd(ctx, num(safe(ctx, "model.income.india.salaryOutsideIndiaInr", 0)))),
     "otherCountryFtcEntriesRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_tax_credit_other.entries", []) or []),
 
     "ftcUsDirection": NodeDef(
         deps=("feieExcludedUsdBoundaryFtc", "usIsNraBoundaryFtc", "hasUsScopeBoundaryFtc", "usWorldwideBoundaryFtc",
               "indiaPassiveIncomeUsdBoundaryFtc", "indiaGeneralIncomeUsdBoundaryFtc", "indiaIncomeTotalUsdBoundaryFtc",
               "usTaxableIncomeUsdBoundaryFtc", "usIncomeTaxUsdBoundaryFtc", "indiaTotalTaxUsdBoundaryFtc",
-              "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw"),
+              "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw", "indiaSalaryOutsideIndiaUsdBoundaryFtc"),
         compute=_ftc_us_direction,
     ),
     "ftcIndiaDirection": NodeDef(

@@ -48,6 +48,7 @@ def test_ftc_us_direction_zeroes_when_worldwide_ceded_without_1040nr():
         "usIncomeTaxUsdBoundaryFtc": 18000,
         "indiaTotalTaxUsdBoundaryFtc": 15000,
         "foreignWagesTaxPaidUsdBoundaryFtc": 0,
+        "indiaSalaryOutsideIndiaUsdBoundaryFtc": 0,
         "otherCountryFtcEntriesRaw": [],
     }, None)
     assert _close(out["ftcAllowedUsd"], 0), f"ftcAllowedUsd should be $0, got {out['ftcAllowedUsd']}"
@@ -75,9 +76,42 @@ def test_ftc_us_direction_basket_separation_unaffected_by_the_gating_fix():
         "usIncomeTaxUsdBoundaryFtc": 8000,
         "indiaTotalTaxUsdBoundaryFtc": 21000,
         "foreignWagesTaxPaidUsdBoundaryFtc": 0,
+        "indiaSalaryOutsideIndiaUsdBoundaryFtc": 0,
         "otherCountryFtcEntriesRaw": [],
     }, None)
     assert _close(out["baskets"]["passive"]["ftcAllowedUsd"], 8000)
     assert _close(out["baskets"]["general"]["ftcAllowedUsd"], 1600)
     assert _close(out["ftcAllowedUsd"], 9600)
     assert _close(out["carryoverUsd"], 11400)
+
+
+def test_ftc_us_direction_excludes_india_salary_for_us_performed_work():
+    # India income $100,000, all salary (general basket); India tax $30,000.
+    # usTaxableUsd=$200,000, usIncomeTaxUsd=$40,000. $40,000 of the salary
+    # was earned for work performed in the US (salaryWorkLocation), so it is
+    # US-source (IRC 861(a)(3)): out of the general basket, and India's tax
+    # on it (30,000 x 40% = $12,000) is not creditable -- a DTAA Art. 16
+    # India refund claim instead. General src = $60,000 -> limitFraction 0.3
+    # -> ftcLimit $12,000; creditable tax $18,000 -> allowed $12,000,
+    # carryover $6,000. (Without sourcing: limit $20,000, allowed $20,000.)
+    out = _ftc_us_direction({
+        "feieExcludedUsdBoundaryFtc": 0,
+        "usIsNraBoundaryFtc": False,
+        "hasUsScopeBoundaryFtc": True,
+        "usWorldwideBoundaryFtc": True,
+        "indiaIncomeTotalUsdBoundaryFtc": 100000,
+        "indiaPassiveIncomeUsdBoundaryFtc": 0,
+        "indiaGeneralIncomeUsdBoundaryFtc": 100000,
+        "usTaxableIncomeUsdBoundaryFtc": 200000,
+        "usIncomeTaxUsdBoundaryFtc": 40000,
+        "indiaTotalTaxUsdBoundaryFtc": 30000,
+        "foreignWagesTaxPaidUsdBoundaryFtc": 0,
+        "indiaSalaryOutsideIndiaUsdBoundaryFtc": 40000,
+        "otherCountryFtcEntriesRaw": [],
+    }, None)
+    assert _close(out["usWorkSalaryUsd"], 40000)
+    assert _close(out["indiaTaxOnUsWorkSalaryUsd"], 12000)
+    assert _close(out["baskets"]["general"]["foreignSourceIncomeUsd"], 60000)
+    assert _close(out["ftcLimitUsd"], 12000)
+    assert _close(out["ftcAllowedUsd"], 12000)
+    assert _close(out["carryoverUsd"], 6000)
