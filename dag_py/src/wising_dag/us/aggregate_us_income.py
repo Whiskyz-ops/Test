@@ -559,13 +559,49 @@ def _compute_cfc_inclusion(corps: list, is_corporate_shareholder: bool = False) 
     }
 
 
+def _foreign_wages_sourcing(d, ctx):
+    """Work-location sourcing of foreign_wages[] rows (IRC 861(a)(3)): pay for
+    personal services is sourced to where the work was physically done, not
+    the employer's country, so a foreign employer's pay for days worked IN
+    the US is US-source. Per row: 365+ US days => all US-source; 0 US days =>
+    all foreign; otherwise the workday split when given, else all foreign
+    (the pre-split behavior). Mirrors aggregateusincome-nodes.js."""
+    # Read straight from ctx (same expression as residency.py's
+    # usDaysCurrentYearRaw), not via that node, so partial graphs that build
+    # only the US-income nodes still resolve.
+    us_days = num(safe(ctx.get("us"), "us_residency_detail.us_days_current_year", 0)) or 0
+    us_source = 0
+    foreign_source = 0
+    rows = []
+    for w in (safe(d["fiAgg"], "foreign_wages", []) or []):
+        gross = num(w.get("gross_wages_usd") or w.get("wages_usd") or w.get("amount_usd") or w.get("wages_box1_usd") or w.get("wages_tips_compensation_usd") or 0)
+        in_us, out_us = num(w.get("workdays_in_us")), num(w.get("workdays_outside_us"))
+        if us_days >= 365:
+            basis, us_share = "all_us_days", 1
+        elif us_days <= 0:
+            basis, us_share = "no_us_days", 0
+        elif in_us + out_us > 0:
+            basis, us_share = "workdays", in_us / (in_us + out_us)
+        else:
+            basis, us_share = "unanswered", 0
+        us_part = gross * us_share
+        us_source += us_part
+        foreign_source += gross - us_part
+        rows.append({"employerName": w.get("employer_name") or None, "grossUsd": gross, "usSourceUsd": us_part, "foreignSourceUsd": gross - us_part, "basis": basis})
+    return {"usSourceUsd": us_source, "foreignSourceUsd": foreign_source, "rows": rows}
+
+
 def _aggregate_us_income_result(d, ctx):
     w, biz, ret, di, epf = d["wagesComputation"], d["businessAndSeComputation"], d["retirementComputation"], d["directIncomeComputation"], d["epfNpsCrossBorder"]
     cfc = d["cfcInclusionResult"]
+    # US-source part of foreign-employer wages (foreignWagesSourcing) is
+    # ordinary US wages: same total income, just not foreign-source.
+    fw_us_source = d["foreignWagesSourcing"]["usSourceUsd"]
+    wages_usd = w["wagesUsd"] + fw_us_source
     foreign_interest = di["foreignInterestUsd"] + epf["taxableEpfInterestUsd"]
     foreign_pension = di["foreignPensionUsd"] + epf["taxableNpsWithdrawalUsd"]
 
-    us_source_total = w["wagesUsd"] + biz["businessUsUsd"] + di["interestUsUsd"] + di["ordinaryDividendsUsUsd"] + di["ltcgUsUsd"] + di["stcgUsUsd"] + di["rentalUsUsd"] + ret["usRetirementIncomeExclSsUsd"] + ret["socialSecurityUsUsd"] + di["otherOrdinaryIncomeUsUsd"]
+    us_source_total = wages_usd + biz["businessUsUsd"] + di["interestUsUsd"] + di["ordinaryDividendsUsUsd"] + di["ltcgUsUsd"] + di["stcgUsUsd"] + di["rentalUsUsd"] + ret["usRetirementIncomeExclSsUsd"] + ret["socialSecurityUsUsd"] + di["otherOrdinaryIncomeUsUsd"]
     # The elected pool's pre-tax NCTI/Subpart F is intentionally NOT added
     # here — it flows through cfcElectedPool into compute_us_tax_core's own
     # flat-tax add-on instead, mirroring how AMT/NIIT amounts don't appear
@@ -573,7 +609,7 @@ def _aggregate_us_income_result(d, ctx):
     foreign_source_total = d["foreignWagesUsd"] + biz["foreignSelfEmploymentUsd"] + foreign_interest + di["foreignDividendsUsd"] + di["foreignRentalUsd"] + foreign_pension + di["foreignStcgUsd"] + di["foreignLtcgUsd"] + di["section988GainLossUsd"] + cfc["nonElectedOrdinaryInclusionUsd"]
 
     return {
-        "wages": _m(w["wagesUsd"], ctx), "businessUs": _m(biz["businessUsUsd"], ctx), "w2Withholding": w["w2WithholdingUsd"], "w2Employers": w["w2Employers"], "medicareWages": w["medicareWagesUsd"],
+        "wages": _m(wages_usd, ctx), "businessUs": _m(biz["businessUsUsd"], ctx), "w2Withholding": w["w2WithholdingUsd"], "w2Employers": w["w2Employers"], "medicareWages": w["medicareWagesUsd"],
         "qualifiedTipsUsd": w["qualifiedTipsUsd"], "qualifiedOvertimeUsd": w["qualifiedOvertimeUsd"],
         "seEarningsUsd": biz["seEarningsUsd"], "qbiIncomeUsd": biz["qbiIncomeUsd"], "qbiIsSSTB": biz["qbiIsSSTB"],
         "qbiWagesUsd": biz["qbiWagesUsd"], "qbiUbiaUsd": biz["qbiUbiaUsd"],
@@ -586,7 +622,8 @@ def _aggregate_us_income_result(d, ctx):
         "ltcgUs": _m(di["ltcgUsUsd"], ctx), "stcgUs": _m(di["stcgUsUsd"], ctx), "capitalGainsUs": _m(di["ltcgUsUsd"] + di["stcgUsUsd"], ctx), "rentalUs": _m(di["rentalUsUsd"], ctx),
         "collectiblesLtcgUsd": di["collectiblesLtcgUsd"], "qsbsExcludedGainUsd": di["qsbsExcludedGainUsd"], "qsbsTaxableGainUsd": di["qsbsTaxableGainUsd"],
         "otherOrdinaryIncomeUs": _m(di["otherOrdinaryIncomeUsUsd"], ctx),
-        "foreignWages": _m(d["foreignWagesUsd"], ctx), "foreignWagesTaxPaidUsd": d["foreignWagesTaxPaidUsd"], "foreignSelfEmployment": _m(biz["foreignSelfEmploymentUsd"], ctx),
+        "foreignWages": _m(d["foreignWagesUsd"], ctx), "foreignWagesTaxPaidUsd": d["foreignWagesTaxPaidUsd"],
+        "foreignWagesUsSource": _m(fw_us_source, ctx), "foreignWagesSourcing": d["foreignWagesSourcing"]["rows"], "foreignSelfEmployment": _m(biz["foreignSelfEmploymentUsd"], ctx),
         "foreignInterest": _m(foreign_interest, ctx), "foreignDividends": _m(di["foreignDividendsUsd"], ctx),
         "foreignRental": _m(di["foreignRentalUsd"], ctx), "foreignPension": _m(foreign_pension, ctx),
         "foreignStcg": _m(di["foreignStcgUsd"], ctx), "foreignLtcg": _m(di["foreignLtcgUsd"], ctx),
@@ -684,20 +721,24 @@ def build(base):
     # foreignSelfEmploymentUsd being > 0, which stayed 0 with nothing in
     # this field's own array).
     r.register("feieEarnedIncomeUsdRaw", NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "foreign_earned_income.foreign_earned_income_usd", 0)), layer1_fields=("us.foreign_earned_income.foreign_earned_income_usd",)))
+    # Work-location sourcing of foreign_wages[] rows (IRC 861(a)(3)) -- see
+    # _foreign_wages_sourcing. Mirrors aggregateusincome-nodes.js's
+    # foreignWagesSourcing node exactly.
+    r.register("foreignWagesSourcing", NodeDef(
+        deps=("fiAgg",),
+        compute=_foreign_wages_sourcing,
+        layer1_fields=("us.income_foreign_source.foreign_wages[].workdays_in_us", "us.income_foreign_source.foreign_wages[].workdays_outside_us", "us.us_residency_detail.us_days_current_year"),
+    ))
     r.register("foreignWagesUsd", NodeDef(
-        deps=("fiAgg", "feieEarnedIncomeUsdRaw"),
-        # gross_wages_usd is the field name syncForeignWagesState() (layer1_us.
-        # html) actually writes for every foreign-wage row added through the
-        # live form -- was missing from the fallback chain entirely, so every
-        # foreign wage entry ever made through the live UI silently computed
-        # to $0 (only profiles.js's hand-authored fixtures, which use
-        # wages_usd directly, ever exercised a nonzero value here). max(),
-        # not +, with feieEarnedIncomeUsdRaw so a user who carefully filled
-        # in both this list and the FEIE screen's field describing the same
-        # real-world salary isn't double-counted.
+        deps=("foreignWagesSourcing", "feieEarnedIncomeUsdRaw"),
+        # max(), not +, with feieEarnedIncomeUsdRaw so a user who carefully
+        # filled in both the foreign_wages[] list and the FEIE screen's field
+        # describing the same real-world salary isn't double-counted. The FEIE
+        # figure is reduced by whatever part of the rows was re-sourced to the
+        # US (it describes the same salary, now counted in US wages instead).
         compute=lambda d, ctx: max(
-            sum(num(w.get("gross_wages_usd") or w.get("wages_usd") or w.get("amount_usd") or w.get("wages_box1_usd") or w.get("wages_tips_compensation_usd") or 0) for w in (safe(d["fiAgg"], "foreign_wages", []) or [])),
-            d["feieEarnedIncomeUsdRaw"],
+            d["foreignWagesSourcing"]["foreignSourceUsd"],
+            max(0, d["feieEarnedIncomeUsdRaw"] - d["foreignWagesSourcing"]["usSourceUsd"]),
         ),
         layer1_fields=("us.income_foreign_source.foreign_wages[].gross_wages_usd", "us.income_foreign_source.foreign_wages[].wages_usd", "us.income_foreign_source.foreign_wages[].amount_usd", "us.income_foreign_source.foreign_wages[].wages_box1_usd", "us.income_foreign_source.foreign_wages[].wages_tips_compensation_usd"),
     ))
@@ -796,7 +837,7 @@ def build(base):
     ))
 
     r.register("aggregateUsIncomeResult", NodeDef(
-        deps=("wagesComputation", "foreignWagesUsd", "foreignWagesTaxPaidUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult"),
+        deps=("wagesComputation", "foreignWagesUsd", "foreignWagesTaxPaidUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult", "foreignWagesSourcing"),
         compute=_aggregate_us_income_result,
     ))
     return r

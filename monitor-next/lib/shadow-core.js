@@ -123,6 +123,9 @@ const DAG_ONLY_KEYS = new Set([
   "caveat", "indiaIsAop", "indiaIsTrust", "trustDistributedUsd", "trustRetainedUsd",
   "trustBracketBreakdown", "entityGraph", "qbiWagesUsd", "qbiUbiaUsd",
   "foreignSection988GainLoss", "otherOrdinaryIncomeUs",
+  // Work-location sourcing of foreign_wages[] rows (IRC 861(a)(3),
+  // aggregateusincome-nodes.js's foreignWagesSourcing) — DAG-only fields.
+  "foreignWagesUsSource", "foreignWagesSourcing",
   // §25B Saver's Credit (task #44 follow-up) — added proactively (kept in
   // sync with prototypes/graph-pilot/run-fuzz.js's own DAG_ONLY_KEYS).
   "saversCreditUsd", "saversCreditDetail",

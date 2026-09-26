@@ -425,8 +425,42 @@ var NODES = {
   // this field's own array).
   feieEarnedIncomeUsdRaw: { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "foreign_earned_income.foreign_earned_income_usd", 0)); } },
 
+  // Work-location sourcing of foreign_wages[] rows (IRC 861(a)(3)): pay for
+  // personal services is sourced to where the work was physically done, not
+  // to the employer's country -- a foreign employer's pay for days worked IN
+  // the US is US-source, so it must not sit in foreignWages (where it would
+  // inflate the s.904 FTC limitation and count as FEIE-eligible foreign
+  // earned income). Per row: 365+ US days this year => all US-source; 0 US
+  // days => all foreign; otherwise the Layer 1 workday split
+  // (workdays_in_us / workdays_outside_us) when given, else all foreign
+  // (the pre-split behavior, so a row with no answer is unchanged).
+  foreignWagesSourcing: {
+    // US days read straight from ctx (same expression as residency-nodes.js's
+    // usDaysCurrentYearRaw), not via that node, so partial graphs that build
+    // only the US-income nodes still resolve.
+    deps: ["fiAgg"],
+    compute: function (d, ctx) {
+      var usDays = Number(safe(ctx.us, "us_residency_detail.us_days_current_year", 0)) || 0;
+      var usSourceUsd = 0, foreignSourceUsd = 0, rows = [];
+      (safe(d.fiAgg, "foreign_wages", []) || []).forEach(function (w) {
+        var grossUsd = num(w.gross_wages_usd || w.wages_usd || w.amount_usd || w.wages_box1_usd || w.wages_tips_compensation_usd || 0);
+        var inUs = num(w.workdays_in_us), outUs = num(w.workdays_outside_us);
+        var basis, usShare;
+        if (usDays >= 365) { basis = "all_us_days"; usShare = 1; }
+        else if (usDays <= 0) { basis = "no_us_days"; usShare = 0; }
+        else if (inUs + outUs > 0) { basis = "workdays"; usShare = inUs / (inUs + outUs); }
+        else { basis = "unanswered"; usShare = 0; }
+        var usPartUsd = grossUsd * usShare;
+        usSourceUsd += usPartUsd;
+        foreignSourceUsd += grossUsd - usPartUsd;
+        rows.push({ employerName: w.employer_name || null, grossUsd: grossUsd, usSourceUsd: usPartUsd, foreignSourceUsd: grossUsd - usPartUsd, basis: basis });
+      });
+      return { usSourceUsd: usSourceUsd, foreignSourceUsd: foreignSourceUsd, rows: rows };
+    }
+  },
+
   foreignWagesUsd: {
-    deps: ["fiAgg", "feieEarnedIncomeUsdRaw"],
+    deps: ["foreignWagesSourcing", "feieEarnedIncomeUsdRaw"],
     // gross_wages_usd is the field name syncForeignWagesState() (layer1_us.
     // html) actually writes for every foreign-wage row added through the
     // live form -- confirmed by grep, this was previously missing from the
@@ -435,12 +469,14 @@ var NODES = {
     // hand-authored fixtures, which use wages_usd directly, ever exercised
     // a nonzero value here).
     compute: function (d) {
-      var wageRowsTotal = (safe(d.fiAgg, "foreign_wages", []) || []).reduce(function (s, w) { return s + num(w.gross_wages_usd || w.wages_usd || w.amount_usd || w.wages_box1_usd || w.wages_tips_compensation_usd || 0); }, 0);
+      var src = d.foreignWagesSourcing;
       // max(), not +, so a user who carefully filled in both this and the
       // FEIE screen's field describing the same real-world salary isn't
       // double-counted; a user who only filled in one of the two loses
-      // nothing either way.
-      return Math.max(wageRowsTotal, d.feieEarnedIncomeUsdRaw);
+      // nothing either way. The FEIE figure is reduced by whatever part of
+      // the rows was re-sourced to the US (it describes the same salary, and
+      // that part is now counted in US wages instead).
+      return Math.max(src.foreignSourceUsd, Math.max(0, d.feieEarnedIncomeUsdRaw - src.usSourceUsd));
     }
   },
   // Each foreign_wages[] row already carries its own foreign_tax_paid_usd
@@ -686,14 +722,18 @@ var NODES = {
 
   // ---- final assembly, matching aggregateUsIncome's own return object ----
   aggregateUsIncomeResult: {
-    deps: ["wagesComputation", "foreignWagesUsd", "foreignWagesTaxPaidUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult"],
+    deps: ["wagesComputation", "foreignWagesUsd", "foreignWagesTaxPaidUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult", "foreignWagesSourcing"],
     compute: function (d, ctx) {
       var w = d.wagesComputation, biz = d.businessAndSeComputation, ret = d.retirementComputation, di = d.directIncomeComputation, epf = d.epfNpsCrossBorder;
       var cfc = d.cfcInclusionResult;
+      // US-source part of foreign-employer wages (foreignWagesSourcing) is
+      // ordinary US wages: same total income, just not foreign-source.
+      var fwUsSourceUsd = d.foreignWagesSourcing.usSourceUsd;
+      var wagesUsd = w.wagesUsd + fwUsSourceUsd;
       var foreignInterest = di.foreignInterestUsd + epf.taxableEpfInterestUsd;
       var foreignPension = di.foreignPensionUsd + epf.taxableNpsWithdrawalUsd;
 
-      var usSourceTotal = w.wagesUsd + biz.businessUsUsd + di.interestUsUsd + di.ordinaryDividendsUsUsd + di.ltcgUsUsd + di.stcgUsUsd + di.rentalUsUsd + ret.usRetirementIncomeExclSsUsd + ret.socialSecurityUsUsd + di.otherOrdinaryIncomeUsUsd;
+      var usSourceTotal = wagesUsd + biz.businessUsUsd + di.interestUsUsd + di.ordinaryDividendsUsUsd + di.ltcgUsUsd + di.stcgUsUsd + di.rentalUsUsd + ret.usRetirementIncomeExclSsUsd + ret.socialSecurityUsUsd + di.otherOrdinaryIncomeUsUsd;
       // The elected pool's pre-tax NCTI/Subpart F is intentionally NOT added
       // here — it flows through cfcElectedPool into computeUsTaxCore's own
       // flat-tax add-on instead, mirroring how AMT/NIIT amounts don't appear
@@ -701,7 +741,7 @@ var NODES = {
       var foreignSourceTotal = d.foreignWagesUsd + biz.foreignSelfEmploymentUsd + foreignInterest + di.foreignDividendsUsd + di.foreignRentalUsd + foreignPension + di.foreignStcgUsd + di.foreignLtcgUsd + di.section988GainLossUsd + cfc.nonElectedOrdinaryInclusionUsd;
 
       return {
-        wages: m(w.wagesUsd, ctx), businessUs: m(biz.businessUsUsd, ctx), w2Withholding: w.w2WithholdingUsd, w2Employers: w.w2Employers, medicareWages: w.medicareWagesUsd,
+        wages: m(wagesUsd, ctx), businessUs: m(biz.businessUsUsd, ctx), w2Withholding: w.w2WithholdingUsd, w2Employers: w.w2Employers, medicareWages: w.medicareWagesUsd,
         qualifiedTipsUsd: w.qualifiedTipsUsd, qualifiedOvertimeUsd: w.qualifiedOvertimeUsd,
         seEarningsUsd: biz.seEarningsUsd, qbiIncomeUsd: biz.qbiIncomeUsd, qbiIsSSTB: biz.qbiIsSSTB,
         qbiWagesUsd: biz.qbiWagesUsd, qbiUbiaUsd: biz.qbiUbiaUsd,
@@ -714,7 +754,8 @@ var NODES = {
         ltcgUs: m(di.ltcgUsUsd, ctx), stcgUs: m(di.stcgUsUsd, ctx), capitalGainsUs: m(di.ltcgUsUsd + di.stcgUsUsd, ctx), rentalUs: m(di.rentalUsUsd, ctx),
         collectiblesLtcgUsd: di.collectiblesLtcgUsd, qsbsExcludedGainUsd: di.qsbsExcludedGainUsd, qsbsTaxableGainUsd: di.qsbsTaxableGainUsd,
         otherOrdinaryIncomeUs: m(di.otherOrdinaryIncomeUsUsd, ctx),
-        foreignWages: m(d.foreignWagesUsd, ctx), foreignWagesTaxPaidUsd: d.foreignWagesTaxPaidUsd, foreignSelfEmployment: m(biz.foreignSelfEmploymentUsd, ctx),
+        foreignWages: m(d.foreignWagesUsd, ctx), foreignWagesTaxPaidUsd: d.foreignWagesTaxPaidUsd,
+        foreignWagesUsSource: m(fwUsSourceUsd, ctx), foreignWagesSourcing: d.foreignWagesSourcing.rows, foreignSelfEmployment: m(biz.foreignSelfEmploymentUsd, ctx),
         foreignInterest: m(foreignInterest, ctx), foreignDividends: m(di.foreignDividendsUsd, ctx),
         foreignRental: m(di.foreignRentalUsd, ctx), foreignPension: m(foreignPension, ctx),
         foreignStcg: m(di.foreignStcgUsd, ctx), foreignLtcg: m(di.foreignLtcgUsd, ctx),

@@ -605,7 +605,13 @@ var KNOWN_INDIA_ENTITY_DIVERGENT_PATHS = ["taxComputation.india"];
 // collectiblesTaxUsd / qsbsExcludedGainUsd / qsbsTaxableGainUsd: concurrent
 // session's capital-gains special-rates work (§1(h)(4) 28% collectibles,
 // §1202 QSBS exclusion) — new DAG-only fields, no frozen-engine equivalent.
-var KNOWN_ALWAYS_DIVERGENT_PATHS = ["model.income.us.foreignSection988GainLoss", "model.income.us.otherOrdinaryIncomeUs",
+// model.income.us.foreignWagesUsSource / foreignWagesSourcing (work-location
+// sourcing of foreign_wages[] rows, IRC 861(a)(3) -- aggregateusincome-
+// nodes.js's foreignWagesSourcing): brand-new DAG-only fields, no frozen-
+// engine equivalent. The dollar effect is covered separately, per profile,
+// by isWorkLocationSourcingDivergentProfile below.
+var KNOWN_ALWAYS_DIVERGENT_PATHS = ["model.income.us.foreignWagesUsSource", "model.income.us.foreignWagesSourcing",
+  "model.income.us.foreignSection988GainLoss", "model.income.us.otherOrdinaryIncomeUs",
   "model.income.us.cfcNonElectedInclusionUs", "model.income.us.cfcElectedPool", "model.income.us.cfcPerEntityTrace",
   "computed.usTax.gilti962TaxUsd", "computed.usTax.cfcDetail",
   // Entity-routing fix (29 Jul 2026): computed.usTax.cfcNetTaxUsd is a
@@ -738,6 +744,32 @@ var KNOWN_FEIE_WAGES_DIVERGENT_PATHS = [
   "computed.apportionment", "computed.limits", "taxComputation", "ftcReport", "documents", "returnForms",
   "withholding", "scopeNotes", "summary", "monitoring"
 ];
+// Work-location sourcing of foreign_wages[] rows (IRC 861(a)(3),
+// aggregateusincome-nodes.js's foreignWagesSourcing): the frozen engine
+// treats every foreign-employer wage as foreign-source; the DAG re-sources
+// the part earned for days worked in the US (365+ US days => all of it, or
+// the Layer 1 workdays_in_us/workdays_outside_us split) to US wages. Same
+// total income, but FEIE eligibility, foreignWages, and everything
+// downstream of them move -- a deliberate improvement, blocked wholesale
+// the same way as the FEIE-wages case above, and ONLY for profiles where a
+// nonzero wage row is actually re-sourced.
+function isWorkLocationSourcingDivergentProfile(profile) {
+  var us = profile.us || {};
+  var usDays = Number(us.us_residency_detail && us.us_residency_detail.us_days_current_year) || 0;
+  var rows = (us.income_foreign_source && us.income_foreign_source.foreign_wages) || [];
+  return rows.some(function (w) {
+    var gross = Number(w.gross_wages_usd || w.wages_usd || w.amount_usd || w.wages_box1_usd || w.wages_tips_compensation_usd) || 0;
+    if (gross <= 0 || usDays <= 0) return false;
+    return usDays >= 365 || (Number(w.workdays_in_us) || 0) > 0;
+  });
+}
+// Plus findings: unlike the FEIE-field case, re-sourcing moves income INTO
+// US wages, which findings read directly -- cross_basis_summary's overlap
+// amount (seed 7), and, because US-source wages can't be FEIE-excluded,
+// amt_applies / state_income_tax amounts and findings gated on wage or
+// income thresholds (seed 42: 466 and 1,120 US days). All correct
+// consequences, too varied to list finding by finding.
+var KNOWN_WORK_LOCATION_SOURCING_DIVERGENT_PATHS = KNOWN_FEIE_WAGES_DIVERGENT_PATHS.concat(["findings"]);
 // FEIE bona-fide-residence eligibility (docs/GAP_TRACKER.md, 29 Jul 2026):
 // the frozen engine grants the test ONLY off the legacy bona_fide_residence
 // boolean, which nothing in the live UI has ever set (same root cause as
@@ -1215,6 +1247,7 @@ function compareOne(label, profile, saveOnFail) {
     .concat(indiaAopOrTrust ? KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS : [])
     .concat(isUsTrustProfile(dag) ? KNOWN_US_TRUST_DIVERGENT_PATHS : [])
     .concat(feieWagesDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
+    .concat(isWorkLocationSourcingDivergentProfile(profile) ? KNOWN_WORK_LOCATION_SOURCING_DIVERGENT_PATHS : [])
     .concat(feieBonaFideProxyDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(feieStackingRuleDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(isFeieEntityGateMissingProfile(dag, profile) ? KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS : [])

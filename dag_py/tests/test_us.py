@@ -42,6 +42,11 @@ def test_aggregate_us_income_result_matches_golden(fixture_id):
     # foreignWagesTaxPaidUsd (task #46, multi-country/multi-basket FTC): new
     # DAG-only field, no frozen-engine equivalent.
     exclude = {"foreignWagesTaxPaidUsd"}
+    # foreignWagesUsSource / foreignWagesSourcing (work-location sourcing of
+    # foreign_wages[] rows, IRC 861(a)(3)): new DAG-only fields, no frozen-
+    # engine equivalent. No fixture fills workdays or has 0/365+ US days with
+    # foreign wages, so every other field still matches golden exactly.
+    exclude |= {"foreignWagesUsSource", "foreignWagesSourcing"}
     # cfcPerEntityTrace (entity-routing fix, conftest.py's own docstring):
     # sec962Elected reclassifies to True for a real C-corp shareholder,
     # regardless of the raw flag — a real, permanent divergence for this one
