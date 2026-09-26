@@ -55,7 +55,24 @@ function RemoveButton({ onClick }) {
   );
 }
 
-function ForeignWageRow({ row, index, onChange, onRemove }) {
+// Wages are sourced to where the work was done (IRC 861(a)(3)), not the
+// employer's country — pay from a foreign employer for days worked IN the
+// US is US-source, with no FTC limitation room. US days already on file
+// settle the common cases, so the workday fields only show otherwise;
+// nothing is stored for the auto cases (the engine re-derives them).
+// Mirrors layer1_us.html's foreignWagesWorkLocationAuto().
+function workLocationAuto(usDays) {
+  if (usDays === 0) return "Treated as work performed entirely outside the US (0 US days this year).";
+  if (usDays >= 365) return "Treated as work performed entirely in the US (in the US all year), so US-source, not foreign.";
+  return null;
+}
+const parseWorkdays = (v) => {
+  const n = parseInt(String(v).replace(/[^0-9]/g, ""), 10);
+  return Number.isNaN(n) ? null : Math.min(n, 366);
+};
+
+function ForeignWageRow({ row, index, onChange, onRemove, usDays }) {
+  const autoText = workLocationAuto(usDays);
   return (
     <div className={nestedCard + " flex flex-col gap-3 relative"}>
       <RemoveButton onClick={() => onRemove(index)} />
@@ -110,6 +127,25 @@ function ForeignWageRow({ row, index, onChange, onRemove }) {
           />
         </div>
       </div>
+      {autoText ? (
+        <p className="text-[10px] text-muted pr-6">{autoText}</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-6">
+          <div>
+            <label className={label}>Workdays in the US while earning this</label>
+            <input type="text" inputMode="numeric" className={input} placeholder="0"
+              value={row.workdays_in_us ?? ""}
+              onChange={(e) => onChange(index, { workdays_in_us: parseWorkdays(e.target.value) })} />
+          </div>
+          <div>
+            <label className={label}>Workdays outside the US</label>
+            <input type="text" inputMode="numeric" className={input} placeholder="0"
+              value={row.workdays_outside_us ?? ""}
+              onChange={(e) => onChange(index, { workdays_outside_us: parseWorkdays(e.target.value) })} />
+          </div>
+          <p className="md:col-span-2 text-[10px] text-muted">Working days only. Pay for days worked in the US is US-source even from a foreign employer.</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -262,6 +298,8 @@ export default function IncomeForeignStep() {
                 employer_name: "",
                 gross_wages_usd: null,
                 foreign_tax_paid_usd: null,
+                workdays_in_us: null,
+                workdays_outside_us: null,
               })
             }
             className="px-3 py-1.5 bg-white/[0.05] hover:bg-brandGreen/20 hover:text-brandGreen rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border border-line"
@@ -282,6 +320,7 @@ export default function IncomeForeignStep() {
               index={i}
               onChange={(idx, patch) => updateRow("income_foreign_source.foreign_wages", idx, patch)}
               onRemove={(idx) => removeRow("income_foreign_source.foreign_wages", idx)}
+              usDays={usState.us_residency_detail?.us_days_current_year}
             />
           ))}
         </div>

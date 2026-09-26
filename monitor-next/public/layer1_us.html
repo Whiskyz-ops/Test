@@ -7000,6 +7000,7 @@
                 usState.profile.spouse_is_us_person = val;
             }
             if (field === 'us_days_current_year') {
+                refreshForeignWagesWorkLocation();
                 const feieDaysInput = document.getElementById('feie-phys-usdays');
                 if (feieDaysInput) {
                     feieDaysInput.value = val;
@@ -17815,6 +17816,25 @@ div.innerHTML = `
                             <input type="text" inputmode="numeric" class="fw-taxpaid w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncForeignWagesState()">
                         </div>
                     </div>
+                    <!-- Work location: wages are sourced to where the work was done
+                         (IRC 861(a)(3)), not to the employer's country — a foreign
+                         employer's pay for days worked IN the US is US-source, with no
+                         FTC limitation room. Asked only when US days don't settle it
+                         (refreshForeignWagesWorkLocation). -->
+                    <div class="fw-workloc pr-6">
+                        <p class="fw-workloc-auto text-[10px] text-white/50 hidden"></p>
+                        <div class="fw-workloc-ask grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Workdays in the US while earning this</label>
+                                <input type="text" inputmode="numeric" class="fw-workdays-us w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncForeignWagesState()">
+                            </div>
+                            <div>
+                                <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Workdays outside the US</label>
+                                <input type="text" inputmode="numeric" class="fw-workdays-abroad w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncForeignWagesState()">
+                            </div>
+                            <p class="md:col-span-2 text-[9px] text-white/40">Working days only. Pay for days worked in the US is US-source even from a foreign employer.</p>
+                        </div>
+                    </div>
                 </div>
               </details>
             </div>
@@ -17826,8 +17846,34 @@ div.innerHTML = `
             if (div.querySelector('.fw-employer')) div.querySelector('.fw-employer').value = data.employer_name || '';
             if (div.querySelector('.fw-wages')) div.querySelector('.fw-wages').value = data.gross_wages_usd || '';
             if (div.querySelector('.fw-taxpaid')) div.querySelector('.fw-taxpaid').value = data.foreign_tax_paid_usd || '';
+            div.querySelector('.fw-workdays-us').value = data.workdays_in_us ?? '';
+            div.querySelector('.fw-workdays-abroad').value = data.workdays_outside_us ?? '';
         }
         syncForeignWagesState();
+    }
+
+    // US days already on file settle the common cases (0 => all work abroad,
+    // 365+ => all work in the US), so the workday fields only show otherwise.
+    // Nothing is stored for the auto cases; the engine re-derives them.
+    function foreignWagesWorkLocationAuto() {
+        const d = usState.us_residency_detail ? usState.us_residency_detail.us_days_current_year : null;
+        if (d === 0) return 'Treated as work performed entirely outside the US (0 US days this year).';
+        if (d >= 365) return 'Treated as work performed entirely in the US (in the US all year), so US-source, not foreign.';
+        return null;
+    }
+    function refreshForeignWagesWorkLocation() {
+        const autoText = foreignWagesWorkLocationAuto();
+        document.querySelectorAll('.foreignwages-card').forEach(div => {
+            const autoEl = div.querySelector('.fw-workloc-auto');
+            autoEl.textContent = autoText || '';
+            autoEl.classList.toggle('hidden', !autoText);
+            div.querySelector('.fw-workloc-ask').classList.toggle('hidden', !!autoText);
+        });
+    }
+
+    function parseWorkdays(v) {
+        const n = parseInt(String(v || '').replace(/[^0-9]/g, ''), 10);
+        return isNaN(n) ? null : Math.min(n, 366);
     }
 
     function removeForeignWagesRow(id) {
@@ -17843,9 +17889,12 @@ div.innerHTML = `
                 country: div.querySelector('.fw-country').value || null,
                 employer_name: div.querySelector('.fw-employer').value || null,
                 gross_wages_usd: parseFormattedNumber(div.querySelector('.fw-wages').value) || null,
-                foreign_tax_paid_usd: parseFormattedNumber(div.querySelector('.fw-taxpaid').value) || null
+                foreign_tax_paid_usd: parseFormattedNumber(div.querySelector('.fw-taxpaid').value) || null,
+                workdays_in_us: parseWorkdays(div.querySelector('.fw-workdays-us').value),
+                workdays_outside_us: parseWorkdays(div.querySelector('.fw-workdays-abroad').value)
             });
         });
+        refreshForeignWagesWorkLocation();
         usState.income_foreign_source.foreign_wages = list;
         recalculateDerivedFields();
         saveStateAndSync();

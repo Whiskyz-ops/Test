@@ -2769,6 +2769,32 @@
                             </div></label>
                             <input type="text" inputmode="numeric" id="sal-esop" oninput="updateSalaryNum('esop_perquisite_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono">
                         </div>
+                        <!-- Work location (salary sourcing). Salary is sourced to where the
+                             work was physically done (India s.9(1)(ii); US IRC 861(a)(3)), not
+                             to where the employer is or where Form 16 was issued, so the US FTC
+                             limitation and DTAA Art. 16 both turn on this split. Asked only when
+                             the day counts don't already settle it (refreshSalaryWorkLocation). -->
+                        <div id="div-sal-workloc" class="col-span-full p-4 bg-white/5 border border-white/10 rounded-xl flex flex-col gap-3">
+                            <span class="text-[9px] font-black uppercase tracking-widest text-brandGold/80">Where Was This Work Performed?</span>
+                            <p id="sal-workloc-auto" class="text-[10px] text-white/60 hidden"></p>
+                            <div id="sal-workloc-ask" class="flex flex-col gap-3">
+                                <label class="flex items-center justify-between gap-4 cursor-pointer">
+                                    <span class="text-xs text-white/80">Was any of this salary earned for work performed outside India this quarter?</span>
+                                    <input type="checkbox" id="sal-work-outside" onchange="toggleSalaryWorkOutside(this.checked)" class="w-4 h-4 accent-brandGold">
+                                </label>
+                                <div id="sal-workdays-fields" class="grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+                                    <div>
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Workdays in India</label>
+                                        <input type="text" inputmode="numeric" id="sal-workdays-india" oninput="updateSalaryWorkdays('workdays_in_india', this.value)" class="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Workdays outside India</label>
+                                        <input type="text" inputmode="numeric" id="sal-workdays-outside" oninput="updateSalaryWorkdays('workdays_outside_india', this.value)" class="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="0">
+                                    </div>
+                                    <p class="md:col-span-2 text-[9px] text-white/40">Count working days only (not weekends, holidays or leave). Used to split this salary between India-source and foreign-source.</p>
+                                </div>
+                            </div>
+                        </div>
                         <!-- ESOP Perquisite Events -->
                         <div class="col-span-full mt-2">
                             <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-2">ESOP Perquisite Grants (Itemized)</label>
@@ -4792,6 +4818,9 @@
                 has_salary_income: false,
                 taxable_salary_inr: null,
                 gross_salary_inr: null,
+                work_performed_outside_india: null,
+                workdays_in_india: null,
+                workdays_outside_india: null,
                 pwd_transport_allowance: {
                     is_eligible_pwd: false,
                     allowance_received_inr: null
@@ -5525,6 +5554,7 @@
         if (btn) btn.classList.add('active');
 
         currentStepId = stepId;
+        if (stepId === 'step-salary') refreshSalaryWorkLocation();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -11655,6 +11685,61 @@ ${isProf ? '' : `
         evaluateSurchargeBuckets();
     }
 
+    // Salary work location — see #div-sal-workloc. The day counts already on
+    // file settle the common cases, so the question only shows when they don't:
+    // 0 days in India => all work outside India; 365+ days in India, or 0 US
+    // days on the Router => all work in India. Nothing is stored for those
+    // auto cases (the engine re-derives them from the same day counts), only
+    // an explicit answer + workday split when the question was asked. (365 US
+    // days wins over a stray India day count: the Router is the day-count
+    // source of truth, and 365 there leaves no room for work in India.)
+    function salaryWorkLocationAuto() {
+        const indiaDays = state.residency_detail ? state.residency_detail.days_in_india_current_year : null;
+        let usDays = null;
+        try {
+            const r = JSON.parse(localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('ROUTER')) || '{}');
+            if (r.us_days !== null && r.us_days !== undefined && r.us_days !== '') usDays = parseInt(r.us_days, 10);
+        } catch (e) { /* no Router state — fall through to asking */ }
+        if (indiaDays === 0) return 'Treated as work performed entirely outside India (0 days in India this year).';
+        if (usDays >= 365) return 'Treated as work performed entirely outside India (in the US all year per the Router).';
+        if (indiaDays >= 365) return 'Treated as work performed entirely in India (in India all year).';
+        if (usDays === 0) return 'Treated as work performed in India (0 US days per the Router).';
+        return null;
+    }
+
+    function refreshSalaryWorkLocation() {
+        const sal = state.domestic_income.salary;
+        const autoText = salaryWorkLocationAuto();
+        const autoEl = document.getElementById('sal-workloc-auto');
+        const askEl = document.getElementById('sal-workloc-ask');
+        if (!autoEl || !askEl) return;
+        autoEl.textContent = autoText || '';
+        autoEl.classList.toggle('hidden', !autoText);
+        askEl.classList.toggle('hidden', !!autoText);
+        const outside = sal.work_performed_outside_india === true;
+        const cb = document.getElementById('sal-work-outside');
+        if (cb) cb.checked = outside;
+        document.getElementById('sal-workdays-fields').classList.toggle('hidden', !outside);
+        const inEl = document.getElementById('sal-workdays-india');
+        const outEl = document.getElementById('sal-workdays-outside');
+        if (inEl) inEl.value = sal.workdays_in_india ?? '';
+        if (outEl) outEl.value = sal.workdays_outside_india ?? '';
+    }
+
+    function toggleSalaryWorkOutside(val) {
+        const sal = state.domestic_income.salary;
+        sal.work_performed_outside_india = val;
+        if (!val) { sal.workdays_in_india = null; sal.workdays_outside_india = null; }
+        refreshSalaryWorkLocation();
+        evaluateSurchargeBuckets();
+    }
+
+    function updateSalaryWorkdays(field, val) {
+        const n = parseInt(String(val).replace(/[^0-9]/g, ''), 10);
+        state.domestic_income.salary[field] = isNaN(n) ? null : Math.min(n, 366);
+        evaluateSurchargeBuckets();
+    }
+
     function updateSalaryBool(field, val) {
         state.domestic_income.salary[field] = val;
         evaluateSurchargeBuckets();
@@ -14372,6 +14457,7 @@ ${isProf ? '' : `
                 const el = document.getElementById(id);
                 if (el) el.value = val !== null && val !== undefined ? val : '';
             }
+            refreshSalaryWorkLocation();
             const elMetro = document.getElementById('sal-metro');
             if (elMetro) elMetro.checked = sal.is_metro_city || false;
             
