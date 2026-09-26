@@ -5355,25 +5355,27 @@
             }
         }
 
+        // Master "this income type applies" switches carry across quarters:
+        // ON here if ON in this quarter or ANY other quarter. Previously this
+        // copied the switches from the FIRST other quarter found, overwriting
+        // this quarter's own — e.g. salary switched on in Q1, then Q1 -> Annual
+        // -> Q1 copied Q2's "off" back over Q1, silently dropping the salary
+        // from every output (26 Sep 2026).
         if (quarter !== 'ANNUAL') {
-            const donorQ = ['Q1','Q2','Q3','Q4'].find(q => q !== quarter && state.quarters[q] && state.quarters[q].domestic_income);
-            if (donorQ) {
-                const donor = state.quarters[donorQ];
-                if (donor.domestic_income && donor.domestic_income.salary) {
-                    state.domestic_income.salary.has_salary_income = donor.domestic_income.salary.has_salary_income;
-                }
-                if (donor.domestic_income && donor.domestic_income.house_property) {
-                    state.domestic_income.house_property.has_house_property_income = donor.domestic_income.house_property.has_house_property_income;
-                }
-                if (donor.domestic_income) {
-                    state.domestic_income.has_agricultural_income = donor.domestic_income.has_agricultural_income;
-                }
-                if (donor.other_sources) {
-                    state.other_sources.has_other_sources_income = donor.other_sources.has_other_sources_income;
-                }
-                if (donor.lrs_outbound) {
-                    state.lrs_outbound.has_received_foreign_income = donor.lrs_outbound.has_received_foreign_income;
-                }
+            const others = ['Q1','Q2','Q3','Q4'].filter(q => q !== quarter && state.quarters[q]).map(q => state.quarters[q]);
+            const anyOn = (read) => others.some(o => { try { return read(o) === true; } catch (e) { return false; } });
+            if (state.domestic_income.salary) {
+                state.domestic_income.salary.has_salary_income = state.domestic_income.salary.has_salary_income === true || anyOn(o => o.domestic_income.salary.has_salary_income);
+            }
+            if (state.domestic_income.house_property) {
+                state.domestic_income.house_property.has_house_property_income = state.domestic_income.house_property.has_house_property_income === true || anyOn(o => o.domestic_income.house_property.has_house_property_income);
+            }
+            state.domestic_income.has_agricultural_income = state.domestic_income.has_agricultural_income === true || anyOn(o => o.domestic_income.has_agricultural_income);
+            if (state.other_sources) {
+                state.other_sources.has_other_sources_income = state.other_sources.has_other_sources_income === true || anyOn(o => o.other_sources.has_other_sources_income);
+            }
+            if (state.lrs_outbound) {
+                state.lrs_outbound.has_received_foreign_income = state.lrs_outbound.has_received_foreign_income === true || anyOn(o => o.lrs_outbound.has_received_foreign_income);
             }
         }
 
@@ -10623,9 +10625,18 @@ const crDiv = document.getElementById('div-company-residency');
         state.unlisted_equity.transactions = txs;
     }
 
+    // Master income-type switches are per-client, not per-quarter: switchQuarter
+    // shows one ON if it's ON in any quarter, so switching one OFF must clear it
+    // in every saved quarter too, or it would come back on (26 Sep 2026).
+    function clearMasterSwitchAllQuarters(setOff) {
+        if (!state.quarters) return;
+        ['Q1', 'Q2', 'Q3', 'Q4'].forEach(q => { const qs = state.quarters[q]; if (qs) { try { setOff(qs); } catch (e) { /* section absent in this quarter */ } } });
+    }
+
     // Agricultural income
     function toggleAgriSection(checked) {
         state.domestic_income.has_agricultural_income = checked;
+        if (!checked) clearMasterSwitchAllQuarters(qs => { qs.domestic_income.has_agricultural_income = false; });
         const div = document.getElementById('div-agri-section');
         if (checked) { div.classList.remove('hidden'); }
         else { div.classList.add('hidden'); state.domestic_income.agricultural_income_inr = null; }
@@ -11658,6 +11669,7 @@ ${isProf ? '' : `
 
         function toggleOSSection(val) {
         state.other_sources.has_other_sources_income = val;
+        if (!val) clearMasterSwitchAllQuarters(qs => { qs.other_sources.has_other_sources_income = false; });
         const divOS = document.getElementById('div-os-section');
         if (val) {
             divOS.classList.remove('hidden');
@@ -11671,11 +11683,19 @@ ${isProf ? '' : `
     // ═══════════════════════════════════════════════════════════════════════
     function toggleSalarySection(val) {
         state.domestic_income.salary.has_salary_income = val;
+        if (!val) clearMasterSwitchAllQuarters(qs => { qs.domestic_income.salary.has_salary_income = false; });
         const divSal = document.getElementById('div-salary-section');
         if (val) {
             divSal.classList.remove('hidden');
         } else {
             divSal.classList.add('hidden');
+        }
+        // Keep the Employment setup card in step with the salary switch.
+        const setupCb = document.getElementById('setup-salary'), setupCard = document.getElementById('card-setup-salary');
+        if (setupCb && setupCb.checked !== val) {
+            setupCb.checked = val;
+            if (setupCard) setupCard.classList.toggle('active', val);
+            if (typeof updateSidebarVisibility === 'function') updateSidebarVisibility();
         }
         evaluateSurchargeBuckets();
     }
@@ -12543,6 +12563,7 @@ ${isProf ? '' : `
 
     function toggleReceivedForeignIncome(hasIncome) {
         state.lrs_outbound.has_received_foreign_income = hasIncome;
+        if (!hasIncome) clearMasterSwitchAllQuarters(qs => { qs.lrs_outbound.has_received_foreign_income = false; });
         const warnFsi = document.getElementById('warn-fa-income-fsi');
         const btnYes = document.getElementById('btn-fa-inc-yes');
         const btnNo = document.getElementById('btn-fa-inc-no');
@@ -14862,6 +14883,24 @@ ${isProf ? '' : `
         }
 
         // --- UNIVERSAL BIDIRECTIONAL HYDRATION ENGINE: US TO INDIA ---
+        // Copies US-side FOREIGN ASSETS (bank accounts, RSUs, US business
+        // interests, 401(k)) into India's Schedule FA inputs for a dual client.
+        //
+        // Fixed 26 Sep 2026 — this ran on EVERY page load and appended, so each
+        // time Layer 1 India was opened: US W-2 wages were ADDED again to India
+        // salary (₹1.31 cr -> ₹2.62 cr -> ₹3.93 cr for the Rohan demo), US
+        // federal withholding was ADDED again as s.90 relief, and foreign-asset
+        // rows were pushed again; US bank accounts also REPLACED India's own
+        // NRO/NRE accounts. Now:
+        //  - no salary or s.90 relief copy at all: US income an India resident
+        //    must report is taxed by the engine itself (in1-nodes-v3.js's
+        //    usIncomeForIndiaInr), with relief computed there — copying it into
+        //    the India form double-counted it, and a non-resident isn't taxed
+        //    in India on US wages at all;
+        //  - Schedule FA is for India residents (ROR) only, so nothing is
+        //    copied for an NR / RNOR;
+        //  - every copied row is added once (keyed), never re-added on reload,
+        //    and India's own entries are never replaced.
         try {
             const routerStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('ROUTER'));
             let isDual = false;
@@ -14871,96 +14910,72 @@ ${isProf ? '' : `
                     if (rState.jurisdiction === 'dual') isDual = true;
                 } catch(e){}
             }
+            const indiaStatus = state.residency_detail && state.residency_detail.final_india_residency_status;
+            const faApplies = indiaStatus !== 'NR' && indiaStatus !== 'RNOR';
 
             const usStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('US'));
-            if (isDual && usStateStr) {
+            if (isDual && faApplies && usStateStr) {
                 const usState = JSON.parse(usStateStr);
-                
-                // Hydrate US Bank Accounts -> India Schedule FA
+                function addOnce(list, row, keyOf) {
+                    const k = keyOf(row);
+                    if (!list.some(x => keyOf(x) === k)) list.push(row);
+                }
+
+                // US bank accounts -> India bank accounts (Schedule FA), added
+                // alongside India's own accounts
                 if (usState.bank_accounts && usState.bank_accounts.length > 0) {
-                    state.bank_accounts = usState.bank_accounts.map(b => ({
+                    state.bank_accounts = state.bank_accounts || [];
+                    usState.bank_accounts.forEach(b => addOnce(state.bank_accounts, {
                         bank_name: b.bank_name,
                         account_number: b.account_number,
                         country: 'United States',
                         peak_balance_inr: (b.max_balance_usd || 0) * 83.0,
                         account_type: b.account_type || 'savings'
-                    }));
-                }
-                
-                // Hydrate US Brokerage/RSUs -> India Unlisted Equity (Schedule FA)
-                if (usState.equity_compensation) {
-                    state.unlisted_equity.transactions = state.unlisted_equity.transactions || [];
-                    if (usState.equity_compensation.rsu_vestings && usState.equity_compensation.rsu_vestings.length > 0) {
-                        usState.equity_compensation.rsu_vestings.forEach(rsu => {
-                            state.unlisted_equity.has_unlisted_equity_transaction = true;
-                            state.unlisted_equity.transactions.push({
-                                company_name: rsu.company_name || 'US Employer (RSU)',
-                                acquisition_date: rsu.vest_date || '',
-                                shares_acquired: rsu.shares_vested || 0,
-                                cost_inr: (rsu.gross_income_usd || 0) * 83.0
-                            });
-                        });
-                    }
+                    }, x => (x.country || '') + '|' + (x.bank_name || '') + '|' + (x.account_number || '')));
                 }
 
-                // Hydrate US Businesses -> India Schedule FA (Unlisted Equity / Foreign Entities)
+                // US RSUs -> India Unlisted Equity (Schedule FA)
+                const rsus = (usState.equity_compensation && usState.equity_compensation.rsu_vestings) || [];
+                if (rsus.length > 0) {
+                    state.unlisted_equity.transactions = state.unlisted_equity.transactions || [];
+                    state.unlisted_equity.has_unlisted_equity_transaction = true;
+                    rsus.forEach(rsu => addOnce(state.unlisted_equity.transactions, {
+                        company_name: rsu.company_name || 'US Employer (RSU)',
+                        acquisition_date: rsu.vest_date || '',
+                        shares_acquired: rsu.shares_vested || 0,
+                        cost_inr: (rsu.gross_income_usd || 0) * 83.0
+                    }, x => (x.company_name || '') + '|' + (x.acquisition_date || '') + '|' + (x.shares_acquired || 0)));
+                }
+
+                // US businesses -> India Unlisted Equity (Schedule FA)
                 if (usState.income_us_source) {
-                    const ccorps = usState.income_us_source.c_corporations_1120 || [];
-                    const scorps = usState.income_us_source.s_corporations_k1 || [];
-                    const parts = usState.income_us_source.partnerships_k1 || [];
-                    
-                    const allUSBusinesses = [...ccorps, ...scorps, ...parts];
-                    
+                    const allUSBusinesses = [...(usState.income_us_source.c_corporations_1120 || []), ...(usState.income_us_source.s_corporations_k1 || []), ...(usState.income_us_source.partnerships_k1 || [])];
                     if (allUSBusinesses.length > 0) {
                         state.unlisted_equity = state.unlisted_equity || {};
                         state.unlisted_equity.has_unlisted_equity_transaction = true;
                         state.unlisted_equity.transactions = state.unlisted_equity.transactions || [];
-                        
-                        allUSBusinesses.forEach(biz => {
-                            const bizName = biz.corp_name || biz.partnership_name || biz.scorp_name || 'US Business Entity';
-                            state.unlisted_equity.transactions.push({
-                                company_name: bizName,
-                                acquisition_date: '',
-                                shares_acquired: 1,
-                                cost_inr: 1000 * 83.0
-                            });
-                        });
+                        allUSBusinesses.forEach(biz => addOnce(state.unlisted_equity.transactions, {
+                            company_name: biz.corp_name || biz.partnership_name || biz.scorp_name || 'US Business Entity',
+                            acquisition_date: '',
+                            shares_acquired: 1,
+                            cost_inr: 1000 * 83.0
+                        }, x => (x.company_name || '') + '|' + (x.acquisition_date || '')));
                     }
                 }
 
-                // Hydrate US 401k & IRAs -> India Schedule FA (Trusts/Retirement)
+                // US 401(k) -> India Schedule FA (Trusts/Retirement)
                 if (usState.retirement_accounts) {
-                    state.foreign_assets = state.foreign_assets || {};
-                    state.foreign_assets.has_foreign_assets = true;
-                    state.foreign_assets.assets = state.foreign_assets.assets || [];
-                    
                     const k401 = (usState.retirement_accounts['401k_employee_contribution_usd'] || 0) + (usState.retirement_accounts['401k_employer_match_usd'] || 0);
                     if (k401 > 0) {
-                        state.foreign_assets.assets.push({
+                        state.foreign_assets = state.foreign_assets || {};
+                        state.foreign_assets.has_foreign_assets = true;
+                        state.foreign_assets.assets = state.foreign_assets.assets || [];
+                        addOnce(state.foreign_assets.assets, {
                             asset_type: 'Trusts',
                             country: 'United States',
                             description: '401(k) Retirement Plan',
                             value_inr: k401 * 83.0
-                        });
-                    }
-                }
-
-                // Hydrate US Taxes Withheld -> India Foreign Tax Credit (Schedule TR / Sec 90)
-                if (usState.withholding_and_estimated && usState.withholding_and_estimated.federal_withholding_total_usd > 0) {
-                    state.tax_credits = state.tax_credits || {};
-                    state.tax_credits.section_90_90A_91_relief_inr = (state.tax_credits.section_90_90A_91_relief_inr || 0) + (usState.withholding_and_estimated.federal_withholding_total_usd * 83.0);
-                }
-                // Hydrate US W-2 Salary -> India Salary
-                if (usState.income_us_source && usState.income_us_source.wages_w2 && usState.income_us_source.wages_w2.length > 0) {
-                    state.domestic_income = state.domestic_income || {};
-                    state.domestic_income.salary = state.domestic_income.salary || {};
-                    state.domestic_income.salary.has_salary_income = true;
-                    
-                    let totalWagesUsd = 0;
-                    usState.income_us_source.wages_w2.forEach(w => totalWagesUsd += (w.wages_box1_usd || 0));
-                    
-                    if (totalWagesUsd > 0) {
-                        state.domestic_income.salary.gross_salary_inr = (state.domestic_income.salary.gross_salary_inr || 0) + (totalWagesUsd * 83.0);
+                        }, x => (x.country || '') + '|' + (x.description || ''));
                     }
                 }
             }
@@ -15155,6 +15170,7 @@ ${isProf ? '' : `
     // --- HOUSE PROPERTY HANDLERS ---
     function toggleHPSection(val) {
         state.domestic_income.house_property.has_house_property_income = val;
+        if (!val) clearMasterSwitchAllQuarters(qs => { qs.domestic_income.house_property.has_house_property_income = false; });
         const divHP = document.getElementById('div-hp-section');
         if (val) {
             divHP.classList.remove('hidden');
