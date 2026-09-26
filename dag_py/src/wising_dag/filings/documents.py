@@ -418,7 +418,12 @@ def _build_ftc_report_result(d, ctx):
                  "trace": _calc("Indian tax paid in excess of what the §904 limitation allows this year — carries back 1 year / forward 10 years", [{"label": "Indian income tax (creditable)", "amount": ftc["us"]["indiaTaxPaidUsd"]}, {"label": "Less FTC allowed this year", "amount": -ftc["us"]["ftcAllowedUsd"]}])},
                 {"label": "Residual double tax (unrelieved)", "usd": ftc["us"]["residualDoubleTaxUsd"], "warn": True,
                  "trace": _calc("Same as the excess credit carried over — until it's actually used in a future year this is double taxation the credit hasn't relieved yet", [{"label": "Excess credit carried over", "amount": ftc["us"]["carryoverUsd"]}])},
-            ],
+            ] + ([
+                # Salary work-location sourcing: shown only when present.
+                {"label": "Indian tax on salary for US-performed work (not creditable — claim in India)", "usd": ftc["us"]["indiaTaxOnUsWorkSalaryUsd"], "warn": True,
+                 "trace": _calc("Indian salary earned while working in the US is US-source (§861(a)(3)), so it's left out of the credit; its share of Indian tax is relieved in India instead (DTAA Art. 16 refund, or Form 67 credit if India is the treaty residence)",
+                                [{"label": "Salary for US-performed work", "amount": ftc["us"]["usWorkSalaryUsd"]}, {"label": "Total India tax", "amount": india_total_tax_usd}, {"label": "Gross Indian-source income (US view)", "amount": d["indiaIncomeTotalUsdBoundaryFtc"]}])},
+            ] if (ftc["us"].get("indiaTaxOnUsWorkSalaryUsd") or 0) > 0 else []),
         },
         "direction_india_relief": {
             "title": "India §159 relief — for US taxes on doubly-taxed income",

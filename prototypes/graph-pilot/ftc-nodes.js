@@ -346,7 +346,11 @@ var NODES = {
       return {
         us: d.ftcUsDirection,
         india: d.ftcIndiaDirection,
-        netUnrelievedDoubleTaxUsd: usResidual + indiaResidual
+        // + Indian tax on salary for US-performed work: excluded from the US
+        // credit (not foreign-source), so it stays double-taxed until India
+        // refunds it / gives relief (findings-nodes.js's
+        // salary_us_work_india_tax).
+        netUnrelievedDoubleTaxUsd: usResidual + indiaResidual + (d.ftcUsDirection.indiaTaxOnUsWorkSalaryUsd || 0)
       };
     }
   }

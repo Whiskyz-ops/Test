@@ -399,7 +399,7 @@ NODES.buildTaxComputationResult = {
  * final order still reflects whichever was pushed first, which this
  * merged array's own concatenation order doesn't naturally reproduce. */
 var FINDING_ADD_ORDER = ["dual_residency", "dual_residency_resolved", "treaty_docs_missing", "dtaa_treaty_elections",
-  "withholding_documentation_gap", "pan_not_linked_aadhaar", "ftc_gap", "ftc_available", "feie_ineligible", "feie_applied",
+  "withholding_documentation_gap", "pan_not_linked_aadhaar", "ftc_gap", "ftc_available", "salary_us_work_india_tax", "feie_ineligible", "feie_applied",
   "amt_applies", "india_advance_tax_interest", "underpayment_2210", "early_withdrawal_penalty_72t",
   "retirement_excess_elective_deferral", "retirement_excess_ira_contribution", "hsa_excess_contribution", "retirement_rmd_required", "iso_3921", "form_10iea",
   "form_1099da_awareness", "state_income_tax", "niit_medicare_not_creditable", "no_totalization_agreement", "pe_article7",

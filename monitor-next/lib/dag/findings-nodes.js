@@ -120,7 +120,10 @@ NODES.findingsBatch1Result = {
 
     // -- 4. FTC RECONCILIATION GAP (conflicts.js:275-301) -------------------
     var ftc = d.ftcResult;
-    if (d.hasIndiaScopeXbr && d.hasUsScopeBoundaryFtc && ftc.netUnrelievedDoubleTaxUsd > 1) {
+    // residualDoubleTaxUsd (the §904 carryover), not netUnrelievedDoubleTaxUsd:
+    // the latter also carries salary_us_work_india_tax's amount now, which
+    // has its own finding below (same condition dag_py already used).
+    if (d.hasIndiaScopeXbr && d.hasUsScopeBoundaryFtc && ftc.us.residualDoubleTaxUsd > 1) {
       add("ftc_gap", "critical", "credit",
         "Foreign Tax Credit shortfall — residual double taxation",
         "Indian tax paid (" + usd(ftc.us.indiaTaxPaidUsd) + ") exceeds the US FTC limitation (" +
@@ -139,6 +142,45 @@ NODES.findingsBatch1Result = {
         usd(ftc.us.ftcAllowedUsd) + " within a " + usd(ftc.us.ftcLimitUsd) + " limitation).",
         "Claim on " + d.usFtcFormXbr + " (US) and file Form 44 (India) before the ITR due date to preserve symmetric relief.",
         ftc.us.ftcAllowedUsd, [d.usFtcFormXbr, "Form 44"]);
+    }
+
+    // -- 4a. INDIA TAX ON SALARY FOR US-PERFORMED WORK ----------------------
+    // (salary work-location sourcing, ftc-nodes.js's ftcUsDirection): India
+    // salary earned while working in the US is US-source (IRC 861(a)(3)), so
+    // the Indian tax on it is excluded from the US credit above — relief, if
+    // any, is an India refund under DTAA Art. 16 (salary taxable only in the
+    // residence state unless the employment is exercised in India).
+    if (d.hasIndiaScopeXbr && d.hasUsScopeBoundaryFtc && ftc.us.indiaTaxOnUsWorkSalaryUsd > 1) {
+      // Who owes the relief turns on treaty residence (Art. 4): US treaty
+      // resident (or not an Indian resident at all) => Art. 16 keeps the
+      // salary out of India's reach, so India refunds; India treaty resident
+      // => the US taxes it first as the work-place state and India gives
+      // credit for the US tax (s.90 / Art. 25, Form 67); tie-break not run
+      // yet => say both.
+      var swTbWinner = d.treatyIndiaResidenceRaw !== "none" ? d.treatyIndiaResidenceRaw
+        : (d.treatyUsResidenceRaw !== "none" ? d.treatyUsResidenceRaw : null);
+      var swRefund = "Claim the Indian tax back (revise the ITR / refund claim, with Form 10F and a US residency certificate, " +
+        "Form 6166) and ask the employer to stop deducting TDS on that portion.";
+      var swIndiaCredit = "Claim credit in India for the US tax on this salary (s.90 / DTAA Art. 25, Form 67 with the US return) " +
+        "instead of expecting a US credit for the Indian tax.";
+      var swAdvice;
+      if (d.residencyResult.dualResident && swTbWinner === "india") {
+        swAdvice = "India is the treaty residence (Art. 4), so the US — where the work was done — taxes this salary first " +
+          "under DTAA Art. 16, and India must give relief. " + swIndiaCredit;
+      } else if (d.residencyResult.dualResident && !swTbWinner) {
+        swAdvice = "Who gives relief depends on the Art. 4 tie-breaker, which isn't completed yet. If the US wins, India " +
+          "generally shouldn't tax pay for US-performed work (DTAA Art. 16): " + swRefund + " If India wins: " + swIndiaCredit;
+      } else {
+        swAdvice = "Under India–US DTAA Art. 16, salary is taxable only in the country of residence unless the work is done " +
+          "in the other country — so India generally should not tax pay for US-performed work of a US resident. " + swRefund;
+      }
+      add("salary_us_work_india_tax", "critical", "credit",
+        "Indian tax on salary for work done in the US — not creditable in the US",
+        usd(ftc.us.usWorkSalaryUsd) + " of Indian salary was earned for work performed in the US, which makes it US-source " +
+        "income (IRC §861(a)(3)). The Indian tax on it, about " + usd(ftc.us.indiaTaxOnUsWorkSalaryUsd) + ", can't be claimed " +
+        "as a Foreign Tax Credit on " + d.usFtcFormXbr + " and is left out of the credit above, so as things stand it is taxed twice.",
+        swAdvice + " Check the workday split on Layer 1 India's salary screen first — this figure is only as good as those days.",
+        ftc.us.indiaTaxOnUsWorkSalaryUsd, ["§861(a)(3)", "DTAA Art. 16", d.usFtcFormXbr, "Form 10F", "Form 6166", "Form 67"]);
     }
 
     // -- 4c. AMT BITES (conflicts.js:325-334) -------------------------------

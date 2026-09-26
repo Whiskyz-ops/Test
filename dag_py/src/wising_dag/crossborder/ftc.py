@@ -180,7 +180,8 @@ def _ftc_result(d, ctx):
     india_residual = max(0.0, min(d["ftcIndiaDirection"]["usTaxOnUsSourceUsd"], d["ftcIndiaDirection"]["reliefCapUsd"]) - d["ftcIndiaDirection"]["reliefAllowedUsd"])
     return {
         "us": d["ftcUsDirection"], "india": d["ftcIndiaDirection"],
-        "netUnrelievedDoubleTaxUsd": us_residual + india_residual,
+        # + Indian tax on salary for US-performed work (see ftc-nodes.js).
+        "netUnrelievedDoubleTaxUsd": us_residual + india_residual + (d["ftcUsDirection"].get("indiaTaxOnUsWorkSalaryUsd") or 0),
     }
 
 

@@ -105,7 +105,7 @@ NODES.checksRegistryResult = {
     }
     var ftc = d.ftcResult;
     if (d.hasIndiaScopeXbr && d.hasUsScopeBoundaryFtc) {
-      if (ftc.netUnrelievedDoubleTaxUsd <= 1 && !(ftc.us.indiaTaxPaidUsd > 0 && ftc.us.ftcAllowedUsd > 0)) {
+      if (ftc.us.residualDoubleTaxUsd <= 1 && !(ftc.us.indiaTaxPaidUsd > 0 && ftc.us.ftcAllowedUsd > 0)) {
         pass("ftc_gap", "credit", "No FTC shortfall", "No residual double taxation this year — either no Indian tax paid, or the Foreign Tax Credit fully absorbed it within the §904 limitation.");
       }
     }

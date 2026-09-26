@@ -721,7 +721,16 @@ NODES.buildFtcReportResult = {
             trace: calc("Same as the excess credit carried over — until it's actually used in a future year this is double taxation the credit hasn't relieved yet", [
               { label: "Excess credit carried over", amount: ftc.us.carryoverUsd }
             ]) }
-        ])
+        ]).concat(ftc.us.indiaTaxOnUsWorkSalaryUsd > 0 ? [
+          // Salary work-location sourcing: shown only when present, so every
+          // other client's card is unchanged.
+          { label: "Indian tax on salary for US-performed work (not creditable — claim in India)", usd: ftc.us.indiaTaxOnUsWorkSalaryUsd, warn: true,
+            trace: calc("Indian salary earned while working in the US is US-source (§861(a)(3)), so it's left out of the credit; its share of Indian tax is relieved in India instead (DTAA Art. 16 refund, or Form 67 credit if India is the treaty residence)", [
+              { label: "Salary for US-performed work", amount: ftc.us.usWorkSalaryUsd },
+              { label: "Total India tax", amount: indiaTotalTaxUsd },
+              { label: "Gross Indian-source income (US view)", amount: d.indiaIncomeTotalUsdBoundaryFtc }
+            ]) }
+        ] : [])
       },
       direction_india_relief: {
         title: "India §159 relief — for US taxes on doubly-taxed income",

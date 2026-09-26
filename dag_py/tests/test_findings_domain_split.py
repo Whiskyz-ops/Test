@@ -68,6 +68,7 @@ US_FINDING_IDS = {
 CROSSBORDER_FINDING_IDS = {
     "ftc_gap",
     "ftc_available",
+    "salary_us_work_india_tax",  # salary work-location sourcing (DTAA Art. 16 refund conflict)
     "entity_dual_residency_poem",
     "dual_residency",
     "dual_residency_resolved",
@@ -105,13 +106,13 @@ def test_no_id_appears_in_more_than_one_domain_bucket():
 
 
 def test_inventory_totals_match_the_verified_js_source_count():
-    # 61 distinct ids in the JS source (report-batch5-nodes.js's own
+    # 62 distinct ids in the JS source (report-batch5-nodes.js's own
     # FINDING_ADD_ORDER), one of which (holding_period_mismatch) is counted
     # here as its dynamic-template base id, not per-instance.
-    assert len(ALL_EXPECTED_IDS) == 61
+    assert len(ALL_EXPECTED_IDS) == 62
     assert len(INDIA_FINDING_IDS) == 17
     assert len(US_FINDING_IDS) == 17
-    assert len(CROSSBORDER_FINDING_IDS) == 27
+    assert len(CROSSBORDER_FINDING_IDS) == 28
 
 
 def _collect_ported_finding_ids():

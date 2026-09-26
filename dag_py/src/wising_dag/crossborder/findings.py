@@ -461,6 +461,35 @@ def _findings_crossborder_result(d, ctx):
             ftc["us"]["ftcAllowedUsd"], [d["usFtcFormXbr"], "Form 44"],
         ))
 
+    # -- 4a. INDIA TAX ON SALARY FOR US-PERFORMED WORK (findings-nodes.js) --
+    # Salary work-location sourcing: excluded from the US credit (IRC
+    # 861(a)(3)); relief is an India refund under DTAA Art. 16.
+    if d["hasIndiaScopeXbr"] and d["hasUsScopeBoundaryFtc"] and ftc["us"]["indiaTaxOnUsWorkSalaryUsd"] > 1:
+        # Who owes the relief turns on treaty residence -- see findings-nodes.js.
+        sw_tb_winner = d["treatyIndiaResidenceRaw"] if d["treatyIndiaResidenceRaw"] != "none" else (d["treatyUsResidenceRaw"] if d["treatyUsResidenceRaw"] != "none" else None)
+        sw_refund = ("Claim the Indian tax back (revise the ITR / refund claim, with Form 10F and a US residency certificate, "
+                     "Form 6166) and ask the employer to stop deducting TDS on that portion.")
+        sw_india_credit = ("Claim credit in India for the US tax on this salary (s.90 / DTAA Art. 25, Form 67 with the US return) "
+                           "instead of expecting a US credit for the Indian tax.")
+        if d["residencyResult"]["dualResident"] and sw_tb_winner == "india":
+            sw_advice = ("India is the treaty residence (Art. 4), so the US — where the work was done — taxes this salary first "
+                         "under DTAA Art. 16, and India must give relief. " + sw_india_credit)
+        elif d["residencyResult"]["dualResident"] and not sw_tb_winner:
+            sw_advice = ("Who gives relief depends on the Art. 4 tie-breaker, which isn't completed yet. If the US wins, India "
+                         "generally shouldn't tax pay for US-performed work (DTAA Art. 16): " + sw_refund + " If India wins: " + sw_india_credit)
+        else:
+            sw_advice = ("Under India–US DTAA Art. 16, salary is taxable only in the country of residence unless the work is done "
+                         "in the other country — so India generally should not tax pay for US-performed work of a US resident. " + sw_refund)
+        findings.append(make_finding(
+            "salary_us_work_india_tax", "critical", "credit",
+            "Indian tax on salary for work done in the US — not creditable in the US",
+            f"{_usd(ftc['us']['usWorkSalaryUsd'])} of Indian salary was earned for work performed in the US, which makes it US-source "
+            f"income (IRC §861(a)(3)). The Indian tax on it, about {_usd(ftc['us']['indiaTaxOnUsWorkSalaryUsd'])}, can't be claimed "
+            f"as a Foreign Tax Credit on {d['usFtcFormXbr']} and is left out of the credit above, so as things stand it is taxed twice.",
+            sw_advice + " Check the workday split on Layer 1 India's salary screen first — this figure is only as good as those days.",
+            ftc["us"]["indiaTaxOnUsWorkSalaryUsd"], ["§861(a)(3)", "DTAA Art. 16", d["usFtcFormXbr"], "Form 10F", "Form 6166", "Form 67"],
+        ))
+
     # -- 4f2. ENTITY-LEVEL DUAL RESIDENCY (findings-nodes.js, conflicts.js:701-736) --
     if d["indiaIsCompany"] and d["indiaIsIndianCompanyRaw"] is False and d["residencyResult"]["india"]["status"] == "ROR":
         poem_factors = []
@@ -965,7 +994,7 @@ NODES["findingsCrossborderResult"] = NodeDef(
 )
 
 ALL_FINDING_IDS = (
-    "ftc_gap", "ftc_available", "entity_dual_residency_poem", "dual_residency",
+    "ftc_gap", "ftc_available", "salary_us_work_india_tax", "entity_dual_residency_poem", "dual_residency",
     "dual_residency_resolved", "cross_basis_summary", "special_rate_gaming_winnings",
     "form_1099da_awareness", "tax_year_mismatch", "fx_basis", "state_treaty_not_binding",
     "pfic", "cfc", "cfc_below_threshold", "transfer_pricing", "retirement_mismatch",
