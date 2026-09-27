@@ -210,6 +210,28 @@ DOCUMENTS_CATALOG = [
 ]
 
 
+def _annual_lrs_outbound(india):
+    """Annual LRS remittance for quarterly Layer 1 India data — mirrors
+    report-batch1-nodes.js's annualLrsOutbound: sums quarters[Qn].lrs_outbound
+    when present (the form mirrors only the active quarter at the top level)."""
+    top = safe(india, "lrs_outbound", {}) or {}
+    q = safe(india, "quarters", None)
+    if not q:
+        return top
+    total, found, purpose = 0.0, False, top.get("lrs_purpose")
+    for k in ("Q1", "Q2", "Q3", "Q4"):
+        lo = (q.get(k) or {}).get("lrs_outbound") if isinstance(q.get(k), dict) else None
+        # Only a quarter that actually records a remittance figure counts.
+        if not isinstance(lo, dict) or lo.get("total_lrs_remitted_this_fy_inr") in (None, ""):
+            continue
+        found = True
+        total += num(lo.get("total_lrs_remitted_this_fy_inr"))
+        purpose = purpose or lo.get("lrs_purpose")
+    if not found:
+        return top
+    return {**top, "total_lrs_remitted_this_fy_inr": total, "lrs_purpose": purpose}
+
+
 def _build_documents_result(d, ctx):
     feie_res = (d.get("usTaxResult") or {}).get("feie")
     res = d["residencyResult"]
@@ -463,7 +485,7 @@ NODES = {
     "taxesPaidIndiaResult": NodeDef(deps=("taxCreditsIndiaRaw",), compute=_taxes_paid_india_result),
     "s44adLastExitAyRaw": NodeDef(deps=("diAgg",), compute=lambda d, ctx: safe(d["diAgg"], "business_income.s44AD_last_exit_ay", None), layer1_fields=("india.domestic_income.business_income.s44AD_last_exit_ay",)),
     "presumptiveLockinAgg": NodeDef(deps=("s44adLastExitAyRaw",), compute=_presumptive_lockin_agg),
-    "indianMutualFundsResult": NodeDef(deps=("indiaFinancialHoldingsTxRaw",), compute=lambda d, ctx: [t for t in d["indiaFinancialHoldingsTxRaw"] if t.get("asset_type") and "mutual_fund" in str(t["asset_type"]).lower()]),
+    "indianMutualFundsResult": NodeDef(deps=("indiaFinancialHoldingsTxRaw",), compute=lambda d, ctx: [t for t in d["indiaFinancialHoldingsTxRaw"] if (t.get("asset_type") or t.get("asset_class")) and "mutual_fund" in str(t.get("asset_type") or t.get("asset_class")).lower()]),
     "usPficHoldingsRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_entities.pfic_holdings", []) or [], layer1_fields=("us.foreign_entities.pfic_holdings",)),
     "usSecuritiesRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "financial_holdings", []) or [], layer1_fields=("us.financial_holdings",)),
     "usOwnsForeignDisregardedEntityRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_entities.owns_foreign_disregarded_entity", False) is True, layer1_fields=("us.foreign_entities.owns_foreign_disregarded_entity",)),
@@ -491,8 +513,8 @@ NODES = {
     # standalone-graph reason.
     "lrsOutboundRaw": NodeDef(
         deps=(), compute=lambda d, ctx: {
-            "totalRemittedInr": num(safe(ctx.get("india"), "lrs_outbound.total_lrs_remitted_this_fy_inr", 0)),
-            "purpose": safe(ctx.get("india"), "lrs_outbound.lrs_purpose", None),
+            "totalRemittedInr": num(_annual_lrs_outbound(ctx.get("india")).get("total_lrs_remitted_this_fy_inr", 0)),
+            "purpose": _annual_lrs_outbound(ctx.get("india")).get("lrs_purpose"),
         },
         layer1_fields=("india.lrs_outbound.total_lrs_remitted_this_fy_inr", "india.lrs_outbound.lrs_purpose"),
     ),

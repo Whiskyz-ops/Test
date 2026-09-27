@@ -160,7 +160,7 @@ NODES.checksRegistryResult = {
     }
     var res = d.residencyResult;
     if (d.hasUsScopeBoundaryFtc) {
-      var mfCount = (d.indiaFinancialHoldingsTxRaw || []).filter(function (t) { return t.asset_type && String(t.asset_type).toLowerCase().indexOf("mutual_fund") >= 0; }).length;
+      var mfCount = (d.indiaFinancialHoldingsTxRaw || []).filter(function (t) { var cls = t.asset_type || t.asset_class; return cls && String(cls).toLowerCase().indexOf("mutual_fund") >= 0; }).length;
       if (res.us.isResident && mfCount === 0) {
         pass("pfic", "entity", "No PFIC exposure", "No Indian mutual fund / ETF holdings on file for this US person — no §1291/Form 8621 exposure.");
       }

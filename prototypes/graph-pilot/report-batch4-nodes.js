@@ -109,6 +109,28 @@ function computeLrsTcs(lrsOutbound) {
 
 /* ---- raw leaves: aggregateWithholdingDetail (AGG-7, normalize.js:2106-
  * 2135), ported in full. */
+// Annual LRS remittance for Layer 1 India's quarterly data: the form keeps
+// each quarter's figure in quarters[Qn].lrs_outbound and mirrors only the
+// ACTIVE quarter at the top level, so reading the top level alone saw one
+// quarter's remittance. Sums the quarters when present (the same total
+// aggregateindiaincome-nodes.js's annualSliceAgg uses for the LRS gauge);
+// otherwise the top-level object as before.
+function annualLrsOutbound(india) {
+  var top = safe(india, "lrs_outbound", {}) || {};
+  var q = safe(india, "quarters", null);
+  if (!q) return top;
+  var total = 0, any = false, purpose = top.lrs_purpose || null;
+  ["Q1", "Q2", "Q3", "Q4"].forEach(function (k) {
+    var lo = q[k] && q[k].lrs_outbound;
+    // Only a quarter that actually records a remittance figure counts.
+    if (!lo || lo.total_lrs_remitted_this_fy_inr === null || lo.total_lrs_remitted_this_fy_inr === undefined || lo.total_lrs_remitted_this_fy_inr === "") return;
+    any = true; total += num(lo.total_lrs_remitted_this_fy_inr); purpose = purpose || lo.lrs_purpose || null;
+  });
+  if (!any) return top;
+  var out = {}; Object.keys(top).forEach(function (k) { out[k] = top[k]; });
+  out.total_lrs_remitted_this_fy_inr = total; out.lrs_purpose = purpose;
+  return out;
+}
 NODES.withholdingDetailIndiaRaw = {
   deps: [],
   compute: function (d, ctx) {
@@ -123,7 +145,7 @@ NODES.withholdingDetailIndiaRaw = {
     return {
       tdsAggregateInr: num(safe(tc, "tds_already_deducted_inr", 0)) + num(safe(tc, "tds_inr", 0)),
       tcsAggregateInr: num(safe(tc, "tcs_inr", 0)),
-      lrsTcs: computeLrsTcs(safe(ctx.india, "lrs_outbound", {})),
+      lrsTcs: computeLrsTcs(annualLrsOutbound(ctx.india)),
       propertyTds: propertyTds
     };
   }

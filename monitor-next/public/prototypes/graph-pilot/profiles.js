@@ -272,7 +272,7 @@
     tags: ["FTC 1116", "PFIC", "FBAR", "NR in India", "self-employment", "tips/overtime", "K-1"],
     router: router("Rohan Mehta", { is_us_citizen: false, has_green_card: true, us_days: 345, date_of_birth: "1985-03-22" }),
     india: {
-      profile: { full_name: "Rohan Mehta", entity_type: "individual", date_of_birth: "1985-03-22", pan: "AAAPM5678Q", tax_regime: "NEW" },
+      profile: { full_name: "Rohan Mehta", entity_type: "individual", date_of_birth: "1985-03-22", pan: "AAAPM5678Q", tax_regime: "NEW", pan_aadhaar_linked: true },
       residency_detail: { days_in_india_current_year: 20, final_india_residency_status: "NR" },
       // A genuinely beneficial treaty rate on ₹1.5L of his ₹2.6L NRO interest
       // (15% vs the 20% domestic s.207 default — the other ₹1.1L isn't
@@ -290,7 +290,7 @@
       compliance_docs: { trc: { document_uploaded: false }, form_10f: { is_filed: false } },
       bank_accounts: [{ bank_name: "SBI (NRO)", account_type: "nro", peak_balance_inr: 2600000 }, { bank_name: "Axis (NRE)", account_type: "nre", peak_balance_inr: 1900000 }],
       property: { has_indian_property_transaction: true, properties: [{ address: "Villa 4, Bengaluru", property_type: "Residential", annual_value_inr: 840000, gross_rent_received_inr: 1200000, municipal_taxes_paid_inr: 60000 }] },
-      financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "equity_mutual_fund", asset_name: "SBI Bluechip Fund", value_inr: 4200000 }, { asset_type: "equity_mutual_fund", asset_name: "Mirae Asset Large Cap", value_inr: 2600000 }] },
+      financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "equity_mutual_fund", asset_class: "equity_mutual_fund", asset_name: "SBI Bluechip Fund", asset_name_or_ticker: "SBI Bluechip Fund", value_inr: 4200000, purchase_value: 4200000, purchase_currency: "INR" }, { asset_type: "equity_mutual_fund", asset_class: "equity_mutual_fund", asset_name: "Mirae Asset Large Cap", asset_name_or_ticker: "Mirae Asset Large Cap", value_inr: 2600000, purchase_value: 2600000, purchase_currency: "INR" }] },
       // Small India-side consulting stake, held below the 10% US CFC threshold
       // (see the matching foreign_entities block on the US side below) →
       // triggers cfc_below_threshold instead of the full CFC/Form 5471 finding.
@@ -424,7 +424,7 @@
     tags: ["Form 44", "Schedule FA", "1040-NR", "FIRPTA", "Foreign equity"],
     router: router("Anita Desai", { is_us_citizen: false, has_green_card: false, us_days: 35, date_of_birth: "1982-11-09" }),
     india: {
-      profile: { full_name: "Anita Desai", entity_type: "individual", date_of_birth: "1982-11-09", pan: "AADPD9012R", tax_regime: "OLD" },
+      profile: { full_name: "Anita Desai", entity_type: "individual", date_of_birth: "1982-11-09", pan: "AADPD9012R", tax_regime: "OLD", pan_aadhaar_linked: true },
       residency_detail: { days_in_india_current_year: 320, days_in_india_preceding_4_years_gte_365: true, nr_years_last_10_gte_9: false, days_in_india_last_7_years_lte_729: false, final_india_residency_status: "ROR" },
       dtaa: { tax_residency_country: "IN", is_us_resident_for_dtaa: false, dtaa_treaty_residence: "none", trc_status: true, form_10f: true },
       // Was NRI for years before moving back; kept the Chapter XII-A election
@@ -474,7 +474,13 @@
     us: {
       profile: { tax_entity_type: "individual", full_name: "Anita Desai", date_of_birth: "1982-11-09", filing_status: "single", ssn_or_itin_type: "itin" },
       us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 35, spt_test_met: false, final_us_residency_status: "NON_RESIDENT_ALIEN", dtaa_treaty_residence: "IN" },
-      income_us_source: { has_real_estate: true, interest_us_source_usd: 1800, ordinary_dividends_us_source_usd: 9600, qualified_dividends_us_source_usd: 7000, ltcg_us_source_usd: 22000, rental_income_us_source_usd: 30000 },
+      // Remote employee of a US company, working from India (the common
+      // "India resident on a US payroll" case): the employer runs her through
+      // US payroll and withholds US tax, though a non-resident alien's pay for
+      // work outside the US isn't US income (us_withholding_outside_us_wages).
+      income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Acme Cloud Inc", wages_box1_usd: 60000, workdays_in_us: 0, workdays_outside_us: 240,
+        tax_details_collapsed_by_default: { federal_tax_withheld_usd: 12000, ss_wages_box3_usd: 60000, ss_tax_withheld_usd: 3720, medicare_wages_box5_usd: 60000, medicare_tax_withheld_usd: 870 } }],
+        has_real_estate: true, interest_us_source_usd: 1800, ordinary_dividends_us_source_usd: 9600, qualified_dividends_us_source_usd: 7000, ltcg_us_source_usd: 22000, rental_income_us_source_usd: 30000 },
       income_foreign_source: {},
       foreign_earned_income: { claims_feie: false },
       bank_accounts: [{ bank_name: "Chase", account_type: "checking", country: "US", peak_balance_usd: 42000 }],

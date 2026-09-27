@@ -743,7 +743,7 @@ def _findings_crossborder_result(d, ctx):
         ))
 
     # -- 8. PFIC EXPOSURE (findings-batch3-nodes.js, conflicts.js:1141-1149) --
-    mf_count = sum(1 for t in d["indiaFinancialHoldingsTxRaw"] if t.get("asset_type") and "mutual_fund" in str(t["asset_type"]).lower())
+    mf_count = sum(1 for t in d["indiaFinancialHoldingsTxRaw"] if (t.get("asset_type") or t.get("asset_class")) and "mutual_fund" in str(t.get("asset_type") or t.get("asset_class")).lower())
     if mf_count > 0 and d["residencyResult"]["us"]["isResident"]:
         findings.append(make_finding(
             "pfic", "critical", "entity",

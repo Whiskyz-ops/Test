@@ -85,7 +85,7 @@ def _checks_registry_result(d, ctx):
             pass_("form_10iea", "document", "Form 10-IEA not required", "Old regime elected, but no business/professional income on file — a salaried/other-income-only filer can choose the old regime on the ITR itself, no Form 10-IEA needed.")
     res = d["residencyResult"]
     if d["hasUsScopeBoundaryFtc"]:
-        mf_count = sum(1 for t in (d["indiaFinancialHoldingsTxRaw"] or []) if t.get("asset_type") and "mutual_fund" in str(t["asset_type"]).lower())
+        mf_count = sum(1 for t in (d["indiaFinancialHoldingsTxRaw"] or []) if (t.get("asset_type") or t.get("asset_class")) and "mutual_fund" in str(t.get("asset_type") or t.get("asset_class")).lower())
         if res["us"]["isResident"] and mf_count == 0:
             pass_("pfic", "entity", "No PFIC exposure", "No Indian mutual fund / ETF holdings on file for this US person — no §1291/Form 8621 exposure.")
         biz_count = len(d["bizEntriesAgg"] or [])

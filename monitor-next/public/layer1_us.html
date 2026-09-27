@@ -20708,7 +20708,8 @@ div.innerHTML = `
                     // 2. Hydrate PFICs (Form 8621) from Indian Mutual Funds
                     usState.foreign_entities.pfic_holdings = usState.foreign_entities.pfic_holdings || [];
                     if (indiaState.financial_holdings && indiaState.financial_holdings.transactions) {
-                        const mfs = indiaState.financial_holdings.transactions.filter(t => t.asset_type && t.asset_type.toLowerCase().includes('mutual_fund'));
+                        // Layer 1 India saves the class as asset_class; older data used asset_type.
+                        const mfs = indiaState.financial_holdings.transactions.filter(t => { const c = t.asset_type || t.asset_class; return c && String(c).toLowerCase().includes('mutual_fund'); });
                         if (mfs.length > 0) {
                             usState.foreign_entities.has_pfics = true;
                             usState.foreign_entities.pfic_holdings = mfs.map(mf => ({

@@ -141,7 +141,7 @@ NODES.entityFormsResult = {
 // ---- model.assets.indianMutualFunds, as an array (normalize.js:2546-2548) --
 NODES.indianMutualFundsResult = {
   deps: ["indiaFinancialHoldingsTxRaw"],
-  compute: function (d) { return d.indiaFinancialHoldingsTxRaw.filter(function (t) { return t.asset_type && String(t.asset_type).toLowerCase().indexOf("mutual_fund") >= 0; }); }
+  compute: function (d) { return d.indiaFinancialHoldingsTxRaw.filter(function (t) { var cls = t.asset_type || t.asset_class; return cls && String(cls).toLowerCase().indexOf("mutual_fund") >= 0; }); }
 };
 
 // ---- model.assets.usPficHoldings (normalize.js:2546) — Layer 1 US's own
@@ -200,9 +200,31 @@ NODES.usForeignPartnershipsRaw = { deps: [], compute: function (d, ctx) { return
 // LRS_TCS_THRESHOLD_INR constant — the ₹10L s.206C(1G) base threshold below
 // which an investment/gift-donation LRS remittance owes no TCS at all.
 var LRS_TCS_THRESHOLD_INR_B1 = 1000000;
+// Annual LRS remittance for Layer 1 India's quarterly data: the form keeps
+// each quarter's figure in quarters[Qn].lrs_outbound and mirrors only the
+// ACTIVE quarter at the top level, so reading the top level alone saw one
+// quarter's remittance. Sums the quarters when present (the same total
+// aggregateindiaincome-nodes.js's annualSliceAgg uses for the LRS gauge);
+// otherwise the top-level object as before.
+function annualLrsOutbound(india) {
+  var top = safe(india, "lrs_outbound", {}) || {};
+  var q = safe(india, "quarters", null);
+  if (!q) return top;
+  var total = 0, any = false, purpose = top.lrs_purpose || null;
+  ["Q1", "Q2", "Q3", "Q4"].forEach(function (k) {
+    var lo = q[k] && q[k].lrs_outbound;
+    // Only a quarter that actually records a remittance figure counts.
+    if (!lo || lo.total_lrs_remitted_this_fy_inr === null || lo.total_lrs_remitted_this_fy_inr === undefined || lo.total_lrs_remitted_this_fy_inr === "") return;
+    any = true; total += num(lo.total_lrs_remitted_this_fy_inr); purpose = purpose || lo.lrs_purpose || null;
+  });
+  if (!any) return top;
+  var out = {}; Object.keys(top).forEach(function (k) { out[k] = top[k]; });
+  out.total_lrs_remitted_this_fy_inr = total; out.lrs_purpose = purpose;
+  return out;
+}
 NODES.lrsOutboundRaw = {
   deps: [], compute: function (d, ctx) {
-    var lo = safe(ctx.india, "lrs_outbound", {}) || {};
+    var lo = annualLrsOutbound(ctx.india);
     return { totalRemittedInr: num(lo.total_lrs_remitted_this_fy_inr), purpose: lo.lrs_purpose || null };
   }
 };

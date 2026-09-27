@@ -608,6 +608,28 @@ LRS_PURPOSE_LABELS = {
 LRS_TCS_THRESHOLD_INR = 1000000
 
 
+def _annual_lrs_outbound(india):
+    """Annual LRS remittance for quarterly Layer 1 India data — mirrors
+    report-batch1-nodes.js's annualLrsOutbound: sums quarters[Qn].lrs_outbound
+    when present (the form mirrors only the active quarter at the top level)."""
+    top = safe(india, "lrs_outbound", {}) or {}
+    q = safe(india, "quarters", None)
+    if not q:
+        return top
+    total, found, purpose = 0.0, False, top.get("lrs_purpose")
+    for k in ("Q1", "Q2", "Q3", "Q4"):
+        lo = (q.get(k) or {}).get("lrs_outbound") if isinstance(q.get(k), dict) else None
+        # Only a quarter that actually records a remittance figure counts.
+        if not isinstance(lo, dict) or lo.get("total_lrs_remitted_this_fy_inr") in (None, ""):
+            continue
+        found = True
+        total += num(lo.get("total_lrs_remitted_this_fy_inr"))
+        purpose = purpose or lo.get("lrs_purpose")
+    if not found:
+        return top
+    return {**top, "total_lrs_remitted_this_fy_inr": total, "lrs_purpose": purpose}
+
+
 def _compute_lrs_tcs(lrs_outbound):
     total = num(safe(lrs_outbound, "total_lrs_remitted_this_fy_inr", 0))
     purpose = safe(lrs_outbound, "lrs_purpose", None)
@@ -654,7 +676,7 @@ def _withholding_detail_india_raw(d, ctx):
     return {
         "tdsAggregateInr": num(safe(tc, "tds_already_deducted_inr", 0)) + num(safe(tc, "tds_inr", 0)),
         "tcsAggregateInr": num(safe(tc, "tcs_inr", 0)),
-        "lrsTcs": _compute_lrs_tcs(safe(india, "lrs_outbound", {})),
+        "lrsTcs": _compute_lrs_tcs(_annual_lrs_outbound(india)),
         "propertyTds": property_tds,
     }
 

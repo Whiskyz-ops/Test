@@ -1076,6 +1076,18 @@ var KNOWN_INDIA_SALARY_EXEMPTION_DIVERGENT_PATHS = [
   "summary.indiaTaxUsd", "summary.totalIncomeUsd", "summary.netDoubleTaxUsd", "summary.healthScore", "summary.counts",
   "documents", "scopeNotes", "returnForms"
 ];
+function isQuarterlyLrsDivergentProfile(profile) {
+  var india = profile.india || {}, q = india.quarters;
+  if (!q) return false;
+  var total = 0, any = false;
+  ["Q1", "Q2", "Q3", "Q4"].forEach(function (k) {
+    var lo = q[k] && q[k].lrs_outbound;
+    if (!lo || lo.total_lrs_remitted_this_fy_inr === null || lo.total_lrs_remitted_this_fy_inr === undefined || lo.total_lrs_remitted_this_fy_inr === "") return;
+    any = true; total += Number(lo.total_lrs_remitted_this_fy_inr) || 0;
+  });
+  var top = Number(india.lrs_outbound && india.lrs_outbound.total_lrs_remitted_this_fy_inr) || 0;
+  return any && Math.abs(total - top) > 0.5;
+}
 function isFeieIneligibleClaimProfile(dag) {
   var f = dag.computed && dag.computed.usTax && dag.computed.usTax.feie;
   return !!(f && f.claimed && !f.eligible);
@@ -1360,6 +1372,10 @@ function compareOne(label, profile, saveOnFail) {
     // FEIE claimed but ineligible: Form 2555 is no longer listed as a
     // required document (report-batch1-nodes.js) — the frozen engine lists it.
     .concat(isFeieIneligibleClaimProfile(dag) ? ["documents"] : [])
+    // Quarterly LRS: the DAG sums quarters[Qn].lrs_outbound (the form keeps
+    // only the active quarter at the top level); the frozen engine reads the
+    // top level. Differs only when the two disagree.
+    .concat(isQuarterlyLrsDivergentProfile(profile) ? ["withholding.india", "documents"] : [])
     // salaryDetail is a pure introspection field (like checksRegistry) with
     // no engine equivalent at all — present on EVERY profile regardless of
     // whether the override fired, so it's always known, not gated above.

@@ -274,7 +274,7 @@ NODES.findingsBatch3Result = {
     }
 
     // -- 8. PFIC EXPOSURE (conflicts.js:1141-1149) ---------------------------
-    var mfCount = d.indiaFinancialHoldingsTxRaw.filter(function (t) { return t.asset_type && String(t.asset_type).toLowerCase().indexOf("mutual_fund") >= 0; }).length;
+    var mfCount = d.indiaFinancialHoldingsTxRaw.filter(function (t) { var cls = t.asset_type || t.asset_class; return cls && String(cls).toLowerCase().indexOf("mutual_fund") >= 0; }).length;
     if (mfCount > 0 && res.us.isResident) {
       add("pfic", "critical", "entity",
         "PFIC exposure: Indian mutual funds",
