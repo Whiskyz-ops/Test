@@ -158,7 +158,7 @@ def _compute_loss_set_off_detailed(cfl: dict, buckets: dict) -> dict:
     business_inr -= business_loss_used
     business_loss_unused = (cfl.get("businessLossAvailableInr") or 0) - business_loss_used
 
-    hp_loss_used = min(cfl.get("housePropertyLossAvailableInr") or 0, house_property_inr)
+    hp_loss_used = min(cfl.get("housePropertyLossAvailableInr") or 0, max(0, house_property_inr))
     house_property_inr -= hp_loss_used
     hp_loss_unused = (cfl.get("housePropertyLossAvailableInr") or 0) - hp_loss_used
 
@@ -193,7 +193,7 @@ def _compute_loss_set_off_detailed(cfl: dict, buckets: dict) -> dict:
 
     dep_remaining = cfl.get("unabsorbedDepreciationCf") or 0
     used = min(dep_remaining, business_inr); business_inr -= used; dep_remaining -= used
-    used = min(dep_remaining, house_property_inr); house_property_inr -= used; dep_remaining -= used
+    used = min(dep_remaining, max(0, house_property_inr)); house_property_inr -= used; dep_remaining -= used
     used = min(dep_remaining, stcg_slab_inr); stcg_slab_inr -= used; dep_remaining -= used
     used = min(dep_remaining, stcg_inr); stcg_inr -= used; dep_remaining -= used
     used = min(dep_remaining, ltcg197_inr); ltcg197_inr -= used; dep_remaining -= used

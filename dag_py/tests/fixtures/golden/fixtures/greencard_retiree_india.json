@@ -181,8 +181,8 @@
           "usd": 0
         },
         "otherSourcesMisc": {
-          "inr": 0,
-          "usd": 0
+          "inr": 585000,
+          "usd": 7048.192771084337
         },
         "stcg": {
           "inr": 0,
@@ -215,8 +215,8 @@
         "holdingPeriodMismatches": [],
         "unexplained115bbeInr": 0,
         "total": {
-          "usd": 96.3855421686747,
-          "inr": 8000
+          "usd": 7144.578313253012,
+          "inr": 593000
         }
       },
       "us": {
@@ -302,8 +302,8 @@
           "inr": 0
         },
         "foreignPension": {
-          "usd": 0,
-          "inr": 0
+          "usd": 7228,
+          "inr": 599924
         },
         "foreignStcg": {
           "usd": 0,
@@ -324,12 +324,12 @@
           "inr": 16600
         },
         "foreignSourceTotal": {
-          "usd": 96,
-          "inr": 7968
+          "usd": 7324,
+          "inr": 607892
         },
         "total": {
-          "usd": 296,
-          "inr": 24568
+          "usd": 7524,
+          "inr": 624492
         },
         "foreignSection988GainLoss": {
           "usd": 0,
@@ -573,8 +573,8 @@
         },
         "other_sources": {
           "has_other_sources_income": true,
-          "family_pension_inr": 600000,
-          "interest_fd_rd_inr": 8000
+          "interest_fd_rd_inr": 8000,
+          "family_pension_gross_inr": 600000
         },
         "deductions": {},
         "lrs_outbound": {},
@@ -596,8 +596,8 @@
             },
             "other_sources": {
               "has_other_sources_income": true,
-              "family_pension_inr": 150000,
-              "interest_fd_rd_inr": 2000
+              "interest_fd_rd_inr": 2000,
+              "family_pension_gross_inr": 150000
             },
             "capital_gains": {},
             "lrs_outbound": {},
@@ -621,8 +621,8 @@
             },
             "other_sources": {
               "has_other_sources_income": true,
-              "family_pension_inr": 150000,
-              "interest_fd_rd_inr": 2000
+              "interest_fd_rd_inr": 2000,
+              "family_pension_gross_inr": 150000
             },
             "capital_gains": {},
             "lrs_outbound": {}
@@ -639,8 +639,8 @@
             },
             "other_sources": {
               "has_other_sources_income": true,
-              "family_pension_inr": 150000,
-              "interest_fd_rd_inr": 2000
+              "interest_fd_rd_inr": 2000,
+              "family_pension_gross_inr": 150000
             },
             "capital_gains": {},
             "lrs_outbound": {}
@@ -657,8 +657,8 @@
             },
             "other_sources": {
               "has_other_sources_income": true,
-              "family_pension_inr": 150000,
-              "interest_fd_rd_inr": 2000
+              "interest_fd_rd_inr": 2000,
+              "family_pension_gross_inr": 150000
             },
             "capital_gains": {},
             "lrs_outbound": {}
@@ -686,7 +686,7 @@
         },
         "income_foreign_source": {
           "foreign_interest_usd": 96,
-          "foreign_pension_usd": 7228
+          "foreign_pension_income_usd": 7228
         },
         "foreign_earned_income": {
           "claims_feie": false
@@ -746,20 +746,27 @@
     },
     "indiaTax": {
       "regime": "NEW",
-      "grossTotalIncomeInr": 8000,
+      "grossTotalIncomeInr": 593000,
       "deductionsInr": 0,
-      "totalIncomeInr": 8000,
-      "slabTaxInr": 0,
+      "totalIncomeInr": 593000,
+      "slabTaxInr": 9650,
       "slabBreakdown": [
         {
           "from": 0,
           "to": 400000,
           "rate": 0,
-          "taxable": 8000,
+          "taxable": 400000,
           "tax": 0
+        },
+        {
+          "from": 400000,
+          "to": 800000,
+          "rate": 0.05,
+          "taxable": 193000,
+          "tax": 9650
         }
       ],
-      "totalNormalInr": 8000,
+      "totalNormalInr": 593000,
       "ltcgTaxableInr": 0,
       "ltcg197TaxableInr": 0,
       "vdaGainInr": 0,
@@ -767,18 +774,18 @@
       "chapterXiiaInvestmentIncomeInr": 0,
       "chapterXiiaInvestmentIncomeTaxInr": 0,
       "specialTaxInr": 0,
-      "rebateInr": 0,
+      "rebateInr": 9650,
       "surchargeInr": 0,
       "cessInr": 0,
       "promoterBuyback": null,
       "totalTaxInr": 0,
       "totalTaxUsd": 0,
-      "totalIncomeUsd": 96.3855421686747,
+      "totalIncomeUsd": 7144.578313253012,
       "effectiveRate": 0,
       "lossSetOff": {
         "businessInr": 0,
         "housePropertyInr": 0,
-        "otherNormalInr": 8000,
+        "otherNormalInr": 593000,
         "stcgInr": 0,
         "stcgSlabInr": 0,
         "ltcgGrossInr": 0,
@@ -811,10 +818,10 @@
     "usTax": {
       "filingStatus": "single",
       "worldwide": true,
-      "totalIncomeUsd": 296,
-      "ordinaryIncomeUsd": 296,
+      "totalIncomeUsd": 7524,
+      "ordinaryIncomeUsd": 7524,
       "preferentialIncomeUsd": 0,
-      "agiUsd": 296,
+      "agiUsd": 7524,
       "deductionUsd": 16100,
       "deductionMode": "standard",
       "saltCapUsd": 40400,
@@ -822,7 +829,7 @@
         "grossUsd": 0,
         "taxableUsd": 0,
         "taxablePct": 0,
-        "provisionalIncomeUsd": 296,
+        "provisionalIncomeUsd": 7524,
         "baseThresholdUsd": 25000,
         "additionalThresholdUsd": 34000
       },
@@ -879,13 +886,13 @@
         "earnedIncomeUsd": 0
       },
       "totalTaxBeforeFtcUsd": 0,
-      "foreignSourceIncomeUsd": 96,
+      "foreignSourceIncomeUsd": 7324,
       "usSourceIncomeUsd": 200,
       "retirementEpfInterestUsd": 0,
       "retirementNpsWithdrawalUsd": 0,
       "niitDetail": {
         "netInvestmentIncomeUsd": 296,
-        "magiUsd": 296,
+        "magiUsd": 7524,
         "thresholdUsd": 200000,
         "excessUsd": 0,
         "rate": 0.038
@@ -930,7 +937,7 @@
       "explanation": "For Resident Salaried Individuals with total income up to \u20b950 Lakhs (Salary, up to 2 house properties, basic other sources). Restrictions: no foreign assets/income, no capital gains beyond the s.198-only allowance, no directorships.",
       "disqualified": false,
       "disqualifiers": [],
-      "totalIncomeInr": 8000,
+      "totalIncomeInr": 593000,
       "directorUnknown": true,
       "frontendForm": null,
       "frontendExplanation": null,
@@ -974,9 +981,9 @@
       "fyLabel": "FY 2026\u201327",
       "cyPrimary": 2026,
       "cyNext": 2027,
-      "indiaFyTotalUsd": 96.3855421686747,
-      "indiaToCyPrimaryUsd": 72,
-      "indiaToCyNextUsd": 24,
+      "indiaFyTotalUsd": 7144.578313253012,
+      "indiaToCyPrimaryUsd": 5358,
+      "indiaToCyNextUsd": 1786,
       "primaryShare": 0.75,
       "nextShare": 0.25,
       "usCyTotalUsd": 200,
@@ -994,7 +1001,7 @@
     },
     "ftc": {
       "us": {
-        "foreignSourceIncomeUsd": 96.3855421686747,
+        "foreignSourceIncomeUsd": 7144.578313253012,
         "feieExcludedUsd": 0,
         "indiaTaxDisallowedUsd": 0,
         "taxableIncomeUsd": 0,
@@ -1062,7 +1069,7 @@
       "name": "Lakshmi Pillai",
       "baseYear": 2026,
       "jurisdiction": "dual",
-      "totalIncomeUsd": 392.3855421686747,
+      "totalIncomeUsd": 14668.578313253012,
       "indiaTaxUsd": 0,
       "usTaxUsd": 0,
       "combinedTaxBeforeReliefUsd": 0,
@@ -1121,7 +1128,7 @@
       "severity": "info",
       "category": "credit",
       "title": "Tax-year apportionment: Indian FY \u2194 US CY (computed)",
-      "detail": "India taxes Apr\u2013Mar; the US taxes Jan\u2013Dec. WISING splits the Indian FY across US calendar years \u2014 $72 into CY2026 and $24 into CY2027 (even-earning assumption (Apr\u2013Dec vs Jan\u2013Mar)) \u2014 and apportions the US calendar year into the Indian FY (9/12 + 3/12).",
+      "detail": "India taxes Apr\u2013Mar; the US taxes Jan\u2013Dec. WISING splits the Indian FY across US calendar years \u2014 $5,358 into CY2026 and $1,786 into CY2027 (even-earning assumption (Apr\u2013Dec vs Jan\u2013Mar)) \u2014 and apportions the US calendar year into the Indian FY (9/12 + 3/12).",
       "recommendation": "See the FY \u2194 CY Apportionment panel on the Filings tab for the period-matched figures behind Form 44 (India) and Form 1116 (US). Planning-grade \u2014 refine with per-transaction dates at filing.",
       "amountUsd": 0,
       "refs": [
@@ -1470,7 +1477,7 @@
         },
         {
           "label": "Foreign-source income (US view)",
-          "usd": 96.3855421686747,
+          "usd": 7144.578313253012,
           "trace": {
             "kind": "holdings",
             "section": "india",
@@ -1524,7 +1531,7 @@
               },
               {
                 "label": "Foreign-source income",
-                "amount": 96.3855421686747
+                "amount": 7144.578313253012
               },
               {
                 "label": "US taxable income",
@@ -1620,7 +1627,7 @@
               },
               {
                 "label": "Total US income",
-                "amount": 296
+                "amount": 7524
               }
             ],
             "citation": null
@@ -1643,7 +1650,7 @@
               },
               {
                 "label": "Total India-view income",
-                "amount": 96.3855421686747
+                "amount": 7144.578313253012
               }
             ],
             "citation": null
@@ -1680,7 +1687,7 @@
       "rows": [
         {
           "label": "Gross total income",
-          "inr": 8000,
+          "inr": 593000,
           "trace": {
             "kind": "holdings",
             "section": "india",
@@ -1704,14 +1711,14 @@
         },
         {
           "label": "Total income",
-          "inr": 8000,
+          "inr": 593000,
           "trace": {
             "kind": "calc",
             "formula": "Gross total income less Chapter VI-A deductions",
             "parts": [
               {
                 "label": "Gross total income",
-                "amount": 8000
+                "amount": 593000
               },
               {
                 "label": "Less Chapter VI-A deductions",
@@ -1723,14 +1730,18 @@
         },
         {
           "label": "Tax at slab rates",
-          "inr": 0,
+          "inr": 9650,
           "trace": {
             "kind": "calc",
-            "formula": "Progressive slab-rate tax under the NEW regime, applied to \u20b98,000 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
+            "formula": "Progressive slab-rate tax under the NEW regime, applied to \u20b95,93,000 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
             "parts": [
               {
                 "label": "0% on \u20b90\u2013\u20b94,00,000",
                 "amount": 0
+              },
+              {
+                "label": "5% on \u20b94,00,000\u2013\u20b98,00,000",
+                "amount": 9650
               }
             ],
             "citation": null
@@ -1748,7 +1759,7 @@
         },
         {
           "label": "Less \u00a7156 rebate",
-          "inr": 0,
+          "inr": -9650,
           "trace": {
             "kind": "calc",
             "formula": "Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold \u2014 lesser of tax at slab rates and the statutory cap",
@@ -1759,7 +1770,7 @@
               },
               {
                 "label": "Rebate actually allowed",
-                "amount": 0
+                "amount": 9650
               }
             ],
             "citation": null
@@ -1813,7 +1824,7 @@
             "parts": [
               {
                 "label": "Tax at slab rates",
-                "amount": 0
+                "amount": 9650
               },
               {
                 "label": "Tax on special-rate income",
@@ -1821,7 +1832,7 @@
               },
               {
                 "label": "Less \u00a7156 rebate",
-                "amount": 0
+                "amount": -9650
               },
               {
                 "label": "Surcharge",
@@ -1845,7 +1856,7 @@
       "rows": [
         {
           "label": "Total income (worldwide)",
-          "usd": 296,
+          "usd": 7524,
           "trace": {
             "kind": "holdings",
             "section": "us",
@@ -1854,14 +1865,14 @@
         },
         {
           "label": "Adjusted gross income",
-          "usd": 296,
+          "usd": 7524,
           "trace": {
             "kind": "calc",
             "formula": "Total income less above-the-line adjustments (student-loan interest, capped at $2,500, + half of self-employment tax)",
             "parts": [
               {
                 "label": "Total income",
-                "amount": 296
+                "amount": 7524
               },
               {
                 "label": "Less adjustments",
@@ -1918,7 +1929,7 @@
             "parts": [
               {
                 "label": "AGI",
-                "amount": 296
+                "amount": 7524
               },
               {
                 "label": "Less deduction",
@@ -2540,7 +2551,7 @@
     "indiaStatus": "ROR",
     "usStatus": "RESIDENT_ALIEN",
     "dualResident": true,
-    "totalIncomeUsd": 392.3855421686747,
+    "totalIncomeUsd": 14668.578313253012,
     "indiaTaxUsd": 0,
     "usTaxUsd": 0,
     "netDoubleTaxUsd": 0,

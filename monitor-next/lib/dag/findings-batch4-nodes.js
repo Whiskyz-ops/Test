@@ -177,7 +177,7 @@ function computeLossSetOffDetailed(cfl, buckets) {
   businessInr -= businessLossUsed;
   var businessLossUnused = (cfl.businessLossAvailableInr || 0) - businessLossUsed;
 
-  var hpLossUsed = Math.min(cfl.housePropertyLossAvailableInr || 0, housePropertyInr);
+  var hpLossUsed = Math.min(cfl.housePropertyLossAvailableInr || 0, Math.max(0, housePropertyInr));
   housePropertyInr -= hpLossUsed;
   var hpLossUnused = (cfl.housePropertyLossAvailableInr || 0) - hpLossUsed;
 
@@ -213,7 +213,7 @@ function computeLossSetOffDetailed(cfl, buckets) {
   var depRemaining = cfl.unabsorbedDepreciationCf || 0;
   var used;
   used = Math.min(depRemaining, businessInr); businessInr -= used; depRemaining -= used;
-  used = Math.min(depRemaining, housePropertyInr); housePropertyInr -= used; depRemaining -= used;
+  used = Math.min(depRemaining, Math.max(0, housePropertyInr)); housePropertyInr -= used; depRemaining -= used;
   used = Math.min(depRemaining, stcgSlabInr); stcgSlabInr -= used; depRemaining -= used;
   used = Math.min(depRemaining, stcgInr); stcgInr -= used; depRemaining -= used;
   used = Math.min(depRemaining, ltcg197Inr); ltcg197Inr -= used; depRemaining -= used;

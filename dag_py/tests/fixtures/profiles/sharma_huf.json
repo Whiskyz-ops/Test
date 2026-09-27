@@ -87,7 +87,9 @@
         "has_house_property_income": true,
         "properties": [
           {
-            "annual_value_inr": 300000
+            "property_use": "LOP",
+            "gross_annual_value_inr": 360000,
+            "municipal_taxes_paid_inr": 12000
           }
         ]
       },
@@ -159,7 +161,9 @@
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 75000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 90000,
+                "municipal_taxes_paid_inr": 3000
               }
             ]
           },
@@ -248,7 +252,9 @@
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 75000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 90000,
+                "municipal_taxes_paid_inr": 3000
               }
             ]
           },
@@ -298,7 +304,9 @@
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 75000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 90000,
+                "municipal_taxes_paid_inr": 3000
               }
             ]
           },
@@ -348,7 +356,9 @@
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 75000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 90000,
+                "municipal_taxes_paid_inr": 3000
               }
             ]
           },

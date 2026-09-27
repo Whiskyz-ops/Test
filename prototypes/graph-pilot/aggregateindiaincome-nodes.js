@@ -45,6 +45,8 @@ function monthsBetween(fromStr, toStr) {
 }
 /* SYS-1: shared import (promoted into constants.js from normalize-local). */
 var CONST_AGGIN = require("./constants.js").CONST;
+var computeHouseProperty = require("./house-property.js").computeHouseProperty;
+var housePropertyOpts = require("./house-property.js").housePropertyOpts;
 var ASSET_CLASS_RATES_INDIA = CONST_AGGIN.TAX.INDIA.ASSET_CLASS_RATES_INDIA;
 function isUnder180DaysAdditionInr(additionDateStr) {
   if (!additionDateStr) return false;
@@ -706,7 +708,7 @@ var NODES = {
       var di = d.diAgg;
       var salaryInr = d.salaryIncomeComputation.taxableSalaryInr;
       var hpProps = safe(di, "house_property.properties", []) || [];
-      var housePropertyInr = hpProps.reduce(function (s, p) { return s + num(p.annual_value_inr || p.gross_annual_value_inr || p.net_income_inr || p.gross_rent_received_inr || 0); }, 0);
+      var housePropertyInr = computeHouseProperty(hpProps, housePropertyOpts(india)).incomeInr;
       var os = d.osAgg;
       var interestInr = num(safe(os, "interest_savings_inr", 0)) + num(safe(os, "interest_fd_rd_inr", 0)) + num(safe(os, "interest_bonds_inr", 0)) + num(safe(os, "interest_on_it_refund_inr", 0)) + num(safe(di, "other_sources.interest_inr", 0));
       var dividendInr = num(safe(os, "dividend_inr", 0));
@@ -735,7 +737,7 @@ var NODES = {
       var di = d.diAgg, os = d.osAgg;
       var salaryInr = d.salaryIncomeComputation.taxableSalaryInr;
       var hpProps = safe(di, "house_property.properties", []) || [];
-      var housePropertyInr = hpProps.reduce(function (s, p) { return s + num(p.annual_value_inr || p.gross_annual_value_inr || p.net_income_inr || p.gross_rent_received_inr || 0); }, 0);
+      var housePropertyInr = computeHouseProperty(hpProps, housePropertyOpts(ctx.india)).incomeInr;
       var interestInr = num(safe(os, "interest_savings_inr", 0)) + num(safe(os, "interest_fd_rd_inr", 0)) + num(safe(os, "interest_bonds_inr", 0)) + num(safe(os, "interest_on_it_refund_inr", 0)) + num(safe(di, "other_sources.interest_inr", 0));
       var dividendInr = num(safe(os, "dividend_inr", 0));
       var specialRate115bbInr = num(safe(os, "winnings_lottery_gaming_inr", 0)) + num(safe(os, "online_gaming_winnings_inr", 0));

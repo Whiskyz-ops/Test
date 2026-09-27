@@ -73,7 +73,7 @@
     },
     "other_sources": {
       "has_other_sources_income": true,
-      "family_pension_inr": 600000,
+      "family_pension_gross_inr": 600000,
       "interest_fd_rd_inr": 8000
     },
     "deductions": {},
@@ -96,7 +96,7 @@
         },
         "other_sources": {
           "has_other_sources_income": true,
-          "family_pension_inr": 150000,
+          "family_pension_gross_inr": 150000,
           "interest_fd_rd_inr": 2000
         },
         "capital_gains": {},
@@ -121,7 +121,7 @@
         },
         "other_sources": {
           "has_other_sources_income": true,
-          "family_pension_inr": 150000,
+          "family_pension_gross_inr": 150000,
           "interest_fd_rd_inr": 2000
         },
         "capital_gains": {},
@@ -139,7 +139,7 @@
         },
         "other_sources": {
           "has_other_sources_income": true,
-          "family_pension_inr": 150000,
+          "family_pension_gross_inr": 150000,
           "interest_fd_rd_inr": 2000
         },
         "capital_gains": {},
@@ -157,7 +157,7 @@
         },
         "other_sources": {
           "has_other_sources_income": true,
-          "family_pension_inr": 150000,
+          "family_pension_gross_inr": 150000,
           "interest_fd_rd_inr": 2000
         },
         "capital_gains": {},
@@ -186,7 +186,7 @@
     },
     "income_foreign_source": {
       "foreign_interest_usd": 96,
-      "foreign_pension_usd": 7228
+      "foreign_pension_income_usd": 7228
     },
     "foreign_earned_income": {
       "claims_feie": false

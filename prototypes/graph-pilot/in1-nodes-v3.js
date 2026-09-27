@@ -107,6 +107,8 @@ function indiaAnnualSliceV3(india) {
  * check-const.js before the swap; S80DD/S80DDB caps were promoted INTO
  * constants.js from normalize.js-local literals in the same pass). */
 var CONST = require("./constants.js").CONST;
+var computeHouseProperty = require("./house-property.js").computeHouseProperty;
+var housePropertyOpts = require("./house-property.js").housePropertyOpts;
 var T = CONST.TAX.INDIA;
 var S80DD_U_FLAT = CONST.TAX.INDIA.S80DD_U_FLAT_INR;
 var S80DDB_CAP = CONST.TAX.INDIA.S80DDB_CAP_INR;
@@ -160,7 +162,7 @@ function computeLossSetOff(cfl, buckets) {
   businessInr -= businessLossUsed;
   var businessLossUnused = (cfl.businessLossAvailableInr || 0) - businessLossUsed;
 
-  var hpLossUsed = Math.min(cfl.housePropertyLossAvailableInr || 0, housePropertyInr);
+  var hpLossUsed = Math.min(cfl.housePropertyLossAvailableInr || 0, Math.max(0, housePropertyInr));
   housePropertyInr -= hpLossUsed;
   var hpLossUnused = (cfl.housePropertyLossAvailableInr || 0) - hpLossUsed;
 
@@ -196,7 +198,7 @@ function computeLossSetOff(cfl, buckets) {
   var depRemaining = cfl.unabsorbedDepreciationCf || 0;
   var used;
   used = Math.min(depRemaining, businessInr); businessInr -= used; depRemaining -= used;
-  used = Math.min(depRemaining, housePropertyInr); housePropertyInr -= used; depRemaining -= used;
+  used = Math.min(depRemaining, Math.max(0, housePropertyInr)); housePropertyInr -= used; depRemaining -= used;
   used = Math.min(depRemaining, stcgSlabInr); stcgSlabInr -= used; depRemaining -= used;
   used = Math.min(depRemaining, stcgInr); stcgInr -= used; depRemaining -= used;
   used = Math.min(depRemaining, ltcg197Inr); ltcg197Inr -= used; depRemaining -= used;
@@ -299,9 +301,9 @@ var NODES = {
   salaryInr: { deps: ["annualSliceV3"], compute: function (d) { return num(safe(d.annualSliceV3.domestic_income, "salary.taxable_salary_inr", null)) || num(safe(d.annualSliceV3.domestic_income, "salary.gross_salary_inr", 0)); } },
   housePropertyInr: {
     deps: ["annualSliceV3"],
-    compute: function (d) {
+    compute: function (d, ctx) {
       var hpProps = safe(d.annualSliceV3.domestic_income, "house_property.properties", []) || [];
-      return hpProps.reduce(function (s, p) { return s + num(p.annual_value_inr || p.gross_annual_value_inr || p.net_income_inr || p.gross_rent_received_inr || 0); }, 0);
+      return computeHouseProperty(hpProps, housePropertyOpts(ctx.india)).incomeInr;
     }
   },
   interestInr: {

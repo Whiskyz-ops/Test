@@ -31,7 +31,7 @@ def _entity_result(base: float, sur: float, cess: float, label: str, mat: bool) 
 
 
 def _compute_entity_tax_result(d, ctx):
-    taxable = d["entityTaxableInrBoundary"]
+    taxable = max(0.0, d["entityTaxableInrBoundary"])  # a loss is carried forward, never a negative tax
 
     if d["indiaIsAop"]:
         aop_base = taxable * INDIA_MMR_TOP_SLAB_RATE

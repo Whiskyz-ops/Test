@@ -192,6 +192,7 @@
       financial_holdings: { has_financial_transactions: true, transactions: [
         { asset_type: "equity_mutual_fund", asset_name: "Axis Bluechip Fund", value_inr: 2500000 },
         { asset_type: "debt_mutual_fund", asset_name: "HDFC Corporate Bond Fund", value_inr: 1200000 },
+        { asset_class: "listed_equity", asset_name_or_ticker: "TCS", quantity: 500, acquisition_date: "2025-10-06", purchase_value: 1650000, purchase_currency: "INR", sale_date: "2026-06-15", sale_value: 1900000, sale_currency: "INR", stt_paid: true, transfer_expenses: 0 },
         {
           asset_class: "foreign_equity_unlisted", asset_name_or_ticker: "AMZN",
           acquisition_date: "2024-11-01", purchase_value: 10000, purchase_currency: "USD",
@@ -215,12 +216,12 @@
       // Mehta's NR-forced fallthrough and Sharma HUF's entity-type
       // exclusion below — three different reasons an entry lands on
       // regular books).
-      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 1800000, work_performed_outside_india: false, esop_perquisite_events: [{ employer_name: "Infosys Ltd", grant_date: "2021-06-01", vesting_or_exercise_date: "2026-06-01", shares: 400, fmv_per_share_inr: 1800, exercise_price_per_share_inr: 300, perquisite_value_inr: 600000 }] }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 420000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [
+      domestic_income: { salary: { has_salary_income: true, gross_salary_inr: 1275000, esop_perquisite_inr: 600000, work_performed_outside_india: false, esop_perquisite_events: [{ employer_name: "Infosys Ltd", grant_date: "2021-06-01", vesting_or_exercise_date: "2026-06-01", shares: 400, fmv_per_share_inr: 1800, exercise_price_per_share_inr: 300, perquisite_value_inr: 600000 }] }, house_property: { has_house_property_income: true, properties: [{ property_use: "LOP", gross_annual_value_inr: 600000, municipal_taxes_paid_inr: 30000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [
         { business_name: "Sharma Freelance Dev", nature: "software consulting", presumptive_scheme: null, gross_receipts_inr: 900000,
           expenses: { rent_for_business_premises_inr: 60000, other_business_expenses_inr: 40000 } }
       ], asset_blocks: [
         { unit_biz_idx: 0, unit_branch_idx: null, asset_class: "plant_machinery_computers", opening_wdv_inr: 80000, additions_during_year_inr: 0, addition_date: null, sale_consideration_inr: 0, is_new_manufacturing_asset: false }
-      ] }, capital_gains: { short_term_15_pct: 250000 } },
+      ] } },
       // taxable_epf_interest_inr now actually lands in the US income
       // computation (folded into foreign-source interest), not just this
       // finding's display text.
@@ -290,7 +291,7 @@
       compliance_docs: { trc: { document_uploaded: false }, form_10f: { is_filed: false } },
       bank_accounts: [{ bank_name: "SBI (NRO)", account_type: "nro", peak_balance_inr: 2600000 }, { bank_name: "Axis (NRE)", account_type: "nre", peak_balance_inr: 1900000 }],
       property: { has_indian_property_transaction: true, properties: [{ address: "Villa 4, Bengaluru", property_type: "Residential", annual_value_inr: 840000, gross_rent_received_inr: 1200000, municipal_taxes_paid_inr: 60000 }] },
-      financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "equity_mutual_fund", asset_class: "equity_mutual_fund", asset_name: "SBI Bluechip Fund", asset_name_or_ticker: "SBI Bluechip Fund", value_inr: 4200000, purchase_value: 4200000, purchase_currency: "INR" }, { asset_type: "equity_mutual_fund", asset_class: "equity_mutual_fund", asset_name: "Mirae Asset Large Cap", asset_name_or_ticker: "Mirae Asset Large Cap", value_inr: 2600000, purchase_value: 2600000, purchase_currency: "INR" }] },
+      financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "equity_mutual_fund", asset_class: "equity_mutual_fund", asset_name: "SBI Bluechip Fund", asset_name_or_ticker: "SBI Bluechip Fund", value_inr: 4200000, purchase_value: 4200000, purchase_currency: "INR" }, { asset_type: "equity_mutual_fund", asset_class: "equity_mutual_fund", asset_name: "Mirae Asset Large Cap", asset_name_or_ticker: "Mirae Asset Large Cap", value_inr: 2600000, purchase_value: 2600000, purchase_currency: "INR" }, { asset_class: "listed_equity", asset_name_or_ticker: "HDFCBANK", quantity: 800, acquisition_date: "2025-12-01", purchase_value: 1220000, purchase_currency: "INR", sale_date: "2026-08-20", sale_value: 1400000, sale_currency: "INR", stt_paid: true, transfer_expenses: 0 }] },
       // Small India-side consulting stake, held below the 10% US CFC threshold
       // (see the matching foreign_entities block on the US side below) →
       // triggers cfc_below_threshold instead of the full CFC/Form 5471 finding.
@@ -328,7 +329,7 @@
       // interest on capital are taxable PGBP income to Rohan; the firm's
       // own ₹9,00,000 profit share is genuinely exempt (already taxed at
       // the firm level) and must NOT double up here.
-      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 840000 }] }, business_income: { has_business_or_fo_income: true,
+      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ property_use: "LOP", gross_annual_value_inr: 1200000, municipal_taxes_paid_inr: 60000 }] }, business_income: { has_business_or_fo_income: true,
         non_speculative_income_inr: 250000, fno_turnover_inr: 4000000,
         speculative_income_inr: -80000, speculative_turnover_inr: 900000,
         business_entries: [
@@ -342,7 +343,7 @@
         { unit_biz_idx: 1, unit_branch_idx: null, supplier_name: "Precision Tools Co", amount_inr: 50000, invoice_date: "2026-01-01", has_written_agreement: false, payment_date: null }
       ], partner_firms: [
         { firm_name: "Kapoor & Mehta Consulting LLP", entity_type: "llp", remuneration_from_entity_inr: 600000, interest_on_capital_from_entity_inr: 120000, profit_share_exempt_inr: 900000 }
-      ] }, capital_gains: { short_term_15_pct: 180000 } },
+      ] } },
       // Occasional fantasy-sports/online-gaming winnings (very common alongside
       // NRI rental/dividend income today) plus an unexplained cash deposit the
       // client can't source-document (a routine real-world s.195/115BBE flag, not a
@@ -439,6 +440,7 @@
       // "unlisted foreign securities" under Indian law — 24mo threshold,
       // not 12) — triggers the holding-period characterization mismatch.
       financial_holdings: { has_financial_transactions: true, transactions: [
+        { asset_class: "listed_equity", asset_name_or_ticker: "INFY", quantity: 1000, acquisition_date: "2022-04-18", purchase_value: 1150000, purchase_currency: "INR", sale_date: "2026-11-10", sale_value: 1450000, sale_currency: "INR", stt_paid: true, transfer_expenses: 0 },
         {
           asset_class: "foreign_equity_unlisted", asset_name_or_ticker: "NVDA",
           acquisition_date: "2025-02-01", purchase_value: 8000, purchase_currency: "USD",
@@ -451,7 +453,7 @@
       // regular books (Phase 1 depreciation on a second ROR-eligible
       // profile, different asset class than Aarav's — a furnished home
       // office, General P&M — for coverage diversity).
-      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 3600000 }, house_property: { has_house_property_income: false, properties: [] }, business_income: { has_business_or_fo_income: true, business_entries: [
+      domestic_income: { salary: { has_salary_income: true, gross_salary_inr: 3650000, work_performed_outside_india: false }, house_property: { has_house_property_income: false, properties: [] }, business_income: { has_business_or_fo_income: true, business_entries: [
         { business_name: "Desai Advisory", nature: "management consulting", presumptive_scheme: null, gross_receipts_inr: 700000,
           expenses: { other_business_expenses_inr: 50000, ca_professional_fees_inr: 15000 } }
       ], asset_blocks: [
@@ -460,7 +462,6 @@
       // LTCG well above the s.198 exemption threshold — exercises the fix
       // where totalIncomeInr now correctly excludes the exempt slice instead
       // of counting the full gross gain.
-      capital_gains: { ltcg_112a_inr: 300000 },
       other_sources: { has_other_sources_income: true, interest_savings_inr: 60000, interest_fd_rd_inr: 140000 },
       deductions: { s80C: { epf_employee_inr: 150000 }, s80D: { self_family_premium_inr: 25000 } },
       // Remitted funds to top up her US brokerage this year — as an India
@@ -534,7 +535,7 @@
       compliance_docs: { trc: { document_uploaded: true }, form_10f: { is_filed: true } },
       bank_accounts: [{ bank_name: "Kotak (Company)", account_type: "current", peak_balance_inr: 5400000 }],
       property: { properties: [] },
-      financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "unlisted_equity", asset_name: "Nova Systems Pvt Ltd (100%)", value_inr: 45000000 }] },
+      financial_holdings: { has_financial_transactions: true, transactions: [{ asset_type: "unlisted_equity", asset_name: "Nova Systems Pvt Ltd (100%)", value_inr: 45000000 }, { asset_class: "listed_equity", asset_name_or_ticker: "RELIANCE", quantity: 300, acquisition_date: "2025-09-15", purchase_value: 840000, purchase_currency: "INR", sale_date: "2026-05-20", sale_value: 940000, sale_currency: "INR", stt_paid: true, transfer_expenses: 0 }] },
       // linked_client_id (docs/GAP_TRACKER.md section H.12): same explicit
       // tag as the US foreign_corporations entry above, on this profile's
       // India-side declaration of the same holding — both sides of one
@@ -551,7 +552,7 @@
       // present ("still holding — no taxable event yet" otherwise), so
       // this doesn't change any computed tax figure.
       unlisted_equity: { has_unlisted_equity_transaction: true, transactions: [{ company: "Nova Systems Pvt Ltd", holding_pct: 100, linked_client_id: "india_pvt_ltd", acquisition_date: "2019-04-15", number_of_shares: 10000, cost_per_share: 10, cost_per_share_currency: "INR" }] },
-      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: false, business_entries: [] }, capital_gains: { short_term_15_pct: 100000 } },
+      domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: false, business_entries: [] }, },
       // Two partial buybacks by his own company, same round of corporate
       // action, two different share tranches:
       //
@@ -824,6 +825,8 @@
       financial_holdings: { has_financial_transactions: true, transactions: [
         { asset_type: "equity_mutual_fund", asset_name: "Parag Parikh Flexi Cap", value_inr: 3200000 },
         { asset_type: "debt_mutual_fund", asset_name: "ICICI Pru Corporate Bond Fund", value_inr: 1400000 },
+        { asset_class: "listed_equity", asset_name_or_ticker: "ITC", quantity: 4000, acquisition_date: "2025-11-03", purchase_value: 1560000, purchase_currency: "INR", sale_date: "2026-07-22", sale_value: 1900000, sale_currency: "INR", stt_paid: true, transfer_expenses: 0 },
+        { asset_class: "listed_equity", asset_name_or_ticker: "ASIANPAINT", quantity: 400, acquisition_date: "2021-03-08", purchase_value: 950000, purchase_currency: "INR", sale_date: "2026-10-14", sale_value: 1160000, sale_currency: "INR", stt_paid: true, transfer_expenses: 0 },
         { asset_class: "vda_crypto", asset_name_or_ticker: "ETH", quantity: 3, acquisition_date: "2024-02-10", purchase_value: 480000, purchase_currency: "INR", sale_date: "2026-09-01", sale_value: 720000, sale_currency: "INR", transfer_expenses: 0 }
       ] },
       // A small angel stake, tendered in a buyback this year — LTCG on an
@@ -855,8 +858,8 @@
         { asset_class: "sovereign_gold_bond_original", acquisition_date: "2018-11-05", purchase_value: 150000, purchase_currency: "INR", sale_date: "2026-11-05", sale_value: 260000, sale_currency: "INR", is_maturity_redemption: true }
       ] },
       domestic_income: {
-        salary: { has_salary_income: true, taxable_salary_inr: 2400000, employer_nps_contribution_inr: 120000 },
-        house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 360000 }, { annual_value_inr: 180000 }] },
+        salary: { has_salary_income: true, gross_salary_inr: 2450000, employer_nps_contribution_inr: 120000 },
+        house_property: { has_house_property_income: true, properties: [{ property_use: "LOP", gross_annual_value_inr: 480000, municipal_taxes_paid_inr: 18000 }, { property_use: "LOP", gross_annual_value_inr: 240000, municipal_taxes_paid_inr: 9000 }] },
         business_income: {
           has_business_or_fo_income: true,
           // s.44AD(4)/(5) re-election lock-in (gap tracker IN-6): Kavya
@@ -889,19 +892,8 @@
           partner_firms: [
             { firm_name: "Iyer & Rao Jewelry Trading LLP", entity_type: "llp", remuneration_from_entity_inr: 480000, interest_on_capital_from_entity_inr: 90000, profit_share_exempt_inr: 700000 }
           ]
-        },
-        // short_term_15_pct is read from domestic_income.capital_gains (via
-        // di.capital_gains — di = annual.domestic_income), same path as
-        // every other profile. ltcg_112a_inr is NOT read from here — it
-        // needs the separate TOP-LEVEL india.capital_gains sibling below
-        // (annual.capital_gains, a genuinely different container); nesting
-        // it here instead silently dropped ₹2,10,000 of real LTCG from the
-        // computation entirely (found matching Anita Desai's
-        // india_ror_us_income profile, the one other profile that uses
-        // ltcg_112a_inr and gets the container right).
-        capital_gains: { short_term_15_pct: 340000 }
+        }
       },
-      capital_gains: { ltcg_112a_inr: 210000 },
       other_sources: { has_other_sources_income: true, interest_savings_inr: 32000, interest_fd_rd_inr: 210000, dividend_inr: 95000, family_pension_gross_inr: 180000, gifts_above_50k_inr: 120000, online_gaming_winnings_inr: 40000, taxable_epf_interest_inr: 28000 },
       // Nine distinct Chapter VI-A sections, only meaningful under the OLD
       // regime (why this profile picks OLD, unlike most others in the
@@ -1351,7 +1343,7 @@
       // genuinely different ineligibility reason than Rohan Mehta's NR
       // exclusion) — the election is invalid and falls through to regular
       // books, exercising that exact branch of the trace message fix.
-      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 300000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [
+      domestic_income: { salary: { has_salary_income: false }, house_property: { has_house_property_income: true, properties: [{ property_use: "LOP", gross_annual_value_inr: 360000, municipal_taxes_paid_inr: 12000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [
         { business_name: "Sharma Kirana Store", nature: "general trading", presumptive_scheme: "s44ADA", gross_receipts_inr: 1200000,
           expenses: { rent_for_business_premises_inr: 100000, employee_salary_wages_inr: 180000, other_business_expenses_inr: 60000 } }
       ], asset_blocks: [
@@ -1423,7 +1415,7 @@
       property: { properties: [] },
       financial_holdings: { has_financial_transactions: false, transactions: [] },
       domestic_income: { salary: { has_salary_income: false }, business_income: { has_business_or_fo_income: false }, capital_gains: {} },
-      other_sources: { has_other_sources_income: true, family_pension_inr: 600000, interest_fd_rd_inr: 8000 },
+      other_sources: { has_other_sources_income: true, family_pension_gross_inr: 600000, interest_fd_rd_inr: 8000 },
       deductions: {},
       lrs_outbound: {},
       tax_credits: {},
@@ -1441,7 +1433,7 @@
       // Worldwide income reported honestly (not omitted) — same India pension
       // and interest, converted — and it's still under the $16,100 single
       // standard deduction, so this is genuinely $0 tax, not a hidden gap.
-      income_foreign_source: { foreign_interest_usd: 96, foreign_pension_usd: 7228 },
+      income_foreign_source: { foreign_interest_usd: 96, foreign_pension_income_usd: 7228 },
       foreign_earned_income: { claims_feie: false },
       bank_accounts: [{ bank_name: "Wells Fargo", account_type: "savings", country: "US", peak_balance_usd: 4000 }],
       foreign_entities: { foreign_corporations: [], owns_foreign_disregarded_entity: false, pfic_holdings: [], has_pfics: false },

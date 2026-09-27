@@ -106,7 +106,7 @@ var NODES = {
     deps: ["indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "isIndianCompanyFact", "indiaOpt115baa", "indiaOpt115bab", "indiaOpt115ba",
       "indiaTurnoverLte400cr", "indiaMatBookProfitInr", "hasIndiaPE", "entityTaxableInrBoundary"],
     compute: function (d) {
-      var taxable = d.entityTaxableInrBoundary;
+      var taxable = Math.max(0, d.entityTaxableInrBoundary); // a loss is carried forward, never a negative tax
 
       function entityResult(base, sur, cess, label, mat) {
         var total = base + sur + cess;

@@ -47,7 +47,7 @@ var NODE_FILES = [
   "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "report-batch2-nodes.js", "report-batch3-nodes.js", "report-batch4-nodes.js", "report-batch5-nodes.js", "report-batch6-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "limits-nodes.js", "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
-  "us-full-nodes.js", "ustax-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js"
+  "us-full-nodes.js", "ustax-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js", "house-property.js"
 ];
 function m(row, status, dagFiles, knownMissing) { return { row: row, status: status, dagFiles: dagFiles || ["*"], knownMissing: knownMissing || [] }; }
 var MAP = {
@@ -103,6 +103,7 @@ var MAP = {
      * verified 222/222 — s115bbe_unexplained_income's one real consumer,
      * CFL-6 batch 2). None remain. */
     aggregateIndiaIncome: m("AGG-1", "ported", ["aggregateindiaincome-nodes.js"]),
+    computeHousePropertyInr: m("AGG-1", "ported", ["house-property.js"]),
     s80eeaEeCapInr: m("AGG-2", "ported", ["in1-nodes-v3.js"]),
     aggregateIndiaDeductions: m("AGG-2", "ported", ["in1-nodes-v3.js"]),
     computeSelfEmploymentNetProfitUsd: m("AGG-3", "ported", ["aggregateusincome-nodes.js"]),

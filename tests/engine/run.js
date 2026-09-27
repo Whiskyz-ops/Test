@@ -97,8 +97,9 @@ test("computeIndiaTax actually applies the new deductions (deductionsInr reflect
   var result = WISING.compute(model);
   // s80C min(120000,150000) + s80CCD1B min(40000,50000) + s80D min(35000,75000) + s80CCD2_employer 60000
   // + s80TTA_TTB min(15000,10000) + s80DD 75000 + s80DDB 100000 + s80U 125000 + s80E 45000
-  // + s80EEA_EE 150000 + s80GGB_GGC 10000 + s80GG (0, rent doesn't clear 10%-of-income floor at this income level)
-  approx(result.indiaTax.deductionsInr, 770000, "deductionsInr");
+  // + s80EEA_EE 150000 + s80GGB_GGC 10000 + s80GG 100 (rent 150000 less 10% of the 14,99,000
+  // pre-deduction income; that income counts the fixture's ₹1L GAV as ₹70,000 after the s.24(a) 30%)
+  approx(result.indiaTax.deductionsInr, 770100, "deductionsInr");
   assert.ok(result.indiaTax.totalTaxInr > 0, "totalTaxInr should be positive");
   assert.ok(!isNaN(result.indiaTax.totalTaxInr), "totalTaxInr should not be NaN");
 });

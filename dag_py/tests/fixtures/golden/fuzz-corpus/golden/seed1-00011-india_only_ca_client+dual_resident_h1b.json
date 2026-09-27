@@ -169,8 +169,8 @@
         "indiaHasValidPresumptiveEntry": true,
         "indiaHasPartnerFirmIncome": true,
         "houseProperty": {
-          "usd": 6506.024096385542,
-          "inr": 540000
+          "usd": 4554.21686746988,
+          "inr": 378000
         },
         "interest": {
           "inr": 234000,
@@ -215,8 +215,8 @@
         "holdingPeriodMismatches": [],
         "unexplained115bbeInr": 0,
         "total": {
-          "usd": 142232.83277108433,
-          "inr": 11805325.120000001
+          "usd": 140281.02554216867,
+          "inr": 11643325.120000001
         }
       },
       "us": {
@@ -1541,10 +1541,10 @@
     },
     "indiaTax": {
       "regime": "OLD",
-      "grossTotalIncomeInr": 11590325.120000001,
+      "grossTotalIncomeInr": 11428325.120000001,
       "deductionsInr": 568000,
-      "totalIncomeInr": 11022325.120000001,
-      "slabTaxInr": 2908173.711,
+      "totalIncomeInr": 10860325.120000001,
+      "slabTaxInr": 2859573.711,
       "slabBreakdown": [
         {
           "from": 0,
@@ -1571,11 +1571,11 @@
           "from": 1000000,
           "to": null,
           "rate": 0.3,
-          "taxable": 9318912.370000001,
-          "tax": 2795673.711
+          "taxable": 9156912.370000001,
+          "tax": 2747073.711
         }
       ],
-      "totalNormalInr": 10318912.370000001,
+      "totalNormalInr": 10156912.370000001,
       "ltcgTaxableInr": 85000,
       "ltcg197TaxableInr": 330000,
       "vdaGainInr": 0,
@@ -1584,16 +1584,16 @@
       "chapterXiiaInvestmentIncomeTaxInr": 0,
       "specialTaxInr": 113398.825,
       "rebateInr": 0,
-      "surchargeInr": 453235.8804,
-      "cessInr": 138992.33665600003,
+      "surchargeInr": 445945.8804,
+      "cessInr": 136756.73665600002,
       "promoterBuyback": null,
-      "totalTaxInr": 3613800.7530560005,
-      "totalTaxUsd": 43539.76810910844,
-      "totalIncomeUsd": 132799.0978313253,
-      "effectiveRate": 0.3278619269267209,
+      "totalTaxInr": 3555675.1530560004,
+      "totalTaxUsd": 42839.459675373495,
+      "totalIncomeUsd": 130847.29060240964,
+      "effectiveRate": 0.3274004335752335,
       "lossSetOff": {
         "businessInr": 7328662.37,
-        "housePropertyInr": 540000,
+        "housePropertyInr": 378000,
         "otherNormalInr": 618250,
         "stcgInr": 250000,
         "stcgSlabInr": 0,
@@ -1725,13 +1725,13 @@
       "explanation": "For Individuals and HUFs with Business or Professional Income maintaining books, or receiving remuneration/interest as a partner in a firm. Mandatory if disqualified from ITR-4.",
       "disqualified": true,
       "disqualifiers": [
-        "Total income exceeds ₹50,00,000 (₹1,15,90,325)",
+        "Total income exceeds ₹50,00,000 (₹1,14,28,325)",
         "Capital gains beyond the s.198-only allowance (STCG and/or non-s.198 LTCG present)",
         "Lottery/betting/online-gaming winnings on file (s.128/194)",
         "Brought-forward losses on file",
         "Speculative or F&O business income on file"
       ],
-      "totalIncomeInr": 11590325.120000001,
+      "totalIncomeInr": 11428325.120000001,
       "directorUnknown": true,
       "frontendForm": null,
       "frontendExplanation": null,
@@ -1770,14 +1770,14 @@
           "label": "House property / Rental",
           "dir": "IN→US",
           "source": "India",
-          "indiaLawUsd": 4554,
-          "usLawUsd": 3578,
+          "indiaLawUsd": 3188,
+          "usLawUsd": 2505,
           "estimate": true,
           "indiaRule": "NAV less 30% std deduction (s.24a)",
           "usRule": "Gross less actual expenses + straight-line depreciation (27.5y)",
           "note": "US net is planning-grade — refine with the property's depreciable basis.",
           "doublyTaxed": true,
-          "overlapUsd": 3578
+          "overlapUsd": 2505
         },
         {
           "head": "interest",
@@ -1821,7 +1821,7 @@
           "overlapUsd": 10602
         }
       ],
-      "overlapUsd": 135070,
+      "overlapUsd": 133997,
       "feieAppliedUsd": 0,
       "anyEstimate": true
     },
@@ -1830,9 +1830,9 @@
       "fyLabel": "FY 2026–27",
       "cyPrimary": 2026,
       "cyNext": 2027,
-      "indiaFyTotalUsd": 142232.83277108433,
-      "indiaToCyPrimaryUsd": 107620,
-      "indiaToCyNextUsd": 34613,
+      "indiaFyTotalUsd": 140281.02554216867,
+      "indiaToCyPrimaryUsd": 106143,
+      "indiaToCyNextUsd": 34138,
       "primaryShare": 0.7566433566433566,
       "nextShare": 0.24335664335664334,
       "usCyTotalUsd": 0,
@@ -1841,8 +1841,8 @@
     },
     "taxEstimate": {
       "india": {
-        "estTaxUsd": 43539.76810910844,
-        "estTaxInr": 3613800.7530560005
+        "estTaxUsd": 42839.459675373495,
+        "estTaxInr": 3555675.1530560004
       },
       "us": {
         "estTaxUsd": 0
@@ -1852,7 +1852,7 @@
       "us": {
         "foreignSourceIncomeUsd": 0,
         "feieExcludedUsd": 0,
-        "indiaTaxDisallowedUsd": 43539.76810910844,
+        "indiaTaxDisallowedUsd": 42839.459675373495,
         "taxableIncomeUsd": 0,
         "usIncomeTaxUsd": 0,
         "indiaTaxPaidUsd": 0,
@@ -1888,7 +1888,7 @@
         },
         {
           "label": "House property / Rental (India)",
-          "indiaUsd": 6506.024096385542,
+          "indiaUsd": 4554.21686746988,
           "usUsd": 0,
           "doublyTaxed": true,
           "note": "Indian rent: net-of-expense basis differs (IN 30% standard deduction vs US actual + depreciation)."
@@ -1915,7 +1915,7 @@
           "note": "STCG/LTCG holding-period and rate definitions differ between IN and US."
         }
       ],
-      "totalDoublyTaxedUsd": 137998.94421686747
+      "totalDoublyTaxedUsd": 136047.1369879518
     },
     "limits": [
       {
@@ -1943,10 +1943,10 @@
       "name": "Kavya Iyer",
       "baseYear": 2026,
       "jurisdiction": "single_india",
-      "totalIncomeUsd": 142570.18216867468,
-      "indiaTaxUsd": 43539.76810910844,
+      "totalIncomeUsd": 140618.37493975903,
+      "indiaTaxUsd": 42839.459675373495,
       "usTaxUsd": 0,
-      "combinedTaxBeforeReliefUsd": 43539.76810910844,
+      "combinedTaxBeforeReliefUsd": 42839.459675373495,
       "worldwideOverlap": true,
       "netUnrelievedDoubleTaxUsd": 0
     },
@@ -1960,7 +1960,7 @@
       "title": "Dual tax residency — Article 4 tie-breaker not yet run",
       "detail": "The taxpayer is resident in BOTH India (ROR) and the US (SPT met) for an overlapping period, and the Layer 1 Article 4 tie-breaker has not been completed. Until it is, both countries assert worldwide taxing rights and only partial FTC relief is available.",
       "recommendation": "Complete the Layer 1 tie-breaker wizard (permanent home → centre of vital interests → habitual abode → nationality). WISING will then flag Form 8833 (US) and the TRC / Form 41 requirement (India) on the filing checklist for the loser side — actually preparing and filing those remains a manual step.",
-      "amountUsd": 137998.94421686747,
+      "amountUsd": 136047.1369879518,
       "refs": [
         "DTAA Art. 4",
         "Form 8833",
@@ -2000,10 +2000,10 @@
       "id": "india_advance_tax_interest",
       "severity": "warning",
       "category": "credit",
-      "title": "Advance-tax interest exposure — ss.424/425 (₹1,68,978)",
-      "detail": "Advance tax paid (₹10,70,372) falls short of the assessed tax (₹36,13,801) this year. At 1%/month simple interest: ₹1,01,737 under s.424 (shortfall below the 90% floor, 4 months to the non-audit (31 Jul) due date) + ₹67,241 under s.425 (quarter-by-quarter installment shortfalls). Both keep accruing past the due date until actually paid — this is the exposure AS OF the due date, not a final number.",
+      "title": "Advance-tax interest exposure — ss.424/425 (₹1,65,200)",
+      "detail": "Advance tax paid (₹10,70,372) falls short of the assessed tax (₹35,55,675) this year. At 1%/month simple interest: ₹99,412 under s.424 (shortfall below the 90% floor, 4 months to the non-audit (31 Jul) due date) + ₹65,788 under s.425 (quarter-by-quarter installment shortfalls). Both keep accruing past the due date until actually paid — this is the exposure AS OF the due date, not a final number.",
       "recommendation": "Pay the shortfall before filing to stop s.424 interest accruing further; s.425's quarter-by-quarter amount is fixed once the year ends and doesn't grow. If the year isn't over yet, revise the remaining installment(s) upward.",
-      "amountUsd": 2035.8847523932534,
+      "amountUsd": 1990.364704200482,
       "refs": [
         "s.424",
         "s.425",
@@ -2067,9 +2067,9 @@
       "severity": "info",
       "category": "income",
       "title": "6 income head(s) taxed under both codes — see reconciliation",
-      "detail": "The same income is taxed in India (its own Act) and the US (the IRC): Salary / Wages, Business / Professional, House property / Rental, Interest, Dividend, Capital gains. Overlapping exposure of $135,070 is what the FTC / §159 relief resolves. Some heads are planning-grade estimates pending line-item inputs.",
+      "detail": "The same income is taxed in India (its own Act) and the US (the IRC): Salary / Wages, Business / Professional, House property / Rental, Interest, Dividend, Capital gains. Overlapping exposure of $133,997 is what the FTC / §159 relief resolves. Some heads are planning-grade estimates pending line-item inputs.",
       "recommendation": "Open the Cross-Basis Reconciliation on the Filings tab to see each head on both bases, then relieve the overlap via Form 1116 (US) / Form 44 (India).",
-      "amountUsd": 135070,
+      "amountUsd": 133997,
       "refs": [
         "DTAA",
         "Form 1116",
@@ -2096,7 +2096,7 @@
       "severity": "info",
       "category": "credit",
       "title": "Tax-year apportionment: Indian FY ↔ US CY (computed)",
-      "detail": "India taxes Apr–Mar; the US taxes Jan–Dec. WISING splits the Indian FY across US calendar years — $107,620 into CY2026 and $34,613 into CY2027 (Indian quarterly data) — and apportions the US calendar year into the Indian FY (9/12 + 3/12).",
+      "detail": "India taxes Apr–Mar; the US taxes Jan–Dec. WISING splits the Indian FY across US calendar years — $106,143 into CY2026 and $34,138 into CY2027 (Indian quarterly data) — and apportions the US calendar year into the Indian FY (9/12 + 3/12).",
       "recommendation": "See the FY ↔ CY Apportionment panel on the Filings tab for the period-matched figures behind Form 44 (India) and Form 1116 (US). Planning-grade — refine with per-transaction dates at filing.",
       "amountUsd": 0,
       "refs": [
@@ -2433,7 +2433,7 @@
             "parts": [
               {
                 "label": "Total India tax (from Tax Computation)",
-                "amount": 43539.76810910844
+                "amount": 42839.459675373495
               },
               {
                 "label": "Creditable fraction",
@@ -2610,7 +2610,7 @@
             "parts": [
               {
                 "label": "Total India tax",
-                "amount": 43539.76810910844
+                "amount": 42839.459675373495
               },
               {
                 "label": "US-source income (India view)",
@@ -2618,7 +2618,7 @@
               },
               {
                 "label": "Total India-view income",
-                "amount": 132799.0978313253
+                "amount": 130847.29060240964
               }
             ],
             "citation": null
@@ -2655,7 +2655,7 @@
       "rows": [
         {
           "label": "Current-year income (before brought-forward loss set-off)",
-          "inr": 11680325.120000001,
+          "inr": 11518325.120000001,
           "trace": {
             "kind": "holdings",
             "section": "india",
@@ -2683,14 +2683,14 @@
         },
         {
           "label": "Gross total income (after brought-forward loss set-off)",
-          "inr": 11590325.120000001,
+          "inr": 11428325.120000001,
           "trace": {
             "kind": "calc",
             "formula": "Current-year income before set-off, less all brought-forward losses set off above",
             "parts": [
               {
                 "label": "Before set-off",
-                "amount": 11680325.120000001
+                "amount": 11518325.120000001
               },
               {
                 "label": "Less: total losses set off",
@@ -2733,14 +2733,14 @@
         },
         {
           "label": "Total income",
-          "inr": 11022325.120000001,
+          "inr": 10860325.120000001,
           "trace": {
             "kind": "calc",
             "formula": "Gross total income less Chapter VI-A deductions",
             "parts": [
               {
                 "label": "Gross total income",
-                "amount": 11590325.120000001
+                "amount": 11428325.120000001
               },
               {
                 "label": "Less Chapter VI-A deductions",
@@ -2752,10 +2752,10 @@
         },
         {
           "label": "Tax at slab rates",
-          "inr": 2908173.711,
+          "inr": 2859573.711,
           "trace": {
             "kind": "calc",
-            "formula": "Progressive slab-rate tax under the OLD regime, applied to ₹1,03,18,912 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
+            "formula": "Progressive slab-rate tax under the OLD regime, applied to ₹1,01,56,912 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
             "parts": [
               {
                 "label": "0% on ₹0–₹2,50,000",
@@ -2771,7 +2771,7 @@
               },
               {
                 "label": "30% above ₹10,00,000",
-                "amount": 2795673.711
+                "amount": 2747073.711
               }
             ],
             "citation": null
@@ -2827,14 +2827,14 @@
         },
         {
           "label": "Surcharge",
-          "inr": 453235.8804,
+          "inr": 445945.8804,
           "trace": {
             "kind": "calc",
             "formula": "Progressive surcharge (10%/15%/25%/37% bands by total income) on tax before cess, with marginal relief so the tax increase never exceeds the income increase over the threshold; capital-gains/dividend-type special-rate income is capped at a 15% surcharge rate",
             "parts": [
               {
                 "label": "Surcharge",
-                "amount": 453235.8804
+                "amount": 445945.8804
               }
             ],
             "citation": null
@@ -2842,18 +2842,18 @@
         },
         {
           "label": "Health & education cess (4%)",
-          "inr": 138992.33665600003,
+          "inr": 136756.73665600002,
           "trace": {
             "kind": "calc",
             "formula": "4% of (tax after rebate + surcharge)",
             "parts": [
               {
                 "label": "Tax after §156 rebate",
-                "amount": 3021572.5360000003
+                "amount": 2972972.5360000003
               },
               {
                 "label": "Surcharge",
-                "amount": 453235.8804
+                "amount": 445945.8804
               },
               {
                 "label": "Cess rate",
@@ -2865,7 +2865,7 @@
         },
         {
           "label": "Total India tax",
-          "inr": 3613800.7530560005,
+          "inr": 3555675.1530560004,
           "emphasis": true,
           "trace": {
             "kind": "calc",
@@ -2873,7 +2873,7 @@
             "parts": [
               {
                 "label": "Tax at slab rates",
-                "amount": 2908173.711
+                "amount": 2859573.711
               },
               {
                 "label": "Tax on special-rate income",
@@ -2885,19 +2885,19 @@
               },
               {
                 "label": "Surcharge",
-                "amount": 453235.8804
+                "amount": 445945.8804
               },
               {
                 "label": "Cess",
-                "amount": 138992.33665600003
+                "amount": 136756.73665600002
               }
             ],
             "citation": null
           }
         }
       ],
-      "totalUsd": 43539.76810910844,
-      "effectiveRate": 0.3278619269267209
+      "totalUsd": 42839.459675373495,
+      "effectiveRate": 0.3274004335752335
     },
     "us": {
       "title": "US federal income tax (SINGLE)",
@@ -3135,7 +3135,7 @@
       "matchesFrontend": null,
       "trace": {
         "kind": "source",
-        "detail": "For Individuals and HUFs with Business or Professional Income maintaining books, or receiving remuneration/interest as a partner in a firm. Mandatory if disqualified from ITR-4. Reasons: Total income exceeds ₹50,00,000 (₹1,15,90,325); Capital gains beyond the s.198-only allowance (STCG and/or non-s.198 LTCG present); Lottery/betting/online-gaming winnings on file (s.128/194); Brought-forward losses on file; Speculative or F&O business income on file. Layer 1 India hasn't produced its own recommendation for this profile (itr_recommendation.form is unset) — this is WISING's own independent computation, run unconditionally, not a hedge pending the frontend.",
+        "detail": "For Individuals and HUFs with Business or Professional Income maintaining books, or receiving remuneration/interest as a partner in a firm. Mandatory if disqualified from ITR-4. Reasons: Total income exceeds ₹50,00,000 (₹1,14,28,325); Capital gains beyond the s.198-only allowance (STCG and/or non-s.198 LTCG present); Lottery/betting/online-gaming winnings on file (s.128/194); Brought-forward losses on file; Speculative or F&O business income on file. Layer 1 India hasn't produced its own recommendation for this profile (itr_recommendation.form is unset) — this is WISING's own independent computation, run unconditionally, not a hedge pending the frontend.",
         "citation": "CBDT notified the AY 2026-27 ITR forms 2026-03-30 (corrigendum 2026-04-10). Eligibility rules verified against that notification 2026-07-12 — re-check each filing season, since CBDT re-notifies forms (and sometimes changes eligibility) annually."
       }
     },
@@ -3427,8 +3427,8 @@
     "indiaStatus": "ROR",
     "usStatus": "NON_RESIDENT_ALIEN",
     "dualResident": true,
-    "totalIncomeUsd": 142570.18216867468,
-    "indiaTaxUsd": 43539.76810910844,
+    "totalIncomeUsd": 140618.37493975903,
+    "indiaTaxUsd": 42839.459675373495,
     "usTaxUsd": 0,
     "netDoubleTaxUsd": 0,
     "counts": {

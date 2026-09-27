@@ -14,6 +14,7 @@ from ..core.dates import parse_date
 from ..core.graph import NodeDef
 from ..core.util import num, safe
 from . import constants as C
+from .house_property import compute_house_property, house_property_opts
 
 T = C.INDIA
 S80DD_U_FLAT = C.INDIA["S80DD_U_FLAT_INR"]
@@ -91,7 +92,7 @@ def compute_loss_set_off(cfl: dict, buckets: dict) -> dict:
     business_inr -= business_loss_used
     business_loss_unused = (cfl.get("businessLossAvailableInr") or 0) - business_loss_used
 
-    hp_loss_used = min(cfl.get("housePropertyLossAvailableInr") or 0, house_property_inr)
+    hp_loss_used = min(cfl.get("housePropertyLossAvailableInr") or 0, max(0, house_property_inr))
     house_property_inr -= hp_loss_used
     hp_loss_unused = (cfl.get("housePropertyLossAvailableInr") or 0) - hp_loss_used
 
@@ -126,7 +127,7 @@ def compute_loss_set_off(cfl: dict, buckets: dict) -> dict:
 
     dep_remaining = cfl.get("unabsorbedDepreciationCf") or 0
     used = min(dep_remaining, business_inr); business_inr -= used; dep_remaining -= used
-    used = min(dep_remaining, house_property_inr); house_property_inr -= used; dep_remaining -= used
+    used = min(dep_remaining, max(0, house_property_inr)); house_property_inr -= used; dep_remaining -= used
     used = min(dep_remaining, stcg_slab_inr); stcg_slab_inr -= used; dep_remaining -= used
     used = min(dep_remaining, stcg_inr); stcg_inr -= used; dep_remaining -= used
     used = min(dep_remaining, ltcg197_inr); ltcg197_inr -= used; dep_remaining -= used
@@ -260,11 +261,8 @@ def _india_annual_slice_v3(india):
     return out
 
 
-def _house_property_inr(hp_props) -> float:
-    return sum(
-        num(p.get("annual_value_inr") or p.get("gross_annual_value_inr") or p.get("net_income_inr") or p.get("gross_rent_received_inr") or 0)
-        for p in hp_props
-    )
+def _house_property_inr(hp_props, india=None) -> float:
+    return compute_house_property(hp_props, house_property_opts(india))["incomeInr"]
 
 
 def _us_income_for_india_inr(d, ctx):
@@ -380,7 +378,7 @@ NODES = {
     ),
     "housePropertyInr": NodeDef(
         deps=("annualSliceV3",),
-        compute=lambda d, ctx: _house_property_inr(safe(d["annualSliceV3"]["domestic_income"], "house_property.properties", []) or []),
+        compute=lambda d, ctx: _house_property_inr(safe(d["annualSliceV3"]["domestic_income"], "house_property.properties", []) or [], ctx.get("india")),
         layer1_fields=(
             "india.domestic_income.house_property.properties[].annual_value_inr",
             "india.domestic_income.house_property.properties[].gross_annual_value_inr",

@@ -70,6 +70,14 @@ GOLDEN_DIVERGENT_FIXTURES_INDIA_INCOME_FILL = {"sample", "dual_resident_h1b", "u
 # already assumed it had). Moves India tax and everything downstream
 # (headline/summary) for this ROR fixture only; JS DAG === Python DAG holds.
 GOLDEN_DIVERGENT_FIXTURES_US_INCOME_INTO_INDIA = {"india_ror_us_income"}
+# Demo data made form-enterable (27 Sep 2026): dual_resident_h1b,
+# india_ror_us_income and india_only_ca_client now record salary the way
+# Layer 1 India does (gross salary, + ESOP perquisite) instead of a
+# taxable_salary_inr override no form can write. The frozen engine ignores
+# the salary standard deduction and the ESOP perquisite, so the values the
+# golden tests compare for salary and what flows from it (India income
+# model, apportionment, FTC, headline/summary) are pinned to the DAG's
+# figures in those three goldens; everything else stays frozen output.
 
 # Task #41 (home-office/vehicle-mileage deduction): businessEntities[]'s
 # self-employment/farm calcTrace.formula string used to end "...placed-

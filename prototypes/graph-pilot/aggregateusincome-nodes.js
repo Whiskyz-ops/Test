@@ -790,10 +790,10 @@ var NODES = {
   // clients.
   indiaIncomeForUsBoundary: { deps: [], compute: function () { return null; } },
   foreignIncomeFromIndia: {
-    deps: ["indiaIncomeForUsBoundary", "foreignWagesSourcing", "feieEarnedIncomeUsdRaw", "businessAndSeComputation", "directIncomeComputation"],
+    deps: ["indiaIncomeForUsBoundary", "foreignWagesSourcing", "feieEarnedIncomeUsdRaw", "businessAndSeComputation", "directIncomeComputation", "indiaAnnualSliceForUs"],
     compute: function (d, ctx) {
       var out = { wagesForeignUsd: 0, wagesUsSourceUsd: 0, selfEmploymentUsd: 0, interestUsd: 0, dividendsUsd: 0, rentalUsd: 0,
-        stcgUsd: 0, ltcgUsd: 0, otherUsd: 0, filled: {} };
+        stcgUsd: 0, ltcgUsd: 0, pensionUsd: 0, otherUsd: 0, filled: {} };
       var src = d.indiaIncomeForUsBoundary;
       if (!src) return out;
       var ii = src.income, di = d.directIncomeComputation;
@@ -819,9 +819,19 @@ var NODES = {
       fill("rentalUsd", "rental", di.foreignRentalUsd > 0, num(ii.houseProperty && ii.houseProperty.inr));
       fill("stcgUsd", "stcg", di.foreignStcgUsd > 0, num(ii.stcg && ii.stcg.inr) + num(ii.stcgSlabInr) + num(ii.vdaGainInr));
       fill("ltcgUsd", "ltcg", di.foreignLtcgUsd > 0, num(ii.ltcg && ii.ltcg.inr) + num(ii.ltcg197Inr));
+      // Family pension has a Layer 1 US counterpart (foreign pension): filled
+      // there, gross (India's s.57(iia) deduction has no US equivalent).
+      // Taxable EPF interest / NPS withdrawal already reach US income via
+      // epfNpsCrossBorder. None of the three may also land in "other" —
+      // each was previously counted twice.
+      var os = (d.indiaAnnualSliceForUs && d.indiaAnnualSliceForUs.other_sources) || {};
+      var familyPensionGrossInr = num(safe(os, "family_pension_gross_inr", 0));
+      var familyPensionNetInr = Math.max(0, familyPensionGrossInr - Math.min(15000, Math.round(familyPensionGrossInr / 3)));
+      var carriedElsewhereInr = familyPensionNetInr + num(safe(os, "taxable_epf_interest_inr", 0)) + num(safe(os, "taxable_nps_withdrawal_inr", 0));
+      fill("pensionUsd", "pension", di.foreignPensionUsd > 0, familyPensionGrossInr);
       // No Layer 1 US counterpart at all: winnings, misc. other sources,
       // Chapter XII-A investment income, s.115A royalty / technical fees.
-      fill("otherUsd", "other", false, num(ii.specialRate115bb && ii.specialRate115bb.inr) + num(ii.otherSourcesMisc && ii.otherSourcesMisc.inr) +
+      fill("otherUsd", "other", false, num(ii.specialRate115bb && ii.specialRate115bb.inr) + num(ii.otherSourcesMisc && ii.otherSourcesMisc.inr) - carriedElsewhereInr +
         num(ii.chapterXiiaInvestmentIncomeInr) + num(src.royaltyInr) + num(src.ftsInr));
       return out;
     }
@@ -851,7 +861,7 @@ var NODES = {
       var fwUsSourceUsd = d.foreignWagesSourcing.usSourceUsd + fi.wagesUsSourceUsd;
       var wagesUsd = w.wagesUsd + fwUsSourceUsd;
       var foreignInterest = di.foreignInterestUsd + epf.taxableEpfInterestUsd;
-      var foreignPension = di.foreignPensionUsd + epf.taxableNpsWithdrawalUsd;
+      var foreignPension = di.foreignPensionUsd + epf.taxableNpsWithdrawalUsd + fi.pensionUsd;
 
       var usSourceTotal = wagesUsd + biz.businessUsUsd + di.interestUsUsd + di.ordinaryDividendsUsUsd + di.ltcgUsUsd + di.stcgUsUsd + di.rentalUsUsd + ret.usRetirementIncomeExclSsUsd + ret.socialSecurityUsUsd + di.otherOrdinaryIncomeUsUsd;
       // The elected pool's pre-tax NCTI/Subpart F is intentionally NOT added

@@ -14,6 +14,7 @@ from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
 from ..core.util import dtaa_worldwide_ceded, js_round, num, safe
 from . import constants as C
+from .house_property import compute_house_property, house_property_opts
 
 ASSET_CLASS_RATES_INDIA = C.INDIA["ASSET_CLASS_RATES_INDIA"]
 GROUP_A_CLASSES = C.INDIA["CG_GROUP_A_CLASSES"]
@@ -632,12 +633,9 @@ def _salary_income_computation(d, ctx):
     }
 
 
-def _di_income_bases(di: dict, os_: dict, salary_inr: float):
+def _di_income_bases(di: dict, os_: dict, salary_inr: float, india=None):
     hp_props = safe(di, "house_property.properties", []) or []
-    house_property_inr = sum(
-        num(p.get("annual_value_inr") or p.get("gross_annual_value_inr") or p.get("net_income_inr") or p.get("gross_rent_received_inr") or 0)
-        for p in hp_props
-    )
+    house_property_inr = compute_house_property(hp_props, house_property_opts(india))["incomeInr"]
     interest_inr = (
         num(safe(os_, "interest_savings_inr", 0)) + num(safe(os_, "interest_fd_rd_inr", 0)) +
         num(safe(os_, "interest_bonds_inr", 0)) + num(safe(os_, "interest_on_it_refund_inr", 0)) +
@@ -651,7 +649,7 @@ def _di_income_bases(di: dict, os_: dict, salary_inr: float):
 def _total_india_income_inr(d, ctx):
     di = d["diAgg"]
     salary_inr = d["salaryIncomeComputation"]["taxableSalaryInr"]
-    salary_inr, _hp_props, house_property_inr, interest_inr, dividend_inr, special_rate_115bb_inr = _di_income_bases(di, d["osAgg"], salary_inr)
+    salary_inr, _hp_props, house_property_inr, interest_inr, dividend_inr, special_rate_115bb_inr = _di_income_bases(di, d["osAgg"], salary_inr, ctx.get("india"))
     bc, cg = d["businessComputation"], d["capitalGainsComputation"]
     return (
         salary_inr + bc["businessInr"] + house_property_inr + interest_inr + dividend_inr + cg["stcgInr"] + cg["ltcgInr"] +
@@ -719,7 +717,7 @@ def _india_income_model_result(d, ctx):
 
     di, os_ = d["diAgg"], d["osAgg"]
     salary_inr = d["salaryIncomeComputation"]["taxableSalaryInr"]
-    salary_inr, hp_props, house_property_inr, interest_inr, dividend_inr, special_rate_115bb_inr = _di_income_bases(di, os_, salary_inr)
+    salary_inr, hp_props, house_property_inr, interest_inr, dividend_inr, special_rate_115bb_inr = _di_income_bases(di, os_, salary_inr, ctx.get("india"))
     agricultural_income_inr = num(safe(di, "agricultural_income_inr", 0))
     unexplained_115bbe_inr = num(safe(os_, "unexplained_income_115BBE_inr", 0))
 

@@ -89,6 +89,32 @@
           "value_inr": 1400000
         },
         {
+          "asset_class": "listed_equity",
+          "asset_name_or_ticker": "ITC",
+          "quantity": 4000,
+          "acquisition_date": "2025-11-03",
+          "purchase_value": 1560000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-07-22",
+          "sale_value": 1900000,
+          "sale_currency": "INR",
+          "stt_paid": true,
+          "transfer_expenses": 0
+        },
+        {
+          "asset_class": "listed_equity",
+          "asset_name_or_ticker": "ASIANPAINT",
+          "quantity": 400,
+          "acquisition_date": "2021-03-08",
+          "purchase_value": 950000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-10-14",
+          "sale_value": 1160000,
+          "sale_currency": "INR",
+          "stt_paid": true,
+          "transfer_expenses": 0
+        },
+        {
           "asset_class": "vda_crypto",
           "asset_name_or_ticker": "ETH",
           "quantity": 3,
@@ -157,17 +183,21 @@
     "domestic_income": {
       "salary": {
         "has_salary_income": true,
-        "taxable_salary_inr": 2400000,
+        "gross_salary_inr": 2450000,
         "employer_nps_contribution_inr": 120000
       },
       "house_property": {
         "has_house_property_income": true,
         "properties": [
           {
-            "annual_value_inr": 360000
+            "property_use": "LOP",
+            "gross_annual_value_inr": 480000,
+            "municipal_taxes_paid_inr": 18000
           },
           {
-            "annual_value_inr": 180000
+            "property_use": "LOP",
+            "gross_annual_value_inr": 240000,
+            "municipal_taxes_paid_inr": 9000
           }
         ]
       },
@@ -234,13 +264,7 @@
             "profit_share_exempt_inr": 700000
           }
         ]
-      },
-      "capital_gains": {
-        "short_term_15_pct": 340000
       }
-    },
-    "capital_gains": {
-      "ltcg_112a_inr": 210000
     },
     "other_sources": {
       "has_other_sources_income": true,
@@ -311,17 +335,21 @@
         "domestic_income": {
           "salary": {
             "has_salary_income": true,
-            "taxable_salary_inr": 600000,
+            "gross_salary_inr": 612500,
             "employer_nps_contribution_inr": 30000
           },
           "house_property": {
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 90000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 120000,
+                "municipal_taxes_paid_inr": 4500
               },
               {
-                "annual_value_inr": 45000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 60000,
+                "municipal_taxes_paid_inr": 2250
               }
             ]
           },
@@ -388,9 +416,6 @@
                 "profit_share_exempt_inr": 175000
               }
             ]
-          },
-          "capital_gains": {
-            "short_term_15_pct": 85000
           }
         },
         "other_sources": {
@@ -403,9 +428,7 @@
           "online_gaming_winnings_inr": 10000,
           "taxable_epf_interest_inr": 7000
         },
-        "capital_gains": {
-          "ltcg_112a_inr": 52500
-        },
+        "capital_gains": {},
         "lrs_outbound": {
           "total_lrs_remitted_this_fy_inr": 300000
         },
@@ -421,6 +444,32 @@
               "asset_type": "debt_mutual_fund",
               "asset_name": "ICICI Pru Corporate Bond Fund",
               "value_inr": 1400000
+            },
+            {
+              "asset_class": "listed_equity",
+              "asset_name_or_ticker": "ITC",
+              "quantity": 4000,
+              "acquisition_date": "2025-11-03",
+              "purchase_value": 1560000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-07-22",
+              "sale_value": 1900000,
+              "sale_currency": "INR",
+              "stt_paid": true,
+              "transfer_expenses": 0
+            },
+            {
+              "asset_class": "listed_equity",
+              "asset_name_or_ticker": "ASIANPAINT",
+              "quantity": 400,
+              "acquisition_date": "2021-03-08",
+              "purchase_value": 950000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-10-14",
+              "sale_value": 1160000,
+              "sale_currency": "INR",
+              "stt_paid": true,
+              "transfer_expenses": 0
             },
             {
               "asset_class": "vda_crypto",
@@ -496,17 +545,21 @@
         "domestic_income": {
           "salary": {
             "has_salary_income": true,
-            "taxable_salary_inr": 600000,
+            "gross_salary_inr": 612500,
             "employer_nps_contribution_inr": 30000
           },
           "house_property": {
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 90000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 120000,
+                "municipal_taxes_paid_inr": 4500
               },
               {
-                "annual_value_inr": 45000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 60000,
+                "municipal_taxes_paid_inr": 2250
               }
             ]
           },
@@ -573,9 +626,6 @@
                 "profit_share_exempt_inr": 175000
               }
             ]
-          },
-          "capital_gains": {
-            "short_term_15_pct": 85000
           }
         },
         "other_sources": {
@@ -588,9 +638,7 @@
           "online_gaming_winnings_inr": 10000,
           "taxable_epf_interest_inr": 7000
         },
-        "capital_gains": {
-          "ltcg_112a_inr": 52500
-        },
+        "capital_gains": {},
         "lrs_outbound": {
           "total_lrs_remitted_this_fy_inr": 300000
         }
@@ -599,17 +647,21 @@
         "domestic_income": {
           "salary": {
             "has_salary_income": true,
-            "taxable_salary_inr": 600000,
+            "gross_salary_inr": 612500,
             "employer_nps_contribution_inr": 30000
           },
           "house_property": {
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 90000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 120000,
+                "municipal_taxes_paid_inr": 4500
               },
               {
-                "annual_value_inr": 45000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 60000,
+                "municipal_taxes_paid_inr": 2250
               }
             ]
           },
@@ -676,9 +728,6 @@
                 "profit_share_exempt_inr": 175000
               }
             ]
-          },
-          "capital_gains": {
-            "short_term_15_pct": 85000
           }
         },
         "other_sources": {
@@ -691,9 +740,7 @@
           "online_gaming_winnings_inr": 10000,
           "taxable_epf_interest_inr": 7000
         },
-        "capital_gains": {
-          "ltcg_112a_inr": 52500
-        },
+        "capital_gains": {},
         "lrs_outbound": {
           "total_lrs_remitted_this_fy_inr": 300000
         }
@@ -702,17 +749,21 @@
         "domestic_income": {
           "salary": {
             "has_salary_income": true,
-            "taxable_salary_inr": 600000,
+            "gross_salary_inr": 612500,
             "employer_nps_contribution_inr": 30000
           },
           "house_property": {
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 90000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 120000,
+                "municipal_taxes_paid_inr": 4500
               },
               {
-                "annual_value_inr": 45000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 60000,
+                "municipal_taxes_paid_inr": 2250
               }
             ]
           },
@@ -779,9 +830,6 @@
                 "profit_share_exempt_inr": 175000
               }
             ]
-          },
-          "capital_gains": {
-            "short_term_15_pct": 85000
           }
         },
         "other_sources": {
@@ -794,9 +842,7 @@
           "online_gaming_winnings_inr": 10000,
           "taxable_epf_interest_inr": 7000
         },
-        "capital_gains": {
-          "ltcg_112a_inr": 52500
-        },
+        "capital_gains": {},
         "lrs_outbound": {
           "total_lrs_remitted_this_fy_inr": 300000
         }

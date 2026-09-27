@@ -62,6 +62,19 @@
       "has_financial_transactions": true,
       "transactions": [
         {
+          "asset_class": "listed_equity",
+          "asset_name_or_ticker": "INFY",
+          "quantity": 1000,
+          "acquisition_date": "2022-04-18",
+          "purchase_value": 1150000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-11-10",
+          "sale_value": 1450000,
+          "sale_currency": "INR",
+          "stt_paid": true,
+          "transfer_expenses": 0
+        },
+        {
           "asset_class": "foreign_equity_unlisted",
           "asset_name_or_ticker": "NVDA",
           "acquisition_date": "2025-02-01",
@@ -94,7 +107,8 @@
     "domestic_income": {
       "salary": {
         "has_salary_income": true,
-        "taxable_salary_inr": 3600000
+        "gross_salary_inr": 3650000,
+        "work_performed_outside_india": false
       },
       "house_property": {
         "has_house_property_income": false,
@@ -129,9 +143,6 @@
       },
       "capital_gains": {}
     },
-    "capital_gains": {
-      "ltcg_112a_inr": 300000
-    },
     "other_sources": {
       "has_other_sources_income": true,
       "interest_savings_inr": 60000,
@@ -163,7 +174,8 @@
         "domestic_income": {
           "salary": {
             "has_salary_income": true,
-            "taxable_salary_inr": 900000
+            "gross_salary_inr": 912500,
+            "work_performed_outside_india": false
           },
           "house_property": {
             "has_house_property_income": false,
@@ -203,9 +215,7 @@
           "interest_savings_inr": 15000,
           "interest_fd_rd_inr": 35000
         },
-        "capital_gains": {
-          "ltcg_112a_inr": 75000
-        },
+        "capital_gains": {},
         "lrs_outbound": {
           "total_lrs_remitted_this_fy_inr": 375000,
           "lrs_purpose": "investment"
@@ -213,6 +223,19 @@
         "financial_holdings": {
           "has_financial_transactions": true,
           "transactions": [
+            {
+              "asset_class": "listed_equity",
+              "asset_name_or_ticker": "INFY",
+              "quantity": 1000,
+              "acquisition_date": "2022-04-18",
+              "purchase_value": 1150000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-11-10",
+              "sale_value": 1450000,
+              "sale_currency": "INR",
+              "stt_paid": true,
+              "transfer_expenses": 0
+            },
             {
               "asset_class": "foreign_equity_unlisted",
               "asset_name_or_ticker": "NVDA",
@@ -237,7 +260,8 @@
         "domestic_income": {
           "salary": {
             "has_salary_income": true,
-            "taxable_salary_inr": 900000
+            "gross_salary_inr": 912500,
+            "work_performed_outside_india": false
           },
           "house_property": {
             "has_house_property_income": false,
@@ -277,9 +301,7 @@
           "interest_savings_inr": 15000,
           "interest_fd_rd_inr": 35000
         },
-        "capital_gains": {
-          "ltcg_112a_inr": 75000
-        },
+        "capital_gains": {},
         "lrs_outbound": {
           "total_lrs_remitted_this_fy_inr": 375000,
           "lrs_purpose": "investment"
@@ -289,7 +311,8 @@
         "domestic_income": {
           "salary": {
             "has_salary_income": true,
-            "taxable_salary_inr": 900000
+            "gross_salary_inr": 912500,
+            "work_performed_outside_india": false
           },
           "house_property": {
             "has_house_property_income": false,
@@ -329,9 +352,7 @@
           "interest_savings_inr": 15000,
           "interest_fd_rd_inr": 35000
         },
-        "capital_gains": {
-          "ltcg_112a_inr": 75000
-        },
+        "capital_gains": {},
         "lrs_outbound": {
           "total_lrs_remitted_this_fy_inr": 375000,
           "lrs_purpose": "investment"
@@ -341,7 +362,8 @@
         "domestic_income": {
           "salary": {
             "has_salary_income": true,
-            "taxable_salary_inr": 900000
+            "gross_salary_inr": 912500,
+            "work_performed_outside_india": false
           },
           "house_property": {
             "has_house_property_income": false,
@@ -381,9 +403,7 @@
           "interest_savings_inr": 15000,
           "interest_fd_rd_inr": 35000
         },
-        "capital_gains": {
-          "ltcg_112a_inr": 75000
-        },
+        "capital_gains": {},
         "lrs_outbound": {
           "total_lrs_remitted_this_fy_inr": 375000,
           "lrs_purpose": "investment"

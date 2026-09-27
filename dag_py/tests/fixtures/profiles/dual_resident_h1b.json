@@ -89,6 +89,19 @@
           "value_inr": 1200000
         },
         {
+          "asset_class": "listed_equity",
+          "asset_name_or_ticker": "TCS",
+          "quantity": 500,
+          "acquisition_date": "2025-10-06",
+          "purchase_value": 1650000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-06-15",
+          "sale_value": 1900000,
+          "sale_currency": "INR",
+          "stt_paid": true,
+          "transfer_expenses": 0
+        },
+        {
           "asset_class": "foreign_equity_unlisted",
           "asset_name_or_ticker": "AMZN",
           "acquisition_date": "2024-11-01",
@@ -110,7 +123,6 @@
     "domestic_income": {
       "salary": {
         "has_salary_income": true,
-        "taxable_salary_inr": 1800000,
         "esop_perquisite_events": [
           {
             "employer_name": "Infosys Ltd",
@@ -121,13 +133,17 @@
             "exercise_price_per_share_inr": 300,
             "perquisite_value_inr": 600000
           }
-        ]
+        ],
+        "esop_perquisite_inr": 600000,
+        "gross_salary_inr": 1275000
       },
       "house_property": {
         "has_house_property_income": true,
         "properties": [
           {
-            "annual_value_inr": 420000
+            "property_use": "LOP",
+            "gross_annual_value_inr": 600000,
+            "municipal_taxes_paid_inr": 30000
           }
         ]
       },
@@ -157,9 +173,6 @@
             "is_new_manufacturing_asset": false
           }
         ]
-      },
-      "capital_gains": {
-        "short_term_15_pct": 250000
       }
     },
     "other_sources": {
@@ -206,7 +219,6 @@
         "domestic_income": {
           "salary": {
             "has_salary_income": true,
-            "taxable_salary_inr": 450000,
             "esop_perquisite_events": [
               {
                 "employer_name": "Infosys Ltd",
@@ -217,13 +229,17 @@
                 "exercise_price_per_share_inr": 300,
                 "perquisite_value_inr": 600000
               }
-            ]
+            ],
+            "esop_perquisite_inr": 150000,
+            "gross_salary_inr": 318750
           },
           "house_property": {
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 105000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 150000,
+                "municipal_taxes_paid_inr": 7500
               }
             ]
           },
@@ -253,9 +269,6 @@
                 "is_new_manufacturing_asset": false
               }
             ]
-          },
-          "capital_gains": {
-            "short_term_15_pct": 62500
           }
         },
         "other_sources": {
@@ -281,6 +294,19 @@
               "asset_type": "debt_mutual_fund",
               "asset_name": "HDFC Corporate Bond Fund",
               "value_inr": 1200000
+            },
+            {
+              "asset_class": "listed_equity",
+              "asset_name_or_ticker": "TCS",
+              "quantity": 500,
+              "acquisition_date": "2025-10-06",
+              "purchase_value": 1650000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-06-15",
+              "sale_value": 1900000,
+              "sale_currency": "INR",
+              "stt_paid": true,
+              "transfer_expenses": 0
             },
             {
               "asset_class": "foreign_equity_unlisted",
@@ -314,14 +340,17 @@
         "domestic_income": {
           "salary": {
             "has_salary_income": true,
-            "taxable_salary_inr": 450000,
-            "esop_perquisite_events": []
+            "esop_perquisite_events": [],
+            "esop_perquisite_inr": 150000,
+            "gross_salary_inr": 318750
           },
           "house_property": {
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 105000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 150000,
+                "municipal_taxes_paid_inr": 7500
               }
             ]
           },
@@ -351,9 +380,6 @@
                 "is_new_manufacturing_asset": false
               }
             ]
-          },
-          "capital_gains": {
-            "short_term_15_pct": 62500
           }
         },
         "other_sources": {
@@ -372,14 +398,17 @@
         "domestic_income": {
           "salary": {
             "has_salary_income": true,
-            "taxable_salary_inr": 450000,
-            "esop_perquisite_events": []
+            "esop_perquisite_events": [],
+            "esop_perquisite_inr": 150000,
+            "gross_salary_inr": 318750
           },
           "house_property": {
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 105000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 150000,
+                "municipal_taxes_paid_inr": 7500
               }
             ]
           },
@@ -409,9 +438,6 @@
                 "is_new_manufacturing_asset": false
               }
             ]
-          },
-          "capital_gains": {
-            "short_term_15_pct": 62500
           }
         },
         "other_sources": {
@@ -430,14 +456,17 @@
         "domestic_income": {
           "salary": {
             "has_salary_income": true,
-            "taxable_salary_inr": 450000,
-            "esop_perquisite_events": []
+            "esop_perquisite_events": [],
+            "esop_perquisite_inr": 150000,
+            "gross_salary_inr": 318750
           },
           "house_property": {
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 105000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 150000,
+                "municipal_taxes_paid_inr": 7500
               }
             ]
           },
@@ -467,9 +496,6 @@
                 "is_new_manufacturing_asset": false
               }
             ]
-          },
-          "capital_gains": {
-            "short_term_15_pct": 62500
           }
         },
         "other_sources": {

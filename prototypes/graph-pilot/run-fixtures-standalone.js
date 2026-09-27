@@ -72,7 +72,8 @@ test("India Chapter VI-A deductions: 80DD/80DDB/80U flat-by-severity, 80E uncapp
 });
 
 test("computeIndiaTax actually applies the new deductions (deductionsInr reflects all 6 new sections)", function () {
-  approx(rIndia.computed.indiaTax.deductionsInr, 770000, "deductionsInr");
+  // 770000 + s.80GG 100: the fixture's ₹1L GAV now counts as ₹70,000 (s.24(a) 30%), so rent just clears the 10%-of-income floor
+  approx(rIndia.computed.indiaTax.deductionsInr, 770100, "deductionsInr");
   assert.ok(rIndia.computed.indiaTax.totalTaxInr > 0, "totalTaxInr should be positive");
   assert.ok(!isNaN(rIndia.computed.indiaTax.totalTaxInr), "totalTaxInr should not be NaN");
 });

@@ -98,6 +98,19 @@
           "asset_type": "equity_mutual_fund",
           "asset_name": "Mirae Asset Large Cap",
           "value_inr": 2600000
+        },
+        {
+          "asset_class": "listed_equity",
+          "asset_name_or_ticker": "HDFCBANK",
+          "quantity": 800,
+          "acquisition_date": "2025-12-01",
+          "purchase_value": 1220000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-08-20",
+          "sale_value": 1400000,
+          "sale_currency": "INR",
+          "stt_paid": true,
+          "transfer_expenses": 0
         }
       ]
     },
@@ -109,7 +122,9 @@
         "has_house_property_income": true,
         "properties": [
           {
-            "annual_value_inr": 840000
+            "property_use": "LOP",
+            "gross_annual_value_inr": 1200000,
+            "municipal_taxes_paid_inr": 60000
           }
         ]
       },
@@ -172,9 +187,6 @@
             "profit_share_exempt_inr": 900000
           }
         ]
-      },
-      "capital_gains": {
-        "short_term_15_pct": 180000
       }
     },
     "other_sources": {
@@ -203,7 +215,9 @@
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 210000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 300000,
+                "municipal_taxes_paid_inr": 15000
               }
             ]
           },
@@ -266,9 +280,6 @@
                 "profit_share_exempt_inr": 225000
               }
             ]
-          },
-          "capital_gains": {
-            "short_term_15_pct": 45000
           }
         },
         "other_sources": {
@@ -292,6 +303,19 @@
               "asset_type": "equity_mutual_fund",
               "asset_name": "Mirae Asset Large Cap",
               "value_inr": 2600000
+            },
+            {
+              "asset_class": "listed_equity",
+              "asset_name_or_ticker": "HDFCBANK",
+              "quantity": 800,
+              "acquisition_date": "2025-12-01",
+              "purchase_value": 1220000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-08-20",
+              "sale_value": 1400000,
+              "sale_currency": "INR",
+              "stt_paid": true,
+              "transfer_expenses": 0
             }
           ]
         },
@@ -317,7 +341,9 @@
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 210000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 300000,
+                "municipal_taxes_paid_inr": 15000
               }
             ]
           },
@@ -380,9 +406,6 @@
                 "profit_share_exempt_inr": 225000
               }
             ]
-          },
-          "capital_gains": {
-            "short_term_15_pct": 45000
           }
         },
         "other_sources": {
@@ -404,7 +427,9 @@
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 210000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 300000,
+                "municipal_taxes_paid_inr": 15000
               }
             ]
           },
@@ -467,9 +492,6 @@
                 "profit_share_exempt_inr": 225000
               }
             ]
-          },
-          "capital_gains": {
-            "short_term_15_pct": 45000
           }
         },
         "other_sources": {
@@ -491,7 +513,9 @@
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 210000
+                "property_use": "LOP",
+                "gross_annual_value_inr": 300000,
+                "municipal_taxes_paid_inr": 15000
               }
             ]
           },
@@ -554,9 +578,6 @@
                 "profit_share_exempt_inr": 225000
               }
             ]
-          },
-          "capital_gains": {
-            "short_term_15_pct": 45000
           }
         },
         "other_sources": {

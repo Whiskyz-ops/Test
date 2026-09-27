@@ -517,6 +517,19 @@
           "asset_type": "unlisted_equity",
           "asset_name": "Nova Systems Pvt Ltd (100%)",
           "value_inr": 45000000
+        },
+        {
+          "asset_class": "listed_equity",
+          "asset_name_or_ticker": "RELIANCE",
+          "quantity": 300,
+          "acquisition_date": "2025-09-15",
+          "purchase_value": 840000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-05-20",
+          "sale_value": 940000,
+          "sale_currency": "INR",
+          "stt_paid": true,
+          "transfer_expenses": 0
         }
       ],
       "usPficHoldings": [],
@@ -671,6 +684,19 @@
               "asset_type": "unlisted_equity",
               "asset_name": "Nova Systems Pvt Ltd (100%)",
               "value_inr": 45000000
+            },
+            {
+              "asset_class": "listed_equity",
+              "asset_name_or_ticker": "RELIANCE",
+              "quantity": 300,
+              "acquisition_date": "2025-09-15",
+              "purchase_value": 840000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-05-20",
+              "sale_value": 940000,
+              "sale_currency": "INR",
+              "stt_paid": true,
+              "transfer_expenses": 0
             }
           ]
         },
@@ -695,9 +721,6 @@
           "business_income": {
             "has_business_or_fo_income": false,
             "business_entries": []
-          },
-          "capital_gains": {
-            "short_term_15_pct": 100000
           }
         },
         "share_buyback": {
@@ -763,9 +786,6 @@
               "business_income": {
                 "has_business_or_fo_income": false,
                 "business_entries": []
-              },
-              "capital_gains": {
-                "short_term_15_pct": 25000
               }
             },
             "other_sources": {
@@ -782,6 +802,19 @@
                   "asset_type": "unlisted_equity",
                   "asset_name": "Nova Systems Pvt Ltd (100%)",
                   "value_inr": 45000000
+                },
+                {
+                  "asset_class": "listed_equity",
+                  "asset_name_or_ticker": "RELIANCE",
+                  "quantity": 300,
+                  "acquisition_date": "2025-09-15",
+                  "purchase_value": 840000,
+                  "purchase_currency": "INR",
+                  "sale_date": "2026-05-20",
+                  "sale_value": 940000,
+                  "sale_currency": "INR",
+                  "stt_paid": true,
+                  "transfer_expenses": 0
                 }
               ]
             },
@@ -811,9 +844,6 @@
               "business_income": {
                 "has_business_or_fo_income": false,
                 "business_entries": []
-              },
-              "capital_gains": {
-                "short_term_15_pct": 25000
               }
             },
             "other_sources": {
@@ -832,9 +862,6 @@
               "business_income": {
                 "has_business_or_fo_income": false,
                 "business_entries": []
-              },
-              "capital_gains": {
-                "short_term_15_pct": 25000
               }
             },
             "other_sources": {
@@ -853,9 +880,6 @@
               "business_income": {
                 "has_business_or_fo_income": false,
                 "business_entries": []
-              },
-              "capital_gains": {
-                "short_term_15_pct": 25000
               }
             },
             "other_sources": {

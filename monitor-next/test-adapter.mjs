@@ -574,7 +574,8 @@ console.log("\n=== Clients tab: allClientSummariesDag() vs allClientSummaries() 
     const d = analyzeDag({ router: p.router, india: p.india, us: p.us });
     if (isUsIncomeIntoIndiaProfile(d)) usIntoIndiaIds.add(p.id);
     if (isUsEntity(r) || isFeieWagesDivergentProfile({ router: p.router, india: p.india, us: p.us }) ||
-      isCfcInclusionDivergentProfile(d) || isIndiaPresumptiveForeignSchemeProfile(d) || isIndiaIncomeFillProfile(d) || isUsIncomeIntoIndiaProfile(d)) {
+      isCfcInclusionDivergentProfile(d) || isIndiaPresumptiveForeignSchemeProfile(d) || isIndiaIncomeFillProfile(d) || isUsIncomeIntoIndiaProfile(d) ||
+      isIndiaSalaryExemptionProfile(d)) {
       wholesaleIds.add(p.id);
       // healthScore/critical/warning/requiredDocs only — verified directly
       // (totalIncomeUsd/netDoubleTaxUsd/combinedTaxUsd already match for

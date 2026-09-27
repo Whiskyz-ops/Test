@@ -15,10 +15,10 @@
     },
     "periods": {
       "indiaQuarterlyUsd": [
-        8147.590361445783,
-        8147.590361445783,
-        8147.590361445783,
-        8147.590361445783
+        7665.6626506024095,
+        7665.6626506024095,
+        7665.6626506024095,
+        7665.6626506024095
       ]
     },
     "identity": {
@@ -153,7 +153,7 @@
     "income": {
       "india": {
         "salary": {
-          "inr": 2400000,
+          "inr": 2400000.0,
           "usd": 28915.66265060241
         },
         "business": {
@@ -169,8 +169,8 @@
         "indiaHasValidPresumptiveEntry": true,
         "indiaHasPartnerFirmIncome": true,
         "houseProperty": {
-          "usd": 6506.024096385541,
-          "inr": 540000
+          "usd": 5844.578313253012,
+          "inr": 485100
         },
         "interest": {
           "inr": 242000,
@@ -215,8 +215,8 @@
         "holdingPeriodMismatches": [],
         "unexplained115bbeInr": 0,
         "total": {
-          "usd": 162409.63855421683,
-          "inr": 13480000
+          "usd": 161748.19277108434,
+          "inr": 13425100.0
         }
       },
       "us": {
@@ -502,6 +502,32 @@
           "value_inr": 1400000
         },
         {
+          "asset_class": "listed_equity",
+          "asset_name_or_ticker": "ITC",
+          "quantity": 4000,
+          "acquisition_date": "2025-11-03",
+          "purchase_value": 1560000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-07-22",
+          "sale_value": 1900000,
+          "sale_currency": "INR",
+          "stt_paid": true,
+          "transfer_expenses": 0
+        },
+        {
+          "asset_class": "listed_equity",
+          "asset_name_or_ticker": "ASIANPAINT",
+          "quantity": 400,
+          "acquisition_date": "2021-03-08",
+          "purchase_value": 950000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-10-14",
+          "sale_value": 1160000,
+          "sale_currency": "INR",
+          "stt_paid": true,
+          "transfer_expenses": 0
+        },
+        {
           "asset_class": "vda_crypto",
           "asset_name_or_ticker": "ETH",
           "quantity": 3,
@@ -739,6 +765,32 @@
               "value_inr": 1400000
             },
             {
+              "asset_class": "listed_equity",
+              "asset_name_or_ticker": "ITC",
+              "quantity": 4000,
+              "acquisition_date": "2025-11-03",
+              "purchase_value": 1560000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-07-22",
+              "sale_value": 1900000,
+              "sale_currency": "INR",
+              "stt_paid": true,
+              "transfer_expenses": 0
+            },
+            {
+              "asset_class": "listed_equity",
+              "asset_name_or_ticker": "ASIANPAINT",
+              "quantity": 400,
+              "acquisition_date": "2021-03-08",
+              "purchase_value": 950000,
+              "purchase_currency": "INR",
+              "sale_date": "2026-10-14",
+              "sale_value": 1160000,
+              "sale_currency": "INR",
+              "stt_paid": true,
+              "transfer_expenses": 0
+            },
+            {
               "asset_class": "vda_crypto",
               "asset_name_or_ticker": "ETH",
               "quantity": 3,
@@ -807,17 +859,21 @@
         "domestic_income": {
           "salary": {
             "has_salary_income": true,
-            "taxable_salary_inr": 2400000,
-            "employer_nps_contribution_inr": 120000
+            "employer_nps_contribution_inr": 120000,
+            "gross_salary_inr": 2450000
           },
           "house_property": {
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 360000
+                "gross_annual_value_inr": 480000,
+                "property_use": "LOP",
+                "municipal_taxes_paid_inr": 18000
               },
               {
-                "annual_value_inr": 180000
+                "gross_annual_value_inr": 240000,
+                "property_use": "LOP",
+                "municipal_taxes_paid_inr": 9000
               }
             ]
           },
@@ -884,13 +940,7 @@
                 "profit_share_exempt_inr": 700000
               }
             ]
-          },
-          "capital_gains": {
-            "short_term_15_pct": 340000
           }
-        },
-        "capital_gains": {
-          "ltcg_112a_inr": 210000
         },
         "other_sources": {
           "has_other_sources_income": true,
@@ -961,17 +1011,21 @@
             "domestic_income": {
               "salary": {
                 "has_salary_income": true,
-                "taxable_salary_inr": 600000,
-                "employer_nps_contribution_inr": 30000
+                "employer_nps_contribution_inr": 30000,
+                "gross_salary_inr": 612500
               },
               "house_property": {
                 "has_house_property_income": true,
                 "properties": [
                   {
-                    "annual_value_inr": 90000
+                    "gross_annual_value_inr": 120000,
+                    "property_use": "LOP",
+                    "municipal_taxes_paid_inr": 4500
                   },
                   {
-                    "annual_value_inr": 45000
+                    "gross_annual_value_inr": 60000,
+                    "property_use": "LOP",
+                    "municipal_taxes_paid_inr": 2250
                   }
                 ]
               },
@@ -1038,9 +1092,6 @@
                     "profit_share_exempt_inr": 175000
                   }
                 ]
-              },
-              "capital_gains": {
-                "short_term_15_pct": 85000
               }
             },
             "other_sources": {
@@ -1053,9 +1104,7 @@
               "online_gaming_winnings_inr": 10000,
               "taxable_epf_interest_inr": 7000
             },
-            "capital_gains": {
-              "ltcg_112a_inr": 52500
-            },
+            "capital_gains": {},
             "lrs_outbound": {
               "total_lrs_remitted_this_fy_inr": 300000
             },
@@ -1071,6 +1120,32 @@
                   "asset_type": "debt_mutual_fund",
                   "asset_name": "ICICI Pru Corporate Bond Fund",
                   "value_inr": 1400000
+                },
+                {
+                  "asset_class": "listed_equity",
+                  "asset_name_or_ticker": "ITC",
+                  "quantity": 4000,
+                  "acquisition_date": "2025-11-03",
+                  "purchase_value": 1560000,
+                  "purchase_currency": "INR",
+                  "sale_date": "2026-07-22",
+                  "sale_value": 1900000,
+                  "sale_currency": "INR",
+                  "stt_paid": true,
+                  "transfer_expenses": 0
+                },
+                {
+                  "asset_class": "listed_equity",
+                  "asset_name_or_ticker": "ASIANPAINT",
+                  "quantity": 400,
+                  "acquisition_date": "2021-03-08",
+                  "purchase_value": 950000,
+                  "purchase_currency": "INR",
+                  "sale_date": "2026-10-14",
+                  "sale_value": 1160000,
+                  "sale_currency": "INR",
+                  "stt_paid": true,
+                  "transfer_expenses": 0
                 },
                 {
                   "asset_class": "vda_crypto",
@@ -1146,17 +1221,21 @@
             "domestic_income": {
               "salary": {
                 "has_salary_income": true,
-                "taxable_salary_inr": 600000,
-                "employer_nps_contribution_inr": 30000
+                "employer_nps_contribution_inr": 30000,
+                "gross_salary_inr": 612500
               },
               "house_property": {
                 "has_house_property_income": true,
                 "properties": [
                   {
-                    "annual_value_inr": 90000
+                    "gross_annual_value_inr": 120000,
+                    "property_use": "LOP",
+                    "municipal_taxes_paid_inr": 4500
                   },
                   {
-                    "annual_value_inr": 45000
+                    "gross_annual_value_inr": 60000,
+                    "property_use": "LOP",
+                    "municipal_taxes_paid_inr": 2250
                   }
                 ]
               },
@@ -1223,9 +1302,6 @@
                     "profit_share_exempt_inr": 175000
                   }
                 ]
-              },
-              "capital_gains": {
-                "short_term_15_pct": 85000
               }
             },
             "other_sources": {
@@ -1238,9 +1314,7 @@
               "online_gaming_winnings_inr": 10000,
               "taxable_epf_interest_inr": 7000
             },
-            "capital_gains": {
-              "ltcg_112a_inr": 52500
-            },
+            "capital_gains": {},
             "lrs_outbound": {
               "total_lrs_remitted_this_fy_inr": 300000
             }
@@ -1249,17 +1323,21 @@
             "domestic_income": {
               "salary": {
                 "has_salary_income": true,
-                "taxable_salary_inr": 600000,
-                "employer_nps_contribution_inr": 30000
+                "employer_nps_contribution_inr": 30000,
+                "gross_salary_inr": 612500
               },
               "house_property": {
                 "has_house_property_income": true,
                 "properties": [
                   {
-                    "annual_value_inr": 90000
+                    "gross_annual_value_inr": 120000,
+                    "property_use": "LOP",
+                    "municipal_taxes_paid_inr": 4500
                   },
                   {
-                    "annual_value_inr": 45000
+                    "gross_annual_value_inr": 60000,
+                    "property_use": "LOP",
+                    "municipal_taxes_paid_inr": 2250
                   }
                 ]
               },
@@ -1326,9 +1404,6 @@
                     "profit_share_exempt_inr": 175000
                   }
                 ]
-              },
-              "capital_gains": {
-                "short_term_15_pct": 85000
               }
             },
             "other_sources": {
@@ -1341,9 +1416,7 @@
               "online_gaming_winnings_inr": 10000,
               "taxable_epf_interest_inr": 7000
             },
-            "capital_gains": {
-              "ltcg_112a_inr": 52500
-            },
+            "capital_gains": {},
             "lrs_outbound": {
               "total_lrs_remitted_this_fy_inr": 300000
             }
@@ -1352,17 +1425,21 @@
             "domestic_income": {
               "salary": {
                 "has_salary_income": true,
-                "taxable_salary_inr": 600000,
-                "employer_nps_contribution_inr": 30000
+                "employer_nps_contribution_inr": 30000,
+                "gross_salary_inr": 612500
               },
               "house_property": {
                 "has_house_property_income": true,
                 "properties": [
                   {
-                    "annual_value_inr": 90000
+                    "gross_annual_value_inr": 120000,
+                    "property_use": "LOP",
+                    "municipal_taxes_paid_inr": 4500
                   },
                   {
-                    "annual_value_inr": 45000
+                    "gross_annual_value_inr": 60000,
+                    "property_use": "LOP",
+                    "municipal_taxes_paid_inr": 2250
                   }
                 ]
               },
@@ -1429,9 +1506,6 @@
                     "profit_share_exempt_inr": 175000
                   }
                 ]
-              },
-              "capital_gains": {
-                "short_term_15_pct": 85000
               }
             },
             "other_sources": {
@@ -1444,9 +1518,7 @@
               "online_gaming_winnings_inr": 10000,
               "taxable_epf_interest_inr": 7000
             },
-            "capital_gains": {
-              "ltcg_112a_inr": 52500
-            },
+            "capital_gains": {},
             "lrs_outbound": {
               "total_lrs_remitted_this_fy_inr": 300000
             }
@@ -1513,10 +1585,10 @@
     },
     "indiaTax": {
       "regime": "OLD",
-      "grossTotalIncomeInr": 13265000,
+      "grossTotalIncomeInr": 13260100,
       "deductionsInr": 708000,
-      "totalIncomeInr": 12557000,
-      "slabTaxInr": 3173100,
+      "totalIncomeInr": 12552100,
+      "slabTaxInr": 3171630,
       "slabBreakdown": [
         {
           "from": 0,
@@ -1543,11 +1615,11 @@
           "from": 1000000,
           "to": null,
           "rate": 0.3,
-          "taxable": 10202000,
-          "tax": 3060600
+          "taxable": 10197100,
+          "tax": 3059130
         }
       ],
-      "totalNormalInr": 11202000,
+      "totalNormalInr": 11197100,
       "ltcgTaxableInr": 85000,
       "ltcg197TaxableInr": 740000,
       "vdaGainInr": 240000,
@@ -1556,16 +1628,16 @@
       "chapterXiiaInvestmentIncomeTaxInr": 0,
       "specialTaxInr": 237125,
       "rebateInr": 0,
-      "surchargeInr": 511533.75,
-      "cessInr": 156870.35,
+      "surchargeInr": 511313.25,
+      "cessInr": 156802.73,
       "promoterBuyback": null,
-      "totalTaxInr": 4078629.1,
-      "totalTaxUsd": 49140.10963855422,
-      "totalIncomeUsd": 151289.156626506,
-      "effectiveRate": 0.3248091980568607,
+      "totalTaxInr": 4076870.98,
+      "totalTaxUsd": 49118.92746987952,
+      "totalIncomeUsd": 151230.1204819277,
+      "effectiveRate": 0.32479592896806114,
       "lossSetOff": {
         "businessInr": 8320000,
-        "housePropertyInr": 540000,
+        "housePropertyInr": 485100,
         "otherNormalInr": 650000,
         "stcgInr": 250000,
         "stcgSlabInr": 0,
@@ -1718,14 +1790,14 @@
       "explanation": "For Individuals and HUFs with Business or Professional Income maintaining books, or receiving remuneration/interest as a partner in a firm. Mandatory if disqualified from ITR-4.",
       "disqualified": true,
       "disqualifiers": [
-        "Total income exceeds \u20b950,00,000 (\u20b91,32,65,000)",
+        "Total income exceeds \u20b950,00,000 (\u20b91,32,60,100)",
         "Capital gains beyond the s.198-only allowance (STCG and/or non-s.198 LTCG present)",
         "Crypto/VDA gains or sale activity on file",
         "Lottery/betting/online-gaming winnings on file (s.128/194)",
         "Brought-forward losses on file",
         "Speculative or F&O business income on file"
       ],
-      "totalIncomeInr": 13265000,
+      "totalIncomeInr": 13260100,
       "directorUnknown": true,
       "frontendForm": null,
       "frontendExplanation": null,
@@ -1742,10 +1814,10 @@
       "fyLabel": "FY 2026\u201327",
       "cyPrimary": 2026,
       "cyNext": 2027,
-      "indiaFyTotalUsd": 162409.63855421683,
-      "indiaToCyPrimaryUsd": 121807,
-      "indiaToCyNextUsd": 40602,
-      "primaryShare": 0.75,
+      "indiaFyTotalUsd": 161748.19277108434,
+      "indiaToCyPrimaryUsd": 121311,
+      "indiaToCyNextUsd": 40437,
+      "primaryShare": 0.7499999999999999,
       "nextShare": 0.25,
       "usCyTotalUsd": 0,
       "usCyToFyPrimaryUsd": 0,
@@ -1753,8 +1825,8 @@
     },
     "taxEstimate": {
       "india": {
-        "estTaxUsd": 49140.10963855422,
-        "estTaxInr": 4078629.1
+        "estTaxUsd": 49118.92746987952,
+        "estTaxInr": 4076870.98
       },
       "us": {
         "estTaxUsd": 0
@@ -1764,7 +1836,7 @@
       "us": {
         "foreignSourceIncomeUsd": 0,
         "feieExcludedUsd": 0,
-        "indiaTaxDisallowedUsd": 49140.10963855422,
+        "indiaTaxDisallowedUsd": 49118.92746987952,
         "taxableIncomeUsd": 0,
         "usIncomeTaxUsd": 0,
         "indiaTaxPaidUsd": 0,
@@ -1786,7 +1858,7 @@
       "items": [
         {
           "label": "Salary / Wages (India-source)",
-          "indiaUsd": 28915.66265060241,
+          "indiaUsd": 29518.072289156626,
           "usUsd": 0,
           "doublyTaxed": false,
           "note": "Indian employment income is foreign-source for the US; creditable via Form 1116 general basket."
@@ -1800,7 +1872,7 @@
         },
         {
           "label": "House property / Rental (India)",
-          "indiaUsd": 6506.024096385541,
+          "indiaUsd": 5844.578313253012,
           "usUsd": 0,
           "doublyTaxed": false,
           "note": "Indian rent: net-of-expense basis differs (IN 30% standard deduction vs US actual + depreciation)."
@@ -1845,10 +1917,10 @@
       "name": "Kavya Iyer",
       "baseYear": 2026,
       "jurisdiction": "single_india",
-      "totalIncomeUsd": 162746.98795180718,
-      "indiaTaxUsd": 49140.10963855422,
+      "totalIncomeUsd": 162085.5421686747,
+      "indiaTaxUsd": 48902.78289156626,
       "usTaxUsd": 0,
-      "combinedTaxBeforeReliefUsd": 49140.10963855422,
+      "combinedTaxBeforeReliefUsd": 48902.78289156626,
       "worldwideOverlap": false,
       "netUnrelievedDoubleTaxUsd": 0
     },
@@ -1859,10 +1931,10 @@
       "id": "india_advance_tax_interest",
       "severity": "warning",
       "category": "credit",
-      "title": "Advance-tax interest exposure \u2014 ss.424/425 (\u20b91,92,561)",
-      "detail": "Advance tax paid (\u20b98,00,000) falls short of the assessed tax (\u20b937,68,629) this year. At 1%/month simple interest: \u20b91,18,745 under s.424 (shortfall below the 90% floor, 4 months to the non-audit (31 Jul) due date) + \u20b973,816 under s.425 (quarter-by-quarter installment shortfalls). Both keep accruing past the due date until actually paid \u2014 this is the exposure AS OF the due date, not a final number.",
+      "title": "Advance-tax interest exposure \u2014 ss.424/425 (\u20b91,92,447)",
+      "detail": "Advance tax paid (\u20b98,00,000) falls short of the assessed tax (\u20b937,66,871) this year. At 1%/month simple interest: \u20b91,18,675 under s.424 (shortfall below the 90% floor, 4 months to the non-audit (31 Jul) due date) + \u20b973,772 under s.425 (quarter-by-quarter installment shortfalls). Both keep accruing past the due date until actually paid \u2014 this is the exposure AS OF the due date, not a final number.",
       "recommendation": "Pay the shortfall before filing to stop s.424 interest accruing further; s.425's quarter-by-quarter amount is fixed once the year ends and doesn't grow. If the year isn't over yet, revise the remaining installment(s) upward.",
-      "amountUsd": 2320.0107409638554,
+      "amountUsd": 2318.6339000000003,
       "refs": [
         "s.424",
         "s.425",
@@ -2226,7 +2298,7 @@
             "parts": [
               {
                 "label": "Total India tax (from Tax Computation)",
-                "amount": 49140.10963855422
+                "amount": 49118.92746987952
               },
               {
                 "label": "Creditable fraction",
@@ -2403,7 +2475,7 @@
             "parts": [
               {
                 "label": "Total India tax",
-                "amount": 49140.10963855422
+                "amount": 49118.92746987952
               },
               {
                 "label": "US-source income (India view)",
@@ -2411,7 +2483,7 @@
               },
               {
                 "label": "Total India-view income",
-                "amount": 151289.156626506
+                "amount": 151230.1204819277
               }
             ],
             "citation": null
@@ -2448,7 +2520,7 @@
       "rows": [
         {
           "label": "Current-year income (before brought-forward loss set-off)",
-          "inr": 13355000,
+          "inr": 13350100,
           "trace": {
             "kind": "holdings",
             "section": "india",
@@ -2476,14 +2548,14 @@
         },
         {
           "label": "Gross total income (after brought-forward loss set-off)",
-          "inr": 13265000,
+          "inr": 13260100,
           "trace": {
             "kind": "calc",
             "formula": "Current-year income before set-off, less all brought-forward losses set off above",
             "parts": [
               {
                 "label": "Before set-off",
-                "amount": 13355000
+                "amount": 13350100
               },
               {
                 "label": "Less: total losses set off",
@@ -2526,14 +2598,14 @@
         },
         {
           "label": "Total income",
-          "inr": 12557000,
+          "inr": 12552100,
           "trace": {
             "kind": "calc",
             "formula": "Gross total income less Chapter VI-A deductions",
             "parts": [
               {
                 "label": "Gross total income",
-                "amount": 13265000
+                "amount": 13260100
               },
               {
                 "label": "Less Chapter VI-A deductions",
@@ -2545,10 +2617,10 @@
         },
         {
           "label": "Tax at slab rates",
-          "inr": 3173100,
+          "inr": 3171630,
           "trace": {
             "kind": "calc",
-            "formula": "Progressive slab-rate tax under the OLD regime, applied to \u20b91,12,02,000 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
+            "formula": "Progressive slab-rate tax under the OLD regime, applied to \u20b91,11,97,100 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
             "parts": [
               {
                 "label": "0% on \u20b90\u2013\u20b92,50,000",
@@ -2564,7 +2636,7 @@
               },
               {
                 "label": "30% above \u20b910,00,000",
-                "amount": 3060600
+                "amount": 3059130
               }
             ],
             "citation": null
@@ -2639,14 +2711,14 @@
         },
         {
           "label": "Surcharge",
-          "inr": 511533.75,
+          "inr": 511313.25,
           "trace": {
             "kind": "calc",
             "formula": "Progressive surcharge (10%/15%/25%/37% bands by total income) on tax before cess, with marginal relief so the tax increase never exceeds the income increase over the threshold; capital-gains/dividend-type special-rate income is capped at a 15% surcharge rate",
             "parts": [
               {
                 "label": "Surcharge",
-                "amount": 511533.75
+                "amount": 511313.25
               }
             ],
             "citation": null
@@ -2654,18 +2726,18 @@
         },
         {
           "label": "Health & education cess (4%)",
-          "inr": 156870.35,
+          "inr": 156802.73,
           "trace": {
             "kind": "calc",
             "formula": "4% of (tax after rebate + surcharge)",
             "parts": [
               {
                 "label": "Tax after \u00a7156 rebate",
-                "amount": 3410225
+                "amount": 3408755
               },
               {
                 "label": "Surcharge",
-                "amount": 511533.75
+                "amount": 511313.25
               },
               {
                 "label": "Cess rate",
@@ -2677,7 +2749,7 @@
         },
         {
           "label": "Total India tax",
-          "inr": 4078629.1,
+          "inr": 4076870.98,
           "emphasis": true,
           "trace": {
             "kind": "calc",
@@ -2685,7 +2757,7 @@
             "parts": [
               {
                 "label": "Tax at slab rates",
-                "amount": 3173100
+                "amount": 3171630
               },
               {
                 "label": "Tax on special-rate income",
@@ -2697,19 +2769,19 @@
               },
               {
                 "label": "Surcharge",
-                "amount": 511533.75
+                "amount": 511313.25
               },
               {
                 "label": "Cess",
-                "amount": 156870.35
+                "amount": 156802.73
               }
             ],
             "citation": null
           }
         }
       ],
-      "totalUsd": 49140.10963855422,
-      "effectiveRate": 0.3248091980568607
+      "totalUsd": 49118.92746987952,
+      "effectiveRate": 0.32479592896806114
     },
     "us": {
       "title": "US federal income tax (SINGLE)",
@@ -2979,7 +3051,7 @@
       "matchesFrontend": null,
       "trace": {
         "kind": "source",
-        "detail": "For Individuals and HUFs with Business or Professional Income maintaining books, or receiving remuneration/interest as a partner in a firm. Mandatory if disqualified from ITR-4. Reasons: Total income exceeds \u20b950,00,000 (\u20b91,32,65,000); Capital gains beyond the s.198-only allowance (STCG and/or non-s.198 LTCG present); Crypto/VDA gains or sale activity on file; Lottery/betting/online-gaming winnings on file (s.128/194); Brought-forward losses on file; Speculative or F&O business income on file. Layer 1 India hasn't produced its own recommendation for this profile (itr_recommendation.form is unset) \u2014 this is WISING's own independent computation, run unconditionally, not a hedge pending the frontend.",
+        "detail": "For Individuals and HUFs with Business or Professional Income maintaining books, or receiving remuneration/interest as a partner in a firm. Mandatory if disqualified from ITR-4. Reasons: Total income exceeds \u20b950,00,000 (\u20b91,32,60,100); Capital gains beyond the s.198-only allowance (STCG and/or non-s.198 LTCG present); Crypto/VDA gains or sale activity on file; Lottery/betting/online-gaming winnings on file (s.128/194); Brought-forward losses on file; Speculative or F&O business income on file. Layer 1 India hasn't produced its own recommendation for this profile (itr_recommendation.form is unset) \u2014 this is WISING's own independent computation, run unconditionally, not a hedge pending the frontend.",
         "citation": "CBDT notified the AY 2026-27 ITR forms 2026-03-30 (corrigendum 2026-04-10). Eligibility rules verified against that notification 2026-07-12 \u2014 re-check each filing season, since CBDT re-notifies forms (and sometimes changes eligibility) annually."
       }
     },
@@ -3235,8 +3307,8 @@
     "indiaStatus": "ROR",
     "usStatus": "NON_RESIDENT_ALIEN",
     "dualResident": false,
-    "totalIncomeUsd": 162746.98795180718,
-    "indiaTaxUsd": 49140.10963855422,
+    "totalIncomeUsd": 162085.5421686747,
+    "indiaTaxUsd": 48902.78289156626,
     "usTaxUsd": 0,
     "netDoubleTaxUsd": 0,
     "counts": {

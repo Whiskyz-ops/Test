@@ -9,7 +9,7 @@ from __future__ import annotations
 from ..core.dates import parse_date
 from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
-from ..core.util import num, safe
+from ..core.util import js_round, num, safe
 from . import constants as C
 
 US_SEC179_MAX_USD = C.US["US_SEC179_MAX_USD"]
@@ -651,7 +651,7 @@ def _foreign_income_from_india(d, ctx):
     used, converted to USD ("fill gaps only"). indiaIncomeForUsBoundary is
     None outside the top-level composition (filings/assets.py overrides it)."""
     out = {"wagesForeignUsd": 0, "wagesUsSourceUsd": 0, "selfEmploymentUsd": 0, "interestUsd": 0, "dividendsUsd": 0, "rentalUsd": 0,
-           "stcgUsd": 0, "ltcgUsd": 0, "otherUsd": 0, "filled": {}}
+           "stcgUsd": 0, "ltcgUsd": 0, "pensionUsd": 0, "otherUsd": 0, "filled": {}}
     src = d["indiaIncomeForUsBoundary"]
     if not src:
         return out
@@ -687,9 +687,18 @@ def _foreign_income_from_india(d, ctx):
     fill("rentalUsd", "rental", di["foreignRentalUsd"] > 0, inr_of("houseProperty"))
     fill("stcgUsd", "stcg", di["foreignStcgUsd"] > 0, inr_of("stcg") + num(ii.get("stcgSlabInr")) + num(ii.get("vdaGainInr")))
     fill("ltcgUsd", "ltcg", di["foreignLtcgUsd"] > 0, inr_of("ltcg") + num(ii.get("ltcg197Inr")))
+    # Family pension goes to foreign pension (gross — India's s.57(iia)
+    # deduction has no US equivalent); taxable EPF interest / NPS withdrawal
+    # already reach US income via epfNpsCrossBorder. None may also land in
+    # "other" (each was previously counted twice).
+    os_ = (d.get("indiaAnnualSliceForUs") or {}).get("other_sources") or {}
+    family_pension_gross_inr = num(safe(os_, "family_pension_gross_inr", 0))
+    family_pension_net_inr = max(0.0, family_pension_gross_inr - min(15000, js_round(family_pension_gross_inr / 3)))
+    carried_elsewhere_inr = family_pension_net_inr + num(safe(os_, "taxable_epf_interest_inr", 0)) + num(safe(os_, "taxable_nps_withdrawal_inr", 0))
+    fill("pensionUsd", "pension", di["foreignPensionUsd"] > 0, family_pension_gross_inr)
     # No Layer 1 US counterpart: winnings, misc. other sources, Chapter XII-A
     # investment income, s.115A royalty / technical fees.
-    fill("otherUsd", "other", False, inr_of("specialRate115bb") + inr_of("otherSourcesMisc") +
+    fill("otherUsd", "other", False, inr_of("specialRate115bb") + inr_of("otherSourcesMisc") - carried_elsewhere_inr +
          num(ii.get("chapterXiiaInvestmentIncomeInr")) + num(src.get("royaltyInr")) + num(src.get("ftsInr")))
     return out
 
@@ -713,7 +722,7 @@ def _aggregate_us_income_result(d, ctx):
     fw_us_source = d["foreignWagesSourcing"]["usSourceUsd"] + fi["wagesUsSourceUsd"]
     wages_usd = w["wagesUsd"] + fw_us_source
     foreign_interest = di["foreignInterestUsd"] + epf["taxableEpfInterestUsd"]
-    foreign_pension = di["foreignPensionUsd"] + epf["taxableNpsWithdrawalUsd"]
+    foreign_pension = di["foreignPensionUsd"] + epf["taxableNpsWithdrawalUsd"] + fi["pensionUsd"]
 
     us_source_total = wages_usd + biz["businessUsUsd"] + di["interestUsUsd"] + di["ordinaryDividendsUsUsd"] + di["ltcgUsUsd"] + di["stcgUsUsd"] + di["rentalUsUsd"] + ret["usRetirementIncomeExclSsUsd"] + ret["socialSecurityUsUsd"] + di["otherOrdinaryIncomeUsUsd"]
     # The elected pool's pre-tax NCTI/Subpart F is intentionally NOT added
@@ -977,7 +986,7 @@ def build(base):
     # top-level composition with the in-graph India income model.
     r.register("indiaIncomeForUsBoundary", NodeDef(deps=(), compute=lambda d, ctx: None))
     r.register("foreignIncomeFromIndia", NodeDef(
-        deps=("indiaIncomeForUsBoundary", "foreignWagesSourcing", "feieEarnedIncomeUsdRaw", "businessAndSeComputation", "directIncomeComputation"),
+        deps=("indiaIncomeForUsBoundary", "foreignWagesSourcing", "feieEarnedIncomeUsdRaw", "businessAndSeComputation", "directIncomeComputation", "indiaAnnualSliceForUs"),
         compute=_foreign_income_from_india,
     ))
     r.register("aggregateUsIncomeResult", NodeDef(

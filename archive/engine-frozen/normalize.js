@@ -637,6 +637,33 @@
   /* ------------------------------------------------------------------------
    * India income aggregation (annual), normalized to {inr, usd} per head.
    * ----------------------------------------------------------------------*/
+  function computeHousePropertyInr(props, india) {
+    function has(v) { return v !== null && v !== undefined && v !== "" && !isNaN(Number(v)); }
+    var regimeNew = String(safe(india, "profile.tax_regime", "NEW") || "NEW").toUpperCase() !== "OLD";
+    var entity = safe(india, "profile.entity_type", "individual") || "individual";
+    var noNewRegimeBenefits = regimeNew && (entity === "individual" || entity === "huf");
+    var sopInterestInr = 0, otherInr = 0;
+    (props || []).forEach(function (p) {
+      if (!p || typeof p !== "object") return;
+      var hasGav = has(p.gross_annual_value_inr) || has(p.annual_value_inr) || has(p.gross_rent_received_inr);
+      if (!hasGav && has(p.net_income_inr)) { otherInr += num(p.net_income_inr); return; }
+      var share = p.financial_values_represent === "TOTAL_PROPERTY" && has(p.co_owner_share_percent)
+        ? Math.min(100, Math.max(0, num(p.co_owner_share_percent))) / 100 : 1;
+      var interestInr = (num(p.interest_on_borrowed_capital_inr) + num(p.pre_construction_interest_inr)) * share;
+      var use = p.property_use || (hasGav ? "LOP" : "SOP");
+      if (use === "SOP") { sopInterestInr += interestInr; return; }
+      var navInr;
+      if (has(p.gross_annual_value_inr) || !has(p.annual_value_inr)) {
+        navInr = (has(p.gross_annual_value_inr) ? num(p.gross_annual_value_inr) : num(p.gross_rent_received_inr)) - num(p.municipal_taxes_paid_inr);
+      } else navInr = num(p.annual_value_inr);
+      navInr = Math.max(0, navInr) * share;
+      otherInr += navInr - 0.30 * navInr - interestInr;
+    });
+    var headInr = otherInr - (noNewRegimeBenefits ? 0 : Math.min(sopInterestInr, 200000));
+    var capInr = noNewRegimeBenefits ? 0 : 200000;
+    return (headInr < 0 ? Math.max(headInr, -capInr) : headInr) || 0;
+  }
+
   function aggregateIndiaIncome(india, annual) {
     var di = annual.domestic_income || {};
     var os = annual.other_sources || {};
@@ -739,19 +766,10 @@
 
     var hpProps = safe(di, "house_property.properties", []);
     var housePropertyCount = (hpProps || []).length;
-    var houseProperty = zeroMoney();
-    (hpProps || []).forEach(function (p) {
-      // gross_annual_value_inr is what Layer 1 India's own "Gross Annual
-      // Value (GAV)" input actually writes (updateHPField) — every real user
-      // entry landed here, silently invisible to this fallback chain, which
-      // only ever recognized annual_value_inr/net_income_inr/
-      // gross_rent_received_inr (the shapes demo profiles use). Same
-      // Phase-0-shortcut treatment either way (see gap tracker IN-8 for the
-      // municipal-tax/30%-deduction/interest computation this doesn't do yet).
-      houseProperty = addMoney(houseProperty, moneyFromInr(
-        p.annual_value_inr || p.gross_annual_value_inr || p.net_income_inr || p.gross_rent_received_inr || 0
-      ));
-    });
+    // Ss.22-24 + s.71(3A) (gap tracker IN-8) — was the raw annual value
+    // summed as income with no municipal-tax, 30% or interest deduction.
+    // Mirrors prototypes/graph-pilot/house-property.js exactly.
+    var houseProperty = moneyFromInr(computeHousePropertyInr(hpProps, india));
 
     var interest = moneyFromInr(
       num(safe(os, "interest_savings_inr", 0)) +

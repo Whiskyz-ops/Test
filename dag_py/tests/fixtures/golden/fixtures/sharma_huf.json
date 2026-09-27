@@ -169,8 +169,8 @@
         "indiaHasValidPresumptiveEntry": false,
         "indiaHasPartnerFirmIncome": false,
         "houseProperty": {
-          "usd": 3614.4578313253014,
-          "inr": 300000
+          "usd": 2934.9397590361446,
+          "inr": 243600
         },
         "interest": {
           "inr": 350000,
@@ -215,8 +215,8 @@
         "holdingPeriodMismatches": [],
         "unexplained115bbeInr": 0,
         "total": {
-          "usd": 21325.301204819276,
-          "inr": 1770000
+          "usd": 20645.78313253012,
+          "inr": 1713600
         }
       },
       "us": {
@@ -678,7 +678,9 @@
             "has_house_property_income": true,
             "properties": [
               {
-                "annual_value_inr": 300000
+                "gross_annual_value_inr": 360000,
+                "property_use": "LOP",
+                "municipal_taxes_paid_inr": 12000
               }
             ]
           },
@@ -750,7 +752,9 @@
                 "has_house_property_income": true,
                 "properties": [
                   {
-                    "annual_value_inr": 75000
+                    "gross_annual_value_inr": 90000,
+                    "property_use": "LOP",
+                    "municipal_taxes_paid_inr": 3000
                   }
                 ]
               },
@@ -839,7 +843,9 @@
                 "has_house_property_income": true,
                 "properties": [
                   {
-                    "annual_value_inr": 75000
+                    "gross_annual_value_inr": 90000,
+                    "property_use": "LOP",
+                    "municipal_taxes_paid_inr": 3000
                   }
                 ]
               },
@@ -889,7 +895,9 @@
                 "has_house_property_income": true,
                 "properties": [
                   {
-                    "annual_value_inr": 75000
+                    "gross_annual_value_inr": 90000,
+                    "property_use": "LOP",
+                    "municipal_taxes_paid_inr": 3000
                   }
                 ]
               },
@@ -939,7 +947,9 @@
                 "has_house_property_income": true,
                 "properties": [
                   {
-                    "annual_value_inr": 75000
+                    "gross_annual_value_inr": 90000,
+                    "property_use": "LOP",
+                    "municipal_taxes_paid_inr": 3000
                   }
                 ]
               },
@@ -1042,10 +1052,10 @@
     },
     "indiaTax": {
       "regime": "NEW",
-      "grossTotalIncomeInr": 1270000,
+      "grossTotalIncomeInr": 1213600,
       "deductionsInr": 0,
-      "totalIncomeInr": 1270000,
-      "slabTaxInr": 37000,
+      "totalIncomeInr": 1213600,
+      "slabTaxInr": 31360,
       "slabBreakdown": [
         {
           "from": 0,
@@ -1065,11 +1075,11 @@
           "from": 800000,
           "to": 1200000,
           "rate": 0.1,
-          "taxable": 170000,
-          "tax": 17000
+          "taxable": 113600,
+          "tax": 11360
         }
       ],
-      "totalNormalInr": 970000,
+      "totalNormalInr": 913600,
       "ltcgTaxableInr": 0,
       "ltcg197TaxableInr": 0,
       "vdaGainInr": 300000,
@@ -1079,15 +1089,15 @@
       "specialTaxInr": 90000,
       "rebateInr": 0,
       "surchargeInr": 0,
-      "cessInr": 5080,
+      "cessInr": 4854.400000000001,
       "promoterBuyback": null,
-      "totalTaxInr": 132080,
-      "totalTaxUsd": 1591.3253012048192,
-      "totalIncomeUsd": 15301.204819277109,
+      "totalTaxInr": 126214.4,
+      "totalTaxUsd": 1520.6554216867469,
+      "totalIncomeUsd": 14621.686746987953,
       "effectiveRate": 0.104,
       "lossSetOff": {
         "businessInr": 320000,
-        "housePropertyInr": 300000,
+        "housePropertyInr": 243600,
         "otherNormalInr": 350000,
         "stcgInr": 0,
         "stcgSlabInr": 0,
@@ -1243,7 +1253,7 @@
         "Crypto/VDA gains or sale activity on file",
         "Brought-forward losses on file"
       ],
-      "totalIncomeInr": 1270000,
+      "totalIncomeInr": 1213600,
       "directorUnknown": false,
       "frontendForm": null,
       "frontendExplanation": null,
@@ -1260,9 +1270,9 @@
       "fyLabel": "FY 2026\u201327",
       "cyPrimary": 2026,
       "cyNext": 2027,
-      "indiaFyTotalUsd": 21325.301204819276,
-      "indiaToCyPrimaryUsd": 15994,
-      "indiaToCyNextUsd": 5331,
+      "indiaFyTotalUsd": 20645.78313253012,
+      "indiaToCyPrimaryUsd": 15484,
+      "indiaToCyNextUsd": 5161,
       "primaryShare": 0.75,
       "nextShare": 0.25,
       "usCyTotalUsd": 0,
@@ -1271,8 +1281,8 @@
     },
     "taxEstimate": {
       "india": {
-        "estTaxUsd": 1591.3253012048192,
-        "estTaxInr": 132080
+        "estTaxUsd": 1520.6554216867469,
+        "estTaxInr": 126214.4
       },
       "us": {
         "estTaxUsd": 0
@@ -1282,7 +1292,7 @@
       "us": {
         "foreignSourceIncomeUsd": 0,
         "feieExcludedUsd": 0,
-        "indiaTaxDisallowedUsd": 1591.3253012048192,
+        "indiaTaxDisallowedUsd": 1520.6554216867469,
         "taxableIncomeUsd": 0,
         "usIncomeTaxUsd": 0,
         "indiaTaxPaidUsd": 0,
@@ -1311,7 +1321,7 @@
         },
         {
           "label": "House property / Rental (India)",
-          "indiaUsd": 3614.4578313253014,
+          "indiaUsd": 2934.9397590361446,
           "usUsd": 0,
           "doublyTaxed": false,
           "note": "Indian rent: net-of-expense basis differs (IN 30% standard deduction vs US actual + depreciation)."
@@ -1342,10 +1352,10 @@
       "name": "Sharma HUF",
       "baseYear": 2026,
       "jurisdiction": "single_india",
-      "totalIncomeUsd": 21325.301204819276,
-      "indiaTaxUsd": 1591.3253012048192,
+      "totalIncomeUsd": 20645.78313253012,
+      "indiaTaxUsd": 1520.6554216867469,
       "usTaxUsd": 0,
-      "combinedTaxBeforeReliefUsd": 1591.3253012048192,
+      "combinedTaxBeforeReliefUsd": 1520.6554216867469,
       "worldwideOverlap": false,
       "netUnrelievedDoubleTaxUsd": 0
     },
@@ -1370,10 +1380,10 @@
       "id": "india_advance_tax_interest",
       "severity": "warning",
       "category": "credit",
-      "title": "Advance-tax interest exposure \u2014 ss.424/425 (\u20b97,610)",
-      "detail": "Advance tax paid (\u20b90) falls short of the assessed tax (\u20b91,17,080) this year. At 1%/month simple interest: \u20b94,683 under s.424 (shortfall below the 90% floor, 4 months to the non-audit (31 Jul) due date) + \u20b92,927 under s.425 (quarter-by-quarter installment shortfalls). Both keep accruing past the due date until actually paid \u2014 this is the exposure AS OF the due date, not a final number.",
+      "title": "Advance-tax interest exposure \u2014 ss.424/425 (\u20b97,229)",
+      "detail": "Advance tax paid (\u20b90) falls short of the assessed tax (\u20b91,11,214) this year. At 1%/month simple interest: \u20b94,449 under s.424 (shortfall below the 90% floor, 4 months to the non-audit (31 Jul) due date) + \u20b92,780 under s.425 (quarter-by-quarter installment shortfalls). Both keep accruing past the due date until actually paid \u2014 this is the exposure AS OF the due date, not a final number.",
       "recommendation": "Pay the shortfall before filing to stop s.424 interest accruing further; s.425's quarter-by-quarter amount is fixed once the year ends and doesn't grow. If the year isn't over yet, revise the remaining installment(s) upward.",
-      "amountUsd": 91.68915662650602,
+      "amountUsd": 87.09561445783132,
       "refs": [
         "s.424",
         "s.425",
@@ -1711,7 +1721,7 @@
             "parts": [
               {
                 "label": "Total India tax (from Tax Computation)",
-                "amount": 1591.3253012048192
+                "amount": 1520.6554216867469
               },
               {
                 "label": "Creditable fraction",
@@ -1888,7 +1898,7 @@
             "parts": [
               {
                 "label": "Total India tax",
-                "amount": 1591.3253012048192
+                "amount": 1520.6554216867469
               },
               {
                 "label": "US-source income (India view)",
@@ -1896,7 +1906,7 @@
               },
               {
                 "label": "Total India-view income",
-                "amount": 15301.204819277109
+                "amount": 14621.686746987953
               }
             ],
             "citation": null
@@ -1933,7 +1943,7 @@
       "rows": [
         {
           "label": "Current-year income (before brought-forward loss set-off)",
-          "inr": 1770000,
+          "inr": 1713600,
           "trace": {
             "kind": "holdings",
             "section": "india",
@@ -1961,14 +1971,14 @@
         },
         {
           "label": "Gross total income (after brought-forward loss set-off)",
-          "inr": 1270000,
+          "inr": 1213600,
           "trace": {
             "kind": "calc",
             "formula": "Current-year income before set-off, less all brought-forward losses set off above",
             "parts": [
               {
                 "label": "Before set-off",
-                "amount": 1770000
+                "amount": 1713600
               },
               {
                 "label": "Less: total losses set off",
@@ -1995,14 +2005,14 @@
         },
         {
           "label": "Total income",
-          "inr": 1270000,
+          "inr": 1213600,
           "trace": {
             "kind": "calc",
             "formula": "Gross total income less Chapter VI-A deductions",
             "parts": [
               {
                 "label": "Gross total income",
-                "amount": 1270000
+                "amount": 1213600
               },
               {
                 "label": "Less Chapter VI-A deductions",
@@ -2014,10 +2024,10 @@
         },
         {
           "label": "Tax at slab rates",
-          "inr": 37000,
+          "inr": 31360,
           "trace": {
             "kind": "calc",
-            "formula": "Progressive slab-rate tax under the NEW regime, applied to \u20b99,70,000 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
+            "formula": "Progressive slab-rate tax under the NEW regime, applied to \u20b99,13,600 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
             "parts": [
               {
                 "label": "0% on \u20b90\u2013\u20b94,00,000",
@@ -2029,7 +2039,7 @@
               },
               {
                 "label": "10% on \u20b98,00,000\u2013\u20b912,00,000",
-                "amount": 17000
+                "amount": 11360
               }
             ],
             "citation": null
@@ -2100,14 +2110,14 @@
         },
         {
           "label": "Health & education cess (4%)",
-          "inr": 5080,
+          "inr": 4854.400000000001,
           "trace": {
             "kind": "calc",
             "formula": "4% of (tax after rebate + surcharge)",
             "parts": [
               {
                 "label": "Tax after \u00a7156 rebate",
-                "amount": 127000
+                "amount": 121360
               },
               {
                 "label": "Surcharge",
@@ -2123,7 +2133,7 @@
         },
         {
           "label": "Total India tax",
-          "inr": 132080,
+          "inr": 126214.4,
           "emphasis": true,
           "trace": {
             "kind": "calc",
@@ -2131,7 +2141,7 @@
             "parts": [
               {
                 "label": "Tax at slab rates",
-                "amount": 37000
+                "amount": 31360
               },
               {
                 "label": "Tax on special-rate income",
@@ -2147,7 +2157,7 @@
               },
               {
                 "label": "Cess",
-                "amount": 5080
+                "amount": 4854.400000000001
               }
             ],
             "citation": null
@@ -2169,7 +2179,7 @@
           }
         }
       ],
-      "totalUsd": 1591.3253012048192,
+      "totalUsd": 1520.6554216867469,
       "effectiveRate": 0.104
     },
     "us": {
@@ -2686,8 +2696,8 @@
     "indiaStatus": "ROR",
     "usStatus": "NON_RESIDENT_ALIEN",
     "dualResident": false,
-    "totalIncomeUsd": 21325.301204819276,
-    "indiaTaxUsd": 1591.3253012048192,
+    "totalIncomeUsd": 20645.78313253012,
+    "indiaTaxUsd": 1520.6554216867469,
     "usTaxUsd": 0,
     "netDoubleTaxUsd": 0,
     "counts": {
