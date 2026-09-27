@@ -268,6 +268,17 @@ NODES.buildTaxComputationIndiaResult = {
           ]) }
       ]);
     }
+    // US-employer (W-2) wages for work done in India — India-source salary,
+    // not US income (w2WorkLocation). Only when present.
+    var indiaWorkW2Inr = usIn.indiaWorkSalaryInr || 0;
+    if (indiaWorkW2Inr > 1) {
+      indiaGrossRows = indiaGrossRows.concat([
+        { label: "  — of which US-employer (W-2) wages for work done in India (India-source salary)", inr: indiaWorkW2Inr,
+          trace: calc("W-2 wages from Layer 1 US for a US non-resident alien, split by where the work was done (workdays, or US days ÷ 365 when those are blank). The share for work outside the US is taken to be India: India-source salary, taxed here as salary. It isn't US income, so there is no US tax on it for India to relieve — any US withholding on it is a US refund claim.", [
+            { label: "W-2 wages for work in India", amount: indiaWorkW2Inr }
+          ]) }
+      ]);
+    }
     var indiaLossCarryRow = (lso && lso.totalUnusedInr > 1) ? [
       { label: "Losses carried forward to future years (could not be set off this year)", inr: lso.totalUnusedInr,
         trace: calc("Brought-forward losses left over after set-off — different loss categories can only offset specific income heads (s.112/110/111/33(11)), so a category with no matching income this year carries forward untouched (8 years for most heads, no limit for unabsorbed depreciation)", [

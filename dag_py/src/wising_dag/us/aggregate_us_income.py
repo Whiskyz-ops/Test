@@ -189,6 +189,54 @@ def _wages_computation(d, ctx):
     return {"wagesUsd": wages, "w2WithholdingUsd": w2with, "w2Employers": w2_employers, "medicareWagesUsd": medicare_wages, "qualifiedTipsUsd": qualified_tips_usd, "qualifiedOvertimeUsd": qualified_overtime_usd}
 
 
+def _w2_work_location(d, ctx):
+    """W-2 work location for a non-resident alien — mirrors
+    aggregateusincome-nodes.js's w2WorkLocation exactly: per W-2 row, the
+    workday split when entered; else 0 US days => all outside the US, 365+
+    => all in the US; else US days / 365 (estimate). Not an NRA => all US."""
+    rd = safe(ctx.get("us"), "us_residency_detail", {}) or {}
+    is_nra = (rd.get("is_us_citizen") is not True and rd.get("has_green_card") is not True and
+              (rd.get("final_us_residency_status") == "NON_RESIDENT_ALIEN" or safe(ctx.get("us"), "nra_specific.files_form_1040nr", False) is True))
+    us_days_raw = rd.get("us_days_current_year")
+    us_days = None if us_days_raw is None or us_days_raw == "" else num(us_days_raw)
+    # 0 only counts when the Router agrees — see aggregateusincome-nodes.js.
+    router_us_days = safe(ctx.get("router"), "us_days", None)
+    zero_confirmed = ((isinstance(router_us_days, (int, float)) and not isinstance(router_us_days, bool) and router_us_days == 0)
+                      or router_us_days == "0" or safe(ctx.get("router"), "was_in_us_this_year", None) is False)
+    if us_days == 0 and not zero_confirmed:
+        us_days = None
+    rows = []
+    outside_us = fed_outside = fica_outside = 0.0
+    estimated = False
+    for w in (safe(d["uiAgg"], "wages_w2", []) or []):
+        wages_usd = num(w.get("wages_box1_usd") or w.get("wages_tips_compensation_usd") or 0)
+        adv = w.get("tax_details_collapsed_by_default") or w
+        fed = num(adv.get("federal_tax_withheld_usd") or adv.get("federal_income_tax_withheld_usd") or 0)
+        fica = num(adv.get("ss_tax_withheld_usd") or adv.get("social_security_tax_withheld_usd") or 0) + num(adv.get("medicare_tax_withheld_usd") or 0)
+        in_us, out_us = num(w.get("workdays_in_us")), num(w.get("workdays_outside_us"))
+        us_share, basis = 1, "not_nra"
+        if is_nra:
+            if in_us + out_us > 0:
+                us_share, basis = in_us / (in_us + out_us), "workdays"
+            elif us_days == 0:
+                us_share, basis = 0, "auto_outside_us"
+            elif us_days is not None and us_days >= 365:
+                us_share, basis = 1, "auto_in_us"
+            elif us_days is not None:
+                us_share, basis = us_days / 365, "estimated_days_present"
+                if wages_usd > 0:
+                    estimated = True
+            else:
+                basis = "unanswered"
+        out = wages_usd * (1 - us_share)
+        outside_us += out
+        fed_outside += fed * (1 - us_share)
+        fica_outside += fica * (1 - us_share)
+        rows.append({"employerName": w.get("employer_name"), "wagesUsd": wages_usd, "usShare": us_share, "outsideUsUsd": out, "basis": basis})
+    return {"isNra": is_nra, "usDays": us_days, "outsideUsWagesUsd": outside_us, "federalWithheldOutsideUsUsd": fed_outside,
+            "ficaWithheldOutsideUsUsd": fica_outside, "estimated": estimated, "rows": rows}
+
+
 def _us_business_depreciation_plan(d, ctx):
     """Combines self-employment AND farming_schedule_f assets into ONE
     taxpayer-wide s.179 aggregation pool (real law caps/phases out s.179
@@ -687,6 +735,9 @@ def _aggregate_us_income_result(d, ctx):
         "otherOrdinaryIncomeUs": _m(di["otherOrdinaryIncomeUsUsd"], ctx),
         "foreignWages": _m(foreign_wages_total, ctx), "foreignWagesTaxPaidUsd": d["foreignWagesTaxPaidUsd"],
         "foreignWagesUsSource": _m(fw_us_source, ctx), "foreignWagesSourcing": d["foreignWagesSourcing"]["rows"], "foreignSelfEmployment": _m(foreign_self_employment, ctx),
+        # W-2 wages a non-resident alien earned for work outside the US — see
+        # aggregateusincome-nodes.js's w2WorkLocation.
+        "w2WorkLocation": d["w2WorkLocation"],
         # One income list (see aggregateusincome-nodes.js).
         "foreignOtherIncome": _m(fi["otherUsd"], ctx),
         "seEarningsFromIndiaUsd": fi["selfEmploymentUsd"],
@@ -695,7 +746,8 @@ def _aggregate_us_income_result(d, ctx):
         # taxation of an ROR (filings/assets.py's usIncomeForIndiaBoundary) —
         # excludes India salary re-sourced to the US and Social Security.
         "usOwnSourceForIndia": {
-            "wagesUsd": w["wagesUsd"] + d["foreignWagesSourcing"]["usSourceUsd"], "businessUsd": biz["businessUsUsd"],
+            "wagesUsd": w["wagesUsd"] - d["w2WorkLocation"]["outsideUsWagesUsd"] + d["foreignWagesSourcing"]["usSourceUsd"],
+            "indiaWorkWagesUsd": d["w2WorkLocation"]["outsideUsWagesUsd"], "businessUsd": biz["businessUsUsd"],
             "interestUsd": di["interestUsUsd"], "dividendsUsd": di["ordinaryDividendsUsUsd"], "rentalUsd": di["rentalGrossUsUsd"],
             "stcgUsd": di["stcgUsUsd"], "ltcgUsd": di["ltcgUsUsd"], "retirementUsd": ret["usRetirementIncomeExclSsUsd"], "otherUsd": di["otherOrdinaryIncomeUsUsd"],
         },
@@ -786,6 +838,13 @@ def build(base):
     r.register("fiAgg", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "income_foreign_source", {})))
 
     r.register("wagesComputation", NodeDef(deps=("uiAgg",), compute=_wages_computation, layer1_fields=_WAGES_FIELDS))
+    r.register("w2WorkLocation", NodeDef(deps=("uiAgg",), compute=_w2_work_location, layer1_fields=(
+        "us.us_residency_detail.is_us_citizen", "us.us_residency_detail.has_green_card", "us.us_residency_detail.final_us_residency_status",
+        "us.us_residency_detail.us_days_current_year", "us.nra_specific.files_form_1040nr",
+        "us.income_us_source.wages_w2[].workdays_in_us", "us.income_us_source.wages_w2[].workdays_outside_us",
+        "us.income_us_source.wages_w2[].tax_details_collapsed_by_default.ss_tax_withheld_usd",
+        "us.income_us_source.wages_w2[].tax_details_collapsed_by_default.medicare_tax_withheld_usd",
+        "router.us_days", "router.was_in_us_this_year")))
     # Step 7 (FEIE)'s own headline "Total Foreign Earned Income" field
     # (#feie-earned-income -> foreign_earned_income.foreign_earned_income_usd)
     # -- was read NOWHERE except a local UI-preview label, so a user who
@@ -919,7 +978,7 @@ def build(base):
         compute=_foreign_income_from_india,
     ))
     r.register("aggregateUsIncomeResult", NodeDef(
-        deps=("wagesComputation", "foreignWagesUsd", "foreignWagesTaxPaidUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult", "foreignWagesSourcing", "foreignIncomeFromIndia"),
+        deps=("wagesComputation", "foreignWagesUsd", "foreignWagesTaxPaidUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult", "foreignWagesSourcing", "foreignIncomeFromIndia", "w2WorkLocation"),
         compute=_aggregate_us_income_result,
     ))
     return r

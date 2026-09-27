@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useUsLayer1Store } from "@/lib/layer1-us/store";
+import { readRouterState, w2UsShare } from "@/lib/layer1-us/w2-location";
 import { Card, Field, NumberInput, TextInput, Select, ToggleRow, RemoveButton, AddButton, fmtUsd } from "./_ui";
 
 // Source: layer1_us.html panel-step-nra (~line 3772), addTreatyRateRow()
@@ -66,9 +67,12 @@ export default function NraStep() {
   const iu = usState.income_us_source;
   const set = (key) => (val) => setField(`nra_specific.${key}`, val);
 
+  // W-2 wages count as ECI only for the share of work done in the US
+  // (lib/layer1-us/w2-location.js — same rule as the engine).
+  const router = readRouterState();
   let eci = 0;
   (iu.wages_w2 || []).forEach((w) => {
-    eci += w.wages_box1_usd || 0;
+    eci += (w.wages_box1_usd || 0) * w2UsShare(w, usState, router).usShare;
   });
   (iu.self_employment || []).forEach((se) => {
     const seNet = (se.gross_receipts_usd || 0) - (se.expenses_usd || 0);

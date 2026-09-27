@@ -211,7 +211,8 @@ def _nra_derived_eci_fdap_result(d, ctx):
     combined tax figure, a different surface than this finding.
     """
     agg = d["aggregateUsIncomeResult"]
-    derived_eci_usd = agg["wages"]["usd"] + agg["businessUs"]["usd"]
+    # W-2 wages for work outside the US aren't ECI for an NRA (w2WorkLocation).
+    derived_eci_usd = agg["wages"]["usd"] - ((agg.get("w2WorkLocation") or {}).get("outsideUsWagesUsd") or 0) + agg["businessUs"]["usd"]
     derived_fdap_usd = agg["interestUs"]["usd"] + agg["ordinaryDividendsUs"]["usd"] + agg["rentalUs"]["usd"] + d["royaltiesDirectUsSourceUsdRaw"]
     return {
         "derivedEciUsd": derived_eci_usd, "derivedFdapUsd": derived_fdap_usd,

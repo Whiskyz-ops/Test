@@ -190,6 +190,16 @@ def _build_tax_computation_india_individual(d, ctx):
                             {"label": "Short-term gains (slab)", "amount": us_in["stcgSlabInr"]}, {"label": "Long-term gains (12.5%)", "amount": us_in["ltcg197Inr"]}]),
         }]
 
+    # US-employer (W-2) wages for work done in India — India-source salary.
+    # Mirrors report-batch3-nodes.js; only when present.
+    india_work_w2_inr = us_in.get("indiaWorkSalaryInr") or 0
+    if india_work_w2_inr > 1:
+        india_gross_rows = india_gross_rows + [{
+            "label": "  — of which US-employer (W-2) wages for work done in India (India-source salary)", "inr": india_work_w2_inr,
+            "trace": _calc("W-2 wages from Layer 1 US for a US non-resident alien, split by where the work was done (workdays, or US days ÷ 365 when those are blank). The share for work outside the US is taken to be India: India-source salary, taxed here as salary. It isn't US income, so there is no US tax on it for India to relieve — any US withholding on it is a US refund claim.",
+                           [{"label": "W-2 wages for work in India", "amount": india_work_w2_inr}]),
+        }]
+
     # Salary for work done outside India that India doesn't tax — already
     # out of the total above; shown only when present. Mirrors
     # report-batch3-nodes.js.

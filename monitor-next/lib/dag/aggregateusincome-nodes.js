@@ -390,6 +390,57 @@ var NODES = {
   uiAgg: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "income_us_source", {}); } },
   fiAgg: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "income_foreign_source", {}); } },
 
+  // W-2 work location for a non-resident alien. An NRA is taxed by the US
+  // only on US-source income, and wages are US-source only for work done in
+  // the US (IRC 861(a)(3) / 862(a)(3)) — so a W-2 from a US employer for
+  // work done from India (the common "India resident on a US company's
+  // payroll" case) isn't US income at all, and any US withholding on it is
+  // recoverable. Per row: the Layer 1 workday split when entered; else 0
+  // US days (confirmed by the Router) => all outside the US, 365+ => all
+  // in the US; else estimated
+  // as US days / 365 (planning estimate, labelled). Not an NRA (citizen,
+  // green card, resident alien) => 1: the US taxes worldwide income, so
+  // work location doesn't change US tax. The "outside the US" share is
+  // taken to be India (the only other country this engine models).
+  w2WorkLocation: {
+    deps: ["uiAgg"],
+    compute: function (d, ctx) {
+      var rd = safe(ctx.us, "us_residency_detail", {}) || {};
+      var isNra = rd.is_us_citizen !== true && rd.has_green_card !== true &&
+        (rd.final_us_residency_status === "NON_RESIDENT_ALIEN" || safe(ctx.us, "nra_specific.files_form_1040nr", false) === true);
+      var usDaysRaw = rd.us_days_current_year;
+      var usDays = usDaysRaw === null || usDaysRaw === undefined || usDaysRaw === "" ? null : num(usDaysRaw);
+      // Layer 1 US defaults US days to 0 (and status to non-resident) before
+      // its residency step is filled in, so 0 only counts as "no US days"
+      // when the Router agrees (us_days 0, or not in the US this year);
+      // otherwise the W-2 is left as US wages.
+      var routerUsDays = safe(ctx.router, "us_days", null);
+      var zeroConfirmed = routerUsDays === 0 || routerUsDays === "0" || safe(ctx.router, "was_in_us_this_year", null) === false;
+      if (usDays === 0 && !zeroConfirmed) usDays = null;
+      var rows = [], outsideUs = 0, fedOutside = 0, ficaOutside = 0, estimated = false;
+      (safe(d.uiAgg, "wages_w2", []) || []).forEach(function (w) {
+        var wagesUsd = num(w.wages_box1_usd || w.wages_tips_compensation_usd || 0);
+        var adv = w.tax_details_collapsed_by_default || w;
+        var fed = num(adv.federal_tax_withheld_usd || adv.federal_income_tax_withheld_usd || 0);
+        var fica = num(adv.ss_tax_withheld_usd || adv.social_security_tax_withheld_usd || 0) + num(adv.medicare_tax_withheld_usd || 0);
+        var inUs = num(w.workdays_in_us), outUs = num(w.workdays_outside_us);
+        var usShare = 1, basis = "not_nra";
+        if (isNra) {
+          if (inUs + outUs > 0) { usShare = inUs / (inUs + outUs); basis = "workdays"; }
+          else if (usDays === 0) { usShare = 0; basis = "auto_outside_us"; }
+          else if (usDays !== null && usDays >= 365) { usShare = 1; basis = "auto_in_us"; }
+          else if (usDays !== null) { usShare = usDays / 365; basis = "estimated_days_present"; if (wagesUsd > 0) estimated = true; }
+          else basis = "unanswered";
+        }
+        var out = wagesUsd * (1 - usShare);
+        outsideUs += out; fedOutside += fed * (1 - usShare); ficaOutside += fica * (1 - usShare);
+        rows.push({ employerName: w.employer_name || null, wagesUsd: wagesUsd, usShare: usShare, outsideUsUsd: out, basis: basis });
+      });
+      return { isNra: isNra, usDays: usDays, outsideUsWagesUsd: outsideUs, federalWithheldOutsideUsUsd: fedOutside,
+        ficaWithheldOutsideUsUsd: ficaOutside, estimated: estimated, rows: rows };
+    }
+  },
+
   wagesComputation: {
     deps: ["uiAgg"],
     compute: function (d) {
@@ -778,7 +829,7 @@ var NODES = {
 
   // ---- final assembly, matching aggregateUsIncome's own return object ----
   aggregateUsIncomeResult: {
-    deps: ["wagesComputation", "foreignWagesUsd", "foreignWagesTaxPaidUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult", "foreignWagesSourcing", "foreignIncomeFromIndia"],
+    deps: ["wagesComputation", "foreignWagesUsd", "foreignWagesTaxPaidUsd", "businessAndSeComputation", "retirementComputation", "directIncomeComputation", "epfNpsCrossBorder", "cfcInclusionResult", "foreignWagesSourcing", "foreignIncomeFromIndia", "w2WorkLocation"],
     compute: function (d, ctx) {
       var w = d.wagesComputation, biz = d.businessAndSeComputation, ret = d.retirementComputation, epf = d.epfNpsCrossBorder;
       var cfc = d.cfcInclusionResult, fi = d.foreignIncomeFromIndia;
@@ -825,6 +876,9 @@ var NODES = {
         otherOrdinaryIncomeUs: m(di.otherOrdinaryIncomeUsUsd, ctx),
         foreignWages: m(foreignWagesTotalUsd, ctx), foreignWagesTaxPaidUsd: d.foreignWagesTaxPaidUsd,
         foreignWagesUsSource: m(fwUsSourceUsd, ctx), foreignWagesSourcing: d.foreignWagesSourcing.rows, foreignSelfEmployment: m(foreignSelfEmploymentUsd, ctx),
+        // W-2 wages a non-resident alien earned for work outside the US (see
+        // w2WorkLocation) — not US income; its withholding is recoverable.
+        w2WorkLocation: d.w2WorkLocation,
         // Ordinary foreign income with no Layer 1 US field (winnings, misc.,
         // royalty/fees) — only ever filled from Layer 1 India.
         foreignOtherIncome: m(fi.otherUsd, ctx),
@@ -840,7 +894,11 @@ var NODES = {
         // in India's own salary head. Social Security is left out: DTAA Art.
         // 20(2) taxes it only in the US.
         usOwnSourceForIndia: {
-          wagesUsd: w.wagesUsd + d.foreignWagesSourcing.usSourceUsd, businessUsd: biz.businessUsUsd,
+          // A non-resident alien's W-2 wages for work outside the US (taken to
+          // be India) are India-source, not US income: carried separately so
+          // India's card labels them as such (w2WorkLocation).
+          wagesUsd: w.wagesUsd - d.w2WorkLocation.outsideUsWagesUsd + d.foreignWagesSourcing.usSourceUsd,
+          indiaWorkWagesUsd: d.w2WorkLocation.outsideUsWagesUsd, businessUsd: biz.businessUsUsd,
           interestUsd: di.interestUsUsd, dividendsUsd: di.ordinaryDividendsUsUsd, rentalUsd: di.rentalGrossUsUsd,
           stcgUsd: di.stcgUsUsd, ltcgUsd: di.ltcgUsUsd, retirementUsd: ret.usRetirementIncomeExclSsUsd, otherUsd: di.otherOrdinaryIncomeUsUsd
         },

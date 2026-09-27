@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useUsLayer1Store } from "../../../lib/layer1-us/store";
+import { readRouterState, w2UsShare, isNonResidentAlien } from "@/lib/layer1-us/w2-location";
 
 // Ported from layer1_us.html's `panel-step-income-us` (employment/W-2 upload
 // zone, layer1_us.html:1791-1829) plus the `income_us_source` scalar fields
@@ -206,6 +208,42 @@ function newCryptoRow() {
 
 // ---- W-2 nested row editor -------------------------------------------------
 
+// Where the work behind a W-2 was done — shown only for a US non-resident
+// alien (for anyone else the US taxes worldwide income, so it doesn't
+// matter). US days already on file settle it or give an estimate; the
+// workday fields are an optional override (lib/layer1-us/w2-location.js).
+function W2WorkLocation({ row, patch }) {
+  const { usState } = useUsLayer1Store();
+  const [editing, setEditing] = useState(false);
+  if (!isNonResidentAlien(usState)) return null;
+  const loc = w2UsShare(row, usState, readRouterState());
+  const hasWorkdays = loc.basis === "workdays";
+  let text;
+  if (loc.basis === "auto_outside_us") text = "Treated as work done outside the US (0 US days this year) — not US income for a non-resident alien.";
+  else if (loc.basis === "auto_in_us") text = "Treated as work done in the US (in the US all year).";
+  else if (loc.basis === "estimated_days_present") text = `Estimated from days present — ${Math.round(loc.usShare * 1000) / 10}% of these wages treated as US work (${loc.usDays} US days ÷ 365). Enter workdays to confirm.`;
+  else if (loc.basis === "workdays") text = `${Math.round(loc.usShare * 1000) / 10}% of these wages treated as US work, from the workdays entered.`;
+  else text = "Treated as US wages until the client's US days are on file.";
+  const showFields = editing || hasWorkdays;
+  const parseDays = (v) => { const n = parseInt(String(v).replace(/[^0-9]/g, ""), 10); return Number.isNaN(n) ? null : Math.min(n, 366); };
+  return (
+    <div className="rounded-lg border border-line bg-white/[0.02] p-3 flex flex-col gap-2">
+      <span className="text-[10px] uppercase tracking-wide text-muted font-semibold">Where was this work done?</span>
+      <p className="text-[11px] text-body">{text}</p>
+      {!showFields && (
+        <button type="button" onClick={() => setEditing(true)} className="self-start text-[11px] text-brandGreen hover:underline">Enter workdays instead</button>
+      )}
+      {showFields && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <LabeledNumber label="Workdays in the US" value={row.workdays_in_us} onChange={(v) => patch({ workdays_in_us: parseDays(v) })} />
+          <LabeledNumber label="Workdays outside the US" value={row.workdays_outside_us} onChange={(v) => patch({ workdays_outside_us: parseDays(v) })} />
+          <p className="md:col-span-2 text-[10px] text-muted">Working days only. For a non-resident alien, pay for days worked outside the US isn't US income.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function W2RowEditor({ index, row }) {
   const { updateRow } = useUsLayer1Store();
   const path = "income_us_source.wages_w2";
@@ -275,6 +313,8 @@ function W2RowEditor({ index, row }) {
           onChange={(v) => patch({ qualified_overtime_premium_usd: v })}
         />
       </div>
+
+      <W2WorkLocation row={row} patch={patch} />
 
       {/* Federal / FICA */}
       <div className="border-t border-line pt-3 flex flex-col gap-3">

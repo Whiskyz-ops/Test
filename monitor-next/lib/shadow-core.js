@@ -131,7 +131,7 @@ const DAG_ONLY_KEYS = new Set([
   "salaryWorkLocation", "salaryOutsideIndiaInr", "usWorkSalaryUsd", "indiaTaxOnUsWorkSalaryUsd", "indiaNotChargeableSalaryUsd", "indiaNotChargeableSalaryTaxUsd", "salaryWorkBasis",
   // One income list (aggregateusincome-nodes.js's foreignIncomeFromIndia) —
   // DAG-only fields.
-  "foreignOtherIncome", "seEarningsFromIndiaUsd", "foreignFromIndia", "usOwnSourceForIndia",
+  "foreignOtherIncome", "seEarningsFromIndiaUsd", "foreignFromIndia", "usOwnSourceForIndia", "w2WorkLocation",
   // §25B Saver's Credit (task #44 follow-up) — added proactively (kept in
   // sync with prototypes/graph-pilot/run-fuzz.js's own DAG_ONLY_KEYS).
   "saversCreditUsd", "saversCreditDetail",
@@ -167,7 +167,7 @@ const KNOWN_EXTRA_FINDING_IDS = new Set([
   "retirement_excess_elective_deferral", "retirement_excess_ira_contribution",
   "hsa_excess_contribution", "retirement_rmd_required", "s83b_election_not_filed_timely",
   "itin_application_required", "lrs_investment_tcs",
-  "nra_eci_fdap_classification_check", "treaty_rate_not_recognized",
+  "nra_eci_fdap_classification_check", "us_withholding_outside_us_wages", "treaty_rate_not_recognized",
   "ftc_gap", "ftc_available", "niit_medicare_not_creditable", "underpayment_2210",
   "cfc", "cfc_below_threshold"
 ]);

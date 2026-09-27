@@ -417,7 +417,8 @@ NODES.nraDerivedEciFdapResult = {
   deps: ["aggregateUsIncomeResult", "royaltiesDirectUsSourceUsdRaw"],
   compute: function (d) {
     var agg = d.aggregateUsIncomeResult;
-    var derivedEciUsd = agg.wages.usd + agg.businessUs.usd;
+    // W-2 wages for work outside the US aren't ECI for an NRA (w2WorkLocation).
+    var derivedEciUsd = agg.wages.usd - ((agg.w2WorkLocation && agg.w2WorkLocation.outsideUsWagesUsd) || 0) + agg.businessUs.usd;
     var derivedFdapUsd = agg.interestUs.usd + agg.ordinaryDividendsUs.usd + agg.rentalUs.usd + d.royaltiesDirectUsSourceUsdRaw;
     return { derivedEciUsd: derivedEciUsd, derivedFdapUsd: derivedFdapUsd, derivedTotalUsd: derivedEciUsd + derivedFdapUsd };
   }

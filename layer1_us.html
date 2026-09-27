@@ -11281,6 +11281,7 @@ div.innerHTML = `
 
     function recalculateDerivedFields() {
         recalculateCapitalGainsAggregate();
+        refreshW2WorkLocations();
         const agi = calculateEstimatedAgi();
         const biz = calculateBusinessIncomes();
         const filingStatus = usState.profile.filing_status;
@@ -11514,7 +11515,8 @@ div.innerHTML = `
         // 6. NRA ECI & FDAP Mappings
         let eci = 0;
         if (usState.income_us_source.wages_w2) {
-            usState.income_us_source.wages_w2.forEach(w => eci += w.wages_box1_usd || 0);
+            // Only the share of work done in the US is ECI (w2UsShare).
+            usState.income_us_source.wages_w2.forEach(w => eci += (w.wages_box1_usd || 0) * w2UsShare(w).usShare);
         }
         if (usState.income_us_source.self_employment) {
             usState.income_us_source.self_employment.forEach(se => {
@@ -17384,6 +17386,24 @@ div.innerHTML = `
                         </p>
                     </div>
 
+                    <!-- Where the work was done — only for a US non-resident alien (refreshW2WorkLocations) -->
+                    <div class="w2-workloc hidden w-full bg-white/5 border border-white/10 rounded-lg p-2 flex flex-col gap-2 mr-6">
+                        <span class="text-[8px] font-black uppercase tracking-widest text-white/40">Where was this work done?</span>
+                        <p class="w2-workloc-text text-[10px] text-white/70 leading-snug"></p>
+                        <button type="button" class="w2-workloc-edit self-start text-[10px] text-brandCyan hover:underline" onclick="this.parentElement.querySelector('.w2-workloc-fields').classList.remove('hidden'); this.classList.add('hidden');">Enter workdays instead</button>
+                        <div class="w2-workloc-fields hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Workdays in the US</label>
+                                <input type="text" inputmode="numeric" class="w2-wd-in w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncW2sState()">
+                            </div>
+                            <div>
+                                <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Workdays outside the US</label>
+                                <input type="text" inputmode="numeric" class="w2-wd-out w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="0" oninput="syncW2sState()">
+                            </div>
+                            <p class="md:col-span-2 text-[9px] text-white/40">Working days only. For a non-resident alien, pay for days worked outside the US isn't US income.</p>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-3 pr-6">
                         <div class="md:col-span-5">
                             <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Employer Address</label>
@@ -17568,6 +17588,8 @@ div.innerHTML = `
             if (div.querySelector('.w2-wages')) div.querySelector('.w2-wages').value = normalized.wages_box1_usd || '';
             if (div.querySelector('.w2-qual-tips')) div.querySelector('.w2-qual-tips').value = normalized.qualified_tip_income_usd || '';
             if (div.querySelector('.w2-qual-ot')) div.querySelector('.w2-qual-ot').value = normalized.qualified_overtime_premium_usd || '';
+            if (div.querySelector('.w2-wd-in')) div.querySelector('.w2-wd-in').value = normalized.workdays_in_us ?? '';
+            if (div.querySelector('.w2-wd-out')) div.querySelector('.w2-wd-out').value = normalized.workdays_outside_us ?? '';
             
             const adv = normalized.tax_details_collapsed_by_default || {};
             if (div.querySelector('.w2-ein')) div.querySelector('.w2-ein').value = adv.employer_ein || '';
@@ -17613,6 +17635,64 @@ div.innerHTML = `
         syncW2sState();
     }
 
+    // ---- W-2 work location for a US non-resident alien -------------------
+    // Mirrors aggregateusincome-nodes.js's w2WorkLocation (and the React
+    // form's lib/layer1-us/w2-location.js): an NRA is taxed only on US-source
+    // income, and wages are US-source only for work done in the US. Entered
+    // workdays win; else 0 US days (confirmed by the Router) => all outside
+    // the US; 365+ => all in the US; else US days / 365 (estimate).
+    function parseW2Workdays(el) {
+        if (!el) return null;
+        const n = parseInt(String(el.value).replace(/[^0-9]/g, ''), 10);
+        return isNaN(n) ? null : Math.min(n, 366);
+    }
+    function w2IsNra() {
+        const rd = usState.us_residency_detail || {};
+        return rd.is_us_citizen !== true && rd.has_green_card !== true &&
+            (rd.final_us_residency_status === 'NON_RESIDENT_ALIEN' || (usState.nra_specific && usState.nra_specific.files_form_1040nr === true));
+    }
+    function w2RouterState() {
+        try {
+            const key = (window.WISING && window.WISING.ClientRegistry) ? window.WISING.ClientRegistry.storageKeyFor('ROUTER') : 'wising_router_state';
+            return JSON.parse(localStorage.getItem(key) || '{}') || {};
+        } catch (e) { return {}; }
+    }
+    function w2UsShare(w) {
+        if (!w2IsNra()) return { usShare: 1, basis: 'not_nra' };
+        const inUs = Number(w.workdays_in_us) || 0, outUs = Number(w.workdays_outside_us) || 0;
+        if (inUs + outUs > 0) return { usShare: inUs / (inUs + outUs), basis: 'workdays' };
+        const raw = (usState.us_residency_detail || {}).us_days_current_year;
+        let usDays = raw === null || raw === undefined || raw === '' ? null : Number(raw) || 0;
+        const r = w2RouterState();
+        if (usDays === 0 && !(r.us_days === 0 || r.us_days === '0' || r.was_in_us_this_year === false)) usDays = null;
+        if (usDays === 0) return { usShare: 0, basis: 'auto_outside_us' };
+        if (usDays !== null && usDays >= 365) return { usShare: 1, basis: 'auto_in_us' };
+        if (usDays !== null) return { usShare: usDays / 365, basis: 'estimated_days_present', usDays: usDays };
+        return { usShare: 1, basis: 'unanswered' };
+    }
+    function refreshW2WorkLocations() {
+        const nra = w2IsNra();
+        const rows = (usState.income_us_source && usState.income_us_source.wages_w2) || [];
+        document.querySelectorAll('.w2-card').forEach((div, i) => {
+            const box = div.querySelector('.w2-workloc');
+            if (!box) return;
+            box.classList.toggle('hidden', !nra);
+            if (!nra) return;
+            const loc = w2UsShare(rows[i] || {});
+            const pct = Math.round(loc.usShare * 1000) / 10;
+            const text = loc.basis === 'auto_outside_us' ? 'Treated as work done outside the US (0 US days this year) — not US income for a non-resident alien.'
+                : loc.basis === 'auto_in_us' ? 'Treated as work done in the US (in the US all year).'
+                : loc.basis === 'estimated_days_present' ? 'Estimated from days present — ' + pct + '% of these wages treated as US work (' + loc.usDays + ' US days ÷ 365). Enter workdays to confirm.'
+                : loc.basis === 'workdays' ? pct + '% of these wages treated as US work, from the workdays entered.'
+                : "Treated as US wages until the client's US days are on file.";
+            div.querySelector('.w2-workloc-text').textContent = text;
+            if (loc.basis === 'workdays') {
+                div.querySelector('.w2-workloc-fields').classList.remove('hidden');
+                div.querySelector('.w2-workloc-edit').classList.add('hidden');
+            }
+        });
+    }
+
     function syncW2sState() {
         const list = [];
         document.querySelectorAll('.w2-card').forEach(div => {
@@ -17654,6 +17734,8 @@ div.innerHTML = `
                 wages_box1_usd: parseFormattedNumber(div.querySelector('.w2-wages').value) || null,
                 qualified_tip_income_usd: parseFormattedNumber(div.querySelector('.w2-qual-tips').value) || null,
                 qualified_overtime_premium_usd: parseFormattedNumber(div.querySelector('.w2-qual-ot').value) || null,
+                workdays_in_us: parseW2Workdays(div.querySelector('.w2-wd-in')),
+                workdays_outside_us: parseW2Workdays(div.querySelector('.w2-wd-out')),
                 tax_details_collapsed_by_default: {
                     employer_ein: div.querySelector('.w2-ein').value || null,
                     federal_tax_withheld_usd: parseFormattedNumber(div.querySelector('.w2-fedtax').value) || null,
@@ -17678,6 +17760,7 @@ div.innerHTML = `
         });
         usState.income_us_source.wages_w2 = list;
         list.forEach(w2 => syncW2Badges(w2.id));
+        refreshW2WorkLocations();
         if (typeof updateStatutoryW2Dropdowns === 'function') {
             updateStatutoryW2Dropdowns();
         }

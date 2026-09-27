@@ -337,6 +337,36 @@ def _findings_all_result_override(d, ctx, base_compute):
                 "amountUsd": 0, "refs": [est.get("stateName") or est["state"]],
             })
 
+    # US withholding on a non-resident alien's W-2 wages for work done
+    # outside the US — mirrors ustax-full-nodes.js exactly.
+    w2loc = (d.get("aggregateUsIncomeResult") or {}).get("w2WorkLocation")
+    if w2loc and w2loc["isNra"] and w2loc["outsideUsWagesUsd"] > 1 and w2loc["federalWithheldOutsideUsUsd"] + w2loc["ficaWithheldOutsideUsUsd"] > 1:
+        w2_withheld_usd = w2loc["federalWithheldOutsideUsUsd"] + w2loc["ficaWithheldOutsideUsUsd"]
+        us_days = w2loc["usDays"]
+        us_days_str = js_num_str(us_days) if us_days is not None else "null"
+        if w2loc["estimated"]:
+            w2_basis = (" The split is estimated from US days present (" + us_days_str + " ÷ 365) because the W-2's workday fields are blank — "
+                        "enter the client's actual workdays to confirm it.")
+        elif us_days == 0:
+            w2_basis = " Based on 0 US days this year — if the client did work while in the US, enter the days on the W-2."
+        else:
+            w2_basis = ""
+        all_findings.append(make_finding(
+            "us_withholding_outside_us_wages", "critical", "credit",
+            "US withholding on wages for work outside the US — " + _usd(w2_withheld_usd) + " to stop and recover",
+            _usd(w2loc["outsideUsWagesUsd"]) + " of W-2 wages were earned for work done outside the US (taken to be India). For a US non-resident alien "
+            "that pay isn't US-source (IRC §862(a)(3)), so it isn't US income and it's left out of the US tax here — yet the employer withheld about " +
+            _usd(w2loc["federalWithheldOutsideUsUsd"]) + " of federal income tax and " + _usd(w2loc["ficaWithheldOutsideUsUsd"]) + " of Social Security / Medicare on it. "
+            "India taxes the same salary, and it gives no credit for US tax that wasn't owed, so until this is stopped or refunded the salary is taxed twice." + w2_basis,
+            "Stop it: tell the employer's payroll the client is a non-resident alien working outside the US, so the pay isn't US wages for income-tax "
+            "withholding or Social Security / Medicare; if the employer can't run non-US payroll, move the client to an Indian entity or Employer of Record. "
+            "Recover it: within the same calendar year the employer can correct and repay over-withheld tax through payroll (Form 941-X for Social Security / "
+            "Medicare); otherwise file Form 1040-NR (an ITIN is needed if the client has no SSN) showing the wages as foreign-source to get the federal income "
+            "tax back, and claim Social Security / Medicare from the employer, or from the IRS on Form 843 with the employer's statement if the employer won't repay. "
+            "No treaty claim is needed — the exemption is the US source rule itself.",
+            w2_withheld_usd, ["IRC §862(a)(3)", "Form 1040-NR", "Form 843", "Form 941-X"],
+        ))
+
     # DAG-only additions (no JS-source equivalent — deliberately kept OUT of
     # us/findings.py's ALL_FINDING_IDS, which test_findings_domain_split.py
     # pins to the exact 61-id JS-ported catalog; appended here via the same
@@ -780,7 +810,7 @@ def build(base):
                 "usEntityStateTaxResult", "usDualStatusResult", "usExpatriationResult",
                 "usEntityKind", "treatyFiles1040nrRaw", "s6013hElection", "usTaxResult",
                 "nraDerivedEciFdapResult", "nraEciIncomeUsdRaw", "nraFdapIncomeUsdRaw", "nraRaw",
-            ),
+            ) + (() if "aggregateUsIncomeResult" in base_findings_all.deps else ("aggregateUsIncomeResult",)),
             compute=lambda d, ctx: _findings_all_result_override(d, ctx, base_findings_all.compute),
         ),
         reason=OVERRIDE_REASON,

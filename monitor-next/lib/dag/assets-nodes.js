@@ -1048,7 +1048,7 @@ NODES.usIncomeForIndiaBoundary = {
     if (!(d.residencyResult && d.residencyResult.india && d.residencyResult.india.worldwide)) return null;
     var u = d.aggregateUsIncomeResult.usOwnSourceForIndia, fx = fxRate(ctx);
     return {
-      wagesInr: u.wagesUsd * fx, businessInr: u.businessUsd * fx, interestInr: u.interestUsd * fx, dividendsInr: u.dividendsUsd * fx,
+      wagesInr: u.wagesUsd * fx, indiaWorkWagesInr: (u.indiaWorkWagesUsd || 0) * fx, businessInr: u.businessUsd * fx, interestInr: u.interestUsd * fx, dividendsInr: u.dividendsUsd * fx,
       rentalInr: u.rentalUsd * fx, stcgInr: u.stcgUsd * fx, ltcgInr: u.ltcgUsd * fx, retirementInr: u.retirementUsd * fx, otherInr: u.otherUsd * fx
     };
   }

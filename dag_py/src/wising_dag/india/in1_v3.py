@@ -275,7 +275,10 @@ def _us_income_for_india_inr(d, ctx):
     def pos(k):
         return max(0.0, num(u.get(k)))
     return {
-        "salaryInr": pos("wagesInr"), "businessInr": pos("businessInr"),
+        "salaryInr": pos("wagesInr"),
+        # US-employer (W-2) wages for work done in India — see in1-nodes-v3.js.
+        "indiaWorkSalaryInr": pos("indiaWorkWagesInr"),
+        "businessInr": pos("businessInr"),
         "housePropertyInr": pos("rentalInr") * 0.7,
         "otherNormalInr": pos("interestInr") + pos("dividendsInr") + pos("retirementInr") + pos("otherInr"),
         "stcgSlabInr": pos("stcgInr"), "ltcg197Inr": pos("ltcgInr"),
@@ -528,7 +531,7 @@ NODES = {
         compute=_loss_set_off_v3,
     ),
 
-    "normalSlabInr": NodeDef(deps=("salaryInr", "salaryNotChargeableInr", "lossSetOffV3", "usIncomeForIndiaInr", "salaryExemptionLeftoverInr"), compute=lambda d, ctx: max(0, d["salaryInr"] - d["salaryNotChargeableInr"]) + max(0, d["usIncomeForIndiaInr"]["salaryInr"] - d["salaryExemptionLeftoverInr"]) + d["lossSetOffV3"]["businessInr"] + d["lossSetOffV3"]["housePropertyInr"] + d["lossSetOffV3"]["otherNormalInr"] + d["lossSetOffV3"]["stcgSlabInr"] + d["lossSetOffV3"]["speculativeInr"]),
+    "normalSlabInr": NodeDef(deps=("salaryInr", "salaryNotChargeableInr", "lossSetOffV3", "usIncomeForIndiaInr", "salaryExemptionLeftoverInr"), compute=lambda d, ctx: max(0, d["salaryInr"] - d["salaryNotChargeableInr"]) + max(0, d["usIncomeForIndiaInr"]["salaryInr"] + d["usIncomeForIndiaInr"]["indiaWorkSalaryInr"] - d["salaryExemptionLeftoverInr"]) + d["lossSetOffV3"]["businessInr"] + d["lossSetOffV3"]["housePropertyInr"] + d["lossSetOffV3"]["otherNormalInr"] + d["lossSetOffV3"]["stcgSlabInr"] + d["lossSetOffV3"]["speculativeInr"]),
 
     "deductionsInrV3": NodeDef(
         deps=("isNew", "dedS80CCD2Employer", "dedS80C", "dedS80CCD1B", "dedS80D", "dedS80TTA_TTB", "dedS80DD", "dedS80DDB",

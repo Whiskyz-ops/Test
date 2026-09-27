@@ -427,7 +427,12 @@ var NODES = {
       var u = d.usIncomeForIndiaBoundary || {};
       function pos(k) { return Math.max(0, num(u[k])); }
       return {
-        salaryInr: pos("wagesInr"), businessInr: pos("businessInr"),
+        salaryInr: pos("wagesInr"),
+        // US-employer (W-2) wages for work done in India — India-source salary
+        // (aggregateusincome-nodes.js's w2WorkLocation), taxed as salary like
+        // the rest but kept apart so it isn't labelled or relieved as US income.
+        indiaWorkSalaryInr: pos("indiaWorkWagesInr"),
+        businessInr: pos("businessInr"),
         housePropertyInr: pos("rentalInr") * 0.7,
         otherNormalInr: pos("interestInr") + pos("dividendsInr") + pos("retirementInr") + pos("otherInr"),
         stcgSlabInr: pos("stcgInr"), ltcg197Inr: pos("ltcgInr")
@@ -461,7 +466,7 @@ var NODES = {
     }
   },
 
-  normalSlabInr: { deps: ["salaryInr", "salaryNotChargeableInr", "lossSetOffV3", "usIncomeForIndiaInr", "salaryExemptionLeftoverInr"], compute: function (d) { return Math.max(0, d.salaryInr - d.salaryNotChargeableInr) + Math.max(0, d.usIncomeForIndiaInr.salaryInr - d.salaryExemptionLeftoverInr) + d.lossSetOffV3.businessInr + d.lossSetOffV3.housePropertyInr + d.lossSetOffV3.otherNormalInr + d.lossSetOffV3.stcgSlabInr + d.lossSetOffV3.speculativeInr; } },
+  normalSlabInr: { deps: ["salaryInr", "salaryNotChargeableInr", "lossSetOffV3", "usIncomeForIndiaInr", "salaryExemptionLeftoverInr"], compute: function (d) { return Math.max(0, d.salaryInr - d.salaryNotChargeableInr) + Math.max(0, d.usIncomeForIndiaInr.salaryInr + d.usIncomeForIndiaInr.indiaWorkSalaryInr - d.salaryExemptionLeftoverInr) + d.lossSetOffV3.businessInr + d.lossSetOffV3.housePropertyInr + d.lossSetOffV3.otherNormalInr + d.lossSetOffV3.stcgSlabInr + d.lossSetOffV3.speculativeInr; } },
 
   deductionsInrV3: {
     deps: ["isNew", "dedS80CCD2Employer", "dedS80C", "dedS80CCD1B", "dedS80D", "dedS80TTA_TTB", "dedS80DD", "dedS80DDB",
