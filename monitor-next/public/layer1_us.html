@@ -1757,11 +1757,11 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Bank Name</label>
-                        <input type="text" placeholder="Chase, Bank of America, etc." class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all">
+                        <input oninput="updateStateField('refund_direct_deposit', 'bank_name', this.value)" type="text" placeholder="Chase, Bank of America, etc." class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Account Type</label>
-                        <select class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all">
+                        <selectonchange="updateStateField('refund_direct_deposit', 'account_type', this.value)"  class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all">
                             <optgroup label="Personal Accounts">
                                 <option value="checking">Personal Checking</option>
                                 <option value="savings">Personal Savings</option>
@@ -1775,11 +1775,11 @@
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Routing Number</label>
-                        <input type="text" placeholder="9-digit ABA Routing" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all font-mono">
+                        <input oninput="updateStateField('refund_direct_deposit', 'routing_number', this.value)" type="text" placeholder="9-digit ABA Routing" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Account Number</label>
-                        <input type="password" placeholder="••••••••" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all font-mono">
+                        <input oninput="updateStateField('refund_direct_deposit', 'account_number', this.value)" type="password" placeholder="••••••••" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">US Bank Interest (USD)<span class="block text-[7px] text-brandCyan/70 normal-case tracking-normal font-normal mt-0.5">Box 1 of Form 1099-INT — same figure as the "Banks &amp; Brokerages" box on the Passive Income screen</span></label>
@@ -2263,7 +2263,7 @@
                 <!-- Corporate Threshold Check -->
                 <div id="wrapper-corp-receipts-check" style="display:none;" class="p-4 bg-white/5 border border-white/8 rounded-2xl flex-col gap-3">
                     <label class="text-xs font-bold text-white uppercase tracking-widest">Did the entity have Total Receipts and Total Assets LESS than $250,000 for the tax year?</label>
-                    <select id="corp-receipts-threshold" onchange="toggleCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded p-2 text-white text-sm">
+                    <select id="corp-receipts-threshold" onchange="usState.profile.corp_receipts_threshold = this.value; toggleCorporateFinancials()" class="w-full bg-black/40 border border-white/10 rounded p-2 text-white text-sm">
                         <option value="yes">Yes (Under $250k - Exempt from L & M-1)</option>
                         <option value="no">No (Over $250k - Must file L & M-1)</option>
                     </select>
@@ -3576,7 +3576,7 @@
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Private Activity Bond Interest (USD)</label>
-                        <input type="text" inputmode="numeric" id="amt-private-bond" placeholder="0" oninput="updateStateField('amt_inputs', 'private_activity_bond_interest_usd', parseInt(this.value) || 0); calculateAmtAndNiit();" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="amt-private-bond" placeholder="0" oninput="updateStateField('amt_inputs', 'private_activity_bond_interest_usd', parseInt(this.value) || 0);" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1 flex items-center justify-between">
@@ -6176,7 +6176,7 @@
         usState.nra_specific.treaty_rate_claims = list;
     }
 
-    function addTreatyRateRow() {
+    function addTreatyRateRow(data) {
         const tbody = document.getElementById('treaty-rates-tbody');
         if (!tbody) return;
         
@@ -6198,8 +6198,25 @@
             </td>
         `;
         tbody.appendChild(tr);
+        if (data) {
+            // restoring a saved claim: fill the row, don't re-sync the list
+            const sel = tr.querySelector('select'); if (sel && data.income_type) sel.value = data.income_type;
+            const ins = tr.querySelectorAll('input');
+            if (ins[0] && data.elected_rate != null) ins[0].value = data.elected_rate;
+            if (ins[1] && data.treaty_article != null) ins[1].value = data.treaty_article;
+            return;
+        }
         syncTreatyRates();
         saveStateAndSync();
+    }
+
+    // Saved treaty-rate claims were never shown again on reopen — and adding a
+    // new row rebuilt the list from the screen, silently deleting them.
+    function renderTreatyRateRows() {
+        const tbody = document.getElementById('treaty-rates-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        ((usState.nra_specific && usState.nra_specific.treaty_rate_claims) || []).forEach(c => { if (c) addTreatyRateRow(c); });
     }
 
     function toggleAccordion(elementId, chevronId = null) {
@@ -7284,6 +7301,12 @@
             };
         }
         
+        // saved data may carry only some schedules (e.g. no schedule_l) —
+        // writing into a missing one threw and stopped the rest of the page
+        ['schedule_l', 'schedule_m1', 'schedule_m2'].forEach(k => {
+            if (!usState.corporate_financials[k] || typeof usState.corporate_financials[k] !== 'object') usState.corporate_financials[k] = {};
+        });
+
         // Schedule L
         usState.corporate_financials.schedule_l.assets_beginning = parseFormattedNumber(document.getElementById('corp-assets-beg')?.value) || 0;
         usState.corporate_financials.schedule_l.assets_ending = parseFormattedNumber(document.getElementById('corp-assets-end')?.value) || 0;
@@ -11722,6 +11745,10 @@ div.innerHTML = `
     function normalizeAssetItem(item) {
         if (!item) return null;
         return {
+            // keep every field of the saved row; the normalised fields below take
+            // precedence. (Rebuilding from this list alone dropped everything it
+            // doesn't name — e.g. all Schedule C expense lines — on every open.)
+            ...item,
             id: item.id || 'asset-' + Date.now() + Math.random().toString(36).substring(2, 5),
             name: item.name || '',
             class: item.class || '5-year',
@@ -13087,6 +13114,10 @@ div.innerHTML = `
             assets: []
         };
         return {
+            // keep every field of the saved row; the normalised fields below take
+            // precedence. (Rebuilding from this list alone dropped everything it
+            // doesn't name — e.g. all Schedule C expense lines — on every open.)
+            ...item,
             id: item.id || 'se-' + Date.now() + Math.random().toString(36).substring(2, 5),
             business_name: item.business_name || null,
             naics_code: item.naics_code || null,
@@ -13771,6 +13802,10 @@ div.innerHTML = `
             assets: []
         };
         return {
+            // keep every field of the saved row; the normalised fields below take
+            // precedence. (Rebuilding from this list alone dropped everything it
+            // doesn't name — e.g. all Schedule C expense lines — on every open.)
+            ...item,
             id: item.id || 'farm-' + Date.now() + Math.random().toString(36).substring(2, 5),
             business_name: item.business_name || null,
             ein: item.ein || null,
@@ -14334,6 +14369,10 @@ div.innerHTML = `
             assets: []
         };
         return {
+            // keep every field of the saved row; the normalised fields below take
+            // precedence. (Rebuilding from this list alone dropped everything it
+            // doesn't name — e.g. all Schedule C expense lines — on every open.)
+            ...item,
             id: item.id || 'part-k1-' + Date.now() + Math.random().toString(36).substring(2, 5),
             business_name: item.business_name || null,
             ein: item.ein || null,
@@ -15220,6 +15259,10 @@ div.innerHTML = `
             forms_1099: []
         };
         return {
+            // keep every field of the saved row; the normalised fields below take
+            // precedence. (Rebuilding from this list alone dropped everything it
+            // doesn't name — e.g. all Schedule C expense lines — on every open.)
+            ...item,
             id: item.id || 'scorp-k1-' + Date.now() + Math.random().toString(36).substring(2, 5),
             business_name: item.business_name || null,
             ein: item.ein || null,
@@ -15925,6 +15968,10 @@ div.innerHTML = `
             state_allocations: [], branches: [], assets: [], forms_1099: []
         };
         return {
+            // keep every field of the saved row; the normalised fields below take
+            // precedence. (Rebuilding from this list alone dropped everything it
+            // doesn't name — e.g. all Schedule C expense lines — on every open.)
+            ...item,
             id: item.id || 'ccorp-' + Date.now() + Math.random().toString(36).substring(2, 5),
             business_name: item.business_name || null,
             ein: item.ein || null,
@@ -16729,6 +16776,10 @@ div.innerHTML = `
             assets: []
         };
         return {
+            // keep every field of the saved row; the normalised fields below take
+            // precedence. (Rebuilding from this list alone dropped everything it
+            // doesn't name — e.g. all Schedule C expense lines — on every open.)
+            ...item,
             id: item.id || 'trust-k1-' + Date.now() + Math.random().toString(36).substring(2, 5),
             business_name: item.business_name || null,
             ein: item.ein || null,
@@ -17225,6 +17276,10 @@ div.innerHTML = `
             return data;
         }
         return {
+            // keep every field of the saved row; the normalised fields below take
+            // precedence. (Rebuilding from this list alone dropped everything it
+            // doesn't name — e.g. all Schedule C expense lines — on every open.)
+            ...data,
             employer_name: data.employer_name || null,
             wages_box1_usd: data.wages_tips_compensation_usd || null,
             tax_details_collapsed_by_default: {
@@ -17831,6 +17886,7 @@ div.innerHTML = `
                 workdays_outside_us: parseW2Workdays(div.querySelector('.w2-wd-out')),
                 tax_details_collapsed_by_default: {
                     employer_ein: div.querySelector('.w2-ein').value || null,
+                    control_number: div.querySelector('.w2-control') ? div.querySelector('.w2-control').value || null : null, // shown and restored, but never saved
                     federal_tax_withheld_usd: parseFormattedNumber(div.querySelector('.w2-fedtax').value) || null,
                     ss_wages_box3_usd: parseFormattedNumber(div.querySelector('.w2-sswages').value) || null,
                     ss_tax_withheld_usd: parseFormattedNumber(div.querySelector('.w2-sstax').value) || null,
@@ -20457,6 +20513,56 @@ div.innerHTML = `
             else keepUnwrittenUsFields(orig[k], cur[k]);
         });
     }
+    // AUTOSAVE: any edit saves shortly after; leaving the page saves at once
+    // (some handlers only update the in-memory state).
+    let usAutosaveTimer = null, usPageReady = false;
+    function onUsFieldEdit() {
+        if (!usPageReady) return; // restoring the page on load isn't an edit
+        clearTimeout(usAutosaveTimer);
+        usAutosaveTimer = setTimeout(() => { try { recalculateDerivedFields(); saveStateAndSync(); } catch (e) { try { persistUsState(); } catch (e2) {} } }, 400);
+    }
+    document.addEventListener('input', onUsFieldEdit, true);
+    document.addEventListener('change', onUsFieldEdit, true);
+    window.addEventListener('pagehide', () => { if (usPageReady) { clearTimeout(usAutosaveTimer); try { persistUsState(); } catch (e) {} } });
+
+    // Inputs whose inline handler writes a known state field are redisplayed
+    // from that field at the end of load (several had no restore at all, e.g.
+    // the capital-loss carryovers, so a saved amount showed blank and the
+    // next save could overwrite it).
+    function restoreUsFieldsFromHandlers() {
+        document.querySelectorAll('input[oninput], input[onchange], select[onchange], textarea[oninput]').forEach(el => {
+            if (el.type === 'checkbox' || el.type === 'radio') return;
+            const h = el.getAttribute('oninput') || el.getAttribute('onchange') || '';
+            let obj = null, field = null, m;
+            if ((m = /updateStateField\('([^']+)',\s*'([^']+)'[^)]*this\.value/.exec(h))) { obj = usState[m[1]]; field = m[2]; }
+            else if ((m = /updateResidencyField\('([^']+)'[^)]*this\.value/.exec(h))) { obj = usState.us_residency_detail; field = m[1]; }
+            else if ((m = /updateProfileField\('([^']+)'[^)]*this\.value/.exec(h))) { obj = usState.profile; field = m[1]; }
+            else if ((m = /^\s*usState\.([a-z_]+)\.([a-z0-9_]+)\s*=[^;]*this\.value/.exec(h))) { obj = usState[m[1]]; field = m[2]; }
+            if (!obj || !field) return;
+            const v = obj[field];
+            if (v === null || v === undefined || typeof v === 'object' || typeof v === 'boolean') return;
+            if (el.tagName === 'SELECT' && !Array.from(el.options).some(o => o.value === String(v))) return;
+            if (el.value === String(v)) return;
+            el.value = v;
+        });
+    }
+
+    // Checkboxes saved through the same updaters with this.checked — W-8BEN
+    // on file, §6013(h) joint election, US PE, accrued-method FTC election,
+    // Form 8332, foreign-corporation flags … — were never ticked again on
+    // reopen, and the next save of that section could write them back false.
+    function restoreUsTogglesFromHandlers() {
+        document.querySelectorAll('input[type=checkbox]').forEach(el => {
+            const h = (el.getAttribute('onchange') || '') + ' ' + (el.getAttribute('onclick') || '');
+            let obj = null, field = null, m;
+            if ((m = /updateStateField\('([^']+)',\s*'([^']+)',\s*this\.checked/.exec(h))) { obj = usState[m[1]]; field = m[2]; }
+            else if ((m = /updateResidencyField\('([^']+)',\s*this\.checked/.exec(h))) { obj = usState.us_residency_detail; field = m[1]; }
+            else if ((m = /updateProfileField\('([^']+)',\s*this\.checked/.exec(h))) { obj = usState.profile; field = m[1]; }
+            if (!obj || !field || typeof obj[field] !== 'boolean') return;
+            el.checked = obj[field];
+        });
+    }
+
     function persistUsState() {
         captureUsBaseline();
         const out = JSON.parse(JSON.stringify(usState));
@@ -21147,6 +21253,7 @@ div.innerHTML = `
             // $4,900 from AGI/AMTI/NIIT because hasTrustK1Toggled never derived true.
             applyIntakeSetup(savedState);
             if (savedState.profile) Object.assign(usState.profile, savedState.profile);
+            if (savedState.refund_direct_deposit) usState.refund_direct_deposit = Object.assign({}, savedState.refund_direct_deposit);
             if (savedState.us_residency_detail) Object.assign(usState.us_residency_detail, savedState.us_residency_detail);
             if (savedState.state_residency) Object.assign(usState.state_residency, savedState.state_residency);
             if (savedState.income_us_source) {
@@ -21329,6 +21436,23 @@ div.innerHTML = `
             if (cryptoHas) {
                 cryptoHas.value = usState.income_us_source.has_crypto || false;
                 toggleUSCapGainsModule('crypto', cryptoHas.value);
+            }
+            // The other four capital-gains sections were never restored, so a
+            // "Yes" (and the section under it) was gone on reopen. Yes = saved
+            // Yes, or rows / amounts on file.
+            {
+                const iu = usState.income_us_source;
+                const rows = (k) => Array.isArray(iu[k]) && iu[k].length > 0;
+                [['qsbs', iu.has_qsbs || rows('qsbs_transactions')],
+                 ['real_estate', iu.has_real_estate || rows('real_estate_transactions')],
+                 ['collectibles', iu.has_collectibles || rows('collectibles_transactions')],
+                 ['capital_loss_carryovers', iu.has_capital_loss_carryovers || (iu.st_loss_carryover_usd || 0) > 0 || (iu.lt_loss_carryover_usd || 0) > 0]
+                ].forEach(([mod, on]) => {
+                    const sel = document.getElementById(mod + '-us-has');
+                    if (!sel) return;
+                    sel.value = on ? 'true' : 'false';
+                    toggleUSCapGainsModule(mod, sel.value);
+                });
             }
             
             if(document.getElementById('res-us-citizen')) document.getElementById('res-us-citizen').checked = usState.us_residency_detail.is_us_citizen;
@@ -21761,6 +21885,10 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
         // Second pass on the final state (see applyIntakeSetup). The Business
         // umbrella toggle only ever switches ON here: rows present = on.
         applyIntakeSetup(usState);
+        renderTreatyRateRows();
+        restoreUsFieldsFromHandlers();
+        restoreUsTogglesFromHandlers();
+        if (typeof toggleCorporateFinancials === 'function') { try { toggleCorporateFinancials(); } catch (e) {} } // re-apply the restored receipts answer
         {
             const iu = usState.income_us_source || {};
             const anyBizRows = ['self_employment', 'farming_schedule_f', 'partnerships_k1', 's_corporations_k1', 'c_corporations_1120', 'trusts_estates_k1']
@@ -21773,6 +21901,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
         
         // Apply UX for scalar elements hydrated from India
         setTimeout(applyHydrationUX, 500);
+        usPageReady = true;
     }
 
     // ══════════════════════════════════════════════════════════════════════

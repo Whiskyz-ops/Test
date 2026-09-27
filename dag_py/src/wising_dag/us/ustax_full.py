@@ -393,7 +393,8 @@ def _findings_all_result_override(d, ctx, base_compute):
         declared_total_usd = declared_eci_usd + declared_fdap_usd
         delta_usd = derived["derivedTotalUsd"] - declared_total_usd
         materiality_usd = max(100.0, 0.01 * derived["derivedTotalUsd"])
-        if abs(delta_usd) > materiality_usd:
+        # Only when Layer 1 saved a split: without one the tax already uses the re-derivation.
+        if d.get("nraSplitDeclaredRaw", True) and abs(delta_usd) > materiality_usd:
             eci_delta_usd = derived["derivedEciUsd"] - declared_eci_usd
             fdap_delta_usd = derived["derivedFdapUsd"] - declared_fdap_usd
             all_findings.append(make_finding(
@@ -482,13 +483,32 @@ _ARTICLE_21_2_AUTO_VISA = "f1"
 _ARTICLE_21_2_AMBIGUOUS_VISA = "j1"
 
 
+def _nra_split_declared_raw(d, ctx):
+    e = safe(ctx.get("us"), "nra_specific.us_eci_income_usd", None)
+    f = safe(ctx.get("us"), "nra_specific.us_fdap_income_usd", None)
+    return (e is not None and e != "") or (f is not None and f != "")
+
+
+def _nra_effective_eci_fdap(d, ctx):
+    """The ECI/FDAP split an NRA is taxed on — Layer 1 US's saved split, or,
+    when none was saved, the engine's own re-derivation (US rent moved to ECI
+    under a §871(d) net-basis election, as the form does). A missing split
+    used to mean $0 of income. Mirrors ustax-full-nodes.js."""
+    if d["nraSplitDeclaredRaw"]:
+        return {"eciUsd": d["nraEciIncomeUsdRaw"] or 0, "fdapUsd": d["nraFdapIncomeUsdRaw"] or 0, "source": "layer1"}
+    dv = d["nraDerivedEciFdapResult"]
+    rental = num(d["aggregateUsIncomeResult"]["rentalUs"]["usd"]) if safe(ctx.get("us"), "nra_specific.rental_net_basis_election", False) is True else 0
+    return {"eciUsd": dv["derivedEciUsd"] + rental, "fdapUsd": dv["derivedFdapUsd"] - rental, "source": "derived"}
+
+
 def _nra_tax_result(d, ctx):
     status = "mfj" if d["usFilingStatusRaw"] == "mfj" else "single"
     brackets = T["BRACKETS"].get(status, T["BRACKETS"]["single"])
     ded = d["dedUs"]
 
-    eci_usd = d["nraEciIncomeUsdRaw"] or 0
-    fdap_usd = d["nraFdapIncomeUsdRaw"] or 0
+    split = d.get("nraEffectiveEciFdap") or {"eciUsd": d["nraEciIncomeUsdRaw"] or 0, "fdapUsd": d["nraFdapIncomeUsdRaw"] or 0, "source": "layer1"}
+    eci_usd = split["eciUsd"] or 0
+    fdap_usd = split["fdapUsd"] or 0
     claims = d["nraRaw"]["treatyRateClaims"] or []
     claim = claims[0] if claims else None
     claimed_rate = max(0.0, min(1.0, num(claim["elected_rate"]) / 100)) if (claim and claim.get("elected_rate") is not None) else None
@@ -530,6 +550,7 @@ def _nra_tax_result(d, ctx):
         "foreignSourceIncomeUsd": 0,
         "usSourceIncomeUsd": eci_usd + fdap_usd,
         "nra": {
+            "splitSource": split["source"],
             "eciUsd": eci_usd, "fdapUsd": fdap_usd, "fdapRate": fdap_rate, "eciTaxUsd": eci_tax_usd, "fdapTaxUsd": fdap_tax_usd,
             "taxableEciUsd": taxable_eci_usd, "eciBracketBreakdown": eci_bracket_breakdown,
             "claimedRate": claimed_rate, "w8benOnFile": w8ben_on_file, "incomeType": (claim.get("income_type") if claim else None) or None,
@@ -782,8 +803,13 @@ def build(base):
     r.register("usEntityTaxResult", NodeDef(deps=("usEntityKind", "entityResult", "aggregateUsIncomeResult", "trustRetainedIncomeUsdRaw"), compute=_us_entity_tax_result))
     r.register("usEntityStateOfDomicileRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "profile.state_of_domicile", None), layer1_fields=("us.profile.state_of_domicile",)))
     r.register("usEntityStateTaxResult", NodeDef(deps=("usEntityKind", "usEntityStateOfDomicileRaw", "usEntityTaxResult"), compute=_us_entity_state_tax_result))
+    r.register("nraSplitDeclaredRaw", NodeDef(deps=(), compute=_nra_split_declared_raw,
+        layer1_fields=("us.nra_specific.us_eci_income_usd", "us.nra_specific.us_fdap_income_usd")))
+    r.register("nraEffectiveEciFdap", NodeDef(
+        deps=("nraSplitDeclaredRaw", "nraEciIncomeUsdRaw", "nraFdapIncomeUsdRaw", "nraDerivedEciFdapResult", "aggregateUsIncomeResult"),
+        compute=_nra_effective_eci_fdap, layer1_fields=("us.nra_specific.rental_net_basis_election",)))
     r.register("nraTaxResult", NodeDef(
-        deps=("nraRaw", "nraFdapIncomeUsdRaw", "nraEciIncomeUsdRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary", "usVisaTypeRaw"),
+        deps=("nraRaw", "nraFdapIncomeUsdRaw", "nraEciIncomeUsdRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary", "usVisaTypeRaw", "nraEffectiveEciFdap"),
         compute=_nra_tax_result,
     ))
 
@@ -812,7 +838,7 @@ def build(base):
             deps=base_findings_all.deps + (
                 "usEntityStateTaxResult", "usDualStatusResult", "usExpatriationResult",
                 "usEntityKind", "treatyFiles1040nrRaw", "s6013hElection", "usTaxResult",
-                "nraDerivedEciFdapResult", "nraEciIncomeUsdRaw", "nraFdapIncomeUsdRaw", "nraRaw",
+                "nraDerivedEciFdapResult", "nraEciIncomeUsdRaw", "nraFdapIncomeUsdRaw", "nraRaw", "nraSplitDeclaredRaw",
             ) + (() if "aggregateUsIncomeResult" in base_findings_all.deps else ("aggregateUsIncomeResult",)),
             compute=lambda d, ctx: _findings_all_result_override(d, ctx, base_findings_all.compute),
         ),

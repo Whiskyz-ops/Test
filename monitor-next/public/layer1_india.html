@@ -3504,7 +3504,7 @@
                     <p class="text-[10px] text-white/40">Includes property, mutual funds, stocks, crypto, gold, buybacks, etc.</p>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="cg-has" onchange="toggleCGSection(this.checked)" class="sr-only peer">
+                    <input type="checkbox" id="cg-has" onchange="toggleCGSection(this.checked, true)" class="sr-only peer">
                     <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brandGold peer-checked:after:bg-black"></div>
                 </label>
             </div>
@@ -7439,7 +7439,7 @@ const crDiv = document.getElementById('div-company-residency');
                             <p class="mt-1 text-white/50">Rates fluctuate. Check your bank statement for exact figures.</p>
                         </div>
                     </label>
-                    <input type="text" inputmode="numeric" step="0.01" class="inr-input bank-rate w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all font-mono" placeholder="e.g. 3.5" oninput="syncBankAccountsState()">
+                    <input type="text" inputmode="numeric" step="0.01" class="bank-rate w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all font-mono" placeholder="e.g. 3.5" oninput="syncBankAccountsState()">
                     <p class="text-[9px] text-white/30 mt-1">Leave blank if you only know the interest amount credited.</p>
                 </div>
                 <div class="bank-nro-balance hidden">
@@ -7487,7 +7487,9 @@ const crDiv = document.getElementById('div-company-residency');
             div.querySelector('.bank-type').value = normalizeBankType(acc.account_type);
             div.querySelector('.bank-bal').value = (peak !== undefined && peak !== null) ? peak : '';
             div.querySelector('.bank-bal-curr').value = currency;
-            div.querySelector('.bank-rate').value = acc.annual_interest_rate ? (acc.annual_interest_rate * 100).toFixed(2) : '';
+            // a percentage, not a rupee amount: 3.5 must stay 3.5 (the rupee
+            // formatter turned "37.00" into "3,700" on reopen)
+            div.querySelector('.bank-rate').value = acc.annual_interest_rate ? String(Number((acc.annual_interest_rate * 100).toFixed(4))) : '';
             div.querySelector('.bank-int').value = acc.interest_credited_this_fy_inr || '';
             const usCertEl = div.querySelector('.bank-us-person-cert');
             if (usCertEl) usCertEl.value = (acc.us_person_certified_to_bank === null || acc.us_person_certified_to_bank === undefined) ? 'null' : String(acc.us_person_certified_to_bank);
@@ -7533,7 +7535,7 @@ const crDiv = document.getElementById('div-company-residency');
                 peak_balance_inr: bal === null ? null : (cur === 'INR' ? bal : (cur === 'USD' ? Math.round(bal * inrPerUsd) : null)),
                 current_balance: bal,
                 current_balance_currency: cur,
-                annual_interest_rate: parseINRCurrency(div.querySelector('.bank-rate').value) / 100 || null,
+                annual_interest_rate: (parseFloat(String(div.querySelector('.bank-rate').value).replace(/[^0-9.]/g, '')) / 100) || null, // parseINRCurrency truncates 3.5 to 3
                 interest_credited_this_fy_inr: parseINRCurrency(div.querySelector('.bank-int').value) || null,
                 us_person_certified_to_bank: (function () {
                     var el = div.querySelector('.bank-us-person-cert');
@@ -7901,6 +7903,12 @@ const crDiv = document.getElementById('div-company-residency');
             }
             const addrEl = div.querySelector('.prop-address');
             if (addrEl && tx.address) addrEl.value = tx.address;
+            const pinEl = div.querySelector('.prop-pincode');
+            if (pinEl && tx.pincode) pinEl.value = tx.pincode;
+            const buyerNameEl = div.querySelector('.prop-buyer-name');
+            if (buyerNameEl && tx.buyer_name) buyerNameEl.value = tx.buyer_name;
+            const buyerPanEl = div.querySelector('.prop-buyer-pan');
+            if (buyerPanEl && tx.buyer_pan) buyerPanEl.value = tx.buyer_pan;
             const acqDateEl = div.querySelector('.prop-acq-date');
             if (acqDateEl && tx.acquisition_date) acqDateEl.value = tx.acquisition_date;
             const costEl = div.querySelector('.prop-cost');
@@ -8050,6 +8058,12 @@ const crDiv = document.getElementById('div-company-residency');
             const p = {
                 property_type: div.querySelector('.prop-type').value || null,
                 status: isHolding ? 'holding' : 'sold',
+                // address / PIN / buyer details were shown but never saved, so
+                // what the user typed was replaced by the old data on reopen
+                address: div.querySelector('.prop-address').value || null,
+                pincode: div.querySelector('.prop-pincode').value || null,
+                buyer_name: isHolding ? null : (div.querySelector('.prop-buyer-name') ? div.querySelector('.prop-buyer-name').value || null : null),
+                buyer_pan: isHolding ? null : (div.querySelector('.prop-buyer-pan') ? div.querySelector('.prop-buyer-pan').value || null : null),
                 acquisition_date: div.querySelector('.prop-acq-date').value || null,
                 actual_cost: parseINRCurrency(div.querySelector('.prop-cost').value),
                 actual_cost_currency: div.querySelector('.prop-cost-curr').value,
@@ -8190,6 +8204,13 @@ const crDiv = document.getElementById('div-company-residency');
             if (costEl && tx.original_cost_inr != null) costEl.value = tx.original_cost_inr;
             const acqEl = div.querySelector('.bb-acq-date');
             if (acqEl && tx.original_acquisition_date) acqEl.value = tx.original_acquisition_date;
+            // saved by syncBuybackState but never restored — lost on reopen
+            const isinEl = div.querySelector('.bb-isin');
+            if (isinEl && tx.isin) isinEl.value = tx.isin;
+            const routeEl = div.querySelector('.bb-route');
+            if (routeEl && tx.tender_or_open_market) routeEl.value = tx.tender_or_open_market;
+            const sharesEl = div.querySelector('.bb-shares');
+            if (sharesEl && tx.shares_tendered != null) sharesEl.value = tx.shares_tendered;
         }
         syncBuybackState();
     }
@@ -11758,16 +11779,31 @@ ${isProf ? '' : `
 
     
     
-        function toggleCGSection(show) {
+        // fromUser: the user ticked/unticked the box (not a restore on load).
+        // Only then is the answer saved and the sub-sections reset — on load
+        // this runs with a value derived from the quarter being viewed, which
+        // can be "No" while other quarters hold gains.
+        function toggleCGSection(show, fromUser) {
+            // The answer itself is saved: "No" used to flip back to "Yes" on
+            // reopen whenever capital-gains rows existed, and the engine kept
+            // taxing them. With cg_section_off the engine drops them.
+            if (fromUser && state.capital_gains) state.capital_gains.cg_section_off = !show;
             const sec = document.getElementById('div-cg-section');
             if (sec) {
                 if (show) {
                     sec.classList.remove('hidden');
                 } else {
                     sec.classList.add('hidden');
-                    // Reset internal selects if needed
+                    // Reset internal selects if needed. (The ids below other
+                    // than prop-has don't exist on this page, so the trading /
+                    // gold / unlisted / buyback sub-sections kept their "Yes"
+                    // and were still taxed; the real ones are reset too.)
+                    if (fromUser) ['fin-has', 'com-has', 'ul-has', 'bb-has'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el && el.value !== 'false') { el.value = 'false'; el.dispatchEvent(new Event('change')); }
+                    });
                     const prop = document.getElementById('prop-has');
-                    if (prop) { prop.value = 'false'; togglePropertyModule('false'); }
+                    if (prop && fromUser) { prop.value = 'false'; togglePropertyModule('false'); }
                     const bb = document.getElementById('cg-buyback-has');
                     if (bb) { bb.value = 'false'; toggleBuybackModule('false'); }
                     const sc = document.getElementById('cg-stocks-crypto-has');
@@ -11988,6 +12024,14 @@ ${isProf ? '' : `
         }
     }
     
+    // The political-donation input called this, but it didn't exist — its
+    // handler is guarded with typeof, so the amount was silently never saved
+    // (the engine reads deductions.s80ggb_ggc_political_donation_inr).
+    function updatePoliticalDonation(val) {
+        if (!state.deductions) state.deductions = {};
+        state.deductions.s80ggb_ggc_political_donation_inr = val === '' ? null : parseINRCurrency(val);
+    }
+
     function updateSpecialDeduction(field, val) {
         if (!state.deductions) state.deductions = {};
         state.deductions[field] = val === '' ? null : parseINRCurrency(val);
@@ -14482,6 +14526,16 @@ ${isProf ? '' : `
                 const el = document.getElementById(id);
                 if (el) el.value = val !== null && val !== undefined ? val : '';
             }
+            // Allowance inputs (conveyance / tour / daily …) write
+            // salary[<allowance>][<field>] via updateSalaryNestedNum and were
+            // never restored — typed amounts vanished on reopen. Restore every
+            // such input from the same two names its own handler uses.
+            document.querySelectorAll('input[oninput*="updateSalaryNestedNum("]').forEach(el => {
+                const m = /updateSalaryNestedNum\('([^']+)',\s*'([^']+)'/.exec(el.getAttribute('oninput'));
+                if (!m) return;
+                const v = sal[m[1]] && sal[m[1]][m[2]];
+                el.value = v !== null && v !== undefined ? v : '';
+            });
             refreshSalaryWorkLocation();
             const elMetro = document.getElementById('sal-metro');
             if (elMetro) elMetro.checked = sal.is_metro_city || false;
@@ -14506,7 +14560,7 @@ ${isProf ? '' : `
             if (hasHp) { hasHp.checked = hpForToggle.has_house_property_income || false; toggleHPSection(hasHp.checked); }
         }
         const cgGatekeeper = document.getElementById('cg-has');
-        if (cgGatekeeper) { cgGatekeeper.checked = hasAnyCapitalGainsData(); toggleCGSection(cgGatekeeper.checked); }
+        if (cgGatekeeper) { cgGatekeeper.checked = !(state.capital_gains && state.capital_gains.cg_section_off === true) && hasAnyCapitalGainsData(); toggleCGSection(cgGatekeeper.checked); }
         const osGatekeeper = document.getElementById('os-has');
         if (osGatekeeper && state.other_sources) { osGatekeeper.checked = state.other_sources.has_other_sources_income || false; toggleOSSection(osGatekeeper.checked); }
 
@@ -14516,7 +14570,8 @@ ${isProf ? '' : `
         const propGatekeeper = document.getElementById('prop-has');
         if (propGatekeeper) {
             if (typeof renderPropertyTransactions === 'function') renderPropertyTransactions();
-            const hasProp = !!(state.property && (state.property.has_indian_property_transaction ||
+            // an explicit "No" stays No (it used to flip back to Yes whenever rows existed)
+            const hasProp = !!(state.property && state.property.has_indian_property_transaction !== false && (state.property.has_indian_property_transaction ||
                 (state.property.properties && state.property.properties.length > 0)));
             propGatekeeper.value = hasProp ? 'true' : 'false';
             togglePropertyModule(propGatekeeper.value);
@@ -14541,22 +14596,22 @@ ${isProf ? '' : `
 
         const finGatekeeper = document.getElementById('fin-has');
         if (finGatekeeper && state.financial_holdings) {
-            const hasFin = !!(state.financial_holdings.has_financial_transactions ||
-                (state.financial_holdings.transactions && state.financial_holdings.transactions.length > 0));
+            const hasFin = !!(state.financial_holdings.has_financial_transactions !== false && (state.financial_holdings.has_financial_transactions ||
+                (state.financial_holdings.transactions && state.financial_holdings.transactions.length > 0)));
             finGatekeeper.value = hasFin ? 'true' : 'false';
             toggleFinancialModule(finGatekeeper.value);
         }
         const comGatekeeper = document.getElementById('com-has');
         if (comGatekeeper && state.commodities) {
-            const hasCom = !!(state.commodities.has_commodity_transactions ||
-                (state.commodities.transactions && state.commodities.transactions.length > 0));
+            const hasCom = !!(state.commodities.has_commodity_transactions !== false && (state.commodities.has_commodity_transactions ||
+                (state.commodities.transactions && state.commodities.transactions.length > 0)));
             comGatekeeper.value = hasCom ? 'true' : 'false';
             toggleCommodityModule(comGatekeeper.value);
         }
         const ulGatekeeper = document.getElementById('ul-has');
         if (ulGatekeeper && state.unlisted_equity) {
-            const hasUl = !!(state.unlisted_equity.has_unlisted_equity_transaction ||
-                (state.unlisted_equity.transactions && state.unlisted_equity.transactions.length > 0));
+            const hasUl = !!(state.unlisted_equity.has_unlisted_equity_transaction !== false && (state.unlisted_equity.has_unlisted_equity_transaction ||
+                (state.unlisted_equity.transactions && state.unlisted_equity.transactions.length > 0)));
             ulGatekeeper.value = hasUl ? 'true' : 'false';
             toggleUnlistedModule(ulGatekeeper.value);
         }
@@ -14572,7 +14627,7 @@ ${isProf ? '' : `
         const bbGatekeeper = document.getElementById('bb-has');
         if (bbGatekeeper) {
             if (typeof renderBuybackRows === 'function') renderBuybackRows();
-            const hasBb = !!(state.share_buyback && (state.share_buyback.has_buyback_transaction ||
+            const hasBb = !!(state.share_buyback && state.share_buyback.has_buyback_transaction !== false && (state.share_buyback.has_buyback_transaction ||
                 (state.share_buyback.transactions && state.share_buyback.transactions.length > 0)));
             bbGatekeeper.value = hasBb ? 'true' : 'false';
             toggleBuybackModule(bbGatekeeper.value);
@@ -14707,6 +14762,16 @@ ${isProf ? '' : `
             if (typeof di.has_agricultural_income !== 'boolean' && Number(di.agricultural_income_inr) > 0) di.has_agricultural_income = true;
         }
         if (unset(slice.other_sources, 'has_other_sources_income') && sectionHasData(slice.other_sources)) slice.other_sources.has_other_sources_income = true;
+        // Capital-gains sub-sections: rows without a Yes/No answer are a Yes.
+        // (The template defaults these to false, and an explicit false now
+        // means "No" — the engine drops those rows — so a missing answer
+        // must not become one.)
+        [['property', 'has_indian_property_transaction', 'properties'], ['financial_holdings', 'has_financial_transactions', 'transactions'],
+         ['commodities', 'has_commodity_transactions', 'transactions'], ['unlisted_equity', 'has_unlisted_equity_transaction', 'transactions'],
+         ['share_buyback', 'has_buyback_transaction', 'transactions']].forEach(([sec, flag, rows]) => {
+            const x = slice[sec];
+            if (unset(x, flag) && Array.isArray(x[rows]) && x[rows].length) x[flag] = true;
+        });
     }
 
     function _initWindowOnLoad() {
@@ -15205,7 +15270,20 @@ ${isProf ? '' : `
             updateLrsTcs();
         }
         if (typeof syncSetupCardsFromState === 'function') syncSetupCardsFromState();
+        if (typeof restoreFieldsFromHandlers === 'function') restoreFieldsFromHandlers();
+        if (typeof restoreTogglesFromState === 'function') restoreTogglesFromState();
+        // A company that opted for s.115BAA can't use MAT or the disallowed
+        // deductions; opting in hides those fields, but on load they stayed
+        // visible and editable (and anything typed was cleared later). Hide
+        // them on load too — display only, the saved data is left alone.
+        if (state.profile && state.profile.opt_115baa) {
+            ['div-prof-mat-profit', 'div-unadep-additional-container', 'div-ded-80iac', 'div-ded-80la', 'div-ded-80p', 'div-ded-political'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+            });
+        }
         if (typeof saveLayer1State === 'function') saveLayer1State();
+        indiaPageReady = true;
     }
 
     function evaluateSalaryRegimeLock() {
@@ -16583,6 +16661,68 @@ ${isProf ? '' : `
 
     function persistIndiaState() {
         localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'), serializeIndiaState());
+    }
+
+    // AUTOSAVE. Many field handlers (80C, 80D, 80TTA, 80EEA, NPS, …) only
+    // update the in-memory state and never save; what was typed there was
+    // stored only if some later action happened to save. Any edit now saves
+    // shortly after, and leaving the page saves immediately.
+    let indiaAutosaveTimer = null, indiaPageReady = false;
+    document.addEventListener('input', onIndiaFieldEdit, true);
+    document.addEventListener('change', onIndiaFieldEdit, true);
+    function onIndiaFieldEdit(e) {
+        if (!indiaPageReady) return; // restoring the page on load isn't an edit
+        clearTimeout(indiaAutosaveTimer);
+        indiaAutosaveTimer = setTimeout(() => { try { saveLayer1State(); } catch (err) { try { persistIndiaState(); } catch (e2) {} } }, 400);
+    }
+    window.addEventListener('pagehide', () => { if (indiaPageReady) { clearTimeout(indiaAutosaveTimer); try { persistIndiaState(); } catch (e) {} } });
+
+    // Inputs whose inline handler writes a known state field are redisplayed
+    // from that same field on load. Several hand-written restores read a
+    // different key than their handler writes (e.g. 80D premiums), so the
+    // saved amount came back blank after reopening.
+    const INDIA_FIELD_UPDATERS = {
+        update80C: (f) => state.deductions.s80C && state.deductions.s80C[f],
+        update80CCC_80CCD1: (f) => state.deductions.s80CCC_80CCD1 && state.deductions.s80CCC_80CCD1[f],
+        update80D: (f) => state.deductions.s80D && state.deductions.s80D[f],
+        update80TTA: (f) => state.deductions.s80TTA_TTB && state.deductions.s80TTA_TTB[f],
+        update80EEA: (f) => state.deductions.s80EEA_EE && state.deductions.s80EEA_EE[f],
+        updateNpsAdd: (f) => state.deductions.s80CCD_1B && state.deductions.s80CCD_1B[f],
+        update80M: (f) => state.deductions.s80M && state.deductions.s80M[f],
+        updateSpecialDeduction: (f) => state.deductions[f],
+        updateRoyaltyDeduction: (f) => state.deductions[f],
+        updateProfileField: (f) => state.profile[f],
+        updatePoliticalDonation: () => state.deductions.s80ggb_ggc_political_donation_inr
+    };
+    function restoreTogglesFromState() {
+        // checkboxes saved through updateProfileField(field, this.checked) —
+        // the company regime choices (≤₹400 Cr, s.115BAA/BAB/BA), Section 8, …
+        document.querySelectorAll('input[type=checkbox][onchange*="updateProfileField("]').forEach(el => {
+            const m = /updateProfileField\('([^']+)',\s*this\.checked/.exec(el.getAttribute('onchange') || '');
+            if (m && state.profile && typeof state.profile[m[1]] === 'boolean') el.checked = state.profile[m[1]];
+        });
+        const set = (id, on, apply) => { const el = document.getElementById(id); if (el && on) { el.checked = true; if (apply) apply(true); } };
+        const sal = state.domestic_income && state.domestic_income.salary;
+        set('sal-pwd-elig', !!(sal && sal.pwd_transport_allowance && sal.pwd_transport_allowance.is_eligible_pwd === true), togglePwdAllowance);
+        set('ag-has', state.domestic_income && state.domestic_income.has_agricultural_income === true, toggleAgriSection);
+        set('loss-s79-triggered', state.carry_forward_losses && state.carry_forward_losses.s79_shareholding_change_triggered === true, null);
+        set('toggle-projection-mode', state.advance_tax_simulator && state.advance_tax_simulator.enabled === true, toggleProjectionMode);
+        set('toggle-live-track', state.residency_detail && state.residency_detail.live_tracking_active === true, toggleLiveTracking);
+    }
+
+    function restoreFieldsFromHandlers() {
+        document.querySelectorAll('input[oninput], input[onchange], select[onchange]').forEach(el => {
+            if (el.type === 'checkbox' || el.type === 'radio') return;
+            const h = el.getAttribute('oninput') || el.getAttribute('onchange') || '';
+            const m = /(update[A-Za-z0-9_]+)\((?:'([^']*)'\s*,\s*)?this\.value/.exec(h);
+            if (!m || !INDIA_FIELD_UPDATERS[m[1]]) return;
+            let v;
+            try { v = INDIA_FIELD_UPDATERS[m[1]](m[2]); } catch (e) { return; }
+            if (v === null || v === undefined || typeof v === 'object' || typeof v === 'boolean') return;
+            if (el.tagName === 'SELECT' && !Array.from(el.options).some(o => o.value === String(v))) return;
+            el.value = v;
+        });
+        if (typeof formatAllINRInputs === 'function') formatAllINRInputs();
     }
 
     function saveState() {

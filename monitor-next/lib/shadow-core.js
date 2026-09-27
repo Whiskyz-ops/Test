@@ -143,7 +143,9 @@ const DAG_ONLY_KEYS = new Set([
   "cfcElectedPool", "cfcPerEntityTrace",
   // Capital-gains special rates (§1(h)(4) 28% collectibles, §1202 QSBS).
   "collectiblesGainUsd", "collectiblesTaxUsd", "collectiblesLtcgUsd",
-  "qsbsExcludedGainUsd", "qsbsTaxableGainUsd"
+  "qsbsExcludedGainUsd", "qsbsTaxableGainUsd",
+  // NRA ECI/FDAP split source ("layer1" saved / "derived" re-derivation) — DAG-only.
+  "splitSource"
 ]);
 
 // ---- findings: ID-set reconciliation, not a positional array diff --------

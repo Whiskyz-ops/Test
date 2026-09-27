@@ -581,6 +581,21 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       };
 }
 
+// Additional Medicare Tax (0.9% of Medicare wages over $200k / $250k MFJ /
+// $125k MFS). Layer 1 US saves the amount it computes; when none was saved
+// the same formula is applied here — a missing value used to mean $0.
+function additionalMedicareOwedUsd(us) {
+  var saved = safe(us, "withholding_and_estimated.additional_medicare_tax_owed_usd", null);
+  if (saved !== null && saved !== "") return num(saved);
+  var s = String(safe(us, "profile.filing_status", "single") || "single").toLowerCase();
+  var threshold = (s === "mfj" || s === "married_filing_jointly") ? 250000 : (s === "mfs" || s === "married_filing_separately") ? 125000 : 200000;
+  var wages = (safe(us, "income_us_source.wages_w2", []) || []).reduce(function (t, w) {
+    var adv = (w && w.tax_details_collapsed_by_default) || w || {};
+    return t + num(adv.medicare_wages_box5_usd || 0);
+  }, 0);
+  return Math.max(0, (wages - threshold) * 0.009);
+}
+
 var NODES = {
   // ---- raw leaves for feie/filing status/entity gates ----------------------
   usEntityKind: { deps: [], compute: function (d, ctx) { return ctx.model.entity ? ctx.model.entity.usKind : "individual"; } },
@@ -696,7 +711,7 @@ var NODES = {
       };
     }
   },
-  additionalMedicareOwedBoundary: { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "withholding_and_estimated.additional_medicare_tax_owed_usd", 0)); } },
+  additionalMedicareOwedBoundary: { deps: [], compute: function (d, ctx) { return additionalMedicareOwedUsd(ctx.us); } },
   taxpayerDobRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.router, "date_of_birth", safe(ctx.india, "profile.date_of_birth", safe(ctx.us, "profile.date_of_birth", null))); } },
   baseYearUs: { deps: [], compute: function (d, ctx) { return ctx.model.meta.baseYear; } },
 

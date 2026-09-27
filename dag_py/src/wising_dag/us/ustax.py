@@ -591,6 +591,22 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     }
 
 
+
+def additional_medicare_owed_usd(us) -> float:
+    """Additional Medicare Tax (0.9% of Medicare wages over $200k / $250k MFJ /
+    $125k MFS). Layer 1 US's saved amount, else the same formula — a missing
+    value used to mean $0. Mirrors ustax-nodes.js."""
+    saved = safe(us, "withholding_and_estimated.additional_medicare_tax_owed_usd", None)
+    if saved is not None and saved != "":
+        return num(saved)
+    fs = str(safe(us, "profile.filing_status", "single") or "single").lower()
+    threshold = 250000 if fs in ("mfj", "married_filing_jointly") else 125000 if fs in ("mfs", "married_filing_separately") else 200000
+    wages = 0.0
+    for w in safe(us, "income_us_source.wages_w2", []) or []:
+        adv = (w.get("tax_details_collapsed_by_default") if isinstance(w, dict) else None) or (w if isinstance(w, dict) else {})
+        wages += num(adv.get("medicare_wages_box5_usd") or 0)
+    return max(0.0, (wages - threshold) * 0.009)
+
 NODES = {
     "usEntityKind": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.entity.usKind", None) or "individual"),
     "files1040nr": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "nra_specific.files_form_1040nr", False) is True, layer1_fields=("us.nra_specific.files_form_1040nr",)),
@@ -691,7 +707,7 @@ NODES = {
             "us.itemized_deductions_and_credits.529_state_deduction_state",
         ),
     ),
-    "additionalMedicareOwedBoundary": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "withholding_and_estimated.additional_medicare_tax_owed_usd", 0)), layer1_fields=("us.withholding_and_estimated.additional_medicare_tax_owed_usd",)),
+    "additionalMedicareOwedBoundary": NodeDef(deps=(), compute=lambda d, ctx: additional_medicare_owed_usd(ctx.get("us")), layer1_fields=("us.withholding_and_estimated.additional_medicare_tax_owed_usd",)),
     "taxpayerDobRaw": NodeDef(
         deps=(), compute=lambda d, ctx: safe(ctx.get("router"), "date_of_birth", safe(ctx.get("india"), "profile.date_of_birth", safe(ctx.get("us"), "profile.date_of_birth", None))),
         layer1_fields=("router.date_of_birth", "india.profile.date_of_birth", "us.profile.date_of_birth"),

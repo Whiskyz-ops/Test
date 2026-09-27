@@ -71,7 +71,8 @@ def _analyze_pinned(fixture_id):
 # still matches golden exactly). Stripped here before the strict diff, same
 # carve-out discipline as conftest.py's GOLDEN_DIVERGENT_FIXTURES_* sets,
 # and asserted directly afterward instead.
-_NRA_ART212_NEW_FIELDS = ("article212Eligible", "article212AmbiguousJ1", "itemizedDeductionUsd", "standardDeductionUsd")
+_NRA_ART212_NEW_FIELDS = ("article212Eligible", "article212AmbiguousJ1", "itemizedDeductionUsd", "standardDeductionUsd",
+                          "splitSource")  # DAG-only: whether the ECI/FDAP split was saved by Layer 1 or re-derived
 
 
 def _strip_nra_art212_fields(us_tax: dict) -> dict:
@@ -543,3 +544,33 @@ def test_article_21_2_no_finding_for_ordinary_nra():
     ids = _override_finding_ids(_override_d())
     assert "nra_article_21_2_standard_deduction" not in ids
     assert "nra_j1_article_21_2_review" not in ids
+
+
+def test_nra_without_saved_split_is_taxed_on_the_derived_split():
+    """A missing nra_specific ECI/FDAP split used to mean $0 of income and $0
+    of tax for an NRA. With no split saved, the engine re-derives it: US rent
+    is FDAP (flat 30%, §871(a)) unless a §871(d) net-basis election moves it to
+    ECI. The NRA fixture's saved split treats its $30,000 rent as ECI, so with
+    the election on file the derivation reproduces it exactly. The
+    'split may be incomplete' warning (about a saved split) doesn't fire."""
+    import copy
+    ctx = ctx_for("india_ror_us_income")
+    base = copy.deepcopy(ctx.get("us"))
+    declared = analyze({"router": ctx.get("router"), "india": ctx.get("india"), "us": base})
+
+    def derived_run(election):
+        us = copy.deepcopy(base)
+        us["nra_specific"].pop("us_eci_income_usd", None)
+        us["nra_specific"].pop("us_fdap_income_usd", None)
+        us["nra_specific"]["rental_net_basis_election"] = election
+        return analyze({"router": ctx.get("router"), "india": ctx.get("india"), "us": us})
+
+    with_election = derived_run(True)
+    nra = with_election["computed"]["usTax"]["nra"]
+    assert nra["splitSource"] == "derived"
+    assert (round(nra["eciUsd"]), round(nra["fdapUsd"])) == (30000, 11400)
+    assert abs(with_election["computed"]["usTax"]["totalTaxBeforeFtcUsd"] - declared["computed"]["usTax"]["totalTaxBeforeFtcUsd"]) < 1
+    assert not any(f["id"] == "nra_eci_fdap_classification_check" for f in with_election["findings"])
+
+    no_election = derived_run(False)["computed"]["usTax"]["nra"]
+    assert (round(no_election["eciUsd"]), round(no_election["fdapUsd"])) == (0, 41400)

@@ -1682,7 +1682,8 @@
       form_1040nr: model.treaty.files1040nr,
       form_8960: computed.headline.totalIncomeUsd > (CONST.LIMITS.NIIT_THRESHOLD[model.identity.usFilingStatus] || 200000) &&
                  (model.income.us.interestUs.usd + model.income.us.ordinaryDividendsUs.usd + model.income.us.capitalGainsUs.usd) > 0,
-      form_8959: (computed.usTax && computed.usTax.additionalMedicareUsd > 0) || (model.limitsRaw.additionalMedicareOwed || 0) > 0,
+      // only when the computed tax includes it (an entity taxpayer doesn't file Form 8959), matching the DAG
+      form_8959: !!(computed.usTax && computed.usTax.additionalMedicareUsd > 0),
       // Was model.income.us.foreignSourceTotal (the FOREIGN-from-the-US-model's
       // own view, i.e. India-source income reported on a US 1040 for THAT
       // return's own FTC/Form 1116 — an unrelated concept) OR'd with a bare

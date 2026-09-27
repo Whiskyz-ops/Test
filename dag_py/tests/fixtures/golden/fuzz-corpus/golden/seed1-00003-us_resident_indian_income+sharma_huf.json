@@ -751,7 +751,7 @@
       "foreignEarnedIncomeUsd": 0,
       "fbarFormFlag": 54217,
       "form8938Flag": false,
-      "additionalMedicareOwed": 0,
+      "additionalMedicareOwed": 297,
       "trumpAccountsOpened": false,
       "trumpAccountsNumChildren": 0,
       "trumpAccountsSeedEligibleChildren": 0,
@@ -1783,7 +1783,7 @@
       "preferentialTaxUsd": 2400,
       "incomeTaxUsd": 68972.470725,
       "niitUsd": 2827.618,
-      "additionalMedicareUsd": 0,
+      "additionalMedicareUsd": 297,
       "seTaxUsd": 4946.4529999999995,
       "qbiDeductionUsd": 17400,
       "amtUsd": 0,
@@ -1810,7 +1810,7 @@
         "refundableUsd": 0,
         "earnedIncomeUsd": 257000
       },
-      "totalTaxBeforeFtcUsd": 76746.541725,
+      "totalTaxBeforeFtcUsd": 77043.541725,
       "foreignSourceIncomeUsd": 22411,
       "usSourceIncomeUsd": 309000,
       "retirementEpfInterestUsd": 0,
@@ -1833,7 +1833,7 @@
         ],
         "appliedUsd": 0
       },
-      "effectiveRate": 0.23157511888561333
+      "effectiveRate": 0.2324712870876344
     },
     "stateTax": {
       "state": "NY",
@@ -2010,7 +2010,7 @@
         "estTaxInr": 1553869.1293839999
       },
       "us": {
-        "estTaxUsd": 76746.541725
+        "estTaxUsd": 77043.541725
       }
     },
     "ftc": {
@@ -2123,8 +2123,8 @@
       "jurisdiction": "dual",
       "totalIncomeUsd": 401040.60686746985,
       "indiaTaxUsd": 18721.31481185542,
-      "usTaxUsd": 76746.541725,
-      "combinedTaxBeforeReliefUsd": 95467.85653685543,
+      "usTaxUsd": 77043.541725,
+      "combinedTaxBeforeReliefUsd": 95764.85653685543,
       "worldwideOverlap": false,
       "netUnrelievedDoubleTaxUsd": 2465.688578401474
     },
@@ -2244,9 +2244,9 @@
       "severity": "warning",
       "category": "credit",
       "title": "NIIT / Additional Medicare surtaxes are not offset by the Foreign Tax Credit",
-      "detail": "NIIT $2,828 (§1411, 3.8%) applies on top of regular US income tax. Indian income tax can only credit the REGULAR US income tax (§901/§904) — these two surtaxes are outside the FTC mechanism entirely, so they stand as double taxation even when the rest of the Indian tax is fully credited.",
+      "detail": "NIIT $2,828 (§1411, 3.8%) and Additional Medicare $297 (§3101(b)(2), 0.9%) applies on top of regular US income tax. Indian income tax can only credit the REGULAR US income tax (§901/§904) — these two surtaxes are outside the FTC mechanism entirely, so they stand as double taxation even when the rest of the Indian tax is fully credited.",
       "recommendation": "There is no credit path for this residue — the only levers are reducing MAGI/net investment income (retirement contributions, timing) or, for Additional Medicare, W-4 withholding planning. Make sure the client understands the FTC reconciliation above does not clear this amount.",
-      "amountUsd": 2827.618,
+      "amountUsd": 3124.618,
       "refs": [
         "§1411",
         "§3101(b)(2)",
@@ -2510,8 +2510,8 @@
       "desc": "Additional 0.9% Medicare tax on wages/SE income above the filing-status threshold, and reconciles employer over/under-withholding.",
       "why": "Additional Medicare Tax is owed and is not offset by the Foreign Tax Credit.",
       "severity": "info",
-      "required": false,
-      "status": "not_triggered"
+      "required": true,
+      "status": "required"
     },
     {
       "id": "form_540",
@@ -3350,7 +3350,7 @@
         },
         {
           "label": "Additional Medicare tax",
-          "usd": 0,
+          "usd": 297,
           "trace": {
             "kind": "source",
             "detail": "Computed directly on Layer 1 US (Form 8959) and taken as-is — the engine does not recompute it.",
@@ -3374,7 +3374,7 @@
         },
         {
           "label": "Total US tax (pre-FTC)",
-          "usd": 76746.541725,
+          "usd": 77043.541725,
           "emphasis": true,
           "trace": {
             "kind": "calc",
@@ -3390,7 +3390,7 @@
               },
               {
                 "label": "Additional Medicare tax",
-                "amount": 0
+                "amount": 297
               },
               {
                 "label": "SE tax",
@@ -3409,8 +3409,8 @@
           }
         }
       ],
-      "totalUsd": 76746.541725,
-      "effectiveRate": 0.23157511888561333
+      "totalUsd": 77043.541725,
+      "effectiveRate": 0.2324712870876344
     },
     "usState": {
       "title": "New York state income tax (Form IT-201, SINGLE)",
@@ -4223,14 +4223,14 @@
     "dualResident": false,
     "totalIncomeUsd": 401040.60686746985,
     "indiaTaxUsd": 18721.31481185542,
-    "usTaxUsd": 76746.541725,
+    "usTaxUsd": 77043.541725,
     "netDoubleTaxUsd": 2465.688578401474,
     "counts": {
       "critical": 7,
       "warning": 7,
       "info": 5
     },
-    "requiredDocs": 13,
+    "requiredDocs": 14,
     "healthScore": 8,
     "nextDeadline": "Apr 15, 3712"
   }

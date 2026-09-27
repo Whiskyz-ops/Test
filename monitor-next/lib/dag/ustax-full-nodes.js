@@ -415,7 +415,7 @@ NODES.usEntityStateTaxResult = {
 NODES.findingsAllResult = {
   deps: baseNodes.findingsAllResult.deps.concat(["usEntityStateTaxResult", "usDualStatusResult", "usExpatriationResult",
     "usEntityKind", "treatyFiles1040nrRaw", "s6013hElection", "usTaxResult",
-    "nraDerivedEciFdapResult", "nraEciIncomeUsdRaw", "nraFdapIncomeUsdRaw", "nraRaw", "aggregateUsIncomeResult"])
+    "nraDerivedEciFdapResult", "nraEciIncomeUsdRaw", "nraFdapIncomeUsdRaw", "nraRaw", "aggregateUsIncomeResult", "nraSplitDeclaredRaw"])
     .filter(function (id, i, arr) { return arr.indexOf(id) === i; }),
   compute: function (d, ctx) {
     var all = baseNodes.findingsAllResult.compute(d, ctx).slice();
@@ -545,7 +545,8 @@ NODES.findingsAllResult = {
       var declaredTotalUsd = declaredEciUsd + declaredFdapUsd;
       var deltaUsd = derived.derivedTotalUsd - declaredTotalUsd;
       var materialityUsd = Math.max(100, 0.01 * derived.derivedTotalUsd);
-      if (Math.abs(deltaUsd) > materialityUsd) {
+      // Only when Layer 1 saved a split: without one the tax above already uses the re-derivation.
+      if (d.nraSplitDeclaredRaw && Math.abs(deltaUsd) > materialityUsd) {
         var eciDeltaUsd = derived.derivedEciUsd - declaredEciUsd;
         var fdapDeltaUsd = derived.derivedFdapUsd - declaredFdapUsd;
         all.push({
@@ -641,16 +642,40 @@ NODES.findingsAllResult = {
 var ARTICLE_21_2_AUTO_VISA = "f1";
 var ARTICLE_21_2_AMBIGUOUS_VISA = "j1";
 
+// The ECI/FDAP split an NRA is taxed on. Layer 1 US saves its own split
+// (nra_specific.us_eci_income_usd / us_fdap_income_usd); when neither was
+// saved (data that never went through that screen) a missing split used to
+// mean $0 of income and $0 of tax. Then the engine's own re-derivation is
+// used instead, with US rent moved to ECI under a §871(d) net-basis election,
+// as the form does.
+NODES.nraSplitDeclaredRaw = {
+  deps: [],
+  compute: function (d, ctx) {
+    var e = safe(ctx.us, "nra_specific.us_eci_income_usd", null), f = safe(ctx.us, "nra_specific.us_fdap_income_usd", null);
+    return (e !== null && e !== "") || (f !== null && f !== "");
+  }
+};
+NODES.nraEffectiveEciFdap = {
+  deps: ["nraSplitDeclaredRaw", "nraRaw", "nraDerivedEciFdapResult", "aggregateUsIncomeResult"],
+  compute: function (d, ctx) {
+    if (d.nraSplitDeclaredRaw) return { eciUsd: d.nraRaw.eciIncomeUsd || 0, fdapUsd: d.nraRaw.fdapIncomeUsd || 0, source: "layer1" };
+    var dv = d.nraDerivedEciFdapResult;
+    var rental = safe(ctx.us, "nra_specific.rental_net_basis_election", false) === true ? num(d.aggregateUsIncomeResult.rentalUs.usd) : 0;
+    return { eciUsd: dv.derivedEciUsd + rental, fdapUsd: dv.derivedFdapUsd - rental, source: "derived" };
+  }
+};
+
 NODES.nraTaxResult = {
-  deps: ["nraRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary", "usVisaTypeRaw"],
+  deps: ["nraRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary", "usVisaTypeRaw", "nraEffectiveEciFdap"],
   compute: function (d) {
     var nra = d.nraRaw;
+    var split = d.nraEffectiveEciFdap;
     var status = d.usFilingStatusRaw === "mfj" ? "mfj" : "single";
     var brackets = T.BRACKETS[status] || T.BRACKETS.single;
     var ded = d.dedUs;
 
-    var eciUsd = nra.eciIncomeUsd || 0;
-    var fdapUsd = nra.fdapIncomeUsd || 0;
+    var eciUsd = split.eciUsd || 0;
+    var fdapUsd = split.fdapUsd || 0;
     var claim = (nra.treatyRateClaims || [])[0];
     var claimedRate = (claim && claim.elected_rate != null) ? Math.max(0, Math.min(1, Number(claim.elected_rate) / 100)) : null;
     var w8benOnFile = nra.submittedW8ben === true;
@@ -692,7 +717,7 @@ NODES.nraTaxResult = {
       totalTaxBeforeFtcUsd: totalTax,
       foreignSourceIncomeUsd: 0,
       usSourceIncomeUsd: eciUsd + fdapUsd,
-      nra: { eciUsd: eciUsd, fdapUsd: fdapUsd, fdapRate: fdapRate, eciTaxUsd: eciTaxUsd, fdapTaxUsd: fdapTaxUsd, taxableEciUsd: taxableEciUsd, eciBracketBreakdown: eciBracketBreakdown,
+      nra: { eciUsd: eciUsd, fdapUsd: fdapUsd, splitSource: split.source, fdapRate: fdapRate, eciTaxUsd: eciTaxUsd, fdapTaxUsd: fdapTaxUsd, taxableEciUsd: taxableEciUsd, eciBracketBreakdown: eciBracketBreakdown,
         claimedRate: claimedRate, w8benOnFile: w8benOnFile, incomeType: (claim && claim.income_type) || null,
         itemizedDeductionUsd: itemizedUsd, standardDeductionUsd: stdDeductionUsd,
         article212Eligible: article212Eligible, article212AmbiguousJ1: article212AmbiguousJ1, visaType: visaType },

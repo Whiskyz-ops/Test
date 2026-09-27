@@ -2733,7 +2733,15 @@
         foreignEarnedIncomeUsd: num(safe(us, "foreign_earned_income.foreign_earned_income_usd", 0)),
         fbarFormFlag: num(safe(us, "fbar_aggregate_peak_usd", 0)),
         form8938Flag: safe(us, "form_8938_required", false) === true,
-        additionalMedicareOwed: num(safe(us, "withholding_and_estimated.additional_medicare_tax_owed_usd", 0)),
+        additionalMedicareOwed: (function () {
+          // saved amount, else Layer 1 US's own formula (0.9% of Medicare wages over the threshold)
+          var saved = safe(us, "withholding_and_estimated.additional_medicare_tax_owed_usd", null);
+          if (saved !== null && saved !== "") return num(saved);
+          var fs = String(safe(us, "profile.filing_status", "single") || "single").toLowerCase();
+          var th = (fs === "mfj" || fs === "married_filing_jointly") ? 250000 : (fs === "mfs" || fs === "married_filing_separately") ? 125000 : 200000;
+          var w = (safe(us, "income_us_source.wages_w2", []) || []).reduce(function (t, x) { var a = (x && x.tax_details_collapsed_by_default) || x || {}; return t + num(a.medicare_wages_box5_usd || 0); }, 0);
+          return Math.max(0, (w - th) * 0.009);
+        })(),
         trumpAccountsOpened: safe(us, "profile.trump_accounts_opened", false) === true,
         trumpAccountsNumChildren: num(safe(us, "profile.trump_accounts_num_children", 0)),
         trumpAccountsSeedEligibleChildren: num(safe(us, "profile.trump_accounts_children_born_2025_2028", 0)),

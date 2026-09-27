@@ -1088,6 +1088,18 @@ function isQuarterlyLrsDivergentProfile(profile) {
   var top = Number(india.lrs_outbound && india.lrs_outbound.total_lrs_remitted_this_fy_inr) || 0;
   return any && Math.abs(total - top) > 0.5;
 }
+// NRA with no saved ECI/FDAP split: the DAG taxes the split it re-derives
+// from the income rows (ustax-full-nodes.js nraEffectiveEciFdap); the frozen
+// engine reads the missing split as $0 of income and $0 of tax.
+function isNraDerivedSplitProfile(dag) {
+  var n = dag.computed && dag.computed.usTax && dag.computed.usTax.nra;
+  return !!(n && n.splitSource === "derived");
+}
+var KNOWN_NRA_DERIVED_SPLIT_PATHS = [
+  "computed.usTax", "computed.ftc", "computed.headline", "computed.reconciliation", "computed.apportionment", "computed.taxEstimate",
+  "computed.limits", "computed.underpayment", "taxComputation.us", "ftcReport", "withholding", "monitoring", "summary", "documents",
+  "findings", "returnForms", "scopeNotes", "alerts"
+];
 function isFeieIneligibleClaimProfile(dag) {
   var f = dag.computed && dag.computed.usTax && dag.computed.usTax.feie;
   return !!(f && f.claimed && !f.eligible);
@@ -1372,6 +1384,7 @@ function compareOne(label, profile, saveOnFail) {
     // FEIE claimed but ineligible: Form 2555 is no longer listed as a
     // required document (report-batch1-nodes.js) — the frozen engine lists it.
     .concat(isFeieIneligibleClaimProfile(dag) ? ["documents"] : [])
+    .concat(isNraDerivedSplitProfile(dag) ? KNOWN_NRA_DERIVED_SPLIT_PATHS : [])
     // Quarterly LRS: the DAG sums quarters[Qn].lrs_outbound (the form keeps
     // only the active quarter at the top level); the frozen engine reads the
     // top level. Differs only when the two disagree.
