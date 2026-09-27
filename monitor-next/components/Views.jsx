@@ -1044,7 +1044,7 @@ function FtcCard({ ftcReport, onJump, indiaWorldwide }) {
         // should be relieving — so the block collapses to what's true.
         <div className="mb-2">
           <div className="text-[11px] font-bold text-body mb-2">{ftcReport.direction_india_relief.title}</div>
-          <div className="text-[12px] text-muted leading-relaxed">Not applicable — India doesn't tax this client's US income (not an India resident / ROR), so there's no foreign tax for India to relieve. Indian tax on income the US also taxes is covered by the US credit above or, for salary earned in the US, by the India refund conflict.</div>
+          <div className="text-[12px] text-muted leading-relaxed">Not applicable — India doesn't tax this client's US income: they aren't an India resident taxed on worldwide income (non-resident / RNOR, or residency given to the US under the treaty tie-breaker). So there's no foreign tax for India to relieve. Indian tax on income the US also taxes is covered by the US credit above or, for salary earned in the US, by the India refund conflict.</div>
         </div>
       )}
     </Card>
