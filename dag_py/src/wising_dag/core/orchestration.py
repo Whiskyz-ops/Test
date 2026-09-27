@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from .fx_util import fx_rate
 from .graph import NodeDef
-from .util import num, safe
+from .util import dtaa_worldwide_ceded, num, safe
 
 OVERRIDE_REASON = (
     "agg10-nodes.js wiring: closes the remaining v1-era boundaries now that "
@@ -85,7 +85,7 @@ def _residency_model_slice_result(d, ctx):
             "daysLast7YearsLte729": safe(india, "residency_detail.days_in_india_last_7_years_lte_729", None),
             "indiaSourceIncomeAbove15L": safe(india, "residency_detail.india_source_income_above_15l", None),
             "liableToTaxElsewhereAsIndianCitizen": safe(india, "residency_detail.liable_to_tax_in_another_country_being_indian_citizen", False) is True,
-            "dtaaWorldwideCeded": safe(india, "residency_detail.dtaa_worldwide_ceded", False) is True,
+            "dtaaWorldwideCeded": dtaa_worldwide_ceded(india),
             "domesticStatusDerived": d["indiaDomesticStatusDerived"],
         },
         "us": {

@@ -105,7 +105,7 @@
       }
       return false;
     } else {
-      return false;
+      return cr.savedPoem === true; // no company facts entered: the saved is_poem_in_india answer
     }
   }
 
@@ -127,7 +127,7 @@
     var days = f.days, p4y = f.p4y, emp = f.emp || "none", visit = f.visit,
       nr9 = f.nr9, d7729 = f.d7729, inc15 = f.inc15, ltac = f.ltac || false;
     if (days >= 182) {
-      if (nr9 === false && d7729 === false) return "ROR";
+      if (nr9 !== true && d7729 !== true) return "ROR"; // unanswered lookback = ordinarily resident (RNOR must be shown)
       if (nr9 === true) return "RNOR";
       return "RNOR";
     } else if (days >= 60 && days < 182) {
@@ -142,7 +142,7 @@
           if (days < 120 && inc15 === true && ltac === false) return "RNOR";
           return "NR";
         } else {
-          if (nr9 === false && d7729 === false) return "ROR";
+          if (nr9 !== true && d7729 !== true) return "ROR"; // unanswered lookback = ordinarily resident (RNOR must be shown)
           if (nr9 === true) return "RNOR";
           return "RNOR";
         }
@@ -213,8 +213,8 @@
         } else if (typeof sv === "object") {
           target[k] = target[k] || {};
           merge(target[k], sv);
-        } else {
-          target[k] = sv;
+        } else if (sv !== "" || target[k] === undefined) {
+          target[k] = sv; // a blank later quarter doesn't erase an earlier value
         }
       }
       return target;
@@ -898,7 +898,7 @@
     // explicit treaty check to keep excluding foreign income the way it
     // did before, for the right reason this time.
     var isIndiaRor = safe(india, "residency_detail.final_india_residency_status", null) === CONST.INDIA_STATUS.ROR;
-    var dtaaWorldwideCeded = safe(india, "residency_detail.dtaa_worldwide_ceded", false) === true;
+    var dtaaWorldwideCeded = safe(india, "residency_detail.dtaa_worldwide_ceded", false) === true || safe(india, "dtaa.dtaa_treaty_residence", "none") === "us" || safe(india, "dtaa.dtaa_forced_nr", false) === true;
     var financialHoldingsTxs = (isIndiaRor && !dtaaWorldwideCeded) ? (safe(india, "financial_holdings.transactions", []) || []) : [];
     var foreignEquityLtcg197Inr = 0, foreignEquityStcgSlabInr = 0;
     function toInrAtCurrency(amount, currency) {
@@ -2220,7 +2220,8 @@
         keyManagementLocation: safe(india, "company_residency.key_management_location", null),
         managementDelegatedOutsideIndia: safe(india, "company_residency.management_delegated_outside_india", false) === true,
         directorsInIndia: num(safe(india, "company_residency.directors_in_india_count", 0)),
-        directorsOutsideIndia: num(safe(india, "company_residency.directors_outside_india_count", 0))
+        directorsOutsideIndia: num(safe(india, "company_residency.directors_outside_india_count", 0)),
+        savedPoem: safe(india, "residency_detail.is_poem_in_india", null) === true
       }
     });
 
@@ -2403,7 +2404,7 @@
           // can consult it too (see IN-38/39 in GAP_TRACKER.md, shipped —
           // aggregateIndiaIncome's isIndiaRor check below does consult
           // this field).
-          dtaaWorldwideCeded: safe(india, "residency_detail.dtaa_worldwide_ceded", false) === true,
+          dtaaWorldwideCeded: safe(india, "residency_detail.dtaa_worldwide_ceded", false) === true || safe(india, "dtaa.dtaa_treaty_residence", "none") === "us" || safe(india, "dtaa.dtaa_forced_nr", false) === true,
           // Full re-derivation of the ABOVE status from the raw facts —
           // PURE domestic law, computed once above (indiaDomesticStatusDerived).
           // Consumed by the residency-consistency finding in conflicts.js;

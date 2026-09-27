@@ -64,7 +64,7 @@
         "daysLast7YearsLte729": null,
         "indiaSourceIncomeAbove15L": null,
         "liableToTaxElsewhereAsIndianCitizen": false,
-        "dtaaWorldwideCeded": false,
+        "dtaaWorldwideCeded": true,
         "domesticStatusDerived": "ROR"
       },
       "us": {
@@ -215,30 +215,18 @@
           "inr": 0,
           "usd": 0
         },
-        "stcgSlabInr": 664000,
+        "stcgSlabInr": 0,
         "vdaGainInr": 0,
         "vdaSaleConsiderationInr": 0,
         "chapterXiiaInvestmentIncomeInr": 0,
         "chapterXiiaSfeaHoldingCount": 0,
         "promoterBuybackLtcgInr": 0,
         "promoterBuybackStcgInr": 0,
-        "holdingPeriodMismatches": [
-          {
-            "companyName": "AMZN",
-            "isListed": false,
-            "monthsHeld": 17.938766709788702,
-            "gainInr": 664000,
-            "gainUsd": 8000,
-            "indiaClassification": "stcg",
-            "usClassification": "ltcg",
-            "indiaThresholdMonths": 24,
-            "sourceType": "foreign_equity"
-          }
-        ],
+        "holdingPeriodMismatches": [],
         "unexplained115bbeInr": 0,
         "total": {
-          "usd": 54282.974939759035,
-          "inr": 4505486.92
+          "usd": 46282.974939759035,
+          "inr": 3841486.92
         }
       },
       "us": {
@@ -1298,10 +1286,10 @@
     },
     "indiaTax": {
       "regime": "NEW",
-      "grossTotalIncomeInr": 4325486.92,
+      "grossTotalIncomeInr": 3661486.92,
       "deductionsInr": 0,
-      "totalIncomeInr": 4325486.92,
-      "slabTaxInr": 762419.6100000001,
+      "totalIncomeInr": 3661486.92,
+      "slabTaxInr": 617219.6100000001,
       "slabBreakdown": [
         {
           "from": 0,
@@ -1349,32 +1337,32 @@
           "from": 2400000,
           "to": null,
           "rate": 0.3,
-          "taxable": 1541398.7000000002,
-          "tax": 462419.61000000004
+          "taxable": 1057398.7000000002,
+          "tax": 317219.61000000004
         }
       ],
-      "totalNormalInr": 3941398.7,
+      "totalNormalInr": 3457398.7,
       "ltcgTaxableInr": 0,
       "ltcg197TaxableInr": 0,
       "vdaGainInr": 0,
       "vdaTaxInr": 0,
       "chapterXiiaInvestmentIncomeInr": 0,
       "chapterXiiaInvestmentIncomeTaxInr": 0,
-      "specialTaxInr": 76817.644,
+      "specialTaxInr": 40817.644,
       "rebateInr": 0,
       "surchargeInr": 0,
-      "cessInr": 33569.49016,
+      "cessInr": 26321.490160000005,
       "promoterBuyback": null,
-      "totalTaxInr": 872806.7441600001,
-      "totalTaxUsd": 10515.743905542171,
-      "totalIncomeUsd": 52114.30024096386,
-      "effectiveRate": 0.2017823103624135,
+      "totalTaxInr": 684358.7441600001,
+      "totalTaxUsd": 8245.286074216869,
+      "totalIncomeUsd": 44114.30024096386,
+      "effectiveRate": 0.18690733003082804,
       "lossSetOff": {
         "businessInr": 707730.02,
         "housePropertyInr": 648094.4299999999,
         "otherNormalInr": 301574.25,
-        "stcgInr": 384088.22,
-        "stcgSlabInr": 484000,
+        "stcgInr": 204088.21999999997,
+        "stcgSlabInr": 0,
         "ltcgGrossInr": 0,
         "ltcg197Inr": 0,
         "speculativeInr": 0,
@@ -1391,8 +1379,8 @@
         "used": {
           "businessInr": 0,
           "housePropertyInr": 0,
-          "stcgSlabInr": 180000,
-          "stcgInr": 0,
+          "stcgSlabInr": 0,
+          "stcgInr": 180000,
           "ltcgFromStcgLossInr": 0,
           "ltcgInr": 0,
           "speculativeInr": 0,
@@ -1596,7 +1584,7 @@
         "Capital gains beyond the s.198-only allowance (STCG and/or non-s.198 LTCG present)",
         "Brought-forward losses on file"
       ],
-      "totalIncomeInr": 4325486.92,
+      "totalIncomeInr": 3661486.92,
       "directorUnknown": false,
       "frontendForm": null,
       "frontendExplanation": null,
@@ -1695,9 +1683,9 @@
       "fyLabel": "FY 2026–27",
       "cyPrimary": 2026,
       "cyNext": 2027,
-      "indiaFyTotalUsd": 54282.974939759035,
-      "indiaToCyPrimaryUsd": 40712,
-      "indiaToCyNextUsd": 13571,
+      "indiaFyTotalUsd": 46282.974939759035,
+      "indiaToCyPrimaryUsd": 34712,
+      "indiaToCyNextUsd": 11571,
       "primaryShare": 0.75,
       "nextShare": 0.25,
       "usCyTotalUsd": 217200,
@@ -1706,8 +1694,8 @@
     },
     "taxEstimate": {
       "india": {
-        "estTaxUsd": 10515.743905542171,
-        "estTaxInr": 872806.7441600001
+        "estTaxUsd": 8245.286074216869,
+        "estTaxInr": 684358.7441600001
       },
       "us": {
         "estTaxUsd": 76428.26666867471
@@ -1715,17 +1703,17 @@
     },
     "ftc": {
       "us": {
-        "foreignSourceIncomeUsd": 54282.974939759035,
+        "foreignSourceIncomeUsd": 46282.974939759035,
         "feieExcludedUsd": 0,
         "indiaTaxDisallowedUsd": 0,
         "taxableIncomeUsd": 244279.3765060241,
         "usIncomeTaxUsd": 42185.050361445785,
-        "indiaTaxPaidUsd": 10515.743905542171,
-        "limitFraction": 0.2222167737456149,
-        "ftcLimitUsd": 9374.22579161677,
-        "ftcAllowedUsd": 9374.22579161677,
-        "carryoverUsd": 1141.5181139254018,
-        "residualDoubleTaxUsd": 1141.5181139254018
+        "indiaTaxPaidUsd": 8245.286074216869,
+        "limitFraction": 0.18946738607963357,
+        "ftcLimitUsd": 7992.691223620834,
+        "ftcAllowedUsd": 7992.691223620834,
+        "carryoverUsd": 252.59485059603503,
+        "residualDoubleTaxUsd": 252.59485059603503
       },
       "india": {
         "foreignSourceIncomeUsd": 0,
@@ -1733,7 +1721,7 @@
         "reliefCapUsd": 0,
         "reliefAllowedUsd": 0
       },
-      "netUnrelievedDoubleTaxUsd": 1141.5181139254018
+      "netUnrelievedDoubleTaxUsd": 252.59485059603503
     },
     "doubleTax": {
       "items": [
@@ -1828,12 +1816,12 @@
       "name": "Aarav Sharma",
       "baseYear": 2026,
       "jurisdiction": "dual",
-      "totalIncomeUsd": 326562.35144578316,
-      "indiaTaxUsd": 10515.743905542171,
+      "totalIncomeUsd": 318562.35144578316,
+      "indiaTaxUsd": 8245.286074216869,
       "usTaxUsd": 76428.26666867471,
-      "combinedTaxBeforeReliefUsd": 86944.01057421688,
+      "combinedTaxBeforeReliefUsd": 84673.55274289158,
       "worldwideOverlap": false,
-      "netUnrelievedDoubleTaxUsd": 1141.5181139254018
+      "netUnrelievedDoubleTaxUsd": 252.59485059603503
     },
     "__x": 0
   },
@@ -1859,9 +1847,9 @@
       "severity": "critical",
       "category": "credit",
       "title": "Foreign Tax Credit shortfall — residual double taxation",
-      "detail": "Indian tax paid ($10,516) exceeds the US FTC limitation ($9,374) for this year. $1,142 of Indian tax cannot be credited currently and would otherwise be double-taxed.",
-      "recommendation": "$1,142 is eligible to carry over under §904(c) (back 1 year / forward 10), but WISING is a single-year snapshot — it does NOT persist this carryover across tax years or track it for you. Record $1,142 on Form 1116 Schedule B this year, and re-enter it as prior-year carryover when you run next year's numbers. Also check whether treaty re-sourcing (Art. 25) could reclassify some income to lift the limitation — WISING does not test this automatically.",
-      "amountUsd": 1141.5181139254018,
+      "detail": "Indian tax paid ($8,245) exceeds the US FTC limitation ($7,993) for this year. $253 of Indian tax cannot be credited currently and would otherwise be double-taxed.",
+      "recommendation": "$253 is eligible to carry over under §904(c) (back 1 year / forward 10), but WISING is a single-year snapshot — it does NOT persist this carryover across tax years or track it for you. Record $253 on Form 1116 Schedule B this year, and re-enter it as prior-year carryover when you run next year's numbers. Also check whether treaty re-sourcing (Art. 25) could reclassify some income to lift the limitation — WISING does not test this automatically.",
+      "amountUsd": 252.59485059603503,
       "refs": [
         "Form 1116",
         "§904(c)"
@@ -1952,27 +1940,13 @@
       "id": "underpayment_2210",
       "severity": "warning",
       "category": "credit",
-      "title": "US estimated-tax underpayment penalty — Form 2210 ($1,308 estimated)",
-      "detail": "Withholding + estimated payments ($31,000) fall short of both safe harbors: 90% of this year's tax ($60,349) and the prior-year safe harbor (last year's total tax was never entered, so only the current-year harbor could be checked), with a balance due over the $1,000 de-minimis. Estimated penalty (simplified regular method, equal quarterly installments, withholding spread evenly, no cross-quarter netting): $1,308.",
+      "title": "US estimated-tax underpayment penalty — Form 2210 ($1,364 estimated)",
+      "detail": "Withholding + estimated payments ($31,000) fall short of both safe harbors: 90% of this year's tax ($61,592) and the prior-year safe harbor (last year's total tax was never entered, so only the current-year harbor could be checked), with a balance due over the $1,000 de-minimis. Estimated penalty (simplified regular method, equal quarterly installments, withholding spread evenly, no cross-quarter netting): $1,364.",
       "recommendation": "Confirm against the real Form 2210 (it can use the Annualized Income Installment Method for uneven income, which this estimate does not model, and could produce a lower number). Paying the shortfall now stops further accrual.",
-      "amountUsd": 1308.4600568586166,
+      "amountUsd": 1363.8941313994542,
       "refs": [
         "Form 2210",
         "§6654"
-      ]
-    },
-    {
-      "id": "holding_period_mismatch_0",
-      "severity": "warning",
-      "category": "treaty",
-      "title": "AMZN foreign equity holding: 18 months held — India says STCG, US says LTCG ($1,040 at stake)",
-      "detail": "This unlisted foreign equity holding was held 18 months. India requires more than 24 months for LTCG on unlisted shares, so this is STCG there (taxed at the client's India slab rate). The US requires only more than 12 months for LTCG on any asset — no listed/unlisted distinction — so the SAME gain is LTCG under US rules. Recomputed the client's actual US return both ways: treated as LTCG, US tax is $77,932; treated as STCG (ordinary rates), US tax is $78,972 — a difference of $1,040.",
-      "recommendation": "Report this gain as LONG-TERM on the US return (Schedule D) even though it's short-term in India — using India's label on the US foreign-capital-gains input would cost roughly $1,040 in overpaid US tax.",
-      "amountUsd": 1040,
-      "refs": [
-        "Holding period",
-        "s.197 vs IRC §1222",
-        "Foreign equity"
       ]
     },
     {
@@ -2090,7 +2064,7 @@
       "severity": "info",
       "category": "credit",
       "title": "Brought-forward losses fully set off this year",
-      "detail": "All eligible prior-year losses were absorbed against this year's income: ₹1,80,000 STCG loss vs. slab-rate STCG (s.69 unlisted buy-back). The India tax computed above already reflects this — no residual carry-forward remains.",
+      "detail": "All eligible prior-year losses were absorbed against this year's income: ₹1,80,000 STCG loss vs. STCG. The India tax computed above already reflects this — no residual carry-forward remains.",
       "recommendation": "Confirm the set-off is reported correctly on Schedule CFL/BFLA of the ITR, matching the ordering above.",
       "amountUsd": 0,
       "refs": [
@@ -2120,7 +2094,7 @@
       "severity": "info",
       "category": "credit",
       "title": "Tax-year apportionment: Indian FY ↔ US CY (computed)",
-      "detail": "India taxes Apr–Mar; the US taxes Jan–Dec. WISING splits the Indian FY across US calendar years — $40,712 into CY2026 and $13,571 into CY2027 (Indian quarterly data) — and apportions the US calendar year into the Indian FY (9/12 + 3/12).",
+      "detail": "India taxes Apr–Mar; the US taxes Jan–Dec. WISING splits the Indian FY across US calendar years — $34,712 into CY2026 and $11,571 into CY2027 (Indian quarterly data) — and apportions the US calendar year into the Indian FY (9/12 + 3/12).",
       "recommendation": "See the FY ↔ CY Apportionment panel on the Filings tab for the period-matched figures behind Form 44 (India) and Form 1116 (US). Planning-grade — refine with per-transaction dates at filing.",
       "amountUsd": 0,
       "refs": [
@@ -2463,14 +2437,14 @@
       "rows": [
         {
           "label": "Indian income tax (creditable)",
-          "usd": 10515.743905542171,
+          "usd": 8245.286074216869,
           "trace": {
             "kind": "calc",
             "formula": "Total India tax × creditable fraction (gross Indian income less any FEIE-excluded slice, over gross Indian income)",
             "parts": [
               {
                 "label": "Total India tax (from Tax Computation)",
-                "amount": 10515.743905542171
+                "amount": 8245.286074216869
               },
               {
                 "label": "Creditable fraction",
@@ -2482,7 +2456,7 @@
         },
         {
           "label": "Foreign-source income (US view)",
-          "usd": 54282.974939759035,
+          "usd": 46282.974939759035,
           "trace": {
             "kind": "holdings",
             "section": "india",
@@ -2525,7 +2499,7 @@
         },
         {
           "label": "FTC limitation = US tax × foreign/taxable",
-          "usd": 9374.22579161677,
+          "usd": 7992.691223620834,
           "trace": {
             "kind": "calc",
             "formula": "§904(a): the credit can't exceed US tax on this income times the same proportion foreign-source income bears to total taxable income",
@@ -2536,7 +2510,7 @@
               },
               {
                 "label": "Foreign-source income",
-                "amount": 54282.974939759035
+                "amount": 46282.974939759035
               },
               {
                 "label": "US taxable income",
@@ -2548,7 +2522,7 @@
         },
         {
           "label": "FTC allowed this year",
-          "usd": 9374.22579161677,
+          "usd": 7992.691223620834,
           "emphasis": true,
           "trace": {
             "kind": "calc",
@@ -2556,11 +2530,11 @@
             "parts": [
               {
                 "label": "Indian income tax (creditable)",
-                "amount": 10515.743905542171
+                "amount": 8245.286074216869
               },
               {
                 "label": "FTC limitation",
-                "amount": 9374.22579161677
+                "amount": 7992.691223620834
               }
             ],
             "citation": null
@@ -2568,18 +2542,18 @@
         },
         {
           "label": "Excess credit carried over (§904(c))",
-          "usd": 1141.5181139254018,
+          "usd": 252.59485059603503,
           "trace": {
             "kind": "calc",
             "formula": "Indian tax paid in excess of what the §904 limitation allows this year — carries back 1 year / forward 10 years",
             "parts": [
               {
                 "label": "Indian income tax (creditable)",
-                "amount": 10515.743905542171
+                "amount": 8245.286074216869
               },
               {
                 "label": "Less FTC allowed this year",
-                "amount": -9374.22579161677
+                "amount": -7992.691223620834
               }
             ],
             "citation": null
@@ -2587,7 +2561,7 @@
         },
         {
           "label": "Residual double tax (unrelieved)",
-          "usd": 1141.5181139254018,
+          "usd": 252.59485059603503,
           "warn": true,
           "trace": {
             "kind": "calc",
@@ -2595,7 +2569,7 @@
             "parts": [
               {
                 "label": "Excess credit carried over",
-                "amount": 1141.5181139254018
+                "amount": 252.59485059603503
               }
             ],
             "citation": null
@@ -2647,7 +2621,7 @@
             "parts": [
               {
                 "label": "Total India tax",
-                "amount": 10515.743905542171
+                "amount": 8245.286074216869
               },
               {
                 "label": "US-source income (India view)",
@@ -2655,7 +2629,7 @@
               },
               {
                 "label": "Total India-view income",
-                "amount": 52114.30024096386
+                "amount": 44114.30024096386
               }
             ],
             "citation": null
@@ -2683,7 +2657,7 @@
         }
       ]
     },
-    "headlineNetDoubleTaxUsd": 1141.5181139254018
+    "headlineNetDoubleTaxUsd": 252.59485059603503
   },
   "taxComputation": {
     "india": {
@@ -2692,7 +2666,7 @@
       "rows": [
         {
           "label": "Current-year income (before brought-forward loss set-off)",
-          "inr": 4505486.92,
+          "inr": 3841486.92,
           "trace": {
             "kind": "holdings",
             "section": "india",
@@ -2700,11 +2674,11 @@
           }
         },
         {
-          "label": "  — brought-forward STCG loss set off vs current slab-rate STCG (s.111, s.69 unlisted buy-back)",
+          "label": "  — brought-forward STCG loss set off vs current STCG (s.111)",
           "inr": -180000,
           "trace": {
             "kind": "calc",
-            "formula": "STCG loss is set off against slab-rate STCG first — it's the more tax-expensive bucket to leave un-offset (s.111) — amount used is the lesser of the loss available and the current-year income in that bucket",
+            "formula": "STCG loss is set off against current STCG first (s.111) — amount used is the lesser of the loss available and the current-year income in that bucket",
             "parts": [
               {
                 "label": "Brought-forward loss available",
@@ -2720,14 +2694,14 @@
         },
         {
           "label": "Gross total income (after brought-forward loss set-off)",
-          "inr": 4325486.92,
+          "inr": 3661486.92,
           "trace": {
             "kind": "calc",
             "formula": "Current-year income before set-off, less all brought-forward losses set off above",
             "parts": [
               {
                 "label": "Before set-off",
-                "amount": 4505486.92
+                "amount": 3841486.92
               },
               {
                 "label": "Less: total losses set off",
@@ -2754,14 +2728,14 @@
         },
         {
           "label": "Total income",
-          "inr": 4325486.92,
+          "inr": 3661486.92,
           "trace": {
             "kind": "calc",
             "formula": "Gross total income less Chapter VI-A deductions",
             "parts": [
               {
                 "label": "Gross total income",
-                "amount": 4325486.92
+                "amount": 3661486.92
               },
               {
                 "label": "Less Chapter VI-A deductions",
@@ -2773,10 +2747,10 @@
         },
         {
           "label": "Tax at slab rates",
-          "inr": 762419.6100000001,
+          "inr": 617219.6100000001,
           "trace": {
             "kind": "calc",
-            "formula": "Progressive slab-rate tax under the NEW regime, applied to ₹39,41,399 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
+            "formula": "Progressive slab-rate tax under the NEW regime, applied to ₹34,57,399 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
             "parts": [
               {
                 "label": "0% on ₹0–₹4,00,000",
@@ -2804,7 +2778,7 @@
               },
               {
                 "label": "30% above ₹24,00,000",
-                "amount": 462419.61000000004
+                "amount": 317219.61000000004
               }
             ],
             "citation": null
@@ -2812,7 +2786,7 @@
         },
         {
           "label": "Tax on special-rate income (196/197/198 gains + 115BBH VDA + 128/194 winnings)",
-          "inr": 76817.644,
+          "inr": 40817.644,
           "trace": {
             "kind": "calc",
             "formula": "s.196 STCG @ 20% + s.198 LTCG @ 12.5% (listed/STT-paid, net of the ₹1,25,000 exemption) + s.197 LTCG @ 12.5% (unlisted/foreign — no exemption, separate section, does not pool with s.198's threshold) + s.115BBH VDA/crypto @ 30% flat (no set-off, ever) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption (each broken out below)",
@@ -2856,14 +2830,14 @@
         },
         {
           "label": "Health & education cess (4%)",
-          "inr": 33569.49016,
+          "inr": 26321.490160000005,
           "trace": {
             "kind": "calc",
             "formula": "4% of (tax after rebate + surcharge)",
             "parts": [
               {
                 "label": "Tax after §156 rebate",
-                "amount": 839237.2540000001
+                "amount": 658037.2540000001
               },
               {
                 "label": "Surcharge",
@@ -2879,7 +2853,7 @@
         },
         {
           "label": "Total India tax",
-          "inr": 872806.7441600001,
+          "inr": 684358.7441600001,
           "emphasis": true,
           "trace": {
             "kind": "calc",
@@ -2887,11 +2861,11 @@
             "parts": [
               {
                 "label": "Tax at slab rates",
-                "amount": 762419.6100000001
+                "amount": 617219.6100000001
               },
               {
                 "label": "Tax on special-rate income",
-                "amount": 76817.644
+                "amount": 40817.644
               },
               {
                 "label": "Less §156 rebate",
@@ -2903,15 +2877,15 @@
               },
               {
                 "label": "Cess",
-                "amount": 33569.49016
+                "amount": 26321.490160000005
               }
             ],
             "citation": null
           }
         }
       ],
-      "totalUsd": 10515.743905542171,
-      "effectiveRate": 0.2017823103624135
+      "totalUsd": 8245.286074216869,
+      "effectiveRate": 0.18690733003082804
     },
     "us": {
       "title": "US federal income tax (MFJ)",
@@ -4006,13 +3980,13 @@
     "indiaStatus": "ROR",
     "usStatus": "RESIDENT_ALIEN",
     "dualResident": true,
-    "totalIncomeUsd": 326562.35144578316,
-    "indiaTaxUsd": 10515.743905542171,
+    "totalIncomeUsd": 318562.35144578316,
+    "indiaTaxUsd": 8245.286074216869,
     "usTaxUsd": 76428.26666867471,
-    "netDoubleTaxUsd": 1141.5181139254018,
+    "netDoubleTaxUsd": 252.59485059603503,
     "counts": {
       "critical": 6,
-      "warning": 9,
+      "warning": 8,
       "info": 8
     },
     "requiredDocs": 20,

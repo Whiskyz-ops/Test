@@ -126,7 +126,7 @@ function deriveCompanyPoem(cr) {
     }
     return false;
   } else {
-    return false;
+    return cr.savedPoem === true; // no company facts entered: the saved is_poem_in_india answer
   }
 }
 
@@ -153,7 +153,7 @@ function deriveIndiaDomesticStatus(entity, f) {
   var days = f.days, p4y = f.p4y, emp = f.emp || "none", visit = f.visit,
     nr9 = f.nr9, d7729 = f.d7729, inc15 = f.inc15, ltac = f.ltac || false;
   if (days >= 182) {
-    if (nr9 === false && d7729 === false) return "ROR";
+    if (nr9 !== true && d7729 !== true) return "ROR"; // unanswered lookback = ordinarily resident (RNOR must be shown)
     if (nr9 === true) return "RNOR";
     return "RNOR";
   } else if (days >= 60 && days < 182) {
@@ -168,7 +168,7 @@ function deriveIndiaDomesticStatus(entity, f) {
         if (days < 120 && inc15 === true && ltac === false) return "RNOR";
         return "NR";
       } else {
-        if (nr9 === false && d7729 === false) return "ROR";
+        if (nr9 !== true && d7729 !== true) return "ROR"; // unanswered lookback = ordinarily resident (RNOR must be shown)
         if (nr9 === true) return "RNOR";
         return "RNOR";
       }
@@ -236,6 +236,7 @@ var NODES = {
   indiaLtacRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.liable_to_tax_in_another_country_being_indian_citizen", false) === true; } },
   indiaIsIndianCompanyRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.is_indian_company", null); } },
   indiaWhollyOutsideIndiaRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.is_wholly_outside_india", null); } },
+  indiaIsPoemInIndiaRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.is_poem_in_india", null) === true; } },
   companyIsActiveBusinessRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "company_residency.is_active_business", false) === true; } },
   companyBoardOutsideIndiaRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "company_residency.board_meetings_primarily_outside_india", false) === true; } },
   companyKeyManagementLocationRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "company_residency.key_management_location", ""); } },
@@ -257,9 +258,9 @@ var NODES = {
   // ---- deriveCompanyPoem, as its own node (individually testable) ---------
   indiaCompanyPoemDerived: {
     deps: ["companyIsActiveBusinessRaw", "companyBoardOutsideIndiaRaw", "companyKeyManagementLocationRaw",
-      "companyManagementDelegatedOutsideRaw", "companyDirectorsInIndiaRaw", "companyDirectorsOutsideIndiaRaw"],
+      "companyManagementDelegatedOutsideRaw", "companyDirectorsInIndiaRaw", "companyDirectorsOutsideIndiaRaw", "indiaIsPoemInIndiaRaw"],
     compute: function (d) {
-      return deriveCompanyPoem({
+      return deriveCompanyPoem({ savedPoem: d.indiaIsPoemInIndiaRaw,
         isActiveBusiness: d.companyIsActiveBusinessRaw, boardMeetingsOutsideIndia: d.companyBoardOutsideIndiaRaw,
         keyManagementLocation: d.companyKeyManagementLocationRaw, managementDelegatedOutsideIndia: d.companyManagementDelegatedOutsideRaw,
         directorsInIndia: d.companyDirectorsInIndiaRaw, directorsOutsideIndia: d.companyDirectorsOutsideIndiaRaw
@@ -274,7 +275,7 @@ var NODES = {
       "indiaVisitPioCitizenRaw", "indiaNr9Raw", "indiaD7729Raw", "indiaIncome15lRaw", "indiaLtacRaw",
       "indiaIsIndianCompanyRaw", "indiaWhollyOutsideIndiaRaw", "indiaCompanyPoemDerived",
       "companyIsActiveBusinessRaw", "companyBoardOutsideIndiaRaw", "companyKeyManagementLocationRaw",
-      "companyManagementDelegatedOutsideRaw", "companyDirectorsInIndiaRaw", "companyDirectorsOutsideIndiaRaw"],
+      "companyManagementDelegatedOutsideRaw", "companyDirectorsInIndiaRaw", "companyDirectorsOutsideIndiaRaw", "indiaIsPoemInIndiaRaw"],
     compute: function (d) {
       return deriveIndiaDomesticStatus(d.indiaEntityKindRaw, {
         days: d.indiaDaysCurrentYearRaw, p4y: d.indiaDays4YearRaw, emp: d.indiaEmploymentOrCrewRaw,
@@ -284,7 +285,8 @@ var NODES = {
         company: {
           isActiveBusiness: d.companyIsActiveBusinessRaw, boardMeetingsOutsideIndia: d.companyBoardOutsideIndiaRaw,
           keyManagementLocation: d.companyKeyManagementLocationRaw, managementDelegatedOutsideIndia: d.companyManagementDelegatedOutsideRaw,
-          directorsInIndia: d.companyDirectorsInIndiaRaw, directorsOutsideIndia: d.companyDirectorsOutsideIndiaRaw
+          directorsInIndia: d.companyDirectorsInIndiaRaw, directorsOutsideIndia: d.companyDirectorsOutsideIndiaRaw,
+          savedPoem: d.indiaIsPoemInIndiaRaw
         }
       });
     }

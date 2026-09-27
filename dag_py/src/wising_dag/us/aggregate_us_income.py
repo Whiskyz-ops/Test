@@ -491,7 +491,10 @@ def _merge_simple(source: dict, target: dict) -> None:
     for k, sv in source.items():
         if sv is None:
             continue
-        target[k] = (target.get(k) or 0) + sv if isinstance(sv, (int, float)) and not isinstance(sv, bool) else sv
+        if isinstance(sv, (int, float)) and not isinstance(sv, bool):
+            target[k] = (target.get(k) or 0) + sv
+        elif sv != "" or k not in target:
+            target[k] = sv
 
 
 def _india_annual_slice_for_us(ctx):

@@ -925,8 +925,12 @@
             state.foreign_income.has_foreign_income = true;
             state.foreign_assets.has_foreign_assets = true;
         } else if (showIntl) {
-            if (state.foreign_income) state.foreign_income.has_foreign_income = false;
-            if (state.foreign_assets) state.foreign_assets.has_foreign_assets = false;
+            // Unchecked only withdraws an earlier "yes" — it isn't an answer of
+            // "no foreign assets". Writing false here on every load recorded an
+            // explicit "no" for clients who never saw the question, which the
+            // engine then reports as a Schedule FA contradiction.
+            if (state.foreign_income && state.foreign_income.has_foreign_income === true) state.foreign_income.has_foreign_income = false;
+            if (state.foreign_assets && state.foreign_assets.has_foreign_assets === true) state.foreign_assets.has_foreign_assets = null;
         }
         // ---------------------------------------------------
         
@@ -1210,8 +1214,12 @@
             state.foreign_income.has_foreign_income = true;
             state.foreign_assets.has_foreign_assets = true;
         } else if (showIntl) {
-            if (state.foreign_income) state.foreign_income.has_foreign_income = false;
-            if (state.foreign_assets) state.foreign_assets.has_foreign_assets = false;
+            // Unchecked only withdraws an earlier "yes" — it isn't an answer of
+            // "no foreign assets". Writing false here on every load recorded an
+            // explicit "no" for clients who never saw the question, which the
+            // engine then reports as a Schedule FA contradiction.
+            if (state.foreign_income && state.foreign_income.has_foreign_income === true) state.foreign_income.has_foreign_income = false;
+            if (state.foreign_assets && state.foreign_assets.has_foreign_assets === true) state.foreign_assets.has_foreign_assets = null;
         }
         // ---------------------------------------------------
         
@@ -1372,8 +1380,12 @@
             state.foreign_income.has_foreign_income = true;
             state.foreign_assets.has_foreign_assets = true;
         } else if (showIntl) {
-            if (state.foreign_income) state.foreign_income.has_foreign_income = false;
-            if (state.foreign_assets) state.foreign_assets.has_foreign_assets = false;
+            // Unchecked only withdraws an earlier "yes" — it isn't an answer of
+            // "no foreign assets". Writing false here on every load recorded an
+            // explicit "no" for clients who never saw the question, which the
+            // engine then reports as a Schedule FA contradiction.
+            if (state.foreign_income && state.foreign_income.has_foreign_income === true) state.foreign_income.has_foreign_income = false;
+            if (state.foreign_assets && state.foreign_assets.has_foreign_assets === true) state.foreign_assets.has_foreign_assets = null;
         }
         // ---------------------------------------------------
         
@@ -4738,7 +4750,7 @@
             entity_type: 'individual',
             date_of_birth: null,
             pan: null,
-            pan_aadhaar_linked: false,
+            pan_aadhaar_linked: null, // unanswered — the toggle shows linked until the user says otherwise
             tax_regime: 'NEW',
             turnover_lte_400cr: false,
             is_section_8: false,
@@ -5126,10 +5138,12 @@
         Q4: JSON.parse(defaultQuarterStateTemplate)
     };
 
-    function aggregateAnnualState() {
+    function aggregateAnnualState(quartersArg) {
+        const quarters = quartersArg || state.quarters;
         const annual = JSON.parse(defaultQuarterStateTemplate);
         ['Q1', 'Q2', 'Q3', 'Q4'].forEach(q => {
-            const qs = state.quarters[q];
+            const qs = quarters[q];
+            if (!qs) return;
             // Simple recursive sum for numbers
             function mergeObjects(target, source, path) {
                 path = path || '';
@@ -5184,7 +5198,8 @@
                     } else if (typeof source[key] === 'object') {
                         if (!target[key]) target[key] = {};
                         mergeObjects(target[key], source[key], curPath);
-                    } else {
+                    } else if (source[key] !== '' || target[key] === undefined) {
+                        // a blank later quarter doesn't erase an earlier quarter's value
                         target[key] = source[key];
                     }
                 }
@@ -5192,6 +5207,26 @@
             mergeObjects(annual, qs);
         });
         return annual;
+    }
+
+    function carryMasterSwitches(quarter) {
+        if (quarter && quarter !== 'ANNUAL') {
+            const others = ['Q1','Q2','Q3','Q4'].filter(q => q !== quarter && state.quarters[q]).map(q => state.quarters[q]);
+            const anyOn = (read) => others.some(o => { try { return read(o) === true; } catch (e) { return false; } });
+            if (state.domestic_income.salary) {
+                state.domestic_income.salary.has_salary_income = state.domestic_income.salary.has_salary_income === true || anyOn(o => o.domestic_income.salary.has_salary_income);
+            }
+            if (state.domestic_income.house_property) {
+                state.domestic_income.house_property.has_house_property_income = state.domestic_income.house_property.has_house_property_income === true || anyOn(o => o.domestic_income.house_property.has_house_property_income);
+            }
+            state.domestic_income.has_agricultural_income = state.domestic_income.has_agricultural_income === true || anyOn(o => o.domestic_income.has_agricultural_income);
+            if (state.other_sources) {
+                state.other_sources.has_other_sources_income = state.other_sources.has_other_sources_income === true || anyOn(o => o.other_sources.has_other_sources_income);
+            }
+            if (state.lrs_outbound) {
+                state.lrs_outbound.has_received_foreign_income = state.lrs_outbound.has_received_foreign_income === true || anyOn(o => o.lrs_outbound.has_received_foreign_income);
+            }
+        }
     }
 
     function switchQuarter(quarter) {
@@ -5362,23 +5397,7 @@
         // this quarter's own — e.g. salary switched on in Q1, then Q1 -> Annual
         // -> Q1 copied Q2's "off" back over Q1, silently dropping the salary
         // from every output (26 Sep 2026).
-        if (quarter !== 'ANNUAL') {
-            const others = ['Q1','Q2','Q3','Q4'].filter(q => q !== quarter && state.quarters[q]).map(q => state.quarters[q]);
-            const anyOn = (read) => others.some(o => { try { return read(o) === true; } catch (e) { return false; } });
-            if (state.domestic_income.salary) {
-                state.domestic_income.salary.has_salary_income = state.domestic_income.salary.has_salary_income === true || anyOn(o => o.domestic_income.salary.has_salary_income);
-            }
-            if (state.domestic_income.house_property) {
-                state.domestic_income.house_property.has_house_property_income = state.domestic_income.house_property.has_house_property_income === true || anyOn(o => o.domestic_income.house_property.has_house_property_income);
-            }
-            state.domestic_income.has_agricultural_income = state.domestic_income.has_agricultural_income === true || anyOn(o => o.domestic_income.has_agricultural_income);
-            if (state.other_sources) {
-                state.other_sources.has_other_sources_income = state.other_sources.has_other_sources_income === true || anyOn(o => o.other_sources.has_other_sources_income);
-            }
-            if (state.lrs_outbound) {
-                state.lrs_outbound.has_received_foreign_income = state.lrs_outbound.has_received_foreign_income === true || anyOn(o => o.lrs_outbound.has_received_foreign_income);
-            }
-        }
+        carryMasterSwitches(quarter);
 
         // FIX: If this quarter has no business entries yet, auto-scaffold the structure
         // from whichever quarter already has entries. This means the user only needs to
@@ -5747,12 +5766,12 @@
                     toggleForeignAssets(null);
                 }
             } else {
+                // Schedule FA is for RORs only, so the section is hidden — but the
+                // answers and rows are kept. Clearing them here deleted a
+                // client's foreign assets whenever the derived status left ROR
+                // (e.g. while day counts were being edited), and the engine
+                // already ignores them for a non-ROR.
                 lrsDiv.classList.add('hidden');
-                state.foreign_assets.has_foreign_assets = false;
-                state.lrs_outbound.has_received_foreign_income = false;
-                state.foreign_assets.assets = [];
-                const tbody = document.querySelector('#lrs-table tbody');
-                if (tbody) tbody.innerHTML = '';
             }
         }
     }
@@ -5798,9 +5817,9 @@
                             poem = (cr.management_delegated_outside_india === false);
                         }
                     }
-                } else {
-                    poem = false; // Default to false if facts are empty
                 }
+                // No facts entered: keep the saved is_poem_in_india answer
+                // (previously forced to false, making the company NR).
             }
             
             if (isIndian === true) {
@@ -5862,10 +5881,16 @@
             const inc15 = state.residency_detail.india_source_income_above_15l;
             const ltac = state.residency_detail.liable_to_tax_in_another_country_being_indian_citizen || false;
 
+            // A resident is ordinarily resident unless an RNOR condition is
+            // shown (NR in 9 of the 10 preceding years, or <=729 days in the 7
+            // preceding years). Unanswered lookback questions therefore give ROR,
+            // not RNOR — RNOR exempts foreign income, so defaulting to it
+            // understated tax for anyone whose history wasn't entered.
+            const lookbackNote = (nr9 !== true && d7_729 !== true && (nr9 == null || d7_729 == null)) ? " (prior-year history not entered — assumed ordinarily resident)" : "";
             if (days >= 182) {
-                if (nr9 === false && d7_729 === false) {
+                if (nr9 !== true && d7_729 !== true) {
                     status = "ROR";
-                    path = "Path ROR-1: Standard Resident (>182 days + not NR 9/10 + >729 preceding days)";
+                    path = "Path ROR-1: Standard Resident (>182 days + not NR 9/10 + >729 preceding days)" + lookbackNote;
                     scope = "Worldwide income. Deductions and treaty foreign tax credits fully unlocked.";
                 } else if (nr9 === true) {
                     status = "RNOR";
@@ -5910,9 +5935,9 @@
                             path = "Path NR-10: Non-Resident (Visitor <120 days)";
                         }
                     } else {
-                        if (nr9 === false && d7_729 === false) {
+                        if (nr9 !== true && d7_729 !== true) {
                             status = "ROR";
-                            path = "Path ROR-2: Standard Resident (>60 days & >=365 in 4 yrs + not NR 9/10 + >729 preceding days)";
+                            path = "Path ROR-2: Standard Resident (>60 days & >=365 in 4 yrs + not NR 9/10 + >729 preceding days)" + lookbackNote;
                             scope = "Worldwide income. Deductions and treaty foreign tax credits fully unlocked.";
                         } else if (nr9 === true) {
                             status = "RNOR";
@@ -6759,7 +6784,13 @@ const crDiv = document.getElementById('div-company-residency');
                   alertDiv.classList.remove('hidden');
               } else {
                   alertDiv.classList.add('hidden');
-                  if (state.dtaa?.dtaa_treaty_residence && state.dtaa.dtaa_treaty_residence !== 'none') {
+                  // Only undo a tie-break this form's own Article 4 wizard produced
+                  // (the client has stopped being dual-resident since). A treaty
+                  // residence recorded any other way — e.g. a US resident who is NR
+                  // in India claiming treaty benefits, which needs a TRC and Form 41
+                  // — isn't a tie-break result, and wiping it dropped those documents.
+                  const fromTieBreaker = !!(state.dtaa && state.dtaa.tb_home && state.dtaa.tb_home !== 'none');
+                  if (fromTieBreaker && state.dtaa?.dtaa_treaty_residence && state.dtaa.dtaa_treaty_residence !== 'none') {
                       state.dtaa.dtaa_treaty_residence = 'none';
                       try {
                           const usStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('US'));
@@ -7302,8 +7333,22 @@ const crDiv = document.getElementById('div-company-residency');
         }, 1500);
     }
 
-    function addBankAccountRow() {
-        const rowId = 'bank-' + Date.now();
+    // Saved account types come in several spellings (profiles and older saves
+    // use lowercase "savings"/"nro"/"current"); map them onto this form's options.
+    function normalizeBankType(t) {
+        const v = String(t || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+        if (!v) return 'SAVINGS';
+        if (v === 'NRE_SAVINGS' || v === 'NRE_FD') return 'NRE';
+        if (v === 'NRO_SAVINGS' || v === 'NRO_FD') return 'NRO';
+        if (v === 'CHECKING') return 'CURRENT';
+        if (v === 'GIFT' || v === 'IFSC') return 'GIFT_IFSC';
+        return ['SAVINGS', 'CURRENT', 'NRE', 'NRO', 'FCNR', 'RFC', 'GIFT_IFSC'].includes(v) ? v : 'SAVINGS';
+    }
+
+    let bankRowSeq = 0;
+    function addBankAccountRow(acc) {
+        const restoring = !!acc;
+        const rowId = 'bank-' + Date.now() + '-' + (bankRowSeq++);
         const list = document.getElementById('div-bank-list');
         const div = document.createElement('div');
         div.id = rowId;
@@ -7355,7 +7400,7 @@ const crDiv = document.getElementById('div-company-residency');
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-[10px] text-white/60 mb-1">Current Balance</label>
+                    <label class="block text-[10px] text-white/60 mb-1">Peak Balance During the Year</label>
                     <div class="flex">
                         <input type="text" inputmode="numeric" class="inr-input bank-bal w-2/3 bg-[#121212] border border-white/10 rounded-l-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none border-r-0 transition-all font-mono" placeholder="0.00" oninput="syncBankAccountsState()">
                         <select class="bank-bal-curr w-1/3 bg-[#2A2A2A] border border-white/10 rounded-r-lg text-[10px] text-white px-2 focus:border-brandGold focus:outline-none transition-all" onchange="syncBankAccountsState()">
@@ -7433,6 +7478,29 @@ const crDiv = document.getElementById('div-company-residency');
         `;
         list.appendChild(div);
 
+        if (restoring) {
+            const peak = acc.peak_balance !== undefined && acc.peak_balance !== null ? acc.peak_balance
+                : (acc.peak_balance_inr !== undefined && acc.peak_balance_inr !== null ? acc.peak_balance_inr : acc.current_balance);
+            const currency = acc.peak_balance !== undefined && acc.peak_balance !== null ? (acc.peak_balance_currency || acc.current_balance_currency || 'INR')
+                : (acc.peak_balance_inr !== undefined && acc.peak_balance_inr !== null ? 'INR' : (acc.current_balance_currency || 'INR'));
+            div.querySelector('.bank-name').value = acc.bank_name || '';
+            div.querySelector('.bank-type').value = normalizeBankType(acc.account_type);
+            div.querySelector('.bank-bal').value = (peak !== undefined && peak !== null) ? peak : '';
+            div.querySelector('.bank-bal-curr').value = currency;
+            div.querySelector('.bank-rate').value = acc.annual_interest_rate ? (acc.annual_interest_rate * 100).toFixed(2) : '';
+            div.querySelector('.bank-int').value = acc.interest_credited_this_fy_inr || '';
+            const usCertEl = div.querySelector('.bank-us-person-cert');
+            if (usCertEl) usCertEl.value = (acc.us_person_certified_to_bank === null || acc.us_person_certified_to_bank === undefined) ? 'null' : String(acc.us_person_certified_to_bank);
+            div.querySelector('.bank-nre-date').value = acc.account_conversion_date || '';
+            div.querySelector('.bank-fcnr-date').value = acc.fcnr_maturity_date || '';
+            div.querySelector('.bank-nro-bal-input').value = acc.nro_balance || '';
+            // show the type-specific inputs without re-syncing from a half-built list
+            const type = div.querySelector('.bank-type').value;
+            div.querySelector('.bank-nre-conversion').classList.toggle('hidden', type !== 'NRE');
+            div.querySelector('.bank-fcnr-maturity').classList.toggle('hidden', type !== 'FCNR');
+            div.querySelector('.bank-nro-balance').classList.toggle('hidden', type !== 'NRO');
+            return;
+        }
         syncBankAccountsState();
         checkNROAccounts();
     }
@@ -7448,11 +7516,23 @@ const crDiv = document.getElementById('div-company-residency');
         const accounts = [];
         document.querySelectorAll('.bank-card').forEach(div => {
             const type = div.querySelector('.bank-type').value;
+            const balRaw = div.querySelector('.bank-bal').value;
+            const bal = balRaw === '' ? null : parseINRCurrency(balRaw);
+            const cur = div.querySelector('.bank-bal-curr').value;
+            const inrPerUsd = (window.WISING && WISING.CONST && WISING.CONST.FX && WISING.CONST.FX.INR_PER_USD) || 83;
             const acc = {
                 bank_name: div.querySelector('.bank-name').value || null,
                 account_type: type,
-                current_balance: parseINRCurrency(div.querySelector('.bank-bal').value),
-                current_balance_currency: div.querySelector('.bank-bal-curr').value,
+                // The balance input is the year's PEAK balance — FBAR, Form 8938
+                // and Schedule FA all test the highest balance, and the engine
+                // reads peak_balance_inr. (It used to be saved only as
+                // current_balance, which nothing reads, so every India account
+                // counted as ₹0 towards the FBAR limit.)
+                peak_balance: bal,
+                peak_balance_currency: cur,
+                peak_balance_inr: bal === null ? null : (cur === 'INR' ? bal : (cur === 'USD' ? Math.round(bal * inrPerUsd) : null)),
+                current_balance: bal,
+                current_balance_currency: cur,
                 annual_interest_rate: parseINRCurrency(div.querySelector('.bank-rate').value) / 100 || null,
                 interest_credited_this_fy_inr: parseINRCurrency(div.querySelector('.bank-int').value) || null,
                 us_person_certified_to_bank: (function () {
@@ -7824,20 +7904,30 @@ const crDiv = document.getElementById('div-company-residency');
             const acqDateEl = div.querySelector('.prop-acq-date');
             if (acqDateEl && tx.acquisition_date) acqDateEl.value = tx.acquisition_date;
             const costEl = div.querySelector('.prop-cost');
-            if (costEl && tx.purchase_value != null) costEl.value = tx.purchase_value;
-            const isSold = !!(tx.sale_date || tx.sale_consideration);
+            // actual_cost is what this card saves; purchase_value is the profile
+            // spelling. Reading only purchase_value showed the ORIGINAL cost
+            // again after the user had edited it.
+            const cost = tx.actual_cost != null ? tx.actual_cost : tx.purchase_value;
+            if (costEl && cost != null) costEl.value = cost;
+            const costCurEl = div.querySelector('.prop-cost-curr');
+            if (costCurEl && tx.actual_cost_currency) costCurEl.value = tx.actual_cost_currency;
+            const pre2001El = div.querySelector('.prop-pre2001');
+            if (pre2001El && tx.pre_2001_fmv_inr != null) pre2001El.value = tx.pre_2001_fmv_inr;
+            const saleAmt = tx.sale_consideration != null ? tx.sale_consideration : tx.sale_value;
+            const isSold = tx.status ? tx.status === 'sold' : !!(tx.sale_date || saleAmt);
             const statusRadio = div.querySelector(`.prop-status[value="${isSold ? 'sold' : 'holding'}"]`);
             if (statusRadio) statusRadio.checked = true;
             const saleDateEl = div.querySelector('.prop-sale-date');
             if (saleDateEl && tx.sale_date) saleDateEl.value = tx.sale_date;
             const saleValEl = div.querySelector('.prop-sale-val');
-            if (saleValEl && tx.sale_consideration != null) saleValEl.value = tx.sale_consideration;
+            if (saleValEl && saleAmt != null) saleValEl.value = saleAmt;
             const saleCurrEl = div.querySelector('.prop-sale-curr');
             if (saleCurrEl && tx.sale_consideration_currency) saleCurrEl.value = tx.sale_consideration_currency;
             const sdvEl = div.querySelector('.prop-sdv');
             if (sdvEl && tx.stamp_duty_value != null) sdvEl.value = tx.stamp_duty_value;
             const expEl = div.querySelector('.prop-exp');
-            if (expEl && tx.transfer_expenses != null) expEl.value = tx.transfer_expenses;
+            const exp = tx.transfer_expenses_inr != null ? tx.transfer_expenses_inr : tx.transfer_expenses; // this card saves transfer_expenses_inr
+            if (expEl && exp != null) expEl.value = exp;
             const tanEl = div.querySelector('.prop-tan');
             if (tanEl && tx.buyer_tan) tanEl.value = tx.buyer_tan;
             const tdsEl = div.querySelector('.prop-tds');
@@ -7959,6 +8049,7 @@ const crDiv = document.getElementById('div-company-residency');
 
             const p = {
                 property_type: div.querySelector('.prop-type').value || null,
+                status: isHolding ? 'holding' : 'sold',
                 acquisition_date: div.querySelector('.prop-acq-date').value || null,
                 actual_cost: parseINRCurrency(div.querySelector('.prop-cost').value),
                 actual_cost_currency: div.querySelector('.prop-cost-curr').value,
@@ -9767,7 +9858,9 @@ const crDiv = document.getElementById('div-company-residency');
             box.classList.remove('hidden'); box.classList.add('flex');
             const isManualTab = document.getElementById('tab-fin-manual').classList.contains('text-brandGold');
             if (isManualTab) btn.classList.remove('hidden');
-            if (!document.querySelector('#fin-table tbody tr')) addFinancialRow();
+            // (was '#fin-table tbody tr', an element that doesn't exist — so a blank
+            // row was appended every time the section was switched on, including on load)
+            if (!document.querySelector('#div-fin-list .fin-card')) addFinancialRow();
         } else { 
             box.classList.add('hidden'); box.classList.remove('flex'); 
             btn.classList.add('hidden'); 
@@ -9834,6 +9927,45 @@ const crDiv = document.getElementById('div-company-residency');
         return anyCgAmount || anyCgTransactions;
     }
 
+    // Setup cards ("which income heads apply") follow the data, and the
+    // flags the ITR check reads follow the cards. Also run once more at the
+    // very end of page load: parts of the state are filled in later in the
+    // load (quarter re-sync, the US import), and syncing only midway saved
+    // different flags on the first open than on the next one.
+    function syncSetupCardsFromState() {
+    // Sync master UI toggles from state and update visual cards
+    const syncCard = (id, isActive) => {
+        const el = document.getElementById(id);
+        const card = document.getElementById('card-' + id);
+        if (el) el.checked = isActive;
+        if (card) {
+            if (isActive) card.classList.add('active');
+            else card.classList.remove('active');
+        }
+    };
+
+    // These read the SAME fields the tax computation reads (has_salary_income,
+    // has_house_property_income, has_business_or_fo_income, top-level
+    // other_sources.has_other_sources_income) — not a separate wizard-only
+    // flag — so a profile loaded directly into state (bypassing the setup
+    // wizard clicks) still lights up the correct cards.
+    if (state.domestic_income) {
+        syncCard('setup-salary', !!(state.domestic_income.salary && state.domestic_income.salary.has_salary_income));
+        syncCard('setup-hp', !!(state.domestic_income.house_property && state.domestic_income.house_property.has_house_property_income));
+        syncCard('setup-business', !!(state.domestic_income.business_income && state.domestic_income.business_income.has_business_or_fo_income));
+    }
+    syncCard('setup-os', !!(state.other_sources && state.other_sources.has_other_sources_income));
+
+    syncCard('setup-cg', hasAnyCapitalGainsData());
+
+    // Ensure foreign objects exist before checking
+    const hasForeign = !!((state.foreign_income && state.foreign_income.has_foreign_income) || (state.foreign_assets && state.foreign_assets.has_foreign_assets));
+    syncCard('setup-international', hasForeign);
+
+    if (typeof updateSidebarVisibility === 'function') updateSidebarVisibility();
+    if (typeof evaluateITRForm === 'function') evaluateITRForm();
+    }
+
     function renderEsopRows() {
         const container = document.getElementById('div-esop-list');
         if (!container) return;
@@ -9876,37 +10008,7 @@ const crDiv = document.getElementById('div-company-residency');
             container.appendChild(div);
         });
         
-        // Sync master UI toggles from state and update visual cards
-        const syncCard = (id, isActive) => {
-            const el = document.getElementById(id);
-            const card = document.getElementById('card-' + id);
-            if (el) el.checked = isActive;
-            if (card) {
-                if (isActive) card.classList.add('active');
-                else card.classList.remove('active');
-            }
-        };
-
-        // These read the SAME fields the tax computation reads (has_salary_income,
-        // has_house_property_income, has_business_or_fo_income, top-level
-        // other_sources.has_other_sources_income) — not a separate wizard-only
-        // flag — so a profile loaded directly into state (bypassing the setup
-        // wizard clicks) still lights up the correct cards.
-        if (state.domestic_income) {
-            syncCard('setup-salary', !!(state.domestic_income.salary && state.domestic_income.salary.has_salary_income));
-            syncCard('setup-hp', !!(state.domestic_income.house_property && state.domestic_income.house_property.has_house_property_income));
-            syncCard('setup-business', !!(state.domestic_income.business_income && state.domestic_income.business_income.has_business_or_fo_income));
-        }
-        syncCard('setup-os', !!(state.other_sources && state.other_sources.has_other_sources_income));
-
-        syncCard('setup-cg', hasAnyCapitalGainsData());
-
-        // Ensure foreign objects exist before checking
-        const hasForeign = !!((state.foreign_income && state.foreign_income.has_foreign_income) || (state.foreign_assets && state.foreign_assets.has_foreign_assets));
-        syncCard('setup-international', hasForeign);
-
-        if (typeof updateSidebarVisibility === 'function') updateSidebarVisibility();
-        if (typeof evaluateITRForm === 'function') evaluateITRForm();
+        syncSetupCardsFromState();
 
         if (typeof formatAllINRInputs === 'function') formatAllINRInputs();
     }
@@ -10139,9 +10241,17 @@ const crDiv = document.getElementById('div-company-residency');
             const saleVal = tx.sale_val != null ? tx.sale_val : tx.sale_value;
             const expenses = tx.brokerage != null ? tx.brokerage : tx.transfer_expenses;
 
-            if (tx.asset_class) card.querySelector('.fin-class').value = tx.asset_class;
+            // asset_type is the older / profile spelling of asset_class
+            const finClass = tx.asset_class || tx.asset_type;
+            if (finClass) {
+                const sel = card.querySelector('.fin-class');
+                const opts = Array.from(sel.options).map(o => o.value);
+                const legacy = { debt_mutual_fund: (acqDate && acqDate < '2023-04-01') ? 'debt_mutual_fund_pre_apr23' : 'debt_mutual_fund_post_apr23', mutual_fund: 'equity_mutual_fund', equity: 'listed_equity', stock: 'listed_equity', crypto: 'vda_crypto', reit: 'reit_invit', bond: 'bond_listed' };
+                const v = opts.includes(finClass) ? finClass : legacy[finClass];
+                if (v && opts.includes(v)) sel.value = v;
+            }
             if (assetName) card.querySelector('.fin-name').value = assetName;
-            if (tx.quantity) card.querySelector('.fin-qty').value = tx.quantity;
+            if (tx.quantity != null) card.querySelector('.fin-qty').value = tx.quantity;
             if (tx.status) {
                 const statusRadio = card.querySelector(`input[name="fin-status-${rowId}"][value="${tx.status}"]`);
                 if (statusRadio) {
@@ -10152,11 +10262,12 @@ const crDiv = document.getElementById('div-company-residency');
             if (acqDate) card.querySelector('.fin-acq').value = acqDate;
             if (purCurr) card.querySelector('.fin-pur-curr').value = purCurr;
             if (purVal != null) card.querySelector('.fin-pur').value = purVal;
-            if (tx.grandfathering_fmv) card.querySelector('.fin-fmv').value = tx.grandfathering_fmv;
+            const gfFmv = tx.grandfathering_fmv != null ? tx.grandfathering_fmv : tx.fmv_31jan2018_per_unit_inr; // saved as fmv_31jan2018_per_unit_inr
+            if (gfFmv != null) card.querySelector('.fin-fmv').value = gfFmv;
             if (tx.sale_date) card.querySelector('.fin-sale-date').value = tx.sale_date;
             if (saleCurr) card.querySelector('.fin-sale-curr').value = saleCurr;
             if (saleVal != null) card.querySelector('.fin-sale').value = saleVal;
-            if (tx.stt_paid) card.querySelector('.fin-stt').value = tx.stt_paid;
+            if (tx.stt_paid !== undefined && tx.stt_paid !== null) card.querySelector('.fin-stt').value = String(tx.stt_paid); // false used to be skipped and come back as true
             if (expenses != null) card.querySelector('.fin-exp').value = expenses;
             if (tx.is_specified_foreign_exchange_asset !== undefined) card.querySelector('.fin-sfea').checked = tx.is_specified_foreign_exchange_asset;
             if (tx.nri_exit_type && card.querySelector('.fin-nri-exit-type')) card.querySelector('.fin-nri-exit-type').value = tx.nri_exit_type;
@@ -10345,7 +10456,8 @@ const crDiv = document.getElementById('div-company-residency');
                 list.appendChild(div);
 
         if (tx) {
-            if (tx.commodity_type) div.querySelector('.com-type').value = tx.commodity_type;
+            const comType = tx.commodity_type || tx.asset_class; // asset_class is the profile spelling
+            if (comType && Array.from(div.querySelector('.com-type').options).some(o => o.value === comType)) div.querySelector('.com-type').value = comType;
             if (tx.quantity !== null && tx.quantity !== undefined) div.querySelector('.com-qty').value = tx.quantity;
             if (tx.acquisition_date) div.querySelector('.com-acq-date').value = tx.acquisition_date;
             if (tx.purchase_value !== null && tx.purchase_value !== undefined) div.querySelector('.com-pur-val').value = tx.purchase_value;
@@ -10359,7 +10471,7 @@ const crDiv = document.getElementById('div-company-residency');
             } else {
                 div.querySelector('input[value="holding"]').checked = true;
             }
-            if (tx.is_maturity_redemption !== null) div.querySelector('.com-maturity-cb').checked = tx.is_maturity_redemption;
+            if (tx.is_maturity_redemption != null) div.querySelector('.com-maturity-cb').checked = tx.is_maturity_redemption === true;
             
             // Trigger dependency toggle
             toggleCommodityTypeDependencies(rowId);
@@ -13041,7 +13153,7 @@ ${isProf ? '' : `
 
             if (!window.isHeadlessSimulation) {
                 state.metadata.last_updated_at = new Date().toISOString();
-                localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'), JSON.stringify(state));
+                persistIndiaState();
             }
 
             return ret;
@@ -13707,7 +13819,7 @@ ${isProf ? '' : `
         const optJson = document.getElementById('output-json');
         if (optJson) optJson.textContent = JSON.stringify(state, null, 2);
         if (typeof evaluateITRForm === 'function') evaluateITRForm();
-        localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'), JSON.stringify(state));
+        persistIndiaState();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -13831,7 +13943,7 @@ ${isProf ? '' : `
         const dobEl = document.getElementById('prof-dob');
         if (dobEl) dobEl.value = state.profile.date_of_birth || '';
         document.getElementById('prof-pan').value = state.profile.pan;
-        document.getElementById('prof-aadhaar-linked').checked = state.profile.pan_aadhaar_linked;
+        document.getElementById('prof-aadhaar-linked').checked = state.profile.pan_aadhaar_linked !== false;
         document.getElementById('prof-regime').value = state.profile.tax_regime;
 
         document.getElementById('res-days-current').value = state.residency_detail.days_in_india_current_year;
@@ -13994,151 +14106,9 @@ ${isProf ? '' : `
         if (!list) return;
         list.innerHTML = '';
         
-        if (state.bank_accounts && state.bank_accounts.length > 0) {
-            state.bank_accounts.forEach((acc, idx) => {
-                const rowId = 'bank-restored-' + idx + '-' + Date.now();
-                const div = document.createElement('div');
-                div.id = rowId;
-                div.className = "bank-card bg-[#161616] border border-white/10 rounded-2xl p-5 flex flex-col gap-6 relative shadow-lg";
-                
-                div.innerHTML = `
-                    <div class="flex justify-between items-center border-b border-white/10 pb-3">
-                        <h3 class="text-xs font-black uppercase tracking-widest text-brandGold">Bank Account Details</h3>
-                        <button onclick="removeBankAccountRow('${rowId}')" class="text-[10px] uppercase font-bold tracking-wider text-brandRed/80 hover:text-brandRed transition-colors">Delete Entry</button>
-                    </div>
-                    
-                    <div class="mt-2 border-2 border-dashed border-brandGold/30 bg-brandGold/5 rounded-xl p-4 text-center cursor-pointer hover:bg-brandGold/10 transition-colors relative" onclick="this.querySelector('input').click()">
-                        <span class="text-xs font-bold text-brandGold block mb-1">🏦 Upload Bank Statement / Passbook</span>
-                        <span class="text-[9px] text-brandGold/60">Upload your document to auto-fill these fields</span>
-                        <input type="file" accept=".pdf,image/*" class="hidden" id="${rowId}-upload" onchange="handleBankUpload(event, '${rowId}')">
-                    </div>
+        (state.bank_accounts || []).forEach(acc => { if (acc && typeof acc === 'object') addBankAccountRow(acc); });
+        checkNROAccounts();
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                        <div>
-                            <label class="block text-[10px] text-white/60 mb-1">Bank Name</label>
-                            <input type="text" class="bank-name w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all" placeholder="e.g. HDFC Bank" oninput="syncBankAccountsState()">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] text-white/60 mb-1 flex items-center gap-1 group relative w-fit">
-                                Account Type
-                                <span class="cursor-help text-brandGold/70 hover:text-brandGold transition-colors">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                </span>
-                                <div class="hidden group-hover:block absolute bottom-full left-0 mb-2 w-64 p-3 bg-[#1A1A1A] border border-brandGold/20 rounded-xl shadow-2xl text-[9px] text-white/80 normal-case tracking-normal leading-relaxed z-20 text-left">
-                                    <strong>Savings</strong>: Standard domestic account.<br>
-                                    <strong>NRO</strong>: Non-Resident Ordinary. Income earned in India (Rent, Interest). Fully taxable.<br>
-                                    <strong>NRE</strong>: Non-Resident External. Foreign income parked in INR. Tax-free interest.<br>
-                                    <strong>FCNR</strong>: Foreign Currency Non-Resident. Foreign currency deposits. Tax-free interest.
-                                </div>
-                            </label>
-                            <select class="bank-type w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all" onchange="toggleBankTypeDependencies('${rowId}')">
-                                <option value="SAVINGS">Savings Account (Resident)</option>
-                                <option value="NRO">NRO Account (Non-Resident Ordinary)</option>
-                                <option value="NRE">NRE Account (Non-Resident External)</option>
-                                <option value="FCNR">FCNR Account (Foreign Currency Deposit)</option>
-                            </select>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-[10px] text-white/60 mb-1">Peak Balance in FY</label>
-                            <div class="flex">
-                                <input type="text" inputmode="numeric" class="inr-input bank-bal w-2/3 bg-[#121212] border border-white/10 rounded-l-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none border-r-0 transition-all font-mono" placeholder="0.00" oninput="syncBankAccountsState()">
-                                <select class="bank-bal-curr w-1/3 bg-[#2A2A2A] border border-white/10 rounded-r-lg text-[10px] text-white px-2 focus:border-brandGold focus:outline-none transition-all" onchange="syncBankAccountsState()">
-                                    <option value="INR">INR</option>
-                                    <option value="USD">USD</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] text-white/60 mb-1 flex items-center gap-1 group relative w-fit">
-                                Interest Credited (INR)
-                                <span class="cursor-help text-white/40 hover:text-white/60 transition-colors">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                </span>
-                                <div class="hidden group-hover:block absolute bottom-full left-0 mb-2 w-64 p-3 bg-[#1A1A1A] border border-white/5 rounded-xl shadow-2xl text-[9px] text-white/80 normal-case tracking-normal leading-relaxed z-20 text-left">
-                                    Provide the total interest amount credited to this account during the Tax Year.
-                                </div>
-                            </label>
-                            <div class="relative">
-                                <span class="absolute left-3 top-3 text-white/40 text-xs">₹</span>
-                                <input type="text" inputmode="numeric" class="inr-input bank-int w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white pl-7 pr-3 py-2.5 focus:border-brandGold focus:outline-none transition-all font-mono" placeholder="0" oninput="syncBankAccountsState()">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] text-white/60 mb-1 flex items-center gap-1 group relative w-fit">
-                                Interest Rate (%)
-                                <span class="cursor-help text-white/40 hover:text-white/60 transition-colors">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                </span>
-                                <div class="hidden group-hover:block absolute bottom-full left-0 mb-2 w-64 p-3 bg-[#1A1A1A] border border-white/5 rounded-xl shadow-2xl text-[9px] text-white/80 normal-case tracking-normal leading-relaxed z-20 text-left">
-                                    Provide the interest rate if you do not know the exact interest amount.
-                                </div>
-                            </label>
-                            <input type="text" inputmode="numeric" step="0.01" class="inr-input bank-rate w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all font-mono" placeholder="e.g. 3.5" oninput="syncBankAccountsState()">
-                            <p class="text-[9px] text-white/30 mt-1">Leave blank if you only know the interest amount credited.</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Conditional Dependencies -->
-                    <div class="bank-nre-conversion hidden">
-                        <label class="block text-[10px] text-brandGold mb-1">Conversion Date (If residency changed)</label>
-                        <input type="date" class="bank-nre-date w-full bg-[#1A1A1A] border border-brandGold/30 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all font-mono" onchange="syncBankAccountsState()">
-                        <p class="text-[9px] text-brandGold/60 mt-1">If residency lock changed to RNOR or ROR this FY</p>
-                    </div>
-                    <div class="bank-fcnr-maturity hidden">
-                        <label class="block text-[10px] text-white/60 mb-1">FCNR Maturity Date</label>
-                        <input type="date" class="bank-fcnr-date w-full bg-[#1A1A1A] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all font-mono" onchange="syncBankAccountsState()">
-                    </div>
-                    <div class="bank-nro-balance hidden">
-                        <label class="block text-[10px] text-white/60 mb-1">NRO balance at conversion date</label>
-                        <div class="relative">
-                            <span class="absolute left-3 top-3 text-white/40 text-xs">₹</span>
-                            <input type="text" inputmode="numeric" class="inr-input bank-nro-bal-input w-full bg-[#1A1A1A] border border-brandGold/30 rounded-lg text-xs text-white pl-7 pr-3 py-2.5 focus:border-brandGold focus:outline-none transition-all font-mono" placeholder="0" oninput="syncBankAccountsState()">
-                        </div>
-                    </div>
-                    <div class="mt-2 pt-3 border-t border-white/5">
-                        <label class="block text-[10px] text-white/60 mb-1 flex items-center gap-1 group relative w-fit">
-                            US Person Self-Certification (W-9/FATCA) on File With This Bank?
-                            <span class="cursor-help text-brandGold/70 hover:text-brandGold transition-colors">
-                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            </span>
-                            <div class="hidden group-hover:block absolute bottom-full left-0 mb-2 w-72 p-3 bg-[#1A1A1A] border border-brandGold/20 rounded-xl shadow-2xl text-[9px] text-white/80 normal-case tracking-normal leading-relaxed z-20 text-left">
-                                Only relevant if you're a US citizen or green card holder. Under FATCA and the India-US IGA, Indian banks must identify US-person accountholders (usually via a Form W-9 or FATCA self-certification you give the bank) and report those accounts either way — without it on file, the bank may treat you as "recalcitrant," which can mean account restrictions.
-                            </div>
-                        </label>
-                        <select class="bank-us-person-cert w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-2.5 focus:border-brandGold focus:outline-none transition-all" onchange="syncBankAccountsState()">
-                            <option value="null">-- Not sure / not applicable --</option>
-                            <option value="true">Yes — certified</option>
-                            <option value="false">No — not certified</option>
-                        </select>
-                    </div>
-                `;
-                
-                list.appendChild(div);
-                
-                // Populate values in inputs
-                div.querySelector('.bank-name').value = acc.bank_name || '';
-                div.querySelector('.bank-type').value = acc.account_type || 'SAVINGS';
-                div.querySelector('.bank-bal').value = acc.current_balance || '';
-                div.querySelector('.bank-bal-curr').value = acc.current_balance_currency || 'INR';
-                div.querySelector('.bank-rate').value = acc.annual_interest_rate ? (acc.annual_interest_rate * 100).toFixed(2) : '';
-                div.querySelector('.bank-int').value = acc.interest_credited_this_fy_inr || '';
-                
-                const usCertEl = div.querySelector('.bank-us-person-cert');
-                if (usCertEl) usCertEl.value = (acc.us_person_certified_to_bank === null || acc.us_person_certified_to_bank === undefined) ? 'null' : String(acc.us_person_certified_to_bank);
-                
-                toggleBankTypeDependencies(rowId);
-                
-                if (acc.account_type === 'NRE') {
-                    div.querySelector('.bank-nre-date').value = acc.account_conversion_date || '';
-                } else if (acc.account_type === 'FCNR') {
-                    div.querySelector('.bank-fcnr-date').value = acc.fcnr_maturity_date || '';
-                } else if (acc.account_type === 'NRO') {
-                    div.querySelector('.bank-nro-bal-input').value = acc.nro_balance || '';
-                }
-            });
-        }
-        
         // Restore NRO repatriation inputs if present
         if (state.nro_repatriation) {
             const rep = document.getElementById('nro-repat-usd');
@@ -14172,7 +14142,7 @@ ${isProf ? '' : `
         if (pan) pan.value = state.profile.pan || '';
         
         const aadhaar = document.getElementById('prof-aadhaar-linked');
-        if (aadhaar) aadhaar.checked = state.profile.pan_aadhaar_linked || false;
+        if (aadhaar) aadhaar.checked = state.profile.pan_aadhaar_linked !== false;
         
         const regime = document.getElementById('prof-regime');
         if (regime) regime.value = state.profile.tax_regime || 'NEW';
@@ -14719,6 +14689,26 @@ ${isProf ? '' : `
         }
     }
     
+    function sectionHasData(v) {
+        if (v === null || v === undefined) return false;
+        if (typeof v === 'number') return v !== 0 && isFinite(v);
+        if (Array.isArray(v)) return v.some(x => x && typeof x === 'object' ? sectionHasData(x) : (typeof x === 'number' ? x !== 0 : !!x));
+        if (typeof v === 'object') return Object.keys(v).some(k => !/^has_/.test(k) && sectionHasData(v[k]));
+        return false;
+    }
+    function inferIncomeSwitches(slice) {
+        if (!slice || typeof slice !== 'object') return;
+        const unset = (o, k) => o && typeof o === 'object' && typeof o[k] !== 'boolean';
+        const di = slice.domestic_income;
+        if (di && typeof di === 'object') {
+            if (unset(di.salary, 'has_salary_income') && sectionHasData(di.salary)) di.salary.has_salary_income = true;
+            if (unset(di.house_property, 'has_house_property_income') && sectionHasData(di.house_property)) di.house_property.has_house_property_income = true;
+            if (unset(di.business_income, 'has_business_or_fo_income') && sectionHasData(di.business_income)) di.business_income.has_business_or_fo_income = true;
+            if (typeof di.has_agricultural_income !== 'boolean' && Number(di.agricultural_income_inr) > 0) di.has_agricultural_income = true;
+        }
+        if (unset(slice.other_sources, 'has_other_sources_income') && sectionHasData(slice.other_sources)) slice.other_sources.has_other_sources_income = true;
+    }
+
     function _initWindowOnLoad() {
         const routerStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('ROUTER'));
         if (!routerStr) {
@@ -14760,6 +14750,14 @@ ${isProf ? '' : `
         if (savedIndiaStateStr) {
             try {
                 const savedState = JSON.parse(savedIndiaStateStr);
+                indiaLoadedBaseline = JSON.parse(savedIndiaStateStr);
+                // An income head saved WITHOUT its "applies" switch but with
+                // amounts in it is on. The form's template defaults every switch
+                // to false, and the engine discards a head whose switch is false,
+                // so data saved without switches (profiles, imports, older saves)
+                // lost its income the first time this page was opened.
+                inferIncomeSwitches(savedState);
+                if (savedState.quarters) ['Q1', 'Q2', 'Q3', 'Q4'].forEach(q => inferIncomeSwitches(savedState.quarters[q]));
                 // Merge states
                 if (savedState.profile) Object.assign(state.profile, savedState.profile);
                 if (savedState.residency_detail) Object.assign(state.residency_detail, savedState.residency_detail);
@@ -14770,7 +14768,18 @@ ${isProf ? '' : `
                     if (savedState.compliance_docs.section_197_cert) Object.assign(state.compliance_docs.section_197_cert, savedState.compliance_docs.section_197_cert);
                     state.compliance_docs.chapter_xiia_elected = savedState.compliance_docs.chapter_xiia_elected;
                 }
-                if (savedState.bank_accounts) state.bank_accounts = savedState.bank_accounts;
+                if (savedState.bank_accounts) {
+                    // Older versions copied US bank accounts into this list; they
+                    // belong in Schedule FA (see the hydration block below).
+                    const isUsRow = b => b && /^(US|USA|UNITED STATES)$/i.test(String(b.country || '').trim());
+                    state.bank_accounts = savedState.bank_accounts.filter(b => !isUsRow(b));
+                    const moved = savedState.bank_accounts.filter(isUsRow);
+                    if (moved.length) {
+                        state.foreign_assets.assets = (savedState.foreign_assets && savedState.foreign_assets.assets) || state.foreign_assets.assets || [];
+                        moved.forEach(b => state.foreign_assets.assets.push({ category: 'bank', institution_name: b.bank_name || '', account_id: b.account_number || '', country: 'United States', peak_balance: b.peak_balance_inr || null, source: 'us_form' }));
+                        state.foreign_assets.has_foreign_assets = true;
+                    }
+                }
                 if (savedState.property) Object.assign(state.property, savedState.property);
                 if (savedState.financial_holdings) Object.assign(state.financial_holdings, savedState.financial_holdings);
                 if (savedState.commodities) Object.assign(state.commodities, savedState.commodities);
@@ -14852,6 +14861,16 @@ ${isProf ? '' : `
                             }
                         });
                     });
+                    // A category the saved quarters don't carry at all (older saves,
+                    // before it became quarter-scoped; data from other tools) but
+                    // the top level does: seed it into Q1 — the same rule as the
+                    // annual migration below — instead of loading the empty quarter
+                    // template over it.
+                    ['domestic_income', 'other_sources', 'lrs_outbound', 'nro_repatriation', 'capital_gains', 'financial_holdings', 'commodities', 'unlisted_equity', 'property'].forEach(function (cat) {
+                        if (!sectionHasData(savedState[cat])) return;
+                        const inAnyQuarter = ['Q1', 'Q2', 'Q3', 'Q4'].some(q => savedState.quarters[q] && sectionHasData(savedState.quarters[q][cat]));
+                        if (!inAnyQuarter) state.quarters.Q1[cat] = JSON.parse(JSON.stringify(state[cat]));
+                    });
                 } else {
                     // Migration from annual: put all loaded income into Q1, keep Q2-Q4 blank
                     state.active_quarter = 'Q1';
@@ -14871,6 +14890,12 @@ ${isProf ? '' : `
                         state[key] = JSON.parse(JSON.stringify(sourceState[key]));
                     }
                 });
+                // Same "applies this year" rule as switching quarters: a switch
+                // that's on in any quarter is on. Without this, a client whose
+                // other-source income starts in Q2 opened on Q1 with the switch
+                // off, and restoring that switch cleared it in every quarter —
+                // dropping the income from the return.
+                carryMasterSwitches(state.active_quarter);
 
                 // ONE-TIME DATA CLEANERS — fix historically-scaffolded Q2-Q4
                 // quarters that got duplicate sale data copied from Q1. Each
@@ -14944,28 +14969,50 @@ ${isProf ? '' : `
                     if (rState.jurisdiction === 'dual') isDual = true;
                 } catch(e){}
             }
+            // Use the status this page derives from the saved facts, not the
+            // saved label: the solver runs later in the load and can change
+            // it, and gating on the stale label made the import happen on
+            // the second open instead of the first.
+            try { if (typeof runResidencySolver === 'function') runResidencySolver(); } catch (e) { /* UI not ready — fall back to the saved label */ }
             const indiaStatus = state.residency_detail && state.residency_detail.final_india_residency_status;
             const faApplies = indiaStatus !== 'NR' && indiaStatus !== 'RNOR';
 
             const usStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('US'));
             if (isDual && faApplies && usStateStr) {
                 const usState = JSON.parse(usStateStr);
+                // Rows are re-read from their cards before saving (country upper-
+                // cased, blanks as null), so keys are compared normalised —
+                // otherwise every open added the same US row again.
+                const normKey = v => String(v == null ? '' : v).trim().toUpperCase().replace(/^(US|USA|UNITED STATES OF AMERICA)$/, 'UNITED STATES');
                 function addOnce(list, row, keyOf) {
-                    const k = keyOf(row);
-                    if (!list.some(x => keyOf(x) === k)) list.push(row);
+                    const k = keyOf(row).split('|').map(normKey).join('|');
+                    if (!list.some(x => keyOf(x).split('|').map(normKey).join('|') === k)) list.push(row);
                 }
 
-                // US bank accounts -> India bank accounts (Schedule FA), added
-                // alongside India's own accounts
+                // US bank accounts -> Schedule FA (foreign assets). Not into
+                // India's own bank list: the engine counts every row there as an
+                // Indian account, so a US person's US checking account was
+                // being added to their FBAR / Form 8938 totals.
                 if (usState.bank_accounts && usState.bank_accounts.length > 0) {
-                    state.bank_accounts = state.bank_accounts || [];
-                    usState.bank_accounts.forEach(b => addOnce(state.bank_accounts, {
-                        bank_name: b.bank_name,
-                        account_number: b.account_number,
-                        country: 'United States',
-                        peak_balance_inr: (b.max_balance_usd || 0) * 83.0,
-                        account_type: b.account_type || 'savings'
-                    }, x => (x.country || '') + '|' + (x.bank_name || '') + '|' + (x.account_number || '')));
+                    state.foreign_assets = state.foreign_assets || {};
+                    state.foreign_assets.assets = state.foreign_assets.assets || [];
+                    let added = false;
+                    usState.bank_accounts.forEach(b => {
+                        const c = String(b.country || 'US').trim().toUpperCase();
+                        if (c && c !== 'US' && c !== 'USA' && c !== 'UNITED STATES') return; // non-US accounts are the US form's foreign accounts, not US assets
+                        const before = state.foreign_assets.assets.length;
+                        addOnce(state.foreign_assets.assets, {
+                            category: 'bank',
+                            institution_name: b.bank_name || '',
+                            account_id: b.account_number || '',
+                            country: 'United States',
+                            peak_balance: Math.round((b.max_balance_usd || b.peak_balance_usd || 0) * 83.0),
+                            closing_balance: Math.round((b.last_day_balance_usd || 0) * 83.0),
+                            source: 'us_form'
+                        }, x => (x.country || '') + '|' + (x.institution_name || '') + '|' + (x.account_id || ''));
+                        if (state.foreign_assets.assets.length > before) added = true;
+                    });
+                    if (added) state.foreign_assets.has_foreign_assets = true;
                 }
 
                 // US RSUs -> India Unlisted Equity (Schedule FA)
@@ -15007,9 +15054,11 @@ ${isProf ? '' : `
                         addOnce(state.foreign_assets.assets, {
                             asset_type: 'Trusts',
                             country: 'United States',
+                            institution_name: '401(k) Retirement Plan', // the card's own field, so it survives a save and dedupes on reopen
                             description: '401(k) Retirement Plan',
-                            value_inr: k401 * 83.0
-                        }, x => (x.country || '') + '|' + (x.description || ''));
+                            value_inr: k401 * 83.0,
+                            source: 'us_form'
+                        }, x => (x.country || '') + '|' + (x.institution_name || x.description || ''));
                     }
                 }
             }
@@ -15155,6 +15204,8 @@ ${isProf ? '' : `
         if (typeof updateLrsTcs === 'function') {
             updateLrsTcs();
         }
+        if (typeof syncSetupCardsFromState === 'function') syncSetupCardsFromState();
+        if (typeof saveLayer1State === 'function') saveLayer1State();
     }
 
     function evaluateSalaryRegimeLock() {
@@ -15448,7 +15499,13 @@ ${isProf ? '' : `
         const entries = Array.isArray(biz.business_entries) ? biz.business_entries : [];
         
         // STRICT UI TOGGLE ENFORCEMENT
-        const hasBusiness = state.domestic_income?.business_income?.has_business_income === true;
+        // The switch alone isn't business income: with no entries, no F&O /
+        // speculative figures and no partner-firm income there is nothing to
+        // report on ITR-3/4 (the engine's check works from the same data).
+        const bizHasData = entries.length > 0 || (Array.isArray(biz.partner_firms) && biz.partner_firms.length > 0) ||
+            !!(biz.speculative_income_inr || biz.non_speculative_income_inr || biz.fno_turnover_inr || biz.speculative_turnover_inr ||
+               biz.partner_remuneration_inr || biz.partner_interest_inr);
+        const hasBusiness = state.domestic_income?.business_income?.has_business_income === true && bizHasData;
         const hasCapitalGains = state.capital_gains?.has_capital_gains === true;
         const hasHouseProperty = state.domestic_income?.has_house_property === true;
         const hasOtherSources = state.domestic_income?.has_other_sources === true;
@@ -15681,8 +15738,12 @@ ${isProf ? '' : `
             state.foreign_income.has_foreign_income = true;
             state.foreign_assets.has_foreign_assets = true;
         } else if (showIntl) {
-            if (state.foreign_income) state.foreign_income.has_foreign_income = false;
-            if (state.foreign_assets) state.foreign_assets.has_foreign_assets = false;
+            // Unchecked only withdraws an earlier "yes" — it isn't an answer of
+            // "no foreign assets". Writing false here on every load recorded an
+            // explicit "no" for clients who never saw the question, which the
+            // engine then reports as a Schedule FA contradiction.
+            if (state.foreign_income && state.foreign_income.has_foreign_income === true) state.foreign_income.has_foreign_income = false;
+            if (state.foreign_assets && state.foreign_assets.has_foreign_assets === true) state.foreign_assets.has_foreign_assets = null;
         }
         // ---------------------------------------------------
         
@@ -16463,6 +16524,67 @@ ${isProf ? '' : `
     // same inline pattern used elsewhere (e.g. _evaluateSurchargeBuckets),
     // just named since these three cleaners call it independently of a
     // user-triggered save.
+    // ═══════════════════════════════════════════════════════════════════════
+    // PERSISTENCE — every save of the India state goes through here.
+    // ═══════════════════════════════════════════════════════════════════════
+    // 1. The top level is stored as the ANNUAL figure. In memory it holds the
+    //    quarter being edited, and it used to be saved that way — so opening
+    //    the form turned a year's ₹9L of receipts into Q1's ₹2.25L for every
+    //    engine rule that reads the top level instead of summing quarters.
+    // 2. Fields the form doesn't render are kept. The form rebuilds each
+    //    section from its own inputs, which silently dropped anything it has no
+    //    input for (a bank's peak balance, a holding's asset type, …) as soon
+    //    as the page was opened. Keys present in the loaded data but absent
+    //    from what the form produced are carried over; list rows are matched
+    //    by position only while they still look like the same row, so deleting
+    //    a row can't attach its old fields to its neighbour.
+    const INDIA_QUARTER_CATS = ['domestic_income', 'other_sources', 'lrs_outbound', 'nro_repatriation', 'capital_gains', 'financial_holdings', 'commodities', 'unlisted_equity', 'property'];
+    let indiaLoadedBaseline = null;
+
+    function rowsLookAlike(a, b, sameLength) {
+        if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) || Array.isArray(b)) return false;
+        let shared = 0, same = 0;
+        Object.keys(a).forEach(k => {
+            const va = a[k], vb = b[k];
+            if (vb === undefined || vb === null || vb === '' || va === null || va === '' || typeof va === 'object' || typeof vb === 'object') return;
+            shared++;
+            if (String(va).toLowerCase() === String(vb).toLowerCase()) same++;
+        });
+        return shared === 0 ? sameLength : (same > 0 && same * 2 >= shared);
+    }
+
+    function keepUnwrittenFields(orig, cur) {
+        if (!orig || !cur || typeof orig !== 'object' || typeof cur !== 'object') return;
+        if (Array.isArray(orig) || Array.isArray(cur)) {
+            if (!Array.isArray(orig) || !Array.isArray(cur)) return;
+            const n = Math.min(orig.length, cur.length);
+            for (let i = 0; i < n; i++) {
+                if (orig[i] && typeof orig[i] === 'object' && rowsLookAlike(orig[i], cur[i], orig.length === cur.length)) keepUnwrittenFields(orig[i], cur[i]);
+            }
+            return;
+        }
+        Object.keys(orig).forEach(k => {
+            if (!(k in cur)) cur[k] = JSON.parse(JSON.stringify(orig[k]));
+            else keepUnwrittenFields(orig[k], cur[k]);
+        });
+    }
+
+    function serializeIndiaState() {
+        const out = JSON.parse(JSON.stringify(state));
+        const aq = out.active_quarter;
+        if (out.quarters && aq && aq !== 'ANNUAL' && out.quarters[aq]) {
+            INDIA_QUARTER_CATS.forEach(k => { if (out[k] !== undefined) out.quarters[aq][k] = JSON.parse(JSON.stringify(out[k])); });
+            const annual = aggregateAnnualState(out.quarters);
+            INDIA_QUARTER_CATS.forEach(k => { if (annual[k] !== undefined) out[k] = annual[k]; });
+        }
+        if (indiaLoadedBaseline) keepUnwrittenFields(indiaLoadedBaseline, out);
+        return JSON.stringify(out);
+    }
+
+    function persistIndiaState() {
+        localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'), serializeIndiaState());
+    }
+
     function saveState() {
         state.metadata = state.metadata || {};
         state.metadata.last_updated_at = new Date().toISOString();
@@ -16488,7 +16610,7 @@ ${isProf ? '' : `
             activeQ.property = JSON.parse(JSON.stringify(state.property));
         }
 
-        localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'), JSON.stringify(state));
+        persistIndiaState();
     }
 
     // --- ONE-TIME DATA CLEANER FOR BUGGED SCAFFOLDING ---
@@ -16746,8 +16868,12 @@ ${isProf ? '' : `
             state.foreign_income.has_foreign_income = true;
             state.foreign_assets.has_foreign_assets = true;
         } else if (showIntl) {
-            if (state.foreign_income) state.foreign_income.has_foreign_income = false;
-            if (state.foreign_assets) state.foreign_assets.has_foreign_assets = false;
+            // Unchecked only withdraws an earlier "yes" — it isn't an answer of
+            // "no foreign assets". Writing false here on every load recorded an
+            // explicit "no" for clients who never saw the question, which the
+            // engine then reports as a Schedule FA contradiction.
+            if (state.foreign_income && state.foreign_income.has_foreign_income === true) state.foreign_income.has_foreign_income = false;
+            if (state.foreign_assets && state.foreign_assets.has_foreign_assets === true) state.foreign_assets.has_foreign_assets = null;
         }
         // ---------------------------------------------------
         

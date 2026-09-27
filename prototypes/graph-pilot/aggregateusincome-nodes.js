@@ -756,7 +756,7 @@ var NODES = {
           if (!Object.prototype.hasOwnProperty.call(source, k)) continue;
           var sv = source[k];
           if (sv === null || sv === undefined) continue;
-          if (typeof sv === "number") target[k] = (target[k] || 0) + sv; else target[k] = sv;
+          if (typeof sv === "number") target[k] = (target[k] || 0) + sv; else if (sv !== "" || target[k] === undefined) target[k] = sv;
         }
         return target;
       }

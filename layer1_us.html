@@ -6270,7 +6270,7 @@
             usState.metadata.intake_setup = {
                 setupW2, setupBiz, setupPassive: setupPassiveAny, setupProp, setupEntities, setupForeign: setupForeignAny, setupRetirement, setupEquity
             };
-            try { localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('US'), JSON.stringify(usState)); } catch(e) {}
+            try { persistUsState(); } catch(e) {}
         }
 
         const toggleGroup = (id, condition) => {
@@ -6758,8 +6758,20 @@
                   }
               } else {
                   alertDiv.classList.add('hidden');
-                  // Silently reset treaty residence if no dual conflict exists
-                  if (details.dtaa_treaty_residence !== 'none') {
+                  // Undo only a tie-break one of the Article 4 wizards produced (this
+                  // form's, or Layer 1 India's — which records tb_home), now that
+                  // the client is no longer dual-resident. A treaty residence
+                  // recorded any other way — e.g. an India resident who is a US
+                  // non-resident claiming treaty rates, which is what drives the
+                  // TRC / Form 8802 / Form 8833 items — isn't a tie-break result,
+                  // and wiping it dropped those documents on every open.
+                  let fromTieBreaker = details.dtaa_treaty_from_tie_breaker === true;
+                  try {
+                      const inState = JSON.parse(localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('INDIA')) || '{}');
+                      if (inState.dtaa && inState.dtaa.tb_home && inState.dtaa.tb_home !== 'none') fromTieBreaker = true;
+                  } catch (e) { /* no India state */ }
+                  if (fromTieBreaker && details.dtaa_treaty_residence && details.dtaa_treaty_residence !== 'none') {
+                      details.dtaa_treaty_from_tie_breaker = false;
                       details.dtaa_treaty_residence = 'none';
                       try {
                           const indiaStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'));
@@ -6874,6 +6886,7 @@
 
     function setTieBreakerWinner(val) {
         usState.us_residency_detail.dtaa_treaty_residence = val;
+        usState.us_residency_detail.dtaa_treaty_from_tie_breaker = val !== 'none';
         
         try {
             const indiaStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('INDIA'));
@@ -14929,7 +14942,12 @@ div.innerHTML = `
     }
     function syncPartK1State() {
         const list = [];
-        const toggleChecked = document.getElementById('part-k1-has-toggle')?.checked || false;
+        // A row exists only while its section is on, and page load rebuilds the
+        // rows before restoring this checkbox — reading it here saved "off" on
+        // the first open and "on" on the next, so the saved data changed on
+        // every reopen. (Nothing downstream reads the per-row flag; the
+        // section restores itself from the rows being present.)
+        const toggleChecked = true;
         document.querySelectorAll('.part-k1-card').forEach(div => {
             // Collect branches from the sibling branches container (in wrapper)
             const branches = [];
@@ -15657,7 +15675,12 @@ div.innerHTML = `
     }
     function syncScorpK1State() {
         const list = [];
-        const toggleChecked = document.getElementById('scorp-k1-has-toggle')?.checked || false;
+        // A row exists only while its section is on, and page load rebuilds the
+        // rows before restoring this checkbox — reading it here saved "off" on
+        // the first open and "on" on the next, so the saved data changed on
+        // every reopen. (Nothing downstream reads the per-row flag; the
+        // section restores itself from the rows being present.)
+        const toggleChecked = true;
         document.querySelectorAll('.scorp-k1-card').forEach(div => {
             // Head-office's own depreciable assets — scoped to div (the
             // card itself), not the wrapper, so this naturally excludes
@@ -16347,7 +16370,12 @@ div.innerHTML = `
     }
     function syncCcorpState() {
         const list = [];
-        const toggleChecked = document.getElementById('ccorp-has-toggle')?.checked || false;
+        // A row exists only while its section is on, and page load rebuilds the
+        // rows before restoring this checkbox — reading it here saved "off" on
+        // the first open and "on" on the next, so the saved data changed on
+        // every reopen. (Nothing downstream reads the per-row flag; the
+        // section restores itself from the rows being present.)
+        const toggleChecked = true;
         document.querySelectorAll('.ccorp-card').forEach(div => {
             calculateCcorpTotalDeductions(div);
             const gross = parseFormattedNumber(div.querySelector('.ccorp-gross').value) || 0;
@@ -17091,7 +17119,12 @@ div.innerHTML = `
     }
     function syncTrustK1State() {
         const list = [];
-        const toggleChecked = document.getElementById('trust-k1-has-toggle')?.checked || false;
+        // A row exists only while its section is on, and page load rebuilds the
+        // rows before restoring this checkbox — reading it here saved "off" on
+        // the first open and "on" on the next, so the saved data changed on
+        // every reopen. (Nothing downstream reads the per-row flag; the
+        // section restores itself from the rows being present.)
+        const toggleChecked = true;
         document.querySelectorAll('.trust-k1-card').forEach(div => {
             const stateAllocations = [];
             div.querySelectorAll('.state-sale-row').forEach(row => {
@@ -20380,13 +20413,64 @@ div.innerHTML = `
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // PERSISTENCE — every save of the US state goes through persistUsState().
+    // Fields present in the data as it was before this page first saved, but
+    // absent from what the form produces, are carried over: the form rebuilds
+    // each section from its own inputs, and anything it has no input for
+    // (whole sections like collectibles_transactions / qsbs_transactions,
+    // row fields it doesn't render) was silently deleted the first time the
+    // page was opened. List rows are matched by position only while they
+    // still look like the same row. Legacy field names the form reads on load
+    // and re-saves under its own name are NOT carried over — a stale copy
+    // would override the user's later edit of the renamed field.
+    // ═══════════════════════════════════════════════════════════════════════
+    const US_SUPERSEDED_ALIASES = new Set(['ordinary_business_income_usd', 'self_employment_earnings_usd', 'wages_usd', 'basket_category', 'foreign_taxes_usd', 'foreign_income_usd', 'corp_name', 'ownership_pct']);
+    let usLoadedBaseline;
+    function captureUsBaseline() {
+        if (usLoadedBaseline !== undefined) return;
+        try { usLoadedBaseline = JSON.parse(localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('US')) || 'null'); } catch (e) { usLoadedBaseline = null; }
+    }
+    function usRowsLookAlike(a, b, sameLength) {
+        if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) || Array.isArray(b)) return false;
+        let shared = 0, same = 0;
+        Object.keys(a).forEach(k => {
+            const va = a[k], vb = b[k];
+            if (vb === undefined || vb === null || vb === '' || va === null || va === '' || typeof va === 'object' || typeof vb === 'object') return;
+            shared++;
+            if (String(va).toLowerCase() === String(vb).toLowerCase()) same++;
+        });
+        return shared === 0 ? sameLength : (same > 0 && same * 2 >= shared);
+    }
+    function keepUnwrittenUsFields(orig, cur) {
+        if (!orig || !cur || typeof orig !== 'object' || typeof cur !== 'object') return;
+        if (Array.isArray(orig) || Array.isArray(cur)) {
+            if (!Array.isArray(orig) || !Array.isArray(cur)) return;
+            const n = Math.min(orig.length, cur.length);
+            for (let i = 0; i < n; i++) {
+                if (orig[i] && typeof orig[i] === 'object' && usRowsLookAlike(orig[i], cur[i], orig.length === cur.length)) keepUnwrittenUsFields(orig[i], cur[i]);
+            }
+            return;
+        }
+        Object.keys(orig).forEach(k => {
+            if (!(k in cur)) { if (!US_SUPERSEDED_ALIASES.has(k)) cur[k] = JSON.parse(JSON.stringify(orig[k])); }
+            else keepUnwrittenUsFields(orig[k], cur[k]);
+        });
+    }
+    function persistUsState() {
+        captureUsBaseline();
+        const out = JSON.parse(JSON.stringify(usState));
+        if (usLoadedBaseline) keepUnwrittenUsFields(usLoadedBaseline, out);
+        localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('US'), JSON.stringify(out));
+    }
+
     function saveStateAndSync() {
         updateAccordionSummaries();
         updateSidebarBadges();
         calculateTaxSavings();
         try {
             usState.metadata.last_updated_at = new Date().toISOString();
-            localStorage.setItem(window.WISING.ClientRegistry.storageKeyFor('US'), JSON.stringify(usState));
+            persistUsState();
             
             const schemaBox = document.getElementById('schema-json-output');
             if (schemaBox) {
@@ -20745,6 +20829,92 @@ div.innerHTML = `
         switchStep('step-onboarding');
     }
 
+    // Setup cards follow the data (OR'd with the user's own saved clicks).
+    // Called on load with the saved data, and again at the end of load with
+    // the state this page is about to save — the form fills in fields while
+    // loading (e.g. real_estate.has_real_estate_transaction), so deriving
+    // only from the pre-load data saved different cards on the first open
+    // than on the next one.
+    function applyIntakeSetup(src) {
+        src = src || {};
+        const s = (src.metadata && src.metadata.intake_setup) || {};
+        const iu = src.income_us_source || {};
+        const hasForeignAssets = !!(
+            (src.bank_accounts && src.bank_accounts.some((b) => b.country && b.country !== 'US' && b.country !== 'United States')) ||
+            (src.fbar_aggregate_peak_usd || 0) > 0
+        );
+        const hasForeignEntities = !!(src.foreign_entities && (src.foreign_entities.owns_10_percent_foreign_corp || src.foreign_entities.has_pfics));
+        const hasForeignFeie = !!(src.foreign_earned_income && src.foreign_earned_income.claims_feie);
+        const hasForeignGifts = !!(src.foreign_gifts_and_trusts && (src.foreign_gifts_and_trusts.received_foreign_gifts_above_100k || src.foreign_gifts_and_trusts.received_gift_from_covered_expatriate || src.foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust || (src.foreign_gifts_and_trusts.foreign_trust_details && src.foreign_gifts_and_trusts.foreign_trust_details.length)));
+        const hasPassiveIntDiv = (iu.interest_us_source_usd || 0) > 0 || (iu.ordinary_dividends_us_source_usd || 0) > 0;
+        const hasPassiveCapGains = (iu.ltcg_us_source_usd || 0) > 0;
+        const derived = {
+            setupW2: !!(iu.has_employment_income || (iu.wages_w2 && iu.wages_w2.length > 0)),
+            setupBiz: !!(
+                (iu.self_employment && iu.self_employment.length) ||
+                (iu.partnerships_k1 && iu.partnerships_k1.length) ||
+                (iu.s_corporations_k1 && iu.s_corporations_k1.length) ||
+                (iu.c_corporations_1120 && iu.c_corporations_1120.length) ||
+                (iu.farming_schedule_f && iu.farming_schedule_f.length) ||
+                (iu.trusts_estates_k1 && iu.trusts_estates_k1.length) ||
+                (iu.business_income_usd || 0) > 0
+            ),
+            setupPassive: hasPassiveIntDiv || hasPassiveCapGains,
+            setupProp: !!(src.real_estate && src.real_estate.has_real_estate_transaction),
+            setupForeign: hasForeignAssets || hasForeignEntities || hasForeignFeie || hasForeignGifts,
+            setupRetirement: !!(src.retirement_accounts && Object.keys(src.retirement_accounts).some((k) => (src.retirement_accounts[k] || 0) > 0)),
+            setupEquity: !!(src.equity_compensation && (
+                (src.equity_compensation.iso_exercises && src.equity_compensation.iso_exercises.length) ||
+                (src.equity_compensation.rsu_vestings && src.equity_compensation.rsu_vestings.length) ||
+                (src.equity_compensation.espp_purchases && src.equity_compensation.espp_purchases.length)
+            ))
+        };
+        const updateCardUI = (id, checked) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = checked;
+            const card = document.getElementById('card-' + id);
+            if (card) {
+                if (checked) {
+                    card.classList.add('active', 'border-brandCyan/40', 'bg-brandCyan/5');
+                    card.classList.remove('border-white/10', 'bg-white/5');
+                } else {
+                    card.classList.remove('active', 'border-brandCyan/40', 'bg-brandCyan/5');
+                    card.classList.add('border-white/10', 'bg-white/5');
+                }
+            }
+        };
+        const finalSetup = {
+            setupW2: derived.setupW2 || s.setupW2 === true,
+            setupBiz: derived.setupBiz || s.setupBiz === true,
+            setupPassive: derived.setupPassive || s.setupPassive === true,
+            setupProp: derived.setupProp || s.setupProp === true,
+            setupEntities: false,
+            setupForeign: derived.setupForeign || s.setupForeign === true,
+            setupRetirement: derived.setupRetirement || s.setupRetirement === true,
+            setupEquity: derived.setupEquity || s.setupEquity === true
+        };
+        updateCardUI('setup-w2', finalSetup.setupW2);
+        updateCardUI('setup-biz', finalSetup.setupBiz);
+        updateCardUI('setup-passive', finalSetup.setupPassive);
+        updateCardUI('setup-prop', finalSetup.setupProp);
+        updateCardUI('setup-foreign', finalSetup.setupForeign);
+        updateCardUI('setup-retirement', finalSetup.setupRetirement);
+        updateCardUI('setup-equity-btn', finalSetup.setupEquity);
+
+        // Nested checkboxes inside the "International"/"Passive" cards aren't
+        // part of intake_setup at all, so these were never restored on load
+        // before either -- same bug, one level deeper.
+        const setChecked = (id, checked) => { const el = document.getElementById(id); if (el) el.checked = checked; };
+        setChecked('setup-foreign-assets', hasForeignAssets);
+        setChecked('setup-foreign-feie', hasForeignFeie);
+        setChecked('setup-foreign-entities', hasForeignEntities);
+        setChecked('setup-foreign-gifts', hasForeignGifts);
+        setChecked('setup-passive-intdiv', hasPassiveIntDiv);
+        setChecked('setup-passive-capgains', hasPassiveCapGains);
+
+        usState.metadata.intake_setup = finalSetup;
+    }
+
     function initFromLocalStorage() {
         const routerStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('ROUTER'));
         if (!routerStateStr) {
@@ -20975,84 +21145,7 @@ div.innerHTML = `
             // layer1_us.html (behavioural-diff fix, 25 Jul 2026) -- confirmed via a
             // real profile diff that omitting this silently dropped a trust K-1's
             // $4,900 from AGI/AMTI/NIIT because hasTrustK1Toggled never derived true.
-            {
-                const s = (savedState.metadata && savedState.metadata.intake_setup) || {};
-                const iu = savedState.income_us_source || {};
-                const hasForeignAssets = !!(
-                    (savedState.bank_accounts && savedState.bank_accounts.some((b) => b.country && b.country !== 'US' && b.country !== 'United States')) ||
-                    (savedState.fbar_aggregate_peak_usd || 0) > 0
-                );
-                const hasForeignEntities = !!(savedState.foreign_entities && (savedState.foreign_entities.owns_10_percent_foreign_corp || savedState.foreign_entities.has_pfics));
-                const hasForeignFeie = !!(savedState.foreign_earned_income && savedState.foreign_earned_income.claims_feie);
-                const hasForeignGifts = !!(savedState.foreign_gifts_and_trusts && (savedState.foreign_gifts_and_trusts.received_foreign_gifts_above_100k || savedState.foreign_gifts_and_trusts.received_gift_from_covered_expatriate || savedState.foreign_gifts_and_trusts.is_us_beneficiary_of_foreign_trust || (savedState.foreign_gifts_and_trusts.foreign_trust_details && savedState.foreign_gifts_and_trusts.foreign_trust_details.length)));
-                const hasPassiveIntDiv = (iu.interest_us_source_usd || 0) > 0 || (iu.ordinary_dividends_us_source_usd || 0) > 0;
-                const hasPassiveCapGains = (iu.ltcg_us_source_usd || 0) > 0;
-                const derived = {
-                    setupW2: !!(iu.has_employment_income || (iu.wages_w2 && iu.wages_w2.length > 0)),
-                    setupBiz: !!(
-                        (iu.self_employment && iu.self_employment.length) ||
-                        (iu.partnerships_k1 && iu.partnerships_k1.length) ||
-                        (iu.s_corporations_k1 && iu.s_corporations_k1.length) ||
-                        (iu.c_corporations_1120 && iu.c_corporations_1120.length) ||
-                        (iu.farming_schedule_f && iu.farming_schedule_f.length) ||
-                        (iu.trusts_estates_k1 && iu.trusts_estates_k1.length) ||
-                        (iu.business_income_usd || 0) > 0
-                    ),
-                    setupPassive: hasPassiveIntDiv || hasPassiveCapGains,
-                    setupProp: !!(savedState.real_estate && savedState.real_estate.has_real_estate_transaction),
-                    setupForeign: hasForeignAssets || hasForeignEntities || hasForeignFeie || hasForeignGifts,
-                    setupRetirement: !!(savedState.retirement_accounts && Object.keys(savedState.retirement_accounts).some((k) => (savedState.retirement_accounts[k] || 0) > 0)),
-                    setupEquity: !!(savedState.equity_compensation && (
-                        (savedState.equity_compensation.iso_exercises && savedState.equity_compensation.iso_exercises.length) ||
-                        (savedState.equity_compensation.rsu_vestings && savedState.equity_compensation.rsu_vestings.length) ||
-                        (savedState.equity_compensation.espp_purchases && savedState.equity_compensation.espp_purchases.length)
-                    ))
-                };
-                const updateCardUI = (id, checked) => {
-                    const el = document.getElementById(id);
-                    if (el) el.checked = checked;
-                    const card = document.getElementById('card-' + id);
-                    if (card) {
-                        if (checked) {
-                            card.classList.add('active', 'border-brandCyan/40', 'bg-brandCyan/5');
-                            card.classList.remove('border-white/10', 'bg-white/5');
-                        } else {
-                            card.classList.remove('active', 'border-brandCyan/40', 'bg-brandCyan/5');
-                            card.classList.add('border-white/10', 'bg-white/5');
-                        }
-                    }
-                };
-                const finalSetup = {
-                    setupW2: derived.setupW2 || s.setupW2 === true,
-                    setupBiz: derived.setupBiz || s.setupBiz === true,
-                    setupPassive: derived.setupPassive || s.setupPassive === true,
-                    setupProp: derived.setupProp || s.setupProp === true,
-                    setupEntities: false,
-                    setupForeign: derived.setupForeign || s.setupForeign === true,
-                    setupRetirement: derived.setupRetirement || s.setupRetirement === true,
-                    setupEquity: derived.setupEquity || s.setupEquity === true
-                };
-                updateCardUI('setup-w2', finalSetup.setupW2);
-                updateCardUI('setup-biz', finalSetup.setupBiz);
-                updateCardUI('setup-passive', finalSetup.setupPassive);
-                updateCardUI('setup-prop', finalSetup.setupProp);
-                updateCardUI('setup-foreign', finalSetup.setupForeign);
-                updateCardUI('setup-retirement', finalSetup.setupRetirement);
-                updateCardUI('setup-equity-btn', finalSetup.setupEquity);
-
-                // Nested checkboxes inside the "International"/"Passive" cards aren't
-                // part of intake_setup at all, so these were never restored on load
-                // before either -- same bug, one level deeper.
-                const setChecked = (id, checked) => { const el = document.getElementById(id); if (el) el.checked = checked; };
-                setChecked('setup-foreign-assets', hasForeignAssets);
-                setChecked('setup-foreign-feie', hasForeignFeie);
-                setChecked('setup-foreign-entities', hasForeignEntities);
-                setChecked('setup-foreign-gifts', hasForeignGifts);
-                setChecked('setup-passive-intdiv', hasPassiveIntDiv);
-                setChecked('setup-passive-capgains', hasPassiveCapGains);
-
-                usState.metadata.intake_setup = finalSetup;
-            }
+            applyIntakeSetup(savedState);
             if (savedState.profile) Object.assign(usState.profile, savedState.profile);
             if (savedState.us_residency_detail) Object.assign(usState.us_residency_detail, savedState.us_residency_detail);
             if (savedState.state_residency) Object.assign(usState.state_residency, savedState.state_residency);
@@ -21665,6 +21758,17 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
         });
 
         updateTaxEntityLogic();
+        // Second pass on the final state (see applyIntakeSetup). The Business
+        // umbrella toggle only ever switches ON here: rows present = on.
+        applyIntakeSetup(usState);
+        {
+            const iu = usState.income_us_source || {};
+            const anyBizRows = ['self_employment', 'farming_schedule_f', 'partnerships_k1', 's_corporations_k1', 'c_corporations_1120', 'trusts_estates_k1']
+                .some(k => Array.isArray(iu[k]) && iu[k].length > 0) || (iu.business_income_usd || 0) > 0;
+            const bizToggleEl = document.getElementById('business-has-toggle');
+            if (anyBizRows && bizToggleEl && !bizToggleEl.checked) { bizToggleEl.checked = true; toggleUSBusinessModule(); }
+        }
+        saveStateAndSync();
         updateSidebarVisibility();
         
         // Apply UX for scalar elements hydrated from India

@@ -12,7 +12,7 @@ from __future__ import annotations
 from ..core.dates import is_under_180_days_addition_inr, months_between
 from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
-from ..core.util import js_round, num, safe
+from ..core.util import dtaa_worldwide_ceded, js_round, num, safe
 from . import constants as C
 
 ASSET_CLASS_RATES_INDIA = C.INDIA["ASSET_CLASS_RATES_INDIA"]
@@ -228,8 +228,8 @@ def _merge_quarters(source: dict, target: dict) -> None:
             if not isinstance(tgt_dict, dict):
                 tgt_dict = target[k] = {}
             _merge_quarters(sv, tgt_dict)
-        else:
-            target[k] = sv
+        elif sv != "" or k not in target:
+            target[k] = sv  # a blank later quarter doesn't erase an earlier value
 
 
 def _annual_slice_agg(ctx) -> dict:
@@ -944,7 +944,7 @@ NODES = {
     "agriculturalIncomeInrAgg": NodeDef(deps=("diAgg",), compute=lambda d, ctx: num(safe(d["diAgg"], "agricultural_income_inr", 0)), layer1_fields=("india.domestic_income.agricultural_income_inr",)),
     "unexplained115bbeInrAgg": NodeDef(deps=("osAgg",), compute=lambda d, ctx: num(safe(d["osAgg"], "unexplained_income_115BBE_inr", 0)), layer1_fields=("india.other_sources.unexplained_income_115BBE_inr",)),
     "indiaResidencyStatusRawAgg": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.final_india_residency_status", None), layer1_fields=("india.residency_detail.final_india_residency_status",)),
-    "indiaDtaaWorldwideCededAgg": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.dtaa_worldwide_ceded", False) is True, layer1_fields=("india.residency_detail.dtaa_worldwide_ceded",)),
+    "indiaDtaaWorldwideCededAgg": NodeDef(deps=(), compute=lambda d, ctx: dtaa_worldwide_ceded(ctx.get("india")), layer1_fields=("india.residency_detail.dtaa_worldwide_ceded", "india.dtaa.dtaa_treaty_residence", "india.dtaa.dtaa_forced_nr")),
     "presumptiveEligibilityAgg": NodeDef(
         deps=("indiaResidencyStatusRawAgg",), compute=_presumptive_eligibility_agg,
         layer1_fields=("india.profile.entity_type", "india.domestic_income.business_income.entity_type"),

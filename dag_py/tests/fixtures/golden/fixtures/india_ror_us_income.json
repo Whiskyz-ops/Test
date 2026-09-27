@@ -65,7 +65,7 @@
         "indiaSourceIncomeAbove15L": null,
         "liableToTaxElsewhereAsIndianCitizen": false,
         "dtaaWorldwideCeded": false,
-        "domesticStatusDerived": "RNOR"
+        "domesticStatusDerived": "ROR"
       },
       "us": {
         "status": "NON_RESIDENT_ALIEN",
@@ -1415,21 +1415,6 @@
   },
   "findings": [
     {
-      "id": "withholding_documentation_gap",
-      "severity": "critical",
-      "category": "document",
-      "title": "Missing documentation is costing $1,710 in avoidable withholding tax this year",
-      "detail": "Adding up every income stream where a treaty-reduced rate was claimed but denied for lack of supporting documentation: $1,710 in the US (Form W-8BEN) — $1,710 total, computed directly from the same rate/amount figures used elsewhere on this page, not estimated. See the Withholding Taxes page for the full row-by-row breakdown of which income and which document.",
-      "recommendation": "File the missing documentation (TRC + Form 41 for India s.159 elections; Form W-8BEN with the US withholding agent for FDAP) as soon as possible — none of this is lost once filed for a FUTURE payment, but the tax already withheld/assessed on past payments this year may require a separate refund claim to recover.",
-      "amountUsd": 1710,
-      "refs": [
-        "Withholding tax",
-        "TRC",
-        "Form 41",
-        "Form W-8BEN"
-      ]
-    },
-    {
       "id": "nra_w8ben_missing",
       "severity": "critical",
       "category": "treaty",
@@ -1497,18 +1482,6 @@
       ]
     },
     {
-      "id": "residency_status_mismatch_india",
-      "severity": "warning",
-      "category": "residency",
-      "title": "India residency status may not match the facts on file \u2014 derived RNOR, recorded ROR",
-      "detail": "Re-deriving India's residential-status determination from the same raw facts Layer 1's own wizard uses (day-count, the 4-year lookback, RNOR sub-status conditions, employment/PIO-visit exceptions, s.6(1A) deemed-residency, incorporation/POEM, or control-and-management, depending on entity type) produces RNOR, but the recorded final_india_residency_status is ROR.",
-      "recommendation": "Re-run the Layer 1 India residency wizard, or verify the underlying residency facts were entered consistently \u2014 this looks like a wizard or data-entry error.",
-      "amountUsd": 0,
-      "refs": [
-        "s.6"
-      ]
-    },
-    {
       "id": "chapter_xiia_elected_no_holdings",
       "severity": "warning",
       "category": "credit",
@@ -1542,7 +1515,7 @@
       "category": "credit",
       "title": "1040-NR: FDAP taxed flat (30%), ECI at graduated rates",
       "detail": "$11,400 of FDAP income (interest/dividends/rents not effectively connected with a US trade or business) is taxed flat at the 30% statutory rate (no treaty rate on file) with no deductions (Schedule NEC), separate from $30,000 of ECI taxed at graduated brackets with itemized deductions only (NRAs generally can't claim the standard deduction).",
-      "recommendation": "Confirm the treaty rate claimed on Form W-8BEN/1040-NR matches the rate used here — no treaty rate is on file, so the default 30% was applied; check whether Article 11/12 of the DTAA reduces it.",
+      "recommendation": "Confirm the treaty rate claimed on Form W-8BEN/1040-NR matches the rate used here \u2014 no treaty rate is on file, so the default 30% was applied; check whether Article 11/12 of the DTAA reduces it.",
       "amountUsd": 0,
       "refs": [
         "Form 1040-NR",
@@ -1590,6 +1563,21 @@
       "refs": [
         "Rule 115",
         "SBI TTBR"
+      ]
+    },
+    {
+      "id": "withholding_documentation_gap",
+      "severity": "critical",
+      "category": "document",
+      "title": "Missing documentation is costing $1,710 in avoidable withholding tax this year",
+      "detail": "Adding up every income stream where a treaty-reduced rate was claimed but denied for lack of supporting documentation: $1,710 in the US (Form W-8BEN) \u2014 $1,710 total, computed directly from the same rate/amount figures used elsewhere on this page, not estimated. See the Withholding Taxes page for the full row-by-row breakdown of which income and which document.",
+      "recommendation": "File the missing documentation (TRC + Form 41 for India s.159 elections; Form W-8BEN with the US withholding agent for FDAP) as soon as possible \u2014 none of this is lost once filed for a FUTURE payment, but the tax already withheld/assessed on past payments this year may require a separate refund claim to recover.",
+      "amountUsd": 1710,
+      "refs": [
+        "Withholding tax",
+        "TRC",
+        "Form 41",
+        "Form W-8BEN"
       ]
     }
   ],
@@ -3076,7 +3064,7 @@
     "netDoubleTaxUsd": 0,
     "counts": {
       "critical": 3,
-      "warning": 5,
+      "warning": 4,
       "info": 5
     },
     "requiredDocs": 13,

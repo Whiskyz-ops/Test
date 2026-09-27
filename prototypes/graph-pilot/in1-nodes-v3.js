@@ -89,7 +89,7 @@ function indiaAnnualSliceV3(india) {
           else if (target[k].indexOf(el) < 0) { target[k].push(el); }
         });
       } else if (typeof sv === "object") { target[k] = target[k] || {}; merge(target[k], sv); }
-      else { target[k] = sv; }
+      else if (sv !== "" || target[k] === undefined) { target[k] = sv; } // a blank later quarter doesn't erase an earlier value
     }
     return target;
   }

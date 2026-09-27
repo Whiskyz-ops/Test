@@ -1242,8 +1242,13 @@
       profile: { full_name: "Meridian Holdings Pte Ltd", entity_type: "company", tax_regime: "NEW", turnover_lte_400cr: true, opt_115baa: false },
       residency_detail: { days_in_india_current_year: 365, final_india_residency_status: "ROR", is_indian_company: false },
       company_residency: {
-        is_active_business: true, board_meetings_primarily_outside_india: true,
-        key_management_location: "Mumbai, India", management_delegated_outside_india: false,
+        // A holding company earns mainly passive income, so it isn't an
+        // "active business outside India" and POEM turns on where key
+        // management actually happens — Mumbai. (It was recorded as an active
+        // business with board meetings abroad, which by the POEM rule this
+        // form and the engine both apply puts POEM outside India: NR.)
+        is_active_business: false, board_meetings_primarily_outside_india: true,
+        key_management_location: "india", management_delegated_outside_india: false,
         directors_in_india_count: 3, directors_outside_india_count: 2
       },
       dtaa: { dtaa_treaty_residence: "none", trc_status: false, has_permanent_establishment_in_india: false },

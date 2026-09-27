@@ -31,7 +31,7 @@ def derive_company_poem(cr: dict | None) -> bool:
                 return False
             return cr.get("managementDelegatedOutsideIndia") is False
         return False
-    return False
+    return cr.get("savedPoem") is True  # no company facts entered: the saved is_poem_in_india answer
 
 
 def derive_india_domestic_status(entity: str, f: dict) -> str:
@@ -57,8 +57,8 @@ def derive_india_domestic_status(entity: str, f: dict) -> str:
     inc15, ltac = f.get("inc15"), f.get("ltac") or False
 
     if days is not None and days >= 182:
-        if nr9 is False and d7729 is False:
-            return "ROR"
+        if nr9 is not True and d7729 is not True:
+            return "ROR"  # unanswered lookback = ordinarily resident (RNOR must be shown)
         if nr9 is True:
             return "RNOR"
         return "RNOR"
@@ -79,8 +79,8 @@ def derive_india_domestic_status(entity: str, f: dict) -> str:
                     return "RNOR"
                 return "NR"
             else:
-                if nr9 is False and d7729 is False:
-                    return "ROR"
+                if nr9 is not True and d7729 is not True:
+                    return "ROR"  # unanswered lookback = ordinarily resident (RNOR must be shown)
                 if nr9 is True:
                     return "RNOR"
                 return "RNOR"
@@ -126,6 +126,7 @@ def _india_company_poem_derived(d, ctx):
         "isActiveBusiness": d["companyIsActiveBusinessRaw"], "boardMeetingsOutsideIndia": d["companyBoardOutsideIndiaRaw"],
         "keyManagementLocation": d["companyKeyManagementLocationRaw"], "managementDelegatedOutsideIndia": d["companyManagementDelegatedOutsideRaw"],
         "directorsInIndia": d["companyDirectorsInIndiaRaw"], "directorsOutsideIndia": d["companyDirectorsOutsideIndiaRaw"],
+        "savedPoem": d["indiaIsPoemInIndiaRaw"],
     })
 
 
@@ -139,6 +140,7 @@ def _india_domestic_status_derived(d, ctx):
             "isActiveBusiness": d["companyIsActiveBusinessRaw"], "boardMeetingsOutsideIndia": d["companyBoardOutsideIndiaRaw"],
             "keyManagementLocation": d["companyKeyManagementLocationRaw"], "managementDelegatedOutsideIndia": d["companyManagementDelegatedOutsideRaw"],
             "directorsInIndia": d["companyDirectorsInIndiaRaw"], "directorsOutsideIndia": d["companyDirectorsOutsideIndiaRaw"],
+        "savedPoem": d["indiaIsPoemInIndiaRaw"],
         },
     })
 
@@ -283,6 +285,7 @@ NODES = {
     "indiaLtacRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.liable_to_tax_in_another_country_being_indian_citizen", False) is True, layer1_fields=("india.residency_detail.liable_to_tax_in_another_country_being_indian_citizen",)),
     "indiaIsIndianCompanyRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.is_indian_company", None), layer1_fields=("india.residency_detail.is_indian_company",)),
     "indiaWhollyOutsideIndiaRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.is_wholly_outside_india", None), layer1_fields=("india.residency_detail.is_wholly_outside_india",)),
+    "indiaIsPoemInIndiaRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.is_poem_in_india", None) is True, layer1_fields=("india.residency_detail.is_poem_in_india",)),
     "companyIsActiveBusinessRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "company_residency.is_active_business", False) is True, layer1_fields=("india.company_residency.is_active_business",)),
     "companyBoardOutsideIndiaRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "company_residency.board_meetings_primarily_outside_india", False) is True, layer1_fields=("india.company_residency.board_meetings_primarily_outside_india",)),
     "companyKeyManagementLocationRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "company_residency.key_management_location", ""), layer1_fields=("india.company_residency.key_management_location",)),
@@ -300,7 +303,7 @@ NODES = {
 
     "indiaCompanyPoemDerived": NodeDef(
         deps=("companyIsActiveBusinessRaw", "companyBoardOutsideIndiaRaw", "companyKeyManagementLocationRaw",
-              "companyManagementDelegatedOutsideRaw", "companyDirectorsInIndiaRaw", "companyDirectorsOutsideIndiaRaw"),
+              "companyManagementDelegatedOutsideRaw", "companyDirectorsInIndiaRaw", "companyDirectorsOutsideIndiaRaw", "indiaIsPoemInIndiaRaw"),
         compute=_india_company_poem_derived,
     ),
     "indiaDomesticStatusDerived": NodeDef(
@@ -308,7 +311,7 @@ NODES = {
               "indiaVisitPioCitizenRaw", "indiaNr9Raw", "indiaD7729Raw", "indiaIncome15lRaw", "indiaLtacRaw",
               "indiaIsIndianCompanyRaw", "indiaWhollyOutsideIndiaRaw", "indiaCompanyPoemDerived",
               "companyIsActiveBusinessRaw", "companyBoardOutsideIndiaRaw", "companyKeyManagementLocationRaw",
-              "companyManagementDelegatedOutsideRaw", "companyDirectorsInIndiaRaw", "companyDirectorsOutsideIndiaRaw"),
+              "companyManagementDelegatedOutsideRaw", "companyDirectorsInIndiaRaw", "companyDirectorsOutsideIndiaRaw", "indiaIsPoemInIndiaRaw"),
         compute=_india_domestic_status_derived,
     ),
 

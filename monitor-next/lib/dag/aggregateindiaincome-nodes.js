@@ -212,7 +212,7 @@ var NODES = {
           else if (typeof sv === "boolean") target[k] = target[k] || sv;
           else if (Array.isArray(sv)) { if (!Array.isArray(target[k])) target[k] = []; sv.forEach(function (el, i) { if (el && typeof el === "object") { target[k][i] = target[k][i] || {}; merge(target[k][i], el); } else if (target[k].indexOf(el) < 0) { target[k].push(el); } }); }
           else if (typeof sv === "object") { target[k] = target[k] || {}; merge(target[k], sv); }
-          else { target[k] = sv; }
+          else if (sv !== "" || target[k] === undefined) { target[k] = sv; } // a blank later quarter doesn't erase an earlier value
         }
         return target;
       }
@@ -425,7 +425,11 @@ var NODES = {
   // isIndiaRor gate (below) can exclude foreign financial holdings for a
   // treaty-ceding taxpayer without relying on the (now-fixed) status-
   // conflation bug that used to achieve this by accident.
-  indiaDtaaWorldwideCededAgg: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.dtaa_worldwide_ceded", false) === true; } },
+  indiaDtaaWorldwideCededAgg: { deps: [], compute: function (d, ctx) {
+    // Layer 1 India derives this flag from the Article 4 tie-break (treaty residence "us" / forced NR);
+    // derive it the same way so data that records only the tie-break is taxed the same as the form saves it.
+    return safe(ctx.india, "residency_detail.dtaa_worldwide_ceded", false) === true || safe(ctx.india, "dtaa.dtaa_treaty_residence", "none") === "us" || safe(ctx.india, "dtaa.dtaa_forced_nr", false) === true;
+  } },
   presumptiveEligibilityAgg: {
     deps: ["indiaResidencyStatusRawAgg"],
     compute: function (d, ctx) {

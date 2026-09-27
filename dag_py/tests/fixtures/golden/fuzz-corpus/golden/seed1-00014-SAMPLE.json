@@ -59,8 +59,8 @@
         "daysLast7YearsLte729": null,
         "indiaSourceIncomeAbove15L": null,
         "liableToTaxElsewhereAsIndianCitizen": false,
-        "dtaaWorldwideCeded": false,
-        "domesticStatusDerived": "RNOR"
+        "dtaaWorldwideCeded": true,
+        "domesticStatusDerived": "ROR"
       },
       "us": {
         "status": "RESIDENT_ALIEN",
@@ -1388,18 +1388,6 @@
         "s.424",
         "s.425",
         "1%/month simple interest"
-      ]
-    },
-    {
-      "id": "residency_status_mismatch_india",
-      "severity": "warning",
-      "category": "residency",
-      "title": "India residency status may not match the facts on file — derived RNOR, recorded ROR",
-      "detail": "Re-deriving India's residential-status determination from the same raw facts Layer 1's own wizard uses (day-count, the 4-year lookback, RNOR sub-status conditions, employment/PIO-visit exceptions, s.6(1A) deemed-residency, incorporation/POEM, or control-and-management, depending on entity type) produces RNOR, but the recorded final_india_residency_status is ROR.",
-      "recommendation": "Re-run the Layer 1 India residency wizard, or verify the underlying residency facts were entered consistently — this looks like a wizard or data-entry error.",
-      "amountUsd": 0,
-      "refs": [
-        "s.6"
       ]
     },
     {
@@ -2987,11 +2975,11 @@
     "netDoubleTaxUsd": 8943.93883307804,
     "counts": {
       "critical": 3,
-      "warning": 6,
+      "warning": 5,
       "info": 5
     },
     "requiredDocs": 20,
-    "healthScore": 22,
+    "healthScore": 25,
     "nextDeadline": "Oct 15, 2026"
   }
 }

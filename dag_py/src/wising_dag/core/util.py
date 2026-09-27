@@ -104,3 +104,10 @@ def safe(obj: Any, path: str, default: Any = None) -> Any:
         else:
             cur = getattr(cur, part, None)
     return default if cur is None else cur
+
+def dtaa_worldwide_ceded(india) -> bool:
+    """Layer 1 India derives dtaa_worldwide_ceded from the Article 4 tie-break
+    (treaty residence "us" / forced NR); derive it the same way here."""
+    return (safe(india, "residency_detail.dtaa_worldwide_ceded", False) is True
+            or safe(india, "dtaa.dtaa_treaty_residence", "none") == "us"
+            or safe(india, "dtaa.dtaa_forced_nr", False) is True)

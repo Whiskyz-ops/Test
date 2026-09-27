@@ -174,7 +174,7 @@ NODES.residencyModelSliceResult = {
         daysLast7YearsLte729: safe(india, "residency_detail.days_in_india_last_7_years_lte_729", null),
         indiaSourceIncomeAbove15L: safe(india, "residency_detail.india_source_income_above_15l", null),
         liableToTaxElsewhereAsIndianCitizen: safe(india, "residency_detail.liable_to_tax_in_another_country_being_indian_citizen", false) === true,
-        dtaaWorldwideCeded: safe(india, "residency_detail.dtaa_worldwide_ceded", false) === true,
+        dtaaWorldwideCeded: safe(india, "residency_detail.dtaa_worldwide_ceded", false) === true || safe(india, "dtaa.dtaa_treaty_residence", "none") === "us" || safe(india, "dtaa.dtaa_forced_nr", false) === true,
         domesticStatusDerived: d.indiaDomesticStatusDerived
       },
       us: {
