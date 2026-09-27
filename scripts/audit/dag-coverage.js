@@ -661,6 +661,8 @@ var KNOWN_DAG_ONLY = {
   // standard mileage rate (0.68/mi) and §280A simplified-method home-office
   // cap (300 sqft) — the frozen engine never modeled either deduction.
   "aggregateusincome-nodes.js": [0.68, 300, 365.25],
+  // salaryWorkLocation: days-present estimate only when India + US days <= 366 (a leap year).
+  "aggregateindiaincome-nodes.js": [366],
   // Same task #41 constant (300 sqft cap), reused in this file's own
   // Schedule C trace-text formula.
   "assets-nodes.js": [300],

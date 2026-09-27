@@ -224,6 +224,11 @@ var NODES = {
   // ~the TDS an employer deducts on it), in USD. 0 unless
   // xborder-full-nodes.js wires them.
   indiaSalaryNotChargeableUsdBoundaryFtc: { deps: [], compute: function () { return 0; } },
+  // How the salary's work location was decided (salaryWorkLocation.basis —
+  // "estimated_days_present" when Layer 1 left the workday question blank),
+  // passed through so the salary findings can say when they rest on an
+  // estimate. safe()-guarded like indiaSalaryOutsideIndiaUsdBoundaryFtc.
+  indiaSalaryWorkBasisBoundaryFtc: { deps: [], compute: function (d, ctx) { return safe(ctx.model.income.india, "salaryWorkLocation.basis", null); } },
   indiaSalaryNotChargeableTaxUsdBoundaryFtc: { deps: [], compute: function () { return 0; } },
   otherCountryFtcEntriesRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_tax_credit_other.entries", []) || []; } },
 
@@ -235,7 +240,7 @@ var NODES = {
       "usTaxableIncomeUsdBoundaryFtc", "usIncomeTaxUsdBoundaryFtc", "indiaTotalTaxUsdBoundaryFtc",
       "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw", "indiaSalaryOutsideIndiaUsdBoundaryFtc",
       "usIncomeInIndiaUsdBoundaryFtc", "indiaTotalIncomeUsdBoundaryFtc", "indiaSalaryNotChargeableUsdBoundaryFtc",
-      "indiaSalaryNotChargeableTaxUsdBoundaryFtc"],
+      "indiaSalaryNotChargeableTaxUsdBoundaryFtc", "indiaSalaryWorkBasisBoundaryFtc"],
     compute: function (d) {
       // usIsNraBoundaryFtc / !hasUsScopeBoundaryFtc: the pre-existing zeroing
       // conditions (XB-24). !usWorldwideBoundaryFtc: the fix above — ceded
@@ -315,7 +320,8 @@ var NODES = {
         // Indian tax (~TDS) it would have cost — India-side facts, so not
         // zeroed with the US credit (the salary_not_taxable_india_tds finding).
         indiaNotChargeableSalaryUsd: notChargeableUsd,
-        indiaNotChargeableSalaryTaxUsd: notChargeableUsd > 0 ? (d.indiaSalaryNotChargeableTaxUsdBoundaryFtc || 0) : 0
+        indiaNotChargeableSalaryTaxUsd: notChargeableUsd > 0 ? (d.indiaSalaryNotChargeableTaxUsdBoundaryFtc || 0) : 0,
+        salaryWorkBasis: d.indiaSalaryWorkBasisBoundaryFtc || null
       };
     }
   },

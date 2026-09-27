@@ -263,7 +263,7 @@ NODES.buildTaxComputationIndiaResult = {
     if (salaryNcInr > 1) {
       indiaGrossRows = indiaGrossRows.concat([
         { label: "  — not included: salary for work done outside India (not taxable in India for this client)", inr: salaryNcInr,
-          trace: calc("A non-resident or RNOR is taxed in India only on India-source income, and salary is India-source only for work physically done in India; a resident the treaty tie-breaker hands to the US gets the same result under DTAA Art. 16(1). Split by the workdays on Layer 1 India's salary screen, with the standard deduction and exemptions shared pro rata. The US still taxes this salary. Any TDS the employer deducted on it is refundable in the Indian return.", [
+          trace: calc("A non-resident or RNOR is taxed in India only on India-source income, and salary is India-source only for work physically done in India; a resident the treaty tie-breaker hands to the US gets the same result under DTAA Art. 16(1). Split by the workdays on Layer 1 India's salary screen (or, where those are left blank, estimated from days present: India days ÷ India + US days), with the standard deduction and exemptions shared pro rata. The US still taxes this salary. Any TDS the employer deducted on it is refundable in the Indian return.", [
             { label: "Salary for work outside India, left out", amount: salaryNcInr }
           ]) }
       ]);

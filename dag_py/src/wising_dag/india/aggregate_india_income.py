@@ -666,7 +666,10 @@ def _salary_work_location(d, ctx):
     salary when there are no quarters); 0 days in India or 365+ Router US days
     => all outside India; 365+ days in India or 0 US days => all in India;
     otherwise the Layer 1 workday split when work_performed_outside_india is
-    True, else all in India. Weighted by each slice's gross salary."""
+    True and workdays are entered; an explicit False => all in India; left
+    blank => estimated from days present (India days / (India + US days)),
+    all in India when either count is missing or they sum to more than 366. Weighted by each slice's
+    gross salary."""
     india = ctx.get("india")
     india_days_raw = safe(india, "residency_detail.days_in_india_current_year", None)
     us_days_raw = safe(ctx.get("router"), "us_days", None)
@@ -682,9 +685,12 @@ def _salary_work_location(d, ctx):
         slices = [x for x in (safe(quarters, q + ".domestic_income.salary", None) for q in ("Q1", "Q2", "Q3", "Q4")) if x]
     else:
         slices = [safe(india, "domestic_income.salary", {}) or {}]
+    # Only when the two counts can both be true (sum to a year or less).
+    presence_share = india_days / (india_days + us_days) if india_days is not None and us_days is not None and 0 < india_days + us_days <= 366 else None
     gross_inr = 0
     india_work_gross_inr = 0
     answered = False
+    estimated = False
     for sal in slices:
         g = num(sal.get("gross_salary_inr")) + num(sal.get("perquisites_inr")) + num(sal.get("esop_perquisite_inr")) + num(sal.get("prior_employer_salary_inr"))
         share = 1
@@ -693,10 +699,18 @@ def _salary_work_location(d, ctx):
         elif sal.get("work_performed_outside_india") is True and num(sal.get("workdays_in_india")) + num(sal.get("workdays_outside_india")) > 0:
             share = num(sal.get("workdays_in_india")) / (num(sal.get("workdays_in_india")) + num(sal.get("workdays_outside_india")))
             answered = True
+        elif sal.get("work_performed_outside_india") is not False and presence_share is not None:
+            share = presence_share
+            if g > 0:
+                estimated = True
         gross_inr += g
         india_work_gross_inr += g * share
     fraction = india_work_gross_inr / gross_inr if gross_inr > 0 else (auto[0] if auto else 1)
-    return {"indiaWorkFraction": fraction, "basis": auto[1] if auto else ("workdays" if answered else "unanswered")}
+    return {
+        "indiaWorkFraction": fraction,
+        "basis": auto[1] if auto else ("estimated_days_present" if estimated else ("workdays" if answered else "unanswered")),
+        "presenceShare": presence_share,
+    }
 
 
 def _india_income_model_result(d, ctx):

@@ -295,10 +295,15 @@ var NODES = {
   // no quarters) so an answered quarter can't re-source an unanswered one:
   // 0 days in India, or 365+ US days on the Router => all outside India;
   // 365+ days in India, or 0 US days => all in India; otherwise the Layer 1
-  // workday split when work_performed_outside_india is true, else all in
-  // India (the pre-split behavior). indiaWorkFraction weights each slice by
-  // its gross salary (gross + perquisites + ESOP + prior employer, the same
-  // terms salaryIncomeComputation sums).
+  // workday split when work_performed_outside_india is true and workdays
+  // are entered; an explicit "no" (false) => all in India; left blank =>
+  // estimated from days present, India days / (India days + US days) — a
+  // planning estimate (presence isn't workdays, and the two counts cover
+  // different years), labelled as such on the salary screen and in the
+  // findings; with either day count missing, or the two summing to more
+  // than 366 (inconsistent data), all in India. indiaWorkFraction
+  // weights each slice by its gross salary (gross + perquisites + ESOP +
+  // prior employer, the same terms salaryIncomeComputation sums).
   salaryWorkLocation: {
     deps: [],
     compute: function (d, ctx) {
@@ -314,7 +319,10 @@ var NODES = {
       var slices = quarters
         ? ["Q1", "Q2", "Q3", "Q4"].map(function (q) { return safe(quarters, q + ".domestic_income.salary", null); }).filter(Boolean)
         : [safe(india, "domestic_income.salary", {})];
-      var grossInr = 0, indiaWorkGrossInr = 0, answered = false;
+      // Only when the two counts can both be true (they sum to a year or
+      // less) — overlapping counts say nothing about where the work was done.
+      var presenceShare = indiaDays !== null && usDays !== null && indiaDays + usDays > 0 && indiaDays + usDays <= 366 ? indiaDays / (indiaDays + usDays) : null;
+      var grossInr = 0, indiaWorkGrossInr = 0, answered = false, estimated = false;
       slices.forEach(function (sal) {
         var g = num(sal.gross_salary_inr) + num(sal.perquisites_inr) + num(sal.esop_perquisite_inr) + num(sal.prior_employer_salary_inr);
         var share = 1;
@@ -322,12 +330,19 @@ var NODES = {
         else if (sal.work_performed_outside_india === true && num(sal.workdays_in_india) + num(sal.workdays_outside_india) > 0) {
           share = num(sal.workdays_in_india) / (num(sal.workdays_in_india) + num(sal.workdays_outside_india));
           answered = true;
+        } else if (sal.work_performed_outside_india !== false && presenceShare !== null) {
+          share = presenceShare;
+          if (g > 0) estimated = true;
         }
         grossInr += g;
         indiaWorkGrossInr += g * share;
       });
       var fraction = grossInr > 0 ? indiaWorkGrossInr / grossInr : (auto ? auto.share : 1);
-      return { indiaWorkFraction: fraction, basis: auto ? auto.basis : (answered ? "workdays" : "unanswered") };
+      return {
+        indiaWorkFraction: fraction,
+        basis: auto ? auto.basis : (estimated ? "estimated_days_present" : (answered ? "workdays" : "unanswered")),
+        presenceShare: presenceShare
+      };
     }
   },
   osAgg: { deps: ["annualSliceAgg"], compute: function (d) { return d.annualSliceAgg.other_sources || {}; } },

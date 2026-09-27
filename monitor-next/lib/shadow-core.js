@@ -128,7 +128,7 @@ const DAG_ONLY_KEYS = new Set([
   "foreignWagesUsSource", "foreignWagesSourcing",
   // India salary work-location sourcing (aggregateindiaincome-nodes.js's
   // salaryWorkLocation → ftc-nodes.js) — DAG-only fields.
-  "salaryWorkLocation", "salaryOutsideIndiaInr", "usWorkSalaryUsd", "indiaTaxOnUsWorkSalaryUsd", "indiaNotChargeableSalaryUsd", "indiaNotChargeableSalaryTaxUsd",
+  "salaryWorkLocation", "salaryOutsideIndiaInr", "usWorkSalaryUsd", "indiaTaxOnUsWorkSalaryUsd", "indiaNotChargeableSalaryUsd", "indiaNotChargeableSalaryTaxUsd", "salaryWorkBasis",
   // One income list (aggregateusincome-nodes.js's foreignIncomeFromIndia) —
   // DAG-only fields.
   "foreignOtherIncome", "seEarningsFromIndiaUsd", "foreignFromIndia", "usOwnSourceForIndia",

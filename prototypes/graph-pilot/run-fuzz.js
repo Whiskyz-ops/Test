@@ -400,7 +400,7 @@ var DAG_ONLY_KEYS = {
   // Salary work-location sourcing (aggregateindiaincome-nodes.js's
   // salaryWorkLocation → ftc-nodes.js): new structural fields on
   // model.income.india and computed.ftc.us, present on every profile.
-  salaryWorkLocation: true, salaryOutsideIndiaInr: true, usWorkSalaryUsd: true, indiaTaxOnUsWorkSalaryUsd: true, indiaNotChargeableSalaryUsd: true, indiaNotChargeableSalaryTaxUsd: true,
+  salaryWorkLocation: true, salaryOutsideIndiaInr: true, usWorkSalaryUsd: true, indiaTaxOnUsWorkSalaryUsd: true, indiaNotChargeableSalaryUsd: true, indiaNotChargeableSalaryTaxUsd: true, salaryWorkBasis: true,
   // One income list (aggregateusincome-nodes.js's foreignIncomeFromIndia):
   // new structural fields on model.income.us, present on every profile.
   foreignOtherIncome: true, seEarningsFromIndiaUsd: true, foreignFromIndia: true, usOwnSourceForIndia: true
@@ -793,7 +793,11 @@ function isIndiaSalaryResourcedProfile(profile) {
   var usDays = router.us_days === null || router.us_days === undefined || router.us_days === "" ? null : Number(router.us_days) || 0;
   if (indiaDays === 0 || (usDays !== null && usDays >= 365)) return true;
   if ((indiaDays !== null && indiaDays >= 365) || usDays === 0) return false;
-  return slices.some(function (s) { return s.work_performed_outside_india === true && (Number(s.workdays_outside_india) || 0) > 0; });
+  if (slices.some(function (s) { return s.work_performed_outside_india === true && (Number(s.workdays_outside_india) || 0) > 0; })) return true;
+  // Workday question left blank: estimated from days present when the two
+  // counts are consistent (sum to 366 or less) — see salaryWorkLocation.
+  var presenceOk = indiaDays !== null && usDays !== null && indiaDays + usDays > 0 && indiaDays + usDays <= 366 && usDays > 0;
+  return presenceOk && slices.some(function (s) { return s.work_performed_outside_india !== false; });
 }
 // One income list (aggregateusincome-nodes.js's foreignIncomeFromIndia): for
 // an individual the US taxes on worldwide income, each Indian income type

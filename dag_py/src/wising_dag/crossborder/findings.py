@@ -75,6 +75,14 @@ def _inr_to_usd(v, ctx) -> float:
 
 
 # ---- describeTieBreak, port of findings-nodes.js's describeTieBreak -------
+def _salary_split_note(ftc_us):
+    # See findings-nodes.js: say when the salary split rests on the days-present estimate.
+    if ftc_us.get("salaryWorkBasis") == "estimated_days_present":
+        return ("The split between India and US work is estimated from days present (India days ÷ India + US days) because the workday "
+                "question on Layer 1 India's salary screen was left blank — enter the client's actual workdays to confirm this amount.")
+    return "Check the workday split on Layer 1 India's salary screen first — this figure is only as good as those days."
+
+
 def _describe_tie_break(home, cvi, abode, nat):
     if home == "india":
         return {"article": "Art. 4(2)(a)", "reason": "permanent home is only in India"}
@@ -489,7 +497,7 @@ def _findings_crossborder_result(d, ctx):
             f"{_usd(ftc['us']['usWorkSalaryUsd'])} of Indian salary was earned for work performed in the US, which makes it US-source "
             f"income (IRC §861(a)(3)). The Indian tax on it, about {_usd(ftc['us']['indiaTaxOnUsWorkSalaryUsd'])}, can't be claimed "
             f"as a Foreign Tax Credit on {d['usFtcFormXbr']} and is left out of the credit above, so as things stand it is taxed twice.",
-            sw_advice + " Check the workday split on Layer 1 India's salary screen first — this figure is only as good as those days.",
+            sw_advice + " " + _salary_split_note(ftc["us"]),
             ftc["us"]["indiaTaxOnUsWorkSalaryUsd"], ["§861(a)(3)", "DTAA Art. 16", d["usFtcFormXbr"], "Form 10F", "Form 6166", "Form 44"],
         ))
 
@@ -520,7 +528,7 @@ def _findings_crossborder_result(d, ctx):
             "return (ITR-U) can't claim a refund. If the salary is first received in an Indian bank account, expect the Department to argue "
             "it is taxable on receipt (s.5(2)(a) of the 1961 Act); tribunal rulings (e.g. Hyderabad ITAT, 28 Feb 2023) hold that salary for "
             "work done outside India isn't taxable merely because it is credited in India — keep the work-location evidence on file. "
-            "Check the workday split on Layer 1 India's salary screen first — this figure is only as good as those days.",
+            + _salary_split_note(ftc["us"]),
             nc_tax, ["DTAA Art. 16", "Form 10F", "Form 6166", "ITR-2", "Form 26AS"],
         ))
 

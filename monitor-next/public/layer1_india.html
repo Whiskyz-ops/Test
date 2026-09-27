@@ -2777,6 +2777,7 @@
                         <div id="div-sal-workloc" class="col-span-full p-4 bg-white/5 border border-white/10 rounded-xl flex flex-col gap-3">
                             <span class="text-[9px] font-black uppercase tracking-widest text-brandGold/80">Where Was This Work Performed?</span>
                             <p id="sal-workloc-auto" class="text-[10px] text-white/60 hidden"></p>
+                            <p id="sal-workloc-estimate" class="text-[10px] text-brandGold/80 hidden"></p>
                             <div id="sal-workloc-ask" class="flex flex-col gap-3">
                                 <label class="flex items-center justify-between gap-4 cursor-pointer">
                                     <span class="text-xs text-white/80">Was any of this salary earned for work performed outside India this quarter?</span>
@@ -11727,6 +11728,37 @@ ${isProf ? '' : `
         return null;
     }
 
+    // Days-present estimate the engine uses when the workday question is left
+    // blank (aggregateindiaincome-nodes.js's salaryWorkLocation): India days
+    // / (India days + Router US days), only when the two counts are
+    // consistent (sum to 366 or less). null => no estimate (all in India).
+    function salaryPresenceShare() {
+        const rawIndia = state.residency_detail ? state.residency_detail.days_in_india_current_year : null;
+        const indiaDays = rawIndia === null || rawIndia === undefined || rawIndia === '' ? null : Number(rawIndia) || 0;
+        let usDays = null;
+        try {
+            const r = JSON.parse(localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('ROUTER')) || '{}');
+            if (r.us_days !== null && r.us_days !== undefined && r.us_days !== '') usDays = Number(r.us_days) || 0;
+        } catch (e) { /* no Router state */ }
+        if (indiaDays === null || usDays === null || indiaDays + usDays <= 0 || indiaDays + usDays > 366) return null;
+        return { share: indiaDays / (indiaDays + usDays), indiaDays: indiaDays, usDays: usDays };
+    }
+
+    function refreshSalaryWorkEstimate() {
+        const el = document.getElementById('sal-workloc-estimate');
+        if (!el) return;
+        const sal = state.domestic_income.salary;
+        const hasWorkdays = sal.work_performed_outside_india === true &&
+            (Number(sal.workdays_in_india) || 0) + (Number(sal.workdays_outside_india) || 0) > 0;
+        const est = (!salaryWorkLocationAuto() && !hasWorkdays && sal.work_performed_outside_india !== false) ? salaryPresenceShare() : null;
+        if (est) {
+            const pct = Math.round(est.share * 1000) / 10;
+            el.textContent = 'Estimated from days present — ' + pct + '% of this salary treated as earned for work in India (' +
+                est.indiaDays + ' India days ÷ ' + (est.indiaDays + est.usDays) + ' India + US days). Enter workdays to confirm.';
+        }
+        el.classList.toggle('hidden', !est);
+    }
+
     function refreshSalaryWorkLocation() {
         const sal = state.domestic_income.salary;
         const autoText = salaryWorkLocationAuto();
@@ -11744,6 +11776,7 @@ ${isProf ? '' : `
         const outEl = document.getElementById('sal-workdays-outside');
         if (inEl) inEl.value = sal.workdays_in_india ?? '';
         if (outEl) outEl.value = sal.workdays_outside_india ?? '';
+        refreshSalaryWorkEstimate();
     }
 
     function toggleSalaryWorkOutside(val) {
@@ -11757,6 +11790,7 @@ ${isProf ? '' : `
     function updateSalaryWorkdays(field, val) {
         const n = parseInt(String(val).replace(/[^0-9]/g, ''), 10);
         state.domestic_income.salary[field] = isNaN(n) ? null : Math.min(n, 366);
+        refreshSalaryWorkEstimate();
         evaluateSurchargeBuckets();
     }
 

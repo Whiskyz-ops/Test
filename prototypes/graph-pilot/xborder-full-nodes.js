@@ -158,6 +158,7 @@ NODES.usIncomeInIndiaUsdBoundaryFtc = {
 };
 NODES.indiaSalaryOutsideIndiaUsdBoundaryFtc = { deps: ["indiaIncomeModelResult"], compute: function (d, ctx) { return (d.indiaIncomeModelResult.salaryOutsideIndiaInr || 0) / fxRate(ctx); } };
 NODES.indiaSalaryNotChargeableUsdBoundaryFtc = { deps: ["salaryNotChargeableInr"], compute: function (d, ctx) { return (d.salaryNotChargeableInr || 0) / fxRate(ctx); } };
+NODES.indiaSalaryWorkBasisBoundaryFtc = { deps: ["indiaIncomeModelResult"], compute: function (d) { return d.indiaIncomeModelResult.salaryWorkLocation ? d.indiaIncomeModelResult.salaryWorkLocation.basis : null; } };
 NODES.indiaSalaryNotChargeableTaxUsdBoundaryFtc = { deps: ["salaryNotChargeableTaxInr"], compute: function (d, ctx) { return (d.salaryNotChargeableTaxInr || 0) / fxRate(ctx); } };
 // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H, 21 Jul
 // 2026): was aggregateUsIncomeResult.usSourceTotal.usd directly — the

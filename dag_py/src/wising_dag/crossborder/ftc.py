@@ -149,6 +149,7 @@ def _ftc_us_direction(d, ctx):
         # cost — India-side facts, not zeroed (salary_not_taxable_india_tds).
         "indiaNotChargeableSalaryUsd": not_chargeable_usd,
         "indiaNotChargeableSalaryTaxUsd": (d.get("indiaSalaryNotChargeableTaxUsdBoundaryFtc") or 0) if not_chargeable_usd > 0 else 0,
+        "salaryWorkBasis": d.get("indiaSalaryWorkBasisBoundaryFtc") or None,
     }
 
 
@@ -252,6 +253,8 @@ NODES = {
     # ftc-nodes.js. 0 unless crossborder/xborder_full.py overrides them.
     "indiaSalaryNotChargeableUsdBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: 0),
     "indiaSalaryNotChargeableTaxUsdBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: 0),
+    # How the salary's work location was decided — see ftc-nodes.js.
+    "indiaSalaryWorkBasisBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.income.india.salaryWorkLocation.basis", None)),
     "otherCountryFtcEntriesRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_tax_credit_other.entries", []) or []),
 
     "ftcUsDirection": NodeDef(
@@ -260,7 +263,7 @@ NODES = {
               "usTaxableIncomeUsdBoundaryFtc", "usIncomeTaxUsdBoundaryFtc", "indiaTotalTaxUsdBoundaryFtc",
               "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw", "indiaSalaryOutsideIndiaUsdBoundaryFtc",
               "usIncomeInIndiaUsdBoundaryFtc", "indiaTotalIncomeUsdBoundaryFtc", "indiaSalaryNotChargeableUsdBoundaryFtc",
-              "indiaSalaryNotChargeableTaxUsdBoundaryFtc"),
+              "indiaSalaryNotChargeableTaxUsdBoundaryFtc", "indiaSalaryWorkBasisBoundaryFtc"),
         compute=_ftc_us_direction,
     ),
     "ftcIndiaDirection": NodeDef(
