@@ -36,7 +36,7 @@ export default function CapsuleChart({ rows = [] }) {
         <span className="w-9 h-9 rounded-2xl flex items-center justify-center border" style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)" }}><BarChart3 size={17} strokeWidth={2} /></span>
         <div className="flex-1 min-w-0">
           <div className="text-[15px] font-bold text-head">Cross-basis by income head</div>
-          <div className="text-[11px] text-muted">Same income under each country's own code — overlap is what FTC / §90 relieves</div>
+          <div className="text-[11px] text-muted">Same income under each country's own code — overlap is what the FTC / §159 relief resolves</div>
         </div>
         <div className="flex items-center gap-3">
           <Legend color={S_IN} label="India basis" />
@@ -111,7 +111,7 @@ export default function CapsuleChart({ rows = [] }) {
           </div>
         </div>
       )}
-      <div className="text-[10px] text-muted mt-3">Red dot = income taxed under both codes (relieved by FTC / §90). Full reconciliation in <span className="text-body font-semibold">Filings</span>.</div>
+      <div className="text-[10px] text-muted mt-3">Red dot = income taxed under both codes (relieved by the FTC / §159). Full reconciliation in <span className="text-body font-semibold">Filings</span>.</div>
     </div>
   );
 }

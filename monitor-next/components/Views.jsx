@@ -974,7 +974,7 @@ function ApportionmentCard({ ap }) {
         <Split title={"🇺🇸 US CY" + ap.cyPrimary + " income → Indian " + ap.fyLabel} sub={"Apr–Dec (9/12) into this FY · Jan–Mar (3/12) into the next FY"}
           a={ap.usCyToFyPrimaryUsd} b={ap.usCyToFyNextUsd} aLabel={"Into " + ap.fyLabel} bLabel={"Into next FY"} />
       </div>
-      <p className="text-[10px] text-muted mt-2">The period-matched figures feed Form 67 (India) and Form 1116 (US) so the credit lands in the right year. Planning-grade — refine with per-transaction dates (Rule 115) at filing.</p>
+      <p className="text-[10px] text-muted mt-2">The period-matched figures feed Form 44 (India, formerly Form 67) and Form 1116 (US) so the credit lands in the right year. Planning-grade — refine with per-transaction dates (Rule 115) at filing.</p>
     </Card>
   );
 }
@@ -984,7 +984,7 @@ function ReconciliationCard({ recon }) {
   if (!recon || !recon.rows || !recon.rows.length) return null;
   const Dir = ({ d }) => <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded" style={{ background: (d === "IN→US" ? PAL.jurIN : PAL.jurUS) + "24", color: d === "IN→US" ? PAL.accent : PAL.blueText }}>{d}</span>;
   return (
-    <Card icon={<Scale size={16} strokeWidth={2} />} title="Cross-Basis Reconciliation" sub="The same income computed under each country's own code — India (Income-tax Act) vs US (IRC). Overlap is what FTC / §90 relieves.">
+    <Card icon={<Scale size={16} strokeWidth={2} />} title="Cross-Basis Reconciliation" sub="The same income computed under each country's own code — India (Income-tax Act) vs US (IRC). Overlap is what the FTC / §159 relief resolves.">
       <div className="overflow-x-auto -mx-1">
         <table className="w-full">
           <thead>
@@ -1019,7 +1019,7 @@ function ReconciliationCard({ recon }) {
     </Card>
   );
 }
-function FtcCard({ ftcReport, onJump }) {
+function FtcCard({ ftcReport, onJump, indiaWorldwide }) {
   const net = ftcReport.headlineNetDoubleTaxUsd;
   const Block = ({ block }) => (
     <div className="mb-2"><div className="text-[11px] font-bold text-body mb-2">{block.title}</div>
@@ -1037,7 +1037,16 @@ function FtcCard({ ftcReport, onJump }) {
       </div>
       <Block block={ftcReport.direction_us_claims_india} />
       <div className="border-t border-line my-3" />
-      <Block block={ftcReport.direction_india_relief} />
+      {indiaWorldwide ? <Block block={ftcReport.direction_india_relief} /> : (
+        // India's relief only applies to foreign income India itself taxes,
+        // i.e. for an India resident (ROR). For anyone else every line is 0
+        // except "US tax on that US-source income", which read as US tax India
+        // should be relieving — so the block collapses to what's true.
+        <div className="mb-2">
+          <div className="text-[11px] font-bold text-body mb-2">{ftcReport.direction_india_relief.title}</div>
+          <div className="text-[12px] text-muted leading-relaxed">Not applicable — India doesn't tax this client's US income (not an India resident / ROR), so there's no foreign tax for India to relieve. Indian tax on income the US also taxes is covered by the US credit above or, for salary earned in the US, by the India refund conflict.</div>
+        </div>
+      )}
     </Card>
   );
 }
@@ -1208,7 +1217,8 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
         {/* FTC relief only exists where a taxpayer is genuinely exposed to
             BOTH countries — nothing to reconcile for a single-jurisdiction
             taxpayer, so the whole card (not just its numbers) disappears. */}
-        {isDualScope && <FtcCard ftcReport={result.ftcReport} onJump={onJump} />}
+        {isDualScope && <FtcCard ftcReport={result.ftcReport} onJump={onJump}
+          indiaWorldwide={!!(result.computed.residency && result.computed.residency.india && result.computed.residency.india.worldwide)} />}
         <TaxCard taxComputation={result.taxComputation} fxRate={result.model.meta.fxRate} onJump={onJump} hasIndiaScope={hasIndiaScope} hasUsScope={hasUsScope} />
       </div>
 

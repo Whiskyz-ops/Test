@@ -725,7 +725,7 @@ NODES.buildFtcReportResult = {
           // Salary work-location sourcing: shown only when present, so every
           // other client's card is unchanged.
           { label: "Indian tax on salary for US-performed work (not creditable — claim in India)", usd: ftc.us.indiaTaxOnUsWorkSalaryUsd, warn: true,
-            trace: calc("Indian salary earned while working in the US is US-source (§861(a)(3)), so it's left out of the credit; its share of Indian tax is relieved in India instead (DTAA Art. 16 refund, or Form 67 credit if India is the treaty residence)", [
+            trace: calc("Indian salary earned while working in the US is US-source (§861(a)(3)), so it's left out of the credit; its share of Indian tax is relieved in India instead (DTAA Art. 16 refund, or Form 44 credit if India is the treaty residence)", [
               { label: "Salary for US-performed work", amount: ftc.us.usWorkSalaryUsd },
               { label: "Total India tax", amount: indiaTotalTaxUsd },
               { label: "Gross Indian-source income (US view)", amount: d.indiaIncomeTotalUsdBoundaryFtc }
@@ -749,7 +749,7 @@ NODES.buildFtcReportResult = {
               { label: "US-source income (India view)", amount: ftc.india.foreignSourceIncomeUsd },
               { label: "Total India-view income", amount: d.indiaTotalIncomeUsdBoundaryFtc }
             ]) },
-          { label: "§90 relief allowed", usd: ftc.india.reliefAllowedUsd, emphasis: true,
+          { label: "§159 relief allowed (formerly s.90)", usd: ftc.india.reliefAllowedUsd, emphasis: true,
             trace: calc("Lesser of the US tax on that income and the Indian-tax cap", [
               { label: "US tax on the doubly-taxed income", amount: ftc.india.usTaxOnUsSourceUsd },
               { label: "Indian tax cap", amount: ftc.india.reliefCapUsd }

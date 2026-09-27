@@ -617,7 +617,10 @@ var KNOWN_INDIA_ENTITY_DIVERGENT_PATHS = ["taxComputation.india"];
 // nodes.js's foreignWagesSourcing): brand-new DAG-only fields, no frozen-
 // engine equivalent. The dollar effect is covered separately, per profile,
 // by isWorkLocationSourcingDivergentProfile below.
-var KNOWN_ALWAYS_DIVERGENT_PATHS = ["model.income.us.foreignWagesUsSource", "model.income.us.foreignWagesSourcing",
+// ftcReport.direction_india_relief.rows[3].label: renamed "§90 relief allowed"
+// -> "§159 relief allowed (formerly s.90)" (Income-tax Act 2025 numbering,
+// 27 Sep 2026) — same row, same figures.
+var KNOWN_ALWAYS_DIVERGENT_PATHS = ["ftcReport.direction_india_relief.rows[3].label", "model.income.us.foreignWagesUsSource", "model.income.us.foreignWagesSourcing",
   "model.income.us.foreignSection988GainLoss", "model.income.us.otherOrdinaryIncomeUs",
   "model.income.us.cfcNonElectedInclusionUs", "model.income.us.cfcElectedPool", "model.income.us.cfcPerEntityTrace",
   "computed.usTax.gilti962TaxUsd", "computed.usTax.cfcDetail",

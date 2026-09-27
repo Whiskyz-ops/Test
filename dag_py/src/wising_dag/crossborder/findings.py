@@ -472,7 +472,7 @@ def _findings_crossborder_result(d, ctx):
         sw_tb_winner = d["treatyIndiaResidenceRaw"] if d["treatyIndiaResidenceRaw"] != "none" else (d["treatyUsResidenceRaw"] if d["treatyUsResidenceRaw"] != "none" else None)
         sw_refund = ("Claim the Indian tax back (revise the ITR / refund claim, with Form 10F and a US residency certificate, "
                      "Form 6166) and ask the employer to stop deducting TDS on that portion.")
-        sw_india_credit = ("Claim credit in India for the US tax on this salary (s.90 / DTAA Art. 25, Form 67 with the US return) "
+        sw_india_credit = ("Claim credit in India for the US tax on this salary (s.159, formerly s.90 / DTAA Art. 25 — Form 44, formerly Form 67, with the US return) "
                            "instead of expecting a US credit for the Indian tax.")
         if d["residencyResult"]["dualResident"] and sw_tb_winner == "india":
             sw_advice = ("India is the treaty residence (Art. 4), so the US — where the work was done — taxes this salary first "
@@ -490,7 +490,7 @@ def _findings_crossborder_result(d, ctx):
             f"income (IRC §861(a)(3)). The Indian tax on it, about {_usd(ftc['us']['indiaTaxOnUsWorkSalaryUsd'])}, can't be claimed "
             f"as a Foreign Tax Credit on {d['usFtcFormXbr']} and is left out of the credit above, so as things stand it is taxed twice.",
             sw_advice + " Check the workday split on Layer 1 India's salary screen first — this figure is only as good as those days.",
-            ftc["us"]["indiaTaxOnUsWorkSalaryUsd"], ["§861(a)(3)", "DTAA Art. 16", d["usFtcFormXbr"], "Form 10F", "Form 6166", "Form 67"],
+            ftc["us"]["indiaTaxOnUsWorkSalaryUsd"], ["§861(a)(3)", "DTAA Art. 16", d["usFtcFormXbr"], "Form 10F", "Form 6166", "Form 44"],
         ))
 
     # -- 4f2. ENTITY-LEVEL DUAL RESIDENCY (findings-nodes.js, conflicts.js:701-736) --

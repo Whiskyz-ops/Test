@@ -161,7 +161,7 @@ NODES.findingsBatch1Result = {
         : (d.treatyUsResidenceRaw !== "none" ? d.treatyUsResidenceRaw : null);
       var swRefund = "Claim the Indian tax back (revise the ITR / refund claim, with Form 10F and a US residency certificate, " +
         "Form 6166) and ask the employer to stop deducting TDS on that portion.";
-      var swIndiaCredit = "Claim credit in India for the US tax on this salary (s.90 / DTAA Art. 25, Form 67 with the US return) " +
+      var swIndiaCredit = "Claim credit in India for the US tax on this salary (s.159, formerly s.90 / DTAA Art. 25 — Form 44, formerly Form 67, with the US return) " +
         "instead of expecting a US credit for the Indian tax.";
       var swAdvice;
       if (d.residencyResult.dualResident && swTbWinner === "india") {
@@ -180,7 +180,7 @@ NODES.findingsBatch1Result = {
         "income (IRC §861(a)(3)). The Indian tax on it, about " + usd(ftc.us.indiaTaxOnUsWorkSalaryUsd) + ", can't be claimed " +
         "as a Foreign Tax Credit on " + d.usFtcFormXbr + " and is left out of the credit above, so as things stand it is taxed twice.",
         swAdvice + " Check the workday split on Layer 1 India's salary screen first — this figure is only as good as those days.",
-        ftc.us.indiaTaxOnUsWorkSalaryUsd, ["§861(a)(3)", "DTAA Art. 16", d.usFtcFormXbr, "Form 10F", "Form 6166", "Form 67"]);
+        ftc.us.indiaTaxOnUsWorkSalaryUsd, ["§861(a)(3)", "DTAA Art. 16", d.usFtcFormXbr, "Form 10F", "Form 6166", "Form 44"]);
     }
 
     // -- 4c. AMT BITES (conflicts.js:325-334) -------------------------------

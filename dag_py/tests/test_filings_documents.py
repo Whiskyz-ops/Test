@@ -157,5 +157,11 @@ def test_build_ftc_report_result_matches_golden(fixture_id):
         return  # see conftest.py's own docstring: foreign_earned_income_usd now correctly folds into foreignWages, hence the FTC report
 
     out = GRAPH.resolve(TARGETS, ctx).values["buildFtcReportResult"]
-    diff = deep_diff(out, golden["ftcReport"])
+    # Label renamed to the Income-tax Act 2025 section (27 Sep 2026): golden's
+    # frozen engine says "§90 relief allowed" — same row, same figures.
+    golden_report = golden["ftcReport"]
+    for row in (golden_report.get("direction_india_relief") or {}).get("rows", []):
+        if row.get("label") == "§90 relief allowed":
+            row["label"] = "§159 relief allowed (formerly s.90)"
+    diff = deep_diff(out, golden_report)
     assert diff is None, f"{fixture_id}: " + " | ".join(diff[:8])

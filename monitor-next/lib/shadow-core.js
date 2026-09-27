@@ -282,7 +282,10 @@ const KNOWN_US_TRUST_PATHS = [
 // standardDeductionUsd, confirmed by grep — so excluding that NAME
 // everywhere would mask a real divergence in either of those, not just the
 // NRA path).
+// ftcReport.direction_india_relief.rows[3].label: "§90 relief allowed" renamed
+// to "§159 relief allowed (formerly s.90)" (Income-tax Act 2025, 27 Sep 2026).
 const KNOWN_ALWAYS_DIVERGENT_PATHS = [
+  "ftcReport.direction_india_relief.rows[3].label",
   "computed.usTax.nra.standardDeductionUsd", "computed.usTax.nra.itemizedDeductionUsd",
   "computed.usTax.nra.article212Eligible", "computed.usTax.nra.article212AmbiguousJ1",
   "model.assets.businessEntities", "computed.reconciliation.rows",

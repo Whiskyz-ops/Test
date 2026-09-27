@@ -9,7 +9,7 @@
 
 export const GROUPS = [
   { key: "double_tax", title: "Same income taxed by both countries",
-    action: "Claim the relief that's missing: the US credit (Form 1116), or India's relief / refund (Form 67, DTAA)." },
+    action: "Claim the relief that's missing: the US credit (Form 1116), or India's relief / refund (§159 and Form 44, DTAA)." },
   { key: "payments", title: "Penalties, interest & payment deadlines",
     action: "Pay the shortfall or advance tax before the next due date to stop interest building." },
   { key: "docs", title: "Missing treaty paperwork & documents",
