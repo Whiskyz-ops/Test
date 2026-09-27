@@ -497,27 +497,29 @@ def _findings_crossborder_result(d, ctx):
     if d["hasIndiaScopeXbr"] and d["hasUsScopeBoundaryFtc"] and (ftc["us"].get("indiaNotChargeableSalaryUsd") or 0) > 1:
         nc_status = d["residencyResult"]["india"]["status"]
         if nc_status == "ROR":
-            nc_why = "The treaty tie-breaker makes the US your residence country, so under DTAA Art. 16(1) India can't tax pay for work done outside India"
+            nc_why = "The treaty tie-breaker makes the US the client's residence country, so under DTAA Art. 16(1) India can't tax pay for work done outside India"
         else:
-            nc_why = ("As an India " + ("RNOR" if nc_status == "RNOR" else "non-resident") + ", you're taxed in India only on "
+            nc_why = ("As an India " + ("RNOR" if nc_status == "RNOR" else "non-resident") + ", the client is taxed in India only on "
                       "India-source income, and salary is India-source only for work physically done in India")
         nc_tax = ftc["us"]["indiaNotChargeableSalaryTaxUsd"]
         findings.append(make_finding(
             "salary_not_taxable_india_tds", "critical", "credit",
             "Indian TDS on salary India can't tax — about " + _usd(nc_tax) + " to stop or recover",
             _usd(ftc["us"]["indiaNotChargeableSalaryUsd"]) + " of Indian salary was earned for work done outside India (taken to be the US). " +
-            nc_why + ", so India's tax here leaves it out. An Indian employer that treats you as taxable in India would still deduct "
+            nc_why + ", so India's tax here leaves it out. An Indian employer that treats the client as taxable in India would still deduct "
             "about " + _usd(nc_tax) + " of TDS on it (estimate: the Indian tax this salary would carry — "
             "Layer 1 India records TDS as one total). The US taxes this salary, and that TDS is not a creditable foreign tax on " +
             d["usFtcFormXbr"] + " because India isn't owed it — so until it's stopped or refunded, the same salary is taxed twice.",
-            "Stop it: give the employer a written declaration of your residential status, US work location and address, and expected "
+            "Stop it: give the employer a written declaration of the client's residential status, US work location and address, and expected "
             "days in India (and which are workdays), backed by travel records; add a US residency certificate (Form 6166) and Form 10F "
             "so the employer also has the treaty ground (DTAA Art. 16). If it still deducts, apply for a nil / lower-deduction "
             "certificate. Salary for days actually worked in India stays taxable and keeps its TDS. Recover what's already deducted: "
             "within the same year the employer can reduce later months' TDS; after year-end, file ITR-2 showing this salary as not "
             "taxable in India and claim the full TDS credit from Form 26AS / AIS — expect a mismatch query (Form 16 shows the full "
             "salary) and answer it with the declaration and travel records. File by the original or belated due date: an updated "
-            "return (ITR-U) can't claim a refund. If the salary is paid into an Indian bank account, have a CA confirm the position. "
+            "return (ITR-U) can't claim a refund. If the salary is first received in an Indian bank account, expect the Department to argue "
+            "it is taxable on receipt (s.5(2)(a) of the 1961 Act); tribunal rulings (e.g. Hyderabad ITAT, 28 Feb 2023) hold that salary for "
+            "work done outside India isn't taxable merely because it is credited in India — keep the work-location evidence on file. "
             "Check the workday split on Layer 1 India's salary screen first — this figure is only as good as those days.",
             nc_tax, ["DTAA Art. 16", "Form 10F", "Form 6166", "ITR-2", "Form 26AS"],
         ))
