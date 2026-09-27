@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { fmtUsd, PAL } from "@/lib/logic";
 import { entityLinksFor } from "@/lib/entity-graph";
+import { groupFindings } from "@/lib/conflict-groups";
 import CapsuleChart from "@/components/CapsuleChart";
 
 const SEV = { critical: PAL.exposed, warning: PAL.approaching, info: PAL.filing };
@@ -171,14 +172,50 @@ const HeadChip = ({ children }) => (
 );
 
 /* ============================ CONFLICTS ============================ */
-export function ConflictsPanel({ findings }) {
+// One finding row (expandable detail, action and references) — shared by the
+// flat list and the root-cause groups below.
+function FindingRow({ f, isOpen, onToggle }) {
+  return (
+    <div className="rounded-lg bg-surface border border-line shadow-card overflow-hidden" style={{ borderLeft: `3px solid ${SEV[f.severity]}` }}>
+      <button onClick={onToggle} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/[0.03]">
+        <span className="w-2 h-2 rounded-full shrink-0 mt-1.5 self-start" style={{ background: SEV[f.severity], boxShadow: `0 0 8px ${SEV[f.severity]}` }} />
+        {/* Narrower containers (e.g. the Residency tab's half-width card)
+            were truncating this to a couple characters with no room to
+            read it — the same title renders in full on Monitor's
+            full-width panel, so wrapping (not truncating) here keeps it
+            legible everywhere instead of only where there's space. */}
+        <span className="font-semibold text-[13px] text-head flex-1 leading-snug">{f.title}</span>
+        {f.amountUsd > 0 && <span className="font-mono text-[12px] whitespace-nowrap self-start mt-0.5" style={{ color: SEV_TEXT[f.severity] }}>{fmtUsd(f.amountUsd)}</span>}
+        <span className="text-muted text-xs self-start mt-0.5" style={{ transform: isOpen ? "rotate(90deg)" : "none" }}>▸</span>
+      </button>
+      {isOpen && (
+        <div className="px-3 pb-3 pt-0">
+          <div className="text-[12px] text-body leading-relaxed">{f.detail}</div>
+          <div className="text-[12px] text-head mt-2 leading-relaxed"><span className="font-bold" style={{ color: PAL.greenText }}>▸ Action:</span> {f.recommendation}</div>
+          {f.refs && f.refs.length > 0 && <div className="flex flex-wrap gap-1.5 mt-2.5">{f.refs.map((r, j) => <Ref key={j}>{r}</Ref>)}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// `groupable` (Monitor): adds a "By root cause" view — findings that share a
+// cause grouped under one card with the tax actually at risk and a single
+// action (lib/conflict-groups.js). Default on; "All findings" is the flat list.
+export function ConflictsPanel({ findings, groupable }) {
   const [open, setOpen] = useState(null);
   const [filter, setFilter] = useState("all");
+  const [view, setView] = useState(groupable ? "groups" : "flat");
+  const [openGroup, setOpenGroup] = useState(undefined);
   if (!findings || !findings.length) return <Empty>No conflicts detected for this taxpayer.</Empty>;
   const counts = { all: findings.length, critical: 0, warning: 0, info: 0 };
   findings.forEach((f) => counts[f.severity]++);
   const shown = findings.filter((f) => filter === "all" || f.severity === filter);
   const chips = [["all", "All"], ["critical", "Critical"], ["warning", "Warning"], ["info", "Info"]];
+  const groups = view === "groups" ? groupFindings(shown) : [];
+  // The costliest group starts open, so the headline problem is visible
+  // without a click; any other group opens on tap.
+  const activeGroup = openGroup === undefined ? (groups[0] && groups[0].key) : openGroup;
   return (
     <div>
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
@@ -194,35 +231,50 @@ export function ConflictsPanel({ findings }) {
             </button>
           );
         })}
-        <span className="ml-auto text-[11px] text-muted">{shown.length} shown · tap a row for detail &amp; action</span>
+        {groupable && (
+          <div className="inline-flex ml-2 rounded-full border border-line overflow-hidden text-[11px] font-semibold">
+            {[["groups", "By root cause"], ["flat", "All findings"]].map(([id, label]) => (
+              <button key={id} onClick={() => setView(id)}
+                className={"px-3 py-1.5 transition-all " + (view === id ? "bg-white/10 text-head" : "text-muted hover:text-body")}>{label}</button>
+            ))}
+          </div>
+        )}
+        <span className="ml-auto text-[11px] text-muted">
+          {view === "groups" ? `${shown.length} findings · ${groups.length} root causes` : `${shown.length} shown · tap a row for detail & action`}
+        </span>
       </div>
-      <div className="space-y-1.5">
-        {shown.map((f) => {
-          const isOpen = open === f.id;
-          return (
-            <div key={f.id} className="rounded-lg bg-surface border border-line shadow-card overflow-hidden" style={{ borderLeft: `3px solid ${SEV[f.severity]}` }}>
-              <button onClick={() => setOpen(isOpen ? null : f.id)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/[0.03]">
-                <span className="w-2 h-2 rounded-full shrink-0 mt-1.5 self-start" style={{ background: SEV[f.severity], boxShadow: `0 0 8px ${SEV[f.severity]}` }} />
-                {/* Narrower containers (e.g. the Residency tab's half-width card)
-                    were truncating this to a couple characters with no room to
-                    read it — the same title renders in full on Monitor's
-                    full-width panel, so wrapping (not truncating) here keeps it
-                    legible everywhere instead of only where there's space. */}
-                <span className="font-semibold text-[13px] text-head flex-1 leading-snug">{f.title}</span>
-                {f.amountUsd > 0 && <span className="font-mono text-[12px] whitespace-nowrap self-start mt-0.5" style={{ color: SEV_TEXT[f.severity] }}>{fmtUsd(f.amountUsd)}</span>}
-                <span className="text-muted text-xs self-start mt-0.5" style={{ transform: isOpen ? "rotate(90deg)" : "none" }}>▸</span>
-              </button>
-              {isOpen && (
-                <div className="px-3 pb-3 pt-0">
-                  <div className="text-[12px] text-body leading-relaxed">{f.detail}</div>
-                  <div className="text-[12px] text-head mt-2 leading-relaxed"><span className="font-bold" style={{ color: PAL.greenText }}>▸ Action:</span> {f.recommendation}</div>
-                  {f.refs && f.refs.length > 0 && <div className="flex flex-wrap gap-1.5 mt-2.5">{f.refs.map((r, j) => <Ref key={j}>{r}</Ref>)}</div>}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {view === "groups" ? (
+        <div className="space-y-2">
+          {groups.map((g) => {
+            const gOpen = activeGroup === g.key;
+            return (
+              <div key={g.key} className="rounded-xl bg-surface border border-line shadow-card overflow-hidden" style={{ borderLeft: `4px solid ${SEV[g.severity]}` }}>
+                <button onClick={() => setOpenGroup(gOpen ? null : g.key)} className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-white/[0.03]">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-1.5" style={{ background: SEV[g.severity], boxShadow: `0 0 10px ${SEV[g.severity]}` }} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-bold text-[14px] text-head leading-snug">{g.title}</span>
+                    <span className="block text-[12px] text-body mt-1 leading-relaxed"><span className="font-bold" style={{ color: PAL.greenText }}>▸</span> {g.action}</span>
+                  </span>
+                  <span className="shrink-0 text-right">
+                    {g.atRiskUsd > 0 && <span className="block font-mono font-bold text-[14px]" style={{ color: SEV_TEXT[g.severity] }}>{fmtUsd(g.atRiskUsd)}</span>}
+                    {g.atRiskUsd > 0 && <span className="block text-[10px] text-muted uppercase tracking-wide">tax at risk</span>}
+                    <span className="block text-[11px] text-muted mt-0.5">{g.items.length} check{g.items.length === 1 ? "" : "s"} {gOpen ? "▾" : "▸"}</span>
+                  </span>
+                </button>
+                {gOpen && (
+                  <div className="px-3 pb-3 space-y-1.5">
+                    {g.items.map((f) => <FindingRow key={f.id} f={f} isOpen={open === f.id} onToggle={() => setOpen(open === f.id ? null : f.id)} />)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {shown.map((f) => <FindingRow key={f.id} f={f} isOpen={open === f.id} onToggle={() => setOpen(open === f.id ? null : f.id)} />)}
+        </div>
+      )}
     </div>
   );
 }
