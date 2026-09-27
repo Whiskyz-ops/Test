@@ -192,6 +192,20 @@ export function isUsPersonResult(result) {
 }
 export function isUsPersonOnlyGauge(id) { return US_PERSON_REPORTING_GAUGES.includes(id); }
 
+// India's taxable base for the region row. For a resident taxed on worldwide
+// income, India's tax also covers the US income Layer 1 US holds (and a US
+// employer's pay for India work), which model.income.india.total (Layer 1
+// India only) leaves out — so use the India tax card's own gross total
+// income there, keeping "tax vs income exposed" on the same base.
+function indiaIncomeExposedUsd(result) {
+  const base = result.model.income.india.total.usd;
+  if (!result.computed.residency.india.worldwide) return base;
+  const rows = (result.taxComputation && result.taxComputation.india && result.taxComputation.india.rows) || [];
+  const gti = rows.find((r) => typeof r.label === "string" && r.label.indexOf("Gross total income") === 0 && typeof r.inr === "number");
+  const fx = result.model.meta && result.model.meta.fxRate;
+  return gti && fx ? Math.max(base, gti.inr / fx) : base;
+}
+
 // Engine result → the two country region rows the Monitor renders.
 export function countriesFromEngine(result) {
   const c = result.computed, model = result.model, m = result.monitoring;
@@ -217,7 +231,7 @@ export function countriesFromEngine(result) {
     physicalPresence: inEntry && inEntry.kind === "days" ? model.residency.india.daysCurrentYear > 0 : null,
     triggerDate: residentSinceIndia(result, inEntry),
     estimatedTaxUsd: Math.round(c.indiaTax.totalTaxUsd),
-    incomeExposedUsd: Math.round(model.income.india.total.usd),
+    incomeExposedUsd: Math.round(indiaIncomeExposedUsd(result)),
     reason: null
   };
   const us = {

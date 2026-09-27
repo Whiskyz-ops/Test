@@ -501,16 +501,17 @@ NODES.findingsAllResult = {
     var w2loc = d.aggregateUsIncomeResult && d.aggregateUsIncomeResult.w2WorkLocation;
     if (w2loc && w2loc.isNra && w2loc.outsideUsWagesUsd > 1 && w2loc.federalWithheldOutsideUsUsd + w2loc.ficaWithheldOutsideUsUsd > 1) {
       var w2WithheldUsd = w2loc.federalWithheldOutsideUsUsd + w2loc.ficaWithheldOutsideUsUsd;
+      // Where the split came from — shown under "Before relying on this amount".
       var w2Basis = w2loc.estimated
-        ? " The split is estimated from US days present (" + w2loc.usDays + " ÷ 365) because the W-2's workday fields are blank — enter the client's actual workdays to confirm it."
-        : (w2loc.usDays === 0 ? " Based on 0 US days this year — if the client did work while in the US, enter the days on the W-2." : "");
+        ? "- The split is estimated from US days present (" + w2loc.usDays + " ÷ 365) because the W-2's workday fields are blank. Enter the client's actual workdays to confirm it."
+        : (w2loc.usDays === 0 ? "- Based on 0 US days this year. If the client did work while in the US, enter the days on the W-2." : null);
       all.push({
         id: "us_withholding_outside_us_wages", severity: "critical", category: "credit",
         title: "US withholding on wages for work outside the US — " + usd(w2WithheldUsd) + " to stop and recover",
         detail: usd(w2loc.outsideUsWagesUsd) + " of W-2 wages were earned for work done outside the US (taken to be India). For a US non-resident alien " +
-          "that pay isn't US-source (IRC §862(a)(3)), so it isn't US income and it's left out of the US tax here — yet the employer withheld about " +
-          usd(w2loc.federalWithheldOutsideUsUsd) + " of federal income tax and " + usd(w2loc.ficaWithheldOutsideUsUsd) + " of Social Security / Medicare on it. " +
-          "India taxes the same salary, and it gives no credit for US tax that wasn't owed, so until this is stopped or refunded the salary is taxed twice." + w2Basis,
+          "that isn't US income (IRC §862(a)(3)), yet the employer withheld " + usd(w2loc.federalWithheldOutsideUsUsd) + " of federal tax and " +
+          usd(w2loc.ficaWithheldOutsideUsUsd) + " of Social Security / Medicare on it. India taxes the same salary and won't credit US tax that wasn't owed, " +
+          "so it's taxed twice until recovered.",
         recommendation: ["## Stop the withholding",
           "- Tell the employer's payroll the client is a non-resident alien working outside the US, so this pay isn't US wages for income-tax withholding or Social Security / Medicare.",
           "- If the employer can't run non-US payroll, move the client to an Indian entity or an Employer of Record.",
@@ -518,7 +519,7 @@ NODES.findingsAllResult = {
           "- Same calendar year: the employer can correct and repay over-withheld tax through payroll (Form 941-X for Social Security / Medicare).",
           "- Federal income tax: file Form 1040-NR showing the wages as foreign-source (an ITIN is needed if the client has no SSN).",
           "- Social Security / Medicare: claim it from the employer, or from the IRS on Form 843 with the employer's statement if the employer won't repay.",
-          "- No treaty claim is needed: the exemption is the US source rule itself."].join("\n"),
+          "- No treaty claim is needed: the exemption is the US source rule itself."].concat(w2Basis ? ["## Before relying on this amount", w2Basis] : []).join("\n"),
         amountUsd: w2WithheldUsd, refs: ["IRC §862(a)(3)", "Form 1040-NR", "Form 843", "Form 941-X"]
       });
     }

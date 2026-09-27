@@ -344,20 +344,21 @@ def _findings_all_result_override(d, ctx, base_compute):
         w2_withheld_usd = w2loc["federalWithheldOutsideUsUsd"] + w2loc["ficaWithheldOutsideUsUsd"]
         us_days = w2loc["usDays"]
         us_days_str = js_num_str(us_days) if us_days is not None else "null"
+        # Where the split came from — shown under "Before relying on this amount".
         if w2loc["estimated"]:
-            w2_basis = (" The split is estimated from US days present (" + us_days_str + " ÷ 365) because the W-2's workday fields are blank — "
-                        "enter the client's actual workdays to confirm it.")
+            w2_basis = ("- The split is estimated from US days present (" + us_days_str + " ÷ 365) because the W-2's workday fields are blank. "
+                        "Enter the client's actual workdays to confirm it.")
         elif us_days == 0:
-            w2_basis = " Based on 0 US days this year — if the client did work while in the US, enter the days on the W-2."
+            w2_basis = "- Based on 0 US days this year. If the client did work while in the US, enter the days on the W-2."
         else:
-            w2_basis = ""
+            w2_basis = None
         all_findings.append(make_finding(
             "us_withholding_outside_us_wages", "critical", "credit",
             "US withholding on wages for work outside the US — " + _usd(w2_withheld_usd) + " to stop and recover",
             _usd(w2loc["outsideUsWagesUsd"]) + " of W-2 wages were earned for work done outside the US (taken to be India). For a US non-resident alien "
-            "that pay isn't US-source (IRC §862(a)(3)), so it isn't US income and it's left out of the US tax here — yet the employer withheld about " +
-            _usd(w2loc["federalWithheldOutsideUsUsd"]) + " of federal income tax and " + _usd(w2loc["ficaWithheldOutsideUsUsd"]) + " of Social Security / Medicare on it. "
-            "India taxes the same salary, and it gives no credit for US tax that wasn't owed, so until this is stopped or refunded the salary is taxed twice." + w2_basis,
+            "that isn't US income (IRC §862(a)(3)), yet the employer withheld " + _usd(w2loc["federalWithheldOutsideUsUsd"]) + " of federal tax and " +
+            _usd(w2loc["ficaWithheldOutsideUsUsd"]) + " of Social Security / Medicare on it. India taxes the same salary and won't credit US tax that wasn't owed, "
+            "so it's taxed twice until recovered.",
             "\n".join(["## Stop the withholding",
                        "- Tell the employer's payroll the client is a non-resident alien working outside the US, so this pay isn't US wages for income-tax withholding or Social Security / Medicare.",
                        "- If the employer can't run non-US payroll, move the client to an Indian entity or an Employer of Record.",
@@ -365,7 +366,7 @@ def _findings_all_result_override(d, ctx, base_compute):
                        "- Same calendar year: the employer can correct and repay over-withheld tax through payroll (Form 941-X for Social Security / Medicare).",
                        "- Federal income tax: file Form 1040-NR showing the wages as foreign-source (an ITIN is needed if the client has no SSN).",
                        "- Social Security / Medicare: claim it from the employer, or from the IRS on Form 843 with the employer's statement if the employer won't repay.",
-                       "- No treaty claim is needed: the exemption is the US source rule itself."]),
+                       "- No treaty claim is needed: the exemption is the US source rule itself."] + (["## Before relying on this amount", w2_basis] if w2_basis else [])),
             w2_withheld_usd, ["IRC §862(a)(3)", "Form 1040-NR", "Form 843", "Form 941-X"],
         ))
 
