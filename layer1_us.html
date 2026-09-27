@@ -285,7 +285,9 @@
     <script>
         // Mock WISING implementation for standalone local testing (Force override for testing)
         window.WISING = window.WISING || {};
-        window.WISING.listProfiles = function() {
+        // Mock only when the real client list (profiles.js) isn't loaded —
+        // unconditionally overriding it cleared every saved linked_client_id.
+        if (!window.WISING.listProfiles) window.WISING.listProfiles = function() {
             return [
                 { id: 'profile_wife', label: 'Wife\'s Profile (Spouse)' },
                 { id: 'profile_business', label: 'Holding Company LLC' },
@@ -3703,8 +3705,13 @@
             <!-- Derived Withholding -->
             <div class="p-5 bg-white/5 border border-white/5 rounded-2xl grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="p-3 bg-black/20 border border-white/5 rounded-xl text-xs flex justify-between font-mono">
-                    <span>Federal Withholding Total (derived W-2):</span>
+                    <span>Federal Withholding Total (W-2 + other):</span>
                     <strong id="lbl-with-fed" class="text-brandCyan">$0</strong>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Other federal income tax withheld (1099 / 1042-S)</label>
+                    <input type="text" inputmode="numeric" id="with-other-fed" placeholder="0" oninput="updateStateField('withholding_and_estimated', 'other_federal_withholding_usd', parseFormattedNumber(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                    <p class="text-[9px] text-white/40 mt-1">Tax withheld outside a W-2 — e.g. backup withholding on a 1099, or withholding at source on a non-resident's US dividends and interest (Form 1042-S). Added to the W-2 total.</p>
                 </div>
                 <div class="p-3 bg-black/20 border border-white/5 rounded-xl text-xs flex justify-between font-mono">
                     <span>State Withholding Total (derived W-2):</span>
@@ -3901,6 +3908,12 @@
             <!-- ECI vs FDAP Summary Box -->
             <div class="p-5 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-4 border-l-2 border-l-brandCyan">
                 <span class="text-xs font-black uppercase tracking-widest text-brandCyan">ECI and FDAP Income Classifications (Derived)</span>
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" id="nra-rental-net-election" onchange="updateStateField('nra_specific', 'rental_net_basis_election', this.checked)" class="mt-0.5 w-4 h-4 accent-brandCyan">
+                    <span class="text-xs text-white/80">US rental income taxed on a net basis — §871(d) election
+                        <span class="block text-[9px] text-white/40 mt-0.5">With the election, US rent is effectively connected income (graduated rates, expenses deductible); without it, it's FDAP taxed at a flat 30% on the gross.</span>
+                    </span>
+                </label>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="p-3 bg-black/20 border border-white/5 rounded-xl text-xs flex justify-between font-mono flex-col gap-1">
                         <span class="font-bold">Effectively Connected Income (ECI)</span>
@@ -7215,6 +7228,38 @@
             receiptsCheck.style.display = 'none';
             financialsWrapper.style.display = 'none';
         }
+    }
+
+    // Copies saved scalar fields the loader doesn't handle explicitly over the
+    // fresh defaults (arrays/objects are left to their own restore code).
+    function copyUnhandledScalars(saved, target) {
+        if (!saved || !target) return;
+        Object.keys(saved).forEach(k => {
+            const v = saved[k];
+            if (v === undefined || (v !== null && typeof v === 'object')) return;
+            target[k] = v; // saved data wins over the fresh default
+        });
+    }
+    // [schedule, field, input id] — one map for saving and restoring.
+    const CORP_FIN_FIELDS = [
+        ['schedule_l', 'assets_beginning', 'corp-assets-beg'], ['schedule_l', 'assets_ending', 'corp-assets-end'],
+        ['schedule_l', 'liabilities_beginning', 'corp-liab-beg'], ['schedule_l', 'liabilities_ending', 'corp-liab-end'],
+        ['schedule_l', 'equity_beginning', 'corp-equity-beg'], ['schedule_l', 'equity_ending', 'corp-equity-end'],
+        ['schedule_m1', 'net_income_per_books', 'corp-m1-book-income'], ['schedule_m1', 'federal_tax_expense', 'corp-m1-fed-tax'],
+        ['schedule_m1', 'tax_exempt_interest', 'corp-m1-tax-exempt-int'], ['schedule_m1', 'tax_depreciation_over_book', 'corp-m1-depr-diff'],
+        ['schedule_m1', 'meals_disallowed_50', 'corp-m1-meals'], ['schedule_m1', 'foreign_taxes_credited', 'corp-m1-foreign-tax'],
+        ['schedule_m1', 'interest_expense_limitation', 'corp-m1-int-lim'], ['schedule_m1', 'other_additions', 'corp-m1-other-add'],
+        ['schedule_m1', 'other_subtractions', 'corp-m1-other-sub'],
+        ['schedule_m2', 'retained_earnings_beginning', 'corp-m2-re-beg'], ['schedule_m2', 'distributions_dividends_paid', 'corp-m2-distributions'],
+        ['schedule_m2', 'retained_earnings_ending', 'corp-m2-re-end']
+    ];
+    function populateCorporateFinancials() {
+        const cf = usState.corporate_financials || {};
+        CORP_FIN_FIELDS.forEach(([sch, key, id]) => {
+            const el = document.getElementById(id);
+            const v = cf[sch] ? cf[sch][key] : null;
+            if (el) el.value = (v === null || v === undefined) ? '' : v;
+        });
     }
 
     function syncCorporateFinancials() {
@@ -11247,7 +11292,9 @@ div.innerHTML = `
             if (isNaN(acq) || isNaN(sold)) return false;
             return (sold - acq) > (365 * 24 * 60 * 60 * 1000);
         }
-        const reProps = (usState.real_estate && usState.real_estate.properties) || [];
+        // Only rows that record a sale — a property held all year (or a
+        // descriptive rental row) has no gain and mustn't wipe manual totals.
+        const reProps = ((usState.real_estate && usState.real_estate.properties) || []).filter(r => r && (r.sale_date || r.sale_price_usd || r.realized_gain_loss_usd));
         const reTx = usState.income_us_source.real_estate_transactions || [];
         const reSource = reProps.length > 0 ? reProps : reTx;
         const collectibles = usState.income_us_source.collectibles_transactions || [];
@@ -11304,12 +11351,14 @@ div.innerHTML = `
                 }
             });
         }
-        usState.withholding_and_estimated.federal_withholding_total_usd = totalFedWith;
+        // W-2 withholding plus any withheld outside a W-2 (1099 / 1042-S),
+        // which used to be overwritten here by the W-2 sum alone.
+        usState.withholding_and_estimated.federal_withholding_total_usd = totalFedWith + (usState.withholding_and_estimated.other_federal_withholding_usd || 0);
         usState.withholding_and_estimated.state_withholding_total_usd = totalStateWith;
         
         const fedLbl = document.getElementById('lbl-with-fed');
         const stateLbl = document.getElementById('lbl-with-state');
-        if (fedLbl) fedLbl.textContent = formatCurrency(totalFedWith);
+        if (fedLbl) fedLbl.textContent = formatCurrency(usState.withholding_and_estimated.federal_withholding_total_usd);
         if (stateLbl) stateLbl.textContent = formatCurrency(totalStateWith);
 
         // 2. Additional Medicare Tax
@@ -11336,7 +11385,10 @@ div.innerHTML = `
         }
         if (usState.financial_holdings) {
             usState.financial_holdings.forEach(acc => {
-                if (acc.is_fbar_reportable !== false) { // Default true for legacy entries missing the property
+                // Explicit flag wins; a legacy row without one is reportable only
+                // when it isn't a US account (US brokerages aren't FBAR assets).
+                const reportable = acc.is_fbar_reportable !== undefined ? acc.is_fbar_reportable !== false : !isUsCountry(acc.country);
+                if (reportable) {
                     fbarSum += acc.peak_balance_usd || 0;
                     fatcaPeakSum += acc.peak_balance_usd || 0;
                     fatcaLastDaySum += acc.last_day_balance_usd || 0;
@@ -11530,11 +11582,15 @@ div.innerHTML = `
                 }
             });
         }
+        // §871(d) net-basis election: US rent is ECI instead of FDAP.
+        const rentalUsd = usState.income_us_source.rental_income_us_source_usd || 0;
+        const rentalNetElection = usState.nra_specific.rental_net_basis_election === true;
+        if (rentalNetElection) eci += rentalUsd;
         usState.nra_specific.us_eci_income_usd = eci;
 
         const fdap = (usState.income_us_source.interest_us_source_usd || 0) +
                      (usState.income_us_source.ordinary_dividends_us_source_usd || 0) +
-                     (usState.income_us_source.rental_income_us_source_usd || 0);
+                     (rentalNetElection ? 0 : rentalUsd);
         usState.nra_specific.us_fdap_income_usd = fdap;
 
         const eciLbl = document.getElementById('lbl-nra-eci');
@@ -13023,7 +13079,9 @@ div.innerHTML = `
             naics_code: item.naics_code || null,
             industry_category: item.industry_category || null,
             has_se_income: item.has_se_income !== undefined ? !!item.has_se_income : true,
-            gross_receipts_usd: item.gross_receipts_usd !== undefined ? item.gross_receipts_usd : null,
+            // Older data recorded net SE earnings directly; carried as gross
+            // receipts with no expenses (same net profit, and now editable).
+            gross_receipts_usd: item.gross_receipts_usd !== undefined ? item.gross_receipts_usd : (item.self_employment_earnings_usd != null ? item.self_employment_earnings_usd : null),
             expenses_usd: item.expenses_usd !== undefined ? item.expenses_usd : null,
             qbi_eligible: !!item.qbi_eligible,
             is_specified_service_trade: !!item.is_specified_service_trade,
@@ -14296,7 +14354,7 @@ div.innerHTML = `
             tax_basis_usd: item.tax_basis_usd !== undefined ? item.tax_basis_usd : null,
             at_risk_basis_usd: item.at_risk_basis_usd !== undefined ? item.at_risk_basis_usd : null,
             active_rental_participant: item.active_rental_participant !== undefined ? !!item.active_rental_participant : false,
-            ordinary_income_usd: item.ordinary_income_usd !== undefined ? item.ordinary_income_usd : null,
+            ordinary_income_usd: item.ordinary_income_usd !== undefined ? item.ordinary_income_usd : (item.ordinary_business_income_usd !== undefined ? item.ordinary_business_income_usd : null),
             net_rental_real_estate_usd: item.net_rental_real_estate_usd !== undefined ? item.net_rental_real_estate_usd : null,
             other_rental_income_usd: item.other_rental_income_usd !== undefined ? item.other_rental_income_usd : null,
             sec179_deduction_usd: item.sec179_deduction_usd !== undefined ? item.sec179_deduction_usd : null,
@@ -15092,7 +15150,9 @@ div.innerHTML = `
                 qbi_ubia_usd: parseFormattedNumber(div.querySelector('.part-qbi-ubia').value) || null,
                 partner_ein: taxpayer ? taxpayer.tin : null,
                 partnership_ein: div.querySelector('.part-ein').value || null,
-                partner_type: taxpayer ? taxpayer.entity_type : 'individual',
+                // Was a second partner_type key, overwriting the general/limited
+                // choice above (which drives SE tax on a general partner's share).
+                partner_entity_type: taxpayer ? taxpayer.entity_type : 'individual',
                 general_partner: taxpayer ? (taxpayer.type === 'general') : false,
                 profit_percentage_beg: taxpayer ? taxpayer.profit_beg : null,
                 profit_percentage_end: taxpayer ? taxpayer.profit_end : null,
@@ -17862,6 +17922,7 @@ div.innerHTML = `
     }
 
     function addForeignWagesRow(data = null) {
+        data = withLegacyAliases(data, { gross_wages_usd: 'wages_usd' });
         const rowId = 'fwages-' + Date.now() + Math.random().toString(36).substring(2, 5);
         const list = document.getElementById('div-foreignwages-list');
         if (!list) return;
@@ -18720,6 +18781,7 @@ div.innerHTML = `
     }
 
     function addBankRow(data = null) {
+        data = withLegacyAliases(data, {}, { account_type: { nre: 'nre_savings', nro: 'nro_savings', current: 'checking' } });
         const rowId = 'bank-' + Date.now() + Math.random().toString(36).substring(2, 5);
         const list = document.getElementById('div-bank-list');
         if (!list) return;
@@ -18914,6 +18976,39 @@ div.innerHTML = `
         syncBanksState();
     }
 
+    // ---- Round-trip helpers: saved data the form doesn't render ------------
+    // Older / hand-built data (the demo profiles, earlier saves) uses a few
+    // field names this form doesn't; fill the form's own field from the alias
+    // when it's missing, so the value shows and survives the next save.
+    function withLegacyAliases(data, aliases, valueMaps) {
+        if (!data) return data;
+        const d = Object.assign({}, data);
+        Object.keys(aliases).forEach(k => {
+            if ((d[k] === undefined || d[k] === null || d[k] === '') && data[aliases[k]] !== undefined && data[aliases[k]] !== null) d[k] = data[aliases[k]];
+        });
+        Object.keys(valueMaps || {}).forEach(k => {
+            const m = valueMaps[k];
+            if (d[k] !== undefined && d[k] !== null && m[String(d[k]).toLowerCase()] !== undefined) d[k] = m[String(d[k]).toLowerCase()];
+        });
+        return d;
+    }
+    // Keeps fields a saved row carried that this form doesn't render, so a
+    // re-save doesn't silently drop them (the form's own fields win).
+    function keepUnrenderedFields(orig, row) {
+        if (!orig) return row;
+        const out = {};
+        Object.keys(orig).forEach(k => { if (!(k in row)) out[k] = orig[k]; });
+        return Object.assign(out, row);
+    }
+    function isUsCountry(c) {
+        const v = c ? String(c).trim().toUpperCase() : '';
+        return v === 'US' || v === 'USA' || v === 'UNITED STATES';
+    }
+    // US bank accounts don't belong on this foreign-accounts list (FBAR /
+    // 8938), but saved data can carry them; they're kept as-is, off the list
+    // and out of the FBAR total, instead of being blanked and re-counted.
+    let preservedUsBankRows = [];
+
     function syncBanksState() {
         const list = [];
         document.querySelectorAll('.bank-card').forEach(div => {
@@ -18942,7 +19037,7 @@ div.innerHTML = `
                 closed_during_year: div.querySelector('.bnk-closed') ? div.querySelector('.bnk-closed').checked : false
             });
         });
-        usState.bank_accounts = list;
+        usState.bank_accounts = list.concat(preservedUsBankRows);
         recalculateDerivedFields();
         saveStateAndSync();
     }
@@ -19280,11 +19375,14 @@ div.innerHTML = `
     }
 
     function addPropertyRow(data = null) {
+        data = withLegacyAliases(data, { property_description: 'name' });
+        if (data && !data.transaction_type && !data.sale_date && !data.sale_price_usd) data.transaction_type = 'holding';
         const rowId = 'prop-' + Date.now() + Math.random().toString(36).substring(2, 5);
         const list = document.getElementById('div-property-list');
         if (!list) return;
         
         const div = document.createElement('div');
+        div._orig = data ? JSON.parse(JSON.stringify(data)) : null; // re-save keeps fields this card doesn't render
         div.id = rowId;
         div.className = "property-card p-4 bg-[#141414] border border-white/10 rounded-xl relative flex flex-col gap-3 shadow-md";
         div.className = "property-card p-3 bg-black/40 border border-white/10 rounded-xl relative flex flex-col gap-2 shadow-md mb-2 group";
@@ -19390,7 +19488,7 @@ div.innerHTML = `
             }
             if (div.querySelector('.prp-gain')) div.querySelector('.prp-gain').value = finalGain.toFixed(2);
             
-            list.push({
+            list.push(keepUnrenderedFields(div._orig, {
                 property_description: div.querySelector('.prp-desc').value || null,
                 transaction_type: div.querySelector('.prp-type').value,
                 acquisition_date: div.querySelector('.prp-acq').value || null,
@@ -19400,7 +19498,7 @@ div.innerHTML = `
                 realized_gain_loss_usd: finalGain,
                 s121_exclusion_claimed: isS121,
                 s1031_like_kind_exchange: isS1031
-            });
+            }));
         });
         usState.real_estate.properties = list;
         recalculateDerivedFields();
@@ -19418,11 +19516,13 @@ div.innerHTML = `
     }
 
     function addCorpRow(data = null) {
+        data = withLegacyAliases(data, { corporation_name: 'corp_name', country_of_incorporation: 'country', ownership_percentage: 'ownership_pct' });
         const rowId = 'corp-' + Date.now() + Math.random().toString(36).substring(2, 5);
         const list = document.getElementById('div-corp-list');
         if (!list) return;
         
         const div = document.createElement('div');
+        div._orig = data ? JSON.parse(JSON.stringify(data)) : null; // re-save keeps fields this card doesn't render
         div.id = rowId;
         div.className = "corp-card p-3 bg-black/40 border border-white/10 rounded-xl relative flex flex-col gap-2 shadow-md mb-2 group";
         div.innerHTML = `
@@ -19641,7 +19741,7 @@ div.innerHTML = `
             const isCfc = pct > 50;
             div.querySelector('.crp-cfc').textContent = isCfc ? 'CFC ACTIVE (§957)' : 'Minority Shareholder';
             
-            list.push({
+            list.push(keepUnrenderedFields(div._orig, {
                 linked_client_id: (div.querySelector('.crp-linked-client') && div.querySelector('.crp-linked-client').value) || null,
                 corporation_name: div.querySelector('.crp-name').value || null,
                 country_of_incorporation: div.querySelector('.crp-country').value || null,
@@ -19661,7 +19761,7 @@ div.innerHTML = `
                 subpart_f_income_usd: parseFormattedNumber(div.querySelector('.crp-subpartf')?.value) || 0,
                 ep_usd: parseFormattedNumber(div.querySelector('.crp-ep')?.value) || 0,
                 foreign_tax_paid_usd: parseFormattedNumber(div.querySelector('.crp-foreign-tax')?.value) || 0
-            });
+            }));
         });
         usState.foreign_entities.foreign_corporations = list;
         recalculateDerivedFields();
@@ -20063,6 +20163,7 @@ div.innerHTML = `
     }
 
     function addFtcBasketRow(data = null) {
+        data = withLegacyAliases(data, { foreign_country: 'country', basket_type: 'basket_category', foreign_taxes_paid_usd: 'foreign_taxes_usd', gross_foreign_income_usd: 'foreign_income_usd' }, { basket_type: { general: 'general', passive: 'passive' } });
         const rowId = 'ftcbask-' + Date.now() + Math.random().toString(36).substring(2, 5);
         const list = document.getElementById('div-ftc-list');
         if (!list) return;
@@ -21004,6 +21105,10 @@ div.innerHTML = `
                 usState.income_us_source.cancellation_of_debt_usd = savedState.income_us_source.cancellation_of_debt_usd;
                 usState.income_us_source.hsa_msa_distributions_usd = savedState.income_us_source.hsa_msa_distributions_usd;
                 usState.income_us_source.misc_other_income_usd = savedState.income_us_source.misc_other_income_usd;
+                // Any other simple saved field (e.g. IRA / 401(k) distributions,
+                // has_real_estate) isn't in the explicit list above — keep it
+                // rather than resetting it to the blank default.
+                copyUnhandledScalars(savedState.income_us_source, usState.income_us_source);
             }
             if (savedState.income_foreign_source) {
                 Object.assign(usState.income_foreign_source, savedState.income_foreign_source);
@@ -21016,6 +21121,13 @@ div.innerHTML = `
             }
             if (savedState.real_estate) {
                 usState.real_estate.has_real_estate_transaction = savedState.real_estate.has_real_estate_transaction;
+                copyUnhandledScalars(savedState.real_estate, usState.real_estate);
+            }
+            // C-corp balance sheet / Schedule M-1 / M-2: never restored before, so
+            // syncCorporateFinancials() re-read the empty inputs and zeroed them.
+            if (savedState.corporate_financials) {
+                usState.corporate_financials = JSON.parse(JSON.stringify(savedState.corporate_financials));
+                populateCorporateFinancials();
             }
             if (savedState.retirement_accounts) {
                 Object.assign(usState.retirement_accounts, savedState.retirement_accounts);
@@ -21024,6 +21136,7 @@ div.innerHTML = `
                 usState.foreign_entities.owns_10_percent_foreign_corp = savedState.foreign_entities.owns_10_percent_foreign_corp;
                 usState.foreign_entities.owns_10_percent_foreign_partnership = savedState.foreign_entities.owns_10_percent_foreign_partnership;
                 usState.foreign_entities.owns_foreign_disregarded_entity = savedState.foreign_entities.owns_foreign_disregarded_entity;
+                copyUnhandledScalars(savedState.foreign_entities, usState.foreign_entities);
             }
             if (savedState.foreign_gifts_and_trusts) {
                 usState.foreign_gifts_and_trusts.received_foreign_gifts_above_100k = savedState.foreign_gifts_and_trusts.received_foreign_gifts_above_100k;
@@ -21044,9 +21157,13 @@ div.innerHTML = `
             }
             if (savedState.withholding_and_estimated) {
                 Object.assign(usState.withholding_and_estimated, savedState.withholding_and_estimated);
+                const otherFedEl = document.getElementById('with-other-fed');
+                if (otherFedEl) otherFedEl.value = usState.withholding_and_estimated.other_federal_withholding_usd || '';
             }
             if (savedState.nra_specific) {
                 Object.assign(usState.nra_specific, savedState.nra_specific);
+                const netElEl = document.getElementById('nra-rental-net-election');
+                if (netElEl) netElEl.checked = usState.nra_specific.rental_net_basis_election === true;
             }
 
             // Merge array states
@@ -21401,7 +21518,10 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
             if (usState.equity_compensation && usState.equity_compensation.rsu_vestings) usState.equity_compensation.rsu_vestings.forEach(x => addRsuRow(x));
             if (usState.equity_compensation && usState.equity_compensation.espp_purchases) usState.equity_compensation.espp_purchases.forEach(x => addEsppRow(x));
             if (usState.equity_compensation && usState.equity_compensation.unvested_restricted_stock_awards) usState.equity_compensation.unvested_restricted_stock_awards.forEach(x => addS83bRow(x));
-            if (usState.bank_accounts) usState.bank_accounts.forEach(x => addBankRow(x));
+            if (usState.bank_accounts) {
+                preservedUsBankRows = usState.bank_accounts.filter(x => x && isUsCountry(x.country));
+                usState.bank_accounts.filter(x => !(x && isUsCountry(x.country))).forEach(x => addBankRow(x));
+            }
             // NOTE: pfic_holdings has no manual-entry UI/add-row function of its
             // own (it's populated exclusively by the India hydration engine
             // above) - it used to incorrectly call addHoldingRow() here, the

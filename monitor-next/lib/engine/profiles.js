@@ -264,7 +264,7 @@
       financial_holdings: [{ asset_name: "Schwab — Taxable Brokerage (US equities)", account_type: "taxable_brokerage", peak_balance_usd: 168000, country: "US" }, { asset_name: "Fidelity 401(k) — US index funds", account_type: "retirement_brokerage", peak_balance_usd: 92000, country: "US" }],
       real_estate: { has_real_estate_transaction: false, properties: [] },
       ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "General", foreign_taxes_usd: 22289 }] },
-      withholding_and_estimated: { federal_withholding_total_usd: 31000 },
+      withholding_and_estimated: { federal_withholding_total_usd: 38000 }, // = the W-2 rows above
       nra_specific: { files_form_1040nr: false },
       metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
     }
@@ -473,7 +473,7 @@
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Anita Desai", date_of_birth: "1982-11-09", filing_status: "single", ssn_or_itin_type: "itin" },
-      us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 35, spt_test_met: false, final_us_residency_status: "NON_RESIDENT_ALIEN", dtaa_treaty_residence: "IN" },
+      us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 35, spt_test_met: false, final_us_residency_status: "NON_RESIDENT_ALIEN", dtaa_treaty_residence: "none" },
       // Remote employee of a US company, working from India (the common
       // "India resident on a US payroll" case): the employer runs her through
       // US payroll and withholds US tax, though a non-resident alien's pay for
@@ -488,11 +488,14 @@
       foreign_entities: { foreign_corporations: [], pfic_holdings: [] },
       retirement_accounts: {},
       ftc_inputs: { claims_ftc: false },
-      withholding_and_estimated: { federal_withholding_total_usd: 9800 },
+      // $9,800 withheld at source on her US dividends/interest (Form 1042-S),
+      // plus the $12,000 withheld on the W-2 above.
+      withholding_and_estimated: { other_federal_withholding_usd: 9800, federal_withholding_total_usd: 21800 },
       // Treaty rate claimed on FDAP but no W-8BEN on file (nra_w8ben_missing),
       // plus a US real-property disposition subject to FIRPTA withholding.
       nra_specific: {
-        files_form_1040nr: true, us_eci_income_usd: 30000, us_fdap_income_usd: 11400,
+        // §871(d) net-basis election: her US rent is ECI, not flat-30% FDAP.
+        files_form_1040nr: true, rental_net_basis_election: true, us_eci_income_usd: 30000, us_fdap_income_usd: 11400,
         treaty_rate_claims: [{ income_type: "dividends", rate: 15 }], submitted_w8ben: false,
         us_real_property_disposed: true, firpta_withholding_usd: 45000
       },
@@ -640,7 +643,7 @@
       financial_holdings: [{ asset_name: "Fidelity — Taxable Brokerage (US equities)", account_type: "taxable_brokerage", peak_balance_usd: 240000, country: "US" }],
       real_estate: { has_real_estate_transaction: true, properties: [{ name: "Primary home — Austin, TX", property_type: "Residential (own use)", gross_rent_usd: 0, expenses_usd: 0 }] },
       ftc_inputs: { claims_ftc: true, ftc_baskets: [{ country: "IN", basket_category: "General", foreign_taxes_usd: 30120 }] },
-      withholding_and_estimated: { federal_withholding_total_usd: 22000 },
+      withholding_and_estimated: { federal_withholding_total_usd: 31000 }, // = the W-2 rows above
       nra_specific: { files_form_1040nr: false },
       metadata: { schema_version: "layer1_us_v1", us_calendar_year: 2026 }
     }
@@ -1363,7 +1366,6 @@
       income_foreign_source: { foreign_interest_usd: 96, foreign_pension_usd: 7228 },
       foreign_earned_income: { claims_feie: false },
       bank_accounts: [{ bank_name: "Wells Fargo", account_type: "savings", country: "US", peak_balance_usd: 4000 }],
-      fbar_aggregate_peak_usd: 4000,
       foreign_entities: { foreign_corporations: [], owns_foreign_disregarded_entity: false, pfic_holdings: [], has_pfics: false },
       financial_holdings: [],
       retirement_accounts: {},
