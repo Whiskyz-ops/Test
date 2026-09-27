@@ -10,7 +10,7 @@ import DetailTable from "@/components/DetailTable";
 import { ConflictsPanel, ChecksRegistryPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard, EntityStructureView, OwnedEntitiesBanner, EntitySwitcher } from "@/components/Views";
 import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
-import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState, isRegistryClientId } from "@/lib/wising";
+import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState, isRegistryClientId, isUsPersonResult, isUsPersonOnlyGauge } from "@/lib/wising";
 import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
 import { monitorSnapshotPyDag, allClientSummariesPyDag } from "@/lib/py-dag-adapter";
 import { entityLinksFor, ownedEntityIds, flattenOwnershipTree } from "@/lib/entity-graph";
@@ -588,7 +588,8 @@ function deriveMeters(result) {
     note: c.test, highlight: i === 0
   }));
   const ICON = { fbar: Landmark, form8938: FileText, lrs: Send, feie: Plane, nro_repatriation: ArrowLeftRight };
-  const proj = (mon.projections || []).map((p) => {
+  const usPerson = isUsPersonResult(result);
+  const proj = (mon.projections || []).filter((p) => usPerson || !isUsPersonOnlyGauge(p.id)).map((p) => {
     const Ic = ICON[p.id] || BarChart3;
     return {
       icon: <Ic size={17} strokeWidth={2} />, label: p.label, value: p.current, limit: p.limit, unit: "$",

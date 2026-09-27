@@ -253,10 +253,10 @@ NODES.calendarMonitorResult = {
     // 30 Nov per s.139(1) Explanation 2(a)(ii), one month past the plain
     // audit-case date — was missing this tier entirely.
     var indiaFiling = d.viaForeignCorpXbr4
-      ? { date: mdate(baseYear + 1, 11, 30), label: "India ITR + Form 44 (s.92E/transfer-pricing case)" }
+      ? { date: mdate(baseYear + 1, 11, 30), label: "India ITR (s.92E/transfer-pricing case)" }
       : indiaIsAuditCase
-      ? { date: mdate(baseYear + 1, 10, 31), label: "India ITR + Form 44 (audit case)" }
-      : { date: mdate(baseYear + 1, 7, 31), label: "India ITR + Form 44 (non-audit)" };
+      ? { date: mdate(baseYear + 1, 10, 31), label: "India ITR (audit case)" }
+      : { date: mdate(baseYear + 1, 7, 31), label: "India ITR (non-audit)" };
 
     var indiaAdvanceTaxRows = d.inPurelyPresumptive ? [
       { name: "India advance tax — single installment (100%, presumptive scheme)", jur: "IN", date: mdate(baseYear + 1, 3, 15), cat: "Advance tax", docIds: [] }

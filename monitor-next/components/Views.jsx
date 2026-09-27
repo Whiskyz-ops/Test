@@ -9,6 +9,7 @@ import {
 import { fmtUsd, PAL } from "@/lib/logic";
 import { entityLinksFor } from "@/lib/entity-graph";
 import { groupFindings } from "@/lib/conflict-groups";
+import { residentSinceFor, isUsPersonResult, isUsPersonOnlyGauge } from "@/lib/wising";
 import { ACTIONS, CLOSING_ACTIONS, MIN_REASON_CHARS, loadLog, appendEvent, partition, loadPreparer, savePreparer } from "@/lib/conflict-log";
 import CapsuleChart from "@/components/CapsuleChart";
 
@@ -583,7 +584,9 @@ export function ResidencyView({ result }) {
             <div key={i}>
               <div className="flex justify-between text-[12px] mb-1.5"><span className="font-semibold text-head">{c.flag} {c.country} <span className="text-muted font-normal">· {c.test}</span></span><span className="font-mono" style={{ color: stCol[c.status] }}>{c.days}/{c.threshold}d</span></div>
               <SegBar pct={c.pct} color={stCol[c.status]} projPct={c.threshold ? (c.projectedFullYear || 0) / c.threshold : 0} />
-              <div className="text-[11px] text-muted mt-1.5">{c.headline} · <span style={{ color: c.status === "will_flip" ? PAL.amberText : PAL.muted }}>{c.dateLabel}</span></div>
+              {/* A resident's legal start (whole FY / all year / first US day), not
+                  the pace-based day the count crossed its threshold. */}
+              <div className="text-[11px] text-muted mt-1.5">{c.headline} · <span style={{ color: c.status === "will_flip" ? PAL.amberText : PAL.muted }}>{c.status === "resident" ? ("Resident: " + (residentSinceFor(result, c) || c.dateLabel)) : c.dateLabel}</span></div>
             </div>
           ))}
         </div>
@@ -597,7 +600,7 @@ export function ResidencyView({ result }) {
           <Card icon={<ScrollText size={16} strokeWidth={2} />} title="DTAA Treaty Position" sub="India-US Double Taxation Avoidance Agreement">
             {treatyRow("Article 4 tie-breaker applied", t.treatyResidence !== "none" || t.usTreatyResidence !== "none", "Recorded", "Not applied")}
             {treatyRow("Tax Residency Certificate (TRC)", t.trcStatus, "On file", "Missing")}
-            {treatyRow("Form 10F filed", t.form10fFiled, "Filed", "Not filed")}
+            {treatyRow("Form 41 (formerly Form 10F) filed", t.form10fFiled, "Filed", "Not filed")}
             {treatyRow("Permanent Establishment in India", !t.hasPE, "None", "Yes — attributable profits")}
             {treatyRow("Files US 1040-NR", true, t.files1040nr ? "Yes" : "No", "")}
             <div className="text-[11px] text-muted mt-3">Treaty residence claimed: <span className="text-body font-mono">{t.treatyResidence !== "none" ? t.treatyResidence : (t.usTreatyResidence !== "none" ? t.usTreatyResidence : "none")}</span></div>
@@ -1581,7 +1584,10 @@ export function AccountsView({ result }) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card icon={<Ruler size={16} strokeWidth={2} />} title="Reporting Limits" sub="FBAR · FATCA 8938 · LRS · FEIE">
         <div className="space-y-4">
-          {result.computed.limits.map((g) => (
+          {!isUsPersonResult(result) && result.computed.limits.some((g) => isUsPersonOnlyGauge(g.id)) && (
+            <p className="text-[11px] text-muted">FBAR and Form 8938 aren't shown: they're US-person reporting, and this client is a US non-resident alien.</p>
+          )}
+          {result.computed.limits.filter((g) => isUsPersonResult(result) || !isUsPersonOnlyGauge(g.id)).map((g) => (
             <div key={g.id}>
               <div className="flex justify-between text-[11px] mb-1.5"><span className="text-body font-semibold">{g.label}{g.status === "breached" && <span className="ml-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-exposed/15" style={{ color: PAL.redText }}>BREACHED</span>}</span><span className="font-mono" style={{ color: color[g.status] }}>{Math.round(g.pct * 100)}%</span></div>
               <SegBar pct={g.pct} color={color[g.status]} projPct={g.projPct} />
@@ -2098,14 +2104,17 @@ export function EntityStructureView({ activeId, clients, onPick }) {
   const active = (clients || []).find((c) => c.id === activeId);
   if (!active) return <Empty>Select a client to see their ownership structure.</Empty>;
   const links = entityLinksFor(activeId, clients);
+  // The client's own name (a preparer knows clients by name); the demo
+  // scenario label goes in the card's subtitle.
+  const nm = active.name || active.label;
   return (
     <div className="space-y-6">
       <div>
         <h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Network size={16} strokeWidth={2} /></HeadChip>Entity Structure</h2>
-        <p className="text-muted text-sm mt-2">Ownership links between {active.label} and other client profiles on file — each side keeps its own independently-computed return; this just makes the relationship (and any flow between them) traceable instead of a floating estimate.</p>
+        <p className="text-muted text-sm mt-2">Ownership links between {nm} and other client profiles on file — each side keeps its own independently-computed return; this just makes the relationship (and any flow between them) traceable instead of a floating estimate.</p>
       </div>
 
-      <Card icon={<Building2 size={16} strokeWidth={2} />} title={active.label} sub={(active.isBusiness ? "Business" : "Individual") + " · this client's own combined position"}>
+      <Card icon={<Building2 size={16} strokeWidth={2} />} title={nm} sub={(active.isBusiness ? "Business" : "Individual") + (active.name && active.label ? " · " + active.label : "") + " · this client's own combined position"}>
         <div className="grid grid-cols-3 gap-3">
           <StatTile icon={<DollarSign size={15} strokeWidth={2} />} label="Combined tax" value={fmtUsd(active.combinedTaxUsd)} highlight />
           <StatTile icon={<Siren size={15} strokeWidth={2} />} label="Conflicts" value={active.critical + active.warning} accent={active.critical ? PAL.redText : PAL.greenText} sub={active.critical + " critical · " + active.warning + " warning"} />
@@ -2115,7 +2124,7 @@ export function EntityStructureView({ activeId, clients, onPick }) {
 
       {!links && (
         <Card icon={<Network size={16} strokeWidth={2} />} title="No ownership links on file" sub="This client isn't connected to any other client profile yet.">
-          <p className="text-[11.5px] text-muted leading-relaxed">Tier 1 of the entity-graph model only covers the ownership relationships an advisor has explicitly linked — {active.label} has none on file. This is a coverage gap in the DEMO data, not a claim that {active.label} owns or is owned by nothing in real life.</p>
+          <p className="text-[11.5px] text-muted leading-relaxed">Tier 1 of the entity-graph model only covers the ownership relationships an advisor has explicitly linked — {nm} has none on file. This is a coverage gap in the DEMO data, not a claim that {nm} owns or is owned by nothing in real life.</p>
         </Card>
       )}
 

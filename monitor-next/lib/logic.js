@@ -126,7 +126,7 @@ export function buildAlert(region, kind) {
       ...base, severity: "critical",
       subject: `🚨 ${region.name} — now a tax resident; worldwide income in scope`,
       body: `${region.name} crossed its residency threshold and taxes worldwide income. ` +
-            `Estimated tax: ${fmtUsd(region.estimatedTaxUsd)} (since ${region.triggerDate || "today"}). ` +
+            `Estimated tax: ${fmtUsd(region.estimatedTaxUsd)} (resident: ${region.triggerDate || "from today"}). ` +
             `Confirm treaty tie-breaker / FTC and begin the required filings.`
     };
   }

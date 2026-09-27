@@ -423,7 +423,9 @@ NODES.buildDocumentsResult = {
       // specific distinction (a pass-through S-corp/partnership's FTC flows
       // to its owners' own 1040/1116, not the entity's own return).
       form_1116: d.taxesPaidIndiaResult.total.usd > 0 && (res.us.isResident || isForm1118),
-      form_2555: d.feieRaw.claimed,
+      // Not when the claim fails eligibility (feie_ineligible): the finding
+      // says the exclusion is disallowed, so Form 2555 isn't a filing to make.
+      form_2555: d.feieRaw.claimed && !(d.usTaxResult && d.usTaxResult.feie && d.usTaxResult.feie.claimed && !d.usTaxResult.feie.eligible),
       // Same engine/conflicts.js fix: files1040nr alone doesn't mean a
       // treaty position was taken. d.nraRaw.treatyRateClaims is the precise
       // signal (already trusted by the W-8BEN finding).

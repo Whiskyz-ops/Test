@@ -111,7 +111,7 @@ const KNOWN_EXTRA_FINDING_IDS = new Set([
 // for narrow, single-profile-scoped exceptions (e.g. withholding_
 // documentation_gap for india_ror_us_income's NRA treaty-rate field-name
 // divergence) that shouldn't be excused blanket-wide for every profile.
-function reconciledFindingIds(dagIds, realIds, isUsEntity, extraKnownExtraIds) {
+function reconciledFindingIds(dagIds, realIds, isUsEntity, extraKnownExtraIds, isNotUsPerson) {
   const dagSet = new Set(dagIds), realSet = new Set(realIds);
   let hadKnownIssue = false;
   const keepDag = dagIds.filter((id) => {
@@ -123,7 +123,8 @@ function reconciledFindingIds(dagIds, realIds, isUsEntity, extraKnownExtraIds) {
     if (dagSet.has(id)) return true;
     const isEntitySuppressed = id === "underpayment_2210" && isUsEntity;
     const isBasketSplit = id === "underpayment_2210" || id === "ftc_gap" || id === "ftc_available" || id === "niit_medicare_not_creditable";
-    if (isEntitySuppressed || isBasketSplit) { hadKnownIssue = true; return false; }
+    const isFbarNonUsPerson = id === "fbar_limit" && isNotUsPerson; // FBAR: US persons only (findings-batch5-nodes.js)
+    if (isEntitySuppressed || isBasketSplit || isFbarNonUsPerson) { hadKnownIssue = true; return false; }
     return true;
   });
   return { dag: keepDag.sort(), real: keepReal.sort(), hadKnownIssue };
@@ -405,7 +406,8 @@ function checkResult(id, dag, real, profile) {
     ? { ...dag.summary, requiredDocs: dag.summary.requiredDocs - droppedRequiredCount }
     : dag.summary;
   const reconciled = reconciledFindingIds(dag.findings.map(f => f.id), real.findings.map(f => f.id), usEntity,
-    nraTreatyRateFieldRenameDivergent ? new Set(["withholding_documentation_gap"]) : null);
+    nraTreatyRateFieldRenameDivergent ? new Set(["withholding_documentation_gap"]) : null,
+    !usEntity && !!(dag.computed && dag.computed.residency && !dag.computed.residency.us.isResident));
   // CASCADE_ONLY_PATHS (run-fuzz.js/shadow-core.js): healthScore/counts are
   // mechanically derived from findings[], excusable only alongside a
   // catalogued findings-level ID exception in THIS same comparison.

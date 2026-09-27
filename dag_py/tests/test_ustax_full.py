@@ -108,7 +108,11 @@ def test_nra_fixture_matches_golden_end_to_end():
     golden_summary = dict(golden["summary"])
     golden_summary["requiredDocs"] += _dag_only_required_docs
     # summary.indiaTaxUsd: same India-direction change as headline above.
-    diff = deep_diff({k: v for k, v in result["summary"].items() if k != "indiaTaxUsd"}, {k: v for k, v in golden_summary.items() if k != "indiaTaxUsd"})
+    # summary.healthScore: this NRA no longer gets the fbar_limit critical
+    # (FBAR is a US-person obligation — findings-batch5-nodes.js), which the
+    # frozen engine raised; the score moves by design.
+    skip = ("indiaTaxUsd", "healthScore")
+    diff = deep_diff({k: v for k, v in result["summary"].items() if k not in skip}, {k: v for k, v in golden_summary.items() if k not in skip})
     assert diff is None, "summary: " + " | ".join(diff[:8])
     diff = deep_diff(result["taxComputation"]["us"], golden["taxComputation"]["us"])
     assert diff is None, "taxComputation.us: " + " | ".join(diff[:8])

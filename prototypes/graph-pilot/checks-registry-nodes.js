@@ -252,7 +252,10 @@ NODES.checksRegistryResult = {
     if (d.hasUsScopeBoundaryFtc) {
       var LIM = require("./constants.js").CONST.LIMITS;
       var fbarPeakUsd = d.aggregatePeakUsdResult.usd;
-      if (fbarPeakUsd < LIM.FBAR_AGGREGATE_USD) {
+      var fbarUsPerson = d.residencyResult.us.isResident || ["ccorp", "scorp", "partnership", "trust"].indexOf(d.usEntityKind) !== -1;
+      if (!fbarUsPerson) {
+        pass("fbar_limit", "limit", "FBAR: not required", "FBAR applies only to US persons — this client is a US non-resident alien.");
+      } else if (fbarPeakUsd < LIM.FBAR_AGGREGATE_USD) {
         pass("fbar_limit", "limit", "FBAR: not required", "Aggregate peak balance across foreign accounts is " + usd(fbarPeakUsd) + " — below the " + usd(LIM.FBAR_AGGREGATE_USD) + " reporting threshold.");
       }
     }

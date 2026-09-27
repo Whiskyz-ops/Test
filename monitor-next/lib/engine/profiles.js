@@ -425,7 +425,7 @@
     router: router("Anita Desai", { is_us_citizen: false, has_green_card: false, us_days: 35, date_of_birth: "1982-11-09" }),
     india: {
       profile: { full_name: "Anita Desai", entity_type: "individual", date_of_birth: "1982-11-09", pan: "AADPD9012R", tax_regime: "OLD" },
-      residency_detail: { days_in_india_current_year: 320, final_india_residency_status: "ROR" },
+      residency_detail: { days_in_india_current_year: 320, days_in_india_preceding_4_years_gte_365: true, nr_years_last_10_gte_9: false, days_in_india_last_7_years_lte_729: false, final_india_residency_status: "ROR" },
       dtaa: { tax_residency_country: "IN", is_us_resident_for_dtaa: false, dtaa_treaty_residence: "none", trc_status: true, form_10f: true },
       // Was NRI for years before moving back; kept the Chapter XII-A election
       // on her specified foreign-exchange assets even after becoming ROR

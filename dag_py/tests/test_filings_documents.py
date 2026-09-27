@@ -122,6 +122,14 @@ def test_build_documents_result_matches_golden(fixture_id):
             {**doc, "required": True, "status": "required"} if doc["id"] == "form_3cb_3cd" else doc
             for doc in golden_documents
         ]
+    if fixture_id == "us_resident_indian_income":
+        # Rohan's FEIE claim fails eligibility (feie_ineligible fires), so
+        # Form 2555 is no longer listed as required (report-batch1-nodes.js,
+        # a deliberate DAG fix) — the frozen golden still lists it.
+        golden_documents = [
+            {**doc, "required": False, "status": "not_triggered"} if doc["id"] == "form_2555" else doc
+            for doc in golden_documents
+        ]
     diff = deep_diff(out_filtered, golden_documents)
     assert diff is None, f"{fixture_id}: " + " | ".join(diff[:8])
 

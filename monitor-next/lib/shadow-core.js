@@ -184,7 +184,7 @@ const KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = new Set(["cfc"]);
 // from (and narrower than) the wholesale detector-driven findingsExcused
 // flag compareSurface applies on top — mirrors run-fuzz.js's own two-tier
 // distinction exactly (see that file's own compareOne).
-function diffFindings(engFindings, dagFindings, isUsEntity, out) {
+function diffFindings(engFindings, dagFindings, isUsEntity, out, isNotUsPerson) {
   const eng = Array.isArray(engFindings) ? engFindings : [];
   const dag = Array.isArray(dagFindings) ? dagFindings : [];
   const engById = new Map(eng.map((f) => [f.id, f]));
@@ -204,7 +204,10 @@ function diffFindings(engFindings, dagFindings, isUsEntity, out) {
       // dependent findings in EITHER direction.
       const isEntitySuppressed = id === "underpayment_2210" && isUsEntity;
       const isBasketSplit = id === "underpayment_2210" || id === "ftc_gap" || id === "ftc_available" || id === "niit_medicare_not_creditable";
-      if (isEntitySuppressed || isBasketSplit) hadKnownIssue = true;
+      // FBAR is a US-person obligation (findings-batch5-nodes.js): the DAG
+      // drops it for a non-resident alien, the frozen engine doesn't.
+      const isFbarNonUsPerson = id === "fbar_limit" && isNotUsPerson;
+      if (isEntitySuppressed || isBasketSplit || isFbarNonUsPerson) hadKnownIssue = true;
       else out.push({ path: `findings[${id}]`, engine: "<present>", dag: "<missing>" });
     } else if (inDag && inEng) {
       if (KNOWN_CONTENT_DIVERGENCE_FINDING_IDS.has(id)) hadKnownIssue = true;
@@ -786,7 +789,7 @@ export function compareSurface(engineResult, dagResult, profile) {
 
   let raw = [];
   const findingsDiffs = [];
-  const hadKnownFindingsIssue = diffFindings(eng.findings, dag.findings, usEntity, findingsDiffs);
+  const hadKnownFindingsIssue = diffFindings(eng.findings, dag.findings, usEntity, findingsDiffs, !usEntity && !!(dag.computed && dag.computed.residency && !dag.computed.residency.us.isResident));
   for (const p of SYMMETRIC_SURFACE) diff(p, getPath(eng, p), getPath(dag, p), raw, false);
   for (const p of DIRECTIONAL_SURFACE) diff(p, getPath(eng, p), getPath(dag, p), raw, true);
 

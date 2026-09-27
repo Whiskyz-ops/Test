@@ -316,10 +316,10 @@
     var indiaHas92eObligation = !!(model.assets &&
       (model.assets.usOwns10PctForeignCorp || (model.assets.usForeignCorps || []).length > 0));
     var indiaFiling = indiaHas92eObligation
-      ? { date: d(baseYear + 1, 11, 30), label: "India ITR + Form 44 (s.92E/transfer-pricing case)" }
+      ? { date: d(baseYear + 1, 11, 30), label: "India ITR (s.92E/transfer-pricing case)" }
       : indiaIsAuditCase
-      ? { date: d(baseYear + 1, 10, 31), label: "India ITR + Form 44 (audit case)" }
-      : { date: d(baseYear + 1, 7, 31), label: "India ITR + Form 44 (non-audit)" };
+      ? { date: d(baseYear + 1, 10, 31), label: "India ITR (audit case)" }
+      : { date: d(baseYear + 1, 7, 31), label: "India ITR (non-audit)" };
 
     // s.425 proviso: a business that is ONLY presumptive (s.58, old
     // 44AD/44ADA — no regular-books entry, no partner-firm PGBP) owes a

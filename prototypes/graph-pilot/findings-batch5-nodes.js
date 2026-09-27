@@ -336,7 +336,7 @@ function gauge(id, valueUsd, limitUsd) {
 // ---- findings, ported in full ----------------------------------------------
 NODES.findingsBatch5Result = {
   deps: ["equityCompResult", "usStateTaxResult", "taxesPaidUsResult", "aggregateUsIncomeResult",
-    "aggregatePeakUsdResult", "hasUsScopeBoundaryFtc", "hasIndiaScopeXbr", "limitsRawExtra"],
+    "aggregatePeakUsdResult", "hasUsScopeBoundaryFtc", "hasIndiaScopeXbr", "limitsRawExtra", "residencyResult", "usEntityKind"],
   compute: function (d, ctx) {
     var findings = [];
     function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {
@@ -402,7 +402,11 @@ NODES.findingsBatch5Result = {
     }
 
     // -- 12. FBAR LIMIT BREACH (conflicts.js:1459-1468) ----------------------
-    if (d.hasUsScopeBoundaryFtc) {
+    // FBAR is a US-person obligation (citizen, resident alien, or US domestic
+    // entity) — the same test report-batch1-nodes.js's documents list and the
+    // CFC finding use; a non-resident alien doesn't file it.
+    var fbarUsPerson = d.residencyResult.us.isResident || ["ccorp", "scorp", "partnership", "trust"].indexOf(d.usEntityKind) !== -1;
+    if (d.hasUsScopeBoundaryFtc && fbarUsPerson) {
       var fbar = gauge("fbar", d.aggregatePeakUsdResult.usd, LIM.FBAR_AGGREGATE_USD);
       if (fbar.status === "breached") {
         add("fbar_limit", "critical", "limit",

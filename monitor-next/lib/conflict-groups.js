@@ -13,7 +13,7 @@ export const GROUPS = [
   { key: "payments", title: "Penalties, interest & payment deadlines",
     action: "Pay the shortfall or advance tax before the next due date to stop interest building." },
   { key: "docs", title: "Missing treaty paperwork & documents",
-    action: "File the missing forms (TRC, Form 10F, W-8BEN, PAN–Aadhaar link) to unlock treaty rates and refunds." },
+    action: "File the missing forms (TRC, Form 41 (formerly Form 10F), W-8BEN, PAN–Aadhaar link) to unlock treaty rates and refunds." },
   { key: "residency", title: "Residency & treaty position",
     action: "Settle residency in each country and the treaty tie-break — every other figure depends on it." },
   { key: "feie", title: "Foreign earned income exclusion",

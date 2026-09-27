@@ -1076,6 +1076,10 @@ var KNOWN_INDIA_SALARY_EXEMPTION_DIVERGENT_PATHS = [
   "summary.indiaTaxUsd", "summary.totalIncomeUsd", "summary.netDoubleTaxUsd", "summary.healthScore", "summary.counts",
   "documents", "scopeNotes", "returnForms"
 ];
+function isFeieIneligibleClaimProfile(dag) {
+  var f = dag.computed && dag.computed.usTax && dag.computed.usTax.feie;
+  return !!(f && f.claimed && !f.eligible);
+}
 function pathMatchesAny(p, prefixes) {
   return prefixes.some(function (prefix) { return p === prefix || p.indexOf(prefix + ".") === 0 || p.indexOf(prefix + "[") === 0; });
 }
@@ -1092,7 +1096,7 @@ var CASCADE_ONLY_PATHS = ["summary.healthScore", "summary.counts", "monitoring.h
 // mismatch can be attributed to the SPECIFIC finding ID responsible and
 // checked against the allowlist above, instead of a single opaque
 // "findings: array length/type" line that both hides and over-reports. -----
-function compareFindings(dagFindings, realFindings, isUsEntity) {
+function compareFindings(dagFindings, realFindings, isUsEntity, isNotUsPerson) {
   var dagById = {}; dagFindings.forEach(function (f) { dagById[f.id] = f; });
   var realById = {}; realFindings.forEach(function (f) { realById[f.id] = f; });
   var allIds = {}; Object.keys(dagById).concat(Object.keys(realById)).forEach(function (id) { allIds[id] = 1; });
@@ -1115,6 +1119,8 @@ function compareFindings(dagFindings, realFindings, isUsEntity) {
       // case is still always real.
       if (id === "underpayment_2210" && isUsEntity) {
         known.push("findings: engine has \"underpayment_2210\", DAG doesn't (US entity — Form 2210/§6654 doesn't apply; see agg10-nodes.js's us1ShouldFire override, GAP_TRACKER.md section H)");
+      } else if (id === "fbar_limit" && isNotUsPerson) {
+        known.push("findings: engine has \"fbar_limit\", DAG doesn't (FBAR is a US-person obligation — findings-batch5-nodes.js)");
       } else if (id === "underpayment_2210" || id === "ftc_gap" || id === "ftc_available" || id === "niit_medicare_not_creditable") {
         known.push("findings: engine has \"" + id + "\", DAG doesn't (§904 basket-split/FTC work, task #46 — see KNOWN_ALWAYS_DIVERGENT_PATHS's \"computed.ftc.us\" comment)");
       } else {
@@ -1282,7 +1288,9 @@ function compareOne(label, profile, saveOnFail) {
   var indiaRebateDivergent = isIndiaRebateMarginalReliefDivergentProfile(dag);
   var indiaSalaryExemption = isIndiaSalaryExemptionProfile(dag);
   var nraTreatyRateFieldRenameDivergent = isNraTreatyRateFieldRenameDivergentProfile(profile);
-  var findingsResult = compareFindings(dag.findings, real.findings, usEntity);
+  var dagRes = dag.computed && dag.computed.residency;
+  var isNotUsPerson = !usEntity && !!dagRes && !(dagRes.us && dagRes.us.isResident);
+  var findingsResult = compareFindings(dag.findings, real.findings, usEntity, isNotUsPerson);
   // AOP/Trust: findings content genuinely cascades from the (now correct)
   // India tax amount in ways too varied to enumerate by finding ID (see
   // KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS's comment) — treated wholesale as
@@ -1349,6 +1357,9 @@ function compareOne(label, profile, saveOnFail) {
     .concat(indiaRebateDivergent ? KNOWN_INDIA_REBATE_MARGINAL_RELIEF_DIVERGENT_PATHS : [])
     .concat(indiaSalaryExemption ? KNOWN_INDIA_SALARY_EXEMPTION_DIVERGENT_PATHS : [])
     .concat(nraTreatyRateFieldRenameDivergent ? KNOWN_NRA_TREATY_RATE_FIELD_RENAME_PATHS : [])
+    // FEIE claimed but ineligible: Form 2555 is no longer listed as a
+    // required document (report-batch1-nodes.js) — the frozen engine lists it.
+    .concat(isFeieIneligibleClaimProfile(dag) ? ["documents"] : [])
     // salaryDetail is a pure introspection field (like checksRegistry) with
     // no engine equivalent at all — present on EVERY profile regardless of
     // whether the override fired, so it's always known, not gated above.

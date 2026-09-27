@@ -155,7 +155,10 @@ def _checks_registry_result(d, ctx):
         pass_("state_income_tax", "credit", f"{d['usStateTaxResult']['stateName']} state tax: none due", detail)
     if d["hasUsScopeBoundaryFtc"]:
         fbar_peak_usd = d["aggregatePeakUsdResult"]["usd"]
-        if fbar_peak_usd < LIMITS["FBAR_AGGREGATE_USD"]:
+        fbar_us_person = d["residencyResult"]["us"]["isResident"] or d["usEntityKind"] in ("ccorp", "scorp", "partnership", "trust")
+        if not fbar_us_person:
+            pass_("fbar_limit", "limit", "FBAR: not required", "FBAR applies only to US persons — this client is a US non-resident alien.")
+        elif fbar_peak_usd < LIMITS["FBAR_AGGREGATE_USD"]:
             pass_("fbar_limit", "limit", "FBAR: not required", f"Aggregate peak balance across foreign accounts is {format_usd(fbar_peak_usd)} — below the {format_usd(LIMITS['FBAR_AGGREGATE_USD'])} reporting threshold.")
     if d["hasIndiaScopeXbr"]:
         lrs_remitted_usd = (d["limitsRawExtra"]["lrsRemittedInr"] or 0) / 83.0

@@ -258,11 +258,11 @@ def _calendar_monitor_result(d, ctx):
 
     india_is_audit_case = d["inIsAuditCase"]
     if d["viaForeignCorpXbr4"]:
-        india_filing = {"date": _mdate(base_year + 1, 11, 30), "label": "India ITR + Form 44 (s.92E/transfer-pricing case)"}
+        india_filing = {"date": _mdate(base_year + 1, 11, 30), "label": "India ITR (s.92E/transfer-pricing case)"}
     elif india_is_audit_case:
-        india_filing = {"date": _mdate(base_year + 1, 10, 31), "label": "India ITR + Form 44 (audit case)"}
+        india_filing = {"date": _mdate(base_year + 1, 10, 31), "label": "India ITR (audit case)"}
     else:
-        india_filing = {"date": _mdate(base_year + 1, 7, 31), "label": "India ITR + Form 44 (non-audit)"}
+        india_filing = {"date": _mdate(base_year + 1, 7, 31), "label": "India ITR (non-audit)"}
 
     if d["inPurelyPresumptive"]:
         india_advance_tax_rows = [

@@ -987,7 +987,9 @@ def _findings_crossborder_result(d, ctx):
         ))
 
     # -- 12. FBAR LIMIT BREACH (findings-batch5-nodes.js, conflicts.js:1459-1468) --
-    if d["hasUsScopeBoundaryFtc"]:
+    # US persons only — see findings-batch5-nodes.js.
+    fbar_us_person = d["residencyResult"]["us"]["isResident"] or d["usEntityKind"] in ("ccorp", "scorp", "partnership", "trust")
+    if d["hasUsScopeBoundaryFtc"] and fbar_us_person:
         fbar_value = d["aggregatePeakUsdResult"]["usd"]
         fbar_limit = LIMITS["FBAR_AGGREGATE_USD"]
         if (fbar_value / fbar_limit if fbar_limit > 0 else 0) >= 1:

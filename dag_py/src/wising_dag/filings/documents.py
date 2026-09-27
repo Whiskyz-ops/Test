@@ -211,6 +211,7 @@ DOCUMENTS_CATALOG = [
 
 
 def _build_documents_result(d, ctx):
+    feie_res = (d.get("usTaxResult") or {}).get("feie")
     res = d["residencyResult"]
     entity = d["entityResult"]
     is_form_1118 = entity["usReturnForm"] == "1120"
@@ -228,7 +229,8 @@ def _build_documents_result(d, ctx):
         "fincen_114": d["accountsListResult"]["aggregatePeak"]["usd"] > 10000 and is_us_person,
         "form_8938": bool(form8938) and form8938["status"] == "breached" and is_us_person,
         "form_1116": d["taxesPaidIndiaResult"]["total"]["usd"] > 0 and (res["us"]["isResident"] or is_form_1118),
-        "form_2555": d["feieRaw"]["claimed"],
+        # Not when the claim fails eligibility (feie_ineligible) — see report-batch1-nodes.js.
+        "form_2555": bool(d["feieRaw"]["claimed"] and not (feie_res and feie_res.get("claimed") and not feie_res.get("eligible"))),
         "form_8833": res["dualResident"] or d["treatyUsResidenceRaw"] != "none" or (d["nraRaw"] and len(d["nraRaw"].get("treatyRateClaims") or []) > 0),
         "form_8621": (len(d["indianMutualFundsResult"]) > 0 or len(d["usPficHoldingsRaw"]) > 0 or
                       any(h.get("pfic_classification") == "passive_foreign_investment_company_section_1297" for h in d["usSecuritiesRaw"])) and is_us_person,

@@ -150,6 +150,48 @@ function crossedDate(resEntry) {
   return null;
 }
 
+// "Resident since" for an individual, as a legal start rather than the day
+// the day-count crossed its threshold (which is what crossedDate reports and
+// isn't when residency starts): India's residential status covers the whole
+// financial year; a US citizen / green-card holder is resident all year; a
+// substantial-presence resident is resident from their first US day of the
+// year (IRC 7701(b)(2)(A)(iii)). Entities keep crossedDate's answer.
+function residentSinceIndia(result, entry) {
+  if (!entry || entry.kind !== "days") return crossedDate(entry);
+  const r = result.computed.residency.india;
+  if (!r.isResident) return null;
+  const y = result.model.meta.baseYear;
+  return y ? `All of FY ${y}-${String(y + 1).slice(-2)} (${r.status})` : `Whole financial year (${r.status})`;
+}
+function residentSinceUs(result, entry) {
+  if (!entry || entry.kind !== "days") return crossedDate(entry);
+  const u = result.model.residency.us, y = result.model.meta.baseYear;
+  if (!result.computed.residency.us.isResident) return null;
+  if (u.isCitizen) return `All of ${y || "the year"} (US citizen)`;
+  if (u.hasGreenCard) return `All of ${y || "the year"} (green card)`;
+  if (u.sptMet) return `First US day of ${y || "the year"} (substantial presence)`;
+  return crossedDate(entry);
+}
+
+// The same legal start, for a country's residency counter entry — the
+// Residency tab shows it in place of the "Crossed ~<date>" estimate.
+export function residentSinceFor(result, entry) {
+  if (!result || !entry) return null;
+  return entry.country === "India" ? residentSinceIndia(result, entry) : residentSinceUs(result, entry);
+}
+
+// FBAR and Form 8938 are US-person reporting (citizen, resident alien, or a
+// US domestic entity) — a non-resident alien's gauges aren't obligations, so
+// the Monitor hides them (the engine already skips the FBAR finding and the
+// documents list for them).
+const US_PERSON_REPORTING_GAUGES = ["fbar", "form8938"];
+export function isUsPersonResult(result) {
+  if (!result || !result.computed || !result.computed.residency) return true;
+  const kind = result.model && result.model.entity ? result.model.entity.usKind : null;
+  return !!result.computed.residency.us.isResident || ["ccorp", "scorp", "partnership", "trust"].includes(kind);
+}
+export function isUsPersonOnlyGauge(id) { return US_PERSON_REPORTING_GAUGES.includes(id); }
+
 // Engine result → the two country region rows the Monitor renders.
 export function countriesFromEngine(result) {
   const c = result.computed, model = result.model, m = result.monitoring;
@@ -173,7 +215,7 @@ export function countriesFromEngine(result) {
       : { days: null, threshold: null, test: inEntry ? inEntry.test : "Entity-level residency (not day-count)", isResident: inEntry ? inEntry.isResident : false },
     reporting: proj.lrs ? { label: "LRS remitted", value: Math.round(proj.lrs.current), limit: proj.lrs.limit, unit: "$" } : null,
     physicalPresence: inEntry && inEntry.kind === "days" ? model.residency.india.daysCurrentYear > 0 : null,
-    triggerDate: crossedDate(inEntry),
+    triggerDate: residentSinceIndia(result, inEntry),
     estimatedTaxUsd: Math.round(c.indiaTax.totalTaxUsd),
     incomeExposedUsd: Math.round(model.income.india.total.usd),
     reason: null
@@ -186,7 +228,7 @@ export function countriesFromEngine(result) {
       : { days: null, threshold: null, test: usEntry ? usEntry.test : "Entity-level residency (not day-count)", isResident: usEntry ? usEntry.isResident : false },
     reporting: proj.fbar ? { label: "FBAR aggregate", value: Math.round(proj.fbar.current), limit: proj.fbar.limit, unit: "$" } : null,
     physicalPresence: usEntry && usEntry.kind === "days" ? model.residency.us.daysCurrentYear > 0 : null,
-    triggerDate: crossedDate(usEntry),
+    triggerDate: residentSinceUs(result, usEntry),
     estimatedTaxUsd: Math.round(c.usTax.totalTaxBeforeFtcUsd),
     // model.income.us.total is the INDIVIDUAL-shaped aggregate (wages +
     // interest + dividends + business_us + ...) — genuinely empty for a US

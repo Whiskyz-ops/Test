@@ -2849,7 +2849,7 @@
           "dateLabel": "Apr 15, 2026"
         },
         {
-          "name": "India ITR + Form 44 (non-audit)",
+          "name": "India ITR (non-audit)",
           "jur": "IN",
           "date": "2026-07-31T00:00:00.000Z",
           "cat": "Filing",
@@ -2915,7 +2915,7 @@
       ],
       "upcoming": [
         {
-          "name": "India ITR + Form 44 (non-audit)",
+          "name": "India ITR (non-audit)",
           "jur": "IN",
           "date": "2026-07-31T00:00:00.000Z",
           "cat": "Filing",
@@ -2980,7 +2980,7 @@
         }
       ],
       "next": {
-        "name": "India ITR + Form 44 (non-audit)",
+        "name": "India ITR (non-audit)",
         "jur": "IN",
         "date": "2026-07-31T00:00:00.000Z",
         "cat": "Filing",
@@ -3043,7 +3043,7 @@
       {
         "sev": "warning",
         "icon": "📅",
-        "text": "India ITR + Form 44 (non-audit) due",
+        "text": "India ITR (non-audit) due",
         "meta": "in 6 days (Jul 31, 2026)"
       },
       {
