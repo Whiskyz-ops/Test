@@ -124,7 +124,7 @@ def test_nra_fixture_matches_golden_end_to_end():
     # sourcing, new DAG-only fields.
     # indiaTaxDisallowedUsd: for this NRA it's the whole India tax, which the
     # India-direction change moves (see headline above).
-    mine_ftc_us = {k: v for k, v in result["computed"]["ftc"]["us"].items() if k not in ("baskets", "otherCountries", "usWorkSalaryUsd", "indiaTaxOnUsWorkSalaryUsd", "indiaTaxDisallowedUsd")}
+    mine_ftc_us = {k: v for k, v in result["computed"]["ftc"]["us"].items() if k not in ("baskets", "otherCountries", "usWorkSalaryUsd", "indiaTaxOnUsWorkSalaryUsd", "indiaNotChargeableSalaryUsd", "indiaNotChargeableSalaryTaxUsd", "indiaTaxDisallowedUsd")}
     diff = deep_diff(mine_ftc_us, {k: v for k, v in golden["computed"]["ftc"]["us"].items() if k != "indiaTaxDisallowedUsd"})
     assert diff is None, "computed.ftc.us: " + " | ".join(diff[:8])
     assert result["computed"]["ftc"]["india"]["reliefAllowedUsd"] == golden["computed"]["ftc"]["india"]["reliefAllowedUsd"]

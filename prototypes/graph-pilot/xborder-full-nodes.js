@@ -157,6 +157,8 @@ NODES.usIncomeInIndiaUsdBoundaryFtc = {
   }
 };
 NODES.indiaSalaryOutsideIndiaUsdBoundaryFtc = { deps: ["indiaIncomeModelResult"], compute: function (d, ctx) { return (d.indiaIncomeModelResult.salaryOutsideIndiaInr || 0) / fxRate(ctx); } };
+NODES.indiaSalaryNotChargeableUsdBoundaryFtc = { deps: ["salaryNotChargeableInr"], compute: function (d, ctx) { return (d.salaryNotChargeableInr || 0) / fxRate(ctx); } };
+NODES.indiaSalaryNotChargeableTaxUsdBoundaryFtc = { deps: ["salaryNotChargeableTaxInr"], compute: function (d, ctx) { return (d.salaryNotChargeableTaxInr || 0) / fxRate(ctx); } };
 // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H, 21 Jul
 // 2026): was aggregateUsIncomeResult.usSourceTotal.usd directly — the
 // individual-shaped aggregate, $0 for a US entity taxpayer, which zeroed

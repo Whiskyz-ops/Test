@@ -28,7 +28,7 @@ export const GROUPS = [
 ];
 
 const BY_ID = {
-  double_tax: ["salary_us_work_india_tax", "ftc_gap", "ftc_available", "form67_required", "niit_medicare_not_creditable",
+  double_tax: ["salary_not_taxable_india_tds", "salary_us_work_india_tax", "ftc_gap", "ftc_available", "form67_required", "niit_medicare_not_creditable",
     "no_totalization_agreement", "cross_basis_summary"],
   payments: ["india_advance_tax_interest", "underpayment_2210", "early_withdrawal_penalty_72t"],
   docs: ["treaty_docs_missing", "withholding_documentation_gap", "pan_not_linked_aadhaar", "form_10iea", "india_itr_form_mismatch",
@@ -54,7 +54,7 @@ Object.keys(BY_ID).forEach((g) => BY_ID[g].forEach((id) => { GROUP_OF[id] = g; }
 // tax, penalties/interest, avoidable withholding) — what "at risk" sums.
 // Others carry amounts that aren't losses (a state's total tax, an income
 // figure, an exposure) and are shown per row but not added up.
-export const AT_RISK_IDS = new Set(["salary_us_work_india_tax", "ftc_gap", "withholding_documentation_gap",
+export const AT_RISK_IDS = new Set(["salary_not_taxable_india_tds", "salary_us_work_india_tax", "ftc_gap", "withholding_documentation_gap",
   "india_advance_tax_interest", "underpayment_2210", "early_withdrawal_penalty_72t"]);
 
 export function groupOf(id) {

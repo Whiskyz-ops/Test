@@ -400,7 +400,7 @@ var DAG_ONLY_KEYS = {
   // Salary work-location sourcing (aggregateindiaincome-nodes.js's
   // salaryWorkLocation → ftc-nodes.js): new structural fields on
   // model.income.india and computed.ftc.us, present on every profile.
-  salaryWorkLocation: true, salaryOutsideIndiaInr: true, usWorkSalaryUsd: true, indiaTaxOnUsWorkSalaryUsd: true,
+  salaryWorkLocation: true, salaryOutsideIndiaInr: true, usWorkSalaryUsd: true, indiaTaxOnUsWorkSalaryUsd: true, indiaNotChargeableSalaryUsd: true, indiaNotChargeableSalaryTaxUsd: true,
   // One income list (aggregateusincome-nodes.js's foreignIncomeFromIndia):
   // new structural fields on model.income.us, present on every profile.
   foreignOtherIncome: true, seEarningsFromIndiaUsd: true, foreignFromIndia: true, usOwnSourceForIndia: true
@@ -826,6 +826,15 @@ function isUsIncomeIntoIndiaProfile(dag) {
 function isIndiaSalaryNetDivergentProfile(dag) {
   var sd = dag.model && dag.model.income && dag.model.income.india && dag.model.income.india.salaryDetail;
   return !!sd && !sd.overridden && sd.grossSalaryInr > 0;
+}
+// Salary India can't tax (assets-nodes.js's salaryNotChargeableInr): for an
+// India non-resident / RNOR (or a resident the treaty hands to the US),
+// salary for work outside India leaves India's tax — the frozen engine
+// taxed it. Read off the DAG's own output; same India-tax path set as the
+// India-direction block.
+function isIndiaSalaryNotChargeableProfile(dag) {
+  var us = dag.computed && dag.computed.ftc && dag.computed.ftc.us;
+  return !!us && (us.indiaNotChargeableSalaryUsd || 0) > 0;
 }
 // Layer 1 India income switches enforced before the graph runs (india-
 // switches.js): a head switched OFF carries no amounts; the frozen engine
@@ -1325,6 +1334,7 @@ function compareOne(label, profile, saveOnFail) {
     .concat(isIndiaIncomeFillProfile(dag) ? KNOWN_WORK_LOCATION_SOURCING_DIVERGENT_PATHS : [])
     .concat(isUsIncomeIntoIndiaProfile(dag) ? KNOWN_US_INCOME_INTO_INDIA_DIVERGENT_PATHS : [])
     .concat(isIndiaSalaryNetDivergentProfile(dag) ? KNOWN_US_INCOME_INTO_INDIA_DIVERGENT_PATHS : [])
+    .concat(isIndiaSalaryNotChargeableProfile(dag) ? KNOWN_US_INCOME_INTO_INDIA_DIVERGENT_PATHS : [])
     .concat(isIndiaSwitchedOffAmountsProfile(profile) ? KNOWN_US_INCOME_INTO_INDIA_DIVERGENT_PATHS.concat(["model.income.india", "model.assets", "computed.residency"]) : [])
     .concat(feieBonaFideProxyDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(feieStackingRuleDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])

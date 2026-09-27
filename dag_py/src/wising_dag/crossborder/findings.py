@@ -493,6 +493,35 @@ def _findings_crossborder_result(d, ctx):
             ftc["us"]["indiaTaxOnUsWorkSalaryUsd"], ["§861(a)(3)", "DTAA Art. 16", d["usFtcFormXbr"], "Form 10F", "Form 6166", "Form 44"],
         ))
 
+    # -- 4b. INDIAN TDS ON SALARY INDIA CAN'T TAX (see findings-nodes.js) ------
+    if d["hasIndiaScopeXbr"] and d["hasUsScopeBoundaryFtc"] and (ftc["us"].get("indiaNotChargeableSalaryUsd") or 0) > 1:
+        nc_status = d["residencyResult"]["india"]["status"]
+        if nc_status == "ROR":
+            nc_why = "The treaty tie-breaker makes the US your residence country, so under DTAA Art. 16(1) India can't tax pay for work done outside India"
+        else:
+            nc_why = ("As an India " + ("RNOR" if nc_status == "RNOR" else "non-resident") + ", you're taxed in India only on "
+                      "India-source income, and salary is India-source only for work physically done in India")
+        nc_tax = ftc["us"]["indiaNotChargeableSalaryTaxUsd"]
+        findings.append(make_finding(
+            "salary_not_taxable_india_tds", "critical", "credit",
+            "Indian TDS on salary India can't tax — about " + _usd(nc_tax) + " to stop or recover",
+            _usd(ftc["us"]["indiaNotChargeableSalaryUsd"]) + " of Indian salary was earned for work done outside India (taken to be the US). " +
+            nc_why + ", so India's tax here leaves it out. An Indian employer that treats you as taxable in India would still deduct "
+            "about " + _usd(nc_tax) + " of TDS on it (estimate: the Indian tax this salary would carry — "
+            "Layer 1 India records TDS as one total). The US taxes this salary, and that TDS is not a creditable foreign tax on " +
+            d["usFtcFormXbr"] + " because India isn't owed it — so until it's stopped or refunded, the same salary is taxed twice.",
+            "Stop it: give the employer a written declaration of your residential status, US work location and address, and expected "
+            "days in India (and which are workdays), backed by travel records; add a US residency certificate (Form 6166) and Form 10F "
+            "so the employer also has the treaty ground (DTAA Art. 16). If it still deducts, apply for a nil / lower-deduction "
+            "certificate. Salary for days actually worked in India stays taxable and keeps its TDS. Recover what's already deducted: "
+            "within the same year the employer can reduce later months' TDS; after year-end, file ITR-2 showing this salary as not "
+            "taxable in India and claim the full TDS credit from Form 26AS / AIS — expect a mismatch query (Form 16 shows the full "
+            "salary) and answer it with the declaration and travel records. File by the original or belated due date: an updated "
+            "return (ITR-U) can't claim a refund. If the salary is paid into an Indian bank account, have a CA confirm the position. "
+            "Check the workday split on Layer 1 India's salary screen first — this figure is only as good as those days.",
+            nc_tax, ["DTAA Art. 16", "Form 10F", "Form 6166", "ITR-2", "Form 26AS"],
+        ))
+
     # -- 4f2. ENTITY-LEVEL DUAL RESIDENCY (findings-nodes.js, conflicts.js:701-736) --
     if d["indiaIsCompany"] and d["indiaIsIndianCompanyRaw"] is False and d["residencyResult"]["india"]["status"] == "ROR":
         poem_factors = []
@@ -997,7 +1026,7 @@ NODES["findingsCrossborderResult"] = NodeDef(
 )
 
 ALL_FINDING_IDS = (
-    "ftc_gap", "ftc_available", "salary_us_work_india_tax", "entity_dual_residency_poem", "dual_residency",
+    "ftc_gap", "ftc_available", "salary_us_work_india_tax", "salary_not_taxable_india_tds", "entity_dual_residency_poem", "dual_residency",
     "dual_residency_resolved", "cross_basis_summary", "special_rate_gaming_winnings",
     "form_1099da_awareness", "tax_year_mismatch", "fx_basis", "state_treaty_not_binding",
     "pfic", "cfc", "cfc_below_threshold", "transfer_pricing", "retirement_mismatch",

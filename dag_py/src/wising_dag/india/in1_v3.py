@@ -330,6 +330,25 @@ def _rebate_87a_v3(d, ctx):
     return max(0.0, d["slabTaxInr"] - excess)
 
 
+def _salary_not_chargeable_tax_inr(d, ctx):
+    # See in1-nodes-v3.js's salaryNotChargeableTaxInr: the Indian tax the
+    # excluded salary would have cost (~the TDS an employer deducts on it).
+    x = d["salaryNotChargeableInr"]
+    if not x > 0:
+        return 0.0
+    total_normal = d["totalNormalInr"] + x
+    total_income = d["totalIncomeInrV3"] + x
+    slab = bracket_tax(total_normal, d["slabs"])
+    rebate = 0.0
+    if d["isIndividualV3"] and not d["isNRV3"]:
+        r = T["REBATE_87A_NEW"] if d["isNew"] else T["REBATE_87A_OLD"]
+        rebate = min(slab, r["maxRebate"]) if total_income <= r["incomeCap"] else max(0.0, slab - (total_income - r["incomeCap"]))
+    after_rebate = max(0.0, slab - rebate) + d["specialTaxInrV3"]
+    surcharge = compute_india_surcharge(after_rebate, total_income, d["isNew"], d["slabs"], d["capEligibleSpecialTaxInr"])
+    with_salary = after_rebate + surcharge + (after_rebate + surcharge) * T["CESS_RATE"] + d["promoterBuybackExtraTaxInr"]
+    return max(0.0, with_salary - d["totalTaxInrV3"])
+
+
 def _promoter_buyback_extra_tax_inr(d, ctx):
     is_corporate_promoter = d["indiaEntityTypeRawV3"] == "company"
     promoter_target_rate = T["PROMOTER_BUYBACK_TARGET_RATE_CORPORATE"] if is_corporate_promoter else T["PROMOTER_BUYBACK_TARGET_RATE_NON_CORPORATE"]
@@ -466,14 +485,14 @@ NODES = {
     "isNRV3": NodeDef(deps=("indiaResidencyStatusRawV3",), compute=lambda d, ctx: d["indiaResidencyStatusRawV3"] == "NR"),
 
     "nrInterest": NodeDef(
-        deps=("isNRV3", "treatyTrcStatus", "treatyForm10fFiled", "treatyElectionsRaw", "slabs", "salaryInr", "businessInrBoundaryV3",
+        deps=("isNRV3", "treatyTrcStatus", "treatyForm10fFiled", "treatyElectionsRaw", "slabs", "salaryInr", "salaryNotChargeableInr", "businessInrBoundaryV3",
               "housePropertyInr", "deemedDividendBuybackInrBoundary", "otherSourcesMiscInrBoundary", "interestInr"),
         compute=lambda d, ctx: (
             None if not d["isNRV3"] else
             compute_nr_interest_treatment(
                 {"trcStatus": d["treatyTrcStatus"], "form10fFiled": d["treatyForm10fFiled"], "treatyElections": d["treatyElectionsRaw"]},
                 d["slabs"],
-                d["salaryInr"] + d["businessInrBoundaryV3"] + d["housePropertyInr"] + d["deemedDividendBuybackInrBoundary"] + d["otherSourcesMiscInrBoundary"],
+                max(0, d["salaryInr"] - d["salaryNotChargeableInr"]) + d["businessInrBoundaryV3"] + d["housePropertyInr"] + d["deemedDividendBuybackInrBoundary"] + d["otherSourcesMiscInrBoundary"],
                 d["interestInr"],
             )
         ),
@@ -497,6 +516,9 @@ NODES = {
     # Unused salary deduction for US wages — see in1-nodes-v3.js. 0 unless
     # filings/assets.py overrides it.
     "salaryExemptionLeftoverInr": NodeDef(deps=(), compute=lambda d, ctx: 0),
+    # Salary for work outside India that India can't tax — see
+    # in1-nodes-v3.js. 0 unless filings/assets.py overrides it.
+    "salaryNotChargeableInr": NodeDef(deps=(), compute=lambda d, ctx: 0),
     "usIncomeForIndiaInr": NodeDef(deps=("usIncomeForIndiaBoundary",), compute=_us_income_for_india_inr),
     "lossSetOffV3": NodeDef(
         deps=("usIncomeForIndiaInr", "businessInrBoundaryV3", "businessDepreciationInrBoundary", "cflBusinessInr", "cflSpeculativeInr", "cflStcgInr", "cflLtcgInr",
@@ -506,7 +528,7 @@ NODES = {
         compute=_loss_set_off_v3,
     ),
 
-    "normalSlabInr": NodeDef(deps=("salaryInr", "lossSetOffV3", "usIncomeForIndiaInr", "salaryExemptionLeftoverInr"), compute=lambda d, ctx: d["salaryInr"] + max(0, d["usIncomeForIndiaInr"]["salaryInr"] - d["salaryExemptionLeftoverInr"]) + d["lossSetOffV3"]["businessInr"] + d["lossSetOffV3"]["housePropertyInr"] + d["lossSetOffV3"]["otherNormalInr"] + d["lossSetOffV3"]["stcgSlabInr"] + d["lossSetOffV3"]["speculativeInr"]),
+    "normalSlabInr": NodeDef(deps=("salaryInr", "salaryNotChargeableInr", "lossSetOffV3", "usIncomeForIndiaInr", "salaryExemptionLeftoverInr"), compute=lambda d, ctx: max(0, d["salaryInr"] - d["salaryNotChargeableInr"]) + max(0, d["usIncomeForIndiaInr"]["salaryInr"] - d["salaryExemptionLeftoverInr"]) + d["lossSetOffV3"]["businessInr"] + d["lossSetOffV3"]["housePropertyInr"] + d["lossSetOffV3"]["otherNormalInr"] + d["lossSetOffV3"]["stcgSlabInr"] + d["lossSetOffV3"]["speculativeInr"]),
 
     "deductionsInrV3": NodeDef(
         deps=("isNew", "dedS80CCD2Employer", "dedS80C", "dedS80CCD1B", "dedS80D", "dedS80TTA_TTB", "dedS80DD", "dedS80DDB",
@@ -572,6 +594,11 @@ NODES = {
     "totalTaxInrV3": NodeDef(
         deps=("taxAfterRebateInr", "surchargeInrV3", "cessInrV3", "promoterBuybackExtraTaxInr"),
         compute=lambda d, ctx: d["taxAfterRebateInr"] + d["surchargeInrV3"] + d["cessInrV3"] + d["promoterBuybackExtraTaxInr"],
+    ),
+    "salaryNotChargeableTaxInr": NodeDef(
+        deps=("salaryNotChargeableInr", "totalNormalInr", "totalIncomeInrV3", "slabs", "isNew", "isIndividualV3", "isNRV3",
+              "specialTaxInrV3", "capEligibleSpecialTaxInr", "promoterBuybackExtraTaxInr", "totalTaxInrV3"),
+        compute=_salary_not_chargeable_tax_inr,
     ),
 }
 

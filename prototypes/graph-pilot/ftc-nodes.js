@@ -218,6 +218,13 @@ var NODES = {
   // ftcUsDirection must not treat it as creditable "Indian tax" for the US.
   usIncomeInIndiaUsdBoundaryFtc: { deps: [], compute: function () { return 0; } },
   indiaSalaryOutsideIndiaUsdBoundaryFtc: { deps: [], compute: function (d, ctx) { return indiaInrToUsd(ctx, num(safe(ctx.model.income.india, "salaryOutsideIndiaInr", 0))); } },
+  // The part of that salary India doesn't tax at all (in1-nodes-v3.js's
+  // salaryNotChargeableInr — non-resident / RNOR, or treaty-resident in the
+  // US), and the Indian tax it would have cost (salaryNotChargeableTaxInr,
+  // ~the TDS an employer deducts on it), in USD. 0 unless
+  // xborder-full-nodes.js wires them.
+  indiaSalaryNotChargeableUsdBoundaryFtc: { deps: [], compute: function () { return 0; } },
+  indiaSalaryNotChargeableTaxUsdBoundaryFtc: { deps: [], compute: function () { return 0; } },
   otherCountryFtcEntriesRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_tax_credit_other.entries", []) || []; } },
 
   // ---- Direction 1: US Form 1116 — credit for Indian (+ other-country)
@@ -227,7 +234,8 @@ var NODES = {
       "indiaPassiveIncomeUsdBoundaryFtc", "indiaGeneralIncomeUsdBoundaryFtc", "indiaIncomeTotalUsdBoundaryFtc",
       "usTaxableIncomeUsdBoundaryFtc", "usIncomeTaxUsdBoundaryFtc", "indiaTotalTaxUsdBoundaryFtc",
       "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw", "indiaSalaryOutsideIndiaUsdBoundaryFtc",
-      "usIncomeInIndiaUsdBoundaryFtc", "indiaTotalIncomeUsdBoundaryFtc"],
+      "usIncomeInIndiaUsdBoundaryFtc", "indiaTotalIncomeUsdBoundaryFtc", "indiaSalaryNotChargeableUsdBoundaryFtc",
+      "indiaSalaryNotChargeableTaxUsdBoundaryFtc"],
     compute: function (d) {
       // usIsNraBoundaryFtc / !hasUsScopeBoundaryFtc: the pre-existing zeroing
       // conditions (XB-24). !usWorldwideBoundaryFtc: the fix above — ceded
@@ -242,7 +250,12 @@ var NODES = {
       // computed.indiaTax.totalIncomeUsd -- a different node, used only by
       // ftcIndiaDirection below) -- indiaPassiveIncomeUsdBoundaryFtc +
       // indiaGeneralIncomeUsdBoundaryFtc === this exactly, by construction.
-      var indiaIncomeTotalUsd = d.indiaIncomeTotalUsdBoundaryFtc;
+      // Salary India doesn't tax (non-resident / treaty-resident in the US)
+      // carries none of India's tax, so it comes out of the allocation base
+      // too — otherwise its share of the tax would be wrongly moved out of
+      // the credit as "Indian tax on US-work salary".
+      var notChargeableUsd = Math.max(0, Math.min(d.indiaSalaryNotChargeableUsdBoundaryFtc || 0, d.indiaGeneralIncomeUsdBoundaryFtc));
+      var indiaIncomeTotalUsd = d.indiaIncomeTotalUsdBoundaryFtc - notChargeableUsd;
       // Only India's tax on India-source income is creditable here: the
       // share falling on US income India taxes an ROR on is India's own s.90
       // relief matter (ftcIndiaDirection). 0 when no US income is in India's
@@ -254,13 +267,13 @@ var NODES = {
       // the same proportional-allocation technique the original single-
       // basket formula already used for the FEIE creditableFraction split.
       var indiaTaxOnPassiveUsd = indiaIncomeTotalUsd > 0 ? indiaTotalTaxUsd * (d.indiaPassiveIncomeUsdBoundaryFtc / indiaIncomeTotalUsd) : 0;
-      var indiaTaxOnGeneralUsd = indiaIncomeTotalUsd > 0 ? indiaTotalTaxUsd * (d.indiaGeneralIncomeUsdBoundaryFtc / indiaIncomeTotalUsd) : 0;
+      var indiaTaxOnGeneralUsd = indiaIncomeTotalUsd > 0 ? indiaTotalTaxUsd * ((d.indiaGeneralIncomeUsdBoundaryFtc - notChargeableUsd) / indiaIncomeTotalUsd) : 0;
       // Salary for work done in the US is US-source: out of the general
       // basket, and the Indian tax on it (same proportional allocation) is
       // not a creditable foreign tax — it's a DTAA Art. 16 refund claim in
       // India instead, surfaced as indiaTaxOnUsWorkSalaryUsd.
       var usWorkSalaryUsd = Math.min(d.indiaSalaryOutsideIndiaUsdBoundaryFtc, d.indiaGeneralIncomeUsdBoundaryFtc);
-      var indiaTaxOnUsWorkSalaryUsd = indiaIncomeTotalUsd > 0 ? indiaTotalTaxUsd * (usWorkSalaryUsd / indiaIncomeTotalUsd) : 0;
+      var indiaTaxOnUsWorkSalaryUsd = indiaIncomeTotalUsd > 0 ? indiaTotalTaxUsd * (Math.max(0, usWorkSalaryUsd - notChargeableUsd) / indiaIncomeTotalUsd) : 0;
 
       var otherPassive = sumOtherCountries(d.otherCountryFtcEntriesRaw, "passive");
       var otherGeneral = sumOtherCountries(d.otherCountryFtcEntriesRaw, "general");
@@ -297,7 +310,12 @@ var NODES = {
         // excluded from the credit above (not foreign-source); recoverable,
         // if at all, as an India refund under DTAA Art. 16, not here.
         usWorkSalaryUsd: zeroed ? 0 : usWorkSalaryUsd,
-        indiaTaxOnUsWorkSalaryUsd: zeroed ? 0 : indiaTaxOnUsWorkSalaryUsd
+        indiaTaxOnUsWorkSalaryUsd: zeroed ? 0 : indiaTaxOnUsWorkSalaryUsd,
+        // Salary for work outside India that India doesn't tax, and the
+        // Indian tax (~TDS) it would have cost — India-side facts, so not
+        // zeroed with the US credit (the salary_not_taxable_india_tds finding).
+        indiaNotChargeableSalaryUsd: notChargeableUsd,
+        indiaNotChargeableSalaryTaxUsd: notChargeableUsd > 0 ? (d.indiaSalaryNotChargeableTaxUsdBoundaryFtc || 0) : 0
       };
     }
   },

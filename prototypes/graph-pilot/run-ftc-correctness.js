@@ -186,6 +186,32 @@ console.log("\nCase: Indian tax on an ROR's US income is not creditable for the 
   check("carryoverUsd should be $10,000 (was $25,000 before the fix)", out.carryoverUsd, 10000, 1);
 })();
 
+console.log("\nCase: salary India doesn't tax (non-resident, work outside India) — hand-verified");
+(function () {
+  // Same client as the US-work salary case, but an India non-resident: the
+  // $40,000 earned for work outside India isn't in India's tax at all
+  // (salaryNotChargeableInr), so India's $18,000 of tax falls wholly on the
+  // $60,000 of India-work salary. Allocation base $60,000 -> all $18,000 on
+  // that general-basket income; nothing on the US-work salary. General src
+  // $60,000 -> limit 40,000 x 60/200 = $12,000; allowed $12,000, carryover
+  // $6,000. The $12,000 India would have charged on the excluded salary is
+  // passed through as the TDS estimate. Mirrored in dag_py.
+  var out = NODES.ftcUsDirection.compute({
+    feieExcludedUsdBoundaryFtc: 0, usIsNraBoundaryFtc: false, hasUsScopeBoundaryFtc: true, usWorldwideBoundaryFtc: true,
+    indiaIncomeTotalUsdBoundaryFtc: 100000, indiaPassiveIncomeUsdBoundaryFtc: 0, indiaGeneralIncomeUsdBoundaryFtc: 100000,
+    usTaxableIncomeUsdBoundaryFtc: 200000, usIncomeTaxUsdBoundaryFtc: 40000, indiaTotalTaxUsdBoundaryFtc: 18000,
+    foreignWagesTaxPaidUsdBoundaryFtc: 0, indiaSalaryOutsideIndiaUsdBoundaryFtc: 40000, otherCountryFtcEntriesRaw: [],
+    indiaSalaryNotChargeableUsdBoundaryFtc: 40000, indiaSalaryNotChargeableTaxUsdBoundaryFtc: 12000
+  });
+  check("indiaTaxOnUsWorkSalaryUsd should be $0 (India doesn't tax it)", out.indiaTaxOnUsWorkSalaryUsd, 0, 1);
+  check("indiaTaxPaidUsd should be $18,000 (all on India-work salary)", out.indiaTaxPaidUsd, 18000, 1);
+  check("ftcLimitUsd should be $12,000", out.ftcLimitUsd, 12000, 1);
+  check("ftcAllowedUsd should be $12,000", out.ftcAllowedUsd, 12000, 1);
+  check("carryoverUsd should be $6,000", out.carryoverUsd, 6000, 1);
+  check("indiaNotChargeableSalaryUsd should be $40,000", out.indiaNotChargeableSalaryUsd, 40000, 1);
+  check("indiaNotChargeableSalaryTaxUsd should be $12,000 (TDS estimate)", out.indiaNotChargeableSalaryTaxUsd, 12000, 1);
+})();
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 if (fail > 0) {
   console.log(

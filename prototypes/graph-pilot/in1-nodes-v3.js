@@ -374,11 +374,11 @@ var NODES = {
   isNRV3: { deps: ["indiaResidencyStatusRawV3"], compute: function (d) { return d.indiaResidencyStatusRawV3 === "NR"; } },
 
   nrInterest: {
-    deps: ["isNRV3", "treatyTrcStatus", "treatyForm10fFiled", "treatyElectionsRaw", "slabs", "salaryInr", "businessInrBoundaryV3",
+    deps: ["isNRV3", "treatyTrcStatus", "treatyForm10fFiled", "treatyElectionsRaw", "slabs", "salaryInr", "salaryNotChargeableInr", "businessInrBoundaryV3",
       "housePropertyInr", "deemedDividendBuybackInrBoundary", "otherSourcesMiscInrBoundary", "interestInr"],
     compute: function (d) {
       if (!d.isNRV3) return null;
-      var otherSlabIncomeInr = d.salaryInr + d.businessInrBoundaryV3 + d.housePropertyInr + d.deemedDividendBuybackInrBoundary + d.otherSourcesMiscInrBoundary;
+      var otherSlabIncomeInr = Math.max(0, d.salaryInr - d.salaryNotChargeableInr) + d.businessInrBoundaryV3 + d.housePropertyInr + d.deemedDividendBuybackInrBoundary + d.otherSourcesMiscInrBoundary;
       return computeNrInterestTreatment({ trcStatus: d.treatyTrcStatus, form10fFiled: d.treatyForm10fFiled, treatyElections: d.treatyElectionsRaw }, d.slabs, otherSlabIncomeInr, d.interestInr);
     }
   },
@@ -412,6 +412,15 @@ var NODES = {
   // salary — India gives one s.16 deduction across ALL salary, so what's left
   // applies to US wages. 0 unless assets-nodes.js wires it.
   salaryExemptionLeftoverInr: { deps: [], compute: function () { return 0; } },
+  // Salary for work done outside India that India can't tax: a non-resident
+  // or RNOR is taxed only on India-source income, and salary is India-source
+  // only for work physically done in India (s.9(1)(ii) of the 1961 Act); a
+  // resident the treaty tie-breaker hands to the US gets the same result
+  // under DTAA Art. 16(1). 0 here; assets-nodes.js overrides it at the
+  // top-level composition (it needs residencyResult). The standard
+  // deduction and s.10 exemptions are shared pro rata by workdays — the
+  // same split as indiaIncomeModelResult.salaryOutsideIndiaInr.
+  salaryNotChargeableInr: { deps: [], compute: function () { return 0; } },
   usIncomeForIndiaInr: {
     deps: ["usIncomeForIndiaBoundary"],
     compute: function (d) {
@@ -452,7 +461,7 @@ var NODES = {
     }
   },
 
-  normalSlabInr: { deps: ["salaryInr", "lossSetOffV3", "usIncomeForIndiaInr", "salaryExemptionLeftoverInr"], compute: function (d) { return d.salaryInr + Math.max(0, d.usIncomeForIndiaInr.salaryInr - d.salaryExemptionLeftoverInr) + d.lossSetOffV3.businessInr + d.lossSetOffV3.housePropertyInr + d.lossSetOffV3.otherNormalInr + d.lossSetOffV3.stcgSlabInr + d.lossSetOffV3.speculativeInr; } },
+  normalSlabInr: { deps: ["salaryInr", "salaryNotChargeableInr", "lossSetOffV3", "usIncomeForIndiaInr", "salaryExemptionLeftoverInr"], compute: function (d) { return Math.max(0, d.salaryInr - d.salaryNotChargeableInr) + Math.max(0, d.usIncomeForIndiaInr.salaryInr - d.salaryExemptionLeftoverInr) + d.lossSetOffV3.businessInr + d.lossSetOffV3.housePropertyInr + d.lossSetOffV3.otherNormalInr + d.lossSetOffV3.stcgSlabInr + d.lossSetOffV3.speculativeInr; } },
 
   deductionsInrV3: {
     deps: ["isNew", "dedS80CCD2Employer", "dedS80C", "dedS80CCD1B", "dedS80D", "dedS80TTA_TTB", "dedS80DD", "dedS80DDB",
@@ -542,6 +551,30 @@ var NODES = {
   totalTaxInrV3: {
     deps: ["taxAfterRebateInr", "surchargeInrV3", "cessInrV3", "promoterBuybackExtraTaxInr"],
     compute: function (d) { return d.taxAfterRebateInr + d.surchargeInrV3 + d.cessInrV3 + d.promoterBuybackExtraTaxInr; }
+  },
+  // The Indian tax salaryNotChargeableInr would have cost had it been taxed
+  // — i.e. roughly the TDS an employer deducts on it when it treats the
+  // employee as taxable in India (the salary_not_taxable_india_tds finding).
+  // Same slab / rebate / surcharge / cess chain as above, re-run with the
+  // excluded salary added back; 0 when nothing is excluded. An estimate:
+  // Layer 1 India records TDS as one total, not per salary.
+  salaryNotChargeableTaxInr: {
+    deps: ["salaryNotChargeableInr", "totalNormalInr", "totalIncomeInrV3", "slabs", "isNew", "isIndividualV3", "isNRV3",
+      "specialTaxInrV3", "capEligibleSpecialTaxInr", "promoterBuybackExtraTaxInr", "totalTaxInrV3"],
+    compute: function (d) {
+      var x = d.salaryNotChargeableInr;
+      if (!(x > 0)) return 0;
+      var totalNormal = d.totalNormalInr + x, totalIncome = d.totalIncomeInrV3 + x;
+      var slab = bracketTax(totalNormal, d.slabs), rebate = 0;
+      if (d.isIndividualV3 && !d.isNRV3) {
+        var r = d.isNew ? T.REBATE_87A_NEW : T.REBATE_87A_OLD;
+        rebate = totalIncome <= r.incomeCap ? Math.min(slab, r.maxRebate) : Math.max(0, slab - (totalIncome - r.incomeCap));
+      }
+      var afterRebate = Math.max(0, slab - rebate) + d.specialTaxInrV3;
+      var surcharge = computeIndiaSurcharge(afterRebate, totalIncome, d.isNew, d.slabs, d.capEligibleSpecialTaxInr);
+      var withSalary = afterRebate + surcharge + (afterRebate + surcharge) * T.CESS_RATE + d.promoterBuybackExtraTaxInr;
+      return Math.max(0, withSalary - d.totalTaxInrV3);
+    }
   }
 };
 

@@ -183,6 +183,40 @@ NODES.findingsBatch1Result = {
         ftc.us.indiaTaxOnUsWorkSalaryUsd, ["§861(a)(3)", "DTAA Art. 16", d.usFtcFormXbr, "Form 10F", "Form 6166", "Form 44"]);
     }
 
+    // -- 4b. INDIAN TDS ON SALARY INDIA CAN'T TAX -----------------------------
+    // (in1-nodes-v3.js's salaryNotChargeableInr): an India non-resident /
+    // RNOR, or a resident the treaty hands to the US, isn't taxed in India on
+    // salary for work done outside India, so India's tax leaves it out — but
+    // an Indian employer that treats the employee as taxable deducts TDS on
+    // it anyway. That TDS isn't tax India is owed, so it isn't creditable on
+    // Form 1116 either: the conflict is cash stuck in India until the
+    // deduction is stopped or refunded. The amount is an estimate (the tax
+    // the salary would carry), since Layer 1 India records TDS as one total.
+    if (d.hasIndiaScopeXbr && d.hasUsScopeBoundaryFtc && ftc.us.indiaNotChargeableSalaryUsd > 1) {
+      var ncTreaty = d.residencyResult.india.status === "ROR";
+      var ncWhy = ncTreaty
+        ? "The treaty tie-breaker makes the US your residence country, so under DTAA Art. 16(1) India can't tax pay for work done outside India"
+        : "As an India " + (d.residencyResult.india.status === "RNOR" ? "RNOR" : "non-resident") + ", you're taxed in India only on " +
+          "India-source income, and salary is India-source only for work physically done in India";
+      add("salary_not_taxable_india_tds", "critical", "credit",
+        "Indian TDS on salary India can't tax — about " + usd(ftc.us.indiaNotChargeableSalaryTaxUsd) + " to stop or recover",
+        usd(ftc.us.indiaNotChargeableSalaryUsd) + " of Indian salary was earned for work done outside India (taken to be the US). " +
+        ncWhy + ", so India's tax here leaves it out. An Indian employer that treats you as taxable in India would still deduct " +
+        "about " + usd(ftc.us.indiaNotChargeableSalaryTaxUsd) + " of TDS on it (estimate: the Indian tax this salary would carry — " +
+        "Layer 1 India records TDS as one total). The US taxes this salary, and that TDS is not a creditable foreign tax on " +
+        d.usFtcFormXbr + " because India isn't owed it — so until it's stopped or refunded, the same salary is taxed twice.",
+        "Stop it: give the employer a written declaration of your residential status, US work location and address, and expected " +
+        "days in India (and which are workdays), backed by travel records; add a US residency certificate (Form 6166) and Form 10F " +
+        "so the employer also has the treaty ground (DTAA Art. 16). If it still deducts, apply for a nil / lower-deduction " +
+        "certificate. Salary for days actually worked in India stays taxable and keeps its TDS. Recover what's already deducted: " +
+        "within the same year the employer can reduce later months' TDS; after year-end, file ITR-2 showing this salary as not " +
+        "taxable in India and claim the full TDS credit from Form 26AS / AIS — expect a mismatch query (Form 16 shows the full " +
+        "salary) and answer it with the declaration and travel records. File by the original or belated due date: an updated " +
+        "return (ITR-U) can't claim a refund. If the salary is paid into an Indian bank account, have a CA confirm the position. " +
+        "Check the workday split on Layer 1 India's salary screen first — this figure is only as good as those days.",
+        ftc.us.indiaNotChargeableSalaryTaxUsd, ["DTAA Art. 16", "Form 10F", "Form 6166", "ITR-2", "Form 26AS"]);
+    }
+
     // -- 4c. AMT BITES (conflicts.js:325-334) -------------------------------
     if (d.usTaxResult.amtUsd > 0) {
       add("amt_applies", "warning", "credit",

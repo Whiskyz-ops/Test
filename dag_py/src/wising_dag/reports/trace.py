@@ -190,6 +190,17 @@ def _build_tax_computation_india_individual(d, ctx):
                             {"label": "Short-term gains (slab)", "amount": us_in["stcgSlabInr"]}, {"label": "Long-term gains (12.5%)", "amount": us_in["ltcg197Inr"]}]),
         }]
 
+    # Salary for work done outside India that India doesn't tax — already
+    # out of the total above; shown only when present. Mirrors
+    # report-batch3-nodes.js.
+    salary_nc_inr = d.get("salaryNotChargeableInr") or 0
+    if salary_nc_inr > 1:
+        india_gross_rows = india_gross_rows + [{
+            "label": "  — not included: salary for work done outside India (not taxable in India for this client)", "inr": salary_nc_inr,
+            "trace": _calc("A non-resident or RNOR is taxed in India only on India-source income, and salary is India-source only for work physically done in India; a resident the treaty tie-breaker hands to the US gets the same result under DTAA Art. 16(1). Split by the workdays on Layer 1 India's salary screen, with the standard deduction and exemptions shared pro rata. The US still taxes this salary. Any TDS the employer deducted on it is refundable in the Indian return.",
+                           [{"label": "Salary for work outside India, left out", "amount": salary_nc_inr}]),
+        }]
+
     india_loss_carry_row = []
     if lso and lso["totalUnusedInr"] > 1:
         india_loss_carry_row = [{
@@ -833,7 +844,7 @@ NODES = {
     "slabBreakdownV3": NodeDef(deps=("totalNormalInr", "slabs"), compute=lambda d, ctx: bracket_breakdown(d["totalNormalInr"], d["slabs"])),
     "buildTaxComputationIndiaResult": NodeDef(
         deps=("isEntityTaxpayer", "entityTaxResult", "entityTaxableInrBoundary",
-              "regimeCombined", "totalNormalInr", "normalSlabInr", "lossSetOffV3", "usIncomeForIndiaInr", "cflBusinessInr",
+              "regimeCombined", "totalNormalInr", "normalSlabInr", "lossSetOffV3", "usIncomeForIndiaInr", "salaryNotChargeableInr", "cflBusinessInr",
               "cflHousePropertyInr", "cflStcgInr", "cflLtcgInr", "cflUnabsorbedDepreciationInr",
               "ltcgInrBoundary", "ltcgTaxableInr", "deductionsInrV3",
               "dedS80C", "dedS80CCD1B", "dedS80D", "dedS80CCD2Employer", "dedS80TTA_TTB",

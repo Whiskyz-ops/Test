@@ -87,7 +87,11 @@ def _ftc_us_direction(d, ctx):
     # computed.indiaTax.totalIncomeUsd -- a different node, used only by
     # ftcIndiaDirection below) -- indiaPassiveIncomeUsdBoundaryFtc +
     # indiaGeneralIncomeUsdBoundaryFtc === this exactly, by construction.
-    india_income_total_usd = d["indiaIncomeTotalUsdBoundaryFtc"]
+    # Salary India doesn't tax (non-resident / treaty-resident in the US)
+    # carries none of India's tax — out of the allocation base too. Mirrors
+    # ftc-nodes.js.
+    not_chargeable_usd = max(0, min(d.get("indiaSalaryNotChargeableUsdBoundaryFtc") or 0, d["indiaGeneralIncomeUsdBoundaryFtc"]))
+    india_income_total_usd = d["indiaIncomeTotalUsdBoundaryFtc"] - not_chargeable_usd
     # Only India's tax on India-source income is creditable here — see
     # ftc-nodes.js (US income India taxes an ROR on is India's s.90 matter).
     us_income_in_india_usd = d.get("usIncomeInIndiaUsdBoundaryFtc") or 0
@@ -98,12 +102,12 @@ def _ftc_us_direction(d, ctx):
     # the same proportional-allocation technique the original single-basket
     # formula already used for the FEIE creditableFraction split.
     india_tax_on_passive_usd = india_total_tax_usd * (d["indiaPassiveIncomeUsdBoundaryFtc"] / india_income_total_usd) if india_income_total_usd > 0 else 0
-    india_tax_on_general_usd = india_total_tax_usd * (d["indiaGeneralIncomeUsdBoundaryFtc"] / india_income_total_usd) if india_income_total_usd > 0 else 0
+    india_tax_on_general_usd = india_total_tax_usd * ((d["indiaGeneralIncomeUsdBoundaryFtc"] - not_chargeable_usd) / india_income_total_usd) if india_income_total_usd > 0 else 0
     # Salary for work done in the US is US-source: out of the general basket,
     # and the Indian tax on it is a DTAA Art. 16 India refund claim, not a
     # creditable foreign tax. Mirrors ftc-nodes.js.
     us_work_salary_usd = min(d["indiaSalaryOutsideIndiaUsdBoundaryFtc"], d["indiaGeneralIncomeUsdBoundaryFtc"])
-    india_tax_on_us_work_salary_usd = india_total_tax_usd * (us_work_salary_usd / india_income_total_usd) if india_income_total_usd > 0 else 0
+    india_tax_on_us_work_salary_usd = india_total_tax_usd * (max(0, us_work_salary_usd - not_chargeable_usd) / india_income_total_usd) if india_income_total_usd > 0 else 0
 
     other_passive = _sum_other_countries(d["otherCountryFtcEntriesRaw"], "passive")
     other_general = _sum_other_countries(d["otherCountryFtcEntriesRaw"], "general")
@@ -141,6 +145,10 @@ def _ftc_us_direction(d, ctx):
         # excluded from the credit above; an India DTAA Art. 16 refund claim.
         "usWorkSalaryUsd": 0 if zeroed else us_work_salary_usd,
         "indiaTaxOnUsWorkSalaryUsd": 0 if zeroed else india_tax_on_us_work_salary_usd,
+        # Salary India doesn't tax, and the Indian tax (~TDS) it would have
+        # cost — India-side facts, not zeroed (salary_not_taxable_india_tds).
+        "indiaNotChargeableSalaryUsd": not_chargeable_usd,
+        "indiaNotChargeableSalaryTaxUsd": (d.get("indiaSalaryNotChargeableTaxUsdBoundaryFtc") or 0) if not_chargeable_usd > 0 else 0,
     }
 
 
@@ -240,6 +248,10 @@ NODES = {
     # crossborder/xborder_full.py overrides it.
     "usIncomeInIndiaUsdBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: 0),
     "indiaSalaryOutsideIndiaUsdBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: _india_inr_to_usd(ctx, num(safe(ctx, "model.income.india.salaryOutsideIndiaInr", 0)))),
+    # Salary India doesn't tax and the tax it would have cost, in USD — see
+    # ftc-nodes.js. 0 unless crossborder/xborder_full.py overrides them.
+    "indiaSalaryNotChargeableUsdBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: 0),
+    "indiaSalaryNotChargeableTaxUsdBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: 0),
     "otherCountryFtcEntriesRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_tax_credit_other.entries", []) or []),
 
     "ftcUsDirection": NodeDef(
@@ -247,7 +259,8 @@ NODES = {
               "indiaPassiveIncomeUsdBoundaryFtc", "indiaGeneralIncomeUsdBoundaryFtc", "indiaIncomeTotalUsdBoundaryFtc",
               "usTaxableIncomeUsdBoundaryFtc", "usIncomeTaxUsdBoundaryFtc", "indiaTotalTaxUsdBoundaryFtc",
               "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw", "indiaSalaryOutsideIndiaUsdBoundaryFtc",
-              "usIncomeInIndiaUsdBoundaryFtc", "indiaTotalIncomeUsdBoundaryFtc"),
+              "usIncomeInIndiaUsdBoundaryFtc", "indiaTotalIncomeUsdBoundaryFtc", "indiaSalaryNotChargeableUsdBoundaryFtc",
+              "indiaSalaryNotChargeableTaxUsdBoundaryFtc"),
         compute=_ftc_us_direction,
     ),
     "ftcIndiaDirection": NodeDef(

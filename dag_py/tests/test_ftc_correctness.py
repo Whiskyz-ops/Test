@@ -133,3 +133,25 @@ def test_ftc_us_direction_excludes_india_tax_on_ror_us_income():
     assert _close(out["indiaTaxPaidUsd"], 30000)
     assert _close(out["ftcAllowedUsd"], 20000)
     assert _close(out["carryoverUsd"], 10000)
+
+
+def test_ftc_us_direction_salary_india_does_not_tax():
+    # Non-resident: the $40,000 of salary for work outside India isn't in
+    # India's tax (salaryNotChargeableInr), so India's $18,000 falls wholly on
+    # the $60,000 India-work salary; no Indian tax on the US-work salary.
+    # Limit 40,000 x 60/200 = $12,000; allowed $12,000; carryover $6,000.
+    # Mirrored in run-ftc-correctness.js.
+    out = _ftc_us_direction({
+        "feieExcludedUsdBoundaryFtc": 0, "usIsNraBoundaryFtc": False, "hasUsScopeBoundaryFtc": True, "usWorldwideBoundaryFtc": True,
+        "indiaIncomeTotalUsdBoundaryFtc": 100000, "indiaPassiveIncomeUsdBoundaryFtc": 0, "indiaGeneralIncomeUsdBoundaryFtc": 100000,
+        "usTaxableIncomeUsdBoundaryFtc": 200000, "usIncomeTaxUsdBoundaryFtc": 40000, "indiaTotalTaxUsdBoundaryFtc": 18000,
+        "foreignWagesTaxPaidUsdBoundaryFtc": 0, "indiaSalaryOutsideIndiaUsdBoundaryFtc": 40000, "otherCountryFtcEntriesRaw": [],
+        "indiaSalaryNotChargeableUsdBoundaryFtc": 40000, "indiaSalaryNotChargeableTaxUsdBoundaryFtc": 12000,
+    }, None)
+    assert _close(out["indiaTaxOnUsWorkSalaryUsd"], 0)
+    assert _close(out["indiaTaxPaidUsd"], 18000)
+    assert _close(out["ftcLimitUsd"], 12000)
+    assert _close(out["ftcAllowedUsd"], 12000)
+    assert _close(out["carryoverUsd"], 6000)
+    assert _close(out["indiaNotChargeableSalaryUsd"], 40000)
+    assert _close(out["indiaNotChargeableSalaryTaxUsd"], 12000)

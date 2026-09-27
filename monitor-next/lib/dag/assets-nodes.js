@@ -1018,6 +1018,23 @@ NODES.salaryExemptionLeftoverInr = {
   }
 };
 
+// Salary for work done outside India that India can't tax (see
+// in1-nodes-v3.js's salaryNotChargeableInr): India non-resident or RNOR
+// (domestic law — only India-source income, and salary is India-source
+// only for work done in India), or a resident the treaty tie-breaker hands
+// to the US (DTAA Art. 16(1)). An ROR India keeps taxing it on worldwide
+// income; the US then taxes it as the work-place state and India gives
+// s.159 credit (ftc-nodes.js / the salary_us_work_india_tax finding).
+NODES.salaryNotChargeableInr = {
+  deps: ["indiaIncomeModelResult", "residencyResult"],
+  compute: function (d) {
+    var r = d.residencyResult && d.residencyResult.india;
+    if (!r) return 0;
+    var outsideIndia = r.status === "NR" || r.status === "RNOR" || (r.status === "ROR" && r.cedesViaTreaty === true);
+    return outsideIndia ? Math.max(0, d.indiaIncomeModelResult.salaryOutsideIndiaInr || 0) : 0;
+  }
+};
+
 // India direction: Layer 1 US's own US-source income, in INR, for an
 // individual on both forms whom India taxes on worldwide income (ROR and
 // not ceded to the US by treaty — residencyResult.india.worldwide). See

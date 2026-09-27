@@ -1060,12 +1060,23 @@ def build(base):
                reason="assets-nodes.js: India tax on salary net of the standard deduction/exemptions, matching the income card")
     r.override("salaryExemptionLeftoverInr", NodeDef(deps=("salaryIncomeComputation",), compute=_salary_exemption_leftover_inr),
                reason="assets-nodes.js: unused salary deduction applied to US wages India taxes an ROR on")
+    # Salary for work outside India that India can't tax (see assets-nodes.js).
+    r.override("salaryNotChargeableInr", NodeDef(deps=("indiaIncomeModelResult", "residencyResult"), compute=_salary_not_chargeable_inr),
+               reason="assets-nodes.js: India non-resident / RNOR / treaty-resident in the US isn't taxed on salary for work outside India")
     r.override(
         "usIncomeForIndiaBoundary",
         NodeDef(deps=("aggregateUsIncomeResult", "residencyResult"), compute=_us_income_for_india),
         reason="assets-nodes.js: one income list, India direction — Layer 1 US income into India's worldwide taxation of an ROR",
     )
     return r
+
+
+def _salary_not_chargeable_inr(d, ctx):
+    r = (d["residencyResult"] or {}).get("india")
+    if not r:
+        return 0
+    outside_india = r.get("status") in ("NR", "RNOR") or (r.get("status") == "ROR" and r.get("cedesViaTreaty") is True)
+    return max(0, d["indiaIncomeModelResult"].get("salaryOutsideIndiaInr") or 0) if outside_india else 0
 
 
 def _salary_exemption_leftover_inr(d, ctx):

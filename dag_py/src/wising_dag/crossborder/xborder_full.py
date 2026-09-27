@@ -104,6 +104,8 @@ def build(base: NodeRegistry) -> NodeRegistry:
         d["usIncomeForIndiaInr"]["salaryInr"] + d["usIncomeForIndiaInr"]["businessInr"] + d["usIncomeForIndiaInr"]["housePropertyInr"] +
         d["usIncomeForIndiaInr"]["otherNormalInr"] + d["usIncomeForIndiaInr"]["stcgSlabInr"] + d["usIncomeForIndiaInr"]["ltcg197Inr"]) / fx_rate(ctx)), reason=OVERRIDE_REASON)
     r.override("indiaSalaryOutsideIndiaUsdBoundaryFtc", NodeDef(deps=("indiaIncomeModelResult",), compute=lambda d, ctx: (d["indiaIncomeModelResult"].get("salaryOutsideIndiaInr") or 0) / fx_rate(ctx)), reason=OVERRIDE_REASON)
+    r.override("indiaSalaryNotChargeableUsdBoundaryFtc", NodeDef(deps=("salaryNotChargeableInr",), compute=lambda d, ctx: (d["salaryNotChargeableInr"] or 0) / fx_rate(ctx)), reason=OVERRIDE_REASON)
+    r.override("indiaSalaryNotChargeableTaxUsdBoundaryFtc", NodeDef(deps=("salaryNotChargeableTaxInr",), compute=lambda d, ctx: (d["salaryNotChargeableTaxInr"] or 0) / fx_rate(ctx)), reason=OVERRIDE_REASON)
 
     # Companion to hasUsScopeBoundaryFtc above — port of findings-nodes.js's
     # hasIndiaScopeXbr, added here (not in crossborder/findings.py) because
