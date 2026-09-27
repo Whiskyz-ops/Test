@@ -83,6 +83,14 @@ def _salary_split_note(ftc_us):
     return "Check the workday split on Layer 1 India's salary screen first — this figure is only as good as those days."
 
 
+def _salary_split_bullet(ftc_us):
+    # Structured-action bullet form of the split note — see findings-nodes.js's ncSplit.
+    if ftc_us.get("salaryWorkBasis") == "estimated_days_present":
+        return ("- The India / US work split is estimated from days present (India days ÷ India + US days) because the workday question on "
+                "Layer 1 India's salary screen was left blank. Enter the client's actual workdays to confirm it.")
+    return "- Check the workday split on Layer 1 India's salary screen: this figure is only as good as those days."
+
+
 def _describe_tie_break(home, cvi, abode, nat):
     if home == "india":
         return {"article": "Art. 4(2)(a)", "reason": "permanent home is only in India"}
@@ -506,11 +514,13 @@ def _findings_crossborder_result(d, ctx):
         nc_status = d["residencyResult"]["india"]["status"]
         if nc_status == "ROR":
             nc_why = "The treaty tie-breaker (DTAA Art. 4(2)) makes the US the client's residence country, so under Art. 16(1) India can't tax pay for work done outside India"
-            nc_ground = "Here the treaty is the only basis, so the claim must cite it: DTAA Art. 4(2) (tie-breaker residence in the US) and Art. 16(1), backed by a US residency certificate (Form 6166) and Form 41 (formerly Form 10F), and disclosed as a treaty claim in the return."
+            nc_ground = ["- The treaty is the only basis, so the claim must cite it: DTAA Art. 4(2) (tie-breaker residence in the US) and Art. 16(1), backed by Form 6166 (US residency certificate) and Form 41 (formerly Form 10F), and disclosed as a treaty claim in the return."]
         else:
             nc_why = ("As an India " + ("RNOR" if nc_status == "RNOR" else "non-resident") + ", the client is taxed in India only on "
                       "India-source income, and salary is India-source only for work physically done in India")
-            nc_ground = "Which ground to claim depends on where the salary is paid. Paid outside India: Indian domestic law alone excludes it, so no treaty claim is required — claiming DTAA Art. 16 as well (US residency certificate, Form 6166, plus Form 41, formerly Form 10F) is still recommended, so the employer and the Department have both grounds. Paid into an Indian bank account: claim Art. 16(1) with Form 6166 and Form 41 — the Department may argue the salary is taxable on receipt in India (s.5(2)(a) of the 1961 Act), and the treaty, which allocates salary by where the work is done, is the main defence."
+            nc_ground = ["- Which ground to claim depends on where the salary is paid:",
+                         "  - Paid outside India: Indian domestic law alone excludes it, so no treaty claim is required. Claiming DTAA Art. 16 as well (Form 6166 US residency certificate + Form 41, formerly Form 10F) is still recommended, so the employer and the Department have both grounds.",
+                         "  - Paid into an Indian bank account: claim Art. 16(1) with Form 6166 and Form 41. The Department may argue the salary is taxable on receipt in India (s.5(2)(a) of the 1961 Act); the treaty, which allocates salary by where the work is done, is the main defence."]
         nc_tax = ftc["us"]["indiaNotChargeableSalaryTaxUsd"]
         findings.append(make_finding(
             "salary_not_taxable_india_tds", "critical", "credit",
@@ -520,15 +530,7 @@ def _findings_crossborder_result(d, ctx):
             "about " + _usd(nc_tax) + " of TDS on it (estimate: the Indian tax this salary would carry — "
             "Layer 1 India records TDS as one total). The US taxes this salary, and that TDS is not a creditable foreign tax on " +
             d["usFtcFormXbr"] + " because India isn't owed it — so until it's stopped or refunded, the same salary is taxed twice.",
-            "Stop it: give the employer a written declaration of the client's residential status, US work location and address, and expected "
-            "days in India (and which are workdays), backed by travel records. " + nc_ground + " If it still deducts, apply for a nil / lower-deduction "
-            "certificate. Salary for days actually worked in India stays taxable and keeps its TDS. Recover what's already deducted: "
-            "within the same year the employer can reduce later months' TDS; after year-end, file ITR-2 showing this salary as not "
-            "taxable in India and claim the full TDS credit from Form 26AS / AIS — expect a mismatch query (Form 16 shows the full "
-            "salary) and answer it with the declaration and travel records. File by the original or belated due date: an updated "
-            "return (ITR-U) can't claim a refund. Tribunal rulings (e.g. Hyderabad ITAT, 28 Feb 2023) hold that salary for work done "
-            "outside India isn't taxable merely because it is credited in India — keep the work-location evidence on file. "
-            + _salary_split_note(ftc["us"]),
+            "\n".join(["## Stop the deduction", "- Give the employer a written declaration: the client's residential status, US work location and address, and expected days in India (and which are workdays), backed by travel records."] + nc_ground + ["- If the employer still deducts, apply for a nil / lower-deduction certificate.", "- Salary for days actually worked in India stays taxable and keeps its TDS.", "## Recover what's already deducted", "- Same year: the employer can reduce TDS in later months.", "- After year-end: file ITR-2 showing this salary as not taxable in India, and claim the full TDS credit from Form 26AS / AIS.", "- Expect a mismatch query (Form 16 shows the full salary) and answer it with the declaration and travel records. Tribunal rulings (e.g. Hyderabad ITAT, 28 Feb 2023) hold that salary for work done outside India isn't taxable merely because it is credited in India.", "- File by the original or belated due date: an updated return (ITR-U) can't claim a refund.", "## Before relying on this amount", _salary_split_bullet(ftc["us"])]),
             nc_tax, (["DTAA Art. 4(2)"] if nc_status == "ROR" else []) + ["DTAA Art. 16", "Form 41", "Form 6166", "ITR-2", "Form 26AS"],
         ))
 

@@ -358,12 +358,14 @@ def _findings_all_result_override(d, ctx, base_compute):
             "that pay isn't US-source (IRC §862(a)(3)), so it isn't US income and it's left out of the US tax here — yet the employer withheld about " +
             _usd(w2loc["federalWithheldOutsideUsUsd"]) + " of federal income tax and " + _usd(w2loc["ficaWithheldOutsideUsUsd"]) + " of Social Security / Medicare on it. "
             "India taxes the same salary, and it gives no credit for US tax that wasn't owed, so until this is stopped or refunded the salary is taxed twice." + w2_basis,
-            "Stop it: tell the employer's payroll the client is a non-resident alien working outside the US, so the pay isn't US wages for income-tax "
-            "withholding or Social Security / Medicare; if the employer can't run non-US payroll, move the client to an Indian entity or Employer of Record. "
-            "Recover it: within the same calendar year the employer can correct and repay over-withheld tax through payroll (Form 941-X for Social Security / "
-            "Medicare); otherwise file Form 1040-NR (an ITIN is needed if the client has no SSN) showing the wages as foreign-source to get the federal income "
-            "tax back, and claim Social Security / Medicare from the employer, or from the IRS on Form 843 with the employer's statement if the employer won't repay. "
-            "No treaty claim is needed — the exemption is the US source rule itself.",
+            "\n".join(["## Stop the withholding",
+                       "- Tell the employer's payroll the client is a non-resident alien working outside the US, so this pay isn't US wages for income-tax withholding or Social Security / Medicare.",
+                       "- If the employer can't run non-US payroll, move the client to an Indian entity or an Employer of Record.",
+                       "## Recover what's already withheld",
+                       "- Same calendar year: the employer can correct and repay over-withheld tax through payroll (Form 941-X for Social Security / Medicare).",
+                       "- Federal income tax: file Form 1040-NR showing the wages as foreign-source (an ITIN is needed if the client has no SSN).",
+                       "- Social Security / Medicare: claim it from the employer, or from the IRS on Form 843 with the employer's statement if the employer won't repay.",
+                       "- No treaty claim is needed: the exemption is the US source rule itself."]),
             w2_withheld_usd, ["IRC §862(a)(3)", "Form 1040-NR", "Form 843", "Form 941-X"],
         ))
 

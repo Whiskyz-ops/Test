@@ -213,7 +213,7 @@ function FindingRow({ f, isOpen, onToggle, status, onLog }) {
             </div>
           )}
           <div className="text-[12px] text-body leading-relaxed">{f.detail}</div>
-          <div className="text-[12px] text-head mt-2 leading-relaxed"><span className="font-bold" style={{ color: PAL.greenText }}>▸ Action:</span> {f.recommendation}</div>
+          <ActionText text={f.recommendation} />
           {f.refs && f.refs.length > 0 && <div className="flex flex-wrap gap-1.5 mt-2.5">{f.refs.map((r, j) => <Ref key={j}>{r}</Ref>)}</div>}
           {onLog && !form && (
             <button onClick={() => setForm({ action: "resolved", reason: "", by: loadPreparer(), error: null })}
@@ -248,6 +248,64 @@ function FindingRow({ f, isOpen, onToggle, status, onLog }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// A finding's recommended action. Plain text renders inline as before; text
+// with line breaks is structured by the engine — "## " starts a section
+// heading, "- " a bullet, "  - " a sub-bullet — and renders as a short
+// checklist so long, multi-step advice stays scannable.
+// Bolds a short lead-in ending in a colon ("Same year:", "Paid outside
+// India:") so each bullet can be scanned by its label.
+function LeadIn({ text }) {
+  const i = text.indexOf(": ");
+  if (i > 0 && i <= 45) return <><span className="font-semibold text-head">{text.slice(0, i + 1)}</span>{text.slice(i + 1)}</>;
+  return text;
+}
+
+function ActionText({ text }) {
+  const label = <span className="font-bold" style={{ color: PAL.greenText }}>▸ Action</span>;
+  if (!text || text.indexOf("\n") === -1) {
+    return <div className="text-[12px] text-head mt-2 leading-relaxed">{label}: {text}</div>;
+  }
+  const blocks = [];
+  text.split("\n").forEach((line) => {
+    if (line.startsWith("## ")) blocks.push({ heading: line.slice(3), items: [] });
+    else {
+      if (!blocks.length) blocks.push({ heading: null, items: [] });
+      const cur = blocks[blocks.length - 1];
+      if (line.startsWith("  - ")) {
+        const parent = cur.items[cur.items.length - 1];
+        if (parent) parent.sub.push(line.slice(4)); else cur.items.push({ text: line.slice(4), sub: [] });
+      } else if (line.trim()) cur.items.push({ text: line.replace(/^- /, ""), sub: [] });
+    }
+  });
+  return (
+    <div className="text-[12px] text-head mt-2 leading-relaxed">
+      <div className="mb-1">{label}</div>
+      <div className="space-y-2.5 pl-1">
+        {blocks.map((b, i) => (
+          <div key={i}>
+            {b.heading && <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted mb-1">{b.heading}</div>}
+            <ul className="space-y-1">
+              {b.items.map((it, j) => (
+                <li key={j} className="flex gap-2">
+                  <span className="shrink-0 mt-[7px] w-1 h-1 rounded-full" style={{ background: PAL.greenText }} />
+                  <div className="min-w-0">
+                    <span><LeadIn text={it.text} /></span>
+                    {it.sub.length > 0 && (
+                      <ul className="mt-1 space-y-1 pl-3 border-l border-line">
+                        {it.sub.map((t, k) => <li key={k} className="text-body"><LeadIn text={t} /></li>)}
+                      </ul>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
