@@ -169,7 +169,7 @@ NODES.findingsBatch1Result = {
           "under DTAA Art. 16, and India must give relief. " + swIndiaCredit;
       } else if (d.residencyResult.dualResident && !swTbWinner) {
         swAdvice = "Who gives relief depends on the Art. 4 tie-breaker, which isn't completed yet. If the US wins, India " +
-          "generally shouldn't tax pay for US-performed work (DTAA Art. 16): " + swRefund + " If India wins: " + swIndiaCredit;
+          "generally shouldn't tax pay for US-performed work (DTAA Art. 16(1), claimed on the Art. 4(2) tie-breaker): " + swRefund + " If India wins: " + swIndiaCredit;
       } else {
         swAdvice = "Under India–US DTAA Art. 16, salary is taxable only in the country of residence unless the work is done " +
           "in the other country — so India generally should not tax pay for US-performed work of a US resident. " + swRefund;
@@ -195,9 +195,15 @@ NODES.findingsBatch1Result = {
     if (d.hasIndiaScopeXbr && d.hasUsScopeBoundaryFtc && ftc.us.indiaNotChargeableSalaryUsd > 1) {
       var ncTreaty = d.residencyResult.india.status === "ROR";
       var ncWhy = ncTreaty
-        ? "The treaty tie-breaker makes the US the client's residence country, so under DTAA Art. 16(1) India can't tax pay for work done outside India"
+        ? "The treaty tie-breaker (DTAA Art. 4(2)) makes the US the client's residence country, so under Art. 16(1) India can't tax pay for work done outside India"
         : "As an India " + (d.residencyResult.india.status === "RNOR" ? "RNOR" : "non-resident") + ", the client is taxed in India only on " +
           "India-source income, and salary is India-source only for work physically done in India";
+      // Which ground carries the claim: domestic law for a non-resident /
+      // RNOR (no treaty claim needed), the treaty alone for a resident the
+      // tie-breaker hands to the US (must cite Art. 4(2) + Art. 16(1)).
+      var ncGround = ncTreaty
+        ? "Here the treaty is the only basis, so the claim must cite it: DTAA Art. 4(2) (tie-breaker residence in the US) and Art. 16(1), backed by a US residency certificate (Form 6166) and Form 10F, and disclosed as a treaty claim in the return."
+        : "No treaty claim is needed: the exclusion rests on Indian domestic law. A US residency certificate (Form 6166) and Form 10F citing DTAA Art. 16 are an optional second ground that makes the employer more willing to stop.";
       add("salary_not_taxable_india_tds", "critical", "credit",
         "Indian TDS on salary India can't tax — about " + usd(ftc.us.indiaNotChargeableSalaryTaxUsd) + " to stop or recover",
         usd(ftc.us.indiaNotChargeableSalaryUsd) + " of Indian salary was earned for work done outside India (taken to be the US). " +
@@ -206,8 +212,7 @@ NODES.findingsBatch1Result = {
         "Layer 1 India records TDS as one total). The US taxes this salary, and that TDS is not a creditable foreign tax on " +
         d.usFtcFormXbr + " because India isn't owed it — so until it's stopped or refunded, the same salary is taxed twice.",
         "Stop it: give the employer a written declaration of the client's residential status, US work location and address, and expected " +
-        "days in India (and which are workdays), backed by travel records; add a US residency certificate (Form 6166) and Form 10F " +
-        "so the employer also has the treaty ground (DTAA Art. 16). If it still deducts, apply for a nil / lower-deduction " +
+        "days in India (and which are workdays), backed by travel records. " + ncGround + " If it still deducts, apply for a nil / lower-deduction " +
         "certificate. Salary for days actually worked in India stays taxable and keeps its TDS. Recover what's already deducted: " +
         "within the same year the employer can reduce later months' TDS; after year-end, file ITR-2 showing this salary as not " +
         "taxable in India and claim the full TDS credit from Form 26AS / AIS — expect a mismatch query (Form 16 shows the full " +
@@ -216,7 +221,7 @@ NODES.findingsBatch1Result = {
         "it is taxable on receipt (s.5(2)(a) of the 1961 Act); tribunal rulings (e.g. Hyderabad ITAT, 28 Feb 2023) hold that salary for " +
         "work done outside India isn't taxable merely because it is credited in India — keep the work-location evidence on file. " +
         (ftc.us.salaryWorkBasis === "estimated_days_present" ? "The split between India and US work is estimated from days present (India days ÷ India + US days) because the workday question on Layer 1 India's salary screen was left blank — enter the client's actual workdays to confirm this amount." : "Check the workday split on Layer 1 India's salary screen first — this figure is only as good as those days."),
-        ftc.us.indiaNotChargeableSalaryTaxUsd, ["DTAA Art. 16", "Form 10F", "Form 6166", "ITR-2", "Form 26AS"]);
+        ftc.us.indiaNotChargeableSalaryTaxUsd, (ncTreaty ? ["DTAA Art. 4(2)"] : []).concat(["DTAA Art. 16", "Form 10F", "Form 6166", "ITR-2", "Form 26AS"]));
     }
 
     // -- 4c. AMT BITES (conflicts.js:325-334) -------------------------------
