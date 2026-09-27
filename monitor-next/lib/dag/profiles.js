@@ -166,10 +166,10 @@
     label: "Dual Resident — H-1B",
     story: "India ROR + US SPT, senior tech hire in California. Both tax worldwide income → DTAA tie-breaker + FTC shortfall; ISO exercise triggers AMT and mirrors an ESOP grant from his prior Indian employer (equity-comp sourcing); NIIT, a carried-forward capital loss, and a Schedule FA slip round it out. Also sold some Schwab-held AMZN stock after 18 months — India treats a foreign stock as an unlisted security (24mo LTCG threshold, no s.198 exemption) so it's STCG at his slab rate there, but the US calls the same gain LTCG (12mo threshold) — and since he's worldwide-taxed by BOTH countries this year, that's a genuine characterization mismatch with real dollars at stake on both sides, not just a paperwork gap.",
     tags: ["dual residency", "FTC", "PFIC", "AMT", "equity comp", "Foreign equity"],
-    router: router("Aarav Sharma", { us_days: 330, date_of_birth: "1988-07-15" }),
+    router: router("Aarav Sharma", { us_days: 183, date_of_birth: "1988-07-15" }),
     india: {
       profile: { full_name: "Aarav Sharma", entity_type: "individual", date_of_birth: "1988-07-15", pan: "ABCPS1234K", tax_regime: "NEW" },
-      residency_detail: { days_in_india_current_year: 183, final_india_residency_status: "ROR" },
+      residency_detail: { days_in_india_current_year: 182, final_india_residency_status: "ROR" },
       // Tie-break wizard walked through: permanent home was ambiguous (kept a
       // place in both countries), so it fell to centre of vital interests,
       // which landed on the US — the actual reasoning behind "us" winning,
@@ -215,7 +215,7 @@
       // Mehta's NR-forced fallthrough and Sharma HUF's entity-type
       // exclusion below — three different reasons an entry lands on
       // regular books).
-      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 1800000, esop_perquisite_events: [{ employer_name: "Infosys Ltd", grant_date: "2021-06-01", vesting_or_exercise_date: "2026-06-01", shares: 400, fmv_per_share_inr: 1800, exercise_price_per_share_inr: 300, perquisite_value_inr: 600000 }] }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 420000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [
+      domestic_income: { salary: { has_salary_income: true, taxable_salary_inr: 1800000, work_performed_outside_india: false, esop_perquisite_events: [{ employer_name: "Infosys Ltd", grant_date: "2021-06-01", vesting_or_exercise_date: "2026-06-01", shares: 400, fmv_per_share_inr: 1800, exercise_price_per_share_inr: 300, perquisite_value_inr: 600000 }] }, house_property: { has_house_property_income: true, properties: [{ annual_value_inr: 420000 }] }, business_income: { has_business_or_fo_income: true, business_entries: [
         { business_name: "Sharma Freelance Dev", nature: "software consulting", presumptive_scheme: null, gross_receipts_inr: 900000,
           expenses: { rent_for_business_premises_inr: 60000, other_business_expenses_inr: 40000 } }
       ], asset_blocks: [
@@ -235,7 +235,7 @@
     },
     us: {
       profile: { tax_entity_type: "individual", full_name: "Aarav Sharma", date_of_birth: "1988-07-15", filing_status: "mfj", ssn_or_itin_type: "ssn" },
-      us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 185, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "us" },
+      us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 183, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "us" },
       income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Cloudscale Inc (US)", wages_box1_usd: 200000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 38000, medicare_wages_box5_usd: 200000 } }], interest_us_source_usd: 3200, ordinary_dividends_us_source_usd: 6200, qualified_dividends_us_source_usd: 4200, ltcg_us_source_usd: 14000 },
       income_foreign_source: { foreign_wages: [{ employer_name: "Infosys (India, Apr–Aug)", wages_usd: 21687 }], foreign_interest_usd: 1928, foreign_dividends_usd: 1084, foreign_rental_income_usd: 5060, foreign_stcg_usd: 3012 },
       foreign_earned_income: { claims_feie: false, foreign_earned_income_usd: 21687, feie_amount_claimed_usd: 0 },

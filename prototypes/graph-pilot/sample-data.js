@@ -30,7 +30,7 @@
     date_of_birth: "1988-07-15",
     is_us_citizen: false,
     has_green_card: false,
-    us_days: 330,
+    us_days: 183,
     has_us_source_income_or_assets: true
   };
 
@@ -43,7 +43,7 @@
       tax_regime: "NEW"
     },
     residency_detail: {
-      days_in_india_current_year: 210,
+      days_in_india_current_year: 182,
       final_india_residency_status: "ROR"
     },
     dtaa: {
@@ -78,7 +78,7 @@
       ]
     },
     domestic_income: {
-      salary: { has_salary_income: true, taxable_salary_inr: 4200000, gross_salary_inr: 4500000 },
+      salary: { has_salary_income: true, taxable_salary_inr: 4200000, gross_salary_inr: 4500000, work_performed_outside_india: false },
       house_property: {
         has_house_property_income: true,
         properties: [{ annual_value_inr: 420000, gross_rent_received_inr: 600000 }]
@@ -129,7 +129,7 @@
     us_residency_detail: {
       is_us_citizen: false,
       has_green_card: false,
-      us_days_current_year: 330,
+      us_days_current_year: 183,
       spt_test_met: true,                          // <-- US resident via SPT
       final_us_residency_status: "RESIDENT_ALIEN",
       dtaa_treaty_residence: "us"                   // <-- synced tie-breaker outcome
