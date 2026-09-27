@@ -312,7 +312,7 @@ found the same overclaiming pattern in several more places.
   calculator with no cross-year persistence and no re-sourcing test anywhere in the code. Corrected to
   state the carryover is *eligible* under §904(c) but must be manually re-entered next year, and that
   re-sourcing isn't tested automatically.
-- `form67_required` — said WISING "prepares and e-files Form 67... no manual action needed"; there is
+- `form67_required` — said WISING "prepares and e-files Form 67... no manual action needed" (Form 67 is Form 44 under the Income-tax Act 2025); there is
   no e-filing capability in this codebase. Corrected to "flags... as required on the filing checklist."
 - `retirement_mismatch` — said WISING "checks whether each account is a treaty-protected pension
   (Article 20) or a trust" (no such check exists anywhere) and "adds the yearly interest to US income"
@@ -392,7 +392,7 @@ wrong profile. Moved to Rohan and Vikram (both domestically NR).
 NR taxpayers and taxes it under s.115A at whichever is lower — the domestic default (`S115A_RATES` in
 `constants.js`, shared with the finding text so they can't drift) or a DTAA-elected rate, but **only**
 when TRC/Form 10F support the claim. Critically, `resolveS115aRate()` takes `Math.min(domestic, elected)`
-— s.90(2) guarantees the assessee whichever is more beneficial, never a worse rate just because a
+— s.159 (formerly s.90(2)) guarantees the assessee whichever is more beneficial, never a worse rate just because a
 (possibly mistaken) election is on file. Royalty/FTS/capital_gains elections remain disclosed-only,
 correctly, since there's still no income figure to apply them to.
 
@@ -406,7 +406,7 @@ Fixed by adding `!isNR` to the gate (RNOR still qualifies — only genuine NR do
   20% domestic rate.
 - **`founder_indian_company`** (Vikram) — a dividend election on file at 25% (worse than the 20%
   domestic rate) with TRC/Form 10F **present**; computation correctly ignores the election anyway since
-  domestic is more beneficial (s.90(2) protection working as intended, not just "election not applied").
+  domestic is more beneficial (s.159 (formerly s.90(2)) protection working as intended, not just "election not applied").
 - Removed the (conceptually incorrect) election from Aarav; verified via harness that both NR profiles'
   §87A rebate is now ₹0, and that the s.115A tax lines appear in the tax computation table breakdown.
 
@@ -431,7 +431,7 @@ approach. For interest/dividend (which have a broader `other_sources` aggregate)
 exists, and whatever part of the aggregate isn't covered by any election still gets taxed, just at the
 plain domestic rate. For royalty/FTS (no aggregate exists anywhere in Layer 1 — the election table is
 the only place this income is ever recorded), the summed election amounts ARE the total for that stream,
-computed for the first time. Each election's rate is still `Math.min(domestic, elected)` per s.90(2), and
+computed for the first time. Each election's rate is still `Math.min(domestic, elected)` per s.159 (formerly s.90(2)), and
 still gated on TRC/Form 10F being on file.
 
 **Bifurcated to show four distinct real outcomes across two profiles** (rather than one contrived
@@ -1114,7 +1114,7 @@ during a demo.
 1. **`dual_resident_h1b`** — Aarav Sharma, senior tech hire in California. India ROR + US SPT; the flagship FTC/tie-breaker case. An ISO exercise triggers `amt_applies` and mirrors an ESOP grant from his prior Indian employer (`equity_comp_sourcing`); also carries `niit_medicare_not_creditable`, `carry_forward_losses_not_applied`, `state_treaty_not_binding` (California), a Schedule FA form-consistency slip (`schedule_fa_inconsistent`), and a walked-through Art. 4 tie-break (permanent home ambiguous → CVI decides for the US). No treaty election here — he's domestically ROR, and s.115A (what an election overrides) only applies to a genuine NR; see Rohan and Vikram below for that.
 2. **`us_resident_indian_income`** — Rohan Mehta, US green-card holder with Indian rent/dividends/mutual funds and a US-side consulting gig. FTC (Form 1116), PFIC, FBAR, a below-10%-threshold India business stake (`cfc_below_threshold`), `no_totalization_agreement` on his US self-employment tax, occasional online-gaming winnings (`special_rate_gaming_winnings`), an unexplained cash deposit (`s115bbe_unexplained_income`), and a genuinely-beneficial interest treaty election (15% vs 20% domestic) that's **denied** because TRC/Form 10F are missing — computation correctly falls back to the domestic slab rate (post-D.15, NRO interest is slab-rate income, not flat s.115A). Also the first demo of the (OBBBA, TY2025-2028) "no tax on tips"/"no tax on overtime" deductions, both intact since his AGI sits just under the $300,000 MFJ phase-out threshold.
 3. **`india_ror_us_income`** — Anita Desai, Indian ROR (formerly NRI) with US rental/dividends/brokerage. `nra_fdap_flat_rate`, `nra_w8ben_missing`, `firpta` on a US property sale, a retained Chapter XII-A election (`chapter_xiia_not_computed`) kept after becoming ROR, and ₹3L LTCG above the s.112A exemption (exercises the gross-vs-exemption-adjusted `totalIncomeInr` fix).
-4. **`founder_indian_company`** — Vikram Rao, US resident owning 100% of an Indian Pvt Ltd. `cfc` / Form 5471, a partial share buyback from his own company (`deemed_dividend_buyback_mismatch`), a brought-forward STCG loss bigger than this year's STCG gain (the "partially set off" state of loss set-off), and a dividend treaty election on file at 25% (worse than the 20% domestic rate) with TRC/Form 10F **present** — computation correctly ignores the election since domestic is more beneficial (s.90(2) protection, not just "not applied").
+4. **`founder_indian_company`** — Vikram Rao, US resident owning 100% of an Indian Pvt Ltd. `cfc` / Form 5471, a partial share buyback from his own company (`deemed_dividend_buyback_mismatch`), a brought-forward STCG loss bigger than this year's STCG gain (the "partially set off" state of loss set-off), and a dividend treaty election on file at 25% (worse than the 20% domestic rate) with TRC/Form 10F **present** — computation correctly ignores the election since domestic is more beneficial (s.159 (formerly s.90(2)) protection, not just "not applied").
 5. **`us_citizen_expat_india`** — Grace Thomas, US citizen living in India. FEIE + PFIC (citizenship-based taxation), a gift from her father — a long-term green-card holder who relinquished it and was found to be a covered expatriate (`foreign_gift_3520`, `covered_expat_gift_tax`), and a taxable NPS withdrawal (the NPS half of the EPF/NPS US-income wiring, distinct from Aarav's EPF-interest case).
 6. **`india_pvt_ltd`** — Business POV: Indian domestic company, §115BAA, ITR-6.
 7. **`us_ccorp_indian_sub`** — Business POV: Delaware C-Corp with an Indian subsidiary; GILTI.
