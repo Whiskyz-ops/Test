@@ -150,6 +150,9 @@ def _ftc_us_direction(d, ctx):
         "indiaNotChargeableSalaryUsd": not_chargeable_usd,
         "indiaNotChargeableSalaryTaxUsd": (d.get("indiaSalaryNotChargeableTaxUsdBoundaryFtc") or 0) if not_chargeable_usd > 0 else 0,
         "salaryWorkBasis": d.get("indiaSalaryWorkBasisBoundaryFtc") or None,
+        # Indian salary for work outside India, before any zeroing (Art. 16(2)
+        # short-stay finding) — see ftc-nodes.js.
+        "indiaSalaryOutsideIndiaUsd": d.get("indiaSalaryOutsideIndiaUsdBoundaryFtc") or 0,
     }
 
 

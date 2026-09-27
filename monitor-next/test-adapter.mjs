@@ -61,7 +61,7 @@ const DAG_ONLY_KEYS = new Set([
   "foreignWagesUsSource", "foreignWagesSourcing",
   // India salary work-location sourcing (aggregateindiaincome-nodes.js's
   // salaryWorkLocation → ftc-nodes.js) — DAG-only fields.
-  "salaryWorkLocation", "salaryOutsideIndiaInr", "usWorkSalaryUsd", "indiaTaxOnUsWorkSalaryUsd", "indiaNotChargeableSalaryUsd", "indiaNotChargeableSalaryTaxUsd", "salaryWorkBasis",
+  "salaryWorkLocation", "salaryOutsideIndiaInr", "usWorkSalaryUsd", "indiaTaxOnUsWorkSalaryUsd", "indiaNotChargeableSalaryUsd", "indiaNotChargeableSalaryTaxUsd", "salaryWorkBasis", "indiaSalaryOutsideIndiaUsd",
   // One income list (aggregateusincome-nodes.js's foreignIncomeFromIndia) —
   // DAG-only fields.
   "foreignOtherIncome", "seEarningsFromIndiaUsd", "foreignFromIndia", "usOwnSourceForIndia", "w2WorkLocation",
@@ -96,7 +96,7 @@ const KNOWN_EXTRA_FINDING_IDS = new Set([
   "retirement_excess_elective_deferral", "retirement_excess_ira_contribution",
   "hsa_excess_contribution", "retirement_rmd_required", "s83b_election_not_filed_timely",
   "itin_application_required", "lrs_investment_tcs",
-  "nra_eci_fdap_classification_check", "us_withholding_outside_us_wages", "treaty_rate_not_recognized",
+  "nra_eci_fdap_classification_check", "us_withholding_outside_us_wages", "dtaa_16_2_short_stay_us", "dtaa_16_2_short_stay_india", "treaty_rate_not_recognized",
   "ftc_gap", "ftc_available", "niit_medicare_not_creditable", "underpayment_2210",
   "cfc", "cfc_below_threshold"
 ]);

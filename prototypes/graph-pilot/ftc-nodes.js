@@ -321,7 +321,11 @@ var NODES = {
         // zeroed with the US credit (the salary_not_taxable_india_tds finding).
         indiaNotChargeableSalaryUsd: notChargeableUsd,
         indiaNotChargeableSalaryTaxUsd: notChargeableUsd > 0 ? (d.indiaSalaryNotChargeableTaxUsdBoundaryFtc || 0) : 0,
-        salaryWorkBasis: d.indiaSalaryWorkBasisBoundaryFtc || null
+        salaryWorkBasis: d.indiaSalaryWorkBasisBoundaryFtc || null,
+        // Indian salary for work outside India (taken to be the US), before
+        // any zeroing — the Art. 16(2) short-stay finding needs it for a US
+        // non-resident alien, where the credit above is zeroed.
+        indiaSalaryOutsideIndiaUsd: d.indiaSalaryOutsideIndiaUsdBoundaryFtc || 0
       };
     }
   },

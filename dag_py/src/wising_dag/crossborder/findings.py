@@ -478,7 +478,7 @@ def _findings_crossborder_result(d, ctx):
     if d["hasIndiaScopeXbr"] and d["hasUsScopeBoundaryFtc"] and ftc["us"]["indiaTaxOnUsWorkSalaryUsd"] > 1:
         # Who owes the relief turns on treaty residence -- see findings-nodes.js.
         sw_tb_winner = d["treatyIndiaResidenceRaw"] if d["treatyIndiaResidenceRaw"] != "none" else (d["treatyUsResidenceRaw"] if d["treatyUsResidenceRaw"] != "none" else None)
-        sw_refund = ("Claim the Indian tax back (revise the ITR / refund claim, with Form 10F and a US residency certificate, "
+        sw_refund = ("Claim the Indian tax back (revise the ITR / refund claim, with Form 41 (formerly Form 10F) and a US residency certificate, "
                      "Form 6166) and ask the employer to stop deducting TDS on that portion.")
         sw_india_credit = ("Claim credit in India for the US tax on this salary (s.159, formerly s.90 / DTAA Art. 25 — Form 44, formerly Form 67, with the US return) "
                            "instead of expecting a US credit for the Indian tax.")
@@ -498,7 +498,7 @@ def _findings_crossborder_result(d, ctx):
             f"income (IRC §861(a)(3)). The Indian tax on it, about {_usd(ftc['us']['indiaTaxOnUsWorkSalaryUsd'])}, can't be claimed "
             f"as a Foreign Tax Credit on {d['usFtcFormXbr']} and is left out of the credit above, so as things stand it is taxed twice.",
             sw_advice + " " + _salary_split_note(ftc["us"]),
-            ftc["us"]["indiaTaxOnUsWorkSalaryUsd"], ["§861(a)(3)", "DTAA Art. 16", d["usFtcFormXbr"], "Form 10F", "Form 6166", "Form 44"],
+            ftc["us"]["indiaTaxOnUsWorkSalaryUsd"], ["§861(a)(3)", "DTAA Art. 16", d["usFtcFormXbr"], "Form 41", "Form 6166", "Form 44"],
         ))
 
     # -- 4b. INDIAN TDS ON SALARY INDIA CAN'T TAX (see findings-nodes.js) ------
@@ -506,11 +506,11 @@ def _findings_crossborder_result(d, ctx):
         nc_status = d["residencyResult"]["india"]["status"]
         if nc_status == "ROR":
             nc_why = "The treaty tie-breaker (DTAA Art. 4(2)) makes the US the client's residence country, so under Art. 16(1) India can't tax pay for work done outside India"
-            nc_ground = "Here the treaty is the only basis, so the claim must cite it: DTAA Art. 4(2) (tie-breaker residence in the US) and Art. 16(1), backed by a US residency certificate (Form 6166) and Form 10F, and disclosed as a treaty claim in the return."
+            nc_ground = "Here the treaty is the only basis, so the claim must cite it: DTAA Art. 4(2) (tie-breaker residence in the US) and Art. 16(1), backed by a US residency certificate (Form 6166) and Form 41 (formerly Form 10F), and disclosed as a treaty claim in the return."
         else:
             nc_why = ("As an India " + ("RNOR" if nc_status == "RNOR" else "non-resident") + ", the client is taxed in India only on "
                       "India-source income, and salary is India-source only for work physically done in India")
-            nc_ground = "No treaty claim is needed: the exclusion rests on Indian domestic law. A US residency certificate (Form 6166) and Form 10F citing DTAA Art. 16 are an optional second ground that makes the employer more willing to stop."
+            nc_ground = "Which ground to claim depends on where the salary is paid. Paid outside India: Indian domestic law alone excludes it, so no treaty claim is required — claiming DTAA Art. 16 as well (US residency certificate, Form 6166, plus Form 41, formerly Form 10F) is still recommended, so the employer and the Department have both grounds. Paid into an Indian bank account: claim Art. 16(1) with Form 6166 and Form 41 — the Department may argue the salary is taxable on receipt in India (s.5(2)(a) of the 1961 Act), and the treaty, which allocates salary by where the work is done, is the main defence."
         nc_tax = ftc["us"]["indiaNotChargeableSalaryTaxUsd"]
         findings.append(make_finding(
             "salary_not_taxable_india_tds", "critical", "credit",
@@ -526,11 +526,49 @@ def _findings_crossborder_result(d, ctx):
             "within the same year the employer can reduce later months' TDS; after year-end, file ITR-2 showing this salary as not "
             "taxable in India and claim the full TDS credit from Form 26AS / AIS — expect a mismatch query (Form 16 shows the full "
             "salary) and answer it with the declaration and travel records. File by the original or belated due date: an updated "
-            "return (ITR-U) can't claim a refund. If the salary is first received in an Indian bank account, expect the Department to argue "
-            "it is taxable on receipt (s.5(2)(a) of the 1961 Act); tribunal rulings (e.g. Hyderabad ITAT, 28 Feb 2023) hold that salary for "
-            "work done outside India isn't taxable merely because it is credited in India — keep the work-location evidence on file. "
+            "return (ITR-U) can't claim a refund. Tribunal rulings (e.g. Hyderabad ITAT, 28 Feb 2023) hold that salary for work done "
+            "outside India isn't taxable merely because it is credited in India — keep the work-location evidence on file. "
             + _salary_split_note(ftc["us"]),
-            nc_tax, (["DTAA Art. 4(2)"] if nc_status == "ROR" else []) + ["DTAA Art. 16", "Form 10F", "Form 6166", "ITR-2", "Form 26AS"],
+            nc_tax, (["DTAA Art. 4(2)"] if nc_status == "ROR" else []) + ["DTAA Art. 16", "Form 41", "Form 6166", "ITR-2", "Form 26AS"],
+        ))
+
+    # -- 4b2. SHORT WORK TRIPS: DTAA ART. 16(2) (see findings-nodes.js) --------
+    tb_winner16 = d["treatyIndiaResidenceRaw"] if d["treatyIndiaResidenceRaw"] != "none" else (d["treatyUsResidenceRaw"] if d["treatyUsResidenceRaw"] != "none" else None)
+    res16 = d["residencyResult"]
+    india_treaty_res = bool(res16["india"]["isResident"] and not res16["india"]["cedesViaTreaty"] and (not res16["us"]["worldwide"] or tb_winner16 == "india"))
+    us_treaty_res = bool(res16["us"]["worldwide"] and (not res16["india"]["isResident"] or res16["india"]["cedesViaTreaty"] or tb_winner16 == "us"))
+    sal_us_work_usd = ftc["us"].get("indiaSalaryOutsideIndiaUsd") or 0
+    us_days16, india_days16 = d["usDaysCurrentYearRaw"], d["indiaDaysCurrentYearRaw"]
+    if d["hasIndiaScopeXbr"] and d["hasUsScopeBoundaryFtc"] and india_treaty_res and sal_us_work_usd > 1 and 0 < us_days16 <= 183:
+        findings.append(make_finding(
+            "dtaa_16_2_short_stay_us", "warning", "treaty",
+            "Salary for US work may be exempt from US tax — DTAA Art. 16(2) short stay (" + js_num_str(us_days16) + " US days)",
+            _usd(sal_us_work_usd) + " of Indian salary was earned for work done in the US (taken as the work outside India). US law taxes pay for "
+            "work done in the US even for a non-resident — its own exemption stops at 90 days and $3,000 (IRC §861(a)(3)). Under DTAA Art. 16(2) "
+            "it's taxable only in India when all three hold: (a) present in the US 183 days or fewer in the taxable year — " + js_num_str(us_days16) +
+            " days on file, met; (b) paid by an employer that isn't a US resident — the salary is on Layer 1 India, so taken as an Indian employer; "
+            "(c) not charged to a US branch or fixed base of the employer — not collected, confirm.",
+            "If all three hold: no US tax on this pay. If a US return is required, claim the exemption on Form 1040-NR (Schedule OI, treaty "
+            "Art. 16(2)); if the employer runs US payroll for the trip, give it Form 8233 so it doesn't withhold. India taxes the salary as the "
+            "residence country, with no s.159 credit to claim. If any condition fails — more than 183 days, a US employer, or the cost recharged "
+            "to a US branch or subsidiary — the US taxes this pay as the work country and India must credit that US tax (s.159 / Art. 25, Form 44).",
+            0, ["DTAA Art. 16(2)", "IRC §861(a)(3)", "Form 1040-NR", "Form 8233", "Form 44"],
+        ))
+    w2_us16 = sum((e.get("wagesUsd") or 0) for e in ((d.get("aggregateUsIncomeResult") or {}).get("w2Employers") or []))
+    # India non-residents only — see findings-nodes.js.
+    if d["hasIndiaScopeXbr"] and d["hasUsScopeBoundaryFtc"] and us_treaty_res and res16["india"]["status"] == "NR" and w2_us16 > 1 and 0 < india_days16 <= 183:
+        findings.append(make_finding(
+            "dtaa_16_2_short_stay_india", "info", "treaty",
+            "Work done during " + js_num_str(india_days16) + " days in India — check DTAA Art. 16(2) before India taxes it",
+            "The client has " + _usd(w2_us16) + " of US-employer (W-2) wages and spent " + js_num_str(india_days16) + " days in India. If they worked "
+            "while in India, Indian law treats pay for those days as India-source salary. Under DTAA Art. 16(2) it stays taxable only in the US when "
+            "(a) present in India 183 days or fewer in the taxable year — met; (b) paid by an employer that isn't an Indian resident — a US employer on "
+            "the W-2, met; (c) not charged to an Indian branch, subsidiary or fixed base of the employer — not collected, confirm.",
+            "If all three hold, no Indian tax or TDS applies to that pay; keep travel records and the employer's confirmation that the cost wasn't "
+            "recharged to an Indian entity. If it was recharged (or the days exceed 183), India taxes the pay for India workdays — the Indian entity "
+            "may need to deduct TDS, the client may need an Indian return — and the US credits that Indian tax on " + d["usFtcFormXbr"] + ". If the client "
+            "didn't work while in India, this doesn't apply.",
+            0, ["DTAA Art. 16(2)", d["usFtcFormXbr"]],
         ))
 
     # -- 4f2. ENTITY-LEVEL DUAL RESIDENCY (findings-nodes.js, conflicts.js:701-736) --
@@ -1029,7 +1067,7 @@ NODES["findingsCrossborderResult"] = NodeDef(
           "treatyElectionsRaw", "treatyTrcStatus", "treatyForm10fFiled", "treatyFiles1040nrRaw",
           "s115aDividendDetailedXbr", "s115aRoyaltyDetailedXbr", "s115aFtsDetailedXbr", "nrInterestDetailedXbr",
           "isEntityTaxpayer", "usEntityKind", "s6013hElection", "nraFdapDetail",
-          "aggregateUsIncomeResult", "taxesPaidUsResult", "aggregatePeakUsdResult",
+          "aggregateUsIncomeResult", "taxesPaidUsResult", "aggregatePeakUsdResult", "usDaysCurrentYearRaw", "indiaDaysCurrentYearRaw",
           "equityCompResult",
           "incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs",
           "scheduleFaInconsistentTrigger", "xb7ShouldFire", "bmaAssetValueUsd", "bmaMaxTotalUsd"),
@@ -1037,7 +1075,7 @@ NODES["findingsCrossborderResult"] = NodeDef(
 )
 
 ALL_FINDING_IDS = (
-    "ftc_gap", "ftc_available", "salary_us_work_india_tax", "salary_not_taxable_india_tds", "entity_dual_residency_poem", "dual_residency",
+    "ftc_gap", "ftc_available", "salary_us_work_india_tax", "salary_not_taxable_india_tds", "dtaa_16_2_short_stay_us", "dtaa_16_2_short_stay_india", "entity_dual_residency_poem", "dual_residency",
     "dual_residency_resolved", "cross_basis_summary", "special_rate_gaming_winnings",
     "form_1099da_awareness", "tax_year_mismatch", "fx_basis", "state_treaty_not_binding",
     "pfic", "cfc", "cfc_below_threshold", "transfer_pricing", "retirement_mismatch",

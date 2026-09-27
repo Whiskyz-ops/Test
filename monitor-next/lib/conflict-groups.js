@@ -33,7 +33,7 @@ const BY_ID = {
   payments: ["india_advance_tax_interest", "underpayment_2210", "early_withdrawal_penalty_72t"],
   docs: ["treaty_docs_missing", "withholding_documentation_gap", "pan_not_linked_aadhaar", "form_10iea", "india_itr_form_mismatch",
     "iso_3921", "nra_w8ben_missing", "itin_application_required"],
-  residency: ["dual_residency", "dual_residency_resolved", "entity_dual_residency_poem", "dtaa_treaty_elections", "pe_article7",
+  residency: ["dtaa_16_2_short_stay_us", "dtaa_16_2_short_stay_india", "dual_residency", "dual_residency_resolved", "entity_dual_residency_poem", "dtaa_treaty_elections", "pe_article7",
     "state_treaty_not_binding", "treaty_rate_not_recognized", "us_dual_status_split_year", "nra_fdap_flat_rate",
     "nra_article_21_2_standard_deduction", "nra_eci_fdap_classification_check", "nra_j1_article_21_2_review"],
   feie: ["feie_ineligible", "feie_applied"],

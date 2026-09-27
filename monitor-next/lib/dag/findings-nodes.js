@@ -97,7 +97,8 @@ NODES.findingsBatch1Result = {
     "companyBoardOutsideIndiaRaw", "companyKeyManagementLocationRaw", "companyDirectorsInIndiaRaw", "companyDirectorsOutsideIndiaRaw",
     "ftcResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc", "usFtcFormXbr",
     "tieBreakHomeRaw", "tieBreakCviRaw", "tieBreakAbodeRaw", "tieBreakNationalityRaw",
-    "treatyIndiaResidenceRaw", "treatyUsResidenceRaw", "usIsCitizenRaw", "usHasGreenCardRaw", "mapDoubleTaxedIncomeResult"],
+    "treatyIndiaResidenceRaw", "treatyUsResidenceRaw", "usIsCitizenRaw", "usHasGreenCardRaw", "mapDoubleTaxedIncomeResult",
+    "usDaysCurrentYearRaw", "indiaDaysCurrentYearRaw", "aggregateUsIncomeResult"],
   compute: function (d) {
     var findings = [];
     function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {
@@ -159,7 +160,7 @@ NODES.findingsBatch1Result = {
       // yet => say both.
       var swTbWinner = d.treatyIndiaResidenceRaw !== "none" ? d.treatyIndiaResidenceRaw
         : (d.treatyUsResidenceRaw !== "none" ? d.treatyUsResidenceRaw : null);
-      var swRefund = "Claim the Indian tax back (revise the ITR / refund claim, with Form 10F and a US residency certificate, " +
+      var swRefund = "Claim the Indian tax back (revise the ITR / refund claim, with Form 41 (formerly Form 10F) and a US residency certificate, " +
         "Form 6166) and ask the employer to stop deducting TDS on that portion.";
       var swIndiaCredit = "Claim credit in India for the US tax on this salary (s.159, formerly s.90 / DTAA Art. 25 — Form 44, formerly Form 67, with the US return) " +
         "instead of expecting a US credit for the Indian tax.";
@@ -180,7 +181,7 @@ NODES.findingsBatch1Result = {
         "income (IRC §861(a)(3)). The Indian tax on it, about " + usd(ftc.us.indiaTaxOnUsWorkSalaryUsd) + ", can't be claimed " +
         "as a Foreign Tax Credit on " + d.usFtcFormXbr + " and is left out of the credit above, so as things stand it is taxed twice.",
         swAdvice + " " + (ftc.us.salaryWorkBasis === "estimated_days_present" ? "The split between India and US work is estimated from days present (India days ÷ India + US days) because the workday question on Layer 1 India's salary screen was left blank — enter the client's actual workdays to confirm this amount." : "Check the workday split on Layer 1 India's salary screen first — this figure is only as good as those days."),
-        ftc.us.indiaTaxOnUsWorkSalaryUsd, ["§861(a)(3)", "DTAA Art. 16", d.usFtcFormXbr, "Form 10F", "Form 6166", "Form 44"]);
+        ftc.us.indiaTaxOnUsWorkSalaryUsd, ["§861(a)(3)", "DTAA Art. 16", d.usFtcFormXbr, "Form 41", "Form 6166", "Form 44"]);
     }
 
     // -- 4b. INDIAN TDS ON SALARY INDIA CAN'T TAX -----------------------------
@@ -202,8 +203,8 @@ NODES.findingsBatch1Result = {
       // RNOR (no treaty claim needed), the treaty alone for a resident the
       // tie-breaker hands to the US (must cite Art. 4(2) + Art. 16(1)).
       var ncGround = ncTreaty
-        ? "Here the treaty is the only basis, so the claim must cite it: DTAA Art. 4(2) (tie-breaker residence in the US) and Art. 16(1), backed by a US residency certificate (Form 6166) and Form 10F, and disclosed as a treaty claim in the return."
-        : "No treaty claim is needed: the exclusion rests on Indian domestic law. A US residency certificate (Form 6166) and Form 10F citing DTAA Art. 16 are an optional second ground that makes the employer more willing to stop.";
+        ? "Here the treaty is the only basis, so the claim must cite it: DTAA Art. 4(2) (tie-breaker residence in the US) and Art. 16(1), backed by a US residency certificate (Form 6166) and Form 41 (formerly Form 10F), and disclosed as a treaty claim in the return."
+        : "Which ground to claim depends on where the salary is paid. Paid outside India: Indian domestic law alone excludes it, so no treaty claim is required — claiming DTAA Art. 16 as well (US residency certificate, Form 6166, plus Form 41, formerly Form 10F) is still recommended, so the employer and the Department have both grounds. Paid into an Indian bank account: claim Art. 16(1) with Form 6166 and Form 41 — the Department may argue the salary is taxable on receipt in India (s.5(2)(a) of the 1961 Act), and the treaty, which allocates salary by where the work is done, is the main defence.";
       add("salary_not_taxable_india_tds", "critical", "credit",
         "Indian TDS on salary India can't tax — about " + usd(ftc.us.indiaNotChargeableSalaryTaxUsd) + " to stop or recover",
         usd(ftc.us.indiaNotChargeableSalaryUsd) + " of Indian salary was earned for work done outside India (taken to be the US). " +
@@ -217,11 +218,59 @@ NODES.findingsBatch1Result = {
         "within the same year the employer can reduce later months' TDS; after year-end, file ITR-2 showing this salary as not " +
         "taxable in India and claim the full TDS credit from Form 26AS / AIS — expect a mismatch query (Form 16 shows the full " +
         "salary) and answer it with the declaration and travel records. File by the original or belated due date: an updated " +
-        "return (ITR-U) can't claim a refund. If the salary is first received in an Indian bank account, expect the Department to argue " +
-        "it is taxable on receipt (s.5(2)(a) of the 1961 Act); tribunal rulings (e.g. Hyderabad ITAT, 28 Feb 2023) hold that salary for " +
-        "work done outside India isn't taxable merely because it is credited in India — keep the work-location evidence on file. " +
+        "return (ITR-U) can't claim a refund. Tribunal rulings (e.g. Hyderabad ITAT, 28 Feb 2023) hold that salary for work done " +
+        "outside India isn't taxable merely because it is credited in India — keep the work-location evidence on file. " +
         (ftc.us.salaryWorkBasis === "estimated_days_present" ? "The split between India and US work is estimated from days present (India days ÷ India + US days) because the workday question on Layer 1 India's salary screen was left blank — enter the client's actual workdays to confirm this amount." : "Check the workday split on Layer 1 India's salary screen first — this figure is only as good as those days."),
-        ftc.us.indiaNotChargeableSalaryTaxUsd, (ncTreaty ? ["DTAA Art. 4(2)"] : []).concat(["DTAA Art. 16", "Form 10F", "Form 6166", "ITR-2", "Form 26AS"]));
+        ftc.us.indiaNotChargeableSalaryTaxUsd, (ncTreaty ? ["DTAA Art. 4(2)"] : []).concat(["DTAA Art. 16", "Form 41", "Form 6166", "ITR-2", "Form 26AS"]));
+    }
+
+    // -- 4b2. SHORT WORK TRIPS: DTAA ART. 16(2) --------------------------------
+    // Salary for work done in the other country is taxable there under its own
+    // law, but Art. 16(2) keeps it taxable only in the residence country when
+    // (a) the employee is present there 183 days or fewer in the taxable year,
+    // (b) the employer isn't resident there, and (c) the pay isn't borne by the
+    // employer's branch (PE / fixed base) there. (c) isn't collected, so it's
+    // left for the preparer to confirm. Direction 1: an India treaty resident
+    // with Indian salary for work done in the US (salaryWorkLocation, taken to
+    // be the US). Direction 2: a US treaty resident with US-employer (W-2)
+    // wages who spent days in India — pay for any work done there.
+    var tbWinner16 = d.treatyIndiaResidenceRaw !== "none" ? d.treatyIndiaResidenceRaw
+      : (d.treatyUsResidenceRaw !== "none" ? d.treatyUsResidenceRaw : null);
+    var res16 = d.residencyResult;
+    var indiaTreatyRes = res16.india.isResident && !res16.india.cedesViaTreaty && (!res16.us.worldwide || tbWinner16 === "india");
+    var usTreatyRes = res16.us.worldwide && (!res16.india.isResident || res16.india.cedesViaTreaty || tbWinner16 === "us");
+    var salUsWorkUsd = ftc.us.indiaSalaryOutsideIndiaUsd || 0;
+    if (d.hasIndiaScopeXbr && d.hasUsScopeBoundaryFtc && indiaTreatyRes && salUsWorkUsd > 1 &&
+        d.usDaysCurrentYearRaw > 0 && d.usDaysCurrentYearRaw <= 183) {
+      add("dtaa_16_2_short_stay_us", "warning", "treaty",
+        "Salary for US work may be exempt from US tax — DTAA Art. 16(2) short stay (" + d.usDaysCurrentYearRaw + " US days)",
+        usd(salUsWorkUsd) + " of Indian salary was earned for work done in the US (taken as the work outside India). US law taxes pay for " +
+        "work done in the US even for a non-resident — its own exemption stops at 90 days and $3,000 (IRC §861(a)(3)). Under DTAA Art. 16(2) " +
+        "it's taxable only in India when all three hold: (a) present in the US 183 days or fewer in the taxable year — " + d.usDaysCurrentYearRaw +
+        " days on file, met; (b) paid by an employer that isn't a US resident — the salary is on Layer 1 India, so taken as an Indian employer; " +
+        "(c) not charged to a US branch or fixed base of the employer — not collected, confirm.",
+        "If all three hold: no US tax on this pay. If a US return is required, claim the exemption on Form 1040-NR (Schedule OI, treaty " +
+        "Art. 16(2)); if the employer runs US payroll for the trip, give it Form 8233 so it doesn't withhold. India taxes the salary as the " +
+        "residence country, with no s.159 credit to claim. If any condition fails — more than 183 days, a US employer, or the cost recharged " +
+        "to a US branch or subsidiary — the US taxes this pay as the work country and India must credit that US tax (s.159 / Art. 25, Form 44).",
+        0, ["DTAA Art. 16(2)", "IRC §861(a)(3)", "Form 1040-NR", "Form 8233", "Form 44"]);
+    }
+    var w2Us16 = ((d.aggregateUsIncomeResult && d.aggregateUsIncomeResult.w2Employers) || []).reduce(function (t, e) { return t + (e.wagesUsd || 0); }, 0);
+    // India non-residents only: a resident who moved mid-year (Aarav) spent
+    // those India days living there, before the US job — not a work trip.
+    if (d.hasIndiaScopeXbr && d.hasUsScopeBoundaryFtc && usTreatyRes && res16.india.status === "NR" && w2Us16 > 1 &&
+        d.indiaDaysCurrentYearRaw > 0 && d.indiaDaysCurrentYearRaw <= 183) {
+      add("dtaa_16_2_short_stay_india", "info", "treaty",
+        "Work done during " + d.indiaDaysCurrentYearRaw + " days in India — check DTAA Art. 16(2) before India taxes it",
+        "The client has " + usd(w2Us16) + " of US-employer (W-2) wages and spent " + d.indiaDaysCurrentYearRaw + " days in India. If they worked " +
+        "while in India, Indian law treats pay for those days as India-source salary. Under DTAA Art. 16(2) it stays taxable only in the US when " +
+        "(a) present in India 183 days or fewer in the taxable year — met; (b) paid by an employer that isn't an Indian resident — a US employer on " +
+        "the W-2, met; (c) not charged to an Indian branch, subsidiary or fixed base of the employer — not collected, confirm.",
+        "If all three hold, no Indian tax or TDS applies to that pay; keep travel records and the employer's confirmation that the cost wasn't " +
+        "recharged to an Indian entity. If it was recharged (or the days exceed 183), India taxes the pay for India workdays — the Indian entity " +
+        "may need to deduct TDS, the client may need an Indian return — and the US credits that Indian tax on " + d.usFtcFormXbr + ". If the client " +
+        "didn't work while in India, this doesn't apply.",
+        0, ["DTAA Art. 16(2)", d.usFtcFormXbr]);
     }
 
     // -- 4c. AMT BITES (conflicts.js:325-334) -------------------------------

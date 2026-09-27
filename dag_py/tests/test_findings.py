@@ -74,7 +74,9 @@ US_TAX_RESULT_DEPENDENT_IDS = {
 # so it falls back to a hardcoded 2025 default that can be off by one from
 # golden's real base year. Same already-documented gap as
 # test_us_penalties.py's own explicit-ctx tests for this exact node.
-ALWAYS_SKIP_IDS = {"early_withdrawal_penalty_72t"}
+# DAG-only findings with no frozen-engine equivalent (the goldens predate
+# them): DTAA Art. 16(2) short-stay checks.
+ALWAYS_SKIP_IDS = {"early_withdrawal_penalty_72t", "dtaa_16_2_short_stay_us", "dtaa_16_2_short_stay_india"}
 
 
 def _is_entity_or_nra(golden: dict) -> bool:
