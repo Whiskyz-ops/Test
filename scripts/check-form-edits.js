@@ -28,6 +28,10 @@ const VERBOSE = ARGS.includes("--verbose");
 // radio on its own (they show and hide whole sections, so they can't be
 // batched), reopen, and check the flip stuck.
 const TOGGLES = ARGS.includes("--toggles");
+// --deletes: for each kind of repeating row (bank accounts, W-2s, properties,
+// holdings, …) delete the first row, reopen, and check the list shrank by one,
+// the next row kept its own values, and nothing of the deleted row came back.
+const DELETES = ARGS.includes("--deletes");
 const PORT = 4198;
 const DEFAULT_PROFILES = {
   "layer1_india.html": ["__sample", "india_only_ca_client", "dual_resident_h1b", "founder_indian_company", "us_resident_indian_income", "sharma_huf", "india_pvt_ltd", "foreign_holdco_poem_india"],
@@ -59,7 +63,7 @@ window.__edit = (function () {
     }
     return false; // not inside a step panel (headers, dev tools, JSON viewers)
   }
-  function unitClass(n) { return Array.from(n.classList).find((c) => /(card|row)$/.test(c) && !/^(flex|grid)/.test(c)); }
+  function unitClass(n) { return Array.from(n.classList).find((c) => /^[a-z][a-z0-9-]*(card|row)$/.test(c) && !/^(flex|grid|glass)/.test(c)); }
   function key(el) {
     const parts = [];
     let n = el.parentElement;
@@ -158,6 +162,32 @@ window.__edit = (function () {
       t.click();
       return t.checked;
     },
+    // repeating rows that have a delete button: {unit, count, values of row 0 and row 1}
+    rowKinds() {
+      css();
+      const kinds = {};
+      Array.from(document.querySelectorAll('button[onclick]')).forEach((b) => {
+        if (!/remove|delete/i.test(b.getAttribute('onclick')) && !/delete|remove|✕/i.test(b.textContent)) return;
+        let card = b.parentElement;
+        while (card && card !== document.body && !unitClass(card)) card = card.parentElement;
+        if (!card || card === document.body || !reachable(b)) return;
+        const u = unitClass(card);
+        if (!kinds[u]) kinds[u] = true;
+      });
+      return Object.keys(kinds).map((u) => {
+        const rows = Array.from(document.querySelectorAll('.' + u)).filter((r) => r.parentElement && !r.parentElement.closest('.' + u));
+        const vals = (r) => r ? Array.from(r.querySelectorAll('input:not([type=file]):not([type=checkbox]):not([type=radio]), select')).map((x) => x.value) : null;
+        return { unit: u, count: rows.length, first: vals(rows[0]), second: vals(rows[1]) };
+      }).filter((k) => k.count > 0);
+    },
+    deleteFirst(u) {
+      const rows = Array.from(document.querySelectorAll('.' + u)).filter((r) => r.parentElement && !r.parentElement.closest('.' + u));
+      if (!rows.length) return false;
+      const b = Array.from(rows[0].querySelectorAll('button[onclick]')).find((x) => /remove|delete/i.test(x.getAttribute('onclick')) || /delete|remove|✕/i.test(x.textContent));
+      if (!b) return false;
+      b.click();
+      return true;
+    },
     toggleState(k) { const t = Array.from(document.querySelectorAll('input[type=checkbox], input[type=radio]')).find((el) => key(el) === k); return t ? t.checked : null; },
     norm,
     save
@@ -189,7 +219,7 @@ window.__edit = (function () {
   async function makeWorker() {
     const context = await browser.newContext();
     const pg = await context.newPage();
-    pg.on("dialog", (d) => d.dismiss());
+    pg.on("dialog", (d) => (DELETES ? d.accept() : d.dismiss()));
     const errors = [];
     pg.on("pageerror", (e) => { const m = String(e.message || e); if (!/tailwind is not defined/.test(m)) errors.push(m.slice(0, 200)); });
     async function loadProfile(id) {
@@ -240,7 +270,27 @@ window.__edit = (function () {
       }
       return { edits: list, lost };
     }
-    return { context, errors, editAndReopen, toggleTest };
+    async function deleteTest(id) {
+      await loadProfile(id); await openForm();
+      const kinds = await pg.evaluate(() => window.__edit.rowKinds());
+      const lost = [];
+      for (const k of kinds) {
+        await loadProfile(id); await openForm();
+        const ok = await pg.evaluate((u) => window.__edit.deleteFirst(u), k.unit);
+        if (!ok) continue;
+        await pg.waitForTimeout(1200);
+        await openForm();
+        const after = (await pg.evaluate(() => window.__edit.rowKinds())).find((x) => x.unit === k.unit) || { count: 0, first: null };
+        const norm = (arr) => arr ? arr.map((v) => String(v).replace(/[,\s]/g, "").toLowerCase()) : arr;
+        const isBlank = (arr) => !arr || arr.every((v) => v === "" || v === "0" || v === "INR" || v === "USD" || v === "null" || /^[a-z_]+$/.test(v) && v.length < 25);
+        if (after.count === k.count && k.count === 1 && isBlank(after.first)) {
+          // the section is still answered "Yes", so an empty row is offered — the deleted data didn't come back
+        } else if (after.count !== k.count - 1) lost.push({ label: k.unit, key: k.unit, value: (k.count - 1) + " rows", got: after.count + " rows " + JSON.stringify(after.first).slice(0, 120), tag: "delete" });
+        else if (k.second && JSON.stringify(norm(after.first)) !== JSON.stringify(norm(k.second))) lost.push({ label: k.unit + " (next row's values after deleting the first)", key: k.unit, value: JSON.stringify(k.second).slice(0, 140), got: JSON.stringify(after.first).slice(0, 140), tag: "delete" });
+      }
+      return { edits: kinds, lost };
+    }
+    return { context, errors, editAndReopen, toggleTest, deleteTest };
   }
 
   const ids = ONLY.length ? ONLY : DEFAULT_PROFILES[PAGE];
@@ -250,6 +300,14 @@ window.__edit = (function () {
     while (next < ids.length) {
       const id = ids[next++];
       w.errors.length = 0;
+      if (DELETES) {
+        const r = await w.deleteTest(id);
+        totalEdited += r.edits.length; realFailures += r.lost.length;
+        console.log([(r.lost.length ? "✗ " : "✓ ") + id + ": " + r.edits.length + " row kinds (" + r.edits.map((k) => k.unit + "×" + k.count).join(", ") + "), first row deleted each, " + r.lost.length + " problem(s)" + (w.errors.length ? ", " + w.errors.length + " page error(s)" : "")]
+          .concat(r.lost.map((f) => "    " + f.label + ": expected " + f.value + " → got " + f.got))
+          .concat(w.errors.slice(0, 5).map((e) => "    page error: " + e)).join("\n"));
+        continue;
+      }
       if (TOGGLES) {
         const r = await w.toggleTest(id);
         totalEdited += r.edits.length; realFailures += r.lost.length;

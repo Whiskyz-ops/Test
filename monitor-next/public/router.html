@@ -783,9 +783,14 @@
         "tb_nationality"
     ];
 
+    let routerLoading = true;
     function saveState() {
+        if (routerLoading) return;
         localStorage.setItem(W.ClientRegistry.storageKeyFor('ROUTER'), JSON.stringify(routerState));
-        if (ACTIVE_CLIENT_ID && routerState.full_name) W.ClientRegistry.updateLabel(ACTIVE_CLIENT_ID, routerState.full_name);
+        // A business client has no full_name — label it with its entity name
+        // (it used to stay "New client" on the Clients list).
+        const clientLabel = routerState.full_name || routerState.india_entity_name || routerState.us_entity_name || routerState.us_business_name;
+        if (ACTIVE_CLIENT_ID && clientLabel) W.ClientRegistry.updateLabel(ACTIVE_CLIENT_ID, clientLabel);
     }
 
     let activeQuestions = [];
@@ -993,6 +998,28 @@
                     }
                 }
             }
+            // The saved India status is derived from these facts by the India
+            // form; a changed day count here left the old status in place
+            // until that form was reopened (the Monitor went on showing e.g.
+            // NR for a client now 200 days in India). Re-derive it with the
+            // same rule (individuals; residency-nodes.js deriveIndiaDomesticStatus).
+            if (routerState.india_entity_type === 'individual' && india.residency_detail) {
+                const rd = india.residency_detail;
+                const days = Number(rd.days_in_india_current_year) || 0, p4y = rd.days_in_india_preceding_4_years_gte_365,
+                    emp = rd.employment_or_crew_status || 'none', visit = rd.came_on_visit_to_india_pio_citizen,
+                    nr9 = rd.nr_years_last_10_gte_9, d7 = rd.days_in_india_last_7_years_lte_729, inc15 = rd.india_source_income_above_15l,
+                    ltac = rd.liable_to_tax_in_another_country_being_indian_citizen === true;
+                let st = 'NR';
+                if (days >= 182) st = (nr9 !== true && d7 !== true) ? 'ROR' : 'RNOR';
+                else if (days >= 60) {
+                    if (p4y === true) {
+                        if (emp !== 'none') st = (inc15 === true && ltac === false) ? 'RNOR' : 'NR';
+                        else if (visit === true) st = (days >= 120 && inc15 === true) ? 'RNOR' : (days < 120 && inc15 === true && ltac === false) ? 'RNOR' : 'NR';
+                        else st = (nr9 !== true && d7 !== true) ? 'ROR' : 'RNOR';
+                    } else st = (inc15 === true && ltac === false) ? 'RNOR' : 'NR';
+                } else st = (inc15 === true && ltac === false) ? 'RNOR' : 'NR';
+                rd.final_india_residency_status = st;
+            }
             writeLayer1('INDIA', india);
         }
 
@@ -1112,7 +1139,10 @@
             routerState.tie_breaker_winner = null;
         }
 
-        localStorage.setItem(W.ClientRegistry.storageKeyFor('ROUTER'), JSON.stringify(routerState));
+        // not while the page is loading: re-deriving flags from answers that
+        // were never given (e.g. a demo client's minimal Router data) and
+        // saving them turned a "dual" client into "none" just by opening this page
+        if (!routerLoading) localStorage.setItem(W.ClientRegistry.storageKeyFor('ROUTER'), JSON.stringify(routerState));
     }
 
     function updateDynamicDates() {
@@ -1765,8 +1795,57 @@
     // ═══════════════════════════════════════════════════════════════════════
     // INITIALIZATION
     // ═══════════════════════════════════════════════════════════════════════
+    // Load this client's saved answers. The Router used to start blank every
+    // time it was opened, and the first answer then saved that blank state
+    // over the stored one — reopening it for an existing client (e.g. from
+    // the sidebar, to correct a day count) wiped the name, days and flags
+    // the rest of the product reads.
+    try {
+        const savedRaw = localStorage.getItem(W.ClientRegistry.storageKeyFor('ROUTER'));
+        const saved = savedRaw ? JSON.parse(savedRaw) : null;
+        if (saved && typeof saved === 'object') Object.keys(saved).forEach(k => { routerState[k] = saved[k]; });
+        // Questions never answered here but already known from this client's
+        // Layer 1 data (e.g. demo clients, whose Router data is minimal): show
+        // those values instead of blanks — clicking straight through used to
+        // take an empty India-days slide as 0 and write 0 days into the India form.
+        if (saved) {
+            const india = readLayer1('INDIA'), us = readLayer1('US');
+            const fill = (k, v) => { if ((routerState[k] === null || routerState[k] === undefined) && v !== null && v !== undefined) routerState[k] = v; };
+            const rd = india.residency_detail || {}, ud = us.us_residency_detail || {};
+            const jmap = { dual: 'cross_border', india_only: 'india', us_only: 'us' };
+            fill('primary_jurisdiction', jmap[saved.jurisdiction]);
+            const iEnt = { individual: 'individual', huf: 'huf', company: 'company', llp: 'llp', firm: 'partnership', trust: 'trust' }[(india.profile || {}).entity_type];
+            const uEnt = { individual: 'individual', ccorp: 'c_corp', scorp: 's_corp', partnership: 'partnership', trust: 'trust' }[(us.profile || {}).tax_entity_type];
+            if (routerState.primary_jurisdiction !== 'us') fill('india_entity_type', iEnt || (routerState.primary_jurisdiction ? 'individual' : null));
+            if (routerState.primary_jurisdiction !== 'india') fill('us_entity_type', uEnt || (routerState.primary_jurisdiction ? 'individual' : null));
+            fill('india_days', rd.days_in_india_current_year);
+            fill('us_days', ud.us_days_current_year);
+            if (typeof ud.is_us_citizen === 'boolean') fill('is_us_citizen', ud.is_us_citizen);
+            if (typeof ud.has_green_card === 'boolean') fill('has_green_card', ud.has_green_card);
+            if (routerState.us_days > 0) fill('was_in_us_this_year', true);
+        }
+    } catch (e) { /* no saved answers */ }
     evaluateFlags();
+    (function showSavedAnswers() {
+        Object.keys(routerState).forEach(q => { try { syncSelectedButtonBorders(q); } catch (e) {} });
+        ['primary_jurisdiction', 'us_entity_type', 'india_entity_type'].forEach(q => {
+            const v = routerState[q];
+            if (v === null || v === undefined) return;
+            const slide = document.querySelector(`[data-question-id="${q}"]`);
+            const btn = slide && (slide.querySelector(`[data-val="${v}"]`) ||
+                Array.from(slide.querySelectorAll('button[onclick]')).find(b => b.getAttribute('onclick').indexOf(`'${q}', '${v}'`) >= 0));
+            if (btn) { btn.classList.add('input-pill-selected'); btn.classList.remove('bg-white/5', 'text-white/50'); }
+        });
+        const yearSel = document.getElementById('base-year-select');
+        if (yearSel && routerState.base_tax_year != null) yearSel.value = String(routerState.base_tax_year);
+        // entity name / formation date inputs write routerState.<key> inline
+        document.querySelectorAll('input[oninput*="routerState."], input[onchange*="routerState."]').forEach(el => {
+            const m = /routerState\.([a-z_]+)\s*=\s*this\.value/.exec(el.getAttribute('oninput') || el.getAttribute('onchange') || '');
+            if (m && routerState[m[1]] != null) el.value = routerState[m[1]];
+        });
+    })();
     renderQuestionnaireSlide();
+    routerLoading = false;
 </script>
 </body>
 </html>
