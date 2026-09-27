@@ -40,6 +40,7 @@ from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
 from ..core.util import format_inr, js_num_str, js_round, num, safe
 from ..india.constants import INDIA as _CONST_INDIA
+from ..india.business_expenses import branch_turnover_inr, business_expense_opts, expense_label, regular_books_expenses
 from ..india.aggregate_india_income import (
     _aggregate_entry_depreciation_inr,
     _aggregate_entry_disallowances_inr,
@@ -169,7 +170,7 @@ PRESUMPTIVE_RESIDENCY_CITATION = (
 )
 
 
-def _business_entry_income_trace(b: dict, eligibility: dict | None, depreciation_inr: float, disallowances_inr: float):
+def _business_entry_income_trace(b: dict, eligibility: dict | None, depreciation_inr: float, disallowances_inr: float, exp_opts: dict | None = None):
     eligibility = eligibility or {"eligible44AD": True, "eligible44ADA": True}
     explicit = b.get("net_profit_inr") if b.get("net_profit_inr") is not None else b.get("net_profit")
     if explicit is not None:
@@ -240,25 +241,20 @@ def _business_entry_income_trace(b: dict, eligibility: dict | None, depreciation
             ],
         )
 
-    exp = b.get("expenses") or {}
-    expense_fields = [
-        ("rent_for_business_premises_inr", "Rent for business premises"), ("repairs_maintenance_inr", "Repairs & maintenance"),
-        ("employee_salary_wages_inr", "Employee salary & wages"), ("employee_bonus_commission_inr", "Employee bonus & commission"),
-        ("interest_on_borrowed_capital_inr", "Interest on borrowed capital"), ("insurance_premium_inr", "Insurance premium"),
-        ("bad_debts_written_off_inr", "Bad debts written off"), ("other_business_expenses_inr", "Other business expenses"),
-        ("ca_professional_fees_inr", "CA / professional fees"),
-    ]
+    bx = regular_books_expenses(b, exp_opts)
     fallback_receipts = (
         num(b.get("gross_receipts_inr")) or num(b.get("turnover_inr")) or
         ((dig44ad + csh44ad) if scheme == "s44AD" else 0) or (ada_receipts if scheme == "s44ADA" else 0)
     )
     parts = [{"label": "Gross receipts / turnover", "amount": fallback_receipts}]
-    for field, label in expense_fields:
-        v = num(exp.get(field))
-        if v > 0:
-            parts.append({"label": f"Less: {label}", "amount": -v})
-    if exp.get("employer_pf_esi_paid_before_due_date") is True and num(exp.get("employer_pf_esi_contribution_inr")) > 0:
-        parts.append({"label": "Less: Employer PF/ESI contribution (paid before due date, s.43B(d))", "amount": -num(exp.get("employer_pf_esi_contribution_inr"))})
+    br_turnover = branch_turnover_inr(b)
+    if br_turnover > 0:
+        parts.append({"label": "Branch turnover", "amount": br_turnover})
+    if bx["closingStockInr"] > 0:
+        parts.append({"label": "Add: closing stock", "amount": bx["closingStockInr"]})
+    for it in bx["items"]:
+        if it["amountInr"] > 0:
+            parts.append({"label": f"Less: {expense_label(it['key'])}", "amount": -it["amountInr"]})
     if num(disallowances_inr) > 0:
         parts.append({"label": "Add back: statutory disallowances (s.40A(3) cash / s.40(a) TDS default / s.43B(h) MSME overdue)", "amount": num(disallowances_inr)})
     if num(depreciation_inr) > 0:
@@ -266,11 +262,10 @@ def _business_entry_income_trace(b: dict, eligibility: dict | None, depreciation
     net_profit_inr = sum(p.get("amount") or 0 for p in parts)
     parts.append({"label": "Net profit (this entry)", "amount": net_profit_inr})
     formula = ceiling_note or (
-        "Regular books: gross receipts/turnover less the itemized deductible expenses on file, less statutory "
-        "disallowances (s.40A(3)/40(a)/43B(h)) already included in those expenses, less current-year depreciation "
-        "(s.32 WDV method + s.32(1)(iia) additional depreciation). F&O-specific costs and s.35/35D/35DDA "
-        "amortization aren't modeled yet (Phase 1 follow-on — see gap tracker IN-22/26), so this is still a floor, "
-        "not the final figure."
+        "Regular books: gross receipts/turnover (head office + branches) plus closing stock, less every expense "
+        "entered for the business and its branches (opening stock, purchases and all other costs; s.35D/35DDA at "
+        "1/5th a year), less statutory disallowances (s.40A(3)/40(a)/43B(h)) already included in those expenses, "
+        "less current-year depreciation (s.32 WDV method + s.32(1)(iia) additional depreciation)."
     )
     return _calc(formula, parts, ceiling_citation)
 
@@ -400,9 +395,9 @@ def _business_entities_result(d, ctx):
         net_profit_inr = b.get("net_profit_inr") if b.get("net_profit_inr") is not None else b.get("net_profit")
         is_regular_books = _uses_regular_books_inr(b, biz_eligibility)
         entry_depr_inr = _aggregate_entry_depreciation_inr(b_idx, d["bizAssetBlocksAgg"], india, b) if is_regular_books else 0
-        entry_disallow_inr = _aggregate_entry_disallowances_inr(b_idx, b.get("expenses") or {}, d["bizMsmePayablesAgg"]) if is_regular_books else 0
+        entry_disallow_inr = _aggregate_entry_disallowances_inr(b_idx, b, d["bizMsmePayablesAgg"]) if is_regular_books else 0
         if net_profit_inr is None:
-            net_profit_inr = _compute_business_entry_net_profit_inr(b, biz_eligibility, entry_depr_inr, entry_disallow_inr)
+            net_profit_inr = _compute_business_entry_net_profit_inr(b, biz_eligibility, entry_depr_inr, entry_disallow_inr, business_expense_opts(india, ctx.get("router")))
         net_profit_inr = num(net_profit_inr)
         entry_return_form = india_return_form_crude if india_is_company_or_firm else (
             "Regular books (this entry) — feeds the taxpayer's overall return form; see Filings → Return Form for the checked ITR"
@@ -413,7 +408,7 @@ def _business_entities_result(d, ctx):
             "country": "IN", "type": "Business / Profession (PGBP)", "name": b.get("business_name") or b.get("trade_name") or b.get("name") or "Indian business",
             "incomeUsd": net_profit_inr / fx_rate(ctx), "inr": net_profit_inr,
             "filesOwnReturn": india_is_company_or_firm, "returnForm": entry_return_form,
-            "calcTrace": _business_entry_income_trace(b, biz_eligibility, entry_depr_inr, entry_disallow_inr),
+            "calcTrace": _business_entry_income_trace(b, biz_eligibility, entry_depr_inr, entry_disallow_inr, business_expense_opts(india, ctx.get("router"))),
         })
 
     # Phase 7 (XB-14): prefer the real computed per-CFC trace (tested income -
@@ -580,10 +575,10 @@ def _build_entity_graph(d, ctx):
         entity_id = f"in_biz_{idx}"
         is_regular_books = _uses_regular_books_inr(b, d["presumptiveEligibilityAgg"])
         entry_depr_inr = _aggregate_entry_depreciation_inr(idx, d["bizAssetBlocksAgg"], india, b) if is_regular_books else 0
-        entry_disallow_inr = _aggregate_entry_disallowances_inr(idx, b.get("expenses") or {}, d["bizMsmePayablesAgg"]) if is_regular_books else 0
+        entry_disallow_inr = _aggregate_entry_disallowances_inr(idx, b, d["bizMsmePayablesAgg"]) if is_regular_books else 0
         net_profit_inr = b.get("net_profit_inr") if b.get("net_profit_inr") is not None else b.get("net_profit")
         if net_profit_inr is None:
-            net_profit_inr = _compute_business_entry_net_profit_inr(b, d["presumptiveEligibilityAgg"], entry_depr_inr, entry_disallow_inr)
+            net_profit_inr = _compute_business_entry_net_profit_inr(b, d["presumptiveEligibilityAgg"], entry_depr_inr, entry_disallow_inr, business_expense_opts(india, ctx.get("router")))
         net_profit_inr = num(net_profit_inr)
         entities.append({
             "id": entity_id, "kind": kind, "jurisdiction": "IN", "name": b.get("business_name") or b.get("trade_name") or b.get("name") or None,
@@ -593,7 +588,7 @@ def _build_entity_graph(d, ctx):
         })
         edges.append({
             "from": entity_id, "to": primary_root_id, "ownershipPct": None, "flow": "business_income", "amountInr": net_profit_inr,
-            "trace": _business_entry_income_trace(b, d["presumptiveEligibilityAgg"], entry_depr_inr, entry_disallow_inr),
+            "trace": _business_entry_income_trace(b, d["presumptiveEligibilityAgg"], entry_depr_inr, entry_disallow_inr, business_expense_opts(india, ctx.get("router"))),
         })
 
     for idx, firm in enumerate(d["partnerFirmsAgg"] or []):

@@ -45,6 +45,11 @@ function monthsBetween(fromStr, toStr) {
 }
 /* SYS-1: shared import (promoted into constants.js from normalize-local). */
 var CONST_AGGIN = require("./constants.js").CONST;
+var regularBooksExpenses = require("./business-expenses.js").regularBooksExpenses;
+var disallowanceSlicesInr = require("./business-expenses.js").disallowanceSlicesInr;
+var branchTurnoverInr = require("./business-expenses.js").branchTurnoverInr;
+var businessExpenseOpts = require("./business-expenses.js").businessExpenseOpts;
+var expenseLabel = require("./business-expenses.js").expenseLabel;
 var computeHouseProperty = require("./house-property.js").computeHouseProperty;
 var housePropertyOpts = require("./house-property.js").housePropertyOpts;
 var ASSET_CLASS_RATES_INDIA = CONST_AGGIN.TAX.INDIA.ASSET_CLASS_RATES_INDIA;
@@ -110,12 +115,10 @@ function computeMsmeDisallowanceInr(entryIdx, msmePayables) {
   });
   return total;
 }
-function aggregateEntryDisallowancesInr(entryIdx, exp, msmePayables) {
-  var s40aI = num(exp.payments_to_non_residents_no_tds_inr);
-  var s40aIa = Math.round(num(exp.payments_to_residents_no_tds_inr) * 0.30);
-  var s40A3 = num(exp.total_cash_payments_exceeding_limit_inr) + num(exp.total_cash_payments_exceeding_35k_inr);
+function aggregateEntryDisallowancesInr(entryIdx, entry, msmePayables) {
+  var sl = disallowanceSlicesInr(entry);
   var s43Bh = computeMsmeDisallowanceInr(entryIdx, msmePayables);
-  return s40aI + s40aIa + s40A3 + s43Bh;
+  return sl.s40aI + sl.s40aIa + sl.s40A3 + s43Bh;
 }
 function presumptiveCeilingInr(scheme, digitalInr, cashInr) {
   var total = digitalInr + cashInr;
@@ -146,7 +149,7 @@ function usesRegularBooksInr(b, eligibility) {
   if (scheme === "s44BB" || scheme === "s44BBB") return false;
   return true;
 }
-function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr, disallowancesInr) {
+function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr, disallowancesInr, expOpts) {
   eligibility = eligibility || { eligible44AD: true, eligible44ADA: true };
   var scheme = b.presumptive_scheme;
   var adaReceipts;
@@ -162,17 +165,14 @@ function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr, disal
   // matches layer1_india.html's own live preview formula exactly, ~L12977),
   // unconditional (no ceiling test, see usesRegularBooksInr above).
   else if (scheme === "s44BB" || scheme === "s44BBB") return Math.round((num(b.turnover_inr) + num(b.cash_receipts_inr)) * 0.10);
-  var exp = b.expenses || {};
-  var pfEsiDeductibleInr = exp.employer_pf_esi_paid_before_due_date === true ? num(exp.employer_pf_esi_contribution_inr) : 0;
-  var deductibleBeforeDisallowances = num(exp.rent_for_business_premises_inr) + num(exp.repairs_maintenance_inr) +
-    num(exp.employee_salary_wages_inr) + num(exp.employee_bonus_commission_inr) + num(exp.interest_on_borrowed_capital_inr) +
-    num(exp.insurance_premium_inr) + num(exp.bad_debts_written_off_inr) + num(exp.other_business_expenses_inr) +
-    num(exp.ca_professional_fees_inr) + pfEsiDeductibleInr;
-  var deductible = Math.max(0, deductibleBeforeDisallowances - num(disallowancesInr));
+  // Every expense Layer 1 India collects, head office + branches (see
+  // business-expenses.js — this used to read nine fixed fields only).
+  var bx = regularBooksExpenses(b, expOpts);
+  var deductible = Math.max(0, bx.deductibleInr - num(disallowancesInr));
   var dig = num(b.digital_receipts_inr), csh = num(b.cash_receipts_inr);
-  var receipts = num(b.gross_receipts_inr) || num(b.turnover_inr) ||
-    (scheme === "s44AD" ? (dig + csh) : 0) || (scheme === "s44ADA" ? adaReceipts : 0);
-  return receipts - deductible - num(depreciationInr);
+  var receipts = (num(b.gross_receipts_inr) || num(b.turnover_inr) ||
+    (scheme === "s44AD" ? (dig + csh) : 0) || (scheme === "s44ADA" ? adaReceipts : 0)) + branchTurnoverInr(b);
+  return receipts + bx.closingStockInr - deductible - num(depreciationInr);
 }
 function computeGoodsVehiclePresumptiveInr(vehicles) {
   var total = 0;
@@ -462,8 +462,8 @@ var NODES = {
           var isRegularBooks = usesRegularBooksInr(b, d.presumptiveEligibilityAgg);
           if (isRegularBooks) indiaHasRegularBooksEntry = true; else indiaHasValidPresumptiveEntry = true;
           var entryDepreciationInr = isRegularBooks ? aggregateEntryDepreciationInr(idx, d.bizAssetBlocksAgg, india, b) : 0;
-          var entryDisallowancesInr = isRegularBooks ? aggregateEntryDisallowancesInr(idx, b.expenses || {}, d.bizMsmePayablesAgg) : 0;
-          netProfitInr = computeBusinessEntryNetProfitInr(b, d.presumptiveEligibilityAgg, entryDepreciationInr, entryDisallowancesInr);
+          var entryDisallowancesInr = isRegularBooks ? aggregateEntryDisallowancesInr(idx, b, d.bizMsmePayablesAgg) : 0;
+          netProfitInr = computeBusinessEntryNetProfitInr(b, d.presumptiveEligibilityAgg, entryDepreciationInr, entryDisallowancesInr, businessExpenseOpts(india, ctx.router));
           businessDepreciationInr += entryDepreciationInr;
         } else { indiaHasRegularBooksEntry = true; }
         businessInr += num(netProfitInr);

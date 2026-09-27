@@ -713,7 +713,7 @@
           "returnForm": "Regular books (this entry) \u2014 feeds the taxpayer's overall return form; see Filings \u2192 Return Form for the checked ITR",
           "calcTrace": {
             "kind": "calc",
-            "formula": "Regular books: gross receipts/turnover less the itemized deductible expenses on file, less statutory disallowances (s.40A(3)/40(a)/43B(h)) already included in those expenses, less current-year depreciation (s.32 WDV method + s.32(1)(iia) additional depreciation). F&O-specific costs and s.35/35D/35DDA amortization aren't modeled yet (Phase 1 follow-on \u2014 see gap tracker IN-22/26), so this is still a floor, not the final figure.",
+            "formula": "Regular books: gross receipts/turnover (head office + branches) plus closing stock, less every expense entered for the business and its branches (opening stock, purchases and all other costs; s.35D/35DDA at 1/5th a year), less statutory disallowances (s.40A(3)/40(a)/43B(h)) already included in those expenses, less current-year depreciation (s.32 WDV method + s.32(1)(iia) additional depreciation).",
             "parts": [
               {
                 "label": "Gross receipts / turnover",

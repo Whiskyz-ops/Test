@@ -15,6 +15,7 @@ from ..core.graph import NodeDef
 from ..core.util import dtaa_worldwide_ceded, js_round, num, safe
 from . import constants as C
 from .house_property import compute_house_property, house_property_opts
+from .business_expenses import branch_turnover_inr, business_expense_opts, disallowance_slices_inr, regular_books_expenses
 
 ASSET_CLASS_RATES_INDIA = C.INDIA["ASSET_CLASS_RATES_INDIA"]
 GROUP_A_CLASSES = C.INDIA["CG_GROUP_A_CLASSES"]
@@ -113,12 +114,10 @@ def _compute_msme_disallowance_inr(entry_idx: int, msme_payables: list) -> float
     return total
 
 
-def _aggregate_entry_disallowances_inr(entry_idx: int, exp: dict, msme_payables: list) -> float:
-    s40a_i = num(exp.get("payments_to_non_residents_no_tds_inr"))
-    s40a_ia = js_round(num(exp.get("payments_to_residents_no_tds_inr")) * 0.30)
-    s40a3 = num(exp.get("total_cash_payments_exceeding_limit_inr")) + num(exp.get("total_cash_payments_exceeding_35k_inr"))
+def _aggregate_entry_disallowances_inr(entry_idx: int, entry: dict, msme_payables: list) -> float:
+    sl = disallowance_slices_inr(entry)
     s43bh = _compute_msme_disallowance_inr(entry_idx, msme_payables)
-    return s40a_i + s40a_ia + s40a3 + s43bh
+    return sl["s40aI"] + sl["s40aIa"] + sl["s40A3"] + s43bh
 
 
 def _presumptive_ceiling_inr(scheme: str, digital_inr: float, cash_inr: float) -> float:
@@ -153,7 +152,7 @@ def _uses_regular_books_inr(b: dict, eligibility: dict) -> bool:
     return True
 
 
-def _compute_business_entry_net_profit_inr(b: dict, eligibility: dict | None, depreciation_inr: float, disallowances_inr: float):
+def _compute_business_entry_net_profit_inr(b: dict, eligibility: dict | None, depreciation_inr: float, disallowances_inr: float, exp_opts: dict | None = None):
     eligibility = eligibility or {"eligible44AD": True, "eligible44ADA": True}
     scheme = b.get("presumptive_scheme")
     ada_receipts = None
@@ -171,22 +170,16 @@ def _compute_business_entry_net_profit_inr(b: dict, eligibility: dict | None, de
     elif scheme in ("s44BB", "s44BBB"):
         # Flat 10% of receipts (turnover_inr + cash_receipts_inr), unconditional.
         return js_round((num(b.get("turnover_inr")) + num(b.get("cash_receipts_inr"))) * 0.10)
-    exp = b.get("expenses") or {}
-    pf_esi_deductible_inr = num(exp.get("employer_pf_esi_contribution_inr")) if exp.get("employer_pf_esi_paid_before_due_date") is True else 0
-    deductible_before_disallowances = (
-        num(exp.get("rent_for_business_premises_inr")) + num(exp.get("repairs_maintenance_inr")) +
-        num(exp.get("employee_salary_wages_inr")) + num(exp.get("employee_bonus_commission_inr")) +
-        num(exp.get("interest_on_borrowed_capital_inr")) + num(exp.get("insurance_premium_inr")) +
-        num(exp.get("bad_debts_written_off_inr")) + num(exp.get("other_business_expenses_inr")) +
-        num(exp.get("ca_professional_fees_inr")) + pf_esi_deductible_inr
-    )
-    deductible = max(0.0, deductible_before_disallowances - num(disallowances_inr))
+    # Every expense Layer 1 India collects, head office + branches (see
+    # business_expenses.py — this used to read nine fixed fields only).
+    bx = regular_books_expenses(b, exp_opts)
+    deductible = max(0.0, bx["deductibleInr"] - num(disallowances_inr))
     dig, csh = num(b.get("digital_receipts_inr")), num(b.get("cash_receipts_inr"))
     receipts = (
         num(b.get("gross_receipts_inr")) or num(b.get("turnover_inr")) or
         ((dig + csh) if scheme == "s44AD" else 0) or (ada_receipts if scheme == "s44ADA" else 0)
-    )
-    return receipts - deductible - num(depreciation_inr)
+    ) + branch_turnover_inr(b)
+    return receipts + bx["closingStockInr"] - deductible - num(depreciation_inr)
 
 
 def _compute_goods_vehicle_presumptive_inr(vehicles: list) -> float:
@@ -287,8 +280,8 @@ def _business_computation(d, ctx):
             else:
                 india_has_valid_presumptive_entry = True
             entry_depreciation_inr = _aggregate_entry_depreciation_inr(idx, d["bizAssetBlocksAgg"], india, b) if is_regular_books else 0
-            entry_disallowances_inr = _aggregate_entry_disallowances_inr(idx, b.get("expenses") or {}, d["bizMsmePayablesAgg"]) if is_regular_books else 0
-            net_profit_inr = _compute_business_entry_net_profit_inr(b, d["presumptiveEligibilityAgg"], entry_depreciation_inr, entry_disallowances_inr)
+            entry_disallowances_inr = _aggregate_entry_disallowances_inr(idx, b, d["bizMsmePayablesAgg"]) if is_regular_books else 0
+            net_profit_inr = _compute_business_entry_net_profit_inr(b, d["presumptiveEligibilityAgg"], entry_depreciation_inr, entry_disallowances_inr, business_expense_opts(india, ctx.get("router")))
             business_depreciation_inr += entry_depreciation_inr
         else:
             india_has_regular_books_entry = True

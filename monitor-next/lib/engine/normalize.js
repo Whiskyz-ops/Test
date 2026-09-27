@@ -423,20 +423,75 @@
     return total;
   }
 
-  function aggregateEntryDisallowancesInr(entryIdx, exp, msmePayables) {
-    // s.40(a)(i): payments to non-residents without TDS — 100% disallowed.
-    var s40aI = num(exp.payments_to_non_residents_no_tds_inr);
-    // s.40(a)(ia): payments to residents without TDS — 30% disallowed
-    // (70% stays deductible, per the Act's own partial-disallowance rule).
-    var s40aIa = Math.round(num(exp.payments_to_residents_no_tds_inr) * 0.30);
-    // s.40A(3): cash payments over the daily limit — 100% disallowed. Two
-    // fields exist because the limit itself differs (₹10,000 general vs
-    // ₹35,000 for goods-transport operators, per cash_limit_type) — both
-    // are summed since Layer 1's own "both" option can populate either or
-    // both simultaneously.
-    var s40A3 = num(exp.total_cash_payments_exceeding_limit_inr) + num(exp.total_cash_payments_exceeding_35k_inr);
+  // Every regular-books expense Layer 1 India collects, head office +
+  // branches — mirrors prototypes/graph-pilot/business-expenses.js exactly
+  // (this used to read nine fixed fields only).
+  var BX_MEMO = { payments_to_non_residents_no_tds_inr: 1, payments_to_residents_no_tds_inr: 1, total_cash_payments_exceeding_limit_inr: 1, total_cash_payments_exceeding_35k_inr: 1, npa_provisions_inr: 1 };
+  var BX_SPECIAL = { closing_stock_inr: 1, employer_pf_esi_contribution_inr: 1, s35D_total_preliminary_expenses_inr: 1, s35DDA_vrs_payments_inr: 1, s35_donation_to_approved_body_inr: 1 };
+  function bxNum(v) { var n = Number(v); return v == null || v === "" || typeof v === "boolean" || isNaN(n) ? 0 : n; }
+  function bxStartYear(v) { var m = String(v == null ? "" : v).match(/(19|20)\d{2}/); return m ? Number(m[0]) : null; }
+  function bxFifth(amount, startRaw, fy) {
+    if (!(amount > 0)) return 0;
+    var start = bxStartYear(startRaw);
+    if (start !== null && fy) { var n = fy - start; if (n < 0 || n > 4) return 0; }
+    return amount / 5;
+  }
+  function bxObjects(entry) {
+    var out = [];
+    if (entry && entry.expenses && typeof entry.expenses === "object") out.push(entry.expenses);
+    ((entry && entry.branches) || []).forEach(function (br) { if (br && br.expenses && typeof br.expenses === "object") out.push(br.expenses); });
+    return out;
+  }
+  function bxBranchTurnoverInr(entry) { return ((entry && entry.branches) || []).reduce(function (s, br) { return s + bxNum(br && br.turnover_inr); }, 0); }
+  function bxRegularBooksExpenses(entry, opts) {
+    opts = opts || {};
+    var items = {}, closingStockInr = 0;
+    function add(k, a) { if (a) items[k] = (items[k] || 0) + a; }
+    bxObjects(entry).forEach(function (exp) {
+      Object.keys(exp).forEach(function (k) {
+        if (!/_inr$/.test(k) || BX_MEMO[k]) return;
+        var v = bxNum(exp[k]);
+        if (!v) return;
+        if (!BX_SPECIAL[k]) { add(k, v); return; }
+        if (k === "closing_stock_inr") closingStockInr += v;
+        else if (k === "employer_pf_esi_contribution_inr") { if (exp.employer_pf_esi_paid_before_due_date === true) add(k, v); }
+        else if (k === "s35D_total_preliminary_expenses_inr") add(k, bxFifth(v, exp.s35D_year_of_commencement, opts.fyStartYear));
+        else if (k === "s35DDA_vrs_payments_inr") add(k, bxFifth(v, exp.s35DDA_first_year_of_payment, opts.fyStartYear));
+        else if (k === "s35_donation_to_approved_body_inr") { if (!opts.noS35Donation) add(k, v); }
+      });
+    });
+    var list = Object.keys(items).map(function (k) { return { key: k, amountInr: items[k] }; });
+    return { deductibleInr: list.reduce(function (s, it) { return s + it.amountInr; }, 0), closingStockInr: closingStockInr, items: list };
+  }
+  function bxOpts(india, router) {
+    var profile = (india && india.profile) || {};
+    var entity = profile.entity_type || safe(india, "domestic_income.business_income.entity_type", "individual") || "individual";
+    var newRegimeIndHuf = (entity === "individual" || entity === "huf") && String(profile.tax_regime || "NEW").toUpperCase() !== "OLD";
+    var concessionalCompany = entity === "company" && (profile.opt_115baa === true || profile.opt_115bab === true);
+    var fy = bxNum(router && router.base_tax_year) || bxStartYear(safe(india, "metadata.financial_year", null)) || null;
+    return { fyStartYear: fy, noS35Donation: newRegimeIndHuf || concessionalCompany };
+  }
+  var BX_LABELS = {
+    rent_for_business_premises_inr: "Rent for business premises", repairs_maintenance_inr: "Repairs & maintenance",
+    employee_salary_wages_inr: "Employee salary & wages", employee_bonus_commission_inr: "Employee bonus & commission",
+    interest_on_borrowed_capital_inr: "Interest on borrowed capital", insurance_premium_inr: "Insurance premium",
+    bad_debts_written_off_inr: "Bad debts written off", other_business_expenses_inr: "Other business expenses",
+    ca_professional_fees_inr: "CA / professional fees", opening_stock_inr: "Opening stock", purchases_inr: "Purchases",
+    employer_pf_esi_contribution_inr: "Employer PF/ESI contribution (paid before due date, s.43B(d))",
+    s35D_total_preliminary_expenses_inr: "Preliminary expenses (1/5th, s.35D)", s35DDA_vrs_payments_inr: "VRS payments (1/5th, s.35DDA)"
+  };
+  function bxLabel(k) { if (BX_LABELS[k]) return BX_LABELS[k]; var t = k.replace(/_inr$/, "").replace(/_/g, " "); return t.charAt(0).toUpperCase() + t.slice(1); }
+
+  function aggregateEntryDisallowancesInr(entryIdx, entry, msmePayables) {
+    // s.40(a)(i) 100% / s.40(a)(ia) 30% / s.40A(3) 100%, head office + branches.
+    var s40aI = 0, s40aIaBase = 0, s40A3 = 0;
+    bxObjects(entry).forEach(function (exp) {
+      s40aI += bxNum(exp.payments_to_non_residents_no_tds_inr);
+      s40aIaBase += bxNum(exp.payments_to_residents_no_tds_inr);
+      s40A3 += bxNum(exp.total_cash_payments_exceeding_limit_inr) + bxNum(exp.total_cash_payments_exceeding_35k_inr);
+    });
     var s43Bh = computeMsmeDisallowanceInr(entryIdx, msmePayables);
-    return s40aI + s40aIa + s40A3 + s43Bh;
+    return s40aI + Math.round(s40aIaBase * 0.30) + s40A3 + s43Bh;
   }
 
   // Single source of truth for "will this entry actually land on regular
@@ -464,7 +519,7 @@
     return true;
   }
 
-  function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr, disallowancesInr) {
+  function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr, disallowancesInr, expOpts) {
     eligibility = eligibility || { eligible44AD: true, eligible44ADA: true };
     var scheme = b.presumptive_scheme;
     if (scheme === "s44AD") {
@@ -497,27 +552,15 @@
     // a presumptive entry never separately claims either (the deemed rate
     // already covers both), so both are simply 0 for those.
     // F&O-specific costs remain Phase 1 follow-on work (gap tracker IN-22).
-    var exp = b.expenses || {};
-    // s.43B(d): employer PF/ESI is deductible only if actually paid before
-    // the return's due date — unconditionally deducting it (Phase 0)
-    // overstated net profit whenever that flag was false or unset.
-    var pfEsiDeductibleInr = exp.employer_pf_esi_paid_before_due_date === true
-      ? num(exp.employer_pf_esi_contribution_inr) : 0;
-    var deductibleBeforeDisallowances =
-      num(exp.rent_for_business_premises_inr) + num(exp.repairs_maintenance_inr) +
-      num(exp.employee_salary_wages_inr) + num(exp.employee_bonus_commission_inr) +
-      num(exp.interest_on_borrowed_capital_inr) + num(exp.insurance_premium_inr) +
-      num(exp.bad_debts_written_off_inr) + num(exp.other_business_expenses_inr) +
-      num(exp.ca_professional_fees_inr) + pfEsiDeductibleInr;
-    var deductible = Math.max(0, deductibleBeforeDisallowances - num(disallowancesInr));
+    var bx = bxRegularBooksExpenses(b, expOpts);
+    var deductible = Math.max(0, bx.deductibleInr - num(disallowancesInr));
     // A presumptive entry that fell through here for exceeding its ceiling
     // may never have had gross_receipts_inr/turnover_inr filled in at all —
-    // the preparer only entered the scheme-specific digital/cash split. Fall
-    // back to that known total rather than silently treating receipts as 0.
-    var receipts = num(b.gross_receipts_inr) || num(b.turnover_inr) ||
+    // fall back to the scheme-specific digital/cash split.
+    var receipts = (num(b.gross_receipts_inr) || num(b.turnover_inr) ||
       (scheme === "s44AD" ? (dig44AD + csh44AD) : 0) ||
-      (scheme === "s44ADA" ? adaReceipts : 0);
-    return receipts - deductible - num(depreciationInr);
+      (scheme === "s44ADA" ? adaReceipts : 0)) + bxBranchTurnoverInr(b);
+    return receipts + bx.closingStockInr - deductible - num(depreciationInr);
   }
 
   // s.58 table (old s.44AE), goods-carriage presumptive income — rates stable
@@ -543,7 +586,7 @@
 
   /* Mirrors computeBusinessEntryNetProfitInr's branches exactly, but returns
    * the "show your work" trace instead of the number, for the Business tab. */
-  function businessEntryIncomeTrace(b, eligibility, depreciationInr, disallowancesInr) {
+  function businessEntryIncomeTrace(b, eligibility, depreciationInr, disallowancesInr, expOpts) {
     eligibility = eligibility || { eligible44AD: true, eligible44ADA: true };
     var explicit = b.net_profit_inr != null ? b.net_profit_inr : b.net_profit;
     if (explicit !== undefined && explicit !== null) {
@@ -594,30 +637,15 @@
     } else if (scheme === "s44AE") {
       return source("s.44AE tonnage-based presumptive income (goods carriages) is computed once from the Goods Vehicles schedule and rolled into the total business income figure above — it isn't split per vehicle here, so this entry shows ₹0 on its own.");
     }
-    var exp = b.expenses || {};
-    var expenseFields = [
-      ["rent_for_business_premises_inr", "Rent for business premises"],
-      ["repairs_maintenance_inr", "Repairs & maintenance"],
-      ["employee_salary_wages_inr", "Employee salary & wages"],
-      ["employee_bonus_commission_inr", "Employee bonus & commission"],
-      ["interest_on_borrowed_capital_inr", "Interest on borrowed capital"],
-      ["insurance_premium_inr", "Insurance premium"],
-      ["bad_debts_written_off_inr", "Bad debts written off"],
-      ["other_business_expenses_inr", "Other business expenses"],
-      ["ca_professional_fees_inr", "CA / professional fees"]
-    ];
+    var bx = bxRegularBooksExpenses(b, expOpts);
     var fallbackReceipts = num(b.gross_receipts_inr) || num(b.turnover_inr) ||
       (scheme === "s44AD" ? (dig44AD + csh44AD) : 0) ||
       (scheme === "s44ADA" ? adaReceipts : 0);
     var parts = [{ label: "Gross receipts / turnover", amount: fallbackReceipts }];
-    expenseFields.forEach(function (f) {
-      var v = num(exp[f[0]]);
-      if (v > 0) parts.push({ label: "Less: " + f[1], amount: -v });
-    });
-    // s.43B(d): only deductible if actually paid before the return's due date.
-    if (exp.employer_pf_esi_paid_before_due_date === true && num(exp.employer_pf_esi_contribution_inr) > 0) {
-      parts.push({ label: "Less: Employer PF/ESI contribution (paid before due date, s.43B(d))", amount: -num(exp.employer_pf_esi_contribution_inr) });
-    }
+    var brTurnover = bxBranchTurnoverInr(b);
+    if (brTurnover > 0) parts.push({ label: "Branch turnover", amount: brTurnover });
+    if (bx.closingStockInr > 0) parts.push({ label: "Add: closing stock", amount: bx.closingStockInr });
+    bx.items.forEach(function (it) { if (it.amountInr > 0) parts.push({ label: "Less: " + bxLabel(it.key), amount: -it.amountInr }); });
     if (num(disallowancesInr) > 0) {
       parts.push({ label: "Add back: statutory disallowances (s.40A(3) cash / s.40(a) TDS default / s.43B(h) MSME overdue)", amount: num(disallowancesInr) });
     }
@@ -630,7 +658,7 @@
     // to find the number already shown at the top of this card.
     var netProfitInr = parts.reduce(function (s, p) { return s + (p.amount || 0); }, 0);
     parts.push({ label: "Net profit (this entry)", amount: netProfitInr });
-    var formula = ceilingNote || "Regular books: gross receipts/turnover less the itemized deductible expenses on file, less statutory disallowances (s.40A(3)/40(a)/43B(h)) already included in those expenses, less current-year depreciation (s.32 WDV method + s.32(1)(iia) additional depreciation). F&O-specific costs and s.35/35D/35DDA amortization aren't modeled yet (Phase 1 follow-on — see gap tracker IN-22/26), so this is still a floor, not the final figure.";
+    var formula = ceilingNote || "Regular books: gross receipts/turnover (head office + branches) plus closing stock, less every expense entered for the business and its branches (opening stock, purchases and all other costs; s.35D/35DDA at 1/5th a year), less statutory disallowances (s.40A(3)/40(a)/43B(h)) already included in those expenses, less current-year depreciation (s.32 WDV method + s.32(1)(iia) additional depreciation).";
     return calc(formula, parts, ceilingCitation);
   }
 
@@ -702,8 +730,8 @@
         var isRegularBooks = usesRegularBooksInr(b, bizEligibility);
         if (isRegularBooks) indiaHasRegularBooksEntry = true; else indiaHasValidPresumptiveEntry = true;
         var entryDepreciationInr = isRegularBooks ? aggregateEntryDepreciationInr(idx, bizAssetBlocks, india, b) : 0;
-        var entryDisallowancesInr = isRegularBooks ? aggregateEntryDisallowancesInr(idx, b.expenses || {}, bizMsmePayables) : 0;
-        netProfitInr = computeBusinessEntryNetProfitInr(b, bizEligibility, entryDepreciationInr, entryDisallowancesInr);
+        var entryDisallowancesInr = isRegularBooks ? aggregateEntryDisallowancesInr(idx, b, bizMsmePayables) : 0;
+        netProfitInr = computeBusinessEntryNetProfitInr(b, bizEligibility, entryDepreciationInr, entryDisallowancesInr, bxOpts(india, null));
         businessDepreciationInr += entryDepreciationInr;
       } else {
         indiaHasRegularBooksEntry = true;
@@ -2689,8 +2717,8 @@
             var entryDepreciationInrForTrace = isRegularBooksForTrace
               ? aggregateEntryDepreciationInr(bIdx, bizAssetBlocksForTrace, india, b) : 0;
             var entryDisallowancesInrForTrace = isRegularBooksForTrace
-              ? aggregateEntryDisallowancesInr(bIdx, b.expenses || {}, bizMsmePayablesForTrace) : 0;
-            if (netProfitInr === undefined || netProfitInr === null) netProfitInr = computeBusinessEntryNetProfitInr(b, bizEligibility, entryDepreciationInrForTrace, entryDisallowancesInrForTrace);
+              ? aggregateEntryDisallowancesInr(bIdx, b, bizMsmePayablesForTrace) : 0;
+            if (netProfitInr === undefined || netProfitInr === null) netProfitInr = computeBusinessEntryNetProfitInr(b, bizEligibility, entryDepreciationInrForTrace, entryDisallowancesInrForTrace, bxOpts(india, null));
             netProfitInr = num(netProfitInr);
             // A company/firm entity files ITR-5/6 regardless of any
             // individual-scheme eligibility question, so that's definitive
@@ -2706,7 +2734,7 @@
                 : "Valid presumptive election (this entry) — feeds the taxpayer's overall return form; see Filings → Return Form for the checked ITR");
             list.push({ country: "IN", type: "Business / Profession (PGBP)", name: b.business_name || b.trade_name || b.name || "Indian business", incomeUsd: inrToUsd(netProfitInr), inr: netProfitInr,
               filesOwnReturn: indiaIsCompanyOrFirm, returnForm: entryReturnForm,
-              calcTrace: businessEntryIncomeTrace(b, bizEligibility, entryDepreciationInrForTrace, entryDisallowancesInrForTrace) });
+              calcTrace: businessEntryIncomeTrace(b, bizEligibility, entryDepreciationInrForTrace, entryDisallowancesInrForTrace, bxOpts(india, null)) });
           });
           (safe(us, "foreign_entities.foreign_corporations", []) || []).forEach(function (c) {
             // The real "Add Foreign Corporation" UI (syncCorpState() in

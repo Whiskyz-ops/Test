@@ -561,23 +561,19 @@
           "returnForm": "ITR-6",
           "calcTrace": {
             "kind": "calc",
-            "formula": "Regular books: gross receipts/turnover less the itemized deductible expenses on file, less statutory disallowances (s.40A(3)/40(a)/43B(h)) already included in those expenses, less current-year depreciation (s.32 WDV method + s.32(1)(iia) additional depreciation). F&O-specific costs and s.35/35D/35DDA amortization aren't modeled yet (Phase 1 follow-on — see gap tracker IN-22/26), so this is still a floor, not the final figure.",
+            "formula": "Regular books: gross receipts/turnover (head office + branches) plus closing stock, less every expense entered for the business and its branches (opening stock, purchases and all other costs; s.35D/35DDA at 1/5th a year), less statutory disallowances (s.40A(3)/40(a)/43B(h)) already included in those expenses, less current-year depreciation (s.32 WDV method + s.32(1)(iia) additional depreciation).",
             "parts": [
               {
                 "label": "Gross receipts / turnover",
                 "amount": 140000000
               },
               {
-                "label": "Less: Rent for business premises",
-                "amount": -4000000
-              },
-              {
                 "label": "Less: Employee salary & wages",
                 "amount": -35441757.17
               },
               {
-                "label": "Less: Insurance premium",
-                "amount": -300000
+                "label": "Less: Rent for business premises",
+                "amount": -4000000
               },
               {
                 "label": "Less: Other business expenses",
@@ -586,6 +582,10 @@
               {
                 "label": "Less: CA / professional fees",
                 "amount": -700000
+              },
+              {
+                "label": "Less: Insurance premium",
+                "amount": -300000
               },
               {
                 "label": "Less: current-year depreciation (s.32, asset blocks)",
