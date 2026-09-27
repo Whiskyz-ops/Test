@@ -6285,7 +6285,11 @@
 
         if (usState && usState.metadata) {
             usState.metadata.intake_setup = {
-                setupW2, setupBiz, setupPassive: setupPassiveAny, setupProp, setupEntities, setupForeign: setupForeignAny, setupRetirement, setupEquity
+                setupW2, setupBiz, setupPassive: setupPassiveAny, setupProp, setupEntities, setupForeign: setupForeignAny, setupRetirement, setupEquity,
+                // the sub-options too — they were derived from data only, so an
+                // opt-in with nothing entered yet was forgotten on reopen
+                nested: { foreignAssets: setupForeignAssets, foreignFeie: setupForeignFEIE, foreignEntities: setupForeignEntitiesNested, foreignGifts: setupForeignGifts,
+                          passiveIntDiv: !!document.getElementById('setup-passive-intdiv')?.checked, passiveCapGains: !!document.getElementById('setup-passive-capgains')?.checked }
             };
             try { persistUsState(); } catch(e) {}
         }
@@ -21011,13 +21015,14 @@ div.innerHTML = `
         // part of intake_setup at all, so these were never restored on load
         // before either -- same bug, one level deeper.
         const setChecked = (id, checked) => { const el = document.getElementById(id); if (el) el.checked = checked; };
-        setChecked('setup-foreign-assets', hasForeignAssets);
-        setChecked('setup-foreign-feie', hasForeignFeie);
-        setChecked('setup-foreign-entities', hasForeignEntities);
-        setChecked('setup-foreign-gifts', hasForeignGifts);
-        setChecked('setup-passive-intdiv', hasPassiveIntDiv);
-        setChecked('setup-passive-capgains', hasPassiveCapGains);
+        setChecked('setup-foreign-assets', hasForeignAssets || (s.nested || {}).foreignAssets === true); // or the user's own saved tick
+        setChecked('setup-foreign-feie', hasForeignFeie || (s.nested || {}).foreignFeie === true); // or the user's own saved tick
+        setChecked('setup-foreign-entities', hasForeignEntities || (s.nested || {}).foreignEntities === true); // or the user's own saved tick
+        setChecked('setup-foreign-gifts', hasForeignGifts || (s.nested || {}).foreignGifts === true); // or the user's own saved tick
+        setChecked('setup-passive-intdiv', hasPassiveIntDiv || (s.nested || {}).passiveIntDiv === true); // or the user's own saved tick
+        setChecked('setup-passive-capgains', hasPassiveCapGains || (s.nested || {}).passiveCapGains === true); // or the user's own saved tick
 
+        finalSetup.nested = s.nested || {};
         usState.metadata.intake_setup = finalSetup;
     }
 
@@ -21354,7 +21359,19 @@ div.innerHTML = `
                 usState.ftc_inputs.claims_ftc = savedState.ftc_inputs.claims_ftc;
                 usState.ftc_inputs.claims_ftc_simplified_under_300 = savedState.ftc_inputs.claims_ftc_simplified_under_300;
                 usState.ftc_inputs.prior_year_carryovers_usd = savedState.ftc_inputs.prior_year_carryovers_usd || 0;
+                // every other saved FTC answer (e.g. the accrued-method election) too
+                copyUnhandledScalars(savedState.ftc_inputs, usState.ftc_inputs);
             }
+            // Sections that were never read back from the saved data at all —
+            // the company's state nexus / profile / international answers and
+            // other-country FTC — so they showed defaults on reopen and the
+            // next save of the section overwrote them.
+            ['corporate_profile', 'corporate_international', 'corp_state_nexus', 'foreign_tax_credit_other'].forEach(k => {
+                if (savedState[k] && typeof savedState[k] === 'object') {
+                    usState[k] = Array.isArray(savedState[k]) ? JSON.parse(JSON.stringify(savedState[k]))
+                        : Object.assign(usState[k] && typeof usState[k] === 'object' ? usState[k] : {}, JSON.parse(JSON.stringify(savedState[k])));
+                }
+            });
             if (savedState.withholding_and_estimated) {
                 Object.assign(usState.withholding_and_estimated, savedState.withholding_and_estimated);
                 const otherFedEl = document.getElementById('with-other-fed');
@@ -21889,6 +21906,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
         restoreUsFieldsFromHandlers();
         restoreUsTogglesFromHandlers();
         if (typeof toggleCorporateFinancials === 'function') { try { toggleCorporateFinancials(); } catch (e) {} } // re-apply the restored receipts answer
+        { const dom = document.getElementById('corp-is-domestic'); if (dom && typeof usState.profile.incorporated_in_us === 'boolean') dom.checked = usState.profile.incorporated_in_us; }
         {
             const iu = usState.income_us_source || {};
             const anyBizRows = ['self_employment', 'farming_schedule_f', 'partnerships_k1', 's_corporations_k1', 'c_corporations_1120', 'trusts_estates_k1']

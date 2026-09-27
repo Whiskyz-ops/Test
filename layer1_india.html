@@ -12389,9 +12389,12 @@ ${isProf ? '' : `
         }
     }
 
+    // (This later definition overrides the earlier one, so it has to write
+    // the field the page restores from as well — the tick was lost on reopen.)
     function updateS79Loss(val) {
         if (!state.brought_forward_losses) state.brought_forward_losses = { entries: [] };
         state.brought_forward_losses.s79_shareholding_change = val;
+        if (state.carry_forward_losses) state.carry_forward_losses.s79_shareholding_change_triggered = val;
     }
 
     function addLossRow() {
@@ -14865,6 +14868,8 @@ ${isProf ? '' : `
                 if (savedState.foreign_assets) Object.assign(state.foreign_assets, savedState.foreign_assets);
                 if (savedState.foreign_income) Object.assign(state.foreign_income, savedState.foreign_income);
                 if (savedState.tax_credits) Object.assign(state.tax_credits, savedState.tax_credits);
+                // advance-tax projection inputs were saved but never read back
+                if (savedState.advance_tax_simulator) state.advance_tax_simulator = Object.assign({}, state.advance_tax_simulator, savedState.advance_tax_simulator);
                 if (savedState.deductions) {
                     for (const key in savedState.deductions) {
                         if (state.deductions[key] && typeof savedState.deductions[key] === 'object') {
@@ -16692,7 +16697,8 @@ ${isProf ? '' : `
         updateSpecialDeduction: (f) => state.deductions[f],
         updateRoyaltyDeduction: (f) => state.deductions[f],
         updateProfileField: (f) => state.profile[f],
-        updatePoliticalDonation: () => state.deductions.s80ggb_ggc_political_donation_inr
+        updatePoliticalDonation: () => state.deductions.s80ggb_ggc_political_donation_inr,
+        updateSimNum: (f) => state.advance_tax_simulator && state.advance_tax_simulator[f]
     };
     function restoreTogglesFromState() {
         // checkboxes saved through updateProfileField(field, this.checked) —
