@@ -330,7 +330,7 @@
         "FEIE applied — " + usd(feieRes.appliedUsd) + " of foreign wages excluded",
         "The §911 tests are met (foreign tax home + " + (feieRes.testMet ? "presence test" : "") +
         "), so " + usd(feieRes.appliedUsd) + " of foreign earned income is excluded from US tax. The excluded income and its share of Indian tax were removed from the FTC computation (no-double-dip).",
-        "Compare FEIE vs full FTC annually — for high-tax countries like India, revoking FEIE in favour of FTC can save tax, but a revocation locks you out of FEIE for 5 years.",
+        "Compare FEIE vs full FTC annually — for high-tax countries like India, revoking FEIE in favour of FTC can save tax, but a revocation locks the client out of FEIE for 5 years.",
         0, ["Form 2555", "§911(d)(6)"]);
     }
 
@@ -573,7 +573,7 @@
     // -- 4c3. FORM 3921 — ISO INFORMATION RETURN -----------------------------
     if (model.equityComp && model.equityComp.isoExerciseCount > 0) {
       add("iso_3921", S.INFO, C.DOCUMENT,
-        "ISO exercise(s) on file — employer owes you Form 3921",
+        "ISO exercise(s) on file — employer owes the client Form 3921",
         model.equityComp.isoExerciseCount + " incentive stock option exercise(s) recorded this year. The employer is " +
         "required to furnish Form 3921 (one per exercise) by January 31 of the following year, reporting the grant/exercise " +
         "dates, exercise price, and FMV at exercise — the same figures already driving the AMT preference computed above.",
@@ -916,7 +916,7 @@
     } else if (model.treaty.chapterXiiaElected && xiiaInvIncomeInr > 0) {
       add("chapter_xiia_investment_income_computed", S.INFO, C.CREDIT,
         "Chapter XII-A investment income of " + inr(xiiaInvIncomeInr) + " included at the flat 20% rate",
-        "Interest/dividend entered against your Chapter XII-A specified holdings (" + inr(xiiaInvIncomeInr) + " total) is taxed " +
+        "Interest/dividend entered against the client's Chapter XII-A specified holdings (" + inr(xiiaInvIncomeInr) + " total) is taxed " +
         "at the flat 20% s.217/212 (s.115E(1)(a)) rate in the India tax computed below — no Chapter VI-A deductions or basic " +
         "exemption apply to this slice, per Chapter XII-A's own rules.",
         "Confirm this figure covers ALL specified holdings' interest/dividend for the year, not just some of them.",
@@ -1196,7 +1196,7 @@
       add("transfer_pricing", S.WARNING, C.DOCUMENT,
         "Related-party cross-border transactions — transfer pricing documentation may apply",
         "Layer 1 records a related-party cross-border ownership link (US person owning ≥10% of a foreign/Indian corporation). " +
-        "Any transactions between you and that related entity this year — service fees, cost allocations, loans, guarantees, " +
+        "Any transactions between the client and that related entity this year — service fees, cost allocations, loans, guarantees, " +
         "IP licensing — must be priced at arm's length under India's s.92-92F and the US's parallel §482 regime. WISING does " +
         "NOT evaluate whether pricing is arm's-length; it only flags that the relationship exists.",
         "If related-party cross-border transactions occurred this year, confirm Form 3CEB certification and Rule 10D " +
@@ -1324,9 +1324,9 @@
         ", US says " + mm.usClassification.toUpperCase() + " (" + usd(Math.abs(deltaUsd)) + " at stake)",
         "This " + (mm.isListed ? "listed" : "unlisted") + " " + assetLabel + " was held " + Math.round(mm.monthsHeld) + " months. India requires " +
         "more than " + mm.indiaThresholdMonths + " months for LTCG on " + (mm.isListed ? "listed" : "unlisted") + " shares, so this is " +
-        mm.indiaClassification.toUpperCase() + " there (taxed " + (mm.indiaClassification === "ltcg" ? "at 12.5%, " + ltcgSection + (mm.isListed ? " (₹1,25,000 exemption pool)" : " (no exemption, taxable from ₹1)") : (mm.isListed ? "at 20%, s.196" : "at your India slab rate")) +
+        mm.indiaClassification.toUpperCase() + " there (taxed " + (mm.indiaClassification === "ltcg" ? "at 12.5%, " + ltcgSection + (mm.isListed ? " (₹1,25,000 exemption pool)" : " (no exemption, taxable from ₹1)") : (mm.isListed ? "at 20%, s.196" : "at the client's India slab rate")) +
         "). The US requires only more than 12 months for LTCG on any asset — no listed/unlisted distinction — so the SAME gain is " +
-        mm.usClassification.toUpperCase() + " under US rules. Recomputed your actual US return both ways: treated as LTCG, US tax is " +
+        mm.usClassification.toUpperCase() + " under US rules. Recomputed the client's actual US return both ways: treated as LTCG, US tax is " +
         usd(asLtcg.totalTaxBeforeFtcUsd) + "; treated as STCG (ordinary rates), US tax is " + usd(asStcg.totalTaxBeforeFtcUsd) + " — a difference of " +
         usd(Math.abs(deltaUsd)) + ".",
         correctIsLtcg
@@ -2636,7 +2636,7 @@
     note("scope_stt", "India", "excluded", "STT is not computed as a levy",
       "Securities Transaction Tax charged on trades (raised on F&O by Finance Act 2026) isn't calculated here. The stt_paid flag on each transaction drives the capital-gains regime (s.196/198 vs s.197) — the levy amount itself is neither a tax credit nor a capital-gains deduction, so nothing downstream depends on it.",
       hasSecuritiesTrades);
-    note("scope_payer_tds", "India", "excluded", "Your obligations as a TDS deductor aren't tracked",
+    note("scope_payer_tds", "India", "excluded", "The client's obligations as a TDS deductor aren't tracked",
       "The Withholding page covers tax withheld FROM this taxpayer's income. Duties in the opposite direction — deducting TDS on payments the business makes to vendors, contractors, or professionals — aren't monitored as a compliance obligation in their own right, though the resulting s.40(a) expense disallowance for TDS failures (and s.40A(3) cash-payment / s.43B(h) MSME-overdue disallowances) does flow into business income (Phase 1).",
       hasIndiaBusiness);
     note("scope_clubbing", "India", "excluded", "Clubbing amounts are taken as entered",
@@ -2646,7 +2646,7 @@
       "Employee and employer Social Security/Medicare/unemployment payroll taxes are a separate tax base from income tax. Only the pieces that touch the 1040 are computed: Additional Medicare 0.9%, self-employment tax, and the W-2 withholding shown on the Withholding page.",
       hasUsWagesOrSe);
     note("scope_fatca_ch4", "Cross-border", "excluded", "FATCA Chapter 4 withholding is institution-side",
-      "The 30% FATCA withholding regime (IRC §§1471-1474) applies to payments to non-compliant foreign financial institutions — banks' problem, not yours directly. Where it touches an individual is the US-person self-certification banks request, which is tracked with your documents.",
+      "The 30% FATCA withholding regime (IRC §§1471-1474) applies to payments to non-compliant foreign financial institutions — banks' problem, not the client's directly. Where it touches an individual is the US-person self-certification banks request, which is tracked with the client's documents.",
       dual);
     note("scope_mocked_uploads", "App", "excluded", "Document-upload extraction is simulated",
       "Every \"upload to auto-fill\" feature in Layer 1 (Form 26AS, Lower-TDS certificate, bank statements, property documents) is a demo simulation with representative values — not live OCR. Figures sourced from an upload should be treated as manually-entered until real extraction ships.",

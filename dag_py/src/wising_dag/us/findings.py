@@ -518,7 +518,7 @@ def _findings_us_result(d, ctx):
             f"FEIE applied — {_fmt(feie_res['appliedUsd'])} of foreign wages excluded",
             f"The §911 tests are met (foreign tax home + {'presence test' if feie_res['testMet'] else ''}"
             f"), so {_fmt(feie_res['appliedUsd'])} of foreign earned income is excluded from US tax. The excluded income and its share of Indian tax were removed from the FTC computation (no-double-dip).",
-            "Compare FEIE vs full FTC annually — for high-tax countries like India, revoking FEIE in favour of FTC can save tax, but a revocation locks you out of FEIE for 5 years.",
+            "Compare FEIE vs full FTC annually — for high-tax countries like India, revoking FEIE in favour of FTC can save tax, but a revocation locks the client out of FEIE for 5 years.",
             0, ["Form 2555", "§911(d)(6)"],
         ))
 
@@ -556,7 +556,7 @@ def _findings_us_result(d, ctx):
     if eq["isoExerciseCount"] > 0:
         findings.append(make_finding(
             "iso_3921", "info", "document",
-            "ISO exercise(s) on file — employer owes you Form 3921",
+            "ISO exercise(s) on file — employer owes the client Form 3921",
             f"{eq['isoExerciseCount']} incentive stock option exercise(s) recorded this year. The employer is "
             "required to furnish Form 3921 (one per exercise) by January 31 of the following year, reporting the grant/exercise "
             "dates, exercise price, and FMV at exercise — the same figures already driving the AMT preference computed above.",

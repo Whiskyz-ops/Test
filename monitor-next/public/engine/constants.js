@@ -514,7 +514,7 @@
       jurisdiction: "US",
       name: "IRS Form 8938 (FATCA)",
       desc: "Statement of Specified Foreign Financial Assets, filed with Form 1040.",
-      why: "Specified foreign financial assets exceeded the Form 8938 reporting threshold for your filing status/residence.",
+      why: "Specified foreign financial assets exceeded the Form 8938 reporting threshold for the client's filing status/residence.",
       severity: CONST.SEVERITY.CRITICAL
     },
     {
@@ -554,7 +554,7 @@
       jurisdiction: "US",
       name: "IRS Form 5471 (CFC)",
       desc: "Information return for US persons owning ≥10% of a foreign corporation.",
-      why: "You own ≥10% of an Indian company — potential Subpart F / GILTI inclusion.",
+      why: "Client owns ≥10% of an Indian company — potential Subpart F / GILTI inclusion.",
       severity: CONST.SEVERITY.WARNING
     },
     {
@@ -562,7 +562,7 @@
       jurisdiction: "US",
       name: "IRS Form 8865",
       desc: "Return for US persons with interests in a foreign partnership.",
-      why: "You hold an interest in an Indian partnership/LLP.",
+      why: "Client holds an interest in an Indian partnership/LLP.",
       severity: CONST.SEVERITY.WARNING
     },
     {
@@ -570,7 +570,7 @@
       jurisdiction: "US",
       name: "IRS Form 3520 / 3520-A",
       desc: "Reporting of foreign gifts and transactions with foreign trusts.",
-      why: "Foreign gift > USD 100,000 received, or you are a grantor/beneficiary of a foreign trust (note: Indian PPF/EPF may be treated as trusts).",
+      why: "Foreign gift > USD 100,000 received, or the client is a grantor/beneficiary of a foreign trust (note: Indian PPF/EPF may be treated as trusts).",
       severity: CONST.SEVERITY.WARNING
     },
     {
@@ -578,7 +578,7 @@
       jurisdiction: "US",
       name: "IRS Form 1040-NR",
       desc: "Non-resident alien income tax return.",
-      why: "You are (or elect to be treated as) a US non-resident alien for this year.",
+      why: "Client is (or elects to be treated as) a US non-resident alien for this year.",
       severity: CONST.SEVERITY.INFO
     },
     {
@@ -643,7 +643,7 @@
       jurisdiction: "IN",
       name: "Schedule FA (Foreign Assets)",
       desc: "Disclosure of foreign assets/accounts in the Indian ITR.",
-      why: "You are Resident & Ordinarily Resident (ROR) and hold US bank accounts, securities or other foreign assets.",
+      why: "Client is Resident & Ordinarily Resident (ROR) and holds US bank accounts, securities or other foreign assets.",
       severity: CONST.SEVERITY.CRITICAL
     },
     {

@@ -1451,7 +1451,7 @@
         "pct": 0.43373333333333336,
         "status": "ok",
         "unit": "USD",
-        "note": "Threshold shown is the 'any time during year' figure for your status/residence."
+        "note": "Threshold shown is the 'any time during year' figure for the client's status/residence."
       },
       {
         "id": "lrs",
@@ -1533,7 +1533,7 @@
       "severity": "warning",
       "category": "treaty",
       "title": "Nova Systems Pvt Ltd buy-back: 17 months held \u2014 India says STCG, US says LTCG ($1,096 at stake)",
-      "detail": "This unlisted buy-back was held 17 months. India requires more than 24 months for LTCG on unlisted shares, so this is STCG there (taxed at your India slab rate). The US requires only more than 12 months for LTCG on any asset \u2014 no listed/unlisted distinction \u2014 so the SAME gain is LTCG under US rules. Recomputed your actual US return both ways: treated as LTCG, US tax is $22,255; treated as STCG (ordinary rates), US tax is $23,351 \u2014 a difference of $1,096.",
+      "detail": "This unlisted buy-back was held 17 months. India requires more than 24 months for LTCG on unlisted shares, so this is STCG there (taxed at the client's India slab rate). The US requires only more than 12 months for LTCG on any asset \u2014 no listed/unlisted distinction \u2014 so the SAME gain is LTCG under US rules. Recomputed the client's actual US return both ways: treated as LTCG, US tax is $22,255; treated as STCG (ordinary rates), US tax is $23,351 \u2014 a difference of $1,096.",
       "recommendation": "Report this gain as LONG-TERM on the US return (Schedule D) even though it's short-term in India \u2014 using India's label on the US foreign-capital-gains input would cost roughly $1,096 in overpaid US tax.",
       "amountUsd": 1096.3855421686785,
       "refs": [
@@ -1562,7 +1562,7 @@
       "severity": "warning",
       "category": "document",
       "title": "Related-party cross-border transactions \u2014 transfer pricing documentation may apply",
-      "detail": "Layer 1 records a related-party cross-border ownership link (US person owning \u226510% of a foreign/Indian corporation). Any transactions between you and that related entity this year \u2014 service fees, cost allocations, loans, guarantees, IP licensing \u2014 must be priced at arm's length under India's s.92-92F and the US's parallel \u00a7482 regime. WISING does NOT evaluate whether pricing is arm's-length; it only flags that the relationship exists.",
+      "detail": "Layer 1 records a related-party cross-border ownership link (US person owning \u226510% of a foreign/Indian corporation). Any transactions between the client and that related entity this year \u2014 service fees, cost allocations, loans, guarantees, IP licensing \u2014 must be priced at arm's length under India's s.92-92F and the US's parallel \u00a7482 regime. WISING does NOT evaluate whether pricing is arm's-length; it only flags that the relationship exists.",
       "recommendation": "If related-party cross-border transactions occurred this year, confirm Form 3CEB certification and Rule 10D documentation requirements (India side) and \u00a7482 documentation (US side) with a transfer-pricing specialist \u2014 penalties for missing documentation run 2% of transaction value, up to 200% for concealment.",
       "amountUsd": 0,
       "refs": [
@@ -1687,7 +1687,7 @@
       "jurisdiction": "US",
       "name": "IRS Form 8938 (FATCA)",
       "desc": "Statement of Specified Foreign Financial Assets, filed with Form 1040.",
-      "why": "Specified foreign financial assets exceeded the Form 8938 reporting threshold for your filing status/residence.",
+      "why": "Specified foreign financial assets exceeded the Form 8938 reporting threshold for the client's filing status/residence.",
       "severity": "critical",
       "required": false,
       "status": "not_triggered"
@@ -1737,7 +1737,7 @@
       "jurisdiction": "US",
       "name": "IRS Form 5471 (CFC)",
       "desc": "Information return for US persons owning \u226510% of a foreign corporation.",
-      "why": "You own \u226510% of an Indian company \u2014 potential Subpart F / GILTI inclusion.",
+      "why": "Client owns \u226510% of an Indian company \u2014 potential Subpart F / GILTI inclusion.",
       "severity": "warning",
       "required": true,
       "status": "required"
@@ -1747,7 +1747,7 @@
       "jurisdiction": "US",
       "name": "IRS Form 8865",
       "desc": "Return for US persons with interests in a foreign partnership.",
-      "why": "You hold an interest in an Indian partnership/LLP.",
+      "why": "Client holds an interest in an Indian partnership/LLP.",
       "severity": "warning",
       "required": false,
       "status": "not_triggered"
@@ -1757,7 +1757,7 @@
       "jurisdiction": "US",
       "name": "IRS Form 3520 / 3520-A",
       "desc": "Reporting of foreign gifts and transactions with foreign trusts.",
-      "why": "Foreign gift > USD 100,000 received, or you are a grantor/beneficiary of a foreign trust (note: Indian PPF/EPF may be treated as trusts).",
+      "why": "Foreign gift > USD 100,000 received, or the client is a grantor/beneficiary of a foreign trust (note: Indian PPF/EPF may be treated as trusts).",
       "severity": "warning",
       "required": false,
       "status": "not_triggered"
@@ -1767,7 +1767,7 @@
       "jurisdiction": "US",
       "name": "IRS Form 1040-NR",
       "desc": "Non-resident alien income tax return.",
-      "why": "You are (or elect to be treated as) a US non-resident alien for this year.",
+      "why": "Client is (or elects to be treated as) a US non-resident alien for this year.",
       "severity": "info",
       "required": false,
       "status": "not_triggered"
@@ -1847,7 +1847,7 @@
       "jurisdiction": "IN",
       "name": "Schedule FA (Foreign Assets)",
       "desc": "Disclosure of foreign assets/accounts in the Indian ITR.",
-      "why": "You are Resident & Ordinarily Resident (ROR) and hold US bank accounts, securities or other foreign assets.",
+      "why": "Client is Resident & Ordinarily Resident (ROR) and holds US bank accounts, securities or other foreign assets.",
       "severity": "critical",
       "required": false,
       "status": "not_triggered"
@@ -2743,7 +2743,7 @@
       "area": "Cross-border",
       "kind": "excluded",
       "title": "FATCA Chapter 4 withholding is institution-side",
-      "body": "The 30% FATCA withholding regime (IRC \u00a7\u00a71471-1474) applies to payments to non-compliant foreign financial institutions \u2014 banks' problem, not yours directly. Where it touches an individual is the US-person self-certification banks request, which is tracked with your documents."
+      "body": "The 30% FATCA withholding regime (IRC \u00a7\u00a71471-1474) applies to payments to non-compliant foreign financial institutions \u2014 banks' problem, not the client's directly. Where it touches an individual is the US-person self-certification banks request, which is tracked with the client's documents."
     },
     {
       "id": "scope_mocked_uploads",
@@ -2846,7 +2846,7 @@
         "pct": 0.43373333333333336,
         "projected": 114337.37164061726,
         "projPct": 0.7622491442707817,
-        "note": "Threshold shown is the 'any time during year' figure for your status/residence.",
+        "note": "Threshold shown is the 'any time during year' figure for the client's status/residence.",
         "status": "ok",
         "dateLabel": "Within limit at current pace"
       },

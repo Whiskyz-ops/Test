@@ -362,7 +362,7 @@ NODES.findingsBatch5Result = {
     // -- 4c3. FORM 3921 — ISO INFORMATION RETURN (conflicts.js:561-571) -----
     if (eq.isoExerciseCount > 0) {
       add("iso_3921", "info", "document",
-        "ISO exercise(s) on file — employer owes you Form 3921",
+        "ISO exercise(s) on file — employer owes the client Form 3921",
         eq.isoExerciseCount + " incentive stock option exercise(s) recorded this year. The employer is " +
         "required to furnish Form 3921 (one per exercise) by January 31 of the following year, reporting the grant/exercise " +
         "dates, exercise price, and FMV at exercise — the same figures already driving the AMT preference computed above.",

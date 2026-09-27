@@ -1484,7 +1484,7 @@
     var tbl = L.FORM_8938[abroad ? (isMfj ? "ABROAD_MFJ" : "ABROAD_SINGLE") : (isMfj ? "US_RESIDENT_MFJ" : "US_RESIDENT_SINGLE")];
     if (scopeHasUs) {
       gauge("form8938", "Form 8938 (FATCA) any-time", model.accounts.aggregatePeak.usd, tbl.anyTime, "USD",
-        "Threshold shown is the 'any time during year' figure for your status/residence.");
+        "Threshold shown is the 'any time during year' figure for the client's status/residence.");
     }
     if (scopeHasIndia) {
       gauge("lrs", "LRS outbound remittance", U.inrToUsd(model.limitsRaw.lrsRemittedInr), L.LRS_ANNUAL_USD, "USD",

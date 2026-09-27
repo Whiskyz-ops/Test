@@ -153,7 +153,7 @@ NODES.findingsBatch2Result = {
     } else if (d.chapterXiiaElectedRaw && xiiaInvIncomeInr > 0) {
       add("chapter_xiia_investment_income_computed", "info", "credit",
         "Chapter XII-A investment income of " + inr(xiiaInvIncomeInr) + " included at the flat 20% rate",
-        "Interest/dividend entered against your Chapter XII-A specified holdings (" + inr(xiiaInvIncomeInr) + " total) is taxed " +
+        "Interest/dividend entered against the client's Chapter XII-A specified holdings (" + inr(xiiaInvIncomeInr) + " total) is taxed " +
         "at the flat 20% s.217/212 (s.115E(1)(a)) rate in the India tax computed below — no Chapter VI-A deductions or basic " +
         "exemption apply to this slice, per Chapter XII-A's own rules.",
         "Confirm this figure covers ALL specified holdings' interest/dividend for the year, not just some of them.",

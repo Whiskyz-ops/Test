@@ -55,8 +55,8 @@ def _limits_result(d, ctx):
         use_last_day = last_day_pct > peak_pct
         _gauge(gauges, "form8938", "Form 8938 (FATCA) last day of year" if use_last_day else "Form 8938 (FATCA) any-time",
                last_day_usd if use_last_day else aggregate_peak_usd, tbl["lastDay"] if use_last_day else tbl["anyTime"], "USD",
-               "Threshold shown is the 'last day of tax year' figure for your status/residence." if use_last_day else
-               "Threshold shown is the 'any time during year' figure for your status/residence.")
+               "Threshold shown is the 'last day of tax year' figure for the client's status/residence." if use_last_day else
+               "Threshold shown is the 'any time during year' figure for the client's status/residence.")
 
     if scope_has_india:
         _gauge(gauges, "lrs", "LRS outbound remittance", d["limitsRawExtra"]["lrsRemittedInr"] / fx_rate(ctx), L["LRS_ANNUAL_USD"], "USD",

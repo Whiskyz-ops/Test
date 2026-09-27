@@ -598,7 +598,7 @@ NODES.findingsBatch4Result = {
         "FEIE applied — " + usd(feieRes.appliedUsd) + " of foreign wages excluded",
         "The §911 tests are met (foreign tax home + " + (feieRes.testMet ? "presence test" : "") +
         "), so " + usd(feieRes.appliedUsd) + " of foreign earned income is excluded from US tax. The excluded income and its share of Indian tax were removed from the FTC computation (no-double-dip).",
-        "Compare FEIE vs full FTC annually — for high-tax countries like India, revoking FEIE in favour of FTC can save tax, but a revocation locks you out of FEIE for 5 years.",
+        "Compare FEIE vs full FTC annually — for high-tax countries like India, revoking FEIE in favour of FTC can save tax, but a revocation locks the client out of FEIE for 5 years.",
         0, ["Form 2555", "§911(d)(6)"]);
     }
 

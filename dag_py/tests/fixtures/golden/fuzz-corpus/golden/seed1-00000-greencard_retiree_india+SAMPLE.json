@@ -1036,7 +1036,7 @@
         "pct": 1.8359739999999998,
         "status": "breached",
         "unit": "USD",
-        "note": "Threshold shown is the 'any time during year' figure for your status/residence."
+        "note": "Threshold shown is the 'any time during year' figure for the client's status/residence."
       },
       {
         "id": "lrs",
@@ -1213,7 +1213,7 @@
       "jurisdiction": "US",
       "name": "IRS Form 8938 (FATCA)",
       "desc": "Statement of Specified Foreign Financial Assets, filed with Form 1040.",
-      "why": "Specified foreign financial assets exceeded the Form 8938 reporting threshold for your filing status/residence.",
+      "why": "Specified foreign financial assets exceeded the Form 8938 reporting threshold for the client's filing status/residence.",
       "severity": "critical",
       "required": true,
       "status": "required"
@@ -1263,7 +1263,7 @@
       "jurisdiction": "US",
       "name": "IRS Form 5471 (CFC)",
       "desc": "Information return for US persons owning ≥10% of a foreign corporation.",
-      "why": "You own ≥10% of an Indian company — potential Subpart F / GILTI inclusion.",
+      "why": "Client owns ≥10% of an Indian company — potential Subpart F / GILTI inclusion.",
       "severity": "warning",
       "required": false,
       "status": "not_triggered"
@@ -1273,7 +1273,7 @@
       "jurisdiction": "US",
       "name": "IRS Form 8865",
       "desc": "Return for US persons with interests in a foreign partnership.",
-      "why": "You hold an interest in an Indian partnership/LLP.",
+      "why": "Client holds an interest in an Indian partnership/LLP.",
       "severity": "warning",
       "required": false,
       "status": "not_triggered"
@@ -1283,7 +1283,7 @@
       "jurisdiction": "US",
       "name": "IRS Form 3520 / 3520-A",
       "desc": "Reporting of foreign gifts and transactions with foreign trusts.",
-      "why": "Foreign gift > USD 100,000 received, or you are a grantor/beneficiary of a foreign trust (note: Indian PPF/EPF may be treated as trusts).",
+      "why": "Foreign gift > USD 100,000 received, or the client is a grantor/beneficiary of a foreign trust (note: Indian PPF/EPF may be treated as trusts).",
       "severity": "warning",
       "required": true,
       "status": "required"
@@ -1293,7 +1293,7 @@
       "jurisdiction": "US",
       "name": "IRS Form 1040-NR",
       "desc": "Non-resident alien income tax return.",
-      "why": "You are (or elect to be treated as) a US non-resident alien for this year.",
+      "why": "Client is (or elects to be treated as) a US non-resident alien for this year.",
       "severity": "info",
       "required": false,
       "status": "not_triggered"
@@ -1373,7 +1373,7 @@
       "jurisdiction": "IN",
       "name": "Schedule FA (Foreign Assets)",
       "desc": "Disclosure of foreign assets/accounts in the Indian ITR.",
-      "why": "You are Resident & Ordinarily Resident (ROR) and hold US bank accounts, securities or other foreign assets.",
+      "why": "Client is Resident & Ordinarily Resident (ROR) and holds US bank accounts, securities or other foreign assets.",
       "severity": "critical",
       "required": true,
       "status": "required"
@@ -2123,7 +2123,7 @@
       "area": "Cross-border",
       "kind": "excluded",
       "title": "FATCA Chapter 4 withholding is institution-side",
-      "body": "The 30% FATCA withholding regime (IRC §§1471-1474) applies to payments to non-compliant foreign financial institutions — banks' problem, not yours directly. Where it touches an individual is the US-person self-certification banks request, which is tracked with your documents."
+      "body": "The 30% FATCA withholding regime (IRC §§1471-1474) applies to payments to non-compliant foreign financial institutions — banks' problem, not the client's directly. Where it touches an individual is the US-person self-certification banks request, which is tracked with the client's documents."
     },
     {
       "id": "scope_mocked_uploads",
@@ -2226,7 +2226,7 @@
         "pct": 1.8359739999999998,
         "projected": 244268.17767771074,
         "projPct": 3.25690903570281,
-        "note": "Threshold shown is the 'any time during year' figure for your status/residence.",
+        "note": "Threshold shown is the 'any time during year' figure for the client's status/residence.",
         "status": "breached",
         "dateLabel": "Already breached"
       },

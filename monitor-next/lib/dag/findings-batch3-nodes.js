@@ -341,7 +341,7 @@ NODES.findingsBatch3Result = {
       add("transfer_pricing", "warning", "document",
         "Related-party cross-border transactions — transfer pricing documentation may apply",
         "Layer 1 records a related-party cross-border ownership link (US person owning ≥10% of a foreign/Indian corporation). " +
-        "Any transactions between you and that related entity this year — service fees, cost allocations, loans, guarantees, " +
+        "Any transactions between the client and that related entity this year — service fees, cost allocations, loans, guarantees, " +
         "IP licensing — must be priced at arm's length under India's s.92-92F and the US's parallel §482 regime. WISING does " +
         "NOT evaluate whether pricing is arm's-length; it only flags that the relationship exists.",
         "If related-party cross-border transactions occurred this year, confirm Form 3CEB certification and Rule 10D " +

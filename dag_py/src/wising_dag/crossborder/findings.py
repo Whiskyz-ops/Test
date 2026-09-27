@@ -279,9 +279,9 @@ def _holding_period_mismatch_findings(d, ctx):
             f"{mm['indiaClassification'].upper()} there (taxed "
             + (f"at 12.5%, {ltcg_section}" + (" (₹1,25,000 exemption pool)" if mm.get("isListed") else " (no exemption, taxable from ₹1)")
                if mm["indiaClassification"] == "ltcg" else
-               ("at 20%, s.196" if mm.get("isListed") else "at your India slab rate"))
+               ("at 20%, s.196" if mm.get("isListed") else "at the client's India slab rate"))
             + f"). The US requires only more than 12 months for LTCG on any asset — no listed/unlisted distinction — so the SAME gain is "
-            f"{mm['usClassification'].upper()} under US rules. Recomputed your actual US return both ways: treated as LTCG, US tax is "
+            f"{mm['usClassification'].upper()} under US rules. Recomputed the client's actual US return both ways: treated as LTCG, US tax is "
             f"{_usd(as_ltcg)}; treated as STCG (ordinary rates), US tax is {_usd(as_stcg)} — a difference of "
             f"{_usd(abs(delta_usd))}.",
             (
@@ -778,7 +778,7 @@ def _findings_crossborder_result(d, ctx):
             "transfer_pricing", "warning", "document",
             "Related-party cross-border transactions — transfer pricing documentation may apply",
             "Layer 1 records a related-party cross-border ownership link (US person owning ≥10% of a foreign/Indian corporation). "
-            "Any transactions between you and that related entity this year — service fees, cost allocations, loans, guarantees, "
+            "Any transactions between the client and that related entity this year — service fees, cost allocations, loans, guarantees, "
             "IP licensing — must be priced at arm's length under India's s.92-92F and the US's parallel §482 regime. WISING does "
             "NOT evaluate whether pricing is arm's-length; it only flags that the relationship exists.",
             "If related-party cross-border transactions occurred this year, confirm Form 3CEB certification and Rule 10D "

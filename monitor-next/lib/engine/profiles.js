@@ -281,7 +281,7 @@
     label: "US Resident · Indian income",
     story: "US green-card holder with Indian rent, dividends, mutual funds, a small India consulting stake and a US-side consulting side gig. US taxes worldwide → FTC (Form 1116) for Indian TDS; PFIC; a below-threshold Indian business stake; no US-India Totalization Agreement on his US self-employment tax; plus occasional online-gaming winnings and an unexplained cash deposit back home. His W-2 job also reports qualified tip income and overtime premium pay — the first demo of the (OBBBA, TY2025-2028) \"no tax on tips\"/\"no tax on overtime\" deductions, both intact here since his AGI sits just under the $300,000 MFJ phase-out threshold. Also a general partner in a small consulting LLC — the first demo of partnership K-1 guaranteed payments (previously dropped from income entirely) and Box 14A self-employment earnings (previously unread, so partnership SE tax was always $0).",
     tags: ["FTC 1116", "PFIC", "FBAR", "NR in India", "self-employment", "tips/overtime", "K-1"],
-    router: router("Rohan Mehta", { is_us_citizen: false, has_green_card: true, us_days: 365, date_of_birth: "1985-03-22" }),
+    router: router("Rohan Mehta", { is_us_citizen: false, has_green_card: true, us_days: 345, date_of_birth: "1985-03-22" }),
     india: {
       profile: { full_name: "Rohan Mehta", entity_type: "individual", date_of_birth: "1985-03-22", pan: "AAAPM5678Q", tax_regime: "NEW" },
       residency_detail: { days_in_india_current_year: 20, final_india_residency_status: "NR" },
@@ -397,10 +397,10 @@
       // even though the rental property itself is in NJ (unmodeled — no NJ
       // bracket data exists in this engine).
       state_residency: { primary_state_of_residence: "NY", ny_actual_days_present: 240, ny_permanent_place_of_abode: true },
-      // Deliberate demo error: a US-based green-card holder (365 US days) cannot
+      // Deliberate demo error: a US-based green-card holder (345 US days) cannot
       // claim FEIE — no foreign tax home, no presence test. The engine must zero
       // the exclusion and raise the "FEIE claimed but not eligible" conflict.
-      foreign_earned_income: { claims_feie: true, feie_amount_claimed_usd: 14458, tax_home_country: "United States", bona_fide_residence: false, physical_presence: false, days_in_us_during_test_period: 365 },
+      foreign_earned_income: { claims_feie: true, feie_amount_claimed_usd: 14458, tax_home_country: "United States", bona_fide_residence: false, physical_presence: false, days_in_us_during_test_period: 345 },
       bank_accounts: [{ bank_name: "SBI (NRO)", account_type: "nro", country: "India", peak_balance_usd: 31325 }, { bank_name: "Axis (NRE)", account_type: "nre", country: "India", peak_balance_usd: 22892 }],
       fbar_aggregate_peak_usd: 54217,
       foreign_entities: { owns_10_percent_foreign_corp: false, foreign_corporations: [], pfic_holdings: [{ asset_name: "SBI Bluechip Fund", holding_value_usd: 50602 }, { asset_name: "Mirae Asset Large Cap", holding_value_usd: 31325 }], has_pfics: true },

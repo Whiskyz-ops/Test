@@ -577,7 +577,7 @@ def _findings_india_result(d, ctx):
         findings.append(make_finding(
             "chapter_xiia_investment_income_computed", "info", "credit",
             f"Chapter XII-A investment income of {_inr(xiia_inv_income_inr)} included at the flat 20% rate",
-            f"Interest/dividend entered against your Chapter XII-A specified holdings ({_inr(xiia_inv_income_inr)} total) is taxed "
+            f"Interest/dividend entered against the client's Chapter XII-A specified holdings ({_inr(xiia_inv_income_inr)} total) is taxed "
             "at the flat 20% s.217/212 (s.115E(1)(a)) rate in the India tax computed below — no Chapter VI-A deductions or basic "
             "exemption apply to this slice, per Chapter XII-A's own rules.",
             "Confirm this figure covers ALL specified holdings' interest/dividend for the year, not just some of them.",

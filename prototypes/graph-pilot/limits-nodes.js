@@ -171,7 +171,7 @@ NODES.limitsResult = {
       var useLastDay = lastDayPct > peakPct;
       gauge("form8938", useLastDay ? "Form 8938 (FATCA) last day of year" : "Form 8938 (FATCA) any-time",
         useLastDay ? lastDayUsd : aggregatePeakUsd, useLastDay ? tbl.lastDay : tbl.anyTime, "USD",
-        useLastDay ? "Threshold shown is the 'last day of tax year' figure for your status/residence." : "Threshold shown is the 'any time during year' figure for your status/residence.");
+        useLastDay ? "Threshold shown is the 'last day of tax year' figure for the client's status/residence." : "Threshold shown is the 'any time during year' figure for the client's status/residence.");
     }
     if (scopeHasIndia) {
       gauge("lrs", "LRS outbound remittance", d.limitsRawExtra.lrsRemittedInr / fxRate(ctx), L.LRS_ANNUAL_USD, "USD",
