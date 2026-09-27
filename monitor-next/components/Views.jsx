@@ -18,19 +18,20 @@ const SEV_TEXT = { critical: PAL.redText, warning: PAL.amberText, info: PAL.blue
 const GREEN = PAL.positive;
 const fmtInr = (n) => "₹" + Math.round(n || 0).toLocaleString("en-IN");
 
-// Reconciliation's India "Salary — taxable" row with its gross → taxable
-// breakdown tucked away: hovering previews it, clicking (or Enter/Space)
-// pins it open — click is what makes it reachable on touch screens, which
-// have no hover. Collapsed by default so the card reads like every other
-// head; the chevron (handed to `children` as a render prop, so it sits
-// inline after the row's own label) is the cue that there's more here.
-function SalaryBreakdownRow({ gross, deductions, children }) {
+// A Reconciliation income row with its make-up tucked away: hovering
+// previews it, clicking (or Enter/Space) pins it open — click is what makes
+// it reachable on touch screens, which have no hover. Collapsed by default so
+// the card reads like every other head; the chevron (handed to `children` as
+// a render prop, so it sits inline after the row's own label) is the cue
+// that there's more here. `lines`: [{ label, value, sub }] — sub lines are
+// indented, a negative value shows as "−", value null shows a note only.
+function BreakdownRow({ title, lines, fmt, children }) {
   const [pinned, setPinned] = useState(false);
   const [hovered, setHovered] = useState(false);
   const open = pinned || hovered;
   return (
     <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-      <div role="button" tabIndex={0} aria-expanded={open} title="Show how gross salary becomes taxable salary"
+      <div role="button" tabIndex={0} aria-expanded={open} title={title}
         onClick={() => setPinned((v) => !v)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPinned((v) => !v); } }}
         className="cursor-pointer">
@@ -38,20 +39,23 @@ function SalaryBreakdownRow({ gross, deductions, children }) {
       </div>
       {open && (
         <div className="pb-1 border-b border-line/60">
-          <div className="flex justify-between py-1 text-[11px] text-muted">
-            <span>Salary (gross, per Layer 1)</span>
-            <span className="font-mono">{fmtInr(gross)}</span>
-          </div>
-          {deductions.map(([label, v]) => (
-            <div key={label} className="flex justify-between py-1 pl-3 text-[11px] text-muted">
-              <span>− {label}</span>
-              <span className="font-mono">−{fmtInr(v)}</span>
+          {lines.map((l, i) => (
+            <div key={i} className={"flex justify-between gap-3 py-1 text-[11px] text-muted" + (l.sub ? " pl-3" : "")}>
+              <span>{l.label}</span>
+              {l.value != null && <span className="font-mono shrink-0">{l.value < 0 ? "−" + fmt(-l.value) : fmt(l.value)}</span>}
             </div>
           ))}
         </div>
       )}
     </div>
   );
+}
+
+// India "Salary — taxable": gross → taxable.
+function SalaryBreakdownRow({ gross, deductions, children }) {
+  const lines = [{ label: "Salary (gross, per Layer 1)", value: gross }]
+    .concat(deductions.map(([label, v]) => ({ label: "− " + label, value: -v, sub: true })));
+  return <BreakdownRow title="Show how gross salary becomes taxable salary" lines={lines} fmt={fmtInr}>{children}</BreakdownRow>;
 }
 
 // Soft rounded card with an optional icon-chip header (the reference language).
@@ -1403,6 +1407,20 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
     ["CFC inclusion (GILTI / Subpart F)", inc.us.cfcNonElectedInclusionUs]
   ] : []));
   const usTotalUsd = rowsTotal(usRows, "usd");
+  if (usRows.length && inc.us.wages && usRows[0].mv === inc.us.wages) usRows[0].isWages = true;
+  // Wages = US W-2 wages + pay from a foreign employer for work done while
+  // in the US (US-source, IRC §861(a)(3)) — split out on hover.
+  const wl = inc.india.salaryWorkLocation || {};
+  const usWorkPct = wl.indiaWorkFraction != null ? Math.round((1 - wl.indiaWorkFraction) * 1000) / 10 : null;
+  const wagesLines = [
+    { label: "US W-2 wages (Layer 1 US)", value: ((inc.us.wages && inc.us.wages.usd) || 0) - wagesUsSourceUsd },
+    { label: "+ Foreign-employer pay for work done in the US" + (fromIndia.wages ? " (India salary, US-work share)" : ""), value: wagesUsSourceUsd, sub: true }
+  ].concat(fromIndia.wages && usWorkPct != null ? [{
+    label: wl.basis === "workdays" ? "US-work share " + usWorkPct + "% — from the workdays on Layer 1 India"
+      : wl.basis === "estimated_days_present" ? "US-work share " + usWorkPct + "% — estimated from days present; enter workdays on Layer 1 India's salary section for an exact split"
+      : "US-work share " + usWorkPct + "%",
+    value: null, sub: true
+  }] : []);
 
   return (
     <div className="space-y-6">
@@ -1422,7 +1440,9 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
         {hasUsScope && (
           <div id="recon-us-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "us" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "us" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
             <Card title="🇺🇸 US income — by head" sub={Object.keys(fromIndia).length ? "From Layer 1 US (USD); foreign heads left empty there are filled from Layer 1 India (India's April–March figures under Indian rules — a planning estimate)" : "From Layer 1 US (USD)"}>
-              {usRows.length ? usRows.map((r, i) => <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} />) : <Empty>No US income on file.</Empty>}
+              {usRows.length ? usRows.map((r, i) => (r.isWages && wagesUsSourceUsd > 0
+                ? <BreakdownRow key={i} title="Show W-2 wages vs. foreign-employer pay for US-performed work" lines={wagesLines} fmt={fmtUsd}>{(chevron) => <IncomeRow label={<>{r.label}{chevron}</>} mv={r.mv} additive={r.additive} />}</BreakdownRow>
+                : <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} />)) : <Empty>No US income on file.</Empty>}
               {usRows.length > 0 && <div className="flex justify-between pt-2 mt-1 text-[12px] font-bold text-head"><span>Total</span><span className="font-mono">{fmtUsd(usTotalUsd)}</span></div>}
             </Card>
           </div>
