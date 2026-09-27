@@ -499,7 +499,7 @@ export default function MonitorPage() {
             {!isUsDrill && result && (
               <section className="mt-8">
                 <h3 className="font-display font-bold text-lg text-head mb-4">Conflicts &amp; Mismatches</h3>
-                <ConflictsPanel findings={result.findings} groupable />
+                <ConflictsPanel findings={result.findings} groupable clientKey={activeProfile || clientName || "default"} />
                 <ChecksRegistryPanel checks={result.checksRegistry} />
               </section>
             )}

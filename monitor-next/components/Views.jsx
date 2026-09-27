@@ -9,6 +9,7 @@ import {
 import { fmtUsd, PAL } from "@/lib/logic";
 import { entityLinksFor } from "@/lib/entity-graph";
 import { groupFindings } from "@/lib/conflict-groups";
+import { ACTIONS, CLOSING_ACTIONS, MIN_REASON_CHARS, loadLog, appendEvent, partition, loadPreparer, savePreparer } from "@/lib/conflict-log";
 import CapsuleChart from "@/components/CapsuleChart";
 
 const SEV = { critical: PAL.exposed, warning: PAL.approaching, info: PAL.filing };
@@ -173,8 +174,21 @@ const HeadChip = ({ children }) => (
 
 /* ============================ CONFLICTS ============================ */
 // One finding row (expandable detail, action and references) — shared by the
-// flat list and the root-cause groups below.
-function FindingRow({ f, isOpen, onToggle }) {
+// flat list and the root-cause groups below. With `onLog` (the Monitor, where
+// the panel knows the client), the expanded row can be marked Resolved /
+// Accepted risk / Not applicable with a reason, and shows why a previously
+// resolved finding is open again (`status.state === "stale"`).
+function FindingRow({ f, isOpen, onToggle, status, onLog }) {
+  const [form, setForm] = useState(null); // null | { action, reason, by, error }
+  const stale = status && status.state === "stale";
+  const last = status && status.event;
+  const save = () => {
+    try {
+      onLog({ findingId: f.id, title: f.title, amountUsd: f.amountUsd || 0, action: form.action, reason: form.reason, by: form.by });
+      savePreparer(form.by);
+      setForm(null);
+    } catch (e) { setForm({ ...form, error: e.message }); }
+  };
   return (
     <div className="rounded-lg bg-surface border border-line shadow-card overflow-hidden" style={{ borderLeft: `3px solid ${SEV[f.severity]}` }}>
       <button onClick={onToggle} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/[0.03]">
@@ -184,15 +198,142 @@ function FindingRow({ f, isOpen, onToggle }) {
             read it — the same title renders in full on Monitor's
             full-width panel, so wrapping (not truncating) here keeps it
             legible everywhere instead of only where there's space. */}
-        <span className="font-semibold text-[13px] text-head flex-1 leading-snug">{f.title}</span>
+        <span className="font-semibold text-[13px] text-head flex-1 leading-snug">
+          {f.title}
+          {stale && <span className="ml-2 align-middle text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: "rgba(251,191,36,0.15)", color: PAL.amberText }}>Reopened</span>}
+        </span>
         {f.amountUsd > 0 && <span className="font-mono text-[12px] whitespace-nowrap self-start mt-0.5" style={{ color: SEV_TEXT[f.severity] }}>{fmtUsd(f.amountUsd)}</span>}
         <span className="text-muted text-xs self-start mt-0.5" style={{ transform: isOpen ? "rotate(90deg)" : "none" }}>▸</span>
       </button>
       {isOpen && (
         <div className="px-3 pb-3 pt-0">
+          {stale && (
+            <div className="text-[11.5px] rounded-md px-2.5 py-2 mb-2 leading-relaxed" style={{ background: "rgba(251,191,36,0.08)", color: PAL.amberText }}>
+              Reopened automatically: this was marked {ACTIONS[last.action].toLowerCase()} by {last.by} on {fmtDate(last.at)} at {fmtUsd(last.amountUsd)}; the amount is now {fmtUsd(f.amountUsd || 0)}. Their reason: “{last.reason}”
+            </div>
+          )}
           <div className="text-[12px] text-body leading-relaxed">{f.detail}</div>
           <div className="text-[12px] text-head mt-2 leading-relaxed"><span className="font-bold" style={{ color: PAL.greenText }}>▸ Action:</span> {f.recommendation}</div>
           {f.refs && f.refs.length > 0 && <div className="flex flex-wrap gap-1.5 mt-2.5">{f.refs.map((r, j) => <Ref key={j}>{r}</Ref>)}</div>}
+          {onLog && !form && (
+            <button onClick={() => setForm({ action: "resolved", reason: "", by: loadPreparer(), error: null })}
+              className="mt-3 text-[11.5px] font-semibold px-3 py-1.5 rounded-full border border-line text-body hover:border-white/25 hover:text-head">
+              ✓ Mark resolved…
+            </button>
+          )}
+          {onLog && form && (
+            <div className="mt-3 rounded-lg border border-line bg-white/[0.02] p-3 space-y-2">
+              <div className="flex flex-wrap gap-1.5">
+                {CLOSING_ACTIONS.map((a) => (
+                  <button key={a} onClick={() => setForm({ ...form, action: a })}
+                    className={"text-[11px] font-semibold px-2.5 py-1 rounded-full border " + (form.action === a ? "bg-white/10 text-head border-white/25" : "border-line text-muted hover:text-body")}>
+                    {ACTIONS[a]}
+                  </button>
+                ))}
+              </div>
+              <textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value, error: null })} rows={3}
+                placeholder="Reasoning — what was done or decided, and the evidence (e.g. employer confirmed TDS stopped from October; refund claimed in ITR-2)."
+                className="w-full rounded-md bg-black/20 border border-line text-[12px] text-head p-2 focus:outline-none focus:border-white/30" />
+              <div className="flex flex-wrap items-center gap-2">
+                <input value={form.by} onChange={(e) => setForm({ ...form, by: e.target.value, error: null })} placeholder="Your name / initials"
+                  className="rounded-md bg-black/20 border border-line text-[12px] text-head px-2 py-1.5 w-44 focus:outline-none focus:border-white/30" />
+                <button onClick={save} disabled={form.reason.trim().length < MIN_REASON_CHARS || !form.by.trim()}
+                  className="text-[11.5px] font-bold px-3 py-1.5 rounded-full text-[#04120f] disabled:opacity-40" style={{ background: "linear-gradient(135deg,#34d399,#60a5fa)" }}>
+                  Save to log
+                </button>
+                <button onClick={() => setForm(null)} className="text-[11.5px] text-muted hover:text-body px-2">Cancel</button>
+                {form.error && <span className="text-[11px]" style={{ color: PAL.redText }}>{form.error}</span>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function fmtDate(iso) {
+  try { return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return iso; }
+}
+
+// Closed findings (still-valid resolutions): collapsed under the open list,
+// each with its status, reason, who and when, and a Reopen action.
+function ResolvedSection({ closed, onLog }) {
+  const [expanded, setExpanded] = useState(false);
+  const [reopening, setReopening] = useState(null); // { id, reason, by, error }
+  if (!closed.length) return null;
+  const reopen = (f) => {
+    try {
+      onLog({ findingId: f.id, title: f.title, amountUsd: f.amountUsd || 0, action: "reopened", reason: reopening.reason, by: reopening.by });
+      savePreparer(reopening.by);
+      setReopening(null);
+    } catch (e) { setReopening({ ...reopening, error: e.message }); }
+  };
+  return (
+    <div className="rounded-lg bg-surface border border-line shadow-card overflow-hidden mt-3" style={{ borderLeft: `3px solid ${GREEN}` }}>
+      <button onClick={() => setExpanded((v) => !v)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/[0.03]">
+        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: GREEN, boxShadow: `0 0 8px ${GREEN}` }} />
+        <span className="font-semibold text-[13px] text-head flex-1">Resolved ({closed.length})</span>
+        <span className="text-[11px] text-muted">closed by the firm — not counted in tax at risk</span>
+        <span className="text-muted text-xs" style={{ transform: expanded ? "rotate(90deg)" : "none" }}>▸</span>
+      </button>
+      {expanded && (
+        <div className="px-3 pb-3 pt-0 space-y-1">
+          {closed.map(({ finding: f, status }) => (
+            <div key={f.id} className="py-2 border-t border-line first:border-t-0 text-[12px]">
+              <div className="flex items-start gap-2">
+                <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded mt-0.5" style={{ background: "rgba(52,211,153,0.12)", color: PAL.greenText }}>{ACTIONS[status.event.action]}</span>
+                <div className="min-w-0 flex-1">
+                  <span className="font-semibold text-head">{f.title}</span>
+                  <div className="text-body mt-0.5">“{status.event.reason}”</div>
+                  <div className="text-muted text-[11px] mt-0.5">{status.event.by} · {fmtDate(status.event.at)}{status.event.amountUsd > 0 ? ` · at ${fmtUsd(status.event.amountUsd)}` : ""}</div>
+                </div>
+                {!(reopening && reopening.id === f.id) && (
+                  <button onClick={() => setReopening({ id: f.id, reason: "", by: loadPreparer(), error: null })} className="shrink-0 text-[11px] text-muted hover:text-head px-2">Reopen</button>
+                )}
+              </div>
+              {reopening && reopening.id === f.id && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 pl-2">
+                  <input value={reopening.reason} onChange={(e) => setReopening({ ...reopening, reason: e.target.value, error: null })} placeholder="Why reopen?"
+                    className="flex-1 min-w-[200px] rounded-md bg-black/20 border border-line text-[12px] text-head px-2 py-1.5 focus:outline-none" />
+                  <input value={reopening.by} onChange={(e) => setReopening({ ...reopening, by: e.target.value, error: null })} placeholder="Name"
+                    className="w-32 rounded-md bg-black/20 border border-line text-[12px] text-head px-2 py-1.5 focus:outline-none" />
+                  <button onClick={() => reopen(f)} disabled={reopening.reason.trim().length < MIN_REASON_CHARS || !reopening.by.trim()}
+                    className="text-[11px] font-bold px-3 py-1.5 rounded-full border border-line text-head disabled:opacity-40">Reopen</button>
+                  <button onClick={() => setReopening(null)} className="text-[11px] text-muted px-1">Cancel</button>
+                  {reopening.error && <span className="text-[11px]" style={{ color: PAL.redText }}>{reopening.error}</span>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Every action ever taken on this client's findings, newest first — the
+// audit trail. Append-only (lib/conflict-log.js).
+function ResolutionLog({ log }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!log.length) return null;
+  const rows = log.slice().reverse();
+  return (
+    <div className="rounded-lg bg-surface border border-line shadow-card overflow-hidden mt-3">
+      <button onClick={() => setExpanded((v) => !v)} className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/[0.03]">
+        <span className="font-semibold text-[13px] text-head flex-1">Resolution log ({log.length} {log.length === 1 ? "entry" : "entries"})</span>
+        <span className="text-[11px] text-muted">append-only · stored in this browser</span>
+        <span className="text-muted text-xs" style={{ transform: expanded ? "rotate(90deg)" : "none" }}>▸</span>
+      </button>
+      {expanded && (
+        <div className="px-3 pb-3 pt-0">
+          {rows.map((e, i) => (
+            <div key={i} className="grid grid-cols-[110px_110px_1fr] gap-3 py-1.5 border-t border-line first:border-t-0 text-[11.5px]">
+              <span className="text-muted">{fmtDate(e.at)}<br />{e.by}</span>
+              <span className="font-semibold" style={{ color: e.action === "reopened" ? PAL.amberText : PAL.greenText }}>{ACTIONS[e.action]}</span>
+              <span className="min-w-0"><span className="text-head">{e.title || e.findingId}</span>{e.amountUsd > 0 ? <span className="text-muted"> · {fmtUsd(e.amountUsd)}</span> : null}<br /><span className="text-body">“{e.reason}”</span></span>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -202,20 +343,30 @@ function FindingRow({ f, isOpen, onToggle }) {
 // `groupable` (Monitor): adds a "By root cause" view — findings that share a
 // cause grouped under one card with the tax actually at risk and a single
 // action (lib/conflict-groups.js). Default on; "All findings" is the flat list.
-export function ConflictsPanel({ findings, groupable }) {
+// `clientKey` (Monitor): enables the resolution log — closed findings leave
+// the open list and the at-risk totals, and reappear if their amount moves.
+export function ConflictsPanel({ findings, groupable, clientKey }) {
   const [open, setOpen] = useState(null);
   const [filter, setFilter] = useState("all");
   const [view, setView] = useState(groupable ? "groups" : "flat");
   const [openGroup, setOpenGroup] = useState(undefined);
+  const [log, setLog] = useState([]);
+  useEffect(() => { setLog(clientKey ? loadLog(clientKey) : []); }, [clientKey]);
   if (!findings || !findings.length) return <Empty>No conflicts detected for this taxpayer.</Empty>;
-  const counts = { all: findings.length, critical: 0, warning: 0, info: 0 };
-  findings.forEach((f) => counts[f.severity]++);
-  const shown = findings.filter((f) => filter === "all" || f.severity === filter);
+  const onLog = clientKey ? (event) => { setLog(appendEvent(clientKey, event)); } : null;
+  const { open: openItems, closed } = partition(log, findings);
+  const statusById = {};
+  openItems.forEach((x) => { statusById[x.finding.id] = x.status; });
+  const active = openItems.map((x) => x.finding);
+  const counts = { all: active.length, critical: 0, warning: 0, info: 0 };
+  active.forEach((f) => counts[f.severity]++);
+  const shown = active.filter((f) => filter === "all" || f.severity === filter);
   const chips = [["all", "All"], ["critical", "Critical"], ["warning", "Warning"], ["info", "Info"]];
   const groups = view === "groups" ? groupFindings(shown) : [];
   // The costliest group starts open, so the headline problem is visible
   // without a click; any other group opens on tap.
   const activeGroup = openGroup === undefined ? (groups[0] && groups[0].key) : openGroup;
+  const row = (f) => <FindingRow key={f.id} f={f} isOpen={open === f.id} onToggle={() => setOpen(open === f.id ? null : f.id)} status={statusById[f.id]} onLog={onLog} />;
   return (
     <div>
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
@@ -240,7 +391,8 @@ export function ConflictsPanel({ findings, groupable }) {
           </div>
         )}
         <span className="ml-auto text-[11px] text-muted">
-          {view === "groups" ? `${shown.length} findings · ${groups.length} root causes` : `${shown.length} shown · tap a row for detail & action`}
+          {view === "groups" ? `${shown.length} open findings · ${groups.length} root causes` : `${shown.length} shown · tap a row for detail & action`}
+          {closed.length > 0 ? ` · ${closed.length} resolved` : ""}
         </span>
       </div>
       {view === "groups" ? (
@@ -263,18 +415,21 @@ export function ConflictsPanel({ findings, groupable }) {
                 </button>
                 {gOpen && (
                   <div className="px-3 pb-3 space-y-1.5">
-                    {g.items.map((f) => <FindingRow key={f.id} f={f} isOpen={open === f.id} onToggle={() => setOpen(open === f.id ? null : f.id)} />)}
+                    {g.items.map(row)}
                   </div>
                 )}
               </div>
             );
           })}
+          {!groups.length && <Empty>Every finding for this client has been resolved.</Empty>}
         </div>
       ) : (
         <div className="space-y-1.5">
-          {shown.map((f) => <FindingRow key={f.id} f={f} isOpen={open === f.id} onToggle={() => setOpen(open === f.id ? null : f.id)} />)}
+          {shown.map(row)}
         </div>
       )}
+      {onLog && <ResolvedSection closed={closed} onLog={onLog} />}
+      {onLog && <ResolutionLog log={log} />}
     </div>
   );
 }

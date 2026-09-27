@@ -1468,12 +1468,15 @@
       // previously loaded profile (or a manually-edited Layer 1 form) can bleed
       // through. NOT the site-gate unlock flag (wiping it re-prompted for the
       // access code on the next page load) nor the "+ Add Client" registry and
-      // its per-client namespaced keys (wiping those deleted every client).
+      // its per-client namespaced keys (wiping those deleted every client),
+      // nor the Monitor's conflict resolution log (an audit trail).
       try {
         for (var i = root.localStorage.length - 1; i >= 0; i--) {
           var k = root.localStorage.key(i);
           if (!k || k.indexOf("wising_") !== 0) continue;
           if (k === "wising_site_unlocked" || k === "wising_client_registry" || k.indexOf("wising_client_") === 0) continue;
+          // Monitor's conflict resolution log (monitor-next/lib/conflict-log.js).
+          if (k.indexOf("wising_conflict_") === 0) continue;
           root.localStorage.removeItem(k);
         }
       } catch (e) {}
