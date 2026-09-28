@@ -467,8 +467,17 @@ def _build_tax_computation_us_result(d, ctx):
     if deduction_mode == "standard":
         deduction_trace_formula = f"Standard deduction for filing status {u['filingStatus'].upper()} — used because it exceeds (or the taxpayer elected) itemizing"
     else:
-        deduction_trace_formula = f"Itemized: SALT (capped at {usd(u['saltCapUsd'])} — OBBBA's $40,000 cap, phased down 30¢/$1 of AGI over $500,000, floored at the old $10,000) + mortgage interest + charitable + medical expenses over 7.5% of AGI — used because it exceeds (or the taxpayer elected) the standard deduction"
-    rows.append({"label": f"Less {deduction_mode} deduction", "usd": -u["deductionUsd"], "trace": _calc(deduction_trace_formula, [{"label": "Deduction used", "amount": u["deductionUsd"]}])})
+        deduction_trace_formula = f"Itemized: SALT (capped at {usd(u['saltCapUsd'])} — OBBBA's $40,000 cap, phased down 30¢/$1 of AGI over $500,000, floored at the old $10,000) + mortgage interest + charitable gifts above 0.5% of AGI + medical expenses over 7.5% of AGI, less the §68 reduction for income in the 37% bracket — used because it exceeds (or the taxpayer elected) the standard deduction"
+    deduction_parts = [{"label": "Deduction used", "amount": u["deductionUsd"]}]
+    if (u.get("charitableFloorUsd") or 0) > 0:
+        deduction_parts.append({"label": "Charitable gifts not deductible (first 0.5% of AGI)", "amount": u["charitableFloorUsd"]})
+    if (u.get("itemizedLimitation68Usd") or 0) > 0:
+        deduction_parts.append({"label": "§68 reduction (2/37 of income over the 37% bracket start)", "amount": -u["itemizedLimitation68Usd"]})
+    rows.append({"label": f"Less {deduction_mode} deduction", "usd": -u["deductionUsd"], "trace": _calc(deduction_trace_formula, deduction_parts)})
+    if (u.get("nonItemizerCharitableUsd") or 0) > 0:
+        rows.append({"label": "Less charitable deduction for non-itemizers (§170(p))", "usd": -u["nonItemizerCharitableUsd"],
+                     "trace": _calc("Cash gifts to charity, up to $1,000 ($2,000 married filing jointly), deductible on top of the standard deduction from 2026 (OBBBA)",
+                                     [{"label": "Deduction", "amount": u["nonItemizerCharitableUsd"]}])})
 
     if u["seniorDeductionUsd"] > 0:
         sd = u["seniorDetail"]
@@ -555,10 +564,17 @@ def _build_tax_computation_us_result(d, ctx):
                                       [{"label": "Number of children (Layer 1 dependents count)", "display": js_num_str(ctc_detail["numChildren"])}, {"label": "Max CTC before phase-out", "amount": ctc_detail["maxTotalUsd"]},
                                        {"label": "Phase-out reduction", "amount": -ctc_detail["phaseoutReductionUsd"]}, {"label": "Non-refundable (offsets tax)", "amount": ctc_detail["nonRefundableUsd"]}, {"label": "Refundable (Additional CTC)", "amount": ctc_detail["refundableUsd"]}])})
 
+    t72 = u.get("additionalTax72tUsd") or 0
+    if t72 > 0:
+        rows.append({"label": "Early-withdrawal additional tax (§72(t))", "usd": t72,
+                     "trace": _calc("10% of IRA/401(k) distributions taken before age 59½ (Schedule 2, line 8). Layer 1 doesn't collect the statutory exceptions (disability, SEPP, first home, education, medical), so the full 10% is assumed.",
+                                     [{"label": "Additional tax", "amount": t72}])})
     rows.append({"label": "Total US tax (pre-FTC)", "usd": u["totalTaxBeforeFtcUsd"], "emphasis": True,
-                 "trace": _calc("Income tax (ordinary + preferential) + NIIT + Additional Medicare tax + SE tax + AMT − non-refundable credits",
+                 "trace": _calc("Income tax (ordinary + preferential) + NIIT + Additional Medicare tax + SE tax + AMT" + (" + §72(t) additional tax" if t72 > 0 else "") + " − non-refundable credits",
                                  [{"label": "Income tax (ordinary + preferential)", "amount": u["incomeTaxUsd"]}, {"label": "NIIT", "amount": u["niitUsd"]}, {"label": "Additional Medicare tax", "amount": u["additionalMedicareUsd"]},
-                                  {"label": "SE tax", "amount": u["seTaxUsd"]}, {"label": "AMT", "amount": u["amtUsd"]}, {"label": "Less credits", "amount": -u["creditsUsd"]}])})
+                                  {"label": "SE tax", "amount": u["seTaxUsd"]}, {"label": "AMT", "amount": u["amtUsd"]}]
+                                 + ([{"label": "§72(t) additional tax", "amount": t72}] if t72 > 0 else [])
+                                 + [{"label": "Less credits", "amount": -u["creditsUsd"]}])})
 
     return {
         "title": f"US federal income tax ({u['filingStatus'].upper()})",

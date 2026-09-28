@@ -1,0 +1,51 @@
+{
+  "id": "us_child_tax_credit",
+  "form": "layer1_us.html",
+  "section": "Profile (dependents / child tax credit)",
+  "story": "US citizens, married filing jointly, wages $120,000, two qualifying children.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 2
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 120000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 120000
+          }
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 5640,
+      "why": "taxable 87,800: 2,480 + 12% x 63,000 = 10,040; less child tax credit 2 x 2,200 (under the 400,000 phase-out)"
+    }
+  ]
+}

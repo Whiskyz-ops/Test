@@ -18,6 +18,8 @@ INDIA = {
         [250000, 0.00], [500000, 0.05], [1000000, 0.20], [float("inf"), 0.30],
     ],
     "STD_DEDUCTION_SALARY_NEW_INR": 75000,
+    "FAMILY_PENSION_DEDUCTION_CAP_OLD_INR": 15000,
+    "FAMILY_PENSION_DEDUCTION_CAP_NEW_INR": 25000,
     "STD_DEDUCTION_SALARY_OLD_INR": 50000,
     # s.10(14)/Rule 2BB(1)(g) — PWD transport allowance, exempt in BOTH regimes (not blocked by s.115BAC(2)).
     "PWD_TRANSPORT_ALLOWANCE_ANNUAL_INR": 38400,

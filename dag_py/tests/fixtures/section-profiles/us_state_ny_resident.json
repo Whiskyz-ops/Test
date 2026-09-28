@@ -1,0 +1,51 @@
+{
+  "id": "us_state_ny_resident",
+  "form": "layer1_us.html",
+  "section": "State",
+  "story": "US citizen, single, New York resident, wages $60,000. NY taxable income 60,000 - 8,000 standard deduction = 52,000 (the engine uses New York's 2025 rate schedule).",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "NY"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 60000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 60000
+          }
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "findings[id=state_income_tax].amountUsd",
+      "value": 2695,
+      "why": "NY 2025 schedule on 52,000: 4% x 8,500 + 4.5% x 3,200 + 5.25% x 2,200 + 5.5% x 38,100 = 340 + 144 + 115.50 + 2,095.50"
+    }
+  ]
+}

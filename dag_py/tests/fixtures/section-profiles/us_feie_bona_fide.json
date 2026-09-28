@@ -1,0 +1,57 @@
+{
+  "id": "us_feie_bona_fide",
+  "form": "layer1_us.html",
+  "section": "FEIE",
+  "story": "US citizen living in India since April 2022 (bona fide residence), single, foreign wages $150,000, claims the foreign earned income exclusion.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 20
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_foreign_source": {
+      "foreign_wages": [
+        {
+          "employer_name": "Bengaluru Tech Pvt Ltd",
+          "gross_wages_usd": 150000
+        }
+      ]
+    },
+    "foreign_earned_income": {
+      "claims_feie": true,
+      "qualification_test": "bona_fide_residence",
+      "bona_fide_residence_start_date": "2022-04-01",
+      "tax_home_country": "India"
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.taxableIncomeUsd",
+      "value": 1000,
+      "why": "150,000 - 132,900 FEIE (2026 cap, full year) - 16,100"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 240,
+      "why": "stacking rule (s.911(f)): tax on 133,900 minus tax on 132,900 — the 1,000 is taxed at the 24% rate the excluded income would have reached"
+    }
+  ]
+}

@@ -22,7 +22,7 @@ NIIT_THRESHOLD = {"single": 200000, "mfj": 250000, "mfs": 125000, "hoh": 200000}
 
 US = {
     "BRACKETS": {
-        "single": [[12400, 0.10], [49840, 0.12], [106250, 0.22], [202850, 0.24], [257540, 0.32], [640600, 0.35], [INF, 0.37]],
+        "single": [[12400, 0.10], [50400, 0.12], [105700, 0.22], [201775, 0.24], [256225, 0.32], [640600, 0.35], [INF, 0.37]],
         "mfj": [[24800, 0.10], [100800, 0.12], [211400, 0.22], [403550, 0.24], [512450, 0.32], [768700, 0.35], [INF, 0.37]],
         "mfs": [[12400, 0.10], [50400, 0.12], [105700, 0.22], [201775, 0.24], [256225, 0.32], [384350, 0.35], [INF, 0.37]],
         "hoh": [[17700, 0.10], [67450, 0.12], [105700, 0.22], [201750, 0.24], [256200, 0.32], [640600, 0.35], [INF, 0.37]],
@@ -49,6 +49,10 @@ US = {
     "SALT_CAP_PHASEOUT_THRESHOLD_USD": {"single": 505000, "mfj": 505000, "mfs": 252500, "hoh": 505000},
     "SALT_CAP_PHASEOUT_RATE": 0.30,
     "SALT_CAP_FLOOR_USD": 10000,
+    # OBBBA charitable/itemized changes from TY2026 (see constants.js).
+    "CHARITABLE_ITEMIZED_FLOOR_RATE": 0.005,
+    "NON_ITEMIZER_CHARITABLE_MAX_USD": {"mfj": 2000, "other": 1000},
+    "ITEMIZED_LIMITATION_68_RATE": 2 / 37,
     "NIIT_RATE": 0.038,
     "ADDL_MEDICARE_RATE": 0.009,
     "C_CORP_RATE": 0.21,

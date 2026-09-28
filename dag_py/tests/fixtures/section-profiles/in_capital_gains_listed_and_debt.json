@@ -1,0 +1,95 @@
+{
+  "id": "in_capital_gains_listed_and_debt",
+  "form": "layer1_india.html",
+  "section": "Capital gains",
+  "story": "Resident individual, new regime, salary 10,75,000. Sold listed shares held 29 months (gain 4,00,000), listed shares held 4 months (gain 1,00,000), and a post-April-2023 debt fund (gain 50,000). STT paid on the shares.",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "individual",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "manual_days": 365,
+      "days_in_india_current_year": 365,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "gross_salary_inr": 1075000
+      }
+    },
+    "other_sources": {},
+    "financial_holdings": {
+      "transactions": [
+        {
+          "asset_class": "listed_equity",
+          "asset_name_or_ticker": "INFY",
+          "quantity": 500,
+          "acquisition_date": "2024-01-10",
+          "purchase_value": 500000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-06-10",
+          "sale_value": 900000,
+          "sale_currency": "INR",
+          "stt_paid": true
+        },
+        {
+          "asset_class": "listed_equity",
+          "asset_name_or_ticker": "TCS",
+          "quantity": 100,
+          "acquisition_date": "2026-01-05",
+          "purchase_value": 200000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-05-05",
+          "sale_value": 300000,
+          "sale_currency": "INR",
+          "stt_paid": true
+        },
+        {
+          "asset_class": "debt_mutual_fund_post_apr23",
+          "asset_name_or_ticker": "Debt fund",
+          "quantity": 1000,
+          "acquisition_date": "2025-02-01",
+          "purchase_value": 100000,
+          "purchase_currency": "INR",
+          "sale_date": "2026-08-01",
+          "sale_value": 150000,
+          "sale_currency": "INR",
+          "stt_paid": false
+        }
+      ]
+    }
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "model.income.india.ltcg.inr",
+      "value": 400000,
+      "why": "s.112A: 9,00,000 - 5,00,000, held > 12 months"
+    },
+    {
+      "path": "model.income.india.stcg.inr",
+      "value": 100000,
+      "why": "s.111A: 3,00,000 - 2,00,000, held <= 12 months"
+    },
+    {
+      "path": "model.income.india.stcgSlabInr",
+      "value": 50000,
+      "why": "s.50AA: debt fund gain is always short-term, taxed at slab"
+    },
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 103350,
+      "why": "slab on 10,50,000 = 45,000; 12.5% x (4,00,000 - 1,25,000) = 34,375; 20% x 1,00,000 = 20,000; no rebate (total income 15.5L); +4% cess"
+    }
+  ]
+}

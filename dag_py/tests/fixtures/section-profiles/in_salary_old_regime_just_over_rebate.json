@@ -1,0 +1,45 @@
+{
+  "id": "in_salary_old_regime_just_over_rebate",
+  "form": "layer1_india.html",
+  "section": "Salary",
+  "story": "Resident individual, old regime, taxable salary 5,10,000 — 10,000 over the old-regime rebate limit. The old-regime rebate is all-or-nothing (only the new regime has marginal relief), so full slab tax is due.",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "individual",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "OLD"
+    },
+    "residency_detail": {
+      "manual_days": 365,
+      "days_in_india_current_year": 365,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "gross_salary_inr": 560000
+      }
+    },
+    "other_sources": {}
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "model.income.india.salary.inr",
+      "value": 510000,
+      "why": "5,60,000 - std 50,000"
+    },
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 15080,
+      "why": "12,500 + 20% x 10,000 = 14,500, no rebate (income > 5L, no marginal relief in the old regime); +4% cess"
+    }
+  ]
+}

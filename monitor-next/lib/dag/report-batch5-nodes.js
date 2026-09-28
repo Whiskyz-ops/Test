@@ -106,12 +106,12 @@ NODES.underpayment2210Finding = {
     return [{
       id: "underpayment_2210", severity: "warning", category: "credit",
       title: "US estimated-tax underpayment penalty — Form 2210 (" + usd(penaltyUsd) + " estimated)",
-      detail: "Withholding + estimated payments (" + usd(d.usPaidTotalUsd) + ") fall short of both safe harbors: 90% of this year's " +
-        "tax (" + usd(d.usCurrentHarborUsd) + ") and " + (d.usPriorHarborUsd != null
+      detail: "Withholding + estimated payments (" + usd(d.usPaidTotalUsd) + " in all) weren't paid by the instalment dates: each of the four " +
+        "instalments is 25% of the lower safe harbor — 90% of this year's tax (" + usd(d.usCurrentHarborUsd) + ") or " + (d.usPriorHarborUsd != null
           ? Math.round(d.usPriorHarborPct * 100) + "% of last year's tax (" + usd(d.usPriorHarborUsd) + ")"
           : "the prior-year safe harbor (last year's total tax was never entered, so only the current-year harbor could be checked)") +
-        ", with a balance due over the $1,000 de-minimis. Estimated penalty (simplified regular method, equal quarterly " +
-        "installments, withholding spread evenly, no cross-quarter netting): " + usd(penaltyUsd) + ".",
+        ". Estimated penalty (regular method: withholding spread evenly, each payment applied to the earliest unpaid instalment, " +
+        "so an early overpayment covers later dates and a late one only stops the clock when made): " + usd(penaltyUsd) + ".",
       recommendation: "Confirm against the real Form 2210 (it can use the Annualized Income Installment Method for uneven income, which " +
         "this estimate does not model, and could produce a lower number). Paying the shortfall now stops further accrual.",
       amountUsd: Math.max(0, penaltyUsd), refs: ["Form 2210", "§6654"]

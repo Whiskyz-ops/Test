@@ -687,7 +687,11 @@ var KNOWN_DAG_ONLY = {
   // wage/UBIA limitation): the 2.5% UBIA rate in IRC §199A(b)(2)(B)(ii)'s
   // wage/UBIA limit formula (0.25*wages + 0.025*UBIA) — the frozen engine
   // has no wage/UBIA cap at all.
-  "ustax-nodes.js": [400, 366, 0.025]
+  "ustax-nodes.js": [400, 366, 0.025],
+  // s.234C / s.425 cumulative advance-tax schedule (section-profile audit,
+  // 28 Sep 2026): the cumulative 45% September instalment and the 12%/36%
+  // safe harbours. The frozen engine tested each quarter's own slice.
+  "india-compliance.js": [0.45, 0.36, 0.12]
 };
 function isKnownDagOnly(f, v) { return (KNOWN_DAG_ONLY[f] || []).indexOf(v) !== -1; }
 

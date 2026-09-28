@@ -1,0 +1,83 @@
+{
+  "id": "us_nra_married_1040nr",
+  "form": "layer1_us.html",
+  "section": "NRA (Form 1040-NR)",
+  "story": "Married non-resident alien (Indian resident), no s.6013(g)/(h) election, files Form 1040-NR. A 90-day US assignment paid $450,000 on a US W-2, all for work done in the US (65 workdays, none elsewhere); US dividends $10,000 with a W-8BEN claiming the India-US treaty's 25% rate.",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 90
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "mfs",
+      "ssn_or_itin_type": "itin",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 90,
+      "spt_test_met": false,
+      "final_us_residency_status": "NRA"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "nra_specific": {
+      "files_form_1040nr": true,
+      "submitted_w8ben": true,
+      "treaty_rate_claims": [
+        {
+          "income_type": "dividends",
+          "elected_rate": "25",
+          "treaty_article": "Art 10(2)(b)"
+        }
+      ],
+      "us_eci_income_usd": 450000,
+      "us_fdap_income_usd": 10000
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme US",
+          "wages_box1_usd": 450000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 450000
+          },
+          "workdays_in_us": 65,
+          "workdays_outside_us": 0
+        }
+      ],
+      "ordinary_dividends_us_source_usd": 10000
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.nra.eciTaxUsd",
+      "value": 127582.25,
+      "why": "a married NRA must use married-filing-separately rates (35% bracket ends at 384,350): 58,448 up to 256,225 + 35% x 128,125 + 37% x 65,650; no standard deduction"
+    },
+    {
+      "path": "computed.usTax.nra.fdapTaxUsd",
+      "value": 2500,
+      "why": "25% treaty rate (Art. 10(2)(b), W-8BEN on file) x 10,000"
+    },
+    {
+      "path": "computed.usTax.additionalMedicareUsd",
+      "value": 2925,
+      "why": "0.9% x (450,000 - 125,000 MFS threshold); NRA wages are FICA wages (no India-US totalization agreement)"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 133007.25,
+      "why": "ECI tax + FDAP tax + additional Medicare"
+    }
+  ]
+}

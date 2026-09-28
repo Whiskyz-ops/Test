@@ -1,0 +1,63 @@
+{
+  "id": "in_compliance_expired_trc",
+  "form": "layer1_india.html",
+  "section": "Compliance documents (TRC / Form 10F)",
+  "story": "Non-resident individual with Indian royalty income 10,00,000 electing the 15% India-US treaty rate (Art. 12). The TRC on file expired on 31 Dec 2025, before this financial year (Apr 2026 - Mar 2027) began, so the treaty rate isn't available and s.115A's 20% applies.",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "individual",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "manual_days": 30,
+      "days_in_india_current_year": 30,
+      "days_in_india_preceding_4_years_gte_365": false,
+      "india_source_income_above_15l": false,
+      "final_india_residency_status": "NR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      }
+    },
+    "other_sources": {},
+    "dtaa": {
+      "treaty_elections": [
+        {
+          "income_type": "royalty",
+          "amount_inr": 1000000,
+          "elected_rate": 0.15,
+          "treaty_article": "Art 12(2)(a)(ii)"
+        }
+      ]
+    },
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": true,
+        "validity_start_date": "2025-01-01",
+        "validity_end_date": "2025-12-31"
+      },
+      "form_10f": {
+        "is_filed": true
+      }
+    }
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "computed.indiaTax.s115a.royalty.taxInr",
+      "value": 200000,
+      "why": "TRC doesn't cover FY 2026-27: domestic 20% x 10,00,000"
+    },
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 208000,
+      "why": "2,00,000 + 4% cess"
+    }
+  ]
+}

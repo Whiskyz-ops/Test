@@ -1,0 +1,25 @@
+{
+  "id": "in_profile_company_normal_rate",
+  "form": "layer1_india.html",
+  "section": "Profile (entity type: company)",
+  "story": "Domestic company, turnover under 400 crore, not opting for s.115BAA: turnover 3,00,00,000, other business expenses 1,00,00,000, so business income 2,00,00,000.",
+  "router": { "jurisdiction": "india_only", "entity_type": "company", "base_tax_year": 2026 },
+  "india": {
+    "profile": { "entity_type": "company", "tax_regime": "NEW", "turnover_lte_400cr": true, "opt_115baa": false },
+    "residency_detail": { "final_india_residency_status": "ROR", "is_indian_company": true },
+    "domestic_income": {
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "business_entries": [
+          { "business_name": "Nova Components", "nature": "regular_business", "presumptive_scheme": null, "turnover_inr": 30000000, "expenses": { "other_business_expenses_inr": 10000000 } }
+        ]
+      }
+    },
+    "other_sources": {}
+  },
+  "us": {},
+  "expect": [
+    { "path": "model.income.india.business.inr", "value": 20000000, "why": "3,00,00,000 - 1,00,00,000" },
+    { "path": "computed.indiaTax.totalTaxInr", "value": 5564000, "why": "25% (turnover <= 400 crore) = 50,00,000; surcharge 7% (1-10 crore) = 3,50,000; +4% cess; MAT (15% of book profit) is lower" }
+  ]
+}

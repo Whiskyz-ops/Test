@@ -1,0 +1,60 @@
+{
+  "id": "in_house_property_let_out_and_self_occupied",
+  "form": "layer1_india.html",
+  "section": "House property",
+  "story": "Resident individual, old regime, salary 15,00,000. One let-out flat (rent 6,00,000, municipal tax 30,000, loan interest 1,00,000) and one self-occupied home (loan interest 2,50,000).",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "individual",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "OLD"
+    },
+    "residency_detail": {
+      "manual_days": 365,
+      "days_in_india_current_year": 365,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "gross_salary_inr": 1500000
+      },
+      "house_property": {
+        "has_house_property_income": true,
+        "properties": [
+          {
+            "property_use": "LOP",
+            "gross_annual_value_inr": 600000,
+            "municipal_taxes_paid_inr": 30000,
+            "interest_on_borrowed_capital_inr": 100000
+          },
+          {
+            "property_use": "SOP",
+            "interest_on_borrowed_capital_inr": 250000
+          }
+        ]
+      }
+    },
+    "other_sources": {}
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "model.income.india.houseProperty.inr",
+      "value": 99000,
+      "why": "let-out: (6,00,000 - 30,000) x 70% - 1,00,000 = 2,99,000; self-occupied interest capped at 2,00,000"
+    },
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 288288,
+      "why": "salary 14,50,000 + HP 99,000 = 15,49,000; 12,500 + 1,00,000 + 30% x 5,49,000 = 2,77,200; +4% cess"
+    }
+  ]
+}

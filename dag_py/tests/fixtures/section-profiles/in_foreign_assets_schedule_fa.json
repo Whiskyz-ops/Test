@@ -1,0 +1,57 @@
+{
+  "id": "in_foreign_assets_schedule_fa",
+  "form": "layer1_india.html",
+  "section": "Foreign assets (Schedule FA)",
+  "story": "Resident (ROR) salaried individual, India-only client, new regime, salary 9,75,000. Declares a UK bank account on the India form's foreign-assets screen. A resident holding any foreign asset must file Schedule FA, which rules out ITR-1.",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "individual",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "manual_days": 365,
+      "days_in_india_current_year": 365,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "gross_salary_inr": 975000
+      }
+    },
+    "other_sources": {},
+    "foreign_assets": {
+      "has_foreign_assets": true,
+      "assets": [
+        {
+          "category": "bank",
+          "institution_name": "Barclays",
+          "account_id": "GB-1234",
+          "country": "United Kingdom",
+          "peak_balance": 800000
+        }
+      ]
+    }
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "documents[id=schedule_fa].required",
+      "value": true,
+      "why": "ROR with a foreign bank account: Schedule FA is mandatory (Black Money Act penalty for non-disclosure)"
+    },
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 0,
+      "why": "9,75,000 - 75,000 = 9,00,000; slab tax 30,000 fully rebated (<= 12L)"
+    }
+  ]
+}

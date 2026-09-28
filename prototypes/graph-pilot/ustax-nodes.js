@@ -283,8 +283,22 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       // 7.5% floor -- new here, the "Federal Disaster Loss" field fed
       // nothing at all before this.
       var casualtyLossDeductible = Math.max(0, (ded.casualtyLoss || 0) - 0.10 * agi);
-      var itemized = Math.min(ded.salt, saltCapUsd) + ded.mortgageInterest + ded.charitable + Math.max(0, ded.medical - 0.075 * agi) + casualtyLossDeductible;
-      var deduction = ded.mode === "itemized" ? itemized : ded.mode === "standard" ? standard : Math.max(standard, itemized);
+      // OBBBA, TY2026+: itemized charitable gifts count only above 0.5% of
+      // AGI (§170(b)(1)(I)); standard-deduction filers may deduct up to
+      // $1,000 ($2,000 MFJ) of cash gifts (§170(p)); and itemized deductions
+      // are reduced by 2/37 of the lesser of the itemized total or income
+      // above the start of the 37% bracket (§68, caps their value at 35%).
+      var charitableFloorUsd = Math.min(ded.charitable, T.CHARITABLE_ITEMIZED_FLOOR_RATE * agi);
+      var itemizedBefore68 = Math.min(ded.salt, saltCapUsd) + ded.mortgageInterest + (ded.charitable - charitableFloorUsd) + Math.max(0, ded.medical - 0.075 * agi) + casualtyLossDeductible;
+      var top37Usd = (brackets[brackets.length - 2] || [Infinity])[0];
+      // §68's income base is taxable income plus itemized deductions; AGI is
+      // used here (it ignores the smaller senior/tips/overtime/QBI deductions).
+      var itemizedLimitation68Usd = T.ITEMIZED_LIMITATION_68_RATE * Math.min(itemizedBefore68, Math.max(0, agi - top37Usd));
+      var itemized = itemizedBefore68 - itemizedLimitation68Usd;
+      var nonItemizerCharitableUsd = Math.min(ded.charitableCash || 0, T.NON_ITEMIZER_CHARITABLE_MAX_USD[status === "mfj" ? "mfj" : "other"]);
+      var itemizing = ded.mode === "itemized" ? true : ded.mode === "standard" ? false : itemized > standard + nonItemizerCharitableUsd;
+      var deduction = itemizing ? itemized : standard;
+      if (itemizing) nonItemizerCharitableUsd = 0;
 
       var taxpayerAge = null;
       if (taxpayerDobRaw) { var dobYear = new Date(taxpayerDobRaw).getFullYear(); if (!isNaN(dobYear)) taxpayerAge = (baseYearUs || 2025) - dobYear; }
@@ -301,7 +315,7 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var overtimeMaxUsd = T.OVERTIME_DEDUCTION_MAX_USD[status] || T.OVERTIME_DEDUCTION_MAX_USD.single;
       var overtimeDeductionUsd = isMfs ? 0 : Math.max(0, Math.round(Math.min(qualifiedOvertimeUsd, overtimeMaxUsd) - tipsOtPhaseoutReduction));
 
-      var taxableBeforeQbi = Math.max(0, agi - deduction - seniorDeductionUsd - tipsDeductionUsd - overtimeDeductionUsd);
+      var taxableBeforeQbi = Math.max(0, agi - deduction - nonItemizerCharitableUsd - seniorDeductionUsd - tipsDeductionUsd - overtimeDeductionUsd);
 
       // §199A W-2 wage / UBIA limitation (task #42 follow-up). K-1 Box 20
       // qbi_wages_usd/qbi_ubia_usd (partnerships_k1/s_corporations_k1) and
@@ -399,7 +413,7 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
 
       var addlMedicare = additionalMedicareOwedBoundary;
 
-      var usedMode = (ded.mode === "itemized" || ded.mode === "standard") ? ded.mode : (itemized > standard ? "itemized" : "standard");
+      var usedMode = itemizing ? "itemized" : "standard";
       var amtAddback = usedMode === "standard" ? deduction : Math.min(ded.salt, saltCapUsd);
       var amtiUsd = Math.max(0, taxableIncome + amtAddback + (ded.amtPrefs || 0));
       var amtExFull = T.AMT_EXEMPTION[status] || T.AMT_EXEMPTION.single;
@@ -497,7 +511,7 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
 
       var totalTaxBeforeFtc = incomeTax + niit + addlMedicare + seTax + amtOwed + gilti962TaxUsd - creditsUsd;
 
-      return {
+      var coreResult = {
         agiUsd: agi, taxableIncomeUsd: taxableIncome, incomeTaxUsd: incomeTax, niitUsd: niit,
         additionalMedicareUsd: addlMedicare, seTaxUsd: seTax, qbiDeductionUsd: qbiDeduction, amtUsd: amtOwed,
         creditsUsd: creditsUsd, totalTaxBeforeFtcUsd: totalTaxBeforeFtc,
@@ -579,6 +593,11 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
         },
         effectiveRate: totalIncome > 0 ? totalTaxBeforeFtc / totalIncome : 0
       };
+      // OBBBA charitable/§68 figures, only when they apply (result shape otherwise unchanged)
+      if (itemizing && charitableFloorUsd > 0) coreResult.charitableFloorUsd = charitableFloorUsd;
+      if (itemizing && itemizedLimitation68Usd > 0) coreResult.itemizedLimitation68Usd = itemizedLimitation68Usd;
+      if (nonItemizerCharitableUsd > 0) coreResult.nonItemizerCharitableUsd = nonItemizerCharitableUsd;
+      return coreResult;
 }
 
 // Additional Medicare Tax (0.9% of Medicare wages over $200k / $250k MFJ /
@@ -668,6 +687,7 @@ var NODES = {
         salt: num(safe(it, "state_and_local_taxes_paid_usd", 0)),
         mortgageInterest: num(safe(it, "mortgage_interest_paid_usd", 0)),
         charitable: num(safe(it, "charitable_contributions_cash_usd", 0)) + num(safe(it, "charitable_contributions_appreciated_usd", 0)),
+        charitableCash: num(safe(it, "charitable_contributions_cash_usd", 0)),
         medical: num(safe(it, "medical_expenses_usd", 0)),
         casualtyLoss: num(safe(it, "casualty_loss_federal_disaster_usd", 0)),
         studentLoanInterest: num(safe(it, "student_loan_interest_usd", 0)),
@@ -718,10 +738,27 @@ var NODES = {
   // ---- computeUsTax, ported in full (individual/resident path) -------------
   // (body extracted to computeUsTaxCore above so dual-status-nodes.js can
   // call it twice for a split-year return; this node is now a thin wrapper.)
+  // §72(t): 10% additional tax on IRA/401(k) distributions taken before
+  // 59½ (Schedule 2 line 8). Layer 1 doesn't collect the statutory
+  // exceptions, so — like the early_withdrawal_penalty_72t finding — the
+  // full 10% is assumed. Age at 31 Dec under 59, same test as that finding.
+  additionalTax72tUsd: {
+    deps: ["taxpayerDobRaw", "baseYearUs"],
+    compute: function (d, ctx) {
+      var distUsd = num(safe(ctx.us, "income_us_source.ira_distributions_usd", 0)) + num(safe(ctx.us, "income_us_source.401k_distributions_usd", 0));
+      if (!(distUsd > 0) || !d.taxpayerDobRaw) return 0;
+      var dob = new Date(d.taxpayerDobRaw);
+      if (isNaN(dob.getTime())) return 0;
+      return (d.baseYearUs || 2026) - dob.getFullYear() < 59 ? distUsd * 0.10 : 0;
+    }
+  },
   usTaxResult: {
-    deps: ["incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs", "electiveDeferralAggregateUsd", "iraContributionAggregateUsd"],
+    deps: ["incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs", "electiveDeferralAggregateUsd", "iraContributionAggregateUsd", "additionalTax72tUsd"],
     compute: function (d) {
-      return computeUsTaxCore(d.incUs, d.dedUs, d.usFilingStatusRaw, d.worldwideUs, d.feie, d.additionalMedicareOwedBoundary, d.taxpayerDobRaw, d.baseYearUs, d.electiveDeferralAggregateUsd + d.iraContributionAggregateUsd);
+      var r = computeUsTaxCore(d.incUs, d.dedUs, d.usFilingStatusRaw, d.worldwideUs, d.feie, d.additionalMedicareOwedBoundary, d.taxpayerDobRaw, d.baseYearUs, d.electiveDeferralAggregateUsd + d.iraContributionAggregateUsd);
+      // only when owed, so the result's shape is unchanged otherwise
+      if (d.additionalTax72tUsd > 0) r = Object.assign({}, r, { additionalTax72tUsd: d.additionalTax72tUsd, totalTaxBeforeFtcUsd: r.totalTaxBeforeFtcUsd + d.additionalTax72tUsd });
+      return r;
     }
   },
   totalTaxBeforeFtcUsd: { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.totalTaxBeforeFtcUsd; } }

@@ -1,0 +1,60 @@
+{
+  "id": "us_self_employment",
+  "form": "layer1_us.html",
+  "section": "Business (Schedule C)",
+  "story": "US citizen, single, Texas. Schedule C: receipts $100,000, expenses $20,000, net profit $80,000.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "self_employment": [
+        {
+          "business_name": "Design studio",
+          "gross_receipts_usd": 100000,
+          "expenses_usd": 20000
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.seTaxUsd",
+      "value": 11303.64,
+      "why": "15.3% x 92.35% x 80,000",
+      "tol": 1
+    },
+    {
+      "path": "computed.usTax.qbiDeductionUsd",
+      "value": 11649.64,
+      "why": "lesser of 20% x QBI (80,000 - half SE tax 5,651.82) and 20% x (AGI 74,348.18 - 16,100)",
+      "tol": 1
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 16647.46,
+      "why": "taxable 46,598.54: 1,240 + 12% x 34,198.54 = 5,343.82; + SE tax",
+      "tol": 2
+    }
+  ]
+}

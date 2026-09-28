@@ -1109,6 +1109,70 @@ var KNOWN_NRA_DERIVED_SPLIT_PATHS = [
   "computed.limits", "computed.underpayment", "taxComputation.us", "ftcReport", "withholding", "monitoring", "summary", "documents",
   "findings", "returnForms", "scopeNotes", "alerts"
 ];
+// Section-profile audit (28 Sep 2026) — law fixes the frozen engine lacks:
+// (a) TY2026 single-filer brackets: the frozen engine's single thresholds
+// (49,840/106,250/202,850/257,540) were wrong; single = MFS below 35%
+// (50,400/105,700/201,775/256,225). Differs once single-bracket ordinary
+// income passes the first moved boundary (a 1040-NR's ECI uses them too).
+function isUsSingleBracketFixProfile(dag) {
+  var u = dag.computed && dag.computed.usTax;
+  if (!u) return false;
+  var nra = u.nra || {};
+  var rows = [].concat(u.filingStatus === "single" ? (u.ordinaryBracketBreakdown || []) : [], nra.eciBracketBreakdown || []);
+  return rows.some(function (b) { return b && b.to > 49840; });
+}
+// (b) §72(t) 10% additional tax now in the US total (was a finding only).
+function isUs72tInTotalProfile(dag) {
+  var u = dag.computed && dag.computed.usTax;
+  return !!(u && u.additionalTax72tUsd > 0);
+}
+// (c) s.425 (s.234C) instalments are cumulative with 12%/36% safe harbours,
+// and shortfalls round down to Rs 100 (Rule 119A); the frozen engine tested
+// each quarter's own slice. Moves the advance-tax interest finding only.
+function isIndiaAdvanceTaxCumulativeProfile(dag, real) {
+  function has(r) { return (r.findings || []).some(function (f) { return f.id === "india_advance_tax_interest"; }); }
+  return has(dag) || has(real);
+}
+// (d) s.57(iia) family pension deduction cap is 25,000 under the new regime
+// (15,000 old); (e) s.44AD/44ADA open to RNOR residents, not only ROR;
+// (f) Schedule FA required for foreign assets declared on Layer 1 India.
+function isIndiaLawFixProfile(profile) {
+  var india = profile.india || {};
+  var regime = String((india.profile || {}).tax_regime || "NEW").toUpperCase();
+  function slices(get) { var q = india.quarters; return [get(india)].concat(q ? ["Q1", "Q2", "Q3", "Q4"].map(function (k) { return q[k] ? get(q[k]) : null; }) : []); }
+  var pension = slices(function (s) { return Number((s.other_sources || {}).family_pension_gross_inr) || 0; }).some(function (v) { return v > 45000; });
+  var rnor44 = (india.residency_detail || {}).final_india_residency_status === "RNOR" &&
+    slices(function (s) { return ((s.domestic_income || {}).business_income || {}).business_entries || []; }).some(function (es) { return (es || []).some(function (e) { return e && /^s44ADA?$/.test(e.presumptive_scheme || ""); }); });
+  var fa = india.foreign_assets && (india.foreign_assets.has_foreign_assets === true || (india.foreign_assets.assets || []).length > 0);
+  return { income: (pension && regime !== "OLD") || rnor44, scheduleFa: !!fa };
+}
+// (g) OBBBA TY2026 charitable/§68 rules (0.5%-of-AGI floor for itemizers,
+// $1,000/$2,000 for non-itemizers, 2/37 itemized limitation); every
+// itemizer's deduction trace text also names them.
+function isUsCharitable68Profile(dag) {
+  var u = dag.computed && dag.computed.usTax;
+  return !!(u && (u.charitableFloorUsd > 0 || u.itemizedLimitation68Usd > 0 || u.nonItemizerCharitableUsd > 0));
+}
+function isUsItemizerProfile(dag) {
+  var u = dag.computed && dag.computed.usTax;
+  return !!(u && u.deductionMode === "itemized");
+}
+// (h) §6654 running balance: payments by each date, early overpayments
+// carried forward, $1,000 test on tax less withholding.
+function isUs2210RunningBalanceProfile(dag, real) {
+  function has(r) { return (r.findings || []).some(function (f) { return f.id === "underpayment_2210"; }); }
+  return has(dag) || has(real);
+}
+// (i) Form 5471 only for a 10%+ shareholding; (j) a married 1040-NR filer
+// uses married-filing-separately rates.
+function isForm5471BelowTenPctProfile(profile) {
+  var fc = (((profile.us || {}).foreign_entities || {}).foreign_corporations) || [];
+  return fc.some(function (c) { var p = c && (c.ownership_percentage != null && c.ownership_percentage !== "" ? c.ownership_percentage : c.ownership_pct); return p != null && p !== "" && Number(p) < 10; });
+}
+function isNraMfsProfile(dag) {
+  var u = dag.computed && dag.computed.usTax;
+  return !!(u && u.nra && u.filingStatus === "mfs");
+}
 function isFeieIneligibleClaimProfile(dag) {
   var f = dag.computed && dag.computed.usTax && dag.computed.usTax.feie;
   return !!(f && f.claimed && !f.eligible);
@@ -1336,7 +1400,9 @@ function compareOne(label, profile, saveOnFail) {
   // finding (amt_applies, underpayment_2210, etc).
   var findingsExcused = indiaAopOrTrust || feieWagesDivergent || feieBonaFideProxyDivergent || feieStackingRuleDivergent ||
     qbiWageLimitDivergent || qbiWageUbiaDivergent || saversCreditDivergent || indiaRebateDivergent ||
-    indiaSalaryExemption || nraTreatyRateFieldRenameDivergent;
+    indiaSalaryExemption || nraTreatyRateFieldRenameDivergent ||
+    isUsSingleBracketFixProfile(dag) || isUs72tInTotalProfile(dag) || isIndiaAdvanceTaxCumulativeProfile(dag, real) || isIndiaLawFixProfile(profile).income ||
+    isUsCharitable68Profile(dag) || isUs2210RunningBalanceProfile(dag, real) || isNraMfsProfile(dag);
   (findingsExcused ? knownDiffs : realDiffs).push.apply(findingsExcused ? knownDiffs : realDiffs, findingsResult.unknown);
   knownDiffs.push.apply(knownDiffs, findingsResult.known);
 
@@ -1394,6 +1460,15 @@ function compareOne(label, profile, saveOnFail) {
     // required document (report-batch1-nodes.js) — the frozen engine lists it.
     .concat(isFeieIneligibleClaimProfile(dag) ? ["documents"] : [])
     .concat(isNraDerivedSplitProfile(dag) ? KNOWN_NRA_DERIVED_SPLIT_PATHS : [])
+    // Section-profile audit law fixes (see the classifiers above).
+    .concat(isUsSingleBracketFixProfile(dag) || isUs72tInTotalProfile(dag) ? KNOWN_NRA_DERIVED_SPLIT_PATHS : [])
+    .concat(isIndiaAdvanceTaxCumulativeProfile(dag, real) ? ["findings", "summary", "monitoring"] : [])
+    .concat(isIndiaLawFixProfile(profile).income ? KNOWN_INDIA_SALARY_EXEMPTION_DIVERGENT_PATHS : [])
+    .concat(isIndiaLawFixProfile(profile).scheduleFa ? ["documents", "summary", "monitoring"] : [])
+    .concat(isUsCharitable68Profile(dag) || isNraMfsProfile(dag) ? KNOWN_NRA_DERIVED_SPLIT_PATHS : [])
+    .concat(isUsItemizerProfile(dag) ? ["taxComputation.us"] : [])
+    .concat(isUs2210RunningBalanceProfile(dag, real) ? ["findings", "summary", "monitoring"] : [])
+    .concat(isForm5471BelowTenPctProfile(profile) ? ["documents", "summary", "monitoring", "returnForms"] : [])
     // Quarterly LRS: the DAG sums quarters[Qn].lrs_outbound (the form keeps
     // only the active quarter at the top level); the frozen engine reads the
     // top level. Differs only when the two disagree.

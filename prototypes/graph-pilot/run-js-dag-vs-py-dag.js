@@ -104,7 +104,9 @@ function loadProfilesFromDir(dir, prefix) {
 
 var CASES = loadProfilesFromDir(DAG_PY_FIXTURES_DIR, "fixture:")
   .concat(loadProfilesFromDir(FUZZ_CORPUS_PROFILES_DIR, "corpus:"))
-  .concat(loadProfilesFromDir(MANUAL_CASES_PROFILES_DIR, "manual:"));
+  .concat(loadProfilesFromDir(MANUAL_CASES_PROFILES_DIR, "manual:"))
+  // one small client per Layer 1 form section (scripts/check-section-profiles.js)
+  .concat(loadProfilesFromDir(path.join(REPO_ROOT, "dag_py", "tests", "fixtures", "section-profiles"), "manual:section:"));
 
 // ---- JS side: WISING.analyze() directly, then dates -> ISO strings so they
 // compare against the Python side's JSON-round-tripped (already-string)

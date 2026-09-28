@@ -84,6 +84,15 @@ GOLDEN_DIVERGENT_FIXTURES_US_INCOME_INTO_INDIA = {"india_ror_us_income"}
 # india_ror_us_income's compared values (deduction row/trace, tax, the
 # advance-tax-interest finding) are pinned to the DAG the same way.
 
+# Section-profile audit (28 Sep 2026): law fixes the frozen engine lacks —
+# family pension cap 25,000 under the new regime (greencard_retiree_india's
+# India income), cumulative s.425 advance-tax interest (the
+# india_advance_tax_interest finding on seven fixtures), TY2026 single-filer
+# brackets (the NRA fixture's ECI breakdown), s.72(t) additional tax and the
+# OBBBA 0.5%-of-AGI charitable floor (us_only_cpa_client's US tax), and the
+# reworded s.44AD/44ADA residency citation. The affected golden values are
+# pinned to the DAG; everything else stays frozen output.
+
 # Task #41 (home-office/vehicle-mileage deduction): businessEntities[]'s
 # self-employment/farm calcTrace.formula string used to end "...placed-
 # in-service date, not Layer 1's own first-year-only preview). Home-office

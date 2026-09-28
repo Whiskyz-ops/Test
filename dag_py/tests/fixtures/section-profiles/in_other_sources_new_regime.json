@@ -1,0 +1,56 @@
+{
+  "id": "in_other_sources_new_regime",
+  "form": "layer1_india.html",
+  "section": "Other sources",
+  "story": "Resident individual, new regime, no salary. Savings interest 50,000, FD interest 2,00,000, dividends 1,00,000, family pension 1,20,000, lottery winnings 1,00,000.",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "individual",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "manual_days": 365,
+      "days_in_india_current_year": 365,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      }
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_savings_inr": 50000,
+      "interest_fd_rd_inr": 200000,
+      "dividend_inr": 100000,
+      "family_pension_gross_inr": 120000,
+      "winnings_lottery_gaming_inr": 100000
+    }
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "model.income.india.interest.inr",
+      "value": 250000,
+      "why": "50,000 + 2,00,000; no s.80TTA in the new regime"
+    },
+    {
+      "path": "model.income.india.otherSourcesMisc.inr",
+      "value": 95000,
+      "why": "family pension 1,20,000 less s.57(iia) deduction: lower of 1/3 and 25,000 under the new regime"
+    },
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 31200,
+      "why": "slab income 4,45,000 -> 2,250, fully rebated (total income 5,45,000 <= 12L); lottery 30% x 1,00,000 = 30,000 (no rebate, no basic exemption); +4% cess"
+    }
+  ]
+}

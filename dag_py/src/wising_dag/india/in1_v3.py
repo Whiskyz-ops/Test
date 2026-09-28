@@ -332,6 +332,10 @@ def _rebate_87a_v3(d, ctx):
     rebate = T["REBATE_87A_NEW"] if d["isNew"] else T["REBATE_87A_OLD"]
     if d["totalIncomeInrV3"] <= rebate["incomeCap"]:
         return min(d["slabTaxInr"], rebate["maxRebate"])
+    # Marginal relief above the limit exists only in the new regime; the
+    # old-regime rebate is all-or-nothing above 5,00,000.
+    if not d["isNew"]:
+        return 0.0
     excess = d["totalIncomeInrV3"] - rebate["incomeCap"]
     return max(0.0, d["slabTaxInr"] - excess)
 
@@ -348,7 +352,7 @@ def _salary_not_chargeable_tax_inr(d, ctx):
     rebate = 0.0
     if d["isIndividualV3"] and not d["isNRV3"]:
         r = T["REBATE_87A_NEW"] if d["isNew"] else T["REBATE_87A_OLD"]
-        rebate = min(slab, r["maxRebate"]) if total_income <= r["incomeCap"] else max(0.0, slab - (total_income - r["incomeCap"]))
+        rebate = min(slab, r["maxRebate"]) if total_income <= r["incomeCap"] else (max(0.0, slab - (total_income - r["incomeCap"])) if d["isNew"] else 0.0)
     after_rebate = max(0.0, slab - rebate) + d["specialTaxInrV3"]
     surcharge = compute_india_surcharge(after_rebate, total_income, d["isNew"], d["slabs"], d["capEligibleSpecialTaxInr"])
     with_salary = after_rebate + surcharge + (after_rebate + surcharge) * T["CESS_RATE"] + d["promoterBuybackExtraTaxInr"]

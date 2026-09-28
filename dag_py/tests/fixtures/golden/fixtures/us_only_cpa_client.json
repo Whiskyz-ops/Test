@@ -1330,8 +1330,8 @@
         "foreignSourceIncomeUsd": 0,
         "feieExcludedUsd": 0,
         "indiaTaxDisallowedUsd": 0,
-        "taxableIncomeUsd": 260131.32374999998,
-        "usIncomeTaxUsd": 44144.5177,
+        "taxableIncomeUsd": 261915.98036875,
+        "usIncomeTaxUsd": 44572.8352885,
         "indiaTaxPaidUsd": 0,
         "limitFraction": 0,
         "ftcLimitUsd": 0,
@@ -1341,7 +1341,7 @@
       },
       "india": {
         "foreignSourceIncomeUsd": 0,
-        "usTaxOnUsSourceUsd": 44144.5177,
+        "usTaxOnUsSourceUsd": 44572.8352885,
         "reliefCapUsd": 0,
         "reliefAllowedUsd": 0
       },
@@ -1379,8 +1379,8 @@
       "jurisdiction": "single_us",
       "totalIncomeUsd": 384500,
       "indiaTaxUsd": 0,
-      "usTaxUsd": 49491.8702,
-      "combinedTaxBeforeReliefUsd": 49491.8702,
+      "usTaxUsd": 51955.1877885,
+      "combinedTaxBeforeReliefUsd": 51955.1877885,
       "worldwideOverlap": false,
       "netUnrelievedDoubleTaxUsd": 0
     },
@@ -1404,10 +1404,10 @@
       "id": "amt_applies",
       "severity": "warning",
       "category": "credit",
-      "title": "US Alternative Minimum Tax applies (+$7,065)",
-      "detail": "This is a US-only tax (IRC \u00a755) \u2014 India has no AMT-equivalent regime. The US tentative minimum tax exceeds the regular US tax, so an additional $7,065 is added to the US liability. Common drivers: a large standard-deduction / SALT add-back, private-activity-bond interest, or an ISO exercise.",
+      "title": "US Alternative Minimum Tax applies (+$7,100)",
+      "detail": "This is a US-only tax (IRC \u00a755) \u2014 India has no AMT-equivalent regime. The US tentative minimum tax exceeds the regular US tax, so an additional $7,100 is added to the US liability. Common drivers: a large standard-deduction / SALT add-back, private-activity-bond interest, or an ISO exercise.",
       "recommendation": "WISING computes the parallel AMT (Form 6251) and includes it in the US tax total above. Review ISO exercise timing and the state-tax add-back; AMT paid on deferral items can generate a Minimum Tax Credit (Form 8801) usable in later years.",
-      "amountUsd": 7065,
+      "amountUsd": 7100,
       "refs": [
         "\u00a755",
         "Form 6251",
@@ -1777,14 +1777,14 @@
         },
         {
           "label": "US taxable income",
-          "usd": 260131.32374999998,
+          "usd": 261915.98036875,
           "trace": {
             "kind": "calc",
             "formula": "Same figure as \"Taxable income\" in the Tax Computation card above",
             "parts": [
               {
                 "label": "US taxable income",
-                "amount": 260131.32374999998
+                "amount": 261915.98036875
               }
             ],
             "citation": null
@@ -1792,14 +1792,14 @@
         },
         {
           "label": "US income tax (pre-credit)",
-          "usd": 44144.5177,
+          "usd": 44572.8352885,
           "trace": {
             "kind": "calc",
             "formula": "Ordinary-rate tax + preferential LTCG/QDI tax only \u2014 NIIT, Additional Medicare, SE tax and AMT are excluded, they're not creditable against foreign tax by statute",
             "parts": [
               {
                 "label": "Ordinary-rate tax",
-                "amount": 38339.5177
+                "amount": 38767.8352885
               },
               {
                 "label": "Preferential LTCG/QDI tax",
@@ -1818,7 +1818,7 @@
             "parts": [
               {
                 "label": "US income tax (pre-credit)",
-                "amount": 44144.5177
+                "amount": 44572.8352885
               },
               {
                 "label": "Foreign-source income",
@@ -1826,7 +1826,7 @@
               },
               {
                 "label": "US taxable income",
-                "amount": 260131.32374999998
+                "amount": 261915.98036875
               }
             ],
             "citation": null
@@ -1903,14 +1903,14 @@
         },
         {
           "label": "US tax on that US-source income",
-          "usd": 44144.5177,
+          "usd": 44572.8352885,
           "trace": {
             "kind": "calc",
             "formula": "US income tax \u00d7 (US-source income \u00f7 total US income) \u2014 the slice of US tax attributable to income India also taxes",
             "parts": [
               {
                 "label": "US income tax (pre-credit)",
-                "amount": 44144.5177
+                "amount": 44572.8352885
               },
               {
                 "label": "US-source income",
@@ -1948,7 +1948,7 @@
           }
         },
         {
-          "label": "\u00a790 relief allowed",
+          "label": "\u00a7159 relief allowed (formerly s.90)",
           "usd": 0,
           "emphasis": true,
           "trace": {
@@ -1957,7 +1957,7 @@
             "parts": [
               {
                 "label": "US tax on the doubly-taxed income",
-                "amount": 44144.5177
+                "amount": 44572.8352885
               },
               {
                 "label": "Indian tax cap",
@@ -3023,7 +3023,7 @@
     "dualResident": false,
     "totalIncomeUsd": 384500,
     "indiaTaxUsd": 0,
-    "usTaxUsd": 49491.8702,
+    "usTaxUsd": 51955.1877885,
     "netDoubleTaxUsd": 0,
     "counts": {
       "critical": 0,

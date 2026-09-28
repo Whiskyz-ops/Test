@@ -1,0 +1,56 @@
+{
+  "id": "in_business_44ad_rnor",
+  "form": "layer1_india.html",
+  "section": "Business",
+  "story": "RNOR individual, old regime, small trading business on s.44AD: digital receipts 1,50,00,000, cash 30,00,000. An RNOR is a resident, so s.44AD is available (s.44AD(6)); cash is over 5% of receipts, so the ceiling is 2 crore.",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "individual",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "OLD"
+    },
+    "residency_detail": {
+      "manual_days": 365,
+      "days_in_india_current_year": 365,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": true,
+      "days_in_india_last_7_years_lte_729": true,
+      "final_india_residency_status": "RNOR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "business_entries": [
+          {
+            "business_name": "Kirana store",
+            "nature": "small_business",
+            "presumptive_scheme": "s44AD",
+            "digital_receipts_inr": 15000000,
+            "cash_receipts_inr": 3000000
+          }
+        ]
+      }
+    },
+    "other_sources": {}
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "model.income.india.business.inr",
+      "value": 1140000,
+      "why": "6% x 1,50,00,000 + 8% x 30,00,000"
+    },
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 160680,
+      "why": "old slabs on 11,40,000: 12,500 + 1,00,000 + 30% x 1,40,000 = 1,54,500; +4% cess"
+    }
+  ]
+}

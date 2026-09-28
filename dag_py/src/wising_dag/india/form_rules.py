@@ -87,3 +87,38 @@ def trc_covers_year(india, router) -> bool:
 def trc_on_file(india, router) -> bool:
     flag = safe(india, "dtaa.trc_status", False) is True or safe(india, "compliance_docs.trc.document_uploaded", False) is True
     return flag and trc_covers_year(india, router)
+
+
+# Advance-tax interest (s.424/s.425 of the 2025 Act; ss.234B/234C of 1961) —
+# see india-compliance.js: cumulative instalments (15/45/75/100%), 12%/36%
+# safe harbours, presumptive = 100% by 15 March, Rule 119A rounding.
+_ADV_TAX_SCHEDULE = ((0.15, 0.12, 3), (0.45, 0.36, 3), (0.75, None, 3), (1.00, None, 1))
+
+
+def _floor100(x):
+    return (max(0.0, x) // 100) * 100
+
+
+def advance_tax_shortfalls(assessed_tax_inr, paid_by_quarter, purely_presumptive):
+    paid = [num(x) for x in paid_by_quarter]
+    if purely_presumptive:
+        total = sum(paid)
+        return [{"quarter": "single", "requiredPct": 1.00, "cumPaidInr": total, "shortInr": max(0.0, assessed_tax_inr - total), "months": 1}]
+    out, cum_paid = [], 0.0
+    for i, (cum, safe_pct, months) in enumerate(_ADV_TAX_SCHEDULE):
+        cum_paid += paid[i]
+        short = 0.0 if safe_pct is not None and cum_paid >= safe_pct * assessed_tax_inr else max(0.0, cum * assessed_tax_inr - cum_paid)
+        out.append({"quarter": i + 1, "requiredPct": cum, "cumPaidInr": cum_paid, "shortInr": short, "months": months})
+    return out
+
+
+def interest_234c(assessed_tax_inr, paid_by_quarter, purely_presumptive):
+    if not assessed_tax_inr > 0:
+        return 0.0
+    return sum(_floor100(q["shortInr"]) * 0.01 * q["months"] for q in advance_tax_shortfalls(assessed_tax_inr, paid_by_quarter, purely_presumptive))
+
+
+def interest_234b(assessed_tax_inr, advance_paid_inr, months):
+    if not assessed_tax_inr > 0 or advance_paid_inr >= assessed_tax_inr * 0.9:
+        return 0.0
+    return _floor100(assessed_tax_inr - advance_paid_inr) * 0.01 * months

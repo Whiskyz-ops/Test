@@ -170,6 +170,9 @@
         ],
         STD_DEDUCTION_SALARY_NEW_INR: 75000,
         STD_DEDUCTION_SALARY_OLD_INR: 50000,
+        // s.57(iia) family pension deduction: lower of 1/3 and this cap (25,000 under the s.115BAC new regime, FA 2024).
+        FAMILY_PENSION_DEDUCTION_CAP_OLD_INR: 15000,
+        FAMILY_PENSION_DEDUCTION_CAP_NEW_INR: 25000,
         // s.10(14)/Rule 2BB(1)(g) — PWD transport allowance, exempt in BOTH regimes (not blocked by s.115BAC(2)).
         PWD_TRANSPORT_ALLOWANCE_ANNUAL_INR: 38400,
         // s.16(iii) professional tax deduction — OLD regime only; Article 276 constitutional cap.
@@ -285,7 +288,7 @@
         // [upper_bound_usd, rate]. OBBBA gives the bottom two brackets (10%/
         // 12%) an extra inflation bump (~4%) vs. ~2.3% for the rest.
         BRACKETS: {
-          single: [[12400,0.10],[49840,0.12],[106250,0.22],[202850,0.24],[257540,0.32],[640600,0.35],[Infinity,0.37]],
+          single: [[12400,0.10],[50400,0.12],[105700,0.22],[201775,0.24],[256225,0.32],[640600,0.35],[Infinity,0.37]],
           mfj:    [[24800,0.10],[100800,0.12],[211400,0.22],[403550,0.24],[512450,0.32],[768700,0.35],[Infinity,0.37]],
           mfs:    [[12400,0.10],[50400,0.12],[105700,0.22],[201775,0.24],[256225,0.32],[384350,0.35],[Infinity,0.37]],
           hoh:    [[17700,0.10],[67450,0.12],[105700,0.22],[201750,0.24],[256200,0.32],[640600,0.35],[Infinity,0.37]]
@@ -362,6 +365,14 @@
         SALT_CAP_PHASEOUT_THRESHOLD_USD: { single: 505000, mfj: 505000, mfs: 252500, hoh: 505000 },
         SALT_CAP_PHASEOUT_RATE: 0.30,
         SALT_CAP_FLOOR_USD: 10000,
+        // OBBBA charitable/itemized changes from TY2026: itemized gifts only
+        // above 0.5% of AGI (§170(b)(1)(I)); non-itemizers deduct up to
+        // $1,000/$2,000 MFJ of cash gifts (§170(p)); itemized deductions cut
+        // by 2/37 of the lesser of the total or income over the 37% bracket
+        // start (§68).
+        CHARITABLE_ITEMIZED_FLOOR_RATE: 0.005,
+        NON_ITEMIZER_CHARITABLE_MAX_USD: { mfj: 2000, other: 1000 },
+        ITEMIZED_LIMITATION_68_RATE: 2 / 37,
         NIIT_RATE: 0.038,
         ADDL_MEDICARE_RATE: 0.009,
         C_CORP_RATE: 0.21,

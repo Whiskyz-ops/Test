@@ -1,0 +1,65 @@
+{
+  "id": "us_withholding_late_estimates",
+  "form": "layer1_us.html",
+  "section": "Withholding / estimated tax",
+  "story": "US citizen, single, wages $150,000 with $10,000 withheld; prior-year tax $30,000. Pays the rest ($12,500) as one estimated payment on 15 January — enough for the year in total, but late for the April, June and September instalments.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 150000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 10000,
+            "medicare_wages_box5_usd": 150000
+          }
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 10000,
+      "estimated_tax_q1_apr15_usd": 0,
+      "estimated_tax_q2_jun15_usd": 0,
+      "estimated_tax_q3_sep15_usd": 0,
+      "estimated_tax_q4_jan15_usd": 12500,
+      "prior_year_total_tax_usd": 30000
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 24734,
+      "why": "taxable 133,900: 1,240 + 4,560 + 12,166 + 24% x 28,200"
+    },
+    {
+      "path": "findings[id=underpayment_2210].amountUsd",
+      "value": 342.27,
+      "tol": 1,
+      "why": "required = lesser of 90% x 24,734 and 100% x 30,000 = 22,260.60, 5,565.15 per instalment; withholding counts 2,500 per date. Running shortfall: Apr 3,065.15 x 7% x 2/12 = 35.76; Jun 6,130.30 x 6% x 3/12 = 91.95; Sep 9,195.45 x 7% x 4/12 = 214.56; Jan none (engine's assumed IRS rates)"
+    }
+  ]
+}

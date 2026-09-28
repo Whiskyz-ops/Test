@@ -689,7 +689,7 @@
           "returnForm": "Regular books (this entry) \u2014 feeds the taxpayer's overall return form; see Filings \u2192 Return Form for the checked ITR",
           "calcTrace": {
             "kind": "calc",
-            "formula": "s.44ADA is only available to Resident & Ordinarily Resident (ROR) individuals \u2014 this taxpayer's India residency status is NR, not Resident & Ordinarily Resident (ROR), so the presumptive election is invalid and regular books apply instead:",
+            "formula": "s.44ADA is only available to resident (ROR or RNOR) individuals and partnership firms \u2014 this taxpayer's India residency status is NR, not resident (ROR or RNOR), so the presumptive election is invalid and regular books apply instead:",
             "parts": [
               {
                 "label": "Gross receipts / turnover",
@@ -700,7 +700,7 @@
                 "amount": 1800000
               }
             ],
-            "citation": "s.44AD/44ADA residency and entity-type eligibility (ROR-only; 44AD additionally excludes firms/LLPs/companies/AOPs/trusts/local authorities/co-ops, 44ADA further excludes HUFs) verified 2026-07-12, matched to Layer 1 India's own live eligibility check."
+            "citation": "s.44AD(6)/44ADA residency and entity-type eligibility (residents only \u2014 ROR or RNOR; 44AD excludes LLPs/companies/AOPs/trusts/local authorities/co-ops, 44ADA further excludes HUFs) verified 2026-09-28, matched to Layer 1 India's own live eligibility check."
           }
         },
         {
@@ -2278,10 +2278,10 @@
       "id": "india_advance_tax_interest",
       "severity": "warning",
       "category": "credit",
-      "title": "Advance-tax interest exposure \u2014 ss.424/425 (\u20b975,700)",
-      "detail": "Advance tax paid (\u20b90) falls short of the assessed tax (\u20b911,64,622) this year. At 1%/month simple interest: \u20b946,585 under s.424 (shortfall below the 90% floor, 4 months to the non-audit (31 Jul) due date) + \u20b929,116 under s.425 (quarter-by-quarter installment shortfalls). Both keep accruing past the due date until actually paid \u2014 this is the exposure AS OF the due date, not a final number.",
+      "title": "Advance-tax interest exposure \u2014 ss.424/425 (\u20b91,05,390)",
+      "detail": "Advance tax paid (\u20b90) falls short of the assessed tax (\u20b911,64,622) this year. At 1%/month simple interest: \u20b946,584 under s.424 (shortfall below the 90% floor, 4 months to the non-audit (31 Jul) due date) + \u20b958,806 under s.425 (quarter-by-quarter installment shortfalls). Both keep accruing past the due date until actually paid \u2014 this is the exposure AS OF the due date, not a final number.",
       "recommendation": "Pay the shortfall before filing to stop s.424 interest accruing further; s.425's quarter-by-quarter amount is fixed once the year ends and doesn't grow. If the year isn't over yet, revise the remaining installment(s) upward.",
-      "amountUsd": 912.053060240964,
+      "amountUsd": 1269.7590361445782,
       "refs": [
         "s.424",
         "s.425",

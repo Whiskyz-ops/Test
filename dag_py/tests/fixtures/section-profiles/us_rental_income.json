@@ -1,0 +1,58 @@
+{
+  "id": "us_rental_income",
+  "form": "layer1_us.html",
+  "section": "Real estate (Schedule E)",
+  "story": "US citizen, single, Texas. Wages $60,000; US rental: rent $30,000, expenses $12,000.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 60000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 60000
+          }
+        }
+      ],
+      "rental_income_us_source_usd": 30000,
+      "rental_expenses_us_source_usd": 12000
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.agiUsd",
+      "value": 78000,
+      "why": "60,000 + (30,000 - 12,000)"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 8330,
+      "why": "taxable 61,900: 1,240 + 4,560 + 22% x 11,500"
+    }
+  ]
+}

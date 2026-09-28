@@ -1,0 +1,57 @@
+{
+  "id": "us_charity_non_itemizer",
+  "form": "layer1_us.html",
+  "section": "Deductions (standard + charity)",
+  "story": "US citizen, single, wages $80,000, takes the standard deduction and gave $3,000 in cash to charity.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard",
+      "charitable_contributions_cash_usd": 3000
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 80000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 80000
+          }
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.taxableIncomeUsd",
+      "value": 62900,
+      "why": "80,000 - 16,100 - 1,000 (s.170(p) non-itemizer charitable deduction, single cap)"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 8550,
+      "why": "1,240 + 4,560 + 22% x 12,500"
+    }
+  ]
+}

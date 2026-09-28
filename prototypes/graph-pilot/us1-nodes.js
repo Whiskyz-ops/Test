@@ -73,31 +73,44 @@ var NODES = {
   },
   usBalanceDueUsd: { deps: ["usTotalTaxUsd", "usPaidTotalUsd"], compute: function (d) { return d.usTotalTaxUsd - d.usPaidTotalUsd; } },
 
+  // §6654 regular method: four equal required instalments (25% each of the
+  // lesser safe harbour), withholding treated as paid evenly on the four due
+  // dates, and each payment applied to the earliest unpaid instalment — so
+  // the penalty runs on the RUNNING shortfall (cumulative required less
+  // cumulative paid) from each due date to the next (Apr 15 -> Jun 15 ->
+  // Sep 15 -> Jan 15 -> Apr 15: 2, 3, 4, 3 months). An early overpayment
+  // covers later instalments; a late one stops the clock only when made.
+  // No penalty when this year's tax less withholding is under $1,000
+  // (§6654(e)(1)). Rates are the engine's assumed IRS underpayment rates.
+  usUnderpaymentPeriods: {
+    deps: ["usRequiredUsd", "usWithholdingTotalUsd", "usEstQ1Usd", "usEstQ2Usd", "usEstQ3Usd", "usEstQ4Usd"],
+    compute: function (d) {
+      var est = [d.usEstQ1Usd, d.usEstQ2Usd, d.usEstQ3Usd, d.usEstQ4Usd], rate = [0.07, 0.06, 0.07, 0.07], months = [2, 3, 4, 3];
+      var cumRequired = 0, cumPaid = 0;
+      return est.map(function (e, i) {
+        cumRequired += d.usRequiredUsd / 4; cumPaid += d.usWithholdingTotalUsd / 4 + e;
+        return { quarter: i + 1, requiredUsd: d.usRequiredUsd / 4, paidUsd: d.usWithholdingTotalUsd / 4 + e, shortUsd: Math.max(0, cumRequired - cumPaid), rate: rate[i], months: months[i] };
+      });
+    }
+  },
+  usUnderpaymentExempt: {
+    deps: ["usTotalTaxUsd", "usWithholdingTotalUsd"],
+    compute: function (d) { return d.usTotalTaxUsd - d.usWithholdingTotalUsd < 1000; }
+  },
   us2210PenaltyUsd: {
-    deps: ["hasUsScope", "usBalanceDueUsd", "usPaidTotalUsd", "usRequiredUsd", "usWithholdingTotalUsd", "usEstQ1Usd", "usEstQ2Usd", "usEstQ3Usd", "usEstQ4Usd"],
+    deps: ["hasUsScope", "usUnderpaymentExempt", "usUnderpaymentPeriods"],
     scopeGate: "hasUsScope",
     outOfScopeValue: 0,
     compute: function (d) {
-      if (!(d.usBalanceDueUsd > 1000) || !(d.usPaidTotalUsd < d.usRequiredUsd)) return 0;
-      var perQWithholdingUsd = d.usWithholdingTotalUsd / 4;
-      var rate = { q1: 0.07, q2: 0.06, q3: 0.07, q4: 0.07 };
-      var estByQ = { q1: d.usEstQ1Usd, q2: d.usEstQ2Usd, q3: d.usEstQ3Usd, q4: d.usEstQ4Usd };
-      var monthsRemaining = { q1: 12, q2: 10, q3: 7, q4: 3 };
-      var penaltyUsd = 0;
-      ["q1", "q2", "q3", "q4"].forEach(function (q) {
-        var requiredUsd = d.usRequiredUsd / 4;
-        var paidUsd = perQWithholdingUsd + estByQ[q];
-        var shortUsd = Math.max(0, requiredUsd - paidUsd);
-        penaltyUsd += shortUsd * rate[q] * (monthsRemaining[q] / 12);
-      });
-      return penaltyUsd;
+      if (d.usUnderpaymentExempt) return 0;
+      return d.usUnderpaymentPeriods.reduce(function (s, p) { return s + p.shortUsd * p.rate * p.months / 12; }, 0);
     }
   },
   shouldFire: {
-    deps: ["hasUsScope", "us2210PenaltyUsd", "usBalanceDueUsd", "usPaidTotalUsd", "usRequiredUsd"],
+    deps: ["hasUsScope", "us2210PenaltyUsd"],
     scopeGate: "hasUsScope",
     outOfScopeValue: false,
-    compute: function (d) { return d.usBalanceDueUsd > 1000 && d.usPaidTotalUsd < d.usRequiredUsd; }
+    compute: function (d) { return d.us2210PenaltyUsd > 0; }
   }
 };
 

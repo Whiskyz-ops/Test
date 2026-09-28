@@ -1,0 +1,63 @@
+{
+  "id": "in_business_regular_books",
+  "form": "layer1_india.html",
+  "section": "Business",
+  "story": "Resident individual, new regime, trading business on regular books: turnover 50,00,000; opening stock 2,00,000, purchases 20,00,000, closing stock 4,00,000, shop rent 3,00,000, staff salaries 5,00,000, of which 1,00,000 paid to residents without deducting TDS.",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "individual",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "manual_days": 365,
+      "days_in_india_current_year": 365,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "business_entries": [
+          {
+            "business_name": "Wholesale",
+            "nature": "regular_business",
+            "presumptive_scheme": null,
+            "turnover_inr": 5000000,
+            "expenses": {
+              "opening_stock_inr": 200000,
+              "purchases_inr": 2000000,
+              "closing_stock_inr": 400000,
+              "rent_for_business_premises_inr": 300000,
+              "employee_salary_wages_inr": 500000,
+              "payments_to_residents_no_tds_inr": 100000
+            }
+          }
+        ]
+      }
+    },
+    "other_sources": {}
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "model.income.india.business.inr",
+      "value": 2430000,
+      "why": "50,00,000 + closing 4,00,000 - opening 2,00,000 - purchases 20,00,000 - rent 3,00,000 - salaries 5,00,000 = 24,00,000; + s.40(a)(ia) 30% of 1,00,000"
+    },
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 321360,
+      "why": "new slabs on 24,30,000: 20,000 + 40,000 + 60,000 + 80,000 + 1,00,000 + 30% x 30,000 = 3,09,000; +4% cess"
+    }
+  ]
+}

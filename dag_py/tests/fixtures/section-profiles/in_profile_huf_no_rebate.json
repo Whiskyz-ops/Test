@@ -1,0 +1,42 @@
+{
+  "id": "in_profile_huf_no_rebate",
+  "form": "layer1_india.html",
+  "section": "Profile (entity type: HUF)",
+  "story": "Resident HUF, old regime, fixed-deposit interest 4,80,000. The s.87A rebate is for individuals only, so an HUF pays slab tax even below 5,00,000.",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "huf",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "huf",
+      "tax_regime": "OLD"
+    },
+    "residency_detail": {
+      "manual_days": 365,
+      "days_in_india_current_year": 365,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      }
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_fd_rd_inr": 480000
+    }
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 11960,
+      "why": "5% x (4,80,000 - 2,50,000) = 11,500, no rebate for an HUF; +4% cess"
+    }
+  ]
+}

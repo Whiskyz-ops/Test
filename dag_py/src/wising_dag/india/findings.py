@@ -38,6 +38,7 @@ from ..core.graph import NodeDef
 from ..core.util import format_inr, format_usd, js_round, num, safe
 from ..crossborder import residency
 from . import constants as C
+from . import form_rules as FR
 from . import itr_form
 
 S115A_RATES = C.INDIA["S115A_RATES"]
@@ -350,28 +351,16 @@ def _age_at_fy_end(d, ctx):
 
 
 def _s424_inr(d, ctx):
-    if not d["inAdvTaxObliged"] or d["assessedTaxInr"] <= 0 or d["advancePaidInr"] >= d["assessedTaxInr"] * 0.9:
+    if not d["inAdvTaxObliged"]:
         return 0.0
-    return (d["assessedTaxInr"] - d["advancePaidInr"]) * 0.01 * d["inS424Months"]
+    return FR.interest_234b(d["assessedTaxInr"], d["advancePaidInr"], d["inS424Months"])
 
 
 def _s425_inr(d, ctx):
-    if not d["inAdvTaxObliged"] or d["assessedTaxInr"] <= 0:
+    if not d["inAdvTaxObliged"]:
         return 0.0
-    if d["inPurelyPresumptive"]:
-        installments = [{"required": 1.00, "paid": d["advQ1Inr"] + d["advQ2Inr"] + d["advQ3Inr"] + d["advQ4Inr"], "months": 1}]
-    else:
-        installments = [
-            {"required": 0.15, "paid": d["advQ1Inr"], "months": 3},
-            {"required": 0.30, "paid": d["advQ2Inr"], "months": 3},
-            {"required": 0.30, "paid": d["advQ3Inr"], "months": 3},
-            {"required": 0.25, "paid": d["advQ4Inr"], "months": 1},
-        ]
-    total = 0.0
-    for q in installments:
-        short_inr = max(0.0, d["assessedTaxInr"] * q["required"] - q["paid"])
-        total += short_inr * 0.01 * q["months"]
-    return total
+    # cumulative instalments + 12%/36% safe harbours (form_rules.interest_234c)
+    return FR.interest_234c(d["assessedTaxInr"], [d["advQ1Inr"], d["advQ2Inr"], d["advQ3Inr"], d["advQ4Inr"]], d["inPurelyPresumptive"])
 
 
 NODES = {

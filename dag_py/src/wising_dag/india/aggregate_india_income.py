@@ -259,7 +259,8 @@ def _annual_slice_agg(ctx) -> dict:
 
 def _presumptive_eligibility_agg(d, ctx):
     india = ctx.get("india")
-    ror = d["indiaResidencyStatusRawAgg"] == "ROR"
+    # s.44AD(6)/s.44ADA: any resident — ROR or RNOR (RNOR is a class of resident, s.6(6)).
+    ror = d["indiaResidencyStatusRawAgg"] in ("ROR", "RNOR")
     entity = safe(india, "profile.entity_type", None) or safe(india, "domestic_income.business_income.entity_type", "individual")
     entity_excluded_44ad = entity in ("llp", "company", "aop", "trust", "local", "coop", "ajp")
     eligible_44ad = ror and not entity_excluded_44ad
@@ -568,7 +569,9 @@ def _other_sources_misc_computation(d, ctx):
     gifts_exempt = bool(safe(os_, "gifts_exemption_marriage", False)) or bool(safe(os_, "gifts_exemption_relative", False))
     gifts_above_50k_inr = 0 if gifts_exempt else num(safe(os_, "gifts_above_50k_inr", 0))
     family_pension_gross_inr = num(safe(os_, "family_pension_gross_inr", 0))
-    family_pension_net_inr = max(0.0, family_pension_gross_inr - min(15000, js_round(family_pension_gross_inr / 3)))
+    is_new_regime = (safe(ctx.get("india"), "profile.tax_regime", "NEW") or "NEW").upper() != "OLD"
+    cap_inr = C.INDIA["FAMILY_PENSION_DEDUCTION_CAP_NEW_INR"] if is_new_regime else C.INDIA["FAMILY_PENSION_DEDUCTION_CAP_OLD_INR"]
+    family_pension_net_inr = max(0.0, family_pension_gross_inr - min(cap_inr, js_round(family_pension_gross_inr / 3)))
     return (
         gifts_above_50k_inr + family_pension_net_inr + num(safe(os_, "spousal_clubbing_s64_inr", 0)) -
         num(safe(os_, "minor_child_exemption_inr", 0)) + num(safe(os_, "lic_maturity_inr", 0)) +

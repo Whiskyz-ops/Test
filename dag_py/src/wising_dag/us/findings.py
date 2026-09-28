@@ -648,11 +648,11 @@ def _findings_us_result(d, ctx):
         findings.append(make_finding(
             "underpayment_2210", "warning", "credit",
             f"US estimated-tax underpayment penalty — Form 2210 ({_fmt(penalty_usd)} estimated)",
-            f"Withholding + estimated payments ({_fmt(d['usPaidTotalUsd'])}) fall short of both safe harbors: 90% of this year's "
-            f"tax ({_fmt(d['usCurrentHarborUsd'])}) and "
+            f"Withholding + estimated payments ({_fmt(d['usPaidTotalUsd'])} in all) weren't paid by the instalment dates: each of the four "
+            f"instalments is 25% of the lower safe harbor — 90% of this year's tax ({_fmt(d['usCurrentHarborUsd'])}) or "
             + (f"{js_round(d['usPriorHarborPct'] * 100)}% of last year's tax ({_fmt(d['usPriorHarborUsd'])})" if d["usPriorHarborUsd"] is not None else "the prior-year safe harbor (last year's total tax was never entered, so only the current-year harbor could be checked)")
-            + f", with a balance due over the $1,000 de-minimis. Estimated penalty (simplified regular method, equal quarterly "
-            f"installments, withholding spread evenly, no cross-quarter netting): {_fmt(penalty_usd)}.",
+            + f". Estimated penalty (regular method: withholding spread evenly, each payment applied to the earliest unpaid instalment, "
+            f"so an early overpayment covers later dates and a late one only stops the clock when made): {_fmt(penalty_usd)}.",
             "Confirm against the real Form 2210 (it can use the Annualized Income Installment Method for uneven income, which "
             "this estimate does not model, and could produce a lower number). Paying the shortfall now stops further accrual.",
             max(0.0, penalty_usd), ["Form 2210", "§6654"],

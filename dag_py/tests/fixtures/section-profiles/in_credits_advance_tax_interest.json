@@ -1,0 +1,52 @@
+{
+  "id": "in_credits_advance_tax_interest",
+  "form": "layer1_india.html",
+  "section": "Credits (TDS / advance tax)",
+  "story": "Resident individual, new regime, salary 30,75,000 with TDS 3,00,000. Advance tax paid: 60,000 on 15 Jun, nothing on 15 Sep, 60,000 on 15 Dec, 60,000 on 15 Mar. The June overpayment counts toward September (instalments are cumulative).",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "individual",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "manual_days": 365,
+      "days_in_india_current_year": 365,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "gross_salary_inr": 3075000
+      }
+    },
+    "other_sources": {},
+    "tax_credits": {
+      "tds_already_deducted_inr": 300000,
+      "advance_tax_q1_15jun_inr": 60000,
+      "advance_tax_q2_15sep_inr": 0,
+      "advance_tax_q3_15dec_inr": 60000,
+      "advance_tax_q4_15mar_inr": 60000
+    }
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 499200,
+      "why": "new slabs on 30,00,000: 20,000 + 40,000 + 60,000 + 80,000 + 1,00,000 + 30% x 6,00,000 = 4,80,000; +4% cess"
+    },
+    {
+      "path": "findings[id=india_advance_tax_interest].title",
+      "value": "Advance-tax interest exposure — ss.424/425 (₹1,962)",
+      "why": "tax due after TDS 1,99,200; paid 1,80,000 >= 90% so no s.424. s.425 cumulative: Jun 15% met; Sep 45% = 89,640 vs 60,000 (under the 36% harbour) -> 29,600 x 3% = 888; Dec 75% = 1,49,400 vs 1,20,000 -> 29,400 x 3% = 882; Mar 100% vs 1,80,000 -> 19,200 x 1% = 192 (shortfalls rounded down to Rs 100)"
+    }
+  ]
+}

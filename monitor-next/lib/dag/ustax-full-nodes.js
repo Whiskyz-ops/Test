@@ -670,7 +670,10 @@ NODES.nraTaxResult = {
   compute: function (d) {
     var nra = d.nraRaw;
     var split = d.nraEffectiveEciFdap;
-    var status = d.usFilingStatusRaw === "mfj" ? "mfj" : "single";
+    // A married NRA files 1040-NR at married-filing-separately rates (joint
+    // rates need a §6013(g)/(h) election, which routes to the resident
+    // computation instead); anyone else uses single rates.
+    var status = d.usFilingStatusRaw === "mfj" || d.usFilingStatusRaw === "mfs" ? "mfs" : "single";
     var brackets = T.BRACKETS[status] || T.BRACKETS.single;
     var ded = d.dedUs;
 

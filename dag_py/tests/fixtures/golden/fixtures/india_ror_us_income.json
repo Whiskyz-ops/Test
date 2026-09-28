@@ -1221,7 +1221,7 @@
           },
           {
             "from": 12400,
-            "to": 49840,
+            "to": 50400,
             "rate": 0.12,
             "taxable": 17600,
             "tax": 2112
@@ -1491,10 +1491,10 @@
       "id": "india_advance_tax_interest",
       "severity": "warning",
       "category": "credit",
-      "title": "Advance-tax interest exposure \u2014 ss.424/425 (\u20b954,245)",
-      "detail": "Advance tax paid (\u20b94,00,000) falls short of the assessed tax (\u20b912,60,240) this year. At 1%/month simple interest: \u20b934,410 under s.424 (shortfall below the 90% floor, 4 months to the non-audit (31 Jul) due date) + \u20b919,835 under s.425 (quarter-by-quarter installment shortfalls). Both keep accruing past the due date until actually paid \u2014 this is the exposure AS OF the due date, not a final number.",
+      "title": "Advance-tax interest exposure \u2014 ss.424/425 (\u20b964,376)",
+      "detail": "Advance tax paid (\u20b94,00,000) falls short of the assessed tax (\u20b912,60,240) this year. At 1%/month simple interest: \u20b934,408 under s.424 (shortfall below the 90% floor, 4 months to the non-audit (31 Jul) due date) + \u20b929,968 under s.425 (quarter-by-quarter installment shortfalls). Both keep accruing past the due date until actually paid \u2014 this is the exposure AS OF the due date, not a final number.",
       "recommendation": "Pay the shortfall before filing to stop s.424 interest accruing further; s.425's quarter-by-quarter amount is fixed once the year ends and doesn't grow. If the year isn't over yet, revise the remaining installment(s) upward.",
-      "amountUsd": 653.5484337349397,
+      "amountUsd": 775.6144578313254,
       "refs": [
         "s.424",
         "s.425",
@@ -2391,7 +2391,7 @@
                 "amount": 1240
               },
               {
-                "label": "12% on $12,400\u2013$49,840",
+                "label": "12% on $12,400\u2013$50,400",
                 "amount": 2112
               }
             ],

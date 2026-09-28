@@ -3267,10 +3267,10 @@
                 <!-- ROR Presumptive Ineligibility Warning (Presumptive Taxation Scheme (Eligible Business) / Presumptive Taxation Scheme (Professionals)) -->
                 <div id="warn-pres-nri" class="p-4 bg-brandRed/10 border border-brandRed/30 rounded-2xl hidden flex flex-col gap-2 transition-all">
                     <span class="text-xs font-black uppercase tracking-widest text-brandRed flex items-center space-x-2">
-                        <span>⚠️ NOT ELIGIBLE (MUST BE ROR)</span>
+                        <span>⚠️ NOT ELIGIBLE (MUST BE RESIDENT)</span>
                     </span>
                     <p class="text-[10px] text-white/70 leading-relaxed">
-                        Only Resident & Ordinarily Resident (ROR) taxpayers can legally choose the simplified tax schemes for small businesses or professionals (Presumptive Taxation Scheme (Eligible Business) / Presumptive Taxation Scheme (Professionals)). Please untick these options or update your residency status in Step 1.
+                        Only residents (ROR or RNOR) can legally choose the simplified tax schemes for small businesses or professionals (Presumptive Taxation Scheme (Eligible Business) / Presumptive Taxation Scheme (Professionals)). Please untick these options or update your residency status in Step 1.
                     </p>
                 </div>
 
@@ -9101,7 +9101,8 @@ const crDiv = document.getElementById('div-company-residency');
 
     function validateEntityPresumptiveEligibility() {
         const entity = state.profile.entity_type;
-        const ror = state.residency_detail.final_india_residency_status === 'ROR';
+        // s.44AD(6)/s.44ADA: any resident — ROR or RNOR
+        const ror = ['ROR', 'RNOR'].includes(state.residency_detail.final_india_residency_status);
         
         const eligible44AD = ror && entity !== 'llp' && entity !== 'company' && entity !== 'aop' && entity !== 'trust' && entity !== 'local' && entity !== 'coop' && entity !== 'ajp';
         const eligible44ADA = eligible44AD && entity !== 'huf';
@@ -9123,7 +9124,7 @@ const crDiv = document.getElementById('div-company-residency');
         });
         
         if (forceRevert) {
-            alert("Presumptive Taxation Disabled:\n\nOnly Resident & Ordinarily Resident (ROR) taxpayers (excluding LLPs, Companies, and similar entities) can opt for Presumptive Taxation Scheme (Eligible Business) or Presumptive Taxation Scheme (Professionals).");
+            alert("Presumptive Taxation Disabled:\n\nOnly residents (ROR or RNOR), excluding LLPs, companies and similar entities, can opt for Presumptive Taxation Scheme (Eligible Business) or Presumptive Taxation Scheme (Professionals).");
             renderBusinessEntries();
             evaluateSurchargeBuckets();
         }
@@ -11263,8 +11264,8 @@ const crDiv = document.getElementById('div-company-residency');
             const isTransport = entry.nature === 'goods_transport';
             const scheme = entry.presumptive_scheme;
 
-            // Eligibility check: Strict s44AD vs s44ADA checks
-            const ror = state.residency_detail.final_india_residency_status === 'ROR';
+            // Eligibility check: Strict s44AD vs s44ADA checks (any resident — ROR or RNOR)
+            const ror = ['ROR', 'RNOR'].includes(state.residency_detail.final_india_residency_status);
             const entity = state.profile.entity_type || state.domestic_income.business_income.entity_type;
             const eligible44AD = ror && entity !== 'llp' && entity !== 'company' && entity !== 'aop' && entity !== 'trust' && entity !== 'local' && entity !== 'coop' && entity !== 'ajp';
             const eligible44ADA = eligible44AD && entity !== 'huf';
@@ -11278,7 +11279,7 @@ const crDiv = document.getElementById('div-company-residency');
                     schemeOptions = `<option value="" ${!scheme ? 'selected' : ''}>Regular Books</option>
                        <option value="s44AD" ${scheme === 's44AD' ? 'selected' : ''}>Presumptive Taxation Scheme (Eligible Business) — Presumptive (6% digital / 8% cash)</option>`;
                 } else {
-                    schemeOptions = `<option value="">Regular Books (Presumptive NOT allowed for ${!ror ? 'NR/RNOR' : entity.toUpperCase()})</option>`;
+                    schemeOptions = `<option value="">Regular Books (Presumptive NOT allowed for ${!ror ? 'NR' : entity.toUpperCase()})</option>`;
                 }
             } else if (isProf) {
                 if (eligible44ADA) {
@@ -11981,7 +11982,7 @@ ${isProf ? '' : `
         // Derive family pension standard deduction if family pension gross is updated
         if (field === 'family_pension_gross_inr') {
             const gross = parseINRCurrency(val) || 0;
-            state.other_sources.family_pension_standard_deduction_inr = Math.min(15000, Math.round(gross / 3));
+            state.other_sources.family_pension_standard_deduction_inr = Math.min(String((state.profile || {}).tax_regime || 'NEW').toUpperCase() === 'OLD' ? 15000 : 25000, Math.round(gross / 3));
         }
 
         evaluateSurchargeBuckets();
@@ -13367,9 +13368,10 @@ ${isProf ? '' : `
 
         const otherSourcesAdditions = spousalClub - minorExempt + licMaturity + angelTax - localAuthExe + taxableEpf + taxableNps;
 
-        // Family pension: 1/3rd of gross OR ₹15,000 standard deduction (whichever lower) u/s 57(iia)
+        // Family pension: 1/3rd of gross or the cap, whichever is lower, u/s 57(iia) — ₹25,000 under the new regime, ₹15,000 under the old
         const pensionGross = state.other_sources.family_pension_gross_inr || 0;
-        const pensionNet   = Math.max(0, pensionGross - Math.min(15000, Math.round(pensionGross / 3)));
+        const pensionCap   = String((state.profile || {}).tax_regime || 'NEW').toUpperCase() === 'OLD' ? 15000 : 25000;
+        const pensionNet   = Math.max(0, pensionGross - Math.min(pensionCap, Math.round(pensionGross / 3)));
 
         // Share buyback post-Oct 2024 → deemed dividend u/s 2(22)(f)
         let deemedBuyback = 0;
@@ -13457,6 +13459,14 @@ ${isProf ? '' : `
         // state.surcharge_buckets.income_ltcg_112_inr            = ltcg112;
         // state.surcharge_buckets.income_special_115BB_115BBJ_inr = gaming + lotteryWin; // both taxed @30% flat
         // state.surcharge_buckets.income_special_115A_inr        = special115AIncome; // Walled off NR income (no VI-A)
+        // Not persisted, but evaluateITRForm() needs these figures: with the
+        // writes above disabled it saw zero capital gains / lottery / total
+        // income and recommended ITR-1 to everyone without business income.
+        window.__itrIncomeBuckets = {
+            income_normal_slab_inr: normalSlab, income_dividend_inr: activeDivInt, income_stcg_111A_inr: stcg111A,
+            income_ltcg_112A_inr: ltcg112A, income_ltcg_112_inr: ltcg112, income_stcg_other_inr: 0,
+            income_special_115BB_115BBJ_inr: gaming + lotteryWin, income_special_115A_inr: special115AIncome
+        };
 
         // ─────────────────────────────────────────────────────────────
         // 2. SURCHARGE RATE (entity-aware)
@@ -15048,7 +15058,15 @@ ${isProf ? '' : `
             const faApplies = indiaStatus !== 'NR' && indiaStatus !== 'RNOR';
 
             const usStateStr = localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('US'));
-            if (isDual && faApplies && usStateStr) {
+            // Only when both forms describe the same person: an entity client
+            // (e.g. a US parent and its Indian subsidiary) keeps two different
+            // taxpayers on the two forms, and the US one's assets aren't the
+            // Indian one's to disclose.
+            const indiaEntityType = (state.profile && state.profile.entity_type) || 'individual';
+            let usEntityType = 'individual';
+            try { usEntityType = ((JSON.parse(usStateStr || '{}').profile || {}).tax_entity_type) || 'individual'; } catch (e) {}
+            const samePerson = ['individual', 'huf'].includes(indiaEntityType) && usEntityType === 'individual';
+            if (isDual && faApplies && samePerson && usStateStr) {
                 const usState = JSON.parse(usStateStr);
                 // Rows are re-read from their cards before saving (country upper-
                 // cased, blanks as null), so keys are compared normalised —
@@ -15570,7 +15588,7 @@ ${isProf ? '' : `
         const biz = inc.business_income || {};
         const hp = inc.house_property || { properties: [] };
         
-        const sb = state.surcharge_buckets || {};
+        const sb = window.__itrIncomeBuckets || state.surcharge_buckets || {};
         const totalInc = (sb.income_normal_slab_inr || 0) + 
                          (sb.income_stcg_111A_inr || 0) + 
                          (sb.income_ltcg_112A_inr || 0) + 
@@ -15612,9 +15630,25 @@ ${isProf ? '' : `
         // capital gains and no capital losses carried forward — previously
         // ANY capital gain forced ITR-2/3. Verified against the notified
         // AY 2026-27 forms, July 2026.
-        const ltcg112A = sb.income_ltcg_112A_inr || 0;
-        const otherCapitalGains = (sb.income_stcg_111A_inr || 0) + (sb.income_ltcg_112_inr || 0) + (sb.income_stcg_other_inr || 0);
-        const hasDisqualifyingCapitalGains = hasCapitalGains && (otherCapitalGains > 0 || ltcg112A > 125000);
+        // Sold holdings from Layer 1's own transaction screens (financial
+        // holdings, commodities, unlisted shares, property): the income
+        // buckets only carry share-buyback gains, the rest is computed in
+        // Layer 2 — but a sale this year still decides the ITR form.
+        const monthsHeld = (a, b) => { const x = new Date(a), y = new Date(b); return isNaN(x) || isNaN(y) ? null : (y.getFullYear() - x.getFullYear()) * 12 + (y.getMonth() - x.getMonth()); };
+        let heldLtcg112A = 0, heldOtherGains = 0;
+        (Array.isArray(fh.transactions) ? fh.transactions : []).forEach(t => {
+            if (!t || !t.sale_date || t.sale_value == null || t.sale_value === '') return;
+            const g = (Number(t.sale_value) || 0) - (Number(t.purchase_value) || 0) - (Number(t.transfer_expenses) || 0);
+            const m = monthsHeld(t.acquisition_date, t.sale_date);
+            const is112A = ['listed_equity', 'equity_mutual_fund'].includes(t.asset_class) && t.stt_paid !== false && m != null && m > 12;
+            if (is112A) heldLtcg112A += g; else if (g !== 0) heldOtherGains += Math.abs(g);
+        });
+        [cm.transactions, ue.transactions, pr.properties].forEach(list => (Array.isArray(list) ? list : []).forEach(t => {
+            if (t && t.sale_date) heldOtherGains += 1; // any sale here is a non-112A capital gain or loss
+        }));
+        const ltcg112A = (sb.income_ltcg_112A_inr || 0) + heldLtcg112A;
+        const otherCapitalGains = (sb.income_stcg_111A_inr || 0) + (sb.income_ltcg_112_inr || 0) + (sb.income_stcg_other_inr || 0) + heldOtherGains;
+        const hasDisqualifyingCapitalGains = (hasCapitalGains || heldLtcg112A !== 0 || heldOtherGains > 0) && (otherCapitalGains > 0 || ltcg112A > 125000);
 
         // s.44AD/44ADA turnover ceilings (Rs.2cr/Rs.3cr, Rs.50L/Rs.75L — the
         // higher figure needs cash receipts under 5% of the total) — an

@@ -181,8 +181,8 @@
           "usd": 0
         },
         "otherSourcesMisc": {
-          "inr": 585000,
-          "usd": 7048.192771084337
+          "inr": 575000.0,
+          "usd": 6927.710843373494
         },
         "stcg": {
           "inr": 0,
@@ -215,8 +215,8 @@
         "holdingPeriodMismatches": [],
         "unexplained115bbeInr": 0,
         "total": {
-          "usd": 7144.578313253012,
-          "inr": 593000
+          "usd": 7024.096385542169,
+          "inr": 583000.0
         }
       },
       "us": {
@@ -937,7 +937,7 @@
       "explanation": "For Resident Salaried Individuals with total income up to \u20b950 Lakhs (Salary, up to 2 house properties, basic other sources). Restrictions: no foreign assets/income, no capital gains beyond the s.198-only allowance, no directorships.",
       "disqualified": false,
       "disqualifiers": [],
-      "totalIncomeInr": 593000,
+      "totalIncomeInr": 583000.0,
       "directorUnknown": true,
       "frontendForm": null,
       "frontendExplanation": null,
@@ -981,9 +981,9 @@
       "fyLabel": "FY 2026\u201327",
       "cyPrimary": 2026,
       "cyNext": 2027,
-      "indiaFyTotalUsd": 7144.578313253012,
-      "indiaToCyPrimaryUsd": 5358,
-      "indiaToCyNextUsd": 1786,
+      "indiaFyTotalUsd": 7024.096385542169,
+      "indiaToCyPrimaryUsd": 5268,
+      "indiaToCyNextUsd": 1756,
       "primaryShare": 0.75,
       "nextShare": 0.25,
       "usCyTotalUsd": 200,
@@ -1001,7 +1001,7 @@
     },
     "ftc": {
       "us": {
-        "foreignSourceIncomeUsd": 7144.578313253012,
+        "foreignSourceIncomeUsd": 7024.096385542169,
         "feieExcludedUsd": 0,
         "indiaTaxDisallowedUsd": 0,
         "taxableIncomeUsd": 0,
@@ -1069,7 +1069,7 @@
       "name": "Lakshmi Pillai",
       "baseYear": 2026,
       "jurisdiction": "dual",
-      "totalIncomeUsd": 14668.578313253012,
+      "totalIncomeUsd": 14548.096385542169,
       "indiaTaxUsd": 0,
       "usTaxUsd": 0,
       "combinedTaxBeforeReliefUsd": 0,
@@ -1477,7 +1477,7 @@
         },
         {
           "label": "Foreign-source income (US view)",
-          "usd": 7144.578313253012,
+          "usd": 7024.096385542169,
           "trace": {
             "kind": "holdings",
             "section": "india",
@@ -1531,7 +1531,7 @@
               },
               {
                 "label": "Foreign-source income",
-                "amount": 7144.578313253012
+                "amount": 7024.096385542169
               },
               {
                 "label": "US taxable income",
@@ -1650,14 +1650,14 @@
               },
               {
                 "label": "Total India-view income",
-                "amount": 7144.578313253012
+                "amount": 7024.096385542169
               }
             ],
             "citation": null
           }
         },
         {
-          "label": "\u00a790 relief allowed",
+          "label": "\u00a7159 relief allowed (formerly s.90)",
           "usd": 0,
           "emphasis": true,
           "trace": {
@@ -1687,7 +1687,7 @@
       "rows": [
         {
           "label": "Gross total income",
-          "inr": 593000,
+          "inr": 583000.0,
           "trace": {
             "kind": "holdings",
             "section": "india",
@@ -1711,14 +1711,14 @@
         },
         {
           "label": "Total income",
-          "inr": 593000,
+          "inr": 583000.0,
           "trace": {
             "kind": "calc",
             "formula": "Gross total income less Chapter VI-A deductions",
             "parts": [
               {
                 "label": "Gross total income",
-                "amount": 593000
+                "amount": 583000.0
               },
               {
                 "label": "Less Chapter VI-A deductions",
@@ -1730,18 +1730,18 @@
         },
         {
           "label": "Tax at slab rates",
-          "inr": 9650,
+          "inr": 9150.0,
           "trace": {
             "kind": "calc",
-            "formula": "Progressive slab-rate tax under the NEW regime, applied to \u20b95,93,000 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
+            "formula": "Progressive slab-rate tax under the NEW regime, applied to \u20b95,83,000 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
             "parts": [
               {
                 "label": "0% on \u20b90\u2013\u20b94,00,000",
-                "amount": 0
+                "amount": 0.0
               },
               {
                 "label": "5% on \u20b94,00,000\u2013\u20b98,00,000",
-                "amount": 9650
+                "amount": 9150.0
               }
             ],
             "citation": null
@@ -1749,7 +1749,7 @@
         },
         {
           "label": "Tax on special-rate income (196/197/198 gains + 115BBH VDA + 128/194 winnings)",
-          "inr": 0,
+          "inr": 0.0,
           "trace": {
             "kind": "calc",
             "formula": "s.196 STCG @ 20% + s.198 LTCG @ 12.5% (listed/STT-paid, net of the \u20b91,25,000 exemption) + s.197 LTCG @ 12.5% (unlisted/foreign \u2014 no exemption, separate section, does not pool with s.198's threshold) + s.115BBH VDA/crypto @ 30% flat (no set-off, ever) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption (each broken out below)",
@@ -1759,7 +1759,7 @@
         },
         {
           "label": "Less \u00a7156 rebate",
-          "inr": -9650,
+          "inr": -9150.0,
           "trace": {
             "kind": "calc",
             "formula": "Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold \u2014 lesser of tax at slab rates and the statutory cap",
@@ -1770,7 +1770,7 @@
               },
               {
                 "label": "Rebate actually allowed",
-                "amount": 9650
+                "amount": 9150.0
               }
             ],
             "citation": null
@@ -1778,14 +1778,14 @@
         },
         {
           "label": "Surcharge",
-          "inr": 0,
+          "inr": 0.0,
           "trace": {
             "kind": "calc",
             "formula": "Progressive surcharge (10%/15%/25%/37% bands by total income) on tax before cess, with marginal relief so the tax increase never exceeds the income increase over the threshold; capital-gains/dividend-type special-rate income is capped at a 15% surcharge rate",
             "parts": [
               {
                 "label": "Surcharge",
-                "amount": 0
+                "amount": 0.0
               }
             ],
             "citation": null
@@ -1793,18 +1793,18 @@
         },
         {
           "label": "Health & education cess (4%)",
-          "inr": 0,
+          "inr": 0.0,
           "trace": {
             "kind": "calc",
             "formula": "4% of (tax after rebate + surcharge)",
             "parts": [
               {
                 "label": "Tax after \u00a7156 rebate",
-                "amount": 0
+                "amount": 0.0
               },
               {
                 "label": "Surcharge",
-                "amount": 0
+                "amount": 0.0
               },
               {
                 "label": "Cess rate",
@@ -1816,7 +1816,7 @@
         },
         {
           "label": "Total India tax",
-          "inr": 0,
+          "inr": 0.0,
           "emphasis": true,
           "trace": {
             "kind": "calc",
@@ -1824,23 +1824,23 @@
             "parts": [
               {
                 "label": "Tax at slab rates",
-                "amount": 9650
+                "amount": 9150.0
               },
               {
                 "label": "Tax on special-rate income",
-                "amount": 0
+                "amount": 0.0
               },
               {
                 "label": "Less \u00a7156 rebate",
-                "amount": -9650
+                "amount": -9150.0
               },
               {
                 "label": "Surcharge",
-                "amount": 0
+                "amount": 0.0
               },
               {
                 "label": "Cess",
-                "amount": 0
+                "amount": 0.0
               }
             ],
             "citation": null
@@ -2551,7 +2551,7 @@
     "indiaStatus": "ROR",
     "usStatus": "RESIDENT_ALIEN",
     "dualResident": true,
-    "totalIncomeUsd": 14668.578313253012,
+    "totalIncomeUsd": 14548.096385542169,
     "indiaTaxUsd": 0,
     "usTaxUsd": 0,
     "netDoubleTaxUsd": 0,

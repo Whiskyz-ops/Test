@@ -415,8 +415,29 @@ var DOCUMENTS_CATALOG = [
   { id: "form_27d", jurisdiction: "IN", name: "Form 27D (TCS Certificate)", desc: "Certificate issued by the Authorized Dealer/bank for Tax Collected at Source on an outward LRS remittance.", why: "An LRS remittance for investment or gift/donation purposes exceeded the ₹10L base threshold — s.206C(1G) TCS was collected on the excess, and Form 27D is needed to claim it as a credit in the ITR.", severity: "info" }
 ];
 
+// Foreign assets declared on Layer 1 India's own Schedule FA screen (the
+// "has foreign assets" answer or any asset row).
+NODES.indiaForeignAssetsHeldRaw = {
+  deps: [],
+  compute: function (d, ctx) {
+    var fa = (ctx.india && ctx.india.foreign_assets) || {};
+    return fa.has_foreign_assets === true || (Array.isArray(fa.assets) && fa.assets.length > 0);
+  }
+};
+// Form 5471: a US person must own at least 10% of the foreign corporation
+// (categories 3-5; category 2, an officer/director, also turns on a 10%
+// acquisition). A corporation entered without a percentage counts.
+NODES.usForeignCorp10PctRaw = {
+  deps: ["usOwns10PctForeignCorpRaw", "usForeignCorpsRaw"],
+  compute: function (d) {
+    return d.usOwns10PctForeignCorpRaw || d.usForeignCorpsRaw.some(function (c) {
+      var p = c && (c.ownership_percentage != null && c.ownership_percentage !== "" ? c.ownership_percentage : c.ownership_pct);
+      return p == null || p === "" || isNaN(Number(p)) || Number(p) >= 10;
+    });
+  }
+};
 NODES.buildDocumentsResult = {
-  deps: ["residencyResult", "accountsListResult", "form8938GaugeResult", "taxesPaidIndiaResult", "entityFormsResult",
+  deps: ["usForeignCorp10PctRaw", "indiaForeignAssetsHeldRaw", "residencyResult", "accountsListResult", "form8938GaugeResult", "taxesPaidIndiaResult", "entityFormsResult",
     "feieRaw", "treatyUsResidenceRaw", "treatyFiles1040nrRaw", "treatyIndiaResidenceRaw",
     "indianMutualFundsResult", "usPficHoldingsRaw", "usSecuritiesRaw", "usOwnsForeignDisregardedEntityRaw", "usSelfEmploymentRaw", "usForeignPartnershipsRaw", "bizEntriesAgg", "ppfInrRaw", "epfInrRaw", "foreignGiftsRaw",
     "usTaxResult", "headlineTotalIncomeUsdResult", "usFilingStatusRaw", "aggregateUsIncomeResult",
@@ -480,7 +501,7 @@ NODES.buildDocumentsResult = {
       // bug, fixed the same way: viaForeignCorpXbr4 is the correct CFC-
       // ownership signal (form_3ceb below already uses it). Broadened to
       // isUsPerson (any domestic entity, not just C-corp).
-      form_5471: d.viaForeignCorpXbr4 && isUsPerson,
+      form_5471: d.usForeignCorp10PctRaw && isUsPerson,
       form_8865: d.usForeignPartnershipsRaw.length > 0 && isUsPerson,
       // Was OR'ing receivedAbove100k/isTrustBeneficiary in unconditionally —
       // Form 3520 (IRC §6039F) is US-persons-only; gated the whole trigger
@@ -509,7 +530,7 @@ NODES.buildDocumentsResult = {
                (d.aggregateUsIncomeResult.usSourceTotal.usd > 0 || d.taxesPaidUsResult.total.usd > 0),
       trc: res.dualResident || d.treatyIndiaResidenceRaw !== "none" || d.treatyUsResidenceRaw !== "none",
       form_10f: res.dualResident || d.treatyIndiaResidenceRaw !== "none",
-      schedule_fa: res.india.status === "ROR" && (d.aggregateUsIncomeResult.usSourceTotal.usd > 0 ||
+      schedule_fa: res.india.status === "ROR" && (d.indiaForeignAssetsHeldRaw || d.aggregateUsIncomeResult.usSourceTotal.usd > 0 ||
                    d.accountsListResult.accounts.some(function (a) { return a.country !== "India"; }) ||
                    d.usSecuritiesRaw.some(function (h) { return (h.peak_balance_usd || 0) > 0; })),
       // See engine/conflicts.js's schedule_fsi_tr comment: same bug class as

@@ -148,7 +148,7 @@ function farmIncomeTrace(f, depreciationPlanEntry) {
 
 /* ---- India business-entry trace (normalize.js:56-165, 534-623) ------------ */
 var PRESUMPTIVE_CEILING_CITATION = "s.44AD/44ADA turnover ceilings (Rs.2cr/Rs.3cr and Rs.50L/Rs.75L, the higher figure requiring digital receipts ≥95% of total) verified 2026-07-12, matched to Layer 1 India's own live eligibility check — re-check each Finance Act cycle.";
-var PRESUMPTIVE_RESIDENCY_CITATION = "s.44AD/44ADA residency and entity-type eligibility (ROR-only; 44AD additionally excludes firms/LLPs/companies/AOPs/trusts/local authorities/co-ops, 44ADA further excludes HUFs) verified 2026-07-12, matched to Layer 1 India's own live eligibility check.";
+var PRESUMPTIVE_RESIDENCY_CITATION = "s.44AD(6)/44ADA residency and entity-type eligibility (residents only — ROR or RNOR; 44AD excludes LLPs/companies/AOPs/trusts/local authorities/co-ops, 44ADA further excludes HUFs) verified 2026-09-28, matched to Layer 1 India's own live eligibility check.";
 function isUnder180DaysAdditionInr(additionDateStr) {
   if (!additionDateStr) return false;
   var d = new Date(additionDateStr);
@@ -282,9 +282,9 @@ function businessEntryIncomeTrace(b, eligibility, depreciationInr, disallowances
     }
     if (!eligibility.eligible44AD) {
       var why44AD = eligibility.rorFails
-        ? "this taxpayer's India residency status is " + (eligibility.indiaStatus || "not on file") + ", not Resident & Ordinarily Resident (ROR)"
-        : "this taxpayer's entity type (" + eligibility.entityType + ") is one s.44AD excludes (firms/LLPs/companies/AOPs/trusts/local authorities/co-ops)";
-      ceilingNote = "s.44AD is only available to Resident & Ordinarily Resident (ROR) individuals/HUFs and eligible firms — " + why44AD + ", so the presumptive election is invalid and regular books apply instead:";
+        ? "this taxpayer's India residency status is " + (eligibility.indiaStatus || "not on file") + ", not resident (ROR or RNOR)"
+        : "this taxpayer's entity type (" + eligibility.entityType + ") is one s.44AD excludes (LLPs/companies/AOPs/trusts/local authorities/co-ops)";
+      ceilingNote = "s.44AD is only available to resident (ROR or RNOR) individuals, HUFs and partnership firms — " + why44AD + ", so the presumptive election is invalid and regular books apply instead:";
       ceilingCitation = PRESUMPTIVE_RESIDENCY_CITATION;
     } else {
       ceilingNote = "Total receipts (₹" + Math.round(dig44AD + csh44AD).toLocaleString("en-IN") + ") exceed the s.44AD turnover ceiling for this cash-receipts mix (₹" + Math.round(ceiling44AD).toLocaleString("en-IN") + ") — the presumptive election is invalid above this, so regular books apply instead:";
@@ -302,9 +302,9 @@ function businessEntryIncomeTrace(b, eligibility, depreciationInr, disallowances
     }
     if (!eligibility.eligible44ADA) {
       var why44ADA = eligibility.rorFails
-        ? "this taxpayer's India residency status is " + (eligibility.indiaStatus || "not on file") + ", not Resident & Ordinarily Resident (ROR)"
+        ? "this taxpayer's India residency status is " + (eligibility.indiaStatus || "not on file") + ", not resident (ROR or RNOR)"
         : "this taxpayer's entity type is HUF, which s.44ADA excludes";
-      ceilingNote = "s.44ADA is only available to Resident & Ordinarily Resident (ROR) individuals — " + why44ADA + ", so the presumptive election is invalid and regular books apply instead:";
+      ceilingNote = "s.44ADA is only available to resident (ROR or RNOR) individuals and partnership firms — " + why44ADA + ", so the presumptive election is invalid and regular books apply instead:";
       ceilingCitation = PRESUMPTIVE_RESIDENCY_CITATION;
     } else {
       ceilingNote = "Gross receipts (₹" + Math.round(adaReceipts).toLocaleString("en-IN") + ") exceed the s.44ADA turnover ceiling for this cash-receipts mix (₹" + Math.round(ceiling44ADA).toLocaleString("en-IN") + ") — the presumptive election is invalid above this, so regular books apply instead:";

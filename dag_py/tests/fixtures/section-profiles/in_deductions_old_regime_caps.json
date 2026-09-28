@@ -1,0 +1,68 @@
+{
+  "id": "in_deductions_old_regime_caps",
+  "form": "layer1_india.html",
+  "section": "Deductions",
+  "story": "Resident individual under 60, old regime, salary 12,50,000 and savings interest 15,000. Claims above every cap: 80C 2,00,000 (PPF + ELSS), 80CCD(1B) NPS 60,000, 80D self 30,000 and senior parents 60,000, 80TTA 15,000; plus 80E education-loan interest 40,000 (no cap).",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "individual",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "OLD"
+    },
+    "residency_detail": {
+      "manual_days": 365,
+      "days_in_india_current_year": 365,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "gross_salary_inr": 1250000
+      }
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_savings_inr": 15000
+    },
+    "deductions": {
+      "s80C": {
+        "ppf_inr": 100000,
+        "elss_inr": 100000
+      },
+      "s80CCD_1B": {
+        "nps_additional_inr": 60000
+      },
+      "s80D": {
+        "self_family_premium_inr": 30000,
+        "parents_premium_inr": 60000,
+        "parents_are_senior": true
+      },
+      "s80TTA_TTB": {
+        "savings_interest_inr": 15000
+      },
+      "s80E": {
+        "education_loan_interest_inr": 40000
+      }
+    }
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "computed.indiaTax.deductionsInr",
+      "value": 325000,
+      "why": "80C 1,50,000 + 80CCD(1B) 50,000 + 80D 25,000 + 50,000 + 80TTA 10,000 + 80E 40,000"
+    },
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 94120,
+      "why": "12,00,000 + 15,000 - 3,25,000 = 8,90,000; 12,500 + 20% x 3,90,000 = 90,500; +4% cess"
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "id": "us_ftc_general_basket",
+  "form": "layer1_us.html",
+  "section": "Foreign income + FTC",
+  "story": "US citizen working in India, single, Indian salary $100,000 with $15,000 Indian tax paid. No FEIE; claims the foreign tax credit (general basket).",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 20
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_foreign_source": {
+      "foreign_wages": [
+        {
+          "employer_name": "Mumbai Analytics Pvt Ltd",
+          "gross_wages_usd": 100000
+        }
+      ]
+    },
+    "foreign_earned_income": {
+      "claims_feie": false
+    },
+    "ftc_inputs": {
+      "claims_ftc": true,
+      "ftc_baskets": [
+        {
+          "foreign_country": "IN",
+          "basket_type": "general",
+          "foreign_taxes_paid_usd": 15000,
+          "gross_foreign_income_usd": 100000
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 13170,
+      "why": "taxable 83,900: 1,240 + 4,560 + 22% x 33,500"
+    },
+    {
+      "path": "computed.ftc.us.ftcLimitUsd",
+      "value": 13170,
+      "why": "s.904 limit = US tax x foreign taxable / worldwide taxable = 100% here"
+    },
+    {
+      "path": "computed.ftc.us.ftcAllowedUsd",
+      "value": 13170,
+      "why": "lesser of Indian tax 15,000 and the limit"
+    },
+    {
+      "path": "computed.ftc.us.carryoverUsd",
+      "value": 1830,
+      "why": "15,000 - 13,170 carried forward (s.904(c))"
+    }
+  ]
+}

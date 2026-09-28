@@ -12,16 +12,13 @@
  * field carries — read PROSPECTIVELY instead: not "how much interest did
  * the shortfall cost", but "how much is still needed this quarter."
  *
- * Deliberately reuses in1-nodes.js's s425Inr installment structure (15/30/
- * 30/25% India quarterly slices, or the single 100% presumptive-scheme
- * installment) and us1-nodes.js's us2210PenaltyUsd structure (four equal
- * 25% US slices, withholding spread evenly) rather than inventing a
- * "cumulative percentage paid to date" variant — the calendar's own row
- * LABELS use cumulative language ("Q3 (75%)"), but the verified interest
- * math tests each quarter's OWN slice against that quarter's OWN payment
- * field independently (no cross-quarter netting — see in1-nodes.js's own
- * s425Inr comment). Matching that exactly means this number never disagrees
- * with the retrospective finding's own arithmetic once the year ends.
+ * India uses the same cumulative instalment schedule as the s.425 interest
+ * (india-compliance.js's advanceTaxShortfalls: by 15 Jun 15%, 15 Sep 45%,
+ * 15 Dec 75%, 15 Mar 100% of the year's tax, less everything paid by that
+ * date), so this number never disagrees with the retrospective finding once
+ * the year ends. US uses us1-nodes.js's §6654 running balance (four equal
+ * 25% instalments, withholding spread evenly, payments applied to the
+ * earliest unpaid instalment).
  *
  * India is gated on inAdvTaxObliged (the s.404 ₹10,000 floor + s.207(2)
  * senior carve-out) — below that floor there is no advance-tax obligation
@@ -73,13 +70,10 @@ NODES.calendarAmountsResult = {
           amountDueInr: Math.max(0, d.assessedTaxInr * 1.00 - paidTotal)
         }];
       } else {
-        india.installments = [
-          { quarter: 1, requiredPct: 0.15, paidInr: d.advQ1Inr },
-          { quarter: 2, requiredPct: 0.30, paidInr: d.advQ2Inr },
-          { quarter: 3, requiredPct: 0.30, paidInr: d.advQ3Inr },
-          { quarter: 4, requiredPct: 0.25, paidInr: d.advQ4Inr }
-        ].map(function (q) {
-          return Object.assign({}, q, { amountDueInr: Math.max(0, d.assessedTaxInr * q.requiredPct - q.paidInr) });
+        // cumulative: by each date, requiredPct of the year's tax less everything paid by then
+        var paidQ = [d.advQ1Inr, d.advQ2Inr, d.advQ3Inr, d.advQ4Inr];
+        india.installments = require("./india-compliance.js").advanceTaxShortfalls(d.assessedTaxInr, paidQ, false).map(function (q, i) {
+          return { quarter: q.quarter, requiredPct: q.requiredPct, paidInr: paidQ[i], amountDueInr: Math.max(0, d.assessedTaxInr * q.requiredPct - q.cumPaidInr) };
         });
       }
     }
@@ -89,10 +83,14 @@ NODES.calendarAmountsResult = {
       us.requiredUsd = d.usRequiredUsd;
       var perQWithholdingUsd = d.usWithholdingTotalUsd / 4;
       var estByQ = { 1: d.usEstQ1Usd, 2: d.usEstQ2Usd, 3: d.usEstQ3Usd, 4: d.usEstQ4Usd };
+      // running balance, same as the §6654 penalty (us1-nodes.js): what's
+      // still owed by each date after everything paid so far
+      var cumRequiredUsd = 0, cumPaidUsd = 0;
       us.installments = [1, 2, 3, 4].map(function (q) {
         var requiredUsd = d.usRequiredUsd / 4;
         var paidUsd = perQWithholdingUsd + estByQ[q];
-        return { quarter: q, requiredUsd: requiredUsd, paidUsd: paidUsd, amountDueUsd: Math.max(0, requiredUsd - paidUsd) };
+        cumRequiredUsd += requiredUsd; cumPaidUsd += paidUsd;
+        return { quarter: q, requiredUsd: requiredUsd, paidUsd: paidUsd, amountDueUsd: Math.max(0, cumRequiredUsd - cumPaidUsd) };
       });
     }
 

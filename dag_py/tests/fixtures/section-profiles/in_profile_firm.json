@@ -1,0 +1,25 @@
+{
+  "id": "in_profile_firm",
+  "form": "layer1_india.html",
+  "section": "Profile (entity type: partnership firm)",
+  "story": "Resident partnership firm on regular books: turnover 3,20,00,000, other business expenses 2,00,00,000, so business income 1,20,00,000.",
+  "router": { "jurisdiction": "india_only", "entity_type": "firm", "base_tax_year": 2026 },
+  "india": {
+    "profile": { "entity_type": "firm", "tax_regime": "OLD" },
+    "residency_detail": { "final_india_residency_status": "ROR" },
+    "domestic_income": {
+      "business_income": {
+        "has_business_or_fo_income": true,
+        "business_entries": [
+          { "business_name": "Traders & Co", "nature": "regular_business", "presumptive_scheme": null, "turnover_inr": 32000000, "expenses": { "other_business_expenses_inr": 20000000 } }
+        ]
+      }
+    },
+    "other_sources": {}
+  },
+  "us": {},
+  "expect": [
+    { "path": "model.income.india.business.inr", "value": 12000000, "why": "3,20,00,000 - 2,00,00,000" },
+    { "path": "computed.indiaTax.totalTaxInr", "value": 4193280, "why": "30% = 36,00,000; surcharge 12% (income over 1 crore) = 4,32,000 — marginal relief doesn't bind (40,32,000 < 30,00,000 + 20,00,000); +4% cess" }
+  ]
+}

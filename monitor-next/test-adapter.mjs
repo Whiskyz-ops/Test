@@ -366,8 +366,16 @@ function checkResult(id, dag, real, profile) {
   // PATHS in run-fuzz.js/shadow-core.js): a real, wide amount fix whose
   // cascade is too varied to enumerate leaf-by-leaf.
   const indiaIncomeFill = isIndiaIncomeFillProfile(dag);
+  // Section-profile audit law fixes (28 Sep 2026; see run-fuzz.js's
+  // classifiers): TY2026 single brackets (also a 1040-NR's ECI), §72(t) in
+  // the total, OBBBA charitable/§68 rules, married NRA at MFS rates.
+  const du = dag.computed.usTax || {};
+  const usLawFix2026 = (du.filingStatus === "single" && (du.ordinaryBracketBreakdown || []).some((b) => b && b.to > 49840)) ||
+    ((du.nra && du.nra.eciBracketBreakdown) || []).some((b) => b && b.to > 49840) ||
+    du.additionalTax72tUsd > 0 || du.charitableFloorUsd > 0 || du.itemizedLimitation68Usd > 0 || du.nonItemizerCharitableUsd > 0 ||
+    (!!du.nra && du.filingStatus === "mfs");
   const usWholesaleDivergent = feieWagesDivergent || feieBonaFideProxyDivergent || feieStackingRuleDivergent ||
-    qbiWageUbiaDivergent || cfcInclusionDivergent || indiaIncomeFill;
+    qbiWageUbiaDivergent || cfcInclusionDivergent || indiaIncomeFill || usLawFix2026;
   const usIncomeIntoIndia = isUsIncomeIntoIndiaProfile(dag);
   const indiaWholesaleDivergent = indiaSalaryExemption || indiaPresumptiveForeignScheme || usIncomeIntoIndia;
   const excused = new Set();

@@ -1,0 +1,56 @@
+{
+  "id": "us_wages_single",
+  "form": "layer1_us.html",
+  "section": "US income (W-2 wages)",
+  "story": "US citizen, single, Texas, one W-2 with wages of $120,000, standard deduction.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 120000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 15000,
+            "medicare_wages_box5_usd": 120000
+          }
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.taxableIncomeUsd",
+      "value": 103900,
+      "why": "120,000 - 16,100 standard deduction"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 17570,
+      "why": "10% x 12,400 + 12% x 38,000 + 22% x 53,500 (2026 single brackets)"
+    }
+  ]
+}

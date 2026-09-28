@@ -1,0 +1,51 @@
+{
+  "id": "in_salary_old_regime_hra",
+  "form": "layer1_india.html",
+  "section": "Salary",
+  "story": "Resident individual, old regime. Gross salary 18,00,000; basic+DA 9,00,000; HRA received 3,60,000; rent 3,00,000 in a metro; LTA 30,000; professional tax 2,500.",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "individual",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "OLD"
+    },
+    "residency_detail": {
+      "manual_days": 365,
+      "days_in_india_current_year": 365,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "gross_salary_inr": 1800000,
+        "basic_da_inr": 900000,
+        "hra_received_inr": 360000,
+        "rent_paid_inr": 300000,
+        "is_metro_city": true,
+        "lta_claimed_inr": 30000,
+        "professional_tax_inr": 2500
+      }
+    },
+    "other_sources": {}
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "model.income.india.salary.inr",
+      "value": 1507500,
+      "why": "18,00,000 - std 50,000 - HRA min(3,60,000; 3,00,000-90,000; 50% x 9,00,000)=2,10,000 - LTA 30,000 - prof. tax 2,500"
+    },
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 275340,
+      "why": "old slabs: 12,500 + 1,00,000 + 30% x 5,07,500 = 2,64,750; +4% cess = 2,75,340"
+    }
+  ]
+}

@@ -165,9 +165,9 @@ PRESUMPTIVE_CEILING_CITATION = (
     "Finance Act cycle."
 )
 PRESUMPTIVE_RESIDENCY_CITATION = (
-    "s.44AD/44ADA residency and entity-type eligibility (ROR-only; 44AD additionally excludes firms/LLPs/companies/"
-    "AOPs/trusts/local authorities/co-ops, 44ADA further excludes HUFs) verified 2026-07-12, matched to Layer 1 "
-    "India's own live eligibility check."
+    "s.44AD(6)/44ADA residency and entity-type eligibility (residents only — ROR or RNOR; 44AD excludes LLPs/"
+    "companies/AOPs/trusts/local authorities/co-ops, 44ADA further excludes HUFs) verified 2026-09-28, matched to "
+    "Layer 1 India's own live eligibility check."
 )
 
 
@@ -201,11 +201,11 @@ def _business_entry_income_trace(b: dict, eligibility: dict | None, depreciation
             )
         if not eligibility["eligible44AD"]:
             why = (
-                f"this taxpayer's India residency status is {eligibility.get('indiaStatus') or 'not on file'}, not Resident & Ordinarily Resident (ROR)"
+                f"this taxpayer's India residency status is {eligibility.get('indiaStatus') or 'not on file'}, not resident (ROR or RNOR)"
                 if eligibility.get("rorFails")
-                else f"this taxpayer's entity type ({eligibility.get('entityType')}) is one s.44AD excludes (firms/LLPs/companies/AOPs/trusts/local authorities/co-ops)"
+                else f"this taxpayer's entity type ({eligibility.get('entityType')}) is one s.44AD excludes (LLPs/companies/AOPs/trusts/local authorities/co-ops)"
             )
-            ceiling_note = f"s.44AD is only available to Resident & Ordinarily Resident (ROR) individuals/HUFs and eligible firms — {why}, so the presumptive election is invalid and regular books apply instead:"
+            ceiling_note = f"s.44AD is only available to resident (ROR or RNOR) individuals, HUFs and partnership firms — {why}, so the presumptive election is invalid and regular books apply instead:"
             ceiling_citation = PRESUMPTIVE_RESIDENCY_CITATION
         else:
             ceiling_note = f"Total receipts (₹{format_inr(dig44ad + csh44ad)}) exceed the s.44AD turnover ceiling for this cash-receipts mix (₹{format_inr(ceiling_44ad)}) — the presumptive election is invalid above this, so regular books apply instead:"
@@ -223,11 +223,11 @@ def _business_entry_income_trace(b: dict, eligibility: dict | None, depreciation
             )
         if not eligibility["eligible44ADA"]:
             why = (
-                f"this taxpayer's India residency status is {eligibility.get('indiaStatus') or 'not on file'}, not Resident & Ordinarily Resident (ROR)"
+                f"this taxpayer's India residency status is {eligibility.get('indiaStatus') or 'not on file'}, not resident (ROR or RNOR)"
                 if eligibility.get("rorFails")
                 else "this taxpayer's entity type is HUF, which s.44ADA excludes"
             )
-            ceiling_note = f"s.44ADA is only available to Resident & Ordinarily Resident (ROR) individuals — {why}, so the presumptive election is invalid and regular books apply instead:"
+            ceiling_note = f"s.44ADA is only available to resident (ROR or RNOR) individuals and partnership firms — {why}, so the presumptive election is invalid and regular books apply instead:"
             ceiling_citation = PRESUMPTIVE_RESIDENCY_CITATION
         else:
             ceiling_note = f"Gross receipts (₹{format_inr(ada_receipts)}) exceed the s.44ADA turnover ceiling for this cash-receipts mix (₹{format_inr(ceiling_44ada)}) — the presumptive election is invalid above this, so regular books apply instead:"

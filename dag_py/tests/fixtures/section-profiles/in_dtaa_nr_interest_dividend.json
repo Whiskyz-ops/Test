@@ -1,0 +1,85 @@
+{
+  "id": "in_dtaa_nr_interest_dividend",
+  "form": "layer1_india.html",
+  "section": "DTAA",
+  "story": "Non-resident individual (US resident), new regime, TRC and Form 10F on file. Indian income: NRO fixed-deposit interest 6,00,000, dividends 2,00,000, rent from a let-out flat 3,60,000. Treaty elections: interest at 15% (Art. 11(2)(b)) and dividends at 25% (Art. 10(2)(b)).",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "individual",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "manual_days": 30,
+      "days_in_india_current_year": 30,
+      "days_in_india_preceding_4_years_gte_365": false,
+      "india_source_income_above_15l": false,
+      "final_india_residency_status": "NR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      },
+      "house_property": {
+        "has_house_property_income": true,
+        "properties": [
+          {
+            "property_use": "LOP",
+            "gross_annual_value_inr": 360000
+          }
+        ]
+      }
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_fd_rd_inr": 600000,
+      "dividend_inr": 200000
+    },
+    "dtaa": {
+      "treaty_elections": [
+        {
+          "income_type": "interest",
+          "amount_inr": 600000,
+          "elected_rate": 0.15,
+          "treaty_article": "Art 11(2)(b)"
+        },
+        {
+          "income_type": "dividend",
+          "amount_inr": 200000,
+          "elected_rate": 0.25,
+          "treaty_article": "Art 10(2)(b)"
+        }
+      ]
+    },
+    "compliance_docs": {
+      "trc": {
+        "document_uploaded": true
+      },
+      "form_10f": {
+        "is_filed": true
+      }
+    }
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "model.income.india.houseProperty.inr",
+      "value": 252000,
+      "why": "3,60,000 less the 30% standard deduction"
+    },
+    {
+      "path": "computed.indiaTax.s115a.dividend.taxInr",
+      "value": 40000,
+      "why": "s.115A 20% beats the 25% treaty rate: 20% x 2,00,000"
+    },
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 67808,
+      "why": "interest stays at slab (slab tax on it, 25,200, is below 15% x 6,00,000 = 90,000): slab on 8,52,000 = 20,000 + 5,200; + dividend 40,000; no rebate for a non-resident; +4% cess"
+    }
+  ]
+}

@@ -11,6 +11,8 @@
  *   node scripts/check-form-roundtrip.js [layer1_us.html|layer1_india.html] [--all] [--only=id,id] [--fields]
  *   --all     also run the Python DAG's fuzz corpus and manual cases (~320
  *             more profiles), not just the demo clients
+ *   --sections also run the per-section test profiles
+ *             (dag_py/tests/fixtures/section-profiles, check-section-profiles.js)
  *   --fields  print which saved fields changed for each failing profile
  *   --dump=D  write {before, after} saved state for each failing profile to D
  *   --twice   compare the 2nd open against the 1st (idempotence) instead of
@@ -131,6 +133,7 @@ function diffSummaries(a, b) {
     const demoIds = await first.evaluate(() => (window.WISING.PROFILES || []).map((p) => p.id).concat(["__sample"]));
     await first.close();
     let cases = demoIds.map((id) => ({ id, demo: true }));
+    if (ARGS.includes("--sections")) cases = cases.concat(jsonCases("dag_py/tests/fixtures/section-profiles", "section:"));
     if (ALL) cases = cases.concat(jsonCases("dag_py/tests/fixtures/golden/fuzz-corpus/profiles", "corpus:"), jsonCases("dag_py/tests/fixtures/manual-cases/profiles", "manual:"));
     if (ONLY.length) cases = cases.filter((c) => ONLY.includes(c.id));
 

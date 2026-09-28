@@ -236,10 +236,15 @@ NODES.buildTaxComputationUsResult = {
           { label: "Less " + u.deductionMode + " deduction", usd: -u.deductionUsd,
             trace: calc(u.deductionMode === "standard"
               ? "Standard deduction for filing status " + u.filingStatus.toUpperCase() + " — used because it exceeds (or the taxpayer elected) itemizing"
-              : "Itemized: SALT (capped at " + usd(u.saltCapUsd) + " — OBBBA's $40,000 cap, phased down 30¢/$1 of AGI over $500,000, floored at the old $10,000) + mortgage interest + charitable + medical expenses over 7.5% of AGI — used because it exceeds (or the taxpayer elected) the standard deduction", [
+              : "Itemized: SALT (capped at " + usd(u.saltCapUsd) + " — OBBBA's $40,000 cap, phased down 30¢/$1 of AGI over $500,000, floored at the old $10,000) + mortgage interest + charitable gifts above 0.5% of AGI + medical expenses over 7.5% of AGI, less the §68 reduction for income in the 37% bracket — used because it exceeds (or the taxpayer elected) the standard deduction", [
               { label: "Deduction used", amount: u.deductionUsd }
-            ]) }
+            ].concat(u.charitableFloorUsd > 0 ? [{ label: "Charitable gifts not deductible (first 0.5% of AGI)", amount: u.charitableFloorUsd }] : [])
+             .concat(u.itemizedLimitation68Usd > 0 ? [{ label: "§68 reduction (2/37 of income over the 37% bracket start)", amount: -u.itemizedLimitation68Usd }] : [])) }
         ])
+        .concat(u.nonItemizerCharitableUsd > 0 ? [{ label: "Less charitable deduction for non-itemizers (§170(p))", usd: -u.nonItemizerCharitableUsd,
+          trace: calc("Cash gifts to charity, up to $1,000 ($2,000 married filing jointly), deductible on top of the standard deduction from 2026 (OBBBA)", [
+            { label: "Deduction", amount: u.nonItemizerCharitableUsd }
+          ]) }] : [])
         .concat(u.seniorDeductionUsd > 0 ? [{ label: "Less senior deduction (OBBBA §70103, age 65+)", usd: -u.seniorDeductionUsd,
           trace: calc("$6,000 for a taxpayer age 65+ by year end (TY2025-2028, temporary), on top of the standard/itemized deduction either way, phased out 6¢/$1 of AGI over " + usd(u.seniorDetail.phaseoutThresholdUsd) + ". Only the primary taxpayer's age is known — Layer 1 collects no spouse DOB, so a second $6,000 for an also-65+ spouse isn't modeled.", [
             { label: "Taxpayer age", display: u.seniorDetail.age + " years" },
@@ -358,15 +363,20 @@ NODES.buildTaxComputationUsResult = {
             { label: "Non-refundable (offsets tax)", amount: u.ctcDetail.nonRefundableUsd },
             { label: "Refundable (Additional CTC)", amount: u.ctcDetail.refundableUsd }
           ]) }] : [])
+        .concat(u.additionalTax72tUsd > 0 ? [{ label: "Early-withdrawal additional tax (§72(t))", usd: u.additionalTax72tUsd,
+          trace: calc("10% of IRA/401(k) distributions taken before age 59½ (Schedule 2, line 8). Layer 1 doesn't collect the statutory exceptions (disability, SEPP, first home, education, medical), so the full 10% is assumed.", [
+            { label: "Additional tax", amount: u.additionalTax72tUsd }
+          ]) }] : [])
         .concat([{ label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true,
-          trace: calc("Income tax (ordinary + preferential) + NIIT + Additional Medicare tax + SE tax + AMT − non-refundable credits", [
+          trace: calc("Income tax (ordinary + preferential) + NIIT + Additional Medicare tax + SE tax + AMT" + (u.additionalTax72tUsd > 0 ? " + §72(t) additional tax" : "") + " − non-refundable credits", [
             { label: "Income tax (ordinary + preferential)", amount: u.incomeTaxUsd },
             { label: "NIIT", amount: u.niitUsd },
             { label: "Additional Medicare tax", amount: u.additionalMedicareUsd },
             { label: "SE tax", amount: u.seTaxUsd },
-            { label: "AMT", amount: u.amtUsd },
+            { label: "AMT", amount: u.amtUsd }
+          ].concat(u.additionalTax72tUsd > 0 ? [{ label: "§72(t) additional tax", amount: u.additionalTax72tUsd }] : []).concat([
             { label: "Less credits", amount: -u.creditsUsd }
-          ]) }]),
+          ])) }]),
       totalUsd: u.totalTaxBeforeFtcUsd,
       effectiveRate: u.effectiveRate
     };

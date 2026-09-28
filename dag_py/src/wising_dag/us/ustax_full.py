@@ -502,7 +502,10 @@ def _nra_effective_eci_fdap(d, ctx):
 
 
 def _nra_tax_result(d, ctx):
-    status = "mfj" if d["usFilingStatusRaw"] == "mfj" else "single"
+    # A married NRA files 1040-NR at married-filing-separately rates (joint
+    # rates need a §6013(g)/(h) election, which routes to the resident
+    # computation instead); anyone else uses single rates.
+    status = "mfs" if d["usFilingStatusRaw"] in ("mfj", "mfs") else "single"
     brackets = T["BRACKETS"].get(status, T["BRACKETS"]["single"])
     ded = d["dedUs"]
 

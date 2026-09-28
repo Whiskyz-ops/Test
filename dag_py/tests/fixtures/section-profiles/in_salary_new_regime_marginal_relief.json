@@ -1,0 +1,50 @@
+{
+  "id": "in_salary_new_regime_marginal_relief",
+  "form": "layer1_india.html",
+  "section": "Salary",
+  "story": "Resident individual, new regime, gross salary 13,00,000 — just over the 12,00,000 rebate limit, so marginal relief caps the tax at the excess. HRA/LTA/professional tax are entered but the new regime ignores them.",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "individual",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "manual_days": 365,
+      "days_in_india_current_year": 365,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "gross_salary_inr": 1300000,
+        "basic_da_inr": 600000,
+        "hra_received_inr": 240000,
+        "rent_paid_inr": 300000,
+        "is_metro_city": true,
+        "professional_tax_inr": 2500
+      }
+    },
+    "other_sources": {}
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "model.income.india.salary.inr",
+      "value": 1225000,
+      "why": "13,00,000 - std 75,000; no HRA/prof. tax under s.115BAC"
+    },
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 26000,
+      "why": "slab tax 63,750 capped at income over 12L (25,000) by marginal relief; +4% cess"
+    }
+  ]
+}

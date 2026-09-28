@@ -21,20 +21,24 @@ def _router_us_signal(ctx) -> bool:
     )
 
 
+def _us_underpayment_periods(d, ctx):
+    # §6654 regular method on the running shortfall — see us1-nodes.js.
+    est = [d["usEstQ1Usd"], d["usEstQ2Usd"], d["usEstQ3Usd"], d["usEstQ4Usd"]]
+    rate, months = [0.07, 0.06, 0.07, 0.07], [2, 3, 4, 3]
+    cum_required = cum_paid = 0.0
+    out = []
+    for i, e in enumerate(est):
+        cum_required += d["usRequiredUsd"] / 4
+        cum_paid += d["usWithholdingTotalUsd"] / 4 + e
+        out.append({"quarter": i + 1, "requiredUsd": d["usRequiredUsd"] / 4, "paidUsd": d["usWithholdingTotalUsd"] / 4 + e,
+                    "shortUsd": max(0.0, cum_required - cum_paid), "rate": rate[i], "months": months[i]})
+    return out
+
+
 def _us_2210_penalty_usd(d, ctx):
-    if not (d["usBalanceDueUsd"] > 1000) or not (d["usPaidTotalUsd"] < d["usRequiredUsd"]):
+    if d["usUnderpaymentExempt"]:
         return 0.0
-    per_q_withholding_usd = d["usWithholdingTotalUsd"] / 4
-    rate = {"q1": 0.07, "q2": 0.06, "q3": 0.07, "q4": 0.07}
-    est_by_q = {"q1": d["usEstQ1Usd"], "q2": d["usEstQ2Usd"], "q3": d["usEstQ3Usd"], "q4": d["usEstQ4Usd"]}
-    months_remaining = {"q1": 12, "q2": 10, "q3": 7, "q4": 3}
-    penalty_usd = 0.0
-    for q in ("q1", "q2", "q3", "q4"):
-        required_usd = d["usRequiredUsd"] / 4
-        paid_usd = per_q_withholding_usd + est_by_q[q]
-        short_usd = max(0.0, required_usd - paid_usd)
-        penalty_usd += short_usd * rate[q] * (months_remaining[q] / 12)
-    return penalty_usd
+    return sum(p["shortUsd"] * p["rate"] * p["months"] / 12 for p in d["usUnderpaymentPeriods"])
 
 
 NODES = {
@@ -76,15 +80,21 @@ NODES = {
     "usRequiredUsd": NodeDef(deps=("usCurrentHarborUsd", "usPriorHarborUsd"), compute=lambda d, ctx: min(d["usCurrentHarborUsd"], d["usPriorHarborUsd"]) if d["usPriorHarborUsd"] is not None else d["usCurrentHarborUsd"]),
     "usBalanceDueUsd": NodeDef(deps=("usTotalTaxUsd", "usPaidTotalUsd"), compute=lambda d, ctx: d["usTotalTaxUsd"] - d["usPaidTotalUsd"]),
 
+    "usUnderpaymentPeriods": NodeDef(
+        deps=("usRequiredUsd", "usWithholdingTotalUsd", "usEstQ1Usd", "usEstQ2Usd", "usEstQ3Usd", "usEstQ4Usd"),
+        compute=_us_underpayment_periods,
+    ),
+    # §6654(e)(1): no penalty when this year's tax less withholding is under $1,000.
+    "usUnderpaymentExempt": NodeDef(deps=("usTotalTaxUsd", "usWithholdingTotalUsd"), compute=lambda d, ctx: d["usTotalTaxUsd"] - d["usWithholdingTotalUsd"] < 1000),
     "us2210PenaltyUsd": NodeDef(
-        deps=("hasUsScope", "usBalanceDueUsd", "usPaidTotalUsd", "usRequiredUsd", "usWithholdingTotalUsd", "usEstQ1Usd", "usEstQ2Usd", "usEstQ3Usd", "usEstQ4Usd"),
+        deps=("hasUsScope", "usUnderpaymentExempt", "usUnderpaymentPeriods"),
         scope_gate="hasUsScope", out_of_scope_value=0,
         compute=_us_2210_penalty_usd,
     ),
     "shouldFire": NodeDef(
-        deps=("hasUsScope", "us2210PenaltyUsd", "usBalanceDueUsd", "usPaidTotalUsd", "usRequiredUsd"),
+        deps=("hasUsScope", "us2210PenaltyUsd"),
         scope_gate="hasUsScope", out_of_scope_value=False,
-        compute=lambda d, ctx: d["usBalanceDueUsd"] > 1000 and d["usPaidTotalUsd"] < d["usRequiredUsd"],
+        compute=lambda d, ctx: d["us2210PenaltyUsd"] > 0,
     ),
 }
 

@@ -1,0 +1,64 @@
+{
+  "id": "us_retirement_early_distribution",
+  "form": "layer1_us.html",
+  "section": "Retirement",
+  "story": "US citizen, single, Texas, age 41. Wages $50,000; took a $20,000 traditional-IRA distribution with no exception to the early-withdrawal penalty.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365,
+    "date_of_birth": "1985-03-01"
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0,
+      "date_of_birth": "1985-03-01"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 50000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 50000
+          }
+        }
+      ],
+      "ira_distributions_usd": 20000
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.agiUsd",
+      "value": 70000,
+      "why": "wages + taxable IRA distribution"
+    },
+    {
+      "path": "findings[id=early_withdrawal_penalty_72t].amountUsd",
+      "value": 2000,
+      "why": "s.72(t): 10% of the 20,000 early distribution"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 8570,
+      "why": "income tax on 53,900 = 6,570, plus the 2,000 s.72(t) additional tax (Schedule 2, line 8)"
+    }
+  ]
+}

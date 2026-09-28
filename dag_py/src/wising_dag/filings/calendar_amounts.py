@@ -16,6 +16,7 @@ individual-only structure doesn't apply to a corporation's own §6655 regime)
 from __future__ import annotations
 
 from ..core.graph import NodeDef
+from ..india import form_rules as FR
 
 
 def _calendar_amounts_result(d, ctx):
@@ -29,14 +30,12 @@ def _calendar_amounts_result(d, ctx):
                 "amountDueInr": max(0.0, d["assessedTaxInr"] * 1.00 - paid_total),
             }]
         else:
-            quarters = [
-                {"quarter": 1, "requiredPct": 0.15, "paidInr": d["advQ1Inr"]},
-                {"quarter": 2, "requiredPct": 0.30, "paidInr": d["advQ2Inr"]},
-                {"quarter": 3, "requiredPct": 0.30, "paidInr": d["advQ3Inr"]},
-                {"quarter": 4, "requiredPct": 0.25, "paidInr": d["advQ4Inr"]},
-            ]
+            # cumulative: by each date, requiredPct of the year's tax less everything paid by then
+            paid_q = [d["advQ1Inr"], d["advQ2Inr"], d["advQ3Inr"], d["advQ4Inr"]]
             india["installments"] = [
-                {**q, "amountDueInr": max(0.0, d["assessedTaxInr"] * q["requiredPct"] - q["paidInr"])} for q in quarters
+                {"quarter": q["quarter"], "requiredPct": q["requiredPct"], "paidInr": paid_q[i],
+                 "amountDueInr": max(0.0, d["assessedTaxInr"] * q["requiredPct"] - q["cumPaidInr"])}
+                for i, q in enumerate(FR.advance_tax_shortfalls(d["assessedTaxInr"], paid_q, False))
             ]
 
     us = {"requiredUsd": 0, "installments": []}
@@ -45,10 +44,14 @@ def _calendar_amounts_result(d, ctx):
         per_q_withholding_usd = d["usWithholdingTotalUsd"] / 4
         est_by_q = {1: d["usEstQ1Usd"], 2: d["usEstQ2Usd"], 3: d["usEstQ3Usd"], 4: d["usEstQ4Usd"]}
         us["installments"] = []
+        # running balance, same as the §6654 penalty (us1_penalty_2210.py)
+        cum_required_usd = cum_paid_usd = 0.0
         for q in (1, 2, 3, 4):
             required_usd = d["usRequiredUsd"] / 4
             paid_usd = per_q_withholding_usd + est_by_q[q]
-            us["installments"].append({"quarter": q, "requiredUsd": required_usd, "paidUsd": paid_usd, "amountDueUsd": max(0.0, required_usd - paid_usd)})
+            cum_required_usd += required_usd
+            cum_paid_usd += paid_usd
+            us["installments"].append({"quarter": q, "requiredUsd": required_usd, "paidUsd": paid_usd, "amountDueUsd": max(0.0, cum_required_usd - cum_paid_usd)})
 
     return {"india": india, "us": us}
 

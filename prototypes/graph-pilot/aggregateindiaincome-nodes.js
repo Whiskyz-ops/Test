@@ -446,7 +446,8 @@ var NODES = {
     deps: ["indiaResidencyStatusRawAgg"],
     compute: function (d, ctx) {
       var india = ctx.india;
-      var ror = d.indiaResidencyStatusRawAgg === "ROR";
+      // s.44AD(6)/s.44ADA: any resident — ROR or RNOR (RNOR is a class of resident, s.6(6)).
+      var ror = d.indiaResidencyStatusRawAgg === "ROR" || d.indiaResidencyStatusRawAgg === "RNOR";
       var entity = safe(india, "profile.entity_type", null) || safe(india, "domestic_income.business_income.entity_type", "individual");
       var entityExcluded44AD = ["llp", "company", "aop", "trust", "local", "coop", "ajp"].indexOf(entity) >= 0;
       var eligible44AD = ror && !entityExcluded44AD;
@@ -702,8 +703,10 @@ var NODES = {
   // ---- otherSourcesMisc, full formula -------------------------------------
   otherSourcesMiscComputation: {
     deps: ["osAgg", "diAgg"],
-    compute: function (d) {
+    compute: function (d, ctx) {
       var os = d.osAgg;
+      var C = CONST_AGGIN.TAX.INDIA;
+      var isNewRegime = (safe(ctx.india, "profile.tax_regime", "NEW") || "NEW").toUpperCase() !== "OLD";
       // s.56(2)(x) exemption: a gift received on the occasion of marriage,
       // or from a specified relative, is entirely exempt -- not merely
       // "under 50k". Layer 1 collects the amount AND these two checkboxes;
@@ -713,7 +716,8 @@ var NODES = {
       var giftsExempt = !!safe(os, "gifts_exemption_marriage", false) || !!safe(os, "gifts_exemption_relative", false);
       var giftsAbove50kInr = giftsExempt ? 0 : num(safe(os, "gifts_above_50k_inr", 0));
       var familyPensionGrossInr = num(safe(os, "family_pension_gross_inr", 0));
-      var familyPensionNetInr = Math.max(0, familyPensionGrossInr - Math.min(15000, Math.round(familyPensionGrossInr / 3)));
+      var familyPensionCapInr = isNewRegime ? C.FAMILY_PENSION_DEDUCTION_CAP_NEW_INR : C.FAMILY_PENSION_DEDUCTION_CAP_OLD_INR;
+      var familyPensionNetInr = Math.max(0, familyPensionGrossInr - Math.min(familyPensionCapInr, Math.round(familyPensionGrossInr / 3)));
       return giftsAbove50kInr + familyPensionNetInr + num(safe(os, "spousal_clubbing_s64_inr", 0)) -
         num(safe(os, "minor_child_exemption_inr", 0)) + num(safe(os, "lic_maturity_inr", 0)) +
         num(safe(os, "angel_tax_premium_inr", 0)) - num(safe(os, "local_authority_s10_20_inr", 0)) +

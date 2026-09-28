@@ -1,0 +1,65 @@
+{
+  "id": "us_equity_iso_amt",
+  "form": "layer1_us.html",
+  "section": "Equity compensation (ISO / AMT)",
+  "story": "US citizen, single, wages $150,000. Exercised 10,000 incentive stock options at a $5 strike when the shares were worth $25, and held the shares past year-end.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 150000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 150000
+          }
+        }
+      ]
+    },
+    "equity_compensation": {
+      "iso_exercises": [
+        {
+          "shares_exercised": 10000,
+          "strike_price_usd": 5,
+          "fmv_at_exercise_usd": 25
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.amtUsd",
+      "value": 43148,
+      "why": "AMTI = 133,900 + 16,100 standard deduction add-back + 200,000 ISO spread = 350,000; less 90,100 exemption = 259,900; 26% x 244,500 + 28% x 15,400 = 67,882; less regular tax 24,734"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 67882,
+      "why": "regular tax 24,734 + AMT 43,148"
+    }
+  ]
+}

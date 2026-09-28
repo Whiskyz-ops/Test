@@ -342,7 +342,7 @@ NODES.us1ShouldFire = {
   outOfScopeValue: false,
   compute: function (d) {
     if (d.usTaxResult.isEntity) return false;
-    return d.usBalanceDueUsd > 1000 && d.usPaidTotalUsd < d.usRequiredUsd;
+    return d.us2210PenaltyUsd > 0; // us1-nodes.js's shouldFire
   }
 };
 // aggregateAccounts' account LIST (normalize L1997-2008) — batch5's

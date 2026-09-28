@@ -43,7 +43,7 @@ FIXTURES.forEach(function (fx) {
   var ctx = { router: fx.router, india: fx.india, us: fx.us };
   var out = graph.resolve([
     "calendarAmountsResult", "s425Inr", "us2210PenaltyUsd",
-    "hasIndiaScope", "hasUsScope", "inAdvTaxObliged", "inPurelyPresumptive", "usTaxResult"
+    "hasIndiaScope", "hasUsScope", "inAdvTaxObliged", "inPurelyPresumptive", "usTaxResult", "assessedTaxInr", "usUnderpaymentExempt"
   ], ctx).values;
   var ca = out.calendarAmountsResult;
   // US entity: DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md
@@ -74,8 +74,15 @@ FIXTURES.forEach(function (fx) {
   // ---- reconstruction: India (s425Inr) -------------------------------------
   if (expectObliged) {
     var monthsByQ = out.inPurelyPresumptive ? { single: 1 } : { 1: 3, 2: 3, 3: 3, 4: 1 };
+    // s.425 charges interest on each amount due rounded down to Rs 100
+    // (Rule 119A), and not at all for June/September when 12%/36% of the
+    // year's tax was paid by then (safe harbours) — the calendar still shows
+    // what's needed to reach the full 15%/45%.
+    var cumPaidInr = 0, safeHarbour = { 1: 0.12, 2: 0.36 };
     var reconstructedS425 = ca.india.installments.reduce(function (sum, ins) {
-      return sum + ins.amountDueInr * 0.01 * monthsByQ[ins.quarter];
+      cumPaidInr += ins.paidInr;
+      if (safeHarbour[ins.quarter] && cumPaidInr >= safeHarbour[ins.quarter] * out.assessedTaxInr) return sum;
+      return sum + Math.floor(ins.amountDueInr / 100) * 100 * 0.01 * monthsByQ[ins.quarter];
     }, 0);
     if (close(reconstructedS425, out.s425Inr)) ok();
     else bad(fx.id + ": India reconstruction != s425Inr", reconstructedS425 + " vs " + out.s425Inr);
@@ -83,10 +90,12 @@ FIXTURES.forEach(function (fx) {
 
   // ---- reconstruction: US (us2210PenaltyUsd) -------------------------------
   if (out.hasUsScope && !usEntityCal) {
+    // §6654 running balance: each date's amount due accrues until the next
+    // due date (2, 3, 4, 3 months); none at all under the $1,000 exemption.
     var rate = { 1: 0.07, 2: 0.06, 3: 0.07, 4: 0.07 };
-    var monthsRemaining = { 1: 12, 2: 10, 3: 7, 4: 3 };
-    var reconstructedUs2210 = ca.us.installments.reduce(function (sum, ins) {
-      return sum + ins.amountDueUsd * rate[ins.quarter] * (monthsRemaining[ins.quarter] / 12);
+    var monthsToNext = { 1: 2, 2: 3, 3: 4, 4: 3 };
+    var reconstructedUs2210 = out.usUnderpaymentExempt ? 0 : ca.us.installments.reduce(function (sum, ins) {
+      return sum + ins.amountDueUsd * rate[ins.quarter] * (monthsToNext[ins.quarter] / 12);
     }, 0);
     if (close(reconstructedUs2210, out.us2210PenaltyUsd)) ok();
     else bad(fx.id + ": US reconstruction != us2210PenaltyUsd", reconstructedUs2210 + " vs " + out.us2210PenaltyUsd);

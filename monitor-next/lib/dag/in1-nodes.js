@@ -162,27 +162,17 @@ var NODES = {
   s424Inr: {
     deps: ["inAdvTaxObliged", "assessedTaxInr", "advancePaidInr", "inS424Months"],
     compute: function (d) {
-      if (!d.inAdvTaxObliged || d.assessedTaxInr <= 0 || d.advancePaidInr >= d.assessedTaxInr * 0.9) return 0;
-      return (d.assessedTaxInr - d.advancePaidInr) * 0.01 * d.inS424Months;
+      if (!d.inAdvTaxObliged) return 0;
+      return require("./india-compliance.js").interest234B(d.assessedTaxInr, d.advancePaidInr, d.inS424Months);
     }
   },
 
   s425Inr: {
     deps: ["inAdvTaxObliged", "assessedTaxInr", "inPurelyPresumptive", "advQ1Inr", "advQ2Inr", "advQ3Inr", "advQ4Inr"],
     compute: function (d) {
-      if (!d.inAdvTaxObliged || d.assessedTaxInr <= 0) return 0;
-      var installments = d.inPurelyPresumptive
-        ? [{ required: 1.00, paid: d.advQ1Inr + d.advQ2Inr + d.advQ3Inr + d.advQ4Inr, months: 1 }]
-        : [
-            { required: 0.15, paid: d.advQ1Inr, months: 3 },
-            { required: 0.30, paid: d.advQ2Inr, months: 3 },
-            { required: 0.30, paid: d.advQ3Inr, months: 3 },
-            { required: 0.25, paid: d.advQ4Inr, months: 1 }
-          ];
-      return installments.reduce(function (sum, q) {
-        var shortInr = Math.max(0, d.assessedTaxInr * q.required - q.paid);
-        return sum + shortInr * 0.01 * q.months;
-      }, 0);
+      if (!d.inAdvTaxObliged) return 0;
+      // cumulative instalments + 12%/36% safe harbours (india-compliance.js)
+      return require("./india-compliance.js").interest234C(d.assessedTaxInr, [d.advQ1Inr, d.advQ2Inr, d.advQ3Inr, d.advQ4Inr], d.inPurelyPresumptive);
     }
   },
 

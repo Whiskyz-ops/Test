@@ -10,6 +10,7 @@ same pattern.
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 from ..core.dates import parse_date
@@ -312,8 +313,17 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     # 10%-of-AGI floor, same structural pattern as medical's 7.5% floor --
     # new here, no engine equivalent. Mirrors ustax-nodes.js exactly.
     casualty_loss_deductible = max(0.0, (ded.get("casualtyLoss") or 0) - 0.10 * agi)
-    itemized = min(ded["salt"], salt_cap_usd) + ded["mortgageInterest"] + ded["charitable"] + max(0.0, ded["medical"] - 0.075 * agi) + casualty_loss_deductible
-    deduction = itemized if ded["mode"] == "itemized" else standard if ded["mode"] == "standard" else max(standard, itemized)
+    # OBBBA charitable/§68 rules from TY2026 — see ustax-nodes.js.
+    charitable_floor_usd = min(ded["charitable"], T["CHARITABLE_ITEMIZED_FLOOR_RATE"] * agi)
+    itemized_before_68 = min(ded["salt"], salt_cap_usd) + ded["mortgageInterest"] + (ded["charitable"] - charitable_floor_usd) + max(0.0, ded["medical"] - 0.075 * agi) + casualty_loss_deductible
+    top37_usd = brackets[-2][0] if len(brackets) >= 2 else float("inf")
+    itemized_limitation_68_usd = T["ITEMIZED_LIMITATION_68_RATE"] * min(itemized_before_68, max(0.0, agi - top37_usd))
+    itemized = itemized_before_68 - itemized_limitation_68_usd
+    non_itemizer_charitable_usd = min(ded.get("charitableCash") or 0, T["NON_ITEMIZER_CHARITABLE_MAX_USD"]["mfj" if status == "mfj" else "other"])
+    itemizing = True if ded["mode"] == "itemized" else False if ded["mode"] == "standard" else itemized > standard + non_itemizer_charitable_usd
+    deduction = itemized if itemizing else standard
+    if itemizing:
+        non_itemizer_charitable_usd = 0
 
     taxpayer_age = None
     if taxpayer_dob_raw:
@@ -334,7 +344,7 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     overtime_max_usd = T["OVERTIME_DEDUCTION_MAX_USD"].get(status, T["OVERTIME_DEDUCTION_MAX_USD"]["single"])
     overtime_deduction_usd = 0 if is_mfs else max(0.0, js_round(min(qualified_overtime_usd, overtime_max_usd) - tips_ot_phaseout_reduction))
 
-    taxable_before_qbi = max(0.0, agi - deduction - senior_deduction_usd - tips_deduction_usd - overtime_deduction_usd)
+    taxable_before_qbi = max(0.0, agi - deduction - non_itemizer_charitable_usd - senior_deduction_usd - tips_deduction_usd - overtime_deduction_usd)
 
     # §199A W-2 wage / UBIA limitation (task #42 follow-up). K-1 Box 20
     # qbi_wages_usd/qbi_ubia_usd and self-employment/farm wages_paid_usd
@@ -431,7 +441,7 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
 
     addl_medicare = additional_medicare_owed_boundary
 
-    used_mode = ded["mode"] if ded["mode"] in ("itemized", "standard") else ("itemized" if itemized > standard else "standard")
+    used_mode = "itemized" if itemizing else "standard"
     amt_addback = deduction if used_mode == "standard" else min(ded["salt"], salt_cap_usd)
     amti_usd = max(0.0, taxable_income + amt_addback + (ded.get("amtPrefs") or 0))
     amt_ex_full = T["AMT_EXEMPTION"].get(status, T["AMT_EXEMPTION"]["single"])
@@ -522,7 +532,7 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
 
     total_tax_before_ftc = income_tax + niit + addl_medicare + se_tax + amt_owed + gilti962_tax_usd - credits_usd
 
-    return {
+    core_result = {
         "agiUsd": agi, "taxableIncomeUsd": taxable_income, "incomeTaxUsd": income_tax, "niitUsd": niit,
         "additionalMedicareUsd": addl_medicare, "seTaxUsd": se_tax, "qbiDeductionUsd": qbi_deduction, "amtUsd": amt_owed,
         "creditsUsd": credits_usd, "totalTaxBeforeFtcUsd": total_tax_before_ftc,
@@ -589,6 +599,14 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
         },
         "effectiveRate": (total_tax_before_ftc / total_income) if total_income > 0 else 0,
     }
+    # OBBBA charitable/§68 figures, only when they apply (result shape otherwise unchanged)
+    if itemizing and charitable_floor_usd > 0:
+        core_result["charitableFloorUsd"] = charitable_floor_usd
+    if itemizing and itemized_limitation_68_usd > 0:
+        core_result["itemizedLimitation68Usd"] = itemized_limitation_68_usd
+    if non_itemizer_charitable_usd > 0:
+        core_result["nonItemizerCharitableUsd"] = non_itemizer_charitable_usd
+    return core_result
 
 
 
@@ -606,6 +624,29 @@ def additional_medicare_owed_usd(us) -> float:
         adv = (w.get("tax_details_collapsed_by_default") if isinstance(w, dict) else None) or (w if isinstance(w, dict) else {})
         wages += num(adv.get("medicare_wages_box5_usd") or 0)
     return max(0.0, (wages - threshold) * 0.009)
+
+def _additional_tax_72t_usd(d, ctx):
+    dist_usd = num(safe(ctx.get("us"), "income_us_source.ira_distributions_usd", 0)) + num(safe(ctx.get("us"), "income_us_source.401k_distributions_usd", 0))
+    dob_raw = d["taxpayerDobRaw"]
+    if not dist_usd > 0 or not dob_raw:
+        return 0
+    m = re.match(r"^(\d{4})", str(dob_raw))
+    if not m:
+        return 0
+    return dist_usd * 0.10 if (d["baseYearUs"] or 2026) - int(m.group(1)) < 59 else 0
+
+
+def _us_tax_result(d, ctx):
+    r = compute_us_tax_core(
+        d["incUs"], d["dedUs"], d["usFilingStatusRaw"], d["worldwideUs"], d["feie"],
+        d["additionalMedicareOwedBoundary"], d["taxpayerDobRaw"], d["baseYearUs"],
+        d["electiveDeferralAggregateUsd"] + d["iraContributionAggregateUsd"],
+    )
+    # only when owed, so the result's shape is unchanged otherwise
+    if d["additionalTax72tUsd"] > 0:
+        r = {**r, "additionalTax72tUsd": d["additionalTax72tUsd"], "totalTaxBeforeFtcUsd": r["totalTaxBeforeFtcUsd"] + d["additionalTax72tUsd"]}
+    return r
+
 
 NODES = {
     "usEntityKind": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.entity.usKind", None) or "individual"),
@@ -650,6 +691,7 @@ NODES = {
             "salt": num(safe(it, "state_and_local_taxes_paid_usd", 0)),
             "mortgageInterest": num(safe(it, "mortgage_interest_paid_usd", 0)),
             "charitable": num(safe(it, "charitable_contributions_cash_usd", 0)) + num(safe(it, "charitable_contributions_appreciated_usd", 0)),
+            "charitableCash": num(safe(it, "charitable_contributions_cash_usd", 0)),
             "medical": num(safe(it, "medical_expenses_usd", 0)),
             "casualtyLoss": num(safe(it, "casualty_loss_federal_disaster_usd", 0)),
             "studentLoanInterest": num(safe(it, "student_loan_interest_usd", 0)),
@@ -714,13 +756,11 @@ NODES = {
     ),
     "baseYearUs": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.meta.baseYear", None)),
 
+    # §72(t) 10% additional tax on pre-59½ IRA/401(k) distributions — see ustax-nodes.js.
+    "additionalTax72tUsd": NodeDef(deps=("taxpayerDobRaw", "baseYearUs"), compute=_additional_tax_72t_usd),
     "usTaxResult": NodeDef(
-        deps=("incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs", "electiveDeferralAggregateUsd", "iraContributionAggregateUsd"),
-        compute=lambda d, ctx: compute_us_tax_core(
-            d["incUs"], d["dedUs"], d["usFilingStatusRaw"], d["worldwideUs"], d["feie"],
-            d["additionalMedicareOwedBoundary"], d["taxpayerDobRaw"], d["baseYearUs"],
-            d["electiveDeferralAggregateUsd"] + d["iraContributionAggregateUsd"],
-        ),
+        deps=("incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs", "electiveDeferralAggregateUsd", "iraContributionAggregateUsd", "additionalTax72tUsd"),
+        compute=_us_tax_result,
     ),
     "totalTaxBeforeFtcUsd": NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["totalTaxBeforeFtcUsd"]),
 }

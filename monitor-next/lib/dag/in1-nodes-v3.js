@@ -566,6 +566,9 @@ var NODES = {
       if (!d.isIndividualV3 || d.isNRV3) return 0;
       var rebate = d.isNew ? T.REBATE_87A_NEW : T.REBATE_87A_OLD;
       if (d.totalIncomeInrV3 <= rebate.incomeCap) return Math.min(d.slabTaxInr, rebate.maxRebate);
+      // Marginal relief above the limit exists only in the new regime; the
+      // old-regime rebate is all-or-nothing above 5,00,000.
+      if (!d.isNew) return 0;
       var excess = d.totalIncomeInrV3 - rebate.incomeCap;
       return Math.max(0, d.slabTaxInr - excess);
     }
@@ -611,7 +614,7 @@ var NODES = {
       var slab = bracketTax(totalNormal, d.slabs), rebate = 0;
       if (d.isIndividualV3 && !d.isNRV3) {
         var r = d.isNew ? T.REBATE_87A_NEW : T.REBATE_87A_OLD;
-        rebate = totalIncome <= r.incomeCap ? Math.min(slab, r.maxRebate) : Math.max(0, slab - (totalIncome - r.incomeCap));
+        rebate = totalIncome <= r.incomeCap ? Math.min(slab, r.maxRebate) : (d.isNew ? Math.max(0, slab - (totalIncome - r.incomeCap)) : 0);
       }
       var afterRebate = Math.max(0, slab - rebate) + d.specialTaxInrV3;
       var surcharge = computeIndiaSurcharge(afterRebate, totalIncome, d.isNew, d.slabs, d.capEligibleSpecialTaxInr);
