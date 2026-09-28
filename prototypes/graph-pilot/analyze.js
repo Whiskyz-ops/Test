@@ -76,7 +76,7 @@
     "dedUs",
     // computed.indiaTax.deductionsInr — in1-nodes-v3.js's final combined
     // deduction total (post-caps), read by the same fixture test above.
-    "deductionsInrV3"
+    "deductionsInrV3", "entityChapterVIADeductionsInr"
   ];
 
   // Same shape r.model carries from the classic engine's WISING.analyze() —
@@ -114,7 +114,7 @@
       indiaTax: {
         totalTaxInr: out.totalTaxInrCombined, totalTaxUsd: out.totalTaxInrCombined / fxRate(ctx),
         regime: out.regimeCombined, isEntity: out.isEntityTaxpayer,
-        deductionsInr: out.deductionsInrV3,
+        deductionsInr: out.isEntityTaxpayer ? out.entityChapterVIADeductionsInr : out.deductionsInrV3,
         // s115a is the object ONLY for a non-entity NR (computeIndiaTax's
         // `isNR ? {...} : null`); null for a resident individual; absent
         // entirely on the entity path (computeIndiaEntityTax returns no

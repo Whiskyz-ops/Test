@@ -105,14 +105,24 @@ var NODES = {
   // (eligible start-up), s.80LA (IFSC / offshore banking unit), s.80P (co-
   // operative society) and s.80M (dividends passed on, up to the dividends
   // the company itself received). Under s.115BAA/115BAB only s.80M survives.
-  entityChapterVIADeductionsInr: { deps: ["indiaOpt115baa", "indiaOpt115bab"], compute: function (d, ctx) {
+  // Never more than the income itself.
+  // Dividends the entity received (for s.80M): a boundary like
+  // entityTaxableInrBoundary — india-full-nodes.js redefines it in-graph.
+  entityDividendInrBoundary: { deps: [], compute: function (d, ctx) { return num(ctx.model && ctx.model.income && ctx.model.income.india && ctx.model.income.india.dividend && ctx.model.income.india.dividend.inr); } },
+  entityChapterVIADeductionsDetail: { deps: ["indiaOpt115baa", "indiaOpt115bab", "entityTaxableInrBoundary", "entityDividendInrBoundary"], compute: function (d, ctx) {
     var ded = safe(ctx.india, "deductions", {}) || {};
-    var dividendInr = num(ctx.model && ctx.model.income && ctx.model.income.india && ctx.model.income.india.dividend && ctx.model.income.india.dividend.inr);
-    var s80m = Math.min(num(safe(ded, "s80M.dividend_inr", 0)), dividendInr);
-    if (d.indiaOpt115baa || d.indiaOpt115bab) return s80m;
-    return num(ded.s80IAC_inr) + num(ded.s80LA_inr) + num(ded.s80P_inr) + s80m;
+    var dividendInr = d.entityDividendInrBoundary;
+    var concessional = d.indiaOpt115baa || d.indiaOpt115bab;
+    var parts = [
+      { label: "s.80IAC eligible start-up", amount: concessional ? 0 : num(ded.s80IAC_inr) },
+      { label: "s.80LA IFSC / offshore banking unit", amount: concessional ? 0 : num(ded.s80LA_inr) },
+      { label: "s.80P co-operative society", amount: concessional ? 0 : num(ded.s80P_inr) },
+      { label: "s.80M dividends passed on (up to dividends received)", amount: Math.min(num(safe(ded, "s80M.dividend_inr", 0)), dividendInr) }
+    ].filter(function (p) { return p.amount > 0; });
+    var claimed = parts.reduce(function (t, p) { return t + p.amount; }, 0);
+    return { totalInr: Math.min(claimed, Math.max(0, d.entityTaxableInrBoundary)), claimedInr: claimed, parts: parts, concessional: !!concessional };
   } },
-
+  entityChapterVIADeductionsInr: { deps: ["entityChapterVIADeductionsDetail"], compute: function (d) { return d.entityChapterVIADeductionsDetail.totalInr; } },
   entityTaxResult: {
     deps: ["indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "isIndianCompanyFact", "indiaOpt115baa", "indiaOpt115bab", "indiaOpt115ba",
       "indiaTurnoverLte400cr", "indiaMatBookProfitInr", "hasIndiaPE", "entityTaxableInrBoundary", "entityChapterVIADeductionsInr"],

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from ..core.registry import NodeRegistry
 from ..core.graph import NodeDef
+from ..core.util import num
 from . import aggregate_india_income, entity_tax, in1_v3
 
 OVERRIDE_REASON = "india-full-nodes.js wiring: redefined to read the merged income subgraph instead of ctx['model']"
@@ -47,6 +48,7 @@ def build(base: NodeRegistry) -> NodeRegistry:
     r.override("promoterBuybackStcgInrBoundary", NodeDef(deps=("capitalGainsComputation",), compute=lambda d, ctx: d["capitalGainsComputation"]["promoterBuybackStcgInr"]), reason=OVERRIDE_REASON)
     r.override("otherSourcesMiscInrBoundary", NodeDef(deps=("otherSourcesMiscComputation",), compute=lambda d, ctx: d["otherSourcesMiscComputation"]), reason=OVERRIDE_REASON)
     r.override("entityTaxableInrBoundary", NodeDef(deps=("totalIndiaIncomeInr",), compute=lambda d, ctx: d["totalIndiaIncomeInr"]), reason=OVERRIDE_REASON)
+    r.override("entityDividendInrBoundary", NodeDef(deps=("osAgg",), compute=lambda d, ctx: num((d["osAgg"] or {}).get("dividend_inr"))), reason=OVERRIDE_REASON)
 
     # ---- routing gate ---------------------------------------------------------
     # DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.6):

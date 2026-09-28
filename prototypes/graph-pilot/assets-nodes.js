@@ -257,7 +257,11 @@ function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr, disal
     (scheme === "s44AD" ? (dig + csh) : 0) || (scheme === "s44ADA" ? adaReceipts : 0)) + branchTurnoverInr(b);
   return receipts + bx.closingStockInr - deductible - num(depreciationInr);
 }
-function businessEntryIncomeTrace(b, eligibility, depreciationInr, disallowancesInr, expOpts) {
+function entryNpaShareInr(d, idx) {
+  var m = d.businessComputation && d.businessComputation.npaAllowedByEntryInr;
+  return (m && m[idx]) || 0;
+}
+function businessEntryIncomeTrace(b, eligibility, depreciationInr, disallowancesInr, expOpts, npaShareInr) {
   eligibility = eligibility || { eligible44AD: true, eligible44ADA: true };
   var explicit = b.net_profit_inr != null ? b.net_profit_inr : b.net_profit;
   if (explicit !== undefined && explicit !== null) {
@@ -331,6 +335,9 @@ function businessEntryIncomeTrace(b, eligibility, depreciationInr, disallowances
   }
   if (num(depreciationInr) > 0) {
     parts.push({ label: "Less: current-year depreciation (s.32, asset blocks)", amount: -num(depreciationInr) });
+  }
+  if (num(npaShareInr) > 0) {
+    parts.push({ label: "Less: NPA provisions (s.36(1)(viia), capped at 5% of business income)", amount: -num(npaShareInr) });
   }
   var netProfitInr = parts.reduce(function (s, p) { return s + (p.amount || 0); }, 0);
   parts.push({ label: "Net profit (this entry)", amount: netProfitInr });
@@ -453,7 +460,10 @@ function businessEntitiesResult(d, ctx) {
     var entryDepreciationInrForTrace = isRegularBooksForTrace ? aggregateEntryDepreciationInr(bIdx, d.bizAssetBlocksAgg, india, b) : 0;
     var entryDisallowancesInrForTrace = isRegularBooksForTrace ? aggregateEntryDisallowancesInr(bIdx, b, d.bizMsmePayablesAgg) : 0;
     if (netProfitInr === undefined || netProfitInr === null) netProfitInr = computeBusinessEntryNetProfitInr(b, bizEligibility, entryDepreciationInrForTrace, entryDisallowancesInrForTrace, businessExpenseOpts(india, ctx.router));
-    netProfitInr = num(netProfitInr);
+    // This business's share of the s.36(1)(viia) NPA deduction (capped at
+    // the business-income level in aggregateindiaincome-nodes.js).
+    var npaShareInrForTrace = entryNpaShareInr(d, bIdx);
+    netProfitInr = num(netProfitInr) - npaShareInrForTrace;
     var entryReturnForm = indiaIsCompanyOrFirm ? indiaReturnFormCrude :
       (isRegularBooksForTrace
         ? "Regular books (this entry) — feeds the taxpayer's overall return form; see Filings → Return Form for the checked ITR"
@@ -462,7 +472,7 @@ function businessEntitiesResult(d, ctx) {
       country: "IN", type: "Business / Profession (PGBP)", name: b.business_name || b.trade_name || b.name || "Indian business",
       incomeUsd: netProfitInr / fxRate(ctx), inr: netProfitInr,
       filesOwnReturn: indiaIsCompanyOrFirm, returnForm: entryReturnForm,
-      calcTrace: businessEntryIncomeTrace(b, bizEligibility, entryDepreciationInrForTrace, entryDisallowancesInrForTrace, businessExpenseOpts(india, ctx.router))
+      calcTrace: businessEntryIncomeTrace(b, bizEligibility, entryDepreciationInrForTrace, entryDisallowancesInrForTrace, businessExpenseOpts(india, ctx.router), npaShareInrForTrace)
     });
   });
 
@@ -647,7 +657,8 @@ function buildEntityGraph(d, ctx) {
     if (netProfitInr === undefined || netProfitInr === null) {
       netProfitInr = computeBusinessEntryNetProfitInr(b, d.presumptiveEligibilityAgg, entryDeprInrForGraph, entryDisallowInrForGraph, businessExpenseOpts(ctx.india, ctx.router));
     }
-    netProfitInr = num(netProfitInr);
+    var npaShareInrForGraph = entryNpaShareInr(d, idx);
+    netProfitInr = num(netProfitInr) - npaShareInrForGraph;
     entities.push({
       id: id, kind: kind, jurisdiction: "IN", name: b.business_name || b.trade_name || b.name || null,
       returnForm: (INDIA_KIND_TO_ITR[kind] || "") + " (informational — this entity's own return; WISING doesn't prepare it, only folds its net profit through to the taxpayer as modeled here)",
@@ -660,7 +671,7 @@ function buildEntityGraph(d, ctx) {
     // how the figure was derived.
     edges.push({
       from: id, to: primaryRootId, ownershipPct: null, flow: "business_income", amountInr: netProfitInr,
-      trace: businessEntryIncomeTrace(b, d.presumptiveEligibilityAgg, entryDeprInrForGraph, entryDisallowInrForGraph, businessExpenseOpts(ctx.india, ctx.router))
+      trace: businessEntryIncomeTrace(b, d.presumptiveEligibilityAgg, entryDeprInrForGraph, entryDisallowInrForGraph, businessExpenseOpts(ctx.india, ctx.router), npaShareInrForGraph)
     });
   });
 
@@ -876,7 +887,7 @@ NODES.assetsModelResult = {
     "epfInrRaw", "ppfInrRaw", "npsInrRaw", "taxableEpfInterestInrAgg", "taxableNpsWithdrawalInrAgg",
     "uiAgg", "usBusinessDepreciationPlan", "bizEntriesAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg",
     "presumptiveEligibilityAgg", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust",
-    "partnerFirmsAgg", "indiaEntityTypeRaw", "cfcInclusionResult"],
+    "partnerFirmsAgg", "indiaEntityTypeRaw", "cfcInclusionResult", "businessComputation"],
   compute: function (d, ctx) {
     return {
       indianMutualFunds: d.indianMutualFundsResult,

@@ -171,7 +171,12 @@ PRESUMPTIVE_RESIDENCY_CITATION = (
 )
 
 
-def _business_entry_income_trace(b: dict, eligibility: dict | None, depreciation_inr: float, disallowances_inr: float, exp_opts: dict | None = None):
+def _entry_npa_share_inr(d, idx) -> float:
+    m = (d.get("businessComputation") or {}).get("npaAllowedByEntryInr") or {}
+    return m.get(idx) or 0
+
+
+def _business_entry_income_trace(b: dict, eligibility: dict | None, depreciation_inr: float, disallowances_inr: float, exp_opts: dict | None = None, npa_share_inr: float = 0):
     eligibility = eligibility or {"eligible44AD": True, "eligible44ADA": True}
     explicit = b.get("net_profit_inr") if b.get("net_profit_inr") is not None else b.get("net_profit")
     if explicit is not None:
@@ -262,6 +267,8 @@ def _business_entry_income_trace(b: dict, eligibility: dict | None, depreciation
         parts.append({"label": "Add back: statutory disallowances (s.40A(3) cash / s.40(a) TDS default / s.43B(h) MSME overdue)", "amount": num(disallowances_inr)})
     if num(depreciation_inr) > 0:
         parts.append({"label": "Less: current-year depreciation (s.32, asset blocks)", "amount": -num(depreciation_inr)})
+    if num(npa_share_inr) > 0:
+        parts.append({"label": "Less: NPA provisions (s.36(1)(viia), capped at 5% of business income)", "amount": -num(npa_share_inr)})
     net_profit_inr = sum(p.get("amount") or 0 for p in parts)
     parts.append({"label": "Net profit (this entry)", "amount": net_profit_inr})
     formula = ceiling_note or (
@@ -401,7 +408,8 @@ def _business_entities_result(d, ctx):
         entry_disallow_inr = _aggregate_entry_disallowances_inr(b_idx, b, d["bizMsmePayablesAgg"]) if is_regular_books else 0
         if net_profit_inr is None:
             net_profit_inr = _compute_business_entry_net_profit_inr(b, biz_eligibility, entry_depr_inr, entry_disallow_inr, business_expense_opts(india, ctx.get("router")))
-        net_profit_inr = num(net_profit_inr)
+        npa_share_inr = _entry_npa_share_inr(d, b_idx)
+        net_profit_inr = num(net_profit_inr) - npa_share_inr
         entry_return_form = india_return_form_crude if india_is_company_or_firm else (
             "Regular books (this entry) — feeds the taxpayer's overall return form; see Filings → Return Form for the checked ITR"
             if is_regular_books else
@@ -411,7 +419,7 @@ def _business_entities_result(d, ctx):
             "country": "IN", "type": "Business / Profession (PGBP)", "name": b.get("business_name") or b.get("trade_name") or b.get("name") or "Indian business",
             "incomeUsd": net_profit_inr / fx_rate(ctx), "inr": net_profit_inr,
             "filesOwnReturn": india_is_company_or_firm, "returnForm": entry_return_form,
-            "calcTrace": _business_entry_income_trace(b, biz_eligibility, entry_depr_inr, entry_disallow_inr, business_expense_opts(india, ctx.get("router"))),
+            "calcTrace": _business_entry_income_trace(b, biz_eligibility, entry_depr_inr, entry_disallow_inr, business_expense_opts(india, ctx.get("router")), npa_share_inr),
         })
 
     # Phase 7 (XB-14): prefer the real computed per-CFC trace (tested income -
@@ -582,7 +590,8 @@ def _build_entity_graph(d, ctx):
         net_profit_inr = b.get("net_profit_inr") if b.get("net_profit_inr") is not None else b.get("net_profit")
         if net_profit_inr is None:
             net_profit_inr = _compute_business_entry_net_profit_inr(b, d["presumptiveEligibilityAgg"], entry_depr_inr, entry_disallow_inr, business_expense_opts(india, ctx.get("router")))
-        net_profit_inr = num(net_profit_inr)
+        npa_share_graph_inr = _entry_npa_share_inr(d, idx)
+        net_profit_inr = num(net_profit_inr) - npa_share_graph_inr
         entities.append({
             "id": entity_id, "kind": kind, "jurisdiction": "IN", "name": b.get("business_name") or b.get("trade_name") or b.get("name") or None,
             "returnForm": (INDIA_KIND_TO_ITR.get(kind) or "") + " (informational — this entity's own return; WISING doesn't prepare it, only folds its net profit through to the taxpayer as modeled here)",
@@ -591,7 +600,7 @@ def _build_entity_graph(d, ctx):
         })
         edges.append({
             "from": entity_id, "to": primary_root_id, "ownershipPct": None, "flow": "business_income", "amountInr": net_profit_inr,
-            "trace": _business_entry_income_trace(b, d["presumptiveEligibilityAgg"], entry_depr_inr, entry_disallow_inr, business_expense_opts(india, ctx.get("router"))),
+            "trace": _business_entry_income_trace(b, d["presumptiveEligibilityAgg"], entry_depr_inr, entry_disallow_inr, business_expense_opts(india, ctx.get("router")), npa_share_graph_inr),
         })
 
     for idx, firm in enumerate(d["partnerFirmsAgg"] or []):
@@ -1005,7 +1014,7 @@ NODES = {
             "epfInrRaw", "ppfInrRaw", "npsInrRaw", "taxableEpfInterestInrAgg", "taxableNpsWithdrawalInrAgg",
             "uiAgg", "usBusinessDepreciationPlan", "bizEntriesAgg", "bizAssetBlocksAgg", "bizMsmePayablesAgg",
             "presumptiveEligibilityAgg", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust",
-            "partnerFirmsAgg", "indiaEntityTypeRaw", "cfcInclusionResult",
+            "partnerFirmsAgg", "indiaEntityTypeRaw", "cfcInclusionResult", "businessComputation",
         ),
         compute=_assets_model_result,
     ),

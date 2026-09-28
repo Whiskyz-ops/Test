@@ -95,7 +95,7 @@ NODES.slabBreakdownV3 = {
 
 NODES.buildTaxComputationIndiaResult = {
   deps: [
-    "isEntityTaxpayer", "entityTaxResult", "entityTaxableInrBoundary",
+    "isEntityTaxpayer", "entityTaxResult", "entityTaxableInrBoundary", "entityChapterVIADeductionsDetail",
     "regimeCombined", "taxRegime", "totalNormalInr", "normalSlabInr", "lossSetOffV3", "usIncomeForIndiaInr", "salaryNotChargeableInr", "cflBusinessInr",
     "cflHousePropertyInr", "cflStcgInr", "cflLtcgInr", "cflUnabsorbedDepreciationInr",
     "ltcgInrBoundary", "ltcgTaxableInr", "deductionsInrV3",
@@ -111,8 +111,8 @@ NODES.buildTaxComputationIndiaResult = {
       isEntity: true,
       regime: d.entityTaxResult.regime,
       grossTotalIncomeInr: d.entityTaxableInrBoundary,
-      deductionsInr: 0,
-      totalIncomeInr: d.entityTaxableInrBoundary,
+      deductionsInr: d.entityChapterVIADeductionsDetail.totalInr,
+      totalIncomeInr: Math.max(0, d.entityTaxableInrBoundary - d.entityChapterVIADeductionsDetail.totalInr),
       slabTaxInr: d.entityTaxResult.slabTaxInr,
       specialTaxInr: 0,
       rebateInr: 0,
@@ -158,16 +158,29 @@ NODES.buildTaxComputationIndiaResult = {
     // ---- entity branch (DELIBERATE DAG/engine divergence — see file header)
     if (i.isEntity) {
       var et = d.entityTaxResult;
+      var edd = d.entityChapterVIADeductionsDetail;
+      // Chapter VI-A deductions the entity claimed (s.80IAC/80LA/80P/80M):
+      // shown only when there are any, so the card still reads "Taxable
+      // income" straight from total income for every other entity.
+      var entityDedRows = edd.totalInr > 0 ? [
+        { label: "Gross total income", inr: i.grossTotalIncomeInr,
+          trace: source("India-source income aggregated for this entity — entered on Layer 1 India Business/Company.") },
+        { label: "Chapter VI-A deductions", inr: -edd.totalInr,
+          trace: calc("Deductions claimed on Layer 1 India" + (edd.concessional ? " — only s.80M survives the s.115BAA/115BAB election" : "") + (edd.claimedInr > edd.totalInr ? "; limited to the income itself" : ""),
+            edd.parts.map(function (p) { return { label: p.label, amount: p.amount }; })) }
+      ] : [];
       return {
         title: "India income tax — " + i.regime,
         currency: "INR",
-        rows: [
+        rows: entityDedRows.concat([
           { label: "Taxable income", inr: i.totalIncomeInr,
-            trace: source("India-source income aggregated for this entity — entered on Layer 1 India Business/Company.") },
+            trace: edd.totalInr > 0
+              ? calc("Gross total income less Chapter VI-A deductions", [{ label: "Gross total income", amount: i.grossTotalIncomeInr }, { label: "Less Chapter VI-A deductions", amount: -edd.totalInr }])
+              : source("India-source income aggregated for this entity — entered on Layer 1 India Business/Company.") },
           { label: "Tax at entity rate" + (et.matApplied ? " (MAT/AMT floor applies)" : ""), inr: i.slabTaxInr,
             trace: et.matApplied
               ? source("The MAT floor (s.115JB, companies) / AMT floor (s.115JC, firms/LLPs) exceeds the normal-rate tax on this taxable income, so the MAT/AMT floor applies instead — the difference between the two is folded into the surcharge line below.")
-              : calc("Flat statutory rate for " + i.regime + " applied to taxable income — no slabs, no Chapter VI-A deductions, no §156 rebate; none of those individual/HUF concepts apply to an entity's own return", [
+              : calc("Flat statutory rate for " + i.regime + " applied to taxable income — no slabs and no §156 rebate (individual/HUF concepts); only the entity Chapter VI-A deductions above reduce the base", [
                   { label: "Taxable income", amount: i.totalIncomeInr },
                   { label: "Tax", amount: i.slabTaxInr }
                 ]) },
@@ -185,7 +198,7 @@ NODES.buildTaxComputationIndiaResult = {
               { label: "Surcharge", amount: i.surchargeInr },
               { label: "Cess", amount: i.cessInr }
             ]) }
-        ],
+        ]),
         totalUsd: i.totalTaxUsd,
         effectiveRate: i.effectiveRate
       };

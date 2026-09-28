@@ -465,7 +465,7 @@ var NODES = {
       var india = ctx.india;
       var businessInr = 0, businessDepreciationInr = 0;
       var indiaHasRegularBooksEntry = false, indiaHasValidPresumptiveEntry = false;
-      var tonnageTaxInr = 0, npaProvisionsTotalInr = 0;
+      var tonnageTaxInr = 0, npaProvisionsTotalInr = 0, npaByEntryInr = {};
       (d.bizEntriesAgg || []).forEach(function (b, idx) {
         var netProfitInr = b.net_profit_inr || b.net_profit;
         if (netProfitInr === undefined || netProfitInr === null) {
@@ -475,7 +475,7 @@ var NODES = {
           var entryDisallowancesInr = isRegularBooks ? aggregateEntryDisallowancesInr(idx, b, d.bizMsmePayablesAgg) : 0;
           netProfitInr = computeBusinessEntryNetProfitInr(b, d.presumptiveEligibilityAgg, entryDepreciationInr, entryDisallowancesInr, businessExpenseOpts(india, ctx.router));
           businessDepreciationInr += entryDepreciationInr;
-          if (isRegularBooks) npaProvisionsTotalInr += npaProvisionsInr(b);
+          if (isRegularBooks) { npaByEntryInr[idx] = npaProvisionsInr(b); npaProvisionsTotalInr += npaByEntryInr[idx]; }
         } else { indiaHasRegularBooksEntry = true; }
         businessInr += num(netProfitInr);
         // s.115V tonnage tax (shipping companies) — a per-entry field
@@ -485,7 +485,12 @@ var NODES = {
         tonnageTaxInr += num(b.tonnage_tax_115V_inr);
       });
       // s.36(1)(viia): NPA provisions, capped at a share of business income.
-      businessInr -= Math.min(npaProvisionsTotalInr, CONST_AGGIN.TAX.INDIA.S36_1_VIIA_NPA_INCOME_RATE * Math.max(0, businessInr));
+      // Each business's share of the allowed amount goes back to it, so its
+      // own card (assets-nodes.js) shows the same deduction.
+      var npaAllowedInr = Math.min(npaProvisionsTotalInr, CONST_AGGIN.TAX.INDIA.S36_1_VIIA_NPA_INCOME_RATE * Math.max(0, businessInr));
+      var npaAllowedByEntryInr = {};
+      Object.keys(npaByEntryInr).forEach(function (k) { if (npaByEntryInr[k] > 0) npaAllowedByEntryInr[k] = npaAllowedInr * npaByEntryInr[k] / npaProvisionsTotalInr; });
+      businessInr -= npaAllowedInr;
       businessInr += computeGoodsVehiclePresumptiveInr(d.goodsVehiclesAgg);
       // s.41: a trading liability written back, or a bad debt recovered after
       // being deducted earlier, is business income of this year.
@@ -517,7 +522,7 @@ var NODES = {
         s35adInr = num(safe(d.diAgg, "business_income.specified_business_s35AD_inr", 0));
         businessInr -= s35adInr;
       }
-      return { businessInr: businessInr, businessDepreciationInr: businessDepreciationInr, indiaHasRegularBooksEntry: indiaHasRegularBooksEntry, indiaHasValidPresumptiveEntry: indiaHasValidPresumptiveEntry, indiaHasPartnerFirmIncome: indiaHasPartnerFirmIncome, tonnageTaxInr: tonnageTaxInr, s35adDeductionInr: s35adInr };
+      return { businessInr: businessInr, businessDepreciationInr: businessDepreciationInr, indiaHasRegularBooksEntry: indiaHasRegularBooksEntry, indiaHasValidPresumptiveEntry: indiaHasValidPresumptiveEntry, indiaHasPartnerFirmIncome: indiaHasPartnerFirmIncome, tonnageTaxInr: tonnageTaxInr, s35adDeductionInr: s35adInr, npaAllowedByEntryInr: npaAllowedByEntryInr };
     }
   },
 

@@ -30,13 +30,22 @@ def _entity_result(base: float, sur: float, cess: float, label: str, mat: bool) 
     return {"regime": label, "matApplied": mat, "totalTaxInr": total, "slabTaxInr": base, "surchargeInr": sur, "cessInr": cess}
 
 
-def _entity_chapter_via_deductions_inr(d, ctx):
+def _entity_chapter_via_deductions_detail(d, ctx):
+    """Mirrors entitytax-nodes.js entityChapterVIADeductionsDetail."""
     ded = safe(ctx.get("india"), "deductions", {}) or {}
-    dividend_inr = num(safe(ctx, "model.income.india.dividend.inr", None))
-    s80m = min(num(safe(ded, "s80M.dividend_inr", 0)), dividend_inr)
-    if d["indiaOpt115baa"] or d["indiaOpt115bab"]:
-        return s80m
-    return num(ded.get("s80IAC_inr")) + num(ded.get("s80LA_inr")) + num(ded.get("s80P_inr")) + s80m
+    dividend_inr = d["entityDividendInrBoundary"]
+    concessional = bool(d["indiaOpt115baa"] or d["indiaOpt115bab"])
+    parts = [
+        {"label": "s.80IAC eligible start-up", "amount": 0 if concessional else num(ded.get("s80IAC_inr"))},
+        {"label": "s.80LA IFSC / offshore banking unit", "amount": 0 if concessional else num(ded.get("s80LA_inr"))},
+        {"label": "s.80P co-operative society", "amount": 0 if concessional else num(ded.get("s80P_inr"))},
+        {"label": "s.80M dividends passed on (up to dividends received)", "amount": min(num(safe(ded, "s80M.dividend_inr", 0)), dividend_inr)},
+    ]
+    parts = [p for p in parts if p["amount"] > 0]
+    claimed = 0
+    for p in parts:
+        claimed = claimed + p["amount"]
+    return {"totalInr": min(claimed, max(0, d["entityTaxableInrBoundary"])), "claimedInr": claimed, "parts": parts, "concessional": concessional}
 
 
 def _compute_entity_tax_result(d, ctx):
@@ -128,11 +137,15 @@ NODES = {
 
     # s.80IAC / 80LA / 80P / 80M (dividends passed on, up to dividends
     # received) — only s.80M under s.115BAA/115BAB. Mirrors entitytax-nodes.js.
-    "entityChapterVIADeductionsInr": NodeDef(
-        deps=("indiaOpt115baa", "indiaOpt115bab"),
-        compute=_entity_chapter_via_deductions_inr,
+    # Dividends received, for s.80M — a boundary like entityTaxableInrBoundary
+    # (india_full.py redefines it in-graph). Mirrors entitytax-nodes.js.
+    "entityDividendInrBoundary": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx, "model.income.india.dividend.inr", None))),
+    "entityChapterVIADeductionsDetail": NodeDef(
+        deps=("indiaOpt115baa", "indiaOpt115bab", "entityTaxableInrBoundary", "entityDividendInrBoundary"),
+        compute=_entity_chapter_via_deductions_detail,
         layer1_fields=("india.deductions.s80IAC_inr", "india.deductions.s80LA_inr", "india.deductions.s80P_inr", "india.deductions.s80M.dividend_inr"),
     ),
+    "entityChapterVIADeductionsInr": NodeDef(deps=("entityChapterVIADeductionsDetail",), compute=lambda d, ctx: d["entityChapterVIADeductionsDetail"]["totalInr"]),
     "entityTaxResult": NodeDef(
         deps=(
             "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "isIndianCompanyFact",

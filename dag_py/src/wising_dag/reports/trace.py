@@ -92,20 +92,33 @@ def _build_tax_computation_india_result(d, ctx):
     is_entity = d["isEntityTaxpayer"]
     if is_entity:
         et = d["entityTaxResult"]
+        edd = d["entityChapterVIADeductionsDetail"]
         total_tax_inr = et["totalTaxInr"]
-        total_income_inr = d["entityTaxableInrBoundary"]
+        gross_inr = d["entityTaxableInrBoundary"]
+        total_income_inr = max(0, gross_inr - edd["totalInr"])
         total_tax_usd = _fx_convert(total_tax_inr, ctx)
+        # Chapter VI-A deduction rows only when the entity claimed any
+        # (mirrors report-batch3-nodes.js).
+        ded_rows = [
+            {"label": "Gross total income", "inr": gross_inr,
+             "trace": _source("India-source income aggregated for this entity — entered on Layer 1 India Business/Company.")},
+            {"label": "Chapter VI-A deductions", "inr": -edd["totalInr"],
+             "trace": _calc("Deductions claimed on Layer 1 India" + (" — only s.80M survives the s.115BAA/115BAB election" if edd["concessional"] else "") + ("; limited to the income itself" if edd["claimedInr"] > edd["totalInr"] else ""),
+                            [{"label": p["label"], "amount": p["amount"]} for p in edd["parts"]])},
+        ] if edd["totalInr"] > 0 else []
         return {
             "title": f"India income tax — {et['regime']}",
             "currency": "INR",
-            "rows": [
+            "rows": ded_rows + [
                 {"label": "Taxable income", "inr": total_income_inr,
-                 "trace": _source("India-source income aggregated for this entity — entered on Layer 1 India Business/Company.")},
+                 "trace": (_calc("Gross total income less Chapter VI-A deductions", [{"label": "Gross total income", "amount": gross_inr}, {"label": "Less Chapter VI-A deductions", "amount": -edd["totalInr"]}])
+                           if edd["totalInr"] > 0 else
+                           _source("India-source income aggregated for this entity — entered on Layer 1 India Business/Company."))},
                 {"label": "Tax at entity rate" + (" (MAT/AMT floor applies)" if et["matApplied"] else ""), "inr": et["slabTaxInr"],
                  "trace": (
                      _source("The MAT floor (s.115JB, companies) / AMT floor (s.115JC, firms/LLPs) exceeds the normal-rate tax on this taxable income, so the MAT/AMT floor applies instead — the difference between the two is folded into the surcharge line below.")
                      if et["matApplied"] else
-                     _calc(f"Flat statutory rate for {et['regime']} applied to taxable income — no slabs, no Chapter VI-A deductions, no §156 rebate; none of those individual/HUF concepts apply to an entity's own return",
+                     _calc(f"Flat statutory rate for {et['regime']} applied to taxable income — no slabs and no §156 rebate (individual/HUF concepts); only the entity Chapter VI-A deductions above reduce the base",
                            [{"label": "Taxable income", "amount": total_income_inr}, {"label": "Tax", "amount": et["slabTaxInr"]}])
                  )},
                 {"label": "Surcharge", "inr": et["surchargeInr"],
@@ -116,7 +129,7 @@ def _build_tax_computation_india_result(d, ctx):
                  "trace": _calc("Tax + surcharge + cess", [{"label": "Tax", "amount": et["slabTaxInr"]}, {"label": "Surcharge", "amount": et["surchargeInr"]}, {"label": "Cess", "amount": et["cessInr"]}])},
             ],
             "totalUsd": total_tax_usd,
-            "effectiveRate": (total_tax_inr / total_income_inr) if total_income_inr > 0 else 0,
+            "effectiveRate": (total_tax_inr / gross_inr) if gross_inr > 0 else 0,
         }
 
     return _build_tax_computation_india_individual(d, ctx)
@@ -882,7 +895,7 @@ def _build_withholding_summary_result(d, ctx):
 NODES = {
     "slabBreakdownV3": NodeDef(deps=("totalNormalInr", "slabs"), compute=lambda d, ctx: bracket_breakdown(d["totalNormalInr"], d["slabs"])),
     "buildTaxComputationIndiaResult": NodeDef(
-        deps=("isEntityTaxpayer", "entityTaxResult", "entityTaxableInrBoundary",
+        deps=("isEntityTaxpayer", "entityTaxResult", "entityTaxableInrBoundary", "entityChapterVIADeductionsDetail",
               "regimeCombined", "totalNormalInr", "normalSlabInr", "lossSetOffV3", "usIncomeForIndiaInr", "salaryNotChargeableInr", "cflBusinessInr",
               "cflHousePropertyInr", "cflStcgInr", "cflLtcgInr", "cflUnabsorbedDepreciationInr",
               "ltcgInrBoundary", "ltcgTaxableInr", "deductionsInrV3",

@@ -277,6 +277,7 @@ def _business_computation(d, ctx):
     india_has_valid_presumptive_entry = False
     tonnage_tax_inr = 0.0
     npa_total_inr = 0.0
+    npa_by_entry_inr = {}
     for idx, b in enumerate(d["bizEntriesAgg"] or []):
         net_profit_inr = b.get("net_profit_inr") if b.get("net_profit_inr") is not None else b.get("net_profit")
         if net_profit_inr is None:
@@ -290,7 +291,8 @@ def _business_computation(d, ctx):
             net_profit_inr = _compute_business_entry_net_profit_inr(b, d["presumptiveEligibilityAgg"], entry_depreciation_inr, entry_disallowances_inr, business_expense_opts(india, ctx.get("router")))
             business_depreciation_inr += entry_depreciation_inr
             if is_regular_books:
-                npa_total_inr += npa_provisions_inr(b)
+                npa_by_entry_inr[idx] = npa_provisions_inr(b)
+                npa_total_inr += npa_by_entry_inr[idx]
         else:
             india_has_regular_books_entry = True
         business_inr += num(net_profit_inr)
@@ -298,7 +300,9 @@ def _business_computation(d, ctx):
         # alongside the entry's other income below, gated the same way s.35AD is.
         tonnage_tax_inr += num(b.get("tonnage_tax_115V_inr"))
     # s.36(1)(viia): NPA provisions, capped at a share of business income.
-    business_inr -= min(npa_total_inr, C.INDIA["S36_1_VIIA_NPA_INCOME_RATE"] * max(0.0, business_inr))
+    npa_allowed_inr = min(npa_total_inr, C.INDIA["S36_1_VIIA_NPA_INCOME_RATE"] * max(0.0, business_inr))
+    npa_allowed_by_entry_inr = {k: npa_allowed_inr * v / npa_total_inr for k, v in npa_by_entry_inr.items() if v > 0}
+    business_inr -= npa_allowed_inr
     business_inr += _compute_goods_vehicle_presumptive_inr(d["goodsVehiclesAgg"])
     # s.41: a trading liability written back / a bad debt recovered is income.
     business_inr += num(safe(d["diAgg"], "business_income.s41_remission_income_inr", 0)) + num(safe(d["diAgg"], "business_income.s41_bad_debt_recovery_inr", 0))
@@ -327,6 +331,7 @@ def _business_computation(d, ctx):
         "indiaHasValidPresumptiveEntry": india_has_valid_presumptive_entry,
         "indiaHasPartnerFirmIncome": india_has_partner_firm_income,
         "tonnageTaxInr": tonnage_tax_inr, "s35adDeductionInr": s35ad_inr,
+        "npaAllowedByEntryInr": npa_allowed_by_entry_inr,
     }
 
 

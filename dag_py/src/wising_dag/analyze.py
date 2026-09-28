@@ -58,7 +58,7 @@ TARGET_IDS = [
     # model.deductions.us — already one combined node.
     "dedUs",
     # computed.indiaTax.deductionsInr — in1_v3.py's final combined deduction total.
-    "deductionsInrV3",
+    "deductionsInrV3", "entityChapterVIADeductionsInr",
 ]
 
 
@@ -95,7 +95,7 @@ def _assemble_computed(out: dict, ctx: dict) -> dict:
         "indiaTax": {
             "totalTaxInr": out["totalTaxInrCombined"], "totalTaxUsd": out["totalTaxInrCombined"] / fx_rate(ctx),
             "regime": out["regimeCombined"], "isEntity": out["isEntityTaxpayer"],
-            "deductionsInr": out["deductionsInrV3"],
+            "deductionsInr": out["entityChapterVIADeductionsInr"] if out["isEntityTaxpayer"] else out["deductionsInrV3"],
             # s115a is the object ONLY for a non-entity NR; null for a
             # resident individual; absent entirely on the entity path in the
             # real engine — null and absent are equivalent here.

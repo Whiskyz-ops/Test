@@ -42,7 +42,7 @@ var OVERRIDDEN_BOUNDARY_IDS = [
   "stcgInrBoundary", "ltcgInrBoundary", "ltcg197InrBoundary", "stcgSlabInrBoundary", "vdaGainInrBoundary",
   "chapterXiiaInvestmentIncomeInrBoundary", "deemedDividendBuybackInrBoundary",
   "promoterBuybackLtcgInrBoundary", "promoterBuybackStcgInrBoundary", "otherSourcesMiscInrBoundary",
-  "entityTaxableInrBoundary"
+  "entityTaxableInrBoundary", "entityDividendInrBoundary"
 ];
 
 var NODES = {};
@@ -71,6 +71,7 @@ NODES.promoterBuybackLtcgInrBoundary = { deps: ["capitalGainsComputation"], comp
 NODES.promoterBuybackStcgInrBoundary = { deps: ["capitalGainsComputation"], compute: function (d) { return d.capitalGainsComputation.promoterBuybackStcgInr; } };
 NODES.otherSourcesMiscInrBoundary = { deps: ["otherSourcesMiscComputation"], compute: function (d) { return d.otherSourcesMiscComputation; } };
 NODES.entityTaxableInrBoundary = { deps: ["totalIndiaIncomeInr"], compute: function (d) { return d.totalIndiaIncomeInr; } };
+NODES.entityDividendInrBoundary = { deps: ["osAgg"], compute: function (d) { return Number((d.osAgg || {}).dividend_inr) || 0; } };
 
 // ---- routing gate, identical to india-tax-combined-nodes.js -------------
 // DELIBERATE DAG/engine divergence (docs/GAP_TRACKER.md section H.6, 21 Jul

@@ -259,3 +259,38 @@ def test_indian_rent_enters_us_income_under_us_rules():
     r = analyze(c)["model"]["income"]["us"]
     assert r["foreignFromIndia"].get("rental") is True
     assert round(r["foreignRental"]["usd"]) == round(1140000 / 83)
+
+
+def test_company_card_shows_chapter_via_deductions():
+    s = _india_only(profile={"entity_type": "company", "tax_regime": "NEW"}, deductions={"s80IAC_inr": 1000000})
+    s["router"]["entity_type"] = "company"
+    s["india"]["domestic_income"] = {"business_income": {"has_business_or_fo_income": True, "business_entries": [
+        {"business_name": "X", "presumptive_scheme": "none", "turnover_inr": 5000000}]}}
+    r = analyze(s)
+    rows = {row["label"]: row["inr"] for row in r["taxComputation"]["india"]["rows"]}
+    assert rows["Gross total income"] == 5000000
+    assert rows["Chapter VI-A deductions"] == -1000000
+    assert rows["Taxable income"] == 4000000
+    assert r["computed"]["indiaTax"]["deductionsInr"] == 1000000
+
+
+def test_npa_deduction_shown_on_each_business_card():
+    ents = [{"business_name": "A", "business_code": "banking", "presumptive_scheme": "none", "turnover_inr": 10000000, "expenses": {"npa_provisions_inr": 600000}},
+            {"business_name": "B", "business_code": "banking", "presumptive_scheme": "none", "turnover_inr": 6000000, "expenses": {"npa_provisions_inr": 200000}}]
+    s = _india_only(profile={"entity_type": "company", "tax_regime": "NEW"})
+    s["india"]["domestic_income"] = {"business_income": {"has_business_or_fo_income": True, "business_entries": ents}}
+    r = analyze(s)
+    cards = [x for x in r["model"]["assets"]["businessEntities"] if x["country"] == "IN"]
+    assert [round(c["inr"]) for c in cards] == [9400000, 5800000]
+    assert round(sum(c["inr"] for c in cards)) == round(r["model"]["income"]["india"]["business"]["inr"])
+
+
+def test_s80m_uses_the_companys_own_dividends_in_the_full_engine():
+    # s.115BAA company: only s.80M survives — dividends passed on (5L), up to dividends received (10L)
+    c = copy.deepcopy(ctx_for("india_pvt_ltd"))
+    c["india"].pop("quarters", None)
+    c["india"]["deductions"] = dict(c["india"].get("deductions") or {}, s80IAC_inr=2000000, s80M={"dividend_inr": 500000})
+    c["india"]["other_sources"] = dict(c["india"].get("other_sources") or {}, has_other_sources_income=True, dividend_inr=1000000)
+    r = analyze(c)
+    assert r["computed"]["indiaTax"]["deductionsInr"] == 500000
+    assert {x["label"]: x["inr"] for x in r["taxComputation"]["india"]["rows"]}["Chapter VI-A deductions"] == -500000
