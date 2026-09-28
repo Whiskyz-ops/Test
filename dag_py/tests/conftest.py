@@ -78,6 +78,11 @@ GOLDEN_DIVERGENT_FIXTURES_US_INCOME_INTO_INDIA = {"india_ror_us_income"}
 # golden tests compare for salary and what flows from it (India income
 # model, apportionment, FTC, headline/summary) are pinned to the DAG's
 # figures in those three goldens; everything else stays frozen output.
+# Form-vs-engine audit (28 Sep 2026): Chapter VI-A rules the frozen engine
+# lacks (s.80D per-person caps, s.80CCE bundle, s.80QQB/80RRB, s.80G) and
+# the fuller deduction trace — india_only_ca_client's and
+# india_ror_us_income's compared values (deduction row/trace, tax, the
+# advance-tax-interest finding) are pinned to the DAG the same way.
 
 # Task #41 (home-office/vehicle-mileage deduction): businessEntities[]'s
 # self-employment/farm calcTrace.formula string used to end "...placed-

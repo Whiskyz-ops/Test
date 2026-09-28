@@ -328,10 +328,45 @@ var NODES = {
   indiaEntityTypeRawV3: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "profile.entity_type", "individual"); } },
 
   // ---- deductions (aggregateIndiaDeductions, ported exactly) --------------
-  dedS80C: { deps: [], compute: function (d, ctx) { var x = safe(ctx.india, "deductions.s80C", {}); return num(x.epf_employee_inr) + num(x.ppf_inr) + num(x.elss_inr) + num(x.life_insurance_premium_inr) + num(x.principal_home_loan_inr) + num(x.tuition_fees_inr) + num(x.nsc_inr) + num(x.tax_saving_fd_inr) + num(x.sukanya_samriddhi_inr); } },
+  // s.80C + s.80CCC (pension-fund premium) + s.80CCD(1) (own NPS) share
+  // one ₹1.5L cap (s.80CCE) — the cap is applied in deductionsInrV3.
+  // Stamp duty/registration on a new home is an s.80C item too.
+  dedS80C: { deps: [], compute: function (d, ctx) {
+    var x = safe(ctx.india, "deductions.s80C", {}), cc = safe(ctx.india, "deductions.s80CCC_80CCD1", {});
+    return num(x.epf_employee_inr) + num(x.ppf_inr) + num(x.elss_inr) + num(x.life_insurance_premium_inr) + num(x.principal_home_loan_inr) + num(x.tuition_fees_inr) + num(x.nsc_inr) + num(x.tax_saving_fd_inr) + num(x.sukanya_samriddhi_inr) +
+      num(x.stamp_duty_registration_inr) + num(cc.lic_annuity_premium_inr) + num(cc.nps_employee_contribution_inr);
+  } },
   dedS80CCD1B: { deps: [], compute: function (d, ctx) { return num(safe(ctx.india, "deductions.s80CCD_1B.nps_additional_inr", 0)); } },
   dedS80CCD2Employer: { deps: [], compute: function (d, ctx) { return num(safe(ctx.india, "domestic_income.salary.employer_nps_contribution_inr", 0)); } },
-  dedS80D: { deps: [], compute: function (d, ctx) { var x = safe(ctx.india, "deductions.s80D", {}); return num(x.self_family_premium_inr) + num(x.parents_premium_inr); } },
+  // Taxpayer 60+ at the end of the financial year (drives the s.80D cap).
+  indiaSelfSeniorV3: { deps: [], compute: function (d, ctx) {
+    var dob = safe(ctx.router, "date_of_birth", safe(ctx.india, "profile.date_of_birth", null));
+    var b = dob ? new Date(dob) : null;
+    if (!b || isNaN(b.getTime())) return false;
+    var fyEndYear = (num(safe(ctx.router, "base_tax_year", 0)) || 2026) + 1;
+    var age = fyEndYear - b.getFullYear() - ((b.getMonth() > 2 || (b.getMonth() === 2 && b.getDate() > 31)) ? 1 : 0);
+    return age >= 60;
+  } },
+  // s.80D, each person's cap applied separately (it used to be one ₹75,000
+  // pool): self/family ₹25k (₹50k if the taxpayer is a senior), parents
+  // ₹25k (₹50k if senior); preventive checkups up to ₹5,000 in all, inside
+  // those caps; a senior parent with no insurance: medical bills instead.
+  dedS80D: { deps: ["indiaSelfSeniorV3"], compute: function (d, ctx) {
+    var x = safe(ctx.india, "deductions.s80D", {}), C = T.S80D_CAPS;
+    var parentsSenior = x.parents_are_senior === true;
+    var chkSelf = Math.min(num(x.self_family_preventive_checkup_inr), C.preventiveCheckup);
+    var chkParents = Math.min(num(x.parents_preventive_checkup_inr), C.preventiveCheckup - chkSelf);
+    var parentsMedical = parentsSenior && x.parents_has_health_insurance === false ? num(x.parents_medical_expenditure_inr) : 0;
+    return Math.min(num(x.self_family_premium_inr) + chkSelf, d.indiaSelfSeniorV3 ? C.selfSenior : C.selfNonSenior) +
+      Math.min(num(x.parents_premium_inr) + chkParents + parentsMedical, parentsSenior ? C.parentsSenior : C.parentsNonSenior);
+  } },
+  // s.80QQB (author royalties) / s.80RRB (patent royalties): resident
+  // individuals, up to ₹3L each.
+  dedS80QQB_RRB: { deps: ["indiaResidencyStatusRawV3"], compute: function (d, ctx) {
+    if (d.indiaResidencyStatusRawV3 === "NR") return 0;
+    return Math.min(num(safe(ctx.india, "deductions.s80QQB_inr", 0)), T.S80QQB_RRB_CAP_INR) + Math.min(num(safe(ctx.india, "deductions.s80RRB_inr", 0)), T.S80QQB_RRB_CAP_INR);
+  } },
+  dedS80GItemsRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "deductions.s80G", []) || []; } },
   dedS80TTA_TTB: { deps: [], compute: function (d, ctx) { return num(safe(ctx.india, "deductions.s80TTA_TTB.savings_interest_inr", 0)); } },
   dedS80DD: { deps: [], compute: function (d, ctx) { var x = safe(ctx.india, "deductions.s80DD", {}); return x.has_disabled_dependents === true ? (S80DD_U_FLAT[x.disability_percentage] || 0) : 0; } },
   dedS80DDB: { deps: [], compute: function (d, ctx) { var x = safe(ctx.india, "deductions.s80DDB", {}); return x.has_specified_diseases_treatment === true ? Math.min(num(x.medical_expenses_inr), S80DDB_CAP[x.patient_category] || S80DDB_CAP.normal) : 0; } },
@@ -342,15 +377,15 @@ var NODES = {
   dedS80GGRentPaidInr: { deps: [], compute: function (d, ctx) { var x = safe(ctx.india, "deductions.s80GG", {}); return x.has_rent_paid_no_hra === true ? num(x.rent_paid_inr) : 0; } },
 
   // ---- carry-forward losses (raw, ported exactly) --------------------------
-  cflBusinessInr: { deps: [], compute: function (d, ctx) { return sumAllowed(safe(ctx.india, "carry_forward_losses.business_loss_cf", [])); } },
-  cflSpeculativeInr: { deps: [], compute: function (d, ctx) { return sumAllowed(safe(ctx.india, "carry_forward_losses.speculative_loss_cf", [])); } },
-  cflStcgInr: { deps: [], compute: function (d, ctx) { return sumAllowed(safe(ctx.india, "carry_forward_losses.stcg_loss_cf", [])); } },
-  cflLtcgInr: { deps: [], compute: function (d, ctx) { return sumAllowed(safe(ctx.india, "carry_forward_losses.ltcg_loss_cf", [])); } },
-  cflHousePropertyInr: { deps: [], compute: function (d, ctx) { return sumAllowed(safe(ctx.india, "carry_forward_losses.house_property_loss_cf", [])); } },
+  cflBusinessInr: { deps: [], compute: function (d, ctx) { return sumAllowed(safe(ctx.india, "carry_forward_losses.business_loss_cf", []), T.LOSS_CARRY_FORWARD_YEARS.general, num(safe(ctx.router, "base_tax_year", 0))); } },
+  cflSpeculativeInr: { deps: [], compute: function (d, ctx) { return sumAllowed(safe(ctx.india, "carry_forward_losses.speculative_loss_cf", []), T.LOSS_CARRY_FORWARD_YEARS.speculative, num(safe(ctx.router, "base_tax_year", 0))); } },
+  cflStcgInr: { deps: [], compute: function (d, ctx) { return sumAllowed(safe(ctx.india, "carry_forward_losses.stcg_loss_cf", []), T.LOSS_CARRY_FORWARD_YEARS.general, num(safe(ctx.router, "base_tax_year", 0))); } },
+  cflLtcgInr: { deps: [], compute: function (d, ctx) { return sumAllowed(safe(ctx.india, "carry_forward_losses.ltcg_loss_cf", []), T.LOSS_CARRY_FORWARD_YEARS.general, num(safe(ctx.router, "base_tax_year", 0))); } },
+  cflHousePropertyInr: { deps: [], compute: function (d, ctx) { return sumAllowed(safe(ctx.india, "carry_forward_losses.house_property_loss_cf", []), T.LOSS_CARRY_FORWARD_YEARS.general, num(safe(ctx.router, "base_tax_year", 0))); } },
   cflUnabsorbedDepreciationInr: { deps: [], compute: function (d, ctx) { return num(safe(ctx.india, "carry_forward_losses.unabsorbed_depreciation_cf", 0)); } },
 
   // ---- treaty (raw, ported exactly) -----------------------------------------
-  treatyTrcStatus: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "dtaa.trc_status", false) === true || safe(ctx.india, "compliance_docs.trc.document_uploaded", false) === true; } },
+  treatyTrcStatus: { deps: [], compute: function (d, ctx) { return require("./india-compliance.js").trcOnFile(ctx.india, ctx.router); } },
   treatyForm10fFiled: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "compliance_docs.form_10f.is_filed", false) === true; } },
   treatyElectionsRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "dtaa.treaty_elections", []) || []; } },
 
@@ -472,16 +507,17 @@ var NODES = {
 
   deductionsInrV3: {
     deps: ["isNew", "dedS80CCD2Employer", "dedS80C", "dedS80CCD1B", "dedS80D", "dedS80TTA_TTB", "dedS80DD", "dedS80DDB",
-      "dedS80U", "dedS80E", "dedS80EEA_EE", "dedS80GGB_GGC", "dedS80GGRentPaidInr", "normalSlabInr"],
+      "dedS80U", "dedS80E", "dedS80EEA_EE", "dedS80GGB_GGC", "dedS80GGRentPaidInr", "normalSlabInr", "dedS80QQB_RRB", "dedS80GItemsRaw"],
     compute: function (d) {
       if (d.isNew) return d.dedS80CCD2Employer || 0;
       var caps = T.DEDUCTION_CAPS_OLD;
       var s80ggInr = d.dedS80GGRentPaidInr > 0
         ? Math.max(0, Math.min(d.dedS80GGRentPaidInr - 0.10 * d.normalSlabInr, 60000, 0.25 * d.normalSlabInr)) : 0;
-      return Math.min(d.dedS80C, caps.s80C) + Math.min(d.dedS80CCD1B, caps.s80CCD1B) +
-        Math.min(d.dedS80D, caps.s80D_self + caps.s80D_parents_senior) + (d.dedS80CCD2Employer || 0) +
+      var otherInr = Math.min(d.dedS80C, caps.s80C) + Math.min(d.dedS80CCD1B, caps.s80CCD1B) +
+        d.dedS80D + (d.dedS80CCD2Employer || 0) +
         Math.min(d.dedS80TTA_TTB, 10000) + (d.dedS80DD || 0) + (d.dedS80DDB || 0) + (d.dedS80U || 0) +
-        (d.dedS80E || 0) + (d.dedS80EEA_EE || 0) + (d.dedS80GGB_GGC || 0) + s80ggInr;
+        (d.dedS80E || 0) + (d.dedS80EEA_EE || 0) + (d.dedS80GGB_GGC || 0) + s80ggInr + (d.dedS80QQB_RRB || 0);
+      return otherInr + s80gDeductionInr(d.dedS80GItemsRaw, Math.max(0, d.normalSlabInr - otherInr));
     }
   },
   totalNormalInr: { deps: ["normalSlabInr", "deductionsInrV3"], compute: function (d) { return Math.max(0, d.normalSlabInr - d.deductionsInrV3); } },
@@ -585,8 +621,41 @@ var NODES = {
   }
 };
 
-function sumAllowed(arr) {
+// s.80G: 100%/50% of eligible donations; the "with qualifying limit"
+// categories only up to 10% of adjusted gross total income (applied to the
+// 100% ones first). adjustedGtiInr: slab income less the other deductions.
+function s80gDeductionInr(items, adjustedGtiInr) {
+  var noLimit100 = 0, noLimit50 = 0, lim100 = 0, lim50 = 0;
+  (items || []).forEach(function (it) {
+    var a = num(it && it.donation_amount_inr);
+    if (!(a > 0)) return;
+    var c = it.category;
+    if (c === "100_percent_no_limit") noLimit100 += a;
+    else if (c === "50_percent_no_limit") noLimit50 += a;
+    else if (c === "100_percent_with_qualifying_limit") lim100 += a;
+    else if (c === "50_percent_with_qualifying_limit") lim50 += a;
+  });
+  var limit = Math.max(0, adjustedGtiInr) * T.S80G_QUALIFYING_LIMIT_RATE;
+  var q100 = Math.min(lim100, limit), q50 = Math.min(lim50, limit - q100);
+  return noLimit100 + 0.5 * noLimit50 + q100 + 0.5 * q50;
+}
+
+// Brought-forward losses, less any past their carry-forward window: a loss
+// of FY L can be set off only in the next maxYears years (ss.72(3)/74(3)/
+// 71B: 8; s.73(4) speculative: 4). The year comes from the form's "Origin
+// FY" ("Tax Year 2023-24" -> 2023) or an assessment year ("AY2024-25" ->
+// FY 2023); a row whose year can't be read is kept.
+function lossOriginFyStart(e) {
+  var raw = e && (e.fy != null ? e.fy : e.assessment_year);
+  var m = String(raw == null ? "" : raw).match(/(19|20)\d{2}/);
+  if (!m) return null;
+  var y = Number(m[0]);
+  return /\bAY/i.test(String(raw)) ? y - 1 : y;
+}
+function sumAllowed(arr, maxYears, fyStartYear) {
   return (arr || []).reduce(function (s, e) {
+    var origin = lossOriginFyStart(e);
+    if (maxYears && fyStartYear && origin !== null && fyStartYear - origin > maxYears) return s;
     var v = (e && e.final_allowed_amount_inr != null) ? e.final_allowed_amount_inr : num(e && e.amount_inr);
     return s + num(v);
   }, 0);

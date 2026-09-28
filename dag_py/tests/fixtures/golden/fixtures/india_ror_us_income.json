@@ -2151,7 +2151,7 @@
       "rows": [
         {
           "label": "Gross total income",
-          "inr": 5218500,
+          "inr": 5218500.0,
           "trace": {
             "kind": "holdings",
             "section": "india",
@@ -2160,22 +2160,22 @@
         },
         {
           "label": "Chapter VI-A deductions",
-          "inr": -175000,
+          "inr": -175000.0,
           "trace": {
             "kind": "calc",
-            "formula": "Old regime: s.123 (cap \u20b91.5L) + s.124(1B) NPS (cap \u20b950k) + s.126 health insurance (cap \u20b975k) + employer NPS s.124(2) (uncapped) + s.153 savings interest (cap \u20b910k)",
+            "formula": "Old regime: s.123 incl. pension-fund / own NPS contributions (one \u20b91.5L cap) + s.124(1B) NPS (cap \u20b950k) + s.126 health insurance (\u20b925k/\u20b950k each for self and parents) + employer NPS s.124(2) (uncapped) + s.153 savings interest (cap \u20b910k) + the other Chapter VI-A deductions entered",
             "parts": [
               {
-                "label": "s.123 (capped \u20b91.5L)",
-                "amount": 150000
+                "label": "s.123 incl. pension / own NPS (capped \u20b91.5L)",
+                "amount": 150000.0
               },
               {
                 "label": "s.124(1B) NPS (capped \u20b950k)",
                 "amount": 0
               },
               {
-                "label": "s.126 health insurance (capped \u20b975k)",
-                "amount": 25000
+                "label": "s.126 health insurance (per-person caps)",
+                "amount": 25000.0
               },
               {
                 "label": "Employer NPS s.124(2)",
@@ -2191,18 +2191,18 @@
         },
         {
           "label": "Total income",
-          "inr": 5043500,
+          "inr": 5043500.0,
           "trace": {
             "kind": "calc",
             "formula": "Gross total income less Chapter VI-A deductions",
             "parts": [
               {
                 "label": "Gross total income",
-                "amount": 5218500
+                "amount": 5218500.0
               },
               {
                 "label": "Less Chapter VI-A deductions",
-                "amount": -175000
+                "amount": -175000.0
               }
             ],
             "citation": null
@@ -2210,26 +2210,26 @@
         },
         {
           "label": "Tax at slab rates",
-          "inr": 1273050,
+          "inr": 1273050.0,
           "trace": {
             "kind": "calc",
             "formula": "Progressive slab-rate tax under the OLD regime, applied to \u20b948,68,500 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
             "parts": [
               {
                 "label": "0% on \u20b90\u2013\u20b92,50,000",
-                "amount": 0
+                "amount": 0.0
               },
               {
                 "label": "5% on \u20b92,50,000\u2013\u20b95,00,000",
-                "amount": 12500
+                "amount": 12500.0
               },
               {
                 "label": "20% on \u20b95,00,000\u2013\u20b910,00,000",
-                "amount": 100000
+                "amount": 100000.0
               },
               {
                 "label": "30% above \u20b910,00,000",
-                "amount": 1160550
+                "amount": 1160550.0
               }
             ],
             "citation": null
@@ -2237,7 +2237,7 @@
         },
         {
           "label": "Tax on special-rate income (196/197/198 gains + 115BBH VDA + 128/194 winnings)",
-          "inr": 21875,
+          "inr": 21875.0,
           "trace": {
             "kind": "calc",
             "formula": "s.196 STCG @ 20% + s.198 LTCG @ 12.5% (listed/STT-paid, net of the \u20b91,25,000 exemption) + s.197 LTCG @ 12.5% (unlisted/foreign \u2014 no exemption, separate section, does not pool with s.198's threshold) + s.115BBH VDA/crypto @ 30% flat (no set-off, ever) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption (each broken out below)",
@@ -2247,7 +2247,7 @@
         },
         {
           "label": "Less \u00a7156 rebate",
-          "inr": 0,
+          "inr": -0.0,
           "trace": {
             "kind": "calc",
             "formula": "Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold \u2014 lesser of tax at slab rates and the statutory cap",
@@ -2258,7 +2258,7 @@
               },
               {
                 "label": "Rebate actually allowed",
-                "amount": 0
+                "amount": 0.0
               }
             ],
             "citation": null
@@ -2266,14 +2266,14 @@
         },
         {
           "label": "Surcharge",
-          "inr": 61075,
+          "inr": 61075.0,
           "trace": {
             "kind": "calc",
             "formula": "Progressive surcharge (10%/15%/25%/37% bands by total income) on tax before cess, with marginal relief so the tax increase never exceeds the income increase over the threshold; capital-gains/dividend-type special-rate income is capped at a 15% surcharge rate",
             "parts": [
               {
                 "label": "Surcharge",
-                "amount": 61075
+                "amount": 61075.0
               }
             ],
             "citation": null
@@ -2281,18 +2281,18 @@
         },
         {
           "label": "Health & education cess (4%)",
-          "inr": 54240,
+          "inr": 54240.0,
           "trace": {
             "kind": "calc",
             "formula": "4% of (tax after rebate + surcharge)",
             "parts": [
               {
                 "label": "Tax after \u00a7156 rebate",
-                "amount": 1294925
+                "amount": 1294925.0
               },
               {
                 "label": "Surcharge",
-                "amount": 61075
+                "amount": 61075.0
               },
               {
                 "label": "Cess rate",
@@ -2304,7 +2304,7 @@
         },
         {
           "label": "Total India tax",
-          "inr": 1410240,
+          "inr": 1410240.0,
           "emphasis": true,
           "trace": {
             "kind": "calc",
@@ -2312,23 +2312,23 @@
             "parts": [
               {
                 "label": "Tax at slab rates",
-                "amount": 1273050
+                "amount": 1273050.0
               },
               {
                 "label": "Tax on special-rate income",
-                "amount": 21875
+                "amount": 21875.0
               },
               {
                 "label": "Less \u00a7156 rebate",
-                "amount": 0
+                "amount": -0.0
               },
               {
                 "label": "Surcharge",
-                "amount": 61075
+                "amount": 61075.0
               },
               {
                 "label": "Cess",
-                "amount": 54240
+                "amount": 54240.0
               }
             ],
             "citation": null

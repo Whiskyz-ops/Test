@@ -115,3 +115,112 @@ def test_family_pension_fills_us_foreign_pension_gross_not_other_income():
     us = analyze(copy.deepcopy(ctx))["model"]["income"]["us"]
     assert round(us["foreignPension"]["usd"]) == 7228   # Layer 1 US's own figure wins
     assert us["foreignOtherIncome"]["usd"] == 0          # not counted again as "other"
+
+
+# ---- form-vs-engine audit, 28 Sep 2026 ------------------------------------
+
+def _old_regime_salaried(**deductions):
+    s = _india_only(profile={"entity_type": "individual", "tax_regime": "OLD", "date_of_birth": "1985-01-01"},
+                    deductions=deductions)
+    s["india"]["domestic_income"] = {"salary": {"has_salary_income": True, "gross_salary_inr": 2050000}}
+    return s
+
+
+def _ded(**deductions):
+    return analyze(_old_regime_salaried(**deductions))["computed"]["indiaTax"]["deductionsInr"]
+
+
+def test_s80cce_bundle_includes_stamp_duty_pension_and_own_nps():
+    assert _ded(s80C={"ppf_inr": 100000, "stamp_duty_registration_inr": 30000}) == 130000
+    assert _ded(s80C={"ppf_inr": 100000, "stamp_duty_registration_inr": 30000},
+                s80CCC_80CCD1={"lic_annuity_premium_inr": 40000}) == 150000   # one ₹1.5L cap
+
+
+def test_s80d_per_person_caps_checkups_and_senior_parent_medical():
+    # self 30k + checkup 5k -> capped 25k; senior uninsured parents' bills 60k -> capped 50k
+    assert _ded(s80D={"self_family_premium_inr": 30000, "self_family_preventive_checkup_inr": 5000, "parents_are_senior": True,
+                      "parents_has_health_insurance": False, "parents_medical_expenditure_inr": 60000}) == 75000
+    s = _old_regime_salaried(s80D={"self_family_premium_inr": 45000})
+    s["india"]["profile"]["date_of_birth"] = "1960-01-01"   # senior: ₹50k cap
+    assert analyze(s)["computed"]["indiaTax"]["deductionsInr"] == 45000
+
+
+def test_s80qqb_rrb_capped_at_3l_each():
+    assert _ded(s80QQB_inr=400000, s80RRB_inr=100000) == 400000
+
+
+def test_s80g_qualifying_limit():
+    # 50k (100%, no limit) + 50% x min(5L, 10% of ₹20L adjusted GTI)
+    assert _ded(s80G=[{"donation_amount_inr": 50000, "category": "100_percent_no_limit"},
+                      {"donation_amount_inr": 500000, "category": "50_percent_with_qualifying_limit"}]) == 150000
+
+
+def test_s41_deemed_business_income():
+    s = _old_regime_salaried()
+    s["india"]["domestic_income"]["business_income"] = {"has_business_or_fo_income": True, "business_entries": [], "s41_remission_income_inr": 300000}
+    assert analyze(s)["model"]["income"]["india"]["business"]["inr"] == 300000
+
+
+def test_esop_events_count_when_total_left_blank():
+    s = _old_regime_salaried()
+    s["india"]["domestic_income"]["salary"]["esop_perquisite_events"] = [{"perquisite_value_inr": 600000}]
+    assert analyze(s)["model"]["income"]["india"]["salary"]["inr"] == 2600000
+
+
+def test_brought_forward_loss_expires_after_8_years():
+    def tax(origin):
+        s = _old_regime_salaried()
+        s["india"]["financial_holdings"] = {"has_financial_transactions": True, "transactions": [
+            {"asset_class": "listed_equity", "acquisition_date": "2026-01-01", "purchase_value": 100000, "sale_date": "2026-08-01", "sale_value": 400000, "stt_paid": True}]}
+        s["india"]["carry_forward_losses"] = {"has_brought_forward_losses": True, "stcg_loss_cf": [{"fy": origin, "amount_inr": 200000}]}
+        return analyze(s)["computed"]["indiaTax"]["totalTaxInr"]
+    assert round(tax("Tax Year 2022-23")) == 449800   # set off: STCG 1L
+    assert round(tax("Tax Year 2015-16")) == 491400   # 11 years old: lapsed, STCG 3L
+
+
+def test_company_chapter_via_deductions():
+    s = _india_only(profile={"entity_type": "company", "tax_regime": "NEW"}, deductions={"s80IAC_inr": 1000000})
+    s["india"]["domestic_income"] = {"business_income": {"has_business_or_fo_income": True, "business_entries": [
+        {"business_name": "X", "presumptive_scheme": "none", "turnover_inr": 5000000}]}}
+    assert round(analyze(s)["computed"]["indiaTax"]["totalTaxInr"]) == 1248000   # 30% x (50L - 10L) + cess
+
+
+def test_expired_trc_is_not_on_file():
+    ctx = copy.deepcopy(ctx_for("us_resident_indian_income"))
+    ctx["india"]["compliance_docs"] = dict(ctx["india"].get("compliance_docs") or {}, trc={"document_uploaded": True, "validity_start_date": "2026-04-01", "validity_end_date": "2027-03-31"})
+    assert analyze(copy.deepcopy(ctx))["model"]["treaty"]["trcStatus"] is True
+    ctx["india"]["compliance_docs"]["trc"]["validity_end_date"] = "2024-03-31"
+    assert analyze(ctx)["model"]["treaty"]["trcStatus"] is False
+
+
+def _us(fid="us_only_cpa_client"):
+    return copy.deepcopy(ctx_for(fid))
+
+
+def test_w2_allocated_tips_and_dependent_care_over_7500():
+    base = analyze(_us())["model"]["income"]["us"]["wages"]["usd"]
+    c = _us()
+    c["us"]["income_us_source"]["wages_w2"][0].update(allocated_tips_box8_usd=2000, dependent_care_benefits_box10_usd=9000)
+    assert analyze(c)["model"]["income"]["us"]["wages"]["usd"] - base == 3500
+
+
+def test_k1_branches_and_owned_ccorp_dividends_count():
+    base = analyze(_us())["model"]["income"]["us"]
+    c = _us()
+    c["us"]["income_us_source"]["partnerships_k1"][0]["branches"] = [{"ordinary_income_usd": 5000}]
+    c["us"]["income_us_source"]["c_corporations_1120"] = [{"dividends_paid_usd": 10000, "dividend_type": "qualified"}]
+    r = analyze(c)["model"]["income"]["us"]
+    assert r["businessUs"]["usd"] - base["businessUs"]["usd"] == 5000
+    assert r["ordinaryDividendsUs"]["usd"] - base["ordinaryDividendsUs"]["usd"] == 10000
+
+
+def test_ftc_baskets_and_prior_carryover_when_no_india_tax():
+    c = _us()
+    c["us"]["income_foreign_source"] = dict(c["us"].get("income_foreign_source") or {}, foreign_interest_usd=20000)
+    c["us"]["ftc_inputs"] = dict(c["us"].get("ftc_inputs") or {}, ftc_baskets=[
+        {"foreign_country": "IN", "basket_type": "passive", "gross_foreign_income_usd": 20000, "foreign_taxes_paid_usd": 1000}])
+    one = analyze(copy.deepcopy(c))["computed"]["ftc"]["us"]
+    assert round(one["ftcAllowedUsd"]) == 1000                 # the basket's own tax
+    c["us"]["ftc_inputs"]["prior_year_carryovers_usd"] = 5000
+    two = analyze(c)["computed"]["ftc"]["us"]
+    assert round(two["ftcAllowedUsd"]) == round(two["ftcLimitUsd"])   # carryover fills the §904 room

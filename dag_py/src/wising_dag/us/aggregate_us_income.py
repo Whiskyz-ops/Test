@@ -159,6 +159,45 @@ def _aggregate_asset_depreciation_usd(businesses: list, base_year: int) -> dict:
     return {"byBusiness": by_business}
 
 
+def _fold_us_income_source(ui):
+    """Mirrors aggregateusincome-nodes.js foldUsIncomeSource: K-1 branch
+    amounts added to their parent K-1, and dividends an owned C-corporation
+    paid the client added to US dividends. Returns a copy."""
+    if not isinstance(ui, dict):
+        return ui or {}
+    out = dict(ui)
+    for list_key in ("partnerships_k1", "s_corporations_k1"):
+        if not isinstance(ui.get(list_key), list):
+            continue
+        folded = []
+        for k in ui[list_key]:
+            brs = k.get("branches") if isinstance(k, dict) and isinstance(k.get("branches"), list) else []
+            if not brs:
+                folded.append(k)
+                continue
+            m = dict(k)
+            for br in brs:
+                for key, val in (br or {}).items():
+                    if not key.endswith("_usd") or isinstance(val, bool) or not isinstance(val, (int, float)) or not val:
+                        continue
+                    target = "ordinary_business_income_usd" if key == "ordinary_income_usd" and m.get("ordinary_business_income_usd") is not None else key
+                    m[target] = num(m.get(target)) + val
+            folded.append(m)
+        out[list_key] = folded
+    div = qual = 0.0
+    for c in ui.get("c_corporations_1120") if isinstance(ui.get("c_corporations_1120"), list) else []:
+        dv = num((c or {}).get("dividends_paid_usd"))
+        if not dv > 0:
+            continue
+        div += dv
+        if (c.get("dividend_type") or "qualified") == "qualified":
+            qual += dv
+    if div > 0:
+        out["ordinary_dividends_us_source_usd"] = num(ui.get("ordinary_dividends_us_source_usd")) + div
+        out["qualified_dividends_us_source_usd"] = num(ui.get("qualified_dividends_us_source_usd")) + qual
+    return out
+
+
 def _k1_passive_income_usd(k: dict) -> dict:
     return {
         "interestUsd": num(k.get("interest_income_usd")), "ordDivUsd": num(k.get("ordinary_dividends_usd")), "qualDivUsd": num(k.get("qualified_dividends_usd")),
@@ -169,13 +208,15 @@ def _k1_passive_income_usd(k: dict) -> dict:
 
 
 def _wages_computation(d, ctx):
-    wages = w2with = medicare_wages = qualified_tips_usd = qualified_overtime_usd = 0.0
+    wages = w2with = medicare_wages = qualified_tips_usd = qualified_overtime_usd = dependent_care_usd = 0.0
     w2_employers = []
     w2 = safe(d["uiAgg"], "wages_w2", None)
     if isinstance(w2, list):
         for w in w2:
-            wages_usd = num(w.get("wages_box1_usd") or w.get("wages_tips_compensation_usd") or 0)
+            # Box 8 allocated tips are wages left out of Box 1.
+            wages_usd = num(w.get("wages_box1_usd") or w.get("wages_tips_compensation_usd") or 0) + num(w.get("allocated_tips_box8_usd"))
             wages += wages_usd
+            dependent_care_usd += num(w.get("dependent_care_benefits_box10_usd"))
             adv = w.get("tax_details_collapsed_by_default") or w
             fed_with_usd = num(adv.get("federal_tax_withheld_usd") or adv.get("federal_income_tax_withheld_usd") or 0)
             w2with += fed_with_usd
@@ -186,6 +227,9 @@ def _wages_computation(d, ctx):
             for st in safe(w, "state_and_local_taxes", []) or []:
                 state_with_usd += num(st.get("state_tax_withheld_box17_usd") or 0)
             w2_employers.append({"employerName": w.get("employer_name"), "wagesUsd": wages_usd, "federalWithheldUsd": fed_with_usd, "stateWithheldUsd": state_with_usd})
+    # Box 10 dependent-care benefits above the §129 exclusion are wages.
+    dc_cap = C.US["DEPENDENT_CARE_EXCLUSION_2026_USD"] if d["baseYearUsAgg"] >= 2026 else C.US["DEPENDENT_CARE_EXCLUSION_USD"]
+    wages += max(0.0, dependent_care_usd - dc_cap)
     return {"wagesUsd": wages, "w2WithholdingUsd": w2with, "w2Employers": w2_employers, "medicareWagesUsd": medicare_wages, "qualifiedTipsUsd": qualified_tips_usd, "qualifiedOvertimeUsd": qualified_overtime_usd}
 
 
@@ -846,10 +890,10 @@ def build(base):
     # fixed at the source with an explicit int cast, same precedent as
     # crossborder/apportionment.py's apportionmentBaseYearRaw.
     r.register("baseYearUsAgg", NodeDef(deps=(), compute=lambda d, ctx: int(num(safe(ctx.get("us"), "metadata.us_calendar_year", 2025)) or 2025), layer1_fields=("us.metadata.us_calendar_year",)))
-    r.register("uiAgg", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "income_us_source", {})))
+    r.register("uiAgg", NodeDef(deps=(), compute=lambda d, ctx: _fold_us_income_source(safe(ctx.get("us"), "income_us_source", {}))))
     r.register("fiAgg", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "income_foreign_source", {})))
 
-    r.register("wagesComputation", NodeDef(deps=("uiAgg",), compute=_wages_computation, layer1_fields=_WAGES_FIELDS))
+    r.register("wagesComputation", NodeDef(deps=("uiAgg", "baseYearUsAgg"), compute=_wages_computation, layer1_fields=_WAGES_FIELDS))
     r.register("w2WorkLocation", NodeDef(deps=("uiAgg",), compute=_w2_work_location, layer1_fields=(
         "us.us_residency_detail.is_us_citizen", "us.us_residency_detail.has_green_card", "us.us_residency_detail.final_us_residency_status",
         "us.us_residency_detail.us_days_current_year", "us.nra_specific.files_form_1040nr",

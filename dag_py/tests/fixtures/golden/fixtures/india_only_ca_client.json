@@ -1631,7 +1631,7 @@
       "surchargeInr": 511313.25,
       "cessInr": 156802.73,
       "promoterBuyback": null,
-      "totalTaxInr": 4076870.98,
+      "totalTaxInr": 4077947.38,
       "totalTaxUsd": 49118.92746987952,
       "totalIncomeUsd": 151230.1204819277,
       "effectiveRate": 0.32479592896806114,
@@ -1836,7 +1836,7 @@
       "us": {
         "foreignSourceIncomeUsd": 0,
         "feieExcludedUsd": 0,
-        "indiaTaxDisallowedUsd": 49118.92746987952,
+        "indiaTaxDisallowedUsd": 49131.89614457831,
         "taxableIncomeUsd": 0,
         "usIncomeTaxUsd": 0,
         "indiaTaxPaidUsd": 0,
@@ -1918,9 +1918,9 @@
       "baseYear": 2026,
       "jurisdiction": "single_india",
       "totalIncomeUsd": 162085.5421686747,
-      "indiaTaxUsd": 48902.78289156626,
+      "indiaTaxUsd": 48915.75156626506,
       "usTaxUsd": 0,
-      "combinedTaxBeforeReliefUsd": 48902.78289156626,
+      "combinedTaxBeforeReliefUsd": 48915.75156626506,
       "worldwideOverlap": false,
       "netUnrelievedDoubleTaxUsd": 0
     },
@@ -1931,10 +1931,10 @@
       "id": "india_advance_tax_interest",
       "severity": "warning",
       "category": "credit",
-      "title": "Advance-tax interest exposure \u2014 ss.424/425 (\u20b91,92,447)",
-      "detail": "Advance tax paid (\u20b98,00,000) falls short of the assessed tax (\u20b937,66,871) this year. At 1%/month simple interest: \u20b91,18,675 under s.424 (shortfall below the 90% floor, 4 months to the non-audit (31 Jul) due date) + \u20b973,772 under s.425 (quarter-by-quarter installment shortfalls). Both keep accruing past the due date until actually paid \u2014 this is the exposure AS OF the due date, not a final number.",
+      "title": "Advance-tax interest exposure \u2014 ss.424/425 (\u20b91,92,517)",
+      "detail": "Advance tax paid (\u20b98,00,000) falls short of the assessed tax (\u20b937,67,947) this year. At 1%/month simple interest: \u20b91,18,718 under s.424 (shortfall below the 90% floor, 4 months to the non-audit (31 Jul) due date) + \u20b973,799 under s.425 (quarter-by-quarter installment shortfalls). Both keep accruing past the due date until actually paid \u2014 this is the exposure AS OF the due date, not a final number.",
       "recommendation": "Pay the shortfall before filing to stop s.424 interest accruing further; s.425's quarter-by-quarter amount is fixed once the year ends and doesn't grow. If the year isn't over yet, revise the remaining installment(s) upward.",
-      "amountUsd": 2318.6339000000003,
+      "amountUsd": 2319.476863855422,
       "refs": [
         "s.424",
         "s.425",
@@ -2298,7 +2298,7 @@
             "parts": [
               {
                 "label": "Total India tax (from Tax Computation)",
-                "amount": 49118.92746987952
+                "amount": 49131.89614457831
               },
               {
                 "label": "Creditable fraction",
@@ -2475,7 +2475,7 @@
             "parts": [
               {
                 "label": "Total India tax",
-                "amount": 49118.92746987952
+                "amount": 49131.89614457831
               },
               {
                 "label": "US-source income (India view)",
@@ -2483,7 +2483,7 @@
               },
               {
                 "label": "Total India-view income",
-                "amount": 151230.1204819277
+                "amount": 151266.26506024096
               }
             ],
             "citation": null
@@ -2520,7 +2520,7 @@
       "rows": [
         {
           "label": "Current-year income (before brought-forward loss set-off)",
-          "inr": 13350100,
+          "inr": 13350100.0,
           "trace": {
             "kind": "holdings",
             "section": "india",
@@ -2529,18 +2529,18 @@
         },
         {
           "label": "  \u2014 brought-forward STCG loss set off vs current STCG (s.111)",
-          "inr": -90000,
+          "inr": -90000.0,
           "trace": {
             "kind": "calc",
             "formula": "STCG loss is set off against current STCG first (s.111) \u2014 amount used is the lesser of the loss available and the current-year income in that bucket",
             "parts": [
               {
                 "label": "Brought-forward loss available",
-                "amount": 90000
+                "amount": 90000.0
               },
               {
                 "label": "Amount actually set off this year",
-                "amount": 90000
+                "amount": 90000.0
               }
             ],
             "citation": null
@@ -2548,18 +2548,18 @@
         },
         {
           "label": "Gross total income (after brought-forward loss set-off)",
-          "inr": 13260100,
+          "inr": 13260100.0,
           "trace": {
             "kind": "calc",
             "formula": "Current-year income before set-off, less all brought-forward losses set off above",
             "parts": [
               {
                 "label": "Before set-off",
-                "amount": 13350100
+                "amount": 13350100.0
               },
               {
                 "label": "Less: total losses set off",
-                "amount": -90000
+                "amount": -90000.0
               }
             ],
             "citation": null
@@ -2567,30 +2567,34 @@
         },
         {
           "label": "Chapter VI-A deductions",
-          "inr": -708000,
+          "inr": -705000.0,
           "trace": {
             "kind": "calc",
-            "formula": "Old regime: s.123 (cap \u20b91.5L) + s.124(1B) NPS (cap \u20b950k) + s.126 health insurance (cap \u20b975k) + employer NPS s.124(2) (uncapped) + s.153 savings interest (cap \u20b910k)",
+            "formula": "Old regime: s.123 incl. pension-fund / own NPS contributions (one \u20b91.5L cap) + s.124(1B) NPS (cap \u20b950k) + s.126 health insurance (\u20b925k/\u20b950k each for self and parents) + employer NPS s.124(2) (uncapped) + s.153 savings interest (cap \u20b910k) + the other Chapter VI-A deductions entered",
             "parts": [
               {
-                "label": "s.123 (capped \u20b91.5L)",
+                "label": "s.123 incl. pension / own NPS (capped \u20b91.5L)",
                 "amount": 150000
               },
               {
                 "label": "s.124(1B) NPS (capped \u20b950k)",
-                "amount": 50000
+                "amount": 50000.0
               },
               {
-                "label": "s.126 health insurance (capped \u20b975k)",
-                "amount": 73000
+                "label": "s.126 health insurance (per-person caps)",
+                "amount": 70000.0
               },
               {
                 "label": "Employer NPS s.124(2)",
-                "amount": 120000
+                "amount": 120000.0
               },
               {
                 "label": "s.153 savings interest (capped \u20b910k)",
                 "amount": 10000
+              },
+              {
+                "label": "Other Chapter VI-A (disability, medical treatment, education/home loan interest, donations, royalties, rent)",
+                "amount": 305000.0
               }
             ],
             "citation": null
@@ -2598,18 +2602,18 @@
         },
         {
           "label": "Total income",
-          "inr": 12552100,
+          "inr": 12555100.0,
           "trace": {
             "kind": "calc",
             "formula": "Gross total income less Chapter VI-A deductions",
             "parts": [
               {
                 "label": "Gross total income",
-                "amount": 13260100
+                "amount": 13260100.0
               },
               {
                 "label": "Less Chapter VI-A deductions",
-                "amount": -708000
+                "amount": -705000.0
               }
             ],
             "citation": null
@@ -2617,26 +2621,26 @@
         },
         {
           "label": "Tax at slab rates",
-          "inr": 3171630,
+          "inr": 3172530.0,
           "trace": {
             "kind": "calc",
-            "formula": "Progressive slab-rate tax under the OLD regime, applied to \u20b91,11,97,100 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
+            "formula": "Progressive slab-rate tax under the OLD regime, applied to \u20b91,12,00,100 of normal-rate income (salary, house property, business, other sources, after Chapter VI-A deductions and brought-forward loss set-off). Capital gains and other special-rate income are taxed separately, not at slab rates.",
             "parts": [
               {
                 "label": "0% on \u20b90\u2013\u20b92,50,000",
-                "amount": 0
+                "amount": 0.0
               },
               {
                 "label": "5% on \u20b92,50,000\u2013\u20b95,00,000",
-                "amount": 12500
+                "amount": 12500.0
               },
               {
                 "label": "20% on \u20b95,00,000\u2013\u20b910,00,000",
-                "amount": 100000
+                "amount": 100000.0
               },
               {
                 "label": "30% above \u20b910,00,000",
-                "amount": 3059130
+                "amount": 3060030.0
               }
             ],
             "citation": null
@@ -2644,7 +2648,7 @@
         },
         {
           "label": "Tax on special-rate income (196/197/198 gains + 115BBH VDA + 128/194 winnings)",
-          "inr": 237125,
+          "inr": 237125.0,
           "trace": {
             "kind": "calc",
             "formula": "s.196 STCG @ 20% + s.198 LTCG @ 12.5% (listed/STT-paid, net of the \u20b91,25,000 exemption) + s.197 LTCG @ 12.5% (unlisted/foreign \u2014 no exemption, separate section, does not pool with s.198's threshold) + s.115BBH VDA/crypto @ 30% flat (no set-off, ever) + s.128/194 lottery/betting/gaming winnings @ 30% flat, no exemption (each broken out below)",
@@ -2654,18 +2658,18 @@
         },
         {
           "label": "  \u2014 of which s.197 LTCG @ 12.5% (no exemption)",
-          "inr": 92500,
+          "inr": 92500.0,
           "trace": {
             "kind": "calc",
             "formula": "Same 12.5% rate as s.198, but NO \u20b91,25,000 exemption \u2014 that's textually specific to s.198's listed/STT-paid gains and doesn't pool with s.197, so this whole amount is taxable from the first rupee. Fed by: unlisted buy-back gains, foreign-equity gains (e.g. US stocks), unlisted bonds without STT, non-equity-oriented/non-specified mutual funds (debt MF acquired pre-Apr-2023, 35-65%-equity hybrid funds, international/FoF funds no longer meeting s.50AA's specified-fund test), and Chapter XII-A specified listed equity/debentures/government securities sold to a third party (s.115E's LTCG rate has no exemption either, unlike ordinary s.198) \u2014 all held >24 months, or >12 months for a listed bond, specified debenture/govt security, or specified listed equity",
             "parts": [
               {
                 "label": "s.197 LTCG (after loss set-off)",
-                "amount": 740000
+                "amount": 740000.0
               },
               {
                 "label": "Tax @ 12.5%, no exemption",
-                "amount": 92500
+                "amount": 92500.0
               }
             ],
             "citation": null
@@ -2673,18 +2677,18 @@
         },
         {
           "label": "  \u2014 of which s.115BBH VDA/crypto @ 30% flat",
-          "inr": 72000,
+          "inr": 72000.0,
           "trace": {
             "kind": "calc",
             "formula": "Virtual digital assets (crypto) are taxed at a flat 30% on positive gains only \u2014 no LTCG/STCG distinction, no holding-period threshold, no exemption or indexation, and crucially NO loss set-off is allowed at all, not even against a gain from a different VDA in the same year, and no carry-forward. Any losing VDA transaction is simply excluded, never netted against a gain",
             "parts": [
               {
                 "label": "VDA gains (losses excluded, never netted)",
-                "amount": 240000
+                "amount": 240000.0
               },
               {
                 "label": "Tax @ 30% flat",
-                "amount": 72000
+                "amount": 72000.0
               }
             ],
             "citation": null
@@ -2692,7 +2696,7 @@
         },
         {
           "label": "Less \u00a7156 rebate",
-          "inr": 0,
+          "inr": -0.0,
           "trace": {
             "kind": "calc",
             "formula": "Only for a resident individual (not NR, not HUF/AOP/BOI/trust) whose normal-rate income is at or below the threshold \u2014 lesser of tax at slab rates and the statutory cap",
@@ -2703,7 +2707,7 @@
               },
               {
                 "label": "Rebate actually allowed",
-                "amount": 0
+                "amount": 0.0
               }
             ],
             "citation": null
@@ -2711,14 +2715,14 @@
         },
         {
           "label": "Surcharge",
-          "inr": 511313.25,
+          "inr": 511448.25,
           "trace": {
             "kind": "calc",
             "formula": "Progressive surcharge (10%/15%/25%/37% bands by total income) on tax before cess, with marginal relief so the tax increase never exceeds the income increase over the threshold; capital-gains/dividend-type special-rate income is capped at a 15% surcharge rate",
             "parts": [
               {
                 "label": "Surcharge",
-                "amount": 511313.25
+                "amount": 511448.25
               }
             ],
             "citation": null
@@ -2726,18 +2730,18 @@
         },
         {
           "label": "Health & education cess (4%)",
-          "inr": 156802.73,
+          "inr": 156844.13,
           "trace": {
             "kind": "calc",
             "formula": "4% of (tax after rebate + surcharge)",
             "parts": [
               {
                 "label": "Tax after \u00a7156 rebate",
-                "amount": 3408755
+                "amount": 3409655.0
               },
               {
                 "label": "Surcharge",
-                "amount": 511313.25
+                "amount": 511448.25
               },
               {
                 "label": "Cess rate",
@@ -2749,7 +2753,7 @@
         },
         {
           "label": "Total India tax",
-          "inr": 4076870.98,
+          "inr": 4077947.38,
           "emphasis": true,
           "trace": {
             "kind": "calc",
@@ -2757,31 +2761,31 @@
             "parts": [
               {
                 "label": "Tax at slab rates",
-                "amount": 3171630
+                "amount": 3172530.0
               },
               {
                 "label": "Tax on special-rate income",
-                "amount": 237125
+                "amount": 237125.0
               },
               {
                 "label": "Less \u00a7156 rebate",
-                "amount": 0
+                "amount": -0.0
               },
               {
                 "label": "Surcharge",
-                "amount": 511313.25
+                "amount": 511448.25
               },
               {
                 "label": "Cess",
-                "amount": 156802.73
+                "amount": 156844.13
               }
             ],
             "citation": null
           }
         }
       ],
-      "totalUsd": 49118.92746987952,
-      "effectiveRate": 0.32479592896806114
+      "totalUsd": 49131.89614457831,
+      "effectiveRate": 0.3248040541293976
     },
     "us": {
       "title": "US federal income tax (SINGLE)",
@@ -3308,7 +3312,7 @@
     "usStatus": "NON_RESIDENT_ALIEN",
     "dualResident": false,
     "totalIncomeUsd": 162085.5421686747,
-    "indiaTaxUsd": 48902.78289156626,
+    "indiaTaxUsd": 48915.75156626506,
     "usTaxUsd": 0,
     "netDoubleTaxUsd": 0,
     "counts": {

@@ -288,7 +288,8 @@
       },
       "s80D": {
         "self_family_premium_inr": 28000,
-        "parents_premium_inr": 45000
+        "parents_premium_inr": 45000,
+        "parents_are_senior": true
       },
       "s80DDB": {
         "has_specified_diseases_treatment": true,

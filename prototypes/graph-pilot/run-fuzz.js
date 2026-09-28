@@ -1070,6 +1070,15 @@ function isIndiaSalaryExemptionProfile(dag) {
   // real amount fix, same cascade shape as the exemption fix above.
   return sd.overridden === false || sd.taxableSalaryInr === 0;
 }
+// Chapter VI-A rules (27 Sep 2026): s.80D per-person caps with checkups and
+// senior-parent medical bills, s.80CCE bundling of s.80CCC/80CCD(1) and
+// stamp duty, s.80QQB/80RRB, s.80G — plus the deduction trace now listing
+// them (its wording differs for every OLD-regime profile). Same cascade as
+// the salary exemption fix.
+function isIndiaChapterVIARulesProfile(dag) {
+  var t = dag.computed && dag.computed.indiaTax;
+  return !!t && t.regime === "OLD";
+}
 var KNOWN_INDIA_SALARY_EXEMPTION_DIVERGENT_PATHS = [
   "model.income.india", "computed.indiaTax", "computed.ftc", "computed.headline", "computed.reconciliation",
   "computed.apportionment", "taxComputation.india", "ftcReport", "withholding", "monitoring",
@@ -1310,7 +1319,7 @@ function compareOne(label, profile, saveOnFail) {
   var feieStackingRuleDivergent = isFeieStackingRuleDivergentProfile(dag);
   var qbiWageUbiaDivergent = isQbiWageUbiaLimitDivergentProfile(real);
   var indiaRebateDivergent = isIndiaRebateMarginalReliefDivergentProfile(dag);
-  var indiaSalaryExemption = isIndiaSalaryExemptionProfile(dag);
+  var indiaSalaryExemption = isIndiaSalaryExemptionProfile(dag) || isIndiaChapterVIARulesProfile(dag);
   var nraTreatyRateFieldRenameDivergent = isNraTreatyRateFieldRenameDivergentProfile(profile);
   var dagRes = dag.computed && dag.computed.residency;
   var isNotUsPerson = !usEntity && !!dagRes && !(dagRes.us && dagRes.us.isResident);

@@ -110,13 +110,11 @@ def _compute_company_residency_result(d, ctx):
 
 
 def _compute_treaty_model_result(d, ctx):
+    from ..india.form_rules import trc_on_file
     india = ctx.get("india")
     us = ctx.get("us")
     return {
-        "trcStatus": (
-            safe(india, "dtaa.trc_status", False) is True or
-            safe(india, "compliance_docs.trc.document_uploaded", False) is True
-        ),
+        "trcStatus": trc_on_file(india, ctx.get("router")),
         "form10fFiled": safe(india, "compliance_docs.form_10f.is_filed", False) is True,
         "treatyResidence": safe(india, "dtaa.dtaa_treaty_residence", "none"),
         "dtaaForcedNr": safe(india, "dtaa.dtaa_forced_nr", False) is True,

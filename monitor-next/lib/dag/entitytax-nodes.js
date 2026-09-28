@@ -101,12 +101,24 @@ var NODES = {
 
   // ---- the one boundary input: the entity's total India income -----------
   entityTaxableInrBoundary: { deps: [], compute: function (d, ctx) { return num(ctx.model.income.india.total && ctx.model.income.india.total.inr); } },
+  // Chapter VI-A deductions an entity claims on Layer 1 India: s.80IAC
+  // (eligible start-up), s.80LA (IFSC / offshore banking unit), s.80P (co-
+  // operative society) and s.80M (dividends passed on, up to the dividends
+  // the company itself received). Under s.115BAA/115BAB only s.80M survives.
+  entityChapterVIADeductionsInr: { deps: ["indiaOpt115baa", "indiaOpt115bab"], compute: function (d, ctx) {
+    var ded = safe(ctx.india, "deductions", {}) || {};
+    var dividendInr = num(ctx.model && ctx.model.income && ctx.model.income.india && ctx.model.income.india.dividend && ctx.model.income.india.dividend.inr);
+    var s80m = Math.min(num(safe(ded, "s80M.dividend_inr", 0)), dividendInr);
+    if (d.indiaOpt115baa || d.indiaOpt115bab) return s80m;
+    return num(ded.s80IAC_inr) + num(ded.s80LA_inr) + num(ded.s80P_inr) + s80m;
+  } },
 
   entityTaxResult: {
     deps: ["indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "isIndianCompanyFact", "indiaOpt115baa", "indiaOpt115bab", "indiaOpt115ba",
-      "indiaTurnoverLte400cr", "indiaMatBookProfitInr", "hasIndiaPE", "entityTaxableInrBoundary"],
+      "indiaTurnoverLte400cr", "indiaMatBookProfitInr", "hasIndiaPE", "entityTaxableInrBoundary", "entityChapterVIADeductionsInr"],
     compute: function (d) {
-      var taxable = Math.max(0, d.entityTaxableInrBoundary); // a loss is carried forward, never a negative tax
+      // a loss is carried forward, never a negative tax
+      var taxable = Math.max(0, d.entityTaxableInrBoundary - d.entityChapterVIADeductionsInr);
 
       function entityResult(base, sur, cess, label, mat) {
         var total = base + sur + cess;

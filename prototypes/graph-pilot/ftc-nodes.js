@@ -231,6 +231,10 @@ var NODES = {
   indiaSalaryWorkBasisBoundaryFtc: { deps: [], compute: function (d, ctx) { return safe(ctx.model.income.india, "salaryWorkLocation.basis", null); } },
   indiaSalaryNotChargeableTaxUsdBoundaryFtc: { deps: [], compute: function () { return 0; } },
   otherCountryFtcEntriesRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "foreign_tax_credit_other.entries", []) || []; } },
+  // Layer 1 US's own FTC section: prior-year carryovers, and the §904
+  // baskets a preparer fills in (mostly Indian tax, per the form's tips).
+  ftcPriorCarryoverUsdRaw: { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "ftc_inputs.prior_year_carryovers_usd", 0)); } },
+  ftcBasketEntriesRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "ftc_inputs.ftc_baskets", []) || []; } },
 
   // ---- Direction 1: US Form 1116 — credit for Indian (+ other-country)
   // taxes, split by §904 basket -------------------------------------------
@@ -240,7 +244,7 @@ var NODES = {
       "usTaxableIncomeUsdBoundaryFtc", "usIncomeTaxUsdBoundaryFtc", "indiaTotalTaxUsdBoundaryFtc",
       "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw", "indiaSalaryOutsideIndiaUsdBoundaryFtc",
       "usIncomeInIndiaUsdBoundaryFtc", "indiaTotalIncomeUsdBoundaryFtc", "indiaSalaryNotChargeableUsdBoundaryFtc",
-      "indiaSalaryNotChargeableTaxUsdBoundaryFtc", "indiaSalaryWorkBasisBoundaryFtc"],
+      "indiaSalaryNotChargeableTaxUsdBoundaryFtc", "indiaSalaryWorkBasisBoundaryFtc", "ftcPriorCarryoverUsdRaw", "ftcBasketEntriesRaw"],
     compute: function (d) {
       // usIsNraBoundaryFtc / !hasUsScopeBoundaryFtc: the pre-existing zeroing
       // conditions (XB-24). !usWorldwideBoundaryFtc: the fix above — ceded
@@ -280,8 +284,19 @@ var NODES = {
       var usWorkSalaryUsd = Math.min(d.indiaSalaryOutsideIndiaUsdBoundaryFtc, d.indiaGeneralIncomeUsdBoundaryFtc);
       var indiaTaxOnUsWorkSalaryUsd = indiaIncomeTotalUsd > 0 ? indiaTotalTaxUsd * (Math.max(0, usWorkSalaryUsd - notChargeableUsd) / indiaIncomeTotalUsd) : 0;
 
-      var otherPassive = sumOtherCountries(d.otherCountryFtcEntriesRaw, "passive");
-      var otherGeneral = sumOtherCountries(d.otherCountryFtcEntriesRaw, "general");
+      // Basket entries on Layer 1 US count only when the India side supplies
+      // no Indian tax (e.g. a US-only preparer entering the client's Indian
+      // tax there) — otherwise the engine's own India tax already covers it
+      // and they'd be counted twice. §901(j) (sanctioned-country) income gets
+      // no credit; treaty-resourced income is treated as general.
+      var otherEntries = d.otherCountryFtcEntriesRaw;
+      if (!(indiaTotalTaxUsd > 0)) {
+        otherEntries = otherEntries.concat((d.ftcBasketEntriesRaw || []).filter(function (b) { return b && b.basket_type !== "section_901j"; }).map(function (b) {
+          return { basket: b.basket_type === "passive" ? "passive" : "general", foreign_source_income_usd: num(b.gross_foreign_income_usd), foreign_tax_paid_usd: num(b.foreign_taxes_paid_usd) };
+        }));
+      }
+      var otherPassive = sumOtherCountries(otherEntries, "passive");
+      var otherGeneral = sumOtherCountries(otherEntries, "general");
 
       var passiveSrcGrossUsd = d.indiaPassiveIncomeUsdBoundaryFtc + otherPassive.incomeUsd;
       var generalSrcGrossUsd = d.indiaGeneralIncomeUsdBoundaryFtc - usWorkSalaryUsd + otherGeneral.incomeUsd;
@@ -290,6 +305,13 @@ var NODES = {
 
       var passive = computeUsBasket(passiveSrcGrossUsd, 0, passiveTaxPaidGrossUsd, usTaxableUsd, usIncomeTaxUsd, zeroed);
       var general = computeUsBasket(generalSrcGrossUsd, feieExcludedUsd, generalTaxPaidGrossUsd, usTaxableUsd, usIncomeTaxUsd, zeroed);
+      // Prior-year carryover (Layer 1 US, one figure): used in whatever §904
+      // room this year's own credit leaves, general basket first.
+      var priorCarryUsd = zeroed ? 0 : Math.max(0, d.ftcPriorCarryoverUsdRaw || 0), priorUsedUsd = 0;
+      [general, passive].forEach(function (b) {
+        var use = Math.min(priorCarryUsd - priorUsedUsd, Math.max(0, b.ftcLimitUsd - b.ftcAllowedUsd));
+        if (use > 0) { b.ftcAllowedUsd += use; priorUsedUsd += use; }
+      });
 
       return {
         // Combined totals — the REAL basket-separated result (not a re-run
@@ -310,6 +332,7 @@ var NODES = {
         carryoverUsd: passive.carryoverUsd + general.carryoverUsd,
         residualDoubleTaxUsd: passive.carryoverUsd + general.carryoverUsd,
         baskets: { passive: passive, general: general },
+        priorYearCarryoverUsedUsd: priorCarryUsd > 0 ? priorUsedUsd : undefined,
         otherCountries: d.otherCountryFtcEntriesRaw,
         // India salary for US-performed work, and the Indian tax on it —
         // excluded from the credit above (not foreign-source); recoverable,

@@ -179,6 +179,15 @@
         REBATE_87A_OLD: { incomeCap: 500000, maxRebate: 12500 },
         // Chapter VI-A caps (OLD regime). NEW regime disallows most of these.
         DEDUCTION_CAPS_OLD: { s80C: 150000, s80CCD1B: 50000, s80D_self: 25000, s80D_parents_senior: 50000 },
+        // s.80D per-person caps (senior = 60+ at the end of the year), the
+        // ₹5,000 preventive-checkup sub-limit (within those caps, self +
+        // parents combined), s.80QQB/80RRB royalty caps, s.80G's qualifying
+        // limit (10% of adjusted gross total income), and the loss carry-
+        // forward windows (ss.72/74/71B: 8 years; s.73 speculative: 4).
+        S80D_CAPS: { selfNonSenior: 25000, selfSenior: 50000, parentsNonSenior: 25000, parentsSenior: 50000, preventiveCheckup: 5000 },
+        S80QQB_RRB_CAP_INR: 300000,
+        S80G_QUALIFYING_LIMIT_RATE: 0.10,
+        LOSS_CARRY_FORWARD_YEARS: { general: 8, speculative: 4 },
         // Special rates (post 23-Jul-2024)
         STCG_111A_RATE: 0.20,
         LTCG_112A_RATE: 0.125,
@@ -379,6 +388,9 @@
         SE_RATE_SS: 0.124,              // Social Security portion (capped)
         SE_RATE_MEDICARE: 0.029,        // Medicare portion (uncapped)
         SS_WAGE_BASE_USD: 184500,       // TY2026 Social Security wage base
+        // §129 dependent-care exclusion (W-2 Box 10): $5,000; $7,500 from TY2026 (OBBBA).
+        DEPENDENT_CARE_EXCLUSION_USD: 5000,
+        DEPENDENT_CARE_EXCLUSION_2026_USD: 7500,
         // ---- Qualified Business Income deduction (§199A), TY2026 ----
         // OBBBA widened the phase-in range itself (structural change, not just
         // inflation indexing) starting TY2026: $75,000 single/HoH/MFS and

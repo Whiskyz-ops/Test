@@ -877,7 +877,7 @@
       deductions: {
         s80C: { epf_employee_inr: 150000, elss_inr: 50000, life_insurance_premium_inr: 35000, tuition_fees_inr: 60000 },
         s80CCD_1B: { nps_additional_inr: 50000 },
-        s80D: { self_family_premium_inr: 28000, parents_premium_inr: 45000 },
+        s80D: { self_family_premium_inr: 28000, parents_premium_inr: 45000, parents_are_senior: true },
         s80DDB: { has_specified_diseases_treatment: true, medical_expenses_inr: 55000, patient_category: "senior" },
         s80E: { education_loan_interest_inr: 85000 },
         s80EEA_EE: { affordable_home_loan_interest_inr: 140000, loan_sanction_date: "2020-06-15" },

@@ -290,13 +290,19 @@ NODES.buildTaxComputationIndiaResult = {
       ? calc("New regime allows only the employer's NPS contribution under s.124(2) — s.123/126/124(1B)/153 etc. are not available", [
           { label: "Employer NPS contribution (s.124(2))", amount: dedIndia.s80CCD2_employer || 0 }
         ])
-      : calc("Old regime: s.123 (cap ₹1.5L) + s.124(1B) NPS (cap ₹50k) + s.126 health insurance (cap ₹75k) + employer NPS s.124(2) (uncapped) + s.153 savings interest (cap ₹10k)", [
-          { label: "s.123 (capped ₹1.5L)", amount: Math.min(dedIndia.s80C || 0, T.DEDUCTION_CAPS_OLD.s80C) },
-          { label: "s.124(1B) NPS (capped ₹50k)", amount: Math.min(dedIndia.s80CCD1B || 0, T.DEDUCTION_CAPS_OLD.s80CCD1B) },
-          { label: "s.126 health insurance (capped ₹75k)", amount: Math.min(dedIndia.s80D || 0, T.DEDUCTION_CAPS_OLD.s80D_self + T.DEDUCTION_CAPS_OLD.s80D_parents_senior) },
-          { label: "Employer NPS s.124(2)", amount: dedIndia.s80CCD2_employer || 0 },
-          { label: "s.153 savings interest (capped ₹10k)", amount: Math.min(dedIndia.s80TTA_TTB || 0, 10000) }
-        ]);
+      : calc("Old regime: s.123 incl. pension-fund / own NPS contributions (one ₹1.5L cap) + s.124(1B) NPS (cap ₹50k) + s.126 health insurance (₹25k/₹50k each for self and parents) + employer NPS s.124(2) (uncapped) + s.153 savings interest (cap ₹10k) + the other Chapter VI-A deductions entered", (function () {
+          var rows = [
+            { label: "s.123 incl. pension / own NPS (capped ₹1.5L)", amount: Math.min(dedIndia.s80C || 0, T.DEDUCTION_CAPS_OLD.s80C) },
+            { label: "s.124(1B) NPS (capped ₹50k)", amount: Math.min(dedIndia.s80CCD1B || 0, T.DEDUCTION_CAPS_OLD.s80CCD1B) },
+            { label: "s.126 health insurance (per-person caps)", amount: dedIndia.s80D || 0 },
+            { label: "Employer NPS s.124(2)", amount: dedIndia.s80CCD2_employer || 0 },
+            { label: "s.153 savings interest (capped ₹10k)", amount: Math.min(dedIndia.s80TTA_TTB || 0, 10000) }
+          ];
+          var shown = rows.reduce(function (t, r) { return t + r.amount; }, 0);
+          var rest = (d.deductionsInrV3 || 0) - shown;
+          if (rest > 0.5) rows.push({ label: "Other Chapter VI-A (disability, medical treatment, education/home loan interest, donations, royalties, rent)", amount: rest });
+          return rows;
+        })());
     // Layer 1 India's own step-gating (layer1_india.html's switchStep(),
     // 'step-deductions' only isAllowed when profile.tax_regime === 'OLD')
     // hides the entire Chapter VI-A entry step for a NEW-regime taxpayer —

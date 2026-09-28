@@ -211,8 +211,7 @@ NODES.treatyModelResult = {
   compute: function (d, ctx) {
     var india = ctx.india, us = ctx.us;
     return {
-      trcStatus: safe(india, "dtaa.trc_status", false) === true ||
-                 safe(india, "compliance_docs.trc.document_uploaded", false) === true,
+      trcStatus: require("./india-compliance.js").trcOnFile(india, ctx.router),
       form10fFiled: safe(india, "compliance_docs.form_10f.is_filed", false) === true,
       treatyResidence: safe(india, "dtaa.dtaa_treaty_residence", "none"),
       dtaaForcedNr: safe(india, "dtaa.dtaa_forced_nr", false) === true,

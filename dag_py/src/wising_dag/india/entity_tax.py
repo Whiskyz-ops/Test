@@ -30,8 +30,17 @@ def _entity_result(base: float, sur: float, cess: float, label: str, mat: bool) 
     return {"regime": label, "matApplied": mat, "totalTaxInr": total, "slabTaxInr": base, "surchargeInr": sur, "cessInr": cess}
 
 
+def _entity_chapter_via_deductions_inr(d, ctx):
+    ded = safe(ctx.get("india"), "deductions", {}) or {}
+    dividend_inr = num(safe(ctx, "model.income.india.dividend.inr", None))
+    s80m = min(num(safe(ded, "s80M.dividend_inr", 0)), dividend_inr)
+    if d["indiaOpt115baa"] or d["indiaOpt115bab"]:
+        return s80m
+    return num(ded.get("s80IAC_inr")) + num(ded.get("s80LA_inr")) + num(ded.get("s80P_inr")) + s80m
+
+
 def _compute_entity_tax_result(d, ctx):
-    taxable = max(0.0, d["entityTaxableInrBoundary"])  # a loss is carried forward, never a negative tax
+    taxable = max(0.0, d["entityTaxableInrBoundary"] - d["entityChapterVIADeductionsInr"])  # a loss is carried forward, never a negative tax
 
     if d["indiaIsAop"]:
         aop_base = taxable * INDIA_MMR_TOP_SLAB_RATE
@@ -117,11 +126,18 @@ NODES = {
         compute=lambda d, ctx: num(safe(ctx, "model.income.india.total.inr", None)),
     ),
 
+    # s.80IAC / 80LA / 80P / 80M (dividends passed on, up to dividends
+    # received) — only s.80M under s.115BAA/115BAB. Mirrors entitytax-nodes.js.
+    "entityChapterVIADeductionsInr": NodeDef(
+        deps=("indiaOpt115baa", "indiaOpt115bab"),
+        compute=_entity_chapter_via_deductions_inr,
+        layer1_fields=("india.deductions.s80IAC_inr", "india.deductions.s80LA_inr", "india.deductions.s80P_inr", "india.deductions.s80M.dividend_inr"),
+    ),
     "entityTaxResult": NodeDef(
         deps=(
             "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "isIndianCompanyFact",
             "indiaOpt115baa", "indiaOpt115bab", "indiaOpt115ba", "indiaTurnoverLte400cr",
-            "indiaMatBookProfitInr", "hasIndiaPE", "entityTaxableInrBoundary",
+            "indiaMatBookProfitInr", "hasIndiaPE", "entityTaxableInrBoundary", "entityChapterVIADeductionsInr",
         ),
         compute=_compute_entity_tax_result,
     ),

@@ -65,6 +65,8 @@ US = {
     "SE_RATE_SS": 0.124,
     "SE_RATE_MEDICARE": 0.029,
     "SS_WAGE_BASE_USD": 184500,
+    "DEPENDENT_CARE_EXCLUSION_USD": 5000,
+    "DEPENDENT_CARE_EXCLUSION_2026_USD": 7500,
     "QBI_RATE": 0.20,
     "QBI_THRESHOLD": {"single": 201750, "mfj": 403500, "mfs": 201750, "hoh": 201750},
     "QBI_PHASEIN": {"single": 75000, "mfj": 150000, "mfs": 75000, "hoh": 75000},

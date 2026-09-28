@@ -109,8 +109,17 @@ def _ftc_us_direction(d, ctx):
     us_work_salary_usd = min(d["indiaSalaryOutsideIndiaUsdBoundaryFtc"], d["indiaGeneralIncomeUsdBoundaryFtc"])
     india_tax_on_us_work_salary_usd = india_total_tax_usd * (max(0, us_work_salary_usd - not_chargeable_usd) / india_income_total_usd) if india_income_total_usd > 0 else 0
 
-    other_passive = _sum_other_countries(d["otherCountryFtcEntriesRaw"], "passive")
-    other_general = _sum_other_countries(d["otherCountryFtcEntriesRaw"], "general")
+    # Layer 1 US FTC baskets count only when the India side supplies no
+    # Indian tax (mirrors ftc-nodes.js); §901(j) gets no credit.
+    other_entries = list(d["otherCountryFtcEntriesRaw"])
+    if not india_total_tax_usd > 0:
+        for b in d.get("ftcBasketEntriesRaw") or []:
+            if not b or b.get("basket_type") == "section_901j":
+                continue
+            other_entries.append({"basket": "passive" if b.get("basket_type") == "passive" else "general",
+                                  "foreign_source_income_usd": num(b.get("gross_foreign_income_usd")), "foreign_tax_paid_usd": num(b.get("foreign_taxes_paid_usd"))})
+    other_passive = _sum_other_countries(other_entries, "passive")
+    other_general = _sum_other_countries(other_entries, "general")
 
     passive_src_gross_usd = d["indiaPassiveIncomeUsdBoundaryFtc"] + other_passive["incomeUsd"]
     general_src_gross_usd = d["indiaGeneralIncomeUsdBoundaryFtc"] - us_work_salary_usd + other_general["incomeUsd"]
@@ -119,6 +128,14 @@ def _ftc_us_direction(d, ctx):
 
     passive = _compute_us_basket(passive_src_gross_usd, 0, passive_tax_paid_gross_usd, us_taxable_usd, us_income_tax_usd, zeroed)
     general = _compute_us_basket(general_src_gross_usd, feie_excluded_usd, general_tax_paid_gross_usd, us_taxable_usd, us_income_tax_usd, zeroed)
+    # Prior-year carryover: used in this year's leftover §904 room, general first.
+    prior_carry_usd = 0 if zeroed else max(0.0, d.get("ftcPriorCarryoverUsdRaw") or 0)
+    prior_used_usd = 0.0
+    for b in (general, passive):
+        use = min(prior_carry_usd - prior_used_usd, max(0.0, b["ftcLimitUsd"] - b["ftcAllowedUsd"]))
+        if use > 0:
+            b["ftcAllowedUsd"] += use
+            prior_used_usd += use
 
     combined_src_usd = passive["foreignSourceIncomeUsd"] + general["foreignSourceIncomeUsd"]
     return {
@@ -140,6 +157,7 @@ def _ftc_us_direction(d, ctx):
         "carryoverUsd": passive["carryoverUsd"] + general["carryoverUsd"],
         "residualDoubleTaxUsd": passive["carryoverUsd"] + general["carryoverUsd"],
         "baskets": {"passive": passive, "general": general},
+        **({"priorYearCarryoverUsedUsd": prior_used_usd} if prior_carry_usd > 0 else {}),
         "otherCountries": d["otherCountryFtcEntriesRaw"],
         # India salary for US-performed work, and the Indian tax on it —
         # excluded from the credit above; an India DTAA Art. 16 refund claim.
@@ -259,6 +277,8 @@ NODES = {
     # How the salary's work location was decided — see ftc-nodes.js.
     "indiaSalaryWorkBasisBoundaryFtc": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.income.india.salaryWorkLocation.basis", None)),
     "otherCountryFtcEntriesRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "foreign_tax_credit_other.entries", []) or []),
+    "ftcPriorCarryoverUsdRaw": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "ftc_inputs.prior_year_carryovers_usd", 0))),
+    "ftcBasketEntriesRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "ftc_inputs.ftc_baskets", []) or []),
 
     "ftcUsDirection": NodeDef(
         deps=("feieExcludedUsdBoundaryFtc", "usIsNraBoundaryFtc", "hasUsScopeBoundaryFtc", "usWorldwideBoundaryFtc",
@@ -266,7 +286,7 @@ NODES = {
               "usTaxableIncomeUsdBoundaryFtc", "usIncomeTaxUsdBoundaryFtc", "indiaTotalTaxUsdBoundaryFtc",
               "foreignWagesTaxPaidUsdBoundaryFtc", "otherCountryFtcEntriesRaw", "indiaSalaryOutsideIndiaUsdBoundaryFtc",
               "usIncomeInIndiaUsdBoundaryFtc", "indiaTotalIncomeUsdBoundaryFtc", "indiaSalaryNotChargeableUsdBoundaryFtc",
-              "indiaSalaryNotChargeableTaxUsdBoundaryFtc", "indiaSalaryWorkBasisBoundaryFtc"),
+              "indiaSalaryNotChargeableTaxUsdBoundaryFtc", "indiaSalaryWorkBasisBoundaryFtc", "ftcPriorCarryoverUsdRaw", "ftcBasketEntriesRaw"),
         compute=_ftc_us_direction,
     ),
     "ftcIndiaDirection": NodeDef(

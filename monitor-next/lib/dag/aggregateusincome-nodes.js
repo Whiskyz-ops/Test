@@ -240,6 +240,45 @@ function aggregateAssetDepreciationUsd(businesses, baseYear) {
   });
   return { byBusiness: byBusiness };
 }
+// Layer 1 US saves some amounts where no tax node looked:
+//  - a partnership / S-corp K-1 split into branches keeps each branch's
+//    boxes on branches[] (the parent's own boxes hold only its own part), so
+//    every numeric *_usd branch amount is added to the parent K-1;
+//  - dividends a C-corporation the client owns paid to the client
+//    ("Dividends Paid to You") are the client's dividend income.
+// Returns a copy; the saved data is untouched.
+function foldUsIncomeSource(ui) {
+  if (!ui || typeof ui !== "object") return ui || {};
+  var out = Object.assign({}, ui);
+  ["partnerships_k1", "s_corporations_k1"].forEach(function (listKey) {
+    if (!Array.isArray(ui[listKey])) return;
+    out[listKey] = ui[listKey].map(function (k) {
+      var brs = (k && Array.isArray(k.branches)) ? k.branches : [];
+      if (!brs.length) return k;
+      var m = Object.assign({}, k);
+      brs.forEach(function (br) {
+        Object.keys(br || {}).forEach(function (key) {
+          if (!/_usd$/.test(key) || typeof br[key] !== "number" || !br[key]) return;
+          var target = key === "ordinary_income_usd" && m.ordinary_business_income_usd != null ? "ordinary_business_income_usd" : key;
+          m[target] = num(m[target]) + br[key];
+        });
+      });
+      return m;
+    });
+  });
+  var ccorpDivUsd = 0, ccorpQualUsd = 0;
+  (Array.isArray(ui.c_corporations_1120) ? ui.c_corporations_1120 : []).forEach(function (c) {
+    var dv = num(c && c.dividends_paid_usd);
+    if (!(dv > 0)) return;
+    ccorpDivUsd += dv;
+    if ((c.dividend_type || "qualified") === "qualified") ccorpQualUsd += dv;
+  });
+  if (ccorpDivUsd > 0) {
+    out.ordinary_dividends_us_source_usd = num(ui.ordinary_dividends_us_source_usd) + ccorpDivUsd;
+    out.qualified_dividends_us_source_usd = num(ui.qualified_dividends_us_source_usd) + ccorpQualUsd;
+  }
+  return out;
+}
 function k1PassiveIncomeUsd(k) {
   return {
     interestUsd: num(k.interest_income_usd), ordDivUsd: num(k.ordinary_dividends_usd), qualDivUsd: num(k.qualified_dividends_usd),
@@ -387,7 +426,7 @@ var NODES = {
 
   baseYearUsAgg: { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "metadata.us_calendar_year", 2025)) || 2025; } },
 
-  uiAgg: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "income_us_source", {}); } },
+  uiAgg: { deps: [], compute: function (d, ctx) { return foldUsIncomeSource(safe(ctx.us, "income_us_source", {})); } },
   fiAgg: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "income_foreign_source", {}); } },
 
   // W-2 work location for a non-resident alien. An NRA is taxed by the US
@@ -442,15 +481,17 @@ var NODES = {
   },
 
   wagesComputation: {
-    deps: ["uiAgg"],
+    deps: ["uiAgg", "baseYearUsAgg"],
     compute: function (d) {
-      var wages = 0, w2with = 0, medicareWages = 0, qualifiedTipsUsd = 0, qualifiedOvertimeUsd = 0;
+      var wages = 0, w2with = 0, medicareWages = 0, qualifiedTipsUsd = 0, qualifiedOvertimeUsd = 0, dependentCareUsd = 0;
       var w2Employers = [];
       var w2 = safe(d.uiAgg, "wages_w2", null);
       if (Array.isArray(w2)) {
         w2.forEach(function (w) {
-          var wagesUsd = num(w.wages_box1_usd || w.wages_tips_compensation_usd || 0);
+          // Box 8 allocated tips are wages the employer left out of Box 1.
+          var wagesUsd = num(w.wages_box1_usd || w.wages_tips_compensation_usd || 0) + num(w.allocated_tips_box8_usd);
           wages += wagesUsd;
+          dependentCareUsd += num(w.dependent_care_benefits_box10_usd);
           var adv = w.tax_details_collapsed_by_default || w;
           var fedWithUsd = num(adv.federal_tax_withheld_usd || adv.federal_income_tax_withheld_usd || 0);
           w2with += fedWithUsd;
@@ -462,6 +503,10 @@ var NODES = {
           w2Employers.push({ employerName: w.employer_name || null, wagesUsd: wagesUsd, federalWithheldUsd: fedWithUsd, stateWithheldUsd: stateWithUsd });
         });
       }
+      // Box 10 dependent-care benefits above the §129 exclusion (per return)
+      // are taxable wages (Form 2441 Part III).
+      var dcCap = d.baseYearUsAgg >= 2026 ? CONST_AGGUS.TAX.US.DEPENDENT_CARE_EXCLUSION_2026_USD : CONST_AGGUS.TAX.US.DEPENDENT_CARE_EXCLUSION_USD;
+      wages += Math.max(0, dependentCareUsd - dcCap);
       return { wagesUsd: wages, w2WithholdingUsd: w2with, w2Employers: w2Employers, medicareWagesUsd: medicareWages, qualifiedTipsUsd: qualifiedTipsUsd, qualifiedOvertimeUsd: qualifiedOvertimeUsd };
     }
   },

@@ -15,6 +15,7 @@ from ..core.graph import NodeDef
 from ..core.util import dtaa_worldwide_ceded, js_round, num, safe
 from . import constants as C
 from .house_property import compute_house_property, house_property_opts
+from .form_rules import esop_perquisite_inr
 from .business_expenses import branch_turnover_inr, business_expense_opts, disallowance_slices_inr, regular_books_expenses
 
 ASSET_CLASS_RATES_INDIA = C.INDIA["ASSET_CLASS_RATES_INDIA"]
@@ -290,6 +291,8 @@ def _business_computation(d, ctx):
         # alongside the entry's other income below, gated the same way s.35AD is.
         tonnage_tax_inr += num(b.get("tonnage_tax_115V_inr"))
     business_inr += _compute_goods_vehicle_presumptive_inr(d["goodsVehiclesAgg"])
+    # s.41: a trading liability written back / a bad debt recovered is income.
+    business_inr += num(safe(d["diAgg"], "business_income.s41_remission_income_inr", 0)) + num(safe(d["diAgg"], "business_income.s41_bad_debt_recovery_inr", 0))
     business_inr += d["fnoIncomeInrAgg"]
     india_has_partner_firm_income = False
     for firm in d["partnerFirmsAgg"] or []:
@@ -582,7 +585,7 @@ def _salary_income_computation(d, ctx):
 
     gross_salary_inr = (
         num(safe(sal, "gross_salary_inr", 0)) + num(safe(sal, "perquisites_inr", 0)) +
-        num(safe(sal, "esop_perquisite_inr", 0)) + num(safe(sal, "prior_employer_salary_inr", 0))
+        esop_perquisite_inr(sal) + num(safe(sal, "prior_employer_salary_inr", 0))
     )
 
     std_deduction_inr = C.INDIA["STD_DEDUCTION_SALARY_NEW_INR"] if is_new_regime else C.INDIA["STD_DEDUCTION_SALARY_OLD_INR"]
@@ -683,7 +686,7 @@ def _salary_work_location(d, ctx):
     answered = False
     estimated = False
     for sal in slices:
-        g = num(sal.get("gross_salary_inr")) + num(sal.get("perquisites_inr")) + num(sal.get("esop_perquisite_inr")) + num(sal.get("prior_employer_salary_inr"))
+        g = num(sal.get("gross_salary_inr")) + num(sal.get("perquisites_inr")) + esop_perquisite_inr(sal) + num(sal.get("prior_employer_salary_inr"))
         share = 1
         if auto:
             share = auto[0]

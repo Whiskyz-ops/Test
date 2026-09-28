@@ -45,6 +45,14 @@ function monthsBetween(fromStr, toStr) {
 }
 /* SYS-1: shared import (promoted into constants.js from normalize-local). */
 var CONST_AGGIN = require("./constants.js").CONST;
+// ESOP perquisite: the salary section's total when entered, else the sum of
+// the ESOP event rows' perquisite values (entering only the events used to
+// leave the perquisite out of salary altogether).
+function esopPerquisiteInr(sal) {
+  var total = safe(sal, "esop_perquisite_inr", null);
+  if (total !== null && total !== "" && num(total) !== 0) return num(total);
+  return (safe(sal, "esop_perquisite_events", []) || []).reduce(function (s, ev) { return s + num(ev && ev.perquisite_value_inr); }, 0);
+}
 var regularBooksExpenses = require("./business-expenses.js").regularBooksExpenses;
 var disallowanceSlicesInr = require("./business-expenses.js").disallowanceSlicesInr;
 var branchTurnoverInr = require("./business-expenses.js").branchTurnoverInr;
@@ -247,7 +255,7 @@ var NODES = {
       var C = CONST_AGGIN.TAX.INDIA;
 
       var grossSalaryInr = num(safe(sal, "gross_salary_inr", 0)) + num(safe(sal, "perquisites_inr", 0)) +
-        num(safe(sal, "esop_perquisite_inr", 0)) + num(safe(sal, "prior_employer_salary_inr", 0));
+        esopPerquisiteInr(sal) + num(safe(sal, "prior_employer_salary_inr", 0));
 
       var stdDeductionInr = isNewRegime ? C.STD_DEDUCTION_SALARY_NEW_INR : C.STD_DEDUCTION_SALARY_OLD_INR;
 
@@ -326,7 +334,7 @@ var NODES = {
       var presenceShare = indiaDays !== null && usDays !== null && indiaDays + usDays > 0 && indiaDays + usDays <= 366 ? indiaDays / (indiaDays + usDays) : null;
       var grossInr = 0, indiaWorkGrossInr = 0, answered = false, estimated = false;
       slices.forEach(function (sal) {
-        var g = num(sal.gross_salary_inr) + num(sal.perquisites_inr) + num(sal.esop_perquisite_inr) + num(sal.prior_employer_salary_inr);
+        var g = num(sal.gross_salary_inr) + num(sal.perquisites_inr) + esopPerquisiteInr(sal) + num(sal.prior_employer_salary_inr);
         var share = 1;
         if (auto) share = auto.share;
         else if (sal.work_performed_outside_india === true && num(sal.workdays_in_india) + num(sal.workdays_outside_india) > 0) {
@@ -474,6 +482,9 @@ var NODES = {
         tonnageTaxInr += num(b.tonnage_tax_115V_inr);
       });
       businessInr += computeGoodsVehiclePresumptiveInr(d.goodsVehiclesAgg);
+      // s.41: a trading liability written back, or a bad debt recovered after
+      // being deducted earlier, is business income of this year.
+      businessInr += num(safe(d.diAgg, "business_income.s41_remission_income_inr", 0)) + num(safe(d.diAgg, "business_income.s41_bad_debt_recovery_inr", 0));
       businessInr += d.fnoIncomeInrAgg;
       var indiaHasPartnerFirmIncome = false;
       (d.partnerFirmsAgg || []).forEach(function (firm) {

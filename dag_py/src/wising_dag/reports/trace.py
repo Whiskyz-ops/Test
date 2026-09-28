@@ -224,13 +224,20 @@ def _build_tax_computation_india_individual(d, ctx):
         ded_trace = _calc("New regime allows only the employer's NPS contribution under s.124(2) — s.123/126/124(1B)/153 etc. are not available",
                            [{"label": "Employer NPS contribution (s.124(2))", "amount": ded_india["s80CCD2_employer"] or 0}])
     else:
-        ded_trace = _calc("Old regime: s.123 (cap ₹1.5L) + s.124(1B) NPS (cap ₹50k) + s.126 health insurance (cap ₹75k) + employer NPS s.124(2) (uncapped) + s.153 savings interest (cap ₹10k)", [
-            {"label": "s.123 (capped ₹1.5L)", "amount": min(ded_india["s80C"] or 0, DEDUCTION_CAPS_OLD["s80C"])},
+        ded_rows = [
+            {"label": "s.123 incl. pension / own NPS (capped ₹1.5L)", "amount": min(ded_india["s80C"] or 0, DEDUCTION_CAPS_OLD["s80C"])},
             {"label": "s.124(1B) NPS (capped ₹50k)", "amount": min(ded_india["s80CCD1B"] or 0, DEDUCTION_CAPS_OLD["s80CCD1B"])},
-            {"label": "s.126 health insurance (capped ₹75k)", "amount": min(ded_india["s80D"] or 0, DEDUCTION_CAPS_OLD["s80D_self"] + DEDUCTION_CAPS_OLD["s80D_parents_senior"])},
+            {"label": "s.126 health insurance (per-person caps)", "amount": ded_india["s80D"] or 0},
             {"label": "Employer NPS s.124(2)", "amount": ded_india["s80CCD2_employer"] or 0},
             {"label": "s.153 savings interest (capped ₹10k)", "amount": min(ded_india["s80TTA_TTB"] or 0, 10000)},
-        ])
+        ]
+        shown = 0
+        for r in ded_rows:
+            shown = shown + r["amount"]
+        rest = (d["deductionsInrV3"] or 0) - shown
+        if rest > 0.5:
+            ded_rows.append({"label": "Other Chapter VI-A (disability, medical treatment, education/home loan interest, donations, royalties, rent)", "amount": rest})
+        ded_trace = _calc("Old regime: s.123 incl. pension-fund / own NPS contributions (one ₹1.5L cap) + s.124(1B) NPS (cap ₹50k) + s.126 health insurance (₹25k/₹50k each for self and parents) + employer NPS s.124(2) (uncapped) + s.153 savings interest (cap ₹10k) + the other Chapter VI-A deductions entered", ded_rows)
     ded_never_entered = not (ded_india["s80C"] or ded_india["s80CCD1B"] or ded_india["s80D"] or ded_india["s80CCD2_employer"] or ded_india["s80TTA_TTB"])
     ded_caveat = (
         "Deductions weren't entered for this profile — Layer 1 India hides this step under NEW regime, so this OLD-regime figure assumes ₹0 and is understated. Fill in Chapter VI-A on Layer 1 India (regime must be OLD there) for an accurate comparison."
