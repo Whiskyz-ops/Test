@@ -488,11 +488,12 @@ var NODES = {
       var w2 = safe(d.uiAgg, "wages_w2", null);
       if (Array.isArray(w2)) {
         w2.forEach(function (w) {
-          // Box 8 allocated tips are wages the employer left out of Box 1.
-          var wagesUsd = num(w.wages_box1_usd || w.wages_tips_compensation_usd || 0) + num(w.allocated_tips_box8_usd);
-          wages += wagesUsd;
-          dependentCareUsd += num(w.dependent_care_benefits_box10_usd);
           var adv = w.tax_details_collapsed_by_default || w;
+          // Box 8 allocated tips are wages the employer left out of Box 1
+          // (the form keeps Boxes 8/10 with the other detail boxes).
+          var wagesUsd = num(w.wages_box1_usd || w.wages_tips_compensation_usd || 0) + num(adv.allocated_tips_box8_usd || w.allocated_tips_box8_usd);
+          wages += wagesUsd;
+          dependentCareUsd += num(adv.dependent_care_benefits_box10_usd || w.dependent_care_benefits_box10_usd);
           var fedWithUsd = num(adv.federal_tax_withheld_usd || adv.federal_income_tax_withheld_usd || 0);
           w2with += fedWithUsd;
           medicareWages += num(adv.medicare_wages_box5_usd || w.wages_box1_usd || 0);

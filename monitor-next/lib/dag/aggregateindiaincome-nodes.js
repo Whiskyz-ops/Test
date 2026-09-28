@@ -56,6 +56,8 @@ function esopPerquisiteInr(sal) {
 var regularBooksExpenses = require("./business-expenses.js").regularBooksExpenses;
 var disallowanceSlicesInr = require("./business-expenses.js").disallowanceSlicesInr;
 var branchTurnoverInr = require("./business-expenses.js").branchTurnoverInr;
+var branchReceiptsInr = require("./business-expenses.js").branchReceiptsInr;
+var npaProvisionsInr = require("./business-expenses.js").npaProvisionsInr;
 var businessExpenseOpts = require("./business-expenses.js").businessExpenseOpts;
 var expenseLabel = require("./business-expenses.js").expenseLabel;
 var computeHouseProperty = require("./house-property.js").computeHouseProperty;
@@ -137,8 +139,8 @@ function presumptiveCeilingInr(scheme, digitalInr, cashInr) {
 }
 function usesRegularBooksInr(b, eligibility) {
   var scheme = b.presumptive_scheme;
-  if (scheme === "s44AD") { var dig = num(b.digital_receipts_inr), csh = num(b.cash_receipts_inr); return !(eligibility.eligible44AD && dig + csh <= presumptiveCeilingInr("s44AD", dig, csh)); }
-  if (scheme === "s44ADA") { var adaDig = num(b.ada_digital_receipts_inr), adaCsh = num(b.ada_cash_receipts_inr); var adaReceipts = num(b.gross_receipts_inr) || (adaDig + adaCsh); return !(eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh)); }
+  if (scheme === "s44AD") { var brR = branchReceiptsInr(b), dig = num(b.digital_receipts_inr) + brR.digitalInr, csh = num(b.cash_receipts_inr) + brR.otherInr; return !(eligibility.eligible44AD && dig + csh <= presumptiveCeilingInr("s44AD", dig, csh)); }
+  if (scheme === "s44ADA") { var brA = branchReceiptsInr(b), adaDig = num(b.ada_digital_receipts_inr) + brA.digitalInr, adaCsh = num(b.ada_cash_receipts_inr) + brA.otherInr; var adaReceipts = num(b.gross_receipts_inr) ? num(b.gross_receipts_inr) + brA.totalInr : (adaDig + adaCsh); return !(eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh)); }
   if (scheme === "s44AE") return false;
   // s.44BB (non-resident, mineral-oil services) / s.44BBB (foreign company,
   // civil construction/turnkey power projects) — both a flat 10% presumptive
@@ -162,17 +164,17 @@ function computeBusinessEntryNetProfitInr(b, eligibility, depreciationInr, disal
   var scheme = b.presumptive_scheme;
   var adaReceipts;
   if (scheme === "s44AD") {
-    var dig44AD = num(b.digital_receipts_inr), csh44AD = num(b.cash_receipts_inr);
+    var br44 = branchReceiptsInr(b), dig44AD = num(b.digital_receipts_inr) + br44.digitalInr, csh44AD = num(b.cash_receipts_inr) + br44.otherInr;
     if (eligibility.eligible44AD && dig44AD + csh44AD <= presumptiveCeilingInr("s44AD", dig44AD, csh44AD)) return dig44AD * 0.06 + csh44AD * 0.08;
   } else if (scheme === "s44ADA") {
-    var adaDig = num(b.ada_digital_receipts_inr), adaCsh = num(b.ada_cash_receipts_inr);
-    adaReceipts = num(b.gross_receipts_inr) || (adaDig + adaCsh);
+    var brAda = branchReceiptsInr(b), adaDig = num(b.ada_digital_receipts_inr) + brAda.digitalInr, adaCsh = num(b.ada_cash_receipts_inr) + brAda.otherInr;
+    adaReceipts = num(b.gross_receipts_inr) ? num(b.gross_receipts_inr) + brAda.totalInr : (adaDig + adaCsh);
     if (eligibility.eligible44ADA && adaReceipts <= presumptiveCeilingInr("s44ADA", adaDig, adaCsh)) return adaReceipts * 0.50;
   } else if (scheme === "s44AE") return null;
   // s.44BB/s.44BBB: flat 10% of receipts (turnover_inr + cash_receipts_inr —
   // matches layer1_india.html's own live preview formula exactly, ~L12977),
   // unconditional (no ceiling test, see usesRegularBooksInr above).
-  else if (scheme === "s44BB" || scheme === "s44BBB") return Math.round((num(b.turnover_inr) + num(b.cash_receipts_inr)) * 0.10);
+  else if (scheme === "s44BB" || scheme === "s44BBB") return Math.round((num(b.turnover_inr) + num(b.cash_receipts_inr) + branchTurnoverInr(b)) * 0.10);
   // Every expense Layer 1 India collects, head office + branches (see
   // business-expenses.js — this used to read nine fixed fields only).
   var bx = regularBooksExpenses(b, expOpts);
@@ -463,7 +465,7 @@ var NODES = {
       var india = ctx.india;
       var businessInr = 0, businessDepreciationInr = 0;
       var indiaHasRegularBooksEntry = false, indiaHasValidPresumptiveEntry = false;
-      var tonnageTaxInr = 0;
+      var tonnageTaxInr = 0, npaProvisionsTotalInr = 0;
       (d.bizEntriesAgg || []).forEach(function (b, idx) {
         var netProfitInr = b.net_profit_inr || b.net_profit;
         if (netProfitInr === undefined || netProfitInr === null) {
@@ -473,6 +475,7 @@ var NODES = {
           var entryDisallowancesInr = isRegularBooks ? aggregateEntryDisallowancesInr(idx, b, d.bizMsmePayablesAgg) : 0;
           netProfitInr = computeBusinessEntryNetProfitInr(b, d.presumptiveEligibilityAgg, entryDepreciationInr, entryDisallowancesInr, businessExpenseOpts(india, ctx.router));
           businessDepreciationInr += entryDepreciationInr;
+          if (isRegularBooks) npaProvisionsTotalInr += npaProvisionsInr(b);
         } else { indiaHasRegularBooksEntry = true; }
         businessInr += num(netProfitInr);
         // s.115V tonnage tax (shipping companies) — a per-entry field
@@ -481,6 +484,8 @@ var NODES = {
         // entry's other income below, gated the same way s.35AD is.
         tonnageTaxInr += num(b.tonnage_tax_115V_inr);
       });
+      // s.36(1)(viia): NPA provisions, capped at a share of business income.
+      businessInr -= Math.min(npaProvisionsTotalInr, CONST_AGGIN.TAX.INDIA.S36_1_VIIA_NPA_INCOME_RATE * Math.max(0, businessInr));
       businessInr += computeGoodsVehiclePresumptiveInr(d.goodsVehiclesAgg);
       // s.41: a trading liability written back, or a bad debt recovered after
       // being deducted earlier, is business income of this year.

@@ -691,9 +691,7 @@
       ]
     },
     "state_residency": {
-      "primary_state_of_residence": "NY",
-      "ny_actual_days_present": 240,
-      "ny_permanent_place_of_abode": true
+      "primary_state_of_residence": "NY"
     },
     "foreign_earned_income": {
       "claims_feie": true,

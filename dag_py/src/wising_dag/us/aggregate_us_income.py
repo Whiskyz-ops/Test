@@ -213,11 +213,12 @@ def _wages_computation(d, ctx):
     w2 = safe(d["uiAgg"], "wages_w2", None)
     if isinstance(w2, list):
         for w in w2:
-            # Box 8 allocated tips are wages left out of Box 1.
-            wages_usd = num(w.get("wages_box1_usd") or w.get("wages_tips_compensation_usd") or 0) + num(w.get("allocated_tips_box8_usd"))
-            wages += wages_usd
-            dependent_care_usd += num(w.get("dependent_care_benefits_box10_usd"))
             adv = w.get("tax_details_collapsed_by_default") or w
+            # Box 8 allocated tips are wages left out of Box 1 (the form keeps
+            # Boxes 8/10 with the other detail boxes).
+            wages_usd = num(w.get("wages_box1_usd") or w.get("wages_tips_compensation_usd") or 0) + num(adv.get("allocated_tips_box8_usd") or w.get("allocated_tips_box8_usd"))
+            wages += wages_usd
+            dependent_care_usd += num(adv.get("dependent_care_benefits_box10_usd") or w.get("dependent_care_benefits_box10_usd"))
             fed_with_usd = num(adv.get("federal_tax_withheld_usd") or adv.get("federal_income_tax_withheld_usd") or 0)
             w2with += fed_with_usd
             medicare_wages += num(adv.get("medicare_wages_box5_usd") or w.get("wages_box1_usd") or 0)

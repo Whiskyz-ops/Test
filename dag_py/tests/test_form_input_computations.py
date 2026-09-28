@@ -94,9 +94,9 @@ def test_s35d_one_fifth_inside_window_only():
     assert _biz({"s35D_total_preliminary_expenses_inr": 500000, "s35D_year_of_commencement": "2019-20"}) == 5000000
 
 
-def test_s35_donation_barred_under_new_regime_and_npa_provisions_not_deducted():
+def test_s35_donation_barred_under_new_regime_and_npa_provisions_within_cap():
     assert _biz({"s35_donation_to_approved_body_inr": 100000}) == 5000000
-    assert _biz({"npa_provisions_inr": 100000}) == 5000000
+    assert _biz({"npa_provisions_inr": 100000}) == 4900000   # within 5% of ₹50L
 
 
 def test_epf_interest_reaches_us_income_once():
@@ -200,7 +200,8 @@ def _us(fid="us_only_cpa_client"):
 def test_w2_allocated_tips_and_dependent_care_over_7500():
     base = analyze(_us())["model"]["income"]["us"]["wages"]["usd"]
     c = _us()
-    c["us"]["income_us_source"]["wages_w2"][0].update(allocated_tips_box8_usd=2000, dependent_care_benefits_box10_usd=9000)
+    w = c["us"]["income_us_source"]["wages_w2"][0]
+    w.setdefault("tax_details_collapsed_by_default", {}).update(allocated_tips_box8_usd=2000, dependent_care_benefits_box10_usd=9000)   # where the form saves them
     assert analyze(c)["model"]["income"]["us"]["wages"]["usd"] - base == 3500
 
 
@@ -224,3 +225,27 @@ def test_ftc_baskets_and_prior_carryover_when_no_india_tax():
     c["us"]["ftc_inputs"]["prior_year_carryovers_usd"] = 5000
     two = analyze(c)["computed"]["ftc"]["us"]
     assert round(two["ftcAllowedUsd"]) == round(two["ftcLimitUsd"])   # carryover fills the §904 room
+
+
+def _biz_income(entry, entity="individual"):
+    s = _india_only(profile={"entity_type": entity, "tax_regime": "NEW"})
+    s["india"]["domestic_income"] = {"salary": {}, "business_income": {"has_business_or_fo_income": True, "business_entries": [entry]}}
+    return analyze(s)["model"]["income"]["india"]["business"]["inr"]
+
+
+def test_s44ad_counts_branch_receipts_and_its_ceiling():
+    base = {"presumptive_scheme": "s44AD", "digital_receipts_inr": 1000000, "cash_receipts_inr": 500000}
+    assert _biz_income(base) == 100000                                                        # 6% + 8%
+    assert _biz_income(dict(base, branches=[{"turnover_inr": 2000000}])) == 260000             # unsplit branch turnover at 8%
+    assert _biz_income(dict(base, branches=[{"turnover_inr": 2000000, "digital_receipts_inr": 2000000}])) == 220000
+    assert _biz_income(dict(base, branches=[{"digital_receipts_inr": 35000000}])) == 36500000  # over ₹3 Cr: regular books
+
+
+def test_s44ada_counts_branch_receipts():
+    assert _biz_income({"presumptive_scheme": "s44ADA", "gross_receipts_inr": 2000000, "branches": [{"turnover_inr": 1000000}]}) == 1500000
+
+
+def test_npa_provisions_capped_at_5_percent_of_business_income():
+    entry = {"business_code": "banking", "presumptive_scheme": "none", "turnover_inr": 10000000}
+    assert _biz_income(dict(entry, expenses={"npa_provisions_inr": 200000}), "company") == 9800000
+    assert _biz_income(dict(entry, expenses={"npa_provisions_inr": 1000000}), "company") == 9500000

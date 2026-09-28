@@ -23,8 +23,8 @@
  *     toward the 1/5th when the year is blank or unreadable);
  *   - s35_donation_to_approved_body_inr: not allowed under the s.115BAC new
  *     regime (individual/HUF) or s.115BAA/115BAB (s.35(1)(ii)/(iia)/(iii));
- *   - npa_provisions_inr: not deducted (s.36(1)(viia)'s income-linked limit
- *     isn't modelled — provisions are otherwise not deductible).
+ *   - npa_provisions_inr: handled at the business-income level (s.36(1)(viia)
+ *     caps it by income), see npaProvisionsInr.
  */
 var MEMO_KEYS = {
   payments_to_non_residents_no_tds_inr: true,
@@ -68,8 +68,26 @@ function expenseObjects(entry) {
   return out;
 }
 
-function branchTurnoverInr(entry) {
-  return ((entry && entry.branches) || []).reduce(function (s, br) { return s + bxNum(br && br.turnover_inr); }, 0);
+// Branch receipts: a branch records a turnover (sum of its revenue lines)
+// and/or a digital / cash split. Digital is what the split says was
+// received through banking channels; everything else (cash, and turnover
+// not covered by the split) counts as non-digital — the conservative
+// reading for s.44AD's 6%/8% rates.
+function branchReceiptsInr(entry) {
+  var digitalInr = 0, otherInr = 0;
+  ((entry && entry.branches) || []).forEach(function (br) {
+    var t = bxNum(br && br.turnover_inr), dg = bxNum(br && br.digital_receipts_inr), cs = bxNum(br && br.cash_receipts_inr);
+    digitalInr += dg;
+    otherInr += cs + Math.max(0, t - dg - cs);
+  });
+  return { digitalInr: digitalInr, otherInr: otherInr, totalInr: digitalInr + otherInr };
+}
+function branchTurnoverInr(entry) { return branchReceiptsInr(entry).totalInr; }
+
+// s.36(1)(viia) provision for bad and doubtful debts (banks / NBFCs): the
+// amount entered, head office + branches — capped by the caller.
+function npaProvisionsInr(entry) {
+  return expenseObjects(entry).reduce(function (s, exp) { return s + bxNum(exp.npa_provisions_inr); }, 0);
 }
 
 /* opts: { fyStartYear, noS35Donation }
@@ -134,5 +152,6 @@ function expenseLabel(key) {
 
 module.exports = {
   regularBooksExpenses: regularBooksExpenses, disallowanceSlicesInr: disallowanceSlicesInr,
-  branchTurnoverInr: branchTurnoverInr, businessExpenseOpts: businessExpenseOpts, expenseLabel: expenseLabel
+  branchTurnoverInr: branchTurnoverInr, branchReceiptsInr: branchReceiptsInr, npaProvisionsInr: npaProvisionsInr,
+  businessExpenseOpts: businessExpenseOpts, expenseLabel: expenseLabel
 };

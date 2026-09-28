@@ -54,8 +54,25 @@ def _expense_objects(entry) -> list:
     return out
 
 
+def branch_receipts_inr(entry) -> dict:
+    digital = other = 0.0
+    for br in (entry or {}).get("branches") or []:
+        br = br or {}
+        t, dg, cs = _bx_num(br.get("turnover_inr")), _bx_num(br.get("digital_receipts_inr")), _bx_num(br.get("cash_receipts_inr"))
+        digital += dg
+        other += cs + max(0.0, t - dg - cs)
+    return {"digitalInr": digital, "otherInr": other, "totalInr": digital + other}
+
+
 def branch_turnover_inr(entry) -> float:
-    return sum(_bx_num((br or {}).get("turnover_inr")) for br in ((entry or {}).get("branches") or []))
+    return branch_receipts_inr(entry)["totalInr"]
+
+
+def npa_provisions_inr(entry) -> float:
+    total = 0.0
+    for exp in _expense_objects(entry):
+        total += _bx_num(exp.get("npa_provisions_inr"))
+    return total
 
 
 def regular_books_expenses(entry, opts=None) -> dict:

@@ -397,7 +397,7 @@
       // facts (permanent abode + 184+ days present) put NY state tax in play
       // even though the rental property itself is in NJ (unmodeled — no NJ
       // bracket data exists in this engine).
-      state_residency: { primary_state_of_residence: "NY", ny_actual_days_present: 240, ny_permanent_place_of_abode: true },
+      state_residency: { primary_state_of_residence: "NY" },
       // Deliberate demo error: a US-based green-card holder (345 US days) cannot
       // claim FEIE — no foreign tax home, no presence test. The engine must zero
       // the exclusion and raise the "FEIE claimed but not eligible" conflict.

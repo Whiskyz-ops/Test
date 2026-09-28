@@ -188,6 +188,11 @@
         S80QQB_RRB_CAP_INR: 300000,
         S80G_QUALIFYING_LIMIT_RATE: 0.10,
         LOSS_CARRY_FORWARD_YEARS: { general: 8, speculative: 4 },
+        // s.36(1)(viia) bad/doubtful-debt provision (banks / NBFCs): capped at a
+        // share of income — 5% for NBFCs; banks get 8.5% plus 10% of rural
+        // advances, but the form can't tell the two apart, so 5% (the floor
+        // both are entitled to) is applied.
+        S36_1_VIIA_NPA_INCOME_RATE: 0.05,
         // Special rates (post 23-Jul-2024)
         STCG_111A_RATE: 0.20,
         LTCG_112A_RATE: 0.125,

@@ -16,7 +16,7 @@ from ..core.util import dtaa_worldwide_ceded, js_round, num, safe
 from . import constants as C
 from .house_property import compute_house_property, house_property_opts
 from .form_rules import esop_perquisite_inr
-from .business_expenses import branch_turnover_inr, business_expense_opts, disallowance_slices_inr, regular_books_expenses
+from .business_expenses import branch_receipts_inr, branch_turnover_inr, business_expense_opts, disallowance_slices_inr, npa_provisions_inr, regular_books_expenses
 
 ASSET_CLASS_RATES_INDIA = C.INDIA["ASSET_CLASS_RATES_INDIA"]
 GROUP_A_CLASSES = C.INDIA["CG_GROUP_A_CLASSES"]
@@ -134,11 +134,13 @@ def _presumptive_ceiling_inr(scheme: str, digital_inr: float, cash_inr: float) -
 def _uses_regular_books_inr(b: dict, eligibility: dict) -> bool:
     scheme = b.get("presumptive_scheme")
     if scheme == "s44AD":
-        dig, csh = num(b.get("digital_receipts_inr")), num(b.get("cash_receipts_inr"))
+        br = branch_receipts_inr(b)
+        dig, csh = num(b.get("digital_receipts_inr")) + br["digitalInr"], num(b.get("cash_receipts_inr")) + br["otherInr"]
         return not (eligibility["eligible44AD"] and dig + csh <= _presumptive_ceiling_inr("s44AD", dig, csh))
     if scheme == "s44ADA":
-        ada_dig, ada_csh = num(b.get("ada_digital_receipts_inr")), num(b.get("ada_cash_receipts_inr"))
-        ada_receipts = num(b.get("gross_receipts_inr")) or (ada_dig + ada_csh)
+        br = branch_receipts_inr(b)
+        ada_dig, ada_csh = num(b.get("ada_digital_receipts_inr")) + br["digitalInr"], num(b.get("ada_cash_receipts_inr")) + br["otherInr"]
+        ada_receipts = (num(b.get("gross_receipts_inr")) + br["totalInr"]) if num(b.get("gross_receipts_inr")) else (ada_dig + ada_csh)
         return not (eligibility["eligible44ADA"] and ada_receipts <= _presumptive_ceiling_inr("s44ADA", ada_dig, ada_csh))
     if scheme == "s44AE":
         return False
@@ -158,19 +160,21 @@ def _compute_business_entry_net_profit_inr(b: dict, eligibility: dict | None, de
     scheme = b.get("presumptive_scheme")
     ada_receipts = None
     if scheme == "s44AD":
-        dig44ad, csh44ad = num(b.get("digital_receipts_inr")), num(b.get("cash_receipts_inr"))
+        br = branch_receipts_inr(b)
+        dig44ad, csh44ad = num(b.get("digital_receipts_inr")) + br["digitalInr"], num(b.get("cash_receipts_inr")) + br["otherInr"]
         if eligibility["eligible44AD"] and dig44ad + csh44ad <= _presumptive_ceiling_inr("s44AD", dig44ad, csh44ad):
             return dig44ad * 0.06 + csh44ad * 0.08
     elif scheme == "s44ADA":
-        ada_dig, ada_csh = num(b.get("ada_digital_receipts_inr")), num(b.get("ada_cash_receipts_inr"))
-        ada_receipts = num(b.get("gross_receipts_inr")) or (ada_dig + ada_csh)
+        br = branch_receipts_inr(b)
+        ada_dig, ada_csh = num(b.get("ada_digital_receipts_inr")) + br["digitalInr"], num(b.get("ada_cash_receipts_inr")) + br["otherInr"]
+        ada_receipts = (num(b.get("gross_receipts_inr")) + br["totalInr"]) if num(b.get("gross_receipts_inr")) else (ada_dig + ada_csh)
         if eligibility["eligible44ADA"] and ada_receipts <= _presumptive_ceiling_inr("s44ADA", ada_dig, ada_csh):
             return ada_receipts * 0.50
     elif scheme == "s44AE":
         return None
     elif scheme in ("s44BB", "s44BBB"):
         # Flat 10% of receipts (turnover_inr + cash_receipts_inr), unconditional.
-        return js_round((num(b.get("turnover_inr")) + num(b.get("cash_receipts_inr"))) * 0.10)
+        return js_round((num(b.get("turnover_inr")) + num(b.get("cash_receipts_inr")) + branch_turnover_inr(b)) * 0.10)
     # Every expense Layer 1 India collects, head office + branches (see
     # business_expenses.py — this used to read nine fixed fields only).
     bx = regular_books_expenses(b, exp_opts)
@@ -272,6 +276,7 @@ def _business_computation(d, ctx):
     india_has_regular_books_entry = False
     india_has_valid_presumptive_entry = False
     tonnage_tax_inr = 0.0
+    npa_total_inr = 0.0
     for idx, b in enumerate(d["bizEntriesAgg"] or []):
         net_profit_inr = b.get("net_profit_inr") if b.get("net_profit_inr") is not None else b.get("net_profit")
         if net_profit_inr is None:
@@ -284,12 +289,16 @@ def _business_computation(d, ctx):
             entry_disallowances_inr = _aggregate_entry_disallowances_inr(idx, b, d["bizMsmePayablesAgg"]) if is_regular_books else 0
             net_profit_inr = _compute_business_entry_net_profit_inr(b, d["presumptiveEligibilityAgg"], entry_depreciation_inr, entry_disallowances_inr, business_expense_opts(india, ctx.get("router")))
             business_depreciation_inr += entry_depreciation_inr
+            if is_regular_books:
+                npa_total_inr += npa_provisions_inr(b)
         else:
             india_has_regular_books_entry = True
         business_inr += num(net_profit_inr)
         # s.115V tonnage tax (shipping companies) — a per-entry field, summed
         # alongside the entry's other income below, gated the same way s.35AD is.
         tonnage_tax_inr += num(b.get("tonnage_tax_115V_inr"))
+    # s.36(1)(viia): NPA provisions, capped at a share of business income.
+    business_inr -= min(npa_total_inr, C.INDIA["S36_1_VIIA_NPA_INCOME_RATE"] * max(0.0, business_inr))
     business_inr += _compute_goods_vehicle_presumptive_inr(d["goodsVehiclesAgg"])
     # s.41: a trading liability written back / a bad debt recovered is income.
     business_inr += num(safe(d["diAgg"], "business_income.s41_remission_income_inr", 0)) + num(safe(d["diAgg"], "business_income.s41_bad_debt_recovery_inr", 0))

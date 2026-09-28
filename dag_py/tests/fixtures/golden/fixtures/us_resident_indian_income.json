@@ -83,8 +83,8 @@
       "movedStates": false,
       "caSafeHarbor": false,
       "caRetainsTies": false,
-      "nyDaysPresent": 240,
-      "nyPermanentAbode": true,
+      "nyDaysPresent": 0,
+      "nyPermanentAbode": false,
       "ny548DayRule": false
     },
     "companyResidency": {
@@ -1453,9 +1453,7 @@
           ]
         },
         "state_residency": {
-          "primary_state_of_residence": "NY",
-          "ny_actual_days_present": 240,
-          "ny_permanent_place_of_abode": true
+          "primary_state_of_residence": "NY"
         },
         "foreign_earned_income": {
           "claims_feie": true,
@@ -2337,8 +2335,8 @@
       "severity": "warning",
       "category": "treaty",
       "title": "State tax residency is not resolved by the DTAA / federal treaty position (NY)",
-      "detail": "The India-US treaty and the federal residency determination above bind FEDERAL tax only. NY applies its own domicile or statutory-day residency test, independent of the Article 4 tie-breaker or any \u00a7911/1040NR position. A taxpayer can be a federal treaty non-resident while remaining a full worldwide-income STATE resident with Indian income fully taxable and no matching relief in some states.",
-      "recommendation": "Run the state's own residency test (domicile intent + day count) separately from the federal/treaty analysis. New York statutory-residency facts are on file (183-day + permanent-abode / 548-day rule) \u2014 NY residency is tested independently of the federal position. Do not assume the federal treaty position carries over.",
+      "detail": "The India-US treaty and the federal residency determination above bind FEDERAL tax only. NY applies its own domicile or statutory-day residency test, independent of the Article 4 tie-breaker or any \u00a7911/1040NR position. A taxpayer can be a federal treaty non-resident while remaining a full worldwide-income STATE resident with Indian income fully taxable and little or no state-level foreign tax credit.",
+      "recommendation": "Run the state's own residency test (domicile intent + day count) separately from the federal/treaty analysis. Check whether the state allows any credit for foreign tax paid \u2014 several do not. Do not assume the federal treaty position carries over.",
       "amountUsd": 0,
       "refs": [
         "State residency",

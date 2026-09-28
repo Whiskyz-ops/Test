@@ -40,7 +40,7 @@ from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
 from ..core.util import format_inr, js_num_str, js_round, num, safe
 from ..india.constants import INDIA as _CONST_INDIA
-from ..india.business_expenses import branch_turnover_inr, business_expense_opts, expense_label, regular_books_expenses
+from ..india.business_expenses import branch_receipts_inr, branch_turnover_inr, business_expense_opts, expense_label, regular_books_expenses
 from ..india.aggregate_india_income import (
     _aggregate_entry_depreciation_inr,
     _aggregate_entry_disallowances_inr,
@@ -181,7 +181,8 @@ def _business_entry_income_trace(b: dict, eligibility: dict | None, depreciation
     dig44ad = csh44ad = ada_dig = ada_csh = ada_receipts = 0.0
 
     if scheme == "s44AD":
-        dig44ad, csh44ad = num(b.get("digital_receipts_inr")), num(b.get("cash_receipts_inr"))
+        br = branch_receipts_inr(b)
+        dig44ad, csh44ad = num(b.get("digital_receipts_inr")) + br["digitalInr"], num(b.get("cash_receipts_inr")) + br["otherInr"]
         ceiling_44ad = _presumptive_ceiling_inr("s44AD", dig44ad, csh44ad)
         if eligibility["eligible44AD"] and dig44ad + csh44ad <= ceiling_44ad:
             return _calc(
@@ -204,8 +205,9 @@ def _business_entry_income_trace(b: dict, eligibility: dict | None, depreciation
             ceiling_note = f"Total receipts (₹{format_inr(dig44ad + csh44ad)}) exceed the s.44AD turnover ceiling for this cash-receipts mix (₹{format_inr(ceiling_44ad)}) — the presumptive election is invalid above this, so regular books apply instead:"
             ceiling_citation = PRESUMPTIVE_CEILING_CITATION
     elif scheme == "s44ADA":
-        ada_dig, ada_csh = num(b.get("ada_digital_receipts_inr")), num(b.get("ada_cash_receipts_inr"))
-        ada_receipts = num(b.get("gross_receipts_inr")) or (ada_dig + ada_csh)
+        br = branch_receipts_inr(b)
+        ada_dig, ada_csh = num(b.get("ada_digital_receipts_inr")) + br["digitalInr"], num(b.get("ada_cash_receipts_inr")) + br["otherInr"]
+        ada_receipts = (num(b.get("gross_receipts_inr")) + br["totalInr"]) if num(b.get("gross_receipts_inr")) else (ada_dig + ada_csh)
         ceiling_44ada = _presumptive_ceiling_inr("s44ADA", ada_dig, ada_csh)
         if eligibility["eligible44ADA"] and ada_receipts <= ceiling_44ada:
             return _calc(
@@ -231,7 +233,7 @@ def _business_entry_income_trace(b: dict, eligibility: dict | None, depreciation
             "so this entry shows ₹0 on its own."
         )
     elif scheme in ("s44BB", "s44BBB"):
-        bb_turnover, bb_cash = num(b.get("turnover_inr")), num(b.get("cash_receipts_inr"))
+        bb_turnover, bb_cash = num(b.get("turnover_inr")) + branch_turnover_inr(b), num(b.get("cash_receipts_inr"))
         bb_label = "s.44BB (non-resident, mineral-oil exploration services)" if scheme == "s44BB" else "s.44BBB (foreign company, civil construction / turnkey power project)"
         return _calc(
             f"Presumptive income under {bb_label}: 10% of gross receipts, no ceiling test.",
