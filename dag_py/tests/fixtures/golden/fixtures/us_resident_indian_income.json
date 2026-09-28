@@ -2237,10 +2237,10 @@
       "id": "state_income_tax",
       "severity": "warning",
       "category": "credit",
-      "title": "New York state income tax: $17,609 (Form IT-201)",
-      "detail": "New York taxes a full-year resident's WORLDWIDE income, including Indian-source income already reported on the federal and Indian returns \u2014 computed here as $312,486 of state taxable income (federal AGI $328,536 less the New York standard deduction) at New York's own bracket rates. Neither the Foreign Tax Credit computed above nor any DTAA relief applies here \u2014 New York is not a party to the India-US treaty and does not treat Indian tax as a creditable state-level offset.",
-      "recommendation": "File Form IT-201 alongside the federal return. This is a full-year-resident, TY2025-rates estimate \u2014 it does not split state-source income for a part-year or nonresident allocation, does not model New York's own AGI addition/subtraction adjustments beyond the standard deduction, and (for California) does not include the local-jurisdiction SDI/VPDI payroll tax. Treat as directional, not filing-ready.",
-      "amountUsd": 17609,
+      "title": "New York state income tax: $18,436 (Form IT-201)",
+      "detail": "New York taxes a full-year resident's WORLDWIDE income, including Indian-source income already reported on the federal and Indian returns \u2014 computed here as $312,486 of state taxable income (federal AGI $328,536 less the New York standard deduction) at New York's own bracket rates, plus $1,140 (Tax-benefit recapture (NY Tax Law \u00a7601(d-1), NY AGI over $107,650)). Neither the Foreign Tax Credit computed above nor any DTAA relief applies here \u2014 New York is not a party to the India-US treaty and does not treat Indian tax as a creditable state-level offset.",
+      "recommendation": "File Form IT-201 alongside the federal return. This is a full-year-resident, TY2026-rates estimate \u2014 it does not split state-source income for a part-year or nonresident allocation, does not model New York's own AGI addition/subtraction adjustments beyond the standard deduction, and (for California) does not include the local-jurisdiction SDI/VPDI payroll tax. Treat as directional, not filing-ready.",
+      "amountUsd": 18436,
       "refs": [
         "Form IT-201",
         "New York residency"

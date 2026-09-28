@@ -127,6 +127,17 @@ def _us_state_tax_result(d, ctx):
     surcharge_usd = 0.0
     if st.get("SURCHARGE_THRESHOLD_USD") is not None and taxable_income_usd > st["SURCHARGE_THRESHOLD_USD"]:
         surcharge_usd = (taxable_income_usd - st["SURCHARGE_THRESHOLD_USD"]) * st["SURCHARGE_RATE"]
+    surcharge_label = st.get("SURCHARGE_LABEL")
+    sup, agi_usd = st.get("SUPPLEMENTAL_TAX"), d["usTaxResult"]["agiUsd"]
+    if sup and agi_usd > sup["MIN_AGI_USD"]:
+        if agi_usd > sup["FLAT_TOP_AGI_USD"]:
+            recapture_usd = taxable_income_usd * sup["TOP_RATE"] - bracket_tax_usd
+        else:
+            row = [r for r in sup[status] if taxable_income_usd >= r[0]][-1]
+            phase = min(1, max(0.0, agi_usd - max(row[0], sup["MIN_AGI_USD"])) / sup["PHASE_IN_USD"])
+            recapture_usd = row[1] + phase * row[2]
+        surcharge_usd += max(0.0, recapture_usd)
+        surcharge_label = st["SURCHARGE_LABEL_RECAPTURE"]
     exemption_credit_usd = (st.get("EXEMPTION_CREDIT_USD") or {}).get(status, 0)
     dependent_credit_usd = (st.get("DEPENDENT_CREDIT_USD") or 0) * dependents
     total_tax_usd = max(0.0, js_round(bracket_tax_usd + surcharge_usd - exemption_credit_usd - dependent_credit_usd))
@@ -138,10 +149,10 @@ def _us_state_tax_result(d, ctx):
         "dependentExemptionLabel": st.get("DEPENDENT_EXEMPTION_LABEL") or (st["NAME"] + " dependent exemption"),
         "five29DeductionUsd": five29_deduction_usd,
         "taxableIncomeUsd": taxable_income_usd, "bracketTaxUsd": bracket_tax_usd, "bracketBreakdown": bracket_breakdown_rows,
-        "surchargeUsd": surcharge_usd, "surchargeLabel": st.get("SURCHARGE_LABEL"),
+        "surchargeUsd": surcharge_usd, "surchargeLabel": surcharge_label,
         "exemptionCreditUsd": exemption_credit_usd, "dependentCreditUsd": dependent_credit_usd,
         "totalTaxUsd": total_tax_usd, "effectiveRate": (total_tax_usd / d["usTaxResult"]["agiUsd"]) if d["usTaxResult"]["agiUsd"] > 0 else 0,
-        "basis": "TY2025 rates (returns filed 2026); full-year resident, worldwide income via federal AGI, no foreign tax credit against state tax.",
+        "basis": (st.get("RATES_NOTE") or "TY2025 rates (returns filed 2026)") + "; full-year resident, worldwide income via federal AGI, no foreign tax credit against state tax.",
     }
 
 
@@ -580,7 +591,7 @@ def _findings_us_result(d, ctx):
             + (f", less {_fmt(st['exemptionCreditUsd'] + st['dependentCreditUsd'])} of personal/dependent credits" if st["exemptionCreditUsd"] + st["dependentCreditUsd"] > 0 else "")
             + f". Neither the Foreign Tax Credit computed above nor any DTAA relief applies here — {st['stateName']}"
             + " is not a party to the India-US treaty and " + ("grants no credit for tax paid to a foreign country at all." if st["state"] == "CA" else "does not treat Indian tax as a creditable state-level offset."),
-            f"File {st['formName']} alongside the federal return. This is a full-year-resident, TY2025-rates estimate — it does not "
+            f"File {st['formName']} alongside the federal return. This is a full-year-resident, {'TY2026' if st['state'] == 'NY' else 'TY2025'}-rates estimate — it does not "
             f"split state-source income for a part-year or nonresident allocation, does not model {st['stateName']}"
             "'s own AGI addition/subtraction adjustments beyond the standard deduction"
             + ("/dependent exemption" if st["dependentExemptionUsd"] > 0 else "") + ", and (for California) does not include the local-jurisdiction "

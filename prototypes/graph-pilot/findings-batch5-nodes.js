@@ -196,6 +196,19 @@ NODES.usStateTaxResult = {
     if (T.SURCHARGE_THRESHOLD_USD != null && taxableIncomeUsd > T.SURCHARGE_THRESHOLD_USD) {
       surchargeUsd = (taxableIncomeUsd - T.SURCHARGE_THRESHOLD_USD) * T.SURCHARGE_RATE;
     }
+    var surchargeLabel = T.SURCHARGE_LABEL || null;
+    var sup = T.SUPPLEMENTAL_TAX, agiUsd = d.usTaxResult.agiUsd;
+    if (sup && agiUsd > sup.MIN_AGI_USD) {
+      var recaptureUsd;
+      if (agiUsd > sup.FLAT_TOP_AGI_USD) recaptureUsd = taxableIncomeUsd * sup.TOP_RATE - bracketTaxUsd;
+      else {
+        var row = sup[status].filter(function (r) { return taxableIncomeUsd >= r[0]; }).pop();
+        var phase = Math.min(1, Math.max(0, agiUsd - Math.max(row[0], sup.MIN_AGI_USD)) / sup.PHASE_IN_USD);
+        recaptureUsd = row[1] + phase * row[2];
+      }
+      surchargeUsd += Math.max(0, recaptureUsd);
+      surchargeLabel = T.SURCHARGE_LABEL_RECAPTURE;
+    }
     var exemptionCreditUsd = (T.EXEMPTION_CREDIT_USD && T.EXEMPTION_CREDIT_USD[status]) || 0;
     var dependentCreditUsd = (T.DEPENDENT_CREDIT_USD || 0) * dependents;
     var totalTaxUsd = Math.max(0, Math.round(bracketTaxUsd + surchargeUsd - exemptionCreditUsd - dependentCreditUsd));
@@ -207,10 +220,10 @@ NODES.usStateTaxResult = {
       dependentExemptionLabel: T.DEPENDENT_EXEMPTION_LABEL || (T.NAME + " dependent exemption"),
       five29DeductionUsd: five29DeductionUsd,
       taxableIncomeUsd: taxableIncomeUsd, bracketTaxUsd: bracketTaxUsd, bracketBreakdown: bracketBreakdownRows,
-      surchargeUsd: surchargeUsd, surchargeLabel: T.SURCHARGE_LABEL || null,
+      surchargeUsd: surchargeUsd, surchargeLabel: surchargeLabel,
       exemptionCreditUsd: exemptionCreditUsd, dependentCreditUsd: dependentCreditUsd,
       totalTaxUsd: totalTaxUsd, effectiveRate: d.usTaxResult.agiUsd > 0 ? totalTaxUsd / d.usTaxResult.agiUsd : 0,
-      basis: "TY2025 rates (returns filed 2026); full-year resident, worldwide income via federal AGI, no foreign tax credit against state tax."
+      basis: (T.RATES_NOTE || "TY2025 rates (returns filed 2026)") + "; full-year resident, worldwide income via federal AGI, no foreign tax credit against state tax."
     };
   }
 };
@@ -384,7 +397,7 @@ NODES.findingsBatch5Result = {
         (st.exemptionCreditUsd + st.dependentCreditUsd > 0 ? ", less " + usd(st.exemptionCreditUsd + st.dependentCreditUsd) + " of personal/dependent credits" : "") +
         ". Neither the Foreign Tax Credit computed above nor any DTAA relief applies here — " + st.stateName +
         " is not a party to the India-US treaty and " + (st.state === "CA" ? "grants no credit for tax paid to a foreign country at all." : "does not treat Indian tax as a creditable state-level offset."),
-        "File " + st.formName + " alongside the federal return. This is a full-year-resident, TY2025-rates estimate — it does not " +
+        "File " + st.formName + " alongside the federal return. This is a full-year-resident, " + (st.state === "NY" ? "TY2026" : "TY2025") + "-rates estimate — it does not " +
         "split state-source income for a part-year or nonresident allocation, does not model " + st.stateName +
         "'s own AGI addition/subtraction adjustments beyond the standard deduction" +
         (st.dependentExemptionUsd > 0 ? "/dependent exemption" : "") + ", and (for California) does not include the local-jurisdiction " +

@@ -1173,6 +1173,12 @@ function isNraMfsProfile(dag) {
   var u = dag.computed && dag.computed.usTax;
   return !!(u && u.nra && u.filingStatus === "mfs");
 }
+// (k) New York individual tax: TY2026 rates (S3009C cut the first five
+// rates) and the §601(d-1) tax-benefit recapture above $107,650 NY AGI.
+function isNyStateProfile(dag) {
+  var st = dag.taxComputation && dag.taxComputation.usState;
+  return !!(st && /S3009C/.test(st.basis || ""));
+}
 function isFeieIneligibleClaimProfile(dag) {
   var f = dag.computed && dag.computed.usTax && dag.computed.usTax.feie;
   return !!(f && f.claimed && !f.eligible);
@@ -1402,7 +1408,7 @@ function compareOne(label, profile, saveOnFail) {
     qbiWageLimitDivergent || qbiWageUbiaDivergent || saversCreditDivergent || indiaRebateDivergent ||
     indiaSalaryExemption || nraTreatyRateFieldRenameDivergent ||
     isUsSingleBracketFixProfile(dag) || isUs72tInTotalProfile(dag) || isIndiaAdvanceTaxCumulativeProfile(dag, real) || isIndiaLawFixProfile(profile).income ||
-    isUsCharitable68Profile(dag) || isUs2210RunningBalanceProfile(dag, real) || isNraMfsProfile(dag);
+    isUsCharitable68Profile(dag) || isUs2210RunningBalanceProfile(dag, real) || isNraMfsProfile(dag) || isNyStateProfile(dag);
   (findingsExcused ? knownDiffs : realDiffs).push.apply(findingsExcused ? knownDiffs : realDiffs, findingsResult.unknown);
   knownDiffs.push.apply(knownDiffs, findingsResult.known);
 
@@ -1467,6 +1473,7 @@ function compareOne(label, profile, saveOnFail) {
     .concat(isIndiaLawFixProfile(profile).scheduleFa ? ["documents", "summary", "monitoring"] : [])
     .concat(isUsCharitable68Profile(dag) || isNraMfsProfile(dag) ? KNOWN_NRA_DERIVED_SPLIT_PATHS : [])
     .concat(isUsItemizerProfile(dag) ? ["taxComputation.us"] : [])
+    .concat(isNyStateProfile(dag) ? ["taxComputation.usState", "findings", "summary", "monitoring"] : [])
     .concat(isUs2210RunningBalanceProfile(dag, real) ? ["findings", "summary", "monitoring"] : [])
     .concat(isForm5471BelowTenPctProfile(profile) ? ["documents", "summary", "monitoring", "returnForms"] : [])
     // Quarterly LRS: the DAG sums quarters[Qn].lrs_outbound (the form keeps

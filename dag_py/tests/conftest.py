@@ -90,7 +90,8 @@ GOLDEN_DIVERGENT_FIXTURES_US_INCOME_INTO_INDIA = {"india_ror_us_income"}
 # india_advance_tax_interest finding on seven fixtures), TY2026 single-filer
 # brackets (the NRA fixture's ECI breakdown), s.72(t) additional tax and the
 # OBBBA 0.5%-of-AGI charitable floor (us_only_cpa_client's US tax), and the
-# reworded s.44AD/44ADA residency citation. The affected golden values are
+# reworded s.44AD/44ADA residency citation. NY state tax (TY2026 rates +
+# s.601(d-1) recapture) moves us_resident_indian_income's state_income_tax. The affected golden values are
 # pinned to the DAG; everything else stays frozen output.
 
 # Task #41 (home-office/vehicle-mileage deduction): businessEntities[]'s

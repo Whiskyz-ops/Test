@@ -1,8 +1,8 @@
 {
-  "id": "us_state_ny_resident",
+  "id": "us_state_ny_recapture_full",
   "form": "layer1_us.html",
-  "section": "State",
-  "story": "US citizen, single, New York resident, wages $60,000. NY taxable income 60,000 - 8,000 standard deduction = 52,000 at New York's 2026 rates.",
+  "section": "State (NY recapture)",
+  "story": "US citizen, single, New York resident, wages $400,000. Taxable income is in the 6.85% bracket and NY AGI is $50,000+ past its start, so the lower brackets' benefit is fully recaptured — the tax equals a flat 6.85%.",
   "router": {
     "jurisdiction": "single_us",
     "base_tax_year": 2026,
@@ -32,10 +32,10 @@
       "wages_w2": [
         {
           "employer_name": "Acme",
-          "wages_box1_usd": 60000,
+          "wages_box1_usd": 400000,
           "tax_details_collapsed_by_default": {
             "federal_tax_withheld_usd": 0,
-            "medicare_wages_box5_usd": 60000
+            "medicare_wages_box5_usd": 400000
           }
         }
       ]
@@ -44,8 +44,8 @@
   "expect": [
     {
       "path": "findings[id=state_income_tax].amountUsd",
-      "value": 2643,
-      "why": "NY 2026 schedule (S3009C) on 52,000: 3.9% x 8,500 + 4.4% x 3,200 + 5.15% x 2,200 + 5.4% x 38,100 = 331.50 + 140.80 + 113.30 + 2,057.40; NY AGI under 107,650, so no recapture"
+      "value": 26851,
+      "why": "taxable 392,000: bracket tax 24,237.45 + recapture base 567 + incremental benefit 2,047 (fully phased in: 400,000 - 215,400 > 50,000) = 26,851.45 — within a dollar of 6.85% x 392,000 = 26,852"
     }
   ]
 }

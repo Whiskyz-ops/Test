@@ -521,11 +521,30 @@
         NY: {
           NAME: "New York",
           FORM_NAME: "Form IT-201",
-          // NYS Dept. of Taxation & Finance 2025 rate schedule.
+          // TY2026 rate schedule: the FY2026 budget (S3009C) cut the first
+          // five rates by 0.1 point from 2026 (4/4.5/5.25/5.5/6% ->
+          // 3.9/4.4/5.15/5.4/5.9%); thresholds unchanged.
+          RATES_NOTE: "TY2026 rates (FY2026 budget, S3009C)",
           BRACKETS: {
-            single: [[8500,0.04],[11700,0.045],[13900,0.0525],[80650,0.055],[215400,0.06],[1077550,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]],
-            mfj:    [[17150,0.04],[23600,0.045],[27900,0.0525],[161550,0.055],[323200,0.06],[2155350,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]]
+            single: [[8500,0.039],[11700,0.044],[13900,0.0515],[80650,0.054],[215400,0.059],[1077550,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]],
+            mfj:    [[17150,0.039],[23600,0.044],[27900,0.0515],[161550,0.054],[323200,0.059],[2155350,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]]
           },
+          // Tax-benefit recapture (supplemental tax), NY Tax Law §601(d-1)
+          // as amended through S3009C: above $107,650 of NY AGI the benefit
+          // of the lower brackets is taken back — tax = bracket tax +
+          // recapture base + (incremental benefit x phase-in), the phase-in
+          // being the NY AGI over the greater of $107,650 and the start of
+          // the taxable-income row below, / $50,000 (max 1). Above $25M of NY
+          // AGI all taxable income is taxed at the top rate. Rows: [taxable
+          // income from, recapture base, incremental benefit], TY2026 (IT-201-I
+          // worksheets; cross-checked against PolicyEngine's statute-cited
+          // parameters and by hand: 80,650 x 6% - tax on 80,650 at 2025 rates = 568).
+          SUPPLEMENTAL_TAX: {
+            MIN_AGI_USD: 107650, PHASE_IN_USD: 50000, FLAT_TOP_AGI_USD: 25000000, TOP_RATE: 0.109,
+            single: [[0, 0, 567], [215400, 567, 2047], [1077550, 2614, 30172], [5000000, 32786, 32500]],
+            mfj: [[0, 0, 333], [161550, 333, 807], [323200, 1140, 3071], [2155350, 4211, 60350], [5000000, 64561, 32500]]
+          },
+          SURCHARGE_LABEL_RECAPTURE: "Tax-benefit recapture (NY Tax Law §601(d-1), NY AGI over $107,650)",
           STD_DEDUCTION: { single: 8000, mfj: 16050 },
           // NY dropped a personal exemption for filer/spouse decades ago;
           // only the $1,000/dependent exemption survives, taken against
