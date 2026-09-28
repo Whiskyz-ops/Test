@@ -862,7 +862,9 @@ var NODES = {
       fill("selfEmploymentUsd", "selfEmployment", d.businessAndSeComputation.foreignSelfEmploymentUsd > 0, num(ii.business && ii.business.inr));
       fill("interestUsd", "interest", di.foreignInterestUsd > 0, num(ii.interest && ii.interest.inr));
       fill("dividendsUsd", "dividends", di.foreignDividendsUsd > 0, num(ii.dividend && ii.dividend.inr) + num(ii.deemedDividendBuyback && ii.deemedDividendBuyback.inr));
-      fill("rentalUsd", "rental", di.foreignRentalUsd > 0, num(ii.houseProperty && ii.houseProperty.inr));
+      // Rent under US rules (no Indian 30% deduction, no deemed rent) when the
+      // India side hands it over; India's house-property figure otherwise.
+      fill("rentalUsd", "rental", di.foreignRentalUsd > 0, src.rentalUsRulesInr != null ? num(src.rentalUsRulesInr) : num(ii.houseProperty && ii.houseProperty.inr));
       fill("stcgUsd", "stcg", di.foreignStcgUsd > 0, num(ii.stcg && ii.stcg.inr) + num(ii.stcgSlabInr) + num(ii.vdaGainInr));
       fill("ltcgUsd", "ltcg", di.foreignLtcgUsd > 0, num(ii.ltcg && ii.ltcg.inr) + num(ii.ltcg197Inr));
       // Family pension has a Layer 1 US counterpart (foreign pension): filled

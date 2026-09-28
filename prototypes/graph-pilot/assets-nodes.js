@@ -1042,7 +1042,7 @@ NODES.usIncomeForIndiaBoundary = {
   }
 };
 NODES.indiaIncomeForUsBoundary = {
-  deps: ["indiaIncomeModelResult", "residencyResult", "s115aRoyalty", "s115aFts"],
+  deps: ["indiaIncomeModelResult", "residencyResult", "s115aRoyalty", "s115aFts", "diAgg"],
   compute: function (d, ctx) {
     var indiaKind = safe(ctx.india, "profile.entity_type", "individual") || "individual";
     var usKind = safe(ctx.us, "profile.tax_entity_type", "individual") || "individual";
@@ -1051,7 +1051,9 @@ NODES.indiaIncomeForUsBoundary = {
     return {
       income: d.indiaIncomeModelResult,
       royaltyInr: d.s115aRoyalty ? d.s115aRoyalty.totalInr || 0 : 0,
-      ftsInr: d.s115aFts ? d.s115aFts.totalInr || 0 : 0
+      ftsInr: d.s115aFts ? d.s115aFts.totalInr || 0 : 0,
+      // Indian rental under US rules (house-property.js usRulesRentalInr).
+      rentalUsRulesInr: require("./house-property.js").usRulesRentalInr(safe(d.diAgg, "house_property.properties", []) || [])
     };
   }
 };

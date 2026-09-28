@@ -249,3 +249,13 @@ def test_npa_provisions_capped_at_5_percent_of_business_income():
     entry = {"business_code": "banking", "presumptive_scheme": "none", "turnover_inr": 10000000}
     assert _biz_income(dict(entry, expenses={"npa_provisions_inr": 200000}), "company") == 9800000
     assert _biz_income(dict(entry, expenses={"npa_provisions_inr": 1000000}), "company") == 9500000
+
+
+def test_indian_rent_enters_us_income_under_us_rules():
+    # ₹12L rent − ₹60k municipal tax, no Indian 30% deduction: ₹11.4L at ₹83/$
+    c = copy.deepcopy(ctx_for("us_resident_indian_income"))
+    c["us"]["income_foreign_source"]["foreign_rental_income_usd"] = 0
+    c["us"]["income_foreign_source"].pop("foreign_rental_expenses_usd", None)
+    r = analyze(c)["model"]["income"]["us"]
+    assert r["foreignFromIndia"].get("rental") is True
+    assert round(r["foreignRental"]["usd"]) == round(1140000 / 83)

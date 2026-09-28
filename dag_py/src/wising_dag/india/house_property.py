@@ -60,6 +60,26 @@ def compute_house_property(props, opts: dict | None = None) -> dict:
     return {"incomeInr": income_inr + 0.0, "headInr": head_inr + 0.0, "lossCarriedForwardInr": (income_inr - head_inr) + 0.0}
 
 
+def us_rules_rental_inr(props) -> float:
+    """Mirrors house-property.js usRulesRentalInr: let-out rent less Indian
+    property tax and loan interest, no 30%, no deemed rent, no depreciation;
+    a net loss counts as 0."""
+    net = 0.0
+    for p in props or []:
+        if not isinstance(p, dict):
+            continue
+        has_gav = _has(p.get("gross_annual_value_inr")) or _has(p.get("annual_value_inr")) or _has(p.get("gross_rent_received_inr"))
+        use = p.get("property_use") or ("LOP" if has_gav else "SOP")
+        if use != "LOP":
+            continue
+        share = (min(100.0, max(0.0, _num(p.get("co_owner_share_percent")))) / 100
+                 if p.get("financial_values_represent") == "TOTAL_PROPERTY" and _has(p.get("co_owner_share_percent")) else 1.0)
+        rent = (_num(p.get("gross_annual_value_inr")) if _has(p.get("gross_annual_value_inr"))
+                else _num(p.get("gross_rent_received_inr")) if _has(p.get("gross_rent_received_inr")) else _num(p.get("annual_value_inr")))
+        net += (rent - _num(p.get("municipal_taxes_paid_inr")) - _num(p.get("interest_on_borrowed_capital_inr")) - _num(p.get("pre_construction_interest_inr"))) * share
+    return max(0.0, net) + 0.0
+
+
 def house_property_opts(india) -> dict:
     profile = (india or {}).get("profile") or {} if isinstance(india, dict) else {}
     entity = profile.get("entity_type") or "individual"

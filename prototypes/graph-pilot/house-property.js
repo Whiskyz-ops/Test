@@ -53,6 +53,28 @@ function computeHouseProperty(props, opts) {
   return { incomeInr: incomeInr || 0, headInr: headInr || 0, lossCarriedForwardInr: (incomeInr - headInr) || 0 };
 }
 
+// The same properties under US rules, for a US person's foreign rental
+// income (Schedule E): rent actually received from let-out property, less
+// the Indian property (municipal) tax and loan interest paid on it. No 30%
+// standard deduction (an Indian allowance), no notional rent for deemed
+// let-out or self-occupied homes, and no depreciation (the form doesn't
+// collect the building's cost). A net loss counts as 0 here — passive-loss
+// limits decide whether it's usable, which isn't modelled.
+function usRulesRentalInr(props) {
+  var net = 0;
+  (props || []).forEach(function (p) {
+    if (!p || typeof p !== "object") return;
+    var hasGav = hpHas(p.gross_annual_value_inr) || hpHas(p.annual_value_inr) || hpHas(p.gross_rent_received_inr);
+    var use = p.property_use || (hasGav ? "LOP" : "SOP");
+    if (use !== "LOP") return;
+    var share = p.financial_values_represent === "TOTAL_PROPERTY" && hpHas(p.co_owner_share_percent)
+      ? Math.min(100, Math.max(0, hpNum(p.co_owner_share_percent))) / 100 : 1;
+    var rent = hpHas(p.gross_annual_value_inr) ? hpNum(p.gross_annual_value_inr) : (hpHas(p.gross_rent_received_inr) ? hpNum(p.gross_rent_received_inr) : hpNum(p.annual_value_inr));
+    net += (rent - hpNum(p.municipal_taxes_paid_inr) - hpNum(p.interest_on_borrowed_capital_inr) - hpNum(p.pre_construction_interest_inr)) * share;
+  });
+  return Math.max(0, net) || 0;
+}
+
 // opts from Layer 1 India's own state: regime + entity.
 function housePropertyOpts(india) {
   var profile = (india && india.profile) || {};
@@ -63,4 +85,4 @@ function housePropertyOpts(india) {
   };
 }
 
-module.exports = { computeHouseProperty: computeHouseProperty, housePropertyOpts: housePropertyOpts };
+module.exports = { computeHouseProperty: computeHouseProperty, housePropertyOpts: housePropertyOpts, usRulesRentalInr: usRulesRentalInr };

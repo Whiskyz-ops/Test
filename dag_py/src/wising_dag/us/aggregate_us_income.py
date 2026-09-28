@@ -729,7 +729,8 @@ def _foreign_income_from_india(d, ctx):
     fill("selfEmploymentUsd", "selfEmployment", d["businessAndSeComputation"]["foreignSelfEmploymentUsd"] > 0, inr_of("business"))
     fill("interestUsd", "interest", di["foreignInterestUsd"] > 0, inr_of("interest"))
     fill("dividendsUsd", "dividends", di["foreignDividendsUsd"] > 0, inr_of("dividend") + inr_of("deemedDividendBuyback"))
-    fill("rentalUsd", "rental", di["foreignRentalUsd"] > 0, inr_of("houseProperty"))
+    # Rent under US rules when the India side hands it over (mirrors JS).
+    fill("rentalUsd", "rental", di["foreignRentalUsd"] > 0, num(src["rentalUsRulesInr"]) if src.get("rentalUsRulesInr") is not None else inr_of("houseProperty"))
     fill("stcgUsd", "stcg", di["foreignStcgUsd"] > 0, inr_of("stcg") + num(ii.get("stcgSlabInr")) + num(ii.get("vdaGainInr")))
     fill("ltcgUsd", "ltcg", di["foreignLtcgUsd"] > 0, inr_of("ltcg") + num(ii.get("ltcg197Inr")))
     # Family pension goes to foreign pension (gross — India's s.57(iia)

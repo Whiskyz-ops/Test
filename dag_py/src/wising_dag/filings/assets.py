@@ -40,6 +40,7 @@ from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
 from ..core.util import format_inr, js_num_str, js_round, num, safe
 from ..india.constants import INDIA as _CONST_INDIA
+from ..india.house_property import us_rules_rental_inr
 from ..india.business_expenses import branch_receipts_inr, branch_turnover_inr, business_expense_opts, expense_label, regular_books_expenses
 from ..india.aggregate_india_income import (
     _aggregate_entry_depreciation_inr,
@@ -1048,7 +1049,7 @@ def build(base):
     # forms whom the US taxes on worldwide income; anyone else => None.
     r.override(
         "indiaIncomeForUsBoundary",
-        NodeDef(deps=("indiaIncomeModelResult", "residencyResult", "s115aRoyalty", "s115aFts"), compute=_india_income_for_us),
+        NodeDef(deps=("indiaIncomeModelResult", "residencyResult", "s115aRoyalty", "s115aFts", "diAgg"), compute=_india_income_for_us),
         reason="assets-nodes.js: one income list — Layer 1 India income into US worldwide income (fill gaps only)",
     )
     # India tax: salary net of the s.16 standard deduction / s.10 exemptions
@@ -1113,4 +1114,5 @@ def _india_income_for_us(d, ctx):
         "income": d["indiaIncomeModelResult"],
         "royaltyInr": (d["s115aRoyalty"].get("totalInr") or 0) if d["s115aRoyalty"] else 0,
         "ftsInr": (d["s115aFts"].get("totalInr") or 0) if d["s115aFts"] else 0,
+        "rentalUsRulesInr": us_rules_rental_inr(safe(d["diAgg"], "house_property.properties", []) or []),
     }

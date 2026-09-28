@@ -1398,7 +1398,7 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
     [fi("Foreign self-employment (India business)", "selfEmployment"), inc.us.foreignSelfEmployment],
     [fi("Foreign interest (incl. India retirement a/c interest)", "interest"), inc.us.foreignInterest],
     [fi("Foreign dividends", "dividends"), inc.us.foreignDividends],
-    [fi("Foreign rental", "rental"), inc.us.foreignRental],
+    [fromIndia.rental ? "Foreign rental · from Layer 1 India (rent less Indian property tax and loan interest; before depreciation)" : "Foreign rental", inc.us.foreignRental],
     ["Foreign pension (incl. India retirement a/c withdrawals)", inc.us.foreignPension],
     [fi("Foreign short-term gains", "stcg"), inc.us.foreignStcg],
     [fi("Foreign long-term gains", "ltcg"), inc.us.foreignLtcg],
