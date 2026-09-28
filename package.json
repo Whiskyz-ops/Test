@@ -29,7 +29,9 @@
     "merge:find-base": "node scripts/merge/find-base-commit.js",
     "merge:apply": "node scripts/merge/three-way-merge.js",
     "audit:fix-regression": "node scripts/audit/fix-regression-check.js",
-    "check:form-roundtrip": "node scripts/check-form-roundtrip.js"
+    "check:form-roundtrip": "node scripts/check-form-roundtrip.js",
+    "check:legacy-harnesses": "node scripts/check-legacy-harnesses.js",
+    "audit:form-engine": "node scripts/check-form-engine-effect.js"
   },
   "repository": {
     "type": "git",
