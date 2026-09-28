@@ -505,11 +505,17 @@
           // are exactly 2x single throughout.
           BRACKETS: {
             single: [[11079,0.01],[26264,0.02],[41452,0.04],[57542,0.06],[72724,0.08],[371479,0.093],[445771,0.103],[742953,0.113],[Infinity,0.123]],
-            mfj:    [[22158,0.01],[52528,0.02],[82904,0.04],[115084,0.06],[145448,0.08],[742958,0.093],[891542,0.103],[1485906,0.113],[Infinity,0.123]]
+            mfj:    [[22158,0.01],[52528,0.02],[82904,0.04],[115084,0.06],[145448,0.08],[742958,0.093],[891542,0.103],[1485906,0.113],[Infinity,0.123]],
+            // FTB 2025 Schedule Z (head of household); MFS uses Schedule X.
+            hoh:    [[22173,0.01],[52530,0.02],[67716,0.04],[83805,0.06],[98990,0.08],[505208,0.093],[606251,0.103],[1010417,0.113],[Infinity,0.123]]
           },
-          STD_DEDUCTION: { single: 5706, mfj: 11412 },
+          // FTB publishes the 2026 indexed schedules late in 2026; until then
+          // these are the latest official (2025) figures.
+          RATES_NOTE: "TY2025 rates — the latest FTB schedules (2026's are published late in 2026)",
+          STATUS_TABLE: { mfs: "single", qss: "mfj" },
+          STD_DEDUCTION: { single: 5706, mfj: 11412, hoh: 11412 },
           // Personal exemption CREDIT (subtracted from tax, not income), FTB 2025.
-          EXEMPTION_CREDIT_USD: { single: 153, mfj: 307 },
+          EXEMPTION_CREDIT_USD: { single: 153, mfj: 307, hoh: 153 },
           DEPENDENT_CREDIT_USD: 475,
           // Mental Health Services Tax: flat 1% on taxable income over $1M,
           // NOT doubled for MFJ (same $1M threshold regardless of status) —
@@ -527,8 +533,11 @@
           RATES_NOTE: "TY2026 rates (FY2026 budget, S3009C)",
           BRACKETS: {
             single: [[8500,0.039],[11700,0.044],[13900,0.0515],[80650,0.054],[215400,0.059],[1077550,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]],
-            mfj:    [[17150,0.039],[23600,0.044],[27900,0.0515],[161550,0.054],[323200,0.059],[2155350,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]]
+            mfj:    [[17150,0.039],[23600,0.044],[27900,0.0515],[161550,0.054],[323200,0.059],[2155350,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]],
+            hoh:    [[12800,0.039],[17650,0.044],[20900,0.0515],[107650,0.054],[269300,0.059],[1616450,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]]
           },
+          // MFS uses the single schedule; a qualifying surviving spouse the joint one.
+          STATUS_TABLE: { mfs: "single", qss: "mfj" },
           // Tax-benefit recapture (supplemental tax), NY Tax Law §601(d-1)
           // as amended through S3009C: above $107,650 of NY AGI the benefit
           // of the lower brackets is taken back — tax = bracket tax +
@@ -542,10 +551,11 @@
           SUPPLEMENTAL_TAX: {
             MIN_AGI_USD: 107650, PHASE_IN_USD: 50000, FLAT_TOP_AGI_USD: 25000000, TOP_RATE: 0.109,
             single: [[0, 0, 567], [215400, 567, 2047], [1077550, 2614, 30172], [5000000, 32786, 32500]],
-            mfj: [[0, 0, 333], [161550, 333, 807], [323200, 1140, 3071], [2155350, 4211, 60350], [5000000, 64561, 32500]]
+            mfj: [[0, 0, 333], [161550, 333, 807], [323200, 1140, 3071], [2155350, 4211, 60350], [5000000, 64561, 32500]],
+            hoh: [[0, 0, 787], [269300, 787, 2559], [1616450, 3346, 45260], [5000000, 48606, 32500]]
           },
           SURCHARGE_LABEL_RECAPTURE: "Tax-benefit recapture (NY Tax Law §601(d-1), NY AGI over $107,650)",
-          STD_DEDUCTION: { single: 8000, mfj: 16050 },
+          STD_DEDUCTION: { single: 8000, mfj: 16050, hoh: 11200 },
           // NY dropped a personal exemption for filer/spouse decades ago;
           // only the $1,000/dependent exemption survives, taken against
           // income (not a credit, unlike CA's).
@@ -556,7 +566,7 @@
           // MFJ per year, no income cap. CA has NO key here at all (deliberate
           // absence, not an oversight) — CA's ScholarShare 529 carries no
           // state income tax deduction whatsoever.
-          FIVE29_DEDUCTION_MAX_USD: { single: 5000, mfj: 10000 }
+          FIVE29_DEDUCTION_MAX_USD: { single: 5000, mfj: 10000, hoh: 5000 }
         }
       },
       // ---- entity (business) corporate rates ----

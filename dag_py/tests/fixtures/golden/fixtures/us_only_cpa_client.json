@@ -1393,7 +1393,7 @@
       "category": "credit",
       "title": "California state income tax: $23,754 (Form 540)",
       "detail": "California taxes a full-year resident's WORLDWIDE income, including Indian-source income already reported on the federal and Indian returns \u2014 computed here as $345,519 of state taxable income (federal AGI $356,931 less the California standard deduction) at California's own bracket rates, less $1,257 of personal/dependent credits. Neither the Foreign Tax Credit computed above nor any DTAA relief applies here \u2014 California is not a party to the India-US treaty and grants no credit for tax paid to a foreign country at all.",
-      "recommendation": "File Form 540 alongside the federal return. This is a full-year-resident, TY2025-rates estimate \u2014 it does not split state-source income for a part-year or nonresident allocation, does not model California's own AGI addition/subtraction adjustments beyond the standard deduction, and (for California) does not include the local-jurisdiction SDI/VPDI payroll tax. Treat as directional, not filing-ready.",
+      "recommendation": "File Form 540 alongside the federal return. This is a full-year-resident estimate \u2014 it does not split state-source income for a part-year or nonresident allocation, does not model California's own AGI addition/subtraction adjustments beyond the standard deduction, and (for California) does not include the local-jurisdiction SDI/VPDI payroll tax. Treat as directional, not filing-ready.",
       "amountUsd": 23754,
       "refs": [
         "Form 540",

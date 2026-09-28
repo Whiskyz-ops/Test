@@ -129,11 +129,15 @@ var US_STATES_NJ_NY_SHAPE_EXT = {
       single: [[20000, 0.014], [35000, 0.0175], [40000, 0.035], [75000, 0.05525], [500000, 0.0637], [1000000, 0.0897], [Infinity, 0.1075]],
       mfj: [[20000, 0.014], [50000, 0.0175], [70000, 0.0245], [80000, 0.035], [150000, 0.05525], [500000, 0.0637], [1000000, 0.0897], [Infinity, 0.1075]]
     },
+    // NJ-1040: head of household and surviving spouse use the joint table
+    // (Table B), MFS the single one (Table A); rates unindexed since 2020.
+    STATUS_TABLE: { mfs: "single", hoh: "mfj", qss: "mfj" },
+    RATES_NOTE: "NJ-1040 rate tables (unchanged since 2020)",
     // NJ has no standard deduction — a $1,000 personal exemption (filer),
     // another $1,000 if MFJ (spouse), modeled here as the STD_DEDUCTION
     // slot since the dollar effect (subtracted from AGI before bracket tax)
     // is identical; STD_DEDUCTION_LABEL corrects the trace wording.
-    STD_DEDUCTION: { single: 1000, mfj: 2000 },
+    STD_DEDUCTION: { single: 1000, mfj: 2000, hoh: 1000, mfs: 1000 },
     STD_DEDUCTION_LABEL: "personal exemption",
     DEPENDENT_EXEMPTION_USD: 1500,
     DEPENDENT_EXEMPTION_LABEL: "NJ dependent exemption ($1,500/dependent)",
@@ -164,7 +168,7 @@ NODES.usStateTaxResult = {
     if (!stateCode) return null;
     if (NO_INDIVIDUAL_INCOME_TAX_STATES[stateCode]) {
       return {
-        state: stateCode, stateName: STATE_NAMES[stateCode] || stateCode, formName: null, filingStatus: d.usFilingStatusRaw === "mfj" ? "mfj" : "single",
+        state: stateCode, stateName: STATE_NAMES[stateCode] || stateCode, formName: null, filingStatus: d.usFilingStatusRaw || "single",
         noIncomeTax: true, agiUsd: d.usTaxResult.agiUsd, standardDeductionUsd: 0, dependentExemptionUsd: 0, five29DeductionUsd: 0,
         taxableIncomeUsd: 0, bracketTaxUsd: 0, bracketBreakdown: [], surchargeUsd: 0, surchargeLabel: null,
         exemptionCreditUsd: 0, dependentCreditUsd: 0, totalTaxUsd: 0, effectiveRate: 0,
@@ -173,9 +177,13 @@ NODES.usStateTaxResult = {
     }
     var T = US_STATES_EXT[stateCode];
     if (!T) return null;
-    var status = d.usFilingStatusRaw === "mfj" ? "mfj" : "single";
+    // Federal filing status -> this state's table: its own table when it
+    // has one, else the state's mapping (e.g. MFS -> single, NJ HOH -> joint).
+    var raw = d.usFilingStatusRaw || "single";
+    var status = T.BRACKETS[raw] ? raw : ((T.STATUS_TABLE || {})[raw] || "single");
     var brackets = T.BRACKETS[status];
-    var standardDeductionUsd = T.STD_DEDUCTION[status];
+    var stdKey = T.STD_DEDUCTION[raw] != null ? raw : status;
+    var standardDeductionUsd = T.STD_DEDUCTION[stdKey];
     var dependents = d.dedUs.dependents || 0;
     var dependentExemptionUsd = (T.DEPENDENT_EXEMPTION_USD || 0) * dependents;
     // 529 state tax deduction (task #45 follow-up): only the RESIDENT
@@ -187,7 +195,7 @@ NODES.usStateTaxResult = {
     var five29StateMatches = d.dedUs.funded529Plan && d.dedUs.five29StateDeductionState &&
       String(d.dedUs.five29StateDeductionState).toUpperCase() === stateCode;
     var five29IncomeOk = T.FIVE29_DEDUCTION_INCOME_CAP_USD == null || d.usTaxResult.agiUsd <= T.FIVE29_DEDUCTION_INCOME_CAP_USD;
-    var five29CapUsd = T.FIVE29_DEDUCTION_MAX_USD ? (T.FIVE29_DEDUCTION_MAX_USD[status] || T.FIVE29_DEDUCTION_MAX_USD.single) : 0;
+    var five29CapUsd = T.FIVE29_DEDUCTION_MAX_USD ? (T.FIVE29_DEDUCTION_MAX_USD[raw] || T.FIVE29_DEDUCTION_MAX_USD[status] || T.FIVE29_DEDUCTION_MAX_USD.single) : 0;
     var five29DeductionUsd = (five29StateMatches && five29IncomeOk) ? Math.min(d.dedUs.five29ContributionsUsd || 0, five29CapUsd) : 0;
     var taxableIncomeUsd = Math.max(0, d.usTaxResult.agiUsd - standardDeductionUsd - dependentExemptionUsd - five29DeductionUsd);
     var bracketTaxUsd = bracketTax(taxableIncomeUsd, brackets);
@@ -209,11 +217,11 @@ NODES.usStateTaxResult = {
       surchargeUsd += Math.max(0, recaptureUsd);
       surchargeLabel = T.SURCHARGE_LABEL_RECAPTURE;
     }
-    var exemptionCreditUsd = (T.EXEMPTION_CREDIT_USD && T.EXEMPTION_CREDIT_USD[status]) || 0;
+    var exemptionCreditUsd = (T.EXEMPTION_CREDIT_USD && (T.EXEMPTION_CREDIT_USD[raw] != null ? T.EXEMPTION_CREDIT_USD[raw] : T.EXEMPTION_CREDIT_USD[status])) || 0;
     var dependentCreditUsd = (T.DEPENDENT_CREDIT_USD || 0) * dependents;
     var totalTaxUsd = Math.max(0, Math.round(bracketTaxUsd + surchargeUsd - exemptionCreditUsd - dependentCreditUsd));
     return {
-      state: stateCode, stateName: T.NAME, formName: T.FORM_NAME, filingStatus: status,
+      state: stateCode, stateName: T.NAME, formName: T.FORM_NAME, filingStatus: raw, rateTable: status,
       noIncomeTax: false,
       agiUsd: d.usTaxResult.agiUsd, standardDeductionUsd: standardDeductionUsd, dependentExemptionUsd: dependentExemptionUsd,
       standardDeductionLabel: T.STD_DEDUCTION_LABEL || "standard deduction",
@@ -397,7 +405,7 @@ NODES.findingsBatch5Result = {
         (st.exemptionCreditUsd + st.dependentCreditUsd > 0 ? ", less " + usd(st.exemptionCreditUsd + st.dependentCreditUsd) + " of personal/dependent credits" : "") +
         ". Neither the Foreign Tax Credit computed above nor any DTAA relief applies here — " + st.stateName +
         " is not a party to the India-US treaty and " + (st.state === "CA" ? "grants no credit for tax paid to a foreign country at all." : "does not treat Indian tax as a creditable state-level offset."),
-        "File " + st.formName + " alongside the federal return. This is a full-year-resident, " + (st.state === "NY" ? "TY2026" : "TY2025") + "-rates estimate — it does not " +
+        "File " + st.formName + " alongside the federal return. This is a full-year-resident estimate — it does not " +
         "split state-source income for a part-year or nonresident allocation, does not model " + st.stateName +
         "'s own AGI addition/subtraction adjustments beyond the standard deduction" +
         (st.dependentExemptionUsd > 0 ? "/dependent exemption" : "") + ", and (for California) does not include the local-jurisdiction " +

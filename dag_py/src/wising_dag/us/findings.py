@@ -95,7 +95,7 @@ def _us_state_tax_result(d, ctx):
     if C.NO_INDIVIDUAL_INCOME_TAX_STATES.get(state_code):
         return {
             "state": state_code, "stateName": C.STATE_NAMES.get(state_code, state_code), "formName": None,
-            "filingStatus": "mfj" if d["usFilingStatusRaw"] == "mfj" else "single",
+            "filingStatus": d["usFilingStatusRaw"] or "single",
             "noIncomeTax": True, "agiUsd": d["usTaxResult"]["agiUsd"], "standardDeductionUsd": 0, "dependentExemptionUsd": 0, "five29DeductionUsd": 0,
             "taxableIncomeUsd": 0, "bracketTaxUsd": 0, "bracketBreakdown": [], "surchargeUsd": 0, "surchargeLabel": None,
             "exemptionCreditUsd": 0, "dependentCreditUsd": 0, "totalTaxUsd": 0, "effectiveRate": 0,
@@ -104,9 +104,11 @@ def _us_state_tax_result(d, ctx):
     st = C.US_STATES_EXT.get(state_code)
     if not st:
         return None
-    status = "mfj" if d["usFilingStatusRaw"] == "mfj" else "single"
+    # Federal filing status -> this state's table (see findings-batch5-nodes.js).
+    raw = d["usFilingStatusRaw"] or "single"
+    status = raw if raw in st["BRACKETS"] else (st.get("STATUS_TABLE") or {}).get(raw, "single")
     brackets = st["BRACKETS"][status]
-    standard_deduction_usd = st["STD_DEDUCTION"][status]
+    standard_deduction_usd = st["STD_DEDUCTION"][raw if raw in st["STD_DEDUCTION"] else status]
     dependents = d["dedUs"].get("dependents") or 0
     dependent_exemption_usd = (st.get("DEPENDENT_EXEMPTION_USD") or 0) * dependents
     # 529 state tax deduction (task #45 follow-up): only the RESIDENT
@@ -119,7 +121,7 @@ def _us_state_tax_result(d, ctx):
     five29_income_cap = st.get("FIVE29_DEDUCTION_INCOME_CAP_USD")
     five29_income_ok = five29_income_cap is None or d["usTaxResult"]["agiUsd"] <= five29_income_cap
     five29_cap_table = st.get("FIVE29_DEDUCTION_MAX_USD")
-    five29_cap_usd = (five29_cap_table.get(status, five29_cap_table.get("single")) if five29_cap_table else 0) or 0
+    five29_cap_usd = (five29_cap_table.get(raw) or five29_cap_table.get(status, five29_cap_table.get("single")) if five29_cap_table else 0) or 0
     five29_deduction_usd = min(d["dedUs"].get("five29ContributionsUsd") or 0, five29_cap_usd) if (five29_state_matches and five29_income_ok) else 0.0
     taxable_income_usd = max(0.0, d["usTaxResult"]["agiUsd"] - standard_deduction_usd - dependent_exemption_usd - five29_deduction_usd)
     bracket_tax_usd = _bracket_tax(taxable_income_usd, brackets)
@@ -138,11 +140,12 @@ def _us_state_tax_result(d, ctx):
             recapture_usd = row[1] + phase * row[2]
         surcharge_usd += max(0.0, recapture_usd)
         surcharge_label = st["SURCHARGE_LABEL_RECAPTURE"]
-    exemption_credit_usd = (st.get("EXEMPTION_CREDIT_USD") or {}).get(status, 0)
+    exemption_credit_table = st.get("EXEMPTION_CREDIT_USD") or {}
+    exemption_credit_usd = exemption_credit_table.get(raw, exemption_credit_table.get(status, 0))
     dependent_credit_usd = (st.get("DEPENDENT_CREDIT_USD") or 0) * dependents
     total_tax_usd = max(0.0, js_round(bracket_tax_usd + surcharge_usd - exemption_credit_usd - dependent_credit_usd))
     return {
-        "state": state_code, "stateName": st["NAME"], "formName": st["FORM_NAME"], "filingStatus": status,
+        "state": state_code, "stateName": st["NAME"], "formName": st["FORM_NAME"], "filingStatus": raw, "rateTable": status,
         "noIncomeTax": False,
         "agiUsd": d["usTaxResult"]["agiUsd"], "standardDeductionUsd": standard_deduction_usd, "dependentExemptionUsd": dependent_exemption_usd,
         "standardDeductionLabel": st.get("STD_DEDUCTION_LABEL") or "standard deduction",
@@ -591,7 +594,7 @@ def _findings_us_result(d, ctx):
             + (f", less {_fmt(st['exemptionCreditUsd'] + st['dependentCreditUsd'])} of personal/dependent credits" if st["exemptionCreditUsd"] + st["dependentCreditUsd"] > 0 else "")
             + f". Neither the Foreign Tax Credit computed above nor any DTAA relief applies here — {st['stateName']}"
             + " is not a party to the India-US treaty and " + ("grants no credit for tax paid to a foreign country at all." if st["state"] == "CA" else "does not treat Indian tax as a creditable state-level offset."),
-            f"File {st['formName']} alongside the federal return. This is a full-year-resident, {'TY2026' if st['state'] == 'NY' else 'TY2025'}-rates estimate — it does not "
+            f"File {st['formName']} alongside the federal return. This is a full-year-resident estimate — it does not "
             f"split state-source income for a part-year or nonresident allocation, does not model {st['stateName']}"
             "'s own AGI addition/subtraction adjustments beyond the standard deduction"
             + ("/dependent exemption" if st["dependentExemptionUsd"] > 0 else "") + ", and (for California) does not include the local-jurisdiction "

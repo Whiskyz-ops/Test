@@ -125,9 +125,13 @@ US_STATES = {
         "BRACKETS": {
             "single": [[11079, 0.01], [26264, 0.02], [41452, 0.04], [57542, 0.06], [72724, 0.08], [371479, 0.093], [445771, 0.103], [742953, 0.113], [INF, 0.123]],
             "mfj": [[22158, 0.01], [52528, 0.02], [82904, 0.04], [115084, 0.06], [145448, 0.08], [742958, 0.093], [891542, 0.103], [1485906, 0.113], [INF, 0.123]],
+            # FTB 2025 Schedule Z (head of household); MFS uses Schedule X.
+            "hoh": [[22173, 0.01], [52530, 0.02], [67716, 0.04], [83805, 0.06], [98990, 0.08], [505208, 0.093], [606251, 0.103], [1010417, 0.113], [INF, 0.123]],
         },
-        "STD_DEDUCTION": {"single": 5706, "mfj": 11412},
-        "EXEMPTION_CREDIT_USD": {"single": 153, "mfj": 307},
+        "RATES_NOTE": "TY2025 rates — the latest FTB schedules (2026's are published late in 2026)",
+        "STATUS_TABLE": {"mfs": "single", "qss": "mfj"},
+        "STD_DEDUCTION": {"single": 5706, "mfj": 11412, "hoh": 11412},
+        "EXEMPTION_CREDIT_USD": {"single": 153, "mfj": 307, "hoh": 153},
         "DEPENDENT_CREDIT_USD": 475,
         "SURCHARGE_THRESHOLD_USD": 1000000,
         "SURCHARGE_RATE": 0.01,
@@ -141,22 +145,25 @@ US_STATES = {
         "BRACKETS": {
             "single": [[8500, 0.039], [11700, 0.044], [13900, 0.0515], [80650, 0.054], [215400, 0.059], [1077550, 0.0685], [5000000, 0.0965], [25000000, 0.103], [INF, 0.109]],
             "mfj": [[17150, 0.039], [23600, 0.044], [27900, 0.0515], [161550, 0.054], [323200, 0.059], [2155350, 0.0685], [5000000, 0.0965], [25000000, 0.103], [INF, 0.109]],
+            "hoh": [[12800, 0.039], [17650, 0.044], [20900, 0.0515], [107650, 0.054], [269300, 0.059], [1616450, 0.0685], [5000000, 0.0965], [25000000, 0.103], [INF, 0.109]],
         },
+        "STATUS_TABLE": {"mfs": "single", "qss": "mfj"},
         # Tax-benefit recapture, NY Tax Law §601(d-1) — see constants.js.
         "SUPPLEMENTAL_TAX": {
             "MIN_AGI_USD": 107650, "PHASE_IN_USD": 50000, "FLAT_TOP_AGI_USD": 25000000, "TOP_RATE": 0.109,
             "single": [[0, 0, 567], [215400, 567, 2047], [1077550, 2614, 30172], [5000000, 32786, 32500]],
             "mfj": [[0, 0, 333], [161550, 333, 807], [323200, 1140, 3071], [2155350, 4211, 60350], [5000000, 64561, 32500]],
+            "hoh": [[0, 0, 787], [269300, 787, 2559], [1616450, 3346, 45260], [5000000, 48606, 32500]],
         },
         "SURCHARGE_LABEL_RECAPTURE": "Tax-benefit recapture (NY Tax Law §601(d-1), NY AGI over $107,650)",
-        "STD_DEDUCTION": {"single": 8000, "mfj": 16050},
+        "STD_DEDUCTION": {"single": 8000, "mfj": 16050, "hoh": 11200},
         "DEPENDENT_EXEMPTION_USD": 1000,
         # 529 state tax deduction (task #45 follow-up), NY Tax Law
         # §612(c)(32): contributions to NY's OWN 529 College Savings Program
         # only -- $5,000 single/$10,000 MFJ per year, no income cap. CA has
         # NO key here at all (deliberate absence) -- ScholarShare 529 carries
         # no state income tax deduction whatsoever. Mirrors constants.js exactly.
-        "FIVE29_DEDUCTION_MAX_USD": {"single": 5000, "mfj": 10000},
+        "FIVE29_DEDUCTION_MAX_USD": {"single": 5000, "mfj": 10000, "hoh": 5000},
     },
 }
 
@@ -173,7 +180,10 @@ US_STATES_NJ_NY_SHAPE_EXT = {
             "single": [[20000, 0.014], [35000, 0.0175], [40000, 0.035], [75000, 0.05525], [500000, 0.0637], [1000000, 0.0897], [INF, 0.1075]],
             "mfj": [[20000, 0.014], [50000, 0.0175], [70000, 0.0245], [80000, 0.035], [150000, 0.05525], [500000, 0.0637], [1000000, 0.0897], [INF, 0.1075]],
         },
-        "STD_DEDUCTION": {"single": 1000, "mfj": 2000},
+        # NJ-1040: HOH/surviving spouse use the joint table, MFS the single one.
+        "STATUS_TABLE": {"mfs": "single", "hoh": "mfj", "qss": "mfj"},
+        "RATES_NOTE": "NJ-1040 rate tables (unchanged since 2020)",
+        "STD_DEDUCTION": {"single": 1000, "mfj": 2000, "hoh": 1000, "mfs": 1000},
         "STD_DEDUCTION_LABEL": "personal exemption",
         "DEPENDENT_EXEMPTION_USD": 1500,
         "DEPENDENT_EXEMPTION_LABEL": "NJ dependent exemption ($1,500/dependent)",

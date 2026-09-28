@@ -1,0 +1,51 @@
+{
+  "id": "us_state_ny_hoh",
+  "form": "layer1_us.html",
+  "section": "State (NY, HOH)",
+  "story": "New York resident, head of household with one dependent, wages $150,000 (NY AGI over $107,650, so recapture phases in).",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "hoh",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 1
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "NY"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 150000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 150000
+          }
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "findings[id=state_income_tax].amountUsd",
+      "value": 8010,
+      "why": "NY taxable 150,000 - 11,200 HOH deduction - 1,000 dependent exemption = 137,800; HOH 2026 schedule 7,343.33; recapture 787 x (150,000 - 107,650) / 50,000 = 666.59"
+    }
+  ]
+}

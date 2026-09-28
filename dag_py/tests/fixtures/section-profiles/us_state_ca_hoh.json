@@ -1,0 +1,51 @@
+{
+  "id": "us_state_ca_hoh",
+  "form": "layer1_us.html",
+  "section": "State (CA, HOH)",
+  "story": "California resident, head of household with one dependent, wages $100,000.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "hoh",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 1
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "CA"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 100000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 100000
+          }
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "findings[id=state_income_tax].amountUsd",
+      "value": 2156,
+      "why": "CA taxable 100,000 - 11,412 = 88,588 on FTB 2025 Schedule Z (HOH): 221.73 + 607.14 + 607.44 + 965.34 + 382.64 = 2,784.29; less exemption credit 153 and dependent credit 475"
+    }
+  ]
+}

@@ -1179,6 +1179,18 @@ function isNyStateProfile(dag) {
   var st = dag.taxComputation && dag.taxComputation.usState;
   return !!(st && /S3009C/.test(st.basis || ""));
 }
+// (l) State tax by filing status: HOH/MFS/QSS now use each state's own table
+// (CA Schedule Z, NY HOH, NJ Table B for HOH) and CA/NJ cards name their
+// rate source — every CA/NJ card's text differs, and HOH/MFS amounts too.
+function isStateStatusTableProfile(dag) {
+  var st = dag.taxComputation && dag.taxComputation.usState;
+  return !!(st && /FTB schedules|NJ-1040 rate tables/.test(st.basis || ""));
+}
+function isStateHohMfsProfile(dag) {
+  var u = dag.computed && dag.computed.usTax;
+  var st = dag.taxComputation && dag.taxComputation.usState;
+  return !!(st && u && ["hoh", "mfs", "qss"].indexOf(u.filingStatus) >= 0);
+}
 function isFeieIneligibleClaimProfile(dag) {
   var f = dag.computed && dag.computed.usTax && dag.computed.usTax.feie;
   return !!(f && f.claimed && !f.eligible);
@@ -1408,7 +1420,7 @@ function compareOne(label, profile, saveOnFail) {
     qbiWageLimitDivergent || qbiWageUbiaDivergent || saversCreditDivergent || indiaRebateDivergent ||
     indiaSalaryExemption || nraTreatyRateFieldRenameDivergent ||
     isUsSingleBracketFixProfile(dag) || isUs72tInTotalProfile(dag) || isIndiaAdvanceTaxCumulativeProfile(dag, real) || isIndiaLawFixProfile(profile).income ||
-    isUsCharitable68Profile(dag) || isUs2210RunningBalanceProfile(dag, real) || isNraMfsProfile(dag) || isNyStateProfile(dag);
+    isUsCharitable68Profile(dag) || isUs2210RunningBalanceProfile(dag, real) || isNraMfsProfile(dag) || isNyStateProfile(dag) || isStateHohMfsProfile(dag);
   (findingsExcused ? knownDiffs : realDiffs).push.apply(findingsExcused ? knownDiffs : realDiffs, findingsResult.unknown);
   knownDiffs.push.apply(knownDiffs, findingsResult.known);
 
@@ -1473,7 +1485,8 @@ function compareOne(label, profile, saveOnFail) {
     .concat(isIndiaLawFixProfile(profile).scheduleFa ? ["documents", "summary", "monitoring"] : [])
     .concat(isUsCharitable68Profile(dag) || isNraMfsProfile(dag) ? KNOWN_NRA_DERIVED_SPLIT_PATHS : [])
     .concat(isUsItemizerProfile(dag) ? ["taxComputation.us"] : [])
-    .concat(isNyStateProfile(dag) ? ["taxComputation.usState", "findings", "summary", "monitoring"] : [])
+    .concat(isNyStateProfile(dag) || isStateHohMfsProfile(dag) ? ["taxComputation.usState", "findings", "summary", "monitoring"] : [])
+    .concat(isStateStatusTableProfile(dag) ? ["taxComputation.usState", "findings"] : [])
     .concat(isUs2210RunningBalanceProfile(dag, real) ? ["findings", "summary", "monitoring"] : [])
     .concat(isForm5471BelowTenPctProfile(profile) ? ["documents", "summary", "monitoring", "returnForms"] : [])
     // Quarterly LRS: the DAG sums quarters[Qn].lrs_outbound (the form keeps
