@@ -437,7 +437,7 @@ NODES.findingsBatch4Result = {
     "s115aDividendDetailed", "s115aRoyaltyDetailed", "s115aFtsDetailed", "nrInterestDetailed",
     "s6013hElection", "nraFdapDetail", "nraEciIncomeUsdRaw",
     "lossSetOffDetailed", "carryForwardLossesMetaRaw",
-    "feieDetailed", "usTaxResult", "isEntityTaxpayer", "usEntityKind"],
+    "feieDetailed", "usTaxResult", "isEntityTaxpayer", "usEntityKind", "indiaTreatyPositionResult"],
   compute: function (d, ctx) {
     var findings = [];
     function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {
@@ -448,19 +448,17 @@ NODES.findingsBatch4Result = {
 
     // -- 3. TREATY BENEFIT CLAIMED WITHOUT TRC / FORM 10F (conflicts.js:127-143) --
     // A TRC (US Form 6166) + Form 41 back a treaty position taken IN INDIA
-    // (s.159(8) / Rule 75): the tie-breaker sending residence to the US, a
-    // treaty-forced Indian non-residence, or DTAA rates elected on Indian
-    // income. A 1040-NR filer, or an Indian treaty resident, is claiming US
-    // treaty benefits (W-8BEN / Form 8833) and needs neither.
-    var claimsTreaty = d.treatyIndiaResidenceRaw === "us" || d.treatyUsResidenceRaw === "us" ||
-      d.treatyDtaaForcedNrRaw || treatyElections.length > 0;
-    if (claimsTreaty && (!d.treatyTrcStatus || !d.treatyForm10fFiled)) {
+    // (s.159(8) / Rule 75) — findings-nodes.js's indiaTreatyPositionResult.
+    // A 1040-NR filer, or an Indian treaty resident, is claiming US treaty
+    // benefits (W-8BEN / Form 8833) and needs neither.
+    var indiaPos = d.indiaTreatyPositionResult;
+    if (indiaPos.claims && (!d.treatyTrcStatus || !d.treatyForm10fFiled)) {
       var missing = [];
       if (!d.treatyTrcStatus) missing.push("TRC (IRS Form 6166)");
       if (!d.treatyForm10fFiled) missing.push("Form 41");
       add("treaty_docs_missing", "critical", "treaty",
         "Treaty relief claimed without supporting documents",
-        "A treaty position / DTAA rate is being relied upon, but " + missing.join(" and ") +
+        "A treaty position is being relied upon in India (" + indiaPos.reasons.join("; ") + "), but " + missing.join(" and ") +
         " is not on file. Indian tax authorities will deny treaty relief u/s 159(8) without a valid TRC, and Form 41 is mandatory u/r 75.",
         "Obtain " + missing.join(" and ") + " before filing. For US residents, request Form 6166 from the IRS (Form 8802 application) well in advance — it can take 6–8 weeks.",
         0, ["s.159(8)", "Rule 75 (Income-tax Rules, 2026)", "Form 6166"]);
@@ -654,7 +652,8 @@ NODES.findingsBatch4Result = {
         " with no deductions (Schedule NEC), separate from " + usd(d.nraEciIncomeUsdRaw) + " of ECI taxed at graduated brackets" +
         " with itemized deductions only (NRAs generally can't claim the standard deduction).",
         "Confirm the treaty rate claimed on Form W-8BEN/1040-NR matches the rate used here" +
-        (rateActuallyHonored ? "" : " — no treaty rate is on file, so the default 30% was applied; check whether Article 11/12 of the DTAA reduces it") + ".",
+        (rateActuallyHonored ? "" : " — no treaty rate is on file, so the default 30% was applied; check whether Article 11/12 of the DTAA reduces it") +
+        ". Keep an Indian Tax Residency Certificate on file as evidence of Indian residence for any treaty benefit claimed — Form W-8BEN doesn't require one, but the IRS or a withholding agent may ask for it.",
         0, ["Form 1040-NR", "Schedule NEC", "FDAP", "ECI"]);
     }
 

@@ -273,8 +273,11 @@ def _build_documents_result(d, ctx):
         "form_8959": d["usTaxResult"]["additionalMedicareUsd"] > 0,
         "form_8880": (d["usTaxResult"].get("saversCreditUsd") or 0) > 0,
         "form_67": res["india"]["status"] == "ROR" and (d["aggregateUsIncomeResult"]["usSourceTotal"]["usd"] > 0 or d["taxesPaidUsResult"]["total"]["usd"] > 0),
-        "trc": res["dualResident"] or d["treatyIndiaResidenceRaw"] != "none" or d["treatyUsResidenceRaw"] != "none",
-        "form_10f": res["dualResident"] or d["treatyIndiaResidenceRaw"] != "none",
+        # A US TRC (Form 6166) + Form 41 back a treaty position taken in India
+        # only (indiaTreatyPositionResult) — not an India tie-break or a
+        # 1040-NR claim, which are US-side positions.
+        "trc": d["indiaTreatyPositionResult"]["claims"],
+        "form_10f": d["indiaTreatyPositionResult"]["claims"],
         "schedule_fa": res["india"]["status"] == "ROR" and (
             d["indiaForeignAssetsHeldRaw"] or
             d["aggregateUsIncomeResult"]["usSourceTotal"]["usd"] > 0 or
@@ -552,7 +555,7 @@ NODES = {
               "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
               "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw",
               "entityTaxResult", "taxRegime", "businessComputation", "presumptiveLockinAgg", "slabs", "usCorpScheduleLRaw",
-              "hasUsScope", "ssnOrItinTypeRaw", "usEntityKind", "lrsOutboundRaw"),
+              "hasUsScope", "ssnOrItinTypeRaw", "usEntityKind", "lrsOutboundRaw", "indiaTreatyPositionResult"),
         compute=_build_documents_result,
     ),
     "buildScopeNotesResult": NodeDef(

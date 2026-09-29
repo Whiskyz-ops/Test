@@ -1548,7 +1548,7 @@
       "category": "credit",
       "title": "1040-NR: FDAP taxed flat (30%), ECI at graduated rates",
       "detail": "$11,400 of FDAP income (interest/dividends/rents not effectively connected with a US trade or business) is taxed flat at the 30% statutory rate (no treaty rate on file) with no deductions (Schedule NEC), separate from $30,000 of ECI taxed at graduated brackets with itemized deductions only (NRAs generally can't claim the standard deduction).",
-      "recommendation": "Confirm the treaty rate claimed on Form W-8BEN/1040-NR matches the rate used here \u2014 no treaty rate is on file, so the default 30% was applied; check whether Article 11/12 of the DTAA reduces it.",
+      "recommendation": "Confirm the treaty rate claimed on Form W-8BEN/1040-NR matches the rate used here \u2014 no treaty rate is on file, so the default 30% was applied; check whether Article 11/12 of the DTAA reduces it. Keep an Indian Tax Residency Certificate on file as evidence of Indian residence for any treaty benefit claimed \u2014 Form W-8BEN doesn't require one, but the IRS or a withholding agent may ask for it.",
       "amountUsd": 0,
       "refs": [
         "Form 1040-NR",

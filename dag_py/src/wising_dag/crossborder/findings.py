@@ -451,6 +451,33 @@ NODES = {
 }
 
 
+def _india_treaty_position_result(d, ctx):
+    """A treaty position taken IN INDIA — what a US TRC (Form 6166) and Form 41
+    (formerly Form 10F) must back: a non-resident of India claiming DTAA relief
+    in India (s.159(8) / Rule 75). An Indian resident crediting US tax (Form
+    44), or anyone claiming US treaty benefits (W-8BEN / Form 8833), needs
+    neither. Mirrors findings-nodes.js's indiaTreatyPositionResult."""
+    res = d["residencyResult"]
+    tb_winner = d["treatyIndiaResidenceRaw"] if d["treatyIndiaResidenceRaw"] != "none" else (d["treatyUsResidenceRaw"] if d["treatyUsResidenceRaw"] != "none" else None)
+    us_treaty_res = bool(res["us"]["worldwide"] and (not res["india"]["isResident"] or res["india"]["cedesViaTreaty"] or tb_winner == "us"))
+    w2_us = sum((e.get("wagesUsd") or 0) for e in ((d.get("aggregateUsIncomeResult") or {}).get("w2Employers") or []))
+    india_days = d["indiaDaysCurrentYearRaw"]
+    # DTAA Art. 16(2): a US treaty resident, non-resident in India, with US-
+    # employer pay and a short stay in India (dtaa_16_2_short_stay_india).
+    art162_india = bool(d["hasIndiaScopeXbr"] and d["hasUsScopeBoundaryFtc"] and us_treaty_res and res["india"]["status"] == "NR"
+                        and w2_us > 1 and 0 < india_days <= 183)
+    reasons = []
+    if d["treatyIndiaResidenceRaw"] == "us" or d["treatyUsResidenceRaw"] == "us":
+        reasons.append("the Article 4 tie-breaker makes the US the treaty residence")
+    if d["treatyDtaaForcedNrRaw"]:
+        reasons.append("Indian non-residence rests on the treaty")
+    if len(d["treatyElectionsRaw"] or []) > 0:
+        reasons.append("DTAA rates are elected on Indian income")
+    if art162_india:
+        reasons.append(f"Art. 16(2) keeps pay for {js_num_str(india_days)} days in India out of Indian tax")
+    return {"claims": len(reasons) > 0, "reasons": reasons, "art162India": art162_india, "w2UsUsd": w2_us, "usTreatyResident": us_treaty_res}
+
+
 def _findings_crossborder_result(d, ctx):
     findings = []
 
@@ -554,9 +581,9 @@ def _findings_crossborder_result(d, ctx):
             "to a US branch or subsidiary — the US taxes this pay as the work country and India must credit that US tax (s.159 / Art. 25, Form 44).",
             0, ["DTAA Art. 16(2)", "IRC §861(a)(3)", "Form 1040-NR", "Form 8233", "Form 44"],
         ))
-    w2_us16 = sum((e.get("wagesUsd") or 0) for e in ((d.get("aggregateUsIncomeResult") or {}).get("w2Employers") or []))
     # India non-residents only — see findings-nodes.js.
-    if d["hasIndiaScopeXbr"] and d["hasUsScopeBoundaryFtc"] and us_treaty_res and res16["india"]["status"] == "NR" and w2_us16 > 1 and 0 < india_days16 <= 183:
+    w2_us16 = d["indiaTreatyPositionResult"]["w2UsUsd"]
+    if d["indiaTreatyPositionResult"]["art162India"]:
         findings.append(make_finding(
             "dtaa_16_2_short_stay_india", "info", "treaty",
             "Work done during " + js_num_str(india_days16) + " days in India — check DTAA Art. 16(2) before India taxes it",
@@ -565,10 +592,11 @@ def _findings_crossborder_result(d, ctx):
             "(a) present in India 183 days or fewer in the taxable year — met; (b) paid by an employer that isn't an Indian resident — a US employer on "
             "the W-2, met; (c) not charged to an Indian branch, subsidiary or fixed base of the employer — not collected, confirm.",
             "If all three hold, no Indian tax or TDS applies to that pay; keep travel records and the employer's confirmation that the cost wasn't "
-            "recharged to an Indian entity. If it was recharged (or the days exceed 183), India taxes the pay for India workdays — the Indian entity "
+            "recharged to an Indian entity. Claiming the exemption in India needs a US Tax Residency Certificate (IRS Form 6166) and Form 41 "
+            "(formerly Form 10F) — s.159(8) / Rule 75. If it was recharged (or the days exceed 183), India taxes the pay for India workdays — the Indian entity "
             "may need to deduct TDS, the client may need an Indian return — and the US credits that Indian tax on " + d["usFtcFormXbr"] + ". If the client "
             "didn't work while in India, this doesn't apply.",
-            0, ["DTAA Art. 16(2)", d["usFtcFormXbr"]],
+            0, ["DTAA Art. 16(2)", "Form 6166", "Form 41", d["usFtcFormXbr"]],
         ))
 
     # -- 4f2. ENTITY-LEVEL DUAL RESIDENCY (findings-nodes.js, conflicts.js:701-736) --
@@ -641,8 +669,13 @@ def _findings_crossborder_result(d, ctx):
                 f"{str(tb_winner).upper()} for the overlapping period"
                 + (f" ({tb['article']}: {tb['reason']})" if tb else "")
                 + ". WISING has applied this to the tax and FTC computation below; the loser jurisdiction is taxed on a source basis.",
-                f"Keep {'TRC + Form 41 (India) and Form 8833 (US)' if tb_winner == 'india' else 'Form 8833 (US) and TRC + Form 41 (India)'} on file to support the position.",
-                0, ["DTAA Art. 4", "Form 41" if tb_winner == "india" else "Form 8833"],
+                # India wins: the position is taken on the US return (Form
+                # 1040-NR + Form 8833); Form 41 is for non-residents of India.
+                # US wins: the position is taken in India (Form 6166 + Form 41).
+                ("File Form 1040-NR with Form 8833 to claim US treaty non-residence, and keep an Indian Tax Residency Certificate (issued by the Indian income-tax department on application) as evidence of Indian residence in case the IRS asks."
+                 if tb_winner == "india" else
+                 "Claim treaty non-residence in India with a US Tax Residency Certificate (IRS Form 6166, applied for on Form 8802) and Form 41 (formerly Form 10F) — India denies treaty relief without them (s.159(8) / Rule 75)."),
+                0, ["DTAA Art. 4", "Form 8833", "Form 1040-NR", "Indian TRC"] if tb_winner == "india" else ["DTAA Art. 4", "Form 6166", "Form 41"],
             ))
 
     # -- cross_basis_summary (findings-batch2-nodes.js, conflicts.js:1505-1524) --
@@ -921,12 +954,11 @@ def _findings_crossborder_result(d, ctx):
     # -- 3. TREATY BENEFIT CLAIMED WITHOUT TRC / FORM 10F (findings-batch4-nodes.js, conflicts.js:127-143) --
     treaty_elections = d["treatyElectionsRaw"]
     # A TRC (US Form 6166) + Form 41 back a treaty position taken IN INDIA
-    # (s.159(8) / Rule 75): the tie-breaker sending residence to the US, a
-    # treaty-forced Indian non-residence, or DTAA rates elected on Indian
-    # income. A 1040-NR filer, or an Indian treaty resident, is claiming US
-    # treaty benefits (W-8BEN / Form 8833) and needs neither.
-    claims_treaty = d["treatyIndiaResidenceRaw"] == "us" or d["treatyUsResidenceRaw"] == "us" or d["treatyDtaaForcedNrRaw"] or len(treaty_elections) > 0
-    if claims_treaty and (not d["treatyTrcStatus"] or not d["treatyForm10fFiled"]):
+    # (s.159(8) / Rule 75) — _india_treaty_position_result. A 1040-NR filer,
+    # or an Indian treaty resident, claims US treaty benefits (W-8BEN / Form
+    # 8833) and needs neither.
+    india_pos = d["indiaTreatyPositionResult"]
+    if india_pos["claims"] and (not d["treatyTrcStatus"] or not d["treatyForm10fFiled"]):
         missing = []
         if not d["treatyTrcStatus"]:
             missing.append("TRC (IRS Form 6166)")
@@ -935,7 +967,7 @@ def _findings_crossborder_result(d, ctx):
         findings.append(make_finding(
             "treaty_docs_missing", "critical", "treaty",
             "Treaty relief claimed without supporting documents",
-            "A treaty position / DTAA rate is being relied upon, but " + " and ".join(missing)
+            "A treaty position is being relied upon in India (" + "; ".join(india_pos["reasons"]) + "), but " + " and ".join(missing)
             + " is not on file. Indian tax authorities will deny treaty relief u/s 159(8) without a valid TRC, and Form 41 is mandatory u/r 75.",
             "Obtain " + " and ".join(missing) + " before filing. For US residents, request Form 6166 from the IRS (Form 8802 application) well in advance — it can take 6–8 weeks.",
             0, ["s.159(8)", "Rule 75 (Income-tax Rules, 2026)", "Form 6166"],
@@ -1059,6 +1091,12 @@ def _findings_crossborder_result(d, ctx):
     return findings
 
 
+NODES["indiaTreatyPositionResult"] = NodeDef(
+    deps=("residencyResult", "treatyIndiaResidenceRaw", "treatyUsResidenceRaw", "treatyDtaaForcedNrRaw", "treatyElectionsRaw",
+          "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc", "aggregateUsIncomeResult", "indiaDaysCurrentYearRaw"),
+    compute=_india_treaty_position_result,
+)
+
 NODES["findingsCrossborderResult"] = NodeDef(
     deps=("hasIndiaScopeXbr", "hasUsScopeBoundaryFtc", "ftcResult", "usFtcFormXbr",
           "indiaIsCompany", "indiaIsIndianCompanyRaw", "residencyResult",
@@ -1075,7 +1113,7 @@ NODES["findingsCrossborderResult"] = NodeDef(
           "s115aDividendDetailedXbr", "s115aRoyaltyDetailedXbr", "s115aFtsDetailedXbr", "nrInterestDetailedXbr",
           "isEntityTaxpayer", "usEntityKind", "s6013hElection", "nraFdapDetail",
           "aggregateUsIncomeResult", "taxesPaidUsResult", "aggregatePeakUsdResult", "usDaysCurrentYearRaw", "indiaDaysCurrentYearRaw",
-          "equityCompResult",
+          "equityCompResult", "indiaTreatyPositionResult",
           "incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs",
           "scheduleFaInconsistentTrigger", "xb7ShouldFire", "bmaAssetValueUsd", "bmaMaxTotalUsd"),
     compute=_findings_crossborder_result,

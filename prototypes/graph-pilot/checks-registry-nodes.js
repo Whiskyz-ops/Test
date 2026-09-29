@@ -72,7 +72,7 @@ NODES.checksRegistryResult = {
     "epfInrRaw", "ppfInrRaw", "npsInrRaw", "foreignGiftsRaw", "nraRaw", "hasPERaw",
     "salaryInr",
     // D
-    "treatyElectionsRaw", "treatyTrcStatus", "treatyForm10fFiled", "treatyIndiaResidenceRaw",
+    "treatyElectionsRaw", "treatyTrcStatus", "treatyForm10fFiled", "treatyIndiaResidenceRaw", "indiaTreatyPositionResult",
     "treatyUsResidenceRaw", "treatyDtaaForcedNrRaw", "isEntityTaxpayer", "carryForwardLossesMetaRaw",
     // E
     "equityCompResult", "usStateTaxResult", "aggregatePeakUsdResult", "limitsRawExtra",
@@ -219,9 +219,7 @@ NODES.checksRegistryResult = {
 
     // ---- D: findings-batch4-nodes.js -------------------------------------
     // Same India-side treaty position as treaty_docs_missing (findings-batch4-nodes.js).
-    var claimsTreaty = d.treatyIndiaResidenceRaw === "us" || d.treatyUsResidenceRaw === "us" ||
-      d.treatyDtaaForcedNrRaw || (d.treatyElectionsRaw || []).length > 0;
-    if (claimsTreaty && d.treatyTrcStatus && d.treatyForm10fFiled) {
+    if (d.indiaTreatyPositionResult.claims && d.treatyTrcStatus && d.treatyForm10fFiled) {
       pass("treaty_docs_missing", "treaty", "Treaty documentation complete", "A treaty position is claimed, and both TRC and Form 41 are on file to support it.");
     }
     var cfl = d.carryForwardLossesMetaRaw;

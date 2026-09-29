@@ -129,9 +129,7 @@ def _checks_registry_result(d, ctx):
 
     # ---- D: findings-batch4-nodes.js -------------------------------------
     # Same India-side treaty position as treaty_docs_missing (crossborder/findings.py).
-    claims_treaty = d["treatyIndiaResidenceRaw"] == "us" or d["treatyUsResidenceRaw"] == "us" or \
-        d["treatyDtaaForcedNrRaw"] or len(d["treatyElectionsRaw"] or []) > 0
-    if claims_treaty and d["treatyTrcStatus"] and d["treatyForm10fFiled"]:
+    if d["indiaTreatyPositionResult"]["claims"] and d["treatyTrcStatus"] and d["treatyForm10fFiled"]:
         pass_("treaty_docs_missing", "treaty", "Treaty documentation complete", "A treaty position is claimed, and both TRC and Form 41 are on file to support it.")
     cfl = d["carryForwardLossesMetaRaw"]
     cfl_count = cfl["businessLossCfCount"] + cfl["speculativeLossCfCount"] + cfl["stcgLossCfCount"] + cfl["ltcgLossCfCount"] + cfl["housePropertyLossCfCount"]
@@ -219,7 +217,7 @@ NODES = {
             "stateResidencyRaw", "indiaFinancialHoldingsTxRaw", "viaForeignCorpXbr4", "bizEntriesAgg",
             "epfInrRaw", "ppfInrRaw", "npsInrRaw", "foreignGiftsRaw", "nraRaw", "hasPERaw",
             "salaryInr",
-            "treatyElectionsRaw", "treatyTrcStatus", "treatyForm10fFiled", "treatyIndiaResidenceRaw",
+            "treatyElectionsRaw", "treatyTrcStatus", "treatyForm10fFiled", "treatyIndiaResidenceRaw", "indiaTreatyPositionResult",
             "treatyUsResidenceRaw", "treatyDtaaForcedNrRaw", "isEntityTaxpayer", "carryForwardLossesMetaRaw",
             "equityCompResult", "usStateTaxResult", "aggregatePeakUsdResult", "limitsRawExtra",
             "usEntityKind", "treatyFiles1040nrRaw", "s6013hElection",

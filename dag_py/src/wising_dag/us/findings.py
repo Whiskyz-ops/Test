@@ -575,7 +575,8 @@ def _findings_us_result(d, ctx):
             + f" with no deductions (Schedule NEC), separate from {_fmt(d['nraEciIncomeUsdRaw'])} of ECI taxed at graduated brackets"
             " with itemized deductions only (NRAs generally can't claim the standard deduction).",
             "Confirm the treaty rate claimed on Form W-8BEN/1040-NR matches the rate used here"
-            + ("" if rate_actually_honored else " — no treaty rate is on file, so the default 30% was applied; check whether Article 11/12 of the DTAA reduces it") + ".",
+            + ("" if rate_actually_honored else " — no treaty rate is on file, so the default 30% was applied; check whether Article 11/12 of the DTAA reduces it")
+            + ". Keep an Indian Tax Residency Certificate on file as evidence of Indian residence for any treaty benefit claimed — Form W-8BEN doesn't require one, but the IRS or a withholding agent may ask for it.",
             0, ["Form 1040-NR", "Schedule NEC", "FDAP", "ECI"],
         ))
 

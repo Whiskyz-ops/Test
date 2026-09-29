@@ -1759,8 +1759,8 @@
       "desc": "Issued by the other contracting state (IRS Form 6166 for the US).",
       "why": "DTAA relief / treaty rate is being claimed \u2014 a TRC is mandatory u/s 159(8).",
       "severity": "critical",
-      "required": true,
-      "status": "required"
+      "required": false,
+      "status": "not_triggered"
     },
     {
       "id": "form_10f",
@@ -1769,8 +1769,8 @@
       "desc": "Self-declaration accompanying the TRC, filed electronically on the ITR portal.",
       "why": "Treaty benefit claimed and the TRC does not contain all particulars required u/r 75.",
       "severity": "warning",
-      "required": true,
-      "status": "required"
+      "required": false,
+      "status": "not_triggered"
     },
     {
       "id": "schedule_fa",

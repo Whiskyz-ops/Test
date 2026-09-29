@@ -145,6 +145,7 @@ def _checks_dep_bag(**overrides):
         "hasPERaw": False, "salaryInr": 0,
         "treatyElectionsRaw": [], "treatyTrcStatus": False, "treatyForm10fFiled": False, "treatyIndiaResidenceRaw": "none",
         "treatyUsResidenceRaw": "none", "treatyDtaaForcedNrRaw": False, "isEntityTaxpayer": False,
+        "indiaTreatyPositionResult": {"claims": False, "reasons": [], "art162India": False, "w2UsUsd": 0, "usTreatyResident": False},
         "carryForwardLossesMetaRaw": {"hasBroughtForwardLosses": False, "businessLossCfCount": 0, "speculativeLossCfCount": 0, "stcgLossCfCount": 0, "ltcgLossCfCount": 0, "housePropertyLossCfCount": 0, "unabsorbedDepreciationCf": 0},
         "equityCompResult": {"hasUsEquityComp": False, "esopPerquisiteInr": 0, "isoExerciseCount": 0},
         "usStateTaxResult": None, "aggregatePeakUsdResult": {"usd": 0},

@@ -91,6 +91,37 @@ NODES.usFtcFormXbr = { deps: ["usEntityKind"], compute: function (d) { return d.
 // see hasUsScopeBoundaryFtc in xborder-full-nodes.js for the full note).
 NODES.hasIndiaScopeXbr = { deps: ["routerJurisdictionXB"], compute: function (d) { return d.routerJurisdictionXB !== "single_us" && d.routerJurisdictionXB !== "us_only"; } };
 
+// A treaty position taken IN INDIA — what a TRC from the US (Form 6166) and
+// Form 41 (formerly Form 10F) must back: a non-resident of India claiming
+// DTAA relief in India (s.159(8) / Rule 75 of the 2025 Act; s.90(4)/(5) and
+// Rule 21AB of 1961). An Indian resident crediting US tax (Form 44), or
+// anyone claiming US treaty benefits (W-8BEN / Form 8833), needs neither.
+// Read by treaty_docs_missing, its checks-registry pass row, the documents
+// checklist's trc/form_10f rows and dtaa_16_2_short_stay_india.
+NODES.indiaTreatyPositionResult = {
+  deps: ["residencyResult", "treatyIndiaResidenceRaw", "treatyUsResidenceRaw", "treatyDtaaForcedNrRaw", "treatyElectionsRaw",
+    "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc", "aggregateUsIncomeResult", "indiaDaysCurrentYearRaw"],
+  compute: function (d) {
+    var res = d.residencyResult;
+    var tbWinner = d.treatyIndiaResidenceRaw !== "none" ? d.treatyIndiaResidenceRaw
+      : (d.treatyUsResidenceRaw !== "none" ? d.treatyUsResidenceRaw : null);
+    var usTreatyRes = res.us.worldwide && (!res.india.isResident || res.india.cedesViaTreaty || tbWinner === "us");
+    var w2UsUsd = ((d.aggregateUsIncomeResult && d.aggregateUsIncomeResult.w2Employers) || []).reduce(function (t, e) { return t + (e.wagesUsd || 0); }, 0);
+    // DTAA Art. 16(2): a US treaty resident, non-resident in India, with US-
+    // employer pay and a short stay in India (dtaa_16_2_short_stay_india).
+    // India non-residents only: a resident who moved mid-year spent those
+    // India days living there, not on a work trip.
+    var art162India = !!(d.hasIndiaScopeXbr && d.hasUsScopeBoundaryFtc && usTreatyRes && res.india.status === "NR" && w2UsUsd > 1 &&
+      d.indiaDaysCurrentYearRaw > 0 && d.indiaDaysCurrentYearRaw <= 183);
+    var reasons = [];
+    if (d.treatyIndiaResidenceRaw === "us" || d.treatyUsResidenceRaw === "us") reasons.push("the Article 4 tie-breaker makes the US the treaty residence");
+    if (d.treatyDtaaForcedNrRaw) reasons.push("Indian non-residence rests on the treaty");
+    if ((d.treatyElectionsRaw || []).length > 0) reasons.push("DTAA rates are elected on Indian income");
+    if (art162India) reasons.push("Art. 16(2) keeps pay for " + d.indiaDaysCurrentYearRaw + " days in India out of Indian tax");
+    return { claims: reasons.length > 0, reasons: reasons, art162India: art162India, w2UsUsd: w2UsUsd, usTreatyResident: !!usTreatyRes };
+  }
+};
+
 // ---- findings, ported in full ----------------------------------------------
 NODES.findingsBatch1Result = {
   deps: ["panAadhaarLinkedRaw", "usTaxResult", "indiaIsCompany", "indiaIsIndianCompanyRaw", "residencyResult",
@@ -98,7 +129,7 @@ NODES.findingsBatch1Result = {
     "ftcResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc", "usFtcFormXbr",
     "tieBreakHomeRaw", "tieBreakCviRaw", "tieBreakAbodeRaw", "tieBreakNationalityRaw",
     "treatyIndiaResidenceRaw", "treatyUsResidenceRaw", "usIsCitizenRaw", "usHasGreenCardRaw", "mapDoubleTaxedIncomeResult",
-    "usDaysCurrentYearRaw", "indiaDaysCurrentYearRaw", "aggregateUsIncomeResult"],
+    "usDaysCurrentYearRaw", "indiaDaysCurrentYearRaw", "aggregateUsIncomeResult", "indiaTreatyPositionResult"],
   compute: function (d) {
     var findings = [];
     function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {
@@ -262,11 +293,11 @@ NODES.findingsBatch1Result = {
         "to a US branch or subsidiary — the US taxes this pay as the work country and India must credit that US tax (s.159 / Art. 25, Form 44).",
         0, ["DTAA Art. 16(2)", "IRC §861(a)(3)", "Form 1040-NR", "Form 8233", "Form 44"]);
     }
-    var w2Us16 = ((d.aggregateUsIncomeResult && d.aggregateUsIncomeResult.w2Employers) || []).reduce(function (t, e) { return t + (e.wagesUsd || 0); }, 0);
-    // India non-residents only: a resident who moved mid-year (Aarav) spent
-    // those India days living there, before the US job — not a work trip.
-    if (d.hasIndiaScopeXbr && d.hasUsScopeBoundaryFtc && usTreatyRes && res16.india.status === "NR" && w2Us16 > 1 &&
-        d.indiaDaysCurrentYearRaw > 0 && d.indiaDaysCurrentYearRaw <= 183) {
+    // India non-residents only (indiaTreatyPositionResult.art162India): a
+    // resident who moved mid-year (Aarav) spent those India days living
+    // there, before the US job — not a work trip.
+    var w2Us16 = d.indiaTreatyPositionResult.w2UsUsd;
+    if (d.indiaTreatyPositionResult.art162India) {
       add("dtaa_16_2_short_stay_india", "info", "treaty",
         "Work done during " + d.indiaDaysCurrentYearRaw + " days in India — check DTAA Art. 16(2) before India taxes it",
         "The client has " + usd(w2Us16) + " of US-employer (W-2) wages and spent " + d.indiaDaysCurrentYearRaw + " days in India. If they worked " +
@@ -274,10 +305,11 @@ NODES.findingsBatch1Result = {
         "(a) present in India 183 days or fewer in the taxable year — met; (b) paid by an employer that isn't an Indian resident — a US employer on " +
         "the W-2, met; (c) not charged to an Indian branch, subsidiary or fixed base of the employer — not collected, confirm.",
         "If all three hold, no Indian tax or TDS applies to that pay; keep travel records and the employer's confirmation that the cost wasn't " +
-        "recharged to an Indian entity. If it was recharged (or the days exceed 183), India taxes the pay for India workdays — the Indian entity " +
+        "recharged to an Indian entity. Claiming the exemption in India needs a US Tax Residency Certificate (IRS Form 6166) and Form 41 " +
+        "(formerly Form 10F) — s.159(8) / Rule 75. If it was recharged (or the days exceed 183), India taxes the pay for India workdays — the Indian entity " +
         "may need to deduct TDS, the client may need an Indian return — and the US credits that Indian tax on " + d.usFtcFormXbr + ". If the client " +
         "didn't work while in India, this doesn't apply.",
-        0, ["DTAA Art. 16(2)", d.usFtcFormXbr]);
+        0, ["DTAA Art. 16(2)", "Form 6166", "Form 41", d.usFtcFormXbr]);
     }
 
     // -- 4c. AMT BITES (conflicts.js:325-334) -------------------------------
@@ -346,8 +378,15 @@ NODES.findingsBatch1Result = {
           String(tbWinner).toUpperCase() + " for the overlapping period" +
           (tb ? " (" + tb.article + ": " + tb.reason + ")" : "") +
           ". WISING has applied this to the tax and FTC computation below; the loser jurisdiction is taxed on a source basis.",
-          "Keep " + (tbWinner === "india" ? "TRC + Form 41 (India) and Form 8833 (US)" : "Form 8833 (US) and TRC + Form 41 (India)") + " on file to support the position.",
-          0, ["DTAA Art. 4", tbWinner === "india" ? "Form 41" : "Form 8833"]);
+          // India wins: the treaty position is taken on the US return (Form
+          // 1040-NR + Form 8833, Reg. §301.7701(b)-7); Form 41 is for non-
+          // residents of India, so it doesn't apply — an Indian TRC is the
+          // evidence of Indian residence. US wins: the position is taken in
+          // India, which needs a US TRC (Form 6166) + Form 41 (s.159(8)).
+          (tbWinner === "india"
+            ? "File Form 1040-NR with Form 8833 to claim US treaty non-residence, and keep an Indian Tax Residency Certificate (issued by the Indian income-tax department on application) as evidence of Indian residence in case the IRS asks."
+            : "Claim treaty non-residence in India with a US Tax Residency Certificate (IRS Form 6166, applied for on Form 8802) and Form 41 (formerly Form 10F) — India denies treaty relief without them (s.159(8) / Rule 75)."),
+          0, tbWinner === "india" ? ["DTAA Art. 4", "Form 8833", "Form 1040-NR", "Indian TRC"] : ["DTAA Art. 4", "Form 6166", "Form 41"]);
       }
     }
 

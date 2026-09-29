@@ -1504,11 +1504,12 @@
       "category": "treaty",
       "title": "Dual residency resolved under DTAA Article 4 \u2192 US",
       "detail": "Both India and the US met residency, and the Layer 1 Article 4 tie-breaker resolves treaty residence to US for the overlapping period. WISING has applied this to the tax and FTC computation below; the loser jurisdiction is taxed on a source basis.",
-      "recommendation": "Keep Form 8833 (US) and TRC + Form 41 (India) on file to support the position.",
+      "recommendation": "Claim treaty non-residence in India with a US Tax Residency Certificate (IRS Form 6166, applied for on Form 8802) and Form 41 (formerly Form 10F) \u2014 India denies treaty relief without them (s.159(8) / Rule 75).",
       "amountUsd": 0,
       "refs": [
         "DTAA Art. 4",
-        "Form 8833"
+        "Form 6166",
+        "Form 41"
       ]
     },
     {

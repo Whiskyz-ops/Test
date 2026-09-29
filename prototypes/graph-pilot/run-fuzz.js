@@ -679,6 +679,49 @@ var KNOWN_ALWAYS_DIVERGENT_PATHS = ["ftcReport.direction_india_relief.rows[3].la
 // exclusion above (Phase 7/GILTI), so this couldn't reuse that entry anyway.
 var OLD_SCHED_C_TRACE = "Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less asset depreciation (§179 / 100% bonus, permanent under OBBBA / MACRS — computed from each asset's own class and placed-in-service date, not Layer 1's own first-year-only preview). Home-office isn't netted yet (Phase 1).";
 var NEW_SCHED_C_TRACE = "Schedule C: gross receipts less returns/COGS, plus other income, less expenses, less vehicle-mileage/home-office deductions, less asset depreciation (§179 / 100% bonus, permanent under OBBBA / MACRS — computed from each asset's own class and placed-in-service date, not Layer 1's own first-year-only preview).";
+// TRC / Form 41 (GAP_TRACKER IN-47/IN-48): the frozen engine lists both as
+// required for any dual resident or tie-break; the DAG only for a treaty
+// position taken in India (findings-nodes.js's indiaTreatyPositionResult).
+// Where only those two rows differ, take the engine's rows (and the
+// requiredDocs count and calendar docIds they feed) so every other document
+// difference still counts.
+var TRC_DOC_IDS = ["trc", "form_10f"];
+function normalizeKnownTrcDocsDivergence(real, dag) {
+  if (!Array.isArray(real.documents) || !Array.isArray(dag.documents)) return;
+  var delta = 0;
+  dag.documents = dag.documents.map(function (row) {
+    if (TRC_DOC_IDS.indexOf(row.id) === -1) return row;
+    var r = real.documents.filter(function (x) { return x.id === row.id; })[0];
+    if (!r || !!r.required === !!row.required) return row;
+    delta += (r.required ? 1 : 0) - (row.required ? 1 : 0);
+    return r;
+  });
+  if (!delta) return;
+  if (dag.summary && typeof dag.summary.requiredDocs === "number") dag.summary = Object.assign({}, dag.summary, { requiredDocs: dag.summary.requiredDocs + delta });
+  var strip = function (ids) { return (ids || []).filter(function (id) { return TRC_DOC_IDS.indexOf(id) === -1; }); };
+  var fix = function (dRow, rRow) {
+    if (!dRow || !rRow || !Array.isArray(dRow.docIds) || !Array.isArray(rRow.docIds)) return dRow;
+    return JSON.stringify(strip(dRow.docIds)) === JSON.stringify(strip(rRow.docIds)) ? Object.assign({}, dRow, { docIds: rRow.docIds }) : dRow;
+  };
+  var dc = dag.monitoring && dag.monitoring.calendar, rc = real.monitoring && real.monitoring.calendar;
+  if (dc && rc) {
+    dag.monitoring = Object.assign({}, dag.monitoring, { calendar: Object.assign({}, dc, {
+      all: (dc.all || []).map(function (row, i) { return fix(row, (rc.all || [])[i]); }),
+      upcoming: (dc.upcoming || []).map(function (row, i) { return fix(row, (rc.upcoming || [])[i]); }),
+      next: fix(dc.next, rc.next)
+    }) });
+  }
+}
+
+// Treaty advice reworded in the DAG (GAP_TRACKER IN-47/IN-48) — only these
+// fields of these findings are excused; any other field still counts.
+var KNOWN_TREATY_TEXT_FIELDS = {
+  dual_residency_resolved: ["recommendation", "refs"],
+  treaty_docs_missing: ["detail"],
+  dtaa_16_2_short_stay_india: ["recommendation", "refs"],
+  nra_fdap_flat_rate: ["recommendation"]
+};
+
 function normalizeKnownScheduleCTraceDivergence(real, dag) {
   var re = real && real.model && real.model.assets && real.model.assets.businessEntities;
   var de = dag && dag.model && dag.model.assets && dag.model.assets.businessEntities;
@@ -1220,7 +1263,10 @@ function compareFindings(dagFindings, realFindings, isUsEntity, isNotUsPerson, n
     var inDag = Object.prototype.hasOwnProperty.call(dagById, id);
     var inReal = Object.prototype.hasOwnProperty.call(realById, id);
     if (inDag && !inReal) {
-      (KNOWN_EXTRA_FINDING_ID.test(id) ? known : unknown).push("findings: DAG has extra \"" + id + "\", engine doesn't");
+      // treaty_docs_missing for an Art. 16(2) claim in India, which the
+      // engine never treated as a treaty position (GAP_TRACKER IN-48).
+      var art162Docs = id === "treaty_docs_missing" && /Art\. 16\(2\)/.test(dagById[id].detail || "");
+      (KNOWN_EXTRA_FINDING_ID.test(id) || art162Docs ? known : unknown).push("findings: DAG has extra \"" + id + "\", engine doesn't");
     } else if (!inDag && inReal) {
       // Two catalogued exceptions: underpayment_2210 for a US entity
       // (deliberately suppressed in agg10-nodes.js's us1ShouldFire override
@@ -1246,8 +1292,11 @@ function compareFindings(dagFindings, realFindings, isUsEntity, isNotUsPerson, n
     } else {
       var fieldDiffs = deepEqual(dagById[id], realById[id], "findings[" + id + "]", []);
       if (fieldDiffs.length) {
-        var bucket = KNOWN_CONTENT_DIVERGENCE_FINDING_IDS.indexOf(id) >= 0 ? known : unknown;
-        bucket.push.apply(bucket, fieldDiffs);
+        var textFields = KNOWN_TREATY_TEXT_FIELDS[id] || [];
+        fieldDiffs.forEach(function (fd) {
+          var textOnly = textFields.some(function (f) { return fd.indexOf("findings[" + id + "]." + f) === 0; });
+          (KNOWN_CONTENT_DIVERGENCE_FINDING_IDS.indexOf(id) >= 0 || textOnly ? known : unknown).push(fd);
+        });
       }
     }
   });
@@ -1333,6 +1382,7 @@ function compareOne(label, profile, saveOnFail) {
   if (!realThrew && dagThrew) return { status: "dag-threw-engine-didnt", detail: dagThrew.message + "\n" + dagThrew.stack };
 
   normalizeKnownScheduleCTraceDivergence(real, dag);
+  normalizeKnownTrcDocsDivergence(real, dag);
 
   var realDiffs = [], knownDiffs = [];
 

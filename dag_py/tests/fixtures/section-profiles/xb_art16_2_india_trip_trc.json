@@ -1,0 +1,79 @@
+{
+  "id": "xb_art16_2_india_trip_trc",
+  "form": "layer1_us.html",
+  "section": "Treaty documents (DTAA Art. 16(2))",
+  "story": "US resident (H-1B, meets the substantial presence test) on a US employer's W-2 of $150,000, non-resident in India, spent 20 days working in India. No tie-breaker, no DTAA elections, and no TRC or Form 41 on file. Keeping the India workdays' pay out of Indian tax under Art. 16(2) is a treaty claim made in India, so it needs a US TRC (Form 6166) and Form 41.",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 345
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "manual_days": 20,
+      "days_in_india_current_year": 20,
+      "days_in_india_preceding_4_years_gte_365": false,
+      "final_india_residency_status": "NR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      }
+    },
+    "other_sources": {}
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 345,
+      "spt_test_met": true,
+      "final_us_residency_status": "RESIDENT_ALIEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme US",
+          "wages_box1_usd": 150000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 25000,
+            "medicare_wages_box5_usd": 150000
+          }
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "findings[id=dtaa_16_2_short_stay_india].severity",
+      "value": "info",
+      "why": "US treaty resident, non-resident in India, US-employer pay, 20 days in India: Art. 16(2) can keep that pay out of Indian tax"
+    },
+    {
+      "path": "findings[id=treaty_docs_missing].severity",
+      "value": "critical",
+      "why": "that Art. 16(2) claim is treaty relief claimed in India by a non-resident — s.159(8) / Rule 75 need a US TRC (Form 6166) and Form 41, neither on file"
+    },
+    {
+      "path": "documents[id=trc].required",
+      "value": true,
+      "why": "the documents checklist asks for the US TRC for the same India-side claim"
+    }
+  ]
+}

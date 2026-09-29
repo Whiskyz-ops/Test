@@ -444,7 +444,7 @@ NODES.buildDocumentsResult = {
     "taxesPaidUsResult", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc",
     "limitsRawExtra", "totalIncomeInrV3", "indiaIsCompany", "indiaIsFirm", "indiaIsAop", "indiaIsTrust", "viaForeignCorpXbr4", "usStateTaxResult", "nraRaw",
     "entityTaxResult", "taxRegime", "businessComputation", "indiaOpt115baaRaw", "indiaOpt115babRaw", "presumptiveLockinAgg", "usCorpScheduleLRaw",
-    "hasUsScope", "ssnOrItinTypeRaw", "usEntityKind", "lrsOutboundRaw"],
+    "hasUsScope", "ssnOrItinTypeRaw", "usEntityKind", "lrsOutboundRaw", "indiaTreatyPositionResult"],
   compute: function (d) {
     var res = d.residencyResult;
     var isForm1118 = d.entityFormsResult.usReturnForm === "1120";
@@ -528,8 +528,11 @@ NODES.buildDocumentsResult = {
       // taxed on foreign income in India, matching schedule_fa 2 lines down).
       form_67: res.india.status === "ROR" &&
                (d.aggregateUsIncomeResult.usSourceTotal.usd > 0 || d.taxesPaidUsResult.total.usd > 0),
-      trc: res.dualResident || d.treatyIndiaResidenceRaw !== "none" || d.treatyUsResidenceRaw !== "none",
-      form_10f: res.dualResident || d.treatyIndiaResidenceRaw !== "none",
+      // A US TRC (Form 6166) + Form 41 back a treaty position taken in India
+      // only (findings-nodes.js's indiaTreatyPositionResult) — not an India
+      // tie-break or a 1040-NR claim, which are US-side positions.
+      trc: d.indiaTreatyPositionResult.claims,
+      form_10f: d.indiaTreatyPositionResult.claims,
       schedule_fa: res.india.status === "ROR" && (d.indiaForeignAssetsHeldRaw || d.aggregateUsIncomeResult.usSourceTotal.usd > 0 ||
                    d.accountsListResult.accounts.some(function (a) { return a.country !== "India"; }) ||
                    d.usSecuritiesRaw.some(function (h) { return (h.peak_balance_usd || 0) > 0; })),
