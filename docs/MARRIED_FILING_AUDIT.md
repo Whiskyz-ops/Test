@@ -36,9 +36,9 @@ Confirmed gaps have a runnable probe: `node scripts/audit/married-filing-probes.
 | C. US separate-filer eligibility | 9 | 2 | 1 | 3 | 2 | 1 |
 | D. US per-person rules | 16 | 3 | 4 | 5 | 4 | – |
 | E. Other US joint-return mechanics | 7 | 1 | 2 | 3 | 1 | – |
-| F. India | 12 | 4 | 5 | 3 | – | – |
+| F. India | 15 | 5 | 6 | 4 | – | – |
 | G. Cross-border | 15 | 2 | 3 | 8 | 2 | – |
-| **Total** | **100** | **31** | **23** | **33** | **11** | **2** |
+| **Total** | **103** | **32** | **24** | **34** | **11** | **2** |
 
 ### Wrong results today (probe-confirmed)
 
@@ -157,29 +157,35 @@ status. 2026 values were compared where both exist.
 
 India assesses each person separately, so the India form rightly stays
 individual. The items are about one spouse's income being attributed to the
-other. *All rows: CA to confirm; 1961 Act numbering.*
+other. Rows F2–F5, F12–F15 and G2 are checked against the Income-tax Act 2025
+(ss.10, 92, 99, 159) and Income-tax Rules rule 76, as amended by the Finance
+Act 2026 — text supplied by the client, kept in
+docs/sources/INDIA_ACT_2025_EXTRACTS.md. Other India rows: CA to confirm.
 
 | # | Rule | Status | Evidence |
 |---|---|---|---|
 | F1 | Individual assessment; no joint return | ✅ | *form* |
-| F2 | s.64(1)(iv): income from assets transferred to the spouse without adequate consideration is the transferor's | 🟡 | *form*: one manual amount (`other_sources.spousal_clubbing_s64_inr`), read by the engine; no asset-transfer tracking |
-| F3 | s.64(1)(ii): spouse's pay from a concern where the client has a substantial interest | 🟡 | same manual amount; not asked separately |
-| F4 | s.64(1A): minor child's income clubbed with the higher-income parent; ₹1,500 per child (s.10(32)) | 🟡 | *form*: exemption field only; the child's income and "which parent" not asked; cap not validated |
-| F5 | Gifts from spouse / relatives exempt (s.56(2)(x)) | ✅ | *form* toggle, read by the engine |
+| F2 | s.99(1)(a)(ii) (old s.64(1)(iv)): income from assets transferred to the spouse without adequate consideration (or other than under an agreement to live apart) is the transferor's; if the spouse puts the asset into a business or firm, only the proportion A = B × C / D is clubbed (s.99(2)) | 🟡 | *act*; *form*: one manual amount (`other_sources.spousal_clubbing_s64_inr`), read by the engine; no asset-transfer tracking, no s.99(2) proportion |
+| F3 | s.99(1)(a)(i) (old s.64(1)(ii)): spouse's pay from a concern where the individual has a substantial interest (20%+ voting power or profits, s.99(5)(a)(iii)), unless due to the spouse's own professional qualification — taxed to **whichever spouse has the higher income before inclusion** (s.99(5)(a)(i)) | 🟡 | *act*; same manual amount; not asked separately, and the engine can't tell which spouse has the higher income without the household link |
+| F4 | s.99(1)(c) (old s.64(1A)): minor child's income taxed to the parent with the higher income (or the parent who maintains the child if the marriage has ended), except income from the child's own work or skill, or a child with a disability (s.154); ₹1,500 per child exemption | 🟡 | *act* confirms the rule; the ₹1,500 exemption is not in the supplied extract — CA to confirm its 2025 Act location. *form*: exemption field only; the child's income and "which parent" not asked |
+| F5 | Gifts over ₹50,000 taxable (s.92(2)(m)), but not from a relative — spouse, siblings, lineal ascendants/descendants and their spouses (s.92(3)(a), s.92(5)(g)) — or on marriage (s.92(3)(b)) | ✅ | *act*; *form* toggle, read by the engine |
 | F6 | Co-owned property: income and loan interest by ownership share | ✅ | *form* `co_owner_share_percent` |
 | F7 | 80C / 80D / 80E paid for the spouse | ✅ | *form* (80E text covers the spouse's loan; 80D self+spouse bucket) — confirm 80C spouse premiums |
 | F8 | Joint bank / FD accounts: interest taxed to the person whose money it is | ❌ | *form*: no contributor split |
 | F9 | Each spouse's residential status and advance tax independently | 🟡 | *form*: one profile per person, no link (A10) |
 | F10 | Schedule FA for jointly held foreign assets (both spouses report) | 🟡 | *form*: holdings have a joint flag; the other spouse's return isn't linked |
 | F11 | HRA when rent is paid to the spouse | ❌ | *form*: not asked — CA to confirm the position |
-| F12 | Spouse's pension / gifts at marriage | ❌ | *form*: marriage gifts covered by F5; others not asked |
+| F12 | Gifts on marriage | ✅ | *act* s.92(3)(b); covered by the F5 toggle |
+| F13 | Goa, Dadra & Nagar Haveli, Daman & Diu: spouses under the Portuguese Civil Code community of property split every head except salary 50/50; salary stays with the earner (s.10). ITR asks for the spouse's PAN (ITR-2 validation rule 449) | ❌ | *act*; *form* and *code*: not asked or modelled |
+| F14 | Other clubbing: income to a son's wife from assets the individual transferred (s.99(1)(b)); income via a person or AOP for the spouse's or son's wife's benefit (s.99(1)(d)); individual property converted into HUF property (s.99(3)–(4)) | ❌ | *act*; not asked |
+| F15 | Clubbed "income" includes a loss (s.99(5)(d)) | 🟡 | *act*; the manual amount accepts only a positive figure — CA to confirm whether losses need a field |
 
 ## G. Cross-border
 
 | # | Rule | Status | Evidence |
 |---|---|---|---|
 | G1 | The client's Indian return carries only the client's US income | 🐞 | *probe* XB-P1 — the joint US form's income all flows into India. Interim (IN-52): alert joint_return_spouse_income_india on every joint return of an Indian resident; the fix is the household link (docs/HOUSEHOLD_DESIGN.md) |
-| G2 | India s.90 relief (Form 44) uses the US tax on the client's own income: the joint US tax must be split between spouses | 🐞 | *probe* XB-P1 — relief rises from $1,780 to $26,340 with the spouse's wages |
+| G2 | India's foreign tax credit uses the US tax **paid by the client on the client's own income**: credit is computed per source of income, as the lower of the Indian tax on that income and the foreign tax paid on it (rule 76(1), (7)(a)), so the joint US tax must be attributed to each spouse's income | 🐞 | *act* rule 76; *probe* XB-P1 — relief rises from $1,780 to $26,340 with the spouse's wages. Rule 76 attributes tax to income, which supports split method A (docs/HOUSEHOLD_DESIGN.md) over an income-share split — CA to confirm |
 | G3 | US FTC (Form 1116) on a joint return includes both spouses' Indian income and Indian tax | ❌ | spouse's Indian data never reaches the US side (A10) |
 | G4 | A US-person spouse's, or a §6013(g)/(h)-electing spouse's, worldwide (Indian) income on the joint US return | ❌ | *form*: not asked — US tax understated by that income |
 | G5 | Electing spouse's Indian assets: FBAR, Form 8938, PFIC (Indian mutual funds, Form 8621), PPF/EPF (3520 questions), 5471 | ❌ | not collected |
