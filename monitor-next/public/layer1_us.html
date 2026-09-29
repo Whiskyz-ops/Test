@@ -11,6 +11,7 @@
 <script src="prototypes/graph-pilot/constants.js"></script>
 <script src="prototypes/graph-pilot/sample-data.js"></script>
 <script src="prototypes/graph-pilot/profiles.js"></script>
+<script src="prototypes/graph-pilot/household-link.js"></script>
 <script>
     tailwind.config = {
       theme: {
@@ -770,6 +771,19 @@
                         <input type="checkbox" id="prof-spouse-us" onchange="updateProfileField('spouse_is_us_person', this.checked)" class="sr-only peer">
                         <div class="w-9 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white/30 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brandCyan"></div>
                     </label>
+                </div>
+
+                <!-- Spouse link (docs/HOUSEHOLD_DESIGN.md step 1): each spouse is their own client; both profiles point at each other. -->
+                <div id="div-spouse-link" class="hidden p-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col gap-2">
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold text-white/80">Spouse's client profile</span>
+                        <span class="text-[9px] text-white/30">Each spouse is their own client, and both profiles point at each other. The filing status is shared. Enter each person's income in their own profile.</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <select id="prof-spouse-client" onchange="onSpouseLinkChange(this.value)" class="flex-1 bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-2.5 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all"></select>
+                        <button type="button" id="btn-create-spouse" onclick="createSpouseProfile()" class="px-3 py-2 bg-white/10 hover:bg-brandCyan/20 hover:text-brandCyan text-white/60 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap">+ New spouse profile</button>
+                    </div>
+                    <div id="spouse-link-status" class="text-[9px] leading-relaxed"></div>
                 </div>
 
                 </div><!-- /wrapper-individual-profile-fields -->
@@ -4102,6 +4116,7 @@
             ssn_or_itin_type: "none",
             dependents_count: 0,
             spouse_is_us_person: null,
+            spouse_client_id: null,
             trump_accounts_opened: false,
             trump_accounts_children: [],
             trump_accounts_num_children: 0,
@@ -4429,6 +4444,7 @@
                 "ssn_or_itin_type": "none",
                 "dependents_count": 0,
                 "spouse_is_us_person": false,
+                "spouse_client_id": null,
                 "trump_accounts_opened": false,
                 "trump_accounts_children": [
                         {
@@ -6697,6 +6713,100 @@
         }
     };
 
+    // ── Spouse link (docs/HOUSEHOLD_DESIGN.md step 1) ─────────────────────
+    // Only for a Monitor client (?client=<id>): the spouse is another
+    // registry client, and the link is written onto both profiles.
+    function spouseLinkUsKey(id) { return 'wising_client_' + id + '_us'; }
+    function spouseLinkRouterKey(id) { return 'wising_client_' + id + '_router'; }
+    function readSpouseJson(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; } }
+    function writeSpouseProfile(id, patch) {
+        const st = readSpouseJson(spouseLinkUsKey(id)) || {};
+        st.profile = Object.assign({}, st.profile || {}, patch);
+        localStorage.setItem(spouseLinkUsKey(id), JSON.stringify(st));
+    }
+    function currentRouterState() {
+        return readSpouseJson(window.WISING.ClientRegistry.storageKeyFor('ROUTER')) || {};
+    }
+    function renderSpouseLink() {
+        const box = document.getElementById('div-spouse-link');
+        if (!box) return;
+        const W = window.WISING || {};
+        const reg = W.ClientRegistry;
+        const selfId = reg ? reg.activeIdFromUrl() : null;
+        const married = ['mfj', 'mfs'].includes(usState.profile.filing_status);
+        const isIndividual = (usState.profile.tax_entity_type || 'individual') === 'individual';
+        box.classList.toggle('hidden', !(married && isIndividual) && !usState.profile.spouse_client_id);
+        const sel = document.getElementById('prof-spouse-client');
+        const status = document.getElementById('spouse-link-status');
+        const btn = document.getElementById('btn-create-spouse');
+        if (!selfId) {
+            sel.innerHTML = '<option value="">Open this client from the Monitor to link a spouse</option>';
+            sel.disabled = true; btn.disabled = true;
+            status.innerHTML = '';
+            return;
+        }
+        sel.disabled = false; btn.disabled = false;
+        const linked = usState.profile.spouse_client_id || '';
+        let opts = '<option value="">\u2014 not linked \u2014</option>';
+        reg.list().forEach(function (c) {
+            if (c.id === selfId) return;
+            opts += '<option value="' + c.id + '"' + (c.id === linked ? ' selected' : '') + '>' + (c.label || c.id).replace(/</g, '&lt;') + '</option>';
+        });
+        sel.innerHTML = opts;
+        if (!linked || !W.householdLink) { status.innerHTML = ''; return; }
+        const exists = reg.list().some(function (c) { return c.id === linked; });
+        const b = exists ? Object.assign({ id: linked }, reg.getRawState(linked)) : null;
+        const res = W.householdLink.checkHouseholdLink({ id: selfId, router: currentRouterState(), india: {}, us: usState }, b);
+        if (res.errors.length) {
+            status.innerHTML = res.errors.map(function (e) { return '<div class="text-red-300">\u26a0\ufe0f ' + e.message.replace(/</g, '&lt;') + '</div>'; }).join('');
+        } else {
+            const tier = res.tiers[linked] === 'light' ? 'light spouse profile (identity only)' : 'full client profile';
+            status.innerHTML = '<div class="text-emerald-300">\u2713 Linked both ways \u2014 ' + tier + '.</div>';
+        }
+    }
+    function onSpouseLinkChange(newId) {
+        const reg = window.WISING && window.WISING.ClientRegistry;
+        const selfId = reg && reg.activeIdFromUrl();
+        if (!selfId) return;
+        const oldId = usState.profile.spouse_client_id;
+        if (oldId && oldId !== newId) {
+            const old = readSpouseJson(spouseLinkUsKey(oldId));
+            if (old && old.profile && old.profile.spouse_client_id === selfId) writeSpouseProfile(oldId, { spouse_client_id: null });
+        }
+        usState.profile.spouse_client_id = newId || null;
+        if (newId) writeSpouseProfile(newId, { spouse_client_id: selfId, filing_status: usState.profile.filing_status });
+        saveStateAndSync();
+        renderSpouseLink();
+    }
+    function createSpouseProfile() {
+        const reg = window.WISING && window.WISING.ClientRegistry;
+        const selfId = reg && reg.activeIdFromUrl();
+        if (!selfId) return;
+        const id = reg.create();
+        const mine = currentRouterState();
+        const myName = mine.full_name || usState.profile.full_name || 'client';
+        reg.updateLabel(id, 'Spouse of ' + myName);
+        localStorage.setItem(spouseLinkRouterKey(id), JSON.stringify({ base_tax_year: mine.base_tax_year || null, primary_jurisdiction: 'us' }));
+        onSpouseLinkChange(id);
+        window.open('layer1_us.html?client=' + encodeURIComponent(id), '_blank');
+    }
+    // The spouse's tab may link or unlink this client while this page is open.
+    window.addEventListener('storage', function (e) {
+        const reg = window.WISING && window.WISING.ClientRegistry;
+        if (!reg || !reg.activeIdFromUrl() || e.key !== reg.storageKeyFor('US') || !e.newValue) return;
+        try {
+            const p = (JSON.parse(e.newValue).profile) || {};
+            if (p.spouse_client_id !== usState.profile.spouse_client_id) {
+                usState.profile.spouse_client_id = p.spouse_client_id || null;
+                if (p.filing_status) {
+                    usState.profile.filing_status = p.filing_status;
+                    const fs = document.getElementById('prof-filing-status'); if (fs) fs.value = p.filing_status;
+                }
+                renderSpouseLink();
+            }
+        } catch (err) { /* ignore */ }
+    });
+
     function onFilingStatusChange(newVal) {
         if (window.checkFilingStatusDiagnostics) window.checkFilingStatusDiagnostics();
         const lock = usState.us_residency_detail.final_us_residency_status;
@@ -6728,10 +6838,13 @@
 
         // Valid selection — save and propagate
         usState.profile.filing_status = newVal;
+        // One filing status for the household: carry it to the linked spouse.
+        if (usState.profile.spouse_client_id) writeSpouseProfile(usState.profile.spouse_client_id, { filing_status: newVal });
         applySpouseUsPersonGating();
         applySpouseJointElectionGating();
         recalculateDerivedFields();
         saveStateAndSync();
+        renderSpouseLink();
     }
 
     function checkDualResidencyConflict() {
@@ -21891,6 +22004,7 @@ toggleMilitaryFields(usState.state_residency.active_duty_military_or_spouse || f
         applyNraFilingStatusGating();
         applySpouseUsPersonGating();
         applySpouseJointElectionGating();
+        renderSpouseLink();
         
         document.querySelectorAll('select[class*="-industry-category"]').forEach(s => {
             if (s.value) {

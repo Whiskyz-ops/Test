@@ -69,7 +69,7 @@ console.log(`[sync-engine] mirrored ${nEngine} engine files + ${nHtml} HTML page
  * separate, much smaller copy for direct <script src> browser consumption. */
 const publicGraphPilotDir = path.join(publicDir, "prototypes", "graph-pilot");
 const graphPilotDir = path.join(repoRoot, "prototypes", "graph-pilot");
-const DATA_FILES = ["constants.js", "sample-data.js", "profiles.js"];
+const DATA_FILES = ["constants.js", "sample-data.js", "profiles.js", "household-link.js"];
 fs.mkdirSync(publicGraphPilotDir, { recursive: true });
 let nData = 0;
 DATA_FILES.forEach((f) => {

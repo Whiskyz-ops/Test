@@ -1,0 +1,862 @@
+[
+ {
+  "name": "not linked",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": null
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "b": null,
+  "expect": {
+   "linked": false,
+   "codes": [],
+   "tiers": {}
+  }
+ },
+ {
+  "name": "clean MFJ link, light spouse",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "income_us_source": {
+     "wages_w2": [
+      {
+       "employer_name": "Acme",
+       "wages_box1_usd": 90000
+      }
+     ]
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ },
+ {
+  "name": "spouse with W-2 is full",
+  "a": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "b": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "income_us_source": {
+     "wages_w2": [
+      {
+       "employer_name": "Acme",
+       "wages_box1_usd": 90000
+      }
+     ]
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [],
+   "tiers": {
+    "anita": "full"
+   }
+  }
+ },
+ {
+  "name": "spouse with India side is full",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "cross_border"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [],
+   "tiers": {
+    "ravi": "full"
+   }
+  }
+ },
+ {
+  "name": "spouse with Indian income is full",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {
+    "salary": {
+     "gross_salary_inr": "12,00,000"
+    }
+   },
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [],
+   "tiers": {
+    "ravi": "full"
+   }
+  }
+ },
+ {
+  "name": "half link",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": null
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "half_link"
+   ],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ },
+ {
+  "name": "missing spouse",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ghost"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "b": null,
+  "expect": {
+   "linked": true,
+   "codes": [
+    "missing_spouse"
+   ],
+   "tiers": {}
+  }
+ },
+ {
+  "name": "self link",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "b": null,
+  "expect": {
+   "linked": true,
+   "codes": [
+    "self_link"
+   ],
+   "tiers": {}
+  }
+ },
+ {
+  "name": "status mismatch",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfs",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "status_mismatch"
+   ],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ },
+ {
+  "name": "single can't link",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "single",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "single",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "status_not_married"
+   ],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ },
+ {
+  "name": "MFS link is fine",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfs",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfs",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ },
+ {
+  "name": "year mismatch",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2025,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "year_mismatch"
+   ],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ },
+ {
+  "name": "NRA spouse, no election",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": false,
+     "final_us_residency_status": "NON_RESIDENT_ALIEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "nra_spouse_no_election"
+   ],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ },
+ {
+  "name": "NRA spouse with 6013(h) election",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": true
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": false,
+     "final_us_residency_status": "NON_RESIDENT_ALIEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ },
+ {
+  "name": "NRA spouse MFS needs no election",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfs",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfs",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": false,
+     "final_us_residency_status": "NON_RESIDENT_ALIEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ },
+ {
+  "name": "citizen marked NRA",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "NON_RESIDENT_ALIEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": true
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "citizen_marked_nra"
+   ],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ }
+]

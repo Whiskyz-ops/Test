@@ -12,6 +12,7 @@ import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState, isRegistryClientId, isUsPersonResult, isUsPersonOnlyGauge } from "@/lib/wising";
 import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
+import { attachHouseholds } from "@/lib/household";
 import { monitorSnapshotPyDag, allClientSummariesPyDag } from "@/lib/py-dag-adapter";
 import { entityLinksFor, ownedEntityIds, flattenOwnershipTree } from "@/lib/entity-graph";
 import { runShadow, runShadowPy, getShadowLog, clearShadowLog } from "@/lib/shadow";
@@ -283,10 +284,10 @@ export default function MonitorPage() {
   // clientSummaries isn't recompute's job to refresh.
   const refreshClientSummaries = useCallback(() => {
     if (engineSource === "py-dag") {
-      allClientSummariesPyDag().then(setClientSummaries).catch(() => setClientSummaries([]));
+      allClientSummariesPyDag().then((s) => setClientSummaries(attachHouseholds(s))).catch(() => setClientSummaries([]));
       return;
     }
-    setClientSummaries(engineSource === "dag" ? allClientSummariesDag() : allClientSummaries());
+    setClientSummaries(attachHouseholds(engineSource === "dag" ? allClientSummariesDag() : allClientSummaries()));
   }, [engineSource]);
   // Deep link from Layer 1's "Open Wealth Dashboard" button:
   // index.html?view=monitor[&client=<registry id>]. Read in an effect (same

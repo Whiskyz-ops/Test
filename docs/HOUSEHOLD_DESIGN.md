@@ -1,7 +1,8 @@
 # Household design — married clients
 
-Draft for sign-off, 29 Sep 2026. Fixes the joint-return rows of
-docs/MARRIED_FILING_AUDIT.md. No code yet.
+Signed off 29 Sep 2026 (decisions in section 8). Fixes the joint-return rows
+of docs/MARRIED_FILING_AUDIT.md. Build step 1 (link, validation, spouse
+tier) shipped 29 Sep 2026; steps 2-5 not started.
 
 **Scope.** Married filing jointly (MFJ) first. Married filing separately (MFS)
 and qualifying surviving spouse use the same link with less computation.
@@ -13,9 +14,11 @@ Single and head of household don't use it.
   and their own entry in the client registry (`wising_client_registry`).
 - The link is `us.profile.spouse_client_id` on both profiles, pointing at each
   other. The filing status is chosen once and saved on both.
-- **Spouse-only profile.** A spouse with no income and no India link fills
-  only identity, date of birth, citizenship / residency and SSN / ITIN.
-  (Pricing tier: your decision.)
+- **Spouse-only profile (decision 2, option B).** A spouse with no income and
+  no India link fills only identity, date of birth, citizenship / residency
+  and SSN / ITIN, and is a *light* profile (lower price or free). Any income,
+  account or Indian return makes it a *full* client at full price. The tier
+  is computed, not chosen: `spouseTier` in household-link.js.
 
 ## 2. Link rules (blocking errors)
 
@@ -78,16 +81,28 @@ moves their items. Until then the pooled income can't be separated, so the
 alert stays on and warns that the client's Indian computation includes the
 spouse's US income (audit row G1).
 
-## 8. Decisions needed from you
+## 8. Decisions (29 Sep 2026)
 
-1. Split method (with the CA / CPA).
-2. Spouse-only profile and its price.
-3. Shared items in the owner's profile (proposed) vs a separate household section.
-4. Access when the spouses have different preparers.
+1. Split method: **A**, share of the two as-if-separate taxes (the proposal
+   in section 4). Still to be confirmed by the CA / CPA before step 3 ships;
+   the method is one function, so switching costs little.
+2. Spouse-only profile: **option B**, light profile at a lower price or free,
+   full profile at full price once the spouse has income or an Indian return.
+3. Shared items: **in the owner's profile** with an ownership %, plus a check
+   that blocks the same account or property in both profiles (step 2).
+4. Access: **linking only within one firm** for now; cross-firm linking with
+   consent later if firms ask.
 
 ## 9. Build order
 
-1. Link, validation and spouse-only profile (forms and registry).
+1. Link, validation and spouse-only profile (forms and registry). **Done
+   29 Sep 2026:** `prototypes/graph-pilot/household-link.js` (Python mirror
+   `dag_py/src/wising_dag/household/link.py`, 16 shared cases in
+   `dag_py/tests/test_household_link.py`); the US form's "Spouse's client
+   profile" picker writes the link and filing status onto both profiles and
+   can create a new spouse client; the Monitor's Clients tab shows "Joint /
+   Separate with …", "Light profile" and "Link issue". Not yet enforced for
+   the "within one firm" rule: the Monitor has one firm today.
 2. Shared-item fields.
 3. `analyzeHousehold` in the JS and Python engines, with per-person rules.
 4. Dashboards and findings tags.
