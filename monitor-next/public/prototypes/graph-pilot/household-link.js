@@ -8,6 +8,11 @@
  *   { linked, status, errors: [{code, message}], tiers: {<id>: "light"|"full"} }.
  * Every error blocks the household calculation (build step 3).
  *
+ * Shared items (section 3, build step 2): the same bank account, holding or
+ * property in both profiles, an invalid co-owner share, and — on a joint
+ * return — household items in both profiles or in the profile that isn't
+ * meant to hold them.
+ *
  * Spouse tier (decision 2, option B): a spouse with no amounts entered outside
  * identity/residency and no Indian side is a "light" profile (lower price or
  * free); any income, account or Indian return makes it "full".
@@ -80,6 +85,92 @@
     return get(c, "router.full_name", null) || get(c, "us.profile.full_name", null) || (c && c.id) || "the spouse";
   }
 
+  // Shared items (docs/HOUSEHOLD_DESIGN.md section 3). Household-level items
+  // are entered in ONE profile of a joint return. SALT is left out: the form's
+  // single field mixes each person's state income tax with shared property tax.
+  var HOUSEHOLD_FIELDS = [
+    "us.profile.dependents_count",
+    "us.itemized_deductions_and_credits.mortgage_interest_paid_usd",
+    "us.itemized_deductions_and_credits.charitable_contributions_cash_usd",
+    "us.itemized_deductions_and_credits.charitable_contributions_appreciated_usd",
+    "us.itemized_deductions_and_credits.medical_expenses_usd",
+    "us.itemized_deductions_and_credits.child_and_dependent_care_expenses_usd",
+    "us.itemized_deductions_and_credits.child_tax_credit_dependents",
+    "us.itemized_deductions_and_credits.credit_for_other_dependents",
+    "us.itemized_deductions_and_credits.education_credits_aotc_usd",
+    "us.itemized_deductions_and_credits.education_credits_llc_usd",
+    "us.itemized_deductions_and_credits.529_contributions_usd",
+    "us.withholding_and_estimated.estimated_tax_q1_apr15_usd",
+    "us.withholding_and_estimated.estimated_tax_q2_jun15_usd",
+    "us.withholding_and_estimated.estimated_tax_q3_sep15_usd",
+    "us.withholding_and_estimated.estimated_tax_q4_jan15_usd",
+    "us.withholding_and_estimated.prior_year_total_tax_usd"
+  ];
+
+  function hasHouseholdItems(c) {
+    return HOUSEHOLD_FIELDS.some(function (f) { return anyAmount(get(c, f, null)); });
+  }
+
+  function norm(v) { return String(v == null ? "" : v).toLowerCase().replace(/[^a-z0-9]/g, ""); }
+
+  // Identity keys of the rows that must not appear in both profiles.
+  function sharedKeys(c) {
+    var out = [];
+    (get(c, "us.bank_accounts", []) || []).forEach(function (r) {
+      if (r && norm(r.account_number_last_four) && norm(r.bank_name)) out.push({ key: "bank:" + norm(r.bank_name) + ":" + norm(r.account_number_last_four), label: "bank account " + r.bank_name + " ••" + r.account_number_last_four });
+    });
+    (get(c, "us.financial_holdings", []) || []).forEach(function (r) {
+      if (r && norm(r.broker_or_institution) && norm(r.asset_name)) out.push({ key: "holding:" + norm(r.broker_or_institution) + ":" + norm(r.asset_name), label: "holding " + r.asset_name + " at " + r.broker_or_institution });
+    });
+    (get(c, "us.real_estate.properties", []) || []).forEach(function (r) {
+      if (r && norm(r.property_description)) out.push({ key: "property:" + norm(r.property_description), label: "property " + r.property_description });
+    });
+    return out;
+  }
+
+  function jointRows(c) {
+    var rows = [];
+    ["us.bank_accounts", "us.financial_holdings", "us.real_estate.properties"].forEach(function (p) {
+      (get(c, p, []) || []).forEach(function (r) { if (r && r.is_joint_owner_spouse === true) rows.push(r); });
+    });
+    return rows;
+  }
+
+  function checkSharedItems(a, b, err) {
+    var seen = {};
+    sharedKeys(a).forEach(function (k) { seen[k.key] = k.label; });
+    var dup = {};
+    sharedKeys(b).forEach(function (k) {
+      if (seen[k.key] && !dup[k.key]) {
+        dup[k.key] = true;
+        err("duplicate_shared_item", "The " + k.label + " is entered in both profiles. Enter it once, in the owner's profile, marked co-owned with the spouse.");
+      }
+    });
+    [a, b].forEach(function (c) {
+      jointRows(c).forEach(function (r) {
+        var v = r.owner_share_percent;
+        if (v != null && !(Number(v) > 0 && Number(v) <= 100)) {
+          err("joint_share_invalid", name(c) + ": a co-owned item has a share of " + v + "%. The share must be above 0 and at most 100.");
+        }
+      });
+    });
+    if (filingStatus(a) !== "mfj" || filingStatus(b) !== "mfj") return;
+    var oa = get(a, "us.profile.household_items_owner", null), ob = get(b, "us.profile.household_items_owner", null);
+    if (oa && ob && oa === ob) {
+      err("household_owner_conflict", "Both profiles say household items are entered in " + (oa === "self" ? "their own" : "the other") + " profile. Pick one profile for them.");
+    }
+    var ha = hasHouseholdItems(a), hb = hasHouseholdItems(b);
+    if (ha && hb) {
+      err("household_items_both", "Household items (dependents, childcare, charity, mortgage interest, estimated payments, last year's tax) are entered in both profiles. On a joint return enter them once, in one profile.");
+    } else {
+      [[a, ha, oa], [b, hb, ob]].forEach(function (t) {
+        if (t[1] && t[2] === "spouse") {
+          err("household_items_in_non_owner", name(t[0]) + "'s profile has household items, but household items were set to be entered in the spouse's profile.");
+        }
+      });
+    }
+  }
+
   function checkHouseholdLink(a, b) {
     var spouseId = get(a, "us.profile.spouse_client_id", null);
     var out = { linked: false, status: filingStatus(a), spouseId: spouseId, errors: [], tiers: {} };
@@ -116,6 +207,7 @@
         err("citizen_marked_nra", name(c) + " is a US citizen but marked non-resident alien. A citizen is always taxed as a US person (DTAA Art. 1(3) saving clause).");
       }
     });
+    checkSharedItems(a, b, err);
     return out;
   }
 

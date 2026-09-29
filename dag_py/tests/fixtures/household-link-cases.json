@@ -858,5 +858,595 @@
     "ravi": "light"
    }
   }
+ },
+ {
+  "name": "same bank account in both profiles",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "bank_accounts": [
+     {
+      "bank_name": "HDFC Bank",
+      "account_number_last_four": "4321",
+      "peak_balance_usd": 20000,
+      "is_joint_owner_spouse": true,
+      "owner_share_percent": 50
+     }
+    ]
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "bank_accounts": [
+     {
+      "bank_name": "hdfc bank ",
+      "account_number_last_four": "4321",
+      "peak_balance_usd": 20000,
+      "is_joint_owner_spouse": false,
+      "owner_share_percent": null
+     }
+    ]
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "duplicate_shared_item"
+   ],
+   "tiers": {
+    "ravi": "full"
+   }
+  }
+ },
+ {
+  "name": "joint account entered once is fine",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "bank_accounts": [
+     {
+      "bank_name": "HDFC Bank",
+      "account_number_last_four": "4321",
+      "peak_balance_usd": 20000,
+      "is_joint_owner_spouse": true,
+      "owner_share_percent": 60
+     }
+    ]
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ },
+ {
+  "name": "same property in both (MFS)",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfs",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "real_estate": {
+     "properties": [
+      {
+       "property_description": "12 Oak St, Austin"
+      }
+     ]
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfs",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "real_estate": {
+     "properties": [
+      {
+       "property_description": "12 oak st austin"
+      }
+     ]
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "duplicate_shared_item"
+   ],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ },
+ {
+  "name": "co-owner share over 100",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "bank_accounts": [
+     {
+      "bank_name": "HDFC Bank",
+      "account_number_last_four": "4321",
+      "peak_balance_usd": 20000,
+      "is_joint_owner_spouse": true,
+      "owner_share_percent": 150
+     }
+    ]
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "joint_share_invalid"
+   ],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ },
+ {
+  "name": "household items in both profiles",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "itemized_deductions_and_credits": {
+     "charitable_contributions_cash_usd": 2000
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "itemized_deductions_and_credits": {
+     "mortgage_interest_paid_usd": 9000
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "household_items_both"
+   ],
+   "tiers": {
+    "ravi": "full"
+   }
+  }
+ },
+ {
+  "name": "household items in one profile is fine",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi",
+     "household_items_owner": "self"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "itemized_deductions_and_credits": {
+     "charitable_contributions_cash_usd": 2000
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita",
+     "household_items_owner": "spouse"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ },
+ {
+  "name": "household items in the non-owner profile",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi",
+     "household_items_owner": "spouse"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "itemized_deductions_and_credits": {
+     "charitable_contributions_cash_usd": 2000
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita",
+     "household_items_owner": "self"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "household_items_in_non_owner"
+   ],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ },
+ {
+  "name": "both claim household items",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi",
+     "household_items_owner": "self"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita",
+     "household_items_owner": "self"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "household_owner_conflict"
+   ],
+   "tiers": {
+    "ravi": "light"
+   }
+  }
+ },
+ {
+  "name": "household items in both allowed on MFS",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfs",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "itemized_deductions_and_credits": {
+     "charitable_contributions_cash_usd": 2000
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfs",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "itemized_deductions_and_credits": {
+     "mortgage_interest_paid_usd": 9000
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [],
+   "tiers": {
+    "ravi": "full"
+   }
+  }
  }
 ]

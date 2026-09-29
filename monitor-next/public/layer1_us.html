@@ -783,6 +783,14 @@
                         <select id="prof-spouse-client" onchange="onSpouseLinkChange(this.value)" class="flex-1 bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-2.5 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all"></select>
                         <button type="button" id="btn-create-spouse" onclick="createSpouseProfile()" class="px-3 py-2 bg-white/10 hover:bg-brandCyan/20 hover:text-brandCyan text-white/60 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap">+ New spouse profile</button>
                     </div>
+                    <div id="spouse-household-owner-row" class="hidden flex flex-col gap-1">
+                        <span class="text-[9px] text-white/50">Household items (dependents, childcare, charity, mortgage interest, property tax, estimated payments, last year's tax) are entered once, in:</span>
+                        <select id="prof-household-owner" onchange="onHouseholdOwnerChange(this.value)" class="bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-2 focus:border-brandCyan focus:ring-0 focus:outline-none">
+                            <option value="">— choose —</option>
+                            <option value="self">This profile</option>
+                            <option value="spouse">The spouse's profile</option>
+                        </select>
+                    </div>
                     <div id="spouse-link-status" class="text-[9px] leading-relaxed"></div>
                 </div>
 
@@ -4117,6 +4125,7 @@
             dependents_count: 0,
             spouse_is_us_person: null,
             spouse_client_id: null,
+            household_items_owner: null,
             trump_accounts_opened: false,
             trump_accounts_children: [],
             trump_accounts_num_children: 0,
@@ -4445,6 +4454,7 @@
                 "dependents_count": 0,
                 "spouse_is_us_person": false,
                 "spouse_client_id": null,
+                "household_items_owner": null,
                 "trump_accounts_opened": false,
                 "trump_accounts_children": [
                         {
@@ -5627,6 +5637,7 @@
                         "ownership_type": null,
                         "joint_owner_count": 0,
                         "is_joint_owner_spouse": false,
+                        "owner_share_percent": null,
                         "institution_address_street": null,
                         "institution_address_city": null,
                         "institution_address_zip": null,
@@ -5653,6 +5664,7 @@
                         "ownership_type": null,
                         "joint_owner_count": null,
                         "is_joint_owner_spouse": false,
+                        "owner_share_percent": null,
                         "institution_address_street": null,
                         "institution_address_city": null,
                         "institution_address_zip": null,
@@ -5674,7 +5686,9 @@
                                 "sale_price_usd": 0,
                                 "realized_gain_loss_usd": 0,
                                 "s121_exclusion_claimed": false,
-                                "s1031_like_kind_exchange": false
+                                "s1031_like_kind_exchange": false,
+                                "is_joint_owner_spouse": false,
+                                "owner_share_percent": null
                         }
                 ]
         },
@@ -6753,6 +6767,11 @@
             opts += '<option value="' + c.id + '"' + (c.id === linked ? ' selected' : '') + '>' + (c.label || c.id).replace(/</g, '&lt;') + '</option>';
         });
         sel.innerHTML = opts;
+        const ownerRow = document.getElementById('spouse-household-owner-row');
+        if (ownerRow) {
+            ownerRow.classList.toggle('hidden', !(linked && usState.profile.filing_status === 'mfj'));
+            document.getElementById('prof-household-owner').value = usState.profile.household_items_owner || '';
+        }
         if (!linked || !W.householdLink) { status.innerHTML = ''; return; }
         const exists = reg.list().some(function (c) { return c.id === linked; });
         const b = exists ? Object.assign({ id: linked }, reg.getRawState(linked)) : null;
@@ -6778,6 +6797,13 @@
         saveStateAndSync();
         renderSpouseLink();
     }
+    function onHouseholdOwnerChange(v) {
+        usState.profile.household_items_owner = v || null;
+        const sp = usState.profile.spouse_client_id;
+        if (sp) writeSpouseProfile(sp, { household_items_owner: v === 'self' ? 'spouse' : v === 'spouse' ? 'self' : null });
+        saveStateAndSync();
+        renderSpouseLink();
+    }
     function createSpouseProfile() {
         const reg = window.WISING && window.WISING.ClientRegistry;
         const selfId = reg && reg.activeIdFromUrl();
@@ -6796,6 +6822,10 @@
         if (!reg || !reg.activeIdFromUrl() || e.key !== reg.storageKeyFor('US') || !e.newValue) return;
         try {
             const p = (JSON.parse(e.newValue).profile) || {};
+            if ((p.household_items_owner || null) !== (usState.profile.household_items_owner || null)) {
+                usState.profile.household_items_owner = p.household_items_owner || null;
+                renderSpouseLink();
+            }
             if (p.spouse_client_id !== usState.profile.spouse_client_id) {
                 usState.profile.spouse_client_id = p.spouse_client_id || null;
                 if (p.filing_status) {
@@ -19124,6 +19154,10 @@ div.innerHTML = `
                                             <option value="no">No</option>
                                         </select>
                                     </div>
+                                    <div class="col-span-2">
+                                        <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">This client's share % (if joint with spouse)</label>
+                                        <input type="number" min="0" max="100" class="bnk-share w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="50" oninput="syncBanksState()">
+                                    </div>
                                 </div>
                             </div>
                             <div>
@@ -19169,6 +19203,7 @@ div.innerHTML = `
             }
             if (div.querySelector('.bnk-joint-count')) div.querySelector('.bnk-joint-count').value = data.joint_owner_count || '';
             if (div.querySelector('.bnk-joint-spouse')) div.querySelector('.bnk-joint-spouse').value = data.is_joint_owner_spouse ? 'yes' : 'no';
+            if (div.querySelector('.bnk-share')) div.querySelector('.bnk-share').value = data.owner_share_percent != null ? data.owner_share_percent : '';
             if (div.querySelector('.bnk-addr-street')) div.querySelector('.bnk-addr-street').value = data.institution_address_street || '';
             if (div.querySelector('.bnk-addr-city')) div.querySelector('.bnk-addr-city').value = data.institution_address_city || '';
             if (div.querySelector('.bnk-addr-zip')) div.querySelector('.bnk-addr-zip').value = data.institution_address_zip || '';
@@ -19217,6 +19252,15 @@ div.innerHTML = `
     // and out of the FBAR total, instead of being blanked and re-counted.
     let preservedUsBankRows = [];
 
+    // Shared items (docs/HOUSEHOLD_DESIGN.md section 3): a row co-owned with
+    // the spouse records this client's share; 50% when left blank.
+    function jointShareFromCard(div, pre) {
+        const j = div.querySelector('.' + pre + '-joint-spouse');
+        if (!j || j.value !== 'yes') return null;
+        const v = parseFloat((div.querySelector('.' + pre + '-share') || {}).value);
+        return isFinite(v) ? v : 50;
+    }
+
     function syncBanksState() {
         const list = [];
         document.querySelectorAll('.bank-card').forEach(div => {
@@ -19238,6 +19282,7 @@ div.innerHTML = `
                 ownership_type: div.querySelector('.bnk-owner') ? div.querySelector('.bnk-owner').value : 'individual',
                 joint_owner_count: parseInt(div.querySelector('.bnk-joint-count').value) || null,
                 is_joint_owner_spouse: div.querySelector('.bnk-joint-spouse') ? div.querySelector('.bnk-joint-spouse').value === 'yes' : false,
+                owner_share_percent: jointShareFromCard(div, 'bnk'),
                 institution_address_street: div.querySelector('.bnk-addr-street').value || null,
                 institution_address_city: div.querySelector('.bnk-addr-city').value || null,
                 institution_address_zip: div.querySelector('.bnk-addr-zip').value || null,
@@ -19409,6 +19454,10 @@ div.innerHTML = `
                                             <option value="no">No</option>
                                         </select>
                                     </div>
+                                    <div class="col-span-2">
+                                        <label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">This client's share % (if joint with spouse)</label>
+                                        <input type="number" min="0" max="100" class="hld-share w-full bg-[#121212] border border-white/10 rounded-lg text-xs text-white px-3 py-1.5 focus:border-brandCyan focus:outline-none focus:ring-0 font-mono" placeholder="50" oninput="syncHoldingsState()">
+                                    </div>
                                 </div>
                             </div>
                             <div>
@@ -19474,6 +19523,7 @@ div.innerHTML = `
             }
             if (div.querySelector('.hld-joint-count')) div.querySelector('.hld-joint-count').value = data.joint_owner_count || '';
             if (div.querySelector('.hld-joint-spouse')) div.querySelector('.hld-joint-spouse').value = data.is_joint_owner_spouse ? 'yes' : 'no';
+            if (div.querySelector('.hld-share')) div.querySelector('.hld-share').value = data.owner_share_percent != null ? data.owner_share_percent : '';
             if (div.querySelector('.hld-addr-street')) div.querySelector('.hld-addr-street').value = data.institution_address_street || '';
             if (div.querySelector('.hld-addr-city')) div.querySelector('.hld-addr-city').value = data.institution_address_city || '';
             if (div.querySelector('.hld-addr-zip')) div.querySelector('.hld-addr-zip').value = data.institution_address_zip || '';
@@ -19568,6 +19618,7 @@ div.innerHTML = `
                 ownership_type: div.querySelector('.hld-owner') ? div.querySelector('.hld-owner').value : 'individual',
                 joint_owner_count: parseInt(div.querySelector('.hld-joint-count').value) || null,
                 is_joint_owner_spouse: div.querySelector('.hld-joint-spouse') ? div.querySelector('.hld-joint-spouse').value === 'yes' : false,
+                owner_share_percent: jointShareFromCard(div, 'hld'),
                 institution_address_street: div.querySelector('.hld-addr-street').value || null,
                 institution_address_city: div.querySelector('.hld-addr-city').value || null,
                 institution_address_zip: div.querySelector('.hld-addr-zip').value || null,
@@ -19650,6 +19701,17 @@ div.innerHTML = `
                             <span class="text-[9px] font-bold text-white/70">Claim §1031 Like-Kind Exchange?</span>
                             <input type="checkbox" class="prp-s1031 rounded bg-[#121212] border-white/20 text-brandCyan focus:ring-0" onchange="syncPropertiesState()">
                         </div>
+                        <div class="flex items-center justify-between gap-2 p-2 bg-[#121212] border border-white/10 rounded-lg">
+                            <span class="text-[9px] font-bold text-white/70">Co-owned with spouse?</span>
+                            <select class="prp-joint-spouse bg-[#121212] border border-white/10 rounded text-[10px] text-white px-2 py-1 focus:ring-0" onchange="syncPropertiesState()">
+                                <option value="no">No</option>
+                                <option value="yes">Yes</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center justify-between gap-2 p-2 bg-[#121212] border border-white/10 rounded-lg">
+                            <span class="text-[9px] font-bold text-white/70">This client's share % (if co-owned)</span>
+                            <input type="number" min="0" max="100" class="prp-share w-20 bg-[#121212] border border-white/10 rounded text-[10px] text-white px-2 py-1 font-mono focus:ring-0" placeholder="50" oninput="syncPropertiesState()">
+                        </div>
                     </div>
                 </div>
               </details>
@@ -19668,6 +19730,8 @@ div.innerHTML = `
             if (div.querySelector('.prp-gain')) div.querySelector('.prp-gain').value = data.realized_gain_loss_usd || '';
             if (div.querySelector('.prp-s121')) div.querySelector('.prp-s121').checked = data.s121_exclusion_claimed === true;
             if (div.querySelector('.prp-s1031')) div.querySelector('.prp-s1031').checked = data.s1031_like_kind_exchange === true;
+            if (div.querySelector('.prp-joint-spouse')) div.querySelector('.prp-joint-spouse').value = data.is_joint_owner_spouse ? 'yes' : 'no';
+            if (div.querySelector('.prp-share')) div.querySelector('.prp-share').value = data.owner_share_percent != null ? data.owner_share_percent : '';
         }
         syncPropertiesState();
     }
@@ -19705,7 +19769,9 @@ div.innerHTML = `
                 sale_price_usd: parseFormattedNumber(div.querySelector('.prp-price').value) || null,
                 realized_gain_loss_usd: finalGain,
                 s121_exclusion_claimed: isS121,
-                s1031_like_kind_exchange: isS1031
+                s1031_like_kind_exchange: isS1031,
+                is_joint_owner_spouse: div.querySelector('.prp-joint-spouse') ? div.querySelector('.prp-joint-spouse').value === 'yes' : false,
+                owner_share_percent: jointShareFromCard(div, 'prp')
             }));
         });
         usState.real_estate.properties = list;

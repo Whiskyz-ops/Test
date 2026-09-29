@@ -1,8 +1,8 @@
 # Household design — married clients
 
 Signed off 29 Sep 2026 (decisions in section 8). Fixes the joint-return rows
-of docs/MARRIED_FILING_AUDIT.md. Build step 1 (link, validation, spouse
-tier) shipped 29 Sep 2026; steps 2-5 not started.
+of docs/MARRIED_FILING_AUDIT.md. Build steps 1 (link, validation, spouse
+tier) and 2 (shared items) shipped 29 Sep 2026; steps 3-5 not started.
 
 **Scope.** Married filing jointly (MFJ) first. Married filing separately (MFS)
 and qualifying surviving spouse use the same link with less computation.
@@ -103,7 +103,18 @@ spouse's US income (audit row G1).
    can create a new spouse client; the Monitor's Clients tab shows "Joint /
    Separate with …", "Light profile" and "Link issue". Not yet enforced for
    the "within one firm" rule: the Monitor has one firm today.
-2. Shared-item fields.
+2. Shared-item fields. **Done 29 Sep 2026:** foreign bank accounts,
+   financial holdings and real-estate rows carry `is_joint_owner_spouse` (new
+   on property rows) and `owner_share_percent` (this client's share, 50 when
+   left blank); `profile.household_items_owner` ("self" / "spouse", written
+   to both profiles) says which profile holds the household items on a
+   joint return. The link check now also blocks: the same bank account
+   (bank + last 4), holding (institution + name) or property (description)
+   in both profiles; a co-owner share outside 0–100; household items in both
+   profiles, or in the profile set not to hold them; both profiles claiming
+   the household items. SALT is not a household field: the form's single
+   SALT amount mixes each person's state income tax with shared property
+   tax. The shares are recorded but not yet used in any computation (step 3).
 3. `analyzeHousehold` in the JS and Python engines, with per-person rules.
 4. Dashboards and findings tags.
 5. Migration.
