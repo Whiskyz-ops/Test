@@ -643,7 +643,7 @@ NODES.findingsBatch4Result = {
         ? " at a rate per income type (" + Object.keys(fdapRates).map(function (k) { return k + " " + fdapRates[k] + "%"; }).join(", ") + " — a treaty claim covers only its own income type)"
         : " flat" + (rateActuallyHonored ? " at the claimed " + nraDetail.claimedRate + "% treaty rate" : " at the 30% statutory rate (no treaty rate on file)");
       add("nra_fdap_flat_rate", "info", "credit",
-        "1040-NR: FDAP taxed flat" + (isRoutedToNraForFdap ? " (" + Math.round(nraDetail.fdapRate * 100) + "%)" : "") + ", ECI at graduated rates",
+        (mixedRates ? "1040-NR: FDAP taxed per income type" : "1040-NR: FDAP taxed flat" + (isRoutedToNraForFdap ? " (" + Math.round(nraDetail.fdapRate * 100) + "%)" : "")) + ", ECI at graduated rates",
         usd(nraDetail.fdapUsd) + " of FDAP income (interest/dividends/rents not effectively connected with a US trade or " +
         "business) is taxed" + rateText +
         " with no deductions (Schedule NEC), separate from " + usd(d.nraEciIncomeUsdRaw) + " of ECI taxed at graduated brackets" +

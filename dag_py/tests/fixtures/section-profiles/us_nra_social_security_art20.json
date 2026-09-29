@@ -69,6 +69,11 @@
       "path": "computed.usTax.totalTaxBeforeFtcUsd",
       "value": 10120,
       "why": "Social Security 6,120 + FDAP 4,000; no ECI"
+    },
+    {
+      "path": "findings[id=nra_fdap_flat_rate].title",
+      "value": "1040-NR: FDAP taxed per income type, ECI at graduated rates",
+      "why": "dividends 25% and interest 30% — no single flat rate to show (a blended 27% is a rate nothing is taxed at)"
     }
   ]
 }

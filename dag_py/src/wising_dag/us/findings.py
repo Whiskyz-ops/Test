@@ -568,7 +568,8 @@ def _findings_us_result(d, ctx):
             rate_text = " flat" + (f" at the claimed {nra_detail['claimedRate']}% treaty rate" if rate_actually_honored else " at the 30% statutory rate (no treaty rate on file)")
         findings.append(make_finding(
             "nra_fdap_flat_rate", "info", "credit",
-            "1040-NR: FDAP taxed flat" + (f" ({js_round(nra_detail['fdapRate'] * 100)}%)" if is_routed_to_nra_for_fdap else "") + ", ECI at graduated rates",
+            ("1040-NR: FDAP taxed per income type" if len(set(fdap_rates.values())) > 1
+             else "1040-NR: FDAP taxed flat" + (f" ({js_round(nra_detail['fdapRate'] * 100)}%)" if is_routed_to_nra_for_fdap else "")) + ", ECI at graduated rates",
             f"{_fmt(nra_detail['fdapUsd'])} of FDAP income (interest/dividends/rents not effectively connected with a US trade or "
             "business) is taxed" + rate_text
             + f" with no deductions (Schedule NEC), separate from {_fmt(d['nraEciIncomeUsdRaw'])} of ECI taxed at graduated brackets"
