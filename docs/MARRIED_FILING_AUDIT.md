@@ -1,0 +1,208 @@
+# Married filing audit — US, India and cross-border
+
+29 Sep 2026. Scope: every rule that depends on (a) the US filing status
+(married filing jointly / separately, surviving spouse) or (b) which spouse an
+item belongs to — in US law, Indian law, and where the two meet.
+
+This is a requirements tracker for review by a US CPA and an Indian CA. It says
+what the Monitor does today, not what it should do in code; the fixes come
+after review.
+
+## How this was built
+
+| Source | Used for | Access |
+|---|---|---|
+| PolicyEngine-US (parameters and variables, statute-cited) | Every US parameter keyed by filing status (47 files), every separate-filer eligibility rule (14 variables), every head/spouse per-person rule (23 variables) | Local copy |
+| India-US DTAA Technical Explanation (the PDF you supplied) | Treaty rules touching spouses or family | Local copy |
+| The engine (prototypes/graph-pilot, dag_py) and both intake forms | What is actually collected and computed | Local |
+| irs.gov, incometaxindia.gov.in, incometax.gov.in, law.cornell.edu, ecfr.gov, indiankanoon.org | Primary text | **Blocked by the environment's network policy** |
+
+Because the Indian primary sources were blocked, every India row is from
+knowledge and is marked for CA confirmation. Section numbers cite the 1961 Act;
+the CA should map them to the 2025 Act.
+
+Confirmed gaps have a runnable probe: `node scripts/audit/married-filing-probes.js`
+(the probe works the legal answer by hand and compares it with the engine).
+
+**Status:** ✅ handled · 🟡 partial · ❌ missing · 🐞 wrong result today · ➖ not relevant to this client base.
+**Evidence:** *probe* = run through the engine; *code* = read in the engine; *form* = read in the intake form; *law* = rule from PolicyEngine / treaty text / knowledge.
+
+## Summary
+
+| Area | Rows | ✅ | 🟡 | ❌ | 🐞 | ➖ |
+|---|---|---|---|---|---|---|
+| A. What the forms collect about the spouse | 11 | 1 | 4 | 6 | – | – |
+| B. US filing-status parameters | 30 | 17 | 4 | 5 | 3 | 1 |
+| C. US separate-filer eligibility | 9 | 2 | 1 | 3 | 2 | 1 |
+| D. US per-person rules | 16 | 3 | 4 | 5 | 4 | – |
+| E. Other US joint-return mechanics | 7 | 1 | 2 | 3 | 1 | – |
+| F. India | 12 | 4 | 5 | 3 | – | – |
+| G. Cross-border | 15 | 2 | 3 | 8 | 2 | – |
+| **Total** | **100** | **30** | **23** | **33** | **12** | **2** |
+
+### Wrong results today (probe-confirmed)
+
+| Probe | What happens | Who is affected |
+|---|---|---|
+| XB-P1 | A spouse's US wages on a joint US return are taxed in the client's **Indian** return: ₹8,34,600 → ₹54,26,850 when a $150,000 spouse W-2 is added; India's s.90 relief grows to cover US tax on the spouse's wages | Every Indian-resident client with a joint US return and an earning spouse |
+| US-P1 | Social Security wage base pooled across spouses: client's $100,000 Schedule C taxed $2,678 instead of ≈ $14,129 | Joint returns where one spouse is employed and the other self-employed |
+| US-P3 | Capital losses deducted without the $3,000 limit ($1,500 separate) | **All filers**, not only married |
+| US-P4, US-P5 | Separate filers get education credits and the student-loan interest deduction, which the law denies them | Married filing separately |
+| US-P6 | Two spouses each deferring the $24,500 maximum get a false "excess elective deferral" warning | Joint returns |
+| US-P2 | Senior deduction $6,000 instead of $12,000 when both spouses are 65+ (no spouse date of birth) | Joint returns with two seniors |
+
+## A. What the forms collect about the spouse
+
+| # | Item | Status | Evidence |
+|---|---|---|---|
+| A1 | Spouse SSN / ITIN on every joint return | 🟡 | *form*: asked only on the non-resident screen (`nra_specific.spouse_ssn_or_itin_type`) |
+| A2 | Spouse date of birth (senior deduction, 65+ standard deduction, catch-ups, RMD, 72(t)) | ❌ | *form*: absent |
+| A3 | Spouse citizenship / green card / residency | 🟡 | *form*: one checkbox, "Spouse is a US person?" (`profile.spouse_is_us_person`) |
+| A4 | Spouse (and taxpayer) blind | ❌ | *form*: absent |
+| A5 | "Taxpayer / Spouse" on W-2s, self-employment, IRA/401(k)/HSA contributions, pensions, Social Security, foreign earned income | ❌ | *form*: no owner field; bank and holding rows do have a joint-owner flag (✅ for FBAR accounts) |
+| A6 | Separate return: lived apart all year? (Social Security thresholds, IRA phase-out, dependent-care credit) | ❌ | *form*: absent |
+| A7 | Separate return: does the spouse itemize? (forces itemizing) | ❌ | *form*: absent |
+| A8 | Marriage / divorce / death dates, spouse died this year, surviving-spouse years | 🟡 | *form*: surviving-spouse status offered; no dates |
+| A9 | §6013(g)/(h) election for a non-resident spouse | ✅ | *form*: asked; see G4 for the missing spouse income |
+| A10 | Link to the spouse's own India profile | ❌ | *form*: linked profiles exist only for corporations (`linked_client_id`) |
+| A11 | Spouse SSN valid for work (senior deduction; tips/overtime need both spouses' SSNs on a joint return) | 🟡 | *law*: PolicyEngine `additional_senior_deduction_eligible_person`, `tip_income_deduction_ssn_requirement_met`; *form*: taxpayer's ID type only |
+
+## B. US parameters that depend on filing status
+
+PolicyEngine lists 47 such parameters; the engine keys 19 constants on filing
+status. 2026 values were compared where both exist.
+
+| # | Rule | Status | Evidence |
+|---|---|---|---|
+| B1 | Tax brackets | ✅ | *code* `TAX.US.BRACKETS`; matched in earlier profiles |
+| B2 | Standard deduction | ✅ | values = PolicyEngine |
+| B3 | Capital-gains 0/15/20% thresholds | ✅ | *code* `LTCG_BRACKETS` |
+| B4 | SALT cap and phase-out ($40,400 / $20,200 separate) | ✅ | values = PolicyEngine |
+| B5 | NIIT threshold | ✅ | values = PolicyEngine |
+| B6 | Additional Medicare threshold | ✅ | values = PolicyEngine; head of household falls back to single ($200,000), same value |
+| B7 | AMT exemption and phase-out | ✅ | values = PolicyEngine |
+| B8 | AMT 26%/28% break (half for separate) | ✅ | *code* `AMT_RATE_BREAK` |
+| B9 | Child tax credit phase-out | ✅ | values = PolicyEngine |
+| B10 | QBI threshold and phase-in | ✅ | $25 off for separate filers ($201,750 vs PolicyEngine $201,775) — confirm |
+| B11 | Saver's credit AGI brackets | ✅ | *code* |
+| B12 | Senior deduction phase-out | ✅ | *code*; separate filers excluded by law and by the engine |
+| B13 | Tips / overtime caps and phase-outs; $0 for separate filers | ✅ | *code* `ustax-nodes.js:314` |
+| B14 | Charitable deduction for non-itemizers ($2,000 joint) | ✅ | *code* |
+| B15 | §68 itemized limitation (2/37) | ✅ | *code*; status-aware through the 37% bracket |
+| B16 | Form 8938 thresholds (joint, abroad) | ✅ | *code* `LIMITS.FORM_8938` |
+| B17 | Estimated tax: 110% prior-year rule above $150,000 AGI | ✅ | *code* for joint/single |
+| B18 | Social Security taxation thresholds, separate filers | 🟡 | *code*: always $0 — correct only if the spouses lived together (PolicyEngine: $25,000/$34,000 if apart all year); A6 not asked |
+| B19 | Dependent-care FSA exclusion ($7,500; $3,750 separate from 2026) | 🟡 | *code*: per-return cap, no separate-filer halving |
+| B20 | Child and dependent care credit rate phase-out | 🟡 | *code*: flat 20% (`ustax-nodes.js:450`) — confirm the 2026 rate schedule |
+| B21 | Education credit phase-out | 🟡 | *code*: joint vs other only; separate filers not blocked (see C3) |
+| B22 | Capital loss limit $3,000 / $1,500 separate | 🐞 | *probe* US-P3 — no limit at all |
+| B23 | Student-loan interest: cap and MAGI phase-out | 🐞 | *probe* US-P5 — cap $2,500 only, no phase-out |
+| B24 | Mortgage acquisition-debt cap ($750,000 / $375,000 separate) | ❌ | *code*: absent |
+| B25 | 65+ / blind additional standard deduction | 🐞 | *code*: absent for every filer |
+| B26 | Excess business loss limit (§461(l)) | ❌ | *code*: absent |
+| B27 | Car-loan interest deduction (OBBBA) | ❌ | *code* and *form*: absent |
+| B28 | Business-loss and misc. limits (`ald/loss/max`, `max_business_losses`) | ❌ | *code*: absent |
+| B29 | Elderly/disabled credit, clean-vehicle credits, rebates, unemployment exclusion, personal exemption | ➖ | not relevant to this client base / expired |
+| B30 | Filing requirement thresholds | ❌ | *code*: absent (the Monitor assumes a return is filed) |
+
+## C. US rules that deny or change a benefit for separate filers
+
+| # | Rule | Status | Evidence |
+|---|---|---|---|
+| C1 | Senior deduction not for separate filers | ✅ | *code* `ustax-nodes.js:305` |
+| C2 | Tips / overtime deductions not for separate filers | ✅ | *code* `ustax-nodes.js:314` |
+| C3 | Education credits not for separate filers (§25A(g)(6)) | 🐞 | *probe* US-P4 |
+| C4 | Student-loan interest not for separate filers (§221(e)(2)) | 🐞 | *probe* US-P5 |
+| C5 | Child and dependent care credit not for separate filers unless lived apart | ❌ | *law*: PolicyEngine `cdcc_filing_status_eligible`; *code*: no check |
+| C6 | Social Security: separate + lived together → $0 thresholds | 🟡 | see B18 |
+| C7 | AMT: separate-filer AMTI add-back (§55(d)) | ❌ | *law*: PolicyEngine `amt_separate_addition`; *code*: absent |
+| C8 | Spouse itemizes → separate filer must itemize | ❌ | A7 not asked |
+| C9 | EITC / tuition deduction / elderly credit | ➖ | not modelled; low relevance |
+
+## D. US rules applied per person
+
+| # | Rule | Status | Evidence |
+|---|---|---|---|
+| D1 | Social Security wage base and self-employment tax per person | 🐞 | *probe* US-P1 |
+| D2 | Excess Social Security withholding credit (two employers, one person) | ❌ | *code*: absent for every filer |
+| D3 | Senior deduction per qualifying spouse | 🐞 | *probe* US-P2 |
+| D4 | SSN requirement per spouse (senior, tips, overtime) | ❌ | A11 |
+| D5 | §402(g) elective-deferral limit per person | 🐞 | *probe* US-P6 |
+| D6 | IRA contribution limit per person; spousal IRA on joint compensation | 🐞 | *code* `us5-nodes.js` `iraContributionAggregateUsd` pools both spouses against one limit |
+| D7 | IRA deduction phase-out by each spouse's workplace-plan coverage | ❌ | *code*: absent for every filer |
+| D8 | Catch-up contributions by each spouse's age | ❌ | *code*: taxpayer's age only (`ageAtYearEndUs`) |
+| D9 | HSA family limit shared between spouses | 🟡 | *code*: coverage type read; split not modelled |
+| D10 | RMD and 72(t) by the recipient's age | 🟡 | *code*: taxpayer's age only |
+| D11 | Saver's credit $2,000 contribution cap per person | 🟡 | *code* `ustax-nodes.js:469`: applied once per return |
+| D12 | Dependent-care credit limited to the lower-earning spouse's earned income | ❌ | *law*: PolicyEngine `min_head_spouse_earned`; *code*: absent |
+| D13 | Foreign earned income exclusion per spouse (cap and qualifying test) | 🟡 | *code*: one cap on combined foreign wages (`findings-batch6-nodes.js:93`) |
+| D14 | Additional Medicare: joint threshold, employer withholds per person | ✅ | *code* |
+| D15 | Social Security benefits: combined for taxability | ✅ | *code* |
+| D16 | QBI per business | ✅ | *code* |
+
+## E. Other US joint-return mechanics
+
+| # | Rule | Status | Evidence |
+|---|---|---|---|
+| E1 | Estimated tax: 110% threshold is $75,000 AGI for separate filers | 🐞 | *code* `us1-nodes.js:65` uses $150,000 for all |
+| E2 | Joint return with a non-resident spouse requires the §6013(g)/(h) election | ❌ | *code*: no eligibility check (form hides MFJ for an NRA client, not for a resident client with an NRA spouse) |
+| E3 | Community-property states (CA, TX, WA …): separate filers split community income | 🟡 | *form* warns; *code* ignores |
+| E4 | State returns when one spouse is a non-resident of the state | ❌ | *code*: absent |
+| E5 | State joint/separate/HOH tables (CA, NY, NJ) | ✅ | *code* (IN-45 follow-up) |
+| E6 | Surviving spouse: 2-year status, joint return in year of death | 🟡 | A8 |
+| E7 | Joint-and-several liability / innocent spouse (Form 8857) | ❌ | information only |
+
+## F. India (no joint assessment)
+
+India assesses each person separately, so the India form rightly stays
+individual. The items are about one spouse's income being attributed to the
+other. *All rows: CA to confirm; 1961 Act numbering.*
+
+| # | Rule | Status | Evidence |
+|---|---|---|---|
+| F1 | Individual assessment; no joint return | ✅ | *form* |
+| F2 | s.64(1)(iv): income from assets transferred to the spouse without adequate consideration is the transferor's | 🟡 | *form*: one manual amount (`other_sources.spousal_clubbing_s64_inr`), read by the engine; no asset-transfer tracking |
+| F3 | s.64(1)(ii): spouse's pay from a concern where the client has a substantial interest | 🟡 | same manual amount; not asked separately |
+| F4 | s.64(1A): minor child's income clubbed with the higher-income parent; ₹1,500 per child (s.10(32)) | 🟡 | *form*: exemption field only; the child's income and "which parent" not asked; cap not validated |
+| F5 | Gifts from spouse / relatives exempt (s.56(2)(x)) | ✅ | *form* toggle, read by the engine |
+| F6 | Co-owned property: income and loan interest by ownership share | ✅ | *form* `co_owner_share_percent` |
+| F7 | 80C / 80D / 80E paid for the spouse | ✅ | *form* (80E text covers the spouse's loan; 80D self+spouse bucket) — confirm 80C spouse premiums |
+| F8 | Joint bank / FD accounts: interest taxed to the person whose money it is | ❌ | *form*: no contributor split |
+| F9 | Each spouse's residential status and advance tax independently | 🟡 | *form*: one profile per person, no link (A10) |
+| F10 | Schedule FA for jointly held foreign assets (both spouses report) | 🟡 | *form*: holdings have a joint flag; the other spouse's return isn't linked |
+| F11 | HRA when rent is paid to the spouse | ❌ | *form*: not asked — CA to confirm the position |
+| F12 | Spouse's pension / gifts at marriage | ❌ | *form*: marriage gifts covered by F5; others not asked |
+
+## G. Cross-border
+
+| # | Rule | Status | Evidence |
+|---|---|---|---|
+| G1 | The client's Indian return carries only the client's US income | 🐞 | *probe* XB-P1 — the joint US form's income all flows into India |
+| G2 | India s.90 relief (Form 44) uses the US tax on the client's own income: the joint US tax must be split between spouses | 🐞 | *probe* XB-P1 — relief rises from $1,780 to $26,340 with the spouse's wages |
+| G3 | US FTC (Form 1116) on a joint return includes both spouses' Indian income and Indian tax | ❌ | spouse's Indian data never reaches the US side (A10) |
+| G4 | A US-person spouse's, or a §6013(g)/(h)-electing spouse's, worldwide (Indian) income on the joint US return | ❌ | *form*: not asked — US tax understated by that income |
+| G5 | Electing spouse's Indian assets: FBAR, Form 8938, PFIC (Indian mutual funds, Form 8621), PPF/EPF (3520 questions), 5471 | ❌ | not collected |
+| G6 | FBAR per person (each spouse; Form 114a for joint-only accounts) | 🟡 | joint-owner flag on accounts; spouse's own accounts absent |
+| G7 | Treaty residence and tie-break per spouse (spouses can differ) | ❌ | one person modelled |
+| G8 | Saving clause per spouse (a citizen spouse and a non-resident spouse on one return) | 🟡 | client only (US-P7 passes for the client) |
+| G9 | Art. 20(2) Social Security per recipient spouse | 🟡 | only what is on the client's form |
+| G10 | Transfers to a non-resident-alien spouse are taxable (§1041(d)) | ❌ | not asked |
+| G11 | Gifts to a non-citizen spouse: limited annual exclusion, Form 709 (§2523(i)); exempt in India as a relative's gift | ❌ | not asked |
+| G12 | Clubbing mismatch: India taxes the transferor on income the US taxes to the owner-spouse — credit falls in the wrong return | ❌ | not modelled |
+| G13 | Community property with a non-resident spouse (§879) | ❌ | not modelled |
+| G14 | Treaty text: no spouse-specific rule except Art. 26 (no duty to give non-residents family allowances) | ✅ | Technical Explanation, Art. 26 |
+| G15 | No India-US totalization agreement — per person | ✅ | *code* `no_totalization_agreement` |
+
+## Recommended order (after review)
+
+1. **G1–G2** — stop the spouse's US income and US tax entering the client's Indian computation. Needs the "whose item" tag (A5); until then, an alert on every joint return with an India-resident client.
+2. **Spouse section (A1–A4, A6–A8, A11) and "whose item" tags (A5)** — the data every other fix needs.
+3. **Per-person US rules (D1–D13)** and the filing-status fixes (B18–B28, C3–C8, E1, E2).
+4. **B22, B25, D2, D7** — wrong for single filers too; can ship before the spouse work.
+5. **Spouse household link (A10) → G3–G9**, then G10–G13.
+
+## Questions for the reviewers
+
+- CPA: 2026 child and dependent care credit rate schedule (B20); QBI separate-filer threshold (B10); whether an H-4 / non-resident spouse without an SSN blocks tips/overtime on a joint return (A11); §6013(g) election and treaty benefits for the electing spouse (G4).
+- CA: 2025 Act numbering for F2–F5; attribution of joint FD interest (F8); HRA on rent paid to a spouse (F11); whether Form 44 relief must be computed on each spouse's share of a joint foreign return, and how that share is proven (G2).
+- Both: G12 — where the credit belongs when India clubs income to the transferor and the US taxes the owner-spouse.
