@@ -2046,6 +2046,52 @@ export function BusinessView({ result, links, onPick, selectedEntityId }) {
 // trip back to either of those views. Only the OWNS direction (matches the
 // Clients tab's own nesting/roll-up direction) — being OWNED isn't
 // surfaced here, same asymmetry as everywhere else this graph shows.
+// Household calculation for a client linked to a spouse (docs/HOUSEHOLD_DESIGN.md
+// step 3): the joint US return, its split (method A) and each spouse's
+// Form 44 relief from their share.
+export function HouseholdCard({ household, activeId, onPick }) {
+  if (!household || !household.linked) return null;
+  const usd0 = (v) => "$" + Math.round(v || 0).toLocaleString("en-US");
+  if (household.blocked) {
+    return (
+      <div className="rounded-xl border border-exposed/30 bg-exposed/10 px-4 py-3">
+        <div className="text-[11px] uppercase tracking-widest font-bold mb-1" style={{ color: PAL.redText }}>Household calculation blocked</div>
+        <ul className="space-y-0.5">{household.errors.map((e, i) => <li key={i} className="text-[12px] text-body">{e.message}</li>)}</ul>
+      </div>
+    );
+  }
+  const joint = household.jointUs;
+  return (
+    <div className="rounded-xl border border-line bg-white/[0.03] px-4 py-3">
+      <div className="flex items-baseline justify-between flex-wrap gap-2 mb-2">
+        <div className="text-[11px] uppercase tracking-widest font-bold" style={{ color: PAL.accent }}>
+          Household · {household.status === "mfs" ? "married filing separately" : "joint US return"}
+        </div>
+        {joint && <div className="text-[11px] text-muted">Joint US income tax <span className="font-mono text-head">{usd0(joint.incomeTaxUsd)}</span> · split {household.split.methodLabel}</div>}
+      </div>
+      <table className="w-full text-[12px]">
+        <thead><tr className="text-muted text-[10px] uppercase tracking-wider text-left">
+          <th className="py-1 font-semibold">Spouse</th>
+          {joint && <th className="py-1 font-semibold text-right">If filing separately</th>}
+          <th className="py-1 font-semibold text-right">{joint ? "Share of joint US tax" : "Own US income tax"}</th>
+          <th className="py-1 font-semibold text-right">Indian tax (own income)</th>
+          <th className="py-1 font-semibold text-right">Form 44 relief</th>
+        </tr></thead>
+        <tbody>{household.spouses.map((s) => (
+          <tr key={s.id} className="border-t border-line">
+            <td className="py-1.5">{s.id === activeId ? <span className="font-bold text-head">{s.name}</span> : <button onClick={() => onPick(s.id)} className="font-bold text-accent hover:underline">{s.name}</button>}</td>
+            {joint && <td className="py-1.5 text-right font-mono">{usd0(s.separateReturnIncomeTaxUsd)}</td>}
+            <td className="py-1.5 text-right font-mono">{usd0(s.usTaxShareUsd)}{joint && <span className="text-muted"> ({Math.round((s.share || 0) * 100)}%)</span>}</td>
+            <td className="py-1.5 text-right font-mono">{usd0(s.indiaTaxUsd)}</td>
+            <td className="py-1.5 text-right font-mono">{usd0(s.indiaReliefHouseholdUsd)}{Math.round(s.indiaReliefHouseholdUsd) !== Math.round(s.indiaReliefSingleProfileUsd) && <span className="text-muted" title="What this client's own profile alone would give"> (alone {usd0(s.indiaReliefSingleProfileUsd)})</span>}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+      {joint && <p className="text-[10.5px] text-muted mt-2">Split method A (share of the two separate-return taxes) is pending CA confirmation. Per-person limits (Social Security wage base, 401(k), IRA, senior deduction) are still pooled on the joint return.</p>}
+    </div>
+  );
+}
+
 export function OwnedEntitiesBanner({ links, onPick }) {
   const owned = links ? links.owns.filter((l) => l.summary) : [];
   if (!owned.length) return null;

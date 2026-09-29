@@ -271,7 +271,20 @@ def _treaty_findings(d, ctx, is_nra):
     # spouse's US income may be in the Indian computation — see
     # ustax-full-nodes.js (audit row G1; interim until spouse profiles link).
     us_source_usd = ((agg.get("usSourceTotal") or {}).get("usd")) or 0
-    if safe(ctx.get("us"), "profile.filing_status", None) == "mfj" and (res.get("india") or {}).get("worldwide") and us_source_usd > 0:
+    spouse_linked = bool(safe(ctx.get("us"), "profile.spouse_client_id", None))
+    # Linked to the spouse's own profile — see ustax-full-nodes.js.
+    if spouse_linked and safe(ctx.get("us"), "profile.filing_status", None) == "mfj" and (res.get("india") or {}).get("worldwide") and us_source_usd > 0:
+        out.append(make_finding(
+            "joint_return_household_linked", "info", "residency",
+            "Joint US return: use the household figures for US tax and Form 44 relief",
+            "This client is linked to their spouse's profile. The Indian income here is this client's own. The US tax and Form 44 relief "
+            "shown on this client alone use joint-return rates on only this client's income, so they understate both. The household "
+            "calculation computes the joint US return from both profiles, splits its tax in proportion to what each spouse would owe filing "
+            "separately, and gives this client's relief from their share.",
+            "Use the household figures for the Form 44 claim. Keep each spouse's income in their own profile.",
+            0, ["Rule 76", "Form 44", "Form 1040 (joint)"],
+        ))
+    elif safe(ctx.get("us"), "profile.filing_status", None) == "mfj" and (res.get("india") or {}).get("worldwide") and us_source_usd > 0:
         w2_count = len(agg.get("w2Employers") or [])
         two_earner_signs = w2_count >= 2 or (w2_count >= 1 and (agg.get("seEarningsUsd") or 0) > 0)
         out.append(make_finding(

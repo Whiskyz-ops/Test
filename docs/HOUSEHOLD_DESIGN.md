@@ -2,7 +2,8 @@
 
 Signed off 29 Sep 2026 (decisions in section 8). Fixes the joint-return rows
 of docs/MARRIED_FILING_AUDIT.md. Build steps 1 (link, validation, spouse
-tier) and 2 (shared items) shipped 29 Sep 2026; steps 3-5 not started.
+tier), 2 (shared items) and 3 (household calculation, method A pending CA
+confirmation) shipped 29 Sep 2026; steps 4-5 not started.
 
 **Scope.** Married filing jointly (MFJ) first. Married filing separately (MFS)
 and qualifying surviving spouse use the same link with less computation.
@@ -116,6 +117,24 @@ spouse's US income (audit row G1).
    SALT amount mixes each person's state income tax with shared property
    tax. The shares are recorded but not yet used in any computation (step 3).
 3. `analyzeHousehold` in the JS and Python engines, with per-person rules.
+   **Done 29 Sep 2026, except the per-person rules:**
+   `prototypes/graph-pilot/household.js` / `dag_py/src/wising_dag/household/calc.py`
+   run the unchanged single-client engine on each spouse's own profile
+   (Indian tax and relief cap), on each spouse as a separate filer (method A
+   weights) and on the two US profiles merged into one joint return; the
+   joint regular income tax is split by `splitJointUsTax` (method A — the one
+   function to change if the CA decides otherwise), and each spouse's Form 44
+   relief is min(share × their US-source fraction, Indian tax on that
+   income). The joint Form 1116 takes both spouses' Indian tax against the
+   joint limit. Tests: `dag_py/tests/test_household_calc.py` (JS and Python
+   agree on 4 cases; the probe couple matches hand-worked numbers); probe
+   XB-P2. Monitor: a Household card on a linked client's overview.
+   A linked client's own profile now raises joint_return_household_linked
+   (info) instead of the pooled-income alert.
+   **Still open (step 3b):** the merged joint return pools the per-person
+   limits — Social Security wage base and self-employment tax (US-P1),
+   senior deduction (US-P2), 401(k) (US-P6), IRA — exactly as a single pooled
+   profile did; MFS does not yet read "spouse itemizes" or "lived apart".
 4. Dashboards and findings tags.
 5. Migration.
 

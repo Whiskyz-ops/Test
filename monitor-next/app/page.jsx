@@ -7,12 +7,12 @@ import Header from "@/components/Header";
 import StatMeter from "@/components/StatMeter";
 import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
-import { ConflictsPanel, ChecksRegistryPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard, EntityStructureView, OwnedEntitiesBanner, EntitySwitcher } from "@/components/Views";
+import { ConflictsPanel, ChecksRegistryPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard, EntityStructureView, OwnedEntitiesBanner, EntitySwitcher, HouseholdCard } from "@/components/Views";
 import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState, isRegistryClientId, isUsPersonResult, isUsPersonOnlyGauge } from "@/lib/wising";
 import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
-import { attachHouseholds } from "@/lib/household";
+import { attachHouseholds, householdFor } from "@/lib/household";
 import { monitorSnapshotPyDag, allClientSummariesPyDag } from "@/lib/py-dag-adapter";
 import { entityLinksFor, ownedEntityIds, flattenOwnershipTree } from "@/lib/entity-graph";
 import { runShadow, runShadowPy, getShadowLog, clearShadowLog } from "@/lib/shadow";
@@ -352,6 +352,7 @@ export default function MonitorPage() {
   const meters = useMemo(() => deriveMeters(result), [result]);
 
   const activeLinks = useMemo(() => entityLinksFor(activeProfile, clientSummaries), [activeProfile, clientSummaries]);
+  const household = useMemo(() => householdFor(activeProfile), [activeProfile, clientSummaries]);
   // Header "Switch client…" dropdown, nested to match the Clients tab (docs/
   // GAP_TRACKER.md section H.11): an owned entity is pulled out of its
   // normal alphabetical/declaration position and placed immediately under
@@ -477,6 +478,7 @@ export default function MonitorPage() {
             {activeLinks && activeLinks.owns.length > 0 && (
               <div className="mb-5"><OwnedEntitiesBanner links={activeLinks} onPick={pickFromClients} /></div>
             )}
+            {household && <div className="mb-5"><HouseholdCard household={household} activeId={activeProfile} onPick={pickFromClients} /></div>}
             {alerts.length > 0 && (
               <div className="mb-5 rounded-2xl border border-approaching/30 bg-approaching/10 p-3.5">
                 <div className="text-[11px] uppercase tracking-widest font-bold mb-1" style={{ color: PAL.amberText }}>{alerts.length} automated alert{alerts.length > 1 ? "s" : ""}</div>

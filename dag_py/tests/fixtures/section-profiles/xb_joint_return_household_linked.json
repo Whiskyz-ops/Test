@@ -1,0 +1,82 @@
+{
+  "id": "xb_joint_return_household_linked",
+  "form": "layer1_us.html",
+  "section": "Filing status (married filing jointly, spouse profile linked)",
+  "story": "Same Indian-resident client on a joint US return, now linked to the spouse's own profile. The pooled-income alert gives way to an info note: the household calculation supplies the joint US tax, its split and the Form 44 relief.",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "has_green_card": false,
+    "us_days": 20
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "manual_days": 345,
+      "days_in_india_current_year": 345,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      }
+    },
+    "other_sources": {},
+    "itr_recommendation": {
+      "form": "ITR-1 (SAHAJ)",
+      "explanation": "For Resident Salaried Individuals with total income up to \u20b950 Lakhs (Salary, 1 house property, basic other sources). Restrictions: No foreign assets, no capital gains, no directorships."
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0,
+      "spouse_client_id": "spouse-client"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "nra_specific": {},
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Client Co",
+          "wages_box1_usd": 50000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 50000
+          }
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 0
+    }
+  },
+  "expect": [
+    {
+      "path": "findings[id=joint_return_household_linked].severity",
+      "value": "info",
+      "why": "linked to the spouse's profile: this client's Indian income is their own; US tax and relief come from the household calculation"
+    },
+    {
+      "path": "findings[id=joint_return_spouse_income_india]",
+      "value": null,
+      "why": "no pooled-income alert once the spouse has their own linked profile"
+    }
+  ]
+}

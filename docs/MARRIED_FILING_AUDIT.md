@@ -43,8 +43,8 @@ Confirmed gaps have a runnable probe: `node scripts/audit/married-filing-probes.
 | D. US per-person rules | 16 | 3 | 4 | 5 | 4 | – |
 | E. Other US joint-return mechanics | 7 | 1 | 2 | 3 | 1 | – |
 | F. India | 15 | 5 | 6 | 4 | – | – |
-| G. Cross-border | 15 | 2 | 3 | 8 | 2 | – |
-| **Total** | **103** | **33** | **22** | **34** | **12** | **2** |
+| G. Cross-border | 15 | 4 | 4 | 7 | – | – |
+| **Total** | **103** | **35** | **23** | **33** | **10** | **2** |
 
 ### Wrong results found by the source check (code-read, not yet probed)
 
@@ -60,7 +60,7 @@ US-P3 (capital losses without the $3,000 limit, all filers) was fixed on 29 Sep 
 
 | Probe | What happens | Who is affected |
 |---|---|---|
-| XB-P1 | A spouse's US wages on a joint US return are taxed in the client's **Indian** return: ₹8,34,600 → ₹54,26,850 when a $150,000 spouse W-2 is added; India's s.90 relief grows to cover US tax on the spouse's wages. Now flagged by an alert on every such return; not yet fixed | Every Indian-resident client with a joint US return and an earning spouse |
+| XB-P1 | A spouse's US wages on a joint US return are taxed in the client's **Indian** return: ₹8,34,600 → ₹54,26,850 when a $150,000 spouse W-2 is added; India's s.90 relief grows to cover US tax on the spouse's wages. Fixed for spouses with their own linked profiles (household calculation, IN-57; probe XB-P2). Still wrong for a single profile that holds both spouses' income, which keeps the alert until it is split (build step 5) | Every Indian-resident client with a joint US return and an earning spouse |
 | US-P1 | Social Security wage base pooled across spouses: client's $100,000 Schedule C taxed $2,678 instead of ≈ $14,129 | Joint returns where one spouse is employed and the other self-employed |
 | US-P4, US-P5 | Separate filers get education credits and the student-loan interest deduction, which the law denies them | Married filing separately |
 | US-P6 | Two spouses each deferring the $24,500 maximum get a false "excess elective deferral" warning | Joint returns |
@@ -198,9 +198,9 @@ docs/sources/INDIA_ACT_2025_EXTRACTS.md. Other India rows: CA to confirm.
 
 | # | Rule | Status | Evidence |
 |---|---|---|---|
-| G1 | The client's Indian return carries only the client's US income | 🐞 | *probe* XB-P1 — the joint US form's income all flows into India. Interim (IN-52): alert joint_return_spouse_income_india on every joint return of an Indian resident; the fix is the household link (docs/HOUSEHOLD_DESIGN.md) |
-| G2 | India's foreign tax credit uses the US tax **paid by the client on the client's own income**: credit is computed per source of income, as the lower of the Indian tax on that income and the foreign tax paid on it (rule 76(1), (7)(a)), so the joint US tax must be attributed to each spouse's income | 🐞 | *act* rule 76; *probe* XB-P1 — relief rises from $1,780 to $26,340 with the spouse's wages. Rule 76 attributes tax to income, which supports split method A (docs/HOUSEHOLD_DESIGN.md) over an income-share split — CA to confirm |
-| G3 | US FTC (Form 1116) on a joint return includes both spouses' Indian income and Indian tax | ❌ | spouse's Indian data never reaches the US side (A10) |
+| G1 | The client's Indian return carries only the client's US income | ✅ | Fixed for linked spouses (29 Sep 2026, IN-57): the household calculation runs each spouse's Indian return from their own profile only; *probe* XB-P2 (client ₹8,34,600, was ₹54,26,850 pooled). *probe* XB-P1 still fails for a single profile holding both spouses' income — until it is split into two linked profiles (build step 5) the joint_return_spouse_income_india alert stays on; a linked profile gets joint_return_household_linked instead |
+| G2 | India's foreign tax credit uses the US tax **paid by the client on the client's own income**: credit is computed per source of income, as the lower of the Indian tax on that income and the foreign tax paid on it (rule 76(1), (7)(a)), so the joint US tax must be attributed to each spouse's income | ✅ | Household (IN-57): the joint regular US income tax is split by method A (each spouse's share of the two separate-return taxes; CA to confirm), and each spouse's relief is min(share × their US-source fraction, Indian tax on that income). *probe* XB-P2. Earlier evidence: *act* rule 76; *probe* XB-P1 — relief rises from $1,780 to $26,340 with the spouse's wages. Rule 76 attributes tax to income, which supports split method A (docs/HOUSEHOLD_DESIGN.md) over an income-share split — CA to confirm |
+| G3 | US FTC (Form 1116) on a joint return includes both spouses' Indian income and Indian tax | 🟡 | Household (IN-57): the joint Form 1116 takes both spouses' Indian tax against the limit of the merged joint return. The merged return adds the two spouses' Indian data together, so the limit's Indian-income side is right but any India-computed figure on the merged run is not a real return — confirm with the CPA |
 | G4 | A US-person spouse's, or a §6013(g)/(h)-electing spouse's, worldwide (Indian) income on the joint US return | ❌ | *form*: not asked — US tax understated by that income |
 | G5 | Electing spouse's Indian assets: FBAR, Form 8938, PFIC (Indian mutual funds, Form 8621), PPF/EPF (3520 questions), 5471 | ❌ | not collected |
 | G6 | FBAR per person (each spouse; Form 114a for joint-only accounts) | 🟡 | joint-owner flag on accounts; spouse's own accounts absent |

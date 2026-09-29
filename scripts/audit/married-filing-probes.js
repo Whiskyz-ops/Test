@@ -110,6 +110,17 @@ var PROBES = [
       }
       var alone = mk([w2("Client", 50000)]), joint = mk([w2("Client", 50000), w2("Spouse", 150000)]);
       return { got: "India tax ₹" + Math.round(alone) + " → ₹" + Math.round(joint), pass: Math.abs(joint - alone) < 1 };
+    } },
+  { id: "XB-P2", rule: "Household calculation: each spouse's Indian tax from their own profile; joint US tax split by method A",
+    story: "XB-P1's couple as two linked clients (dag_py/tests/fixtures/household-cases.json, case 1)",
+    expected: "client's India tax ₹8,34,600; client's share 3,820 / (3,820 + 24,734) of $26,340",
+    probe: function () {
+      var H = require(path.join(ROOT, "prototypes", "graph-pilot", "household.js"));
+      var c = JSON.parse(fs.readFileSync(path.join(ROOT, "dag_py", "tests", "fixtures", "household-cases.json"), "utf8"))[0];
+      var h = H.analyzeHousehold(c.a, c.b, analyze);
+      var s = h.spouses[0], want = 26340 * 3820 / (3820 + 24734);
+      return { got: "India tax ₹" + Math.round(s.indiaTaxUsd * 83) + ", share $" + Math.round(s.usTaxShareUsd) + " of $" + Math.round(h.jointUs.incomeTaxUsd),
+        pass: Math.round(s.indiaTaxUsd * 83) === 834600 && Math.abs(s.usTaxShareUsd - want) < 0.01 };
     } }
 ];
 

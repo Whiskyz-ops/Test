@@ -454,7 +454,22 @@ function treatyFindings(d, ctx, isNra) {
   // nothing yet says which US items are the spouse's, so the Indian tax,
   // Form 44 relief and double-tax figures may include the spouse's income.
   var usSourceUsd = (agg.usSourceTotal && agg.usSourceTotal.usd) || 0;
-  if (safe(ctx.us, "profile.filing_status", null) === "mfj" && res.india && res.india.worldwide && usSourceUsd > 0) {
+  var spouseLinked = !!safe(ctx.us, "profile.spouse_client_id", null);
+  // Linked to the spouse's own profile (docs/HOUSEHOLD_DESIGN.md): the joint
+  // return, the split of its tax and the Form 44 relief come from the
+  // household calculation, not from this client's figures alone.
+  if (spouseLinked && safe(ctx.us, "profile.filing_status", null) === "mfj" && res.india && res.india.worldwide && usSourceUsd > 0) {
+    out.push({
+      id: "joint_return_household_linked", severity: "info", category: "residency",
+      title: "Joint US return: use the household figures for US tax and Form 44 relief",
+      detail: "This client is linked to their spouse's profile. The Indian income here is this client's own. The US tax and Form 44 relief " +
+        "shown on this client alone use joint-return rates on only this client's income, so they understate both. The household " +
+        "calculation computes the joint US return from both profiles, splits its tax in proportion to what each spouse would owe filing " +
+        "separately, and gives this client's relief from their share.",
+      recommendation: "Use the household figures for the Form 44 claim. Keep each spouse's income in their own profile.",
+      amountUsd: 0, refs: ["Rule 76", "Form 44", "Form 1040 (joint)"]
+    });
+  } else if (safe(ctx.us, "profile.filing_status", null) === "mfj" && res.india && res.india.worldwide && usSourceUsd > 0) {
     var w2Count = (agg.w2Employers || []).length;
     var twoEarnerSigns = w2Count >= 2 || (w2Count >= 1 && (agg.seEarningsUsd || 0) > 0);
     out.push({

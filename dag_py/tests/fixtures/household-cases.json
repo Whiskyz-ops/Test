@@ -1,0 +1,1108 @@
+[
+ {
+  "name": "Indian-resident client, spouse with US wages (XB-P1 as a household)",
+  "a": {
+   "id": "cA",
+   "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "has_green_card": true,
+    "us_days": 20
+   },
+   "india": {
+    "profile": {
+     "entity_type": "individual",
+     "tax_regime": "NEW"
+    },
+    "residency_detail": {
+     "manual_days": 345,
+     "days_in_india_current_year": 345,
+     "days_in_india_preceding_4_years_gte_365": true,
+     "nr_years_last_10_gte_9": false,
+     "days_in_india_last_7_years_lte_729": false,
+     "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+     "salary": {
+      "has_salary_income": false
+     }
+    },
+    "other_sources": {}
+   },
+   "us": {
+    "profile": {
+     "tax_entity_type": "individual",
+     "filing_status": "mfj",
+     "ssn_or_itin_type": "ssn",
+     "dependents_count": 0,
+     "spouse_client_id": "cS"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+     "primary_state_of_residence": "TX"
+    },
+    "nra_specific": {},
+    "income_us_source": {
+     "has_employment_income": true,
+     "wages_w2": [
+      {
+       "employer_name": "Client",
+       "wages_box1_usd": 50000,
+       "tax_details_collapsed_by_default": {
+        "federal_tax_withheld_usd": 7500,
+        "medicare_wages_box5_usd": 50000
+       }
+      }
+     ]
+    }
+   }
+  },
+  "b": {
+   "id": "cS",
+   "router": {
+    "full_name": "Spouse cS",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us",
+    "is_us_citizen": true
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "full_name": "Spouse cS",
+     "filing_status": "mfj",
+     "spouse_client_id": "cA"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN"
+    },
+    "income_us_source": {
+     "has_employment_income": true,
+     "wages_w2": [
+      {
+       "employer_name": "SpouseCo",
+       "wages_box1_usd": 150000,
+       "tax_details_collapsed_by_default": {
+        "federal_tax_withheld_usd": 22500,
+        "medicare_wages_box5_usd": 150000
+       }
+      }
+     ]
+    },
+    "metadata": {
+     "us_calendar_year": 2026
+    }
+   }
+  }
+ },
+ {
+  "name": "Rohan Mehta with a salaried spouse",
+  "a": {
+   "id": "rohan",
+   "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "full_name": "Rohan Mehta",
+    "date_of_birth": "1985-03-22",
+    "is_us_citizen": false,
+    "has_green_card": true,
+    "us_days": 345,
+    "has_us_source_income_or_assets": true
+   },
+   "india": {
+    "profile": {
+     "full_name": "Rohan Mehta",
+     "entity_type": "individual",
+     "date_of_birth": "1985-03-22",
+     "pan": "AAAPM5678Q",
+     "tax_regime": "NEW",
+     "pan_aadhaar_linked": true
+    },
+    "residency_detail": {
+     "days_in_india_current_year": 20,
+     "final_india_residency_status": "NR"
+    },
+    "dtaa": {
+     "tax_residency_country": "US",
+     "is_us_resident_for_dtaa": true,
+     "dtaa_treaty_residence": "US",
+     "trc_status": false,
+     "form_10f": false,
+     "treaty_elections": [
+      {
+       "income_type": "interest",
+       "amount_inr": 150000,
+       "elected_rate": 0.15,
+       "treaty_article": "Art 11(2)(b)"
+      },
+      {
+       "income_type": "royalty",
+       "amount_inr": 400000,
+       "elected_rate": 0.15,
+       "treaty_article": "Art 12(2)(a)(ii)"
+      }
+     ]
+    },
+    "compliance_docs": {
+     "trc": {
+      "document_uploaded": false
+     },
+     "form_10f": {
+      "is_filed": false
+     }
+    },
+    "bank_accounts": [
+     {
+      "bank_name": "SBI (NRO)",
+      "account_type": "nro",
+      "peak_balance_inr": 2600000
+     },
+     {
+      "bank_name": "Axis (NRE)",
+      "account_type": "nre",
+      "peak_balance_inr": 1900000
+     }
+    ],
+    "property": {
+     "has_indian_property_transaction": true,
+     "properties": [
+      {
+       "address": "Villa 4, Bengaluru",
+       "property_type": "Residential",
+       "annual_value_inr": 840000,
+       "gross_rent_received_inr": 1200000,
+       "municipal_taxes_paid_inr": 60000
+      }
+     ]
+    },
+    "financial_holdings": {
+     "has_financial_transactions": true,
+     "transactions": [
+      {
+       "asset_type": "equity_mutual_fund",
+       "asset_class": "equity_mutual_fund",
+       "asset_name": "SBI Bluechip Fund",
+       "asset_name_or_ticker": "SBI Bluechip Fund",
+       "value_inr": 4200000,
+       "purchase_value": 4200000,
+       "purchase_currency": "INR"
+      },
+      {
+       "asset_type": "equity_mutual_fund",
+       "asset_class": "equity_mutual_fund",
+       "asset_name": "Mirae Asset Large Cap",
+       "asset_name_or_ticker": "Mirae Asset Large Cap",
+       "value_inr": 2600000,
+       "purchase_value": 2600000,
+       "purchase_currency": "INR"
+      },
+      {
+       "asset_class": "listed_equity",
+       "asset_name_or_ticker": "HDFCBANK",
+       "quantity": 800,
+       "acquisition_date": "2025-12-01",
+       "purchase_value": 1220000,
+       "purchase_currency": "INR",
+       "sale_date": "2026-08-20",
+       "sale_value": 1400000,
+       "sale_currency": "INR",
+       "stt_paid": true,
+       "transfer_expenses": 0
+      }
+     ]
+    },
+    "domestic_income": {
+     "salary": {
+      "has_salary_income": false
+     },
+     "house_property": {
+      "has_house_property_income": true,
+      "properties": [
+       {
+        "property_use": "LOP",
+        "gross_annual_value_inr": 1200000,
+        "municipal_taxes_paid_inr": 60000
+       }
+      ]
+     },
+     "business_income": {
+      "has_business_or_fo_income": true,
+      "non_speculative_income_inr": 250000,
+      "fno_turnover_inr": 4000000,
+      "speculative_income_inr": -80000,
+      "speculative_turnover_inr": 900000,
+      "business_entries": [
+       {
+        "business_name": "Mehta Advisory Services",
+        "nature": "consulting",
+        "presumptive_scheme": "s44ADA",
+        "gross_receipts_inr": 1800000,
+        "holding_pct": 5
+       },
+       {
+        "business_name": "Mehta Equipment Rentals",
+        "nature": "equipment rental",
+        "presumptive_scheme": null,
+        "gross_receipts_inr": 2400000,
+        "expenses": {
+         "rent_for_business_premises_inr": 180000,
+         "employee_salary_wages_inr": 300000,
+         "other_business_expenses_inr": 120000,
+         "payments_to_residents_no_tds_inr": 100000
+        }
+       }
+      ],
+      "asset_blocks": [
+       {
+        "unit_biz_idx": 1,
+        "unit_branch_idx": null,
+        "asset_class": "plant_machinery_general",
+        "opening_wdv_inr": 2000000,
+        "additions_during_year_inr": 500000,
+        "addition_date": "2026-06-01",
+        "sale_consideration_inr": 0,
+        "is_new_manufacturing_asset": false
+       }
+      ],
+      "msme_payables": [
+       {
+        "unit_biz_idx": 1,
+        "unit_branch_idx": null,
+        "supplier_name": "Precision Tools Co",
+        "amount_inr": 50000,
+        "invoice_date": "2026-01-01",
+        "has_written_agreement": false,
+        "payment_date": null
+       }
+      ],
+      "partner_firms": [
+       {
+        "firm_name": "Kapoor & Mehta Consulting LLP",
+        "entity_type": "llp",
+        "remuneration_from_entity_inr": 600000,
+        "interest_on_capital_from_entity_inr": 120000,
+        "profit_share_exempt_inr": 900000
+       }
+      ]
+     }
+    },
+    "other_sources": {
+     "has_other_sources_income": true,
+     "interest_fd_rd_inr": 260000,
+     "dividend_inr": 220000,
+     "online_gaming_winnings_inr": 180000,
+     "unexplained_income_115BBE_inr": 250000
+    },
+    "deductions": {},
+    "lrs_outbound": {},
+    "tax_credits": {
+     "tds_already_deducted_inr": 430000
+    },
+    "metadata": {
+     "schema_version": "layer1_india_v5_1",
+     "financial_year": "TY2026-27"
+    },
+    "quarters": {
+     "Q1": {
+      "domestic_income": {
+       "salary": {
+        "has_salary_income": false
+       },
+       "house_property": {
+        "has_house_property_income": true,
+        "properties": [
+         {
+          "property_use": "LOP",
+          "gross_annual_value_inr": 300000,
+          "municipal_taxes_paid_inr": 15000
+         }
+        ]
+       },
+       "business_income": {
+        "has_business_or_fo_income": true,
+        "non_speculative_income_inr": 62500,
+        "fno_turnover_inr": 1000000,
+        "speculative_income_inr": -20000,
+        "speculative_turnover_inr": 225000,
+        "business_entries": [
+         {
+          "business_name": "Mehta Advisory Services",
+          "nature": "consulting",
+          "presumptive_scheme": "s44ADA",
+          "gross_receipts_inr": 450000,
+          "holding_pct": 5
+         },
+         {
+          "business_name": "Mehta Equipment Rentals",
+          "nature": "equipment rental",
+          "presumptive_scheme": null,
+          "gross_receipts_inr": 600000,
+          "expenses": {
+           "rent_for_business_premises_inr": 45000,
+           "employee_salary_wages_inr": 75000,
+           "other_business_expenses_inr": 30000,
+           "payments_to_residents_no_tds_inr": 25000
+          }
+         }
+        ],
+        "asset_blocks": [
+         {
+          "unit_biz_idx": 0,
+          "unit_branch_idx": null,
+          "asset_class": "plant_machinery_general",
+          "opening_wdv_inr": 500000,
+          "additions_during_year_inr": 125000,
+          "addition_date": "2026-06-01",
+          "sale_consideration_inr": 0,
+          "is_new_manufacturing_asset": false
+         }
+        ],
+        "msme_payables": [
+         {
+          "unit_biz_idx": 0,
+          "unit_branch_idx": null,
+          "supplier_name": "Precision Tools Co",
+          "amount_inr": 12500,
+          "invoice_date": "2026-01-01",
+          "has_written_agreement": false,
+          "payment_date": null
+         }
+        ],
+        "partner_firms": [
+         {
+          "firm_name": "Kapoor & Mehta Consulting LLP",
+          "entity_type": "llp",
+          "remuneration_from_entity_inr": 150000,
+          "interest_on_capital_from_entity_inr": 30000,
+          "profit_share_exempt_inr": 225000
+         }
+        ]
+       }
+      },
+      "other_sources": {
+       "has_other_sources_income": true,
+       "interest_fd_rd_inr": 65000,
+       "dividend_inr": 55000,
+       "online_gaming_winnings_inr": 45000,
+       "unexplained_income_115BBE_inr": 62500
+      },
+      "capital_gains": {},
+      "lrs_outbound": {},
+      "financial_holdings": {
+       "has_financial_transactions": true,
+       "transactions": [
+        {
+         "asset_type": "equity_mutual_fund",
+         "asset_class": "equity_mutual_fund",
+         "asset_name": "SBI Bluechip Fund",
+         "asset_name_or_ticker": "SBI Bluechip Fund",
+         "value_inr": 4200000,
+         "purchase_value": 4200000,
+         "purchase_currency": "INR"
+        },
+        {
+         "asset_type": "equity_mutual_fund",
+         "asset_class": "equity_mutual_fund",
+         "asset_name": "Mirae Asset Large Cap",
+         "asset_name_or_ticker": "Mirae Asset Large Cap",
+         "value_inr": 2600000,
+         "purchase_value": 2600000,
+         "purchase_currency": "INR"
+        },
+        {
+         "asset_class": "listed_equity",
+         "asset_name_or_ticker": "HDFCBANK",
+         "quantity": 800,
+         "acquisition_date": "2025-12-01",
+         "purchase_value": 1220000,
+         "purchase_currency": "INR",
+         "sale_date": "2026-08-20",
+         "sale_value": 1400000,
+         "sale_currency": "INR",
+         "stt_paid": true,
+         "transfer_expenses": 0
+        }
+       ]
+      },
+      "property": {
+       "has_indian_property_transaction": true,
+       "properties": [
+        {
+         "address": "Villa 4, Bengaluru",
+         "property_type": "Residential",
+         "annual_value_inr": 840000,
+         "gross_rent_received_inr": 1200000,
+         "municipal_taxes_paid_inr": 60000
+        }
+       ]
+      }
+     },
+     "Q2": {
+      "domestic_income": {
+       "salary": {
+        "has_salary_income": false
+       },
+       "house_property": {
+        "has_house_property_income": true,
+        "properties": [
+         {
+          "property_use": "LOP",
+          "gross_annual_value_inr": 300000,
+          "municipal_taxes_paid_inr": 15000
+         }
+        ]
+       },
+       "business_income": {
+        "has_business_or_fo_income": true,
+        "non_speculative_income_inr": 62500,
+        "fno_turnover_inr": 1000000,
+        "speculative_income_inr": -20000,
+        "speculative_turnover_inr": 225000,
+        "business_entries": [
+         {
+          "business_name": "Mehta Advisory Services",
+          "nature": "consulting",
+          "presumptive_scheme": "s44ADA",
+          "gross_receipts_inr": 450000,
+          "holding_pct": null
+         },
+         {
+          "business_name": "Mehta Equipment Rentals",
+          "nature": "equipment rental",
+          "presumptive_scheme": null,
+          "gross_receipts_inr": 600000,
+          "expenses": {
+           "rent_for_business_premises_inr": 45000,
+           "employee_salary_wages_inr": 75000,
+           "other_business_expenses_inr": 30000,
+           "payments_to_residents_no_tds_inr": 25000
+          }
+         }
+        ],
+        "asset_blocks": [
+         {
+          "unit_biz_idx": 0,
+          "unit_branch_idx": null,
+          "asset_class": "plant_machinery_general",
+          "opening_wdv_inr": 500000,
+          "additions_during_year_inr": 125000,
+          "addition_date": "2026-06-01",
+          "sale_consideration_inr": 0,
+          "is_new_manufacturing_asset": false
+         }
+        ],
+        "msme_payables": [
+         {
+          "unit_biz_idx": 0,
+          "unit_branch_idx": null,
+          "supplier_name": "Precision Tools Co",
+          "amount_inr": 12500,
+          "invoice_date": "2026-01-01",
+          "has_written_agreement": false,
+          "payment_date": null
+         }
+        ],
+        "partner_firms": [
+         {
+          "firm_name": "Kapoor & Mehta Consulting LLP",
+          "entity_type": "llp",
+          "remuneration_from_entity_inr": 150000,
+          "interest_on_capital_from_entity_inr": 30000,
+          "profit_share_exempt_inr": 225000
+         }
+        ]
+       }
+      },
+      "other_sources": {
+       "has_other_sources_income": true,
+       "interest_fd_rd_inr": 65000,
+       "dividend_inr": 55000,
+       "online_gaming_winnings_inr": 45000,
+       "unexplained_income_115BBE_inr": 62500
+      },
+      "capital_gains": {},
+      "lrs_outbound": {}
+     },
+     "Q3": {
+      "domestic_income": {
+       "salary": {
+        "has_salary_income": false
+       },
+       "house_property": {
+        "has_house_property_income": true,
+        "properties": [
+         {
+          "property_use": "LOP",
+          "gross_annual_value_inr": 300000,
+          "municipal_taxes_paid_inr": 15000
+         }
+        ]
+       },
+       "business_income": {
+        "has_business_or_fo_income": true,
+        "non_speculative_income_inr": 62500,
+        "fno_turnover_inr": 1000000,
+        "speculative_income_inr": -20000,
+        "speculative_turnover_inr": 225000,
+        "business_entries": [
+         {
+          "business_name": "Mehta Advisory Services",
+          "nature": "consulting",
+          "presumptive_scheme": "s44ADA",
+          "gross_receipts_inr": 450000,
+          "holding_pct": null
+         },
+         {
+          "business_name": "Mehta Equipment Rentals",
+          "nature": "equipment rental",
+          "presumptive_scheme": null,
+          "gross_receipts_inr": 600000,
+          "expenses": {
+           "rent_for_business_premises_inr": 45000,
+           "employee_salary_wages_inr": 75000,
+           "other_business_expenses_inr": 30000,
+           "payments_to_residents_no_tds_inr": 25000
+          }
+         }
+        ],
+        "asset_blocks": [
+         {
+          "unit_biz_idx": 0,
+          "unit_branch_idx": null,
+          "asset_class": "plant_machinery_general",
+          "opening_wdv_inr": 500000,
+          "additions_during_year_inr": 125000,
+          "addition_date": "2026-06-01",
+          "sale_consideration_inr": 0,
+          "is_new_manufacturing_asset": false
+         }
+        ],
+        "msme_payables": [
+         {
+          "unit_biz_idx": 0,
+          "unit_branch_idx": null,
+          "supplier_name": "Precision Tools Co",
+          "amount_inr": 12500,
+          "invoice_date": "2026-01-01",
+          "has_written_agreement": false,
+          "payment_date": null
+         }
+        ],
+        "partner_firms": [
+         {
+          "firm_name": "Kapoor & Mehta Consulting LLP",
+          "entity_type": "llp",
+          "remuneration_from_entity_inr": 150000,
+          "interest_on_capital_from_entity_inr": 30000,
+          "profit_share_exempt_inr": 225000
+         }
+        ]
+       }
+      },
+      "other_sources": {
+       "has_other_sources_income": true,
+       "interest_fd_rd_inr": 65000,
+       "dividend_inr": 55000,
+       "online_gaming_winnings_inr": 45000,
+       "unexplained_income_115BBE_inr": 62500
+      },
+      "capital_gains": {},
+      "lrs_outbound": {}
+     },
+     "Q4": {
+      "domestic_income": {
+       "salary": {
+        "has_salary_income": false
+       },
+       "house_property": {
+        "has_house_property_income": true,
+        "properties": [
+         {
+          "property_use": "LOP",
+          "gross_annual_value_inr": 300000,
+          "municipal_taxes_paid_inr": 15000
+         }
+        ]
+       },
+       "business_income": {
+        "has_business_or_fo_income": true,
+        "non_speculative_income_inr": 62500,
+        "fno_turnover_inr": 1000000,
+        "speculative_income_inr": -20000,
+        "speculative_turnover_inr": 225000,
+        "business_entries": [
+         {
+          "business_name": "Mehta Advisory Services",
+          "nature": "consulting",
+          "presumptive_scheme": "s44ADA",
+          "gross_receipts_inr": 450000,
+          "holding_pct": null
+         },
+         {
+          "business_name": "Mehta Equipment Rentals",
+          "nature": "equipment rental",
+          "presumptive_scheme": null,
+          "gross_receipts_inr": 600000,
+          "expenses": {
+           "rent_for_business_premises_inr": 45000,
+           "employee_salary_wages_inr": 75000,
+           "other_business_expenses_inr": 30000,
+           "payments_to_residents_no_tds_inr": 25000
+          }
+         }
+        ],
+        "asset_blocks": [
+         {
+          "unit_biz_idx": 1,
+          "unit_branch_idx": null,
+          "asset_class": "plant_machinery_general",
+          "opening_wdv_inr": 500000,
+          "additions_during_year_inr": 125000,
+          "addition_date": "2026-06-01",
+          "sale_consideration_inr": 0,
+          "is_new_manufacturing_asset": false
+         }
+        ],
+        "msme_payables": [
+         {
+          "unit_biz_idx": 1,
+          "unit_branch_idx": null,
+          "supplier_name": "Precision Tools Co",
+          "amount_inr": 12500,
+          "invoice_date": "2026-01-01",
+          "has_written_agreement": false,
+          "payment_date": null
+         }
+        ],
+        "partner_firms": [
+         {
+          "firm_name": "Kapoor & Mehta Consulting LLP",
+          "entity_type": "llp",
+          "remuneration_from_entity_inr": 150000,
+          "interest_on_capital_from_entity_inr": 30000,
+          "profit_share_exempt_inr": 225000
+         }
+        ]
+       }
+      },
+      "other_sources": {
+       "has_other_sources_income": true,
+       "interest_fd_rd_inr": 65000,
+       "dividend_inr": 55000,
+       "online_gaming_winnings_inr": 45000,
+       "unexplained_income_115BBE_inr": 62500
+      },
+      "capital_gains": {},
+      "lrs_outbound": {}
+     }
+    }
+   },
+   "us": {
+    "profile": {
+     "tax_entity_type": "individual",
+     "full_name": "Rohan Mehta",
+     "date_of_birth": "1985-03-22",
+     "filing_status": "mfj",
+     "ssn_or_itin_type": "ssn",
+     "spouse_client_id": "rS"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": false,
+     "has_green_card": true,
+     "us_days_current_year": 345,
+     "spt_test_met": true,
+     "final_us_residency_status": "RESIDENT_ALIEN",
+     "dtaa_treaty_residence": "none"
+    },
+    "income_us_source": {
+     "has_employment_income": true,
+     "wages_w2": [
+      {
+       "employer_name": "Northwind Labs",
+       "wages_box1_usd": 158000,
+       "qualified_tip_income_usd": 2400,
+       "qualified_overtime_premium_usd": 5800,
+       "tax_details_collapsed_by_default": {
+        "federal_tax_withheld_usd": 30000,
+        "medicare_wages_box5_usd": 158000
+       }
+      }
+     ],
+     "self_employment": [
+      {
+       "business_name": "Mehta Analytics (consulting)",
+       "self_employment_earnings_usd": 62000
+      }
+     ],
+     "partnerships_k1": [
+      {
+       "business_name": "Meridian Consulting Partners LLC",
+       "partner_type": "general",
+       "ordinary_business_income_usd": 18000,
+       "guaranteed_payments_usd": 12000,
+       "self_employment_earnings_usd": 30000,
+       "interest_income_usd": 900,
+       "sec179_deduction_usd": 2000,
+       "qbi_wages_usd": 22000,
+       "qbi_ubia_usd": 8000
+      }
+     ],
+     "s_corporations_k1": [
+      {
+       "business_name": "Harborline Print Co",
+       "ordinary_income_usd": 9000,
+       "ordinary_dividends_usd": 500,
+       "is_specified_service_trade": false,
+       "qbi_wages_usd": 14000,
+       "qbi_ubia_usd": 45000
+      }
+     ],
+     "interest_us_source_usd": 5200,
+     "ordinary_dividends_us_source_usd": 6400,
+     "qualified_dividends_us_source_usd": 4000,
+     "ltcg_us_source_usd": 12000,
+     "rental_income_us_source_usd": 27000
+    },
+    "income_foreign_source": {
+     "foreign_rental_income_usd": 14458,
+     "foreign_dividends_usd": 2651,
+     "foreign_interest_usd": 3133,
+     "foreign_stcg_usd": 2169
+    },
+    "retirement_accounts": {
+     "401k_employee_contribution_usd": 23000,
+     "401k_employer_match_usd": 9500,
+     "roth_ira_contribution_usd": 7000,
+     "hsa_contribution_usd": 4150
+    },
+    "financial_holdings": [
+     {
+      "asset_name": "Fidelity — Taxable Brokerage",
+      "account_type": "taxable_brokerage",
+      "peak_balance_usd": 224000,
+      "country": "US"
+     },
+     {
+      "asset_name": "Vanguard — VTSAX / VTI",
+      "account_type": "taxable_brokerage",
+      "peak_balance_usd": 141000,
+      "country": "US"
+     }
+    ],
+    "real_estate": {
+     "has_real_estate_transaction": true,
+     "properties": [
+      {
+       "name": "Rental condo — Jersey City, NJ",
+       "property_type": "Residential rental",
+       "gross_rent_usd": 36000,
+       "expenses_usd": 9000
+      }
+     ]
+    },
+    "state_residency": {
+     "primary_state_of_residence": "NY"
+    },
+    "foreign_earned_income": {
+     "claims_feie": true,
+     "feie_amount_claimed_usd": 14458,
+     "tax_home_country": "United States",
+     "bona_fide_residence": false,
+     "physical_presence": false,
+     "days_in_us_during_test_period": 345
+    },
+    "bank_accounts": [
+     {
+      "bank_name": "SBI (NRO)",
+      "account_type": "nro",
+      "country": "India",
+      "peak_balance_usd": 31325
+     },
+     {
+      "bank_name": "Axis (NRE)",
+      "account_type": "nre",
+      "country": "India",
+      "peak_balance_usd": 22892
+     }
+    ],
+    "fbar_aggregate_peak_usd": 54217,
+    "foreign_entities": {
+     "owns_10_percent_foreign_corp": false,
+     "foreign_corporations": [],
+     "pfic_holdings": [
+      {
+       "asset_name": "SBI Bluechip Fund",
+       "holding_value_usd": 50602
+      },
+      {
+       "asset_name": "Mirae Asset Large Cap",
+       "holding_value_usd": 31325
+      }
+     ],
+     "has_pfics": true
+    },
+    "ftc_inputs": {
+     "claims_ftc": true,
+     "ftc_baskets": [
+      {
+       "country": "IN",
+       "basket_category": "Passive",
+       "foreign_taxes_usd": 5180
+      }
+     ]
+    },
+    "withholding_and_estimated": {
+     "federal_withholding_total_usd": 30000
+    },
+    "nra_specific": {
+     "files_form_1040nr": false
+    },
+    "metadata": {
+     "schema_version": "layer1_us_v1",
+     "us_calendar_year": 2026
+    }
+   }
+  },
+  "b": {
+   "id": "rS",
+   "router": {
+    "full_name": "Spouse rS",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us",
+    "is_us_citizen": true
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "full_name": "Spouse rS",
+     "filing_status": "mfj",
+     "spouse_client_id": "rohan"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN"
+    },
+    "income_us_source": {
+     "has_employment_income": true,
+     "wages_w2": [
+      {
+       "employer_name": "SpouseCo",
+       "wages_box1_usd": 90000,
+       "tax_details_collapsed_by_default": {
+        "federal_tax_withheld_usd": 13500,
+        "medicare_wages_box5_usd": 90000
+       }
+      }
+     ]
+    },
+    "metadata": {
+     "us_calendar_year": 2026
+    }
+   }
+  }
+ },
+ {
+  "name": "married filing separately",
+  "a": {
+   "id": "cA",
+   "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "has_green_card": true,
+    "us_days": 20
+   },
+   "india": {
+    "profile": {
+     "entity_type": "individual",
+     "tax_regime": "NEW"
+    },
+    "residency_detail": {
+     "manual_days": 345,
+     "days_in_india_current_year": 345,
+     "days_in_india_preceding_4_years_gte_365": true,
+     "nr_years_last_10_gte_9": false,
+     "days_in_india_last_7_years_lte_729": false,
+     "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+     "salary": {
+      "has_salary_income": false
+     }
+    },
+    "other_sources": {}
+   },
+   "us": {
+    "profile": {
+     "tax_entity_type": "individual",
+     "filing_status": "mfs",
+     "ssn_or_itin_type": "ssn",
+     "dependents_count": 0,
+     "spouse_client_id": "cS"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+     "primary_state_of_residence": "TX"
+    },
+    "nra_specific": {},
+    "income_us_source": {
+     "has_employment_income": true,
+     "wages_w2": [
+      {
+       "employer_name": "Client",
+       "wages_box1_usd": 50000,
+       "tax_details_collapsed_by_default": {
+        "federal_tax_withheld_usd": 7500,
+        "medicare_wages_box5_usd": 50000
+       }
+      }
+     ]
+    }
+   }
+  },
+  "b": {
+   "id": "cS",
+   "router": {
+    "full_name": "Spouse cS",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us",
+    "is_us_citizen": true
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "full_name": "Spouse cS",
+     "filing_status": "mfs",
+     "spouse_client_id": "cA"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN"
+    },
+    "income_us_source": {
+     "has_employment_income": true,
+     "wages_w2": [
+      {
+       "employer_name": "SpouseCo",
+       "wages_box1_usd": 150000,
+       "tax_details_collapsed_by_default": {
+        "federal_tax_withheld_usd": 22500,
+        "medicare_wages_box5_usd": 150000
+       }
+      }
+     ]
+    },
+    "metadata": {
+     "us_calendar_year": 2026
+    }
+   }
+  }
+ },
+ {
+  "name": "blocked: one-way link",
+  "a": {
+   "id": "cA",
+   "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "has_green_card": true,
+    "us_days": 20
+   },
+   "india": {
+    "profile": {
+     "entity_type": "individual",
+     "tax_regime": "NEW"
+    },
+    "residency_detail": {
+     "manual_days": 345,
+     "days_in_india_current_year": 345,
+     "days_in_india_preceding_4_years_gte_365": true,
+     "nr_years_last_10_gte_9": false,
+     "days_in_india_last_7_years_lte_729": false,
+     "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+     "salary": {
+      "has_salary_income": false
+     }
+    },
+    "other_sources": {}
+   },
+   "us": {
+    "profile": {
+     "tax_entity_type": "individual",
+     "filing_status": "mfj",
+     "ssn_or_itin_type": "ssn",
+     "dependents_count": 0,
+     "spouse_client_id": "cS"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+     "primary_state_of_residence": "TX"
+    },
+    "nra_specific": {},
+    "income_us_source": {
+     "has_employment_income": true,
+     "wages_w2": [
+      {
+       "employer_name": "Client",
+       "wages_box1_usd": 50000,
+       "tax_details_collapsed_by_default": {
+        "federal_tax_withheld_usd": 7500,
+        "medicare_wages_box5_usd": 50000
+       }
+      }
+     ]
+    }
+   }
+  },
+  "b": {
+   "id": "cS",
+   "router": {
+    "full_name": "Spouse cS",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us",
+    "is_us_citizen": true
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "full_name": "Spouse cS",
+     "filing_status": "mfj",
+     "spouse_client_id": null
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN"
+    },
+    "income_us_source": {
+     "has_employment_income": true,
+     "wages_w2": [
+      {
+       "employer_name": "SpouseCo",
+       "wages_box1_usd": 150000,
+       "tax_details_collapsed_by_default": {
+        "federal_tax_withheld_usd": 22500,
+        "medicare_wages_box5_usd": 150000
+       }
+      }
+     ]
+    },
+    "metadata": {
+     "us_calendar_year": 2026
+    }
+   }
+  }
+ }
+]
