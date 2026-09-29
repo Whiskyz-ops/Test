@@ -108,6 +108,42 @@ def cdcc_rate(agi: float, status: str, year) -> float:
     return pct / 100
 
 
+def se_net_and_tax(inc, worldwide, status, household):
+    """Household joint return: the Social Security cap is per person (§1402(b)). Mirrors ustax-nodes.js seNetAndTax."""
+    persons = (household or {}).get("persons")
+    if status == "mfj" and isinstance(persons, list) and len(persons) >= 2:
+        net = tax = 0.0
+        for p in persons:
+            n = ((p.get("seEarningsUsd") or 0) + ((p.get("seEarningsFromIndiaUsd") or 0) if worldwide else 0)) * T["SE_NET_FACTOR"]
+            rem = max(0.0, T["SS_WAGE_BASE_USD"] - (p.get("medicareWagesUsd") or 0))
+            if n > 0:
+                tax += T["SE_RATE_SS"] * min(n, rem) + T["SE_RATE_MEDICARE"] * n
+            net += n
+        return net, tax
+    se_net = ((inc.get("seEarningsUsd") or 0) + ((inc.get("seEarningsFromIndiaUsd") or 0) if worldwide else 0)) * T["SE_NET_FACTOR"]
+    ss_wages_already = inc.get("medicareWages") or inc["wages"]["usd"] or 0
+    ss_base_remaining = max(0.0, T["SS_WAGE_BASE_USD"] - ss_wages_already)
+    return se_net, ((T["SE_RATE_SS"] * min(se_net, ss_base_remaining) + T["SE_RATE_MEDICARE"] * se_net) if se_net > 0 else 0)
+
+
+def _age_from_dob(dob_raw, base_year):
+    if not dob_raw:
+        return None
+    dob = parse_date(dob_raw)
+    return None if dob is None else (base_year or 2025) - dob.year
+
+
+def senior_deduction(taxpayer_age, status, agi, household, base_year) -> dict:
+    """§151(d)(5)(C): $6,000 per qualified individual, incl. the spouse on a joint return. Mirrors ustax-nodes.js seniorDeduction."""
+    spouse_age = _age_from_dob((household or {}).get("spouseDobRaw"), base_year) if status == "mfj" else None
+    is_senior = taxpayer_age is not None and taxpayer_age >= T["SENIOR_DEDUCTION_MIN_AGE"] and status != "mfs"
+    spouse_senior = spouse_age is not None and spouse_age >= T["SENIOR_DEDUCTION_MIN_AGE"]
+    thr = T["SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD"].get(status, T["SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD"]["single"])
+    each = max(0.0, js_round(T["SENIOR_DEDUCTION_PER_PERSON_USD"] - T["SENIOR_DEDUCTION_PHASEOUT_RATE"] * max(0.0, agi - thr)))
+    return {"isSenior": is_senior, "spouseAge": spouse_age, "spouseSenior": spouse_senior, "thr": thr,
+            "usd": ((1 if is_senior else 0) + (1 if spouse_senior else 0)) * each}
+
+
 def compute_salt_cap(agi: float, status: str) -> float:
     base = T["SALT_CAP_BASE_USD"].get(status, T["SALT_CAP_BASE_USD"]["single"])
     threshold = T["SALT_CAP_PHASEOUT_THRESHOLD_USD"].get(status, T["SALT_CAP_PHASEOUT_THRESHOLD_USD"]["single"])
@@ -231,7 +267,7 @@ def net_capital_gains(st_gain_usd, lt_gain_usd, st_carry_usd, lt_carry_usd, stat
     return {"stUsd": -ded_usd, "ltUsd": 0, "lossDeductionUsd": ded_usd, "carryoverStUsd": carryover_st, "carryoverLtUsd": carryover_lt}
 
 
-def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_owed_boundary, taxpayer_dob_raw, base_year_us, savers_credit_contribution_usd=0):
+def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_owed_boundary, taxpayer_dob_raw, base_year_us, savers_credit_contribution_usd=0, household=None):
     brackets = T["BRACKETS"].get(status, T["BRACKETS"]["single"])
 
     f_w = inc["foreignWages"]["usd"] if worldwide else 0
@@ -337,10 +373,7 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
 
     # + Layer 1 India business income filled in as foreign self-employment
     # (seEarningsFromIndiaUsd) — worldwide-taxed filers only. Mirrors JS.
-    se_net = ((inc.get("seEarningsUsd") or 0) + ((inc.get("seEarningsFromIndiaUsd") or 0) if worldwide else 0)) * T["SE_NET_FACTOR"]
-    ss_wages_already = inc.get("medicareWages") or inc["wages"]["usd"] or 0
-    ss_base_remaining = max(0.0, T["SS_WAGE_BASE_USD"] - ss_wages_already)
-    se_tax = (T["SE_RATE_SS"] * min(se_net, ss_base_remaining) + T["SE_RATE_MEDICARE"] * se_net) if se_net > 0 else 0
+    se_net, se_tax = se_net_and_tax(inc, worldwide, status, household)
     half_se_deduction = se_tax / 2
 
     se_health_deduction = min(ded.get("seHealthInsuranceDeductionUsd") or 0, max(0.0, se_net))
@@ -370,9 +403,10 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
         dob = parse_date(taxpayer_dob_raw)
         if dob is not None:
             taxpayer_age = (base_year_us or 2025) - dob.year
-    is_senior = taxpayer_age is not None and taxpayer_age >= T["SENIOR_DEDUCTION_MIN_AGE"] and status != "mfs"
-    senior_phaseout_thr = T["SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD"].get(status, T["SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD"]["single"])
-    senior_deduction_usd = max(0.0, js_round(T["SENIOR_DEDUCTION_PER_PERSON_USD"] - T["SENIOR_DEDUCTION_PHASEOUT_RATE"] * max(0.0, agi - senior_phaseout_thr))) if is_senior else 0
+    senior = senior_deduction(taxpayer_age, status, agi, household, base_year_us)
+    is_senior = senior["isSenior"]
+    senior_phaseout_thr = senior["thr"]
+    senior_deduction_usd = senior["usd"]
 
     is_mfs = status == "mfs"
     tips_ot_phaseout_thr = T["TIPS_OVERTIME_PHASEOUT_THRESHOLD_USD"].get(status, T["TIPS_OVERTIME_PHASEOUT_THRESHOLD_USD"]["single"])
@@ -597,7 +631,8 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
             "additionalThresholdUsd": T["SS_PROVISIONAL_INCOME_ADDITIONAL_USD"].get(status, T["SS_PROVISIONAL_INCOME_ADDITIONAL_USD"]["single"]),
         },
         "seniorDeductionUsd": senior_deduction_usd,
-        "seniorDetail": {"age": taxpayer_age, "isSenior": is_senior, "fullAmountUsd": T["SENIOR_DEDUCTION_PER_PERSON_USD"], "phaseoutThresholdUsd": senior_phaseout_thr},
+        "seniorDetail": {"age": taxpayer_age, "isSenior": is_senior, "fullAmountUsd": T["SENIOR_DEDUCTION_PER_PERSON_USD"], "phaseoutThresholdUsd": senior_phaseout_thr,
+                         **({"spouseAge": senior["spouseAge"], "spouseSenior": senior["spouseSenior"]} if senior["spouseAge"] is not None else {})},
         "tipsDeductionUsd": tips_deduction_usd,
         "overtimeDeductionUsd": overtime_deduction_usd,
         "tipsOvertimeDetail": {
@@ -688,6 +723,7 @@ def _us_tax_result(d, ctx):
         d["incUs"], d["dedUs"], d["usFilingStatusRaw"], d["worldwideUs"], d["feie"],
         d["additionalMedicareOwedBoundary"], d["taxpayerDobRaw"], d["baseYearUs"],
         d["electiveDeferralAggregateUsd"] + d["iraContributionAggregateUsd"],
+        d["usHouseholdRaw"],
     )
     # only when owed, so the result's shape is unchanged otherwise
     if d["additionalTax72tUsd"] > 0:
@@ -801,6 +837,15 @@ NODES = {
         ),
     ),
     "additionalMedicareOwedBoundary": NodeDef(deps=(), compute=lambda d, ctx: additional_medicare_owed_usd(ctx.get("us")), layer1_fields=("us.withholding_and_estimated.additional_medicare_tax_owed_usd",)),
+    # Household joint return only (household.js / household/calc.py write these).
+    "usHouseholdRaw": NodeDef(
+        deps=(),
+        compute=lambda d, ctx: {
+            "persons": (lambda p: p if isinstance(p, list) else None)(safe(ctx.get("us"), "household_persons", None)),
+            "spouseDobRaw": safe(ctx.get("us"), "profile.spouse_date_of_birth", None),
+        },
+        layer1_fields=("us.profile.spouse_date_of_birth",),
+    ),
     "taxpayerDobRaw": NodeDef(
         deps=(), compute=lambda d, ctx: safe(ctx.get("router"), "date_of_birth", safe(ctx.get("india"), "profile.date_of_birth", safe(ctx.get("us"), "profile.date_of_birth", None))),
         layer1_fields=("router.date_of_birth", "india.profile.date_of_birth", "us.profile.date_of_birth"),
@@ -810,7 +855,7 @@ NODES = {
     # §72(t) 10% additional tax on pre-59½ IRA/401(k) distributions — see ustax-nodes.js.
     "additionalTax72tUsd": NodeDef(deps=("taxpayerDobRaw", "baseYearUs"), compute=_additional_tax_72t_usd),
     "usTaxResult": NodeDef(
-        deps=("incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs", "electiveDeferralAggregateUsd", "iraContributionAggregateUsd", "additionalTax72tUsd"),
+        deps=("incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs", "electiveDeferralAggregateUsd", "iraContributionAggregateUsd", "additionalTax72tUsd", "usHouseholdRaw"),
         compute=_us_tax_result,
     ),
     "totalTaxBeforeFtcUsd": NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["totalTaxBeforeFtcUsd"]),

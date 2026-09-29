@@ -165,10 +165,8 @@ def _compute_us_tax_core(d, extra_ltcg_usd: float, extra_stcg_usd: float) -> flo
 
     # + Layer 1 India business income filled in as foreign self-employment
     # (seEarningsFromIndiaUsd) — worldwide-taxed filers only. Mirrors JS.
-    se_net = ((inc.get("seEarningsUsd") or 0) + ((inc.get("seEarningsFromIndiaUsd") or 0) if worldwide else 0)) * T["SE_NET_FACTOR"]
-    ss_wages_already = inc.get("medicareWages") or inc["wages"]["usd"] or 0
-    ss_base_remaining = max(0.0, T["SS_WAGE_BASE_USD"] - ss_wages_already)
-    se_tax = (T["SE_RATE_SS"] * min(se_net, ss_base_remaining) + T["SE_RATE_MEDICARE"] * se_net) if se_net > 0 else 0
+    from ..us.ustax import se_net_and_tax, senior_deduction
+    se_net, se_tax = se_net_and_tax(inc, worldwide, status, d["usHouseholdRaw"])
     half_se_deduction = se_tax / 2
 
     se_health_deduction = min(ded.get("seHealthInsuranceDeductionUsd") or 0, max(0.0, se_net))
@@ -186,9 +184,7 @@ def _compute_us_tax_core(d, extra_ltcg_usd: float, extra_stcg_usd: float) -> flo
         dob = parse_date(d["taxpayerDobRaw"])
         if dob is not None:
             taxpayer_age = (d["baseYearUs"] or 2025) - dob.year
-    is_senior = taxpayer_age is not None and taxpayer_age >= T["SENIOR_DEDUCTION_MIN_AGE"] and status != "mfs"
-    senior_phaseout_thr = T["SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD"].get(status, T["SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD"]["single"])
-    senior_deduction_usd = max(0.0, js_round(T["SENIOR_DEDUCTION_PER_PERSON_USD"] - T["SENIOR_DEDUCTION_PHASEOUT_RATE"] * max(0.0, agi - senior_phaseout_thr))) if is_senior else 0
+    senior_deduction_usd = senior_deduction(taxpayer_age, status, agi, d["usHouseholdRaw"], d["baseYearUs"])["usd"]
 
     is_mfs = status == "mfs"
     tips_ot_phaseout_thr = T["TIPS_OVERTIME_PHASEOUT_THRESHOLD_USD"].get(status, T["TIPS_OVERTIME_PHASEOUT_THRESHOLD_USD"]["single"])
@@ -1129,7 +1125,7 @@ NODES["findingsCrossborderResult"] = NodeDef(
           "isEntityTaxpayer", "usEntityKind", "s6013hElection", "nraFdapDetail",
           "aggregateUsIncomeResult", "taxesPaidUsResult", "aggregatePeakUsdResult", "usDaysCurrentYearRaw", "indiaDaysCurrentYearRaw",
           "equityCompResult", "indiaTreatyPositionResult",
-          "incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs",
+          "incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs", "usHouseholdRaw",
           "scheduleFaInconsistentTrigger", "xb7ShouldFire", "bmaAssetValueUsd", "bmaMaxTotalUsd"),
     compute=_findings_crossborder_result,
 )

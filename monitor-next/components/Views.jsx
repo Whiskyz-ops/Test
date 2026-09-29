@@ -1311,7 +1311,7 @@ function TaxCard({ taxComputation, fxRate, onJump, hasIndiaScope, hasUsScope }) 
  * India/US income-by-head breakdown that everything above cross-references.
  * Kept together in one tab since they're all views onto the same underlying
  * reconciliation, not separate concerns. */
-export function ReconciliationView({ result, highlight, onHighlightDone, onJump }) {
+export function ReconciliationView({ result, highlight, onHighlightDone, onJump, joint, onPick }) {
   useEffect(() => {
     if (!highlight) return;
     const id = highlight === "us" ? "recon-us-income" : "recon-india-income";
@@ -1321,7 +1321,13 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
     return () => clearTimeout(t);
   }, [highlight, onHighlightDone]);
   if (!result) return <Empty>Load a client to see the tax reconciliation.</Empty>;
-  const m = result.model, inc = m.income, fx = m.meta.fxRate || 83;
+  // joint: a linked married-filing-jointly household (lib/household.js
+  // buildHouseholdRecon) — the US side is the joint return, identical on
+  // both spouses' pages; the India side stays this client's own.
+  const m = result.model, fx = m.meta.fxRate || 83;
+  const inc = joint ? Object.assign({}, m.income, { us: joint.incomeUs }) : m.income;
+  const ftcReport = joint ? joint.ftcReport : result.ftcReport;
+  const taxComputation = joint ? Object.assign({}, result.taxComputation, { us: joint.taxComputationUs, usState: joint.taxComputationUsState }) : result.taxComputation;
   const inrToUsd = (n) => (n || 0) / fx;
   // Scope — see model.meta.hasIndiaScope/hasUsScope (normalize.js). FTC
   // relief, cross-basis double-taxation overlap, and FY↔CY apportionment
@@ -1340,7 +1346,7 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
     </div>
   );
   const s115a = result.computed.indiaTax.s115a;
-  const worldwide = result.computed.residency.us.worldwide;
+  const worldwide = joint ? joint.worldwideUs : result.computed.residency.us.worldwide;
   const moneyInr = (v) => ({ inr: v || 0, usd: inrToUsd(v || 0) });
   const buildRows = (defs) => defs.filter(([, mv]) => isTaxed(mv)).map(([label, mv, additive]) => ({ label, mv, additive: additive !== false }));
   const rowsTotal = (rows, key) => rows.reduce((s, r) => s + (r.additive ? (r.mv[key] || 0) : 0), 0);
@@ -1426,6 +1432,14 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
     <div className="space-y-6">
       <div><h2 className="font-display font-extrabold text-2xl text-head"><HeadChip><Scale size={16} strokeWidth={2} /></HeadChip>Reconciliation</h2><p className="text-muted text-sm mt-2">Income by head first, since that's what everything below is derived from — then Tax Computation, FTC relief, cross-basis overlap, and the FY↔CY apportionment that ties them together.</p></div>
 
+      {joint && (
+        <div className="space-y-3">
+          <div className="rounded-xl border border-accent/30 bg-accent/10 px-4 py-2.5 text-[12px] text-body leading-relaxed">
+            <span className="font-bold text-head">Joint US return with {joint.spouseName}.</span> The US income, US and state tax, and Form 1116 figures on this tab are the joint return — the same on {joint.spouseName}'s page. The India income, Indian tax and Form 44 relief are this client's own; India assesses each spouse separately. The "taxed under both codes" matching below compares this client's own income.
+          </div>
+          <HouseholdCard household={joint.household} activeId={joint.me.id} onPick={onPick || (() => {})} />
+        </div>
+      )}
       <div className={"grid grid-cols-1 gap-6" + (isDualScope ? " lg:grid-cols-2" : "")}>
         {hasIndiaScope && (
           <div id="recon-india-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "india" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "india" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
@@ -1439,7 +1453,7 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
         )}
         {hasUsScope && (
           <div id="recon-us-income" className={"rounded-[26px] transition-all duration-300 " + (highlight === "us" ? "ring-2 ring-offset-2 ring-offset-[#0a0a0a]" : "")} style={highlight === "us" ? { "--tw-ring-color": PAL.accent, boxShadow: `0 0 0 4px ${PAL.accent}33` } : undefined}>
-            <Card title="🇺🇸 US income — by head" sub={Object.keys(fromIndia).length ? "From Layer 1 US (USD); foreign heads left empty there are filled from Layer 1 India (India's April–March figures under Indian rules — a planning estimate)" : "From Layer 1 US (USD)"}>
+            <Card title={joint ? "🇺🇸 US income — joint return with " + joint.spouseName : "🇺🇸 US income — by head"} sub={joint ? "Both spouses' income on one Form 1040, from each spouse's own Layer 1 US (USD)" : Object.keys(fromIndia).length ? "From Layer 1 US (USD); foreign heads left empty there are filled from Layer 1 India (India's April–March figures under Indian rules — a planning estimate)" : "From Layer 1 US (USD)"}>
               {usRows.length ? usRows.map((r, i) => (r.isWages && wagesUsSourceUsd > 0
                 ? <BreakdownRow key={i} title="Show W-2 wages vs. foreign-employer pay for US-performed work" lines={wagesLines} fmt={fmtUsd}>{(chevron) => <IncomeRow label={<>{r.label}{chevron}</>} mv={r.mv} additive={r.additive} />}</BreakdownRow>
                 : <IncomeRow key={i} label={r.label} mv={r.mv} additive={r.additive} />)) : <Empty>No US income on file.</Empty>}
@@ -1453,9 +1467,9 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump 
         {/* FTC relief only exists where a taxpayer is genuinely exposed to
             BOTH countries — nothing to reconcile for a single-jurisdiction
             taxpayer, so the whole card (not just its numbers) disappears. */}
-        {isDualScope && <FtcCard ftcReport={result.ftcReport} onJump={onJump}
+        {isDualScope && <FtcCard ftcReport={ftcReport} onJump={onJump}
           indiaWorldwide={!!(result.computed.residency && result.computed.residency.india && result.computed.residency.india.worldwide)} />}
-        <TaxCard taxComputation={result.taxComputation} fxRate={result.model.meta.fxRate} onJump={onJump} hasIndiaScope={hasIndiaScope} hasUsScope={hasUsScope} />
+        <TaxCard taxComputation={taxComputation} fxRate={result.model.meta.fxRate} onJump={onJump} hasIndiaScope={hasIndiaScope} hasUsScope={hasUsScope} />
       </div>
 
       {isDualScope && (
@@ -2087,7 +2101,7 @@ export function HouseholdCard({ household, activeId, onPick }) {
           </tr>
         ))}</tbody>
       </table>
-      {joint && <p className="text-[10.5px] text-muted mt-2">Split method A (share of the two separate-return taxes) is pending CA confirmation. Per-person limits (Social Security wage base, 401(k), IRA, senior deduction) are still pooled on the joint return.</p>}
+      {joint && <p className="text-[10.5px] text-muted mt-2">Split method A (share of the two separate-return taxes) is pending CA confirmation. The joint return applies each spouse's own Social Security wage cap and senior deduction; 401(k) and IRA limits are checked on each spouse's own profile.</p>}
     </div>
   );
 }

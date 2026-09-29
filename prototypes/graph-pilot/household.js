@@ -68,12 +68,37 @@
     return o;
   }
 
-  function jointProfile(a, b) {
+  function dobOf(c) {
+    return (c.router && c.router.date_of_birth) || (c.india && c.india.profile && c.india.profile.date_of_birth) ||
+      (c.us && c.us.profile && c.us.profile.date_of_birth) || null;
+  }
+
+  // Per-person figures the merged return can't separate (ustax-nodes.js
+  // seNetAndTax): each spouse's own self-employment and Medicare wages.
+  function personFigures(r) {
+    var u = (r && r.model && r.model.income && r.model.income.us) || {};
+    return { seEarningsUsd: n(u.seEarningsUsd), seEarningsFromIndiaUsd: n(u.seEarningsFromIndiaUsd), medicareWagesUsd: n(u.medicareWages) || n(u.wages && u.wages.usd) };
+  }
+
+  function isNraUs(c) {
+    var r = (c.us && c.us.us_residency_detail) || {};
+    if (r.is_us_citizen === true || r.has_green_card === true) return false;
+    return r.final_us_residency_status === "NON_RESIDENT_ALIEN";
+  }
+  function jointLeadFirst(a, b) {
+    var na = isNraUs(a), nb = isNraUs(b);
+    if (na !== nb) return !na;
+    return String(a.id) <= String(b.id);
+  }
+
+  function jointProfile(a, b, persons) {
     var us = mergeSection(a.us, b.us, US_IDENTITY);
     us.profile = us.profile || {};
     us.profile.filing_status = "mfj";
     us.profile.dependents_count = (Number((a.us && a.us.profile && a.us.profile.dependents_count) || 0) || 0) +
       (Number((b.us && b.us.profile && b.us.profile.dependents_count) || 0) || 0);
+    us.profile.spouse_date_of_birth = dobOf(b);
+    if (persons) us.household_persons = persons;
     var india = mergeSection(a.india, b.india, INDIA_IDENTITY);
     return { router: clone(a.router || {}), india: india, us: us };
   }
@@ -103,7 +128,7 @@
     return (c.router && c.router.full_name) || (c.us && c.us.profile && c.us.profile.full_name) || c.id;
   }
 
-  function analyzeHousehold(a, b, analyzeFn) {
+  function analyzeHousehold(a, b, analyzeFn, opts) {
     var check = link.checkHouseholdLink(a, b);
     if (!check.linked) return { linked: false, blocked: true, errors: [] };
     if (check.errors.length) return { linked: true, blocked: true, errors: check.errors, status: check.status };
@@ -135,7 +160,12 @@
     }
 
     var sepA = analyzeFn(withStatus(a, "mfs")), sepB = analyzeFn(withStatus(b, "mfs"));
-    var joint = analyzeFn(jointProfile(a, b));
+    // The joint return is the same whichever spouse's page asks for it: the
+    // US-resident (non-NRA) spouse leads — their residency and state are the
+    // return's — then the lower client id.
+    var aFirst = jointLeadFirst(a, b);
+    var pa = personFigures(ownA), pb = personFigures(ownB);
+    var joint = analyzeFn(aFirst ? jointProfile(a, b, [pa, pb]) : jointProfile(b, a, [pb, pa]));
     var ju = joint.computed.usTax, jf = joint.computed.ftc.us;
     var indiaTaxPaidUsd = n(ownA.computed.ftc.us.indiaTaxPaidUsd) + n(ownB.computed.ftc.us.indiaTaxPaidUsd);
     out.jointUs = {
@@ -157,6 +187,10 @@
     spouses.forEach(function (s) {
       s.indiaReliefHouseholdUsd = Math.min(s.usTaxShareUsd * s.usSourceFraction, s.indiaReliefCapUsd);
     });
+    // The Monitor's Reconciliation tab shows the joint return itself; the
+    // full engine results are kept only when asked for (not part of the
+    // JS/Python comparison).
+    if (opts && opts.keepResults) { out._joint = joint; out._own = [ownA, ownB]; }
     return out;
   }
 

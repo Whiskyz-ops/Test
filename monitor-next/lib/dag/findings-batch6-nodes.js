@@ -94,6 +94,44 @@ function cdccRate(agi, status, year) {
   pct = Math.max(n.floorPct, pct - steps(n.secondThresholdUsd[k], n.secondStepUsd[k]));
   return pct / 100;
 }
+// Household joint return (household.js): per-person rules the merged return
+// can't see from pooled rows. `household` comes from us.household_persons /
+// us.profile.spouse_date_of_birth (usHouseholdRaw); absent on every ordinary
+// profile, which keeps the pooled computation below.
+// §1402(b): the Social Security cap is per person — each spouse's own wages
+// use up only their own cap.
+function seNetAndTax(inc, worldwide, status, household) {
+  var persons = household && household.persons;
+  if (status === "mfj" && Array.isArray(persons) && persons.length >= 2) {
+    var net = 0, tax = 0;
+    persons.forEach(function (p) {
+      var n = ((p.seEarningsUsd || 0) + (worldwide ? (p.seEarningsFromIndiaUsd || 0) : 0)) * T.SE_NET_FACTOR;
+      var rem = Math.max(0, T.SS_WAGE_BASE_USD - (p.medicareWagesUsd || 0));
+      if (n > 0) tax += T.SE_RATE_SS * Math.min(n, rem) + T.SE_RATE_MEDICARE * n;
+      net += n;
+    });
+    return { seNet: net, seTax: tax };
+  }
+  var seNet = ((inc.seEarningsUsd || 0) + (worldwide ? (inc.seEarningsFromIndiaUsd || 0) : 0)) * T.SE_NET_FACTOR;
+  var ssWagesAlready = inc.medicareWages || inc.wages.usd || 0;
+  var ssBaseRemaining = Math.max(0, T.SS_WAGE_BASE_USD - ssWagesAlready);
+  return { seNet: seNet, seTax: seNet > 0 ? (T.SE_RATE_SS * Math.min(seNet, ssBaseRemaining) + T.SE_RATE_MEDICARE * seNet) : 0 };
+}
+// §151(d)(5)(C): $6,000 for each qualified individual — the taxpayer and, on
+// a joint return, the spouse — each reduced by 6% of MAGI over the threshold.
+function ageFromDob(dobRaw, baseYear) {
+  if (!dobRaw) return null;
+  var y = new Date(dobRaw).getFullYear();
+  return isNaN(y) ? null : (baseYear || 2025) - y;
+}
+function seniorDeduction(taxpayerAge, status, agi, household, baseYear) {
+  var spouseAge = status === "mfj" ? ageFromDob(household && household.spouseDobRaw, baseYear) : null;
+  var isSenior = taxpayerAge !== null && taxpayerAge >= T.SENIOR_DEDUCTION_MIN_AGE && status !== "mfs";
+  var spouseSenior = spouseAge !== null && spouseAge >= T.SENIOR_DEDUCTION_MIN_AGE;
+  var thr = T.SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD[status] || T.SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD.single;
+  var each = Math.max(0, Math.round(T.SENIOR_DEDUCTION_PER_PERSON_USD - T.SENIOR_DEDUCTION_PHASEOUT_RATE * Math.max(0, agi - thr)));
+  return { isSenior: isSenior, spouseAge: spouseAge, spouseSenior: spouseSenior, thr: thr, usd: ((isSenior ? 1 : 0) + (spouseSenior ? 1 : 0)) * each };
+}
 function computeUsTaxCore(d, extraLtcgUsd, extraStcgUsd) {
   var inc = d.incUs, ded = d.dedUs, status = d.usFilingStatusRaw, worldwide = d.worldwideUs, feie = d.feie;
   var brackets = T.BRACKETS[status] || T.BRACKETS.single;
@@ -134,10 +172,9 @@ function computeUsTaxCore(d, extraLtcgUsd, extraStcgUsd) {
   // + Layer 1 India business income filled in as foreign self-employment
   // (aggregateusincome-nodes.js's seEarningsFromIndiaUsd) — only for a
   // worldwide-taxed filer; no India–US totalization agreement, so no relief.
-  var seNet = ((inc.seEarningsUsd || 0) + (worldwide ? (inc.seEarningsFromIndiaUsd || 0) : 0)) * T.SE_NET_FACTOR;
-  var ssWagesAlready = inc.medicareWages || inc.wages.usd || 0;
-  var ssBaseRemaining = Math.max(0, T.SS_WAGE_BASE_USD - ssWagesAlready);
-  var seTax = seNet > 0 ? (T.SE_RATE_SS * Math.min(seNet, ssBaseRemaining) + T.SE_RATE_MEDICARE * seNet) : 0;
+  var seCalc = seNetAndTax(inc, worldwide, status, d.usHouseholdRaw);
+  var seNet = seCalc.seNet;
+  var seTax = seCalc.seTax;
   var halfSeDeduction = seTax / 2;
 
   var seHealthDeduction = Math.min(ded.seHealthInsuranceDeductionUsd || 0, Math.max(0, seNet));
@@ -151,9 +188,7 @@ function computeUsTaxCore(d, extraLtcgUsd, extraStcgUsd) {
 
   var taxpayerAge = null;
   if (d.taxpayerDobRaw) { var dobYear = new Date(d.taxpayerDobRaw).getFullYear(); if (!isNaN(dobYear)) taxpayerAge = (d.baseYearUs || 2025) - dobYear; }
-  var isSenior = taxpayerAge !== null && taxpayerAge >= T.SENIOR_DEDUCTION_MIN_AGE && status !== "mfs";
-  var seniorPhaseoutThr = T.SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD[status] || T.SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD.single;
-  var seniorDeductionUsd = isSenior ? Math.max(0, Math.round(T.SENIOR_DEDUCTION_PER_PERSON_USD - T.SENIOR_DEDUCTION_PHASEOUT_RATE * Math.max(0, agi - seniorPhaseoutThr))) : 0;
+  var seniorDeductionUsd = seniorDeduction(taxpayerAge, status, agi, d.usHouseholdRaw, d.baseYearUs).usd;
 
   var isMfs = status === "mfs";
   var tipsOtPhaseoutThr = T.TIPS_OVERTIME_PHASEOUT_THRESHOLD_USD[status] || T.TIPS_OVERTIME_PHASEOUT_THRESHOLD_USD.single;
@@ -241,7 +276,7 @@ function computeUsTaxCore(d, extraLtcgUsd, extraStcgUsd) {
 // ---- the finding, ported in full --------------------------------------
 NODES.holdingPeriodMismatchFindingsResult = {
   deps: ["capitalGainsComputation", "incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs",
-    "usEntityKind", "treatyFiles1040nrRaw", "s6013hElection"],
+    "usEntityKind", "treatyFiles1040nrRaw", "s6013hElection", "usHouseholdRaw"],
   compute: function (d) {
     var findings = [];
     function add(id, severity, category, title, detail, recommendation, amountUsd, refs) {

@@ -74,3 +74,40 @@ def test_blocked_link_returns_errors():
 def test_split_method_a_zero_tax_is_even():
     s = split_joint_us_tax(1000, 0, 0)
     assert s["shareA"] == 0.5 and s["aUsd"] == 500
+
+
+def _joint_us(case, persons_from_own=True):
+    from wising_dag.household.calc import _person_figures, joint_profile
+    a, b = case["a"], case["b"]
+    persons = [_person_figures(analyze({"router": a["router"], "india": a["india"], "us": a["us"]})),
+               _person_figures(analyze({"router": b["router"], "india": b["india"], "us": b["us"]}))] if persons_from_own else None
+    return analyze(joint_profile(a, b, persons))["computed"]["usTax"]
+
+
+def test_joint_se_tax_uses_each_spouses_own_wage_base():
+    # Rohan: $158,000 wages leave $26,500 of his $184,500 cap; Priya's $90,000
+    # W-2 must not use it up (IRC s.1402(b)). Joint SE tax = Rohan's own.
+    case = [c for c in CASES if c["name"].startswith("Rohan & Priya")][0]
+    rohan_alone = analyze({"router": case["a"]["router"], "india": case["a"]["india"], "us": case["a"]["us"]})["computed"]["usTax"]["seTaxUsd"]
+    assert math.isclose(_joint_us(case)["seTaxUsd"], rohan_alone)
+    assert _joint_us(case, persons_from_own=False)["seTaxUsd"] < rohan_alone - 3000  # the pooled bug, kept for contrast
+
+
+def test_joint_senior_deduction_counts_both_spouses():
+    import copy
+    case = copy.deepcopy(CASES[0])
+    case["a"]["router"]["date_of_birth"] = "1955-01-01"
+    case["b"]["router"]["date_of_birth"] = "1956-01-01"
+    u = _joint_us(case)
+    # AGI 200,000: each $6,000 less 6% x (200,000 - 150,000) = 3,000; two spouses -> 6,000 (s.151(d)(5)(C)).
+    assert u["seniorDeductionUsd"] == 6000
+    assert u["seniorDetail"]["spouseSenior"] is True
+
+
+@pytest.mark.parametrize("i", [0, 1, 4], ids=["probe couple", "Rohan + spouse", "Rohan & Priya"])
+def test_joint_return_same_from_either_spouse(i):
+    # Both spouses' Reconciliation tabs show one joint return.
+    ab = analyze_household(CASES[i]["a"], CASES[i]["b"], analyze)
+    ba = analyze_household(CASES[i]["b"], CASES[i]["a"], analyze)
+    assert not _close(ab["jointUs"], ba["jointUs"])
+    assert math.isclose(ab["spouses"][0]["usTaxShareUsd"], ba["spouses"][1]["usTaxShareUsd"])

@@ -131,10 +131,18 @@ spouse's US income (audit row G1).
    XB-P2. Monitor: a Household card on a linked client's overview.
    A linked client's own profile now raises joint_return_household_linked
    (info) instead of the pooled-income alert.
-   **Still open (step 3b):** the merged joint return pools the per-person
-   limits — Social Security wage base and self-employment tax (US-P1),
-   senior deduction (US-P2), 401(k) (US-P6), IRA — exactly as a single pooled
-   profile did; MFS does not yet read "spouse itemizes" or "lived apart".
+   **Step 3b, done 29 Sep 2026:** the joint run receives each spouse's own
+   self-employment earnings and Medicare wages (`us.household_persons`) and
+   the spouse's date of birth (`us.profile.spouse_date_of_birth`), so the
+   Social Security cap and the senior deduction apply per person; 401(k) and
+   IRA limits are checked on each spouse's own profile. The joint return is
+   the same from either spouse's page (the US-resident spouse leads, then the
+   lower client id). The Reconciliation tab of each linked MFJ spouse shows
+   the joint US return (income, federal and state tax, Form 1116 with both
+   spouses' Indian tax) and this client's own India side and Form 44 relief.
+   Still open: MFS does not yet read "spouse itemizes" or "lived apart"; the
+   spousal IRA on combined compensation; +$1,650 additional standard
+   deduction for 65+/blind (B25).
 4. Dashboards and findings tags.
 5. Migration.
 

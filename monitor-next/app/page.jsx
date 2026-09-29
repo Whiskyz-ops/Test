@@ -12,7 +12,7 @@ import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState, isRegistryClientId, isUsPersonResult, isUsPersonOnlyGauge } from "@/lib/wising";
 import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
-import { attachHouseholds, householdFor, addExampleHousehold } from "@/lib/household";
+import { attachHouseholds, householdFor, householdReconFor, addExampleHousehold } from "@/lib/household";
 import { monitorSnapshotPyDag, allClientSummariesPyDag } from "@/lib/py-dag-adapter";
 import { entityLinksFor, ownedEntityIds, flattenOwnershipTree } from "@/lib/entity-graph";
 import { runShadow, runShadowPy, getShadowLog, clearShadowLog } from "@/lib/shadow";
@@ -358,6 +358,7 @@ export default function MonitorPage() {
 
   const activeLinks = useMemo(() => entityLinksFor(activeProfile, clientSummaries), [activeProfile, clientSummaries]);
   const household = useMemo(() => householdFor(activeProfile), [activeProfile, clientSummaries]);
+  const householdRecon = useMemo(() => (view === "reconciliation" ? householdReconFor(activeProfile) : null), [view, activeProfile, clientSummaries]);
   // Header "Switch client…" dropdown, nested to match the Clients tab (docs/
   // GAP_TRACKER.md section H.11): an owned entity is pulled out of its
   // normal alphabetical/declaration position and placed immediately under
@@ -555,7 +556,7 @@ export default function MonitorPage() {
               onReset={onWhatIfReset}
               disabled={engineSource === "engine"}
             />
-            <ReconciliationView result={result} highlight={reconHighlight} onHighlightDone={() => setReconHighlight(null)} onJump={goToRecon} />
+            <ReconciliationView result={result} highlight={reconHighlight} onHighlightDone={() => setReconHighlight(null)} onJump={goToRecon} joint={householdRecon} onPick={pickFromClients} />
           </>
         )}
         {view === "withholding" && <WithholdingView result={result} />}

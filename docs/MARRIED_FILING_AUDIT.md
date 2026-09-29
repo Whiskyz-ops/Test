@@ -40,11 +40,11 @@ Confirmed gaps have a runnable probe: `node scripts/audit/married-filing-probes.
 | A. What the forms collect about the spouse | 11 | 1 | 4 | 6 | – | – |
 | B. US filing-status parameters | 30 | 19 | 2 | 5 | 3 | 1 |
 | C. US separate-filer eligibility | 9 | 2 | 1 | 3 | 2 | 1 |
-| D. US per-person rules | 16 | 3 | 4 | 5 | 4 | – |
+| D. US per-person rules | 16 | 7 | 4 | 5 | – | – |
 | E. Other US joint-return mechanics | 7 | 1 | 2 | 3 | 1 | – |
 | F. India | 15 | 5 | 6 | 4 | – | – |
 | G. Cross-border | 15 | 4 | 4 | 7 | – | – |
-| **Total** | **103** | **35** | **23** | **33** | **10** | **2** |
+| **Total** | **103** | **39** | **23** | **33** | **6** | **2** |
 
 ### Wrong results found by the source check (code-read, not yet probed)
 
@@ -138,12 +138,12 @@ status. 2026 values were compared where both exist.
 
 | # | Rule | Status | Evidence |
 |---|---|---|---|
-| D1 | Social Security wage base and self-employment tax per person | 🐞 | *source* IRC §1402(b)(1): self-employment income is reduced by that **individual's** wages; wage base $184,500 per person. *probe* US-P1 |
+| D1 | Social Security wage base and self-employment tax per person | ✅ | Fixed on the household joint return (29 Sep 2026, IN-60): each spouse's own wages use only their own cap (`seNetAndTax`, *probe* XB-P3). A single profile holding both spouses' income still pools (*probe* US-P1) — link the spouse instead. Earlier: *source* IRC §1402(b)(1): self-employment income is reduced by that **individual's** wages; wage base $184,500 per person. *probe* US-P1 |
 | D2 | Excess Social Security withholding credit (two employers, one person) | ❌ | *source* IRC §31(b) / §6413(c): excess Social Security withheld by two or more employers of one person is a credit. *code*: absent for every filer |
-| D3 | Senior deduction per qualifying spouse | 🐞 | *source* IRC §151(d)(5)(C): $6,000 for each qualified individual (taxpayer and, on a joint return, spouse). *probe* US-P2 |
+| D3 | Senior deduction per qualifying spouse | ✅ | Fixed on the household joint return (IN-60): the spouse's date of birth goes to the joint run (`profile.spouse_date_of_birth`) and each 65+ spouse gets $6,000 less the phase-out (test_joint_senior_deduction_counts_both_spouses). A single profile still can't record the spouse's date of birth (A2; *probe* US-P2). Earlier: *source* IRC §151(d)(5)(C): $6,000 for each qualified individual (taxpayer and, on a joint return, spouse). *probe* US-P2 |
 | D4 | SSN requirement per spouse (senior, tips, overtime) | ❌ | *source* IRC §151(d)(5)(C)(iv) (senior), §224(e) (tips), §225(d) (overtime): each qualifying person's SSN on the return. A11 |
-| D5 | §402(g) elective-deferral limit per person | 🐞 | *source* IRC §402(g)(1)(A): limit is per individual; Notice 2025-67: $24,500 for 2026. *probe* US-P6 |
-| D6 | IRA contribution limit per person; spousal IRA on joint compensation | 🐞 | *source* IRC §219(b)(1), (c): limit per individual, spousal IRA on the couple's combined compensation; Notice 2025-67: $7,500 (+$1,100 at 50+). *code* `us5-nodes.js` `iraContributionAggregateUsd` pools both spouses against one limit |
+| D5 | §402(g) elective-deferral limit per person | ✅ | Linked spouses: checked on each spouse's own profile, so the $24,500 limit is per person. A single profile holding both spouses' deferrals still raises a false excess (*probe* US-P6). Earlier: *source* IRC §402(g)(1)(A): limit is per individual; Notice 2025-67: $24,500 for 2026. *probe* US-P6 |
+| D6 | IRA contribution limit per person; spousal IRA on joint compensation | ✅ | Linked spouses: checked on each spouse's own profile (per-person limit). Spousal IRA on the couple's combined compensation not modelled; a single pooled profile still pools the limit. Earlier: *source* IRC §219(b)(1), (c): limit per individual, spousal IRA on the couple's combined compensation; Notice 2025-67: $7,500 (+$1,100 at 50+). *code* `us5-nodes.js` `iraContributionAggregateUsd` pools both spouses against one limit |
 | D7 | IRA deduction phase-out by each spouse's workplace-plan coverage | ❌ | *source* IRC §219(g); Notice 2025-67: phase-out from $129,000 joint / $81,000 other for an active participant; $242,000 joint when only the spouse is covered; $0–$10,000 separate. *code*: absent for every filer |
 | D8 | Catch-up contributions by each spouse's age | ❌ | *source* IRC §414(v): catch-up by each participant's age — $8,000 at 50+, $11,250 at 60–63 (Notice 2025-67). *code*: taxpayer's age only (`ageAtYearEndUs`) |
 | D9 | HSA family limit shared between spouses | 🟡 | *source* IRC §223(b)(5): if either spouse has family coverage, both are treated as having it and share one family limit, split equally unless they agree otherwise. *code*: coverage type read; split not modelled |

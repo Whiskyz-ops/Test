@@ -64,12 +64,40 @@ def _dep(c) -> float:
     return f if math.isfinite(f) else 0
 
 
-def joint_profile(a, b) -> dict:
+def _dob_of(c):
+    return (((c.get("router") or {}).get("date_of_birth")) or (((c.get("india") or {}).get("profile") or {}).get("date_of_birth"))
+            or (((c.get("us") or {}).get("profile") or {}).get("date_of_birth")) or None)
+
+
+def _person_figures(r) -> dict:
+    u = (((r or {}).get("model") or {}).get("income") or {}).get("us") or {}
+    return {"seEarningsUsd": _n(u.get("seEarningsUsd")), "seEarningsFromIndiaUsd": _n(u.get("seEarningsFromIndiaUsd")),
+            "medicareWagesUsd": _n(u.get("medicareWages")) or _n((u.get("wages") or {}).get("usd"))}
+
+
+def _is_nra_us(c) -> bool:
+    r = (c.get("us") or {}).get("us_residency_detail") or {}
+    if r.get("is_us_citizen") is True or r.get("has_green_card") is True:
+        return False
+    return r.get("final_us_residency_status") == "NON_RESIDENT_ALIEN"
+
+
+def _joint_lead_first(a, b) -> bool:
+    na, nb = _is_nra_us(a), _is_nra_us(b)
+    if na != nb:
+        return not na
+    return str(a.get("id")) <= str(b.get("id"))
+
+
+def joint_profile(a, b, persons=None) -> dict:
     us = _merge_section(a.get("us"), b.get("us"), US_IDENTITY)
     us.setdefault("profile", {})
     us["profile"]["filing_status"] = "mfj"
     deps = _dep(a) + _dep(b)
     us["profile"]["dependents_count"] = int(deps) if float(deps).is_integer() else deps
+    us["profile"]["spouse_date_of_birth"] = _dob_of(b)
+    if persons:
+        us["household_persons"] = persons
     india = _merge_section(a.get("india"), b.get("india"), INDIA_IDENTITY)
     return {"router": _clone(a.get("router") or {}), "india": india, "us": us}
 
@@ -134,7 +162,9 @@ def analyze_household(a, b, analyze_fn) -> dict:
         return out
 
     sep_a, sep_b = analyze_fn(_with_status(a, "mfs")), analyze_fn(_with_status(b, "mfs"))
-    joint = analyze_fn(joint_profile(a, b))
+    # Same joint return from either spouse's page — see household.js.
+    pa, pb = _person_figures(own_a), _person_figures(own_b)
+    joint = analyze_fn(joint_profile(a, b, [pa, pb]) if _joint_lead_first(a, b) else joint_profile(b, a, [pb, pa]))
     ju, jf = joint["computed"]["usTax"], joint["computed"]["ftc"]["us"]
     india_tax_paid = _n(own_a["computed"]["ftc"]["us"]["indiaTaxPaidUsd"]) + _n(own_b["computed"]["ftc"]["us"]["indiaTaxPaidUsd"])
     out["jointUs"] = {

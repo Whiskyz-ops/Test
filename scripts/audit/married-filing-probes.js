@@ -121,6 +121,19 @@ var PROBES = [
       var s = h.spouses[0], want = 26340 * 3820 / (3820 + 24734);
       return { got: "India tax ₹" + Math.round(s.indiaTaxUsd * 83) + ", share $" + Math.round(s.usTaxShareUsd) + " of $" + Math.round(h.jointUs.incomeTaxUsd),
         pass: Math.round(s.indiaTaxUsd * 83) === 834600 && Math.abs(s.usTaxShareUsd - want) < 0.01 };
+    } },
+  { id: "XB-P3", rule: "Household joint return: each spouse's Social Security wage cap is their own (§1402(b))",
+    story: "Rohan & Priya Mehta (household-seed.js): Rohan $158,000 W-2 + self-employment; Priya $90,000 W-2",
+    expected: "joint self-employment tax = Rohan's own ($7,129), not the pooled $3,843",
+    probe: function () {
+      global.WISING = global.WISING || {};
+      require(path.join(ROOT, "prototypes", "graph-pilot", "profiles.js"));
+      var H = require(path.join(ROOT, "prototypes", "graph-pilot", "household.js"));
+      var S = require(path.join(ROOT, "prototypes", "graph-pilot", "household-seed.js"));
+      var pair = S.buildMehtaHousehold(global.WISING);
+      var h = H.analyzeHousehold(pair[0], pair[1], analyze, { keepResults: true });
+      var jointSe = h._joint.computed.usTax.seTaxUsd, rohanSe = h._own[0].computed.usTax.seTaxUsd;
+      return { got: "joint SE tax $" + Math.round(jointSe) + " vs Rohan's own $" + Math.round(rohanSe), pass: Math.abs(jointSe - rohanSe) < 0.01 };
     } }
 ];
 
