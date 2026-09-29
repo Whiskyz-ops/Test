@@ -110,9 +110,14 @@ NODES.usIsNraBoundaryFtc = {
 };
 NODES.indiaIncomeTotalUsdBoundaryFtc = { deps: ["totalIndiaIncomeInr"], compute: function (d, ctx) { return d.totalIndiaIncomeInr / fxRate(ctx); } };
 NODES.usTaxableIncomeUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.taxableIncomeUsd; } };
-NODES.usIncomeTaxUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.incomeTaxUsd; } };
-NODES.usTotalIncomeUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.totalIncomeUsd; } };
-NODES.usSourceIncomeUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.usSourceIncomeUsd; } };
+// A 1040-NR filer's US Social Security (taxed by the US under DTAA Art.
+// 20(2)) is exempt in India, so India has no tax on it to relieve: its
+// income and US tax stay out of India's s.90 relief.
+function nraSsTaxUsd(u) { return (u.nra && u.nra.socialSecurityTaxUsd) || 0; }
+function nraSsIncomeUsd(u) { return (u.nra && u.nra.socialSecurityTaxableUsd) || 0; }
+NODES.usIncomeTaxUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.incomeTaxUsd - nraSsTaxUsd(d.usTaxResult); } };
+NODES.usTotalIncomeUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.totalIncomeUsd - nraSsIncomeUsd(d.usTaxResult); } };
+NODES.usSourceIncomeUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.usSourceIncomeUsd - nraSsIncomeUsd(d.usTaxResult); } };
 NODES.indiaTotalTaxUsdBoundaryFtc = { deps: ["totalTaxInrCombined"], compute: function (d, ctx) { return d.totalTaxInrCombined / fxRate(ctx); } };
 // Engine's indiaTax.totalIncomeUsd: individual path = inrToUsd(totalIncomeInr)
 // (computation.js L517); entity path = inrToUsd(taxableInr) (L720). Routed
@@ -170,6 +175,6 @@ NODES.indiaSalaryNotChargeableTaxUsdBoundaryFtc = { deps: ["salaryNotChargeableT
 // so this boundary and usSourceIncomeUsdBoundaryFtc (line 97 above) can't
 // silently drift back out of sync with each other the way the two
 // separately-sourced originals did.
-NODES.usSourceTotalUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.usSourceIncomeUsd; } };
+NODES.usSourceTotalUsdBoundaryFtc = { deps: ["usTaxResult"], compute: function (d) { return d.usTaxResult.usSourceIncomeUsd - nraSsIncomeUsd(d.usTaxResult); } };
 
 module.exports = { NODES: NODES };

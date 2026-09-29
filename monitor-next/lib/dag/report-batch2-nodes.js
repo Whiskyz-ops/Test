@@ -94,6 +94,36 @@ NODES.buildTaxComputationUsResult = {
 
     // ---- NRA branch (conflicts.js:1980-2013) --------------------------------
     if (u.isNra) {
+      // Per-income-type FDAP rates, Art. 20(2) Social Security and Art. 20(1)
+      // pensions (nra-fdap-util.js). The single-rate layout is kept whenever
+      // every FDAP row carries the same rate.
+      var fdapRows = (u.nra.fdapBreakdown || []).filter(function (r) { return r.type !== "social_security" && r.type !== "pensions"; });
+      var mixedFdap = fdapRows.map(function (r) { return r.rate; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).length > 1;
+      var ssTaxUsd = u.nra.socialSecurityTaxUsd || 0, pensionExemptUsd = u.nra.pensionTreatyExemptUsd || 0;
+      var pct = function (r) { return Math.round(r * 100) + "%"; };
+      var fdapTaxRow = mixedFdap
+        ? { label: "Tax on FDAP (rate per income type, no deductions)", usd: u.nra.fdapTaxUsd,
+            trace: calc("Each FDAP type at its own rate — a treaty claim on Form W-8BEN covers only its own income type (DTAA Art. 10 dividends, 11 interest, 12 royalties); anything else 30%",
+              fdapRows.map(function (r) { return { label: r.type.charAt(0).toUpperCase() + r.type.slice(1) + " " + usd(r.baseUsd) + " × " + pct(r.rate) + " (" + r.basis + ")", amount: r.taxUsd }; })) }
+        : { label: "Tax on FDAP (flat " + Math.round(u.nra.fdapRate * 100) + "%, no deductions)", usd: u.nra.fdapTaxUsd,
+            trace: calc("FDAP × flat rate (30% statutory default, or a lower treaty rate if a valid W-8BEN treaty claim is on file)", [
+              { label: "FDAP income", amount: u.nra.fdapUsd },
+              { label: "Rate applied", display: Math.round(u.nra.fdapRate * 100) + "%" }
+            ]) };
+      var extraRows = [];
+      if (ssTaxUsd > 0) extraRows.push({ label: "Tax on US Social Security (85% taxable, flat 30%)", usd: ssTaxUsd,
+        trace: calc("IRC §871(a)(3): 85% of US Social Security benefits is FDAP taxed at 30%. DTAA Art. 20(2) leaves US Social Security paid to an Indian resident taxable only in the US — no treaty reduction", [
+          { label: "Taxable Social Security (85%)", amount: u.nra.socialSecurityTaxableUsd },
+          { label: "Rate applied", display: "30%" }
+        ]) });
+      if (pensionExemptUsd > 0) extraRows.push({ label: "US pensions / IRA distributions (" + usd(pensionExemptUsd) + ") — not taxed in the US", usd: 0,
+        trace: source("DTAA Art. 20(1): periodic pension and annuity payments to an Indian resident are taxable only in India — claim the exemption on Form 1040-NR Schedule OI (Form 8833 where required). Lump sums are not covered by Art. 20(1).") });
+      var totalParts = [
+        { label: "Tax on ECI", amount: u.nra.eciTaxUsd },
+        { label: "Tax on FDAP", amount: u.nra.fdapTaxUsd }
+      ];
+      if (ssTaxUsd > 0) totalParts.push({ label: "Tax on US Social Security", amount: ssTaxUsd });
+      totalParts.push({ label: "Additional Medicare tax", amount: u.additionalMedicareUsd });
       return {
         title: "US federal tax — Form 1040-NR (ECI graduated / FDAP flat)",
         currency: "USD",
@@ -112,20 +142,13 @@ NODES.buildTaxComputationUsResult = {
               bracketParts(u.nra.eciBracketBreakdown, usd)) },
           { label: "FDAP (interest/dividends/rental, Schedule NEC)", usd: u.nra.fdapUsd,
             trace: source("Fixed, Determinable, Annual or Periodical income — US-source passive income entered on Layer 1 US, taxed on a gross basis (no deductions).") },
-          { label: "Tax on FDAP (flat " + Math.round(u.nra.fdapRate * 100) + "%, no deductions)", usd: u.nra.fdapTaxUsd,
-            trace: calc("FDAP × flat rate (30% statutory default, or a lower treaty rate if a valid W-8BEN treaty claim is on file)", [
-              { label: "FDAP income", amount: u.nra.fdapUsd },
-              { label: "Rate applied", display: Math.round(u.nra.fdapRate * 100) + "%" }
-            ]) },
+          fdapTaxRow
+        ].concat(extraRows, [
           { label: "Additional Medicare tax", usd: u.additionalMedicareUsd,
             trace: source("Computed directly on Layer 1 US (Form 8959) and taken as-is — the engine does not recompute it.") },
           { label: "Total US tax (pre-FTC)", usd: u.totalTaxBeforeFtcUsd, emphasis: true,
-            trace: calc("Tax on ECI + tax on FDAP + Additional Medicare tax", [
-              { label: "Tax on ECI", amount: u.nra.eciTaxUsd },
-              { label: "Tax on FDAP", amount: u.nra.fdapTaxUsd },
-              { label: "Additional Medicare tax", amount: u.additionalMedicareUsd }
-            ]) }
-        ],
+            trace: calc("Tax on ECI + tax on FDAP" + (ssTaxUsd > 0 ? " + tax on US Social Security" : "") + " + Additional Medicare tax", totalParts) }
+        ]),
         totalUsd: u.totalTaxBeforeFtcUsd,
         effectiveRate: u.effectiveRate
       };

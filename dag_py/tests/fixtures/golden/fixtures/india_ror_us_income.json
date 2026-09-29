@@ -2518,7 +2518,7 @@
           "docsOk": false,
           "rateAppliedPct": 30,
           "taxUsd": 3420,
-          "gapUsd": 1710,
+          "gapUsd": 1440.0,
           "note": "Form W-8BEN missing \u2014 treaty rate denied, 30% statutory default withheld instead",
           "citation": "IRC \u00a71441 / Treas. Reg. \u00a71.1441-6"
         },
@@ -2554,9 +2554,9 @@
         }
       ],
       "estimateRows": [],
-      "totalGapUsd": 1710
+      "totalGapUsd": 1440.0
     },
-    "totalGapUsd": 1710
+    "totalGapUsd": 1440.0
   },
   "scopeNotes": [
     {

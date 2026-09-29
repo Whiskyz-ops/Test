@@ -35,6 +35,7 @@ var baseNodes = require("./agg10-nodes.js").NODES;
 var CONST = require("./constants.js").CONST;
 var T = CONST.TAX.US;
 var computeUsTaxCore = require("./ustax-nodes.js").computeUsTaxCore;
+var nraFdapBreakdown = require("./nra-fdap-util.js").nraFdapBreakdown;
 
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 function safe(obj, path, dflt) {
@@ -666,8 +667,8 @@ NODES.nraEffectiveEciFdap = {
 };
 
 NODES.nraTaxResult = {
-  deps: ["nraRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary", "usVisaTypeRaw", "nraEffectiveEciFdap"],
-  compute: function (d) {
+  deps: ["nraRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary", "usVisaTypeRaw", "nraEffectiveEciFdap", "aggregateUsIncomeResult", "royaltiesDirectUsSourceUsdRaw"],
+  compute: function (d, ctx) {
     var nra = d.nraRaw;
     var split = d.nraEffectiveEciFdap;
     // A married NRA files 1040-NR at married-filing-separately rates (joint
@@ -682,7 +683,8 @@ NODES.nraTaxResult = {
     var claim = (nra.treatyRateClaims || [])[0];
     var claimedRate = (claim && claim.elected_rate != null) ? Math.max(0, Math.min(1, Number(claim.elected_rate) / 100)) : null;
     var w8benOnFile = nra.submittedW8ben === true;
-    var fdapRate = (w8benOnFile && claimedRate != null) ? claimedRate : 0.30;
+    var fdapDetail = nraFdapBreakdown(fdapUsd, d.aggregateUsIncomeResult, d.royaltiesDirectUsSourceUsdRaw, safe(ctx.us, "nra_specific.rental_net_basis_election", false) === true, nra.treatyRateClaims, w8benOnFile);
+    var fdapRate = fdapDetail.effectiveRate != null ? fdapDetail.effectiveRate : ((w8benOnFile && claimedRate != null) ? claimedRate : 0.30);
 
     var itemizedUsd = Math.min(ded.salt, computeSaltCap(eciUsd, status)) + ded.mortgageInterest + ded.charitable +
                    Math.max(0, ded.medical - 0.075 * eciUsd);
@@ -704,28 +706,31 @@ NODES.nraTaxResult = {
     var taxableEciUsd = Math.max(0, eciUsd - deductionUsd);
     var eciTaxUsd = bracketTax(taxableEciUsd, brackets);
     var eciBracketBreakdown = bracketBreakdown(taxableEciUsd, brackets);
-    var fdapTaxUsd = fdapUsd * fdapRate;
+    var fdapTaxUsd = fdapDetail.fdapTaxUsd;
     var addlMedicare = d.additionalMedicareOwedBoundary || 0;
-    var totalTax = eciTaxUsd + fdapTaxUsd + addlMedicare;
+    var totalTax = eciTaxUsd + fdapTaxUsd + fdapDetail.socialSecurityTaxUsd + addlMedicare;
+    var nraIncomeUsd = eciUsd + fdapUsd + fdapDetail.socialSecurityTaxableUsd;
 
     return {
       filingStatus: status, worldwide: false, isNra: true,
-      totalIncomeUsd: eciUsd + fdapUsd,
+      totalIncomeUsd: nraIncomeUsd,
       agiUsd: eciUsd, deductionUsd: deductionUsd, deductionMode: deductionMode,
       taxableIncomeUsd: taxableEciUsd,
-      ordinaryTaxUsd: eciTaxUsd, preferentialTaxUsd: 0, incomeTaxUsd: eciTaxUsd + fdapTaxUsd,
+      ordinaryTaxUsd: eciTaxUsd, preferentialTaxUsd: 0, incomeTaxUsd: eciTaxUsd + fdapTaxUsd + fdapDetail.socialSecurityTaxUsd,
       niitUsd: 0, additionalMedicareUsd: addlMedicare, seTaxUsd: 0, qbiDeductionUsd: 0, amtUsd: 0, creditsUsd: 0,
         collectiblesGainUsd: 0, collectiblesTaxUsd: 0, qsbsExcludedGainUsd: 0, qsbsTaxableGainUsd: 0,
         saversCreditUsd: 0,
       totalTaxBeforeFtcUsd: totalTax,
       foreignSourceIncomeUsd: 0,
-      usSourceIncomeUsd: eciUsd + fdapUsd,
-      nra: { eciUsd: eciUsd, fdapUsd: fdapUsd, splitSource: split.source, fdapRate: fdapRate, eciTaxUsd: eciTaxUsd, fdapTaxUsd: fdapTaxUsd, taxableEciUsd: taxableEciUsd, eciBracketBreakdown: eciBracketBreakdown,
+      usSourceIncomeUsd: nraIncomeUsd,
+      nra: { fdapBreakdown: fdapDetail.rows, socialSecurityTaxableUsd: fdapDetail.socialSecurityTaxableUsd, socialSecurityTaxUsd: fdapDetail.socialSecurityTaxUsd,
+        pensionTreatyExemptUsd: fdapDetail.pensionUsd,
+        eciUsd: eciUsd, fdapUsd: fdapUsd, splitSource: split.source, fdapRate: fdapRate, eciTaxUsd: eciTaxUsd, fdapTaxUsd: fdapTaxUsd, taxableEciUsd: taxableEciUsd, eciBracketBreakdown: eciBracketBreakdown,
         claimedRate: claimedRate, w8benOnFile: w8benOnFile, incomeType: (claim && claim.income_type) || null,
         itemizedDeductionUsd: itemizedUsd, standardDeductionUsd: stdDeductionUsd,
         article212Eligible: article212Eligible, article212AmbiguousJ1: article212AmbiguousJ1, visaType: visaType },
       feie: { claimed: false, eligible: false, taxHomeAbroad: false, testMet: false, reasons: [], appliedUsd: 0 },
-      effectiveRate: (eciUsd + fdapUsd) > 0 ? totalTax / (eciUsd + fdapUsd) : 0
+      effectiveRate: nraIncomeUsd > 0 ? totalTax / nraIncomeUsd : 0
     };
   }
 };

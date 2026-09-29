@@ -36,6 +36,7 @@ from ..core.util import js_num_str, js_round, num, safe
 from ..india.aggregate_india_income import _annual_slice_agg
 from . import constants as C
 from . import us1_penalty_2210, us5_penalty_72t, us_full
+from .nra_fdap import nra_fdap_breakdown
 
 T = C.US
 
@@ -183,12 +184,17 @@ def _nra_fdap_detail(d, ctx):
     raw_claimed_rate_pct = claim["elected_rate"] if (claim and claim.get("elected_rate") is not None) else None
     claimed_rate_fraction = max(0.0, min(1.0, num(claim["elected_rate"]) / 100)) if (claim and claim.get("elected_rate") is not None) else None
     w8ben_on_file = d["nraRaw"]["submittedW8ben"] is True
-    fdap_rate = claimed_rate_fraction if (w8ben_on_file and claimed_rate_fraction is not None) else 0.30
     fdap_usd = d["nraFdapIncomeUsdRaw"]
-    gap_usd = fdap_usd * (0.30 - claimed_rate_fraction) if (not w8ben_on_file and claimed_rate_fraction is not None and claimed_rate_fraction < 0.30) else 0
+    # Per income type (a dividend claim no longer sets the interest rate) —
+    # the same rows nraTaxResult taxes, via nra_fdap.py.
+    fd = nra_fdap_breakdown(fdap_usd, d.get("aggregateUsIncomeResult") or {}, d.get("royaltiesDirectUsSourceUsdRaw") or 0,
+                            safe(ctx.get("us"), "nra_specific.rental_net_basis_election", False) is True,
+                            d["nraRaw"]["treatyRateClaims"], w8ben_on_file)
+    fdap_rate = fd["effectiveRate"] if fd["effectiveRate"] is not None else (claimed_rate_fraction if (w8ben_on_file and claimed_rate_fraction is not None) else 0.30)
+    gap_usd = fd["gapUsd"]
     return {
         "fdapUsd": fdap_usd, "fdapRate": fdap_rate, "claimedRate": raw_claimed_rate_pct, "w8benOnFile": w8ben_on_file,
-        "fdapTaxUsd": fdap_usd * fdap_rate, "gapUsd": gap_usd,
+        "fdapTaxUsd": fd["fdapTaxUsd"], "gapUsd": gap_usd, "fdapBreakdown": fd["rows"],
         # Clamped percentage — the ROUTED value buildWithholdingSummary's
         # treatyRatePct actually reads, DIFFERENT from claimedRate above
         # (the raw unclamped Layer 1 value the nra_fdap_flat_rate finding's
@@ -290,7 +296,8 @@ NODES = {
     # ---- 4h. nra_fdap_flat_rate detail (findings-batch4-nodes.js) -----------
     "nraFdapIncomeUsdRaw": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "nra_specific.us_fdap_income_usd", 0)), layer1_fields=("us.nra_specific.us_fdap_income_usd",)),
     "nraEciIncomeUsdRaw": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "nra_specific.us_eci_income_usd", 0)), layer1_fields=("us.nra_specific.us_eci_income_usd",)),
-    "nraFdapDetail": NodeDef(deps=("nraRaw", "nraFdapIncomeUsdRaw"), compute=_nra_fdap_detail),
+    "nraFdapDetail": NodeDef(deps=("nraRaw", "nraFdapIncomeUsdRaw", "aggregateUsIncomeResult", "royaltiesDirectUsSourceUsdRaw"), compute=_nra_fdap_detail,
+                             layer1_fields=("us.nra_specific.rental_net_basis_election",)),
     "royaltiesDirectUsSourceUsdRaw": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "income_us_source.royalties_direct_us_source_usd", 0)), layer1_fields=("us.income_us_source.royalties_direct_us_source_usd",)),
     "nraDerivedEciFdapResult": NodeDef(deps=("aggregateUsIncomeResult", "royaltiesDirectUsSourceUsdRaw"), compute=_nra_derived_eci_fdap_result),
 
@@ -554,11 +561,16 @@ def _findings_us_result(d, ctx):
         # time (previously masked since the same wrong field name broke
         # both the rate lookup and this text identically).
         rate_actually_honored = nra_detail["claimedRate"] and nra_detail["w8benOnFile"]
+        fdap_rates = {r["type"]: js_round(r["rate"] * 100) for r in (nra_detail.get("fdapBreakdown") or []) if r["type"] not in ("social_security", "pensions")}
+        if len(set(fdap_rates.values())) > 1:
+            rate_text = " at a rate per income type (" + ", ".join(f"{k} {v}%" for k, v in fdap_rates.items()) + " — a treaty claim covers only its own income type)"
+        else:
+            rate_text = " flat" + (f" at the claimed {nra_detail['claimedRate']}% treaty rate" if rate_actually_honored else " at the 30% statutory rate (no treaty rate on file)")
         findings.append(make_finding(
             "nra_fdap_flat_rate", "info", "credit",
             "1040-NR: FDAP taxed flat" + (f" ({js_round(nra_detail['fdapRate'] * 100)}%)" if is_routed_to_nra_for_fdap else "") + ", ECI at graduated rates",
             f"{_fmt(nra_detail['fdapUsd'])} of FDAP income (interest/dividends/rents not effectively connected with a US trade or "
-            "business) is taxed flat" + (f" at the claimed {nra_detail['claimedRate']}% treaty rate" if rate_actually_honored else " at the 30% statutory rate (no treaty rate on file)")
+            "business) is taxed" + rate_text
             + f" with no deductions (Schedule NEC), separate from {_fmt(d['nraEciIncomeUsdRaw'])} of ECI taxed at graduated brackets"
             " with itemized deductions only (NRAs generally can't claim the standard deduction).",
             "Confirm the treaty rate claimed on Form W-8BEN/1040-NR matches the rate used here"

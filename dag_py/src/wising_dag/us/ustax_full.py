@@ -39,6 +39,7 @@ from ..core.graph import NodeDef
 from ..core.util import js_num_str, js_round, num, safe
 from . import constants as C
 from .ustax import bracket_breakdown, bracket_tax, compute_salt_cap, compute_us_tax_core
+from .nra_fdap import nra_fdap_breakdown
 
 T = C.US
 
@@ -516,7 +517,9 @@ def _nra_tax_result(d, ctx):
     claim = claims[0] if claims else None
     claimed_rate = max(0.0, min(1.0, num(claim["elected_rate"]) / 100)) if (claim and claim.get("elected_rate") is not None) else None
     w8ben_on_file = d["nraRaw"]["submittedW8ben"] is True
-    fdap_rate = claimed_rate if (w8ben_on_file and claimed_rate is not None) else 0.30
+    detail = nra_fdap_breakdown(fdap_usd, d.get("aggregateUsIncomeResult") or {}, d.get("royaltiesDirectUsSourceUsdRaw") or 0,
+                                 safe(ctx.get("us"), "nra_specific.rental_net_basis_election", False) is True, claims, w8ben_on_file)
+    fdap_rate = detail["effectiveRate"] if detail["effectiveRate"] is not None else (claimed_rate if (w8ben_on_file and claimed_rate is not None) else 0.30)
 
     itemized_usd = min(ded["salt"], compute_salt_cap(eci_usd, status)) + ded["mortgageInterest"] + ded["charitable"] + max(0.0, ded["medical"] - 0.075 * eci_usd)
     visa_type = d["usVisaTypeRaw"]
@@ -536,23 +539,26 @@ def _nra_tax_result(d, ctx):
     taxable_eci_usd = max(0.0, eci_usd - deduction_usd)
     eci_tax_usd = bracket_tax(taxable_eci_usd, brackets)
     eci_bracket_breakdown = bracket_breakdown(taxable_eci_usd, brackets)
-    fdap_tax_usd = fdap_usd * fdap_rate
+    fdap_tax_usd = detail["fdapTaxUsd"]
     addl_medicare = d["additionalMedicareOwedBoundary"] or 0
-    total_tax = eci_tax_usd + fdap_tax_usd + addl_medicare
+    total_tax = eci_tax_usd + fdap_tax_usd + detail["socialSecurityTaxUsd"] + addl_medicare
+    nra_income_usd = eci_usd + fdap_usd + detail["socialSecurityTaxableUsd"]
 
     return {
         "filingStatus": status, "worldwide": False, "isNra": True,
-        "totalIncomeUsd": eci_usd + fdap_usd,
+        "totalIncomeUsd": nra_income_usd,
         "agiUsd": eci_usd, "deductionUsd": deduction_usd, "deductionMode": deduction_mode,
         "taxableIncomeUsd": taxable_eci_usd,
-        "ordinaryTaxUsd": eci_tax_usd, "preferentialTaxUsd": 0, "incomeTaxUsd": eci_tax_usd + fdap_tax_usd,
+        "ordinaryTaxUsd": eci_tax_usd, "preferentialTaxUsd": 0, "incomeTaxUsd": eci_tax_usd + fdap_tax_usd + detail["socialSecurityTaxUsd"],
         "niitUsd": 0, "additionalMedicareUsd": addl_medicare, "seTaxUsd": 0, "qbiDeductionUsd": 0, "amtUsd": 0, "creditsUsd": 0,
         "collectiblesGainUsd": 0, "collectiblesTaxUsd": 0, "qsbsExcludedGainUsd": 0, "qsbsTaxableGainUsd": 0,
         "saversCreditUsd": 0,
         "totalTaxBeforeFtcUsd": total_tax,
         "foreignSourceIncomeUsd": 0,
-        "usSourceIncomeUsd": eci_usd + fdap_usd,
+        "usSourceIncomeUsd": nra_income_usd,
         "nra": {
+            "fdapBreakdown": detail["rows"], "socialSecurityTaxableUsd": detail["socialSecurityTaxableUsd"],
+            "socialSecurityTaxUsd": detail["socialSecurityTaxUsd"], "pensionTreatyExemptUsd": detail["pensionUsd"],
             "splitSource": split["source"],
             "eciUsd": eci_usd, "fdapUsd": fdap_usd, "fdapRate": fdap_rate, "eciTaxUsd": eci_tax_usd, "fdapTaxUsd": fdap_tax_usd,
             "taxableEciUsd": taxable_eci_usd, "eciBracketBreakdown": eci_bracket_breakdown,
@@ -561,7 +567,7 @@ def _nra_tax_result(d, ctx):
             "article212Eligible": article212_eligible, "article212AmbiguousJ1": article212_ambiguous_j1, "visaType": visa_type,
         },
         "feie": {"claimed": False, "eligible": False, "taxHomeAbroad": False, "testMet": False, "reasons": [], "appliedUsd": 0},
-        "effectiveRate": (total_tax / (eci_usd + fdap_usd)) if (eci_usd + fdap_usd) > 0 else 0,
+        "effectiveRate": (total_tax / nra_income_usd) if nra_income_usd > 0 else 0,
     }
 
 
@@ -812,8 +818,8 @@ def build(base):
         deps=("nraSplitDeclaredRaw", "nraEciIncomeUsdRaw", "nraFdapIncomeUsdRaw", "nraDerivedEciFdapResult", "aggregateUsIncomeResult"),
         compute=_nra_effective_eci_fdap, layer1_fields=("us.nra_specific.rental_net_basis_election",)))
     r.register("nraTaxResult", NodeDef(
-        deps=("nraRaw", "nraFdapIncomeUsdRaw", "nraEciIncomeUsdRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary", "usVisaTypeRaw", "nraEffectiveEciFdap"),
-        compute=_nra_tax_result,
+        deps=("nraRaw", "nraFdapIncomeUsdRaw", "nraEciIncomeUsdRaw", "usFilingStatusRaw", "dedUs", "additionalMedicareOwedBoundary", "usVisaTypeRaw", "nraEffectiveEciFdap", "aggregateUsIncomeResult", "royaltiesDirectUsSourceUsdRaw"),
+        compute=_nra_tax_result, layer1_fields=("us.nra_specific.rental_net_basis_election",),
     ))
 
     r.register("usResidencyStartDateRaw", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "us_residency_detail.residency_start_date", None), layer1_fields=("us.us_residency_detail.residency_start_date",)))

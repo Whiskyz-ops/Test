@@ -74,6 +74,7 @@ function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
 function inr(n) { return "₹" + Math.round(n).toLocaleString("en-IN"); }
 var fxRate = require("./fx-util.js").fxRate;
+var nraFdapBreakdown = require("./nra-fdap-util.js").nraFdapBreakdown;
 function inrToUsd(v, ctx) { return Number(v) / fxRate(ctx); } // rate overridable via ctx.fxRateOverride — see fx-util.js
 
 var findingsBatch3Nodes = require("./findings-batch3-nodes.js").NODES;
@@ -349,8 +350,8 @@ NODES.feieDetailed = {
 NODES.nraFdapIncomeUsdRaw = { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "nra_specific.us_fdap_income_usd", 0)); } };
 NODES.nraEciIncomeUsdRaw = { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "nra_specific.us_eci_income_usd", 0)); } };
 NODES.nraFdapDetail = {
-  deps: ["nraRaw", "nraFdapIncomeUsdRaw"],
-  compute: function (d) {
+  deps: ["nraRaw", "nraFdapIncomeUsdRaw", "aggregateUsIncomeResult", "royaltiesDirectUsSourceUsdRaw"],
+  compute: function (d, ctx) {
     var claim = (d.nraRaw.treatyRateClaims || [])[0];
     // BUG FIX: the frozen reference engine (computation.js/conflicts.js)
     // used `claim.rate`, but layer1_us.html's own syncTreatyRates()/
@@ -369,11 +370,16 @@ NODES.nraFdapDetail = {
     var rawClaimedRatePct = (claim && claim.elected_rate != null) ? claim.elected_rate : null;
     var claimedRateFraction = (claim && claim.elected_rate != null) ? Math.max(0, Math.min(1, Number(claim.elected_rate) / 100)) : null;
     var w8benOnFile = d.nraRaw.submittedW8ben === true;
-    var fdapRate = (w8benOnFile && claimedRateFraction != null) ? claimedRateFraction : 0.30;
     var fdapUsd = d.nraFdapIncomeUsdRaw;
-    var gapUsd = (!w8benOnFile && claimedRateFraction != null && claimedRateFraction < 0.30) ? fdapUsd * (0.30 - claimedRateFraction) : 0;
+    // Per income type (a dividend claim no longer sets the interest rate) —
+    // the same rows nraTaxResult taxes, via nra-fdap-util.js.
+    var fd = nraFdapBreakdown(fdapUsd, d.aggregateUsIncomeResult, d.royaltiesDirectUsSourceUsdRaw,
+      safe(ctx.us, "nra_specific.rental_net_basis_election", false) === true, d.nraRaw.treatyRateClaims, w8benOnFile);
+    var fdapRate = fd.effectiveRate != null ? fd.effectiveRate : ((w8benOnFile && claimedRateFraction != null) ? claimedRateFraction : 0.30);
+    var gapUsd = fd.gapUsd;
     return {
-      fdapUsd: fdapUsd, fdapRate: fdapRate, claimedRate: rawClaimedRatePct, w8benOnFile: w8benOnFile, fdapTaxUsd: fdapUsd * fdapRate, gapUsd: gapUsd,
+      fdapUsd: fdapUsd, fdapRate: fdapRate, claimedRate: rawClaimedRatePct, w8benOnFile: w8benOnFile, fdapTaxUsd: fd.fdapTaxUsd, gapUsd: gapUsd,
+      fdapBreakdown: fd.rows,
       // Clamped percentage (computed.usTax.nra.claimedRate * 100, the
       // ROUTED value buildWithholdingSummary's treatyRatePct actually reads,
       // conflicts.js:2413) — DIFFERENT from claimedRate above, which is the
@@ -630,10 +636,16 @@ NODES.findingsBatch4Result = {
       // actually taxed at 30% — the exact inaccuracy this finding exists to
       // catch. Mirrored in dag_py's findings.py.
       var rateActuallyHonored = nraDetail.claimedRate && nraDetail.w8benOnFile;
+      var fdapRates = {};
+      (nraDetail.fdapBreakdown || []).forEach(function (r) { if (r.type !== "social_security" && r.type !== "pensions") fdapRates[r.type] = Math.round(r.rate * 100); });
+      var mixedRates = Object.keys(fdapRates).map(function (k) { return fdapRates[k]; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).length > 1;
+      var rateText = mixedRates
+        ? " at a rate per income type (" + Object.keys(fdapRates).map(function (k) { return k + " " + fdapRates[k] + "%"; }).join(", ") + " — a treaty claim covers only its own income type)"
+        : " flat" + (rateActuallyHonored ? " at the claimed " + nraDetail.claimedRate + "% treaty rate" : " at the 30% statutory rate (no treaty rate on file)");
       add("nra_fdap_flat_rate", "info", "credit",
         "1040-NR: FDAP taxed flat" + (isRoutedToNraForFdap ? " (" + Math.round(nraDetail.fdapRate * 100) + "%)" : "") + ", ECI at graduated rates",
         usd(nraDetail.fdapUsd) + " of FDAP income (interest/dividends/rents not effectively connected with a US trade or " +
-        "business) is taxed flat" + (rateActuallyHonored ? " at the claimed " + nraDetail.claimedRate + "% treaty rate" : " at the 30% statutory rate (no treaty rate on file)") +
+        "business) is taxed" + rateText +
         " with no deductions (Schedule NEC), separate from " + usd(d.nraEciIncomeUsdRaw) + " of ECI taxed at graduated brackets" +
         " with itemized deductions only (NRAs generally can't claim the standard deduction).",
         "Confirm the treaty rate claimed on Form W-8BEN/1040-NR matches the rate used here" +

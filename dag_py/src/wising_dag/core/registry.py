@@ -243,8 +243,10 @@ def build_full_registry() -> NodeRegistry:
         ))
     if "nraFdapIncomeUsdRaw" not in r:
         r.register("nraFdapIncomeUsdRaw", NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("us"), "nra_specific.us_fdap_income_usd", 0)), layer1_fields=("us.nra_specific.us_fdap_income_usd",)))
+    if "royaltiesDirectUsSourceUsdRaw" not in r:
+        r.register("royaltiesDirectUsSourceUsdRaw", us_findings.NODES["royaltiesDirectUsSourceUsdRaw"])
     if "nraFdapDetail" not in r:
-        r.register("nraFdapDetail", NodeDef(deps=("nraRaw", "nraFdapIncomeUsdRaw"), compute=us_findings._nra_fdap_detail))
+        r.register("nraFdapDetail", us_findings.NODES["nraFdapDetail"])
     for node_id, node in crossborder_findings.NODES.items():
         if node_id not in r:
             r.register(node_id, node)

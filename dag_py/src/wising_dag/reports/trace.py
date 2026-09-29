@@ -345,6 +345,38 @@ def _fx_convert(inr_amount, ctx):
 
 
 def _build_tax_computation_us_nra_result(u):
+    # Per-income-type FDAP rates, Art. 20(2) Social Security and Art. 20(1)
+    # pensions (us/nra_fdap.py). The single-rate layout is kept whenever
+    # every FDAP row carries the same rate. Mirrors report-batch2-nodes.js.
+    nra = u["nra"]
+    fdap_rows = [r for r in (nra.get("fdapBreakdown") or []) if r["type"] not in ("social_security", "pensions")]
+    mixed_fdap = len({r["rate"] for r in fdap_rows}) > 1
+    ss_tax_usd = nra.get("socialSecurityTaxUsd") or 0
+    pension_exempt_usd = nra.get("pensionTreatyExemptUsd") or 0
+
+    def pct(r):
+        return f"{js_round(r * 100)}%"
+
+    if mixed_fdap:
+        fdap_tax_row = {"label": "Tax on FDAP (rate per income type, no deductions)", "usd": nra["fdapTaxUsd"],
+                        "trace": _calc("Each FDAP type at its own rate — a treaty claim on Form W-8BEN covers only its own income type (DTAA Art. 10 dividends, 11 interest, 12 royalties); anything else 30%",
+                                       [{"label": f"{r['type'][:1].upper() + r['type'][1:]} {usd(r['baseUsd'])} × {pct(r['rate'])} ({r['basis']})", "amount": r["taxUsd"]} for r in fdap_rows])}
+    else:
+        fdap_tax_row = {"label": f"Tax on FDAP (flat {js_round(nra['fdapRate'] * 100)}%, no deductions)", "usd": nra["fdapTaxUsd"],
+                        "trace": _calc("FDAP × flat rate (30% statutory default, or a lower treaty rate if a valid W-8BEN treaty claim is on file)",
+                                       [{"label": "FDAP income", "amount": nra["fdapUsd"]}, {"label": "Rate applied", "display": f"{js_round(nra['fdapRate'] * 100)}%"}])}
+    extra_rows = []
+    if ss_tax_usd > 0:
+        extra_rows.append({"label": "Tax on US Social Security (85% taxable, flat 30%)", "usd": ss_tax_usd,
+                           "trace": _calc("IRC §871(a)(3): 85% of US Social Security benefits is FDAP taxed at 30%. DTAA Art. 20(2) leaves US Social Security paid to an Indian resident taxable only in the US — no treaty reduction",
+                                          [{"label": "Taxable Social Security (85%)", "amount": nra["socialSecurityTaxableUsd"]}, {"label": "Rate applied", "display": "30%"}])})
+    if pension_exempt_usd > 0:
+        extra_rows.append({"label": f"US pensions / IRA distributions ({usd(pension_exempt_usd)}) — not taxed in the US", "usd": 0,
+                           "trace": _source("DTAA Art. 20(1): periodic pension and annuity payments to an Indian resident are taxable only in India — claim the exemption on Form 1040-NR Schedule OI (Form 8833 where required). Lump sums are not covered by Art. 20(1).")})
+    total_parts = [{"label": "Tax on ECI", "amount": nra["eciTaxUsd"]}, {"label": "Tax on FDAP", "amount": nra["fdapTaxUsd"]}]
+    if ss_tax_usd > 0:
+        total_parts.append({"label": "Tax on US Social Security", "amount": ss_tax_usd})
+    total_parts.append({"label": "Additional Medicare tax", "amount": u["additionalMedicareUsd"]})
     return {
         "title": "US federal tax — Form 1040-NR (ECI graduated / FDAP flat)",
         "currency": "USD",
@@ -359,14 +391,12 @@ def _build_tax_computation_us_nra_result(u):
              "trace": _calc(f"Progressive federal brackets (10%-37%, same ladder as a resident filer) applied to ${js_round(u['nra']['taxableEciUsd']):,} of taxable ECI", _bracket_parts(u["nra"]["eciBracketBreakdown"], usd))},
             {"label": "FDAP (interest/dividends/rental, Schedule NEC)", "usd": u["nra"]["fdapUsd"],
              "trace": _source("Fixed, Determinable, Annual or Periodical income — US-source passive income entered on Layer 1 US, taxed on a gross basis (no deductions).")},
-            {"label": f"Tax on FDAP (flat {js_round(u['nra']['fdapRate'] * 100)}%, no deductions)", "usd": u["nra"]["fdapTaxUsd"],
-             "trace": _calc("FDAP × flat rate (30% statutory default, or a lower treaty rate if a valid W-8BEN treaty claim is on file)",
-                             [{"label": "FDAP income", "amount": u["nra"]["fdapUsd"]}, {"label": "Rate applied", "display": f"{js_round(u['nra']['fdapRate'] * 100)}%"}])},
+            fdap_tax_row,
+            *extra_rows,
             {"label": "Additional Medicare tax", "usd": u["additionalMedicareUsd"],
              "trace": _source("Computed directly on Layer 1 US (Form 8959) and taken as-is — the engine does not recompute it.")},
             {"label": "Total US tax (pre-FTC)", "usd": u["totalTaxBeforeFtcUsd"], "emphasis": True,
-             "trace": _calc("Tax on ECI + tax on FDAP + Additional Medicare tax",
-                             [{"label": "Tax on ECI", "amount": u["nra"]["eciTaxUsd"]}, {"label": "Tax on FDAP", "amount": u["nra"]["fdapTaxUsd"]}, {"label": "Additional Medicare tax", "amount": u["additionalMedicareUsd"]}])},
+             "trace": _calc("Tax on ECI + tax on FDAP" + (" + tax on US Social Security" if ss_tax_usd > 0 else "") + " + Additional Medicare tax", total_parts)},
         ],
         "totalUsd": u["totalTaxBeforeFtcUsd"], "effectiveRate": u["effectiveRate"],
     }

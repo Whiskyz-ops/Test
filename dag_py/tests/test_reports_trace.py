@@ -40,7 +40,7 @@ def _build_graph():
     r = us_full.build(r)
     r.register("stateResidencyRaw", us_findings.NODES["stateResidencyRaw"])
     r.register("usStateTaxResult", us_findings.NODES["usStateTaxResult"])
-    for node_id in ("nraRaw", "nraFdapIncomeUsdRaw", "nraFdapDetail"):
+    for node_id in ("nraRaw", "nraFdapIncomeUsdRaw", "royaltiesDirectUsSourceUsdRaw", "nraFdapDetail"):
         if node_id not in r:
             r.register(node_id, us_findings.NODES[node_id])
     if "taxesPaidUsResult" not in r:

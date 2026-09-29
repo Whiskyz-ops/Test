@@ -29,6 +29,14 @@ from . import ftc
 OVERRIDE_REASON = "xborder-full-nodes.js wiring: redefined FTC boundaries to in-graph values"
 
 
+
+def _nra_ss_tax_usd(u):
+    return ((u.get("nra") or {}).get("socialSecurityTaxUsd")) or 0
+
+
+def _nra_ss_income_usd(u):
+    return ((u.get("nra") or {}).get("socialSecurityTaxableUsd")) or 0
+
 def build(base: NodeRegistry) -> NodeRegistry:
     r = base.extend()
     r = india_full.build(r)
@@ -64,9 +72,12 @@ def build(base: NodeRegistry) -> NodeRegistry:
     ), reason=OVERRIDE_REASON)
     r.override("indiaIncomeTotalUsdBoundaryFtc", NodeDef(deps=("totalIndiaIncomeInr",), compute=lambda d, ctx: d["totalIndiaIncomeInr"] / fx_rate(ctx)), reason=OVERRIDE_REASON)
     r.override("usTaxableIncomeUsdBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["taxableIncomeUsd"]), reason=OVERRIDE_REASON)
-    r.override("usIncomeTaxUsdBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["incomeTaxUsd"]), reason=OVERRIDE_REASON)
-    r.override("usTotalIncomeUsdBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["totalIncomeUsd"]), reason=OVERRIDE_REASON)
-    r.override("usSourceIncomeUsdBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["usSourceIncomeUsd"]), reason=OVERRIDE_REASON)
+    # A 1040-NR filer's US Social Security (taxed by the US under DTAA Art.
+    # 20(2)) is exempt in India, so India has no tax on it to relieve: its
+    # income and US tax stay out of India's s.90 relief (xborder-full-nodes.js).
+    r.override("usIncomeTaxUsdBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["incomeTaxUsd"] - _nra_ss_tax_usd(d["usTaxResult"])), reason=OVERRIDE_REASON)
+    r.override("usTotalIncomeUsdBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["totalIncomeUsd"] - _nra_ss_income_usd(d["usTaxResult"])), reason=OVERRIDE_REASON)
+    r.override("usSourceIncomeUsdBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["usSourceIncomeUsd"] - _nra_ss_income_usd(d["usTaxResult"])), reason=OVERRIDE_REASON)
     r.override("indiaTotalTaxUsdBoundaryFtc", NodeDef(deps=("totalTaxInrCombined",), compute=lambda d, ctx: d["totalTaxInrCombined"] / fx_rate(ctx)), reason=OVERRIDE_REASON)
     r.override("indiaTotalIncomeUsdBoundaryFtc", NodeDef(
         deps=("isEntityTaxpayer", "totalIncomeInrV3", "entityTaxableInrBoundary"),
@@ -78,7 +89,7 @@ def build(base: NodeRegistry) -> NodeRegistry:
     # routed, entity/NRA-aware result, so this stays correct for every
     # taxpayer shape without re-deriving entity/NRA routing a second time.
     r.override("usWorldwideBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: bool(d["usTaxResult"].get("worldwide"))), reason=OVERRIDE_REASON)
-    r.override("usSourceTotalUsdBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["usSourceIncomeUsd"]), reason=OVERRIDE_REASON)
+    r.override("usSourceTotalUsdBoundaryFtc", NodeDef(deps=("usTaxResult",), compute=lambda d, ctx: d["usTaxResult"]["usSourceIncomeUsd"] - _nra_ss_income_usd(d["usTaxResult"])), reason=OVERRIDE_REASON)
 
     # §904 basket split (task #46) — in-graph version of ftc.py's own
     # boundary, reading indiaIncomeModelResult (already in this composition

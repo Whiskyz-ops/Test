@@ -487,16 +487,15 @@
         TIPS_OVERTIME_PHASEOUT_THRESHOLD_USD: { single: 150000, mfj: 300000, hoh: 150000 },
         TIPS_OVERTIME_PHASEOUT_PER_1000_USD: 100
       },
-      // ---- US state individual income tax (TY2025, returns filed 2026) ----
-      // Only CA and NY are modeled — Layer 1 US only collects dedicated
-      // statutory-residency-test facts (state_residency.ca_*, .ny_*) for
-      // these two states; every other state on the dropdown is a bare
-      // domicile string with no residency-test data to key a computation
-      // off of. Single/MFJ only — Layer 1's 9 demo profiles never use HOH/
-      // MFS, and this engine's own bracket tables for those two statuses
-      // could not be independently verified against a second source this
-      // session, so they are left unmodeled rather than guessed (see
-      // computeUsStateTax's status fallback).
+      // ---- US state individual income tax ----
+      // Only CA and NY are modeled here (NJ in findings-batch5-nodes.js) —
+      // Layer 1 US only collects dedicated statutory-residency-test facts
+      // (state_residency.ca_*, .ny_*) for these states. Every filing status
+      // has its state table: single, MFJ and HOH tables below; MFS and
+      // surviving spouse map through STATUS_TABLE. CA: FTB 2025 schedules
+      // X/Y/Z (the latest published — FTB issues 2026's late in 2026); NY:
+      // TY2026 (S3009C). HOH figures cross-checked against PolicyEngine's
+      // statute/FTB-cited parameters and by hand (28 Sep 2026).
       US_STATES: {
         CA: {
           NAME: "California",

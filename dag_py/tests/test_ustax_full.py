@@ -72,7 +72,9 @@ def _analyze_pinned(fixture_id):
 # carve-out discipline as conftest.py's GOLDEN_DIVERGENT_FIXTURES_* sets,
 # and asserted directly afterward instead.
 _NRA_ART212_NEW_FIELDS = ("article212Eligible", "article212AmbiguousJ1", "itemizedDeductionUsd", "standardDeductionUsd",
-                          "splitSource")  # DAG-only: whether the ECI/FDAP split was saved by Layer 1 or re-derived
+                          "splitSource",  # DAG-only: whether the ECI/FDAP split was saved by Layer 1 or re-derived
+                          # DAG-only: per-income-type FDAP rows, Art. 20(2) Social Security and Art. 20(1) pensions
+                          "fdapBreakdown", "socialSecurityTaxableUsd", "socialSecurityTaxUsd", "pensionTreatyExemptUsd")
 
 
 def _strip_nra_art212_fields(us_tax: dict) -> dict:
@@ -335,7 +337,7 @@ def test_state_tax_scorp_partnership_trust_not_modeled():
 
 # ---- nraTaxResult: FDAP treaty-rate reduction with W-8BEN on file --------
 
-def _nra(eci=30000.0, fdap=10000.0, claims=None, w8ben=False, filing_status="single", visa_type=None):
+def _nra(eci=30000.0, fdap=10000.0, claims=None, w8ben=False, filing_status="single", visa_type=None, agg=None):
     d = {
         "usFilingStatusRaw": filing_status,
         "dedUs": {"salt": 0, "mortgageInterest": 0, "charitable": 0, "medical": 0},
@@ -344,8 +346,13 @@ def _nra(eci=30000.0, fdap=10000.0, claims=None, w8ben=False, filing_status="sin
         "nraRaw": {"treatyRateClaims": claims or [], "submittedW8ben": w8ben},
         "additionalMedicareOwedBoundary": 0,
         "usVisaTypeRaw": visa_type,
+        "aggregateUsIncomeResult": agg or {},
     }
     return _nra_tax_result(d, {})
+
+
+def _usd(v):
+    return {"usd": v}
 
 
 def test_nra_fdap_defaults_to_flat_30_percent_without_w8ben():
@@ -355,11 +362,29 @@ def test_nra_fdap_defaults_to_flat_30_percent_without_w8ben():
 
 
 def test_nra_fdap_uses_treaty_rate_when_w8ben_on_file():
-    r = _nra(fdap=10000.0, claims=[{"elected_rate": 15, "income_type": "dividends"}], w8ben=True)
+    r = _nra(fdap=10000.0, claims=[{"elected_rate": 15, "income_type": "dividends"}], w8ben=True,
+             agg={"ordinaryDividendsUs": _usd(10000.0)})
     assert r["nra"]["fdapRate"] == 0.15
     assert r["nra"]["fdapTaxUsd"] == 1500.0
     assert r["nra"]["w8benOnFile"] is True
     assert r["nra"]["claimedRate"] == 0.15
+
+
+def test_nra_treaty_rate_applies_only_to_its_own_income_type():
+    # A dividend claim used to set the rate for all FDAP; interest and
+    # untyped FDAP stay at 30% without their own claim.
+    r = _nra(eci=0.0, fdap=20000.0, claims=[{"elected_rate": 25, "income_type": "dividends"}], w8ben=True,
+             agg={"ordinaryDividendsUs": _usd(10000.0), "interestUs": _usd(5000.0)})
+    assert r["nra"]["fdapTaxUsd"] == 2500.0 + 1500.0 + 1500.0
+    assert [row["type"] for row in r["nra"]["fdapBreakdown"]] == ["dividends", "interest", "other"]
+
+
+def test_nra_social_security_taxed_85_percent_at_30_and_pensions_treaty_exempt():
+    # DTAA Art. 20(2) / §871(a)(3); Art. 20(1) for periodic pensions.
+    r = _nra(eci=0.0, fdap=0.0, agg={"socialSecurityUs": _usd(24000.0), "usRetirementIncomeExclSs": _usd(60000.0)})
+    assert r["nra"]["socialSecurityTaxUsd"] == 6120.0
+    assert r["nra"]["pensionTreatyExemptUsd"] == 60000.0
+    assert r["totalTaxBeforeFtcUsd"] == 6120.0
 
 
 # ---- nraTaxResult: DTAA Art. 21(2) student/business-apprentice standard
@@ -574,3 +599,25 @@ def test_nra_without_saved_split_is_taxed_on_the_derived_split():
 
     no_election = derived_run(False)["computed"]["usTax"]["nra"]
     assert (round(no_election["eciUsd"]), round(no_election["fdapUsd"])) == (0, 41400)
+
+
+def test_nra_social_security_is_not_relieved_again_in_india():
+    # Indian-resident retiree, 1040-NR: the US taxes Social Security (Art.
+    # 20(2)) and India exempts it, so India's s.90 relief must not credit that
+    # US tax; periodic US pensions are India's to tax (Art. 20(1)).
+    residency = {"manual_days": 365, "days_in_india_current_year": 365, "final_india_residency_status": "ROR",
+                 "days_in_india_preceding_4_years_gte_365": True, "nr_years_last_10_gte_9": False,
+                 "days_in_india_last_7_years_lte_729": False}
+    r = analyze({
+        "router": {"jurisdiction": "dual", "base_tax_year": 2026, "is_us_citizen": False, "has_green_card": False, "us_days": 0},
+        "india": {"profile": {"entity_type": "individual", "tax_regime": "NEW"}, "residency_detail": residency,
+                  "domestic_income": {"salary": {"has_salary_income": False}}, "other_sources": {}},
+        "us": {"profile": {"tax_entity_type": "individual", "filing_status": "single", "ssn_or_itin_type": "ssn"},
+               "us_residency_detail": {"is_us_citizen": False, "has_green_card": False, "us_days_current_year": 0,
+                                       "spt_test_met": False, "final_us_residency_status": "NON_RESIDENT_ALIEN"},
+               "nra_specific": {"files_form_1040nr": True, "submitted_w8ben": True},
+               "income_us_source": {"ira_distributions_usd": 40000, "pension_income_usd": 20000, "social_security_benefits_usd": 24000}},
+    })
+    assert r["computed"]["usTax"]["totalTaxBeforeFtcUsd"] == 6120.0
+    assert r["computed"]["ftc"]["india"]["reliefAllowedUsd"] == 0
+    assert r["computed"]["indiaTax"]["totalTaxInr"] > 0
