@@ -1211,7 +1211,7 @@ var CASCADE_ONLY_PATHS = ["summary.healthScore", "summary.counts", "monitoring.h
 // mismatch can be attributed to the SPECIFIC finding ID responsible and
 // checked against the allowlist above, instead of a single opaque
 // "findings: array length/type" line that both hides and over-reports. -----
-function compareFindings(dagFindings, realFindings, isUsEntity, isNotUsPerson) {
+function compareFindings(dagFindings, realFindings, isUsEntity, isNotUsPerson, noIndiaTreatyPosition) {
   var dagById = {}; dagFindings.forEach(function (f) { dagById[f.id] = f; });
   var realById = {}; realFindings.forEach(function (f) { realById[f.id] = f; });
   var allIds = {}; Object.keys(dagById).concat(Object.keys(realById)).forEach(function (id) { allIds[id] = 1; });
@@ -1234,6 +1234,8 @@ function compareFindings(dagFindings, realFindings, isUsEntity, isNotUsPerson) {
       // case is still always real.
       if (id === "underpayment_2210" && isUsEntity) {
         known.push("findings: engine has \"underpayment_2210\", DAG doesn't (US entity — Form 2210/§6654 doesn't apply; see agg10-nodes.js's us1ShouldFire override, GAP_TRACKER.md section H)");
+      } else if (id === "treaty_docs_missing" && noIndiaTreatyPosition) {
+        known.push("findings: engine has \"treaty_docs_missing\", DAG doesn't (TRC + Form 41 only back a treaty position taken in India; a 1040-NR filer or Indian treaty resident claims US benefits via W-8BEN/Form 8833 — findings-batch4-nodes.js, GAP_TRACKER IN-47)");
       } else if (id === "fbar_limit" && isNotUsPerson) {
         known.push("findings: engine has \"fbar_limit\", DAG doesn't (FBAR is a US-person obligation — findings-batch5-nodes.js)");
       } else if (id === "underpayment_2210" || id === "ftc_gap" || id === "ftc_available" || id === "niit_medicare_not_creditable") {
@@ -1405,7 +1407,10 @@ function compareOne(label, profile, saveOnFail) {
   var nraTreatyRateFieldRenameDivergent = isNraTreatyRateFieldRenameDivergentProfile(profile);
   var dagRes = dag.computed && dag.computed.residency;
   var isNotUsPerson = !usEntity && !!dagRes && !(dagRes.us && dagRes.us.isResident);
-  var findingsResult = compareFindings(dag.findings, real.findings, usEntity, isNotUsPerson);
+  var dtaaIn = (profile.india && profile.india.dtaa) || {};
+  var noIndiaTreatyPosition = !(dtaaIn.dtaa_treaty_residence === "us" || dtaaIn.dtaa_forced_nr === true || (dtaaIn.treaty_elections || []).length > 0 ||
+    (profile.us && profile.us.us_residency_detail && profile.us.us_residency_detail.dtaa_treaty_residence === "us"));
+  var findingsResult = compareFindings(dag.findings, real.findings, usEntity, isNotUsPerson, noIndiaTreatyPosition);
   // AOP/Trust: findings content genuinely cascades from the (now correct)
   // India tax amount in ways too varied to enumerate by finding ID (see
   // KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS's comment) — treated wholesale as

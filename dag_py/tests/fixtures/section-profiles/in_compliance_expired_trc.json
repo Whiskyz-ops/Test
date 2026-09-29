@@ -58,6 +58,11 @@
       "path": "computed.indiaTax.totalTaxInr",
       "value": 208000,
       "why": "2,00,000 + 4% cess"
+    },
+    {
+      "path": "findings[id=treaty_docs_missing].severity",
+      "value": "critical",
+      "why": "an India-side treaty position with a TRC that doesn't cover the year: s.159(8) denies the treaty relief without a valid TRC"
     }
   ]
 }

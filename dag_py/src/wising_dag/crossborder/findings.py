@@ -920,7 +920,12 @@ def _findings_crossborder_result(d, ctx):
 
     # -- 3. TREATY BENEFIT CLAIMED WITHOUT TRC / FORM 10F (findings-batch4-nodes.js, conflicts.js:127-143) --
     treaty_elections = d["treatyElectionsRaw"]
-    claims_treaty = d["treatyIndiaResidenceRaw"] != "none" or d["treatyUsResidenceRaw"] != "none" or d["treatyDtaaForcedNrRaw"] or d["treatyFiles1040nrRaw"] or len(treaty_elections) > 0
+    # A TRC (US Form 6166) + Form 41 back a treaty position taken IN INDIA
+    # (s.159(8) / Rule 75): the tie-breaker sending residence to the US, a
+    # treaty-forced Indian non-residence, or DTAA rates elected on Indian
+    # income. A 1040-NR filer, or an Indian treaty resident, is claiming US
+    # treaty benefits (W-8BEN / Form 8833) and needs neither.
+    claims_treaty = d["treatyIndiaResidenceRaw"] == "us" or d["treatyUsResidenceRaw"] == "us" or d["treatyDtaaForcedNrRaw"] or len(treaty_elections) > 0
     if claims_treaty and (not d["treatyTrcStatus"] or not d["treatyForm10fFiled"]):
         missing = []
         if not d["treatyTrcStatus"]:

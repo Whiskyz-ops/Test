@@ -82,7 +82,8 @@ function loadProfiles() {
 function check(profile, result) {
   const problems = [];
   (profile.expect || []).forEach((e) => {
-    const got = pick(result, e.path);
+    const picked = pick(result, e.path);
+    const got = picked === undefined ? null : picked; // absent == null, as in the Python runner
     const tol = e.tol === undefined ? 1 : e.tol;
     const ok = typeof e.value === "number" ? typeof got === "number" && Math.abs(got - e.value) <= tol : JSON.stringify(got) === JSON.stringify(e.value);
     if (!ok) problems.push(e.path + ": expected " + JSON.stringify(e.value) + ", engine " + JSON.stringify(got) + "  (" + e.why + ")");

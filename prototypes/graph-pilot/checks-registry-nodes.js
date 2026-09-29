@@ -218,8 +218,9 @@ NODES.checksRegistryResult = {
     }
 
     // ---- D: findings-batch4-nodes.js -------------------------------------
-    var claimsTreaty = d.treatyIndiaResidenceRaw !== "none" || d.treatyUsResidenceRaw !== "none" ||
-      d.treatyDtaaForcedNrRaw || d.treatyFiles1040nrRaw || (d.treatyElectionsRaw || []).length > 0;
+    // Same India-side treaty position as treaty_docs_missing (findings-batch4-nodes.js).
+    var claimsTreaty = d.treatyIndiaResidenceRaw === "us" || d.treatyUsResidenceRaw === "us" ||
+      d.treatyDtaaForcedNrRaw || (d.treatyElectionsRaw || []).length > 0;
     if (claimsTreaty && d.treatyTrcStatus && d.treatyForm10fFiled) {
       pass("treaty_docs_missing", "treaty", "Treaty documentation complete", "A treaty position is claimed, and both TRC and Form 41 are on file to support it.");
     }

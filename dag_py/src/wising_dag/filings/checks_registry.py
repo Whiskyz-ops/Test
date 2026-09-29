@@ -128,8 +128,9 @@ def _checks_registry_result(d, ctx):
             pass_("pe_article7", "treaty", "PE on file but no attributable business income yet", "A permanent establishment is on file, but no Indian business/professional income is recorded against it this year.")
 
     # ---- D: findings-batch4-nodes.js -------------------------------------
-    claims_treaty = d["treatyIndiaResidenceRaw"] != "none" or d["treatyUsResidenceRaw"] != "none" or \
-        d["treatyDtaaForcedNrRaw"] or d["treatyFiles1040nrRaw"] or len(d["treatyElectionsRaw"] or []) > 0
+    # Same India-side treaty position as treaty_docs_missing (crossborder/findings.py).
+    claims_treaty = d["treatyIndiaResidenceRaw"] == "us" or d["treatyUsResidenceRaw"] == "us" or \
+        d["treatyDtaaForcedNrRaw"] or len(d["treatyElectionsRaw"] or []) > 0
     if claims_treaty and d["treatyTrcStatus"] and d["treatyForm10fFiled"]:
         pass_("treaty_docs_missing", "treaty", "Treaty documentation complete", "A treaty position is claimed, and both TRC and Form 41 are on file to support it.")
     cfl = d["carryForwardLossesMetaRaw"]

@@ -78,6 +78,11 @@
       "path": "computed.usTax.totalTaxBeforeFtcUsd",
       "value": 133007.25,
       "why": "ECI tax + FDAP tax + additional Medicare"
+    },
+    {
+      "path": "findings[id=treaty_docs_missing]",
+      "value": null,
+      "why": "no treaty position is taken in India (no US tie-break, no forced NR, no DTAA elections): a 1040-NR filer claims US treaty rates with a W-8BEN, so the Indian TRC/Form 41 alert must not fire"
     }
   ]
 }

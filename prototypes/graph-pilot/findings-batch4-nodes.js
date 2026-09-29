@@ -447,8 +447,13 @@ NODES.findingsBatch4Result = {
     var treatyElections = d.treatyElectionsRaw;
 
     // -- 3. TREATY BENEFIT CLAIMED WITHOUT TRC / FORM 10F (conflicts.js:127-143) --
-    var claimsTreaty = d.treatyIndiaResidenceRaw !== "none" || d.treatyUsResidenceRaw !== "none" ||
-      d.treatyDtaaForcedNrRaw || d.treatyFiles1040nrRaw || treatyElections.length > 0;
+    // A TRC (US Form 6166) + Form 41 back a treaty position taken IN INDIA
+    // (s.159(8) / Rule 75): the tie-breaker sending residence to the US, a
+    // treaty-forced Indian non-residence, or DTAA rates elected on Indian
+    // income. A 1040-NR filer, or an Indian treaty resident, is claiming US
+    // treaty benefits (W-8BEN / Form 8833) and needs neither.
+    var claimsTreaty = d.treatyIndiaResidenceRaw === "us" || d.treatyUsResidenceRaw === "us" ||
+      d.treatyDtaaForcedNrRaw || treatyElections.length > 0;
     if (claimsTreaty && (!d.treatyTrcStatus || !d.treatyForm10fFiled)) {
       var missing = [];
       if (!d.treatyTrcStatus) missing.push("TRC (IRS Form 6166)");

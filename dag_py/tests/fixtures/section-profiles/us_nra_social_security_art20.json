@@ -74,6 +74,11 @@
       "path": "findings[id=nra_fdap_flat_rate].title",
       "value": "1040-NR: FDAP taxed per income type, ECI at graduated rates",
       "why": "dividends 25% and interest 30% — no single flat rate to show (a blended 27% is a rate nothing is taxed at)"
+    },
+    {
+      "path": "findings[id=treaty_docs_missing]",
+      "value": null,
+      "why": "no treaty position is taken in India (no US tie-break, no forced NR, no DTAA elections): a 1040-NR filer claims US treaty rates with a W-8BEN, so the Indian TRC/Form 41 alert must not fire"
     }
   ]
 }
