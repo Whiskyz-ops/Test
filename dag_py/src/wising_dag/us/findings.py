@@ -36,7 +36,7 @@ from ..core.util import js_num_str, js_round, num, safe
 from ..india.aggregate_india_income import _annual_slice_agg
 from . import constants as C
 from . import us1_penalty_2210, us5_penalty_72t, us_full
-from .nra_fdap import nra_fdap_breakdown
+from .nra_fdap import nra_exempt_interest_usd, nra_fdap_breakdown
 
 T = C.US
 
@@ -190,7 +190,8 @@ def _nra_fdap_detail(d, ctx):
     fd = nra_fdap_breakdown(fdap_usd, d.get("aggregateUsIncomeResult") or {}, d.get("royaltiesDirectUsSourceUsdRaw") or 0,
                             safe(ctx.get("us"), "nra_specific.rental_net_basis_election", False) is True,
                             d["nraRaw"]["treatyRateClaims"], w8ben_on_file,
-                            safe(ctx.get("india"), "residency_detail.final_india_residency_status", None) != "NR")
+                            safe(ctx.get("india"), "residency_detail.final_india_residency_status", None) != "NR",
+                            nra_exempt_interest_usd(ctx.get("us")))
     fdap_rate = fd["effectiveRate"] if fd["effectiveRate"] is not None else (claimed_rate_fraction if (w8ben_on_file and claimed_rate_fraction is not None) else 0.30)
     gap_usd = fd["gapUsd"]
     return {

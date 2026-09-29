@@ -39,7 +39,7 @@ from ..core.graph import NodeDef
 from ..core.util import js_num_str, js_round, num, safe
 from . import constants as C
 from .ustax import bracket_breakdown, bracket_tax, compute_salt_cap, compute_us_tax_core
-from .nra_fdap import nra_fdap_breakdown
+from .nra_fdap import nra_exempt_interest_usd, nra_fdap_breakdown, nra_interest_split_recorded
 
 T = C.US
 
@@ -314,6 +314,39 @@ def _treaty_findings(d, ctx, is_nra):
             "expatriate tests (the Monitor's expatriation checks) and file Form 8854; otherwise file Form 1040-NR with Form 8833. Take immigration advice first.",
             0, ["DTAA Art. 4", "Treas. Reg. §301.7701(b)-7", "IRC §7701(b)(6)", "IRC §877A", "Form 8833", "Form 8854"],
         ))
+
+    if is_nra:
+        rows = n.get("fdapBreakdown") or []
+        ex_row = next((r for r in rows if r["type"] == "interest_exempt"), None)
+        taxed_row = next((r for r in rows if r["type"] == "interest"), None)
+        ui = safe(ctx.get("us"), "income_us_source", {}) or {}
+        direct_int_usd = num(ui.get("interest_us_source_usd"))
+        other_int_usd = num(ui.get("interest_us_oid_usd")) + num(ui.get("interest_us_private_usd"))
+        int_rate = taxed_row["rate"] if taxed_row else 0.30
+        if ex_row and ex_row["baseUsd"] > 0:
+            out.append(make_finding(
+                "nra_us_interest_exempt", "info", "income",
+                f"{_usd(ex_row['baseUsd'])} of US bank and Treasury interest is exempt for a non-resident alien",
+                "Interest on US bank deposits (IRC §871(i)(2)(A)) and portfolio interest — US Treasuries and registered bonds held at a broker "
+                f"(§871(h)) — is not taxed for a non-resident alien, so WISING computes no US tax on {_usd(ex_row['baseUsd'])} (about {_usd(ex_row['baseUsd'] * int_rate)}"
+                f" at the {js_round(int_rate * 100)}% it would otherwise carry)."
+                + (f" The {_usd(other_int_usd)} of private / OID / seller-financed interest is still taxed: it's portfolio interest only if the debt is "
+                   "in registered form and the client doesn't own 10% or more of the borrower." if other_int_usd > 0 else ""),
+                "Give each bank and broker Form W-8BEN so they don't apply 24% backup withholding; if they did, claim it back on Form 1040-NR. "
+                "Brokerage interest from a company the client owns 10% or more of, or contingent interest, isn't portfolio interest — move it to the private line."
+                + (" Confirm whether the private / OID interest qualifies as portfolio interest." if other_int_usd > 0 else ""),
+                ex_row["baseUsd"] * int_rate, ["IRC §871(i)(2)(A)", "IRC §871(h)", "Form W-8BEN", "Form 1040-NR"],
+            ))
+        elif direct_int_usd > 0 and not nra_interest_split_recorded(ctx.get("us")):
+            out.append(make_finding(
+                "nra_us_interest_exempt", "warning", "income",
+                f"US interest of {_usd(direct_int_usd)} taxed at {js_round(int_rate * 100)}% — its type isn't recorded, and bank or Treasury interest would be exempt",
+                "A non-resident alien pays no US tax on bank-deposit interest (IRC §871(i)(2)(A)) or portfolio interest such as US Treasuries (§871(h)). "
+                "The US intake has only a total for US interest, not the Banks & Brokerages / Treasuries / Private split, so WISING has taxed all "
+                f"{_usd(direct_int_usd)} — up to {_usd(direct_int_usd * int_rate)} of US tax that may not be owed.",
+                "Enter the US interest by type on the US intake (Banks & Brokerages, US Treasuries, Private / OID, Private / Seller Fin.).",
+                direct_int_usd * int_rate, ["IRC §871(i)(2)(A)", "IRC §871(h)", "Form 1040-NR"],
+            ))
 
     if is_nra and (n.get("art15ExemptUsd") or 0) > 0:
         days = js_num_str(n["art15UsDays"])
@@ -618,7 +651,7 @@ def _nra_tax_result(d, ctx):
     claimed_rate = max(0.0, min(1.0, num(claim["elected_rate"]) / 100)) if (claim and claim.get("elected_rate") is not None) else None
     w8ben_on_file = d["nraRaw"]["submittedW8ben"] is True
     detail = nra_fdap_breakdown(fdap_usd, d.get("aggregateUsIncomeResult") or {}, d.get("royaltiesDirectUsSourceUsdRaw") or 0,
-                                 safe(ctx.get("us"), "nra_specific.rental_net_basis_election", False) is True, claims, w8ben_on_file, treaty_resident)
+                                 safe(ctx.get("us"), "nra_specific.rental_net_basis_election", False) is True, claims, w8ben_on_file, treaty_resident, nra_exempt_interest_usd(ctx.get("us")))
     fdap_rate = detail["effectiveRate"] if detail["effectiveRate"] is not None else (claimed_rate if (w8ben_on_file and claimed_rate is not None) else 0.30)
 
     itemized_usd = min(ded["salt"], compute_salt_cap(eci_usd, status)) + ded["mortgageInterest"] + ded["charitable"] + max(0.0, ded["medical"] - 0.075 * eci_usd)

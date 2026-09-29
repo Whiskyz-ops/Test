@@ -15,8 +15,10 @@ function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
  * in order. */
 // treatyResident: false only when Layer 1 India records the client as NOT
 // resident in India — then no India-US treaty benefit applies at all.
-function nraFdapBreakdown(fdapUsd, agg, royaltiesUsd, rentalElected, claims, w8ben, treatyResident) {
+function nraFdapBreakdown(fdapUsd, agg, royaltiesUsd, rentalElected, claims, w8ben, treatyResident, exemptInterestUsd) {
   treatyResident = treatyResident !== false;
+  var interestUsd = num(agg.interestUs && agg.interestUs.usd);
+  var exemptIntUsd = Math.min(Math.max(0, num(exemptInterestUsd)), interestUsd);
   var rateFor = {};
   (claims || []).forEach(function (c) {
     if (!c || c.elected_rate == null || c.elected_rate === "") return;
@@ -28,7 +30,8 @@ function nraFdapBreakdown(fdapUsd, agg, royaltiesUsd, rentalElected, claims, w8b
   function gap(t, base) { return treatyResident && !w8ben && rateFor[t] != null ? base * (0.30 - rateFor[t]) : 0; }
   var typed = [
     { type: "dividends", baseUsd: num(agg.ordinaryDividendsUs && agg.ordinaryDividendsUs.usd), rate: rate("dividend"), basis: "Art. 10" },
-    { type: "interest", baseUsd: num(agg.interestUs && agg.interestUs.usd), rate: rate("interest"), basis: "Art. 11" },
+    { type: "interest_exempt", baseUsd: exemptIntUsd, rate: 0, basis: "IRC §871(i)/(h): bank-deposit and portfolio (incl. Treasury) interest exempt for a non-resident alien" },
+    { type: "interest", baseUsd: interestUsd - exemptIntUsd, rate: rate("interest"), basis: "Art. 11" },
     { type: "royalties", baseUsd: num(royaltiesUsd), rate: rate("royaltie"), basis: "Art. 12" },
     { type: "rent", baseUsd: rentalElected ? 0 : num(agg.rentalUs && agg.rentalUs.usd), rate: 0.30, basis: "gross rent, no treaty reduction" }
   ];
@@ -62,4 +65,21 @@ function nraFdapBreakdown(fdapUsd, agg, royaltiesUsd, rentalElected, claims, w8b
   };
 }
 
-module.exports = { nraFdapBreakdown: nraFdapBreakdown };
+/* US interest a non-resident alien owes no US tax on, from Layer 1 US's own
+ * interest split: "Banks & Brokerages" (bank deposits, IRC §871(i)(2)(A);
+ * registered bonds held at a broker, portfolio interest, §871(h)) and "US
+ * Treasuries" (portfolio interest, §871(h)). "Private / OID" and "Private /
+ * Seller Fin." stay taxable — whether they qualify as portfolio interest
+ * (registered form, lender not a 10% owner) isn't collected. */
+function nraExemptInterestUsd(us) {
+  var ui = (us && us.income_us_source) || {};
+  return Math.min(num(ui.interest_us_bank_usd) + num(ui.interest_us_treasury_usd), num(ui.interest_us_source_usd));
+}
+/* Whether Layer 1 recorded the interest split at all (older data, or an
+ * interest total entered another way, has only interest_us_source_usd). */
+function nraInterestSplitRecorded(us) {
+  var ui = (us && us.income_us_source) || {};
+  return ["interest_us_bank_usd", "interest_us_treasury_usd", "interest_us_oid_usd", "interest_us_private_usd"].some(function (k) { return num(ui[k]) > 0; });
+}
+
+module.exports = { nraFdapBreakdown: nraFdapBreakdown, nraExemptInterestUsd: nraExemptInterestUsd, nraInterestSplitRecorded: nraInterestSplitRecorded };

@@ -6,7 +6,7 @@ from __future__ import annotations
 from ..core.util import num
 
 
-def nra_fdap_breakdown(fdap_usd, agg, royalties_usd, rental_elected, claims, w8ben, treaty_resident=True):
+def nra_fdap_breakdown(fdap_usd, agg, royalties_usd, rental_elected, claims, w8ben, treaty_resident=True, exempt_interest_usd=0):
     # treaty_resident: False only when Layer 1 India records the client as NOT
     # resident in India — then no India-US treaty benefit applies at all.
     treaty_resident = treaty_resident is not False
@@ -36,9 +36,12 @@ def nra_fdap_breakdown(fdap_usd, agg, royalties_usd, rental_elected, claims, w8b
     def usd(v):
         return num(v["usd"]) if v else 0
 
+    interest_usd = usd(agg.get("interestUs"))
+    exempt_int_usd = min(max(0.0, num(exempt_interest_usd)), interest_usd)
     typed = [
         {"type": "dividends", "baseUsd": usd(agg.get("ordinaryDividendsUs")), "rate": rate("dividend"), "basis": "Art. 10"},
-        {"type": "interest", "baseUsd": usd(agg.get("interestUs")), "rate": rate("interest"), "basis": "Art. 11"},
+        {"type": "interest_exempt", "baseUsd": exempt_int_usd, "rate": 0, "basis": "IRC §871(i)/(h): bank-deposit and portfolio (incl. Treasury) interest exempt for a non-resident alien"},
+        {"type": "interest", "baseUsd": interest_usd - exempt_int_usd, "rate": rate("interest"), "basis": "Art. 11"},
         {"type": "royalties", "baseUsd": num(royalties_usd), "rate": rate("royaltie"), "basis": "Art. 12"},
         {"type": "rent", "baseUsd": 0 if rental_elected else usd(agg.get("rentalUs")), "rate": 0.30, "basis": "gross rent, no treaty reduction"},
     ]
@@ -74,3 +77,16 @@ def nra_fdap_breakdown(fdap_usd, agg, royalties_usd, rental_elected, claims, w8b
         "pensionUsd": pension_usd if treaty_resident else 0, "pensionTaxUsd": 0 if treaty_resident else 0.30 * pension_usd,
         "pensionTaxableUsd": 0 if treaty_resident else pension_usd, "gapUsd": gap_usd,
     }
+
+
+def nra_exempt_interest_usd(us):
+    """US interest a non-resident alien owes no US tax on (bank deposits,
+    §871(i)(2)(A); portfolio incl. Treasury interest, §871(h)) from Layer 1
+    US's own interest split. Mirrors nra-fdap-util.js."""
+    ui = (us or {}).get("income_us_source") or {}
+    return min(num(ui.get("interest_us_bank_usd")) + num(ui.get("interest_us_treasury_usd")), num(ui.get("interest_us_source_usd")))
+
+
+def nra_interest_split_recorded(us):
+    ui = (us or {}).get("income_us_source") or {}
+    return any(num(ui.get(k)) > 0 for k in ("interest_us_bank_usd", "interest_us_treasury_usd", "interest_us_oid_usd", "interest_us_private_usd"))

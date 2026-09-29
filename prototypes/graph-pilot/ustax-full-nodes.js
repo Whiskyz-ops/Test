@@ -36,6 +36,8 @@ var CONST = require("./constants.js").CONST;
 var T = CONST.TAX.US;
 var computeUsTaxCore = require("./ustax-nodes.js").computeUsTaxCore;
 var nraFdapBreakdown = require("./nra-fdap-util.js").nraFdapBreakdown;
+var nraExemptInterestUsd = require("./nra-fdap-util.js").nraExemptInterestUsd;
+var nraInterestSplitRecorded = require("./nra-fdap-util.js").nraInterestSplitRecorded;
 
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 function safe(obj, path, dflt) {
@@ -419,7 +421,8 @@ NODES.usEntityStateTaxResult = {
  *  - us_social_security_india_exempt  DTAA Art. 20(2)
  *  - treaty_saving_clause_citizen     DTAA Art. 1(3)
  *  - greencard_treaty_nonresident     DTAA Art. 4 / IRC §7701(b)(6)
- *  - nra_art15_services_exempt        DTAA Art. 15 / Art. 7 */
+ *  - nra_art15_services_exempt        DTAA Art. 15 / Art. 7
+ *  - nra_us_interest_exempt           IRC §871(h)/(i) (not a treaty rule) */
 function treatyFindings(d, ctx, isNra) {
   var out = [];
   var u = d.usTaxResult || {};
@@ -490,6 +493,41 @@ function treatyFindings(d, ctx, isNra) {
         "expatriate tests (the Monitor's expatriation checks) and file Form 8854; otherwise file Form 1040-NR with Form 8833. Take immigration advice first.",
       amountUsd: 0, refs: ["DTAA Art. 4", "Treas. Reg. §301.7701(b)-7", "IRC §7701(b)(6)", "IRC §877A", "Form 8833", "Form 8854"]
     });
+  }
+
+  if (isNra) {
+    var rows = n.fdapBreakdown || [];
+    var exRow = rows.filter(function (r) { return r.type === "interest_exempt"; })[0];
+    var taxedRow = rows.filter(function (r) { return r.type === "interest"; })[0];
+    var ui = (ctx.us && ctx.us.income_us_source) || {};
+    var directIntUsd = num(ui.interest_us_source_usd);
+    var otherIntUsd = num(ui.interest_us_oid_usd) + num(ui.interest_us_private_usd);
+    var intRate = taxedRow ? taxedRow.rate : 0.30;
+    if (exRow && exRow.baseUsd > 0) {
+      out.push({
+        id: "nra_us_interest_exempt", severity: "info", category: "income",
+        title: usd(exRow.baseUsd) + " of US bank and Treasury interest is exempt for a non-resident alien",
+        detail: "Interest on US bank deposits (IRC §871(i)(2)(A)) and portfolio interest — US Treasuries and registered bonds held at a broker " +
+          "(§871(h)) — is not taxed for a non-resident alien, so WISING computes no US tax on " + usd(exRow.baseUsd) + " (about " + usd(exRow.baseUsd * intRate) +
+          " at the " + Math.round(intRate * 100) + "% it would otherwise carry)." +
+          (otherIntUsd > 0 ? " The " + usd(otherIntUsd) + " of private / OID / seller-financed interest is still taxed: it's portfolio interest only if the debt is " +
+            "in registered form and the client doesn't own 10% or more of the borrower." : ""),
+        recommendation: "Give each bank and broker Form W-8BEN so they don't apply 24% backup withholding; if they did, claim it back on Form 1040-NR. " +
+          "Brokerage interest from a company the client owns 10% or more of, or contingent interest, isn't portfolio interest — move it to the private line." +
+          (otherIntUsd > 0 ? " Confirm whether the private / OID interest qualifies as portfolio interest." : ""),
+        amountUsd: exRow.baseUsd * intRate, refs: ["IRC §871(i)(2)(A)", "IRC §871(h)", "Form W-8BEN", "Form 1040-NR"]
+      });
+    } else if (directIntUsd > 0 && !nraInterestSplitRecorded(ctx.us)) {
+      out.push({
+        id: "nra_us_interest_exempt", severity: "warning", category: "income",
+        title: "US interest of " + usd(directIntUsd) + " taxed at " + Math.round(intRate * 100) + "% — its type isn't recorded, and bank or Treasury interest would be exempt",
+        detail: "A non-resident alien pays no US tax on bank-deposit interest (IRC §871(i)(2)(A)) or portfolio interest such as US Treasuries (§871(h)). " +
+          "The US intake has only a total for US interest, not the Banks & Brokerages / Treasuries / Private split, so WISING has taxed all " +
+          usd(directIntUsd) + " — up to " + usd(directIntUsd * intRate) + " of US tax that may not be owed.",
+        recommendation: "Enter the US interest by type on the US intake (Banks & Brokerages, US Treasuries, Private / OID, Private / Seller Fin.).",
+        amountUsd: directIntUsd * intRate, refs: ["IRC §871(i)(2)(A)", "IRC §871(h)", "Form 1040-NR"]
+      });
+    }
   }
 
   if (isNra && (n.art15ExemptUsd || 0) > 0) {
@@ -794,7 +832,7 @@ NODES.nraTaxResult = {
     var claim = (nra.treatyRateClaims || [])[0];
     var claimedRate = (claim && claim.elected_rate != null) ? Math.max(0, Math.min(1, Number(claim.elected_rate) / 100)) : null;
     var w8benOnFile = nra.submittedW8ben === true;
-    var fdapDetail = nraFdapBreakdown(fdapUsd, d.aggregateUsIncomeResult, d.royaltiesDirectUsSourceUsdRaw, safe(ctx.us, "nra_specific.rental_net_basis_election", false) === true, nra.treatyRateClaims, w8benOnFile, treatyResident);
+    var fdapDetail = nraFdapBreakdown(fdapUsd, d.aggregateUsIncomeResult, d.royaltiesDirectUsSourceUsdRaw, safe(ctx.us, "nra_specific.rental_net_basis_election", false) === true, nra.treatyRateClaims, w8benOnFile, treatyResident, nraExemptInterestUsd(ctx.us));
     var fdapRate = fdapDetail.effectiveRate != null ? fdapDetail.effectiveRate : ((w8benOnFile && claimedRate != null) ? claimedRate : 0.30);
 
     var itemizedUsd = Math.min(ded.salt, computeSaltCap(eciUsd, status)) + ded.mortgageInterest + ded.charitable +

@@ -75,6 +75,7 @@ function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
 function inr(n) { return "₹" + Math.round(n).toLocaleString("en-IN"); }
 var fxRate = require("./fx-util.js").fxRate;
 var nraFdapBreakdown = require("./nra-fdap-util.js").nraFdapBreakdown;
+var nraExemptInterestUsd = require("./nra-fdap-util.js").nraExemptInterestUsd;
 function inrToUsd(v, ctx) { return Number(v) / fxRate(ctx); } // rate overridable via ctx.fxRateOverride — see fx-util.js
 
 var findingsBatch3Nodes = require("./findings-batch3-nodes.js").NODES;
@@ -375,7 +376,7 @@ NODES.nraFdapDetail = {
     // the same rows nraTaxResult taxes, via nra-fdap-util.js.
     var fd = nraFdapBreakdown(fdapUsd, d.aggregateUsIncomeResult, d.royaltiesDirectUsSourceUsdRaw,
       safe(ctx.us, "nra_specific.rental_net_basis_election", false) === true, d.nraRaw.treatyRateClaims, w8benOnFile,
-      safe(ctx.india, "residency_detail.final_india_residency_status", null) !== "NR");
+      safe(ctx.india, "residency_detail.final_india_residency_status", null) !== "NR", nraExemptInterestUsd(ctx.us));
     var fdapRate = fd.effectiveRate != null ? fd.effectiveRate : ((w8benOnFile && claimedRateFraction != null) ? claimedRateFraction : 0.30);
     var gapUsd = fd.gapUsd;
     return {

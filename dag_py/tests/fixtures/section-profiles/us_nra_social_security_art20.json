@@ -46,7 +46,8 @@
       "ordinary_dividends_us_source_usd": 10000,
       "ira_distributions_usd": 40000,
       "pension_income_usd": 20000,
-      "social_security_benefits_usd": 24000
+      "social_security_benefits_usd": 24000,
+      "interest_us_private_usd": 5000
     }
   },
   "expect": [
@@ -89,6 +90,11 @@
       "path": "findings[id=us_pension_withholding_no_w8ben]",
       "value": null,
       "why": "W-8BEN is on file, so the payers can pay the Art. 20(1)-exempt pension without withholding"
+    },
+    {
+      "path": "findings[id=nra_us_interest_exempt]",
+      "value": null,
+      "why": "the $5,000 is recorded as private-loan interest: taxable, and nothing to flag"
     }
   ]
 }

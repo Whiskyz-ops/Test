@@ -46,7 +46,7 @@ const BY_ID = {
   disclosure: ["fbar_limit", "schedule_fa_inconsistent", "pfic", "cfc", "cfc_below_threshold", "transfer_pricing", "foreign_gift_3520",
     "covered_expat_gift_tax", "black_money_act_exposure", "form_1099da_awareness", "lrs_limit", "firpta",
     "us_covered_expatriate_exit_tax", "us_ltr_expatriation_not_covered"],
-  us_only: ["amt_applies", "state_income_tax", "us_entity_state_tax", "us_entity_state_tax_not_modeled", "retirement_excess_elective_deferral",
+  us_only: ["nra_us_interest_exempt", "amt_applies", "state_income_tax", "us_entity_state_tax", "us_entity_state_tax_not_modeled", "retirement_excess_elective_deferral",
     "retirement_excess_ira_contribution", "hsa_excess_contribution", "retirement_rmd_required", "trump_account_contribution_limit"]
 };
 const GROUP_OF = {};
