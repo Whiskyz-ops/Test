@@ -1,0 +1,88 @@
+{
+  "id": "xb_form44_accountant",
+  "form": "layer1_us.html",
+  "section": "Foreign tax credit in India (Form 44)",
+  "story": "US citizen living in India (resident and ordinarily resident), single, one US W-2 of $100,000 with $15,000 of US federal tax withheld. India taxes the wages too and gives credit for the US tax — with Form 44, which needs an accountant's verification because the US tax paid is over Rs 1,00,000.",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "has_green_card": false,
+    "us_days": 20
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "manual_days": 345,
+      "days_in_india_current_year": 345,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      }
+    },
+    "other_sources": {},
+    "itr_recommendation": {
+      "form": "ITR-1 (SAHAJ)",
+      "explanation": "For Resident Salaried Individuals with total income up to ₹50 Lakhs (Salary, 1 house property, basic other sources). Restrictions: No foreign assets, no capital gains, no directorships."
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "nra_specific": {},
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Client Co",
+          "wages_box1_usd": 100000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 15000,
+            "medicare_wages_box5_usd": 100000
+          }
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 15000
+    }
+  },
+  "expect": [
+    {
+      "path": "findings[id=form67_required].refs",
+      "value": [
+        "s.159",
+        "Rule 76",
+        "Form 44",
+        "Schedule FSI",
+        "Schedule TR",
+        "Rule 76(16) accountant verification"
+      ],
+      "why": "resident taxed on worldwide income with US-source wages; US tax paid 15,000 x 83 = Rs 12,45,000 >= Rs 1,00,000, so Form 44 must be verified by an accountant (rule 76(16))"
+    },
+    {
+      "path": "documents[id=form_67].required",
+      "value": true,
+      "why": "same rule-76 gate on the documents checklist"
+    }
+  ]
+}

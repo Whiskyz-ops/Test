@@ -77,6 +77,11 @@
       "path": "documents[id=trc].required",
       "value": true,
       "why": "the documents checklist asks for the US TRC for the same India-side claim"
+    },
+    {
+      "path": "findings[id=form67_required]",
+      "value": null,
+      "why": "non-resident in India: rule 76(1) gives foreign tax credit to residents only, so there is no Form 44 to file"
     }
   ]
 }

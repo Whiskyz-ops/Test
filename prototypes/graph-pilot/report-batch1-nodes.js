@@ -526,8 +526,10 @@ NODES.buildDocumentsResult = {
       // isResident catch-all — false-positive on 6/12 demo profiles. Fixed
       // to usSourceTotal, properly ANDed with the ROR gate (RNOR/NR aren't
       // taxed on foreign income in India, matching schedule_fa 2 lines down).
-      form_67: res.india.status === "ROR" &&
-               (d.aggregateUsIncomeResult.usSourceTotal.usd > 0 || d.taxesPaidUsResult.total.usd > 0),
+      // Same gate as the form67_required finding: India taxes this resident
+      // on worldwide income (rule 76(1)) — a resident treated as a US
+      // resident under the treaty tie-break doesn't need it.
+      form_67: res.india.worldwide && d.aggregateUsIncomeResult.usSourceTotal.usd > 0,
       // A US TRC (Form 6166) + Form 41 back a treaty position taken in India
       // only (findings-nodes.js's indiaTreatyPositionResult) — not an India
       // tie-break or a 1040-NR claim, which are US-side positions.

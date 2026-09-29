@@ -115,7 +115,7 @@ const KNOWN_EXTRA_FINDING_IDS = new Set([
 // for narrow, single-profile-scoped exceptions (e.g. withholding_
 // documentation_gap for india_ror_us_income's NRA treaty-rate field-name
 // divergence) that shouldn't be excused blanket-wide for every profile.
-function reconciledFindingIds(dagIds, realIds, isUsEntity, extraKnownExtraIds, isNotUsPerson) {
+function reconciledFindingIds(dagIds, realIds, isUsEntity, extraKnownExtraIds, isNotUsPerson, noIndiaFtc) {
   const dagSet = new Set(dagIds), realSet = new Set(realIds);
   let hadKnownIssue = false;
   const keepDag = dagIds.filter((id) => {
@@ -128,7 +128,10 @@ function reconciledFindingIds(dagIds, realIds, isUsEntity, extraKnownExtraIds, i
     const isEntitySuppressed = id === "underpayment_2210" && isUsEntity;
     const isBasketSplit = id === "underpayment_2210" || id === "ftc_gap" || id === "ftc_available" || id === "niit_medicare_not_creditable";
     const isFbarNonUsPerson = id === "fbar_limit" && isNotUsPerson; // FBAR: US persons only (findings-batch5-nodes.js)
-    if (isEntitySuppressed || isBasketSplit || isFbarNonUsPerson) { hadKnownIssue = true; return false; }
+    // Form 44: rule 76(1) — only when India taxes this resident on worldwide
+    // income and there is US-source income (GAP_TRACKER IN-53; run-fuzz.js).
+    const isNoIndiaFtc = id === "form67_required" && noIndiaFtc;
+    if (isEntitySuppressed || isBasketSplit || isFbarNonUsPerson || isNoIndiaFtc) { hadKnownIssue = true; return false; }
     return true;
   });
   return { dag: keepDag.sort(), real: keepReal.sort(), hadKnownIssue };
@@ -419,7 +422,9 @@ function checkResult(id, dag, real, profile) {
     : dag.summary;
   const reconciled = reconciledFindingIds(dag.findings.map(f => f.id), real.findings.map(f => f.id), usEntity,
     nraTreatyRateFieldRenameDivergent ? new Set(["withholding_documentation_gap"]) : null,
-    !usEntity && !!(dag.computed && dag.computed.residency && !dag.computed.residency.us.isResident));
+    !usEntity && !!(dag.computed && dag.computed.residency && !dag.computed.residency.us.isResident),
+    !(dag.computed && dag.computed.residency && dag.computed.residency.india.worldwide &&
+      dag.model && dag.model.income && dag.model.income.us && dag.model.income.us.usSourceTotal && dag.model.income.us.usSourceTotal.usd > 0));
   // CASCADE_ONLY_PATHS (run-fuzz.js/shadow-core.js): healthScore/counts are
   // mechanically derived from findings[], excusable only alongside a
   // catalogued findings-level ID exception in THIS same comparison.

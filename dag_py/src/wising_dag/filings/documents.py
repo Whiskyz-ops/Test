@@ -272,7 +272,8 @@ def _build_documents_result(d, ctx):
                      (d["aggregateUsIncomeResult"]["interestUs"]["usd"] + d["aggregateUsIncomeResult"]["ordinaryDividendsUs"]["usd"] + d["aggregateUsIncomeResult"]["capitalGainsUs"]["usd"]) > 0,
         "form_8959": d["usTaxResult"]["additionalMedicareUsd"] > 0,
         "form_8880": (d["usTaxResult"].get("saversCreditUsd") or 0) > 0,
-        "form_67": res["india"]["status"] == "ROR" and (d["aggregateUsIncomeResult"]["usSourceTotal"]["usd"] > 0 or d["taxesPaidUsResult"]["total"]["usd"] > 0),
+        # Same gate as the form67_required finding (rule 76(1)).
+        "form_67": res["india"]["worldwide"] and d["aggregateUsIncomeResult"]["usSourceTotal"]["usd"] > 0,
         # A US TRC (Form 6166) + Form 41 back a treaty position taken in India
         # only (indiaTreatyPositionResult) — not an India tie-break or a
         # 1040-NR claim, which are US-side positions.

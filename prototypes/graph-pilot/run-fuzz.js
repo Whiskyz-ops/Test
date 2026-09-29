@@ -685,7 +685,9 @@ var NEW_SCHED_C_TRACE = "Schedule C: gross receipts less returns/COGS, plus othe
 // Where only those two rows differ, take the engine's rows (and the
 // requiredDocs count and calendar docIds they feed) so every other document
 // difference still counts.
-var TRC_DOC_IDS = ["trc", "form_10f"];
+// form_67 (IN-53): rule 76(1) credit only for a resident taxed on worldwide
+// income with US-source income; the engine lists it more widely.
+var TRC_DOC_IDS = ["trc", "form_10f", "form_67"];
 function normalizeKnownTrcDocsDivergence(real, dag) {
   if (!Array.isArray(real.documents) || !Array.isArray(dag.documents)) return;
   var delta = 0;
@@ -720,6 +722,7 @@ var KNOWN_TREATY_TEXT_FIELDS = {
   treaty_docs_missing: ["detail"],
   dtaa_16_2_short_stay_india: ["recommendation", "refs"],
   nra_fdap_flat_rate: ["recommendation"],
+  form67_required: ["title", "detail", "recommendation", "refs"],
   equity_comp_sourcing: ["recommendation", "refs"]
 };
 
@@ -1266,7 +1269,7 @@ var CASCADE_ONLY_PATHS = ["summary.healthScore", "summary.counts", "monitoring.h
 // mismatch can be attributed to the SPECIFIC finding ID responsible and
 // checked against the allowlist above, instead of a single opaque
 // "findings: array length/type" line that both hides and over-reports. -----
-function compareFindings(dagFindings, realFindings, isUsEntity, isNotUsPerson, noIndiaTreatyPosition) {
+function compareFindings(dagFindings, realFindings, isUsEntity, isNotUsPerson, noIndiaTreatyPosition, noIndiaFtc) {
   var dagById = {}; dagFindings.forEach(function (f) { dagById[f.id] = f; });
   var realById = {}; realFindings.forEach(function (f) { realById[f.id] = f; });
   var allIds = {}; Object.keys(dagById).concat(Object.keys(realById)).forEach(function (id) { allIds[id] = 1; });
@@ -1292,6 +1295,8 @@ function compareFindings(dagFindings, realFindings, isUsEntity, isNotUsPerson, n
       // case is still always real.
       if (id === "underpayment_2210" && isUsEntity) {
         known.push("findings: engine has \"underpayment_2210\", DAG doesn't (US entity — Form 2210/§6654 doesn't apply; see agg10-nodes.js's us1ShouldFire override, GAP_TRACKER.md section H)");
+      } else if (id === "form67_required" && noIndiaFtc) {
+        known.push("findings: engine has \"form67_required\", DAG doesn't (rule 76(1): no Indian credit unless India taxes this resident on worldwide income and there is US-source income — GAP_TRACKER IN-53)");
       } else if (id === "treaty_docs_missing" && noIndiaTreatyPosition) {
         known.push("findings: engine has \"treaty_docs_missing\", DAG doesn't (TRC + Form 41 only back a treaty position taken in India; a 1040-NR filer or Indian treaty resident claims US benefits via W-8BEN/Form 8833 — findings-batch4-nodes.js, GAP_TRACKER IN-47)");
       } else if (id === "fbar_limit" && isNotUsPerson) {
@@ -1472,7 +1477,10 @@ function compareOne(label, profile, saveOnFail) {
   var dtaaIn = (profile.india && profile.india.dtaa) || {};
   var noIndiaTreatyPosition = !(dtaaIn.dtaa_treaty_residence === "us" || dtaaIn.dtaa_forced_nr === true || (dtaaIn.treaty_elections || []).length > 0 ||
     (profile.us && profile.us.us_residency_detail && profile.us.us_residency_detail.dtaa_treaty_residence === "us"));
-  var findingsResult = compareFindings(dag.findings, real.findings, usEntity, isNotUsPerson, noIndiaTreatyPosition);
+  var dagIndiaRes = dag.computed.residency && dag.computed.residency.india;
+  var dagUsSource = dag.model.income && dag.model.income.us && dag.model.income.us.usSourceTotal ? dag.model.income.us.usSourceTotal.usd : 0;
+  var noIndiaFtc = !(dagIndiaRes && dagIndiaRes.worldwide && dagUsSource > 0);
+  var findingsResult = compareFindings(dag.findings, real.findings, usEntity, isNotUsPerson, noIndiaTreatyPosition, noIndiaFtc);
   // AOP/Trust: findings content genuinely cascades from the (now correct)
   // India tax amount in ways too varied to enumerate by finding ID (see
   // KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS's comment) — treated wholesale as

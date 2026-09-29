@@ -1011,14 +1011,28 @@ def _findings_crossborder_result(d, ctx):
             total_gap_usd, ["Withholding tax", "TRC", "Form 41", "Form W-8BEN"],
         ))
 
-    # -- 5. FORM 44 TIMING (findings-batch5-nodes.js, conflicts.js:1062-1079) --
-    if d["hasIndiaScopeXbr"] and d["hasUsScopeBoundaryFtc"] and (d["aggregateUsIncomeResult"]["foreignSourceTotal"]["usd"] > 0 or d["taxesPaidUsResult"]["total"]["usd"] > 0):
+    # -- 5. FORM 44 (findings-batch5-nodes.js; rule 76 of the Income-tax Rules) --
+    # Credit for US tax goes only to a resident India taxes on worldwide income
+    # (rule 76(1)) — see findings-batch5-nodes.js.
+    us_source_for_ftc_usd = d["aggregateUsIncomeResult"]["usSourceTotal"]["usd"]
+    us_tax_paid_usd = d["taxesPaidUsResult"]["total"]["usd"]
+    if (d["hasIndiaScopeXbr"] and d["hasUsScopeBoundaryFtc"] and d["residencyResult"]["india"]["worldwide"]
+            and us_source_for_ftc_usd > 0):
+        ftc_year = int(num(safe(ctx.get("router"), "base_tax_year", 0)) or 0)
+        us_tax_paid_inr = us_tax_paid_usd * fx_rate(ctx)
+        needs_accountant = us_tax_paid_inr >= 100000
         findings.append(make_finding(
             "form67_required", "info", "document",
-            "Form 44 — required for the Indian FTC claim",
-            "Foreign income / foreign tax is present, so India requires Form 44 (with Schedule FSI and TR) on or before the ITR due date to allow FTC u/s 90/91.",
-            "WISING flags Form 44 (with Schedule FSI/TR) as required on the filing checklist, using the FSI/TR figures already computed above — actually preparing and e-filing it on the income-tax portal ahead of the ITR due date is still a manual step.",
-            0, ["Form 44", "Rule 128", "Schedule FSI", "Schedule TR"],
+            "Form 44 — needed to claim Indian credit for US tax",
+            f"India taxes this resident on worldwide income, so {_usd(us_source_for_ftc_usd)} of US-source income is also in the Indian return. India "
+            "gives credit for the US tax on it (s.159 and rule 76): for each source of income, the lower of the Indian tax on that income and the US tax "
+            "paid on it, converted at the SBI telegraphic-transfer buying rate for the month before the tax was paid. The credit is allowed only with "
+            "Form 44 and proof of the US tax paid (rule 76(10)–(11)).",
+            "File Form 44 with the US tax evidence (Form W-2 / 1099 withholding, or estimated-tax payment receipts) within 12 months after the end "
+            "of the tax year" + (f" (by 31 Mar {ftc_year + 2} for tax year {ftc_year}-{str(ftc_year + 1)[2:]})" if ftc_year else "")
+            + ", provided the ITR itself is filed on time; with an updated return, file it with that return (rule 76(12)–(13))."
+            + (f" US tax paid is about {_inr(us_tax_paid_inr)} — ₹1,00,000 or more — so Form 44 must be verified by an accountant (rule 76(16))." if needs_accountant else ""),
+            0, ["s.159", "Rule 76", "Form 44", "Schedule FSI", "Schedule TR"] + (["Rule 76(16) accountant verification"] if needs_accountant else []),
         ))
 
     # -- 12. FBAR LIMIT BREACH (findings-batch5-nodes.js, conflicts.js:1459-1468) --

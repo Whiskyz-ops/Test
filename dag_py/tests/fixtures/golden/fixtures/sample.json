@@ -1702,8 +1702,8 @@
       "desc": "Statement of foreign income & foreign tax, filed before the ITR due date.",
       "why": "Foreign (US) income is being offered to tax in India and FTC u/s 90/91 is claimed. Schedule FSI/TR must accompany the ITR.",
       "severity": "critical",
-      "required": true,
-      "status": "required"
+      "required": false,
+      "status": "not_triggered"
     },
     {
       "id": "trc",

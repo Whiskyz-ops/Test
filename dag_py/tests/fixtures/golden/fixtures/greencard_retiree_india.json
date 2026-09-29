@@ -1112,13 +1112,14 @@
       "id": "form67_required",
       "severity": "info",
       "category": "document",
-      "title": "Form 44 \u2014 required for the Indian FTC claim",
-      "detail": "Foreign income / foreign tax is present, so India requires Form 44 (with Schedule FSI and TR) on or before the ITR due date to allow FTC u/s 90/91.",
-      "recommendation": "WISING flags Form 44 (with Schedule FSI/TR) as required on the filing checklist, using the FSI/TR figures already computed above \u2014 actually preparing and e-filing it on the income-tax portal ahead of the ITR due date is still a manual step.",
+      "title": "Form 44 \u2014 needed to claim Indian credit for US tax",
+      "detail": "India taxes this resident on worldwide income, so $200 of US-source income is also in the Indian return. India gives credit for the US tax on it (s.159 and rule 76): for each source of income, the lower of the Indian tax on that income and the US tax paid on it, converted at the SBI telegraphic-transfer buying rate for the month before the tax was paid. The credit is allowed only with Form 44 and proof of the US tax paid (rule 76(10)\u2013(11)).",
+      "recommendation": "File Form 44 with the US tax evidence (Form W-2 / 1099 withholding, or estimated-tax payment receipts) within 12 months after the end of the tax year (by 31 Mar 2028 for tax year 2026-27), provided the ITR itself is filed on time; with an updated return, file it with that return (rule 76(12)\u2013(13)).",
       "amountUsd": 0,
       "refs": [
+        "s.159",
+        "Rule 76",
         "Form 44",
-        "Rule 128",
         "Schedule FSI",
         "Schedule TR"
       ]

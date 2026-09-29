@@ -186,7 +186,8 @@ const KNOWN_TREATY_TEXT_FIELDS = {
   treaty_docs_missing: ["detail"],
   dtaa_16_2_short_stay_india: ["recommendation", "refs"],
   nra_fdap_flat_rate: ["recommendation"],
-  equity_comp_sourcing: ["recommendation", "refs"]
+  equity_comp_sourcing: ["recommendation", "refs"],
+  form67_required: ["title", "detail", "recommendation", "refs"]
 };
 
 // Returns true iff at least one of the catalogued ID-level exceptions
@@ -224,7 +225,7 @@ function diffFindings(engFindings, dagFindings, isUsEntity, out, isNotUsPerson) 
       const isFbarNonUsPerson = id === "fbar_limit" && isNotUsPerson;
       // treaty_docs_missing: the DAG only drops it when no treaty position is
       // taken in India (IN-47) — it never drops one the engine gets right.
-      const isTrcNarrowed = id === "treaty_docs_missing";
+      const isTrcNarrowed = id === "treaty_docs_missing" || id === "form67_required";
       if (isEntitySuppressed || isBasketSplit || isFbarNonUsPerson || isTrcNarrowed) hadKnownIssue = true;
       else out.push({ path: `findings[${id}]`, engine: "<present>", dag: "<missing>" });
     } else if (inDag && inEng) {
