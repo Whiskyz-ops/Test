@@ -1,0 +1,59 @@
+{
+  "id": "us_cdcc_2026_rate_single",
+  "form": "layer1_us.html",
+  "section": "Credits (child and dependent care)",
+  "story": "US citizen, single, wages $60,000, one child under 13, $3,000 of daycare. From 2026 the dependent-care credit rate starts at 50% and steps down with income; at $60,000 it is 35%, not the old flat 20%.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "metadata": {
+      "us_calendar_year": 2026
+    },
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 1
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard",
+      "child_and_dependent_care_expenses_usd": 3000,
+      "dependents_count": 1
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 60000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 5000,
+            "medicare_wages_box5_usd": 60000
+          }
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 5000
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.otherCreditsUsd",
+      "value": 1050,
+      "why": "IRC s.21(a)(2) as amended: 50% less 1 point per $2,000 (or part) over $15,000, not below 35% -> 35%; 35% x min(3,000, s.21(c) cap 3,000) = 1,050"
+    }
+  ]
+}

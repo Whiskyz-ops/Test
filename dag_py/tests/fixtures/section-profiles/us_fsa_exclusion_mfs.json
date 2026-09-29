@@ -1,0 +1,58 @@
+{
+  "id": "us_fsa_exclusion_mfs",
+  "form": "layer1_us.html",
+  "section": "W-2 (box 10 dependent-care benefits)",
+  "story": "US citizen, married filing separately, wages $80,000 with $5,000 of dependent-care FSA benefits in box 10. A separate return may exclude only $3,750 (half of $7,500), so $1,250 is taxable wages.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "metadata": {
+      "us_calendar_year": 2026
+    },
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "married_filing_separately",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 80000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 5000,
+            "medicare_wages_box5_usd": 80000,
+            "dependent_care_benefits_box10_usd": 5000
+          }
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 5000
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.agiUsd",
+      "value": 81250,
+      "why": "IRC s.129(a)(2)(A): exclusion $7,500, $3,750 on a separate return; 5,000 - 3,750 = 1,250 added to wages"
+    }
+  ]
+}

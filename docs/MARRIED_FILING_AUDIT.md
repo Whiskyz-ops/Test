@@ -38,22 +38,21 @@ Confirmed gaps have a runnable probe: `node scripts/audit/married-filing-probes.
 | Area | Rows | ✅ | 🟡 | ❌ | 🐞 | ➖ |
 |---|---|---|---|---|---|---|
 | A. What the forms collect about the spouse | 11 | 1 | 4 | 6 | – | – |
-| B. US filing-status parameters | 30 | 16 | 2 | 5 | 6 | 1 |
+| B. US filing-status parameters | 30 | 19 | 2 | 5 | 3 | 1 |
 | C. US separate-filer eligibility | 9 | 2 | 1 | 3 | 2 | 1 |
 | D. US per-person rules | 16 | 3 | 4 | 5 | 4 | – |
 | E. Other US joint-return mechanics | 7 | 1 | 2 | 3 | 1 | – |
 | F. India | 15 | 5 | 6 | 4 | – | – |
 | G. Cross-border | 15 | 2 | 3 | 8 | 2 | – |
-| **Total** | **103** | **30** | **22** | **34** | **15** | **2** |
+| **Total** | **103** | **33** | **22** | **34** | **12** | **2** |
 
 ### Wrong results found by the source check (code-read, not yet probed)
 
+B10, B19 and B20 were fixed on 29 Sep 2026 (IN-54); B4 waits on the CPA's reading of the separate-filer SALT rule.
+
 | Row | What happens | Who is affected |
 |---|---|---|
-| B20 | Dependent-care credit at a flat 20%; the 2026 law gives 50%, stepping down to 35% and then 20% (§21(a)(2)) | Every client with childcare costs and AGI under $105,000 ($210,000 joint) — up to $1,800 of credit missing on $6,000 of expenses |
 | B4 | Separate filers' SALT cap: $10,000 floor instead of $5,000 and a 30% phase-down instead of an effective 15% (§164(b)(6)–(7)) | Married filing separately, MAGI above $252,500 |
-| B19 | Dependent-care FSA exclusion $7,500 instead of $3,750 on a separate return (§129(a)(2)(A)) | Married filing separately with an FSA |
-| B10 | QBI threshold $201,750 instead of $201,775 for separate filers (Rev. Proc. 2025-32 §3.26) | Married filing separately with business income right at the threshold ($25 band) |
 
 ### Wrong results today (probe-confirmed)
 
@@ -99,7 +98,7 @@ status. 2026 values were compared where both exist.
 | B7 | AMT exemption and phase-out | ✅ | *source* Rev. Proc. 2025-32 §3.10: exemption $140,200 / $90,100 / $70,100 separate; phase-out from $1,000,000 / $500,000 / $500,000 at 50% — match |
 | B8 | AMT 26%/28% break (half for separate) | ✅ | *source* Rev. Proc. 2025-32 §3.10: 28% above $244,500, $122,250 separate — match `AMT_RATE_BREAK` |
 | B9 | Child tax credit phase-out | ✅ | *source* Rev. Proc. 2025-32 §3.05 ($2,200, refundable $1,700); IRC §24(h)(3) phase-out $400,000 joint / $200,000 other — match |
-| B10 | QBI threshold and phase-in | 🐞 | *source* Rev. Proc. 2025-32 §3.26: separate filers $201,775 (phase-in to $276,775); engine uses $201,750 (`constants.js` `QBI_THRESHOLD.mfs`, also `us/constants.py`). $25 off — deduction limits start $25 early for separate filers. Joint $403,500 / $553,500 and other $201,750 / $276,750 match |
+| B10 | QBI threshold and phase-in | ✅ | *source* Rev. Proc. 2025-32 §3.26: separate filers $201,775 (phase-in to $276,775), joint $403,500, other $201,750. Fixed 29 Sep 2026 (IN-54): `QBI_THRESHOLD.mfs` was $201,750 |
 | B11 | Saver's credit AGI brackets | ✅ | *source* Notice 2025-67: joint $48,500 / $52,500 / $80,500; HOH $36,375 / $39,375 / $60,375; other $24,250 / $26,250 / $40,250 — match |
 | B12 | Senior deduction phase-out | ✅ | *source* IRC §151(d)(5)(C): $6,000 per qualified individual, 6% above $75,000 / $150,000 joint; separate filers need a joint return — match |
 | B13 | Tips / overtime caps and phase-outs; $0 for separate filers | ✅ | *code* `ustax-nodes.js:314` |
@@ -108,8 +107,8 @@ status. 2026 values were compared where both exist.
 | B16 | Form 8938 thresholds (joint, abroad) | ✅ | *source* Treas. Reg. §1.6038D-2(a): $50,000/$75,000; $100,000/$150,000 joint; abroad $200,000/$300,000; $400,000/$600,000 joint — match |
 | B17 | Estimated tax: 110% prior-year rule above $150,000 AGI | ✅ | *source* IRC §6654(d)(1)(C)(i): 110% above $150,000 prior-year AGI — correct for joint and single; separate filers see E1 |
 | B18 | Social Security taxation thresholds, separate filers | 🟡 | *source* IRC §86(c)(1)(C) and (2)(C): $0 only if married, separate return, and lived with the spouse at any time; otherwise $25,000 / $34,000. *code*: always $0; A6 not asked |
-| B19 | Dependent-care FSA exclusion ($7,500; $3,750 separate from 2026) | 🐞 | *source* IRC §129(a)(2)(A) (OBBBA): $7,500, **$3,750 on a separate return**. *code* `aggregateusincome-nodes.js:509`: $7,500 for every filer — a separate filer's excess over $3,750 stays untaxed |
-| B20 | Child and dependent care credit rate phase-out | 🐞 | *source* IRC §21(a)(2) (OBBBA, 2026 on): 50%, down 1 point per $2,000 of AGI over $15,000 to 35%, then down 1 point per $2,000 ($4,000 joint) over $75,000 ($150,000 joint) to 20%. *code* `ustax-nodes.js:476` and `findings-batch6-nodes.js:204`: flat 20% — the credit is understated for every client below $105,000 AGI ($210,000 joint), by up to 30 points. The $3,000 / $6,000 expense cap (§21(c)) matches |
+| B19 | Dependent-care FSA exclusion ($7,500; $3,750 separate from 2026) | ✅ | *source* IRC §129(a)(2)(A) (OBBBA): $7,500, $3,750 on a separate return. Fixed 29 Sep 2026 (IN-54): the box 10 exclusion is halved for separate filers (`aggregateusincome-nodes.js` wagesComputation). Profile us_fsa_exclusion_mfs |
+| B20 | Child and dependent care credit rate phase-out | ✅ | *source* IRC §21(a)(2) (OBBBA, 2026 on): 50%, down 1 point per $2,000 (or part) of AGI over $15,000 to 35%, then down 1 point per $2,000 ($4,000 joint) over $75,000 ($150,000 joint) to 20%; before 2026, 35% down to 20%. Fixed 29 Sep 2026 (IN-54): `cdccRate` in `ustax-nodes.js` (was a flat 20%). $3,000 / $6,000 expense cap (§21(c)) matches. Profiles us_cdcc_2026_rate_single, us_cdcc_2026_rate_mfj |
 | B21 | Education credit phase-out | 🟡 | *source* IRC §25A(d): phase-out joint vs other only — matches; separate filers not blocked (see C3) |
 | B22 | Capital loss limit $3,000 / $1,500 separate, with short/long-term carryovers | ✅ | fixed 29 Sep 2026 (IN-52): Schedule D netting incl. the form's carryovers; *probe* US-P3 passes; profiles us_capital_loss_limit, us_capital_loss_carryover_mfs |
 | B23 | Student-loan interest: cap and MAGI phase-out | 🐞 | *source* Rev. Proc. 2025-32 §3.29: $2,500 cap phasing out $85,000–$100,000 MAGI ($175,000–$205,000 joint). *probe* US-P5 — cap only, no phase-out |

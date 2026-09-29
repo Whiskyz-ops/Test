@@ -252,7 +252,8 @@ def _compute_us_tax_core(d, extra_ltcg_usd: float, extra_stcg_usd: float) -> flo
     edu_lo, edu_hi = (160000, 180000) if status == "mfj" else (80000, 90000)
     edu_phase = 1.0 if magi <= edu_lo else (0.0 if magi >= edu_hi else 1 - (magi - edu_lo) / (edu_hi - edu_lo))
     care_cap = 6000 if (ded.get("dependents") or 0) >= 2 else 3000
-    child_care_credit = 0.20 * min(ded.get("careExpenses") or 0, care_cap)
+    from ..us.ustax import cdcc_rate
+    child_care_credit = cdcc_rate(agi, status, d["baseYearUs"]) * min(ded.get("careExpenses") or 0, care_cap)
     aotc_credit = min(ded.get("aotc") or 0, 2500 * max(1, ded.get("dependents") or 1)) * edu_phase
     llc_credit = min(ded.get("lifetimeLearning") or 0, 2000) * edu_phase
     other_credits_usd = min(js_round(child_care_credit + aotc_credit + llc_credit), js_round(income_tax))

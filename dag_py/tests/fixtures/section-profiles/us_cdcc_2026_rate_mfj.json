@@ -1,0 +1,59 @@
+{
+  "id": "us_cdcc_2026_rate_mfj",
+  "form": "layer1_us.html",
+  "section": "Credits (child and dependent care)",
+  "story": "US citizens married filing jointly, wages $180,000, two children under 13, $8,000 of daycare. The rate falls from 35% by 1 point per $4,000 (or part) of AGI over $150,000 on a joint return: 8 points, so 27%.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "metadata": {
+      "us_calendar_year": 2026
+    },
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "married_filing_jointly",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 2
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard",
+      "child_and_dependent_care_expenses_usd": 8000,
+      "dependents_count": 2
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 180000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 5000,
+            "medicare_wages_box5_usd": 180000
+          }
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 5000
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.otherCreditsUsd",
+      "value": 1620,
+      "why": "s.21(a)(2)(B): 35% - ceil((180,000 - 150,000) / 4,000) = 35 - 8 = 27%; 27% x min(8,000, s.21(c) cap 6,000) = 1,620"
+    }
+  ]
+}

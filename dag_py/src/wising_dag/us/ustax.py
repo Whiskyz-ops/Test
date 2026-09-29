@@ -10,6 +10,7 @@ same pattern.
 """
 from __future__ import annotations
 
+import math
 import re
 from datetime import datetime
 
@@ -87,6 +88,24 @@ def bracket_breakdown(amount: float, slabs: list) -> list[dict]:
         else:
             break
     return rows
+
+
+def cdcc_rate(agi: float, status: str, year) -> float:
+    """§21(a)(2) child and dependent care credit rate — mirrors ustax-nodes.js cdccRate."""
+    r = C.US["CDCC_RATE"]
+    a = max(0.0, agi or 0)
+
+    def steps(thr, step):
+        return math.ceil((a - thr) / step) if a > thr else 0
+
+    if (year or 2025) < 2026:
+        p = r["pre2026"]
+        return max(p["midPct"], p["startPct"] - steps(p["firstThresholdUsd"], p["firstStepUsd"])) / 100
+    n = r["from2026"]
+    k = "mfj" if status == "mfj" else "other"
+    pct = max(n["midPct"], n["startPct"] - steps(n["firstThresholdUsd"], n["firstStepUsd"]))
+    pct = max(n["floorPct"], pct - steps(n["secondThresholdUsd"][k], n["secondStepUsd"][k]))
+    return pct / 100
 
 
 def compute_salt_cap(agi: float, status: str) -> float:
@@ -495,7 +514,7 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     edu_lo, edu_hi = (160000, 180000) if status == "mfj" else (80000, 90000)
     edu_phase = 1.0 if magi <= edu_lo else (0.0 if magi >= edu_hi else 1 - (magi - edu_lo) / (edu_hi - edu_lo))
     care_cap = 6000 if (ded.get("dependents") or 0) >= 2 else 3000
-    child_care_credit = 0.20 * min(ded.get("careExpenses") or 0, care_cap)
+    child_care_credit = cdcc_rate(agi, status, base_year_us) * min(ded.get("careExpenses") or 0, care_cap)
     aotc_credit = min(ded.get("aotc") or 0, 2500 * max(1, ded.get("dependents") or 1)) * edu_phase
     llc_credit = min(ded.get("lifetimeLearning") or 0, 2000) * edu_phase
     # §25B Retirement Savings Contributions Credit ("Saver's Credit", task

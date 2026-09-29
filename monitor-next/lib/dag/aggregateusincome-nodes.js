@@ -425,6 +425,15 @@ var NODES = {
   },
 
   baseYearUsAgg: { deps: [], compute: function (d, ctx) { return num(safe(ctx.us, "metadata.us_calendar_year", 2025)) || 2025; } },
+  // Duplicated from ustax-nodes.js's usFilingStatusRaw so this domain stays
+  // self-contained (only "is it a separate return" is needed here).
+  usFilingStatusAgg: {
+    deps: [],
+    compute: function (d, ctx) {
+      var s = (safe(ctx.us, "profile.filing_status", "single") || "single").toLowerCase();
+      return (s === "married_filing_separately" || s === "mfs") ? "mfs" : s;
+    }
+  },
 
   uiAgg: { deps: [], compute: function (d, ctx) { return foldUsIncomeSource(safe(ctx.us, "income_us_source", {})); } },
   fiAgg: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "income_foreign_source", {}); } },
@@ -481,7 +490,7 @@ var NODES = {
   },
 
   wagesComputation: {
-    deps: ["uiAgg", "baseYearUsAgg"],
+    deps: ["uiAgg", "baseYearUsAgg", "usFilingStatusAgg"],
     compute: function (d) {
       var wages = 0, w2with = 0, medicareWages = 0, qualifiedTipsUsd = 0, qualifiedOvertimeUsd = 0, dependentCareUsd = 0;
       var w2Employers = [];
@@ -504,9 +513,11 @@ var NODES = {
           w2Employers.push({ employerName: w.employer_name || null, wagesUsd: wagesUsd, federalWithheldUsd: fedWithUsd, stateWithheldUsd: stateWithUsd });
         });
       }
-      // Box 10 dependent-care benefits above the §129 exclusion (per return)
-      // are taxable wages (Form 2441 Part III).
+      // Box 10 dependent-care benefits above the §129 exclusion (per return;
+      // half on a separate return, §129(a)(2)(A)) are taxable wages (Form
+      // 2441 Part III).
       var dcCap = d.baseYearUsAgg >= 2026 ? CONST_AGGUS.TAX.US.DEPENDENT_CARE_EXCLUSION_2026_USD : CONST_AGGUS.TAX.US.DEPENDENT_CARE_EXCLUSION_USD;
+      if (d.usFilingStatusAgg === "mfs") dcCap = dcCap / 2;
       wages += Math.max(0, dependentCareUsd - dcCap);
       return { wagesUsd: wages, w2WithholdingUsd: w2with, w2Employers: w2Employers, medicareWagesUsd: medicareWages, qualifiedTipsUsd: qualifiedTipsUsd, qualifiedOvertimeUsd: qualifiedOvertimeUsd };
     }

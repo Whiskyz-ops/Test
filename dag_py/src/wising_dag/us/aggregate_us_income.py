@@ -228,8 +228,11 @@ def _wages_computation(d, ctx):
             for st in safe(w, "state_and_local_taxes", []) or []:
                 state_with_usd += num(st.get("state_tax_withheld_box17_usd") or 0)
             w2_employers.append({"employerName": w.get("employer_name"), "wagesUsd": wages_usd, "federalWithheldUsd": fed_with_usd, "stateWithheldUsd": state_with_usd})
-    # Box 10 dependent-care benefits above the §129 exclusion are wages.
+    # Box 10 dependent-care benefits above the §129 exclusion are wages
+    # (half the exclusion on a separate return, §129(a)(2)(A)).
     dc_cap = C.US["DEPENDENT_CARE_EXCLUSION_2026_USD"] if d["baseYearUsAgg"] >= 2026 else C.US["DEPENDENT_CARE_EXCLUSION_USD"]
+    if d["usFilingStatusAgg"] == "mfs":
+        dc_cap = dc_cap / 2
     wages += max(0.0, dependent_care_usd - dc_cap)
     return {"wagesUsd": wages, "w2WithholdingUsd": w2with, "w2Employers": w2_employers, "medicareWagesUsd": medicare_wages, "qualifiedTipsUsd": qualified_tips_usd, "qualifiedOvertimeUsd": qualified_overtime_usd}
 
@@ -901,10 +904,13 @@ def build(base):
     # fixed at the source with an explicit int cast, same precedent as
     # crossborder/apportionment.py's apportionmentBaseYearRaw.
     r.register("baseYearUsAgg", NodeDef(deps=(), compute=lambda d, ctx: int(num(safe(ctx.get("us"), "metadata.us_calendar_year", 2025)) or 2025), layer1_fields=("us.metadata.us_calendar_year",)))
+    # Mirrors aggregateusincome-nodes.js usFilingStatusAgg (only "mfs" matters here).
+    r.register("usFilingStatusAgg", NodeDef(deps=(), compute=lambda d, ctx: (lambda s: "mfs" if s in ("married_filing_separately", "mfs") else s)(
+        (safe(ctx.get("us"), "profile.filing_status", "single") or "single").lower()), layer1_fields=("us.profile.filing_status",)))
     r.register("uiAgg", NodeDef(deps=(), compute=lambda d, ctx: _fold_us_income_source(safe(ctx.get("us"), "income_us_source", {}))))
     r.register("fiAgg", NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "income_foreign_source", {})))
 
-    r.register("wagesComputation", NodeDef(deps=("uiAgg", "baseYearUsAgg"), compute=_wages_computation, layer1_fields=_WAGES_FIELDS))
+    r.register("wagesComputation", NodeDef(deps=("uiAgg", "baseYearUsAgg", "usFilingStatusAgg"), compute=_wages_computation, layer1_fields=_WAGES_FIELDS))
     r.register("w2WorkLocation", NodeDef(deps=("uiAgg",), compute=_w2_work_location, layer1_fields=(
         "us.us_residency_detail.is_us_citizen", "us.us_residency_detail.has_green_card", "us.us_residency_detail.final_us_residency_status",
         "us.us_residency_detail.us_days_current_year", "us.nra_specific.files_form_1040nr",

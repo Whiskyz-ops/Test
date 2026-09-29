@@ -407,12 +407,22 @@
         // §129 dependent-care exclusion (W-2 Box 10): $5,000; $7,500 from TY2026 (OBBBA).
         DEPENDENT_CARE_EXCLUSION_USD: 5000,
         DEPENDENT_CARE_EXCLUSION_2026_USD: 7500,
+        // §21(a)(2) child and dependent care credit rate. From TY2026 (OBBBA):
+        // 50%, less 1 point per $2,000 (or part) of AGI over $15,000 down to
+        // 35%, then less 1 point per $2,000 ($4,000 joint) over $75,000
+        // ($150,000 joint) down to 20%. Before 2026: 35% less 1 point per
+        // $2,000 over $15,000, down to 20%. Expense cap §21(c): $3,000 / $6,000.
+        CDCC_RATE: {
+          pre2026: { startPct: 35, firstThresholdUsd: 15000, firstStepUsd: 2000, midPct: 20 },
+          from2026: { startPct: 50, firstThresholdUsd: 15000, firstStepUsd: 2000, midPct: 35,
+                      secondThresholdUsd: { mfj: 150000, other: 75000 }, secondStepUsd: { mfj: 4000, other: 2000 }, floorPct: 20 }
+        },
         // ---- Qualified Business Income deduction (§199A), TY2026 ----
         // OBBBA widened the phase-in range itself (structural change, not just
         // inflation indexing) starting TY2026: $75,000 single/HoH/MFS and
         // $150,000 MFJ, up from $50,000/$100,000 for TY2025.
         QBI_RATE: 0.20,
-        QBI_THRESHOLD: { single: 201750, mfj: 403500, mfs: 201750, hoh: 201750 },
+        QBI_THRESHOLD: { single: 201750, mfj: 403500, mfs: 201775, hoh: 201750 },  // Rev. Proc. 2025-32 §3.26
         QBI_PHASEIN: { single: 75000, mfj: 150000, mfs: 75000, hoh: 75000 },
         // ---- Alternative Minimum Tax (§55), TY2026 ----
         // OBBBA restructured the AMT exemption phase-out starting TY2026: the

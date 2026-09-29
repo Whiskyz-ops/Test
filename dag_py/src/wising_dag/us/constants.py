@@ -71,8 +71,14 @@ US = {
     "SS_WAGE_BASE_USD": 184500,
     "DEPENDENT_CARE_EXCLUSION_USD": 5000,
     "DEPENDENT_CARE_EXCLUSION_2026_USD": 7500,
+    # §21(a)(2) child and dependent care credit rate — mirrors constants.js CDCC_RATE.
+    "CDCC_RATE": {
+        "pre2026": {"startPct": 35, "firstThresholdUsd": 15000, "firstStepUsd": 2000, "midPct": 20},
+        "from2026": {"startPct": 50, "firstThresholdUsd": 15000, "firstStepUsd": 2000, "midPct": 35,
+                     "secondThresholdUsd": {"mfj": 150000, "other": 75000}, "secondStepUsd": {"mfj": 4000, "other": 2000}, "floorPct": 20},
+    },
     "QBI_RATE": 0.20,
-    "QBI_THRESHOLD": {"single": 201750, "mfj": 403500, "mfs": 201750, "hoh": 201750},
+    "QBI_THRESHOLD": {"single": 201750, "mfj": 403500, "mfs": 201775, "hoh": 201750},  # Rev. Proc. 2025-32 §3.26
     "QBI_PHASEIN": {"single": 75000, "mfj": 150000, "mfs": 75000, "hoh": 75000},
     "AMT_EXEMPTION": {"single": 90100, "mfj": 140200, "mfs": 70100, "hoh": 90100},
     "AMT_PHASEOUT": {"single": 500000, "mfj": 1000000, "mfs": 500000, "hoh": 500000},

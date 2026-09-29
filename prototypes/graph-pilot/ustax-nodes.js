@@ -95,6 +95,20 @@ function bracketBreakdown(amount, slabs) {
   for (var i = 0; i < slabs.length; i++) { var cap = slabs[i][0], rate = slabs[i][1]; if (t > prev) { var taxable = Math.min(t, cap) - prev; rows.push({ from: prev, to: cap, rate: rate, taxable: taxable, tax: taxable * rate }); prev = cap; } else break; }
   return rows;
 }
+// §21(a)(2) child and dependent care credit rate (constants.js CDCC_RATE).
+// "or fraction thereof" — any part of a step costs a full point.
+function cdccRate(agi, status, year) {
+  var R = T.CDCC_RATE, a = Math.max(0, agi || 0);
+  var steps = function (thr, step) { return a > thr ? Math.ceil((a - thr) / step) : 0; };
+  if ((year || 2025) < 2026) {
+    var p = R.pre2026;
+    return Math.max(p.midPct, p.startPct - steps(p.firstThresholdUsd, p.firstStepUsd)) / 100;
+  }
+  var n = R.from2026, k = status === "mfj" ? "mfj" : "other";
+  var pct = Math.max(n.midPct, n.startPct - steps(n.firstThresholdUsd, n.firstStepUsd));
+  pct = Math.max(n.floorPct, pct - steps(n.secondThresholdUsd[k], n.secondStepUsd[k]));
+  return pct / 100;
+}
 function computeSaltCap(agi, status) {
   var base = T.SALT_CAP_BASE_USD[status] || T.SALT_CAP_BASE_USD.single;
   var threshold = T.SALT_CAP_PHASEOUT_THRESHOLD_USD[status] || T.SALT_CAP_PHASEOUT_THRESHOLD_USD.single;
@@ -473,7 +487,7 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       var eduLo = status === "mfj" ? 160000 : 80000, eduHi = status === "mfj" ? 180000 : 90000;
       var eduPhase = magi <= eduLo ? 1 : (magi >= eduHi ? 0 : 1 - (magi - eduLo) / (eduHi - eduLo));
       var careCap = (ded.dependents >= 2 ? 6000 : 3000);
-      var childCareCredit = 0.20 * Math.min(ded.careExpenses || 0, careCap);
+      var childCareCredit = cdccRate(agi, status, baseYearUs) * Math.min(ded.careExpenses || 0, careCap);
       var aotcCredit = Math.min(ded.aotc || 0, 2500 * Math.max(1, ded.dependents || 1)) * eduPhase;
       var llcCredit = Math.min(ded.lifetimeLearning || 0, 2000) * eduPhase;
       // §25B Retirement Savings Contributions Credit ("Saver's Credit",
