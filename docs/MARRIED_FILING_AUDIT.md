@@ -15,30 +15,45 @@ after review.
 | PolicyEngine-US (parameters and variables, statute-cited) | Every US parameter keyed by filing status (47 files), every separate-filer eligibility rule (14 variables), every head/spouse per-person rule (23 variables) | Local copy |
 | India-US DTAA Technical Explanation (the PDF you supplied) | Treaty rules touching spouses or family | Local copy |
 | The engine (prototypes/graph-pilot, dag_py) and both intake forms | What is actually collected and computed | Local |
-| irs.gov, incometaxindia.gov.in, incometax.gov.in, law.cornell.edu, ecfr.gov, indiankanoon.org | Primary text | **Blocked by the environment's network policy** |
+| IRS: Rev. Proc. 2025-32 (2026 inflation amounts), Notice 2025-67 (2026 retirement limits) | Every 2026 dollar amount in B–E | Downloaded from irs.gov, 29 Sep 2026 |
+| US Code title 26 and Treas. Regs (Cornell LII) | The rule behind every row in B–E | Fetched from law.cornell.edu, 29 Sep 2026 |
+| Income-tax Act 2025 ss.10, 92, 99, 159 and Rule 76 (extracts you supplied, `docs/sources/INDIA_ACT_2025_EXTRACTS.md`) | F and G rows that cite them | Local copy |
+| incometaxindia.gov.in, ecfr.gov | — | Blocked (anti-bot) |
 
-Because the Indian primary sources were blocked, every India row is from
-knowledge and is marked for CA confirmation. Section numbers cite the 1961 Act;
+US rows B–E were checked against the statute and the 2026 IRS tables on
+29 Sep 2026: every row now cites its IRC section, and the check turned up
+four wrong results the earlier code read had missed (B4, B10, B19, B20).
+India rows are from knowledge unless they cite the Act extracts you
+supplied, and are marked for CA confirmation. Section numbers cite the 1961 Act;
 the CA should map them to the 2025 Act.
 
 Confirmed gaps have a runnable probe: `node scripts/audit/married-filing-probes.js`
 (the probe works the legal answer by hand and compares it with the engine).
 
 **Status:** ✅ handled · 🟡 partial · ❌ missing · 🐞 wrong result today · ➖ not relevant to this client base.
-**Evidence:** *probe* = run through the engine; *code* = read in the engine; *form* = read in the intake form; *law* = rule from PolicyEngine / treaty text / knowledge.
+**Evidence:** *probe* = run through the engine; *code* = read in the engine; *form* = read in the intake form; *source* = primary text (IRC, Treas. Reg., IRS revenue procedure/notice, Indian Act); *law* = rule from PolicyEngine / treaty text / knowledge.
 
 ## Summary
 
 | Area | Rows | ✅ | 🟡 | ❌ | 🐞 | ➖ |
 |---|---|---|---|---|---|---|
 | A. What the forms collect about the spouse | 11 | 1 | 4 | 6 | – | – |
-| B. US filing-status parameters | 30 | 18 | 4 | 5 | 2 | 1 |
+| B. US filing-status parameters | 30 | 16 | 2 | 5 | 6 | 1 |
 | C. US separate-filer eligibility | 9 | 2 | 1 | 3 | 2 | 1 |
 | D. US per-person rules | 16 | 3 | 4 | 5 | 4 | – |
 | E. Other US joint-return mechanics | 7 | 1 | 2 | 3 | 1 | – |
 | F. India | 15 | 5 | 6 | 4 | – | – |
 | G. Cross-border | 15 | 2 | 3 | 8 | 2 | – |
-| **Total** | **103** | **32** | **24** | **34** | **11** | **2** |
+| **Total** | **103** | **30** | **22** | **34** | **15** | **2** |
+
+### Wrong results found by the source check (code-read, not yet probed)
+
+| Row | What happens | Who is affected |
+|---|---|---|
+| B20 | Dependent-care credit at a flat 20%; the 2026 law gives 50%, stepping down to 35% and then 20% (§21(a)(2)) | Every client with childcare costs and AGI under $105,000 ($210,000 joint) — up to $1,800 of credit missing on $6,000 of expenses |
+| B4 | Separate filers' SALT cap: $10,000 floor instead of $5,000 and a 30% phase-down instead of an effective 15% (§164(b)(6)–(7)) | Married filing separately, MAGI above $252,500 |
+| B19 | Dependent-care FSA exclusion $7,500 instead of $3,750 on a separate return (§129(a)(2)(A)) | Married filing separately with an FSA |
+| B10 | QBI threshold $201,750 instead of $201,775 for separate filers (Rev. Proc. 2025-32 §3.26) | Married filing separately with business income right at the threshold ($25 band) |
 
 ### Wrong results today (probe-confirmed)
 
@@ -66,7 +81,7 @@ US-P3 (capital losses without the $3,000 limit, all filers) was fixed on 29 Sep 
 | A8 | Marriage / divorce / death dates, spouse died this year, surviving-spouse years | 🟡 | *form*: surviving-spouse status offered; no dates |
 | A9 | §6013(g)/(h) election for a non-resident spouse | ✅ | *form*: asked; see G4 for the missing spouse income |
 | A10 | Link to the spouse's own India profile | ❌ | *form*: linked profiles exist only for corporations (`linked_client_id`) |
-| A11 | Spouse SSN valid for work (senior deduction; tips/overtime need both spouses' SSNs on a joint return) | 🟡 | *law*: PolicyEngine `additional_senior_deduction_eligible_person`, `tip_income_deduction_ssn_requirement_met`; *form*: taxpayer's ID type only |
+| A11 | Spouse SSN valid for work (senior deduction; tips/overtime need both spouses' SSNs on a joint return) | 🟡 | *source* IRC §151(d)(5)(C)(iv), §224(e), §225(d); *form*: taxpayer's ID type only |
 
 ## B. US parameters that depend on filing status
 
@@ -75,32 +90,32 @@ status. 2026 values were compared where both exist.
 
 | # | Rule | Status | Evidence |
 |---|---|---|---|
-| B1 | Tax brackets | ✅ | *code* `TAX.US.BRACKETS`; matched in earlier profiles |
-| B2 | Standard deduction | ✅ | values = PolicyEngine |
-| B3 | Capital-gains 0/15/20% thresholds | ✅ | *code* `LTCG_BRACKETS` |
-| B4 | SALT cap and phase-out ($40,400 / $20,200 separate) | ✅ | values = PolicyEngine |
-| B5 | NIIT threshold | ✅ | values = PolicyEngine |
-| B6 | Additional Medicare threshold | ✅ | values = PolicyEngine; head of household falls back to single ($200,000), same value |
-| B7 | AMT exemption and phase-out | ✅ | values = PolicyEngine |
-| B8 | AMT 26%/28% break (half for separate) | ✅ | *code* `AMT_RATE_BREAK` |
-| B9 | Child tax credit phase-out | ✅ | values = PolicyEngine |
-| B10 | QBI threshold and phase-in | ✅ | $25 off for separate filers ($201,750 vs PolicyEngine $201,775) — confirm |
-| B11 | Saver's credit AGI brackets | ✅ | *code* |
-| B12 | Senior deduction phase-out | ✅ | *code*; separate filers excluded by law and by the engine |
+| B1 | Tax brackets | ✅ | *source* Rev. Proc. 2025-32 §3.01 Tables 1–4 — all four 2026 schedules match `TAX.US.BRACKETS` |
+| B2 | Standard deduction | ✅ | *source* Rev. Proc. 2025-32 §3.14: $32,200 joint / $24,150 HOH / $16,100 single and separate — match |
+| B3 | Capital-gains 0/15/20% thresholds | ✅ | *source* Rev. Proc. 2025-32 §3.03: 0% to $98,900 joint / $49,450 separate / $66,200 HOH / $49,450 single; 15% to $613,700 / $306,850 / $579,600 / $545,500 — match `LTCG_BRACKETS` |
+| B4 | SALT cap and phase-out ($40,400 / $20,200 separate) | 🐞 | *source* IRC §164(b)(6)(B), (7): 2026 cap $40,400, reduced by 30% of MAGI over $505,000 (half the threshold for separate filers) but not below $10,000; a separate filer gets **half** of that amount — $20,200, floor $5,000, effective phase-down 15%. *code* `ustax-nodes.js:98` (and copies in `ustax-full-nodes.js`, `findings-batch6-nodes.js`): separate filer $20,200 cut at 30% with a $10,000 floor — too low for MAGI $252,500–$320,500 (by up to $5,100 of cap at $286,500), too high above $320,500 (by $5,000 from $353,834). Joint and single match. Reading of the half rule: [Likely] — confirm with the CPA |
+| B5 | NIIT threshold | ✅ | *source* IRC §1411(b): $250,000 joint / $125,000 separate / $200,000 other, not indexed — match |
+| B6 | Additional Medicare threshold | ✅ | *source* IRC §3101(b)(2): $250,000 joint / $125,000 separate / $200,000 other, not indexed — match; head of household falls back to single ($200,000), same value |
+| B7 | AMT exemption and phase-out | ✅ | *source* Rev. Proc. 2025-32 §3.10: exemption $140,200 / $90,100 / $70,100 separate; phase-out from $1,000,000 / $500,000 / $500,000 at 50% — match |
+| B8 | AMT 26%/28% break (half for separate) | ✅ | *source* Rev. Proc. 2025-32 §3.10: 28% above $244,500, $122,250 separate — match `AMT_RATE_BREAK` |
+| B9 | Child tax credit phase-out | ✅ | *source* Rev. Proc. 2025-32 §3.05 ($2,200, refundable $1,700); IRC §24(h)(3) phase-out $400,000 joint / $200,000 other — match |
+| B10 | QBI threshold and phase-in | 🐞 | *source* Rev. Proc. 2025-32 §3.26: separate filers $201,775 (phase-in to $276,775); engine uses $201,750 (`constants.js` `QBI_THRESHOLD.mfs`, also `us/constants.py`). $25 off — deduction limits start $25 early for separate filers. Joint $403,500 / $553,500 and other $201,750 / $276,750 match |
+| B11 | Saver's credit AGI brackets | ✅ | *source* Notice 2025-67: joint $48,500 / $52,500 / $80,500; HOH $36,375 / $39,375 / $60,375; other $24,250 / $26,250 / $40,250 — match |
+| B12 | Senior deduction phase-out | ✅ | *source* IRC §151(d)(5)(C): $6,000 per qualified individual, 6% above $75,000 / $150,000 joint; separate filers need a joint return — match |
 | B13 | Tips / overtime caps and phase-outs; $0 for separate filers | ✅ | *code* `ustax-nodes.js:314` |
 | B14 | Charitable deduction for non-itemizers ($2,000 joint) | ✅ | *code* |
 | B15 | §68 itemized limitation (2/37) | ✅ | *code*; status-aware through the 37% bracket |
-| B16 | Form 8938 thresholds (joint, abroad) | ✅ | *code* `LIMITS.FORM_8938` |
-| B17 | Estimated tax: 110% prior-year rule above $150,000 AGI | ✅ | *code* for joint/single |
-| B18 | Social Security taxation thresholds, separate filers | 🟡 | *code*: always $0 — correct only if the spouses lived together (PolicyEngine: $25,000/$34,000 if apart all year); A6 not asked |
-| B19 | Dependent-care FSA exclusion ($7,500; $3,750 separate from 2026) | 🟡 | *code*: per-return cap, no separate-filer halving |
-| B20 | Child and dependent care credit rate phase-out | 🟡 | *code*: flat 20% (`ustax-nodes.js:450`) — confirm the 2026 rate schedule |
-| B21 | Education credit phase-out | 🟡 | *code*: joint vs other only; separate filers not blocked (see C3) |
+| B16 | Form 8938 thresholds (joint, abroad) | ✅ | *source* Treas. Reg. §1.6038D-2(a): $50,000/$75,000; $100,000/$150,000 joint; abroad $200,000/$300,000; $400,000/$600,000 joint — match |
+| B17 | Estimated tax: 110% prior-year rule above $150,000 AGI | ✅ | *source* IRC §6654(d)(1)(C)(i): 110% above $150,000 prior-year AGI — correct for joint and single; separate filers see E1 |
+| B18 | Social Security taxation thresholds, separate filers | 🟡 | *source* IRC §86(c)(1)(C) and (2)(C): $0 only if married, separate return, and lived with the spouse at any time; otherwise $25,000 / $34,000. *code*: always $0; A6 not asked |
+| B19 | Dependent-care FSA exclusion ($7,500; $3,750 separate from 2026) | 🐞 | *source* IRC §129(a)(2)(A) (OBBBA): $7,500, **$3,750 on a separate return**. *code* `aggregateusincome-nodes.js:509`: $7,500 for every filer — a separate filer's excess over $3,750 stays untaxed |
+| B20 | Child and dependent care credit rate phase-out | 🐞 | *source* IRC §21(a)(2) (OBBBA, 2026 on): 50%, down 1 point per $2,000 of AGI over $15,000 to 35%, then down 1 point per $2,000 ($4,000 joint) over $75,000 ($150,000 joint) to 20%. *code* `ustax-nodes.js:476` and `findings-batch6-nodes.js:204`: flat 20% — the credit is understated for every client below $105,000 AGI ($210,000 joint), by up to 30 points. The $3,000 / $6,000 expense cap (§21(c)) matches |
+| B21 | Education credit phase-out | 🟡 | *source* IRC §25A(d): phase-out joint vs other only — matches; separate filers not blocked (see C3) |
 | B22 | Capital loss limit $3,000 / $1,500 separate, with short/long-term carryovers | ✅ | fixed 29 Sep 2026 (IN-52): Schedule D netting incl. the form's carryovers; *probe* US-P3 passes; profiles us_capital_loss_limit, us_capital_loss_carryover_mfs |
-| B23 | Student-loan interest: cap and MAGI phase-out | 🐞 | *probe* US-P5 — cap $2,500 only, no phase-out |
-| B24 | Mortgage acquisition-debt cap ($750,000 / $375,000 separate) | ❌ | *code*: absent |
-| B25 | 65+ / blind additional standard deduction | 🐞 | *code*: absent for every filer |
-| B26 | Excess business loss limit (§461(l)) | ❌ | *code*: absent |
+| B23 | Student-loan interest: cap and MAGI phase-out | 🐞 | *source* Rev. Proc. 2025-32 §3.29: $2,500 cap phasing out $85,000–$100,000 MAGI ($175,000–$205,000 joint). *probe* US-P5 — cap only, no phase-out |
+| B24 | Mortgage acquisition-debt cap ($750,000 / $375,000 separate) | ❌ | *source* IRC §163(h)(3)(F)(i)(II) (made permanent by OBBBA): $750,000 / $375,000 separate. *code*: absent |
+| B25 | 65+ / blind additional standard deduction | 🐞 | *source* Rev. Proc. 2025-32 §3.14(3) and IRC §63(f): $1,650 per 65+ or blind person, $2,050 if unmarried. *code*: absent for every filer |
+| B26 | Excess business loss limit (§461(l)) | ❌ | *source* Rev. Proc. 2025-32 §3.31: $256,000 / $512,000 joint for 2026 (IRC §461(l)(3)(A)(ii)(II), indexed from 2026). *code*: absent |
 | B27 | Car-loan interest deduction (OBBBA) | ❌ | *code* and *form*: absent |
 | B28 | Business-loss and misc. limits (`ald/loss/max`, `max_business_losses`) | ❌ | *code*: absent |
 | B29 | Elderly/disabled credit, clean-vehicle credits, rebates, unemployment exclusion, personal exemption | ➖ | not relevant to this client base / expired |
@@ -110,48 +125,48 @@ status. 2026 values were compared where both exist.
 
 | # | Rule | Status | Evidence |
 |---|---|---|---|
-| C1 | Senior deduction not for separate filers | ✅ | *code* `ustax-nodes.js:305` |
-| C2 | Tips / overtime deductions not for separate filers | ✅ | *code* `ustax-nodes.js:314` |
-| C3 | Education credits not for separate filers (§25A(g)(6)) | 🐞 | *probe* US-P4 |
-| C4 | Student-loan interest not for separate filers (§221(e)(2)) | 🐞 | *probe* US-P5 |
-| C5 | Child and dependent care credit not for separate filers unless lived apart | ❌ | *law*: PolicyEngine `cdcc_filing_status_eligible`; *code*: no check |
-| C6 | Social Security: separate + lived together → $0 thresholds | 🟡 | see B18 |
-| C7 | AMT: separate-filer AMTI add-back (§55(d)) | ❌ | *law*: PolicyEngine `amt_separate_addition`; *code*: absent |
-| C8 | Spouse itemizes → separate filer must itemize | ❌ | A7 not asked |
-| C9 | EITC / tuition deduction / elderly credit | ➖ | not modelled; low relevance |
+| C1 | Senior deduction not for separate filers | ✅ | *source* IRC §151(d)(5)(C)(v): married → only on a joint return; *code* `ustax-nodes.js:305` |
+| C2 | Tips / overtime deductions not for separate filers | ✅ | *source* IRC §224(f) (tips) and §225(e) (overtime): married → joint return required; *code* `ustax-nodes.js:314` |
+| C3 | Education credits not for separate filers (§25A(g)(6)) | 🐞 | *source* IRC §25A(g)(6): married → credit only on a joint return. *probe* US-P4 |
+| C4 | Student-loan interest not for separate filers (§221(e)(2)) | 🐞 | *source* IRC §221(e)(2): married → deduction only on a joint return. *probe* US-P5 |
+| C5 | Child and dependent care credit not for separate filers unless lived apart | ❌ | *source* IRC §21(e)(2)–(4): married → joint return required, unless lived apart the last 6 months and paid over half the home's cost for a qualifying child. *code*: no check |
+| C6 | Social Security: separate + lived together → $0 thresholds | 🟡 | *source* IRC §86(c)(1)(C); see B18 |
+| C7 | AMT: separate-filer AMTI add-back (§55(d)) | ❌ | *source* IRC §55(d)(2), last sentence: a separate filer's AMTI is increased by the lesser of the excess over the zero-exemption point ($640,200 for 2026, Rev. Proc. 2025-32 §3.10) or the exemption. *code*: absent |
+| C8 | Spouse itemizes → separate filer must itemize | ❌ | *source* IRC §63(c)(6)(A): no standard deduction on a separate return if the spouse itemizes. A7 not asked |
+| C9 | EITC / tuition deduction / elderly credit | ➖ | *source* IRC §32(d) (EITC joint return required); not modelled; low relevance |
 
 ## D. US rules applied per person
 
 | # | Rule | Status | Evidence |
 |---|---|---|---|
-| D1 | Social Security wage base and self-employment tax per person | 🐞 | *probe* US-P1 |
-| D2 | Excess Social Security withholding credit (two employers, one person) | ❌ | *code*: absent for every filer |
-| D3 | Senior deduction per qualifying spouse | 🐞 | *probe* US-P2 |
-| D4 | SSN requirement per spouse (senior, tips, overtime) | ❌ | A11 |
-| D5 | §402(g) elective-deferral limit per person | 🐞 | *probe* US-P6 |
-| D6 | IRA contribution limit per person; spousal IRA on joint compensation | 🐞 | *code* `us5-nodes.js` `iraContributionAggregateUsd` pools both spouses against one limit |
-| D7 | IRA deduction phase-out by each spouse's workplace-plan coverage | ❌ | *code*: absent for every filer |
-| D8 | Catch-up contributions by each spouse's age | ❌ | *code*: taxpayer's age only (`ageAtYearEndUs`) |
-| D9 | HSA family limit shared between spouses | 🟡 | *code*: coverage type read; split not modelled |
-| D10 | RMD and 72(t) by the recipient's age | 🟡 | *code*: taxpayer's age only |
-| D11 | Saver's credit $2,000 contribution cap per person | 🟡 | *code* `ustax-nodes.js:469`: applied once per return |
-| D12 | Dependent-care credit limited to the lower-earning spouse's earned income | ❌ | *law*: PolicyEngine `min_head_spouse_earned`; *code*: absent |
-| D13 | Foreign earned income exclusion per spouse (cap and qualifying test) | 🟡 | *code*: one cap on combined foreign wages (`findings-batch6-nodes.js:93`) |
-| D14 | Additional Medicare: joint threshold, employer withholds per person | ✅ | *code* |
-| D15 | Social Security benefits: combined for taxability | ✅ | *code* |
-| D16 | QBI per business | ✅ | *code* |
+| D1 | Social Security wage base and self-employment tax per person | 🐞 | *source* IRC §1402(b)(1): self-employment income is reduced by that **individual's** wages; wage base $184,500 per person. *probe* US-P1 |
+| D2 | Excess Social Security withholding credit (two employers, one person) | ❌ | *source* IRC §31(b) / §6413(c): excess Social Security withheld by two or more employers of one person is a credit. *code*: absent for every filer |
+| D3 | Senior deduction per qualifying spouse | 🐞 | *source* IRC §151(d)(5)(C): $6,000 for each qualified individual (taxpayer and, on a joint return, spouse). *probe* US-P2 |
+| D4 | SSN requirement per spouse (senior, tips, overtime) | ❌ | *source* IRC §151(d)(5)(C)(iv) (senior), §224(e) (tips), §225(d) (overtime): each qualifying person's SSN on the return. A11 |
+| D5 | §402(g) elective-deferral limit per person | 🐞 | *source* IRC §402(g)(1)(A): limit is per individual; Notice 2025-67: $24,500 for 2026. *probe* US-P6 |
+| D6 | IRA contribution limit per person; spousal IRA on joint compensation | 🐞 | *source* IRC §219(b)(1), (c): limit per individual, spousal IRA on the couple's combined compensation; Notice 2025-67: $7,500 (+$1,100 at 50+). *code* `us5-nodes.js` `iraContributionAggregateUsd` pools both spouses against one limit |
+| D7 | IRA deduction phase-out by each spouse's workplace-plan coverage | ❌ | *source* IRC §219(g); Notice 2025-67: phase-out from $129,000 joint / $81,000 other for an active participant; $242,000 joint when only the spouse is covered; $0–$10,000 separate. *code*: absent for every filer |
+| D8 | Catch-up contributions by each spouse's age | ❌ | *source* IRC §414(v): catch-up by each participant's age — $8,000 at 50+, $11,250 at 60–63 (Notice 2025-67). *code*: taxpayer's age only (`ageAtYearEndUs`) |
+| D9 | HSA family limit shared between spouses | 🟡 | *source* IRC §223(b)(5): if either spouse has family coverage, both are treated as having it and share one family limit, split equally unless they agree otherwise. *code*: coverage type read; split not modelled |
+| D10 | RMD and 72(t) by the recipient's age | 🟡 | *source* IRC §401(a)(9), §72(t)(2)(A)(i): age of the account owner. *code*: taxpayer's age only |
+| D11 | Saver's credit $2,000 contribution cap per person | 🟡 | *source* IRC §25B(a): $2,000 cap per eligible individual — up to $4,000 on a joint return. *code* `ustax-nodes.js:469`: applied once per return |
+| D12 | Dependent-care credit limited to the lower-earning spouse's earned income | ❌ | *source* IRC §21(d)(1)(B): married → expenses capped at the lesser of the two spouses' earned income. *code*: absent |
+| D13 | Foreign earned income exclusion per spouse (cap and qualifying test) | 🟡 | *source* IRC §911(b)(2)(D) and Treas. Reg. §1.911-5: $132,900 per qualifying individual (Rev. Proc. 2025-32 §3.39), each spouse qualifying separately. *code*: one cap on combined foreign wages (`findings-batch6-nodes.js:93`) |
+| D14 | Additional Medicare: joint threshold, employer withholds per person | ✅ | *source* IRC §3101(b)(2) (joint threshold) and §3102(f) (employer withholds above $200,000 per employee); *code* |
+| D15 | Social Security benefits: combined for taxability | ✅ | *source* IRC §86(b)–(c): provisional income on the joint return; *code* |
+| D16 | QBI per business | ✅ | *source* IRC §199A(b)(1)–(2): computed per trade or business; *code* |
 
 ## E. Other US joint-return mechanics
 
 | # | Rule | Status | Evidence |
 |---|---|---|---|
-| E1 | Estimated tax: 110% threshold is $75,000 AGI for separate filers | 🐞 | *code* `us1-nodes.js:65` uses $150,000 for all |
-| E2 | Joint return with a non-resident spouse requires the §6013(g)/(h) election | ❌ | *code*: no eligibility check (form hides MFJ for an NRA client, not for a resident client with an NRA spouse) |
-| E3 | Community-property states (CA, TX, WA …): separate filers split community income | 🟡 | *form* warns; *code* ignores |
+| E1 | Estimated tax: 110% threshold is $75,000 AGI for separate filers | 🐞 | *source* IRC §6654(d)(1)(C)(ii): $75,000 for separate filers. *code* `us1-nodes.js:65` uses $150,000 for all |
+| E2 | Joint return with a non-resident spouse requires the §6013(g)/(h) election | ❌ | *source* IRC §6013(a)(1) (no joint return if either spouse is a non-resident alien) and §6013(g)/(h) (election). *code*: no eligibility check (form hides MFJ for an NRA client, not for a resident client with an NRA spouse) |
+| E3 | Community-property states (CA, TX, WA …): separate filers split community income | 🟡 | *source* IRC §66, §879; Pub. 555. *form* warns; *code* ignores |
 | E4 | State returns when one spouse is a non-resident of the state | ❌ | *code*: absent |
 | E5 | State joint/separate/HOH tables (CA, NY, NJ) | ✅ | *code* (IN-45 follow-up) |
-| E6 | Surviving spouse: 2-year status, joint return in year of death | 🟡 | A8 |
-| E7 | Joint-and-several liability / innocent spouse (Form 8857) | ❌ | information only |
+| E6 | Surviving spouse: 2-year status, joint return in year of death | 🟡 | *source* IRC §2(a) (surviving spouse, 2 years with a dependent child) and §6013(a)(2)–(3) (joint return in the year of death). A8 |
+| E7 | Joint-and-several liability / innocent spouse (Form 8857) | ❌ | *source* IRC §6013(d)(3) (joint and several liability) and §6015 (relief, Form 8857); information only |
 
 ## F. India (no joint assessment)
 
