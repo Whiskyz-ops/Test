@@ -189,7 +189,8 @@ def _nra_fdap_detail(d, ctx):
     # the same rows nraTaxResult taxes, via nra_fdap.py.
     fd = nra_fdap_breakdown(fdap_usd, d.get("aggregateUsIncomeResult") or {}, d.get("royaltiesDirectUsSourceUsdRaw") or 0,
                             safe(ctx.get("us"), "nra_specific.rental_net_basis_election", False) is True,
-                            d["nraRaw"]["treatyRateClaims"], w8ben_on_file)
+                            d["nraRaw"]["treatyRateClaims"], w8ben_on_file,
+                            safe(ctx.get("india"), "residency_detail.final_india_residency_status", None) != "NR")
     fdap_rate = fd["effectiveRate"] if fd["effectiveRate"] is not None else (claimed_rate_fraction if (w8ben_on_file and claimed_rate_fraction is not None) else 0.30)
     gap_usd = fd["gapUsd"]
     return {

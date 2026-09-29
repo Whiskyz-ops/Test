@@ -243,6 +243,94 @@ def _us_entity_state_tax_result(d, ctx):
 _SEVERITY_WEIGHT = {"critical": 0, "warning": 1, "info": 2}
 
 
+def _treaty_findings(d, ctx, is_nra):
+    """India-US treaty checks (DAG-only; GAP_TRACKER IN-49). Mirrors
+    ustax-full-nodes.js's treatyFindings."""
+    out = []
+    u = d.get("usTaxResult") or {}
+    n = (u.get("nra") or {}) if is_nra else {}
+    agg = d.get("aggregateUsIncomeResult") or {}
+    res = d.get("residencyResult") or {"india": {}, "us": {}}
+    india_status = safe(ctx.get("india"), "residency_detail.final_india_residency_status", None)
+
+    if is_nra and (n.get("pensionTreatyExemptUsd") or 0) > 0 and not (d.get("nraRaw") or {}).get("submittedW8ben"):
+        withheld = 0.30 * n["pensionTreatyExemptUsd"]
+        out.append(make_finding(
+            "us_pension_withholding_no_w8ben", "warning", "treaty",
+            f"US pension / IRA payments: about {_usd(withheld)} withheld at 30% although exempt under DTAA Art. 20(1)",
+            f"{_usd(n['pensionTreatyExemptUsd'])} of US pension, annuity and IRA payments is on file for a non-resident alien. Periodic pensions paid to a "
+            "resident of India are taxable only in India (DTAA Art. 20(1)), so no US tax is computed on them. But without Form W-8BEN claiming the treaty, the "
+            f"payer must withhold 30% (IRC §1441) — about {_usd(withheld)} a year held by the IRS until refunded.",
+            "Give each plan administrator / IRA custodian Form W-8BEN claiming DTAA Art. 20(1), so future payments are paid without withholding. "
+            "Recover what was already withheld by filing Form 1040-NR with the exemption on Schedule OI. Lump-sum distributions aren't \"pensions\" under the "
+            "treaty (Art. 20(3) requires periodic payments) and can be taxed by the US — confirm each distribution is periodic.",
+            withheld, ["DTAA Art. 20(1)", "Form W-8BEN", "IRC §1441", "Form 1040-NR"],
+        ))
+
+    ss_usd = ((agg.get("socialSecurityUs") or {}).get("usd")) or 0
+    india_resident = bool((res.get("india") or {}).get("isResident")) or (is_nra and india_status != "NR")
+    if ss_usd > 0 and india_resident:
+        us_side = (f"As a non-resident alien, 85% of it is taxed by the US at a flat 30% ({_usd(n.get('socialSecurityTaxUsd') or 0)}; the SSA withholds 25.5%)."
+                   if is_nra else "It is taxed on the US return like any US recipient's benefits (up to 85% taxable, IRC §86).")
+        out.append(make_finding(
+            "us_social_security_india_exempt", "info", "treaty",
+            f"US Social Security ({_usd(ss_usd)}): taxable only in the US — exempt in India under DTAA Art. 20(2)",
+            "US Social Security paid to a resident of India (or to a US citizen) is taxable only in the US (DTAA Art. 20(2)). " + us_side
+            + " India must not tax it, so there is no Indian tax against which to credit the US tax either.",
+            "In the Indian return, show these benefits as exempt income under the DTAA (the exempt-income schedule, Schedule EI), and claim no "
+            "Form 44 foreign tax credit for the US tax on them.",
+            0, ["DTAA Art. 20(2)", "Schedule EI", "Form 44"],
+        ))
+
+    if safe(ctx.get("us"), "us_residency_detail.is_us_citizen", False) is True:
+        blocked = []
+        if safe(ctx.get("us"), "nra_specific.files_form_1040nr", False) is True:
+            blocked.append("a Form 1040-NR filing")
+        if d.get("treatyUsResidenceRaw") == "india":
+            blocked.append("an Article 4 tie-break to India on the US side")
+        if len(((d.get("nraRaw") or {}).get("treatyRateClaims")) or []) > 0:
+            blocked.append("treaty withholding rates on US income")
+        if blocked:
+            out.append(make_finding(
+                "treaty_saving_clause_citizen", "critical", "residency",
+                "US citizen: treaty position blocked by the saving clause (DTAA Art. 1(3))",
+                "The client is a US citizen, yet the US intake records " + ", ".join(blocked) + ". Under the saving clause (Art. 1(3)) the US taxes its "
+                "citizens as if the treaty didn't exist, except for the benefits listed in Art. 1(4) — mainly the foreign tax credit (Art. 25) and US Social "
+                "Security being taxable only in the US (Art. 20(2)). WISING has computed US tax on a citizen's Form 1040 basis, ignoring these entries.",
+                "File Form 1040 on worldwide income and relieve Indian tax with Form 1116. Remove the 1040-NR / treaty-rate entries, and give US payers "
+                "Form W-9, not W-8BEN — a citizen can't certify foreign status.",
+                0, ["DTAA Art. 1(3)", "DTAA Art. 1(4)", "Form 1040", "Form 1116", "Form W-9"],
+            ))
+    elif d.get("usHasGreenCardRaw") and (d.get("treatyUsResidenceRaw") == "india" or d.get("treatyFiles1040nrRaw")
+                                         or (res.get("dualResident") and d.get("treatyIndiaResidenceRaw") == "india")):
+        out.append(make_finding(
+            "greencard_treaty_nonresident", "warning", "residency",
+            "Green-card holder taking treaty non-residence — Form 8833 and expatriation consequences",
+            "A green-card holder who is also resident in India may be treated as a US non-resident when the Article 4 tie-breaker favours India "
+            "(Treas. Reg. §301.7701(b)-7): Form 1040-NR with Form 8833. For a long-term resident (green card in at least 8 of the last 15 years), taking "
+            "that position is an expatriation (IRC §7701(b)(6)): the exit tax applies if the client is a covered expatriate (IRC §877A, Form 8854). "
+            "Immigration authorities may also treat it as evidence of abandoning permanent residence.",
+            "Confirm the years the green card has been held before filing as a treaty non-resident. If 8 or more of the last 15, run the covered-"
+            "expatriate tests (the Monitor's expatriation checks) and file Form 8854; otherwise file Form 1040-NR with Form 8833. Take immigration advice first.",
+            0, ["DTAA Art. 4", "Treas. Reg. §301.7701(b)-7", "IRC §7701(b)(6)", "IRC §877A", "Form 8833", "Form 8854"],
+        ))
+
+    if is_nra and (n.get("art15ExemptUsd") or 0) > 0:
+        days = js_num_str(n["art15UsDays"])
+        out.append(make_finding(
+            "nra_art15_services_exempt", "warning", "treaty",
+            f"US self-employment income of {_usd(n['art15ExemptUsd'])} treated as exempt — DTAA Art. 15 ({days} US days, no US fixed base)",
+            "An Indian resident's income from professional or other independent services is taxable in the US only if they have a fixed base regularly "
+            "available there or stay 90 days or more in the year (DTAA Art. 15; business profits likewise need a US permanent establishment, Art. 7). "
+            f"With {days} US days and no US fixed base / PE on file, WISING has left {_usd(n['art15ExemptUsd'])} of self-employment "
+            f"income out of US tax, saving about {_usd(n.get('art15TaxSavedUsd') or 0)}. India taxes it as the residence country.",
+            "Confirm there was no office or other fixed place regularly available in the US and that US days are under 90. Claim the exemption "
+            "on Form 1040-NR (Schedule OI) with Form 8833. If either test fails, the income is US-taxable and India gives credit for the US tax (Form 44).",
+            n.get("art15TaxSavedUsd") or 0, ["DTAA Art. 15", "DTAA Art. 7", "Form 8833", "Form 1040-NR"],
+        ))
+    return out
+
+
 def _findings_all_result_override(d, ctx, base_compute):
     all_findings = list(base_compute(d, ctx))
     est = d["usEntityStateTaxResult"]
@@ -466,6 +554,8 @@ def _findings_all_result_override(d, ctx, base_compute):
                 0, ["Art. 21(2)", "Art. 22", "Form 8833"],
             ))
 
+    all_findings.extend(_treaty_findings(d, ctx, is_nra))
+
     all_findings.sort(key=lambda f: (_SEVERITY_WEIGHT[f["severity"]], -f["amountUsd"]))
     return all_findings
 
@@ -513,12 +603,22 @@ def _nra_tax_result(d, ctx):
     split = d.get("nraEffectiveEciFdap") or {"eciUsd": d["nraEciIncomeUsdRaw"] or 0, "fdapUsd": d["nraFdapIncomeUsdRaw"] or 0, "source": "layer1"}
     eci_usd = split["eciUsd"] or 0
     fdap_usd = split["fdapUsd"] or 0
+    # India-US treaty benefits need Indian residence — see ustax-full-nodes.js.
+    treaty_resident = safe(ctx.get("india"), "residency_detail.final_india_residency_status", None) != "NR"
+    # DTAA Art. 15 / Art. 7: self-employment income exempt with no US fixed
+    # base / PE and fewer than 90 US days — see ustax-full-nodes.js.
+    us_days_art15 = num(safe(ctx.get("us"), "us_residency_detail.us_days_current_year", 0))
+    se_usd = num((d.get("aggregateUsIncomeResult") or {}).get("seEarningsUsd"))
+    art15_exempt_usd = min(se_usd, eci_usd) if (treaty_resident and safe(ctx.get("us"), "nra_specific.has_us_pe", False) is not True
+                                                and us_days_art15 < 90 and se_usd > 0) else 0
+    eci_before_art15_usd = eci_usd
+    eci_usd -= art15_exempt_usd
     claims = d["nraRaw"]["treatyRateClaims"] or []
     claim = claims[0] if claims else None
     claimed_rate = max(0.0, min(1.0, num(claim["elected_rate"]) / 100)) if (claim and claim.get("elected_rate") is not None) else None
     w8ben_on_file = d["nraRaw"]["submittedW8ben"] is True
     detail = nra_fdap_breakdown(fdap_usd, d.get("aggregateUsIncomeResult") or {}, d.get("royaltiesDirectUsSourceUsdRaw") or 0,
-                                 safe(ctx.get("us"), "nra_specific.rental_net_basis_election", False) is True, claims, w8ben_on_file)
+                                 safe(ctx.get("us"), "nra_specific.rental_net_basis_election", False) is True, claims, w8ben_on_file, treaty_resident)
     fdap_rate = detail["effectiveRate"] if detail["effectiveRate"] is not None else (claimed_rate if (w8ben_on_file and claimed_rate is not None) else 0.30)
 
     itemized_usd = min(ded["salt"], compute_salt_cap(eci_usd, status)) + ded["mortgageInterest"] + ded["charitable"] + max(0.0, ded["medical"] - 0.075 * eci_usd)
@@ -541,15 +641,16 @@ def _nra_tax_result(d, ctx):
     eci_bracket_breakdown = bracket_breakdown(taxable_eci_usd, brackets)
     fdap_tax_usd = detail["fdapTaxUsd"]
     addl_medicare = d["additionalMedicareOwedBoundary"] or 0
-    total_tax = eci_tax_usd + fdap_tax_usd + detail["socialSecurityTaxUsd"] + addl_medicare
-    nra_income_usd = eci_usd + fdap_usd + detail["socialSecurityTaxableUsd"]
+    art15_tax_saved_usd = (bracket_tax(max(0.0, eci_before_art15_usd - deduction_usd), brackets) - eci_tax_usd) if art15_exempt_usd > 0 else 0
+    total_tax = eci_tax_usd + fdap_tax_usd + detail["socialSecurityTaxUsd"] + detail["pensionTaxUsd"] + addl_medicare
+    nra_income_usd = eci_usd + fdap_usd + detail["socialSecurityTaxableUsd"] + detail["pensionTaxableUsd"]
 
     return {
         "filingStatus": status, "worldwide": False, "isNra": True,
         "totalIncomeUsd": nra_income_usd,
         "agiUsd": eci_usd, "deductionUsd": deduction_usd, "deductionMode": deduction_mode,
         "taxableIncomeUsd": taxable_eci_usd,
-        "ordinaryTaxUsd": eci_tax_usd, "preferentialTaxUsd": 0, "incomeTaxUsd": eci_tax_usd + fdap_tax_usd + detail["socialSecurityTaxUsd"],
+        "ordinaryTaxUsd": eci_tax_usd, "preferentialTaxUsd": 0, "incomeTaxUsd": eci_tax_usd + fdap_tax_usd + detail["socialSecurityTaxUsd"] + detail["pensionTaxUsd"],
         "niitUsd": 0, "additionalMedicareUsd": addl_medicare, "seTaxUsd": 0, "qbiDeductionUsd": 0, "amtUsd": 0, "creditsUsd": 0,
         "collectiblesGainUsd": 0, "collectiblesTaxUsd": 0, "qsbsExcludedGainUsd": 0, "qsbsTaxableGainUsd": 0,
         "saversCreditUsd": 0,
@@ -559,6 +660,8 @@ def _nra_tax_result(d, ctx):
         "nra": {
             "fdapBreakdown": detail["rows"], "socialSecurityTaxableUsd": detail["socialSecurityTaxableUsd"],
             "socialSecurityTaxUsd": detail["socialSecurityTaxUsd"], "pensionTreatyExemptUsd": detail["pensionUsd"],
+            "pensionTaxUsd": detail["pensionTaxUsd"], "treatyResident": treaty_resident,
+            "art15ExemptUsd": art15_exempt_usd, "art15TaxSavedUsd": art15_tax_saved_usd, "art15UsDays": us_days_art15,
             "splitSource": split["source"],
             "eciUsd": eci_usd, "fdapUsd": fdap_usd, "fdapRate": fdap_rate, "eciTaxUsd": eci_tax_usd, "fdapTaxUsd": fdap_tax_usd,
             "taxableEciUsd": taxable_eci_usd, "eciBracketBreakdown": eci_bracket_breakdown,
@@ -848,7 +951,8 @@ def build(base):
                 "usEntityStateTaxResult", "usDualStatusResult", "usExpatriationResult",
                 "usEntityKind", "treatyFiles1040nrRaw", "s6013hElection", "usTaxResult",
                 "nraDerivedEciFdapResult", "nraEciIncomeUsdRaw", "nraFdapIncomeUsdRaw", "nraRaw", "nraSplitDeclaredRaw",
-            ) + (() if "aggregateUsIncomeResult" in base_findings_all.deps else ("aggregateUsIncomeResult",)),
+            ) + tuple(x for x in ("aggregateUsIncomeResult", "residencyResult", "usHasGreenCardRaw", "treatyUsResidenceRaw", "treatyIndiaResidenceRaw")
+                      if x not in base_findings_all.deps),
             compute=lambda d, ctx: _findings_all_result_override(d, ctx, base_findings_all.compute),
         ),
         reason=OVERRIDE_REASON,

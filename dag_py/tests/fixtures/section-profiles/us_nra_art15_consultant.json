@@ -1,0 +1,65 @@
+{
+  "id": "us_nra_art15_consultant",
+  "form": "layer1_us.html",
+  "section": "NRA (Form 1040-NR) — independent services",
+  "story": "Indian-resident software consultant, non-resident alien, files Form 1040-NR. Spent 40 days in the US on client projects; no US office or other fixed base (no US PE). Schedule C: receipts $100,000, expenses $20,000. Nothing else.",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 40
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "itin",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 40,
+      "spt_test_met": false,
+      "final_us_residency_status": "NRA"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "nra_specific": {
+      "files_form_1040nr": true,
+      "has_us_pe": false,
+      "us_eci_income_usd": 80000,
+      "us_fdap_income_usd": 0
+    },
+    "income_us_source": {
+      "self_employment": [
+        {
+          "business_name": "Consulting",
+          "has_se_income": true,
+          "gross_receipts_usd": 100000,
+          "expenses_usd": 20000
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.nra.art15ExemptUsd",
+      "value": 80000,
+      "why": "DTAA Art. 15: no US fixed base and 40 (< 90) US days — the 80,000 net is taxable only in India"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 0,
+      "why": "no other US income"
+    },
+    {
+      "path": "findings[id=nra_art15_services_exempt].amountUsd",
+      "value": 12312,
+      "why": "US tax it would otherwise carry: single brackets 1,240 + 12% x 38,000 + 22% x 29,600 = 12,312 (no deductions for an NRA)"
+    }
+  ]
+}

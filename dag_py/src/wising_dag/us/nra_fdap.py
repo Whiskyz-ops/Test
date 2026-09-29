@@ -6,7 +6,10 @@ from __future__ import annotations
 from ..core.util import num
 
 
-def nra_fdap_breakdown(fdap_usd, agg, royalties_usd, rental_elected, claims, w8ben):
+def nra_fdap_breakdown(fdap_usd, agg, royalties_usd, rental_elected, claims, w8ben, treaty_resident=True):
+    # treaty_resident: False only when Layer 1 India records the client as NOT
+    # resident in India — then no India-US treaty benefit applies at all.
+    treaty_resident = treaty_resident is not False
     """FDAP of a 1040-NR filer, one row per income type (India-US treaty):
     dividends / interest / royalties at the rate claimed for THAT type on a
     W-8BEN (Art. 10/11/12, capped at the 30% statutory rate); gross US rent
@@ -24,11 +27,11 @@ def nra_fdap_breakdown(fdap_usd, agg, royalties_usd, rental_elected, claims, w8b
         rate_for[t] = max(0.0, min(0.30, num(c["elected_rate"]) / 100))
 
     def rate(t):
-        return rate_for[t] if (w8ben and t in rate_for) else 0.30
+        return rate_for[t] if (treaty_resident and w8ben and t in rate_for) else 0.30
 
     # Tax a missing W-8BEN costs: the claimed rate is denied, 30% applies.
     def gap(t, base):
-        return base * (0.30 - rate_for[t]) if (not w8ben and t in rate_for) else 0
+        return base * (0.30 - rate_for[t]) if (treaty_resident and not w8ben and t in rate_for) else 0
 
     def usd(v):
         return num(v["usd"]) if v else 0
@@ -54,7 +57,8 @@ def nra_fdap_breakdown(fdap_usd, agg, royalties_usd, rental_elected, claims, w8b
     pension_usd = usd(agg.get("usRetirementIncomeExclSs"))
     extra = [
         {"type": "social_security", "baseUsd": 0.85 * ss_usd, "rate": 0.30, "basis": "§871(a)(3): 85% taxable at 30%; DTAA Art. 20(2)"},
-        {"type": "pensions", "baseUsd": pension_usd, "rate": 0, "basis": "DTAA Art. 20(1): periodic pensions taxable only in India"},
+        ({"type": "pensions", "baseUsd": pension_usd, "rate": 0, "basis": "DTAA Art. 20(1): periodic pensions taxable only in India"} if treaty_resident
+         else {"type": "pensions", "baseUsd": pension_usd, "rate": 0.30, "basis": "30% — not resident in India, so DTAA Art. 20(1) doesn't apply"}),
     ]
     rows = [r for r in typed + extra if r["baseUsd"] > 0]
     claim_type = {"dividends": "dividend", "interest": "interest", "royalties": "royaltie"}
@@ -67,5 +71,6 @@ def nra_fdap_breakdown(fdap_usd, agg, royalties_usd, rental_elected, claims, w8b
     return {
         "rows": rows, "fdapTaxUsd": lump_tax, "effectiveRate": (lump_tax / lump_base) if lump_base > 0 else None,
         "socialSecurityTaxableUsd": 0.85 * ss_usd, "socialSecurityTaxUsd": 0.85 * ss_usd * 0.30,
-        "pensionUsd": pension_usd, "gapUsd": gap_usd,
+        "pensionUsd": pension_usd if treaty_resident else 0, "pensionTaxUsd": 0 if treaty_resident else 0.30 * pension_usd,
+        "pensionTaxableUsd": 0 if treaty_resident else pension_usd, "gapUsd": gap_usd,
     }

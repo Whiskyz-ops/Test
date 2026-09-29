@@ -413,10 +413,106 @@ NODES.usEntityStateTaxResult = {
 // Stable-sorting an already-sorted array with the same comparator (V8's
 // Array.sort is stable, ES2019+) leaves every pre-existing element's
 // relative order untouched — only the new element gets placed.
+/* India-US treaty checks (DAG-only; GAP_TRACKER IN-49). Mirrors
+ * dag_py/src/wising_dag/us/ustax_full.py's _treaty_findings.
+ *  - us_pension_withholding_no_w8ben  DTAA Art. 20(1)
+ *  - us_social_security_india_exempt  DTAA Art. 20(2)
+ *  - treaty_saving_clause_citizen     DTAA Art. 1(3)
+ *  - greencard_treaty_nonresident     DTAA Art. 4 / IRC §7701(b)(6)
+ *  - nra_art15_services_exempt        DTAA Art. 15 / Art. 7 */
+function treatyFindings(d, ctx, isNra) {
+  var out = [];
+  var u = d.usTaxResult || {};
+  var n = (isNra && u.nra) || {};
+  var agg = d.aggregateUsIncomeResult || {};
+  var res = d.residencyResult || { india: {}, us: {} };
+  var indiaStatus = safe(ctx.india, "residency_detail.final_india_residency_status", null);
+
+  if (isNra && (n.pensionTreatyExemptUsd || 0) > 0 && !(d.nraRaw && d.nraRaw.submittedW8ben)) {
+    var withheldUsd = 0.30 * n.pensionTreatyExemptUsd;
+    out.push({
+      id: "us_pension_withholding_no_w8ben", severity: "warning", category: "treaty",
+      title: "US pension / IRA payments: about " + usd(withheldUsd) + " withheld at 30% although exempt under DTAA Art. 20(1)",
+      detail: usd(n.pensionTreatyExemptUsd) + " of US pension, annuity and IRA payments is on file for a non-resident alien. Periodic pensions paid to a " +
+        "resident of India are taxable only in India (DTAA Art. 20(1)), so no US tax is computed on them. But without Form W-8BEN claiming the treaty, the " +
+        "payer must withhold 30% (IRC §1441) — about " + usd(withheldUsd) + " a year held by the IRS until refunded.",
+      recommendation: "Give each plan administrator / IRA custodian Form W-8BEN claiming DTAA Art. 20(1), so future payments are paid without withholding. " +
+        "Recover what was already withheld by filing Form 1040-NR with the exemption on Schedule OI. Lump-sum distributions aren't \"pensions\" under the " +
+        "treaty (Art. 20(3) requires periodic payments) and can be taxed by the US — confirm each distribution is periodic.",
+      amountUsd: withheldUsd, refs: ["DTAA Art. 20(1)", "Form W-8BEN", "IRC §1441", "Form 1040-NR"]
+    });
+  }
+
+  var ssUsd = (agg.socialSecurityUs && agg.socialSecurityUs.usd) || 0;
+  var indiaResident = !!(res.india && res.india.isResident) || (isNra && indiaStatus !== "NR");
+  if (ssUsd > 0 && indiaResident) {
+    var usSide = isNra
+      ? "As a non-resident alien, 85% of it is taxed by the US at a flat 30% (" + usd(n.socialSecurityTaxUsd || 0) + "; the SSA withholds 25.5%)."
+      : "It is taxed on the US return like any US recipient's benefits (up to 85% taxable, IRC §86).";
+    out.push({
+      id: "us_social_security_india_exempt", severity: "info", category: "treaty",
+      title: "US Social Security (" + usd(ssUsd) + "): taxable only in the US — exempt in India under DTAA Art. 20(2)",
+      detail: "US Social Security paid to a resident of India (or to a US citizen) is taxable only in the US (DTAA Art. 20(2)). " + usSide +
+        " India must not tax it, so there is no Indian tax against which to credit the US tax either.",
+      recommendation: "In the Indian return, show these benefits as exempt income under the DTAA (the exempt-income schedule, Schedule EI), and claim no " +
+        "Form 44 foreign tax credit for the US tax on them.",
+      amountUsd: 0, refs: ["DTAA Art. 20(2)", "Schedule EI", "Form 44"]
+    });
+  }
+
+  if (safe(ctx.us, "us_residency_detail.is_us_citizen", false) === true) {
+    var blocked = [];
+    if (safe(ctx.us, "nra_specific.files_form_1040nr", false) === true) blocked.push("a Form 1040-NR filing");
+    if (d.treatyUsResidenceRaw === "india") blocked.push("an Article 4 tie-break to India on the US side");
+    if (d.nraRaw && (d.nraRaw.treatyRateClaims || []).length > 0) blocked.push("treaty withholding rates on US income");
+    if (blocked.length) {
+      out.push({
+        id: "treaty_saving_clause_citizen", severity: "critical", category: "residency",
+        title: "US citizen: treaty position blocked by the saving clause (DTAA Art. 1(3))",
+        detail: "The client is a US citizen, yet the US intake records " + blocked.join(", ") + ". Under the saving clause (Art. 1(3)) the US taxes its " +
+          "citizens as if the treaty didn't exist, except for the benefits listed in Art. 1(4) — mainly the foreign tax credit (Art. 25) and US Social " +
+          "Security being taxable only in the US (Art. 20(2)). WISING has computed US tax on a citizen's Form 1040 basis, ignoring these entries.",
+        recommendation: "File Form 1040 on worldwide income and relieve Indian tax with Form 1116. Remove the 1040-NR / treaty-rate entries, and give US payers " +
+          "Form W-9, not W-8BEN — a citizen can't certify foreign status.",
+        amountUsd: 0, refs: ["DTAA Art. 1(3)", "DTAA Art. 1(4)", "Form 1040", "Form 1116", "Form W-9"]
+      });
+    }
+  } else if (d.usHasGreenCardRaw && (d.treatyUsResidenceRaw === "india" || d.treatyFiles1040nrRaw ||
+             (res.dualResident && d.treatyIndiaResidenceRaw === "india"))) {
+    out.push({
+      id: "greencard_treaty_nonresident", severity: "warning", category: "residency",
+      title: "Green-card holder taking treaty non-residence — Form 8833 and expatriation consequences",
+      detail: "A green-card holder who is also resident in India may be treated as a US non-resident when the Article 4 tie-breaker favours India " +
+        "(Treas. Reg. §301.7701(b)-7): Form 1040-NR with Form 8833. For a long-term resident (green card in at least 8 of the last 15 years), taking " +
+        "that position is an expatriation (IRC §7701(b)(6)): the exit tax applies if the client is a covered expatriate (IRC §877A, Form 8854). " +
+        "Immigration authorities may also treat it as evidence of abandoning permanent residence.",
+      recommendation: "Confirm the years the green card has been held before filing as a treaty non-resident. If 8 or more of the last 15, run the covered-" +
+        "expatriate tests (the Monitor's expatriation checks) and file Form 8854; otherwise file Form 1040-NR with Form 8833. Take immigration advice first.",
+      amountUsd: 0, refs: ["DTAA Art. 4", "Treas. Reg. §301.7701(b)-7", "IRC §7701(b)(6)", "IRC §877A", "Form 8833", "Form 8854"]
+    });
+  }
+
+  if (isNra && (n.art15ExemptUsd || 0) > 0) {
+    out.push({
+      id: "nra_art15_services_exempt", severity: "warning", category: "treaty",
+      title: "US self-employment income of " + usd(n.art15ExemptUsd) + " treated as exempt — DTAA Art. 15 (" + n.art15UsDays + " US days, no US fixed base)",
+      detail: "An Indian resident's income from professional or other independent services is taxable in the US only if they have a fixed base regularly " +
+        "available there or stay 90 days or more in the year (DTAA Art. 15; business profits likewise need a US permanent establishment, Art. 7). " +
+        "With " + n.art15UsDays + " US days and no US fixed base / PE on file, WISING has left " + usd(n.art15ExemptUsd) + " of self-employment " +
+        "income out of US tax, saving about " + usd(n.art15TaxSavedUsd || 0) + ". India taxes it as the residence country.",
+      recommendation: "Confirm there was no office or other fixed place regularly available in the US and that US days are under 90. Claim the exemption " +
+        "on Form 1040-NR (Schedule OI) with Form 8833. If either test fails, the income is US-taxable and India gives credit for the US tax (Form 44).",
+      amountUsd: n.art15TaxSavedUsd || 0, refs: ["DTAA Art. 15", "DTAA Art. 7", "Form 8833", "Form 1040-NR"]
+    });
+  }
+  return out;
+}
+
 NODES.findingsAllResult = {
   deps: baseNodes.findingsAllResult.deps.concat(["usEntityStateTaxResult", "usDualStatusResult", "usExpatriationResult",
     "usEntityKind", "treatyFiles1040nrRaw", "s6013hElection", "usTaxResult",
-    "nraDerivedEciFdapResult", "nraEciIncomeUsdRaw", "nraFdapIncomeUsdRaw", "nraRaw", "aggregateUsIncomeResult", "nraSplitDeclaredRaw"])
+    "nraDerivedEciFdapResult", "nraEciIncomeUsdRaw", "nraFdapIncomeUsdRaw", "nraRaw", "aggregateUsIncomeResult", "nraSplitDeclaredRaw",
+    "residencyResult", "usHasGreenCardRaw", "treatyUsResidenceRaw", "treatyIndiaResidenceRaw"])
     .filter(function (id, i, arr) { return arr.indexOf(id) === i; }),
   compute: function (d, ctx) {
     var all = baseNodes.findingsAllResult.compute(d, ctx).slice();
@@ -619,6 +715,8 @@ NODES.findingsAllResult = {
       }
     }
 
+    Array.prototype.push.apply(all, treatyFindings(d, ctx, isNra));
+
     var weight = { critical: 0, warning: 1, info: 2 };
     all.sort(function (a, b) {
       if (weight[a.severity] !== weight[b.severity]) return weight[a.severity] - weight[b.severity];
@@ -680,10 +778,23 @@ NODES.nraTaxResult = {
 
     var eciUsd = split.eciUsd || 0;
     var fdapUsd = split.fdapUsd || 0;
+    // India-US treaty benefits need Indian residence: withheld only when
+    // Layer 1 India records the client as a non-resident of India.
+    var treatyResident = safe(ctx.india, "residency_detail.final_india_residency_status", null) !== "NR";
+    // DTAA Art. 15 (independent personal services) / Art. 7 (business
+    // profits): an Indian resident's self-employment income is exempt from
+    // US tax with no fixed base / PE in the US and fewer than 90 US days in
+    // the year (the Art. 5(2)(l) service-PE threshold too).
+    var usDaysArt15 = num(safe(ctx.us, "us_residency_detail.us_days_current_year", 0));
+    var seUsd = num(d.aggregateUsIncomeResult && d.aggregateUsIncomeResult.seEarningsUsd);
+    var art15ExemptUsd = treatyResident && safe(ctx.us, "nra_specific.has_us_pe", false) !== true && usDaysArt15 < 90 && seUsd > 0
+      ? Math.min(seUsd, eciUsd) : 0;
+    var eciBeforeArt15Usd = eciUsd;
+    eciUsd -= art15ExemptUsd;
     var claim = (nra.treatyRateClaims || [])[0];
     var claimedRate = (claim && claim.elected_rate != null) ? Math.max(0, Math.min(1, Number(claim.elected_rate) / 100)) : null;
     var w8benOnFile = nra.submittedW8ben === true;
-    var fdapDetail = nraFdapBreakdown(fdapUsd, d.aggregateUsIncomeResult, d.royaltiesDirectUsSourceUsdRaw, safe(ctx.us, "nra_specific.rental_net_basis_election", false) === true, nra.treatyRateClaims, w8benOnFile);
+    var fdapDetail = nraFdapBreakdown(fdapUsd, d.aggregateUsIncomeResult, d.royaltiesDirectUsSourceUsdRaw, safe(ctx.us, "nra_specific.rental_net_basis_election", false) === true, nra.treatyRateClaims, w8benOnFile, treatyResident);
     var fdapRate = fdapDetail.effectiveRate != null ? fdapDetail.effectiveRate : ((w8benOnFile && claimedRate != null) ? claimedRate : 0.30);
 
     var itemizedUsd = Math.min(ded.salt, computeSaltCap(eciUsd, status)) + ded.mortgageInterest + ded.charitable +
@@ -708,15 +819,17 @@ NODES.nraTaxResult = {
     var eciBracketBreakdown = bracketBreakdown(taxableEciUsd, brackets);
     var fdapTaxUsd = fdapDetail.fdapTaxUsd;
     var addlMedicare = d.additionalMedicareOwedBoundary || 0;
-    var totalTax = eciTaxUsd + fdapTaxUsd + fdapDetail.socialSecurityTaxUsd + addlMedicare;
-    var nraIncomeUsd = eciUsd + fdapUsd + fdapDetail.socialSecurityTaxableUsd;
+    var art15TaxSavedUsd = art15ExemptUsd > 0
+      ? bracketTax(Math.max(0, eciBeforeArt15Usd - deductionUsd), brackets) - eciTaxUsd : 0;
+    var totalTax = eciTaxUsd + fdapTaxUsd + fdapDetail.socialSecurityTaxUsd + fdapDetail.pensionTaxUsd + addlMedicare;
+    var nraIncomeUsd = eciUsd + fdapUsd + fdapDetail.socialSecurityTaxableUsd + fdapDetail.pensionTaxableUsd;
 
     return {
       filingStatus: status, worldwide: false, isNra: true,
       totalIncomeUsd: nraIncomeUsd,
       agiUsd: eciUsd, deductionUsd: deductionUsd, deductionMode: deductionMode,
       taxableIncomeUsd: taxableEciUsd,
-      ordinaryTaxUsd: eciTaxUsd, preferentialTaxUsd: 0, incomeTaxUsd: eciTaxUsd + fdapTaxUsd + fdapDetail.socialSecurityTaxUsd,
+      ordinaryTaxUsd: eciTaxUsd, preferentialTaxUsd: 0, incomeTaxUsd: eciTaxUsd + fdapTaxUsd + fdapDetail.socialSecurityTaxUsd + fdapDetail.pensionTaxUsd,
       niitUsd: 0, additionalMedicareUsd: addlMedicare, seTaxUsd: 0, qbiDeductionUsd: 0, amtUsd: 0, creditsUsd: 0,
         collectiblesGainUsd: 0, collectiblesTaxUsd: 0, qsbsExcludedGainUsd: 0, qsbsTaxableGainUsd: 0,
         saversCreditUsd: 0,
@@ -724,7 +837,8 @@ NODES.nraTaxResult = {
       foreignSourceIncomeUsd: 0,
       usSourceIncomeUsd: nraIncomeUsd,
       nra: { fdapBreakdown: fdapDetail.rows, socialSecurityTaxableUsd: fdapDetail.socialSecurityTaxableUsd, socialSecurityTaxUsd: fdapDetail.socialSecurityTaxUsd,
-        pensionTreatyExemptUsd: fdapDetail.pensionUsd,
+        pensionTreatyExemptUsd: fdapDetail.pensionUsd, pensionTaxUsd: fdapDetail.pensionTaxUsd, treatyResident: treatyResident,
+        art15ExemptUsd: art15ExemptUsd, art15TaxSavedUsd: art15TaxSavedUsd, art15UsDays: usDaysArt15,
         eciUsd: eciUsd, fdapUsd: fdapUsd, splitSource: split.source, fdapRate: fdapRate, eciTaxUsd: eciTaxUsd, fdapTaxUsd: fdapTaxUsd, taxableEciUsd: taxableEciUsd, eciBracketBreakdown: eciBracketBreakdown,
         claimedRate: claimedRate, w8benOnFile: w8benOnFile, incomeType: (claim && claim.income_type) || null,
         itemizedDeductionUsd: itemizedUsd, standardDeductionUsd: stdDeductionUsd,

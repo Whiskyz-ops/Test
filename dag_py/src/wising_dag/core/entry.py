@@ -92,7 +92,8 @@ def _compute_entity_result(d, ctx):
             "1120-S" if us_t == "scorp" else
             "1065" if us_t == "partnership" else
             "1041" if us_t == "trust" else
-            ("1040-NR" if safe(us, "nra_specific.files_form_1040nr", False) is True else "1040")
+            # A US citizen never files 1040-NR (saving clause, DTAA Art. 1(3)).
+            ("1040-NR" if safe(us, "nra_specific.files_form_1040nr", False) is True and safe(us, "us_residency_detail.is_us_citizen", False) is not True else "1040")
         ),
     }
 

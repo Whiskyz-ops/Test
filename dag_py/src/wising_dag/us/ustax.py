@@ -650,7 +650,11 @@ def _us_tax_result(d, ctx):
 
 NODES = {
     "usEntityKind": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx, "model.entity.usKind", None) or "individual"),
-    "files1040nr": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "nra_specific.files_form_1040nr", False) is True, layer1_fields=("us.nra_specific.files_form_1040nr",)),
+    # A US citizen never files as a non-resident: the saving clause (DTAA
+    # Art. 1(3)) keeps citizens taxed on worldwide income whatever box is
+    # ticked — treaty_saving_clause_citizen tells the preparer.
+    "files1040nr": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "nra_specific.files_form_1040nr", False) is True and safe(ctx.get("us"), "us_residency_detail.is_us_citizen", False) is not True,
+                           layer1_fields=("us.nra_specific.files_form_1040nr", "us.us_residency_detail.is_us_citizen")),
     "s6013hElection": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "nra_specific.s6013h_joint_election", False) is True, layer1_fields=("us.nra_specific.s6013h_joint_election",)),
     # US-India DTAA Art. 21(2) student/business-apprentice standard-deduction
     # exception (ustax_full.py's _nra_tax_result) — layer1_us.html's own

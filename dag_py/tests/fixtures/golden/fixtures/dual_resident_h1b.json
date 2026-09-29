@@ -2040,10 +2040,10 @@
       "category": "income",
       "title": "Equity compensation taxed on both sides \u2014 cross-border sourcing not applied",
       "detail": "Both an India ESOP/perquisite event and a US equity-compensation event (RSU vest / NSO exercise) are on file for this year. India taxes the ESOP perquisite in full at exercise/allotment (s.17(1)(vi)); the US taxes RSU vesting / NSO exercise in full as ordinary income in the vesting/exercise year. Absent a workday-based allocation, the same equity award can be fully taxed by BOTH countries rather than apportioned to where the services were actually performed during the vesting period.",
-      "recommendation": "Reconstruct the vesting-period workday split between India and the US (DTAA Art. 15/16 dependent-personal-services sourcing) so each country only taxes its proportionate share, then claim FTC/\u00a7159 relief on the genuinely overlapping portion rather than the full award twice.",
+      "recommendation": "Reconstruct the vesting-period workday split between India and the US (DTAA Art. 16 dependent-personal-services sourcing) so each country only taxes its proportionate share, then claim FTC/\u00a7159 relief on the genuinely overlapping portion rather than the full award twice.",
       "amountUsd": 0,
       "refs": [
-        "DTAA Art. 15",
+        "DTAA Art. 16",
         "s.17(1)(vi)",
         "RSU vesting",
         "NSO exercise"

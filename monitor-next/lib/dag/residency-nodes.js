@@ -192,7 +192,10 @@ var NODES = {
   treatyIndiaResidenceRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "dtaa.dtaa_treaty_residence", "none"); } },
   treatyDtaaForcedNrRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "dtaa.dtaa_forced_nr", false) === true; } },
   treatyUsResidenceRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "us_residency_detail.dtaa_treaty_residence", "none"); } },
-  treatyFiles1040nrRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "nra_specific.files_form_1040nr", false) === true; } },
+  // A US citizen never files as a non-resident: the saving clause (DTAA
+  // Art. 1(3)) keeps citizens taxed on worldwide income whatever box is
+  // ticked — treaty_saving_clause_citizen tells the preparer.
+  treatyFiles1040nrRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "nra_specific.files_form_1040nr", false) === true && safe(ctx.us, "us_residency_detail.is_us_citizen", false) !== true; } },
 
   // ---- resolveResidency, ported in full ------------------------------------
   residencyResult: {

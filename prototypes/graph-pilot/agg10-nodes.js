@@ -138,7 +138,8 @@ NODES.entityResult = {
       indiaReturnFormIsRecommendation: !!indiaLayer1Itr,
       indiaReturnFormExplanation: indiaLayer1Itr ? safe(india, "itr_recommendation.explanation", null) : null,
       usReturnForm: usT === "ccorp" ? "1120" : usT === "scorp" ? "1120-S" : usT === "partnership" ? "1065" : usT === "trust" ? "1041" :
-        (safe(us, "nra_specific.files_form_1040nr", false) === true ? "1040-NR" : "1040")
+        // A US citizen never files 1040-NR (saving clause, DTAA Art. 1(3)).
+        (safe(us, "nra_specific.files_form_1040nr", false) === true && safe(us, "us_residency_detail.is_us_citizen", false) !== true ? "1040-NR" : "1040")
     };
   }
 };

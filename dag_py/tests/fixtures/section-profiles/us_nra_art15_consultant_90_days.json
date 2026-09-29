@@ -1,0 +1,65 @@
+{
+  "id": "us_nra_art15_consultant_90_days",
+  "form": "layer1_us.html",
+  "section": "NRA (Form 1040-NR) — independent services",
+  "story": "Same Indian-resident consultant as us_nra_art15_consultant, but 120 days in the US: at 90 days or more Art. 15 lets the US tax the income.",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 120
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "itin",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 120,
+      "spt_test_met": false,
+      "final_us_residency_status": "NRA"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "nra_specific": {
+      "files_form_1040nr": true,
+      "has_us_pe": false,
+      "us_eci_income_usd": 80000,
+      "us_fdap_income_usd": 0
+    },
+    "income_us_source": {
+      "self_employment": [
+        {
+          "business_name": "Consulting",
+          "has_se_income": true,
+          "gross_receipts_usd": 100000,
+          "expenses_usd": 20000
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.nra.art15ExemptUsd",
+      "value": 0,
+      "why": "120 US days: Art. 15(1)(b)'s 90-day test is met, so the US may tax it"
+    },
+    {
+      "path": "computed.usTax.nra.eciTaxUsd",
+      "value": 12312,
+      "why": "80,000 of ECI at single rates, no deductions"
+    },
+    {
+      "path": "findings[id=nra_art15_services_exempt]",
+      "value": null,
+      "why": "no exemption applied"
+    }
+  ]
+}

@@ -618,7 +618,10 @@ function additionalMedicareOwedUsd(us) {
 var NODES = {
   // ---- raw leaves for feie/filing status/entity gates ----------------------
   usEntityKind: { deps: [], compute: function (d, ctx) { return ctx.model.entity ? ctx.model.entity.usKind : "individual"; } },
-  files1040nr: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "nra_specific.files_form_1040nr", false) === true; } },
+  // A US citizen never files as a non-resident: the saving clause (DTAA
+  // Art. 1(3)) keeps citizens taxed on worldwide income whatever box is
+  // ticked — treaty_saving_clause_citizen tells the preparer.
+  files1040nr: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "nra_specific.files_form_1040nr", false) === true && safe(ctx.us, "us_residency_detail.is_us_citizen", false) !== true; } },
   s6013hElection: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "nra_specific.s6013h_joint_election", false) === true; } },
   usVisaTypeRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.us, "profile.visa_type", null); } },
   usFilingStatusRaw: {

@@ -374,10 +374,10 @@ NODES.findingsBatch5Result = {
         "vesting / NSO exercise in full as ordinary income in the vesting/exercise year. Absent a workday-based " +
         "allocation, the same equity award can be fully taxed by BOTH countries rather than apportioned to where the " +
         "services were actually performed during the vesting period.",
-        "Reconstruct the vesting-period workday split between India and the US (DTAA Art. 15/16 dependent-personal-" +
+        "Reconstruct the vesting-period workday split between India and the US (DTAA Art. 16 dependent-personal-" +
         "services sourcing) so each country only taxes its proportionate share, then claim FTC/§159 relief on the " +
         "genuinely overlapping portion rather than the full award twice.",
-        0, ["DTAA Art. 15", "s.17(1)(vi)", "RSU vesting", "NSO exercise"]);
+        0, ["DTAA Art. 16", "s.17(1)(vi)", "RSU vesting", "NSO exercise"]);
     }
 
     // -- 4c3. FORM 3921 — ISO INFORMATION RETURN (conflicts.js:561-571) -----

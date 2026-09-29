@@ -79,6 +79,16 @@
       "path": "findings[id=treaty_docs_missing]",
       "value": null,
       "why": "no treaty position is taken in India (no US tie-break, no forced NR, no DTAA elections): a 1040-NR filer claims US treaty rates with a W-8BEN, so the Indian TRC/Form 41 alert must not fire"
+    },
+    {
+      "path": "findings[id=us_social_security_india_exempt].severity",
+      "value": "info",
+      "why": "DTAA Art. 20(2): US Social Security is taxable only in the US — the Indian return must show it as exempt and claim no credit"
+    },
+    {
+      "path": "findings[id=us_pension_withholding_no_w8ben]",
+      "value": null,
+      "why": "W-8BEN is on file, so the payers can pay the Art. 20(1)-exempt pension without withholding"
     }
   ]
 }

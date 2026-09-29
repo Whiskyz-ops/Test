@@ -266,7 +266,11 @@ NODES = {
     "treatyIndiaResidenceRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "dtaa.dtaa_treaty_residence", "none"), layer1_fields=("india.dtaa.dtaa_treaty_residence",)),
     "treatyDtaaForcedNrRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "dtaa.dtaa_forced_nr", False) is True, layer1_fields=("india.dtaa.dtaa_forced_nr",)),
     "treatyUsResidenceRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "us_residency_detail.dtaa_treaty_residence", "none"), layer1_fields=("us.us_residency_detail.dtaa_treaty_residence",)),
-    "treatyFiles1040nrRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "nra_specific.files_form_1040nr", False) is True, layer1_fields=("us.nra_specific.files_form_1040nr",)),
+    # A US citizen never files as a non-resident: the saving clause (DTAA
+    # Art. 1(3)) keeps citizens taxed on worldwide income whatever box is
+    # ticked — treaty_saving_clause_citizen tells the preparer.
+    "treatyFiles1040nrRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "nra_specific.files_form_1040nr", False) is True and safe(ctx.get("us"), "us_residency_detail.is_us_citizen", False) is not True,
+                                    layer1_fields=("us.nra_specific.files_form_1040nr", "us.us_residency_detail.is_us_citizen")),
 
     "residencyResult": NodeDef(
         deps=("indiaStatusRaw", "usStatusRaw", "usIsCitizenRaw", "usHasGreenCardRaw", "usSptMetRaw",

@@ -1,0 +1,72 @@
+{
+  "id": "us_citizen_treaty_saving_clause",
+  "form": "layer1_us.html",
+  "section": "NRA (Form 1040-NR) — saving clause",
+  "story": "US citizen (same W-2 client as us_wages_single: $120,000 wages) whose intake also ticks 'files Form 1040-NR' and records a 15% dividend treaty claim. A citizen can't take either position: the saving clause keeps worldwide Form 1040 taxation.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 120000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 15000,
+            "medicare_wages_box5_usd": 120000
+          }
+        }
+      ]
+    },
+    "nra_specific": {
+      "files_form_1040nr": true,
+      "submitted_w8ben": true,
+      "treaty_rate_claims": [
+        {
+          "income_type": "dividends",
+          "elected_rate": "15",
+          "treaty_article": "Art 10(2)(a)"
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 17570,
+      "why": "same tax as us_wages_single (Form 1040): the 1040-NR box is ignored for a citizen — before this fix it computed 1040-NR tax of 21,398"
+    },
+    {
+      "path": "returnForms.us.form",
+      "value": "1040",
+      "why": "a US citizen files Form 1040"
+    },
+    {
+      "path": "findings[id=treaty_saving_clause_citizen].severity",
+      "value": "critical",
+      "why": "DTAA Art. 1(3) saving clause: the 1040-NR filing and treaty-rate claim are not available to a citizen"
+    }
+  ]
+}

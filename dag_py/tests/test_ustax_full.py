@@ -74,7 +74,9 @@ def _analyze_pinned(fixture_id):
 _NRA_ART212_NEW_FIELDS = ("article212Eligible", "article212AmbiguousJ1", "itemizedDeductionUsd", "standardDeductionUsd",
                           "splitSource",  # DAG-only: whether the ECI/FDAP split was saved by Layer 1 or re-derived
                           # DAG-only: per-income-type FDAP rows, Art. 20(2) Social Security and Art. 20(1) pensions
-                          "fdapBreakdown", "socialSecurityTaxableUsd", "socialSecurityTaxUsd", "pensionTreatyExemptUsd")
+                          "fdapBreakdown", "socialSecurityTaxableUsd", "socialSecurityTaxUsd", "pensionTreatyExemptUsd",
+                          # DAG-only: pension tax without Indian residence, and the Art. 15 exemption
+                          "pensionTaxUsd", "treatyResident", "art15ExemptUsd", "art15TaxSavedUsd", "art15UsDays")
 
 
 def _strip_nra_art212_fields(us_tax: dict) -> dict:

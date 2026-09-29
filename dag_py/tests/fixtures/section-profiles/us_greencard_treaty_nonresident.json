@@ -1,0 +1,77 @@
+{
+  "id": "us_greencard_treaty_nonresident",
+  "form": "layer1_us.html",
+  "section": "Residency — treaty tie-breaker",
+  "story": "Green-card holder for 10 years who moved back to India and is resident there (ROR). The US-side Article 4 tie-breaker is recorded as India and the client files Form 1040-NR. US interest $5,000.",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": true,
+    "us_days": 20
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "manual_days": 345,
+      "days_in_india_current_year": 345,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      }
+    },
+    "other_sources": {}
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": true,
+      "green_card_years_held": 10,
+      "us_days_current_year": 20,
+      "final_us_residency_status": "RESIDENT_ALIEN",
+      "dtaa_treaty_residence": "india"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "nra_specific": {
+      "files_form_1040nr": true,
+      "us_eci_income_usd": 0,
+      "us_fdap_income_usd": 5000
+    },
+    "income_us_source": {
+      "interest_us_source_usd": 5000
+    }
+  },
+  "expect": [
+    {
+      "path": "findings[id=greencard_treaty_nonresident].severity",
+      "value": "warning",
+      "why": "a long-term resident (10 of the last 15 years) taking treaty non-residence is an expatriation under IRC s.7701(b)(6) — exit-tax tests and Form 8854"
+    },
+    {
+      "path": "findings[id=treaty_saving_clause_citizen]",
+      "value": null,
+      "why": "not a citizen: a green-card holder may take the Art. 4 position (Treas. Reg. s.301.7701(b)-7)"
+    },
+    {
+      "path": "returnForms.us.form",
+      "value": "1040-NR",
+      "why": "treaty non-resident files Form 1040-NR (with Form 8833)"
+    }
+  ]
+}

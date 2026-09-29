@@ -171,12 +171,22 @@ const KNOWN_EXTRA_FINDING_IDS = new Set([
   "itin_application_required", "lrs_investment_tcs",
   "nra_eci_fdap_classification_check", "us_withholding_outside_us_wages", "dtaa_16_2_short_stay_us", "dtaa_16_2_short_stay_india", "treaty_rate_not_recognized",
   "ftc_gap", "ftc_available", "niit_medicare_not_creditable", "underpayment_2210",
-  "cfc", "cfc_below_threshold"
+  "cfc", "cfc_below_threshold",
+  "us_pension_withholding_no_w8ben", "us_social_security_india_exempt", "treaty_saving_clause_citizen", "greencard_treaty_nonresident", "nra_art15_services_exempt"
 ]);
 // cfc (Phase 7, XB-14, GILTI/NCTI quantification): content (not presence)
 // diverges unconditionally whenever it fires on both sides — same
 // KNOWN_CONTENT_DIVERGENCE_FINDING_IDS run-fuzz.js carries.
 const KNOWN_CONTENT_DIVERGENCE_FINDING_IDS = new Set(["cfc"]);
+// Treaty advice reworded in the DAG (GAP_TRACKER IN-47/48/49) — only these
+// fields of these findings are excused (same map as run-fuzz.js).
+const KNOWN_TREATY_TEXT_FIELDS = {
+  dual_residency_resolved: ["recommendation", "refs"],
+  treaty_docs_missing: ["detail"],
+  dtaa_16_2_short_stay_india: ["recommendation", "refs"],
+  nra_fdap_flat_rate: ["recommendation"],
+  equity_comp_sourcing: ["recommendation", "refs"]
+};
 
 // Returns true iff at least one of the catalogued ID-level exceptions
 // (extra/missing DAG-only ID, entity-suppressed/basket-split missing ID, or
@@ -196,7 +206,9 @@ function diffFindings(engFindings, dagFindings, isUsEntity, out, isNotUsPerson) 
   [...allIds].sort().forEach((id) => {
     const inDag = dagById.has(id), inEng = engById.has(id);
     if (inDag && !inEng) {
-      if (KNOWN_EXTRA_FINDING_IDS.has(id)) hadKnownIssue = true;
+      // treaty_docs_missing for an Art. 16(2) claim in India (IN-48).
+      const art162Docs = id === "treaty_docs_missing" && /Art\. 16\(2\)/.test(dagById.get(id).detail || "");
+      if (KNOWN_EXTRA_FINDING_IDS.has(id) || art162Docs) hadKnownIssue = true;
       else out.push({ path: `findings[${id}]`, engine: "<missing>", dag: "<present>" });
     } else if (!inDag && inEng) {
       // Two catalogued exceptions, same as run-fuzz.js's own compareFindings:
@@ -209,11 +221,22 @@ function diffFindings(engFindings, dagFindings, isUsEntity, out, isNotUsPerson) 
       // FBAR is a US-person obligation (findings-batch5-nodes.js): the DAG
       // drops it for a non-resident alien, the frozen engine doesn't.
       const isFbarNonUsPerson = id === "fbar_limit" && isNotUsPerson;
-      if (isEntitySuppressed || isBasketSplit || isFbarNonUsPerson) hadKnownIssue = true;
+      // treaty_docs_missing: the DAG only drops it when no treaty position is
+      // taken in India (IN-47) — it never drops one the engine gets right.
+      const isTrcNarrowed = id === "treaty_docs_missing";
+      if (isEntitySuppressed || isBasketSplit || isFbarNonUsPerson || isTrcNarrowed) hadKnownIssue = true;
       else out.push({ path: `findings[${id}]`, engine: "<present>", dag: "<missing>" });
     } else if (inDag && inEng) {
       if (KNOWN_CONTENT_DIVERGENCE_FINDING_IDS.has(id)) hadKnownIssue = true;
-      else diff(`findings[${id}]`, engById.get(id), dagById.get(id), out, false);
+      else {
+        const fieldDiffs = [];
+        diff(`findings[${id}]`, engById.get(id), dagById.get(id), fieldDiffs, false);
+        const textFields = KNOWN_TREATY_TEXT_FIELDS[id] || [];
+        fieldDiffs.forEach((fd) => {
+          if (textFields.some((f) => String(fd.path).indexOf(`findings[${id}].${f}`) === 0)) hadKnownIssue = true;
+          else out.push(fd);
+        });
+      }
     }
   });
   return hadKnownIssue;

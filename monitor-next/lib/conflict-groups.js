@@ -32,15 +32,17 @@ const BY_ID = {
     "no_totalization_agreement", "cross_basis_summary"],
   payments: ["india_advance_tax_interest", "underpayment_2210", "early_withdrawal_penalty_72t"],
   docs: ["treaty_docs_missing", "withholding_documentation_gap", "pan_not_linked_aadhaar", "form_10iea", "india_itr_form_mismatch",
-    "iso_3921", "nra_w8ben_missing", "itin_application_required"],
+    "iso_3921", "nra_w8ben_missing", "itin_application_required", "us_pension_withholding_no_w8ben"],
   residency: ["dtaa_16_2_short_stay_us", "dtaa_16_2_short_stay_india", "dual_residency", "dual_residency_resolved", "entity_dual_residency_poem", "dtaa_treaty_elections", "pe_article7",
     "state_treaty_not_binding", "treaty_rate_not_recognized", "us_dual_status_split_year", "nra_fdap_flat_rate",
-    "nra_article_21_2_standard_deduction", "nra_eci_fdap_classification_check", "nra_j1_article_21_2_review"],
+    "nra_article_21_2_standard_deduction", "nra_eci_fdap_classification_check", "nra_j1_article_21_2_review",
+    "treaty_saving_clause_citizen", "greencard_treaty_nonresident"],
   feie: ["feie_ineligible", "feie_applied"],
   mismatch: ["tax_year_mismatch", "fx_basis", "retirement_mismatch", "deemed_dividend_buyback_mismatch", "equity_comp_sourcing",
     "promoter_buyback_additional_tax", "special_rate_gaming_winnings", "chapter_xiia_elected_no_holdings",
     "chapter_xiia_investment_income_missing", "chapter_xiia_investment_income_computed", "s115bbe_unexplained_income",
-    "carry_forward_losses_not_applied", "presumptive_lockin_active_india", "msme_disallowance_s43Bh_india"],
+    "carry_forward_losses_not_applied", "presumptive_lockin_active_india", "msme_disallowance_s43Bh_india",
+    "us_social_security_india_exempt", "nra_art15_services_exempt"],
   disclosure: ["fbar_limit", "schedule_fa_inconsistent", "pfic", "cfc", "cfc_below_threshold", "transfer_pricing", "foreign_gift_3520",
     "covered_expat_gift_tax", "black_money_act_exposure", "form_1099da_awareness", "lrs_limit", "firpta",
     "us_covered_expatriate_exit_tax", "us_ltr_expatriation_not_covered"],
@@ -55,6 +57,7 @@ Object.keys(BY_ID).forEach((g) => BY_ID[g].forEach((id) => { GROUP_OF[id] = g; }
 // Others carry amounts that aren't losses (a state's total tax, an income
 // figure, an exposure) and are shown per row but not added up.
 export const AT_RISK_IDS = new Set(["salary_not_taxable_india_tds", "us_withholding_outside_us_wages", "salary_us_work_india_tax", "ftc_gap", "withholding_documentation_gap",
+  "us_pension_withholding_no_w8ben",
   "india_advance_tax_interest", "underpayment_2210", "early_withdrawal_penalty_72t"]);
 
 export function groupOf(id) {

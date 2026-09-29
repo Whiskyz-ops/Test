@@ -512,7 +512,7 @@ function sortedFindings(f) { return (f || []).slice().sort(function (x, y) { ret
 // stays that way permanently, so any fuzz-generated entity profile that
 // owns ≥10% of a foreign corporation now genuinely diverges — DAG correctly
 // fires, engine categorically cannot.
-var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely|itin_application_required|lrs_investment_tcs|nra_eci_fdap_classification_check|us_withholding_outside_us_wages|dtaa_16_2_short_stay_us|dtaa_16_2_short_stay_india|treaty_rate_not_recognized|ftc_gap|ftc_available|niit_medicare_not_creditable|underpayment_2210|cfc|cfc_below_threshold)$/;
+var KNOWN_EXTRA_FINDING_ID = /^(us_entity_state_tax(_not_modeled)?|presumptive_lockin_active_india|msme_disallowance_s43Bh_india|retirement_excess_elective_deferral|retirement_excess_ira_contribution|hsa_excess_contribution|retirement_rmd_required|s83b_election_not_filed_timely|itin_application_required|lrs_investment_tcs|nra_eci_fdap_classification_check|us_withholding_outside_us_wages|dtaa_16_2_short_stay_us|dtaa_16_2_short_stay_india|treaty_rate_not_recognized|ftc_gap|ftc_available|niit_medicare_not_creditable|underpayment_2210|cfc|cfc_below_threshold|us_pension_withholding_no_w8ben|us_social_security_india_exempt|treaty_saving_clause_citizen|greencard_treaty_nonresident|nra_art15_services_exempt)$/;
 // cfc (Phase 7, XB-14, GILTI/NCTI quantification): the finding's detail/
 // recommendation/refs text now differs unconditionally from the frozen
 // engine's static text whenever it fires — real computed inclusion numbers
@@ -719,8 +719,20 @@ var KNOWN_TREATY_TEXT_FIELDS = {
   dual_residency_resolved: ["recommendation", "refs"],
   treaty_docs_missing: ["detail"],
   dtaa_16_2_short_stay_india: ["recommendation", "refs"],
-  nra_fdap_flat_rate: ["recommendation"]
+  nra_fdap_flat_rate: ["recommendation"],
+  equity_comp_sourcing: ["recommendation", "refs"]
 };
+
+// A US citizen with the 1040-NR box ticked (GAP_TRACKER IN-49): the frozen
+// engine files and taxes them as a non-resident; the DAG applies the saving
+// clause (DTAA Art. 1(3)) and keeps Form 1040.
+function isCitizen1040nrProfile(profile) {
+  var us = profile.us || {};
+  return !!(us.us_residency_detail && us.us_residency_detail.is_us_citizen === true && us.nra_specific && us.nra_specific.files_form_1040nr === true);
+}
+// Everything computed from the US tax basis moves with it.
+var KNOWN_CITIZEN_1040NR_PATHS = ["model.entity.usReturnForm", "computed.usTax", "computed.ftc", "computed.headline", "computed.reconciliation",
+  "computed.apportionment", "computed.limits", "taxComputation", "withholding", "returnForms", "documents", "summary", "monitoring", "ftcReport"];
 
 function normalizeKnownScheduleCTraceDivergence(real, dag) {
   var re = real && real.model && real.model.assets && real.model.assets.businessEntities;
@@ -1510,6 +1522,7 @@ function compareOne(label, profile, saveOnFail) {
     .concat(usEntity ? KNOWN_US_ENTITY_DIVERGENT_PATHS : [])
     .concat(isIndiaEntityProfile(dag) ? KNOWN_INDIA_ENTITY_DIVERGENT_PATHS : [])
     .concat(isNraProfile(dag) ? KNOWN_NRA_DIVERGENT_PATHS : [])
+    .concat(isCitizen1040nrProfile(profile) ? KNOWN_CITIZEN_1040NR_PATHS : [])
     .concat(indiaAopOrTrust ? KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS : [])
     .concat(isUsTrustProfile(dag) ? KNOWN_US_TRUST_DIVERGENT_PATHS : [])
     .concat(feieWagesDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])

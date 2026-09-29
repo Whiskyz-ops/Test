@@ -17,7 +17,7 @@
  "run-findings2.js": 0,
  "run-findings3.js": 4,
  "run-findings4.js": 2,
- "run-findings5.js": 4,
+ "run-findings5.js": 5,
  "run-findings6.js": 0,
  "run-fixtures-standalone.js": 0,
  "run-ftc-correctness.js": 0,
@@ -39,7 +39,7 @@
  "run-report4.js": 1,
  "run-residency.js": 0,
  "run-us-full.js": 10,
- "run-ustax-full.js": 81,
+ "run-ustax-full.js": 101,
  "run-ustax.js": 6,
  "run-xborder-full.js": 9
 }

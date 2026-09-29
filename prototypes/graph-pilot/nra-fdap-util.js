@@ -13,16 +13,19 @@ function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
  * OI, so no W-8BEN is needed) — shown as a $0 row. Declared FDAP beyond
  * the typed rows is taxed at 30%; declared FDAP below them fills the rows
  * in order. */
-function nraFdapBreakdown(fdapUsd, agg, royaltiesUsd, rentalElected, claims, w8ben) {
+// treatyResident: false only when Layer 1 India records the client as NOT
+// resident in India — then no India-US treaty benefit applies at all.
+function nraFdapBreakdown(fdapUsd, agg, royaltiesUsd, rentalElected, claims, w8ben, treatyResident) {
+  treatyResident = treatyResident !== false;
   var rateFor = {};
   (claims || []).forEach(function (c) {
     if (!c || c.elected_rate == null || c.elected_rate === "") return;
     var t = String(c.income_type || "").toLowerCase().replace(/s$/, "");
     rateFor[t] = Math.max(0, Math.min(0.30, Number(c.elected_rate) / 100));
   });
-  function rate(t) { return w8ben && rateFor[t] != null ? rateFor[t] : 0.30; }
+  function rate(t) { return treatyResident && w8ben && rateFor[t] != null ? rateFor[t] : 0.30; }
   // Tax a missing W-8BEN costs: the claimed rate is denied, 30% applies.
-  function gap(t, base) { return !w8ben && rateFor[t] != null ? base * (0.30 - rateFor[t]) : 0; }
+  function gap(t, base) { return treatyResident && !w8ben && rateFor[t] != null ? base * (0.30 - rateFor[t]) : 0; }
   var typed = [
     { type: "dividends", baseUsd: num(agg.ordinaryDividendsUs && agg.ordinaryDividendsUs.usd), rate: rate("dividend"), basis: "Art. 10" },
     { type: "interest", baseUsd: num(agg.interestUs && agg.interestUs.usd), rate: rate("interest"), basis: "Art. 11" },
@@ -41,7 +44,9 @@ function nraFdapBreakdown(fdapUsd, agg, royaltiesUsd, rentalElected, claims, w8b
   var pensionUsd = num(agg.usRetirementIncomeExclSs && agg.usRetirementIncomeExclSs.usd);
   var extra = [
     { type: "social_security", baseUsd: 0.85 * ssUsd, rate: 0.30, basis: "§871(a)(3): 85% taxable at 30%; DTAA Art. 20(2)" },
-    { type: "pensions", baseUsd: pensionUsd, rate: 0, basis: "DTAA Art. 20(1): periodic pensions taxable only in India" }
+    treatyResident
+      ? { type: "pensions", baseUsd: pensionUsd, rate: 0, basis: "DTAA Art. 20(1): periodic pensions taxable only in India" }
+      : { type: "pensions", baseUsd: pensionUsd, rate: 0.30, basis: "30% — not resident in India, so DTAA Art. 20(1) doesn't apply" }
   ];
   var rows = typed.concat(extra).filter(function (r) { return r.baseUsd > 0; });
   var claimType = { dividends: "dividend", interest: "interest", royalties: "royaltie" };
@@ -53,7 +58,7 @@ function nraFdapBreakdown(fdapUsd, agg, royaltiesUsd, rentalElected, claims, w8b
   return {
     rows: rows, fdapTaxUsd: sum(lumpRows), effectiveRate: lumpBase > 0 ? sum(lumpRows) / lumpBase : null,
     socialSecurityTaxableUsd: 0.85 * ssUsd, socialSecurityTaxUsd: 0.85 * ssUsd * 0.30,
-    pensionUsd: pensionUsd, gapUsd: gapUsd
+    pensionUsd: treatyResident ? pensionUsd : 0, pensionTaxUsd: treatyResident ? 0 : 0.30 * pensionUsd, pensionTaxableUsd: treatyResident ? 0 : pensionUsd, gapUsd: gapUsd
   };
 }
 

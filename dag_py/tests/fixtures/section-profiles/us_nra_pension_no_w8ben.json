@@ -1,0 +1,54 @@
+{
+  "id": "us_nra_pension_no_w8ben",
+  "form": "layer1_us.html",
+  "section": "NRA (Form 1040-NR) — pensions",
+  "story": "Retired Indian resident, non-resident alien, files Form 1040-NR but has given no Form W-8BEN to the payers. US pension $20,000 and IRA distributions $40,000, nothing else.",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": false,
+    "us_days": 0
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": false,
+      "us_days_current_year": 0,
+      "spt_test_met": false,
+      "final_us_residency_status": "NRA"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "nra_specific": {
+      "files_form_1040nr": true,
+      "submitted_w8ben": false,
+      "us_eci_income_usd": 0,
+      "us_fdap_income_usd": 0
+    },
+    "income_us_source": {
+      "ira_distributions_usd": 40000,
+      "pension_income_usd": 20000
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 0,
+      "why": "DTAA Art. 20(1): periodic pensions of an Indian resident are taxable only in India — claimed on the 1040-NR, no W-8BEN needed for that"
+    },
+    {
+      "path": "findings[id=us_pension_withholding_no_w8ben].amountUsd",
+      "value": 18000,
+      "why": "without W-8BEN the payers withhold 30% x 60,000 = 18,000 (IRC s.1441), refundable only via the 1040-NR"
+    }
+  ]
+}

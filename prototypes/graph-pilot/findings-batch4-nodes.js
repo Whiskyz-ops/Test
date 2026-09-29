@@ -374,7 +374,8 @@ NODES.nraFdapDetail = {
     // Per income type (a dividend claim no longer sets the interest rate) —
     // the same rows nraTaxResult taxes, via nra-fdap-util.js.
     var fd = nraFdapBreakdown(fdapUsd, d.aggregateUsIncomeResult, d.royaltiesDirectUsSourceUsdRaw,
-      safe(ctx.us, "nra_specific.rental_net_basis_election", false) === true, d.nraRaw.treatyRateClaims, w8benOnFile);
+      safe(ctx.us, "nra_specific.rental_net_basis_election", false) === true, d.nraRaw.treatyRateClaims, w8benOnFile,
+      safe(ctx.india, "residency_detail.final_india_residency_status", null) !== "NR");
     var fdapRate = fd.effectiveRate != null ? fd.effectiveRate : ((w8benOnFile && claimedRateFraction != null) ? claimedRateFraction : 0.30);
     var gapUsd = fd.gapUsd;
     return {
