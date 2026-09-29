@@ -1,0 +1,63 @@
+{
+  "id": "us_capital_loss_limit",
+  "form": "layer1_us.html",
+  "section": "Capital gains (Schedule D)",
+  "story": "US citizen, single, wages $120,000 and a $20,000 short-term loss on stock sales. Only $3,000 of a net capital loss comes off other income; the rest carries to next year.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 120000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 15000,
+            "medicare_wages_box5_usd": 120000
+          }
+        }
+      ],
+      "cg_manual_stcg_usd": -20000,
+      "stcg_us_source_usd": -20000
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.agiUsd",
+      "value": 117000,
+      "why": "IRC s.1211(b): 120,000 - 3,000 (the loss beyond 3,000 is not deducted this year)"
+    },
+    {
+      "path": "computed.usTax.capitalLoss.carryoverStUsd",
+      "value": 17000,
+      "why": "s.1212(b): 20,000 - 3,000 carries forward as short-term loss"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 16910,
+      "why": "taxable 117,000 - 16,100 = 100,900: 1,240 + 12% x 38,000 + 22% x 50,500 = 16,910"
+    }
+  ]
+}

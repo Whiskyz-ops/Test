@@ -777,7 +777,13 @@ def _aggregate_us_income_result(d, ctx):
     # in this aggregate either.
     foreign_source_total = foreign_wages_total + foreign_self_employment + foreign_interest + di["foreignDividendsUsd"] + di["foreignRentalUsd"] + foreign_pension + di["foreignStcgUsd"] + di["foreignLtcgUsd"] + di["section988GainLossUsd"] + cfc["nonElectedOrdinaryInclusionUsd"] + fi["otherUsd"]
 
-    return {
+    # Prior-year capital loss carryovers (Layer 1 US, positive amounts), netted
+    # in compute_us_tax_core's Schedule D step. Present only when set.
+    ui = safe(ctx.get("us"), "income_us_source", {}) or {}
+    carry_on = ui.get("has_capital_loss_carryovers") is not False
+    st_carry = abs(num(ui.get("st_loss_carryover_usd"))) if carry_on else 0
+    lt_carry = abs(num(ui.get("lt_loss_carryover_usd"))) if carry_on else 0
+    out = {
         "wages": _m(wages_usd, ctx), "businessUs": _m(biz["businessUsUsd"], ctx), "w2Withholding": w["w2WithholdingUsd"], "w2Employers": w["w2Employers"], "medicareWages": w["medicareWagesUsd"],
         "qualifiedTipsUsd": w["qualifiedTipsUsd"], "qualifiedOvertimeUsd": w["qualifiedOvertimeUsd"],
         "seEarningsUsd": biz["seEarningsUsd"], "qbiIncomeUsd": biz["qbiIncomeUsd"], "qbiIsSSTB": biz["qbiIsSSTB"],
@@ -821,6 +827,9 @@ def _aggregate_us_income_result(d, ctx):
         "usSourceTotal": _m(us_source_total, ctx), "foreignSourceTotal": _m(foreign_source_total, ctx),
         "total": _m(us_source_total + foreign_source_total, ctx),
     }
+    if st_carry > 0 or lt_carry > 0:
+        out = {"stLossCarryoverUsd": st_carry, "ltLossCarryoverUsd": lt_carry, **out}
+    return out
 
 
 _WAGES_FIELDS = (

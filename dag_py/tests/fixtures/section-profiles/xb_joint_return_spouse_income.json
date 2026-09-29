@@ -1,0 +1,89 @@
+{
+  "id": "xb_joint_return_spouse_income",
+  "form": "layer1_us.html",
+  "section": "Filing status (married filing jointly)",
+  "story": "US citizen living in India (resident and ordinarily resident), married filing jointly. The US intake holds two W-2s: the client's $50,000 and the spouse's $150,000. India taxes each spouse separately, but nothing says which W-2 is whose.",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "has_green_card": false,
+    "us_days": 20
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "manual_days": 345,
+      "days_in_india_current_year": 345,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      }
+    },
+    "other_sources": {},
+    "itr_recommendation": {
+      "form": "ITR-1 (SAHAJ)",
+      "explanation": "For Resident Salaried Individuals with total income up to ₹50 Lakhs (Salary, 1 house property, basic other sources). Restrictions: No foreign assets, no capital gains, no directorships."
+    }
+  },
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "nra_specific": {},
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Client Co",
+          "wages_box1_usd": 50000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 50000
+          }
+        },
+        {
+          "employer_name": "Spouse Co",
+          "wages_box1_usd": 150000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 150000
+          }
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 0
+    }
+  },
+  "expect": [
+    {
+      "path": "findings[id=joint_return_spouse_income_india].severity",
+      "value": "critical",
+      "why": "joint return, India resident taxed on worldwide income, two W-2s: the spouse's wages are very likely in this client's Indian income"
+    },
+    {
+      "path": "findings[id=india_itr_form_mismatch].severity",
+      "value": "warning",
+      "why": "the India form recommends ITR-1 because it can't see the US wages; a resident with foreign income needs ITR-2 — the engine flags the mismatch"
+    }
+  ]
+}

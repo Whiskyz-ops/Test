@@ -422,7 +422,9 @@ NODES.usEntityStateTaxResult = {
  *  - treaty_saving_clause_citizen     DTAA Art. 1(3)
  *  - greencard_treaty_nonresident     DTAA Art. 4 / IRC §7701(b)(6)
  *  - nra_art15_services_exempt        DTAA Art. 15 / Art. 7
- *  - nra_us_interest_exempt           IRC §871(h)/(i) (not a treaty rule) */
+ *  - nra_us_interest_exempt           IRC §871(h)/(i) (not a treaty rule)
+ *  - joint_return_spouse_income_india interim, until spouse profiles are linked
+ *                                     (docs/HOUSEHOLD_DESIGN.md; audit row G1) */
 function treatyFindings(d, ctx, isNra) {
   var out = [];
   var u = d.usTaxResult || {};
@@ -443,6 +445,30 @@ function treatyFindings(d, ctx, isNra) {
         "Recover what was already withheld by filing Form 1040-NR with the exemption on Schedule OI. Lump-sum distributions aren't \"pensions\" under the " +
         "treaty (Art. 20(3) requires periodic payments) and can be taxed by the US — confirm each distribution is periodic.",
       amountUsd: withheldUsd, refs: ["DTAA Art. 20(1)", "Form W-8BEN", "IRC §1441", "Form 1040-NR"]
+    });
+  }
+
+  // A joint US return holds both spouses' income on this client's US intake,
+  // and for an Indian resident taxed on worldwide income that US income flows
+  // into the Indian computation. India taxes each spouse separately, and
+  // nothing yet says which US items are the spouse's, so the Indian tax,
+  // Form 44 relief and double-tax figures may include the spouse's income.
+  var usSourceUsd = (agg.usSourceTotal && agg.usSourceTotal.usd) || 0;
+  if (safe(ctx.us, "profile.filing_status", null) === "mfj" && res.india && res.india.worldwide && usSourceUsd > 0) {
+    var w2Count = (agg.w2Employers || []).length;
+    var twoEarnerSigns = w2Count >= 2 || (w2Count >= 1 && (agg.seEarningsUsd || 0) > 0);
+    out.push({
+      id: "joint_return_spouse_income_india", severity: twoEarnerSigns ? "critical" : "warning", category: "residency",
+      title: "Joint US return: spouse's income is included in this client's Indian computation",
+      detail: "The US intake is a married-filing-jointly return, so it holds both spouses' US income (" + usd(usSourceUsd) + " in total" +
+        (twoEarnerSigns ? ", from " + (w2Count >= 2 ? w2Count + " W-2s" : "a W-2 and self-employment") + " — likely both spouses" : "") +
+        "). India taxes each spouse separately, but WISING can't yet tell which of these items are the spouse's, so all of it is in this " +
+        "client's Indian income. The Indian tax, the Form 44 relief for US tax and the double-tax figures here may be overstated by the " +
+        "spouse's share.",
+      recommendation: "Treat the Indian figures as provisional until spouse profiles can be linked. If every US item on this intake is the " +
+        "client's own (the spouse has no US income), mark this Not applicable. Otherwise compute the Indian return on the client's own US " +
+        "income, and claim Form 44 relief only for the US tax on that income.",
+      amountUsd: 0, refs: ["Income-tax Act — individual assessment", "Form 44", "Form 1040 (joint)"]
     });
   }
 

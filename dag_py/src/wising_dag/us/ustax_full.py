@@ -267,6 +267,27 @@ def _treaty_findings(d, ctx, is_nra):
             withheld, ["DTAA Art. 20(1)", "Form W-8BEN", "IRC §1441", "Form 1040-NR"],
         ))
 
+    # Joint US return for an Indian resident taxed on worldwide income: the
+    # spouse's US income may be in the Indian computation — see
+    # ustax-full-nodes.js (audit row G1; interim until spouse profiles link).
+    us_source_usd = ((agg.get("usSourceTotal") or {}).get("usd")) or 0
+    if safe(ctx.get("us"), "profile.filing_status", None) == "mfj" and (res.get("india") or {}).get("worldwide") and us_source_usd > 0:
+        w2_count = len(agg.get("w2Employers") or [])
+        two_earner_signs = w2_count >= 2 or (w2_count >= 1 and (agg.get("seEarningsUsd") or 0) > 0)
+        out.append(make_finding(
+            "joint_return_spouse_income_india", "critical" if two_earner_signs else "warning", "residency",
+            "Joint US return: spouse's income is included in this client's Indian computation",
+            f"The US intake is a married-filing-jointly return, so it holds both spouses' US income ({_usd(us_source_usd)} in total"
+            + ((", from " + (f"{w2_count} W-2s" if w2_count >= 2 else "a W-2 and self-employment") + " — likely both spouses") if two_earner_signs else "")
+            + "). India taxes each spouse separately, but WISING can't yet tell which of these items are the spouse's, so all of it is in this "
+            "client's Indian income. The Indian tax, the Form 44 relief for US tax and the double-tax figures here may be overstated by the "
+            "spouse's share.",
+            "Treat the Indian figures as provisional until spouse profiles can be linked. If every US item on this intake is the "
+            "client's own (the spouse has no US income), mark this Not applicable. Otherwise compute the Indian return on the client's own US "
+            "income, and claim Form 44 relief only for the US tax on that income.",
+            0, ["Income-tax Act — individual assessment", "Form 44", "Form 1040 (joint)"],
+        ))
+
     ss_usd = ((agg.get("socialSecurityUs") or {}).get("usd")) or 0
     india_resident = bool((res.get("india") or {}).get("isResident")) or (is_nra and india_status != "NR")
     if ss_usd > 0 and india_resident:

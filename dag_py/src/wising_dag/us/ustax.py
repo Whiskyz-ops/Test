@@ -192,6 +192,26 @@ def _feie_raw(d, ctx):
     }
 
 
+def net_capital_gains(st_gain_usd, lt_gain_usd, st_carry_usd, lt_carry_usd, status):
+    """Schedule D netting (IRC §§1211(b), 1212(b), 1222) — see ustax-nodes.js
+    netCapitalGains."""
+    net_st = st_gain_usd - max(0.0, st_carry_usd or 0)
+    net_lt = lt_gain_usd - max(0.0, lt_carry_usd or 0)
+    limit_usd = T["CAPITAL_LOSS_LIMIT_USD"]["mfs"] if status == "mfs" else T["CAPITAL_LOSS_LIMIT_USD"]["other"]
+    if net_st + net_lt >= 0:
+        if net_st < 0:
+            return {"stUsd": 0, "ltUsd": net_st + net_lt, "lossDeductionUsd": 0, "carryoverStUsd": 0, "carryoverLtUsd": 0}
+        if net_lt < 0:
+            return {"stUsd": net_st + net_lt, "ltUsd": 0, "lossDeductionUsd": 0, "carryoverStUsd": 0, "carryoverLtUsd": 0}
+        return {"stUsd": net_st, "ltUsd": net_lt, "lossDeductionUsd": 0, "carryoverStUsd": 0, "carryoverLtUsd": 0}
+    ded_usd = min(-(net_st + net_lt), limit_usd)
+    st_loss_left = max(0.0, -net_st - max(0.0, net_lt))
+    carryover_st = max(0.0, st_loss_left - ded_usd)
+    lt_loss_left = max(0.0, -net_lt - max(0.0, net_st))
+    carryover_lt = max(0.0, lt_loss_left - max(0.0, ded_usd - st_loss_left))
+    return {"stUsd": -ded_usd, "ltUsd": 0, "lossDeductionUsd": ded_usd, "carryoverStUsd": carryover_st, "carryoverLtUsd": carryover_lt}
+
+
 def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_owed_boundary, taxpayer_dob_raw, base_year_us, savers_credit_contribution_usd=0):
     brackets = T["BRACKETS"].get(status, T["BRACKETS"]["single"])
 
@@ -276,16 +296,17 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     # engine equivalent. Mirrors prototypes/graph-pilot/ustax-nodes.js's
     # computeUsTaxCore exactly.
     other_ordinary_us = (inc.get("otherOrdinaryIncomeUs") or {}).get("usd", 0) or 0
+    cap = net_capital_gains(inc["stcgUs"]["usd"] + f_stcg, inc["ltcgUs"]["usd"] + f_ltcg, inc.get("stLossCarryoverUsd") or 0, inc.get("ltLossCarryoverUsd") or 0, status)
     ordinary_income_excl_ss = (
         inc["wages"]["usd"] + f_w + f_se + (inc.get("businessUs", {}).get("usd", 0) if inc.get("businessUs") else 0) + inc["interestUs"]["usd"] + f_i +
-        non_qual_div_us + f_d + inc["stcgUs"]["usd"] + f_stcg + inc["rentalUs"]["usd"] + f_r + f_p + f_988 + other_ordinary_us + f_cfc + f_other +
+        non_qual_div_us + f_d + cap["stUsd"] + inc["rentalUs"]["usd"] + f_r + f_p + f_988 + other_ordinary_us + f_cfc + f_other +
         (inc["usRetirementIncomeExclSs"]["usd"] if inc.get("usRetirementIncomeExclSs") else (inc.get("usRetirementIncome", {}).get("usd", 0) if inc.get("usRetirementIncome") else 0))
     )
     # §1(h)(4) collectibles gain (task #43 follow-up): a real LTCG
     # sub-category capped at 28% instead of the normal 0/15/20% brackets.
     # Kept as its own slice, not folded into regular_preferential_income.
     collectibles_gain_usd = max(0.0, inc.get("collectiblesLtcgUsd") or 0)
-    regular_preferential_income = inc["ltcgUs"]["usd"] + f_ltcg + inc["qualifiedDividendsUs"]["usd"]
+    regular_preferential_income = cap["ltUsd"] + inc["qualifiedDividendsUs"]["usd"]
     preferential_income = regular_preferential_income + collectibles_gain_usd
 
     gross_ss_usd = (inc.get("socialSecurityUs") or {}).get("usd", 0) or 0
@@ -435,7 +456,8 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
 
     income_tax = ordinary_tax + preferential_tax + collectibles_tax
 
-    net_investment_income = inc["interestUs"]["usd"] + f_i + inc["ordinaryDividendsUs"]["usd"] + f_d + inc["capitalGainsUs"]["usd"] + collectibles_gain_usd + f_stcg + f_ltcg + inc["rentalUs"]["usd"] + f_r
+    # Net capital gain in NII can't go below zero (Treas. Reg. §1.1411-4(d)).
+    net_investment_income = inc["interestUs"]["usd"] + f_i + inc["ordinaryDividendsUs"]["usd"] + f_d + max(0.0, cap["stUsd"] + cap["ltUsd"]) + collectibles_gain_usd + inc["rentalUs"]["usd"] + f_r
     niit_threshold = NIIT_THRESHOLD.get(status, 200000)
     niit = T["NIIT_RATE"] * min(max(0.0, net_investment_income), max(0.0, agi - niit_threshold))
 
@@ -606,6 +628,12 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
         core_result["itemizedLimitation68Usd"] = itemized_limitation_68_usd
     if non_itemizer_charitable_usd > 0:
         core_result["nonItemizerCharitableUsd"] = non_itemizer_charitable_usd
+    # Schedule D netting — only when a loss was limited or a carryover exists.
+    if (cap["lossDeductionUsd"] > 0 or cap["carryoverStUsd"] > 0 or cap["carryoverLtUsd"] > 0
+            or (inc.get("stLossCarryoverUsd") or 0) > 0 or (inc.get("ltLossCarryoverUsd") or 0) > 0):
+        core_result["capitalLoss"] = {"deductionUsd": cap["lossDeductionUsd"], "carryoverStUsd": cap["carryoverStUsd"], "carryoverLtUsd": cap["carryoverLtUsd"],
+                                      "priorCarryoverStUsd": inc.get("stLossCarryoverUsd") or 0, "priorCarryoverLtUsd": inc.get("ltLossCarryoverUsd") or 0,
+                                      "limitUsd": T["CAPITAL_LOSS_LIMIT_USD"]["mfs"] if status == "mfs" else T["CAPITAL_LOSS_LIMIT_USD"]["other"]}
     return core_result
 
 

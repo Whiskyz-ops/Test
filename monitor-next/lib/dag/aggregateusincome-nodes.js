@@ -917,8 +917,14 @@ var NODES = {
       // flat-tax add-on instead, mirroring how AMT/NIIT amounts don't appear
       // in this aggregate either.
       var foreignSourceTotal = foreignWagesTotalUsd + foreignSelfEmploymentUsd + foreignInterest + di.foreignDividendsUsd + di.foreignRentalUsd + foreignPension + di.foreignStcgUsd + di.foreignLtcgUsd + di.section988GainLossUsd + cfc.nonElectedOrdinaryInclusionUsd + fi.otherUsd;
+      // Prior-year capital loss carryovers (Layer 1 US, positive amounts),
+      // netted in computeUsTaxCore's Schedule D step. Present only when set,
+      // so every other client's aggregate keeps its shape.
+      var ui = safe(ctx.us, "income_us_source", {}) || {};
+      var carryOn = ui.has_capital_loss_carryovers !== false;
+      var stCarry = carryOn ? Math.abs(num(ui.st_loss_carryover_usd)) : 0, ltCarry = carryOn ? Math.abs(num(ui.lt_loss_carryover_usd)) : 0;
 
-      return {
+      return Object.assign(stCarry > 0 || ltCarry > 0 ? { stLossCarryoverUsd: stCarry, ltLossCarryoverUsd: ltCarry } : {}, {
         wages: m(wagesUsd, ctx), businessUs: m(biz.businessUsUsd, ctx), w2Withholding: w.w2WithholdingUsd, w2Employers: w.w2Employers, medicareWages: w.medicareWagesUsd,
         qualifiedTipsUsd: w.qualifiedTipsUsd, qualifiedOvertimeUsd: w.qualifiedOvertimeUsd,
         seEarningsUsd: biz.seEarningsUsd, qbiIncomeUsd: biz.qbiIncomeUsd, qbiIsSSTB: biz.qbiIsSSTB,
@@ -971,7 +977,7 @@ var NODES = {
         retirementEpfInterestUsd: epf.taxableEpfInterestUsd, retirementNpsWithdrawalUsd: epf.taxableNpsWithdrawalUsd,
         usSourceTotal: m(usSourceTotal, ctx), foreignSourceTotal: m(foreignSourceTotal, ctx),
         total: m(usSourceTotal + foreignSourceTotal, ctx)
-      };
+      });
     }
   }
 };

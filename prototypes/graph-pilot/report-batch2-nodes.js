@@ -44,6 +44,19 @@
  * ==========================================================================*/
 function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
 
+// Schedule D netting (computeUsTaxCore's netCapitalGains): the net capital
+// loss taken against other income, and what carries forward.
+function capitalLossRow(cl) {
+  var carry = cl.carryoverStUsd + cl.carryoverLtUsd;
+  return { label: "  — capital loss deducted (limit " + usd(cl.limitUsd) + (carry > 0 ? "; " + usd(carry) + " carried to next year" : "") + ")", usd: -cl.deductionUsd,
+    trace: calc("Net capital loss after prior-year carryovers, limited to " + usd(cl.limitUsd) + " against other income (IRC §1211(b)); the rest carries forward (§1212(b))", [
+      { label: "Prior-year short-term loss carryover", amount: -cl.priorCarryoverStUsd },
+      { label: "Prior-year long-term loss carryover", amount: -cl.priorCarryoverLtUsd },
+      { label: "Loss deducted this year", amount: -cl.deductionUsd },
+      { label: "Short-term loss carried forward", amount: cl.carryoverStUsd },
+      { label: "Long-term loss carried forward", amount: cl.carryoverLtUsd }
+    ]) };
+}
 function calc(formula, parts, citation) { return { kind: "calc", formula: formula, parts: parts || [], citation: citation || null }; }
 function source(detail, citation) { return { kind: "source", detail: detail, citation: citation || null }; }
 function holdings(section, note) { return { kind: "holdings", section: section, note: note || null }; }
@@ -250,6 +263,7 @@ NODES.buildTaxComputationUsResult = {
           trace: source("Entered directly on Layer 1 India → Other Sources → \"Taxable EPF interest\". Included here because worldwide taxation applies to this taxpayer.") }] : [])
         .concat((u.retirementNpsWithdrawalUsd > 0) ? [{ label: "  — of which taxable NPS withdrawal (India retirement a/c, worldwide taxation)", usd: u.retirementNpsWithdrawalUsd,
           trace: source("Entered directly on Layer 1 India → Other Sources → \"Taxable NPS withdrawal\". Included here because worldwide taxation applies to this taxpayer.") }] : [])
+        .concat(u.capitalLoss ? [capitalLossRow(u.capitalLoss)] : [])
         .concat([
           { label: "Adjusted gross income", usd: u.agiUsd,
             trace: calc("Total income less above-the-line adjustments (student-loan interest, capped at $2,500, + half of self-employment tax)", [

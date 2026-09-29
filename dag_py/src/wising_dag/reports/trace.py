@@ -43,6 +43,20 @@ def _holdings(section, note=None):
     return {"kind": "holdings", "section": section, "note": note}
 
 
+def _capital_loss_row(cl):
+    """Schedule D netting — mirrors report-batch2-nodes.js capitalLossRow."""
+    carry = cl["carryoverStUsd"] + cl["carryoverLtUsd"]
+    return {"label": f"  — capital loss deducted (limit {usd(cl['limitUsd'])}" + (f"; {usd(carry)} carried to next year" if carry > 0 else "") + ")",
+            "usd": -cl["deductionUsd"],
+            "trace": _calc(f"Net capital loss after prior-year carryovers, limited to {usd(cl['limitUsd'])} against other income (IRC §1211(b)); the rest carries forward (§1212(b))", [
+                {"label": "Prior-year short-term loss carryover", "amount": -cl["priorCarryoverStUsd"]},
+                {"label": "Prior-year long-term loss carryover", "amount": -cl["priorCarryoverLtUsd"]},
+                {"label": "Loss deducted this year", "amount": -cl["deductionUsd"]},
+                {"label": "Short-term loss carried forward", "amount": cl["carryoverStUsd"]},
+                {"label": "Long-term loss carried forward", "amount": cl["carryoverLtUsd"]},
+            ])}
+
+
 def _source(detail, citation=None):
     return {"kind": "source", "detail": detail, "citation": citation}
 
@@ -490,6 +504,8 @@ def _build_tax_computation_us_result(d, ctx):
         rows.append({"label": "  — of which taxable NPS withdrawal (India retirement a/c, worldwide taxation)", "usd": u["retirementNpsWithdrawalUsd"],
                       "trace": _source("Entered directly on Layer 1 India → Other Sources → \"Taxable NPS withdrawal\". Included here because worldwide taxation applies to this taxpayer.")})
 
+    if u.get("capitalLoss"):
+        rows.append(_capital_loss_row(u["capitalLoss"]))
     rows.append({"label": "Adjusted gross income", "usd": u["agiUsd"],
                  "trace": _calc("Total income less above-the-line adjustments (student-loan interest, capped at $2,500, + half of self-employment tax)",
                                  [{"label": "Total income", "amount": u["totalIncomeUsd"]}, {"label": "Less adjustments", "amount": -(u["totalIncomeUsd"] - u["agiUsd"])}])})

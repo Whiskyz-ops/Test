@@ -175,6 +175,30 @@ function feieEligibility(f) {
  * The usTaxResult node below is now a thin wrapper passing its exact same
  * deps through positionally — behavior for every existing (non-dual-status)
  * caller is byte-identical to before this extraction. */
+/* Schedule D netting (IRC §§1211(b), 1212(b), 1222). Prior-year loss
+ * carryovers come off their own short-/long-term pool, the pools net against
+ * each other, and a net loss offsets at most $3,000 of other income ($1,500
+ * married filing separately); the rest carries forward, short-term loss
+ * first. Returns the short-term amount taxed as ordinary income (negative =
+ * the allowed loss), the long-term amount taxed at capital-gain rates, and
+ * the carryover to next year. */
+function netCapitalGains(stGainUsd, ltGainUsd, stCarryUsd, ltCarryUsd, status) {
+  var netSt = stGainUsd - Math.max(0, stCarryUsd || 0);
+  var netLt = ltGainUsd - Math.max(0, ltCarryUsd || 0);
+  var limitUsd = status === "mfs" ? T.CAPITAL_LOSS_LIMIT_USD.mfs : T.CAPITAL_LOSS_LIMIT_USD.other;
+  if (netSt + netLt >= 0) {
+    if (netSt < 0) return { stUsd: 0, ltUsd: netSt + netLt, lossDeductionUsd: 0, carryoverStUsd: 0, carryoverLtUsd: 0 };
+    if (netLt < 0) return { stUsd: netSt + netLt, ltUsd: 0, lossDeductionUsd: 0, carryoverStUsd: 0, carryoverLtUsd: 0 };
+    return { stUsd: netSt, ltUsd: netLt, lossDeductionUsd: 0, carryoverStUsd: 0, carryoverLtUsd: 0 };
+  }
+  var dedUsd = Math.min(-(netSt + netLt), limitUsd);
+  var stLossLeft = Math.max(0, -netSt - Math.max(0, netLt));   // short-term loss after any long-term gain
+  var carryoverStUsd = Math.max(0, stLossLeft - dedUsd);
+  var ltLossLeft = Math.max(0, -netLt - Math.max(0, netSt));
+  var carryoverLtUsd = Math.max(0, ltLossLeft - Math.max(0, dedUsd - stLossLeft));
+  return { stUsd: -dedUsd, ltUsd: 0, lossDeductionUsd: dedUsd, carryoverStUsd: carryoverStUsd, carryoverLtUsd: carryoverLtUsd };
+}
+
 function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareOwedBoundary, taxpayerDobRaw, baseYearUs, saversCreditContributionUsd) {
       var brackets = T.BRACKETS[status] || T.BRACKETS.single;
 
@@ -246,14 +270,15 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       // no engine equivalent -- these 5 Layer 1 US fields fed nothing at all
       // before this (see aggregateusincome-nodes.js's directIncomeComputation).
       var otherOrdinaryUs = (inc.otherOrdinaryIncomeUs && inc.otherOrdinaryIncomeUs.usd) || 0;
+      var cap = netCapitalGains(inc.stcgUs.usd + fStcg, inc.ltcgUs.usd + fLtcg, inc.stLossCarryoverUsd, inc.ltLossCarryoverUsd, status);
       var ordinaryIncomeExclSs = inc.wages.usd + fW + fSE + (inc.businessUs ? inc.businessUs.usd : 0) + inc.interestUs.usd + fI +
-        nonQualDivUs + fD + inc.stcgUs.usd + fStcg + inc.rentalUs.usd + fR + fP + f988 + otherOrdinaryUs + fCfc + fOther +
+        nonQualDivUs + fD + cap.stUsd + inc.rentalUs.usd + fR + fP + f988 + otherOrdinaryUs + fCfc + fOther +
         (inc.usRetirementIncomeExclSs ? inc.usRetirementIncomeExclSs.usd : (inc.usRetirementIncome ? inc.usRetirementIncome.usd : 0));
       // §1(h)(4) collectibles gain (task #43 follow-up): a real LTCG
       // sub-category capped at 28% instead of the normal 0/15/20% brackets.
       // Kept as its own slice, not folded into regularPreferentialIncome.
       var collectiblesGainUsd = Math.max(0, inc.collectiblesLtcgUsd || 0);
-      var regularPreferentialIncome = inc.ltcgUs.usd + fLtcg + inc.qualifiedDividendsUs.usd;
+      var regularPreferentialIncome = cap.ltUsd + inc.qualifiedDividendsUs.usd;
       var preferentialIncome = regularPreferentialIncome + collectiblesGainUsd;
 
       var grossSsUsd = (inc.socialSecurityUs && inc.socialSecurityUs.usd) || 0;
@@ -407,7 +432,8 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
 
       var incomeTax = ordinaryTax + preferentialTax + collectiblesTax;
 
-      var netInvestmentIncome = inc.interestUs.usd + fI + inc.ordinaryDividendsUs.usd + fD + inc.capitalGainsUs.usd + collectiblesGainUsd + fStcg + fLtcg + inc.rentalUs.usd + fR;
+      // Net capital gain in NII can't go below zero (Treas. Reg. §1.1411-4(d)).
+      var netInvestmentIncome = inc.interestUs.usd + fI + inc.ordinaryDividendsUs.usd + fD + Math.max(0, cap.stUsd + cap.ltUsd) + collectiblesGainUsd + inc.rentalUs.usd + fR;
       var niitThreshold = NIIT_THRESHOLD[status] || 200000;
       var niit = T.NIIT_RATE * Math.min(Math.max(0, netInvestmentIncome), Math.max(0, agi - niitThreshold));
 
@@ -597,6 +623,11 @@ function computeUsTaxCore(inc, ded, status, worldwide, feie, additionalMedicareO
       if (itemizing && charitableFloorUsd > 0) coreResult.charitableFloorUsd = charitableFloorUsd;
       if (itemizing && itemizedLimitation68Usd > 0) coreResult.itemizedLimitation68Usd = itemizedLimitation68Usd;
       if (nonItemizerCharitableUsd > 0) coreResult.nonItemizerCharitableUsd = nonItemizerCharitableUsd;
+      // Schedule D netting — only when a loss was limited or a carryover exists.
+      if (cap.lossDeductionUsd > 0 || cap.carryoverStUsd > 0 || cap.carryoverLtUsd > 0 || inc.stLossCarryoverUsd > 0 || inc.ltLossCarryoverUsd > 0) {
+        coreResult.capitalLoss = { deductionUsd: cap.lossDeductionUsd, carryoverStUsd: cap.carryoverStUsd, carryoverLtUsd: cap.carryoverLtUsd,
+          priorCarryoverStUsd: inc.stLossCarryoverUsd || 0, priorCarryoverLtUsd: inc.ltLossCarryoverUsd || 0, limitUsd: status === "mfs" ? T.CAPITAL_LOSS_LIMIT_USD.mfs : T.CAPITAL_LOSS_LIMIT_USD.other };
+      }
       return coreResult;
 }
 

@@ -173,7 +173,7 @@ const KNOWN_EXTRA_FINDING_IDS = new Set([
   "ftc_gap", "ftc_available", "niit_medicare_not_creditable", "underpayment_2210",
   "cfc", "cfc_below_threshold",
   "us_pension_withholding_no_w8ben", "us_social_security_india_exempt", "treaty_saving_clause_citizen", "greencard_treaty_nonresident", "nra_art15_services_exempt",
-  "nra_us_interest_exempt"
+  "nra_us_interest_exempt", "joint_return_spouse_income_india"
 ]);
 // cfc (Phase 7, XB-14, GILTI/NCTI quantification): content (not presence)
 // diverges unconditionally whenever it fires on both sides — same

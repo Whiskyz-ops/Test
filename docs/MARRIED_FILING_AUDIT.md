@@ -32,21 +32,22 @@ Confirmed gaps have a runnable probe: `node scripts/audit/married-filing-probes.
 | Area | Rows | ✅ | 🟡 | ❌ | 🐞 | ➖ |
 |---|---|---|---|---|---|---|
 | A. What the forms collect about the spouse | 11 | 1 | 4 | 6 | – | – |
-| B. US filing-status parameters | 30 | 17 | 4 | 5 | 3 | 1 |
+| B. US filing-status parameters | 30 | 18 | 4 | 5 | 2 | 1 |
 | C. US separate-filer eligibility | 9 | 2 | 1 | 3 | 2 | 1 |
 | D. US per-person rules | 16 | 3 | 4 | 5 | 4 | – |
 | E. Other US joint-return mechanics | 7 | 1 | 2 | 3 | 1 | – |
 | F. India | 12 | 4 | 5 | 3 | – | – |
 | G. Cross-border | 15 | 2 | 3 | 8 | 2 | – |
-| **Total** | **100** | **30** | **23** | **33** | **12** | **2** |
+| **Total** | **100** | **31** | **23** | **33** | **11** | **2** |
 
 ### Wrong results today (probe-confirmed)
 
+US-P3 (capital losses without the $3,000 limit, all filers) was fixed on 29 Sep 2026.
+
 | Probe | What happens | Who is affected |
 |---|---|---|
-| XB-P1 | A spouse's US wages on a joint US return are taxed in the client's **Indian** return: ₹8,34,600 → ₹54,26,850 when a $150,000 spouse W-2 is added; India's s.90 relief grows to cover US tax on the spouse's wages | Every Indian-resident client with a joint US return and an earning spouse |
+| XB-P1 | A spouse's US wages on a joint US return are taxed in the client's **Indian** return: ₹8,34,600 → ₹54,26,850 when a $150,000 spouse W-2 is added; India's s.90 relief grows to cover US tax on the spouse's wages. Now flagged by an alert on every such return; not yet fixed | Every Indian-resident client with a joint US return and an earning spouse |
 | US-P1 | Social Security wage base pooled across spouses: client's $100,000 Schedule C taxed $2,678 instead of ≈ $14,129 | Joint returns where one spouse is employed and the other self-employed |
-| US-P3 | Capital losses deducted without the $3,000 limit ($1,500 separate) | **All filers**, not only married |
 | US-P4, US-P5 | Separate filers get education credits and the student-loan interest deduction, which the law denies them | Married filing separately |
 | US-P6 | Two spouses each deferring the $24,500 maximum get a false "excess elective deferral" warning | Joint returns |
 | US-P2 | Senior deduction $6,000 instead of $12,000 when both spouses are 65+ (no spouse date of birth) | Joint returns with two seniors |
@@ -95,7 +96,7 @@ status. 2026 values were compared where both exist.
 | B19 | Dependent-care FSA exclusion ($7,500; $3,750 separate from 2026) | 🟡 | *code*: per-return cap, no separate-filer halving |
 | B20 | Child and dependent care credit rate phase-out | 🟡 | *code*: flat 20% (`ustax-nodes.js:450`) — confirm the 2026 rate schedule |
 | B21 | Education credit phase-out | 🟡 | *code*: joint vs other only; separate filers not blocked (see C3) |
-| B22 | Capital loss limit $3,000 / $1,500 separate | 🐞 | *probe* US-P3 — no limit at all |
+| B22 | Capital loss limit $3,000 / $1,500 separate, with short/long-term carryovers | ✅ | fixed 29 Sep 2026 (IN-52): Schedule D netting incl. the form's carryovers; *probe* US-P3 passes; profiles us_capital_loss_limit, us_capital_loss_carryover_mfs |
 | B23 | Student-loan interest: cap and MAGI phase-out | 🐞 | *probe* US-P5 — cap $2,500 only, no phase-out |
 | B24 | Mortgage acquisition-debt cap ($750,000 / $375,000 separate) | ❌ | *code*: absent |
 | B25 | 65+ / blind additional standard deduction | 🐞 | *code*: absent for every filer |
@@ -177,7 +178,7 @@ other. *All rows: CA to confirm; 1961 Act numbering.*
 
 | # | Rule | Status | Evidence |
 |---|---|---|---|
-| G1 | The client's Indian return carries only the client's US income | 🐞 | *probe* XB-P1 — the joint US form's income all flows into India |
+| G1 | The client's Indian return carries only the client's US income | 🐞 | *probe* XB-P1 — the joint US form's income all flows into India. Interim (IN-52): alert joint_return_spouse_income_india on every joint return of an Indian resident; the fix is the household link (docs/HOUSEHOLD_DESIGN.md) |
 | G2 | India s.90 relief (Form 44) uses the US tax on the client's own income: the joint US tax must be split between spouses | 🐞 | *probe* XB-P1 — relief rises from $1,780 to $26,340 with the spouse's wages |
 | G3 | US FTC (Form 1116) on a joint return includes both spouses' Indian income and Indian tax | ❌ | spouse's Indian data never reaches the US side (A10) |
 | G4 | A US-person spouse's, or a §6013(g)/(h)-electing spouse's, worldwide (Indian) income on the joint US return | ❌ | *form*: not asked — US tax understated by that income |

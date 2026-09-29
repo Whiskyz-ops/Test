@@ -98,6 +98,8 @@ US = {
         "mfj": {"br50": 48500, "br20": 52500, "br10": 80500},
     },
     "SAVERS_CREDIT_CONTRIBUTION_CAP_USD": 2000,
+    # IRC §1211(b): net capital loss allowed against other income per year.
+    "CAPITAL_LOSS_LIMIT_USD": {"mfs": 1500, "other": 3000},
     "SENIOR_DEDUCTION_MIN_AGE": 65,
     "SENIOR_DEDUCTION_PER_PERSON_USD": 6000,
     "SENIOR_DEDUCTION_PHASEOUT_THRESHOLD_USD": {"single": 75000, "mfj": 150000, "hoh": 75000},

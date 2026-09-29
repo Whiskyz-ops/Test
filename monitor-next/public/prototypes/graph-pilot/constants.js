@@ -464,6 +464,8 @@
           mfj: { br50: 48500, br20: 52500, br10: 80500 }
         },
         SAVERS_CREDIT_CONTRIBUTION_CAP_USD: 2000,
+        // IRC §1211(b): net capital loss allowed against other income per year.
+        CAPITAL_LOSS_LIMIT_USD: { mfs: 1500, other: 3000 },
         // ---- OBBBA "senior deduction" (temporary, TY2025-2028) — $6,000 per
         // taxpayer age 65+ by year end (stacks with std/itemized deduction),
         // phased out 6% of MAGI over the threshold. MFS filers are entirely
