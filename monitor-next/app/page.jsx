@@ -12,7 +12,7 @@ import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState, isRegistryClientId, isUsPersonResult, isUsPersonOnlyGauge } from "@/lib/wising";
 import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
-import { attachHouseholds, householdFor } from "@/lib/household";
+import { attachHouseholds, householdFor, addExampleHousehold } from "@/lib/household";
 import { monitorSnapshotPyDag, allClientSummariesPyDag } from "@/lib/py-dag-adapter";
 import { entityLinksFor, ownedEntityIds, flattenOwnershipTree } from "@/lib/entity-graph";
 import { runShadow, runShadowPy, getShadowLog, clearShadowLog } from "@/lib/shadow";
@@ -324,6 +324,11 @@ export default function MonitorPage() {
     if (typeof window !== "undefined") window.open("router.html?client=" + encodeURIComponent(id), "_blank");
     refreshClientSummaries();
   }, [refreshClientSummaries]);
+  const onAddExampleHousehold = useCallback(() => {
+    const id = addExampleHousehold();
+    refreshClientSummaries();
+    if (id) { onPickClient(id); setView("monitor"); }
+  }, [refreshClientSummaries, onPickClient]);
   const onWhatIfReset = useCallback(() => { setRegimeOverride(null); setFxRateOverride(null); setFeieOverride(null); }, []);
 
   useEffect(() => {
@@ -531,7 +536,7 @@ export default function MonitorPage() {
           </>
         )}
 
-        {view === "clients" && <ClientsView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} onAddClient={onAddClient} search={clientSearch} />}
+        {view === "clients" && <ClientsView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} onAddClient={onAddClient} onAddExampleHousehold={onAddExampleHousehold} search={clientSearch} />}
         {view === "structure" && <EntityStructureView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
         {view === "holdings" && <HoldingsView result={result} links={activeLinks} onPick={pickFromClients} />}
         {view === "business" && <BusinessView result={result} links={activeLinks} onPick={pickFromClients} selectedEntityId={selectedEntityId} />}

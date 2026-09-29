@@ -2270,7 +2270,7 @@ const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, on
   );
 };
 
-export function ClientsView({ clients, activeId, onPick, onAddClient, search }) {
+export function ClientsView({ clients, activeId, onPick, onAddClient, onAddExampleHousehold, search }) {
   const [expanded, setExpanded] = useState(() => new Set());
   if (!clients || !clients.length) return <Empty>Loading clients…</Empty>;
   // KPI tiles sum the FULL book (every real filing, whether nested or not)
@@ -2336,6 +2336,12 @@ export function ClientsView({ clients, activeId, onPick, onAddClient, search }) 
             className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold text-black transition-transform hover:scale-[1.02]"
             style={{ background: "linear-gradient(135deg,#34d399,#60a5fa)" }}>
             <UserPlus size={14} strokeWidth={2.5} /> Add Client
+          </button>
+        )}
+        {onAddExampleHousehold && !clients.some((c) => c.id === "c_rohan_mehta") && (
+          <button onClick={onAddExampleHousehold} title="Adds Rohan Mehta and his spouse Priya as two real clients in this browser, linked as a married household filing a joint US return"
+            className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold border border-line text-head hover:bg-white/[0.06] transition-colors">
+            <Users size={14} strokeWidth={2.5} /> Add Rohan &amp; Priya Mehta
           </button>
         )}
       </div>

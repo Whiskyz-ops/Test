@@ -4,6 +4,7 @@
  * ("light" spouse profile or "full" client — decision 2, option B). */
 "use client";
 import "./dag/household-link.js";
+import "./dag/household-seed.js";
 import { analyzeHousehold } from "./dag/household.js";
 import { analyzeDag } from "./dag-adapter";
 
@@ -43,4 +44,12 @@ export function householdFor(clientId) {
   if (!spouseId) return null;
   const b = reg.list().some((c) => c.id === spouseId) ? Object.assign({ id: spouseId }, reg.getRawState(spouseId)) : null;
   try { return analyzeHousehold(a, b, analyzeDag); } catch (e) { return { linked: true, blocked: true, errors: [{ code: "error", message: "Household calculation failed: " + e.message }] }; }
+}
+
+// Example married household (dag/household-seed.js): Rohan Mehta (the demo's
+// data) and his spouse Priya as two linked registry clients in this browser.
+export function addExampleHousehold() {
+  const W = typeof window !== "undefined" ? window.WISING : null;
+  if (!W || !W.householdSeed || !W.PROFILES) return null;
+  return W.householdSeed.seedMehtaHousehold(W, window.localStorage);
 }
