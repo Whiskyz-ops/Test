@@ -57,6 +57,9 @@
           }
         }
       ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 25000
     }
   },
   "expect": [
