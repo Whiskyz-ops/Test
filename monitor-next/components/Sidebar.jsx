@@ -17,7 +17,7 @@ const MAIN = [
 ];
 const FOOTER = ["Personal details", "Account settings", "Knowledge base"];
 
-export default function Sidebar({ active = "monitor", onNavigate, badges = {}, engineReady = false, syncing = false }) {
+export default function Sidebar({ active = "monitor", onNavigate, badges = {}, engineReady = false, syncing = false, hidden = [] }) {
   return (
     <aside className="w-60 shrink-0 h-screen sticky top-0 glass-black border-r border-inkline flex flex-col text-white z-20">
       {/* Logo — real WISING brand mark (Main Logo.svg) + Cormorant Garamond
@@ -29,7 +29,7 @@ export default function Sidebar({ active = "monitor", onNavigate, badges = {}, e
       </div>
 
       <nav className="flex-1 px-3 py-2 space-y-0.5">
-        {MAIN.map((l) => {
+        {MAIN.filter((l) => !hidden.includes(l.id)).map((l) => {
           const isActive = active === l.id;
           const badge = badges[l.id];
           return (

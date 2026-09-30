@@ -375,6 +375,11 @@ export default function MonitorPage() {
   // forms fall back to the shared slot (empty) and bounce to Layer 0.
   const layer1Query = activeProfile && isRegistryClientId(activeProfile) ? "?client=" + encodeURIComponent(activeProfile) : "";
   const activeLinks = useMemo(() => entityLinksFor(activeProfile, clientSummaries), [activeProfile, clientSummaries]);
+  // Structure (ownership links between client profiles) only for clients
+  // who have any — an individual with no linked company would see an empty
+  // "no ownership links" page. Leaving it when switching to such a client.
+  const hasStructure = !!(activeLinks && ((activeLinks.owns || []).length || (activeLinks.ownedBy || []).length));
+  useEffect(() => { if (view === "structure" && !hasStructure && clientSummaries.length) setView("monitor"); }, [view, hasStructure, clientSummaries.length]);
   const household = useMemo(() => householdFor(activeProfile), [activeProfile, clientSummaries]);
   const householdRecon = useMemo(() => (view === "reconciliation" ? householdReconFor(activeProfile) : null), [view, activeProfile, clientSummaries]);
   // Header "Switch client…" dropdown, nested to match the Clients tab (docs/
@@ -424,7 +429,7 @@ export default function MonitorPage() {
   return (
     <div className="relative flex min-h-screen">
       <div className="starfield" />
-      <Sidebar active={view} onNavigate={setView} badges={badges} engineReady={engineReady} syncing={syncing} />
+      <Sidebar active={view} onNavigate={setView} badges={badges} engineReady={engineReady} syncing={syncing} hidden={hasStructure ? [] : ["structure"]} />
       <main className="relative z-10 flex-1 min-w-0 px-8 py-6">
         <Header region={region} onRegionChange={setRegion} clientName={clientName} baseYear={baseYear} entity={result ? result.model.entity : null} scope={result ? result.model.meta : null}
           presentationMode={presentationMode} onTogglePresentation={() => setPresentationMode((v) => !v)}
