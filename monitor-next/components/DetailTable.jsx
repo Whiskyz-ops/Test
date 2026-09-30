@@ -42,14 +42,14 @@ export default function DetailTable({ category, regions }) {
   let head, row;
   const rowCls = "border-t border-line hover:bg-white/[0.03]";
   if (category === STATUS.EXPOSED) {
-    head = <tr><TH>Region</TH><TH>Status</TH><TH right>Estimated Tax</TH><TH>Resident Since</TH><TH right>Income Exposed</TH></tr>;
-    row = (r) => <tr key={r.id} className={rowCls}><TD><RegionCell r={r} /></TD><TD><StatusBadge status={r.status} /></TD><TD right mono><span className="font-semibold" style={{ color: PAL.redText }}>{fmtUsd(r.estimatedTaxUsd)}</span></TD><TD>{r.triggerDate || "—"}</TD><TD right mono>{fmtUsd(r.incomeExposedUsd)}</TD></tr>;
+    head = <tr><TH>Region</TH><TH>Status</TH><TH right>Estimated Tax</TH><TH right>Paid</TH><TH right>Unpaid</TH><TH>Overdue filings</TH></tr>;
+    row = (r) => <tr key={r.id} className={rowCls}><TD><RegionCell r={r} /></TD><TD><StatusBadge status={r.status} /></TD><TD right mono>{fmtUsd(r.estimatedTaxUsd)}</TD><TD right mono>{r.paidUsd !== undefined ? fmtUsd(r.paidUsd) : "—"}</TD><TD right mono><span className="font-semibold" style={{ color: PAL.redText }}>{r.balanceUsd !== undefined ? fmtUsd(r.balanceUsd) : "—"}</span></TD><TD>{r.overdueFilings ? r.overdueFilings : "—"}</TD></tr>;
   } else if (category === STATUS.APPROACHING) {
     head = <tr><TH>Region</TH><TH>Tracker</TH><TH>Days Present</TH><TH>Reporting Exposure</TH><TH>Physical Presence</TH></tr>;
     row = (r) => <tr key={r.id} className={rowCls}><TD><RegionCell r={r} /></TD><TD><Tracker r={r} /></TD><TD mono><Days r={r} /></TD><TD mono><Reporting r={r} /></TD><TD><YesNo v={r.physicalPresence} /></TD></tr>;
   } else if (category === STATUS.NEXUS) {
-    head = <tr><TH>Region</TH><TH>Triggered</TH><TH>Reason ($0 tax)</TH><TH>Days Present</TH><TH>Physical Presence</TH></tr>;
-    row = (r) => <tr key={r.id} className={rowCls}><TD><RegionCell r={r} /></TD><TD>{r.triggerDate || "—"}</TD><TD><span className="text-body">{r.reason || "Filing / disclosure only"}</span></TD><TD mono><Days r={r} /></TD><TD><YesNo v={r.physicalPresence} /></TD></tr>;
+    head = <tr><TH>Region</TH><TH right>Estimated Tax</TH><TH right>Paid</TH><TH>Reason</TH><TH>Days Present</TH></tr>;
+    row = (r) => <tr key={r.id} className={rowCls}><TD><RegionCell r={r} /></TD><TD right mono>{r.estimatedTaxUsd ? fmtUsd(r.estimatedTaxUsd) : "—"}</TD><TD right mono>{r.paidUsd !== undefined ? fmtUsd(r.paidUsd) : "—"}</TD><TD><span className="text-body">{r.reason || ((r.estimatedTaxUsd || 0) > 0 ? "Tax fully paid — return still due" : "Filing / disclosure only ($0 tax)")}</span></TD><TD mono><Days r={r} /></TD></tr>;
   } else {
     head = <tr><TH>Region</TH><TH>Status</TH><TH right>Est. Tax</TH><TH>Days Present</TH><TH>Physical Presence</TH></tr>;
     row = (r) => <tr key={r.id} className={rowCls}><TD><RegionCell r={r} /></TD><TD><StatusBadge status={r.status} /></TD><TD right mono>{r.estimatedTaxUsd ? fmtUsd(r.estimatedTaxUsd) : "—"}</TD><TD mono><Days r={r} /></TD><TD><YesNo v={r.physicalPresence} /></TD></tr>;

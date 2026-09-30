@@ -10,7 +10,7 @@ export const STATUS = { EXPOSED: "exposed", APPROACHING: "approaching", NEXUS: "
 export const STATUS_META = {
   exposed:     { label: "Exposed",     color: "#ef4444", soft: "rgba(239,68,68,.15)",   text: "#fca5b5" },
   approaching: { label: "Approaching", color: "#f5a623", soft: "rgba(245,166,35,.15)",  text: "#fcd34d" },
-  nexus:       { label: "Filing-only", color: "#3b82f6", soft: "rgba(59,130,246,.15)",  text: "#93c5fd" },
+  nexus:       { label: "Filing required", color: "#3b82f6", soft: "rgba(59,130,246,.15)",  text: "#93c5fd" },
   none:        { label: "On track",    color: "#22c55e", soft: "rgba(34,197,94,.14)",   text: "#86efac" }
 };
 
@@ -64,8 +64,25 @@ export function isBreached(r) {
 //  Approaching  = taxes worldwide income, threshold NOT crossed → heading toward residency
 //  Filing-only  = threshold crossed but $0 tax → filing/disclosure only, no liability
 //  On track     = neither: no liability, no threshold crossed
+//
+// When the region carries payment data (lib/payments.js — the DAG Monitor):
+//  Exposed          = tax still unpaid after credits and payments, or a
+//                     filing deadline already missed
+//  Filing required  = an obligation (tax owed and fully paid, taxed on
+//                     worldwide income, or a threshold crossed) but nothing
+//                     unpaid or overdue
+//  Approaching      = no obligation yet, 60%+ of the way to a residency /
+//                     reporting threshold
+//  On track         = nothing required
+// Balances under $1 are rounding.
 export function classify(r) {
   const breached = isBreached(r);
+  if (r.balanceUsd !== undefined || r.overdueFilings !== undefined) {
+    if ((r.balanceUsd || 0) > 1 || (r.overdueFilings || 0) > 0) return STATUS.EXPOSED;
+    if ((r.estimatedTaxUsd || 0) > 0 || breached || r.taxesWorldwide) return STATUS.NEXUS;
+    if (approachPct(r) >= 0.6) return STATUS.APPROACHING;
+    return STATUS.NONE;
+  }
   const hasTax = (r.estimatedTaxUsd || 0) > 0;
   // A real liability is Exposed regardless of why it exists — gating this on
   // `breached` hid genuine non-resident source-basis tax (e.g. an NR's India-source
@@ -90,7 +107,8 @@ export function computeKpis(regions) {
     approaching: s.filter((r) => r.status === STATUS.APPROACHING).length,
     nexus: s.filter((r) => r.status === STATUS.NEXUS).length,
     all: s.length,
-    totalTax: s.reduce((a, r) => a + (r.estimatedTaxUsd || 0), 0)
+    totalTax: s.reduce((a, r) => a + (r.estimatedTaxUsd || 0), 0),
+    totalBalance: s.reduce((a, r) => a + (r.balanceUsd || 0), 0)
   };
 }
 

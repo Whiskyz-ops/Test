@@ -35,6 +35,7 @@
 import { createGraph } from "./dag/graph.js";
 import { NODES } from "./dag/calendar-amounts-nodes.js";
 import { countriesFromEngine } from "./wising.js";
+import { countryPayments, statesFromEngine } from "./payments.js";
 import { fxRate } from "./dag/fx-util.js";
 import { applyIndiaIncomeSwitches } from "./dag/india-switches.js";
 
@@ -169,7 +170,7 @@ export function analyzeDag(opts) {
   // not "zero checks ran."
   // calendarAmounts: CL-2, same DAG-only precedent — the forward-looking
   // ₹/$ figure per advance-tax/estimated-tax calendar row.
-  return Object.assign({}, out.analyzeResult, {
+  const assembled = Object.assign({}, out.analyzeResult, {
     model, computed, checksRegistry: out.checksRegistryResult, calendarAmounts: out.calendarAmountsResult,
     // Harness-internal only — see the RESOLVE_LIST comment above. Never read
     // by any Monitor component; shadow-core.js/test-adapter.mjs are the only
@@ -178,6 +179,10 @@ export function analyzeDag(opts) {
     _debugSlabTaxInr: out.slabTaxInr, _debugRebateInrV3: out.rebateInrV3,
     _debugIsNew: out.isNew, _debugIsIndividualV3: out.isIndividualV3, _debugIsNRV3: out.isNRV3
   });
+  // The client's own inputs, for the Monitor's payments / state rows
+  // (lib/payments.js). Non-enumerable, so no comparison or serializer sees it.
+  Object.defineProperty(assembled, "_raw", { value: { router, india, us }, enumerable: false });
+  return assembled;
 }
 
 // DAG-backed counterpart to lib/wising.js's monitorSnapshot() — same
@@ -188,9 +193,12 @@ export function analyzeDag(opts) {
 export function monitorSnapshotDag(source, overrides) {
   const result = analyzeDagSource(source, overrides);
   if (!result) return null;
+  const pay = countryPayments(result, result._raw);
+  const countries = countriesFromEngine(result).map((c) => (pay && pay[c.id] ? Object.assign({}, c, pay[c.id]) : c));
   return {
     result,
-    countries: countriesFromEngine(result),
+    countries,
+    states: statesFromEngine(result, result._raw),
     healthScore: result.summary.healthScore,
     clientName: result.summary.name,
     baseYear: result.summary.baseYear

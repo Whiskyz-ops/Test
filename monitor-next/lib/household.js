@@ -7,6 +7,7 @@ import "./dag/household-link.js";
 import "./dag/household-seed.js";
 import { analyzeHousehold } from "./dag/household.js";
 import { analyzeDag } from "./dag-adapter";
+import { usPaidUsd, statePaidUsd } from "./payments.js";
 
 // Build step 4: what a linked, married-filing-jointly client's row shows —
 // their own Indian tax plus their method A share of the joint US tax, and
@@ -247,9 +248,31 @@ export function householdSnapshot(snap, h, clientId) {
     }),
     monitoring: Object.assign({}, r.monitoring, { health: Object.assign({}, (r.monitoring && r.monitoring.health) || {}, { score: health.score, band: health.band }) })
   });
+  // Payments on a joint return are pooled: the joint balance (joint tax
+  // after the Form 1116 credit, less both spouses' withholding and estimated
+  // payments), shown at this client's share like the tax itself.
+  const raws = (h._own || []).map((o) => o && o._raw);
+  const jointNet = Math.max(0, (h.jointUs.totalTaxBeforeFtcUsd || 0) - (h.jointUs.ftcAllowedUsd || 0));
+  const pay = raws.length === 2 && raws[0] && raws[1] ? (() => {
+    const paid = usPaidUsd(raws[0].us) + usPaidUsd(raws[1].us);
+    return { paidUsd: paid * fig.share, balanceUsd: Math.max(0, jointNet - paid) * fig.share, jointBalanceUsd: Math.max(0, jointNet - paid) };
+  })() : null;
   const countries = (snap.countries || []).map((c) => c.id !== "US" ? c : Object.assign({}, c, {
     estimatedTaxUsd: Math.round(fig.usShareUsd),
-    reason: Math.round(fig.share * 100) + "% share of the joint US return with " + other.name + " (" + me.name + "'s part, method A)"
-  }));
-  return Object.assign({}, snap, { result, countries });
+    reason: Math.round(fig.share * 100) + "% share of the joint US return with " + other.name + " (" + me.name + "'s part, method A)" +
+      (pay ? "; unpaid on the joint return $" + Math.round(pay.jointBalanceUsd).toLocaleString("en-US") : "")
+  }, pay ? { paidUsd: pay.paidUsd, balanceUsd: pay.balanceUsd } : {}));
+  // The resident state's return is joint too (same filing status): the
+  // joint state tax and both spouses' state withholding, at this client's share.
+  const jointState = h._joint.taxComputation && h._joint.taxComputation.usState;
+  const states = (snap.states || []).map((st) => {
+    if (!jointState) return st;
+    const stTax = Number(jointState.totalUsd) || 0;
+    const stPaid = raws.length === 2 && raws[0] && raws[1] ? statePaidUsd(raws[0].us) + statePaidUsd(raws[1].us) : null;
+    return Object.assign({}, st, {
+      estimatedTaxUsd: Math.round(stTax * fig.share), taxAfterCreditsUsd: stTax * fig.share,
+      reason: Math.round(fig.share * 100) + "% share of the joint " + st.name + " return with " + other.name
+    }, stPaid === null ? {} : { paidUsd: stPaid * fig.share, balanceUsd: Math.max(0, stTax - stPaid) * fig.share });
+  });
+  return Object.assign({}, snap, { result, countries, states });
 }

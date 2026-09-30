@@ -8,7 +8,7 @@ import StatMeter from "@/components/StatMeter";
 import KpiCards from "@/components/KpiCards";
 import DetailTable from "@/components/DetailTable";
 import { ConflictsPanel, ChecksRegistryPanel, ResidencyView, FilingsView, ReconciliationView, AccountsView, ClientsView, IntegrationsView, HoldingsView, BusinessView, WithholdingView, ScopeNotesCard, EntityStructureView, OwnedEntitiesBanner, EntitySwitcher, HouseholdCard } from "@/components/Views";
-import { US_STATES, COUNTRIES } from "@/lib/mockData";
+import { COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState, isRegistryClientId, isUsPersonResult, isUsPersonOnlyGauge } from "@/lib/wising";
 import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
@@ -46,6 +46,9 @@ export default function MonitorPage() {
   const [category, setCategory] = useState(STATUS.EXPOSED);
   const [mode, setMode] = useState("demo");
   const [countries, setCountries] = useState(COUNTRIES);
+  // The client's own US state(s) (lib/payments.js statesFromEngine); empty
+  // until an engine snapshot provides them — never the demo list.
+  const [states, setStates] = useState([]);
   const [engineReady, setEngineReady] = useState(false);
   const [profiles, setProfiles] = useState([]);
   const [clientName, setClientName] = useState(null);
@@ -221,7 +224,7 @@ export default function MonitorPage() {
       // Linked joint-return client: household alerts, health and US headline (build step 4).
       const snap = pinnedId ? applyHouseholdToSnapshot(rawSnap, pinnedId) : rawSnap;
       if (snap && snap.countries && snap.countries.length) {
-        setCountries(snap.countries); setMode(pinnedId ? "live" : source); setEngineReady(true); setResult(snap.result);
+        setCountries(snap.countries); setStates(snap.states || []); setMode(pinnedId ? "live" : source); setEngineReady(true); setResult(snap.result);
         if (snap.clientName) setClientName(snap.clientName);
         if (snap.baseYear) setBaseYear(snap.baseYear);
         setActiveProfile(pinnedId || activeProfileId());
@@ -351,7 +354,7 @@ export default function MonitorPage() {
   }, [recompute, refreshClientSummaries]);
 
   const isUsDrill = region === "United States";
-  const dataset = isUsDrill ? US_STATES : scopeToCountries(countries, region);
+  const dataset = isUsDrill ? states : scopeToCountries(countries, region);
   const kpis = useMemo(() => computeKpis(dataset), [dataset]);
   const statusMap = useMemo(() => statusByMapName(dataset), [dataset]);
   const rows = useMemo(() => { const s = withStatus(dataset); return category === "all" ? s : s.filter((r) => r.status === category); }, [dataset, category]);
