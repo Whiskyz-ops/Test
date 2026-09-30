@@ -2290,6 +2290,9 @@ const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, on
   );
 };
 
+const CLIENT_PIN_TOP = ["c_rohan_mehta"];
+const CLIENT_PIN_BOTTOM = ["us_resident_indian_income"];
+
 export function ClientsView({ clients, activeId, onPick, onAddClient, onAddExampleHousehold, search }) {
   const [expanded, setExpanded] = useState(() => new Set());
   if (!clients || !clients.length) return <Empty>Loading clients…</Empty>;
@@ -2309,7 +2312,10 @@ export function ClientsView({ clients, activeId, onPick, onAddClient, onAddExamp
   // level, which read as confusing: same company, same numbers, two
   // unrelated-looking rows).
   const ownedIds = new Set(clients.flatMap((c) => { const l = entityLinksFor(c.id, clients); return l ? l.owns.map((x) => x.ownedId) : []; }));
-  const sorted = clients.filter((c) => !ownedIds.has(c.id)).slice().sort((a, b) => (a.healthScore ?? 100) - (b.healthScore ?? 100));
+  // Worst health first, except the pinned rows: the real Rohan Mehta client
+  // on top, the demo profile his data was copied from at the bottom.
+  const pinRank = (c) => (CLIENT_PIN_TOP.includes(c.id) ? -1 : CLIENT_PIN_BOTTOM.includes(c.id) ? 1 : 0);
+  const sorted = clients.filter((c) => !ownedIds.has(c.id)).slice().sort((a, b) => (pinRank(a) - pinRank(b)) || ((a.healthScore ?? 100) - (b.healthScore ?? 100)));
   // Header's search box (only shown on this tab) narrows just the rendered
   // rows — KPI tiles above stay whole-book totals (computed from `clients`,
   // untouched by this) so the search never reads as "the portfolio shrank."
