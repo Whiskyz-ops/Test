@@ -139,7 +139,30 @@ export function countryPayments(result, raw) {
     taxAfterCreditsUsd: tax, paidUsd: paid, balanceUsd: Math.max(0, tax - paid), overdueFilings: overdueFilings(result, jur),
     lateInstallments: inst.late + inst.missed, undatedInstallments: inst.undated, installmentNotes: inst.notes
   });
-  return { US: pack(usTax, usPaid, "US", usInst), IN: pack(inTax, inPaid, "IN", inInst) };
+  const out = { US: pack(usTax, usPaid, "US", usInst), IN: pack(inTax, inPaid, "IN", inInst) };
+  // Refunds and money at risk, from the engine's own alerts so the map and
+  // the Conflicts list agree for any client:
+  //  - India refund: india_tds_refund_due (Indian tax paid above the tax due
+  //    after India's credit for US tax — claimed only through the Indian
+  //    return). US refund: withholding and estimates above the US tax after
+  //    credits (claimed through the US return).
+  //  - India money at risk: salary_not_taxable_india_tds (TDS an employer
+  //    would deduct on salary India can't tax — an estimate). India records
+  //    TDS as one total, so the salary part can't be separated: a refund at
+  //    least half that estimate means the salary TDS was deducted and is in
+  //    the refund — shown once, as "likely includes", not counted twice.
+  const finding = (id) => (result.findings || []).find((f) => f.id === id);
+  const inRefund = finding("india_tds_refund_due");
+  out.IN.refundUsd = inRefund ? num(inRefund.amountUsd) : 0;
+  out.US.refundUsd = Math.max(0, usPaid - usTax);
+  const salaryTds = finding("salary_not_taxable_india_tds");
+  if (salaryTds && num(salaryTds.amountUsd) > 1) {
+    const risk = num(salaryTds.amountUsd);
+    const deducted = out.IN.refundUsd >= risk * 0.5;
+    out.IN.atRiskUsd = deducted ? 0 : risk;
+    out.IN.atRiskNote = deducted ? "likely includes TDS on salary India can't tax — see Conflicts" : "TDS at risk on salary India can't tax (see Conflicts)";
+  }
+  return out;
 }
 
 const STATE_NAMES = {

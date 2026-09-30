@@ -348,13 +348,14 @@ export function householdSnapshot(snap, h, clientId) {
     const block = jointEstimatesBlock(raws[0].us, raws[1].us);
     const inst = installmentStatus(r, { us: { withholding_and_estimated: block } }, "US", jointNet - (Number(block.federal_withholding_total_usd) || 0) >= 1000);
     return { paidUsd: paid * fig.share, balanceUsd: Math.max(0, jointNet - paid) * fig.share, jointBalanceUsd: Math.max(0, jointNet - paid),
+      refundUsd: Math.max(0, paid - jointNet) * fig.share,
       lateInstallments: inst.late + inst.missed, undatedInstallments: inst.undated, installmentNotes: inst.notes.map((n) => "Joint return: " + n) };
   })() : null;
   const countries = (snap.countries || []).map((c) => c.id !== "US" ? c : Object.assign({}, c, {
     estimatedTaxUsd: Math.round(fig.usShareUsd),
     reason: Math.round(fig.share * 100) + "% share of the joint US return with " + other.name + " (" + me.name + "'s part, method A)" +
       (pay ? "; unpaid on the joint return $" + Math.round(pay.jointBalanceUsd).toLocaleString("en-US") : "")
-  }, pay ? { paidUsd: pay.paidUsd, balanceUsd: pay.balanceUsd, lateInstallments: pay.lateInstallments, undatedInstallments: pay.undatedInstallments, installmentNotes: pay.installmentNotes } : {}));
+  }, pay ? { paidUsd: pay.paidUsd, balanceUsd: pay.balanceUsd, refundUsd: pay.refundUsd, lateInstallments: pay.lateInstallments, undatedInstallments: pay.undatedInstallments, installmentNotes: pay.installmentNotes } : {}));
   // The resident state's return is joint too (same filing status): the
   // joint state tax and both spouses' state withholding, at this client's share.
   const jointState = h._joint.taxComputation && h._joint.taxComputation.usState;

@@ -1057,15 +1057,18 @@ def _findings_crossborder_result(d, ctx):
     # -- 5b. INDIAN TAX WITHHELD BEYOND THE INDIAN TAX DUE (findings-batch5-nodes.js) --
     # The excess is recovered only through the Indian return, and it isn't a
     # creditable foreign tax in the US (Treas. Reg. §1.901-2(e)).
+    # Tax due = Indian tax less India's own credit for US tax (s.159 / Form 44).
+    relief_inr = num(((d["ftcResult"] or {}).get("india") or {}).get("reliefAllowedUsd")) * fx_rate(ctx)
     india_paid_inr = d["taxesPaidIndiaResult"]["total"]["inr"]
-    india_due_inr = max(0.0, d["totalTaxInrCombined"] or 0)
+    india_due_inr = max(0.0, (d["totalTaxInrCombined"] or 0) - relief_inr)
     refund_inr = india_paid_inr - india_due_inr
     if d["hasIndiaScopeXbr"] and refund_inr >= 1000:
         refund_year = int(num(safe(ctx.get("router"), "base_tax_year", 0)) or 0)
         findings.append(make_finding(
             "india_tds_refund_due", "warning", "credit",
             f"Indian tax withheld exceeds the tax due — {_inr(refund_inr)} refund to claim in India",
-            f"Indian tax already paid (TDS, TCS and advance tax) is {_inr(india_paid_inr)} against Indian tax due of {_inr(india_due_inr)}. "
+            f"Indian tax already paid (TDS, TCS and advance tax) is {_inr(india_paid_inr)} against Indian tax due of {_inr(india_due_inr)}"
+            + (f" (after {_inr(relief_inr)} of Indian credit for US tax, s.159 / Form 44)" if relief_inr >= 1 else "") + ". "
             f"The {_inr(refund_inr)} difference is recovered only by filing the Indian income-tax return and claiming the refund — the bank or payer "
             "won't return it, and it is lost if no return is filed."
             + (" It is also not a creditable foreign tax in the US: Form 1116 counts only the Indian tax actually due (Treas. Reg. §1.901-2(e)), "

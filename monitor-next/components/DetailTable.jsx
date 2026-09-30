@@ -37,6 +37,17 @@ const Days = ({ r }) => r.residency.days == null
 const TH = ({ children, right }) => <th className={"px-4 py-2.5 text-[10px] uppercase tracking-widest text-muted font-bold " + (right ? "text-right" : "text-left")}>{children}</th>;
 const TD = ({ children, right, mono }) => <td className={"px-4 py-3 text-[13px] text-body " + (right ? "text-right " : "") + (mono ? "font-mono " : "")}>{children}</td>;
 
+// Refund due and money at risk for a country row (lib/payments.js, from the
+// engine's alerts): shown under the reason so the map row tells the same
+// story as the Conflicts list.
+function moneyNote(r) {
+  const parts = [];
+  const where = r.id === "IN" ? "file the Indian return to claim it" : r.id === "US" ? "claimed on the US return" : null;
+  if ((r.refundUsd || 0) > 1) parts.push("Refund due " + fmtUsd(r.refundUsd) + (where ? " — " + where : "") + (r.atRiskNote && !(r.atRiskUsd > 0) ? " (" + r.atRiskNote + ")" : ""));
+  if ((r.atRiskUsd || 0) > 1) parts.push(fmtUsd(r.atRiskUsd) + " " + (r.atRiskNote || "at risk"));
+  return parts;
+}
+
 // Why a row is red beyond the balance: overdue returns, late or missed
 // instalments, or wages in a state with nothing withheld.
 function MissedCell({ r }) {
@@ -44,6 +55,7 @@ function MissedCell({ r }) {
   if (r.overdueFilings) items.push(r.overdueFilings + " overdue return" + (r.overdueFilings > 1 ? "s" : ""));
   (r.installmentNotes || []).forEach((n) => items.push(n));
   if (r.likelyUnpaid) items.push(r.reason);
+  moneyNote(r).forEach((t) => items.push(t));
   if (!items.length && r.undatedInstallments) return <span className="text-muted" title="Payment dates not entered — treated as on time">{r.undatedInstallments} payment{r.undatedInstallments > 1 ? "s" : ""} undated</span>;
   if (!items.length) return <span>—</span>;
   return <span className="text-[12px]">{items.map((t, i) => <span key={i} className="block">{t}</span>)}{r.undatedInstallments ? <span className="block text-muted">{r.undatedInstallments} undated (treated as on time)</span> : null}</span>;
@@ -61,7 +73,7 @@ export default function DetailTable({ category, regions }) {
     row = (r) => <tr key={r.id} className={rowCls}><TD><RegionCell r={r} /></TD><TD><Tracker r={r} /></TD><TD mono><Days r={r} /></TD><TD mono><Reporting r={r} /></TD><TD><YesNo v={r.physicalPresence} /></TD></tr>;
   } else if (category === STATUS.NEXUS) {
     head = <tr><TH>Region</TH><TH right>Estimated Tax</TH><TH right>Paid</TH><TH>Reason</TH><TH>Days Present</TH></tr>;
-    row = (r) => <tr key={r.id} className={rowCls}><TD><RegionCell r={r} /></TD><TD right mono>{r.estimatedTaxUsd ? fmtUsd(r.estimatedTaxUsd) : "—"}</TD><TD right mono>{r.paidUsd !== undefined ? fmtUsd(r.paidUsd) : "—"}</TD><TD><span className="text-body">{r.reason || ((r.estimatedTaxUsd || 0) > 0 ? "Tax fully paid — return still due" : "Filing / disclosure only ($0 tax)")}</span></TD><TD mono><Days r={r} /></TD></tr>;
+    row = (r) => <tr key={r.id} className={rowCls}><TD><RegionCell r={r} /></TD><TD right mono>{r.estimatedTaxUsd ? fmtUsd(r.estimatedTaxUsd) : "—"}</TD><TD right mono>{r.paidUsd !== undefined ? fmtUsd(r.paidUsd) : "—"}</TD><TD><span className="text-body">{r.reason || ((r.estimatedTaxUsd || 0) > 0 ? "Tax fully paid — return still due" : "Filing / disclosure only ($0 tax)")}</span>{moneyNote(r).map((t, i) => <span key={i} className="block text-[12px] mt-0.5" style={{ color: /risk/.test(t) ? PAL.amberText : PAL.greenText }}>{t}</span>)}</TD><TD mono><Days r={r} /></TD></tr>;
   } else {
     head = <tr><TH>Region</TH><TH>Status</TH><TH right>Est. Tax</TH><TH>Days Present</TH><TH>Physical Presence</TH></tr>;
     row = (r) => <tr key={r.id} className={rowCls}><TD><RegionCell r={r} /></TD><TD><StatusBadge status={r.status} /></TD><TD right mono>{r.estimatedTaxUsd ? fmtUsd(r.estimatedTaxUsd) : "—"}</TD><TD mono><Days r={r} /></TD><TD><YesNo v={r.physicalPresence} /></TD></tr>;

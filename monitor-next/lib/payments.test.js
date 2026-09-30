@@ -124,3 +124,31 @@ describe("joint-return estimated payments", () => {
     expect(b.estimated_tax_q3_sep15_usd).toBe(0);
   });
 });
+
+describe("refunds and money at risk on country rows (from the engine's alerts)", () => {
+  const base = (findings, usTax, inTax) => ({
+    model: { meta: { fxRate: 83, baseYear: 2026 } },
+    computed: { usTax: { totalTaxBeforeFtcUsd: usTax }, ftc: { us: { ftcAllowedUsd: 0 }, india: { reliefAllowedUsd: 0 } }, indiaTax: { totalTaxUsd: inTax } },
+    monitoring: { calendar: { all: [] } }, findings
+  });
+  const raw = { router: {}, us: { withholding_and_estimated: { federal_withholding_total_usd: 12000 } }, india: { tax_credits: { tds_already_deducted_inr: 37440 } } };
+  it("shows the India refund and the salary TDS at risk separately", () => {
+    const p = countryPayments(base([{ id: "india_tds_refund_due", amountUsd: 420 }, { id: "salary_not_taxable_india_tds", amountUsd: 32861 }], 10000, 31), raw);
+    expect(p.IN.refundUsd).toBe(420);
+    expect(p.IN.atRiskUsd).toBe(32861);
+    expect(p.US.refundUsd).toBe(2000); // 12,000 withheld vs 10,000 tax
+    expect(classify(Object.assign({ taxesWorldwide: false, estimatedTaxUsd: 31 }, p.IN))).toBe(STATUS.NEXUS); // nothing unpaid
+  });
+  it("doesn't count salary TDS twice once it's been deducted (inside the refund)", () => {
+    // Refund $33,284 vs the engine's $34,070 estimate: the salary TDS was
+    // deducted (refund well over half the estimate) — shown once.
+    const p = countryPayments(base([{ id: "india_tds_refund_due", amountUsd: 33284 }, { id: "salary_not_taxable_india_tds", amountUsd: 34070 }], 10000, 31), raw);
+    expect(p.IN.atRiskUsd).toBe(0);
+    expect(p.IN.atRiskNote).toMatch(/likely includes TDS on salary/);
+  });
+  it("shows nothing when the engine raises neither alert", () => {
+    const p = countryPayments(base([], 10000, 31), raw);
+    expect(p.IN.refundUsd).toBe(0);
+    expect(p.IN.atRiskUsd).toBeUndefined();
+  });
+});

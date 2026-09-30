@@ -544,9 +544,12 @@ module.exports = { NODES: NODES, stateTaxAsResident: stateTaxAsResident, NO_INDI
 // report-batch5-nodes.js findingsAllResult) so findingsBatch5Result keeps its
 // inputs. Python: crossborder/findings.py.
 NODES.indiaTdsRefundDueFinding = {
-  deps: ["taxesPaidIndiaResult", "totalTaxInrCombined", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc"],
+  deps: ["taxesPaidIndiaResult", "totalTaxInrCombined", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc", "ftcResult"],
   compute: function (d, ctx) {
-    var indiaPaidInr = d.taxesPaidIndiaResult.total.inr, indiaDueInr = Math.max(0, d.totalTaxInrCombined || 0);
+    // Tax due = Indian tax less India's own credit for US tax (s.159 /
+    // Form 44) — what India actually collects.
+    var reliefInr = (((d.ftcResult || {}).india || {}).reliefAllowedUsd || 0) * fxRate(ctx);
+    var indiaPaidInr = d.taxesPaidIndiaResult.total.inr, indiaDueInr = Math.max(0, (d.totalTaxInrCombined || 0) - reliefInr);
     var refundInr = indiaPaidInr - indiaDueInr;
     if (!(d.hasIndiaScopeXbr && refundInr >= 1000)) return [];
     var inr = function (n) { return "₹" + Math.round(n).toLocaleString("en-IN"); };
@@ -554,7 +557,8 @@ NODES.indiaTdsRefundDueFinding = {
     return [{
       id: "india_tds_refund_due", severity: "warning", category: "credit",
       title: "Indian tax withheld exceeds the tax due — " + inr(refundInr) + " refund to claim in India",
-      detail: "Indian tax already paid (TDS, TCS and advance tax) is " + inr(indiaPaidInr) + " against Indian tax due of " + inr(indiaDueInr) + ". The " +
+      detail: "Indian tax already paid (TDS, TCS and advance tax) is " + inr(indiaPaidInr) + " against Indian tax due of " + inr(indiaDueInr) +
+        (reliefInr >= 1 ? " (after " + inr(reliefInr) + " of Indian credit for US tax, s.159 / Form 44)" : "") + ". The " +
         inr(refundInr) + " difference is recovered only by filing the Indian income-tax return and claiming the refund — the bank or payer won't return it, " +
         "and it is lost if no return is filed." +
         (d.hasUsScopeBoundaryFtc ? " It is also not a creditable foreign tax in the US: Form 1116 counts only the Indian tax actually due (Treas. Reg. §1.901-2(e)), " +
