@@ -3,8 +3,9 @@
  * clients: Rohan Mehta (a copy of the us_resident_indian_income demo's data)
  * and his spouse Priya Mehta (invented for this example), linked both ways
  * (docs/HOUSEHOLD_DESIGN.md). The Monitor's "Add Rohan & Priya Mehta" button
- * writes these into the browser's client registry; the demo profile is left
- * untouched.
+ * writes (or resets) them in the browser's client registry, and
+ * ensureMehtaHousehold adds them automatically on every page load when this
+ * browser doesn't have them yet; the demo profile is left untouched.
  *
  * Priya: green-card holder in New York, $90,000 W-2 with an $8,000 401(k)
  * deferral; non-resident of India with ₹1,20,000 of NRO fixed-deposit
@@ -81,7 +82,33 @@
     return ROHAN_ID;
   }
 
-  var api = { buildMehtaHousehold: buildMehtaHousehold, seedMehtaHousehold: seedMehtaHousehold, ROHAN_ID: ROHAN_ID, PRIYA_ID: PRIYA_ID };
+  // Rohan and Priya are built into the demo: every page (Monitor, Layer 0,
+  // India and US forms) calls this before reading storage, so the two
+  // clients exist in any browser without clicking "Add". Only a client
+  // missing from this browser is written — edits already made here are
+  // never overwritten. Returns the ids it added.
+  function ensureMehtaHousehold(W, storage) {
+    if (!storage || !W) return [];
+    var key = "wising_client_registry", list = [];
+    try { list = JSON.parse(storage.getItem(key) || "[]"); } catch (e) { list = []; }
+    var has = function (id) { return list.some(function (r) { return r.id === id; }) || storage.getItem("wising_client_" + id + "_router") != null; };
+    var missing = [ROHAN_ID, PRIYA_ID].filter(function (id) { return !has(id); });
+    if (!missing.length) return [];
+    var clients;
+    try { clients = buildMehtaHousehold(W); } catch (e) { return []; }
+    clients.forEach(function (c) {
+      var inList = list.some(function (r) { return r.id === c.id; });
+      if (!inList) list.push({ id: c.id, label: c.label, createdAt: new Date().toISOString() });
+      if (missing.indexOf(c.id) === -1) return;
+      storage.setItem("wising_client_" + c.id + "_router", JSON.stringify(c.router));
+      storage.setItem("wising_client_" + c.id + "_india", JSON.stringify(c.india));
+      storage.setItem("wising_client_" + c.id + "_us", JSON.stringify(c.us));
+    });
+    storage.setItem(key, JSON.stringify(list));
+    return missing;
+  }
+
+  var api = { buildMehtaHousehold: buildMehtaHousehold, seedMehtaHousehold: seedMehtaHousehold, ensureMehtaHousehold: ensureMehtaHousehold, ROHAN_ID: ROHAN_ID, PRIYA_ID: PRIYA_ID };
   var WW = root.WISING = root.WISING || {};
   WW.householdSeed = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

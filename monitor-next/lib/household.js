@@ -101,6 +101,14 @@ export function householdFor(clientId) {
   try { return analyzeHousehold(a, b, analyzeDag); } catch (e) { return { linked: true, blocked: true, errors: [{ code: "error", message: "Household calculation failed: " + e.message }] }; }
 }
 
+// Rohan & Priya are built into the demo: added to this browser's registry
+// when missing (never overwriting edits already made here).
+export function ensureExampleHousehold() {
+  const W = typeof window !== "undefined" ? window.WISING : null;
+  if (!W || !W.householdSeed || !W.PROFILES) return [];
+  try { return W.householdSeed.ensureMehtaHousehold(W, window.localStorage); } catch (e) { return []; }
+}
+
 // Example married household (dag/household-seed.js): Rohan Mehta (the demo's
 // data) and his spouse Priya as two linked registry clients in this browser.
 export function addExampleHousehold() {

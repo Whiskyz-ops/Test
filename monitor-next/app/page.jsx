@@ -12,7 +12,7 @@ import { COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState, isRegistryClientId, isUsPersonResult, isUsPersonOnlyGauge } from "@/lib/wising";
 import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
-import { attachHouseholds, householdFor, householdReconFor, addExampleHousehold, applyHouseholdToSnapshot } from "@/lib/household";
+import { attachHouseholds, householdFor, householdReconFor, addExampleHousehold, ensureExampleHousehold, applyHouseholdToSnapshot } from "@/lib/household";
 import { monitorSnapshotPyDag, allClientSummariesPyDag } from "@/lib/py-dag-adapter";
 import { entityLinksFor, ownedEntityIds, flattenOwnershipTree } from "@/lib/entity-graph";
 import { runShadow, runShadowPy, getShadowLog, clearShadowLog } from "@/lib/shadow";
@@ -288,6 +288,7 @@ export default function MonitorPage() {
   // in the deps directly (not just transitively via recompute), since
   // clientSummaries isn't recompute's job to refresh.
   const refreshClientSummaries = useCallback(() => {
+    ensureExampleHousehold();
     if (engineSource === "py-dag") {
       allClientSummariesPyDag().then((s) => setClientSummaries(attachHouseholds(s))).catch(() => setClientSummaries([]));
       return;
@@ -300,6 +301,7 @@ export default function MonitorPage() {
   // below so the pin is already set when its recompute(null) runs — that
   // call reads pinnedClientRef, so it shows this client, not demo/live.
   useEffect(() => {
+    ensureExampleHousehold(); // so a ?client=c_rohan_mehta link works in a fresh browser
     const params = new URLSearchParams(window.location.search);
     const c = params.get("client");
     if (c && isRegistryClientId(c)) pinnedClientRef.current = c;
@@ -322,6 +324,13 @@ export default function MonitorPage() {
     const summary = clientSummaries.find((c) => c.id === id);
     if (summary && summary.isRegistryClient) onPickClient(id); else onPickProfile(id);
     setView("monitor");
+  }, [clientSummaries, onPickClient, onPickProfile]);
+  // Same client switch without leaving the current tab — the
+  // Reconciliation tab's household card flips between the two spouses and
+  // stays on Reconciliation.
+  const switchClientInPlace = useCallback((id) => {
+    const summary = clientSummaries.find((c) => c.id === id);
+    if (summary && summary.isRegistryClient) onPickClient(id); else onPickProfile(id);
   }, [clientSummaries, onPickClient, onPickProfile]);
   const onAddClient = useCallback(() => {
     const id = createClient();
@@ -565,7 +574,7 @@ export default function MonitorPage() {
               onReset={onWhatIfReset}
               disabled={engineSource === "engine"}
             />
-            <ReconciliationView result={result} highlight={reconHighlight} onHighlightDone={() => setReconHighlight(null)} onJump={goToRecon} joint={householdRecon} onPick={pickFromClients} />
+            <ReconciliationView result={result} highlight={reconHighlight} onHighlightDone={() => setReconHighlight(null)} onJump={goToRecon} joint={householdRecon} onPick={switchClientInPlace} />
           </>
         )}
         {view === "withholding" && <WithholdingView result={result} />}

@@ -12,6 +12,12 @@
 <script src="prototypes/graph-pilot/sample-data.js"></script>
 <script src="prototypes/graph-pilot/profiles.js"></script>
 <script src="prototypes/graph-pilot/household-link.js"></script>
+<script src="prototypes/graph-pilot/household-seed.js"></script>
+<script>
+    // Built-in example household (Rohan & Priya Mehta): add them to this
+    // browser if missing, before anything reads the client's saved data.
+    try { window.WISING.householdSeed.ensureMehtaHousehold(window.WISING, window.localStorage); } catch (e) { /* storage blocked */ }
+</script>
 <script>
     tailwind.config = {
       theme: {
