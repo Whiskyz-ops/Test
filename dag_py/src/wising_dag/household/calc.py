@@ -111,6 +111,22 @@ def joint_profile(a, b, persons=None) -> dict:
     return {"router": _clone(a.get("router") or {}), "india": india, "us": us}
 
 
+def _joint_ftc_allowed(jf, own_a, own_b, india_tax_paid) -> float:
+    """Joint Form 1116, one limit per §904(d) basket: each basket's Indian
+    tax (both spouses' own) against that basket's joint limit — excess
+    passive-basket tax can't use general-basket room. Mirrors household.js."""
+    jb = jf.get("baskets")
+    ba = own_a["computed"]["ftc"]["us"].get("baskets")
+    bb = own_b["computed"]["ftc"]["us"].get("baskets")
+    if not (jb and ba and bb):
+        return min(india_tax_paid, _n(jf["ftcLimitUsd"]))
+    total = 0.0
+    for k in ("passive", "general"):
+        paid = _n(ba[k]["indiaTaxPaidUsd"]) + _n(bb[k]["indiaTaxPaidUsd"])
+        total += min(paid, _n(jb[k]["ftcLimitUsd"]))
+    return total
+
+
 def _with_status(c, status):
     us = _clone(c.get("us") or {})
     us.setdefault("profile", {})
@@ -183,7 +199,7 @@ def analyze_household(a, b, analyze_fn) -> dict:
         "taxableIncomeUsd": _n(ju["taxableIncomeUsd"]),
         "indiaTaxPaidUsd": india_tax_paid,
         "ftcLimitUsd": _n(jf["ftcLimitUsd"]),
-        "ftcAllowedUsd": min(india_tax_paid, _n(jf["ftcLimitUsd"])),
+        "ftcAllowedUsd": _joint_ftc_allowed(jf, own_a, own_b, india_tax_paid),
     }
     split = split_joint_us_tax(_n(ju["incomeTaxUsd"]), _n(sep_a["computed"]["usTax"]["incomeTaxUsd"]), _n(sep_b["computed"]["usTax"]["incomeTaxUsd"]))
     out["split"] = split

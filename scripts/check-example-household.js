@@ -73,6 +73,9 @@ function cleanUp(data) {
     .concat(Object.values(R.india.quarters || {}).map((q) => q.domestic_income && q.domestic_income.business_income));
   bis.forEach((bi) => ((bi && bi.business_entries) || []).forEach((e) => { e.presumptive_scheme = null; delete e.holding_pct; }));
   (((R.us.real_estate || {}).properties) || []).forEach((p) => { delete p.property_type; delete p.gross_rent_usd; delete p.expenses_usd; });
+  // India entries in the US foreign-tax baskets: ignored by the engine when
+  // the India side is on file (it uses the India-side tax), so not kept.
+  IDS.forEach((id) => { const f = data[id].us.ftc_inputs; if (f && Array.isArray(f.ftc_baskets)) f.ftc_baskets = f.ftc_baskets.filter((b) => (b.foreign_country || b.country) !== "IN"); });
   IDS.forEach((id) => SECTIONS.forEach((sec) => {
     const md = data[id][sec] && data[id][sec].metadata;
     if (md) ["created_at", "last_updated_at", "request_id"].forEach((k) => delete md[k]);

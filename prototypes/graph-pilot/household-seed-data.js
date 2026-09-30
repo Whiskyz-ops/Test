@@ -6,7 +6,9 @@
  * Cleaned after capture: Rohan's s.44ADA election removed (the India form
  * doesn't allow it for a non-resident; the engine already ignored it), and
  * three fields no form collects (holding_pct, and the US property's type /
- * gross rent / expenses) dropped; form timestamps removed.
+ * gross rent / expenses) dropped; India entries in the US foreign-tax
+ * baskets dropped (with India data on file the engine takes the Indian tax
+ * from the India side and ignores them); form timestamps removed.
  * Regenerate: see docs/HOUSEHOLD_DESIGN.md ("Example household data"). */
 (function (root) {
   "use strict";
@@ -2326,16 +2328,7 @@
     "claims_ftc": true,
     "elect_accrued_method": false,
     "prior_year_carryovers_usd": 0,
-    "ftc_baskets": [
-     {
-      "foreign_country": "IN",
-      "basket_type": "passive",
-      "gross_foreign_income_usd": null,
-      "foreign_taxes_paid_usd": 5180,
-      "includes_indian_surcharge_and_cess": false,
-      "country": "IN"
-     }
-    ]
+    "ftc_baskets": []
    },
    "withholding_and_estimated": {
     "federal_withholding_total_usd": 30000,
@@ -3850,19 +3843,11 @@
     "niit_due_usd": 0
    },
    "ftc_inputs": {
-    "claims_ftc": true,
+    "claims_ftc": false,
     "claims_ftc_simplified_under_300": false,
     "elect_accrued_method": false,
     "prior_year_carryovers_usd": 0,
-    "ftc_baskets": [
-     {
-      "foreign_country": "IN",
-      "basket_type": "passive",
-      "gross_foreign_income_usd": null,
-      "foreign_taxes_paid_usd": 451.0843373493976,
-      "includes_indian_surcharge_and_cess": false
-     }
-    ]
+    "ftc_baskets": []
    },
    "withholding_and_estimated": {
     "federal_withholding_total_usd": 11000,

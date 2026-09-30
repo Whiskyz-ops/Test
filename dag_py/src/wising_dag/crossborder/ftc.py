@@ -109,10 +109,13 @@ def _ftc_us_direction(d, ctx):
     us_work_salary_usd = min(d["indiaSalaryOutsideIndiaUsdBoundaryFtc"], d["indiaGeneralIncomeUsdBoundaryFtc"])
     india_tax_on_us_work_salary_usd = india_total_tax_usd * (max(0, us_work_salary_usd - not_chargeable_usd) / india_income_total_usd) if india_income_total_usd > 0 else 0
 
-    # Layer 1 US FTC baskets count only when the India side supplies no
-    # Indian tax (mirrors ftc-nodes.js); §901(j) gets no credit.
+    # Layer 1 US FTC baskets count only when the India side has no Indian
+    # income on file (mirrors ftc-nodes.js): with India data the engine's own
+    # Indian tax is the creditable figure, even when it is 0 — TDS beyond the
+    # final liability is a refund due, not a tax paid (Treas. Reg.
+    # §1.901-2(e)). §901(j) gets no credit.
     other_entries = list(d["otherCountryFtcEntriesRaw"])
-    if not india_total_tax_usd > 0:
+    if not india_total_tax_usd > 0 and not d["indiaIncomeTotalUsdBoundaryFtc"] > 0:
         for b in d.get("ftcBasketEntriesRaw") or []:
             if not b or b.get("basket_type") == "section_901j":
                 continue

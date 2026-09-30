@@ -131,3 +131,14 @@ def test_mehta_household_joint_tax():
     # Joint regular income tax on the couple's combined return, including
     # Rohan's Indian royalty entered only as a treaty election.
     assert round(h["jointUs"]["incomeTaxUsd"]) == 87212
+
+
+def test_joint_ftc_is_limited_basket_by_basket():
+    # Excess passive-basket Indian tax can't use general-basket room (§904(d)):
+    # passive 500 paid vs 100 limit -> 100; general 50 paid vs 1,000 limit -> 50.
+    from wising_dag.household.calc import _joint_ftc_allowed
+    def own(passive, general):
+        return {"computed": {"ftc": {"us": {"indiaTaxPaidUsd": passive + general, "baskets": {
+            "passive": {"indiaTaxPaidUsd": passive}, "general": {"indiaTaxPaidUsd": general}}}}}}
+    jf = {"ftcLimitUsd": 1100, "baskets": {"passive": {"ftcLimitUsd": 100}, "general": {"ftcLimitUsd": 1000}}}
+    assert _joint_ftc_allowed(jf, own(400, 50), own(100, 0), 550) == 150  # was min(550, 1100) = 550

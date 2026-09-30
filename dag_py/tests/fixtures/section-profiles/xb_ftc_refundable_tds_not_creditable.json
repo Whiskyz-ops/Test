@@ -1,0 +1,92 @@
+{
+  "id": "xb_ftc_refundable_tds_not_creditable",
+  "form": "layer1_us.html",
+  "section": "Foreign tax credit (Indian TDS beyond the Indian liability)",
+  "story": "US green-card holder in New York, $90,000 W-2; India non-resident with Rs 1,20,000 NRO FD interest (under the basic exemption, so no Indian tax) and Rs 37,440 TDS withheld. The US form also carries a hand-copied foreign-tax entry of $451 (the TDS).",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": true,
+    "us_days": 350,
+    "has_us_source_income_or_assets": true
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 12,
+      "final_india_residency_status": "NR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      }
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_fd_rd_inr": 120000
+    },
+    "tax_credits": {
+      "tds_already_deducted_inr": 37440
+    }
+  },
+  "us": {
+    "metadata": {
+      "us_calendar_year": 2026
+    },
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": true,
+      "final_us_residency_status": "RESIDENT_ALIEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "NY"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 90000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 11000,
+            "medicare_wages_box5_usd": 90000
+          }
+        }
+      ]
+    },
+    "ftc_inputs": {
+      "claims_ftc": true,
+      "ftc_baskets": [
+        {
+          "foreign_country": "IN",
+          "basket_type": "passive",
+          "foreign_taxes_paid_usd": 451
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 11000
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.indiaTax.totalTaxInr",
+      "value": 0,
+      "why": "Rs 1,20,000 is under the Rs 4,00,000 basic exemption (new regime) — Indian liability 0; the Rs 37,440 TDS is refundable in India"
+    },
+    {
+      "path": "computed.ftc.us.ftcAllowedUsd",
+      "value": 0,
+      "why": "Treas. Reg. 1.901-2(e): tax withheld beyond the final foreign liability is not a tax paid; with India data on file the engine's Indian tax (0) is the creditable figure, the US-form entry is ignored (was $161)"
+    }
+  ]
+}

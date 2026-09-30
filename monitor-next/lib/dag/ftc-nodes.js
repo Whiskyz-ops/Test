@@ -284,13 +284,16 @@ var NODES = {
       var usWorkSalaryUsd = Math.min(d.indiaSalaryOutsideIndiaUsdBoundaryFtc, d.indiaGeneralIncomeUsdBoundaryFtc);
       var indiaTaxOnUsWorkSalaryUsd = indiaIncomeTotalUsd > 0 ? indiaTotalTaxUsd * (Math.max(0, usWorkSalaryUsd - notChargeableUsd) / indiaIncomeTotalUsd) : 0;
 
-      // Basket entries on Layer 1 US count only when the India side supplies
-      // no Indian tax (e.g. a US-only preparer entering the client's Indian
-      // tax there) — otherwise the engine's own India tax already covers it
-      // and they'd be counted twice. §901(j) (sanctioned-country) income gets
-      // no credit; treaty-resourced income is treated as general.
+      // Basket entries on Layer 1 US count only when the India side has no
+      // Indian income on file (a US-only preparer entering the client's
+      // Indian tax there). With India data, the engine's own Indian tax is
+      // the creditable figure — including when it is 0: TDS withheld beyond
+      // the final Indian liability is a refund due, not a tax paid (Treas.
+      // Reg. §1.901-2(e)), so it must not come back in through the US form.
+      // §901(j) (sanctioned-country) income gets no credit; treaty-resourced
+      // income is treated as general.
       var otherEntries = d.otherCountryFtcEntriesRaw;
-      if (!(indiaTotalTaxUsd > 0)) {
+      if (!(indiaTotalTaxUsd > 0) && !(d.indiaIncomeTotalUsdBoundaryFtc > 0)) {
         otherEntries = otherEntries.concat((d.ftcBasketEntriesRaw || []).filter(function (b) { return b && b.basket_type !== "section_901j"; }).map(function (b) {
           return { basket: b.basket_type === "passive" ? "passive" : "general", foreign_source_income_usd: num(b.gross_foreign_income_usd), foreign_tax_paid_usd: num(b.foreign_taxes_paid_usd) };
         }));

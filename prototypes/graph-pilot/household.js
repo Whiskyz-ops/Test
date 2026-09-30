@@ -113,6 +113,18 @@
     return { router: clone(a.router || {}), india: india, us: us };
   }
 
+  // Joint Form 1116, one limit per §904(d) basket: each basket's Indian tax
+  // (both spouses' own) against that basket's joint limit — excess
+  // passive-basket tax can't use general-basket room. Python mirror:
+  // household/calc.py _joint_ftc_allowed.
+  function jointFtcAllowed(jf, ownA, ownB, indiaTaxPaidUsd) {
+    var jb = jf.baskets, ba = ownA.computed.ftc.us.baskets, bb = ownB.computed.ftc.us.baskets;
+    if (!(jb && ba && bb)) return Math.min(indiaTaxPaidUsd, n(jf.ftcLimitUsd));
+    return ["passive", "general"].reduce(function (t, k) {
+      return t + Math.min(n(ba[k].indiaTaxPaidUsd) + n(bb[k].indiaTaxPaidUsd), n(jb[k].ftcLimitUsd));
+    }, 0);
+  }
+
   function withStatus(c, status) {
     var us = clone(c.us || {});
     us.profile = us.profile || {};
@@ -183,10 +195,11 @@
       totalTaxBeforeFtcUsd: n(ju.totalTaxBeforeFtcUsd),
       totalIncomeUsd: n(ju.totalIncomeUsd),
       taxableIncomeUsd: n(ju.taxableIncomeUsd),
-      // Joint Form 1116: both spouses' Indian tax against the joint limit.
+      // Joint Form 1116: both spouses' Indian tax against the joint limit,
+      // basket by basket (jointFtcAllowed).
       indiaTaxPaidUsd: indiaTaxPaidUsd,
       ftcLimitUsd: n(jf.ftcLimitUsd),
-      ftcAllowedUsd: Math.min(indiaTaxPaidUsd, n(jf.ftcLimitUsd))
+      ftcAllowedUsd: jointFtcAllowed(jf, ownA, ownB, indiaTaxPaidUsd)
     };
     var split = splitJointUsTax(n(ju.incomeTaxUsd), n(sepA.computed.usTax.incomeTaxUsd), n(sepB.computed.usTax.incomeTaxUsd));
     out.split = split;

@@ -21413,30 +21413,12 @@ div.innerHTML = `
                         if (indiaState.deductions.s80C.ppf_inr > 0) window.wisingHydrationDomIds.push('ret-in-ppf');
                     }
 
-                    // 4. Hydrate Indian Taxes Paid -> US FTC
-                    if (indiaState.tax_credits) {
-                        const advanceTaxes = (indiaState.tax_credits.advance_tax_q1_15jun_inr || 0) +
-                                             (indiaState.tax_credits.advance_tax_q2_15sep_inr || 0) +
-                                             (indiaState.tax_credits.advance_tax_q3_15dec_inr || 0) +
-                                             (indiaState.tax_credits.advance_tax_q4_15mar_inr || 0);
-                        const tds = (indiaState.tax_credits.tds_already_deducted_inr || 0) + (indiaState.tax_credits.tds_inr || 0);
-                        const totalForeignTaxPaidInr = advanceTaxes + tds;
-                        if (totalForeignTaxPaidInr > 0) {
-                            usState.ftc_inputs.claims_ftc = true;
-                            usState.ftc_inputs.ftc_baskets = usState.ftc_inputs.ftc_baskets || [];
-                            // Field names must match addFtcBasketRow()/syncFtcBasketsState()
-                            // (foreign_country/basket_type/gross_foreign_income_usd/
-                            // foreign_taxes_paid_usd) - same DOM-reconstruction data-loss
-                            // risk as bank_accounts above.
-                            usState.ftc_inputs.ftc_baskets.push({
-                                foreign_country: 'IN',
-                                basket_type: 'passive',
-                                gross_foreign_income_usd: 0,
-                                foreign_taxes_paid_usd: totalForeignTaxPaidInr / 83.0,
-                                _hydratedFromIndia: true
-                            });
-                        }
-                    }
+                    // 4. Indian taxes paid are NOT copied into the US FTC baskets:
+                    // with India data on file the engine takes the creditable
+                    // Indian tax from the India side itself (the tax actually
+                    // owed, not TDS / advance tax — any excess is a refund due in
+                    // India, not a creditable tax). The baskets stay for taxes a
+                    // preparer enters by hand.
 
                     // 5. Hydrate Indian Real Estate -> US Foreign Real Estate
                     // real_estate.properties[] is a buy/hold/sell transaction record
