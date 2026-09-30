@@ -20669,7 +20669,7 @@ div.innerHTML = `
             if (rState.primary_jurisdiction === 'cross_border') {
                 document.getElementById('btn-us-complete-route').innerHTML = "Routing...";
                 setTimeout(() => {
-                    window.location.href = 'layer1_india.html';
+                    window.WISING.ClientRegistry.navigate('layer1_india.html');
                 }, 1000);
             }
         }

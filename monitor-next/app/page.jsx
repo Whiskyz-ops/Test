@@ -361,6 +361,10 @@ export default function MonitorPage() {
   const alerts = useMemo(() => runAlertScan(dataset), [dataset]);
   const meters = useMemo(() => deriveMeters(result), [result]);
 
+  // The Layer 0/1 links open the active client's own forms: a registry
+  // client's data lives under its ?client= keys, and without the id the
+  // forms fall back to the shared slot (empty) and bounce to Layer 0.
+  const layer1Query = activeProfile && isRegistryClientId(activeProfile) ? "?client=" + encodeURIComponent(activeProfile) : "";
   const activeLinks = useMemo(() => entityLinksFor(activeProfile, clientSummaries), [activeProfile, clientSummaries]);
   const household = useMemo(() => householdFor(activeProfile), [activeProfile, clientSummaries]);
   const householdRecon = useMemo(() => (view === "reconciliation" ? householdReconFor(activeProfile) : null), [view, activeProfile, clientSummaries]);
@@ -476,9 +480,9 @@ export default function MonitorPage() {
           {!presentationMode && (
             <span className="ml-auto flex items-center gap-3 text-body">
               <span className="text-muted">Layer 1:</span>
-              <a href="router.html" className="font-semibold hover:text-accent transition-colors">Router</a>
-              <a href="layer1_india.html" className="font-semibold hover:text-accent transition-colors">India</a>
-              <a href="layer1_us.html" className="font-semibold hover:text-accent transition-colors">US</a>
+              <a href={"router.html" + layer1Query} className="font-semibold hover:text-accent transition-colors">Router</a>
+              <a href={"layer1_india.html" + layer1Query} className="font-semibold hover:text-accent transition-colors">India</a>
+              <a href={"layer1_us.html" + layer1Query} className="font-semibold hover:text-accent transition-colors">US</a>
             </span>
           )}
         </div>
