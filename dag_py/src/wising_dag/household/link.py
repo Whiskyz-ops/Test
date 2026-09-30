@@ -169,7 +169,26 @@ def _joint_interest(c):
     return {"total": total, "pct": p}
 
 
+def _joint_tds(c):
+    try:
+        tds = float(_get(c, "india.tax_credits.joint_account_tds_inr") or 0)
+    except (TypeError, ValueError):
+        tds = 0.0
+    if not tds > 0:
+        return None
+    return {"tds": tds, "first": _get(c, "india.tax_credits.joint_account_first_holder"),
+            "declared": _get(c, "india.tax_credits.joint_account_tds_37ba_declared") is True}
+
+
 def _check_joint_interest(a, b, err) -> None:
+    ta, tb = _joint_tds(a), _joint_tds(b)
+    if ta and tb:
+        if abs(ta["tds"] - tb["tds"]) > 1:
+            err("joint_tds_mismatch", "TDS on the joint accounts differs: ₹" + _fmt_num(ta["tds"]) + " on " + _name(a) + "'s India profile, ₹" + _fmt_num(tb["tds"]) + " on " + _name(b) + "'s. Both should show the full TDS in the first holder's Form 26AS.")
+        elif not ta["first"] or not tb["first"] or ta["first"] == tb["first"]:
+            err("joint_tds_first_holder", "The joint accounts' first holder must be set on both India profiles — \"self\" on one and \"spouse\" on the other.")
+        elif ta["declared"] != tb["declared"]:
+            err("joint_tds_declaration_mismatch", "One India profile says the rule 37BA declaration was filed with the bank and the other says it wasn't. The TDS credit follows the declaration, so both must agree.")
     ja, jb = _joint_interest(a), _joint_interest(b)
     if ja and jb:
         if abs(ja["total"] - jb["total"]) > 1:

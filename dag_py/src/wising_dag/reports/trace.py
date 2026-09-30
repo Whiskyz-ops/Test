@@ -24,6 +24,7 @@ verified in Phase 2, so there's no carve-out needed here.
 """
 from __future__ import annotations
 
+from ..india.joint_interest import joint_account_tds_credit_inr
 from ..core.graph import NodeDef
 from ..core.util import format_inr, format_usd as usd, js_num_str, js_round, num, safe
 from ..india.in1_v3 import bracket_breakdown
@@ -765,7 +766,7 @@ def _withholding_detail_india_raw(d, ctx):
         for p in props if num(p.get("buyer_tds_deducted_inr")) > 0
     ]
     return {
-        "tdsAggregateInr": num(safe(tc, "tds_already_deducted_inr", 0)) + num(safe(tc, "tds_inr", 0)),
+        "tdsAggregateInr": num(safe(tc, "tds_already_deducted_inr", 0)) + num(safe(tc, "tds_inr", 0)) + joint_account_tds_credit_inr(india),
         "tcsAggregateInr": num(safe(tc, "tcs_inr", 0)),
         "lrsTcs": _compute_lrs_tcs(_annual_lrs_outbound(india)),
         "propertyTds": property_tds,
@@ -989,6 +990,7 @@ NODES = {
         deps=(), compute=_withholding_detail_india_raw,
         layer1_fields=(
             "india.tax_credits.tds_already_deducted_inr", "india.tax_credits.tds_inr", "india.tax_credits.tcs_inr",
+            "india.tax_credits.joint_account_tds_inr", "india.tax_credits.joint_account_tds_37ba_declared", "india.tax_credits.joint_account_first_holder", "india.other_sources.joint_account_own_share_percent",
             "india.lrs_outbound.total_lrs_remitted_this_fy_inr", "india.lrs_outbound.lrs_purpose",
             "india.property.properties[].property_type", "india.property.properties[].sale_date",
             "india.property.properties[].sale_consideration", "india.property.properties[].buyer_tds_deducted_inr",

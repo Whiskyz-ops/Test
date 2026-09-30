@@ -146,7 +146,22 @@
     p = p == null || p === "" || !isFinite(Number(p)) ? 100 : Number(p);
     return { total: total, pct: p };
   }
+  function jointTds(c) {
+    var tds = Number(get(c, "india.tax_credits.joint_account_tds_inr", 0)) || 0;
+    if (!(tds > 0)) return null;
+    return { tds: tds, first: get(c, "india.tax_credits.joint_account_first_holder", null), declared: get(c, "india.tax_credits.joint_account_tds_37ba_declared", null) === true };
+  }
   function checkJointInterest(a, b, err) {
+    var ta = jointTds(a), tb = jointTds(b);
+    if (ta && tb) {
+      if (Math.abs(ta.tds - tb.tds) > 1) {
+        err("joint_tds_mismatch", "TDS on the joint accounts differs: ₹" + ta.tds + " on " + name(a) + "'s India profile, ₹" + tb.tds + " on " + name(b) + "'s. Both should show the full TDS in the first holder's Form 26AS.");
+      } else if (!ta.first || !tb.first || ta.first === tb.first) {
+        err("joint_tds_first_holder", "The joint accounts' first holder must be set on both India profiles — \"self\" on one and \"spouse\" on the other.");
+      } else if (ta.declared !== tb.declared) {
+        err("joint_tds_declaration_mismatch", "One India profile says the rule 37BA declaration was filed with the bank and the other says it wasn't. The TDS credit follows the declaration, so both must agree.");
+      }
+    }
     var ja = jointInterest(a), jb = jointInterest(b);
     if (ja && jb) {
       if (Math.abs(ja.total - jb.total) > 1) {

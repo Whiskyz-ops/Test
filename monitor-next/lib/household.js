@@ -7,7 +7,7 @@ import "./dag/household-link.js";
 import "./dag/household-seed.js";
 import { analyzeHousehold } from "./dag/household.js";
 import { analyzeDag } from "./dag-adapter";
-import { usPaidUsd, statePaidUsd } from "./payments.js";
+import { usPaidUsd, statePaidUsd, installmentStatus, jointEstimatesBlock, statesFromEngine } from "./payments.js";
 
 // Build step 4: what a linked, married-filing-jointly client's row shows —
 // their own Indian tax plus their method A share of the joint US tax, and
@@ -282,23 +282,39 @@ export function householdSnapshot(snap, h, clientId) {
   const jointNet = Math.max(0, (h.jointUs.totalTaxBeforeFtcUsd || 0) - (h.jointUs.ftcAllowedUsd || 0));
   const pay = raws.length === 2 && raws[0] && raws[1] ? (() => {
     const paid = usPaidUsd(raws[0].us) + usPaidUsd(raws[1].us);
-    return { paidUsd: paid * fig.share, balanceUsd: Math.max(0, jointNet - paid) * fig.share, jointBalanceUsd: Math.max(0, jointNet - paid) };
+    // Estimated payments on a joint return are the couple's: both spouses'
+    // quarters added up, checked once against the joint tax, and the same
+    // result shown on both pages.
+    const block = jointEstimatesBlock(raws[0].us, raws[1].us);
+    const inst = installmentStatus(r, { us: { withholding_and_estimated: block } }, "US", jointNet - (Number(block.federal_withholding_total_usd) || 0) >= 1000);
+    return { paidUsd: paid * fig.share, balanceUsd: Math.max(0, jointNet - paid) * fig.share, jointBalanceUsd: Math.max(0, jointNet - paid),
+      lateInstallments: inst.late + inst.missed, undatedInstallments: inst.undated, installmentNotes: inst.notes.map((n) => "Joint return: " + n) };
   })() : null;
   const countries = (snap.countries || []).map((c) => c.id !== "US" ? c : Object.assign({}, c, {
     estimatedTaxUsd: Math.round(fig.usShareUsd),
     reason: Math.round(fig.share * 100) + "% share of the joint US return with " + other.name + " (" + me.name + "'s part, method A)" +
       (pay ? "; unpaid on the joint return $" + Math.round(pay.jointBalanceUsd).toLocaleString("en-US") : "")
-  }, pay ? { paidUsd: pay.paidUsd, balanceUsd: pay.balanceUsd } : {}));
+  }, pay ? { paidUsd: pay.paidUsd, balanceUsd: pay.balanceUsd, lateInstallments: pay.lateInstallments, undatedInstallments: pay.undatedInstallments, installmentNotes: pay.installmentNotes } : {}));
   // The resident state's return is joint too (same filing status): the
   // joint state tax and both spouses' state withholding, at this client's share.
   const jointState = h._joint.taxComputation && h._joint.taxComputation.usState;
+  // Credit for tax either spouse paid to a non-resident state on wages the
+  // joint resident return also taxes, limited to the joint resident tax on
+  // those wages; a part-year move scales the joint tax like the own row.
+  const jointAgi = Number(h._joint.computed && h._joint.computed.usTax && h._joint.computed.usTax.agiUsd) || 0;
+  const otherRows = (h._own || []).reduce((out, o) => out.concat(o && o._raw ? statesFromEngine(o, o._raw).filter((x) => x.resident === false && !/Part-year/.test(x.residency.test) && x.taxAfterCreditsUsd != null) : []), []);
   const states = (snap.states || []).map((st) => {
     if (!jointState || st.resident === false) return st;
-    const stTax = Number(jointState.totalUsd) || 0;
+    const factor = st.residentFactor != null ? st.residentFactor : 1;
+    const fullJoint = (Number(jointState.totalUsd) || 0) * factor;
+    const credit = jointAgi > 0 ? otherRows.reduce((t, o) => t + Math.min(o.taxAfterCreditsUsd, fullJoint * Math.min(1, (o.incomeExposedUsd || 0) / jointAgi)), 0) : 0;
+    const stTax = Math.max(0, fullJoint - credit);
     const stPaid = raws.length === 2 && raws[0] && raws[1] ? statePaidUsd(raws[0].us, st.id, true) + statePaidUsd(raws[1].us, st.id, true) : null;
     return Object.assign({}, st, {
       estimatedTaxUsd: Math.round(stTax * fig.share), taxAfterCreditsUsd: stTax * fig.share,
-      reason: Math.round(fig.share * 100) + "% share of the joint " + st.name + " return with " + other.name
+      reason: Math.round(fig.share * 100) + "% share of the joint " + st.name + " return with " + other.name +
+        (factor < 1 ? "; part-year resident here — " + Math.round(factor * 100) + "% of the full-year tax" : "") +
+        (credit > 0 ? "; less $" + Math.round(credit).toLocaleString("en-US") + " credit for tax paid to other states" : "")
     }, stPaid === null ? {} : { paidUsd: stPaid * fig.share, balanceUsd: Math.max(0, stTax - stPaid) * fig.share });
   });
   return Object.assign({}, snap, { result, countries, states });

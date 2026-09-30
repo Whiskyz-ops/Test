@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { countryPayments, statesFromEngine, residentStateCode, usPaidUsd, indiaPaidInr } from "./payments.js";
+import { countryPayments, statesFromEngine, residentStateCode, usPaidUsd, indiaPaidInr, partYearFraction } from "./payments.js";
+import { stateTaxAsResident } from "./dag/findings-batch5-nodes.js";
 import { classify, STATUS } from "./logic.js";
 
 const result = {
@@ -34,22 +35,35 @@ describe("payments and map status", () => {
     expect(s[0].balanceUsd).toBe(25365 - 9000);
     expect(statesFromEngine(result, { us: {}, india: {} })).toEqual([]);
   });
-  it("adds part-year and W-2 work states as Filing required rows without a tax figure", () => {
+  it("adds part-year and W-2 work states, with their tax where the engine has the state's tables", () => {
     const us = { state_residency: { primary_state_of_residence: "NY", jan_1_domicile_state: "CA", moved_states_this_year: true, previous_state: "CA", move_date: "2026-03-01" },
       income_us_source: { wages_w2: [
         { state_and_local_taxes: [{ state_code_box15: "NY", state_wages_box16_usd: 100000, state_tax_withheld_box17_usd: 6000 }] },
         { state_and_local_taxes: [{ state_code_box15: "NJ", state_wages_box16_usd: 40000, state_tax_withheld_box17_usd: 0 }] },
         { state_and_local_taxes: [{ state_code_box15: "CA", state_wages_box16_usd: 20000, state_tax_withheld_box17_usd: 1500 }] },
-        { state_and_local_taxes: [{ state_code_box15: "TX", state_wages_box16_usd: 5000 }] }] } };
-    const s = statesFromEngine(result, { us, india: {} });
-    expect(s.map((x) => x.id)).toEqual(["NY", "CA", "NJ"]); // TX has no wage tax
-    expect(s[0].paidUsd).toBe(6000); // only NY's box 17
-    const ca = s.find((x) => x.id === "CA"), nj = s.find((x) => x.id === "NJ");
-    expect(ca.estimatedTaxUsd).toBeNull();
-    expect(ca.paidUsd).toBe(1500);
-    expect(classify(ca)).toBe(STATUS.NEXUS); // withholding on file
-    expect(nj.likelyUnpaid).toBe(true);
-    expect(classify(nj)).toBe(STATUS.EXPOSED); // wages there, nothing withheld
+        { state_and_local_taxes: [{ state_code_box15: "TX", state_wages_box16_usd: 5000 }] },
+        { state_and_local_taxes: [{ state_code_box15: "PA", state_wages_box16_usd: 10000 }] }] } };
+    const s = statesFromEngine(result, { us, india: {}, router: { base_tax_year: 2026 } });
+    expect(s.map((x) => x.id)).toEqual(["NY", "CA", "NJ", "PA"]); // TX has no wage tax
+    const agi = 386340, frac = 59 / 365; // 1 Jan -> 1 Mar 2026
+    const ca = s.find((x) => x.id === "CA"), nj = s.find((x) => x.id === "NJ"), pa = s.find((x) => x.id === "PA"), ny = s[0];
+    // Part-year CA: full-year CA tax x the part of the year before the move.
+    expect(partYearFraction("2026-03-01", 2026)).toBeCloseTo(frac, 10);
+    expect(ca.estimatedTaxUsd).toBe(Math.round(stateTaxAsResident("CA", "single", agi, 0, 0).totalTaxUsd * frac));
+    expect(ca.balanceUsd).toBeCloseTo(ca.taxAfterCreditsUsd - 1500, 6);
+    // Non-resident NJ: full-year NJ tax x NJ wages / AGI; nothing withheld -> red.
+    const njTax = stateTaxAsResident("NJ", "single", agi, 0, 0).totalTaxUsd * 40000 / agi;
+    expect(nj.taxAfterCreditsUsd).toBeCloseTo(njTax, 6);
+    expect(classify(nj)).toBe(STATUS.EXPOSED);
+    // PA: no model -> not computed, wages with nothing withheld -> likely unpaid.
+    expect(pa.estimatedTaxUsd).toBeNull();
+    expect(pa.likelyUnpaid).toBe(true);
+    // Resident NY: 25,365 full-year x (1 - frac), less the NJ credit, limited
+    // to the NY tax on the NJ wages.
+    const nyPart = 25365 * (1 - frac);
+    const credit = Math.min(njTax, nyPart * 40000 / agi);
+    expect(ny.taxAfterCreditsUsd).toBeCloseTo(nyPart - credit, 6);
+    expect(ny.paidUsd).toBe(6000); // only NY's box 17
   });
   it("red means unpaid or overdue; paid-up obligations are Filing required", () => {
     const base = { taxesWorldwide: true, residency: { days: 345, threshold: 183 }, reporting: null };
@@ -94,5 +108,19 @@ describe("instalment dates", () => {
     expect(countryPayments(res(2000), india("1960-01-01")).IN.lateInstallments).toBe(0); // 60+, no business
     expect(countryPayments(res(100), india("1990-01-01")).IN.lateInstallments).toBe(0); // ₹8,300 < ₹10,000
     expect(classify({ taxesWorldwide: true, estimatedTaxUsd: 100, balanceUsd: 0, overdueFilings: 0, lateInstallments: 1 })).toBe(STATUS.EXPOSED);
+  });
+});
+
+describe("joint-return estimated payments", () => {
+  it("adds both spouses' quarters and uses the later date", async () => {
+    const { jointEstimatesBlock } = await import("./payments.js");
+    const b = jointEstimatesBlock(
+      { withholding_and_estimated: { federal_withholding_total_usd: 30000, estimated_tax_q1_apr15_usd: 8000, estimated_tax_q1_paid_date: "2026-04-10", estimated_tax_q2_jun15_usd: 8000 } },
+      { withholding_and_estimated: { federal_withholding_total_usd: 11000, estimated_tax_q1_apr15_usd: 2000, estimated_tax_q1_paid_date: "2026-04-20" } });
+    expect(b.federal_withholding_total_usd).toBe(41000);
+    expect(b.estimated_tax_q1_apr15_usd).toBe(10000);
+    expect(b.estimated_tax_q1_paid_date).toBe("2026-04-20"); // later of the two -> late
+    expect(b.estimated_tax_q2_paid_date).toBeNull(); // paid, undated
+    expect(b.estimated_tax_q3_sep15_usd).toBe(0);
   });
 });

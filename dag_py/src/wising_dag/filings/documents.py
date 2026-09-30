@@ -25,6 +25,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 
+from ..india.joint_interest import joint_account_tds_credit_inr
 from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
 from ..core.util import format_inr, format_usd, js_round, num, safe
@@ -492,12 +493,13 @@ NODES = {
         deps=(), compute=lambda d, ctx: (lambda tc: {
             "q1": num(safe(tc, "advance_tax_q1_15jun_inr", 0)), "q2": num(safe(tc, "advance_tax_q2_15sep_inr", 0)),
             "q3": num(safe(tc, "advance_tax_q3_15dec_inr", 0)), "q4": num(safe(tc, "advance_tax_q4_15mar_inr", 0)),
-            "tdsAlreadyDeducted": num(safe(tc, "tds_already_deducted_inr", 0)), "tds": num(safe(tc, "tds_inr", 0)), "tcs": num(safe(tc, "tcs_inr", 0)),
+            "tdsAlreadyDeducted": num(safe(tc, "tds_already_deducted_inr", 0)), "tds": num(safe(tc, "tds_inr", 0)) + joint_account_tds_credit_inr(ctx.get("india")), "tcs": num(safe(tc, "tcs_inr", 0)),
         })(safe(ctx.get("india"), "tax_credits", {})),
         layer1_fields=(
             "india.tax_credits.advance_tax_q1_15jun_inr", "india.tax_credits.advance_tax_q2_15sep_inr",
             "india.tax_credits.advance_tax_q3_15dec_inr", "india.tax_credits.advance_tax_q4_15mar_inr",
             "india.tax_credits.tds_already_deducted_inr", "india.tax_credits.tds_inr", "india.tax_credits.tcs_inr",
+            "india.tax_credits.joint_account_tds_inr", "india.tax_credits.joint_account_tds_37ba_declared", "india.tax_credits.joint_account_first_holder", "india.other_sources.joint_account_own_share_percent",
         ),
     ),
     "taxesPaidIndiaResult": NodeDef(deps=("taxCreditsIndiaRaw",), compute=_taxes_paid_india_result),

@@ -1,0 +1,50 @@
+{
+  "id": "in_joint_account_tds_first_holder",
+  "form": "layer1_india.html",
+  "section": "Tax credits (TDS on joint accounts with spouse)",
+  "story": "Same client as in_joint_account_interest_share (40% of a joint FD's money). Own TDS 5,000; TDS on the joint FD 30,000 in the first holder's Form 26AS.",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "individual",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "manual_days": 365,
+      "days_in_india_current_year": 365,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      }
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_savings_inr": 50000,
+      "joint_account_interest_inr": 300000,
+      "joint_account_own_share_percent": 40
+    },
+    "tax_credits": {
+      "tds_already_deducted_inr": 5000,
+      "joint_account_tds_inr": 30000,
+      "joint_account_first_holder": "self",
+      "joint_account_tds_37ba_declared": false
+    }
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "withholding.india.rows[id=tds_aggregate].taxInr",
+      "value": 35000,
+      "why": "own TDS 5,000 + all 30,000 joint TDS: no rule 37BA declaration, so the whole credit stays with the first holder (this person)"
+    }
+  ]
+}

@@ -1831,5 +1831,355 @@
     "ravi": "full"
    }
   }
+ },
+ {
+  "name": "joint TDS consistent",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {
+    "other_sources": {
+     "has_other_sources_income": true,
+     "joint_account_interest_inr": 100000,
+     "joint_account_own_share_percent": 60
+    },
+    "tax_credits": {
+     "joint_account_tds_inr": 10000,
+     "joint_account_first_holder": "self",
+     "joint_account_tds_37ba_declared": true
+    }
+   },
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "income_us_source": {
+     "wages_w2": [
+      {
+       "employer_name": "Acme",
+       "wages_box1_usd": 90000
+      }
+     ]
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {
+    "other_sources": {
+     "has_other_sources_income": true,
+     "joint_account_interest_inr": 100000,
+     "joint_account_own_share_percent": 40
+    },
+    "tax_credits": {
+     "joint_account_tds_inr": 10000,
+     "joint_account_first_holder": "spouse",
+     "joint_account_tds_37ba_declared": true
+    }
+   },
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [],
+   "tiers": {
+    "ravi": "full"
+   }
+  }
+ },
+ {
+  "name": "joint TDS amounts differ",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {
+    "other_sources": {
+     "has_other_sources_income": true,
+     "joint_account_interest_inr": 100000,
+     "joint_account_own_share_percent": 60
+    },
+    "tax_credits": {
+     "joint_account_tds_inr": 10000,
+     "joint_account_first_holder": "self",
+     "joint_account_tds_37ba_declared": true
+    }
+   },
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "income_us_source": {
+     "wages_w2": [
+      {
+       "employer_name": "Acme",
+       "wages_box1_usd": 90000
+      }
+     ]
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {
+    "other_sources": {
+     "has_other_sources_income": true,
+     "joint_account_interest_inr": 100000,
+     "joint_account_own_share_percent": 40
+    },
+    "tax_credits": {
+     "joint_account_tds_inr": 9000,
+     "joint_account_first_holder": "spouse",
+     "joint_account_tds_37ba_declared": true
+    }
+   },
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "joint_tds_mismatch"
+   ],
+   "tiers": {
+    "ravi": "full"
+   }
+  }
+ },
+ {
+  "name": "joint TDS both say first holder",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {
+    "other_sources": {
+     "has_other_sources_income": true,
+     "joint_account_interest_inr": 100000,
+     "joint_account_own_share_percent": 60
+    },
+    "tax_credits": {
+     "joint_account_tds_inr": 10000,
+     "joint_account_first_holder": "self",
+     "joint_account_tds_37ba_declared": false
+    }
+   },
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "income_us_source": {
+     "wages_w2": [
+      {
+       "employer_name": "Acme",
+       "wages_box1_usd": 90000
+      }
+     ]
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {
+    "other_sources": {
+     "has_other_sources_income": true,
+     "joint_account_interest_inr": 100000,
+     "joint_account_own_share_percent": 40
+    },
+    "tax_credits": {
+     "joint_account_tds_inr": 10000,
+     "joint_account_first_holder": "self",
+     "joint_account_tds_37ba_declared": false
+    }
+   },
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "joint_tds_first_holder"
+   ],
+   "tiers": {
+    "ravi": "full"
+   }
+  }
+ },
+ {
+  "name": "joint TDS declaration disagrees",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {
+    "other_sources": {
+     "has_other_sources_income": true,
+     "joint_account_interest_inr": 100000,
+     "joint_account_own_share_percent": 60
+    },
+    "tax_credits": {
+     "joint_account_tds_inr": 10000,
+     "joint_account_first_holder": "self",
+     "joint_account_tds_37ba_declared": true
+    }
+   },
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "income_us_source": {
+     "wages_w2": [
+      {
+       "employer_name": "Acme",
+       "wages_box1_usd": 90000
+      }
+     ]
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "router": {
+    "full_name": "Ravi",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {
+    "other_sources": {
+     "has_other_sources_income": true,
+     "joint_account_interest_inr": 100000,
+     "joint_account_own_share_percent": 40
+    },
+    "tax_credits": {
+     "joint_account_tds_inr": 10000,
+     "joint_account_first_holder": "spouse",
+     "joint_account_tds_37ba_declared": false
+    }
+   },
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "joint_tds_declaration_mismatch"
+   ],
+   "tiers": {
+    "ravi": "full"
+   }
+  }
  }
 ]

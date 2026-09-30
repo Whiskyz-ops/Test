@@ -62,7 +62,7 @@ var NODES = {
   advQ2Inr: { deps: [], compute: function (d, ctx) { return num(safe(ctx.india, "tax_credits.advance_tax_q2_15sep_inr", 0)); } },
   advQ3Inr: { deps: [], compute: function (d, ctx) { return num(safe(ctx.india, "tax_credits.advance_tax_q3_15dec_inr", 0)); } },
   advQ4Inr: { deps: [], compute: function (d, ctx) { return num(safe(ctx.india, "tax_credits.advance_tax_q4_15mar_inr", 0)); } },
-  tdsInr: { deps: [], compute: function (d, ctx) { return num(safe(ctx.india, "tax_credits.tds_already_deducted_inr", 0)) + num(safe(ctx.india, "tax_credits.tds_inr", 0)); } },
+  tdsInr: { deps: [], compute: function (d, ctx) { return num(safe(ctx.india, "tax_credits.tds_already_deducted_inr", 0)) + num(safe(ctx.india, "tax_credits.tds_inr", 0)) + require("./joint-account.js").jointAccountTdsCreditInr(ctx.india); } },
   tcsInr: { deps: [], compute: function (d, ctx) { return num(safe(ctx.india, "tax_credits.tcs_inr", 0)); } },
   baseYear: { deps: [], compute: function (d, ctx) { return ctx.model.meta.baseYear; } },
 

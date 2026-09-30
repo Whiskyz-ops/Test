@@ -47,7 +47,7 @@ var NODE_FILES = [
   "crossbasis-nodes.js", "doubletax-nodes.js", "entitytax-nodes.js", "findings-nodes.js", "findings-batch2-nodes.js", "findings-batch3-nodes.js", "findings-batch4-nodes.js", "findings-batch5-nodes.js", "findings-batch6-nodes.js", "report-batch1-nodes.js", "report-batch2-nodes.js", "report-batch3-nodes.js", "report-batch4-nodes.js", "report-batch5-nodes.js", "report-batch6-nodes.js", "in1-nodes.js", "in1-nodes-v2.js", "in1-nodes-v3.js",
   "ftc-nodes.js", "india-full-nodes.js", "india-tax-combined-nodes.js", "itrform-nodes.js",
   "limits-nodes.js", "residency-nodes.js", "scope-nodes.js", "us1-nodes.js", "us5-nodes.js",
-  "us-full-nodes.js", "ustax-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js", "house-property.js", "business-expenses.js", "india-compliance.js"
+  "us-full-nodes.js", "ustax-full-nodes.js", "ustax-nodes.js", "xb7-nodes.js", "xborder-full-nodes.js", "house-property.js", "business-expenses.js", "india-compliance.js", "joint-account.js"
 ];
 function m(row, status, dagFiles, knownMissing) { return { row: row, status: status, dagFiles: dagFiles || ["*"], knownMissing: knownMissing || [] }; }
 var MAP = {

@@ -177,15 +177,8 @@ NODES.usStateTaxResult = {
     }
     var T = US_STATES_EXT[stateCode];
     if (!T) return null;
-    // Federal filing status -> this state's table: its own table when it
-    // has one, else the state's mapping (e.g. MFS -> single, NJ HOH -> joint).
     var raw = d.usFilingStatusRaw || "single";
     var status = T.BRACKETS[raw] ? raw : ((T.STATUS_TABLE || {})[raw] || "single");
-    var brackets = T.BRACKETS[status];
-    var stdKey = T.STD_DEDUCTION[raw] != null ? raw : status;
-    var standardDeductionUsd = T.STD_DEDUCTION[stdKey];
-    var dependents = d.dedUs.dependents || 0;
-    var dependentExemptionUsd = (T.DEPENDENT_EXEMPTION_USD || 0) * dependents;
     // 529 state tax deduction (task #45 follow-up): only the RESIDENT
     // state's own plan qualifies (NY/NJ both restrict the deduction to
     // contributions to their own 529 program, not another state's) --
@@ -197,44 +190,62 @@ NODES.usStateTaxResult = {
     var five29IncomeOk = T.FIVE29_DEDUCTION_INCOME_CAP_USD == null || d.usTaxResult.agiUsd <= T.FIVE29_DEDUCTION_INCOME_CAP_USD;
     var five29CapUsd = T.FIVE29_DEDUCTION_MAX_USD ? (T.FIVE29_DEDUCTION_MAX_USD[raw] || T.FIVE29_DEDUCTION_MAX_USD[status] || T.FIVE29_DEDUCTION_MAX_USD.single) : 0;
     var five29DeductionUsd = (five29StateMatches && five29IncomeOk) ? Math.min(d.dedUs.five29ContributionsUsd || 0, five29CapUsd) : 0;
-    var taxableIncomeUsd = Math.max(0, d.usTaxResult.agiUsd - standardDeductionUsd - dependentExemptionUsd - five29DeductionUsd);
-    var bracketTaxUsd = bracketTax(taxableIncomeUsd, brackets);
-    var bracketBreakdownRows = bracketBreakdown(taxableIncomeUsd, brackets);
-    var surchargeUsd = 0;
-    if (T.SURCHARGE_THRESHOLD_USD != null && taxableIncomeUsd > T.SURCHARGE_THRESHOLD_USD) {
-      surchargeUsd = (taxableIncomeUsd - T.SURCHARGE_THRESHOLD_USD) * T.SURCHARGE_RATE;
-    }
-    var surchargeLabel = T.SURCHARGE_LABEL || null;
-    var sup = T.SUPPLEMENTAL_TAX, agiUsd = d.usTaxResult.agiUsd;
-    if (sup && agiUsd > sup.MIN_AGI_USD) {
-      var recaptureUsd;
-      if (agiUsd > sup.FLAT_TOP_AGI_USD) recaptureUsd = taxableIncomeUsd * sup.TOP_RATE - bracketTaxUsd;
-      else {
-        var row = sup[status].filter(function (r) { return taxableIncomeUsd >= r[0]; }).pop();
-        var phase = Math.min(1, Math.max(0, agiUsd - Math.max(row[0], sup.MIN_AGI_USD)) / sup.PHASE_IN_USD);
-        recaptureUsd = row[1] + phase * row[2];
-      }
-      surchargeUsd += Math.max(0, recaptureUsd);
-      surchargeLabel = T.SURCHARGE_LABEL_RECAPTURE;
-    }
-    var exemptionCreditUsd = (T.EXEMPTION_CREDIT_USD && (T.EXEMPTION_CREDIT_USD[raw] != null ? T.EXEMPTION_CREDIT_USD[raw] : T.EXEMPTION_CREDIT_USD[status])) || 0;
-    var dependentCreditUsd = (T.DEPENDENT_CREDIT_USD || 0) * dependents;
-    var totalTaxUsd = Math.max(0, Math.round(bracketTaxUsd + surchargeUsd - exemptionCreditUsd - dependentCreditUsd));
-    return {
-      state: stateCode, stateName: T.NAME, formName: T.FORM_NAME, filingStatus: raw, rateTable: status,
-      noIncomeTax: false,
-      agiUsd: d.usTaxResult.agiUsd, standardDeductionUsd: standardDeductionUsd, dependentExemptionUsd: dependentExemptionUsd,
-      standardDeductionLabel: T.STD_DEDUCTION_LABEL || "standard deduction",
-      dependentExemptionLabel: T.DEPENDENT_EXEMPTION_LABEL || (T.NAME + " dependent exemption"),
-      five29DeductionUsd: five29DeductionUsd,
-      taxableIncomeUsd: taxableIncomeUsd, bracketTaxUsd: bracketTaxUsd, bracketBreakdown: bracketBreakdownRows,
-      surchargeUsd: surchargeUsd, surchargeLabel: surchargeLabel,
-      exemptionCreditUsd: exemptionCreditUsd, dependentCreditUsd: dependentCreditUsd,
-      totalTaxUsd: totalTaxUsd, effectiveRate: d.usTaxResult.agiUsd > 0 ? totalTaxUsd / d.usTaxResult.agiUsd : 0,
-      basis: (T.RATES_NOTE || "TY2025 rates (returns filed 2026)") + "; full-year resident, worldwide income via federal AGI, no foreign tax credit against state tax."
-    };
+    return stateTaxAsResident(stateCode, raw, d.usTaxResult.agiUsd, d.dedUs.dependents || 0, five29DeductionUsd);
   }
 };
+
+// A state's tax on federal AGI as a full-year resident (usStateTaxResult's
+// computation, also used by the Monitor for non-resident and part-year
+// states: their own returns — NY IT-203, CA 540NR, NJ-1040NR — take this
+// full-year figure times the share of income from the state). Null when
+// the state has no model here.
+function stateTaxAsResident(stateCode, raw, agiUsd, dependents, five29DeductionUsd) {
+  var T = US_STATES_EXT[stateCode];
+  if (!T) return null;
+  // Federal filing status -> this state's table: its own table when it
+  // has one, else the state's mapping (e.g. MFS -> single, NJ HOH -> joint).
+  var status = T.BRACKETS[raw] ? raw : ((T.STATUS_TABLE || {})[raw] || "single");
+  var brackets = T.BRACKETS[status];
+  var stdKey = T.STD_DEDUCTION[raw] != null ? raw : status;
+  var standardDeductionUsd = T.STD_DEDUCTION[stdKey];
+  var dependentExemptionUsd = (T.DEPENDENT_EXEMPTION_USD || 0) * dependents;
+  var taxableIncomeUsd = Math.max(0, agiUsd - standardDeductionUsd - dependentExemptionUsd - (five29DeductionUsd || 0));
+  var bracketTaxUsd = bracketTax(taxableIncomeUsd, brackets);
+  var bracketBreakdownRows = bracketBreakdown(taxableIncomeUsd, brackets);
+  var surchargeUsd = 0;
+  if (T.SURCHARGE_THRESHOLD_USD != null && taxableIncomeUsd > T.SURCHARGE_THRESHOLD_USD) {
+    surchargeUsd = (taxableIncomeUsd - T.SURCHARGE_THRESHOLD_USD) * T.SURCHARGE_RATE;
+  }
+  var surchargeLabel = T.SURCHARGE_LABEL || null;
+  var sup = T.SUPPLEMENTAL_TAX;
+  if (sup && agiUsd > sup.MIN_AGI_USD) {
+    var recaptureUsd;
+    if (agiUsd > sup.FLAT_TOP_AGI_USD) recaptureUsd = taxableIncomeUsd * sup.TOP_RATE - bracketTaxUsd;
+    else {
+      var row = sup[status].filter(function (r) { return taxableIncomeUsd >= r[0]; }).pop();
+      var phase = Math.min(1, Math.max(0, agiUsd - Math.max(row[0], sup.MIN_AGI_USD)) / sup.PHASE_IN_USD);
+      recaptureUsd = row[1] + phase * row[2];
+    }
+    surchargeUsd += Math.max(0, recaptureUsd);
+    surchargeLabel = T.SURCHARGE_LABEL_RECAPTURE;
+  }
+  var exemptionCreditUsd = (T.EXEMPTION_CREDIT_USD && (T.EXEMPTION_CREDIT_USD[raw] != null ? T.EXEMPTION_CREDIT_USD[raw] : T.EXEMPTION_CREDIT_USD[status])) || 0;
+  var dependentCreditUsd = (T.DEPENDENT_CREDIT_USD || 0) * dependents;
+  var totalTaxUsd = Math.max(0, Math.round(bracketTaxUsd + surchargeUsd - exemptionCreditUsd - dependentCreditUsd));
+  return {
+    state: stateCode, stateName: T.NAME, formName: T.FORM_NAME, filingStatus: raw, rateTable: status,
+    noIncomeTax: false,
+    agiUsd: agiUsd, standardDeductionUsd: standardDeductionUsd, dependentExemptionUsd: dependentExemptionUsd,
+    standardDeductionLabel: T.STD_DEDUCTION_LABEL || "standard deduction",
+    dependentExemptionLabel: T.DEPENDENT_EXEMPTION_LABEL || (T.NAME + " dependent exemption"),
+    five29DeductionUsd: five29DeductionUsd || 0,
+    taxableIncomeUsd: taxableIncomeUsd, bracketTaxUsd: bracketTaxUsd, bracketBreakdown: bracketBreakdownRows,
+    surchargeUsd: surchargeUsd, surchargeLabel: surchargeLabel,
+    exemptionCreditUsd: exemptionCreditUsd, dependentCreditUsd: dependentCreditUsd,
+    totalTaxUsd: totalTaxUsd, effectiveRate: agiUsd > 0 ? totalTaxUsd / agiUsd : 0,
+    basis: (T.RATES_NOTE || "TY2025 rates (returns filed 2026)") + "; full-year resident, worldwide income via federal AGI, no foreign tax credit against state tax."
+  };
+}
 
 // ---- AGG-6: aggregateTaxesPaid, ported in full (normalize.js:2017-2052) --
 NODES.taxesPaidUsResult = {
@@ -522,4 +533,4 @@ NODES.findingsBatch5Result = {
   }
 };
 
-module.exports = { NODES: NODES };
+module.exports = { NODES: NODES, stateTaxAsResident: stateTaxAsResident, NO_INDIVIDUAL_INCOME_TAX_STATES: NO_INDIVIDUAL_INCOME_TAX_STATES };

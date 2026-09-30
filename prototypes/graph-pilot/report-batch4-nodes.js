@@ -143,7 +143,7 @@ NODES.withholdingDetailIndiaRaw = {
       };
     });
     return {
-      tdsAggregateInr: num(safe(tc, "tds_already_deducted_inr", 0)) + num(safe(tc, "tds_inr", 0)),
+      tdsAggregateInr: num(safe(tc, "tds_already_deducted_inr", 0)) + num(safe(tc, "tds_inr", 0)) + require("./joint-account.js").jointAccountTdsCreditInr(ctx.india),
       tcsAggregateInr: num(safe(tc, "tcs_inr", 0)),
       lrsTcs: computeLrsTcs(annualLrsOutbound(ctx.india)),
       propertyTds: propertyTds

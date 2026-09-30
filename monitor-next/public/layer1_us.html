@@ -729,7 +729,7 @@
                 </div>
                 <div>
                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Dependents Count</label>
-                    <input type="text" inputmode="numeric" id="prof-dependents" min="0" placeholder="0" oninput="updateProfileField('dependents_count', parseInt(this.value) || 0); window.checkFilingStatusDiagnostics && window.checkFilingStatusDiagnostics();" class="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all font-mono">
+                    <input type="text" inputmode="numeric" id="prof-dependents" min="0" placeholder="0" oninput="updateProfileField('dependents_count', parseInt(String(this.value).replace(/,/g, '')) || 0); window.checkFilingStatusDiagnostics && window.checkFilingStatusDiagnostics();" class="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all font-mono">
                     
                     <div class="mt-3 flex items-center justify-between p-3 bg-black/20 border border-white/5 rounded-xl">
                         <div class="flex flex-col">
@@ -1226,7 +1226,7 @@
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-brandRed mb-1.5">Years Holding GC in last 15 yrs (Exit Tax)</label>
-                        <input type="text" inputmode="numeric" id="res-gc-years" min="0" max="15" placeholder="e.g. 8" oninput="updateResidencyField('green_card_years_held', parseInt(this.value) || 0); toggleExitTaxTests();" class="w-full bg-brandRed/5 border border-brandRed/30 rounded-xl text-xs text-white px-4 py-3 focus:border-brandRed focus:ring-0 focus:outline-none transition-all font-mono">
+                        <input type="text" inputmode="numeric" id="res-gc-years" min="0" max="15" placeholder="e.g. 8" oninput="updateResidencyField('green_card_years_held', parseInt(String(this.value).replace(/,/g, '')) || 0); toggleExitTaxTests();" class="w-full bg-brandRed/5 border border-brandRed/30 rounded-xl text-xs text-white px-4 py-3 focus:border-brandRed focus:ring-0 focus:outline-none transition-all font-mono">
                     </div>
                 </div>
 
@@ -1281,29 +1281,29 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Days in US (Current Year 2026)</label>
-                            <input type="text" inputmode="numeric" id="days-cy" min="0" max="366" placeholder="0" oninput="updateResidencyField('us_days_current_year', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                            <input type="text" inputmode="numeric" id="days-cy" min="0" max="366" placeholder="0" oninput="updateResidencyField('us_days_current_year', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                         </div>
                         <div>
                             <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Days in US (1 Year Prior 2025)</label>
-                            <input type="text" inputmode="numeric" id="days-py1" min="0" max="366" placeholder="0" oninput="updateResidencyField('us_days_minus_1_year', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                            <input type="text" inputmode="numeric" id="days-py1" min="0" max="366" placeholder="0" oninput="updateResidencyField('us_days_minus_1_year', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                         </div>
                         <div>
                             <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Days in US (2 Years Prior 2024)</label>
-                            <input type="text" inputmode="numeric" id="days-py2" min="0" max="366" placeholder="0" oninput="updateResidencyField('us_days_minus_2_years', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                            <input type="text" inputmode="numeric" id="days-py2" min="0" max="366" placeholder="0" oninput="updateResidencyField('us_days_minus_2_years', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                         </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-3 border-t border-white/5 pt-3">
                         <div>
                             <label class="block text-[9px] font-black uppercase tracking-widest text-brandGold mb-1">Excluded Days (2026)</label>
-                            <input type="text" inputmode="numeric" id="days-exc-cy" min="0" max="366" placeholder="0" oninput="updateResidencyField('us_days_excluded_current', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-brandGold px-3 py-2 focus:border-brandGold font-mono">
+                            <input type="text" inputmode="numeric" id="days-exc-cy" min="0" max="366" placeholder="0" oninput="updateResidencyField('us_days_excluded_current', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-brandGold px-3 py-2 focus:border-brandGold font-mono">
                         </div>
                         <div>
                             <label class="block text-[9px] font-black uppercase tracking-widest text-brandGold mb-1">Excluded Days (2025)</label>
-                            <input type="text" inputmode="numeric" id="days-exc-py1" min="0" max="366" placeholder="0" oninput="updateResidencyField('us_days_excluded_minus_1', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-brandGold px-3 py-2 focus:border-brandGold font-mono">
+                            <input type="text" inputmode="numeric" id="days-exc-py1" min="0" max="366" placeholder="0" oninput="updateResidencyField('us_days_excluded_minus_1', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-brandGold px-3 py-2 focus:border-brandGold font-mono">
                         </div>
                         <div>
                             <label class="block text-[9px] font-black uppercase tracking-widest text-brandGold mb-1">Excluded Days (2024)</label>
-                            <input type="text" inputmode="numeric" id="days-exc-py2" min="0" max="366" placeholder="0" oninput="updateResidencyField('us_days_excluded_minus_2', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-brandGold px-3 py-2 focus:border-brandGold font-mono">
+                            <input type="text" inputmode="numeric" id="days-exc-py2" min="0" max="366" placeholder="0" oninput="updateResidencyField('us_days_excluded_minus_2', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-brandGold px-3 py-2 focus:border-brandGold font-mono">
                         </div>
                         <div>
                             <label class="block text-[9px] font-black uppercase tracking-widest text-brandGold mb-1">Exception Reason</label>
@@ -1382,12 +1382,12 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Year of first entry to U.S. on this visa</label>
-                                <input type="text" inputmode="numeric" id="res-exempt-first-year" min="1900" max="2026" placeholder="e.g. 2022" oninput="updateResidencyField('exempt_first_year', parseInt(this.value) || null)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                                <input type="text" inputmode="numeric" id="res-exempt-first-year" min="1900" max="2026" placeholder="e.g. 2022" oninput="updateResidencyField('exempt_first_year', parseInt(String(this.value).replace(/,/g, '')) || null)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                                 <span class="text-[8px] text-white/30 block mt-1 leading-normal">Enter the year you first arrived in the U.S. on this visa (e.g., 2022). Even a single day counts as a full year.</span>
                             </div>
                             <div>
                                 <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Prior years spent in U.S. on this visa</label>
-                                <input type="text" inputmode="numeric" id="res-exempt-prior-years" min="0" max="99" placeholder="e.g. 4" oninput="updateResidencyField('exempt_prior_years_count', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                                <input type="text" inputmode="numeric" id="res-exempt-prior-years" min="0" max="99" placeholder="e.g. 4" oninput="updateResidencyField('exempt_prior_years_count', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                                 <span class="text-[8px] text-white/30 block mt-1 leading-normal">Total number of calendar years (before 2026) that you spent any part of in the U.S. on this visa.</span>
                             </div>
                         </div>
@@ -1575,7 +1575,7 @@
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">Days spent in your new (current) state</label>
-                        <input type="text" inputmode="numeric" id="state-days-curr" min="0" max="366" placeholder="e.g. 180" oninput="updateStateField('state_residency','state_days_in_current_state',parseInt(this.value)||0); validateStateDayConstraint();" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none font-mono">
+                        <input type="text" inputmode="numeric" id="state-days-curr" min="0" max="366" placeholder="e.g. 180" oninput="updateStateField('state_residency','state_days_in_current_state',parseInt(String(this.value).replace(/,/g, ''))||0); validateStateDayConstraint();" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan focus:ring-0 focus:outline-none font-mono">
                         <div id="div-days-warning" class="hidden mt-1.5 p-2 bg-red-500/10 border border-red-500/30 rounded-lg text-[9px] text-red-400">⚠️ Days in new + old state cannot exceed the total days in the year.</div>
                     </div>
                 </div>
@@ -2790,31 +2790,31 @@
                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1 flex items-center gap-1">Foreign Interest (USD)
                         <span class="text-[8px] px-1 bg-white/10 text-white/40 rounded">includes NRO/NRE</span>
                     </label>
-                    <input type="text" inputmode="numeric" id="inc-for-interest" placeholder="0" oninput="updateStateField('income_foreign_source', 'foreign_interest_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                    <input type="text" inputmode="numeric" id="inc-for-interest" placeholder="0" oninput="updateStateField('income_foreign_source', 'foreign_interest_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                 </div>
                 <div>
                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Foreign Dividends (USD)</label>
-                    <input type="text" inputmode="numeric" id="inc-for-div" placeholder="0" oninput="updateStateField('income_foreign_source', 'foreign_dividends_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                    <input type="text" inputmode="numeric" id="inc-for-div" placeholder="0" oninput="updateStateField('income_foreign_source', 'foreign_dividends_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                 </div>
                 <div>
                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1 flex items-center gap-1">Foreign Short-Term CG (USD)
                         <span class="text-[8px] px-1 bg-white/10 text-white/40 rounded">held &lt;= 1yr</span>
                     </label>
-                    <input type="text" inputmode="numeric" id="inc-for-stcg" placeholder="0" oninput="updateStateField('income_foreign_source', 'foreign_stcg_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                    <input type="text" inputmode="numeric" id="inc-for-stcg" placeholder="0" oninput="updateStateField('income_foreign_source', 'foreign_stcg_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                 </div>
                 <div>
                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1 flex items-center gap-1">Foreign Long-Term CG (USD)
                         <span class="text-[8px] px-1 bg-white/10 text-white/40 text-brandCyan rounded">s.54 warnings</span>
                     </label>
-                    <input type="text" inputmode="numeric" id="inc-for-ltcg" placeholder="0" oninput="updateStateField('income_foreign_source', 'foreign_ltcg_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                    <input type="text" inputmode="numeric" id="inc-for-ltcg" placeholder="0" oninput="updateStateField('income_foreign_source', 'foreign_ltcg_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                 </div>
                 <div>
                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Foreign Rental Income (Gross USD)</label>
-                    <input type="text" inputmode="numeric" id="inc-for-rental" placeholder="0" oninput="updateStateField('income_foreign_source', 'foreign_rental_income_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                    <input type="text" inputmode="numeric" id="inc-for-rental" placeholder="0" oninput="updateStateField('income_foreign_source', 'foreign_rental_income_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                 </div>
                 <div>
                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Foreign Pension/Social Security (USD)</label>
-                    <input type="text" inputmode="numeric" id="inc-for-pension" placeholder="0" oninput="updateStateField('income_foreign_source', 'foreign_pension_income_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                    <input type="text" inputmode="numeric" id="inc-for-pension" placeholder="0" oninput="updateStateField('income_foreign_source', 'foreign_pension_income_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                 </div>
             </div>
 
@@ -3012,7 +3012,7 @@
                             <input type="text" inputmode="numeric" id="feie-earned-income-foreign" placeholder="Foreign Amt" oninput="autoConvertField('feie-earned-income-curr', 'feie-earned-income-foreign', 'feie-earned-income', false, 'foreign_earned_income', 'foreign_earned_income_usd')" class="w-[40%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-3 focus:border-brandCyan font-mono">
                             <div class="relative w-[40%]">
                                 <span class="absolute left-3 top-3.5 text-xs text-brandCyan/40 font-mono">$</span>
-                                <input type="text" inputmode="numeric" id="feie-earned-income" placeholder="USD" oninput="updateStateField('foreign_earned_income', 'foreign_earned_income_usd', parseFloat(this.value) || 0);" class="w-full bg-brandCyan/5 border border-brandCyan/20 rounded-xl text-xs text-brandCyan px-2 pl-6 py-3 focus:border-brandCyan font-mono shadow-[0_0_10px_rgba(6,182,212,0.1)]">
+                                <input type="text" inputmode="numeric" id="feie-earned-income" placeholder="USD" oninput="updateStateField('foreign_earned_income', 'foreign_earned_income_usd', parseFloat(String(this.value).replace(/,/g, '')) || 0);" class="w-full bg-brandCyan/5 border border-brandCyan/20 rounded-xl text-xs text-brandCyan px-2 pl-6 py-3 focus:border-brandCyan font-mono shadow-[0_0_10px_rgba(6,182,212,0.1)]">
                             </div>
                         </div>
                     </div>
@@ -3059,7 +3059,7 @@
                         </div>
                         <div>
                             <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1.5">US Business Days</label>
-                            <input type="text" inputmode="numeric" id="feie-phys-busdays" placeholder="0" oninput="updateStateField('foreign_earned_income', 'us_business_days', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan font-mono">
+                            <input type="text" inputmode="numeric" id="feie-phys-busdays" placeholder="0" oninput="updateStateField('foreign_earned_income', 'us_business_days', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-3 focus:border-brandCyan font-mono">
                             <p class="text-[8px] text-brandCyan mt-1 leading-tight">Income earned on these days is US-sourced and disqualified from FEIE.</p>
                         </div>
                     </div>
@@ -3108,7 +3108,7 @@
                             <input type="text" inputmode="numeric" id="feie-housing-foreign" placeholder="Foreign Amt" oninput="autoConvertField('feie-housing-curr', 'feie-housing-foreign', 'feie-housing', false, 'foreign_earned_income', 'foreign_housing_expenses_usd')" class="w-[40%] bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-3 focus:border-brandCyan font-mono">
                             <div class="relative w-[40%]">
                                 <span class="absolute left-3 top-3.5 text-xs text-brandCyan/40 font-mono">$</span>
-                                <input type="text" inputmode="numeric" id="feie-housing" placeholder="USD" oninput="updateStateField('foreign_earned_income', 'foreign_housing_expenses_usd', parseFloat(this.value) || 0);" class="w-full bg-brandCyan/5 border border-brandCyan/20 rounded-xl text-xs text-brandCyan px-2 pl-6 py-3 focus:border-brandCyan font-mono shadow-[0_0_10px_rgba(6,182,212,0.1)]">
+                                <input type="text" inputmode="numeric" id="feie-housing" placeholder="USD" oninput="updateStateField('foreign_earned_income', 'foreign_housing_expenses_usd', parseFloat(String(this.value).replace(/,/g, '')) || 0);" class="w-full bg-brandCyan/5 border border-brandCyan/20 rounded-xl text-xs text-brandCyan px-2 pl-6 py-3 focus:border-brandCyan font-mono shadow-[0_0_10px_rgba(6,182,212,0.1)]">
                             </div>
                         </div>
                     </div>
@@ -3224,11 +3224,11 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Traditional IRA (USD)</label>
-                        <input type="text" inputmode="numeric" id="ret-trad-ira" placeholder="0" oninput="updateStateField('retirement_accounts', 'traditional_ira_contribution_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ret-trad-ira" placeholder="0" oninput="updateStateField('retirement_accounts', 'traditional_ira_contribution_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Roth IRA (USD)</label>
-                        <input type="text" inputmode="numeric" id="ret-roth-ira" placeholder="0" oninput="updateStateField('retirement_accounts', 'roth_ira_contribution_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ret-roth-ira" placeholder="0" oninput="updateStateField('retirement_accounts', 'roth_ira_contribution_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div class="flex items-center justify-between p-3 bg-black/20 border border-white/5 rounded-xl">
                         <span class="text-[10px] text-white/80">Backdoor Roth Executed?</span>
@@ -3236,19 +3236,19 @@
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">401(k) Employee Contribution (USD)</label>
-                        <input type="text" inputmode="numeric" id="ret-401k-emp" placeholder="0" oninput="updateStateField('retirement_accounts', '401k_employee_contribution_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ret-401k-emp" placeholder="0" oninput="updateStateField('retirement_accounts', '401k_employee_contribution_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">401(k) Employer Match (USD)</label>
-                        <input type="text" inputmode="numeric" id="ret-401k-match" placeholder="0" oninput="updateStateField('retirement_accounts', '401k_employer_match_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ret-401k-match" placeholder="0" oninput="updateStateField('retirement_accounts', '401k_employer_match_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Roth 401(k) Contribution (USD)</label>
-                        <input type="text" inputmode="numeric" id="ret-roth-401k" placeholder="0" oninput="updateStateField('retirement_accounts', 'roth_401k_contribution_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ret-roth-401k" placeholder="0" oninput="updateStateField('retirement_accounts', 'roth_401k_contribution_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">HSA Contributions (USD)</label>
-                        <input type="text" inputmode="numeric" id="ret-hsa" placeholder="0" oninput="updateStateField('retirement_accounts', 'hsa_contribution_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono font-mono">
+                        <input type="text" inputmode="numeric" id="ret-hsa" placeholder="0" oninput="updateStateField('retirement_accounts', 'hsa_contribution_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">HDHP Coverage Type (§223 HSA limit)</label>
@@ -3260,11 +3260,11 @@
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Solo 401(k) (USD)</label>
-                        <input type="text" inputmode="numeric" id="ret-solo-401k" placeholder="0" oninput="updateStateField('retirement_accounts', 'solo_401k_contribution_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ret-solo-401k" placeholder="0" oninput="updateStateField('retirement_accounts', 'solo_401k_contribution_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">SEP IRA (USD)</label>
-                        <input type="text" inputmode="numeric" id="ret-sep-ira" placeholder="0" oninput="updateStateField('retirement_accounts', 'sep_ira_contribution_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ret-sep-ira" placeholder="0" oninput="updateStateField('retirement_accounts', 'sep_ira_contribution_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                 </div>
             </div>
@@ -3278,21 +3278,21 @@
                             <span>Indian EPF Balance (USD)</span>
                             <span class="text-[7px] bg-[#991B1B]/20 text-[#EF4444] border border-[#991B1B]/40 px-1 rounded uppercase tracking-normal">No Deferral</span>
                         </label>
-                        <input type="text" inputmode="numeric" id="ret-in-epf" placeholder="0" oninput="updateStateField('retirement_accounts', 'indian_epf_balance_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ret-in-epf" placeholder="0" oninput="updateStateField('retirement_accounts', 'indian_epf_balance_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1 flex items-center justify-between">
                             <span>Indian PPF Balance (USD)</span>
                             <span class="text-[7px] bg-brandGold/10 text-brandGold border border-brandGold/20 px-1 rounded uppercase tracking-normal">Trust Review</span>
                         </label>
-                        <input type="text" inputmode="numeric" id="ret-in-ppf" placeholder="0" oninput="updateStateField('retirement_accounts', 'indian_ppf_balance_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ret-in-ppf" placeholder="0" oninput="updateStateField('retirement_accounts', 'indian_ppf_balance_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1 flex items-center justify-between">
                             <span>Indian NPS Balance (USD)</span>
                             <span class="text-[7px] bg-white/5 text-white/40 border border-white/10 px-1 rounded uppercase tracking-normal">Filing Flag</span>
                         </label>
-                        <input type="text" inputmode="numeric" id="ret-in-nps" placeholder="0" oninput="updateStateField('retirement_accounts', 'indian_nps_balance_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ret-in-nps" placeholder="0" oninput="updateStateField('retirement_accounts', 'indian_nps_balance_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                 </div>
             </div>
@@ -3424,7 +3424,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-[10px] uppercase tracking-wider text-white/50 mb-1">Total Intercompany Payments to Foreign Owner</label>
-                                <input type="number" id="f5472-payments" class="w-full bg-black/40 border border-white/10 rounded p-2 text-white text-sm" placeholder="e.g. 50000" onchange="updateStateField('corporate_international', 'form_5472_related_parties', this.value ? [{ amount_usd: parseFloat(this.value) || 0 }] : [])">
+                                <input type="number" id="f5472-payments" class="w-full bg-black/40 border border-white/10 rounded p-2 text-white text-sm" placeholder="e.g. 50000" onchange="updateStateField('corporate_international', 'form_5472_related_parties', this.value ? [{ amount_usd: parseFloat(String(this.value).replace(/,/g, '')) || 0 }] : [])">
                             </div>
                         </div>
                     </div>
@@ -3509,14 +3509,14 @@
                         <span>SALT taxes paid (USD)</span>
                         <span class="text-[7px] text-brandCyan bg-brandCyan/10 border border-brandCyan/20 px-1 rounded font-normal uppercase">OBBBA $40,400 Cap</span>
                     </label>
-                    <input type="text" inputmode="numeric" id="ded-salt" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'state_and_local_taxes_paid_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2.5 focus:border-brandCyan font-mono">
+                    <input type="text" inputmode="numeric" id="ded-salt" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'state_and_local_taxes_paid_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2.5 focus:border-brandCyan font-mono">
                 </div>
                 <div>
                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1 flex items-center justify-between">
                         <span>Student Loan Interest Paid (USD)</span>
                         <span class="text-[7px] text-white/40">Above-the-line, capped at $2,500</span>
                     </label>
-                    <input type="text" inputmode="numeric" id="ded-student-loan" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'student_loan_interest_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2.5 focus:border-brandCyan font-mono">
+                    <input type="text" inputmode="numeric" id="ded-student-loan" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'student_loan_interest_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2.5 focus:border-brandCyan font-mono">
                 </div>
             </div>
 
@@ -3526,7 +3526,7 @@
                         <span>Mortgage Interest (USD)</span>
                         <span class="text-[7px] text-white/40">Capped at $750K</span>
                     </label>
-                    <input type="text" inputmode="numeric" id="ded-mortgage-interest" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'mortgage_interest_paid_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                    <input type="text" inputmode="numeric" id="ded-mortgage-interest" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'mortgage_interest_paid_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                 </div>
                 <div>
                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Mortgage Acquisition Date</label>
@@ -3534,19 +3534,19 @@
                 </div>
                 <div>
                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Charity Contributions (Cash USD)</label>
-                    <input type="text" inputmode="numeric" id="ded-charity-cash" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'charitable_contributions_cash_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                    <input type="text" inputmode="numeric" id="ded-charity-cash" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'charitable_contributions_cash_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                 </div>
                 <div>
                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Charity Appreciated Assets (USD)</label>
-                    <input type="text" inputmode="numeric" id="ded-charity-prop" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'charitable_contributions_appreciated_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                    <input type="text" inputmode="numeric" id="ded-charity-prop" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'charitable_contributions_appreciated_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                 </div>
                 <div>
                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Unreimbursed Medical Expenses</label>
-                    <input type="text" inputmode="numeric" id="ded-medical" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'medical_expenses_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                    <input type="text" inputmode="numeric" id="ded-medical" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'medical_expenses_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                 </div>
                 <div>
                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Federal Disaster Loss</label>
-                    <input type="text" inputmode="numeric" id="ded-casualty" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'casualty_loss_federal_disaster_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                    <input type="text" inputmode="numeric" id="ded-casualty" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'casualty_loss_federal_disaster_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                 </div>
             </div>
 
@@ -3559,23 +3559,23 @@
                             <span>Child Tax Credit Dependents</span>
                             <span class="text-[7px] text-white/40 font-normal mt-0.5">under 17 with SSN</span>
                         </label>
-                        <input type="text" inputmode="numeric" id="ded-ctc-count" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'child_tax_credit_dependents', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ded-ctc-count" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'child_tax_credit_dependents', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Other Dependents (Count)</label>
-                        <input type="text" inputmode="numeric" id="ded-other-dep" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'credit_for_other_dependents', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ded-other-dep" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'credit_for_other_dependents', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Child/Dependent Care Expenses</label>
-                        <input type="text" inputmode="numeric" id="ded-care" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'child_and_dependent_care_expenses_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ded-care" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'child_and_dependent_care_expenses_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">American Opportunity (AOTC)</label>
-                        <input type="text" inputmode="numeric" id="ded-aotc" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'education_credits_aotc_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ded-aotc" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'education_credits_aotc_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Lifetime Learning (LLC)</label>
-                        <input type="text" inputmode="numeric" id="ded-llc" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'education_credits_llc_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ded-llc" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', 'education_credits_llc_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div class="flex items-center justify-between p-3 bg-black/20 border border-white/5 rounded-xl">
                         <span class="text-[10px] text-white/80">Saver Credit Eligible?</span>
@@ -3590,7 +3590,7 @@
                     </div>
                     <div class="div-529-fields hidden">
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">529 Contributions (USD)</label>
-                        <input type="text" inputmode="numeric" id="ded-529-cont" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', '529_contributions_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="ded-529-cont" placeholder="0" oninput="updateStateField('itemized_deductions_and_credits', '529_contributions_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div class="div-529-fields hidden">
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">State for 529 Deduction</label>
@@ -3626,14 +3626,14 @@
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Private Activity Bond Interest (USD)</label>
-                        <input type="text" inputmode="numeric" id="amt-private-bond" placeholder="0" oninput="updateStateField('amt_inputs', 'private_activity_bond_interest_usd', parseInt(this.value) || 0);" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="amt-private-bond" placeholder="0" oninput="updateStateField('amt_inputs', 'private_activity_bond_interest_usd', parseInt(String(this.value).replace(/,/g, '')) || 0);" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                     <div>
                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1 flex items-center justify-between">
                             <span>Minimum Tax Credit Carryforward</span>
                             <span class="text-[7px] text-white/40">From prior years</span>
                         </label>
-                        <input type="text" inputmode="numeric" id="amt-credit-carry" placeholder="0" oninput="updateStateField('amt_inputs', 'minimum_tax_credit_carryforward_usd', parseInt(this.value) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                        <input type="text" inputmode="numeric" id="amt-credit-carry" placeholder="0" oninput="updateStateField('amt_inputs', 'minimum_tax_credit_carryforward_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                     </div>
                 </div>
 
@@ -3992,7 +3992,7 @@
                 </div>
                 <div class="flex items-center justify-between p-3 bg-black/20 border border-white/5 rounded-xl div-firpta-fields hidden">
                     <label class="block text-[9px] font-black uppercase tracking-widest text-white/40">FIRPTA Withholding Amount (USD)</label>
-                    <input type="text" inputmode="numeric" id="nra-firpta-amt" placeholder="0" oninput="updateStateField('nra_specific', 'firpta_withholding_usd', parseInt(this.value) || 0)" class="w-32 bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
+                    <input type="text" inputmode="numeric" id="nra-firpta-amt" placeholder="0" oninput="updateStateField('nra_specific', 'firpta_withholding_usd', parseInt(String(this.value).replace(/,/g, '')) || 0)" class="w-32 bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan font-mono">
                 </div>
                 <div class="flex items-center justify-between p-3 bg-black/20 border border-white/5 rounded-xl col-span-1 md:col-span-2">
                     <div class="flex flex-col">
@@ -24141,8 +24141,8 @@ function checkTaxSavings() {
     });
 
     // Example 3: Capital Losses
-    const cryptoGains = Array.from(document.querySelectorAll('.cry-gain')).map(i => parseFloat(i.value) || 0);
-    const stockGains = Array.from(document.querySelectorAll('.prop-gain')).map(i => parseFloat(i.value) || 0);
+    const cryptoGains = Array.from(document.querySelectorAll('.cry-gain')).map(i => parseFloat(String(i.value).replace(/,/g, '')) || 0);
+    const stockGains = Array.from(document.querySelectorAll('.prop-gain')).map(i => parseFloat(String(i.value).replace(/,/g, '')) || 0);
     const allGains = [...cryptoGains, ...stockGains];
     
     const hasLoss = allGains.some(g => g < 0);

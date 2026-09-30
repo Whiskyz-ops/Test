@@ -109,7 +109,7 @@ NODES.taxCreditsIndiaRaw = {
     return {
       q1: num(safe(tc, "advance_tax_q1_15jun_inr", 0)), q2: num(safe(tc, "advance_tax_q2_15sep_inr", 0)),
       q3: num(safe(tc, "advance_tax_q3_15dec_inr", 0)), q4: num(safe(tc, "advance_tax_q4_15mar_inr", 0)),
-      tdsAlreadyDeducted: num(safe(tc, "tds_already_deducted_inr", 0)), tds: num(safe(tc, "tds_inr", 0)), tcs: num(safe(tc, "tcs_inr", 0))
+      tdsAlreadyDeducted: num(safe(tc, "tds_already_deducted_inr", 0)), tds: num(safe(tc, "tds_inr", 0)) + require("./joint-account.js").jointAccountTdsCreditInr(ctx.india), tcs: num(safe(tc, "tcs_inr", 0))
     };
   }
 };

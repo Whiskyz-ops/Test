@@ -3764,6 +3764,16 @@
                                 <input type="text" inputmode="numeric" id="os-joint-interest" oninput="updateOSField('joint_account_interest_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="Total interest ₹ 0">
                                 <input type="number" min="0" max="100" step="1" id="os-joint-share" oninput="updateJointShare(this.value)" class="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="Your share % (default 100)">
                             </div>
+                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mt-3 mb-1">TDS on these joint accounts<span class="block text-[7px] text-white/30 normal-case tracking-normal font-normal mt-0.5">The full TDS, as in the first holder's Form 26AS. The credit follows the income only if the first holder filed a rule 37BA declaration with the bank; otherwise all of it stays with the first holder.</span></label>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <input type="text" inputmode="numeric" id="os-joint-tds" oninput="updateCreditNum('joint_account_tds_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="TDS ₹ 0">
+                                <select id="os-joint-first-holder" onchange="state.tax_credits.joint_account_first_holder = this.value || null" class="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0">
+                                    <option value="">First holder…</option>
+                                    <option value="self">I am the first holder</option>
+                                    <option value="spouse">My spouse is the first holder</option>
+                                </select>
+                                <label class="flex items-center gap-2 text-[10px] text-white/60"><input type="checkbox" id="os-joint-37ba" onchange="state.tax_credits.joint_account_tds_37ba_declared = this.checked" class="accent-brandGold"> Rule 37BA declaration filed with the bank</label>
+                            </div>
                         </div>
                         <div>
                             <div class="flex items-center justify-between mb-1">
@@ -14417,6 +14427,10 @@ ${isProf ? '' : `
                 const el = document.getElementById(id);
                 if (el) el.value = val || '';
             }
+            const tcj = state.tax_credits || {};
+            const jt = document.getElementById('os-joint-tds'); if (jt) jt.value = tcj.joint_account_tds_inr || '';
+            const jf = document.getElementById('os-joint-first-holder'); if (jf) jf.value = tcj.joint_account_first_holder || '';
+            const jd = document.getElementById('os-joint-37ba'); if (jd) jd.checked = tcj.joint_account_tds_37ba_declared === true;
             const jointShare = document.getElementById('os-joint-share');
             if (jointShare) jointShare.value = os.joint_account_own_share_percent != null ? os.joint_account_own_share_percent : '';
             const giftsMarriage = document.getElementById('os-gifts-marriage');
