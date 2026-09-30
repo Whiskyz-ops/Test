@@ -1241,6 +1241,39 @@ function ReconciliationCard({ recon }) {
     </Card>
   );
 }
+// Joint return: the Form 1116 figures broken down by spouse, so each joint
+// number traces back to the person it came from (lib/household.js).
+function FtcByPerson({ data }) {
+  const [open, setOpen] = useState(false);
+  const cell = (v, pct) => v == null ? <span className="text-muted">—</span> : pct ? Math.round(v * 1000) / 10 + "%" : fmtUsd(v);
+  return (
+    <div className="mt-3 rounded-xl border border-line">
+      <button onClick={() => setOpen((x) => !x)} className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold text-head hover:bg-white/[0.03]">
+        <span>By person — trace each joint figure to {data.people.map((p) => p.name).join(" and ")}</span><span className="text-muted">{open ? "▴" : "▾"}</span>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 overflow-x-auto">
+          <table className="w-full text-[12px]">
+            <thead><tr className="text-[9px] uppercase tracking-widest text-muted">
+              <th className="text-left py-1.5 font-bold"> </th>
+              {data.people.map((p) => <th key={p.id} className="text-right py-1.5 font-bold">{p.name}{p.thisClient ? " (this client)" : ""}</th>)}
+              <th className="text-right py-1.5 font-bold">Joint</th>
+            </tr></thead>
+            <tbody>{data.rows.map((r, i) => r.section
+              ? <tr key={i}><td colSpan={2 + data.people.length} className="pt-3 pb-1 text-[10px] font-bold uppercase tracking-wide text-muted">{r.section}</td></tr>
+              : <tr key={i} className="border-t border-line" title={r.note || ""}>
+                  <td className={"py-1.5 pr-2 " + (r.emphasis ? "font-bold text-head" : "text-body")}>{r.label}</td>
+                  {data.people.map((p, j) => <td key={p.id} className="py-1.5 text-right font-mono">{cell(r.values ? r.values[j] : null, r.pct)}</td>)}
+                  <td className={"py-1.5 text-right font-mono " + (r.emphasis ? "font-bold text-head" : "")}>{cell(r.joint, r.pct)}</td>
+                </tr>)}
+            </tbody>
+          </table>
+          {data.notes.map((n, i) => <p key={i} className="text-[11px] mt-2" style={{ color: PAL.amberText }}>{n}</p>)}
+        </div>
+      )}
+    </div>
+  );
+}
 function FtcCard({ ftcReport, onJump, indiaWorldwide }) {
   const net = ftcReport.headlineNetDoubleTaxUsd;
   const Block = ({ block }) => (
@@ -1258,6 +1291,7 @@ function FtcCard({ ftcReport, onJump, indiaWorldwide }) {
         <div className="font-display font-extrabold text-2xl" style={{ color: net > 0 ? PAL.redText : PAL.greenText }}>{fmtUsd(net)}</div>
       </div>
       <Block block={ftcReport.direction_us_claims_india} />
+      {ftcReport.byPerson && <FtcByPerson data={ftcReport.byPerson} />}
       <div className="border-t border-line my-3" />
       {indiaWorldwide ? <Block block={ftcReport.direction_india_relief} /> : (
         // India's relief only applies to foreign income India itself taxes,

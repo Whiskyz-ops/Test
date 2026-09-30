@@ -91,3 +91,47 @@ describe("household alerts, health and headline (step 4)", () => {
     expect(out.result.monitoring.health.score).toBe(out.result.summary.healthScore);
   });
 });
+
+import { buildHouseholdRecon } from "./household.js";
+
+describe("FTC reconciliation by person (joint return)", () => {
+  const basket = (paid, income, limit) => ({ indiaTaxPaidUsd: paid, foreignSourceIncomeUsd: income, ftcLimitUsd: limit });
+  const run = (baskets, worldwide) => ({
+    computed: { ftc: { us: { indiaTaxPaidUsd: baskets.passive.indiaTaxPaidUsd + baskets.general.indiaTaxPaidUsd, baskets } }, residency: { india: { worldwide: !!worldwide } } },
+    ftcReport: { direction_india_relief: { rows: [] } }
+  });
+  const hh = {
+    blocked: false, status: "mfj", split: { method: "A", methodLabel: "in proportion" },
+    jointUs: { incomeTaxUsd: 90000, totalTaxBeforeFtcUsd: 100000, indiaTaxPaidUsd: 20000, ftcAllowedUsd: 15000, ftcLimitUsd: 15000 },
+    spouses: [
+      { id: "r", name: "Rohan", share: 0.8, indiaTaxUsd: 20000, usTaxShareUsd: 72000, usSourceFraction: 0.8, indiaReliefHouseholdUsd: 0 },
+      { id: "p", name: "Priya", share: 0.2, indiaTaxUsd: 0, usTaxShareUsd: 18000, usSourceFraction: 1, indiaReliefHouseholdUsd: 0 }
+    ],
+    _own: [run({ passive: basket(6000, 20000, 0), general: basket(14000, 50000, 0) }), run({ passive: basket(0, 1500, 0), general: basket(0, 0, 0) })],
+    _joint: Object.assign(run({ passive: basket(6000, 21500, 4000), general: basket(14000, 50000, 11000) }), {
+      ftcReport: { direction_us_claims_india: { title: "US Form 1116", rows: [] } },
+      taxComputation: { us: { title: "US", rows: [] }, usState: null }, model: { income: { us: {} } }, computed: undefined
+    })
+  };
+  hh._joint.computed = { ftc: { us: { baskets: { passive: basket(6000, 21500, 4000), general: basket(14000, 50000, 11000) } } }, residency: { us: { worldwide: true } } };
+
+  it("adds each spouse's inputs up to the joint column and matches the Clients tab split", () => {
+    const bp = buildHouseholdRecon(hh, "p").ftcReport.byPerson;
+    expect(bp.people.map((x) => x.name)).toEqual(["Priya", "Rohan"]); // this client first
+    const row = (label) => bp.rows.find((r) => r.label && r.label.startsWith(label));
+    const tax = row("Indian income tax — passive");
+    expect(tax.values).toEqual([0, 6000]);
+    expect(tax.joint).toBe(6000);
+    const inc = row("Foreign-source income — passive");
+    expect(inc.values[0] + inc.values[1]).toBe(inc.joint);
+    expect(row("FTC allowed — passive").joint).toBe(4000);
+    expect(row("FTC allowed — general").joint).toBe(11000);
+    const net = row("Net unrelieved double tax");
+    expect(net.values[0]).toBeCloseTo(householdSummaryFigures(hh, "p").netDoubleTaxUsd);
+    expect(net.values[1]).toBeCloseTo(householdSummaryFigures(hh, "r").netDoubleTaxUsd);
+    expect(net.values[0]).toBeCloseTo(0.2 * 5000);
+    // Priya paid no Indian tax but carries 20% of the credit and the residual: flagged.
+    expect(bp.notes.length).toBe(1);
+    expect(bp.notes[0]).toMatch(/Priya paid no Indian tax/);
+  });
+});

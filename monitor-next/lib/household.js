@@ -171,6 +171,50 @@ export function buildHouseholdRecon(h, clientId) {
     [{ label: "US tax on the income (share)", amount: usTaxOnSource }, { label: "Indian tax on it (cap)", amount: me.indiaReliefCapUsd }]));
   const indiaShortfall = own.computed.residency && own.computed.residency.india && own.computed.residency.india.worldwide ? Math.max(0, usTaxOnSource - me.indiaReliefHouseholdUsd) : 0;
 
+  // Person-by-person breakdown of the joint Form 1116, so every joint
+  // figure can be traced back to each spouse: what each brings (their own
+  // Indian tax and foreign income, basket by basket — these add up to the
+  // joint column), the joint limits (one per basket on a joint return), and
+  // how the Monitor splits the result between them today (method A share —
+  // the same figures as the Clients tab).
+  const order = [idx, 1 - idx];
+  const basketsOf = (r) => (r && r.computed && r.computed.ftc && r.computed.ftc.us && r.computed.ftc.us.baskets) || null;
+  const jb = basketsOf(joint);
+  const byPerson = (() => {
+    const own = order.map((i) => basketsOf(h._own[i]));
+    if (!jb || own.some((x) => !x)) return null;
+    const people = order.map((i) => ({ id: h.spouses[i].id, name: h.spouses[i].name, thisClient: i === idx }));
+    const row = (label, vals, jointVal, opts) => Object.assign({ label, values: vals, joint: jointVal }, opts || {});
+    const K = [["passive", "passive (interest, dividends, royalties)"], ["general", "general (business, rent, salary)"]];
+    const rows = [{ section: "What each spouse brings (from their own profile)" }];
+    K.forEach(([k, lbl]) => rows.push(row("Indian income tax — " + lbl, own.map((b) => b[k].indiaTaxPaidUsd || 0), own.reduce((t, b) => t + (b[k].indiaTaxPaidUsd || 0), 0))));
+    K.forEach(([k, lbl]) => rows.push(row("Foreign-source income — " + lbl, own.map((b) => b[k].foreignSourceIncomeUsd || 0), jb[k].foreignSourceIncomeUsd || 0)));
+    rows.push({ section: "The joint return (one limit per basket)" });
+    K.forEach(([k, lbl]) => rows.push(row("FTC limitation — " + k, null, jb[k].ftcLimitUsd || 0, { note: "US income tax × this basket's joint foreign income ÷ joint taxable income" })));
+    const allowedB = K.map(([k]) => Math.min(own.reduce((t, b) => t + (b[k].indiaTaxPaidUsd || 0), 0), jb[k].ftcLimitUsd || 0));
+    K.forEach(([k], j) => rows.push(row("FTC allowed — " + k, null, allowedB[j], { note: "Lesser of both spouses' Indian tax in this basket and its joint limit" })));
+    rows.push({ section: "How the Monitor splits it between the spouses today" });
+    const figs = order.map((i) => householdSummaryFigures(h, h.spouses[i].id));
+    const allowed = h.jointUs.ftcAllowedUsd || 0, residual = Math.max(0, (h.jointUs.indiaTaxPaidUsd || 0) - allowed);
+    rows.push(row("Share of the joint US tax (method A)", order.map((i) => h.spouses[i].share), 1, { pct: true }));
+    rows.push(row("Credit allocated (share × joint credit)", order.map((i) => h.spouses[i].share * allowed), allowed));
+    rows.push(row("Unrelieved US-side double tax allocated (share × joint)", order.map((i) => h.spouses[i].share * residual), residual));
+    const shortfalls = figs.map((f, j) => f.netDoubleTaxUsd - h.spouses[order[j]].share * residual);
+    if (shortfalls.some((x) => x > 0.5)) rows.push(row("Plus own India relief shortfall (Form 44)", shortfalls, shortfalls[0] + shortfalls[1]));
+    rows.push(row("Net unrelieved double tax (Clients tab)", figs.map((f) => f.netDoubleTaxUsd), figs[0].netDoubleTaxUsd + figs[1].netDoubleTaxUsd, { emphasis: true }));
+    // A spouse with no Indian tax still carries part of the credit and the
+    // unrelieved amount under the share split — say so, it's the open
+    // allocation question (credit to the spouse whose Indian tax it is).
+    const notes = [];
+    order.forEach((i, j) => {
+      const paid = own[j].passive.indiaTaxPaidUsd + own[j].general.indiaTaxPaidUsd;
+      if (paid < 0.5 && (h.spouses[i].share * residual > 0.5 || h.spouses[i].share * allowed > 0.5)) {
+        notes.push(h.spouses[i].name + " paid no Indian tax, but the share split gives them " + Math.round(h.spouses[i].share * 100) + "% of the joint credit and of the unrelieved amount. Allocating the credit to the spouse whose Indian tax it is would put all of it on " + h.spouses[order[1 - j]].name + " — open question for the CA.");
+      }
+    });
+    return { people, rows, notes };
+  })();
+
   const usBlock = clone(joint.taxComputation.us);
   usBlock.title = "US federal income tax — joint return (" + h.spouses.map((s) => s.name).sort().join(" & ") + ")";
   const usState = joint.taxComputation.usState ? Object.assign(clone(joint.taxComputation.usState), { title: joint.taxComputation.usState.title + " — joint" }) : null;
@@ -182,7 +226,7 @@ export function buildHouseholdRecon(h, clientId) {
     worldwideUs: !!(joint.computed.residency && joint.computed.residency.us && joint.computed.residency.us.worldwide),
     taxComputationUs: usBlock,
     taxComputationUsState: usState,
-    ftcReport: { direction_us_claims_india: us, direction_india_relief: india, headlineNetDoubleTaxUsd: excess + indiaShortfall }
+    ftcReport: { direction_us_claims_india: us, direction_india_relief: india, headlineNetDoubleTaxUsd: excess + indiaShortfall, byPerson }
   };
 }
 
