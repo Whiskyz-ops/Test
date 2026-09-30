@@ -2275,7 +2275,10 @@ const ClientRow = ({ c, depth, link, activeId, onPick, hasChildren, expanded, on
       </td>
       <td className="px-4 py-3"><span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded" style={{ background: (c.isBusiness ? PAL.filing : PAL.accent) + "24", color: c.isBusiness ? PAL.blueText : PAL.accent }}>{c.isBusiness ? "Business" : "Individual"}</span></td>
       <td className="px-4 py-3 text-[12px] text-body">{(c.indiaStatus || "—")}<span className="text-muted"> / </span>{(c.usStatus ? c.usStatus.replace(/_/g, " ") : "—")}{c.dualResident && <span className="ml-1 text-[9px] font-bold px-1 py-0.5 rounded bg-exposed/15" style={{ color: PAL.redText }}>DUAL</span>}</td>
-      <td className="px-4 py-3 text-right font-mono text-[12px] text-head">{fmtUsd(c.combinedTaxUsd)}</td>
+      <td className="px-4 py-3 text-right font-mono text-[12px] text-head"
+        title={c.household && c.household.split ? "Household split: own Indian tax " + fmtUsd(c.household.split.indiaTaxUsd) + " + " + Math.round(c.household.split.share * 100) + "% of the joint US tax " + fmtUsd(c.household.split.jointUsTotalUsd) + " (method A). This client's profile alone: " + fmtUsd(c.household.singleProfile.combinedTaxUsd) : undefined}>
+        {fmtUsd(c.combinedTaxUsd)}{c.household && c.household.split && <div className="text-[9px] text-muted font-sans">household · {Math.round(c.household.split.share * 100)}% of joint US</div>}
+      </td>
       <td className="px-4 py-3 text-right font-mono text-[12px]" style={{ color: c.netDoubleTaxUsd > 0 ? PAL.redText : PAL.muted }}>{fmtUsd(c.netDoubleTaxUsd)}</td>
       <td className="px-4 py-3 text-[12px]"><span className="font-bold" style={{ color: PAL.redText }}>{c.critical}</span><span className="text-muted"> · </span><span style={{ color: PAL.amberText }}>{c.warning}</span></td>
       <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="w-16 h-1.5 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full rounded-full" style={{ width: Math.max(4, c.healthScore) + "%", background: healthColor(c.healthScore) }} /></div><span className="text-[11px] font-mono" style={{ color: healthColor(c.healthScore) }}>{c.healthScore}</span></div></td>

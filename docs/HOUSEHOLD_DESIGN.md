@@ -150,7 +150,15 @@ spouse's US income (audit row G1).
    Still open: MFS does not yet read "spouse itemizes" or "lived apart"; the
    spousal IRA on combined compensation; +$1,650 additional standard
    deduction for 65+/blind (B25).
-4. Dashboards and findings tags.
+4. Dashboards and findings tags. **Clients tab done 30 Sep 2026:** a linked,
+   married-filing-jointly client's row shows their own Indian tax plus their
+   method A share of the joint US tax (before credit), and their share of
+   the joint unrelieved double tax plus any Indian relief shortfall of their
+   own (`householdSummaryFigures`, lib/household.js; 4 unit tests). The two
+   spouses' rows add up to the joint US tax once, so the tab's totals no
+   longer double-count or miss it; the tooltip shows the single-profile
+   figure for comparison. Still open: per-person vs household tags on
+   findings, and the health score.
 5. Migration.
 
 Each step ships behind the "joint data pooled" alert until step 5.

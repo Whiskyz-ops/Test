@@ -8,6 +8,27 @@ import "./dag/household-seed.js";
 import { analyzeHousehold } from "./dag/household.js";
 import { analyzeDag } from "./dag-adapter";
 
+// Build step 4: what a linked, married-filing-jointly client's row shows —
+// their own Indian tax plus their method A share of the joint US tax, and
+// the share of the joint unrelieved double tax that is theirs (plus any
+// Indian relief shortfall of their own). Pure; exported for tests.
+export function householdSummaryFigures(h, clientId) {
+  if (!h || h.blocked || h.status !== "mfj" || !h.jointUs || !h.split) return null;
+  const idx = h.spouses[0].id === clientId ? 0 : 1;
+  const me = h.spouses[idx];
+  const jointTotal = h.jointUs.totalTaxBeforeFtcUsd || 0;
+  const usShareUsd = jointTotal * (me.share || 0);
+  const usResidual = Math.max(0, (h.jointUs.indiaTaxPaidUsd || 0) - (h.jointUs.ftcAllowedUsd || 0));
+  const own = h._own && h._own[idx];
+  const worldwideIndia = !!(own && own.computed && own.computed.residency && own.computed.residency.india && own.computed.residency.india.worldwide);
+  const indiaShortfall = worldwideIndia ? Math.max(0, (me.usTaxShareUsd || 0) * (me.usSourceFraction || 0) - (me.indiaReliefHouseholdUsd || 0)) : 0;
+  return {
+    share: me.share || 0, usShareUsd, jointUsTotalUsd: jointTotal, indiaTaxUsd: me.indiaTaxUsd || 0,
+    combinedTaxUsd: (me.indiaTaxUsd || 0) + usShareUsd,
+    netDoubleTaxUsd: usResidual * (me.share || 0) + indiaShortfall
+  };
+}
+
 export function attachHouseholds(summaries) {
   const W = typeof window !== "undefined" ? window.WISING : null;
   if (!W || !W.householdLink || !W.ClientRegistry || !Array.isArray(summaries)) return summaries;
@@ -15,6 +36,7 @@ export function attachHouseholds(summaries) {
   const ids = new Set(reg.list().map((c) => c.id));
   const byId = new Map(summaries.map((s) => [s.id, s]));
   const raw = (id) => Object.assign({ id }, reg.getRawState(id));
+  const cache = new Map();
   return summaries.map((s) => {
     if (!s || !s.isRegistryClient) return s;
     const a = raw(s.id);
@@ -36,8 +58,22 @@ export function attachHouseholds(summaries) {
     const full = W.householdLink.checkHouseholdLink(a, b);
     const spouse = byId.get(res.spouseId);
     const spouseName = spouse ? (spouse.name && spouse.name !== "Unnamed Taxpayer" ? spouse.name : spouse.label) : "missing profile";
-    return Object.assign({}, s, {
-      household: { status: full.status, spouseId: full.spouseId, spouseName, errors: full.errors.map((e) => e.message), tier: W.householdLink.spouseTier(a) }
+    // Clean joint household: the row's tax figures use the household split
+    // (one calculation per couple, shared by both spouses' rows).
+    let fig = null;
+    if (b && !full.errors.length && full.status === "mfj") {
+      const key = [a.id, b.id].sort().join("|");
+      if (!cache.has(key)) {
+        let h = null;
+        try { h = analyzeHousehold(a, b, analyzeDag, { keepResults: true }); } catch (e) { h = null; }
+        cache.set(key, h);
+      }
+      fig = householdSummaryFigures(cache.get(key), s.id);
+    }
+    const extra = fig ? { combinedTaxUsd: fig.combinedTaxUsd, netDoubleTaxUsd: fig.netDoubleTaxUsd } : {};
+    return Object.assign({}, s, extra, {
+      household: { status: full.status, spouseId: full.spouseId, spouseName, errors: full.errors.map((e) => e.message), tier: W.householdLink.spouseTier(a),
+        split: fig, singleProfile: fig ? { combinedTaxUsd: s.combinedTaxUsd, netDoubleTaxUsd: s.netDoubleTaxUsd } : null }
     });
   });
 }
