@@ -293,6 +293,7 @@
       "full_name": "Vikram Rao",
       "date_of_birth": "1986-05-30",
       "filing_status": "mfj",
+      "spouse_has_income_or_filings": "no",
       "ssn_or_itin_type": "ssn",
       "incorporated_in_us": false,
       "dependents_count": 2,

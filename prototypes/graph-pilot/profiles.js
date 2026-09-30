@@ -235,7 +235,7 @@
       metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
     us: {
-      profile: { tax_entity_type: "individual", full_name: "Aarav Sharma", date_of_birth: "1988-07-15", filing_status: "mfj", ssn_or_itin_type: "ssn" },
+      profile: { tax_entity_type: "individual", full_name: "Aarav Sharma", date_of_birth: "1988-07-15", filing_status: "mfj", spouse_has_income_or_filings: "no", ssn_or_itin_type: "ssn" },
       us_residency_detail: { is_us_citizen: false, has_green_card: false, us_days_current_year: 183, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "us" },
       income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Cloudscale Inc (US)", wages_box1_usd: 200000, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 38000, medicare_wages_box5_usd: 200000 } }], interest_us_source_usd: 3200, ordinary_dividends_us_source_usd: 6200, qualified_dividends_us_source_usd: 4200, ltcg_us_source_usd: 14000 },
       income_foreign_source: { foreign_wages: [{ employer_name: "Infosys (India, Apr–Aug)", wages_usd: 21687 }], foreign_interest_usd: 1928, foreign_dividends_usd: 1084, foreign_rental_income_usd: 5060, foreign_stcg_usd: 3012 },
@@ -355,7 +355,7 @@
       metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
     us: {
-      profile: { tax_entity_type: "individual", full_name: "Rohan Mehta", date_of_birth: "1985-03-22", filing_status: "mfj", ssn_or_itin_type: "ssn" },
+      profile: { tax_entity_type: "individual", full_name: "Rohan Mehta", date_of_birth: "1985-03-22", filing_status: "mfj", spouse_has_income_or_filings: "no", ssn_or_itin_type: "ssn" },
       us_residency_detail: { is_us_citizen: false, has_green_card: true, us_days_current_year: 345, spt_test_met: true, final_us_residency_status: "RESIDENT_ALIEN", dtaa_treaty_residence: "none" },
       income_us_source: { has_employment_income: true, wages_w2: [{ employer_name: "Northwind Labs", wages_box1_usd: 158000, qualified_tip_income_usd: 2400, qualified_overtime_premium_usd: 5800, tax_details_collapsed_by_default: { federal_tax_withheld_usd: 30000, medicare_wages_box5_usd: 158000 } }],
         // Deliberately no wages_paid_usd here — Mehta Analytics is a genuine
@@ -612,7 +612,7 @@
       // Two kids — well under the $400k MFJ Child Tax Credit phase-out, so
       // this demonstrates the full $2,200/child CTC (§24, TY2025-2028 OBBBA
       // amount) with no phase-out reduction.
-      profile: { tax_entity_type: "individual", full_name: "Vikram Rao", date_of_birth: "1986-05-30", filing_status: "mfj", ssn_or_itin_type: "ssn", incorporated_in_us: false, dependents_count: 2, trump_accounts_opened: true,
+      profile: { tax_entity_type: "individual", full_name: "Vikram Rao", date_of_birth: "1986-05-30", filing_status: "mfj", spouse_has_income_or_filings: "no", ssn_or_itin_type: "ssn", incorporated_in_us: false, dependents_count: 2, trump_accounts_opened: true,
         // Deliberately a case the old family-aggregate-only check would miss:
         // $9,500 combined is under the 2-child $10,000 family cap, but the
         // first child's own $7,000 individually breaches the $5,000/child
@@ -978,7 +978,7 @@
       metadata: meta("layer1_india_v5_1", "TY2026-27")
     },
     us: {
-      profile: { tax_entity_type: "individual", full_name: "David Chen", date_of_birth: "1979-03-08", filing_status: "mfj", ssn_or_itin_type: "ssn", dependents_count: 2 },
+      profile: { tax_entity_type: "individual", full_name: "David Chen", date_of_birth: "1979-03-08", filing_status: "mfj", spouse_has_income_or_filings: "no", ssn_or_itin_type: "ssn", dependents_count: 2 },
       us_residency_detail: { is_us_citizen: true, has_green_card: false, us_days_current_year: 365, spt_test_met: true, final_us_residency_status: "US_CITIZEN", dtaa_treaty_residence: "none" },
       income_us_source: {
         has_employment_income: true,

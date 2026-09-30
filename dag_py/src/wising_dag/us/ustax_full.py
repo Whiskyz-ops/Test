@@ -284,7 +284,8 @@ def _treaty_findings(d, ctx, is_nra):
             "Use the household figures for the Form 44 claim. Keep each spouse's income in their own profile.",
             0, ["Rule 76", "Form 44", "Form 1040 (joint)"],
         ))
-    elif safe(ctx.get("us"), "profile.filing_status", None) == "mfj" and (res.get("india") or {}).get("worldwide") and us_source_usd > 0:
+    elif (safe(ctx.get("us"), "profile.spouse_has_income_or_filings", None) != "no"
+          and safe(ctx.get("us"), "profile.filing_status", None) == "mfj" and (res.get("india") or {}).get("worldwide") and us_source_usd > 0):
         w2_count = len(agg.get("w2Employers") or [])
         two_earner_signs = w2_count >= 2 or (w2_count >= 1 and (agg.get("seEarningsUsd") or 0) > 0)
         out.append(make_finding(
@@ -300,6 +301,61 @@ def _treaty_findings(d, ctx, is_nra):
             "income, and claim Form 44 relief only for the US tax on that income.",
             0, ["Income-tax Act — individual assessment", "Form 44", "Form 1040 (joint)"],
         ))
+
+    # What is known about the spouse on a joint return — see ustax-full-nodes.js.
+    entity_type = safe(ctx.get("us"), "profile.tax_entity_type", "individual") or "individual"
+    if safe(ctx.get("us"), "profile.filing_status", None) == "mfj" and entity_type == "individual" and not spouse_linked:
+        spouse_answer = safe(ctx.get("us"), "profile.spouse_has_income_or_filings", None)
+        w2n = len(agg.get("w2Employers") or [])
+        if spouse_answer == "yes":
+            out.append(make_finding(
+                "joint_return_spouse_profile_missing", "critical", "residency",
+                "Joint US return: the spouse's profile isn't linked",
+                "The spouse has income, foreign accounts or an Indian return, but no spouse profile is linked. The joint return, the split of "
+                "its tax, the Social Security cap per person and each spouse's Indian return can't be computed from this profile alone.",
+                "Link the spouse's profile (or create one with + New spouse profile) and enter the spouse's own income there.",
+                0, ["Form 1040 (joint)", "IRC §6013"],
+            ))
+        elif spouse_answer == "no":
+            if w2n >= 2:
+                out.append(make_finding(
+                    "joint_return_spouse_two_earner_signs", "warning", "residency",
+                    f"Joint US return: {w2n} W-2s on a profile whose spouse has no income",
+                    f"The spouse is recorded as having no income, but this profile has {w2n} W-2s. If any of them is the spouse's, the joint "
+                    "return pools both people's wages: the Social Security cap, 401(k) limit and Indian return are then computed as if all of it were this client's.",
+                    "Confirm every W-2 is this client's. If one is the spouse's, answer Yes to the spouse question and move it to the spouse's own profile.",
+                    0, ["Form 1040 (joint)", "IRC §1402(b)"],
+                ))
+            sp_res = safe(ctx.get("us"), "profile.spouse_residency_status", None)
+            has_election = safe(ctx.get("us"), "nra_specific.s6013h_joint_election", False) is True or safe(ctx.get("us"), "us_residency_detail.s6013g_joint_election", False) is True
+            if sp_res == "nonresident_alien" and not has_election:
+                out.append(make_finding(
+                    "joint_return_nra_spouse_no_election", "critical", "residency",
+                    "Joint US return with a non-resident-alien spouse needs the §6013(g)/(h) election",
+                    "A joint return isn't allowed when either spouse is a non-resident alien at any time in the year (IRC §6013(a)(1)), unless the "
+                    "couple elects to treat the spouse as a US resident. The election brings the spouse's worldwide income, and their foreign accounts, onto the US return.",
+                    "Make the §6013(g) (or §6013(h), first year) election with the joint return, or file married filing separately.",
+                    0, ["IRC §6013(a)(1)", "IRC §6013(g)", "IRC §6013(h)"],
+                ))
+            if safe(ctx.get("us"), "profile.spouse_ssn_or_itin_type", None) == "none":
+                out.append(make_finding(
+                    "joint_return_spouse_id_missing", "warning", "residency",
+                    "Joint US return: the spouse has no SSN or ITIN",
+                    "Every person listed on the return needs a taxpayer identification number (IRC §6109). Without one the joint return can't be e-filed, "
+                    "and the senior, tips and overtime deductions need the spouse's SSN.",
+                    "Apply for an ITIN with Form W-7, attached to the joint return, if the spouse can't get an SSN.",
+                    0, ["IRC §6109", "Form W-7"],
+                ))
+        else:
+            out.append(make_finding(
+                "joint_return_spouse_unknown", "warning", "residency",
+                "Joint US return: the spouse's situation isn't recorded",
+                "It isn't recorded whether the spouse has income, foreign accounts or an Indian return. If they do and it's entered on this profile, "
+                "the joint return pools both people (the Social Security cap, 401(k) limit and Indian return are then wrong); if they don't, the spouse's "
+                "date of birth and SSN are still needed on the return.",
+                "Answer the spouse question on the US form: No — enter the spouse's details inline; Yes — link the spouse's own profile.",
+                0, ["Form 1040 (joint)"],
+            ))
 
     ss_usd = ((agg.get("socialSecurityUs") or {}).get("usd")) or 0
     india_resident = bool((res.get("india") or {}).get("isResident")) or (is_nra and india_status != "NR")

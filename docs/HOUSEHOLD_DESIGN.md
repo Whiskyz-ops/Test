@@ -89,6 +89,13 @@ spouse's US income (audit row G1).
    the method is one function, so switching costs little.
 2. Spouse-only profile: **option B**, light profile at a lower price or free,
    full profile at full price once the spouse has income or an Indian return.
+   **Refined 30 Sep 2026:** a joint return asks "Does your spouse have any
+   income, foreign bank accounts, or an Indian tax return?". **No** → the
+   spouse is entered inline on this client's US form (name, SSN/ITIN type,
+   date of birth, US status, blind) — the light tier, no second client.
+   **Yes** → the spouse must be their own linked client — the full tier.
+   Unanswered → joint_return_spouse_unknown. "Move to own profile" turns an
+   inline spouse into a linked client, carrying the inline details.
 3. Shared items: **in the owner's profile** with an ownership %, plus a check
    that blocks the same account or property in both profiles (step 2).
 4. Access: **linking only within one firm** for now; cross-firm linking with

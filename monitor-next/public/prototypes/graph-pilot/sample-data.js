@@ -124,6 +124,7 @@
       full_name: "Aarav Sharma",
       date_of_birth: "1988-07-15",
       filing_status: "mfj",
+      spouse_has_income_or_filings: "no",
       ssn_or_itin_type: "ssn"
     },
     us_residency_detail: {

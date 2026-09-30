@@ -155,6 +155,7 @@
       "full_name": "David Chen",
       "date_of_birth": "1979-03-08",
       "filing_status": "mfj",
+      "spouse_has_income_or_filings": "no",
       "ssn_or_itin_type": "ssn",
       "dependents_count": 2
     },

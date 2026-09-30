@@ -37,14 +37,14 @@ Confirmed gaps have a runnable probe: `node scripts/audit/married-filing-probes.
 
 | Area | Rows | ✅ | 🟡 | ❌ | 🐞 | ➖ |
 |---|---|---|---|---|---|---|
-| A. What the forms collect about the spouse | 11 | 1 | 4 | 6 | – | – |
+| A. What the forms collect about the spouse | 11 | 4 | 3 | 4 | – | – |
 | B. US filing-status parameters | 30 | 19 | 2 | 5 | 3 | 1 |
 | C. US separate-filer eligibility | 9 | 2 | 1 | 3 | 2 | 1 |
 | D. US per-person rules | 16 | 7 | 4 | 5 | – | – |
-| E. Other US joint-return mechanics | 7 | 1 | 2 | 3 | 1 | – |
+| E. Other US joint-return mechanics | 7 | 2 | 2 | 2 | 1 | – |
 | F. India | 15 | 5 | 6 | 4 | – | – |
 | G. Cross-border | 15 | 4 | 4 | 7 | – | – |
-| **Total** | **103** | **39** | **23** | **33** | **6** | **2** |
+| **Total** | **103** | **43** | **22** | **30** | **6** | **2** |
 
 ### Wrong results found by the source check (code-read, not yet probed)
 
@@ -70,10 +70,10 @@ US-P3 (capital losses without the $3,000 limit, all filers) was fixed on 29 Sep 
 
 | # | Item | Status | Evidence |
 |---|---|---|---|
-| A1 | Spouse SSN / ITIN on every joint return | 🟡 | *form*: asked only on the non-resident screen (`nra_specific.spouse_ssn_or_itin_type`) |
-| A2 | Spouse date of birth (senior deduction, 65+ standard deduction, catch-ups, RMD, 72(t)) | ❌ | *form*: absent |
-| A3 | Spouse citizenship / green card / residency | 🟡 | *form*: one checkbox, "Spouse is a US person?" (`profile.spouse_is_us_person`) |
-| A4 | Spouse (and taxpayer) blind | ❌ | *form*: absent |
+| A1 | Spouse SSN / ITIN on every joint return | ✅ | Joint return (30 Sep 2026, IN-61): inline spouse → `profile.spouse_ssn_or_itin_type` (SSN / ITIN / neither; neither raises joint_return_spouse_id_missing, §6109); linked spouse → their own profile. Earlier: *form*: asked only on the non-resident screen (`nra_specific.spouse_ssn_or_itin_type`) |
+| A2 | Spouse date of birth (senior deduction, 65+ standard deduction, catch-ups, RMD, 72(t)) | ✅ | IN-61: inline spouse → `profile.spouse_date_of_birth`, which the engine reads for the spouse's senior deduction (profile us_mfj_spouse_inline_senior: $6,000); linked spouse → their own date of birth, passed to the joint return (IN-60). Earlier: *form*: absent |
+| A3 | Spouse citizenship / green card / residency | ✅ | IN-61: inline spouse → `profile.spouse_residency_status` (citizen / green card / resident alien / non-resident alien; also sets spouse_is_us_person); linked spouse → their own residency screen. Earlier: *form*: one checkbox, "Spouse is a US person?" (`profile.spouse_is_us_person`) |
+| A4 | Spouse (and taxpayer) blind | 🟡 | IN-61: spouse blind now collected inline (`profile.spouse_is_blind`); the taxpayer's own blindness still isn't asked, and the engine has no +$1,650 aged/blind amount at all (B25). Earlier: *form*: absent |
 | A5 | "Taxpayer / Spouse" on W-2s, self-employment, IRA/401(k)/HSA contributions, pensions, Social Security, foreign earned income | ❌ | *form*: no owner field; bank and holding rows do have a joint-owner flag (✅ for FBAR accounts) |
 | A6 | Separate return: lived apart all year? (Social Security thresholds, IRA phase-out, dependent-care credit) | ❌ | *form*: absent |
 | A7 | Separate return: does the spouse itemize? (forces itemizing) | ❌ | *form*: absent |
@@ -160,7 +160,7 @@ status. 2026 values were compared where both exist.
 | # | Rule | Status | Evidence |
 |---|---|---|---|
 | E1 | Estimated tax: 110% threshold is $75,000 AGI for separate filers | 🐞 | *source* IRC §6654(d)(1)(C)(ii): $75,000 for separate filers. *code* `us1-nodes.js:65` uses $150,000 for all |
-| E2 | Joint return with a non-resident spouse requires the §6013(g)/(h) election | ❌ | *source* IRC §6013(a)(1) (no joint return if either spouse is a non-resident alien) and §6013(g)/(h) (election). *code*: no eligibility check (form hides MFJ for an NRA client, not for a resident client with an NRA spouse) |
+| E2 | Joint return with a non-resident spouse requires the §6013(g)/(h) election | ✅ | IN-61: linked spouse → link check nra_spouse_no_election; inline non-resident-alien spouse → joint_return_nra_spouse_no_election (critical, profile us_mfj_spouse_inline_nra). Earlier: *source* IRC §6013(a)(1) (no joint return if either spouse is a non-resident alien) and §6013(g)/(h) (election). *code*: no eligibility check (form hides MFJ for an NRA client, not for a resident client with an NRA spouse) |
 | E3 | Community-property states (CA, TX, WA …): separate filers split community income | 🟡 | *source* IRC §66, §879; Pub. 555. *form* warns; *code* ignores |
 | E4 | State returns when one spouse is a non-resident of the state | ❌ | *code*: absent |
 | E5 | State joint/separate/HOH tables (CA, NY, NJ) | ✅ | *code* (IN-45 follow-up) |

@@ -282,7 +282,14 @@ NODES.buildTaxComputationUsResult = {
           trace: calc("Cash gifts to charity, up to $1,000 ($2,000 married filing jointly), deductible on top of the standard deduction from 2026 (OBBBA)", [
             { label: "Deduction", amount: u.nonItemizerCharitableUsd }
           ]) }] : [])
-        .concat(u.seniorDeductionUsd > 0 ? [{ label: "Less senior deduction (OBBBA §70103, age 65+)", usd: -u.seniorDeductionUsd,
+        .concat(u.seniorDeductionUsd > 0 && u.seniorDetail.spouseAge != null ? [{ label: "Less senior deduction (OBBBA §70103, age 65+)", usd: -u.seniorDeductionUsd,
+          // Spouse's date of birth known (inline spouse or household joint return).
+          trace: calc("$6,000 for each qualified individual age 65+ by year end — the taxpayer and, on a joint return, the spouse (§151(d)(5)(C), TY2025-2028) — on top of the standard/itemized deduction either way, each phased out 6¢/$1 of AGI over " + usd(u.seniorDetail.phaseoutThresholdUsd) + ".", [
+            { label: "Taxpayer age", display: u.seniorDetail.age == null ? "not recorded" : u.seniorDetail.age + " years" },
+            { label: "Spouse age", display: u.seniorDetail.spouseAge + " years" },
+            { label: "Full amount per person before phase-out", amount: u.seniorDetail.fullAmountUsd },
+            { label: "Senior deduction after phase-out", amount: u.seniorDeductionUsd }
+          ]) }] : u.seniorDeductionUsd > 0 ? [{ label: "Less senior deduction (OBBBA §70103, age 65+)", usd: -u.seniorDeductionUsd,
           trace: calc("$6,000 for a taxpayer age 65+ by year end (TY2025-2028, temporary), on top of the standard/itemized deduction either way, phased out 6¢/$1 of AGI over " + usd(u.seniorDetail.phaseoutThresholdUsd) + ". Only the primary taxpayer's age is known — Layer 1 collects no spouse DOB, so a second $6,000 for an also-65+ spouse isn't modeled.", [
             { label: "Taxpayer age", display: u.seniorDetail.age + " years" },
             { label: "Full amount before phase-out", amount: u.seniorDetail.fullAmountUsd },

@@ -525,7 +525,16 @@ def _build_tax_computation_us_result(d, ctx):
                      "trace": _calc("Cash gifts to charity, up to $1,000 ($2,000 married filing jointly), deductible on top of the standard deduction from 2026 (OBBBA)",
                                      [{"label": "Deduction", "amount": u["nonItemizerCharitableUsd"]}])})
 
-    if u["seniorDeductionUsd"] > 0:
+    if u["seniorDeductionUsd"] > 0 and u["seniorDetail"].get("spouseAge") is not None:
+        # Spouse's date of birth known — mirrors report-batch2-nodes.js.
+        sd = u["seniorDetail"]
+        rows.append({"label": "Less senior deduction (OBBBA §70103, age 65+)", "usd": -u["seniorDeductionUsd"],
+                      "trace": _calc(f"$6,000 for each qualified individual age 65+ by year end — the taxpayer and, on a joint return, the spouse (§151(d)(5)(C), TY2025-2028) — on top of the standard/itemized deduction either way, each phased out 6¢/$1 of AGI over {usd(sd['phaseoutThresholdUsd'])}.",
+                                      [{"label": "Taxpayer age", "display": "not recorded" if sd["age"] is None else f"{sd['age']} years"},
+                                       {"label": "Spouse age", "display": f"{sd['spouseAge']} years"},
+                                       {"label": "Full amount per person before phase-out", "amount": sd["fullAmountUsd"]},
+                                       {"label": "Senior deduction after phase-out", "amount": u["seniorDeductionUsd"]}])})
+    elif u["seniorDeductionUsd"] > 0:
         sd = u["seniorDetail"]
         rows.append({"label": "Less senior deduction (OBBBA §70103, age 65+)", "usd": -u["seniorDeductionUsd"],
                       "trace": _calc(f"$6,000 for a taxpayer age 65+ by year end (TY2025-2028, temporary), on top of the standard/itemized deduction either way, phased out 6¢/$1 of AGI over {usd(sd['phaseoutThresholdUsd'])}. Only the primary taxpayer's age is known — Layer 1 collects no spouse DOB, so a second $6,000 for an also-65+ spouse isn't modeled.",

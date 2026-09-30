@@ -1,0 +1,63 @@
+{
+  "id": "us_mfj_spouse_inline_nra",
+  "form": "layer1_us.html",
+  "section": "Filing status (joint return, inline non-resident-alien spouse)",
+  "story": "Joint return; the spouse has no income, is a non-resident alien with no SSN or ITIN, and no \u00a76013(g)/(h) election is made.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0,
+      "spouse_has_income_or_filings": "no",
+      "spouse_full_name": "Anil Kumar",
+      "spouse_ssn_or_itin_type": "none",
+      "spouse_residency_status": "nonresident_alien"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 120000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 15000,
+            "medicare_wages_box5_usd": 120000
+          }
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 15000
+    }
+  },
+  "expect": [
+    {
+      "path": "findings[id=joint_return_nra_spouse_no_election].severity",
+      "value": "critical",
+      "why": "IRC s.6013(a)(1): no joint return with a non-resident-alien spouse without the s.6013(g)/(h) election"
+    },
+    {
+      "path": "findings[id=joint_return_spouse_id_missing].severity",
+      "value": "warning",
+      "why": "IRC s.6109: the spouse needs an SSN or ITIN (Form W-7)"
+    }
+  ]
+}

@@ -469,7 +469,8 @@ function treatyFindings(d, ctx, isNra) {
       recommendation: "Use the household figures for the Form 44 claim. Keep each spouse's income in their own profile.",
       amountUsd: 0, refs: ["Rule 76", "Form 44", "Form 1040 (joint)"]
     });
-  } else if (safe(ctx.us, "profile.filing_status", null) === "mfj" && res.india && res.india.worldwide && usSourceUsd > 0) {
+  } else if (safe(ctx.us, "profile.spouse_has_income_or_filings", null) !== "no" &&
+      safe(ctx.us, "profile.filing_status", null) === "mfj" && res.india && res.india.worldwide && usSourceUsd > 0) {
     var w2Count = (agg.w2Employers || []).length;
     var twoEarnerSigns = w2Count >= 2 || (w2Count >= 1 && (agg.seEarningsUsd || 0) > 0);
     out.push({
@@ -485,6 +486,68 @@ function treatyFindings(d, ctx, isNra) {
         "income, and claim Form 44 relief only for the US tax on that income.",
       amountUsd: 0, refs: ["Income-tax Act — individual assessment", "Form 44", "Form 1040 (joint)"]
     });
+  }
+
+  // What is known about the spouse on a joint return (docs/HOUSEHOLD_DESIGN.md
+  // section 1): a spouse with nothing to report is entered inline on this
+  // client's form ("No"); any other spouse needs their own linked profile ("Yes").
+  var entityType = safe(ctx.us, "profile.tax_entity_type", "individual") || "individual";
+  if (safe(ctx.us, "profile.filing_status", null) === "mfj" && entityType === "individual" && !spouseLinked) {
+    var spouseAnswer = safe(ctx.us, "profile.spouse_has_income_or_filings", null);
+    var w2n = (agg.w2Employers || []).length;
+    if (spouseAnswer === "yes") {
+      out.push({
+        id: "joint_return_spouse_profile_missing", severity: "critical", category: "residency",
+        title: "Joint US return: the spouse's profile isn't linked",
+        detail: "The spouse has income, foreign accounts or an Indian return, but no spouse profile is linked. The joint return, the split of " +
+          "its tax, the Social Security cap per person and each spouse's Indian return can't be computed from this profile alone.",
+        recommendation: "Link the spouse's profile (or create one with + New spouse profile) and enter the spouse's own income there.",
+        amountUsd: 0, refs: ["Form 1040 (joint)", "IRC §6013"]
+      });
+    } else if (spouseAnswer === "no") {
+      if (w2n >= 2) {
+        out.push({
+          id: "joint_return_spouse_two_earner_signs", severity: "warning", category: "residency",
+          title: "Joint US return: " + w2n + " W-2s on a profile whose spouse has no income",
+          detail: "The spouse is recorded as having no income, but this profile has " + w2n + " W-2s. If any of them is the spouse's, the joint " +
+            "return pools both people's wages: the Social Security cap, 401(k) limit and Indian return are then computed as if all of it were this client's.",
+          recommendation: "Confirm every W-2 is this client's. If one is the spouse's, answer Yes to the spouse question and move it to the spouse's own profile.",
+          amountUsd: 0, refs: ["Form 1040 (joint)", "IRC §1402(b)"]
+        });
+      }
+      var spRes = safe(ctx.us, "profile.spouse_residency_status", null);
+      var hasElection = safe(ctx.us, "nra_specific.s6013h_joint_election", false) === true || safe(ctx.us, "us_residency_detail.s6013g_joint_election", false) === true;
+      if (spRes === "nonresident_alien" && !hasElection) {
+        out.push({
+          id: "joint_return_nra_spouse_no_election", severity: "critical", category: "residency",
+          title: "Joint US return with a non-resident-alien spouse needs the §6013(g)/(h) election",
+          detail: "A joint return isn't allowed when either spouse is a non-resident alien at any time in the year (IRC §6013(a)(1)), unless the " +
+            "couple elects to treat the spouse as a US resident. The election brings the spouse's worldwide income, and their foreign accounts, onto the US return.",
+          recommendation: "Make the §6013(g) (or §6013(h), first year) election with the joint return, or file married filing separately.",
+          amountUsd: 0, refs: ["IRC §6013(a)(1)", "IRC §6013(g)", "IRC §6013(h)"]
+        });
+      }
+      if (safe(ctx.us, "profile.spouse_ssn_or_itin_type", null) === "none") {
+        out.push({
+          id: "joint_return_spouse_id_missing", severity: "warning", category: "residency",
+          title: "Joint US return: the spouse has no SSN or ITIN",
+          detail: "Every person listed on the return needs a taxpayer identification number (IRC §6109). Without one the joint return can't be e-filed, " +
+            "and the senior, tips and overtime deductions need the spouse's SSN.",
+          recommendation: "Apply for an ITIN with Form W-7, attached to the joint return, if the spouse can't get an SSN.",
+          amountUsd: 0, refs: ["IRC §6109", "Form W-7"]
+        });
+      }
+    } else {
+      out.push({
+        id: "joint_return_spouse_unknown", severity: "warning", category: "residency",
+        title: "Joint US return: the spouse's situation isn't recorded",
+        detail: "It isn't recorded whether the spouse has income, foreign accounts or an Indian return. If they do and it's entered on this profile, " +
+          "the joint return pools both people (the Social Security cap, 401(k) limit and Indian return are then wrong); if they don't, the spouse's " +
+          "date of birth and SSN are still needed on the return.",
+        recommendation: "Answer the spouse question on the US form: No — enter the spouse's details inline; Yes — link the spouse's own profile.",
+        amountUsd: 0, refs: ["Form 1040 (joint)"]
+      });
+    }
   }
 
   var ssUsd = (agg.socialSecurityUs && agg.socialSecurityUs.usd) || 0;

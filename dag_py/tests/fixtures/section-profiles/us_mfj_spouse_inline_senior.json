@@ -1,0 +1,74 @@
+{
+  "id": "us_mfj_spouse_inline_senior",
+  "form": "layer1_us.html",
+  "section": "Filing status (joint return, spouse entered inline)",
+  "story": "Joint return; the spouse has no income and is entered inline: US citizen, SSN, born 1958 (68 at year end). The spouse's own $6,000 senior deduction applies.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0,
+      "spouse_has_income_or_filings": "no",
+      "spouse_full_name": "Meera Iyer",
+      "spouse_ssn_or_itin_type": "ssn",
+      "spouse_date_of_birth": "1958-04-01",
+      "spouse_residency_status": "us_citizen"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 120000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 15000,
+            "medicare_wages_box5_usd": 120000
+          }
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 15000
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.seniorDeductionUsd",
+      "value": 6000,
+      "why": "IRC s.151(d)(5)(C): $6,000 for the 65+ spouse on a joint return; MAGI $120,000 is under the $150,000 phase-out"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 9320,
+      "why": "120,000 - 32,200 - 6,000 = 81,800 taxable; 2,480 + 12% x 57,000"
+    },
+    {
+      "path": "findings[id=joint_return_spouse_unknown]",
+      "value": null,
+      "why": "answered No"
+    },
+    {
+      "path": "findings[id=joint_return_spouse_two_earner_signs]",
+      "value": null,
+      "why": "one W-2"
+    }
+  ]
+}

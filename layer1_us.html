@@ -775,6 +775,27 @@
 
                 <!-- Spouse link (docs/HOUSEHOLD_DESIGN.md step 1): each spouse is their own client; both profiles point at each other. -->
                 <div id="div-spouse-link" class="hidden p-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col gap-2">
+                    <!-- Joint return: a spouse with nothing to report is entered inline here (light); any other spouse is their own linked client (docs/HOUSEHOLD_DESIGN.md). -->
+                    <div id="spouse-question-row" class="hidden flex flex-col gap-1">
+                        <span class="text-xs font-bold text-white/80">Does your spouse have any income, foreign bank accounts, or an Indian tax return?</span>
+                        <select id="prof-spouse-has-income" onchange="onSpouseAnswerChange(this.value)" class="bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan focus:ring-0 focus:outline-none">
+                            <option value="">— choose —</option>
+                            <option value="no">No — enter the spouse's details here</option>
+                            <option value="yes">Yes — the spouse gets their own linked profile</option>
+                        </select>
+                    </div>
+                    <div id="spouse-inline-block" class="hidden grid grid-cols-2 gap-2">
+                        <div><label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Spouse's full name</label><input type="text" id="prof-spouse-name" oninput="updateSpouseInline('spouse_full_name', this.value || null)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan focus:ring-0 focus:outline-none"></div>
+                        <div><label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Spouse's SSN / ITIN</label><select id="prof-spouse-id" onchange="updateSpouseInline('spouse_ssn_or_itin_type', this.value || null)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan focus:ring-0 focus:outline-none"><option value="">— choose —</option><option value="ssn">Has an SSN</option><option value="itin">Has an ITIN</option><option value="none">Neither yet</option></select></div>
+                        <div><label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Spouse's date of birth</label><input type="date" id="prof-spouse-dob" onchange="updateSpouseInline('spouse_date_of_birth', this.value || null)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan focus:ring-0 focus:outline-none"></div>
+                        <div><label class="block text-[8px] font-black uppercase tracking-widest text-white/40 mb-1">Spouse's US status</label><select id="prof-spouse-residency" onchange="updateSpouseInline('spouse_residency_status', this.value || null)" class="w-full bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandCyan focus:ring-0 focus:outline-none"><option value="">— choose —</option><option value="us_citizen">US citizen</option><option value="green_card">Green-card holder</option><option value="resident_alien">Resident alien (substantial presence)</option><option value="nonresident_alien">Non-resident alien</option></select></div>
+                        <label class="col-span-2 flex items-center gap-2 text-[10px] text-white/70"><input type="checkbox" id="prof-spouse-blind" onchange="updateSpouseInline('spouse_is_blind', this.checked)" class="rounded bg-[#121212] border-white/20 text-brandCyan focus:ring-0"> Spouse is blind</label>
+                        <div class="col-span-2 flex items-center justify-between gap-2">
+                            <span class="text-[9px] text-white/40">Light spouse profile — no second client. If the spouse later has income or accounts, move them to their own profile.</span>
+                            <button type="button" id="btn-move-spouse" onclick="moveSpouseToOwnProfile()" class="px-3 py-2 bg-white/10 hover:bg-brandCyan/20 hover:text-brandCyan text-white/60 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap">Move to own profile</button>
+                        </div>
+                    </div>
+                    <div id="spouse-linked-block" class="flex flex-col gap-2">
                     <div class="flex flex-col">
                         <span class="text-xs font-bold text-white/80">Spouse's client profile</span>
                         <span class="text-[9px] text-white/30">Each spouse is their own client, and both profiles point at each other. The filing status is shared. Enter each person's income in their own profile.</span>
@@ -792,6 +813,7 @@
                         </select>
                     </div>
                     <div id="spouse-link-status" class="text-[9px] leading-relaxed"></div>
+                    </div><!-- /spouse-linked-block -->
                 </div>
 
                 </div><!-- /wrapper-individual-profile-fields -->
@@ -4126,6 +4148,12 @@
             spouse_is_us_person: null,
             spouse_client_id: null,
             household_items_owner: null,
+            spouse_has_income_or_filings: null,
+            spouse_full_name: null,
+            spouse_ssn_or_itin_type: null,
+            spouse_date_of_birth: null,
+            spouse_residency_status: null,
+            spouse_is_blind: false,
             trump_accounts_opened: false,
             trump_accounts_children: [],
             trump_accounts_num_children: 0,
@@ -4455,6 +4483,12 @@
                 "spouse_is_us_person": false,
                 "spouse_client_id": null,
                 "household_items_owner": null,
+                "spouse_has_income_or_filings": null,
+                "spouse_full_name": null,
+                "spouse_ssn_or_itin_type": null,
+                "spouse_date_of_birth": null,
+                "spouse_residency_status": null,
+                "spouse_is_blind": false,
                 "trump_accounts_opened": false,
                 "trump_accounts_children": [
                         {
@@ -6741,7 +6775,62 @@
     function currentRouterState() {
         return readSpouseJson(window.WISING.ClientRegistry.storageKeyFor('ROUTER')) || {};
     }
+    // Joint return: answer "No" -> inline spouse block (light); "Yes" or a
+    // separate return -> the linked-profile picker below.
     function renderSpouseLink() {
+        const box = document.getElementById('div-spouse-link');
+        if (!box) return;
+        const p = usState.profile;
+        const isMfj = p.filing_status === 'mfj';
+        if (p.spouse_client_id && isMfj) p.spouse_has_income_or_filings = 'yes';
+        const answer = p.spouse_has_income_or_filings || '';
+        const q = document.getElementById('prof-spouse-has-income');
+        document.getElementById('spouse-question-row').classList.toggle('hidden', !isMfj);
+        if (q) { q.value = isMfj ? answer : ''; q.disabled = !!p.spouse_client_id; }
+        const inline = isMfj && answer === 'no';
+        document.getElementById('spouse-inline-block').classList.toggle('hidden', !inline);
+        document.getElementById('spouse-linked-block').classList.toggle('hidden', isMfj && answer !== 'yes');
+        const setv = (id, v) => { const el = document.getElementById(id); if (el) el.value = v == null ? '' : v; };
+        setv('prof-spouse-name', p.spouse_full_name); setv('prof-spouse-id', p.spouse_ssn_or_itin_type);
+        setv('prof-spouse-dob', p.spouse_date_of_birth); setv('prof-spouse-residency', p.spouse_residency_status);
+        const bl = document.getElementById('prof-spouse-blind'); if (bl) bl.checked = p.spouse_is_blind === true;
+        const mv = document.getElementById('btn-move-spouse');
+        if (mv) { const reg0 = window.WISING && window.WISING.ClientRegistry; mv.disabled = !(reg0 && reg0.activeIdFromUrl()); mv.title = mv.disabled ? 'Open this client from the Monitor to create a linked spouse profile' : ''; }
+        renderSpouseLinkPicker();
+    }
+    function onSpouseAnswerChange(v) {
+        if (usState.profile.spouse_client_id) return;
+        usState.profile.spouse_has_income_or_filings = v || null;
+        saveStateAndSync();
+        renderSpouseLink();
+    }
+    function updateSpouseInline(field, value) {
+        usState.profile[field] = value;
+        if (field === 'spouse_residency_status') usState.profile.spouse_is_us_person = value ? value !== 'nonresident_alien' : null;
+        recalculateDerivedFields();
+        saveStateAndSync();
+    }
+    // Light spouse -> their own linked client, carrying the inline details.
+    function moveSpouseToOwnProfile() {
+        const reg = window.WISING && window.WISING.ClientRegistry;
+        const selfId = reg && reg.activeIdFromUrl();
+        if (!selfId) return;
+        const p = usState.profile, res = p.spouse_residency_status;
+        const id = reg.create();
+        const mine = currentRouterState();
+        reg.updateLabel(id, p.spouse_full_name || ('Spouse of ' + (mine.full_name || p.full_name || 'client')));
+        localStorage.setItem(spouseLinkRouterKey(id), JSON.stringify({ full_name: p.spouse_full_name || null, date_of_birth: p.spouse_date_of_birth || null,
+            base_tax_year: mine.base_tax_year || null, primary_jurisdiction: 'us', is_us_citizen: res === 'us_citizen', has_green_card: res === 'green_card' }));
+        localStorage.setItem(spouseLinkUsKey(id), JSON.stringify({
+            profile: { full_name: p.spouse_full_name || null, date_of_birth: p.spouse_date_of_birth || null, ssn_or_itin_type: p.spouse_ssn_or_itin_type || 'none' },
+            us_residency_detail: { is_us_citizen: res === 'us_citizen', has_green_card: res === 'green_card',
+                final_us_residency_status: res === 'us_citizen' ? 'US_CITIZEN' : res === 'nonresident_alien' ? 'NON_RESIDENT_ALIEN' : res ? 'RESIDENT_ALIEN' : null }
+        }));
+        usState.profile.spouse_has_income_or_filings = 'yes';
+        onSpouseLinkChange(id);
+        window.open('layer1_us.html?client=' + encodeURIComponent(id), '_blank');
+    }
+    function renderSpouseLinkPicker() {
         const box = document.getElementById('div-spouse-link');
         if (!box) return;
         const W = window.WISING || {};
@@ -6793,7 +6882,10 @@
             if (old && old.profile && old.profile.spouse_client_id === selfId) writeSpouseProfile(oldId, { spouse_client_id: null });
         }
         usState.profile.spouse_client_id = newId || null;
-        if (newId) writeSpouseProfile(newId, { spouse_client_id: selfId, filing_status: usState.profile.filing_status });
+        if (newId) {
+            usState.profile.spouse_has_income_or_filings = 'yes';
+            writeSpouseProfile(newId, { spouse_client_id: selfId, filing_status: usState.profile.filing_status, spouse_has_income_or_filings: 'yes' });
+        }
         saveStateAndSync();
         renderSpouseLink();
     }

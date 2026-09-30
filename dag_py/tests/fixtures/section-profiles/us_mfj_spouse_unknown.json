@@ -1,0 +1,54 @@
+{
+  "id": "us_mfj_spouse_unknown",
+  "form": "layer1_us.html",
+  "section": "Filing status (joint return, spouse question unanswered)",
+  "story": "Joint return, $120,000 of wages, and nobody has answered whether the spouse has income or accounts. The tool can't tell a no-income spouse from pooled income.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "mfj",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 120000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 15000,
+            "medicare_wages_box5_usd": 120000
+          }
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 15000
+    }
+  },
+  "expect": [
+    {
+      "path": "findings[id=joint_return_spouse_unknown].severity",
+      "value": "warning",
+      "why": "joint return with no spouse link and no answer to the spouse question"
+    }
+  ]
+}

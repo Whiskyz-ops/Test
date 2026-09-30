@@ -19,7 +19,19 @@ export function attachHouseholds(summaries) {
     if (!s || !s.isRegistryClient) return s;
     const a = raw(s.id);
     const res = W.householdLink.checkHouseholdLink(a, null);
-    if (!res.linked) return s;
+    if (!res.linked) {
+      // Joint return without a linked spouse: inline (answered No), or a
+      // missing link / unanswered question (docs/HOUSEHOLD_DESIGN.md).
+      const p = (a.us && a.us.profile) || {};
+      if (p.filing_status !== "mfj" || (p.tax_entity_type || "individual") !== "individual") return s;
+      const answer = p.spouse_has_income_or_filings || null;
+      return Object.assign({}, s, { household: {
+        status: "mfj", inline: answer === "no", spouseId: null,
+        spouseName: p.spouse_full_name || "spouse",
+        errors: answer === "yes" ? ["The spouse has income but no spouse profile is linked."] : answer === "no" ? [] : ["The spouse question isn't answered."],
+        tier: null
+      } });
+    }
     const b = res.spouseId && ids.has(res.spouseId) ? raw(res.spouseId) : null;
     const full = W.householdLink.checkHouseholdLink(a, b);
     const spouse = byId.get(res.spouseId);
