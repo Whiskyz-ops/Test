@@ -37,14 +37,14 @@ Confirmed gaps have a runnable probe: `node scripts/audit/married-filing-probes.
 
 | Area | Rows | ✅ | 🟡 | ❌ | 🐞 | ➖ |
 |---|---|---|---|---|---|---|
-| A. What the forms collect about the spouse | 11 | 4 | 3 | 4 | – | – |
-| B. US filing-status parameters | 30 | 19 | 2 | 5 | 3 | 1 |
+| A. What the forms collect about the spouse | 11 | 5 | 2 | 4 | – | – |
+| B. US filing-status parameters | 30 | 20 | 2 | 5 | 2 | 1 |
 | C. US separate-filer eligibility | 9 | 2 | 1 | 3 | 2 | 1 |
 | D. US per-person rules | 16 | 7 | 4 | 5 | – | – |
 | E. Other US joint-return mechanics | 7 | 2 | 2 | 2 | 1 | – |
 | F. India | 15 | 5 | 6 | 4 | – | – |
 | G. Cross-border | 15 | 4 | 4 | 7 | – | – |
-| **Total** | **103** | **43** | **22** | **30** | **6** | **2** |
+| **Total** | **103** | **45** | **21** | **30** | **5** | **2** |
 
 ### Wrong results found by the source check (code-read, not yet probed)
 
@@ -73,7 +73,7 @@ US-P3 (capital losses without the $3,000 limit, all filers) was fixed on 29 Sep 
 | A1 | Spouse SSN / ITIN on every joint return | ✅ | Joint return (30 Sep 2026, IN-61): inline spouse → `profile.spouse_ssn_or_itin_type` (SSN / ITIN / neither; neither raises joint_return_spouse_id_missing, §6109); linked spouse → their own profile. Earlier: *form*: asked only on the non-resident screen (`nra_specific.spouse_ssn_or_itin_type`) |
 | A2 | Spouse date of birth (senior deduction, 65+ standard deduction, catch-ups, RMD, 72(t)) | ✅ | IN-61: inline spouse → `profile.spouse_date_of_birth`, which the engine reads for the spouse's senior deduction (profile us_mfj_spouse_inline_senior: $6,000); linked spouse → their own date of birth, passed to the joint return (IN-60). Earlier: *form*: absent |
 | A3 | Spouse citizenship / green card / residency | ✅ | IN-61: inline spouse → `profile.spouse_residency_status` (citizen / green card / resident alien / non-resident alien; also sets spouse_is_us_person); linked spouse → their own residency screen. Earlier: *form*: one checkbox, "Spouse is a US person?" (`profile.spouse_is_us_person`) |
-| A4 | Spouse (and taxpayer) blind | 🟡 | IN-61: spouse blind now collected inline (`profile.spouse_is_blind`); the taxpayer's own blindness still isn't asked, and the engine has no +$1,650 aged/blind amount at all (B25). Earlier: *form*: absent |
+| A4 | Spouse (and taxpayer) blind | ✅ | IN-62: taxpayer blind (`profile.is_blind`) and spouse blind (inline or the linked spouse's own profile) are collected and feed the §63(f) amount. Earlier: IN-61: spouse blind now collected inline (`profile.spouse_is_blind`); the taxpayer's own blindness still isn't asked, and the engine has no +$1,650 aged/blind amount at all (B25). Earlier: *form*: absent |
 | A5 | "Taxpayer / Spouse" on W-2s, self-employment, IRA/401(k)/HSA contributions, pensions, Social Security, foreign earned income | ❌ | *form*: no owner field; bank and holding rows do have a joint-owner flag (✅ for FBAR accounts) |
 | A6 | Separate return: lived apart all year? (Social Security thresholds, IRA phase-out, dependent-care credit) | ❌ | *form*: absent |
 | A7 | Separate return: does the spouse itemize? (forces itemizing) | ❌ | *form*: absent |
@@ -113,7 +113,7 @@ status. 2026 values were compared where both exist.
 | B22 | Capital loss limit $3,000 / $1,500 separate, with short/long-term carryovers | ✅ | fixed 29 Sep 2026 (IN-52): Schedule D netting incl. the form's carryovers; *probe* US-P3 passes; profiles us_capital_loss_limit, us_capital_loss_carryover_mfs |
 | B23 | Student-loan interest: cap and MAGI phase-out | 🐞 | *source* Rev. Proc. 2025-32 §3.29: $2,500 cap phasing out $85,000–$100,000 MAGI ($175,000–$205,000 joint). *probe* US-P5 — cap only, no phase-out |
 | B24 | Mortgage acquisition-debt cap ($750,000 / $375,000 separate) | ❌ | *source* IRC §163(h)(3)(F)(i)(II) (made permanent by OBBBA): $750,000 / $375,000 separate. *code*: absent |
-| B25 | 65+ / blind additional standard deduction | 🐞 | *source* Rev. Proc. 2025-32 §3.14(3) and IRC §63(f): $1,650 per 65+ or blind person, $2,050 if unmarried. *code*: absent for every filer |
+| B25 | 65+ / blind additional standard deduction | ✅ | Fixed 30 Sep 2026 (IN-62): *source* Rev. Proc. 2025-32 §3.14(3) and IRC §63(f) — $1,650 per 65+ or blind condition ($2,050 if unmarried), for the taxpayer and, on a joint return, the spouse (inline `spouse_date_of_birth` / `spouse_is_blind`, or the linked spouse's own profile). New taxpayer field `profile.is_blind`. Profiles us_blind_65_single, us_mfj_spouse_inline_senior. Earlier: *source* Rev. Proc. 2025-32 §3.14(3) and IRC §63(f): $1,650 per 65+ or blind person, $2,050 if unmarried. *code*: absent for every filer |
 | B26 | Excess business loss limit (§461(l)) | ❌ | *source* Rev. Proc. 2025-32 §3.31: $256,000 / $512,000 joint for 2026 (IRC §461(l)(3)(A)(ii)(II), indexed from 2026). *code*: absent |
 | B27 | Car-loan interest deduction (OBBBA) | ❌ | *code* and *form*: absent |
 | B28 | Business-loss and misc. limits (`ald/loss/max`, `max_business_losses`) | ❌ | *code*: absent |

@@ -2185,7 +2185,7 @@
       "severity": "critical",
       "category": "treaty",
       "title": "Treaty relief claimed without supporting documents",
-      "detail": "A treaty position is being relied upon in India (DTAA rates are elected on Indian income; Art. 16(2) keeps pay for 20 days in India out of Indian tax), but TRC (IRS Form 6166) and Form 41 is not on file. Indian tax authorities will deny treaty relief u/s 159(8) without a valid TRC, and Form 41 is mandatory u/r 75.",
+      "detail": "A treaty position is being relied upon in India (DTAA rates are elected on Indian income), but TRC (IRS Form 6166) and Form 41 is not on file. Indian tax authorities will deny treaty relief u/s 159(8) without a valid TRC, and Form 41 is mandatory u/r 75.",
       "recommendation": "Obtain TRC (IRS Form 6166) and Form 41 before filing. For US residents, request Form 6166 from the IRS (Form 8802 application) well in advance \u2014 it can take 6\u20138 weeks.",
       "amountUsd": 0,
       "refs": [

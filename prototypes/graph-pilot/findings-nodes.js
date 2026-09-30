@@ -100,7 +100,7 @@ NODES.hasIndiaScopeXbr = { deps: ["routerJurisdictionXB"], compute: function (d)
 // checklist's trc/form_10f rows and dtaa_16_2_short_stay_india.
 NODES.indiaTreatyPositionResult = {
   deps: ["residencyResult", "treatyIndiaResidenceRaw", "treatyUsResidenceRaw", "treatyDtaaForcedNrRaw", "treatyElectionsRaw",
-    "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc", "aggregateUsIncomeResult", "indiaDaysCurrentYearRaw"],
+    "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc", "aggregateUsIncomeResult", "indiaDaysCurrentYearRaw", "indiaWorkDaysRaw"],
   compute: function (d) {
     var res = d.residencyResult;
     var tbWinner = d.treatyIndiaResidenceRaw !== "none" ? d.treatyIndiaResidenceRaw
@@ -111,14 +111,21 @@ NODES.indiaTreatyPositionResult = {
     // employer pay and a short stay in India (dtaa_16_2_short_stay_india).
     // India non-residents only: a resident who moved mid-year spent those
     // India days living there, not on a work trip.
-    var art162India = !!(d.hasIndiaScopeXbr && d.hasUsScopeBoundaryFtc && usTreatyRes && res.india.status === "NR" && w2UsUsd > 1 &&
+    // Only days WORKED in India make that pay Indian-source: a treaty position
+    // exists when the India form says some were worked; unanswered, the
+    // finding asks the question but no treaty claim is assumed (IN-59).
+    var art162Eligible = !!(d.hasIndiaScopeXbr && d.hasUsScopeBoundaryFtc && usTreatyRes && res.india.status === "NR" && w2UsUsd > 1 &&
       d.indiaDaysCurrentYearRaw > 0 && d.indiaDaysCurrentYearRaw <= 183);
+    var workDays = d.indiaWorkDaysRaw;
+    var art162India = art162Eligible && workDays !== null && workDays > 0;
+    var art162Unanswered = art162Eligible && workDays === null;
     var reasons = [];
     if (d.treatyIndiaResidenceRaw === "us" || d.treatyUsResidenceRaw === "us") reasons.push("the Article 4 tie-breaker makes the US the treaty residence");
     if (d.treatyDtaaForcedNrRaw) reasons.push("Indian non-residence rests on the treaty");
     if ((d.treatyElectionsRaw || []).length > 0) reasons.push("DTAA rates are elected on Indian income");
-    if (art162India) reasons.push("Art. 16(2) keeps pay for " + d.indiaDaysCurrentYearRaw + " days in India out of Indian tax");
-    return { claims: reasons.length > 0, reasons: reasons, art162India: art162India, w2UsUsd: w2UsUsd, usTreatyResident: !!usTreatyRes };
+    if (art162India) reasons.push("Art. 16(2) keeps pay for " + workDays + " workdays in India out of Indian tax");
+    return { claims: reasons.length > 0, reasons: reasons, art162India: art162India, art162Unanswered: art162Unanswered, indiaWorkDays: workDays,
+      w2UsUsd: w2UsUsd, usTreatyResident: !!usTreatyRes };
   }
 };
 
@@ -297,7 +304,20 @@ NODES.findingsBatch1Result = {
     // resident who moved mid-year (Aarav) spent those India days living
     // there, before the US job — not a work trip.
     var w2Us16 = d.indiaTreatyPositionResult.w2UsUsd;
+    var wd16 = d.indiaTreatyPositionResult.indiaWorkDays;
     if (d.indiaTreatyPositionResult.art162India) {
+      add("dtaa_16_2_short_stay_india", "info", "treaty",
+        "Pay for " + wd16 + " workdays in India — DTAA Art. 16(2) keeps it out of Indian tax if the conditions hold",
+        "The client has " + usd(w2Us16) + " of US-employer (W-2) wages and worked " + wd16 + " of their " + d.indiaDaysCurrentYearRaw + " days in India. " +
+        "Indian law treats pay for those workdays as India-source salary. Under DTAA Art. 16(2) it stays taxable only in the US when " +
+        "(a) present in India 183 days or fewer in the taxable year — met; (b) paid by an employer that isn't an Indian resident — a US employer on " +
+        "the W-2, met; (c) not charged to an Indian branch, subsidiary or fixed base of the employer — not collected, confirm.",
+        "If all three hold, no Indian tax or TDS applies to that pay; keep travel records and the employer's confirmation that the cost wasn't " +
+        "recharged to an Indian entity. Claiming the exemption in India needs a US Tax Residency Certificate (IRS Form 6166) and Form 41 " +
+        "(formerly Form 10F) — s.159(8) / Rule 75. If it was recharged (or the days exceed 183), India taxes the pay for India workdays — the Indian entity " +
+        "may need to deduct TDS, the client may need an Indian return — and the US credits that Indian tax on " + d.usFtcFormXbr + ".",
+        0, ["DTAA Art. 16(2)", "Form 6166", "Form 41", d.usFtcFormXbr]);
+    } else if (d.indiaTreatyPositionResult.art162Unanswered) {
       add("dtaa_16_2_short_stay_india", "info", "treaty",
         "Work done during " + d.indiaDaysCurrentYearRaw + " days in India — check DTAA Art. 16(2) before India taxes it",
         "The client has " + usd(w2Us16) + " of US-employer (W-2) wages and spent " + d.indiaDaysCurrentYearRaw + " days in India. If they worked " +

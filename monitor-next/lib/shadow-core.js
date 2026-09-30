@@ -423,6 +423,21 @@ function feieForeignWagesRowsTotal(us) {
   rows.forEach((w) => { total += Number(w.gross_wages_usd || w.wages_usd || w.amount_usd || w.wages_box1_usd || w.wages_tips_compensation_usd) || 0; });
   return total;
 }
+// IRC §63(f) aged/blind standard deduction and Form 8959 Part II Additional
+// Medicare Tax on self-employment (GAP_TRACKER IN-62): DAG-only law fixes the
+// frozen engine lacks — same classifiers as run-fuzz.js.
+function isSec63fDivergent(dag, real) {
+  const du = dag && dag.computed && dag.computed.usTax, ru = real && real.computed && real.computed.usTax;
+  if (!du || !ru) return false;
+  const multiple = (x) => { const a = Math.round(Math.abs(x)); return a > 0 && ((a % 1650 === 0 && a / 1650 <= 4) || (a % 2050 === 0 && a / 2050 <= 2)); };
+  return multiple((du.deductionUsd || 0) - (ru.deductionUsd || 0)) || multiple((ru.taxableIncomeUsd || 0) - (du.taxableIncomeUsd || 0));
+}
+function isAddlMedicareSeDivergent(dag, real) {
+  const du = dag && dag.computed && dag.computed.usTax, ru = real && real.computed && real.computed.usTax;
+  const inc = dag && dag.model && dag.model.income && dag.model.income.us;
+  if (!du || !ru || !inc) return false;
+  return ((inc.seEarningsUsd || 0) > 0 || (inc.seEarningsFromIndiaUsd || 0) > 0) && (du.additionalMedicareUsd || 0) > (ru.additionalMedicareUsd || 0) + 0.005;
+}
 function isFeieWagesDivergentProfile(profile) {
   if (!profile) return false;
   const us = profile.us || {};
@@ -835,6 +850,7 @@ export function compareSurface(engineResult, dagResult, profile) {
   const cfcInclusionDivergent = isCfcInclusionDivergentProfile(dag);
   const indiaPresumptiveLockinActive = isIndiaPresumptiveLockinActiveProfile(dag);
   const nraTreatyRateFieldRenameDivergent = isNraTreatyRateFieldRenameDivergent(profile);
+  const usTaxLawFix = isSec63fDivergent(dag, eng) || isAddlMedicareSeDivergent(dag, eng);
 
   // Findings-level diffs cascade from the same wholesale-shaped fixes as the
   // rest of the product surface (a different QBI/FEIE/rebate/salary amount
@@ -843,7 +859,7 @@ export function compareSurface(engineResult, dagResult, profile) {
   const findingsExcused = indiaAopOrTrust || feieWagesDivergent || feieBonaFideProxyDivergent || feieStackingRuleDivergent ||
     qbiWageLimitDivergent || qbiWageUbiaDivergent || saversCreditDivergent || indiaRebateDivergent ||
     indiaSalaryExemption || indiaPresumptiveForeignScheme || cfcInclusionDivergent || indiaPresumptiveLockinActive ||
-    nraTreatyRateFieldRenameDivergent;
+    nraTreatyRateFieldRenameDivergent || usTaxLawFix;
   if (!findingsExcused) raw.push(...findingsDiffs);
 
   // CASCADE_ONLY_PATHS — summary.counts/healthScore, monitoring.health/
@@ -871,6 +887,7 @@ export function compareSurface(engineResult, dagResult, profile) {
     .concat(indiaAopOrTrust ? KNOWN_INDIA_AOP_TRUST_PATHS : [])
     .concat(nra ? KNOWN_NRA_PATHS : [])
     .concat(feieWagesDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
+    .concat(usTaxLawFix ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(feieBonaFideProxyDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(feieStackingRuleDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])
     .concat(feieEntityGateMissing ? KNOWN_FEIE_ENTITY_GATE_DIVERGENT_PATHS : [])

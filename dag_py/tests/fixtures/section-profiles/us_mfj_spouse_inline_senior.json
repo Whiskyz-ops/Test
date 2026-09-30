@@ -2,7 +2,7 @@
   "id": "us_mfj_spouse_inline_senior",
   "form": "layer1_us.html",
   "section": "Filing status (joint return, spouse entered inline)",
-  "story": "Joint return; the spouse has no income and is entered inline: US citizen, SSN, born 1958 (68 at year end). The spouse's own $6,000 senior deduction applies.",
+  "story": "Joint return; the spouse has no income and is entered inline: US citizen, SSN, born 1958 (68 at year end). The spouse's own $6,000 senior deduction and the $1,650 additional standard deduction for a 65+ spouse apply.",
   "router": {
     "jurisdiction": "single_us",
     "base_tax_year": 2026,
@@ -57,8 +57,8 @@
     },
     {
       "path": "computed.usTax.totalTaxBeforeFtcUsd",
-      "value": 9320,
-      "why": "120,000 - 32,200 - 6,000 = 81,800 taxable; 2,480 + 12% x 57,000"
+      "value": 9122,
+      "why": "IRC s.63(f): standard deduction 32,200 + 1,650 (spouse 65+) = 33,850; 120,000 - 33,850 - 6,000 senior = 80,150 taxable; 2,480 + 12% x 55,350"
     },
     {
       "path": "findings[id=joint_return_spouse_unknown]",

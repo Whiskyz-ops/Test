@@ -108,6 +108,12 @@ def cdcc_rate(agi: float, status: str, year) -> float:
     return pct / 100
 
 
+def addl_medicare_on_se(se_net, medicare_wages_usd, status):
+    """Form 8959 Part II (IRC s.1401(b)(2)(B)) — mirrors ustax-nodes.js addlMedicareOnSe."""
+    thr = 250000 if status == "mfj" else 125000 if status == "mfs" else 200000
+    return T["ADDL_MEDICARE_RATE"] * max(0.0, se_net - max(0.0, thr - (medicare_wages_usd or 0))) if se_net > 0 else 0
+
+
 def se_net_and_tax(inc, worldwide, status, household):
     """Household joint return: the Social Security cap is per person (§1402(b)). Mirrors ustax-nodes.js seNetAndTax."""
     persons = (household or {}).get("persons")
@@ -131,6 +137,25 @@ def _age_from_dob(dob_raw, base_year):
         return None
     dob = parse_date(dob_raw)
     return None if dob is None else (base_year or 2025) - dob.year
+
+
+def additional_std_deduction(taxpayer_dob_raw, status, household, base_year) -> float:
+    """s.63(f) extra standard deduction per 65+ / blind condition — mirrors ustax-nodes.js additionalStdDeduction."""
+    h = household or {}
+    married = status in ("mfj", "mfs")
+    n = 0
+    t_age = _age_from_dob(taxpayer_dob_raw, base_year)
+    if t_age is not None and t_age >= 65:
+        n += 1
+    if h.get("taxpayerBlind") is True:
+        n += 1
+    if status == "mfj":
+        s_age = _age_from_dob(h.get("spouseDobRaw"), base_year)
+        if s_age is not None and s_age >= 65:
+            n += 1
+        if h.get("spouseBlind") is True:
+            n += 1
+    return n * T["ADDITIONAL_STD_DEDUCTION_USD"]["married" if married else "unmarried"]
 
 
 def senior_deduction(taxpayer_age, status, agi, household, base_year) -> dict:
@@ -380,7 +405,7 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     adjustments = min(ded["studentLoanInterest"], 2500) + half_se_deduction + se_health_deduction + (ded.get("seRetirementDeductionUsd") or 0)
     agi = max(0.0, total_income - adjustments)
 
-    standard = T["STD_DEDUCTION"].get(status, T["STD_DEDUCTION"]["single"])
+    standard = T["STD_DEDUCTION"].get(status, T["STD_DEDUCTION"]["single"]) + additional_std_deduction(taxpayer_dob_raw, status, household, base_year_us)
     salt_cap_usd = compute_salt_cap(agi, status)
     # Federal-disaster casualty loss (§165(h)): deductible only above a
     # 10%-of-AGI floor, same structural pattern as medical's 7.5% floor --
@@ -514,7 +539,7 @@ def compute_us_tax_core(inc, ded, status, worldwide, feie, additional_medicare_o
     niit_threshold = NIIT_THRESHOLD.get(status, 200000)
     niit = T["NIIT_RATE"] * min(max(0.0, net_investment_income), max(0.0, agi - niit_threshold))
 
-    addl_medicare = additional_medicare_owed_boundary
+    addl_medicare = additional_medicare_owed_boundary + addl_medicare_on_se(se_net, inc.get("medicareWages") or inc["wages"]["usd"] or 0, status)
 
     used_mode = "itemized" if itemizing else "standard"
     amt_addback = deduction if used_mode == "standard" else min(ded["salt"], salt_cap_usd)
@@ -843,6 +868,8 @@ NODES = {
         compute=lambda d, ctx: {
             "persons": (lambda p: p if isinstance(p, list) else None)(safe(ctx.get("us"), "household_persons", None)),
             "spouseDobRaw": safe(ctx.get("us"), "profile.spouse_date_of_birth", None),
+            "taxpayerBlind": safe(ctx.get("us"), "profile.is_blind", False) is True,
+            "spouseBlind": safe(ctx.get("us"), "profile.spouse_is_blind", False) is True,
         },
         layer1_fields=("us.profile.spouse_date_of_birth",),
     ),

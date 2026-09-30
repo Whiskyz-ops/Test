@@ -1,0 +1,61 @@
+{
+  "id": "us_blind_65_single",
+  "form": "layer1_us.html",
+  "section": "Standard deduction (65+ / blind, IRC s.63(f))",
+  "story": "US citizen, single, born 1958 (68 at year end) and blind, $60,000 of wages. Two additional standard deductions of $2,050 (unmarried), plus the $6,000 senior deduction.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365,
+    "date_of_birth": "1958-04-01"
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0,
+      "is_blind": true
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 60000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 5000,
+            "medicare_wages_box5_usd": 60000
+          }
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 5000
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 3808,
+      "why": "s.63(f): 16,100 + 2 x 2,050 = 20,200; senior 6,000 (MAGI under 75,000); 60,000 - 26,200 = 33,800 taxable; 1,240 + 12% x 21,400 = 3,808"
+    },
+    {
+      "path": "computed.usTax.seniorDeductionUsd",
+      "value": 6000,
+      "why": "s.151(d)(5)(C): 65+ taxpayer"
+    }
+  ]
+}

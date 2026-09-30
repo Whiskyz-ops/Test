@@ -230,6 +230,13 @@ var NODES = {
   // ---- raw leaves: entity kind + the FULL individual/company/HUF fact set -
   indiaEntityKindRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "profile.entity_type", "individual"); } },
   indiaDaysCurrentYearRaw: { deps: [], compute: function (d, ctx) { return Number(safe(ctx.india, "residency_detail.days_in_india_current_year", 0)) || 0; } },
+  // Of the India days, how many were WORKED (DTAA Art. 16(2)); null = not answered.
+  indiaWorkDaysRaw: { deps: [], compute: function (d, ctx) {
+    var v = safe(ctx.india, "residency_detail.india_work_days_current_year", null);
+    if (v === null || v === undefined || v === "") return null;
+    var n = Number(v);
+    return isFinite(n) ? Math.max(0, n) : null;
+  } },
   indiaDays4YearRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.days_in_india_preceding_4_years_gte_365", null); } },
   indiaEmploymentOrCrewRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.employment_or_crew_status", null); } },
   indiaVisitPioCitizenRaw: { deps: [], compute: function (d, ctx) { return safe(ctx.india, "residency_detail.came_on_visit_to_india_pio_citizen", null); } },

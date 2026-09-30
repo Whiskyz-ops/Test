@@ -737,6 +737,30 @@ function isCitizen1040nrProfile(profile) {
 var KNOWN_CITIZEN_1040NR_PATHS = ["model.entity.usReturnForm", "computed.usTax", "computed.ftc", "computed.headline", "computed.reconciliation",
   "computed.apportionment", "computed.limits", "taxComputation", "withholding", "returnForms", "documents", "summary", "monitoring", "ftcReport"];
 
+// IRC §63(f) (GAP_TRACKER IN-62): the DAG adds $1,650 ($2,050 unmarried) to
+// the standard deduction per 65+ / blind condition; the frozen engine never
+// did. Known only when the deduction or taxable income moves by exactly such
+// multiples.
+function isSec63fDivergent(dag, real) {
+  var du = dag && dag.computed && dag.computed.usTax, ru = real && real.computed && real.computed.usTax;
+  if (!du || !ru) return false;
+  function multiple(x) {
+    var a = Math.round(Math.abs(x));
+    return a > 0 && ((a % 1650 === 0 && a / 1650 <= 4) || (a % 2050 === 0 && a / 2050 <= 2));
+  }
+  return multiple((du.deductionUsd || 0) - (ru.deductionUsd || 0)) || multiple((ru.taxableIncomeUsd || 0) - (du.taxableIncomeUsd || 0));
+}
+// Form 8959 Part II (IN-62): the DAG's Additional Medicare Tax also covers
+// self-employment income; the frozen engine counted Medicare wages only.
+function isAddlMedicareSeDivergent(dag, real) {
+  var du = dag && dag.computed && dag.computed.usTax, ru = real && real.computed && real.computed.usTax;
+  var inc = dag && dag.model && dag.model.income && dag.model.income.us;
+  if (!du || !ru || !inc) return false;
+  return ((inc.seEarningsUsd || 0) > 0 || (inc.seEarningsFromIndiaUsd || 0) > 0) && (du.additionalMedicareUsd || 0) > (ru.additionalMedicareUsd || 0) + 0.005;
+}
+var KNOWN_US_TAX_LAW_FIX_PATHS = ["computed.usTax", "computed.ftc", "computed.headline", "computed.reconciliation",
+  "computed.apportionment", "computed.limits", "taxComputation", "withholding", "returnForms", "documents", "summary", "monitoring", "ftcReport"];
+
 function normalizeKnownScheduleCTraceDivergence(real, dag) {
   var re = real && real.model && real.model.assets && real.model.assets.businessEntities;
   var de = dag && dag.model && dag.model.assets && dag.model.assets.businessEntities;
@@ -1531,6 +1555,7 @@ function compareOne(label, profile, saveOnFail) {
     .concat(isIndiaEntityProfile(dag) ? KNOWN_INDIA_ENTITY_DIVERGENT_PATHS : [])
     .concat(isNraProfile(dag) ? KNOWN_NRA_DIVERGENT_PATHS : [])
     .concat(isCitizen1040nrProfile(profile) ? KNOWN_CITIZEN_1040NR_PATHS : [])
+    .concat(isSec63fDivergent(dag, real) || isAddlMedicareSeDivergent(dag, real) ? KNOWN_US_TAX_LAW_FIX_PATHS : [])
     .concat(indiaAopOrTrust ? KNOWN_INDIA_AOP_TRUST_DIVERGENT_PATHS : [])
     .concat(isUsTrustProfile(dag) ? KNOWN_US_TRUST_DIVERGENT_PATHS : [])
     .concat(feieWagesDivergent ? KNOWN_FEIE_WAGES_DIVERGENT_PATHS : [])

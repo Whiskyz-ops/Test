@@ -94,6 +94,13 @@ function cdccRate(agi, status, year) {
   pct = Math.max(n.floorPct, pct - steps(n.secondThresholdUsd[k], n.secondStepUsd[k]));
   return pct / 100;
 }
+// Form 8959 Part II: 0.9% Additional Medicare Tax on self-employment income
+// above the threshold left after Medicare wages (IRC §1401(b)(2)(B)). The
+// wage part (Part I) is additionalMedicareOwedBoundary.
+function addlMedicareOnSe(seNet, medicareWagesUsd, status) {
+  var thr = status === "mfj" ? 250000 : status === "mfs" ? 125000 : 200000;
+  return seNet > 0 ? T.ADDL_MEDICARE_RATE * Math.max(0, seNet - Math.max(0, thr - (medicareWagesUsd || 0))) : 0;
+}
 // Household joint return (household.js): per-person rules the merged return
 // can't see from pooled rows. `household` comes from us.household_persons /
 // us.profile.spouse_date_of_birth (usHouseholdRaw); absent on every ordinary
@@ -123,6 +130,23 @@ function ageFromDob(dobRaw, baseYear) {
   if (!dobRaw) return null;
   var y = new Date(dobRaw).getFullYear();
   return isNaN(y) ? null : (baseYear || 2025) - y;
+}
+// §63(f): an extra standard deduction for each 65+ or blind condition — the
+// taxpayer's and, on a joint return, the spouse's. $1,650 each if married,
+// $2,050 if unmarried. Blindness and the spouse come from usHouseholdRaw.
+function additionalStdDeduction(taxpayerDobRaw, status, household, baseYear) {
+  var h = household || {};
+  var married = status === "mfj" || status === "mfs";
+  var n = 0;
+  var tAge = ageFromDob(taxpayerDobRaw, baseYear);
+  if (tAge !== null && tAge >= 65) n++;
+  if (h.taxpayerBlind === true) n++;
+  if (status === "mfj") {
+    var sAge = ageFromDob(h.spouseDobRaw, baseYear);
+    if (sAge !== null && sAge >= 65) n++;
+    if (h.spouseBlind === true) n++;
+  }
+  return n * T.ADDITIONAL_STD_DEDUCTION_USD[married ? "married" : "unmarried"];
 }
 function seniorDeduction(taxpayerAge, status, agi, household, baseYear) {
   var spouseAge = status === "mfj" ? ageFromDob(household && household.spouseDobRaw, baseYear) : null;
@@ -181,7 +205,7 @@ function computeUsTaxCore(d, extraLtcgUsd, extraStcgUsd) {
   var adjustments = Math.min(ded.studentLoanInterest, 2500) + halfSeDeduction + seHealthDeduction + (ded.seRetirementDeductionUsd || 0);
   var agi = Math.max(0, totalIncome - adjustments);
 
-  var standard = T.STD_DEDUCTION[status] || T.STD_DEDUCTION.single;
+  var standard = (T.STD_DEDUCTION[status] || T.STD_DEDUCTION.single) + additionalStdDeduction(d.taxpayerDobRaw, status, d.usHouseholdRaw, d.baseYearUs);
   var saltCapUsd = computeSaltCap(agi, status);
   var itemized = Math.min(ded.salt, saltCapUsd) + ded.mortgageInterest + ded.charitable + Math.max(0, ded.medical - 0.075 * agi);
   var deduction = ded.mode === "itemized" ? itemized : ded.mode === "standard" ? standard : Math.max(standard, itemized);
@@ -232,7 +256,7 @@ function computeUsTaxCore(d, extraLtcgUsd, extraStcgUsd) {
   var niitThreshold = NIIT_THRESHOLD[status] || 200000;
   var niit = T.NIIT_RATE * Math.min(Math.max(0, netInvestmentIncome), Math.max(0, agi - niitThreshold));
 
-  var addlMedicare = d.additionalMedicareOwedBoundary;
+  var addlMedicare = d.additionalMedicareOwedBoundary + addlMedicareOnSe(seNet, inc.medicareWages || inc.wages.usd || 0, status);
 
   var usedMode = (ded.mode === "itemized" || ded.mode === "standard") ? ded.mode : (itemized > standard ? "itemized" : "standard");
   var amtAddback = usedMode === "standard" ? deduction : Math.min(ded.salt, saltCapUsd);

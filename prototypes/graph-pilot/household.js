@@ -98,6 +98,7 @@
     us.profile.dependents_count = (Number((a.us && a.us.profile && a.us.profile.dependents_count) || 0) || 0) +
       (Number((b.us && b.us.profile && b.us.profile.dependents_count) || 0) || 0);
     us.profile.spouse_date_of_birth = dobOf(b);
+    us.profile.spouse_is_blind = !!(b.us && b.us.profile && b.us.profile.is_blind === true);
     if (persons) us.household_persons = persons;
     var india = mergeSection(a.india, b.india, INDIA_IDENTITY);
     return { router: clone(a.router || {}), india: india, us: us };

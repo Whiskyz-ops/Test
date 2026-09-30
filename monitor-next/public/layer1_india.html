@@ -2188,6 +2188,15 @@
                         <input type="range" id="res-days-current" min="0" max="366" value="182" oninput="updateManualDays(this.value)" class="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brandGold">
                     </div>
 
+                    <!-- DTAA Art. 16(2): only days WORKED in India can make foreign-employer pay Indian-source. A family visit is not a treaty position. -->
+                    <div class="mt-4 p-3 bg-black/40 rounded-xl border border-white/5 flex items-center justify-between gap-3">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-bold text-white/70 uppercase">Of these, days worked in India</span>
+                            <span class="text-[9px] text-white/40">Including remote work for a foreign employer. Enter 0 for a visit with no work.</span>
+                        </div>
+                        <input type="text" inputmode="numeric" id="res-india-work-days" oninput="updateIndiaWorkDays(this.value)" placeholder="—" class="w-16 bg-[#121212] border border-white/10 rounded text-xs text-white font-mono px-2 py-1 text-center focus:border-brandGold focus:ring-0">
+                    </div>
+
                     <div class="mt-4 pt-4 border-t border-white/10">
                         <label class="flex items-center justify-between cursor-pointer group">
                             <span class="text-[10px] font-bold text-white/70 uppercase group-hover:text-white transition-colors">Enable Live Date Tracking</span>
@@ -4765,6 +4774,7 @@
             live_tracking_active: false,
             trips: [{ arrival_date: null, departure_date: null }],
             manual_days: 182,
+            india_work_days_current_year: null,
             is_wholly_outside_india: null,
             is_indian_company: null,
             is_poem_in_india: null,
@@ -6463,6 +6473,13 @@ const crDiv = document.getElementById('div-company-residency');
                 divCoreDays.style.display = 'none';
             }
         }
+    }
+
+    function updateIndiaWorkDays(val) {
+        const v = String(val == null ? '' : val).trim();
+        const n = parseInt(v, 10);
+        state.residency_detail.india_work_days_current_year = v === '' || isNaN(n) ? null : Math.max(0, n);
+        saveState();
     }
 
     function updateManualDays(val) {
@@ -14207,6 +14224,8 @@ ${isProf ? '' : `
         // Residency
         const daysCurr = document.getElementById('res-days-current');
         if (daysCurr) daysCurr.value = state.residency_detail.manual_days || 182;
+        const workDays = document.getElementById('res-india-work-days');
+        if (workDays) workDays.value = state.residency_detail.india_work_days_current_year != null ? state.residency_detail.india_work_days_current_year : '';
         
         const daysVal = document.getElementById('days-val');
         if (daysVal) daysVal.value = state.residency_detail.days_in_india_current_year || 182;

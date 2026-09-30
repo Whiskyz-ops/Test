@@ -1714,6 +1714,7 @@
      "full_name": "Rohan Mehta",
      "date_of_birth": "1985-03-22",
      "filing_status": "mfj",
+     "spouse_has_income_or_filings": "no",
      "ssn_or_itin_type": "ssn",
      "spouse_client_id": "c_priya_mehta",
      "household_items_owner": "self",
@@ -1900,6 +1901,7 @@
     },
     "residency_detail": {
      "days_in_india_current_year": 12,
+     "india_work_days_current_year": 0,
      "final_india_residency_status": "NR"
     },
     "bank_accounts": [

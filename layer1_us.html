@@ -773,6 +773,12 @@
                     </label>
                 </div>
 
+                <!-- IRC §63(f): an extra $1,650 ($2,050 unmarried) standard deduction for a blind taxpayer; age 65+ comes from the date of birth. -->
+                <label class="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl cursor-pointer">
+                    <span class="flex flex-col"><span class="text-xs font-bold text-white/80">Taxpayer is blind?</span><span class="text-[9px] text-white/30">Adds to the standard deduction (IRC §63(f)).</span></span>
+                    <input type="checkbox" id="prof-is-blind" onchange="updateProfileField('is_blind', this.checked)" class="rounded bg-[#121212] border-white/20 text-brandCyan focus:ring-0">
+                </label>
+
                 <!-- Spouse link (docs/HOUSEHOLD_DESIGN.md step 1): each spouse is their own client; both profiles point at each other. -->
                 <div id="div-spouse-link" class="hidden p-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col gap-2">
                     <!-- Joint return: a spouse with nothing to report is entered inline here (light); any other spouse is their own linked client (docs/HOUSEHOLD_DESIGN.md). -->
@@ -4146,6 +4152,7 @@
             ssn_or_itin_type: "none",
             dependents_count: 0,
             spouse_is_us_person: null,
+            is_blind: false,
             spouse_client_id: null,
             household_items_owner: null,
             spouse_has_income_or_filings: null,
@@ -4481,6 +4488,7 @@
                 "ssn_or_itin_type": "none",
                 "dependents_count": 0,
                 "spouse_is_us_person": false,
+                "is_blind": false,
                 "spouse_client_id": null,
                 "household_items_owner": null,
                 "spouse_has_income_or_filings": null,
@@ -6794,6 +6802,7 @@
         setv('prof-spouse-name', p.spouse_full_name); setv('prof-spouse-id', p.spouse_ssn_or_itin_type);
         setv('prof-spouse-dob', p.spouse_date_of_birth); setv('prof-spouse-residency', p.spouse_residency_status);
         const bl = document.getElementById('prof-spouse-blind'); if (bl) bl.checked = p.spouse_is_blind === true;
+        const tb = document.getElementById('prof-is-blind'); if (tb) tb.checked = p.is_blind === true;
         const mv = document.getElementById('btn-move-spouse');
         if (mv) { const reg0 = window.WISING && window.WISING.ClientRegistry; mv.disabled = !(reg0 && reg0.activeIdFromUrl()); mv.title = mv.disabled ? 'Open this client from the Monitor to create a linked spouse profile' : ''; }
         renderSpouseLinkPicker();

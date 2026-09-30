@@ -1,0 +1,63 @@
+{
+  "id": "us_addl_medicare_se",
+  "form": "layer1_us.html",
+  "section": "Self-employment (Form 8959 Additional Medicare Tax)",
+  "story": "US citizen, single, $150,000 of W-2 wages and $100,000 of self-employment earnings. Additional Medicare Tax applies to the self-employment earnings above the $200,000 threshold left after wages (Form 8959 Part II).",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 150000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 25000,
+            "medicare_wages_box5_usd": 150000
+          }
+        }
+      ],
+      "self_employment": [
+        {
+          "business_name": "Consulting",
+          "has_se_income": true,
+          "gross_receipts_usd": 100000,
+          "expenses_usd": 0
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 25000
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.additionalMedicareUsd",
+      "value": 381,
+      "tol": 1,
+      "why": "IRC s.1401(b)(2)(B): net SE earnings 100,000 x 92.35% = 92,350; threshold 200,000 less 150,000 wages = 50,000; 0.9% x 42,350 = 381.15"
+    }
+  ]
+}

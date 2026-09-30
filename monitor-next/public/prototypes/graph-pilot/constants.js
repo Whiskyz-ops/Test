@@ -476,6 +476,9 @@
         SAVERS_CREDIT_CONTRIBUTION_CAP_USD: 2000,
         // IRC §1211(b): net capital loss allowed against other income per year.
         CAPITAL_LOSS_LIMIT_USD: { mfs: 1500, other: 3000 },
+        // §63(f) additional standard deduction per 65+ or blind condition
+        // (Rev. Proc. 2025-32 §3.14(3)): married / unmarried (not a surviving spouse).
+        ADDITIONAL_STD_DEDUCTION_USD: { married: 1650, unmarried: 2050 },
         // ---- OBBBA "senior deduction" (temporary, TY2025-2028) — $6,000 per
         // taxpayer age 65+ by year end (stacks with std/itemized deduction),
         // phased out 6% of MAGI over the threshold. MFS filers are entirely

@@ -78,6 +78,8 @@ US = {
                      "secondThresholdUsd": {"mfj": 150000, "other": 75000}, "secondStepUsd": {"mfj": 4000, "other": 2000}, "floorPct": 20},
     },
     "QBI_RATE": 0.20,
+    # s.63(f) additional standard deduction per 65+ or blind condition (Rev. Proc. 2025-32 s.3.14(3)).
+    "ADDITIONAL_STD_DEDUCTION_USD": {"married": 1650, "unmarried": 2050},
     "QBI_THRESHOLD": {"single": 201750, "mfj": 403500, "mfs": 201775, "hoh": 201750},  # Rev. Proc. 2025-32 §3.26
     "QBI_PHASEIN": {"single": 75000, "mfj": 150000, "mfs": 75000, "hoh": 75000},
     "AMT_EXEMPTION": {"single": 90100, "mfj": 140200, "mfs": 70100, "hoh": 90100},

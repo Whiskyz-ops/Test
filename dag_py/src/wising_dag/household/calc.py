@@ -96,6 +96,7 @@ def joint_profile(a, b, persons=None) -> dict:
     deps = _dep(a) + _dep(b)
     us["profile"]["dependents_count"] = int(deps) if float(deps).is_integer() else deps
     us["profile"]["spouse_date_of_birth"] = _dob_of(b)
+    us["profile"]["spouse_is_blind"] = (((b.get("us") or {}).get("profile") or {}).get("is_blind")) is True
     if persons:
         us["household_persons"] = persons
     india = _merge_section(a.get("india"), b.get("india"), INDIA_IDENTITY)

@@ -85,8 +85,8 @@ spouse's US income (audit row G1).
 ## 8. Decisions (29 Sep 2026)
 
 1. Split method: **A**, share of the two as-if-separate taxes (the proposal
-   in section 4). Still to be confirmed by the CA / CPA before step 3 ships;
-   the method is one function, so switching costs little.
+   in section 4). **Confirmed by the client's CA on 30 Sep 2026.** The method
+   is one function (`splitJointUsTax`), so a later change costs little.
 2. Spouse-only profile: **option B**, light profile at a lower price or free,
    full profile at full price once the spouse has income or an Indian return.
    **Refined 30 Sep 2026:** a joint return asks "Does your spouse have any

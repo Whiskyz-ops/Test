@@ -19,7 +19,8 @@
       "manual_days": 20,
       "days_in_india_current_year": 20,
       "days_in_india_preceding_4_years_gte_365": false,
-      "final_india_residency_status": "NR"
+      "final_india_residency_status": "NR",
+      "india_work_days_current_year": 20
     },
     "domestic_income": {
       "salary": {
@@ -71,7 +72,7 @@
     {
       "path": "findings[id=treaty_docs_missing].severity",
       "value": "critical",
-      "why": "that Art. 16(2) claim is treaty relief claimed in India by a non-resident — s.159(8) / Rule 75 need a US TRC (Form 6166) and Form 41, neither on file"
+      "why": "that Art. 16(2) claim is treaty relief claimed in India by a non-resident \u2014 s.159(8) / Rule 75 need a US TRC (Form 6166) and Form 41, neither on file"
     },
     {
       "path": "documents[id=trc].required",

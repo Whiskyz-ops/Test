@@ -174,7 +174,8 @@ def _compute_us_tax_core(d, extra_ltcg_usd: float, extra_stcg_usd: float) -> flo
     agi = max(0.0, total_income - adjustments)
 
     from ..us.ustax import compute_salt_cap
-    standard = T["STD_DEDUCTION"].get(status, T["STD_DEDUCTION"]["single"])
+    from ..us.ustax import additional_std_deduction
+    standard = T["STD_DEDUCTION"].get(status, T["STD_DEDUCTION"]["single"]) + additional_std_deduction(d["taxpayerDobRaw"], status, d["usHouseholdRaw"], d["baseYearUs"])
     salt_cap_usd = compute_salt_cap(agi, status)
     itemized = min(ded["salt"], salt_cap_usd) + ded["mortgageInterest"] + ded["charitable"] + max(0.0, ded["medical"] - 0.075 * agi)
     deduction = itemized if ded["mode"] == "itemized" else standard if ded["mode"] == "standard" else max(standard, itemized)
@@ -230,7 +231,8 @@ def _compute_us_tax_core(d, extra_ltcg_usd: float, extra_stcg_usd: float) -> flo
     niit_threshold = NIIT_THRESHOLD.get(status, 200000)
     niit = T["NIIT_RATE"] * min(max(0.0, net_investment_income), max(0.0, agi - niit_threshold))
 
-    addl_medicare = d["additionalMedicareOwedBoundary"]
+    from ..us.ustax import addl_medicare_on_se
+    addl_medicare = d["additionalMedicareOwedBoundary"] + addl_medicare_on_se(se_net, inc.get("medicareWages") or inc["wages"]["usd"] or 0, status)
 
     used_mode = ded["mode"] if ded["mode"] in ("itemized", "standard") else ("itemized" if itemized > standard else "standard")
     amt_addback = deduction if used_mode == "standard" else min(ded["salt"], salt_cap_usd)
@@ -461,8 +463,12 @@ def _india_treaty_position_result(d, ctx):
     india_days = d["indiaDaysCurrentYearRaw"]
     # DTAA Art. 16(2): a US treaty resident, non-resident in India, with US-
     # employer pay and a short stay in India (dtaa_16_2_short_stay_india).
-    art162_india = bool(d["hasIndiaScopeXbr"] and d["hasUsScopeBoundaryFtc"] and us_treaty_res and res["india"]["status"] == "NR"
-                        and w2_us > 1 and 0 < india_days <= 183)
+    # Only days WORKED in India make that pay Indian-source — see findings-nodes.js (IN-59).
+    art162_eligible = bool(d["hasIndiaScopeXbr"] and d["hasUsScopeBoundaryFtc"] and us_treaty_res and res["india"]["status"] == "NR"
+                           and w2_us > 1 and 0 < india_days <= 183)
+    work_days = d["indiaWorkDaysRaw"]
+    art162_india = art162_eligible and work_days is not None and work_days > 0
+    art162_unanswered = art162_eligible and work_days is None
     reasons = []
     if d["treatyIndiaResidenceRaw"] == "us" or d["treatyUsResidenceRaw"] == "us":
         reasons.append("the Article 4 tie-breaker makes the US the treaty residence")
@@ -471,8 +477,9 @@ def _india_treaty_position_result(d, ctx):
     if len(d["treatyElectionsRaw"] or []) > 0:
         reasons.append("DTAA rates are elected on Indian income")
     if art162_india:
-        reasons.append(f"Art. 16(2) keeps pay for {js_num_str(india_days)} days in India out of Indian tax")
-    return {"claims": len(reasons) > 0, "reasons": reasons, "art162India": art162_india, "w2UsUsd": w2_us, "usTreatyResident": us_treaty_res}
+        reasons.append(f"Art. 16(2) keeps pay for {js_num_str(work_days)} workdays in India out of Indian tax")
+    return {"claims": len(reasons) > 0, "reasons": reasons, "art162India": art162_india, "art162Unanswered": art162_unanswered, "indiaWorkDays": work_days,
+            "w2UsUsd": w2_us, "usTreatyResident": us_treaty_res}
 
 
 def _findings_crossborder_result(d, ctx):
@@ -580,7 +587,22 @@ def _findings_crossborder_result(d, ctx):
         ))
     # India non-residents only — see findings-nodes.js.
     w2_us16 = d["indiaTreatyPositionResult"]["w2UsUsd"]
+    wd16 = d["indiaTreatyPositionResult"]["indiaWorkDays"]
     if d["indiaTreatyPositionResult"]["art162India"]:
+        findings.append(make_finding(
+            "dtaa_16_2_short_stay_india", "info", "treaty",
+            "Pay for " + js_num_str(wd16) + " workdays in India — DTAA Art. 16(2) keeps it out of Indian tax if the conditions hold",
+            "The client has " + _usd(w2_us16) + " of US-employer (W-2) wages and worked " + js_num_str(wd16) + " of their " + js_num_str(india_days16) + " days in India. "
+            "Indian law treats pay for those workdays as India-source salary. Under DTAA Art. 16(2) it stays taxable only in the US when "
+            "(a) present in India 183 days or fewer in the taxable year — met; (b) paid by an employer that isn't an Indian resident — a US employer on "
+            "the W-2, met; (c) not charged to an Indian branch, subsidiary or fixed base of the employer — not collected, confirm.",
+            "If all three hold, no Indian tax or TDS applies to that pay; keep travel records and the employer's confirmation that the cost wasn't "
+            "recharged to an Indian entity. Claiming the exemption in India needs a US Tax Residency Certificate (IRS Form 6166) and Form 41 "
+            "(formerly Form 10F) — s.159(8) / Rule 75. If it was recharged (or the days exceed 183), India taxes the pay for India workdays — the Indian entity "
+            "may need to deduct TDS, the client may need an Indian return — and the US credits that Indian tax on " + d["usFtcFormXbr"] + ".",
+            0, ["DTAA Art. 16(2)", "Form 6166", "Form 41", d["usFtcFormXbr"]],
+        ))
+    elif d["indiaTreatyPositionResult"]["art162Unanswered"]:
         findings.append(make_finding(
             "dtaa_16_2_short_stay_india", "info", "treaty",
             "Work done during " + js_num_str(india_days16) + " days in India — check DTAA Art. 16(2) before India taxes it",
@@ -1104,7 +1126,7 @@ def _findings_crossborder_result(d, ctx):
 
 NODES["indiaTreatyPositionResult"] = NodeDef(
     deps=("residencyResult", "treatyIndiaResidenceRaw", "treatyUsResidenceRaw", "treatyDtaaForcedNrRaw", "treatyElectionsRaw",
-          "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc", "aggregateUsIncomeResult", "indiaDaysCurrentYearRaw"),
+          "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc", "aggregateUsIncomeResult", "indiaDaysCurrentYearRaw", "indiaWorkDaysRaw"),
     compute=_india_treaty_position_result,
 )
 

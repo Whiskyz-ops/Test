@@ -219,6 +219,21 @@ function feieForeignWagesRowsTotal(us) {
   rows.forEach((w) => { total += Number(w.gross_wages_usd || w.wages_usd || w.amount_usd || w.wages_box1_usd || w.wages_tips_compensation_usd) || 0; });
   return total;
 }
+// IRC §63(f) aged/blind standard deduction and Form 8959 Part II Additional
+// Medicare Tax on self-employment (GAP_TRACKER IN-62): DAG-only law fixes the
+// frozen engine lacks — same classifiers as run-fuzz.js.
+function isSec63fDivergent(dag, real) {
+  const du = dag && dag.computed && dag.computed.usTax, ru = real && real.computed && real.computed.usTax;
+  if (!du || !ru) return false;
+  const multiple = (x) => { const a = Math.round(Math.abs(x)); return a > 0 && ((a % 1650 === 0 && a / 1650 <= 4) || (a % 2050 === 0 && a / 2050 <= 2)); };
+  return multiple((du.deductionUsd || 0) - (ru.deductionUsd || 0)) || multiple((ru.taxableIncomeUsd || 0) - (du.taxableIncomeUsd || 0));
+}
+function isAddlMedicareSeDivergent(dag, real) {
+  const du = dag && dag.computed && dag.computed.usTax, ru = real && real.computed && real.computed.usTax;
+  const inc = dag && dag.model && dag.model.income && dag.model.income.us;
+  if (!du || !ru || !inc) return false;
+  return ((inc.seEarningsUsd || 0) > 0 || (inc.seEarningsFromIndiaUsd || 0) > 0) && (du.additionalMedicareUsd || 0) > (ru.additionalMedicareUsd || 0) + 0.005;
+}
 function isFeieWagesDivergentProfile(profile) {
   const us = (profile && profile.us) || {};
   const feieUsd = Number(us.foreign_earned_income && us.foreign_earned_income.foreign_earned_income_usd) || 0;
@@ -378,7 +393,8 @@ function checkResult(id, dag, real, profile) {
   const usLawFix2026 = (du.filingStatus === "single" && (du.ordinaryBracketBreakdown || []).some((b) => b && b.to > 49840)) ||
     ((du.nra && du.nra.eciBracketBreakdown) || []).some((b) => b && b.to > 49840) ||
     du.additionalTax72tUsd > 0 || du.charitableFloorUsd > 0 || du.itemizedLimitation68Usd > 0 || du.nonItemizerCharitableUsd > 0 ||
-    (!!du.nra && du.filingStatus === "mfs");
+    (!!du.nra && du.filingStatus === "mfs") ||
+    isSec63fDivergent(dag, real) || isAddlMedicareSeDivergent(dag, real);
   const usWholesaleDivergent = feieWagesDivergent || feieBonaFideProxyDivergent || feieStackingRuleDivergent ||
     qbiWageUbiaDivergent || cfcInclusionDivergent || indiaIncomeFill || usLawFix2026;
   const usIncomeIntoIndia = isUsIncomeIntoIndiaProfile(dag);

@@ -257,6 +257,17 @@ def _residency_consistency_findings(d, ctx):
     return findings
 
 
+def _india_work_days(ctx):
+    v = safe(ctx.get("india"), "residency_detail.india_work_days_current_year", None)
+    if v is None or v == "":
+        return None
+    try:
+        n = float(v)
+    except (TypeError, ValueError):
+        return None
+    return max(0.0, n) if n == n and n not in (float("inf"), float("-inf")) else None
+
+
 NODES = {
     "indiaStatusRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.final_india_residency_status", None), layer1_fields=("india.residency_detail.final_india_residency_status",)),
     "usStatusRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("us"), "us_residency_detail.final_us_residency_status", None), layer1_fields=("us.us_residency_detail.final_us_residency_status",)),
@@ -279,6 +290,8 @@ NODES = {
     ),
 
     "indiaEntityKindRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "profile.entity_type", "individual"), layer1_fields=("india.profile.entity_type",)),
+    # Of the India days, how many were WORKED (DTAA Art. 16(2)); None = not answered. Mirrors residency-nodes.js.
+    "indiaWorkDaysRaw": NodeDef(deps=(), compute=lambda d, ctx: _india_work_days(ctx), layer1_fields=("india.residency_detail.india_work_days_current_year",)),
     "indiaDaysCurrentYearRaw": NodeDef(deps=(), compute=lambda d, ctx: num(safe(ctx.get("india"), "residency_detail.days_in_india_current_year", 0)) or 0, layer1_fields=("india.residency_detail.days_in_india_current_year",)),
     "indiaDays4YearRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.days_in_india_preceding_4_years_gte_365", None), layer1_fields=("india.residency_detail.days_in_india_preceding_4_years_gte_365",)),
     "indiaEmploymentOrCrewRaw": NodeDef(deps=(), compute=lambda d, ctx: safe(ctx.get("india"), "residency_detail.employment_or_crew_status", None), layer1_fields=("india.residency_detail.employment_or_crew_status",)),

@@ -37,7 +37,7 @@
       },
       india: {
         profile: { full_name: "Priya Mehta", entity_type: "individual", date_of_birth: "1987-07-14", pan: "BQXPM4411K", tax_regime: "NEW", pan_aadhaar_linked: true },
-        residency_detail: { days_in_india_current_year: 12, final_india_residency_status: "NR" },
+        residency_detail: { days_in_india_current_year: 12, india_work_days_current_year: 0, final_india_residency_status: "NR" },
         bank_accounts: [{ bank_name: "HDFC Bank (NRO)", account_type: "nro", peak_balance_inr: 1500000 }],
         domestic_income: { salary: { has_salary_income: false } },
         other_sources: { has_other_sources_income: true, interest_fd_rd_inr: 120000 },
