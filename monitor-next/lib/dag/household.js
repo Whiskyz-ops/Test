@@ -101,6 +101,15 @@
     us.profile.spouse_is_blind = !!(b.us && b.us.profile && b.us.profile.is_blind === true);
     if (persons) us.household_persons = persons;
     var india = mergeSection(a.india, b.india, INDIA_IDENTITY);
+    // The treaty section is the lead spouse's (residence, tie-breaker), but
+    // each spouse's treaty elections carry their own Indian income (e.g. a
+    // royalty entered only there): the joint return keeps both.
+    var ea = (a.india && a.india.dtaa && a.india.dtaa.treaty_elections) || [];
+    var eb = (b.india && b.india.dtaa && b.india.dtaa.treaty_elections) || [];
+    if (ea.length || eb.length) {
+      india.dtaa = Object.assign({}, india.dtaa || clone((b.india && b.india.dtaa) || {}));
+      india.dtaa.treaty_elections = clone(ea).concat(clone(eb));
+    }
     return { router: clone(a.router || {}), india: india, us: us };
   }
 

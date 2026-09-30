@@ -175,3 +175,31 @@ spouse's US income (audit row G1).
 5. Migration.
 
 Each step ships behind the "joint data pooled" alert until step 5.
+
+## Example household data (Rohan & Priya Mehta)
+
+Rohan and Priya Mehta are built into the demo (`household-seed.js`
+`ensureMehtaHousehold`, run by the Monitor and by router.html /
+layer1_india.html / layer1_us.html before they read storage). Their data,
+`prototypes/graph-pilot/household-seed-data.js`, is exactly what the three
+forms save — captured by opening each form on the hand-written starting
+point (`buildOriginalMehtaHousehold`) — so every value the Monitor and the
+engine use is one a user can see and change in the forms. Clean-ups after
+capture: Rohan's s.44ADA election removed (the India form doesn't allow it
+for a non-resident, and the engine ignored it), three fields no form
+collects dropped (`holding_pct`; the US property's type, gross rent and
+expenses), form timestamps removed.
+
+`npm run check:example-household` (after the Monitor build) proves it in a
+fresh browser: no stored field without a form input, nothing changed by
+opening the forms, and identical engine output for each spouse and for the
+joint return. `node scripts/check-example-household.js --regenerate`
+rebuilds the data file the same way.
+
+Found while building it (30 Sep 2026): the joint return took the whole
+India treaty section from the lead spouse, dropping the other spouse's
+treaty elections — Rohan's ₹4,00,000 royalty is entered only there — once
+Priya's form-saved profile had its own (empty) treaty section. The joint
+return now keeps both spouses' treaty elections (`jointProfile`, JS and
+Python); joint US income tax $87,212 either way.
+

@@ -100,6 +100,14 @@ def joint_profile(a, b, persons=None) -> dict:
     if persons:
         us["household_persons"] = persons
     india = _merge_section(a.get("india"), b.get("india"), INDIA_IDENTITY)
+    # The treaty section is the lead spouse's (residence, tie-breaker), but
+    # each spouse's treaty elections carry their own Indian income (e.g. a
+    # royalty entered only there): the joint return keeps both.
+    ea = (((a.get("india") or {}).get("dtaa") or {}).get("treaty_elections")) or []
+    eb = (((b.get("india") or {}).get("dtaa") or {}).get("treaty_elections")) or []
+    if ea or eb:
+        india["dtaa"] = dict(india.get("dtaa") or _clone(((b.get("india") or {}).get("dtaa")) or {}))
+        india["dtaa"]["treaty_elections"] = _clone(ea) + _clone(eb)
     return {"router": _clone(a.get("router") or {}), "india": india, "us": us}
 
 

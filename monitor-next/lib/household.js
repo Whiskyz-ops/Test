@@ -4,6 +4,7 @@
  * ("light" spouse profile or "full" client — decision 2, option B). */
 "use client";
 import "./dag/household-link.js";
+import "./dag/household-seed-data.js";
 import "./dag/household-seed.js";
 import { analyzeHousehold } from "./dag/household.js";
 import { analyzeDag } from "./dag-adapter";
@@ -105,7 +106,7 @@ export function householdFor(clientId) {
 // when missing (never overwriting edits already made here).
 export function ensureExampleHousehold() {
   const W = typeof window !== "undefined" ? window.WISING : null;
-  if (!W || !W.householdSeed || !W.PROFILES) return [];
+  if (!W || !W.householdSeed) return [];
   try { return W.householdSeed.ensureMehtaHousehold(W, window.localStorage); } catch (e) { return []; }
 }
 

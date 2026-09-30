@@ -111,3 +111,23 @@ def test_joint_return_same_from_either_spouse(i):
     ba = analyze_household(CASES[i]["b"], CASES[i]["a"], analyze)
     assert not _close(ab["jointUs"], ba["jointUs"])
     assert math.isclose(ab["spouses"][0]["usTaxShareUsd"], ba["spouses"][1]["usTaxShareUsd"])
+
+
+def test_joint_return_keeps_both_spouses_treaty_elections():
+    # The lead spouse's treaty section is used, but the other spouse's treaty
+    # elections carry their own Indian income (Rohan's Rs 4,00,000 royalty
+    # was dropped when Priya, with an empty treaty section, led the return).
+    from wising_dag.household.calc import joint_profile
+    lead = {"id": "p", "india": {"dtaa": {"dtaa_treaty_residence": "none"}}, "us": {}}
+    other = {"id": "r", "india": {"dtaa": {"dtaa_treaty_residence": "US", "treaty_elections": [{"income_type": "royalty", "amount_inr": 400000}]}}, "us": {}}
+    j = joint_profile(lead, other)
+    assert j["india"]["dtaa"]["dtaa_treaty_residence"] == "none"
+    assert j["india"]["dtaa"]["treaty_elections"] == [{"income_type": "royalty", "amount_inr": 400000}]
+
+
+def test_mehta_household_joint_tax():
+    case = next(c for c in CASES if c["name"].startswith("Rohan & Priya Mehta"))
+    h = analyze_household(case["a"], case["b"], analyze)
+    # Joint regular income tax on the couple's combined return, including
+    # Rohan's Indian royalty entered only as a treaty election.
+    assert round(h["jointUs"]["incomeTaxUsd"]) == 87212

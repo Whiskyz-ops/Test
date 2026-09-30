@@ -11,6 +11,10 @@
  * deferral; non-resident of India with ₹1,20,000 of NRO fixed-deposit
  * interest (her own Indian return). Joint US return; household items
  * (none on file yet) are entered in Rohan's profile.
+ *
+ * The data written is household-seed-data.js: both clients exactly as the
+ * forms save them. buildOriginalMehtaHousehold is the hand-written starting
+ * point that data was captured from (kept only to regenerate it).
  * ==========================================================================*/
 (function (root) {
   "use strict";
@@ -20,7 +24,17 @@
 
   function clone(v) { return JSON.parse(JSON.stringify(v)); }
 
+  // The two clients as the forms save them (household-seed-data.js).
   function buildMehtaHousehold(W) {
+    var data = (W && W.householdSeedData) || (typeof require === "function" ? require("./household-seed-data.js") : null);
+    if (!data) return buildOriginalMehtaHousehold(W);
+    return [[ROHAN_ID, "Rohan Mehta"], [PRIYA_ID, "Priya Mehta"]].map(function (t) {
+      var c = data[t[0]];
+      return { id: t[0], label: t[1], router: clone(c.router), india: clone(c.india), us: clone(c.us) };
+    });
+  }
+
+  function buildOriginalMehtaHousehold(W) {
     var demo = (W.PROFILES || []).filter(function (p) { return p.id === "us_resident_indian_income"; })[0];
     if (!demo) throw new Error("us_resident_indian_income demo profile not loaded");
     var rohan = { id: ROHAN_ID, label: "Rohan Mehta", router: clone(demo.router), india: clone(demo.india), us: clone(demo.us) };
@@ -108,7 +122,7 @@
     return missing;
   }
 
-  var api = { buildMehtaHousehold: buildMehtaHousehold, seedMehtaHousehold: seedMehtaHousehold, ensureMehtaHousehold: ensureMehtaHousehold, ROHAN_ID: ROHAN_ID, PRIYA_ID: PRIYA_ID };
+  var api = { buildMehtaHousehold: buildMehtaHousehold, buildOriginalMehtaHousehold: buildOriginalMehtaHousehold, seedMehtaHousehold: seedMehtaHousehold, ensureMehtaHousehold: ensureMehtaHousehold, ROHAN_ID: ROHAN_ID, PRIYA_ID: PRIYA_ID };
   var WW = root.WISING = root.WISING || {};
   WW.householdSeed = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

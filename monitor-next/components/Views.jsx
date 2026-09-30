@@ -1695,7 +1695,15 @@ export function HoldingsView({ result, links, onPick }) {
 
   // Property — US real estate + Indian property
   const inProp = (a.indianProperties || []).map((p) => ({ name: p.address || "Property", type: p.property_type || "Residential", grossRentUsd: inrToUsd(p.gross_rent_received_inr || p.annual_value_inr || 0), country: "IN", note: p.municipal_taxes_paid_inr ? "municipal tax " + fmtInr(p.municipal_taxes_paid_inr) : "" }));
-  const usProp = (a.usProperties || []).filter((p) => !p._hydratedFromIndia).map((p) => ({ name: p.name || p.address || "US property", type: p.property_type || "Residential", grossRentUsd: p.gross_rent_usd || p.rental_income_usd || 0, country: "US", note: p.expenses_usd ? "expenses " + fmtUsd(p.expenses_usd) : "" }));
+  // US real estate: the US form records a description and whether the
+  // property is held or sold (plus sale details) — no type or rent per
+  // property (rent is entered once, as US rental income). Show only that;
+  // older demo data's own type / rent fields are still shown when present.
+  const usProp = (a.usProperties || []).filter((p) => !p._hydratedFromIndia).map((p) => ({
+    name: p.property_description || p.name || p.address || "US property",
+    type: p.property_type || (p.transaction_type === "sale" ? "Sold this year" : p.transaction_type ? "Held" : "Real estate"),
+    grossRentUsd: p.gross_rent_usd != null ? p.gross_rent_usd : p.rental_income_usd != null ? p.rental_income_usd : null,
+    country: "US", note: p.expenses_usd ? "expenses " + fmtUsd(p.expenses_usd) : "" }));
   const properties = [...usProp, ...inProp];
 
   // Retirement — US 401k/IRA/Roth contributions (this year) + Indian EPF/PPF/NPS balances
@@ -1710,7 +1718,7 @@ export function HoldingsView({ result, links, onPick }) {
   const secValueUsd = securities.reduce((s, x) => s + x.valueUsd, 0);
   const retireUsd = retire.reduce((s, x) => s + x.valueUsd, 0);
   const acctUsd = accts.reduce((s, x) => s + (x.peak && x.peak.usd || 0), 0);
-  const propGrossUsd = properties.reduce((s, p) => s + p.grossRentUsd, 0);
+  const propGrossUsd = properties.reduce((s, p) => s + (p.grossRentUsd || 0), 0);
 
   const HoldTag = ({ color, children }) => <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: color + "24", color }}>{children}</span>;
   const Flag = ({ c }) => <span className="text-[13px]" title={c === "US" ? "United States" : "India"}>{c === "US" ? "🇺🇸" : "🇮🇳"}</span>;
@@ -1769,7 +1777,7 @@ export function HoldingsView({ result, links, onPick }) {
                 <div key={i} className="p-3 rounded-lg bg-white/[0.03] border border-line">
                   <div className="flex items-center justify-between">
                     <div className="text-[12px] font-semibold text-head flex items-center gap-2"><Flag c={p.country} />{p.name}</div>
-                    <div className="text-[12px] font-mono text-head">{fmtUsd(p.grossRentUsd)}<span className="text-[9px] text-muted ml-1">gross rent</span></div>
+                    <div className="text-[12px] font-mono text-head">{p.grossRentUsd == null ? <span className="text-muted" title="Rent isn't entered per property on the US form — it's in US rental income">—</span> : fmtUsd(p.grossRentUsd)}<span className="text-[9px] text-muted ml-1">gross rent</span></div>
                   </div>
                   <div className="text-[10px] text-muted mt-0.5">{p.type}{p.note ? " · " + p.note : ""}</div>
                 </div>

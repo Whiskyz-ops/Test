@@ -32,7 +32,8 @@
     "check:form-roundtrip": "node scripts/check-form-roundtrip.js",
     "check:legacy-harnesses": "node scripts/check-legacy-harnesses.js",
     "audit:form-engine": "node scripts/check-form-engine-effect.js",
-    "check:section-profiles": "node scripts/check-section-profiles.js"
+    "check:section-profiles": "node scripts/check-section-profiles.js",
+    "check:example-household": "node scripts/check-example-household.js"
   },
   "repository": {
     "type": "git",
