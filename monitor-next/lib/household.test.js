@@ -35,3 +35,46 @@ describe("householdSummaryFigures", () => {
     expect(householdSummaryFigures(Object.assign({}, h, { status: "mfs" }), "r")).toBeNull();
   });
 });
+
+import { mergeHouseholdFindings, healthFromFindings, householdSnapshot } from "./household.js";
+
+describe("household alerts, health and headline (step 4)", () => {
+  const own = [
+    { id: "fbar_limit", severity: "critical" }, { id: "state_income_tax", severity: "warning", amountUsd: 3739 },
+    { id: "fx_basis", severity: "info" }
+  ];
+  const joint = [
+    { id: "state_income_tax", severity: "warning", amountUsd: 31629 }, { id: "retirement_excess_elective_deferral", severity: "warning" },
+    { id: "ftc_gap", severity: "critical", amountUsd: 4702 }
+  ];
+  it("takes joint-return alerts from the joint run and the rest from the person's own run", () => {
+    const m = mergeHouseholdFindings(own, joint);
+    expect(m.map((f) => f.id + ":" + f.scope).sort()).toEqual(["fbar_limit:person", "ftc_gap:household", "fx_basis:person", "state_income_tax:household"]);
+    // The joint state tax replaces the person-only figure; the pooled 401(k) alert is dropped.
+    expect(m.find((f) => f.id === "state_income_tax").amountUsd).toBe(31629);
+  });
+  it("scores health with the engine's formula on the merged alerts", () => {
+    const hh = healthFromFindings(mergeHouseholdFindings(own, joint), { breachedLimits: 1, willBreach: 0 });
+    // 100 - 16 x 2 critical - 3 x 1 warning - 8 x 1 breached = 57
+    expect(hh.score).toBe(57);
+    expect(hh.band.label).toBe("Needs attention");
+    expect(healthFromFindings([{ severity: "critical" }, { severity: "critical" }, { severity: "critical" }, { severity: "critical" }, { severity: "critical" }, { severity: "critical" }], {}).score).toBe(8);
+  });
+  it("puts the client's share of the joint US tax in the headline and the US country row", () => {
+    const h = {
+      blocked: false, status: "mfj", split: { method: "A" },
+      jointUs: { totalTaxBeforeFtcUsd: 100000, indiaTaxPaidUsd: 0, ftcAllowedUsd: 0 },
+      spouses: [{ id: "r", name: "Rohan", share: 0.8, indiaTaxUsd: 1000, usTaxShareUsd: 70000, usSourceFraction: 1, indiaReliefHouseholdUsd: 0 },
+                { id: "p", name: "Priya", share: 0.2, indiaTaxUsd: 0, usTaxShareUsd: 17500, usSourceFraction: 1, indiaReliefHouseholdUsd: 0 }],
+      _own: [{ computed: { residency: { india: { worldwide: false } } } }, { computed: { residency: { india: { worldwide: false } } } }],
+      _joint: { findings: joint }
+    };
+    const snap = { result: { findings: own, summary: { usTaxUsd: 60000, counts: {} }, monitoring: { health: { score: 50, breachedLimits: 0, willBreach: 0 } } },
+      countries: [{ id: "IN", estimatedTaxUsd: 1000 }, { id: "US", estimatedTaxUsd: 60000 }] };
+    const out = householdSnapshot(snap, h, "r");
+    expect(out.result.summary.usTaxUsd).toBe(80000);
+    expect(out.countries.find((c) => c.id === "US").estimatedTaxUsd).toBe(80000);
+    expect(out.countries.find((c) => c.id === "IN").estimatedTaxUsd).toBe(1000);
+    expect(out.result.monitoring.health.score).toBe(out.result.summary.healthScore);
+  });
+});

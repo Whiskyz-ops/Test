@@ -12,7 +12,7 @@ import { US_STATES, COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState, isRegistryClientId, isUsPersonResult, isUsPersonOnlyGauge } from "@/lib/wising";
 import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
-import { attachHouseholds, householdFor, householdReconFor, addExampleHousehold } from "@/lib/household";
+import { attachHouseholds, householdFor, householdReconFor, addExampleHousehold, applyHouseholdToSnapshot } from "@/lib/household";
 import { monitorSnapshotPyDag, allClientSummariesPyDag } from "@/lib/py-dag-adapter";
 import { entityLinksFor, ownedEntityIds, flattenOwnershipTree } from "@/lib/entity-graph";
 import { runShadow, runShadowPy, getShadowLog, clearShadowLog } from "@/lib/shadow";
@@ -217,7 +217,9 @@ export default function MonitorPage() {
       feieOverride: feieOverride === null ? undefined : feieOverride
     } : undefined;
 
-    const applySnap = (snap) => {
+    const applySnap = (rawSnap) => {
+      // Linked joint-return client: household alerts, health and US headline (build step 4).
+      const snap = pinnedId ? applyHouseholdToSnapshot(rawSnap, pinnedId) : rawSnap;
       if (snap && snap.countries && snap.countries.length) {
         setCountries(snap.countries); setMode(pinnedId ? "live" : source); setEngineReady(true); setResult(snap.result);
         if (snap.clientName) setClientName(snap.clientName);

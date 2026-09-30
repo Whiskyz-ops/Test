@@ -157,8 +157,17 @@ spouse's US income (audit row G1).
    own (`householdSummaryFigures`, lib/household.js; 4 unit tests). The two
    spouses' rows add up to the joint US tax once, so the tab's totals no
    longer double-count or miss it; the tooltip shows the single-profile
-   figure for comparison. Still open: per-person vs household tags on
-   findings, and the health score.
+   figure for comparison. **Rest of step 4, 30 Sep 2026:** for a linked joint
+   return the Monitor overview takes the joint-return alerts (state tax,
+   underpayment penalty, Form 1116 gap, NIIT/Medicare not creditable, AMT,
+   state treaty) from the household's joint run, tagged Household and shown on
+   both spouses' pages, and every other alert from the person's own profile,
+   tagged This client (a joint run would pool per-person items, e.g. a false
+   §402(g) excess). The health score and alert counts are recomputed from that
+   merged list with the engine's formula; the US country row and exposure
+   total show the client's method A share of the joint US tax
+   (`applyHouseholdToSnapshot`, lib/household.js). Open: the conflict log
+   records a household alert per spouse page rather than once.
 5. Migration.
 
 Each step ships behind the "joint data pooled" alert until step 5.

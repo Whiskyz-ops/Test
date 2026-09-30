@@ -70,7 +70,13 @@ export function attachHouseholds(summaries) {
       }
       fig = householdSummaryFigures(cache.get(key), s.id);
     }
-    const extra = fig ? { combinedTaxUsd: fig.combinedTaxUsd, netDoubleTaxUsd: fig.netDoubleTaxUsd } : {};
+    let extra = {};
+    if (fig) {
+      const hh = cache.get([a.id, b.id].sort().join("|"));
+      const own = hh._own[hh.spouses[0].id === s.id ? 0 : 1];
+      const health = healthFromFindings(mergeHouseholdFindings(own.findings, hh._joint.findings), own.monitoring && own.monitoring.health);
+      extra = { combinedTaxUsd: fig.combinedTaxUsd, netDoubleTaxUsd: fig.netDoubleTaxUsd, critical: health.counts.critical, warning: health.counts.warning, healthScore: health.score };
+    }
     return Object.assign({}, s, extra, {
       household: { status: full.status, spouseId: full.spouseId, spouseName, errors: full.errors.map((e) => e.message), tier: W.householdLink.spouseTier(a),
         split: fig, singleProfile: fig ? { combinedTaxUsd: s.combinedTaxUsd, netDoubleTaxUsd: s.netDoubleTaxUsd } : null }
@@ -168,4 +174,82 @@ export function buildHouseholdRecon(h, clientId) {
     taxComputationUsState: usState,
     ftcReport: { direction_us_claims_india: us, direction_india_relief: india, headlineNetDoubleTaxUsd: excess + indiaShortfall }
   };
+}
+
+// Build step 4: alerts on a linked joint return. These are computed on the
+// joint US return itself, so they come from the household calculation and
+// show on both spouses' pages; every other alert is the person's own and
+// comes from their own profile (a joint run would pool per-person items —
+// e.g. a false §402(g) excess from two spouses' 401(k)s).
+export const HOUSEHOLD_FINDING_IDS = new Set([
+  "state_income_tax", "state_treaty_not_binding", "underpayment_2210", "niit_medicare_not_creditable",
+  "ftc_gap", "ftc_available", "amt_applies"
+]);
+
+export function mergeHouseholdFindings(ownFindings, jointFindings) {
+  const person = (ownFindings || []).filter((f) => !HOUSEHOLD_FINDING_IDS.has(f.id)).map((f) => Object.assign({}, f, { scope: "person" }));
+  const household = (jointFindings || []).filter((f) => HOUSEHOLD_FINDING_IDS.has(f.id)).map((f) => Object.assign({}, f, { scope: "household" }));
+  const sev = { critical: 0, warning: 1, info: 2 };
+  return person.concat(household).sort((a, b) => (sev[a.severity] - sev[b.severity]));
+}
+
+// Same formula as report-batch6-nodes.js healthAlertsMonitorResult, on the
+// merged alerts; breached / about-to-breach limits (FBAR, LRS) are per person.
+export function healthFromFindings(findings, ownHealth) {
+  const c = { critical: 0, warning: 0, info: 0 };
+  (findings || []).forEach((f) => { c[f.severity] = (c[f.severity] || 0) + 1; });
+  const h = ownHealth || {};
+  let score = 100 - 16 * c.critical - 3 * c.warning - 8 * (h.breachedLimits || 0) - 4 * (h.willBreach || 0);
+  score = Math.round(Math.min(100, Math.max(8, score)));
+  const band = score >= 80 ? { label: "Healthy", color: "#10B981" } : score >= 50 ? { label: "Needs attention", color: "#D4AF37" } : { label: "At risk", color: "#ef4444" };
+  return { counts: c, score, band };
+}
+
+function cleanHousehold(clientId) {
+  const W = typeof window !== "undefined" ? window.WISING : null;
+  if (!W || !W.ClientRegistry || !clientId) return null;
+  const reg = W.ClientRegistry;
+  if (!reg.list().some((c) => c.id === clientId)) return null;
+  const a = Object.assign({ id: clientId }, reg.getRawState(clientId));
+  const spouseId = a.us && a.us.profile && a.us.profile.spouse_client_id;
+  if (!spouseId || !reg.list().some((c) => c.id === spouseId)) return null;
+  const b = Object.assign({ id: spouseId }, reg.getRawState(spouseId));
+  let h;
+  try { h = analyzeHousehold(a, b, analyzeDag, { keepResults: true }); } catch (e) { return null; }
+  return h && !h.blocked && h.status === "mfj" && h._joint ? h : null;
+}
+
+// The Monitor overview for a linked joint-return client: merged, tagged
+// alerts; health score and counts from them; US headline = this client's
+// method A share of the joint US tax. Returns the snapshot unchanged for
+// anyone else.
+export function applyHouseholdToSnapshot(snap, clientId) {
+  if (!snap || !snap.result) return snap;
+  const h = cleanHousehold(clientId);
+  if (!h) return snap;
+  return householdSnapshot(snap, h, clientId);
+}
+
+// Pure part of applyHouseholdToSnapshot (exported for tests).
+export function householdSnapshot(snap, h, clientId) {
+  const fig = householdSummaryFigures(h, clientId);
+  if (!fig) return snap;
+  const r = snap.result;
+  const findings = mergeHouseholdFindings(r.findings, h._joint.findings);
+  const health = healthFromFindings(findings, r.monitoring && r.monitoring.health);
+  const me = h.spouses[h.spouses[0].id === clientId ? 0 : 1];
+  const other = h.spouses[h.spouses[0].id === clientId ? 1 : 0];
+  const result = Object.assign({}, r, {
+    findings,
+    summary: Object.assign({}, r.summary, {
+      counts: health.counts, healthScore: health.score, usTaxUsd: fig.usShareUsd, netDoubleTaxUsd: fig.netDoubleTaxUsd,
+      household: { spouseName: other.name, share: fig.share, jointUsTotalUsd: fig.jointUsTotalUsd, singleProfileUsTaxUsd: r.summary && r.summary.usTaxUsd }
+    }),
+    monitoring: Object.assign({}, r.monitoring, { health: Object.assign({}, (r.monitoring && r.monitoring.health) || {}, { score: health.score, band: health.band }) })
+  });
+  const countries = (snap.countries || []).map((c) => c.id !== "US" ? c : Object.assign({}, c, {
+    estimatedTaxUsd: Math.round(fig.usShareUsd),
+    reason: Math.round(fig.share * 100) + "% share of the joint US return with " + other.name + " (" + me.name + "'s part, method A)"
+  }));
+  return Object.assign({}, snap, { result, countries });
 }

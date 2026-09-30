@@ -206,6 +206,8 @@ function FindingRow({ f, isOpen, onToggle, status, onLog }) {
         <span className="font-semibold text-[13px] text-head flex-1 leading-snug">
           {f.title}
           {stale && <span className="ml-2 align-middle text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: "rgba(251,191,36,0.15)", color: PAL.amberText }}>Reopened</span>}
+          {f.scope && <span className="ml-2 align-middle text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={f.scope === "household" ? { background: PAL.accent + "1c", color: PAL.accent } : { background: "rgba(255,255,255,0.05)", color: PAL.muted }}
+            title={f.scope === "household" ? "From the joint US return — the same alert shows on the spouse's page" : "This client's own profile"}>{f.scope === "household" ? "Household" : "This client"}</span>}
         </span>
         {f.amountUsd > 0 && <span className="font-mono text-[12px] whitespace-nowrap self-start mt-0.5" style={{ color: SEV_TEXT[f.severity] }}>{fmtUsd(f.amountUsd)}</span>}
         <span className="text-muted text-xs self-start mt-0.5" style={{ transform: isOpen ? "rotate(90deg)" : "none" }}>▸</span>
@@ -2087,7 +2089,7 @@ export function HouseholdCard({ household, activeId, onPick }) {
         <thead><tr className="text-muted text-[10px] uppercase tracking-wider text-left">
           <th className="py-1 font-semibold">Spouse</th>
           {joint && <th className="py-1 font-semibold text-right">If filing separately</th>}
-          <th className="py-1 font-semibold text-right">{joint ? "Share of joint US tax" : "Own US income tax"}</th>
+          <th className="py-1 font-semibold text-right">{joint ? "Share of joint US income tax" : "Own US income tax"}</th>
           <th className="py-1 font-semibold text-right">Indian tax (own income)</th>
           <th className="py-1 font-semibold text-right">Form 44 relief</th>
         </tr></thead>
@@ -2101,7 +2103,7 @@ export function HouseholdCard({ household, activeId, onPick }) {
           </tr>
         ))}</tbody>
       </table>
-      {joint && <p className="text-[10.5px] text-muted mt-2">Split method A (share of the two separate-return taxes) is pending CA confirmation. The joint return applies each spouse's own Social Security wage cap and senior deduction; 401(k) and IRA limits are checked on each spouse's own profile.</p>}
+      {joint && <p className="text-[10.5px] text-muted mt-2">Split method A (share of the two separate-return taxes), confirmed by the CA. The same share applies to the joint return's total US tax (incl. self-employment tax and NIIT) in the headline figures. The joint return applies each spouse's own Social Security wage cap and senior deduction; 401(k) and IRA limits are checked on each spouse's own profile.</p>}
     </div>
   );
 }
