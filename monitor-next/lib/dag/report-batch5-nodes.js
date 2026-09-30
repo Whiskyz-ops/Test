@@ -408,7 +408,7 @@ var FINDING_ADD_ORDER = ["dual_residency", "dual_residency_resolved", "treaty_do
   "residency_status_overstated_us", "residency_status_understated_us_entity", "residency_status_overstated_us_entity",
   "chapter_xiia_elected_no_holdings", "chapter_xiia_investment_income_missing", "chapter_xiia_investment_income_computed",
   "special_rate_gaming_winnings", "s115bbe_unexplained_income", "carry_forward_losses_not_applied", "nra_fdap_flat_rate",
-  "nra_w8ben_missing", "firpta", "form67_required", "tax_year_mismatch", "fx_basis", "state_treaty_not_binding", "pfic",
+  "nra_w8ben_missing", "firpta", "form67_required", "india_tds_refund_due", "tax_year_mismatch", "fx_basis", "state_treaty_not_binding", "pfic",
   "cfc", "cfc_below_threshold", "transfer_pricing", "retirement_mismatch", "deemed_dividend_buyback_mismatch",
   "promoter_buyback_additional_tax", "holding_period_mismatch_", "schedule_fa_inconsistent", "black_money_act_exposure",
   // itin_application_required (task #47): not part of the real, frozen
@@ -435,13 +435,14 @@ NODES.findingsAllResult = {
     "findingsBatch5Result", "holdingPeriodMismatchFindingsResult", "residencyConsistencyFindings",
     "indiaAdvanceTaxInterestFinding", "underpayment2210Finding", "earlyWithdrawalPenalty72tFinding",
     "retirementExcessElectiveDeferralFinding", "retirementExcessIraContributionFinding", "hsaExcessContributionFinding", "retirementRmdRequiredFinding",
-    "s83bElectionNotFiledTimelyFinding", "itinApplicationRequiredFinding", "lrsInvestmentTcsFinding", "scheduleFaInconsistentFinding", "blackMoneyActExposureFinding"],
+    "s83bElectionNotFiledTimelyFinding", "itinApplicationRequiredFinding", "lrsInvestmentTcsFinding", "scheduleFaInconsistentFinding", "blackMoneyActExposureFinding",
+    "indiaTdsRefundDueFinding"],
   compute: function (d) {
     var all = [].concat(d.findingsBatch1Result, d.findingsBatch2Result, d.findingsBatch3Result,
       d.findingsBatch4Result, d.findingsBatch5Result, d.holdingPeriodMismatchFindingsResult,
       d.residencyConsistencyFindings, d.indiaAdvanceTaxInterestFinding, d.underpayment2210Finding,
       d.earlyWithdrawalPenalty72tFinding, d.retirementExcessElectiveDeferralFinding, d.retirementExcessIraContributionFinding,
-      d.hsaExcessContributionFinding, d.retirementRmdRequiredFinding, d.s83bElectionNotFiledTimelyFinding, d.itinApplicationRequiredFinding, d.lrsInvestmentTcsFinding, d.scheduleFaInconsistentFinding, d.blackMoneyActExposureFinding);
+      d.hsaExcessContributionFinding, d.retirementRmdRequiredFinding, d.s83bElectionNotFiledTimelyFinding, d.itinApplicationRequiredFinding, d.lrsInvestmentTcsFinding, d.scheduleFaInconsistentFinding, d.blackMoneyActExposureFinding, d.indiaTdsRefundDueFinding);
     // detectConflicts's own final step (conflicts.js:1546-1551) — not just a
     // convenience, LIM-7's alerts feed (monitor()) depends on findings[]
     // actually being in this order (.filter(critical).slice(0,4)) to pick

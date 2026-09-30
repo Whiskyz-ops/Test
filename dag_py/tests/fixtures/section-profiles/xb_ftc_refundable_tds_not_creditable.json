@@ -87,6 +87,11 @@
       "path": "computed.ftc.us.ftcAllowedUsd",
       "value": 0,
       "why": "Treas. Reg. 1.901-2(e): tax withheld beyond the final foreign liability is not a tax paid; with India data on file the engine's Indian tax (0) is the creditable figure, the US-form entry is ignored (was $161)"
+    },
+    {
+      "path": "findings[id=india_tds_refund_due].title",
+      "value": "Indian tax withheld exceeds the tax due — ₹37,440 refund to claim in India",
+      "why": "TDS Rs 37,440 against Indian tax due Rs 0: the whole amount comes back only through the Indian return"
     }
   ]
 }

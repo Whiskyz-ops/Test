@@ -146,7 +146,12 @@ def test_crossborder_findings_match_golden(fixture_id):
 
     fired = CROSSBORDER_GRAPH.resolve(CROSSBORDER_TARGETS, ctx).values["findingsCrossborderResult"]
 
-    skip_ids = ALWAYS_SKIP_IDS | set(US_TAX_RESULT_DEPENDENT_IDS) | {"tax_year_mismatch"}
+    # india_tds_refund_due: DAG-only (not in the frozen goldens), and it reads
+    # totalTaxInrCombined, which this reduced graph doesn't resolve with the
+    # full engine's entity/company routing — covered instead by the full
+    # analyze() JS-vs-Python comparison and section profile
+    # xb_ftc_refundable_tds_not_creditable.
+    skip_ids = ALWAYS_SKIP_IDS | set(US_TAX_RESULT_DEPENDENT_IDS) | {"tax_year_mismatch", "india_tds_refund_due"}
     if _is_entity_or_nra(golden):
         skip_ids |= {"holding_period_mismatch"}
     _assert_fired_findings_match_golden(fired, golden_by_id, fixture_id, skip_ids)

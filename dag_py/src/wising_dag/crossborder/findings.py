@@ -1054,6 +1054,28 @@ def _findings_crossborder_result(d, ctx):
             0, ["s.159", "Rule 76", "Form 44", "Schedule FSI", "Schedule TR"] + (["Rule 76(16) accountant verification"] if needs_accountant else []),
         ))
 
+    # -- 5b. INDIAN TAX WITHHELD BEYOND THE INDIAN TAX DUE (findings-batch5-nodes.js) --
+    # The excess is recovered only through the Indian return, and it isn't a
+    # creditable foreign tax in the US (Treas. Reg. §1.901-2(e)).
+    india_paid_inr = d["taxesPaidIndiaResult"]["total"]["inr"]
+    india_due_inr = max(0.0, d["totalTaxInrCombined"] or 0)
+    refund_inr = india_paid_inr - india_due_inr
+    if d["hasIndiaScopeXbr"] and refund_inr >= 1000:
+        refund_year = int(num(safe(ctx.get("router"), "base_tax_year", 0)) or 0)
+        findings.append(make_finding(
+            "india_tds_refund_due", "warning", "credit",
+            f"Indian tax withheld exceeds the tax due — {_inr(refund_inr)} refund to claim in India",
+            f"Indian tax already paid (TDS, TCS and advance tax) is {_inr(india_paid_inr)} against Indian tax due of {_inr(india_due_inr)}. "
+            f"The {_inr(refund_inr)} difference is recovered only by filing the Indian income-tax return and claiming the refund — the bank or payer "
+            "won't return it, and it is lost if no return is filed."
+            + (" It is also not a creditable foreign tax in the US: Form 1116 counts only the Indian tax actually due (Treas. Reg. §1.901-2(e)), "
+               "so the excess gives no US credit either." if d["hasUsScopeBoundaryFtc"] else ""),
+            "File the Indian return for tax year " + (f"{refund_year}-{str(refund_year + 1)[2:]} by 31 Jul {refund_year + 1}" if refund_year else "on time")
+            + " and claim the refund; match the TDS to Form 26AS / AIS first. Where the TDS is on interest or other income taxed at a flat rate for a non-resident, "
+            "check the lower DTAA rate (India–US Art. 11: 15% on interest) with a TRC and Form 41 — that also cuts future over-withholding.",
+            refund_inr / fx_rate(ctx), ["Refund", "ITR", "Form 26AS", "Treas. Reg. §1.901-2(e)", "DTAA Art. 11"],
+        ))
+
     # -- 12. FBAR LIMIT BREACH (findings-batch5-nodes.js, conflicts.js:1459-1468) --
     # US persons only — see findings-batch5-nodes.js.
     fbar_us_person = d["residencyResult"]["us"]["isResident"] or d["usEntityKind"] in ("ccorp", "scorp", "partnership", "trust")
@@ -1148,7 +1170,8 @@ NODES["findingsCrossborderResult"] = NodeDef(
           "aggregateUsIncomeResult", "taxesPaidUsResult", "aggregatePeakUsdResult", "usDaysCurrentYearRaw", "indiaDaysCurrentYearRaw",
           "equityCompResult", "indiaTreatyPositionResult",
           "incUs", "dedUs", "usFilingStatusRaw", "worldwideUs", "feie", "additionalMedicareOwedBoundary", "taxpayerDobRaw", "baseYearUs", "usHouseholdRaw",
-          "scheduleFaInconsistentTrigger", "xb7ShouldFire", "bmaAssetValueUsd", "bmaMaxTotalUsd"),
+          "scheduleFaInconsistentTrigger", "xb7ShouldFire", "bmaAssetValueUsd", "bmaMaxTotalUsd",
+          "taxesPaidIndiaResult", "totalTaxInrCombined"),
     compute=_findings_crossborder_result,
 )
 
@@ -1172,6 +1195,12 @@ def build(base):
     # leaves) — aliased shouldFire -> xb7ShouldFire before the generic merge,
     # same "one genuine, dangerous exception" handling as us/findings.py's
     # us1ShouldFire/us5ShouldFire.
+    # india_tds_refund_due reads the India-side taxes paid (filings/
+    # documents.py's two small nodes — raw tax_credits in, no other deps).
+    from ..filings import documents as filings_documents
+    for node_id in ("taxCreditsIndiaRaw", "taxesPaidIndiaResult"):
+        if node_id not in r:
+            r.register(node_id, filings_documents.NODES[node_id])
     r.register("xb7ShouldFire", black_money_act.NODES["shouldFire"])
     for node_id, node in black_money_act.NODES.items():
         if node_id != "shouldFire" and node_id not in r:

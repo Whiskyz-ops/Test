@@ -534,3 +534,35 @@ NODES.findingsBatch5Result = {
 };
 
 module.exports = { NODES: NODES, stateTaxAsResident: stateTaxAsResident, NO_INDIVIDUAL_INCOME_TAX_STATES: NO_INDIVIDUAL_INCOME_TAX_STATES };
+
+// ---- INDIAN TAX WITHHELD BEYOND THE INDIAN TAX DUE (india_tds_refund_due) --
+// TDS / TCS / advance tax above the final Indian liability comes back only as
+// a refund claimed in the Indian return — and, for a US filer, it is not a
+// foreign tax paid: only the tax actually due is creditable on Form 1116
+// (Treas. Reg. §1.901-2(e)). Typical case: a non-resident's NRO interest with
+// TDS at 30% plus cess but little or no tax due. Its own node (merged in
+// report-batch5-nodes.js findingsAllResult) so findingsBatch5Result keeps its
+// inputs. Python: crossborder/findings.py.
+NODES.indiaTdsRefundDueFinding = {
+  deps: ["taxesPaidIndiaResult", "totalTaxInrCombined", "hasIndiaScopeXbr", "hasUsScopeBoundaryFtc"],
+  compute: function (d, ctx) {
+    var indiaPaidInr = d.taxesPaidIndiaResult.total.inr, indiaDueInr = Math.max(0, d.totalTaxInrCombined || 0);
+    var refundInr = indiaPaidInr - indiaDueInr;
+    if (!(d.hasIndiaScopeXbr && refundInr >= 1000)) return [];
+    var inr = function (n) { return "₹" + Math.round(n).toLocaleString("en-IN"); };
+    var year = Number(safe(ctx.router, "base_tax_year", 0)) || 0;
+    return [{
+      id: "india_tds_refund_due", severity: "warning", category: "credit",
+      title: "Indian tax withheld exceeds the tax due — " + inr(refundInr) + " refund to claim in India",
+      detail: "Indian tax already paid (TDS, TCS and advance tax) is " + inr(indiaPaidInr) + " against Indian tax due of " + inr(indiaDueInr) + ". The " +
+        inr(refundInr) + " difference is recovered only by filing the Indian income-tax return and claiming the refund — the bank or payer won't return it, " +
+        "and it is lost if no return is filed." +
+        (d.hasUsScopeBoundaryFtc ? " It is also not a creditable foreign tax in the US: Form 1116 counts only the Indian tax actually due (Treas. Reg. §1.901-2(e)), " +
+          "so the excess gives no US credit either." : ""),
+      recommendation: "File the Indian return for tax year " + (year ? year + "-" + String(year + 1).slice(2) + " by 31 Jul " + (year + 1) : "on time") +
+        " and claim the refund; match the TDS to Form 26AS / AIS first. Where the TDS is on interest or other income taxed at a flat rate for a non-resident, " +
+        "check the lower DTAA rate (India–US Art. 11: 15% on interest) with a TRC and Form 41 — that also cuts future over-withholding.",
+      amountUsd: refundInr / fxRate(ctx), refs: ["Refund", "ITR", "Form 26AS", "Treas. Reg. §1.901-2(e)", "DTAA Art. 11"]
+    }];
+  }
+};

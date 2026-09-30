@@ -42,7 +42,7 @@ FINDING_ADD_ORDER = [
     "residency_status_overstated_us", "residency_status_understated_us_entity", "residency_status_overstated_us_entity",
     "chapter_xiia_elected_no_holdings", "chapter_xiia_investment_income_missing", "chapter_xiia_investment_income_computed",
     "special_rate_gaming_winnings", "s115bbe_unexplained_income", "carry_forward_losses_not_applied", "nra_fdap_flat_rate",
-    "nra_w8ben_missing", "firpta", "form67_required", "tax_year_mismatch", "fx_basis", "state_treaty_not_binding", "pfic",
+    "nra_w8ben_missing", "firpta", "form67_required", "india_tds_refund_due", "tax_year_mismatch", "fx_basis", "state_treaty_not_binding", "pfic",
     "cfc", "cfc_below_threshold", "transfer_pricing", "retirement_mismatch", "deemed_dividend_buyback_mismatch",
     "promoter_buyback_additional_tax", "holding_period_mismatch_", "schedule_fa_inconsistent", "black_money_act_exposure",
     # itin_application_required (task #47): given an explicit, shared

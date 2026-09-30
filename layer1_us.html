@@ -6816,7 +6816,7 @@
         const bl = document.getElementById('prof-spouse-blind'); if (bl) bl.checked = p.spouse_is_blind === true;
         const tb = document.getElementById('prof-is-blind'); if (tb) tb.checked = p.is_blind === true;
         const mv = document.getElementById('btn-move-spouse');
-        if (mv) { const reg0 = window.WISING && window.WISING.ClientRegistry; mv.disabled = !(reg0 && reg0.activeIdFromUrl()); mv.title = mv.disabled ? 'Open this client from the Monitor to create a linked spouse profile' : ''; }
+        if (mv) { const reg0 = window.WISING && window.WISING.ClientRegistry; mv.disabled = !(reg0 && reg0.activeIdFromUrl()); mv.title = mv.disabled ? 'Save this form as a client first (Spouse section) to create a linked spouse profile' : ''; }
         renderSpouseLinkPicker();
     }
     function onSpouseAnswerChange(v) {
@@ -6864,18 +6864,39 @@
         const status = document.getElementById('spouse-link-status');
         const btn = document.getElementById('btn-create-spouse');
         if (!selfId) {
-            sel.innerHTML = '<option value="">Open this client from the Monitor to link a spouse</option>';
+            // This page isn't tied to a saved client (opened without
+            // ?client=), and a spouse link is between two saved clients.
+            sel.innerHTML = '<option value="">This form isn\u2019t saved as a client yet</option>';
             sel.disabled = true; btn.disabled = true;
-            status.innerHTML = '';
+            status.innerHTML = '<div class="text-white/60">A spouse is linked between two saved clients. ' +
+                '<button type="button" onclick="saveFormAsClient()" class="ml-1 px-2 py-1 rounded-lg bg-brandCyan/20 text-brandCyan font-bold uppercase tracking-widest text-[8px]">Save as a client</button>' +
+                ' \u2014 then pick the spouse here, or create their profile.</div>';
             return;
         }
         sel.disabled = false; btn.disabled = false;
         const linked = usState.profile.spouse_client_id || '';
-        let opts = '<option value="">\u2014 not linked \u2014</option>';
+        // Suggested spouses first, with the reason: someone who has already
+        // linked this client as their spouse, then married-filing clients
+        // with the same surname. The preparer always picks — never guessed.
+        const esc = function (t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+        const myName = (currentRouterState().full_name || usState.profile.full_name || '').trim();
+        const surname = function (n) { const p = String(n || '').trim().split(/\s+/); return p.length > 1 ? p[p.length - 1].toLowerCase() : ''; };
+        const mySurname = surname(myName);
+        const suggested = [], others = [];
         reg.list().forEach(function (c) {
             if (c.id === selfId) return;
-            opts += '<option value="' + c.id + '"' + (c.id === linked ? ' selected' : '') + '>' + (c.label || c.id).replace(/</g, '&lt;') + '</option>';
+            const cp = ((readSpouseJson(spouseLinkUsKey(c.id)) || {}).profile) || {};
+            const cr = readSpouseJson(spouseLinkRouterKey(c.id)) || {};
+            const name = cr.full_name || cp.full_name || c.label || c.id;
+            let why = null;
+            if (cp.spouse_client_id === selfId) why = 'has linked you as their spouse';
+            else if (mySurname && surname(name) === mySurname && ['mfj', 'mfs'].includes(cp.filing_status) && !cp.spouse_client_id) why = 'same surname \u00b7 married filing \u00b7 not linked';
+            const opt = '<option value="' + c.id + '"' + (c.id === linked ? ' selected' : '') + '>' + esc(c.label || name) + (why ? ' \u2014 ' + why : '') + '</option>';
+            (why ? suggested : others).push(opt);
         });
+        let opts = '<option value="">\u2014 not linked \u2014</option>';
+        if (suggested.length) opts += '<optgroup label="Suggested">' + suggested.join('') + '</optgroup><optgroup label="All clients">' + others.join('') + '</optgroup>';
+        else opts += others.join('');
         sel.innerHTML = opts;
         const ownerRow = document.getElementById('spouse-household-owner-row');
         if (ownerRow) {
@@ -6886,11 +6907,18 @@
         const exists = reg.list().some(function (c) { return c.id === linked; });
         const b = exists ? Object.assign({ id: linked }, reg.getRawState(linked)) : null;
         const res = W.householdLink.checkHouseholdLink({ id: selfId, router: currentRouterState(), india: {}, us: usState }, b);
+        // Who exactly is linked — so the preparer can confirm it's the right person.
+        const sp = (b && b.us && b.us.profile) || {}, sr = (b && b.router) || {};
+        const dob = sr.date_of_birth || sp.date_of_birth;
+        const idType = { ssn: 'SSN', itin: 'ITIN', none: 'no SSN/ITIN' }[sp.ssn_or_itin_type] || null;
+        const who = b ? '<div class="text-white/60">Spouse: <span class="text-white/90 font-bold">' + esc(sr.full_name || sp.full_name || linked) + '</span>' +
+            (dob ? ' \u00b7 born ' + esc(dob) : '') + ((b.us && b.us.state_residency && b.us.state_residency.primary_state_of_residence) ? ' \u00b7 ' + esc(b.us.state_residency.primary_state_of_residence) : '') +
+            (sp.filing_status ? ' \u00b7 ' + esc(String(sp.filing_status).toUpperCase()) : '') + (idType ? ' \u00b7 ' + idType : '') + '</div>' : '';
         if (res.errors.length) {
-            status.innerHTML = res.errors.map(function (e) { return '<div class="text-red-300">\u26a0\ufe0f ' + e.message.replace(/</g, '&lt;') + '</div>'; }).join('');
+            status.innerHTML = who + res.errors.map(function (e) { return '<div class="text-red-300">\u26a0\ufe0f ' + e.message.replace(/</g, '&lt;') + '</div>'; }).join('');
         } else {
             const tier = res.tiers[linked] === 'light' ? 'light spouse profile (identity only)' : 'full client profile';
-            status.innerHTML = '<div class="text-emerald-300">\u2713 Linked both ways \u2014 ' + tier + '.</div>';
+            status.innerHTML = who + '<div class="text-emerald-300">\u2713 Linked both ways \u2014 ' + tier + '.</div>';
         }
     }
     function onSpouseLinkChange(newId) {
@@ -6916,6 +6944,22 @@
         if (sp) writeSpouseProfile(sp, { household_items_owner: v === 'self' ? 'spouse' : v === 'spouse' ? 'self' : null });
         saveStateAndSync();
         renderSpouseLink();
+    }
+    // Turns the data on this unsaved page into a saved client (its own copy
+    // of the Layer 0 / India / US data) and reopens the form as that client,
+    // so a spouse can be linked.
+    function saveFormAsClient() {
+        const reg = window.WISING && window.WISING.ClientRegistry;
+        if (!reg || reg.activeIdFromUrl()) return;
+        try { saveStateAndSync(); } catch (e) { /* keep going with what's saved */ }
+        const id = reg.create();
+        ['ROUTER', 'INDIA', 'US'].forEach(function (k) {
+            const v = localStorage.getItem(reg.storageKeyFor(k));
+            if (v != null) localStorage.setItem('wising_client_' + id + '_' + k.toLowerCase(), v);
+        });
+        const name = (currentRouterState().full_name || usState.profile.full_name || '').trim();
+        reg.updateLabel(id, name || 'New client');
+        window.location.href = 'layer1_us.html?client=' + encodeURIComponent(id);
     }
     function createSpouseProfile() {
         const reg = window.WISING && window.WISING.ClientRegistry;
