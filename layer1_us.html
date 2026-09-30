@@ -11653,7 +11653,11 @@ div.innerHTML = `
         if (stateLbl) stateLbl.textContent = formatCurrency(totalStateWith);
 
         // 2. Additional Medicare Tax
-        const medThreshold = isMfj ? 250000 : (filingStatus === 'mfs' ? 125000 : 200000);
+        // Long-form statuses (married_filing_jointly / _separately) come in
+        // from imported profiles; the dropdown itself saves mfj / mfs.
+        const medStatus = String(filingStatus || '').toLowerCase();
+        const medThreshold = (medStatus === 'mfj' || medStatus === 'married_filing_jointly') ? 250000
+            : ((medStatus === 'mfs' || medStatus === 'married_filing_separately') ? 125000 : 200000);
         const addMedOwed = Math.max(0, (totalMedicareWages - medThreshold) * 0.009);
         usState.withholding_and_estimated.additional_medicare_tax_owed_usd = parseFormattedNumber(addMedOwed.toFixed(2));
         const medLbl = document.getElementById('lbl-with-medicare');
