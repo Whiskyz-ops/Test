@@ -14,6 +14,13 @@ import { usPaidUsd, statePaidUsd, installmentStatus, jointEstimatesBlock, states
 // their own Indian tax plus their method A share of the joint US tax, and
 // the share of the joint unrelieved double tax that is theirs (plus any
 // Indian relief shortfall of their own). Pure; exported for tests.
+// A client's registry label (e.g. "Spouse of Anil Shah"), so link messages
+// name a spouse who hasn't entered a name yet instead of showing the raw id.
+function labelOf(reg, id) {
+  const c = reg.list().find((x) => x.id === id);
+  return c ? c.label : undefined;
+}
+
 export function householdSummaryFigures(h, clientId) {
   if (!h || h.blocked || h.status !== "mfj" || !h.jointUs || !h.split) return null;
   const idx = h.spouses[0].id === clientId ? 0 : 1;
@@ -37,7 +44,7 @@ export function attachHouseholds(summaries) {
   const reg = W.ClientRegistry;
   const ids = new Set(reg.list().map((c) => c.id));
   const byId = new Map(summaries.map((s) => [s.id, s]));
-  const raw = (id) => Object.assign({ id }, reg.getRawState(id));
+  const raw = (id) => Object.assign({ id: id, label: labelOf(reg, id) }, reg.getRawState(id));
   const cache = new Map();
   return summaries.map((s) => {
     if (!s || !s.isRegistryClient) return s;
@@ -95,10 +102,10 @@ export function householdFor(clientId) {
   if (!W || !W.ClientRegistry || !clientId) return null;
   const reg = W.ClientRegistry;
   if (!reg.list().some((c) => c.id === clientId)) return null;
-  const a = Object.assign({ id: clientId }, reg.getRawState(clientId));
+  const a = Object.assign({ id: clientId, label: labelOf(reg, clientId) }, reg.getRawState(clientId));
   const spouseId = a.us && a.us.profile && a.us.profile.spouse_client_id;
   if (!spouseId) return null;
-  const b = reg.list().some((c) => c.id === spouseId) ? Object.assign({ id: spouseId }, reg.getRawState(spouseId)) : null;
+  const b = reg.list().some((c) => c.id === spouseId) ? Object.assign({ id: spouseId, label: labelOf(reg, spouseId) }, reg.getRawState(spouseId)) : null;
   try { return analyzeHousehold(a, b, analyzeDag); } catch (e) { return { linked: true, blocked: true, errors: [{ code: "error", message: "Household calculation failed: " + e.message }] }; }
 }
 
@@ -127,10 +134,10 @@ export function householdReconFor(clientId) {
   if (!W || !W.ClientRegistry || !clientId) return null;
   const reg = W.ClientRegistry;
   if (!reg.list().some((c) => c.id === clientId)) return null;
-  const a = Object.assign({ id: clientId }, reg.getRawState(clientId));
+  const a = Object.assign({ id: clientId, label: labelOf(reg, clientId) }, reg.getRawState(clientId));
   const spouseId = a.us && a.us.profile && a.us.profile.spouse_client_id;
   if (!spouseId || !reg.list().some((c) => c.id === spouseId)) return null;
-  const b = Object.assign({ id: spouseId }, reg.getRawState(spouseId));
+  const b = Object.assign({ id: spouseId, label: labelOf(reg, spouseId) }, reg.getRawState(spouseId));
   let h;
   try { h = analyzeHousehold(a, b, analyzeDag, { keepResults: true }); } catch (e) { return null; }
   return buildHouseholdRecon(h, clientId);
@@ -291,10 +298,10 @@ function cleanHousehold(clientId) {
   if (!W || !W.ClientRegistry || !clientId) return null;
   const reg = W.ClientRegistry;
   if (!reg.list().some((c) => c.id === clientId)) return null;
-  const a = Object.assign({ id: clientId }, reg.getRawState(clientId));
+  const a = Object.assign({ id: clientId, label: labelOf(reg, clientId) }, reg.getRawState(clientId));
   const spouseId = a.us && a.us.profile && a.us.profile.spouse_client_id;
   if (!spouseId || !reg.list().some((c) => c.id === spouseId)) return null;
-  const b = Object.assign({ id: spouseId }, reg.getRawState(spouseId));
+  const b = Object.assign({ id: spouseId, label: labelOf(reg, spouseId) }, reg.getRawState(spouseId));
   let h;
   try { h = analyzeHousehold(a, b, analyzeDag, { keepResults: true }); } catch (e) { return null; }
   return h && !h.blocked && h.status === "mfj" && h._joint ? h : null;

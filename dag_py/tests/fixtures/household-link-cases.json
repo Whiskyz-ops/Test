@@ -661,7 +661,9 @@
    "router": {
     "full_name": "Ravi",
     "base_tax_year": 2026,
-    "primary_jurisdiction": "us"
+    "primary_jurisdiction": "us",
+    "is_us_citizen": false,
+    "has_green_card": false
    },
    "india": {},
    "us": {
@@ -719,7 +721,9 @@
    "router": {
     "full_name": "Ravi",
     "base_tax_year": 2026,
-    "primary_jurisdiction": "us"
+    "primary_jurisdiction": "us",
+    "is_us_citizen": false,
+    "has_green_card": false
    },
    "india": {},
    "us": {
@@ -775,7 +779,9 @@
    "router": {
     "full_name": "Ravi",
     "base_tax_year": 2026,
-    "primary_jurisdiction": "us"
+    "primary_jurisdiction": "us",
+    "is_us_citizen": false,
+    "has_green_card": false
    },
    "india": {},
    "us": {
@@ -2179,6 +2185,70 @@
    ],
    "tiers": {
     "ravi": "full"
+   }
+  }
+ },
+ {
+  "name": "new spouse profile with residency not filled in",
+  "a": {
+   "id": "anita",
+   "router": {
+    "full_name": "Anita",
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "ravi"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": true,
+     "final_us_residency_status": "US_CITIZEN",
+     "s6013g_joint_election": false
+    },
+    "nra_specific": {
+     "s6013h_joint_election": false
+    },
+    "income_us_source": {
+     "wages_w2": [
+      {
+       "employer_name": "Acme",
+       "wages_box1_usd": 90000
+      }
+     ]
+    }
+   }
+  },
+  "b": {
+   "id": "ravi",
+   "label": "Spouse of Anita",
+   "router": {
+    "base_tax_year": 2026,
+    "primary_jurisdiction": "us"
+   },
+   "india": {},
+   "us": {
+    "profile": {
+     "filing_status": "mfj",
+     "spouse_client_id": "anita"
+    },
+    "us_residency_detail": {
+     "is_us_citizen": false,
+     "has_green_card": false,
+     "us_days_current_year": 0,
+     "final_us_residency_status": "NON_RESIDENT_ALIEN"
+    }
+   }
+  },
+  "expect": {
+   "linked": true,
+   "codes": [
+    "spouse_residency_incomplete"
+   ],
+   "tiers": {
+    "ravi": "light"
    }
   }
  }

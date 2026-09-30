@@ -6905,13 +6905,13 @@
         }
         if (!linked || !W.householdLink) { status.innerHTML = ''; return; }
         const exists = reg.list().some(function (c) { return c.id === linked; });
-        const b = exists ? Object.assign({ id: linked }, reg.getRawState(linked)) : null;
+        const b = exists ? Object.assign({ id: linked, label: (reg.list().find(function (c) { return c.id === linked; }) || {}).label }, reg.getRawState(linked)) : null;
         const res = W.householdLink.checkHouseholdLink({ id: selfId, router: currentRouterState(), india: {}, us: usState }, b);
         // Who exactly is linked — so the preparer can confirm it's the right person.
         const sp = (b && b.us && b.us.profile) || {}, sr = (b && b.router) || {};
         const dob = sr.date_of_birth || sp.date_of_birth;
         const idType = { ssn: 'SSN', itin: 'ITIN', none: 'no SSN/ITIN' }[sp.ssn_or_itin_type] || null;
-        const who = b ? '<div class="text-white/60">Spouse: <span class="text-white/90 font-bold">' + esc(sr.full_name || sp.full_name || linked) + '</span>' +
+        const who = b ? '<div class="text-white/60">Spouse: <span class="text-white/90 font-bold">' + esc(sr.full_name || sp.full_name || b.label || linked) + '</span>' +
             (dob ? ' \u00b7 born ' + esc(dob) : '') + ((b.us && b.us.state_residency && b.us.state_residency.primary_state_of_residence) ? ' \u00b7 ' + esc(b.us.state_residency.primary_state_of_residence) : '') +
             (sp.filing_status ? ' \u00b7 ' + esc(String(sp.filing_status).toUpperCase()) : '') + (idType ? ' \u00b7 ' + idType : '') + '</div>' : '';
         if (res.errors.length) {
@@ -10018,7 +10018,15 @@ div.innerHTML = `
                 // MFJ is blocked — revert to single/mfs if currently set to mfj/hoh/qss
                 if (optMfj) { optMfj.disabled = true; optMfj.textContent = 'Married Filing Jointly (MFJ) — Requires special IRS election'; }
                 const invalidForNra = ['mfj', 'hoh', 'qss'];
-                if (invalidForNra.includes(sel.value)) {
+                // A spouse linked on a joint return keeps MFJ: the status is
+                // shared by both profiles, and silently switching it here (on
+                // page load, e.g. a new spouse profile with no residency data
+                // yet) broke the link. The household check reports the
+                // missing §6013 election instead.
+                const linkedJoint = usState.profile.spouse_client_id && sel.value === 'mfj';
+                if (linkedJoint) {
+                    if (optMfj) { optMfj.disabled = false; optMfj.textContent = 'Married Filing Jointly (MFJ) — linked spouse; needs a §6013 election while non-resident'; }
+                } else if (invalidForNra.includes(sel.value)) {
                     sel.value = 'single';
                     usState.profile.filing_status = 'single';
                 }

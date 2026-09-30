@@ -58,6 +58,17 @@
       get(c, "us.nra_specific.files_form_1040nr", false) === true;
   }
 
+  // Nothing answered yet on US residency (a new spouse profile): Layer 0
+  // (where citizenship / green card are answered) is blank, the US form holds
+  // only its defaults (no "yes" anywhere) and there are no US days — reported
+  // as "fill this in", not as a non-resident alien.
+  function residencyUnanswered(c) {
+    var answered = function (v) { return v === true || v === false; };
+    if (answered(get(c, "router.is_us_citizen", null)) || answered(get(c, "router.has_green_card", null))) return false;
+    if (get(c, "us.us_residency_detail.is_us_citizen", null) === true || get(c, "us.us_residency_detail.has_green_card", null) === true) return false;
+    return !(Number(get(c, "router.us_days", 0)) > 0) && !(Number(get(c, "us.us_residency_detail.us_days_current_year", 0)) > 0);
+  }
+
   function hasJointElection(c) {
     return get(c, "us.nra_specific.s6013h_joint_election", false) === true ||
       get(c, "us.us_residency_detail.s6013g_joint_election", false) === true;
@@ -82,7 +93,7 @@
   }
 
   function name(c) {
-    return get(c, "router.full_name", null) || get(c, "us.profile.full_name", null) || (c && c.id) || "the spouse";
+    return get(c, "router.full_name", null) || get(c, "us.profile.full_name", null) || (c && c.label) || (c && c.id) || "the spouse";
   }
 
   // Shared items (docs/HOUSEHOLD_DESIGN.md section 3). Household-level items
@@ -240,7 +251,9 @@
     }
     if (sa === "mfj" && sb === "mfj") {
       [a, b].forEach(function (c) {
-        if (isNra(c) && !hasJointElection(a) && !hasJointElection(b)) {
+        if (residencyUnanswered(c)) {
+          err("spouse_residency_incomplete", name(c) + "'s US residency isn't filled in yet (citizenship, green card, days in the US). Complete it in their US profile — if they turn out to be a non-resident alien, a joint return also needs the §6013(g) or §6013(h) election.");
+        } else if (isNra(c) && !hasJointElection(a) && !hasJointElection(b)) {
           err("nra_spouse_no_election", name(c) + " is a non-resident alien. A joint return needs the §6013(g) or §6013(h) election (IRC §6013(a)(1)).");
         }
       });

@@ -46,6 +46,24 @@ def _is_nra(c) -> bool:
     return _get(c, "us.us_residency_detail.final_us_residency_status") == "NON_RESIDENT_ALIEN" or _get(c, "us.nra_specific.files_form_1040nr") is True
 
 
+def _residency_unanswered(c) -> bool:
+    """Nothing answered yet on US residency (a new spouse profile): Layer 0
+    blank, US form defaults only, no US days — mirrors household-link.js
+    residencyUnanswered."""
+    def answered(v):
+        return v is True or v is False
+    if answered(_get(c, "router.is_us_citizen")) or answered(_get(c, "router.has_green_card")):
+        return False
+    if _get(c, "us.us_residency_detail.is_us_citizen") is True or _get(c, "us.us_residency_detail.has_green_card") is True:
+        return False
+    def days(v):
+        try:
+            return float(v or 0)
+        except (TypeError, ValueError):
+            return 0.0
+    return not days(_get(c, "router.us_days")) > 0 and not days(_get(c, "us.us_residency_detail.us_days_current_year")) > 0
+
+
 def _has_joint_election(c) -> bool:
     return _get(c, "us.nra_specific.s6013h_joint_election") is True or _get(c, "us.us_residency_detail.s6013g_joint_election") is True
 
@@ -77,7 +95,7 @@ def spouse_tier(c) -> str:
 
 
 def _name(c) -> str:
-    return _get(c, "router.full_name") or _get(c, "us.profile.full_name") or (c or {}).get("id") or "the spouse"
+    return _get(c, "router.full_name") or _get(c, "us.profile.full_name") or (c or {}).get("label") or (c or {}).get("id") or "the spouse"
 
 
 def _year_str(y) -> str:
@@ -264,7 +282,9 @@ def check_household_link(a: dict, b: dict | None) -> dict:
         err("year_mismatch", "Tax year differs: " + _year_str(ya) + " here, " + _year_str(yb) + " on " + _name(b) + "'s profile.")
     if sa == "mfj" and sb == "mfj":
         for c in (a, b):
-            if _is_nra(c) and not _has_joint_election(a) and not _has_joint_election(b):
+            if _residency_unanswered(c):
+                err("spouse_residency_incomplete", _name(c) + "'s US residency isn't filled in yet (citizenship, green card, days in the US). Complete it in their US profile — if they turn out to be a non-resident alien, a joint return also needs the §6013(g) or §6013(h) election.")
+            elif _is_nra(c) and not _has_joint_election(a) and not _has_joint_election(b):
                 err("nra_spouse_no_election", _name(c) + " is a non-resident alien. A joint return needs the §6013(g) or §6013(h) election (IRC §6013(a)(1)).")
     for c in (a, b):
         if _is_citizen(c) and _get(c, "us.us_residency_detail.final_us_residency_status") == "NON_RESIDENT_ALIEN":
