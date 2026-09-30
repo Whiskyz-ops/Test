@@ -2,8 +2,9 @@
 
 Signed off 29 Sep 2026 (decisions in section 8). Fixes the joint-return rows
 of docs/MARRIED_FILING_AUDIT.md. Build steps 1 (link, validation, spouse
-tier), 2 (shared items) and 3 (household calculation, method A pending CA
-confirmation) shipped 29 Sep 2026; steps 4-5 not started.
+tier), 2 (shared items) and 3 (household calculation, method A — confirmed by the CA 30 Sep 2026)
+shipped 29 Sep 2026; step 4 (Clients tab, Monitor overview, map) shipped
+30 Sep 2026; step 5 not started.
 
 **Scope.** Married filing jointly (MFJ) first. Married filing separately (MFS)
 and qualifying surviving spouse use the same link with less computation.
@@ -53,7 +54,7 @@ counting.
 **MFS:** step 2 runs once per spouse on the separate tables. The link supplies
 "spouse itemizes", "lived apart all year" and community-property splits.
 
-**Split method (CA / CPA to confirm).** Proposed: each spouse's share of the
+**Split method (method A, confirmed by the CA 30 Sep 2026).** Each spouse's share of the
 joint US tax equals their share of the total of the two taxes computed as if
 each filed separately. Alternative: share of joint taxable income. The choice
 drives India's s.90 relief, so it is a professional decision, not a coding one.

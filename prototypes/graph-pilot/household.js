@@ -12,7 +12,7 @@
  *   3. the two US profiles merged into one joint return — the joint US tax.
  * Then the joint regular US income tax is split between the spouses
  * (splitJointUsTax, method A: in proportion to the tax each would owe
- * filing separately — decision 1, CA to confirm), and each spouse's Indian
+ * filing separately — decision 1, confirmed by the CA 30 Sep 2026), and each spouse's Indian
  * relief (s.159 / rule 76, Form 44) is recomputed with their share:
  *   relief = min(share x their US-source fraction, Indian tax on that income).
  *
@@ -113,8 +113,8 @@
 
   function own(c) { return { router: clone(c.router || {}), india: clone(c.india || {}), us: clone(c.us || {}) }; }
 
-  // Decision 1 (docs/HOUSEHOLD_DESIGN.md section 8). The one function to
-  // change if the CA picks another method.
+  // Decision 1 (docs/HOUSEHOLD_DESIGN.md section 8). Method A, confirmed by the CA
+  // 30 Sep 2026; the one function to change if that is ever revisited.
   function splitJointUsTax(jointTaxUsd, separateTaxAUsd, separateTaxBUsd) {
     var total = separateTaxAUsd + separateTaxBUsd;
     var shareA = total > 0 ? separateTaxAUsd / total : 0.5;

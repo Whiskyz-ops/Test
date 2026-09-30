@@ -115,7 +115,7 @@ def _own(c):
 
 
 def split_joint_us_tax(joint_tax_usd, separate_tax_a_usd, separate_tax_b_usd) -> dict:
-    """Decision 1 (docs/HOUSEHOLD_DESIGN.md section 8) — the one function to change if the CA picks another method."""
+    """Decision 1 (docs/HOUSEHOLD_DESIGN.md section 8) — method A, confirmed by the CA 30 Sep 2026; the one function to change if that is ever revisited."""
     total = separate_tax_a_usd + separate_tax_b_usd
     share_a = separate_tax_a_usd / total if total > 0 else 0.5
     return {"method": "A", "methodLabel": "in proportion to the US tax each spouse would owe filing separately",
