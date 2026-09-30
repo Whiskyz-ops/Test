@@ -1,0 +1,61 @@
+{
+  "form": "layer1_india.html",
+  "router": {
+    "jurisdiction": "dual",
+    "base_tax_year": 2026,
+    "is_us_citizen": false,
+    "has_green_card": true,
+    "us_days": 350,
+    "has_us_source_income_or_assets": true
+  },
+  "us": {
+    "metadata": {
+      "us_calendar_year": 2026
+    },
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": false,
+      "has_green_card": true,
+      "final_us_residency_status": "RESIDENT_ALIEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "NY"
+    }
+  },
+  "id": "in_salary_outside_india_20_workdays",
+  "section": "Salary (work done outside India) + residency (days worked in India)",
+  "story": "India non-resident (12 days in India, 350 in the US), Indian salary Rs 96,00,000 for work done from the US (work outside India: yes, salary-screen workdays blank), Rs 1,20,000 FD interest. Days worked in India (residency screen): 20.",
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "days_in_india_current_year": 12,
+      "india_work_days_current_year": 20,
+      "final_india_residency_status": "NR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": true,
+        "gross_salary_inr": 9600000,
+        "work_performed_outside_india": true
+      }
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_fd_rd_inr": 120000
+    }
+  },
+  "expect": [
+    {
+      "path": "taxComputation.india.rows[label=Gross total income].inr",
+      "value": 634865,
+      "why": "Salary after the Rs 75,000 standard deduction = 95,25,000; India share = 20 / (20 + 350 US days) = 5.405% -> 5,14,865; plus 1,20,000 interest = 6,34,865"
+    }
+  ]
+}

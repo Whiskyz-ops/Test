@@ -699,10 +699,23 @@ def _salary_work_location(d, ctx):
         slices = [safe(india, "domestic_income.salary", {}) or {}]
     # Only when the two counts can both be true (sum to a year or less).
     presence_share = india_days / (india_days + us_days) if india_days is not None and us_days is not None and 0 < india_days + us_days <= 366 else None
+    # The residency screen's "days worked in India" answer decides the India
+    # share when the salary screen's workday split is blank (mirrors JS).
+    work_days_raw = safe(india, "residency_detail.india_work_days_current_year", None)
+    india_work_days = None if work_days_raw is None or work_days_raw == "" else num(work_days_raw)
+    if india_work_days is None:
+        work_days_share = None
+    elif india_work_days <= 0:
+        work_days_share = 0
+    elif us_days is not None and india_work_days + us_days > 0:
+        work_days_share = min(1, india_work_days / (india_work_days + us_days))
+    else:
+        work_days_share = None
     gross_inr = 0
     india_work_gross_inr = 0
     answered = False
     estimated = False
+    from_work_days = False
     for sal in slices:
         g = num(sal.get("gross_salary_inr")) + num(sal.get("perquisites_inr")) + esop_perquisite_inr(sal) + num(sal.get("prior_employer_salary_inr"))
         share = 1
@@ -711,6 +724,10 @@ def _salary_work_location(d, ctx):
         elif sal.get("work_performed_outside_india") is True and num(sal.get("workdays_in_india")) + num(sal.get("workdays_outside_india")) > 0:
             share = num(sal.get("workdays_in_india")) / (num(sal.get("workdays_in_india")) + num(sal.get("workdays_outside_india")))
             answered = True
+        elif sal.get("work_performed_outside_india") is not False and work_days_share is not None:
+            share = work_days_share
+            if g > 0:
+                from_work_days = True
         elif sal.get("work_performed_outside_india") is not False and presence_share is not None:
             share = presence_share
             if g > 0:
@@ -720,7 +737,7 @@ def _salary_work_location(d, ctx):
     fraction = india_work_gross_inr / gross_inr if gross_inr > 0 else (auto[0] if auto else 1)
     return {
         "indiaWorkFraction": fraction,
-        "basis": auto[1] if auto else ("estimated_days_present" if estimated else ("workdays" if answered else "unanswered")),
+        "basis": auto[1] if auto else ("estimated_days_present" if estimated else ("workdays" if answered else ("india_work_days" if from_work_days else "unanswered"))),
         "presenceShare": presence_share,
     }
 

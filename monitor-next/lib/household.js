@@ -164,8 +164,13 @@ export function buildHouseholdRecon(h, clientId) {
   const paid = h.jointUs.indiaTaxPaidUsd, allowed = h.jointUs.ftcAllowedUsd, excess = Math.max(0, paid - allowed);
   setRow(us, "Indian income tax (creditable)", paid, calc("Each spouse's own Indian tax, from their own profile (India assesses each spouse separately)", paidParts));
   setRow(us, "FTC allowed this year", allowed, calc("Lesser of both spouses' Indian tax and the joint §904 limitation", [{ label: "Indian income tax (both spouses)", amount: paid }, { label: "FTC limitation (joint return)", amount: h.jointUs.ftcLimitUsd }]));
-  setRow(us, "Excess credit carried over (§904(c))", excess);
-  setRow(us, "Residual double tax (unrelieved)", excess);
+  // Traces too — the joint run's own would show Indian tax on the two
+  // spouses' pooled Indian income, which India never assesses.
+  const excessTrace = calc("Both spouses' Indian tax in excess of what the joint §904 limitation allows this year — carries back 1 year / forward 10 years",
+    paidParts.concat([{ label: "Less FTC allowed this year (joint)", amount: -allowed }]));
+  setRow(us, "Excess credit carried over (§904(c))", excess, excessTrace);
+  setRow(us, "Residual double tax (unrelieved)", excess, calc("Same as the excess credit carried over — until it's used in a future year this is double taxation the credit hasn't relieved yet",
+    [{ label: "Excess credit carried over", amount: excess }]));
 
   // India relief (Form 44) from this client's share of the joint US tax.
   const india = clone(own.ftcReport.direction_india_relief);

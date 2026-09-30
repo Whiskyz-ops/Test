@@ -341,7 +341,17 @@ var NODES = {
       // Only when the two counts can both be true (they sum to a year or
       // less) — overlapping counts say nothing about where the work was done.
       var presenceShare = indiaDays !== null && usDays !== null && indiaDays + usDays > 0 && indiaDays + usDays <= 366 ? indiaDays / (indiaDays + usDays) : null;
-      var grossInr = 0, indiaWorkGrossInr = 0, answered = false, estimated = false;
+      // The residency screen's "days worked in India" answer (also used for
+      // DTAA Art. 16(2)): when the salary screen's own workday split is
+      // blank, it decides the India share before any days-present estimate —
+      // 0 workdays means none of the salary is for work done in India, even
+      // on a visit. Otherwise India workdays ÷ (India workdays + US days).
+      var workDaysRaw = safe(india, "residency_detail.india_work_days_current_year", null);
+      var indiaWorkDays = workDaysRaw === null || workDaysRaw === "" ? null : num(workDaysRaw);
+      var workDaysShare = indiaWorkDays === null ? null
+        : indiaWorkDays <= 0 ? 0
+        : (usDays !== null && indiaWorkDays + usDays > 0 ? Math.min(1, indiaWorkDays / (indiaWorkDays + usDays)) : null);
+      var grossInr = 0, indiaWorkGrossInr = 0, answered = false, estimated = false, fromWorkDays = false;
       slices.forEach(function (sal) {
         var g = num(sal.gross_salary_inr) + num(sal.perquisites_inr) + esopPerquisiteInr(sal) + num(sal.prior_employer_salary_inr);
         var share = 1;
@@ -349,6 +359,9 @@ var NODES = {
         else if (sal.work_performed_outside_india === true && num(sal.workdays_in_india) + num(sal.workdays_outside_india) > 0) {
           share = num(sal.workdays_in_india) / (num(sal.workdays_in_india) + num(sal.workdays_outside_india));
           answered = true;
+        } else if (sal.work_performed_outside_india !== false && workDaysShare !== null) {
+          share = workDaysShare;
+          if (g > 0) fromWorkDays = true;
         } else if (sal.work_performed_outside_india !== false && presenceShare !== null) {
           share = presenceShare;
           if (g > 0) estimated = true;
@@ -359,7 +372,7 @@ var NODES = {
       var fraction = grossInr > 0 ? indiaWorkGrossInr / grossInr : (auto ? auto.share : 1);
       return {
         indiaWorkFraction: fraction,
-        basis: auto ? auto.basis : (estimated ? "estimated_days_present" : (answered ? "workdays" : "unanswered")),
+        basis: auto ? auto.basis : (estimated ? "estimated_days_present" : (answered ? "workdays" : (fromWorkDays ? "india_work_days" : "unanswered"))),
         presenceShare: presenceShare
       };
     }
