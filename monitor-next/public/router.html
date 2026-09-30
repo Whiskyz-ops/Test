@@ -716,6 +716,20 @@
      demo-profile shortcuts (those stay in the Monitor's own Clients tab/
      header dropdown, which load PROFILES independently of this page). -->
 <script src="prototypes/graph-pilot/constants.js"></script>
+<script>
+    // Investor mode (monitor-next/lib/mode.js): default on the shared demo
+    // link; ?mode=full / ?mode=investor switch and are remembered.
+    (function () {
+        var m = null;
+        try {
+            var p = new URLSearchParams(window.location.search).get('mode');
+            if (p === 'full' || p === 'investor') { m = p; localStorage.setItem('wising_mode', p); }
+            if (!m) m = localStorage.getItem('wising_mode');
+        } catch (e) { /* default below */ }
+        document.documentElement.setAttribute('data-mode', m === 'full' ? 'full' : 'investor');
+    })();
+</script>
+<style>html[data-mode="investor"] .investor-hide { display: none !important; }</style>
 <script src="prototypes/graph-pilot/household-seed-data.js"></script>
 <script src="prototypes/graph-pilot/household-seed.js"></script>
 <script>

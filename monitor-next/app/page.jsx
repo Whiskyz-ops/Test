@@ -12,6 +12,7 @@ import { COUNTRIES } from "@/lib/mockData";
 import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } from "@/lib/logic";
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState, isRegistryClientId, isUsPersonResult, isUsPersonOnlyGauge } from "@/lib/wising";
 import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
+import { resolveMode, INVESTOR_CLIENT_IDS } from "@/lib/mode";
 import { attachHouseholds, householdFor, householdReconFor, addExampleHousehold, ensureExampleHousehold, applyHouseholdToSnapshot } from "@/lib/household";
 import { monitorSnapshotPyDag, allClientSummariesPyDag } from "@/lib/py-dag-adapter";
 import { entityLinksFor, ownedEntityIds, flattenOwnershipTree } from "@/lib/entity-graph";
@@ -51,6 +52,10 @@ export default function MonitorPage() {
   const [states, setStates] = useState([]);
   const [engineReady, setEngineReady] = useState(false);
   const [profiles, setProfiles] = useState([]);
+  // Investor mode (lib/mode.js): read once on the client, before the first
+  // recompute, so the Monitor opens on Rohan rather than a demo profile.
+  const [siteMode, setSiteMode] = useState("investor");
+  const investor = siteMode === "investor";
   const [clientName, setClientName] = useState(null);
   const [baseYear, setBaseYear] = useState(null);
   const [result, setResult] = useState(null);
@@ -302,9 +307,12 @@ export default function MonitorPage() {
   // call reads pinnedClientRef, so it shows this client, not demo/live.
   useEffect(() => {
     ensureExampleHousehold(); // so a ?client=c_rohan_mehta link works in a fresh browser
+    const m = resolveMode();
+    setSiteMode(m);
     const params = new URLSearchParams(window.location.search);
     const c = params.get("client");
-    if (c && isRegistryClientId(c)) pinnedClientRef.current = c;
+    if (c && isRegistryClientId(c) && (m === "full" || INVESTOR_CLIENT_IDS.includes(c))) pinnedClientRef.current = c;
+    else if (m === "investor") pinnedClientRef.current = INVESTOR_CLIENT_IDS[0];
     const v = params.get("view");
     if (v === "monitor") setView("monitor");
   }, []);
@@ -374,6 +382,7 @@ export default function MonitorPage() {
   // client's data lives under its ?client= keys, and without the id the
   // forms fall back to the shared slot (empty) and bounce to Layer 0.
   const layer1Query = activeProfile && isRegistryClientId(activeProfile) ? "?client=" + encodeURIComponent(activeProfile) : "";
+  const visibleClients = useMemo(() => (investor ? clientSummaries.filter((c) => INVESTOR_CLIENT_IDS.includes(c.id)) : clientSummaries), [investor, clientSummaries]);
   const activeLinks = useMemo(() => entityLinksFor(activeProfile, clientSummaries), [activeProfile, clientSummaries]);
   // Structure (ownership links between client profiles) only for clients
   // who have any — an individual with no linked company would see an empty
@@ -419,7 +428,7 @@ export default function MonitorPage() {
   }, [activeLinks, engineSource]);
   const badges = {
     monitor: result ? { text: result.summary.counts.critical + result.summary.counts.warning, tone: result.summary.counts.critical > 0 ? "alert" : "" } : null,
-    clients: { text: clientSummaries.length || profiles.length },
+    clients: { text: investor ? visibleClients.length : (clientSummaries.length || profiles.length) },
     structure: activeLinks ? { text: activeLinks.owns.length + activeLinks.ownedBy.length } : null,
     filings: result && result.summary.nextDeadline ? { text: (result.monitoring && result.monitoring.calendar.next ? "in " + result.monitoring.calendar.next.daysUntil + "d" : "") } : null,
     withholding: result && result.withholding && result.withholding.totalGapUsd > 1
@@ -432,7 +441,7 @@ export default function MonitorPage() {
       <Sidebar active={view} onNavigate={setView} badges={badges} engineReady={engineReady} syncing={syncing} hidden={hasStructure ? [] : ["structure"]} />
       <main className="relative z-10 flex-1 min-w-0 px-8 py-6">
         <Header region={region} onRegionChange={setRegion} clientName={clientName} baseYear={baseYear} entity={result ? result.model.entity : null} scope={result ? result.model.meta : null}
-          presentationMode={presentationMode} onTogglePresentation={() => setPresentationMode((v) => !v)}
+          presentationMode={presentationMode || investor} onTogglePresentation={investor ? undefined : () => setPresentationMode((v) => !v)}
           showClientSearch={view === "clients"} clientSearch={clientSearch} onClientSearchChange={setClientSearch} />
 
         {/* single, compact utility bar — status + actions */}
@@ -449,7 +458,7 @@ export default function MonitorPage() {
               raw Layer-1 form links — hidden in presentation mode (the header's
               gear button, or ?present=1) for a client-facing or recorded view.
               None of this affects what's computed, only what's shown. */}
-          {!presentationMode && (
+          {!presentationMode && !investor && (
             <button
               onClick={() => setEngineSource((s) => (s === "dag" ? "engine" : s === "engine" ? "py-dag" : "dag"))}
               title="Compute source: the hand-written engine (engine/*.js), the verified JS dependency-graph replacement (prototypes/graph-pilot — docs/DAG_MIGRATION_TRACKER.md, 40/40 rows ported), or the Python port of that same graph running via Pyodide (dag_py/ — docs/PYTHON_DAG_MIGRATION_TRACKER.md's Phase 8, experimental, not yet promoted). Same result shape across all three."
@@ -470,7 +479,7 @@ export default function MonitorPage() {
               }
             </button>
           )}
-          {shadowOn && !presentationMode && (
+          {shadowOn && !presentationMode && !investor && (
             <ShadowBadge
               run={shadowRun}
               runPy={shadowPyOn ? shadowRunPy : null}
@@ -479,11 +488,14 @@ export default function MonitorPage() {
             />
           )}
           <div className="relative">
-            <select onChange={(e) => onPickProfile(e.target.value)} value={activeProfile || ""} title="Switch which client this Monitor shows"
+            <select onChange={(e) => (investor ? switchClientInPlace(e.target.value) : onPickProfile(e.target.value))} value={activeProfile || ""} title="Switch which client this Monitor shows"
               className="appearance-none pl-2.5 pr-7 py-1 text-[12px] font-semibold rounded-lg text-[#04120f] cursor-pointer"
               style={{ background: "linear-gradient(135deg,#34d399,#60a5fa)" }}>
               <option value="" className="bg-[#161616] text-head">Switch client…</option>
-              {orderedProfiles.map(({ item: p, depth }) => (
+              {investor && visibleClients.map((c) => (
+                <option key={c.id} value={c.id} className="bg-[#161616] text-head">{c.name && c.name !== "Unnamed Taxpayer" ? c.name : c.label}</option>
+              ))}
+              {!investor && orderedProfiles.map(({ item: p, depth }) => (
                 <option key={p.id} value={p.id} className="bg-[#161616] text-head">
                   {depth > 0 ? "    ↳ " + p.label : p.label}
                 </option>
@@ -491,7 +503,7 @@ export default function MonitorPage() {
             </select>
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#04120f]/60 text-[9px]">▾</span>
           </div>
-          {!presentationMode && (
+          {(!presentationMode || investor) && (
             <span className="ml-auto flex items-center gap-3 text-body">
               <span className="text-muted">Layer 1:</span>
               <a href={"router.html" + layer1Query} className="font-semibold hover:text-accent transition-colors">Router</a>
@@ -560,7 +572,7 @@ export default function MonitorPage() {
           </>
         )}
 
-        {view === "clients" && <ClientsView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} onAddClient={onAddClient} onAddExampleHousehold={onAddExampleHousehold} search={clientSearch} />}
+        {view === "clients" && <ClientsView clients={visibleClients} activeId={activeProfile} onPick={pickFromClients} onAddClient={investor ? undefined : onAddClient} onAddExampleHousehold={investor ? undefined : onAddExampleHousehold} search={clientSearch} />}
         {view === "structure" && <EntityStructureView clients={clientSummaries} activeId={activeProfile} onPick={pickFromClients} />}
         {view === "holdings" && <HoldingsView result={result} links={activeLinks} onPick={pickFromClients} />}
         {view === "business" && <BusinessView result={result} links={activeLinks} onPick={pickFromClients} selectedEntityId={selectedEntityId} />}

@@ -63,11 +63,13 @@ export default function Header({ region, onRegionChange, clientName, baseYear, e
         </div>
       )}
       <div className="flex items-center gap-2.5 shrink-0">
+        {onTogglePresentation && (
         <button onClick={onTogglePresentation}
           title={presentationMode ? "Presentation mode is ON — engineering controls (compute-source pill, shadow-diff badge, raw intake-form links) are hidden. Click to show them again." : "Presentation mode — hides engineering-only controls for a client-facing or recorded view."}
           className={"w-10 h-10 rounded-2xl border flex items-center justify-center shadow-card transition-colors " + (presentationMode ? "" : "bg-surface text-muted hover:text-head hover:border-accent/40")}
           style={presentationMode ? { color: PAL.greenText, borderColor: PAL.positive + "55", background: PAL.positive + "18" } : undefined}
         ><Settings size={16} strokeWidth={2} /></button>
+        )}
         <div className="relative">
           <select value={region} onChange={(e) => onRegionChange(e.target.value)}
             className="appearance-none bg-surface border border-line rounded-2xl pl-4 pr-9 py-2.5 text-[13px] font-semibold text-head shadow-card hover:border-accent/50 focus:outline-none focus:border-accent cursor-pointer">

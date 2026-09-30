@@ -12,6 +12,20 @@
 <script src="prototypes/graph-pilot/sample-data.js"></script>
 <script src="prototypes/graph-pilot/profiles.js"></script>
 <script src="prototypes/graph-pilot/household-link.js"></script>
+<script>
+    // Investor mode (monitor-next/lib/mode.js): default on the shared demo
+    // link; ?mode=full / ?mode=investor switch and are remembered.
+    (function () {
+        var m = null;
+        try {
+            var p = new URLSearchParams(window.location.search).get('mode');
+            if (p === 'full' || p === 'investor') { m = p; localStorage.setItem('wising_mode', p); }
+            if (!m) m = localStorage.getItem('wising_mode');
+        } catch (e) { /* default below */ }
+        document.documentElement.setAttribute('data-mode', m === 'full' ? 'full' : 'investor');
+    })();
+</script>
+<style>html[data-mode="investor"] .investor-hide { display: none !important; }</style>
 <script src="prototypes/graph-pilot/household-seed-data.js"></script>
 <script src="prototypes/graph-pilot/household-seed.js"></script>
 <script>
@@ -805,7 +819,7 @@
                         <label class="col-span-2 flex items-center gap-2 text-[10px] text-white/70"><input type="checkbox" id="prof-spouse-blind" onchange="updateSpouseInline('spouse_is_blind', this.checked)" class="rounded bg-[#121212] border-white/20 text-brandCyan focus:ring-0"> Spouse is blind</label>
                         <div class="col-span-2 flex items-center justify-between gap-2">
                             <span class="text-[9px] text-white/40">Light spouse profile — no second client. If the spouse later has income or accounts, move them to their own profile.</span>
-                            <button type="button" id="btn-move-spouse" onclick="moveSpouseToOwnProfile()" class="px-3 py-2 bg-white/10 hover:bg-brandCyan/20 hover:text-brandCyan text-white/60 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap">Move to own profile</button>
+                            <button type="button" id="btn-move-spouse" onclick="moveSpouseToOwnProfile()" class="investor-hide px-3 py-2 bg-white/10 hover:bg-brandCyan/20 hover:text-brandCyan text-white/60 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap">Move to own profile</button>
                         </div>
                     </div>
                     <div id="spouse-linked-block" class="flex flex-col gap-2">
@@ -815,7 +829,7 @@
                     </div>
                     <div class="flex gap-2 items-center">
                         <select id="prof-spouse-client" onchange="onSpouseLinkChange(this.value)" class="flex-1 bg-[#121212] border border-white/10 rounded-xl text-xs text-white px-4 py-2.5 focus:border-brandCyan focus:ring-0 focus:outline-none transition-all"></select>
-                        <button type="button" id="btn-create-spouse" onclick="createSpouseProfile()" class="px-3 py-2 bg-white/10 hover:bg-brandCyan/20 hover:text-brandCyan text-white/60 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap">+ New spouse profile</button>
+                        <button type="button" id="btn-create-spouse" onclick="createSpouseProfile()" class="investor-hide px-3 py-2 bg-white/10 hover:bg-brandCyan/20 hover:text-brandCyan text-white/60 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap">+ New spouse profile</button>
                     </div>
                     <div id="spouse-household-owner-row" class="hidden flex flex-col gap-1">
                         <span class="text-[9px] text-white/50">Household items (dependents, childcare, charity, mortgage interest, property tax, estimated payments, last year's tax) are entered once, in:</span>
@@ -4048,7 +4062,7 @@
     <aside class="w-full lg:w-80 shrink-0 flex flex-col gap-6">
         
         <!-- Live Persona Prefill panel -->
-        <div class="glass-card p-5 border border-white/5 flex flex-col gap-3">
+        <div class="investor-hide glass-card p-5 border border-white/5 flex flex-col gap-3">
             <span class="text-[10px] font-black uppercase tracking-widest text-white/40">Try an Example Profile</span>
             <div class="grid grid-cols-1 gap-2">
                 <button onclick="prefillPersona('citizen-expat')" class="text-left px-3 py-2 rounded-xl bg-white/5 hover:bg-brandCyan/10 hover:text-brandCyan border border-white/5 transition-all text-xs font-semibold text-white/80">🇺🇸 Citizen Expat (FEIE & Foreign Earned)</button>
@@ -6869,7 +6883,7 @@
             sel.innerHTML = '<option value="">This form isn\u2019t saved as a client yet</option>';
             sel.disabled = true; btn.disabled = true;
             status.innerHTML = '<div class="text-white/60">A spouse is linked between two saved clients. ' +
-                '<button type="button" onclick="saveFormAsClient()" class="ml-1 px-2 py-1 rounded-lg bg-brandCyan/20 text-brandCyan font-bold uppercase tracking-widest text-[8px]">Save as a client</button>' +
+                '<button type="button" onclick="saveFormAsClient()" class="investor-hide ml-1 px-2 py-1 rounded-lg bg-brandCyan/20 text-brandCyan font-bold uppercase tracking-widest text-[8px]">Save as a client</button>' +
                 ' \u2014 then pick the spouse here, or create their profile.</div>';
             return;
         }

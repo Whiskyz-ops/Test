@@ -152,7 +152,7 @@ function diffSummaries(a, b) {
         await nav(pg, base);
         await pg.evaluate((c) => {
           localStorage.clear();
-          localStorage.setItem("wising_site_unlocked", "true");
+          localStorage.setItem("wising_site_unlocked", "true"); localStorage.setItem("wising_mode", "full");
           if (c.id === "__sample") {
             const S = window.WISING.SAMPLE;
             localStorage.setItem("wising_router_state", JSON.stringify(S.router));

@@ -128,7 +128,7 @@ async function answerRouter(router, answers, problems) {
     });
     const pg = await context.newPage();
     await pg.goto(base);
-    await pg.evaluate(() => { localStorage.clear(); localStorage.setItem("wising_site_unlocked", "true"); });
+    await pg.evaluate(() => { localStorage.clear(); localStorage.setItem("wising_site_unlocked", "true"); localStorage.setItem("wising_mode", "full"); });
     await pg.goto(base + "index.html?view=clients"); await pg.waitForTimeout(2500);
 
     // 1. "+ Add Client" opens the Router in a new tab
@@ -244,7 +244,7 @@ async function answerRouter(router, answers, problems) {
     const context = await browser.newContext();
     const pg = await context.newPage(); pg.on("dialog", (d) => d.dismiss());
     const perrs = []; pg.on("pageerror", (e) => { const m = String(e.message || e); if (!/tailwind is not defined/.test(m)) perrs.push(m.slice(0, 120)); });
-    await pg.goto(base); await pg.evaluate((id) => { localStorage.clear(); localStorage.setItem("wising_site_unlocked", "true"); window.WISING.loadProfile(id); }, demo);
+    await pg.goto(base); await pg.evaluate((id) => { localStorage.clear(); localStorage.setItem("wising_site_unlocked", "true"); localStorage.setItem("wising_mode", "full"); window.WISING.loadProfile(id); }, demo);
     const readAll = () => pg.evaluate(() => ({ router: JSON.parse(localStorage.getItem("wising_router_state") || "{}"), india: JSON.parse(localStorage.getItem("wising_layer1_india_state") || "{}"), us: JSON.parse(localStorage.getItem("wising_us_state") || "{}") }));
     const before = await readAll();
     await pg.goto(base + "router.html"); await pg.waitForTimeout(1500);

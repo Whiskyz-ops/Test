@@ -227,7 +227,7 @@ window.__edit = (function () {
       const id = ids[next++];
       await pg.goto(base);
       await pg.evaluate((id) => {
-        localStorage.clear(); localStorage.setItem("wising_site_unlocked", "true");
+        localStorage.clear(); localStorage.setItem("wising_site_unlocked", "true"); localStorage.setItem("wising_mode", "full");
         if (id === "__sample") { const S = window.WISING.SAMPLE; localStorage.setItem("wising_router_state", JSON.stringify(S.router)); localStorage.setItem("wising_layer1_india_state", JSON.stringify(S.india)); localStorage.setItem("wising_us_state", JSON.stringify(S.us)); }
         else window.WISING.loadProfile(id);
       }, id);
