@@ -167,8 +167,11 @@ spouse's US income (audit row G1).
    §402(g) excess). The health score and alert counts are recomputed from that
    merged list with the engine's formula; the US country row and exposure
    total show the client's method A share of the joint US tax
-   (`applyHouseholdToSnapshot`, lib/household.js). Open: the conflict log
-   records a household alert per spouse page rather than once.
+   (`applyHouseholdToSnapshot`, lib/household.js). Household alerts count
+   toward one spouse's health score only (30 Sep 2026): the spouse who holds
+   the household items, else the lower client id (`householdScorerId`); the
+   other page shows them tagged "Household · scored on <name>". Open: the
+   conflict log records a household alert per spouse page rather than once.
 5. Migration.
 
 Each step ships behind the "joint data pooled" alert until step 5.

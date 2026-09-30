@@ -75,7 +75,7 @@ export function attachHouseholds(summaries) {
     if (fig) {
       const hh = cache.get([a.id, b.id].sort().join("|"));
       const own = hh._own[hh.spouses[0].id === s.id ? 0 : 1];
-      const health = healthFromFindings(mergeHouseholdFindings(own.findings, hh._joint.findings), own.monitoring && own.monitoring.health);
+      const health = healthFromFindings(householdMerge(hh, own.findings, s.id), own.monitoring && own.monitoring.health);
       extra = { combinedTaxUsd: fig.combinedTaxUsd, netDoubleTaxUsd: fig.netDoubleTaxUsd, critical: health.counts.critical, warning: health.counts.warning, healthScore: health.score };
     }
     return Object.assign({}, s, extra, {
@@ -187,23 +187,50 @@ export const HOUSEHOLD_FINDING_IDS = new Set([
   "ftc_gap", "ftc_available", "amt_applies"
 ]);
 
-export function mergeHouseholdFindings(ownFindings, jointFindings) {
+// counted: whether this spouse's health score counts the household alerts
+// (only one spouse's does — see householdScorerId); countedOnName names the
+// spouse whose score does, for the tag on the other page.
+export function mergeHouseholdFindings(ownFindings, jointFindings, counted = true, countedOnName = null) {
   const person = (ownFindings || []).filter((f) => !HOUSEHOLD_FINDING_IDS.has(f.id)).map((f) => Object.assign({}, f, { scope: "person" }));
-  const household = (jointFindings || []).filter((f) => HOUSEHOLD_FINDING_IDS.has(f.id)).map((f) => Object.assign({}, f, { scope: "household" }));
+  const household = (jointFindings || []).filter((f) => HOUSEHOLD_FINDING_IDS.has(f.id)).map((f) => Object.assign({}, f, { scope: "household", counted, countedOnName }));
   const sev = { critical: 0, warning: 1, info: 2 };
   return person.concat(household).sort((a, b) => (sev[a.severity] - sev[b.severity]));
 }
 
 // Same formula as report-batch6-nodes.js healthAlertsMonitorResult, on the
 // merged alerts; breached / about-to-breach limits (FBAR, LRS) are per person.
+// Household alerts marked counted: false are shown but not counted.
 export function healthFromFindings(findings, ownHealth) {
   const c = { critical: 0, warning: 0, info: 0 };
-  (findings || []).forEach((f) => { c[f.severity] = (c[f.severity] || 0) + 1; });
+  (findings || []).forEach((f) => { if (f.counted !== false) c[f.severity] = (c[f.severity] || 0) + 1; });
   const h = ownHealth || {};
   let score = 100 - 16 * c.critical - 3 * c.warning - 8 * (h.breachedLimits || 0) - 4 * (h.willBreach || 0);
   score = Math.round(Math.min(100, Math.max(8, score)));
   const band = score >= 80 ? { label: "Healthy", color: "#10B981" } : score >= 50 ? { label: "Needs attention", color: "#D4AF37" } : { label: "At risk", color: "#ef4444" };
   return { counts: c, score, band };
+}
+
+// Which spouse's health score (and Clients-tab alert counts) carries the
+// household alerts, so a couple's one joint-return problem is not counted
+// twice: the spouse who holds the household items (household_items_owner
+// "self" on their US profile, or "spouse" on the other's), else the lower
+// client id. The alerts still show on both pages.
+export function householdScorerId(h) {
+  const sp = (h && h.spouses) || [];
+  if (sp.length !== 2) return null;
+  const owner = (i) => {
+    const raw = h._own && h._own[i] && h._own[i]._raw;
+    return raw && raw.us && raw.us.profile && raw.us.profile.household_items_owner;
+  };
+  if (owner(0) === "self" || owner(1) === "spouse") return sp[0].id;
+  if (owner(1) === "self" || owner(0) === "spouse") return sp[1].id;
+  return String(sp[0].id) <= String(sp[1].id) ? sp[0].id : sp[1].id;
+}
+
+function householdMerge(h, ownFindings, clientId) {
+  const scorer = householdScorerId(h);
+  const s = h.spouses.find((x) => x.id === scorer);
+  return mergeHouseholdFindings(ownFindings, h._joint.findings, scorer === clientId, s ? s.name : null);
 }
 
 function cleanHousehold(clientId) {
@@ -236,7 +263,7 @@ export function householdSnapshot(snap, h, clientId) {
   const fig = householdSummaryFigures(h, clientId);
   if (!fig) return snap;
   const r = snap.result;
-  const findings = mergeHouseholdFindings(r.findings, h._joint.findings);
+  const findings = householdMerge(h, r.findings, clientId);
   const health = healthFromFindings(findings, r.monitoring && r.monitoring.health);
   const me = h.spouses[h.spouses[0].id === clientId ? 0 : 1];
   const other = h.spouses[h.spouses[0].id === clientId ? 1 : 0];
@@ -266,9 +293,9 @@ export function householdSnapshot(snap, h, clientId) {
   // joint state tax and both spouses' state withholding, at this client's share.
   const jointState = h._joint.taxComputation && h._joint.taxComputation.usState;
   const states = (snap.states || []).map((st) => {
-    if (!jointState) return st;
+    if (!jointState || st.resident === false) return st;
     const stTax = Number(jointState.totalUsd) || 0;
-    const stPaid = raws.length === 2 && raws[0] && raws[1] ? statePaidUsd(raws[0].us) + statePaidUsd(raws[1].us) : null;
+    const stPaid = raws.length === 2 && raws[0] && raws[1] ? statePaidUsd(raws[0].us, st.id, true) + statePaidUsd(raws[1].us, st.id, true) : null;
     return Object.assign({}, st, {
       estimatedTaxUsd: Math.round(stTax * fig.share), taxAfterCreditsUsd: stTax * fig.share,
       reason: Math.round(fig.share * 100) + "% share of the joint " + st.name + " return with " + other.name

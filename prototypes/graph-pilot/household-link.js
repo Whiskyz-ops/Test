@@ -136,6 +136,33 @@
     return rows;
   }
 
+  // Audit row F8: interest on India accounts held jointly — each spouse
+  // enters the full interest and their share of the money; the two entries
+  // must agree, or the interest is taxed twice or not at all.
+  function jointInterest(c) {
+    var total = Number(get(c, "india.other_sources.joint_account_interest_inr", 0)) || 0;
+    if (!(total > 0)) return null;
+    var p = get(c, "india.other_sources.joint_account_own_share_percent", null);
+    p = p == null || p === "" || !isFinite(Number(p)) ? 100 : Number(p);
+    return { total: total, pct: p };
+  }
+  function checkJointInterest(a, b, err) {
+    var ja = jointInterest(a), jb = jointInterest(b);
+    if (ja && jb) {
+      if (Math.abs(ja.total - jb.total) > 1) {
+        err("joint_interest_mismatch", "Joint-account interest differs: ₹" + ja.total + " on " + name(a) + "'s India profile, ₹" + jb.total + " on " + name(b) + "'s. Both should show the full interest credited.");
+      } else if (Math.abs(ja.pct + jb.pct - 100) > 0.5) {
+        err("joint_interest_share_sum", "Shares of the joint-account money add up to " + (ja.pct + jb.pct) + "% (" + name(a) + " " + ja.pct + "%, " + name(b) + " " + jb.pct + "%). They must add up to 100%.");
+      }
+      return;
+    }
+    [[a, ja, b], [b, jb, a]].forEach(function (t) {
+      if (t[1] && t[1].pct < 100 && get(t[2], "india.other_sources.has_other_sources_income", false) === true) {
+        err("joint_interest_missing_on_spouse", name(t[0]) + " is taxed on " + t[1].pct + "% of ₹" + t[1].total + " joint-account interest; the other " + (100 - t[1].pct) + "% isn't on " + name(t[2]) + "'s India profile.");
+      }
+    });
+  }
+
   function checkSharedItems(a, b, err) {
     var seen = {};
     sharedKeys(a).forEach(function (k) { seen[k.key] = k.label; });
@@ -154,6 +181,7 @@
         }
       });
     });
+    checkJointInterest(a, b, err);
     if (filingStatus(a) !== "mfj" || filingStatus(b) !== "mfj") return;
     var oa = get(a, "us.profile.household_items_owner", null), ob = get(b, "us.profile.household_items_owner", null);
     if (oa && ob && oa === ob) {

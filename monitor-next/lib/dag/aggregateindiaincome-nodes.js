@@ -30,6 +30,22 @@
  * classification), re-verified here independently rather than trusted by
  * reference.
  * ==========================================================================*/
+// Audit row F8: interest on bank accounts / FDs held jointly with the
+// spouse is taxed to whoever's money it is — the full interest credited
+// (joint_account_interest_inr) times this person's share of the money
+// deposited (joint_account_own_share_percent; 100 when not entered, so
+// nothing is left out). Shared with in1-nodes-v3.js's interestInr.
+function jointAccountInterestShareInr(os, india) {
+  var total = num(safe(os, "joint_account_interest_inr", 0));
+  if (!(total > 0)) return 0;
+  // The share is a percentage, never summed across quarterly slices: the
+  // profile's own other_sources value first.
+  var pct = safe(india, "other_sources.joint_account_own_share_percent", null);
+  if (pct == null) pct = safe(os, "joint_account_own_share_percent", null);
+  pct = pct == null || pct === "" || !isFinite(Number(pct)) ? 100 : Math.min(100, Math.max(0, Number(pct)));
+  return total * pct / 100;
+}
+
 function safe(obj, path, dflt) {
   var parts = path.split(".");
   var cur = obj;
@@ -735,7 +751,7 @@ var NODES = {
       var hpProps = safe(di, "house_property.properties", []) || [];
       var housePropertyInr = computeHouseProperty(hpProps, housePropertyOpts(india)).incomeInr;
       var os = d.osAgg;
-      var interestInr = num(safe(os, "interest_savings_inr", 0)) + num(safe(os, "interest_fd_rd_inr", 0)) + num(safe(os, "interest_bonds_inr", 0)) + num(safe(os, "interest_on_it_refund_inr", 0)) + num(safe(di, "other_sources.interest_inr", 0));
+      var interestInr = num(safe(os, "interest_savings_inr", 0)) + num(safe(os, "interest_fd_rd_inr", 0)) + num(safe(os, "interest_bonds_inr", 0)) + num(safe(os, "interest_on_it_refund_inr", 0)) + num(safe(di, "other_sources.interest_inr", 0)) + jointAccountInterestShareInr(os, ctx.india);
       var dividendInr = num(safe(os, "dividend_inr", 0));
       var specialRate115bbInr = num(safe(os, "winnings_lottery_gaming_inr", 0)) + num(safe(os, "online_gaming_winnings_inr", 0));
       var bc = d.businessComputation, cg = d.capitalGainsComputation;
@@ -763,7 +779,7 @@ var NODES = {
       var salaryInr = d.salaryIncomeComputation.taxableSalaryInr;
       var hpProps = safe(di, "house_property.properties", []) || [];
       var housePropertyInr = computeHouseProperty(hpProps, housePropertyOpts(ctx.india)).incomeInr;
-      var interestInr = num(safe(os, "interest_savings_inr", 0)) + num(safe(os, "interest_fd_rd_inr", 0)) + num(safe(os, "interest_bonds_inr", 0)) + num(safe(os, "interest_on_it_refund_inr", 0)) + num(safe(di, "other_sources.interest_inr", 0));
+      var interestInr = num(safe(os, "interest_savings_inr", 0)) + num(safe(os, "interest_fd_rd_inr", 0)) + num(safe(os, "interest_bonds_inr", 0)) + num(safe(os, "interest_on_it_refund_inr", 0)) + num(safe(di, "other_sources.interest_inr", 0)) + jointAccountInterestShareInr(os, ctx.india);
       var dividendInr = num(safe(os, "dividend_inr", 0));
       var specialRate115bbInr = num(safe(os, "winnings_lottery_gaming_inr", 0)) + num(safe(os, "online_gaming_winnings_inr", 0));
       var agriculturalIncomeInr = num(safe(di, "agricultural_income_inr", 0));

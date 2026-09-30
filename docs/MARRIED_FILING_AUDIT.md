@@ -38,21 +38,17 @@ Confirmed gaps have a runnable probe: `node scripts/audit/married-filing-probes.
 | Area | Rows | ✅ | 🟡 | ❌ | 🐞 | ➖ |
 |---|---|---|---|---|---|---|
 | A. What the forms collect about the spouse | 11 | 5 | 2 | 4 | – | – |
-| B. US filing-status parameters | 30 | 20 | 2 | 5 | 2 | 1 |
+| B. US filing-status parameters | 30 | 21 | 2 | 5 | 1 | 1 |
 | C. US separate-filer eligibility | 9 | 2 | 1 | 3 | 2 | 1 |
 | D. US per-person rules | 16 | 7 | 4 | 5 | – | – |
 | E. Other US joint-return mechanics | 7 | 2 | 2 | 2 | 1 | – |
-| F. India | 15 | 5 | 6 | 4 | – | – |
+| F. India | 15 | 6 | 6 | 3 | – | – |
 | G. Cross-border | 15 | 4 | 4 | 7 | – | – |
-| **Total** | **103** | **45** | **21** | **30** | **5** | **2** |
+| **Total** | **103** | **47** | **21** | **29** | **4** | **2** |
 
 ### Wrong results found by the source check (code-read, not yet probed)
 
-B10, B19 and B20 were fixed on 29 Sep 2026 (IN-54); B4 waits on the CPA's reading of the separate-filer SALT rule.
-
-| Row | What happens | Who is affected |
-|---|---|---|
-| B4 | Separate filers' SALT cap: $10,000 floor instead of $5,000 and a 30% phase-down instead of an effective 15% (§164(b)(6)–(7)) | Married filing separately, MAGI above $252,500 |
+B10, B19 and B20 were fixed on 29 Sep 2026 (IN-54). B4 was fixed on 30 Sep 2026 (IN-65) — settled by the IRS's own 2025 Schedule A line 5e worksheet, so no CPA reading was needed. None open.
 
 ### Wrong results today (probe-confirmed)
 
@@ -92,7 +88,7 @@ status. 2026 values were compared where both exist.
 | B1 | Tax brackets | ✅ | *source* Rev. Proc. 2025-32 §3.01 Tables 1–4 — all four 2026 schedules match `TAX.US.BRACKETS` |
 | B2 | Standard deduction | ✅ | *source* Rev. Proc. 2025-32 §3.14: $32,200 joint / $24,150 HOH / $16,100 single and separate — match |
 | B3 | Capital-gains 0/15/20% thresholds | ✅ | *source* Rev. Proc. 2025-32 §3.03: 0% to $98,900 joint / $49,450 separate / $66,200 HOH / $49,450 single; 15% to $613,700 / $306,850 / $579,600 / $545,500 — match `LTCG_BRACKETS` |
-| B4 | SALT cap and phase-out ($40,400 / $20,200 separate) | 🐞 | *source* IRC §164(b)(6)(B), (7): 2026 cap $40,400, reduced by 30% of MAGI over $505,000 (half the threshold for separate filers) but not below $10,000; a separate filer gets **half** of that amount — $20,200, floor $5,000, effective phase-down 15%. *code* `ustax-nodes.js:98` (and copies in `ustax-full-nodes.js`, `findings-batch6-nodes.js`): separate filer $20,200 cut at 30% with a $10,000 floor — too low for MAGI $252,500–$320,500 (by up to $5,100 of cap at $286,500), too high above $320,500 (by $5,000 from $353,834). Joint and single match. Reading of the half rule: [Likely] — confirm with the CPA |
+| B4 | SALT cap and phase-out ($40,400 / $20,200 separate) | ✅ | Fixed 30 Sep 2026 (IN-65). *source* IRC §164(b)(6)–(7) and the IRS 2025 Schedule A instructions, line 5e worksheet (lines 1, 5–10): start from $40,000 (2026: $40,400), reduce by 30% of MAGI over $500,000 ($250,000 separate; 2026: $505,000 / $252,500), not below $10,000, then **half the result** for a separate filer — an effective 15% phase-down and a $5,000 floor. *code* `computeSaltCap` in `ustax-nodes.js`, `ustax-full-nodes.js`, `findings-batch6-nodes.js` and `us/ustax.py`. Section profiles `us_salt_cap_mfs_phasedown` ($300,000 → $13,075; was $10,000) and `us_salt_cap_mfs_floor` ($400,000 → $5,000; was $10,000) |
 | B5 | NIIT threshold | ✅ | *source* IRC §1411(b): $250,000 joint / $125,000 separate / $200,000 other, not indexed — match |
 | B6 | Additional Medicare threshold | ✅ | *source* IRC §3101(b)(2): $250,000 joint / $125,000 separate / $200,000 other, not indexed — match; head of household falls back to single ($200,000), same value |
 | B7 | AMT exemption and phase-out | ✅ | *source* Rev. Proc. 2025-32 §3.10: exemption $140,200 / $90,100 / $70,100 separate; phase-out from $1,000,000 / $500,000 / $500,000 at 50% — match |
@@ -185,7 +181,7 @@ docs/sources/INDIA_ACT_2025_EXTRACTS.md. Other India rows: CA to confirm.
 | F5 | Gifts over ₹50,000 taxable (s.92(2)(m)), but not from a relative — spouse, siblings, lineal ascendants/descendants and their spouses (s.92(3)(a), s.92(5)(g)) — or on marriage (s.92(3)(b)) | ✅ | *act*; *form* toggle, read by the engine |
 | F6 | Co-owned property: income and loan interest by ownership share | ✅ | *form* `co_owner_share_percent` |
 | F7 | 80C / 80D / 80E paid for the spouse | ✅ | *form* (80E text covers the spouse's loan; 80D self+spouse bucket) — confirm 80C spouse premiums |
-| F8 | Joint bank / FD accounts: interest taxed to the person whose money it is | ❌ | *form*: no contributor split |
+| F8 | Joint bank / FD accounts: interest taxed to the person whose money it is | ✅ | Fixed 30 Sep 2026 (IN-65). *form*: India other sources — joint-account interest (full amount credited) and "your share of the money" %; *code*: `jointAccountInterestShareInr` (aggregateindiaincome-nodes.js, in1-nodes-v3.js; Python `india/joint_interest.py`) adds share × interest; the household link check blocks a couple whose two entries disagree (amount, shares not adding to 100%, or a share missing on the spouse's profile). Not yet: TDS on the joint account is still credited in full to whoever enters it (rule 37BA apportionment not modelled); section profile `in_joint_account_interest_share` |
 | F9 | Each spouse's residential status and advance tax independently | 🟡 | *form*: one profile per person, no link (A10) |
 | F10 | Schedule FA for jointly held foreign assets (both spouses report) | 🟡 | *form*: holdings have a joint flag; the other spouse's return isn't linked |
 | F11 | HRA when rent is paid to the spouse | ❌ | *form*: not asked — CA to confirm the position |

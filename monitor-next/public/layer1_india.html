@@ -3758,6 +3758,13 @@
                                         <input type="text" inputmode="numeric" id="os-bonds-tds" oninput="updateOSField('interest_bonds_tds_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="₹ 0">
                                     </div>
                                     </div>
+                        <div class="md:col-span-2 p-3 rounded-xl border border-white/10 bg-white/[0.02]">
+                            <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Joint accounts with spouse — interest<span class="block text-[7px] text-white/30 normal-case tracking-normal font-normal mt-0.5">Savings / FD / RD accounts held jointly with the spouse. Enter the full interest credited (not in the boxes above) and your share of the money deposited — interest is taxed to whoever's money it is, not to the first holder. The spouse enters the same interest with the rest of the share.</span></label>
+                            <div class="grid grid-cols-2 gap-3 mt-1">
+                                <input type="text" inputmode="numeric" id="os-joint-interest" oninput="updateOSField('joint_account_interest_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="Total interest ₹ 0">
+                                <input type="number" min="0" max="100" step="1" id="os-joint-share" oninput="updateJointShare(this.value)" class="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="Your share % (default 100)">
+                            </div>
+                        </div>
                         <div>
                             <div class="flex items-center justify-between mb-1">
                                         <label class="block text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">IT Refund Interest</label>
@@ -4518,6 +4525,7 @@
                                 <span id="target-q1" class="text-[9px] font-bold text-brandGold font-mono" title="Cumulative target based on current estimated annual income">Target: ₹0</span>
                             </div>
                             <input type="text" inputmode="numeric" id="crd-q1" oninput="updateCreditNum('advance_tax_q1_15jun_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="Amount Paid">
+                            <input type="date" id="crd-q1-date" title="Date this instalment was paid (after the due date counts as late)" onchange="updateCreditDate('advance_tax_q1_paid_date', this.value)" class="mt-1.5 w-full bg-white/5 border border-white/10 rounded-xl text-[10px] text-white/70 px-3 py-1.5 focus:border-brandGold focus:ring-0 font-mono">
                         </div>
                         <div>
                             <div class="flex justify-between items-end mb-1">
@@ -4525,6 +4533,7 @@
                                 <span id="target-q2" class="text-[9px] font-bold text-brandGold font-mono" title="Cumulative target based on current estimated annual income">Target: ₹0</span>
                             </div>
                             <input type="text" inputmode="numeric" id="crd-q2" oninput="updateCreditNum('advance_tax_q2_15sep_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="Amount Paid">
+                            <input type="date" id="crd-q2-date" title="Date this instalment was paid (after the due date counts as late)" onchange="updateCreditDate('advance_tax_q2_paid_date', this.value)" class="mt-1.5 w-full bg-white/5 border border-white/10 rounded-xl text-[10px] text-white/70 px-3 py-1.5 focus:border-brandGold focus:ring-0 font-mono">
                         </div>
                         <div>
                             <div class="flex justify-between items-end mb-1">
@@ -4532,6 +4541,7 @@
                                 <span id="target-q3" class="text-[9px] font-bold text-brandGold font-mono" title="Cumulative target based on current estimated annual income">Target: ₹0</span>
                             </div>
                             <input type="text" inputmode="numeric" id="crd-q3" oninput="updateCreditNum('advance_tax_q3_15dec_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="Amount Paid">
+                            <input type="date" id="crd-q3-date" title="Date this instalment was paid (after the due date counts as late)" onchange="updateCreditDate('advance_tax_q3_paid_date', this.value)" class="mt-1.5 w-full bg-white/5 border border-white/10 rounded-xl text-[10px] text-white/70 px-3 py-1.5 focus:border-brandGold focus:ring-0 font-mono">
                         </div>
                         <div>
                             <div class="flex justify-between items-end mb-1">
@@ -4539,6 +4549,7 @@
                                 <span id="target-q4" class="text-[9px] font-bold text-brandGold font-mono" title="Cumulative target based on current estimated annual income">Target: ₹0</span>
                             </div>
                             <input type="text" inputmode="numeric" id="crd-q4" oninput="updateCreditNum('advance_tax_q4_15mar_inr', this.value)" class="inr-input w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3 py-2 focus:border-brandGold focus:ring-0 font-mono" placeholder="Amount Paid">
+                            <input type="date" id="crd-q4-date" title="Date this instalment was paid (after the due date counts as late)" onchange="updateCreditDate('advance_tax_q4_paid_date', this.value)" class="mt-1.5 w-full bg-white/5 border border-white/10 rounded-xl text-[10px] text-white/70 px-3 py-1.5 focus:border-brandGold focus:ring-0 font-mono">
                         </div>
                     </div>
                 </div>
@@ -11992,6 +12003,12 @@ ${isProf ? '' : `
         }
     }
 
+    // Audit row F8: this person's share (%) of the money in joint accounts.
+    function updateJointShare(val) {
+        const n = val === '' ? null : Math.min(100, Math.max(0, Number(val)));
+        state.other_sources.joint_account_own_share_percent = n === null || isNaN(n) ? null : n;
+    }
+
     function updateOSField(field, val) {
         state.other_sources.has_other_sources_income = true;
         state.other_sources[field] = val === '' ? null : parseINRCurrency(val);
@@ -12032,7 +12049,7 @@ ${isProf ? '' : `
         
         if (isInd && isSenior && isResident && !hasBiz) {
             advDiv.classList.add('hidden');
-            ['advance_tax_q1_15jun_inr', 'advance_tax_q2_15sep_inr', 'advance_tax_q3_15dec_inr', 'advance_tax_q4_15mar_inr'].forEach(f => state.tax_credits[f] = null);
+            ['advance_tax_q1_15jun_inr', 'advance_tax_q2_15sep_inr', 'advance_tax_q3_15dec_inr', 'advance_tax_q4_15mar_inr', 'advance_tax_q1_paid_date', 'advance_tax_q2_paid_date', 'advance_tax_q3_paid_date', 'advance_tax_q4_paid_date'].forEach(f => state.tax_credits[f] = null);
             ['crd-q1', 'crd-q2', 'crd-q3', 'crd-q4'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
@@ -13103,6 +13120,11 @@ ${isProf ? '' : `
 
     function updateCreditNum(field, val) {
         state.tax_credits[field] = val === '' ? null : parseINRCurrency(val);
+    }
+
+    // Advance-tax instalment dates (the Monitor marks a late or missed instalment).
+    function updateCreditDate(field, val) {
+        state.tax_credits[field] = val || null;
     }
 
     function updateLrsTcs() {
@@ -14366,6 +14388,7 @@ ${isProf ? '' : `
             const elIdMap = {
                 'os-interest-savings': os.interest_savings_inr,
                 'os-interest-fd': os.interest_fd_rd_inr,
+                'os-joint-interest': os.joint_account_interest_inr,
                 'os-interest-fd-tds': os.interest_fd_rd_tds_inr,
                 'os-bonds': os.interest_bonds_inr,
                 'os-bonds-tds': os.interest_bonds_tds_inr,
@@ -14394,6 +14417,8 @@ ${isProf ? '' : `
                 const el = document.getElementById(id);
                 if (el) el.value = val || '';
             }
+            const jointShare = document.getElementById('os-joint-share');
+            if (jointShare) jointShare.value = os.joint_account_own_share_percent != null ? os.joint_account_own_share_percent : '';
             const giftsMarriage = document.getElementById('os-gifts-marriage');
             if (giftsMarriage) giftsMarriage.checked = os.gifts_exemption_marriage || false;
             const giftsRelative = document.getElementById('os-gifts-relative');
@@ -14536,6 +14561,7 @@ ${isProf ? '' : `
         if (crdQ4 && state.tax_credits.advance_tax_q4_15mar_inr !== null) {
             crdQ4.value = state.tax_credits.advance_tax_q4_15mar_inr;
         }
+        ['q1', 'q2', 'q3', 'q4'].forEach(q => { const el = document.getElementById('crd-' + q + '-date'); if (el) el.value = state.tax_credits['advance_tax_' + q + '_paid_date'] || ''; });
         const crd26AS = document.getElementById('crd-26as-uploaded');
         if (crd26AS) crd26AS.checked = state.tax_credits.form_26as_uploaded || false;
         

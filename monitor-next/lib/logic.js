@@ -78,8 +78,8 @@ export function isBreached(r) {
 export function classify(r) {
   const breached = isBreached(r);
   if (r.balanceUsd !== undefined || r.overdueFilings !== undefined) {
-    if ((r.balanceUsd || 0) > 1 || (r.overdueFilings || 0) > 0) return STATUS.EXPOSED;
-    if ((r.estimatedTaxUsd || 0) > 0 || breached || r.taxesWorldwide) return STATUS.NEXUS;
+    if ((r.balanceUsd || 0) > 1 || (r.overdueFilings || 0) > 0 || (r.lateInstallments || 0) > 0 || r.likelyUnpaid) return STATUS.EXPOSED;
+    if ((r.estimatedTaxUsd || 0) > 0 || breached || r.taxesWorldwide || r.filingRequired) return STATUS.NEXUS;
     if (approachPct(r) >= 0.6) return STATUS.APPROACHING;
     return STATUS.NONE;
   }

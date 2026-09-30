@@ -14,6 +14,7 @@ from ..core.fx_util import fx_rate
 from ..core.graph import NodeDef
 from ..core.util import dtaa_worldwide_ceded, js_round, num, safe
 from . import constants as C
+from .joint_interest import joint_account_interest_share_inr
 from .house_property import compute_house_property, house_property_opts
 from .form_rules import esop_perquisite_inr
 from .business_expenses import branch_receipts_inr, branch_turnover_inr, business_expense_opts, disallowance_slices_inr, npa_provisions_inr, regular_books_expenses
@@ -652,7 +653,7 @@ def _di_income_bases(di: dict, os_: dict, salary_inr: float, india=None):
     interest_inr = (
         num(safe(os_, "interest_savings_inr", 0)) + num(safe(os_, "interest_fd_rd_inr", 0)) +
         num(safe(os_, "interest_bonds_inr", 0)) + num(safe(os_, "interest_on_it_refund_inr", 0)) +
-        num(safe(di, "other_sources.interest_inr", 0))
+        num(safe(di, "other_sources.interest_inr", 0)) + joint_account_interest_share_inr(os_, india)
     )
     dividend_inr = num(safe(os_, "dividend_inr", 0))
     special_rate_115bb_inr = num(safe(os_, "winnings_lottery_gaming_inr", 0)) + num(safe(os_, "online_gaming_winnings_inr", 0))
@@ -917,6 +918,7 @@ _INCOME_BASES_FIELDS = (
     "india.other_sources.interest_savings_inr", "india.other_sources.interest_fd_rd_inr",
     "india.other_sources.interest_bonds_inr", "india.other_sources.interest_on_it_refund_inr",
     "india.domestic_income.other_sources.interest_inr", "india.other_sources.dividend_inr",
+    "india.other_sources.joint_account_interest_inr", "india.other_sources.joint_account_own_share_percent",
     "india.other_sources.winnings_lottery_gaming_inr", "india.other_sources.online_gaming_winnings_inr",
 )
 

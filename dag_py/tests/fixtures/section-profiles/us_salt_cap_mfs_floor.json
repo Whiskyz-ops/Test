@@ -1,0 +1,58 @@
+{
+  "id": "us_salt_cap_mfs_floor",
+  "form": "layer1_us.html",
+  "section": "Itemized deductions (SALT cap, separate return)",
+  "story": "US citizen, married filing separately, wages $400,000 and $25,000 of state and local taxes, itemizing. IRS Schedule A line 5e worksheet: the joint $40,400 cap is phased down 30% of MAGI over $252,500, floored at $10,000, then halved.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365
+  },
+  "india": {},
+  "us": {
+    "metadata": {
+      "us_calendar_year": 2026
+    },
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "married_filing_separately",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "itemized",
+      "state_and_local_taxes_paid_usd": 25000
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 400000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 60000,
+            "medicare_wages_box5_usd": 400000
+          }
+        }
+      ]
+    },
+    "withholding_and_estimated": {
+      "federal_withholding_total_usd": 60000
+    }
+  },
+  "expect": [
+    {
+      "path": "computed.usTax.saltCapUsd",
+      "value": 5000,
+      "why": "40,400 - 30% x (400,000 - 252,500) = -3,850 -> floor 10,000, half = 5,000"
+    }
+  ]
+}

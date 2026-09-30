@@ -36,7 +36,7 @@ describe("householdSummaryFigures", () => {
   });
 });
 
-import { mergeHouseholdFindings, healthFromFindings, householdSnapshot } from "./household.js";
+import { mergeHouseholdFindings, healthFromFindings, householdSnapshot, householdScorerId } from "./household.js";
 
 describe("household alerts, health and headline (step 4)", () => {
   const own = [
@@ -59,6 +59,19 @@ describe("household alerts, health and headline (step 4)", () => {
     expect(hh.score).toBe(57);
     expect(hh.band.label).toBe("Needs attention");
     expect(healthFromFindings([{ severity: "critical" }, { severity: "critical" }, { severity: "critical" }, { severity: "critical" }, { severity: "critical" }, { severity: "critical" }], {}).score).toBe(8);
+  });
+  it("counts household alerts on one spouse's health score only", () => {
+    const shown = mergeHouseholdFindings(own, joint, false, "Rohan");
+    expect(shown.filter((f) => f.scope === "household").length).toBe(2);
+    expect(shown.find((f) => f.id === "ftc_gap").countedOnName).toBe("Rohan");
+    // Only the person's own alerts count: 100 - 16 x 1 critical - 8 x 1 breached = 76
+    expect(healthFromFindings(shown, { breachedLimits: 1, willBreach: 0 }).score).toBe(76);
+    const raw = (owner) => ({ _raw: { us: { profile: { household_items_owner: owner } } } });
+    const h = (o0, o1) => ({ spouses: [{ id: "r" }, { id: "p" }], _own: [raw(o0), raw(o1)] });
+    expect(householdScorerId(h("self", "spouse"))).toBe("r");
+    expect(householdScorerId(h("spouse", "self"))).toBe("p");
+    expect(householdScorerId(h(undefined, "spouse"))).toBe("r");
+    expect(householdScorerId(h(undefined, undefined))).toBe("p"); // lower client id
   });
   it("puts the client's share of the joint US tax in the headline and the US country row", () => {
     const h = {

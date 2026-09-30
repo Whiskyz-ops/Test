@@ -37,13 +37,25 @@ const Days = ({ r }) => r.residency.days == null
 const TH = ({ children, right }) => <th className={"px-4 py-2.5 text-[10px] uppercase tracking-widest text-muted font-bold " + (right ? "text-right" : "text-left")}>{children}</th>;
 const TD = ({ children, right, mono }) => <td className={"px-4 py-3 text-[13px] text-body " + (right ? "text-right " : "") + (mono ? "font-mono " : "")}>{children}</td>;
 
+// Why a row is red beyond the balance: overdue returns, late or missed
+// instalments, or wages in a state with nothing withheld.
+function MissedCell({ r }) {
+  const items = [];
+  if (r.overdueFilings) items.push(r.overdueFilings + " overdue return" + (r.overdueFilings > 1 ? "s" : ""));
+  (r.installmentNotes || []).forEach((n) => items.push(n));
+  if (r.likelyUnpaid) items.push(r.reason);
+  if (!items.length && r.undatedInstallments) return <span className="text-muted" title="Payment dates not entered — treated as on time">{r.undatedInstallments} payment{r.undatedInstallments > 1 ? "s" : ""} undated</span>;
+  if (!items.length) return <span>—</span>;
+  return <span className="text-[12px]">{items.map((t, i) => <span key={i} className="block">{t}</span>)}{r.undatedInstallments ? <span className="block text-muted">{r.undatedInstallments} undated (treated as on time)</span> : null}</span>;
+}
+
 export default function DetailTable({ category, regions }) {
   if (!regions.length) return <div className="text-center text-muted text-sm py-10">No regions in this category.</div>;
   let head, row;
   const rowCls = "border-t border-line hover:bg-white/[0.03]";
   if (category === STATUS.EXPOSED) {
-    head = <tr><TH>Region</TH><TH>Status</TH><TH right>Estimated Tax</TH><TH right>Paid</TH><TH right>Unpaid</TH><TH>Overdue filings</TH></tr>;
-    row = (r) => <tr key={r.id} className={rowCls}><TD><RegionCell r={r} /></TD><TD><StatusBadge status={r.status} /></TD><TD right mono>{fmtUsd(r.estimatedTaxUsd)}</TD><TD right mono>{r.paidUsd !== undefined ? fmtUsd(r.paidUsd) : "—"}</TD><TD right mono><span className="font-semibold" style={{ color: PAL.redText }}>{r.balanceUsd !== undefined ? fmtUsd(r.balanceUsd) : "—"}</span></TD><TD>{r.overdueFilings ? r.overdueFilings : "—"}</TD></tr>;
+    head = <tr><TH>Region</TH><TH>Status</TH><TH right>Estimated Tax</TH><TH right>Paid</TH><TH right>Unpaid</TH><TH>Missed or late</TH></tr>;
+    row = (r) => <tr key={r.id} className={rowCls}><TD><RegionCell r={r} /></TD><TD><StatusBadge status={r.status} /></TD><TD right mono>{r.estimatedTaxUsd == null ? <span className="text-muted">Not computed</span> : fmtUsd(r.estimatedTaxUsd)}</TD><TD right mono>{r.paidUsd !== undefined ? fmtUsd(r.paidUsd) : "—"}</TD><TD right mono><span className="font-semibold" style={{ color: PAL.redText }}>{r.balanceUsd !== undefined ? fmtUsd(r.balanceUsd) : r.likelyUnpaid ? "Likely" : "—"}</span></TD><TD><MissedCell r={r} /></TD></tr>;
   } else if (category === STATUS.APPROACHING) {
     head = <tr><TH>Region</TH><TH>Tracker</TH><TH>Days Present</TH><TH>Reporting Exposure</TH><TH>Physical Presence</TH></tr>;
     row = (r) => <tr key={r.id} className={rowCls}><TD><RegionCell r={r} /></TD><TD><Tracker r={r} /></TD><TD mono><Days r={r} /></TD><TD mono><Reporting r={r} /></TD><TD><YesNo v={r.physicalPresence} /></TD></tr>;

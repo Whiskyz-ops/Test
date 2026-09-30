@@ -60,8 +60,13 @@ function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
 function computeSaltCap(agi, status) {
   var base = T.SALT_CAP_BASE_USD[status] || T.SALT_CAP_BASE_USD.single;
   var threshold = T.SALT_CAP_PHASEOUT_THRESHOLD_USD[status] || T.SALT_CAP_PHASEOUT_THRESHOLD_USD.single;
+  // Separate filers (IRS 2025 Schedule A, line 5e worksheet): the joint
+  // cap is phased down 30% over the halved threshold, floored at $10,000,
+  // and then halved — an effective 15% phase-down and a $5,000 floor.
+  if (status === "mfs") base = T.SALT_CAP_BASE_USD.single;
   var reduced = base - T.SALT_CAP_PHASEOUT_RATE * Math.max(0, agi - threshold);
-  return Math.max(T.SALT_CAP_FLOOR_USD, Math.min(base, reduced));
+  var cap = Math.max(T.SALT_CAP_FLOOR_USD, Math.min(base, reduced));
+  return status === "mfs" ? cap / 2 : cap;
 }
 
 var NODES = {};

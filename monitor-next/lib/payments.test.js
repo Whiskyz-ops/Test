@@ -34,6 +34,23 @@ describe("payments and map status", () => {
     expect(s[0].balanceUsd).toBe(25365 - 9000);
     expect(statesFromEngine(result, { us: {}, india: {} })).toEqual([]);
   });
+  it("adds part-year and W-2 work states as Filing required rows without a tax figure", () => {
+    const us = { state_residency: { primary_state_of_residence: "NY", jan_1_domicile_state: "CA", moved_states_this_year: true, previous_state: "CA", move_date: "2026-03-01" },
+      income_us_source: { wages_w2: [
+        { state_and_local_taxes: [{ state_code_box15: "NY", state_wages_box16_usd: 100000, state_tax_withheld_box17_usd: 6000 }] },
+        { state_and_local_taxes: [{ state_code_box15: "NJ", state_wages_box16_usd: 40000, state_tax_withheld_box17_usd: 0 }] },
+        { state_and_local_taxes: [{ state_code_box15: "CA", state_wages_box16_usd: 20000, state_tax_withheld_box17_usd: 1500 }] },
+        { state_and_local_taxes: [{ state_code_box15: "TX", state_wages_box16_usd: 5000 }] }] } };
+    const s = statesFromEngine(result, { us, india: {} });
+    expect(s.map((x) => x.id)).toEqual(["NY", "CA", "NJ"]); // TX has no wage tax
+    expect(s[0].paidUsd).toBe(6000); // only NY's box 17
+    const ca = s.find((x) => x.id === "CA"), nj = s.find((x) => x.id === "NJ");
+    expect(ca.estimatedTaxUsd).toBeNull();
+    expect(ca.paidUsd).toBe(1500);
+    expect(classify(ca)).toBe(STATUS.NEXUS); // withholding on file
+    expect(nj.likelyUnpaid).toBe(true);
+    expect(classify(nj)).toBe(STATUS.EXPOSED); // wages there, nothing withheld
+  });
   it("red means unpaid or overdue; paid-up obligations are Filing required", () => {
     const base = { taxesWorldwide: true, residency: { days: 345, threshold: 183 }, reporting: null };
     expect(classify(Object.assign({}, base, { estimatedTaxUsd: 60870, balanceUsd: 25870, overdueFilings: 0 }))).toBe(STATUS.EXPOSED);
@@ -44,5 +61,38 @@ describe("payments and map status", () => {
     // Non-resident, no tax, 120 of 183 days: approaching.
     expect(classify({ taxesWorldwide: false, residency: { days: 120, threshold: 183 }, estimatedTaxUsd: 0, balanceUsd: 0, overdueFilings: 0 })).toBe(STATUS.APPROACHING);
     expect(classify({ taxesWorldwide: false, residency: { days: 20, threshold: 183 }, estimatedTaxUsd: 0, balanceUsd: 0, overdueFilings: 0 })).toBe(STATUS.NONE);
+  });
+});
+
+describe("instalment dates", () => {
+  const cal = (jur, cat, dates, today) => dates.map((d) => ({ jur, cat, date: d, status: d < today ? "passed" : "upcoming" }));
+  const today = "2026-09-30";
+  const res = (inTaxUsd) => ({
+    model: { meta: { fxRate: 83, baseYear: 2026 } },
+    computed: { usTax: { totalTaxBeforeFtcUsd: 20000 }, ftc: { us: { ftcAllowedUsd: 0 }, india: { reliefAllowedUsd: 0 } }, indiaTax: { totalTaxUsd: inTaxUsd } },
+    monitoring: { calendar: { all: cal("US", "Estimated tax", ["2026-04-15", "2026-06-15", "2026-09-15", "2027-01-15"], today)
+      .concat(cal("IN", "Advance tax", ["2026-06-15", "2026-09-15", "2026-12-15", "2027-03-15"], today)) } }
+  });
+  it("flags a late payment and a missed quarter, and trusts undated ones", () => {
+    const raw = { router: {}, india: {}, us: { withholding_and_estimated: { federal_withholding_total_usd: 5000,
+      estimated_tax_q1_apr15_usd: 3000, estimated_tax_q1_paid_date: "2026-04-10",
+      estimated_tax_q2_jun15_usd: 3000, estimated_tax_q2_paid_date: "2026-07-01",
+      estimated_tax_q3_sep15_usd: 0 } } };
+    const p = countryPayments(res(0), raw);
+    expect(p.US.lateInstallments).toBe(2); // Q2 late, Q3 missed; Q4 not yet due
+    expect(p.US.installmentNotes.join(" | ")).toMatch(/Q2 .*paid late.*\| Q3 .*not paid/);
+    const undated = { router: {}, india: {}, us: { withholding_and_estimated: { federal_withholding_total_usd: 5000, estimated_tax_q1_apr15_usd: 3000, estimated_tax_q2_jun15_usd: 3000, estimated_tax_q3_sep15_usd: 3000 } } };
+    const u = countryPayments(res(0), undated);
+    expect(u.US.lateInstallments).toBe(0);
+    expect(u.US.undatedInstallments).toBe(3);
+  });
+  it("doesn't require instalments under the thresholds or for an Indian resident senior", () => {
+    const noUs = { router: {}, india: {}, us: { withholding_and_estimated: { federal_withholding_total_usd: 19500 } } };
+    expect(countryPayments(res(0), noUs).US.lateInstallments).toBe(0); // $500 after withholding < $1,000
+    const india = (dob) => ({ router: {}, us: {}, india: { profile: { date_of_birth: dob }, residency_detail: { final_india_residency_status: "ROR" }, tax_credits: {} } });
+    expect(countryPayments(res(2000), india("1990-01-01")).IN.lateInstallments).toBe(2); // Q1, Q2 missed
+    expect(countryPayments(res(2000), india("1960-01-01")).IN.lateInstallments).toBe(0); // 60+, no business
+    expect(countryPayments(res(100), india("1990-01-01")).IN.lateInstallments).toBe(0); // ₹8,300 < ₹10,000
+    expect(classify({ taxesWorldwide: true, estimatedTaxUsd: 100, balanceUsd: 0, overdueFilings: 0, lateInstallments: 1 })).toBe(STATUS.EXPOSED);
   });
 });

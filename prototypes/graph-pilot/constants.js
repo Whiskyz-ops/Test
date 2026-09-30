@@ -357,7 +357,8 @@
         TREATY_RATE_TOLERANCE: 0.001,
         // SALT cap under OBBBA: raised from a flat $10,000 (TCJA) to $40,000
         // ($20,000 MFS) for TY2025, then indexed +1%/year 2026-2029 —
-        // TY2026 is $40,400 ($20,200 MFS), phased DOWN 30 cents per dollar of
+        // TY2026 is $40,400 ($20,200 MFS: half the joint figure after the
+        // phase-down, so 15 cents and a $5,000 floor), phased DOWN 30 cents per dollar of
         // MAGI above the threshold, floored at $10,000 — so high earners
         // still land back at the old cap. Reverts to a flat $10,000 with no
         // phase-down in 2030.

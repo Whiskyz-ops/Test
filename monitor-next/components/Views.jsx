@@ -207,7 +207,7 @@ function FindingRow({ f, isOpen, onToggle, status, onLog }) {
           {f.title}
           {stale && <span className="ml-2 align-middle text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: "rgba(251,191,36,0.15)", color: PAL.amberText }}>Reopened</span>}
           {f.scope && <span className="ml-2 align-middle text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={f.scope === "household" ? { background: PAL.accent + "1c", color: PAL.accent } : { background: "rgba(255,255,255,0.05)", color: PAL.muted }}
-            title={f.scope === "household" ? "From the joint US return — the same alert shows on the spouse's page" : "This client's own profile"}>{f.scope === "household" ? "Household" : "This client"}</span>}
+            title={f.scope === "household" ? (f.counted === false ? "From the joint US return — counted in " + (f.countedOnName || "the spouse") + "'s health score, not this one" : "From the joint US return — the same alert shows on the spouse's page, counted in this client's health score only") : "This client's own profile"}>{f.scope === "household" ? (f.counted === false ? "Household · scored on " + (f.countedOnName || "spouse") : "Household") : "This client"}</span>}
         </span>
         {f.amountUsd > 0 && <span className="font-mono text-[12px] whitespace-nowrap self-start mt-0.5" style={{ color: SEV_TEXT[f.severity] }}>{fmtUsd(f.amountUsd)}</span>}
         <span className="text-muted text-xs self-start mt-0.5" style={{ transform: isOpen ? "rotate(90deg)" : "none" }}>▸</span>

@@ -45,6 +45,18 @@ function safe(obj, path, dflt) {
   return cur === undefined || cur === null ? dflt : cur;
 }
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
+// Audit row F8 — same as aggregateindiaincome-nodes.js: this person's share
+// of the interest on accounts / FDs held jointly with the spouse.
+function jointAccountInterestShareInr(os, india) {
+  var total = num(safe(os, "joint_account_interest_inr", 0));
+  if (!(total > 0)) return 0;
+  // The share is a percentage, never summed across quarterly slices: the
+  // profile's own other_sources value first.
+  var pct = safe(india, "other_sources.joint_account_own_share_percent", null);
+  if (pct == null) pct = safe(os, "joint_account_own_share_percent", null);
+  pct = pct == null || pct === "" || !isFinite(Number(pct)) ? 100 : Math.min(100, Math.max(0, Number(pct)));
+  return total * pct / 100;
+}
 
 /* Found by run-fuzz.js (randomized differential testing, 20 Jul 2026): the
  * "confirmed simple, direct reads" claim in the header above was wrong for
@@ -308,11 +320,12 @@ var NODES = {
   },
   interestInr: {
     deps: ["annualSliceV3"],
-    compute: function (d) {
+    compute: function (d, ctx) {
       var os = d.annualSliceV3.other_sources;
       return num(safe(os, "interest_savings_inr", 0)) + num(safe(os, "interest_fd_rd_inr", 0)) +
         num(safe(os, "interest_bonds_inr", 0)) + num(safe(os, "interest_on_it_refund_inr", 0)) +
-        num(safe(d.annualSliceV3.domestic_income, "other_sources.interest_inr", 0));
+        num(safe(d.annualSliceV3.domestic_income, "other_sources.interest_inr", 0)) +
+        jointAccountInterestShareInr(os, ctx.india);
     }
   },
   dividendInr: { deps: ["annualSliceV3"], compute: function (d) { return num(safe(d.annualSliceV3.other_sources, "dividend_inr", 0)); } },

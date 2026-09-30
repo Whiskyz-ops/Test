@@ -172,8 +172,14 @@ def senior_deduction(taxpayer_age, status, agi, household, base_year) -> dict:
 def compute_salt_cap(agi: float, status: str) -> float:
     base = T["SALT_CAP_BASE_USD"].get(status, T["SALT_CAP_BASE_USD"]["single"])
     threshold = T["SALT_CAP_PHASEOUT_THRESHOLD_USD"].get(status, T["SALT_CAP_PHASEOUT_THRESHOLD_USD"]["single"])
+    # Separate filers (IRS 2025 Schedule A, line 5e worksheet): the joint cap
+    # is phased down 30% over the halved threshold, floored at $10,000, then
+    # halved — an effective 15% phase-down and a $5,000 floor.
+    if status == "mfs":
+        base = T["SALT_CAP_BASE_USD"]["single"]
     reduced = base - T["SALT_CAP_PHASEOUT_RATE"] * max(0.0, agi - threshold)
-    return max(T["SALT_CAP_FLOOR_USD"], min(base, reduced))
+    cap = max(T["SALT_CAP_FLOOR_USD"], min(base, reduced))
+    return cap / 2 if status == "mfs" else cap
 
 
 def compute_ss_taxable_usd(gross_ss_usd: float, other_agi_excl_ss: float, tax_exempt_interest_usd: float, status: str) -> float:

@@ -146,6 +146,42 @@ def _share_str(v) -> str:
     return str(v)
 
 
+def _fmt_num(v: float) -> str:
+    # JS Number -> string: integers without ".0".
+    return str(int(v)) if float(v).is_integer() else repr(float(v))
+
+
+def _joint_interest(c):
+    """Audit row F8 (mirror of household-link.js jointInterest)."""
+    try:
+        total = float(_get(c, "india.other_sources.joint_account_interest_inr") or 0)
+    except (TypeError, ValueError):
+        total = 0.0
+    if not total > 0:
+        return None
+    p = _get(c, "india.other_sources.joint_account_own_share_percent")
+    try:
+        p = float(p) if p not in (None, "") else 100.0
+    except (TypeError, ValueError):
+        p = 100.0
+    if p != p or p in (float("inf"), float("-inf")):
+        p = 100.0
+    return {"total": total, "pct": p}
+
+
+def _check_joint_interest(a, b, err) -> None:
+    ja, jb = _joint_interest(a), _joint_interest(b)
+    if ja and jb:
+        if abs(ja["total"] - jb["total"]) > 1:
+            err("joint_interest_mismatch", "Joint-account interest differs: ₹" + _fmt_num(ja["total"]) + " on " + _name(a) + "'s India profile, ₹" + _fmt_num(jb["total"]) + " on " + _name(b) + "'s. Both should show the full interest credited.")
+        elif abs(ja["pct"] + jb["pct"] - 100) > 0.5:
+            err("joint_interest_share_sum", "Shares of the joint-account money add up to " + _fmt_num(ja["pct"] + jb["pct"]) + "% (" + _name(a) + " " + _fmt_num(ja["pct"]) + "%, " + _name(b) + " " + _fmt_num(jb["pct"]) + "%). They must add up to 100%.")
+        return
+    for c, j, other in ((a, ja, b), (b, jb, a)):
+        if j and j["pct"] < 100 and _get(other, "india.other_sources.has_other_sources_income") is True:
+            err("joint_interest_missing_on_spouse", _name(c) + " is taxed on " + _fmt_num(j["pct"]) + "% of ₹" + _fmt_num(j["total"]) + " joint-account interest; the other " + _fmt_num(100 - j["pct"]) + "% isn't on " + _name(other) + "'s India profile.")
+
+
 def _check_shared_items(a, b, err) -> None:
     seen = {k: label for k, label in _shared_keys(a)}
     dup = set()
@@ -164,6 +200,7 @@ def _check_shared_items(a, b, err) -> None:
                 n = float("nan")
             if not (n > 0 and n <= 100):
                 err("joint_share_invalid", _name(c) + ": a co-owned item has a share of " + _share_str(v) + "%. The share must be above 0 and at most 100.")
+    _check_joint_interest(a, b, err)
     if _filing_status(a) != "mfj" or _filing_status(b) != "mfj":
         return
     oa, ob = _get(a, "us.profile.household_items_owner"), _get(b, "us.profile.household_items_owner")

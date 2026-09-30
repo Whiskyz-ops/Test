@@ -16,6 +16,7 @@ from ..core.util import num, safe
 from . import constants as C
 from . import form_rules as FR
 from .house_property import compute_house_property, house_property_opts
+from .joint_interest import joint_account_interest_share_inr
 
 T = C.INDIA
 S80DD_U_FLAT = C.INDIA["S80DD_U_FLAT_INR"]
@@ -400,12 +401,14 @@ NODES = {
         compute=lambda d, ctx: (
             num(safe(d["annualSliceV3"]["other_sources"], "interest_savings_inr", 0)) + num(safe(d["annualSliceV3"]["other_sources"], "interest_fd_rd_inr", 0)) +
             num(safe(d["annualSliceV3"]["other_sources"], "interest_bonds_inr", 0)) + num(safe(d["annualSliceV3"]["other_sources"], "interest_on_it_refund_inr", 0)) +
-            num(safe(d["annualSliceV3"]["domestic_income"], "other_sources.interest_inr", 0))
+            num(safe(d["annualSliceV3"]["domestic_income"], "other_sources.interest_inr", 0)) +
+            joint_account_interest_share_inr(d["annualSliceV3"]["other_sources"], ctx.get("india"))
         ),
         layer1_fields=(
             "india.other_sources.interest_savings_inr", "india.other_sources.interest_fd_rd_inr",
             "india.other_sources.interest_bonds_inr", "india.other_sources.interest_on_it_refund_inr",
             "india.domestic_income.other_sources.interest_inr",
+            "india.other_sources.joint_account_interest_inr", "india.other_sources.joint_account_own_share_percent",
         ),
     ),
     "dividendInr": NodeDef(deps=("annualSliceV3",), compute=lambda d, ctx: num(safe(d["annualSliceV3"]["other_sources"], "dividend_inr", 0)), layer1_fields=("india.other_sources.dividend_inr",)),

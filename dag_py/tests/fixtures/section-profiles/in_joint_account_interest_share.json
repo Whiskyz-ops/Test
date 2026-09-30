@@ -1,0 +1,44 @@
+{
+  "id": "in_joint_account_interest_share",
+  "form": "layer1_india.html",
+  "section": "Other sources (joint accounts with spouse)",
+  "story": "Resident individual, new regime. Own savings interest 50,000; FD held jointly with the spouse earned 3,00,000, of which 40% of the money deposited was this person's (audit row F8).",
+  "router": {
+    "jurisdiction": "india_only",
+    "entity_type": "individual",
+    "base_tax_year": 2026
+  },
+  "india": {
+    "profile": {
+      "entity_type": "individual",
+      "tax_regime": "NEW"
+    },
+    "residency_detail": {
+      "manual_days": 365,
+      "days_in_india_current_year": 365,
+      "days_in_india_preceding_4_years_gte_365": true,
+      "nr_years_last_10_gte_9": false,
+      "days_in_india_last_7_years_lte_729": false,
+      "final_india_residency_status": "ROR"
+    },
+    "domestic_income": {
+      "salary": {
+        "has_salary_income": false
+      }
+    },
+    "other_sources": {
+      "has_other_sources_income": true,
+      "interest_savings_inr": 50000,
+      "joint_account_interest_inr": 300000,
+      "joint_account_own_share_percent": 40
+    }
+  },
+  "us": {},
+  "expect": [
+    {
+      "path": "model.income.india.interest.inr",
+      "value": 170000,
+      "why": "50,000 own + 40% x 3,00,000 joint = 1,20,000; interest is taxed to whoever's money it is (clubbing / real-owner principle), not the first holder"
+    }
+  ]
+}
