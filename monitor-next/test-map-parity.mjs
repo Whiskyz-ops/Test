@@ -10,7 +10,9 @@
  * other, or CI goes red.
  *
  * The Python side runs dag_py directly (python3, no dependencies), not
- * through Pyodide; lib/py-dag-adapter.js passes the same result shape on.
+ * through Pyodide — analyze_with_extras(), the same entry point the
+ * browser's Pyodide adapter calls; lib/py-dag-adapter.js passes the same
+ * result shape on.
  *
  * Usage: node test-map-parity.mjs
  * ==========================================================================*/
@@ -42,16 +44,16 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 const PY = `
 import json, sys
 sys.path.insert(0, sys.argv[1])
-from wising_dag.analyze import analyze
+from wising_dag.analyze import analyze_with_extras
 data = json.load(sys.stdin)
-out = {k: analyze(dict(raw, monitorAsOf=data["asOf"])) for k, raw in data["clients"].items()}
+out = {k: analyze_with_extras(dict(raw, monitorAsOf=data["asOf"])) for k, raw in data["clients"].items()}
 json.dump(out, sys.stdout, default=lambda o: o.isoformat() if hasattr(o, "isoformat") else str(o))
 `;
 const py = JSON.parse(execFileSync("python3", ["-c", PY, path.join(ROOT, "dag_py", "src")], {
   input: JSON.stringify({ asOf: AS_OF, clients }), maxBuffer: 256 * 1024 * 1024
 }).toString());
 
-const FIELDS = ["status", "taxAfterCreditsUsd", "paidUsd", "balanceUsd", "refundUsd", "atRiskUsd", "overdueFilings", "lateInstallments"];
+const FIELDS = ["status", "taxAfterCreditsUsd", "paidUsd", "balanceUsd", "refundUsd", "atRiskUsd", "overdueFilings", "lateInstallments", "filingRequired", "reason"];
 const r0 = (v) => (typeof v === "number" ? Math.round(v) : v);
 const rows = (snap) => withStatus(snap.countries).concat(withStatus(snap.states || []));
 let failures = 0;

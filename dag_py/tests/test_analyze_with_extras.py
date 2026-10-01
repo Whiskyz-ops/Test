@@ -17,14 +17,14 @@ from wising_dag import analyze
 from wising_dag.analyze import _registry, analyze_with_extras
 
 
-def test_analyze_with_extras_is_analyze_plus_two_keys(fixture_id):
+def test_analyze_with_extras_is_analyze_plus_the_extra_keys(fixture_id):
     ctx = ctx_for(fixture_id)
     opts = {"router": ctx.get("router"), "india": ctx.get("india"), "us": ctx.get("us"), "monitorAsOf": "2026-07-25T12:00:00.000Z"}
 
     base = analyze(opts)
     extended = analyze_with_extras(opts)
 
-    assert set(extended.keys()) == set(base.keys()) | {"checksRegistry", "calendarAmounts"}
+    assert set(extended.keys()) == set(base.keys()) | {"checksRegistry", "calendarAmounts", "indiaFilingObligation"}
     for k in base:
         assert extended[k] == base[k], f"{fixture_id}: analyze_with_extras()[{k!r}] diverged from analyze()[{k!r}]"
 
@@ -35,7 +35,8 @@ def test_analyze_with_extras_matches_the_underlying_nodes_directly(fixture_id):
 
     extended = analyze_with_extras(opts)
     node_ctx = {"router": opts["router"], "india": opts["india"], "us": opts["us"], "monitorAsOfBoundary": opts["monitorAsOf"]}
-    raw = _registry().resolve(["checksRegistryResult", "calendarAmountsResult"], node_ctx).values
+    raw = _registry().resolve(["checksRegistryResult", "calendarAmountsResult", "indiaFilingObligationResult"], node_ctx).values
 
     assert extended["checksRegistry"] == raw["checksRegistryResult"]
     assert extended["calendarAmounts"] == raw["calendarAmountsResult"]
+    assert extended["indiaFilingObligation"] == raw["indiaFilingObligationResult"]

@@ -109,7 +109,7 @@ export function analyzeDag(opts) {
     "totalTaxInrCombined", "regimeCombined", "isEntityTaxpayer", "usTaxResult", "residencyResult",
     "ftcResult", "crossBasisResult", "limitsResult", "headlineResult",
     "apportionmentResult", "s115aDividend", "s115aRoyalty", "s115aFts", "isNRV3",
-    "analyzeResult", "checksRegistryResult", "calendarAmountsResult",
+    "analyzeResult", "checksRegistryResult", "calendarAmountsResult", "indiaFilingObligationResult",
     // Not part of the real product surface, not returned to any Monitor
     // component — lets shadow-core.js's isIndiaRebateMarginalReliefDivergent
     // Profile recompute the OLD (pre-fix) §87A rebate formula from the same
@@ -172,6 +172,8 @@ export function analyzeDag(opts) {
   // ₹/$ figure per advance-tax/estimated-tax calendar row.
   const assembled = Object.assign({}, out.analyzeResult, {
     model, computed, checksRegistry: out.checksRegistryResult, calendarAmounts: out.calendarAmountsResult,
+    // Is an Indian return compulsory, and why (DAG-only, like the two above).
+    indiaFilingObligation: out.indiaFilingObligationResult,
     // Harness-internal only — see the RESOLVE_LIST comment above. Never read
     // by any Monitor component; shadow-core.js/test-adapter.mjs are the only
     // consumers, and only for isIndiaRebateMarginalReliefDivergentProfile.

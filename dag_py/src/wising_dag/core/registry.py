@@ -147,6 +147,7 @@ def build_full_registry() -> NodeRegistry:
     from ..crossborder import apportionment, black_money_act, cross_basis
     from ..crossborder import findings as crossborder_findings
     from ..filings import assets, calendar_amounts, checks_registry, documents, limits, monitoring
+    from ..india import filing_obligation
     from ..india import findings as india_findings
     from ..india.itr_form import _india_itr_form_result
     from ..reports import assembly as reports_assembly
@@ -271,6 +272,7 @@ def build_full_registry() -> NodeRegistry:
     r = reports_trace.build(r)
     r = limits.build(r)
     r = calendar_amounts.build(r)
+    r = filing_obligation.build(r)
     r = checks_registry.build(r)
     r = documents.build(r)
     r = assets.build(r)
