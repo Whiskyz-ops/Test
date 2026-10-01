@@ -69,8 +69,9 @@ export function isBreached(r) {
 //  Exposed          = tax still unpaid after credits and payments, or a
 //                     filing deadline already missed
 //  Filing required  = an obligation (tax owed and fully paid, taxed on
-//                     worldwide income, or a threshold crossed) but nothing
-//                     unpaid or overdue
+//                     worldwide income, a threshold crossed, or tax paid
+//                     above the tax due — a refund is claimed only through
+//                     the return) but nothing unpaid or overdue
 //  Approaching      = no obligation yet, 60%+ of the way to a residency /
 //                     reporting threshold
 //  On track         = nothing required
@@ -79,7 +80,7 @@ export function classify(r) {
   const breached = isBreached(r);
   if (r.balanceUsd !== undefined || r.overdueFilings !== undefined) {
     if ((r.balanceUsd || 0) > 1 || (r.overdueFilings || 0) > 0 || (r.lateInstallments || 0) > 0 || r.likelyUnpaid) return STATUS.EXPOSED;
-    if ((r.estimatedTaxUsd || 0) > 0 || breached || r.taxesWorldwide || r.filingRequired) return STATUS.NEXUS;
+    if ((r.estimatedTaxUsd || 0) > 0 || breached || r.taxesWorldwide || r.filingRequired || (r.refundUsd || 0) > 1) return STATUS.NEXUS;
     if (approachPct(r) >= 0.6) return STATUS.APPROACHING;
     return STATUS.NONE;
   }
