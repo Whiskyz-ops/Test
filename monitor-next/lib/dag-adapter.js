@@ -180,9 +180,8 @@ export function analyzeDag(opts) {
     _debugIsNew: out.isNew, _debugIsIndividualV3: out.isIndividualV3, _debugIsNRV3: out.isNRV3
   });
   // The client's own inputs, for the Monitor's payments / state rows
-  // (lib/payments.js). Non-enumerable, so no comparison or serializer sees it.
-  Object.defineProperty(assembled, "_raw", { value: { router, india, us }, enumerable: false });
-  return assembled;
+  // (lib/payments.js).
+  return attachRaw(assembled, { router, india, us });
 }
 
 // DAG-backed counterpart to lib/wising.js's monitorSnapshot() — same
@@ -191,7 +190,21 @@ export function analyzeDag(opts) {
 // consumed. countriesFromEngine() is reused as-is: it's a pure derivation
 // off the result shape, not engine-specific.
 export function monitorSnapshotDag(source, overrides) {
-  const result = analyzeDagSource(source, overrides);
+  return snapshotFromResult(analyzeDagSource(source, overrides));
+}
+
+// The client's own {router, india, us} on a result, for the payments /
+// state rows. Non-enumerable, so no comparison or serializer sees it.
+export function attachRaw(result, raw) {
+  if (result) Object.defineProperty(result, "_raw", { value: raw, enumerable: false, configurable: true });
+  return result;
+}
+
+// One analyze() result -> the Monitor snapshot. Shared by the JS DAG and
+// the Python DAG (lib/py-dag-adapter.js) so both modes build the map /
+// KPI rows — tax after credits, paid, balance, refund, overdue returns,
+// state rows — the same way. Needs result._raw (attachRaw).
+export function snapshotFromResult(result) {
   if (!result) return null;
   const pay = countryPayments(result, result._raw);
   const countries = countriesFromEngine(result).map((c) => (pay && pay[c.id] ? Object.assign({}, c, pay[c.id]) : c));

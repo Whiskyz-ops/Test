@@ -28,8 +28,7 @@
  * ==========================================================================*/
 "use client";
 
-import { readRaw, STORAGE_KEYS } from "./dag-adapter.js";
-import { countriesFromEngine } from "./wising.js";
+import { readRaw, STORAGE_KEYS, attachRaw, snapshotFromResult } from "./dag-adapter.js";
 import { initPyDag } from "./py-dag-loader.js";
 
 // "demo" | "live" | {router,india,us} — same source contract as
@@ -76,21 +75,14 @@ export async function analyzePyDag(opts) {
   // pyodide.ffi.to_js) — called exactly like window.WISING.analyze, no
   // Pyodide-specific ceremony needed at the call site.
   const W_PY = window.WISING_PY;
-  return W_PY.analyze(pyOpts);
+  return attachRaw(W_PY.analyze(pyOpts), { router, india, us });
 }
 
-// Python-DAG-backed counterpart to monitorSnapshotDag() — same
-// {result, countries, healthScore, clientName, baseYear} shape, async.
+// Python-DAG-backed counterpart to monitorSnapshotDag() — same snapshot,
+// built by the same snapshotFromResult() (payments, refunds, overdue
+// returns and state rows included), async.
 export async function monitorSnapshotPyDag(source, overrides) {
-  const result = await analyzePyDagSource(source, overrides);
-  if (!result) return null;
-  return {
-    result,
-    countries: countriesFromEngine(result),
-    healthScore: result.summary.healthScore,
-    clientName: result.summary.name,
-    baseYear: result.summary.baseYear
-  };
+  return snapshotFromResult(await analyzePyDagSource(source, overrides));
 }
 
 // Python-DAG-backed counterpart to analyzeProfileByIdDag() — used for the

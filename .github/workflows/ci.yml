@@ -8,7 +8,9 @@ name: CI
 #     no build step needed.
 #   - monitor-next: syncs engine+DAG into the Next.js app (predev/prebuild),
 #     builds it, and runs its own adapter differential test (dag-adapter.js
-#     vs the real engine, on every field the app's own source reads).
+#     vs the real engine, on every field the app's own source reads), and
+#     the map parity check (test-map-parity.mjs: JS DAG vs Python DAG on
+#     every country / state row, so the two engine modes never drift).
 #
 # fuzz:dag's exit code reflects ONLY new/unknown divergences — see
 # prototypes/graph-pilot/run-fuzz.js's own header for the KNOWN-DIVERGENCE
@@ -54,3 +56,5 @@ jobs:
         run: npm run build
       - name: Adapter differential test (dag-adapter.js vs the real engine)
         run: node test-adapter.mjs
+      - name: Map parity (JS DAG vs Python DAG — country / state rows)
+        run: node test-map-parity.mjs
