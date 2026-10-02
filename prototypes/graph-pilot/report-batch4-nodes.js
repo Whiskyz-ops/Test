@@ -165,7 +165,7 @@ NODES.buildWithholdingSummaryResult = {
   deps: [
     "s115aDividend", "s115aRoyalty", "s115aFts", "nrInterest", "isNRV3", "isEntityTaxpayer",
     "withholdingDetailIndiaRaw", "withholdingDetailUsRaw", "vdaSaleConsiderationInrBoundary", "specialRate115bbInr",
-    "panAadhaarLinkedRaw",
+    "panAadhaarLinkedRaw", "salaryNotChargeableInr", "salaryNotChargeableTaxInr",
     "treatyFiles1040nrRaw", "s6013hElection", "nraRaw", "nraFdapDetail",
     "aggregateUsIncomeResult", "taxesPaidUsResult", "usEntityKind"
   ],
@@ -318,6 +318,22 @@ NODES.buildWithholdingSummaryResult = {
         rateAppliedPct: 30, taxInr: Math.round(winningsInr * 0.30), gapInr: 0,
         note: "30% flat, no basic exemption (s.194B lottery/betting has a ₹10,000 per-transaction floor; s.194BA online gaming has none — not distinguishable from this annual aggregate) — not confirmed as actually withheld, may already be inside the aggregate TDS credit above (excluded from totals)",
         citation: "s.194B / s.194BA"
+      });
+    }
+
+    // Salary India can't tax (work done outside India) with no salary TDS on
+    // file: the TDS an Indian employer would likely deduct on it anyway — the
+    // same estimate as the salary_not_taxable_india_tds alert.
+    var salaryNcInr = d.salaryNotChargeableInr || 0, salaryNcTaxInr = d.salaryNotChargeableTaxInr || 0;
+    var salaryTdsOnFile = (wd.india.tdsEntries || []).some(function (e) { return e.source === "salary"; });
+    if (salaryNcInr > 0 && salaryNcTaxInr > 0 && !salaryTdsOnFile) {
+      estimateRows.india.push({
+        id: "salary_tds_estimate", jurisdiction: "IN", category: "estimate",
+        label: "Expected TDS on salary India can't tax (s.192)",
+        grossInr: salaryNcInr, domesticRatePct: null, treatyRatePct: null, docsOk: null,
+        rateAppliedPct: (salaryNcTaxInr / salaryNcInr) * 100, taxInr: Math.round(salaryNcTaxInr), gapInr: 0,
+        note: "Salary for work done outside India isn't taxable in India for this client, but an Indian employer usually deducts TDS under s.192 on all the salary it pays. Estimated as the Indian tax this salary would carry — not confirmed as deducted. Stop it with a declaration to the employer, or claim it back in the Indian return (see Conflicts). Enter the actual figure from Form 168 (formerly 26AS) / AIS under TDS by source on Layer 1 India (excluded from totals)",
+        citation: "s.192"
       });
     }
 

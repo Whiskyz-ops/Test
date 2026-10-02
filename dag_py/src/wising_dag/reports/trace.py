@@ -913,6 +913,19 @@ def _build_withholding_summary_result(d, ctx):
             "citation": "s.194B / s.194BA",
         })
 
+    # Salary India can't tax with no salary TDS on file — see report-batch4-nodes.js.
+    salary_nc_inr, salary_nc_tax_inr = d["salaryNotChargeableInr"] or 0, d["salaryNotChargeableTaxInr"] or 0
+    salary_tds_on_file = any(e["source"] == "salary" for e in (wd["india"].get("tdsEntries") or []))
+    if salary_nc_inr > 0 and salary_nc_tax_inr > 0 and not salary_tds_on_file:
+        estimate_rows["india"].append({
+            "id": "salary_tds_estimate", "jurisdiction": "IN", "category": "estimate",
+            "label": "Expected TDS on salary India can't tax (s.192)",
+            "grossInr": salary_nc_inr, "domesticRatePct": None, "treatyRatePct": None, "docsOk": None,
+            "rateAppliedPct": salary_nc_tax_inr / salary_nc_inr * 100, "taxInr": js_round(salary_nc_tax_inr), "gapInr": 0,
+            "note": "Salary for work done outside India isn't taxable in India for this client, but an Indian employer usually deducts TDS under s.192 on all the salary it pays. Estimated as the Indian tax this salary would carry — not confirmed as deducted. Stop it with a declaration to the employer, or claim it back in the Indian return (see Conflicts). Enter the actual figure from Form 168 (formerly 26AS) / AIS under TDS by source on Layer 1 India (excluded from totals)",
+            "citation": "s.192",
+        })
+
     pan_aadhaar_inoperative = d["panAadhaarLinkedRaw"] is False
 
     us_rows = []
@@ -1027,7 +1040,7 @@ NODES = {
         deps=(
             "s115aDividend", "s115aRoyalty", "s115aFts", "nrInterest", "isNRV3", "isEntityTaxpayer",
             "withholdingDetailIndiaRaw", "withholdingDetailUsRaw", "vdaSaleConsiderationInrBoundary", "specialRate115bbInr",
-            "panAadhaarLinkedRaw",
+            "panAadhaarLinkedRaw", "salaryNotChargeableInr", "salaryNotChargeableTaxInr",
             "treatyFiles1040nrRaw", "s6013hElection", "nraRaw", "nraFdapDetail",
             "aggregateUsIncomeResult", "taxesPaidUsResult", "usEntityKind",
         ),

@@ -90,6 +90,16 @@
       "value": 2860.72,
       "tol": 0.5,
       "why": "All TDS is refundable: (Rs 2,00,000 + Rs 37,440) / 83 = $2,860.72"
+    },
+    {
+      "path": "withholding.india.rows[id=tds_salary_0].taxInr",
+      "value": 200000,
+      "why": "The salary TDS entry is its own Withholding row (s.192)"
+    },
+    {
+      "path": "withholding.india.rows[id=tds_interest_1].citation",
+      "value": "s.195",
+      "why": "Interest paid to a non-resident: TDS under s.195"
     }
   ]
 }

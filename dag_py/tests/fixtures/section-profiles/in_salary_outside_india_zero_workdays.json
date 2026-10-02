@@ -66,6 +66,11 @@
       "path": "computed.reconciliation.rows[head=salary].indiaLawUsd",
       "value": 0,
       "why": "Salary India can't tax isn't 'taxed under both codes': India's side of the cross-basis salary row is 0 (the US still taxes all of it)"
+    },
+    {
+      "path": "withholding.india.estimateRows[id=salary_tds_estimate].taxInr",
+      "value": 2829684,
+      "why": "Withholding tab flags the TDS an employer would likely deduct on salary India can't tax: tax on Rs 96,45,000 (new regime: Rs 3,00,000 to Rs 24 lakh + 30% x Rs 72,45,000 = Rs 24,73,500; +10% surcharge = Rs 27,20,850; +4% cess = Rs 28,29,684) less tax on the Rs 1,20,000 interest alone (Rs 0)"
     }
   ]
 }
