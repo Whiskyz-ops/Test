@@ -41,6 +41,10 @@ function scopeToCountries(countries, scope) {
   return countries;
 }
 
+// Tabs not shown for now (their views stay in the code). Integrations has
+// nothing a firm can use yet; remove it from this list to bring it back.
+const HIDDEN_TABS = ["integrations"];
+
 export default function MonitorPage() {
   const [view, setView] = useState("clients");
   const [region, setRegion] = useState("All");
@@ -454,7 +458,7 @@ export default function MonitorPage() {
   return (
     <div className="relative flex min-h-screen">
       <div className="starfield" />
-      <Sidebar active={view} onNavigate={setView} badges={badges} engineReady={engineReady} syncing={syncing} hidden={hasStructure ? [] : ["structure"]} />
+      <Sidebar active={view} onNavigate={setView} badges={badges} engineReady={engineReady} syncing={syncing} hidden={HIDDEN_TABS.concat(hasStructure ? [] : ["structure"])} />
       <main className="relative z-10 flex-1 min-w-0 px-8 py-6">
         <Header region={region} onRegionChange={setRegion} clientName={clientName} baseYear={baseYear} entity={result ? result.model.entity : null} scope={result ? result.model.meta : null}
           presentationMode={presentationMode || investor} onTogglePresentation={investor ? undefined : () => setPresentationMode((v) => !v)}
