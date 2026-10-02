@@ -36,7 +36,11 @@ def _cross_basis_result(d, ctx):
         o["overlapUsd"] = min(o["indiaLawUsd"], o["usLawUsd"]) if o["doublyTaxed"] else 0
         rows.append(o)
 
+    # India's side of the salary row is only the part India can tax (mirrors
+    # crossbasis-nodes.js): salary for work done outside India
+    # (salaryNotChargeableInr) is left out of India's total income.
     salary_usd = float(d["salaryInr"]) / fx_rate(ctx)
+    salary_nc_usd = float(min(d["salaryInr"], d["salaryNotChargeableInr"] or 0)) / fx_rate(ctx)
     business_usd = float(d["businessComputation"]["businessInr"]) / fx_rate(ctx)
     house_property_usd = float(d["housePropertyInr"]) / fx_rate(ctx)
     interest_usd = float(d["interestInr"]) / fx_rate(ctx)
@@ -49,8 +53,8 @@ def _cross_basis_result(d, ctx):
             gross_wage = salary_usd + std_ded_usd
             row({
                 "head": "salary", "label": "Salary / Wages", "dir": "IN→US", "source": "India",
-                "indiaLawUsd": salary_usd, "usLawUsd": max(0.0, gross_wage - feie_applied),
-                "indiaRule": f"Net of {std_ded_label} std deduction · slab ≤ 30%",
+                "indiaLawUsd": salary_usd - salary_nc_usd, "usLawUsd": max(0.0, gross_wage - feie_applied),
+                "indiaRule": (f"{_usd_label(salary_nc_usd)} for work done outside India not taxable in India · " if salary_nc_usd > 0.5 else "") + f"Net of {std_ded_label} std deduction · slab ≤ 30%",
                 "usRule": (f"Gross less FEIE {_usd_label(feie_applied)}" if feie_applied > 0 else "Gross wage; no std deduction") + " · brackets ≤ 37%",
             })
         if business_usd > 0:
@@ -129,7 +133,7 @@ def build(base: NodeRegistry) -> NodeRegistry:
 
     r.register("crossBasisResult", NodeDef(
         deps=("usTaxResult", "residencyResult", "viaForeignCorpXbr4", "taxRegime",
-              "salaryInr", "businessComputation", "housePropertyInr", "interestInr", "dividendInr", "indiaCapitalGainsInrXbr3",
+              "salaryInr", "salaryNotChargeableInr", "businessComputation", "housePropertyInr", "interestInr", "dividendInr", "indiaCapitalGainsInrXbr3",
               "aggregateUsIncomeResult"),
         compute=_cross_basis_result,
     ))

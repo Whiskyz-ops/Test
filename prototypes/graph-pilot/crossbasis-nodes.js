@@ -57,7 +57,7 @@ NODES.viaForeignCorpXbr4 = {
 // ---- crossBasis, ported in full --------------------------------------------
 NODES.crossBasisResult = {
   deps: ["usTaxResult", "residencyResult", "viaForeignCorpXbr4", "taxRegime",
-    "salaryInr", "businessComputation", "housePropertyInr", "interestInr", "dividendInr", "indiaCapitalGainsInrXbr3",
+    "salaryInr", "salaryNotChargeableInr", "businessComputation", "housePropertyInr", "interestInr", "dividendInr", "indiaCapitalGainsInrXbr3",
     "aggregateUsIncomeResult"],
   compute: function (d, ctx) {
     function usd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
@@ -80,7 +80,13 @@ NODES.crossBasisResult = {
       rows.push(o);
     }
 
+    // India's side of the salary row is only the part India can tax: salary
+    // for work done outside India (salaryNotChargeableInr — non-resident /
+    // RNOR, or treaty-resident in the US) is left out of India's total
+    // income, so it isn't taxed under both codes. The US side stays the
+    // whole gross wage.
     var salaryUsd = inrToUsd(d.salaryInr, ctx);
+    var salaryNcUsd = inrToUsd(Math.min(d.salaryInr, d.salaryNotChargeableInr || 0), ctx);
     var businessUsd = inrToUsd(d.businessComputation.businessInr, ctx);
     var housePropertyUsd = inrToUsd(d.housePropertyInr, ctx);
     var interestUsd = inrToUsd(d.interestInr, ctx);
@@ -92,8 +98,8 @@ NODES.crossBasisResult = {
       if (salaryUsd > 0) {
         var grossWage = salaryUsd + stdDedUsd;
         row({ head: "salary", label: "Salary / Wages", dir: "IN→US", source: "India",
-          indiaLawUsd: salaryUsd, usLawUsd: Math.max(0, grossWage - feieApplied),
-          indiaRule: "Net of " + stdDedLabel + " std deduction · slab ≤ 30%",
+          indiaLawUsd: salaryUsd - salaryNcUsd, usLawUsd: Math.max(0, grossWage - feieApplied),
+          indiaRule: (salaryNcUsd > 0.5 ? usd(salaryNcUsd) + " for work done outside India not taxable in India · " : "") + "Net of " + stdDedLabel + " std deduction · slab ≤ 30%",
           usRule: (feieApplied > 0 ? "Gross less FEIE " + usd(feieApplied) : "Gross wage; no std deduction") + " · brackets ≤ 37%" });
       }
       if (businessUsd > 0) {

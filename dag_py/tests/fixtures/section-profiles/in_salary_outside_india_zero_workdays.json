@@ -61,6 +61,11 @@
       "path": "computed.indiaTax.totalTaxInr",
       "value": 0,
       "why": "Rs 1,20,000 is under the Rs 4,00,000 basic exemption"
+    },
+    {
+      "path": "computed.reconciliation.rows[head=salary].indiaLawUsd",
+      "value": 0,
+      "why": "Salary India can't tax isn't 'taxed under both codes': India's side of the cross-basis salary row is 0 (the US still taxes all of it)"
     }
   ]
 }

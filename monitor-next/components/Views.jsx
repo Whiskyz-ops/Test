@@ -1387,8 +1387,15 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump,
   const buildRows = (defs) => defs.filter(([, mv]) => isTaxed(mv)).map(([label, mv, additive]) => ({ label, mv, additive: additive !== false }));
   const rowsTotal = (rows, key) => rows.reduce((s, r) => s + (r.additive ? (r.mv[key] || 0) : 0), 0);
 
+  // Salary for work done outside India that India can't tax (the engine's
+  // salaryNotChargeableInr, carried as ftc.us.indiaNotChargeableSalaryUsd):
+  // left out of India's total income, so shown greyed and outside the total
+  // here too — the card then matches the India tax computation's gross total.
+  const salaryNcInr = Math.round(((result.computed.ftc && result.computed.ftc.us && result.computed.ftc.us.indiaNotChargeableSalaryUsd) || 0) * fx);
+  const salaryIndiaMv = inc.india.salary && salaryNcInr > 0 ? moneyInr(Math.max(0, (inc.india.salary.inr || 0) - salaryNcInr)) : inc.india.salary;
   const indiaRows = buildRows([
-    ["Salary", inc.india.salary], ["Business / Profession", inc.india.business], ["House property", inc.india.houseProperty],
+    ["Salary", salaryIndiaMv],
+    ["Salary for work done outside India — not taxable in India (the US taxes it)", salaryNcInr > 0 ? moneyInr(salaryNcInr) : null, false], ["Business / Profession", inc.india.business], ["House property", inc.india.houseProperty],
     ["Interest", inc.india.interest], ["Dividend", inc.india.dividend],
     ["Other sources (family pension, gifts, misc.)", inc.india.otherSourcesMisc],
     ["Short-term capital gains (unlisted, slab rate)", moneyInr(inc.india.stcgSlabInr)],
@@ -1418,7 +1425,8 @@ export function ReconciliationView({ result, highlight, onHighlightDone, onJump,
     ["Conveyance allowance exemption", sd.conveyanceExemptInr],
     ["Tour / travel allowance exemption", sd.tourExemptInr],
     ["Daily allowance exemption", sd.dailyExemptInr],
-    ["Disability transport allowance exemption", sd.pwdExemptInr]
+    ["Disability transport allowance exemption", sd.pwdExemptInr],
+    ["Work done outside India — not taxable in India", salaryNcInr]
   ].filter(([, v]) => v > 0) : [];
   const showSalaryBreakdown = salaryDeductions.length > 0 && sd.grossSalaryInr > 0;
 

@@ -11952,19 +11952,44 @@ ${isProf ? '' : `
         return { share: indiaDays / (indiaDays + usDays), indiaDays: indiaDays, usDays: usDays };
     }
 
+    // The residency screen's "days worked in India" answer, as the engine
+    // uses it before the days-present estimate: 0 => share 0; otherwise India
+    // workdays / (India workdays + Router US days). null => not answered.
+    function salaryWorkDaysShare() {
+        const raw = state.residency_detail ? state.residency_detail.india_work_days_current_year : null;
+        if (raw === null || raw === undefined || raw === '') return null;
+        const workDays = Number(raw) || 0;
+        if (workDays <= 0) return { share: 0, workDays: 0, usDays: null };
+        let usDays = null;
+        try {
+            const r = JSON.parse(localStorage.getItem(window.WISING.ClientRegistry.storageKeyFor('ROUTER')) || '{}');
+            if (r.us_days !== null && r.us_days !== undefined && r.us_days !== '') usDays = Number(r.us_days) || 0;
+        } catch (e) { /* no Router state */ }
+        if (usDays === null || workDays + usDays <= 0) return null;
+        return { share: Math.min(1, workDays / (workDays + usDays)), workDays: workDays, usDays: usDays };
+    }
+
     function refreshSalaryWorkEstimate() {
         const el = document.getElementById('sal-workloc-estimate');
         if (!el) return;
         const sal = state.domestic_income.salary;
         const hasWorkdays = sal.work_performed_outside_india === true &&
             (Number(sal.workdays_in_india) || 0) + (Number(sal.workdays_outside_india) || 0) > 0;
-        const est = (!salaryWorkLocationAuto() && !hasWorkdays && sal.work_performed_outside_india !== false) ? salaryPresenceShare() : null;
-        if (est) {
+        const open = !salaryWorkLocationAuto() && !hasWorkdays && sal.work_performed_outside_india !== false;
+        const wd = open ? salaryWorkDaysShare() : null;
+        const est = open && !wd ? salaryPresenceShare() : null;
+        if (wd) {
+            const pct = Math.round(wd.share * 1000) / 10;
+            el.textContent = wd.workDays === 0
+                ? 'From the residency screen (0 days worked in India) — none of this salary treated as earned for work in India. Enter workdays here to override.'
+                : 'From the residency screen — ' + pct + '% of this salary treated as earned for work in India (' + wd.workDays +
+                  ' India workdays ÷ ' + (wd.workDays + wd.usDays) + ' India workdays + US days). Enter workdays here to override.';
+        } else if (est) {
             const pct = Math.round(est.share * 1000) / 10;
             el.textContent = 'Estimated from days present — ' + pct + '% of this salary treated as earned for work in India (' +
                 est.indiaDays + ' India days ÷ ' + (est.indiaDays + est.usDays) + ' India + US days). Enter workdays to confirm.';
         }
-        el.classList.toggle('hidden', !est);
+        el.classList.toggle('hidden', !est && !wd);
     }
 
     function refreshSalaryWorkLocation() {
