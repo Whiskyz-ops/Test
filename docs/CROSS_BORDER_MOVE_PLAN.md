@@ -19,7 +19,7 @@ for status.
 |---|---|
 | **Certain** | Settled law, routinely applied. Still needs a citation in the fixture. |
 | **Likely** | Strong reading, widely applied by practitioners, but has edge cases or depends on facts. |
-| **Verify** | Must be checked against the statute or treaty text, or the ITA 2025 renumbering, before any code is written. Listed again in §10. |
+| **Verify** | Must be checked against the statute or treaty text, or the ITA 2025 renumbering, before any code is written. Listed again in §11. |
 
 Section numbers for Indian law are given in **ITA 1961 numbering** (s.6,
 s.10(4)(ii), s.89A, s.115H) because that is how the engine's existing findings
@@ -52,6 +52,14 @@ Form 40, s.159 / Form 41, Form 44, Rule 76). Phase 0 maps every one to ITA 2025.
      retirement-relief block.
 5. **Law first, code second.** Phase 0 builds 8 hand-worked personas, 4 per
    direction, and has a CA and a CPA review them before any engine change.
+6. **A client has no tax-year dimension today, and that blocks everything
+   else.** Each client is one router + India + US record, with the year as a
+   field inside it. A specialist whose existing client moves would have to
+   overwrite last year's data. Phase 0.5 (§7) adds per-year client records,
+   a "Record a move" action and roll-forward before any move logic ships.
+7. **Moves in January to March span two Indian tax years.** The engine models
+   one. §3.1 now covers both years: from the client's prior-year record when
+   it exists, otherwise from two optional India-form inputs.
 
 ---
 
@@ -169,11 +177,26 @@ India       |FY 2025-26 (NR)|================ FY 2026-27: one status for the who
 - **The US splits the year at the residency start or end date** (Certain).
   The overlap window is where the treaty tie-breaker (Art. 4) and relief
   (Art. 25) do their work.
-- **Engine today:** one base year, India FY N–(N+1) against US CY N. The move
-  FY is the base FY. The *previous* FY (Jan–Mar of the US year) is outside
-  scope except through FY↔CY apportionment. Phase 2 adds a disclosure when
-  the move falls in Jan–Mar, where the previous FY's status matters for the
-  US-year overlap.
+- **Engine today:** one base year, India FY N–(N+1) against US CY N.
+  January–March of US year N belongs to India FY (N−1)–N, which the engine
+  never models.
+- **Why that matters:** for a move between 1 January and 31 March (e.g. a
+  return in February 2026), the India status changes in FY 2025–26. That is
+  exactly the year the engine doesn't look at. A warning alone would leave
+  roughly a quarter of all moves without a number.
+- **Fix (Phase 2).** When the move date falls in January–March, the engine
+  also reads the previous FY's status and its January–March income:
+  1. **From the client's previous-year record** (§7) when it exists. This is
+     the normal case for an existing client and needs no new input.
+  2. **Otherwise from two optional India-form inputs**, shown only in this
+     case:
+     - `residency_detail.previous_fy_status` (ROR / RNOR / NR, one dropdown);
+     - `previous_fy_q4`, the January–March income of the previous FY. It
+       uses the same structure as the existing `quarters.Q4`, so it adds no
+       new screen design.
+- The overlap and treaty logic (§3.3) and the US move-year split (§6.2) then
+  use the correct India status for January–March. FY↔CY apportionment uses
+  the real previous-FY Q4 instead of the 75/25 assumption for that part.
 
 ### 3.2 Residency rules on each side
 
@@ -555,7 +578,127 @@ output : null                                   — no signal (every current pro
 
 ---
 
-## 7. Intake change summary
+## 7. Specialist workflow — when an existing client moves
+
+A visual version of this section is published for the team as a separate
+page (see the commit that added this section).
+
+### 7.1 What happens today (verified against the current branch)
+
+- **[Certain] A client is one record with no tax year.**
+  - The registry (`ClientRegistry` in `constants.js`) stores three keys per
+    client: `wising_client_<id>_router`, `_india` and `_us`.
+  - The year is `router.base_tax_year`, a field inside the record.
+- **[Certain] Recording a move overwrites history.** The specialist has to
+  edit the residency fields in the same record. That replaces the year the
+  record held before. The alternative is creating a second client and
+  re-typing everything.
+- **[Certain] The move-year numbers are wrong.** The dual-status calculation
+  splits income by days (§6.2 fixes it).
+- **[Likely] Resolutions go stale.** The conflict log (`conflict-log.js`) is
+  keyed per client, not per client-year. When the year's numbers change,
+  resolutions reopen and mix with the new year's items.
+- **[Certain] Nothing detects a move.** The Monitor's residency day-counter
+  projects when a status flips at the current pace of days. That is a
+  useful prompt for the specialist, not a move detector.
+
+### 7.2 Proposed flow
+
+```
+ SPECIALIST                    WISING (Monitor + forms)                     ENGINE
+ ① Learns of the move ──────▶ Clients tab ▸ [Record a move]
+   (client tells them; or      asks only: direction · date · planned/done
+    day-counter projects a             │
+    status flip ✔ — a prompt,          ▼
+    not detection)            ② Creates the MOVE-YEAR record
+                                 carried over: identity, bank accounts, holdings,
+                                 property, retirement, carry-forward losses
+                                 pre-fills move fields the forms already have ✔
+                                 previous year's record stays untouched
+                                       │
+               ┌───────────────────────┴──────────────────────┐
+               ▼ PLANNED                                       ▼ DONE
+ ③a Advises before the move   what-if bar ✔ + move-date ──▶ projected move year,
+                               control (new)                 planning findings
+               └───────────────────────┬──────────────────────┘
+                                       ▼
+ ④ Completes the move year    India + US forms — same screens ✔ ──▶ moveContext,
+                              move-year split block shown only now   attribution, dual-status
+                                                                     tax, comparator, India
+                                       ┌─────────────────────────── status, DTAA overlap
+                                       ▼
+ ⑤ Reviews and signs off      Monitor: Move timeline (new) · Conflicts · Documents ·
+                              Calendar · Reconciliation ✔ · each decision logged ✔
+                                       │
+                                       ▼
+ ⑥ Next year                  [Roll forward] ▸ next-year record, statuses preset;
+                              reminders: next-year SPT check (first-year choice) ·
+                              RNOR end · first Schedule FA / Form 40
+```
+
+✔ = exists today. Everything else is new.
+
+| Step | Returning to India | Moving to the US |
+|---|---|---|
+| ③a Before the move | Plan for the RNOR window; Form 1040-C; decide on the US rental and the 401(k) | Sell Indian mutual funds before arrival; take gratuity and leave encashment before arrival; time the departure from India for NR status |
+| ④ Move year | US: 1040-NR is the return, with a 1040 statement. India: RNOR status; NRE accounts converted | US: four-way filing-option comparator. India: NR under the 182-day rule |
+| ⑥ Next years | RNOR → ROR: Schedule FA, Form 40 (s.158), Roth exposure | Full US resident: Form 8621, FBAR, Form 8938, Form 3520 |
+
+### 7.3 What has to be built (Phase 0.5)
+
+1. **Per-year client records.**
+   - New key form: `wising_client_<id>_<year>_router|india|us`.
+   - The registry entry gains `years: [..]` and `activeYear`. Pages take the
+     year from `?client=<id>&year=<year>`.
+   - **Migration:** an existing client's unsuffixed keys are read as the
+     year in their own `router.base_tax_year`. Nothing is rewritten until
+     the specialist creates a second year. Old links keep working.
+   - **Forms stay unchanged.**
+     - The router and both forms already resolve their storage through
+       `ClientRegistry.storageKeyFor`, so only that function becomes
+       year-aware.
+     - **Exception:** `layer1_us.html` lines ~6801–6802 and ~6972 build
+       spouse keys directly (`spouseLinkUsKey`, `spouseLinkRouterKey`).
+       They must read the spouse's record for the **same year** — a
+       three-line change to a helper, not a screen change.
+   - **Household:** `household-link.js` already requires both spouses to be
+     on the same `base_tax_year`. With per-year records, the link is checked
+     per year. A couple who move on different dates still link because they
+     share the tax year.
+   - **Conflict log:** keyed per client-year, so last year's resolutions
+     stay attached to last year.
+2. **Roll forward.** Creates year N+1 from year N:
+   - **Carried over:** identity, accounts, holdings, property, retirement
+     balances, carry-forward losses, elections that persist.
+   - **Cleared:** income, days and payments.
+   - **Status preset** from `moveContext` (e.g. US non-resident / India RNOR
+     after a return).
+   - Shared by moves and ordinary annual use.
+3. **"Record a move" action** on the Clients tab.
+   - Asks three things: direction, date, planned or done.
+   - Writes them into fields that already exist: US
+     `residency_start_date` / `residency_end_date` and
+     `final_us_residency_status = DUAL_STATUS`; India `trips[]` and
+     `is_departure_year`.
+   - Creates the move-year record via roll-forward when it doesn't exist
+     yet.
+   - No new form fields.
+4. **Move-date control in the what-if bar.** Re-runs the projected move year
+   for a different date: before/after the 182-day departure point, or a
+   January–March vs April move. Uses the same engine as the filed year.
+
+**Exit criteria:**
+- every existing client opens with identical data and identical `analyze()`
+  output;
+- old `?client=` links work;
+- `check:form-roundtrip` and `check:example-household` are green;
+- spouse linking is verified per year;
+- a Playwright run of Record-a-move → roll forward → edit the move year →
+  reopen the previous year shows the previous year unchanged.
+
+---
+
+## 8. Intake change summary
 
 | Layer | Change | Count | Visibility |
 |---|---|---|---|
@@ -565,6 +708,8 @@ output : null                                   — no signal (every current pro
 | L1 India | Bank account `interest_inr`, `redesignation_date`, type `rfc` | 2 fields + 1 option per row | Always (bank step) |
 | L1 India | Residency history table | 10 rows × 3 fields | Collapsed, "optional — improves RNOR projection" |
 | L1 India | Foreign retirement relief (s.158) | 3 fields | Only when status is RNOR/ROR and US retirement balances exist |
+| L1 India | `previous_fy_status` + `previous_fy_q4` income (§3.1) | 1 dropdown + the existing Q4 layout | Only for a January–March move **and** no previous-year record |
+| Registry (not a form) | Per-year records, roll forward, Record-a-move (§7) | 0 form fields | Clients tab |
 
 Each addition needs:
 - an entry in `docs/LAYER1_INDIA_FIELD_CHANGES.md` / `docs/LAYER1_US_FIELD_CHANGES.md`;
@@ -580,7 +725,7 @@ and needs evidence first.
 
 ---
 
-## 8. Test plan
+## 9. Test plan
 
 1. **Eight hand-worked personas** (A1–A4, B1–B4) under
    `dag_py/tests/fixtures/move-profiles/`, each with:
@@ -607,22 +752,26 @@ and needs evidence first.
 
 ---
 
-## 9. Phasing
+## 10. Phasing
 
 | Phase | Scope | Intake change | Exit criteria |
 |---|---|---|---|
-| **0 — Law and fixtures** | Resolve every **Verify** in §10. Map ITA 1961 → ITA 2025 section numbers. Write the 8 persona worksheets. | None | Worksheets signed off. No code. |
+| **0 — Law and fixtures** | Resolve every **Verify** in §11. Map ITA 1961 → ITA 2025 section numbers. Write the 8 persona worksheets. | None | Worksheets signed off. No code. |
+| **0.5 — Client tax years (§7)** | Per-year client records and migration; roll forward; Record-a-move action; spouse-link and conflict-log keys per year. Can run in parallel with Phase 0. | None (the year-aware key function is shared code; plus the 3-line US-form spouse-key helper) | §7.3 exit criteria. |
 | **1 — Detect and disclose** | `moveContext`; all disclosure and planning findings that need only existing fields (A-US-1/2/3/7/8/9/12/13/14/15, A-IN-1/3/7, B-US-1/4/5/6/7/8/12/13/14/15, B-IN-1/3/4/5/8, B-PLAN-*); documents and calendar rows. | None | All §2 gates green. No-change diff empty. Personas: correct finding ids. |
-| **2 — Correct the move-year US computation** | `moveYearAttribution` (direction defaults + dated records + India quarters); `arrivalElectionComparator`; direction-aware return form. | None | A1/A3/B1/B2 US tax matches the worksheets within $1. Gates green. |
+| **2 — Correct the move-year US computation** | `moveYearAttribution` (direction defaults + dated records + India quarters); `arrivalElectionComparator`; direction-aware return form; January–March moves read the previous FY (§3.1); move-date control in the what-if bar. | `previous_fy_status` / `previous_fy_q4`, only when no previous-year record exists | A1/A3/B1/B2 US tax matches the worksheets within $1. Gates green. |
 | **3 — India return-side accounts** | `nriAccountInterest`; s.158 / Roth / 401(k) once ROR; `rnorWindow`; s.115H (if Verify clears); nonresident 401(k) distributions. | India bank fields, history table, s.158 block; US retirement balances | A1/A2/A4 India tax matches worksheets. Round-trip and field audits green. |
 | **4 — Overrides and timeline** | US "Move-year split" block; Monitor "Move timeline" card; optional router question only if Phase 1–3 data shows derivation gaps. | US split block | Playwright check of the block and card. Gates green. |
 
-Phases 1 and 2 need **no intake change**, and together fix most of the
-dollar error and most of the "the tool didn't mention X" gaps.
+Phases 1 and 2 need almost no intake change — only the January–March
+inputs, and only for clients without a previous-year record. Together they
+fix most of the dollar error and most of the "the tool didn't mention X"
+gaps. Phase 0.5 comes first because without it none of this can be applied
+to an **existing** client without overwriting their previous year.
 
 ---
 
-## 10. Law items to verify before coding (Phase 0)
+## 11. Law items to verify before coding (Phase 0)
 
 1. ITA 2025 section numbers for: s.6 residence (including 6(1A) and
    Explanation 1), s.10(4)(ii) NRE interest, s.10(15)(iv)(fa) FCNR/RFC
@@ -648,7 +797,7 @@ dollar error and most of the "the tool didn't mention X" gaps.
 
 ---
 
-## 11. Out of scope
+## 12. Out of scope
 
 - Customs or transfer-of-residence rules, immigration status and visa
   advice.
