@@ -109,6 +109,10 @@ def _headline_result(d, ctx):
         "totalIncomeUsd": us_total_income_usd + d["totalIndiaIncomeInr"] / fx_rate(ctx),
         "indiaTaxUsd": d["totalTaxInrCombined"] / fx_rate(ctx), "usTaxUsd": d["usTaxResult"]["totalTaxBeforeFtcUsd"],
         "combinedTaxBeforeReliefUsd": d["totalTaxInrCombined"] / fx_rate(ctx) + d["usTaxResult"]["totalTaxBeforeFtcUsd"],
+        # What the client bears: each country's tax less its relief for the
+        # other's (India §159 relief, US Form 1116 credit) — agg10-nodes.js.
+        "combinedTaxAfterReliefUsd": max(0, d["totalTaxInrCombined"] / fx_rate(ctx) - ((d["ftcResult"].get("india") or {}).get("reliefAllowedUsd") or 0))
+            + max(0, d["usTaxResult"]["totalTaxBeforeFtcUsd"] - ((d["ftcResult"].get("us") or {}).get("ftcAllowedUsd") or 0)),
         "worldwideOverlap": d["residencyResult"]["worldwideOverlap"], "netUnrelievedDoubleTaxUsd": d["ftcResult"]["netUnrelievedDoubleTaxUsd"],
     }
 

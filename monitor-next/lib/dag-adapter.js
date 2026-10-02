@@ -245,7 +245,9 @@ function summarize(id, label, story, tags, raw, isRegistryClient) {
     isBusiness: r.model.entity ? r.model.entity.isBusiness : false,
     indiaStatus: s.indiaStatus, usStatus: s.usStatus, dualResident: s.dualResident,
     totalIncomeUsd: s.totalIncomeUsd, netDoubleTaxUsd: s.netDoubleTaxUsd,
-    combinedTaxUsd: (s.indiaTaxUsd || 0) + (s.usTaxUsd || 0),
+    // After each country's relief for the other's tax (engine headline).
+    combinedTaxUsd: (r.computed && r.computed.headline && r.computed.headline.combinedTaxAfterReliefUsd != null)
+      ? r.computed.headline.combinedTaxAfterReliefUsd : (s.indiaTaxUsd || 0) + (s.usTaxUsd || 0),
     critical: s.counts.critical, warning: s.counts.warning,
     requiredDocs: s.requiredDocs, healthScore: s.healthScore,
     nextDeadline: r.monitoring && r.monitoring.calendar.next ? r.monitoring.calendar.next : null

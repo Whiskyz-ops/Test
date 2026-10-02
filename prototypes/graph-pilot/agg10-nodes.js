@@ -256,6 +256,10 @@ NODES.headlineResult = {
       indiaTaxUsd: d.totalTaxInrCombined / fxRate(ctx),
       usTaxUsd: d.usTaxResult.totalTaxBeforeFtcUsd,
       combinedTaxBeforeReliefUsd: d.totalTaxInrCombined / fxRate(ctx) + d.usTaxResult.totalTaxBeforeFtcUsd,
+      // What the client actually bears: each country's tax less the relief
+      // it gives for the other's (India §159 relief, US Form 1116 credit).
+      combinedTaxAfterReliefUsd: Math.max(0, d.totalTaxInrCombined / fxRate(ctx) - ((d.ftcResult.india && d.ftcResult.india.reliefAllowedUsd) || 0)) +
+        Math.max(0, d.usTaxResult.totalTaxBeforeFtcUsd - ((d.ftcResult.us && d.ftcResult.us.ftcAllowedUsd) || 0)),
       worldwideOverlap: d.residencyResult.worldwideOverlap,
       netUnrelievedDoubleTaxUsd: d.ftcResult.netUnrelievedDoubleTaxUsd
     };

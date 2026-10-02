@@ -37,7 +37,10 @@ export function householdSummaryFigures(h, clientId) {
   const indiaShortfall = worldwideIndia ? Math.max(0, (me.usTaxShareUsd || 0) * (me.usSourceFraction || 0) - (me.indiaReliefHouseholdUsd || 0)) : 0;
   return {
     share: me.share || 0, usShareUsd, jointUsTotalUsd: jointTotal, indiaTaxUsd: me.indiaTaxUsd || 0,
-    combinedTaxUsd: (me.indiaTaxUsd || 0) + usShareUsd,
+    // Own Indian tax less own India relief, plus the share of the joint US
+    // tax after this spouse's own part of the joint credit.
+    combinedTaxUsd: Math.max(0, (me.indiaTaxUsd || 0) - (me.indiaReliefHouseholdUsd || 0)) +
+      (me.usTaxAfterCreditUsd != null ? me.usTaxAfterCreditUsd : usShareUsd),
     ftcCreditUsd: me.ftcCreditUsd || 0, usTaxAfterCreditUsd: me.usTaxAfterCreditUsd,
     netDoubleTaxUsd: usResidual + indiaShortfall
   };

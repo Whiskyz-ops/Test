@@ -34,11 +34,11 @@ Every figure below was measured by running this exact flow in a fresh browser on
 
 | | Rohan | Priya |
 |---|---|---|
-| Combined tax | $106,646 (89% of joint US) | $10,983 (11% of joint US) |
+| Combined tax (after credits) | $91,841 (89% of joint US, less his $14,805 credit) | $10,983 (11% of joint US) |
 | FTC residual | $4,408 | $0 |
 | Health | 8 | **73** ← remember this |
 
-Top tiles: Open critical **8**, Combined tax **$117,629**, FTC residual **$4,408**.
+Top tiles: Open critical **8**, Combined tax **$102,824**, FTC residual **$4,408**.
 
 ---
 
@@ -158,7 +158,7 @@ The form saves on its own. **Close tab 2.**
 > "We never touched Rohan's file."
 
 - His share of the joint tax: **$77,479 → $80,629** (89% → 84%).
-- **Clients** tab: Rohan's combined tax **$106,646 → $109,206**; Priya's health **73 → 57**; Open critical **8 → 9**; household FTC residual **$4,408 → $3,873**.
+- **Clients** tab: Rohan's combined tax **$91,841 → $93,867**, Priya's **$10,983 → $17,675**, all clients **$102,824 → $111,542**; Priya's health **73 → 57**; Open critical **8 → 9**; household FTC residual **$4,408 → $3,873**.
 
 **Close:**
 

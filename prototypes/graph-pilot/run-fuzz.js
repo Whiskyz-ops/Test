@@ -376,6 +376,8 @@ function generateProfile(rng) {
 // divergence" on these two keys alone until this entry was added
 // (discovered incidentally during the entity-filings-audit round).
 var DAG_ONLY_KEYS = {
+  // headline total after each country's relief (agg10-nodes.js, IN-82).
+  combinedTaxAfterReliefUsd: true,
   caveat: true, indiaIsAop: true, indiaIsTrust: true,
   trustDistributedUsd: true, trustRetainedUsd: true, trustBracketBreakdown: true,
   entityGraph: true, qbiWagesUsd: true, qbiUbiaUsd: true,

@@ -45,7 +45,8 @@ var graph = createGraph(NODES);
 // (indiaIncomeModelResult.passive/.general, ftcResult.us/india.baskets,
 // ftcResult.us.otherCountries) — same "DAG-only, no engine concept"
 // pattern as indiaIsAop/indiaIsTrust below.
-var DAG_ONLY_KEYS = { indiaIsAop: true, indiaIsTrust: true, passive: true, general: true, baskets: true, otherCountries: true };
+// combinedTaxAfterReliefUsd: headline total after each country's relief (IN-82) — no engine equivalent.
+var DAG_ONLY_KEYS = { combinedTaxAfterReliefUsd: true, indiaIsAop: true, indiaIsTrust: true, passive: true, general: true, baskets: true, otherCountries: true };
 
 var pass = 0, fail = 0;
 function ok(label) { pass++; }

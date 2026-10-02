@@ -175,7 +175,9 @@ def test_headline_matches_golden_for_individual_resident_profiles(fixture_id):
         return  # see conftest.py: an ROR's US income now enters India's tax
     if fixture_id in GOLDEN_DIVERGENT_FIXTURES_FEIE_WAGES:
         return  # see conftest.py's own docstring: foreign_earned_income_usd now correctly folds into foreignWages
-    diff = deep_diff(result["computed"]["headline"], golden["computed"]["headline"])
+    # combinedTaxAfterReliefUsd: DAG-only headline field (no frozen-engine equivalent, IN-82).
+    mine = {k: v for k, v in result["computed"]["headline"].items() if k != "combinedTaxAfterReliefUsd"}
+    diff = deep_diff(mine, golden["computed"]["headline"])
     assert diff is None, f"{fixture_id}: " + " | ".join(diff[:6])
 
 

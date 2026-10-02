@@ -53,6 +53,7 @@ const { allClientSummaries } = await import("./lib/wising.js");
 // unique to its one feature area (grepped) — safe for blanket exclusion
 // here too, same convention as shadow-core.js's own copy of this list.
 const DAG_ONLY_KEYS = new Set([
+  "combinedTaxAfterReliefUsd", // headline total after relief (agg10-nodes.js, IN-82)
   "caveat", "indiaIsAop", "indiaIsTrust", "trustDistributedUsd", "trustRetainedUsd",
   "trustBracketBreakdown", "entityGraph", "qbiWagesUsd", "qbiUbiaUsd",
   "foreignSection988GainLoss", "otherOrdinaryIncomeUs",

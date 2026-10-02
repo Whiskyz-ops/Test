@@ -120,6 +120,7 @@ export const DIRECTIONAL_SURFACE = [];
 // established convention of preferring key-name exclusion over a path list
 // wherever the name is unambiguous.
 const DAG_ONLY_KEYS = new Set([
+  "combinedTaxAfterReliefUsd", // headline total after relief (agg10-nodes.js, IN-82)
   "caveat", "indiaIsAop", "indiaIsTrust", "trustDistributedUsd", "trustRetainedUsd",
   "trustBracketBreakdown", "entityGraph", "qbiWagesUsd", "qbiUbiaUsd",
   "foreignSection988GainLoss", "otherOrdinaryIncomeUs",
