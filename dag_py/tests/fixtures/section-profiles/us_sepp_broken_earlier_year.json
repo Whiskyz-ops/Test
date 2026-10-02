@@ -1,0 +1,83 @@
+{
+  "id": "us_sepp_broken_earlier_year",
+  "form": "layer1_us.html",
+  "section": "Retirement distributions \u2014 SEPP method check (Notice 2022-6)",
+  "story": "IRS SEPP FAQ example facts (born 1973-03-01; $400,000; 4%; Single Life; started 15 Jan 2023; fixed amortization, $21,102 a year). US citizen, single, Texas, wages $50,000. The series was broken on 1 Jun 2025 (an extra withdrawal); the client still took $21,102 on 1 Mar 2026.",
+  "router": {
+    "jurisdiction": "single_us",
+    "base_tax_year": 2026,
+    "is_us_citizen": true,
+    "us_days": 365,
+    "date_of_birth": "1973-03-01"
+  },
+  "india": {},
+  "us": {
+    "profile": {
+      "tax_entity_type": "individual",
+      "filing_status": "single",
+      "ssn_or_itin_type": "ssn",
+      "dependents_count": 0,
+      "date_of_birth": "1973-03-01"
+    },
+    "us_residency_detail": {
+      "is_us_citizen": true,
+      "final_us_residency_status": "US_CITIZEN"
+    },
+    "state_residency": {
+      "primary_state_of_residence": "TX"
+    },
+    "itemized_deductions_and_credits": {
+      "use_standard_or_itemized": "standard"
+    },
+    "income_us_source": {
+      "has_employment_income": true,
+      "wages_w2": [
+        {
+          "employer_name": "Acme",
+          "wages_box1_usd": 50000,
+          "tax_details_collapsed_by_default": {
+            "federal_tax_withheld_usd": 0,
+            "medicare_wages_box5_usd": 50000
+          }
+        }
+      ],
+      "retirement_distributions": [
+        {
+          "payer_name": "Vanguard IRA",
+          "plan_type": "ira",
+          "taxable_usd": 21102,
+          "payment_type": "periodic",
+          "early_exception": "sepp",
+          "rolled_over": false,
+          "date_paid": "2026-03-01",
+          "federal_withheld_usd": null,
+          "sepp_method": "amortization",
+          "sepp_life_table": "single",
+          "sepp_start_date": "2023-01-15",
+          "sepp_start_balance_usd": 400000,
+          "sepp_interest_rate_pct": 4,
+          "sepp_broken": true,
+          "sepp_change_date": "2025-06-01",
+          "sepp_prior_payments_usd": 42203
+        }
+      ]
+    }
+  },
+  "expect": [
+    {
+      "path": "findings[id=sepp_recapture_72t].severity",
+      "value": "warning",
+      "why": "broken in 2025: the recapture belonged on the 2025 return"
+    },
+    {
+      "path": "findings[id=early_withdrawal_penalty_72t].amountUsd",
+      "value": 2110.2,
+      "why": "the series no longer exists: 10% of the 2026 payment of $21,102"
+    },
+    {
+      "path": "computed.usTax.totalTaxBeforeFtcUsd",
+      "value": 8923,
+      "why": "6,812.44 + 2,110.20"
+    }
+  ]
+}

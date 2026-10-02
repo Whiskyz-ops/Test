@@ -22,19 +22,28 @@
  * "Before 59½": the date paid against the 59½ date when entered; otherwise
  * the client must not have reached 59½ by 31 December.
  *
- * A broken SEPP (sepp_broken: the payment schedule was changed or stopped
- * before the later of five years and age 59½) loses the exception
- * (§72(t)(4)): this year's payment is counted as an early distribution, and
- * the 10% falls due now on every earlier SEPP payment taken before 59½
- * (sepp_prior_payments_usd), plus interest for the deferral, which isn't
- * computed. The rule bites only on a change before the later of five years
- * from the first SEPP payment (sepp_start_date) and age 59½; the change is
- * dated by the row's date paid, or 31 December when there is none. A change
- * after that is allowed and costs nothing. With no start date entered the
- * tick is taken as it stands. SEPP payments are periodic payments, so while the schedule holds
- * the treaty treats them as periodic (DTAA Art. 20, taxable in the country
- * of residence); a broken schedule loses that too and is taxed like a lump
- * sum. */
+ * SEPP (§72(t)(2)(A)(iv), §72(t)(4), Notice 2022-6), per row with
+ * early_exception "sepp" (seppAnalysis below):
+ *  - The required annual amount is worked out from the method (sepp-calc.js)
+ *    when its inputs are entered. A payment that differs from it is a
+ *    modification of the series — except in the first year, which is only
+ *    flagged (a part-year start may have been agreed with the custodian).
+ *  - A modification — that, or the preparer's "changed or stopped" tick —
+ *    breaks the series only if it comes before the later of five years from
+ *    the first payment (sepp_start_date) and age 59½. It is dated by
+ *    sepp_change_date, else the row's date paid, else 31 December. With no
+ *    start date the break is taken as it stands.
+ *  - A break in this tax year: the 10% falls due now on every earlier SEPP
+ *    payment taken before 59½ (sepp_prior_payments_usd), plus interest for
+ *    the deferral, which isn't computed; this year's payment loses the
+ *    exception unless it was paid before the change. A break in an earlier
+ *    year: the recapture belonged on that year's return, and this year's
+ *    payments have no exception. A change in a later year doesn't touch
+ *    this return.
+ *  - SEPP payments are periodic payments: while the series holds, the
+ *    treaty treats them as periodic (DTAA Art. 20, taxable in the country
+ *    of residence); a payment that loses the exception is taxed like a lump
+ *    sum. */
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 
 var PLAN_TYPES = ["ira", "roth_ira", "401k", "pension", "other_plan"];
@@ -62,15 +71,28 @@ function seppWindowEnd(r, dobRaw) {
   var five = [st[0] + 5, st[1], st[2]], h = age59HalfDate(dobRaw);
   return h && before(five, h) ? h : five;
 }
-function seppChangeDate(r, baseYear) { return ymd(r.date_paid) || [Math.trunc(Number(baseYear)) || 2026, 12, 31]; }
-// Marked as changed or stopped, whatever the date.
-function seppMarkedBroken(r) { return r.early_exception === "sepp" && r.sepp_broken === true; }
-// Broken for §72(t)(4): marked, and changed inside the required period.
-function seppBroken(r, dobRaw, baseYear) {
-  if (!seppMarkedBroken(r)) return false;
+function fmtDate(d) { return d ? d[0] + "-" + String(d[1]).padStart(2, "0") + "-" + String(d[2]).padStart(2, "0") : null; }
+// Everything about one SEPP row for this tax year (see the header).
+function seppAnalysis(r, dobRaw, baseYear) {
+  var year = Math.trunc(Number(baseYear)) || 2026;
+  var calc = require("./sepp-calc.js").required(r, dobRaw, year);
+  var paidUsd = r.rolled_over === true ? 0 : num(r.taxable_usd);
+  var st = ymd(r.sepp_start_date), firstYear = !!st && st[0] === year;
+  var mismatch = calc.annualUsd != null && require("./sepp-calc.js").differs(paidUsd, calc.annualUsd);
+  var autoBreak = mismatch && !firstYear, marked = r.sepp_broken === true;
+  var change = ymd(r.sepp_change_date) || (marked || autoBreak ? (ymd(r.date_paid) || [year, 12, 31]) : null);
   var end = seppWindowEnd(r, dobRaw);
-  return !end || before(seppChangeDate(r, baseYear), end);
+  var modified = (marked || autoBreak) && !!change;
+  var broken = modified && (!end || before(change, end));
+  var brokenThisYear = broken && change[0] === year, brokenEarlier = broken && change[0] < year;
+  var paid = ymd(r.date_paid);
+  return { payerName: r.payer_name || null, calc: calc, paidUsd: paidUsd, firstYear: firstYear, mismatch: mismatch, autoBreak: autoBreak,
+    marked: marked, changeDate: fmtDate(change), changeYear: change ? change[0] : null, periodEnd: fmtDate(end), missingStartDate: !end,
+    afterPeriod: modified && !broken, brokenThisYear: brokenThisYear, brokenEarlier: brokenEarlier,
+    priorPaymentsUsd: Math.max(0, num(r.sepp_prior_payments_usd)),
+    losesException: brokenEarlier || (brokenThisYear && !(paid && before(paid, change))) };
 }
+function seppLost(r, dobRaw, baseYear) { return r.early_exception === "sepp" && seppAnalysis(r, dobRaw, baseYear).losesException; }
 // Periodic for the treaty (Art. 20): marked periodic (or no type, older
 // data) and not a broken SEPP.
 function treatyPeriodic(r) { return r.paymentType !== "lump_sum" && !r.seppBroken; }
@@ -84,8 +106,8 @@ function rows(us, dobRaw, baseYear) {
       planType: PLAN_TYPES.indexOf(r.plan_type) >= 0 ? r.plan_type : "other_plan",
       payerName: r.payer_name || null, taxableUsd: num(r.taxable_usd),
       paymentType: r.payment_type === "lump_sum" ? "lump_sum" : r.payment_type === "periodic" ? "periodic" : null,
-      exception: seppBroken(r, dobRaw, baseYear) ? "none" : EXCEPTIONS.indexOf(r.early_exception) >= 0 ? r.early_exception : "none",
-      seppBroken: seppBroken(r, dobRaw, baseYear),
+      exception: seppLost(r, dobRaw, baseYear) ? "none" : EXCEPTIONS.indexOf(r.early_exception) >= 0 ? r.early_exception : "none",
+      seppBroken: seppLost(r, dobRaw, baseYear),
       datePaid: r.date_paid || null, withheldUsd: num(r.federal_withheld_usd), legacy: false
     });
   });
@@ -131,24 +153,18 @@ function exceptedEarlyUsd(us, dobRaw, baseYear) {
 }
 
 // §72(t)(4) recapture: earlier SEPP payments (taken before 59½) on every
-// broken SEPP row — read from the raw list, so a schedule stopped this year
-// with nothing paid still counts.
+// series broken this tax year — read from the raw list, so a schedule
+// stopped this year with nothing paid still counts.
 function seppRecaptureBaseUsd(us, dobRaw, baseYear) { return seppStatus(us, dobRaw, baseYear).recaptureBaseUsd; }
-// Every SEPP row marked as changed or stopped, for the alert: the
-// recapture base, whether a start date is missing, and the changes that
-// came after the required period (no recapture).
+// Every SEPP row's analysis, for the alerts, plus the recapture base.
 function seppStatus(us, dobRaw, baseYear) {
   var ui = (us && us.income_us_source) || {};
-  var out = { recaptureBaseUsd: 0, missingStartDate: false, afterPeriod: [] };
+  var out = { recaptureBaseUsd: 0, rows: [] };
   (Array.isArray(ui.retirement_distributions) ? ui.retirement_distributions : []).forEach(function (r) {
-    if (!r || !seppMarkedBroken(r)) return;
-    var end = seppWindowEnd(r, dobRaw);
-    if (seppBroken(r, dobRaw, baseYear)) {
-      out.recaptureBaseUsd += Math.max(0, num(r.sepp_prior_payments_usd));
-      if (!end) out.missingStartDate = true;
-    } else {
-      out.afterPeriod.push({ payerName: r.payer_name || null, periodEnd: end[0] + "-" + String(end[1]).padStart(2, "0") + "-" + String(end[2]).padStart(2, "0") });
-    }
+    if (!r || r.early_exception !== "sepp") return;
+    var a = seppAnalysis(r, dobRaw, baseYear);
+    out.rows.push(a);
+    if (a.brokenThisYear) out.recaptureBaseUsd += a.priorPaymentsUsd;
   });
   return out;
 }
@@ -176,5 +192,5 @@ function early72tBaseAfterTreatyUsd(us, india, dobRaw, baseYear) {
   return treatyPeriodicExempt(us, india) ? early72tBaseUsd(us, dobRaw, baseYear, "lump_sum") : early72tBaseUsd(us, dobRaw, baseYear);
 }
 
-module.exports = { seppStatus: seppStatus, seppWindowEnd: seppWindowEnd, seppRecaptureBaseUsd: seppRecaptureBaseUsd, additionalTax72tUsd: additionalTax72tUsd, TREATY_EXEMPTS_72T: TREATY_EXEMPTS_72T, treatyPeriodicExempt: treatyPeriodicExempt, early72tBaseAfterTreatyUsd: early72tBaseAfterTreatyUsd, PLAN_TYPES: PLAN_TYPES, EXCEPTIONS: EXCEPTIONS, rows: rows, totals: totals, age59HalfDate: age59HalfDate, isEarly: isEarly,
+module.exports = { seppAnalysis: seppAnalysis, seppStatus: seppStatus, seppWindowEnd: seppWindowEnd, seppRecaptureBaseUsd: seppRecaptureBaseUsd, additionalTax72tUsd: additionalTax72tUsd, TREATY_EXEMPTS_72T: TREATY_EXEMPTS_72T, treatyPeriodicExempt: treatyPeriodicExempt, early72tBaseAfterTreatyUsd: early72tBaseAfterTreatyUsd, PLAN_TYPES: PLAN_TYPES, EXCEPTIONS: EXCEPTIONS, rows: rows, totals: totals, age59HalfDate: age59HalfDate, isEarly: isEarly,
   early72tRows: early72tRows, early72tBaseUsd: early72tBaseUsd, exceptedEarlyUsd: exceptedEarlyUsd };

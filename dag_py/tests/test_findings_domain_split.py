@@ -60,6 +60,7 @@ US_FINDING_IDS = {
     "underpayment_2210",
     "early_withdrawal_penalty_72t",
     "sepp_recapture_72t",
+    "sepp_calculation",
     "residency_status_understated_us",
     "residency_status_overstated_us",
     "residency_status_understated_us_entity",
@@ -110,12 +111,12 @@ def test_no_id_appears_in_more_than_one_domain_bucket():
 
 
 def test_inventory_totals_match_the_verified_js_source_count():
-    # 66 distinct ids in the JS source (report-batch5-nodes.js's own
+    # 67 distinct ids in the JS source (report-batch5-nodes.js's own
     # FINDING_ADD_ORDER), one of which (holding_period_mismatch) is counted
     # here as its dynamic-template base id, not per-instance.
-    assert len(ALL_EXPECTED_IDS) == 66
+    assert len(ALL_EXPECTED_IDS) == 67
     assert len(INDIA_FINDING_IDS) == 17
-    assert len(US_FINDING_IDS) == 18
+    assert len(US_FINDING_IDS) == 19
     assert len(CROSSBORDER_FINDING_IDS) == 31
 
 
