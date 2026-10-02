@@ -185,7 +185,7 @@ WISING.PROFILES.forEach(function (p) {
   if (isNraTreatyRateFieldRenameDivergent) {
     console.log("    (reported, not asserted) withholding diverges here — see the NRA treaty-rate fix comment above");
   } else {
-    var whDiff = deepEqual(out.withholding, r.withholding);
+    var whDiff = deepEqual(require("./tds-entries.js").frozenWithholding(out.withholding), r.withholding);
     check("withholding matches exactly", !whDiff, whDiff && whDiff.slice(0, 4).join(" | "));
   }
 

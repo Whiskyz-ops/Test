@@ -1406,6 +1406,8 @@ function assembleDag(profile, monitorAsOfBoundary) {
     ? Object.assign({}, out.analyzeResult.summary, { requiredDocs: out.analyzeResult.summary.requiredDocs - droppedRequiredCount })
     : out.analyzeResult.summary;
   return Object.assign({}, out.analyzeResult, {
+    // The TDS total row's wording is a deliberate DAG change (IN-85).
+    withholding: require("./tds-entries.js").frozenWithholding(out.analyzeResult.withholding),
     documents: documents, monitoring: monitoring, summary: summary, model: model, computed: computed, checksRegistry: out.checksRegistryResult,
     _debugTotalIncomeInrV3: out.totalIncomeInrV3, _debugTotalNormalInr: out.totalNormalInr, _debugSlabTaxInr: out.slabTaxInr,
     _debugRebateInrV3: out.rebateInrV3, _debugIsNew: out.isNew, _debugIsIndividualV3: out.isIndividualV3, _debugIsNRV3: out.isNRV3

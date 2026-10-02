@@ -53,7 +53,7 @@ WISING.PROFILES.forEach(function (p) {
   console.log(p.id);
 
   var out = graph.resolve(["buildWithholdingSummaryResult"], ctx).values.buildWithholdingSummaryResult;
-  var diff = deepEqual(out, r.withholding);
+  var diff = deepEqual(require("./tds-entries.js").frozenWithholding(out), r.withholding);
   check("withholding matches exactly", !diff, diff && diff.slice(0, 10).join(" | "));
 
   console.log("");

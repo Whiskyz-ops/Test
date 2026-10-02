@@ -165,7 +165,7 @@ NODES.buildWithholdingSummaryResult = {
   deps: [
     "s115aDividend", "s115aRoyalty", "s115aFts", "nrInterest", "isNRV3", "isEntityTaxpayer",
     "withholdingDetailIndiaRaw", "withholdingDetailUsRaw", "vdaSaleConsiderationInrBoundary", "specialRate115bbInr",
-    "panAadhaarLinkedRaw", "salaryNotChargeableInr", "salaryNotChargeableTaxInr",
+    "panAadhaarLinkedRaw", "salaryNotChargeableInr", "salaryNotChargeableTaxInr", "indiaIncomeModelResult",
     "treatyFiles1040nrRaw", "s6013hElection", "nraRaw", "nraFdapDetail",
     "aggregateUsIncomeResult", "taxesPaidUsResult", "usEntityKind"
   ],
@@ -254,13 +254,31 @@ NODES.buildWithholdingSummaryResult = {
     });
     var tdsUnallocatedInr = (wd.india.tdsAggregateInr || 0) - tdsBySource.reduce(function (t, e) { return t + e.tdsInr; }, 0);
     if (tdsUnallocatedInr > 1) {
+      // Say what the total was deducted on: this client's Indian income heads
+      // that usually carry TDS, less those already entered by source.
+      var im = d.indiaIncomeModelResult || {};
+      var covered = {};
+      tdsBySource.forEach(function (e) { covered[e.source === "professional_fees" ? "business" : e.source] = true; });
+      var heads = [["salary", "salary", im.salary], ["interest", "interest", im.interest], ["dividend", "dividends", im.dividend],
+        ["rent", "rent", im.houseProperty], ["business", "business / professional receipts", im.business], ["capital_gains", "capital gains", im.capitalGains],
+        ["winnings", "winnings", im.specialRate115bb]]
+        .filter(function (h) { return !covered[h[0]] && h[2] && h[2].inr > 0; })
+        .map(function (h) { return { key: h[0], label: h[1], inr: h[2].inr }; });
+      var fmtInr = function (v) { return "₹" + Math.round(v).toLocaleString("en-IN"); };
+      var onWhat = heads.map(function (h) { return h.label + " " + fmtInr(h.inr); }).join(", ");
+      var one = heads.length === 1 ? heads[0] : null;
       indiaRows.push({
         id: "tds_aggregate", jurisdiction: "IN", category: "general",
-        label: tdsBySource.length ? "Other TDS — not broken down by source" : "TDS Already Deducted (Aggregate — Form 26AS)",
-        grossInr: null, domesticRatePct: null, treatyRatePct: null, docsOk: null, rateAppliedPct: null,
+        label: one ? "TDS on " + one.label + " — one total, not split by payer"
+          : heads.length ? "TDS Already Deducted — one total across " + heads.length + " income types"
+          : tdsBySource.length ? "Other TDS — not broken down by source" : "TDS Already Deducted (Aggregate — Form 26AS)",
+        grossInr: one ? one.inr : null, domesticRatePct: null, treatyRatePct: null, docsOk: null,
+        rateAppliedPct: one ? (tdsUnallocatedInr / one.inr) * 100 : null,
         taxInr: tdsUnallocatedInr, gapInr: 0,
-        note: tdsBySource.length ? "Not split by source — add the rest of the Form 26AS / AIS entries under TDS by source on Layer 1 India" : "Single aggregate figure — Layer 1 doesn\'t capture a per-source breakdown of income type or rate for this amount",
-        citation: "s.199"
+        note: heads.length
+          ? "Deducted on this client's Indian income on file: " + onWhat + ". Entered as one total — add each Form 168 (formerly 26AS) / AIS entry under TDS by source on Layer 1 India to see which payer deducted what, and at what rate"
+          : tdsBySource.length ? "Not split by source — add the rest of the Form 26AS / AIS entries under TDS by source on Layer 1 India" : "Single aggregate figure — Layer 1 doesn\'t capture a per-source breakdown of income type or rate for this amount",
+        citation: one ? (tdsE.tdsSection(one.key === "business" ? "professional_fees" : one.key, !!d.isNRV3) || "s.199") : "s.199"
       });
     }
     var isNrSellerForPropertyTds = d.isNRV3;

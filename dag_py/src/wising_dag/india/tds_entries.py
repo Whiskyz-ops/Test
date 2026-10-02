@@ -40,3 +40,17 @@ def salary_tds_inr(india) -> float:
 def tds_section(source, is_non_resident: bool):
     s = SOURCES.get(source) or SOURCES["other"]
     return s["nonResident"] if is_non_resident else s["resident"]
+
+
+def frozen_withholding(wh):
+    """For comparisons against the frozen engine only — mirrors
+    tds-entries.js frozenWithholding (the tds_aggregate row's wording, IN-85)."""
+    if not isinstance(wh, dict) or not isinstance(wh.get("india"), dict):
+        return wh
+    rows = []
+    for r in wh["india"].get("rows") or []:
+        if r.get("id") == "tds_aggregate":
+            r = dict(r, label="TDS Already Deducted (Aggregate — Form 26AS)", grossInr=None, rateAppliedPct=None, citation="s.199",
+                     note="Single aggregate figure — Layer 1 doesn't capture a per-source breakdown of income type or rate for this amount")
+        rows.append(r)
+    return dict(wh, india=dict(wh["india"], rows=rows))

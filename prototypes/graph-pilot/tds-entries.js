@@ -42,4 +42,17 @@ function tdsSection(source, isNonResident) {
   return isNonResident ? s.nonResident : s.resident;
 }
 
-module.exports = { SOURCES: SOURCES, tdsEntries: tdsEntries, tdsEntriesTotalInr: tdsEntriesTotalInr, salaryTdsInr: salaryTdsInr, tdsSection: tdsSection };
+// For comparisons against the frozen engine only: the frozen engine shows
+// the TDS total as one row with fixed wording; the DAG's tds_aggregate row
+// now says what it was deducted on (GAP_TRACKER IN-85). Maps that row back.
+function frozenWithholding(wh) {
+  if (!wh || !wh.india || !Array.isArray(wh.india.rows)) return wh;
+  var rows = wh.india.rows.map(function (r) {
+    if (r.id !== "tds_aggregate") return r;
+    return Object.assign({}, r, { label: "TDS Already Deducted (Aggregate — Form 26AS)", grossInr: null, rateAppliedPct: null, citation: "s.199",
+      note: "Single aggregate figure — Layer 1 doesn't capture a per-source breakdown of income type or rate for this amount" });
+  });
+  return Object.assign({}, wh, { india: Object.assign({}, wh.india, { rows: rows }) });
+}
+
+module.exports = { frozenWithholding: frozenWithholding, SOURCES: SOURCES, tdsEntries: tdsEntries, tdsEntriesTotalInr: tdsEntriesTotalInr, salaryTdsInr: salaryTdsInr, tdsSection: tdsSection };

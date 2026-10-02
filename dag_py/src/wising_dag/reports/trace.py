@@ -852,13 +852,34 @@ def _build_withholding_summary_result(d, ctx):
         })
     tds_unallocated_inr = (wd["india"]["tdsAggregateInr"] or 0) - sum(e["tdsInr"] for e in tds_by_source)
     if tds_unallocated_inr > 1:
+        # What the total was deducted on — see report-batch4-nodes.js.
+        im = d.get("indiaIncomeModelResult") or {}
+        covered = {("business" if e["source"] == "professional_fees" else e["source"]) for e in tds_by_source}
+        heads = [{"key": k, "label": lbl, "inr": (v or {}).get("inr") or 0} for k, lbl, v in (
+            ("salary", "salary", im.get("salary")), ("interest", "interest", im.get("interest")), ("dividend", "dividends", im.get("dividend")),
+            ("rent", "rent", im.get("houseProperty")), ("business", "business / professional receipts", im.get("business")),
+            ("capital_gains", "capital gains", im.get("capitalGains")), ("winnings", "winnings", im.get("specialRate115bb")))
+            if k not in covered and v and (v.get("inr") or 0) > 0]
+        on_what = ", ".join(h["label"] + " ₹" + format_inr(js_round(h["inr"])) for h in heads)
+        one = heads[0] if len(heads) == 1 else None
+        if one:
+            label = "TDS on " + one["label"] + " — one total, not split by payer"
+        elif heads:
+            label = "TDS Already Deducted — one total across " + str(len(heads)) + " income types"
+        else:
+            label = "Other TDS — not broken down by source" if tds_by_source else "TDS Already Deducted (Aggregate — Form 26AS)"
+        if heads:
+            note = ("Deducted on this client's Indian income on file: " + on_what + ". Entered as one total — add each Form 168 (formerly 26AS) / AIS entry "
+                    "under TDS by source on Layer 1 India to see which payer deducted what, and at what rate")
+        else:
+            note = ("Not split by source — add the rest of the Form 26AS / AIS entries under TDS by source on Layer 1 India" if tds_by_source
+                    else "Single aggregate figure — Layer 1 doesn't capture a per-source breakdown of income type or rate for this amount")
         india_rows.append({
-            "id": "tds_aggregate", "jurisdiction": "IN", "category": "general",
-            "label": "Other TDS — not broken down by source" if tds_by_source else "TDS Already Deducted (Aggregate — Form 26AS)",
-            "grossInr": None, "domesticRatePct": None, "treatyRatePct": None, "docsOk": None, "rateAppliedPct": None,
-            "taxInr": tds_unallocated_inr, "gapInr": 0,
-            "note": "Not split by source — add the rest of the Form 26AS / AIS entries under TDS by source on Layer 1 India" if tds_by_source else "Single aggregate figure — Layer 1 doesn't capture a per-source breakdown of income type or rate for this amount",
-            "citation": "s.199",
+            "id": "tds_aggregate", "jurisdiction": "IN", "category": "general", "label": label,
+            "grossInr": one["inr"] if one else None, "domesticRatePct": None, "treatyRatePct": None, "docsOk": None,
+            "rateAppliedPct": (tds_unallocated_inr / one["inr"] * 100) if one else None,
+            "taxInr": tds_unallocated_inr, "gapInr": 0, "note": note,
+            "citation": (tds_section("professional_fees" if one["key"] == "business" else one["key"], bool(d["isNRV3"])) or "s.199") if one else "s.199",
         })
     is_nr_seller_for_property_tds = d["isNRV3"]
     for idx, p in enumerate(wd["india"]["propertyTds"] or []):
@@ -1040,7 +1061,7 @@ NODES = {
         deps=(
             "s115aDividend", "s115aRoyalty", "s115aFts", "nrInterest", "isNRV3", "isEntityTaxpayer",
             "withholdingDetailIndiaRaw", "withholdingDetailUsRaw", "vdaSaleConsiderationInrBoundary", "specialRate115bbInr",
-            "panAadhaarLinkedRaw", "salaryNotChargeableInr", "salaryNotChargeableTaxInr",
+            "panAadhaarLinkedRaw", "salaryNotChargeableInr", "salaryNotChargeableTaxInr", "indiaIncomeModelResult",
             "treatyFiles1040nrRaw", "s6013hElection", "nraRaw", "nraFdapDetail",
             "aggregateUsIncomeResult", "taxesPaidUsResult", "usEntityKind",
         ),

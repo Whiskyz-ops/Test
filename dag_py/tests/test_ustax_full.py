@@ -121,7 +121,8 @@ def test_nra_fixture_matches_golden_end_to_end():
     assert diff is None, "summary: " + " | ".join(diff[:8])
     diff = deep_diff(result["taxComputation"]["us"], golden["taxComputation"]["us"])
     assert diff is None, "taxComputation.us: " + " | ".join(diff[:8])
-    diff = deep_diff(result["withholding"], golden["withholding"])
+    from wising_dag.india.tds_entries import frozen_withholding
+    diff = deep_diff(frozen_withholding(result["withholding"]), golden["withholding"])
     assert diff is None, "withholding: " + " | ".join(diff[:8])
 
     # bottom-line relief matches exactly; foreignSourceIncomeUsd/reliefCapUsd

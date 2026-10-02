@@ -109,7 +109,8 @@ def test_build_withholding_summary_result_india_matches_golden(fixture_id):
         return  # same entity carve-out as buildTaxComputationIndiaResult — the india s115a/nrInterest rows are individual-only, gated on !isEntityTaxpayer both here and in golden's own engine
 
     out = GRAPH.resolve(TARGETS, ctx).values["buildWithholdingSummaryResult"]
-    diff = deep_diff(out["india"], golden["withholding"]["india"])
+    from wising_dag.india.tds_entries import frozen_withholding
+    diff = deep_diff(frozen_withholding(out)["india"], golden["withholding"]["india"])
     assert diff is None, f"{fixture_id}: " + " | ".join(diff[:8])
 
 

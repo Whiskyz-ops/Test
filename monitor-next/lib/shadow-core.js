@@ -790,6 +790,15 @@ export function compareSurface(engineResult, dagResult, profile) {
 
   let eng = engineResult, dag = dagResult;
 
+  // The DAG's TDS total row says what it was deducted on (IN-85); the
+  // frozen engine has fixed wording. Same mapping as tds-entries.js's
+  // frozenWithholding (inlined: this file takes no DAG imports).
+  if (dag && dag.withholding && dag.withholding.india && Array.isArray(dag.withholding.india.rows)) {
+    dag = { ...dag, withholding: { ...dag.withholding, india: { ...dag.withholding.india, rows: dag.withholding.india.rows.map((r) => r.id !== "tds_aggregate" ? r : {
+      ...r, label: "TDS Already Deducted (Aggregate — Form 26AS)", grossInr: null, rateAppliedPct: null, citation: "s.199",
+      note: "Single aggregate figure — Layer 1 doesn't capture a per-source breakdown of income type or rate for this amount" }) } } };
+  }
+
   // form_nj1040 (docs/GAP_TRACKER.md section H.7, 21 Jul 2026) and form_8858
   // (section H.13, 22 Jul 2026): new DAG-only documents, no engine
   // equivalent for either — stripped from both the documents list and the
