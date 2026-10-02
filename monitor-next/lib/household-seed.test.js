@@ -35,6 +35,19 @@ describe("investor mode's Reset example (household-seed.js)", () => {
     s.setItem(key(seed.PRIYA_ID, "us"), JSON.stringify(us));
     expect(seed.mehtaHouseholdEdited(W, s)).toBe(false);
   });
+  it("browsing the India form's quarters (tab state, blank yes/no moving between null and false) isn't an edit", () => {
+    const s = memoryStorage();
+    seed.ensureMehtaHousehold(W, s);
+    const india = JSON.parse(s.getItem(key(seed.ROHAN_ID, "india")));
+    india.active_quarter = "Q3";
+    india.quarters.Q1.lrs_outbound.has_received_foreign_income = false;
+    india.quarters.Q3.lrs_outbound.has_received_foreign_income = null;
+    s.setItem(key(seed.ROHAN_ID, "india"), JSON.stringify(india));
+    expect(seed.mehtaHouseholdEdited(W, s)).toBe(false);
+    india.quarters.Q2.other_sources.interest_fd_rd_inr = 999999;
+    s.setItem(key(seed.ROHAN_ID, "india"), JSON.stringify(india));
+    expect(seed.mehtaHouseholdEdited(W, s)).toBe(true);
+  });
   it("a re-save that only reorders keys isn't an edit", () => {
     const s = memoryStorage();
     seed.ensureMehtaHousehold(W, s);

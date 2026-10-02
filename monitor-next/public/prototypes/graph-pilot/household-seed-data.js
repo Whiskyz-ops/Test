@@ -494,7 +494,8 @@
     "minor_child_exemption_inr": null,
     "spousal_clubbing_s64_inr": null,
     "miscellaneous_income_inr": null,
-    "unexplained_income_115BBE_inr": 250000
+    "unexplained_income_offered": false,
+    "unexplained_income_115BBE_inr": null
    },
    "deductions": {
     "s80C": {
@@ -875,7 +876,8 @@
       "minor_child_exemption_inr": null,
       "spousal_clubbing_s64_inr": null,
       "miscellaneous_income_inr": null,
-      "unexplained_income_115BBE_inr": 62500
+      "unexplained_income_115BBE_inr": null,
+      "unexplained_income_offered": false
      },
      "lrs_outbound": {
       "total_lrs_remitted_this_fy_inr": null,
@@ -1055,7 +1057,9 @@
        "has_business_or_fo_income": true,
        "entity_type": "individual",
        "nr_ineligible_presumptive": false,
-       "nature_of_business": [],
+       "nature_of_business": [
+        "own_business"
+       ],
        "business_code": null,
        "presumptive_scheme": [],
        "profession_type": null,
@@ -1065,7 +1069,43 @@
          "business_name": "Mehta Advisory Services",
          "nature": "consulting",
          "presumptive_scheme": null,
-         "gross_receipts_inr": 450000
+         "gross_receipts_inr": 450000,
+         "expenses": {
+          "opening_stock_inr": null,
+          "closing_stock_inr": null,
+          "rent_for_business_premises_inr": null,
+          "repairs_maintenance_inr": null,
+          "insurance_premium_inr": null,
+          "employee_salary_wages_inr": null,
+          "employee_bonus_commission_inr": null,
+          "employer_pf_esi_contribution_inr": null,
+          "interest_on_borrowed_capital_inr": null,
+          "bad_debts_written_off_inr": null,
+          "other_business_expenses_inr": null,
+          "has_related_party_payments": false,
+          "payments_to_non_residents_no_tds_inr": null,
+          "payments_to_residents_no_tds_inr": null,
+          "total_cash_payments_exceeding_limit_inr": null,
+          "cash_limit_type": "10k",
+          "total_cash_payments_exceeding_35k_inr": null,
+          "s35_own_revenue_research_inr": null,
+          "s35_own_capital_research_inr": null,
+          "s35_donation_to_approved_body_inr": null,
+          "s35D_total_preliminary_expenses_inr": null,
+          "s35D_year_of_commencement": null,
+          "s35DDA_vrs_payments_inr": null,
+          "s35DDA_first_year_of_payment": null,
+          "stt_paid_inr": null,
+          "ctt_paid_inr": null,
+          "brokerage_on_fno_inr": null,
+          "exchange_charges_inr": null,
+          "advisory_and_data_subscriptions_inr": null,
+          "internet_proportion_inr": null,
+          "home_office_proportion_inr": null,
+          "margin_interest_inr": null,
+          "ca_professional_fees_inr": null,
+          "employer_pf_esi_paid_before_due_date": null
+         }
         },
         {
          "business_name": "Mehta Equipment Rentals",
@@ -1164,7 +1204,8 @@
        "partner_remuneration_s40b_inr": null,
        "s44bbb_receipts_inr": null,
        "specified_business_s35AD_inr": null,
-       "tonnage_tax_115V_inr": null
+       "tonnage_tax_115V_inr": null,
+       "has_business_income": true
       },
       "has_agricultural_income": false,
       "agricultural_income_inr": null,
@@ -1173,7 +1214,10 @@
       },
       "other_sources": {
        "interest_inr": null
-      }
+      },
+      "has_salary": false,
+      "has_house_property": true,
+      "has_other_sources": true
      },
      "other_sources": {
       "has_other_sources_income": true,
@@ -1206,7 +1250,8 @@
       "minor_child_exemption_inr": null,
       "spousal_clubbing_s64_inr": null,
       "miscellaneous_income_inr": null,
-      "unexplained_income_115BBE_inr": 62500
+      "unexplained_income_115BBE_inr": null,
+      "unexplained_income_offered": false
      },
      "lrs_outbound": {
       "total_lrs_remitted_this_fy_inr": null,
@@ -1218,7 +1263,9 @@
       "pending_repatriation_inr": null,
       "tds_deducted_on_nro_balance": false
      },
-     "capital_gains": {},
+     "capital_gains": {
+      "has_capital_gains": false
+     },
      "financial_holdings": {
       "has_financial_transactions": false,
       "transactions": []
@@ -1287,7 +1334,9 @@
        "has_business_or_fo_income": true,
        "entity_type": "individual",
        "nr_ineligible_presumptive": false,
-       "nature_of_business": [],
+       "nature_of_business": [
+        "own_business"
+       ],
        "business_code": null,
        "presumptive_scheme": [],
        "profession_type": null,
@@ -1297,7 +1346,43 @@
          "business_name": "Mehta Advisory Services",
          "nature": "consulting",
          "presumptive_scheme": null,
-         "gross_receipts_inr": 450000
+         "gross_receipts_inr": 450000,
+         "expenses": {
+          "opening_stock_inr": null,
+          "closing_stock_inr": null,
+          "rent_for_business_premises_inr": null,
+          "repairs_maintenance_inr": null,
+          "insurance_premium_inr": null,
+          "employee_salary_wages_inr": null,
+          "employee_bonus_commission_inr": null,
+          "employer_pf_esi_contribution_inr": null,
+          "interest_on_borrowed_capital_inr": null,
+          "bad_debts_written_off_inr": null,
+          "other_business_expenses_inr": null,
+          "has_related_party_payments": false,
+          "payments_to_non_residents_no_tds_inr": null,
+          "payments_to_residents_no_tds_inr": null,
+          "total_cash_payments_exceeding_limit_inr": null,
+          "cash_limit_type": "10k",
+          "total_cash_payments_exceeding_35k_inr": null,
+          "s35_own_revenue_research_inr": null,
+          "s35_own_capital_research_inr": null,
+          "s35_donation_to_approved_body_inr": null,
+          "s35D_total_preliminary_expenses_inr": null,
+          "s35D_year_of_commencement": null,
+          "s35DDA_vrs_payments_inr": null,
+          "s35DDA_first_year_of_payment": null,
+          "stt_paid_inr": null,
+          "ctt_paid_inr": null,
+          "brokerage_on_fno_inr": null,
+          "exchange_charges_inr": null,
+          "advisory_and_data_subscriptions_inr": null,
+          "internet_proportion_inr": null,
+          "home_office_proportion_inr": null,
+          "margin_interest_inr": null,
+          "ca_professional_fees_inr": null,
+          "employer_pf_esi_paid_before_due_date": null
+         }
         },
         {
          "business_name": "Mehta Equipment Rentals",
@@ -1396,7 +1481,8 @@
        "partner_remuneration_s40b_inr": null,
        "s44bbb_receipts_inr": null,
        "specified_business_s35AD_inr": null,
-       "tonnage_tax_115V_inr": null
+       "tonnage_tax_115V_inr": null,
+       "has_business_income": true
       },
       "has_agricultural_income": false,
       "agricultural_income_inr": null,
@@ -1405,7 +1491,10 @@
       },
       "other_sources": {
        "interest_inr": null
-      }
+      },
+      "has_salary": false,
+      "has_house_property": true,
+      "has_other_sources": true
      },
      "other_sources": {
       "has_other_sources_income": true,
@@ -1438,7 +1527,8 @@
       "minor_child_exemption_inr": null,
       "spousal_clubbing_s64_inr": null,
       "miscellaneous_income_inr": null,
-      "unexplained_income_115BBE_inr": 62500
+      "unexplained_income_115BBE_inr": null,
+      "unexplained_income_offered": false
      },
      "lrs_outbound": {
       "total_lrs_remitted_this_fy_inr": null,
@@ -1450,7 +1540,9 @@
       "pending_repatriation_inr": null,
       "tds_deducted_on_nro_balance": false
      },
-     "capital_gains": {},
+     "capital_gains": {
+      "has_capital_gains": false
+     },
      "financial_holdings": {
       "has_financial_transactions": false,
       "transactions": []
@@ -1519,7 +1611,9 @@
        "has_business_or_fo_income": true,
        "entity_type": "individual",
        "nr_ineligible_presumptive": false,
-       "nature_of_business": [],
+       "nature_of_business": [
+        "own_business"
+       ],
        "business_code": null,
        "presumptive_scheme": [],
        "profession_type": null,
@@ -1529,7 +1623,43 @@
          "business_name": "Mehta Advisory Services",
          "nature": "consulting",
          "presumptive_scheme": null,
-         "gross_receipts_inr": 450000
+         "gross_receipts_inr": 450000,
+         "expenses": {
+          "opening_stock_inr": null,
+          "closing_stock_inr": null,
+          "rent_for_business_premises_inr": null,
+          "repairs_maintenance_inr": null,
+          "insurance_premium_inr": null,
+          "employee_salary_wages_inr": null,
+          "employee_bonus_commission_inr": null,
+          "employer_pf_esi_contribution_inr": null,
+          "interest_on_borrowed_capital_inr": null,
+          "bad_debts_written_off_inr": null,
+          "other_business_expenses_inr": null,
+          "has_related_party_payments": false,
+          "payments_to_non_residents_no_tds_inr": null,
+          "payments_to_residents_no_tds_inr": null,
+          "total_cash_payments_exceeding_limit_inr": null,
+          "cash_limit_type": "10k",
+          "total_cash_payments_exceeding_35k_inr": null,
+          "s35_own_revenue_research_inr": null,
+          "s35_own_capital_research_inr": null,
+          "s35_donation_to_approved_body_inr": null,
+          "s35D_total_preliminary_expenses_inr": null,
+          "s35D_year_of_commencement": null,
+          "s35DDA_vrs_payments_inr": null,
+          "s35DDA_first_year_of_payment": null,
+          "stt_paid_inr": null,
+          "ctt_paid_inr": null,
+          "brokerage_on_fno_inr": null,
+          "exchange_charges_inr": null,
+          "advisory_and_data_subscriptions_inr": null,
+          "internet_proportion_inr": null,
+          "home_office_proportion_inr": null,
+          "margin_interest_inr": null,
+          "ca_professional_fees_inr": null,
+          "employer_pf_esi_paid_before_due_date": null
+         }
         },
         {
          "business_name": "Mehta Equipment Rentals",
@@ -1628,7 +1758,8 @@
        "partner_remuneration_s40b_inr": null,
        "s44bbb_receipts_inr": null,
        "specified_business_s35AD_inr": null,
-       "tonnage_tax_115V_inr": null
+       "tonnage_tax_115V_inr": null,
+       "has_business_income": true
       },
       "has_agricultural_income": false,
       "agricultural_income_inr": null,
@@ -1637,7 +1768,10 @@
       },
       "other_sources": {
        "interest_inr": null
-      }
+      },
+      "has_salary": false,
+      "has_house_property": true,
+      "has_other_sources": true
      },
      "other_sources": {
       "has_other_sources_income": true,
@@ -1670,7 +1804,8 @@
       "minor_child_exemption_inr": null,
       "spousal_clubbing_s64_inr": null,
       "miscellaneous_income_inr": null,
-      "unexplained_income_115BBE_inr": 62500
+      "unexplained_income_115BBE_inr": null,
+      "unexplained_income_offered": false
      },
      "lrs_outbound": {
       "total_lrs_remitted_this_fy_inr": null,
@@ -1682,7 +1817,9 @@
       "pending_repatriation_inr": null,
       "tds_deducted_on_nro_balance": false
      },
-     "capital_gains": {},
+     "capital_gains": {
+      "has_capital_gains": false
+     },
      "financial_holdings": {
       "has_financial_transactions": false,
       "transactions": []
@@ -1844,7 +1981,7 @@
     "lt_loss_carryover_usd": null,
     "self_employment": [
      {
-      "id": "se-17907771624107f7",
+      "id": "se-1790955835104zdo",
       "business_name": "Mehta Analytics (consulting)",
       "branches": [],
       "naics_code": null,
@@ -1899,7 +2036,7 @@
     ],
     "partnerships_k1": [
      {
-      "id": "part-k1-1790777162410u41",
+      "id": "part-k1-1790955835104hrg",
       "business_name": "Meridian Consulting Partners LLC",
       "ein": null,
       "naics_code": null,
@@ -1976,7 +2113,7 @@
       "partner_share_recourse_usd": null,
       "partners": [
        {
-        "id": "partner-17907771624590vd",
+        "id": "partner-1790955835161or8",
         "name": "",
         "tin": "",
         "type": "limited",
@@ -2000,7 +2137,7 @@
     ],
     "s_corporations_k1": [
      {
-      "id": "scorp-k1-1790777162410rbn",
+      "id": "scorp-k1-17909558351045gy",
       "business_name": "Harborline Print Co",
       "ein": null,
       "naics_code": null,
@@ -2062,7 +2199,7 @@
       "qbi_ubia_usd": 45000,
       "shareholders": [
        {
-        "id": "shareholder-17907771624716pp",
+        "id": "shareholder-1790955835175rkx",
         "name": "",
         "tin": "",
         "percent": null,
@@ -2098,7 +2235,7 @@
     "crypto_transactions": [],
     "wages_w2": [
      {
-      "id": "w2-1790777162438mit",
+      "id": "w2-1790955835140t1t",
       "employer_name": "Northwind Labs",
       "employer_street": null,
       "employer_city": null,
@@ -3091,7 +3228,8 @@
        "partner_remuneration_s40b_inr": null,
        "s44bbb_receipts_inr": null,
        "specified_business_s35AD_inr": null,
-       "tonnage_tax_115V_inr": null
+       "tonnage_tax_115V_inr": null,
+       "has_business_income": false
       },
       "has_agricultural_income": false,
       "agricultural_income_inr": null,
@@ -3100,10 +3238,13 @@
       },
       "other_sources": {
        "interest_inr": null
-      }
+      },
+      "has_salary": false,
+      "has_house_property": false,
+      "has_other_sources": true
      },
      "other_sources": {
-      "has_other_sources_income": false,
+      "has_other_sources_income": true,
       "quarters": {},
       "interest_savings_inr": null,
       "interest_fd_rd_inr": null,
@@ -3144,7 +3285,9 @@
       "pending_repatriation_inr": null,
       "tds_deducted_on_nro_balance": false
      },
-     "capital_gains": {},
+     "capital_gains": {
+      "has_capital_gains": false
+     },
      "financial_holdings": {
       "has_financial_transactions": false,
       "transactions": []
@@ -3268,7 +3411,8 @@
        "partner_remuneration_s40b_inr": null,
        "s44bbb_receipts_inr": null,
        "specified_business_s35AD_inr": null,
-       "tonnage_tax_115V_inr": null
+       "tonnage_tax_115V_inr": null,
+       "has_business_income": false
       },
       "has_agricultural_income": false,
       "agricultural_income_inr": null,
@@ -3277,10 +3421,13 @@
       },
       "other_sources": {
        "interest_inr": null
-      }
+      },
+      "has_salary": false,
+      "has_house_property": false,
+      "has_other_sources": true
      },
      "other_sources": {
-      "has_other_sources_income": false,
+      "has_other_sources_income": true,
       "quarters": {},
       "interest_savings_inr": null,
       "interest_fd_rd_inr": null,
@@ -3321,7 +3468,9 @@
       "pending_repatriation_inr": null,
       "tds_deducted_on_nro_balance": false
      },
-     "capital_gains": {},
+     "capital_gains": {
+      "has_capital_gains": false
+     },
      "financial_holdings": {
       "has_financial_transactions": false,
       "transactions": []
@@ -3445,7 +3594,8 @@
        "partner_remuneration_s40b_inr": null,
        "s44bbb_receipts_inr": null,
        "specified_business_s35AD_inr": null,
-       "tonnage_tax_115V_inr": null
+       "tonnage_tax_115V_inr": null,
+       "has_business_income": false
       },
       "has_agricultural_income": false,
       "agricultural_income_inr": null,
@@ -3454,10 +3604,13 @@
       },
       "other_sources": {
        "interest_inr": null
-      }
+      },
+      "has_salary": false,
+      "has_house_property": false,
+      "has_other_sources": true
      },
      "other_sources": {
-      "has_other_sources_income": false,
+      "has_other_sources_income": true,
       "quarters": {},
       "interest_savings_inr": null,
       "interest_fd_rd_inr": null,
@@ -3498,7 +3651,9 @@
       "pending_repatriation_inr": null,
       "tds_deducted_on_nro_balance": false
      },
-     "capital_gains": {},
+     "capital_gains": {
+      "has_capital_gains": false
+     },
      "financial_holdings": {
       "has_financial_transactions": false,
       "transactions": []
@@ -3679,7 +3834,7 @@
     "crypto_transactions": [],
     "wages_w2": [
      {
-      "id": "w2-1790777174560y2f",
+      "id": "w2-1790955853387ol8",
       "employer_name": "Mount Sinai Health System",
       "employer_street": null,
       "employer_city": null,

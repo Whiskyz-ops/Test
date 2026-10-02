@@ -42,6 +42,12 @@
     rohan.us.profile.spouse_client_id = PRIYA_ID;
     rohan.us.profile.household_items_owner = "self";
     rohan.us.profile.spouse_is_us_person = true;
+    // The demo profile's unexplained income (s.195) isn't part of this
+    // example: answered No, as the India form saves it (amount cleared in
+    // every quarter).
+    [rohan.india].concat(Object.values(rohan.india.quarters || {})).forEach(function (s) {
+      if (s && s.other_sources) { s.other_sources.unexplained_income_115BBE_inr = null; s.other_sources.unexplained_income_offered = false; }
+    });
 
     var year = rohan.router.base_tax_year || 2026;
     var priya = {
@@ -137,7 +143,22 @@
   function withoutStamps(section) {
     var c = clone(section || {});
     if (c.metadata) ["created_at", "last_updated_at", "request_id"].forEach(function (k) { delete c.metadata[k]; });
-    return c;
+    // Which quarter tab is open is screen state, not data.
+    delete c.active_quarter;
+    return blanksOut(c);
+  }
+  // Blank answers (null, "", false, empty lists / objects) are the same "no"
+  // to the engine: the India form moves a quarter's unanswered yes/no between
+  // null and false as quarters are browsed. Dropped, so only real changes
+  // count as an edit.
+  function blanksOut(v) {
+    if (Array.isArray(v)) { var a = v.map(blanksOut).filter(function (x) { return x !== undefined; }); return a.length ? a : undefined; }
+    if (v && typeof v === "object") {
+      var o = {};
+      Object.keys(v).forEach(function (k) { var x = blanksOut(v[k]); if (x !== undefined) o[k] = x; });
+      return Object.keys(o).length ? o : undefined;
+    }
+    return v === null || v === "" || v === false || v === undefined ? undefined : v;
   }
 
   function mehtaHouseholdEdited(W, storage) {
@@ -148,7 +169,7 @@
       return ["router", "india", "us"].some(function (part) {
         var saved = storage.getItem("wising_client_" + c.id + "_" + part);
         if (saved == null) return false;
-        try { return sortedJson(withoutStamps(JSON.parse(saved))) !== sortedJson(withoutStamps(c[part])); } catch (e) { return true; }
+        try { return sortedJson(withoutStamps(JSON.parse(saved)) || {}) !== sortedJson(withoutStamps(c[part]) || {}); } catch (e) { return true; }
       });
     });
   }

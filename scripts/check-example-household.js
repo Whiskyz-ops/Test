@@ -4,8 +4,8 @@
  * the Layer 0/1 forms?
  *
  * In a fresh browser: let the site add the two clients, open router.html,
- * layer1_india.html and layer1_us.html for each (the forms save on their
- * own), then report:
+ * layer1_india.html (clicking through all four quarters) and layer1_us.html
+ * for each (the forms save on their own), then report:
  *   1. field names in their stored data that no form has an input for;
  *   2. stored values the forms changed or dropped when opened with no edits;
  *   3. whether the engine's output (US tax, AGI, India tax, US foreign tax
@@ -122,7 +122,14 @@ function writeDataFile(data) {
     const snap = () => page.evaluate((ids) => Object.fromEntries(ids.map((id) => [id,
       ["router", "india", "us"].reduce((o, k) => (o[k] = JSON.parse(localStorage.getItem("wising_client_" + id + "_" + k) || "{}"), o), {})])), IDS);
     const before = await snap();
-    for (const id of IDS) for (const pg of PAGES) { await page.goto(base + pg + "?client=" + id); await page.waitForTimeout(3500); }
+    for (const id of IDS) for (const pg of PAGES) {
+      await page.goto(base + pg + "?client=" + id); await page.waitForTimeout(3500);
+      // The India form fills in each quarter's blank fields the first time
+      // that quarter is opened: visit all four (ending on Q1) so the data is
+      // what the form saves after any amount of browsing.
+      if (pg === "layer1_india.html") for (const q of ["q2", "q3", "q4", "q1"]) { await page.click("#btn-q-" + q); await page.waitForTimeout(800); }
+      await page.waitForTimeout(800);
+    }
     await page.goto(base + "index.html"); await page.waitForTimeout(2000);
     const after = await snap();
 
