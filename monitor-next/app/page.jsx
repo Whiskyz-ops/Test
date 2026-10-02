@@ -308,7 +308,7 @@ export default function MonitorPage() {
     }
     setClientSummaries(attachHouseholds(engineSource === "dag" ? allClientSummariesDag() : allClientSummaries()));
   }, [engineSource]);
-  // Deep link from Layer 1's "Open Wealth Dashboard" button:
+  // Deep link from Layer 1's "Open Cross-Border Monitor" button:
   // index.html?view=monitor[&client=<registry id>]. Read in an effect (same
   // hydration reasoning as ?engine= above). Declared BEFORE the mount effect
   // below so the pin is already set when its recompute(null) runs — that
