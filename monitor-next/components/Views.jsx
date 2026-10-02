@@ -1247,7 +1247,7 @@ function ReconciliationCard({ recon }) {
 // number traces back to the person it came from (lib/household.js).
 function FtcByPerson({ data }) {
   const [open, setOpen] = useState(false);
-  const cell = (v, pct) => v == null ? <span className="text-muted">—</span> : pct ? Math.round(v * 1000) / 10 + "%" : fmtUsd(v);
+  const cell = (v, pct) => v == null ? <span className="text-muted">—</span> : pct ? Math.round(v * 1000) / 10 + "%" : v < -0.5 ? "−" + fmtUsd(-v) : fmtUsd(v);
   return (
     <div className="mt-3 rounded-xl border border-line">
       <button onClick={() => setOpen((x) => !x)} className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold text-head hover:bg-white/[0.03]">

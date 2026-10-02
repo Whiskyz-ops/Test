@@ -127,6 +127,28 @@ def _joint_ftc_allowed(jf, own_a, own_b, india_tax_paid) -> float:
     return total
 
 
+def _joint_ftc_by_spouse(jf, own_a, own_b, india_tax_paid):
+    """Each spouse's part of the joint credit: per basket, the joint credit
+    allowed shared in proportion to each spouse's own Indian tax in it —
+    never more than their own Indian tax. Mirrors household.js
+    jointFtcBySpouse. Returns [credit_a, credit_b]."""
+    def part(allowed, pa, pb):
+        t = pa + pb
+        return [allowed * pa / t, allowed * pb / t] if t > 0 else [0.0, 0.0]
+    jb = jf.get("baskets")
+    ba = own_a["computed"]["ftc"]["us"].get("baskets")
+    bb = own_b["computed"]["ftc"]["us"].get("baskets")
+    if not (jb and ba and bb):
+        return part(min(india_tax_paid, _n(jf["ftcLimitUsd"])),
+                    _n(own_a["computed"]["ftc"]["us"]["indiaTaxPaidUsd"]), _n(own_b["computed"]["ftc"]["us"]["indiaTaxPaidUsd"]))
+    out = [0.0, 0.0]
+    for k in ("passive", "general"):
+        pa, pb = _n(ba[k]["indiaTaxPaidUsd"]), _n(bb[k]["indiaTaxPaidUsd"])
+        p = part(min(pa + pb, _n(jb[k]["ftcLimitUsd"])), pa, pb)
+        out = [out[0] + p[0], out[1] + p[1]]
+    return out
+
+
 def _with_status(c, status):
     us = _clone(c.get("us") or {})
     us.setdefault("profile", {})
@@ -209,4 +231,11 @@ def analyze_household(a, b, analyze_fn) -> dict:
     spouses[0]["usTaxShareUsd"], spouses[1]["usTaxShareUsd"] = split["aUsd"], split["bUsd"]
     for s in spouses:
         s["indiaReliefHouseholdUsd"] = min(s["usTaxShareUsd"] * s["usSourceFraction"], s["indiaReliefCapUsd"])
+    credits = _joint_ftc_by_spouse(jf, own_a, own_b, india_tax_paid)
+    for i, r in enumerate((own_a, own_b)):
+        paid = _n(r["computed"]["ftc"]["us"]["indiaTaxPaidUsd"])
+        spouses[i]["indiaTaxPaidForFtcUsd"] = paid
+        spouses[i]["ftcCreditUsd"] = credits[i]
+        spouses[i]["ftcUnrelievedUsd"] = max(0.0, paid - credits[i])
+        spouses[i]["usTaxAfterCreditUsd"] = max(0.0, _n(ju["totalTaxBeforeFtcUsd"]) * spouses[i]["share"] - credits[i])
     return out

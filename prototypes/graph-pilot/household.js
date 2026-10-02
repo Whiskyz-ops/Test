@@ -125,6 +125,29 @@
     }, 0);
   }
 
+  // Who the joint credit belongs to: the credit is for Indian tax, so each
+  // spouse's part is the joint credit allowed in each basket shared among
+  // the spouses in proportion to their own Indian tax in that basket —
+  // never more than their own Indian tax (a spouse who paid none gets
+  // none). What's left of each spouse's own Indian tax is their unrelieved
+  // double tax. Returns [creditA, creditB]. Python mirror:
+  // household/calc.py _joint_ftc_by_spouse.
+  function jointFtcBySpouse(jf, ownA, ownB, indiaTaxPaidUsd) {
+    var jb = jf.baskets, ba = ownA.computed.ftc.us.baskets, bb = ownB.computed.ftc.us.baskets;
+    function part(allowed, pa, pb) {
+      var t = pa + pb;
+      return t > 0 ? [allowed * pa / t, allowed * pb / t] : [0, 0];
+    }
+    if (!(jb && ba && bb)) {
+      return part(Math.min(indiaTaxPaidUsd, n(jf.ftcLimitUsd)), n(ownA.computed.ftc.us.indiaTaxPaidUsd), n(ownB.computed.ftc.us.indiaTaxPaidUsd));
+    }
+    return ["passive", "general"].reduce(function (t, k) {
+      var pa = n(ba[k].indiaTaxPaidUsd), pb = n(bb[k].indiaTaxPaidUsd);
+      var p = part(Math.min(pa + pb, n(jb[k].ftcLimitUsd)), pa, pb);
+      return [t[0] + p[0], t[1] + p[1]];
+    }, [0, 0]);
+  }
+
   function withStatus(c, status) {
     var us = clone(c.us || {});
     us.profile = us.profile || {};
@@ -210,6 +233,15 @@
     spouses.forEach(function (s) {
       s.indiaReliefHouseholdUsd = Math.min(s.usTaxShareUsd * s.usSourceFraction, s.indiaReliefCapUsd);
     });
+    var credits = jointFtcBySpouse(jf, ownA, ownB, indiaTaxPaidUsd);
+    [ownA, ownB].forEach(function (r, i) {
+      var paid = n(r.computed.ftc.us.indiaTaxPaidUsd);
+      spouses[i].indiaTaxPaidForFtcUsd = paid;
+      spouses[i].ftcCreditUsd = credits[i];
+      spouses[i].ftcUnrelievedUsd = Math.max(0, paid - credits[i]);
+      // This spouse's part of the joint US tax after their own credit.
+      spouses[i].usTaxAfterCreditUsd = Math.max(0, n(ju.totalTaxBeforeFtcUsd) * spouses[i].share - credits[i]);
+    });
     // The Monitor's Reconciliation tab shows the joint return itself; the
     // full engine results are kept only when asked for (not part of the
     // JS/Python comparison).
@@ -217,7 +249,7 @@
     return out;
   }
 
-  var api = { analyzeHousehold: analyzeHousehold, splitJointUsTax: splitJointUsTax, jointProfile: jointProfile, mergeValue: mergeValue };
+  var api = { analyzeHousehold: analyzeHousehold, splitJointUsTax: splitJointUsTax, jointFtcBySpouse: jointFtcBySpouse, jointProfile: jointProfile, mergeValue: mergeValue };
   var W = root.WISING = root.WISING || {};
   W.household = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

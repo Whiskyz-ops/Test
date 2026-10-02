@@ -27,14 +27,19 @@ export function householdSummaryFigures(h, clientId) {
   const me = h.spouses[idx];
   const jointTotal = h.jointUs.totalTaxBeforeFtcUsd || 0;
   const usShareUsd = jointTotal * (me.share || 0);
-  const usResidual = Math.max(0, (h.jointUs.indiaTaxPaidUsd || 0) - (h.jointUs.ftcAllowedUsd || 0));
+  // The joint credit belongs to the spouse whose Indian tax it is (engine:
+  // household.js jointFtcBySpouse), so the unrelieved double tax is their
+  // own Indian tax less their own part of the credit — not a share.
+  const usResidual = me.ftcUnrelievedUsd != null ? me.ftcUnrelievedUsd
+    : Math.max(0, (h.jointUs.indiaTaxPaidUsd || 0) - (h.jointUs.ftcAllowedUsd || 0)) * (me.share || 0);
   const own = h._own && h._own[idx];
   const worldwideIndia = !!(own && own.computed && own.computed.residency && own.computed.residency.india && own.computed.residency.india.worldwide);
   const indiaShortfall = worldwideIndia ? Math.max(0, (me.usTaxShareUsd || 0) * (me.usSourceFraction || 0) - (me.indiaReliefHouseholdUsd || 0)) : 0;
   return {
     share: me.share || 0, usShareUsd, jointUsTotalUsd: jointTotal, indiaTaxUsd: me.indiaTaxUsd || 0,
     combinedTaxUsd: (me.indiaTaxUsd || 0) + usShareUsd,
-    netDoubleTaxUsd: usResidual * (me.share || 0) + indiaShortfall
+    ftcCreditUsd: me.ftcCreditUsd || 0, usTaxAfterCreditUsd: me.usTaxAfterCreditUsd,
+    netDoubleTaxUsd: usResidual + indiaShortfall
   };
 }
 
@@ -213,26 +218,22 @@ export function buildHouseholdRecon(h, clientId) {
     K.forEach(([k, lbl]) => rows.push(row("FTC limitation — " + k, null, jb[k].ftcLimitUsd || 0, { note: "US income tax × this basket's joint foreign income ÷ joint taxable income" })));
     const allowedB = K.map(([k]) => Math.min(own.reduce((t, b) => t + (b[k].indiaTaxPaidUsd || 0), 0), jb[k].ftcLimitUsd || 0));
     K.forEach(([k], j) => rows.push(row("FTC allowed — " + k, null, allowedB[j], { note: "Lesser of both spouses' Indian tax in this basket and its joint limit" })));
-    rows.push({ section: "How the Monitor splits it between the spouses today" });
+    rows.push({ section: "Whose credit it is — each spouse's own Indian tax" });
     const figs = order.map((i) => householdSummaryFigures(h, h.spouses[i].id));
-    const allowed = h.jointUs.ftcAllowedUsd || 0, residual = Math.max(0, (h.jointUs.indiaTaxPaidUsd || 0) - allowed);
-    rows.push(row("Share of the joint US tax (method A)", order.map((i) => h.spouses[i].share), 1, { pct: true }));
-    rows.push(row("Credit allocated (share × joint credit)", order.map((i) => h.spouses[i].share * allowed), allowed));
-    rows.push(row("Unrelieved US-side double tax allocated (share × joint)", order.map((i) => h.spouses[i].share * residual), residual));
-    const shortfalls = figs.map((f, j) => f.netDoubleTaxUsd - h.spouses[order[j]].share * residual);
+    const sp = order.map((i) => h.spouses[i]);
+    const sum = (k) => sp.reduce((t, s) => t + (s[k] || 0), 0);
+    rows.push(row("Credit allocated (in proportion to own Indian tax, basket by basket — never more than it)", sp.map((s) => s.ftcCreditUsd || 0), sum("ftcCreditUsd"),
+      { note: "A spouse with no Indian tax gets no credit" }));
+    rows.push(row("Unrelieved US-side double tax (own Indian tax − own credit)", sp.map((s) => s.ftcUnrelievedUsd || 0), sum("ftcUnrelievedUsd")));
+    const shortfalls = figs.map((f, j) => f.netDoubleTaxUsd - (sp[j].ftcUnrelievedUsd || 0));
     if (shortfalls.some((x) => x > 0.5)) rows.push(row("Plus own India relief shortfall (Form 44)", shortfalls, shortfalls[0] + shortfalls[1]));
     rows.push(row("Net unrelieved double tax (Clients tab)", figs.map((f) => f.netDoubleTaxUsd), figs[0].netDoubleTaxUsd + figs[1].netDoubleTaxUsd, { emphasis: true }));
-    // A spouse with no Indian tax still carries part of the credit and the
-    // unrelieved amount under the share split — say so, it's the open
-    // allocation question (credit to the spouse whose Indian tax it is).
-    const notes = [];
-    order.forEach((i, j) => {
-      const paid = own[j].passive.indiaTaxPaidUsd + own[j].general.indiaTaxPaidUsd;
-      if (paid < 0.5 && (h.spouses[i].share * residual > 0.5 || h.spouses[i].share * allowed > 0.5)) {
-        notes.push(h.spouses[i].name + " paid no Indian tax, but the share split gives them " + Math.round(h.spouses[i].share * 100) + "% of the joint credit and of the unrelieved amount. Allocating the credit to the spouse whose Indian tax it is would put all of it on " + h.spouses[order[1 - j]].name + " — open question for the CA.");
-      }
-    });
-    return { people, rows, notes };
+    rows.push({ section: "The joint US tax between the spouses" });
+    rows.push(row("Share of the joint US tax before credit (method A)", sp.map((s) => s.share), 1, { pct: true }));
+    rows.push(row("Joint US tax × share", sp.map((s) => (h.jointUs.totalTaxBeforeFtcUsd || 0) * s.share), h.jointUs.totalTaxBeforeFtcUsd || 0));
+    rows.push(row("Less own credit", sp.map((s) => -(s.ftcCreditUsd || 0)), -sum("ftcCreditUsd")));
+    rows.push(row("US tax after own credit", sp.map((s) => s.usTaxAfterCreditUsd || 0), sum("usTaxAfterCreditUsd"), { emphasis: true }));
+    return { people, rows, notes: [] };
   })();
 
   const usBlock = clone(joint.taxComputation.us);
@@ -356,6 +357,11 @@ export function householdSnapshot(snap, h, clientId) {
   // payments), shown at this client's share like the tax itself.
   const raws = (h._own || []).map((o) => o && o._raw);
   const jointNet = Math.max(0, (h.jointUs.totalTaxBeforeFtcUsd || 0) - (h.jointUs.ftcAllowedUsd || 0));
+  // Pooled payments are spread by each spouse's US tax after their OWN
+  // credit (the credit is the spouse's whose Indian tax it is), not by the
+  // pre-credit share.
+  const afterTotal = h.spouses.reduce((t, s) => t + (s.usTaxAfterCreditUsd || 0), 0);
+  const payShare = fig.usTaxAfterCreditUsd != null && afterTotal > 0 ? fig.usTaxAfterCreditUsd / afterTotal : fig.share;
   const pay = raws.length === 2 && raws[0] && raws[1] ? (() => {
     const paid = usPaidUsd(raws[0].us) + usPaidUsd(raws[1].us);
     // Estimated payments on a joint return are the couple's: both spouses'
@@ -363,8 +369,8 @@ export function householdSnapshot(snap, h, clientId) {
     // result shown on both pages.
     const block = jointEstimatesBlock(raws[0].us, raws[1].us);
     const inst = installmentStatus(r, { us: { withholding_and_estimated: block } }, "US", jointNet - (Number(block.federal_withholding_total_usd) || 0) >= 1000);
-    return { paidUsd: paid * fig.share, balanceUsd: Math.max(0, jointNet - paid) * fig.share, jointBalanceUsd: Math.max(0, jointNet - paid),
-      refundUsd: Math.max(0, paid - jointNet) * fig.share,
+    return { paidUsd: paid * payShare, balanceUsd: Math.max(0, jointNet - paid) * payShare, jointBalanceUsd: Math.max(0, jointNet - paid),
+      refundUsd: Math.max(0, paid - jointNet) * payShare,
       lateInstallments: inst.late + inst.missed, undatedInstallments: inst.undated, installmentNotes: inst.notes.map((n) => "Joint return: " + n) };
   })() : null;
   const countries = (snap.countries || []).map((c) => c.id !== "US" ? c : Object.assign({}, c, {

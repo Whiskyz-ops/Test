@@ -35,7 +35,7 @@ Every figure below was measured by running this exact flow in a fresh browser on
 | | Rohan | Priya |
 |---|---|---|
 | Combined tax | $106,646 (89% of joint US) | $10,983 (11% of joint US) |
-| FTC residual | $3,916 | $492 |
+| FTC residual | $4,408 | $0 |
 | Health | 8 | **73** ← remember this |
 
 Top tiles: Open critical **8**, Combined tax **$117,629**, FTC residual **$4,408**.
@@ -66,7 +66,7 @@ Top tiles: Open critical **8**, Combined tax **$117,629**, FTC residual **$4,408
 
 **Read out the baseline:**
 - Household card: same joint tax, **$87,212**; Priya **11%, $9,732**.
-- United States row: estimated **$10,983**, unpaid **$4,755**.
+- United States row: estimated **$10,983**, unpaid **$5,597**.
 - Conflicts: **9 findings, 2 critical**.
 - Map: India is **blue, "Filing required"**. She owes India nothing, but she has money to get back.
 - Conflict: "Indian tax withheld exceeds the tax due: **₹37,440 refund** to claim in India." (Her bank withheld TDS on interest that's below the exemption. She only gets it back by filing an Indian return.)
@@ -75,7 +75,7 @@ Top tiles: Open critical **8**, Combined tax **$117,629**, FTC residual **$4,408
 
 > "Reconciliation shows how we got here. India income by head: just **₹1,20,000 interest**. On the US side, Form 1116 for the joint return: foreign tax credit allowed **$14,805**, and **$4,408** of double tax still unrelieved."
 
-(Optional: open "By person". Every joint figure traces back to Rohan or Priya.)
+(Optional: open "By person". Every joint figure traces back to Rohan or Priya. The credit is **all Rohan's**, $14,805, because it's his Indian tax; Priya paid none, so she gets none.)
 
 ---
 
@@ -113,7 +113,7 @@ The form saves on its own. **Close tab 2.**
 | Joint US income tax | $87,212 | **$96,465** |
 | Priya's share | 11% · $9,732 | **16% · $15,836** |
 | Priya, US estimated tax | $10,983 | **$17,675** |
-| Priya, US unpaid | $4,755 | **$8,426** |
+| Priya, US unpaid | $5,597 | **$9,826** |
 | Findings / critical | 9 / 2 | **10 / 3** |
 
 **The new critical conflict** sits at the top of "Same income taxed by both countries":

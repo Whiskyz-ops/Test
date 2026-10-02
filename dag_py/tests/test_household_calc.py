@@ -131,6 +131,12 @@ def test_mehta_household_joint_tax():
     # Joint regular income tax on the couple's combined return, including
     # Rohan's Indian royalty entered only as a treaty election.
     assert round(h["jointUs"]["incomeTaxUsd"]) == 87212
+    # Only Rohan paid Indian tax, so the whole joint credit is his; Priya's
+    # share of the US tax is not reduced by it.
+    rohan, priya = sorted(h["spouses"], key=lambda s: s["id"] != "c_rohan_mehta")
+    assert priya["ftcCreditUsd"] == 0 and priya["ftcUnrelievedUsd"] == 0
+    assert abs(rohan["ftcCreditUsd"] - h["jointUs"]["ftcAllowedUsd"]) < 0.01
+    assert abs(rohan["ftcUnrelievedUsd"] - (h["jointUs"]["indiaTaxPaidUsd"] - h["jointUs"]["ftcAllowedUsd"])) < 0.01
 
 
 def test_joint_ftc_is_limited_basket_by_basket():
@@ -142,3 +148,17 @@ def test_joint_ftc_is_limited_basket_by_basket():
             "passive": {"indiaTaxPaidUsd": passive}, "general": {"indiaTaxPaidUsd": general}}}}}}
     jf = {"ftcLimitUsd": 1100, "baskets": {"passive": {"ftcLimitUsd": 100}, "general": {"ftcLimitUsd": 1000}}}
     assert _joint_ftc_allowed(jf, own(400, 50), own(100, 0), 550) == 150  # was min(550, 1100) = 550
+
+
+def test_joint_credit_goes_to_the_spouse_whose_indian_tax_it_is():
+    # Per basket, the joint credit is shared by each spouse's own Indian tax
+    # and never exceeds it: a spouse with no Indian tax gets none.
+    from wising_dag.household.calc import _joint_ftc_by_spouse
+    def own(passive, general):
+        return {"computed": {"ftc": {"us": {"indiaTaxPaidUsd": passive + general, "baskets": {
+            "passive": {"indiaTaxPaidUsd": passive}, "general": {"indiaTaxPaidUsd": general}}}}}}
+    jf = {"ftcLimitUsd": 1100, "baskets": {"passive": {"ftcLimitUsd": 100}, "general": {"ftcLimitUsd": 1000}}}
+    # passive: 400 + 100 paid, 100 allowed -> 80 / 20; general: 50 + 0, 50 allowed -> 50 / 0
+    assert _joint_ftc_by_spouse(jf, own(400, 50), own(100, 0), 550) == [130.0, 20.0]
+    # Only one spouse paid Indian tax: all the credit is theirs.
+    assert _joint_ftc_by_spouse(jf, own(0, 900), own(0, 0), 900) == [900.0, 0.0]

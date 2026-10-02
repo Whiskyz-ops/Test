@@ -104,8 +104,10 @@ describe("FTC reconciliation by person (joint return)", () => {
     blocked: false, status: "mfj", split: { method: "A", methodLabel: "in proportion" },
     jointUs: { incomeTaxUsd: 90000, totalTaxBeforeFtcUsd: 100000, indiaTaxPaidUsd: 20000, ftcAllowedUsd: 15000, ftcLimitUsd: 15000 },
     spouses: [
-      { id: "r", name: "Rohan", share: 0.8, indiaTaxUsd: 20000, usTaxShareUsd: 72000, usSourceFraction: 0.8, indiaReliefHouseholdUsd: 0 },
-      { id: "p", name: "Priya", share: 0.2, indiaTaxUsd: 0, usTaxShareUsd: 18000, usSourceFraction: 1, indiaReliefHouseholdUsd: 0 }
+      { id: "r", name: "Rohan", share: 0.8, indiaTaxUsd: 20000, usTaxShareUsd: 72000, usSourceFraction: 0.8, indiaReliefHouseholdUsd: 0,
+        indiaTaxPaidForFtcUsd: 20000, ftcCreditUsd: 15000, ftcUnrelievedUsd: 5000, usTaxAfterCreditUsd: 65000 },
+      { id: "p", name: "Priya", share: 0.2, indiaTaxUsd: 0, usTaxShareUsd: 18000, usSourceFraction: 1, indiaReliefHouseholdUsd: 0,
+        indiaTaxPaidForFtcUsd: 0, ftcCreditUsd: 0, ftcUnrelievedUsd: 0, usTaxAfterCreditUsd: 20000 }
     ],
     _own: [run({ passive: basket(6000, 20000, 0), general: basket(14000, 50000, 0) }), run({ passive: basket(0, 1500, 0), general: basket(0, 0, 0) })],
     _joint: Object.assign(run({ passive: basket(6000, 21500, 4000), general: basket(14000, 50000, 11000) }), {
@@ -129,9 +131,12 @@ describe("FTC reconciliation by person (joint return)", () => {
     const net = row("Net unrelieved double tax");
     expect(net.values[0]).toBeCloseTo(householdSummaryFigures(hh, "p").netDoubleTaxUsd);
     expect(net.values[1]).toBeCloseTo(householdSummaryFigures(hh, "r").netDoubleTaxUsd);
-    expect(net.values[0]).toBeCloseTo(0.2 * 5000);
-    // Priya paid no Indian tax but carries 20% of the credit and the residual: flagged.
-    expect(bp.notes.length).toBe(1);
-    expect(bp.notes[0]).toMatch(/Priya paid no Indian tax/);
+    // The credit is the spouse's whose Indian tax it is: Priya paid none, so
+    // she gets no credit and no unrelieved amount; all of it is Rohan's.
+    expect(row("Credit allocated").values).toEqual([0, 15000]);
+    expect(net.values).toEqual([0, 5000]);
+    expect(row("US tax after own credit").values).toEqual([20000, 65000]);
+    expect(row("US tax after own credit").joint).toBe(85000); // = joint tax − joint credit
+    expect(bp.notes.length).toBe(0);
   });
 });
