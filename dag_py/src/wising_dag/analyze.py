@@ -170,12 +170,13 @@ def normalize(opts: dict | None = None) -> dict:
 # __init__.py's exports so a plain `from wising_dag import analyze` still
 # gets exactly the real contract, nothing monitor-next-specific bundled in.
 def analyze_with_extras(opts: dict | None = None) -> dict:
-    """analyze(opts), plus `checksRegistry`/`calendarAmounts` — the two
-    monitor-next-only fields dag-adapter.js's own analyzeDag() adds on top
-    of the real analyze.js output."""
+    """analyze(opts), plus `checksRegistry`/`calendarAmounts`/
+    `indiaFilingObligation` — the monitor-next-only fields dag-adapter.js's
+    own analyzeDag() adds on top of the real analyze.js output."""
     result = analyze(opts)
     ctx = _build_ctx(opts)
-    extra = _registry().resolve(["checksRegistryResult", "calendarAmountsResult"], ctx).values
+    extra = _registry().resolve(["checksRegistryResult", "calendarAmountsResult", "indiaFilingObligationResult"], ctx).values
     result["checksRegistry"] = extra["checksRegistryResult"]
     result["calendarAmounts"] = extra["calendarAmountsResult"]
+    result["indiaFilingObligation"] = extra["indiaFilingObligationResult"]
     return result

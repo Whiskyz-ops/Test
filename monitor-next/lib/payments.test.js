@@ -146,6 +146,25 @@ describe("refunds and money at risk on country rows (from the engine's alerts)",
     expect(p.IN.atRiskUsd).toBe(0);
     expect(p.IN.atRiskNote).toMatch(/likely includes TDS on salary/);
   });
+  it("a refund with no tax due still needs the return: Filing required, not On track", () => {
+    // Non-resident with $0 Indian tax and TDS withheld (Priya Mehta): the
+    // refund is claimed only through the Indian return.
+    const p = countryPayments(base([{ id: "india_tds_refund_due", amountUsd: 451 }], 10000, 0), raw);
+    expect(classify(Object.assign({ taxesWorldwide: false, estimatedTaxUsd: 0, residency: { days: 12, threshold: 182 } }, p.IN))).toBe(STATUS.NEXUS);
+    const none = countryPayments(base([], 10000, 0), { router: {}, us: {}, india: {} });
+    expect(classify(Object.assign({ taxesWorldwide: false, estimatedTaxUsd: 0, residency: { days: 12, threshold: 182 } }, none.IN))).toBe(STATUS.NONE);
+  });
+  it("a compulsory Indian return with $0 tax and no refund is Filing required, with the reason", () => {
+    // RNOR with ₹9,00,000 of income, all taxed away by the s.87A rebate.
+    const r = Object.assign(base([], 10000, 0), { indiaFilingObligation: { required: true, reasons: [{ code: "income", text: "Income before deductions ₹9,00,000 is above the ₹4,00,000 basic exemption (s.263(1)(a))" }] } });
+    const p = countryPayments(r, { router: {}, us: {}, india: {} });
+    expect(p.IN.filingRequired).toBe(true);
+    expect(p.IN.reason).toBe("Indian return compulsory — Income before deductions ₹9,00,000 is above the ₹4,00,000 basic exemption (s.263(1)(a))");
+    expect(classify(Object.assign({ taxesWorldwide: false, estimatedTaxUsd: 0, residency: { days: 100, threshold: 182 } }, p.IN))).toBe(STATUS.NEXUS);
+    const none = countryPayments(Object.assign(base([], 10000, 0), { indiaFilingObligation: { required: false, reasons: [] } }), { router: {}, us: {}, india: {} });
+    expect(none.IN.filingRequired).toBeUndefined();
+    expect(classify(Object.assign({ taxesWorldwide: false, estimatedTaxUsd: 0, residency: { days: 100, threshold: 182 } }, none.IN))).toBe(STATUS.NONE);
+  });
   it("shows nothing when the engine raises neither alert", () => {
     const p = countryPayments(base([], 10000, 31), raw);
     expect(p.IN.refundUsd).toBe(0);

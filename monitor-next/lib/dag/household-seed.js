@@ -122,7 +122,29 @@
     return missing;
   }
 
-  var api = { buildMehtaHousehold: buildMehtaHousehold, buildOriginalMehtaHousehold: buildOriginalMehtaHousehold, seedMehtaHousehold: seedMehtaHousehold, ensureMehtaHousehold: ensureMehtaHousehold, ROHAN_ID: ROHAN_ID, PRIYA_ID: PRIYA_ID };
+  // Has either client's saved data been changed from the example (a form
+  // edit in this browser)? Compared value by value, so a re-save that only
+  // reorders keys doesn't count. A client not saved yet isn't "edited" —
+  // ensureMehtaHousehold adds it as the example.
+  function sortedJson(v) {
+    if (Array.isArray(v)) return "[" + v.map(sortedJson).join(",") + "]";
+    if (v && typeof v === "object") return "{" + Object.keys(v).sort().map(function (k) { return JSON.stringify(k) + ":" + sortedJson(v[k]); }).join(",") + "}";
+    return JSON.stringify(v === undefined ? null : v);
+  }
+  function mehtaHouseholdEdited(W, storage) {
+    if (!storage || !W) return false;
+    var clients;
+    try { clients = buildMehtaHousehold(W); } catch (e) { return false; }
+    return clients.some(function (c) {
+      return ["router", "india", "us"].some(function (part) {
+        var saved = storage.getItem("wising_client_" + c.id + "_" + part);
+        if (saved == null) return false;
+        try { return sortedJson(JSON.parse(saved)) !== sortedJson(c[part]); } catch (e) { return true; }
+      });
+    });
+  }
+
+  var api = { mehtaHouseholdEdited: mehtaHouseholdEdited, buildMehtaHousehold: buildMehtaHousehold, buildOriginalMehtaHousehold: buildOriginalMehtaHousehold, seedMehtaHousehold: seedMehtaHousehold, ensureMehtaHousehold: ensureMehtaHousehold, ROHAN_ID: ROHAN_ID, PRIYA_ID: PRIYA_ID };
   var WW = root.WISING = root.WISING || {};
   WW.householdSeed = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

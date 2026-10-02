@@ -1,0 +1,1001 @@
+{
+ "_comment": "Shared JS / Python cases for indiaFilingObligationResult (prototypes/graph-pilot/india-filing-obligation.js, dag_py/src/wising_dag/india/filing_obligation.py). `d` uses the JS dependency names; the Python test maps ageAtFyEnd -> ageAtFyEndIn1 and baseYear -> baseYearIn1.",
+ "cases": [
+  {
+   "name": "Non-resident below every test",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 300000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 10000
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": false,
+    "codes": [],
+    "notes": 0
+   }
+  },
+  {
+   "name": "Non-resident, TDS ₹37,440 (Priya Mehta): Rule 163",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 300000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 37440
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "tds_tcs"
+    ],
+    "notes": 0,
+    "textIncludes": "₹37,440 is ₹25,000 or more (Rule 163)"
+   }
+  },
+  {
+   "name": "TDS + TCS counted together",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 0,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 15000
+     },
+     "tcs": {
+      "inr": 10000
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "tds_tcs"
+    ],
+    "notes": 0
+   }
+  },
+  {
+   "name": "New regime: ₹4,00,000 exactly is not above the exemption",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 400000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 0
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": false,
+    "codes": [],
+    "notes": 0
+   }
+  },
+  {
+   "name": "New regime: ₹4,00,001 is above it",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 400001,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 0
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "income"
+    ],
+    "notes": 0,
+    "textIncludes": "above the ₹4,00,000 basic exemption (s.263(1)(a))"
+   }
+  },
+  {
+   "name": "Old regime resident aged 65: ₹3,00,000 exemption, ₹50,000 TDS test",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "ROR",
+    "isNRV3": false,
+    "ageAtFyEnd": 65,
+    "baseYear": 2026,
+    "isNew": false,
+    "grossTotalIncomeInrCombined": 290000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 40000
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": false,
+    "codes": [],
+    "notes": 0
+   }
+  },
+  {
+   "name": "Old regime resident aged 65 above ₹3,00,000",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "ROR",
+    "isNRV3": false,
+    "ageAtFyEnd": 65,
+    "baseYear": 2026,
+    "isNew": false,
+    "grossTotalIncomeInrCombined": 300001,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 0
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "income"
+    ],
+    "notes": 0,
+    "textIncludes": "₹3,00,000"
+   }
+  },
+  {
+   "name": "Old regime resident aged 82: ₹5,00,000 exemption",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "ROR",
+    "isNRV3": false,
+    "ageAtFyEnd": 82,
+    "baseYear": 2026,
+    "isNew": false,
+    "grossTotalIncomeInrCombined": 450000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 0
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": false,
+    "codes": [],
+    "notes": 0
+   }
+  },
+  {
+   "name": "HUF with a 70-year-old karta's DOB: no senior concessions",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "huf",
+    "indiaResidencyStatusRawAgg": "ROR",
+    "isNRV3": false,
+    "ageAtFyEnd": 70,
+    "baseYear": 2026,
+    "isNew": false,
+    "grossTotalIncomeInrCombined": 280000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 30000
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "income"
+    ],
+    "notes": 0,
+    "textIncludes": "₹2,50,000"
+   }
+  },
+  {
+   "name": "Old regime non-resident aged 65: no senior exemption",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 65,
+    "baseYear": 2026,
+    "isNew": false,
+    "grossTotalIncomeInrCombined": 290000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 0
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "income"
+    ],
+    "notes": 0,
+    "textIncludes": "₹2,50,000"
+   }
+  },
+  {
+   "name": "Non-resident aged 65: TDS test stays ₹25,000",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 65,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 0,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 30000
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "tds_tcs"
+    ],
+    "notes": 0
+   }
+  },
+  {
+   "name": "Resident and ordinarily resident with foreign assets, no income",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "ROR",
+    "isNRV3": false,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 0,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 0
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": true,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "foreign_assets"
+    ],
+    "notes": 0,
+    "textIncludes": "Schedule FA"
+   }
+  },
+  {
+   "name": "RNOR with foreign assets: not a trigger",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "RNOR",
+    "isNRV3": false,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 0,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 0
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": true,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": false,
+    "codes": [],
+    "notes": 0
+   }
+  },
+  {
+   "name": "Company, no income",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "company",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 0,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 0
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "entity"
+    ],
+    "notes": 0
+   }
+  },
+  {
+   "name": "Firm, no income",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "firm",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 0,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 0
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "entity"
+    ],
+    "notes": 0
+   }
+  },
+  {
+   "name": "No India scope",
+   "d": {
+    "hasIndiaScope": false,
+    "indiaEntityTypeRaw": "company",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 0,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 0
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": false,
+    "codes": [],
+    "notes": 0
+   }
+  },
+  {
+   "name": "NR with only s.115A dividend, tax fully deducted, TDS below ₹25,000",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 100000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 20000
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 20000,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": {
+     "totalInr": 100000
+    },
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": false,
+    "codes": [],
+    "notes": 1
+   }
+  },
+  {
+   "name": "NR with only s.115A dividend above the exemption, tax fully deducted, TDS ₹1,00,000",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 500000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 100000
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 100000,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": {
+     "totalInr": 500000
+    },
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "tds_tcs"
+    ],
+    "notes": 2
+   }
+  },
+  {
+   "name": "NR with only s.115A dividend, TDS short of the tax: income test applies",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 500000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 20000
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 100000,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": {
+     "totalInr": 500000
+    },
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "income"
+    ],
+    "notes": 0
+   }
+  },
+  {
+   "name": "NR with s.115A dividend plus other income: income test applies",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 600000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 100000
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 100000,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": {
+     "totalInr": 500000
+    },
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "income"
+    ],
+    "notes": 0
+   }
+  },
+  {
+   "name": "Business turnover ₹70 lakh, income below the exemption",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "ROR",
+    "isNRV3": false,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 300000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 0
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": [
+     {
+      "turnover_inr": 7000000
+     }
+    ]
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "business_turnover"
+    ],
+    "notes": 0,
+    "textIncludes": "₹70,00,000"
+   }
+  },
+  {
+   "name": "Business turnover ₹60 lakh exactly: not above",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "ROR",
+    "isNRV3": false,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 300000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 0
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": [
+     {
+      "turnover_inr": 6000000
+     }
+    ]
+   },
+   "natures": [],
+   "expect": {
+    "required": false,
+    "codes": [],
+    "notes": 0
+   }
+  },
+  {
+   "name": "s.44ADA receipts ₹12 lakh: professional",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "ROR",
+    "isNRV3": false,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 300000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 0
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": [
+     {
+      "presumptive_scheme": "s44ADA",
+      "gross_receipts_inr": 1200000
+     }
+    ]
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "professional_receipts"
+    ],
+    "notes": 0,
+    "textIncludes": "₹12,00,000"
+   }
+  },
+  {
+   "name": "Professional-only client, receipts ₹15 lakh",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "ROR",
+    "isNRV3": false,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 300000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 0
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": [
+     {
+      "gross_receipts_inr": 1500000
+     }
+    ]
+   },
+   "natures": [
+    "professional"
+   ],
+   "expect": {
+    "required": true,
+    "codes": [
+     "professional_receipts"
+    ],
+    "notes": 0
+   }
+  },
+  {
+   "name": "Trader with ₹15 lakh receipts: business, under ₹60 lakh",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "ROR",
+    "isNRV3": false,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 300000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 0
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": [
+     {
+      "gross_receipts_inr": 1500000
+     }
+    ]
+   },
+   "natures": [
+    "trader"
+   ],
+   "expect": {
+    "required": false,
+    "codes": [],
+    "notes": 0
+   }
+  },
+  {
+   "name": "Tax year 2025-26: 1961 Act and Rule 12AB",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 40,
+    "baseYear": 2025,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 0,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 30000
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "tds_tcs"
+    ],
+    "notes": 0,
+    "textIncludes": "(Rule 12AB)"
+   }
+  },
+  {
+   "name": "Income test met: Rule 163 tests not added",
+   "d": {
+    "hasIndiaScope": true,
+    "indiaEntityTypeRaw": "individual",
+    "indiaResidencyStatusRawAgg": "NR",
+    "isNRV3": true,
+    "ageAtFyEnd": 40,
+    "baseYear": 2026,
+    "isNew": true,
+    "grossTotalIncomeInrCombined": 500000,
+    "taxesPaidIndiaResult": {
+     "tds": {
+      "inr": 30000
+     },
+     "tcs": {
+      "inr": 0
+     }
+    },
+    "totalTaxInrCombined": 0,
+    "indiaForeignAssetsDeclaredRaw": null,
+    "s115aDividend": null,
+    "s115aRoyalty": null,
+    "s115aFts": null,
+    "nrInterest": null,
+    "indianBusinessesBoundary": []
+   },
+   "natures": [],
+   "expect": {
+    "required": true,
+    "codes": [
+     "income"
+    ],
+    "notes": 0
+   }
+  }
+ ]
+}

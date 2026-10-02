@@ -109,7 +109,7 @@ export function analyzeDag(opts) {
     "totalTaxInrCombined", "regimeCombined", "isEntityTaxpayer", "usTaxResult", "residencyResult",
     "ftcResult", "crossBasisResult", "limitsResult", "headlineResult",
     "apportionmentResult", "s115aDividend", "s115aRoyalty", "s115aFts", "isNRV3",
-    "analyzeResult", "checksRegistryResult", "calendarAmountsResult",
+    "analyzeResult", "checksRegistryResult", "calendarAmountsResult", "indiaFilingObligationResult",
     // Not part of the real product surface, not returned to any Monitor
     // component — lets shadow-core.js's isIndiaRebateMarginalReliefDivergent
     // Profile recompute the OLD (pre-fix) §87A rebate formula from the same
@@ -172,6 +172,8 @@ export function analyzeDag(opts) {
   // ₹/$ figure per advance-tax/estimated-tax calendar row.
   const assembled = Object.assign({}, out.analyzeResult, {
     model, computed, checksRegistry: out.checksRegistryResult, calendarAmounts: out.calendarAmountsResult,
+    // Is an Indian return compulsory, and why (DAG-only, like the two above).
+    indiaFilingObligation: out.indiaFilingObligationResult,
     // Harness-internal only — see the RESOLVE_LIST comment above. Never read
     // by any Monitor component; shadow-core.js/test-adapter.mjs are the only
     // consumers, and only for isIndiaRebateMarginalReliefDivergentProfile.
@@ -180,9 +182,8 @@ export function analyzeDag(opts) {
     _debugIsNew: out.isNew, _debugIsIndividualV3: out.isIndividualV3, _debugIsNRV3: out.isNRV3
   });
   // The client's own inputs, for the Monitor's payments / state rows
-  // (lib/payments.js). Non-enumerable, so no comparison or serializer sees it.
-  Object.defineProperty(assembled, "_raw", { value: { router, india, us }, enumerable: false });
-  return assembled;
+  // (lib/payments.js).
+  return attachRaw(assembled, { router, india, us });
 }
 
 // DAG-backed counterpart to lib/wising.js's monitorSnapshot() — same
@@ -191,7 +192,21 @@ export function analyzeDag(opts) {
 // consumed. countriesFromEngine() is reused as-is: it's a pure derivation
 // off the result shape, not engine-specific.
 export function monitorSnapshotDag(source, overrides) {
-  const result = analyzeDagSource(source, overrides);
+  return snapshotFromResult(analyzeDagSource(source, overrides));
+}
+
+// The client's own {router, india, us} on a result, for the payments /
+// state rows. Non-enumerable, so no comparison or serializer sees it.
+export function attachRaw(result, raw) {
+  if (result) Object.defineProperty(result, "_raw", { value: raw, enumerable: false, configurable: true });
+  return result;
+}
+
+// One analyze() result -> the Monitor snapshot. Shared by the JS DAG and
+// the Python DAG (lib/py-dag-adapter.js) so both modes build the map /
+// KPI rows — tax after credits, paid, balance, refund, overdue returns,
+// state rows — the same way. Needs result._raw (attachRaw).
+export function snapshotFromResult(result) {
   if (!result) return null;
   const pay = countryPayments(result, result._raw);
   const countries = countriesFromEngine(result).map((c) => (pay && pay[c.id] ? Object.assign({}, c, pay[c.id]) : c));

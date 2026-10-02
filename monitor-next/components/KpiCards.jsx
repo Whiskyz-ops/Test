@@ -4,7 +4,7 @@ import { STATUS, STATUS_META, PAL, fmtUsd } from "@/lib/logic";
 const CARDS = [
   { key: STATUS.EXPOSED, title: "Exposed", desc: "Tax still unpaid after credits and payments, or a filing deadline missed" },
   { key: STATUS.APPROACHING, title: "Approaching", desc: "No obligation yet · 60%+ of the way to a residency / reporting threshold" },
-  { key: STATUS.NEXUS, title: "Filing required", desc: "Return or disclosure due · nothing unpaid or overdue" },
+  { key: STATUS.NEXUS, title: "Filing required", desc: "Return or disclosure due, or a refund to claim · nothing unpaid or overdue" },
   { key: "all", title: "All Jurisdictions", desc: "Total jurisdictions monitored" }
 ];
 

@@ -98,4 +98,8 @@ NODES.calendarAmountsResult = {
   }
 };
 
+// Is an Indian return compulsory, and why (india-filing-obligation.js) —
+// another DAG-only Monitor extra, resolved alongside this file's own node.
+NODES.indiaFilingObligationResult = require("./india-filing-obligation.js").NODE;
+
 module.exports = { NODES: NODES };

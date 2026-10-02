@@ -155,6 +155,14 @@ export function countryPayments(result, raw) {
   const inRefund = finding("india_tds_refund_due");
   out.IN.refundUsd = inRefund ? num(inRefund.amountUsd) : 0;
   out.US.refundUsd = Math.max(0, usPaid - usTax);
+  // Indian return compulsory (the engine's indiaFilingObligation: income
+  // above the basic exemption, TDS + TCS of ₹25,000+, foreign assets of a
+  // resident, company / firm, ...): Filing required at the least, with why.
+  const ob = result.indiaFilingObligation;
+  if (ob && ob.required) {
+    out.IN.filingRequired = true;
+    out.IN.reason = "Indian return compulsory — " + ob.reasons.map((r) => r.text).join("; ");
+  }
   const salaryTds = finding("salary_not_taxable_india_tds");
   if (salaryTds && num(salaryTds.amountUsd) > 1) {
     const risk = num(salaryTds.amountUsd);
