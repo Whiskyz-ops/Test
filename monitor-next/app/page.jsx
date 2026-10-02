@@ -13,7 +13,7 @@ import { STATUS, withStatus, computeKpis, statusByMapName, runAlertScan, PAL } f
 import { monitorSnapshot, hasLiveLayer1, listProfiles, loadProfile, activeProfileId, allClientSummaries, analyzeProfileById, createClient, getClientRawState, isRegistryClientId, isUsPersonResult, isUsPersonOnlyGauge } from "@/lib/wising";
 import { monitorSnapshotDag, allClientSummariesDag, analyzeProfileByIdDag } from "@/lib/dag-adapter";
 import { resolveMode, INVESTOR_CLIENT_IDS } from "@/lib/mode";
-import { attachHouseholds, householdFor, householdReconFor, addExampleHousehold, ensureExampleHousehold, applyHouseholdToSnapshot } from "@/lib/household";
+import { attachHouseholds, householdFor, householdReconFor, addExampleHousehold, ensureExampleHousehold, exampleHouseholdEdited, applyHouseholdToSnapshot } from "@/lib/household";
 import { monitorSnapshotPyDag, allClientSummariesPyDag } from "@/lib/py-dag-adapter";
 import { entityLinksFor, ownedEntityIds, flattenOwnershipTree } from "@/lib/entity-graph";
 import { runShadow, runShadowPy, getShadowLog, clearShadowLog } from "@/lib/shadow";
@@ -56,6 +56,9 @@ export default function MonitorPage() {
   // recompute, so the Monitor opens on Rohan rather than a demo profile.
   const [siteMode, setSiteMode] = useState("investor");
   const investor = siteMode === "investor";
+  // Investor mode: Rohan's or Priya's forms edited in this browser — offers
+  // "Reset example" (lib/household.js exampleHouseholdEdited).
+  const [exampleEdited, setExampleEdited] = useState(false);
   const [clientName, setClientName] = useState(null);
   const [baseYear, setBaseYear] = useState(null);
   const [result, setResult] = useState(null);
@@ -294,6 +297,7 @@ export default function MonitorPage() {
   // clientSummaries isn't recompute's job to refresh.
   const refreshClientSummaries = useCallback(() => {
     ensureExampleHousehold();
+    setExampleEdited(exampleHouseholdEdited());
     if (engineSource === "py-dag") {
       allClientSummariesPyDag().then((s) => setClientSummaries(attachHouseholds(s))).catch(() => setClientSummaries([]));
       return;
@@ -352,6 +356,15 @@ export default function MonitorPage() {
     if (id) { onPickClient(id); setView("monitor"); }
   }, [refreshClientSummaries, onPickClient]);
   const onWhatIfReset = useCallback(() => { setRegimeOverride(null); setFxRateOverride(null); setFeieOverride(null); }, []);
+  // Investor mode: put Rohan & Priya back to the checked example (both
+  // clients' router / India / US data), staying on whichever spouse is open.
+  const onResetExample = useCallback(() => {
+    if (typeof window !== "undefined" && !window.confirm("Reset Rohan and Priya Mehta to the original example?\n\nEvery change made to their forms in this browser will be replaced. Close any open form tabs first — an open form can save its old values again.")) return;
+    addExampleHousehold();
+    onWhatIfReset();
+    refreshClientSummaries();
+    onPickClient(INVESTOR_CLIENT_IDS.includes(pinnedClientRef.current) ? pinnedClientRef.current : INVESTOR_CLIENT_IDS[0]);
+  }, [onWhatIfReset, refreshClientSummaries, onPickClient]);
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -362,7 +375,10 @@ export default function MonitorPage() {
         if (e.key && e.key.indexOf("wising_client_") === 0) refreshClientSummaries();
       }
     };
-    const onFocus = () => { if (hasLiveLayer1() || pinnedClientRef.current) recompute(pinnedClientRef.current ? { clientId: pinnedClientRef.current } : "live"); };
+    const onFocus = () => {
+      if (hasLiveLayer1() || pinnedClientRef.current) recompute(pinnedClientRef.current ? { clientId: pinnedClientRef.current } : "live");
+      setExampleEdited(exampleHouseholdEdited());
+    };
     window.addEventListener("storage", onStorage); window.addEventListener("focus", onFocus);
     return () => {
       window.removeEventListener("storage", onStorage); window.removeEventListener("focus", onFocus);
@@ -451,6 +467,15 @@ export default function MonitorPage() {
             {engineReady ? (mode === "live" ? "Live" : "Demo") : "Loading…"}
           </span>
           <button onClick={() => recompute("live")} className="font-semibold text-body hover:text-head transition-colors">↻ Refresh</button>
+          {investor && (
+            <button onClick={onResetExample}
+              title={exampleEdited ? "Rohan's or Priya's data has been edited in this browser — put both back to the original example" : "Rohan's and Priya's data is the original example"}
+              className={"font-semibold transition-colors inline-flex items-center gap-1.5 " + (exampleEdited ? "hover:text-head" : "text-muted hover:text-body")}
+              style={exampleEdited ? { color: PAL.amberText } : undefined}>
+              {exampleEdited && <span className="w-1.5 h-1.5 rounded-full" style={{ background: PAL.approaching }} />}
+              ↺ {exampleEdited ? "Edited — reset example" : "Reset example"}
+            </button>
+          )}
           {(view === "business" || view === "filings") && result && result.model && result.model.assets && result.model.assets.entityGraph && (
             <EntitySwitcher entityGraph={result.model.assets.entityGraph} selectedEntityId={selectedEntityId} onChange={setSelectedEntityId} />
           )}

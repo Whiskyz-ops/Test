@@ -125,6 +125,14 @@ export function addExampleHousehold() {
   return W.householdSeed.seedMehtaHousehold(W, window.localStorage);
 }
 
+// Investor mode's "Reset example": has Rohan's or Priya's data been edited
+// in this browser? (dag/household-seed.js mehtaHouseholdEdited.)
+export function exampleHouseholdEdited() {
+  const W = typeof window !== "undefined" ? window.WISING : null;
+  if (!W || !W.householdSeed || !W.householdSeed.mehtaHouseholdEdited) return false;
+  try { return W.householdSeed.mehtaHouseholdEdited(W, window.localStorage); } catch (e) { return false; }
+}
+
 // Reconciliation tab for a client on a linked joint return: the US side is
 // the joint return (identical on both spouses' pages), the India side stays
 // this client's own. Returns null when the client isn't on a clean, linked
